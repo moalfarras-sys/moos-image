@@ -248,6 +248,8 @@ Eq(true, devices[0].Current, "inventory marks the current device");
 Eq(true, restartedAuth.RevokeTrustedDevice(resumed, grant.DeviceId), "device can revoke itself");
 Eq(false, restartedAuth.IsValid(resumed), "revoked device loses an already-open streaming lease");
 Eq(false, restartedAuth.ResumeTrustedDevice(grant.DeviceId, grant.DeviceToken, out _), "revoked device cannot resume");
+try { await AudioLeaseTests.Run(restartedAuth, Eq<bool>); }
+catch (Exception ex) { Console.Error.WriteLine("FAIL: " + ex.Message); Environment.ExitCode = 1; return; }
 Directory.Delete(trustDir, true);
 // ── Typing prefers real keymaps; unsupported Unicode has an ordered fallback ───────
 {

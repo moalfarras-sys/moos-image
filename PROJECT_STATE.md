@@ -1,12 +1,15 @@
-# MoOS current state — measured 2026-09-26
+# MoOS current state — measured 2026-09-27
 Current measured facts only; Git owns history. Release version numbers live here.
 
 ## Source and release truth
-- **Proven production is revision `51371190`**: signed build `36182494648`, QCOW2 proofs
-  `36185264589`/`36185268538`/`36185273862`, offline ISO `36185279239`, successful
-  x86 promotion `36189683201`; ARM build, QCOW2 and promotion `36185283411` all passed.
-  The earlier ARM Plymouth proof failed; the passing retry does not close P0.7.
-  Icon-family revision `7066121e` is merged; signed candidate `36269595161` is running.
+- **Proven production is `7066121e`, `44.20260926.941`**: signed build `36269595161`,
+  QCOW2 `36271124045`/`36271126186`/`36271128506`, ISO `36271130384`, x86 promotion
+  `36273784517`, ARM proof/promotion `36271132113`. The station has not booted it.
+- Corrective source `28417d6d` merged via PR #170 (including #169); repo, x86/ARM image
+  and next-Plasma gates passed. Candidate `36282335124` was cancelled before promotion
+  to include audio-session revocation. The new audio lease binds tickets to their issuer,
+  rejects buffered output after revocation and cancels idle connections within one second.
+  Real session/stream tests: 150 pass; Linux/Windows: zero warnings/errors. Delivery pending.
 - **The NVIDIA station boots signed `44.20260925.938`** (`51371190`), with signed `.931`
   retained for rollback; booted digest `sha256:30fd4ded…` read on 2026-09-26.
   Baloo crashed in PCRE2 JIT; its scoped `QT_ENABLE_REGEXP_JIT=0` user drop-in recovered
@@ -27,10 +30,12 @@ Current measured facts only; Git owns history. Release version numbers live here
 **Corrective source work, 2026-09-27:** THEME_REV 90 adds a reviewed 6.7/6.8 dock
 material seam and shared Hub material; isolated clear/solid Hub renders and local image gates passed.
 Windows setup folder access is temporary, confirmed and read-only. Generals Zero Hour
-1080p fullscreen works on the 4K station: solo Skirmish on Alpine Assault loaded,
-a Construction Dozer was selected and moved, and the game confirmed a saved match.
-This is local per-game evidence; universal Windows compatibility remains open.
-Signed boot proof for this corrective batch is pending; Android initialized.
+ran a real Alpine Assault Skirmish at 1080p fullscreen on the 4K station: Dozer selection,
+movement and saving worked. Its local MoOS menu entry launches directly, but some reopen
+attempts stay on the introductory background, also with the builtin renderer. The tested
+DXVK configuration and save remain; all owned probes are closed. Repeated-launch/universal
+Windows qualification and this corrective batch's signed boot proof remain open.
+
 
 **All three app engines ran on the station (2026-09-20).** Windows Notepad, Minesweeper
 and PuTTY PE32+ used `moos-run-foreign` with MoOS decoration and taskbar presence; Linux
@@ -45,7 +50,7 @@ DLL from composefs; do not weaken SELinux globally.
 | Area | Measured state |
 | --- | --- |
 | Install | Offline USB install completed; target-only write was observed |
-| Target storage | `/dev/sdb`: 512 MiB ESP + 476.4 GiB Btrfs; `/var` 163/477 GiB used, 313 GiB free |
+| Target storage | `/dev/sdb`: 512 MiB ESP + 476.4 GiB Btrfs; `/var` 244/477 GiB used, 230 GiB free (2026-09-27) |
 | CPU / RAM | Intel Core i5-14400F / 15.4 GiB |
 | GPU | NVIDIA RTX 2080 SUPER, driver 615.71.09 |
 | Desktop | Plasma/KWin 6.7.5, Wayland, 3840×2160@60, scale 225% (1707×960 logical) on 2026-09-25 |
@@ -61,21 +66,18 @@ that does not qualify suspend, every app or the full visual matrix.
 
 **Mo PC Remote on `.938`, 2026-09-26:** authenticated v42 loopback H.264 Data Saver
 measured 28–29 fps and 1 ms locally; zoom visibly enlarged the desktop; Auto restored.
-The old `127.0.0.1` browser origin retained v40; fresh `localhost` served installed v42.
 External-network, typing, files and audio remain unproved. Installed Auto can step
 down to Data Saver under sustained congestion; Island follows live glass clarity.
 The scoped Baloo workaround is a user override pending signed delivery, not image proof.
 
-**Speed and Mo AI, both measured on cycle H's `.890`** and NOT re-measured since.
-`moos-measure-speed` (P5.4): MoOS's share of boot **6.70 s**/9.0,
+**Speed and Mo AI measured on `.890`, not re-measured:** P5.4 boot **6.70 s**/9.0,
 login to a ready desktop **1.10 s**/3.0, an app's window **0.49 s**/4.0, MoOS's processes
 **0.12%** of CPU while idle/8.0 — all four inside budget. `moai-measure-actions` read
 **80/80** then **79/80** over two runs of 40 fixed Arabic/English cases, no wrong tool in
 either; the one miss was the model answering in words instead of calling (P3.3).
 
-**Updating it:** origins are digest-pinned, so `bootc upgrade` reports "no changes"
-forever. Use the MoOS Updater (Settings → Update MoOS, or Mo AI's "Update my system"),
-or the nightly train; then restart.
+**Updating:** use MoOS Updater (Settings → Update MoOS, or Mo AI) to resolve and stage
+a signed digest, then restart. Nightly builds alone never promote a release.
 
 ## Closed reviews — what they established
 
@@ -167,11 +169,6 @@ libplasma soname bump that removes `kcm-fcitx5` until Fedora rebuilds it. No 6.8
   build container made `bluetoothctl` dump core 64 times; tests stub `logger` under a
   meta-gate and the helper skips Bluetooth without a system bus.
 
-- **Mo PC Remote, 2026-09-24:** on the NVIDIA station the service, portal, input daemon and
-  watchdog are active, loopback `:8765` answers, `/dev/uinput` grants the owner, no failed
-  units; the installed Arabic PIN screen was inspected. Source serializes input across
-  controllers (two-WebSocket test passes) and the PIN keypad fits a 360×640 phone (last row
-  498 px). Still owed: signed candidate, booted editions, authenticated video/input.
 - M1 visual/accessibility matrix: English/German, light/dark, reduced motion, 1080p–4K,
   100–250%, island Remote/Media (Arabic only so far).
 - Hardware: suspend/resume, multi-monitor, audio/network recovery, deliberate rollback,
@@ -197,7 +194,7 @@ the key entered through Settings, a reboot and the provider-failure surface.
 whole network beside Mo PC Remote; the finding carries `moos://privacy/stop-sharing`, and
 `moos-remote-guard off` stops and un-autostarts both with no administrator rights.
 ## Next execution
-Qualify the unified native Settings image and finish P2.12's app/firmware records; boot the
-staged NVIDIA image and run post-update checks. Then finish W9's real transaction lifecycle
-and W8's three-size mark. Pursue upstream P0.7;
+Prove and promote the audio/material corrective batch, stage its signed NVIDIA digest,
+reboot and run live post-update/clarity checks. Then finish P2.12, W9 transactions and
+W8's three-size mark; pursue upstream P0.7.
 P4.2–P4.5, German, touch/laptop/multi-output and full accessibility remain open.
