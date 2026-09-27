@@ -2,20 +2,20 @@
 Current measured facts only; Git owns history. Release version numbers live here.
 
 ## Source and release truth
-- **Proven production is `7066121e`, `44.20260926.941`**: signed build `36269595161`,
-  QCOW2 `36271124045`/`36271126186`/`36271128506`, ISO `36271130384`, x86 promotion
-  `36273784517`, ARM proof/promotion `36271132113`. The station has not booted it.
-- Corrective source `28417d6d` merged via PR #170 (including #169); repo, x86/ARM image
-  and next-Plasma gates passed. Candidate `36282335124` was cancelled before promotion
-  to include audio-session revocation. The new audio lease binds tickets to their issuer,
-  rejects buffered output after revocation and cancels idle connections within one second.
-  Real session/stream tests: 150 pass; Linux/Windows: zero warnings/errors. Delivery pending.
-- **The NVIDIA station boots signed `44.20260925.938`** (`51371190`), with signed `.931`
-  retained for rollback; booted digest `sha256:30fd4ded…` read on 2026-09-26.
-  Baloo crashed in PCRE2 JIT; its scoped `QT_ENABLE_REGEXP_JIT=0` user drop-in recovered
-  indexing to Idle with zero failed files. A timed-out DrKonqi report unit remains. The installed
-  System Settings opened the MoOS group and its Themes/What's New modules; this is
-  installed proof of the unified settings entry, not proof of every update transaction.
+- **Proven production is `e6fbd56c`, `44.20260927.945`**: signed build `36297160647`,
+  QCOW2 `36298778749`/`36298780129`/`36298781296`, ISO `36298782489`, x86 promotion
+  `36301001323`, ARM proof/promotion `36298783867`; all succeeded at attempt 1.
+- PRs #169/#170/#171 are merged. THEME_REV 90 fixes dock/Hub material, Remote v44
+  reports trusted-device failures honestly, and video/input/audio follow session revocation.
+  Audio refuses buffered output after revocation and cancels idle connections within one
+  second; 150 real session/stream assertions pass, Linux/Windows compile cleanly.
+- **The NVIDIA station still boots signed `44.20260925.938`** (`51371190`), with signed
+  `.931` retained for rollback; `.941` was staged. On 2026-09-27 the sanctioned updater
+  resolved `.945` (`sha256:b09cdc48…`) and began replacing that older staged update.
+  Completion, reboot and live material/Remote readback are not yet proven.
+- Baloo's scoped `QT_ENABLE_REGEXP_JIT=0` recovered indexing. Three failed Generals app
+  units record explicitly stopped test launches (exit 137); no game process remains.
+  Installed Settings opened the MoOS group and Themes/What's New modules previously.
 - **P0.7 is no longer only a captured stack.** Read out of plymouth 24.004.60's source on
   2026-09-21: `ply_boot_splash_free()` frees `pixel_displays` without disarming the
   `on_new_frame` timeout that only `ply_boot_splash_hide()` disarms, and `--retain-splash`
@@ -34,7 +34,7 @@ ran a real Alpine Assault Skirmish at 1080p fullscreen on the 4K station: Dozer 
 movement and saving worked. Its local MoOS menu entry launches directly, but some reopen
 attempts stay on the introductory background, also with the builtin renderer. The tested
 DXVK configuration and save remain; all owned probes are closed. Repeated-launch/universal
-Windows qualification and this corrective batch's signed boot proof remain open.
+Windows qualification and this corrective batch's physical-station proof remain open.
 
 
 **All three app engines ran on the station (2026-09-20).** Windows Notepad, Minesweeper
