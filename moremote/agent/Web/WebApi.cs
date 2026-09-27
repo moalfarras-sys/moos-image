@@ -353,13 +353,14 @@ public static class WebApi
         app.MapPost("/api/audio/ticket", (HttpContext ctx) =>
         {
             if (!IsAuthed(ctx, svc)) return Results.Json(new { error = "unauthorized" }, statusCode: 401);
-            return Results.Json(new { ticket = svc.Tickets.Issue("audio") });
+            return Results.Json(new { ticket = svc.Tickets.Issue("audio", BearerToken(ctx)!) });
         });
         // Media elements cannot attach Authorization headers. Give them a 45-second,
         // single-use capability instead of exposing a reusable session bearer in the URL.
         app.MapGet("/api/audio/stream.webm", async (HttpContext ctx, string? ticket) =>
         {
-            if (!svc.Tickets.Consume(ticket, "audio", out _))
+            if (!svc.Tickets.Consume(ticket, "audio", out var accessToken)
+                || !svc.Sessions.IsValid(accessToken))
             {
                 ctx.Response.StatusCode = StatusCodes.Status401Unauthorized;
                 await ctx.Response.WriteAsync("unauthorized");
@@ -368,6 +369,8 @@ public static class WebApi
 
             // No timeout: this is an endless stream, and HttpClient's 100s default would cut the
             // sound off mid-sentence every 100 seconds.
+            await using var lease = new SessionStreamLease(
+                () => svc.Sessions.IsValid(accessToken), ctx.RequestAborted);
             using var upstream = new HttpClient { Timeout = Timeout.InfiniteTimeSpan };
             var url = $"http://127.0.0.1:{svc.Config.Port + AudioPortOffset}/stream.webm";
             try
@@ -375,7 +378,7 @@ public static class WebApi
                 // ResponseHeadersRead, or HttpClient buffers an infinite stream into memory and
                 // the listener hears nothing while the process grows without bound.
                 using var res = await upstream.GetAsync(
-                    url, HttpCompletionOption.ResponseHeadersRead, ctx.RequestAborted);
+                    url, HttpCompletionOption.ResponseHeadersRead, lease.Token);
                 if (!res.IsSuccessStatusCode)
                 {
                     ctx.Response.StatusCode = StatusCodes.Status502BadGateway;
@@ -386,12 +389,14 @@ public static class WebApi
                 // The service spawns one encoder per listener and kills it on disconnect, so a
                 // cached response is a DEAD stream that plays silence with no error.
                 ctx.Response.Headers.CacheControl = "no-store, no-cache, must-revalidate";
-                await using var body = await res.Content.ReadAsStreamAsync(ctx.RequestAborted);
-                await body.CopyToAsync(ctx.Response.Body, ctx.RequestAborted);
+                await using var body = await res.Content.ReadAsStreamAsync(lease.Token);
+                await lease.CopyAsync(body, ctx.Response.Body);
+                if (lease.Revoked) ctx.Abort();
             }
             catch (OperationCanceledException)
             {
                 // The listener hung up. Normal, and the upstream encoder dies with the socket.
+                if (lease.Revoked) ctx.Abort();
             }
             catch (HttpRequestException)
             {

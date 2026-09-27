@@ -112,6 +112,12 @@ else:
         errors.append("the agent exposes no authenticated audio-ticket endpoint")
     if 'Tickets.Consume(ticket, "audio"' not in window:
         errors.append("the audio stream does not consume a single-use audio ticket")
+    if 'Tickets.Issue("audio", BearerToken(ctx)!)' not in agent:
+        errors.append("audio tickets must retain their issuing session, server-side")
+    if 'Sessions.IsValid(accessToken)' not in window or 'SessionStreamLease(' not in window:
+        errors.append("audio must refuse a revoked ticket owner and monitor the live session")
+    if 'lease.CopyAsync(body, ctx.Response.Body)' not in route or 'lease.Revoked) ctx.Abort()' not in route:
+        errors.append("audio must stop forwarding and close the response after session revocation")
     if "Status401Unauthorized" not in window:
         errors.append("the agent's audio route never answers 401 — an unauthenticated caller must "
                       "be refused, not quietly given a stream")
