@@ -1,7 +1,7 @@
 # MoOS current state — measured 2026-09-27
 
 ## Source and release truth
-- **Proven production is `e6fbd56c`, `44.20260927.945`**: signed build `36297160647`,
+- **Proven x86 production is `e6fbd56c`, `44.20260927.945`**: signed build `36297160647`,
   QCOW2 `36298778749`/`36298780129`/`36298781296`, ISO `36298782489`, x86 promotion
   `36301001323`, ARM proof/promotion `36298783867`; all succeeded at attempt 1.
 - PRs #169/#170/#171 are merged. THEME_REV 90 fixes dock/Hub material, Remote v44
@@ -14,17 +14,17 @@
 - Corrective THEME_REV 95 source keeps the configured floating capsule beside maximized
   windows, adds matching rounded solid artwork in all palettes and restores one finite Hub
   reveal with interruption/Still/re-enable proof. Plasma SVG frame render and 44 UI tests pass.
-  Remote's shared shell policy avoids frozen-mtime HTTP validators; real StaticFiles tests
-  receive changed same-size worker bytes (158 assertions). Remote v45 real-stream preview:
-  Hidden tools leave focus; settings opens. Not delivered; two-icon proposal awaits design approval.
+  Remote v45 rejects frozen-mtime validators (158 same-size worker assertions); hidden tools
+  leave focus and settings opens on the real stream. #174 completes missing release notes.
+  `.950` was superseded before x86 promotion; ARM `.614` on `65470b7e` passed/promoted.
+  Station delivery and the two-icon design approval remain pending.
 - **P0.7 is no longer only a captured stack.** Read out of plymouth 24.004.60's source on
   2026-09-21: `ply_boot_splash_free()` frees `pixel_displays` without disarming the
   `on_new_frame` timeout that only `ply_boot_splash_hide()` disarms, and `--retain-splash`
   is the path that skips that hide. Both recorded workarounds are disproven, and upstream
   `main` still has the defect (2026-09-24), so Fedora 45's Plymouth 26.x will not close it.
-- A merged commit or locally built image is not an installed or released state.
-  Production moves only after the exact candidate passes 3×QCOW2 + ISO; ARM is
-  separately required evidence.
+- A merge or local image is not an installed release. Production requires exact-candidate
+  3×QCOW2 + ISO; ARM is separately required evidence.
 
 ## App engines — what this machine can actually run
 
