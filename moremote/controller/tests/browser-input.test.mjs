@@ -77,6 +77,8 @@ try {
   const phone = await viewer({viewport:{width:390,height:844}, deviceScaleFactor:3,
     isMobile:true, hasTouch:true}, 'touch', 'ar');
   const {page, packets} = phone;
+  assert.equal(phone.packets.filter(p => p.type === 'settings').at(-1)?.quality,68,
+    'a portrait phone starts at Balanced instead of mistaking its long edge for desktop width');
   await capture(page, 'phone-ar');
   await page.getByRole('button', {name:'كتابة', exact:true}).click();
   const field = page.locator('.kbinput');
@@ -251,8 +253,8 @@ try {
   await capture(trackpad.page,'display-dark-ar');
   await trackpad.page.getByRole('button',{name:/توفير البيانات 576p/}).click();
   await trackpad.page.getByRole('button',{name:'تلقائي',exact:true}).click();
-  assert.equal(await trackpad.page.evaluate(() => JSON.parse(localStorage.getItem('moremote.presetIdx'))),2,
-    'Auto starts at the same capable-device rung as a new session instead of keeping manual 576p');
+  assert.equal(await trackpad.page.evaluate(() => JSON.parse(localStorage.getItem('moremote.presetIdx'))),1,
+    'Auto starts at the same phone-appropriate rung as a new session instead of keeping manual 576p');
   await trackpad.page.locator('.sheet-close').click();
 
   // Both clipboard directions stay local to this isolated test. Prove that a failed

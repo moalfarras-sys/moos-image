@@ -393,8 +393,13 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired, l
   const [viewMode, setViewMode] = usePref<ViewMode>("viewMode", "fit");
   // What this device says about itself, read once. Used for the OPENING rung only — the RTT
   // ladder below owns every step after that and can undo an optimistic guess within ~4s.
-  const deviceHints = useRef(readDeviceHints(
-    Math.round(Math.max(screen.width, screen.height) * (window.devicePixelRatio || 1)))).current;
+  // A portrait phone's LONG edge is not the width available to show the PC.
+  // Using it made Safari (which reports no link class) look like a wide desktop
+  // and start at 1080p even when its short edge is about 1170 physical pixels.
+  const displayWidth = (navigator.maxTouchPoints > 0
+    ? Math.min(screen.width, screen.height)
+    : Math.max(screen.width, screen.height)) * (window.devicePixelRatio || 1);
+  const deviceHints = useRef(readDeviceHints(Math.round(displayWidth))).current;
   // A quality the owner picked by hand is a durable choice: reopening at the
   // device-hint guess every session was half of "it is always blurry".
   const [presetIdx, setPresetIdx] = usePref("presetIdx", pickStartPreset(deviceHints));

@@ -11,8 +11,9 @@
   2026-09-28. Do not call its dock, Hub or Remote v45 installed proof before reboot.
 - **Remote v46 is topic-branch source only:** Settings/keyboard Copy now bridges PC text
   to the device clipboard; Paste transfers device text before sending the shortcut and
-  refuses stale paste on failure. Auto reseeds quality from device hints after manual
-  Data Saver. Typecheck, source tests, Chromium integration and visual captures pass.
+  refuses stale paste on failure. Auto reseeds quality after manual Data Saver,
+  and a phone's short edge now determines its initial picture. Typecheck, source tests,
+  Chromium integration and visual captures pass.
   Real phone/WAN endurance and installed v46 remain open.
 - The two-icon design approval remains pending. A historical post-`.945` health read was
   55/0, but five old `drkonqi-coredump-processor` timeouts appeared later; review the
