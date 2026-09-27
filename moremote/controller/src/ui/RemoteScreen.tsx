@@ -46,8 +46,10 @@ async function copyTextToClipboard(text: string): Promise<boolean> {
       return true;
     }
   } catch { /* fall through to the legacy path */ }
+  let ta: HTMLTextAreaElement | null = null;
+  const priorFocus = document.activeElement;
   try {
-    const ta = document.createElement("textarea");
+    ta = document.createElement("textarea");
     ta.value = text;
     ta.contentEditable = "true";
     ta.readOnly = false;
@@ -56,17 +58,22 @@ async function copyTextToClipboard(text: string): Promise<boolean> {
     ta.style.left = "0";
     ta.style.opacity = "0";
     document.body.appendChild(ta);
+    // Safari and Chromium require an actual focused selection for the legacy
+    // copy command. Selecting a Range around an unfocused textarea can return
+    // success while leaving the phone clipboard untouched.
+    ta.focus({ preventScroll: true });
     const range = document.createRange();
     range.selectNodeContents(ta);
     const sel = window.getSelection();
     sel?.removeAllRanges();
     sel?.addRange(range);
     ta.setSelectionRange(0, text.length);
-    const ok = document.execCommand("copy");
-    document.body.removeChild(ta);
-    return ok;
+    return document.execCommand("copy");
   } catch {
     return false;
+  } finally {
+    ta?.remove();
+    if (priorFocus instanceof HTMLElement && priorFocus.isConnected) priorFocus.focus({ preventScroll: true });
   }
 }
 
@@ -1890,6 +1897,54 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired, l
     if (await copyTextToClipboard(pcClip.text)) showToast(tr("copiedOnPhone"));
     else showToast(tr("longPressToCopy"));
   };
+  const copyFromPc = async () => {
+    const conn = connRef.current;
+    if (!conn?.open) { showToast(tr("reconnectingStatus")); return; }
+    // Ctrl+C changes the REMOTE selection. The GET must follow that input,
+    // including on a link where the WebSocket and HTTP requests take different
+    // paths. The sheet is the honest manual fallback if this browser refuses
+    // writing its own clipboard (common on plain HTTP and iOS).
+    conn.combo(["Control", "C"]);
+    setClipboardBusy(tr("readingPcClipboard"));
+    try {
+      await new Promise(resolve => window.setTimeout(resolve, Math.max(120, Math.min(450, latRef.current * 1.5))));
+      const result = await getClipboard(token);
+      setPcClip(result);
+      if (result.kind === "text" && result.text) {
+        if (await copyTextToClipboard(result.text)) showToast(tr("copiedOnPhone"));
+        else { setSheet("clip"); showToast(tr("longPressToCopy")); }
+      } else {
+        setSheet("clip");
+        showToast(result.kind === "image" ? tr("gotPcImage") : tr("pcClipboardEmpty"));
+      }
+    } catch {
+      setSheet("clip");
+      showToast(tr("pcClipboardReadFailed"));
+    } finally { setClipboardBusy(""); }
+  };
+  const pasteFromDevice = async () => {
+    if (!connRef.current?.open) { showToast(tr("reconnectingStatus")); return; }
+    // readText must be called from this tap, not after opening a sheet. A
+    // denied/unavailable browser API opens the editable manual-paste path.
+    if (!window.isSecureContext || !navigator.clipboard?.readText) {
+      setSheet("clip"); showToast(tr("pastePhoneManually")); return;
+    }
+    let text: string;
+    try {
+      text = await navigator.clipboard.readText();
+    } catch {
+      setSheet("clip"); showToast(tr("pastePhoneManually")); return;
+    }
+    if (!text) { setSheet("clip"); showToast(tr("pastePhoneManually")); return; }
+    setClipboardBusy(tr("sendingPastingText"));
+    try {
+      await setClipboard(token, text); // confirmed on the PC before Ctrl+V
+      connRef.current?.combo(["Control", "V"]);
+      showToast(tr("textPastedPc"));
+    } catch {
+      showToast(tr("textSendFailedNothingPasted"));
+    } finally { setClipboardBusy(""); }
+  };
   const readPhoneClip = async () => {
     try {
       if (!window.isSecureContext || !navigator.clipboard?.readText) throw new Error("manual paste");
@@ -2397,8 +2452,8 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired, l
             that scroll IS a default action. Focus is defended on the BUTTONS instead; see keepFocus. */}
         <div className="keyrow">
           <button {...keepFocus} className="kkey" onClick={() => sendShortcut(["Control", "A"])}>{tr("selectAll")}</button>
-          <button {...keepFocus} className="kkey" onClick={() => sendShortcut(["Control", "C"])}>{tr("copy")}</button>
-          <button {...keepFocus} className="kkey" onClick={() => sendShortcut(["Control", "V"])}>{tr("pastePc")}</button>
+          <button {...keepFocus} className="kkey" onClick={() => void copyFromPc()}>{tr("copyToThisDevice")}</button>
+          <button {...keepFocus} className="kkey" onClick={() => void pasteFromDevice()}>{tr("pasteFromThisDevice")}</button>
           <button {...keepFocus} className="kkey" onClick={() => sendShortcut(["Control", "Z"])}>{tr("undo")}</button>
           <span className="kdiv" />
           {(["Control", "Alt", "Shift"] as const).map((m) => (
@@ -2573,7 +2628,10 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired, l
           <div className="row-label">{tr("quality")}</div>
           <div className="seg">
             <button className={auto ? "on" : ""} onClick={() => {
-              setPresetIdx(idx => Math.min(idx, autoMaxPreset()));
+              // Turning Auto back on after a manual Data saver choice should
+              // immediately use the device/link hints, not stay at 576p until
+              // the slow upward ladder has climbed three rungs.
+              if (!auto) setPresetIdx(Math.min(pickStartPreset(deviceHints), autoMaxPreset()));
               setAuto(true);
               showToast(tr("autoQuality"));
             }}>{tr("auto")}</button>
@@ -2697,8 +2755,8 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired, l
               <div className="grid">
                 <button className="cell" onClick={openFiles}><IconFolder /> {tr("filesTitle")}</button>
                 <button className="cell" onClick={() => { taskMgr(); setSheet(null); }}><IconShield /> {tr("ctrlAltDel")}</button>
-                <button className="cell" onClick={() => c()?.combo(["Control", "C"])}><IconCopy /> {tr("copy")}</button>
-                <button className="cell" onClick={() => c()?.combo(["Control", "V"])}><IconPaste /> {tr("paste")}</button>
+                <button className="cell" onClick={() => void copyFromPc()}><IconCopy /> {tr("copyToThisDevice")}</button>
+                <button className="cell" onClick={() => void pasteFromDevice()}><IconPaste /> {tr("pasteFromThisDevice")}</button>
                 <button className="cell" onClick={() => { refreshStream(); setSheet(null); }}><IconRefresh /> {tr("refresh")}</button>
                 <button className="cell" onClick={() => { fullscreen(); setSheet(null); }}><IconFullscreen /> {tr("fullscreen")}</button>
                 <button className="cell danger" onClick={disconnect}><IconPower /> {tr("disconnect")}</button>

@@ -1,23 +1,22 @@
-# MoOS current state — measured 2026-09-27
+# MoOS current state — measured 2026-09-28
 
 ## Source and release truth
-- **Proven x86 production is `e6fbd56c`, `44.20260927.945`**: signed build `36297160647`,
-  QCOW2 `36298778749`/`36298780129`/`36298781296`, ISO `36298782489`, x86 promotion
-  `36301001323`, ARM proof/promotion `36298783867`; all succeeded at attempt 1.
-- PRs #169/#170/#171 are merged. THEME_REV 90 fixes dock/Hub material, Remote v44
-  reports trusted-device failures honestly, and video/input/audio follow session revocation.
-  Audio refuses buffered output after revocation and cancels idle connections within one
-  second; 150 real session/stream assertions pass, Linux/Windows compile cleanly.
-- **The NVIDIA station now boots signed `44.20260927.945`** (`e6fbd56c`), with signed
-  `.938` retained for rollback; digest `sha256:b09cdc48…`. Live post-update check:
-  **55 passed, 0 failed**, zero failed system/user units on 2026-09-27.
-- Corrective THEME_REV 95 source keeps the configured floating capsule beside maximized
-  windows, adds matching rounded solid artwork in all palettes and restores one finite Hub
-  reveal with interruption/Still/re-enable proof. Plasma SVG frame render and 44 UI tests pass.
-  Remote v45 rejects frozen-mtime validators (158 same-size worker assertions); hidden tools
-  leave focus and settings opens on the real stream. #174 completes missing release notes.
-  `.950` was superseded before x86 promotion; ARM `.614` on `65470b7e` passed/promoted.
-  Station delivery and the two-icon design approval remain pending.
+- **Proven production source is `55753999`, `44.20260927.952`**: signed x86 build
+  `36318637595`, QCOW2 `36320028679`/`36320031215`/`36320033794`, offline ISO
+  `36320036325`, x86 promotion `36322617895`; ARM build/boot/promotion `36318521233`.
+  All passed. #173/#174 merged; THEME_REV 95 rounds the solid dock and gives the Hub
+  finite motion. Remote v45 rejects frozen-mtime cache validators.
+- **The NVIDIA station boots signed `.945`**, digest `sha256:b09cdc48…`, with signed
+  `.938` retained. `.952` digest `sha256:91c9ce7b…` is **staged, not booted** as of
+  2026-09-28. Do not call its dock, Hub or Remote v45 installed proof before reboot.
+- **Remote v46 is topic-branch source only:** Settings/keyboard Copy now bridges PC text
+  to the device clipboard; Paste transfers device text before sending the shortcut and
+  refuses stale paste on failure. Auto reseeds quality from device hints after manual
+  Data Saver. Typecheck, source tests, Chromium integration and visual captures pass.
+  Real phone/WAN endurance and installed v46 remain open.
+- The two-icon design approval remains pending. A historical post-`.945` health read was
+  55/0, but five old `drkonqi-coredump-processor` timeouts appeared later; review the
+  post-reboot health before describing the workstation as clear.
 - **P0.7 is no longer only a captured stack.** Read out of plymouth 24.004.60's source on
   2026-09-21: `ply_boot_splash_free()` frees `pixel_displays` without disarming the
   `on_new_frame` timeout that only `ply_boot_splash_hide()` disarms, and `--retain-splash`
