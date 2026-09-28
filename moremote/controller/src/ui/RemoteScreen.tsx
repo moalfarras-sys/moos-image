@@ -396,7 +396,8 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired, l
   // A portrait phone's LONG edge is not the width available to show the PC.
   // Using it made Safari (which reports no link class) look like a wide desktop
   // and start at 1080p even when its short edge is about 1170 physical pixels.
-  const displayWidth = (navigator.maxTouchPoints > 0
+  const phoneSizedTouch = navigator.maxTouchPoints > 0 && Math.min(screen.width, screen.height) < 700;
+  const displayWidth = (phoneSizedTouch
     ? Math.min(screen.width, screen.height)
     : Math.max(screen.width, screen.height)) * (window.devicePixelRatio || 1);
   const deviceHints = useRef(readDeviceHints(Math.round(displayWidth))).current;

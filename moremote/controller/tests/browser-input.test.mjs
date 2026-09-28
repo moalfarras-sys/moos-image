@@ -79,6 +79,9 @@ try {
   const {page, packets} = phone;
   assert.equal(phone.packets.filter(p => p.type === 'settings').at(-1)?.quality,68,
     'a portrait phone starts at Balanced instead of mistaking its long edge for desktop width');
+  const touchLaptop = await viewer({viewport:{width:1920,height:1080},hasTouch:true},'desktop');
+  assert.equal(touchLaptop.packets.filter(p => p.type === 'settings').at(-1)?.quality,80,
+    'a wide touchscreen laptop remains Sharp instead of being mistaken for a phone');
   await capture(page, 'phone-ar');
   await page.getByRole('button', {name:'كتابة', exact:true}).click();
   const field = page.locator('.kbinput');
