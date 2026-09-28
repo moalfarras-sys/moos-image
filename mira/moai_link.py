@@ -15,6 +15,16 @@ def execute(name,arguments):
  if name not in ALLOWED:raise ValueError('unsupported Mo AI tool')
  # Confirmation is never manufactured: executor remains the authority.
  return request('/tool/execute',{'name':name,'arguments':arguments,'confirmed':False})
+def open_application(name):
+ if not isinstance(name,str) or not 1<=len(name.strip())<=120:
+  raise ValueError('اسم التطبيق غير صالح')
+ from command_router import _installed_app,normalize
+ query=normalize(name)
+ if query in ('المتصفح','متصفح','browser','الانترنت','internet'):
+  query='chrome'
+ app_id,label=_installed_app(query)
+ result=execute('open_app',{'app_id':app_id})
+ return {**result,'app_id':app_id,'application':label}
 def ask(text):
  from mira_memory import profile_text
  profile=profile_text().strip()

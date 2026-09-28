@@ -62,22 +62,112 @@ OS-image package or a signed release.
 
 ## Independent operation boundary
 
-The current TECHO5 Dot daemon owns all seven microphones and plays audio locally,
-but `conversation.go` explicitly ignores wake events when no ESPHome voice
-pipeline is subscribed. Mira's Gemini Live client and Home Assistant currently
-run on this computer. If it is off, neither answers; the device's setup page,
-Bluetooth speaker and Wi-Fi remain device-local. A mobile browser can configure
-the Dot through its setup page, but it is not a remote AI conversation app.
+`device/agent.py` is a temporary on-device Gemini client. A real cloud text-to-audio
+turn completed on Echo and the daemon logged streamed playback with zero underruns.
+This does not prove an owner-spoken wake/question/answer or operation after reboot.
+The desktop sends authenticated heartbeats: stopping its actual unit made Echo
+change from `desktop` to `ready` within five seconds; reopening returned it to
+`desktop`. Handoff now drains the old audio producer before releasing the channel.
 
-For computer-off voice, the device needs a supported on-device cloud conversation
-client that takes the daemon's microphone/audio stream, or a separate always-on
-home hub running the voice pipeline. For computer-off Hue/Tuya/TCL control through
-Home Assistant, that Home Assistant instance must run on an always-on host. The
-Dot's 481 MiB RAM and 32-bit ARM system are not an appropriate substitute for
-the full Home Assistant hub. No on-device client or hub migration is deployed yet.
-Any such firmware extension must preserve the Dot's signed A/B update and rollback
-path and be tested with the owner-spoken wake model. Do not describe the desktop
-client's current Wi-Fi connection as standalone operation.
+A console sample contains `hey_mira` detection at score 0.879 (cutoff 0.50), then
+a listening timeout. That proves one detection, not a successful conversation.
+The model still recognizes English; UI Arabic aliases do not retrain it.
+
+Deployment is experimental: Python packages are installed in the current root,
+the client is manually launched, and its LAN firewall rule is temporary.
+The initial dependency mismatch was corrected with aioesphomeapi 45.0.0 and
+zeroconf 0.151.5; device `pip check` now reports no broken requirements.
+The older client requires explicit `password=None`, now supplied alongside Noise.
+Full voice qualification still remains before persistent startup, preserving
+the signed A/B firmware path. Credentials/history are private in `/data/mira`;
+the LAN endpoint exposes only state and accepts paired HMAC heartbeats.
+
+The on-device client has no house/PC tools yet. Home Assistant remains on this PC;
+computer-off house control needs an always-on HA host. The phone setup page is
+configuration, not a complete mobile assistant. PC-off endurance, restart recovery,
+dependency qualification and owner-spoken hands-free proof remain open.
+
+Latest owner test still failed to activate. Live state confirmed all microphones,
+mic mute false, leveling enabled and gain 24 dB. Wake threshold was subsequently
+changed from 0.50 to 0.30 with state readback; this tuning is not evidence of
+successful recognition and can increase false activations. No new face/UI was
+introduced. The on-device standby client now releases the encrypted API entirely
+while the desktop heartbeat is present, avoiding concurrent configuration.
+
+### Direct microphone investigation, 2026-09-28 evening
+
+The owner continued to report no wake response. The active detector was changed
+to the built-in `alexa` model for diagnosis (Mira's identity/faces are unchanged).
+`live_voice.py` now preserves an existing device-selected wake configuration across
+reconnection rather than forcibly restoring `hey_mira`; the installed app was
+backed up and updated. 24 UI/voice tests passed. The device log measured Alexa
+at 50 frames/s, 5.7 ms/frame and 28% processing budget, versus Mira's roughly
+15.4 ms and 77%. This measures processing, not spoken recall.
+
+A five-second direct ALSA diagnostic, with daemon hold and automatic cleanup,
+measured all seven microphone channels: peaks -37.9 to -33.6 dBFS and RMS -56.8
+to -53.9 dBFS. Both playback reference channels were silent as expected. No raw
+audio file was saved. The daemon resumed as PID 7648. These are ambient levels,
+not a calibrated speech test and not proof of good intelligibility.
+
+The microphone mixing mode was changed from `All microphones` to `Beamformer`,
+with state readback, to test directional capture. Active wake remained `alexa`.
+Owner-spoken outcome is pending; revert mixing to `All microphones` if it worsens
+capture. Firmware remains v0.5.39; no bootloader or signed firmware change was
+made in this investigation. The device advertises v0.5.41, whose migration and
+preservation of the experimental client are not yet reviewed.
+
+The owner subsequently confirmed the ring lit after saying Alexa. The matching
+device log recorded `wake detected id=alexa`, peak 0.602, zero dropped frames.
+Desktop state advanced activating → listening and received 463872 microphone
+bytes (peak 6943). The turn timed out after 15 seconds with no recognized text
+or reply audio. The prompt had requested only the wake word, so this proves
+owner-spoken wake and transport, not a complete question/answer. Keep Alexa and
+Beamformer in place while testing a spoken question; do not restore the failed
+Mira model on reconnect.
+
+The owner then confirmed Alexa both replies and controls devices normally. This
+is the first explicit successful owner-spoken end-to-end report for the current
+Beamformer configuration. To evaluate Mira without removing that working path,
+active models are now `[alexa, hey_mira]`; slot 2 has threshold 0.30, streamed
+reply delivery and 20-second follow-up, all read back through the device API.
+The existing model targets the complete English phrase `Hey Mira`, not bare
+Arabic `ميرا`. Its owner-spoken test under the new microphone mode is pending.
+
+## Arabic Mira wake breakthrough (2026-09-28 evening)
+
+The old model failed the owner's dual-wake test and was deselected. A private
+15-second Echo sample was captured with permission and analyzed locally only.
+The old classifier peaked at .0023. A new synthetic Arabic model, trained without
+the owner recording, peaked at .9357 on that held-out clip. See `wake_training/`
+for reproducible source, limitations and public dataset licensing.
+
+The new model is installed as `mira_ar_experimental` alongside Alexa. The owner
+confirmed saying Mira lights the ring and gets a reply. Device logs independently
+show two new-model detections followed by 6.28s and 4.85s streamed replies, zero
+underruns. Live readback: Beamformer, slot-2 configured threshold .70, streamed
+delivery, active `[alexa, mira_ar_experimental]`. Detector logs used cutoff .60
+for those turns; configured and effective thresholds must not be conflated.
+This is real end-to-end wake evidence, not all-pronunciation or false-wake proof.
+No firmware upgrade, boot persistence proof or PC-off home-control proof is implied.
+
+## Voice agent and taught memory (2026-09-28)
+
+Desktop Gemini voice now exposes `moai_project_task`, delegating the owner's
+request to the existing Hermes gateway/session, with Mo AI remaining the approval
+and execution authority. It does not add a root shell or treat an agent's prose
+as verified execution. A real read-only gateway request returned registered
+project MoOS; system status returned ok. Home summary measured 4 available and
+4 unavailable individual lights, with two groups counted separately.
+
+`remember_owner_fact` appends explicit owner-taught information to the existing
+private editable profile without replacing it; duplicate lines are ignored and
+length is bounded. Existing conversation persistence is retained. This is stored
+knowledge, not autonomous model training or automatic source self-modification.
+34 UI/voice/memory tests passed; both changed files were backed up and installed,
+and the desktop returned to ready. End-to-end spoken project-tool invocation and
+YouTube playback have not yet been verified. The on-device standalone client does
+not inherit these desktop tools.
 
 ## Current deployment boundary
 

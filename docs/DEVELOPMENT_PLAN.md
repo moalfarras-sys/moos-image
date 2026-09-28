@@ -1,5 +1,9 @@
 # MoOS development plan
 
+### Mira current acceptance work (2026-09-28 evening)
+
+Arabic wake is owner-confirmed. Installed app opening uses the real Mo AI executor (Chrome success; 37 targeted tests). On-device cloud voice response and desktop-client handoff are measured; cold-boot persistence, a spoken standalone turn with the PC off, always-on home-control hosting, dedicated browser automation and screen understanding remain open. Preserve both avatar faces and the working wake model. Package the on-device Python dependencies persistently before adding startup wiring; `/` currently reports `rootfs`. Keep host actions within the existing executors and report actual tool outcomes.
+
 This is the only product development plan. Current evidence is in
 [`PROJECT_STATE.md`](../PROJECT_STATE.md); release mechanics are in
 [`RELEASE.md`](../RELEASE.md); who holds which files right now is in

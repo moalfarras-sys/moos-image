@@ -64,6 +64,17 @@ def save_profile(content):
     os.chmod(PROFILE, 0o600)
 
 
+def remember_fact(fact):
+    """Persist a fact explicitly taught by the owner, without replacing the profile."""
+    if not isinstance(fact, str) or not 2 <= len(fact.strip()) <= 500:
+        raise ValueError('المعلومة يجب أن تكون بين حرفين و500 حرف')
+    fact = ' '.join(fact.split())
+    current = profile_text().strip()
+    if fact not in current.splitlines():
+        save_profile(current + ('\n' if current else '') + fact)
+    return {'status': 'ok', 'remembered': fact}
+
+
 def add_message(role, text):
     if role not in ('user', 'mira', 'action', 'error') or not text.strip():
         return

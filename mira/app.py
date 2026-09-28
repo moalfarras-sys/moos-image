@@ -316,8 +316,10 @@ class Window(QMainWindow):
         right_box = QHBoxLayout()
         right_box.setSpacing(10)
 
-        search_btn = QPushButton("🔍")
+        search_btn = QPushButton("⌕")
+        search_btn.setAccessibleName('كتابة أمر لميرا')
         search_btn.setFixedSize(36, 36)
+        search_btn.setObjectName('compactIcon')
         search_btn.setStyleSheet("""
             QPushButton {
                 background: rgba(20, 28, 60, 0.7);
@@ -336,8 +338,10 @@ class Window(QMainWindow):
         search_btn.clicked.connect(lambda: self.chat_input.setFocus())
         right_box.addWidget(search_btn)
 
-        theme_btn = QPushButton("🎭")
+        theme_btn = QPushButton("◇")
+        theme_btn.setAccessibleName('تبديل وجه ميرا')
         theme_btn.setFixedSize(36, 36)
+        theme_btn.setObjectName('compactIcon')
         theme_btn.setStyleSheet("""
             QPushButton {
                 background: rgba(20, 28, 60, 0.7);
@@ -402,6 +406,7 @@ class Window(QMainWindow):
     # ─── Main Neural Cockpit (3 Columns) ────────────────────────────
     def _build_main_cockpit(self):
         canvas = NeuralCanvas()
+        self.neural_canvas = canvas
         canvas.setLayoutDirection(Qt.LeftToRight)
         cl = QBoxLayout(QBoxLayout.LeftToRight,canvas)
         self.stage_layout=cl
@@ -411,7 +416,7 @@ class Window(QMainWindow):
         # ─── Column 1: Left Context Panel (Width 300px) ─────
         left_panel = GlassCard(radius=20)
         self.context_panel = left_panel
-        left_panel.setFixedWidth(290)
+        left_panel.setFixedWidth(260)
         ll = QVBoxLayout(left_panel)
         ll.setContentsMargins(14, 14, 14, 14)
         ll.setSpacing(10)
@@ -644,6 +649,7 @@ class Window(QMainWindow):
 
         clip_btn = QPushButton("📎")
         clip_btn.setFixedSize(28, 28)
+        clip_btn.setObjectName('compactIcon')
         clip_btn.setStyleSheet("background:transparent; color:#8E9BB5; border:none; font-size:14px;")
         clip_btn.setToolTip('إرفاق ملف نصي صغير')
         clip_btn.clicked.connect(self.attach_text)
@@ -651,13 +657,19 @@ class Window(QMainWindow):
 
         self.chat_input = QLineEdit()
         self.chat_input.setPlaceholderText("اكتب رسالتك هنا...")
+        self.chat_input.setAccessibleName('رسالة أو أمر لميرا')
+        self.chat_input.setClearButtonEnabled(True)
         self.chat_input.setStyleSheet("background:transparent; color:#FFF; border:none; font-size:12px;")
         self.chat_input.returnPressed.connect(self._handle_chat_input)
         ifl.addWidget(self.chat_input, 1)
 
         send_btn = QPushButton("↗")
         send_btn.setFixedSize(32, 32)
+        send_btn.setObjectName('compactIcon')
         send_btn.setToolTip('إرسال الرسالة')
+        send_btn.setAccessibleName('إرسال الرسالة')
+        send_btn.setEnabled(False)
+        self.chat_input.textChanged.connect(lambda text: send_btn.setEnabled(bool(text.strip())))
         send_btn.setStyleSheet("""
             QPushButton {
                 background: qlineargradient(x1:0,y1:0,x2:1,y2:1, stop:0 #8B5CF6, stop:1 #00E5FF);
@@ -683,6 +695,7 @@ class Window(QMainWindow):
         hl.setContentsMargins(0, 0, 0, 0)
         bubble = QLabel()
         bubble.setTextFormat(Qt.RichText)
+        bubble.setTextInteractionFlags(Qt.TextSelectableByMouse | Qt.TextSelectableByKeyboard)
         bubble.setWordWrap(True)
         stamp = timestamp or datetime.now().strftime("%H:%M")
 
@@ -723,7 +736,10 @@ class Window(QMainWindow):
             hl.addWidget(bubble)
             hl.addStretch(1)
 
-        bubble.setText(f'{badge}<div style="line-height:130%;">{html.escape(text)}</div><div style="color:#8E9BB5;font-size:9px;margin-top:4px;text-align:right;">{stamp}</div>')
+        labels={'user':'أنت','mira':'ميرا','action':'نتيجة الأمر','error':'تعذّر التنفيذ'}
+        badge=f'<div style="color:#BCC9E4;font-size:10px;">{labels.get(role,"ميرا")}</div>'
+        content=html.escape(text).replace('\n','<br>')
+        bubble.setText(f'{badge}<div dir="auto" style="line-height:140%;">{content}</div><div style="color:#A8B5CF;font-size:9px;margin-top:4px;">{html.escape(stamp)}</div>')
         self.chat_layout.insertWidget(self.chat_layout.count()-1,row)
         if hasattr(self,'conversation_log'):
             self.conversation_log.appendPlainText(f'{stamp} · {role}: {text}')
@@ -738,10 +754,12 @@ class Window(QMainWindow):
             self.face_toggle_btn.setText(f"🎭 المظهر: {'هولو 🔮' if new_style == 'holo' else 'وردي 🌸'}")
 
     def _on_weather_updated(self, temp_c, condition_ar, city, humidity, wind):
+        self.weather_status.setText('تم التحديث · '+city+' · '+datetime.now().strftime('%H:%M')+' · Open-Meteo')
         if hasattr(self, 'weather_clock'):
             self.weather_clock.set_weather(temp_c, condition_ar, city=city, humidity=humidity, wind=wind)
 
     def _on_weather_failed(self, message):
+        self.weather_status.setText(message+' · يمكنك إعادة المحاولة بحفظ المدينة')
         if hasattr(self, 'weather_clock'):
             self.weather_clock.set_weather_error(message)
 
@@ -749,6 +767,7 @@ class Window(QMainWindow):
         city = str(self.settings.value('weather_city', '')).strip()
         if not city:
             return
+        self.weather_status.setText('جارٍ جلب الطقس · '+city)
         def worker():
             try:
                 import weather_link
@@ -757,7 +776,9 @@ class Window(QMainWindow):
                     hum = f"{res.get('humidity_percent')}%" if res.get('humidity_percent') is not None else ''
                     wind = f"{round(res['wind_kmh'])} km/h" if res.get('wind_kmh') is not None else ''
                     self.weather_updated.emit(res['temperature_c'], res['condition_ar'], res['city'], hum, wind)
-            except (OSError, RuntimeError, ValueError):
+            except ValueError as exc:
+                self.weather_failed.emit(str(exc))
+            except (OSError, RuntimeError):
                 self.weather_failed.emit('الطقس غير متاح الآن')
         threading.Thread(target=worker, daemon=True).start()
 
@@ -943,6 +964,12 @@ class Window(QMainWindow):
             self.home_observed.setText('تظهر حالة الجهاز وقدراته هنا.')
             for button in (self.home_on,self.home_off,self.home_color_button,self.home_play,self.home_pause):
                 button.setEnabled(False)
+            self.home_brightness.setEnabled(False)
+            self.home_volume.setEnabled(False)
+            for widget in (self.home_color,self.home_color_button,self.home_brightness_label,
+                           self.home_brightness,self.home_volume_label,self.home_volume,
+                           self.home_play,self.home_pause):
+                widget.hide()
             return
         domain = item['entity_id'].split('.')[0]
         features = item.get('supported_features') or 0
@@ -958,7 +985,8 @@ class Window(QMainWindow):
         self.home_color_button.setEnabled(available and color)
         self.home_brightness_label.setVisible(is_light)
         self.home_brightness.setVisible(is_light)
-        self.home_brightness.setEnabled(available and is_light)
+        dimmable = is_light and any(m not in ('onoff', 'unknown') for m in (item.get('supported_color_modes') or []))
+        self.home_brightness.setEnabled(available and dimmable)
         if item.get('brightness') is not None:
             self.home_brightness.setValue(max(1,round(item['brightness']*100/255)))
         volume = domain=='media_player' and bool(features&4)
@@ -1026,6 +1054,7 @@ class Window(QMainWindow):
         page=QWidget();layout=QVBoxLayout(page);layout.setContentsMargins(24,20,24,16)
         layout.addWidget(QLabel('المحادثة الحية والإجراءات المؤكدة'))
         self.conversation_log=QPlainTextEdit();self.conversation_log.setReadOnly(True)
+        self.conversation_log.setPlaceholderText('محادثاتك مع ميرا ونتائج الأوامر ستظهر هنا. اكتب في الشريط السفلي أو ابدأ بالصوت.')
         layout.addWidget(self.conversation_log,1)
         button=QPushButton('العودة إلى ميرا')
         button.clicked.connect(lambda:self.tabs.setCurrentIndex(0))
@@ -1048,6 +1077,16 @@ class Window(QMainWindow):
             self.pc_buttons.append(button)
             row.addWidget(button,0,len(self.pc_buttons)-1)
         layout.addLayout(row)
+        launch=QHBoxLayout()
+        self.pc_app_picker=QComboBox()
+        self.pc_app_picker.setPlaceholderText('حدّث قائمة التطبيقات ثم اختر برنامجاً')
+        self.pc_app_picker.setAccessibleName('التطبيق المثبت المراد فتحه')
+        launch.addWidget(self.pc_app_picker,1)
+        self.pc_launch=QPushButton('فتح التطبيق')
+        self.pc_launch.setEnabled(False)
+        self.pc_launch.clicked.connect(lambda:self.run_pc_tool('open_app',{'app_id':self.pc_app_picker.currentData()}))
+        launch.addWidget(self.pc_launch)
+        layout.addLayout(launch)
         controls=QHBoxLayout()
         volume_box=QVBoxLayout()
         volume_box.addWidget(QLabel('صوت الكمبيوتر'))
@@ -1069,6 +1108,7 @@ class Window(QMainWindow):
         self.pc_status=QLabel('اختر فحصاً لقراءة نتيجة حقيقية')
         layout.addWidget(self.pc_status)
         self.pc_output=QPlainTextEdit();self.pc_output.setReadOnly(True)
+        self.pc_output.setPlaceholderText('اختر نوع الفحص من الأعلى. ستظهر هنا القراءة الفعلية من الكمبيوتر، أو سبب تعذّرها.')
         layout.addWidget(self.pc_output,1)
         self.pc_jobs=PcBridge();self.pc_jobs.result.connect(self.pc_result)
         self.tabs.addTab(page,'الكمبيوتر')
@@ -1077,14 +1117,31 @@ class Window(QMainWindow):
 
     def run_pc_tool(self,name,args=None):
         self.pc_status.setText('جارٍ فحص الكمبيوتر…')
+        if name == 'top_processes' and args is None:
+            args = {'by':'cpu'}
         self.pc_jobs.run(name,args or {})
 
     def pc_result(self,result):
-        self.pc_status.setText('تأكدت من النتيجة' if result.get('status')=='ok' and result.get('tool') in ('set_volume','set_brightness')
+        self.pc_status.setText('تم فتح التطبيق عبر Mo AI' if result.get('status')=='ok' and result.get('tool')=='open_app'
+                               else 'تأكدت من النتيجة' if result.get('status')=='ok' and result.get('tool') in ('set_volume','set_brightness')
                                else 'تمت القراءة من Mo AI' if result.get('status')=='ok'
                                else 'أُرسل الأمر ولم أتأكد من النتيجة' if result.get('status')=='pending'
                                else 'تعذّر فحص الكمبيوتر')
         self.pc_output.setPlainText(str(result.get('output') or result.get('error') or 'لا توجد نتيجة'))
+        if result.get('tool')=='list_installed_apps':
+            self.pc_app_picker.clear()
+            if result.get('status')=='ok':
+                import re
+                for line in str(result.get('output') or '').splitlines():
+                    fields=line.split('\t')
+                    if len(fields)>=2 and re.fullmatch(r'[A-Za-z0-9_-]+(?:\.[A-Za-z0-9_-]+)+',fields[0]):
+                        self.pc_app_picker.addItem(fields[1],fields[0])
+            if self.pc_app_picker.count():
+                self.pc_app_picker.setCurrentIndex(0)
+            self.pc_launch.setEnabled(self.pc_app_picker.currentData() is not None)
+        if result.get('tool')=='open_app':
+            self._add_chat_msg('action' if result.get('status')=='ok' else 'error',
+                              str(result.get('output') or result.get('error') or 'تعذّر فتح التطبيق'))
         if result.get('tool')=='get_system_status' and result.get('status')=='ok':
             try:
                 values=json.loads(result.get('output') or '{}')
@@ -1130,6 +1187,7 @@ class Window(QMainWindow):
         for style,label in [('rose','الوجه الوردي'),('holo','الوجه الهولوغرافي')]:
             button=QPushButton(label)
             button.setCheckable(True)
+            button.setObjectName('faceChoice')
             button.setIcon(QIcon(self.orb.frames_by_style[style][0]))
             button.setIconSize(QSize(80,80))
             button.setMinimumHeight(100)
@@ -1138,6 +1196,11 @@ class Window(QMainWindow):
             faces.addWidget(button)
             self.face_choices[style]=button
         pl.addLayout(faces)
+        self.motion_toggle = QCheckBox('حركة الوجه والإضاءة المحيطة')
+        self.motion_toggle.setChecked(self.settings.value('visual_motion', True, type=bool))
+        self.motion_toggle.toggled.connect(self.set_visual_motion)
+        pl.addWidget(self.motion_toggle)
+        self.set_visual_motion(self.motion_toggle.isChecked())
         pl.addWidget(QLabel('صوت ميرا'))
         self.voice_picker=QComboBox()
         for label,name in [('Aoede · دافئ','Aoede'),('Kore · واضح','Kore'),('Leda · هادئ','Leda')]:
@@ -1187,12 +1250,12 @@ class Window(QMainWindow):
         self.speaker_volume.setEnabled(False)
         self.speaker_volume.sliderReleased.connect(lambda:self.bridge.command('volume','speaker',self.speaker_volume.value()/100))
         pl.addWidget(self.speaker_volume)
-        pl.addWidget(QLabel('حساسية النموذج الحالي «Hey Mira»'))
+        pl.addWidget(QLabel('عتبة التنبيه للقناة الأولى · القيمة الأقل أكثر حساسية'))
         self.wake_threshold=QSlider(Qt.Horizontal);self.wake_threshold.setRange(50,99)
         self.wake_threshold.setEnabled(False)
         self.wake_threshold.sliderReleased.connect(lambda:self.bridge.command('number','wake_threshold_1',self.wake_threshold.value()/100))
         pl.addWidget(self.wake_threshold)
-        pl.addWidget(QLabel('نموذج Echo الأصلي للإنجليزية؛ النداء العربي المحلي يحتاج ميكروفون الكمبيوتر.'))
+        pl.addWidget(QLabel('هذا الشريط يخص القناة الأولى فقط؛ نموذج ميرا العربي على Echo له إعداد مستقل.'))
         pl.addWidget(QLabel('مدينة الطقس'))
         self.weather_city_input=QLineEdit()
         self.weather_city_input.setPlaceholderText('اكتب المدينة والبلد؛ لا يُعرض طقس افتراضي')
@@ -1201,6 +1264,9 @@ class Window(QMainWindow):
         weather_save=QPushButton('حفظ المدينة وتحديث الطقس')
         weather_save.clicked.connect(self.save_weather_city)
         pl.addWidget(weather_save)
+        self.weather_status=QLabel('حدّد المدينة ثم احفظها لجلب الطقس من Open-Meteo')
+        self.weather_status.setWordWrap(True)
+        pl.addWidget(self.weather_status)
         pl.addWidget(QLabel('روح ميرا · معلوماتك ومشاريعك التي تريدها أن تتذكرها'))
         from mira_memory import profile_text
         self.profile_editor=QPlainTextEdit()
@@ -1208,19 +1274,71 @@ class Window(QMainWindow):
         self.profile_editor.setPlainText(profile_text())
         self.profile_editor.setMinimumHeight(120)
         pl.addWidget(self.profile_editor)
+        self.profile_status=QLabel()
+        self.profile_status.setWordWrap(True)
+        self.profile_editor.textChanged.connect(lambda:self.profile_status.setText(
+            f'{len(self.profile_editor.toPlainText())} / 4000 حرف · تغييرات غير محفوظة'))
+        self.profile_status.setText('المعلومات المحفوظة تُستخدم في المحادثات الجديدة؛ لا تضع كلمات مرور هنا.')
+        pl.addWidget(self.profile_status)
         self.profile_save=QPushButton('حفظ روح ميرا محلياً')
         self.profile_save.clicked.connect(self.save_mira_profile)
         pl.addWidget(self.profile_save)
         pl.addWidget(QLabel('يُستخدم الملف كمعرفة للمحادثة؛ لا يضيف صلاحيات أو أدوات تلقائياً.'))
         pl.addStretch()
+        # Keep each functional control, grouping it into a focused settings section.
+        sections=QTabWidget()
+        sections.setObjectName('settingsSections')
+        sections.setDocumentMode(True)
+        sections.setUsesScrollButtons(True)
+        sections.setStyleSheet('''
+            QTabWidget::pane { border:0; background:transparent; }
+            QTabBar::tab { background:#141C35; color:#BAC7DF; padding:10px 14px; border:0; margin:3px; border-radius:10px; }
+            QTabBar::tab:selected { background:#293453; color:#F5F2FF; }
+            QTabBar::tab:hover { background:#222C49; }
+        ''')
+        self.settings_sections=sections
+        boundaries={'صوت ميرا':'الصوت',
+                    'إعدادات Echo من الهاتف · الواي فاي، الصوت والخصوصية':'Echo',
+                    'مدينة الطقس':'الطقس',
+                    'روح ميرا · معلوماتك ومشاريعك التي تريدها أن تتذكرها':'الذاكرة'}
+        group=QWidget();group_layout=QVBoxLayout(group)
+        sections.addTab(group,'المظهر')
+        while pl.count():
+            item=pl.takeAt(0)
+            widget=item.widget()
+            if isinstance(widget,QLabel) and widget.text() in boundaries:
+                group_layout.addStretch()
+                group=QWidget();group_layout=QVBoxLayout(group)
+                sections.addTab(group,boundaries[widget.text()])
+            if widget is not None:
+                group_layout.addWidget(widget)
+            elif item.layout() is not None:
+                group_layout.addLayout(item.layout())
+            else:
+                group_layout.addItem(item)
+        pl.addWidget(sections)
         self.tabs.addTab(page,'الإعدادات')
+
+    def set_visual_motion(self, enabled):
+        self.settings.setValue('visual_motion', enabled)
+        self.orb.motion = enabled
+        for timer in (self.orb.anim_timer, self.neural_canvas._timer):
+            timer.start() if enabled else timer.stop()
+        if enabled:
+            self.orb._schedule_blink()
+        else:
+            self.orb.blink_timer.stop()
+            self.orb.blinking = False
+        self.orb.update()
 
     def save_mira_profile(self):
         from mira_memory import save_profile
         try:
             save_profile(self.profile_editor.toPlainText())
+            self.profile_status.setText('تم حفظ المعلومات · '+datetime.now().strftime('%H:%M'))
             self._add_chat_msg('action','حُفظ ملف ميرا على الكمبيوتر؛ ستقرأه في المحادثة القادمة.')
         except (OSError,ValueError) as exc:
+            self.profile_status.setText('لم يتم الحفظ: '+str(exc))
             self._add_chat_msg('error',str(exc))
 
     def save_weather_city(self):
@@ -1235,6 +1353,7 @@ class Window(QMainWindow):
             self.update_weather_async()
         else:
             self.weather_clock.set_weather_error('حدّد المدينة من الإعدادات')
+            self.weather_status.setText('عرض الطقس متوقف · أدخل مدينة لتفعيله')
 
     def select_face(self,style):
         if style not in ('rose','holo'):
@@ -1398,7 +1517,7 @@ class Window(QMainWindow):
             self.conversation_panel.setMinimumWidth(0)
             self.conversation_panel.setMaximumWidth(16777215)
         else:
-            self.conversation_panel.setFixedWidth(350)
+            self.conversation_panel.setFixedWidth(360 if width >= 1400 else 300)
         self.conversation_panel.setMaximumHeight(260 if compact else 16777215)
         self.orb.setMinimumHeight(230 if compact else 320)
         for route in self.stage_routes:route.setVisible(width>=1150)
@@ -1498,6 +1617,9 @@ class Window(QMainWindow):
         self.bridge.command('setup','setup_page')
 
     def on_voice_state(self, kind, text):
+        if kind in ('ready', 'thinking', 'executing', 'off', 'error'):
+            self.orb.level = self.voice_bar.level = self.dock_wave.level = 0.0
+            self.dock_wave.update()
         if kind in ('activating','listening','thinking','executing','speaking','ready','off','error'):
             print('Mira voice state:',kind,flush=True)
         if kind == 'level':

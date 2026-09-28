@@ -1,9 +1,12 @@
 """Paired Echo transport for the Mira desktop. Commands stay on its asyncio loop."""
 import asyncio
+import hashlib
+import hmac
 import os
 import socket
 import sys
 import threading
+import time
 from pathlib import Path
 
 from PySide6.QtCore import QObject, Signal
@@ -30,6 +33,7 @@ class Bridge(QObject):
         self.voice = None
         self.voice_enabled = True
         self.voice_name = voice_name
+        self.heartbeat_task = None
         self.thread = threading.Thread(target=self.run, daemon=True)
 
     def start(self):
@@ -52,6 +56,11 @@ class Bridge(QObject):
                 self.api.subscribe_states(self.state.emit)
                 from live_voice import LiveVoice
                 self.voice = LiveVoice(self.api, self.entities, self.voice_state.emit, self.voice_name)
+                # The Dot runs its own cloud client when this desktop is absent.
+                # Give it the signed handoff before subscribing our pipeline.
+                if await self.device_heartbeat():
+                    await asyncio.sleep(.7)
+                    self.heartbeat_task = asyncio.create_task(self.keep_device_standby())
                 if self.voice_enabled and '--capture' not in sys.argv:
                     try:
                         await self.voice.enable()
@@ -63,6 +72,9 @@ class Bridge(QObject):
                 self.error.emit('تعذّر الاتصال بالجهاز: ' + type(exc).__name__)
             finally:
                 self.online = False
+                if self.heartbeat_task:
+                    self.heartbeat_task.cancel()
+                    self.heartbeat_task = None
                 if self.voice:
                     try:
                         await self.voice.disable()
@@ -76,6 +88,34 @@ class Bridge(QObject):
                         pass
             self.error.emit('غير متصل — نحاول الاتصال مجدداً')
             await asyncio.sleep(5)
+
+    async def device_heartbeat(self):
+        writer = None
+        try:
+            stamp = int(time.time())
+            signature = hmac.new(KEY.read_text().strip().encode(),
+                                 f'heartbeat:{stamp}'.encode(), hashlib.sha256).hexdigest()
+            reader, writer = await asyncio.wait_for(asyncio.open_connection(IP, 8765), 1.5)
+            writer.write((f'POST /heartbeat HTTP/1.1\r\nHost: {IP}\r\n'
+                          f'X-Mira-Time: {stamp}\r\nX-Mira-Signature: {signature}\r\n'
+                          'Content-Length: 0\r\nConnection: close\r\n\r\n').encode())
+            await writer.drain()
+            response = await asyncio.wait_for(reader.read(256), 1.5)
+            return response.startswith(b'HTTP/1.1 200')
+        except (OSError, asyncio.TimeoutError):
+            return False
+        finally:
+            if writer:
+                writer.close()
+                try:
+                    await writer.wait_closed()
+                except OSError:
+                    pass
+
+    async def keep_device_standby(self):
+        while self.online:
+            await self.device_heartbeat()
+            await asyncio.sleep(2)
 
     def command(self, kind, name, value=None):
         async def work():

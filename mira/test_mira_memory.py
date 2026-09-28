@@ -14,6 +14,11 @@ class MemoryTest(unittest.TestCase):
             memory=importlib.reload(mira_memory)
             try:
                 memory.save_profile('طوّرت ميرا مع MoOS. مشروعي هو مساعد منزلي.')
+                memory.remember_fact('اسمي محمد')
+                memory.remember_fact('اسمي محمد')
+                self.assertEqual(memory.profile_text().count('اسمي محمد'),1)
+                self.assertIn('مساعد منزلي',memory.profile_text())
+                with self.assertRaises(ValueError):memory.remember_fact('x'*501)
                 memory.add_message('user','مرحبا ميرا')
                 memory.add_message('mira','أهلاً بك')
                 memory.add_message('action','حدث التنفيذ')

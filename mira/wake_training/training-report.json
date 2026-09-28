@@ -1,0 +1,10 @@
+{
+  "synthetic_train_positive_windows": 480,
+  "negative_train_windows": 6638,
+  "synthetic_holdout_positive_recall": 1.0,
+  "synthetic_holdout_negative_false_rate": 0.01818181818181818,
+  "background_holdout_windows": 6016,
+  "background_false_windows": 1,
+  "background_peak": 0.6671612858772278,
+  "iterations": 15
+}

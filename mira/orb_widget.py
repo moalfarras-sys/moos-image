@@ -209,6 +209,9 @@ class Orb(QWidget):
         self.ripples = []
         self.setMouseTracking(True)
         self.hover_offset = QPointF(0.0, 0.0)
+        self.target_offset = QPointF(0.0, 0.0)
+        self.setAccessibleName('وجه ميرا · بدء محادثة')
+        self.setFocusPolicy(Qt.StrongFocus)
 
     def _schedule_blink(self):
         if self.motion:
@@ -230,16 +233,24 @@ class Orb(QWidget):
         cx, cy = w / 2, h * 0.46
         dx = (e.position().x() - cx) / (w / 2) if w else 0
         dy = (e.position().y() - cy) / (h / 2) if h else 0
-        self.hover_offset = QPointF(max(-6.0, min(6.0, dx * 6.0)), max(-5.0, min(5.0, dy * 5.0)))
+        self.target_offset = QPointF(max(-6.0, min(6.0, dx * 6.0)), max(-5.0, min(5.0, dy * 5.0)))
         super().mouseMoveEvent(e)
 
     def leaveEvent(self, e):
-        self.hover_offset = QPointF(0.0, 0.0)
+        self.target_offset = QPointF(0.0, 0.0)
         super().leaveEvent(e)
 
+    def keyPressEvent(self, event):
+        if event.key() in (Qt.Key_Return, Qt.Key_Space) and not event.isAutoRepeat():
+            self.activated.emit()
+            event.accept()
+        else:
+            super().keyPressEvent(event)
+
     def _tick(self):
-        if not self.isVisible():
+        if not self.isVisible() or not self.motion:
             return
+        self.hover_offset += (self.target_offset - self.hover_offset) * 0.18
         # Dynamic rotation speed based on state
         speed = 0.6
         if self.phase in ('listening', 'speaking'):
@@ -274,7 +285,7 @@ class Orb(QWidget):
 
     def mousePressEvent(self, e):
         w, h = self.width(), self.height()
-        radius = min(w * 0.44, h * 0.56)
+        radius = min(w * 0.38, h * 0.39)
         self.ripples.append({
             'radius': 12.0,
             'max_radius': radius * 1.4,
@@ -321,8 +332,12 @@ class Orb(QWidget):
         self.update()
 
     def set_phase(self, phase):
+        if phase == self.phase:
+            return
         self.previous_frame = self.indices.get(self.emotion, 0)
         self.phase = phase
+        if phase not in ('listening', 'speaking'):
+            self.level = 0.0
         if phase == 'listening': self.emotion = 'attentive'
         elif phase == 'thinking': self.emotion = 'thinking'
         elif phase == 'executing': self.emotion = 'proud'
@@ -341,7 +356,7 @@ class Orb(QWidget):
 
         w, h = self.width(), self.height()
         center = QPointF(w / 2, h * 0.46)
-        radius = min(w * 0.44, h * 0.56)
+        radius = min(w * 0.38, h * 0.39)
 
         # Phase color themes adapted to face style
         if self.face_style == 'rose':
@@ -389,7 +404,7 @@ class Orb(QWidget):
             key = (int(w), int(h), index)
             if key not in self.cache:
                 if len(self.cache) > 20: self.cache.clear()
-                scale_factor = 1.08 if self.face_style == 'rose' else 1.02
+                scale_factor = 0.90 if self.face_style == 'rose' else 0.88
                 orig = self.frames[index].scaledToHeight(round(h * scale_factor), Qt.SmoothTransformation)
                 feathered = QPixmap(orig.size())
                 feathered.fill(Qt.transparent)
@@ -409,9 +424,9 @@ class Orb(QWidget):
             return self.cache[key]
 
         portrait = rendered(frame)
-        drift_y = math.sin(self.hud_step * 0.8) * 3
-        px = (w - portrait.width()) / 2
-        py = (h - portrait.height()) / 2 + drift_y
+        drift_y = math.sin(self.hud_step * 0.8) * 2 if self.motion else 0
+        px = (w - portrait.width()) / 2 + (self.hover_offset.x() if self.motion else 0)
+        py = (h - portrait.height()) / 2 + drift_y + (self.hover_offset.y() if self.motion else 0)
 
         progress = float(self.anim.currentValue() or 0) if self.anim.state() == QVariantAnimation.Running else 1.0
         if progress < 1.0 and self.motion and self.previous_frame != frame:
@@ -433,7 +448,8 @@ class Orb(QWidget):
         scan_grad.setColorAt(0.8, QColor(theme_col.red(), theme_col.green(), theme_col.blue(), 120))
         scan_grad.setColorAt(1.0, QColor(theme_col.red(), theme_col.green(), theme_col.blue(), 0))
         p.setPen(QPen(QBrush(scan_grad), 1.6))
-        p.drawLine(QPointF(center.x() - scan_w, scan_y_pos), QPointF(center.x() + scan_w, scan_y_pos))
+        if self.phase in ('thinking', 'executing'):
+            p.drawLine(QPointF(center.x() - scan_w, scan_y_pos), QPointF(center.x() + scan_w, scan_y_pos))
 
         # ─── 2.6 Expanding Interactive Shockwaves ────────────────────
         for r in self.ripples:
@@ -492,25 +508,25 @@ class Orb(QWidget):
         # Top-Left Bracket & Sys tag
         p.drawLine(QPointF(left_bx, top_by + b_len), QPointF(left_bx, top_by))
         p.drawLine(QPointF(left_bx, top_by), QPointF(left_bx + b_len, top_by))
-        tag_tl = "SYS::MIRA // ACTIVE" if is_focused else "SYS::MIRA // READY"
+        tag_tl = self.phase.upper()
         p.drawText(QPointF(left_bx + 4, top_by - 4), tag_tl)
 
         # Top-Right Bracket & Sync tag
         p.drawLine(QPointF(right_bx, top_by + b_len), QPointF(right_bx, top_by))
         p.drawLine(QPointF(right_bx, top_by), QPointF(right_bx - b_len, top_by))
-        tag_tr = "SYNC::100% [LOCK]" if is_focused else "SYNC::99.8%"
+        tag_tr = ""
         p.drawText(QPointF(right_bx - (85 if is_focused else 70), top_by - 4), tag_tr)
 
         # Bottom-Left Bracket & Freq tag
         p.drawLine(QPointF(left_bx, bot_by - b_len), QPointF(left_bx, bot_by))
         p.drawLine(QPointF(left_bx, bot_by), QPointF(left_bx + b_len, bot_by))
-        tag_bl = "CORE::5.2GHz [BOOST]" if is_focused else "CORE::4.8GHz"
+        tag_bl = ""
         p.drawText(QPointF(left_bx + 4, bot_by + 12), tag_bl)
 
         # Bottom-Right Bracket & State tag
         p.drawLine(QPointF(right_bx, bot_by - b_len), QPointF(right_bx, bot_by))
         p.drawLine(QPointF(right_bx, bot_by), QPointF(right_bx - b_len, bot_by))
-        tag_br = "NEURAL::TARGETED" if is_focused else "QUANTUM"
+        tag_br = self.face_style.upper()
         p.drawText(QPointF(right_bx - (80 if is_focused else 60), bot_by + 12), tag_br)
 
         # ─── 4. Animated Laser Connector Lines to Capsules ───────────
@@ -609,6 +625,8 @@ class DockWave(QWidget):
         self._timer.start()
 
     def _tick(self):
+        if not self.isVisible() or self.level <= 0.001:
+            return
         self._phase += 0.12
         self.update()
 
@@ -626,7 +644,7 @@ class DockWave(QWidget):
             norm_i = (i - num_bars / 2) / (num_bars / 2)
             env = math.exp(-3 * norm_i * norm_i)
             osc = math.sin(self._phase + i * 0.45)
-            bh = 4.0 + (12.0 * env * abs(osc)) + (self.level * 18.0 * env)
+            bh = 3.0 + max(0.0, min(1.0, self.level)) * env * (12.0 + 18.0 * abs(osc))
 
             x = i * (bar_w + spacing)
             # Vibrant gradient from cyan to magenta

@@ -148,6 +148,12 @@ def build_stylesheet() -> str:
         background-color: rgba(0, 212, 255, 0.1);
         border-color: rgba(0, 212, 255, 0.3);
     }}
+    QPushButton#compactIcon {{ padding: 0px; }}
+    QPushButton:disabled {{ color:#72809C; background:#0D1223; border-color:#20283D; }}
+    QPushButton:focus {{ border: 1px solid #A78BFA; }}
+    QSlider::groove:horizontal:disabled {{ background:#263047; }}
+    QSlider::sub-page:horizontal:disabled {{ background:#263047; }}
+    QSlider::handle:horizontal:disabled {{ background:#647089; border:0px; }}
     QPushButton:pressed {{
         background-color: rgba(0, 212, 255, 0.15);
     }}

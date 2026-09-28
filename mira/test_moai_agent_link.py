@@ -18,6 +18,22 @@ class Response:
 
 
 class AgentLinkTest(unittest.TestCase):
+    def test_browser_uses_real_catalog_and_executor(self):
+        with patch('command_router._installed_app', return_value=('com.google.Chrome', 'Chrome')) as catalog, patch.object(moai_link, 'execute', return_value={'status': 'ok'}) as execute:
+            result = moai_link.open_application('المتصفح')
+        catalog.assert_called_once_with('chrome')
+        execute.assert_called_once_with('open_app', {'app_id': 'com.google.Chrome'})
+        self.assertEqual(result['status'], 'ok')
+
+    def test_open_failure_is_preserved(self):
+        with patch('command_router._installed_app', return_value=('com.google.Chrome', 'Chrome')), patch.object(moai_link, 'execute', return_value={'status': 'error'}):
+            self.assertEqual(moai_link.open_application('browser')['status'], 'error')
+
+    def test_invalid_app_name(self):
+        for name in ('', None, 'x' * 121):
+            with self.assertRaises(ValueError):
+                moai_link.open_application(name)
+
     def test_uses_hermes_session_and_owner_profile(self):
         with patch('mira_memory.profile_text', return_value='أعمل على MoOS'), patch.object(
             moai_link.OPENER, 'open', return_value=Response('hermes')) as open_request:

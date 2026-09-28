@@ -340,5 +340,41 @@ class UiRoutesTest(unittest.TestCase):
             self.wait_for(lambda:bool(output))
             self.assertEqual(output[0]['status'],'pending')
 
+    def test_every_computer_inspection_button_supplies_valid_arguments(self):
+        w=self.window
+        with patch.object(w.pc_jobs,'run') as run:
+            for button in w.pc_buttons:
+                button.click()
+        self.assertEqual(len(run.call_args_list),7)
+        process_call=next(c for c in run.call_args_list if c.args[0]=='top_processes')
+        self.assertEqual(process_call.args[1],{'by':'cpu'})
+
+    def test_onoff_light_does_not_offer_brightness(self):
+        w=self.window
+        w.home_result({'kind':'devices','devices':[{'entity_id':'light.basic','name':'Basic','state':'on','supported_color_modes':['onoff']}]})
+        self.assertTrue(w.home_off.isEnabled())
+        self.assertFalse(w.home_brightness.isEnabled())
+
+    def test_settings_sections_own_their_controls(self):
+        w=self.window
+        self.assertEqual(w.settings_sections.count(),5)
+        self.assertTrue(w.settings_sections.widget(4).isAncestorOf(w.profile_editor))
+        self.assertTrue(w.settings_sections.widget(3).isAncestorOf(w.weather_city_input))
+        self.assertTrue(w.settings_sections.widget(0).isAncestorOf(w.motion_toggle))
+
+    def test_application_launcher_uses_catalog_and_clears_on_failure(self):
+        w=self.window
+        w.pc_result({'tool':'list_installed_apps','status':'ok','output':'com.google.Chrome\tGoogle Chrome\ninvalid\tIgnore'})
+        self.assertEqual(w.pc_app_picker.count(),1)
+        with patch.object(w.pc_jobs,'run') as run:
+            w.pc_launch.click()
+            run.assert_called_once_with('open_app',{'app_id':'com.google.Chrome'})
+        w.pc_result({'tool':'list_installed_apps','status':'error','error':'offline'})
+        self.assertFalse(w.pc_launch.isEnabled())
+        self.assertEqual(w.pc_app_picker.count(),0)
+        w.home_result({'kind':'devices','devices':[]})
+        self.assertFalse(w.home_volume.isEnabled())
+        self.assertFalse(w.home_brightness.isEnabled())
+
 
 if __name__=='__main__':unittest.main()
