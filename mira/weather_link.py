@@ -9,6 +9,11 @@ CONDITIONS={0:'صحو',1:'غائم جزئياً',2:'غائم جزئياً',3:'غ
             71:'ثلج',73:'ثلج',75:'ثلج كثيف',80:'زخات مطر',81:'زخات مطر',82:'زخات غزيرة',
             95:'عواصف رعدية',96:'عواصف رعدية',99:'عواصف رعدية'}
 
+CONDITIONS_EN={0:'Clear',1:'Mostly clear',2:'Partly cloudy',3:'Overcast',45:'Fog',48:'Fog',
+               51:'Drizzle',53:'Drizzle',55:'Drizzle',61:'Rain',63:'Rain',65:'Heavy rain',
+               71:'Snow',73:'Snow',75:'Heavy snow',80:'Showers',81:'Showers',82:'Heavy showers',
+               95:'Thunderstorm',96:'Thunderstorm',99:'Thunderstorm'}
+
 def _json(url):
     request=urllib.request.Request(url,headers={'User-Agent':'Mira-Neural-OS/1.0'})
     with urllib.request.urlopen(request,timeout=8) as response:
@@ -28,7 +33,7 @@ def current(city):
     place=found[0]
     forecast='https://api.open-meteo.com/v1/forecast?'+urllib.parse.urlencode({
         'latitude':place['latitude'],'longitude':place['longitude'],
-        'current':'temperature_2m,relative_humidity_2m,weather_code,wind_speed_10m',
+        'current':'temperature_2m,relative_humidity_2m,weather_code,wind_speed_10m,is_day',
         'timezone':'auto','forecast_days':1})
     data=_json(forecast)
     observed=data.get('current') or {}
@@ -39,4 +44,6 @@ def current(city):
             'humidity_percent':observed.get('relative_humidity_2m'),
             'wind_kmh':observed.get('wind_speed_10m'),
             'condition_ar':CONDITIONS.get(observed.get('weather_code'),'حالة غير محددة'),
+            'condition_en':CONDITIONS_EN.get(observed.get('weather_code'),'Unknown'),
+            'weather_code':observed.get('weather_code'),'is_day':observed.get('is_day',1),
             'source':'Open-Meteo','source_url':'https://open-meteo.com/en/docs'}

@@ -17,7 +17,7 @@ def request(path,body=None):
 def ask(text):
  if not isinstance(text,str) or not text.strip() or len(text)>6000:raise ValueError('Message must be 1–6000 characters')
  c=json.loads(CONFIG.read_text())
- d=request('/responses',{'model':c['model'],'input':[{'role':'system','content':'أنت مساعد Mo Dot. أجب بالعربية بوضوح واختصار. لا تدّع تنفيذ أي تحكم أو فعل على الكمبيوتر أو الجهاز؛ هذه محادثة نصية فقط.'},{'role':'user','content':text}],'max_output_tokens':300,'stream':False})
+ d=request('/responses',{'model':c['model'],'input':[{'role':'system','content':'أنتِ ميرا، مساعدة المالك. أجيبي بلغة المالك بوضوح واختصار. لا تدّعي تنفيذ أي تحكم أو فعل على الكمبيوتر أو الجهاز؛ هذه محادثة نصية فقط.'},{'role':'user','content':text}],'max_output_tokens':300,'stream':False})
  parts=[p.get('text','') for item in d.get('output',[]) if item.get('type')=='message' for p in item.get('content',[]) if p.get('type')=='output_text']
  answer='\n'.join(parts).strip() or d.get('output_text','').strip()
  if not answer:raise RuntimeError('Gateway returned no text')

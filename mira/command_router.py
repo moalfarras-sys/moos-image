@@ -93,16 +93,17 @@ def _installed_app(message, english=False):
     raise ValueError('Application not installed or name not found' if english else 'لم أجد هذا التطبيق بين البرامج المثبتة')
 
 
-def dispatch(text):
+def dispatch(text, city=None):
     if not isinstance(text, str) or not text.strip() or len(text) > 6000:
         raise ValueError('اكتب أمراً قصيراً وواضحاً')
     message = normalize(text)
     english = bool(re.search(r'[A-Za-z]', text)) and not bool(re.search(r'[\u0600-\u06ff]', text))
     if any(word in message for word in ('طقس','الجو','weather')):
         match = re.search(r'(?:\bفي\b|\bin\b)\s+([^؟?!]+)',message)
-        if not match:
+        if match:
+            city=match.group(1).strip(' .,،')
+        elif not city:
             raise ValueError('اذكر المدينة بعد «في» لمعرفة طقسها' if not english else 'Name a city after “in”')
-        city=match.group(1).strip(' .,،')
         result=current_weather(city)
         description=(f"الطقس في {result['city']}: {result['condition_ar']}، "
                      f"{result['temperature_c']}°C · {result['source']}")

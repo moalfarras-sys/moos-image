@@ -33,6 +33,8 @@ class Bridge(QObject):
         self.voice = None
         self.voice_enabled = True
         self.voice_name = voice_name
+        self.lang = 'ar'       # passed to each new voice session's persona
+        self.city = None
         self.heartbeat_task = None
         self.thread = threading.Thread(target=self.run, daemon=True)
 
@@ -56,11 +58,15 @@ class Bridge(QObject):
                 self.api.subscribe_states(self.state.emit)
                 from live_voice import LiveVoice
                 self.voice = LiveVoice(self.api, self.entities, self.voice_state.emit, self.voice_name)
+                self.voice.lang = self.lang
+                self.voice.city = self.city
                 # The Dot runs its own cloud client when this desktop is absent.
                 # Give it the signed handoff before subscribing our pipeline.
                 if await self.device_heartbeat():
                     await asyncio.sleep(.7)
-                    self.heartbeat_task = asyncio.create_task(self.keep_device_standby())
+                # Heartbeat for as long as this connection lives, even if the Echo's own client
+                # was still booting at the first try; otherwise both would claim the voice.
+                self.heartbeat_task = asyncio.create_task(self.keep_device_standby())
                 if self.voice_enabled and '--capture' not in sys.argv:
                     try:
                         await self.voice.enable()
