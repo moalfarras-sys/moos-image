@@ -1,5 +1,6 @@
 # MoOS current state — measured 2026-09-27
 
+**Mira (topic source, 2026-09-28):** `mira/` preserves both faces; a real lamp passed on/pink/off readback and Mo AI Hermes read the registered MoOS project with owner cloud consent. The installed user app reached Echo voice `ready`, but hands-free activation and full button review remain unproved; no signed MoOS image contains Mira. See `mira/README.md`.
 ## Source and release truth
 - **Proven x86 production is `e6fbd56c`, `44.20260927.945`**: signed build `36297160647`,
   QCOW2 `36298778749`/`36298780129`/`36298781296`, ISO `36298782489`, x86 promotion
@@ -28,8 +29,7 @@
 
 ## App engines — what this machine can actually run
 
-**Corrective source work, 2026-09-27:** THEME_REV 90 adds a reviewed 6.7/6.8 dock
-material seam and shared Hub material; isolated clear/solid Hub renders and local image gates passed.
+**Corrective source work, 2026-09-27:** THEME_REV 90 adds a reviewed 6.7/6.8 dock material seam and shared Hub material; isolated clear/solid Hub renders and local image gates passed.
 Windows setup folder access is temporary, confirmed and read-only. Generals Zero Hour
 ran a real Alpine Assault Skirmish at 1080p fullscreen on the 4K station: Dozer selection,
 movement and saving worked. Its local MoOS menu entry launches directly, but some reopen
