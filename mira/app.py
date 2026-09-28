@@ -1166,6 +1166,22 @@ class Window(QMainWindow):
         pl.addWidget(QLabel('قل الاسم أولاً، ثم اسأل بعد إشارة Echo. السؤال والرد عبر Echo.'))
         self.device_state=QLabel('جارٍ قراءة جهاز Mira…')
         pl.addWidget(self.device_state)
+        pl.addWidget(QLabel('إعدادات Echo من الهاتف · الواي فاي، الصوت والخصوصية'))
+        self.echo_setup_button=QPushButton('فتح إعدادات Echo على الشبكة')
+        self.echo_setup_button.setEnabled(False)
+        self.echo_setup_button.clicked.connect(self.open_echo_setup)
+        pl.addWidget(self.echo_setup_button)
+        self.echo_setup_url=QLabel('افتح الصفحة من هاتفك على نفس شبكة الواي فاي، ثم أكّد الدخول بزر الجهاز.')
+        self.echo_setup_url.setTextInteractionFlags(Qt.TextSelectableByMouse)
+        pl.addWidget(self.echo_setup_url)
+        self.echo_mute=QCheckBox('كتم ميكروفونات Echo')
+        self.echo_mute.setEnabled(False)
+        self.echo_mute.toggled.connect(lambda on:self.bridge.command('switch','mic_mute',on))
+        pl.addWidget(self.echo_mute)
+        self.echo_pair=QPushButton('إقران سماعة بلوتوث مع Echo')
+        self.echo_pair.setEnabled(False)
+        self.echo_pair.clicked.connect(lambda:self.bridge.command('switch','bluetooth_pairing',True))
+        pl.addWidget(self.echo_pair)
         pl.addWidget(QLabel('صوت سماعة Echo'))
         self.speaker_volume=QSlider(Qt.Horizontal);self.speaker_volume.setRange(0,100)
         self.speaker_volume.setEnabled(False)
@@ -1425,6 +1441,9 @@ class Window(QMainWindow):
         self.device_state.setText('Echo Mira متصل · جارٍ تحديث حالة الميكروفون')
         self.speaker_volume.setEnabled(True)
         self.wake_threshold.setEnabled(True)
+        self.echo_setup_button.setEnabled(any(getattr(e,'object_id',None)=='setup_page' for e in es))
+        self.echo_mute.setEnabled(any(getattr(e,'object_id',None)=='mic_mute' for e in es))
+        self.echo_pair.setEnabled(any(getattr(e,'object_id',None)=='bluetooth_pairing' for e in es))
 
     def on_device_state(self,state):
         entity=self.bykey.get(state.key)
@@ -1436,6 +1455,9 @@ class Window(QMainWindow):
             self.wake_threshold.setValue(round(state.state*100))
         elif name=='mic_mute':
             muted=bool(state.state)
+            self.echo_mute.blockSignals(True)
+            self.echo_mute.setChecked(muted)
+            self.echo_mute.blockSignals(False)
             self.device_state.setText('ميكروفون Echo مكتوم من الجهاز' if muted else 'ميكروفون Echo مفتوح')
             if muted:self.orb.set_phase('off')
 
@@ -1448,15 +1470,32 @@ class Window(QMainWindow):
         self.device_state.setText('Echo غير متصل · '+err)
         self.speaker_volume.setEnabled(False)
         self.wake_threshold.setEnabled(False)
+        self.echo_setup_button.setEnabled(False)
+        self.echo_mute.setEnabled(False)
+        self.echo_pair.setEnabled(False)
 
     def on_device_command_state(self, kind, status):
         if kind == 'wake': print('Mira wake command:',status.split(':',1)[0],flush=True)
         if status.startswith('error:'):
-            self.wake_request_seq += 1
             self._add_chat_msg('error', 'لم يصل الأمر إلى Echo · ' + status.split(':',1)[1])
-            self.voice_bar.set_status('تعذّر إرسال طلب الاستماع', phase='error')
+            if kind == 'wake':
+                self.wake_request_seq += 1
+                self.voice_bar.set_status('تعذّر إرسال طلب الاستماع', phase='error')
+        elif kind == 'setup' and status == 'sent':
+            from PySide6.QtGui import QDesktopServices
+            from PySide6.QtCore import QUrl
+            from mira_bridge import IP
+            url='http://'+IP+':8181/setup'
+            self.echo_setup_url.setText(url+' · من الهاتف على نفس الشبكة، اضغط زر Echo للموافقة.')
+            QDesktopServices.openUrl(QUrl(url))
         elif kind == 'wake' and status == 'sent':
             self.voice_bar.set_status('أُرسل طلب الاستماع إلى Echo · بانتظار استجابته', phase='ready')
+
+    def open_echo_setup(self):
+        if not self.bridge.online:
+            self._add_chat_msg('error','Echo غير متصل؛ تعذّر فتح إعداداته.')
+            return
+        self.bridge.command('setup','setup_page')
 
     def on_voice_state(self, kind, text):
         if kind in ('activating','listening','thinking','executing','speaking','ready','off','error'):
@@ -1476,8 +1515,11 @@ class Window(QMainWindow):
             self.voice_phase='thinking'
         elif kind == 'listening':
             self.wake_request_seq += 1
-            self.device_state.setText('التقط Echo النداء · '+datetime.now().strftime('%H:%M:%S'))
-            self.voice_bar.set_status("أستمع إليك الآن...", phase='listening')
+            local_input='ميكروفون الكمبيوتر' in text
+            self.device_state.setText(('ميكروفون الكمبيوتر' if local_input else 'Echo')+
+                                      ' يستمع · '+datetime.now().strftime('%H:%M:%S'))
+            self.voice_bar.set_status(('أستمع من ميكروفون الكمبيوتر الآن…' if local_input
+                                       else 'أستمع إليك الآن...'), phase='listening')
             self.orb.set_phase('listening')
             self.voice_phase='listening'
         elif kind == 'thinking':
@@ -1505,7 +1547,8 @@ class Window(QMainWindow):
                 peak=int(stats.get('microphone_peak') or 0)
                 answered=int(stats.get('reply_bytes') or 0)
                 heard=bool(stats.get('heard'))
-                print(f'Mira voice result: mic_bytes={received} peak={peak} '
+                source=str(stats.get('input_source') or 'unknown')
+                print(f'Mira voice result: source={source} mic_bytes={received} peak={peak} '
                       f'heard={heard} reply_bytes={answered}',flush=True)
                 if received == 0:
                     self.voice_bar.set_status('لم يصل صوت من Echo · افحص ميكروفون الجهاز',phase='ready')
@@ -1547,12 +1590,16 @@ class Window(QMainWindow):
         elif 'dispatch' in data:
             self.chat_bridge.ask(data['text'])
 
-    def tap_to_talk(self):
+    def tap_to_talk(self, local_source=None):
+        if not isinstance(local_source,str):local_source=None
         if self.bridge.online and self.voice_phase not in ('off','error'):
             self.wake_request_seq += 1
             attempt = self.wake_request_seq
             self.voice_bar.set_status('أطلب من Echo بدء الاستماع…', phase='ready')
-            self.bridge.command('wake', 'wake_assistant_1')
+            if local_source:
+                self.bridge.command('wake', 'wake_assistant_1', local_source)
+            else:
+                self.bridge.command('wake', 'wake_assistant_1')
             QTimer.singleShot(18000, lambda:self._wake_timeout(attempt))
         else:self._add_chat_msg('error','المحادثة الصوتية غير جاهزة؛ افحص Echo أو شغّلها من الإعدادات.')
 
@@ -1566,14 +1613,22 @@ class Window(QMainWindow):
         fallback='alsa_input.usb-Linux_Foundation_Webcam_gadget-02.mono-fallback'
         if os.environ.get('MIRA_TEST_MODE')=='1':return [fallback]
         try:
-            result=subprocess.run(['pactl','list','short','sources'],capture_output=True,
+            result=subprocess.run(['pactl','-f','json','list','sources'],capture_output=True,
                                   text=True,timeout=3,check=True)
-            sources=[line.split('\t')[1] for line in result.stdout.splitlines()
-                     if len(line.split('\t'))>1 and '.monitor' not in line.split('\t')[1]]
+            sources=[]
+            for item in json.loads(result.stdout):
+                name=item.get('name','')
+                if not name or '.monitor' in name:continue
+                ports=item.get('ports') or []
+                active=item.get('active_port')
+                unplugged=any(port.get('name')==active and
+                              port.get('availability')=='not available'
+                              for port in ports)
+                if not unplugged:sources.append(name)
             default=subprocess.run(['pactl','get-default-source'],capture_output=True,
                                    text=True,timeout=3,check=True).stdout.strip()
             return ([default]+[source for source in sources if source!=default]) if default in sources else (sources or [fallback])
-        except (OSError,subprocess.CalledProcessError,subprocess.TimeoutExpired):
+        except (OSError,subprocess.CalledProcessError,subprocess.TimeoutExpired,ValueError,TypeError):
             return [fallback]
 
     def select_mic_source(self, _index=None):
@@ -1591,6 +1646,12 @@ class Window(QMainWindow):
         model=Path.home()/'.local/share/mira/wake-model'
         source=str(self.settings.value('local_wake_source','') or self.mic_source_picker.currentData() or
                    'alsa_input.usb-Linux_Foundation_Webcam_gadget-02.mono-fallback')
+        available=self.available_microphones()
+        if source not in available:
+            source=available[0]
+            self.settings.setValue('local_wake_source',source)
+            index=self.mic_source_picker.findData(source)
+            if index>=0:self.mic_source_picker.setCurrentIndex(index)
         if not worker_python.exists() or not (model/'model.bin').exists():
             self.local_wake_state.setText('النداء المحلي غير مثبت بعد')
             return
@@ -1618,6 +1679,8 @@ class Window(QMainWindow):
                 label='التقطت «ميرا» وأرسلت طلب الاستماع إلى Echo'
             elif health.get('last_result')=='wake_match':
                 label='طابق المستمع اسم ميرا وأرسل طلب الاستماع'
+            elif health.get('frames',0)>30 and 0<health.get('frames_per_second',10)<6:
+                label='ميكروفون الكمبيوتر بطيء · جرّب «Hey Mira» قرب Echo أو اختر ميكروفونًا آخر'
             elif health.get('last_result')=='not_matched':
                 label='وصل صوت لكن لم يُطابق اسم ميرا · اقترب من ميكروفون الكمبيوتر'
             elif health.get('frames',0)>0:
@@ -1636,7 +1699,9 @@ class Window(QMainWindow):
                 self.showNormal()
                 self.raise_()
                 self.activateWindow()
-                self.tap_to_talk()
+                source=str(self.settings.value('local_wake_source','') or
+                           self.mic_source_picker.currentData() or '')
+                self.tap_to_talk(local_source=source)
         elif command==b'show':
             self.showNormal()
             self.raise_()

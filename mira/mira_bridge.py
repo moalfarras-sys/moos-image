@@ -85,12 +85,21 @@ class Bridge(QObject):
                 entity = self.entities[name]
                 args = {'key': entity.key, 'device_id': entity.device_id}
                 if kind == 'wake':
+                    if self.voice:
+                        # A PC wake keeps using that microphone for the question.
+                        # Manual/Echo wake clears any unconsumed local source.
+                        self.voice.next_local_source = value if isinstance(value, str) and value else None
                     self.api.button_command(**args)
                     self.command_state.emit('wake', 'sent')
                 elif kind == 'number':
                     self.api.number_command(**args, state=float(value))
                 elif kind == 'switch':
                     self.api.switch_command(**args, state=bool(value))
+                elif kind == 'setup':
+                    if name != 'setup_page':
+                        raise ValueError('unsupported setup command')
+                    self.api.switch_command(**args, state=True)
+                    self.command_state.emit('setup', 'sent')
                 elif kind == 'select':
                     self.api.select_command(**args, state=value)
                 elif kind == 'volume':

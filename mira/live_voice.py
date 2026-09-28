@@ -1,5 +1,5 @@
 """Wake-triggered Gemini Live -> encrypted Echo voice satellite. Fixed device controls only."""
-import asyncio,json,struct,time,math
+import asyncio,json,struct,time,math,os,collections
 from pathlib import Path
 from google import genai
 from google.genai import types
@@ -7,7 +7,7 @@ from aioesphomeapi import VoiceAssistantEventType as E
 ROOT=Path(__file__).resolve().parents[1]
 class LiveVoice:
  def __init__(self,api,entities,emit,voice_name='Aoede'):
-  self.api=api;self.entities=entities;self.emit=emit;self.unsubscribe=None;self.turn=None;self.enabled=False;self.last_stats={};self.test_text=None;self.history=[];self.voice_name=voice_name
+  self.api=api;self.entities=entities;self.emit=emit;self.unsubscribe=None;self.turn=None;self.enabled=False;self.last_stats={};self.test_text=None;self.history=[];self.voice_name=voice_name;self.next_local_source=None
  def event(self,name,data=None):
   if self.api.is_connected:self.api.send_voice_assistant_event(getattr(E,'VOICE_ASSISTANT_'+name),data or {})
  async def enable(self):
@@ -47,14 +47,22 @@ class LiveVoice:
  async def start(self,conversation,flags,settings,wake):
   self.emit('activating','وصل طلب الاستماع من Echo · أهيّئ المحادثة')
   if self.turn:self.turn['task'].cancel()
-  ready=asyncio.Event();t={'ready':ready,'queue':asyncio.Queue(128),'done':False,'out':0,'input':0,'peak':0,'reply':'','heard':'','started':time.monotonic(),'tts':False,'test_text':self.test_text}
+  local_source=self.next_local_source;self.next_local_source=None
+  ready=asyncio.Event();t={'ready':ready,'queue':asyncio.Queue(128),'done':False,'out':0,'input':0,'peak':0,'reply':'','heard':'','started':time.monotonic(),'tts':False,'test_text':self.test_text,'local_source':local_source,'input_source':'pc_pending' if local_source else 'echo','echo_buffer':collections.deque(maxlen=50)}
   self.test_text=None;self.turn=t;t['task']=asyncio.create_task(self.run(t))
+  if local_source:t['capture_task']=asyncio.create_task(self.capture_local(t,local_source))
   await asyncio.wait_for(ready.wait(),15)
   if t.get('error'):return None
-  self.event('RUN_START');self.event('STT_START');self.emit('listening','أسمعك…')
+  self.event('RUN_START');self.event('STT_START');self.emit('listening','ميكروفون الكمبيوتر · أسمعك…' if local_source else 'أسمعك…')
   return 0
  async def audio(self,data,data2):
   t=self.turn
+  if not t or t['done'] or t['tts']:return
+  if t.get('local_source'):
+   t['echo_buffer'].append(data)
+   return
+  await self.enqueue_audio(t,data)
+ async def enqueue_audio(self,t,data):
   if not t or t['done'] or t['tts']:return
   t['input']+=len(data)
   if time.monotonic()-t.get('last_level',0)>.15:
@@ -66,11 +74,68 @@ class LiveVoice:
   try:t['queue'].put_nowait(data)
   except asyncio.QueueFull:
    t['error']='audio_queue_full';t['task'].cancel();self.emit('error','الاتصال بطيء؛ أعد المحاولة')
- async def stop(self,abort):
+ async def capture_local(self,t,source):
+  """Receive PCM from the wake listener's single microphone capture stream."""
+  writer=None;cancelled=False;fallback=False
+  try:
+   reader,writer=await asyncio.wait_for(
+    asyncio.open_unix_connection(f'/run/user/{os.getuid()}/mira-pcm.sock'),3)
+   started=time.monotonic();probe=[]
+   while len(probe)<8 and time.monotonic()-started<2.5:
+    try:probe.append(await asyncio.wait_for(reader.readexactly(3200),1.5))
+    except (asyncio.IncompleteReadError,asyncio.TimeoutError):break
+   if len(probe)<8:
+    fallback=True
+   else:
+    t['input_source']='pc'
+    t['echo_buffer'].clear()
+   noise=90.0;voiced=0;quiet=0
+   pending=collections.deque(probe)
+   while self.turn is t and not t['done'] and time.monotonic()-started<14:
+    if fallback:break
+    if pending:data=pending.popleft()
+    else:
+     try:data=await asyncio.wait_for(reader.readexactly(3200),3)
+     except (asyncio.IncompleteReadError,asyncio.TimeoutError):break
+    samples=struct.unpack('<1600h',data)
+    level=math.sqrt(sum(x*x for x in samples)/len(samples))
+    speaking=level>max(85.0,noise*1.6)
+    if not speaking and voiced==0:noise=.98*noise+.02*level
+    await self.enqueue_audio(t,data)
+    if speaking:voiced+=1;quiet=0
+    elif voiced:quiet+=1
+    if voiced>=2 and quiet>=10:break
+  except (OSError,ValueError):
+   fallback=True
+  except asyncio.CancelledError:
+   cancelled=True
+   raise
+  finally:
+   if writer:
+    writer.close()
+    try:await writer.wait_closed()
+    except OSError:pass
+   if self.turn is t and not t['done'] and not cancelled:
+    if fallback or t['input']==0:
+     for frame in t['echo_buffer']:
+      await self.enqueue_audio(t,frame)
+     t['echo_buffer'].clear()
+     t['local_source']=None
+     t['input_source']='echo_fallback'
+     self.emit('listening','Echo · بث الكمبيوتر بطيء أو غير متاح')
+     if t.pop('echo_stop_pending',False):
+      await self.stop(False)
+    else:
+     await self.stop(False,local=True)
+ async def stop(self,abort,local=False):
   t=self.turn
   if not t:return
   if abort:
    t['task'].cancel();return
+  # Echo's own silence detector cannot close a PC microphone turn.
+  if t.get('local_source') and not local:
+   t['echo_stop_pending']=True
+   return
   if not t['done']:
    t['done']=True;await t['queue'].put(None);self.emit('thinking','أفكر في طلبك…')
  def control(self,args):
@@ -95,6 +160,7 @@ class LiveVoice:
    t['error']=type(exc).__name__;self.emit('error','تعذّر تهيئة الصوت: '+type(exc).__name__)
   finally:
    t['ready'].set()
+   if t.get('capture_task') and not t['capture_task'].done():t['capture_task'].cancel()
    if self.turn is t:self.turn=None
 
  async def _run(self,t):
@@ -188,9 +254,9 @@ class LiveVoice:
       sc=response.server_content
       if not sc:continue
       if sc.input_transcription and sc.input_transcription.text:
-       t['heard']+=sc.input_transcription.text;self.emit('heard',sc.input_transcription.text)
+       t['heard']+=sc.input_transcription.text
       if sc.output_transcription and sc.output_transcription.text:
-       t['reply']+=sc.output_transcription.text;self.emit('reply',sc.output_transcription.text)
+       t['reply']+=sc.output_transcription.text
       if sc.model_turn:
        for part in sc.model_turn.parts:
         if not part.inline_data:continue
@@ -218,6 +284,10 @@ class LiveVoice:
    t['ready'].set()
    if sender:sender.cancel()
    await client.aio.aclose()
-   self.last_stats={'microphone_bytes':t['input'],'microphone_peak':t['peak'],'reply_bytes':t['out'],'elapsed_s':round(time.monotonic()-t['started'],2),'heard':t['heard'],'reply':t['reply'],'error':t.get('error')}
+   # One spoken turn is one conversation entry. Streaming transcript fragments
+   # previously filled the last-N memory window with half a sentence.
+   if t['heard'].strip():self.emit('heard',t['heard'].strip())
+   if t['reply'].strip():self.emit('reply',t['reply'].strip())
+   self.last_stats={'microphone_bytes':t['input'],'microphone_peak':t['peak'],'reply_bytes':t['out'],'elapsed_s':round(time.monotonic()-t['started'],2),'input_source':t['input_source'],'heard':t['heard'],'reply':t['reply'],'error':t.get('error')}
    if self.turn is t:self.turn=None
    self.emit('stats',json.dumps(self.last_stats,ensure_ascii=False))

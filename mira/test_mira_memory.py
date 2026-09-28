@@ -19,6 +19,12 @@ class MemoryTest(unittest.TestCase):
                 memory.add_message('action','حدث التنفيذ')
                 self.assertIn('MoOS',memory.profile_text())
                 self.assertEqual([m['role'] for m in memory.recent_messages()],['user','mira'])
+                memory.add_message('user','كم ضوء عندي؟')
+                memory.add_message('mira','يوجد ')
+                memory.add_message('mira','ضوءان.')
+                history=memory.recent_messages(3)
+                self.assertEqual([m['role'] for m in history],['mira','user','mira'])
+                self.assertEqual(history[-1]['text'],'يوجد ضوءان.')
                 self.assertEqual(Path(memory.PROFILE).stat().st_mode & 0o777,0o600)
                 self.assertEqual(Path(memory.CONVERSATION).stat().st_mode & 0o777,0o600)
             finally:

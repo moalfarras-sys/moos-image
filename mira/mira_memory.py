@@ -89,13 +89,29 @@ def add_message(role, text):
 def recent_messages(limit=20):
     if not CONVERSATION.exists():
         return []
-    rows = CONVERSATION.read_text(encoding='utf-8').splitlines()[-max(1,min(limit,200)):]
+    limit = max(1, min(limit, 200))
+    rows = CONVERSATION.read_text(encoding='utf-8').splitlines()[-max(200,limit * 8):]
     out = []
+    previous = None
     for row in rows:
         try:
             item = json.loads(row)
             if item.get('role') in ('user','mira') and isinstance(item.get('text'),str):
-                out.append(item)
+                if (item['role'] == 'mira' and previous and previous.get('role') == 'mira'
+                        and out and out[-1]['role'] == 'mira'):
+                    try:
+                        earlier = datetime.fromisoformat(previous['time'])
+                        later = datetime.fromisoformat(item['time'])
+                        adjacent = 0 <= (later - earlier).total_seconds() <= 3
+                    except (KeyError, ValueError, TypeError):
+                        adjacent = False
+                    if adjacent:
+                        out[-1]['text'] += item['text']
+                    else:
+                        out.append(dict(item))
+                else:
+                    out.append(dict(item))
+            previous = item
         except (ValueError, TypeError):
             continue
-    return out
+    return out[-limit:]

@@ -3,6 +3,8 @@ import os
 import tempfile
 import time
 import unittest
+import json
+from subprocess import CompletedProcess
 from pathlib import Path
 from unittest.mock import patch
 
@@ -80,12 +82,40 @@ class UiRoutesTest(unittest.TestCase):
         w.stop_btn.click()
         self.assertIn(('cancel',),w.bridge.commands)
 
+    def test_echo_setup_opens_actual_device_page_after_command(self):
+        w=self.window
+        from types import SimpleNamespace
+        w.on_device_connected([SimpleNamespace(object_id='setup_page',key=1)])
+        from PySide6.QtGui import QDesktopServices
+        with patch.object(QDesktopServices,'openUrl',return_value=True) as open_url:
+            w.echo_setup_button.click()
+            self.assertIn(('setup','setup_page'),w.bridge.commands)
+            open_url.assert_not_called()
+            w.on_device_command_state('setup','sent')
+            self.assertEqual(open_url.call_args.args[0].toString(),
+                             'http://192.168.3.83:8181/setup')
+            self.assertIn('192.168.3.83:8181/setup',w.echo_setup_url.text())
+
+    def test_echo_microphone_and_bluetooth_buttons_use_device_switches(self):
+        w=self.window
+        from types import SimpleNamespace
+        w.on_device_connected([SimpleNamespace(object_id='mic_mute',key=1),
+                               SimpleNamespace(object_id='bluetooth_pairing',key=2)])
+        w.echo_mute.click()
+        w.echo_pair.click()
+        self.assertIn(('switch','mic_mute',True),w.bridge.commands)
+        self.assertIn(('switch','bluetooth_pairing',True),w.bridge.commands)
+        count=len(w.bridge.commands)
+        w.on_device_state(SimpleNamespace(key=1,state=False))
+        self.assertFalse(w.echo_mute.isChecked())
+        self.assertEqual(len(w.bridge.commands),count)
+
     def test_local_wake_uses_same_verified_echo_route(self):
         w=self.window
         w.voice_phase='ready'
         w.local_wake_enabled=True
         w.handle_instance_command(b'wake')
-        self.assertIn(('wake','wake_assistant_1'),w.bridge.commands)
+        self.assertIn(('wake','wake_assistant_1',w.mic_source_picker.currentData()),w.bridge.commands)
         count=len(w.bridge.commands)
         w.voice_phase='listening'
         w.handle_instance_command(b'wake')
@@ -178,6 +208,20 @@ class UiRoutesTest(unittest.TestCase):
         self.assertEqual(w.settings.value('local_wake_source'),'test-mic')
         stop.assert_called_once_with()
         start.assert_called_once_with()
+
+    def test_unplugged_analog_microphone_is_not_offered(self):
+        sources=[
+            {'name':'alsa_input.usb-Echo','active_port':'analog-input',
+             'ports':[{'name':'analog-input','availability':'availability unknown'}]},
+            {'name':'alsa_input.pci-analog','active_port':'front-mic',
+             'ports':[{'name':'front-mic','availability':'not available'}]},
+            {'name':'moos-output.monitor','active_port':None,'ports':[]},
+        ]
+        responses=[CompletedProcess([],0,json.dumps(sources),''),
+                   CompletedProcess([],0,'alsa_input.pci-analog\n','')]
+        with patch.dict(os.environ,{'MIRA_TEST_MODE':'0'}),\
+             patch.object(app.subprocess,'run',side_effect=responses):
+            self.assertEqual(self.window.available_microphones(),['alsa_input.usb-Echo'])
 
     def test_computer_read_buttons_reach_moai_bridge(self):
         w=self.window
