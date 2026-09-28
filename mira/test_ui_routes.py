@@ -91,6 +91,14 @@ class UiRoutesTest(unittest.TestCase):
         w.handle_instance_command(b'wake')
         self.assertEqual(len(w.bridge.commands),count)
 
+    def test_empty_echo_audio_is_reported_honestly(self):
+        w=self.window
+        w.on_voice_state('stats','{"microphone_bytes": 0, "reply_bytes": 0}')
+        self.assertIn('لم يصل صوت من Echo',w.voice_bar.status_text)
+        w.on_voice_state('stats','{"microphone_bytes": 4096, "microphone_peak": 900, '
+                                 '"reply_bytes": 0, "heard": ""}')
+        self.assertIn('لم يُفهم السؤال',w.voice_bar.status_text)
+
     def test_home_buttons_run_backend_and_show_honest_result(self):
         w=self.window
         fixture=[{'entity_id':'light.desk','name':'Desk','state':'on','brightness':128,

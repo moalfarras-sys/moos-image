@@ -1498,6 +1498,23 @@ class Window(QMainWindow):
             self._add_chat_msg('mira', text)
         elif kind == 'action':
             self._add_chat_msg('action',text)
+        elif kind == 'stats':
+            try:
+                stats=json.loads(text)
+                received=int(stats.get('microphone_bytes') or 0)
+                peak=int(stats.get('microphone_peak') or 0)
+                answered=int(stats.get('reply_bytes') or 0)
+                heard=bool(stats.get('heard'))
+                print(f'Mira voice result: mic_bytes={received} peak={peak} '
+                      f'heard={heard} reply_bytes={answered}',flush=True)
+                if received == 0:
+                    self.voice_bar.set_status('لم يصل صوت من Echo · افحص ميكروفون الجهاز',phase='ready')
+                elif not heard and not answered:
+                    self.voice_bar.set_status('وصل صوت لكن لم يُفهم السؤال · تكلم بعد ظهور «أستمع» قرب Echo',phase='ready')
+                elif heard and not answered:
+                    self.voice_bar.set_status('فهمت السؤال لكن لم يصل جواب صوتي · أعد المحاولة',phase='ready')
+            except (ValueError,TypeError):
+                pass
         elif kind == 'ready':
             label=('الصوت بالزر جاهز · النداء المحلي قيد الاختبار'
                    if self.local_wake_enabled else 'الصوت بالزر جاهز · النداء المحلي متوقف')

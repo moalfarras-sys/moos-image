@@ -22,7 +22,6 @@ RATE = 16000
 FRAME_BYTES = RATE * 2 // 10
 ALIASES = {'ميرا', 'ميره', 'ميرة', 'ميرى', 'مير', 'ميا', 'ميارا',
            'ميري', 'mira', 'myra', 'meera'}
-PREFIXES = {'يا', 'هاي', 'هي', 'hey', 'hi'}
 
 
 def diagnostic(uid, **state):
@@ -44,15 +43,25 @@ def diagnostic(uid, **state):
         pass
 
 
+def _one_edit_away(word, target='ميرا'):
+    """Allow a single ASR slip on Mira, but never a short common word."""
+    if len(word) < 4 or abs(len(word) - len(target)) > 1:
+        return False
+    if len(word) == len(target):
+        return sum(a != b for a, b in zip(word, target)) == 1
+    longer, shorter = (word, target) if len(word) > len(target) else (target, word)
+    return any(longer[:i] + longer[i + 1:] == shorter for i in range(len(longer)))
+
+
 def is_wake(text):
-    """Use a word boundary: similar words inside ordinary speech must not wake."""
+    """Match an isolated name, including one recognition error in «ميرا»."""
     normalized = re.sub(r'[\u064b-\u065f\u0670]', '', text.lower())
     normalized = normalized.replace('أ', 'ا').replace('إ', 'ا').replace('آ', 'ا')
     normalized = re.sub(r'[^\u0621-\u064a\w]+', ' ', normalized)
     words = normalized.split()
     if not words:
         return False
-    return any(word in ALIASES for word in words)
+    return any(word in ALIASES or _one_edit_away(word) for word in words)
 
 
 def transcribe_wake(model, pcm):
@@ -61,22 +70,20 @@ def transcribe_wake(model, pcm):
     if level < .001:
         return False
     samples = np.clip(samples * min(20.0, .06 / level), -1, 1)
-    segments, _ = model.transcribe(samples, language='ar', beam_size=3,
-                                   condition_on_previous_text=False,
-                                   initial_prompt='ميرا، يا ميرا، هاي ميرا، ميرا ميرا.',
-                                   vad_filter=False)
-    accepted = [s.text for s in segments
-                if s.no_speech_prob < 0.5 and s.avg_logprob > -1.2]
-    if is_wake(' '.join(accepted)):
-        return True
-    # A bilingual owner may say the English form; retry plausible speech only.
-    if accepted:
-        segments, _ = model.transcribe(samples, beam_size=2,
-                                       condition_on_previous_text=False,
-                                       vad_filter=False)
+    # A single name often has weak segment scores. The PCM has already passed
+    # the local energy/VAD gate, so accept a plausible keyword even when
+    # Whisper's no-speech estimate is high. Hotwords bias decoding without
+    # supplying a prior transcript that can be hallucinated into silence.
+    for language, beam in (('ar', 4), (None, 3)):
+        segments, _ = model.transcribe(
+            samples, language=language, beam_size=beam,
+            condition_on_previous_text=False, hotwords='ميرا يا ميرا هاي ميرا Mira',
+            vad_filter=False)
         accepted = [s.text for s in segments
-                    if s.no_speech_prob < 0.35 and s.avg_logprob > -1.0]
-    return is_wake(' '.join(accepted))
+                    if s.no_speech_prob < 0.85 and s.avg_logprob > -1.5]
+        if is_wake(' '.join(accepted)):
+            return True
+    return False
 
 
 def send_wake(uid):
