@@ -12,7 +12,7 @@ name=MoOSUI2
 
 [ksplashrc][KSplash]
 Theme=org.moos.ui2
-Engine=None
+Engine=KSplashQML
 
 [kdeglobals][Icons]
 Theme=MoOSUI2

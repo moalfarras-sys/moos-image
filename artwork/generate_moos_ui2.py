@@ -259,6 +259,16 @@ OPACITY = {
     },
 }
 
+# Plasma draws `dialogs/background.svg` when KWin's blur is NOT active and
+# `translucent/dialogs/background.svg` when it is: libplasma 6.7's
+# ThemePrivate::updateKSvgSelectors() selects "translucent" only while the blur effect
+# watcher reports the effect active, and follows it live. The popup glass therefore
+# belongs in translucent/, and the base popup needs body enough to hold text over
+# the window behind it. Measured on the A1 (llvmpipe, blur off) on 2026-09-24: the
+# launcher's 0.78 top stop let VS Code's "Generate New Workspace…" read straight
+# through it. 0.97 is the fail-solid endpoint the QML glass already uses (W9.6).
+DIALOG_SOLID_FLOOR = 0.97
+
 # One supported, measured KWin frost profile for the entire MoOS UI family.
 # KWin accepts BlurStrength only in the range 1..15; a previous value of 24
 # produced zero-sized blur textures and crashed the compositor at boot.
@@ -301,7 +311,14 @@ def render_dialog(target: pathlib.Path, variant: str, light: bool | None = None)
         "@OUTLINE@": tokens["outline"],
         **_glass_opacity(variant, light),
     }
-    write(target, rewrite_text(text, substitutions))
+    # The glass, for the frost KWin draws behind it.
+    translucent = target.parent.parent / "translucent" / target.parent.name / target.name
+    write(translucent, rewrite_text(text, substitutions))
+    # The same popup where no blur exists: only the body stops rise; rims stay.
+    solid = dict(substitutions)
+    for token in ("@DLG_P0@", "@DLG_P1@", "@DLG_P2@", "@DLG_P3@"):
+        solid[token] = f"{max(float(substitutions[token]), DIALOG_SOLID_FLOOR):.2f}"
+    write(target, rewrite_text(text, solid))
 
 
 def desktop_metadata(style: str, light: bool) -> str:

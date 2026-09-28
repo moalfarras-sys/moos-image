@@ -1595,24 +1595,30 @@ class TestMoOSUI2(unittest.TestCase):
                     "the dock glass becomes effectively opaque and hides KWin blur",
                 )
 
-        for names in VARIANTS.values():
-            dialog_path = (SHARE / "plasma/desktoptheme"
-                           / names["desktop_theme"] / "dialogs/background.svg")
-            dialog = dialog_path.read_text(encoding="utf-8")
-            ids = set(re.findall(r'\bid="([^"]+)"', dialog))
-            with self.subTest(dialog=dialog_path):
-                self.assertTrue(required_masks <= ids,
-                                "the generated popup lost its rounded blur mask")
-                body_opacities = [
-                    float(value) for value in re.findall(
-                        r'(?:fill|stop)-opacity="([0-9.]+)"', dialog
-                    )
-                ]
-                self.assertTrue(body_opacities)
-                self.assertLessEqual(
-                    max(body_opacities), 0.93,
-                    "popup glass is too opaque for the light KWin frost to show",
-                )
+        # libplasma draws translucent/dialogs/background.svg only while KWin's blur is
+        # active, and dialogs/background.svg otherwise (ThemePrivate::updateKSvgSelectors).
+        # The frost ceiling belongs to the first; the second must hold text over the window
+        # behind it, which the A1's launcher did not (2026-09-24).
+        for style in sorted(p.name for p in (SHARE / "plasma/desktoptheme").iterdir()):
+            theme = SHARE / "plasma/desktoptheme" / style
+            glass = (theme / "translucent/dialogs/background.svg").read_text(encoding="utf-8")
+            base = (theme / "dialogs/background.svg").read_text(encoding="utf-8")
+            with self.subTest(dialog=style):
+                for text in (glass, base):
+                    self.assertTrue(required_masks <= set(re.findall(r'\bid="([^"]+)"', text)),
+                                    "the generated popup lost its rounded blur mask")
+                glass_opacities = [float(v) for v in re.findall(r'(?:fill|stop)-opacity="([0-9.]+)"', glass)]
+                self.assertTrue(glass_opacities)
+                self.assertLessEqual(max(glass_opacities), 0.93,
+                                     "popup glass is too opaque for the light KWin frost to show")
+                body = [float(v) for v in re.findall(r'stop-opacity="([0-9.]+)"', base)]
+                self.assertTrue(body)
+                self.assertGreaterEqual(min(body), 0.97,
+                                        "without blur a popup body below 0.97 lets the window "
+                                        "behind it read through")
+                self.assertEqual(re.sub(r'stop-opacity="[0-9.]+"', "", base),
+                                 re.sub(r'stop-opacity="[0-9.]+"', "", glass),
+                                 "the two popups must differ only in body opacity")
 
         migration = (ROOT / "system_files/usr/bin/moos-ui-migrate").read_text(
             encoding="utf-8"
