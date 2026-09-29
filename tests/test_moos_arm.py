@@ -932,9 +932,15 @@ MIRA_LOG_FAULTS = ("'^Mira pages:|\\.qml:[0-9]+:([0-9]+:)? |ReferenceError|TypeE
 
 
 def mira_suites(text: str) -> set[str]:
-    """The suites a Containerfile's mira-build stage runs (the one `-m unittest` RUN)."""
+    """The suites a Containerfile's mira-build stage runs, together or one process each."""
     match = re.search(r"python3 -s -m unittest((?:\s+\\?\s*test_\w+)+)", text)
-    assert match, "no mira-build unittest RUN found"
+    if match is None:
+        match = re.search(
+            r"for module in((?:\s+\\?\s*test_\w+)+);\s*do\s*\\?\s*"
+            r'python3 -s -m unittest "\$module"',
+            text,
+        )
+    assert match, "no fail-closed mira-build unittest RUN found"
     return set(re.findall(r"test_\w+", match.group(1)))
 
 

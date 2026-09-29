@@ -180,13 +180,19 @@ RUN python3 -m pip install --no-cache-dir --disable-pip-version-check --no-input
 # routes she may open and each page of her window. Containerfile.arm runs the same list;
 # tests/test_moos_arm.py keeps the two from drifting apart. (test_local_wake needs the wake
 # trainer's packages, which the image does not carry.)
+# PySide/Qt leaves process-global state behind between modules.  Running the whole suite in one
+# interpreter eventually crashed the native ARM builder during Qt teardown, before unittest could
+# print which module failed.  Keep every module fail-closed, but give each one a fresh Qt process.
 RUN mkdir -p /tmp/mira-home/.cache \
-    && env HOME=/tmp/mira-home PYTHONPATH=/out/site PYTHONDONTWRITEBYTECODE=1 QT_QPA_PLATFORM=offscreen \
-        QT_QUICK_BACKEND=software \
-        python3 -s -m unittest test_tools test_brain test_controller test_qml test_companion test_systools \
+    && export HOME=/tmp/mira-home PYTHONPATH=/out/site PYTHONDONTWRITEBYTECODE=1 \
+        QT_QPA_PLATFORM=offscreen QT_QUICK_BACKEND=software \
+    && for module in \
+        test_tools test_brain test_controller test_qml test_companion test_systools \
         test_live_voice_local test_mira_memory test_group_lights test_moai_agent_link test_visual_tier \
         test_kde_integration test_inbox test_chat_ui test_moos_routes test_page_pc test_page_apps \
-        test_page_system test_page_workbench test_page_connect test_page_brain
+        test_page_system test_page_workbench test_page_connect test_page_brain; do \
+        python3 -s -m unittest "$module" || exit 1; \
+    done
 # Her tree as the image receives it, proved from the staged copy itself and never from /src/mira,
 # which holds files the stage can forget (it once shipped without pages/, every suite green). Every
 # page module must import from it; then her window must open with a clean log, and her face must be
