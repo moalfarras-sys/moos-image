@@ -155,7 +155,8 @@ def main():
     instance.setSocketOptions(QLocalServer.UserAccessOption)
     instance.listen(socket_name)
 
-    if not TEST_MODE:
+    from mira_bridge import paired
+    if not TEST_MODE and paired():   # the model/announcement server exists only for a paired Echo
         server = HTTPServer(('0.0.0.0', 18769), ToneServer)
         threading.Thread(target=server.serve_forever, daemon=True).start()
 

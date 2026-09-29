@@ -5,10 +5,10 @@ import QtQuick.Controls.Basic
 Rectangle {
     id: pill
     property string label: ""
-    property string state_: "connecting"   // online offline connecting
+    property string state_: "connecting"   // online offline connecting off (not set up here)
     property string icon: "sparkle"
     property string detail: ""
-    readonly property color dot: state_ === "online" ? Theme.ok : state_ === "offline" ? Theme.danger : Theme.amber
+    readonly property color dot: state_ === "online" ? Theme.ok : state_ === "offline" ? Theme.danger : state_ === "off" ? Theme.off : Theme.amber
     height: 30
     width: row.implicitWidth + 20
     radius: 15

@@ -4,6 +4,7 @@ import os
 import tempfile
 import time
 import unittest
+from pathlib import Path
 from unittest.mock import patch
 
 os.environ.setdefault('QT_QPA_PLATFORM', 'offscreen')
@@ -309,6 +310,30 @@ class ControllerTest(unittest.TestCase):
             pump(lambda: self.c.actions.count == 1, 1)
         self.assertEqual(self.c.actions.count, 1)
         execute.assert_not_called()
+
+    def test_a_computer_without_an_echo_gets_typed_mira(self):
+        import mira_bridge
+        with patch.object(mira_bridge, 'paired', return_value=False):
+            c = ctl.Controller(bridge_class=mira_bridge.Bridge)
+            c.start()
+            pump(lambda: c.services['echo'] == 'off', 1)
+        self.assertEqual(c.services['echo'], 'off')
+        self.assertFalse(c.echo['paired'])
+        self.assertFalse(c.bridge.thread.is_alive(), 'no connection attempts without a paired Echo')
+        self.assertNotEqual(c.phase, 'error')
+
+    def test_a_user_keeps_and_tests_his_own_gemini_key(self):
+        import brain
+        with tempfile.TemporaryDirectory() as folder:
+            path = Path(folder) / 'mo-dot' / 'gemini.json'
+            with patch.object(brain, 'GEMINI_CONFIG', path), \
+                    patch.object(self.c, '_test_gemini', return_value={'status': 'ok'}):
+                self.c.saveGeminiKey('not a key')
+                self.assertFalse(path.exists())
+                self.c.saveGeminiKey('A' * 39)
+                self.assertEqual(oct(path.stat().st_mode & 0o777), '0o600')
+                self.assertEqual(json.loads(path.read_text())['api_key'], 'A' * 39)
+                self.assertTrue(pump(lambda: self.c.brainKey == 'ok', 2))
 
     # ── preferences ─────────────────────────────────────────────────
     def test_preferences_persist(self):

@@ -15,8 +15,29 @@ from PySide6.QtCore import QObject, Signal
 from aioesphomeapi import APIClient, MediaPlayerCommand
 
 
-IP = os.environ.get('MIRA_ECHO_HOST', '192.168.3.83')
 KEY = Path.home() / '.config/mo-dot/device.key'
+ECHO_CONFIG = Path.home() / '.config/mo-dot/echo.json'
+FIRST_ECHO = '192.168.3.83'   # the first paired Echo predates echo.json
+
+
+def echo_host():
+    """The paired Echo's address, or None on a computer without one (Mira then runs without voice)."""
+    if os.environ.get('MIRA_ECHO_HOST'):
+        return os.environ['MIRA_ECHO_HOST']
+    try:
+        host = json.loads(ECHO_CONFIG.read_text()).get('host')
+    except (OSError, ValueError, AttributeError):
+        host = None
+    if isinstance(host, str) and re.fullmatch(r'[A-Za-z0-9.:-]{1,64}', host):
+        return host
+    return FIRST_ECHO if KEY.exists() else None
+
+
+IP = echo_host()
+
+
+def paired():
+    return IP is not None and KEY.exists()
 
 
 class Bridge(QObject):
@@ -42,6 +63,10 @@ class Bridge(QObject):
         self.thread = threading.Thread(target=self.run, daemon=True)
 
     def start(self):
+        if not paired():
+            # No Echo on this computer: Mira is typed chat plus every tool; the pill says so.
+            self.error.emit('unpaired')
+            return
         self.thread.start()
 
     def run(self):

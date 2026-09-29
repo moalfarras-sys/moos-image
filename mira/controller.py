@@ -130,7 +130,7 @@ class Controller(QObject):
                       'message': '', 'busy': False, 'linked': (Path.home() / '.config/mo-dot/home.json').exists()}
         self._pc = {'volume': None, 'brightness': None, 'output': '', 'tool': '', 'status': '', 'busy': False,
                     'apps': [], 'wifi': None, 'bluetooth': None}
-        self._echo = {'online': False, 'setup': False, 'mute_available': False, 'muted': False, 'pair': False,
+        self._echo = {'online': False, 'paired': True, 'setup': False, 'mute_available': False, 'muted': False, 'pair': False,
                       'speaker_volume': None, 'wake_threshold': None, 'wake_hint': '', 'state': '',
                       'voice_enabled': True}
         self._wake = {'enabled': self._local_wake, 'sources': [], 'source': str(self.settings.value('local_wake_source', '') or ''),
@@ -154,6 +154,7 @@ class Controller(QObject):
         self._notifications = {}
         self._answered = set()             # cards resolved; their notifications must not linger
         self._reminders = []              # upcoming reminders and timers, for the rail
+        self._brain_key = self._gemini_state()   # 'set' | 'missing' | 'testing' | 'ok' | 'failed'
 
         self.chat = DictListModel(['role', 'text', 'time', 'status', 'title', 'tool'])
         self.devices = DictListModel(['entity_id', 'name', 'domain', 'state', 'available', 'is_on', 'brightness',
@@ -720,6 +721,51 @@ class Controller(QObject):
         except ValueError as exc:
             self.toast.emit('error', str(exc))
 
+    # ── Mira's own brain (Gemini) ───────────────────────────────────
+    def _gemini_state(self):
+        from brain import GEMINI_CONFIG
+        try:
+            data = json.loads(GEMINI_CONFIG.read_text())
+            return 'set' if isinstance(data.get('api_key'), str) and data['api_key'].strip() else 'missing'
+        except (OSError, ValueError, AttributeError):
+            return 'missing'
+    brainKey = Property(str, lambda self: self._brain_key, notify=settingsChanged)
+
+    @Slot(str)
+    def saveGeminiKey(self, key):
+        """Keep the user's own Gemini key (0600, beside Mira's other settings) and prove it answers."""
+        key = (key or '').strip()
+        if not re.fullmatch(r'[A-Za-z0-9_-]{20,200}', key):
+            self.toast.emit('error', self._s['brain_key_invalid'])
+            return
+        from brain import GEMINI_CONFIG
+        try:
+            data = json.loads(GEMINI_CONFIG.read_text())
+            data = data if isinstance(data, dict) else {}
+        except (OSError, ValueError):
+            data = {}
+        data['api_key'] = key
+        GEMINI_CONFIG.parent.mkdir(parents=True, exist_ok=True)
+        os.chmod(GEMINI_CONFIG.parent, 0o700)
+        temp = GEMINI_CONFIG.with_suffix('.tmp')
+        fd = os.open(temp, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+        with os.fdopen(fd, 'w') as stream:
+            json.dump(data, stream)
+        os.replace(temp, GEMINI_CONFIG)
+        self._brain_key = 'testing'
+        self.settingsChanged.emit()
+        self.worker.run('brain_key', self._test_gemini)
+
+    def _test_gemini(self):
+        from brain import GEMINI_CONFIG, DEFAULT_TEXT_MODEL
+        from google import genai
+        from google.genai import types
+        data = json.loads(GEMINI_CONFIG.read_text())
+        client = genai.Client(api_key=data['api_key'], http_options=types.HttpOptions(timeout=20000))
+        response = client.models.generate_content(model=data.get('text_model') or DEFAULT_TEXT_MODEL,
+                                                  contents='Reply with the single word: ready')
+        return {'status': 'ok' if (response.text or '').strip() else 'error'}
+
     @Slot()
     def openHomeAssistant(self):
         QDesktopServices.openUrl(QUrl('http://127.0.0.1:8123'))
@@ -1221,6 +1267,12 @@ class Controller(QObject):
             self._update('_echo', self.echoChanged, muted=bool(state.state))
 
     def _on_echo_error(self, message):
+        if message == 'unpaired':
+            self._update('_echo', self.echoChanged, online=False, paired=False, state=self._s['echo_unpaired'])
+            self._set_service('echo', 'off')
+            self._voice_phase = 'ready'
+            self._resolve_phase()
+            return
         self._update('_echo', self.echoChanged, online=False, state=message)
         self._set_service('echo', 'offline')
         if self._voice_phase in ACTIVE or self._voice_phase == 'connecting':
@@ -1267,8 +1319,10 @@ class Controller(QObject):
             import device_sync
         except ImportError:
             return
-        from mira_bridge import IP
+        from mira_bridge import IP, paired
         from mira_memory import profile_text
+        if not paired():
+            return
         def push():
             return device_sync.push(profile_text(), self._city or None, self._voice_name, host=IP)
         self.worker.run('device_sync', push)
@@ -1590,6 +1644,12 @@ class Controller(QObject):
             self._on_system(tag, result)
         elif tag == 'announce':
             self._on_announce(result)
+        elif tag == 'brain_key':
+            ok = isinstance(result, dict) and result.get('status') == 'ok'
+            self._brain_key = 'ok' if ok else 'failed'
+            self.settingsChanged.emit()
+            self.toast.emit('ok' if ok else 'error', self._s['brain_key_ok'] if ok else
+                            self._s['brain_key_failed'] + ' · ' + str((result or {}).get('error', '')))
         elif tag == 'legacy_text':
             self._text_phase = None
             if result.get('status') == 'error' and not result.get('reply'):

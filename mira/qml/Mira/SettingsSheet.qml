@@ -156,6 +156,33 @@ Item {
                             T { Layout.fillWidth: true; text: mira.echo.wake_hint ? mira.echo.wake_hint : mira.s.voice_on_sub; font.pixelSize: Theme.small; color: Theme.ink3 }
                         }
                     }
+                    SectionTitle { icon: "sparkle"; text: mira.s.brain_title; accent: Theme.violet }
+                    Glass {
+                        Layout.fillWidth: true; Layout.preferredHeight: brainCol.implicitHeight + 32; radius: 18
+                        ColumnLayout {
+                            id: brainCol
+                            anchors.fill: parent; anchors.margins: 16; spacing: 8
+                            RowLayout {
+                                Layout.fillWidth: true
+                                spacing: 8
+                                Rectangle { Layout.preferredWidth: 8; Layout.preferredHeight: 8; radius: 4
+                                    color: mira.brainKey === "ok" || mira.brainKey === "set" ? Theme.ok : mira.brainKey === "failed" ? Theme.danger
+                                         : mira.brainKey === "testing" ? Theme.amber : Theme.off }
+                                T { Layout.fillWidth: true; font.pixelSize: Theme.small + 1; wrapMode: Text.NoWrap
+                                    text: mira.brainKey === "ok" ? mira.s.brain_key_ok : mira.brainKey === "failed" ? mira.s.brain_key_failed
+                                        : mira.brainKey === "testing" ? mira.s.brain_key_testing : mira.brainKey === "set" ? mira.s.brain_key_set : mira.s.brain_key_missing }
+                            }
+                            T { Layout.fillWidth: true; text: mira.s.brain_sub; font.pixelSize: Theme.small; color: Theme.ink3 }
+                            RowLayout {
+                                Layout.fillWidth: true
+                                spacing: 8
+                                MiraField { id: keyField; Layout.fillWidth: true; echoMode: TextInput.Password; placeholderText: mira.s.brain_key_placeholder
+                                            onAccepted: { mira.saveGeminiKey(text); text = "" } }
+                                PillButton { text: mira.s.brain_key_save; iconName: "check"; size: Theme.small; enabled: keyField.text.trim().length >= 20 && mira.brainKey !== "testing"
+                                             onClicked: { mira.saveGeminiKey(keyField.text); keyField.text = "" } }
+                            }
+                        }
+                    }
                     SectionTitle { icon: "wave"; text: mira.s.voice_name; accent: Theme.rose }
                     RowLayout {
                         Layout.fillWidth: true
