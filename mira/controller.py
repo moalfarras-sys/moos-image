@@ -155,6 +155,7 @@ class Controller(QObject):
         self._answered = set()             # cards resolved; their notifications must not linger
         self._reminders = []              # upcoming reminders and timers, for the rail
         self._brain_key = self._gemini_state()   # 'set' | 'missing' | 'testing' | 'ok' | 'failed'
+        self.desk = None                          # voice through this PC when no Echo is paired
 
         self.chat = DictListModel(['role', 'text', 'time', 'status', 'title', 'tool'])
         self.devices = DictListModel(['entity_id', 'name', 'domain', 'state', 'available', 'is_on', 'brightness',
@@ -235,6 +236,8 @@ class Controller(QObject):
             self.start_local_wake()
 
     def shutdown(self):
+        if self.desk is not None:
+            self.desk.shutdown()
         for action_id in list(self._notifications):
             self._close_notification(action_id)   # a waiting approval dies with the app: so does its notice
         self.companion_service.shutdown()
@@ -315,6 +318,8 @@ class Controller(QObject):
             status = self._s['phase_' + phase]
         elif vp == 'off':
             status = self._s['hint_voice_off']
+        elif not self._echo.get('paired', True):
+            status = self._s['hint_idle_desk']
         elif not self._echo['online']:
             status = self._s['hint_connecting'] if self._services['echo'] == 'connecting' else self._s['hint_idle_text']
         else:
@@ -573,6 +578,9 @@ class Controller(QObject):
         if self._voice_phase in ACTIVE:
             self.stop()
             return
+        if not self._echo.get('paired', True):
+            self._desk_talk()
+            return
         if self.bridge.online and self._voice_phase not in ('off',):
             self._wake_seq += 1
             attempt = self._wake_seq
@@ -586,6 +594,21 @@ class Controller(QObject):
             self.toast.emit('error', self._s['hint_idle_text'])
             self.focusComposer.emit()
 
+    def _desk_talk(self):
+        """No Echo on this computer: Mira listens through its microphone and answers on its speakers."""
+        if self._gemini_state() != 'set':
+            self.toast.emit('info', self._s['desk_needs_key'])
+            self.showSheet.emit('settings')
+            return
+        if self.desk is None:
+            from desk_voice import DeskVoice
+            self.desk = DeskVoice(self._voice_name, self)
+            self.desk.voice_state.connect(self._on_voice)
+        self.desk.lang, self.desk.city = self._lang, self._city or None
+        self.desk.voice_name = self._voice_name
+        self.desk.request_confirmation = self.request_confirmation
+        self.desk.talk()
+
     def _wake_timeout(self, attempt):
         if attempt != self._wake_seq or self._voice_phase in ('listening', 'thinking', 'speaking', 'executing'):
             return
@@ -598,6 +621,8 @@ class Controller(QObject):
     @Slot()
     def stop(self):
         self.bridge.cancel_voice()
+        if self.desk is not None:
+            self.desk.stop()
         if self._voice_phase == 'activating':
             self._voice_phase = 'ready'
         self._resolve_phase()
@@ -1431,6 +1456,9 @@ class Controller(QObject):
                 # A moos:// link can carry this text, so it waits in the composer for the owner.
                 self.prefill.emit(ask)
             return 'show'
+        if command == b'wake' and self._local_wake and self._voice_phase == 'ready' and not self._echo.get('paired', True):
+            self._desk_talk()
+            return 'wake'
         if command == b'wake' and self._local_wake and self._voice_phase == 'ready':
             self._wake_seq += 1
             self.bridge.command('wake', 'wake_assistant_1', self._wake['source'])

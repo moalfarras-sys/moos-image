@@ -322,6 +322,26 @@ class ControllerTest(unittest.TestCase):
         self.assertFalse(c.bridge.thread.is_alive(), 'no connection attempts without a paired Echo')
         self.assertNotEqual(c.phase, 'error')
 
+    def test_without_an_echo_talk_uses_this_computer(self):
+        import mira_bridge
+        with patch.object(mira_bridge, 'paired', return_value=False):
+            c = ctl.Controller(bridge_class=mira_bridge.Bridge)
+            c.start()
+            pump(lambda: c.services['echo'] == 'off', 1)
+        sheets = []
+        c.showSheet.connect(sheets.append)
+        with patch.object(c, '_gemini_state', return_value='missing'):
+            c.talk()
+        self.assertEqual(sheets, ['settings'], 'no key: say where to add one')
+        self.assertIsNone(c.desk)
+        started = []
+        with patch.object(c, '_gemini_state', return_value='set'), \
+                patch('desk_voice.DeskVoice.talk', lambda self: started.append(self.lang)):
+            c.talk()
+        self.assertEqual(started, ['ar'])
+        self.assertIn('ميكروفون', c.status)
+        c.shutdown()
+
     def test_a_user_keeps_and_tests_his_own_gemini_key(self):
         import brain
         with tempfile.TemporaryDirectory() as folder:

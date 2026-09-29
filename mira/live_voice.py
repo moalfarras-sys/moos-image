@@ -512,6 +512,7 @@ class LiveVoice:
         self.city = None            # owner weather city for the persona
         self.allowed_tools = None   # optional tool allowlist (diagnostics)
         self.request_confirmation = None   # the owner's cards for system changes (tools.ToolContext)
+        self.mic_gain = MIC_GAIN    # the Echo's array is quiet; a desk microphone needs none (desk_voice)
         self.wake_hint = 'هَي ميرا'
         self.link = None
         self._advanced = True       # resumption/compression/history setup accepted
@@ -695,7 +696,7 @@ class LiveVoice:
             t['last_level'] = now
             self._say('level', str(min(1, peak / 5000)))
         # Controlled gain compensates the array's measured quiet speech.
-        data = amplify(data, MIC_GAIN)
+        data = amplify(data, self.mic_gain)
         try:
             t['queue'].put_nowait(data)
         except asyncio.QueueFull:

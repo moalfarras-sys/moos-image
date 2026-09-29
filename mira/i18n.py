@@ -218,6 +218,8 @@ STRINGS = {
     'act_dismiss': ('إغلاق', 'Dismiss'),
     'act_elapsed': ('منذ {t}', '{t} elapsed'),
     'act_left': ('يبقى {t}', '{t} left'),
+    'hint_idle_desk': ('اكتب لميرا، أو المس الوجه وتحدّث عبر ميكروفون الكمبيوتر', 'Type to Mira, or touch the face and talk through this computer'),
+    'desk_needs_key': ('للكلام مع ميرا عبر الكمبيوتر أضف مفتاح Gemini المجاني في الإعدادات ← الصوت', 'To talk to Mira through this computer, add a free Gemini key in Settings → Voice'),
     'echo_unpaired': ('لا يوجد Echo مقترن · ميرا تعمل بالكتابة وكل الأدوات', 'No paired Echo · Mira works by typing, with every tool'),
     'brain_title': ('عقل ميرا (Gemini)', "Mira's brain (Gemini)"),
     'brain_sub': ('مع مفتاح Gemini المجاني (من aistudio.google.com) تتكلم ميرا بصوتها على Echo وتبحث وتفكر. بدونه تجيب بالكتابة عبر عقل Mo AI السحابي المجاني.',
