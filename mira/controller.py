@@ -1799,4 +1799,3 @@ class Controller(QObject):
             self._add('action', output or ('فتحت التطبيق' if status == 'ok' else 'تعذّر فتح التطبيق'), status=status, tool=tool)
             self.toast.emit(status if status in ('ok', 'pending') else 'error', output[:120] or tool)
         self._update('_pc', self.pcChanged, **fields)
-
