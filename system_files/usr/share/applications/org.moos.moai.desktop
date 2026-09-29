@@ -1,11 +1,13 @@
 [Desktop Entry]
 Type=Application
-Name=Mo AI
-Name[ar]=مساعد Mo AI
-GenericName=AI Assistant & Device Centre
-GenericName[ar]=المساعد الذكي ومركز الجهاز
-Comment=Fix drivers, update MoOS, install apps, and control this PC — with free cloud AI by default
-Comment[ar]=أصلح التعريفات، حدّث MoOS، ثبّت التطبيقات، وتحكّم بجهازك — بذكاء سحابي مجاني افتراضياً
+Name=Mira
+Name[ar]=ميرا
+GenericName=MoOS assistant & device centre
+GenericName[ar]=مساعد MoOS الذكي ومركز الجهاز
+Comment=Talk to Mira: fix drivers, update MoOS, install apps and control this PC — with free cloud AI by default, and every system change waits for your approval
+Comment[ar]=تحدّث مع ميرا: تصلح التعريفات، تحدّث MoOS، تثبّت التطبيقات وتتحكّم بجهازك — بذكاء سحابي مجاني افتراضياً، وكل تغيير في النظام ينتظر موافقتك
+# `moai` opens Mira when the image carries her (see /usr/bin/moai), so every older caller of the
+# Mo AI launcher reaches the same assistant this entry names.
 Exec=moai
 TryExec=moai
 Icon=moos-moai
@@ -18,20 +20,20 @@ X-KDE-Shortcuts=Meta+Space
 # this is the XWayland/fallback safety net (must equal that id).
 StartupWMClass=org.moos.moai
 Categories=Utility;
-Keywords=AI;assistant;chat;cloud;llm;drivers;hardware;update;install;apps;remote;compatibility;
-Keywords[ar]=ذكاء;مساعد;محادثة;سحابي;تعريفات;أجهزة;تحديث;تثبيت;تطبيقات;توافق;
+Keywords=AI;assistant;Mira;Mo AI;voice;chat;cloud;drivers;hardware;update;install;apps;remote;compatibility;
+Keywords[ar]=ميرا;ذكاء;مساعد;صوت;محادثة;سحابي;تعريفات;أجهزة;تحديث;تثبيت;تطبيقات;توافق;
 Actions=Device;Settings;Apps;Remote;
 
-# Mo AI's own check of this computer: the verdict, the daily check and the fixed repairs.
+# The assistant's own check of this computer: the verdict, the daily check and the fixed repairs.
 [Desktop Action Device]
 Name=Check this device
 Name[ar]=افحص هذا الجهاز
 Exec=moai --panel device
 
-# The brain, the key, the phone channels and the permissions: the Mo AI page of System Settings.
+# The brain, the key, the phone channels and the permissions: the assistant page of System Settings.
 [Desktop Action Settings]
-Name=Mo AI settings
-Name[ar]=إعدادات Mo AI
+Name=Mira settings
+Name[ar]=إعدادات ميرا
 Exec=moos-settings --section=assistant
 
 # Apps are Mo Store's: the one store. Mo AI still installs and removes one when asked in chat.

@@ -731,6 +731,171 @@
       "confused_with": [
         "system_rollback"
       ]
+    },
+    {
+      "id": "list-windows",
+      "ar": "ما النوافذ المفتوحة الآن؟",
+      "en": "What windows are open right now?",
+      "accept": [
+        "list_windows"
+      ],
+      "confused_with": [
+        "show_windows"
+      ]
+    },
+    {
+      "id": "window-focus",
+      "ar": "رجّع نافذة فايرفوكس إلى المقدمة.",
+      "en": "Bring the Firefox window to the front.",
+      "accept": [
+        "window_action"
+      ],
+      "confused_with": [
+        "open_app"
+      ]
+    },
+    {
+      "id": "window-close",
+      "ar": "أغلق نافذة الآلة الحاسبة.",
+      "en": "Close the calculator window.",
+      "accept": [
+        "window_action"
+      ],
+      "confused_with": [
+        "uninstall_app"
+      ]
+    },
+    {
+      "id": "window-move",
+      "ar": "انقل نافذة المتصفح إلى سطح المكتب الثاني.",
+      "en": "Move the browser window to the second desktop.",
+      "accept": [
+        "move_window_to_desktop"
+      ],
+      "confused_with": [
+        "switch_desktop"
+      ]
+    },
+    {
+      "id": "go-desktop",
+      "ar": "انتقل إلى سطح المكتب الثالث.",
+      "en": "Switch to desktop three.",
+      "accept": [
+        "go_to_desktop"
+      ],
+      "confused_with": [
+        "switch_desktop"
+      ]
+    },
+    {
+      "id": "add-desktop",
+      "ar": "أضف سطح مكتب افتراضياً جديداً.",
+      "en": "Add a new virtual desktop.",
+      "accept": [
+        "add_or_remove_desktop"
+      ],
+      "confused_with": [
+        "go_to_desktop"
+      ]
+    },
+    {
+      "id": "media-pause",
+      "ar": "أوقف الأغنية مؤقتاً.",
+      "en": "Pause the song that is playing.",
+      "accept": [
+        "control_media"
+      ],
+      "confused_with": [
+        "set_mute"
+      ]
+    },
+    {
+      "id": "lock-now",
+      "ar": "اقفل الشاشة الآن.",
+      "en": "Lock the screen now.",
+      "accept": [
+        "lock_screen"
+      ],
+      "confused_with": [
+        "set_screen_lock"
+      ]
+    },
+    {
+      "id": "reminder-set",
+      "ar": "ذكّرني بعد عشر دقائق أن أشرب ماء.",
+      "en": "Remind me in ten minutes to drink water.",
+      "accept": [
+        "set_reminder"
+      ],
+      "confused_with": [
+        "manage_reminders"
+      ]
+    },
+    {
+      "id": "reminder-list",
+      "ar": "ما التذكيرات المضبوطة عندي؟",
+      "en": "What reminders do I have set?",
+      "accept": [
+        "manage_reminders"
+      ],
+      "confused_with": [
+        "set_reminder"
+      ]
+    },
+    {
+      "id": "open-web",
+      "ar": "افتح موقع ويكيبيديا في المتصفح.",
+      "en": "Open the Wikipedia website in the browser.",
+      "accept": [
+        "open_web_page"
+      ],
+      "confused_with": [
+        "open_app"
+      ]
+    },
+    {
+      "id": "open-folder",
+      "ar": "افتح مجلد التنزيلات عندي.",
+      "en": "Open my downloads folder.",
+      "accept": [
+        "open_folder"
+      ],
+      "confused_with": [
+        "open_app"
+      ]
+    },
+    {
+      "id": "anim-speed",
+      "ar": "خلّي حركات النوافذ أسرع.",
+      "en": "Make the window animations faster.",
+      "accept": [
+        "set_animation_speed"
+      ],
+      "confused_with": [
+        "set_motion"
+      ]
+    },
+    {
+      "id": "auto-lock",
+      "ar": "خلّي الشاشة تقفل تلقائياً بعد خمس دقائق.",
+      "en": "Lock the screen automatically after five minutes.",
+      "accept": [
+        "set_screen_lock"
+      ],
+      "confused_with": [
+        "lock_screen"
+      ]
+    },
+    {
+      "id": "click-mode",
+      "ar": "أريد فتح الملفات والمجلدات بنقرة واحدة.",
+      "en": "I want to open files and folders with a single click.",
+      "accept": [
+        "set_click_mode"
+      ],
+      "confused_with": [
+        "open_settings"
+      ]
     }
   ]
 }

@@ -42,7 +42,11 @@ var MOAI_JOB_LABELS = {
     setup_gaming: ["تجهيز الألعاب", "Setting up gaming"],
     setup_windows: ["تجهيز تطبيقات ويندوز", "Setting up Windows apps"],
     setup_waydroid: ["تجهيز تطبيقات أندرويد", "Setting up Android apps"],
-    remote_anywhere: ["تجهيز الوصول عن بُعد", "Setting up remote access"]
+    remote_anywhere: ["تجهيز الوصول عن بُعد", "Setting up remote access"],
+    // W9.10 desktop hands that ask first (a window close, disabling the auto-lock) become jobs
+    // too, so they carry words rather than the generic fallback.
+    window_action: ["إجراء على نافذة", "Working on a window"],
+    set_screen_lock: ["ضبط قفل الشاشة", "Setting screen lock"]
 };
 
 function decodeField(text) {

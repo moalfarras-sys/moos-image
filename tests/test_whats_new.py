@@ -278,7 +278,8 @@ class TheReaderTreatsTheFileAsData(unittest.TestCase):
 
     def test_the_list_is_bounded(self) -> None:
         module = reader()
-        many = [self.entry(f"e{index}", f"2026-09-{index % 28 + 1:02d}T00:00:00Z") for index in range(60)]
+        many = [self.entry(f"e{index}", f"2026-09-{index % 28 + 1:02d}T00:00:00Z")
+                for index in range(module["MAX_ENTRIES"] + 28)]
         self.assertEqual(len(self.state({"schema": 1, "entries": many})["entries"]), module["MAX_ENTRIES"])
 
 

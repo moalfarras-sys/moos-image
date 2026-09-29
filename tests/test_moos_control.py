@@ -310,7 +310,10 @@ class MoosControlTests(unittest.TestCase):
             "volume": 40, "muted": False, "brightness": 50,
             "night_light": True, "wifi": True, "bluetooth": True,
             "theme": "nova-light", "dnd": False, "mic_muted": True,
-            "power_profile": "balanced"})
+            "power_profile": "balanced",
+            # W9.10: the media and desktop probes have no stub bus answer here, so they report
+            # unknown — which is what a machine with no player or an unreadable VDM does.
+            "media": None, "desktop": None})
         self.assertFalse([call for call in self.machine.calls() if call[0] == "logger"],
                          "status must not write an audit entry")
 
@@ -585,12 +588,23 @@ class MoosOpenControlRouteTests(unittest.TestCase):
                                capture_output=True, text=True, timeout=30)
                 self.assertEqual(self.control_calls(), [])
 
+    # W9.10's hands (a window by name, a reminder, a URL, the lock, the media keys) are reached
+    # ONLY through Mo AI's structured tool loop, never as a moos:// route, because moos: is a
+    # public scheme and a window title or a URL is free text a web page must never hand the
+    # router. So their command verbs are deliberately absent from moos-open.
+    STRUCTURED_ONLY_VERBS = frozenset({
+        "window-do", "window-move", "go-desktop", "desktops", "media", "lock", "remind",
+        "reminders", "open-url", "open-folder", "animations", "screen-lock", "click", "windows",
+    })
+
     def test_the_router_asks_for_exactly_what_mo_ai_asks_for(self):
         """One list of values that need a yes: Mo AI's confirm_values ARE the router's asks.
 
         Bluetooth off shipped confirmed in Mo AI and instant on the public scheme; a second
         hand-kept list is how that happens. Every control arm that asks, and every schema
-        value that needs a card, must be the same route.
+        value that needs a card, must be the same route — for the verbs that HAVE a moos://
+        route. The structured-only verbs are checked separately: they must not be on moos:// at
+        all, so their card lives only in Mo AI's tool loop.
         """
         sys.path.insert(0, str(ROOT / "system_files/usr/lib/moai"))
         import moai_tool_schemas as schemas
@@ -601,15 +615,31 @@ class MoosOpenControlRouteTests(unittest.TestCase):
             for label in labels.split("|"):
                 (asking if re.search(r"\bconfirm\s", body) else instant).add(label)
         self.assertIn("control/wifi/off", asking, "the arm parser found nothing")
+        # No structured-only verb may appear on the public scheme, asking or instant.
+        routed_verbs = {label.split("/")[1] for label in asking | instant}
+        self.assertEqual(routed_verbs & self.STRUCTURED_ONLY_VERBS, set(),
+                         "a structured-only W9.10 verb leaked onto the moos:// scheme")
         carded = set()
         for tool in schemas.ALL_TOOLS:
             meta = tool["_moos"]
-            if meta["executor"] != "moos-control":
+            if meta["executor"] != "moos-control" or meta["command"] in self.STRUCTURED_ONLY_VERBS:
                 continue
             for values in (meta.get("confirm_values") or {}).values():
                 carded.update(f"control/{meta['command']}/{value}" for value in values)
         self.assertEqual(sorted(asking), sorted(carded))
         self.assertEqual(sorted(carded & instant), [], "a carded value also has an instant arm")
+
+    def test_the_structured_hands_confirm_only_in_the_tool_loop(self):
+        """The two disruptive W9.10 verbs are carded by the schema, and absent from moos://."""
+        sys.path.insert(0, str(ROOT / "system_files/usr/lib/moai"))
+        import moai_tool_schemas as schemas
+        self.assertTrue(schemas.needs_confirmation("window_action",
+                                                   {"action": "close", "target": "x"}))
+        self.assertTrue(schemas.needs_confirmation("set_screen_lock", {"after_minutes": 0}))
+        opener = OPEN.read_text(encoding="utf-8")
+        for verb in self.STRUCTURED_ONLY_VERBS:
+            self.assertNotRegex(opener, rf"\n\s*control/{re.escape(verb)}\b",
+                                f"{verb} must not be a moos:// route")
 
 
 class MoaiControlButtonTests(unittest.TestCase):

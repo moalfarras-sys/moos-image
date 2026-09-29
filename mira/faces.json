@@ -1,0 +1,505 @@
+{
+ "version": 1,
+ "styles": {
+  "rose": {
+   "neutral": {
+    "sheet": "mira-rose-frames-v3.png",
+    "cell": [
+     0,
+     0,
+     627,
+     627
+    ],
+    "crop": [
+     79.0,
+     65.0,
+     472.0,
+     472.0
+    ],
+    "score": 0.982
+   },
+   "speaking_open": {
+    "sheet": "mira-rose-frames-v3.png",
+    "cell": [
+     627,
+     0,
+     627,
+     627
+    ],
+    "crop": [
+     706.0,
+     65.0,
+     472.0,
+     472.0
+    ],
+    "score": 0.944
+   },
+   "speaking_round": {
+    "sheet": "mira-rose-frames-v3.png",
+    "cell": [
+     0,
+     627,
+     627,
+     627
+    ],
+    "crop": [
+     79.0,
+     690.0,
+     472.0,
+     472.0
+    ],
+    "score": 0.951
+   },
+   "blink": {
+    "sheet": "mira-rose-frames-v3.png",
+    "cell": [
+     627,
+     627,
+     627,
+     627
+    ],
+    "crop": [
+     706.0,
+     692.0,
+     472.0,
+     472.0
+    ],
+    "score": 0.901
+   },
+   "happy": {
+    "sheet": "mira-expressions-a.png",
+    "cell": [
+     0,
+     0,
+     418,
+     627
+    ],
+    "crop": [
+     -9.0,
+     64.7,
+     415.4,
+     415.4
+    ],
+    "score": 0.618
+   },
+   "excited": {
+    "sheet": "mira-expressions-a.png",
+    "cell": [
+     418,
+     0,
+     418,
+     627
+    ],
+    "crop": [
+     419.0,
+     54.7,
+     415.4,
+     415.4
+    ],
+    "score": 0.887
+   },
+   "playful": {
+    "sheet": "mira-expressions-a.png",
+    "cell": [
+     836,
+     0,
+     418,
+     627
+    ],
+    "crop": [
+     851.8,
+     69.9,
+     404.0,
+     404.0
+    ],
+    "score": 0.623
+   },
+   "thinking": {
+    "sheet": "mira-expressions-a.png",
+    "cell": [
+     0,
+     627,
+     418,
+     627
+    ],
+    "crop": [
+     -8.3,
+     684.5,
+     412.5,
+     412.5
+    ],
+    "score": 0.633
+   },
+   "sad": {
+    "sheet": "mira-expressions-a.png",
+    "cell": [
+     418,
+     627,
+     418,
+     627
+    ],
+    "crop": [
+     423.1,
+     700.1,
+     406.9,
+     406.9
+    ],
+    "score": 0.848
+   },
+   "annoyed": {
+    "sheet": "mira-expressions-a.png",
+    "cell": [
+     836,
+     627,
+     418,
+     627
+    ],
+    "crop": [
+     835.8,
+     700.9,
+     404.0,
+     404.0
+    ],
+    "score": 0.776
+   },
+   "attentive": {
+    "sheet": "mira-expressions-b.png",
+    "cell": [
+     0,
+     0,
+     418,
+     627
+    ],
+    "crop": [
+     3.3,
+     52.1,
+     446.5,
+     446.5
+    ],
+    "score": 0.668
+   },
+   "surprised": {
+    "sheet": "mira-expressions-b.png",
+    "cell": [
+     418,
+     0,
+     418,
+     627
+    ],
+    "crop": [
+     427.5,
+     52.8,
+     429.5,
+     429.5
+    ],
+    "score": 0.816
+   },
+   "reassuring": {
+    "sheet": "mira-expressions-b.png",
+    "cell": [
+     836,
+     0,
+     418,
+     627
+    ],
+    "crop": [
+     836.7,
+     57.6,
+     440.8,
+     440.8
+    ],
+    "score": 0.607
+   },
+   "curious": {
+    "sheet": "mira-expressions-b.png",
+    "cell": [
+     0,
+     627,
+     418,
+     627
+    ],
+    "crop": [
+     10.9,
+     703.4,
+     423.9,
+     423.9
+    ],
+    "score": 0.643
+   },
+   "proud": {
+    "sheet": "mira-expressions-b.png",
+    "cell": [
+     418,
+     627,
+     418,
+     627
+    ],
+    "crop": [
+     420.7,
+     660.6,
+     440.8,
+     440.8
+    ],
+    "score": 0.714
+   },
+   "sleepy": {
+    "sheet": "mira-expressions-b.png",
+    "cell": [
+     836,
+     627,
+     418,
+     627
+    ],
+    "crop": [
+     840.9,
+     703.4,
+     423.9,
+     423.9
+    ],
+    "score": 0.679
+   }
+  },
+  "holo": {
+   "neutral": {
+    "sheet": "mira-holo-moods-v1.png",
+    "cell": [
+     0,
+     0,
+     418,
+     627
+    ],
+    "crop": [
+     12.0,
+     110.0,
+     392.0,
+     392.0
+    ],
+    "score": 0.992
+   },
+   "excited": {
+    "sheet": "mira-holo-moods-v1.png",
+    "cell": [
+     418,
+     0,
+     418,
+     627
+    ],
+    "crop": [
+     436.0,
+     110.0,
+     392.0,
+     392.0
+    ],
+    "score": 0.932
+   },
+   "curious": {
+    "sheet": "mira-holo-moods-v1.png",
+    "cell": [
+     836,
+     0,
+     418,
+     627
+    ],
+    "crop": [
+     862.9,
+     115.2,
+     387.3,
+     387.3
+    ],
+    "score": 0.753
+   },
+   "attentive": {
+    "sheet": "mira-holo-moods-v1.png",
+    "cell": [
+     0,
+     627,
+     418,
+     627
+    ],
+    "crop": [
+     14.0,
+     737.0,
+     392.0,
+     392.0
+    ],
+    "score": 0.9
+   },
+   "sad": {
+    "sheet": "mira-holo-moods-v1.png",
+    "cell": [
+     418,
+     627,
+     418,
+     627
+    ],
+    "crop": [
+     441.4,
+     740.7,
+     384.9,
+     384.9
+    ],
+    "score": 0.754
+   },
+   "annoyed": {
+    "sheet": "mira-holo-moods-v1.png",
+    "cell": [
+     836,
+     627,
+     418,
+     627
+    ],
+    "crop": [
+     861.4,
+     748.7,
+     384.9,
+     384.9
+    ],
+    "score": 0.884
+   },
+   "playful": {
+    "sheet": "mira-holo-moods-2-v1.png",
+    "cell": [
+     0,
+     0,
+     374,
+     701
+    ],
+    "crop": [
+     -3.1,
+     129.2,
+     387.3,
+     387.3
+    ],
+    "score": 0.792
+   },
+   "thinking": {
+    "sheet": "mira-holo-moods-2-v1.png",
+    "cell": [
+     374,
+     0,
+     374,
+     701
+    ],
+    "crop": [
+     350.0,
+     122.0,
+     392.0,
+     392.0
+    ],
+    "score": 0.77
+   },
+   "surprised": {
+    "sheet": "mira-holo-moods-2-v1.png",
+    "cell": [
+     748,
+     0,
+     374,
+     701
+    ],
+    "crop": [
+     715.1,
+     124.8,
+     396.7,
+     396.7
+    ],
+    "score": 0.721
+   },
+   "proud": {
+    "sheet": "mira-holo-moods-2-v1.png",
+    "cell": [
+     0,
+     701,
+     374,
+     701
+    ],
+    "crop": [
+     -0.1,
+     821.3,
+     382.6,
+     382.6
+    ],
+    "score": 0.821
+   },
+   "reassuring": {
+    "sheet": "mira-holo-moods-2-v1.png",
+    "cell": [
+     374,
+     701,
+     374,
+     701
+    ],
+    "crop": [
+     353.4,
+     826.7,
+     384.9,
+     384.9
+    ],
+    "score": 0.831
+   },
+   "sleepy": {
+    "sheet": "mira-holo-moods-2-v1.png",
+    "cell": [
+     748,
+     701,
+     374,
+     701
+    ],
+    "crop": [
+     716.0,
+     825.0,
+     392.0,
+     392.0
+    ],
+    "score": 0.77
+   },
+   "blink": {
+    "sheet": "mira-holo-speech-v1.png",
+    "cell": [
+     0,
+     0,
+     618,
+     848
+    ],
+    "crop": [
+     79.7,
+     129.3,
+     443.7,
+     443.7
+    ],
+    "score": 0.862
+   },
+   "speaking_round": {
+    "sheet": "mira-holo-speech-v1.png",
+    "cell": [
+     618,
+     0,
+     618,
+     848
+    ],
+    "crop": [
+     699.7,
+     129.3,
+     443.7,
+     443.7
+    ],
+    "score": 0.839
+   },
+   "speaking_open": {
+    "sheet": "mira-holo-speech-v1.png",
+    "cell": [
+     1236,
+     0,
+     618,
+     848
+    ],
+    "crop": [
+     1317.7,
+     129.3,
+     443.7,
+     443.7
+    ],
+    "score": 0.815
+   }
+  }
+ }
+}

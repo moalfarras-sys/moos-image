@@ -1,0 +1,38 @@
+[Desktop Entry]
+Type=Application
+Name=Mira
+Name[ar]=ميرا
+GenericName=MoOS assistant
+GenericName[ar]=مساعد MoOS الذكي
+Comment=Talk to Mira: control this PC, update MoOS, install apps and run your home — every system change waits for your approval
+Comment[ar]=تحدّث مع ميرا: تتحكم بجهازك، تحدّث MoOS، تثبّت التطبيقات وتدير بيتك — وكل تغيير في النظام ينتظر موافقتك
+Exec=@BIN@/mira
+TryExec=@BIN@/mira
+Icon=moos-moai
+Terminal=false
+X-KDE-Shortcuts=Meta+Space
+StartupWMClass=org.moos.moai
+Categories=Utility;
+Keywords=AI;assistant;Mira;Mo AI;voice;chat;drivers;hardware;update;install;apps;home;
+Keywords[ar]=ميرا;ذكاء;مساعد;صوت;محادثة;تعريفات;أجهزة;تحديث;تثبيت;تطبيقات;بيت;
+Actions=Device;Apps;Settings;Remote;
+
+[Desktop Action Device]
+Name=Check this device
+Name[ar]=افحص هذا الجهاز
+Exec=@BIN@/mira --panel device
+
+[Desktop Action Apps]
+Name=Install apps
+Name[ar]=تثبيت التطبيقات
+Exec=@BIN@/mira --panel apps
+
+[Desktop Action Settings]
+Name=Mira settings
+Name[ar]=إعدادات ميرا
+Exec=@BIN@/mira --panel settings
+
+[Desktop Action Remote]
+Name=Remote control
+Name[ar]=التحكّم عن بعد
+Exec=moos-settings --section=remote

@@ -1,9 +1,9 @@
 {
   "KPlugin": {
-    "Name": "Mo AI",
-    "Name[ar]": "Mo AI",
-    "Description": "Mo AI's brain, your phone, and what it may do on this computer",
-    "Description[ar]": "عقل Mo AI، وهاتفك، وما يُسمح له به على هذا الحاسوب",
+    "Name": "Mira",
+    "Name[ar]": "ميرا",
+    "Description": "Mira, the MoOS assistant: her voice, her Mo AI brain, your phone, and what she may do on this computer",
+    "Description[ar]": "ميرا مساعدة MoOS: صوتها، وعقلها من Mo AI، وهاتفك، وما يُسمح لها به على هذا الحاسوب",
     "Icon": "moos-moai",
     "FormFactors": [
       "desktop"
@@ -12,6 +12,6 @@
   },
   "X-KDE-System-Settings-Parent-Category": "moos",
   "X-KDE-Weight": 4,
-  "X-KDE-Keywords": "Mo AI,assistant,AI,brain,provider,model,key,API key,cloud,free,paid,measure,telegram,whatsapp,phone,phone agent,permissions,web access,shortcut,Meta+Space",
-  "X-KDE-Keywords[ar]": "مساعد,المساعد,ذكاء,الذكاء الاصطناعي,عقل,العقل,مزود,المزوّد,نموذج,النموذج,مفتاح,سحابي,مجاني,مدفوع,تليجرام,واتساب,هاتف,وكيل الهاتف,صلاحيات,الصلاحيات,اختصار"
+  "X-KDE-Keywords": "Mira,Mo AI,assistant,voice,Echo,Gemini,AI,brain,provider,model,key,API key,cloud,free,paid,measure,telegram,whatsapp,phone,phone agent,permissions,web access,shortcut,Meta+Space",
+  "X-KDE-Keywords[ar]": "ميرا,مساعدة,صوت,مساعد,المساعد,ذكاء,الذكاء الاصطناعي,عقل,العقل,مزود,المزوّد,نموذج,النموذج,مفتاح,سحابي,مجاني,مدفوع,تليجرام,واتساب,هاتف,وكيل الهاتف,صلاحيات,الصلاحيات,اختصار"
 }

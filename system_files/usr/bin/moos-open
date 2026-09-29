@@ -528,6 +528,10 @@ PY
     # conversation — the same entry the Mo AI KRunner runner uses — and any action in the answer is
     # still a button the user has to confirm. The question is passed as ONE argv element and is
     # never evaluated; an empty question simply opens Mo AI.
+    # Mira's own pages, from her System Settings page: her Settings (voice, Echo, Gemini key, phone)
+    # and the System centre (checks, repairs, updates, the store). Fixed pages, no argument.
+    ai/settings)   gui moai --panel settings ;;
+    ai/system)     gui moai --panel system ;;
     ai/ask/*)      query="$(python3 -c 'import sys,urllib.parse; print(urllib.parse.unquote(sys.argv[1])[:2000])' "${tgt#ask/}" 2>/dev/null)";
                    if [ -n "$query" ]; then gui moai --panel chat --ask "$query"; else gui moai; fi ;;
     # The Island's "stop" on a live camera, microphone or screen stream. Both parts

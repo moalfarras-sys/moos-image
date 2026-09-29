@@ -35,7 +35,10 @@ import re
 # Beside this module in the image (/usr/lib/moos → /usr/share/moos) and in a source checkout.
 WHATS_NEW_FILE = Path(__file__).resolve().parent.parent.parent / "share/moos/whats-new.json"
 MAX_BYTES = 64 * 1024
-MAX_ENTRIES = 32
+# Keep the hostile-data bound comfortably above the shipped history. The integrated
+# 2026-09-30 release carries 34 truthful cards; a 32-entry cap silently hid the two
+# oldest cards even though the file and every entry were valid.
+MAX_ENTRIES = 64
 TITLE_LIMIT = 80
 BODY_LIMIT = 320
 

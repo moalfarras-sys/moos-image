@@ -339,7 +339,10 @@ set -uo pipefail
 # 89/90: live dock/Hub material; clarity also wins beside maximized windows.
 # 91–95: rounded solid dock artwork, stable floating geometry and finite
 #     shared-Hub motion; invalidate frozen-mtime shell caches.
-THEME_REV=95
+# 96: Mo AI gains the desktop hands (W9.10). The Island's job-token vocabulary
+#     (IslandTokens.js) now names a window action and the screen-lock job, so its
+#     cached shell JS must be purged or existing accounts keep the old labels.
+THEME_REV=96
 state_dir="${XDG_STATE_HOME:-$HOME/.local/state}"
 mkdir -p "$state_dir" 2>/dev/null || true
 marker="${state_dir}/moos-ui2-theme-applied.v${THEME_REV}"

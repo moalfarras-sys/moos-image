@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# moai — launch Mo AI (pure-QML script app, no compilation).
+# moai — launch the MoOS assistant: Mira when installed, else Mo AI's QML app (no compilation).
 #
 #   moai                  the assistant
 #   moai --panel device   open straight onto a panel (device|apps|compat|remote|dev|chat)
@@ -13,6 +13,14 @@
 # NOTE: the base qt6-qtdeclarative package does NOT contain the runtime; the
 # image must include qt6-qtdeclarative-devel for Mo AI to launch.
 set -uo pipefail
+
+# Mo AI's app is Mira now (see /usr/bin/mira). When the image carries her, every `moai` launch —
+# the launcher, Meta+Space, moos:// routes, moos-hardware, moos-compat, KRunner — opens Mira with
+# the same arguments; she reads the per-user ports from the MOAI_*_PORT environment. An edition
+# whose build has no Mira stage yet keeps the QML app below, so no launcher ever opens nothing.
+if [ -z "${MOAI_CLASSIC:-}" ] && [ -x /usr/bin/mira ] && [ -f /usr/lib/mira/app/app.py ]; then
+    exec /usr/bin/mira "$@"
+fi
 
 MAIN_QML="/usr/share/moos/apps/moai/main.qml"
 CACHE="${XDG_CACHE_HOME:-$HOME/.cache}"

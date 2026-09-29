@@ -164,7 +164,28 @@ disk_id="$(dispatch build-disk.yml -f "image-ref=${ref_of[moos]}")"
 nvidia_disk_id="$(dispatch build-disk.yml -f "image-ref=${ref_of[moos-nvidia]}")"
 cloud_disk_id="$(dispatch build-disk.yml -f "image-ref=${ref_of[moos-cloud]}")"
 iso_id="$(dispatch build-iso.yml -f "image_ref=${ref_of[moos]}")"
-arm_id="$(dispatch build-arm.yml)"
+# ARM's main-push run already owns build, disk proof AND promotion. Reuse only
+# that complete pipeline (never a scheduled run or a PR with skipped proof jobs).
+# Read workflow-scoped API metadata again before adopting; a re-run must not
+# become acceptable merely because the list response was captured earlier.
+arm_id="$(gh run list --workflow build-arm.yml --branch "$ref" --limit 100 \
+    --json databaseId,headSha,headBranch,status,conclusion,attempt,event \
+    --jq "[.[] | select(.headSha == \"$revision\" and .headBranch == \"$ref\"
+           and .attempt == 1
+           and (.event == \"workflow_dispatch\" or (.event == \"push\" and .headBranch == \"main\"))
+           and ((.status == \"completed\" and .conclusion == \"success\")
+                or .status == \"queued\" or .status == \"in_progress\" or .status == \"waiting\"))][0].databaseId")" || exit 1
+if [ -n "$arm_id" ] && [ "$arm_id" != null ]; then
+    arm_state="$(gh run view "$arm_id" --json headSha,headBranch,event,attempt,status,conclusion \
+        --jq ' [.headSha,.headBranch,.event,(.attempt|tostring),.status,(.conclusion // "pending")] | join(" ")')" || exit 1
+    read -r arm_sha arm_branch arm_event arm_attempt arm_status arm_conclusion <<<"$arm_state"
+    [ "$arm_sha" = "$revision" ] && [ "$arm_branch" = "$ref" ] && [ "$arm_attempt" = 1 ] || exit 1
+    case "$arm_event:$arm_branch" in workflow_dispatch:*|push:main) ;; *) exit 1 ;; esac
+    case "$arm_status:$arm_conclusion" in completed:success|queued:*|in_progress:*|waiting:*) ;; *) exit 1 ;; esac
+    echo "ARM: reusing complete pipeline $arm_id on $revision; first-attempt success still required"
+else
+    arm_id="$(dispatch build-arm.yml)"
+fi
 echo "proofs: generic $disk_id, nvidia $nvidia_disk_id, cloud $cloud_disk_id, iso $iso_id, arm $arm_id"
 
 declare -A pid_of

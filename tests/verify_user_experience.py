@@ -3021,7 +3021,7 @@ require("http://127.0.0.1:11434/api/tags" in moai_do_code
 # The versioned migration is what makes the redesign visible to existing users.
 apply_theme = read("system_files/usr/bin/moos-apply-theme")
 apply_theme_code = code(apply_theme)
-require("THEME_REV=95" in apply_theme_code,
+require("THEME_REV=96" in apply_theme_code,
         "MoOS visual schema must migrate existing users to the Island that hosts Search itself "
         "and shows Mo AI jobs, the retired Hero Clock/Search packages, and the KWin shadow "
         "quarantine; before that, the W5 island (Store jobs, "
@@ -3504,7 +3504,7 @@ require("target_lnf()" in apply_theme_code
         "the self-heal must accept EITHER MoOS look and repair to the one the user chose")
 
 ui_migrate = read("system_files/usr/bin/moos-ui-migrate")
-require("MOOS_THEME_REV=11" in ui_migrate and "MOAI_UI_REV=3" in ui_migrate,
+require("MOOS_THEME_REV=11" in ui_migrate and "MOAI_UI_REV=4" in ui_migrate,
         "UI cache and Mo AI migrations must be explicitly revisioned")
 require('rm -rf "$HOME/.cache"' not in ui_migrate,
         "UI migration must never erase the whole user cache")

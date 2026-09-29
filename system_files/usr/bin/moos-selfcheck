@@ -282,7 +282,13 @@ esac
 
 # ── Mo AI ────────────────────────────────────────────────────────────────────
 head_ "Mo AI"
-if [ -x /usr/bin/moos-qml-shell ] && grep -q -- "--app-id org.moos.moai" /usr/bin/moai 2>/dev/null; then
+if [ -f /usr/lib/mira/app/app.py ] && grep -q 'exec /usr/bin/mira' /usr/bin/moai 2>/dev/null; then
+    if [ -x "$HOME/.local/bin/moai" ] || [ -f "$HOME/.local/share/applications/org.moos.moai.desktop" ]; then
+        note "Mira is the assistant, but a copy in your home folder answers moai first (~/.local)"
+    else
+        ok "Mira is the assistant: Meta+Space and every Mo AI launcher open her"
+    fi
+elif [ -x /usr/bin/moos-qml-shell ] && grep -q -- "--app-id org.moos.moai" /usr/bin/moai 2>/dev/null; then
     ok "Mo AI's window carries its own app_id (no generic Qt icon)"
 else
     bad "Mo AI still runs under the bare QML runtime — its taskbar icon will be the Qt logo"
