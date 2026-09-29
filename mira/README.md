@@ -159,8 +159,29 @@ Earlier measured history (v1–v3) is kept in `HISTORY.md`; the device client in
   firewalld's `moos-desktop` zone rejects it. The Echo logged «no route to host». The v2 install therefore
   rolled itself back, and Echo announcements fall back to a desktop notification. Opening the port for the
   Echo's address only (`~/.cache/mira-claude/open-echo-port.sh`) needs his password.
-- **Not done:** a model-authored command tool (P3.9 — not built; needs the owner's explicit go-ahead in
-  a session), a MoOS-image package, a System Settings page, and voice without an Echo (PC mic/speakers).
+- **Voice without an Echo** (`desk_voice.py`): this computer's microphone and speakers, half duplex.
+  It was measured with real Gemini Live, a synthetic microphone and a file as the speaker: it heard
+  the question, used the tool and returned 8.3 s of answer audio in 12 s.
+- **Not done:** a model-authored command tool (P3.9 — not built; needs the owner's explicit go-ahead
+  in a session), a signed image with Mira, and Mira on ARM.
+
+## In the MoOS image (branch `mira/neural-os-v4`, x86 editions)
+
+- The Containerfile's `mira-build` stage starts FROM the image's own base. It installs Fedora's
+  `python3-pyside6`/`python3-numpy` and adds only `packaging/requirements.lock` (22 sha256-pinned
+  wheels: google-genai 2.25, aioesphomeapi 46.6, protobuf 7, …; no dependency resolution, no
+  bytecode). It then runs Mira's suites, stages the runtime tree (`packaging/stage.sh`) and opens
+  her window offscreen.
+- The image gets `/usr/lib/mira/app`, `/usr/lib/mira/site` and `/usr/bin/mira`. `/usr/bin/moai`
+  hands every launch to her, so Meta+Space, the dock, moos:// routes, KRunner, moos-hardware and
+  moos-compat reach Mira. An edition without the stage (ARM, whose Containerfile belongs to the
+  Oracle agent) keeps the QML app.
+- `build.sh` installs her RPMs and gates the tree, the pinned packages, the launcher hand-off, her
+  app id, the imports, an offscreen frame and the absence of bytecode.
+- System Settings → MoOS → Mira is her page: her settings and the System centre (`moos://ai/settings`,
+  `moos://ai/system`), and how to reach her.
+- `moos-ui-migrate` (Mo AI rev 4) removes this folder's per-user takeover once the image carries
+  her, and never touches her data.
 
 ## Measured on the owner's station, 2026-09-28/29
 
