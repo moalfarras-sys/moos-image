@@ -382,7 +382,7 @@ class ServerTest(QtCase):
 
     def test_a_foreign_host_header_is_refused(self):
         h = self.harness()
-        for host in ('evil.example', f'evil.example:{h.port}', f'127.0.0.1:{h.port + 1}', f'100.98.129.115:{h.port}',
+        for host in ('evil.example', f'evil.example:{h.port}', f'127.0.0.1:{h.port + 1}', f'100.101.102.103:{h.port}',
                      f'127.0.0.1:{h.port}.evil.example'):
             for path in ('/', '/api/state', '/pair?t=' + h.token):
                 status, headers, _ = h.request('GET', path, headers=h.bearer(), host=host)
@@ -637,7 +637,7 @@ class ServerTest(QtCase):
         for address in ('0.0.0.0', '192.168.3.10', '10.0.0.5', '::', '100.128.0.1', '8.8.8.8', ''):
             with self.assertRaises(ValueError, msg=address):
                 srv.bindable(address)
-        self.assertEqual(srv.bindable('100.98.129.115'), '100.98.129.115')
+        self.assertEqual(srv.bindable('100.101.102.103'), '100.101.102.103')
         self.assertEqual(srv.bindable('127.0.0.1'), '127.0.0.1')
         h = Harness(discover=lambda: Tailnet('192.168.3.10', (), ''))
         self.addCleanup(h.close)
@@ -666,9 +666,9 @@ class ServerTest(QtCase):
         self.assertFalse(h.server.running)
 
     def test_tailscale_is_found_at_runtime(self):
-        status = {'BackendState': 'Running', 'Self': {'DNSName': 'moos.tailab78a5.ts.net.',
-                                                      'TailscaleIPs': ['100.98.129.115', 'fd7a:115c:a1e0::572d:8174']}}
-        self.assertEqual(srv.parse_status(status), ('100.98.129.115', ('moos.tailab78a5.ts.net', 'moos')))
+        status = {'BackendState': 'Running', 'Self': {'DNSName': 'moos.example.ts.net.',
+                                                      'TailscaleIPs': ['100.101.102.103', 'fd7a:115c:a1e0::572d:8174']}}
+        self.assertEqual(srv.parse_status(status), ('100.101.102.103', ('moos.example.ts.net', 'moos')))
         self.assertEqual(srv.parse_status({**status, 'BackendState': 'Stopped'}), (None, ()))
         self.assertEqual(srv.parse_status({'BackendState': 'Running', 'Self': {'TailscaleIPs': ['192.168.1.4']}}), (None, ()))
 
@@ -678,7 +678,7 @@ class ServerTest(QtCase):
         with patch.object(srv, '_tailscale_cli', return_value='/usr/bin/tailscale'), \
                 patch.object(srv, 'interface_ipv4', return_value=None):
             found = srv.find_tailscale(run=lambda *a, **k: Result(json.dumps(status)))
-            self.assertEqual(found, Tailnet('100.98.129.115', ('moos.tailab78a5.ts.net', 'moos'), ''))
+            self.assertEqual(found, Tailnet('100.101.102.103', ('moos.example.ts.net', 'moos'), ''))
             stopped = srv.find_tailscale(run=lambda *a, **k: Result(json.dumps({'BackendState': 'NeedsLogin'})))
             self.assertEqual(stopped, Tailnet(None, (), 'not_connected'))
 
@@ -686,8 +686,8 @@ class ServerTest(QtCase):
                 raise FileNotFoundError('tailscale')
             self.assertEqual(srv.find_tailscale(run=broken).reason, 'not_connected')
         with patch.object(srv, '_tailscale_cli', return_value=None), \
-                patch.object(srv, 'interface_ipv4', return_value='100.98.129.115'):
-            self.assertEqual(srv.find_tailscale().ip, '100.98.129.115')
+                patch.object(srv, 'interface_ipv4', return_value='100.101.102.103'):
+            self.assertEqual(srv.find_tailscale().ip, '100.101.102.103')
         with patch.object(srv, '_tailscale_cli', return_value=None), patch.object(srv, 'interface_ipv4', return_value=None):
             self.assertEqual(srv.find_tailscale(), Tailnet(None, (), 'not_installed'))
 
@@ -770,7 +770,7 @@ class ServiceTest(QtCase):
     def test_only_loopback_may_override_the_address(self):
         folder = tempfile.TemporaryDirectory(prefix='mira-companion-svc-')
         self.addCleanup(folder.cleanup)
-        for value, expected in (('0.0.0.0', None), ('192.168.3.10', None), ('100.98.129.115', None),
+        for value, expected in (('0.0.0.0', None), ('192.168.3.10', None), ('100.101.102.103', None),
                                 ('127.0.0.1', '127.0.0.1')):
             with patch.dict(os.environ, {'MIRA_COMPANION_HOST': value}):
                 controller = FakeController()
