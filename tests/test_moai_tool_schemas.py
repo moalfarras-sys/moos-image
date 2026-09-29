@@ -156,20 +156,38 @@ class TestToolSchemaIntegrity(unittest.TestCase):
         accepted = {
             "night-light": ("on", "off", "auto"), "wifi": ("on", "off"), "bluetooth": ("on", "off"),
             "theme": control.THEMES, "settings": control.SETTINGS_PAGES,
-            # SPEC D4: each read from moos-control's OWN table, not restated here.
+            # SPEC D4/W9.10: each read from moos-control's OWN table, not restated here.
             "window": tuple(control.WINDOW_VIEWS), "arrange": tuple(control.ARRANGEMENTS),
             "desktop": tuple(control.DESKTOP_STEPS), "dnd": ("on", "off"),
             "mic": ("mute", "unmute"), "motion": control.MOTION, "clarity": control.CLARITY,
             "power-profile": control.POWER_PROFILES,
+            "window-do": control.WINDOW_ACTIONS, "media": tuple(control.MEDIA),
+            "desktops": ("add", "remove"), "reminders": ("list", "cancel-all"),
+            "open-folder": tuple(control.FOLDERS), "animations": tuple(control.ANIMATION_SPEEDS),
+            "click": control.CLICK_MODES,
         }
+        # A valid stand-in for every other required argument, so an enum on one parameter of a
+        # multi-argument tool can still be built. Integers use the declared minimum; a free
+        # string is a plain word that passes _valid (no dash, in range).
+        def sample(spec):
+            if spec.get("enum"):
+                return spec["enum"][0]
+            if spec.get("type") == "integer":
+                return spec.get("minimum", 1)
+            return "code"
+
         advertised = {verb: set() for verb in accepted}
         for tool in ALL_TOOLS:
             meta = tool["_moos"]
             if meta["executor"] != "moos-control":
                 continue
-            for key, spec in tool["function"]["parameters"]["properties"].items():
+            properties = tool["function"]["parameters"]["properties"]
+            for key, spec in properties.items():
                 for value in spec.get("enum", []):
-                    argv = build_command(tool["function"]["name"], {key: value})
+                    arguments = {other: sample(other_spec) for other, other_spec
+                                 in properties.items() if other in meta["required"]}
+                    arguments[key] = value
+                    argv = build_command(tool["function"]["name"], arguments)
                     self.assertIsNotNone(argv, f"{tool['function']['name']}({key}={value!r}) "
                                                "is advertised but build_command refuses it")
                     verb = argv[1]
@@ -185,12 +203,26 @@ class TestToolSchemaIntegrity(unittest.TestCase):
                         advertised[verb].add(value)
         self.assertEqual(tuple(SETTINGS_PAGES), tuple(control.SETTINGS_PAGES),
                          "open_settings must offer exactly the pages moos-control opens")
-        # And the other direction for the desktop verbs: every value moos-control accepts is
+        # And the other direction for the enum verbs: every value moos-control accepts is
         # one the model can ask for, so no verb is reachable only by typing it.
         for verb in ("window", "arrange", "desktop", "dnd", "mic", "motion", "clarity",
-                     "power-profile"):
+                     "power-profile", "window-do", "media", "desktops", "reminders",
+                     "open-folder", "animations", "click"):
             self.assertEqual(advertised[verb], set(accepted[verb]),
                              f"the schema and moos-control disagree about {verb}")
+        # The multi-argument and integer verbs W9.10 added carry their arguments in order.
+        self.assertEqual(build_command("window_action", {"action": "close", "target": "firefox"}),
+                         ["moos-control", "window-do", "close", "firefox"])
+        self.assertEqual(build_command("move_window_to_desktop", {"desktop": 2, "target": "code"}),
+                         ["moos-control", "window-move", "2", "code"])
+        self.assertEqual(build_command("set_reminder", {"minutes": 10, "text": "tea"}),
+                         ["moos-control", "remind", "10", "tea"])
+        self.assertEqual(build_command("go_to_desktop", {"number": 3}),
+                         ["moos-control", "go-desktop", "3"])
+        self.assertEqual(build_command("set_screen_lock", {"after_minutes": 0}),
+                         ["moos-control", "screen-lock", "0"])
+        # A window target that is really an option must never reach argv as one.
+        self.assertIsNone(build_command("window_action", {"action": "close", "target": "-rf"}))
         # The one argument-less desktop tool is built to the one direction moos-control has.
         self.assertEqual(build_command("switch_keyboard_layout", {}),
                          ["moos-control", "keyboard-layout", "next"])
@@ -248,6 +280,18 @@ class TestToolSchemaIntegrity(unittest.TestCase):
             ("set_power_profile", {"profile": "turbo"}),
             ("set_do_not_disturb", {"value": "on; rm -rf ~"}),
             ("read_moos_log", {"name": "../../.ssh/id_ed25519"}),
+            # W9.10: a window target or a reminder is free text, but never an option or control char.
+            ("window_action", {"action": "close", "target": "--fullscreen"}),
+            ("window_action", {"action": "explode", "target": "firefox"}),
+            ("move_window_to_desktop", {"desktop": 99, "target": "code"}),
+            ("go_to_desktop", {"number": 0}),
+            ("set_reminder", {"minutes": 0, "text": "x"}),
+            ("set_reminder", {"minutes": 5, "text": "line\nbreak"}),
+            ("control_media", {"action": "rewind"}),
+            ("open_folder", {"folder": "/etc"}),
+            ("set_animation_speed", {"speed": "instant"}),
+            ("set_screen_lock", {"after_minutes": 999}),
+            ("set_click_mode", {"mode": "triple"}),
         ):
             self.assertIsNone(build_command(name, arguments),
                               f"{name}{arguments} must be refused before it becomes argv")
@@ -276,6 +320,33 @@ class TestToolSchemaIntegrity(unittest.TestCase):
                               if t["function"]["name"] == name)["function"]["parameters"]
             for spec in properties["properties"].values():
                 self.assertTrue(spec.get("enum"), f"{name} takes free text")
+
+    def test_the_desktop_hands_are_control_and_bounded(self):
+        """W9.10: the window/desktop/media/reminder verbs run on moos-control, unprivileged.
+
+        Their free-text parameters (a window target, a reminder's words, a URL) carry a hard
+        maxLength so a model cannot push an unbounded argument through, and the two that could
+        surprise the owner — closing a window, disabling the automatic lock — are confirmed.
+        """
+        hands = ("list_windows", "window_action", "move_window_to_desktop", "go_to_desktop",
+                 "add_or_remove_desktop", "control_media", "lock_screen", "set_reminder",
+                 "manage_reminders", "open_web_page", "open_folder", "set_animation_speed",
+                 "set_screen_lock", "set_click_mode")
+        for name in hands:
+            meta = TOOL_META[name]
+            self.assertEqual(meta["executor"], "moos-control", name)
+            self.assertIn(meta["category"], (READ_ONLY, CONTROL), name)
+            properties = next(t for t in ALL_TOOLS
+                              if t["function"]["name"] == name)["function"]["parameters"]
+            for key, spec in properties["properties"].items():
+                if spec.get("type") == "string" and not spec.get("enum"):
+                    self.assertIn("maxLength", spec, f"{name}.{key} is unbounded free text")
+                    self.assertLessEqual(spec["maxLength"], 2048, f"{name}.{key} is too long")
+        self.assertTrue(needs_confirmation("window_action", {"action": "close", "target": "x"}))
+        self.assertFalse(needs_confirmation("window_action", {"action": "focus", "target": "x"}))
+        self.assertTrue(needs_confirmation("set_screen_lock", {"after_minutes": 0}))
+        self.assertFalse(needs_confirmation("set_screen_lock", {"after_minutes": 10}))
+        self.assertFalse(needs_confirmation("lock_screen", {}))
 
     def test_cutting_the_owner_off_is_confirmed_even_for_a_control_tool(self):
         self.assertTrue(needs_confirmation("toggle_wifi", {"value": "off"}))

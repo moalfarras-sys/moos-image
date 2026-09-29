@@ -17,6 +17,20 @@
       "route": "moos://settings/assistant"
     },
     {
+      "id": "moai-desktop-hands",
+      "merged": "2026-09-28T12:00:00Z",
+      "glyph": "ai",
+      "title": {
+        "ar": "Mo AI صار يتحكم بالنوافذ وسطح المكتب",
+        "en": "Mo AI can now run your windows and desktops"
+      },
+      "body": {
+        "ar": "اطلب من Mo AI أن يظهر نافذة أو يصغّرها أو يكبّرها أو يغلقها بالاسم، ينقلها بين أسطح المكتب، يوقف الموسيقى، يقفل الشاشة، يضبط تذكيراً، أو يفتح صفحة ومجلداً. يعرض ما سيفعله، وإغلاق نافذة يسألك أولاً.",
+        "en": "Ask Mo AI to bring a window forward, minimize, maximize or close it by name, move it between desktops, pause the music, lock the screen, set a reminder, or open a page or folder. It shows what it will do, and closing a window asks first."
+      },
+      "route": "moos://settings/assistant"
+    },
+    {
       "id": "remote-clipboard-auto-quality",
       "merged": "2026-09-27T23:02:33Z",
       "glyph": "video",
