@@ -214,6 +214,102 @@ class ControllerTest(unittest.TestCase):
             self.c.openApp('org.kde.dolphin')
         run.assert_called_once_with('open_app', {'app_id': 'org.kde.dolphin'})
 
+    # ── owner-approved system actions ───────────────────────────────
+    def _park(self, name='install_app', args=None):
+        card = self.c.request_confirmation({'kind': 'moai', 'name': name, 'args': args or {'app_id': 'org.videolan.VLC'},
+                                            'detail': 'VLC'})
+        pump(lambda: self.c.actions.find(card['id']) >= 0)
+        return card
+
+    def test_a_parked_change_runs_only_after_the_owner_approves(self):
+        import moai_tools
+        calls = []
+
+        def execute(name, args, confirmed=False):
+            calls.append((name, args, confirmed))
+            return {'status': 'pending', 'job': 'j1'}
+        with patch.object(moai_tools, 'execute', side_effect=execute), \
+                patch.object(moai_tools, 'wait_job', return_value={'status': 'ok', 'output': 'installed VLC', 'exit_code': 0}):
+            card = self._park()
+            self.assertEqual(self.c.actions.get(0)['stage'], 'ask')
+            self.assertEqual(calls, [], 'parking runs nothing')
+            self.c.approveAction(card['id'])
+            self.assertTrue(pump(lambda: self.c.actions.get(0).get('stage') == 'ok', 3))
+        self.assertEqual(calls, [('install_app', {'app_id': 'org.videolan.VLC'}, True)])
+        self.assertIn('installed VLC', self.c.actions.get(0)['output'])
+        self.c.approveAction(card['id'])     # one approval never runs twice
+        self.assertEqual(len(calls), 1)
+        self.assertEqual(self.c.actions.get(0)['stage'], 'ok', 'a finished card keeps its real result')
+
+    def test_only_known_moai_tools_can_be_parked(self):
+        self.assertIsNone(self.c.request_confirmation({'kind': 'moai', 'name': 'rm_rf', 'args': {}}))
+        self.assertIsNone(self.c.request_confirmation({'kind': 'command', 'name': 'install_app', 'args': {}}))
+        self.assertEqual(self.c.actions.count, 0)
+
+    def test_typed_yes_approves_and_no_cancels_without_asking_the_brain(self):
+        import moai_tools
+        with patch.object(moai_tools, 'execute', return_value={'status': 'ok', 'output': ''}) as execute, \
+                patch.object(self.c, '_run_brain') as brain:
+            card = self._park()
+            self.c.send('نعم')
+            self.assertTrue(pump(lambda: execute.called, 2))
+            execute.assert_called_once_with('install_app', {'app_id': 'org.videolan.VLC'}, confirmed=True)
+            card = self._park('fix_audio', {})
+            self.c.send('لا')
+            self.assertEqual(self.c.actions.get(self.c.actions.find(card['id']))['stage'], 'cancelled')
+            self.c.send('نعم الساعة كم؟')        # a question, not an answer
+            brain.assert_called_once()
+        self.assertEqual(execute.call_count, 1)
+
+    def test_spoken_yes_counts_only_from_a_later_turn(self):
+        import moai_tools
+        with patch.object(moai_tools, 'execute', return_value={'status': 'ok', 'output': ''}) as execute:
+            self.voice('listening')
+            self._park()
+            self.voice('heard', 'نعم')          # the same turn that asked: not an approval
+            pump(timeout=0.2)
+            execute.assert_not_called()
+            time.sleep(0.01)
+            self.voice('listening')              # the owner's next turn
+            self.voice('heard', 'ايوه أكيد')
+            self.assertTrue(pump(lambda: execute.called, 2))
+
+    def test_a_card_nobody_answers_expires_and_runs_nothing(self):
+        import moai_tools
+        with patch.object(moai_tools, 'execute') as execute:
+            card = self._park()
+            row = self.c.actions.find(card['id'])
+            self.c.actions.update_key(card['id'], expires=1)
+            self.c.pending._items[card['id']]['expires'] = 0
+            self.c._tick_actions()
+            self.assertEqual(self.c.actions.get(row)['stage'], 'expired')
+            self.c.approveAction(card['id'])
+            execute.assert_not_called()
+
+    def test_launcher_pages_and_questions(self):
+        sheets, filled = [], []
+        self.c.showSheet.connect(sheets.append)
+        self.c.prefill.connect(filled.append)
+        with patch.object(self.c, 'systemAction') as action, patch.object(self.c, '_run_brain') as brain:
+            self.c.handle_instance_command(b'open:' + json.dumps({'panel': 'device'}).encode())
+            self.c.handle_instance_command(b'open:' + json.dumps({'panel': 'chat', 'ask': 'حدّث النظام'}).encode())
+            self.c.handle_instance_command(b'open:not json')
+            pump(lambda: action.called, 1)
+        self.assertEqual(sheets, ['system', '', ''])
+        self.assertEqual(filled, ['حدّث النظام'])
+        brain.assert_not_called()               # a moos:// link never sends for the owner
+        action.assert_called_once_with('device_report')
+
+    def test_store_actions_are_parked_not_run(self):
+        import moai_tools
+        with patch.object(moai_tools, 'execute') as execute:
+            self.c.storeAction('install_app', 'org.videolan.VLC')
+            self.c.storeAction('install_app', 'VLC; rm -rf ~')
+            self.c.storeAction('reboot', 'org.videolan.VLC')
+            pump(lambda: self.c.actions.count == 1, 1)
+        self.assertEqual(self.c.actions.count, 1)
+        execute.assert_not_called()
+
     # ── preferences ─────────────────────────────────────────────────
     def test_preferences_persist(self):
         self.c.setFace('holo')

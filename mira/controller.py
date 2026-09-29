@@ -25,7 +25,25 @@ ACTIVE = ('activating', 'listening', 'thinking', 'executing', 'speaking')
 ENROL_DIR = Path.home() / '.local/share/mira/wake-enrol'      # the owner's voice samples (0700/0600)
 WAKE_MODELS = Path.home() / '.local/share/mira/wake-models'   # models trained here, served to the Echo
 OWNER_MODEL = 'mira_ar_owner'
+IMPROVED_MODEL = 'mira_ar_v2'      # trained on 26 synthetic voices with real room sound (wake_training/README.md)
 FALLBACK_WAKE = ['mira_ar_experimental']   # Mira only, by the owner's choice (2026-09-29)
+# Desktop changes that wait for the owner (desktop_tools; not Mo AI's executor).
+DESKTOP_CHANGES = {'close_window': ('إغلاق نافذة', 'Close a window')}
+# Mo AI's launcher pages (`moai --panel NAME`) and where they live in Mira now.
+PANELS = {'device': 'system', 'apps': 'system', 'compat': 'system', 'dev': 'system', 'system': 'system',
+          'remote': 'settings', 'settings': 'settings', 'home': 'home', 'computer': 'computer', 'chat': ''}
+SETTINGS_PAGES = ('update', 'audio', 'network', 'bluetooth', 'display', 'assistant', 'remote', 'about', 'storage',
+                  'default-apps', 'notifications', 'energy')
+CONFIRM_TTL = 180                           # seconds a system change waits for the owner
+JOB_LIMIT_S = {'system_update': 90 * 60, 'system_rollback': 30 * 60, 'update_firmware': 60 * 60,
+               'install_nvidia': 60 * 60, 'setup_waydroid': 45 * 60}
+# The Mo AI centre in Mira's System sheet: what each group offers, in the executor's own names.
+SYSTEM_GROUPS = {
+    'check': ['device_report', 'check_drivers', 'gpu_report', 'net_doctor', 'inspect_boot', 'os_state', 'support_bundle'],
+    'repair': ['fix_audio', 'optimize_system'],
+    'update': ['system_update', 'update_apps', 'update_firmware', 'system_rollback'],
+    'setup': ['setup_gaming', 'setup_windows', 'setup_waydroid', 'install_nvidia', 'remote_anywhere'],
+}
 
 
 def _prop(kind, attr, signal):
@@ -76,6 +94,12 @@ class Controller(QObject):
     toast = Signal(str, str)          # kind (ok, pending, error, info), text
     focusComposer = Signal()
     companionChanged = Signal()
+    systemChanged = Signal()
+    remindersChanged = Signal()
+    showSheet = Signal(str)           # a launcher asked for a page ('' = the conversation)
+    prefill = Signal(str)             # a launcher's question, put in the composer (never sent for him)
+    _confirm_request = Signal(str)    # a tool thread parks a system change; shown on the Qt thread
+    _notify_answer = Signal(str, str) # a desktop notification's button (action id, 'approve'/'reject')
 
     def __init__(self, bridge_class=None, parent=None):
         super().__init__(parent)
@@ -118,6 +142,18 @@ class Controller(QObject):
         self._enrol = {'mira': 0, 'other': 0, 'seconds': 0.0, 'recording': '', 'message': '',
                        'training': False, 'report': {}, 'model': '', 'active': [], 'installing': False}
         self._count_enrolment()
+
+        # System changes wait here for the OWNER: a card, a notification button, or his own «نعم».
+        import pending
+        self.pending = pending.PendingActions()
+        self.actions = DictListModel(['aid', 'kind', 'name', 'title', 'detail', 'reason', 'stage', 'category', 'summary',
+                                      'output', 'started', 'expires', 'origin'], key='aid')
+        self._system = {'busy': '', 'tool': '', 'output': '', 'status': '', 'apps': [], 'searching': False,
+                        'query': '', 'os': ''}
+        self._turn_started = 0.0
+        self._notifications = {}
+        self._answered = set()             # cards resolved; their notifications must not linger
+        self._reminders = []              # upcoming reminders and timers, for the rail
 
         self.chat = DictListModel(['role', 'text', 'time', 'status', 'title', 'tool'])
         self.devices = DictListModel(['entity_id', 'name', 'domain', 'state', 'available', 'is_on', 'brightness',
@@ -165,6 +201,17 @@ class Controller(QObject):
         self.companion_service.changed.connect(self._on_companion_changed)
         self.companion_service.notice.connect(self.toast)
 
+        self._confirm_request.connect(self._show_confirmation)
+        self._notify_answer.connect(self._on_notify_answer)
+        self.action_timer = QTimer(self, interval=1000, timeout=self._tick_actions)
+        self.reminder_timer = QTimer(self, interval=10000, timeout=self._check_reminders)
+        try:  # the typed brain asks the owner through the same cards
+            import brain
+            brain.set_confirmation(self.request_confirmation)
+        except Exception:
+            pass
+        self.bridge.request_confirmation = self.request_confirmation
+
     # ── lifecycle ───────────────────────────────────────────────────
     def start(self):
         self.companion_service.start()
@@ -181,10 +228,14 @@ class Controller(QObject):
         QTimer.singleShot(2400, self.refreshApps)
         self.weather_timer.start()
         self.home_timer.start()
+        self.reminder_timer.start()
+        QTimer.singleShot(900, self._check_reminders)
         if self._local_wake:
             self.start_local_wake()
 
     def shutdown(self):
+        for action_id in list(self._notifications):
+            self._close_notification(action_id)   # a waiting approval dies with the app: so does its notice
         self.companion_service.shutdown()
         self.stop_local_wake()
 
@@ -223,6 +274,20 @@ class Controller(QObject):
     chatModel = Property(QObject, lambda self: self.chat, constant=True)
     deviceModel = Property(QObject, lambda self: self.devices, constant=True)
     companion = _prop('QVariantMap', '_companion', companionChanged)
+    system = _prop('QVariantMap', '_system', systemChanged)
+    reminders = _prop('QVariantList', '_reminders', remindersChanged)
+    actionModel = Property(QObject, lambda self: self.actions, constant=True)
+
+    def _get_system_groups(self):
+        import moai_tools
+        known = moai_tools.names()
+        out = {}
+        for group, names in SYSTEM_GROUPS.items():
+            out[group] = [{'name': n, 'title': moai_tools.title(n, self._lang),
+                           'category': (moai_tools.meta(n) or {}).get('category', '')}
+                          for n in names if n in known]
+        return out
+    systemGroups = Property('QVariantMap', _get_system_groups, notify=langChanged)
 
     def _get_profile(self):
         from mira_memory import profile_text
@@ -336,6 +401,8 @@ class Controller(QObject):
             self.toast.emit('error', 'الرسالة طويلة جداً' if self._lang == 'ar' else 'Message is too long')
             return
         self._add('user', text)
+        if self._answer_pending(text, spoken=False):
+            return
         self._text_phase = 'thinking'
         self._resolve_phase()
         self._run_brain(text)
@@ -410,6 +477,8 @@ class Controller(QObject):
                 if kind in ('ready', 'off', 'error', 'thinking', 'executing'):
                     self._level = 0.0
                     self.levelChanged.emit()
+            if kind in ('activating', 'listening'):
+                self._turn_started = time.time()   # a card older than this may be answered by voice
             if kind == 'activating':
                 self._wake_seq += 1
                 self._update('_echo', self.echoChanged, state=self._s['phase_listening'] + ' · ' + datetime.now().strftime('%H:%M:%S'))
@@ -425,6 +494,8 @@ class Controller(QObject):
         elif kind == 'heard':
             self._add('user', text)
             self._set_caption(text, 'user')
+            if not typed:
+                self._answer_pending(text, spoken=True)
         elif kind == 'reply':
             status = 'ok'
             if typed and text.startswith('{'):
@@ -452,6 +523,8 @@ class Controller(QObject):
             self._update('_echo', self.echoChanged, wake_hint=text)
         elif kind == 'capture':
             self._on_capture(text)
+        elif kind == 'reminders':
+            self._refresh_reminders()
         elif kind == 'interrupted':
             self._set_caption(text, 'mira')
         elif kind == 'session':
@@ -720,6 +793,382 @@ class Controller(QObject):
             return
         self.runPc('open_app', {'app_id': app_id})
 
+    # ── owner-approved system actions (Mo AI's executor, Mira's face) ────────────
+    def request_confirmation(self, item):
+        """Called by a tool on the brain or voice thread. Parks ONE Mo AI system change and puts it
+        in front of the owner; returns the card (no payload) or None. Nothing runs from here."""
+        import moai_tools
+        if not isinstance(item, dict):
+            return None
+        kind, name = item.get('kind'), item.get('name')
+        args = dict(item.get('args') or {})
+        if kind == 'moai' and name in moai_tools.names():
+            category = item.get('category') or (moai_tools.meta(name) or {}).get('category', '')
+            title_ar, title_en = moai_tools.title(name, 'ar'), moai_tools.title(name, 'en')
+        elif kind == 'desktop' and name in DESKTOP_CHANGES and isinstance(args.get('query'), str) and args['query'].strip():
+            category, (title_ar, title_en) = 'user_confirm', DESKTOP_CHANGES[name]
+            args = {'query': args['query'].strip()[:120]}
+        else:
+            return None
+        card = self.pending.add(kind, title_ar, title_en, str(item.get('detail') or ''),
+                                {'kind': kind, 'name': name, 'args': args, 'category': category}, ttl=CONFIRM_TTL)
+        self._confirm_request.emit(json.dumps({**card, 'name': name, 'category': category,
+                                               'origin': item.get('origin') or 'mira'}, ensure_ascii=False))
+        return card
+
+    def _show_confirmation(self, payload):
+        try:
+            card = json.loads(payload)
+        except ValueError:
+            return
+        title = card['title_en'] if self._lang == 'en' else card['title_ar']
+        self.actions.insert_first({'aid': card['id'], 'kind': card['kind'], 'name': card.get('name', ''), 'title': title,
+                                   'detail': card.get('detail', ''), 'reason': '', 'stage': 'ask',
+                                   'category': card.get('category', ''), 'summary': '', 'output': '',
+                                   'started': 0, 'expires': int(card['expires'] * 1000), 'origin': card.get('origin', '')})
+        self._trim_actions()
+        self.action_timer.start()
+        ask = self._s['act_waiting'] + ' ' + title
+        self._set_caption(ask, 'mira')
+        self._set_mood('curious')
+        self.toast.emit('pending', ask)
+        self._notify_confirmation(card['id'], title, card.get('category', ''))
+
+    def _trim_actions(self):
+        rows = self.actions.rows()
+        finished = [r for r in rows if r['stage'] not in ('ask', 'running')]
+        for row in finished[6:]:
+            self.actions.remove_key(row['aid'])
+
+    def _notify_confirmation(self, action_id, title, category):
+        """A KDE notification with Approve / Cancel, so the owner can answer with Mira hidden."""
+        if TEST_MODE:
+            return
+        body = self._s['act_password'] if category == 'privileged_confirm' else self._s['act_voice_hint']
+        command = ['notify-send', '-a', 'Mira', '-i', 'moos-moai', '-u', 'critical', '-t', str(CONFIRM_TTL * 1000),
+                   '-p', '-w', '-A', 'approve=' + self._s['act_approve'], '-A', 'reject=' + self._s['act_reject'],
+                   self._s['act_waiting'] + ' ' + title, body]
+
+        def wait():
+            try:
+                process = subprocess.Popen(command, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
+                                           stderr=subprocess.DEVNULL, text=True)
+            except OSError:
+                return
+            first = process.stdout.readline().strip()
+            if first.isdigit():
+                self._notifications[action_id] = int(first)
+                if action_id in self._answered:        # answered on the card before the notice was up
+                    self._close_notification(action_id)
+            answer = (process.stdout.readline() or '').strip()
+            process.wait()
+            if answer in ('approve', 'reject'):
+                self._notify_answer.emit(action_id, answer)
+        threading.Thread(target=wait, daemon=True).start()
+
+    def _close_notification(self, action_id):
+        self._answered.add(action_id)
+        number = self._notifications.pop(action_id, None)
+        if number is None or TEST_MODE:
+            return
+        try:
+            subprocess.Popen(['gdbus', 'call', '--session', '--dest', 'org.freedesktop.Notifications',
+                              '--object-path', '/org/freedesktop/Notifications',
+                              '--method', 'org.freedesktop.Notifications.CloseNotification', str(number)],
+                             stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        except OSError:
+            pass
+
+    @Slot(str, str)
+    def _on_notify_answer(self, action_id, answer):
+        self._notifications.pop(action_id, None)
+        if answer == 'approve':
+            self.approveAction(action_id)
+        else:
+            self.rejectAction(action_id)
+
+    @Slot(str)
+    def approveAction(self, action_id):
+        """The owner's approval (card button or notification). The only way a parked change runs."""
+        item = self.pending.take(action_id)
+        if item is None:
+            row = self.actions.find(action_id)
+            if row >= 0 and self.actions.get(row).get('stage') == 'ask':
+                self.actions.update_key(action_id, stage='expired', summary=self._s['act_expired'])
+                self.toast.emit('pending', self._s['act_expired'])
+            return
+        self._start_action(item)
+
+    @Slot(str)
+    def rejectAction(self, action_id):
+        card = self.pending.reject(action_id)
+        self._close_notification(action_id)
+        if self.actions.find(action_id) >= 0:
+            self.actions.update_key(action_id, stage='cancelled', summary=self._s['act_cancelled'])
+            QTimer.singleShot(4000, lambda: self.actions.remove_key(action_id))
+        if card is not None:
+            title = card['title_en'] if self._lang == 'en' else card['title_ar']
+            self._add('action', self._s['act_cancelled'] + ': ' + title, status='error', tool='moai')
+
+    @Slot(str)
+    def dismissAction(self, action_id):
+        row = self.actions.find(action_id)
+        if row >= 0 and self.actions.get(row).get('stage') not in ('ask', 'running'):
+            self.actions.remove_key(action_id)
+
+    def _answer_pending(self, text, spoken):
+        """The owner's own words answering a waiting card. True when they were only an answer."""
+        latest = self.pending.latest()
+        if latest is None:
+            return False
+        if spoken and latest.get('created', 0) >= self._turn_started > 0:
+            return False       # the card was made in this very turn: his words there were the request
+        decision = self.pending.respond(text)
+        verdict = decision.get('verdict')
+        if verdict == 'yes':
+            self._start_action(decision['item'])
+        elif verdict == 'no':
+            for card in decision.get('items') or []:
+                self._close_notification(card['id'])
+                self.actions.update_key(card['id'], stage='cancelled', summary=self._s['act_cancelled'])
+                QTimer.singleShot(4000, lambda i=card['id']: self.actions.remove_key(i))
+            self._add('mira', self._s['act_cancelled_say'])
+            self._set_caption(self._s['act_cancelled_say'], 'mira')
+        elif verdict == 'ambiguous':
+            self._add('mira', self._s['act_choose'])
+            self._set_caption(self._s['act_choose'], 'mira')
+        else:
+            return False
+        return True
+
+    def _start_action(self, item):
+        payload = item.get('payload') or {}
+        action_id = item['id']
+        self._close_notification(action_id)
+        title = item['title_en'] if self._lang == 'en' else item['title_ar']
+        if self.actions.find(action_id) < 0:
+            self.actions.insert_first({'aid': action_id, 'kind': item['kind'], 'name': payload.get('name', ''),
+                                       'title': title, 'detail': item.get('detail', ''), 'reason': '', 'stage': 'ask',
+                                       'category': payload.get('category', ''), 'summary': '', 'output': '',
+                                       'started': 0, 'expires': 0, 'origin': 'mira'})
+        self.actions.update_key(action_id, stage='running', started=int(time.time() * 1000),
+                                summary=self._s['act_running'])
+        self.action_timer.start()
+        started = self._s['act_started'] + ' ' + title
+        self._add('action', started, status='pending', tool='moai')
+        self._set_caption(started, 'mira')
+        self._set_mood('proud')
+        if payload.get('category') == 'privileged_confirm':
+            self.toast.emit('info', self._s['act_password'])
+        self.worker.run('act:' + action_id, self._execute_action, dict(payload))
+
+    def _execute_action(self, payload):
+        """Worker thread: the approved call, then its job until it truly ends."""
+        import moai_tools
+        name = payload['name']
+        if payload.get('kind') == 'desktop':
+            import desktop_tools
+            if name != 'close_window':
+                return {'status': 'error', 'error': 'unsupported', 'name': name}
+            return {**desktop_tools.close_window(payload['args']['query']), 'name': name, 'kind': 'desktop'}
+        result = moai_tools.execute(name, payload.get('args') or {}, confirmed=True)
+        if result.get('status') == 'pending' and result.get('job'):
+            result = moai_tools.wait_job(result['job'], timeout=JOB_LIMIT_S.get(name, 30 * 60))
+        return {**result, 'name': name}
+
+    def _on_action_done(self, action_id, result):
+        import moai_tools
+        name = result.get('name', '')
+        title = (DESKTOP_CHANGES[name][1 if self._lang == 'en' else 0] if result.get('kind') == 'desktop' and name in DESKTOP_CHANGES
+                 else moai_tools.title(name, self._lang))
+        status = result.get('status')
+        if status == 'partial':
+            status = 'error'
+        if status == 'pending':
+            summary, state = self._s['act_still_running'], 'running'
+        elif status == 'ok':
+            summary, state = self._s['act_done'] + ' ' + title, 'ok'
+        else:
+            reason = result.get('error') or (f"exit {result.get('exit_code')}" if result.get('exit_code') is not None else '')
+            summary, state = self._s['act_failed'] + ' ' + title + (f' ({reason})' if reason else ''), 'error'
+        output = str(result.get('output') or '').strip()
+        self.actions.update_key(action_id, stage=state, summary=summary, output=output[-4000:])
+        self._add('action', summary, status='ok' if state == 'ok' else 'pending' if state == 'running' else 'error', tool='moai')
+        self._set_caption(summary, 'mira')
+        self._set_mood('proud' if state == 'ok' else 'reassuring' if state == 'running' else 'sad')
+        self.toast.emit('ok' if state == 'ok' else 'pending' if state == 'running' else 'error', summary)
+        if not TEST_MODE:
+            try:
+                subprocess.Popen(['notify-send', '-a', 'Mira', '-i', 'moos-moai', title, summary],
+                                 stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            except OSError:
+                pass
+        row = self.actions.find(action_id)
+        started = self.actions.get(row).get('started', 0) if row >= 0 else 0
+        if state in ('ok', 'error') and started and time.time() * 1000 - started > 20000:
+            self.announce(summary)        # a long job ends while he may be away from the screen
+        if state == 'ok':
+            QTimer.singleShot(20000, lambda: self.dismissAction(action_id))
+        if name in ('install_app', 'uninstall_app', 'update_apps'):
+            QTimer.singleShot(500, self.refreshApps)
+
+    def _tick_actions(self):
+        """Expire waiting cards on time; stop ticking when nothing waits or runs."""
+        now = int(time.time() * 1000)
+        live = False
+        for row in self.actions.rows():
+            if row['stage'] == 'ask':
+                if row['expires'] and now >= row['expires']:
+                    self.pending.reject(row['aid'])
+                    self._close_notification(row['aid'])
+                    self.actions.update_key(row['aid'], stage='expired', summary=self._s['act_expired'])
+                else:
+                    live = True
+            elif row['stage'] == 'running':
+                live = True
+        if not live:
+            self.action_timer.stop()
+
+    # ── reminders, timers and spoken announcements ──────────────────
+    def _refresh_reminders(self):
+        try:
+            import reminders
+            items = reminders.Reminders().list()
+        except Exception:
+            items = []
+        rows = []
+        for item in items[:4]:
+            try:
+                import reminders as r
+                spoken = r.spoken_when(datetime.fromisoformat(item['due']))
+            except (ValueError, KeyError):
+                spoken = ''
+            rows.append({'id': item['id'], 'text': item.get('text', ''), 'kind': item.get('kind', 'reminder'),
+                         'when': spoken, 'repeat': item.get('repeat') or ''})
+        if rows != self._reminders:
+            self._reminders = rows
+            self.remindersChanged.emit()
+
+    def _check_reminders(self):
+        """Fire what is due: desktop notification, conversation line, and Mira's voice on the Echo."""
+        try:
+            import reminders
+            fired = reminders.Reminders().due()
+        except Exception:
+            fired = []
+        for item in fired:
+            timer = item.get('kind') == 'timer'
+            title = (self._s['rem_timer'] if timer else self._s['rem_title'])
+            text = item.get('text') or title
+            self._add('mira', '⏰ ' + text, status='', tool='reminder')
+            self._set_caption('⏰ ' + text, 'mira')
+            self._set_mood('curious')
+            self.toast.emit('info', '⏰ ' + text)
+            if not TEST_MODE:
+                try:
+                    subprocess.Popen(['notify-send', '-a', 'Mira', '-i', 'moos-moai', '-u', 'critical', title, text],
+                                     stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                except OSError:
+                    pass
+            self.announce(text if timer else self._s['rem_say'] + ' ' + text)
+        self._refresh_reminders()
+
+    @Slot(str)
+    def cancelReminder(self, reminder_id):
+        if not re.fullmatch(r't[0-9a-f]{10}', reminder_id or ''):
+            return
+        import reminders
+        result = reminders.Reminders().cancel(reminder_id)
+        self.toast.emit('ok' if result.get('status') == 'ok' else 'pending', result.get('summary', ''))
+        self._refresh_reminders()
+
+    def announce(self, text, attempt=0):
+        """Say one line without a conversation: Gemini TTS, played by the Echo (or this PC)."""
+        text = ' '.join((text or '').split())[:600]
+        if not text or TEST_MODE:
+            return
+        self.worker.run('announce', self._synthesize, text)
+
+    def _synthesize(self, text):
+        import announce
+        announce.cleanup()
+        return announce.synthesize(text, voice=self._voice_name)
+
+    def _play_announcement(self, result, attempt=0):
+        path = Path(result.get('path') or '')
+        if self._echo['online'] and self._voice_phase not in ACTIVE:
+            self.bridge.command('announce', 'speaker', path.name)
+            return
+        if self._echo['online'] and attempt < 12:
+            # a conversation is using the speaker: say it right after
+            QTimer.singleShot(5000, lambda: self._play_announcement(result, attempt + 1))
+            return
+        try:
+            subprocess.Popen(['pw-play', str(path)], stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
+                             stderr=subprocess.DEVNULL)
+        except OSError:
+            pass
+
+    def _on_announce(self, result):
+        result = result if isinstance(result, dict) else {}
+        if result.get('status') == 'ok' and result.get('path'):
+            self._play_announcement(result)
+        elif self._echo['online']:
+            self.bridge.command('tone', 'speaker')      # no voice today (quota/network): a chime at least
+        else:
+            try:
+                subprocess.Popen(['canberra-gtk-play', '-i', 'alarm-clock-elapsed'], stdin=subprocess.DEVNULL,
+                                 stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            except OSError:
+                pass
+
+    # ── the System sheet: Mo AI's centre, inside Mira ──
+    @Slot(str)
+    def systemAction(self, name):
+        """A button in the System sheet. Reads run now; changes wait for the owner on a card."""
+        import moai_tools
+        if name not in moai_tools.names():
+            return
+        if moai_tools.needs_confirmation(name, {}):
+            self.request_confirmation({'kind': 'moai', 'name': name, 'args': {}, 'origin': 'system'})
+            return
+        self._update('_system', self.systemChanged, busy=name, tool=name, status='', output='')
+        self.worker.run('sys:' + name, moai_tools.execute, name, {})
+
+    @Slot(str)
+    def searchStore(self, query):
+        query = ' '.join((query or '').split())[:80]
+        if not query:
+            self._update('_system', self.systemChanged, apps=[], query='', searching=False)
+            return
+        self._update('_system', self.systemChanged, searching=True, query=query)
+        import moai_tools
+        self.worker.run('store', moai_tools.search_apps, query, 8)
+
+    @Slot(str, str)
+    def storeAction(self, verb, app_id):
+        """Install or remove one app from the Store results; both wait for the owner's card."""
+        if verb not in ('install_app', 'uninstall_app') or not re.fullmatch(r'[A-Za-z0-9_-]+(?:\.[A-Za-z0-9_-]+){2,}', app_id or ''):
+            return
+        import moai_tools
+        name = next((a.get('name') for a in self._system.get('apps') or [] if a.get('id') == app_id), app_id)
+        self.request_confirmation({'kind': 'moai', 'name': verb, 'args': {'app_id': app_id},
+                                   'detail': f'{name} · {app_id}', 'origin': 'store'})
+
+    def _on_system(self, tag, result):
+        result = result if isinstance(result, dict) else {'status': 'error'}
+        if tag == 'store':
+            apps = result.get('apps') or []
+            self._update('_system', self.systemChanged, searching=False, apps=apps,
+                         status='' if result.get('status') == 'ok' else 'error')
+            return
+        name = tag[4:]
+        output = str(result.get('output') or result.get('summary') or result.get('error') or '').strip()
+        self._update('_system', self.systemChanged, busy='', tool=name, status=result.get('status', 'error'),
+                     output=output[-12000:])
+        if name == 'os_state' and result.get('status') == 'ok':
+            self._update('_system', self.systemChanged, os=output)
+
     # ── Echo device ─────────────────────────────────────────────────
     @Slot(bool)
     def echoMute(self, on):
@@ -794,6 +1243,7 @@ class Controller(QObject):
             except ValueError:
                 pass
         elif kind == 'wake_model':
+            print('Mira wake model:', status, flush=True)
             state, _, payload = status.partition(':')
             try:
                 data = json.loads(payload) if state in ('ok', 'pending') else {}
@@ -901,7 +1351,32 @@ class Controller(QObject):
         except (OSError, ValueError, TypeError):
             pass
 
+    @Slot(str)
+    def openSettingsPage(self, page):
+        if page in SETTINGS_PAGES:
+            self.runPc('open_settings', {'page': page})
+
     def handle_instance_command(self, command):
+        if command.startswith(b'open:'):
+            # Mo AI's launcher (`moai --panel device`, `--ask TEXT`) and Mira's own actions.
+            try:
+                request = json.loads(command[5:].decode('utf-8', 'replace'))
+            except ValueError:
+                request = {}
+            request = request if isinstance(request, dict) else {}
+            panel = str(request.get('panel') or 'chat')
+            self.showSheet.emit(PANELS.get(panel, ''))
+            if panel == 'device':
+                QTimer.singleShot(400, lambda: self.systemAction('device_report'))
+            if request.get('wake') == 'improved':
+                self.installImproved()
+            elif request.get('wake') == 'rollback':
+                self.enrolRollback()
+            ask = ' '.join(str(request.get('ask') or '').split())[:2000]
+            if ask:
+                # A moos:// link can carry this text, so it waits in the composer for the owner.
+                self.prefill.emit(ask)
+            return 'show'
         if command == b'wake' and self._local_wake and self._voice_phase == 'ready':
             self._wake_seq += 1
             self.bridge.command('wake', 'wake_assistant_1', self._wake['source'])
@@ -920,7 +1395,7 @@ class Controller(QObject):
             seconds += sum(max(0, f.stat().st_size - 44) / 32000 for f in files)
         model = WAKE_MODELS / (OWNER_MODEL + '.tflite')
         self._enrol.update(mira=counts['mira'], other=counts['other'], seconds=round(seconds, 1),
-                           model=str(model) if model.exists() else '')
+                           model=str(model) if model.exists() else '', improved=self._improved_ready())
 
     @Slot(str)
     def enrolRecord(self, kind):
@@ -972,6 +1447,18 @@ class Controller(QObject):
         active = [OWNER_MODEL, 'mira_ar_experimental']
         self._update('_enrol', self.enrolChanged, installing=True, message=self._s['enrol_installing'])
         self.bridge.install_wake_model(OWNER_MODEL, 'Mira', ['ar'], str(model), active)
+
+    def _improved_ready(self):
+        return all((WAKE_MODELS / (IMPROVED_MODEL + ext)).exists() for ext in ('.tflite', '.json'))
+
+    @Slot()
+    def installImproved(self):
+        """The improved «ميرا» model, beside the proven one: either may wake Mira, nothing else can."""
+        if not self._improved_ready() or not self.bridge.online or self._enrol['installing']:
+            return
+        active = [IMPROVED_MODEL, 'mira_ar_experimental']
+        self._update('_enrol', self.enrolChanged, installing=True, message=self._s['enrol_installing'])
+        self.bridge.install_wake_model(IMPROVED_MODEL, 'ميرا', ['ar'], str(WAKE_MODELS / (IMPROVED_MODEL + '.tflite')), active)
 
     @Slot()
     def enrolRollback(self):
@@ -1030,7 +1517,7 @@ class Controller(QObject):
         if not self._hidden_notice:
             self._hidden_notice = True
             try:
-                subprocess.Popen(['notify-send', '-a', 'Mira', '-i', str(ROOT / 'mira-icon-v2.png'),
+                subprocess.Popen(['notify-send', '-a', 'Mira', '-i', 'moos-moai',
                                   self._s['app_title'], self._s['tray_notice']],
                                  stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
             except OSError:
@@ -1097,6 +1584,12 @@ class Controller(QObject):
             self.refreshHome()
         elif tag.startswith('pc:'):
             self._on_pc(tag[3:], result if isinstance(result, dict) else {'status': 'error'})
+        elif tag.startswith('act:'):
+            self._on_action_done(tag[4:], result if isinstance(result, dict) else {'status': 'error'})
+        elif tag.startswith('sys:') or tag == 'store':
+            self._on_system(tag, result)
+        elif tag == 'announce':
+            self._on_announce(result)
         elif tag == 'legacy_text':
             self._text_phase = None
             if result.get('status') == 'error' and not result.get('reply'):

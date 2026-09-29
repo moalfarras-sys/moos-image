@@ -1,0 +1,4 @@
+#!/bin/sh
+# Mira — the MoOS assistant (per-user install by devtools/install_user.sh).
+# Every Mo AI entry point leads here: `moai`, the org.moos.moai launcher, Meta+Space.
+exec "@PY@" "@APP@/app.py" "$@"

@@ -1,0 +1,5 @@
+#!/bin/sh
+# Mo AI is Mira now. The system `moai` launcher's arguments keep working here:
+#   moai --panel device|apps|compat|remote|dev|chat    moai --device    moai --panel chat --ask TEXT
+# Removing this file (install_user.sh --restore-moai) brings back the old Mo AI window.
+exec "$HOME/.local/bin/mira" "$@"

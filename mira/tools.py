@@ -1,15 +1,16 @@
 """Mira's one tool registry, shared by the voice (Gemini Live) and text brains.
 
-Every tool is a fixed action with validated arguments. There is no shell or
-free-command tool: computer actions go only through Mo AI's own executor
-(`moai_link.execute`, which never manufactures a confirmation), and a result is
-``ok`` only when the effect was verified (Home Assistant readback, the Mo AI
-executor's own verdict plus a readback for volume/brightness). Anything that was
-merely sent is ``pending``.
+Every tool is a fixed action with validated arguments, and Mira holds every Mo AI
+tool the installed MoOS declares (`moai_tools`): reads and instant controls run at
+once; anything that changes the system — installing, updating, repairing, or a
+shell command — waits for the OWNER's approval (a button, or his own «نعم»), never
+the model's. A result is ``ok`` only when the effect was verified (Home Assistant
+readback, the Mo AI executor's own verdict plus a readback for volume/brightness);
+anything merely sent or still waiting is ``pending``.
 
 Public surface:
     DECLARATIONS                      google-genai function declarations (dicts)
-    ToolContext                       per-call context (emit, optional Echo control)
+    ToolContext                       per-call context (emit, Echo control, owner confirmation)
     async run_tool(name, args, ctx)   execute one call -> result dict
     system_instruction(lang, city)    Mira's persona and rules for both brains
     conversation_turns(limit, ...)    recent owner/Mira turns as genai contents
@@ -26,20 +27,10 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Any, Awaitable, Callable, Optional, Union
 
+import moai_tools
+
 STATUSES = ('ok', 'pending', 'partial', 'error', 'unsupported')
 
-# The Mo AI executor's fixed tool names (same set as moai_link.ALLOWED).
-MOAI_TOOLS = ['get_system_status', 'set_volume', 'set_mute', 'set_brightness', 'show_windows',
-              'open_app', 'arrange_windows', 'switch_desktop', 'set_motion', 'set_glass_clarity',
-              'set_power_profile', 'open_settings', 'list_installed_apps', 'memory_status',
-              'disk_status', 'network_status', 'top_processes', 'list_failed_units', 'unit_status',
-              'read_journal', 'os_state', 'list_skills', 'read_skill']
-MOAI_NEEDS_JSON = {'open_app', 'arrange_windows', 'switch_desktop', 'set_motion', 'set_glass_clarity',
-                   'set_power_profile', 'open_settings', 'read_skill', 'unit_status', 'read_journal',
-                   'top_processes'}
-MOAI_NO_ARGS = {'get_system_status', 'list_installed_apps', 'memory_status', 'disk_status',
-                'network_status', 'list_failed_units', 'list_skills', 'os_state'}
-MOAI_VALUE_TOOLS = {'set_volume', 'set_mute', 'set_brightness', 'show_windows'}
 HOME_COLORS = ['red', 'pink', 'purple', 'blue', 'green', 'yellow', 'orange']
 MEMORY_COLORS = HOME_COLORS + ['white']
 
@@ -55,13 +46,6 @@ DECLARATIONS: list[dict] = [
      'description': 'Control this paired Echo speaker and ring with fixed actions.',
      'parameters': _obj({'action': {'type': 'STRING', 'enum': ['set_volume', 'light_on', 'light_off', 'stop_music']},
                          'value': {'type': 'NUMBER', 'description': 'Only for set_volume, 0–100'}}, ['action'])},
-    {'name': 'moai_control',
-     'description': 'Use Mo AI existing local tools on the COMPUTER, not Echo. Returns actual execution status. Never claim success if status is error.',
-     'parameters': _obj({
-         'name': {'type': 'STRING', 'enum': MOAI_TOOLS},
-         'arguments_json': {'type': 'STRING', 'description': 'JSON for tools with fields: open_app {"app_id":"org.mozilla.firefox"}; arrange_windows {"layout":"halves"}; switch_desktop {"direction":"next"}; set_motion {"level":"gentle"}; set_glass_clarity {"level":"balanced"}; set_power_profile {"profile":"balanced"}; open_settings {"page":"audio"}; top_processes {"by":"cpu"}; unit_status {"name":"pipewire.service","user":true}; read_journal {"unit":"pipewire.service","user":true,"priority":"err","since":"1h","lines":30}; read_skill {"name":"no-sound"} using list_skills id. No command or terminal text.'},
-         'value': {'type': 'STRING', 'description': 'Volume: 0–100, up/down. Mute: mute/unmute. Brightness: 5–100. Windows: overview/grid/show-desktop. Status takes no value.'}},
-         ['name'])},
     {'name': 'home_summary',
      'description': 'Read fresh Home Assistant counts. lights_available counts physical/individual lamps and excludes duplicate Hue groups; light_groups_available is separate. Always call for any question asking how many lights/devices are available or on; never infer counts from memory.'},
     {'name': 'home_devices',
@@ -102,10 +86,63 @@ DECLARATIONS: list[dict] = [
     {'name': 'look_at_screen',
      'description': "Look at the owner's computer screen right now and describe it or answer a question about what is on it. Use only when the owner explicitly asks you to look at, read or explain the screen. Works only if the owner allowed it in Mira's settings; otherwise say how to allow it.",
      'parameters': _obj({'question': {'type': 'STRING', 'description': "The owner's question about the screen, in their words"}}, [])},
+    {'name': 'find_app',
+     'description': 'Search the MoOS app store (Flathub) for an app to install and get its exact id. Call before install_app whenever the owner names an app; pick the best match and say its name.',
+     'parameters': _obj({'query': {'type': 'STRING', 'description': 'App name or what it does, in English when possible (e.g. vlc, telegram, photo editor)'}}, ['query'])},
+    {'name': 'media_control',
+     'description': 'Control the music or video playing on the computer (Spotify, a browser tab, VLC… any MPRIS player): play, pause, toggle, next, previous, stop, or status to read what is playing.',
+     'parameters': _obj({'action': {'type': 'STRING', 'enum': ['play', 'pause', 'toggle', 'next', 'previous', 'stop', 'status']},
+                         'player': {'type': 'STRING', 'description': 'Optional player name, e.g. spotify, firefox, vlc'}}, ['action'])},
+    {'name': 'clipboard',
+     'description': "Read the text the owner copied, or put text on the clipboard for him to paste. Read only when he asks about what he copied.",
+     'parameters': _obj({'action': {'type': 'STRING', 'enum': ['read', 'write']},
+                         'text': {'type': 'STRING', 'description': 'Only for write'}}, ['action'])},
+    {'name': 'find_files',
+     'description': "Find the owner's files by name or content (KDE's file index, his home only). Returns paths, sizes and dates.",
+     'parameters': _obj({'query': {'type': 'STRING', 'description': 'Words from the file name or content'}}, ['query'])},
+    {'name': 'open_file',
+     'description': "Open one of the owner's files or folders in its default app (a path from find_files, inside his home or a USB drive).",
+     'parameters': _obj({'path': {'type': 'STRING'}}, ['path'])},
+    {'name': 'open_link',
+     'description': 'Open a web address (http/https) in the default browser.',
+     'parameters': _obj({'url': {'type': 'STRING'}}, ['url'])},
+    {'name': 'windows',
+     'description': "The open windows on the computer: list them, bring one to the front (focus), or close one. Closing waits for the owner's approval.",
+     'parameters': _obj({'action': {'type': 'STRING', 'enum': ['list', 'focus', 'close']},
+                         'query': {'type': 'STRING', 'description': 'Part of the window title or app name, for focus/close'}}, ['action'])},
+    {'name': 'app_volume',
+     'description': "Set one application's own volume (0–100), e.g. make the browser quieter without changing the whole computer.",
+     'parameters': _obj({'app': {'type': 'STRING'}, 'value': {'type': 'NUMBER', 'description': '0–100'}}, ['app', 'value'])},
+    {'name': 'reminder',
+     'description': "Reminders and timers the owner asks for; Mira announces them on time (Echo speaker and a desktop notification). "
+                    "add: text plus minutes from now, or at HH:MM (24h), optionally a date and a repeat. timer: minutes plus an optional label. "
+                    "list: what is set. cancel: by words from its text or label.",
+     'parameters': _obj({'action': {'type': 'STRING', 'enum': ['add', 'timer', 'list', 'cancel']},
+                         'text': {'type': 'STRING', 'description': 'What to remind him of, in his words'},
+                         'minutes': {'type': 'NUMBER'},
+                         'at': {'type': 'STRING', 'description': 'HH:MM, 24-hour local time'},
+                         'date': {'type': 'STRING', 'description': 'YYYY-MM-DD'},
+                         'repeat': {'type': 'STRING', 'enum': ['none', 'daily', 'weekdays']},
+                         'label': {'type': 'STRING'},
+                         'which': {'type': 'STRING', 'description': 'For cancel'}}, ['action'])},
+    {'name': 'routine',
+     'description': "The owner's named routines (e.g. «تصبحين على خير»: lights off, computer volume 20, do-not-disturb on). "
+                    "run: run one by name. save: only when he dictates the steps; steps_json is a JSON list of "
+                    '{"tool": <one of your tool names>, "args": {...}, "say": optional}. list, delete. '
+                    "Every step obeys its tool's own rules: a system change still waits for his approval.",
+     'parameters': _obj({'action': {'type': 'STRING', 'enum': ['run', 'save', 'list', 'delete']},
+                         'name': {'type': 'STRING'},
+                         'steps_json': {'type': 'STRING'},
+                         'description': {'type': 'STRING'}}, ['action'])},
     {'name': 'moai_project_task',
      'description': 'Ask the existing Mo AI agent to inspect registered projects, research, or perform a requested computer task using its own tools and approval flow. Relay the exact owner request; do not invent broader permissions. Report approval requests or failures honestly.',
      'parameters': _obj({'request': {'type': 'STRING'}}, ['request'])},
 ]
+# Every Mo AI tool the installed image declares, under its own name. Opening an app by name
+# stays computer_open_application: it resolves Arabic names to the same executor's open_app.
+MOAI_SKIP = frozenset({'open_app'})
+MOAI_DECLARATIONS: list[dict] = moai_tools.declarations(skip=MOAI_SKIP)
+DECLARATIONS.extend(MOAI_DECLARATIONS)
 _BY_NAME = {item['name']: item for item in DECLARATIONS}
 
 
@@ -130,11 +167,17 @@ class ToolContext:
                           None when no Echo is connected.
     on_long_task()        optional hook before a long Mo AI agent call.
     allowed_tools         optional allowlist; other tools return `unsupported`.
+    request_confirmation(item)
+                          puts a system change in front of the OWNER (card, voice
+                          «نعم»). Thread-safe; returns the pending item with its
+                          `id`, or None when no owner surface exists. The model
+                          only ever gets `pending`: approval runs the action later.
     """
     emit: Callable[[str, str], None]
     device_control: Optional[Callable[[dict], Union[dict, Awaitable[dict]]]] = None
     on_long_task: Optional[Callable[[], Any]] = None
     allowed_tools: Optional[frozenset] = None
+    request_confirmation: Optional[Callable[[dict], Optional[dict]]] = None
 
 
 # ─── helpers ──────────────────────────────────────────────────────────
@@ -191,6 +234,10 @@ def _validate(name: str, args: dict) -> Optional[str]:
             return f'المعامل «{key}» يجب أن يكون نصاً'
         if kind == 'NUMBER' and (isinstance(value, bool) or not isinstance(value, (int, float))):
             return f'المعامل «{key}» يجب أن يكون رقماً'
+        if kind == 'INTEGER' and (isinstance(value, bool) or not isinstance(value, int)):
+            return f'المعامل «{key}» يجب أن يكون عدداً صحيحاً'
+        if kind == 'BOOLEAN' and not isinstance(value, bool):
+            return f'المعامل «{key}» يجب أن يكون نعم/لا'
         if 'enum' in props[key] and value not in props[key]['enum']:
             return f'قيمة «{key}» غير مدعومة'
     return None
@@ -237,40 +284,45 @@ def _moai_value(value):
     return str(value)
 
 
-async def _moai_control(args, ctx):
-    import moai_link
-    name = args['name']
-    if name not in moai_link.ALLOWED:
-        return {'status': 'unsupported', 'summary': 'أداة Mo AI غير مسموحة', 'error': 'unsupported'}
-    raw = args.get('arguments_json')
-    value = args.get('value')
-    if name in MOAI_NEEDS_JSON and not raw:
-        raise ValueError('arguments_json required for ' + name)
-    if raw:
-        toolargs = json.loads(raw)
-    elif name in MOAI_NO_ARGS:
-        toolargs = {}
-    elif value is None or value == '':
-        raise ValueError('value required for ' + name)
-    elif name == 'show_windows':
-        toolargs = {'view': value}
-    else:
-        toolargs = {'value': _moai_value(value)}
-    if not isinstance(toolargs, dict):
-        raise ValueError('tool arguments must be an object')
-    result = await _thread(moai_link.execute, name, toolargs)
+def ask_owner(ctx: ToolContext, item: dict) -> dict:
+    """Put a system change in front of the owner. The model gets `pending` and nothing more:
+    only the owner's button or his own «نعم» runs it (see pending.py)."""
+    title_ar = item.get('title_ar') or item.get('name') or 'إجراء'
+    if ctx.request_confirmation is None:
+        return {'status': 'unsupported', 'error': 'confirmation_unavailable',
+                'summary': 'يحتاج موافقتك من نافذة ميرا: ' + title_ar}
+    try:
+        waiting = ctx.request_confirmation(dict(item))
+    except Exception:
+        waiting = None
+    if not waiting or not waiting.get('id'):
+        return {'status': 'error', 'error': 'confirmation_unavailable', 'summary': 'تعذّر عرض طلب الموافقة'}
+    return {'status': 'pending', 'awaiting': 'owner_confirmation', 'confirmation_id': waiting['id'],
+            'executed': False, 'summary': 'ينتظر موافقتك: ' + title_ar,
+            'next': ('It has NOT run and has NOT started. Tell the owner in one short sentence what will happen and ask him '
+                     'to say «نعم» or press «موافقة» (or «لا» to cancel) — even if he agreed earlier. You cannot approve '
+                     'it yourself. If he then says yes, answer only «تمام»: Mira shows the real progress and result.')}
+
+
+async def _moai_tool(name, args, ctx):
+    """Any Mo AI tool: the executor decides what needs the owner; reads and controls run at once."""
+    result = await _thread(moai_tools.execute, name, args)
     if not isinstance(result, dict):
         result = {'status': 'error', 'error': 'invalid_executor_response'}
-    status = 'ok' if result.get('status') == 'ok' else 'error'
+    if result.get('status') == 'confirm':
+        return ask_owner(ctx, {'kind': 'moai', 'name': name, 'args': args, 'category': result.get('category'),
+                               'title_ar': moai_tools.title(name, 'ar'), 'title_en': moai_tools.title(name, 'en'),
+                               'detail': args_preview(args)})
+    status = result.get('status') if result.get('status') in ('ok', 'error', 'pending') else 'error'
     out = {'tool': name, 'status': status}
-    for key in ('output', 'exit_code', 'error', 'duration_ms'):
-        if key in result:
+    for key in ('output', 'exit_code', 'error', 'duration_ms', 'job'):
+        if key in result and result[key] not in (None, ''):
             out[key] = result[key][:6000] if isinstance(result[key], str) else result[key]
-    if status == 'ok' and name in ('set_volume', 'set_brightness') and re.fullmatch(r'\d{1,3}', str(toolargs.get('value', ''))):
+    if status == 'ok' and name in ('set_volume', 'set_brightness') and re.fullmatch(r'\d{1,3}', str(args.get('value', ''))):
         # Same readback contract as the desktop's computer panel.
         key = 'volume' if name == 'set_volume' else 'brightness'
-        wanted = int(toolargs['value'])
-        observed = await _thread(moai_link.execute, 'get_system_status', {})
+        wanted = int(args['value'])
+        observed = await _thread(moai_tools.execute, 'get_system_status', {})
         try:
             actual = json.loads((observed or {}).get('output') or '{}')[key]
             verified = observed.get('status') == 'ok' and round(float(actual)) == wanted
@@ -280,13 +332,22 @@ async def _moai_control(args, ctx):
         if not verified:
             out['status'] = 'pending'
     labels = {'ok': 'تم وتأكدت', 'pending': 'أُرسل ولم تؤكده القراءة', 'error': 'لم يُنفَّذ'}
-    summary = f'Mo AI · {name} · {labels[out["status"]]}'
-    if result.get('error') == 'local_api_403':
-        summary = f'Mo AI رفض {name}؛ قد يحتاج موافقتك داخل Mo AI — لم يُنفَّذ'
-    elif out['status'] == 'error' and result.get('error'):
-        summary += ' (' + str(result['error'])[:60] + ')'
+    summary = f'{moai_tools.title(name)} · {labels[out["status"]]}'
+    if out['status'] == 'error' and out.get('error'):
+        summary += ' (' + str(out['error'])[:60] + ')'
     out['summary'] = summary
     return out
+
+
+def _moai_executor(name):
+    async def run(args, ctx):
+        return await _moai_tool(name, args, ctx)
+    run.__name__ = '_moai_' + name
+    return run
+
+
+async def _find_app(args, ctx):
+    return await _thread(moai_tools.search_apps, args['query'])
 
 
 async def _home_summary(args, ctx):
@@ -461,10 +522,117 @@ async def _look_at_screen(args, ctx):
     return await _thread(screen_look.look, str(args.get('question') or '')[:500])
 
 
+async def _media_control(args, ctx):
+    import desktop_tools
+    return await _thread(desktop_tools.media, args['action'], args.get('player') or None)
+
+
+async def _clipboard(args, ctx):
+    import desktop_tools
+    if args['action'] == 'read':
+        return await _thread(desktop_tools.clipboard_read)
+    if not args.get('text'):
+        raise ValueError('النص مطلوب للنسخ')
+    return await _thread(desktop_tools.clipboard_write, args['text'])
+
+
+async def _find_files(args, ctx):
+    import desktop_tools
+    return await _thread(desktop_tools.find_files, args['query'], 10)
+
+
+async def _open_file(args, ctx):
+    import desktop_tools
+    return await _thread(desktop_tools.open_path, args['path'])
+
+
+async def _open_link(args, ctx):
+    import desktop_tools
+    return await _thread(desktop_tools.open_url, args['url'])
+
+
+async def _windows(args, ctx):
+    import desktop_tools
+    action, query = args['action'], ' '.join(str(args.get('query') or '').split())[:120]
+    if action == 'list':
+        return await _thread(desktop_tools.list_windows)
+    if not query:
+        raise ValueError('حدّد النافذة باسمها')
+    if action == 'focus':
+        return await _thread(desktop_tools.focus_window, query)
+    # Closing may lose unsaved work: the owner decides.
+    return ask_owner(ctx, {'kind': 'desktop', 'name': 'close_window', 'args': {'query': query},
+                           'title_ar': 'إغلاق نافذة', 'title_en': 'Close a window', 'detail': query})
+
+
+async def _app_volume(args, ctx):
+    import desktop_tools
+    return await _thread(desktop_tools.system_volume_app, args['app'], args['value'])
+
+
+def _reminder_sync(args):
+    import reminders
+    store = reminders.Reminders()
+    action = args['action']
+    if action in ('add', 'timer'):
+        minutes = args.get('minutes')
+        due = reminders.parse_when(minutes=minutes, at=args.get('at') or None, date=args.get('date') or None)
+        kind = 'timer' if action == 'timer' else 'reminder'
+        label = args.get('label') or None
+        text = args.get('text') or (('انتهى مؤقّت ' + label) if label and kind == 'timer' else 'انتهى المؤقّت' if kind == 'timer' else '')
+        repeat = args.get('repeat') if args.get('repeat') not in (None, '', 'none') else None
+        item = store.add(text, due, kind=kind, repeat=repeat, label=label)
+        return {'status': 'ok', 'id': item['id'], 'due': item['due'], 'spoken': item['spoken'], 'kind': kind,
+                'summary': ('ضبطت مؤقّتاً ينتهي ' if kind == 'timer' else 'سأذكّرك ') + item['spoken']}
+    if action == 'list':
+        items = [{'text': i['text'], 'kind': i['kind'], 'due': i['due'], 'repeat': i.get('repeat'),
+                  'spoken': reminders.spoken_when(datetime.fromisoformat(i['due']))} for i in store.list()[:20]]
+        return {'status': 'ok', 'items': items,
+                'summary': f'لديك {len(items)} تذكيرات ومؤقتات' if items else 'لا توجد تذكيرات'}
+    return store.cancel(args.get('which') or args.get('label') or args.get('text') or '')
+
+
+async def _reminder(args, ctx):
+    result = await _thread(_reminder_sync, args)
+    _emit(ctx, 'reminders', '')
+    return result
+
+
+async def _routine(args, ctx):
+    import routines
+    store = routines.Routines()
+    action = args['action']
+    if action == 'list':
+        items = await _thread(store.list)
+        return {'status': 'ok', 'routines': items,
+                'summary': ('روتيناتك: ' + '، '.join(r['name'] for r in items)) if items else 'لا توجد روتينات محفوظة'}
+    name = args.get('name') or ''
+    if action == 'delete':
+        return await _thread(store.delete, name)
+    if action == 'save':
+        try:
+            steps = json.loads(args.get('steps_json') or '')
+        except ValueError:
+            raise ValueError('خطوات الروتين يجب أن تكون قائمة JSON') from None
+        for step in steps if isinstance(steps, list) else []:
+            tool = step.get('tool') if isinstance(step, dict) else None
+            if tool not in _EXECUTORS or tool in ('routine', 'moai_project_task'):
+                raise ValueError(f'الأداة «{tool}» غير متاحة داخل روتين')
+        saved = await _thread(store.save, name, steps, args.get('description') or '')
+        return {'status': 'ok', 'name': saved['name'], 'steps_count': saved['steps_count'],
+                'summary': f'حفظت الروتين «{saved["name"]}» ({saved["steps_count"]} خطوات)'}
+    try:
+        result = await store.arun(name, lambda tool, step_args: run_tool(tool, step_args, ctx), depth=1)
+    except KeyError:
+        return {'status': 'error', 'error': 'unknown_routine', 'summary': f'لا يوجد روتين اسمه «{name}»'}
+    done = sum(1 for step in result.get('steps', []) if step.get('status') == 'ok')
+    result['summary'] = f'روتين «{name}»: {done} من {len(result.get("steps", []))} خطوات تأكدت'
+    return result
+
+
 # name -> (executor, timeout seconds)
 _EXECUTORS = {
     'device_control': (_device_control, 6),
-    'moai_control': (_moai_control, 75),
     'home_summary': (_home_summary, 30),
     'home_devices': (_home_devices, 30),
     'home_control': (_home_control, 60),
@@ -478,7 +646,19 @@ _EXECUTORS = {
     'moai_project_task': (_moai_project_task, 200),
     'look_at_screen': (_look_at_screen, 60),
     'research': (_research, 60),
+    'find_app': (_find_app, 40),
+    'media_control': (_media_control, 12),
+    'clipboard': (_clipboard, 8),
+    'find_files': (_find_files, 20),
+    'open_file': (_open_file, 12),
+    'open_link': (_open_link, 12),
+    'windows': (_windows, 12),
+    'app_volume': (_app_volume, 10),
+    'reminder': (_reminder, 8),
+    'routine': (_routine, 600),
 }
+for _decl in MOAI_DECLARATIONS:
+    _EXECUTORS.setdefault(_decl['name'], (_moai_executor(_decl['name']), 90))
 assert set(_EXECUTORS) == set(_BY_NAME), 'every declaration needs exactly one executor'
 
 
@@ -514,9 +694,17 @@ async def run_tool(name: str, args: dict, ctx: ToolContext) -> dict:
         declared = (_BY_NAME[name].get('parameters') or {}).get('properties', {})
         args = {k: v for k, v in args.items() if k in declared}
         for key, value in list(args.items()):
-            # Models sometimes send 40 for a STRING field such as moai_control.value.
-            if declared[key].get('type') == 'STRING' and isinstance(value, (int, float)) and not isinstance(value, bool):
+            # Models sometimes send 40 for a STRING field such as set_volume.value, 30.0 for an INTEGER
+            # or "true" for a BOOLEAN; repair only these lossless shapes.
+            kind = declared[key].get('type')
+            if kind == 'STRING' and isinstance(value, (int, float)) and not isinstance(value, bool):
                 args[key] = _moai_value(value)
+            elif kind == 'INTEGER' and isinstance(value, float) and value.is_integer():
+                args[key] = int(value)
+            elif kind == 'INTEGER' and isinstance(value, str) and re.fullmatch(r'\d{1,6}', value.strip()):
+                args[key] = int(value.strip())
+            elif kind == 'BOOLEAN' and isinstance(value, str) and value.strip().lower() in ('true', 'false'):
+                args[key] = value.strip().lower() == 'true'
         problem = _validate(name, args)
         if problem:
             result = {'status': 'error', 'error': problem, 'summary': 'لم يُنفَّذ: ' + problem}
@@ -554,9 +742,24 @@ RULES = (
     'لطلب «كل الأضواء» الصريح استخدمي home_lights_all واذكري العدد المؤكد والأجهزة غير المتاحة من نتيجته. '
     'للطقس الحالي استخدمي current_weather واذكري أن المصدر Open-Meteo؛ لا تخمّني موقع المالك. '
     'لسؤال الوقت أو التاريخ أو اليوم استخدمي current_time ولا تخمّني. '
-    'للتحكم بالكمبيوتر أو قراءة حالته استخدمي moai_control. لفتح برنامج أو المتصفح استخدمي computer_open_application مباشرة '
-    'باسم التطبيق، وللمتصفح name=browser، ولا تحوّلي طلب فتح تطبيق إلى وكيل المشاريع. '
-    'لقراءة حالة الكمبيوتر استخدمي أدوات الذاكرة والقرص والشبكة والخدمات والسجلات المحددة. '
+    'أنتِ أيضاً Mo AI، مساعد النظام في MoOS: كل أدواته أدواتك بأسمائها. للتحكم بالكمبيوتر استخدميها مباشرة '
+    '(set_volume وset_mute وset_brightness وtoggle_night_light وtoggle_wifi وtoggle_bluetooth وset_theme_mode '
+    'وset_do_not_disturb وset_power_profile وshow_windows وarrange_windows وswitch_desktop وopen_settings وغيرها). '
+    'لفتح برنامج أو المتصفح استخدمي computer_open_application مباشرة باسم التطبيق، وللمتصفح name=browser، '
+    'ولا تحوّلي طلب فتح تطبيق إلى وكيل المشاريع. '
+    'لقراءة حالة الكمبيوتر استخدمي أدوات الذاكرة والقرص والشبكة والخدمات والسجلات المحددة، '
+    'وللفحص الأعمق device_report وcheck_drivers وgpu_report وnet_doctor وinspect_boot. '
+    'لتثبيت تطبيق ابحثي أولاً بـ find_app ثم install_app بالمعرّف الذي وجدتِه، وللإزالة uninstall_app، '
+    'ولتحديث التطبيقات update_apps، ولتحديث MoOS نفسه system_update، ولإصلاح الصوت fix_audio. '
+    'حين يطلب المالك تغييراً في النظام استدعي أداته فوراً ولا تسألي عن الموافقة قبلها: الأداة نفسها تعرض عليه بطاقة موافقة. '
+    'إذا رجعت النتيجة awaiting=owner_confirmation فقولي بجملة واحدة ما الذي سيحدث واطلبي منه أن يقول «نعم» أو يضغط «موافقة»، '
+    'حتى لو كان قد وافق قبلها بكلامه. لا تستطيعين الموافقة عنه أبداً. '
+    'إذا قال بعدها «نعم» فقولي «تمام» فقط، ولا تقولي إن العملية بدأت أو انتهت: ميرا تعرض حالتها الحقيقية وتعلن نتيجتها حين تنتهي. '
+    'للموسيقى والفيديو على الكمبيوتر media_control، ولنوافذه windows (الإغلاق يحتاج موافقته)، ولصوت تطبيق وحده app_volume. '
+    'لملفاته find_files ثم open_file، وللروابط open_link، وللحافظة clipboard فقط إن سأل عمّا نسخه أو طلب النسخ. '
+    'للتذكير والمؤقت reminder: «ذكّريني بعد ربع ساعة» add بـ minutes=15، «الساعة 7» add بـ at=19:00 إن كان المساء، '
+    'و«مؤقت 10 دقائق» timer؛ ثم أكّدي الموعد كما يرجع في spoken. للروتينات المسمّاة routine: شغّليها بالاسم، '
+    'واحفظي روتيناً جديداً فقط حين يمليه المالك خطوة خطوة بأسماء أدواتك. '
     'إذا سأل المالك عن إصلاح مشكلة في الكمبيوتر استدعي list_skills ثم read_skill للدليل المناسب؛ الأدلة معرفة فقط ولا تمنح أداة جديدة. '
     'عندما يطلب المالك صراحةً أن تتذكري اسمه أو معلومة عنه استخدمي remember_owner_fact، ولا تحفظي كلمات مرور أو مفاتيح. '
     'لفحص مشروع أو تطويره أو بحث يحتاج أدوات الوكيل أو تشغيل موسيقى في المتصفح استخدمي moai_project_task بطلب المالك الدقيق. '
@@ -566,7 +769,7 @@ RULES = (
     'أنتِ ذكية وفضولية: للأخبار والأسعار والمعلومات الحديثة وأي شيء لستِ متأكدة منه، أو لسؤال يحتاج تفكيراً وتحليلاً، '
     'قولي «لحظة، بدوّرلك» ثم استخدمي research، وانقلي الجواب بأسلوبك مع ذكر المصدر باختصار. لا تخترعي معلومات. '
     'إذا طلب المالك صراحةً أن تنظري إلى الشاشة أو تقرئي ما عليها استخدمي look_at_screen بسؤاله؛ لا تنظري إليها من تلقاء نفسك. '
-    'لا يوجد لديك أداة أوامر حرة أو طرفية، ولا تنفّذي شيئاً خارج هذه الأدوات. '
+    'لا توجد لديكِ أداة أوامر حرة أو طرفية، ولا تنفّذي شيئاً خارج هذه الأدوات. '
     'إذا طلب وكيل Mo AI موافقة أو قال إنه لا يستطيع فانقلي ذلك بصدق. '
     'لا تدّعي أنك تدرّبين نموذجك أو تطوّرين نفسك تلقائياً؛ أنتِ تحفظين معرفة المالك وتستخدمين الأدوات. '
     'كلمة «بيرو» و«المكتب» قد تعني Büro إذا وافق سياق المالك. '

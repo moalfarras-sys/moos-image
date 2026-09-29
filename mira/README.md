@@ -1,9 +1,11 @@
 # Mira Neural OS v4 — ميرا
 
-Mira is the owner's voice assistant: the Echo Dot 2 in the room is her ears and voice, the MoOS
-computer runs her mind and her window, and Home Assistant and Mo AI are her hands. This directory
-is the whole source of the desktop app and of the Echo's on-device client. It is a per-user app
-(`~/.local/share/mira/app`), **not** part of a signed MoOS image.
+Mira is the owner's assistant and, since 2026-09-29, the MoOS assistant: Mo AI's app became Mira.
+The Echo Dot 2 in the room is her ears and voice, the MoOS computer runs her mind and her window,
+Home Assistant is her hands in the house, and every Mo AI tool — through Mo AI's own executor — is
+her hands on the computer. This directory is the whole source of the desktop app and of the Echo's
+on-device client. It is a per-user app (`~/.local/share/mira/app`) that takes over Mo AI's launcher
+for this user; it is **not** yet part of a signed MoOS image.
 
 Both original faces — the rose one and the holographic one — are kept exactly as drawn
 (`mira-*.png`), with every expression.
@@ -73,17 +75,83 @@ Shaders are compiled with `/usr/lib64/qt6/bin/qsb --glsl "100es,120,150" --hlsl 
 ## Boundaries that stay
 
 - No free shell, terminal or model-written command. Computer actions go only through Mo AI's fixed
-  executor (`confirmed=false`; the executor decides what needs confirmation).
+  executor. The model always calls it with `confirmed=false`; the executor decides what needs
+  confirmation, and only the OWNER confirms: the card's button, the notification's button, or his
+  own short «نعم» from a later turn (`pending.py`). A card expires after 3 minutes and runs nothing.
 - A result is "done" only when read back (Home Assistant state, Mo AI status). Otherwise the card
   says "sent, not verified" or "failed".
 - Credentials stay in `~/.config/mo-dot/` (0600) and `/data/mira` on the Echo; they are never
   shown, logged or committed. Owner recordings are not in this repository.
-- The Echo's wake configuration (Beamformer, `[alexa, mira_ar_experimental]`) is never changed by
-  the app.
+- The Echo's wake configuration (Beamformer, `[mira_ar_experimental]`) changes only through the
+  owner's own buttons (Settings → Voice), with read-back; a model that fails to load is rolled back
+  to the exact previous selection.
 
 ## Status, measured — see the bottom of this file for the latest evidence
 
 Earlier measured history (v1–v3) is kept in `HISTORY.md`; the device client in `device/README.md`.
+
+## Added 2026-09-29 (second batch)
+
+- **Mira only.** Echo's active wake words are `[mira_ar_experimental]`, read back from the device. «Alexa»
+  no longer wakes it, which is what the owner asked for. Every default and repair path is Mira-only.
+- **Research.** The `research` tool thinks the question through and searches Google with grounding
+  (gemini-2.5-flash, free up to 1,500 requests a day), then returns the source names. Voice, typed
+  chat and the Echo's own client all use it. Current Plasma and Bitcoin answers came back with sources
+  in 2.6–4.3 s. The Echo client answered a live question through research in 2.9 s.
+- **Looking at the screen** (`look_at_screen`). Opt-in and off by default. One capture is taken only
+  when asked, described, deleted, and announced with a notification.
+- **Teach Mira your voice** (Settings → Voice). The Echo itself records the owner, the model trains
+  locally, and it is installed over the Echo API with SHA-256 and selection read-back, with rollback.
+- **Mira Companion** (Settings → Phone). A phone web app reachable only on this PC's Tailscale address,
+  with QR pairing: chat, talk and home controls, and no computer tools. Off until enabled.
+- A udev rule (`/etc/udev/rules.d/70-mira-echo.rules`, installed by the owner) keeps the Echo's USB
+  console usable after Echo reboots.
+
+## Mira is the MoOS assistant — Mo AI merged in (third batch, 2026-09-29)
+
+- **One app.** For this user, `~/.local/bin/mira`, a `moai` shim that is first on the session PATH, and an
+  `org.moos.moai.desktop` override named Mira with Mo AI's icon and Meta+Space all open Mira. The window's
+  Wayland app id is `org.moos.moai`, read from KWin, so the dock shows one icon, Mo AI's. The system Mo AI
+  launcher's pages still work: `--panel device|apps|compat|dev` → System, `remote|settings` → Settings,
+  `--ask TEXT` fills the composer (a `moos://` link never sends for the owner). Mo AI's services keep
+  running as the executor. `devtools/install_user.sh --restore-moai` gives the launcher back.
+- **Every Mo AI tool, by name** (`moai_tools.py`). The 50 tools the installed image declares in
+  `/usr/lib/moai/moai_tool_schemas.py` are the model's own tools, with no enum wrapper. `open_app` stays
+  `computer_open_application`, which resolves Arabic names. Reads and instant controls run at once, and
+  volume/brightness are read back. `find_app` searches Mo Store's catalogue for a real Flatpak id.
+- **Owner approval** (`pending.py`, `ActionCards.qml`). A system change parks as a live card: install,
+  update MoOS, repair sound, firmware, NVIDIA, Waydroid or closing a window. It carries a KDE notification
+  with Approve/Cancel and runs only on the owner's answer. The job is then followed to its real end
+  (`/tool/job`), with its output on the card. A privileged job still asks for the password through Polkit.
+  A job longer than 20 s is announced when it ends.
+- **System centre** (`SystemSheet.qml`, Ctrl+4) replaces Mo AI's device panel. It shows the booted
+  deployment (version, signed origin, edition, rollback), store search with Install/Open/Remove, and every
+  check, repair, update and set-up tile with its real output.
+- **Desktop and time tools** (`desktop_tools.py`, `reminders.py`, `routines.py`, `announce.py`):
+  - media via MPRIS, the clipboard, file search (Baloo), and opening files and links;
+  - windows through KWin scripting: list and focus, with close behind approval;
+  - per-app volume;
+  - reminders and timers that fire on time as a desktop notification and on the Echo through Gemini TTS;
+  - named routines built from Mira's own tools, where each step keeps its tool's rules.
+
+  Opening a launcher, script or program by path is refused.
+- **Improved wake model** `mira_ar_v2` (`wake_training/`, report `mira_ar_v2-report.md`). It was trained on
+  26 synthetic voices with real room sound. At an equal false-accept budget it beats the committed model on
+  unseen voices: 0.80 vs 0.65. Confusables fire 0.5% vs 8.8%. It is offered from Settings → Voice to run
+  beside the proven model.
+- **Measured:**
+  - 169 unit tests pass, plus 19 device tests.
+  - Real Gemini Live with all 74 declarations read memory and found VLC. It parked `install_app` as a card,
+    asked for «نعم», and answered «تمام» without claiming the install had started.
+  - A real round trip through `moai-control` passed: `set_do_not_disturb=on` was refused unconfirmed, then
+    parked, approved, and the job ran with state read back `dnd=true`. It was turned off again.
+  - `moai --panel device` opened the System centre with the booted signed deployment.
+- **Blocked on the owner:** the Echo cannot reach this PC's model/announcement server (TCP 18769), because
+  firewalld's `moos-desktop` zone rejects it. The Echo logged «no route to host». The v2 install therefore
+  rolled itself back, and Echo announcements fall back to a desktop notification. Opening the port for the
+  Echo's address only (`~/.cache/mira-claude/open-echo-port.sh`) needs his password.
+- **Not done:** a model-authored command tool (P3.9 — not built; needs the owner's explicit go-ahead in
+  a session), a MoOS-image package, a System Settings page, and the phone approving cards.
 
 ## Measured on the owner's station, 2026-09-28/29
 

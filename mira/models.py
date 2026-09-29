@@ -50,6 +50,35 @@ class DictListModel(QAbstractListModel):
         index = self.index(len(self._rows) - 1)
         self.dataChanged.emit(index, index)
 
+    def find(self, value):
+        """Row index of the item whose `key` equals value, else -1."""
+        return next((i for i, row in enumerate(self._rows) if row.get(self._key) == value), -1)
+
+    def update_key(self, value, **fields):
+        row = self.find(value)
+        if row < 0:
+            return False
+        self._rows[row].update(fields)
+        index = self.index(row)
+        self.dataChanged.emit(index, index)
+        return True
+
+    def insert_first(self, item):
+        self.beginInsertRows(QModelIndex(), 0, 0)
+        self._rows.insert(0, dict(item))
+        self.endInsertRows()
+        self.countChanged.emit()
+
+    def remove_key(self, value):
+        row = self.find(value)
+        if row < 0:
+            return False
+        self.beginRemoveRows(QModelIndex(), row, row)
+        del self._rows[row]
+        self.endRemoveRows()
+        self.countChanged.emit()
+        return True
+
     def remove_first(self, n):
         n = min(n, len(self._rows))
         if n <= 0:

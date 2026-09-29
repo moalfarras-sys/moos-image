@@ -511,6 +511,7 @@ class LiveVoice:
         self.lang = 'ar'            # owner interface language for the persona
         self.city = None            # owner weather city for the persona
         self.allowed_tools = None   # optional tool allowlist (diagnostics)
+        self.request_confirmation = None   # the owner's cards for system changes (tools.ToolContext)
         self.wake_hint = 'هَي ميرا'
         self.link = None
         self._advanced = True       # resumption/compression/history setup accepted
@@ -1350,7 +1351,7 @@ class LiveVoice:
         allowed = frozenset(self.allowed_tools) if self.allowed_tools is not None else None
         ctx = tools.ToolContext(emit=self._say, device_control=self.device_command,
                                 on_long_task=lambda: self.event('STT_END', {'text': t['heard']}),
-                                allowed_tools=allowed)
+                                allowed_tools=allowed, request_confirmation=self.request_confirmation)
         started = time.monotonic()
         replies = []
         for call in tool_call.function_calls or []:

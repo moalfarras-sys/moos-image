@@ -148,6 +148,7 @@ class TextBrain:
         self.config_path = Path(config_path)
         self.device_control = device_control
         self.allowed_tools = frozenset(allowed_tools) if allowed_tools is not None else None
+        self.request_confirmation = None   # the owner's cards (see tools.ToolContext)
         self.history_turns = history_turns
         self._client = None
         self._client_key = None
@@ -212,7 +213,7 @@ class TextBrain:
             say(kind, payload)
 
         ctx = tools.ToolContext(emit=tool_emit, device_control=self.device_control,
-                                allowed_tools=self.allowed_tools)
+                                allowed_tools=self.allowed_tools, request_confirmation=self.request_confirmation)
         try:
             async with asyncio.timeout(ASK_TIMEOUT_S):
                 models = self._models()
@@ -408,6 +409,11 @@ def default_brain() -> TextBrain:
 def set_device_control(device_control) -> None:
     """Give the shared brain an Echo control (e.g. `echo_device_control(bridge)`), or None."""
     default_brain().device_control = device_control
+
+
+def set_confirmation(request_confirmation) -> None:
+    """Give the shared brain the owner's confirmation cards (`Controller.request_confirmation`), or None."""
+    default_brain().request_confirmation = request_confirmation
 
 
 def run_in_thread(text: str, emit, lang: str = 'ar', city: Optional[str] = None, *,

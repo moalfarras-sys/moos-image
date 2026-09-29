@@ -66,6 +66,39 @@ ColumnLayout {
         }
     }
 
+    // ── reminders and timers Mira will announce ─────────────────────
+    Glass {
+        Layout.fillWidth: true
+        Layout.preferredHeight: remCol.implicitHeight + 24
+        visible: (mira.reminders || []).length > 0
+        ColumnLayout {
+            id: remCol
+            anchors { left: parent.left; right: parent.right; top: parent.top; margins: 12 }
+            spacing: 6
+            Row {
+                spacing: 8
+                Icon { name: "clock"; size: 16; color: Theme.rose; anchors.verticalCenter: parent.verticalCenter }
+                T { text: mira.s.rem_section; font.pixelSize: Theme.small; font.weight: Font.DemiBold; wrapMode: Text.NoWrap; anchors.verticalCenter: parent.verticalCenter }
+            }
+            Repeater {
+                model: mira.reminders || []
+                delegate: RowLayout {
+                    required property var modelData
+                    Layout.fillWidth: true
+                    spacing: 8
+                    Rectangle { Layout.preferredWidth: 6; Layout.preferredHeight: 6; radius: 3; color: modelData.kind === "timer" ? Theme.amber : Theme.rose }
+                    ColumnLayout {
+                        Layout.fillWidth: true
+                        spacing: 0
+                        T { text: modelData.text; font.pixelSize: Theme.small; Layout.fillWidth: true; wrapMode: Text.NoWrap; elide: Text.ElideRight }
+                        T { text: modelData.when; font.pixelSize: Theme.tiny; color: Theme.ink3; Layout.fillWidth: true; wrapMode: Text.NoWrap; elide: Text.ElideRight }
+                    }
+                    IconButton { diameter: 26; iconName: "x"; tip: mira.s.rem_cancel; onClicked: mira.cancelReminder(modelData.id) }
+                }
+            }
+        }
+    }
+
     // ── home at a glance ────────────────────────────────────────────
     Glass {
         Layout.fillWidth: true

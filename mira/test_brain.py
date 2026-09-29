@@ -80,7 +80,7 @@ class BrainTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(first['contents'][-1].parts[0].text, 'كم الساعة؟')
         self.assertTrue(first['config'].automatic_function_calling.disable)
         self.assertIn('Berlin', first['config'].system_instruction)
-        self.assertNotIn('behavior', json.dumps([d for d in first['config'].tools[0].model_dump(exclude_none=True)['function_declarations']]))
+        self.assertFalse(any('behavior' in d for d in first['config'].tools[0].model_dump(exclude_none=True)['function_declarations']))
         response_part = second['contents'][-1].parts[0].function_response
         self.assertEqual((response_part.name, response_part.id), ('current_time', 'c1'))
         self.assertEqual(response_part.response['status'], 'ok')

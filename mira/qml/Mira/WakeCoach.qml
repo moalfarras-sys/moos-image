@@ -84,11 +84,31 @@ Glass {
             font.pixelSize: Theme.small; color: Theme.cyan
         }
 
+        // the improved «ميرا» model that ships with Mira, beside the proven one
+        Rectangle {
+            Layout.fillWidth: true
+            visible: coach.e.improved === true && (coach.e.active || []).indexOf("mira_ar_v2") < 0
+            implicitHeight: improvedRow.implicitHeight + 20
+            radius: 14
+            color: Qt.rgba(1, 0.44, 0.71, 0.08)
+            border.width: 1; border.color: Qt.rgba(1, 0.44, 0.71, 0.3)
+            RowLayout {
+                id: improvedRow
+                anchors { left: parent.left; right: parent.right; verticalCenter: parent.verticalCenter; margins: 12 }
+                spacing: 10
+                Icon { name: "sparkle"; size: 18; color: Theme.rose }
+                T { Layout.fillWidth: true; text: mira.s.enrol_improved; font.pixelSize: Theme.small; color: Theme.ink2 }
+                PillButton { text: mira.s.enrol_install; iconName: "echo"; primary: true; size: Theme.small; implicitHeight: 32
+                    enabled: mira.echo.online && !coach.e.installing
+                    onClicked: mira.installImproved() }
+            }
+        }
+
         RowLayout {
             Layout.fillWidth: true
             spacing: 8
             PillButton { text: mira.s.enrol_rollback; iconName: "refresh"; size: Theme.small; implicitHeight: 32
-                enabled: (coach.e.active || []).indexOf("mira_ar_owner") >= 0 && !coach.e.installing
+                enabled: ((coach.e.active || []).indexOf("mira_ar_owner") >= 0 || (coach.e.active || []).indexOf("mira_ar_v2") >= 0) && !coach.e.installing
                 onClicked: mira.enrolRollback() }
             PillButton { text: mira.s.enrol_delete; iconName: "x"; danger: true; size: Theme.small; implicitHeight: 32
                 enabled: ((coach.e.mira || 0) + (coach.e.other || 0)) > 0 && !coach.recording && !coach.e.training

@@ -150,5 +150,45 @@ def play(scene, voice, controller, window):
         voice('error', 'تعذّر الاتصال بالصوت: TimeoutError')
     elif scene in ('home', 'computer', 'settings'):
         QTimer.singleShot(200, lambda: window.setProperty('sheet', scene))
+    elif scene in ('system', 'actions'):
+        stage_system(controller)
+        if scene == 'system':
+            QTimer.singleShot(200, lambda: window.setProperty('sheet', 'system'))
+        stage_actions(controller)
     elif scene == 'offline':
         voice('off')
+
+
+SAMPLE_OS = ('## system image deployments\n'
+             'booted: version 44.20260927.952 · signed origin · moos-nvidia@sha256:91c9ce7b\n'
+             'kept for rollback: version 44.20260927.945 · signed origin · moos-nvidia@sha256:b09cdc48\n')
+
+
+def stage_system(controller):
+    """The System sheet with sample store results (visibly sample data; nothing is queried)."""
+    controller._update('_system', controller.systemChanged, os=SAMPLE_OS, query='vlc', searching=False,
+                       tool='device_report', status='ok',
+                       output='Device report (sample)\nGPU: NVIDIA GeForce · driver 580 · loaded\nAudio: PipeWire running\nNetwork: online',
+                       apps=[{'id': 'org.videolan.VLC', 'name': 'VLC', 'summary': 'VLC media player, the open-source multimedia player',
+                              'installed': False, 'verified': False, 'installs': 104064},
+                             {'id': 'org.telegram.desktop', 'name': 'Telegram Desktop', 'summary': 'Fast. Secure. Powerful.',
+                              'installed': True, 'verified': True, 'installs': 90000}])
+
+
+def stage_actions(controller):
+    """Three live cards: one waiting for the owner, one running, one finished (sample data)."""
+    import time as _time
+    now = int(_time.time() * 1000)
+    ar = controller.lang == 'ar'
+    controller.actions.set_rows([
+        {'aid': 'p-sample-ask', 'kind': 'moai', 'name': 'install_app', 'title': 'تثبيت تطبيق' if ar else 'Install an app',
+         'detail': 'VLC · org.videolan.VLC', 'reason': '', 'stage': 'ask', 'category': 'user_confirm', 'summary': '',
+         'output': '', 'started': 0, 'expires': now + 150000, 'origin': 'mira'},
+        {'aid': 'p-sample-run', 'kind': 'moai', 'name': 'system_update', 'title': 'تحديث MoOS' if ar else 'Update MoOS',
+         'detail': '', 'reason': '', 'stage': 'running', 'category': 'privileged_confirm',
+         'summary': 'يعمل الآن…' if ar else 'Running…', 'output': '', 'started': now - 42000, 'expires': 0, 'origin': 'system'},
+        {'aid': 'p-sample-ok', 'kind': 'moai', 'name': 'fix_audio', 'title': 'إصلاح الصوت' if ar else 'Repair sound',
+         'detail': '', 'reason': '', 'stage': 'ok', 'category': 'user_confirm',
+         'summary': ('تم بنجاح: إصلاح الصوت' if ar else 'Done: Repair sound'), 'output': 'pipewire restarted (sample)',
+         'started': now - 90000, 'expires': 0, 'origin': 'mira'},
+    ])

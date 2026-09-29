@@ -27,3 +27,5 @@ SettingsSheet 1.0 SettingsSheet.qml
 Toasts 1.0 Toasts.qml
 WakeCoach 1.0 WakeCoach.qml
 CompanionPanel 1.0 CompanionPanel.qml
+ActionCards 1.0 ActionCards.qml
+SystemSheet 1.0 SystemSheet.qml

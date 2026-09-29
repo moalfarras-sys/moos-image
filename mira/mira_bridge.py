@@ -4,6 +4,7 @@ import hashlib
 import hmac
 import json
 import os
+import re
 import socket
 import sys
 import threading
@@ -36,6 +37,7 @@ class Bridge(QObject):
         self.voice_name = voice_name
         self.lang = 'ar'       # passed to each new voice session's persona
         self.city = None
+        self.request_confirmation = None   # set by the controller; handed to every voice session
         self.heartbeat_task = None
         self.thread = threading.Thread(target=self.run, daemon=True)
 
@@ -61,6 +63,7 @@ class Bridge(QObject):
                 self.voice = LiveVoice(self.api, self.entities, self.voice_state.emit, self.voice_name)
                 self.voice.lang = self.lang
                 self.voice.city = self.city
+                self.voice.request_confirmation = self.request_confirmation
                 # The Dot runs its own cloud client when this desktop is absent.
                 # Give it the signed handoff before subscribing our pipeline.
                 if await self.device_heartbeat():
@@ -156,14 +159,18 @@ class Bridge(QObject):
                                            rgb=(.15, .5, 1), color_mode=35)
                 elif kind == 'stop':
                     self.api.media_player_command(**args, command=MediaPlayerCommand.STOP)
-                elif kind == 'tone':
+                elif kind in ('tone', 'announce'):
+                    if kind == 'announce' and not (isinstance(value, str) and re.fullmatch(r'[0-9a-f]{12}(\.16k)?\.wav', value)):
+                        raise ValueError('invalid announcement')
                     peer = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
                     try:
                         peer.connect((IP, 6053))
                         host = peer.getsockname()[0]
                     finally:
                         peer.close()
-                    self.api.media_player_command(**args, media_url=f'http://{host}:18769/tone.wav')
+                    path = 'tone.wav' if kind == 'tone' else 'announce/' + value
+                    self.api.media_player_command(**args, media_url=f'http://{host}:18769/{path}')
+                    self.command_state.emit(kind, 'sent')
                 else:
                     raise ValueError('unknown device command')
             except Exception as exc:
@@ -222,18 +229,33 @@ class Bridge(QObject):
                                          model_type='openwakeword', model_size=len(raw),
                                          model_hash=hashlib.sha256(raw).hexdigest(),
                                          url=f'http://{host}:18769/models/{model_id}.json')
-                await self.api.get_voice_assistant_configuration(8, [offer])
+                before = list((await self.api.get_voice_assistant_configuration(8, [offer])).active_wake_words)
                 await self.api.set_voice_assistant_configuration(list(active))
                 cfg = None
-                for _ in range(20):
+                selected_after_download = False
+                for _ in range(30):
                     await asyncio.sleep(1)
                     cfg = await self.api.get_voice_assistant_configuration(8, [offer])
                     if list(cfg.active_wake_words) == list(active):
                         break
+                    # The first selection can arrive before the download finished and name a model
+                    # the Echo does not have yet; once it lists the model, select again (once).
+                    if not selected_after_download and model_id in {w.id for w in cfg.available_wake_words}:
+                        selected_after_download = True
+                        await self.api.set_voice_assistant_configuration(list(active))
                 result = {'active': list(cfg.active_wake_words) if cfg else [],
                           'requested': list(active),
                           'installed': model_id in {w.id for w in cfg.available_wake_words} if cfg else False}
                 ok = result['active'] == list(active)
+                if not ok and before:
+                    # The Echo could not load the new model (it could not fetch it, or refused it) and
+                    # shifted what remained into other slots. Put the previous selection back exactly.
+                    await self.api.set_voice_assistant_configuration(before)
+                    await asyncio.sleep(2)
+                    cfg = await self.api.get_voice_assistant_configuration(8)
+                    result.update(restored=list(cfg.active_wake_words), previous=before)
+                    self.command_state.emit('wake_model', 'error:not_loaded ' + json.dumps(result))
+                    return
                 self.command_state.emit('wake_model', ('ok:' if ok else 'pending:') + json.dumps(result))
             except Exception as exc:
                 self.command_state.emit('wake_model', 'error:' + type(exc).__name__)

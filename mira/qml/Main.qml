@@ -150,20 +150,35 @@ ApplicationWindow {
             anchors { left: parent.left; right: parent.right; top: top.bottom; bottom: parent.bottom; topMargin: 12 }
             open: win.sheet !== ""
             sheetWidth: win.narrow ? win.width : Math.max(560, Math.min(720, win.width * 0.52))
-            icon: win.sheet === "home" ? "home" : win.sheet === "computer" ? "monitor" : "settings"
-            title: win.sheet === "home" ? mira.s.home_title : win.sheet === "computer" ? mira.s.pc_title : mira.s.st_title
-            subtitle: win.sheet === "home" ? mira.s.home_sub : win.sheet === "computer" ? mira.s.pc_sub : ""
+            icon: win.sheet === "home" ? "home" : win.sheet === "computer" ? "monitor" : win.sheet === "system" ? "shield" : "settings"
+            title: win.sheet === "home" ? mira.s.home_title : win.sheet === "computer" ? mira.s.pc_title
+                 : win.sheet === "system" ? mira.s.sys_title : mira.s.st_title
+            subtitle: win.sheet === "home" ? mira.s.home_sub : win.sheet === "computer" ? mira.s.pc_sub
+                    : win.sheet === "system" ? mira.s.sys_sub : ""
             onCloseRequested: win.sheet = ""
             Loader {
                 anchors.fill: parent
                 active: win.sheet !== ""
-                sourceComponent: win.sheet === "home" ? homeC : win.sheet === "computer" ? pcC : setC
+                sourceComponent: win.sheet === "home" ? homeC : win.sheet === "computer" ? pcC : win.sheet === "system" ? sysC : setC
             }
+        }
+
+        // system changes waiting for the owner, and the jobs he approved — above everything
+        // (beside an open sheet when there is room, so they never hide the page being used)
+        ActionCards {
+            id: cards
+            readonly property bool beside: win.sheet !== "" && !win.narrow && frame.width - sheetView.sheetWidth >= 440
+            readonly property real freeWidth: beside ? frame.width - sheetView.sheetWidth - 16 : frame.width
+            width: Math.min(640, freeWidth - (win.narrow ? 0 : 24))
+            x: !beside ? (frame.width - width) / 2
+               : mira.lang === "ar" ? frame.width - freeWidth + (freeWidth - width) / 2 : (freeWidth - width) / 2
+            anchors { bottom: dock.top; bottomMargin: 12 }
         }
     }
 
     Component { id: homeC; HomeSheet {} }
     Component { id: pcC; ComputerSheet {} }
+    Component { id: sysC; SystemSheet {} }
     Component { id: setC; SettingsSheet {} }
 
     Toasts {
@@ -177,6 +192,8 @@ ApplicationWindow {
         target: mira
         function onToast(kind, text) { toasts.show(kind, text) }
         function onFocusComposer() { dock.field.forceActiveFocus() }
+        function onShowSheet(name) { win.sheet = name }
+        function onPrefill(text) { dock.field.text = text; dock.field.forceActiveFocus() }
     }
 
     Shortcut { sequences: ["Ctrl+Space"]; onActivated: mira.talk() }
@@ -185,5 +202,6 @@ ApplicationWindow {
     Shortcut { sequences: ["Ctrl+1"]; onActivated: win.sheet = win.sheet === "home" ? "" : "home" }
     Shortcut { sequences: ["Ctrl+2"]; onActivated: win.sheet = win.sheet === "computer" ? "" : "computer" }
     Shortcut { sequences: ["Ctrl+,", "Ctrl+3"]; onActivated: win.sheet = win.sheet === "settings" ? "" : "settings" }
+    Shortcut { sequences: ["Ctrl+4"]; onActivated: win.sheet = win.sheet === "system" ? "" : "system" }
     Shortcut { sequences: ["Ctrl+Shift+F"]; onActivated: mira.toggleFace() }
 }
