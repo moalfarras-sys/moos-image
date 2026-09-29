@@ -418,7 +418,12 @@ class MoaiJobsReachTheIsland(unittest.TestCase):
 
     def test_every_confirmed_tool_has_words_in_both_languages(self):
         schemas = schema_tools()
-        confirmed = sorted(schemas.CONFIRM_NAMES)
+        # Every tool moai-control can run as a JOB: the confirmed categories, and the controls
+        # confirmed for one value (Wi-Fi off, Mo PC Remote on/off, Fast Remote on…). Checking
+        # CONFIRM_NAMES alone left those chips with the generic fallback label.
+        confirmed = sorted(set(schemas.CONFIRM_NAMES) | {
+            name for name, meta in schemas.TOOL_META.items() if meta.get("confirm_values")})
+        self.assertIn("remote_control", confirmed, "the value-confirmed controls were not read")
         self.assertTrue(confirmed, "the schema module no longer lists confirmed tools")
         labels = island("MOAI_JOB_LABELS")
         missing = [tool for tool in confirmed if tool not in labels]
@@ -430,9 +435,9 @@ class MoaiJobsReachTheIsland(unittest.TestCase):
         for tool, (arabic, english) in labels.items():
             with self.subTest(tool=tool):
                 self.assertRegex(arabic, r"[\u0600-\u06ff]", "the Arabic label must be Arabic")
-                self.assertRegex(english, r"^[A-Z][A-Za-z ]+$")
+                self.assertRegex(english, r"^[A-Z][A-Za-z -]+$")
         self.assertEqual(island('moaiJobLabel("some_future_tool")'),
-                         ["إجراء من Mo AI", "A Mo AI action"])
+                         ["إجراء من ميرا", "A Mira action"])
 
     def test_the_island_watches_the_directory_and_opens_mo_ai(self):
         qml = "\n".join(l for l in (ISLAND / "main.qml").read_text(encoding="utf-8").splitlines()

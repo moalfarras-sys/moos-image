@@ -540,7 +540,11 @@ class MoosOpenControlRouteTests(unittest.TestCase):
                           ("moos://control/motion/gentle", ["motion", "gentle"]),
                           ("moos://control/clarity/balanced", ["clarity", "balanced"]),
                           ("moos://control/power-profile/performance",
-                           ["power-profile", "performance"])):
+                           ["power-profile", "performance"]),
+                          # Reconnecting never turns an off remote on (try-restart), and Fast
+                          # Remote OFF only restores what ON saved: both run at once.
+                          ("moos://control/remote/restart", ["remote", "restart"]),
+                          ("moos://control/fast-remote/off", ["fast-remote", "off"])):
             with self.subTest(url=url):
                 self.machine.log.write_text("")
                 self.open(url)
@@ -564,7 +568,12 @@ class MoosOpenControlRouteTests(unittest.TestCase):
                   ("moos://control/bluetooth/off", ["bluetooth", "off"]),
                   ("moos://control/mic/unmute", ["mic", "unmute"]),
                   # Plasma keeps it on until manually disabled: every notification silenced.
-                  ("moos://control/dnd/on", ["dnd", "on"]))
+                  ("moos://control/dnd/on", ["dnd", "on"]),
+                  # A paired phone drives this computer after every restart / whoever drives
+                  # it now is cut off / blur, motion and the keyboard layout change until off.
+                  ("moos://control/remote/on", ["remote", "on"]),
+                  ("moos://control/remote/off", ["remote", "off"]),
+                  ("moos://control/fast-remote/on", ["fast-remote", "on"]))
 
     def test_disruptive_values_require_the_users_yes(self):
         for url, argv in self.ASKS_FIRST:
@@ -610,6 +619,63 @@ class MoosOpenControlRouteTests(unittest.TestCase):
                 carded.update(f"control/{meta['command']}/{value}" for value in values)
         self.assertEqual(sorted(asking), sorted(carded))
         self.assertEqual(sorted(carded & instant), [], "a carded value also has an instant arm")
+
+
+class MoosOpenProjectRouteTests(unittest.TestCase):
+    """moos://dev/<agent>/<project id>: a coding agent in a Workbench project (Mira's Workbench).
+
+    The id is looked up in the person's own Mo AI workspace and must name a folder inside their
+    home; the URL is never a path. Anything else opens nothing and says why."""
+
+    PROJECT = "0123456789abcdef0123"
+    OUTSIDE = "aaaaaaaaaaaaaaaaaaaa"
+
+    def setUp(self):
+        self.machine = StubMachine()
+        konsole = self.machine.bin / "konsole"
+        konsole.write_text(RECORDER)
+        konsole.chmod(0o755)
+        self.home = self.machine.root
+        self.folder = self.home / "code" / "my app"
+        self.folder.mkdir(parents=True)
+        workspace = self.home / ".config/moai-agent/workspace.json"
+        workspace.parent.mkdir(parents=True)
+        workspace.write_text(json.dumps({"projects": {
+            self.PROJECT: {"path": str(self.folder)},
+            self.OUTSIDE: {"path": "/etc"}}}), encoding="utf-8")
+
+    def tearDown(self):
+        self.machine.close()
+
+    def open(self, url):
+        environment = self.machine.env()
+        environment["PATH"] = f"{self.machine.bin}:/usr/bin:/bin"
+        return subprocess.run(["bash", str(OPEN), url], env=environment,
+                              capture_output=True, text=True, timeout=30)
+
+    def terminals(self):
+        return [call[1:] for call in self.machine.calls(settle=0.3) if call[0] == "konsole"]
+
+    def test_a_registered_project_opens_its_agent_there(self):
+        for agent, argv in (("claude", ["moai-code", "--agent", "claude"]),
+                            ("opencode", ["moai-code", "--agent", "opencode"]),
+                            ("code", ["moai-code"])):
+            with self.subTest(agent=agent):
+                self.machine.log.write_text("")
+                done = self.open(f"moos://dev/{agent}/{self.PROJECT}")
+                self.assertEqual(done.returncode, 0, done.stderr)
+                self.assertEqual(self.terminals(), [["--hold", "-e", *argv, str(self.folder)]])
+
+    def test_anything_else_opens_nothing(self):
+        for url in (f"moos://dev/claude/{self.OUTSIDE}",          # registered, outside home
+                    "moos://dev/claude/0123456789abcdef0124",     # not registered
+                    "moos://dev/claude/..%2F..%2Fetc", "moos://dev/claude/../../etc",
+                    f"moos://dev/claude/{self.PROJECT}/extra",
+                    f"moos://dev/bash/{self.PROJECT}", f"moos://dev/claude/{self.PROJECT.upper()}"):
+            with self.subTest(url=url):
+                self.machine.log.write_text("")
+                self.assertEqual(self.open(url).returncode, 2)
+                self.assertEqual(self.terminals(), [])
 
 
 class MoaiControlButtonTests(unittest.TestCase):

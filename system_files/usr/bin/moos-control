@@ -13,6 +13,11 @@ the desktop the way its own shortcuts and applets do: a FIXED action name invoke
 the global-shortcut service, or one fixed D-Bus method. Nothing here can load a script,
 close a window or restart the compositor, and no verb takes free text.
 
+The remote verbs (remote, fast-remote) drive Mo PC Remote the way its settings page and the
+moos://remote/… routes do: the one user unit, enabled or disabled with --now so it agrees with
+the page about the next boot, and the Fast Remote profile through its own tool. Each reads the
+result back; a unit that did not come up is a failure, not "on".
+
 Exit codes: 0 done, 2 invalid request, 69 that control is unavailable here.
 """
 import json
@@ -21,6 +26,7 @@ import re
 import shutil
 import subprocess
 import sys
+import tempfile
 import time
 from datetime import datetime
 from pathlib import Path
@@ -95,6 +101,27 @@ POWER = ("org.kde.Solid.PowerManagement",
 POWER_PROFILES = ("power-saver", "balanced", "performance")
 APP_ID = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]{2,254}")
 DISPLAY_NAME = re.compile(r"[A-Za-z0-9_]{1,64}")
+# Mo PC Remote's user service — the same unit moos-open's remote/* routes and the Mo PC Remote
+# settings page switch. restart is try-restart: it reconnects a remote that is on and can never
+# turn one on.
+REMOTE_UNIT = "mo-remote-personal.service"
+REMOTE_VALUES = ("on", "off", "restart")
+REMOTE_RUNNING = ("active", "activating", "reloading")
+# A unit that dies in its first second (a port clash, a missing runtime) still reads "active"
+# for an instant; it has to still be active after this before it is called on.
+REMOTE_SETTLE = 1.0
+REMOTE_START_BUDGET = 8.0
+REMOTE_STATE_TIMEOUT = 5
+REMOTE_RESTART_TIMEOUT = 20
+FAST_REMOTE_VALUES = ("on", "off")
+# How long a Fast Remote switch is waited for. `remote restart` and `fast-remote off` need no
+# card, so moai-control runs them in the request itself and gives up after 60 s — reporting a
+# failure for an action that is still going. Every such verb therefore answers within 50 s:
+# restart's worst case is state + try-restart + (start budget + state + settle + state) =
+# 5 + 20 + 19 = 44 s, and Fast Remote OFF is waited for 40 s. ON is a confirmed job (45 min).
+# A switch still running at its budget is LEFT running — cutting moos-fast-remote in half would
+# leave half an appearance — and the answer says so instead of claiming either result.
+FAST_REMOTE_BUDGET = {"on": 120, "off": 40}
 
 USAGE = """moos-control — تحكّم فوري بالجهاز | instant control of this computer
 
@@ -118,6 +145,8 @@ USAGE = """moos-control — تحكّم فوري بالجهاز | instant control
   moos-control motion <still|gentle|alive>
   moos-control clarity <clear|balanced|solid>
   moos-control power-profile <power-saver|balanced|performance>
+  moos-control remote <on|off|restart>
+  moos-control fast-remote <on|off>
 """
 
 
@@ -486,6 +515,107 @@ def power_profile(value):
             "performance": "⚡ وضع الأداء | Performance"}[value]
 
 
+# ── Mo PC Remote and Fast Remote ────────────────────────────────────────────
+def remote_state(timeout=REMOTE_STATE_TIMEOUT):
+    """The unit's state word. `is-active` exits non-zero for every state but active, so the
+    printed word is the answer and the exit status is not a failure here."""
+    if shutil.which("systemctl") is None:
+        raise Unavailable("systemctl is not installed")
+    try:
+        result = subprocess.run(["systemctl", "--user", "is-active", REMOTE_UNIT],
+                                capture_output=True, text=True, timeout=timeout,
+                                stdin=subprocess.DEVNULL)
+    except subprocess.TimeoutExpired as error:
+        raise Unavailable("systemctl did not answer") from error
+    state = (result.stdout or "").strip().splitlines()
+    return state[0] if state else "unknown"
+
+
+def remote_came_up():
+    """(True, "active") when active and still active a moment later — a unit that crashes at
+    once is not "on" — else (False, the last state seen). At most the start budget plus one
+    last look (state, settle, state)."""
+    deadline = time.monotonic() + REMOTE_START_BUDGET
+    state = "unknown"
+    while time.monotonic() < deadline:
+        state = remote_state()
+        if state == "active":
+            time.sleep(REMOTE_SETTLE)
+            state = remote_state()
+            if state == "active":
+                return True, state
+        else:
+            time.sleep(0.25)
+    return False, state
+
+
+def remote(value):
+    one_of(value, REMOTE_VALUES, "remote")
+    if value == "on":
+        run(["systemctl", "--user", "enable", "--now", REMOTE_UNIT], timeout=60)
+        up, state = remote_came_up()
+        if not up:
+            raise Unavailable(f"Mo PC Remote did not start (it is {state})")
+        return "📱 Mo PC Remote يعمل | Mo PC Remote on"
+    if value == "off":
+        run(["systemctl", "--user", "disable", "--now", REMOTE_UNIT], timeout=60)
+        if remote_state() in REMOTE_RUNNING:
+            raise Unavailable("Mo PC Remote is still running")
+        return "📴 Mo PC Remote متوقف | Mo PC Remote off"
+    # try-restart does nothing to a stopped unit and still exits 0: say so instead.
+    if remote_state() not in REMOTE_RUNNING:
+        raise Unavailable("Mo PC Remote is off; turn it on first")
+    try:
+        result = subprocess.run(["systemctl", "--user", "try-restart", REMOTE_UNIT],
+                                capture_output=True, text=True, timeout=REMOTE_RESTART_TIMEOUT,
+                                stdin=subprocess.DEVNULL)
+    except subprocess.TimeoutExpired as error:
+        # systemd keeps the restart job when its client stops waiting: it is not a failure yet.
+        raise Unavailable("Mo PC Remote is still restarting; check again in a moment") from error
+    if result.returncode != 0:
+        raise Unavailable((result.stderr or result.stdout or "systemctl failed").strip())
+    up, state = remote_came_up()
+    if not up:
+        raise Unavailable(f"Mo PC Remote did not come back (it is {state})")
+    return "🔄 أُعيد تشغيل Mo PC Remote | Mo PC Remote restarted"
+
+
+def run_unkilled(argv, budget):
+    """Run argv and wait up to `budget` seconds; True when it ended in time.
+
+    For a transaction that must not be cut in half. It runs in its own session with its output
+    in an unlinked file, so neither this process ending, nor a signal to its group, nor a closed
+    pipe can interrupt it; at the budget it is left to finish (False). A non-zero exit raises
+    Unavailable with what it said."""
+    if shutil.which(argv[0]) is None:
+        raise Unavailable(f"{argv[0]} is not installed")
+    with tempfile.TemporaryFile() as output:
+        child = subprocess.Popen(argv, stdin=subprocess.DEVNULL, stdout=output,
+                                 stderr=subprocess.STDOUT, start_new_session=True)
+        try:
+            code = child.wait(timeout=budget)
+        except subprocess.TimeoutExpired:
+            return False
+        if code != 0:
+            output.seek(0)
+            said = output.read().decode("utf-8", "ignore").strip()
+            raise Unavailable(said.splitlines()[-1] if said else f"{argv[0]} failed")
+    return True
+
+
+def fast_remote(value):
+    one_of(value, FAST_REMOTE_VALUES, "fast-remote")
+    # moos-fast-remote waits up to 30 s for another appearance change to finish first.
+    if not run_unkilled(["moos-fast-remote", value], FAST_REMOTE_BUDGET[value]):
+        raise Unavailable(f"Fast Remote is still switching {value}; it finishes on its own — "
+                          "check again in a minute")
+    now = run(["moos-fast-remote", "status"], timeout=REMOTE_STATE_TIMEOUT).strip()
+    if now != value:
+        raise Unavailable(f"Fast Remote is still {now or 'unknown'}")
+    return ("⚡ الاتصال السريع يعمل | Fast Remote on" if value == "on"
+            else "✨ عادت تجربة MoOS الكاملة | Fast Remote off")
+
+
 # ── Status (read-only) ──────────────────────────────────────────────────────
 def bluez_running(timeout):
     """Is bluez actually on the bus, without starting it?
@@ -608,6 +738,8 @@ ACTIONS = {
     "motion": (1, motion),
     "clarity": (1, clarity),
     "power-profile": (1, power_profile),
+    "remote": (1, remote),
+    "fast-remote": (1, fast_remote),
     "mute": (0, lambda: mute(True)),
     "unmute": (0, lambda: mute(False)),
     "screenshot": (0, screenshot),

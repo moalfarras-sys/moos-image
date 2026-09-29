@@ -694,7 +694,7 @@ Item {
                                 featured: true
                                 iconName: "moos-ai-symbolic"
                                 eyebrow: view.local("مساحة ذكية", "INTELLIGENCE")
-                                title: view.local("ابدأ مع Mo AI", "Create with Mo AI")
+                                title: view.local("ابدأ مع ميرا", "Create with Mira")
                                 onActivated: view.launcher.openDesktop("org.moos.moai.desktop")
                             }
                             CommandCard {

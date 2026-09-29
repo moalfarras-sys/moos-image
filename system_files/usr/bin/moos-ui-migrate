@@ -434,7 +434,10 @@ if [ -f /usr/lib/mira/app/app.py ]; then
         rm -f "$dev_hidden"
     fi
     if [ -f "$dev_autostart" ] && grep -Fq "Exec=$HOME/.local/bin/mira" "$dev_autostart"; then
-        sed -i "s|^Exec=$HOME/.local/bin/mira\$|Exec=/usr/bin/mira|" "$dev_autostart"
+        # Its arguments stay (`--background` from Mira's login switch); only the launcher moves, in
+        # TryExec too: systemd's autostart generator skips an entry whose TryExec file is gone.
+        sed -i -e "s|^Exec=$HOME/.local/bin/mira\( .*\)\{0,1\}\$|Exec=/usr/bin/mira\1|" \
+               -e "s|^TryExec=$HOME/.local/bin/mira\$|TryExec=/usr/bin/mira|" "$dev_autostart"
         echo "Mira's login start now uses the image's launcher"
     fi
 fi

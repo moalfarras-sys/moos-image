@@ -339,7 +339,13 @@ set -uo pipefail
 # 89/90: live dock/Hub material; clarity also wins beside maximized windows.
 # 91–95: rounded solid dock artwork, stable floating geometry and finite
 #     shared-Hub motion; invalidate frozen-mtime shell caches.
-THEME_REV=95
+# 96: the assistant is Mira in the shell: the Island's job chip, its search hand-off
+#     ("Ask Mira", Ctrl+Enter) and the launcher's card name her; a job chip with no
+#     words of its own says "A Mira action", and the controls confirmed for one value
+#     (Wi-Fi/Bluetooth off, do not disturb, the microphone, Mo PC Remote, Fast Remote)
+#     name what they are doing. Cached Island and launcher QML would keep saying Mo AI
+#     after the update.
+THEME_REV=96
 state_dir="${XDG_STATE_HOME:-$HOME/.local/state}"
 mkdir -p "$state_dir" 2>/dev/null || true
 marker="${state_dir}/moos-ui2-theme-applied.v${THEME_REV}"

@@ -182,6 +182,48 @@ fast_remote() {
     fi
 }
 
+# The folders a local package may come from: Downloads, Desktop and Documents, by those names
+# and by the names this person's own XDG folders carry («سطح المكتب»). A byte-for-byte copy of
+# moai-do's rpm_source_dirs, as the root helper carries one (tests/test_moos_local_rpm_authentication.py
+# holds all three equal), so a package the router accepts is one the other two accept.
+rpm_source_dirs() {
+    local home="$1" uid="$2" dirs key value
+    local shape='^"\$HOME/([^/"$.][^/"$]*)"$'
+    printf '%s\n' "$home/Downloads" "$home/Desktop" "$home/Documents"
+    dirs="$home/.config/user-dirs.dirs"
+    [ -f "$dirs" ] && [ ! -L "$dirs" ] && [ "$(stat -c %u -- "$dirs")" = "$uid" ] || return 0
+    while IFS='=' read -r key value; do
+        case "$key" in XDG_DOWNLOAD_DIR|XDG_DESKTOP_DIR|XDG_DOCUMENTS_DIR) ;; *) continue ;; esac
+        # `if`, not `&&`: the root helper runs this under `set -e`, where a refused last line
+        # would make the loop itself fail.
+        if [[ "$value" =~ $shape ]]; then
+            printf '%s\n' "$home/${BASH_REMATCH[1]}"
+        fi
+    done < "$dirs"
+    return 0
+}
+
+# A project id registered in Mo AI's agent workspace (Mira's Workbench) -> its folder. The id
+# is looked up in the person's own workspace file and the folder must be a real directory inside
+# their home; nothing from the URL is ever used as a path. Prints nothing and fails otherwise.
+project_dir() {
+    python3 - "$1" <<'PY'
+import json, os, sys
+from pathlib import Path
+home = Path.home().resolve()
+config = Path(os.environ.get("XDG_CONFIG_HOME") or home / ".config")
+try:
+    entry = json.loads((config / "moai-agent/workspace.json").read_text(encoding="utf-8"))["projects"][sys.argv[1]]
+    folder = Path(entry["path"]).resolve(strict=True)
+except Exception:
+    sys.exit(1)
+if folder.is_dir() and (folder == home or home in folder.parents):
+    print(folder)
+else:
+    sys.exit(1)
+PY
+}
+
 # Everyday control runs moos-control directly — user-level, no privilege, no
 # terminal — and shows its one-line result, so the change is visible at once.
 control_run() {
@@ -352,7 +394,7 @@ case "${cat}/${tgt}" in
     # Fast Remote (SPEC D6): the switch on the Mo PC Remote settings page.
     # Fast Remote rewrites the owner's blur, animation speed and keyboard layout until it is
     # turned off: a drive-by link asks first. Turning it off only restores them.
-    remote/fast-on)  confirm "تسريع الاتصال يوقف حركة الخلفية والضبابية مؤقتاً حتى تطفئه. متابعة؟ | Speeding up the connection pauses wallpaper motion and blur until you turn it off. Continue?" \
+    remote/fast-on)  confirm "تسريع الاتصال يوقف حركة الخلفية والضبابية ويبدّل لوحة المفاتيح إلى US حتى تطفئه. متابعة؟ | Speeding up the connection pauses wallpaper motion and blur and switches the keyboard to US until you turn it off. Continue?" \
                          && fast_remote on ;;
     remote/fast-off) fast_remote off ;;
 
@@ -361,6 +403,22 @@ case "${cat}/${tgt}" in
     dev/codex)     term moai-code --agent codex ;;
     dev/claude)    term moai-code --agent claude ;;
     dev/opencode)  term moai-code --agent opencode ;;
+    # …the same inside a project registered in Mo AI's workspace (Mira's Workbench). The id is 20
+    # hex digits, resolved by project_dir to a folder inside $HOME; the URL is never a path. A
+    # drive-by link can at most open a coding agent in one of the person's own projects.
+    dev/code/*|dev/codex/*|dev/claude/*|dev/opencode/*)
+        dev_agent="${tgt%%/*}"; dev_project="${tgt#*/}"
+        if [[ "$dev_project" =~ ^[0-9a-f]{20}$ ]] && dev_dir="$(project_dir "$dev_project")" \
+                && [ -d "$dev_dir" ]; then
+            if [ "$dev_agent" = code ]; then
+                term moai-code "$dev_dir"
+            else
+                term moai-code --agent "$dev_agent" "$dev_dir"
+            fi
+        else
+            notify "$(localized_message "هذا المشروع لم يعد مسجّلاً في الورشة | This project is no longer in the Workbench")"
+            exit 2
+        fi ;;
     agent/whatsapp-login)
                    term env PATH="$HOME/.local/node/bin:$HOME/.local/bin:/usr/bin:/bin" \
                         openclaw channels login --channel whatsapp ;;
@@ -400,14 +458,23 @@ PY
         home="$(getent passwd "$(id -u)" | cut -d: -f6)"
         resolved="$(realpath -e -- "$local_path" 2>/dev/null)" \
             || { notify "ملف الحزمة غير موجود | package file not found"; exit 2; }
+        # The folders moai-do and the root helper accept, by their names or by this person's
+        # own XDG names («سطح المكتب»): the same function in all three places.
+        rpm_folder=""
         case "$resolved" in
-            "$home"/Downloads/*.rpm|"$home"/Desktop/*.rpm|"$home"/Documents/*.rpm)
-                [ -f "$resolved" ] && [ ! -L "$local_path" ] \
-                    && [ "$(stat -c %u -- "$resolved")" = "$(id -u)" ] \
-                    || { notify "ملف حزمة غير آمن | unsafe package file"; exit 2; }
-                term moai-do install-rpm "$resolved" ;;
-            *) notify "اختر RPM من Downloads أو Desktop أو Documents | choose an RPM from Downloads, Desktop, or Documents"; exit 2 ;;
-        esac ;;
+            *.rpm)
+                while IFS= read -r folder; do
+                    case "$resolved" in "$folder"/*) rpm_folder="$folder"; break ;; esac
+                done < <(rpm_source_dirs "$home" "$(id -u)") ;;
+        esac
+        if [ -z "$rpm_folder" ]; then
+            notify "$(localized_message "اختر حزمة RPM من التنزيلات أو سطح المكتب أو المستندات | Choose an RPM from Downloads, Desktop or Documents")"
+            exit 2
+        fi
+        [ -f "$resolved" ] && [ ! -L "$local_path" ] \
+            && [ "$(stat -c %u -- "$resolved")" = "$(id -u)" ] \
+            || { notify "ملف حزمة غير آمن | unsafe package file"; exit 2; }
+        term moai-do install-rpm "$resolved" ;;
 
     # An application that arrived as a file (AppImage, portable archive, Flathub ref). The value
     # is a percent-encoded path, never a command. It must be the person's own plain file inside
@@ -484,12 +551,13 @@ PY
     # moos-control owns the fixed argv of every action; this dispatcher accepts
     # only these exact shapes. Any web page can hand this scheme a URL, so the
     # worst a drive-by link can do is change the volume or take a screenshot.
-    # Four values ask first, the same four Mo AI shows a card for
+    # These values ask first, the same ones Mira and Mo AI show a card for
     # (confirm_values in moai_tool_schemas.py; tests/test_moos_control.py holds
-    # the two lists equal): Wi-Fi OFF disconnects the internet, Mo AI and remote
-    # control; Bluetooth OFF disconnects a wireless keyboard and mouse; and
+    # the two lists equal): Wi-Fi OFF disconnects the internet, the assistant and remote
+    # control; Bluetooth OFF disconnects a wireless keyboard and mouse;
     # turning the microphone back ON undoes a mute the owner chose for privacy; do-not-disturb
-    # ON stays on until the owner turns it off.
+    # ON stays on until the owner turns it off; and Mo PC Remote ON/OFF and Fast Remote ON
+    # (below, after do-not-disturb).
     control/volume/up|control/volume/down|control/brightness/up|control/brightness/down|control/mute|control/unmute|control/night-light/on|control/night-light/off|control/night-light/auto|control/wifi/on|control/bluetooth/on|control/screenshot)
         IFS=/ read -r -a control_args <<<"$tgt"
         control_run "${control_args[@]}" ;;
@@ -511,7 +579,7 @@ PY
             exit 2
         fi ;;
     control/wifi/off)
-        confirm "إيقاف الواي فاي يقطع الإنترنت وMo AI والتحكم عن بعد. متابعة؟ | Turning Wi-Fi off disconnects the internet, Mo AI and remote control. Continue?" \
+        confirm "إيقاف الواي فاي يقطع الإنترنت والمساعد الذكي والتحكم عن بعد. متابعة؟ | Turning Wi-Fi off disconnects the internet, the assistant and remote control. Continue?" \
             && control_run wifi off ;;
     control/bluetooth/off)
         confirm "إيقاف البلوتوث يفصل لوحة المفاتيح والفأرة اللاسلكيتين. متابعة؟ | Turning Bluetooth off disconnects wireless keyboards and mice. Continue?" \
@@ -524,10 +592,29 @@ PY
     control/dnd/on)
         confirm "تشغيل عدم الإزعاج حتى تطفئه بنفسك؟ | Turn on Do Not Disturb until you turn it off?" \
             && control_run dnd on ;;
-    # MoOS Search's Mo AI hand-off: open the chat already asking the question. This only starts a
-    # conversation — the same entry the Mo AI KRunner runner uses — and any action in the answer is
-    # still a button the user has to confirm. The question is passed as ONE argv element and is
-    # never evaluated; an empty question simply opens Mo AI.
+    # Mo PC Remote through moos-control, which switches the same unit as remote/* above and
+    # reads the result back. ON lets a paired phone drive this computer after every restart and
+    # OFF cuts off whoever is driving it from the phone right now, so both ask — the values
+    # Mira and Mo AI card (remote_control's confirm_values). Reconnecting is try-restart, which
+    # never turns an off remote on, and Fast Remote OFF only restores what ON saved.
+    control/remote/restart|control/fast-remote/off)
+        IFS=/ read -r -a control_args <<<"$tgt"
+        control_run "${control_args[@]}" ;;
+    control/remote/on)
+        confirm "تشغيل Mo PC Remote ليتحكم هاتفك المقترن بهذا الكمبيوتر، ويبقى يعمل بعد كل إقلاع؟ | Turn on Mo PC Remote so your paired phone can control this computer, also after every restart?" \
+            && control_run remote on ;;
+    control/remote/off)
+        confirm "إيقاف Mo PC Remote يقطع أي هاتف يتحكم بهذا الكمبيوتر الآن. متابعة؟ | Turning off Mo PC Remote disconnects any phone controlling this computer right now. Continue?" \
+            && control_run remote off ;;
+    # Fast Remote ON rewrites blur, motion and the keyboard layout until it is turned off.
+    control/fast-remote/on)
+        confirm "الاتصال السريع يوقف الضبابية والحركة ويبدّل لوحة المفاتيح إلى US حتى تطفئه. متابعة؟ | Fast Remote pauses blur and motion and switches the keyboard to US until you turn it off. Continue?" \
+            && control_run fast-remote on ;;
+    # MoOS Search's hand-off to the assistant: open the chat with the question in the composer —
+    # the same entry the search runner uses. Nothing is sent until the person presses Enter (Mira
+    # and the classic Mo AI window both only prefill `--ask`): any web page can open this route,
+    # and its words must never reach a cloud model unasked. The question is passed as ONE argv
+    # element and is never evaluated; an empty question simply opens the assistant.
     # Mira's own pages, from her System Settings page: her Settings (voice, Echo, Gemini key, phone)
     # and the System centre (checks, repairs, updates, the store). Fixed pages, no argument.
     ai/settings)   gui moai --panel settings ;;

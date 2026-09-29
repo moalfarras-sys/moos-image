@@ -4,7 +4,7 @@
 // media service and not a tray icon. Plasma's Mpris2Model remains the single
 // source of truth and chooses the active player, including browsers that expose
 // MPRIS through Media Session. The Island always occupies one medium, fixed
-// slot: Search owns it at rest; Remote, privacy, Store, Mo AI jobs and media
+// slot: Search owns it at rest; Remote, privacy, Store, Mira's jobs and media
 // replace the contents without moving a single neighbouring task icon.
 //
 // Motion is contextual only: content cross-fades and settles inside fixed
@@ -348,13 +348,13 @@ PlasmoidItem {
         storeJobFinishTimer.restart();
     }
 
-    // ── Mo AI Job Presence (confirmed actions) ─────────────────────────────────────
+    // ── Mira Job Presence (confirmed actions) ──────────────────────────────────────
     // moai-control publishes one token per confirmed job, `job-<id8hex>-<state>-<tool>`, in the
     // runtime directory and RENAMES it as the job runs, finishes or fails (done/failed tokens are
     // removed after 20 s, and one whose fileModified is older than that is ignored here: a producer
     // that stopped first leaves it behind). A rename changes no count, so this model — like the three above —
     // syncs on count, data and status (see IslandTokens.js). The name carries the tool id only — no arguments, no secrets — and the
-    // chip opens Mo AI, where the person sees the steps. It ranks below Remote, privacy and the
+    // chip opens Mira (Mo AI's app), where the person sees the steps. It ranks below Remote, privacy and the
     // Store: those are safety states or work the person started by hand.
     FolderListModel {
         id: moaiJobPresence
@@ -417,12 +417,12 @@ PlasmoidItem {
             root.moaiJobCompact = label;
             // Arabic leads with its own words and isolates the Latin name, so the
             // line keeps an RTL paragraph direction.
-            root.moaiJobTitle = root.local(label + " · \u2068Mo AI\u2069", "Mo AI · " + label);
+            root.moaiJobTitle = root.local(label + " · ميرا", "Mira · " + label);
             root.moaiJobSource = job.running > 1
-                ? root.local(job.running + " إجراءات قيد التنفيذ · افتح Mo AI",
-                             job.running + " actions running · open Mo AI")
-                : root.local("قيد التنفيذ · التفاصيل في Mo AI",
-                             "Working · details in Mo AI");
+                ? root.local(job.running + " إجراءات قيد التنفيذ · افتح ميرا",
+                             job.running + " actions running · open Mira")
+                : root.local("قيد التنفيذ · التفاصيل عند ميرا",
+                             "Working · details in Mira");
             return;
         }
         // Like a Store job: a finished token is shown only as the END of a job this session
@@ -438,7 +438,7 @@ PlasmoidItem {
         } else {
             root.moaiJobCompact = root.local("تعذّر: " + label, label + " — failed");
             root.moaiJobTitle = root.moaiJobCompact;
-            root.moaiJobSource = root.local("افتح Mo AI لمعرفة السبب", "Open Mo AI to see why");
+            root.moaiJobSource = root.local("افتح ميرا لمعرفة السبب", "Open Mira to see why");
         }
         moaiJobFinishTimer.restart();
     }
@@ -1262,14 +1262,14 @@ PlasmoidItem {
                     onActivated: Qt.openUrlExternally("moos://app/store")
                 }
 
-                // Quick open for a confirmed Mo AI job: the steps live in Mo AI.
+                // Quick open for a confirmed job: the steps live in Mira (Mo AI's app).
                 MediaControl {
                     slotSize: 34
                     revealed: !root.remotePresent && !root.privacyPresent
                               && !root.storeJobPresent && root.moaiJobPresent
                     controlEnabled: true
                     iconName: root.moaiJobIcon
-                    label: root.local("فتح Mo AI", "Open Mo AI")
+                    label: root.local("فتح ميرا", "Open Mira")
                     onActivated: root.openMoAI()
                 }
 
@@ -1436,7 +1436,7 @@ PlasmoidItem {
             }
             PC3.TabButton {
                 visible: root.moaiJobPresent
-                text: "Mo AI"
+                text: root.local("ميرا", "Mira")
                 icon.name: root.moaiJobIcon
                 onClicked: root.detailContext = "moai"
             }
@@ -1800,8 +1800,8 @@ PlasmoidItem {
 
             PC3.Label {
                 Layout.fillWidth: true
-                text: root.local("وافقتَ على هذا الإجراء في Mo AI، وتظهر خطواته ونتيجته هناك.",
-                                 "You confirmed this action in Mo AI; its steps and result are shown there.")
+                text: root.local("وافقتَ على هذا الإجراء عند ميرا، وتظهر خطواته ونتيجته هناك.",
+                                 "You confirmed this action in Mira; its steps and result are shown there.")
                 wrapMode: Text.Wrap
                 color: Kirigami.Theme.textColor
                 horizontalAlignment: root.rtl ? Text.AlignRight : Text.AlignLeft
@@ -1811,7 +1811,7 @@ PlasmoidItem {
 
             PC3.Button {
                 Layout.fillWidth: true
-                text: root.local("فتح Mo AI", "Open Mo AI")
+                text: root.local("فتح ميرا", "Open Mira")
                 icon.name: root.moaiJobIcon
                 onClicked: root.openMoAI()
             }

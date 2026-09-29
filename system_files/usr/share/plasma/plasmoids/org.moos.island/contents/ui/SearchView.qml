@@ -170,7 +170,7 @@ FocusScope {
         anchors.fill: parent
         anchors.margins: root.design.space3
         // A bottom-panel host overlaps the popup's outer window by its own
-        // thickness. Keep the final Mo AI action inside the visible glass;
+        // thickness. Keep the final Ask Mira action inside the visible glass;
         // the host supplies that inset (the Island: one comfortable target).
         anchors.bottomMargin: root.design.space3 + root.searchBottomInset
         spacing: root.design.space3
@@ -243,7 +243,7 @@ FocusScope {
                     }
                     KeyNavigation.backtab: askRow
                     Keys.onPressed: event => {
-                        // Ctrl+Enter asks Mo AI instead of running the highlighted result.
+                        // Ctrl+Enter asks Mira instead of running the highlighted result.
                         if ((event.key === Qt.Key_Return || event.key === Qt.Key_Enter)
                                 && (event.modifiers & Qt.ControlModifier)) {
                             root.askMoAI();
@@ -655,8 +655,8 @@ FocusScope {
                 Layout.fillWidth: true
                 horizontalAlignment: Text.AlignHCenter
                 wrapMode: Text.WordWrap
-                text: root.local("جرّب كلمة أخرى، أو اسأل Mo AI بالأسفل.",
-                                 "Try another word, or ask Mo AI below.")
+                text: root.local("جرّب كلمة أخرى، أو اسأل ميرا بالأسفل.",
+                                 "Try another word, or ask Mira below.")
                 color: Kirigami.Theme.disabledTextColor
                 font.family: root.uiFontFamily
                 font.pixelSize: root.design.typeSecondary
@@ -863,7 +863,7 @@ FocusScope {
 
             // Keyboard help as keycaps. One mixed Arabic/Latin sentence was reordered by the
             // bidi algorithm into nonsense on the live Arabic session ("Esc للإغلاق" landed in
-            // the middle of the Mo AI hint); each hint is now its own isolated row.
+            // the middle of the Ask hint); each hint is now its own isolated row.
             Flow {
                 Layout.fillWidth: true
                 Layout.alignment: Qt.AlignHCenter
@@ -872,7 +872,7 @@ FocusScope {
                     model: [
                         { keys: "↑ ↓", ar: "تنقّل", en: "Move" },
                         { keys: "Enter", ar: "فتح", en: "Open" },
-                        { keys: "Ctrl Enter", ar: "اسأل Mo AI", en: "Ask Mo AI" },
+                        { keys: "Ctrl Enter", ar: "اسأل ميرا", en: "Ask Mira" },
                         { keys: "Esc", ar: "إغلاق", en: "Close" }
                     ]
                     delegate: RowLayout {
@@ -907,7 +907,7 @@ FocusScope {
             }
         }
 
-        // Mo AI hand-off ─────────────────────────────────────────────────────────────────
+        // Mira hand-off (moos://ai/ask → moai → Mira, the MoOS assistant) ────────────────
         PC3.ItemDelegate {
             id: askRow
             objectName: "searchAskMoAI"
@@ -950,10 +950,9 @@ FocusScope {
                     id: askLabel
                     Layout.fillWidth: true
                     text: surface.hasQuery
-                        ? root.local("اسأل " + surface.bidi("Mo AI: «"
-                                                           + root.query.trim() + "»"),
-                                     "Ask Mo AI: “" + surface.bidi(root.query.trim()) + "”")
-                        : root.local("افتح Mo AI", "Open Mo AI")
+                        ? root.local("اسأل ميرا: «" + surface.bidi(root.query.trim()) + "»",
+                                     "Ask Mira: “" + surface.bidi(root.query.trim()) + "”")
+                        : root.local("افتح ميرا", "Open Mira")
                     textFormat: Text.PlainText
                     color: Kirigami.Theme.textColor
                     font.family: root.uiFontFamily

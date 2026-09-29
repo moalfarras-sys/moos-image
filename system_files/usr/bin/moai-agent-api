@@ -1367,15 +1367,31 @@ def _git(project_id: str, args: list[str], limit: int) -> tuple[dict, str]:
 
 
 def project_git_status(project_id: str) -> dict:
-    project, output = _git(project_id, ["status", "--short", "--untracked-files=all"],
-                           MAX_PROJECT_DIFF_BYTES)
+    # UTF-8 names («ملاحظات.md») instead of Git's octal escapes; a name with a space or a quote
+    # is still C-quoted, and the Workbench decodes both.
+    project, output = _git(project_id, ["-c", "core.quotePath=false", "status", "--short",
+                                        "--untracked-files=all"], MAX_PROJECT_DIFF_BYTES)
     return {"project": project["id"], "status": output}
+
+
+def _project_pathspec(project_id: str, relative: str) -> str:
+    """A path to diff, checked by its text so a DELETED file can still be diffed: absolute, NUL
+    and `..` are refused, and a path that exists must still resolve inside the project (a
+    symlink may point out). Git then reads it literally, so `*` or `[` in a name never widens
+    the audited diff to other files."""
+    _, root = _project(project_id)
+    raw = str(relative or "").replace("\\", "/")
+    if raw.startswith("/") or "\x00" in raw or ".." in raw.split("/"):
+        raise ValueError("project path escapes its root")
+    if os.path.lexists(root / raw):
+        _project_path(project_id, raw)
+    return raw
 
 
 def project_git_diff(project_id: str, relative: str = "") -> dict:
     if relative:
-        _project_path(project_id, relative)
-    path_args = ["--", relative] if relative else []
+        relative = _project_pathspec(project_id, relative)
+    path_args = ["--", ":(literal)" + relative] if relative else []
     project, unstaged = _git(project_id, ["diff", "--no-ext-diff", *path_args],
                              MAX_PROJECT_DIFF_BYTES // 2)
     _, staged = _git(project_id, ["diff", "--cached", "--no-ext-diff", *path_args],

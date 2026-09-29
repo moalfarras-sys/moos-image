@@ -2009,10 +2009,13 @@ systemctl --global disable mo-remote-personal.service || true
 # Mira, the MoOS assistant: her tree and pinned packages come from the mira-build stage (see
 # the Containerfile), her launcher and the org.moos.moai entry from system_files. Each line is
 # a way she could ship and not open: a missing half, an import the image's Python cannot
-# satisfy, an identity that no longer matches Mo AI's launcher (one dock icon, Meta+Space), or
-# a window that dies at start-up.
+# satisfy, an identity that no longer matches Mo AI's launcher (one dock icon, Meta+Space), a
+# window that dies at start-up or opens broken, or a face the software scene graph cannot draw.
+# build-arm.sh runs the same block (tests/test_moos_arm.py keeps them alike).
 test -f /usr/lib/mira/app/app.py \
     || { echo "GATE FAIL: Mira's app tree is missing (/usr/lib/mira/app)"; exit 1; }
+test -f /usr/lib/mira/app/pages/__init__.py && test -f /usr/lib/mira/app/pages/base.py \
+    || { echo "GATE FAIL: Mira's pages are missing (/usr/lib/mira/app/pages) — her window would open without them"; exit 1; }
 test -d /usr/lib/mira/site/google/genai && test -d /usr/lib/mira/site/aioesphomeapi \
     || { echo "GATE FAIL: Mira's pinned packages are missing (/usr/lib/mira/site)"; exit 1; }
 test -x /usr/bin/mira \
@@ -2021,6 +2024,10 @@ grep -q 'exec /usr/bin/mira' /usr/bin/moai \
     || { echo "GATE FAIL: moai no longer hands the assistant to Mira"; exit 1; }
 grep -q "DESKTOP_ID = 'org.moos.moai'" /usr/lib/mira/app/app.py \
     || { echo "GATE FAIL: Mira no longer wears Mo AI's app id — two dock icons, no Meta+Space match"; exit 1; }
+# visual_tier.py is the controller's motion policy: how still she stays where she is drawn on the
+# processor (a cloud server, a VM). The face probe below imports it too.
+test -f /usr/lib/mira/app/visual_tier.py \
+    || { echo "GATE FAIL: Mira's visual tier reader is missing (/usr/lib/mira/app/visual_tier.py)"; exit 1; }
 _mira_home="$(mktemp -d)"
 _mira_imports="$(env -i PATH=/usr/bin HOME="$_mira_home" PYTHONPATH=/usr/lib/mira/site PYTHONDONTWRITEBYTECODE=1 \
     /usr/bin/python3 -s -c 'import PySide6.QtQuick, google.genai, aioesphomeapi, numpy, jeepney, segno; print("ok")' 2>&1)"
@@ -2028,7 +2035,21 @@ case "$_mira_imports" in
     ok) ;;
     *) echo "GATE FAIL: Mira cannot import her runtime in this image:"; echo "$_mira_imports"; exit 1 ;;
 esac
-# Her window, offscreen, with stand-in backends: it must render a frame and save it.
+# Every page pages.PAGES names must import from the tree the image carries (the controller skips a
+# page that does not, and prints «Mira pages:»), and so must the chat and KDE layers built on them.
+set +e
+_mira_pages="$(cd /usr/lib/mira/app && env -i PATH=/usr/bin HOME="$_mira_home" PYTHONPATH=/usr/lib/mira/site \
+    PYTHONDONTWRITEBYTECODE=1 QT_QPA_PLATFORM=offscreen /usr/bin/python3 -s -c 'import pages, chat_ui, kde_integration; missing = sorted({n for n, _ in pages.PAGES} - {m.__name__.rpartition(".")[2] for m in pages.modules()}); assert not missing, "page modules that do not import: %s" % missing; print("MIRA_PAGES_OK")' 2>&1)"
+set -e
+case "$_mira_pages" in
+    *MIRA_PAGES_OK) ;;
+    *) echo "GATE FAIL: Mira cannot import her pages in this image:"; echo "$_mira_pages"; exit 1 ;;
+esac
+# Her window, offscreen, with stand-in backends: it must render a frame, save it, and say nothing
+# wrong while doing so. The log is written to a file and then searched (no producer piped into
+# `grep -q` under pipefail): a QML warning, a page that did not import or a traceback is a window
+# that opened broken, which an exit status of 0 and a non-empty PNG cannot see. The same pattern
+# as the Containerfile's mira-build stage, and build-arm.sh's.
 set +e
 env -i PATH=/usr/bin HOME="$_mira_home" MIRA_TEST_MODE=1 MIRA_INSTANCE=mira-image-gate PYTHONDONTWRITEBYTECODE=1 \
     QT_QPA_PLATFORM=offscreen QT_QUICK_BACKEND=software QT_FORCE_STDERR_LOGGING=1 \
@@ -2040,11 +2061,28 @@ if [ "$_mira_rc" -ne 0 ] || [ ! -s "$_mira_home/mira.png" ]; then
     cat /tmp/mira-smoke.log
     exit 1
 fi
+if grep -nE '^Mira pages:|\.qml:[0-9]+:([0-9]+:)? |ReferenceError|TypeError|Unable to assign|^Traceback ' \
+        /tmp/mira-smoke.log; then
+    echo "GATE FAIL: Mira's window opened in the image with the faults above"
+    exit 1
+fi
+# Her face, on the scene graph /usr/bin/mira picks where there is no real GPU (the cloud edition,
+# a VM). It draws no ShaderEffect, and her portal, aura and both avatars are shaders elsewhere:
+# there MiraCore and Avatar draw the still face, and the probe (her own test_visual_tier, run on
+# this image's tree) fails when either comes out empty.
+set +e
+_mira_face="$(env -i PATH=/usr/bin HOME="$_mira_home" PYTHONPATH=/usr/lib/mira/site:/usr/lib/mira/app \
+    PYTHONDONTWRITEBYTECODE=1 /usr/bin/python3 -s /ctx/mira/test_visual_tier.py --face-probe /usr/lib/mira/app 2>&1)"
+_mira_rc=$?
+set -e
+echo "$_mira_face"
+[ "$_mira_rc" -eq 0 ] \
+    || { echo "GATE FAIL: Mira draws no face on the software scene graph in this image"; exit 1; }
 rm -rf "$_mira_home" /tmp/mira-smoke.log
 # Captured, then matched: `find | grep -q` under pipefail can report a match as a failure.
 _mira_pyc="$(find /usr/lib/mira -name '__pycache__' -print -quit)"
 [ -z "$_mira_pyc" ] || { echo "GATE FAIL: bytecode caches reached /usr/lib/mira ($_mira_pyc)"; exit 1; }
-unset -v _mira_home _mira_imports _mira_rc _mira_pyc
+unset -v _mira_home _mira_imports _mira_pages _mira_face _mira_rc _mira_pyc
 
 # The desktop's own sound, in the phone's tab — for EVERY edition, not just cloud.
 #
@@ -2831,7 +2869,10 @@ systemd-analyze verify \
     /usr/lib/systemd/user/openclaw-idle.timer \
     /usr/lib/systemd/user/moai-agent-api.service \
     /usr/lib/systemd/user/moos-app-drop.path \
-    /usr/lib/systemd/user/moos-app-drop.service
+    /usr/lib/systemd/user/moos-app-drop.service \
+    /usr/lib/systemd/user/mira.service
+# mira.service (Mira's login start) is verified but never enabled here: it is the person's own
+# switch in her Settings (tests/test_mira_kde_integration.py refuses a global enable).
 # openclaw-gateway.service is deliberately NOT verified here: its ExecStart is
 # %h/.local/bin/openclaw, a per-user runtime install (moai-do install-openclaw),
 # which does not exist in the build container — systemd-analyze verify resolves

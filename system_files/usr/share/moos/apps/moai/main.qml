@@ -589,7 +589,11 @@ Kirigami.ApplicationWindow {
         "first), `moos-control " +
         "keyboard-layout next`, `moos-control motion still|gentle|alive` (wallpaper motion), " +
         "`moos-control clarity clear|balanced|solid` (glass), `moos-control power-profile " +
-        "power-saver|balanced|performance`, and `moos-control " +
+        "power-saver|balanced|performance`, `moos-control remote on|off|restart` (Mo PC " +
+        "Remote, the phone app that controls this computer; on and off ask first, restart " +
+        "reconnects a stuck remote), `moos-control fast-remote on|off` (a lighter desktop " +
+        "for a smoother remote; on asks first — it pauses blur and motion and switches the " +
+        "keyboard to US until it is turned off), and `moos-control " +
         "settings <page>` for the exact settings page (display, night-light, audio, network, " +
         "bluetooth, keyboard, mouse, touchpad, printers, themes, wallpaper, fonts, " +
         "accessibility, notifications, energy, " +
@@ -777,7 +781,9 @@ Kirigami.ApplicationWindow {
     ]
 
     // Compatibility targets. `key` matches moai-control's /scan compatibility
-    // map, so "Ready" is read from the machine, never assumed.
+    // map, so "Ready" is read from the machine, never assumed. `url` sets a target up;
+    // `openUrl` opens one that is ready. The phone link has no set-up: it is part of the image
+    // where the edition carries it (its "Phone" app), and there is no store package for it.
     readonly property var compatCatalog: [
         { key: "steam",      title: "Windows Games", titleAr: "ألعاب Windows", ar: "ألعابك في مكان واحد", en: "Your games in one place",
           url: "moos://do/setup-gaming", icon: "moos-gaming-symbolic" },
@@ -786,7 +792,7 @@ Kirigami.ApplicationWindow {
         { key: "waydroid",   title: "Android Apps", titleAr: "تطبيقات Android", ar: "تعمل كتطبيقات MoOS", en: "Run like MoOS apps",
           url: "moos://do/setup-waydroid", icon: "moos-android-apps-symbolic" },
         { key: "kdeconnect", title: "Phone Integration", titleAr: "ربط الهاتف", ar: "هاتفك مع MoOS", en: "Your phone with MoOS",
-          url: "moos://apps/install/org.kde.kdeconnect", icon: "moos-phone-symbolic" }
+          url: "", openUrl: "moos://apps/run/org.kde.kdeconnect.app", icon: "moos-phone-symbolic" }
     ]
 
     // Pin every paragraph's direction to its OWN language.
@@ -871,17 +877,27 @@ Kirigami.ApplicationWindow {
                     root.panel = "agent"
                     root.agentWorkspaceTab = "agents"
                 }
+                // Mira's pages, reached by moos://ai/settings and moos://ai/system. Where this
+                // window is still the assistant (ARM) they land on their nearest page here
+                // instead of silently staying on the chat: the assistant's settings are the Mo AI
+                // page of System Settings, and the system is My device.
+                else if (p === "settings")
+                    root.openAssistantSettings()
+                else if (p === "system")
+                    root.panel = "device"
             }
         }
-        // `moai --ask "<question>"` opens the chat already asking it — how Plasma's
-        // search bar hands a question to Mo AI. It only starts a conversation:
-        // any action in the answer is still a button the user has to tap.
+        // `moai --ask "<question>"` opens the chat with the question in the composer — how the
+        // Island's search and the search runner hand a question over. It is NEVER sent from here:
+        // moos://ai/ask is a public scheme, so a web page's link would otherwise send its own
+        // words to a cloud model with nothing pressed. The person reads it and presses Enter,
+        // exactly as Mira does with the same argument.
         const askIndex = argv.indexOf("--ask")
         if (askIndex !== -1 && askIndex + 1 < argv.length) {
             const question = String(argv[askIndex + 1]).slice(0, 2000)
             if (question.trim() !== "") {
                 root.panel = "chat"
-                Qt.callLater(function () { root.sendPrompt(question) })
+                Qt.callLater(function () { root.prefillPrompt(question) })
             }
         }
         const workspaceIndex = argv.indexOf("--workspace")
@@ -1275,7 +1291,7 @@ Kirigami.ApplicationWindow {
         // settings page). The grammar is closed — only these exact shapes become
         // buttons — and nothing runs until the user taps one; moos-open then
         // validates the shape again.
-        const ctl = /moos-control\s+(volume\s+(?:100|[0-9]{1,2}|up|down)|mute|unmute|brightness\s+(?:100|[1-9][0-9]|[5-9]|up|down)|night-light\s+(?:on|off|auto)|wifi\s+(?:on|off)|bluetooth\s+(?:on|off)|screenshot|theme\s+(?:dark|light|nova|amethyst|midnight|aurora|auto)|open\s+[A-Za-z0-9][A-Za-z0-9._-]{2,254}|window\s+(?:overview|grid|show-desktop)|arrange\s+(?:halves|thirds|quarters|main|centre)|desktop\s+(?:next|previous)|dnd\s+(?:on|off)|mic\s+(?:mute|unmute)|keyboard-layout\s+(?:next)|motion\s+(?:still|gentle|alive)|clarity\s+(?:clear|balanced|solid)|power-profile\s+(?:power-saver|balanced|performance)|settings\s+(?:display|night-light|audio|network|bluetooth|keyboard|mouse|touchpad|printers|themes|wallpaper|fonts|accessibility|notifications|energy|time|region|users|about|storage|update|default-apps|autostart|lock|permissions|overview|whats-new|assistant|remote|recovery|appearance|global-theme|colors|icons|cursors|window-decoration|animations|sounds|shortcuts|window-behavior|window-rules|effects|desktops|screen-edges|task-switcher|search|login-screen|virtual-keyboard|touchscreen|tablet|game-controller))\b/g
+        const ctl = /moos-control\s+(volume\s+(?:100|[0-9]{1,2}|up|down)|mute|unmute|brightness\s+(?:100|[1-9][0-9]|[5-9]|up|down)|night-light\s+(?:on|off|auto)|wifi\s+(?:on|off)|bluetooth\s+(?:on|off)|screenshot|theme\s+(?:dark|light|nova|amethyst|midnight|aurora|auto)|open\s+[A-Za-z0-9][A-Za-z0-9._-]{2,254}|window\s+(?:overview|grid|show-desktop)|arrange\s+(?:halves|thirds|quarters|main|centre)|desktop\s+(?:next|previous)|dnd\s+(?:on|off)|mic\s+(?:mute|unmute)|keyboard-layout\s+(?:next)|motion\s+(?:still|gentle|alive)|clarity\s+(?:clear|balanced|solid)|power-profile\s+(?:power-saver|balanced|performance)|remote\s+(?:on|off|restart)|fast-remote\s+(?:on|off)|settings\s+(?:display|night-light|audio|network|bluetooth|keyboard|mouse|touchpad|printers|themes|wallpaper|fonts|accessibility|notifications|energy|time|region|users|about|storage|update|default-apps|autostart|lock|permissions|overview|whats-new|assistant|remote|recovery|appearance|global-theme|colors|icons|cursors|window-decoration|animations|sounds|shortcuts|window-behavior|window-rules|effects|desktops|screen-edges|task-switcher|search|login-screen|virtual-keyboard|touchscreen|tablet|game-controller))\b/g
         while ((m = ctl.exec(text)) !== null) {
             const spec = "control:" + m[1].trim().replace(/\s+/g, "/")
             if (out.indexOf(spec) === -1)
@@ -1339,6 +1355,13 @@ Kirigami.ApplicationWindow {
         case "motion": return root.local("حركة الخلفية: " + v, "Wallpaper motion: " + v)
         case "clarity": return root.local("وضوح الزجاج: " + v, "Glass clarity: " + v)
         case "power-profile": return root.local("وضع الطاقة: " + v, "Power profile: " + v)
+        case "remote":
+            return v === "on" ? root.local("شغّل Mo PC Remote", "Turn on Mo PC Remote")
+                 : v === "off" ? root.local("أوقف Mo PC Remote", "Turn off Mo PC Remote")
+                 : root.local("أعد وصل Mo PC Remote", "Reconnect Mo PC Remote")
+        case "fast-remote":
+            return v === "on" ? root.local("شغّل الاتصال السريع", "Fast Remote on")
+                              : root.local("أطفئ الاتصال السريع", "Fast Remote off")
         }
         return spec
     }
@@ -1421,6 +1444,14 @@ Kirigami.ApplicationWindow {
         root.panel = "chat"
         input.text = msg
         send()
+    }
+
+    // A question handed over from outside this window: put it in the composer, never send it.
+    function prefillPrompt(msg) {
+        root.panel = "chat"
+        input.text = msg
+        input.cursorPosition = input.length
+        input.forceActiveFocus()
     }
 
     function send() {
@@ -1834,6 +1865,23 @@ Kirigami.ApplicationWindow {
             case "list_installed_apps": return root.local("التطبيقات المثبّتة", "Installed apps")
             case "os_state": return root.local("إصدار النظام ونسخة الرجوع", "System version and rollback")
             case "read_moos_log": return root.local("سجلّ MoOS: ", "MoOS log: ") + (args.name || "")
+            case "check_system_update": return root.local("فحص تحديثات MoOS", "Check for MoOS updates")
+            case "smart_setup": return root.local("تثبيت التطبيقات الأساسية", "Install Essential Apps")
+            case "install_codex": return root.local("تثبيت وكيل Codex", "Install Codex")
+            case "install_claude_code": return root.local("تثبيت وكيل Claude Code", "Install Claude Code")
+            case "install_opencode": return root.local("تثبيت وكيل OpenCode", "Install OpenCode")
+            case "install_hermes": return root.local("تثبيت محرّك الوكيل Hermes", "Install Hermes")
+            case "install_openclaw": return root.local("تثبيت وكيل الهاتف", "Install the Phone Agent")
+            case "restart_computer": return root.local("إعادة تشغيل الكمبيوتر", "Restart the Computer")
+            case "install_rpm": return root.local("تثبيت حزمة: ", "Install package: ")
+                                       + String(args.path || "").split("/").pop()
+            case "remote_control": return args.value === "on"
+                ? root.local("تشغيل Mo PC Remote", "Turn On Mo PC Remote")
+                : args.value === "off" ? root.local("إيقاف Mo PC Remote", "Turn Off Mo PC Remote")
+                : root.local("إعادة وصل Mo PC Remote", "Reconnect Mo PC Remote")
+            case "fast_remote": return args.value === "on"
+                ? root.local("تشغيل الاتصال السريع", "Turn On Fast Remote")
+                : root.local("إطفاء الاتصال السريع", "Turn Off Fast Remote")
             default: return name.replace(/_/g, " ")
         }
     }
@@ -2624,7 +2672,13 @@ Kirigami.ApplicationWindow {
                         Layout.fillWidth: true
                     }
                     Text {
-                        text: root.toolDescription(card.toolName)
+                        // What confirming does, from the schema (moai_tool_schemas.py
+                        // consequence_ar/en, via /tools metadata); the older hand text only
+                        // where an image's schema has none.
+                        text: root.local(card.toolMeta.consequence_ar || "",
+                                         card.toolMeta.consequence_en || "")
+                              || root.toolDescription(card.toolName)
+                        visible: text !== ""
                         font.family: root.uiFont
                         font.pixelSize: root.typePx(12)
                         // What the person reads before approving an action is not "disabled" text.
@@ -5019,7 +5073,9 @@ Kirigami.ApplicationWindow {
                                                 StatusPill {
                                                     good: compat.ready
                                                     goodText: root.local("جاهز", "Ready")
-                                                    badText: root.local("غير مثبّت", "Not set up")
+                                                    badText: compat.modelData.url
+                                                        ? root.local("غير مثبّت", "Not set up")
+                                                        : root.local("ليس في هذه النسخة", "Not in this edition")
                                                 }
                                             }
                                             Text {
@@ -5032,12 +5088,18 @@ Kirigami.ApplicationWindow {
                                             }
                                         }
                                         MoButton {
-                                            label: compat.ready ? root.local("جاهز ✓", "Ready")
-                                                                : root.local("إعداد", "Set up")
+                                            readonly property string target: compat.ready
+                                                ? (compat.modelData.openUrl || "") : compat.modelData.url
+                                            label: compat.ready
+                                                ? (compat.modelData.openUrl ? root.local("افتح", "Open")
+                                                                            : root.local("جاهز ✓", "Ready"))
+                                                : root.local("إعداد", "Set up")
                                             primary: !compat.ready
-                                            enabled_: !compat.ready
+                                            // Nothing to set up where the edition has no phone link.
+                                            visible: compat.ready || !!compat.modelData.url
+                                            enabled_: target !== ""
                                             onClicked: root.launch(
-                                                compat.modelData.url,
+                                                target,
                                                 root.local(compat.modelData.titleAr,
                                                            compat.modelData.title))
                                         }

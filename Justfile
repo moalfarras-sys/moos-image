@@ -467,6 +467,9 @@ check:
     python3 tests/test_island_jobs_privacy.py
     # Producer and consumer of the Island's presence tokens, executed for real.
     python3 tests/test_island_tokens.py
+    # Mira inside Plasma: her launcher (GPU rule, Dolphin arguments), login unit and its migration,
+    # menus, names, and the staged tree the image receives.
+    python3 tests/test_mira_kde_integration.py
     # Global shortcuts: X-KDE-Shortcuts + kglobalaccel link, never a stock binding.
     python3 tests/test_moos_shortcuts.py
     # App Drop: install from a file, with real hostile archives and the real sandbox.

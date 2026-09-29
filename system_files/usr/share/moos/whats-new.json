@@ -4,17 +4,43 @@
   "entries": [
     {
       "id": "mira-assistant",
-      "merged": "2026-09-29T16:30:00Z",
+      "merged": "2026-09-30T00:00:00Z",
       "glyph": "ai",
       "title": {
         "ar": "ميرا صارت مساعدة MoOS",
         "en": "Mira is now your MoOS assistant"
       },
       "body": {
-        "ar": "افتحها بـ Meta+Space: تتكلم معك بصوتها وتبحث وتتحكم بالجهاز بكل أدوات Mo AI. التثبيت والتحديث والإصلاح ينتظر موافقتك في بطاقة، أو قل لها «نعم».",
-        "en": "Open her with Meta+Space: she talks with you, searches and runs this computer with every Mo AI tool. Installs, updates and repairs wait for your approval on a card, or just tell her yes."
+        "ar": "افتحها بـ Meta+Space. في نافذتها صفحات الكمبيوتر والتطبيقات والنظام والورشة والاتصال والعقل، وتحفظ محادثاتك (Ctrl+H)، وتسألك قبل أن يكتب وكيل البرمجة ملفاً أو يشغّل أمراً. التثبيت والتحديث والإصلاح ينتظر موافقتك في بطاقة، وتسمّي لك كل مكان بالكلمات التي تراها في نافذتها.",
+        "en": "Open her with Meta+Space. Her window has pages for This PC, Apps, System, Workbench, Connect and Brain, keeps your chats (Ctrl+H) and asks you before her coding agent writes a file or runs a command. Installs, updates and repairs wait for your yes on a card, and she names every place by the words her window shows."
       },
       "route": "moos://settings/assistant"
+    },
+    {
+      "id": "mira-computer-actions",
+      "merged": "2026-09-30T00:00:00Z",
+      "glyph": "ai",
+      "title": {
+        "ar": "ميرا تعيد التشغيل وتفحص التحديثات وتدير Mo PC Remote",
+        "en": "Mira restarts, checks for updates and runs Mo PC Remote"
+      },
+      "body": {
+        "ar": "اسألها «في تحديث؟» فتفحص دون أن تغيّر شيئاً، أو اطلب منها إعادة التشغيل، أو تشغيل Mo PC Remote وإيقافه والاتصال السريع، أو تثبيت وكلاء البرمجة وحزمة RPM من التنزيلات أو سطح المكتب. بطاقاتها وخطواتها بلغتك، وتقول ماذا سيحدث بعد موافقتك.",
+        "en": "Ask her “is there an update?” and she checks without changing anything, or ask her to restart, to turn Mo PC Remote on or off, to use Fast Remote, or to install coding agents and an RPM from Downloads or your desktop. Her cards and steps speak your language and say what happens after your yes."
+      }
+    },
+    {
+      "id": "mira-in-plasma",
+      "merged": "2026-09-30T00:00:00Z",
+      "glyph": "ai",
+      "title": {
+        "ar": "ميرا في كل مكان من MoOS",
+        "en": "Mira everywhere in MoOS"
+      },
+      "body": {
+        "ar": "انقر بزر الفأرة الأيمن على ملف في مدير الملفات (Dolphin) واختر «اسأل ميرا عن هذا»، أو على مجلد لتضيفه إلى مشاريع الورشة. وفي بحث الجزيرة يسألها Ctrl+Enter، ومن إعداداتها تستطيع أن تجعلها تبدأ بهدوء في شريط النظام مع تسجيل الدخول.",
+        "en": "Right-click a file in the file manager (Dolphin) and choose “Ask Mira about this”, or a folder to add it to your Workbench projects. Ctrl+Enter in the Island search asks her, and her Settings can start her quietly in the tray when you sign in."
+      }
     },
     {
       "id": "rounded-dock-material",
@@ -405,51 +431,6 @@
         "Alt",
         "Tab"
       ]
-    },
-    {
-      "id": "arrange",
-      "merged": "2026-09-17T22:36:04Z",
-      "glyph": "grid",
-      "title": {
-        "ar": "رتّب نوافذك بضغطة واحدة",
-        "en": "Arrange your windows in one action"
-      },
-      "body": {
-        "ar": "نصفان أو أثلاث أو أرباع، أو نافذة رئيسية ونافذتان، أو توسيط النافذة. من قائمة النافذة «رتّب النوافذ» أو بالاختصار Meta+Alt مع 1 إلى 4 أو C.",
-        "en": "Halves, thirds, quarters, a main window with two beside it, or centre the window. From the window menu under Arrange windows, or Meta+Alt with 1 to 4 or C."
-      },
-      "keys": [
-        "Meta",
-        "Alt",
-        "2"
-      ]
-    },
-    {
-      "id": "motion-speed",
-      "merged": "2026-09-17T22:36:04Z",
-      "glyph": "pulse",
-      "title": {
-        "ar": "سرعة حركة واحدة للنظام كله",
-        "en": "One animation speed for the whole system"
-      },
-      "body": {
-        "ar": "بطاقات MoOS وأزراره تتبع الآن إعداد سرعة الحركة نفسه الذي يتبعه سطح المكتب، فلا يبقى جزء بطيئًا وآخر سريعًا.",
-        "en": "MoOS cards and buttons now follow the same animation-speed setting the desktop does, so one part is never slow while another is fast."
-      }
-    },
-    {
-      "id": "about",
-      "merged": "2026-09-17T20:42:58Z",
-      "glyph": "about",
-      "title": {
-        "ar": "حول هذا الجهاز",
-        "en": "About this device"
-      },
-      "body": {
-        "ar": "صفحة من MoOS نفسه: الإصدار والإصدارة وتاريخ البناء وتوقيع الصورة ومواصفات جهازك، مع زر ينسخ التفاصيل لمحادثة دعم.",
-        "en": "A page of MoOS's own: version, edition, build date, image signature and your hardware, with a button that copies the details for a support conversation."
-      },
-      "route": "moos://settings/about"
     }
   ]
 }

@@ -218,6 +218,105 @@ do_update() {
 }
 
 # -----------------------------------------------------------------------------
+# check-update — READ-ONLY: is a newer signed MoOS published, and is one staged?
+#
+# "Is there an update?" had two wrong answers. os_state reads what is booted and staged,
+# never what is PUBLISHED; `update` stages it, behind a card and a password. This asks the
+# same one authority `update`, the Updater and the daily timer use — the backend's `state`,
+# which answers from the record the system timer published (under 15 minutes old) or resolves
+# once — with no confirmation and no privilege, and says the answer in words. The last line
+# is the same answer for a program: `MOOS_UPDATE state=… current=… latest=… staged=…`.
+#
+# The booted image not being a signed official origin is an ANSWER (updates cannot be verified
+# for it), not a failure of the check; a registry or tool failure is a failure and exits 1.
+# -----------------------------------------------------------------------------
+do_check_update() {
+    hdr "فحص تحديثات MoOS (قراءة فقط)" "Check for MoOS updates (read-only)"
+    local backend
+    backend="${MOOS_IMAGE_UPDATE_BACKEND:-/usr/libexec/moos-image-update}"
+    [ -x "$backend" ] || backend="$(dirname "$0")/../libexec/moos-image-update"
+    [ -x "$backend" ] || {
+        echo "${R}محرك تحديث MoOS غير موجود | MoOS update backend is missing${N}" >&2
+        return 1
+    }
+    need python3 || return 1
+    # Bounded below moai-control's 60-second read budget: a registry that never answers is
+    # reported as not answering, not waited on until the tool call itself is killed.
+    python3 - "$backend" <<'PY'
+import json
+import subprocess
+import sys
+
+backend = sys.argv[1]
+try:
+    done = subprocess.run([backend, "state", "--format", "json"], capture_output=True,
+                          text=True, timeout=50, stdin=subprocess.DEVNULL)
+except subprocess.TimeoutExpired:
+    print("✗ خادم التحديثات لم يجب في الوقت المحدد | The update server did not answer in time",
+          file=sys.stderr)
+    print("MOOS_UPDATE state=unknown")
+    raise SystemExit(1)
+except OSError as error:
+    print(f"✗ تعذّر تشغيل محرك التحديث | The update backend could not run: {error.strerror}",
+          file=sys.stderr)
+    print("MOOS_UPDATE state=unknown")
+    raise SystemExit(1)
+
+reason = " ".join((done.stderr or "").split()).removeprefix("moos-image-update: ")[:300]
+if done.returncode != 0:
+    if done.returncode == 2 and "not a signed official MoOS origin" in reason:
+        print("⚠ هذا الكمبيوتر لا يعمل من صورة MoOS رسمية موقّعة، فلا يمكن التحقق من التحديثات له.")
+        print("⚠ This computer does not run a signed official MoOS image, so updates cannot be verified for it.")
+        print("MOOS_UPDATE state=unsigned")
+        raise SystemExit(0)
+    print(f"✗ تعذّر فحص التحديثات | Could not check for updates: {reason or 'exit ' + str(done.returncode)}",
+          file=sys.stderr)
+    print("MOOS_UPDATE state=unknown")
+    raise SystemExit(1)
+
+try:
+    record = json.loads(done.stdout)
+except ValueError:
+    record = None
+if not isinstance(record, dict):
+    print("✗ ردّ محرك التحديث غير مفهوم | The update backend answered something unreadable",
+          file=sys.stderr)
+    print("MOOS_UPDATE state=unknown")
+    raise SystemExit(1)
+
+def field(key):
+    return " ".join(str(record.get(key) or "").split())[:64]
+
+state, edition = field("state"), field("edition")
+current, latest, staged = field("booted_version"), field("latest_version"), field("staged_version")
+if current:
+    print(f"الحالي | Current: MoOS {current}" + (f" ({edition})" if edition else ""))
+if state == "current":
+    print("✓ النظام على أحدث نسخة موقّعة | MoOS is on the latest signed version")
+elif state == "available":
+    print(f"⬆ نسخة أحدث متاحة | A newer version is available: MoOS {latest or '?'}")
+    print("  يُنزَّل بتحديث النظام ويُطبَّق عند إعادة التشغيل | A system update downloads it; it applies at the next restart")
+elif state == "replace-staged":
+    print(f"⬆ إصدار تصحيحي أحدث {latest or '?'} سيحلّ محلّ التحديث المجهّز {staged or '?'}")
+    print(f"⬆ A newer corrective release {latest or '?'} will replace the staged update {staged or '?'}")
+elif state == "staged":
+    print("✓ تحديث جاهز — أعد التشغيل لتطبيقه | An update is ready — restart to apply it"
+          + (f": MoOS {staged}" if staged else ""))
+elif state == "blocked-downgrade":
+    print(f"■ النسخة المنشورة {latest or '?'} ليست أحدث من نسختك؛ لا شيء لتثبيته.")
+    print(f"■ The published version {latest or '?'} is not newer than this computer's; nothing to install.")
+elif state == "busy":
+    print("… يُجهَّز تحديث الآن؛ افحص ثانيةً بعد دقائق | An update is being prepared right now; check again in a few minutes")
+else:
+    print(f"✗ حالة تحديث غير معروفة | Unknown update state: {state or 'none'}", file=sys.stderr)
+    print("MOOS_UPDATE state=unknown")
+    raise SystemExit(1)
+print(f"MOOS_UPDATE state={state} edition={edition or '-'} current={current or '-'} "
+      f"latest={latest or '-'} staged={staged or '-'}")
+PY
+}
+
+# -----------------------------------------------------------------------------
 # install <flatpak-id> — install a Flatpak app from Flathub.
 # -----------------------------------------------------------------------------
 # -----------------------------------------------------------------------------
@@ -302,26 +401,54 @@ do_install() {
     fi
 }
 
+# The folders a local package may come from: Downloads, Desktop and Documents by those
+# names, AND by the names this user's own XDG folders carry — an Arabic session's desktop is
+# «سطح المكتب», so a package the owner saved there was refused while the tool promised
+# "Desktop". Read from the one file xdg-user-dirs writes, in the one shape it writes
+# (XDG_DESKTOP_DIR="$HOME/<folder>"): a value can name only one visible folder of the home,
+# never the home itself, a hidden folder or a path outside it. The file must be the user's
+# own regular file. The root helper (moos-install-local-rpm) reads it the same way.
+rpm_source_dirs() {
+    local home="$1" uid="$2" dirs key value
+    local shape='^"\$HOME/([^/"$.][^/"$]*)"$'
+    printf '%s\n' "$home/Downloads" "$home/Desktop" "$home/Documents"
+    dirs="$home/.config/user-dirs.dirs"
+    [ -f "$dirs" ] && [ ! -L "$dirs" ] && [ "$(stat -c %u -- "$dirs")" = "$uid" ] || return 0
+    while IFS='=' read -r key value; do
+        case "$key" in XDG_DOWNLOAD_DIR|XDG_DESKTOP_DIR|XDG_DOCUMENTS_DIR) ;; *) continue ;; esac
+        # `if`, not `&&`: the root helper runs this under `set -e`, where a refused last line
+        # would make the loop itself fail.
+        if [[ "$value" =~ $shape ]]; then
+            printf '%s\n' "$home/${BASH_REMATCH[1]}"
+        fi
+    done < "$dirs"
+    return 0
+}
+
 valid_local_rpm() {
-    local requested="${1:-}" home resolved
+    local requested="${1:-}" home resolved folder
     home="$(getent passwd "$(id -u)" | cut -d: -f6)"
-    [ -n "$requested" ] && [ "${requested:0:1}" = / ] \
+    [ -n "$home" ] && [ -n "$requested" ] && [ "${requested:0:1}" = / ] \
         && [ -f "$requested" ] && [ ! -L "$requested" ] || return 1
     resolved="$(realpath -e -- "$requested")" || return 1
-    case "$resolved" in
-        "$home"/Downloads/*.rpm|"$home"/Desktop/*.rpm|"$home"/Documents/*.rpm) ;;
-        *) return 1 ;;
-    esac
-    [ "$(stat -c %u -- "$resolved")" = "$(id -u)" ] || return 1
-    printf '%s' "$resolved"
+    case "$resolved" in *.rpm) ;; *) return 1 ;; esac
+    while IFS= read -r folder; do
+        case "$resolved" in
+            "$folder"/*)
+                [ "$(stat -c %u -- "$resolved")" = "$(id -u)" ] || return 1
+                printf '%s' "$resolved"
+                return 0 ;;
+        esac
+    done < <(rpm_source_dirs "$home" "$(id -u)")
+    return 1
 }
 
 do_install_rpm() {
     local requested="${1:-}" rpm_path sig name version arch bytes digest
     hdr "تثبيت حزمة محلية على MoOS" "Install a local package on MoOS"
     rpm_path="$(valid_local_rpm "$requested")" || {
-        echo "${R}اختر ملف RPM عادياً تملكه من Downloads أو Desktop أو Documents.${N}" >&2
-        echo "${R}Choose a regular RPM you own from Downloads, Desktop, or Documents.${N}" >&2
+        echo "${R}اختر ملف RPM عادياً تملكه من مجلد التنزيلات أو سطح المكتب أو المستندات.${N}" >&2
+        echo "${R}Choose a regular RPM you own from your Downloads, Desktop, or Documents folder.${N}" >&2
         return 2
     }
     need rpmkeys || return 1
@@ -948,6 +1075,235 @@ do_rollback() {
     echo "${D}أعد التشغيل لتطبيق الرجوع | reboot to apply.${N}"
 }
 
+# -----------------------------------------------------------------------------
+# restart — restart the computer, the way the power menu's Restart does: through logind,
+# which lets the active local session reboot without a password. systemctl checks inhibitors
+# itself only on a terminal, and a Mo AI job has none: without --check-inhibitors=yes, logind
+# would ignore a block held by this same user and turn a root-held one into an administrator
+# prompt to override it. With it, any block — or another logged-in user — refuses the restart
+# (no --ignore-inhibitors, ever).
+#
+# What a restart would cut in half is refused BEFORE the question, by restart_plan:
+#   job    a confirmed Mo AI job is still running — an app install, an update, firmware.
+#          moai-control publishes each one as $XDG_RUNTIME_DIR/moai-jobs/job-<id>-running-<tool>
+#          (the Island's chip); the restart's own job is not a reason to refuse itself, and a
+#          token older than moai-control's 45-minute job limit is a leftover, not a job.
+#   store  Mo Store holds its job lock (an install or update started from the Store).
+#   image  a deployment is being written: the update backend's lock is held (stage, the NVIDIA
+#          switch), a `moos-image-update stage|auto` or `bootc switch|upgrade` is running (a
+#          writer between taking the lock and its transaction, or one started without it), or
+#          rpm-ostree has a transaction. A staged image is NOT a reason: applying it is what
+#          the restart is for, and the owner is told it will be.
+# Locks are read from the kernel's table (/proc/locks), never taken: Mo Store locks with
+# LOCK_NB, so even a brief lock here could fail a Store job starting at that instant. The
+# table names a file by its SUPERBLOCK's device, which is not always stat's: on btrfs (the
+# home folder here) stat reports the subvolume's own device, so a lock row is matched by the
+# device of the mount that holds the path (mountinfo) as well, or by the holder's open file.
+# An unreadable deployment state is refused too: a restart must not be pressed blind.
+# MOOS_IMAGE_UPDATE_LOCK and MOOS_PROC_ROOT only move where this READ looks (tests); they
+# grant nothing — whoever can set them can run `systemctl reboot` directly anyway.
+# -----------------------------------------------------------------------------
+restart_plan() {
+    python3 - "${XDG_RUNTIME_DIR:-}" "${XDG_CACHE_HOME:-$HOME/.cache}" \
+        "${MOOS_IMAGE_UPDATE_LOCK:-/run/lock/moos-image-update.lock}" \
+        "${MOOS_PROC_ROOT:-/proc}" <<'PY'
+import json
+import os
+import re
+import subprocess
+import sys
+import time
+
+runtime, cache, image_lock, proc = sys.argv[1:5]
+JOB_LIMIT = 50 * 60      # moai-control ends every job after 45 minutes
+
+
+def deploying():
+    """A deployment writer that is running now, read from its command line."""
+    try:
+        pids = [entry for entry in os.listdir(proc) if entry.isdigit()]
+    except OSError:
+        return False
+    for pid in pids:
+        try:
+            with open(os.path.join(proc, pid, "cmdline"), "rb") as stream:
+                words = [word.decode("utf-8", "replace") for word in stream.read().split(b"\0")
+                         if word]
+        except OSError:
+            continue
+        names = [os.path.basename(word) for word in words[:2]]
+        if "moos-image-update" in names and any(word in ("stage", "auto") for word in words[1:4]):
+            return True
+        if names[:1] == ["bootc"] and any(word in ("switch", "upgrade") for word in words[1:3]):
+            return True
+    return False
+
+
+def unescape(field):
+    """mountinfo writes a space in a mount point as \\040 (and tab, newline, \\ likewise)."""
+    return re.sub(r"\\([0-7]{3})", lambda found: chr(int(found.group(1), 8)), field)
+
+
+def mount_device(path):
+    """(major, minor) of the mount that holds path — the superblock's device, the one the
+    lock table prints — or None. The longest mount point that contains the path wins, and of
+    two mounts on one point the later one, which is the one that is seen."""
+    try:
+        with open(os.path.join(proc, "self", "mountinfo"), encoding="utf-8",
+                  errors="replace") as stream:
+            rows = stream.read().splitlines()
+    except OSError:
+        return None
+    real, best, device = os.path.realpath(path), -1, None
+    for row in rows:
+        # "36 25 0:35 /root /var rw,relatime shared:3 - btrfs /dev/sda3 rw,…"
+        fields = row.split()
+        if len(fields) < 5 or not re.fullmatch(r"\d+:\d+", fields[2]):
+            continue
+        point = unescape(fields[4])
+        inside = real == point or real.startswith(point.rstrip("/") + "/")
+        if inside and len(point) >= best:
+            best, device = len(point), tuple(int(part) for part in fields[2].split(":"))
+    return device
+
+
+def holds_open(pid, info):
+    """True when process pid has this very file open (readable only for this user's own)."""
+    folder = os.path.join(proc, pid, "fd")
+    try:
+        descriptors = os.listdir(folder)
+    except OSError:
+        return False
+    for descriptor in descriptors:
+        try:
+            other = os.stat(os.path.join(folder, descriptor))
+        except OSError:
+            continue
+        if (other.st_dev, other.st_ino) == (info.st_dev, info.st_ino):
+            return True
+    return False
+
+
+def held(path):
+    """True when a process holds a flock on path, read from the kernel's own lock table.
+
+    Nothing is opened, created or locked: Mo Store takes its lock with LOCK_NB, so even a
+    moment's shared lock taken here could make a Store job starting at that instant fail.
+    A row names the file as superblock-device:inode. stat's device is that on most
+    filesystems but not on btrfs, so a row with this inode counts when its device is stat's
+    OR the holding mount's, or when its holder has this very file open."""
+    try:
+        info = os.stat(path)
+    except OSError:
+        return False
+    devices = {(os.major(info.st_dev), os.minor(info.st_dev))}
+    mounted = mount_device(path)
+    if mounted:
+        devices.add(mounted)
+    keys = {f"{major:02x}:{minor:02x}:{info.st_ino}" for major, minor in devices}
+    try:
+        with open(os.path.join(proc, "locks"), encoding="ascii", errors="replace") as stream:
+            table = stream.read().splitlines()
+    except OSError:
+        return False
+    for line in table:
+        fields = line.split()
+        # "1: FLOCK  ADVISORY  WRITE 1234 00:2f:5678 0 EOF"; a "->" line is a waiter.
+        if len(fields) < 6 or fields[1] != "FLOCK":
+            continue
+        if fields[5] in keys:
+            return True
+        if fields[5].rsplit(":", 1)[-1] == str(info.st_ino) and fields[4].isdigit() \
+                and holds_open(fields[4], info):
+            return True
+    return False
+
+
+if runtime:
+    folder = os.path.join(runtime, "moai-jobs")
+    try:
+        names = sorted(os.listdir(folder))
+    except OSError:
+        names = []
+    for name in names:
+        found = re.fullmatch(r"job-[0-9a-f]{8}-running-([a-z_]{1,40})", name)
+        if not found or found.group(1) == "restart_computer":
+            continue
+        try:
+            age = time.time() - os.stat(os.path.join(folder, name)).st_mtime
+        except OSError:
+            continue
+        if age <= JOB_LIMIT:
+            print("busy|job|" + found.group(1))
+            raise SystemExit(0)
+if held(os.path.join(cache, "moos-store", "job.lock")):
+    print("busy|store|")
+    raise SystemExit(0)
+if held(image_lock) or deploying():
+    print("busy|image|")
+    raise SystemExit(0)
+try:
+    done = subprocess.run(["rpm-ostree", "status", "--json"], capture_output=True, text=True,
+                          timeout=30, stdin=subprocess.DEVNULL)
+    status = json.loads(done.stdout) if done.returncode == 0 else None
+except (OSError, subprocess.SubprocessError, ValueError):
+    status = None
+if not isinstance(status, dict) or not isinstance(status.get("deployments"), list):
+    print("unknown|status|")
+    raise SystemExit(0)
+if status.get("transaction"):
+    print("busy|image|")
+    raise SystemExit(0)
+staged = next((item for item in status["deployments"]
+               if isinstance(item, dict) and item.get("staged")), None)
+label = " ".join(str((staged or {}).get("version") or ("update" if staged else "")).split())[:64]
+print("ready|staged|" + label if staged else "ready||")
+PY
+}
+
+do_restart() {
+    hdr "إعادة تشغيل الكمبيوتر" "Restart the computer"
+    need systemctl || return 1
+    need python3 || return 1
+    local plan state reason detail
+    plan="$(restart_plan)" || plan="unknown|status|"
+    IFS='|' read -r state reason detail <<<"$plan"
+    case "$state:$reason" in
+        busy:job)
+            echo "${Y}ما زال إجراء من Mo AI يعمل (${detail}) — أعد التشغيل بعد انتهائه. لم يتغيّر شيء.${N}" >&2
+            echo "${Y}A Mo AI action is still running (${detail}) — restart after it finishes. Nothing changed.${N}" >&2
+            return 1 ;;
+        busy:store)
+            echo "${Y}Mo Store ما زال يثبّت أو يحدّث — أعد التشغيل بعد انتهائه. لم يتغيّر شيء.${N}" >&2
+            echo "${Y}Mo Store is still installing or updating — restart after it finishes. Nothing changed.${N}" >&2
+            return 1 ;;
+        busy:image)
+            echo "${Y}يُكتب تحديث للنظام الآن — إعادة التشغيل الآن قد تقطعه. لم يتغيّر شيء.${N}" >&2
+            echo "${Y}A system update is being written right now — restarting could cut it off. Nothing changed.${N}" >&2
+            return 1 ;;
+        ready:*) ;;
+        *)
+            echo "${R}تعذّرت قراءة حالة النظام، فلم تُنفَّذ إعادة التشغيل.${N}" >&2
+            echo "${R}The system state could not be read, so the computer was not restarted.${N}" >&2
+            return 1 ;;
+    esac
+    if [ "$reason" = staged ]; then
+        echo "${C}سيُطبَّق التحديث المجهّز أثناء الإقلاع | The staged update is applied while it starts: ${detail}${N}"
+    fi
+    echo "${D}تُغلق التطبيقات المفتوحة ويضيع ما لم يُحفظ — احفظ عملك أولاً.${N}"
+    echo "${D}Open apps close and unsaved work is lost — save your work first.${N}"
+    confirm || return 0
+    # logind decides, as it does for the power menu: an active local session may restart. A
+    # program holding a block, or another logged-in user, refuses it here — checked by
+    # systemctl on every path, not only on a terminal (see the header above).
+    if ! systemctl --check-inhibitors=yes reboot; then
+        echo "${R}رفض النظام إعادة التشغيل الآن (برنامج يمنعها أو لم تُمنح الموافقة). لم يتغيّر شيء.${N}" >&2
+        echo "${R}The system refused to restart now (a program is holding it off, or permission was not given). Nothing changed.${N}" >&2
+        return 1
+    fi
+    echo "${G}✓ يعاد تشغيل الكمبيوتر الآن | Restarting now${N}"
+}
+
 # net-doctor — read-only. The first thing to check when the remote or updates "don't
 # work": link, route, internet, DNS (specifically the update registry), and Tailscale.
 do_net_doctor() {
@@ -1272,8 +1628,8 @@ strip_legacy_moos_quadlet_autostart() {
 
 do_install_openclaw() {
     hdr "تثبيت وكيل الهاتف (OpenClaw)" "Install the phone agent (OpenClaw)"
-    echo "${D}يتيح لك مراسلة جهازك من تليجرام. البرنامج في ~/.local؛ ويطلب موافقة مسؤول مرة واحدة ليبقى متاحاً بعد تسجيل الخروج.${N}"
-    echo "${D}Lets you message this machine from Telegram. The app stays in ~/.local; one admin approval keeps it available after logout.${N}"
+    echo "${D}يتيح لك مراسلة جهازك من تليجرام. يُثبَّت في ~/.local دون كلمة مرور، ويحتاج عقلاً سحابياً مضبوطاً أولاً.${N}"
+    echo "${D}Lets you message this machine from Telegram. It installs into ~/.local with no password and needs a cloud brain set up first.${N}"
     echo
     confirm || return 0
 
@@ -1680,6 +2036,10 @@ ${V}الاستعمال | Usage:${N}  moai-do <command> [args]
 
   ${C}update${N}            تجهيز أحدث صورة MoOS موقّعة وثابتة بالـdigest
                     Stage the latest signed MoOS image by exact digest
+  ${C}check-update${N}      هل توجد نسخة MoOS أحدث أو مجهّزة؟ (قراءة فقط)
+                    Is a newer MoOS published or staged? (read-only)
+  ${C}restart${N}           إعادة تشغيل الكمبيوتر (تُرفض أثناء تثبيت أو تحديث)
+                    Restart the computer (refused while an install or update runs)
   ${C}install <id>${N}      تثبيت تطبيق عبر Mo Store (لهذا المستخدم) ثم فتحه
                     Install an app through Mo Store (for this user), then open it
   ${C}install-rpm <file>${N} تثبيت RPM محلي موقّع كتحديث ذري (يتطلب إعادة تشغيل)
@@ -1717,8 +2077,8 @@ ${V}الاستعمال | Usage:${N}  moai-do <command> [args]
                     Install OpenCode — a coding agent on Mo AI's free cloud brain
   ${C}install-hermes${N}    تثبيت Hermes — عقل وضع الوكيل في Mo AI (حزمة رسمية مثبّتة بالتجزئة)
                     Install Hermes, Mo AI's agent runtime (official release, pinned by hash)
-  ${C}install-openclaw${N}  وكيل الهاتف — موافقة مسؤول واحدة للعمل بعد تسجيل الخروج
-                    Phone agent — one admin approval for after-logout availability
+  ${C}install-openclaw${N}  وكيل الهاتف (تليجرام) في ~/.local دون كلمة مرور
+                    Phone agent (Telegram) in ~/.local, no password
   ${C}setup-brain${N}       فتح صفحة Mo AI في الإعدادات (المزوّد والنموذج السحابي)
                     Open the Mo AI settings page (cloud provider and model)
   ${C}remote-anywhere${N}   تشغيل Mo PC Remote من خارج البيت (Tailscale HTTPS)
@@ -1795,6 +2155,8 @@ main() {
     AUDIT_ACTION="$cmd"
     case "$cmd" in
         update)        do_update ;;
+        check-update)  do_check_update ;;
+        restart)       do_restart ;;
         install)       do_install "${1:-}" ;;
         install-rpm)   do_install_rpm "${1:-}" ;;
         uninstall)     do_uninstall "${1:-}" ;;

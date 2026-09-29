@@ -176,6 +176,27 @@ done
 test -f /usr/share/applications/org.moos.moplayer.desktop
 test -f /usr/share/applications/org.moos.remote.desktop
 
+# Mira, the assistant every ARM session opens (Meta+Space, the Mo AI entry), started on the booted
+# disk itself: offscreen, with stand-in backends (MIRA_TEST_MODE), a private HOME and Qt's software
+# scene graph like every ARM session. The build proved her tree; this proves the downloadable disk
+# runs it through the real launcher with this disk's aarch64 packages. No compositor is faked and
+# nothing needs root: it runs as the provisioned user, like every line here.
+mira_home="$(mktemp -d)"
+set +e
+env -i PATH=/usr/bin HOME="$mira_home" MIRA_TEST_MODE=1 MIRA_INSTANCE=mira-runtime-gate \
+    PYTHONDONTWRITEBYTECODE=1 QT_QPA_PLATFORM=offscreen QT_QUICK_BACKEND=software QT_FORCE_STDERR_LOGGING=1 \
+    timeout 120 /usr/bin/mira --capture="$mira_home/mira.png" --capture-delay=3000 >"$mira_home/mira.log" 2>&1
+mira_rc=$?
+set -e
+if [ "$mira_rc" -ne 0 ] || [ ! -s "$mira_home/mira.png" ] \
+        || grep -nE '^Mira pages:|\.qml:[0-9]+:([0-9]+:)? |ReferenceError|TypeError|Unable to assign|^Traceback ' \
+            "$mira_home/mira.log" >&2; then
+    cat "$mira_home/mira.log" >&2
+    echo "ARM RUNTIME FATAL: Mira did not open cleanly on the booted disk (exit=$mira_rc)" >&2
+    exit 1
+fi
+rm -rf "$mira_home"
+
 sysroot="$(findmnt -nro SOURCE /sysroot)"
 device="${sysroot%%\[*}"
 parent="$(lsblk -dnro PKNAME "$device" | tr -d '[:space:]')"
@@ -209,6 +230,7 @@ printf 'interactive_input=virtio-keyboard+tablet\n'
 printf 'accounts_user=published\n'
 printf 'first_party_arch=aarch64\n'
 printf 'first_party_linkage=resolved\n'
+printf 'mira=opened\n'
 printf 'cloud_grow=bootc-success\n'
 printf 'failed_units=0\n'
 printf 'disk_bytes=%s\n' "$disk_size"

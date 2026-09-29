@@ -77,6 +77,38 @@ class RuntimeTests(unittest.TestCase):
         self.api["STATE"].write_text('{"tier":"read"}')
         self.assertIn("read-only", self.call("run_command", project=self.pid, command="true")["error"])
 
+    def test_an_answer_at_the_very_edge_is_honoured(self):
+        # resolve() accepts an answer until the wall-clock expiry, while the waiting side gives up
+        # on its own clock. An answer that lands after its last poll was already confirmed to the
+        # owner ({ok: true}): it must decide, never be overwritten by "expired".
+        runtime_time = self.api["moai_runtime"].time
+        real_monotonic = runtime_time.monotonic
+        for decision in ("allow-once", "deny"):
+            with self.subTest(decision=decision):
+                calls = []
+
+                def edge_clock():
+                    calls.append(1)
+                    return 0.0 if len(calls) == 1 else 10_000.0   # the loop never polls
+
+                def owner_answers(sid, role, text, status=""):
+                    rows = self.runtime.approvals()
+                    self.assertEqual(self.runtime.resolve({"id": rows[0]["id"], "decision": decision})["ok"], True)
+
+                with patch.object(self.runtime, "event", owner_answers), \
+                        patch.object(runtime_time, "monotonic", edge_clock):
+                    if decision == "allow-once":
+                        self.runtime.approval("review-session", "write_file", {"path": "x"}, self.project)
+                    else:
+                        with self.assertRaisesRegex(PermissionError, "denied"):
+                            self.runtime.approval("review-session", "write_file", {"path": "x"}, self.project)
+                self.assertIs(runtime_time.monotonic, real_monotonic)
+        # …and with no answer at all it still expires, and nothing runs.
+        with patch.object(self.runtime, "event", lambda *a, **k: None), \
+                patch.object(runtime_time, "monotonic", iter([0.0] + [10_000.0] * 5).__next__):
+            with self.assertRaisesRegex(PermissionError, "expired"):
+                self.runtime.approval("review-session", "write_file", {"path": "x"}, self.project)
+
     def test_project_escape_and_hidden_files_blocked(self):
         (self.home / "secret").write_text("private")
         (self.project / "link").symlink_to(self.home / "secret")
