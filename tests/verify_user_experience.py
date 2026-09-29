@@ -2104,6 +2104,51 @@ for _page in _runpy.run_path(str(ROOT / "system_files/usr/bin/moos-control"),
                              run_name="moos_control_routes")["SETTINGS_PAGES"]:
     _emitted.setdefault(f"settings/{_page}", []).append("moos-control settings")
 
+# Mira (mira/, outside system_files and the scan above) opens only the routes her allowlist
+# mira/moos_routes.py matches whole. Each allowed shape is an emitter, and each must reach a case:
+# her own suite (mira/test_moos_routes.py) proves the forward direction with a sample per
+# pattern; here her routes also count for the reverse one, so an arm only she opens (a coding
+# agent in a Workbench project, moos://dev/<agent>/<project id>) is not taken for an orphan.
+# Everything from a pattern's first character class on is a value moos-open validates itself,
+# so that part becomes a wildcard.
+_mira_routes = ROOT / "mira/moos_routes.py"
+require(_mira_routes.is_file(), "Mira's route allowlist (mira/moos_routes.py) is missing")
+_mira_allowed: list[str] = []
+if _mira_routes.is_file():
+    for _node in ast.parse(_mira_routes.read_text(encoding="utf-8")).body:
+        if isinstance(_node, ast.Assign) and any(getattr(_t, "id", "") == "_ALLOWED"
+                                                 for _t in _node.targets):
+            _mira_allowed = [_item for _item in ast.literal_eval(_node.value)]
+require(len(_mira_allowed) >= 5, "Mira's route allowlist was not read; this check would see nothing")
+for _pattern in _mira_allowed:
+    require(_pattern.startswith("moos://"), f"Mira allows a route outside moos:// ({_pattern!r})")
+    _body = _pattern[len("moos://"):]
+    _cut = _body.find("[")
+    _wild = _cut != -1
+    if _wild:
+        _body = _body[:_cut]
+    _shapes = [""]
+    for _piece in re.split(r"(\([a-z0-9|-]+\))", _body):
+        if _piece.startswith("("):
+            _shapes = [_s + _alt for _s in _shapes for _alt in _piece[1:-1].split("|")]
+        else:
+            _shapes = [_s + _piece for _s in _shapes]
+    for _shape in _shapes:
+        require(re.fullmatch(r"[A-Za-z0-9/%._-]+", _shape) is not None,
+                f"unreadable Mira route shape {_shape!r} from {_pattern!r}")
+        if _wild:
+            require(any(_label.startswith(_shape) or (_label.endswith("*")
+                                                      and _shape.startswith(_label[:-1]))
+                        for _label in declared_routes),
+                    f"Mira may open moos://{_shape}…, which moos-open has no case for — that "
+                    f"button does nothing")
+            _emitted_prefixes.setdefault(_shape, []).append("mira/moos_routes.py")
+        else:
+            require(route_is_covered(_shape, declared_routes),
+                    f"Mira may open moos://{_shape}, which moos-open has no case for — that "
+                    f"button does nothing")
+            _emitted.setdefault(_shape, []).append("mira/moos_routes.py")
+
 # ── …and the reverse: a case nothing opens is attack surface, not a feature ──
 # moos: is a PUBLIC scheme — any web page can hand this router a URL — so a route no MoOS
 # surface opens only widens what a drive-by link can reach. Every declared case must have an
@@ -3021,7 +3066,7 @@ require("http://127.0.0.1:11434/api/tags" in moai_do_code
 # The versioned migration is what makes the redesign visible to existing users.
 apply_theme = read("system_files/usr/bin/moos-apply-theme")
 apply_theme_code = code(apply_theme)
-require("THEME_REV=96" in apply_theme_code,
+require("THEME_REV=97" in apply_theme_code,
         "MoOS visual schema must migrate existing users to the Island that hosts Search itself "
         "and shows Mo AI jobs, the retired Hero Clock/Search packages, and the KWin shadow "
         "quarantine; before that, the W5 island (Store jobs, "

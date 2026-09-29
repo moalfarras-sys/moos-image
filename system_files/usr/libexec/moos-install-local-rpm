@@ -13,16 +13,39 @@ caller_uid="${PKEXEC_UID:-}"
 caller_home="$(getent passwd "$caller_uid" | cut -d: -f6)"
 [ -n "$caller_home" ] && [ -d "$caller_home" ] || die "caller home is unavailable"
 
+# Downloads, Desktop and Documents by those names or by the names the caller's own XDG folders
+# carry (an Arabic session's desktop is «سطح المكتب»). A byte-for-byte copy of moai-do's
+# rpm_source_dirs (tests/test_moos_local_rpm_authentication.py holds the two equal): the value
+# must be the caller's own regular file, in xdg-user-dirs' "$HOME/<one visible folder>" shape.
+rpm_source_dirs() {
+    local home="$1" uid="$2" dirs key value
+    local shape='^"\$HOME/([^/"$.][^/"$]*)"$'
+    printf '%s\n' "$home/Downloads" "$home/Desktop" "$home/Documents"
+    dirs="$home/.config/user-dirs.dirs"
+    [ -f "$dirs" ] && [ ! -L "$dirs" ] && [ "$(stat -c %u -- "$dirs")" = "$uid" ] || return 0
+    while IFS='=' read -r key value; do
+        case "$key" in XDG_DOWNLOAD_DIR|XDG_DESKTOP_DIR|XDG_DOCUMENTS_DIR) ;; *) continue ;; esac
+        # `if`, not `&&`: the root helper runs this under `set -e`, where a refused last line
+        # would make the loop itself fail.
+        if [[ "$value" =~ $shape ]]; then
+            printf '%s\n' "$home/${BASH_REMATCH[1]}"
+        fi
+    done < "$dirs"
+    return 0
+}
+
 requested="$1"
 confirmed_digest="$2"
 [[ "$confirmed_digest" =~ ^[0-9a-f]{64}$ ]] || die "invalid confirmed digest"
 [ "${requested:0:1}" = / ] || die "the package path must be absolute"
 [ -f "$requested" ] && [ ! -L "$requested" ] || die "the package must be a regular, non-symlink file"
 resolved="$(realpath -e -- "$requested")" || die "the package path cannot be resolved"
-case "$resolved" in
-    "$caller_home"/Downloads/*.rpm|"$caller_home"/Desktop/*.rpm|"$caller_home"/Documents/*.rpm) ;;
-    *) die "choose an RPM from Downloads, Desktop, or Documents" ;;
-esac
+case "$resolved" in *.rpm) ;; *) die "the package must be an .rpm file" ;; esac
+allowed=""
+while IFS= read -r folder; do
+    case "$resolved" in "$folder"/*) allowed=1; break ;; esac
+done < <(rpm_source_dirs "$caller_home" "$caller_uid")
+[ -n "$allowed" ] || die "choose an RPM from Downloads, Desktop, or Documents"
 [ "$(stat -c %u -- "$resolved")" = "$caller_uid" ] || die "the package must be owned by the signed-in user"
 
 # The source remains user-owned until this privilege boundary. Copy it first,

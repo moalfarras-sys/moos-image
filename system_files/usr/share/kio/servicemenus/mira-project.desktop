@@ -1,0 +1,17 @@
+[Desktop Entry]
+Type=Service
+X-KDE-ServiceTypes=KonqPopupMenu/Plugin
+# One local folder: it joins Mira's Workbench projects (Mo AI's agent workspace), which accepts
+# only folders inside the home folder and says so. See /usr/bin/mira --add-project.
+MimeType=inode/directory;
+X-KDE-Protocols=file
+X-KDE-RequiredNumberOfUrls=1
+Actions=miraProject
+X-KDE-Priority=TopLevel
+
+[Desktop Action miraProject]
+Name=Add to Mira as a project
+Name[ar]=أضِف إلى ميرا كمشروع
+Name[de]=Als Projekt zu Mira hinzufügen
+Icon=moos-moai
+Exec=mira --add-project %f

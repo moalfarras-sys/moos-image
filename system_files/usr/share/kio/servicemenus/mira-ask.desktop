@@ -1,0 +1,17 @@
+[Desktop Entry]
+Type=Service
+X-KDE-ServiceTypes=KonqPopupMenu/Plugin
+# Any local file: Mira puts a question about it in her composer (a small text file is attached).
+# Nothing is sent until the person sends it. See /usr/bin/mira --ask-about.
+MimeType=all/allfiles;
+X-KDE-Protocols=file
+X-KDE-MaxNumberOfUrls=12
+Actions=miraAsk
+X-KDE-Priority=TopLevel
+
+[Desktop Action miraAsk]
+Name=Ask Mira about this
+Name[ar]=اسأل ميرا عن هذا
+Name[de]=Mira dazu fragen
+Icon=moos-moai
+Exec=mira --ask-about %F

@@ -309,6 +309,14 @@ class Runtime:
             time.sleep(.25)
         with self.connect() as db:
             db.execute("UPDATE approvals SET decision='expired' WHERE id=? AND decision=''", (aid,))
+            decision = db.execute("SELECT decision FROM approvals WHERE id=?", (aid,)).fetchone()[0]
+        # resolve() accepts an answer until the wall-clock expiry. One that landed at the very
+        # edge, after the last poll above, was already confirmed to the owner ({ok: true}): honour
+        # it, so a window never says "it runs" while nothing ran.
+        if decision == "allow-once":
+            return
+        if decision == "deny":
+            raise PermissionError("owner denied the action")
         raise PermissionError("approval expired; no action executed")
 
     def tool(self, body):
