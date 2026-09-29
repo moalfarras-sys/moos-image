@@ -24,6 +24,7 @@ FALLBACK_MIC = 'alsa_input.usb-Linux_Foundation_Webcam_gadget-02.mono-fallback'
 ACTIVE = ('activating', 'listening', 'thinking', 'executing', 'speaking')
 ENROL_DIR = Path.home() / '.local/share/mira/wake-enrol'      # the owner's voice samples (0700/0600)
 WAKE_MODELS = Path.home() / '.local/share/mira/wake-models'   # models trained here, served to the Echo
+SHIPPED_MODELS = ROOT / 'wake-models'                           # models that ship with Mira (image or install)
 OWNER_MODEL = 'mira_ar_owner'
 IMPROVED_MODEL = 'mira_ar_v2'      # trained on 26 synthetic voices with real room sound (wake_training/README.md)
 FALLBACK_WAKE = ['mira_ar_experimental']   # Mira only, by the owner's choice (2026-09-29)
@@ -916,7 +917,7 @@ class Controller(QObject):
         if TEST_MODE:
             return
         body = self._s['act_password'] if category == 'privileged_confirm' else self._s['act_voice_hint']
-        command = ['notify-send', '-a', 'Mira', '-i', 'moos-moai', '-u', 'critical', '-t', str(CONFIRM_TTL * 1000),
+        command = ['notify-send', '-a', 'Mira', '--hint=string:desktop-entry:org.moos.moai', '-i', 'moos-moai', '-u', 'critical', '-t', str(CONFIRM_TTL * 1000),
                    '-p', '-w', '-A', 'approve=' + self._s['act_approve'], '-A', 'reject=' + self._s['act_reject'],
                    self._s['act_waiting'] + ' ' + title, body]
 
@@ -1070,7 +1071,7 @@ class Controller(QObject):
         self.toast.emit('ok' if state == 'ok' else 'pending' if state == 'running' else 'error', summary)
         if not TEST_MODE:
             try:
-                subprocess.Popen(['notify-send', '-a', 'Mira', '-i', 'moos-moai', title, summary],
+                subprocess.Popen(['notify-send', '-a', 'Mira', '--hint=string:desktop-entry:org.moos.moai', '-i', 'moos-moai', title, summary],
                                  stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
             except OSError:
                 pass
@@ -1137,7 +1138,7 @@ class Controller(QObject):
             self.toast.emit('info', '⏰ ' + text)
             if not TEST_MODE:
                 try:
-                    subprocess.Popen(['notify-send', '-a', 'Mira', '-i', 'moos-moai', '-u', 'critical', title, text],
+                    subprocess.Popen(['notify-send', '-a', 'Mira', '--hint=string:desktop-entry:org.moos.moai', '-i', 'moos-moai', '-u', 'critical', title, text],
                                      stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
                 except OSError:
                     pass
@@ -1530,8 +1531,14 @@ class Controller(QObject):
         self._update('_enrol', self.enrolChanged, installing=True, message=self._s['enrol_installing'])
         self.bridge.install_wake_model(OWNER_MODEL, 'Mira', ['ar'], str(model), active)
 
+    def _improved_folder(self):
+        for folder in (WAKE_MODELS, SHIPPED_MODELS, ROOT / 'wake_training'):
+            if all((folder / (IMPROVED_MODEL + ext)).exists() for ext in ('.tflite', '.json')):
+                return folder
+        return None
+
     def _improved_ready(self):
-        return all((WAKE_MODELS / (IMPROVED_MODEL + ext)).exists() for ext in ('.tflite', '.json'))
+        return self._improved_folder() is not None
 
     @Slot()
     def installImproved(self):
@@ -1540,7 +1547,7 @@ class Controller(QObject):
             return
         active = [IMPROVED_MODEL, 'mira_ar_experimental']
         self._update('_enrol', self.enrolChanged, installing=True, message=self._s['enrol_installing'])
-        self.bridge.install_wake_model(IMPROVED_MODEL, 'ميرا', ['ar'], str(WAKE_MODELS / (IMPROVED_MODEL + '.tflite')), active)
+        self.bridge.install_wake_model(IMPROVED_MODEL, 'ميرا', ['ar'], str(self._improved_folder() / (IMPROVED_MODEL + '.tflite')), active)
 
     @Slot()
     def enrolRollback(self):
@@ -1599,7 +1606,7 @@ class Controller(QObject):
         if not self._hidden_notice:
             self._hidden_notice = True
             try:
-                subprocess.Popen(['notify-send', '-a', 'Mira', '-i', 'moos-moai',
+                subprocess.Popen(['notify-send', '-a', 'Mira', '--hint=string:desktop-entry:org.moos.moai', '-i', 'moos-moai',
                                   self._s['app_title'], self._s['tray_notice']],
                                  stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
             except OSError:

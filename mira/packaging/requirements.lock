@@ -1,0 +1,54 @@
+# Mira's Python dependencies that Fedora 44 does not ship (or ships too old), exactly as tested on
+# the station. The image installs them with `pip install --require-hashes --no-deps --only-binary=:all:`
+# into /usr/lib/mira/site, beside Fedora's python3-pyside6, python3-numpy, python3-jeepney,
+# python3-httpx, python3-websockets, python3-cryptography and python3-requests. Hashes cover the
+# cp314 manylinux wheels for x86_64 and aarch64. Regenerate: mira/packaging/lock.sh.
+
+aioesphomeapi==46.6.0 \
+    --hash=sha256:43e31328c6467b7797a7113786af7055d257c4a53c963f3667a4987ba28a7019 \
+    --hash=sha256:b54cd751cdaaa43c5e919b2aa7d16718184c1ff44a0806725e47e0814347aa08
+aiohappyeyeballs==2.7.1 \
+    --hash=sha256:9243213661e29250eb41368e5daa826fc017156c3b8a11440826b2e3ed376472
+annotated-types==0.8.0 \
+    --hash=sha256:f072f4d804ea359e4eaf198b1af7a8b0943881a87f31bb764f8bf219bb9419e0
+async-interrupt==1.2.2 \
+    --hash=sha256:0a8deb884acfb5fe55188a693ae8a4381bbbd2cb6e670dac83869489513eec2c
+chacha20poly1305-reuseable==0.13.2 \
+    --hash=sha256:c7dba7c3604a9fa51bcfef9e4bfdaa3bfaadd88b6c5436a27be1c7e9c4081048
+google-auth==2.58.1 \
+    --hash=sha256:66a63572d0ab629554768544df04018d79178c0bd7439ba31683ac576b79024d
+google-genai==2.25.0 \
+    --hash=sha256:2e8f3a5f76ed00d5ffc3153f6089bc7d3511054eed53ad9cfc6095a7dc59b028
+ifaddr==0.2.0 \
+    --hash=sha256:085e0305cfe6f16ab12d72e2024030f5d52674afad6911bb1eee207177b8a748
+noiseprotocol==0.3.1 \
+    --hash=sha256:2e1a603a38439636cf0ffd8b3e8b12cee27d368a28b41be7dbe568b2abb23111
+protobuf==7.36.2 \
+    --hash=sha256:89f23aa53c24553a2416fd4fd1ec06f74fa42b14b546d8883128813f775bbfd2 \
+    --hash=sha256:e11e1f0180583a2af89db6a2ecd9e8dc40aa6d2988ca175bfd0e6d12ea72d74e
+pyasn1==0.6.4 \
+    --hash=sha256:deda9277cfd454080ec40b207fb6df82206a3a2688735233cdcd8d3d565f088b
+pyasn1-modules==0.4.2 \
+    --hash=sha256:29253a9207ce32b64c3ac6600edc75368f98473906e8fd1043bd6b5b1de2c14a
+pydantic==2.13.5 \
+    --hash=sha256:346a034f080da3755d8e9cb5e00e8b07de1d39e4f6e2c87d8ab7cafa0b269a73
+pydantic-core==2.46.5 \
+    --hash=sha256:5086029a57366b8cf81b130a43908738095c270c21a8d7f0e8bdfdb89718e2f3 \
+    --hash=sha256:54d510bac3ee52247af28ed4bb18a1e799f040ac60fd2bf5ccd4c92f1fbe786f
+segno==1.6.6 \
+    --hash=sha256:28c7d081ed0cf935e0411293a465efd4d500704072cdb039778a2ab8736190c7
+sniffio==1.3.1 \
+    --hash=sha256:2f6da418d1f1e0fddd844478f41680e794e6051915791a034ff65e5f100525a2
+tenacity==9.1.4 \
+    --hash=sha256:6095a360c919085f28c6527de529e76a06ad89b23659fa881ae0649b867a9d55
+typing-extensions==4.16.0 \
+    --hash=sha256:481caa481374e813c1b176ada14e97f1f67a4539ce9cfeb3f350d78d6370c2e8
+typing-inspection==0.4.4 \
+    --hash=sha256:65b8397ba37ccbce054456aaccddfc91e6e3083c92824df348d96ca832f3f147
+tzdata==2026.4 \
+    --hash=sha256:c2169a8b0a7a5e9674da5a135ccdfb2b3e671b333ed9fed17b41f73c34476e81
+tzlocal==5.4.4 \
+    --hash=sha256:aae09f0126a8a86fa736be266eb4a471380d26a0de3bc14844e7821fee3e2a15
+zeroconf==0.151.3 \
+    --hash=sha256:2d6cf45c64be5fe4e42ea08f27edc63293357ccc04f850911a96e0fa5647dd4f \
+    --hash=sha256:b903d00e9689a103d453554d794b8ed0f13148366cee08fa8c802e5d85f1ae51

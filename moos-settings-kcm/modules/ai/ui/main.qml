@@ -621,9 +621,9 @@ KCM.SimpleKCM {
             Layout.maximumWidth: root.cardWidth
             Layout.alignment: Qt.AlignHCenter
             logoSource: "file:///usr/share/icons/hicolor/scalable/apps/moos-moai.svg"
-            title: "Mo AI"
-            subtitle: root.t("مساعد MoOS: عقله، وهاتفك، وما يُسمح له به على هذا الحاسوب.",
-                             "Your MoOS assistant: its brain, your phone, and what it may do on this computer.")
+            title: root.t("ميرا", "Mira")
+            subtitle: root.t("ميرا مساعدة MoOS، وMo AI محرّكها: عقلها السحابي، وهاتفك، وما يُسمح لها به على هذا الحاسوب.",
+                             "Mira is your MoOS assistant and Mo AI is her engine: her cloud brain, your phone, and what she may do on this computer.")
             chips: [
                 MoosChip {
                     readonly property var chipState: root.brainChip(root.quickKnown, root.quickDoc.online === true)
@@ -647,11 +647,44 @@ KCM.SimpleKCM {
             actions: [
                 Controls.Button {
                     Layout.fillWidth: true
-                    text: root.t("افتح Mo AI", "Open Mo AI")
+                    text: root.t("افتح ميرا", "Open Mira")
                     icon.name: MoUI.SymbolCatalog.resolve("external")
                     onClicked: root.open("moos://app/moai")
                 }
             ]
+        }
+
+        // ══ Mira ════════════════════════════════════════════════════════════════
+        // Her own pages live in her window; these rows open them there.
+        FormCard.FormHeader {
+            maximumWidth: root.cardWidth
+            title: root.t("ميرا", "Mira")
+        }
+        FormCard.FormCard {
+            maximumWidth: root.cardWidth
+
+            MoosInfoRow {
+                glyph: "microphone"
+                text: root.t("تتكلم معك بصوتها", "She talks with you")
+                description: root.t("على سماعة Echo المقترنة، أو عبر ميكروفون هذا الحاسوب وسمّاعاته. مفتاح Gemini المجاني يمنحها الصوت والبحث؛ وبدونه تجيب بالكتابة عبر عقل Mo AI السحابي المجاني.",
+                                    "On a paired Echo speaker, or through this computer's microphone and speakers. A free Gemini key gives her the voice and web search; without one she answers in writing through Mo AI's free cloud brain.")
+            }
+            FormCard.FormDelegateSeparator {}
+            MoosActionRow {
+                glyph: "settings"
+                text: root.t("إعدادات ميرا", "Mira settings")
+                description: root.t("الصوت، سماعة Echo، مفتاح Gemini، الهاتف والذاكرة.",
+                                    "Voice, the Echo speaker, the Gemini key, the phone and memory.")
+                onClicked: root.open("moos://ai/settings")
+            }
+            FormCard.FormDelegateSeparator {}
+            MoosActionRow {
+                glyph: "report"
+                text: root.t("مركز النظام", "System centre")
+                description: root.t("الفحوص والإصلاحات والتحديثات والمتجر. كل تغيير في النظام ينتظر موافقتك.",
+                                    "Checks, repairs, updates and the store. Every system change waits for your approval.")
+                onClicked: root.open("moos://ai/system")
+            }
         }
 
         // ══ The brain ═══════════════════════════════════════════════════════════
@@ -1033,17 +1066,17 @@ KCM.SimpleKCM {
             text: root.permissionsNotice.text || ""
         }
 
-        // ══ Reaching Mo AI ══════════════════════════════════════════════════════
+        // ══ Reaching Mira ═══════════════════════════════════════════════════════
         FormCard.FormHeader {
             maximumWidth: root.cardWidth
-            title: root.t("الوصول إلى Mo AI", "Reaching Mo AI")
+            title: root.t("الوصول إلى ميرا", "Reaching Mira")
         }
         FormCard.FormCard {
             maximumWidth: root.cardWidth
 
             MoosInfoRow {
                 glyph: "keyboard"
-                text: root.t("افتح Mo AI من أي مكان", "Open Mo AI from anywhere")
+                text: root.t("افتح ميرا من أي مكان", "Open Mira from anywhere")
                 description: root.t("الاختصار الافتراضي Meta+Space، ويمكنك تغييره.",
                                     "Meta+Space by default, and you can change it.")
                 trailing: [
@@ -1055,7 +1088,7 @@ KCM.SimpleKCM {
             MoosActionRow {
                 glyph: "settings"
                 text: root.t("غيّر الاختصار", "Change the shortcut")
-                description: root.t("في إعدادات الاختصارات، تحت Mo AI.", "In Shortcuts, under Mo AI.")
+                description: root.t("في إعدادات الاختصارات، تحت ميرا.", "In Shortcuts, under Mira.")
                 onClicked: root.open("moos://settings/shortcuts")
             }
             FormCard.FormDelegateSeparator {}
@@ -1071,8 +1104,8 @@ KCM.SimpleKCM {
             MoosActionRow {
                 glyph: "report"
                 text: root.t("افحص هذا الجهاز", "Check this device")
-                description: root.t("حكم Mo AI على التعريفات والتحديثات والأمان، ومع كل ملاحظة الإصلاح الذي يناسبها.",
-                                    "Mo AI's verdict on drivers, updates and security, each finding with the repair that fits it.")
+                description: root.t("حكم ميرا على التعريفات والتحديثات والأمان، ومع كل ملاحظة الإصلاح الذي يناسبها.",
+                                    "Mira's verdict on drivers, updates and security, each finding with the repair that fits it.")
                 onClicked: root.open("moos://do/hw-report")
             }
         }

@@ -144,6 +144,46 @@ RUN test -x /out/moplayer \
     || { echo "GATE FAIL: the MoPlayer bundle is incomplete"; exit 1; }
 
 # -----------------------------------------------------------------------------
+# Mira — the MoOS assistant (Mo AI's app, with Mo AI's services as her executor).
+#
+# Built FROM the image's own base, like qmlshell-build, so her tests run against exactly the
+# Python and Qt the image ships. Fedora provides PySide6, numpy and the common libraries (the
+# final image installs the same RPMs in build.sh). The packages Fedora 44 lacks or ships too old
+# (google-genai for Gemini Live, aioesphomeapi for the Echo, protobuf 7, and the free-standing
+# QR encoder) come from mira/packaging/requirements.lock: exact versions, sha256-pinned wheels,
+# no dependency resolution. The final image receives only the runtime tree and those packages,
+# never pip or the tests.
+# -----------------------------------------------------------------------------
+FROM base AS mira-build
+RUN dnf5 -y install --setopt=install_weak_deps=False python3-pip python3-pyside6 python3-numpy \
+        python3-jeepney python3-httpx python3-websockets python3-requests python3-cryptography \
+    && dnf5 clean all
+WORKDIR /src/mira
+COPY mira/ ./
+# Mo AI's tool schemas and the settings registry they read, at their tree layout: Mira declares
+# whatever the image declares, and her tests check exactly that set.
+COPY system_files/usr/lib/moai/moai_tool_schemas.py /src/system_files/usr/lib/moai/moai_tool_schemas.py
+COPY system_files/usr/lib/moos/moos_settings_destinations.py /src/system_files/usr/lib/moos/moos_settings_destinations.py
+COPY system_files/usr/share/moos/settings-destinations.json /src/system_files/usr/share/moos/settings-destinations.json
+RUN python3 -m pip install --no-cache-dir --disable-pip-version-check --no-input --require-hashes \
+        --no-deps --only-binary=:all: --no-compile --target /out/site -r packaging/requirements.lock \
+    && rm -rf /out/site/bin
+# Her own suites, with nothing of this build's HOME or session to reach: the brain, the tools and
+# owner cards, the controller, every QML file against the controller's routes, the phone, the
+# desktop tools and the voice path's audio arithmetic.
+RUN mkdir -p /tmp/mira-home/.cache \
+    && env HOME=/tmp/mira-home PYTHONPATH=/out/site PYTHONDONTWRITEBYTECODE=1 QT_QPA_PLATFORM=offscreen \
+        QT_QUICK_BACKEND=software \
+        python3 -s -m unittest test_tools test_brain test_controller test_qml test_companion test_systools \
+        test_live_voice_local test_mira_memory test_group_lights test_moai_agent_link
+RUN sh packaging/stage.sh /src/mira /out/app \
+    && cd /out/app \
+    && env HOME=/tmp/mira-home PYTHONPATH=/out/site PYTHONDONTWRITEBYTECODE=1 QT_QPA_PLATFORM=offscreen \
+        MIRA_TEST_MODE=1 MIRA_INSTANCE=mira-build timeout 25 python3 -s app.py --capture=/tmp/mira-shot.png --capture-delay=3000 \
+    && test -s /tmp/mira-shot.png \
+    || { echo "GATE FAIL: the staged Mira did not open her window"; exit 1; }
+
+# -----------------------------------------------------------------------------
 # Build moos-qml-shell — the ONE C++ binary MoOS compiles itself (the QML host
 # that gives every pure-QML app a real Wayland app_id; see build_moos_qml_shell.sh).
 # Compiling it HERE, in a throwaway stage, is what keeps the C++ toolchain out of
@@ -215,6 +255,12 @@ COPY moremote/Logo.png /usr/share/icons/hicolor/512x512/apps/moos-pc-remote.png
 # a Flutter binary swept into that loop breaks it. /usr/bin/moplayer (from
 # system_files) is the launcher that runs this bundle from the right cwd.
 COPY --from=moplayer-build /out/ /usr/lib/moplayer/
+
+# Mira: /usr/lib/mira/app is her runtime tree, /usr/lib/mira/site the pinned packages only she
+# imports (PYTHONPATH in /usr/bin/mira). Outside /usr/share/moos/apps for the same reason as
+# MoPlayer: that directory is the QML smoke gate's, and Mira has her own gate in build.sh.
+COPY --from=mira-build /out/app/ /usr/lib/mira/app/
+COPY --from=mira-build /out/site/ /usr/lib/mira/site/
 
 # The QML host that gives MoOS's apps their real app_id — the single stripped
 # binary from the qmlshell-build stage. Must land BEFORE build.sh runs, which

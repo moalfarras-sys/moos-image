@@ -1,0 +1,33 @@
+#!/usr/bin/env bash
+# mira — Mira, the MoOS assistant.
+#
+#   mira                       the assistant (one window per user; a second launch raises it)
+#   mira --panel NAME          open on a page: device|apps|compat|dev|system → System centre,
+#                              settings|remote → Settings, home, computer, chat
+#   mira --ask TEXT            put a question in the composer (it is never sent for the person)
+#
+# Mira is Mo AI's app: she wears its desktop id and icon (org.moos.moai, Meta+Space) and Mo AI's
+# services (moai-gateway, moai-control, moai-agent-api) are her executor. The app is Python and
+# Qt Quick: /usr/lib/mira/app is her tree, /usr/lib/mira/site holds the pinned packages Fedora does
+# not ship (mira/packaging/requirements.lock), and everything else is the image's own Python.
+set -uo pipefail
+
+APP="${MIRA_APP:-/usr/lib/mira/app}"
+SITE="${MIRA_SITE:-/usr/lib/mira/site}"
+
+if [ ! -f "$APP/app.py" ]; then
+    echo "mira: not installed at $APP" >&2
+    echo "mira: ميرا غير مثبّتة في هذه النسخة" >&2
+    exit 1
+fi
+
+# -s keeps a person's ~/.local packages out of the assistant that holds system tools.
+export PYTHONPATH="$SITE${PYTHONPATH:+:$PYTHONPATH}"
+export QT_QUICK_CONTROLS_STYLE=Basic
+
+# Her log sits where Mo AI's always did, so moos-inspect's `log moai` still reads the assistant.
+CACHE="${XDG_CACHE_HOME:-$HOME/.cache}"
+LOG="$CACHE/moai.log"
+mkdir -p "$CACHE" 2>/dev/null || true
+echo "=== mira launch $(date -u '+%Y-%m-%dT%H:%M:%SZ') ===" >>"$LOG" 2>/dev/null || true
+exec /usr/bin/python3 -s "$APP/app.py" "$@" 2> >(tee -a "$LOG" >&2)

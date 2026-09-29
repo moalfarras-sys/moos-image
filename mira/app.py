@@ -110,7 +110,9 @@ class ToneServer(BaseHTTPRequestHandler):
             self._send_file(announce.CACHE_DIR / self.path.rsplit('/', 1)[1], 'audio/wav')
         elif re.fullmatch(r'/models/[a-z0-9_]{3,40}\.(json|tflite)', self.path):
             # Wake models trained on this PC for the owner's voice; the Echo checks size and SHA-256.
-            self._send_file(WAKE_MODELS / self.path.rsplit('/', 1)[1])
+            name = self.path.rsplit('/', 1)[1]
+            folder = next((f for f in (WAKE_MODELS, ROOT / 'wake-models', ROOT / 'wake_training') if (f / name).exists()), WAKE_MODELS)
+            self._send_file(folder / name)
         else:
             self.send_error(404)
 
@@ -214,9 +216,12 @@ def main():
     instance.newConnection.connect(activate)
     app.aboutToQuit.connect(controller.shutdown)
 
-    # Mira keeps listening when her window is closed: the tray brings her back or quits her.
+    # With a paired Echo (or the PC wake listener) Mira keeps listening when her window is closed:
+    # the tray brings her back or quits her. Without one there is nothing to listen for, so closing
+    # the window ends her like any other app.
     tray = None
-    if QSystemTrayIcon.isSystemTrayAvailable() and not TEST_MODE:
+    background = paired() or controller.settings.value('local_wake_enabled', False, type=bool)
+    if QSystemTrayIcon.isSystemTrayAvailable() and not TEST_MODE and background:
         app.setQuitOnLastWindowClosed(False)
         tray = QSystemTrayIcon(app_icon(), app)
         tray.setToolTip('Mira · ميرا')

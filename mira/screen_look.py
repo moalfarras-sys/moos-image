@@ -80,7 +80,7 @@ def describe(jpeg: bytes, question: str, lang: str = 'ar') -> str:
 
 def notify() -> None:
     try:
-        subprocess.Popen(['notify-send', '-a', 'Mira', 'ميرا نظرت إلى الشاشة', 'التُقطت صورة واحدة للشاشة بطلبك ثم حُذفت.'],
+        subprocess.Popen(['notify-send', '-a', 'Mira', '--hint=string:desktop-entry:org.moos.moai', 'ميرا نظرت إلى الشاشة', 'التُقطت صورة واحدة للشاشة بطلبك ثم حُذفت.'],
                          stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     except OSError:
         pass

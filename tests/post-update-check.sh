@@ -458,7 +458,7 @@ head_ "Nothing in \$HOME is shadowing the image"
 # everything else is a line you can read and dismiss.
 is_first_party() {
     case "$1" in
-        org.moos.*|moos-*|moos|moai*|moplayer|mo-pc-remote) return 0 ;;
+        org.moos.*|moos-*|moos|moai*|mira|moplayer|mo-pc-remote) return 0 ;;
         *) return 1 ;;
     esac
 }

@@ -1,10 +1,14 @@
 """Mira uses Mo AI's installed local executor; never a model-authored command."""
-import json,urllib.request,urllib.error
+import json,os,urllib.request,urllib.error
+# Per-user ports (60-moai-ports derives them from the uid; uid 1000 keeps 8080/8079).
+GATEWAY_PORT=int(os.environ.get('MOAI_GATEWAY_PORT','8080'))
+CONTROL_PORT=int(os.environ.get('MOAI_CONTROL_PORT','8079'))
 ALLOWED={'get_system_status','set_volume','set_mute','set_brightness','show_windows','open_app','arrange_windows','switch_desktop','set_motion','set_glass_clarity','set_power_profile','open_settings','list_installed_apps','memory_status','disk_status','network_status','top_processes','list_failed_units','unit_status','read_journal','os_state','list_skills','read_skill'}
 class NoRedirect(urllib.request.HTTPRedirectHandler):
  def redirect_request(self,*args,**kwargs):return None
 OPENER=urllib.request.build_opener(urllib.request.ProxyHandler({}),NoRedirect())
-def request(path,body=None,port=8079):
+def request(path,body=None,port=None):
+ port=port or CONTROL_PORT
  data=None if body is None else json.dumps(body).encode()
  r=urllib.request.Request(f'http://127.0.0.1:{port}{path}',data=data,headers={'X-Moai-Control':'1','Content-Type':'application/json'})
  try:
@@ -35,7 +39,7 @@ def ask(text):
  payload={'model':'cloud:openrouter/free','messages':[{'role':'system','content':system},
           {'role':'user','content':text}],'stream':False,'max_tokens':700,
           'moai':{'agent':True,'session':'mira-desktop-owner'}}
- call=urllib.request.Request('http://127.0.0.1:8080/v1/chat/completions',
+ call=urllib.request.Request(f'http://127.0.0.1:{GATEWAY_PORT}/v1/chat/completions',
       data=json.dumps(payload,ensure_ascii=False).encode(),headers={'Content-Type':'application/json'})
  try:
   with OPENER.open(call,timeout=190) as response:
