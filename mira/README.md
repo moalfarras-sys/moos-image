@@ -155,13 +155,12 @@ Earlier measured history (v1–v3) is kept in `HISTORY.md`; the device client in
     the audio settings opened.
 - **The paired phone** shows the same approval cards and can Approve or Cancel them. A privileged step
   still asks for the password at the computer.
-- **Blocked on the owner:** the Echo cannot reach this PC's model/announcement server (TCP 18769), because
-  firewalld's `moos-desktop` zone rejects it. The Echo logged «no route to host». The v2 install therefore
-  rolled itself back, and Echo announcements fall back to a desktop notification. Opening the port for the
-  Echo's address only (`~/.cache/mira-claude/open-echo-port.sh`) needs his password.
-- **Voice without an Echo** (`desk_voice.py`): this computer's microphone and speakers, half duplex.
-  It was measured with real Gemini Live, a synthetic microphone and a file as the speaker: it heard
-  the question, used the tool and returned 8.3 s of answer audio in 12 s.
+- **The Echo is reached without an inbound port.** Wake models and spoken lines go to the Dot's
+  own client over the signed channel (`POST /asset/<name>`), and echod fetches them from its
+  loopback. Measured:
+  - `mira_ar_v2` runs in slot 1 at its measured cutoff 0.65, beside `mira_ar_experimental` at 0.60;
+  - a reminder was spoken on the Echo as a 16 kHz announcement;
+  - without TTS quota, Mira says the line herself in Live.
 - **Not done:** a model-authored command tool (P3.9 — not built; needs the owner's explicit go-ahead
   in a session), a signed image with Mira, and Mira on ARM.
 
