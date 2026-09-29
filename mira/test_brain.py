@@ -46,9 +46,12 @@ HISTORY = [{'role': 'user', 'text': 'مرحبا'}, {'role': 'mira', 'text': 'أ�
 
 class BrainTest(unittest.IsolatedAsyncioTestCase):
     def setUp(self):
+        # The free cloud brain is unreachable unless a test gives it answers: no test may reach
+        # the real moai-gateway on this computer.
         self.patches = [patch('mira_memory.recent_messages', return_value=HISTORY),
                         patch('mira_memory.load', return_value={'favorite_color': None, 'aliases': {}}),
-                        patch('mira_memory.profile_text', return_value='')]
+                        patch('mira_memory.profile_text', return_value=''),
+                        patch.object(brain, '_post_gateway', side_effect=brain.GatewayUnavailable('test'))]
         for item in self.patches:
             item.start()
         self.events = []
@@ -138,6 +141,28 @@ class BrainTest(unittest.IsolatedAsyncioTestCase):
             result = await brain.TextBrain(client=FakeClient([asyncio.TimeoutError()])).ask('سؤال', self.emit)
         self.assertEqual((result['route'], result['status']), ('none', 'error'))
         self.assertEqual(self.events[-1][0], 'reply')
+
+    async def test_without_a_key_the_free_cloud_brain_runs_the_same_tools(self):
+        replies = [
+            {'model': 'free/x', 'choices': [{'message': {'content': None, 'tool_calls': [
+                {'id': 't1', 'type': 'function', 'function': {'name': 'current_time', 'arguments': '{}'}}]}}]},
+            {'model': 'free/x', 'choices': [{'message': {'content': 'الساعة 3 و30 دقيقة.'}}]}]
+        sent = []
+
+        def gateway(body):
+            sent.append(body)
+            return replies.pop(0)
+        with patch.object(brain, '_post_gateway', side_effect=gateway), patch('moai_link.ask') as ask:
+            result = await brain.TextBrain(config_path='/nonexistent/gemini.json').ask('كم الساعة؟', self.emit)
+        ask.assert_not_called()
+        self.assertEqual((result['route'], result['status'], result['model']), ('moai-cloud', 'ok', 'free/x'))
+        self.assertEqual(result['reply'], 'الساعة 3 و30 دقيقة.', 'no fallback note when there is simply no key')
+        self.assertEqual([t['name'] for t in result['tools']], ['current_time'])
+        names = {tool['function']['name'] for tool in sent[0]['tools']}
+        self.assertIn('install_app', names)
+        self.assertEqual(sent[0]['tools'][0]['function']['parameters']['type'], 'object')
+        self.assertEqual(sent[1]['messages'][-1]['role'], 'tool')
+        self.assertNotIn('moai', sent[0], 'the direct free route, not the Hermes agent')
 
     async def test_auth_and_missing_config_are_classified(self):
         auth = errors.ClientError(400, {'error': {'code': 400, 'message': 'API key not valid. Please pass a valid API key.',

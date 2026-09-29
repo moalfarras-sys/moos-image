@@ -16,7 +16,10 @@ from __future__ import annotations
 
 import asyncio
 import json
+import os
 import threading
+import urllib.error
+import urllib.request
 import time
 from concurrent.futures import Future
 from pathlib import Path
@@ -37,6 +40,8 @@ ASK_TIMEOUT_S = 240.0     # whole Gemini path, tools included
 ROUTER_TIMEOUT_S = 120.0  # deterministic fallback (may read back Home Assistant)
 AGENT_TIMEOUT_S = 200.0   # Mo AI agent fallback
 HISTORY_TURNS = 12
+GATEWAY_PORT = int(os.environ.get('MOAI_GATEWAY_PORT', '8080'))
+GATEWAY_TIMEOUT_S = 75.0  # one free-cloud call through moai-gateway
 THINKING_LEVEL = 'LOW'    # measured: tool choice 2.2 s at LOW vs 12–17 s at the model default
 
 REASONS = {
@@ -128,6 +133,48 @@ _ORDER = {'error': 0, 'unsupported': 1, 'pending': 2, 'partial': 3, 'ok': 4}
 def _worst(statuses) -> str:
     statuses = [s for s in statuses if s in _ORDER]
     return min(statuses, key=_ORDER.get) if statuses else 'error'
+
+
+def _openai_schema(node):
+    """Gemini's upper-case schema dialect → the JSON schema OpenAI-style tools expect."""
+    if not isinstance(node, dict):
+        return node
+    out = {}
+    for key, value in node.items():
+        if key == 'type':
+            out['type'] = str(value).lower()
+        elif key == 'properties':
+            out['properties'] = {name: _openai_schema(spec) for name, spec in value.items()}
+        elif key == 'items':
+            out['items'] = _openai_schema(value)
+        elif key in ('description', 'enum', 'required', 'minimum', 'maximum', 'format'):
+            out[key] = value
+    return out
+
+
+def openai_tools() -> list:
+    return [{'type': 'function', 'function': {
+        'name': item['name'], 'description': item['description'],
+        'parameters': _openai_schema(item.get('parameters') or {'type': 'OBJECT', 'properties': {}})}}
+        for item in tools.DECLARATIONS]
+
+
+class GatewayUnavailable(Exception):
+    """Mo AI's free cloud brain could not answer (class names only, never provider text)."""
+
+
+def _post_gateway(body: dict) -> dict:
+    request = urllib.request.Request(f'http://127.0.0.1:{GATEWAY_PORT}/v1/chat/completions',
+                                     data=json.dumps(body).encode('utf-8'),
+                                     headers={'Content-Type': 'application/json'})
+    opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+    try:
+        with opener.open(request, timeout=GATEWAY_TIMEOUT_S) as response:
+            return json.load(response)
+    except urllib.error.HTTPError as exc:
+        raise GatewayUnavailable(f'http_{exc.code}') from None
+    except (urllib.error.URLError, OSError, ValueError) as exc:
+        raise GatewayUnavailable(type(exc).__name__) from None
 
 
 class TextBrain:
@@ -241,8 +288,80 @@ class TextBrain:
                 result = {'status': _worst(item.get('status') for item in trace), 'reply': reply,
                           'route': 'gemini', 'fallback_reason': reason}
             else:
-                result = await self._fallback(text, say, reason, en, city)
+                result = await self._cloud_then_fallback(text, say, ctx, reason, lang, city, trace)
         return self._finish(say, result, trace, started)
+
+    async def _cloud_then_fallback(self, text, say, ctx, reason, lang, city, trace) -> dict:
+        """The same tools on Mo AI's free cloud brain; then the router and the agent."""
+        en = lang == 'en'
+        note = REASONS[reason][1 if en else 0]
+        try:
+            reply, model, rounds = await asyncio.wait_for(self._gateway(text, say, ctx, lang, city, trace),
+                                                          ASK_TIMEOUT_S)
+            if reason != 'config':      # without a key this IS the normal path; say nothing then
+                reply = (f'({note}; answered by Mo AI\'s free cloud brain) {reply}' if en else
+                         f'({note}؛ أجاب عقل Mo AI السحابي المجاني) {reply}')
+            return {'status': 'ok', 'reply': reply, 'route': 'moai-cloud', 'model': model, 'rounds': rounds,
+                    'fallback_reason': reason}
+        except asyncio.CancelledError:
+            raise
+        except Exception:
+            if trace:
+                done = '; '.join(item.get('summary', '') for item in trace)
+                reply = (f'{note}, and the free cloud brain stopped before the answer. What happened: {done}' if en else
+                         f'{note}، وتوقف العقل السحابي المجاني قبل الرد. ما حدث فعلاً: {done}')
+                return {'status': _worst(item.get('status') for item in trace), 'reply': reply,
+                        'route': 'moai-cloud', 'fallback_reason': reason}
+        return await self._fallback(text, say, reason, en, city)
+
+    async def _gateway(self, text, say, ctx, lang, city, trace):
+        """The tool loop over moai-gateway (OpenAI chat completions with tools, free models only)."""
+        en = lang == 'en'
+        say('thinking', 'Thinking (Mo AI cloud)…' if en else 'أفكر عبر عقل Mo AI…')
+        messages = [{'role': 'system', 'content': tools.system_instruction(lang, city, channel='text')}]
+        for turn in tools.conversation_turns(self.history_turns, drop_trailing_user=text, max_chars=1200):
+            messages.append({'role': 'user' if turn['role'] == 'user' else 'assistant',
+                             'content': turn['parts'][0]['text']})
+        messages.append({'role': 'user', 'content': text})
+        declared = openai_tools()
+        for round_no in range(1, MAX_ROUNDS + 1):
+            last = round_no == MAX_ROUNDS
+            body = {'messages': messages, 'stream': False}
+            if not last:
+                body.update(tools=declared, tool_choice='auto')
+            try:
+                data = await asyncio.to_thread(_post_gateway, body)
+            except GatewayUnavailable as exc:
+                # Free routes hiccup (a busy upstream, a rate limit): one more try, then give up honestly.
+                if str(exc) not in ('http_429', 'http_500', 'http_502', 'http_503', 'http_504', 'URLError', 'TimeoutError', 'timeout'):
+                    raise
+                await asyncio.sleep(1.2)
+                data = await asyncio.to_thread(_post_gateway, body)
+            try:
+                message = data['choices'][0]['message']
+            except (KeyError, IndexError, TypeError):
+                raise GatewayUnavailable('shape') from None
+            calls = [c for c in (message.get('tool_calls') or []) if isinstance(c, dict) and c.get('function')]
+            if not calls or last:
+                reply = str(message.get('content') or '').strip()
+                if not reply:
+                    if not trace:
+                        raise GatewayUnavailable('empty')
+                    reply = '; '.join(item.get('summary', '') for item in trace)
+                return reply, data.get('model'), round_no
+            say('executing', 'Working on it…' if en else 'أنفّذ الطلب…')
+            messages.append({'role': 'assistant', 'content': message.get('content') or '', 'tool_calls': calls})
+            for call in calls:
+                name = str(call['function'].get('name') or '')
+                try:
+                    args = json.loads(call['function'].get('arguments') or '{}')
+                except ValueError:
+                    args = {}
+                result = await tools.run_tool(name, args if isinstance(args, dict) else {}, ctx)
+                messages.append({'role': 'tool', 'tool_call_id': str(call.get('id') or name),
+                                 'content': json.dumps(result, ensure_ascii=False, default=str)[:8000]})
+            say('thinking', 'Checking the result…' if en else 'أتحقق من النتيجة…')
+        raise GatewayUnavailable('empty')
 
     def _finish(self, say, result: dict, trace: list, started: float) -> dict:
         result.setdefault('model', None)
