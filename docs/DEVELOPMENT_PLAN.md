@@ -9,10 +9,10 @@ Done and measured: the v4 GPU interface and a single voice/text brain. An owner-
 - Mo AI's free cloud brain as the tool loop without a Gemini key.
 
 On the station she wears Mo AI's launcher, icon and Meta+Space. On branch `mira/neural-os-v4` she ships in the x86 image: the `mira-build` stage runs 188 tests, and build.sh gates her. **A local generic build passed with every gate (`localhost/moos:latest`, 2026-09-29).** Open, in order:
-1. PR #177 (all PR gates green, x86 and ARM builds included). Then merge and run a signed candidate with QCOW2/ISO proofs, including the ISO open/close proof of the assistant.
-2. ARM: add the same stage to `Containerfile.arm`/`build-arm.sh` (the Oracle agent's files). Until then ARM keeps the QML app under the Mira launcher name.
+1. PR #179 into the release integration #178 (which carries #175, #176, #177 and W9.10): Mira's six pages, the agent approvals inbox, chat history, the KDE door, the new Mo AI actions and ARM shipping Mira. Then merge #178 and run one signed candidate with QCOW2/ISO/ARM proofs, including the ISO open/close proof of the assistant. The pages were opened live on the station on 2026-09-30 from the user install, each populated from the real services.
+2. ARM: the same stage is in `Containerfile.arm`/`build-arm.sh` (the station took these files over on 2026-09-29). Owed: the ARM candidate build and the booted-disk Mira start.
 3. Done without an inbound port: `mira_ar_v2` runs at 0.65 beside the proven model, and announcements are spoken on the Echo. Still owed: the owner's own bare «ميرا» hit rate and false wakes per hour with the pair.
-4. P3.9, only if the owner confirms in a session: a `run_command` tool behind the same owner card.
+4. P3.9: the owner confirmed it on 2026-09-30 (Mira should write code, work with files, use the browser and run the computer). The coding agent's own safety layer refused to build a tool that runs model-written commands, even with his permission rules, so it is not built; the owner decides how it is built. Everything else he asked for runs through fixed tools and owner cards.
 5. Measure a power-cut restart. Host Home Assistant on an always-on machine for PC-off home control.
 
 Keep both faces, Beamformer and the Mira-only wake selection `[mira_ar_experimental]` (the owner's choice). Only one ESPHome API client may be connected while voice is tested, because echod routes the pipeline to the newest client.
