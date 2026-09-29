@@ -94,6 +94,14 @@ DECLARATIONS: list[dict] = [
     {'name': 'remember_owner_fact',
      'description': 'Save a short owner fact (name, project, preference) only when the owner explicitly asks to remember it. Never store passwords or API keys.',
      'parameters': _obj({'fact': {'type': 'STRING'}}, ['fact'])},
+    {'name': 'research',
+     'description': 'Think carefully and search the web (Google) for anything current or uncertain: news, prices, results, schedules, opening hours, people, places, how-to questions, or any question that needs real reasoning. Returns a short spoken answer with its sources. Before calling, say one short phrase such as «لحظة، بدوّرلك». Do not use it for the time, the weather, the house or the computer — they have their own tools.',
+     'parameters': _obj({'question': {'type': 'STRING', 'description': "The owner's question, complete and self-contained"},
+                         'web': {'type': 'BOOLEAN', 'description': 'false only for pure reasoning that needs no fresh facts'}},
+                        ['question'])},
+    {'name': 'look_at_screen',
+     'description': "Look at the owner's computer screen right now and describe it or answer a question about what is on it. Use only when the owner explicitly asks you to look at, read or explain the screen. Works only if the owner allowed it in Mira's settings; otherwise say how to allow it.",
+     'parameters': _obj({'question': {'type': 'STRING', 'description': "The owner's question about the screen, in their words"}}, [])},
     {'name': 'moai_project_task',
      'description': 'Ask the existing Mo AI agent to inspect registered projects, research, or perform a requested computer task using its own tools and approval flow. Relay the exact owner request; do not invent broader permissions. Report approval requests or failures honestly.',
      'parameters': _obj({'request': {'type': 'STRING'}}, ['request'])},
@@ -375,20 +383,20 @@ def spoken_time(now) -> dict:
               'عصراً' if h < 18 else 'مساءً' if h < 21 else 'ليلاً')
     minutes = f'و{now.minute} دقيقة' if now.minute else 'تماماً'
     return {'spoken_ar': f'الساعة {hour12} {minutes} {period}',
-            'spoken_en': now.strftime('%I:%M %p').lstrip('0'),
+            'spoken_en': f"{hour12}:{now.minute:02d} {'AM' if h < 12 else 'PM'}",  # %p is locale-dependent
             'hour_24': h, 'minute': now.minute}
 
 
 def describe_now(zone: Optional[str] = None) -> dict:
     now, name = _now_in(zone)
-    offset = now.strftime('%z')
-    offset = offset[:3] + ':' + offset[3:] if offset else ''
-    return {'status': 'ok', 'iso': now.isoformat(timespec='seconds'), 'date': now.strftime('%Y-%m-%d'),
-            'time': now.strftime('%H:%M'), 'weekday_ar': _WEEKDAYS_AR[now.weekday()],
-            'weekday_en': now.strftime('%A'), 'month_ar': _MONTHS_AR[now.month - 1],
-            'month_en': _MONTHS_EN[now.month - 1], 'timezone': name, 'utc_offset': offset,
-            **spoken_time(now),
-            'summary': f'{spoken_time(now)["spoken_ar"]} · {_WEEKDAYS_AR[now.weekday()]} {now.day} '
+    spoken = spoken_time(now)
+    # Only what is said aloud. With the ISO stamp, the 24-hour time and separate hour/minute fields
+    # beside it, the native-audio model read "00:55" back as "8:09 in the morning" (2026-09-29).
+    return {'status': 'ok', 'spoken_ar': spoken['spoken_ar'], 'spoken_en': spoken['spoken_en'],
+            'weekday_ar': _WEEKDAYS_AR[now.weekday()], 'weekday_en': now.strftime('%A'),
+            'date_ar': f'{now.day} {_MONTHS_AR[now.month - 1]} {now.year}',
+            'date_en': f'{now.day} {_MONTHS_EN[now.month - 1]} {now.year}', 'timezone': name,
+            'summary': f'{spoken["spoken_ar"]} · {_WEEKDAYS_AR[now.weekday()]} {now.day} '
                        f'{_MONTHS_AR[now.month - 1]} {now.year} ({name})'}
 
 
@@ -443,6 +451,16 @@ async def _moai_project_task(args, ctx):
             'summary': 'وصل رد وكيل Mo AI · التنفيذ غير متحقق'}
 
 
+async def _research(args, ctx):
+    import research
+    return await _thread(research.research, str(args.get('question') or ''), 'ar', args.get('web') is not False)
+
+
+async def _look_at_screen(args, ctx):
+    import screen_look
+    return await _thread(screen_look.look, str(args.get('question') or '')[:500])
+
+
 # name -> (executor, timeout seconds)
 _EXECUTORS = {
     'device_control': (_device_control, 6),
@@ -458,6 +476,8 @@ _EXECUTORS = {
     'computer_open_application': (_computer_open_application, 75),
     'remember_owner_fact': (_remember_owner_fact, 10),
     'moai_project_task': (_moai_project_task, 200),
+    'look_at_screen': (_look_at_screen, 60),
+    'research': (_research, 60),
 }
 assert set(_EXECUTORS) == set(_BY_NAME), 'every declaration needs exactly one executor'
 
@@ -543,6 +563,9 @@ RULES = (
     'قاعدة الصدق: لا تقولي إنك نفّذتِ شيئاً إلا إذا كانت نتيجة الأداة status=ok. '
     'إذا كانت pending فقولي إن الأمر أُرسل ولم يتأكد بعد، وإذا كانت partial فاذكري ما تأكد وما لم يتأكد، '
     'وإذا كانت error أو unsupported فاعتذري باختصار واذكري السبب. '
+    'أنتِ ذكية وفضولية: للأخبار والأسعار والمعلومات الحديثة وأي شيء لستِ متأكدة منه، أو لسؤال يحتاج تفكيراً وتحليلاً، '
+    'قولي «لحظة، بدوّرلك» ثم استخدمي research، وانقلي الجواب بأسلوبك مع ذكر المصدر باختصار. لا تخترعي معلومات. '
+    'إذا طلب المالك صراحةً أن تنظري إلى الشاشة أو تقرئي ما عليها استخدمي look_at_screen بسؤاله؛ لا تنظري إليها من تلقاء نفسك. '
     'لا يوجد لديك أداة أوامر حرة أو طرفية، ولا تنفّذي شيئاً خارج هذه الأدوات. '
     'إذا طلب وكيل Mo AI موافقة أو قال إنه لا يستطيع فانقلي ذلك بصدق. '
     'لا تدّعي أنك تدرّبين نموذجك أو تطوّرين نفسك تلقائياً؛ أنتِ تحفظين معرفة المالك وتستخدمين الأدوات. '

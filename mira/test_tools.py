@@ -182,9 +182,11 @@ class VerifiedStatusTest(unittest.IsolatedAsyncioTestCase):
         result = await tools.run_tool('current_time', {}, ctx)
         self.assertEqual(result['status'], 'ok')
         self.assertIn(result['weekday_ar'], tools._WEEKDAYS_AR)
-        self.assertRegex(result['time'], r'^\d\d:\d\d$')
+        self.assertRegex(result['spoken_ar'], r'^الساعة \d{1,2} ')
+        self.assertRegex(result['spoken_en'], r'^\d{1,2}:\d\d (AM|PM)$')
+        self.assertNotIn('iso', result)   # a bare 24-hour stamp is what the voice model misread
         tokyo = await tools.run_tool('current_time', {'timezone': 'Asia/Tokyo'}, ctx)
-        self.assertEqual(tokyo['utc_offset'], '+09:00')
+        self.assertEqual(tokyo['timezone'], 'Asia/Tokyo')
         bad = await tools.run_tool('current_time', {'timezone': '../../etc/passwd'}, ctx)
         self.assertEqual(bad['status'], 'error')
 
@@ -244,3 +246,23 @@ class PersonaTest(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class ResearchToolTest(unittest.IsolatedAsyncioTestCase):
+    async def test_research_is_declared_and_reports_sources(self):
+        import research
+        self.assertIn('research', {d['name'] for d in tools.DECLARATIONS})
+        fake = {'status': 'ok', 'answer': 'Plasma 6.7', 'sources': [{'title': 'kde.org'}], 'model': 'm',
+                'searched': True, 'summary': 'بحثت في الإنترنت · kde.org'}
+        events, ctx = collect()
+        with patch.object(research, 'research', return_value=fake) as call:
+            result = await tools.run_tool('research', {'question': 'آخر إصدار Plasma؟'}, ctx)
+        call.assert_called_once_with('آخر إصدار Plasma؟', 'ar', True)
+        self.assertEqual((result['status'], result['sources'][0]['title']), ('ok', 'kde.org'))
+
+    def test_research_without_config_fails_honestly(self):
+        import research
+        with patch.object(research, 'GEMINI_CONFIG', research.Path('/nonexistent/gemini.json')):
+            result = research.research('سؤال')
+        self.assertEqual(result['status'], 'error')
+        self.assertEqual(research.research('   ')['error'], 'empty_question')

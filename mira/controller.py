@@ -22,6 +22,10 @@ ROOT = Path(__file__).resolve().parent
 TEST_MODE = os.environ.get('MIRA_TEST_MODE') == '1'
 FALLBACK_MIC = 'alsa_input.usb-Linux_Foundation_Webcam_gadget-02.mono-fallback'
 ACTIVE = ('activating', 'listening', 'thinking', 'executing', 'speaking')
+ENROL_DIR = Path.home() / '.local/share/mira/wake-enrol'      # the owner's voice samples (0700/0600)
+WAKE_MODELS = Path.home() / '.local/share/mira/wake-models'   # models trained here, served to the Echo
+OWNER_MODEL = 'mira_ar_owner'
+FALLBACK_WAKE = ['mira_ar_experimental']   # Mira only, by the owner's choice (2026-09-29)
 
 
 def _prop(kind, attr, signal):
@@ -68,8 +72,10 @@ class Controller(QObject):
     moodChanged = Signal(); faceChanged = Signal(); langChanged = Signal(); motionChanged = Signal()
     servicesChanged = Signal(); weatherChanged = Signal(); homeChanged = Signal(); pcChanged = Signal()
     echoChanged = Signal(); settingsChanged = Signal(); profileChanged = Signal(); busyChanged = Signal()
+    enrolChanged = Signal()
     toast = Signal(str, str)          # kind (ok, pending, error, info), text
     focusComposer = Signal()
+    companionChanged = Signal()
 
     def __init__(self, bridge_class=None, parent=None):
         super().__init__(parent)
@@ -109,6 +115,9 @@ class Controller(QObject):
         self._busy = False
         self.keep_running = False
         self._hidden_notice = False
+        self._enrol = {'mira': 0, 'other': 0, 'seconds': 0.0, 'recording': '', 'message': '',
+                       'training': False, 'report': {}, 'model': '', 'active': [], 'installing': False}
+        self._count_enrolment()
 
         self.chat = DictListModel(['role', 'text', 'time', 'status', 'title', 'tool'])
         self.devices = DictListModel(['entity_id', 'name', 'domain', 'state', 'available', 'is_on', 'brightness',
@@ -149,8 +158,16 @@ class Controller(QObject):
         self.home_timer = QTimer(self, interval=20000, timeout=self.refreshHome)
         self.wake_health = QTimer(self, interval=5000, timeout=self._check_local_wake)
 
+        # Mira Companion (the phone, over Tailscale): off until the owner turns it on in Settings.
+        from companion import CompanionService
+        self.companion_service = CompanionService(self)
+        self._companion = self.companion_service.state()
+        self.companion_service.changed.connect(self._on_companion_changed)
+        self.companion_service.notice.connect(self.toast)
+
     # ── lifecycle ───────────────────────────────────────────────────
     def start(self):
+        self.companion_service.start()
         self.bridge.start()
         self._wake['sources'] = self._available_microphones()
         if self._wake['source'] not in self._wake['sources'] and self._wake['sources']:
@@ -168,6 +185,7 @@ class Controller(QObject):
             self.start_local_wake()
 
     def shutdown(self):
+        self.companion_service.shutdown()
         self.stop_local_wake()
 
     # ── properties ──────────────────────────────────────────────────
@@ -191,8 +209,20 @@ class Controller(QObject):
     city = _prop(str, '_city', settingsChanged)
     profileStatus = _prop(str, '_profile_status', profileChanged)
     busy = _prop(bool, '_busy', busyChanged)
+    enrol = _prop('QVariantMap', '_enrol', enrolChanged)
+
+    def _get_screen_look(self):
+        return self.settings.value('screen_look', False, type=bool)
+    screenLook = Property(bool, _get_screen_look, notify=settingsChanged)
+
+    @Slot(bool)
+    def setScreenLook(self, allowed):
+        self.settings.setValue('screen_look', bool(allowed))
+        self.settings.sync()
+        self.settingsChanged.emit()
     chatModel = Property(QObject, lambda self: self.chat, constant=True)
     deviceModel = Property(QObject, lambda self: self.devices, constant=True)
+    companion = _prop('QVariantMap', '_companion', companionChanged)
 
     def _get_profile(self):
         from mira_memory import profile_text
@@ -420,6 +450,8 @@ class Controller(QObject):
             self._add('action', text, status='ok' if 'error' not in text and 'لم ينفذ' not in text else 'error')
         elif kind == 'wake':
             self._update('_echo', self.echoChanged, wake_hint=text)
+        elif kind == 'capture':
+            self._on_capture(text)
         elif kind == 'interrupted':
             self._set_caption(text, 'mira')
         elif kind == 'session':
@@ -724,6 +756,8 @@ class Controller(QObject):
             self._voice_phase = 'ready'
         self._resolve_phase()
         self._sync_device()
+        if hasattr(self.bridge, 'wake_config'):
+            self.bridge.wake_config()
 
     def _on_echo_state(self, state):
         entity = self._bykey.get(state.key)
@@ -752,6 +786,23 @@ class Controller(QObject):
                 if self._voice_phase == 'activating':
                     self._voice_phase = 'ready'
                 self._flash_error()
+        elif kind == 'capture' and status.startswith('error:'):
+            self._update('_enrol', self.enrolChanged, recording='', message=self._s['enrol_failed'])
+        elif kind == 'wake_config' and not status.startswith('error:'):
+            try:
+                self._update('_enrol', self.enrolChanged, active=json.loads(status).get('active', []))
+            except ValueError:
+                pass
+        elif kind == 'wake_model':
+            state, _, payload = status.partition(':')
+            try:
+                data = json.loads(payload) if state in ('ok', 'pending') else {}
+            except ValueError:
+                data = {}
+            self._update('_enrol', self.enrolChanged, installing=False, active=data.get('active', self._enrol['active']),
+                         message=self._s['enrol_installed'] if state == 'ok' else self._s['enrol_install_pending'] if state == 'pending'
+                         else self._s['enrol_failed'] + ' · ' + payload)
+            self.toast.emit('ok' if state == 'ok' else 'pending' if state == 'pending' else 'error', self._enrol['message'])
         elif kind == 'setup' and status == 'sent':
             from mira_bridge import IP
             url = 'http://' + IP + ':8181/setup'
@@ -858,6 +909,89 @@ class Controller(QObject):
             self._resolve_phase()
             return 'wake'
         return 'show'
+
+    # ── teach Mira the owner's voice ────────────────────────────────
+    def _count_enrolment(self):
+        counts = {}
+        seconds = 0.0
+        for kind in ('mira', 'other'):
+            files = sorted((ENROL_DIR / kind).glob('*.wav')) if (ENROL_DIR / kind).is_dir() else []
+            counts[kind] = len(files)
+            seconds += sum(max(0, f.stat().st_size - 44) / 32000 for f in files)
+        model = WAKE_MODELS / (OWNER_MODEL + '.tflite')
+        self._enrol.update(mira=counts['mira'], other=counts['other'], seconds=round(seconds, 1),
+                           model=str(model) if model.exists() else '')
+
+    @Slot(str)
+    def enrolRecord(self, kind):
+        if kind not in ('mira', 'other') or self._enrol['recording']:
+            return
+        if not self.bridge.online or not hasattr(self.bridge, 'capture'):
+            self.toast.emit('error', self._s['hint_idle_text'])
+            return
+        stamp = datetime.now().strftime('%Y%m%d-%H%M%S')
+        self.bridge.capture(str(ENROL_DIR / kind / f'{kind}-{stamp}.wav'))
+        self._update('_enrol', self.enrolChanged, recording=kind,
+                     message=self._s['enrol_say_mira'] if kind == 'mira' else self._s['enrol_say_other'])
+
+    def _on_capture(self, text):
+        try:
+            data = json.loads(text)
+        except ValueError:
+            data = {'status': 'error'}
+        self._count_enrolment()
+        if data.get('status') != 'ok':
+            message = self._s['enrol_failed']
+        elif data.get('peak', 0) < 1200:
+            message = self._s['enrol_quiet']
+        else:
+            message = self._s['enrol_saved'].format(seconds=data.get('seconds', 0))
+        self._update('_enrol', self.enrolChanged, recording='', message=message)
+
+    @Slot()
+    def enrolClear(self):
+        for kind in ('mira', 'other'):
+            for f in (ENROL_DIR / kind).glob('*.wav') if (ENROL_DIR / kind).is_dir() else []:
+                f.unlink(missing_ok=True)
+        self._count_enrolment()
+        self._update('_enrol', self.enrolChanged, report={}, message=self._s['enrol_cleared'])
+
+    @Slot()
+    def enrolTrain(self):
+        if self._enrol['training'] or self._enrol['mira'] < 3:
+            return
+        import wake_coach
+        self._update('_enrol', self.enrolChanged, training=True, message=self._s['enrol_training'])
+        self.worker.run('wake_train', wake_coach.train, ENROL_DIR, WAKE_MODELS, OWNER_MODEL)
+
+    @Slot()
+    def enrolInstall(self):
+        model = WAKE_MODELS / (OWNER_MODEL + '.tflite')
+        if not model.exists() or not self.bridge.online or self._enrol['installing']:
+            return
+        active = [OWNER_MODEL, 'mira_ar_experimental']
+        self._update('_enrol', self.enrolChanged, installing=True, message=self._s['enrol_installing'])
+        self.bridge.install_wake_model(OWNER_MODEL, 'Mira', ['ar'], str(model), active)
+
+    @Slot()
+    def enrolRollback(self):
+        if not self.bridge.online:
+            return
+        self._update('_enrol', self.enrolChanged, installing=True, message=self._s['enrol_installing'])
+        self.bridge.select_wake_words(FALLBACK_WAKE)
+
+    # ── phone companion ─────────────────────────────────────────────
+    def _on_companion_changed(self):
+        self._companion = self.companion_service.state()
+        self.companionChanged.emit()
+
+    @Slot(bool)
+    def setCompanionEnabled(self, enabled):
+        self.companion_service.set_enabled(enabled)
+
+    @Slot()
+    def rotateCompanionCode(self):
+        self.companion_service.rotate_token()
 
     # ── memory ──────────────────────────────────────────────────────
     @Slot(str)
@@ -976,6 +1110,12 @@ class Controller(QObject):
                 if result.get('kind') == 'home':
                     self.refreshHome()
             self._resolve_phase()
+        elif tag == 'wake_train':
+            report = result if isinstance(result, dict) else {'status': 'error'}
+            self._count_enrolment()
+            ok = report.get('status') == 'ok'
+            self._update('_enrol', self.enrolChanged, training=False, report=report,
+                         message=self._s['enrol_trained'] if ok else self._s['enrol_failed'] + ' · ' + str(report.get('error', '')))
         elif tag == 'device_sync':
             ok = isinstance(result, dict) and result.get('ok') is True
             self._update('_echo', self.echoChanged, standalone='synced' if ok else 'unavailable')

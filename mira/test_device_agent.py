@@ -206,7 +206,7 @@ class DeviceAgentTests(unittest.TestCase):
         self.assertIn("inputAudioTranscription", value)
         names = [f["name"] for f in value["tools"][0]["functionDeclarations"]]
         self.assertEqual(names, ["current_time", "current_weather", "set_speaker_volume",
-                                 "ring_light", "remember_owner_fact"])
+                                 "ring_light", "research", "remember_owner_fact"])
         persona = value["systemInstruction"]["parts"][0]["text"]
         self.assertIn("غير متاح", persona)  # home/computer control is honestly unavailable
         synced = agent.setup({"model": "m"}, {"weather_city": "برلين", "voice": "Kore"},
@@ -600,3 +600,26 @@ class ConversationTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class ResearchToolTests(unittest.TestCase):
+    def test_research_keeps_the_key_out_of_the_url_and_reads_sources(self):
+        import json as _json
+        from unittest.mock import patch as _patch
+        seen = {}
+
+        class Response:
+            def __enter__(self): return self
+            def __exit__(self, *a): return False
+            def read(self, n=-1):
+                return _json.dumps({"candidates": [{"content": {"parts": [{"text": "الجواب"}]},
+                    "groundingMetadata": {"groundingChunks": [{"web": {"title": "kde.org"}}]}}]}).encode()
+
+        def fake_urlopen(request, timeout=0):
+            seen["url"], seen["headers"] = request.full_url, dict(request.header_items())
+            return Response()
+        with _patch.object(agent.urllib.request, "urlopen", fake_urlopen):
+            result = agent.web_research("سؤال", "SECRET-KEY")
+        self.assertEqual((result["status"], result["sources"]), ("ok", ["kde.org"]))
+        self.assertNotIn("SECRET-KEY", seen["url"])
+        self.assertEqual(seen["headers"].get("X-goog-api-key"), "SECRET-KEY")

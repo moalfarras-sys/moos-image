@@ -55,6 +55,8 @@ STALL_S = 12.0                # the reply (or a tool result) started, then silen
 TURN_LIMIT_S = 240.0
 PARTIAL_INTERVAL_S = 0.12     # caption throttle
 LEVEL_INTERVAL_S = 0.066      # ~15 level events per second
+CAPTURE_MAX_S = 15.0          # the Echo keeps one listening window open for at most 15 s
+CAPTURE_ARM_S = 25.0          # an armed recording expires if no listening window starts
 PLAYBACK_LEAD_S = 0.25        # device-side cushion for Gemini delivery jitter (no added latency)
 HISTORY_TURNS = 12
 DEAF_PEAK = 1500              # raw mic peak (before gain) that counts as someone speaking
@@ -63,7 +65,7 @@ DEAF_MIN_LOUD_S = 0.3         # the same once the mic closed
 DEAF_TICK_S = 0.5             # how often a listening turn re-checks for a deaf session
 REPLAY_LIMIT = ECHO_RATE * 2 * 60   # turn audio kept for a replay (60 s)
 TRANSCRIPTION_LANGUAGES = ['ar-EG']
-PREFERRED_WAKE = ('alexa', 'mira_ar_experimental')  # the owner's working pair
+PREFERRED_WAKE = ('mira_ar_owner', 'mira_ar_experimental')  # the owner wants Mira only (2026-09-29): never Alexa
 SETUP_REJECTED = (400, 1007, 1008)                  # Live close codes for a refused setup
 
 _BIG_ENDIAN = sys.byteorder == 'big'
@@ -118,6 +120,21 @@ def amplify(data, gain=MIC_GAIN):
     high, low = 32767 // gain, -(32768 // gain)
     return _to_bytes(array('h', [v * gain if low <= v <= high else (32767 if v > 0 else -32768)
                                  for v in values]))
+
+
+def write_private_wav(path, pcm, rate=ECHO_RATE):
+    """16-bit mono WAV readable only by the owner (0600, directory 0700)."""
+    import wave
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    os.chmod(path.parent, 0o700)
+    fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+    with os.fdopen(fd, 'wb') as raw, wave.open(raw, 'wb') as out:
+        out.setnchannels(1)
+        out.setsampwidth(2)
+        out.setframerate(rate)
+        out.writeframes(pcm)
+    os.chmod(path, 0o600)
 
 
 def _bessel_i0(x):
@@ -500,6 +517,7 @@ class LiveVoice:
         self._vad_supported = False # the Live model reports voice activity
         self._idle_task = None
         self._closing = set()
+        self.capture = None         # an armed voice-enrolment recording (see arm_capture)
 
     # ── small utilities ──────────────────────────────────────────────
     def _say(self, kind, text):
@@ -612,6 +630,9 @@ class LiveVoice:
             return None
 
     async def _start(self):
+        spec, self.capture = self.capture, None
+        if spec and time.monotonic() - spec['armed_at'] < CAPTURE_ARM_S:
+            return await self._start_capture(spec)
         self._say('activating', 'وصل طلب الاستماع من Echo · أهيّئ المحادثة')
         old = self.turn
         if old and old.get('task'):
@@ -648,6 +669,9 @@ class LiveVoice:
     async def audio(self, data, data2=None):
         t = self.turn
         if not t or t['done'] or t['tts']:
+            return
+        if t.get('capture'):
+            self._capture_audio(t, data)
             return
         if t.get('local_source'):
             t['echo_buffer'].append(data)
@@ -754,6 +778,9 @@ class LiveVoice:
         t = self.turn
         if not t:
             return
+        if t.get('capture'):
+            await self._finish_capture(t, 'aborted' if abort else 'echo_closed')
+            return
         if abort:
             if t.get('task'):
                 t['task'].cancel()
@@ -767,6 +794,81 @@ class LiveVoice:
             await t['queue'].put(None)
             if not t.get('tts') and t.get('phase', 'listening') in ('connecting', 'listening'):
                 self._say('thinking', 'أفكر في طلبك…')
+
+    # ── voice enrolment: record the owner through the Echo, locally ──
+    def arm_capture(self, path, max_s=CAPTURE_MAX_S):
+        """Record the NEXT Echo listening window to `path` (16 kHz mono S16LE WAV) instead of
+        sending it to Gemini. Used to teach the wake word the owner's voice; nothing leaves this
+        computer. The Echo's end-of-speech cut is paused so the whole window is kept."""
+        self.capture = {'path': Path(path), 'max_s': float(max_s), 'armed_at': time.monotonic()}
+        self._end_of_speech(False)
+
+    def disarm_capture(self):
+        if self.capture:
+            self.capture = None
+            self._end_of_speech(True)
+
+    def _end_of_speech(self, on):
+        entity = self.entities.get('microphone_end_of_speech')
+        if entity is not None and self.api.is_connected:
+            try:
+                self.api.switch_command(entity.key, bool(on), device_id=entity.device_id)
+            except Exception:
+                pass
+
+    async def _start_capture(self, spec):
+        old = self.turn
+        if old and old.get('task'):
+            old['superseded'] = True
+            old['task'].cancel()
+            await asyncio.wait({old['task']}, timeout=1.5)
+        t = {'capture': spec, 'data': bytearray(), 'started': time.monotonic(), 'done': False,
+             'tts': False, 'peak': 0, 'input': 0}
+        self.turn = t
+        t['task'] = asyncio.create_task(self._capture_guard(t))
+        self.event('RUN_START')
+        self.event('STT_START')
+        self._say('listening', 'أسجّل صوتك للتدريب… قل «ميرا» بهدوء كل ثانيتين')
+        return 0
+
+    def _capture_audio(self, t, data):
+        limit = int(t['capture']['max_s'] * ECHO_RATE * 2)
+        room = limit - len(t['data'])
+        if room > 0:
+            t['data'] += data[:room]
+        t['input'] += len(data)
+        peak = pcm_peak(data)
+        t['peak'] = max(t['peak'], peak)
+        now = time.monotonic()
+        if now - t.get('last_level', 0) >= LEVEL_INTERVAL_S:
+            t['last_level'] = now
+            self._say('level', str(min(1, peak / 5000)))
+
+    async def _capture_guard(self, t):
+        await asyncio.sleep(t['capture']['max_s'] + 2.0)
+        await self._finish_capture(t, 'time_limit')
+
+    async def _finish_capture(self, t, why):
+        if t['done']:
+            return
+        t['done'] = True
+        task = t.get('task')
+        if task and task is not asyncio.current_task():
+            task.cancel()
+        self._end_of_speech(True)
+        path = t['capture']['path']
+        seconds = len(t['data']) / (ECHO_RATE * 2)
+        result = {'path': str(path), 'seconds': round(seconds, 2), 'peak': t['peak'], 'why': why,
+                  'status': 'ok' if seconds >= 2.0 else 'too_short'}
+        try:
+            write_private_wav(path, bytes(t['data']))
+        except OSError as exc:
+            result.update(status='error', error=type(exc).__name__)
+        self.event('RUN_END')
+        if self.turn is t:
+            self.turn = None
+        self._say('capture', json.dumps(result, ensure_ascii=False))
+        self._say('ready', self._ready_text())
 
     # ── fixed Echo controls ──────────────────────────────────────────
     def device_command(self, args):

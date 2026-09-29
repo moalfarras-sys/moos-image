@@ -11,7 +11,8 @@ Item {
         { icon: "mic", label: mira.s.st_voice },
         { icon: "echo", label: mira.s.st_echo },
         { icon: "cloud", label: mira.s.st_weather },
-        { icon: "book", label: mira.s.st_memory } ]
+        { icon: "book", label: mira.s.st_memory },
+        { icon: "globe", label: mira.companion.text ? mira.companion.text.section : "" } ]
 
     ColumnLayout {
         anchors.fill: parent
@@ -105,13 +106,17 @@ Item {
                     }
                     Glass {
                         Layout.fillWidth: true
-                        Layout.preferredHeight: 128
+                        Layout.preferredHeight: lookCol.implicitHeight + 32
                         radius: 18
                         ColumnLayout {
-                            anchors.fill: parent; anchors.margins: 16
+                            id: lookCol
+                            anchors { left: parent.left; right: parent.right; top: parent.top; margins: 16 }
                             spacing: 10
                             MiraSwitch { Layout.fillWidth: true; text: mira.s.motion; checked: mira.motion; onToggled: mira.setMotion(checked) }
                             T { Layout.fillWidth: true; text: mira.s.motion_sub; font.pixelSize: Theme.small; color: Theme.ink3 }
+                            MiraSwitch { Layout.fillWidth: true; text: mira.s.screen_look; accent: Theme.amber
+                                         checked: mira.screenLook; onToggled: mira.setScreenLook(checked) }
+                            T { Layout.fillWidth: true; text: mira.s.screen_look_sub; font.pixelSize: Theme.small; color: Theme.ink3 }
                             RowLayout {
                                 Layout.fillWidth: true
                                 T { text: mira.s.lang_label; Layout.fillWidth: true }
@@ -180,6 +185,7 @@ Item {
                             T { Layout.fillWidth: true; visible: mira.wake.enabled && text !== ""; text: mira.wake.state || ""; font.pixelSize: Theme.small; color: Theme.cyan }
                         }
                     }
+                    WakeCoach { Layout.fillWidth: true; Layout.preferredHeight: implicitHeight }
                 }
             }
 
@@ -305,6 +311,12 @@ Item {
                         text: profile.length + " / 4000" + (profile.dirty ? " · " + mira.s.unsaved : (mira.profileStatus ? " · " + mira.profileStatus : "")) }
                     PillButton { text: mira.s.save; primary: true; enabled: profile.dirty && profile.length <= 4000; onClicked: { mira.saveProfile(profile.text); profile.dirty = false } }
                 }
+            }
+
+            // ── phone ───────────────────────────────────────────────
+            Flickable {
+                contentHeight: phonePanel.implicitHeight; clip: true; boundsBehavior: Flickable.StopAtBounds
+                CompanionPanel { id: phonePanel; width: parent.width }
             }
         }
     }

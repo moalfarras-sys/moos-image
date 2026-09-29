@@ -6,6 +6,7 @@ it (or, from the local wake listener, starts a voice turn).
 """
 import math
 import os
+import re
 import struct
 import sys
 import threading
@@ -26,6 +27,7 @@ from PySide6.QtQml import QQmlApplicationEngine  # noqa: E402
 from mira_bridge import IP  # noqa: E402
 
 TEST_MODE = os.environ.get('MIRA_TEST_MODE') == '1'
+WAKE_MODELS = Path.home() / '.local/share/mira/wake-models'
 
 
 class ToneServer(BaseHTTPRequestHandler):
@@ -51,13 +53,24 @@ class ToneServer(BaseHTTPRequestHandler):
             out.writeframes(frames)
             out.close()
         elif self.path in ('/hey_mira.json', '/hey_mira.tflite'):
-            data = (ROOT / self.path.lstrip('/')).read_bytes()
-            self.send_response(200)
-            self.send_header('Content-Type', 'application/octet-stream')
-            self.end_headers()
-            self.wfile.write(data)
+            self._send_file(ROOT / self.path.lstrip('/'))
+        elif re.fullmatch(r'/models/[a-z0-9_]{3,40}\.(json|tflite)', self.path):
+            # Wake models trained on this PC for the owner's voice; the Echo checks size and SHA-256.
+            self._send_file(WAKE_MODELS / self.path.rsplit('/', 1)[1])
         else:
             self.send_error(404)
+
+    def _send_file(self, path):
+        try:
+            data = path.read_bytes()
+        except OSError:
+            self.send_error(404)
+            return
+        self.send_response(200)
+        self.send_header('Content-Type', 'application/octet-stream')
+        self.send_header('Content-Length', str(len(data)))
+        self.end_headers()
+        self.wfile.write(data)
 
 
 def option(name, default=None):

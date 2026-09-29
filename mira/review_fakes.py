@@ -35,7 +35,7 @@ class FakeBridge(QObject):
         entities = [FakeEntity(i, name) for i, name in enumerate(
             ('speaker', 'wake_threshold_1', 'mic_mute', 'setup_page', 'bluetooth_pairing', 'wake_assistant_1'))]
         QTimer.singleShot(50, lambda: self.connected.emit(entities))
-        QTimer.singleShot(80, lambda: self.voice_state.emit('wake', 'قل «Alexa / ميرا» ثم سؤالك'))
+        QTimer.singleShot(80, lambda: self.voice_state.emit('wake', 'قل «Mira» ثم سؤالك'))
         QTimer.singleShot(90, lambda: self.voice_state.emit('ready', ''))
 
     def command(self, *args):
@@ -47,6 +47,20 @@ class FakeBridge(QObject):
 
     def cancel_voice(self):
         self.commands.append(('cancel',))
+
+    def capture(self, path):
+        self.commands.append(('capture', path))
+
+    def wake_config(self):
+        import json
+        QTimer.singleShot(20, lambda: self.command_state.emit('wake_config', json.dumps(
+            {'active': ['mira_ar_experimental'], 'available': {}, 'max': 2})))
+
+    def install_wake_model(self, model_id, phrase, languages, model_file, active):
+        self.commands.append(('install_wake_model', model_id, tuple(active)))
+
+    def select_wake_words(self, active):
+        self.commands.append(('select_wake_words', tuple(active)))
 
 
 SAMPLE_DEVICES = [

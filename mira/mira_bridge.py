@@ -2,6 +2,7 @@
 import asyncio
 import hashlib
 import hmac
+import json
 import os
 import socket
 import sys
@@ -167,6 +168,91 @@ class Bridge(QObject):
                     raise ValueError('unknown device command')
             except Exception as exc:
                 self.command_state.emit(kind, 'error:' + type(exc).__name__)
+        asyncio.run_coroutine_threadsafe(work(), self.loop)
+
+    # ── voice enrolment and wake models ──────────────────────────────
+    def capture(self, path):
+        """Record the next listening window locally (see LiveVoice.arm_capture) and open it."""
+        async def work():
+            try:
+                if not self.online or not self.voice:
+                    raise RuntimeError('offline')
+                self.voice.arm_capture(path)
+                await asyncio.sleep(0.4)  # the end-of-speech pause must land before the window opens
+                entity = self.entities['wake_assistant_1']
+                self.api.button_command(entity.key, device_id=entity.device_id)
+                self.command_state.emit('capture', 'sent')
+            except Exception as exc:
+                if self.voice:
+                    self.voice.disarm_capture()
+                self.command_state.emit('capture', 'error:' + type(exc).__name__)
+        asyncio.run_coroutine_threadsafe(work(), self.loop)
+
+    def wake_config(self):
+        """Read the Echo's installed and active wake words (emitted as JSON)."""
+        async def work():
+            try:
+                if not self.online:
+                    raise RuntimeError('offline')
+                cfg = await self.api.get_voice_assistant_configuration(8)
+                self.command_state.emit('wake_config', json.dumps({
+                    'active': list(cfg.active_wake_words),
+                    'available': {w.id: w.wake_word for w in cfg.available_wake_words},
+                    'max': getattr(cfg, 'max_active_wake_words', 2)}, ensure_ascii=False))
+            except Exception as exc:
+                self.command_state.emit('wake_config', 'error:' + type(exc).__name__)
+        asyncio.run_coroutine_threadsafe(work(), self.loop)
+
+    def install_wake_model(self, model_id, phrase, languages, model_file, active):
+        """Offer a trained model to the Echo over its own API (it downloads it from this PC's
+        model server, checking size and SHA-256), then select `active` and read the selection back."""
+        async def work():
+            try:
+                if not self.online:
+                    raise RuntimeError('offline')
+                from aioesphomeapi.model import VoiceAssistantExternalWakeWord as ExternalWakeWord
+                raw = Path(model_file).read_bytes()
+                peer = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+                try:
+                    peer.connect((IP, 6053))
+                    host = peer.getsockname()[0]
+                finally:
+                    peer.close()
+                offer = ExternalWakeWord(id=model_id, wake_word=phrase, trained_languages=list(languages),
+                                         model_type='openwakeword', model_size=len(raw),
+                                         model_hash=hashlib.sha256(raw).hexdigest(),
+                                         url=f'http://{host}:18769/models/{model_id}.json')
+                await self.api.get_voice_assistant_configuration(8, [offer])
+                await self.api.set_voice_assistant_configuration(list(active))
+                cfg = None
+                for _ in range(20):
+                    await asyncio.sleep(1)
+                    cfg = await self.api.get_voice_assistant_configuration(8, [offer])
+                    if list(cfg.active_wake_words) == list(active):
+                        break
+                result = {'active': list(cfg.active_wake_words) if cfg else [],
+                          'requested': list(active),
+                          'installed': model_id in {w.id for w in cfg.available_wake_words} if cfg else False}
+                ok = result['active'] == list(active)
+                self.command_state.emit('wake_model', ('ok:' if ok else 'pending:') + json.dumps(result))
+            except Exception as exc:
+                self.command_state.emit('wake_model', 'error:' + type(exc).__name__)
+        asyncio.run_coroutine_threadsafe(work(), self.loop)
+
+    def select_wake_words(self, active):
+        """Change which installed wake words listen (e.g. roll back), with read-back."""
+        async def work():
+            try:
+                if not self.online:
+                    raise RuntimeError('offline')
+                await self.api.set_voice_assistant_configuration(list(active))
+                await asyncio.sleep(2)
+                cfg = await self.api.get_voice_assistant_configuration(8)
+                result = {'active': list(cfg.active_wake_words), 'requested': list(active)}
+                self.command_state.emit('wake_model', ('ok:' if result['active'] == list(active) else 'pending:')
+                                        + json.dumps(result))
+            except Exception as exc:
+                self.command_state.emit('wake_model', 'error:' + type(exc).__name__)
         asyncio.run_coroutine_threadsafe(work(), self.loop)
 
     def cancel_voice(self):

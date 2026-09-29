@@ -558,11 +558,13 @@ class WakeWordTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(voice.wake_hint, 'Alexa / Mira_Ar_Experimental')
         self.assertEqual(events[-1][0], 'ready')
 
-    async def test_empty_selection_restores_the_working_pair(self):
+    async def test_empty_selection_restores_mira_only(self):
+        # The owner wants Echo to wake for Mira only (2026-09-29): a repair never brings Alexa back.
         active = []
         api, calls = self.api(active, ['alexa', 'hey_mira', 'mira_ar_experimental'])
         await LiveVoice(api, {}, lambda *_: None).enable()
-        self.assertIn(('set', ['alexa', 'mira_ar_experimental']), calls)
+        self.assertIn(('set', ['mira_ar_experimental']), calls)
+        self.assertFalse(any(c[0] == 'set' and 'alexa' in (c[1] or []) for c in calls))
 
 
 class AudioPathTest(unittest.TestCase):
@@ -616,3 +618,59 @@ class AudioPathTest(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class CaptureModeTest(unittest.TestCase):
+    """Voice enrolment: an armed window is recorded locally and never reaches Gemini."""
+
+    def test_armed_window_is_recorded_to_a_private_wav(self):
+        import asyncio, os, stat, tempfile, wave, json as _json
+        import live_voice
+
+        class Entity:
+            def __init__(self, key):
+                self.key = key
+                self.device_id = 0
+
+        class Api:
+            is_connected = True
+            def __init__(self):
+                self.switches, self.events = [], []
+            def switch_command(self, key, state, device_id=0):
+                self.switches.append(state)
+            def send_voice_assistant_event(self, kind, data):
+                self.events.append(kind)
+
+        events = []
+        api = Api()
+        voice = live_voice.LiveVoice(api, {'microphone_end_of_speech': Entity(7)}, lambda k, t: events.append((k, t)))
+        folder = tempfile.mkdtemp()
+        target = os.path.join(folder, 'enrol', 'mira-1.wav')
+
+        async def scenario():
+            voice.arm_capture(target, max_s=2.0)
+            self.assertEqual(api.switches, [False])       # the whole window is kept
+            with unittest.mock.patch.object(live_voice.LiveVoice, '_acquire', side_effect=AssertionError('no Gemini')):
+                self.assertEqual(await voice.start(), 0)
+                chunk = (b'\x00\x10' * 1600)                # 0.1 s at 16 kHz
+                for _ in range(25):                          # 2.5 s offered, 2.0 s kept
+                    await voice.audio(chunk)
+                await voice.stop(False)
+        asyncio.run(scenario())
+        with wave.open(target) as w:
+            self.assertEqual((w.getframerate(), w.getnchannels(), w.getsampwidth()), (16000, 1, 2))
+            self.assertEqual(w.getnframes(), 32000)
+        self.assertEqual(stat.S_IMODE(os.stat(target).st_mode), 0o600)
+        self.assertEqual(api.switches[-1], True)            # end-of-speech restored
+        capture = [_json.loads(t) for k, t in events if k == 'capture'][0]
+        self.assertEqual((capture['status'], capture['seconds']), ('ok', 2.0))
+        self.assertIsNone(voice.turn)
+
+    def test_stale_arming_does_not_capture_a_real_conversation(self):
+        import live_voice
+        voice = live_voice.LiveVoice(type('A', (), {'is_connected': False})(), {}, lambda *a: None)
+        voice.arm_capture('/nonexistent/x.wav')
+        voice.capture['armed_at'] -= live_voice.CAPTURE_ARM_S + 1
+        spec, voice.capture = voice.capture, None
+        import time
+        self.assertGreater(time.monotonic() - spec['armed_at'], live_voice.CAPTURE_ARM_S)

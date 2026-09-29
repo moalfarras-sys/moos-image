@@ -433,6 +433,14 @@ TOOL_DECLARATIONS = [
      "parameters": {"type": "OBJECT", "properties": {
          "state": {"type": "STRING", "enum": ["on", "off"]},
          "color": {"type": "STRING", "enum": sorted(RING_COLORS)}}, "required": ["state"]}},
+    {"name": "research",
+     "description": "Think carefully and search the web (Google) for anything current or uncertain: "
+                    "news, prices, results, schedules, people, places, how-to, or questions that need "
+                    "reasoning. Returns a short spoken answer with source names. Before calling, say a "
+                    "short phrase such as «لحظة، بدوّرلك». Not for time or weather (own tools).",
+     "parameters": {"type": "OBJECT", "properties": {
+         "question": {"type": "STRING", "description": "The owner's complete question"}},
+         "required": ["question"]}},
     {"name": "remember_owner_fact",
      "description": "Save one short fact about the owner (name, project, preference) only when "
                     "the owner explicitly asks you to remember it. Never passwords, codes, "
@@ -444,6 +452,44 @@ TOOL_DECLARATIONS = [
 
 class ToolError(ValueError):
     pass
+
+
+RESEARCH_MODELS = ("gemini-2.5-flash", "gemini-flash-lite-latest")
+RESEARCH_URL = "https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
+
+
+def web_research(question: str, api_key: str, timeout: float = 30.0) -> dict:
+    """Grounded answer via Gemini + Google Search over plain HTTPS (no SDK on the Dot).
+    The key travels in a header, never in a URL, and is never logged."""
+    body = json.dumps({
+        "systemInstruction": {"parts": [{"text": (
+            "أنت باحثة دقيقة تساعد ميرا. فكّر بعناية واعتمد على نتائج البحث الحديثة. أجب بالعربية بثلاث إلى "
+            "خمس جمل قصيرة تُقرأ بصوت عالٍ، بلا رموز ولا قوائم ولا روابط، وقل بوضوح إن لم تجد معلومة موثوقة.")}]},
+        "contents": [{"role": "user", "parts": [{"text": question[:1200]}]}],
+        "tools": [{"google_search": {}}],
+        "generationConfig": {"temperature": 0.3},
+    }, ensure_ascii=False).encode("utf-8")
+    last = "empty"
+    for model in RESEARCH_MODELS:
+        request = urllib.request.Request(RESEARCH_URL.format(model=model), data=body, method="POST",
+                                         headers={"Content-Type": "application/json", "x-goog-api-key": api_key})
+        try:
+            with urllib.request.urlopen(request, timeout=timeout) as response:
+                data = json.loads(response.read(1_000_000))
+        except Exception as exc:   # class only: an HTTPError can echo the request
+            last = type(exc).__name__
+            continue
+        candidate = (data.get("candidates") or [{}])[0]
+        text = "".join(p.get("text", "") for p in candidate.get("content", {}).get("parts", [])).strip()
+        if not text:
+            continue
+        titles = []
+        for chunk in candidate.get("groundingMetadata", {}).get("groundingChunks", []) or []:
+            title = (chunk.get("web") or {}).get("title")
+            if title and title not in titles:
+                titles.append(title[:80])
+        return {"status": "ok", "answer": text[:1400], "sources": titles[:4], "model": model}
+    return {"status": "error", "error": last}
 
 
 UNCONFIRMED = "Sent to the Echo but it did not confirm; tell the owner it is not confirmed."
@@ -512,7 +558,7 @@ def remember_fact(fact: object) -> dict:
 
 
 class DeviceTools:
-    """The five PC-off tools. Device control goes only through the Dot's own API entities."""
+    """The six PC-off tools. Device control goes only through the Dot's own API entities."""
 
     def __init__(self, api=None, entities=None, fetch=None, dry_run=False):
         self.api = api
@@ -530,7 +576,8 @@ class DeviceTools:
         handler = {"current_time": self.current_time, "current_weather": self.current_weather,
                    "set_speaker_volume": self.set_speaker_volume,
                    "ring_light": self.ring_light,
-                   "remember_owner_fact": self.remember_owner_fact}.get(name)
+                   "remember_owner_fact": self.remember_owner_fact,
+                   "research": self.research}.get(name)
         if handler is None:
             return {"status": "error", "error": "unknown_tool"}
         try:
@@ -542,6 +589,16 @@ class DeviceTools:
 
     def place(self, city: str) -> dict:
         return lookup_place(city, self.fetch)
+
+    async def research(self, args: dict) -> dict:
+        question = args.get("question")
+        if not isinstance(question, str) or not question.strip():
+            raise ToolError("empty_question")
+        try:
+            key = json.loads(CONFIG.read_text())["api_key"]
+        except (OSError, ValueError, KeyError):
+            raise ToolError("no_config") from None
+        return await asyncio.to_thread(web_research, question.strip(), key)
 
     async def current_time(self, args: dict) -> dict:
         now = datetime.now(timezone.utc)
@@ -670,6 +727,7 @@ def persona(settings: dict, profile: str) -> str:
         "تحدثي بالعربية العامية الطبيعية بنبرة دافئة وودودة، وبجمل قصيرة تناسب الاستماع، "
         "من غير قوائم أو رموز. إذا لم تسمعي السؤال بوضوح فاطلبي إعادته باختصار. "
         "أدواتك في هذا الوضع فقط: current_time للوقت والتاريخ، current_weather للطقس الحالي، "
+        "research للبحث في الإنترنت والتفكير في الأسئلة الصعبة (قولي «لحظة، بدوّرلك» قبلها واذكري المصدر)، "
         "set_speaker_volume لصوت هذه السماعة، ring_light لإضاءة حلقتها، "
         "وremember_owner_fact لحفظ معلومة يطلب المالك تذكّرها صراحة. "
         "لا تخمّني الوقت أو التاريخ أو الطقس؛ استدعي الأداة. "
