@@ -282,6 +282,12 @@ class DolphinMenus(unittest.TestCase):
         for containerfile in ("Containerfile", "Containerfile.arm"):
             text = (ROOT / containerfile).read_text(encoding="utf-8")
             suites = re.search(r"python3 -s -m unittest ((?:[^\n\\]|\\\n)*)", text)
+            if suites is None or '"$module"' in suites.group(1):
+                suites = re.search(
+                    r"for module in((?:\s+\\?\s*test_\w+)+);\s*do\s*\\?\s*"
+                    r'python3 -s -m unittest "\$module"',
+                    text,
+                )
             self.assertIsNotNone(suites, f"{containerfile}: Mira's suites are not run")
             self.assertIn("test_kde_integration", suites.group(1).split(),
                           f"{containerfile}: the Dolphin/login/D-Bus suite never runs in the build")
