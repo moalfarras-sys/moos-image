@@ -146,12 +146,21 @@ Earlier measured history (v1–v3) is kept in `HISTORY.md`; the device client in
   - A real round trip through `moai-control` passed: `set_do_not_disturb=on` was refused unconfirmed, then
     parked, approved, and the job ran with state read back `dnd=true`. It was turned off again.
   - `moai --panel device` opened the System centre with the booted signed deployment.
+- **Any MoOS user, not only this station:**
+  - The Echo connects only when one is paired (`echo.json` or `device.key`); otherwise Mira is typed chat
+    with every tool.
+  - Settings → Voice keeps the user's own Gemini key (0600) and proves it with a real request.
+  - Without a key, the same 74 tools run on **Mo AI's free cloud brain** through moai-gateway (OpenAI tool
+    calling). This was measured live: memory was read back; a VLC install became a card with «نعم»;
+    the audio settings opened.
+- **The paired phone** shows the same approval cards and can Approve or Cancel them. A privileged step
+  still asks for the password at the computer.
 - **Blocked on the owner:** the Echo cannot reach this PC's model/announcement server (TCP 18769), because
   firewalld's `moos-desktop` zone rejects it. The Echo logged «no route to host». The v2 install therefore
   rolled itself back, and Echo announcements fall back to a desktop notification. Opening the port for the
   Echo's address only (`~/.cache/mira-claude/open-echo-port.sh`) needs his password.
 - **Not done:** a model-authored command tool (P3.9 — not built; needs the owner's explicit go-ahead in
-  a session), a MoOS-image package, a System Settings page, and the phone approving cards.
+  a session), a MoOS-image package, a System Settings page, and voice without an Echo (PC mic/speakers).
 
 ## Measured on the owner's station, 2026-09-28/29
 
