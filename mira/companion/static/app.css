@@ -348,6 +348,28 @@ button:disabled { cursor: default; }
   -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 30px, #000 calc(100% - 8px), transparent 100%);
   mask-image: linear-gradient(to bottom, transparent 0, #000 30px, #000 calc(100% - 8px), transparent 100%);
 }
+.actions { display: flex; flex-direction: column; gap: 8px; padding: 10px 14px 0; }
+.actions[hidden] { display: none; }
+.act {
+  --ac: var(--amber);
+  border-radius: 18px;
+  padding: 12px 14px;
+  background: var(--glass-strong);
+  border: 1px solid color-mix(in srgb, var(--ac) 50%, transparent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--ac) 14%, transparent);
+}
+.act[data-stage="running"] { --ac: var(--violet, #9B7BFF); }
+.act[data-stage="ok"] { --ac: var(--ok); box-shadow: none; }
+.act[data-stage="error"] { --ac: var(--danger); box-shadow: none; }
+.act[data-stage="expired"], .act[data-stage="cancelled"] { --ac: #6B7390; box-shadow: none; }
+.act-head { display: flex; align-items: center; gap: 8px; }
+.act-head .icon { width: 18px; height: 18px; color: var(--ac); flex: none; }
+.act-title { font-size: 15px; font-weight: 600; }
+.act-line { margin: 4px 0 0; color: var(--ink2); font-size: 13px; overflow-wrap: anywhere; }
+.act-note { margin: 4px 0 0; color: var(--ink3); font-size: 12px; }
+.act-buttons { display: flex; gap: 8px; margin-top: 10px; justify-content: flex-end; }
+.act-buttons .pill { min-height: 38px; }
+.act-buttons .pill.primary { background: linear-gradient(90deg, #6A55F0, #2CC6E6); color: #fff; border-color: transparent; }
 .chat-empty { margin: auto; max-width: 290px; text-align: center; color: var(--ink3); font-size: 14px; }
 .chat-empty-title { margin: 0 0 6px; color: var(--ink); font-size: 17px; font-weight: 600; }
 .chat-empty-body { margin: 0; }

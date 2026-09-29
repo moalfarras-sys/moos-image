@@ -31,6 +31,9 @@
     pause: 'M8.5 5.5v13 M15.5 5.5v13',
     volume: 'M4 9.5h3.5L12 5.5v13l-4.5-4H4z M15.5 9a4 4 0 0 1 0 6 M18.3 6.5a8 8 0 0 1 0 11',
     sparkle: 'M12 3.5l1.7 5 5 1.8-5 1.7-1.7 5-1.8-5-5-1.7 5-1.8z M18.5 16l.7 1.8 1.8.7-1.8.7-.7 1.8-.7-1.8-1.8-.7 1.8-.7z',
+    x: 'M6.5 6.5l11 11 M17.5 6.5l-11 11',
+    shield: 'M12 3.5l7.5 3v5.5c0 4.5-3.1 7.5-7.5 9-4.4-1.5-7.5-4.5-7.5-9V6.5z M9 12l2 2 4-4',
+    lock: 'M7.5 10.5V8a4.5 4.5 0 0 1 9 0v2.5 M5.5 10.5h13v10h-13z M12 14.5v2.5',
   };
   const TEXT = {
     ar: {
@@ -62,6 +65,9 @@
                    'امسح الرمز بكاميرا الـ iPhone وافتح الرابط في Safari.'],
       pair_note: 'تعمل ميرا على هاتفك عبر شبكة Tailscale الخاصة بك فقط.',
       pair_retry: 'أعد المحاولة',
+      act_waiting: 'بانتظار موافقتك:', act_approve: 'موافقة', act_reject: 'إلغاء',
+      act_password: 'سيطلب النظام كلمة المرور على الكمبيوتر', act_running: 'يعمل الآن…',
+      act_expired: 'انتهت مهلة الموافقة؛ لم يُنفَّذ شيء', act_cancelled: 'ألغيت', act_change: 'تغيير في النظام',
       colors: { pink: 'وردي', purple: 'بنفسجي', blue: 'أزرق', green: 'أخضر', yellow: 'أصفر', orange: 'برتقالي', red: 'أحمر' },
     },
     en: {
@@ -93,6 +99,9 @@
                    'Scan it with the iPhone camera and open the link in Safari.'],
       pair_note: 'Mira works on your phone only over your own Tailscale network.',
       pair_retry: 'Try again',
+      act_waiting: 'Waiting for your approval:', act_approve: 'Approve', act_reject: 'Cancel',
+      act_password: 'The computer will ask for your password', act_running: 'Running…',
+      act_expired: 'Approval timed out; nothing ran', act_cancelled: 'Cancelled', act_change: 'System change',
       colors: { pink: 'Pink', purple: 'Purple', blue: 'Blue', green: 'Green', yellow: 'Yellow', orange: 'Orange', red: 'Red' },
     },
   };
@@ -101,7 +110,8 @@
     'empty_chat_body', 'phase_idle', 'phase_listening', 'phase_thinking', 'phase_speaking', 'phase_executing',
     'phase_error', 'phase_offline', 'all_on', 'all_off', 'refresh', 'checking', 'no_devices', 'state_on', 'state_off',
     'state_playing', 'state_paused', 'state_idle', 'unavailable', 'brightness', 'color', 'volume', 'play', 'pause',
-    'devices_available', 'lights', 'lights_on_of', 'svc_echo', 'svc_home']);
+    'devices_available', 'lights', 'lights_on_of', 'svc_echo', 'svc_home', 'act_waiting', 'act_approve', 'act_reject',
+    'act_running', 'act_expired', 'act_cancelled', 'act_change']);
   const PHASE_COLORS = {       // Theme.phaseColor / phaseColor2
     idle: ['#FF6FB5', '#9B7BFF'], listening: ['#3DF2C4', '#35D8F4'], thinking: ['#9B7BFF', '#5B8CFF'],
     speaking: ['#FF6FB5', '#9B7BFF'], executing: ['#FFC46B', '#FF6FB5'], error: ['#FF5C7A', '#7A1E3A'],
@@ -120,6 +130,7 @@
     homeEmpty: $('home-empty'), devices: $('devices'), dock: $('dock'), talk: $('talk'), talkIcon: $('talk-icon'),
     talkLabel: $('talk-label'), field: $('field'), send: $('send'), pairing: $('pairing'), pairTitle: $('pair-title'),
     pairBody: $('pair-body'), pairSteps: $('pair-steps'), pairNote: $('pair-note'), pairRetry: $('pair-retry'),
+    actions: $('actions'),
   };
   const motionQuery = window.matchMedia ? window.matchMedia('(prefers-reduced-motion: reduce)') : null;
   const reducedMotion = () => !!(motionQuery && motionQuery.matches);
@@ -299,6 +310,7 @@
   // ── state from Mira ────────────────────────────────────────────────────────────
   function onSnapshot(snap) {
     state.paired = true;
+    state.actions = [];
     state.byeReason = '';
     el.pairing.hidden = true;
     state.devices = Array.isArray(snap.devices) ? snap.devices : [];
@@ -320,6 +332,7 @@
     if ('status' in patch || 'caption' in patch || 'captionRole' in patch) renderCaption();
     if ('services' in patch || 'echo' in patch) { renderServices(); renderDock(); }
     if ('home' in patch || 'weather' in patch) { renderHome(); if ('home' in patch) settlePending(); }
+    if ('actions' in patch) renderActions();
   }
 
   function applyState(data) {
@@ -328,6 +341,7 @@
     for (const [key, target] of Object.entries(fields)) if (key in data && data[key] !== null) state[target] = data[key];
     if (data.s && typeof data.s === 'object') state.s = data.s;
     if (typeof data.level === 'number') state.level = data.level;
+    if (Array.isArray(data.actions)) state.actions = data.actions;
     if (state.lang !== 'ar' && state.lang !== 'en') state.lang = 'ar';
     if (!PHASE_COLORS[state.phase]) state.phase = 'idle';
     store.set('mira.lang', state.lang);
@@ -360,8 +374,47 @@
     renderDock();
     renderHome(true);
     renderBanner();
+    renderActions();
     updateFace();
     fitViewport();
+  }
+
+  // System changes waiting for the owner, and what came of them: the desktop's own cards.
+  function renderActions() {
+    const list = (state.actions || []).filter((a) => a && typeof a.aid === 'string');
+    el.actions.hidden = list.length === 0;
+    el.actions.replaceChildren();
+    for (const a of list.slice(0, 3)) {
+      const card = node('div', 'act');
+      card.dataset.stage = String(a.stage || '');
+      const glyph = a.stage === 'ask' ? (a.category === 'privileged_confirm' ? 'lock' : 'shield')
+        : a.stage === 'ok' ? 'check' : a.stage === 'running' ? 'clock' : 'alert';
+      const head = node('div', 'act-head');
+      head.append(icon(glyph), node('strong', 'act-title', String(a.title || '')));
+      card.append(head);
+      const line = a.stage === 'ask' ? String(a.detail || '') : String(a.summary || '');
+      if (line) card.append(node('p', 'act-line', line));
+      if (a.stage === 'ask') {
+        if (a.category === 'privileged_confirm') card.append(node('p', 'act-note', t('act_password')));
+        const row = node('div', 'act-buttons');
+        const no = node('button', 'pill', ''); no.type = 'button';
+        no.replaceChildren(icon('x'), node('span', '', t('act_reject')));
+        const yes = node('button', 'pill primary', ''); yes.type = 'button';
+        yes.replaceChildren(icon('check'), node('span', '', t('act_approve')));
+        no.addEventListener('click', () => answerAction(a.aid, 'reject', card));
+        yes.addEventListener('click', () => answerAction(a.aid, 'approve', card));
+        row.append(no, yes);
+        card.append(row);
+      }
+      el.actions.append(card);
+    }
+  }
+
+  function answerAction(aid, answer, card) {
+    card.querySelectorAll('button').forEach((b) => { b.disabled = true; });
+    post('/api/action', { aid, answer }).then((ok) => {
+      if (!ok) card.querySelectorAll('button').forEach((b) => { b.disabled = false; });
+    });
   }
 
   function renderPhase() {

@@ -549,7 +549,7 @@ class CompanionServer:
         self._log = log or _default_log
         self._post_routes = {'/api/send': self._do_send, '/api/talk': self._do_talk, '/api/stop': self._do_stop,
                              '/api/home/action': self._do_home_action, '/api/lights': self._do_lights,
-                             '/api/home/refresh': self._do_refresh}
+                             '/api/home/refresh': self._do_refresh, '/api/action': self._do_action}
         self._get_routes = ('/api/state', '/api/home', '/api/events')
         self._thread = None
         self._loop = None
@@ -1018,6 +1018,14 @@ class CompanionServer:
         if not isinstance(on, bool):
             raise Invalid('on')
         return self.backend.all_lights(on)
+
+    def _do_action(self, data):
+        aid, answer = data.get('aid'), data.get('answer')
+        if not isinstance(aid, str) or not re.fullmatch(r'p[0-9a-f]{10}', aid):
+            raise Invalid('aid')
+        if answer not in ('approve', 'reject'):
+            raise Invalid('answer')
+        return self.backend.answer_action(aid, answer == 'approve')
 
     def _do_home_action(self, data):
         entity_id, action = data.get('entity_id'), data.get('action')

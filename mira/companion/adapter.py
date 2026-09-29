@@ -33,7 +33,10 @@ SHARED_TEXT = ('app_title', 'phase_idle', 'phase_listening', 'phase_thinking', '
                'all_on', 'all_off', 'tv', 'unavailable', 'devices_available', 'brightness', 'color', 'volume',
                'play', 'pause', 'state_on', 'state_off', 'state_playing', 'state_paused', 'state_idle',
                'checking', 'no_devices', 'refresh', 'weather', 'weather_unset', 'humidity', 'wind', 'turn_on',
-               'turn_off', 'svc_echo', 'svc_home', 'svc_moai', 'svc_brain', 'online', 'offline', 'connecting')
+               'turn_off', 'svc_echo', 'svc_home', 'svc_moai', 'svc_brain', 'online', 'offline', 'connecting',
+               'act_waiting', 'act_approve', 'act_reject', 'act_password', 'act_running', 'act_expired',
+               'act_cancelled', 'act_change')
+ACTION_FIELDS = ('aid', 'title', 'detail', 'stage', 'category', 'summary', 'expires')
 
 
 def _plain(value):
@@ -166,10 +169,15 @@ class ControllerAdapter(QObject):
         devices = c.deviceModel
         for signal in (devices.modelReset, devices.rowsInserted, devices.rowsRemoved, devices.dataChanged):
             self._connect(signal, self._on_devices)
+        # System changes waiting for the owner: the phone shows the same cards and may answer them.
+        actions = getattr(c, 'actionModel', None)
+        if actions is not None:
+            for signal in (actions.modelReset, actions.rowsInserted, actions.rowsRemoved, actions.dataChanged):
+                self._connect(signal, self._on_actions)
 
         with self._lock:
             self._state = self._read(('phase', 'status', 'caption', 'captionRole', 'mood', 'faceStyle', 'lang',
-                                      's', 'services', 'weather', 'home', 'echo', 'busy'))
+                                      's', 'services', 'weather', 'home', 'echo', 'busy', 'actions'))
             self._state['level'] = 0.0
             self._chat = [(self._next(), _chat_row(row)) for row in _model_rows(chat)]
             self._devices = [_device_row(row) for row in _model_rows(devices)]
@@ -240,6 +248,10 @@ class ControllerAdapter(QObject):
     def all_lights(self, on):
         return self._invoke('allLights', Q_ARG(bool, bool(on)))
 
+    def answer_action(self, aid, approve):
+        """The owner's answer from his paired phone: the same slots as the card's buttons."""
+        return self._invoke('approveAction' if approve else 'rejectAction', Q_ARG(str, aid))
+
     def refresh_home(self):
         return self._invoke('refreshHome')
 
@@ -271,6 +283,10 @@ class ControllerAdapter(QObject):
                 out['echo'] = {'online': echo.get('online') is True, 'voice_enabled': echo.get('voice_enabled') is not False}
             elif key == 'busy':
                 out['busy'] = bool(getattr(c, 'busy', False))
+            elif key == 'actions':
+                model = getattr(c, 'actionModel', None)
+                rows = _model_rows(model) if model is not None else []
+                out['actions'] = [{k: _plain(row.get(k)) for k in ACTION_FIELDS} for row in rows[:6]]
             else:
                 out[key] = _plain(getattr(c, key, None))
         return out
@@ -289,6 +305,10 @@ class ControllerAdapter(QObject):
             data = {key: copy.deepcopy(self._state[key]) for key in keys if key in self._state}
         if data:
             self._emit('state', data)
+
+    @Slot()
+    def _on_actions(self, *args):
+        self._changed(('actions',))
 
     @Slot()
     def _on_phase(self):

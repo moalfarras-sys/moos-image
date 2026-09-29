@@ -183,6 +183,14 @@ class FakeController(QObject):
     def refreshHome(self):
         self._record('refreshHome')
 
+    @Slot(str)
+    def approveAction(self, aid):
+        self._record('approveAction', aid)
+
+    @Slot(str)
+    def rejectAction(self, aid):
+        self._record('rejectAction', aid)
+
     def set_phase(self, phase):
         self._phase = phase
         self.phaseChanged.emit()
@@ -328,7 +336,7 @@ class Stream:
 
 API_ROUTES = [('GET', '/api/state'), ('GET', '/api/home'), ('GET', '/api/events'), ('GET', '/face/rose/neutral.png'),
               ('GET', '/face/holo/happy.webp'), ('POST', '/api/send'), ('POST', '/api/talk'), ('POST', '/api/stop'),
-              ('POST', '/api/home/action'), ('POST', '/api/lights'), ('POST', '/api/home/refresh')]
+              ('POST', '/api/home/action'), ('POST', '/api/lights'), ('POST', '/api/home/refresh'), ('POST', '/api/action')]
 
 
 class ServerTest(QtCase):
@@ -435,6 +443,8 @@ class ServerTest(QtCase):
             ('/api/send', ['hello'], 400, 'json'),
             ('/api/send', b'{not json', 400, 'json'),
             ('/api/lights', {'on': 'yes'}, 400, 'on'),
+            ('/api/action', {'aid': 'p0123456789', 'answer': 'yes please'}, 400, 'answer'),
+            ('/api/action', {'aid': '../../x', 'answer': 'approve'}, 400, 'aid'),
             ('/api/lights', {}, 400, 'on'),
         ]
         for path, body, status, code in cases:
@@ -528,6 +538,8 @@ class ServerTest(QtCase):
              ('homeAction', 'media_player.tv', 'media_pause', -1.0, '')),
             ('/api/lights', {'on': True}, ('allLights', True)),
             ('/api/home/refresh', None, ('refreshHome',)),
+            ('/api/action', {'aid': 'p0123456789', 'answer': 'approve'}, ('approveAction', 'p0123456789')),
+            ('/api/action', {'aid': 'pabcdefabcd', 'answer': 'reject'}, ('rejectAction', 'pabcdefabcd')),
         ]
         for path, body, _ in requests:
             status, _, payload = h.post(path, body)
@@ -770,6 +782,27 @@ class ServiceTest(QtCase):
 
 class RealControllerTest(QtCase):
     """The adapter against Mira's actual controller (test mode, stand-in Echo and brain)."""
+
+    def test_the_phone_sees_and_answers_the_owner_cards(self):
+        from controller import Controller
+        from review_fakes import FakeBridge
+        import moai_tools
+        QSettings('MoOS', 'Mira').clear()
+        controller = Controller(bridge_class=FakeBridge)
+        h = Harness(controller=controller, posts_per_minute=1000).ready()
+        self.addCleanup(h.close)
+        stream = Stream(h, h.bearer())
+        self.addCleanup(stream.close)
+        self.assertEqual(stream.wait('snapshot')['actions'], [])
+        card = controller.request_confirmation({'kind': 'moai', 'name': 'fix_audio', 'args': {}})
+        shown = stream.wait('state', lambda d: any(a.get('stage') == 'ask' for a in d.get('actions') or []))['actions'][0]
+        self.assertEqual((shown['aid'], shown['stage']), (card['id'], 'ask'))
+        self.assertNotIn('payload', shown)
+        with patch.object(moai_tools, 'execute', return_value={'status': 'ok', 'output': 'done'}) as execute:
+            status, _, _ = h.post('/api/action', {'aid': card['id'], 'answer': 'approve'})
+            self.assertEqual(status, 202)
+            self.assertTrue(pump(lambda: execute.called, 3))
+        execute.assert_called_once_with('fix_audio', {}, confirmed=True)
 
     def test_the_real_controller_speaks_through_the_adapter(self):
         from controller import Controller
