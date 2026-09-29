@@ -221,6 +221,23 @@ def _request(path, body=None, timeout=30):
         return 0, {'error': 'moai_control_unreachable', 'detail': type(err).__name__}
 
 
+def get(path, timeout=20):
+    """GET one moai-control read endpoint (/quick /scan /diagnose /health /models /measure …).
+    Returns the decoded body, or {'error': ...} on any failure."""
+    code, body = _request(path, timeout=timeout)
+    if code != 200 or not isinstance(body, (dict, list)):
+        return {'error': (body or {}).get('error', f'http_{code}') if isinstance(body, dict) else f'http_{code}'}
+    return body
+
+
+def post(path, body, timeout=30):
+    """POST to moai-control (/health/scan, /test …). Returns the body or {'error': ...}."""
+    code, reply = _request(path, body, timeout=timeout)
+    if code not in (200, 202) or not isinstance(reply, (dict, list)):
+        return {'error': (reply or {}).get('error', f'http_{code}') if isinstance(reply, dict) else f'http_{code}'}
+    return reply
+
+
 def execute(name, args, confirmed=False):
     """Run one Mo AI tool. Returns a Mira tool result:
     ok/error for reads and controls; `confirm` when the owner must approve first;

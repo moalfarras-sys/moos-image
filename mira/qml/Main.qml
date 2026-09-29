@@ -70,23 +70,25 @@ ApplicationWindow {
 
         TopBar {
             id: top
-            anchors { left: parent.left; right: parent.right; top: parent.top }
+            anchors { left: rail.right; right: parent.right; top: parent.top; leftMargin: 14 }
             compact: win.narrow
-            onOpenSheet: function(name) { win.sheet = name === "chat" ? "" : name }
+            onOpenSheet: function(name) { win.go(name === "chat" ? "" : name) }
+        }
+
+        // the destinations, labelled; Mira's own face leads back to the conversation
+        NavRail {
+            id: rail
+            anchors { left: parent.left; top: parent.top; bottom: parent.bottom }
+            compact: win.height < 760 || win.narrow
+            current: win.sheet
+            badges: ({ inbox: mira.inboxCount > 0 ? String(mira.inboxCount) : "",
+                       system: mira.systemBadge || "" })
+            onNavigate: function(name) { win.go(name) }
         }
 
         Item {
             id: content
-            anchors { left: parent.left; right: parent.right; top: top.bottom; bottom: dock.top; topMargin: 12; bottomMargin: 14 }
-
-            ContextRail {
-                id: rail
-                visible: win.wide
-                width: 300
-                anchors { left: parent.left; top: parent.top; bottom: parent.bottom }
-                onSuggestion: function(text) { mira.send(text) }
-                onOpenSheet: function(name) { win.sheet = name }
-            }
+            anchors { left: rail.right; right: parent.right; top: top.bottom; bottom: dock.top; leftMargin: 14; topMargin: 12; bottomMargin: 14 }
 
             ConversationPanel {
                 id: convo
@@ -96,90 +98,131 @@ ApplicationWindow {
                 onSuggestion: function(text) { mira.send(text) }
             }
 
+            // ── the Mira stage (her face, the context) ──
             Item {
-                id: stageArea
-                anchors {
-                    left: win.wide ? rail.right : parent.left
-                    right: win.narrow ? parent.right : convo.left
-                    top: parent.top
-                    leftMargin: win.wide ? 16 : 0; rightMargin: win.narrow ? 0 : 16
-                }
-                height: win.narrow ? Math.min(parent.height * 0.56, width + 90) : parent.height
+                id: stageHost
+                visible: win.sheet === ""
+                anchors { left: parent.left; right: win.narrow ? parent.right : convo.left; top: parent.top; bottom: parent.bottom; rightMargin: win.narrow ? 0 : 16 }
 
-                MiraCore {
-                    id: core
-                    width: Math.min(parent.width, parent.height - caption.height - 18)
-                    height: width
-                    anchors.horizontalCenter: parent.horizontalCenter
-                    y: Math.max(0, (parent.height - height - caption.height - 18) / 2)
-                    phase: mira.phase
-                    faceStyle: mira.faceStyle
-                    mood: mira.mood
-                    level: mira.level
-                    clock: win.clock
-                    motion: mira.motion
-                    onActivated: mira.talk()
-                    onFaceToggleRequested: mira.toggleFace()
+                ContextRail {
+                    id: ctxRail
+                    visible: win.width >= 1320
+                    width: 300
+                    anchors { left: parent.left; top: parent.top; bottom: parent.bottom }
+                    onSuggestion: function(text) { mira.send(text) }
+                    onOpenSheet: function(name) { win.go(name) }
                 }
-                StageCaption {
-                    id: caption
-                    width: Math.min(parent.width - 20, 620)
-                    anchors.horizontalCenter: parent.horizontalCenter
-                    anchors.top: core.bottom
-                    anchors.topMargin: -Math.round(core.height * 0.12)
+
+                Item {
+                    id: stageArea
+                    anchors {
+                        left: ctxRail.visible ? ctxRail.right : parent.left
+                        right: parent.right
+                        top: parent.top
+                        leftMargin: ctxRail.visible ? 16 : 0
+                    }
+                    height: win.narrow ? Math.min(parent.height * 0.56, width + 90) : parent.height
+
+                    MiraCore {
+                        id: core
+                        width: Math.min(parent.width, parent.height - caption.height - 18)
+                        height: width
+                        anchors.horizontalCenter: parent.horizontalCenter
+                        y: Math.max(0, (parent.height - height - caption.height - 18) / 2)
+                        phase: mira.phase
+                        faceStyle: mira.faceStyle
+                        mood: mira.mood
+                        level: mira.level
+                        clock: win.clock
+                        motion: mira.motion
+                        onActivated: mira.talk()
+                        onFaceToggleRequested: mira.toggleFace()
+                    }
+                    StageCaption {
+                        id: caption
+                        width: Math.min(parent.width - 20, 620)
+                        anchors.horizontalCenter: parent.horizontalCenter
+                        anchors.top: core.bottom
+                        anchors.topMargin: -Math.round(core.height * 0.12)
+                    }
+                }
+
+                ConversationPanel {
+                    id: narrowConvo
+                    visible: win.narrow
+                    showHeader: false
+                    anchors { left: parent.left; right: parent.right; top: stageArea.bottom; bottom: parent.bottom; topMargin: 8 }
+                    onSuggestion: function(text) { mira.send(text) }
                 }
             }
 
-            ConversationPanel {
-                id: narrowConvo
-                visible: win.narrow
-                showHeader: false
-                anchors { left: parent.left; right: parent.right; top: stageArea.bottom; bottom: parent.bottom; topMargin: 8 }
-                onSuggestion: function(text) { mira.send(text) }
+            // ── one destination at a time ──
+            Glass {
+                id: pageHost
+                visible: win.sheet !== ""
+                anchors { left: parent.left; right: win.narrow ? parent.right : convo.left; top: parent.top; bottom: parent.bottom; rightMargin: win.narrow ? 0 : 16 }
+                radius: Theme.rPanel
+                tint: Qt.rgba(0.045, 0.055, 0.13, 0.9)
+                opacity: visible ? 1 : 0
+                Behavior on opacity { NumberAnimation { duration: Theme.normal } }
+                Loader {
+                    id: pageLoader
+                    anchors.fill: parent
+                    anchors.margins: win.narrow ? 14 : 22
+                    active: win.sheet !== ""
+                    sourceComponent: win.pageComponent(win.sheet)
+                }
             }
         }
 
         CommandDock {
             id: dock
-            anchors { left: parent.left; right: parent.right; bottom: parent.bottom }
+            anchors { left: rail.right; right: parent.right; bottom: parent.bottom; leftMargin: 14 }
             level: mira.level
         }
 
-        SideSheet {
-            id: sheetView
-            anchors { left: parent.left; right: parent.right; top: top.bottom; bottom: parent.bottom; topMargin: 12 }
-            open: win.sheet !== ""
-            sheetWidth: win.narrow ? win.width : Math.max(560, Math.min(720, win.width * 0.52))
-            icon: win.sheet === "home" ? "home" : win.sheet === "computer" ? "monitor" : win.sheet === "system" ? "shield" : "settings"
-            title: win.sheet === "home" ? mira.s.home_title : win.sheet === "computer" ? mira.s.pc_title
-                 : win.sheet === "system" ? mira.s.sys_title : mira.s.st_title
-            subtitle: win.sheet === "home" ? mira.s.home_sub : win.sheet === "computer" ? mira.s.pc_sub
-                    : win.sheet === "system" ? mira.s.sys_sub : ""
-            onCloseRequested: win.sheet = ""
-            Loader {
-                anchors.fill: parent
-                active: win.sheet !== ""
-                sourceComponent: win.sheet === "home" ? homeC : win.sheet === "computer" ? pcC : win.sheet === "system" ? sysC : setC
-            }
-        }
-
         // system changes waiting for the owner, and the jobs he approved — above everything
-        // (beside an open sheet when there is room, so they never hide the page being used)
+        // (beside an open page when there is room, so they never hide the page being used)
         ActionCards {
             id: cards
-            readonly property bool beside: win.sheet !== "" && !win.narrow && frame.width - sheetView.sheetWidth >= 440
-            readonly property real freeWidth: beside ? frame.width - sheetView.sheetWidth - 16 : frame.width
-            width: Math.min(640, freeWidth - (win.narrow ? 0 : 24))
-            x: !beside ? (frame.width - width) / 2
-               : mira.lang === "ar" ? frame.width - freeWidth + (freeWidth - width) / 2 : (freeWidth - width) / 2
+            readonly property bool beside: win.sheet !== "" && !win.narrow && convo.visible
+            width: Math.min(640, (beside ? convo.width : content.width) - (win.narrow ? 0 : 24))
+            x: beside ? content.x + convo.x + (convo.width - width) / 2 : content.x + (content.width - width) / 2
             anchors { bottom: dock.top; bottomMargin: 12 }
         }
     }
 
-    Component { id: homeC; HomeSheet {} }
-    Component { id: pcC; ComputerSheet {} }
-    Component { id: sysC; SystemSheet {} }
-    Component { id: setC; SettingsSheet {} }
+    // destination → page. A page not built yet shows the conversation's old sheet in its frame.
+    function pageComponent(name) {
+        switch (name) {
+        case "home": return homeC
+        case "pc": return mira.pcPage ? pcPageC : pcC
+        case "system": return mira.systemPage ? sysPageC : sysC
+        case "apps": return mira.appsPage ? appsPageC : sysC
+        case "workbench": return mira.workbenchPage ? workbenchPageC : soonC
+        case "connect": return mira.connectPage ? connectPageC : soonC
+        case "brain": return mira.brainPage ? brainPageC : soonC
+        default: return setC
+        }
+    }
+    function go(name) {
+        win.sheet = name
+        if (name !== "")
+            mira.pageShown(name)
+    }
+
+    Component { id: homeC; SheetFrame { icon: "home"; title: mira.s.home_title; subtitle: mira.s.home_sub; HomeSheet { anchors.fill: parent } } }
+    Component { id: pcC; SheetFrame { icon: "monitor"; title: mira.s.pc_title; subtitle: mira.s.pc_sub; ComputerSheet { anchors.fill: parent } } }
+    Component { id: sysC; SheetFrame { icon: "shield"; title: mira.s.sys_title; subtitle: mira.s.sys_sub; SystemSheet { anchors.fill: parent } } }
+    Component { id: setC; SheetFrame { icon: "settings"; title: mira.s.st_title; SettingsSheet { anchors.fill: parent } } }
+    Component { id: soonC; PageFrame { icon: "sparkle"; title: mira.s.page_loading } }
+    // the new pages (pages/*.py + qml/Mira/*Page.qml); each is used once its file exists
+    Component { id: pcPageC; PcPage {} }
+    Component { id: sysPageC; SystemPage {} }
+    Component { id: appsPageC; AppsPage {} }
+    Component { id: workbenchPageC; WorkbenchPage {} }
+    Component { id: connectPageC; ConnectPage {} }
+    Component { id: brainPageC; BrainPage {} }
 
     Toasts {
         id: toasts
@@ -192,16 +235,21 @@ ApplicationWindow {
         target: mira
         function onToast(kind, text) { toasts.show(kind, text) }
         function onFocusComposer() { dock.field.forceActiveFocus() }
-        function onShowSheet(name) { win.sheet = name }
+        function onShowSheet(name) { win.go(name) }
         function onPrefill(text) { dock.field.text = text; dock.field.forceActiveFocus() }
     }
 
     Shortcut { sequences: ["Ctrl+Space"]; onActivated: mira.talk() }
-    Shortcut { sequences: ["Escape"]; onActivated: { if (win.sheet !== "") win.sheet = ""; else if (mira.busy) mira.stop() } }
+    Shortcut { sequences: ["Escape"]; onActivated: { if (win.sheet !== "") win.go(""); else if (mira.busy) mira.stop() } }
     Shortcut { sequences: ["Ctrl+K", "Ctrl+L"]; onActivated: dock.field.forceActiveFocus() }
-    Shortcut { sequences: ["Ctrl+1"]; onActivated: win.sheet = win.sheet === "home" ? "" : "home" }
-    Shortcut { sequences: ["Ctrl+2"]; onActivated: win.sheet = win.sheet === "computer" ? "" : "computer" }
-    Shortcut { sequences: ["Ctrl+,", "Ctrl+3"]; onActivated: win.sheet = win.sheet === "settings" ? "" : "settings" }
-    Shortcut { sequences: ["Ctrl+4"]; onActivated: win.sheet = win.sheet === "system" ? "" : "system" }
+    Shortcut { sequences: ["Ctrl+0"]; onActivated: win.go("") }
+    Shortcut { sequences: ["Ctrl+1"]; onActivated: win.go(win.sheet === "home" ? "" : "home") }
+    Shortcut { sequences: ["Ctrl+2"]; onActivated: win.go(win.sheet === "pc" ? "" : "pc") }
+    Shortcut { sequences: ["Ctrl+3"]; onActivated: win.go(win.sheet === "apps" ? "" : "apps") }
+    Shortcut { sequences: ["Ctrl+4"]; onActivated: win.go(win.sheet === "system" ? "" : "system") }
+    Shortcut { sequences: ["Ctrl+5"]; onActivated: win.go(win.sheet === "workbench" ? "" : "workbench") }
+    Shortcut { sequences: ["Ctrl+6"]; onActivated: win.go(win.sheet === "connect" ? "" : "connect") }
+    Shortcut { sequences: ["Ctrl+7"]; onActivated: win.go(win.sheet === "brain" ? "" : "brain") }
+    Shortcut { sequences: ["Ctrl+,"]; onActivated: win.go(win.sheet === "settings" ? "" : "settings") }
     Shortcut { sequences: ["Ctrl+Shift+F"]; onActivated: mira.toggleFace() }
 }

@@ -41,13 +41,9 @@ Item {
         Row {
             spacing: 6
             Layout.alignment: Qt.AlignVCenter
-            IconButton { iconName: "home"; tip: mira.s.home; onClicked: bar.openSheet("home") }
-            IconButton { iconName: "monitor"; tip: mira.s.computer; onClicked: bar.openSheet("computer") }
-            IconButton { iconName: "shield"; tip: mira.s.system; onClicked: bar.openSheet("system") }
             IconButton { iconName: "chat"; tip: mira.s.conversation; visible: bar.compact; onClicked: bar.openSheet("chat") }
             IconButton { iconName: "face"; tip: mira.s.switch_face; onClicked: mira.toggleFace() }
             IconButton { iconName: "language"; tip: mira.s.language; onClicked: mira.setLang(mira.lang === "ar" ? "en" : "ar") }
-            IconButton { iconName: "settings"; tip: mira.s.settings; onClicked: bar.openSheet("settings") }
         }
     }
 }

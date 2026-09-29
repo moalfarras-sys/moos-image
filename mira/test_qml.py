@@ -22,7 +22,8 @@ from PySide6.QtCore import QCoreApplication, QMetaMethod, QSettings, QUrl, qInst
 from PySide6.QtGui import QGuiApplication  # noqa: E402
 from PySide6.QtQml import QQmlApplicationEngine  # noqa: E402
 
-import i18n  # noqa: E402
+import i18n
+import pages  # noqa: E402
 from controller import Controller  # noqa: E402
 from faces import EXPRESSIONS, FaceLibrary, FaceProvider  # noqa: E402
 from review_fakes import FakeBridge  # noqa: E402
@@ -50,6 +51,16 @@ class Messages:
         return [line for line in self.lines if any(word in line for word in FATAL)]
 
 
+_controller = []
+
+
+def controller_pages():
+    """One controller (stand-in bridge) whose page objects the route gate can inspect."""
+    if not _controller:
+        _controller.append(Controller(bridge_class=FakeBridge))
+    return _controller[0]
+
+
 class QmlTest(unittest.TestCase):
     def test_every_route_exists(self):
         slots = set()
@@ -68,8 +79,20 @@ class QmlTest(unittest.TestCase):
         self.assertTrue(called, 'no routes found — the scan is broken')
         self.assertEqual(sorted(called - slots), [], 'buttons call routes the controller does not implement')
         self.assertEqual(sorted(read - props - slots), [], 'bindings read properties the controller does not expose')
-        missing = sorted(k for k in strings if k not in i18n.STRINGS)
-        self.assertEqual(missing, [], 'interface text keys missing from i18n.STRINGS')
+        words = i18n.table('ar')
+        missing = sorted(k for k in strings if k not in words)
+        self.assertEqual(missing, [], 'interface text keys missing from i18n (or a page module\'s STRINGS)')
+        # Each page's QML calls slots of its own page object (mira.<name>Page.<slot>(...)).
+        for name, prop in pages.PAGES:
+            page = getattr(controller_pages(), prop, None)
+            if page is None:
+                continue
+            page_meta = page.metaObject()
+            page_slots = {bytes(page_meta.method(i).name().data()).decode() for i in range(page_meta.methodCount())}
+            used = set()
+            for path in QML:
+                used |= set(re.findall(r'\bmira\.' + prop + r'\.(\w+)\s*\(', path.read_text()))
+            self.assertEqual(sorted(used - page_slots), [], f'{prop}: buttons call slots the page does not implement')
 
     def test_the_route_gate_bites(self):
         text = 'onClicked: mira.launchMissiles()'
@@ -108,7 +131,7 @@ class QmlTest(unittest.TestCase):
                     QCoreApplication.processEvents()
                     time.sleep(0.01)
             settle()
-            for sheet in ('home', 'computer', 'settings', ''):
+            for sheet in ('home', 'pc', 'apps', 'system', 'workbench', 'connect', 'brain', 'settings', ''):
                 window.setProperty('sheet', sheet)
                 settle()
             for lang in ('en', 'ar'):

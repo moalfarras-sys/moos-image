@@ -159,6 +159,13 @@ def play(scene, voice, controller, window):
                 if sheet is not None:
                     sheet.setProperty('section', int(section))
             QTimer.singleShot(700, pick)
+    elif scene in ('pc', 'apps', 'workbench', 'connect', 'brain', 'page-system'):
+        # A page of the window with its own visibly-sample review data (Page.review()).
+        name = 'system' if scene == 'page-system' else scene
+        page = getattr(controller, '_pages', {}).get(name)
+        if page is not None and hasattr(page, 'review'):
+            page.review()
+        QTimer.singleShot(200, lambda: window.setProperty('sheet', name))
     elif scene in ('system', 'actions'):
         stage_system(controller)
         if scene == 'system':

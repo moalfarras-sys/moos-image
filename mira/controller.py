@@ -32,8 +32,11 @@ FALLBACK_WAKE = ['mira_ar_experimental']   # Mira only, by the owner's choice (2
 # Desktop changes that wait for the owner (desktop_tools; not Mo AI's executor).
 DESKTOP_CHANGES = {'close_window': ('إغلاق نافذة', 'Close a window')}
 # Mo AI's launcher pages (`moai --panel NAME`) and where they live in Mira now.
-PANELS = {'device': 'system', 'apps': 'system', 'compat': 'system', 'dev': 'system', 'system': 'system',
-          'remote': 'settings', 'settings': 'settings', 'home': 'home', 'computer': 'computer', 'chat': ''}
+PANELS = {'device': 'system', 'health': 'system', 'updates': 'system', 'system': 'system',
+          'apps': 'apps', 'compat': 'apps', 'store': 'apps',
+          'dev': 'workbench', 'agent': 'workbench', 'workbench': 'workbench', 'terminal': 'workbench',
+          'remote': 'connect', 'connect': 'connect', 'phone': 'connect',
+          'brain': 'brain', 'settings': 'settings', 'home': 'home', 'computer': 'pc', 'pc': 'pc', 'chat': ''}
 SETTINGS_PAGES = ('update', 'audio', 'network', 'bluetooth', 'display', 'assistant', 'remote', 'about', 'storage',
                   'default-apps', 'notifications', 'energy')
 CONFIRM_TTL = 180                           # seconds a system change waits for the owner
@@ -205,7 +208,20 @@ class Controller(QObject):
         self.companion_service.changed.connect(self._on_companion_changed)
         self.companion_service.notice.connect(self.toast)
 
+        # The pages of the window (pages/*.py), each its own QObject: mira.<name>Page in QML.
+        self._pages = {}
+        try:
+            import pages
+            for module in pages.modules():
+                page_class = getattr(module, 'PAGE', None)
+                if page_class is not None:
+                    self._pages[module.__name__.rsplit('.', 1)[-1]] = page_class(self, self)
+        except Exception as exc:   # a broken page must not take the whole assistant down
+            print('Mira pages:', type(exc).__name__, exc, flush=True)
+
         self._confirm_request.connect(self._show_confirmation)
+        for signal in (self.actions.rowsInserted, self.actions.rowsRemoved, self.actions.dataChanged, self.actions.modelReset):
+            signal.connect(lambda *args: self.inboxChanged.emit())
         self._notify_answer.connect(self._on_notify_answer)
         self.action_timer = QTimer(self, interval=1000, timeout=self._tick_actions)
         self.reminder_timer = QTimer(self, interval=10000, timeout=self._check_reminders)
@@ -281,6 +297,27 @@ class Controller(QObject):
     deviceModel = Property(QObject, lambda self: self.devices, constant=True)
     companion = _prop('QVariantMap', '_companion', companionChanged)
     system = _prop('QVariantMap', '_system', systemChanged)
+    inboxChanged = Signal()
+
+    def _inbox_count(self):
+        waiting = sum(1 for row in self.actions.rows() if row.get('stage') == 'ask')
+        return waiting + int(getattr(self, '_agent_waiting', 0))
+    inboxCount = Property(int, _inbox_count, notify=inboxChanged)
+    systemBadge = Property(str, lambda self: getattr(self, '_system_badge', ''), notify=inboxChanged)
+
+    pcPage = Property(QObject, lambda self: self._pages.get('pc'), constant=True)
+    appsPage = Property(QObject, lambda self: self._pages.get('apps'), constant=True)
+    systemPage = Property(QObject, lambda self: self._pages.get('system'), constant=True)
+    workbenchPage = Property(QObject, lambda self: self._pages.get('workbench'), constant=True)
+    connectPage = Property(QObject, lambda self: self._pages.get('connect'), constant=True)
+    brainPage = Property(QObject, lambda self: self._pages.get('brain'), constant=True)
+
+    @Slot(str)
+    def pageShown(self, name):
+        """The owner opened a destination: its page reads what it shows."""
+        page = self._pages.get(name)
+        if page is not None:
+            page.activated()
     reminders = _prop('QVariantList', '_reminders', remindersChanged)
     actionModel = Property(QObject, lambda self: self.actions, constant=True)
 
