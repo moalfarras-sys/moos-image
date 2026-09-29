@@ -269,6 +269,40 @@ STRINGS = {
 }
 
 
+# The labelled navigation (Main.qml's NavRail): one destination per page of the window.
+STRINGS.update({
+    'nav_mira': ('ميرا', 'Mira'),
+    'nav_home': ('البيت', 'Home'),
+    'nav_pc': ('الكمبيوتر', 'This PC'),
+    'nav_apps': ('التطبيقات', 'Apps'),
+    'nav_system': ('النظام', 'System'),
+    'nav_workbench': ('الورشة', 'Workbench'),
+    'nav_connect': ('الاتصال', 'Connect'),
+    'nav_brain': ('العقل', 'Brain'),
+    'nav_settings': ('الإعدادات', 'Settings'),
+    'nav_inbox': ('الموافقات', 'Approvals'),
+    'page_loading': ('أقرأ…', 'Reading…'),
+    'page_unreachable': ('الخدمة لا تستجيب الآن', 'The service is not answering right now'),
+    'retry': ('أعد المحاولة', 'Try again'),
+})
+
+
+EXTRA_STRING_MODULES = ('inbox', 'chat_ui', 'kde_integration')
+
+
 def table(lang):
     index = 1 if lang == 'en' else 0
-    return {key: pair[index] for key, pair in STRINGS.items()}
+    merged = dict(STRINGS)
+    try:
+        import pages
+        merged.update(pages.strings())
+    except Exception:
+        pass
+    # Modules outside pages/ that carry their own interface words.
+    import importlib
+    for name in EXTRA_STRING_MODULES:
+        try:
+            merged.update(getattr(importlib.import_module(name), 'STRINGS', {}))
+        except Exception:
+            continue
+    return {key: pair[index] for key, pair in merged.items()}

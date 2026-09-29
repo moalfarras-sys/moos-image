@@ -137,8 +137,13 @@ class MoOSSearch(unittest.TestCase):
         self.assertIn('{ keys: "Esc", ar: "إغلاق", en: "Close" }', self.view)
         self.assertIn('function bidi(value) { return "\\u2068" + value + "\\u2069"; }',
                       self.view)
-        self.assertIn('surface.bidi("Mo AI:', self.view,
-                      "the Arabic AI hand-off must isolate its Latin/query run")
+        # The assistant is Mira now, named in Arabic in the Arabic line; the query is the run a
+        # Latin or mixed question would reorder, so it is the part that must stay isolated.
+        self.assertIn('root.local("اسأل ميرا: «" + surface.bidi(root.query.trim()) + "»"', self.view,
+                      "the Arabic AI hand-off must isolate its query run")
+        self.assertNotIn("Mo AI", "\n".join(l for l in self.view.splitlines()
+                                            if not l.lstrip().startswith("//")),
+                         "the search names the assistant Mira; Mo AI is only her engine")
 
     def test_motion_is_finite_and_gated(self):
         for source in (self.qml, self.view):

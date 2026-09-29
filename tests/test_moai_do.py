@@ -27,7 +27,13 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import time
 from pathlib import Path
+
+try:
+    import fcntl
+except ImportError:          # Windows (Git Bash): the restart gate needs POSIX locks
+    fcntl = None
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import journal_isolation  # noqa: E402
@@ -254,6 +260,84 @@ for bad_rpm in ("",
           f"moai-do install-rpm must explain its safe path policy for {bad_rpm!r}")
     check("rpm-ostree install" not in result.stdout + result.stderr,
           f"moai-do install-rpm must not reach a transaction for {bad_rpm!r}")
+
+# The owner's own folder names. An Arabic session's desktop is «سطح المكتب» (XDG_DESKTOP_DIR in
+# ~/.config/user-dirs.dirs), so a package saved there was refused while the tool promised
+# "Desktop". The XDG download/desktop/documents folders count as well as the English names —
+# read only in xdg-user-dirs' own "$HOME/<one folder>" shape, from the user's own regular file.
+# getent answers with a fixture home; rpmkeys is a recorder that fails, so a path that passes
+# goes no further than the signature check and nothing is ever installed.
+with tempfile.TemporaryDirectory() as tmp:
+    fake = Path(tmp)
+    home = fake / "home"
+    bindir = fake / "bin"
+    bindir.mkdir()
+    checked = fake / "rpmkeys.log"
+    (bindir / "getent").write_text(
+        '#!/bin/sh\necho "owner:x:$(id -u):$(id -g)::$MOOS_TEST_HOME:/bin/bash"\n', encoding="utf-8")
+    (bindir / "rpmkeys").write_text(
+        '#!/bin/sh\nprintf "%s\\n" "$*" >> "$MOOS_TEST_RPMKEYS_LOG"\n'
+        'echo "package.rpm: NOKEY"\nexit 1\n', encoding="utf-8")
+    (bindir / "rpm").write_text("#!/bin/sh\nexit 1\n", encoding="utf-8")
+    for name in ("getent", "rpmkeys", "rpm"):
+        (bindir / name).chmod(0o755)
+    folders = ("Downloads", "سطح المكتب", "المستندات", "Pictures", ".ssh", "Desktop")
+    for folder in folders:
+        (home / folder).mkdir(parents=True)
+        (home / folder / "app.rpm").write_bytes(b"not really a package")
+    (home / "app.rpm").write_bytes(b"not really a package")
+    (home / ".config").mkdir()
+    dirs = home / ".config" / "user-dirs.dirs"
+    rpm_env = os.environ.copy()
+    rpm_env.update(PATH=f"{bindir}{os.pathsep}{rpm_env.get('PATH', '')}",
+                   MOOS_TEST_HOME=str(home), MOOS_TEST_RPMKEYS_LOG=str(checked))
+
+    def install_rpm(folder):
+        checked.unlink(missing_ok=True)
+        target = home / folder / "app.rpm" if folder else home / "app.rpm"
+        done = subprocess.run([BASH, str(MOAI_DO), "install-rpm", str(target)],
+                              capture_output=True, text=True, encoding="utf-8", errors="replace",
+                              timeout=30, env=rpm_env, stdin=subprocess.DEVNULL)
+        reached = checked.exists() and str(target) in checked.read_text(encoding="utf-8")
+        return done, reached
+
+    def accepts(folder, why):
+        done, reached = install_rpm(folder)
+        check(reached and "Publisher signature verification failed" in done.stderr
+              and done.returncode == 2,
+              f"install-rpm must accept a package in {folder!r} ({why}) and go on to its "
+              f"signature: exit {done.returncode}, {done.stderr!r}")
+
+    def refuses(folder, why):
+        done, reached = install_rpm(folder)
+        check(not reached and done.returncode == 2 and "Choose a regular RPM" in done.stderr,
+              f"install-rpm must refuse a package in {folder!r} ({why}) before its signature: "
+              f"exit {done.returncode}, {done.stderr!r}")
+
+    accepts("Downloads", "the English name, with no user-dirs file at all")
+    accepts("Desktop", "the English name")
+    refuses("سطح المكتب", "no user-dirs file names it")
+    dirs.write_text('# written by xdg-user-dirs-update\n'
+                    'XDG_DESKTOP_DIR="$HOME/سطح المكتب"\n'
+                    'XDG_DOWNLOAD_DIR="$HOME/Downloads"\n'
+                    'XDG_DOCUMENTS_DIR="$HOME/المستندات"\n'
+                    'XDG_PICTURES_DIR="$HOME/Pictures"\n', encoding="utf-8")
+    accepts("سطح المكتب", "the session's own desktop")
+    accepts("المستندات", "the session's own documents")
+    refuses("Pictures", "an XDG folder, but not one a package comes from")
+    refuses("", "the home itself")
+    # A value outside the one shape xdg-user-dirs writes names nothing.
+    for value in ('"$HOME/.ssh"', '"$HOME"', '"/etc"', '"$HOME/../x"', '$HOME/.ssh',
+                  '"$HOME/Pictures/.."'):
+        dirs.write_text(f"XDG_DESKTOP_DIR={value}\nXDG_DOCUMENTS_DIR={value}\n", encoding="utf-8")
+        refuses(".ssh", f"user-dirs says {value}")
+        refuses("", f"user-dirs says {value}")
+    # The file must be the user's own regular file: a link to one naming a folder is ignored.
+    real = fake / "elsewhere.dirs"
+    real.write_text('XDG_DESKTOP_DIR="$HOME/سطح المكتب"\n', encoding="utf-8")
+    dirs.unlink()
+    dirs.symlink_to(real)
+    refuses("سطح المكتب", "user-dirs.dirs is a symlink")
 
 # The assistant is a UX client, not a second update implementation. Its unprivileged
 # resolver can be doubled, but the path handed to Polkit is fixed to the root-owned
@@ -630,6 +714,263 @@ if setup_brain:
           "moai-do setup-brain must open the Mo AI settings page without escalating")
 check("moos-settings --section=assistant" in do_text,
       "the brain settings hand-off must open moos-settings --section=assistant")
+
+# ── 8. check-update reads the one update authority and changes nothing ──────────────────────
+# "Is there an update?" is a READ. The resolver is doubled through the same variable `update`'s
+# tests use; pkexec is a trap that records any call. Each backend answer must become words and a
+# machine line, and none of them may escalate, prompt or stage.
+with tempfile.TemporaryDirectory() as tmp:
+    bindir = Path(tmp)
+    trap = bindir / "pkexec.log"
+    calls = bindir / "backend.log"
+    (bindir / "pkexec").write_text('#!/bin/sh\nprintf "%s\\n" "$*" >> "$MOOS_TEST_PKEXEC_LOG"\n',
+                                   encoding="utf-8")
+    (bindir / "pkexec").chmod(0o755)
+    backend = bindir / "moos-image-update"
+    env = os.environ.copy()
+    env.update(PATH=f"{bindir}{os.pathsep}{env.get('PATH', '')}", MOOS_TEST_PKEXEC_LOG=str(trap),
+               MOOS_IMAGE_UPDATE_BACKEND=str(backend), MOOS_TEST_BACKEND_LOG=str(calls))
+
+    def check_update(document=None, code=0, stderr=""):
+        import json as _json
+        body = _json.dumps(document) if document is not None else ""
+        backend.write_text(
+            "#!/bin/sh\nprintf '%s\\n' \"$*\" >> \"$MOOS_TEST_BACKEND_LOG\"\n"
+            f"printf '%s' '{body}'\n"
+            + (f"printf '%s\\n' 'moos-image-update: {stderr}' >&2\n" if stderr else "")
+            + f"exit {code}\n", encoding="utf-8")
+        backend.chmod(0o755)
+        calls.unlink(missing_ok=True)
+        # No stdin at all: a read that prompted would read EOF, never hang.
+        return subprocess.run([BASH, str(MOAI_DO), "check-update"], capture_output=True,
+                              text=True, encoding="utf-8", errors="replace", timeout=60, env=env,
+                              stdin=subprocess.DEVNULL)
+
+    record = {"schema": 1, "state": "available", "edition": "moos-nvidia",
+              "booted_version": "44.20260928", "latest_version": "44.20260929",
+              "staged_version": "", "current_digest": "sha256:" + "b" * 64,
+              "latest_digest": "sha256:" + "d" * 64}
+    done = check_update(record)
+    asked = calls.read_text(encoding="utf-8") if calls.exists() else ""
+    check(asked == "state --format json\n",
+          f"check-update must ask the backend for its state and nothing else; asked {asked!r}")
+    check(done.returncode == 0 and "A newer version is available: MoOS 44.20260929" in done.stdout
+          and "نسخة أحدث متاحة" in done.stdout,
+          f"an available update must be said in both languages: {done.stdout!r}")
+    check("MOOS_UPDATE state=available edition=moos-nvidia current=44.20260928 "
+          "latest=44.20260929 staged=-" in done.stdout,
+          f"check-update must end with its machine line: {done.stdout!r}")
+    check("Continue?" not in done.stdout, "a read must never ask to continue")
+    for state, words in (("current", "MoOS is on the latest signed version"),
+                         ("staged", "An update is ready — restart to apply it: MoOS 44.20260929"),
+                         ("replace-staged", "will replace the staged update 44.20260929"),
+                         ("blocked-downgrade", "is not newer than this computer's"),
+                         ("busy", "An update is being prepared right now")):
+        done = check_update({**record, "state": state, "staged_version": "44.20260929",
+                             "latest_version": "44.20260930" if state != "blocked-downgrade"
+                             else "44.20260901"})
+        check(done.returncode == 0 and words in done.stdout
+              and f"MOOS_UPDATE state={state} " in done.stdout,
+              f"check-update must explain the {state} state: {done.stdout!r} {done.stderr!r}")
+    done = check_update(None, code=2, stderr="the booted deployment is not a signed official "
+                                             "MoOS origin")
+    check(done.returncode == 0 and "MOOS_UPDATE state=unsigned" in done.stdout
+          and "does not run a signed official MoOS image" in done.stdout,
+          f"an unsigned origin is an answer, said plainly: {done.stdout!r} {done.stderr!r}")
+    done = check_update(None, code=4, stderr="registry lookup failed: timeout")
+    check(done.returncode == 1 and "registry lookup failed" in done.stderr
+          and "MOOS_UPDATE state=unknown" in done.stdout,
+          f"a failed lookup must fail with the backend's reason: {done.stdout!r} {done.stderr!r}")
+    done = check_update(None, code=2, stderr="usage: argument command: invalid choice")
+    check(done.returncode == 1, "an unrelated exit 2 (a usage error) is a failure, not 'unsigned'")
+    done = check_update({"schema": 1, "state": "exploded"})
+    check(done.returncode == 1 and "Unknown update state" in done.stderr,
+          "a state the check does not know is a failure, never a guess")
+    backend.write_text("#!/bin/sh\necho not-json\n", encoding="utf-8")
+    done = subprocess.run([BASH, str(MOAI_DO), "check-update"], capture_output=True, text=True,
+                          timeout=60, env=env, stdin=subprocess.DEVNULL)
+    check(done.returncode == 1 and "unreadable" in done.stderr,
+          "an unreadable backend answer must fail the check")
+    check(not trap.exists(), "check-update must never reach pkexec")
+
+# ── 9. restart asks logind, and never while something is being written ─────────────────────
+# systemctl is a recorder; rpm-ostree answers from a file the test writes. A Mo AI job token,
+# a held Mo Store lock, a held deployment lock or an rpm-ostree transaction must each refuse
+# BEFORE the question; the restart's own job token and a leftover older than a job can live
+# must not. Nothing here restarts anything.
+# `systemctl reboot` checks inhibitors itself only on a terminal, and a Mo AI job has none: a
+# block held by this user was ignored and a root-held one became a password prompt. Every path
+# asks for the check.
+REBOOT = "--check-inhibitors=yes reboot\n"
+
+
+def restart_gate():
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        bindir = root / "bin"
+        bindir.mkdir()
+        runtime = root / "run"
+        (runtime / "moai-jobs").mkdir(parents=True)
+        cache = root / "cache"
+        (cache / "moos-store").mkdir(parents=True)
+        deploy_lock = root / "moos-image-update.lock"
+        deploy_lock.touch()
+        # The processes the check can see: no process folders by default, so a real update
+        # timer running on this machine during the test cannot decide the result. The lock
+        # table and this process's mounts stay the kernel's own, so a lock the test really
+        # holds is really seen.
+        proc = root / "proc"
+        proc.mkdir()
+        (proc / "locks").symlink_to("/proc/locks")
+        (proc / "self").symlink_to("/proc/self")
+        status = root / "status.json"
+        reboots = root / "systemctl.log"
+        (bindir / "systemctl").write_text(
+            '#!/bin/sh\nprintf "%s\\n" "$*" >> "$MOOS_TEST_SYSTEMCTL_LOG"\n'
+            'exit "${MOOS_TEST_REBOOT_RC:-0}"\n', encoding="utf-8")
+        (bindir / "rpm-ostree").write_text(
+            '#!/bin/sh\n[ -f "$MOOS_TEST_STATUS" ] || exit 1\ncat "$MOOS_TEST_STATUS"\n',
+            encoding="utf-8")
+        (bindir / "pkexec").write_text('#!/bin/sh\necho "$*" >> "$MOOS_TEST_SYSTEMCTL_LOG.pkexec"\n',
+                                       encoding="utf-8")
+        for name in ("systemctl", "rpm-ostree", "pkexec"):
+            (bindir / name).chmod(0o755)
+        import json as _json
+        idle = {"deployments": [{"booted": True, "version": "44.20260928"}], "transaction": None}
+
+        def restart(answer="y\n", deployments=idle, args=("restart",), **extra):
+            reboots.unlink(missing_ok=True)
+            if deployments is None:
+                status.unlink(missing_ok=True)
+            else:
+                status.write_text(_json.dumps(deployments), encoding="utf-8")
+            env = os.environ.copy()
+            env.update(PATH=f"{bindir}{os.pathsep}{env.get('PATH', '')}", HOME=str(root),
+                       XDG_RUNTIME_DIR=str(runtime), XDG_CACHE_HOME=str(cache),
+                       MOOS_IMAGE_UPDATE_LOCK=str(deploy_lock), MOOS_PROC_ROOT=str(proc),
+                       MOOS_TEST_STATUS=str(status),
+                       MOOS_TEST_SYSTEMCTL_LOG=str(reboots), **extra)
+            env.pop("MOAI_DO_CONFIRMED", None)
+            done = subprocess.run([BASH, str(MOAI_DO), *args], input=answer, capture_output=True,
+                                  text=True, encoding="utf-8", errors="replace", timeout=60, env=env)
+            return done, (reboots.read_text(encoding="utf-8") if reboots.exists() else "")
+
+        done, ran = restart()
+        check(done.returncode == 0 and ran == REBOOT,
+              f"a confirmed restart must ask for exactly `systemctl --check-inhibitors=yes "
+              f"reboot`; ran {ran!r}, exit {done.returncode}, {done.stderr!r}")
+        check("unsaved work is lost" in done.stdout and "✓" in done.stdout,
+              "the restart must warn about unsaved work before asking, and say it is restarting")
+        done, ran = restart("n\n")
+        check(done.returncode == 0 and ran == "", "a declined restart must restart nothing")
+        done, ran = restart("", args=("--confirmed", "restart"))
+        check(done.returncode == 0 and ran == REBOOT,
+              "the confirmed tool path (moai-do --confirmed restart) must not prompt a second time")
+        done, ran = restart("y\n", MOOS_TEST_REBOOT_RC="1")
+        check(done.returncode != 0 and "✓" not in done.stdout and "Nothing changed" in done.stderr,
+              "a restart logind refuses (an inhibitor, a second user) must fail, never claim success")
+        staged = {"deployments": [{"staged": True, "version": "44.20260929"},
+                                  {"booted": True, "version": "44.20260928"}], "transaction": None}
+        done, ran = restart(deployments=staged)
+        check(ran == REBOOT and "44.20260929" in done.stdout and "staged update" in done.stdout,
+              "a staged update is not a reason to refuse; the owner is told it will be applied")
+
+        refusals = []
+        token = runtime / "moai-jobs" / "job-0a1b2c3d-running-install_app"
+        token.touch()
+        refusals.append(("a running Mo AI job", restart(), "install_app"))
+        old = time.time() - 3 * 3600
+        os.utime(token, (old, old))
+        done, ran = restart()
+        check(ran == REBOOT, "a running token older than any job can live is a leftover")
+        token.unlink()
+        own = runtime / "moai-jobs" / "job-0a1b2c3e-running-restart_computer"
+        own.touch()
+        done, ran = restart()
+        check(ran == REBOOT, "the restart's own job token must not refuse the restart")
+        own.unlink()
+        (runtime / "moai-jobs" / "job-0a1b2c3f-done-install_app").touch()
+        done, ran = restart()
+        check(ran == REBOOT, "an ENDED job is not a reason to refuse")
+        for path, label in ((cache / "moos-store" / "job.lock", "a Mo Store job"),
+                            (deploy_lock, "an image being staged")):
+            path.touch()
+            with open(path, "r", encoding="utf-8") as held:
+                fcntl.flock(held.fileno(), fcntl.LOCK_EX)
+                refusals.append((label, restart(), "Nothing changed"))
+                fcntl.flock(held.fileno(), fcntl.LOCK_UN)
+        # A deployment writer whose lock the user cannot read is still seen by its command line.
+        for pid, argv in (("4242", [b"bootc", b"switch", b"--enforce-container-sigpolicy",
+                                    b"ghcr.io/moalfarras-sys/moos-nvidia:latest"]),
+                          ("4243", [b"/usr/bin/python3", b"/usr/libexec/moos-image-update",
+                                    b"auto"])):
+            (proc / pid).mkdir()
+            (proc / pid / "cmdline").write_bytes(b"\0".join(argv) + b"\0")
+            refusals.append((f"a running {argv[0].decode()} {argv[-1].decode()}", restart(),
+                             "being written"))
+            shutil.rmtree(proc / pid)
+        (proc / "4244").mkdir()
+        (proc / "4244" / "cmdline").write_bytes(b"/usr/libexec/moos-image-update\0state\0")
+        done, ran = restart()
+        check(ran == REBOOT, "a read-only `moos-image-update state` is not a deployment writer")
+        shutil.rmtree(proc / "4244")
+        # btrfs, the home folder's filesystem here: stat reports the SUBVOLUME's device while
+        # the lock table prints the filesystem's — the one mountinfo gives the mount holding
+        # the path. A key built from stat alone never matched, so a real Mo Store job on the
+        # station did not refuse the restart (tmpfs /tmp hid it from this gate). The kernel's
+        # table is replaced by the shape it has there: this inode, the mount's device.
+        store_lock = cache / "moos-store" / "job.lock"
+        store_lock.touch()
+        inode, real_dev = store_lock.stat().st_ino, store_lock.stat().st_dev
+        mount_dev = (254, 7)
+        check((os.major(real_dev), os.minor(real_dev)) != mount_dev,
+              "the fixture's mount device must differ from stat's, or it proves nothing")
+        (proc / "locks").unlink()
+        (proc / "self").unlink()
+        (proc / "self").mkdir()
+        point = os.path.realpath(root).replace(" ", "\\040")
+        (proc / "self" / "mountinfo").write_text(
+            "1 0 0:1 / / rw - tmpfs tmpfs rw\n"
+            f"36 1 {mount_dev[0]}:{mount_dev[1]} /home {point} rw,relatime - btrfs /dev/sda3 rw\n",
+            encoding="utf-8")
+
+        def lock_row(device, pid="999999"):
+            (proc / "locks").write_text(
+                f"1: FLOCK  ADVISORY  WRITE {pid} {device}:{inode} 0 EOF\n", encoding="utf-8")
+
+        lock_row(f"{mount_dev[0]:02x}:{mount_dev[1]:02x}")
+        refusals.append(("a Mo Store lock on btrfs (the mount's device)", restart(),
+                         "Nothing changed"))
+        # Same inode on an unrelated filesystem: not this file, so not a reason.
+        lock_row("fd:01")
+        done, ran = restart()
+        check(ran == REBOOT, "a lock row that only shares the inode must not refuse the restart")
+        # …unless its holder has this very file open (a mount the table cannot place).
+        (proc / "4245" / "fd").mkdir(parents=True)
+        (proc / "4245" / "fd" / "7").symlink_to(store_lock)
+        lock_row("fd:01", pid="4245")
+        refusals.append(("a Mo Store lock whose holder has the file open", restart(),
+                         "Nothing changed"))
+        shutil.rmtree(proc / "4245")
+        (proc / "locks").unlink()
+        busy = {**idle, "transaction": ["Rebase", ":1.42", "/org/projectatomic/rpmostree1/x"]}
+        refusals.append(("an rpm-ostree transaction", restart(deployments=busy), "being written"))
+        refusals.append(("an unreadable deployment state", restart(deployments=None),
+                         "could not be read"))
+        for label, (done, ran), words in refusals:
+            check(done.returncode != 0 and ran == "",
+                  f"with {label}, moai-do restart must refuse before asking; ran {ran!r}, "
+                  f"exit {done.returncode}")
+            check(words in done.stderr, f"the refusal for {label} must say why: {done.stderr!r}")
+            check("Continue?" not in done.stdout, f"with {label} the question must not be asked")
+        check(not (root / "systemctl.log.pkexec").exists(), "a restart never goes through pkexec")
+        check(not Path("/run/lock/moos-image-update.lock").exists()
+              or Path("/run/lock/moos-image-update.lock").stat().st_uid == 0,
+              "the check must never create the deployment lock as a user")
+
+
+if fcntl is not None:
+    restart_gate()
 
 if errors:
     print("MoOS moai-do test failed:", file=sys.stderr)

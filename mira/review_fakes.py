@@ -125,6 +125,8 @@ def stage(controller, window, scene):
 
 
 def play(scene, voice, controller, window):
+    # the old sheet names, as the controller maps them (controller.PANELS): 'computer' is This PC
+    scene = {'computer': 'pc'}.get(scene, scene)
     if scene in ('listening', 'thinking', 'speaking', 'executing'):
         voice('listening')
         if scene == 'listening':
@@ -148,7 +150,7 @@ def play(scene, voice, controller, window):
             timer.start()
     elif scene == 'error':
         voice('error', 'تعذّر الاتصال بالصوت: TimeoutError')
-    elif scene in ('home', 'computer', 'settings'):
+    elif scene in ('home', 'settings'):
         QTimer.singleShot(200, lambda: window.setProperty('sheet', scene))
         section = next((a.split('=', 1)[1] for a in sys.argv if a.startswith('--section=')), '')
         if scene == 'settings' and section.isdigit():
@@ -159,6 +161,15 @@ def play(scene, voice, controller, window):
                 if sheet is not None:
                     sheet.setProperty('section', int(section))
             QTimer.singleShot(700, pick)
+    elif scene in ('pc', 'apps', 'workbench', 'connect', 'brain', 'page-system'):
+        # A page of the window with its own visibly-sample review data (Page.review()).
+        name = 'system' if scene == 'page-system' else scene
+        page = getattr(controller, '_pages', {}).get(name)
+        if page is not None and hasattr(page, 'review'):
+            page.review()
+        QTimer.singleShot(200, lambda: window.setProperty('sheet', name))
+    elif scene == 'agent':
+        stage_agent(controller)
     elif scene in ('system', 'actions'):
         stage_system(controller)
         if scene == 'system':
@@ -183,6 +194,18 @@ def stage_system(controller):
                               'installed': False, 'verified': False, 'installs': 104064},
                              {'id': 'org.telegram.desktop', 'name': 'Telegram Desktop', 'summary': 'Fast. Secure. Powerful.',
                               'installed': True, 'verified': True, 'installs': 90000}])
+
+
+def stage_agent(controller):
+    """The Mo AI agent's approvals as cards (visibly sample data; the agent API is not asked)."""
+    import inbox
+    box = getattr(controller, 'inbox', None)
+    if box is not None:
+        box.review()
+        items = box.items
+    else:                      # a controller without the agent inbox still shows the cards
+        items = inbox.review_items()
+    controller.actions.set_rows([inbox.card(item, controller._s) for item in reversed(items)])
 
 
 def stage_actions(controller):

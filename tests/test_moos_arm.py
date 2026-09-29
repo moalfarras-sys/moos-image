@@ -17,9 +17,13 @@ after the owner has uploaded several gigabytes to Oracle:
 
 from __future__ import annotations
 
+import importlib.util
 import re
+import shutil
+import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 from test_arm_appstream_refresh import AppStreamImageTests
 # /boot is 974 MiB and holds two deployments; the initramfs has to fit.
@@ -916,6 +920,138 @@ class ArmEditionTests(unittest.TestCase):
         self.assertIn("20 GB", text,
                       "Object Storage/custom-image bytes are only free inside the "
                       "tenancy's 20 GB allowance")
+
+
+# ── Mira: one assistant, built and gated alike on both architectures ─────────
+X86_CONTAINERFILE = ROOT / "Containerfile"
+MIRA_STAGE = ROOT / "mira/packaging/stage.sh"
+# What a Mira window must not print while it opens (build-time smoke, both stages, both builds,
+# and the booted ARM disk). One literal everywhere, so a script cannot quietly loosen its copy.
+MIRA_LOG_FAULTS = ("'^Mira pages:|\\.qml:[0-9]+:([0-9]+:)? |ReferenceError|TypeError"
+                   "|Unable to assign|^Traceback '")
+
+
+def mira_suites(text: str) -> set[str]:
+    """The suites a Containerfile's mira-build stage runs (the one `-m unittest` RUN)."""
+    match = re.search(r"python3 -s -m unittest((?:\s+\\?\s*test_\w+)+)", text)
+    assert match, "no mira-build unittest RUN found"
+    return set(re.findall(r"test_\w+", match.group(1)))
+
+
+class MiraOnBothArchitectures(unittest.TestCase):
+    def test_both_stages_run_the_same_suites(self) -> None:
+        arm, x86 = mira_suites(read(CONTAINERFILE)), mira_suites(read(X86_CONTAINERFILE))
+        self.assertEqual(arm - x86, set(), "ARM runs Mira suites the x86 image does not")
+        self.assertEqual(x86 - arm, set(), "x86 runs Mira suites the ARM image does not")
+        self.assertIn("test_visual_tier", arm, "the still-face probe must run on both architectures")
+
+    def test_the_stage_ships_her_pages(self) -> None:
+        stage = read(MIRA_STAGE)
+        self.assertRegex(code(stage), r'cp -r [^\n]*"\$src/pages"',
+                         "stage.sh must copy pages/: without it every page falls back and the "
+                         "window still opens")
+        self.assertIn("pages/__init__.py pages/base.py $page_modules", stage)
+
+    def test_both_builds_gate_the_staged_tree_and_the_image_alike(self) -> None:
+        for path in (CONTAINERFILE, X86_CONTAINERFILE):
+            text = code(read(path))
+            with self.subTest(path=path.name):
+                self.assertIn(MIRA_LOG_FAULTS, text)
+                self.assertIn("python3 -s /src/mira/test_visual_tier.py --face-probe /out/app", text)
+                self.assertIn("import pages, chat_ui, kde_integration", text)
+                self.assertIn("COPY mira/test_visual_tier.py /mira/test_visual_tier.py", text)
+        for path in (BUILD, X86_BUILD):
+            text = code(read(path))
+            with self.subTest(path=path.name):
+                self.assertIn(MIRA_LOG_FAULTS, text)
+                self.assertIn("/ctx/mira/test_visual_tier.py --face-probe /usr/lib/mira/app", text)
+                self.assertIn("test -f /usr/lib/mira/app/visual_tier.py", text)
+                self.assertIn("test -f /usr/lib/mira/app/pages/__init__.py", text)
+                self.assertIn("import pages, chat_ui, kde_integration", text)
+
+    def test_the_booted_disk_opens_her(self) -> None:
+        runtime = code(read(RUNTIME_GATE))
+        self.assertIn("/usr/bin/mira --capture=", runtime)
+        self.assertIn(MIRA_LOG_FAULTS, runtime)
+        self.assertNotIn("runuser", runtime, "the runtime gate runs as the provisioned user")
+
+
+def _elf(machine: int) -> bytes:
+    head = bytearray(64)
+    head[:4], head[4], head[5] = b"\x7fELF", 2, 1
+    head[18:20] = machine.to_bytes(2, "little")
+    return bytes(head)
+
+
+class VerifyMiraOnAFakeRoot(unittest.TestCase):
+    """verify_arm_image.verify_mira passes a whole tree and refuses each way hers can ship broken."""
+
+    def setUp(self) -> None:
+        spec = importlib.util.spec_from_file_location("verify_arm_image_under_test", ARM_VERIFY)
+        self.verify = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(self.verify)
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        root = self.root = Path(tmp.name)
+        app = self.app = root / "usr/lib/mira/app"
+        for relative in ("app.py", "controller.py", "chat_ui.py", "kde_integration.py", "visual_tier.py",
+                         "qml/Main.qml", "pages/base.py", "pages/pc.py", "pages/apps.py"):
+            (app / relative).parent.mkdir(parents=True, exist_ok=True)
+            (app / relative).write_text("# fixture\n")
+        (app / "pages/__init__.py").write_text("PAGES = [\n    ('pc', 'pcPage'),\n    ('apps', 'appsPage'),\n]\n")
+        site = root / "usr/lib/mira/site"
+        (site / "numpy/_core").mkdir(parents=True)
+        (site / "numpy/_core/_multiarray_umath.cpython-314-aarch64-linux-gnu.so").write_bytes(_elf(183))
+        (site / "pkg.libs").mkdir()
+        (site / "pkg.libs/libgfortran-1a2b.so.5.0.0").write_bytes(_elf(183))
+        (root / "usr/bin").mkdir(parents=True)
+        (root / "usr/bin/mira").write_text("#!/bin/bash\n")
+        (root / "usr/bin/mira").chmod(0o755)
+        (root / "usr/bin/moai").write_text('#!/bin/bash\nexec /usr/bin/mira "$@"\n')
+        patcher = mock.patch.multiple(self.verify, ROOT=root, rpm_installed=lambda package: True)
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
+    def refused(self, fragment: str) -> None:
+        with self.assertRaises(SystemExit) as caught:
+            self.verify.verify_mira()
+        self.assertIn(fragment, str(caught.exception))
+
+    def test_a_whole_tree_passes(self) -> None:
+        self.verify.verify_mira()
+
+    def test_a_tree_without_pages_is_refused(self) -> None:
+        shutil.rmtree(self.app / "pages")
+        self.refused("pages")
+
+    def test_a_page_module_missing_from_pages_is_refused(self) -> None:
+        (self.app / "pages/apps.py").unlink()
+        self.refused("pages/apps.py")
+
+    def test_an_x86_extension_is_refused(self) -> None:
+        (self.root / "usr/lib/mira/site/numpy/_core/_multiarray_umath.cpython-314-aarch64-linux-gnu.so"
+         ).write_bytes(_elf(62))
+        self.refused("not AArch64")
+
+    def test_a_vendored_x86_library_is_refused(self) -> None:
+        (self.root / "usr/lib/mira/site/pkg.libs/libgfortran-1a2b.so.5.0.0").write_bytes(_elf(62))
+        self.refused("libgfortran-1a2b.so.5.0.0")
+
+    def test_a_bytecode_cache_is_refused(self) -> None:
+        (self.app / "__pycache__").mkdir()
+        self.refused("bytecode caches")
+
+    def test_a_missing_runtime_rpm_is_refused(self) -> None:
+        with mock.patch.object(self.verify, "rpm_installed", lambda package: package != "python3-numpy"):
+            self.refused("python3-numpy")
+
+    def test_moai_without_the_handoff_is_refused(self) -> None:
+        (self.root / "usr/bin/moai").write_text("#!/bin/bash\nexec moos-qml-shell\n")
+        self.refused("moai does not hand")
+
+    def test_a_missing_visual_tier_is_refused(self) -> None:
+        (self.app / "visual_tier.py").unlink()
+        self.refused("visual_tier.py")
 
 
 if __name__ == "__main__":

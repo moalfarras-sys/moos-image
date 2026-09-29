@@ -213,6 +213,10 @@ python3 tests/test_island_jobs_privacy.py
 # (it asserts that strings exist) stayed green. This runs the real producers and the shipped
 # IslandTokens.js against each other.
 python3 tests/test_island_tokens.py
+# Mira inside Plasma: the launcher passes Dolphin's arguments through and picks the software scene
+# graph without a real GPU, her login unit is never enabled for everyone, the Dolphin entries run
+# arguments she parses, and the tree mira/packaging/stage.sh gives the image carries her pages.
+python3 tests/test_mira_kde_integration.py
 # App Drop installs an application from a FILE. The hostile archives are built for real here:
 # `..`, absolute paths, links that leave the tree, device nodes, a bomb, a package .desktop
 # saying Exec=sh -c, a file merely CALLED .AppImage, a ref naming a foreign remote. The

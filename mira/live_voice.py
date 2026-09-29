@@ -520,6 +520,14 @@ class LiveVoice:
         self._idle_task = None
         self._closing = set()
         self.capture = None         # an armed voice-enrolment recording (see arm_capture)
+        # The owner's chat changed (forget_context): applied on the voice loop, which the hosts
+        # (mira_bridge, desk_voice) create this object on; enable() and start() record it again.
+        try:
+            self._loop = asyncio.get_running_loop()
+        except RuntimeError:
+            self._loop = None
+        self._forget_pending = False
+        self._context = 0           # bumps each time the conversation context is dropped
 
     # ── small utilities ──────────────────────────────────────────────
     def _say(self, kind, text):
@@ -540,6 +548,7 @@ class LiveVoice:
 
     # ── enable / disable ─────────────────────────────────────────────
     async def enable(self):
+        self._loop = asyncio.get_running_loop()
         if self.enabled:
             self._say('ready', self._ready_text())
             return
@@ -632,6 +641,7 @@ class LiveVoice:
             return None
 
     async def _start(self):
+        self._loop = asyncio.get_running_loop()
         spec, self.capture = self.capture, None
         if spec and time.monotonic() - spec['armed_at'] < CAPTURE_ARM_S:
             return await self._start_capture(spec)
@@ -649,7 +659,7 @@ class LiveVoice:
              'tts': False, 'test_text': self.test_text, 'local_source': local_source,
              'input_source': 'pc_pending' if local_source else 'echo',
              'echo_buffer': collections.deque(maxlen=50), 'phase': 'connecting', 'stats': {},
-             'tool_log': [], 'cancelled_calls': set(), 'interrupted': 0}
+             'tool_log': [], 'cancelled_calls': set(), 'interrupted': 0, 'context': self._context}
         self.test_text = None
         self.turn = t
         t['task'] = asyncio.create_task(self.run(t))
@@ -979,8 +989,52 @@ class LiveVoice:
         elif turns:
             await link.session.send_client_content(turns=turns, turn_complete=False)
 
+    def forget_context(self):
+        """The owner started a new chat or opened another one: the next spoken turn begins fresh,
+        seeded only with the open chat, and never reuses or resumes this conversation's session.
+
+        Safe from any thread (the Qt thread calls it): the work is scheduled onto the voice loop,
+        and a turn already speaking finishes on its session. Until the loop is known, the flag
+        alone holds the request and the next turn applies it before it picks a session."""
+        self._forget_pending = True
+        loop = self._loop
+        try:
+            running = asyncio.get_running_loop()
+        except RuntimeError:
+            running = None
+        if loop is None:
+            return
+        if running is loop:
+            self._apply_forget()
+            return
+        try:
+            loop.call_soon_threadsafe(self._apply_forget)
+        except RuntimeError:     # the loop has closed: there is no session left to forget
+            pass
+
+    def _apply_forget(self):
+        """Voice loop only. Idempotent: the flag and a scheduled call may both arrive."""
+        if not self._forget_pending:
+            return
+        self._forget_pending = False
+        self._context += 1
+        self.history = []
+        link = self.link
+        if link is None:
+            return
+        link.dirty = True           # never reused
+        link.idle_closed = True     # never resumed
+        link.resume_handle = None
+        if self.turn is None:       # nothing is speaking on it: let it go now
+            self.link = None
+            self._cancel_idle()
+            self._close_later(link)
+            self._say('session', json.dumps({'state': 'closed', 'reason': 'new_chat'}))
+
     async def _acquire(self, t, config):
         """A usable link for this turn: reuse, resume or connect."""
+        if self._forget_pending:
+            self._apply_forget()
         now = time.monotonic()
         link = self.link
         handle = None
@@ -999,7 +1053,10 @@ class LiveVoice:
                 handle = link.resume_handle
             self.link = None
             self._close_later(link)
+        context = self._context
         new = await self._connect(config, handle)
+        if context != self._context:     # the owner changed chats while this session was seeded:
+            new.dirty = new.idle_closed = True   # this turn may finish on it, the next starts fresh
         self.link = new
         t['session'] = 'resumed' if new.resumed else 'fresh'
         self._say('session', json.dumps({'state': t['session'], 'features': 'advanced' if new.advanced else 'plain'}))
@@ -1116,7 +1173,8 @@ class LiveVoice:
                 self.event('TTS_START', {'text': t['reply']})
                 self.event('TTS_STREAM_END')
             self.event('RUN_END')
-            if t['reply'] and (t['test_text'] or t['heard']):
+            # A turn that began before the owner changed chats belongs to the old conversation.
+            if t['reply'] and (t['test_text'] or t['heard']) and t.get('context', self._context) == self._context:
                 self.history.extend([{'role': 'user', 'parts': [{'text': t['test_text'] or t['heard']}]},
                                      {'role': 'model', 'parts': [{'text': t['reply']}]}])
                 self.history = self.history[-12:]
@@ -1350,9 +1408,11 @@ class LiveVoice:
         t['phase'] = 'tool'
         self._say('executing', 'أنفّذ الطلب…')
         allowed = frozenset(self.allowed_tools) if self.allowed_tools is not None else None
+        # The language of what was heard in this turn, else the interface language.
         ctx = tools.ToolContext(emit=self._say, device_control=self.device_command,
                                 on_long_task=lambda: self.event('STT_END', {'text': t['heard']}),
-                                allowed_tools=allowed, request_confirmation=self.request_confirmation)
+                                allowed_tools=allowed, request_confirmation=self.request_confirmation,
+                                lang=tools.message_lang(t.get('test_text') or t.get('heard') or '', self.lang))
         started = time.monotonic()
         replies = []
         for call in tool_call.function_calls or []:

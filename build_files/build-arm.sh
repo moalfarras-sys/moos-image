@@ -143,6 +143,12 @@ _PLASMA=(
     # App Drop asks with kdialog (default No) and treats "no dialog tool" as No,
     # so without it nothing dropped or double-clicked could ever install on ARM.
     kdialog
+    # Mira's runtime (the MoOS assistant, /usr/bin/mira): the same RPMs build.sh
+    # installs for x86 and Containerfile.arm's mira-build stage runs her tests
+    # against. Her pinned extras are in /usr/lib/mira/site from that stage;
+    # python3-websockets is already named above for Mo PC Remote.
+    python3-pyside6 python3-numpy python3-jeepney python3-httpx python3-requests
+    python3-cryptography
 )
 
 # Mo PC Remote publishes its authenticated loopback agent through Tailscale
@@ -301,11 +307,14 @@ for unit in \
         exit 1
     }
 done
+# mira.service (Mira's login start) is verified like x86's, and never enabled here: it is the
+# person's own switch in her Settings (tests/test_mira_kde_integration.py refuses a global enable).
 systemd-analyze verify \
     /usr/lib/systemd/user/moai-gateway.service \
     /usr/lib/systemd/user/moai-control.service \
     /usr/lib/systemd/user/moai-agent-api.service \
-    /usr/lib/systemd/user/moai-wake.service
+    /usr/lib/systemd/user/moai-wake.service \
+    /usr/lib/systemd/user/mira.service
 systemctl --global enable \
     moai-gateway.service moai-control.service moai-agent-api.service \
     moai-wake.service openclaw-idle.timer \
@@ -900,15 +909,94 @@ test -f /usr/lib/systemd/system/dbus-broker.service.d/moos-start-timeout.conf ||
     echo "FATAL: the dbus-broker start-timeout drop-in did not arrive from system_files"; exit 1
 }
 
-# Both first-party apps arrive from native aarch64 build stages. Remote remains
-# opt-in exactly like x86: the panel starts its service explicitly, so a fresh
-# cloud/UTM desktop pays zero idle daemon cost.
+# The first-party apps (Mo PC Remote, MoPlayer, Mira) arrive from native aarch64
+# build stages. Remote remains opt-in exactly like x86: the panel starts its
+# service explicitly, so a fresh cloud/UTM desktop pays zero idle daemon cost.
 chmod 0755 /usr/lib/mo-remote/MoRemotePersonal \
     /usr/lib/mo-remote/mo-remote-portal.py \
     /usr/libexec/moos-install-local-rpm \
     /usr/bin/mo-pc-remote \
-    /usr/bin/moplayer
+    /usr/bin/moplayer \
+    /usr/bin/mira
 systemctl --global disable mo-remote-personal.service 2>/dev/null || true
+
+# Mira, the MoOS assistant — the same gate build.sh runs for x86. Her tree and pinned packages
+# come from Containerfile.arm's mira-build stage, her launcher and the org.moos.moai entry from
+# system_files. Each line is a way she could ship and not open: a missing half, an import this
+# image's aarch64 Python cannot satisfy, an identity that no longer matches Mo AI's launcher (one
+# dock icon, Meta+Space), a window that dies at start-up or opens broken, or a face the software
+# scene graph cannot draw. Here, after the final overlay restore, because /usr/bin/mira and
+# /usr/bin/moai are overlay files.
+test -f /usr/lib/mira/app/app.py \
+    || { echo "GATE FAIL: Mira's app tree is missing (/usr/lib/mira/app)"; exit 1; }
+test -f /usr/lib/mira/app/pages/__init__.py && test -f /usr/lib/mira/app/pages/base.py \
+    || { echo "GATE FAIL: Mira's pages are missing (/usr/lib/mira/app/pages) — her window would open without them"; exit 1; }
+test -d /usr/lib/mira/site/google/genai && test -d /usr/lib/mira/site/aioesphomeapi \
+    || { echo "GATE FAIL: Mira's pinned packages are missing (/usr/lib/mira/site)"; exit 1; }
+test -x /usr/bin/mira \
+    || { echo "GATE FAIL: the Mira launcher is missing or not executable"; exit 1; }
+grep -q 'exec /usr/bin/mira' /usr/bin/moai \
+    || { echo "GATE FAIL: moai no longer hands the assistant to Mira"; exit 1; }
+grep -q "DESKTOP_ID = 'org.moos.moai'" /usr/lib/mira/app/app.py \
+    || { echo "GATE FAIL: Mira no longer wears Mo AI's app id — two dock icons, no Meta+Space match"; exit 1; }
+# visual_tier.py is the controller's motion policy: how still she stays where she is drawn on the
+# processor, which every A1 is. The face probe below imports it too.
+test -f /usr/lib/mira/app/visual_tier.py \
+    || { echo "GATE FAIL: Mira's visual tier reader is missing (/usr/lib/mira/app/visual_tier.py)"; exit 1; }
+_mira_home="$(mktemp -d)"
+_mira_imports="$(env -i PATH=/usr/bin HOME="$_mira_home" PYTHONPATH=/usr/lib/mira/site PYTHONDONTWRITEBYTECODE=1 \
+    /usr/bin/python3 -s -c 'import PySide6.QtQuick, google.genai, aioesphomeapi, numpy, jeepney, segno; print("ok")' 2>&1)"
+case "$_mira_imports" in
+    ok) ;;
+    *) echo "GATE FAIL: Mira cannot import her runtime in this image:"; echo "$_mira_imports"; exit 1 ;;
+esac
+# Every page pages.PAGES names must import from the tree the image carries (the controller skips a
+# page that does not, and prints «Mira pages:»), and so must the chat and KDE layers built on them.
+set +e
+_mira_pages="$(cd /usr/lib/mira/app && env -i PATH=/usr/bin HOME="$_mira_home" PYTHONPATH=/usr/lib/mira/site \
+    PYTHONDONTWRITEBYTECODE=1 QT_QPA_PLATFORM=offscreen /usr/bin/python3 -s -c 'import pages, chat_ui, kde_integration; missing = sorted({n for n, _ in pages.PAGES} - {m.__name__.rpartition(".")[2] for m in pages.modules()}); assert not missing, "page modules that do not import: %s" % missing; print("MIRA_PAGES_OK")' 2>&1)"
+set -e
+case "$_mira_pages" in
+    *MIRA_PAGES_OK) ;;
+    *) echo "GATE FAIL: Mira cannot import her pages in this image:"; echo "$_mira_pages"; exit 1 ;;
+esac
+# Her window, offscreen, with stand-in backends: it must render a frame, save it, and say nothing
+# wrong while doing so. The log is written to a file and then searched (no producer piped into
+# `grep -q` under pipefail): a QML warning, a page that did not import or a traceback is a window
+# that opened broken, which an exit status of 0 and a non-empty PNG cannot see. The same pattern
+# as Containerfile.arm's mira-build stage.
+set +e
+env -i PATH=/usr/bin HOME="$_mira_home" MIRA_TEST_MODE=1 MIRA_INSTANCE=mira-image-gate PYTHONDONTWRITEBYTECODE=1 \
+    QT_QPA_PLATFORM=offscreen QT_QUICK_BACKEND=software QT_FORCE_STDERR_LOGGING=1 \
+    timeout 30 /usr/bin/mira --capture="$_mira_home/mira.png" --capture-delay=3000 >/tmp/mira-smoke.log 2>&1
+_mira_rc=$?
+set -e
+if [ "$_mira_rc" -ne 0 ] || [ ! -s "$_mira_home/mira.png" ]; then
+    echo "GATE FAIL: Mira's window did not open in the image (exit=${_mira_rc}). Her own output:"
+    cat /tmp/mira-smoke.log
+    exit 1
+fi
+if grep -nE '^Mira pages:|\.qml:[0-9]+:([0-9]+:)? |ReferenceError|TypeError|Unable to assign|^Traceback ' \
+        /tmp/mira-smoke.log; then
+    echo "GATE FAIL: Mira's window opened in the image with the faults above"
+    exit 1
+fi
+# Her face, on the scene graph every ARM session uses. It draws no ShaderEffect, and her portal,
+# aura and both avatars are shaders elsewhere: here MiraCore and Avatar draw the still face, and
+# the probe (her own test_visual_tier, run on this image's tree) fails when either comes out empty.
+set +e
+_mira_face="$(env -i PATH=/usr/bin HOME="$_mira_home" PYTHONPATH=/usr/lib/mira/site:/usr/lib/mira/app \
+    PYTHONDONTWRITEBYTECODE=1 /usr/bin/python3 -s /ctx/mira/test_visual_tier.py --face-probe /usr/lib/mira/app 2>&1)"
+_mira_rc=$?
+set -e
+echo "$_mira_face"
+[ "$_mira_rc" -eq 0 ] \
+    || { echo "GATE FAIL: Mira draws no face on the software scene graph in this image"; exit 1; }
+rm -rf "$_mira_home" /tmp/mira-smoke.log
+# Captured, then matched: `find | grep -q` under pipefail can report a match as a failure.
+_mira_pyc="$(find /usr/lib/mira -name '__pycache__' -print -quit)"
+[ -z "$_mira_pyc" ] || { echo "GATE FAIL: bytecode caches reached /usr/lib/mira ($_mira_pyc)"; exit 1; }
+unset -v _mira_home _mira_imports _mira_pages _mira_face _mira_rc _mira_pyc
 
 # -----------------------------------------------------------------------------
 # (8) Identity

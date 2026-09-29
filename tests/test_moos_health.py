@@ -287,6 +287,28 @@ class MoosHealthUnknownIsNotHealthyTests(unittest.TestCase):
         _, findings = self.scan(self.machine())
         self.assertEqual([fid for fid in findings if fid.startswith("check-incomplete-")], [])
 
+    def test_a_nightly_success_is_a_run_only_with_its_own_end_time(self):
+        # systemd says Result=success for a unit that never ran, and resets it at every boot
+        # (measured on the station: Result=success with no exit timestamp at all). A reader may
+        # say "the last nightly update succeeded" only beside the run's own time.
+        never, _ = self.scan(self.machine())
+        self.assertEqual((never["updates"]["last_nightly_result"], never["updates"]["last_nightly_run"]),
+                         ("success", ""))
+        ran, _ = self.scan(self.machine(systemctl=(
+            'case "$*" in\n'
+            '  *ExecMainExitTimestamp*) echo @1790673031;;\n'
+            '  *is-enabled*) echo enabled;;\n'
+            '  *show*Result*) echo success;;\n'
+            '  *is-active*) echo active;;\n'
+            'esac\n')))
+        self.assertEqual(ran["updates"]["last_nightly_run"], "2026-09-29T09:10:31+00:00")
+        zero, _ = self.scan(self.machine(systemctl=(
+            'case "$*" in\n'
+            '  *ExecMainExitTimestamp*) echo @0;;\n'
+            '  *show*Result*) echo success;;\n'
+            'esac\n')))
+        self.assertEqual(zero["updates"]["last_nightly_run"], "")
+
     def test_a_stopped_or_failed_firewall_is_still_reported_as_off(self):
         # firewall-cmd writes every answer whose exit code is above 1 to STDERR
         # (firewall/command.py print_and_exit): "not running" exits 252, "failed" exits 251.

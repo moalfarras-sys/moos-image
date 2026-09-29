@@ -46,7 +46,23 @@ var MOAI_JOB_LABELS = {
     // W9.10 desktop hands that ask first (a window close, disabling the auto-lock) become jobs
     // too, so they carry words rather than the generic fallback.
     window_action: ["إجراء على نافذة", "Working on a window"],
-    set_screen_lock: ["ضبط قفل الشاشة", "Setting screen lock"]
+    set_screen_lock: ["ضبط قفل الشاشة", "Setting screen lock"],
+    smart_setup: ["تجهيز التطبيقات الأساسية", "Setting up essential apps"],
+    install_codex: ["تثبيت وكيل Codex", "Installing Codex"],
+    install_claude_code: ["تثبيت وكيل Claude Code", "Installing Claude Code"],
+    install_opencode: ["تثبيت وكيل OpenCode", "Installing OpenCode"],
+    install_hermes: ["تثبيت محرّك الوكيل", "Installing the agent runtime"],
+    install_openclaw: ["تثبيت وكيل الهاتف", "Installing the phone agent"],
+    install_rpm: ["تثبيت حزمة", "Installing a package"],
+    restart_computer: ["إعادة تشغيل الكمبيوتر", "Restarting the computer"],
+    // Controls that are confirmed for one value (confirm_values) run as jobs too; the token
+    // names the tool only, and the carded value is the one below.
+    toggle_wifi: ["إيقاف الواي فاي", "Turning off Wi-Fi"],
+    toggle_bluetooth: ["إيقاف البلوتوث", "Turning off Bluetooth"],
+    set_do_not_disturb: ["تشغيل عدم الإزعاج", "Turning on Do Not Disturb"],
+    set_mic_mute: ["تشغيل الميكروفون", "Turning the microphone on"],
+    remote_control: ["تبديل Mo PC Remote", "Switching Mo PC Remote"],
+    fast_remote: ["تشغيل الاتصال السريع", "Turning on Fast Remote"]
 };
 
 function decodeField(text) {
@@ -217,5 +233,5 @@ function recentMoaiJobNames(entries, nowMs) {
 function moaiJobLabel(tool) {
     var label = Object.prototype.hasOwnProperty.call(MOAI_JOB_LABELS, tool)
         ? MOAI_JOB_LABELS[tool] : null;
-    return label ? label.slice() : ["إجراء من Mo AI", "A Mo AI action"];
+    return label ? label.slice() : ["إجراء من ميرا", "A Mira action"];
 }

@@ -61,12 +61,24 @@ class ThemeIconProvider(QQuickImageProvider):
 
 
 def launch_request(argv):
-    """What a launcher asked for — Mo AI's `--panel NAME`, `--device`, `--ask TEXT` — or {}."""
+    """What a launcher asked for — Mo AI's `--panel NAME`, `--device`, `--ask TEXT`, and Plasma's
+    and Dolphin's `--background`, `--ask-about PATH…`, `--add-project DIR` — or {}.
+
+    Read once, left to right: an option that takes a value consumes it. moos-open turns
+    moos://ai/ask/<text> into `--ask "<text>"`, so words a web page chose are never read as
+    `--install-improved-wake`, `--add-project` or any other option.
+    """
     request = {}
-    for i, arg in enumerate(argv):
-        if arg in ('--panel', '--ask') and i + 1 < len(argv):
-            request[arg[2:]] = argv[i + 1]
-        elif arg.startswith(('--panel=', '--ask=')):
+    args = [str(a) for a in argv]
+    i = 0
+    while i < len(args):
+        arg = args[i]
+        if arg in ('--panel', '--ask'):
+            if i + 1 < len(args):
+                request[arg[2:]] = args[i + 1]
+            i += 2
+            continue
+        if arg.startswith(('--panel=', '--ask=')):
             key, value = arg[2:].split('=', 1)
             request[key] = value
         elif arg == '--device':
@@ -75,6 +87,17 @@ def launch_request(argv):
             request['wake'] = 'improved'     # local only: offers the improved «ميرا» model to the Echo
         elif arg == '--wake-rollback':
             request['wake'] = 'rollback'     # local only: back to the proven «ميرا» model alone
+        i += 1
+    # Plasma's and Dolphin's arguments, by the same rule (kde_integration.launch_extras). An
+    # explicit --panel wins over the page they imply.
+    try:
+        import kde_integration
+        extras = kde_integration.launch_extras(args)
+    except Exception as exc:   # never fatal: Mo AI's own arguments still work
+        print('Mira KDE integration:', type(exc).__name__, exc, file=sys.stderr, flush=True)
+        extras = {}
+    for key, value in extras.items():
+        request.setdefault(key, value)
     if 'panel' in request and not re.fullmatch(r'[a-z]{1,16}', request['panel']):
         del request['panel']
     return request
@@ -143,12 +166,15 @@ def main():
     app.setDesktopFileName(DESKTOP_ID)
     app.setWindowIcon(app_icon())
     request = launch_request(sys.argv[1:])
+    start_hidden = bool(request.pop('background', False))   # login start: the tray, not the window
     message = b'open:' + json.dumps(request).encode() if request else b'show'
 
     socket_name = os.environ.get('MIRA_INSTANCE') or f'mo-dot-desktop-{os.getuid()}'
     existing = QLocalSocket()
     existing.connectToServer(socket_name)
     if existing.waitForConnected(300):
+        if start_hidden and not request:
+            return 0          # the login start found her already running: nothing to raise
         existing.write(message)
         existing.waitForBytesWritten(300)
         return 0
@@ -180,6 +206,8 @@ def main():
         print('Mira: the interface failed to load', file=sys.stderr, flush=True)
         return 1
     window = engine.rootObjects()[0]
+    if start_hidden:
+        window.hide()     # before the first frame: Meta+Space, the dock, the tray and D-Bus open her
     controller.start()
     if request:
         QTimer.singleShot(300, lambda: controller.handle_instance_command(message))
@@ -216,16 +244,55 @@ def main():
     instance.newConnection.connect(activate)
     app.aboutToQuit.connect(controller.shutdown)
 
+    # Desktop apps reach her on the session bus: org.moos.Mira /Mira (kde_integration.start_dbus).
+    # Optional, never fatal, never claimed by a review run. Show, Prefill and Talk raise her window
+    # first: nothing on the bus starts her listening while she sits unseen in the tray.
+    def dbus_show(panel):
+        if panel:
+            controller.handle_instance_command(b'open:' + json.dumps({'panel': panel}).encode())
+        raise_window()
+
+    def dbus_prefill(text):
+        raise_window()
+        controller.prefill.emit(text)
+
+    def dbus_talk():
+        raise_window()
+        controller.talk()
+
+    dbus = None
+    if controller.kde is not None:
+        import kde_integration
+        dbus = kde_integration.start_dbus({'show': dbus_show, 'prefill': dbus_prefill,
+                                           'talk': dbus_talk, 'stop': controller.stop})
+        if not TEST_MODE:
+            controller.kde.set_dbus_active(dbus is not None)
+        app.aboutToQuit.connect(lambda: kde_integration.stop_dbus(dbus))
+
     # With a paired Echo (or the PC wake listener) Mira keeps listening when her window is closed:
     # the tray brings her back or quits her. Without one there is nothing to listen for, so closing
-    # the window ends her like any other app.
+    # the window ends her like any other app. Started at sign-in without a window, the tray is her
+    # way back, so she has one then too.
     tray = None
-    background = paired() or controller.settings.value('local_wake_enabled', False, type=bool)
-    if QSystemTrayIcon.isSystemTrayAvailable() and not TEST_MODE and background:
+    background = (paired() or controller.settings.value('local_wake_enabled', False, type=bool)
+                  or start_hidden)
+    if start_hidden and not TEST_MODE:
+        app.setQuitOnLastWindowClosed(False)
+        controller.keep_running = True
+
+    def make_tray(attempt=0):
+        nonlocal tray
+        if not QSystemTrayIcon.isSystemTrayAvailable():
+            # At sign-in the shell's tray can arrive a moment after her: look again for a minute.
+            if start_hidden and attempt < 30:
+                QTimer.singleShot(2000, lambda: make_tray(attempt + 1))
+            return
         app.setQuitOnLastWindowClosed(False)
         tray = QSystemTrayIcon(app_icon(), app)
         tray.setToolTip('Mira · ميرا')
         menu = QMenu()
+        tray._menu = menu      # the menu lives as long as the icon
+
         def build_menu():
             menu.clear()
             s = controller.s
@@ -239,6 +306,9 @@ def main():
         tray.activated.connect(lambda reason: raise_window() if reason == QSystemTrayIcon.Trigger else None)
         tray.show()
         controller.keep_running = True
+
+    if not TEST_MODE and background:
+        make_tray()
 
     if TEST_MODE:
         import review_fakes

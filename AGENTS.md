@@ -389,7 +389,11 @@ Regression evidence: `tests/test_usr_local_layout.py` and `PROJECT_STATE.md`.
 confirmation and Polkit. Mo AI can *name* an action from that list — the UI turns it into a Run
 button — but the model never executes anything itself. Do not add a path that lets a model, or a
 web page, run a command. If you add an action, add it to `moai-do`, to `moos-open`'s case
-statement, and to Mo AI's system prompt.
+statement, and to Mo AI's system prompt. Exception: an action reached only through the native
+tool loop (a schema in `moai_tool_schemas.py`, no button anywhere) has no `moos://` route on
+purpose — today `check-update` (read-only) and `restart`. `moos:` is a public scheme, and
+`verify_user_experience.py` refuses a route nothing in MoOS opens; a drive-by link must never be
+able to reboot the machine.
 
 Mo AI's native tools have **three executors and three promises**, declared in one place
 (`usr/lib/moai/moai_tool_schemas.py`): `moai-do` changes the system, is always confirmed and may

@@ -17,7 +17,7 @@
 //                MoosStore bridge, then follows <cache>/moos-store/job.json
 //                for real transaction progress. No terminal, ever.
 //   5 done       Connect USB/Bluetooth devices through real Plasma settings,
-//                open Mo Store / Mo AI, or finish.
+//                open Mo Store / Mira, or finish.
 //
 // Every app id, category and bundle comes at runtime from
 // /usr/share/moos/store/catalog.json — the SAME curated layer moos-storectl
@@ -1975,8 +1975,8 @@ ApplicationWindow {
                         horizontalAlignment: Text.AlignHCenter
                         wrapMode: Text.WordWrap
                         text: win.rtl
-                              ? "متجر Mo Store دائماً في متناولك، وMo AI مساعدك في كل شيء — أهلاً بك في بيتك الجديد."
-                              : "Mo Store is always at hand, and Mo AI helps with everything — welcome home."
+                              ? "متجر Mo Store دائماً في متناولك، وميرا مساعدتك في كل شيء — أهلاً بك في بيتك الجديد."
+                              : "Mo Store is always at hand, and Mira helps with everything — welcome home."
                         color: win.txt2
                         font.family: win.uiFont; font.pixelSize: win.typePx(15)
                         lineHeight: 1.35
@@ -2140,7 +2140,7 @@ ApplicationWindow {
                             TapHandler { onTapped: Qt.openUrlExternally("moos://app/moai") }
                             activeFocusOnTab: true
                             Accessible.role: Accessible.Button
-                            Accessible.name: win.rtl ? "افتح Mo AI" : "Open Mo AI"
+                            Accessible.name: win.rtl ? "افتح ميرا" : "Open Mira"
                             Keys.onReturnPressed: Qt.openUrlExternally("moos://app/moai")
                             Keys.onSpacePressed: Qt.openUrlExternally("moos://app/moai")
                             FocusRing { }
@@ -2155,7 +2155,7 @@ ApplicationWindow {
                                     Layout.preferredHeight: win.fs(17)
                                 }
                                 Text {
-                                    text: win.rtl ? "افتح Mo AI" : "Open Mo AI"
+                                    text: win.rtl ? "افتح ميرا" : "Open Mira"
                                     color: win.txt
                                     font.family: win.uiFont; font.pixelSize: win.typePx(15); font.weight: Font.DemiBold
                                 }

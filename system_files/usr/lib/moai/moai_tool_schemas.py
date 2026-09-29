@@ -19,6 +19,13 @@ RULES:
   7. A `control` tool that can cut the owner off — Wi-Fi or Bluetooth OFF on a machine driven over
      the network or by a Bluetooth keyboard — is confirmed for that value (`confirm_values`), in
      the executor as well as in the card: the client's word is not the boundary.
+  8. Every tool that can show a card carries, in both languages, what happens AFTER the yes
+     (`consequence_ar` / `consequence_en`): what cannot be undone, what waits for the next
+     restart, what asks for the password — and only what its executor really does (the gate
+     holds a password claim, and the privileged category, to a `run_priv` its action can
+     reach: optimize_system trims the journal through pkexec, so it is privileged). A card that only repeats
+     the tool's name asks the owner to approve something he has not been told; each card
+     surface must render this text for that to be true (see `consequence()`).
 
 Three executors, three promises:
   moai-do        changes the system; always confirmed; may escalate through polkit.
@@ -57,8 +64,14 @@ def _schema(
     required: list[str] | None = None,
     confirm_values: dict[str, list[str]] | None = None,
     argv: list[str] | None = None,
+    consequence: tuple[str, str] | None = None,
 ) -> dict[str, Any]:
-    """Build one OpenAI function-calling tool schema with MoOS metadata."""
+    """Build one OpenAI function-calling tool schema with MoOS metadata.
+
+    `consequence` is (Arabic, English): what the owner accepts by confirming. Required for
+    every tool that can show a card; tests/test_moai_tool_schemas.py holds that.
+    """
+    arabic, english = consequence or ("", "")
     return {
         "type": "function",
         "function": {
@@ -86,6 +99,11 @@ def _schema(
             # validated argument; "--flag={name}" and its flag are dropped when it is absent;
             # "?--user:user" adds --user when the boolean argument `user` is true.
             "argv": argv or [],
+            # For the confirmation card, under the action's name. The schema only carries it:
+            # Mira's card (controller.request_confirmation) and Mo AI's ToolConfirmationCard
+            # show it once they read these two keys; until then a card shows its own text.
+            "consequence_ar": arabic,
+            "consequence_en": english,
         },
     }
 
@@ -148,6 +166,18 @@ _MOAI_DO_TOOLS: list[dict[str, Any]] = [
         "Report this machine: version, updates, resources, findings — يقرأ حالة الجهاز: النسخة والتحديثات والموارد والملاحظات",
         category=READ_ONLY, executor="moai-do", command="device-report",
     ),
+    # Asked "is there an update?", the model had two wrong answers: os_state (what is booted and
+    # staged, never what is PUBLISHED) and system_update (which stages it, behind a card and a
+    # password). This one reads the same resolver the Updater and the daily timer use and
+    # changes nothing.
+    _schema(
+        "check_system_update",
+        "READ whether a newer signed MoOS version is published and whether one is already staged "
+        "for the next restart; downloads and changes nothing. To download and stage it use "
+        "system_update — يتحقق هل توجد نسخة MoOS موقّعة أحدث أو نسخة مجهّزة للإقلاع القادم، دون "
+        "تنزيل أو تغيير أي شيء",
+        category=READ_ONLY, executor="moai-do", command="check-update",
+    ),
 
     # --- User-space actions (confirmation card, no pkexec) ---
     _schema(
@@ -161,6 +191,9 @@ _MOAI_DO_TOOLS: list[dict[str, Any]] = [
             },
         },
         required=["app_id"],
+        consequence=("يُثبَّت التطبيق لحسابك عبر Mo Store ثم يُفتح. يمكنك إزالته في أي وقت.",
+                     "Installs the app for your account through Mo Store, then opens it. "
+                     "You can remove it any time."),
     ),
     _schema(
         "uninstall_app",
@@ -173,31 +206,128 @@ _MOAI_DO_TOOLS: list[dict[str, Any]] = [
             },
         },
         required=["app_id"],
+        consequence=("يُحذف التطبيق من حسابك عبر Mo Store، ويمكنك تثبيته من جديد في أي وقت.",
+                     "Removes the app from your account through Mo Store. "
+                     "You can install it again any time."),
     ),
     _schema(
         "update_apps",
         "Update all installed Flatpak applications — يحدّث جميع تطبيقات Flatpak المثبّتة",
         category=USER_CONFIRM, executor="moai-do", command="update-apps",
+        consequence=("تُحدَّث تطبيقاتك عبر Mo Store. قد يحتاج تطبيق مفتوح إلى إغلاقه وفتحه من جديد.",
+                     "Updates your apps through Mo Store. An app that is open may need "
+                     "to be closed and opened again."),
     ),
     _schema(
         "fix_audio",
         "Restart PipeWire audio stack to fix sound issues — يعيد تشغيل نظام الصوت PipeWire لإصلاح مشاكل الصوت",
         category=USER_CONFIRM, executor="moai-do", command="fix-audio",
+        consequence=("ينقطع الصوت لحظة أثناء إعادة تشغيل خدماته. لا يحتاج كلمة مرور.",
+                     "Sound stops for a moment while its services restart. No password needed."),
     ),
     _schema(
         "optimize_system",
         "Clean unused runtimes, images and old logs to free disk space — ينظّف البيانات غير المستخدمة لتحرير مساحة القرص",
-        category=USER_CONFIRM, executor="moai-do", command="optimize",
+        # Privileged: trimming the system journal escalates (moai-do do_optimize runs
+        # `run_priv journalctl --vacuum-time=7d`), so the card is the password card.
+        category=PRIV_CONFIRM, executor="moai-do", command="optimize",
+        consequence=("يحذف مكوّنات التطبيقات وصور الحاويات غير المستخدمة وسجلات النظام الأقدم من 7 أيام. "
+                     "ملفاتك لا تُمسّ، وقد تُطلب كلمة المرور لتقليص السجلات.",
+                     "Removes unused app runtimes and container images and system logs older "
+                     "than 7 days. Your files are untouched; trimming the logs may ask for "
+                     "your password."),
     ),
     _schema(
         "setup_gaming",
         "Install Steam, Bottles, Lutris and ProtonUp for gaming — يثبّت أدوات الألعاب: Steam, Bottles, Lutris, ProtonUp",
         category=USER_CONFIRM, executor="moai-do", command="setup-gaming",
+        consequence=("يثبّت عبر Mo Store ما ينقص فقط من أدوات الألعاب. قد يكون التنزيل كبيراً.",
+                     "Installs only the missing gaming tools through Mo Store. "
+                     "The download can be large."),
     ),
     _schema(
         "setup_windows",
         "Install Bottles for Windows application compatibility — يثبّت Bottles لتشغيل تطبيقات Windows",
         category=USER_CONFIRM, executor="moai-do", command="setup-windows",
+        consequence=("يثبّت عبر Mo Store بيئة معزولة لتشغيل برامج ‎.exe، مرة واحدة فقط.",
+                     "Installs, through Mo Store, an isolated environment for Windows .exe "
+                     "programs. It is installed only once."),
+    ),
+    _schema(
+        "smart_setup",
+        "Install, through Mo Store, the essential apps this computer's hardware plan says are "
+        "missing — يثبّت عبر Mo Store التطبيقات الأساسية الناقصة حسب عتاد هذا الجهاز",
+        category=USER_CONFIRM, executor="moai-do", command="smart-setup",
+        consequence=("يثبّت عبر Mo Store التطبيقات الأساسية التي تنقص هذا الجهاز فقط. لا يحتاج كلمة مرور.",
+                     "Installs through Mo Store only the essential apps this computer is "
+                     "missing. No password needed."),
+    ),
+    # --- Coding and agent runtimes: the user's own home, never a privilege ---
+    # moai-do installs each under ~/.local as the user (/usr is read-only here); none of them
+    # asks for a password. (OpenClaw once enabled lingering through setup_brain_impl; the
+    # cloud-only change removed that call, so it no longer escalates — or promises to.)
+    _schema(
+        "install_codex",
+        "Install the Codex coding agent for this user, in ~/.local — يثبّت وكيل البرمجة Codex "
+        "لهذا المستخدم في ~/.local",
+        category=USER_CONFIRM, executor="moai-do", command="install-codex",
+        consequence=("يُثبَّت في مجلدك (~/.local) دون كلمة مرور، ويطلب تسجيل الدخول إلى مزوّده عند أول تشغيل.",
+                     "Installs into your home folder (~/.local) with no password. It asks you "
+                     "to sign in to its provider the first time it runs."),
+    ),
+    _schema(
+        "install_claude_code",
+        "Install the Claude Code coding agent for this user, in ~/.local — يثبّت وكيل البرمجة "
+        "Claude Code لهذا المستخدم في ~/.local",
+        category=USER_CONFIRM, executor="moai-do", command="install-claude",
+        consequence=("يُثبَّت في مجلدك (~/.local) دون كلمة مرور، ويطلب تسجيل الدخول إلى مزوّده عند أول تشغيل.",
+                     "Installs into your home folder (~/.local) with no password. It asks you "
+                     "to sign in to its provider the first time it runs."),
+    ),
+    _schema(
+        "install_opencode",
+        "Install OpenCode, a coding agent that runs on Mo AI's free cloud brain, for this user — "
+        "يثبّت OpenCode، وكيل برمجة يعمل على عقل Mo AI السحابي المجاني",
+        category=USER_CONFIRM, executor="moai-do", command="install-opencode",
+        consequence=("يُثبَّت في مجلدك دون كلمة مرور، ويُضبط على عقل Mo AI السحابي إن لم يكن لديك إعداد خاص به.",
+                     "Installs into your home folder with no password, and points it at Mo AI's "
+                     "cloud brain unless you already have your own settings for it."),
+    ),
+    _schema(
+        "install_hermes",
+        "Install or repair Hermes, the agent runtime behind Mo AI's agent mode (official release "
+        "pinned by hash) — يثبّت أو يصلح Hermes، محرّك وضع الوكيل في Mo AI",
+        category=USER_CONFIRM, executor="moai-do", command="install-hermes",
+        consequence=("ينزّل الإصدار الرسمي (قرابة 400 MB) إلى مجلدك بعد التحقق من بصمته، ولا يستبدل "
+                     "النسخة الحالية إلا إذا نجح فحص التوافق. لا يحتاج كلمة مرور.",
+                     "Downloads the official release (about 400 MB) into your home folder, "
+                     "verified by hash, and replaces the current copy only if the new one "
+                     "passes its check. No password needed."),
+    ),
+    _schema(
+        "install_openclaw",
+        "Install the phone agent (OpenClaw) so this computer can be messaged from Telegram — "
+        "يثبّت وكيل الهاتف لمراسلة هذا الكمبيوتر من تليجرام",
+        category=USER_CONFIRM, executor="moai-do", command="install-openclaw",
+        consequence=("يُثبَّت في مجلدك دون كلمة مرور، ويحتاج عقلاً سحابياً مضبوطاً أولاً. بعده تضع "
+                     "رمز بوت تليجرام في الإعدادات.",
+                     "Installs into your home folder with no password, and needs a cloud brain "
+                     "set up first. Afterwards you add your Telegram bot token in Settings."),
+    ),
+    # A reboot is not privileged here: logind lets the active local session restart the machine,
+    # the same way the power menu's Restart does. moai-do asks systemctl to check inhibitors
+    # itself (--check-inhibitors=yes), so a program holding a block — or another logged-in
+    # user — refuses the restart instead of being overridden or turning into a password prompt.
+    # moai-do refuses while a Mo AI job, a Mo Store job or an image deployment is still running.
+    _schema(
+        "restart_computer",
+        "Restart the computer now (also applies a staged MoOS update) — يعيد تشغيل الكمبيوتر "
+        "الآن (ويطبّق تحديث MoOS المجهّز إن وُجد)",
+        category=USER_CONFIRM, executor="moai-do", command="restart",
+        consequence=("يعيد تشغيل الكمبيوتر فوراً: تُغلق التطبيقات المفتوحة ويضيع ما لم يُحفظ، ويُطبَّق "
+                     "أي تحديث مجهّز أثناء الإقلاع.",
+                     "Restarts the computer now: open apps close and unsaved work is lost. "
+                     "A staged update is applied while it starts again."),
     ),
 
     # --- Privileged actions (confirmation card + pkexec) ---
@@ -205,31 +335,89 @@ _MOAI_DO_TOOLS: list[dict[str, Any]] = [
         "system_update",
         "Check for and stage a signed MoOS system update (applies on reboot) — يتحقق من تحديث النظام ويجهّزه (يُطبَّق عند إعادة التشغيل)",
         category=PRIV_CONFIRM, executor="moai-do", command="update",
+        consequence=("تُنزَّل النسخة الموقّعة الجديدة وتُطبَّق عند إعادة التشغيل القادمة. ملفاتك لا تُمسّ، "
+                     "وتبقى النسخة الحالية متاحة للرجوع. تُطلب كلمة المرور.",
+                     "Downloads the new signed version; it applies at the next restart. Your "
+                     "files are untouched and the current version stays available to go back "
+                     "to. Asks for your password."),
     ),
     _schema(
         "system_rollback",
         "Roll back to the previous MoOS deployment (applies on reboot) — يرجع إلى النشر السابق (يُطبَّق عند إعادة التشغيل)",
         category=PRIV_CONFIRM, executor="moai-do", command="rollback",
+        consequence=("يعود الإقلاع القادم إلى نسخة MoOS السابقة، ويُلغى أي تحديث مجهّز. ملفاتك وإعداداتك "
+                     "لا تُمسّ، ويمكنك التقدّم ثانيةً بتحديث. تُطلب كلمة المرور.",
+                     "The next restart returns to the previous MoOS version, and a staged "
+                     "update is discarded. Your files and settings are untouched, and an "
+                     "update moves you forward again. Asks for your password."),
     ),
     _schema(
         "install_nvidia",
         "Switch to the MoOS NVIDIA edition for dedicated GPU support (applies on reboot) — ينتقل إلى إصدار NVIDIA للدعم الكامل للمعالج الرسومي",
         category=PRIV_CONFIRM, executor="moai-do", command="install-nvidia",
+        consequence=("ينتقل إلى إصدار MoOS الخاص بـ NVIDIA عند إعادة التشغيل القادمة، وتبقى النسخة "
+                     "الحالية متاحة للرجوع. تُطلب كلمة المرور.",
+                     "Switches to the MoOS NVIDIA edition at the next restart; the current "
+                     "version stays available to go back to. Asks for your password."),
     ),
     _schema(
         "update_firmware",
         "Check for and install firmware updates via fwupd (cannot be rolled back) — يتحقق من تحديثات البرامج الثابتة ويثبّتها (لا يمكن التراجع عنها)",
         category=PRIV_CONFIRM, executor="moai-do", command="update-firmware",
+        consequence=("يكتب برنامجاً ثابتاً جديداً في قطع الجهاز. لا يمكن التراجع عنه، وقد يحتاج إعادة "
+                     "تشغيل. تُطلب كلمة المرور.",
+                     "Writes new firmware into the computer's devices. This cannot be undone "
+                     "and may need a restart. Asks for your password."),
     ),
     _schema(
         "setup_waydroid",
         "Initialize and start Waydroid for Android app support — يهيّئ ويشغّل Waydroid لدعم تطبيقات Android",
         category=PRIV_CONFIRM, executor="moai-do", command="setup-waydroid",
+        consequence=("ينزّل نظام Android الحر (قرابة 1 GB) في المرة الأولى ويشغّل حاويته. تُطلب كلمة المرور.",
+                     "Downloads the free Android system (about 1 GB) the first time and starts "
+                     "its container. Asks for your password."),
     ),
     _schema(
         "remote_anywhere",
         "Enable Mo PC Remote access from anywhere via Tailscale HTTPS — يفعّل التحكم عن بعد من أي مكان عبر Tailscale",
         category=PRIV_CONFIRM, executor="moai-do", command="remote-anywhere",
+        consequence=("يمنح هذا الكمبيوتر اسماً وشهادة HTTPS على شبكة Tailscale الخاصة بك ليصله هاتفك من "
+                     "أي مكان. لا يُنشر شيء على الإنترنت العام. تُطلب كلمة المرور.",
+                     "Gives this computer an HTTPS name on your private Tailscale network so "
+                     "your phone reaches it from anywhere. Nothing is published on the public "
+                     "internet. Asks for your password."),
+    ),
+    # A package that arrives as a file (App Drop's RPM path, Mira's file picker). The pattern
+    # is only its SHAPE: one visible folder of the home, then the .rpm. WHICH folders is
+    # moai-do's valid_local_rpm (and the root helper's) to decide — Downloads, Desktop and
+    # Documents, by those names or by the names the owner's own XDG folders carry (an Arabic
+    # session's desktop is «سطح المكتب»); a list here could only disagree with it. moai-do
+    # still resolves the real path, requires the owner, a trusted publisher signature and this
+    # computer's architecture, and the root helper checks the confirmed digest again.
+    _schema(
+        "install_rpm",
+        "Install a signed RPM package file from the Downloads, Desktop or Documents folder (by "
+        "their English names or the names this session gives them, e.g. ~/سطح المكتب) as a new "
+        "system version (applies on the next restart) — يثبّت حزمة RPM موقّعة من مجلد "
+        "التنزيلات أو سطح المكتب أو المستندات كنسخة نظام جديدة (تُطبَّق عند إعادة التشغيل)",
+        category=PRIV_CONFIRM, executor="moai-do", command="install-rpm",
+        parameters={
+            "path": {
+                "type": "string",
+                "pattern": r"^(?:~|/(?:var/)?home/[A-Za-z0-9_][A-Za-z0-9._-]{0,63})"
+                           r"/[^/.][^/]{0,127}/[^/]{1,200}\.rpm$",
+                "description": "The full path of the .rpm file directly inside the Downloads, "
+                               "Desktop or Documents folder, e.g. ~/Downloads/app.rpm or "
+                               "~/سطح المكتب/app.rpm — مسار ملف الحزمة",
+            },
+        },
+        required=["path"],
+        consequence=("تُضاف الحزمة إلى نسخة نظام جديدة تبدأ عند إعادة التشغيل القادمة، وتبقى النسخة "
+                     "الحالية للرجوع. لا تُقبل إلا حزمة بتوقيع ناشر موثوق. تُطلب كلمة المرور.",
+                     "Adds the package to a new system version that starts at the next "
+                     "restart; the current version stays available to go back to. Only a "
+                     "package with a trusted publisher signature is accepted. Asks for your "
+                     "password."),
     ),
 ]
 
@@ -321,6 +509,10 @@ _CONTROL_TOOLS: list[dict[str, Any]] = [
         required=["value"],
         # A machine reached over Wi-Fi (Mo PC Remote, SSH) loses its owner when this is "off".
         confirm_values={"value": ["off"]},
+        # "the assistant", not a name: Mira on x86, Mo AI where it is still the assistant (ARM).
+        consequence=("إيقاف الواي فاي يقطع الإنترنت والمساعد الذكي والتحكم عن بعد حتى تشغّله من جديد.",
+                     "Turning Wi-Fi off cuts the internet, the assistant and remote control "
+                     "until you turn it on again."),
     ),
     _schema(
         "toggle_bluetooth",
@@ -336,6 +528,9 @@ _CONTROL_TOOLS: list[dict[str, Any]] = [
         required=["value"],
         # A Bluetooth keyboard and mouse stop working the moment this is "off".
         confirm_values={"value": ["off"]},
+        consequence=("إيقاف البلوتوث يفصل لوحة المفاتيح والفأرة والسماعات اللاسلكية فوراً.",
+                     "Turning Bluetooth off disconnects wireless keyboards, mice and "
+                     "headphones at once."),
     ),
     _schema(
         "set_theme_mode",
@@ -423,6 +618,9 @@ _CONTROL_TOOLS: list[dict[str, Any]] = [
         required=["value"],
         # On stays on until the owner turns it off, silencing every notification.
         confirm_values={"value": ["on"]},
+        consequence=("تبقى الإشعارات صامتة، ومنها تنبيهات النظام، حتى تطفئ عدم الإزعاج بنفسك.",
+                     "Notifications stay silent, system warnings included, until you turn "
+                     "Do Not Disturb off yourself."),
     ),
     _schema(
         "set_mic_mute",
@@ -435,6 +633,8 @@ _CONTROL_TOOLS: list[dict[str, Any]] = [
         # Muting is always safe. Turning the microphone back ON undoes a privacy choice the
         # owner made, so neither a model's turn nor a link may do it without a yes.
         confirm_values={"value": ["unmute"]},
+        consequence=("يعود ميكروفون الكمبيوتر إلى السماع بعد أن كتمته.",
+                     "The computer's microphone can hear again after you muted it."),
     ),
     _schema(
         "switch_keyboard_layout",
@@ -502,6 +702,10 @@ _CONTROL_TOOLS: list[dict[str, Any]] = [
         required=["action", "target"], argv=["{action}", "{target}"],
         # A close can lose work in an app that does not ask; the person says yes first.
         confirm_values={"action": ["close"]},
+        consequence=("تُغلق النافذة كما يغلقها زرّ الإغلاق: التطبيق يسألك عن الحفظ إن كان يسأل، "
+                     "وما لم يُحفظ في تطبيق لا يسأل يضيع.",
+                     "The window closes as its own close button would: the app asks to save if "
+                     "it asks at all, and unsaved work in an app that does not ask is lost."),
     ),
     _schema(
         "move_window_to_desktop",
@@ -609,6 +813,10 @@ _CONTROL_TOOLS: list[dict[str, Any]] = [
         required=["after_minutes"],
         # Turning the automatic lock off leaves an unattended desk open.
         confirm_values={"after_minutes": ["0"]},
+        consequence=("لن تُقفل الشاشة وحدها بعد الآن: من يجلس إلى الكمبيوتر وأنت بعيد يستطيع استخدامه، "
+                     "حتى تعيد ضبط مدة القفل.",
+                     "The screen will no longer lock by itself: anyone at the computer while you "
+                     "are away can use it, until you set a lock delay again."),
     ),
     _schema(
         "set_click_mode",
@@ -618,6 +826,45 @@ _CONTROL_TOOLS: list[dict[str, Any]] = [
         parameters={"mode": {"type": "string", "enum": ["single", "double"],
                              "description": "single or double click"}},
         required=["mode"],
+    ),
+    # Mo PC Remote is a user service (the phone app that controls this computer). Both switches
+    # are confirmed: ON lets a paired phone control this computer after every start, and OFF
+    # cuts off whoever is driving it from the phone right now — possibly the owner himself.
+    # restart only reconnects a remote that is already on (try-restart), so it never opens one.
+    _schema(
+        "remote_control",
+        "Turn Mo PC Remote (control this computer from your phone) on or off, or restart it to "
+        "fix a stuck connection. For reaching it from outside the home use remote_anywhere — "
+        "يشغّل أو يوقف Mo PC Remote (التحكم بالكمبيوتر من الهاتف) أو يعيد تشغيله لإصلاح اتصال عالق",
+        category=CONTROL, executor="moos-control", command="remote",
+        parameters={"value": {"type": "string", "enum": ["on", "off", "restart"],
+                              "description": "on, off, or restart to reconnect"}},
+        required=["value"],
+        confirm_values={"value": ["on", "off"]},
+        consequence=("التشغيل يسمح لهاتفك المقترن بالتحكم بهذا الكمبيوتر ويبقى بعد كل إقلاع؛ "
+                     "الإيقاف يقطع أي هاتف يتحكم به الآن.",
+                     "On lets your paired phone control this computer, also after every "
+                     "restart; off disconnects any phone controlling it right now."),
+    ),
+    # Fast Remote trades the look for a lighter stream: blur, animations and wallpaper motion
+    # pause, the keyboard switches to US for the phone, and a local AI model is paused if one is
+    # running (Mo AI's brain is in the cloud, so usually there is none) — until it is turned
+    # off, which restores exactly what was saved. So ON asks and OFF does not.
+    _schema(
+        "fast_remote",
+        "Turn Fast Remote on or off: a lighter desktop (no blur, animations or wallpaper motion) "
+        "that makes Mo PC Remote smoother — يشغّل أو يطفئ الاتصال السريع: سطح مكتب أخف يجعل "
+        "Mo PC Remote أسلس",
+        category=CONTROL, executor="moos-control", command="fast-remote",
+        parameters={"value": {"type": "string", "enum": ["on", "off"],
+                              "description": "on for a lighter desktop, off restores it"}},
+        required=["value"],
+        confirm_values={"value": ["on"]},
+        consequence=("يوقف الضبابية والحركة والرسوم المتحركة، ويبدّل لوحة المفاتيح إلى US، ويوقف نموذج "
+                     "ذكاء محلياً إن كان يعمل، حتى تطفئه فيعود كل شيء كما كان.",
+                     "Pauses blur, motion and animations, switches the keyboard to US and "
+                     "pauses a local AI model if one is running, until you turn it off, which "
+                     "restores everything as it was."),
     ),
 ]
 
@@ -815,6 +1062,12 @@ def needs_confirmation(tool_name: str, arguments: dict[str, Any]) -> bool:
     return False
 
 
+def consequence(tool_name: str, lang: str = "ar") -> str:
+    """What confirming this tool does, in the card's language ("" when it has no card text)."""
+    meta = TOOL_META.get(tool_name) or {}
+    return str(meta.get("consequence_en" if lang == "en" else "consequence_ar") or "")
+
+
 def _properties(tool_name: str) -> dict[str, Any]:
     return next(t["function"]["parameters"]["properties"] for t in ALL_TOOLS
                 if t["function"]["name"] == tool_name)
@@ -891,6 +1144,13 @@ def build_command(tool_name: str, arguments: dict[str, Any]) -> list[str] | None
             cmd.append(arguments["app_id"])
         elif "file" in arguments:
             cmd.append(arguments["file"])
+        elif "path" in arguments:
+            # The model names the owner's folders as ~/Downloads/…; moai-do accepts only an
+            # absolute path (and then resolves it, owner and location included, itself).
+            path = str(arguments["path"])
+            if path.startswith("~/"):
+                path = str(Path.home()) + path[1:]
+            cmd.append(path)
         return cmd
 
     if executor == "moos-inspect":
