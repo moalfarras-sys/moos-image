@@ -1094,9 +1094,9 @@ KCM.SimpleKCM {
             FormCard.FormDelegateSeparator {}
             MoosInfoRow {
                 glyph: "search"
-                text: root.t("اسأل Mo AI من البحث", "Ask Mo AI from Search")
-                description: root.t("اكتب سؤالك في البحث واختر «اسأل Mo AI»، أو اضغط Ctrl+Enter.",
-                                    "Type your question in Search and choose “Ask Mo AI”, or press Ctrl+Enter.")
+                text: root.t("اسأل ميرا من البحث", "Ask Mira from Search")
+                description: root.t("اكتب سؤالك في البحث واختر «اسأل ميرا»، أو اضغط Ctrl+Enter.",
+                                    "Type your question in Search and choose “Ask Mira”, or press Ctrl+Enter.")
             }
             FormCard.FormDelegateSeparator {}
             // Opens Mo AI on its device panel: the verdict on drivers, updates and security
