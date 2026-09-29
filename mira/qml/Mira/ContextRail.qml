@@ -180,11 +180,17 @@ ColumnLayout {
                 SectionTitle { icon: "sparkle"; text: mira.s.quick; accent: Theme.violet }
                 Item { width: 1; height: 2 }
                 Repeater {
-                    model: [
+                    // With a linked home Mira leads with the house; without one, with this computer.
+                    model: mira.home.linked ? [
                         { icon: "bulb", text: mira.s.sg_home_status },
                         { icon: "sun", text: mira.s.sg_weather },
                         { icon: "monitor", text: mira.s.sg_pc_status },
-                        { icon: "globe", text: mira.s.sg_browser }
+                        { icon: "clock", text: mira.s.sg_reminder }
+                    ] : [
+                        { icon: "download", text: mira.s.sg_update },
+                        { icon: "monitor", text: mira.s.sg_pc_status },
+                        { icon: "package", text: mira.s.sg_install },
+                        { icon: "clock", text: mira.s.sg_reminder }
                     ]
                     delegate: Rectangle {
                         required property var modelData

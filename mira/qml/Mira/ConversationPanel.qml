@@ -58,7 +58,8 @@ Glass {
             spacing: 8
             layoutDirection: mira.lang === "ar" ? Qt.RightToLeft : Qt.LeftToRight
             Repeater {
-                model: [mira.s.sg_home_status, mira.s.sg_weather, mira.s.sg_pc_status, mira.s.sg_browser]
+                model: mira.home.linked ? [mira.s.sg_home_status, mira.s.sg_weather, mira.s.sg_pc_status, mira.s.sg_browser]
+                                        : [mira.s.sg_update, mira.s.sg_pc_status, mira.s.sg_install, mira.s.sg_reminder]
                 delegate: PillButton { required property string modelData; text: modelData; size: Theme.small; implicitHeight: 32; onClicked: panel.suggestion(modelData) }
             }
         }

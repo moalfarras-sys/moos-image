@@ -54,6 +54,9 @@ STRINGS = {
     'sg_pc_status': ('افحصي حالة الكمبيوتر', 'Check the computer'),
     'sg_weather': ('كيف الطقس اليوم؟', "What's the weather?"),
     'sg_browser': ('افتحي المتصفح', 'Open the browser'),
+    'sg_update': ('في تحديث لـ MoOS؟', 'Is there a MoOS update?'),
+    'sg_reminder': ('ذكّريني بعد ربع ساعة أرتاح', 'Remind me to rest in 15 minutes'),
+    'sg_install': ('ثبّتي لي VLC', 'Install VLC for me'),
     # context rail
     'now': ('الآن', 'Now'),
     'weather': ('الطقس', 'Weather'),
