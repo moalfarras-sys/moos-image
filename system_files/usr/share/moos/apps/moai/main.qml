@@ -641,9 +641,17 @@ Kirigami.ApplicationWindow {
         "change model or make you stronger, point them at that chip; " +
         "the provider, the key and the default model are on the Mo AI page of System " +
         "Settings (`moos-control settings assistant`).\n\n" +
-        "WHEN YOU HAVE TOOLS: you are this computer's operator, not an adviser. LOOK before you " +
+        "WHEN YOU HAVE TOOLS: you are this computer's operator, not an adviser. You have hands on " +
+        "the desktop too — list_windows then window_action to bring a window forward, minimize, " +
+        "maximize, full-screen or close it by name; move_window_to_desktop, go_to_desktop, " +
+        "add_or_remove_desktop; control_media for what is playing; lock_screen; set_reminder and " +
+        "manage_reminders; open_web_page and open_folder; set_animation_speed, set_screen_lock and " +
+        "set_click_mode; and the palette, volume, brightness, night light, radios, do-not-disturb " +
+        "and settings pages you already had. Prefer the tool that names the exact job over a " +
+        "general one. LOOK before you " +
         "act — the read-only tools (failed services, one service's status, the system log, top " +
-        "processes, memory, storage, network, installed apps, system version) run at once and " +
+        "processes, memory, storage, network, installed apps, system version, the open windows) " +
+        "run at once and " +
         "cost nothing, so use them instead of guessing. Then propose ONE smallest repair; the " +
         "person approves it on a card, the system runs it, and you receive its REAL result. " +
         "After a repair, check again with a read-only tool before you say it worked. A tool " +
@@ -1834,6 +1842,47 @@ Kirigami.ApplicationWindow {
             case "list_installed_apps": return root.local("التطبيقات المثبّتة", "Installed apps")
             case "os_state": return root.local("إصدار النظام ونسخة الرجوع", "System version and rollback")
             case "read_moos_log": return root.local("سجلّ MoOS: ", "MoOS log: ") + (args.name || "")
+            case "list_windows": return root.local("النوافذ وأسطح المكتب", "Windows and desktops")
+            case "window_action": {
+                const w = {
+                    focus: root.local("إظهار النافذة", "Bring window to front"),
+                    minimize: root.local("تصغير النافذة", "Minimize window"),
+                    restore: root.local("استعادة النافذة", "Restore window"),
+                    maximize: root.local("تكبير النافذة", "Maximize window"),
+                    unmaximize: root.local("إلغاء تكبير النافذة", "Unmaximize window"),
+                    fullscreen: root.local("ملء الشاشة", "Full screen"),
+                    "exit-fullscreen": root.local("إنهاء ملء الشاشة", "Leave full screen"),
+                    "keep-above": root.local("إبقاء فوق النوافذ", "Keep above others"),
+                    "no-keep-above": root.local("إلغاء الإبقاء فوق", "Stop keeping above"),
+                    close: root.local("إغلاق النافذة", "Close window")
+                }
+                return (w[args.action] || root.local("نافذة", "Window")) + (args.target ? ": " + args.target : "")
+            }
+            case "move_window_to_desktop": return root.local("نقل النافذة إلى سطح المكتب ", "Move window to desktop ") + (args.desktop || "")
+            case "go_to_desktop": return root.local("الانتقال إلى سطح المكتب ", "Go to desktop ") + (args.number || "")
+            case "add_or_remove_desktop": return args.change === "remove"
+                ? root.local("إزالة سطح مكتب", "Remove a desktop")
+                : root.local("إضافة سطح مكتب", "Add a desktop")
+            case "control_media": {
+                const m = {
+                    "play-pause": root.local("تشغيل/إيقاف مؤقت", "Play / pause"),
+                    play: root.local("تشغيل", "Play"), pause: root.local("إيقاف مؤقت", "Pause"),
+                    next: root.local("المقطع التالي", "Next track"),
+                    previous: root.local("المقطع السابق", "Previous track"),
+                    stop: root.local("إيقاف", "Stop")
+                }
+                return m[args.action] || root.local("التحكم بالوسائط", "Media control")
+            }
+            case "lock_screen": return root.local("قفل الشاشة", "Lock screen")
+            case "set_reminder": return root.local("تذكير بعد ", "Remind in ") + (args.minutes || "") + root.local(" دقيقة", " min")
+            case "manage_reminders": return args.action === "cancel-all"
+                ? root.local("إلغاء كل التذكيرات", "Cancel all reminders")
+                : root.local("التذكيرات المنتظرة", "Pending reminders")
+            case "open_web_page": return root.local("فتح صفحة ويب", "Open web page")
+            case "open_folder": return root.local("فتح مجلد: ", "Open folder: ") + (args.folder || "")
+            case "set_animation_speed": return root.local("سرعة الحركة: ", "Animation speed: ") + (args.speed || "")
+            case "set_screen_lock": return root.local("القفل التلقائي للشاشة", "Automatic screen lock")
+            case "set_click_mode": return root.local("نمط النقر: ", "Click mode: ") + (args.mode || "")
             default: return name.replace(/_/g, " ")
         }
     }

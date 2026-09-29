@@ -3,6 +3,20 @@
   "_": "What a person can SEE or DO after an update, newest first. One entry per user-visible change, written for the owner of the machine, not for a developer: what it is, where it is, and (when MoOS has a route to it) a way to try it now. 'merged' is when the change reached main (a little later is fine, earlier is not: an entry dated before a machine's previous system is never marked new there); a machine marks an entry new when the system it ran BEFORE the update was built earlier than that. tests/test_whats_new.py reads every entry the way MoOS Settings will.",
   "entries": [
     {
+      "id": "moai-desktop-hands",
+      "merged": "2026-09-28T12:00:00Z",
+      "glyph": "ai",
+      "title": {
+        "ar": "Mo AI صار يتحكم بالنوافذ وسطح المكتب",
+        "en": "Mo AI can now run your windows and desktops"
+      },
+      "body": {
+        "ar": "اطلب من Mo AI أن يظهر نافذة أو يصغّرها أو يكبّرها أو يغلقها بالاسم، ينقلها بين أسطح المكتب، يوقف الموسيقى، يقفل الشاشة، يضبط تذكيراً، أو يفتح صفحة ومجلداً. يعرض ما سيفعله، وإغلاق نافذة يسألك أولاً.",
+        "en": "Ask Mo AI to bring a window forward, minimize, maximize or close it by name, move it between desktops, pause the music, lock the screen, set a reminder, or open a page or folder. It shows what it will do, and closing a window asks first."
+      },
+      "route": "moos://settings/assistant"
+    },
+    {
       "id": "rounded-dock-material",
       "merged": "2026-09-27T10:29:33Z",
       "glyph": "ui",
@@ -436,19 +450,6 @@
         "en": "A page of MoOS's own: version, edition, build date, image signature and your hardware, with a button that copies the details for a support conversation."
       },
       "route": "moos://settings/about"
-    },
-    {
-      "id": "moai-skills",
-      "merged": "2026-09-17T20:42:58Z",
-      "glyph": "ai",
-      "title": {
-        "ar": "Mo AI يعرف كيف يُصلح",
-        "en": "Mo AI knows how to repair"
-      },
-      "body": {
-        "ar": "اثنا عشر دليل إصلاح جاهزًا — لا صوت، لا إنترنت، جهاز بطيء، قرص ممتلئ وغيرها — وأكثرها شيوعًا يبدأ من شريحة في شاشة Mo AI الرئيسية.",
-        "en": "Twelve ready repair guides — no sound, no internet, a slow machine, a full disk and more — and the most common start from a chip on Mo AI's home screen."
-      }
     }
   ]
 }

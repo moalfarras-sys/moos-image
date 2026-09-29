@@ -11,13 +11,24 @@ them as buttons, and nothing runs until the user taps one.
 The desktop verbs (window, arrange, desktop, dnd, keyboard-layout, power-profile) drive
 the desktop the way its own shortcuts and applets do: a FIXED action name invoked through
 the global-shortcut service, or one fixed D-Bus method. Nothing here can load a script,
-close a window or restart the compositor, and no verb takes free text.
+kill a window or restart the compositor.
+
+The desktop HANDS (W9.10) reach one named window, one desktop, the media keys, the lock,
+a reminder, a web page or a folder, and three of the desktop's own settings. A window is
+found through KWin's own window search (the krunner1 interface KRunner uses), acted on
+through the same interface, and read back through KWin's getWindowInfo: nothing is
+inferred, and a request that matches two windows is refused with both names instead of
+guessed. Closing asks the app to close exactly as its title-bar button does — the app
+still asks to save — and Mo AI shows a card before it (confirm_values in the schema).
+Free text reaches argv only as a search term, a reminder's words or an http(s) address,
+each bounded and validated here; none of it is ever a command.
 
 Exit codes: 0 done, 2 invalid request, 69 that control is unavailable here.
 """
 import json
 import os
 import re
+import secrets
 import shutil
 import subprocess
 import sys
@@ -35,7 +46,12 @@ BRIGHTNESS_PATH = "/org/kde/ScreenBrightness"
 # read-only tool), so the whole read is bounded. Any single probe that cannot
 # answer inside what is left of the budget is reported unknown, never waited on.
 STATUS_BUDGET = 8.0
-THEMES = ("dark", "light", "nova", "amethyst", "midnight", "aurora", "auto")
+# Every look `moos-theme` applies (its own case table), plus its three moves: auto follows the
+# sun, toggle flips the current family between light and dark, undo returns to the last one.
+# gaming, dev and study are the looks called Arena, Forge and Scholar in the theme picker.
+THEMES = ("dark", "light", "nova", "amethyst", "midnight", "aurora", "nova-light",
+          "amethyst-light", "aurora-light", "daylight", "gaming", "dev", "study",
+          "gaming-light", "dev-light", "study-light", "auto", "toggle", "undo")
 
 
 def _settings_pages():
@@ -96,6 +112,46 @@ POWER_PROFILES = ("power-saver", "balanced", "performance")
 APP_ID = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]{2,254}")
 DISPLAY_NAME = re.compile(r"[A-Za-z0-9_]{1,64}")
 
+# ── The desktop hands (W9.10) ───────────────────────────────────────────────
+# KWin's window search, the one KRunner queries. Read from KWin 6.7's
+# windowsrunnerinterface.{h,cpp} on 2026-09-28 and exercised on the A1's live session:
+# Match("") lists every normal window, Match(term) the windows whose caption or class
+# contains the term, and Run("<action>_<uuid>", "") performs the numbered action on it.
+RUNNER = ("org.kde.KWin", "/WindowsRunner", "org.kde.krunner1")
+RUNNER_ACTIONS = {"activate": 0, "close": 1, "minimize": 2, "maximize": 3, "fullscreen": 4,
+                  "keep-above": 6}
+VDM = ("org.kde.KWin", "/VirtualDesktopManager", "org.kde.KWin.VirtualDesktopManager")
+KWIN = ("org.kde.KWin", "/KWin", "org.kde.KWin")
+# What a window can be asked to do, and the state each one must read back as.
+WINDOW_ACTIONS = ("focus", "minimize", "restore", "maximize", "unmaximize", "fullscreen",
+                  "exit-fullscreen", "keep-above", "no-keep-above", "close")
+WINDOW_UUID = re.compile(r"\{[0-9a-fA-F]{8}(?:-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}\}")
+# A search term, not a command: printable, bounded, never an option.
+WINDOW_TARGET = re.compile(r"(?!-)[^\x00-\x1f\x7f]{1,80}")
+BIDI_MARKS = re.compile("[\u200e\u200f\u202a-\u202e\u2066-\u2069]")
+MAX_DESKTOPS = 20
+MAX_WINDOWS = 40
+MEDIA_COMPONENT = "/component/mediacontrol"
+# The media keys' own actions (Plasma's media controller picks the player, as for the keys).
+MEDIA = {"play-pause": "playpausemedia", "play": "playmedia", "pause": "pausemedia",
+         "next": "nextmedia", "previous": "previousmedia", "stop": "stopmedia"}
+MPRIS = "org.mpris.MediaPlayer2."
+SCREENSAVER = ("org.freedesktop.ScreenSaver", "/ScreenSaver", "org.freedesktop.ScreenSaver")
+REMINDER_PREFIX = "moos-reminder-"
+REMINDER_TEXT = re.compile(r"[^\x00-\x1f\x7f]{1,160}")
+REMINDER_UNIT = re.compile(r"moos-reminder-[0-9]{10}-[0-9a-f]{4}\.timer")
+URL = re.compile(r"https?://([A-Za-z0-9](?:[A-Za-z0-9.-]{0,251}[A-Za-z0-9])?)"
+                 r"(?::[0-9]{1,5})?(?:[/?#][^\s\x00-\x1f\x7f]*)?")
+LOOPBACK = re.compile(r"(?i)localhost|127(?:\.[0-9]{1,3}){3}|0\.0\.0\.0|.*\.localhost")
+# xdg-user-dir names; `screenshots` is where `screenshot` saves.
+FOLDERS = {"home": None, "documents": "DOCUMENTS", "downloads": "DOWNLOAD",
+           "pictures": "PICTURES", "music": "MUSIC", "videos": "VIDEOS", "desktop": "DESKTOP",
+           "screenshots": "PICTURES"}
+# Plasma's own animation-speed control (System Settings → Animations): the factor every
+# KWin effect and, through Tokens.scaled(), every MoOS surface already follows.
+ANIMATION_SPEEDS = {"off": "0", "fast": "0.5", "normal": "1", "slow": "2"}
+CLICK_MODES = ("single", "double")
+
 USAGE = """moos-control — تحكّم فوري بالجهاز | instant control of this computer
 
   moos-control status
@@ -106,7 +162,9 @@ USAGE = """moos-control — تحكّم فوري بالجهاز | instant control
   moos-control wifi <on|off>
   moos-control bluetooth <on|off>
   moos-control screenshot
-  moos-control theme <dark|light|nova|amethyst|midnight|aurora|auto>
+  moos-control theme <dark|light|nova|amethyst|midnight|aurora|nova-light|amethyst-light|
+                      aurora-light|daylight|gaming|dev|study|gaming-light|dev-light|
+                      study-light|auto|toggle|undo>
   moos-control open <installed-app-id>
   moos-control settings <page>
   moos-control window <overview|grid|show-desktop>
@@ -118,6 +176,21 @@ USAGE = """moos-control — تحكّم فوري بالجهاز | instant control
   moos-control motion <still|gentle|alive>
   moos-control clarity <clear|balanced|solid>
   moos-control power-profile <power-saver|balanced|performance>
+  moos-control windows
+  moos-control window-do <focus|minimize|restore|maximize|unmaximize|fullscreen|
+                          exit-fullscreen|keep-above|no-keep-above|close> <name-or-{id}>
+  moos-control window-move <desktop-number> <name-or-{id}>
+  moos-control go-desktop <1-20>
+  moos-control desktops <add|remove>
+  moos-control media <play-pause|play|pause|next|previous|stop>
+  moos-control lock
+  moos-control remind <1-1440 minutes> <text>
+  moos-control reminders <list|cancel-all>
+  moos-control open-url <http(s)-address>
+  moos-control open-folder <home|documents|downloads|pictures|music|videos|desktop|screenshots>
+  moos-control animations <off|fast|normal|slow>
+  moos-control screen-lock <0-120 minutes, 0 = never>
+  moos-control click <single|double>
 """
 
 
@@ -486,6 +559,414 @@ def power_profile(value):
             "performance": "⚡ وضع الأداء | Performance"}[value]
 
 
+# ── Windows by name (KWin's own window search) ─────────────────────────────
+def clean_title(caption):
+    """A window's caption as a person reads it: no bidi marks, the owner's home as ~."""
+    text = BIDI_MARKS.sub("", str(caption or "")).strip()
+    home = str(Path.home())
+    if len(home) > 1:
+        text = text.replace(home, "~")
+    return text[:120]
+
+
+def window_matches(term, timeout=15):
+    """{uuid: best relevance} of the normal windows KWin's search finds for `term`, in order.
+
+    Only activation ids (action 0) are windows; a desktop answer carries another number.
+    """
+    data = busctl_data("call", *RUNNER, "Match", "s", term, timeout=timeout)
+    rows = data[0] if data and isinstance(data[0], list) else []
+    found = {}
+    for row in rows:
+        if not isinstance(row, list) or len(row) < 5:
+            continue
+        action, _, uuid = str(row[0]).partition("_")
+        if action != "0" or not WINDOW_UUID.fullmatch(uuid):
+            continue
+        relevance = float(row[4]) if isinstance(row[4], (int, float)) else 0.0
+        found[uuid] = max(relevance, found.get(uuid, relevance))
+    return found
+
+
+def window_info(uuid, timeout=15):
+    """KWin's own description of one window; {} when no window has that id."""
+    data = busctl_data("call", *KWIN, "getWindowInfo", "s", uuid, timeout=timeout)
+    info = data[0] if data and isinstance(data[0], dict) else {}
+    return {key: value.get("data") for key, value in info.items() if isinstance(value, dict)}
+
+
+def window_state(info):
+    return {"minimized": bool(info.get("minimized")),
+            # KWin reports each axis on its own; a window is maximized when both are.
+            "maximized": bool(info.get("maximizeHorizontal")) and bool(info.get("maximizeVertical")),
+            "fullscreen": bool(info.get("fullscreen")),
+            "keep_above": bool(info.get("keepAbove"))}
+
+
+def window_name(info):
+    return clean_title(info.get("caption")) or str(info.get("resourceClass") or "window")
+
+
+def desktop_list(timeout=15):
+    """[(number, id, name)] in the desktops' own order; number counts from 1."""
+    rows = busctl_data("get-property", *VDM, "desktops", timeout=timeout)
+    desks = []
+    for row in rows if isinstance(rows, list) else []:
+        if isinstance(row, list) and len(row) == 3 and isinstance(row[0], int):
+            desks.append((row[0] + 1, str(row[1]), str(row[2])))
+    if not desks:
+        raise Unavailable("the desktop list cannot be read")
+    return sorted(desks)
+
+
+def find_window(target):
+    """The ONE window `target` names — its {uuid}, or words from its title or app."""
+    if WINDOW_UUID.fullmatch(target or ""):
+        info = window_info(target)
+        if not info:
+            raise Unavailable("no open window has that id")
+        return target, info
+    if not WINDOW_TARGET.fullmatch(target or ""):
+        raise Invalid("a window is named by 1-80 characters of its title or app, or its {id}")
+    matches = window_matches(target)
+    if not matches:
+        raise Unavailable(f"no open window matches “{target}”")
+    best = max(matches.values())
+    top = [uuid for uuid, relevance in matches.items() if relevance == best]
+    if len(top) > 1:
+        names = "; ".join(window_name(window_info(uuid)) for uuid in top[:5])
+        raise Unavailable(f"{len(top)} windows match “{target}”: {names} — name one more "
+                          "exactly, or use its id from the window list")
+    return top[0], window_info(top[0])
+
+
+def run_window(uuid, action):
+    run(["busctl", "--user", "call", *RUNNER, "Run", "ss",
+         f"{RUNNER_ACTIONS[action]}_{uuid}", ""])
+
+
+def settle(read, wanted, seconds=2.0):
+    """Poll `read()` until it returns `wanted` or the time is up; returns the last reading."""
+    deadline = time.monotonic() + seconds
+    value = read()
+    while value != wanted and time.monotonic() < deadline:
+        time.sleep(0.15)
+        value = read()
+    return value
+
+
+def windows():
+    """Every desktop and every normal window, as JSON (read-only)."""
+    desks = desktop_list()
+    current = busctl_data("get-property", *VDM, "current")
+    numbers = {desk_id: number for number, desk_id, _ in desks}
+    listed = []
+    for uuid in list(window_matches(""))[:MAX_WINDOWS]:
+        info = window_info(uuid)
+        if not info:
+            continue                                   # closed between the two reads
+        on = [numbers[d] for d in info.get("desktops") or [] if d in numbers]
+        listed.append({"id": uuid,
+                       "app": str(info.get("desktopFile") or info.get("resourceClass") or ""),
+                       "title": clean_title(info.get("caption")),
+                       "desktops": on or "all", **window_state(info)})
+    return json.dumps({"desktops": [{"number": number, "name": name, "current": desk_id == current}
+                                    for number, desk_id, name in desks],
+                       "windows": listed}, ensure_ascii=False)
+
+
+# The state each request must read back as, and the runner action that toggles it.
+WINDOW_GOALS = {"minimize": ("minimized", True, "minimize"),
+                "restore": ("minimized", False, "minimize"),
+                "maximize": ("maximized", True, "maximize"),
+                "unmaximize": ("maximized", False, "maximize"),
+                "fullscreen": ("fullscreen", True, "fullscreen"),
+                "exit-fullscreen": ("fullscreen", False, "fullscreen"),
+                "keep-above": ("keep_above", True, "keep-above"),
+                "no-keep-above": ("keep_above", False, "keep-above")}
+
+
+def window_do(action, target):
+    one_of(action, WINDOW_ACTIONS, "window action")
+    uuid, info = find_window(target)
+    name = window_name(info)
+    if action == "close":
+        # The title bar's own close: the app decides, and asks to save first when it must.
+        run_window(uuid, "close")
+        if settle(lambda: bool(window_info(uuid)), False, 3.0):
+            raise Unavailable(f"asked “{name}” to close; it is still open — it may be asking "
+                              "you to save your work")
+        return f"✖ أُغلقت النافذة: {name} | Closed: {name}"
+    if action == "focus":
+        run_window(uuid, "activate")
+        if window_state(window_info(uuid))["minimized"]:
+            run_window(uuid, "minimize")                 # the runner's minimize toggles it back
+        if settle(lambda: window_state(window_info(uuid))["minimized"], False):
+            raise Unavailable(f"“{name}” did not come forward")
+        return f"🪟 في المقدمة: {name} | In front: {name}"
+    key, wanted, toggle = WINDOW_GOALS[action]
+    # Each runner action TOGGLES, and maximize from a half-maximized window restores first,
+    # so press at most twice and believe only the read-back.
+    for _ in range(2):
+        if window_state(window_info(uuid))[key] == wanted:
+            break
+        run_window(uuid, toggle)
+        if settle(lambda: window_state(window_info(uuid))[key], wanted) == wanted:
+            break
+    if window_state(window_info(uuid))[key] != wanted:
+        raise Unavailable(f"“{name}” did not change")
+    words = {"minimize": ("صُغّرت", "Minimized"), "restore": ("أُعيدت", "Restored"),
+             "maximize": ("كُبّرت", "Maximized"), "unmaximize": ("أُعيد حجمها", "Unmaximized"),
+             "fullscreen": ("ملء الشاشة", "Full screen"),
+             "exit-fullscreen": ("خرجت من ملء الشاشة", "Left full screen"),
+             "keep-above": ("فوق كل النوافذ", "Kept above others"),
+             "no-keep-above": ("لم تعد فوق النوافذ", "No longer kept above")}[action]
+    return f"🪟 {words[0]}: {name} | {words[1]}: {name}"
+
+
+def window_move(number, target):
+    wanted = level(number, 1, MAX_DESKTOPS, "desktop")
+    desks = desktop_list()
+    if wanted > len(desks):
+        raise Unavailable(f"this computer has {len(desks)} desktop(s); add one first")
+    desk_id = desks[wanted - 1][1]
+    uuid, info = find_window(target)
+    name = window_name(info)
+    if (info.get("desktops") or []) != [desk_id]:
+        # The desktop's own "Window to Desktop N" acts on the active window, so the window
+        # is brought forward first; then only the read-back decides.
+        run_window(uuid, "activate")
+        invoke_shortcut(WINDOW_COMPONENT, f"Window to Desktop {wanted}")
+        if settle(lambda: window_info(uuid).get("desktops") or [], [desk_id]) != [desk_id]:
+            raise Unavailable(f"“{name}” did not move")
+    return f"🪟 {name} ← سطح المكتب {wanted} | {name} → desktop {wanted}"
+
+
+def go_desktop(number):
+    wanted = level(number, 1, MAX_DESKTOPS, "desktop")
+    count = len(desktop_list())
+    if wanted > count:
+        raise Unavailable(f"this computer has {count} desktop(s)")
+    moved = busctl_data("call", *KWIN, "setCurrentDesktop", "i", str(wanted))
+    current = lambda: (busctl_data("call", *KWIN, "currentDesktop") or [0])[0]   # noqa: E731
+    if not (moved and moved[0]) or settle(current, wanted) != wanted:
+        raise Unavailable(f"desktop {wanted} did not open")
+    return f"🖥 سطح المكتب {wanted} | Desktop {wanted}"
+
+
+def desktops(change):
+    one_of(change, ("add", "remove"), "desktops")
+    desks = desktop_list()
+    count = len(desks)
+    if change == "add":
+        if count >= MAX_DESKTOPS:
+            raise Unavailable(f"{MAX_DESKTOPS} desktops is the most MoOS makes")
+        run(["busctl", "--user", "call", *VDM, "createDesktop", "us", str(count), ""])
+    else:
+        if count == 1:
+            raise Unavailable("the only desktop cannot be removed")
+        number, desk_id, name = desks[-1]
+        # Removing a desktop moves its windows somewhere the owner did not choose; say what
+        # is on it instead, and leave the choice with them.
+        alone = [window_name(info) for info in (window_info(uuid) for uuid in window_matches(""))
+                 if (info.get("desktops") or []) == [desk_id]]
+        if alone:
+            raise Unavailable(f"desktop {number} still has windows: {'; '.join(alone[:5])} — "
+                              "move or close them first")
+        run(["busctl", "--user", "call", *VDM, "removeDesktop", "s", desk_id])
+    expected = count + (1 if change == "add" else -1)
+    if settle(lambda: len(desktop_list()), expected) != expected:
+        raise Unavailable("the number of desktops did not change")
+    return (f"➕ أُضيف سطح مكتب ({expected}) | Desktop added ({expected})" if change == "add"
+            else f"➖ أُزيل سطح المكتب {count} | Desktop {count} removed")
+
+
+# ── Media (the media keys' own actions, read back over MPRIS) ───────────────
+def players(timeout=15):
+    names = busctl_data("call", "org.freedesktop.DBus", "/org/freedesktop/DBus",
+                        "org.freedesktop.DBus", "ListNames", timeout=timeout)
+    names = names[0] if names and isinstance(names[0], list) else []
+    return [name for name in names if isinstance(name, str) and name.startswith(MPRIS)]
+
+
+def player_state(name, timeout=15):
+    path = ("/org/mpris/MediaPlayer2", "org.mpris.MediaPlayer2.Player")
+    state = busctl_data("get-property", name, *path, "PlaybackStatus", timeout=timeout)
+    meta = busctl_data("get-property", name, *path, "Metadata", timeout=timeout)
+    meta = meta if isinstance(meta, dict) else {}
+    title = (meta.get("xesam:title") or {}).get("data") or ""
+    artist = (meta.get("xesam:artist") or {}).get("data") or []
+    return {"player": name[len(MPRIS):].split(".")[0], "state": str(state or ""),
+            "title": clean_title(title)[:100],
+            "artist": clean_title(", ".join(a for a in artist if isinstance(a, str)))[:80]}
+
+
+def now_playing(timeout=15):
+    """The player that is playing, else the first one; None when no player is open."""
+    found = []
+    for name in players(timeout):
+        try:
+            found.append(player_state(name, timeout))
+        except Unavailable:
+            continue
+    playing = [item for item in found if item["state"] == "Playing"]
+    return (playing or found or [None])[0]
+
+
+def media(value):
+    one_of(value, tuple(MEDIA), "media")
+    if not players():
+        raise Unavailable("no media player is open")
+    invoke_shortcut(MEDIA_COMPONENT, MEDIA[value])
+    expect = {"pause": False, "stop": False, "play": True}.get(value)
+    if expect is not None:
+        def playing():
+            item = now_playing()
+            return bool(item) and item["state"] == "Playing"
+        if settle(playing, expect) != expect:
+            raise Unavailable(f"the player did not {value}")
+    else:
+        time.sleep(0.6)                                # let the player publish its new track
+    item = now_playing()
+    shown = (f"{item['title']} — {item['artist']}".strip(" —") if item else "") or "—"
+    return f"🎵 {shown} | {item['state'] if item else 'no player'}"
+
+
+# ── Lock the screen ─────────────────────────────────────────────────────────
+def lock():
+    run(["busctl", "--user", "call", *SCREENSAVER, "Lock"])
+    active = lambda: bool((busctl_data("call", *SCREENSAVER, "GetActive") or [False])[0])  # noqa: E731
+    if not settle(active, True, 3.0):
+        raise Unavailable("the screen did not lock")
+    return "🔒 قُفلت الشاشة | Screen locked"
+
+
+# ── Reminders (a user timer that raises one notification) ──────────────────
+def remind(minutes, text):
+    after = level(minutes, 1, 1440, "minutes")
+    words = " ".join(str(text or "").split())
+    if not REMINDER_TEXT.fullmatch(words):
+        raise Invalid("a reminder says what to remember in 1-160 characters")
+    notify = shutil.which("notify-send")
+    if not notify:
+        raise Unavailable("notify-send is not installed")
+    unit = f"{REMINDER_PREFIX}{int(time.time())}-{secrets.token_hex(2)}"
+    # systemd-run passes each argument through verbatim ($ and % are escaped for ExecStart,
+    # measured on the A1); the description keeps no specifier character at all.
+    run(["systemd-run", "--user", "--collect", f"--unit={unit}",
+         "--description=Mo AI reminder: " + words.replace("%", ""),
+         f"--on-active={after}m", "--timer-property=AccuracySec=5s", "--",
+         notify, "--app-name=Mo AI", "--icon=moos-moai", "--urgency=critical",
+         "Mo AI — تذكير | Reminder", words])
+    if run(["systemctl", "--user", "is-active", f"{unit}.timer"]).strip() != "active":
+        raise Unavailable("the reminder was not set")
+    return f"⏰ سأذكّرك بعد {after} دقيقة | Reminder in {after} min: {words}"
+
+
+def reminder_units():
+    """[(unit, next wall-clock time or '', text)] for every pending MoOS reminder."""
+    try:
+        timers = json.loads(run(["systemctl", "--user", "list-timers", "--all",
+                                 "--output=json", f"{REMINDER_PREFIX}*"]) or "[]")
+    except ValueError as error:
+        raise Unavailable("the reminder list cannot be read") from error
+    found = []
+    for timer in timers if isinstance(timers, list) else []:
+        unit = str((timer or {}).get("unit") or "")
+        if not REMINDER_UNIT.fullmatch(unit):
+            continue
+        described = run(["systemctl", "--user", "show", unit, "-p", "Description", "--value"])
+        text = described.strip().removeprefix("Mo AI reminder: ")
+        due = timer.get("next")
+        when = (datetime.fromtimestamp(due / 1e6).strftime("%H:%M")
+                if isinstance(due, int) and due > 0 else "")
+        found.append((unit, when, text))
+    return found
+
+
+def reminders(value):
+    one_of(value, ("list", "cancel-all"), "reminders")
+    pending = reminder_units()
+    if value == "list":
+        return json.dumps([{"at": when, "text": text} for _, when, text in pending],
+                          ensure_ascii=False)
+    for unit, _, _ in pending:
+        run(["systemctl", "--user", "stop", unit])
+    if reminder_units():
+        raise Unavailable("some reminders are still pending")
+    return f"⏰ أُلغيت التذكيرات ({len(pending)}) | Reminders cancelled ({len(pending)})"
+
+
+# ── A web page or a folder, in the owner's own default apps ────────────────
+def open_url(value):
+    found = URL.fullmatch(value or "")
+    if len(value or "") > 2048 or not found:
+        raise Invalid("only an http:// or https:// address can be opened")
+    if LOOPBACK.fullmatch(found.group(1)):
+        # This computer's own services answer on loopback; a page is never one of them.
+        raise Invalid("addresses on this computer itself are not opened")
+    require_display()
+    spawn(["xdg-open", value])
+    return f"🌐 فتح {found.group(1)} | Opening {found.group(1)}"
+
+
+def open_folder(value):
+    one_of(value, tuple(FOLDERS), "folder")
+    folder = Path.home()
+    if FOLDERS[value]:
+        try:
+            out = subprocess.run(["xdg-user-dir", FOLDERS[value]], capture_output=True,
+                                 text=True, timeout=5).stdout.strip()
+        except (OSError, subprocess.TimeoutExpired):
+            out = ""
+        folder = Path(out) if out else folder
+    if value == "screenshots":
+        folder = folder / "Screenshots"
+    if not folder.is_dir():
+        raise Unavailable(f"there is no {value} folder yet")
+    require_display()
+    spawn(["xdg-open", str(folder)])
+    return f"📁 فتح {clean_title(str(folder))} | Opening {clean_title(str(folder))}"
+
+
+# ── Three of the desktop's own settings, written with notification and read back ──
+def write_setting(file, group, key, value, kind=None):
+    argv = ["kwriteconfig6", "--notify", "--file", file, "--group", group, "--key", key]
+    run([*argv, *(["--type", kind] if kind else []), value])
+    read = run(["kreadconfig6", "--file", file, "--group", group, "--key", key]).strip()
+    if read != value:
+        raise Unavailable(f"{key} reads back as {read or 'nothing'}, not {value}")
+
+
+def animations(value):
+    one_of(value, tuple(ANIMATION_SPEEDS), "animations")
+    write_setting("kdeglobals", "KDE", "AnimationDurationFactor", ANIMATION_SPEEDS[value])
+    run(["busctl", "--user", "--expect-reply=no", "call", *KWIN, "reconfigure"])
+    return {"off": "⚡ بلا حركة | Animations off", "fast": "⚡ حركة سريعة | Fast animations",
+            "normal": "✨ حركة عادية | Normal animations",
+            "slow": "🐢 حركة بطيئة | Slow animations"}[value]
+
+
+def screen_lock(minutes):
+    after = level(minutes, 0, 120, "screen-lock minutes")
+    write_setting("kscreenlockerrc", "Daemon", "Autolock", "true" if after else "false", "bool")
+    if after:
+        write_setting("kscreenlockerrc", "Daemon", "Timeout", str(after))
+    # The locker re-reads its configuration on this call (org.kde.screensaver.configure).
+    run(["busctl", "--user", "--expect-reply=no", "call", "org.kde.screensaver", "/ScreenSaver",
+         "org.kde.screensaver", "configure"])
+    return (f"🔒 قفل تلقائي بعد {after} دقيقة | Locks after {after} min" if after
+            else "🔓 لا قفل تلقائي | Never locks by itself")
+
+
+def click(value):
+    one_of(value, CLICK_MODES, "click")
+    write_setting("kdeglobals", "KDE", "SingleClick", "true" if value == "single" else "false",
+                  "bool")
+    return ("👆 نقرة واحدة تفتح | One click opens" if value == "single"
+            else "👆 نقرتان تفتحان | Double-click opens")
+
+
 # ── Status (read-only) ──────────────────────────────────────────────────────
 def bluez_running(timeout):
     """Is bluez actually on the bus, without starting it?
@@ -587,8 +1068,25 @@ def status():
         state["power_profile"] = power_profile_now(left())
     except Unavailable:
         state["power_profile"] = None
+    try:
+        # What is playing, so "pause it" and "what song is this" need no second look.
+        state["media"] = now_playing(left())
+    except Unavailable:
+        state["media"] = None
+    try:
+        count = len(desktop_list(left()))
+        state["desktop"] = {"current": (busctl_data("call", *KWIN, "currentDesktop",
+                                                    timeout=left()) or [None])[0],
+                            "count": count}
+    except Unavailable:
+        state["desktop"] = None
     return json.dumps(state, ensure_ascii=False)
 
+
+# Verbs that only read: nothing to audit.
+READ_ONLY_VERBS = ("status", "windows")
+# Verbs whose arguments are the owner's own words or places.
+PRIVATE_ARGUMENTS = ("remind", "reminders", "open-url", "window-do", "window-move")
 
 ACTIONS = {
     "volume": (1, volume),
@@ -608,6 +1106,20 @@ ACTIONS = {
     "motion": (1, motion),
     "clarity": (1, clarity),
     "power-profile": (1, power_profile),
+    "window-do": (2, window_do),
+    "window-move": (2, window_move),
+    "go-desktop": (1, go_desktop),
+    "desktops": (1, desktops),
+    "media": (1, media),
+    "remind": (2, remind),
+    "reminders": (1, reminders),
+    "open-url": (1, open_url),
+    "open-folder": (1, open_folder),
+    "animations": (1, animations),
+    "screen-lock": (1, screen_lock),
+    "click": (1, click),
+    "windows": (0, windows),
+    "lock": (0, lock),
     "mute": (0, lambda: mute(True)),
     "unmute": (0, lambda: mute(False)),
     "screenshot": (0, screenshot),
@@ -631,7 +1143,10 @@ def main(argv):
     except Unavailable as error:
         print(f"moos-control: {error}", file=sys.stderr)
         return EX_UNAVAILABLE
-    if argv[0] != "status":
+    if argv[0] in PRIVATE_ARGUMENTS:
+        # A reminder's words, a page's address and a window's title stay out of the journal.
+        audit(argv[0])
+    elif argv[0] not in READ_ONLY_VERBS:
         audit(" ".join(argv))
     print(message)
     return 0

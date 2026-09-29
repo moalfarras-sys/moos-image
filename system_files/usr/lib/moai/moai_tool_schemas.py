@@ -81,7 +81,8 @@ def _schema(
             # {"value": ["off"]}: this argument value needs a confirmation card even though the
             # tool's category auto-executes.
             "confirm_values": confirm_values or {},
-            # moos-inspect only: the argv template after the verb. "{name}" is replaced by the
+            # The argv template after the verb, in order (moos-inspect, and every
+            # moos-control verb that takes more than one argument). "{name}" is replaced by the
             # validated argument; "--flag={name}" and its flag are dropped when it is absent;
             # "?--user:user" adds --user when the boolean argument `user` is true.
             "argv": argv or [],
@@ -338,13 +339,23 @@ _CONTROL_TOOLS: list[dict[str, Any]] = [
     ),
     _schema(
         "set_theme_mode",
-        "Switch to dark or light mode, or a named palette — ينتقل إلى الوضع الداكن أو الفاتح أو لوحة ألوان محددة",
+        "Change the whole MoOS look: dark or light, one of the MoOS palettes, follow the sun "
+        "(auto), flip the current palette between light and dark (toggle), or go back to the "
+        "previous look (undo) — يغيّر مظهر MoOS كله: داكن أو فاتح أو إحدى لوحات MoOS أو تلقائي "
+        "أو قلب الفاتح والداكن أو التراجع",
         category=CONTROL, executor="moos-control", command="theme",
         parameters={
             "value": {
                 "type": "string",
-                "enum": ["dark", "light", "nova", "amethyst", "midnight", "aurora", "auto"],
-                "description": "Theme or mode name",
+                "enum": ["dark", "light", "nova", "amethyst", "midnight", "aurora",
+                         "nova-light", "amethyst-light", "aurora-light", "daylight",
+                         "gaming", "dev", "study", "gaming-light", "dev-light", "study-light",
+                         "auto", "toggle", "undo"],
+                "description": "dark is MoOS Graphite and light is MoOS Tidal; nova (cosmic "
+                               "navy), amethyst (warm aubergine), midnight (true black) and "
+                               "aurora (teal) each have a -light sibling, and midnight's is "
+                               "daylight; gaming is MoOS Arena, dev is MoOS Forge, study is "
+                               "MoOS Scholar, each with a -light sibling",
             },
         },
         required=["value"],
@@ -458,6 +469,155 @@ _CONTROL_TOOLS: list[dict[str, Any]] = [
                                 "enum": ["power-saver", "balanced", "performance"],
                                 "description": "the power profile"}},
         required=["profile"],
+    ),
+    # W9.10 — the desktop's hands: one named window, one desktop, the media keys, the lock,
+    # a reminder, a web page, a folder and three of the desktop's own settings. Each verb
+    # reads its result back from its owner (KWin, MPRIS, the locker, systemd, KConfig).
+    _schema(
+        "list_windows",
+        "List the open windows (id, app, title, which desktop, minimized/maximized/full "
+        "screen) and the virtual desktops. Use it before acting on a window when the name is "
+        "unclear — يعرض النوافذ المفتوحة وأسطح المكتب",
+        category=READ_ONLY, executor="moos-control", command="windows",
+    ),
+    _schema(
+        "window_action",
+        "Do one thing to ONE open window, found by words from its title or app name (or its id "
+        "from list_windows): bring it to the front, minimize, restore, maximize, unmaximize, "
+        "full screen, leave full screen, keep it above others or not, or close it (the app "
+        "still asks to save). Not for arranging several windows; use arrange_windows — "
+        "ينفّذ فعلاً على نافذة واحدة بالاسم: إظهار، تصغير، استعادة، تكبير، ملء الشاشة، "
+        "إبقاء فوق النوافذ، إغلاق",
+        category=CONTROL, executor="moos-control", command="window-do",
+        parameters={
+            "action": {"type": "string",
+                       "enum": ["focus", "minimize", "restore", "maximize", "unmaximize",
+                                "fullscreen", "exit-fullscreen", "keep-above",
+                                "no-keep-above", "close"],
+                       "description": "focus brings it to the front"},
+            "target": {"type": "string", "maxLength": 80,
+                       "description": "words from the window's title or app (e.g. firefox), "
+                                      "or its {id} from list_windows"},
+        },
+        required=["action", "target"], argv=["{action}", "{target}"],
+        # A close can lose work in an app that does not ask; the person says yes first.
+        confirm_values={"action": ["close"]},
+    ),
+    _schema(
+        "move_window_to_desktop",
+        "Move ONE open window to another virtual desktop by number — ينقل نافذة إلى سطح مكتب آخر",
+        category=CONTROL, executor="moos-control", command="window-move",
+        parameters={
+            "desktop": {"type": "integer", "minimum": 1, "maximum": 20,
+                        "description": "the desktop's number, counting from 1"},
+            "target": {"type": "string", "maxLength": 80,
+                       "description": "words from the window's title or app, or its {id}"},
+        },
+        required=["desktop", "target"], argv=["{desktop}", "{target}"],
+    ),
+    _schema(
+        "go_to_desktop",
+        "Switch to virtual desktop number N (for the next or previous one use switch_desktop) "
+        "— ينتقل إلى سطح المكتب رقم N",
+        category=CONTROL, executor="moos-control", command="go-desktop",
+        parameters={"number": {"type": "integer", "minimum": 1, "maximum": 20,
+                               "description": "the desktop's number, counting from 1"}},
+        required=["number"],
+    ),
+    _schema(
+        "add_or_remove_desktop",
+        "Add one virtual desktop, or remove the last one (refused while windows are on it) — "
+        "يضيف سطح مكتب افتراضياً أو يزيل الأخير",
+        category=CONTROL, executor="moos-control", command="desktops",
+        parameters={"change": {"type": "string", "enum": ["add", "remove"],
+                               "description": "add one, or remove the last one"}},
+        required=["change"],
+    ),
+    _schema(
+        "control_media",
+        "Control the music or video that is playing: play/pause, play, pause, next, previous "
+        "or stop. get_system_status says what is playing — يتحكّم بالموسيقى أو الفيديو: تشغيل، "
+        "إيقاف مؤقت، التالي، السابق",
+        category=CONTROL, executor="moos-control", command="media",
+        parameters={"action": {"type": "string",
+                               "enum": ["play-pause", "play", "pause", "next", "previous",
+                                        "stop"],
+                               "description": "what the media keys would do"}},
+        required=["action"],
+    ),
+    _schema(
+        "lock_screen",
+        "Lock the screen now (the owner unlocks it with their password) — يقفل الشاشة الآن",
+        category=CONTROL, executor="moos-control", command="lock",
+    ),
+    _schema(
+        "set_reminder",
+        "Remind the owner of something after N minutes with a notification that stays until "
+        "dismissed — يذكّر المالك بشيء بعد عدد من الدقائق بإشعار",
+        category=CONTROL, executor="moos-control", command="remind",
+        parameters={
+            "minutes": {"type": "integer", "minimum": 1, "maximum": 1440,
+                        "description": "how many minutes from now (1-1440)"},
+            "text": {"type": "string", "maxLength": 160,
+                     "description": "what to remember, in the owner's language"},
+        },
+        required=["minutes", "text"], argv=["{minutes}", "{text}"],
+    ),
+    _schema(
+        "manage_reminders",
+        "List the pending reminders, or cancel all of them — يعرض التذكيرات المنتظرة أو يلغيها",
+        category=CONTROL, executor="moos-control", command="reminders",
+        parameters={"action": {"type": "string", "enum": ["list", "cancel-all"],
+                               "description": "list, or cancel every pending reminder"}},
+        required=["action"],
+    ),
+    _schema(
+        "open_web_page",
+        "Open a web address in the owner's browser (http or https only). For a web search, "
+        "open a search engine's address with the words in it — يفتح صفحة ويب في المتصفح",
+        category=CONTROL, executor="moos-control", command="open-url",
+        parameters={"url": {"type": "string", "maxLength": 2048,
+                            "description": "the full http:// or https:// address"}},
+        required=["url"],
+    ),
+    _schema(
+        "open_folder",
+        "Open one of the owner's folders in the file manager — يفتح مجلداً من مجلدات المالك",
+        category=CONTROL, executor="moos-control", command="open-folder",
+        parameters={"folder": {"type": "string",
+                               "enum": ["home", "documents", "downloads", "pictures", "music",
+                                        "videos", "desktop", "screenshots"],
+                               "description": "which folder"}},
+        required=["folder"],
+    ),
+    _schema(
+        "set_animation_speed",
+        "Set how fast windows and menus animate everywhere: off, fast, normal or slow (not "
+        "the wallpaper; for that use set_motion) — يضبط سرعة حركة النوافذ والقوائم",
+        category=CONTROL, executor="moos-control", command="animations",
+        parameters={"speed": {"type": "string", "enum": ["off", "fast", "normal", "slow"],
+                              "description": "off makes every change instant"}},
+        required=["speed"],
+    ),
+    _schema(
+        "set_screen_lock",
+        "Set after how many idle minutes the screen locks by itself, or 0 so it never locks "
+        "by itself (to lock now use lock_screen) — يضبط القفل التلقائي للشاشة بعد دقائق الخمول",
+        category=CONTROL, executor="moos-control", command="screen-lock",
+        parameters={"after_minutes": {"type": "integer", "minimum": 0, "maximum": 120,
+                                      "description": "idle minutes before it locks; 0 = never"}},
+        required=["after_minutes"],
+        # Turning the automatic lock off leaves an unattended desk open.
+        confirm_values={"after_minutes": ["0"]},
+    ),
+    _schema(
+        "set_click_mode",
+        "Choose whether one click or a double-click opens files and folders — "
+        "يختار فتح الملفات بنقرة واحدة أو بنقرتين",
+        category=CONTROL, executor="moos-control", command="click",
+        parameters={"mode": {"type": "string", "enum": ["single", "double"],
+                             "description": "single or double click"}},
+        required=["mode"],
     ),
 ]
 
@@ -680,8 +840,9 @@ def _valid(tool_name: str, arguments: dict[str, Any]) -> bool:
             if not spec.get("minimum", value) <= value <= spec.get("maximum", value):
                 return False
         else:
-            if not isinstance(value, str) or not value or len(value) > 256 \
-                    or value.startswith("-") or any(ord(c) < 32 for c in value):
+            if not isinstance(value, str) or not value.strip() \
+                    or len(value) > spec.get("maxLength", 256) \
+                    or value.startswith("-") or any(ord(c) < 32 or ord(c) == 127 for c in value):
                 return False
         if "enum" in spec and value not in spec["enum"]:
             return False
@@ -734,6 +895,10 @@ def build_command(tool_name: str, arguments: dict[str, Any]) -> list[str] | None
 
     if executor == "moos-inspect":
         return ["moos-inspect", command, *_inspect_argv(meta.get("argv") or [], arguments)]
+
+    if executor == "moos-control" and meta.get("argv"):
+        # A verb of more than one argument: in the template's fixed order.
+        return ["moos-control", command, *_inspect_argv(meta["argv"], arguments)]
 
     if executor == "moos-control":
         if command == "mute":
