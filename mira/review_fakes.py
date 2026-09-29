@@ -150,6 +150,15 @@ def play(scene, voice, controller, window):
         voice('error', 'تعذّر الاتصال بالصوت: TimeoutError')
     elif scene in ('home', 'computer', 'settings'):
         QTimer.singleShot(200, lambda: window.setProperty('sheet', scene))
+        section = next((a.split('=', 1)[1] for a in sys.argv if a.startswith('--section=')), '')
+        if scene == 'settings' and section.isdigit():
+            from PySide6.QtCore import QObject
+
+            def pick():
+                sheet = window.findChild(QObject, 'settingsSheet')
+                if sheet is not None:
+                    sheet.setProperty('section', int(section))
+            QTimer.singleShot(700, pick)
     elif scene in ('system', 'actions'):
         stage_system(controller)
         if scene == 'system':

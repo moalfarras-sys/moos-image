@@ -5,6 +5,7 @@ import QtQuick.Layouts
 // Preferences in five short sections; every control acts on a real setting and shows its read-back.
 Item {
     id: st
+    objectName: "settingsSheet"
     property int section: 0
     readonly property var sections: [
         { icon: "face", label: mira.s.st_look },
