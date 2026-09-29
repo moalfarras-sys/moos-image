@@ -77,6 +77,11 @@ try {
   const phone = await viewer({viewport:{width:390,height:844}, deviceScaleFactor:3,
     isMobile:true, hasTouch:true}, 'touch', 'ar');
   const {page, packets} = phone;
+  assert.equal(phone.packets.filter(p => p.type === 'settings').at(-1)?.quality,68,
+    'a portrait phone starts at Balanced instead of mistaking its long edge for desktop width');
+  const touchLaptop = await viewer({viewport:{width:1920,height:1080},hasTouch:true},'desktop');
+  assert.equal(touchLaptop.packets.filter(p => p.type === 'settings').at(-1)?.quality,80,
+    'a wide touchscreen laptop remains Sharp instead of being mistaken for a phone');
   await capture(page, 'phone-ar');
   await page.getByRole('button', {name:'كتابة', exact:true}).click();
   const field = page.locator('.kbinput');
@@ -249,6 +254,10 @@ try {
   await trackpad.page.locator('.sheet-close').click();
   await trackpad.page.getByRole('button',{name:'الشاشة',exact:true}).click();
   await capture(trackpad.page,'display-dark-ar');
+  await trackpad.page.getByRole('button',{name:/توفير البيانات 576p/}).click();
+  await trackpad.page.getByRole('button',{name:'تلقائي',exact:true}).click();
+  assert.equal(await trackpad.page.evaluate(() => JSON.parse(localStorage.getItem('moremote.presetIdx'))),1,
+    'Auto starts at the same phone-appropriate rung as a new session instead of keeping manual 576p');
   await trackpad.page.locator('.sheet-close').click();
 
   // Both clipboard directions stay local to this isolated test. Prove that a failed
@@ -308,6 +317,31 @@ try {
   await cp.getByRole('button',{name:'لصق من حافظة الهاتف',exact:true}).click();
   assert.equal(await draft.evaluate(el=>document.activeElement===el),true,'denied clipboard read focuses manual paste');
   assert.equal(await draft.inputValue(),'MoOS العربية 😀','denied read preserves the draft');
+  await cp.locator('.sheet-close').click();
+  // The old Settings Copy/Paste buttons forwarded PC shortcuts only. They never
+  // transferred anything to/from the phone although their labels promised it.
+  rejectWrite = false;
+  pcText = 'Selected on PC';
+  await cp.evaluate(() => { navigator.clipboard.readText = async () => window.phoneClipboard; });
+  await cp.getByRole('button',{name:'الإعدادات',exact:true}).click();
+  trackpad.packets.length = 0;
+  await cp.getByRole('button',{name:'نسخ إلى هذا الجهاز',exact:true}).click();
+  await cp.waitForFunction(() => window.phoneClipboard === 'Selected on PC');
+  assert.equal(input(trackpad.packets).filter(p=>p.type==='combo').length,1,
+    'Copy sends one PC shortcut then copies the resulting PC clipboard to this device');
+  trackpad.packets.length = 0;
+  await cp.evaluate(() => { window.phoneClipboard = 'Phone to PC'; });
+  await cp.getByRole('button',{name:'لصق من هذا الجهاز',exact:true}).click();
+  await cp.waitForFunction(() => document.querySelector('.toast')?.textContent?.includes('تم لصق النص على الكمبيوتر'));
+  assert.equal(pcText,'Phone to PC');
+  assert.equal(input(trackpad.packets).filter(p=>p.type==='combo').length,1,
+    'Paste transfers phone text before one PC Paste');
+  rejectWrite = true;
+  trackpad.packets.length = 0;
+  await cp.getByRole('button',{name:'لصق من هذا الجهاز',exact:true}).click();
+  await cp.waitForTimeout(150);
+  assert.deepEqual(input(trackpad.packets),[],
+    'failed transfer must not paste stale PC clipboard from the Settings button');
   await cp.locator('.sheet-close').click();
   await cp.getByRole('button',{name:'كتابة',exact:true}).click();
   assert.ok(await cp.locator('.kbinput').evaluate(el=>document.activeElement===el));
