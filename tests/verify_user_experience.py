@@ -3504,7 +3504,7 @@ require("target_lnf()" in apply_theme_code
         "the self-heal must accept EITHER MoOS look and repair to the one the user chose")
 
 ui_migrate = read("system_files/usr/bin/moos-ui-migrate")
-require("MOOS_THEME_REV=11" in ui_migrate and "MOAI_UI_REV=3" in ui_migrate,
+require("MOOS_THEME_REV=11" in ui_migrate and "MOAI_UI_REV=4" in ui_migrate,
         "UI cache and Mo AI migrations must be explicitly revisioned")
 require('rm -rf "$HOME/.cache"' not in ui_migrate,
         "UI migration must never erase the whole user cache")

@@ -1996,11 +1996,55 @@ TAILSCALE_REPO
 # qrencode: the Mo PC Remote panel renders its address as a QR code. Without it the user has to
 # read an address off the screen and type it into a phone — which is exactly how they end up on
 # the LAN address that dies the moment they leave the house.
+# python3-pyside6 … python3-cryptography: Mira's runtime (the MoOS assistant, /usr/bin/mira). Her
+# pinned extras are in /usr/lib/mira/site from the mira-build stage; everything else is these RPMs,
+# the same ones that stage installs to run her tests.
 dnf5 -y install tailscale ydotool wl-clipboard spectacle python3-gobject \
     python3-websockets poppler-utils qrencode \
-    gstreamer1 gstreamer1-plugins-base gstreamer1-plugins-good pipewire-gstreamer
+    gstreamer1 gstreamer1-plugins-base gstreamer1-plugins-good pipewire-gstreamer \
+    python3-pyside6 python3-numpy python3-jeepney python3-httpx python3-requests python3-cryptography
 systemctl enable tailscaled.service
 systemctl --global disable mo-remote-personal.service || true
+
+# Mira, the MoOS assistant: her tree and pinned packages come from the mira-build stage (see
+# the Containerfile), her launcher and the org.moos.moai entry from system_files. Each line is
+# a way she could ship and not open: a missing half, an import the image's Python cannot
+# satisfy, an identity that no longer matches Mo AI's launcher (one dock icon, Meta+Space), or
+# a window that dies at start-up.
+test -f /usr/lib/mira/app/app.py \
+    || { echo "GATE FAIL: Mira's app tree is missing (/usr/lib/mira/app)"; exit 1; }
+test -d /usr/lib/mira/site/google/genai && test -d /usr/lib/mira/site/aioesphomeapi \
+    || { echo "GATE FAIL: Mira's pinned packages are missing (/usr/lib/mira/site)"; exit 1; }
+test -x /usr/bin/mira \
+    || { echo "GATE FAIL: the Mira launcher is missing or not executable"; exit 1; }
+grep -q 'exec /usr/bin/mira' /usr/bin/moai \
+    || { echo "GATE FAIL: moai no longer hands the assistant to Mira"; exit 1; }
+grep -q "DESKTOP_ID = 'org.moos.moai'" /usr/lib/mira/app/app.py \
+    || { echo "GATE FAIL: Mira no longer wears Mo AI's app id — two dock icons, no Meta+Space match"; exit 1; }
+_mira_home="$(mktemp -d)"
+_mira_imports="$(env -i PATH=/usr/bin HOME="$_mira_home" PYTHONPATH=/usr/lib/mira/site PYTHONDONTWRITEBYTECODE=1 \
+    /usr/bin/python3 -s -c 'import PySide6.QtQuick, google.genai, aioesphomeapi, numpy, jeepney, segno; print("ok")' 2>&1)"
+case "$_mira_imports" in
+    ok) ;;
+    *) echo "GATE FAIL: Mira cannot import her runtime in this image:"; echo "$_mira_imports"; exit 1 ;;
+esac
+# Her window, offscreen, with stand-in backends: it must render a frame and save it.
+set +e
+env -i PATH=/usr/bin HOME="$_mira_home" MIRA_TEST_MODE=1 MIRA_INSTANCE=mira-image-gate PYTHONDONTWRITEBYTECODE=1 \
+    QT_QPA_PLATFORM=offscreen QT_QUICK_BACKEND=software QT_FORCE_STDERR_LOGGING=1 \
+    timeout 30 /usr/bin/mira --capture="$_mira_home/mira.png" --capture-delay=3000 >/tmp/mira-smoke.log 2>&1
+_mira_rc=$?
+set -e
+if [ "$_mira_rc" -ne 0 ] || [ ! -s "$_mira_home/mira.png" ]; then
+    echo "GATE FAIL: Mira's window did not open in the image (exit=${_mira_rc}). Her own output:"
+    cat /tmp/mira-smoke.log
+    exit 1
+fi
+rm -rf "$_mira_home" /tmp/mira-smoke.log
+# Captured, then matched: `find | grep -q` under pipefail can report a match as a failure.
+_mira_pyc="$(find /usr/lib/mira -name '__pycache__' -print -quit)"
+[ -z "$_mira_pyc" ] || { echo "GATE FAIL: bytecode caches reached /usr/lib/mira ($_mira_pyc)"; exit 1; }
+unset -v _mira_home _mira_imports _mira_rc _mira_pyc
 
 # The desktop's own sound, in the phone's tab — for EVERY edition, not just cloud.
 #
@@ -2442,7 +2486,7 @@ systemctl enable moos-flatpak-init.service
 # read-only hardware snapshot to /tmp/moos-hw.json then launches the Hardware
 # Center — both are now compiled panels inside Mo AI, so these commands are
 # thin wrappers around `moai --panel compat|device`.
-chmod 0755 /usr/bin/moplayer
+chmod 0755 /usr/bin/moplayer /usr/bin/mira
 chmod 0755 /usr/bin/moos-setup /usr/bin/moos-firstrun /usr/bin/moos-compat \
     /usr/bin/moos-hardware /usr/bin/moos-device-plan /usr/bin/moai /usr/bin/moai-start /usr/bin/moai-do \
     /usr/bin/moos-update /usr/bin/moos-rollback /usr/bin/moos-welcome /usr/bin/moos-store /usr/bin/moos-lang \

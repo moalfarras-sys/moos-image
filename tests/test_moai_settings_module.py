@@ -114,7 +114,7 @@ class TheModule(unittest.TestCase):
     def test_it_is_the_spec_module(self) -> None:
         metadata = json.loads((MODULE / "kcm_moos_ai.json").read_text(encoding="utf-8"))
         plugin = metadata["KPlugin"]
-        self.assertEqual((plugin["Name"], plugin["Name[ar]"]), ("Mo AI", "Mo AI"))
+        self.assertEqual((plugin["Name"], plugin["Name[ar]"]), ("Mira", "ميرا"))
         self.assertEqual(metadata["X-KDE-System-Settings-Parent-Category"], "moos")
         self.assertEqual(metadata["X-KDE-Weight"], 4)
         english = metadata["X-KDE-Keywords"].split(",")
@@ -128,10 +128,11 @@ class TheModule(unittest.TestCase):
         page = code(PAGE.read_text(encoding="utf-8"))
         for heading in ('"العقل", "Brain"', '"النماذج السحابية", "Cloud models"',
                         '"قنوات الهاتف", "Phone channels"', '"الصلاحيات", "Permissions"',
-                        '"الوصول إلى Mo AI", "Reaching Mo AI"', '"يتبع نظامك", "Follows your system"'):
+                        '"الوصول إلى ميرا", "Reaching Mira"', '"يتبع نظامك", "Follows your system"'):
             self.assertIn(f"title: root.t({heading})", page)
         for route in ("moos://settings/shortcuts", "moos://app/moai", "moos://agent/whatsapp-login",
-                      "moos://do/install-openclaw", "moos://settings/themes", "moos://settings/region"):
+                      "moos://do/install-openclaw", "moos://settings/themes", "moos://settings/region",
+                      "moos://ai/settings", "moos://ai/system"):
             self.assertIn(f'root.open("{route}")', page)
         # One door per destination: a second button to the same place is the duplication this wave
         # removes (the hero's "Open Mo AI" once had a twin in "Reaching Mo AI").
@@ -414,7 +415,7 @@ class TheWindowNoLongerDuplicatesIt(unittest.TestCase):
         self.assertEqual(entry["Desktop Entry"]["Actions"], "Device;Settings;Apps;Remote;")
         self.assertEqual(entry["Desktop Entry"]["X-KDE-Shortcuts"], "Meta+Space")
         expected = {"Device": ("Check this device", "moai --panel device"),
-                    "Settings": ("Mo AI settings", "moos-settings --section=assistant"),
+                    "Settings": ("Mira settings", "moos-settings --section=assistant"),
                     "Apps": ("Install apps", "moos-store"),
                     "Remote": ("Remote control", "moos-settings --section=remote")}
         for action, (name, command) in expected.items():

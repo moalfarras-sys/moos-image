@@ -1,0 +1,7 @@
+{
+  "wake_word": "ميرا",
+  "model": "mira_ar_v2.tflite",
+  "trained_languages": [
+    "ar"
+  ]
+}

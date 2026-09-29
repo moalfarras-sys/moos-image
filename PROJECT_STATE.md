@@ -1,5 +1,6 @@
 # MoOS current state — measured 2026-09-28
 
+**Mira, measured 2026-09-29 (history in `mira/HISTORY.md`):** `mira/` is a Qt Quick GPU interface with both original faces, and she is now the MoOS assistant: Mo AI's app became Mira and Mo AI's services are her executor. The brain reaches all 50 Mo AI tools by name, plus research, home, time, reminders, routines, media, files and windows. It uses Gemini, or Mo AI's free cloud brain without a key. Every system change waits on an owner card: a button, a KDE notification, the paired phone, or his own «نعم» in a later turn. The job is followed to its end, and the password still goes through Polkit. Voice runs on the Echo, or through the PC when none is paired. On the station a per-user takeover gives her Mo AI's launcher, icon, app id and Meta+Space. On branch `mira/neural-os-v4` the x86 image ships her: the `mira-build` stage (sha256-pinned lock, 188 tests, an offscreen window), `/usr/lib/mira`, `moai` → Mira, the Mira launcher and settings page, and gates in build.sh. **The local generic build passed every gate.** Verified live: an owner-spoken Arabic conversation, reboot survival 43 s, handoff 5 s and 2 s, and a real approval round trip. The Echo now takes wake models and spoken lines through its own signed client, not an inbound port: `mira_ar_v2` runs at 0.65 beside the proven model, and reminders are spoken on the Echo. Not claimed: a signed image with Mira (PR #177, gates green), Mira on ARM, P3.9, a power-cut test, or PC-off home control. See `mira/README.md`.
 ## Source and release truth
 - **Proven production source is `55753999`, `44.20260927.952`**: signed x86 build
   `36318637595`, QCOW2 `36320028679`/`36320031215`/`36320033794`, offline ISO
@@ -28,8 +29,7 @@
 
 ## App engines — what this machine can actually run
 
-**Corrective source work, 2026-09-27:** THEME_REV 90 adds a reviewed 6.7/6.8 dock
-material seam and shared Hub material; isolated clear/solid Hub renders and local image gates passed.
+**Corrective source work, 2026-09-27:** THEME_REV 90 adds a reviewed 6.7/6.8 dock material seam and shared Hub material; isolated clear/solid Hub renders and local image gates passed.
 Windows setup folder access is temporary, confirmed and read-only. Generals Zero Hour
 ran a real Alpine Assault Skirmish at 1080p fullscreen on the 4K station: Dozer selection,
 movement and saving worked. Its local MoOS menu entry launches directly, but some reopen

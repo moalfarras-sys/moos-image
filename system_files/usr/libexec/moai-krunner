@@ -255,17 +255,17 @@ def match(query):
             if ALLOWED_ROUTE.match(target):
                 label = ar(found) if arabic else en(found)
                 results.append(("route:" + target, label, icon, EXACT, 1.0,
-                                "Mo AI · تحكّم بالجهاز" if arabic else "Mo AI · control this computer"))
+                                "ميرا · تحكّم بالجهاز" if arabic else "Mira · control this computer"))
             break
     question = ASK_PREFIX.sub("", (query or "").strip(), count=1)
     explicit = question != (query or "").strip()
     asks = explicit or text.endswith(("?", "؟")) or len(text.split()) >= 4
     if asks and len(question.strip()) >= 2:
         question = question.strip()[:2000]
-        label = ("اسأل Mo AI: " if arabic else "Ask Mo AI: ") + question
+        label = ("اسأل ميرا: " if arabic else "Ask Mira: ") + question
         results.append(("ask:" + encode(question), label, ASK_ICON,
                         EXACT if explicit else POSSIBLE, 0.9 if explicit else 0.4,
-                        "Mo AI · سؤال" if arabic else "Mo AI · question"))
+                        "ميرا · سؤال" if arabic else "Mira · question"))
     return results
 
 

@@ -1,5 +1,22 @@
 # MoOS development plan
 
+### Mira current acceptance work (2026-09-29)
+
+Done and measured: the v4 GPU interface and a single voice/text brain. An owner-spoken Arabic wake led to a multi-turn conversation with sub-second replies. The Echo client is supervised by init and survived a reboot. Handoff works both ways. Research, opt-in screen look and the Tailscale phone companion are in. **Mo AI is merged into Mira:**
+- every Mo AI tool by name;
+- owner-approved cards (button, notification, phone, or his later «نعم») with job follow-up;
+- the System centre, desktop tools, reminders, routines, and voice through the PC when no Echo is paired;
+- Mo AI's free cloud brain as the tool loop without a Gemini key.
+
+On the station she wears Mo AI's launcher, icon and Meta+Space. On branch `mira/neural-os-v4` she ships in the x86 image: the `mira-build` stage runs 188 tests, and build.sh gates her. **A local generic build passed with every gate (`localhost/moos:latest`, 2026-09-29).** Open, in order:
+1. PR #177 (all PR gates green, x86 and ARM builds included). Then merge and run a signed candidate with QCOW2/ISO proofs, including the ISO open/close proof of the assistant.
+2. ARM: add the same stage to `Containerfile.arm`/`build-arm.sh` (the Oracle agent's files). Until then ARM keeps the QML app under the Mira launcher name.
+3. Done without an inbound port: `mira_ar_v2` runs at 0.65 beside the proven model, and announcements are spoken on the Echo. Still owed: the owner's own bare «ميرا» hit rate and false wakes per hour with the pair.
+4. P3.9, only if the owner confirms in a session: a `run_command` tool behind the same owner card.
+5. Measure a power-cut restart. Host Home Assistant on an always-on machine for PC-off home control.
+
+Keep both faces, Beamformer and the Mira-only wake selection `[mira_ar_experimental]` (the owner's choice). Only one ESPHome API client may be connected while voice is tested, because echod routes the pipeline to the newest client.
+
 This is the only product development plan. Current evidence is in
 [`PROJECT_STATE.md`](../PROJECT_STATE.md); release mechanics are in
 [`RELEASE.md`](../RELEASE.md); who holds which files right now is in
@@ -210,6 +227,7 @@ reviewed live, gated once, merged once and proven once.
 | W9 | M2 | **One System Settings front door.** MoOS status, Update, Recovery and Mo PC Remote live in `kcm_moos` inside Plasma's System Settings, beside the real Wayland/KWin, display, audio and network modules. Hidden compatibility launchers deep-link to its pages; protected transaction owners stay authoritative. | Prior QML front door was merged in PR #157 and reviewed on the Arabic 4K station. The native KCM loaded in Arabic and English on the x86 base on 2026-09-24; full final-image and installed-desktop proof remain. Open before closing W9: real check/stage/refused-authorization/cancel transactions and same-window route proof. |
 | W9.9 | M2+M3 | **MoOS One inside KDE.** System Settings gets a MoOS group, first in its sidebar, with one native module per MoOS page: Overview, Update, What's new, Mo AI, Mo PC Remote and Recovery, plus MoOS Themes first under Appearance & Style. Mo AI's own settings sheet and the kdialog brain wizard are gone into the Mo AI module; the separate MoOS Themes window and the dormant Command Center are retired. One visible "MoOS Settings" entry (Plasma's own, whose window is `systemsettings`). Mo AI opens 51 settings pages from one registry and drives the desktop through fixed verbs (overview, arrange, desktops, do-not-disturb, microphone, keyboard layout, motion, glass, power profile); Meta+Space opens it; the Island shows its confirmed jobs. Duplicates removed: heroclock and the retired Search package, Discover's unattended updater, the English Input Method page, the second remote-desktop page on x86, stock terminal monitors in the menu; ARM now runs the same menu curation | merged (PR #164), promoted and booted on the x86 station; System Settings' installed MoOS group, Themes and What's New pages were opened on 2026-09-25. THEME_REV 86 migration on an existing account, Meta+Space after login and full update transactions remain pending |
 | W10 | M3 | Mo Store as one job system for install/update/remove across the UI, Mo AI and URL routes, with a drop target in its own window (P1.7, P4.1–P4.2, P4.7) | planned |
+| W11 | M3 | Mira Neural OS as the MoOS assistant: keep both owner-selected faces; merge Mo AI into Mira (every Mo AI tool, the owner approves every system change); verify every route against live Home Assistant and Mo AI; make hands-free wake reliable on the paired Echo; package the app and pinned dependencies for all editions, then prove a signed booted image | v4 on the station, with Mo AI's launcher, icon, app id and Meta+Space. Owner-spoken Arabic conversation: wake 0.83, replies 0.7 s, 0 s and 1.4 s after speech. Reboot survival 43 s, handoff 5 s and 2 s. **2026-09-29 merge:** all 50 image-declared Mo AI tools by name, owner cards with job follow-up, System centre, desktop tools, reminders, routines, PC voice without an Echo, and Mo AI's free cloud tool loop without a Gemini key. Real `moai-control` approval round trip; Gemini Live with 74 declarations verified. **Image (x86, branch `mira/neural-os-v4`):** the `mira-build` stage (sha256-pinned lock, 188 tests, offscreen window), `/usr/lib/mira`, `moai` → Mira, the Mira launcher and System Settings page, and Mo AI rev-4 migration. The local generic build passed every gate. Open: push/PR and a signed candidate with QCOW2/ISO proofs; the ARM stage (Oracle's files); firewall port 18769 (owner's password) → `mira_ar_v2` and Echo announcements; P3.9 only on the owner's word; power-cut test; PC-off home control |
 | W11 | M2 | MoOS Intro: one horizon scene from Plymouth through login to the Hub; first-run tour; offline first run (P1.6) | planned |
 | W12+ | M4–M5 | hardware breadth, compatibility products, MoOS Shield encryption, release trust | planned |
 

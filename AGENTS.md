@@ -448,6 +448,7 @@ build_files/build.sh   everything package-dependent, plus the boot/identity gate
 system_files/          copied verbatim onto / — identity, themes, apps, units
 moremote/              Mo PC Remote, vendored source; built by a stage in the Containerfile
 moplayer/              MoPlayer (Flutter), first-party source; built by a stage in the Containerfile
+mira/                  Mira, the MoOS assistant (Mo AI's app); tested and staged by the mira-build stage (x86)
 tests/                 run these before pushing; they are the same gates CI runs
 skills/                the mandatory moos-engineering agent skill
 .github/workflows/     build.yml (moos + moos-nvidia + moos-cloud), build-iso.yml (ISO), build-disk.yml (qcow2)

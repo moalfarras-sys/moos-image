@@ -33,6 +33,9 @@ on:
       # The native System Settings modules compile in the Containerfile's qmlshell-build
       # stage and build.sh gates the installed plugins; a change there reaches the image.
       - "moos-settings-kcm/**"
+      # Mira, the assistant: her mira-build stage runs her suites and stages her tree, and
+      # build.sh gates the installed app; a change to her source reaches the image.
+      - "mira/**"
       - ".github/workflows/pr-image-gates.yml"
   workflow_dispatch:
 

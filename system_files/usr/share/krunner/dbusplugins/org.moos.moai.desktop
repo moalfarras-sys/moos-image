@@ -1,8 +1,8 @@
 [Desktop Entry]
-Name=Mo AI
-Name[ar]=Mo AI
-Comment=Control this computer and ask Mo AI from the search bar
-Comment[ar]=تحكّم بالجهاز واسأل Mo AI من شريط البحث
+Name=Mira
+Name[ar]=ميرا
+Comment=Control this computer and ask Mira from the search bar
+Comment[ar]=تحكّم بالجهاز واسأل ميرا من شريط البحث
 X-KDE-ServiceTypes=Plasma/Runner
 Type=Service
 Icon=moos-moai

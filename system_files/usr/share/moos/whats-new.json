@@ -3,6 +3,20 @@
   "_": "What a person can SEE or DO after an update, newest first. One entry per user-visible change, written for the owner of the machine, not for a developer: what it is, where it is, and (when MoOS has a route to it) a way to try it now. 'merged' is when the change reached main (a little later is fine, earlier is not: an entry dated before a machine's previous system is never marked new there); a machine marks an entry new when the system it ran BEFORE the update was built earlier than that. tests/test_whats_new.py reads every entry the way MoOS Settings will.",
   "entries": [
     {
+      "id": "mira-assistant",
+      "merged": "2026-09-29T16:30:00Z",
+      "glyph": "ai",
+      "title": {
+        "ar": "ميرا صارت مساعدة MoOS",
+        "en": "Mira is now your MoOS assistant"
+      },
+      "body": {
+        "ar": "افتحها بـ Meta+Space: تتكلم معك بصوتها وتبحث وتتحكم بالجهاز بكل أدوات Mo AI. التثبيت والتحديث والإصلاح ينتظر موافقتك في بطاقة، أو قل لها «نعم».",
+        "en": "Open her with Meta+Space: she talks with you, searches and runs this computer with every Mo AI tool. Installs, updates and repairs wait for your approval on a card, or just tell her yes."
+      },
+      "route": "moos://settings/assistant"
+    },
+    {
       "id": "remote-clipboard-auto-quality",
       "merged": "2026-09-27T23:02:33Z",
       "glyph": "video",

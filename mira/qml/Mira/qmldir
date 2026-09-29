@@ -1,0 +1,31 @@
+module Mira
+singleton Theme 1.0 Theme.qml
+T 1.0 T.qml
+Icon 1.0 Icon.qml
+Glass 1.0 Glass.qml
+Avatar 1.0 Avatar.qml
+IconButton 1.0 IconButton.qml
+PillButton 1.0 PillButton.qml
+MiraSwitch 1.0 MiraSwitch.qml
+MiraSlider 1.0 MiraSlider.qml
+MiraField 1.0 MiraField.qml
+SectionTitle 1.0 SectionTitle.qml
+ServicePill 1.0 ServicePill.qml
+Nebula 1.0 Nebula.qml
+TopBar 1.0 TopBar.qml
+FaceFrames 1.0 FaceFrames.qml
+MiraCore 1.0 MiraCore.qml
+StageCaption 1.0 StageCaption.qml
+MessageDelegate 1.0 MessageDelegate.qml
+ConversationPanel 1.0 ConversationPanel.qml
+ContextRail 1.0 ContextRail.qml
+CommandDock 1.0 CommandDock.qml
+SideSheet 1.0 SideSheet.qml
+HomeSheet 1.0 HomeSheet.qml
+ComputerSheet 1.0 ComputerSheet.qml
+SettingsSheet 1.0 SettingsSheet.qml
+Toasts 1.0 Toasts.qml
+WakeCoach 1.0 WakeCoach.qml
+CompanionPanel 1.0 CompanionPanel.qml
+ActionCards 1.0 ActionCards.qml
+SystemSheet 1.0 SystemSheet.qml

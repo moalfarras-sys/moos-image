@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="dark">
+<meta name="theme-color" content="#04050D">
+<meta name="referrer" content="no-referrer">
+<meta name="format-detection" content="telephone=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Mira">
+<title>ميرا · Mira</title>
+<link rel="manifest" href="/manifest.webmanifest" crossorigin="use-credentials">
+<link rel="icon" type="image/png" sizes="192x192" href="/static/icons/icon-192.png">
+<link rel="apple-touch-icon" sizes="180x180" href="/static/icons/apple-touch-icon.png">
+<link rel="stylesheet" href="/static/app.css">
+<script src="/static/app.js" defer></script>
+</head>
+<body>
+<div class="app" id="app" data-phase="idle" data-view="mira" data-conn="connecting">
+  <div class="nebula" aria-hidden="true"></div>
+
+  <header class="top">
+    <div class="identity">
+      <div class="avatar" aria-hidden="true"><img id="avatar" alt="" decoding="async"></div>
+      <div class="titles">
+        <h1 id="title">ميرا</h1>
+        <div class="services" id="services"></div>
+      </div>
+    </div>
+    <div class="tabs" role="tablist" id="tabs">
+      <button type="button" role="tab" class="tab" id="tab-mira" data-view="mira" aria-selected="true" aria-controls="view-mira"></button>
+      <button type="button" role="tab" class="tab" id="tab-home" data-view="home" aria-selected="false" aria-controls="view-home" tabindex="-1"></button>
+    </div>
+  </header>
+
+  <div class="banner" id="banner" role="status" hidden>
+    <span class="banner-dot" aria-hidden="true"></span>
+    <span class="banner-text" id="banner-text"></span>
+    <button type="button" class="banner-retry" id="banner-retry"></button>
+  </div>
+
+  <div class="toasts" id="toasts" aria-live="polite"></div>
+
+  <main class="views">
+    <section class="view view-mira" id="view-mira" role="tabpanel" aria-labelledby="tab-mira">
+      <div class="stage" id="stage">
+        <div class="core" id="core" role="button" tabindex="0">
+          <canvas class="ring" id="ring" aria-hidden="true"></canvas>
+          <div class="portal" aria-hidden="true">
+            <img id="face-a" class="face on" alt="" decoding="async">
+            <img id="face-b" class="face" alt="" decoding="async">
+          </div>
+        </div>
+        <div class="caption">
+          <div class="phase"><span class="phase-dot" aria-hidden="true"></span><span id="phase-label"></span></div>
+          <p class="caption-text" id="caption" dir="auto" aria-live="polite"></p>
+        </div>
+      </div>
+      <div class="actions" id="actions" aria-live="assertive" hidden></div>
+      <div class="chat" id="chat" role="log" aria-live="polite" aria-relevant="additions">
+        <div class="chat-empty" id="chat-empty" hidden>
+          <p class="chat-empty-title" id="chat-empty-title"></p>
+          <p class="chat-empty-body" id="chat-empty-body"></p>
+        </div>
+      </div>
+    </section>
+
+    <section class="view view-home" id="view-home" role="tabpanel" aria-labelledby="tab-home" hidden>
+      <div class="home-scroll" id="home-scroll">
+        <div class="home-summary">
+          <div class="chip" id="chip-devices"><span class="chip-dot" aria-hidden="true"></span><span id="devices-count"></span></div>
+          <div class="chip" id="chip-weather" hidden></div>
+        </div>
+        <div class="home-actions">
+          <button type="button" class="pill" id="all-on"></button>
+          <button type="button" class="pill" id="all-off"></button>
+          <button type="button" class="round" id="refresh"></button>
+        </div>
+        <p class="home-message" id="home-message" aria-live="polite"></p>
+        <p class="home-empty" id="home-empty" hidden></p>
+        <div class="devices" id="devices"></div>
+      </div>
+    </section>
+  </main>
+
+  <form class="dock" id="dock" autocomplete="off">
+    <button type="button" class="talk" id="talk">
+      <span class="talk-ring" aria-hidden="true"></span>
+      <span class="talk-icon" id="talk-icon" aria-hidden="true"></span>
+      <span class="talk-label" id="talk-label"></span>
+    </button>
+    <input class="field" id="field" type="text" dir="auto" maxlength="2000" enterkeyhint="send"
+           autocapitalize="sentences" autocorrect="on" spellcheck="true">
+    <button type="submit" class="send" id="send"></button>
+  </form>
+
+  <div class="pairing" id="pairing" hidden>
+    <div class="pair-card" role="dialog" aria-modal="true" aria-labelledby="pair-title">
+      <img class="pair-icon" src="/static/icons/icon-192.png" alt="" width="84" height="84">
+      <h2 id="pair-title"></h2>
+      <p class="pair-body" id="pair-body"></p>
+      <ol class="pair-steps" id="pair-steps"></ol>
+      <p class="pair-note" id="pair-note"></p>
+      <button type="button" class="pill primary" id="pair-retry"></button>
+    </div>
+  </div>
+</div>
+</body>
+</html>
