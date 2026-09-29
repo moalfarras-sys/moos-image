@@ -52,7 +52,8 @@ class RegistryTest(unittest.TestCase):
         names = {item['name'] for item in tools.DECLARATIONS}
         declared = moai_tools.names()
         self.assertGreaterEqual(len(declared), 50, 'the MoOS schema module was not found')
-        self.assertEqual(declared - names, set(tools.MOAI_SKIP), 'every Mo AI tool but open_app is declared by name')
+        self.assertEqual(declared - names, set(tools.MOAI_SKIP) & declared,
+                         'every Mo AI tool but the ones Mira answers herself is declared by name')
         for name in ('install_app', 'system_update', 'fix_audio', 'set_volume', 'read_journal', 'device_report'):
             self.assertIn(name, names)
         self.assertNotIn('moai_control', names)

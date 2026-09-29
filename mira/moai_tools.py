@@ -58,6 +58,12 @@ TITLES_AR = {
     'smart_setup': 'الإعداد الذكي للتطبيقات', 'check_system_update': 'البحث عن تحديث MoOS',
     'restart_computer': 'إعادة تشغيل الكمبيوتر', 'install_rpm': 'تثبيت حزمة RPM موقّعة',
     'remote_control': 'Mo PC Remote', 'fast_remote': 'الوضع السريع في Mo PC Remote',
+    # The desktop's hands (W9.10).
+    'list_windows': 'النوافذ وأسطح المكتب', 'window_action': 'نافذة', 'move_window_to_desktop': 'نقل نافذة',
+    'go_to_desktop': 'الانتقال إلى سطح مكتب', 'add_or_remove_desktop': 'أسطح المكتب', 'control_media': 'الوسائط',
+    'lock_screen': 'قفل الشاشة', 'set_reminder': 'تذكير', 'manage_reminders': 'التذكيرات',
+    'open_web_page': 'فتح صفحة ويب', 'open_folder': 'فتح مجلد', 'set_animation_speed': 'سرعة الحركة',
+    'set_screen_lock': 'القفل التلقائي للشاشة', 'set_click_mode': 'نمط النقر',
 }
 TITLES_EN = {
     'install_app': 'Install an app', 'uninstall_app': 'Remove an app', 'update_apps': 'Update apps',
@@ -82,6 +88,11 @@ TITLES_EN = {
     'smart_setup': 'Smart app setup', 'check_system_update': 'Check for a MoOS update',
     'restart_computer': 'Restart the computer', 'install_rpm': 'Install a signed RPM package',
     'remote_control': 'Mo PC Remote', 'fast_remote': 'Mo PC Remote fast mode',
+    'list_windows': 'Windows and desktops', 'window_action': 'Window', 'move_window_to_desktop': 'Move a window',
+    'go_to_desktop': 'Go to a desktop', 'add_or_remove_desktop': 'Desktops', 'control_media': 'Media',
+    'lock_screen': 'Lock the screen', 'set_reminder': 'Reminder', 'manage_reminders': 'Reminders',
+    'open_web_page': 'Open a web page', 'open_folder': 'Open a folder', 'set_animation_speed': 'Animation speed',
+    'set_screen_lock': 'Automatic screen lock', 'set_click_mode': 'Click mode',
 }
 
 # What approving a system change will do, in the owner's words. The schemas are the authority

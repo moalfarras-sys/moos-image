@@ -120,7 +120,9 @@ Item {
         anchors.bottom: parent.bottom
         anchors.horizontalCenter: parent.horizontalCenter
         width: Math.min(parent.width, 980)
-        height: Math.max(72, dock.editorHeight + 24)
+        // one line is always the base bar, whatever the font's line height, so the stage never moves;
+        // only a second line grows it
+        height: dock.multiline ? Math.max(dock.barBase, dock.editorHeight + 24) : dock.barBase
         radius: dock.multiline ? Theme.rDock : height / 2
         tint: Theme.glassStrong
         lit: input.activeFocus

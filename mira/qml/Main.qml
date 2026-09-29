@@ -154,7 +154,7 @@ ApplicationWindow {
                         // and while a card waits the card itself says what she is waiting for
                         opacity: cards.onStage ? 0 : 1
                         visible: opacity > 0
-                        Behavior on opacity { NumberAnimation { duration: Theme.normal } }
+                        Behavior on opacity { enabled: mira.motion; NumberAnimation { duration: Theme.normal } }
                     }
                 }
 

@@ -702,6 +702,10 @@ _CONTROL_TOOLS: list[dict[str, Any]] = [
         required=["action", "target"], argv=["{action}", "{target}"],
         # A close can lose work in an app that does not ask; the person says yes first.
         confirm_values={"action": ["close"]},
+        consequence=("تُغلق النافذة كما يغلقها زرّ الإغلاق: التطبيق يسألك عن الحفظ إن كان يسأل، "
+                     "وما لم يُحفظ في تطبيق لا يسأل يضيع.",
+                     "The window closes as its own close button would: the app asks to save if "
+                     "it asks at all, and unsaved work in an app that does not ask is lost."),
     ),
     _schema(
         "move_window_to_desktop",
@@ -809,6 +813,10 @@ _CONTROL_TOOLS: list[dict[str, Any]] = [
         required=["after_minutes"],
         # Turning the automatic lock off leaves an unattended desk open.
         confirm_values={"after_minutes": ["0"]},
+        consequence=("لن تُقفل الشاشة وحدها بعد الآن: من يجلس إلى الكمبيوتر وأنت بعيد يستطيع استخدامه، "
+                     "حتى تعيد ضبط مدة القفل.",
+                     "The screen will no longer lock by itself: anyone at the computer while you "
+                     "are away can use it, until you set a lock delay again."),
     ),
     _schema(
         "set_click_mode",

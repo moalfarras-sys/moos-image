@@ -112,7 +112,7 @@ DECLARATIONS: list[dict] = [
      'description': 'Open a web address (http/https) in the default browser.',
      'parameters': _obj({'url': {'type': 'STRING'}}, ['url'])},
     {'name': 'windows',
-     'description': "The open windows on the computer: list them, bring one to the front (focus), or close one. Closing waits for the owner's approval.",
+     'description': "The open windows on the computer: list them, bring one to the front (focus), or close one. Closing waits for the owner's approval. To minimize, maximize, restore, go full screen or keep a window above others use window_action; to move it to another desktop use move_window_to_desktop.",
      'parameters': _obj({'action': {'type': 'STRING', 'enum': ['list', 'focus', 'close']},
                          'query': {'type': 'STRING', 'description': 'Part of the window title or app name, for focus/close'}}, ['action'])},
     {'name': 'app_volume',
@@ -145,9 +145,14 @@ DECLARATIONS: list[dict] = [
                          'project': {'type': 'STRING', 'description': 'Optional: the name of one of his registered Workbench projects, e.g. MoOS'}},
                         ['request'])},
 ]
-# Every Mo AI tool the installed image declares, under its own name. Opening an app by name
-# stays computer_open_application: it resolves Arabic names to the same executor's open_app.
-MOAI_SKIP = frozenset({'open_app'})
+# Every Mo AI tool the installed image declares, under its own name, except where Mira has her
+# own tool for the same request: two tools for one thing split the owner's reminders and make the
+# model guess. Opening an app by name stays computer_open_application (it resolves Arabic names to
+# the same executor's open_app); media is media_control (it can also say what is playing); a web
+# address is open_link; the window list is windows; reminders are Mira's own, which she can say
+# aloud on the Echo and show in her rail.
+MOAI_SKIP = frozenset({'open_app', 'control_media', 'open_web_page', 'list_windows',
+                       'set_reminder', 'manage_reminders'})
 MOAI_DECLARATIONS: list[dict] = moai_tools.declarations(skip=MOAI_SKIP)
 DECLARATIONS.extend(MOAI_DECLARATIONS)
 _BY_NAME = {item['name']: item for item in DECLARATIONS}
