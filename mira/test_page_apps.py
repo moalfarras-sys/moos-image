@@ -171,6 +171,12 @@ class Fakes:
 class AppsPageTest(unittest.TestCase):
     def setUp(self):
         self.fakes = Fakes()
+        # Keep the general page contract deterministic on every CI runner.  ARM
+        # behaviour has its own explicit test below and is selected from the
+        # scan result, just as it is on a real machine.
+        machine = mock.patch.object(apps.platform, 'machine', lambda: 'x86_64')
+        machine.start()
+        self.addCleanup(machine.stop)
         for patch in self.fakes.patches():
             patch.start()
             self.addCleanup(patch.stop)
