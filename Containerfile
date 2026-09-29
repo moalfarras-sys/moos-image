@@ -152,7 +152,8 @@ RUN test -x /out/moplayer \
 # (google-genai for Gemini Live, aioesphomeapi for the Echo, protobuf 7, and the free-standing
 # QR encoder) come from mira/packaging/requirements.lock: exact versions, sha256-pinned wheels,
 # no dependency resolution. The final image receives only the runtime tree and those packages,
-# never pip or the tests.
+# never pip or the tests (nor the scripts, man pages, benchmarks and examples two wheels carry at
+# the top level, where they would sit on Mira's import path).
 # -----------------------------------------------------------------------------
 FROM base AS mira-build
 RUN dnf5 -y install --setopt=install_weak_deps=False python3-pip python3-pyside6 python3-numpy \
@@ -167,7 +168,7 @@ COPY system_files/usr/lib/moos/moos_settings_destinations.py /src/system_files/u
 COPY system_files/usr/share/moos/settings-destinations.json /src/system_files/usr/share/moos/settings-destinations.json
 RUN python3 -m pip install --no-cache-dir --disable-pip-version-check --no-input --require-hashes \
         --no-deps --only-binary=:all: --no-compile --target /out/site -r packaging/requirements.lock \
-    && rm -rf /out/site/bin
+    && rm -rf /out/site/bin /out/site/share /out/site/bench /out/site/examples
 # Her own suites, with nothing of this build's HOME or session to reach: the brain, the tools and
 # owner cards, the controller, every QML file against the controller's routes, the phone, the
 # desktop tools and the voice path's audio arithmetic.
