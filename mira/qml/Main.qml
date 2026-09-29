@@ -25,7 +25,10 @@ ApplicationWindow {
     property string sheet: ""
     onClosing: function(close) { if (mira.hideToTray()) { close.accepted = false; win.hide() } }
 
-    Component.onCompleted: Theme.motionScale = Qt.binding(function() { return mira.motion ? 1.0 : 0.0 })
+    // Transitions follow Plasma's own speed (mira.motionScale: 0 only when animations are off),
+    // whatever her ambient loop does. A controller without the visual policy keeps the old rule.
+    Component.onCompleted: Theme.motionScale = Qt.binding(function() {
+        return typeof mira.motionScale === "number" ? mira.motionScale : (mira.motion ? 1.0 : 0.0) })
 
     // ── one shared clock for every living surface, spent only where it carries meaning ──
     // speaking/listening/thinking/acting or pointer on the face: smooth (display rate);
@@ -94,7 +97,8 @@ ApplicationWindow {
                 id: convo
                 visible: !win.narrow
                 width: win.width >= 1500 ? 420 : 370
-                anchors { right: parent.right; top: parent.top; bottom: parent.bottom }
+                // the composer grows upward over the content: the conversation's end stays above it
+                anchors { right: parent.right; top: parent.top; bottom: parent.bottom; bottomMargin: dock.growth }
                 onSuggestion: function(text) { mira.send(text) }
             }
 
@@ -106,6 +110,7 @@ ApplicationWindow {
 
                 ContextRail {
                     id: ctxRail
+                    objectName: "contextRail"
                     visible: win.width >= 1320
                     width: 300
                     anchors { left: parent.left; top: parent.top; bottom: parent.bottom }
@@ -140,10 +145,16 @@ ApplicationWindow {
                     }
                     StageCaption {
                         id: caption
+                        objectName: "stageCaption"
                         width: Math.min(parent.width - 20, 620)
                         anchors.horizontalCenter: parent.horizontalCenter
                         anchors.top: core.bottom
                         anchors.topMargin: -Math.round(core.height * 0.12)
+                        // the cards stand over the stage: her caption would show through their gaps,
+                        // and while a card waits the card itself says what she is waiting for
+                        opacity: cards.onStage ? 0 : 1
+                        visible: opacity > 0
+                        Behavior on opacity { NumberAnimation { duration: Theme.normal } }
                     }
                 }
 
@@ -151,7 +162,7 @@ ApplicationWindow {
                     id: narrowConvo
                     visible: win.narrow
                     showHeader: false
-                    anchors { left: parent.left; right: parent.right; top: stageArea.bottom; bottom: parent.bottom; topMargin: 8 }
+                    anchors { left: parent.left; right: parent.right; top: stageArea.bottom; bottom: parent.bottom; topMargin: 8; bottomMargin: dock.growth }
                     onSuggestion: function(text) { mira.send(text) }
                 }
             }
@@ -181,14 +192,24 @@ ApplicationWindow {
             level: mira.level
         }
 
-        // system changes waiting for the owner, and the jobs he approved — above everything
-        // (beside an open page when there is room, so they never hide the page being used)
+        // system changes waiting for the owner, and the jobs he approved — above everything.
+        // Beside an open page they stand over the conversation, so they never hide the page being
+        // used; on the stage they stand in the free space between the context rail and the
+        // conversation, so they cover neither panel. They always stay clear of the composer (its
+        // grown lines, file chip and count) and of the top bar, and scroll when there are more.
         ActionCards {
             id: cards
+            objectName: "actionCards"
             readonly property bool beside: win.sheet !== "" && !win.narrow && convo.visible
-            width: Math.min(640, (beside ? convo.width : content.width) - (win.narrow ? 0 : 24))
-            x: beside ? content.x + convo.x + (convo.width - width) / 2 : content.x + (content.width - width) / 2
-            anchors { bottom: dock.top; bottomMargin: 12 }
+            readonly property bool onStage: visible && win.sheet === ""
+            overText: win.sheet !== ""
+            readonly property real areaX: beside ? content.x + convo.x
+                                        : win.sheet === "" ? content.x + stageHost.x + stageArea.x : content.x
+            readonly property real areaWidth: beside ? convo.width : win.sheet === "" ? stageArea.width : content.width
+            width: Math.min(640, areaWidth - (win.narrow ? 0 : 24))
+            x: areaX + (areaWidth - width) / 2
+            maxHeight: Math.max(120, dock.y - dock.reach - 12 - (top.y + top.height) - 12)
+            anchors { bottom: dock.top; bottomMargin: 12 + dock.reach }
         }
     }
 
@@ -237,6 +258,12 @@ ApplicationWindow {
         function onFocusComposer() { dock.field.forceActiveFocus() }
         function onShowSheet(name) { win.go(name) }
         function onPrefill(text) { dock.field.text = text; dock.field.forceActiveFocus() }
+    }
+    // Dolphin's «Ask Mira about this» on a small text file: the composer's own attachment chip.
+    // mira.kde is null (or absent) when kde_integration could not load; a null target listens to nothing.
+    Connections {
+        target: mira.kde || null
+        function onAttach(name, text) { dock.attachmentName = name; dock.attachmentText = text; dock.refused = false }
     }
 
     Shortcut { sequences: ["Ctrl+Space"]; onActivated: mira.talk() }

@@ -7,15 +7,18 @@ Item {
     property string expression: "neutral"
     property color tint: Theme.rose
     implicitWidth: 34; implicitHeight: 34
+    // Qt Quick's software scene graph draws no ShaderEffect: there the face comes pre-cut.
+    readonly property bool softwareScene: GraphicsInfo.api === GraphicsInfo.Software
     Image {
         id: src
         visible: false
-        source: "image://mira/" + av.style + "/" + av.expression
+        source: av.softwareScene ? "" : "image://mira/" + av.style + "/" + av.expression
         sourceSize: Qt.size(192, 192)
         smooth: true; mipmap: true
     }
     ShaderEffect {
         anchors.fill: parent
+        visible: !av.softwareScene
         property variant faceA: src
         property variant faceB: src
         property variant eyes: src
@@ -33,6 +36,14 @@ Item {
         property point parallax: Qt.point(0, 0)
         property color tint: av.tint
         fragmentShader: Qt.resolvedUrl("../../shaders/portal.frag.qsb")
+    }
+    Image {
+        anchors.fill: parent
+        visible: av.softwareScene
+        source: av.softwareScene ? "image://mira/" + av.style + "/" + av.expression + "?round" : ""
+        readonly property int edge: Math.max(128, Math.ceil(width / 32) * 32)
+        sourceSize: Qt.size(edge, edge)
+        smooth: true
     }
     Rectangle {
         anchors.centerIn: parent

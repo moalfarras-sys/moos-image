@@ -44,18 +44,11 @@ ColumnLayout {
                     Layout.preferredHeight: 40
                     radius: 12
                     color: Qt.rgba(Theme.cyan.r, Theme.cyan.g, Theme.cyan.b, panel.running ? 0.18 : 0.07)
-                    Shape {   // a phone, drawn like Mira's own line icons
+                    Icon {   // a phone, drawn like Mira's own line icons
                         anchors.centerIn: parent
-                        width: 24; height: 24
-                        preferredRendererType: Shape.CurveRenderer
-                        ShapePath {
-                            strokeColor: panel.running ? Theme.cyan : Theme.ink3
-                            strokeWidth: 1.8
-                            fillColor: "transparent"
-                            capStyle: ShapePath.RoundCap
-                            joinStyle: ShapePath.RoundJoin
-                            PathSvg { path: "M8.5 2.5h7a2 2 0 0 1 2 2v15a2 2 0 0 1-2 2h-7a2 2 0 0 1-2-2v-15a2 2 0 0 1 2-2z M10.5 18.5h3" }
-                        }
+                        size: 24
+                        color: panel.running ? Theme.cyan : Theme.ink3
+                        path: "M8.5 2.5h7a2 2 0 0 1 2 2v15a2 2 0 0 1-2 2h-7a2 2 0 0 1-2-2v-15a2 2 0 0 1 2-2z M10.5 18.5h3"
                     }
                 }
                 ColumnLayout {

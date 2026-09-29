@@ -7,6 +7,7 @@ arguments; no string from the model ever reaches a shell.
     find_files('تقرير')              Baloo (baloosearch6) inside $HOME, else a bounded scandir
     open_path(path) / open_url(url)  xdg-open, detached, home/https only
     list_windows() / focus_window(q) / close_window(q)   KWin scripting over D-Bus
+    focus_window_id(id, title) / close_window_id(id, title)   one exact window, by KWin's id
     system_volume_app(app, value)    per-application volume via pactl (optional)
 
 Each function returns {'status', 'summary'(Arabic), ...} and never raises.
@@ -627,6 +628,61 @@ def focus_window(query: str) -> dict:
 def close_window(query: str) -> dict:
     """Ask the window whose title/class matches `query` to close (the app may prompt to save)."""
     return _window_action(query, 'close', 'أغلقت')
+
+
+# ─── one exact window, by KWin's own id ────────────────────────────────
+# Title matching is a substring search over caption + class + desktop file: two '~ : bash — Konsole'
+# windows are 'ambiguous', and a window that takes the same title later could be reached instead.
+# A page that listed the windows acts on the one the owner clicked, by its internalId, and only
+# while its caption is still the one he saw.
+_WINDOW_ID = re.compile(r'[A-Za-z0-9{}\-]{1,64}')
+_CAPTION_SHOWN = 120            # a card carries at most this much of a title (controller.request_confirmation)
+
+
+def _same_caption(seen: str, now: str) -> bool:
+    want = ' '.join(str(seen or '').split())
+    have = ' '.join(str(now or '').split())
+    if not want:
+        return True                 # no caption to compare: the id alone decides
+    if have == want:
+        return True
+    # A long title was cut to _CAPTION_SHOWN characters for the card: its start must still match.
+    return len(str(seen or '').strip()) >= _CAPTION_SHOWN and have.startswith(want)
+
+
+def _window_action_id(wid: str, caption: str, mode: str) -> dict:
+    """Act on ONE window by KWin's internalId; refuse when its caption is no longer the one the owner saw."""
+    wid = str(wid or '').strip()
+    if not _WINDOW_ID.fullmatch(wid):
+        return _err('معرّف نافذة غير صالح', 'bad_window')
+    if not _session_bus_ok() or not _kwin_available():
+        return _err('لا توجد جلسة KWin', 'no_kwin', status='unsupported')
+    payload = _run_kwin_script(_WINDOWS_JS, {})
+    if payload is None or not isinstance(payload, list):
+        return _err('تعذّر قراءة النوافذ من KWin', 'kwin_failed', status='unsupported')
+    match = next((w for w in _real_windows(payload) if w.get('id') == wid), None)
+    if match is None:
+        return _err('لم تعد هذه النافذة مفتوحة', 'no_match', status='partial')
+    if not _same_caption(caption, match.get('caption', '')):
+        return _err('تغيّر عنوان النافذة منذ عرضها؛ لم أفعل شيئاً', 'caption_changed', status='partial',
+                    title=match.get('caption', ''))
+    done = _run_kwin_script(_ACTION_JS, {'wid': wid, 'mode': mode})
+    if not isinstance(done, dict) or not done.get('done'):
+        return _err('رفض مدير النوافذ الطلب', 'action_failed', status='partial', title=match.get('caption', ''))
+    verb = 'أغلقت' if mode == 'close' else 'انتقلت إلى'
+    return {'status': 'ok', 'title': match.get('caption', ''), 'app': match.get('cls', ''),
+            'summary': f'{verb} «{match.get("caption", "")[:40]}»'}
+
+
+def focus_window_id(wid: str, caption: str = '') -> dict:
+    """Raise and focus exactly this window (KWin internalId), while its caption is still `caption`."""
+    return _window_action_id(wid, caption, 'focus')
+
+
+def close_window_id(wid: str, caption: str = '') -> dict:
+    """Ask exactly this window (KWin internalId) to close, while its caption is still `caption`; the
+    app may prompt to save."""
+    return _window_action_id(wid, caption, 'close')
 
 
 # ─── per-application volume (optional) ─────────────────────────────────

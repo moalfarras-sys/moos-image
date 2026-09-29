@@ -4,13 +4,15 @@ The rose and holographic sprite sheets are used exactly as drawn. `faces.json` (
 `devtools/align_faces.py`) says where each expression's face sits, so every expression is cropped to
 the same framing and a change of expression never makes the head jump. QML asks for
 `image://mira/<style>/<expression>` and gets a square portrait with transparent padding where a
-narrow cell ends.
+narrow cell ends. `image://mira/<style>/<expression>?round` is the same portrait already cut to the
+portal's feathered circle: Qt Quick's software scene graph (every MoOS ARM session, and /usr/bin/mira
+on a machine without a real GPU) runs no ShaderEffect, so there the portal shader cannot cut it.
 """
 import json
 from pathlib import Path
 
 from PySide6.QtCore import QRect, QRectF, QSize, Qt
-from PySide6.QtGui import QImage, QPainter
+from PySide6.QtGui import QColor, QImage, QPainter, QRadialGradient
 from PySide6.QtQuick import QQuickImageProvider
 
 ROOT = Path(__file__).resolve().parent
@@ -45,16 +47,35 @@ class FaceLibrary:
             self.sheets[name] = image.convertToFormat(QImage.Format_ARGB32_Premultiplied)
         return self.sheets[name]
 
-    def portrait(self, style, expression, size=PORTRAIT):
+    def portrait(self, style, expression, size=PORTRAIT, round_=False):
         style = style if style in self.frames else 'rose'
         frames = self.frames[style]
         if expression not in frames:
             expression = FALLBACK.get(expression, 'neutral')
         if expression not in frames:
             expression = next(iter(frames))
-        key = (style, expression, size)
+        key = (style, expression, size, round_)
         if key in self.cache:
             return self.cache[key]
+        if round_:
+            # The portal shader's cut, baked: darker towards the rim so the face sits inside the
+            # light, opaque to 84 % of the half-width and feathered to nothing at 94 %.
+            out = QImage(self.portrait(style, expression, size))
+            painter = QPainter(out)
+            painter.setRenderHint(QPainter.Antialiasing)
+            depth = QRadialGradient(size / 2, size / 2, size / 2)
+            depth.setColorAt(0.52, QColor(0, 0, 0, 0))
+            depth.setColorAt(0.94, QColor(0, 0, 0, 97))
+            painter.setCompositionMode(QPainter.CompositionMode_SourceAtop)
+            painter.fillRect(out.rect(), depth)
+            mask = QRadialGradient(size / 2, size / 2, size / 2)
+            mask.setColorAt(0.84, QColor(0, 0, 0, 255))
+            mask.setColorAt(0.94, QColor(0, 0, 0, 0))
+            painter.setCompositionMode(QPainter.CompositionMode_DestinationIn)
+            painter.fillRect(out.rect(), mask)
+            painter.end()
+            self.cache[key] = out
+            return out
         frame = frames[expression]
         sheet = self._sheet(frame['sheet'])
         cx, cy, cw, ch = frame['cell']
@@ -85,11 +106,12 @@ class FaceProvider(QQuickImageProvider):
 
     def requestImage(self, image_id, size, requested):
         style, _, expression = image_id.partition('/')
-        expression = expression.split('?', 1)[0]
+        expression, _, options = expression.partition('?')
         edge = PORTRAIT
         if requested.isValid() and requested.width() > 0:
             edge = max(128, min(1024, requested.width()))
-        image = self.library.portrait(style, expression or 'neutral', edge)
+        image = self.library.portrait(style, expression or 'neutral', edge,
+                                      round_='round' in options.split('&'))
         if size is not None:
             size.setWidth(image.width())
             size.setHeight(image.height())

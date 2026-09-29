@@ -35,6 +35,9 @@ AbstractButton {
     contentItem: Item {
         implicitWidth: row.implicitWidth
         implicitHeight: row.implicitHeight
+        // a disabled primary or danger button dims its words too, not only its fill: it must never
+        // read as half-active (a quiet button already turns its words grey)
+        opacity: b.enabled || !(b.primary || b.danger) ? 1 : 0.5
         Row {
             id: row
             anchors.centerIn: parent

@@ -22,6 +22,8 @@ import inspect
 import json
 import os
 import re
+import sys
+import threading
 import time
 from dataclasses import dataclass
 from datetime import datetime
@@ -90,7 +92,8 @@ DECLARATIONS: list[dict] = [
      'description': 'Search the MoOS app store (Flathub) for an app to install and get its exact id. Call before install_app whenever the owner names an app; pick the best match and say its name.',
      'parameters': _obj({'query': {'type': 'STRING', 'description': 'App name or what it does, in English when possible (e.g. vlc, telegram, photo editor)'}}, ['query'])},
     {'name': 'health_report',
-     'description': "MoOS's own daily check of this computer: version, whether it is signed, whether an update is already staged for the next restart, automatic nightly updates and their last result, app updates waiting, security findings and what uses the machine most. Use it for «is there an update», «is my computer OK/secure», «why is it slow». Read-only."},
+     'description': "MoOS's own daily check of this computer: version, whether it is signed, whether an update is already staged for the next restart, automatic nightly updates and their last result (one is known to have run only when last_nightly_run carries its time; without that time never say a nightly update succeeded), app updates waiting, security findings, what uses the machine most, and the device plan (graphics driver, devices without a driver, firmware, missing recommended apps: `problems` are real ones, `suggestions` only tips; each names the tool that fixes it in fix_tool). Use it for «is there an update», «is my computer OK/secure», «why is it slow». Read-only. deep=true also runs MoOS's full self-check (about 30 s): only when the owner asks for a thorough check.",
+     'parameters': _obj({'deep': {'type': 'BOOLEAN', 'description': 'true only for a thorough check the owner asked for'}}, [])},
     {'name': 'media_control',
      'description': 'Control the music or video playing on the computer (Spotify, a browser tab, VLC… any MPRIS player): play, pause, toggle, next, previous, stop, or status to read what is playing.',
      'parameters': _obj({'action': {'type': 'STRING', 'enum': ['play', 'pause', 'toggle', 'next', 'previous', 'stop', 'status']},
@@ -137,8 +140,10 @@ DECLARATIONS: list[dict] = [
                          'steps_json': {'type': 'STRING'},
                          'description': {'type': 'STRING'}}, ['action'])},
     {'name': 'moai_project_task',
-     'description': 'Ask the existing Mo AI agent to inspect registered projects, research, or perform a requested computer task using its own tools and approval flow. Relay the exact owner request; do not invent broader permissions. Report approval requests or failures honestly.',
-     'parameters': _obj({'request': {'type': 'STRING'}}, ['request'])},
+     'description': "Hand a project task to Mo AI's agent in Mira's Workbench: it creates a tracked task and starts the agent, which works in the owner's registered projects and edits a file or runs a command only after the owner approves that step in Mira's inbox. Use it to inspect, fix or develop a project, or for research that needs the agent's own tools. Relay the owner's exact request; pass project only when he names one. The result is pending with a task id: say the task started, never that it is done.",
+     'parameters': _obj({'request': {'type': 'STRING', 'description': "The owner's request, complete and in his words"},
+                         'project': {'type': 'STRING', 'description': 'Optional: the name of one of his registered Workbench projects, e.g. MoOS'}},
+                        ['request'])},
 ]
 # Every Mo AI tool the installed image declares, under its own name. Opening an app by name
 # stays computer_open_application: it resolves Arabic names to the same executor's open_app.
@@ -174,12 +179,16 @@ class ToolContext:
                           «نعم»). Thread-safe; returns the pending item with its
                           `id`, or None when no owner surface exists. The model
                           only ever gets `pending`: approval runs the action later.
+    lang                  'ar' | 'en': the language the owner is speaking or writing
+                          in now, when the brain knows it. None: a tool guesses
+                          from its own arguments (research) or answers in Arabic.
     """
     emit: Callable[[str, str], None]
     device_control: Optional[Callable[[dict], Union[dict, Awaitable[dict]]]] = None
     on_long_task: Optional[Callable[[], Any]] = None
     allowed_tools: Optional[frozenset] = None
     request_confirmation: Optional[Callable[[dict], Optional[dict]]] = None
+    lang: Optional[str] = None
 
 
 # ─── helpers ──────────────────────────────────────────────────────────
@@ -259,11 +268,14 @@ async def _thread(fn, *args, **kwargs):
 # ─── executors ────────────────────────────────────────────────────────
 _DEVICE_LABEL = {'set_volume': 'مستوى صوت Echo', 'light_on': 'تشغيل حلقة Echo',
                  'light_off': 'إطفاء حلقة Echo', 'stop_music': 'إيقاف الموسيقى على Echo'}
+_DEVICE_LABEL_EN = {'set_volume': 'Echo volume', 'light_on': 'Echo ring on', 'light_off': 'Echo ring off',
+                    'stop_music': 'stop the music on Echo'}
 
 
 async def _device_control(args, ctx):
     if ctx.device_control is None:
-        return {'status': 'unsupported', 'summary': 'Echo غير متصل الآن', 'error': 'no_device'}
+        return {'status': 'unsupported', 'summary': 'Echo غير متصل الآن', 'summary_en': 'Echo is not connected now',
+                'error': 'no_device'}
     action = args['action']
     if action == 'set_volume':
         value = args.get('value')
@@ -272,12 +284,13 @@ async def _device_control(args, ctx):
     outcome = ctx.device_control({k: args[k] for k in ('action', 'value') if k in args})
     if inspect.isawaitable(outcome):
         outcome = await outcome
-    label = _DEVICE_LABEL.get(action, action)
+    label, english = _DEVICE_LABEL.get(action, action), _DEVICE_LABEL_EN.get(action, action)
     if action == 'set_volume':
-        label += f' {int(round(args["value"]))}%'
+        level = f' {int(round(args["value"]))}%'
+        label, english = label + level, english + level
     # The Echo API accepts the command without a state readback here: sent, not verified.
     return {'status': 'pending', 'verified': False, 'sent_to_device': bool((outcome or {}).get('sent_to_device', True)),
-            'action': action, 'summary': 'أُرسل إلى Echo: ' + label}
+            'action': action, 'summary': 'أُرسل إلى Echo: ' + label, 'summary_en': 'Sent to Echo: ' + english}
 
 
 def _moai_value(value):
@@ -290,20 +303,29 @@ def ask_owner(ctx: ToolContext, item: dict) -> dict:
     """Put a system change in front of the owner. The model gets `pending` and nothing more:
     only the owner's button or his own «نعم» runs it (see pending.py)."""
     title_ar = item.get('title_ar') or item.get('name') or 'إجراء'
+    title_en = item.get('title_en') or str(item.get('name') or 'action').replace('_', ' ')
     if ctx.request_confirmation is None:
         return {'status': 'unsupported', 'error': 'confirmation_unavailable',
-                'summary': 'يحتاج موافقتك من نافذة ميرا: ' + title_ar}
+                'summary': 'يحتاج موافقتك من نافذة ميرا: ' + title_ar,
+                'summary_en': "Needs your approval in Mira's window: " + title_en}
     try:
         waiting = ctx.request_confirmation(dict(item))
     except Exception:
         waiting = None
     if not waiting or not waiting.get('id'):
-        return {'status': 'error', 'error': 'confirmation_unavailable', 'summary': 'تعذّر عرض طلب الموافقة'}
+        return {'status': 'error', 'error': 'confirmation_unavailable', 'summary': 'تعذّر عرض طلب الموافقة',
+                'summary_en': 'Could not show the approval request'}
+    here = places()
     return {'status': 'pending', 'awaiting': 'owner_confirmation', 'confirmation_id': waiting['id'],
-            'executed': False, 'summary': 'ينتظر موافقتك: ' + title_ar,
-            'next': ('It has NOT run and has NOT started. Tell the owner in one short sentence what will happen and ask him '
-                     'to say «نعم» or press «موافقة» (or «لا» to cancel) — even if he agreed earlier. You cannot approve '
-                     'it yourself. If he then says yes, answer only «تمام»: Mira shows the real progress and result.')}
+            'executed': False, 'summary': 'ينتظر موافقتك: ' + title_ar, 'summary_en': 'Waiting for your approval: ' + title_en,
+            'next': (f"It has NOT run and has NOT started. Tell the owner in one short sentence what will happen and ask him "
+                     f"to say «نعم» or press {here['approve']} on the card in Mira's window (or «لا» / {here['reject']} to "
+                     f"cancel) — even if he agreed earlier. You cannot approve it yourself. If he then says yes, answer only "
+                     f"«تمام»: Mira shows the real progress and result.")}
+
+
+_STATUS_AR = {'ok': 'تم وتأكدت', 'pending': 'أُرسل ولم تؤكده القراءة', 'error': 'لم يُنفَّذ'}
+_STATUS_EN = {'ok': 'done and confirmed', 'pending': 'sent, not confirmed by a readback', 'error': 'not done'}
 
 
 async def _moai_tool(name, args, ctx):
@@ -312,14 +334,25 @@ async def _moai_tool(name, args, ctx):
     if not isinstance(result, dict):
         result = {'status': 'error', 'error': 'invalid_executor_response'}
     if result.get('status') == 'confirm':
-        return ask_owner(ctx, {'kind': 'moai', 'name': name, 'args': args, 'category': result.get('category'),
-                               'title_ar': moai_tools.title(name, 'ar'), 'title_en': moai_tools.title(name, 'en'),
-                               'detail': args_preview(args)})
+        # What approving it will do, for the owner's card and for the one sentence the model says.
+        will_ar, will_en = moai_tools.consequence(name, 'ar'), moai_tools.consequence(name, 'en')
+        item = {'kind': 'moai', 'name': name, 'args': args, 'category': result.get('category'),
+                'title_ar': moai_tools.title(name, 'ar'), 'title_en': moai_tools.title(name, 'en'),
+                'detail': args_preview(args)}
+        if will_ar or will_en:
+            item.update(consequence_ar=will_ar, consequence_en=will_en)
+        asked = ask_owner(ctx, item)
+        if asked.get('awaiting') == 'owner_confirmation' and (will_ar or will_en):
+            asked.update(will_happen_ar=will_ar, will_happen_en=will_en)
+        return asked
     status = result.get('status') if result.get('status') in ('ok', 'error', 'pending') else 'error'
     out = {'tool': name, 'status': status}
     for key in ('output', 'exit_code', 'error', 'duration_ms', 'job'):
         if key in result and result[key] not in (None, ''):
-            out[key] = result[key][:6000] if isinstance(result[key], str) else result[key]
+            value = result[key][:6000] if isinstance(result[key], str) else result[key]
+            # Identity: the journal, rpm-ostree, a unit's status or a support bundle may carry the base's
+            # name or its build tag; the model reads MoOS (the owner hears what the model says).
+            out[key] = moai_tools.scrub_identity(value)
     if status == 'ok' and name in ('set_volume', 'set_brightness') and re.fullmatch(r'\d{1,3}', str(args.get('value', ''))):
         # Same readback contract as the desktop's computer panel.
         key = 'volume' if name == 'set_volume' else 'brightness'
@@ -333,11 +366,12 @@ async def _moai_tool(name, args, ctx):
         out.update(verified=verified, observed_value=actual)
         if not verified:
             out['status'] = 'pending'
-    labels = {'ok': 'تم وتأكدت', 'pending': 'أُرسل ولم تؤكده القراءة', 'error': 'لم يُنفَّذ'}
-    summary = f'{moai_tools.title(name)} · {labels[out["status"]]}'
+    summary = f'{moai_tools.title(name, "ar")} · {_STATUS_AR[out["status"]]}'
+    english = f'{moai_tools.title(name, "en")} · {_STATUS_EN[out["status"]]}'
     if out['status'] == 'error' and out.get('error'):
-        summary += ' (' + str(out['error'])[:60] + ')'
-    out['summary'] = summary
+        reason = ' (' + str(out['error'])[:60] + ')'
+        summary, english = summary + reason, english + reason
+    out['summary'], out['summary_en'] = summary, english
     return out
 
 
@@ -349,7 +383,12 @@ def _moai_executor(name):
 
 
 async def _find_app(args, ctx):
-    return await _thread(moai_tools.search_apps, args['query'])
+    result = await _thread(moai_tools.search_apps, args['query'])
+    # The model needs exact ids, names and MoOS's note; the picture URL is for the Apps page only.
+    if isinstance(result, dict) and isinstance(result.get('apps'), list):
+        result = dict(result, apps=[{k: v for k, v in app.items() if k != 'icon'}
+                                    for app in result['apps'] if isinstance(app, dict)])
+    return result
 
 
 async def _home_summary(args, ctx):
@@ -358,6 +397,8 @@ async def _home_summary(args, ctx):
     result = dict(result)
     result['summary'] = (f"الأضواء المتاحة {result['lights_available']} من {result['lights_total']} · "
                          f"المضاءة {result['lights_on']} · الأجهزة المتاحة {result['devices_available']}")
+    result['summary_en'] = (f"{result['lights_available']} of {result['lights_total']} lights available · "
+                            f"{result['lights_on']} on · {result['devices_available']} devices available")
     return result
 
 
@@ -365,11 +406,13 @@ async def _home_devices(args, ctx):
     import home_link
     devices = await _thread(home_link.entities)
     return {'status': 'ok', 'devices': devices, 'count': len(devices),
-            'summary': f'وجدت {len(devices)} جهازاً في البيت'}
+            'summary': f'وجدت {len(devices)} جهازاً في البيت', 'summary_en': f'Found {len(devices)} home devices'}
 
 
 _HOME_ACTION = {'turn_on': 'تشغيل', 'turn_off': 'إطفاء', 'brightness': 'السطوع', 'color': 'اللون',
                 'volume': 'الصوت', 'media_play': 'تشغيل الوسائط', 'media_pause': 'إيقاف الوسائط'}
+_HOME_ACTION_EN = {'turn_on': 'on', 'turn_off': 'off', 'brightness': 'brightness', 'color': 'colour',
+                   'volume': 'volume', 'media_play': 'play', 'media_pause': 'pause'}
 
 
 async def _home_control(args, ctx):
@@ -378,13 +421,15 @@ async def _home_control(args, ctx):
     result = dict(await _thread(home_link.control, args['entity_id'], args['action'], **kwargs))
     status = 'ok' if result.get('status') == 'ok' else 'pending'
     result['status'] = status
-    what = _HOME_ACTION.get(args['action'], args['action'])
+    what, english = _HOME_ACTION.get(args['action'], args['action']), _HOME_ACTION_EN.get(args['action'], args['action'])
     if args['action'] in ('brightness', 'volume') and 'value' in kwargs:
-        what += f' {int(round(kwargs["value"]))}%'
+        level = f' {int(round(kwargs["value"]))}%'
+        what, english = what + level, english + level
     elif args['action'] == 'color':
-        what += ' ' + str(kwargs.get('color'))
-    result['summary'] = (('تأكدت: ' if status == 'ok' else 'أُرسل ولم يتأكد: ') + what + ' · ' +
-                         args['entity_id'] + ' · ' + str(result.get('observed_state')))
+        what, english = what + ' ' + str(kwargs.get('color')), english + ' ' + str(kwargs.get('color'))
+    tail = ' · ' + args['entity_id'] + ' · ' + str(result.get('observed_state'))
+    result['summary'] = ('تأكدت: ' if status == 'ok' else 'أُرسل ولم يتأكد: ') + what + tail
+    result['summary_en'] = ('Confirmed: ' if status == 'ok' else 'Sent, not confirmed: ') + english + tail
     return result
 
 
@@ -394,6 +439,8 @@ async def _home_lights_all(args, ctx):
     verb = 'تشغيل' if args['action'] == 'turn_on' else 'إطفاء'
     result['status'] = 'ok' if result.get('status') == 'ok' else 'partial'
     result['summary'] = f"{verb} كل الأضواء · تأكد {result['confirmed']} من {result['total']}"
+    result['summary_en'] = (f"All lights {'on' if args['action'] == 'turn_on' else 'off'} · "
+                            f"{result['confirmed']} of {result['total']} confirmed")
     return result
 
 
@@ -402,6 +449,9 @@ async def _current_weather(args, ctx):
     result = dict(await _thread(weather_link.current, args['city']))
     result['summary'] = (f"الطقس في {result['city']}: {result['condition_ar']}، "
                          f"{result['temperature_c']}°C · {result['source']}")
+    if result.get('condition_en'):
+        result['summary_en'] = (f"Weather in {result['city']}: {result['condition_en']}, "
+                                f"{result['temperature_c']}°C · {result['source']}")
     return result
 
 
@@ -460,7 +510,9 @@ def describe_now(zone: Optional[str] = None) -> dict:
             'date_ar': f'{now.day} {_MONTHS_AR[now.month - 1]} {now.year}',
             'date_en': f'{now.day} {_MONTHS_EN[now.month - 1]} {now.year}', 'timezone': name,
             'summary': f'{spoken["spoken_ar"]} · {_WEEKDAYS_AR[now.weekday()]} {now.day} '
-                       f'{_MONTHS_AR[now.month - 1]} {now.year} ({name})'}
+                       f'{_MONTHS_AR[now.month - 1]} {now.year} ({name})',
+            'summary_en': f'{spoken["spoken_en"]} · {now.strftime("%A")} {now.day} {_MONTHS_EN[now.month - 1]} '
+                          f'{now.year} ({name})'}
 
 
 async def _current_time(args, ctx):
@@ -471,6 +523,7 @@ async def _remember_color(args, ctx):
     import mira_memory
     result = dict(await _thread(mira_memory.remember_color, args['color']))
     result['summary'] = 'حفظت لونك المفضل: ' + args['color']
+    result['summary_en'] = 'Saved your favourite colour: ' + args['color']
     return result
 
 
@@ -478,6 +531,7 @@ async def _remember_device_alias(args, ctx):
     import mira_memory
     result = dict(await _thread(mira_memory.remember_alias, args['alias'], args['entity_id']))
     result['summary'] = f"حفظت الاسم «{result['alias']}» للجهاز {result['entity_id']}"
+    result['summary_en'] = f"Saved the name «{result['alias']}» for {result['entity_id']}"
     return result
 
 
@@ -488,6 +542,7 @@ async def _computer_open_application(args, ctx):
     result['status'] = status
     label = result.get('application') or args['name']
     result['summary'] = ('فتحت ' if status == 'ok' else 'تعذّر فتح ') + str(label)
+    result['summary_en'] = ('Opened ' if status == 'ok' else 'Could not open ') + str(label)
     return result
 
 
@@ -495,28 +550,139 @@ async def _remember_owner_fact(args, ctx):
     import mira_memory
     result = dict(await _thread(mira_memory.remember_fact, args['fact']))
     result['summary'] = 'حفظت المعلومة في ذاكرة ميرا'
+    result['summary_en'] = "Saved it in Mira's memory"
     return result
 
 
+_TASK_ID = re.compile(r'[0-9a-f-]{36}')
+_PROJECT_ID = re.compile(r'[0-9a-f]{20}')
+
+
+def _task_title(request: str) -> str:
+    """The agent API's task title: one line, no control characters, at most 120 characters."""
+    line = ' '.join(re.sub(r'[\x00-\x1f\x7f]', ' ', request).split())
+    return line if len(line) <= 120 else line[:119].rstrip() + '…'
+
+
+def _match_project(rows: list, wanted: str) -> Union[dict, list, None]:
+    """The registered project the owner named (id, exact name, or one unique partial name).
+    Returns the row, a list of candidates when the name is ambiguous, or None."""
+    projects = [r for r in rows if isinstance(r, dict) and _PROJECT_ID.fullmatch(str(r.get('id') or ''))]
+    key = ' '.join(str(wanted or '').split()).casefold()
+    for row in projects:
+        if key in (str(row['id']), str(row.get('name') or '').casefold(),
+                   os.path.basename(str(row.get('path') or '')).casefold()):
+            return row
+    partial = [r for r in projects if key and key in str(r.get('name') or '').casefold()]
+    if len(partial) == 1:
+        return partial[0]
+    return partial or None
+
+
+def _agent_task_sync(request: str, project: Optional[str]) -> dict:
+    """Create a tracked task in Mo AI's agent API and start it (thread). `{'fallback': reason}` when
+    the task API cannot take it, so the caller may still reach the agent the old way."""
+    import moai_agent
+    body = {'title': _task_title(request), 'description': request}
+    project_name = ''
+    words = labels()
+    bench_ar, bench_en = words['nav_workbench']
+    if project:
+        rows = moai_agent.get('/api/projects')
+        if not isinstance(rows, list):
+            return {'fallback': (rows or {}).get('error', 'shape') if isinstance(rows, dict) else 'shape'}
+        match = _match_project(rows, project)
+        if not isinstance(match, dict):
+            names = [str(r.get('name')) for r in (match if isinstance(match, list) else rows)
+                     if isinstance(r, dict) and r.get('name')][:12]
+            ambiguous = isinstance(match, list)
+            return {'status': 'error', 'error': 'ambiguous_project' if ambiguous else 'unknown_project',
+                    'projects': names, 'executed': False,
+                    'summary': ('أكثر من مشروع بهذا الاسم: ' if ambiguous else
+                                f'لا يوجد مشروع مسجّل بهذا الاسم في «{bench_ar}». المشاريع: ') + '، '.join(names or ['لا شيء']),
+                    'summary_en': ('More than one project has this name: ' if ambiguous else
+                                   f'No project with this name is registered in the {bench_en}. Projects: ') +
+                                  ', '.join(names or ['none'])}
+        body['project'], project_name = match['id'], str(match.get('name') or '')
+    created = moai_agent.post('/api/task/create', body)
+    task_id = str(created.get('id') or '') if isinstance(created, dict) else ''
+    if not isinstance(created, dict) or created.get('error') or not _TASK_ID.fullmatch(task_id):
+        return {'fallback': created.get('error', 'shape') if isinstance(created, dict) else 'shape'}
+    started = moai_agent.post('/api/task/action', {'id': task_id, 'action': 'start'})
+    base = {'task_id': task_id, 'task_title': body['title'], 'project': project_name, 'where': 'workbench',
+            'execution_verified': False}
+    if not isinstance(started, dict) or started.get('error'):
+        reason = ' '.join(str(started.get('error') if isinstance(started, dict) else 'shape').split())[:160]
+        # The task exists and waits in the Workbench, where the owner can start it himself.
+        return {**base, 'status': 'error', 'task_status': 'pending', 'error': reason,
+                'summary': f'أنشأت المهمة في «{bench_ar}» لكنها لم تبدأ: {reason}',
+                'summary_en': f'Created the task in the {bench_en}, but it did not start: {reason}'}
+    state = str(started.get('status') or 'running')
+    here = places()
+    card_ar, card_en = words['agent_approval_title']
+    return {**base, 'status': 'pending', 'task_status': state,
+            'summary': f'بدأت مهمة الوكيل «{body["title"][:60]}» في «{bench_ar}» · كل تعديل ملف أو أمر '
+                       f'تظهر لك به بطاقة «{card_ar}» في نافذة ميرا',
+            'summary_en': f'Agent task «{body["title"][:60]}» started in the {bench_en} · every file change or command '
+                          f'shows you a «{card_en}» card in Mira\'s window',
+            'next': ("The task has only STARTED. Tell the owner in one short sentence that it started, that every file "
+                     f"change or command the agent wants appears as a {here['agent_card']} card in Mira's window, "
+                     f"where he answers {here['agent_allow']} or {here['agent_deny']} (about two minutes each, "
+                     f"otherwise that step is skipped), and that progress and the result appear under "
+                     f"{here['tasks_tab']} in {here['workbench']}. Never say it is finished.")}
+
+
 async def _moai_project_task(args, ctx):
-    import moai_link
     request = args['request']
     if not isinstance(request, str) or not 1 <= len(request.strip()) <= 4000:
         raise ValueError('invalid agent request')
+    request = request.strip()
+    project = ' '.join(str(args.get('project') or '').split())[:120] or None
     if ctx.on_long_task is not None:
         try:
             ctx.on_long_task()
         except Exception:
             pass
+    result = await _thread(_agent_task_sync, request, project)
+    if 'fallback' not in result:
+        if result.get('task_id'):
+            _emit(ctx, 'workbench', json.dumps({'task': result['task_id'], 'status': result.get('task_status')}))
+        return result
+    # The task API could not take it (an older Mo AI, or the service is down): ask the agent directly.
+    import moai_link
     answer = await _thread(moai_link.ask, request)
     # The agent's own words are not an observed effect: relay, never claim.
-    return {'status': 'pending', 'agent_response': answer, 'execution_verified': False,
-            'summary': 'وصل رد وكيل Mo AI · التنفيذ غير متحقق'}
+    return {'status': 'pending', 'agent_response': answer, 'execution_verified': False, 'task_api': result['fallback'],
+            'summary': 'وصل رد وكيل Mo AI · التنفيذ غير متحقق',
+            'summary_en': "Mo AI's agent answered · nothing it did is verified"}
+
+
+_ARABIC = re.compile('[؀-ۿ]')
+_LATIN = re.compile('[A-Za-zÀ-ɏ]')
+
+
+def message_lang(text: str, default: str = 'ar') -> str:
+    """The language of one owner message, for ToolContext.lang: Arabic script -> 'ar', Latin letters
+    (English, German…) -> 'en', otherwise `default` (a number, an emoji, silence)."""
+    text = str(text or '')
+    if _ARABIC.search(text):
+        return 'ar'
+    if _LATIN.search(text):
+        return 'en'
+    return default if default in ('ar', 'en') else 'ar'
 
 
 async def _research(args, ctx):
     import research
-    return await _thread(research.research, str(args.get('question') or ''), 'ar', args.get('web') is not False)
+    question = str(args.get('question') or '')
+    # The owner's own language when the brain knows it: the model often rewrites an Arabic question in
+    # English for the search. Otherwise the question's script decides (an English question got an
+    # Arabic answer); either brief tells the researcher to answer in the question's language.
+    if ctx.lang in ('ar', 'en'):
+        lang = ctx.lang
+    else:
+        lang = 'en' if question.strip() and not _ARABIC.search(question) else 'ar'
+    return await _thread(research.research, question, lang, args.get('web') is not False)
 
 
 async def _look_at_screen(args, ctx):
@@ -525,7 +691,7 @@ async def _look_at_screen(args, ctx):
 
 
 async def _health_report(args, ctx):
-    return await _thread(moai_tools.health)
+    return await _thread(moai_tools.health, 'en' if ctx.lang == 'en' else 'ar', args.get('deep') is True)
 
 
 async def _media_control(args, ctx):
@@ -649,11 +815,14 @@ _EXECUTORS = {
     'remember_device_alias': (_remember_device_alias, 20),
     'computer_open_application': (_computer_open_application, 75),
     'remember_owner_fact': (_remember_owner_fact, 10),
-    'moai_project_task': (_moai_project_task, 200),
+    # A hung agent API costs GET /api/projects (15 s) + POST create (15 s) before the gateway fallback
+    # (moai_link.ask, 190 s): 220 s. The gateway is a separate service, so the fallback stays.
+    'moai_project_task': (_moai_project_task, 230),
     'look_at_screen': (_look_at_screen, 60),
     'research': (_research, 60),
     'find_app': (_find_app, 40),
-    'health_report': (_health_report, 25),
+    # deep=true chains /health, /scan and the self-check: 82 s at worst (moai_tools.HEALTH_TIMEOUT_S …).
+    'health_report': (_health_report, 90),
     'media_control': (_media_control, 12),
     'clipboard': (_clipboard, 8),
     'find_files': (_find_files, 20),
@@ -669,17 +838,31 @@ for _decl in MOAI_DECLARATIONS:
 assert set(_EXECUTORS) == set(_BY_NAME), 'every declaration needs exactly one executor'
 
 
+_PLAIN_AR = {'ok': 'تم', 'pending': 'أُرسل ولم يتأكد', 'partial': 'تم جزئياً', 'error': 'لم يُنفَّذ',
+             'unsupported': 'غير مدعوم'}
+_PLAIN_EN = {'ok': 'Done', 'pending': 'Sent, not confirmed yet', 'partial': 'Partly done', 'error': 'Not done',
+             'unsupported': 'Not supported'}
+
+
 def _normalize(result) -> dict:
+    """`status` in STATUSES and a one-line Arabic `summary`; `summary_en` (the English window's action
+    row) is kept when the tool wrote one and is filled with a plain status when neither summary exists."""
     if not isinstance(result, dict):
         result = {'status': 'error', 'error': 'invalid_result'}
     result = dict(result)
     if result.get('status') not in STATUSES:
         result['status'] = 'error'
     summary = result.get('summary')
+    english = result.get('summary_en')
     if not isinstance(summary, str) or not summary.strip():
-        summary = {'ok': 'تم', 'pending': 'أُرسل ولم يتأكد', 'partial': 'تم جزئياً',
-                   'error': 'لم يُنفَّذ', 'unsupported': 'غير مدعوم'}[result['status']]
+        summary = _PLAIN_AR[result['status']]
+        if not isinstance(english, str) or not english.strip():
+            english = _PLAIN_EN[result['status']]
     result['summary'] = ' '.join(summary.split())[:200]
+    if isinstance(english, str) and english.strip():
+        result['summary_en'] = ' '.join(english.split())[:200]
+    else:
+        result.pop('summary_en', None)
     return result
 
 
@@ -694,9 +877,11 @@ async def run_tool(name: str, args: dict, ctx: ToolContext) -> dict:
     if not isinstance(args, dict):
         args = {}
     if name not in _EXECUTORS:
-        result = {'status': 'unsupported', 'error': 'unsupported tool', 'summary': 'أداة غير مدعومة'}
+        result = {'status': 'unsupported', 'error': 'unsupported tool', 'summary': 'أداة غير مدعومة',
+                  'summary_en': 'Unsupported tool'}
     elif ctx.allowed_tools is not None and name not in ctx.allowed_tools:
-        result = {'status': 'unsupported', 'error': 'tool not allowed here', 'summary': 'هذه الأداة غير متاحة هنا'}
+        result = {'status': 'unsupported', 'error': 'tool not allowed here', 'summary': 'هذه الأداة غير متاحة هنا',
+                  'summary_en': 'This tool is not available here'}
     else:
         declared = (_BY_NAME[name].get('parameters') or {}).get('properties', {})
         args = {k: v for k, v in args.items() if k in declared}
@@ -714,33 +899,107 @@ async def run_tool(name: str, args: dict, ctx: ToolContext) -> dict:
                 args[key] = value.strip().lower() == 'true'
         problem = _validate(name, args)
         if problem:
-            result = {'status': 'error', 'error': problem, 'summary': 'لم يُنفَّذ: ' + problem}
+            result = {'status': 'error', 'error': problem, 'summary': 'لم يُنفَّذ: ' + problem,
+                      'summary_en': f'Not done: the arguments for {name} were refused'}
         else:
             executor, timeout = _EXECUTORS[name]
             try:
                 result = await asyncio.wait_for(executor(args, ctx), timeout)
             except asyncio.TimeoutError:
-                result = {'status': 'error', 'error': 'timeout', 'summary': 'انتهت مهلة الأداة ولم تتأكد النتيجة'}
+                result = {'status': 'error', 'error': 'timeout', 'summary': 'انتهت مهلة الأداة ولم تتأكد النتيجة',
+                          'summary_en': 'The tool timed out; the result is not confirmed'}
             except asyncio.CancelledError:
                 raise
             except Exception as exc:
                 message = _safe_error(exc)
-                result = {'status': 'error', 'error': message, 'summary': 'لم يُنفَّذ: ' + message}
+                result = {'status': 'error', 'error': message, 'summary': 'لم يُنفَّذ: ' + message,
+                          'summary_en': 'Not done: ' + message}
     result = _normalize(result)
     elapsed = int((time.monotonic() - started) * 1000)
-    _emit(ctx, 'tool', json.dumps({'name': name, 'status': result['status'], 'summary': result['summary'],
-                                   'args_preview': args_preview(args), 'elapsed_ms': elapsed},
-                                  ensure_ascii=False))
+    event = {'name': name, 'status': result['status'], 'summary': result['summary'],
+             'args_preview': args_preview(args), 'elapsed_ms': elapsed}
+    if result.get('summary_en'):
+        event['summary_en'] = result['summary_en']   # the English window shows this one
+    _emit(ctx, 'tool', json.dumps(event, ensure_ascii=False))
     return result
 
 
 # ─── persona / rules ──────────────────────────────────────────────────
 PERSONA = (
-    'أنتِ ميرا، مساعدة المالك الشخصية على كمبيوتره MoOS وعلى سماعة Echo في بيته. '
+    'أنتِ ميرا، مساعدة MoOS الذكية: مساعدة المالك الشخصية على كمبيوتره وعلى سماعة Echo في بيته. '
     'شخصيتك دافئة وودودة وذكية، وكلامك عربي طبيعي قريب من اللهجة الشامية بلا تكلّف، قصير وواضح. '
     'أجيبي بلغة المالك: إن تكلّم بالعربية فبالعربية، وإن تكلّم بالإنجليزية أو الألمانية فبلغته. '
     'افهمي العامية حتى إن ذكر أسماء الأجهزة بالإنجليزية أو الألمانية. '
 )
+# The identity contract (AGENTS.md) holds for what Mira says as much as for what MoOS draws. One wording
+# for her and her researcher (moai_tools.IDENTITY); the base's own name never depends on a prompt:
+# moai_tools.scrub_identity removes it from every Mo AI result, health report and research answer.
+IDENTITY = moai_tools.IDENTITY[0] + moai_tools.IDENTITY[1]
+
+# ─── the places Mira names ────────────────────────────────────────────
+# The destinations and buttons of Mira's window that her words send the owner to, by their interface
+# keys (i18n.STRINGS, the pages' and the approvals inbox's own STRINGS). Her sentences are built from
+# the words the window shows, so a renamed label renames what she says. The defaults answer only where
+# those tables cannot be imported; test_tools fails when one of these keys is missing from them.
+PLACE_KEYS = {
+    'system': 'nav_system', 'apps': 'nav_apps', 'workbench': 'nav_workbench',
+    'from_file': 'apps_from_file', 'file_card': 'apps_file_title',
+    'tasks_tab': 'wb_tab_tasks', 'agents_tab': 'wb_tab_agents',
+    'approve': 'act_approve', 'reject': 'act_reject',
+    'agent_card': 'agent_approval_title', 'agent_allow': 'agent_approval_allow', 'agent_deny': 'agent_approval_deny',
+}
+LABEL_DEFAULTS = {
+    'nav_system': ('النظام', 'System'), 'nav_apps': ('التطبيقات', 'Apps'), 'nav_workbench': ('الورشة', 'Workbench'),
+    'apps_from_file': ('من ملف', 'From a file'), 'apps_file_title': ('تطبيق من ملف', 'An app from a file'),
+    'wb_tab_tasks': ('المهام', 'Tasks'), 'wb_tab_agents': ('وكلاء البرمجة', 'Coding agents'),
+    'act_approve': ('موافقة', 'Approve'), 'act_reject': ('إلغاء', 'Cancel'),
+    'agent_approval_title': ('الوكيل يطلب إذنك', 'The agent asks for your permission'),
+    'agent_approval_allow': ('اسمح مرة واحدة', 'Allow once'), 'agent_approval_deny': ('ارفض', 'Deny'),
+}
+_labels_cache: dict = {}
+
+
+def interface_words() -> dict:
+    """Every (Arabic, English) pair Mira's window shows, merged the way i18n.table merges them."""
+    import importlib
+    words = {}
+    try:
+        import i18n
+        words.update(i18n.STRINGS)
+        extra = tuple(getattr(i18n, 'EXTRA_STRING_MODULES', ()))
+    except Exception:
+        extra = ()
+    for name in ('pages',) + extra:
+        try:
+            module = importlib.import_module(name)
+            words.update(module.strings() if name == 'pages' else getattr(module, 'STRINGS', {}))
+        except Exception:
+            continue
+    return words
+
+
+def labels() -> dict:
+    """key -> (Arabic, English) for every place Mira names, exactly as her window labels it."""
+    if _labels_cache:
+        return dict(_labels_cache)
+    words, out, complete = interface_words(), {}, True
+    for key, default in LABEL_DEFAULTS.items():
+        pair = words.get(key)
+        if isinstance(pair, (tuple, list)) and len(pair) == 2 and all(isinstance(x, str) and x.strip() for x in pair):
+            out[key] = (' '.join(pair[0].split()), ' '.join(pair[1].split()))
+        else:
+            out[key], complete = default, False
+    if complete:
+        _labels_cache.update(out)   # labels change with an update, never while Mira runs
+    return out
+
+
+def places() -> dict:
+    """PLACE_KEYS name -> '«عربي» (English)': the model says the half in the owner's language."""
+    words = labels()
+    return {name: f'«{words[key][0]}» ({words[key][1]})' for name, key in PLACE_KEYS.items()}
+
+
 RULES = (
     'للتحكم بصوت سماعتك Echo أو حلقتها المضيئة استخدمي device_control فقط، وميّزي بين صوت الكمبيوتر وصوت سماعتك. '
     'حين يقول المالك شغّلي أو طفّي أو غيّري لون إضاءة البيت استخدمي home_devices لتجدي الجهاز ثم home_control بمعرّفه الحقيقي. '
@@ -749,7 +1008,7 @@ RULES = (
     'لطلب «كل الأضواء» الصريح استخدمي home_lights_all واذكري العدد المؤكد والأجهزة غير المتاحة من نتيجته. '
     'للطقس الحالي استخدمي current_weather واذكري أن المصدر Open-Meteo؛ لا تخمّني موقع المالك. '
     'لسؤال الوقت أو التاريخ أو اليوم استخدمي current_time ولا تخمّني. '
-    'أنتِ أيضاً Mo AI، مساعد النظام في MoOS: كل أدواته أدواتك بأسمائها. للتحكم بالكمبيوتر استخدميها مباشرة '
+    'كل أدوات Mo AI، محرّك النظام في MoOS، أدواتك بأسمائها، وأنتِ ميرا دائماً باسمك. للتحكم بالكمبيوتر استخدميها مباشرة '
     '(set_volume وset_mute وset_brightness وtoggle_night_light وtoggle_wifi وtoggle_bluetooth وset_theme_mode '
     'وset_do_not_disturb وset_power_profile وshow_windows وarrange_windows وswitch_desktop وopen_settings وغيرها). '
     'لفتح برنامج أو المتصفح استخدمي computer_open_application مباشرة باسم التطبيق، وللمتصفح name=browser، '
@@ -759,9 +1018,15 @@ RULES = (
     'لتثبيت تطبيق ابحثي أولاً بـ find_app ثم install_app بالمعرّف الذي وجدتِه، وللإزالة uninstall_app، '
     'ولتحديث التطبيقات update_apps، ولتحديث MoOS نفسه system_update، ولإصلاح الصوت fix_audio. '
     'لسؤال «في تحديث؟» أو «جهازي بخير؟» اقرئي health_report: التحديث الليلي تلقائي، وإن كان تحديث جاهزاً قولي إنه يُطبَّق بإعادة التشغيل؛ '
-    'وإن أراد التحديث الآن فاستدعي system_update. '
+    'وإن أراد التحديث الآن فاستدعي system_update. ولفحص شامل يطلبه المالك استدعي health_report مع deep=true. '
+    'في خطة الجهاز problems مشكلات حقيقية وsuggestions اقتراحات فقط؛ لا تسمّي الاقتراح مشكلة ولا تقولي إن الجهاز فيه مشكلات إن كانت problems فارغة. '
+    'كل بند يحمل fix_tool، وهي الأداة التي تصلحه: اقترحيها واستدعيها فقط إن طلب المالك الإصلاح. '
+    'ليرى المالك كل ذلك بنفسه في نافذة ميرا: صفحة {system} تعرض النسخة والتحديثات والفحوص والإصلاحات، '
+    'وصفحة {apps} للمتجر والتطبيقات المثبتة، وفيها زرّ {from_file} لتثبيت تطبيق من ملف، '
+    'وصفحة {workbench} لمشاريعه ومهام الوكيل وطرفيته. '
     'حين يطلب المالك تغييراً في النظام استدعي أداته فوراً ولا تسألي عن الموافقة قبلها: الأداة نفسها تعرض عليه بطاقة موافقة. '
-    'إذا رجعت النتيجة awaiting=owner_confirmation فقولي بجملة واحدة ما الذي سيحدث واطلبي منه أن يقول «نعم» أو يضغط «موافقة»، '
+    'إذا رجعت النتيجة awaiting=owner_confirmation فقولي بجملة واحدة ما الذي سيحدث (will_happen_ar أو will_happen_en بلغة المحادثة، إن وُجد) '
+    'واطلبي منه أن يقول «نعم» أو يضغط {approve} على بطاقة الموافقة في نافذة ميرا أو في الإشعار، '
     'حتى لو كان قد وافق قبلها بكلامه. لا تستطيعين الموافقة عنه أبداً. '
     'إذا قال بعدها «نعم» فقولي «تمام» فقط، ولا تقولي إن العملية بدأت أو انتهت: ميرا تعرض حالتها الحقيقية وتعلن نتيجتها حين تنتهي. '
     'للموسيقى والفيديو على الكمبيوتر media_control، ولنوافذه windows (الإغلاق يحتاج موافقته)، ولصوت تطبيق وحده app_volume. '
@@ -771,18 +1036,66 @@ RULES = (
     'واحفظي روتيناً جديداً فقط حين يمليه المالك خطوة خطوة بأسماء أدواتك. '
     'إذا سأل المالك عن إصلاح مشكلة في الكمبيوتر استدعي list_skills ثم read_skill للدليل المناسب؛ الأدلة معرفة فقط ولا تمنح أداة جديدة. '
     'عندما يطلب المالك صراحةً أن تتذكري اسمه أو معلومة عنه استخدمي remember_owner_fact، ولا تحفظي كلمات مرور أو مفاتيح. '
-    'لفحص مشروع أو تطويره أو بحث يحتاج أدوات الوكيل أو تشغيل موسيقى في المتصفح استخدمي moai_project_task بطلب المالك الدقيق. '
+    'لفحص مشروع أو إصلاحه أو تطويره، أو لبحث يحتاج أدوات الوكيل، استدعي moai_project_task بطلب المالك الدقيق واسم المشروع إن ذكره: '
+    'تُنشأ مهمة متابَعة في تبويب {tasks_tab} في صفحة {workbench} ويبدأ وكيل Mo AI، وكل تعديل ملف أو أمر يطلبه الوكيل '
+    'يظهر للمالك بطاقة {agent_card} في نافذة ميرا، يجيب عنها بـ {agent_allow} أو {agent_deny}. '
+    'قولي إن المهمة بدأت فقط، ولا تقولي إنها انتهت. '
     'قاعدة الصدق: لا تقولي إنك نفّذتِ شيئاً إلا إذا كانت نتيجة الأداة status=ok. '
     'إذا كانت pending فقولي إن الأمر أُرسل ولم يتأكد بعد، وإذا كانت partial فاذكري ما تأكد وما لم يتأكد، '
     'وإذا كانت error أو unsupported فاعتذري باختصار واذكري السبب. '
     'أنتِ ذكية وفضولية: للأخبار والأسعار والمعلومات الحديثة وأي شيء لستِ متأكدة منه، أو لسؤال يحتاج تفكيراً وتحليلاً، '
     'قولي «لحظة، بدوّرلك» ثم استخدمي research، وانقلي الجواب بأسلوبك مع ذكر المصدر باختصار. لا تخترعي معلومات. '
     'إذا طلب المالك صراحةً أن تنظري إلى الشاشة أو تقرئي ما عليها استخدمي look_at_screen بسؤاله؛ لا تنظري إليها من تلقاء نفسك. '
-    'لا توجد لديكِ أداة أوامر حرة أو طرفية، ولا تنفّذي شيئاً خارج هذه الأدوات. '
+    'لا توجد لديكِ أداة أوامر حرة أو طرفية، ولا تنفّذي شيئاً خارج هذه الأدوات؛ '
+    'الأوامر داخل مشاريعه ينفذها وكيل صفحة {workbench} بعد موافقة المالك على كل أمر. '
     'إذا طلب وكيل Mo AI موافقة أو قال إنه لا يستطيع فانقلي ذلك بصدق. '
     'لا تدّعي أنك تدرّبين نموذجك أو تطوّرين نفسك تلقائياً؛ أنتِ تحفظين معرفة المالك وتستخدمين الأدوات. '
     'كلمة «بيرو» و«المكتب» قد تعني Büro إذا وافق سياق المالك. '
 )
+# Rules for tools an image may or may not declare yet: a sentence joins the instruction only when its
+# tools are Mira's, so the model is never taught a call the installed MoOS cannot run.
+CODING_AGENTS = ('install_codex', 'install_claude_code', 'install_opencode', 'install_hermes', 'install_openclaw')
+CAPABILITY_RULES = (
+    (CODING_AGENTS,
+     'لتثبيت وكيل برمجة استدعي أداته ({tools})؛ يُثبَّت لحساب المالك بعد موافقته، ولا تثبّتي وكيلاً مثبتاً أصلاً (انظري «هذا الجهاز»). '
+     'فتح وكيل برمجة أو مساحة البرمجة يكون من تبويب {agents_tab} في صفحة {workbench} في نافذة ميرا، ويضغطه المالك بنفسه. '),
+    (('check_system_update',),
+     'للتأكد الآن من وجود تحديث لـ MoOS استدعي check_system_update: يبحث فقط ولا يغيّر شيئاً، ثم system_update إن أراد تجهيزه. '),
+    (('restart_computer',),
+     'استدعي restart_computer فقط حين يطلب المالك إعادة التشغيل صراحةً (مثلاً ليُطبَّق تحديث جاهز)، وذكّريه أن يحفظ عمله. '),
+    (('install_rpm',),
+     'لتثبيت حزمة ‎.rpm نزّلها المالك: يجب أن تكون مباشرة في مجلد التنزيلات أو سطح المكتب أو المستندات؛ جدي مسارها بـ find_files '
+     'ثم استدعي install_rpm بالمسار الكامل. تُقبل الحزمة الموقّعة فقط، وتظهر بعد إعادة التشغيل. '),
+    (('smart_setup',),
+     'لتجهيز الجهاز بالتطبيقات الأساسية الناقصة حسب عتاده استدعي smart_setup. '),
+    (('remote_control',),
+     'لتشغيل Mo PC Remote أو إيقافه أو إعادة تشغيله لإصلاح اتصال عالق استدعي remote_control، وللوصول من خارج البيت remote_anywhere. '),
+    (('fast_remote',),
+     'إن كان التحكم عن بعد بطيئاً فاقترحي fast_remote: سطح مكتب أخف بلا تمويه ولا حركة يجعل Mo PC Remote أسلس، ويُطفأ بطلبه. '),
+)
+APP_DROP_RULE = ('ملف تطبيق نزّله المالك (AppImage أو أرشيف أو غيره) يُثبَّت من زرّ {from_file} في صفحة {apps}، '
+                 'أو بإفلاته على بطاقة {file_card} فيها؛ App Drop يسأله قبل أي تثبيت ولا يحتاج صلاحيات مسؤول. '
+                 'اذكري له ذلك ولا تحاولي تثبيته بأداة أخرى. ')
+
+
+def rules() -> str:
+    """RULES, naming every place with the words Mira's window shows."""
+    return RULES.format(**places())
+
+
+def capability_rules(declared=None) -> str:
+    """The sentences for the tools this MoOS declares (default: Mira's own registry)."""
+    declared = set(_BY_NAME) if declared is None else set(declared)
+    here = places()
+    parts = []
+    for names, text in CAPABILITY_RULES:
+        present = [name for name in names if name in declared]
+        if present:
+            parts.append(text.format(tools=' أو '.join(present), **here))
+    parts.append(APP_DROP_RULE.format(**here))
+    return ''.join(parts)
+
+
 VOICE_STYLE = ('هذه محادثة صوتية: جملة أو جملتان غالباً، بلا رموز ولا قوائم ولا Markdown، '
                'وقولي الأرقام بوضوح. إن لم تسمعي سؤالاً واضحاً فاطلبي إعادته باختصار. ')
 TEXT_STYLE = ('هذه محادثة مكتوبة في نافذة ميرا: اختصري، ويمكنك استخدام قائمة قصيرة عند الحاجة فقط. '
@@ -791,15 +1104,165 @@ TEXT_STYLE = ('هذه محادثة مكتوبة في نافذة ميرا: اخت
               'Always reply in the language of the owner\'s latest message. ')
 
 
+# ─── this machine, as MoOS itself reads it ─────────────────────────────
+# A compact, read-only block in the instruction, so «what graphics card do I have?» or «is Codex
+# installed?» is answered without a tool round. Read from moai-control (/scan, /quick) at most every
+# MACHINE_TTL_S, in the background; building an instruction never waits longer than MACHINE_WAIT_S,
+# and without an answer the block is simply left out. Only Mira's own process reads it: tests and
+# review renders never reach the machine (MIRA_MACHINE_CONTEXT=0|1 overrides).
+MACHINE_TTL_S = 600
+MACHINE_RETRY_S = 60
+MACHINE_STALE_S = 3600
+MACHINE_WAIT_S = 1.5
+_machine_lock = threading.Lock()
+# `settled`: the first reading has ended (read or failed). Only that first reading is waited for: a
+# retry after a failure runs in the background and never holds up a voice session again.
+_machine: dict = {'facts': None, 'at': 0.0, 'tried': float('-inf'), 'thread': None, 'ready': None, 'settled': False}
+
+
+def machine_context_enabled() -> bool:
+    flag = os.environ.get('MIRA_MACHINE_CONTEXT', '')
+    if flag in ('0', '1'):
+        return flag == '1'
+    if os.environ.get('MIRA_TEST_MODE') == '1':
+        return False
+    main = sys.modules.get('__main__')
+    return os.path.basename(str(getattr(main, '__file__', '') or '')) == 'app.py'
+
+
+def _refresh_machine() -> None:
+    try:
+        facts = moai_tools.machine_facts()
+    except Exception:
+        facts = None
+    with _machine_lock:
+        if isinstance(facts, dict) and facts.get('status') == 'ok':
+            _machine['facts'], _machine['at'] = facts, time.monotonic()
+        _machine['thread'] = None
+        _machine['settled'] = True
+        ready = _machine['ready']
+    if ready is not None:
+        ready.set()
+
+
+def machine_facts(wait: Optional[float] = None) -> tuple[Optional[dict], float]:
+    """(facts, age in seconds) from the cache, refreshing it in the background when it is older than
+    MACHINE_TTL_S. Only while the very first reading is under way does it wait, at most `wait`
+    (default MACHINE_WAIT_S) seconds; a later retry never blocks the caller."""
+    wait = MACHINE_WAIT_S if wait is None else wait
+    now = time.monotonic()
+    with _machine_lock:
+        facts, age = _machine['facts'], now - _machine['at']
+        if (facts is None or age >= MACHINE_TTL_S) and _machine['thread'] is None \
+                and now - _machine['tried'] >= MACHINE_RETRY_S:
+            _machine['tried'] = now
+            _machine['ready'] = threading.Event()
+            _machine['thread'] = threading.Thread(target=_refresh_machine, daemon=True, name='mira-machine')
+            _machine['thread'].start()
+        ready, first = _machine['ready'], not _machine['settled']
+    if facts is not None and age < MACHINE_STALE_S:
+        return facts, age
+    if first and ready is not None and wait > 0:
+        ready.wait(min(wait, MACHINE_WAIT_S))
+    with _machine_lock:
+        facts, age = _machine['facts'], time.monotonic() - _machine['at']
+    return (facts, age) if facts is not None and age < MACHINE_STALE_S else (None, 0.0)
+
+
+def prime_machine_context() -> bool:
+    """Start the first reading in the background (Mira's start-up), so the first voice session never
+    waits for it. Returns whether a reading was due. Does nothing where the block is off."""
+    if not machine_context_enabled():
+        return False
+    facts, _age = machine_facts(wait=0)
+    return facts is None
+
+
+def _reset_machine_cache() -> None:
+    """Tests only: forget what was read."""
+    with _machine_lock:
+        _machine.update(facts=None, at=0.0, tried=float('-inf'), thread=None, ready=None, settled=False)
+
+
+_PLAN_AR = {'ready': 'جاهز', 'attention': 'يحتاج انتباهاً', 'action-needed': 'يحتاج إجراءً'}
+
+
+def format_machine(facts: dict, lang: str = 'ar', age_s: float = 0.0) -> str:
+    """The THIS MACHINE block. Identity: MoOS only, and the kernel as a number."""
+    en = lang == 'en'
+    parts = []
+    version = ' '.join(str(facts.get('version') or '').split())
+    edition = (' (NVIDIA edition)' if en else ' (نسخة NVIDIA)') if facts.get('nvidia_edition') else ''
+    arch = ' · ARM' if str(facts.get('arch') or '') == 'aarch64' else ''
+    parts.append(f'MoOS {version}'.strip() + edition + arch)
+    kernel = moai_tools.clean_kernel(facts.get('kernel'))
+    if kernel:
+        parts.append(('kernel ' if en else 'النواة ') + kernel)
+    if facts.get('cpu'):
+        threads = facts.get('threads')
+        count = (f' ({threads} threads)' if en else f' ({threads} خيطاً)') if threads else ''
+        parts.append(('CPU ' if en else 'المعالج ') + str(facts['cpu']) + count)
+    if facts.get('ram_gb'):
+        parts.append(('memory ' if en else 'الذاكرة ') + f"{facts['ram_gb']} GB")
+    if facts.get('disk_free_gb') is not None and facts.get('disk_total_gb'):
+        parts.append(f"disk {facts['disk_free_gb']} GB free of {facts['disk_total_gb']}" if en else
+                     f"القرص {facts['disk_free_gb']} GB حرة من {facts['disk_total_gb']}")
+    if facts.get('gpu'):
+        driver = facts.get('driver_status' if en else 'driver_status_ar') or facts.get('driver_status')
+        parts.append(('graphics ' if en else 'كرت الشاشة ') + str(facts['gpu']) +
+                     ((', driver: ' if en else '، التعريف: ') + str(driver) if driver else ''))
+    if facts.get('remote_running') is not None:
+        parts.append(('Mo PC Remote ' + ('running' if facts['remote_running'] else 'stopped')) if en else
+                     ('Mo PC Remote ' + ('يعمل' if facts['remote_running'] else 'متوقف')))
+    have, missing = facts.get('agents_installed') or [], facts.get('agents_missing') or []
+    if have or missing:
+        none = 'none' if en else 'لا شيء'
+        parts.append((f"coding agents installed: {', '.join(have) or none}; not installed: {', '.join(missing) or none}")
+                     if en else
+                     (f"وكلاء البرمجة المثبتة: {'، '.join(have) or none}؛ غير المثبتة: {'، '.join(missing) or none}"))
+    if facts.get('plan_pending'):
+        parts.append('device plan: still being read' if en else 'خطة الجهاز: قيد القراءة')
+    elif facts.get('plan_health'):
+        problems, important = int(facts.get('plan_problems') or 0), int(facts.get('plan_important') or 0)
+        tips = int(facts.get('plan_suggestions') or 0)
+        apps = int(facts.get('missing_recommended_apps') or 0)
+        state = str(facts['plan_health'])
+        # Suggestions (info tips) are not problems: a healthy machine must not read as a broken one.
+        parts.append(f"device plan: {state}, {problems} problems ({important} important), {tips} suggestions, "
+                     f"{apps} recommended apps missing" if en else
+                     f"خطة الجهاز: {_PLAN_AR.get(state, state)}، مشكلات: {problems} (مهمة: {important})، "
+                     f"اقتراحات: {tips}، تطبيقات مقترحة ناقصة: {apps}")
+    if facts.get('health_status') in ('attention', 'action-needed'):
+        found = int(facts.get('health_findings') or 0)
+        parts.append(f"daily check: {found} findings need attention (health_report)" if en else
+                     f"الفحص اليومي: {found} ملاحظات تحتاج انتباهاً (health_report)")
+    if facts.get('update_staged'):
+        parts.append('a MoOS update is staged for the next restart' if en else 'تحديث MoOS جاهز بعد إعادة التشغيل')
+    minutes = int(age_s // 60)
+    head = (f"THIS MACHINE (MoOS's own reading, {minutes} min ago; for a current exact value call its tool): " if en else
+            f'هذا الجهاز (قراءة MoOS نفسها قبل {minutes} دقيقة؛ للقيمة الحالية الدقيقة استدعي أداتها): ')
+    return head + ' · '.join(parts) + '. '
+
+
+def machine_block(lang: str = 'ar') -> str:
+    if not machine_context_enabled():
+        return ''
+    try:
+        facts, age = machine_facts()
+        return format_machine(facts, lang, age) if facts else ''
+    except Exception:
+        return ''   # the block is a convenience: it never stops Mira from answering
+
+
 def system_instruction(lang: str = 'ar', city: Optional[str] = None, *, channel: str = 'voice',
                        now: Optional[datetime] = None) -> str:
-    """Mira's persona, honesty rules, owner memory, current time and weather city.
+    """Mira's persona, identity, honesty rules, this machine, owner memory, current time and weather city.
 
     lang     'ar' (default) or 'en': the owner's interface language.
     city     the owner's weather city, used when they ask without naming one.
     channel  'voice' (Gemini Live, spoken) or 'text' (typed chat).
     """
-    parts = [PERSONA, VOICE_STYLE if channel == 'voice' else TEXT_STYLE, RULES]
+    parts = [PERSONA, IDENTITY, VOICE_STYLE if channel == 'voice' else TEXT_STYLE, rules(), capability_rules()]
     if lang == 'en':
         parts.append("The owner's interface language is English: reply in English unless they speak Arabic or German. ")
     now = now or datetime.now().astimezone()
@@ -811,6 +1274,7 @@ def system_instruction(lang: str = 'ar', city: Optional[str] = None, *, channel:
         parts.append(f'مدينة المالك للطقس: {clean}. إذا سأل عن الطقس دون أن يذكر مدينة فاستخدمي هذه المدينة. ')
     else:
         parts.append('إذا سأل عن الطقس دون مدينة فاسأليه عنها أولاً. ')
+    parts.append(machine_block(lang))
     try:
         import mira_memory
         memory = mira_memory.load()
