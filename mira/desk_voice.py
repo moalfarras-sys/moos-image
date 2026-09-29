@@ -110,10 +110,13 @@ class DeskVoice(QObject):
                 self._mic.cancel()
             if self.voice is not None:
                 await self.voice.stop(True)
-        asyncio.run_coroutine_threadsafe(work(), self.loop)
+        return asyncio.run_coroutine_threadsafe(work(), self.loop)
 
     def shutdown(self):
-        self.stop()
+        try:
+            self.stop().result(timeout=2)     # finish the stop before the loop goes away
+        except Exception:
+            pass
         self.api.close()
         self.loop.call_soon_threadsafe(self.loop.stop)
 

@@ -176,6 +176,7 @@ SAMPLE_OS = ('## system image deployments\n'
 def stage_system(controller):
     """The System sheet with sample store results (visibly sample data; nothing is queried)."""
     controller._update('_system', controller.systemChanged, os=SAMPLE_OS, query='vlc', searching=False,
+                       health={'status': 'ok', 'moos': {'update_staged_for_restart': False}, 'findings': []},
                        tool='device_report', status='ok',
                        output='Device report (sample)\nGPU: NVIDIA GeForce · driver 580 · loaded\nAudio: PipeWire running\nNetwork: online',
                        apps=[{'id': 'org.videolan.VLC', 'name': 'VLC', 'summary': 'VLC media player, the open-source multimedia player',

@@ -150,7 +150,7 @@ class Controller(QObject):
         self.actions = DictListModel(['aid', 'kind', 'name', 'title', 'detail', 'reason', 'stage', 'category', 'summary',
                                       'output', 'started', 'expires', 'origin'], key='aid')
         self._system = {'busy': '', 'tool': '', 'output': '', 'status': '', 'apps': [], 'searching': False,
-                        'query': '', 'os': ''}
+                        'query': '', 'os': '', 'health': {}}
         self._turn_started = 0.0
         self._notifications = {}
         self._answered = set()             # cards resolved; their notifications must not linger
@@ -1207,6 +1207,12 @@ class Controller(QObject):
         self._update('_system', self.systemChanged, busy=name, tool=name, status='', output='')
         self.worker.run('sys:' + name, moai_tools.execute, name, {})
 
+    @Slot()
+    def refreshHealth(self):
+        """MoOS's own daily check (updates staged, nightly result, findings) for the System centre."""
+        import moai_tools
+        self.worker.run('health', moai_tools.health, self._lang)
+
     @Slot(str)
     def searchStore(self, query):
         query = ' '.join((query or '').split())[:80]
@@ -1679,6 +1685,9 @@ class Controller(QObject):
             self._on_system(tag, result)
         elif tag == 'announce':
             self._on_announce(result)
+        elif tag == 'health':
+            if isinstance(result, dict) and result.get('status') == 'ok':
+                self._update('_system', self.systemChanged, health=result)
         elif tag == 'brain_key':
             ok = isinstance(result, dict) and result.get('status') == 'ok'
             self._brain_key = 'ok' if ok else 'failed'

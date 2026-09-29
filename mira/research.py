@@ -51,13 +51,19 @@ def research(question: str, lang: str = 'ar', web: bool = True) -> dict:
         client, config = _client()
     except Exception as exc:
         return {'status': 'error', 'error': type(exc).__name__, 'summary': 'إعداد Gemini غير متاح'}
+    from datetime import date
+    today = date.today().isoformat()
+    fresh = (f' اليوم هو {today}. معلوماتك المخزّنة قد تكون قديمة: ابحث دائماً في Google عن الأحداث والنتائج والبطولات '
+             'والأسعار والأخبار والمناصب وكل ما قد يكون تغيّر، واعتمد على الأحدث.' if lang != 'en' else
+             f' Today is {today}. What you remember may be out of date: always search Google for events, results, '
+             'tournaments, prices, news, office holders and anything that may have changed, and go by the newest.')
     instruction = (
         'أنت باحثة دقيقة تساعد ميرا. فكّر بعناية، واعتمد على نتائج البحث الحديثة عند الحاجة. '
         'أجب بالعربية بثلاث إلى خمس جمل قصيرة تُقرأ بصوت عالٍ: بلا Markdown ولا قوائم ولا روابط. '
         'اذكر الأرقام والتواريخ بدقة، وقل بوضوح إن لم تجد معلومة موثوقة.' if lang != 'en' else
         'You are a careful researcher helping Mira. Think it through and use fresh search results when needed. '
         'Answer in 3–5 short sentences meant to be spoken: no Markdown, lists or links. Give numbers and dates '
-        'precisely, and say plainly if nothing reliable was found.')
+        'precisely, and say plainly if nothing reliable was found.') + (fresh if web else '')
     tools = [types.Tool(google_search=types.GoogleSearch())] if web else None
     last = None
     for model in [config.get('research_model')] + list(MODELS):

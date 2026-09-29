@@ -35,7 +35,10 @@ Item {
     readonly property var booted: deployment("booted:")
     readonly property var kept: deployment("kept for rollback:")
 
-    Component.onCompleted: if (!mira.system.os) mira.systemAction("os_state")
+    readonly property var health: mira.system.health || ({})
+    readonly property bool staged: !!(health.moos && health.moos.update_staged_for_restart)
+    readonly property int findings: (health.findings || []).length
+    Component.onCompleted: { if (!mira.system.os) mira.systemAction("os_state"); mira.refreshHealth() }
 
     Flickable {
         anchors.fill: parent
@@ -96,6 +99,15 @@ Item {
                                 height: 22; radius: 11; width: edText.implicitWidth + 16
                                 color: Qt.rgba(1, 1, 1, 0.06); border.width: 1; border.color: Theme.hairline
                                 T { id: edText; anchors.centerIn: parent; text: sys.booted ? sys.booted.edition : ""; font.pixelSize: Theme.tiny; color: Theme.ink2; wrapMode: Text.NoWrap }
+                            }
+                            Rectangle {
+                                visible: !!sys.health.moos
+                                height: 22; radius: 11; width: updRow.implicitWidth + 16
+                                readonly property color c: sys.staged ? Theme.amber : Theme.cyan
+                                color: Qt.rgba(c.r, c.g, c.b, 0.14); border.width: 1; border.color: Qt.rgba(c.r, c.g, c.b, 0.4)
+                                Row { id: updRow; anchors.centerIn: parent; spacing: 4
+                                    Icon { name: sys.staged ? "refresh" : "check"; size: 13; color: parent.parent.c; anchors.verticalCenter: parent.verticalCenter }
+                                    T { text: sys.staged ? mira.s.sys_staged : mira.s.sys_current; font.pixelSize: Theme.tiny; color: parent.parent.c; wrapMode: Text.NoWrap; anchors.verticalCenter: parent.verticalCenter } }
                             }
                             T {
                                 visible: !!sys.kept

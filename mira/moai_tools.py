@@ -169,6 +169,42 @@ def search_apps(query, limit=5):
             'summary': 'وجدت في المتجر: ' + '، '.join(str(a['name']) for a in apps[:3])}
 
 
+def _local(text, lang='ar'):
+    """Mo AI's services answer "عربي | English"; keep the owner's half."""
+    parts = str(text or '').split(' | ', 1)
+    return parts[0] if lang != 'en' or len(parts) == 1 else parts[1]
+
+
+def health(lang='ar'):
+    """The daily check, short: this MoOS, its updates, what needs attention and what uses the machine."""
+    code, body = _request('/health', timeout=20)
+    report = body.get('report') if code == 200 and isinstance(body, dict) else None
+    if not isinstance(report, dict):
+        return {'status': 'error', 'error': body.get('error', f'http_{code}') if isinstance(body, dict) else 'shape',
+                'summary': 'تعذّر قراءة الفحص اليومي'}
+    system, updates, summary = report.get('system') or {}, report.get('updates') or {}, report.get('summary') or {}
+    out = {
+        'status': 'ok',
+        'checked_at': report.get('generated_at'),
+        'moos': {'version': system.get('version'), 'signed': system.get('signed'), 'kernel': system.get('kernel'),
+                 'update_staged_for_restart': bool(summary.get('system_update_staged') or system.get('staged')),
+                 'rollback_kept': system.get('rollback')},
+        'updates': {'automatic_nightly_system_update': updates.get('nightly_system_update'),
+                    'last_nightly_result': updates.get('last_nightly_result'),
+                    'app_updates_waiting': summary.get('app_updates', len(updates.get('apps') or []))},
+        'attention': summary.get('status'),
+        'findings': [{'severity': f.get('severity'), 'title': _local(f.get('title'), lang)}
+                     for f in (report.get('findings') or [])[:8] if isinstance(f, dict)],
+        'busiest': [{'name': r.get('name'), 'cpu_percent': r.get('cpu_percent'), 'memory_mb': r.get('rss_mb')}
+                    for r in ((report.get('resources') or {}).get('top_cpu') or [])[:3] if isinstance(r, dict)],
+    }
+    staged = out['moos']['update_staged_for_restart']
+    out['summary'] = (f"MoOS {system.get('version') or ''} · " +
+                      ('تحديث جاهز بعد إعادة التشغيل' if staged else 'لا تحديث بانتظار إعادة التشغيل') +
+                      f" · {len(out['findings'])} ملاحظات")
+    return out
+
+
 def _request(path, body=None, timeout=30):
     data = None if body is None else json.dumps(body).encode()
     request = urllib.request.Request(f'http://127.0.0.1:{PORT}{path}', data=data,

@@ -79,7 +79,7 @@ DECLARATIONS: list[dict] = [
      'description': 'Save a short owner fact (name, project, preference) only when the owner explicitly asks to remember it. Never store passwords or API keys.',
      'parameters': _obj({'fact': {'type': 'STRING'}}, ['fact'])},
     {'name': 'research',
-     'description': 'Think carefully and search the web (Google) for anything current or uncertain: news, prices, results, schedules, opening hours, people, places, how-to questions, or any question that needs real reasoning. Returns a short spoken answer with its sources. Before calling, say one short phrase such as «لحظة، بدوّرلك». Do not use it for the time, the weather, the house or the computer — they have their own tools.',
+     'description': 'Think carefully and search the web (Google) for anything current or uncertain: news, prices, results, schedules, opening hours, people, places, how-to questions, or any question that needs real reasoning. Returns a short answer with its sources. In a voice conversation say one short phrase such as «لحظة، بدوّرلك» first; in typed chat just call it. Do not use it for the time, the weather, the house or the computer — they have their own tools.',
      'parameters': _obj({'question': {'type': 'STRING', 'description': "The owner's question, complete and self-contained"},
                          'web': {'type': 'BOOLEAN', 'description': 'false only for pure reasoning that needs no fresh facts'}},
                         ['question'])},
@@ -89,6 +89,8 @@ DECLARATIONS: list[dict] = [
     {'name': 'find_app',
      'description': 'Search the MoOS app store (Flathub) for an app to install and get its exact id. Call before install_app whenever the owner names an app; pick the best match and say its name.',
      'parameters': _obj({'query': {'type': 'STRING', 'description': 'App name or what it does, in English when possible (e.g. vlc, telegram, photo editor)'}}, ['query'])},
+    {'name': 'health_report',
+     'description': "MoOS's own daily check of this computer: version, whether it is signed, whether an update is already staged for the next restart, automatic nightly updates and their last result, app updates waiting, security findings and what uses the machine most. Use it for «is there an update», «is my computer OK/secure», «why is it slow». Read-only."},
     {'name': 'media_control',
      'description': 'Control the music or video playing on the computer (Spotify, a browser tab, VLC… any MPRIS player): play, pause, toggle, next, previous, stop, or status to read what is playing.',
      'parameters': _obj({'action': {'type': 'STRING', 'enum': ['play', 'pause', 'toggle', 'next', 'previous', 'stop', 'status']},
@@ -522,6 +524,10 @@ async def _look_at_screen(args, ctx):
     return await _thread(screen_look.look, str(args.get('question') or '')[:500])
 
 
+async def _health_report(args, ctx):
+    return await _thread(moai_tools.health)
+
+
 async def _media_control(args, ctx):
     import desktop_tools
     return await _thread(desktop_tools.media, args['action'], args.get('player') or None)
@@ -647,6 +653,7 @@ _EXECUTORS = {
     'look_at_screen': (_look_at_screen, 60),
     'research': (_research, 60),
     'find_app': (_find_app, 40),
+    'health_report': (_health_report, 25),
     'media_control': (_media_control, 12),
     'clipboard': (_clipboard, 8),
     'find_files': (_find_files, 20),
@@ -751,6 +758,8 @@ RULES = (
     'وللفحص الأعمق device_report وcheck_drivers وgpu_report وnet_doctor وinspect_boot. '
     'لتثبيت تطبيق ابحثي أولاً بـ find_app ثم install_app بالمعرّف الذي وجدتِه، وللإزالة uninstall_app، '
     'ولتحديث التطبيقات update_apps، ولتحديث MoOS نفسه system_update، ولإصلاح الصوت fix_audio. '
+    'لسؤال «في تحديث؟» أو «جهازي بخير؟» اقرئي health_report: التحديث الليلي تلقائي، وإن كان تحديث جاهزاً قولي إنه يُطبَّق بإعادة التشغيل؛ '
+    'وإن أراد التحديث الآن فاستدعي system_update. '
     'حين يطلب المالك تغييراً في النظام استدعي أداته فوراً ولا تسألي عن الموافقة قبلها: الأداة نفسها تعرض عليه بطاقة موافقة. '
     'إذا رجعت النتيجة awaiting=owner_confirmation فقولي بجملة واحدة ما الذي سيحدث واطلبي منه أن يقول «نعم» أو يضغط «موافقة»، '
     'حتى لو كان قد وافق قبلها بكلامه. لا تستطيعين الموافقة عنه أبداً. '
@@ -777,6 +786,7 @@ RULES = (
 VOICE_STYLE = ('هذه محادثة صوتية: جملة أو جملتان غالباً، بلا رموز ولا قوائم ولا Markdown، '
                'وقولي الأرقام بوضوح. إن لم تسمعي سؤالاً واضحاً فاطلبي إعادته باختصار. ')
 TEXT_STYLE = ('هذه محادثة مكتوبة في نافذة ميرا: اختصري، ويمكنك استخدام قائمة قصيرة عند الحاجة فقط. '
+              'في الكتابة لا تكتبي «لحظة، بدوّرلك» ولا تعدي بالبحث: استدعي research مباشرة ثم اكتبي الجواب. '
               'اكتبي ردك بلغة آخر رسالة من المالك تحديداً، حتى لو كانت الرسائل السابقة بلغة أخرى. '
               'Always reply in the language of the owner\'s latest message. ')
 

@@ -264,6 +264,8 @@ STRINGS = {
     'sys_confirm': ('يحتاج موافقتك', 'Needs your approval'),
     'sys_open_store': ('فتح Mo Store', 'Open Mo Store'),
     'sys_settings': ('إعدادات MoOS', 'MoOS settings'),
+    'sys_staged': ('تحديث جاهز · أعد التشغيل', 'Update ready · restart'),
+    'sys_current': ('محدّث في آخر فحص ليلي', 'Current as of the nightly check'),
 }
 
 
