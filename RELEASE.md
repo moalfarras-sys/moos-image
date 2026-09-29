@@ -63,7 +63,11 @@ revision واحد، ثم يُقلع artifact النهائي نفسه، ثم يُ
 `build-arm.yml` هو pipeline واحد: native aarch64 candidate → cosign → QCOW2 →
 sealing إلى signed origin → UEFI/runtime/reboot/poweroff proof → artifact →
 promotion. Job `promote` يحتاج نجاح `[build, disk]`، ولا يعمل على PR أو branch
-dispatch. تعليمات Oracle وUTM وfirst boot في
+dispatch. أمر دفعة الإصدار يعيد استخدام pipeline مطابق للـSHA والفرع في محاولته
+الأولى، سواء اكتمل بنجاح أو ما زال جاريًا؛ يقبل push على main أو workflow_dispatch
+فقط، ويعيد قراءة بياناته قبل اعتماده. لا يعتمد scheduled أو PR أو محاولة معادة،
+ولا يعتبر البناء وحده إثبات إقلاع: ينتظر نتيجة pipeline الكامل.
+تعليمات Oracle وUTM وfirst boot في
 [`docs/MOOS_ARM_ORACLE.md`](docs/MOOS_ARM_ORACLE.md).
 
 ## الجهاز الحقيقي
