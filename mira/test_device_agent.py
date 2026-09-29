@@ -44,7 +44,7 @@ def isolated():
                  "STATUS": root / "status.json", "PROFILE": root / "profile.txt",
                  "SETTINGS": root / "settings.json", "LEARNED": root / "learned.json",
                  "PLACE": root / "place.json", "LOG": root / "agent.log",
-                 "DEVICE_KEY": root / "psk"}
+                 "DEVICE_KEY": root / "psk", "ASSETS": root / "assets"}
         with contextlib.ExitStack() as stack:
             for name, value in names.items():
                 stack.enter_context(patch.object(agent, name, value))
@@ -334,6 +334,30 @@ class HttpTests(unittest.TestCase):
             self.assertIn("أحب القهوة بدون سكر", agent.profile_text())
             for name in ("profile.txt", "settings.json", "learned.json"):
                 self.assertEqual((agent.ROOT / name).stat().st_mode & 0o777, 0o600, name)
+        with isolated():
+            self.serve(exercise)
+
+    def test_assets_arrive_signed_and_are_served_to_this_dot_only(self):
+        async def exercise(port):
+            model = b"\x00tflite" * 1000
+            with patch.object(device_sync, "PORT", port):
+                stored = await asyncio.to_thread(device_sync.put_asset, "mira_ar_v2.tflite", model,
+                                                 "127.0.0.1", agent.DEVICE_KEY)
+                self.assertEqual(stored["bytes"], len(model))
+                with self.assertRaises(device_sync.SyncError):          # a name that is not an asset
+                    await asyncio.to_thread(device_sync.put_asset, "../psk", b"x", "127.0.0.1", agent.DEVICE_KEY)
+            served = await self.request(port, b"GET /asset/mira_ar_v2.tflite HTTP/1.1\r\n\r\n")
+            self.assertTrue(served.startswith(b"HTTP/1.1 200 OK"))
+            self.assertTrue(served.endswith(model))
+            missing = await self.request(port, b"GET /asset/nothing_here.json HTTP/1.1\r\n\r\n")
+            self.assertIn(b"404", missing)
+            unsigned = await self.request(port, b"POST /asset/abcdefabcdef.wav HTTP/1.1\r\nContent-Length: 4\r\n\r\nRIFF")
+            self.assertIn(b"403", unsigned)
+            self.assertFalse((agent.ASSETS / "abcdefabcdef.wav").exists())
+            with patch.object(asyncio.StreamWriter, "get_extra_info", lambda self, name, default=None:
+                              ("192.168.3.79", 5000) if name == "peername" else default):
+                remote = await self.request(port, b"GET /asset/mira_ar_v2.tflite HTTP/1.1\r\n\r\n")
+            self.assertIn(b"404", remote, "only this Dot's own loopback may read an asset")
         with isolated():
             self.serve(exercise)
 

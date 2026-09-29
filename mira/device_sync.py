@@ -76,3 +76,41 @@ def push(profile: str, weather_city: str | None = None, voice: str | None = None
     reply["learned"] = [fact for fact in learned if isinstance(fact, str)] \
         if isinstance(learned, list) else []
     return reply
+
+
+ASSET_MAX = 2 * 1024 * 1024
+
+
+def put_asset(name: str, data: bytes, host: str = "192.168.3.83", key_path: str | Path = DEFAULT_KEY,
+              timeout: float = 8) -> dict:
+    """Hand one file (a wake model, a spoken announcement) to the Dot's client, signed like /sync
+    (purpose "asset:<name>"). echod then fetches it from the Dot's own loopback —
+    http://127.0.0.1:8765/asset/<name> — so this computer needs no inbound port."""
+    if not isinstance(data, (bytes, bytearray)) or not 0 < len(data) <= ASSET_MAX:
+        raise SyncError("bad_asset")
+    try:
+        key = Path(key_path).expanduser().read_text().strip().encode()
+    except OSError:
+        raise SyncError("key_unreadable") from None
+    stamp = int(time.time())
+    digest = hashlib.sha256(data).hexdigest()
+    mark = hmac.new(key, f"asset:{name}:{stamp}:{digest}".encode(), hashlib.sha256).hexdigest()
+    connection = http.client.HTTPConnection(host, PORT, timeout=timeout)
+    try:
+        connection.request("POST", "/asset/" + name, body=bytes(data), headers={
+            "Content-Type": "application/octet-stream", "X-Mira-Time": str(stamp),
+            "X-Mira-Signature": mark, "Connection": "close"})
+        response = connection.getresponse()
+        reply = response.read(4096)
+    except (OSError, http.client.HTTPException) as exc:
+        raise SyncError("unreachable:" + type(exc).__name__) from None
+    finally:
+        connection.close()
+    try:
+        answer = json.loads(reply.decode("utf-8"))
+    except (UnicodeDecodeError, ValueError):
+        raise SyncError(f"http_{response.status}:unreadable_reply") from None
+    if response.status != 200 or not isinstance(answer, dict) or answer.get("sha256") != digest:
+        code = answer.get("error") if isinstance(answer, dict) else None
+        raise SyncError(f"http_{response.status}:{code if isinstance(code, str) else 'rejected'}")
+    return answer

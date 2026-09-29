@@ -27,6 +27,7 @@ WAKE_MODELS = Path.home() / '.local/share/mira/wake-models'   # models trained h
 SHIPPED_MODELS = ROOT / 'wake-models'                           # models that ship with Mira (image or install)
 OWNER_MODEL = 'mira_ar_owner'
 IMPROVED_MODEL = 'mira_ar_v2'      # trained on 26 synthetic voices with real room sound (wake_training/README.md)
+IMPROVED_CUTOFF = 0.65             # mira_ar_v2-report.md: lowest cutoff without more false wakes than today
 FALLBACK_WAKE = ['mira_ar_experimental']   # Mira only, by the owner's choice (2026-09-29)
 # Desktop changes that wait for the owner (desktop_tools; not Mo AI's executor).
 DESKTOP_CHANGES = {'close_window': ('إغلاق نافذة', 'Close a window')}
@@ -1161,15 +1162,41 @@ class Controller(QObject):
             return
         self.worker.run('announce', self._synthesize, text)
 
+    def _speak_on_echo(self, text, attempt=0):
+        if self._voice_phase in ACTIVE and attempt < 12:
+            QTimer.singleShot(5000, lambda: self._speak_on_echo(text, attempt + 1))
+            return
+        line = ('هذا تنبيه حان وقته وليس سؤالاً من المالك. قوليه له الآن بصوتك بجملة قصيرة ودودة، ولا تستدعي أي أداة: «'
+                + text + '»')
+        self.bridge.speak(line)
+
     def _synthesize(self, text):
         import announce
         announce.cleanup()
-        return announce.synthesize(text, voice=self._voice_name)
+        try:
+            result = announce.synthesize(text, voice=self._voice_name)
+        except Exception as exc:          # a TTS failure must never cost the owner his reminder
+            result = {'status': 'unsupported', 'error': type(exc).__name__}
+        result['text'] = text
+        if result.get('status') == 'ok' and self._echo.get('online'):
+            # Hand the WAV to the Dot's own client; echod plays it from its loopback.
+            try:
+                import device_sync
+                from mira_bridge import IP
+                # An announcement plays at the voice pipeline's rate (16 kHz mono) — echod's own format.
+                path = Path(result.get('path_16k') or result['path'])
+                device_sync.put_asset(path.name, path.read_bytes(), IP)
+                result['echo_name'] = path.name
+                result['on_echo'] = True
+            except Exception:
+                result['on_echo'] = False
+        return result
 
     def _play_announcement(self, result, attempt=0):
         path = Path(result.get('path') or '')
         if self._echo['online'] and self._voice_phase not in ACTIVE:
-            self.bridge.command('announce', 'speaker', path.name)
+            self.bridge.command('announce_local' if result.get('on_echo') else 'announce', 'speaker',
+                                result.get('echo_name') or path.name)
             return
         if self._echo['online'] and attempt < 12:
             # a conversation is using the speaker: say it right after
@@ -1185,8 +1212,9 @@ class Controller(QObject):
         result = result if isinstance(result, dict) else {}
         if result.get('status') == 'ok' and result.get('path'):
             self._play_announcement(result)
-        elif self._echo['online']:
-            self.bridge.command('tone', 'speaker')      # no voice today (quota/network): a chime at least
+        elif self._echo['online'] and result.get('text'):
+            # No TTS today (its free quota is ~10 lines a day per model): Mira says it herself in Live.
+            self._speak_on_echo(result['text'])
         else:
             try:
                 subprocess.Popen(['canberra-gtk-play', '-i', 'alarm-clock-elapsed'], stdin=subprocess.DEVNULL,
@@ -1312,6 +1340,14 @@ class Controller(QObject):
         self._resolve_phase()
 
     def _on_echo_command(self, kind, status):
+        if kind == 'wake_model':
+            print('Mira wake model:', status, flush=True)
+        if kind == 'wake_model' and status.startswith('error:'):
+            # A model the Echo could not load was rolled back to the previous selection by the bridge.
+            self._update('_enrol', self.enrolChanged, installing=False,
+                         message=self._s['enrol_failed'] + ' · ' + status.split(':', 1)[1][:160])
+            self.toast.emit('error', self._enrol['message'])
+            return
         if status.startswith('error:'):
             self._add('error', ('لم يصل الأمر إلى Echo · ' if self._lang == 'ar' else 'Command did not reach Echo · ') + status.split(':', 1)[1], status='error')
             if kind == 'wake':
@@ -1327,7 +1363,6 @@ class Controller(QObject):
             except ValueError:
                 pass
         elif kind == 'wake_model':
-            print('Mira wake model:', status, flush=True)
             state, _, payload = status.partition(':')
             try:
                 data = json.loads(payload) if state in ('ok', 'pending') else {}
@@ -1337,6 +1372,9 @@ class Controller(QObject):
                          message=self._s['enrol_installed'] if state == 'ok' else self._s['enrol_install_pending'] if state == 'pending'
                          else self._s['enrol_failed'] + ' · ' + payload)
             self.toast.emit('ok' if state == 'ok' else 'pending' if state == 'pending' else 'error', self._enrol['message'])
+            if state == 'ok' and (data.get('active') or [None])[0] == IMPROVED_MODEL:
+                # Its measured cutoff: no more false wakes than the proven model at 0.60 (see its report).
+                self.bridge.command('number', 'wake_threshold_1', IMPROVED_CUTOFF)
         elif kind == 'setup' and status == 'sent':
             from mira_bridge import IP
             url = 'http://' + IP + ':8181/setup'

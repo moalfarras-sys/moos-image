@@ -85,6 +85,28 @@ def to_16k_mono(pcm: bytes, in_rate: int) -> bytes:
         return pcm
 
 
+SPEAKER_RATE = 48000   # the Echo's music stream takes 48 kHz; announcements go at 16 kHz (path_16k)
+
+
+def speaker_wav(path) -> bytes:
+    """The announcement as a 48 kHz mono 16-bit WAV, the rate the Echo's media player accepts."""
+    with wave.open(str(path), 'rb') as source:
+        rate, pcm = source.getframerate(), source.readframes(source.getnframes())
+    if rate != SPEAKER_RATE:
+        import numpy as np
+        samples = np.frombuffer(pcm, dtype='<i2').astype(np.float64)
+        count = max(1, int(round(len(samples) * SPEAKER_RATE / rate)))
+        pcm = np.clip(np.rint(np.interp(np.linspace(0, len(samples) - 1, count), np.arange(len(samples)), samples)),
+                      -32768, 32767).astype('<i2').tobytes()
+    out = io.BytesIO()
+    with wave.open(out, 'wb') as target:
+        target.setnchannels(1)
+        target.setsampwidth(2)
+        target.setframerate(SPEAKER_RATE)
+        target.writeframes(pcm)
+    return out.getvalue()
+
+
 # ─── Gemini TTS ───────────────────────────────────────────────────────
 
 
@@ -129,7 +151,7 @@ def _call(key: str, model: str, text: str, voice: str, timeout: float) -> tuple[
     try:
         response = json.load(urllib.request.urlopen(req, timeout=timeout))
     except urllib.error.HTTPError as exc:
-        detail = exc.read().decode('replace')[:200] if hasattr(exc, 'read') else ''
+        detail = exc.read().decode('utf-8', 'replace')[:200] if hasattr(exc, 'read') else ''
         return exc.code, detail.replace(key, '<key>'), None, 0
     except (urllib.error.URLError, OSError, ValueError) as exc:
         return 0, type(exc).__name__, None, 0

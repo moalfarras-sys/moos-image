@@ -184,17 +184,23 @@ class Bridge(QObject):
                                            rgb=(.15, .5, 1), color_mode=35)
                 elif kind == 'stop':
                     self.api.media_player_command(**args, command=MediaPlayerCommand.STOP)
-                elif kind in ('tone', 'announce'):
-                    if kind == 'announce' and not (isinstance(value, str) and re.fullmatch(r'[0-9a-f]{12}(\.16k)?\.wav', value)):
+                elif kind in ('tone', 'announce', 'announce_local'):
+                    if kind != 'tone' and not (isinstance(value, str) and re.fullmatch(r'[0-9a-f]{12}(\.16k)?\.wav', value)):
                         raise ValueError('invalid announcement')
-                    peer = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-                    try:
-                        peer.connect((IP, 6053))
-                        host = peer.getsockname()[0]
-                    finally:
-                        peer.close()
-                    path = 'tone.wav' if kind == 'tone' else 'announce/' + value
-                    self.api.media_player_command(**args, media_url=f'http://{host}:18769/{path}')
+                    if kind == 'announce_local':
+                        # Already handed to the Dot's client: echod plays it from its own loopback.
+                        url = f'http://127.0.0.1:8765/asset/{value}'
+                    else:
+                        peer = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+                        try:
+                            peer.connect((IP, 6053))
+                            host = peer.getsockname()[0]
+                        finally:
+                            peer.close()
+                        url = f'http://{host}:18769/' + ('tone.wav' if kind == 'tone' else 'announce/' + value)
+                    # announcement=True: echod plays it as one spoken line over whatever is playing,
+                    # converting to the pipeline's voice format, instead of as music (48 kHz stereo only).
+                    self.api.media_player_command(**args, media_url=url, announcement=kind != 'tone')
                     self.command_state.emit(kind, 'sent')
                 else:
                     raise ValueError('unknown device command')
@@ -244,16 +250,25 @@ class Bridge(QObject):
                     raise RuntimeError('offline')
                 from aioesphomeapi.model import VoiceAssistantExternalWakeWord as ExternalWakeWord
                 raw = Path(model_file).read_bytes()
-                peer = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+                manifest = Path(model_file).with_suffix('.json').read_bytes()
+                # Preferred: hand both files to the Dot's own client, and let echod fetch them from
+                # its loopback — no inbound port on this computer. Fallback: this computer's server.
                 try:
-                    peer.connect((IP, 6053))
-                    host = peer.getsockname()[0]
-                finally:
-                    peer.close()
+                    import device_sync
+                    for name, data in ((model_id + '.json', manifest), (model_id + '.tflite', raw)):
+                        await asyncio.to_thread(device_sync.put_asset, name, data, IP)
+                    url = f'http://127.0.0.1:8765/asset/{model_id}.json'
+                except Exception:
+                    peer = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+                    try:
+                        peer.connect((IP, 6053))
+                        host = peer.getsockname()[0]
+                    finally:
+                        peer.close()
+                    url = f'http://{host}:18769/models/{model_id}.json'
                 offer = ExternalWakeWord(id=model_id, wake_word=phrase, trained_languages=list(languages),
                                          model_type='openwakeword', model_size=len(raw),
-                                         model_hash=hashlib.sha256(raw).hexdigest(),
-                                         url=f'http://{host}:18769/models/{model_id}.json')
+                                         model_hash=hashlib.sha256(raw).hexdigest(), url=url)
                 before = list((await self.api.get_voice_assistant_configuration(8, [offer])).active_wake_words)
                 await self.api.set_voice_assistant_configuration(list(active))
                 cfg = None
@@ -300,6 +315,24 @@ class Bridge(QObject):
                                         + json.dumps(result))
             except Exception as exc:
                 self.command_state.emit('wake_model', 'error:' + type(exc).__name__)
+        asyncio.run_coroutine_threadsafe(work(), self.loop)
+
+    def speak(self, line):
+        """Say one line on the Echo in Mira's own Live voice (no TTS quota): press the Echo's wake button
+        and hand the new turn a text request instead of the microphone. The owner may answer after it,
+        as after any reply."""
+        async def work():
+            if not self.online or self.voice is None:
+                self.command_state.emit('speak', 'error:offline')
+                return
+            self.voice.test_text = line
+            entity = self.entities.get('wake_assistant_1')
+            if entity is None:
+                self.voice.test_text = None
+                self.command_state.emit('speak', 'error:no_wake_button')
+                return
+            self.api.button_command(key=entity.key, device_id=entity.device_id)
+            self.command_state.emit('speak', 'sent')
         asyncio.run_coroutine_threadsafe(work(), self.loop)
 
     def cancel_voice(self):

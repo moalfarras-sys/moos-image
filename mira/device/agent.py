@@ -45,6 +45,10 @@ SETTINGS = ROOT / "settings.json"
 LEARNED = ROOT / "learned.json"
 PLACE = ROOT / "place.json"
 LOG = Path(os.environ.get("MIRA_LOG", str(ROOT / "agent.log")))
+ASSETS = ROOT / "assets"
+# A wake model the desktop trained (json manifest + tflite) or one spoken line (WAV).
+ASSET_NAME = re.compile(r"^(?:[a-z0-9_]{3,40}\.(?:json|tflite)|[0-9a-f]{12}(?:\.16k)?\.wav)$")
+ASSET_TYPES = {".json": b"application/json", ".tflite": b"application/octet-stream", ".wav": b"audio/wav"}
 DEVICE_KEY = Path("/data/misc/echolocal/psk")
 PORT = 8765
 ENDPOINT = (
@@ -54,6 +58,8 @@ ENDPOINT = (
 
 CLOCK_WINDOW = 15          # seconds a signed request's timestamp may differ from ours
 SYNC_MAX = 16 * 1024       # bytes of JSON a /sync body may carry
+ASSET_MAX = 2 * 1024 * 1024  # bytes one asset (a wake model or a spoken announcement) may have
+ASSETS_KEPT = 12             # spoken announcements kept; wake models are kept until replaced
 PROFILE_MAX = 4000         # characters the desktop profile may have (its own limit)
 PROFILE_LIMIT = 8000       # profile plus facts learned here, before a sync takes them
 FACT_MAX = 500
@@ -358,13 +364,58 @@ async def read_sync(reader: asyncio.StreamReader, headers: dict[str, str]):
     return 200, response, commit
 
 
+async def read_asset(reader: asyncio.StreamReader, headers: dict[str, str], name: str):
+    """POST /asset/<name>, signed like /sync (purpose "asset:<name>"): store one file from the desktop.
+
+    echod then fetches it from this Dot's own loopback, so the desktop needs no inbound port."""
+    if not ASSET_NAME.match(name):
+        return 400, {"error": "bad_name"}
+    try:
+        length = int(headers.get("content-length", ""))
+    except ValueError:
+        return 411, {"error": "length_required"}
+    if length <= 0:
+        return 411, {"error": "length_required"}
+    if length > ASSET_MAX:
+        return 413, {"error": "too_large"}
+    body = await asyncio.wait_for(reader.readexactly(length), 10)
+    if not verified(headers, "asset:" + name, body):
+        return 403, {"error": "not_authorized"}
+    if replayed(headers.get("x-mira-signature", "")):
+        return 403, {"error": "replayed"}
+    ASSETS.mkdir(parents=True, exist_ok=True)
+    temp = ASSETS / (name + ".part")
+    temp.write_bytes(body)
+    os.chmod(temp, 0o644)
+    os.replace(temp, ASSETS / name)
+    spoken = sorted(ASSETS.glob("*.wav"), key=lambda f: f.stat().st_mtime)
+    for old in spoken[:-ASSETS_KEPT]:
+        try:
+            old.unlink()
+        except OSError:
+            pass
+    log(f"asset stored name={name} bytes={length}")
+    return 200, {"ok": True, "name": name, "bytes": length, "sha256": hashlib.sha256(body).hexdigest()}
+
+
+def asset_file(name: str):
+    """(path, content type) of a stored asset, or None."""
+    if not ASSET_NAME.match(name):
+        return None
+    path = ASSETS / name
+    if not path.is_file():
+        return None
+    return path, ASSET_TYPES[path.suffix]
+
+
 REASONS = {200: b"200 OK", 400: b"400 Bad Request", 403: b"403 Forbidden",
            404: b"404 Not Found", 411: b"411 Length Required", 413: b"413 Payload Too Large"}
 
 
 async def status_request(reader: asyncio.StreamReader,
                          writer: asyncio.StreamWriter) -> None:
-    """GET /status (public state only), POST /heartbeat and POST /sync (both signed)."""
+    """GET /status (public state only); POST /heartbeat, /sync and /asset/<name> (signed);
+    GET /asset/<name> for this Dot's own loopback only."""
     global desktop_until
     try:
         head = await asyncio.wait_for(reader.readuntil(b"\r\n\r\n"), 2)
@@ -378,6 +429,18 @@ async def status_request(reader: asyncio.StreamReader,
                 name, value = line.split(b":", 1)
                 headers[name.strip().lower().decode("latin-1")] = value.strip().decode("latin-1")
         commit = None
+        peer = (writer.get_extra_info("peername") or ("", 0))[0]
+        if method == "GET" and path.startswith("/asset/"):
+            # Served to this Dot only (echod fetching a wake model or playing an announcement).
+            found = asset_file(path[len("/asset/"):]) if peer in ("127.0.0.1", "::1") else None
+            if found is None:
+                writer.write(b"HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\nConnection: close\r\n\r\n")
+            else:
+                data = found[0].read_bytes()
+                writer.write(b"HTTP/1.1 200 OK\r\nContent-Type: " + found[1] + b"\r\nContent-Length: " +
+                             str(len(data)).encode() + b"\r\nConnection: close\r\n\r\n" + data)
+            await writer.drain()
+            return
         if method == "GET" and path == "/status":
             state = read_json(STATUS, {})
             code, public = 200, {"state": state.get("state", "offline"), "at": state.get("at", 0)}
@@ -389,6 +452,8 @@ async def status_request(reader: asyncio.StreamReader,
                 code, public = 403, {"error": "not_authorized"}
         elif method == "POST" and path == "/sync":
             code, public, commit = await read_sync(reader, headers)
+        elif method == "POST" and path.startswith("/asset/"):
+            code, public = await read_asset(reader, headers, path[len("/asset/"):])
         else:
             code, public = 404, {"error": "not_found"}
         body = json.dumps(public, ensure_ascii=False).encode("utf-8")
@@ -1375,7 +1440,8 @@ async def run_active(config: dict, resampler: str) -> str:
 async def bind_http():
     while True:
         try:
-            return await asyncio.start_server(status_request, device_address(), PORT, limit=4096)
+            # The LAN address for the desktop; loopback for echod fetching this Dot's own assets.
+            return await asyncio.start_server(status_request, [device_address(), "127.0.0.1"], PORT, limit=4096)
         except OSError as exc:
             log(f"http bind waiting error={type(exc).__name__}")
             await asyncio.sleep(2)
