@@ -74,6 +74,9 @@ void main() {
     I *= mix(1.0, 0.72 + 0.28 * sin(t * 3.2), err);
     I *= mix(1.0, 0.35, off);
     col = mix(col, vec3(dot(col, vec3(0.33))), off * 0.8);
+    // The light ends inside this item's square: a loud voice or a speaking reply once lit its
+    // edges and drew a hard box around her. Everything fades out before the inscribed circle.
+    I *= 1.0 - smoothstep(0.38, 0.5, r);
     float alpha = clamp(I * 0.62, 0.0, 1.0);
     fragColor = vec4(col * I, alpha) * qt_Opacity;
 }

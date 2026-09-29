@@ -3,10 +3,10 @@ import QtQuick.Controls.Basic
 import QtQuick.Layouts
 
 // A clickable tile: glyph, title, one line of state. Tab/Enter/Space reach it; `busy` spins the glyph,
-// `on` marks a toggle that is on, `badge` shows a short count or word.
+// `lit` marks a toggle that is on, `badge` shows a short count or word.
 AbstractButton {
     id: tile
-    property string icon: "sparkle"
+    property string glyph: "sparkle"      // not `icon`: AbstractButton.icon is FINAL
     property string title: ""
     property string subtitle: ""
     property string badge: ""
@@ -37,7 +37,7 @@ AbstractButton {
             radius: 12
             rotation: tile.busy ? spin : 0
             color: Qt.rgba(tile.accent.r, tile.accent.g, tile.accent.b, tile.lit ? 0.30 : 0.14)
-            Icon { anchors.centerIn: parent; name: tile.icon; size: 19; color: tile.lit ? "white" : tile.accent }
+            Icon { anchors.centerIn: parent; name: tile.glyph; size: 19; color: tile.lit ? "white" : tile.accent }
             NumberAnimation on spin { running: tile.busy && mira.motion; from: 0; to: 360; duration: 1500; loops: Animation.Infinite }
         }
         ColumnLayout {

@@ -113,8 +113,12 @@ Item {
                             id: lookCol
                             anchors { left: parent.left; right: parent.right; top: parent.top; margins: 16 }
                             spacing: 10
-                            MiraSwitch { Layout.fillWidth: true; text: mira.s.motion; checked: mira.motion; onToggled: mira.setMotion(checked) }
-                            T { Layout.fillWidth: true; text: mira.s.motion_sub; font.pixelSize: Theme.small; color: Theme.ink3 }
+                            // Her ambient loop. Locked off where Plasma's animations are off or she is drawn on the
+                            // software scene graph (controller visual_tier policy); then the line says why.
+                            MiraSwitch { Layout.fillWidth: true; text: mira.s.motion; checked: mira.motion; enabled: mira.motionLocked !== true
+                                         onToggled: { const want = checked; checked = Qt.binding(function() { return mira.motion }); mira.setMotion(want) } }
+                            T { Layout.fillWidth: true; text: mira.motionLocked === true && mira.motionPolicy ? mira.motionPolicy : mira.s.motion_sub
+                                font.pixelSize: Theme.small; color: Theme.ink3 }
                             MiraSwitch { Layout.fillWidth: true; text: mira.s.screen_look; accent: Theme.amber
                                          checked: mira.screenLook; onToggled: mira.setScreenLook(checked) }
                             T { Layout.fillWidth: true; text: mira.s.screen_look_sub; font.pixelSize: Theme.small; color: Theme.ink3 }
@@ -123,6 +127,58 @@ Item {
                                 T { text: mira.s.lang_label; Layout.fillWidth: true }
                                 PillButton { text: "العربية"; primary: mira.lang === "ar"; implicitHeight: 32; size: Theme.small; onClicked: mira.setLang("ar") }
                                 PillButton { text: "English"; primary: mira.lang === "en"; implicitHeight: 32; size: Theme.small; onClicked: mira.setLang("en") }
+                            }
+                        }
+                    }
+                    // Mira in MoOS: her login start and the ways Plasma reaches her (kde_integration.py).
+                    // mira.kde is null (or absent) when that module could not load: then the card is not shown.
+                    Glass {
+                        Layout.fillWidth: true
+                        objectName: "kdeCard"
+                        visible: !!mira.kde
+                        Layout.preferredHeight: kdeCol.implicitHeight + 32
+                        radius: 18
+                        ColumnLayout {
+                            id: kdeCol
+                            anchors { left: parent.left; right: parent.right; top: parent.top; margins: 16 }
+                            spacing: 10
+                            SectionTitle { icon: "rocket"; text: mira.s.kde_reach_title; accent: Theme.violet }
+                            MiraSwitch {
+                                Layout.fillWidth: true; text: mira.s.kde_autostart; accent: Theme.violet
+                                enabled: mira.kde ? mira.kde.state.autostart_available === true && mira.kde.state.autostart_busy !== true : false
+                                checked: mira.kde ? mira.kde.state.autostart === true : false
+                                // the switch shows the machine's read-back, never only the click
+                                onToggled: {
+                                    const want = checked
+                                    checked = Qt.binding(function() { return mira.kde ? mira.kde.state.autostart === true : false })
+                                    if (mira.kde) mira.kde.setAutostart(want)
+                                }
+                            }
+                            RowLayout {
+                                Layout.fillWidth: true
+                                spacing: 10
+                                T { Layout.fillWidth: true; font.pixelSize: Theme.small
+                                    color: mira.kde && mira.kde.state.autostart_note ? Theme.amber : Theme.ink3
+                                    text: (mira.kde && mira.kde.state.autostart_note) || mira.s.kde_autostart_sub }
+                                // an older start opens her window: offer the fix, never "switch it off and on"
+                                PillButton { visible: mira.kde ? mira.kde.state.autostart_window === true : false
+                                             enabled: mira.kde ? mira.kde.state.autostart_busy !== true : false
+                                             text: mira.s.kde_autostart_fix; implicitHeight: 32; size: Theme.small
+                                             onClicked: if (mira.kde) mira.kde.setAutostart(true) }
+                            }
+                            Rectangle { Layout.fillWidth: true; Layout.preferredHeight: 1; color: Theme.hairline }
+                            Repeater {
+                                model: [{ icon: "keyboard", text: mira.s.kde_reach_keys },
+                                        { icon: "search", text: mira.s.kde_reach_search },
+                                        { icon: "clip", text: mira.s.kde_reach_files },
+                                        { icon: "folder", text: mira.s.kde_reach_folders }]
+                                delegate: RowLayout {
+                                    required property var modelData
+                                    Layout.fillWidth: true
+                                    spacing: 10
+                                    Icon { name: modelData.icon; size: 15; color: Theme.violet; Layout.alignment: Qt.AlignTop; Layout.topMargin: 2 }
+                                    T { Layout.fillWidth: true; text: modelData.text; font.pixelSize: Theme.small; color: Theme.ink2 }
+                                }
                             }
                         }
                     }

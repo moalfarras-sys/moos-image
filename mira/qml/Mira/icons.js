@@ -35,7 +35,7 @@ var paths = {
     "play": "M8 5.5v13l10.5-6.5z",
     "pause": "M8.5 5.5v13 M15.5 5.5v13",
     "user": "M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8z M4.5 20.5a7.5 7.5 0 0 1 15 0",
-    "book": "M4.5 5.5a2 2 0 0 1 2-2h12.5v15H6.5a2 2 0 0 0-2 2z M4.5 20.5v-15 M19 18.5v2H6.5",
+    "book": "M3.5 5c3.5 0 6.5.5 8.5 2 2-1.5 5-2 8.5-2v13.5c-3.5 0-6.5.5-8.5 2-2-1.5-5-2-8.5-2z M12 7v13.5",
     "echo": "M3.5 10c0-1.9 3.8-3.5 8.5-3.5s8.5 1.6 8.5 3.5v4c0 1.9-3.8 3.5-8.5 3.5S3.5 15.9 3.5 14z M3.5 10c0 1.9 3.8 3.5 8.5 3.5s8.5-1.6 8.5-3.5",
     "chevron": "M9.5 6l6 6-6 6",
     "chevron-down": "M6 9.5l6 6 6-6",
@@ -58,5 +58,19 @@ var paths = {
     "wrench": "M14.5 4.2a4.8 4.8 0 0 0-4.2 6.5l-6 6a2.1 2.1 0 0 0 3 3l6-6a4.8 4.8 0 0 0 6.5-4.2l-2.9 2.2-2.8-.6-.6-2.8z",
     "lock": "M7.5 10.5V8a4.5 4.5 0 0 1 9 0v2.5 M5.5 10.5h13v10h-13z M12 14.5v2.5",
     "rocket": "M13.5 15.5l-5-5c2-5 5.5-7.5 11-7.5 0 5.5-2.5 9-6 12.5z M8.5 10.5H5l-1.5 3 4 .5 M13.5 15.5V19l-3 1.5-.5-4 M15.5 8.5h.01 M6 18l-2 2",
-    "package": "M12 3.5l8 4.5v8l-8 4.5-8-4.5V8z M4 8l8 4.5L20 8 M12 12.5v8 M8 5.8l8 4.4"
+    "package": "M12 3.5l8 4.5v8l-8 4.5-8-4.5V8z M4 8l8 4.5L20 8 M12 12.5v8 M8 5.8l8 4.4",
+    "folder": "M3.5 7a2 2 0 0 1 2-2h4l2 2h7a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2z",
+    "search": "M10.5 4a6.5 6.5 0 1 0 0 13 6.5 6.5 0 0 0 0-13z M15.3 15.3L20 20"
 };
+
+// The same line drawing as a self-contained SVG image (a data: URL). Qt Quick's software scene
+// graph ignores a clipping ancestor for a Shape, but clips an image like any other; Icon uses this
+// there, on the same 24×24 grid, with the same colour, weight, caps and joins.
+function svgUrl(d, color, weight, filled) {
+    var paint = "rgb(" + Math.round(color.r * 255) + "," + Math.round(color.g * 255) + "," + Math.round(color.b * 255) + ")";
+    var svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24">'
+            + '<path d="' + d + '" fill="' + (filled ? paint : "none") + '" fill-opacity="' + color.a
+            + '" stroke="' + paint + '" stroke-opacity="' + color.a + '" stroke-width="' + weight
+            + '" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+    return "data:image/svg+xml;utf8," + encodeURIComponent(svg);
+}

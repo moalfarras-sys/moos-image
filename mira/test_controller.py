@@ -242,6 +242,145 @@ class ControllerTest(unittest.TestCase):
         self.assertEqual(len(calls), 1)
         self.assertEqual(self.c.actions.get(0)['stage'], 'ok', 'a finished card keeps its real result')
 
+    def test_a_brain_card_says_what_the_yes_does(self):
+        """The consequence tools.py passes reaches the card: a restart asked for in chat or by voice
+        must warn about unsaved work, not show only its name. A page card keeps its own words."""
+        import asyncio
+        import moai_tools
+        from tools import ToolContext, _moai_tool
+        ctx = ToolContext(emit=lambda *_: None, request_confirmation=self.c.request_confirmation)
+        will = {'category': 'user_confirm', 'consequence_ar': 'يضيع ما لم يُحفظ.',
+                'consequence_en': 'Open apps close and unsaved work is lost.'}
+        with patch.object(moai_tools, 'execute', return_value={'status': 'confirm', 'category': 'user_confirm'}), \
+                patch.object(moai_tools, 'names', return_value={'restart_computer'}), \
+                patch.object(moai_tools, 'meta', return_value=will):
+            asked = asyncio.run(_moai_tool('restart_computer', {}, ctx))
+            self.assertEqual(asked.get('awaiting'), 'owner_confirmation', asked)
+            self.assertTrue(pump(lambda: self.c.actions.count > 0))
+            self.assertIn('يضيع ما لم يُحفظ', self.c.actions.get(0)['detail'])
+            # both languages travel with the card: the English window reads the English sentence
+            self.c.setLang('en')
+            asyncio.run(_moai_tool('restart_computer', {}, ctx))
+            self.assertTrue(pump(lambda: self.c.actions.count > 1))
+            self.assertIn('unsaved work is lost', self.c.actions.get(0)['detail'])
+            self.assertNotIn('يضيع', self.c.actions.get(0)['detail'])
+        # A page's own card writes its sentence into its detail: nothing is added, and never twice.
+        card = self._park()
+        self.assertEqual(self.c.actions.get(self.c.actions.find(card['id']))['detail'], 'VLC')
+        card = self.c.request_confirmation({'kind': 'moai', 'name': 'fix_audio', 'args': {}, 'origin': 'system',
+                                            'detail': 'The page says it', **will})
+        self.assertTrue(pump(lambda: self.c.actions.find(card['id']) >= 0))
+        self.assertEqual(self.c.actions.get(self.c.actions.find(card['id']))['detail'], 'The page says it')
+
+    # ── what the pages hear about the cards they raised ─────────────
+    def _pages_listening(self):
+        heard = {'update': [], 'changed': [], 'finished': []}
+
+        class Broken:                     # one page's bug must not keep the others from hearing
+            def action_update(self, *args):
+                raise RuntimeError('page bug')
+
+        class UpdatePage:                 # the PC and System pages' hook
+            def action_update(self, card_id, stage, summary, output):
+                heard['update'].append((card_id, stage))
+
+        class ChangedPage:                # the Apps and Connect pages' hook
+            def action_changed(self, card_id, name, stage):
+                heard['changed'].append((card_id, name, stage))
+        self.c._pages = {'broken': Broken(), 'update': UpdatePage(), 'changed': ChangedPage()}
+        self.c.actionFinished.connect(lambda name, outcome: heard['finished'].append((name, outcome)))
+        return heard
+
+    def test_every_page_hears_how_its_card_ran(self):
+        import moai_tools
+        heard = self._pages_listening()
+        with patch.object(moai_tools, 'execute', return_value={'status': 'ok', 'output': 'done'}):
+            card = self._park()
+            self.assertTrue(self.c.card_waiting(card['id']))
+            self.c.approveAction(card['id'])
+            self.assertFalse(self.c.card_waiting(card['id']), 'approved: no longer in front of the owner')
+            self.assertTrue(pump(lambda: len(heard['update']) == 2, 3))
+        self.assertEqual(heard['update'], [(card['id'], 'running'), (card['id'], 'ok')])
+        self.assertEqual(heard['changed'], [(card['id'], 'install_app', 'running'), (card['id'], 'install_app', 'ok')])
+        self.assertEqual(heard['finished'], [('install_app', 'ok')])
+        self.assertFalse(self.c.card_waiting(''))
+
+    def test_cancelled_expired_and_still_running_reach_the_pages(self):
+        heard = self._pages_listening()
+        card = self._park()
+        self.c.rejectAction(card['id'])                                   # his Cancel
+        self.assertEqual(heard['update'][-1], (card['id'], 'cancelled'))
+        self.assertEqual(heard['changed'][-1], (card['id'], 'install_app', 'cancelled'))
+        card = self._park('fix_audio', {})                                # nobody answered in time
+        self.c.actions.update_key(card['id'], expires=1)
+        self.c.pending._items[card['id']]['expires'] = 0
+        self.c._tick_actions()
+        self.assertEqual(heard['update'][-1], (card['id'], 'expired'))
+        card = self._park('fix_audio', {})                                # an approval that came too late
+        self.c.pending._items[card['id']]['expires'] = 0
+        self.c.approveAction(card['id'])
+        self.assertEqual(heard['update'][-1], (card['id'], 'expired'))
+        with patch.object(self.c, '_run_brain'):                          # his typed «لا»
+            card = self._park('fix_audio', {})
+            self.c.send('لا')
+        self.assertEqual(heard['update'][-1], (card['id'], 'cancelled'))
+        self.assertEqual(heard['finished'], [('install_app', 'cancelled'), ('fix_audio', 'expired'),
+                                             ('fix_audio', 'expired'), ('fix_audio', 'cancelled')])
+        # A job that outlived its wait: the pages that follow every stage hear it; the others and the
+        # Workbench keep following on their own (nothing will report its end).
+        card = self._park('fix_audio', {})
+        with patch.object(self.c.worker, 'run'):
+            self.c.approveAction(card['id'])
+        changed, finished = len(heard['changed']), len(heard['finished'])
+        self.c._on_action_done(card['id'], {'status': 'pending', 'name': 'fix_audio'})
+        self.assertEqual(heard['update'][-1], (card['id'], 'still-running'))
+        self.assertEqual((len(heard['changed']), len(heard['finished'])), (changed, finished))
+        # A late Cancel (a notification button) never reports a running job as cancelled.
+        self.c.rejectAction(card['id'])
+        self.assertEqual(heard['update'][-1], (card['id'], 'still-running'))
+        self.assertEqual(self.c.actions.get(self.c.actions.find(card['id']))['stage'], 'running')
+
+    def test_a_job_that_failed_on_the_worker_is_still_named(self):
+        heard = self._pages_listening()
+        card = self._park('fix_audio', {})
+        with patch.object(self.c.worker, 'run'):
+            self.c.approveAction(card['id'])
+        self.c._on_action_done(card['id'], {'status': 'error', 'error': 'TimeoutError'})
+        self.assertEqual(heard['changed'][-1], (card['id'], 'fix_audio', 'error'))
+        self.assertEqual(heard['finished'], [('fix_audio', 'error')])
+
+    def test_a_typed_no_also_denies_the_agents_waiting_requests(self):
+        self.c.actions.insert_first({'aid': 'agent-x', 'kind': 'agent', 'name': 'agent_run', 'title': 't', 'detail': '',
+                                     'reason': '', 'stage': 'ask', 'category': 'agent_confirm', 'summary': '',
+                                     'output': '', 'started': 0, 'expires': 0, 'origin': 'agent'})
+        with patch.object(self.c, '_answer_agent') as answer, patch.object(self.c, '_run_brain') as brain:
+            card = self._park()
+            self.c.send('لا')
+        answer.assert_called_once_with('agent-x', 'deny')
+        brain.assert_not_called()
+        self.assertEqual(self.c.actions.get(self.c.actions.find(card['id']))['stage'], 'cancelled')
+
+    def test_a_close_card_acts_on_the_exact_window(self):
+        import desktop_tools
+        card = self.c.request_confirmation({'kind': 'desktop', 'name': 'close_window', 'origin': 'pc', 'detail': 'x',
+                                            'args': {'query': '~ : bash — Konsole', 'id': '{b-2}'}})
+        item = self.c.pending.get(card['id'])
+        self.assertEqual(item['payload']['args'], {'query': '~ : bash — Konsole', 'id': '{b-2}'})
+        bad = self.c.request_confirmation({'kind': 'desktop', 'name': 'close_window',
+                                           'args': {'query': 'Konsole', 'id': '"); workspace.x(); ("'}})
+        self.assertEqual(self.c.pending.get(bad['id'])['payload']['args'], {'query': 'Konsole'})
+        with patch.object(desktop_tools, 'close_window_id', return_value={'status': 'ok', 'title': 't'}) as by_id, \
+                patch.object(desktop_tools, 'close_window') as by_title:
+            out = self.c._execute_action(item['payload'])
+        by_id.assert_called_once_with('{b-2}', '~ : bash — Konsole')
+        by_title.assert_not_called()
+        self.assertEqual((out['status'], out['kind'], out['name']), ('ok', 'desktop', 'close_window'))
+        # a card that names a window by id never falls back to a title another window may share
+        with patch.object(desktop_tools, 'close_window_id', None), patch.object(desktop_tools, 'close_window') as by_title:
+            out = self.c._execute_action(item['payload'])
+        by_title.assert_not_called()
+        self.assertEqual(out['status'], 'error')
+
     def test_only_known_moai_tools_can_be_parked(self):
         self.assertIsNone(self.c.request_confirmation({'kind': 'moai', 'name': 'rm_rf', 'args': {}}))
         self.assertIsNone(self.c.request_confirmation({'kind': 'command', 'name': 'install_app', 'args': {}}))
@@ -355,6 +494,84 @@ class ControllerTest(unittest.TestCase):
                 self.assertEqual(json.loads(path.read_text())['api_key'], 'A' * 39)
                 self.assertTrue(pump(lambda: self.c.brainKey == 'ok', 2))
 
+    def test_the_key_test_asks_the_model_typed_chat_uses(self):
+        with patch('brain.probe_gemini', return_value={'status': 'ok', 'model': 'm', 'elapsed_ms': 5}) as probe:
+            self.assertEqual(self.c._test_gemini()['status'], 'ok')
+        probe.assert_called_once_with()
+
+    def test_a_failed_key_gives_the_page_its_reason_and_the_owner_words(self):
+        import brain
+        heard = []
+
+        class BrainPage:
+            def keyChecked(self, state, reason):
+                heard.append((state, reason))
+        self.c._pages['brain'] = BrainPage()
+        self.c._on_work('brain_key', {'status': 'error', 'model': 'm', 'reason': 'auth',
+                                      'error': 'API key not valid: AIzaSyEXAMPLE'})
+        self.assertEqual(heard, [('failed', 'auth')], 'the page hears the reason before QML does')
+        self.assertEqual(self.c.brainKey, 'failed')
+        self.assertEqual(self.toasts[-1], ('error', self.c.s['brain_key_failed'] + ' · ' + brain.REASONS['auth'][0]))
+        self.c._on_work('brain_key', {'status': 'error', 'error': 'ConnectionError: AIzaSyEXAMPLE'})
+        self.assertEqual(heard[-1], ('failed', ''), 'no classified reason: the page runs its own test')
+        self.assertEqual(self.toasts[-1], ('error', self.c.s['brain_key_failed']), "the provider's text never shows")
+        self.c._on_work('brain_key', {'status': 'ok', 'model': 'm'})
+        self.assertEqual(heard[-1], ('ok', ''))
+
+    # ── what the conversation shows ─────────────────────────────────
+    def test_the_english_window_shows_the_english_action_row(self):
+        event = json.dumps({'name': 'set_volume', 'status': 'ok', 'summary': 'صوت الكمبيوتر · تم وتأكدت',
+                            'summary_en': 'Computer volume · done and confirmed'}, ensure_ascii=False)
+        self.voice('tool', event)
+        self.assertEqual(self.c.chat.rows()[-1]['text'], 'صوت الكمبيوتر · تم وتأكدت')
+        self.c.setLang('en')
+        self.voice('tool', event)
+        self.assertEqual(self.c.chat.rows()[-1]['text'], 'Computer volume · done and confirmed')
+        self.voice('tool', json.dumps({'name': 'x', 'status': 'ok', 'summary': 'عربي فقط'}, ensure_ascii=False))
+        self.assertEqual(self.c.chat.rows()[-1]['text'], 'عربي فقط', 'no English half: the one the tool wrote')
+        self.voice('tool', '[1, 2]')                  # not an object: shown as its text, never a crash
+        self.assertEqual(self.c.chat.rows()[-1]['text'], '[1, 2]')
+
+    def test_opening_another_chat_asks_each_voice_to_forget_its_context(self):
+        from types import SimpleNamespace
+        import live_voice
+        self.assertTrue(callable(getattr(live_voice.LiveVoice, 'forget_context', None)),
+                        'the real voice must offer it, or opening a chat would silently keep the old context')
+        forgot = []
+        self.c.bridge.voice = SimpleNamespace(forget_context=lambda: forgot.append('echo'))
+        self.c.desk = SimpleNamespace(voice=SimpleNamespace(forget_context=lambda: forgot.append('desk')))
+        self.c.reload_chat()
+        self.assertEqual(forgot, ['echo', 'desk'])
+        # A voice without that method is left alone: its session's fields belong to the voice thread.
+        link = SimpleNamespace(dirty=False, idle_closed=False)
+        self.c.bridge.voice, self.c.desk = SimpleNamespace(link=link), None
+        self.c.reload_chat()
+        self.assertEqual((link.dirty, link.idle_closed), (False, False))
+
+    def test_a_started_agent_task_refreshes_the_workbench_and_reads_approvals_fast(self):
+        loads = []
+
+        class Workbench:
+            def loadTasks(self):
+                loads.append('tasks')
+
+            def refresh(self):
+                loads.append('refresh')
+        self.c._pages['workbench'] = Workbench()
+        with patch.object(self.c.inbox, 'busy') as busy, patch.object(self.c.inbox, 'poll') as poll, \
+                patch.object(ctl.QTimer, 'singleShot') as later:
+            self.voice('workbench', json.dumps({'task': 'task-7f3a', 'status': 'running'}))
+            self.voice('workbench', json.dumps({'task': '../x y', 'status': 'running'}))
+            self.voice('workbench', 'not json')
+            self.assertEqual(loads, ['tasks', 'tasks', 'tasks'])
+            busy.assert_called_once_with(True, 'task:task-7f3a')
+            poll.assert_called_once_with()
+            wait, context, release = later.call_args[0]
+            self.assertEqual(wait, ctl.Controller.AGENT_TASK_WATCH_MS, 'the fast reads are bounded')
+            self.assertIs(context, self.c.inbox, 'the release dies with the inbox, never after it')
+            release()
+            busy.assert_called_with(False, 'task:task-7f3a')
+
     # ── preferences ─────────────────────────────────────────────────
     def test_preferences_persist(self):
         self.c.setFace('holo')
@@ -367,6 +584,40 @@ class ControllerTest(unittest.TestCase):
         self.assertEqual(again.s['send'], 'Send')
         again.toggleFace()
         self.assertEqual(again.faceStyle, 'rose')
+
+    # ── how much she moves (visual_tier) ────────────────────────────
+    def test_motion_follows_the_visual_policy_strongest_reason_first(self):
+        import visual_tier as vt
+        cases = [   # policy, stored switch, then motion, motionLocked, motionScale
+            (vt.Policy('off', 'off', 'flagship'), True, False, True, 0.0),
+            (vt.Policy('still', 'software-scene-graph', 'flagship', True, None, True), True, False, True, 1.0),
+            (vt.Policy('still', 'tier', 'essential'), None, False, False, 0.4),
+            (vt.Policy('still', 'tier', 'essential'), True, True, False, 0.4),
+            (vt.Policy('still', 'software-renderer', 'flagship', software=True), None, False, False, 1.0),
+            (vt.Policy('full', 'tier', 'flagship', factor=0.75), False, False, False, 0.75),
+            (vt.Policy('full', 'default'), None, True, False, 1.0),
+        ]
+        for policy, stored, motion, locked, scale in cases:
+            with self.subTest(reason=policy.reason, stored=stored):
+                QSettings('MoOS', 'Mira').clear()
+                if stored is not None:
+                    QSettings('MoOS', 'Mira').setValue('visual_motion', stored)
+                with patch.object(vt, 'policy', return_value=policy):
+                    c = ctl.Controller(bridge_class=FakeBridge)
+                self.assertEqual((c.motion, c.motionLocked, c.motionScale), (motion, locked, scale))
+
+    def test_a_locked_motion_switch_is_not_stored_and_says_why(self):
+        import visual_tier as vt
+        with patch.object(vt, 'policy', return_value=vt.Policy('still', 'software-scene-graph', software=True)):
+            c = ctl.Controller(bridge_class=FakeBridge)
+        seen = []
+        c.motionChanged.connect(lambda: seen.append(c.motion))
+        c.setMotion(True)
+        self.assertEqual(seen, [False], 'the switch is told to return to off')
+        self.assertFalse(QSettings('MoOS', 'Mira').contains('visual_motion'))
+        self.assertIn('ساكنة', c.motionPolicy)
+        c.setLang('en')
+        self.assertIn('still', c.motionPolicy)
 
     def test_invalid_city_is_refused(self):
         self.c.saveCity('Berlin; rm -rf')
