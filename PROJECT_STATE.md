@@ -3,8 +3,8 @@
 **2026-09-30 release readback:** `main` is `cb61e592` (PR #181); signed `.959` passed
 build `36693894196`, three QCOW2 boots, ISO `36699338568`, and x86 promotion
 `36703620410`. ARM build, boot and promotion passed in `36681324601`. The NVIDIA
-station still boots signed `.952`, with `.945` for rollback; `.959` is published
-but not yet staged. Later scheduled ARM build `36721156819` failed its one-updater
+station still boots signed `.952`, with `.945` for rollback; `.959` is staged at
+`sha256:cbc8c0b8…` and needs a reboot. Later scheduled ARM build `36721156819` failed its one-updater
 gate: a changed base added `timers.target.wants/bootc-fetch-apply-updates.timer`.
 The scrub fix is source work until a new ARM image proves it.
 
@@ -14,7 +14,7 @@ The scrub fix is source work until a new ARM image proves it.
   `36693894196`, QCOW2 `36699322130`/`36699326777`/`36699334133`, offline ISO
   `36699338568`, x86 promotion `36703620410`; ARM build/boot/promotion `36681324601`.
   All passed for that exact source and its pinned artifacts. The installed NVIDIA
-  machine is still on `.952` until the newer digest is staged and rebooted.
+  machine is still on `.952` until the staged digest is booted and checked.
 - Remote v46 is merged source. Real phone/WAN endurance and installed v46 remain open.
 - The two-icon design approval remains pending. A historical post-`.945` health read was
   55/0, but five old `drkonqi-coredump-processor` timeouts appeared later; review the

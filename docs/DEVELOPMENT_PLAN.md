@@ -8,8 +8,8 @@ Done and measured: the v4 GPU interface and a single voice/text brain. An owner-
 - the System centre, desktop tools, reminders, routines, and voice through the PC when no Echo is paired;
 - Mo AI's free cloud brain as the tool loop without a Gemini key.
 
-On the station she wears Mo AI's launcher, icon and Meta+Space. PRs #177–#181 are merged into `main`; `.959` passed signed x86 candidate, three exact-digest QCOW2 boots, offline ISO and promotion, plus the ARM build/boot/promotion. The station still needs to stage `.959`, reboot and prove the installed experience. A later scheduled ARM build failed because the mutable base added a second wants symlink for the competing update timer; its scrub fix awaits image proof. Open, in order:
-1. Stage `.959` through `moai-do update`, reboot, and run the installed assistant and post-update checks.
+On the station she wears Mo AI's launcher, icon and Meta+Space. PRs #177–#181 are merged into `main`; `.959` passed signed x86 candidate, three exact-digest QCOW2 boots, offline ISO and promotion, plus the ARM build/boot/promotion. The station staged `.959` through `moai-do update` and still needs to reboot and prove the installed experience. A later scheduled ARM build failed because the mutable base added a second wants symlink for the competing update timer; its scrub fix awaits image proof. Open, in order:
+1. Reboot into `.959`, then run the installed assistant and post-update checks.
 2. Prove the later ARM base's new timer scrub in a fresh image build and booted disk.
 3. Done without an inbound port: `mira_ar_v2` runs at 0.65 beside the proven model, and announcements are spoken on the Echo. Still owed: the owner's own bare «ميرا» hit rate and false wakes per hour with the pair.
 4. P3.9: the owner decision was recorded on 2026-09-30 in `mira/control-centre-20260930`. A desktop tool that runs model-written commands is still unbuilt; design and safety review remain open.
