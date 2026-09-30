@@ -1,6 +1,6 @@
 # MoOS development plan
 
-### Mira current acceptance work (2026-09-29)
+### Mira current acceptance work (2026-09-30)
 
 Done and measured: the v4 GPU interface and a single voice/text brain. An owner-spoken Arabic wake led to a multi-turn conversation with sub-second replies. The Echo client is supervised by init and survived a reboot. Handoff works both ways. Research, opt-in screen look and the Tailscale phone companion are in. **Mo AI is merged into Mira:**
 - every Mo AI tool by name;
@@ -8,11 +8,11 @@ Done and measured: the v4 GPU interface and a single voice/text brain. An owner-
 - the System centre, desktop tools, reminders, routines, and voice through the PC when no Echo is paired;
 - Mo AI's free cloud brain as the tool loop without a Gemini key.
 
-On the station she wears Mo AI's launcher, icon and Meta+Space. On branch `mira/neural-os-v4` she ships in the x86 image: the `mira-build` stage runs 188 tests, and build.sh gates her. **A local generic build passed with every gate (`localhost/moos:latest`, 2026-09-29).** Open, in order:
-1. PR #177 (all PR gates green, x86 and ARM builds included). Then merge and run a signed candidate with QCOW2/ISO proofs, including the ISO open/close proof of the assistant.
-2. ARM: add the same stage to `Containerfile.arm`/`build-arm.sh` (the Oracle agent's files). Until then ARM keeps the QML app under the Mira launcher name.
+On the station she wears Mo AI's launcher, icon and Meta+Space. PRs #177–#180 are merged into `main`; the Mira build stages and gates are present on x86 and ARM. The 2026-09-30 signed candidate attempt failed before image assembly because the Remote controller dependency audit found a high-severity `brace-expansion` version. The lockfile correction is under review. Open, in order:
+1. Pass the corrected source gates, build one signed candidate, then complete exact-digest QCOW2/ISO proofs, including the ISO open/close proof of the assistant.
+2. Prove the ARM image and its booted-disk Mira start from the same source revision.
 3. Done without an inbound port: `mira_ar_v2` runs at 0.65 beside the proven model, and announcements are spoken on the Echo. Still owed: the owner's own bare «ميرا» hit rate and false wakes per hour with the pair.
-4. P3.9, only if the owner confirms in a session: a `run_command` tool behind the same owner card.
+4. P3.9: the owner decision was recorded on 2026-09-30 in `mira/control-centre-20260930`. A desktop tool that runs model-written commands is still unbuilt; design and safety review remain open.
 5. Measure a power-cut restart. Host Home Assistant on an always-on machine for PC-off home control.
 
 Keep both faces, Beamformer and the Mira-only wake selection `[mira_ar_experimental]` (the owner's choice). Only one ESPHome API client may be connected while voice is tested, because echod routes the pipeline to the newest client.

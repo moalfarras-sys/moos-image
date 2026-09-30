@@ -1,21 +1,21 @@
-# MoOS current state — measured 2026-09-28
+# MoOS current state — measured 2026-09-30
 
-**Mira, measured 2026-09-29 (history in `mira/HISTORY.md`):** `mira/` is a Qt Quick GPU interface with both original faces, and she is now the MoOS assistant: Mo AI's app became Mira and Mo AI's services are her executor. The brain reaches all 50 Mo AI tools by name, plus research, home, time, reminders, routines, media, files and windows. It uses Gemini, or Mo AI's free cloud brain without a key. Every system change waits on an owner card: a button, a KDE notification, the paired phone, or his own «نعم» in a later turn. The job is followed to its end, and the password still goes through Polkit. Voice runs on the Echo, or through the PC when none is paired. On the station a per-user takeover gives her Mo AI's launcher, icon, app id and Meta+Space. On branch `mira/neural-os-v4` the x86 image ships her: the `mira-build` stage (sha256-pinned lock, 188 tests, an offscreen window), `/usr/lib/mira`, `moai` → Mira, the Mira launcher and settings page, and gates in build.sh. **The local generic build passed every gate.** Verified live: an owner-spoken Arabic conversation, reboot survival 43 s, handoff 5 s and 2 s, and a real approval round trip. The Echo now takes wake models and spoken lines through its own signed client, not an inbound port: `mira_ar_v2` runs at 0.65 beside the proven model, and reminders are spoken on the Echo. Not claimed: a signed image with Mira (PR #177, gates green), Mira on ARM, P3.9, a power-cut test, or PC-off home control. See `mira/README.md`. **Mira pages batch, integrated 2026-09-30 on `mira/neural-os-v4` (source evidence only):** the six pages, the agent-approval inbox, chat history, the Plasma/Dolphin integration, the ARM software-face path and the new Mo AI tools are merged into one tree. Measured on the station's Mira venv: the full Mira suite twice (922 tests, only `test_local_wake` fails for its absent wake trainer), the image's 21-module list in one process (901 OK), `just check` exit 0, and review renders of every scene in Arabic and English, 1024×700 and the software scene graph. **Not built and not run live:** the Tier 1 changes (both Containerfiles' suite lists and staged-tree gates, `build.sh`/`build-arm.sh` Mira checks, `mira.service` verify) need a local `just build` and the ARM stage; KWin-id window actions, the `org.moos.Mira` D-Bus door, `--background`, the new `moos://` routes and the ARM runtime start are unproven on a session.
+**2026-09-30 readback:** The NVIDIA station boots signed `.952` (`sha256:91c9ce7b…`);
+signed `.945` remains for rollback. PRs #177–#180 are in `origin/main` (`20bed351`).
+Candidate run `36677635058` failed in all three x86 editions at the Remote dependency
+audit before image assembly. The integration branch preserves both remaining local
+tips and updates `brace-expansion` and `fast-uri`. `npm ci`, audit, typecheck and
+controller build pass locally with zero advisories. A new signed candidate and boot
+proofs remain required.
+
+**Mira source, 2026-09-30:** PRs #177–#180 integrate her six pages, approvals inbox, chat history, KDE entry, new Mo AI actions and ARM packaging. The station's earlier user install proved Arabic voice, a live approval and the page renders; the new signed x86/ARM images and installed behavior remain unproved. See `mira/README.md`.
 ## Source and release truth
 - **Proven production source is `55753999`, `44.20260927.952`**: signed x86 build
   `36318637595`, QCOW2 `36320028679`/`36320031215`/`36320033794`, offline ISO
   `36320036325`, x86 promotion `36322617895`; ARM build/boot/promotion `36318521233`.
   All passed. #173/#174 merged; THEME_REV 95 rounds the solid dock and gives the Hub
   finite motion. Remote v45 rejects frozen-mtime cache validators.
-- **The NVIDIA station boots signed `.945`**, digest `sha256:b09cdc48…`, with signed
-  `.938` retained. `.952` digest `sha256:91c9ce7b…` is **staged, not booted** as of
-  2026-09-28. Do not call its dock, Hub or Remote v45 installed proof before reboot.
-- **Remote v46 is topic-branch source only:** Settings/keyboard Copy now bridges PC text
-  to the device clipboard; Paste transfers device text before sending the shortcut and
-  refuses stale paste on failure. Auto reseeds quality after manual Data Saver,
-  and a phone's short edge now determines its initial picture. Typecheck, source tests,
-  Chromium integration and visual captures pass.
-  Real phone/WAN endurance and installed v46 remain open.
+- Remote v46 is merged source. Real phone/WAN endurance and installed v46 remain open.
 - The two-icon design approval remains pending. A historical post-`.945` health read was
   55/0, but five old `drkonqi-coredump-processor` timeouts appeared later; review the
   post-reboot health before describing the workstation as clear.
