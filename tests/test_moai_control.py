@@ -745,6 +745,46 @@ class AgentDetectionTests(unittest.TestCase):
                 self.assertFalse(command_exists("moos-definitely-not-installed"))
 
 
+class PhoneLinkDetectionTests(unittest.TestCase):
+    """/scan's compatibility.kdeconnect is read from the machine: the image's own phone link.
+
+    It used to be `"org.kde.kdeconnect" in <installed Flatpaks>`, an id no store carries, so
+    every machine that ships the phone link (the x86 editions carry it as the distribution's
+    package, the menu's "Phone") read "not set up" and was offered an install that could not
+    exist. It now reads the entry in the XDG data dirs, or the program."""
+
+    def check(self, *, entry_in=None, program=False):
+        with tempfile.TemporaryDirectory() as home:
+            data_home, system = Path(home) / "share", Path(home) / "system-share"
+            if entry_in is not None:
+                apps = (data_home if entry_in == "home" else system) / "applications"
+                apps.mkdir(parents=True)
+                (apps / "org.kde.kdeconnect.app.desktop").write_text("[Desktop Entry]\n")
+            bin_dir = Path(home) / "bin"
+            bin_dir.mkdir()
+            if program:
+                tool = bin_dir / "kdeconnect-app"
+                tool.write_text("#!/bin/sh\n")
+                tool.chmod(0o755)
+            control = load_control(home)
+            with mock.patch.dict(os.environ, {"HOME": home, "PATH": str(bin_dir),
+                                              "XDG_DATA_HOME": str(data_home),
+                                              "XDG_DATA_DIRS": str(system)}, clear=False):
+                return control["phone_link_installed"]()
+
+    def test_the_images_phone_link_is_seen(self):
+        self.assertTrue(self.check(entry_in="system"))
+        self.assertTrue(self.check(entry_in="home"))
+        self.assertTrue(self.check(program=True))
+
+    def test_an_edition_without_it_says_so(self):
+        self.assertFalse(self.check())
+
+    def test_the_scan_no_longer_asks_the_store(self):
+        source = CONTROL.read_text(encoding="utf-8")
+        self.assertIn('"kdeconnect": phone_link_installed()', source)
+        self.assertNotIn('"org.kde.kdeconnect" in have', source)
+
 
 class ToolResultsForTheModelTests(unittest.TestCase):
     """What a moai-do tool prints reaches a CLOUD model, so it is redacted first."""

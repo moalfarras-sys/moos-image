@@ -12,7 +12,7 @@ Slider {
         color: Qt.rgba(1, 1, 1, 0.09)
         opacity: sl.enabled ? 1 : 0.4
         Rectangle {
-            width: sl.visualPosition * parent.width; height: parent.height; radius: 3
+            width: sl.position * parent.width; height: parent.height; radius: 3
             x: sl.mirrored ? parent.width - width : 0
             gradient: Gradient { orientation: Gradient.Horizontal
                 GradientStop { position: 0; color: Qt.rgba(sl.accent.r, sl.accent.g, sl.accent.b, 0.55) }

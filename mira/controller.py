@@ -16,6 +16,7 @@ from PySide6.QtCore import QObject, Property, QSettings, QTimer, QUrl, Signal, S
 from PySide6.QtGui import QDesktopServices, QGuiApplication
 
 import i18n
+import visual_tier
 from models import DictListModel
 
 ROOT = Path(__file__).resolve().parent
@@ -31,9 +32,17 @@ IMPROVED_CUTOFF = 0.65             # mira_ar_v2-report.md: lowest cutoff without
 FALLBACK_WAKE = ['mira_ar_experimental']   # Mira only, by the owner's choice (2026-09-29)
 # Desktop changes that wait for the owner (desktop_tools; not Mo AI's executor).
 DESKTOP_CHANGES = {'close_window': ('إغلاق نافذة', 'Close a window')}
+WINDOW_ID = re.compile(r'[A-Za-z0-9{}\-]{1,64}')     # KWin's internalId (a UUID in braces)
+# How a card moves on, as the pages hear it (_tell_pages). 'still-running': the job outlived
+# JOB_LIMIT_S; it goes on, and nothing will report its end.
+CARD_STAGES = ('running', 'ok', 'error', 'cancelled', 'expired', 'still-running')
+CARD_ENDS = ('ok', 'error', 'cancelled', 'expired')
 # Mo AI's launcher pages (`moai --panel NAME`) and where they live in Mira now.
-PANELS = {'device': 'system', 'apps': 'system', 'compat': 'system', 'dev': 'system', 'system': 'system',
-          'remote': 'settings', 'settings': 'settings', 'home': 'home', 'computer': 'computer', 'chat': ''}
+PANELS = {'device': 'system', 'health': 'system', 'updates': 'system', 'system': 'system',
+          'apps': 'apps', 'compat': 'apps', 'store': 'apps',
+          'dev': 'workbench', 'agent': 'workbench', 'workbench': 'workbench', 'terminal': 'workbench',
+          'remote': 'connect', 'connect': 'connect', 'phone': 'connect',
+          'brain': 'brain', 'settings': 'settings', 'home': 'home', 'computer': 'pc', 'pc': 'pc', 'chat': ''}
 SETTINGS_PAGES = ('update', 'audio', 'network', 'bluetooth', 'display', 'assistant', 'remote', 'about', 'storage',
                   'default-apps', 'notifications', 'energy')
 CONFIRM_TTL = 180                           # seconds a system change waits for the owner
@@ -100,6 +109,8 @@ class Controller(QObject):
     remindersChanged = Signal()
     showSheet = Signal(str)           # a launcher asked for a page ('' = the conversation)
     prefill = Signal(str)             # a launcher's question, put in the composer (never sent for him)
+    # A parked or running Mo AI action ended: (tool name, 'ok' | 'error' | 'cancelled' | 'expired').
+    actionFinished = Signal(str, str)
     _confirm_request = Signal(str)    # a tool thread parks a system change; shown on the Qt thread
     _notify_answer = Signal(str, str) # a desktop notification's button (action id, 'approve'/'reject')
 
@@ -112,7 +123,10 @@ class Controller(QObject):
         self._face = face if face in ('rose', 'holo') else 'rose'
         voice = self.settings.value('voice_name', 'Aoede')
         self._voice_name = voice if voice in ('Aoede', 'Kore', 'Leda') else 'Aoede'
-        self._motion = self.settings.value('visual_motion', True, type=bool) and not self._plasma_reduced_motion()
+        # How much she moves here: MoOS's visual tier, Plasma's animation speed and how she is drawn
+        # (visual_tier.py; read once, it never probes the machine).
+        self._visual = visual_tier.policy()
+        self._motion = self._initial_motion()
         self._local_wake = self.settings.value('local_wake_enabled', False, type=bool)
         self._city = str(self.settings.value('weather_city', '') or '')
         self._s = i18n.table(self._lang)
@@ -159,7 +173,7 @@ class Controller(QObject):
         self._brain_key = self._gemini_state()   # 'set' | 'missing' | 'testing' | 'ok' | 'failed'
         self.desk = None                          # voice through this PC when no Echo is paired
 
-        self.chat = DictListModel(['role', 'text', 'time', 'status', 'title', 'tool'])
+        self.chat = DictListModel(['role', 'text', 'time', 'status', 'title', 'tool', 'day'])
         self.devices = DictListModel(['entity_id', 'name', 'domain', 'state', 'available', 'is_on', 'brightness',
                                       'color_capable', 'dimmable', 'rgb', 'volume', 'volume_capable',
                                       'play_capable', 'pause_capable', 'on_capable', 'off_capable', 'group'],
@@ -205,9 +219,49 @@ class Controller(QObject):
         self.companion_service.changed.connect(self._on_companion_changed)
         self.companion_service.notice.connect(self.toast)
 
+        # The Mo AI agent's own approvals (its project writes and sandboxed commands wait 120 s for
+        # the owner): each one becomes a card here; only the owner's button answers it (inbox.py).
+        from inbox import AgentInbox
+        self.inbox = AgentInbox(self)
+        self.inbox.arrived.connect(self._on_agent_arrived)
+        self.inbox.gone.connect(self._on_agent_gone)
+        self.inbox.resolved.connect(self._on_agent_resolved)
+
+        # The pages of the window (pages/*.py), each its own QObject: mira.<name>Page in QML.
+        self._pages = {}
+        try:
+            import pages
+            for module in pages.modules():
+                page_class = getattr(module, 'PAGE', None)
+                if page_class is not None:
+                    self._pages[module.__name__.rsplit('.', 1)[-1]] = page_class(self, self)
+        except Exception as exc:   # a broken page must not take the whole assistant down
+            print('Mira pages:', type(exc).__name__, exc, flush=True)
+
+        # The conversation's chats (chat_ui.ChatHistory): mira.chatHistory in QML.
+        try:
+            from chat_ui import ChatHistory
+            self._chat_history = ChatHistory(self, self)
+        except Exception as exc:   # without it the panel keeps its plain conversation
+            self._chat_history = None
+            print('Mira chat history:', type(exc).__name__, exc, flush=True)
+
+        # Mira inside Plasma (kde_integration.py): login start, Dolphin's requests, the D-Bus door.
+        # Like a page, it must never take the whole assistant down: QML guards `mira.kde` for null.
+        self._kde = None
+        try:
+            import kde_integration
+            self._kde = kde_integration.KdeIntegration(self, self)
+            self._kde.projectAdded.connect(self._on_project_added)
+        except Exception as exc:
+            print('Mira KDE integration:', type(exc).__name__, exc, flush=True)
+
         self._confirm_request.connect(self._show_confirmation)
+        for signal in (self.actions.rowsInserted, self.actions.rowsRemoved, self.actions.dataChanged, self.actions.modelReset):
+            signal.connect(lambda *args: self.inboxChanged.emit())
         self._notify_answer.connect(self._on_notify_answer)
         self.action_timer = QTimer(self, interval=1000, timeout=self._tick_actions)
+        self._action_threads = {}                 # approved job → the chat it was approved in
         self.reminder_timer = QTimer(self, interval=10000, timeout=self._check_reminders)
         try:  # the typed brain asks the owner through the same cards
             import brain
@@ -225,19 +279,25 @@ class Controller(QObject):
             self._wake['source'] = self._wake['sources'][0]
         self.settingsChanged.emit()
         if TEST_MODE:
+            if self._kde is not None:
+                self._kde.review()
             return
         QTimer.singleShot(800, self.refreshWeather)
+        if self._kde is not None:
+            QTimer.singleShot(3000, self._kde.refresh)
         QTimer.singleShot(1200, self.refreshHome)
         QTimer.singleShot(1600, lambda: self.runPc('get_system_status'))
         QTimer.singleShot(2400, self.refreshApps)
         self.weather_timer.start()
         self.home_timer.start()
         self.reminder_timer.start()
+        self.inbox.start()
         QTimer.singleShot(900, self._check_reminders)
         if self._local_wake:
             self.start_local_wake()
 
     def shutdown(self):
+        self.inbox.stop()
         if self.desk is not None:
             self.desk.shutdown()
         for action_id in list(self._notifications):
@@ -256,6 +316,12 @@ class Controller(QObject):
     lang = _prop(str, '_lang', langChanged)
     s = _prop('QVariantMap', '_s', langChanged)
     motion = _prop(bool, '_motion', motionChanged)
+    # A transition's speed: Plasma's own (AnimationDurationFactor), 0 only when the owner turned
+    # animations off. Independent of `motion`, which is her ambient loop alone.
+    motionScale = Property(float, lambda self: self._visual.scale, constant=True)
+    # True where Mira's Motion switch cannot turn the ambient loop on; motionPolicy says why.
+    motionLocked = Property(bool, lambda self: self._motion_locked(), constant=True)
+    motionPolicy = Property(str, lambda self: self._visual.explain(self._lang), notify=langChanged)
     services = _prop('QVariantMap', '_services', servicesChanged)
     weather = _prop('QVariantMap', '_weather', weatherChanged)
     home = _prop('QVariantMap', '_home', homeChanged)
@@ -281,6 +347,60 @@ class Controller(QObject):
     deviceModel = Property(QObject, lambda self: self.devices, constant=True)
     companion = _prop('QVariantMap', '_companion', companionChanged)
     system = _prop('QVariantMap', '_system', systemChanged)
+    inboxChanged = Signal()
+
+    def _inbox_count(self):
+        return sum(1 for row in self.actions.rows() if row.get('stage') == 'ask')
+    inboxCount = Property(int, _inbox_count, notify=inboxChanged)
+    systemBadge = Property(str, lambda self: getattr(self, '_system_badge', ''), notify=inboxChanged)
+
+    pcPage = Property(QObject, lambda self: self._pages.get('pc'), constant=True)
+    appsPage = Property(QObject, lambda self: self._pages.get('apps'), constant=True)
+    systemPage = Property(QObject, lambda self: self._pages.get('system'), constant=True)
+    workbenchPage = Property(QObject, lambda self: self._pages.get('workbench'), constant=True)
+    connectPage = Property(QObject, lambda self: self._pages.get('connect'), constant=True)
+    brainPage = Property(QObject, lambda self: self._pages.get('brain'), constant=True)
+    agentInbox = Property(QObject, lambda self: self.inbox, constant=True)
+    chatHistory = Property(QObject, lambda self: getattr(self, '_chat_history', None), constant=True)
+    kde = Property(QObject, lambda self: self._kde, constant=True)       # QML: mira.kde (null if absent)
+
+    def _on_project_added(self, project_id):
+        # Dolphin's «Add to Mira as a project» was confirmed by moai-agent-api: the Workbench shows it.
+        page = self._pages.get('workbench')
+        if page is not None:
+            page.refresh()
+
+    AGENT_TASK_WATCH_MS = 5 * 60 * 1000
+
+    def _on_agent_task(self, text):
+        """Mira started a tracked Mo AI agent task (tools._moai_project_task emits ('workbench',
+        {"task": id, "status": …})): the Workbench lists it, and the approvals are read fast at once.
+        The inbox keeps reading fast by itself while the service lists the task as running; this
+        source only bridges the moments before that (a queued task, the first read), and is bounded."""
+        try:
+            data = json.loads(text)
+        except ValueError:
+            data = {}
+        task = str(data.get('task') or '') if isinstance(data, dict) else ''
+        page = self._pages.get('workbench')
+        if page is not None:
+            try:
+                (getattr(page, 'loadTasks', None) or page.refresh)()
+            except Exception as exc:   # a page must not break the conversation
+                print('Mira workbench:', type(exc).__name__, exc, flush=True)
+        inbox = getattr(self, 'inbox', None)
+        if inbox is not None and re.fullmatch(r'[A-Za-z0-9_.:-]{1,80}', task):
+            source = 'task:' + task
+            inbox.busy(True, source)
+            inbox.poll()
+            QTimer.singleShot(self.AGENT_TASK_WATCH_MS, inbox, lambda: inbox.busy(False, source))
+
+    @Slot(str)
+    def pageShown(self, name):
+        """The owner opened a destination: its page reads what it shows."""
+        page = self._pages.get(name)
+        if page is not None:
+            page.activated()
     reminders = _prop('QVariantList', '_reminders', remindersChanged)
     actionModel = Property(QObject, lambda self: self.actions, constant=True)
 
@@ -333,6 +453,10 @@ class Controller(QObject):
         if busy != self._busy:
             self._busy = busy
             self.busyChanged.emit()
+        working = phase in ('thinking', 'executing')
+        if working != getattr(self, '_agent_turn', False) and getattr(self, 'inbox', None) is not None:
+            self._agent_turn = working
+            self.inbox.busy(working, 'turn')
 
     def _flash_error(self, seconds=4.0):
         self._error_until = time.monotonic() + seconds
@@ -373,32 +497,91 @@ class Controller(QObject):
         signal.emit()
 
     # ── conversation ────────────────────────────────────────────────
-    def _add(self, role, text, status='', title='', tool='', persist=True, stamp=None):
+    def _add(self, role, text, status='', title='', tool='', persist=True, stamp=None, day=None, thread=None):
+        """One conversation line: shown, and stored in its chat.
+
+        `thread` names the chat a late line belongs to (an approved job's result): when the owner
+        has opened another chat since, the line is stored in its own chat and not shown in this one.
+        """
         text = (text or '').strip()
         if not text:
             return
-        self.chat.append({'role': role, 'text': text, 'time': stamp or datetime.now().strftime('%H:%M'),
-                          'status': status, 'title': title, 'tool': tool})
-        if self.chat.count > 300:
-            self.chat.remove_first(self.chat.count - 300)
-        if persist:
-            from mira_memory import add_message
+        import mira_memory
+        shown = True
+        if thread:
             try:
-                add_message('action' if role == 'action' else role, text)
+                shown = thread == mira_memory.current_thread()
+            except OSError:
+                pass
+        if shown:
+            now = datetime.now()
+            self.chat.append({'role': role, 'text': text, 'time': stamp or now.strftime('%H:%M'),
+                              'status': status, 'title': title, 'tool': tool, 'day': day or now.strftime('%Y-%m-%d')})
+            if self.chat.count > 300:
+                self.chat.remove_first(self.chat.count - 300)
+        if persist:
+            try:   # an action keeps its verified status, so reopening the chat shows the same result
+                mira_memory.add_message(role, text, status=status, title=title, tool=tool, thread=thread)
             except OSError:
                 pass
 
     def _restore_chat(self):
+        """Show the open chat (mira_memory's current thread): its words and verified results."""
         try:
-            from mira_memory import recent_messages
-            for item in recent_messages(24):
-                try:  # stored in UTC; show the owner's local time
-                    stamp = datetime.fromisoformat(str(item.get('time', ''))).astimezone().strftime('%H:%M')
+            from mira_memory import messages
+            for item in messages(limit=80):
+                raw = str(item.get('time', ''))
+                try:  # stored in UTC; show the owner's local time and day
+                    local = datetime.fromisoformat(raw).astimezone()
+                    stamp, day = local.strftime('%H:%M'), local.strftime('%Y-%m-%d')
                 except ValueError:
-                    stamp = str(item.get('time', ''))[11:16]
-                self._add(item['role'], item['text'], stamp=stamp, persist=False)
+                    stamp, day = raw[11:16], raw[:10]
+                self._add(item['role'], item['text'], status=item.get('status', ''), title=item.get('title', ''),
+                          tool=item.get('tool', ''), persist=False, stamp=stamp, day=day)
         except (OSError, ValueError):
             pass
+
+    def reload_chat(self):
+        """The owner opened another chat or started a new one: show that chat instead."""
+        self.chat.clear()
+        self._restore_chat()
+        self._forget_voice_context()
+
+    def _forget_voice_context(self):
+        """A live voice session still holds the chat it was opened with: the next spoken turn opens a
+        fresh one (fed only the open chat) instead of reusing or resuming it."""
+        for owner in (self.bridge, self.desk):
+            voice = getattr(owner, 'voice', None)
+            # LiveVoice.forget_context() is thread-safe: its session lives on the voice thread, so the
+            # Qt thread never touches the link's fields itself.
+            if hasattr(voice, 'forget_context'):
+                try:
+                    voice.forget_context()
+                except Exception as exc:   # a voice problem must not stop the chat from opening
+                    print('Mira voice context:', type(exc).__name__, exc, flush=True)
+
+    @Slot()
+    def regenerate(self):
+        """A fresh typed answer to the last question (chat_ui.ChatHistory.regenerate calls this).
+
+        Only a plain reply is redone, or a question that got only an error is asked again; a turn that
+        acted (an action or result card), a reminder or a card's answer is never run again. The old
+        reply is hidden from the stored chat by a tombstone, so the model sees the question once.
+        """
+        import chat_ui
+        from mira_memory import retract_last_reply
+        if self._busy or self._text_phase or not chat_ui.regenerable(self.chat.rows()):
+            return
+        try:
+            question = retract_last_reply()
+        except OSError:
+            question = ''
+        if not question:
+            return
+        self.reload_chat()                 # the view shows the stored chat: the old reply is gone from both
+        self._text_phase = 'thinking'
+        self._resolve_phase()
+        self._run_brain(question)
 
     @Slot(str)
     def send(self, text):
@@ -520,11 +703,17 @@ class Controller(QObject):
                 data = json.loads(text)
             except ValueError:
                 data = {'summary': text, 'status': 'ok'}
+            if not isinstance(data, dict):
+                data = {'summary': text, 'status': 'ok'}
             status = data.get('status', 'ok')
-            self._add('action', data.get('summary') or data.get('name', ''), status=status, title=data.get('name', ''), tool=data.get('name', ''))
-            if data.get('name', '').startswith('home'):
+            # tools.run_tool sends summary_en beside the Arabic summary when the tool wrote one.
+            line = (data.get('summary_en') if self._lang == 'en' else '') or data.get('summary') or data.get('name', '')
+            self._add('action', line, status=status, title=data.get('name', ''), tool=data.get('name', ''))
+            if str(data.get('name', '')).startswith('home'):
                 QTimer.singleShot(300, self.refreshHome)
             self._set_mood('proud' if status == 'ok' else 'reassuring' if status in ('pending', 'partial') else 'sad')
+        elif kind == 'workbench':
+            self._on_agent_task(text)
         elif kind == 'action':
             self._add('action', text, status='ok' if 'error' not in text and 'لم ينفذ' not in text else 'error')
         elif kind == 'wake':
@@ -655,8 +844,24 @@ class Controller(QObject):
             self.langChanged.emit()
             self._resolve_phase()
 
+    def _motion_locked(self):
+        # Plasma's animations off, or drawn on Qt's software scene graph as the still face (a loop
+        # there only repaints her on the processor): no stored switch and no pin overrides these.
+        return self._visual.owner_off or self._visual.reason == 'software-scene-graph'
+
+    def _initial_motion(self):
+        """Her ambient loop (the breathing face, the drifting nebula), strongest reason first."""
+        if self._motion_locked():
+            return False
+        if self.settings.contains('visual_motion'):
+            return self.settings.value('visual_motion', True, type=bool)   # his own switch
+        return not self._visual.still                                    # this machine's tier
+
     @Slot(bool)
     def setMotion(self, enabled):
+        if self._motion_locked():
+            self.motionChanged.emit()        # the switch returns to off; motionPolicy says why
+            return
         self._motion = bool(enabled)
         self.settings.setValue('visual_motion', self._motion)
         self.motionChanged.emit()
@@ -680,15 +885,6 @@ class Controller(QObject):
             self.bridge.voice.voice_name = name
         self.settingsChanged.emit()
         self._sync_device()
-
-    @staticmethod
-    def _plasma_reduced_motion():
-        try:
-            text = (Path.home() / '.config/kdeglobals').read_text()
-            match = re.search(r'^AnimationDurationFactor\s*=\s*([0-9.]+)', text, re.M)
-            return bool(match) and float(match.group(1)) == 0.0
-        except (OSError, ValueError):
-            return False
 
     # ── weather ─────────────────────────────────────────────────────
     @Slot()
@@ -784,14 +980,10 @@ class Controller(QObject):
         self.worker.run('brain_key', self._test_gemini)
 
     def _test_gemini(self):
-        from brain import GEMINI_CONFIG, DEFAULT_TEXT_MODEL
-        from google import genai
-        from google.genai import types
-        data = json.loads(GEMINI_CONFIG.read_text())
-        client = genai.Client(api_key=data['api_key'], http_options=types.HttpOptions(timeout=20000))
-        response = client.models.generate_content(model=data.get('text_model') or DEFAULT_TEXT_MODEL,
-                                                  contents='Reply with the single word: ready')
-        return {'status': 'ok' if (response.text or '').strip() else 'error'}
+        """Worker thread: the model typed chat really asks first; a classified reason (a key of
+        brain.REASONS), never the provider's own text, which may echo request details."""
+        import brain
+        return brain.probe_gemini()
 
     @Slot()
     def openHomeAssistant(self):
@@ -880,13 +1072,26 @@ class Controller(QObject):
             title_ar, title_en = moai_tools.title(name, 'ar'), moai_tools.title(name, 'en')
         elif kind == 'desktop' and name in DESKTOP_CHANGES and isinstance(args.get('query'), str) and args['query'].strip():
             category, (title_ar, title_en) = 'user_confirm', DESKTOP_CHANGES[name]
+            wid = args.get('id')
             args = {'query': args['query'].strip()[:120]}
+            if isinstance(wid, str) and WINDOW_ID.fullmatch(wid):
+                args['id'] = wid          # act on this exact KWin window; its title stays on the card
         else:
             return None
         card = self.pending.add(kind, title_ar, title_en, str(item.get('detail') or ''),
                                 {'kind': kind, 'name': name, 'args': args, 'category': category}, ttl=CONFIRM_TTL)
-        self._confirm_request.emit(json.dumps({**card, 'name': name, 'category': category,
-                                               'origin': item.get('origin') or 'mira'}, ensure_ascii=False))
+        origin = item.get('origin') or 'mira'
+        # What the yes does, for a brain or voice tool call (tools._moai_tool passes the schema's
+        # consequence_ar/en): both languages travel with the card and the window's language picks one.
+        # A page writes its own sentence into its detail, so a page card carries none of these.
+        said = {}
+        if origin == 'mira':
+            for lang in ('ar', 'en'):
+                text = item.get('consequence_' + lang)
+                if isinstance(text, str) and text.strip():
+                    said['consequence_' + lang] = ' '.join(text.split())[:300]
+        self._confirm_request.emit(json.dumps({**card, **said, 'name': name, 'category': category,
+                                               'origin': origin}, ensure_ascii=False))
         return card
 
     def _show_confirmation(self, payload):
@@ -895,8 +1100,12 @@ class Controller(QObject):
         except ValueError:
             return
         title = card['title_en'] if self._lang == 'en' else card['title_ar']
+        detail = card.get('detail', '')
+        will = card.get('consequence_en' if self._lang == 'en' else 'consequence_ar') or ''
+        if will and will not in detail:
+            detail = will + ('\n' + detail if detail else '')
         self.actions.insert_first({'aid': card['id'], 'kind': card['kind'], 'name': card.get('name', ''), 'title': title,
-                                   'detail': card.get('detail', ''), 'reason': '', 'stage': 'ask',
+                                   'detail': detail, 'reason': '', 'stage': 'ask',
                                    'category': card.get('category', ''), 'summary': '', 'output': '',
                                    'started': 0, 'expires': int(card['expires'] * 1000), 'origin': card.get('origin', '')})
         self._trim_actions()
@@ -913,14 +1122,17 @@ class Controller(QObject):
         for row in finished[6:]:
             self.actions.remove_key(row['aid'])
 
-    def _notify_confirmation(self, action_id, title, category):
+    def _notify_confirmation(self, action_id, title, category, body=None, allow=True, ttl_ms=None):
         """A KDE notification with Approve / Cancel, so the owner can answer with Mira hidden."""
         if TEST_MODE:
             return
-        body = self._s['act_password'] if category == 'privileged_confirm' else self._s['act_voice_hint']
-        command = ['notify-send', '-a', 'Mira', '--hint=string:desktop-entry:org.moos.moai', '-i', 'moos-moai', '-u', 'critical', '-t', str(CONFIRM_TTL * 1000),
-                   '-p', '-w', '-A', 'approve=' + self._s['act_approve'], '-A', 'reject=' + self._s['act_reject'],
-                   self._s['act_waiting'] + ' ' + title, body]
+        if body is None:
+            body = self._s['act_password'] if category == 'privileged_confirm' else self._s['act_voice_hint']
+        agent = category == 'agent_confirm'
+        buttons = (['-A', 'approve=' + self._s['agent_approval_allow' if agent else 'act_approve']] if allow else []) + \
+                  ['-A', 'reject=' + self._s['agent_approval_deny' if agent else 'act_reject']]
+        command = ['notify-send', '-a', 'Mira', '--hint=string:desktop-entry:org.moos.moai', '-i', 'moos-moai', '-u', 'critical',
+                   '-t', str(int(ttl_ms) if ttl_ms else CONFIRM_TTL * 1000), '-p', '-w', *buttons, self._s['act_waiting'] + ' ' + title, body]
 
         def wait():
             try:
@@ -963,25 +1175,179 @@ class Controller(QObject):
     @Slot(str)
     def approveAction(self, action_id):
         """The owner's approval (card button or notification). The only way a parked change runs."""
+        if self._is_agent_card(action_id):
+            self._answer_agent(action_id, 'allow-once')
+            return
         item = self.pending.take(action_id)
         if item is None:
             row = self.actions.find(action_id)
             if row >= 0 and self.actions.get(row).get('stage') == 'ask':
                 self.actions.update_key(action_id, stage='expired', summary=self._s['act_expired'])
                 self.toast.emit('pending', self._s['act_expired'])
+                self._tell_pages(action_id, 'expired', self._s['act_expired'])
             return
         self._start_action(item)
 
     @Slot(str)
     def rejectAction(self, action_id):
+        if self._is_agent_card(action_id):
+            self._answer_agent(action_id, 'deny')
+            return
         card = self.pending.reject(action_id)
         self._close_notification(action_id)
-        if self.actions.find(action_id) >= 0:
-            self.actions.update_key(action_id, stage='cancelled', summary=self._s['act_cancelled'])
-            QTimer.singleShot(4000, lambda: self.actions.remove_key(action_id))
+        row = self.actions.find(action_id)
+        waiting = row >= 0 and self.actions.get(row).get('stage') == 'ask'
+        if card is not None or waiting:
+            # Only a card that still waited is cancelled: a job already running is never marked or
+            # reported as cancelled (a late Cancel from a notification changes nothing). A card whose
+            # time ran out a moment ago ends as expired, which is what happened to it.
+            stage = 'cancelled' if card is not None else 'expired'
+            summary = self._s['act_cancelled' if card is not None else 'act_expired']
+            if row >= 0:
+                self.actions.update_key(action_id, stage=stage, summary=summary)
+                QTimer.singleShot(4000, lambda: self.dismissAction(action_id))
+            self._tell_pages(action_id, stage, summary)
         if card is not None:
             title = card['title_en'] if self._lang == 'en' else card['title_ar']
             self._add('action', self._s['act_cancelled'] + ': ' + title, status='error', tool='moai')
+
+    # ── what happened to a card, told to the page that raised it ──
+    def card_waiting(self, card_id):
+        """For pages: is this card still in front of the owner (not approved, rejected or expired)?"""
+        card_id = str(card_id or '')
+        return bool(card_id) and self.pending.get(card_id) is not None
+
+    def _tell_pages(self, action_id, stage, summary='', output='', name=None):
+        """A card moved on (CARD_STAGES). Every page hears it through the hook it implements and
+        ignores the cards it did not raise; the Workbench follows its installs by tool name.
+
+            action_update(card_id, stage, summary, output)   every stage (the PC and System pages)
+            action_changed(card_id, name, stage)             running | ok | error | cancelled | expired
+                                                             (the Apps and Connect pages)
+            actionFinished(name, outcome)                    ok | error | cancelled | expired
+
+        Always called on the Qt thread (slots, worker results, the action timer). The agent's own
+        approvals (inbox.py) are not Mo AI actions and are not told here.
+        """
+        if stage not in CARD_STAGES:
+            return
+        row = self.actions.find(action_id)
+        info = self.actions.get(row) if row >= 0 else {}
+        if info.get('kind') == 'agent':
+            return
+        name = name if name is not None else info.get('name', '')
+        for key, page in list(self._pages.items()):
+            update = getattr(page, 'action_update', None)
+            changed = getattr(page, 'action_changed', None)
+            try:
+                if callable(update):
+                    update(action_id, stage, summary or '', output or '')
+                elif callable(changed) and stage != 'still-running':
+                    changed(action_id, name, stage)
+            except Exception as exc:   # one page's mistake must not break the owner's card
+                print('Mira page', key, 'card hook:', type(exc).__name__, exc, flush=True)
+        if name and stage in CARD_ENDS:
+            self.actionFinished.emit(name, stage)
+
+    # ── the Mo AI agent's approvals (inbox.py): the exact request on a card, answered once ──
+    def _is_agent_card(self, action_id):
+        row = self.actions.find(action_id)
+        return row >= 0 and self.actions.get(row).get('kind') == 'agent'
+
+    @Slot('QVariantMap')
+    def _on_agent_arrived(self, item):
+        import inbox
+        card = inbox.card(item, self._s)
+        if self.actions.find(card['aid']) >= 0:
+            return
+        self.actions.insert_first(card)
+        self._trim_actions()
+        self.action_timer.start()
+        waiting = sum(1 for row in self.actions.rows() if row.get('kind') == 'agent' and row.get('stage') == 'ask')
+        ask = inbox.waiting_text(waiting, self._s) if waiting > 1 else self._s['act_waiting'] + ' ' + card['title']
+        self._set_caption(ask, 'mira')
+        self._set_mood('curious')
+        self.toast.emit('pending', ask)
+        note = inbox.notification(item, self._s)
+        # the notice closes when the agent stops waiting (120 s), even if Mira is not running then
+        self._notify_confirmation(card['aid'], card['title'], 'agent_confirm', body=note['body'], allow=note['can_allow'],
+                                  ttl_ms=inbox.notice_ttl_ms(item, int(time.time() * 1000)))
+
+    @Slot(str, str)
+    def _on_agent_gone(self, approval, reason):
+        """It stopped waiting without an answer from here: expired, answered elsewhere, or the agent stopped."""
+        import inbox
+        aid = inbox.card_id(approval)
+        row = self.actions.find(aid)
+        if row >= 0 and self.actions.get(row).get('stage') == 'ask':
+            self._close_notification(aid)
+            self.actions.update_key(aid, stage='expired',
+                                    summary=self._s['act_expired' if reason == 'expired' else 'agent_approval_elsewhere'])
+
+    def _answer_agent(self, action_id, decision):
+        """The owner's own answer to the agent, sent once; the card shows only what the agent API confirms."""
+        import inbox
+        row = self.actions.find(action_id)
+        if row < 0 or self.actions.get(row).get('stage') != 'ask':
+            return
+        approval = inbox.approval_id(action_id)
+        self._close_notification(action_id)
+        if self.inbox.resolve(approval, decision):
+            self.actions.update_key(action_id, stage='running', started=int(time.time() * 1000),
+                                    summary=self._s['agent_approval_sending'])
+            self.action_timer.start()
+        elif self.inbox.item(approval) is None:
+            self.actions.update_key(action_id, stage='expired', summary=self._s['agent_approval_gone'])
+            self.toast.emit('pending', self._s['agent_approval_gone'])
+        elif decision == 'allow-once' and not self.inbox.item(approval).get('complete', True):
+            self.toast.emit('error', self._s['agent_approval_too_long'])
+
+    @Slot(str, str, 'QVariantMap')
+    def _on_agent_resolved(self, approval, decision, result):
+        import inbox
+        aid = inbox.card_id(approval)
+        status = result.get('status')
+        if status == 'ok':
+            allowed = decision == 'allow-once'
+            stage, summary = ('ok' if allowed else 'cancelled'), self._s['agent_approval_allowed' if allowed else 'agent_approval_denied']
+        elif status == 'gone':
+            stage, summary = 'expired', self._s['agent_approval_gone']
+        else:
+            reason = str(result.get('error') or '')
+            if reason:      # the service's own code goes to the journal, never into the owner's words
+                print('Mira agent approval not delivered:', reason[:160], flush=True)
+            summary = inbox.failure_text(reason, self._s)
+            # still pending: the buttons come back so the owner can answer again
+            stage = 'ask' if self.inbox.item(approval) is not None else 'error'
+        if self.actions.find(aid) >= 0:
+            self.actions.update_key(aid, stage=stage, summary='' if stage == 'ask' else summary)
+            if stage in ('ok', 'cancelled', 'expired'):
+                QTimer.singleShot(12000, lambda: self.dismissAction(aid))
+        self._add('action', summary, status='ok' if status == 'ok' else 'error' if status == 'error' else 'pending', tool='agent')
+        self.toast.emit('ok' if status == 'ok' else 'error' if status == 'error' else 'pending', summary)
+
+    def _answer_agent_by_voice(self, text, spoken=False):
+        """A spoken or typed «لا» denies every waiting agent request (the safe side). A «نعم» allows none:
+        an agent command is allowed only on its card, where its exact text is read. What happened to
+        each request is reported by _on_agent_resolved, once the agent API confirms it."""
+        waiting = [row['aid'] for row in self.actions.rows() if row.get('kind') == 'agent' and row.get('stage') == 'ask']
+        if not waiting:
+            return False
+        import pending
+        verdict = pending.is_confirmation(text)
+        if verdict == 'no':
+            for aid in waiting:
+                self._answer_agent(aid, 'deny')
+            say = self._s['agent_approval_voice_denied']
+        elif verdict == 'yes':
+            say = self._s['agent_approval_voice']
+        else:
+            return False
+        self._add('mira', say)
+        self._set_caption(say, 'mira')
+        if spoken:
+            self.announce(say)      # heard on the Echo too, after the live turn ends
+        return True
 
     @Slot(str)
     def dismissAction(self, action_id):
@@ -993,7 +1359,7 @@ class Controller(QObject):
         """The owner's own words answering a waiting card. True when they were only an answer."""
         latest = self.pending.latest()
         if latest is None:
-            return False
+            return self._answer_agent_by_voice(text, spoken)
         if spoken and latest.get('created', 0) >= self._turn_started > 0:
             return False       # the card was made in this very turn: his words there were the request
         decision = self.pending.respond(text)
@@ -1004,11 +1370,16 @@ class Controller(QObject):
             for card in decision.get('items') or []:
                 self._close_notification(card['id'])
                 self.actions.update_key(card['id'], stage='cancelled', summary=self._s['act_cancelled'])
-                QTimer.singleShot(4000, lambda i=card['id']: self.actions.remove_key(i))
-            self._add('mira', self._s['act_cancelled_say'])
+                self._tell_pages(card['id'], 'cancelled', self._s['act_cancelled'])
+                QTimer.singleShot(4000, lambda i=card['id']: self.dismissAction(i))
+            # «لا» is the safe side for everything that waits: the agent's own requests are denied too
+            # (each denial is reported once the agent API confirms it, by _on_agent_resolved).
+            for aid in [r['aid'] for r in self.actions.rows() if r.get('kind') == 'agent' and r.get('stage') == 'ask']:
+                self._answer_agent(aid, 'deny')
+            self._add('mira', self._s['act_cancelled_say'], tool='cards')   # the window's words, not the model's
             self._set_caption(self._s['act_cancelled_say'], 'mira')
         elif verdict == 'ambiguous':
-            self._add('mira', self._s['act_choose'])
+            self._add('mira', self._s['act_choose'], tool='cards')
             self._set_caption(self._s['act_choose'], 'mira')
         else:
             return False
@@ -1027,6 +1398,12 @@ class Controller(QObject):
         self.actions.update_key(action_id, stage='running', started=int(time.time() * 1000),
                                 summary=self._s['act_running'])
         self.action_timer.start()
+        self._tell_pages(action_id, 'running', self._s['act_running'])
+        try:   # the job's result is written to the chat it was approved in, whichever is open then
+            import mira_memory
+            self._action_threads[action_id] = mira_memory.current_thread()
+        except OSError:
+            pass
         started = self._s['act_started'] + ' ' + title
         self._add('action', started, status='pending', tool='moai')
         self._set_caption(started, 'mira')
@@ -1043,7 +1420,17 @@ class Controller(QObject):
             import desktop_tools
             if name != 'close_window':
                 return {'status': 'error', 'error': 'unsupported', 'name': name}
-            return {**desktop_tools.close_window(payload['args']['query']), 'name': name, 'kind': 'desktop'}
+            args = payload.get('args') or {}
+            by_id = getattr(desktop_tools, 'close_window_id', None)
+            # The window the owner saw on the card, by KWin's own id when the card carries it: a
+            # title can be shared, or taken by another window while the card waited.
+            if args.get('id'):
+                if not callable(by_id):   # never fall back to a title the owner may share with another window
+                    return {'status': 'error', 'error': 'unsupported', 'name': name, 'kind': 'desktop'}
+                result = by_id(args['id'], args.get('query', ''))
+            else:
+                result = desktop_tools.close_window(args.get('query', ''))
+            return {**result, 'name': name, 'kind': 'desktop'}
         result = moai_tools.execute(name, payload.get('args') or {}, confirmed=True)
         if result.get('status') == 'pending' and result.get('job'):
             result = moai_tools.wait_job(result['job'], timeout=JOB_LIMIT_S.get(name, 30 * 60))
@@ -1051,8 +1438,12 @@ class Controller(QObject):
 
     def _on_action_done(self, action_id, result):
         import moai_tools
-        name = result.get('name', '')
-        title = (DESKTOP_CHANGES[name][1 if self._lang == 'en' else 0] if result.get('kind') == 'desktop' and name in DESKTOP_CHANGES
+        row = self.actions.find(action_id)
+        card = self.actions.get(row) if row >= 0 else {}
+        # A job that raised on the worker comes back without its name: the card still knows it.
+        name = result.get('name') or card.get('name', '')
+        desktop = (result.get('kind') or card.get('kind')) == 'desktop'
+        title = (DESKTOP_CHANGES[name][1 if self._lang == 'en' else 0] if desktop and name in DESKTOP_CHANGES
                  else moai_tools.title(name, self._lang))
         status = result.get('status')
         if status == 'partial':
@@ -1066,7 +1457,11 @@ class Controller(QObject):
             summary, state = self._s['act_failed'] + ' ' + title + (f' ({reason})' if reason else ''), 'error'
         output = str(result.get('output') or '').strip()
         self.actions.update_key(action_id, stage=state, summary=summary, output=output[-4000:])
-        self._add('action', summary, status='ok' if state == 'ok' else 'pending' if state == 'running' else 'error', tool='moai')
+        # 'running' here means the job outlived JOB_LIMIT_S: it goes on, but nothing will report its end.
+        self._tell_pages(action_id, 'still-running' if state == 'running' else state, summary, output[-4000:], name=name)
+        thread = self._action_threads.get(action_id) if state == 'running' else self._action_threads.pop(action_id, None)
+        self._add('action', summary, status='ok' if state == 'ok' else 'pending' if state == 'running' else 'error', tool='moai',
+                  thread=thread)
         self._set_caption(summary, 'mira')
         self._set_mood('proud' if state == 'ok' else 'reassuring' if state == 'running' else 'sad')
         self.toast.emit('ok' if state == 'ok' else 'pending' if state == 'running' else 'error', summary)
@@ -1089,16 +1484,22 @@ class Controller(QObject):
         """Expire waiting cards on time; stop ticking when nothing waits or runs."""
         now = int(time.time() * 1000)
         live = False
+        expired = []
         for row in self.actions.rows():
             if row['stage'] == 'ask':
                 if row['expires'] and now >= row['expires']:
                     self.pending.reject(row['aid'])
                     self._close_notification(row['aid'])
                     self.actions.update_key(row['aid'], stage='expired', summary=self._s['act_expired'])
+                    expired.append(row['aid'])
                 else:
                     live = True
             elif row['stage'] == 'running':
                 live = True
+        for aid in expired:          # after the sweep: a page may raise a new card when it hears this
+            self._tell_pages(aid, 'expired', self._s['act_expired'])
+        if expired:
+            live = live or any(r['stage'] in ('ask', 'running') for r in self.actions.rows())
         if not live:
             self.action_timer.stop()
 
@@ -1500,6 +1901,14 @@ class Controller(QObject):
             if ask:
                 # A moos:// link can carry this text, so it waits in the composer for the owner.
                 self.prefill.emit(ask)
+            about = request.get('about')
+            if isinstance(about, list) and about and self._kde is not None:
+                # Dolphin's «Ask Mira about this»: a question (and a small text file) in the composer.
+                self._kde.ask_about([str(p) for p in about])
+            project = request.get('project')
+            if isinstance(project, str) and project and self._kde is not None:
+                # Dolphin's «Add to Mira as a project»: kde_integration and moai-agent-api check the folder.
+                self._kde.add_project(project)
             return 'show'
         if command == b'wake' and self._local_wake and self._voice_phase == 'ready' and not self._echo.get('paired', True):
             self._desk_talk()
@@ -1668,7 +2077,8 @@ class Controller(QObject):
 
     @Slot(str)
     def openUrl(self, url):
-        if url.startswith(('https://', 'http://127.0.0.1', 'http://192.168.')):
+        from chat_ui import openable     # parsed, never a prefix test: http://192.168.evil.com is not home
+        if openable(url):
             QDesktopServices.openUrl(QUrl(url))
 
     # ── worker results ──────────────────────────────────────────────
@@ -1729,9 +2139,24 @@ class Controller(QObject):
         elif tag == 'brain_key':
             ok = isinstance(result, dict) and result.get('status') == 'ok'
             self._brain_key = 'ok' if ok else 'failed'
+            reason = str(result.get('reason') or '') if isinstance(result, dict) and not ok else ''
+            try:
+                import brain
+                reasons = brain.REASONS if isinstance(getattr(brain, 'REASONS', None), dict) else {}
+            except Exception:
+                reasons = {}
+            reason = reason if reason in reasons else ''
+            page = self._pages.get('brain')
+            if page is not None and hasattr(page, 'keyChecked'):
+                try:   # before QML hears it: the classified reason wins, and the page skips a second probe
+                    page.keyChecked(self._brain_key, reason)
+                except Exception as exc:
+                    print('Mira brain page:', type(exc).__name__, exc, flush=True)
             self.settingsChanged.emit()
+            # The owner reads a classified reason in his language, never the provider's text.
+            words = reasons.get(reason, ('', ''))[1 if self._lang == 'en' else 0] if reason else ''
             self.toast.emit('ok' if ok else 'error', self._s['brain_key_ok'] if ok else
-                            self._s['brain_key_failed'] + ' · ' + str((result or {}).get('error', '')))
+                            self._s['brain_key_failed'] + (' · ' + words if words else ''))
         elif tag == 'legacy_text':
             self._text_phase = None
             if result.get('status') == 'error' and not result.get('reply'):

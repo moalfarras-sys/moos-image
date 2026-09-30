@@ -229,6 +229,28 @@ def main() -> None:
         diff = module["project_git_diff"](repo_project["id"], "src/main.txt")
         assert "-before" in diff["unstaged"] and "+after" in diff["unstaged"]
         assert module["list_audit"]()[0]["action"] == "git-diff"
+        # Names arrive as UTF-8, not as Git's octal escapes; a deleted file can still be diffed
+        # (its path no longer resolves); a `*` in a name is read literally, never as a glob that
+        # widens the audited diff to other files; and `..` or an absolute path is still refused.
+        (repo / "ملاحظات.md").write_text("new\n", encoding="utf-8")
+        assert "ملاحظات.md" in module["project_git_status"](repo_project["id"])["status"]
+        subprocess.run(["git", "-C", str(repo), "add", "ملاحظات.md"], check=True)
+        subprocess.run(
+            ["git", "-C", str(repo), "-c", "user.name=Mo AI Test",
+             "-c", "user.email=moai@example.invalid", "commit", "-qam", "second"],
+            check=True)
+        (repo / "ملاحظات.md").unlink()
+        gone = module["project_git_diff"](repo_project["id"], "ملاحظات.md")
+        assert "-new" in gone["unstaged"], gone
+        widened = module["project_git_diff"](repo_project["id"], "src/*")
+        assert widened["unstaged"] == "" and widened["staged"] == "", widened
+        for escape in ("../outside.txt", "/etc/hosts", "src/../../x"):
+            try:
+                module["project_git_diff"](repo_project["id"], escape)
+            except ValueError:
+                pass
+            else:
+                raise AssertionError(f"git diff accepted {escape!r}")
         try:
             module["project_file"](repo_project["id"], "../../etc/hosts")
         except ValueError:

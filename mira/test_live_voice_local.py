@@ -435,6 +435,105 @@ class LiveSessionTest(unittest.IsolatedAsyncioTestCase):
             _, stats = await self.turn()
         self.assertEqual((stats['outcome'], stats['error']), ('replied', None))
 
+    async def test_a_tool_gets_the_language_that_was_heard(self):
+        seen = []
+
+        async def spy(name, args, ctx):
+            seen.append(ctx.lang)
+            return {'status': 'ok', 'summary': 'x', 'summary_en': 'x'}
+
+        def speak(heard):
+            def answer(session):
+                session.push(server_message(input_transcription=types.Transcription(text=heard)))
+                session.push(types.LiveServerMessage(tool_call=types.LiveServerToolCall(function_calls=[
+                    types.FunctionCall(id='t1', name='research', args={'question': 'weather'})])))
+            return answer
+        with patch.object(tools, 'run_tool', side_effect=spy):
+            for heard, window in (('what is the weather', 'ar'), ('كيف الطقس', 'en'), ('', 'en')):
+                self.voice.lang = window
+                self.server.on_end = speak(heard)
+                await self.turn()
+        self.assertEqual(seen, ['en', 'ar', 'en'])
+
+    async def test_a_new_chat_starts_the_next_turn_fresh(self):
+        self.server.handle = 'handle-1'
+        await self.turn()
+        first = self.voice.link
+        self.assertIsNotNone(first)
+        self.assertTrue(self.voice.history)
+        self.voice.forget_context()            # on the voice loop: applied at once
+        self.assertIsNone(self.voice.link)
+        self.assertEqual(self.voice.history, [])
+        self.assertTrue(first.dirty and first.idle_closed)
+        self.assertIsNone(first.resume_handle)
+        self.assertIn(('session', json.dumps({'state': 'closed', 'reason': 'new_chat'})), self.events)
+        _, stats = await self.turn()
+        self.assertEqual(len(self.server.connects), 2)
+        self.assertEqual(stats['session'], 'fresh', 'a forgotten conversation is neither reused nor resumed')
+        self.assertEqual(self.server.connects[1]['session_resumption'], {})
+        self.assertEqual(self.server.sessions[1].sent[0][0], 'content', 'the new session is seeded with the open chat')
+        await asyncio.sleep(0.05)
+        self.assertTrue(self.server.sessions[0].closed)
+
+    async def test_forget_context_from_the_qt_thread_is_scheduled_on_the_voice_loop(self):
+        import threading
+        await self.turn()
+        link = self.voice.link
+        worker = threading.Thread(target=self.voice.forget_context)
+        worker.start()
+        worker.join()
+        self.assertIs(self.voice.link, link, 'nothing was changed from the other thread')
+        for _ in range(20):
+            if self.voice.link is None:
+                break
+            await asyncio.sleep(0.01)
+        self.assertIsNone(self.voice.link)
+        self.assertFalse(self.voice._forget_pending)
+        _, stats = await self.turn()
+        self.assertEqual(stats['session'], 'fresh')
+
+    async def test_forget_before_the_loop_is_known_applies_at_the_next_turn(self):
+        await self.turn()
+        link = self.voice.link
+        self.voice._loop = None                 # e.g. created off the loop and never started
+        self.voice.forget_context()
+        self.assertIs(self.voice.link, link)
+        self.assertTrue(self.voice._forget_pending)
+        _, stats = await self.turn()
+        self.assertEqual(stats['session'], 'fresh')
+        self.assertFalse(self.voice._forget_pending)
+        self.assertTrue(link.dirty and link.idle_closed)
+
+    async def test_a_turn_already_speaking_finishes_but_joins_no_new_chat(self):
+        release = asyncio.Event()
+        original = self.server.answer
+
+        def slow_answer(session):
+            async def later():
+                await release.wait()
+                original(session)
+            asyncio.get_running_loop().create_task(later())
+        self.server.on_end = slow_answer
+        self.assertEqual(await self.voice.start('c', 0, None, None), 0)
+        t = self.voice.turn
+        await self.voice.audio(struct.pack('<512h', *([300] * 512)), None)
+        await self.voice.stop(False)
+        for _ in range(100):
+            if t.get('link') is not None:
+                break
+            await asyncio.sleep(0.01)
+        self.voice.forget_context()             # the owner opens a new chat mid-answer
+        link = t['link']
+        self.assertIs(self.voice.link, link, 'the answer in flight keeps its session')
+        self.assertTrue(link.dirty and link.idle_closed)
+        release.set()
+        await asyncio.wait_for(t['task'], 5)
+        self.assertEqual(t['reply'], 'الساعة الثامنة.')
+        self.assertEqual(self.voice.history, [], 'the old conversation does not follow into the new chat')
+        self.server.on_end = original
+        _, stats = await self.turn()
+        self.assertEqual(stats['session'], 'fresh')
+
     async def test_silence_ends_without_error_and_without_hanging(self):
         self.server.on_end = lambda session: None
         _, stats = await self.turn()

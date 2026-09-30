@@ -1,0 +1,35 @@
+[Unit]
+Description=Mira, the MoOS assistant (in the system tray)
+Documentation=file:///usr/bin/mira
+# Mira's login start. It is NOT enabled for anyone by default: the person turns it on in Mira's
+# Settings («Start Mira when I sign in»), which runs `systemctl --user enable mira.service` and
+# reads it back (mira/kde_integration.py). She starts without her window; Meta+Space, the dock
+# and the tray open it.
+#
+# An edition built without Mira's stage has /usr/bin/mira but not her tree: the unit is skipped
+# there instead of failing at every sign-in.
+ConditionPathExists=/usr/lib/mira/app/app.py
+# She holds Mo AI's tools, so she belongs to a person, never to a system account (see
+# moai-wake.service for the MoOS Cloud root-session reason).
+ConditionUser=!@system
+PartOf=graphical-session.target
+# The tray icon needs the StatusNotifier watcher (kded) and a shell to draw it: without them she
+# would start with no way back to her window.
+After=graphical-session.target plasma-kded6.service plasma-plasmashell.service
+# A crash is restarted; three crashes in two minutes stay failed and visible.
+StartLimitIntervalSec=120
+StartLimitBurst=3
+
+[Service]
+Type=exec
+ExecStart=/usr/bin/mira --background
+# Quitting from the tray exits 0 and stays quit; only a crash comes back.
+Restart=on-failure
+RestartSec=5
+# Like an autostarted application: its own place in app.slice, and the whole cgroup ends with it.
+Slice=app.slice
+ExitType=cgroup
+TimeoutStopSec=10s
+
+[Install]
+WantedBy=graphical-session.target

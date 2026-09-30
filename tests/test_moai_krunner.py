@@ -228,6 +228,21 @@ class WiringTests(unittest.TestCase):
         qml = (ROOT / "system_files/usr/share/moos/apps/moai/main.qml").read_text()
         self.assertIn('const askIndex = argv.indexOf("--ask")', qml)
 
+    def test_a_handed_over_question_waits_for_the_person(self):
+        # moos://ai/ask is a public scheme (any web page can open it) and reaches this window as
+        # `--ask` wherever the classic Mo AI is still the assistant. The question goes into the
+        # composer only: sending it would put a page's words in front of a cloud model unasked.
+        qml = (ROOT / "system_files/usr/share/moos/apps/moai/main.qml").read_text()
+        start = qml.index('const askIndex = argv.indexOf("--ask")')
+        block = qml[start:qml.index("const workspaceIndex", start)]
+        self.assertIn("root.prefillPrompt(question)", block)
+        self.assertNotIn("sendPrompt", block)
+        self.assertNotIn("send()", block)
+        prefill = qml[qml.index("function prefillPrompt("):]
+        prefill = prefill[:prefill.index("\n    }\n")]
+        self.assertIn("input.text = msg", prefill)
+        self.assertNotIn("send", prefill.replace("function prefillPrompt", ""))
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

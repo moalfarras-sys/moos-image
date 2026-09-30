@@ -56,6 +56,9 @@ FROM ghcr.io/ublue-os/kinoite-main:44 AS base
 FROM scratch AS ctx
 COPY build_files /
 COPY tests/qml/motion-review.qml /motion-review.qml
+# Mira's still-face probe: build.sh draws the image's own /usr/lib/mira/app with it. It is her
+# test file (the mira-build stage runs the same probe as a suite), never shipped.
+COPY mira/test_visual_tier.py /mira/test_visual_tier.py
 
 # -----------------------------------------------------------------------------
 # Stage "akmods": ublue's NVIDIA kmod + driver RPMs, bind-mounted (not copied) at
@@ -171,18 +174,49 @@ RUN python3 -m pip install --no-cache-dir --disable-pip-version-check --no-input
     && rm -rf /out/site/bin /out/site/share /out/site/bench /out/site/examples
 # Her own suites, with nothing of this build's HOME or session to reach: the brain, the tools and
 # owner cards, the controller, every QML file against the controller's routes, the phone, the
-# desktop tools and the voice path's audio arithmetic.
+# desktop tools, the voice path's audio arithmetic, the visual tier (how still she stays where she
+# is drawn without a GPU, and that her still face is drawn there), her place in Plasma (Dolphin's
+# arguments, the login switch, the D-Bus door), the agent approvals, the chat history, the moos://
+# routes she may open and each page of her window. Containerfile.arm runs the same list;
+# tests/test_moos_arm.py keeps the two from drifting apart. (test_local_wake needs the wake
+# trainer's packages, which the image does not carry.)
+# PySide/Qt leaves process-global state behind between modules.  Running the whole suite in one
+# interpreter eventually crashed the native ARM builder during Qt teardown, before unittest could
+# print which module failed.  Keep every module fail-closed, but give each one a fresh Qt process.
 RUN mkdir -p /tmp/mira-home/.cache \
-    && env HOME=/tmp/mira-home PYTHONPATH=/out/site PYTHONDONTWRITEBYTECODE=1 QT_QPA_PLATFORM=offscreen \
-        QT_QUICK_BACKEND=software \
-        python3 -s -m unittest test_tools test_brain test_controller test_qml test_companion test_systools \
-        test_live_voice_local test_mira_memory test_group_lights test_moai_agent_link
-RUN sh packaging/stage.sh /src/mira /out/app \
-    && cd /out/app \
-    && env HOME=/tmp/mira-home PYTHONPATH=/out/site PYTHONDONTWRITEBYTECODE=1 QT_QPA_PLATFORM=offscreen \
-        MIRA_TEST_MODE=1 MIRA_INSTANCE=mira-build timeout 25 python3 -s app.py --capture=/tmp/mira-shot.png --capture-delay=3000 \
-    && test -s /tmp/mira-shot.png \
-    || { echo "GATE FAIL: the staged Mira did not open her window"; exit 1; }
+    && export HOME=/tmp/mira-home PYTHONPATH=/out/site PYTHONDONTWRITEBYTECODE=1 \
+        QT_QPA_PLATFORM=offscreen QT_QUICK_BACKEND=software \
+    && for module in \
+        test_tools test_brain test_controller test_qml test_companion test_systools \
+        test_live_voice_local test_mira_memory test_group_lights test_moai_agent_link test_visual_tier \
+        test_kde_integration test_inbox test_chat_ui test_moos_routes test_page_pc test_page_apps \
+        test_page_system test_page_workbench test_page_connect test_page_brain; do \
+        python3 -s -m unittest "$module" || exit 1; \
+    done
+# Her tree as the image receives it, proved from the staged copy itself and never from /src/mira,
+# which holds files the stage can forget (it once shipped without pages/, every suite green). Every
+# page module must import from it; then her window must open with a clean log, and her face must be
+# drawn on the software scene graph (a cloud server or VM without a GPU gets that one). The log is
+# written to a file and searched there: a QML warning, a page that failed to import (the controller
+# prints «Mira pages:») or a traceback is a window that opened broken, which an exit status of 0
+# and a non-empty PNG cannot see. build.sh repeats all three on the image.
+RUN set -eu; \
+    sh packaging/stage.sh /src/mira /out/app; \
+    cd /out/app; \
+    export HOME=/tmp/mira-home PYTHONPATH=/out/site PYTHONDONTWRITEBYTECODE=1 QT_QPA_PLATFORM=offscreen; \
+    python3 -s -c 'import pages, chat_ui, kde_integration; missing = sorted({n for n, _ in pages.PAGES} - {m.__name__.rpartition(".")[2] for m in pages.modules()}); assert not missing, "page modules that do not import from the staged tree: %s" % missing' \
+        || { echo "GATE FAIL: the staged Mira cannot import her pages"; exit 1; }; \
+    MIRA_TEST_MODE=1 MIRA_INSTANCE=mira-build timeout 25 python3 -s app.py --capture=/tmp/mira-shot.png \
+        --capture-delay=3000 >/tmp/mira-smoke.log 2>&1 \
+        || { cat /tmp/mira-smoke.log; echo "GATE FAIL: the staged Mira did not open her window"; exit 1; }; \
+    cat /tmp/mira-smoke.log; \
+    test -s /tmp/mira-shot.png || { echo "GATE FAIL: the staged Mira saved no capture"; exit 1; }; \
+    if grep -nE '^Mira pages:|\.qml:[0-9]+:([0-9]+:)? |ReferenceError|TypeError|Unable to assign|^Traceback ' \
+            /tmp/mira-smoke.log; then \
+        echo "GATE FAIL: the staged Mira opened with the faults above"; exit 1; \
+    fi; \
+    python3 -s /src/mira/test_visual_tier.py --face-probe /out/app \
+        || { echo "GATE FAIL: the staged Mira draws no face on the software scene graph"; exit 1; }
 
 # -----------------------------------------------------------------------------
 # Build moos-qml-shell — the ONE C++ binary MoOS compiles itself (the QML host

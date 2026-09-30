@@ -5,17 +5,49 @@
 #   mira --panel NAME          open on a page: device|apps|compat|dev|system → System centre,
 #                              settings|remote → Settings, home, computer, chat
 #   mira --ask TEXT            put a question in the composer (it is never sent for the person)
+#   mira --background          start without the window, in the system tray (login start:
+#                              mira.service, or the autostart entry Mira's Settings writes)
+#   mira --ask-about PATH…     Dolphin's «Ask Mira about this»: a question about these files in
+#                              the composer (a small text file is attached), never sent for him
+#   mira --add-project DIR     Dolphin's «Add to Mira as a project»: the folder joins the
+#                              Workbench projects (inside the home folder only)
 #
 # Mira is Mo AI's app: she wears its desktop id and icon (org.moos.moai, Meta+Space) and Mo AI's
 # services (moai-gateway, moai-control, moai-agent-api) are her executor. The app is Python and
-# Qt Quick: /usr/lib/mira/app is her tree, /usr/lib/mira/site holds the pinned packages Fedora does
-# not ship (mira/packaging/requirements.lock), and everything else is the image's own Python.
+# Qt Quick: /usr/lib/mira/app is her tree, /usr/lib/mira/site holds the pinned packages the base
+# image does not ship (mira/packaging/requirements.lock), and everything else is the image's own Python.
+# Desktop apps also reach her on the session bus: org.moos.Mira /Mira (Show, Prefill, Talk, Stop).
 set -uo pipefail
 
 APP="${MIRA_APP:-/usr/lib/mira/app}"
 SITE="${MIRA_SITE:-/usr/lib/mira/site}"
+PY="${MIRA_PYTHON:-/usr/bin/python3}"
+CLASSIC="${MIRA_CLASSIC_LAUNCHER:-/usr/bin/moai}"   # the launcher tests replace it
 
 if [ ! -f "$APP/app.py" ]; then
+    # An edition built without Mira's stage keeps Mo AI's QML app. Nothing that reaches `mira`
+    # there may be a dead end: the login start has nothing to start, and every other entry opens
+    # the assistant that IS installed, on the nearest page it has. Arguments are read as Mira reads
+    # them (kde_integration.launch_extras): the value of --panel and --ask is never an option.
+    classic=()
+    background=0
+    while [ "$#" -gt 0 ]; do
+        case "$1" in
+            --panel|--ask)   classic+=("$1"); shift; [ "$#" -gt 0 ] && { classic+=("$1"); shift; }; continue ;;
+            --background)    background=1 ;;
+            --add-project)   classic+=(--workspace projects); shift
+                             [ "$#" -gt 0 ] && [ "${1#--}" = "$1" ] && shift; continue ;;
+            --add-project=*) classic+=(--workspace projects) ;;
+            --ask-about)     shift; while [ "$#" -gt 0 ] && [ "${1#--}" = "$1" ]; do shift; done; continue ;;
+            --ask-about=*)   ;;
+            *)               classic+=("$1") ;;
+        esac
+        shift
+    done
+    [ "$background" = 1 ] && exit 0
+    if [ -x "$CLASSIC" ]; then
+        MOAI_CLASSIC=1 exec "$CLASSIC" "${classic[@]}"
+    fi
     echo "mira: not installed at $APP" >&2
     echo "mira: ميرا غير مثبّتة في هذه النسخة" >&2
     exit 1
@@ -25,9 +57,43 @@ fi
 export PYTHONPATH="$SITE${PYTHONPATH:+:$PYTHONPATH}"
 export QT_QUICK_CONTROLS_STYLE=Basic
 
+# ── Is there a GPU to draw with? ─────────────────────────────────────────────
+# The same measured rule as /usr/bin/moai (read its note): on a machine with no real graphics
+# device Qt Quick's GL scene graph runs on llvmpipe and spins, measured at 1.7 cores for an idle
+# window on a virtual server, against 4% with Qt's software scene graph. The list is of drivers
+# with NO usable acceleration; an unknown driver is assumed real, because a missed optimisation
+# is cheap and a capable desktop wrongly dropped onto software rendering is not.
+#
+# The software scene graph cannot run ShaderEffect, and Mira's aura, face portal and background
+# are shaders. There MiraCore, Avatar and Nebula draw her still face and a still glow by themselves
+# (GraphicsInfo), and MIRA_STILL=1 tells her motion policy (visual_tier.py) that nothing should
+# loop: the picture is still, and a loop would only repaint it on the processor. It is also set
+# when the person chose the software backend himself. The list agrees with moos-visual-tier's
+# VIRTUAL_DRIVERS where a driver renders nothing (vgem, vkms) or was measured on llvmpipe
+# (virtio-pci, the Oracle A1's adapter, where KWin itself draws in software). A virgl VM that
+# shows the same spelling loses only her ambient loop, which that tool's essential tier stops
+# anyway. virtio_gpu stays "real": virgl can accelerate it. MIRA_DRM_ROOT is for the tests only.
+DRM_ROOT="${MIRA_DRM_ROOT:-/sys/class/drm}"
+_has_real_gpu() {
+    for _c in "$DRM_ROOT"/card[0-9] "$DRM_ROOT"/card[0-9][0-9]; do
+        [ -r "$_c/device/uevent" ] || continue
+        case "$(sed -n 's/^DRIVER=//p' "$_c/device/uevent" 2>/dev/null)" in
+            ''|bochs-drm|cirrus|qxl|vmwgfx|vboxvideo|simpledrm|hyperv_drm|ast|mgag200|faux_driver|vgem|vkms|virtio-pci) ;;
+            *) return 0 ;;
+        esac
+    done
+    return 1
+}
+if [ -z "${QT_QUICK_BACKEND:-}" ] && ! _has_real_gpu; then
+    export QT_QUICK_BACKEND=software
+fi
+case "${QT_QUICK_BACKEND:-}" in
+    software|softwarecontext) export MIRA_STILL=1 ;;
+esac
+
 # Her log sits where Mo AI's always did, so moos-inspect's `log moai` still reads the assistant.
 CACHE="${XDG_CACHE_HOME:-$HOME/.cache}"
 LOG="$CACHE/moai.log"
 mkdir -p "$CACHE" 2>/dev/null || true
-echo "=== mira launch $(date -u '+%Y-%m-%dT%H:%M:%SZ') ===" >>"$LOG" 2>/dev/null || true
-exec /usr/bin/python3 -s "$APP/app.py" "$@" 2> >(tee -a "$LOG" >&2)
+echo "=== mira launch $(date -u '+%Y-%m-%dT%H:%M:%SZ')${MIRA_STILL:+ (software scene graph, still)} ===" >>"$LOG" 2>/dev/null || true
+exec "$PY" -s "$APP/app.py" "$@" 2> >(tee -a "$LOG" >&2)

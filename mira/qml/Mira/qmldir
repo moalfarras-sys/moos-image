@@ -29,3 +29,16 @@ WakeCoach 1.0 WakeCoach.qml
 CompanionPanel 1.0 CompanionPanel.qml
 ActionCards 1.0 ActionCards.qml
 SystemSheet 1.0 SystemSheet.qml
+PageFrame 1.0 PageFrame.qml
+Card 1.0 Card.qml
+StatusPill 1.0 StatusPill.qml
+Tile 1.0 Tile.qml
+OutputBox 1.0 OutputBox.qml
+NavRail 1.0 NavRail.qml
+SheetFrame 1.0 SheetFrame.qml
+PcPage 1.0 PcPage.qml
+SystemPage 1.0 SystemPage.qml
+AppsPage 1.0 AppsPage.qml
+WorkbenchPage 1.0 WorkbenchPage.qml
+ConnectPage 1.0 ConnectPage.qml
+BrainPage 1.0 BrainPage.qml

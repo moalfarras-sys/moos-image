@@ -166,7 +166,7 @@ Earlier measured history (v1–v3) is kept in `HISTORY.md`; the device client in
 
 ## In the MoOS image (branch `mira/neural-os-v4`, x86 editions)
 
-- The Containerfile's `mira-build` stage starts FROM the image's own base. It installs Fedora's
+- The Containerfile's `mira-build` stage starts FROM the image's own base. It installs the base's RPM
   `python3-pyside6`/`python3-numpy` and adds only `packaging/requirements.lock` (22 sha256-pinned
   wheels: google-genai 2.25, aioesphomeapi 46.6, protobuf 7, …; no dependency resolution, no
   bytecode). It then runs Mira's suites, stages the runtime tree (`packaging/stage.sh`) and opens

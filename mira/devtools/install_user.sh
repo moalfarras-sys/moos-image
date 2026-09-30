@@ -63,7 +63,12 @@ if [ -f "$APPS/mira.desktop" ]; then
 fi
 AUTOSTART="$HOME/.config/autostart/mira.desktop"
 if [ -f "$AUTOSTART" ]; then
-    printf '[Desktop Entry]\nType=Application\nName=Mira\nName[ar]=ميرا\nExec=%s/mira\nIcon=moos-moai\nTerminal=false\nX-GNOME-Autostart-enabled=true\n' "$BIN" > "$AUTOSTART"
+    # Keep how the owner chose to start: Mira's Settings writes `--background` (the tray, no window).
+    # The launcher is named by its absolute path in TryExec and Exec: the user manager's autostart
+    # generator does not search ~/.local/bin.
+    bg=""
+    grep -q -- '--background' "$AUTOSTART" && bg=" --background"
+    printf '[Desktop Entry]\nType=Application\nName=Mira\nName[ar]=ميرا\nTryExec=%s/mira\nExec=%s/mira%s\nIcon=moos-moai\nTerminal=false\nX-GNOME-Autostart-enabled=true\n' "$BIN" "$BIN" "$bg" > "$AUTOSTART"
 fi
 refresh_menus
 echo "launcher: $BIN/mira · moai shim · $APPS/org.moos.moai.desktop"

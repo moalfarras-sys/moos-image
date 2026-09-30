@@ -189,7 +189,7 @@ def system_section(findings):
 # ── Updates ─────────────────────────────────────────────────────────────────
 def updates_section(findings):
     result = {"checked": False, "apps": [], "nightly_system_update": None,
-              "last_nightly_result": ""}
+              "last_nightly_result": "", "last_nightly_run": ""}
     if tool(["moos-storectl", "check-updates"], timeout=240) is not None:
         cache = Path(os.environ.get("XDG_CACHE_HOME") or HOME / ".cache")
         try:
@@ -218,6 +218,13 @@ def updates_section(findings):
     last = (tool(["systemctl", "show", "moos-auto-update.service", "-p", "Result",
                   "--value"]) or "").strip()
     result["last_nightly_result"] = last
+    # systemd reports Result=success for a unit that never ran and resets it on every boot, so a
+    # reader may call it "the last run succeeded" only beside the run's own end time.
+    ended = (tool(["systemctl", "show", "moos-auto-update.service", "-p", "ExecMainExitTimestamp",
+                   "--value", "--timestamp=unix"]) or "").strip()
+    if re.fullmatch(r"@\d+", ended) and ended != "@0":
+        result["last_nightly_run"] = datetime.fromtimestamp(int(ended[1:]), timezone.utc).isoformat(
+            timespec="seconds")
     if last and last != "success":
         findings.append(finding(
             "nightly-update-failed", "warning",

@@ -34,6 +34,7 @@ ROOT = Path(__file__).resolve().parents[1]
 POLICY = ROOT / "system_files/usr/share/polkit-1/actions/org.moos.install-local-rpm.policy"
 HELPER = ROOT / "system_files/usr/libexec/moos-install-local-rpm"
 MOAI_DO = ROOT / "system_files/usr/bin/moai-do"
+ROUTER = ROOT / "system_files/usr/bin/moos-open"
 BASH = "/usr/bin/bash" if Path("/usr/bin/bash").exists() else "bash"
 PKEXEC_NOISE = ("Error executing command as another user: Not authorized",
                 "This incident has been reported.")
@@ -133,9 +134,49 @@ class DismissedAuthentication(unittest.TestCase):
         self.assertIn("The package was NOT staged", install)
 
 
+class PackageFolders(unittest.TestCase):
+    """The helper accepts exactly the folders moai-do offered: the same function, both sides.
+
+    moai-do learned the caller's XDG folder names («سطح المكتب») so a package on the owner's real
+    desktop is accepted; the root helper must agree, or the owner types his password for a
+    package the helper then refuses."""
+
+    def test_the_helper_reads_the_folders_exactly_as_moai_do_does(self):
+        helper = HELPER.read_text(encoding="utf-8")
+        frontend = MOAI_DO.read_text(encoding="utf-8")
+        self.assertEqual(function(helper, "rpm_source_dirs"), function(frontend, "rpm_source_dirs"))
+        self.assertIn('rpm_source_dirs "$caller_home" "$caller_uid"', helper,
+                      "the helper must ask for the CALLER's folders, never root's")
+        self.assertNotIn("XDG_CONFIG_HOME", function(helper, "rpm_source_dirs"),
+                         "a root helper must not read the caller's environment")
+
+    def test_the_router_offers_exactly_those_folders_too(self):
+        # moos://apps/install-rpm/<file> (Mira's Apps page, Mo AI's picker) is refused or passed
+        # on by moos-open first: a folder it did not know would be refused before moai-do was asked.
+        router = ROUTER.read_text(encoding="utf-8")
+        frontend = MOAI_DO.read_text(encoding="utf-8")
+        self.assertEqual(function(router, "rpm_source_dirs"), function(frontend, "rpm_source_dirs"))
+        self.assertIn('done < <(rpm_source_dirs "$home" "$(id -u)")', router)
+        self.assertNotIn('"$home"/Desktop/*.rpm', router, "the router kept its own folder list")
+
+    def test_the_folder_list_names_only_visible_folders_of_the_home(self):
+        home = Path(self.enterContext(tempfile.TemporaryDirectory(prefix="moos-rpm-dirs-")))
+        (home / ".config").mkdir()
+        (home / ".config" / "user-dirs.dirs").write_text(
+            'XDG_DESKTOP_DIR="$HOME/سطح المكتب"\nXDG_DOCUMENTS_DIR="$HOME/.ssh"\n'
+            'XDG_DOWNLOAD_DIR="/etc"\nXDG_MUSIC_DIR="$HOME/Music"\n', encoding="utf-8")
+        probe = function(HELPER.read_text(encoding="utf-8"), "rpm_source_dirs")
+        done = subprocess.run([BASH, "-c", probe + '\nrpm_source_dirs "$1" "$(id -u)"', "probe",
+                               str(home)], capture_output=True, text=True, timeout=30)
+        self.assertEqual(done.stdout.splitlines(),
+                         [f"{home}/Downloads", f"{home}/Desktop", f"{home}/Documents",
+                          f"{home}/سطح المكتب"])
+
+
 if __name__ == "__main__":
     loader = unittest.defaultTestLoader
     suite = unittest.TestSuite([loader.loadTestsFromTestCase(AuthenticationPrompt),
-                                loader.loadTestsFromTestCase(DismissedAuthentication)])
+                                loader.loadTestsFromTestCase(DismissedAuthentication),
+                                loader.loadTestsFromTestCase(PackageFolders)])
     result = unittest.TextTestRunner(verbosity=1).run(suite)
     raise SystemExit(0 if result.wasSuccessful() else 1)

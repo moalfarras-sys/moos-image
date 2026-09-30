@@ -1,10 +1,13 @@
 """Tests for Mira's system-control modules: pending, desktop_tools, reminders, routines, announce.
 
-Runs offline (no network). Two live, read-only checks touch the running desktop when one is
-present (media status, clipboard read) and skip cleanly otherwise. Nothing here runs a
-destructive command; the only shell-ish thing is a temp-dir `os.scandir` via find_files.
+Runs offline (no network) and never reads the owner's desktop by default. Three live, read-only
+checks (media status, the clipboard, the window list) run only when asked for explicitly with
+MIRA_LIVE_TESTS=1 on a desktop session: a test must not touch the owner's live desktop (AGENTS.md),
+and the clipboard can hold anything he copied. Nothing here runs a destructive command; the only
+shell-ish thing is a temp-dir `os.scandir` via find_files.
 
     /var/home/moos/.local/share/mira/venv/bin/python -m unittest test_systools -v
+    MIRA_LIVE_TESTS=1 /var/home/moos/.local/share/mira/venv/bin/python -m unittest test_systools.DesktopLive -v
 """
 import asyncio
 import os
@@ -30,6 +33,11 @@ import routines
 def _has_session() -> bool:
     return bool(os.environ.get('WAYLAND_DISPLAY') or os.environ.get('DBUS_SESSION_BUS_ADDRESS')
                 or Path(f'/run/user/{os.getuid()}/bus').exists())
+
+
+def _live_tests_asked() -> bool:
+    """Only an explicit MIRA_LIVE_TESTS=1 lets a test read the owner's running desktop."""
+    return os.environ.get('MIRA_LIVE_TESTS') == '1'
 
 
 # ─── pending.is_confirmation ──────────────────────────────────────────
@@ -444,9 +452,64 @@ class DesktopMocked(unittest.TestCase):
         self.assertEqual(desktop_tools.system_volume_app('x', 500)['status'], 'error')
 
 
+class WindowById(unittest.TestCase):
+    """focus_window_id / close_window_id act on the one window the owner clicked, by KWin's id, and
+    only while its caption is the one he saw. KWin is stood in for: nothing touches the session."""
+
+    WINDOWS = [
+        {'id': '{aaaa-1}', 'caption': '~ : bash — Konsole', 'cls': 'konsole', 'normal': True},
+        {'id': '{bbbb-2}', 'caption': '~ : bash — Konsole', 'cls': 'konsole', 'normal': True},
+        {'id': '{cccc-3}', 'caption': 'x' * 150, 'cls': 'kate', 'normal': True},
+    ]
+
+    def run_with(self, call, *args):
+        scripts = []
+
+        def kwin(template, subst, timeout=6.0):
+            scripts.append(dict(subst))
+            return [dict(w) for w in self.WINDOWS] if template is desktop_tools._WINDOWS_JS else {'done': 1}
+        with mock.patch.object(desktop_tools, '_session_bus_ok', return_value=True), \
+                mock.patch.object(desktop_tools, '_kwin_available', return_value=True), \
+                mock.patch.object(desktop_tools, '_run_kwin_script', side_effect=kwin):
+            return call(*args), scripts
+
+    def test_the_exact_window_among_two_with_one_title(self):
+        # By title the two Konsoles are ambiguous; by id the second one is closed, and only it.
+        out, scripts = self.run_with(desktop_tools.close_window, '~ : bash — Konsole')
+        self.assertEqual(out.get('error'), 'ambiguous')
+        out, scripts = self.run_with(desktop_tools.close_window_id, '{bbbb-2}', '~ : bash — Konsole')
+        self.assertEqual(out['status'], 'ok', out)
+        self.assertEqual(scripts[-1], {'wid': '{bbbb-2}', 'mode': 'close'})
+        out, scripts = self.run_with(desktop_tools.focus_window_id, '{aaaa-1}', '~ : bash  —  Konsole')
+        self.assertEqual(out['status'], 'ok', out)
+        self.assertEqual(scripts[-1], {'wid': '{aaaa-1}', 'mode': 'focus'})
+
+    def test_a_changed_caption_or_a_gone_window_does_nothing(self):
+        out, scripts = self.run_with(desktop_tools.close_window_id, '{bbbb-2}', 'Report — Writer')
+        self.assertEqual((out['status'], out['error']), ('partial', 'caption_changed'))
+        self.assertEqual(len(scripts), 1, 'only the list was read; no action ran')
+        out, scripts = self.run_with(desktop_tools.close_window_id, '{dddd-4}', 'Anything')
+        self.assertEqual(out['error'], 'no_match')
+        self.assertEqual(len(scripts), 1)
+
+    def test_a_title_cut_for_the_card_still_names_its_window(self):
+        out, _ = self.run_with(desktop_tools.close_window_id, '{cccc-3}', 'x' * 120)
+        self.assertEqual(out['status'], 'ok', out)
+        out, _ = self.run_with(desktop_tools.close_window_id, '{cccc-3}', 'x' * 60)
+        self.assertEqual(out['error'], 'caption_changed', 'a short title must match whole')
+
+    def test_bad_ids_are_refused_before_kwin(self):
+        for wid in ('', 'a b', '"); workspace.x(); ("', 'x' * 65):
+            out, scripts = self.run_with(desktop_tools.close_window_id, wid, 't')
+            self.assertEqual(out['error'], 'bad_window', wid)
+            self.assertEqual(scripts, [])
+
+
+@unittest.skipUnless(_live_tests_asked(), "reads the owner's live desktop; set MIRA_LIVE_TESTS=1 to run")
 @unittest.skipUnless(_has_session(), 'no desktop session bus')
 class DesktopLive(unittest.TestCase):
-    """One real, read-only observation each. These print what they saw."""
+    """One real, read-only observation each, on request only (MIRA_LIVE_TESTS=1). These print what
+    they saw, and the clipboard check prints only its summary, never what was copied."""
 
     def test_media_status_live(self):
         out = desktop_tools.media('status')

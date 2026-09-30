@@ -444,6 +444,22 @@ def ensure_front_door():
     sysctl("enable", "--now", GATEWAY_UNIT)
 
 
+def phone_link_installed():
+    """Is the phone link (KDE Connect, the menu's "Phone") on this machine?
+
+    It is part of the image where the edition carries it, as the distribution's own package:
+    org.kde.kdeconnect.app.desktop and kdeconnect-app. There is no store Flatpak for it, so the
+    old check for an "org.kde.kdeconnect" Flatpak answered "no" on every machine that had it.
+    Read the entry from the XDG data dirs (a user install lands in XDG_DATA_HOME), or the
+    program, never assume it."""
+    home = os.environ.get("XDG_DATA_HOME") or os.path.expanduser("~/.local/share")
+    dirs = [home] + (os.environ.get("XDG_DATA_DIRS") or "/usr/local/share:/usr/share").split(":")
+    for base in dirs:
+        if base and os.path.isfile(os.path.join(base, "applications", "org.kde.kdeconnect.app.desktop")):
+            return True
+    return command_exists("kdeconnect-app")
+
+
 def command_exists(name):
     """Is this command installed for THIS user?
 
@@ -762,7 +778,7 @@ def scan() -> dict:
         "io.github.kolunmi.Bazaar", "org.mozilla.firefox", "org.videolan.VLC",
         "org.libreoffice.LibreOffice", "com.github.tchx84.Flatseal",
         "com.valvesoftware.Steam", "com.usebottles.bottles",
-        "org.kde.kdeconnect", "com.google.AndroidStudio",
+        "com.google.AndroidStudio",
         # The recommended camera — without it the Camera card can never flip to
         # "Installed" the way every other recommended app does.
         "org.gnome.Snapshot",
@@ -772,7 +788,7 @@ def scan() -> dict:
         "kvm": os.access("/dev/kvm", os.R_OK | os.W_OK),
         "steam": "com.valvesoftware.Steam" in have,
         "bottles": "com.usebottles.bottles" in have,
-        "kdeconnect": "org.kde.kdeconnect" in have,
+        "kdeconnect": phone_link_installed(),
     }
     info["remote"] = remote_state()
     info["agents"] = agent_state()

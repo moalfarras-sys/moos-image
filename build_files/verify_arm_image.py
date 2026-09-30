@@ -3,10 +3,12 @@
 
 from __future__ import annotations
 
+import ast
 import configparser
 import json
 import os
 import platform
+import re
 import subprocess
 from pathlib import Path
 
@@ -52,6 +54,83 @@ def verify_appstream_refresh() -> None:
         "etc/systemd/system/timers.target.wants",
         "usr/lib/systemd/system/timers.target.wants",
     )), "AppStream timer is disabled or has a dangling enable link")
+
+
+AARCH64_ELF_MACHINE = 183
+MIRA_RUNTIME_RPMS = (
+    "python3-pyside6", "python3-numpy", "python3-jeepney", "python3-httpx",
+    "python3-websockets", "python3-requests", "python3-cryptography",
+)
+MIRA_APP = "usr/lib/mira/app"
+
+
+def rpm_installed(package: str) -> bool:
+    return subprocess.run(["rpm", "-q", package], stdout=subprocess.DEVNULL,
+                          stderr=subprocess.DEVNULL, check=False).returncode == 0
+
+
+def mira_page_files(app: Path) -> list[str]:
+    """The page modules Mira's pages/__init__.py names in PAGES, read without importing it."""
+    source = app / "pages/__init__.py"
+    require(source.is_file(), f"Mira's pages are missing: /{source.relative_to(ROOT)}")
+    for node in ast.parse(source.read_text(encoding="utf-8")).body:
+        if isinstance(node, ast.Assign) and any(
+                isinstance(target, ast.Name) and target.id == "PAGES" for target in node.targets):
+            try:
+                pages = ast.literal_eval(node.value)
+            except ValueError:
+                break
+            names = [entry[0] for entry in pages if isinstance(entry, (tuple, list)) and entry]
+            require(names and all(isinstance(name, str) and name.isidentifier() for name in names),
+                    "Mira's pages.PAGES names no page module")
+            return [f"pages/{name}.py" for name in names]
+    raise SystemExit("ARM IMAGE FATAL: Mira's pages/__init__.py declares no literal PAGES list")
+
+
+SHARED_OBJECT = re.compile(r"\.so(\.[0-9]+)*$")
+
+
+def is_native_library(path: Path) -> bool:
+    """Every shared object a wheel can carry: name.so, and the vendored name.so.N of *.libs/."""
+    return bool(SHARED_OBJECT.search(path.name)) and path.is_file() and not path.is_symlink()
+
+
+def verify_mira() -> None:
+    """Mira is the assistant on ARM too: her tree, her pages, her native packages, her launcher.
+
+    Until Containerfile.arm had a mira-build stage, the shared /usr/bin/moai found no
+    /usr/lib/mira on this edition and kept opening the classic app, so the Oracle A1 ran a
+    different assistant from x86 with every gate green. build-arm.sh opens her window and draws
+    her face; this proves what that smoke cannot: the tree carries every page module PAGES names
+    (the stage once shipped without pages/, and the window still opened), every compiled module
+    she carries is AArch64 (a wrong-arch wheel imports only when its feature is first used, on the
+    owner's machine), and the RPMs her Python imports are installed rather than inherited by
+    accident.
+    """
+    for folder in (MIRA_APP, "usr/lib/mira/site"):
+        require((ROOT / folder).is_dir(), f"Mira's {folder} tree is missing")
+    app = ROOT / MIRA_APP
+    for relative in ("app.py", "controller.py", "chat_ui.py", "kde_integration.py", "visual_tier.py",
+                     "qml/Main.qml", "pages/base.py", *mira_page_files(app)):
+        require((app / relative).is_file(), f"Mira's tree lacks /{MIRA_APP}/{relative}")
+    launcher = ROOT / "usr/bin/mira"
+    require(launcher.is_file() and os.access(launcher, os.X_OK),
+            "the Mira launcher is missing or not executable")
+    require("exec /usr/bin/mira" in read("/usr/bin/moai"),
+            "moai does not hand the assistant to Mira on ARM")
+    libraries = sorted(path for path in (ROOT / "usr/lib/mira/site").rglob("*") if is_native_library(path))
+    require(libraries, "Mira's pinned packages carry no native extension; the aarch64 "
+            "wheels were not the ones installed")
+    for library in libraries:
+        with open(library, "rb") as handle:
+            header = handle.read(20)
+        require(len(header) == 20 and header[:4] == b"\x7fELF" and header[4] == 2
+                and int.from_bytes(header[18:20], "little") == AARCH64_ELF_MACHINE,
+                f"Mira's native module is not AArch64: /{library.relative_to(ROOT)}")
+    caches = [path for path in (ROOT / "usr/lib/mira").rglob("__pycache__")]
+    require(not caches, f"bytecode caches reached Mira's tree: {caches[:3]}")
+    for package in MIRA_RUNTIME_RPMS:
+        require(rpm_installed(package), f"Mira's runtime package is absent: {package}")
 
 
 def main() -> None:
@@ -529,12 +608,18 @@ def main() -> None:
     for payload in (
         "usr/bin/moplayer",
         "usr/bin/mo-pc-remote",
+        "usr/bin/mira",
         "usr/share/applications/org.moos.moplayer.desktop",
         "usr/share/applications/org.moos.remote.desktop",
+        "usr/share/applications/org.moos.moai.desktop",
         "usr/lib/moplayer/data/icudtl.dat",
         "usr/lib/mo-remote/mo-remote-portal.py",
+        "usr/lib/mira/app/app.py",
+        "usr/lib/mira/app/visual_tier.py",
+        "usr/lib/mira/app/qml/Main.qml",
     ):
         require((ROOT / payload).is_file(), f"ARM first-party payload is missing: /{payload}")
+    verify_mira()
     portal = read("/usr/lib/mo-remote/mo-remote-portal.py")
     for contract in ("pipewiresrc", "H264_ENCODERS", '"codec": "jpeg"'):
         require(contract in portal, f"ARM Remote lacks capability fallback contract: {contract}")
