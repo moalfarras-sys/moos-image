@@ -2645,9 +2645,13 @@ systemctl disable rpm-ostreed-automatic.timer 2>/dev/null || true
 #
 # mask wins over a vendor want (/etc/systemd/system/<unit> -> /dev/null), and it
 # keeps winning if a base update re-adds the symlink. Remove the vendor want too
-# so the finished tree is honest to anyone reading it. `bootc upgrade` by hand is
-# unaffected; only the automatic timer is.
+# so the finished tree is honest to anyone reading it. The 2026-09-30 ARM base
+# also added /etc/systemd/system/timers.target.wants for this timer; remove every
+# exact-name wants symlink in the two unit trees, not just the older vendor path.
+# `bootc upgrade` by hand is unaffected; only the automatic timer is.
 rm -f /usr/lib/systemd/system/default.target.wants/bootc-fetch-apply-updates.timer
+find /usr/lib/systemd/system /etc/systemd/system -path '*.wants/bootc-fetch-apply-updates.timer' \
+    -type l -print -delete
 systemctl mask bootc-fetch-apply-updates.timer
 
 # --- Get the app catalogue OUT of the boot path -------------------------------

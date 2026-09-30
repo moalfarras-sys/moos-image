@@ -837,6 +837,10 @@ class ArmEditionTests(unittest.TestCase):
             "default.target.wants/bootc-fetch-apply-updates.timer", text,
             "build-arm.sh must also remove the base image's vendor want symlink",
         )
+        self.assertIn(
+            "-path '*.wants/bootc-fetch-apply-updates.timer'", text,
+            "build-arm.sh must cover newly added wants targets, including timers.target",
+        )
 
     def test_the_initrd_carries_no_nfs_client(self) -> None:
         """No NFS in the initrd: MoOS always roots from a LOCAL device.

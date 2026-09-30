@@ -1877,6 +1877,9 @@ for _script in ("build_files/build.sh", "build_files/build-arm.sh"):
     require("default.target.wants/bootc-fetch-apply-updates.timer" in _src,
             f"{_script} must also remove the base image's vendor want symlink so the finished "
             "tree is honest about what pulls the timer in.")
+    require("-path '*.wants/bootc-fetch-apply-updates.timer'" in _src
+            and "-type l -print -delete" in _src,
+            f"{_script} must also remove exact-name wants symlinks added by a newer base")
 # uupd unmarshals this file STRICTLY: one key it does not know and it refuses to start at
 # all — "'config.Config' has invalid keys" — which is worse than the failing module this
 # file exists to silence. Learned the hard way: a JSON block explaining WHY brew is off,
