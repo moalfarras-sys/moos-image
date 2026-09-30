@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Exercise the real monitor watcher without inheriting the workstation bus."""
 import ast
+import tempfile
 from pathlib import Path
 from types import SimpleNamespace
 import unittest
@@ -141,6 +142,56 @@ class GeometryTests(unittest.TestCase):
         self.assertIn("DisplayGeometryWatch(display, GLib.idle_add", source)
         self.assertIn('die(EXIT_LOST, "display geometry changed;', source)
         self.assertIn('f" ({detail})"', source)
+
+
+def extract(*names):
+    """Load the named top-level classes/functions of the helper without running it."""
+    tree = ast.parse(SOURCE.read_text())
+    nodes = [n for n in tree.body
+             if isinstance(n, (ast.ClassDef, ast.FunctionDef)) and n.name in names]
+    scope = {"os": __import__("os")}
+    exec(compile(ast.Module(body=nodes, type_ignores=[]), str(SOURCE), "exec"), scope)
+    return scope
+
+
+class GrantKeptTests(unittest.TestCase):
+    """The owner's one-time approval must survive a renewal seen mid-handshake."""
+
+    def test_a_change_during_the_handshake_waits_for_the_saved_token(self):
+        guard = extract("GrantGuard")["GrantGuard"]()
+        order = []
+        guard.renew(lambda: order.append("renew"))
+        guard.renew(lambda: order.append("second renew"))
+        self.assertEqual(order, [], "renewed before the replacement token was stored")
+        order.append("token saved")
+        guard.stored()
+        self.assertEqual(order, ["token saved", "renew"])
+        guard.renew(lambda: order.append("later change"))
+        self.assertEqual(order[-1], "later change")
+
+    def test_the_token_is_stored_before_the_guard_releases(self):
+        source = SOURCE.read_text()
+        saved = source.index('save_token(started.get("restore_token"))')
+        released = source.index("grant_guard.stored()")
+        self.assertLess(saved, released)
+        self.assertEqual(source[saved:released].count("\n"), 1,
+                         "nothing may run between storing the token and releasing the guard")
+        watch = source[source.index("def watch_display_geometry"):saved]
+        self.assertIn("grant_guard.renew(", watch)
+
+    def test_token_file_is_replaced_whole_and_private(self):
+        scope = extract("save_token")
+        with tempfile.TemporaryDirectory() as home:
+            target = Path(home, "MoRemote", "portal-restore-token")
+            scope.update(TOKEN_FILE=str(target), emit=lambda **_m: None)
+            target.parent.mkdir()
+            target.write_text("old-token")
+            scope["save_token"]("new-token")
+            self.assertEqual(target.read_text(), "new-token")
+            self.assertEqual(target.stat().st_mode & 0o777, 0o600)
+            self.assertFalse(Path(str(target) + ".new").exists())
+            scope["save_token"]("")
+            self.assertEqual(target.read_text(), "new-token", "an empty answer erased the grant")
 
 
 if __name__ == "__main__":

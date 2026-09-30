@@ -92,13 +92,23 @@ def load_token():
 
 
 def save_token(token):
+    """Store the portal's replacement token so that it survives a crash.
+
+    A restore token is single use: when Start succeeds the portal deletes the
+    token it was given and returns a new one. Losing the new one throws away the
+    owner's one-time approval, and KDE asks again. Write it whole or not at all.
+    """
     if not token:
         return
+    staging = TOKEN_FILE + ".new"
     try:
         os.makedirs(os.path.dirname(TOKEN_FILE), exist_ok=True)
-        with open(TOKEN_FILE, "w") as f:
+        fd = os.open(staging, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+        with os.fdopen(fd, "w") as f:
             f.write(token)
-        os.chmod(TOKEN_FILE, 0o600)
+            f.flush()
+            os.fsync(f.fileno())
+        os.replace(staging, TOKEN_FILE)
     except OSError as e:
         emit(type="warn", warn=f"could not persist restore token: {e}")
 
@@ -182,6 +192,37 @@ class DisplayGeometryWatch:
         self.invalidate("compositor connection closed")
 
 
+class GrantGuard:
+    """Hold a renewal until the replacement restore token is on disk.
+
+    The display watch runs from the first portal request, so a change while the
+    permission picker is open is still seen. Acting on it at once, though, could
+    exit while the portal was finishing Start: the portal had already retired the
+    old token, the new one was never stored, and the next session met KDE's
+    dialog with nobody at the screen to answer it. A change seen during the
+    handshake is therefore remembered and acted on once the token is saved.
+    """
+    def __init__(self):
+        self.storing = True
+        self.deferred = None
+
+    def renew(self, action):
+        if self.storing:
+            if self.deferred is None:
+                self.deferred = action
+            return
+        action()
+
+    def stored(self):
+        self.storing = False
+        deferred, self.deferred = self.deferred, None
+        if deferred is not None:
+            deferred()
+
+
+grant_guard = GrantGuard()
+
+
 def watch_display_geometry():
     # This helper is Wayland-only. An inherited X11 backend would observe the
     # XWayland coordinate emulation instead of the compositor's real outputs.
@@ -192,8 +233,9 @@ def watch_display_geometry():
     if display is None:
         die(EXIT_LOST, "cannot observe Wayland display geometry")
     return DisplayGeometryWatch(display, GLib.idle_add,
-        lambda detail: die(EXIT_LOST, "display geometry changed; renewing capture and input grant"
-                                      f" ({detail})"))
+        lambda detail: grant_guard.renew(
+            lambda: die(EXIT_LOST, "display geometry changed; renewing capture and input grant"
+                                   f" ({detail})")))
 
 
 # Observe BEFORE Start, including changes while its permission picker is open.
@@ -250,6 +292,7 @@ except PortalDenied as e:
     die(EXIT_DENIED if e.by_user else EXIT_LOST, str(e))
 
 save_token(started.get("restore_token"))
+grant_guard.stored()
 
 streams = started.get("streams", [])
 if not streams:
