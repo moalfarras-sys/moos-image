@@ -354,6 +354,13 @@ the validated `org.opencontainers.image.version` label with the booted deploymen
 before offering an update, and repeat the check after privilege escalation. A
 digest-only updater can silently downgrade a newer working machine.
 
+**The journal may not reach back one boot.** MoOS caps it at 500 MB, and one noisy device
+fills that in hours: on 2026-10-01 the Echo gadget's USB microphone logged ~60 xHCI "buffer
+overrun" warnings a second, the whole journal spanned about five hours, and the previous
+boot's user logs were gone when a 34-hour Mo PC Remote loop needed explaining. Its own log
+(`~/.local/share/MoRemotePersonal/log.txt`) still had every line. Run `journalctl --list-boots`
+before concluding that nothing happened, and read the component's own log.
+
 **`pgrep -f <name>` matches your own shell.** `until ! pgrep -f bootc-image-builder; do sleep 30;
 done` never exits: the waiting shell's own command line contains the string, so pgrep finds
 itself and the loop waits forever on a process that already finished — or, worse, on one that
