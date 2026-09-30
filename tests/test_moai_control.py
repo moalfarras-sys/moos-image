@@ -1119,17 +1119,27 @@ class BootedVersionTests(unittest.TestCase):
                 stdout = status
 
             scope = control["booted_image_version"].__globals__
-            with mock.patch.object(scope["subprocess"], "run", return_value=Done()):
+            with mock.patch.object(scope["subprocess"], "run", return_value=Done()) as run:
                 self.assertEqual(control["booted_image_version"](), "44.20260924.929")
+                # The booted deployment cannot change within a boot. A later scan,
+                # even hours on, must not wake rpm-ostreed again (59 daemon starts
+                # in under three hours on the station with a one-minute cache).
+                scope["_image_version_cache"]["at"] -= 3 * 3600
+                self.assertEqual(control["booted_image_version"](), "44.20260924.929")
+                self.assertEqual(run.call_count, 1)
 
     def test_os_release_is_only_the_fallback(self):
         with tempfile.TemporaryDirectory() as home:
             control = load_control(home)
             scope = control["booted_image_version"].__globals__
-            scope["_image_version_cache"].update(at=0.0, value="")
-            with mock.patch.object(scope["subprocess"], "run", side_effect=OSError("no rpm-ostree")), \
+            scope["_image_version_cache"].update(at=0.0, value="", booted=False)
+            with mock.patch.object(scope["subprocess"], "run", side_effect=OSError("no rpm-ostree")) as run, \
                     mock.patch.dict(scope, {"_first_line": lambda *_a: "44.20260924.0"}):
                 self.assertEqual(control["booted_image_version"](), "44.20260924.0")
+                # A fallback is not the answer: it is asked again after a minute.
+                scope["_image_version_cache"]["at"] -= 61
+                self.assertEqual(control["booted_image_version"](), "44.20260924.0")
+                self.assertEqual(run.call_count, 2)
             source = CONTROL.read_text(encoding="utf-8")
             scan = source[source.index("def scan() -> dict:"):source.index("def scan() -> dict:") + 900]
             self.assertIn('"version": booted_image_version()', scan)

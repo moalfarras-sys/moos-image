@@ -710,7 +710,7 @@ def start_health_scan() -> dict:
     return {"started": True, "scanning": True}
 
 
-_image_version_cache: dict = {"at": 0.0, "value": ""}
+_image_version_cache: dict = {"at": 0.0, "value": "", "booted": False}
 
 
 def booted_image_version() -> str:
@@ -719,11 +719,19 @@ def booted_image_version() -> str:
     /etc/os-release's VERSION is the base's build stamp (44.20260924.0 on the station while
     it booted the signed 44.20260924.929): it names neither the MoOS release nor the update
     the owner installed. The booted deployment's version is the image label, so it is what
-    Mo AI quotes. Cached for a minute; os-release is only the fallback when rpm-ostree
-    cannot answer.
+    Mo AI quotes. os-release is only the fallback when rpm-ostree cannot answer.
+
+    rpm-ostree's answer is kept for the life of this process. The BOOTED deployment cannot
+    change until the machine restarts, and this user service starts again with the next
+    session. Asking again is not free: `rpm-ostree status` D-Bus-activates rpm-ostreed, which
+    loads the sysroot and exits about a minute later. With the old one-minute cache every
+    /scan past that minute started the daemon again — 59 starts in the station's first
+    2 h 50 min on 2026-09-30, from 61 of this service's calls. Only the os-release fallback
+    is retried, after a minute, so a transient rpm-ostree failure is not remembered.
     """
     now = time.monotonic()
-    if _image_version_cache["value"] and now - _image_version_cache["at"] < 60:
+    if _image_version_cache["booted"] or (
+            _image_version_cache["value"] and now - _image_version_cache["at"] < 60):
         return _image_version_cache["value"]
     version = ""
     try:
@@ -735,9 +743,10 @@ def booted_image_version() -> str:
             version = str(booted.get("version") or "")
     except Exception:                                   # noqa: BLE001 - a label never breaks a scan
         version = ""
-    if not re.fullmatch(r"[0-9][0-9A-Za-z.+~-]{0,63}", version):
+    from_deployment = bool(re.fullmatch(r"[0-9][0-9A-Za-z.+~-]{0,63}", version))
+    if not from_deployment:
         version = _first_line("/etc/os-release", "VERSION=")
-    _image_version_cache.update(at=now, value=version)
+    _image_version_cache.update(at=now, value=version, booted=from_deployment)
     return version
 
 
