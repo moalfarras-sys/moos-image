@@ -1320,7 +1320,12 @@ def h264_bitrate_bps(w=0, h=0):
     fps = state.get("fps") or 30
     q = max(10, min(95, int(state["quality"])))
     bpp = 0.03 + (q - 10) / 85.0 * 0.07     # 10 -> 0.03, 95 -> 0.10
-    return int(max(800_000, min(12_000_000, bpp * w * h * fps)))
+    # The floor is a budget PER FRAME (800 kbit/s at 30 fps), not per second. As a flat 800 kbit/s
+    # it undid the controller's weak-link rung (854 px at 15 fps, ~0.34 Mbit/s by the formula)
+    # by handing the struggling link more than twice what it asked for. At 30 fps and above
+    # nothing changes; at 15 fps the floor is 400 kbit/s.
+    floor = 800_000 * min(fps, 30) / 30
+    return int(max(floor, min(12_000_000, bpp * w * h * fps)))
 
 
 def target_size():

@@ -245,6 +245,8 @@ python3 tests/test_remote_h264_fallback.py
 # Only encoder failure may negotiate down. A dead PipeWire source needs a fresh portal
 # session, and both helper and agent must detect silence after frames have started.
 python3 tests/test_remote_video_health.py
+python3 tests/test_remote_display_geometry.py
+python3 tests/test_remote_weak_link.py
 # Mo PC Remote's feel over cellular is decided by three lines of kernel tuning, and both
 # ways they can fail are silent: a congestion control selected but never registered
 # (machine stays on cubic, nobody is told), and a mistyped key (skipped with a warning
