@@ -64,10 +64,9 @@ and its existing-account marker, current Global Theme `org.moos.ui2.gaming`,
 image is running and passed live post-update checks;
 that does not qualify suspend, every app or the full visual matrix.
 
-**Mo PC Remote on `.938`, 2026-09-26:** authenticated v42 loopback H.264 Data Saver
-measured 28–29 fps and 1 ms locally; zoom visibly enlarged the desktop; Auto restored.
-External-network, typing, files and audio remain unproved. Installed Auto can step
-down to Data Saver under sustained congestion; Island follows live glass clarity.
+**Mo PC Remote on `.938`, 2026-09-26:** authenticated v42 loopback H.264 Data Saver measured 28–29 fps and 1 ms locally; zoom visibly enlarged the desktop; Auto restored; Island follows live glass clarity.
+**Weak link, in source 2026-10-01 (not yet measured on a phone link):** Auto goes below Data saver to 854 px at 15 fps (~0.4 Mbit/s; the helper's bitrate floor is per frame now), acts on one ≥1.5 s round trip or a pong 4 s overdue, and recovers slowly; a first decoder error resyncs on a keyframe instead of moving the room to JPEG; a stalled send is ridden out to 7 s instead of 3; a viewer waiting for a recovery IDR asks again each second; a settings push inside the 500 ms floor is deferred, not dropped; the one-time portal approval survives a display change mid-handshake.
+External-network, typing, files and audio remain unproved. Pre-authorizing Remote in KDE's portal (no dialog ever) was refused to the agent as a security change and is the owner's decision.
 The scoped Baloo workaround is a user override pending signed delivery, not image proof.
 
 **Speed and Mo AI measured on `.890`, not re-measured:** P5.4 boot **6.70 s**/9.0,
