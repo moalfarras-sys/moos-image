@@ -20,9 +20,14 @@ class PlayableMedia {
     this.artUrl,
     this.startAt = Duration.zero,
     this.headers = const {'User-Agent': AppConfig.userAgent},
+    this.alternatives = const [],
   });
 
   final String url;
+
+  /// Other addresses for the same stream, tried in order when [url] fails to
+  /// start — the same channel as MPEG-TS when HLS is refused, for instance.
+  final List<String> alternatives;
   final String title;
   final String? subtitle;
 
@@ -35,14 +40,19 @@ class PlayableMedia {
 
   bool get isLive => kind == MediaKind.live;
 
-  PlayableMedia copyWith({Duration? startAt}) => PlayableMedia(
-    url: url,
+  PlayableMedia copyWith({
+    Duration? startAt,
+    String? url,
+    List<String>? alternatives,
+  }) => PlayableMedia(
+    url: url ?? this.url,
     title: title,
     kind: kind,
     subtitle: subtitle,
     artUrl: artUrl,
     startAt: startAt ?? this.startAt,
     headers: headers,
+    alternatives: alternatives ?? this.alternatives,
   );
 }
 
@@ -69,13 +79,22 @@ class PlayerService {
           title: 'MoPlayer',
         ),
       ) {
-    final gpuTexturePath = _useGpuTexturePath();
-    _gpuTexturePath = gpuTexturePath;
-    if (gpuTexturePath) _videoPathProbe.armed();
-    _controller = VideoController(
+    _gpuTexturePath = _useGpuTexturePath();
+    _tuneForIptv();
+  }
+
+  /// mpv's hardware-decoding mode. `MOPLAYER_HWDEC` overrides it without a
+  /// rebuild, for diagnosing a driver.
+  static String get _hwdecMode =>
+      Platform.environment['MOPLAYER_HWDEC'] ?? 'auto-safe';
+
+  VideoController _createVideoController() {
+    final gpuTexturePath = _gpuTexturePath;
+    final controller = VideoController(
       _player,
       configuration: VideoControllerConfiguration(
         enableHardwareAcceleration: gpuTexturePath,
+        hwdec: _hwdecMode,
         // The GPU path renders straight into the texture Flutter samples, so it
         // takes the stream's own resolution. The software fallback cannot: see
         // [_applySafeOutputSize].
@@ -92,18 +111,6 @@ class PlayerService {
       // frame silently defeats the anti-tearing limit above.
       _safeSizeSubscription = _player.stream.videoParams.listen((params) {
         if ((params.dw ?? 0) <= 0 || (params.dh ?? 0) <= 0) return;
-        // Real frame parameters mean mpv created the shared GL texture and
-        // handed Flutter a decoded frame through it — which IS the window the
-        // NVIDIA driver takes the process in. Surviving to here is the proof
-        // the probe exists to collect, so collect it NOW.
-        //
-        // It used to wait for ten unbroken seconds of playback instead, and
-        // that is why the maintainer's RTX 2080 spent from 2026-07-26 to
-        // 2026-08-03 rendering video on the CPU: open MoPlayer to look at
-        // something and close it inside ten seconds, twice, and the counter
-        // reaches its trip point having never once seen an actual failure.
-        // Browsing a library is not a driver crash.
-        _videoPathProbe.healthy();
         unawaited(
           Future<void>.delayed(const Duration(milliseconds: 60)).then((
             _,
@@ -113,7 +120,7 @@ class PlayerService {
         );
       });
     }
-    _tuneForIptv();
+    return controller;
   }
 
   /// Whether mpv hands its frames to Flutter through a shared GL texture.
@@ -166,10 +173,9 @@ class PlayerService {
 
     // The safety net. If the GL path ever does take the process down again, it
     // does so before any of this code could react — so the check is made on the
-    // *next* launch instead, from a marker the previous one left behind. Two
-    // starts in a row that never reached healthy playback and never shut down
-    // cleanly, and the app falls back to the CPU path by itself rather than
-    // becoming a window that dies every time it is opened.
+    // *next* launch instead, from a marker the previous video attempt left
+    // behind. Two unproven attempts in a row make the app fall back to the CPU
+    // path; opening the library without playing anything never arms the marker.
     if (_videoPathProbe.isTripped) {
       log.w(
         'video: the GPU frame path failed to start twice — falling back to the '
@@ -187,30 +193,34 @@ class PlayerService {
   /// where it used to die — which was within a second or two of the first frame,
   /// right after the texture resized to the video's size.
   ///
-  /// Ten seconds of continuous playback is well past that, and is short enough
-  /// that an ordinary "open it, play something, watch it" session clears the
-  /// marker long before the user closes the window.
+  /// A successful frame clears the marker; browsing the library or a failed
+  /// stream never counts as a GPU attempt.
   void _watchForHealthyPlayback() {
-    _healthySubscription = _player.stream.playing.listen((playing) {
-      if (!playing || _videoPathProbe.isCleared) return;
-      _healthyTimer?.cancel();
-      _healthyTimer = Timer(const Duration(seconds: 10), () {
-        if (_player.state.playing) _videoPathProbe.healthy();
-      });
+    _healthySubscription = _player.stream.videoParams.listen((params) {
+      if ((params.dw ?? 0) > 0 && (params.dh ?? 0) > 0) {
+        _videoPathProbe.healthy();
+      }
+    });
+    _errorSubscription = _player.stream.error.listen((_) {
+      // A bad URL or unreachable server is not a GPU failure.
+      _videoPathProbe.healthy();
     });
   }
 
   final Player _player;
   late final bool _gpuTexturePath;
-  late final VideoController _controller;
+  VideoController? _controller;
   StreamSubscription<Object?>? _safeSizeSubscription;
-  StreamSubscription<bool>? _healthySubscription;
-  Timer? _healthyTimer;
+  StreamSubscription<Object?>? _healthySubscription;
+  StreamSubscription<String>? _errorSubscription;
   int _safeOutputWidth = 1280;
   int _safeOutputHeight = 720;
 
   Player get player => _player;
-  VideoController get controller => _controller;
+  // media_kit allocates its video texture (and several GiB of GPU memory on
+  // this workstation) as soon as VideoController is constructed, even with no
+  // stream. Browsing the library must not initialize a video output.
+  VideoController get controller => _controller ??= _createVideoController();
 
   PlayableMedia? _current;
   PlayableMedia? get current => _current;
@@ -253,11 +263,13 @@ class PlayerService {
 
   Future<void> _applySafeOutputSize() async {
     if (_gpuTexturePath) return;
+    final controller = _controller;
+    if (controller == null) return;
     // Force the platform call. The controller's cached width can still say
     // 1280 after its own video-params listener has secretly sent 1920 to native
     // code, so a direct 1280 call is incorrectly treated as a no-op.
-    await _controller.setSize();
-    await _controller.setSize(
+    await controller.setSize();
+    await controller.setSize(
       width: _safeOutputWidth,
       height: _safeOutputHeight,
     );
@@ -304,7 +316,7 @@ class PlayerService {
     // Let mpv pick a hardware decoder, but only one it can prove works —
     // 'auto-safe' is what keeps a broken VAAPI stack from producing a black
     // window instead of falling back to software.
-    set('hwdec', 'auto-safe');
+    set('hwdec', _hwdecMode);
 
     // **Deinterlacing.** This is the setting that decides whether a real IPTV
     // subscription looks broken.
@@ -366,10 +378,19 @@ class PlayerService {
     final generation = ++_mediaGeneration;
     _current = media;
     _applyFramePacing(media.kind);
-    await _player.open(
-      Media(media.url, httpHeaders: media.headers),
-      play: true,
-    );
+    if (_gpuTexturePath) _videoPathProbe.armed();
+    try {
+      // Subscribe to frame parameters before mpv can deliver its first frame.
+      // The output is created here, never while the user is only browsing.
+      _controller ??= _createVideoController();
+      await _player.open(
+        Media(media.url, httpHeaders: media.headers),
+        play: true,
+      );
+    } on Object {
+      if (_gpuTexturePath) _videoPathProbe.healthy();
+      rethrow;
+    }
     if (generation != _mediaGeneration || !identical(_current, media)) return;
 
     _logPlaybackSummary(generation);
@@ -709,8 +730,7 @@ class PlayerService {
   }
 
   /// How far back a live stream can currently be rewound.
-  Future<Duration> timeshiftAvailable() async =>
-      (await timeshiftWindow()).span;
+  Future<Duration> timeshiftAvailable() async => (await timeshiftWindow()).span;
 
   /// Jumps to the live edge.
   ///
@@ -768,14 +788,18 @@ class PlayerService {
   Future<void> stop() async {
     _mediaGeneration++;
     _current = null;
-    await _player.stop();
+    try {
+      await _player.stop();
+    } finally {
+      if (_gpuTexturePath) _videoPathProbe.healthy();
+    }
   }
 
   Future<void> dispose() async {
     _mediaGeneration++;
     _current = null;
-    _healthyTimer?.cancel();
     await _healthySubscription?.cancel();
+    await _errorSubscription?.cancel();
     await _safeSizeSubscription?.cancel();
     // Reaching here at all means the process was shut down, not killed — which
     // is the other thing the probe accepts as proof the GL path is not fatal.

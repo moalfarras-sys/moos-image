@@ -28,7 +28,7 @@ class XtreamApi {
               receiveTimeout: AppConfig.receiveTimeout,
               responseType: ResponseType.json,
               // Panels frequently mislabel content type; parse leniently.
-              headers: const {'User-Agent': 'MoPlayerPro/1.0'},
+              headers: const {'User-Agent': AppConfig.apiUserAgent},
             ),
           );
 
@@ -112,11 +112,17 @@ class XtreamApi {
   }
 
   Future<SeriesDetail> getSeriesInfo(SeriesItem base) async {
+    return SeriesDetail.fromXtream(await getSeriesInfoRaw(base.seriesId), base);
+  }
+
+  /// The panel's answer for one series, unparsed, so the repository can cache
+  /// it the way it caches film details.
+  Future<Map<String, dynamic>> getSeriesInfoRaw(String seriesId) async {
     final data = await _getJson(
-      urls.playerApi('get_series_info', params: {'series_id': base.seriesId}),
+      urls.playerApi('get_series_info', params: {'series_id': seriesId}),
     );
     if (data is! Map) throw Failure.parse('Series details unavailable.');
-    return SeriesDetail.fromXtream(Map<String, dynamic>.from(data), base);
+    return Map<String, dynamic>.from(data);
   }
 
   // --- EPG -----------------------------------------------------------------

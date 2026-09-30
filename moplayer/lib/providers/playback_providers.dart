@@ -62,6 +62,20 @@ class NowPlaying {
     if (isLive) return liveChannels.length > 1;
     return (episodeIndex ?? 0) > 0 && seasonEpisodes != null;
   }
+
+  /// The same item, opened from a different address.
+  NowPlaying withMedia(PlayableMedia next) => NowPlaying(
+    media: next,
+    refId: refId,
+    imageUrl: imageUrl,
+    payload: payload,
+    trackProgress: trackProgress,
+    seasonEpisodes: seasonEpisodes,
+    episodeIndex: episodeIndex,
+    series: series,
+    liveChannels: liveChannels,
+    liveChannelIndex: liveChannelIndex,
+  );
 }
 
 /// A safe desktop title for a URL handed to MPRIS or the command line.
@@ -257,6 +271,10 @@ class PlaybackController extends Notifier<NowPlaying?> {
   int? _openingGeneration;
   String _mediaPlaylistId = '';
 
+  /// Whether the current item has produced playback since it was opened. An
+  /// alternative address is only worth trying for a stream that never started.
+  bool _playedSinceOpen = false;
+
   @override
   NowPlaying? build() {
     final player = ref.watch(playerServiceProvider);
@@ -296,6 +314,7 @@ class PlaybackController extends Notifier<NowPlaying?> {
         // inhibitor left on through a pause is how a laptop cooks in a bag.
         desktop.setKeepAwake(playing && ref.read(settingsProvider).keepAwake);
         if (playing) {
+          _playedSinceOpen = true;
           // A single decoded frame is not proof that a flaky stream recovered:
           // resetting the retry budget immediately made a stream that failed
           // every second retry forever. Clear the visible overlay as soon as
@@ -338,6 +357,17 @@ class PlaybackController extends Notifier<NowPlaying?> {
 
   PlayerService get _player => ref.read(playerServiceProvider);
 
+  /// Opens [media] after turning a source's opaque address into a playable
+  /// one. A portal's stream links are single-use, so this runs on every open
+  /// and every retry rather than once when the item is listed.
+  Future<void> _open(PlayableMedia media) async {
+    final repo = ref.read(contentRepositoryProvider);
+    final url = repo == null ? media.url : await repo.resolve(media.url);
+    await _player.open(
+      identical(url, media.url) ? media : media.copyWith(url: url),
+    );
+  }
+
   // ── Opening things ─────────────────────────────────────────────────────────
 
   Future<void> _start(NowPlaying next) async {
@@ -368,16 +398,22 @@ class PlaybackController extends Notifier<NowPlaying?> {
 
     state = next;
     _mediaPlaylistId = nextPlaylistId;
+    _playedSinceOpen = false;
     ref.read(playerViewProvider.notifier).expand();
 
     try {
-      await _player.open(next.media);
+      await _open(next.media);
     } catch (error) {
       if (generation != _recoveryGeneration || !identical(state, next)) return;
       // Opening a broken stream must become a recoverable player state, never
       // an unhandled asynchronous exception that takes the UI down with it.
       log.w('playback: initial open failed: ${safeLogMessage(error)}');
-      ref.read(playbackIssueProvider.notifier).failed();
+      if (next.media.alternatives.isNotEmpty) {
+        _openingGeneration = null;
+        unawaited(_recover('$error'));
+      } else {
+        ref.read(playbackIssueProvider.notifier).failed();
+      }
       return;
     } finally {
       if (_openingGeneration == generation) {
@@ -502,10 +538,12 @@ class PlaybackController extends Notifier<NowPlaying?> {
           .setLastLiveChannelId(channel.streamId);
     }
 
+    final target = repo.liveTarget(channel, preferHls: settings.preferHls);
     await _start(
       NowPlaying(
         media: PlayableMedia(
-          url: repo.liveUrl(channel, hls: settings.preferHls),
+          url: target.url,
+          alternatives: target.alternatives,
           title: channel.name,
           subtitle: null,
           artUrl: channel.logo,
@@ -725,9 +763,44 @@ class PlaybackController extends Notifier<NowPlaying?> {
   /// A stream that failed is usually a stream that will work on the next try —
   /// an IPTV panel drops connections constantly. Retry with a backoff, then give
   /// up and let the UI say so.
+  Future<void> _tryAlternative(NowPlaying current, String message) async {
+    final generation = _recoveryGeneration;
+    final alternatives = current.media.alternatives;
+    final next = current.withMedia(
+      current.media.copyWith(
+        url: alternatives.first,
+        alternatives: alternatives.sublist(1),
+      ),
+    );
+    log.w(
+      'playback: ${safeLogMessage(message)} — trying the stream in its '
+      'other format',
+    );
+    _recovering = true;
+    state = next;
+    try {
+      await _open(next.media);
+    } catch (error) {
+      _recovering = false;
+      if (generation == _recoveryGeneration && identical(state, next)) {
+        unawaited(_recover('$error'));
+      }
+      return;
+    }
+    _recovering = false;
+  }
+
   Future<void> _recover(String message) async {
     final current = state;
     if (current == null || _recovering) return;
+
+    // A stream that never started, with another address to try: try it now,
+    // without spending a retry or a back-off. A panel that refuses HLS for an
+    // account answers the `.ts` address of the same channel at once.
+    if (!_playedSinceOpen && current.media.alternatives.isNotEmpty) {
+      await _tryAlternative(current, message);
+      return;
+    }
 
     if (_retries >= _maxRetries) {
       log.e(
@@ -757,7 +830,7 @@ class PlaybackController extends Notifier<NowPlaying?> {
     }
     final resumeAt = current.isLive ? Duration.zero : _player.position;
     try {
-      await _player.open(current.media.copyWith(startAt: resumeAt));
+      await _open(current.media.copyWith(startAt: resumeAt));
     } catch (error) {
       if (state != current || generation != _recoveryGeneration) {
         _recovering = false;
@@ -797,7 +870,7 @@ class PlaybackController extends Notifier<NowPlaying?> {
     ref.read(playbackIssueProvider.notifier).reconnecting(1, _maxRetries);
     final resumeAt = current.isLive ? Duration.zero : _player.position;
     try {
-      await _player.open(current.media.copyWith(startAt: resumeAt));
+      await _open(current.media.copyWith(startAt: resumeAt));
       if (generation == _recoveryGeneration && identical(state, current)) {
         ref.read(playbackIssueProvider.notifier).clear();
         _scheduleStablePlayback();

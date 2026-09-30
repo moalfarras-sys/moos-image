@@ -76,6 +76,7 @@ class Episode {
     this.image,
     this.rating,
     this.added,
+    this.directUrl,
   });
 
   final String id;
@@ -88,6 +89,12 @@ class Episode {
   final String? image;
   final double? rating;
   final DateTime? added;
+
+  /// The episode's own playable address, for sources that have no Xtream
+  /// `series/` route to build one from: an M3U playlist names each episode's
+  /// file directly, and a Stalker portal hands out an opaque `stalker://`
+  /// command that is resolved when it is played.
+  final String? directUrl;
 
   factory Episode.fromXtream(Map<String, dynamic> json, int seasonNumber) {
     final info = (json['info'] is Map)
@@ -117,6 +124,7 @@ class Episode {
     'seasonNumber': seasonNumber,
     'containerExtension': containerExtension,
     'image': image,
+    if (directUrl != null) 'directUrl': directUrl,
   };
 
   factory Episode.fromPayload(Map<String, dynamic> json) => Episode(
@@ -126,6 +134,7 @@ class Episode {
     seasonNumber: JsonX.asInt(json['seasonNumber']),
     containerExtension: JsonX.asStringOrNull(json['containerExtension']),
     image: JsonX.asStringOrNull(json['image']),
+    directUrl: JsonX.asStringOrNull(json['directUrl']),
   );
 }
 

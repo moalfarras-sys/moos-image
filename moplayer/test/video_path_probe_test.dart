@@ -35,6 +35,13 @@ void main() {
       expect(probe().isTripped, isFalse, reason: 'one crash could be a pkill');
     });
 
+    test('browsing without video cannot erase an earlier failed attempt', () {
+      probe().armed(); // an unproven video from a previous process
+      final browsingOnly = probe();
+      browsingOnly.healthy();
+      expect(probe().failures, 1);
+    });
+
     test('two consecutive silent deaths fall back to the CPU path', () {
       probe().armed();
       probe().armed();
@@ -65,7 +72,22 @@ void main() {
       expect(probe().failures, 0);
     });
 
-    test('healthy is idempotent — dispose may follow the health timer', () {
+    test(
+      'a channel switch during one attempt does not count as two crashes',
+      () {
+        final currentRun = probe();
+        currentRun.armed();
+        currentRun.armed();
+        expect(probe().failures, 1);
+        currentRun.healthy();
+        currentRun.armed();
+        expect(probe().failures, 1);
+        currentRun.healthy();
+        expect(probe().isTripped, isFalse);
+      },
+    );
+
+    test('healthy is idempotent — stop may follow the first frame', () {
       final p = probe()..armed();
       p.healthy();
       expect(p.isCleared, isTrue);
@@ -97,7 +119,11 @@ void main() {
       final p1 = probe();
       p1.armed();
       p1.healthy(); // first frame presented, well under ten seconds
-      expect(probe().failures, 0, reason: 'a proven start must leave nothing behind');
+      expect(
+        probe().failures,
+        0,
+        reason: 'a proven start must leave nothing behind',
+      );
 
       // And two such sessions in a row must still leave the GPU path armed.
       final p2 = probe();

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../core/theme/app_colors.dart';
+import '../core/theme/glass.dart' show labNoBlur;
 import '../core/theme/app_typography.dart';
 import '../core/theme/motion.dart';
 import '../core/theme/nova.dart';
@@ -160,8 +161,7 @@ class _DockSurface extends StatelessWidget {
       ),
       child: ClipRRect(
         borderRadius: radius,
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 26, sigmaY: 26),
+        child: _LabBlur(
           child: DecoratedBox(
             decoration: BoxDecoration(
               color: AppColors.glassFillStrong,
@@ -349,4 +349,11 @@ class _DockItemState extends State<_DockItem> {
       child: focusable,
     );
   }
+}
+
+class _LabBlur extends StatelessWidget {
+  const _LabBlur({required this.child});
+  final Widget child;
+  @override
+  Widget build(BuildContext context) => labNoBlur ? child : BackdropFilter(filter: ImageFilter.blur(sigmaX: 26, sigmaY: 26), child: child);
 }

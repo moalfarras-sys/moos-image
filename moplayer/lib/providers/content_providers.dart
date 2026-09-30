@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/error/failures.dart';
@@ -15,13 +17,24 @@ import 'core_providers.dart';
 final contentRepositoryProvider = Provider<ContentRepository?>((ref) {
   final cfg = ref.watch(activePlaylistProvider);
   if (cfg == null) return null;
-  final repo = ContentRepository(
-    config: cfg,
-    cache: ref.watch(cacheServiceProvider),
-  );
-  ref.onDispose(repo.dispose);
+  final repo = ContentRepository(config: cfg);
+  // A section refreshed in the background, or re-read after the source
+  // changed how it is read: bump that section's revision so the screens that
+  // show it rebuild from the new index. Nothing else is recomputed.
+  final changes = repo.changes.listen((section) {
+    ref.read(catalogRevisionProvider(section).notifier).state++;
+  });
+  ref.onDispose(() {
+    unawaited(changes.cancel());
+    repo.dispose();
+  });
   return repo;
 });
+
+/// Increments whenever a section of the active catalogue is replaced.
+final catalogRevisionProvider = StateProvider.family<int, CatalogSection>(
+  (ref, section) => 0,
+);
 
 ContentRepository _repo(Ref ref) {
   final r = ref.watch(contentRepositoryProvider);
@@ -40,6 +53,7 @@ final selectedLiveCategoryProvider = StateProvider<String>(
 
 final liveCategoriesProvider = FutureProvider<List<Category>>((ref) async {
   ref.watch(catalogRefreshProvider);
+  ref.watch(catalogRevisionProvider(CatalogSection.live));
   final cats = await _repo(ref).liveCategories();
   return [Category(id: Category.allId, name: 'All Channels'), ...cats];
 });
@@ -49,6 +63,7 @@ final liveStreamsProvider = FutureProvider.family<List<LiveChannel>, String>((
   categoryId,
 ) async {
   ref.watch(catalogRefreshProvider);
+  ref.watch(catalogRevisionProvider(CatalogSection.live));
   return _repo(ref).liveStreams(categoryId: categoryId);
 });
 
@@ -148,6 +163,7 @@ final selectedMovieCategoryProvider = StateProvider<String>(
 
 final movieCategoriesProvider = FutureProvider<List<Category>>((ref) async {
   ref.watch(catalogRefreshProvider);
+  ref.watch(catalogRevisionProvider(CatalogSection.movies));
   final cats = await _repo(ref).movieCategories();
   return [Category(id: Category.allId, name: 'All Movies'), ...cats];
 });
@@ -157,6 +173,7 @@ final moviesProvider = FutureProvider.family<List<VodMovie>, String>((
   categoryId,
 ) async {
   ref.watch(catalogRefreshProvider);
+  ref.watch(catalogRevisionProvider(CatalogSection.movies));
   return _repo(ref).movies(categoryId: categoryId);
 });
 
@@ -218,6 +235,7 @@ final selectedSeriesCategoryProvider = StateProvider<String>(
 
 final seriesCategoriesProvider = FutureProvider<List<Category>>((ref) async {
   ref.watch(catalogRefreshProvider);
+  ref.watch(catalogRevisionProvider(CatalogSection.series));
   final cats = await _repo(ref).seriesCategories();
   return [Category(id: Category.allId, name: 'All Series'), ...cats];
 });
@@ -227,6 +245,7 @@ final seriesListProvider = FutureProvider.family<List<SeriesItem>, String>((
   categoryId,
 ) async {
   ref.watch(catalogRefreshProvider);
+  ref.watch(catalogRevisionProvider(CatalogSection.series));
   return _repo(ref).series(categoryId: categoryId);
 });
 

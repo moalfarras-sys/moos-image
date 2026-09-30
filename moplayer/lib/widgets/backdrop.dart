@@ -2,6 +2,7 @@ import 'dart:ui' as ui;
 
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import '../core/theme/glass.dart' show labNoBlur;
 
 import '../core/theme/app_colors.dart';
 import '../core/theme/motion.dart';
@@ -88,7 +89,7 @@ class Backdrop extends StatelessWidget {
                 const ColoredBox(color: AppColors.surface1),
           );
 
-    if (blur > 0) {
+    if (blur > 0 && !labNoBlur) {
       art = ImageFiltered(
         imageFilter: ui.ImageFilter.blur(
           sigmaX: blur,

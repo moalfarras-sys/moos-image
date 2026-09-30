@@ -1,4 +1,5 @@
 import 'dart:typed_data';
+import 'dart:io' show Platform;
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
@@ -88,9 +89,9 @@ class GlassPanel extends StatelessWidget {
       ),
       child: ClipRRect(
         borderRadius: borderRadius,
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: blur, sigmaY: blur),
-          child: DecoratedBox(
+        child: _maybeBlur(
+          blur,
+          DecoratedBox(
             decoration: BoxDecoration(
               color: base,
               borderRadius: borderRadius,
@@ -198,7 +199,7 @@ class AmbientScene extends StatelessWidget {
               stops: [0.55, 1.0],
             ),
           ),
-          child: grain ? FilmGrain(child: child) : child,
+          child: grain && !labNoGrain ? FilmGrain(child: child) : child,
         ),
       ),
     );
@@ -359,3 +360,8 @@ int _crc32(List<int> data) {
   }
   return (c ^ 0xFFFFFFFF) & 0xFFFFFFFF;
 }
+
+// LAB: blur kill-switch for GPU-memory measurement.
+final bool labNoBlur = const bool.fromEnvironment('X') || (Platform.environment['MOPLAYER_NO_BLUR'] == '1');
+Widget _maybeBlur(double blur, Widget child) => labNoBlur ? child : BackdropFilter(filter: ImageFilter.blur(sigmaX: blur, sigmaY: blur), child: child);
+final bool labNoGrain = Platform.environment['MOPLAYER_NO_GRAIN'] == '1';

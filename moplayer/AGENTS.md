@@ -54,13 +54,18 @@ Wayland): three minutes of unbroken 1080p, full-resolution texture, position
 advancing in real time.
 
 So the GL path is now the default **everywhere, NVIDIA included**. What keeps
-that honest is `VideoPathProbe`: a marker written before the texture is created
-and removed once playback has proven itself, either by ten seconds of continuous
-play or by a clean shutdown. Two launches in a row that reach neither, and the
-app falls back to the CPU path by itself and says so. The failure mode this
-guards is unobservable from inside the process, so the check happens on the
-*next* launch — that is the whole design, and `test/video_path_probe_test.dart`
-is what keeps it working.
+that honest is `VideoPathProbe`: a marker written when a video is opened and
+removed when frame dimensions arrive, a stream fails, or playback stops. Two
+unproven video attempts make the app fall back to the CPU path. Merely opening
+the library is not an attempt. The GTK close hook uses `_exit` to avoid an
+NVIDIA EGL teardown crash, so Dart `dispose()` cannot be the clean-shutdown
+signal. `test/video_path_probe_test.dart` checks the counter and repeated
+attempts.
+
+Construct `VideoController` only when playback begins. On the RTX 2080 SUPER,
+media_kit's video output reserves several GiB of GPU memory even with a 1×1
+texture and no stream. It remains alive after playback stops because media_kit
+disposes it only with its `Player`; closing MoPlayer releases the reservation.
 
 The lesson worth keeping is not "GL is dangerous". It is that the last version
 of this file stated a hardware verdict — *NVIDIA crashes* — for what was really
