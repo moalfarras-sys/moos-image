@@ -149,17 +149,37 @@ class DisplayGeometryWatch:
 
     def check(self):
         self.pending = False
-        if not self.invalid and self.snapshot() != self.baseline:
-            self.invalidate()
+        if not self.invalid:
+            now = self.snapshot()
+            if now != self.baseline:
+                self.invalidate(self.describe(self.baseline, now))
         return False
 
-    def invalidate(self):
+    @staticmethod
+    def describe(before, after):
+        """Say WHAT changed, in the log line that announces the renewal.
+
+        The station's previous boot renewed this grant ~2,600 times in 34 hours
+        (every 30-90 s, 2026-09-29/30) while every "Portal ready" line reported the
+        same 1536x864 desktop, and the line said only "geometry changed". A replaced
+        output with identical geometry (an HDMI link that drops and returns) and a
+        transient size (GDK3 briefly derives 1280x720 from the mode at integer
+        scale 3) need different fixes; the next occurrence must name which it is.
+        """
+        def fmt(snapshot):
+            return ", ".join(f"{w}x{h}+{x}+{y}@{scale}"
+                             for (_monitor, x, y, w, h, scale) in snapshot) or "no outputs"
+        if [row[1:] for row in before] == [row[1:] for row in after]:
+            return f"output replaced, same geometry {fmt(after)}"
+        return f"{fmt(before)} -> {fmt(after)}"
+
+    def invalidate(self, detail):
         if not self.invalid:
             self.invalid = True
-            self.changed()
+            self.changed(detail)
 
     def closed(self, *_args):
-        self.invalidate()
+        self.invalidate("compositor connection closed")
 
 
 def watch_display_geometry():
@@ -172,7 +192,8 @@ def watch_display_geometry():
     if display is None:
         die(EXIT_LOST, "cannot observe Wayland display geometry")
     return DisplayGeometryWatch(display, GLib.idle_add,
-        lambda: die(EXIT_LOST, "display geometry changed; renewing capture and input grant"))
+        lambda detail: die(EXIT_LOST, "display geometry changed; renewing capture and input grant"
+                                      f" ({detail})"))
 
 
 # Observe BEFORE Start, including changes while its permission picker is open.
