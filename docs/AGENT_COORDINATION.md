@@ -30,6 +30,11 @@ rather than to conflict.
 asked the station to run one for W8 so every edition updates; say so here when that
 happens, because two agents dispatching a cycle at once would prove nothing twice.
 
+**2026-09-30: the station runs the release cycle for P2.13.** The owner asked the station
+to merge the MoPlayer batch, build the full signed update and install it on this machine. The
+station dispatches `scripts/release-candidate.sh --promote` from `main` once PR #183 is merged;
+do not start a second cycle on that revision. Merges to `main` wait for its promotion or failure.
+
 ## Why the station holds W7
 
 W7 is the one wave that cannot be done anywhere else. The plan's own Workspace
