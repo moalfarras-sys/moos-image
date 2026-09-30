@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../app/routes.dart';
 import '../../core/theme/app_colors.dart';
+import '../../core/theme/baked_gradient.dart';
 import '../../core/theme/app_typography.dart';
 import '../../core/theme/nova.dart';
 import '../../core/utils/formatters.dart';
@@ -234,9 +235,7 @@ class _HeroBackdrop extends StatelessWidget {
     final link = url;
     final rtl = Directionality.of(context) == TextDirection.rtl;
 
-    Widget scrim = const DecoratedBox(
-      decoration: BoxDecoration(gradient: AppColors.heroScrim),
-    );
+    Widget scrim = GradientFill(gradient: AppColors.heroScrim);
     if (rtl) scrim = Transform.flip(flipX: true, child: scrim);
 
     return Stack(
@@ -249,15 +248,16 @@ class _HeroBackdrop extends StatelessWidget {
             alignment: Alignment.topCenter,
             memCacheWidth: 1280,
             fadeInDuration: Nova.slow,
-            placeholder: (_, _) => const ColoredBox(color: AppColors.surface0),
-            errorWidget: (_, _, _) =>
-                const ColoredBox(color: AppColors.surface0),
+            placeholder: (_, _) => ColoredBox(color: AppColors.surface0),
+            errorWidget: (_, _, _) => ColoredBox(color: AppColors.surface0),
           ),
         // Vertical scrim first: the page scrolls, and the facts at the bottom
         // need a floor under them as much as the title needs a wall behind it.
-        const DecoratedBox(
-          decoration: BoxDecoration(gradient: AppColors.posterScrim),
-        ),
+        // A flat dim before the scrims: artwork is chosen by nobody, and bright
+        // key art under white copy is unreadable however the gradients are
+        // tuned.
+        const ColoredBox(color: Color(0x5C000000)),
+        GradientFill(gradient: AppColors.posterScrim),
         IgnorePointer(child: scrim),
       ],
     );

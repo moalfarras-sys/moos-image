@@ -76,11 +76,9 @@ Future<M3uLibrary> fetchM3uLibrary(M3uLibraryJob job) async {
     throw Failure.parse('No channels found in that playlist.');
   }
   if (job.isRemote) {
-    CatalogFiles(job.cacheRoot).write(
-      job.namespace,
-      M3uLibraryJob.cacheFile,
-      bytes,
-    );
+    CatalogFiles(
+      job.cacheRoot,
+    ).write(job.namespace, M3uLibraryJob.cacheFile, bytes);
   }
   return library;
 }

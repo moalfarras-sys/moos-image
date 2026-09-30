@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:media_kit_video/media_kit_video.dart';
 
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_typography.dart';
-import '../../core/theme/glass.dart';
 import '../../core/theme/motion.dart';
 import '../../core/theme/nova.dart';
 import '../../core/utils/formatters.dart';
@@ -23,20 +23,21 @@ import '../../widgets/media_card.dart';
 import '../../widgets/network_poster.dart';
 import '../../widgets/state_views.dart';
 import '../../widgets/tiles.dart';
+import '../../widgets/calm_spinner.dart';
 
-/// Live TV, in the three panes every serious IPTV client eventually converges
-/// on: categories, channels, and what is on.
+/// Live TV: categories, channels, and a **stage**.
 ///
-/// Clicking a channel starts it, and starting it raises the player over the top
-/// of this screen. That is intended — the player is a mode of the shell, not a
-/// place you navigate to (see `app/routes.dart`), so dismissing it drops the
-/// user back here with the stream still running.
+/// The stage is the new idea. A channel picked from the list plays *here*, on
+/// the page, beside the list it was picked from — the way a receiver's guide
+/// shows the picture in a window — and the viewer decides when to go full
+/// screen (click the playing channel again, press Enter on it, or double-click
+/// the picture). Browsing stays one click from watching, and watching never
+/// takes the list away.
 ///
-/// **Looking is not tuning.** The third pane follows the channel the cursor (or
-/// the keyboard) is on, not the one that is playing — the way a receiver's guide
-/// does. Without that, finding out what is on a channel costs a tune: on an
-/// account limited to one connection, browsing the list by clicking it is how a
-/// viewer knocks their own stream off the air.
+/// **Looking is not tuning.** Hovering a channel shows its guide on the stage
+/// without opening it. On an account limited to one connection — the owner's
+/// is — finding out what is on a channel by tuning it knocks the channel you
+/// were watching off the air.
 class LiveScreen extends ConsumerStatefulWidget {
   const LiveScreen({super.key});
 
@@ -49,17 +50,22 @@ class _LiveScreenState extends ConsumerState<LiveScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: [
-        const _Pane(width: 260, child: _CategoryPane()),
-        _Pane(
-          width: 360,
-          child: _ChannelPane(
-            onPreview: (channel) => setState(() => _previewed = channel),
-          ),
-        ),
-        Expanded(child: _NowPlayingPane(previewed: _previewed)),
-      ],
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final wide = constraints.maxWidth >= 1180;
+        return Row(
+          children: [
+            _Pane(width: wide ? 250 : 210, child: const _CategoryPane()),
+            _Pane(
+              width: wide ? 400 : 340,
+              child: _ChannelPane(
+                onPreview: (channel) => setState(() => _previewed = channel),
+              ),
+            ),
+            Expanded(child: _Stage(previewed: _previewed)),
+          ],
+        );
+      },
     );
   }
 }
@@ -78,8 +84,9 @@ class _Pane extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       width: width,
-      decoration: const BoxDecoration(
-        border: BorderDirectional(
+      decoration: BoxDecoration(
+        color: AppColors.surface1.withValues(alpha: 0.55),
+        border: const BorderDirectional(
           end: BorderSide(color: AppColors.borderSubtle),
         ),
       ),
@@ -89,20 +96,38 @@ class _Pane extends StatelessWidget {
 }
 
 class _PaneHeader extends StatelessWidget {
-  const _PaneHeader({required this.title});
+  const _PaneHeader({required this.title, this.trailing});
 
   final String title;
+  final String? trailing;
 
   @override
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsetsDirectional.fromSTEB(
         Nova.space4,
-        Nova.space4,
+        Nova.space5,
         Nova.space4,
         Nova.space3,
       ),
-      child: Text(title, style: AppText.label),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              title,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: AppText.section,
+            ),
+          ),
+          if (trailing != null)
+            Text(
+              trailing!,
+              style: AppText.caption,
+              textDirection: TextDirection.ltr,
+            ),
+        ],
+      ),
     );
   }
 }
@@ -122,6 +147,7 @@ class _CategoryPane extends ConsumerWidget {
         _PaneHeader(title: s.categories),
         Expanded(
           child: categories.when(
+            skipLoadingOnReload: true,
             loading: () => const LoadingView(),
             error: (error, _) => ErrorView(
               strings: s,
@@ -129,7 +155,12 @@ class _CategoryPane extends ConsumerWidget {
               onRetry: () => ref.read(catalogRefreshProvider.notifier).state++,
             ),
             data: (list) => ListView.builder(
-              padding: const EdgeInsets.symmetric(horizontal: Nova.space2),
+              padding: EdgeInsets.fromLTRB(
+                Nova.space2,
+                0,
+                Nova.space2,
+                MediaQuery.paddingOf(context).bottom + Nova.space4,
+              ),
               itemCount: list.length,
               itemBuilder: (context, i) {
                 final category = list[i];
@@ -177,6 +208,7 @@ class _CategoryRowState extends State<_CategoryRow> {
   @override
   Widget build(BuildContext context) {
     final selected = widget.selected;
+    final accent = AppColors.primary;
 
     return MouseRegion(
       cursor: SystemMouseCursors.click,
@@ -193,36 +225,27 @@ class _CategoryRowState extends State<_CategoryRow> {
         child: AnimatedContainer(
           duration: Motion.duration(context, Nova.fast),
           margin: const EdgeInsets.only(bottom: 2),
-          padding: const EdgeInsets.all(Nova.space3),
+          padding: const EdgeInsets.symmetric(
+            horizontal: Nova.space3,
+            vertical: 11,
+          ),
           decoration: BoxDecoration(
             color: selected
-                ? AppColors.surface3
+                ? accent.withValues(alpha: 0.14)
                 : (_hovered || _focused
-                      ? AppColors.surface2
+                      ? AppColors.surface3
                       : Colors.transparent),
             borderRadius: BorderRadius.circular(Nova.radiusControl),
           ),
           child: Row(
             children: [
-              AnimatedContainer(
-                duration: Motion.isReduced(context) ? Duration.zero : Nova.fast,
-                width: 3,
-                height: selected ? 18 : 0,
-                decoration: const BoxDecoration(
-                  gradient: AppColors.emberGradient,
-                  borderRadius: BorderRadius.all(Radius.circular(2)),
-                ),
-              ),
-              // The indicator keeps its 3 px of width when it is not selected —
-              // only its height animates — so the label never shifts sideways
-              // as the selection moves down the list.
-              const SizedBox(width: Nova.space2),
               Expanded(
                 child: Text(
                   widget.label,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: AppText.control.copyWith(
+                    fontSize: 14,
                     color: selected
                         ? AppColors.textPrimary
                         : AppColors.textSecondary,
@@ -232,10 +255,27 @@ class _CategoryRowState extends State<_CategoryRow> {
               ),
               if (widget.count != null && widget.count! > 0) ...[
                 const SizedBox(width: Nova.space2),
-                Text(
-                  Fmt.compact(widget.count!),
-                  style: AppText.caption,
-                  textDirection: TextDirection.ltr,
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 7,
+                    vertical: 2,
+                  ),
+                  decoration: BoxDecoration(
+                    color: selected
+                        ? accent.withValues(alpha: 0.22)
+                        : AppColors.surface2,
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                  child: Text(
+                    Fmt.compact(widget.count!),
+                    style: AppText.caption.copyWith(
+                      fontSize: 11,
+                      color: selected
+                          ? AppColors.primaryBright
+                          : AppColors.textMuted,
+                    ),
+                    textDirection: TextDirection.ltr,
+                  ),
                 ),
               ],
             ],
@@ -269,20 +309,34 @@ class _ChannelPaneState extends ConsumerState<_ChannelPane> {
   Widget build(BuildContext context) {
     final s = ref.watch(stringsProvider);
     final categoryId = ref.watch(selectedLiveCategoryProvider);
+    final categories = ref.watch(liveCategoriesProvider).valueOrNull;
     final channels = ref.watch(liveStreamsProvider(categoryId));
     final playing = ref.watch(playbackProvider);
     final favorites = ref.watch(favoritesProvider);
     final playlistId = ref.watch(activePlaylistProvider)?.id ?? '';
 
     final playingId = playing?.kind == MediaKind.live ? playing?.refId : null;
+    final categoryName = categoryId == Category.allId
+        ? s.channels
+        : (categories
+                  ?.where((c) => c.id == categoryId)
+                  .map((c) => c.name)
+                  .firstOrNull ??
+              s.channels);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        _PaneHeader(
+          title: categoryName,
+          trailing: channels.valueOrNull == null
+              ? null
+              : Fmt.compact(channels.valueOrNull!.length),
+        ),
         Padding(
           padding: const EdgeInsetsDirectional.fromSTEB(
             Nova.space3,
-            Nova.space4,
+            0,
             Nova.space3,
             Nova.space3,
           ),
@@ -312,6 +366,7 @@ class _ChannelPaneState extends ConsumerState<_ChannelPane> {
         ),
         Expanded(
           child: channels.when(
+            skipLoadingOnReload: true,
             loading: () => const LoadingView(),
             error: (error, _) => ErrorView(
               strings: s,
@@ -328,7 +383,13 @@ class _ChannelPaneState extends ConsumerState<_ChannelPane> {
               }
 
               return ListView.builder(
-                padding: const EdgeInsets.symmetric(horizontal: Nova.space2),
+                padding: EdgeInsets.fromLTRB(
+                  Nova.space2,
+                  0,
+                  Nova.space2,
+                  MediaQuery.paddingOf(context).bottom + Nova.space4,
+                ),
+                itemExtent: 76,
                 itemCount: filtered.length,
                 itemBuilder: (context, i) {
                   final channel = filtered[i];
@@ -379,10 +440,9 @@ class _ChannelRow extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // The guide is fetched *here*, in the row, rather than in the pane above.
-    // A `ListView.builder` only builds the rows the user can see, so only those
-    // rows ask the panel for a programme. Hoisting this one line into the list
-    // would turn opening a 900-channel category into 900 `get_short_epg` calls.
+    // The guide is read *here*, in the row, rather than in the pane above: a
+    // `ListView.builder` only builds the rows on screen, so only those rows
+    // look up a programme.
     final now = _liveNow(
       ref
           .watch(
@@ -397,14 +457,21 @@ class _ChannelRow extends ConsumerWidget {
     return ChannelTile(
       name: channel.name,
       logoUrl: channel.logo,
+      number: channel.number,
       selected: selected,
       onPreview: onPreview,
       nowTitle: now?.title,
       nowProgress: now?.progress,
       isFavorite: isFavorite,
-      onTap: () => ref
-          .read(playbackProvider.notifier)
-          .playLive(channel, channels: channels),
+      onTap: () {
+        final playback = ref.read(playbackProvider.notifier);
+        if (selected) {
+          // Already on the stage: a second press is "show me it big".
+          ref.read(playerViewProvider.notifier).expand();
+        } else {
+          playback.playLive(channel, channels: channels, expand: false);
+        }
+      },
       onToggleFavorite: () => ref
           .read(libraryActionsProvider)
           .toggleFavorite(
@@ -474,15 +541,9 @@ NowPlayingSubject? resolveNowPlaying({
   );
 }
 
-/// What is on the channel the user is *looking at* — which is not necessarily
-/// the one that is playing.
-///
-/// The previewed channel wins when there is one. That is the receiver behaviour
-/// the owner asked for, and on this subscription it is also the safe one: the
-/// account allows a single connection, so a viewer who has to tune a channel to
-/// find out what is on it knocks their own stream off the air to read the guide.
-class _NowPlayingPane extends ConsumerWidget {
-  const _NowPlayingPane({this.previewed});
+/// The right-hand side: the picture, the channel, and its guide.
+class _Stage extends ConsumerWidget {
+  const _Stage({this.previewed});
 
   final LiveChannel? previewed;
 
@@ -492,92 +553,350 @@ class _NowPlayingPane extends ConsumerWidget {
     final playing = ref.watch(playbackProvider);
     final live = playing != null && playing.kind == MediaKind.live;
 
-    // The Play button needs the channel itself, not just its fields.
-    final channel = previewed;
-
-    final subject = resolveNowPlaying(previewed: channel, playing: playing);
-    if (subject == null) {
-      return EmptyView(icon: Icons.live_tv_rounded, message: s.pickChannel);
-    }
-
-    final title = subject.title;
-    final logo = subject.logo;
-    final streamId = subject.streamId;
-    final epgChannelId = subject.epgChannelId;
-
-    // Is the pane looking at the thing that is playing, or at something else?
-    // The answer decides the button: uncovering a running stream and starting a
-    // new one are not the same action, and offering the wrong one is how a
-    // viewer loses the match they were watching.
-    final isPlayingThis = live && playing.refId == streamId;
+    // The guide follows the pointer; the picture follows what is playing.
+    final subject = resolveNowPlaying(previewed: previewed, playing: playing);
+    final isPlayingSubject = live && playing.refId == subject?.streamId;
 
     return Padding(
-      padding: const EdgeInsets.all(Nova.space6),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          NovaCard(
-            radius: Nova.radiusPanel,
-            padding: const EdgeInsets.all(Nova.space5),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                SizedBox(
-                  width: 96,
-                  height: 96,
-                  child: NetworkPoster(
-                    url: logo,
-                    title: title,
-                    logoMode: true,
-                    radius: Nova.radiusCard,
-                  ),
-                ),
-                const SizedBox(width: Nova.space4),
+      padding: EdgeInsets.fromLTRB(
+        Nova.space6,
+        Nova.space5,
+        Nova.space6,
+        MediaQuery.paddingOf(context).bottom,
+      ),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final screenHeight = (constraints.maxWidth * 9 / 16).clamp(
+            180.0,
+            constraints.maxHeight * 0.58,
+          );
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              SizedBox(
+                height: screenHeight,
+                child: live
+                    ? const _StageScreen()
+                    : _StagePlate(channel: previewed),
+              ),
+              const SizedBox(height: Nova.space5),
+              if (subject == null)
                 Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      if (isPlayingThis) LiveBadge(label: s.onAir),
-                      if (isPlayingThis) const SizedBox(height: Nova.space3),
-                      Text(
-                        title,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: AppText.title,
-                      ),
-                      const SizedBox(height: Nova.space4),
-                      if (isPlayingThis)
-                        EmberButton(
-                          label: s.watchFullscreen,
-                          icon: Icons.fullscreen_rounded,
-                          // The stream is already running behind this screen; the
-                          // player only has to be uncovered, never reopened.
-                          onPressed: () =>
-                              ref.read(playerViewProvider.notifier).expand(),
-                        )
-                      else
-                        EmberButton(
-                          label: s.play,
-                          icon: Icons.play_arrow_rounded,
-                          onPressed: channel == null
-                              ? null
-                              : () => ref
-                                    .read(playbackProvider.notifier)
-                                    .playLive(channel),
-                        ),
-                    ],
+                  child: EmptyView(
+                    icon: Icons.live_tv_rounded,
+                    message: s.pickChannel,
+                  ),
+                )
+              else ...[
+                _ChannelHeading(
+                  subject: subject,
+                  playingThis: isPlayingSubject,
+                  channel: previewed,
+                ),
+                const SizedBox(height: Nova.space4),
+                Expanded(
+                  child: _Guide(
+                    streamId: subject.streamId,
+                    epgChannelId: subject.epgChannelId,
                   ),
                 ),
               ],
-            ),
-          ),
-          const SizedBox(height: Nova.space5),
-          Expanded(
-            child: _Guide(streamId: streamId, epgChannelId: epgChannelId),
-          ),
-        ],
+            ],
+          );
+        },
       ),
+    );
+  }
+}
+
+/// The live picture on the stage, with its controls on hover.
+///
+/// It mounts the one shared `VideoController` — the same texture the full
+/// player and the mini card use — so moving between them never reopens the
+/// stream. It steps aside (draws a plate) while the full player is up, so the
+/// texture is only ever on screen once.
+class _StageScreen extends ConsumerStatefulWidget {
+  const _StageScreen();
+
+  @override
+  ConsumerState<_StageScreen> createState() => _StageScreenState();
+}
+
+class _StageScreenState extends ConsumerState<_StageScreen> {
+  bool _hovered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final s = ref.watch(stringsProvider);
+    final now = ref.watch(playbackProvider);
+    final view = ref.watch(playerViewProvider);
+    final player = ref.watch(playerServiceProvider);
+    final issue = ref.watch(playbackIssueProvider);
+    final playback = ref.read(playbackProvider.notifier);
+    if (now == null) return const SizedBox.shrink();
+
+    void expand() => ref.read(playerViewProvider.notifier).expand();
+
+    return MouseRegion(
+      onEnter: (_) => setState(() => _hovered = true),
+      onExit: (_) => setState(() => _hovered = false),
+      child: GestureDetector(
+        onDoubleTap: expand,
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(Nova.radiusPanel),
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              const ColoredBox(color: Colors.black),
+              if (view != PlayerView.expanded)
+                Video(
+                  controller: player.controller,
+                  controls: NoVideoControls,
+                  fit: BoxFit.contain,
+                  fill: Colors.black,
+                ),
+              StreamBuilder<bool>(
+                stream: player.bufferingStream,
+                initialData: player.isBuffering,
+                builder: (context, snapshot) {
+                  final failed = issue?.kind == PlaybackIssueKind.failed;
+                  if (!failed && snapshot.data != true) {
+                    return const SizedBox.shrink();
+                  }
+                  return Center(
+                    child: failed
+                        ? Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(
+                                Icons.signal_wifi_bad_rounded,
+                                color: Colors.white70,
+                                size: 36,
+                              ),
+                              const SizedBox(height: Nova.space3),
+                              Text(
+                                s.playbackFailed,
+                                style: AppText.control.copyWith(
+                                  color: Colors.white,
+                                ),
+                              ),
+                              const SizedBox(height: Nova.space3),
+                              GhostButton(
+                                label: s.retry,
+                                icon: Icons.refresh_rounded,
+                                onPressed: () => playback.reconnect(),
+                              ),
+                            ],
+                          )
+                        : const SizedBox(
+                            width: 34,
+                            height: 34,
+                            child: CalmSpinner(strokeWidth: 3),
+                          ),
+                  );
+                },
+              ),
+              // The controls. Shown instantly on hover, not faded: a fade is
+              // an offscreen layer the size of the stage on this renderer.
+              if (_hovered)
+                PositionedDirectional(
+                  start: 0,
+                  end: 0,
+                  bottom: 0,
+                  child: Container(
+                    padding: const EdgeInsets.all(Nova.space3),
+                    color: const Color(0xB3000000),
+                    child: Row(
+                      children: [
+                        LiveBadge(label: s.onAir),
+                        const SizedBox(width: Nova.space3),
+                        Expanded(
+                          child: Text(
+                            now.media.title,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: AppText.control.copyWith(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                        IconPill(
+                          icon: Icons.skip_previous_rounded,
+                          tooltip: s.previousChannel,
+                          size: 38,
+                          onPressed: now.hasPrevious ? playback.previous : null,
+                        ),
+                        StreamBuilder<bool>(
+                          stream: player.playingStream,
+                          initialData: player.isPlaying,
+                          builder: (context, snapshot) => IconPill(
+                            icon: snapshot.data == true
+                                ? Icons.pause_rounded
+                                : Icons.play_arrow_rounded,
+                            tooltip: snapshot.data == true ? s.pause : s.play,
+                            size: 42,
+                            filled: true,
+                            onPressed: player.playOrPause,
+                          ),
+                        ),
+                        IconPill(
+                          icon: Icons.skip_next_rounded,
+                          tooltip: s.nextChannel,
+                          size: 38,
+                          onPressed: now.hasNext ? playback.next : null,
+                        ),
+                        const SizedBox(width: Nova.space2),
+                        IconPill(
+                          icon: Icons.fullscreen_rounded,
+                          tooltip: s.fullscreen,
+                          size: 38,
+                          onPressed: expand,
+                        ),
+                        IconPill(
+                          icon: Icons.stop_rounded,
+                          tooltip: s.stop,
+                          size: 38,
+                          onPressed: playback.stop,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// The stage before anything plays: the hovered channel's mark, and the way in.
+class _StagePlate extends ConsumerWidget {
+  const _StagePlate({this.channel});
+
+  final LiveChannel? channel;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final s = ref.watch(stringsProvider);
+    final pick = channel;
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.surface1,
+        borderRadius: BorderRadius.circular(Nova.radiusPanel),
+        border: Border.all(color: AppColors.borderSubtle),
+      ),
+      child: Center(
+        child: pick == null
+            ? Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.live_tv_rounded,
+                    size: 56,
+                    color: AppColors.primary.withValues(alpha: 0.7),
+                  ),
+                  const SizedBox(height: Nova.space4),
+                  Text(
+                    s.pickChannel,
+                    textAlign: TextAlign.center,
+                    style: AppText.subtitle,
+                  ),
+                ],
+              )
+            : Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  SizedBox(
+                    width: 180,
+                    height: 110,
+                    child: NetworkPoster(
+                      url: pick.logo,
+                      title: pick.name,
+                      logoMode: true,
+                      radius: Nova.radiusCard,
+                      background: AppColors.surface2,
+                    ),
+                  ),
+                  const SizedBox(height: Nova.space5),
+                  EmberButton(
+                    label: s.play,
+                    icon: Icons.play_arrow_rounded,
+                    onPressed: () => ref
+                        .read(playbackProvider.notifier)
+                        .playLive(pick, expand: false),
+                  ),
+                ],
+              ),
+      ),
+    );
+  }
+}
+
+class _ChannelHeading extends ConsumerWidget {
+  const _ChannelHeading({
+    required this.subject,
+    required this.playingThis,
+    this.channel,
+  });
+
+  final NowPlayingSubject subject;
+  final bool playingThis;
+  final LiveChannel? channel;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final s = ref.watch(stringsProvider);
+    final pick = channel;
+    return Row(
+      children: [
+        SizedBox(
+          width: 64,
+          height: 64,
+          child: NetworkPoster(
+            url: subject.logo,
+            title: subject.title,
+            logoMode: true,
+            radius: Nova.radiusCard,
+          ),
+        ),
+        const SizedBox(width: Nova.space4),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (playingThis) ...[
+                LiveBadge(label: s.onAir),
+                const SizedBox(height: Nova.space2),
+              ],
+              Text(
+                subject.title,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: AppText.title,
+              ),
+            ],
+          ),
+        ),
+        if (playingThis)
+          GhostButton(
+            label: s.watchFullscreen,
+            icon: Icons.fullscreen_rounded,
+            // The stream is already running on the stage; the player only has
+            // to be uncovered, never reopened.
+            onPressed: () => ref.read(playerViewProvider.notifier).expand(),
+          )
+        else if (pick != null)
+          EmberButton(
+            label: s.play,
+            icon: Icons.play_arrow_rounded,
+            onPressed: () => ref
+                .read(playbackProvider.notifier)
+                .playLive(pick, expand: false),
+          ),
+      ],
     );
   }
 }
@@ -615,34 +934,62 @@ class _Guide extends ConsumerWidget {
             .toList();
 
         return ListView(
-          // The dock floats over the foot of the window and the shell hands
-          // this screen its height; without it the guide's last entry sits
-          // under the glass.
           padding: EdgeInsets.only(
-            bottom: MediaQuery.paddingOf(context).bottom,
+            bottom: MediaQuery.paddingOf(context).bottom + Nova.space4,
           ),
           children: [
-            if (current != null) ...[
-              Text(s.nowPlaying, style: AppText.label),
-              const SizedBox(height: Nova.space2),
-              Text(current.title, style: AppText.section),
-              const SizedBox(height: Nova.space2),
-              Text(_range(context, current), style: AppText.timecode),
-              const SizedBox(height: Nova.space3),
-              ProgressBar(value: current.progress),
-              if (current.description != null &&
-                  current.description!.trim().isNotEmpty) ...[
-                const SizedBox(height: Nova.space3),
-                Text(
-                  current.description!,
-                  maxLines: 4,
-                  overflow: TextOverflow.ellipsis,
-                  style: AppText.body,
+            if (current != null)
+              Container(
+                padding: const EdgeInsets.all(Nova.space4),
+                decoration: BoxDecoration(
+                  color: AppColors.surface2,
+                  borderRadius: BorderRadius.circular(Nova.radiusCard),
+                  border: Border.all(color: AppColors.borderSubtle),
                 ),
-              ],
-              const SizedBox(height: Nova.space5),
-            ],
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Text(
+                          s.nowPlaying,
+                          style: AppText.label.copyWith(
+                            color: AppColors.primaryBright,
+                          ),
+                        ),
+                        const Spacer(),
+                        Text(
+                          _range(context, current),
+                          // Times read left to right in every language.
+                          textDirection: TextDirection.ltr,
+                          style: AppText.timecode.copyWith(
+                            color: AppColors.textMuted,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: Nova.space2),
+                    Text(current.title, style: AppText.section),
+                    const SizedBox(height: Nova.space3),
+                    ProgressBar(
+                      value: current.progress,
+                      track: AppColors.surface3,
+                    ),
+                    if (current.description != null &&
+                        current.description!.trim().isNotEmpty) ...[
+                      const SizedBox(height: Nova.space3),
+                      Text(
+                        current.description!,
+                        maxLines: 3,
+                        overflow: TextOverflow.ellipsis,
+                        style: AppText.body,
+                      ),
+                    ],
+                  ],
+                ),
+              ),
             if (upcoming.isNotEmpty) ...[
+              const SizedBox(height: Nova.space5),
               Text(s.upNext, style: AppText.label),
               const SizedBox(height: Nova.space3),
               for (final entry in upcoming) _GuideRow(entry: entry),
@@ -662,27 +1009,38 @@ class _GuideRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: Nova.space3),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(
-            width: 64,
-            child: Text(
-              _time(context, entry.start),
-              style: AppText.timecode.copyWith(color: AppColors.textMuted),
+      padding: const EdgeInsets.only(bottom: Nova.space2),
+      child: Container(
+        padding: const EdgeInsets.symmetric(
+          horizontal: Nova.space3,
+          vertical: Nova.space3,
+        ),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(Nova.radiusControl),
+          border: Border.all(color: AppColors.borderSubtle),
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            SizedBox(
+              width: 72,
+              child: Text(
+                _time(context, entry.start),
+                textDirection: TextDirection.ltr,
+                style: AppText.timecode.copyWith(color: AppColors.textMuted),
+              ),
             ),
-          ),
-          const SizedBox(width: Nova.space3),
-          Expanded(
-            child: Text(
-              entry.title,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: AppText.body.copyWith(color: AppColors.textSecondary),
+            const SizedBox(width: Nova.space3),
+            Expanded(
+              child: Text(
+                entry.title,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: AppText.body.copyWith(color: AppColors.textSecondary),
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

@@ -1,10 +1,9 @@
-import 'dart:typed_data';
-import 'dart:io' show Platform;
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
 
 import 'app_colors.dart';
+import 'baked_gradient.dart';
 import 'nova.dart';
 
 /// Glass — the material MoPlayer's chrome is made of.
@@ -26,20 +25,26 @@ import 'nova.dart';
 ///     the edge that faces it and nowhere else, and that single asymmetry is
 ///     most of what separates "a material" from "a translucent rectangle".
 ///
-/// ## Where glass is allowed
+/// ## Where glass is allowed — and why the blur is off by default
 ///
-/// On **chrome**: the dock, the window caption, the player's controls, the mini
-/// player, a dashboard widget, a dialog. Never on a card in a scrolling grid —
-/// every [BackdropFilter] is a save-layer, and forty of them in a poster wall is
-/// how you drop frames on the integrated GPU a MoOS laptop is likely to have.
-/// Cards are solid ([SolidCard]); only what floats *over* something is glass.
+/// On **chrome** that floats over something moving: the player's controls, a
+/// toast, a dialog. Never on a card in a scrolling grid.
+///
+/// The blur itself is opt-in (`blur` defaults to 0). Every [BackdropFilter] is
+/// an offscreen layer, and on the Impeller renderer this app uses, each one the
+/// size of the window was measured at roughly **400 MB of graphics memory** on
+/// the maintainer's 4K RTX 2080 — held for the life of the process, because the
+/// driver keeps what the renderer once asked for. MoPlayer idled at 4.9 GB of
+/// an 8 GB card with its blurs and film grain in place. The fill (layer 3) is
+/// what makes a panel legible, so a panel without the blur loses nothing a
+/// viewer reads.
 class GlassPanel extends StatelessWidget {
   const GlassPanel({
     super.key,
     required this.child,
     this.padding = const EdgeInsets.all(Nova.space4),
     this.radius = Nova.radiusPanel,
-    this.blur = 24,
+    this.blur = 0,
     this.fill,
     this.stroke,
     this.glow = false,
@@ -89,26 +94,21 @@ class GlassPanel extends StatelessWidget {
       ),
       child: ClipRRect(
         borderRadius: borderRadius,
-        child: _maybeBlur(
+        child: _blurred(
           blur,
           DecoratedBox(
             decoration: BoxDecoration(
               color: base,
               borderRadius: borderRadius,
-              border: Border.all(color: stroke ?? AppColors.glassStroke),
-              // The lit edge. A gradient rather than a second border, because a
-              // border is uniform and light is not.
-              gradient: highlight
-                  ? LinearGradient(
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                      colors: [
-                        AppColors.glassHighlight,
-                        base.withValues(alpha: 0),
-                      ],
-                      stops: const [0.0, 0.14],
-                    )
-                  : null,
+              // One hairline all round. A brighter top edge used to be drawn
+              // as a gradient — the one thing this renderer makes expensive
+              // (see `baked_gradient.dart`) — and a rounded border must be one
+              // colour, so a lit panel simply takes the brighter hairline.
+              border: Border.all(
+                color: highlight
+                    ? AppColors.glassHighlight
+                    : (stroke ?? AppColors.glassStroke),
+              ),
             ),
             child: Padding(padding: padding, child: child),
           ),
@@ -170,198 +170,55 @@ class SolidCard extends StatelessWidget {
 /// The old name, kept so the ported core still compiles.
 typedef NovaCard = SolidCard;
 
-/// The ambient scene: the warm graphite wash, the amber bloom in the top corner,
-/// a controlled vignette, and a film grain at the threshold of visibility.
+/// The ambient scene: the ink wash, the accent's bloom high in the trailing
+/// corner, and a controlled vignette.
 ///
-/// This is drawn once, behind everything, by the shell. It is what stops the app
-/// from looking like a dark rectangle with widgets on it — and every layer of it
-/// is static, so it costs nothing per frame.
+/// Drawn once, behind the page, by the shell. Every layer is a static
+/// gradient in a `DecoratedBox`, so it costs nothing per frame and no
+/// offscreen layer at all.
+///
+/// There used to be a film grain here: a 64×64 noise tile repeated across the
+/// window under an `Opacity`. The opacity made it a window-sized offscreen
+/// layer, which on the Impeller renderer measured ~400 MB of graphics memory on
+/// a 4K panel — for an effect at 3% opacity. The gradients below are gentle
+/// enough not to band without it.
 class AmbientScene extends StatelessWidget {
-  const AmbientScene({super.key, required this.child, this.grain = true});
+  const AmbientScene({super.key, required this.child, this.grain = false});
 
   final Widget child;
+
+  /// Kept for source compatibility; the grain is gone (see above).
   final bool grain;
 
   @override
   Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: const BoxDecoration(gradient: AppColors.sceneGradient),
-      child: DecoratedBox(
-        decoration: BoxDecoration(gradient: AppColors.ambientAmber),
-        child: DecoratedBox(
-          // The vignette. Very slight — enough to keep the eye in the middle of
-          // a 32-inch screen, not enough to be seen as a shape.
-          decoration: const BoxDecoration(
-            gradient: RadialGradient(
-              center: Alignment.center,
-              radius: 1.0,
-              colors: [Color(0x00000000), Color(0x59000000)],
-              stops: [0.55, 1.0],
-            ),
-          ),
-          child: grain && !labNoGrain ? FilmGrain(child: child) : child,
-        ),
-      ),
-    );
-  }
-}
-
-/// A film grain, at 3% opacity, tiled from a 96×96 texture generated once.
-///
-/// Not decoration for its own sake: a large flat dark area on an 8-bit panel
-/// *bands*, and the gradients in this app are exactly the kind that show it —
-/// long, dark, and low-contrast. A little noise is the standard fix, and it is
-/// the same trick the film grades this app is going to be displaying use.
-class FilmGrain extends StatefulWidget {
-  const FilmGrain({super.key, required this.child, this.opacity = 0.030});
-
-  final Widget child;
-  final double opacity;
-
-  @override
-  State<FilmGrain> createState() => _FilmGrainState();
-}
-
-class _FilmGrainState extends State<FilmGrain> {
-  static Image? _texture;
-
-  @override
-  void initState() {
-    super.initState();
-    // Generated once for the whole process, from a fixed seed: the grain must
-    // not shimmer between frames (that reads as a rendering fault) and must not
-    // be re-decoded per rebuild.
-    _texture ??= Image.memory(
-      _grainPng,
-      repeat: ImageRepeat.repeat,
-      filterQuality: FilterQuality.none,
-      gaplessPlayback: true,
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
+    // Baked, not shaded: see `baked_gradient.dart` for why a gradient shader
+    // this size is measured in gigabytes of graphics memory on this renderer.
     return Stack(
       fit: StackFit.expand,
       children: [
-        widget.child,
-        Positioned.fill(
-          child: IgnorePointer(
-            child: Opacity(
-              opacity: widget.opacity,
-              child: RepaintBoundary(child: _texture),
-            ),
+        GradientFill(gradient: AppColors.sceneGradient),
+        GradientFill(gradient: AppColors.ambientAmber),
+        // The vignette. Very slight — enough to keep the eye in the middle of
+        // a 32-inch screen, not enough to be seen as a shape.
+        const GradientFill(
+          gradient: RadialGradient(
+            center: Alignment.center,
+            radius: 1.05,
+            colors: [Color(0x00000000), Color(0x40000000)],
+            stops: [0.6, 1.0],
           ),
         ),
+        child,
       ],
     );
   }
 }
 
-/// A 64×64 8-bit greyscale PNG of uniform noise, from a fixed seed.
-///
-/// Inlined rather than shipped as an asset for one reason: it is 1.5 kB, and an
-/// asset is a file that can go missing from a bundle. The scene must never be
-/// one lookup away from failing to draw.
-final Uint8List _grainPng = _makeGrain();
-
-Uint8List _makeGrain() {
-  const size = 64;
-
-  // A tiny deterministic PRNG. `Random(seed)` would do, but this keeps the grain
-  // byte-identical across Dart versions, which keeps golden tests stable.
-  var state = 0x2545F491;
-  int next() {
-    state ^= state << 13;
-    state ^= state >>> 17;
-    state ^= state << 5;
-    return state & 0xFF;
-  }
-
-  // Raw scanlines: filter byte 0, then `size` grey bytes, per row.
-  final raw = Uint8List(size * (size + 1));
-  var p = 0;
-  for (var y = 0; y < size; y++) {
-    raw[p++] = 0;
-    for (var x = 0; x < size; x++) {
-      raw[p++] = next();
-    }
-  }
-
-  final png = BytesBuilder();
-  png.add([0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]);
-
-  void chunk(String type, List<int> data) {
-    final body = <int>[...type.codeUnits, ...data];
-    png.add(_be32(data.length));
-    png.add(body);
-    png.add(_be32(_crc32(body)));
-  }
-
-  chunk('IHDR', [
-    ..._be32(size), ..._be32(size),
-    8, // bit depth
-    0, // greyscale
-    0, 0, 0,
-  ]);
-  chunk('IDAT', _zlibStore(raw));
-  chunk('IEND', const []);
-
-  return png.toBytes();
-}
-
-List<int> _be32(int v) => [
-  (v >>> 24) & 0xFF,
-  (v >>> 16) & 0xFF,
-  (v >>> 8) & 0xFF,
-  v & 0xFF,
-];
-
-/// zlib, stored (uncompressed) blocks. The grain is random data — deflate would
-/// not shrink it, and this keeps the generator to twenty lines with no
-/// dependency.
-List<int> _zlibStore(Uint8List data) {
-  final out = <int>[0x78, 0x01]; // CMF/FLG: deflate, 32k window, no dict
-  var i = 0;
-  while (i < data.length) {
-    final n = (data.length - i).clamp(0, 65535);
-    final last = i + n >= data.length ? 1 : 0;
-    out.addAll([
-      last,
-      n & 0xFF,
-      (n >>> 8) & 0xFF,
-      ~n & 0xFF,
-      (~n >>> 8) & 0xFF,
-    ]);
-    out.addAll(data.sublist(i, i + n));
-    i += n;
-  }
-  var a = 1, b = 0;
-  for (final byte in data) {
-    a = (a + byte) % 65521;
-    b = (b + a) % 65521;
-  }
-  out.addAll(_be32((b << 16) | a)); // adler32
-  return out;
-}
-
-final List<int> _crcTable = List<int>.generate(256, (n) {
-  var c = n;
-  for (var k = 0; k < 8; k++) {
-    c = (c & 1) != 0 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1;
-  }
-  return c;
-});
-
-int _crc32(List<int> data) {
-  var c = 0xFFFFFFFF;
-  for (final byte in data) {
-    c = _crcTable[(c ^ byte) & 0xFF] ^ (c >>> 8);
-  }
-  return (c ^ 0xFFFFFFFF) & 0xFFFFFFFF;
-}
-
-// LAB: blur kill-switch for GPU-memory measurement.
-final bool labNoBlur = const bool.fromEnvironment('X') || (Platform.environment['MOPLAYER_NO_BLUR'] == '1');
-Widget _maybeBlur(double blur, Widget child) => labNoBlur ? child : BackdropFilter(filter: ImageFilter.blur(sigmaX: blur, sigmaY: blur), child: child);
-final bool labNoGrain = Platform.environment['MOPLAYER_NO_GRAIN'] == '1';
+/// A backdrop blur only when one was asked for.
+Widget _blurred(double blur, Widget child) => blur <= 0
+    ? child
+    : BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: blur, sigmaY: blur),
+        child: child,
+      );

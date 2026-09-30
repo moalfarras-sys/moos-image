@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../core/theme/app_colors.dart';
+import '../core/theme/baked_gradient.dart';
 import '../core/theme/app_typography.dart';
 import '../core/theme/motion.dart';
 import '../core/theme/nova.dart';
@@ -242,9 +243,7 @@ class PosterCard extends StatelessWidget {
             // The scrim only exists under something. Painting it on a card with
             // no badge, no bar and no hover would only dull the art.
             if (active || corner != null || hasProgress || watched)
-              const DecoratedBox(
-                decoration: BoxDecoration(gradient: AppColors.posterScrim),
-              ),
+              GradientFill(gradient: AppColors.posterScrim),
 
             if (corner != null)
               PositionedDirectional(
@@ -388,9 +387,7 @@ class LandscapeCard extends StatelessWidget {
             ),
 
             if (active || badge != null || hasProgress || caption != null)
-              const DecoratedBox(
-                decoration: BoxDecoration(gradient: AppColors.posterScrim),
-              ),
+              GradientFill(gradient: AppColors.posterScrim),
 
             if (badge != null)
               PositionedDirectional(
@@ -534,9 +531,7 @@ class EpisodeCard extends StatelessWidget {
           fit: StackFit.expand,
           children: [
             NetworkPoster(url: imageUrl, title: title, width: width, radius: 0),
-            const DecoratedBox(
-              decoration: BoxDecoration(gradient: AppColors.posterScrim),
-            ),
+            GradientFill(gradient: AppColors.posterScrim),
 
             // The number is the card's identity — it stays at rest, where the
             // eye can run down a shelf of them.
@@ -627,8 +622,8 @@ class _EmberBar extends StatelessWidget {
             FractionallySizedBox(
               alignment: AlignmentDirectional.centerStart,
               widthFactor: value.clamp(0.0, 1.0),
-              child: const DecoratedBox(
-                decoration: BoxDecoration(gradient: AppColors.emberGradient),
+              child: DecoratedBox(
+                decoration: BoxDecoration(color: AppColors.primary),
               ),
             ),
           ],
@@ -712,8 +707,7 @@ class _NumberChip extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
       decoration: BoxDecoration(
-        gradient: playing ? AppColors.emberGradient : null,
-        color: playing ? null : const Color(0xA605070C),
+        color: playing ? AppColors.primary : const Color(0xA605070C),
         borderRadius: BorderRadius.circular(6),
       ),
       child: Text(

@@ -9,6 +9,7 @@ import '../core/theme/nova.dart';
 import 'buttons.dart';
 import 'mo_icons.dart';
 import 'skeletons.dart';
+import 'calm_spinner.dart';
 
 // The skeletons used to live here, and half the app imports this file for them.
 export 'skeletons.dart';
@@ -61,7 +62,7 @@ class LoadingView extends StatelessWidget {
           const SizedBox(
             width: 26,
             height: 26,
-            child: CircularProgressIndicator(strokeWidth: 2.4),
+            child: CalmSpinner(strokeWidth: 2.4),
           ),
           if (label != null) ...[
             const SizedBox(height: Nova.space4),

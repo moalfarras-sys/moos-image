@@ -26,7 +26,8 @@ import '../services/xtream/xtream_api.dart';
 import '../services/xtream/xtream_catalog.dart';
 import '../services/xtream/xtream_url_builder.dart';
 
-export '../services/xtream/xtream_catalog.dart' show CatalogSection, newestFirst;
+export '../services/xtream/xtream_catalog.dart'
+    show CatalogSection, newestFirst;
 
 /// How a source is actually being read.
 enum SourceMode {
@@ -151,8 +152,7 @@ class ContentRepository {
       (await _shelf(CatalogSection.movies, forceRefresh)) as Shelf<VodMovie>;
 
   Future<Shelf<SeriesItem>> seriesShelf({bool forceRefresh = false}) async =>
-      (await _shelf(CatalogSection.series, forceRefresh))
-          as Shelf<SeriesItem>;
+      (await _shelf(CatalogSection.series, forceRefresh)) as Shelf<SeriesItem>;
 
   /// The section if it is already in memory, without waiting. Screens use this
   /// to draw a first frame with content instead of a spinner.
@@ -294,11 +294,8 @@ class ContentRepository {
 
   String get _playlistUrl => config.m3uUrl.trim();
 
-  M3uLibraryJob get _m3uJob => M3uLibraryJob(
-    url: _playlistUrl,
-    cacheRoot: _files.root,
-    namespace: _ns,
-  );
+  M3uLibraryJob get _m3uJob =>
+      M3uLibraryJob(url: _playlistUrl, cacheRoot: _files.root, namespace: _ns);
 
   Future<Shelf<Object>> _loadM3u(
     CatalogSection section,
@@ -441,22 +438,24 @@ class ContentRepository {
 
   Future<List<VodMovie>> _stalkerMoviesIn(String? categoryId) {
     final key = _portalCategory(categoryId);
-    return _stalkerMovies[key] ??= _pages<VodMovie>(
-      (page) => _stalker.vodPage(key, page: page),
-    ).catchError((Object error) {
-      _stalkerMovies.remove(key);
-      throw error;
-    });
+    return _stalkerMovies[key] ??=
+        _pages<VodMovie>(
+          (page) => _stalker.vodPage(key, page: page),
+        ).catchError((Object error) {
+          _stalkerMovies.remove(key);
+          throw error;
+        });
   }
 
   Future<List<SeriesItem>> _stalkerSeriesIn(String? categoryId) {
     final key = _portalCategory(categoryId);
-    return _stalkerSeries[key] ??= _pages<SeriesItem>(
-      (page) => _stalker.seriesPage(key, page: page),
-    ).catchError((Object error) {
-      _stalkerSeries.remove(key);
-      throw error;
-    });
+    return _stalkerSeries[key] ??=
+        _pages<SeriesItem>(
+          (page) => _stalker.seriesPage(key, page: page),
+        ).catchError((Object error) {
+          _stalkerSeries.remove(key);
+          throw error;
+        });
   }
 
   static Future<List<T>> _pages<T>(
@@ -468,10 +467,7 @@ class ContentRepository {
     final last = total < _stalkerPages ? total : _stalkerPages;
     final rest = await Future.wait([
       for (var page = 2; page <= last; page++)
-        fetch(page).then(
-          (p) => p.items,
-          onError: (Object _) => <T>[],
-        ),
+        fetch(page).then((p) => p.items, onError: (Object _) => <T>[]),
     ]);
     return [...first.items, for (final items in rest) ...items];
   }
@@ -499,9 +495,9 @@ class ContentRepository {
     bool forceRefresh = false,
   }) async {
     if (_mode == SourceMode.stalker) return _stalkerMoviesIn(categoryId);
-    return (await movieShelf(forceRefresh: forceRefresh)).inCategory(
-      categoryId,
-    );
+    return (await movieShelf(
+      forceRefresh: forceRefresh,
+    )).inCategory(categoryId);
   }
 
   Future<List<Category>> seriesCategories({bool forceRefresh = false}) async {
@@ -516,9 +512,9 @@ class ContentRepository {
     bool forceRefresh = false,
   }) async {
     if (_mode == SourceMode.stalker) return _stalkerSeriesIn(categoryId);
-    return (await seriesShelf(forceRefresh: forceRefresh)).inCategory(
-      categoryId,
-    );
+    return (await seriesShelf(
+      forceRefresh: forceRefresh,
+    )).inCategory(categoryId);
   }
 
   /// Every section this session has loaded, fetched again from the source.
@@ -673,19 +669,27 @@ class ContentRepository {
 
   /// The guide for one channel.
   ///
-  /// The panel's own `get_short_epg` is asked first — a panel that implements it
-  /// answers per-channel and answers fast. When it comes back empty (and there
-  /// are panels where it *always* does, while `xmltv.php` returns thousands of
-  /// programmes), the channel is looked up in the XMLTV guide instead.
+  /// The whole-panel XMLTV guide is read first: it is one download for every
+  /// channel, cached on disk, and a row scrolling past costs a map lookup. The
+  /// panel's per-channel `get_short_epg` is asked only for a channel the guide
+  /// does not cover — it used to be asked first, which meant one request per
+  /// visible row every time the channel list scrolled, on a subscription whose
+  /// panel answers that endpoint with an empty list for every channel anyway.
   Future<List<EpgEntry>> epg(String streamId, {String? epgChannelId}) async {
-    if (_mode == SourceMode.xtream && !streamId.startsWith('m3u_')) {
-      final short = await _api.getShortEpg(streamId);
-      if (short.isNotEmpty) return short;
+    if (epgChannelId != null && epgChannelId.trim().isNotEmpty) {
+      final fromGuide = (await guide()).forChannel(epgChannelId);
+      if (fromGuide.isNotEmpty) return fromGuide;
     }
-    if (epgChannelId == null || epgChannelId.trim().isEmpty) return const [];
-    final guide = await this.guide();
-    return guide.forChannel(epgChannelId);
+    if (_mode == SourceMode.xtream && !streamId.startsWith('m3u_')) {
+      // Remembered for the session, empty answers included: a channel the
+      // panel has no programme for does not gain one by being scrolled past
+      // again.
+      return _shortEpg[streamId] ??= _api.getShortEpg(streamId);
+    }
+    return const [];
   }
+
+  final Map<String, Future<List<EpgEntry>>> _shortEpg = {};
 
   EpgGuide? _guideMemo;
   Future<EpgGuide>? _guideLoad;
@@ -796,10 +800,7 @@ class ContentRepository {
     final direct = episode.directUrl;
     if (direct != null && direct.isNotEmpty) return PlaybackTarget(direct);
     return PlaybackTarget(
-      _urls.episodeStream(
-        episode.id,
-        ext: episode.containerExtension ?? 'mp4',
-      ),
+      _urls.episodeStream(episode.id, ext: episode.containerExtension ?? 'mp4'),
     );
   }
 

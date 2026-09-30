@@ -1,7 +1,10 @@
+import 'dart:async';
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
-import 'package:flutter/scheduler.dart';
 
 import '../core/theme/app_colors.dart';
+import '../core/theme/baked_gradient.dart';
 import '../core/theme/motion.dart';
 import '../core/theme/nova.dart';
 
@@ -21,52 +24,40 @@ class _ShimmerClock {
 
   static const Duration period = Duration(milliseconds: 1400);
 
+  /// Eight steps a second, not one per vsync. On MoOS every Flutter frame costs
+  /// GTK a full-window upload on the main thread (see `calm_spinner.dart`), and
+  /// a tone that breathes over 1.4 s does not need sixty of them.
+  static const Duration _step = Duration(milliseconds: 125);
+
   static final ValueNotifier<double> phase = ValueNotifier<double>(0);
-  static Ticker? _ticker;
+  static Timer? _timer;
+  static final Stopwatch _clock = Stopwatch();
   static int _refs = 0;
 
   static void attach() {
     _refs++;
-    _ticker ??= Ticker(_tick)..start();
+    if (_timer != null) return;
+    _clock
+      ..reset()
+      ..start();
+    _timer = Timer.periodic(_step, (_) {
+      phase.value =
+          (_clock.elapsedMilliseconds % period.inMilliseconds) /
+          period.inMilliseconds;
+    });
   }
 
   static void detach() {
     _refs--;
     if (_refs > 0) return;
     _refs = 0;
-    _ticker?.dispose();
-    _ticker = null;
+    _timer?.cancel();
+    _timer = null;
+    _clock.stop();
     phase.value = 0;
   }
-
-  static void _tick(Duration elapsed) {
-    phase.value =
-        (elapsed.inMilliseconds % period.inMilliseconds) /
-        period.inMilliseconds;
-  }
 }
 
-/// Slides the shimmer band across the box.
-class _Sweep extends GradientTransform {
-  const _Sweep(this.t, this.rtl);
-
-  final double t;
-  final bool rtl;
-
-  @override
-  Matrix4 transform(Rect bounds, {TextDirection? textDirection}) {
-    // -1 → 1 of the box's width, so the band enters off one edge and leaves off
-    // the other instead of fading in over the middle.
-    final travel = bounds.width * (t * 2 - 1);
-    return Matrix4.translationValues(rtl ? -travel : travel, 0, 0);
-  }
-}
-
-/// A shimmering placeholder box — the atom every skeleton below is built from.
-///
-/// Under reduced motion it stops moving and becomes a plain plate. It never
-/// becomes *nothing*: the shape is the promise about what is coming, and that
-/// promise is the whole point of a skeleton.
 class SkeletonBox extends StatefulWidget {
   const SkeletonBox({
     super.key,
@@ -111,7 +102,6 @@ class _SkeletonBoxState extends State<SkeletonBox> {
   @override
   Widget build(BuildContext context) {
     final radius = BorderRadius.circular(widget.radius);
-    final rtl = Directionality.of(context) == TextDirection.rtl;
 
     if (!_attached) {
       return Container(
@@ -127,21 +117,18 @@ class _SkeletonBoxState extends State<SkeletonBox> {
     return RepaintBoundary(
       child: ValueListenableBuilder<double>(
         valueListenable: _ShimmerClock.phase,
+        // A breathing tone rather than a sweeping gradient: a gradient per
+        // frame is exactly what this renderer makes expensive (see
+        // `baked_gradient.dart`), and a colour tween costs nothing.
         builder: (context, t, _) => Container(
           width: widget.width,
           height: widget.height,
           decoration: BoxDecoration(
             borderRadius: radius,
-            gradient: LinearGradient(
-              begin: Alignment.centerLeft,
-              end: Alignment.centerRight,
-              colors: const [
-                AppColors.surface2,
-                AppColors.surface3,
-                AppColors.surface2,
-              ],
-              stops: const [0.15, 0.5, 0.85],
-              transform: _Sweep(t, rtl),
+            color: Color.lerp(
+              AppColors.surface2,
+              AppColors.surface3,
+              0.5 - 0.5 * math.cos(t * 2 * math.pi),
             ),
           ),
         ),
@@ -398,9 +385,7 @@ class DetailSkeleton extends StatelessWidget {
                 const SkeletonBox(radius: 0),
                 // The floor, so the hero does not end at a hard line — exactly as
                 // the real one does not.
-                const DecoratedBox(
-                  decoration: BoxDecoration(gradient: AppColors.heroFloor),
-                ),
+                GradientFill(gradient: AppColors.heroFloor),
                 PositionedDirectional(
                   start: Nova.space6,
                   end: Nova.space6,

@@ -13,6 +13,7 @@ import '../../core/theme/nova.dart';
 import '../../models/playlist_config.dart';
 import '../../providers/content_providers.dart';
 import '../../providers/core_providers.dart';
+import '../../providers/theme_providers.dart';
 import '../../providers/library_providers.dart';
 import '../../providers/playback_providers.dart';
 import '../../providers/system_providers.dart';
@@ -79,7 +80,7 @@ class SettingsPanel extends StatelessWidget {
 /// What the user would recognise: the host they typed, not the whole URL with
 /// their password in the query string.
 String _host(PlaylistConfig config) {
-  final raw = config.isXtream ? config.normalizedServer : config.m3uUrl;
+  final raw = config.isM3u ? config.m3uUrl : config.normalizedServer;
   final uri = Uri.tryParse(raw);
   if (uri == null || uri.host.isEmpty) return raw;
   return uri.hasPort ? '${uri.host}:${uri.port}' : uri.host;
@@ -87,7 +88,14 @@ String _host(PlaylistConfig config) {
 
 /// A protocol name, not copy: it stays Latin in the Arabic UI, the way the
 /// user's provider wrote it on the sign-up page.
-String _type(PlaylistConfig config) => config.isXtream ? 'Xtream' : 'M3U';
+String _type(PlaylistConfig config) {
+  if (config.isStalker) return 'MAC portal';
+  if (config.isXtream) return 'Xtream';
+  // A playlist link that carries an account is read through the account's
+  // API (see PlaylistConfig.xtreamEquivalent) — say so.
+  if (config.xtreamEquivalent != null) return 'Xtream · M3U';
+  return 'M3U';
+}
 
 class _SourcesPanel extends ConsumerWidget {
   const _SourcesPanel();
@@ -109,7 +117,9 @@ class _SourcesPanel extends ConsumerWidget {
             else
               _Row(
                 leading: _Plate(
-                  icon: active.isXtream
+                  icon: active.isStalker
+                      ? Icons.router_rounded
+                      : (active.isXtream || active.xtreamEquivalent != null)
                       ? Icons.dns_rounded
                       : Icons.link_rounded,
                   accent: true,
@@ -120,6 +130,7 @@ class _SourcesPanel extends ConsumerWidget {
                 description: '${_type(active)} · ${_host(active)}',
                 descriptionLtr: true,
               ),
+            if (active != null) const _SubscriptionRow(),
           ],
         ),
         const SizedBox(height: Nova.space5),
@@ -161,7 +172,7 @@ class _SourcesPanel extends ConsumerWidget {
             // shape of an interface that was assembled rather than designed.
             ListRow(
               title: s.addSource,
-              leading: const Icon(
+              leading: Icon(
                 Icons.add_rounded,
                 size: 19,
                 color: AppColors.primary,
@@ -193,6 +204,47 @@ class _SourcesPanel extends ConsumerWidget {
               },
             ),
           ],
+        ),
+      ],
+    );
+  }
+}
+
+/// The subscription behind the active source: status, expiry, connections.
+///
+/// Read from the panel, not remembered: "expired" is the single most common
+/// reason an IPTV source stops working, and the one a viewer cannot see from
+/// the channel list — every channel simply fails.
+class _SubscriptionRow extends ConsumerWidget {
+  const _SubscriptionRow();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final s = ref.watch(stringsProvider);
+    final info = ref.watch(accountInfoProvider).valueOrNull;
+    if (info == null) return const SizedBox.shrink();
+    final expires = info.expiresAt;
+    final parts = <String>[
+      info.isActive ? s.subscriptionActive : info.status,
+      if (expires != null)
+        s.subscriptionExpires(
+          '${expires.year}-${expires.month.toString().padLeft(2, '0')}-'
+          '${expires.day.toString().padLeft(2, '0')}',
+        ),
+      if (info.maxConnections != null)
+        s.connectionsAllowed(info.maxConnections!),
+    ];
+    return Column(
+      children: [
+        const _Hairline(),
+        _Row(
+          leading: _Plate(
+            icon: info.isActive
+                ? Icons.verified_rounded
+                : Icons.error_outline_rounded,
+          ),
+          title: s.subscription,
+          description: parts.join('  ·  '),
         ),
       ],
     );
@@ -312,8 +364,16 @@ class _AppearancePanel extends ConsumerWidget {
     final settings = ref.watch(settingsProvider);
     final controller = ref.read(settingsProvider.notifier);
 
+    final palette = ref.watch(paletteProvider);
     return _Group(
       children: [
+        _SwitchRow(
+          title: s.followMoosColours,
+          description: s.followMoosColoursHint(palette.schemeName),
+          value: settings.accentFromSystem,
+          onChanged: controller.setAccentFromSystem,
+        ),
+        const _Hairline(),
         _SwitchRow(
           title: s.cinematicMotion,
           description: s.cinematicMotionHint,
@@ -950,8 +1010,7 @@ class _Plate extends StatelessWidget {
       width: size,
       height: size,
       decoration: BoxDecoration(
-        gradient: accent ? AppColors.emberGradient : null,
-        color: accent ? null : AppColors.surface3,
+        color: accent ? AppColors.primary : AppColors.surface3,
         borderRadius: BorderRadius.circular(Nova.radiusControl - 2),
       ),
       child: Icon(
@@ -977,8 +1036,7 @@ class _Dot extends StatelessWidget {
       margin: const EdgeInsets.symmetric(horizontal: Nova.space2),
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        gradient: on ? AppColors.emberGradient : null,
-        color: on ? null : AppColors.borderStrong,
+        color: on ? AppColors.primary : AppColors.borderStrong,
       ),
     );
   }
@@ -1074,9 +1132,8 @@ class _SegmentState extends State<_Segment> {
             curve: Ease.enter,
             height: 38,
             decoration: BoxDecoration(
-              gradient: selected ? AppColors.emberGradient : null,
               color: selected
-                  ? null
+                  ? AppColors.primary
                   : (_hovered ? AppColors.surface3 : Colors.transparent),
               borderRadius: BorderRadius.circular(Nova.radiusControl),
               boxShadow: focusRing(_focused),

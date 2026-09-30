@@ -116,8 +116,7 @@ Shelf<Object> _buildShelf(
       ? const <Category>[]
       : [
           for (final row in decodeXtreamList(categoriesBytes))
-            if (row is Map)
-              Category.fromXtream(Map<String, dynamic>.from(row)),
+            if (row is Map) Category.fromXtream(Map<String, dynamic>.from(row)),
         ];
 
   switch (section) {
@@ -149,8 +148,7 @@ Shelf<Object> _buildShelf(
     case CatalogSection.series:
       final items = newestFirst([
         for (final row in rows)
-          if (row is Map)
-            SeriesItem.fromXtream(Map<String, dynamic>.from(row)),
+          if (row is Map) SeriesItem.fromXtream(Map<String, dynamic>.from(row)),
       ], (s) => s.lastModified);
       return Shelf<SeriesItem>.build(
         items: items,

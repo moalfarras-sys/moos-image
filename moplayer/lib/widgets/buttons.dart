@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../core/theme/app_colors.dart';
+import '../core/theme/baked_gradient.dart';
 import '../core/theme/app_typography.dart';
 import '../core/theme/motion.dart';
 import '../core/theme/nova.dart';
+import 'calm_spinner.dart';
 
 /// The focus ring, drawn as an **outer shadow** rather than a border.
 ///
@@ -12,8 +14,9 @@ import '../core/theme/nova.dart';
 /// moves the content inside it and nudges every sibling in the row. A control
 /// that jiggles when you tab to it is worse than one with no ring at all, so the
 /// ring is painted outside the box where it costs nothing.
-List<BoxShadow> focusRing(bool focused, {Color color = AppColors.focus}) {
+List<BoxShadow> focusRing(bool focused, {Color? color}) {
   if (!focused) return const [];
+  color ??= AppColors.focus;
   return [
     // The bloom is painted first, and therefore under the hard ring: the ring is
     // the affordance, the bloom is only what makes it sit *over* the artwork.
@@ -174,11 +177,8 @@ class EmberButton extends StatelessWidget {
           curve: Ease.enter,
           height: height,
           width: expand ? double.infinity : null,
-          padding: EdgeInsets.symmetric(
-            horizontal: compact ? Nova.space4 : Nova.space5,
-          ),
           decoration: BoxDecoration(
-            gradient: AppColors.emberGradient,
+            color: AppColors.primary,
             borderRadius: BorderRadius.circular(Nova.radiusControl),
             boxShadow: [
               if (hovered && !focused)
@@ -191,31 +191,45 @@ class EmberButton extends StatelessWidget {
               ...focusRing(focused),
             ],
           ),
-          child: Row(
-            mainAxisSize: expand ? MainAxisSize.max : MainAxisSize.min,
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              if (busy)
-                const SizedBox(
-                  width: 16,
-                  height: 16,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    color: AppColors.onEmber,
-                  ),
-                )
-              else if (icon != null)
-                Icon(icon, size: compact ? 17 : 19, color: AppColors.onEmber),
-              if (busy || icon != null) const SizedBox(width: Nova.space2),
-              Flexible(
-                child: Text(
-                  label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: AppText.button.copyWith(color: AppColors.onEmber),
-                ),
+          // The gradient is baked, not shaded (see `baked_gradient.dart`).
+          child: GradientFill(
+            gradient: AppColors.emberGradient,
+            borderRadius: BorderRadius.circular(Nova.radiusControl),
+            child: Padding(
+              padding: EdgeInsets.symmetric(
+                horizontal: compact ? Nova.space4 : Nova.space5,
               ),
-            ],
+              child: Row(
+                mainAxisSize: expand ? MainAxisSize.max : MainAxisSize.min,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  if (busy)
+                    SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CalmSpinner(
+                        strokeWidth: 2,
+                        color: AppColors.onEmber,
+                      ),
+                    )
+                  else if (icon != null)
+                    Icon(
+                      icon,
+                      size: compact ? 17 : 19,
+                      color: AppColors.onEmber,
+                    ),
+                  if (busy || icon != null) const SizedBox(width: Nova.space2),
+                  Flexible(
+                    child: Text(
+                      label,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: AppText.button.copyWith(color: AppColors.onEmber),
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ),
         ),
       ),
@@ -309,10 +323,7 @@ class GhostButton extends StatelessWidget {
                   SizedBox(
                     width: 15,
                     height: 15,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      color: tint,
-                    ),
+                    child: CalmSpinner(strokeWidth: 2, color: tint),
                   )
                 else if (icon != null)
                   Icon(icon, size: compact ? 17 : 18, color: tint),
@@ -396,9 +407,8 @@ class IconPill extends StatelessWidget {
           height: size,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            gradient: filled ? AppColors.emberGradient : null,
             color: filled
-                ? null
+                ? AppColors.primary
                 : hovered
                 ? AppColors.surface3.withValues(alpha: 0.92)
                 : (scrim ? const Color(0x8C05070C) : Colors.transparent),

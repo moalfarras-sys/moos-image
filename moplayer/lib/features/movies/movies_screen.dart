@@ -97,7 +97,13 @@ class _MoviesScreenState extends ConsumerState<MoviesScreen> {
     ref.watch(favoritesRefreshProvider);
     final library = ref.read(libraryActionsProvider);
     final playlistId = ref.watch(activePlaylistProvider)?.id;
-    final movie = _previewed;
+    // Nothing hovered yet: preview the first film on the wall rather than
+    // leaving a third of the window empty.
+    final movie =
+        _previewed ??
+        (loaded != null && loaded.isNotEmpty ? loaded.first : null);
+    final settled =
+        movie != null && (identical(movie, _detailed) || _previewed == null);
 
     return BrowseLayout(
       groups: GroupPane(
@@ -125,7 +131,7 @@ class _MoviesScreenState extends ConsumerState<MoviesScreen> {
         // cursor. A plot arriving late for a poster the user has already moved
         // past is worse than no plot: it is the *wrong* plot, on screen, next to
         // the right picture.
-        plot: (movie != null && identical(movie, _detailed))
+        plot: settled
             ? ref.watch(movieDetailProvider(movie)).valueOrNull?.plot
             : null,
         rating: movie?.rating,

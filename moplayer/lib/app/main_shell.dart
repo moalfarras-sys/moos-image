@@ -10,32 +10,36 @@ import 'package:go_router/go_router.dart';
 import 'package:window_manager/window_manager.dart' hide WindowCaption;
 
 import '../core/constants/app_constants.dart';
-import '../core/utils/app_logger.dart';
+import '../core/theme/app_colors.dart';
 import '../core/theme/glass.dart';
 import '../core/theme/nova.dart';
+import '../core/utils/app_logger.dart';
 import '../features/player/mini_player.dart';
 import '../features/player/player_overlay.dart';
 import '../providers/core_providers.dart';
 import '../providers/playback_providers.dart';
 import '../providers/shell_providers.dart';
 import '../providers/system_providers.dart';
-import '../widgets/glass_dock.dart';
 import '../widgets/mo_icons.dart';
+import '../widgets/nav_rail.dart';
+import '../widgets/source_switcher.dart';
 import 'launch_args.dart';
 import 'routes.dart';
 import 'window_chrome.dart';
 
 /// The frame every screen lives in.
 ///
-/// Four layers, bottom to top:
+/// One frame and one panel. The **frame** is the caption along the top and
+/// the navigation rail down the start edge, in one colour; the **panel** is the
+/// page, inset into the frame with a rounded leading corner, over the ambient
+/// scene. Layers, bottom to top:
 ///
-///  1. **The ambient scene** — the warm graphite wash, the amber bloom, the
-///     vignette and the grain. Drawn once, behind everything.
-///  2. **The caption bar and the page.** The page scrolls *under* the dock, and
-///     is given the dock's height as bottom padding so its last row can always
-///     be scrolled clear of it. That padding is the price of a floating bar and
-///     the shell pays it, so that no screen has to remember to.
-///  3. **The floating glass dock**, and the mini player above it.
+///  1. The frame (caption + [NavRail]).
+///  2. The page, inside the panel. When the mini player floats over the foot
+///     of the panel, the shell hands the page its height as bottom padding so
+///     the last row can always be scrolled clear of it — the shell pays that
+///     price so that no screen has to remember to.
+///  3. The mini player.
 ///  4. **The player**, when it is expanded — which covers all of the above,
 ///     because it is the one screen that is meant to be the whole machine.
 class MainShell extends ConsumerStatefulWidget {
@@ -52,14 +56,14 @@ class _MainShellState extends ConsumerState<MainShell> with WindowListener {
     'org.moos.moplayer/activation',
   );
 
-  /// Owned here, not by the dock: F6 has to move focus onto the *selected*
-  /// destination, and the dock is rebuilt on every navigation.
-  final List<FocusNode> _dockNodes = List.generate(
+  /// Owned here, not by the rail: F6 has to move focus onto the *selected*
+  /// destination, and the rail is rebuilt on every navigation.
+  final List<FocusNode> _railNodes = List.generate(
     7,
-    (i) => FocusNode(debugLabel: 'dock-$i'),
+    (i) => FocusNode(debugLabel: 'rail-$i'),
   );
 
-  /// Where focus was before it jumped to the dock, so that Escape can put it
+  /// Where focus was before it jumped to the rail, so that Escape can put it
   /// back where the user left it rather than at the top of the page.
   FocusNode? _contentFocus;
 
@@ -85,7 +89,7 @@ class _MainShellState extends ConsumerState<MainShell> with WindowListener {
     _activationChannel.setMethodCallHandler(null);
     _geometryDebounce?.cancel();
     windowManager.removeListener(this);
-    for (final node in _dockNodes) {
+    for (final node in _railNodes) {
       node.dispose();
     }
     super.dispose();
@@ -167,73 +171,69 @@ class _MainShellState extends ConsumerState<MainShell> with WindowListener {
     });
   }
 
-  void _focusDock() {
+  void _focusRail() {
     final destinations = _destinations(ref);
     final location = GoRouterState.of(context).matchedLocation;
     final index = destinations.indexWhere((d) => d.route == location);
 
     _contentFocus = FocusManager.instance.primaryFocus;
-    _dockNodes[index < 0 ? 0 : index].requestFocus();
+    _railNodes[index < 0 ? 0 : index].requestFocus();
   }
 
-  void _leaveDock() {
+  void _leaveRail() {
     final previous = _contentFocus;
     if (previous != null && previous.context != null) {
       previous.requestFocus();
     } else {
-      FocusScope.of(context).focusInDirection(TraversalDirection.up);
+      FocusScope.of(context).focusInDirection(TraversalDirection.right);
     }
   }
 
-  List<DockDestination> _destinations(WidgetRef ref) {
+  List<NavDestination> _destinations(WidgetRef ref) {
     final s = ref.watch(stringsProvider);
 
-    // Seven, in this order, and Home is one of them.
-    //
-    // It was not, once: the logo in the caption bar went home, on the argument
-    // that a seventh slot turns a dock into a website's navigation bar. That
-    // argument lost to the owner of the app watching people use it — a corner
-    // logo is a thing you *learn*, and a dock is a thing you *see*. The way back
-    // to the front page must be the same size and in the same place as the way to
-    // everywhere else.
+    // Seven, in this order, and Home is one of them: the way back to the front
+    // page must be the same size and in the same place as the way to
+    // everywhere else. A logo that doubles as "home" is a thing you learn; a
+    // destination is a thing you see.
     return [
-      DockDestination(
-        icon: MoIcon.search,
-        label: s.search,
-        route: Routes.search,
-        shortcut: 'Ctrl+F',
-      ),
-      DockDestination(
+      NavDestination(
         icon: MoIcon.home,
         label: s.home,
         route: Routes.home,
         shortcut: 'Ctrl+1',
       ),
-      DockDestination(
+      NavDestination(
         icon: MoIcon.live,
         label: s.live,
         route: Routes.live,
         shortcut: 'Ctrl+2',
       ),
-      DockDestination(
+      NavDestination(
         icon: MoIcon.movies,
         label: s.movies,
         route: Routes.movies,
         shortcut: 'Ctrl+3',
       ),
-      DockDestination(
+      NavDestination(
         icon: MoIcon.series,
         label: s.series,
         route: Routes.series,
         shortcut: 'Ctrl+4',
       ),
-      DockDestination(
+      NavDestination(
         icon: MoIcon.favorites,
         label: s.favorites,
         route: Routes.favorites,
         shortcut: 'Ctrl+5',
       ),
-      DockDestination(
+      NavDestination(
+        icon: MoIcon.search,
+        label: s.search,
+        route: Routes.search,
+        shortcut: 'Ctrl+F',
+      ),
+      NavDestination(
         icon: MoIcon.settings,
         label: s.settings,
         route: Routes.settings,
@@ -247,17 +247,24 @@ class _MainShellState extends ConsumerState<MainShell> with WindowListener {
     final view = ref.watch(playerViewProvider);
     final fullscreen = ref.watch(fullscreenProvider);
     final location = GoRouterState.of(context).matchedLocation;
+    final now = ref.watch(playbackProvider);
 
     // Immersive: the player has the window, and every piece of desktop chrome
     // gets out of the way — including MoPlayer's own. A caption bar over a
     // full-screen film is the same mistake as a taskbar over one.
     final immersive = fullscreen || view == PlayerView.expanded;
 
+    // Live TV shows a playing channel on its own stage; a second, smaller copy
+    // of the same picture in the corner would only compete with it.
+    final onLiveStage = location == Routes.live && (now?.isLive ?? false);
+    final showMini = view == PlayerView.mini && !immersive && !onLiveStage;
+    final bottomReserve = showMini ? MiniPlayer.reserve : 0.0;
+
     final destinations = _destinations(ref);
-    final dockReserve = _dockHeight(context);
 
     return FramelessWindowFrame(
       onHome: () => context.go(Routes.home),
+      onSearch: () => context.go(Routes.search),
       breadcrumb: _breadcrumb(ref, location),
       showCaption: !immersive,
       resizeEnabled: !immersive,
@@ -282,60 +289,68 @@ class _MainShellState extends ConsumerState<MainShell> with WindowListener {
           const SingleActivator(LogicalKeyboardKey.comma, control: true): () =>
               context.go(Routes.settings),
 
-          // The dock, from anywhere. Without this, a user three hundred posters
+          // The rail, from anywhere. Without this, a user three hundred posters
           // deep would have to arrow through all of them to reach Settings —
           // which is exactly the failure that makes remote-driven apps unusable.
           // F6 is the desktop's own "next region" key, so it is the one a
           // keyboard user will already try.
-          const SingleActivator(LogicalKeyboardKey.f6): _focusDock,
+          const SingleActivator(LogicalKeyboardKey.f6): _focusRail,
           const SingleActivator(LogicalKeyboardKey.home, control: true): () =>
               context.go(Routes.home),
         },
-        child: AmbientScene(
+        // Shortcuts only fire for a focus inside them. Nothing on a freshly
+        // opened page has focus, so the shell holds it until the user moves it
+        // somewhere — otherwise Ctrl+2 does nothing until something is clicked.
+        child: Focus(
+          autofocus: true,
+          debugLabel: 'shell',
           child: Stack(
             children: [
               Positioned.fill(
-                child: MediaQuery(
-                  // Every scrolling screen reads this and adds it to the bottom
-                  // of its scroll padding, which is how the last row of a grid
-                  // ends up *above* the dock instead of under it. The shell owns
-                  // the number because the shell owns the dock.
-                  data: MediaQuery.of(context).copyWith(
-                    padding: MediaQuery.paddingOf(
-                      context,
-                    ).copyWith(bottom: dockReserve),
-                  ),
-                  child: widget.child,
+                child: Row(
+                  children: [
+                    if (!immersive)
+                      NavRail(
+                        destinations: destinations,
+                        currentRoute: location,
+                        focusNodes: _railNodes,
+                        onSelect: context.go,
+                        onEscape: _leaveRail,
+                        footer: const SourceSwitcher(),
+                      ),
+                    Expanded(
+                      child: _ContentPanel(
+                        framed: !immersive,
+                        child: Stack(
+                          children: [
+                            Positioned.fill(
+                              child: MediaQuery(
+                                // Every scrolling screen reads this and adds it
+                                // to the bottom of its scroll padding, which is
+                                // how the last row of a grid ends up *above* the
+                                // mini player instead of under it. The shell
+                                // owns the number because it owns the player.
+                                data: MediaQuery.of(context).copyWith(
+                                  padding: MediaQuery.paddingOf(
+                                    context,
+                                  ).copyWith(bottom: bottomReserve),
+                                ),
+                                child: widget.child,
+                              ),
+                            ),
+                            if (showMini)
+                              const PositionedDirectional(
+                                end: Nova.space5,
+                                bottom: Nova.space5,
+                                child: MiniPlayer(),
+                              ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
-
-              // The mini player rides just above the dock, and is nudged up by
-              // it — the two must never overlap, and the dock is the one that
-              // was there first.
-              if (view == PlayerView.mini && !immersive)
-                Positioned(
-                  left: Nova.space5,
-                  right: Nova.space5,
-                  bottom: dockReserve + Nova.space2,
-                  child: const MiniPlayer(),
-                ),
-
-              if (!immersive)
-                Positioned(
-                  bottom: Nova.space5,
-                  left: 0,
-                  right: 0,
-                  child: Center(
-                    child: GlassDock(
-                      destinations: destinations,
-                      currentRoute: location,
-                      focusNodes: _dockNodes,
-                      onSelect: context.go,
-                      onEscape: _leaveDock,
-                    ),
-                  ),
-                ),
-
               if (view == PlayerView.expanded)
                 const Positioned.fill(child: PlayerOverlay()),
             ],
@@ -345,18 +360,7 @@ class _MainShellState extends ConsumerState<MainShell> with WindowListener {
     );
   }
 
-  /// How much room the dock needs at the foot of the window, including its
-  /// margin. Kept in one place because three widgets depend on it and a
-  /// disagreement between them is a dock that overlaps the mini player.
-  double _dockHeight(BuildContext context) {
-    final compact = MediaQuery.sizeOf(context).width < GlassDock.compactWidth;
-    // icon (24) + label + indicator + the dock's own vertical padding.
-    final dock = compact ? 60.0 : 88.0;
-    return dock + Nova.space5 + Nova.space4;
-  }
-
-  /// The caption bar's breadcrumb. Only for the places where "MoPlayer" alone
-  /// would not tell the user where they are.
+  /// The caption bar's title: where the user is. Home is simply MoPlayer.
   String? _breadcrumb(WidgetRef ref, String location) {
     final s = ref.watch(stringsProvider);
     return switch (location) {
@@ -368,5 +372,35 @@ class _MainShellState extends ConsumerState<MainShell> with WindowListener {
       Routes.settings => s.settings,
       _ => null,
     };
+  }
+}
+
+/// The page, inset into the frame: a rounded leading corner, a hairline edge,
+/// and the ambient scene behind whatever the page draws.
+class _ContentPanel extends StatelessWidget {
+  const _ContentPanel({required this.child, required this.framed});
+
+  final Widget child;
+  final bool framed;
+
+  static const double radius = 20;
+
+  @override
+  Widget build(BuildContext context) {
+    if (!framed) return ColoredBox(color: AppColors.surface0, child: child);
+    final corner = const BorderRadiusDirectional.only(
+      topStart: Radius.circular(radius),
+    ).resolve(Directionality.of(context));
+    return DecoratedBox(
+      position: DecorationPosition.foreground,
+      decoration: BoxDecoration(
+        borderRadius: corner,
+        border: Border.all(color: AppColors.borderSubtle),
+      ),
+      child: ClipRRect(
+        borderRadius: corner,
+        child: AmbientScene(child: child),
+      ),
+    );
   }
 }

@@ -9,6 +9,7 @@ import '../models/playlist_config.dart';
 import '../services/catalog/catalog_files.dart';
 import '../services/m3u/m3u_catalog.dart';
 import '../services/m3u/m3u_parser.dart';
+import '../services/stalker/stalker_api.dart';
 import '../services/storage/secure_storage_service.dart';
 import '../services/supabase/supabase_service.dart';
 import '../services/xtream/xtream_api.dart';
@@ -115,6 +116,24 @@ class AuthRepository {
 
   static Future<M3uLibrary> _parseText(String text) =>
       Isolate.run(() => parseM3uText(text));
+
+  /// Signs in to a MAC portal: handshake, profile, and the account's state.
+  Future<Result<StalkerAccount>> testPortal(PlaylistConfig config) async {
+    final api = StalkerApi(
+      portalUrl: config.serverUrl,
+      macAddress: config.macAddress,
+    );
+    try {
+      return Ok(await api.connect());
+    } on Failure catch (failure) {
+      return Err(failure);
+    } on Object catch (error) {
+      log.e('testPortal failed: ${safeLogMessage(error)}');
+      return Err(Failure.server('Could not reach the portal.'));
+    } finally {
+      api.close();
+    }
+  }
 
   Future<bool> saveAndActivate(PlaylistConfig config) async {
     final list = [...await _secure.readPlaylists()];

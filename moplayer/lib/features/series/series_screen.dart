@@ -66,7 +66,13 @@ class _SeriesScreenState extends ConsumerState<SeriesScreen> {
     ref.watch(favoritesRefreshProvider);
     final library = ref.read(libraryActionsProvider);
     final playlistId = ref.watch(activePlaylistProvider)?.id;
-    final item = _previewed;
+    // Nothing hovered yet: preview the first series on the wall.
+    final loadedSeries = series.valueOrNull;
+    final item =
+        _previewed ??
+        (loadedSeries != null && loadedSeries.isNotEmpty
+            ? loadedSeries.first
+            : null);
 
     return BrowseLayout(
       groups: GroupPane(

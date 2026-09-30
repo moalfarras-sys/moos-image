@@ -18,6 +18,21 @@ class JsonX {
     return t;
   }
 
+  /// Prose from a panel — a plot, a description. Panels double-escape line
+  /// breaks, so a synopsis arrives reading `…cooks.\\\\r\\\\nGrab your…`
+  /// with the escapes printed as text. They become real line breaks here.
+  static String? asTextOrNull(dynamic v) {
+    final raw = asStringOrNull(v);
+    if (raw == null) return null;
+    final text = raw
+        .replaceAll(RegExp(r'(\\+r)?\\+n'), '\n')
+        .replaceAll(RegExp(r'\\+r'), '')
+        .replaceAll('\r', '')
+        .replaceAll(RegExp(r'\n{3,}'), '\n\n')
+        .trim();
+    return text.isEmpty ? null : text;
+  }
+
   static int asInt(dynamic v, {int fallback = 0}) {
     if (v == null) return fallback;
     if (v is int) return v;

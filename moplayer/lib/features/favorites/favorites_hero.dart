@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../app/routes.dart';
 import '../../core/l10n/strings.dart';
 import '../../core/theme/app_colors.dart';
+import '../../core/theme/baked_gradient.dart';
 import '../../core/theme/app_typography.dart';
 import '../../core/theme/motion.dart';
 import '../../core/theme/nova.dart';
@@ -86,12 +87,8 @@ class FavoriteHero extends ConsumerWidget {
                   darken: 0.18,
                 )
               else ...[
-                const DecoratedBox(
-                  decoration: BoxDecoration(gradient: AppColors.heroPlate),
-                ),
-                const DecoratedBox(
-                  decoration: BoxDecoration(gradient: AppColors.heroFloor),
-                ),
+                GradientFill(gradient: AppColors.heroPlate),
+                GradientFill(gradient: AppColors.heroFloor),
               ],
 
               if (wide)

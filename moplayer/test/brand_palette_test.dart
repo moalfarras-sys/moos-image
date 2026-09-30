@@ -14,6 +14,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:image/image.dart' as img;
 import 'package:moplayer_moos/core/theme/app_colors.dart';
+import 'package:moplayer_moos/core/theme/palette.dart';
 
 /// How far two colours may sit apart in RGB and still be "the same colour" to an
 /// eye looking at a 14 px icon. Generous on purpose: this guards against a token
@@ -83,35 +84,37 @@ void main() {
     );
   });
 
-  test('AppColors.primary is a colour that is actually in the mark', () {
+  test('AppColors.brandPrimary is a colour that is actually in the mark', () {
     // Not the core — the core is too dark to read as 14 px text on near-black,
-    // which is why `primary` is the flame's lit crown instead. But it has to be
-    // a colour the flame *contains*.
+    // which is why the brand's primary is the flame's lit crown instead. But it
+    // has to be a colour the flame *contains*.
     final nearest = flame
-        .map((rgb) => _distance(AppColors.primary, Color(0xFF000000 | rgb)))
+        .map(
+          (rgb) => _distance(AppColors.brandPrimary, Color(0xFF000000 | rgb)),
+        )
         .reduce((a, b) => a < b ? a : b);
 
     expect(
       nearest,
       lessThan(_tolerance),
       reason:
-          'AppColors.primary is not a colour that appears in the logo at all',
+          'AppColors.brandPrimary is not a colour that appears in the logo at '
+          'all',
     );
   });
 
-  test(
-    'the ember gradient runs the mark\'s own ramp, dark core to lit crown',
-    () {
-      final colors = AppColors.emberGradient.colors;
-      expect(colors, contains(AppColors.ember));
-      expect(colors, contains(AppColors.primary));
-
-      // And in that order: a gradient that runs crown-to-core is the flame upside
-      // down, and it is the kind of wrong nobody can name but everybody sees.
-      expect(
-        colors.indexOf(AppColors.primary),
-        lessThan(colors.indexOf(AppColors.ember)),
-      );
-    },
-  );
+  test('the ember palette is the brand, not a lookalike', () {
+    // Chrome follows the desktop's MoOS palette by default; the owner can
+    // switch it to MoPlayer's own ember in Settings. That choice must land on
+    // the flame's crown, give or take the lift the palette applies so that
+    // dark ink stays readable on it.
+    expect(
+      _distance(Palette.ember.accent, AppColors.brandPrimary),
+      lessThan(_tolerance * 3),
+    );
+    expect(
+      HSLColor.fromColor(Palette.ember.accent).hue,
+      closeTo(HSLColor.fromColor(AppColors.brandPrimary).hue, 8),
+    );
+  });
 }

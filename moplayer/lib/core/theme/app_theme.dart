@@ -70,7 +70,7 @@ class AppTheme {
       ),
       iconTheme: const IconThemeData(color: AppColors.textSecondary, size: 20),
 
-      progressIndicatorTheme: const ProgressIndicatorThemeData(
+      progressIndicatorTheme: ProgressIndicatorThemeData(
         color: AppColors.primary,
         linearTrackColor: AppColors.surface3,
         circularTrackColor: Colors.transparent,
@@ -180,7 +180,7 @@ class AppTheme {
         radius: const Radius.circular(4),
       ),
 
-      bottomSheetTheme: const BottomSheetThemeData(
+      bottomSheetTheme: BottomSheetThemeData(
         backgroundColor: AppColors.surface1,
         modalBackgroundColor: AppColors.surface1,
         surfaceTintColor: Colors.transparent,

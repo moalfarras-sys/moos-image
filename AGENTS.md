@@ -273,6 +273,20 @@ Plasma file `rpm -V` reports that is not registered, and loads the real greeter.
 upstream file means registering it. A new Plasma means a reviewed set, never a wider range or
 an added digest.
 
+**MoPlayer's close hook bypasses Dart cleanup.** Its GTK runner calls `_exit` before
+Flutter's NVIDIA EGL teardown, so `PlayerService.dispose()` does not run when the
+window closes. A crash probe armed at app launch therefore counted ordinary
+library browsing as a failed GPU start and latched onto the CPU video path. Arm
+the probe only for a real video attempt, clear it on a frame/error/stop, and
+construct `VideoController` only when playback starts.
+
+**Measure a Flutter app's graphics memory with the whole `nvidia-smi` table.**
+`--query-compute-apps` omits graphics-only memory; read that way MoPlayer looked
+clean while it held 4.9 GB of an 8 GB card. The cause, found by bisection, was
+Impeller on GLES reserving hundreds of MB for every gradient shader and every
+window-sized offscreen layer (blur, `Opacity`) — see `moplayer/DESIGN.md`,
+"The renderer's rules". MoPlayer now bakes its gradients into small images.
+
 **Boot the image and look at it.** `podman build` + `bootc-image-builder --type qcow2` + qemu
 with `screendump` takes about half an hour and is the only thing that found any of the above.
 

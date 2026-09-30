@@ -370,7 +370,10 @@ class PlaybackController extends Notifier<NowPlaying?> {
 
   // ── Opening things ─────────────────────────────────────────────────────────
 
-  Future<void> _start(NowPlaying next) async {
+  /// [expand] raises the full player. Live TV passes false: a channel picked
+  /// from the guide plays on the guide's own stage, and the viewer chooses when
+  /// to go full screen.
+  Future<void> _start(NowPlaying next, {bool expand = true}) async {
     final previousProgress = _progressSnapshot(state);
     final nextPlaylistId = _playlistId;
     final generation = ++_recoveryGeneration;
@@ -399,7 +402,11 @@ class PlaybackController extends Notifier<NowPlaying?> {
     state = next;
     _mediaPlaylistId = nextPlaylistId;
     _playedSinceOpen = false;
-    ref.read(playerViewProvider.notifier).expand();
+    if (expand) {
+      ref.read(playerViewProvider.notifier).expand();
+    } else if (ref.read(playerViewProvider) == PlayerView.hidden) {
+      ref.read(playerViewProvider.notifier).minimise();
+    }
 
     try {
       await _open(next.media);
@@ -510,6 +517,7 @@ class PlaybackController extends Notifier<NowPlaying?> {
   Future<void> playLive(
     LiveChannel channel, {
     List<LiveChannel>? channels,
+    bool expand = true,
   }) async {
     final repo = ref.read(contentRepositoryProvider);
     if (repo == null) return;
@@ -556,6 +564,7 @@ class PlaybackController extends Notifier<NowPlaying?> {
         liveChannels: queue,
         liveChannelIndex: channelIndex < 0 ? 0 : channelIndex,
       ),
+      expand: expand,
     );
   }
 
@@ -667,7 +676,11 @@ class PlaybackController extends Notifier<NowPlaying?> {
     if (current.isLive) {
       final channels = current.liveChannels;
       final index = ((current.liveChannelIndex ?? 0) + 1) % channels.length;
-      await playLive(channels[index], channels: channels);
+      await playLive(
+        channels[index],
+        channels: channels,
+        expand: ref.read(playerViewProvider) == PlayerView.expanded,
+      );
       return;
     }
     await playEpisode(
@@ -686,7 +699,11 @@ class PlaybackController extends Notifier<NowPlaying?> {
       final index =
           ((current.liveChannelIndex ?? 0) - 1 + channels.length) %
           channels.length;
-      await playLive(channels[index], channels: channels);
+      await playLive(
+        channels[index],
+        channels: channels,
+        expand: ref.read(playerViewProvider) == PlayerView.expanded,
+      );
       return;
     }
     await playEpisode(

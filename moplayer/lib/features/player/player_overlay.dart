@@ -8,6 +8,7 @@ import 'package:media_kit_video/media_kit_video.dart';
 
 import '../../core/l10n/strings.dart';
 import '../../core/theme/app_colors.dart';
+import '../../core/theme/baked_gradient.dart';
 import '../../core/theme/app_typography.dart';
 import '../../core/theme/glass.dart';
 import '../../core/theme/motion.dart';
@@ -23,6 +24,7 @@ import '../../widgets/buttons.dart';
 import '../../widgets/media_card.dart';
 import '../../widgets/toast.dart';
 import 'player_tuning.dart';
+import '../../widgets/calm_spinner.dart';
 
 /// The player, filling the window.
 ///
@@ -293,7 +295,7 @@ class _PlaybackStatusLayer extends StatelessWidget {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Icon(
+                Icon(
                   Icons.signal_wifi_connected_no_internet_4_rounded,
                   size: 42,
                   color: AppColors.primary,
@@ -348,7 +350,7 @@ class _BusyStatus extends StatelessWidget {
           const SizedBox(
             width: 44,
             height: 44,
-            child: CircularProgressIndicator(strokeWidth: 3),
+            child: CalmSpinner(strokeWidth: 3),
           ),
           const SizedBox(height: Nova.space4),
           Text(label, style: AppText.body.copyWith(color: Colors.white70)),
@@ -392,92 +394,93 @@ class _Controls extends ConsumerWidget {
       children: [
         Column(
           children: [
-            // Top: who is on, and the way out.
-            Container(
-              padding: const EdgeInsets.fromLTRB(
-                Nova.space4,
-                Nova.space4,
-                Nova.space4,
-                Nova.space6,
+            // Top: who is on, and the way out. The scrim is baked (see
+            // `baked_gradient.dart`) — it spans the width of the picture.
+            GradientFill(
+              gradient: const LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [Color(0xCC000000), Color(0x00000000)],
               ),
-              decoration: const BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [Color(0xCC000000), Color(0x00000000)],
+              child: Container(
+                padding: const EdgeInsets.fromLTRB(
+                  Nova.space4,
+                  Nova.space4,
+                  Nova.space4,
+                  Nova.space6,
                 ),
-              ),
-              child: Row(
-                children: [
-                  IconPill(
-                    icon: Icons.keyboard_arrow_down_rounded,
-                    tooltip: strings.miniPlayer,
-                    size: 42,
-                    onPressed: onLeave,
-                  ),
-                  const SizedBox(width: Nova.space3),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Row(
-                          children: [
-                            if (now.isLive) ...[
-                              LiveBadge(label: strings.onAir),
-                              const SizedBox(width: Nova.space2),
-                            ],
-                            // Recording and a pending sleep timer are states
-                            // the user set once and then forgets. Leaving them
-                            // visible only inside the options panel is how a
-                            // player ends up recording all night, or stopping
-                            // in the middle of a match because of a timer set
-                            // an hour ago.
-                            _StatusPips(
-                              player: player,
-                              strings: strings,
-                              sleepTimer: sleepTimer,
-                            ),
-                            Flexible(
-                              child: Text(
-                                now.media.title,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: AppText.title.copyWith(
-                                  color: Colors.white,
+                child: Row(
+                  children: [
+                    IconPill(
+                      icon: Icons.keyboard_arrow_down_rounded,
+                      tooltip: strings.miniPlayer,
+                      size: 42,
+                      onPressed: onLeave,
+                    ),
+                    const SizedBox(width: Nova.space3),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Row(
+                            children: [
+                              if (now.isLive) ...[
+                                LiveBadge(label: strings.onAir),
+                                const SizedBox(width: Nova.space2),
+                              ],
+                              // Recording and a pending sleep timer are states
+                              // the user set once and then forgets. Leaving them
+                              // visible only inside the options panel is how a
+                              // player ends up recording all night, or stopping
+                              // in the middle of a match because of a timer set
+                              // an hour ago.
+                              _StatusPips(
+                                player: player,
+                                strings: strings,
+                                sleepTimer: sleepTimer,
+                              ),
+                              Flexible(
+                                child: Text(
+                                  now.media.title,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: AppText.title.copyWith(
+                                    color: Colors.white,
+                                  ),
                                 ),
                               ),
-                            ),
-                          ],
-                        ),
-                        if (now.media.subtitle != null)
-                          Text(
-                            now.media.subtitle!,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: AppText.caption.copyWith(
-                              color: Colors.white60,
-                            ),
+                            ],
                           ),
-                        if (now.isLive && now.liveChannels.length > 1)
-                          Text(
-                            '${(now.liveChannelIndex ?? 0) + 1} / '
-                            '${now.liveChannels.length}',
-                            style: AppText.caption.copyWith(
-                              color: Colors.white60,
+                          if (now.media.subtitle != null)
+                            Text(
+                              now.media.subtitle!,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: AppText.caption.copyWith(
+                                color: Colors.white60,
+                              ),
                             ),
-                            textDirection: TextDirection.ltr,
-                          ),
-                      ],
+                          if (now.isLive && now.liveChannels.length > 1)
+                            Text(
+                              '${(now.liveChannelIndex ?? 0) + 1} / '
+                              '${now.liveChannels.length}',
+                              style: AppText.caption.copyWith(
+                                color: Colors.white60,
+                              ),
+                              textDirection: TextDirection.ltr,
+                            ),
+                        ],
+                      ),
                     ),
-                  ),
-                  IconPill(
-                    icon: Icons.close_rounded,
-                    tooltip: strings.stop,
-                    size: 42,
-                    onPressed: playback.stop,
-                  ),
-                ],
+                    IconPill(
+                      icon: Icons.close_rounded,
+                      tooltip: strings.stop,
+                      size: 42,
+                      onPressed: playback.stop,
+                    ),
+                  ],
+                ),
               ),
             ),
 
@@ -493,60 +496,63 @@ class _Controls extends ConsumerWidget {
 
             const Spacer(),
 
-            Container(
-              padding: const EdgeInsets.fromLTRB(
-                Nova.space5,
-                Nova.space7,
-                Nova.space5,
-                Nova.space4,
+            GradientFill(
+              gradient: const LinearGradient(
+                begin: Alignment.bottomCenter,
+                end: Alignment.topCenter,
+                colors: [Color(0xF0000000), Color(0x00000000)],
               ),
-              decoration: const BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.bottomCenter,
-                  end: Alignment.topCenter,
-                  colors: [Color(0xF0000000), Color(0x00000000)],
+              child: Container(
+                padding: const EdgeInsets.fromLTRB(
+                  Nova.space5,
+                  Nova.space7,
+                  Nova.space5,
+                  Nova.space4,
                 ),
-              ),
-              child: GlassPanel(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: Nova.space4,
-                  vertical: Nova.space3,
-                ),
-                radius: Nova.radiusHero,
-                blur: 20,
-                fill: const Color(0xD8121417),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    if (now.isLive)
-                      _LiveTimeshiftBar(player: player, onInteract: onInteract)
-                    else
-                      _SeekBar(player: player, onInteract: onInteract),
-                    const SizedBox(height: Nova.space2),
-                    Row(
-                      children: [
-                        _VolumeControl(player: player, strings: strings),
-                        const Spacer(),
-                        IconPill(
-                          icon: Icons.tune_rounded,
-                          tooltip: strings.playerOptions,
-                          filled: optionsVisible,
-                          onPressed: onToggleOptions,
-                        ),
-                        const SizedBox(width: Nova.space2),
-                        IconPill(
-                          icon: fullscreen
-                              ? Icons.fullscreen_exit_rounded
-                              : Icons.fullscreen_rounded,
-                          tooltip: fullscreen
-                              ? strings.exitFullscreen
-                              : strings.fullscreen,
-                          onPressed: () =>
-                              ref.read(fullscreenProvider.notifier).toggle(),
-                        ),
-                      ],
-                    ),
-                  ],
+                child: GlassPanel(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: Nova.space4,
+                    vertical: Nova.space3,
+                  ),
+                  radius: Nova.radiusHero,
+                  blur: 20,
+                  fill: const Color(0xD8121417),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (now.isLive)
+                        _LiveTimeshiftBar(
+                          player: player,
+                          onInteract: onInteract,
+                        )
+                      else
+                        _SeekBar(player: player, onInteract: onInteract),
+                      const SizedBox(height: Nova.space2),
+                      Row(
+                        children: [
+                          _VolumeControl(player: player, strings: strings),
+                          const Spacer(),
+                          IconPill(
+                            icon: Icons.tune_rounded,
+                            tooltip: strings.playerOptions,
+                            filled: optionsVisible,
+                            onPressed: onToggleOptions,
+                          ),
+                          const SizedBox(width: Nova.space2),
+                          IconPill(
+                            icon: fullscreen
+                                ? Icons.fullscreen_exit_rounded
+                                : Icons.fullscreen_rounded,
+                            tooltip: fullscreen
+                                ? strings.exitFullscreen
+                                : strings.fullscreen,
+                            onPressed: () =>
+                                ref.read(fullscreenProvider.notifier).toggle(),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -999,7 +1005,7 @@ class _LiveDot extends StatelessWidget {
     return Container(
       width: 8,
       height: 8,
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         color: AppColors.primary,
         shape: BoxShape.circle,
       ),
@@ -1122,7 +1128,7 @@ class _PlayerOptionsPanel extends StatelessWidget {
         children: [
           Row(
             children: [
-              const Icon(Icons.tune_rounded, color: AppColors.primary),
+              Icon(Icons.tune_rounded, color: AppColors.primary),
               const SizedBox(width: Nova.space3),
               Expanded(
                 child: Text(strings.playerOptions, style: AppText.title),

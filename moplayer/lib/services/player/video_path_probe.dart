@@ -21,8 +21,12 @@ import '../../core/utils/app_paths.dart';
 /// and none of those should silently cost the user their picture quality. Two in
 /// a row is the signal; one is noise.
 class VideoPathProbe {
+  /// The file is versioned. Counts written under the old rule (every launch
+  /// armed the probe, so browsing counted as a failed GPU start) are not
+  /// evidence of anything, and the owner's station carried such a count: it
+  /// had pinned the app to the CPU frame path. A new name starts from zero.
   VideoPathProbe({String? path, this.tripAfter = 2})
-    : path = path ?? '${appDataDir()}/video-path.probe';
+    : path = path ?? '${appDataDir()}/video-path-v2.probe';
 
   /// Consecutive unproven video starts before the GPU path is abandoned.
   final int tripAfter;

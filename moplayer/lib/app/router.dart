@@ -101,8 +101,14 @@ final routerProvider = Provider<GoRouter>((ref) {
   );
 });
 
-/// A cross-fade, not a slide. A slide has a direction, and a direction is wrong
-/// half the time in an app that is also laid out right-to-left.
+/// Pages switch instantly.
+///
+/// This used to be a 180 ms cross-fade, and a cross-fade is an `Opacity` over
+/// the whole content panel: on the Impeller renderer that is a window-sized
+/// offscreen target (≈400 MB of graphics memory at 4K, kept by the driver
+/// after the fade ends) and, through GTK, a full-window upload on every one of
+/// its frames. A rail destination switching at once is also what a desktop app
+/// does; the page's own content carries whatever motion it needs.
 CustomTransitionPage<void> _fade(
   BuildContext context,
   GoRouterState state,
@@ -111,11 +117,8 @@ CustomTransitionPage<void> _fade(
   return CustomTransitionPage<void>(
     key: state.pageKey,
     child: child,
-    transitionDuration: Motion.duration(
-      context,
-      const Duration(milliseconds: 180),
-    ),
-    transitionsBuilder: (context, animation, secondary, child) =>
-        FadeTransition(opacity: animation, child: child),
+    transitionDuration: Motion.duration(context, Duration.zero),
+    reverseTransitionDuration: Duration.zero,
+    transitionsBuilder: (context, animation, secondary, child) => child,
   );
 }

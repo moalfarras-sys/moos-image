@@ -167,10 +167,11 @@ class _Results extends ConsumerWidget {
             itemCount: live.length,
             itemBuilder: (context, i) {
               final LiveChannel channel = live[i];
-              return PosterCard(
+              // A channel's picture is a logo: letterboxed, never cropped.
+              return LandscapeCard(
                 title: channel.name,
                 imageUrl: channel.logo,
-                aspectRatio: 16 / 9,
+                logoMode: true,
                 badge: LiveBadge(label: s.onAir),
                 onTap: () => playback.playLive(channel, channels: live),
                 onPlay: () => playback.playLive(channel, channels: live),

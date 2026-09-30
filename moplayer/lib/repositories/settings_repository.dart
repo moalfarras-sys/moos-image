@@ -13,6 +13,7 @@ class AppSettings {
     this.cinematicMotion = true,
     this.keepAwake = true,
     this.mediaKeys = true,
+    this.accentFromSystem = true,
   });
 
   final bool preferHls;
@@ -30,6 +31,10 @@ class AppSettings {
   /// media applet to this player.
   final bool mediaKeys;
 
+  /// Colour the app with the desktop's MoOS palette (true) or with MoPlayer's
+  /// own ember (false).
+  final bool accentFromSystem;
+
   AppSettings copyWith({
     bool? preferHls,
     bool? autoplayNext,
@@ -40,6 +45,7 @@ class AppSettings {
     bool? cinematicMotion,
     bool? keepAwake,
     bool? mediaKeys,
+    bool? accentFromSystem,
   }) => AppSettings(
     preferHls: preferHls ?? this.preferHls,
     autoplayNext: autoplayNext ?? this.autoplayNext,
@@ -50,6 +56,7 @@ class AppSettings {
     cinematicMotion: cinematicMotion ?? this.cinematicMotion,
     keepAwake: keepAwake ?? this.keepAwake,
     mediaKeys: mediaKeys ?? this.mediaKeys,
+    accentFromSystem: accentFromSystem ?? this.accentFromSystem,
   );
 }
 
@@ -71,7 +78,11 @@ class SettingsRepository {
     cinematicMotion: _cache.settingOr(StorageKeys.cinematicMotion, true),
     keepAwake: _cache.settingOr(StorageKeys.keepAwake, true),
     mediaKeys: _cache.settingOr(StorageKeys.mediaKeys, true),
+    accentFromSystem: _cache.settingOr(StorageKeys.accentFromSystem, true),
   );
+
+  Future<void> setAccentFromSystem(bool value) =>
+      _cache.setSetting(StorageKeys.accentFromSystem, value);
 
   Future<void> setKeepAwake(bool value) =>
       _cache.setSetting(StorageKeys.keepAwake, value);

@@ -29,7 +29,8 @@ class GuideJob {
   if (bytes == null) return null;
   return (
     guide: EpgGuide.parse(M3uParser.decode(_inflate(bytes))),
-    written: files.modified(job.namespace, GuideJob.cacheFile) ?? DateTime.now(),
+    written:
+        files.modified(job.namespace, GuideJob.cacheFile) ?? DateTime.now(),
   );
 }
 

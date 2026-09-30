@@ -1,13 +1,17 @@
+import 'dart:async';
 import 'dart:math' as math;
 
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../app/routes.dart';
 import '../../core/theme/app_colors.dart';
+import '../../core/theme/baked_gradient.dart';
 import '../../core/theme/app_typography.dart';
 import '../../core/theme/glass.dart';
+import '../../core/theme/motion.dart';
 import '../../core/theme/nova.dart';
 import '../../models/category.dart';
 import '../../core/l10n/strings.dart';
@@ -128,32 +132,32 @@ class HomeScreen extends ConsumerWidget {
             favorites.any((f) => f.kind == kind && f.refId == refId);
 
         final resumeHero = resumable.isEmpty ? null : resumable.first;
-        final movieHero = resumeHero == null && top.isNotEmpty
-            ? top.first
-            : null;
-        final liveHero = resumeHero == null && movieHero == null
-            ? pickLiveHero(live)
-            : null;
-        // List endpoints only carry the poster. Upgrade the lead film to its
-        // cinematic backdrop and story as soon as the cached detail arrives;
-        // the home screen never blocks on this second request.
-        final heroDetail = movieHero == null
-            ? null
-            : ref.watch(movieDetailProvider(movieHero)).valueOrNull;
+        // The spotlight: what to continue, then the best-rated films with
+        // artwork, and — for a source that is only channels — its channels.
+        // A playlist's films carry no rating; they still deserve the stage.
+        final spotlightMovies = (top.isNotEmpty ? top : newestMovies)
+            .where((m) => (m.poster ?? '').trim().isNotEmpty)
+            .take(resumeHero == null ? 6 : 5)
+            .toList();
+        final liveHeroes = spotlightMovies.isEmpty && resumeHero == null
+            ? [
+                ?pickLiveHero(live),
+                ...live
+                    .where((c) => (c.logo ?? '').trim().isNotEmpty)
+                    .skip(1)
+                    .take(4),
+              ]
+            : const <LiveChannel>[];
+        final slideCount =
+            (resumeHero == null ? 0 : 1) +
+            spotlightMovies.length +
+            liveHeroes.length;
 
-        return ListView(
-          // The dock floats over the foot of the window and the shell hands
-          // this screen its height (see `main_shell.dart`). Passing
-          // `EdgeInsets.zero` here ignored that contract, so the last rail —
-          // "continue watching", the one row most likely to be wanted — was
-          // drawn underneath the glass and could not be scrolled clear of it.
-          // Only the *bottom* is padded: the hero is deliberately full bleed.
-          padding: EdgeInsets.only(
-            bottom: MediaQuery.paddingOf(context).bottom + Nova.space5,
-          ),
-          children: [
-            if (resumeHero != null)
-              HomeHero(
+        Widget slide(int index, double reveal, Widget? pager) {
+          var i = index;
+          if (resumeHero != null) {
+            if (i == 0) {
+              return HomeHero(
                 eyebrow: s.continueWatching,
                 title: resumeHero.title,
                 meta: s.minutesLeft(_minutesLeft(resumeHero)),
@@ -172,32 +176,67 @@ class HomeScreen extends ConsumerWidget {
                       )
                     : null,
                 motion: motion,
-              )
-            else if (movieHero != null)
-              HomeHero(
-                eyebrow: s.featured,
-                title: movieHero.name,
-                meta: _movieMeta(movieHero),
-                imageUrl: heroDetail?.backdrop ?? movieHero.poster,
-                description: heroDetail?.plot,
-                playLabel: s.play,
-                onPlay: () => playback.playMovie(movieHero),
-                infoLabel: s.moreInfo,
-                onInfo: () =>
-                    context.push(Routes.movieDetail, extra: movieHero),
+                reveal: reveal,
+                pager: pager,
+              );
+            }
+            i -= 1;
+          }
+          if (i < spotlightMovies.length) {
+            final movieHero = spotlightMovies[i];
+            // List endpoints only carry the poster. Upgrade the film to its
+            // cinematic backdrop and story as soon as the cached detail
+            // arrives; the page never blocks on this second request.
+            final heroDetail = ref
+                .watch(movieDetailProvider(movieHero))
+                .valueOrNull;
+            return HomeHero(
+              eyebrow: s.featured,
+              title: movieHero.name,
+              meta: _movieMeta(movieHero, heroDetail),
+              imageUrl: heroDetail?.backdrop ?? movieHero.poster,
+              description: heroDetail?.plot,
+              playLabel: s.play,
+              onPlay: () => playback.playMovie(movieHero),
+              infoLabel: s.moreInfo,
+              onInfo: () => context.push(Routes.movieDetail, extra: movieHero),
+              motion: motion,
+              reveal: reveal,
+              pager: pager,
+            );
+          }
+          final liveHero = liveHeroes[i - spotlightMovies.length];
+          return HomeHero(
+            eyebrow: s.onAir,
+            title: liveHero.name,
+            meta: s.liveChannelsAvailable(live.length),
+            logoUrl: liveHero.logo,
+            playLabel: s.play,
+            onPlay: () => playback.playLive(liveHero, channels: live),
+            infoLabel: s.channels,
+            onInfo: () => context.go(Routes.live),
+            motion: motion,
+            reveal: reveal,
+            pager: pager,
+          );
+        }
+
+        return ListView(
+          // The shell hands this screen the mini player's height when it is
+          // showing (see `main_shell.dart`), and the last rail — "continue
+          // watching", the row most likely to be wanted — must scroll clear of
+          // it. Only the *bottom* is padded: the hero is deliberately full
+          // bleed.
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.paddingOf(context).bottom + Nova.space5,
+          ),
+          children: [
+            if (slideCount > 0)
+              HeroCarousel(
+                count: slideCount,
                 motion: motion,
-              )
-            else if (liveHero != null)
-              HomeHero(
-                eyebrow: s.onAir,
-                title: liveHero.name,
-                meta: s.liveChannelsAvailable(live.length),
-                logoUrl: liveHero.logo,
-                playLabel: s.play,
-                onPlay: () => playback.playLive(liveHero, channels: live),
-                infoLabel: s.channels,
-                onInfo: () => context.go(Routes.live),
-                motion: motion,
+                builder: (context, index, reveal, pager) =>
+                    slide(index, reveal, pager),
               ),
 
             Padding(
@@ -445,19 +484,30 @@ int _minutesLeft(ContinueWatchingItem item) {
   return math.max(1, left.inMinutes);
 }
 
-String _movieMeta(VodMovie movie) {
+String _movieMeta(VodMovie movie, [MovieDetail? detail]) {
+  final year = (movie.year != null && movie.year!.isNotEmpty)
+      ? movie.year!
+      : (detail?.releaseDate != null && detail!.releaseDate!.length >= 4
+            ? detail.releaseDate!.substring(0, 4)
+            : null);
+  final minutes = (detail?.durationSecs ?? 0) ~/ 60;
+  final genre = detail?.genre?.split(RegExp(r'[,/|]')).first.trim();
   return [
-    if (movie.year != null && movie.year!.isNotEmpty) movie.year!,
+    ?year,
     if ((movie.rating ?? 0) > 0) '★ ${movie.rating!.toStringAsFixed(1)}',
-  ].join('  ·  ');
+    if (genre != null && genre.isNotEmpty) genre,
+    if (minutes > 0)
+      '${minutes ~/ 60 > 0 ? '${minutes ~/ 60}h ' : ''}${minutes % 60}m',
+  ].join('   ·   ');
 }
 
-/// The full-bleed opener.
+/// The full-bleed opener: one slide of the spotlight.
 ///
-/// Two scrims, not one: [AppColors.heroScrim] runs along the reading axis and is
-/// what keeps the copy legible over artwork nobody chose; [AppColors.posterScrim]
-/// runs down the image and is what stops the first rail from colliding with the
-/// picture's bottom edge.
+/// The artwork fills the width, a baked scrim keeps the leading side legible
+/// (see `baked_gradient.dart` for why it is baked), and the copy stands on the
+/// scrim, bottom-leading. When the slide changes, the artwork cross-fades and
+/// the copy rises into place — the artwork through the image's own paint alpha
+/// and the copy through its text colour, so neither costs an offscreen layer.
 class HomeHero extends StatelessWidget {
   const HomeHero({
     super.key,
@@ -473,6 +523,8 @@ class HomeHero extends StatelessWidget {
     this.description,
     this.progress,
     this.onInfo,
+    this.reveal = 1,
+    this.pager,
   });
 
   final String eyebrow;
@@ -495,10 +547,19 @@ class HomeHero extends StatelessWidget {
   final double? progress;
   final VoidCallback? onInfo;
 
+  /// 0 → 1 as the slide's copy arrives.
+  final double reveal;
+
+  /// The spotlight's page dots, when there is more than one slide.
+  final Widget? pager;
+
   @override
   Widget build(BuildContext context) {
-    final height = math.max(350.0, MediaQuery.sizeOf(context).height * 0.48);
+    final size = MediaQuery.sizeOf(context);
+    final height = (size.height * 0.58).clamp(360.0, 660.0);
     final hasLogo = logoUrl != null && logoUrl!.trim().isNotEmpty;
+    final t = motion ? reveal.clamp(0.0, 1.0) : 1.0;
+    Color ink(Color c) => c.withValues(alpha: c.a * t);
 
     return SizedBox(
       height: height,
@@ -506,93 +567,95 @@ class HomeHero extends StatelessWidget {
         fit: StackFit.expand,
         children: [
           if (hasLogo)
-            const DecoratedBox(
-              decoration: BoxDecoration(gradient: AppColors.heroPlate),
-            )
+            GradientFill(gradient: AppColors.heroPlate)
           else
-            NetworkPoster(url: imageUrl, title: title, radius: 0),
-          const DecoratedBox(
-            decoration: BoxDecoration(gradient: AppColors.heroScrim),
+            _HeroArt(url: imageUrl, motion: motion),
+          GradientFill(
+            gradient: LinearGradient(
+              begin: AlignmentDirectional.centerStart,
+              end: AlignmentDirectional.centerEnd,
+              colors: AppColors.heroScrim.colors,
+              stops: AppColors.heroScrim.stops,
+            ),
           ),
-          const DecoratedBox(
-            decoration: BoxDecoration(gradient: AppColors.posterScrim),
-          ),
+          GradientFill(gradient: AppColors.heroFloor),
+          if (hasLogo)
+            PositionedDirectional(
+              end: Nova.space7,
+              top: 0,
+              bottom: 0,
+              child: Center(
+                child: SizedBox(
+                  width: math.min(360, size.width * 0.26),
+                  height: math.min(220, height * 0.46),
+                  child: NetworkPoster(
+                    url: logoUrl,
+                    title: title,
+                    logoMode: true,
+                    radius: Nova.radiusPanel,
+                    background: AppColors.surface2.withValues(alpha: 0.6),
+                  ),
+                ),
+              ),
+            ),
           PositionedDirectional(
-            start: Nova.space6,
-            end: Nova.space6,
+            start: Nova.space7,
+            end: Nova.space7,
             bottom: Nova.space6,
             child: Align(
               alignment: AlignmentDirectional.bottomStart,
               child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 620),
-                child: TweenAnimationBuilder<double>(
-                  tween: Tween<double>(begin: 0, end: 1),
-                  duration: motion ? Nova.slow : Duration.zero,
-                  curve: Curves.easeOutCubic,
-                  builder: (context, t, child) => Opacity(
-                    opacity: t,
-                    // The rise is vertical. A horizontal one would have a
-                    // direction, and a direction is wrong half the time in a
-                    // layout that is also mirrored.
-                    child: Transform.translate(
-                      offset: Offset(0, (1 - t) * 18),
-                      child: child,
-                    ),
-                  ),
+                constraints: const BoxConstraints(maxWidth: 660),
+                child: Transform.translate(
+                  // The rise is vertical. A horizontal one would have a
+                  // direction, and a direction is wrong half the time in a
+                  // layout that is also mirrored.
+                  offset: Offset(0, (1 - t) * 16),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      if (hasLogo) ...[
-                        SizedBox(
-                          width: 148,
-                          height: 84,
-                          child: NetworkPoster(
-                            url: logoUrl,
-                            title: title,
-                            logoMode: true,
-                            width: 148,
-                            radius: Nova.radiusControl,
-                            background: AppColors.surface2,
-                          ),
-                        ),
-                        const SizedBox(height: Nova.space4),
-                      ],
-                      Text(
-                        eyebrow.toUpperCase(),
-                        style: AppText.label.copyWith(
-                          color: AppColors.primary,
-                          letterSpacing: 1.4,
-                        ),
-                      ),
-                      const SizedBox(height: Nova.space2),
+                      _Eyebrow(label: eyebrow, reveal: t),
+                      const SizedBox(height: Nova.space3),
                       Text(
                         title,
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
-                        style: AppText.display,
+                        style: AppText.display.copyWith(
+                          fontSize: size.width < 900 ? 30 : 42,
+                          fontWeight: FontWeight.w800,
+                          height: 1.06,
+                          color: ink(AppColors.textPrimary),
+                        ),
                       ),
                       if (meta.isNotEmpty) ...[
-                        const SizedBox(height: Nova.space2),
-                        Text(meta, style: AppText.subtitle),
+                        const SizedBox(height: Nova.space3),
+                        Text(
+                          meta,
+                          style: AppText.subtitle.copyWith(
+                            color: ink(AppColors.textSecondary),
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
                       ],
                       if (description != null &&
                           description!.trim().isNotEmpty) ...[
                         const SizedBox(height: Nova.space3),
                         Text(
                           description!.trim(),
-                          maxLines: 2,
+                          maxLines: 3,
                           overflow: TextOverflow.ellipsis,
                           style: AppText.body.copyWith(
-                            color: AppColors.textSecondary,
-                            height: 1.5,
+                            color: ink(AppColors.textSecondary),
+                            fontSize: 15,
+                            height: 1.55,
                           ),
                         ),
                       ],
                       if (progress != null) ...[
-                        const SizedBox(height: Nova.space3),
+                        const SizedBox(height: Nova.space4),
                         SizedBox(
-                          width: 260,
+                          width: 280,
                           child: ProgressBar(value: progress!),
                         ),
                       ],
@@ -600,6 +663,7 @@ class HomeHero extends StatelessWidget {
                       Wrap(
                         spacing: Nova.space3,
                         runSpacing: Nova.space3,
+                        crossAxisAlignment: WrapCrossAlignment.center,
                         children: [
                           EmberButton(
                             label: playLabel,
@@ -620,8 +684,278 @@ class HomeHero extends StatelessWidget {
               ),
             ),
           ),
+          if (pager != null)
+            PositionedDirectional(
+              end: Nova.space7,
+              bottom: Nova.space6 + 10,
+              child: pager!,
+            ),
         ],
       ),
+    );
+  }
+}
+
+/// The small capsule above the title: what kind of thing this slide is.
+class _Eyebrow extends StatelessWidget {
+  const _Eyebrow({required this.label, required this.reveal});
+
+  final String label;
+  final double reveal;
+
+  @override
+  Widget build(BuildContext context) {
+    final accent = AppColors.primary;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: accent.withValues(alpha: 0.16 * reveal),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: accent.withValues(alpha: 0.45 * reveal)),
+      ),
+      child: Text(
+        label.toUpperCase(),
+        style: AppText.label.copyWith(
+          color: AppColors.primaryBright.withValues(alpha: reveal),
+          letterSpacing: 1.2,
+          fontSize: 11.5,
+        ),
+      ),
+    );
+  }
+}
+
+/// The hero's artwork. When the URL changes the new picture fades in over the
+/// old one through the image's own opacity — a paint alpha, not an `Opacity`
+/// widget, so the cross-fade costs no offscreen layer.
+class _HeroArt extends StatefulWidget {
+  const _HeroArt({required this.url, required this.motion});
+
+  final String? url;
+  final bool motion;
+
+  @override
+  State<_HeroArt> createState() => _HeroArtState();
+}
+
+class _HeroArtState extends State<_HeroArt>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _fade = AnimationController(
+    vsync: this,
+    duration: Nova.hero,
+    value: 1,
+  )..addStatusListener(_onFade);
+  String? _previous;
+
+  void _onFade(AnimationStatus status) {
+    if (status == AnimationStatus.completed && _previous != null && mounted) {
+      setState(() => _previous = null);
+    }
+  }
+
+  @override
+  void didUpdateWidget(covariant _HeroArt old) {
+    super.didUpdateWidget(old);
+    if (old.url != widget.url) {
+      _previous = old.url;
+      if (widget.motion && !Motion.isReduced(context)) {
+        _fade.forward(from: 0);
+      } else {
+        _fade.value = 1;
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    _fade.dispose();
+    super.dispose();
+  }
+
+  ImageProvider? _provider(String? url, double width) {
+    final link = url?.trim();
+    if (link == null || link.isEmpty) return null;
+    return ResizeImage(
+      CachedNetworkImageProvider(link),
+      width: width.round(),
+      policy: ResizeImagePolicy.fit,
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final width = math.min(
+      1920.0,
+      MediaQuery.sizeOf(context).width * MediaQuery.devicePixelRatioOf(context),
+    );
+    final current = _provider(widget.url, width);
+    final previous = _provider(_previous, width);
+    Widget image(ImageProvider provider, Animation<double>? opacity) => Image(
+      image: provider,
+      fit: BoxFit.cover,
+      alignment: const Alignment(0.3, -0.35),
+      filterQuality: FilterQuality.medium,
+      opacity: opacity,
+      gaplessPlayback: true,
+      errorBuilder: (_, _, _) => const SizedBox.expand(),
+    );
+    return ColoredBox(
+      color: AppColors.surface1,
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          if (previous != null && _fade.isAnimating) image(previous, null),
+          if (current != null) image(current, _fade),
+        ],
+      ),
+    );
+  }
+}
+
+/// The spotlight: up to a handful of heroes, one at a time.
+///
+/// It advances on its own every few seconds while the pointer is not over it
+/// and motion is allowed — a timer, not a ticker, so an idle page repaints
+/// once per slide and not sixty times a second — and the dots take it anywhere
+/// directly.
+class HeroCarousel extends StatefulWidget {
+  const HeroCarousel({
+    super.key,
+    required this.count,
+    required this.builder,
+    required this.motion,
+  });
+
+  final int count;
+  final bool motion;
+  final Widget Function(
+    BuildContext context,
+    int index,
+    double reveal,
+    Widget? pager,
+  )
+  builder;
+
+  @override
+  State<HeroCarousel> createState() => _HeroCarouselState();
+}
+
+class _HeroCarouselState extends State<HeroCarousel>
+    with SingleTickerProviderStateMixin {
+  static const _interval = Duration(seconds: 9);
+
+  late final AnimationController _reveal = AnimationController(
+    vsync: this,
+    duration: Nova.panel,
+    value: 1,
+  )..addListener(() => setState(() {}));
+  Timer? _timer;
+  int _index = 0;
+  bool _hovered = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _schedule();
+  }
+
+  @override
+  void didUpdateWidget(covariant HeroCarousel old) {
+    super.didUpdateWidget(old);
+    if (_index >= widget.count) _index = 0;
+    if (old.count != widget.count || old.motion != widget.motion) _schedule();
+  }
+
+  void _schedule() {
+    _timer?.cancel();
+    if (widget.count < 2 || !widget.motion) return;
+    _timer = Timer.periodic(_interval, (_) {
+      if (!mounted || _hovered || Motion.isReduced(context)) return;
+      _go(_index + 1);
+    });
+  }
+
+  void _go(int index) {
+    if (widget.count == 0) return;
+    setState(() => _index = index % widget.count);
+    if (widget.motion && !Motion.isReduced(context)) {
+      _reveal.forward(from: 0);
+    }
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    _reveal.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (widget.count == 0) return const SizedBox.shrink();
+    final pager = widget.count < 2
+        ? null
+        : _PagerDots(count: widget.count, index: _index, onSelect: _go);
+    return MouseRegion(
+      onEnter: (_) => _hovered = true,
+      onExit: (_) => _hovered = false,
+      child: widget.builder(
+        context,
+        _index,
+        Curves.easeOutCubic.transform(_reveal.value),
+        pager,
+      ),
+    );
+  }
+}
+
+class _PagerDots extends StatelessWidget {
+  const _PagerDots({
+    required this.count,
+    required this.index,
+    required this.onSelect,
+  });
+
+  final int count;
+  final int index;
+  final ValueChanged<int> onSelect;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        for (var i = 0; i < count; i++)
+          Semantics(
+            button: true,
+            selected: i == index,
+            label: '${i + 1} / $count',
+            child: MouseRegion(
+              cursor: SystemMouseCursors.click,
+              child: GestureDetector(
+                onTap: () => onSelect(i),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 3,
+                    vertical: 10,
+                  ),
+                  child: AnimatedContainer(
+                    duration: Motion.duration(context, Nova.panel),
+                    curve: Ease.enter,
+                    width: i == index ? 26 : 8,
+                    height: 8,
+                    decoration: BoxDecoration(
+                      color: i == index
+                          ? AppColors.primary
+                          : AppColors.textPrimary.withValues(alpha: 0.28),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+      ],
     );
   }
 }

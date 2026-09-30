@@ -34,7 +34,7 @@ class SeriesItem {
       cover: JsonX.asStringOrNull(json['cover']),
       categoryId: JsonX.asStringOrNull(json['category_id']),
       rating: JsonX.asDoubleOrNull(json['rating']),
-      plot: JsonX.asStringOrNull(json['plot']),
+      plot: JsonX.asTextOrNull(json['plot']),
       genre: JsonX.asStringOrNull(json['genre']),
       releaseDate:
           JsonX.asStringOrNull(json['releaseDate']) ??
@@ -108,7 +108,7 @@ class Episode {
       containerExtension:
           JsonX.asStringOrNull(json['container_extension']) ?? 'mp4',
       durationSecs: JsonX.asIntOrNull(info['duration_secs']),
-      plot: JsonX.asStringOrNull(info['plot']),
+      plot: JsonX.asTextOrNull(info['plot']),
       image:
           JsonX.asStringOrNull(info['movie_image']) ??
           JsonX.asStringOrNull(info['cover_big']),
@@ -175,7 +175,7 @@ class SeriesDetail {
       cover: JsonX.asStringOrNull(info['cover']) ?? base.cover,
       categoryId: base.categoryId,
       rating: JsonX.asDoubleOrNull(info['rating']) ?? base.rating,
-      plot: JsonX.asStringOrNull(info['plot']) ?? base.plot,
+      plot: JsonX.asTextOrNull(info['plot']) ?? base.plot,
       genre: JsonX.asStringOrNull(info['genre']) ?? base.genre,
       releaseDate:
           JsonX.asStringOrNull(info['releaseDate']) ?? base.releaseDate,

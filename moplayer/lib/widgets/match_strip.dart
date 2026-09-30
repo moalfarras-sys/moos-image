@@ -121,9 +121,7 @@ class _MatchCardState extends State<_MatchCard> {
             border: Border.all(
               color: _focused
                   ? AppColors.focus
-                  : live
-                  ? AppColors.live.withValues(alpha: 0.55)
-                  : AppColors.borderSubtle,
+                  : (lifted ? AppColors.borderStrong : AppColors.borderSubtle),
               width: _focused ? 2 : 1,
             ),
             boxShadow: lifted

@@ -37,6 +37,22 @@ static void first_frame_cb(MyApplication* self, FlView *view)
 // the surface is still valid instead of entering the broken engine teardown.
 // `_exit`, rather than `exit`, is intentional: normal C/GTK destructors are the
 // path that reaches libepoxy after the EGL context has gone away.
+// See the comment where this is connected, in my_application_activate.
+static gboolean on_window_state(GtkWidget* widget,
+                                GdkEventWindowState* event,
+                                gpointer) {
+  const GdkWindowState covering =
+      static_cast<GdkWindowState>(GDK_WINDOW_STATE_MAXIMIZED |
+                                  GDK_WINDOW_STATE_FULLSCREEN |
+                                  GDK_WINDOW_STATE_TILED);
+  const gboolean fills = (event->new_window_state & covering) != 0;
+  if (gtk_widget_get_app_paintable(widget) != fills) {
+    gtk_widget_set_app_paintable(widget, fills);
+    gtk_widget_queue_draw(widget);
+  }
+  return FALSE;
+}
+
 static gboolean close_before_flutter_egl_teardown(
     GtkWidget* widget,
     GdkEvent* event,
@@ -142,6 +158,25 @@ static void my_application_activate(GApplication* application) {
     gtk_window_set_titlebar(window, empty_titlebar);
   }
 
+  // No window background for GTK to paint while the window fills the screen.
+  //
+  // The Flutter view covers the whole window with an opaque frame of its own,
+  // but GTK still rendered the client-side decoration and the theme background
+  // under it — in software, on the main thread, before every frame. At this
+  // station's 4K that is 4608x2427 pixels per video frame, and sampling the
+  // main thread during playback found close to half its time in that fill
+  // (gtk_window_draw -> gtk_css_style_render_background -> pixman_fill).
+  //
+  // `app_paintable` tells GtkWindow not to draw it. It is only set while the
+  // window is maximised, tiled or full screen — the states playback happens in
+  // — because it also stops GTK drawing the drop shadow a floating CSD window
+  // needs, and a floating window without one looks pasted onto the desktop.
+  // MOPLAYER_GTK_PAINT=1 restores GTK's painting, for diagnosis.
+  if (g_strcmp0(g_getenv("MOPLAYER_GTK_PAINT"), "1") != 0) {
+    g_signal_connect(window, "window-state-event",
+                     G_CALLBACK(on_window_state), nullptr);
+  }
+
   // A first size that suits a cinema surface. window_manager reasserts this from
   // Dart, clamped to what the display can actually show (see
   // DesktopService.initWindow — a 4K panel at 275% scale has a *logical* desktop
@@ -152,6 +187,25 @@ static void my_application_activate(GApplication* application) {
 
   g_autoptr(FlDartProject) project = fl_dart_project_new();
   fl_dart_project_set_dart_entrypoint_arguments(project, self->dart_entrypoint_arguments);
+  // Which thread Dart runs on stays the engine's default (GTK's own thread).
+  //
+  // Measured on the station, 2026-09-30, a 1080p60 clip full screen at 4K:
+  // on GTK's thread the process spent ~62% of a core on it and the raster
+  // thread ~8%; with Dart on a separate thread the main thread rose to ~82%
+  // and the raster thread to ~43%, because frames were rendered that GTK could
+  // not present. The expensive part is GTK3 itself — it uploads the window's
+  // cairo surface under Flutter's RGBA frame on every frame (gdkgl.c,
+  // gdk_cairo_draw_from_gl) — and no thread arrangement removes that.
+  // MOPLAYER_UI_THREAD=separate is kept for diagnosing a future engine.
+  if (g_strcmp0(g_getenv("MOPLAYER_UI_THREAD"), "separate") == 0) {
+    fl_dart_project_set_ui_thread_policy(
+        project, FL_UI_THREAD_POLICY_RUN_ON_SEPARATE_THREAD);
+  }
+  // `MOPLAYER_IMPELLER=0` renders with Skia instead. Measured the same day:
+  // Skia held ~0.8 GB of graphics memory where Impeller held ~0.6 GB once the
+  // app stopped using gradient shaders (see lib/core/theme/baked_gradient.dart),
+  // but it spent ~78% of a core on the main thread during playback where
+  // Impeller spent ~24%. Impeller stays the default.
   {
     const gchar* impeller = g_getenv("MOPLAYER_IMPELLER");
     if (impeller != nullptr && g_strcmp0(impeller, "0") == 0) {
@@ -161,10 +215,17 @@ static void my_application_activate(GApplication* application) {
 
   FlView* view = fl_view_new(project);
   GdkRGBA background_color;
-  // The app's canvas (AppColors.surface0). The engine paints this before the
-  // first Dart frame; leaving it pure black makes the window flash a different
-  // shade of dark than the app it is about to become.
-  gdk_rgba_parse(&background_color, "#070809");
+  // Fully transparent, on purpose. FlView paints its background colour with a
+  // software `cairo_paint` on the main thread before EVERY frame it draws, and
+  // at this station's 4K the GTK surface is 4608x2427 pixels: sampling the main
+  // thread during a 25 fps channel found 40% of its time in pixman's fill,
+  // repainting a colour the app then covered completely. A transparent colour
+  // is the one value the engine skips (see fl_view_renderer.cc,
+  // paint_background). The app's first frame paints its own canvas.
+  gdk_rgba_parse(&background_color, "rgba(0,0,0,0)");
+  if (g_strcmp0(g_getenv("MOPLAYER_GTK_PAINT"), "1") == 0) {
+    gdk_rgba_parse(&background_color, "#0A0C11");
+  }
   fl_view_set_background_color(view, &background_color);
   gtk_widget_show(GTK_WIDGET(view));
   gtk_container_add(GTK_CONTAINER(window), GTK_WIDGET(view));

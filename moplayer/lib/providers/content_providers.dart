@@ -7,6 +7,7 @@ import '../models/category.dart';
 import '../models/epg_entry.dart';
 import '../models/live_channel.dart';
 import '../models/live_match.dart';
+import '../models/playlist_config.dart';
 import '../models/series.dart';
 import '../models/vod_movie.dart';
 import '../repositories/content_repository.dart';
@@ -153,6 +154,14 @@ final matchesTodayProvider = FutureProvider<List<LiveMatch>>((ref) async {
   });
 
   return resolved;
+});
+
+/// The active subscription's account — status, expiry, connections — for a
+/// source that has one (an Xtream panel, or a playlist link that is one).
+final accountInfoProvider = FutureProvider<XtreamAccountInfo?>((ref) async {
+  final repo = ref.watch(contentRepositoryProvider);
+  if (repo == null) return null;
+  return repo.accountInfo();
 });
 
 // --- Movies --------------------------------------------------------------

@@ -66,9 +66,7 @@ class Shelf<T> {
     for (final id in firstSeen) {
       if (named.contains(id)) continue;
       named.add(id);
-      categories.add(
-        Category(id: id, name: id, count: byCategory[id]!.length),
-      );
+      categories.add(Category(id: id, name: id, count: byCategory[id]!.length));
     }
 
     return Shelf._(

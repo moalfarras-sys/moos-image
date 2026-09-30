@@ -2,6 +2,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 
 import '../core/theme/app_colors.dart';
+import '../core/theme/baked_gradient.dart';
 import '../core/theme/app_typography.dart';
 import '../core/theme/motion.dart';
 import '../core/theme/nova.dart';
@@ -129,13 +130,11 @@ class _Fallback extends StatelessWidget {
   Widget build(BuildContext context) {
     final initials = Fmt.initials(title);
 
-    return DecoratedBox(
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [AppColors.surface2, AppColors.surfaceWarm],
-        ),
+    return GradientFill(
+      gradient: LinearGradient(
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+        colors: [AppColors.surface2, AppColors.surfaceWarm],
       ),
       child: LayoutBuilder(
         builder: (context, constraints) {
@@ -149,13 +148,14 @@ class _Fallback extends StatelessWidget {
             children: [
               // A single ember sheen across the corner. It is what stops forty
               // fallbacks in a grid from reading as forty holes.
-              const DecoratedBox(
-                decoration: BoxDecoration(
-                  gradient: RadialGradient(
-                    center: Alignment(-0.7, -0.8),
-                    radius: 1.3,
-                    colors: [Color(0x14FF8A1F), Color(0x00000000)],
-                  ),
+              GradientFill(
+                gradient: RadialGradient(
+                  center: const Alignment(-0.7, -0.8),
+                  radius: 1.3,
+                  colors: [
+                    AppColors.primary.withValues(alpha: 0.08),
+                    const Color(0x00000000),
+                  ],
                 ),
               ),
               Center(
