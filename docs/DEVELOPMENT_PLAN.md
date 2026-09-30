@@ -8,9 +8,9 @@ Done and measured: the v4 GPU interface and a single voice/text brain. An owner-
 - the System centre, desktop tools, reminders, routines, and voice through the PC when no Echo is paired;
 - Mo AI's free cloud brain as the tool loop without a Gemini key.
 
-On the station she wears Mo AI's launcher, icon and Meta+Space. PRs #177–#180 are merged into `main`; the Mira build stages and gates are present on x86 and ARM. The 2026-09-30 signed candidate attempt failed before image assembly because the Remote controller dependency audit found a high-severity `brace-expansion` version. The lockfile correction is under review. Open, in order:
-1. Pass the corrected source gates, build one signed candidate, then complete exact-digest QCOW2/ISO proofs, including the ISO open/close proof of the assistant.
-2. Prove the ARM image and its booted-disk Mira start from the same source revision.
+On the station she wears Mo AI's launcher, icon and Meta+Space. PRs #177–#181 are merged into `main`; `.959` passed signed x86 candidate, three exact-digest QCOW2 boots, offline ISO and promotion, plus the ARM build/boot/promotion. The station still needs to stage `.959`, reboot and prove the installed experience. A later scheduled ARM build failed because the mutable base added a second wants symlink for the competing update timer; its scrub fix awaits image proof. Open, in order:
+1. Stage `.959` through `moai-do update`, reboot, and run the installed assistant and post-update checks.
+2. Prove the later ARM base's new timer scrub in a fresh image build and booted disk.
 3. Done without an inbound port: `mira_ar_v2` runs at 0.65 beside the proven model, and announcements are spoken on the Echo. Still owed: the owner's own bare «ميرا» hit rate and false wakes per hour with the pair.
 4. P3.9: the owner decision was recorded on 2026-09-30 in `mira/control-centre-20260930`. A desktop tool that runs model-written commands is still unbuilt; design and safety review remain open.
 5. Measure a power-cut restart. Host Home Assistant on an always-on machine for PC-off home control.

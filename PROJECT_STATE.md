@@ -1,20 +1,20 @@
 # MoOS current state — measured 2026-09-30
 
-**2026-09-30 readback:** The NVIDIA station boots signed `.952` (`sha256:91c9ce7b…`);
-signed `.945` remains for rollback. PRs #177–#180 are in `origin/main` (`20bed351`).
-Candidate run `36677635058` failed in all three x86 editions at the Remote dependency
-audit before image assembly. The integration branch preserves both remaining local
-tips and updates `brace-expansion` and `fast-uri`. `npm ci`, audit, typecheck and
-controller build pass locally with zero advisories. A new signed candidate and boot
-proofs remain required.
+**2026-09-30 release readback:** `main` is `cb61e592` (PR #181); signed `.959` passed
+build `36693894196`, three QCOW2 boots, ISO `36699338568`, and x86 promotion
+`36703620410`. ARM build, boot and promotion passed in `36681324601`. The NVIDIA
+station still boots signed `.952`, with `.945` for rollback; `.959` is published
+but not yet staged. Later scheduled ARM build `36721156819` failed its one-updater
+gate: a changed base added `timers.target.wants/bootc-fetch-apply-updates.timer`.
+The scrub fix is source work until a new ARM image proves it.
 
 **Mira source, 2026-09-30:** PRs #177–#180 integrate her six pages, approvals inbox, chat history, KDE entry, new Mo AI actions and ARM packaging. The station's earlier user install proved Arabic voice, a live approval and the page renders; the new signed x86/ARM images and installed behavior remain unproved. See `mira/README.md`.
 ## Source and release truth
-- **Proven production source is `55753999`, `44.20260927.952`**: signed x86 build
-  `36318637595`, QCOW2 `36320028679`/`36320031215`/`36320033794`, offline ISO
-  `36320036325`, x86 promotion `36322617895`; ARM build/boot/promotion `36318521233`.
-  All passed. #173/#174 merged; THEME_REV 95 rounds the solid dock and gives the Hub
-  finite motion. Remote v45 rejects frozen-mtime cache validators.
+- **Proven production source is `cb61e592`, `44.20260930.959`**: signed x86 build
+  `36693894196`, QCOW2 `36699322130`/`36699326777`/`36699334133`, offline ISO
+  `36699338568`, x86 promotion `36703620410`; ARM build/boot/promotion `36681324601`.
+  All passed for that exact source and its pinned artifacts. The installed NVIDIA
+  machine is still on `.952` until the newer digest is staged and rebooted.
 - Remote v46 is merged source. Real phone/WAN endurance and installed v46 remain open.
 - The two-icon design approval remains pending. A historical post-`.945` health read was
   55/0, but five old `drkonqi-coredump-processor` timeouts appeared later; review the
