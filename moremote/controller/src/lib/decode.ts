@@ -153,6 +153,20 @@ function bytesEqual(a: Uint8Array, b: Uint8Array): boolean {
  */
 const MAX_DECODE_QUEUE = 8;
 
+/**
+ * A decode error is first a reason to resynchronise, and only a repeat is a reason to leave H.264.
+ *
+ * One VideoDecoder error used to vote the whole room onto JPEG at once — 12 to 19 times the bytes
+ * per frame (79 Mbit/s against 4.3 at 1080p, measured). On a weak link that turned a hiccup into
+ * the congestion that ended the session. Safari reports "EncodingError: Decoder failure" for
+ * transient conditions too (the station's log holds 20 such fallbacks, the phone on the same LAN).
+ * So the first error in this window rebuilds the decoder from the next keyframe, which it asks
+ * for; a second one inside it means this browser really cannot hold the stream, and the existing
+ * JPEG vote (with its bounded retries) takes over. A codec the browser refuses outright
+ * (NotSupportedError) is not transient and falls back at once.
+ */
+const DECODE_ERROR_WINDOW_MS = 20000;
+
 export class H264Stream {
   private dec: VideoDecoder | null = null;
   private codec = "";
@@ -166,6 +180,8 @@ export class H264Stream {
   /** The SPS this decoder was built for. A keyframe carrying a DIFFERENT one is a renegotiated
    *  stream (the width ladder rebuilt the pipeline), not a decodable continuation. */
   private lastSps: Uint8Array | null = null;
+  /** When the last decode error was absorbed by a resync (performance.now()), or 0. */
+  private lastErrorAt = 0;
 
   constructor(
     private readonly onFrame: (f: VideoFrame) => void,
@@ -239,9 +255,22 @@ export class H264Stream {
         data: b,
       }));
     } catch (e) {
-      this.reset();
-      this.onFail(String(e));
+      this.decodeError(String(e));
     }
+  }
+
+  /** Resync on the next keyframe, or give up on H.264 if this is a repeat. See DECODE_ERROR_WINDOW_MS. */
+  private decodeError(why: string) {
+    this.reset();
+    const now = performance.now();
+    const repeat = this.lastErrorAt > 0 && now - this.lastErrorAt < DECODE_ERROR_WINDOW_MS;
+    if (repeat || why.startsWith("NotSupportedError")) {
+      this.lastErrorAt = 0;
+      this.onFail(why);
+      return;
+    }
+    this.lastErrorAt = now;
+    this.onNeedKeyframe();                  // reset() cleared `started`: the next IDR reopens
   }
 
   private open(codec: string): boolean {
@@ -255,12 +284,11 @@ export class H264Stream {
           this.onFrame(f);
         },
         // A decoder that errors is not a decoder that recovers: it is closed, and the next
-        // keyframe has to build a new one. Telling the caller lets it fall back to JPEG rather
-        // than sit in front of a frozen picture wondering.
+        // keyframe has to build a new one — which decodeError asks for. Only a repeat tells the
+        // caller to fall back to JPEG rather than sit in front of a frozen picture wondering.
         error: (e) => {
           if (generation !== this.generation) return;
-          this.reset();
-          this.onFail(String(e));
+          this.decodeError(String(e));
         },
       });
       this.dec = dec;

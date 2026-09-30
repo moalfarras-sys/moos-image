@@ -119,3 +119,29 @@ FakeDecoder.instances[0].opts.error(new Error("late configure failure"));
 assert.equal(configureFailures.length, 1, "a retired configure callback cannot spend another retry");
 FakeDecoder.failConfigure = false;
 console.log("PASS: headers cannot masquerade as IDRs and failed configure releases its decoder");
+
+// One decode error is a resync, not a codec change. The first error rebuilds from the next
+// keyframe (and asks for it); only a second one inside the window votes the room onto JPEG, which
+// costs 12-19x the bytes per frame — on a weak link, the congestion that ended the session.
+FakeDecoder.instances.length = 0;
+const flaky: string[] = [];
+let flakyKeyframes = 0;
+const resync = new H264Stream(() => {}, why => flaky.push(why), () => flakyKeyframes++);
+resync.push(au(sps(0x41), idr));
+FakeDecoder.instances[0].opts.error(new Error("EncodingError: Decoder failure"));
+assert.deepEqual(flaky, [], "a first decode error must not leave H.264");
+assert.equal(flakyKeyframes, 1, "a first decode error must ask for the keyframe to resync from");
+resync.push(au(delta));
+assert.equal(FakeDecoder.instances.length, 1, "deltas after the error cannot reopen a decoder");
+resync.push(au(sps(0x41), idr));
+assert.equal(FakeDecoder.instances.length, 2, "the requested keyframe rebuilds the decoder");
+FakeDecoder.instances[1].opts.error(new Error("EncodingError: Decoder failure"));
+assert.equal(flaky.length, 1, "a repeat inside the window is a real failure and votes for JPEG");
+
+FakeDecoder.instances.length = 0;
+const refused: string[] = [];
+const unsupportedLate = new H264Stream(() => {}, why => refused.push(why), () => {});
+unsupportedLate.push(au(sps(0x41), idr));
+FakeDecoder.instances[0].opts.error({ toString: () => "NotSupportedError: Decoder creation failed" } as Error);
+assert.equal(refused.length, 1, "a codec the browser refuses is not retried as a resync");
+console.log("PASS: a decode error resyncs on a keyframe first and only a repeat falls back to JPEG");

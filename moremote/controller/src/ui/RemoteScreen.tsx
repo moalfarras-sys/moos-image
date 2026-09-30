@@ -10,7 +10,7 @@ import {
   type ClipResult, type FileListing, type FileEntry, type PowerAction, type TrustedDeviceInfo,
 } from "../lib/api";
 import { pickStartPreset, readDeviceHints, describeHints, encodeWidth, autoPresetLimit,
-  hostEncodeCeiling, type HostEncode } from "../lib/quality";
+  hostEncodeCeiling, ladderTick, LADDER, WEAK_LINK, type HostEncode } from "../lib/quality";
 import { h264Failures, noteH264Failure, H264_MAX_FAILURES } from "../lib/h264state.ts";
 import { diffToOps } from "../lib/typing.ts";
 import { remoteAlertPermission, requestRemoteAlertPermission, showRemoteAlert } from "../lib/notifications";
@@ -415,6 +415,11 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired, l
   const [hostEncode, setHostEncode] = useState<HostEncode | null>(null);
   const hostEncodeRef = useRef<HostEncode | null>(null);
   const latRef = useRef(0);
+  /** When the last pong arrived (performance.now()), so an overdue one can count as a slow one. */
+  const latAtRef = useRef(0);
+  /** The automatic ladder's weak-link rung below Data saver (see WEAK_LINK). Never persisted. */
+  const [weak, setWeak] = useState(false);
+  const weakRef = useRef(false);
   const [kbOpen, setKbOpen] = useState(false);
   const [sheet, setSheet] = useState<Sheet>(null);
   const [trustedDevices, setTrustedDevices] = useState<TrustedDeviceInfo[] | null>(null);
@@ -892,6 +897,7 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired, l
 
     const conn = new RemoteConnection(token, {
       onHello: (h) => {
+        latRef.current = 0; latAtRef.current = 0;
         connectionEstablishedRef.current = true;
         connectionAlertedRef.current = false;
         setStatus(h.paused ? "paused" : "live");
@@ -930,6 +936,7 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired, l
       onStopped: () => setStatus("stopped"),
       onAuthFail: () => onAuthExpired(),
       onClose: (willReconnect) => {
+        latRef.current = 0; latAtRef.current = 0;
         gestureRef.current?.cancelAll();
         desktopRef.current?.releaseAll();
         // Keep the last accepted baseline and the local draft separately. Advancing
@@ -944,7 +951,7 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired, l
           void showRemoteAlert("connection-interrupted");
         }
       },
-      onPong: (rtt) => { const v = Math.round(rtt); setLatency(v); latRef.current = v; },
+      onPong: (rtt) => { const v = Math.round(rtt); setLatency(v); latRef.current = v; latAtRef.current = performance.now(); },
       onIdle: () => setStatus("idle"),
       onScreen: (avail) => setScreenOk(avail),
       onInputState: (ready,error) => { setInputOk(ready); if(error)showToast(`${tr("inputPrefix")} ${error}`); },
@@ -1171,6 +1178,7 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired, l
         h264Ref.current?.reset();
         pendingRef.current = null;
       } else {
+        latRef.current = 0; latAtRef.current = 0;
         conn.setWatching(true);
         conn.requestKeyframe();
         // iOS suspends the PWA whole while it is away, and the server has usually aborted the
@@ -1550,14 +1558,18 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired, l
   const lastWidthPushAt = useRef(0);
 
   const pushSettings = () => {
-    const p = QUALITY_PRESETS[presetIdxRef.current] ?? QUALITY_PRESETS[1];
+    const preset = QUALITY_PRESETS[presetIdxRef.current] ?? QUALITY_PRESETS[1];
+    // The weak-link rung replaces the preset's numbers wholesale, and it wins over "100%" and
+    // zoom as well: on that link the question is whether the pointer still answers, not detail.
+    const lean = autoRef.current && weakRef.current;
+    const p = lean ? { ...preset, ...WEAK_LINK } : preset;
     // "100%" means the viewer wants real device pixels rather than a fitted picture, so the preset's
     // width stops being a ceiling; everywhere else it still is.
     // Zooming in is an explicit request to inspect detail: the preset ceiling
     // (tuned for the fitted view) must not pin a 2x zoom to upscaled mush, so a
     // zoomed viewer may ask up to the hard 2560 cap just like "100%".
     const zoomed = view.current.zoom > 1.05;
-    let ceiling = viewModeRef.current === "actual" || zoomed ? 2560 : Math.min(p.width, 2560);
+    let ceiling = !lean && (viewModeRef.current === "actual" || zoomed) ? 2560 : Math.min(p.width, 2560);
     // And never more pixels than the HOST said it can encode — but only while the QUALITY choice
     // is automatic. The distinction is which question was answered by a person: a preset is an
     // answer to "how much bandwidth and CPU is this worth", so it overrides the host's estimate.
@@ -1582,7 +1594,7 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired, l
   };
   // `orient` belongs here: turning the picture swaps which of the source's axes runs across the
   // screen, so the number of encoded pixels this viewer can show changes with it.
-  useEffect(() => { pushSettings(); /* eslint-disable-next-line */ }, [presetIdx, viewMode, orient]);
+  useEffect(() => { pushSettings(); /* eslint-disable-next-line */ }, [presetIdx, viewMode, orient, weak]);
 
   /**
    * Re-ask when the size the picture is drawn at has genuinely moved.
@@ -1626,41 +1638,38 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired, l
   //   * a COOLDOWN after acting, so the loop observes the consequence of its last move before making
   //     another. Climbing needs a longer one than dropping: being slow to give someone more quality
   //     costs them nothing, being slow to relieve a struggling link costs them the session.
+  //
+  // The thresholds and the decision itself live in quality.ts (ladderTick, LADDER), where they are
+  // tested; what stays here is when to ask and what to do with the answer. Two additions for a weak
+  // link: a pong that is four seconds overdue counts as a slow one, and past Data saver the ladder
+  // takes the weak-link rung (WEAK_LINK) instead of having nowhere left to go.
   const inputBurstAtRef = useRef(0);
   const autoStateRef = useRef({ up: 0, down: 0, last: 0 });
   useEffect(() => {
-    if (!auto) return;
+    if (!auto) {
+      weakRef.current = false;
+      setWeak(false);
+      return;
+    }
     autoStateRef.current = { up: 0, down: 0, last: Date.now() };
-    const SAMPLE_MS = 2000;
-    const AGREE_UP = 4;        // ~8s of consistently good latency before asking for more
-    const AGREE_DOWN = 2;      // ~4s of bad latency is enough to back off
-    const AGREE_DATA_SAVER = 4; // ~8s more before sacrificing text detail for a congested link
-    const COOLDOWN_UP = 20000;
-    const COOLDOWN_DOWN = 6000;
     const id = window.setInterval(() => {
-      const lat = latRef.current;
-      if (!lat) return;                        // no measurement yet — never act on a zero
       // Injection bursts (typing, drags) load the compositor and briefly inflate
       // RTT. That is the session working, not the network failing — stepping the
       // picture down on it is why quality cratered exactly while typing.
       if (Date.now() - inputBurstAtRef.current < 1500) return;
-      const st = autoStateRef.current;
-      const since = Date.now() - st.last;
-      if (lat > 400) { st.down++; st.up = 0; }
-      else if (lat < 90) { st.up++; st.down = 0; }
-      else { st.up = 0; st.down = 0; }         // inside the dead band: forget, do not drift
-      const downNeeded = presetIdxRef.current <= 1 ? AGREE_DATA_SAVER : AGREE_DOWN;
-      if (st.down >= downNeeded && since > COOLDOWN_DOWN) {
-        // A brief spike only lowers Sharp to Balanced. If congestion persists
-        // there for another four samples, Data saver keeps input usable. Its
-        // 1024px picture is a last resort, never the response to one bad ping.
-        setPresetIdx((idx) => { if (idx <= 0) return idx; st.last = Date.now(); st.down = 0; return idx - 1; });
-      } else if (st.up >= AGREE_UP && since > COOLDOWN_UP) {
-        const cap = autoMaxPreset();
-        setPresetIdx((idx) => { if (idx >= cap) return idx; st.last = Date.now(); st.up = 0; return idx + 1; });
-      }
-    }, SAMPLE_MS);
+      // A suspended page or a socket between connections has no pongs for reasons that are not
+      // the link; its silence must not be read as a collapse.
+      if (document.hidden || !connRef.current?.open) return;
+      const pongAge = latAtRef.current ? performance.now() - latAtRef.current : 0;
+      const move = ladderTick(autoStateRef.current, latRef.current, pongAge, Date.now(),
+                              presetIdxRef.current, autoMaxPreset(), weakRef.current);
+      if (move === "down") setPresetIdx((idx) => Math.max(0, idx - 1));
+      else if (move === "up") setPresetIdx((idx) => Math.min(autoMaxPreset(), idx + 1));
+      else if (move === "weak") { weakRef.current = true; setWeak(true); showToast(tr("weakLinkOn")); }
+      else if (move === "recover") { weakRef.current = false; setWeak(false); showToast(tr("weakLinkOff")); }
+    }, LADDER.SAMPLE_MS);
     return () => window.clearInterval(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [auto]);
 
   const selectPreset = (i: number) => { setPresetIdx(i); showToast(`${tr("qualityPrefix")} ${tr(QUALITY_LABEL_KEYS[i])} · ${QUALITY_PRESETS[i].detail}`); };
@@ -2640,7 +2649,7 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired, l
               if (!auto) setPresetIdx(Math.min(pickStartPreset(deviceHints), autoMaxPreset()));
               setAuto(true);
               showToast(tr("autoQuality"));
-            }}>{tr("auto")}</button>
+            }}>{tr("auto")}{auto && weak && <small>{tr("weakLinkShort")}</small>}</button>
             {QUALITY_PRESETS.map((p, i) => (
               <button key={p.label} className={!auto && presetIdx === i ? "on" : ""} onClick={() => { setAuto(false); selectPreset(i); }}
                 title={p.detail}>{tr(QUALITY_LABEL_KEYS[i])}<small>{p.detail}</small></button>

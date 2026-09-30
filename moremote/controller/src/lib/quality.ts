@@ -248,3 +248,82 @@ export function hostEncodeCeiling(ceiling: number, host: HostEncode | null | und
   const cap = usable(host);
   return cap ? Math.min(ceiling, cap.maxWidth) : ceiling;
 }
+
+/**
+ * The rung below Data saver, reachable only by the automatic ladder.
+ *
+ * Data saver is 1024 px at 30 fps, about 1.1 Mbit/s. A phone on a weak cell, a crowded hotel
+ * Wi-Fi or a Tailscale relay can have less than that, and until now the ladder had nowhere left
+ * to go: the queue kept overflowing, the picture kept freezing on keyframe waits, and the socket
+ * was eventually closed into a reconnect that met the same link again. Here the picture gives
+ * way to control: half the frame rate, a smaller frame and a lower quality, about 0.4 Mbit/s
+ * (the helper's bitrate floor scales with frame rate for exactly this), which keeps the pointer
+ * and the keyboard responsive. 854 px is still above the 720 px floor that keeps desktop text
+ * legible. It is never a manual preset: nobody should have to choose it, and nobody is left in
+ * it once the link recovers.
+ */
+export const WEAK_LINK = { quality: 40, fps: 15, width: 854 } as const;
+
+/** What one tick of the automatic ladder decided. */
+export type LadderMove = "down" | "up" | "weak" | "recover" | null;
+
+export interface LadderState { up: number; down: number; last: number; }
+
+/**
+ * The automatic ladder's thresholds. The first seven are the ones RemoteScreen has used since the
+ * oscillation fix (see the long comment there); the last three are the weak-link additions.
+ */
+export const LADDER = {
+  SAMPLE_MS: 2000,
+  AGREE_UP: 4,          // ~8 s of consistently good latency before asking for more
+  AGREE_DOWN: 2,        // ~4 s of bad latency backs off from Sharp or Ultra
+  AGREE_DATA_SAVER: 4,  // ~8 s more before Data saver, and again before the weak-link rung
+  COOLDOWN_UP: 20000,
+  COOLDOWN_DOWN: 6000,
+  HIGH_MS: 400,
+  LOW_MS: 90,
+  /** A round trip this long is not jitter: the link is collapsing, act on one sample. */
+  SEVERE_MS: 1500,
+  COOLDOWN_SEVERE: 3000,
+  /** A pong this overdue is itself the measurement: the reply is stuck behind the backlog. */
+  PONG_STALE_MS: 4000,
+} as const;
+
+/**
+ * One tick of the automatic ladder. Pure apart from `st`, which it updates when it moves.
+ *
+ * `rtt` is the latest ping round trip and `pongAge` how long ago it arrived. The ping goes out
+ * every two seconds and its pong queues behind the video on the same socket, so a pong that has
+ * not come back for four seconds says the link is backed up — a stale low RTT used to keep
+ * reading "healthy" through exactly that. Two faster paths sit in front of the existing counters:
+ * a severe round trip steps down on one sample (a collapsing link cannot wait eight seconds), and
+ * past Data saver the ladder takes the weak-link rung instead of stopping. Recovery from that rung
+ * uses the same slow, agreeing climb as every other step up.
+ */
+export function ladderTick(st: LadderState, rtt: number, pongAge: number, now: number,
+                           idx: number, cap: number, weak: boolean): LadderMove {
+  const lat = pongAge > LADDER.PONG_STALE_MS ? Math.max(rtt, pongAge) : rtt;
+  if (!lat) return null;                         // no measurement yet — never act on a zero
+  const since = now - st.last;
+  const moved = (move: LadderMove): LadderMove => {
+    st.last = now; st.up = 0; st.down = 0;
+    return move;
+  };
+  const stepDown = (): LadderMove => idx > 0 ? moved("down") : !weak ? moved("weak") : null;
+
+  if (lat > LADDER.SEVERE_MS && since > LADDER.COOLDOWN_SEVERE) {
+    const move = stepDown();
+    if (move) return move;
+  }
+  if (lat > LADDER.HIGH_MS) { st.down++; st.up = 0; }
+  else if (lat < LADDER.LOW_MS) { st.up++; st.down = 0; }
+  else { st.up = 0; st.down = 0; }               // inside the dead band: forget, do not drift
+
+  const downNeeded = idx <= 1 ? LADDER.AGREE_DATA_SAVER : LADDER.AGREE_DOWN;
+  if (st.down >= downNeeded && since > LADDER.COOLDOWN_DOWN) return stepDown();
+  if (st.up >= LADDER.AGREE_UP && since > LADDER.COOLDOWN_UP) {
+    if (weak) return moved("recover");
+    if (idx < cap) return moved("up");
+  }
+  return null;
+}
