@@ -83,7 +83,9 @@ DLL from composefs; do not weaken SELinux globally.
 | Freeze audit (2026-10-01) | 3.7 GiB in zram, no OOM this boot. Mo PC Remote renewed its portal grant ~2,600 times in the previous boot; `.964` logged repeated `1536x864+0+0@3 -> no outputs`. Live monitoring found the HDMI connector itself disconnecting for about one second, and KDE closed its portal session when that happened. The signed `.967` fix suppresses an extra geometry-triggered restart during the dropout; live cellular endurance proof is pending. `moai-control` woke rpm-ostreed 59× in 2 h 50 min, now once per boot. The Echo gadget's USB microphone floods the kernel log (~60 xHCI "buffer overrun" warnings/s, journald ~3% CPU): the 500 MB journal spans only ~5 h, so the previous boot's user logs were already gone. The fix is the gadget's packet size (Mira) |
 
 **Remote control:** signed `.967` includes the weak-link ladder, H.264 recovery and
-flat pointer mapping. Cellular smoothness remains unproved; see plan P2.14.
+flat pointer mapping. The 2026-10-02 source fix keeps manual Data Saver at 1024 px
+and limits phone Auto to Balanced; the temporary user service serves that bundle.
+Cellular smoothness remains unproved; see plan P2.14.
 
 ## Closed reviews — what they established
 
