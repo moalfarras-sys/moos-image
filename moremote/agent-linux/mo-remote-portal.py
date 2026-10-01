@@ -161,6 +161,12 @@ class DisplayGeometryWatch:
         self.pending = False
         if not self.invalid:
             now = self.snapshot()
+            # GDK can briefly expose an empty monitor list while KWin still has
+            # an output. It is not a usable coordinate space to compare with
+            # the portal grant. A returning monitor triggers monitor-added and
+            # is compared below; a dead stream/display has its own watchdog.
+            if not now:
+                return False
             if now != self.baseline:
                 self.invalidate(self.describe(self.baseline, now))
         return False

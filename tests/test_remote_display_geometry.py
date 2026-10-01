@@ -95,20 +95,26 @@ class GeometryTests(unittest.TestCase):
         self.drain()
         self.assertEqual(len(self.renewals), 1)
 
-    def test_hotplug_and_unplug(self):
-        for add in (True, False):
-            with self.subTest(add=add):
-                self.setUp()
-                monitor = Monitor()
-                if add:
-                    self.display.monitors.append(monitor)
-                    self.display.emit("monitor-added", monitor)
-                    self.assertIn("notify::geometry", monitor.signals)
-                else:
-                    monitor = self.display.monitors.pop()
-                    self.display.emit("monitor-removed", monitor)
-                self.drain()
-                self.assertEqual(len(self.renewals), 1)
+    def test_hotplug_invalidates(self):
+        monitor = Monitor()
+        self.display.monitors.append(monitor)
+        self.display.emit("monitor-added", monitor)
+        self.assertIn("notify::geometry", monitor.signals)
+        self.drain()
+        self.assertEqual(len(self.renewals), 1)
+
+    def test_empty_monitor_list_waits_for_a_real_output(self):
+        old = self.display.monitors.pop()
+        self.display.emit("monitor-removed", old)
+        self.drain()
+        self.assertFalse(self.renewals)
+        self.assertFalse(self.watch.invalid)
+
+        replacement = Monitor()
+        self.display.monitors.append(replacement)
+        self.display.emit("monitor-added", replacement)
+        self.drain()
+        self.assertEqual(self.renewals, ["output replaced, same geometry 1280x720+0+0@2"])
 
     def test_replaced_monitor_with_identical_geometry_invalidates(self):
         self.display.monitors[0] = Monitor()
@@ -128,7 +134,7 @@ class GeometryTests(unittest.TestCase):
         self.display.monitors.pop()
         self.display.emit("monitor-removed", None)
         self.drain()
-        self.assertEqual(self.renewals, ["1280x720+0+0@2 -> no outputs"])
+        self.assertFalse(self.renewals)
 
     def test_compositor_closed_is_not_healthy(self):
         self.display.emit("closed", False)
