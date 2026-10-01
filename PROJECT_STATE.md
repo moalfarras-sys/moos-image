@@ -22,8 +22,10 @@ logical desktop size also dropped; 3840×2160@60 and 250% scale were restored.
 KWin stayed running, NVIDIA reported no Xid, and memory pressure was zero. The
 physical HDMI link, monitor power or port needs inspection. The software change
 is merged, signed, booted and the portal helper runs from `/usr/lib/mo-remote`.
-The first live iPhone session delivered pointer input and H.264 via NVENC; its
-video source later read `0x0`, so continuous control is not yet proven. The fix
+The first live iPhone session delivered pointer input and H.264 via NVENC.
+After reboot, no portal renewal appeared in the observed log window; the phone
+still reported freezes on cellular Tailscale. The `source 0x0` log line also
+records a streaming-off event and alone does not prove HDMI dropped. The fix
 cannot keep a disconnected physical output available to KDE. A cellular-link
 endurance/control proof is still needed.
 
