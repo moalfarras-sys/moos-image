@@ -82,25 +82,8 @@ DLL from composefs; do not weaken SELinux globally.
 | Health | Baloo recovered; post-update 55/0; powersave changed to balanced, turbo read back enabled |
 | Freeze audit (2026-10-01) | 3.7 GiB in zram, no OOM this boot. Mo PC Remote renewed its portal grant ~2,600 times in the previous boot; `.964` logged repeated `1536x864+0+0@3 -> no outputs`. Live monitoring found the HDMI connector itself disconnecting for about one second, and KDE closed its portal session when that happened. The signed `.967` fix suppresses an extra geometry-triggered restart during the dropout; live cellular endurance proof is pending. `moai-control` woke rpm-ostreed 59× in 2 h 50 min, now once per boot. The Echo gadget's USB microphone floods the kernel log (~60 xHCI "buffer overrun" warnings/s, journald ~3% CPU): the 500 MB journal spans only ~5 h, so the previous boot's user logs were already gone. The fix is the gadget's packet size (Mira) |
 
-Measured on the previous `.938`: installed `THEME_REV` **87**
-and its existing-account marker, current Global Theme `org.moos.ui2.gaming`,
-`kwinrc/Plugins/blurEnabled=true`, Arabic session (`ar_SA.UTF-8`). The W8/W9
-image is running and passed live post-update checks;
-that does not qualify suspend, every app or the full visual matrix.
-
-**Mo PC Remote on `.938`, 2026-09-26:** authenticated v42 loopback H.264 Data Saver measured 28–29 fps and 1 ms locally; zoom visibly enlarged the desktop; Auto restored; Island follows live glass clarity.
-**Weak link, installed in `.967` (not yet measured on a cellular phone link):** Auto goes below Data saver to 854 px at 15 fps (~0.4 Mbit/s; the helper's bitrate floor is per frame now), acts on one ≥1.5 s round trip or a pong 4 s overdue, and recovers slowly; a first decoder error resyncs on a keyframe instead of moving the room to JPEG; a stalled send is ridden out to 7 s instead of 3; a viewer waiting for a recovery IDR asks again each second; a settings push inside the 500 ms floor is deferred, not dropped; the one-time portal approval survives a display change mid-handshake; while KDE's dialog waits, the uinput fallback pointer is flat 1:1 (it was adaptive: 40 units moved 20 px and back 38 — the owner's "two arrows"; set live on the station and shipped in `/etc/xdg/kcminputrc`).
-External-network, typing, files and audio remain unproved. Pre-authorizing Remote in KDE's portal (no dialog ever) was refused to the agent as a security change and is the owner's decision.
-The scoped Baloo workaround is a user override pending signed delivery, not image proof.
-
-**Speed and Mo AI measured on `.890`, not re-measured:** P5.4 boot **6.70 s**/9.0,
-login to a ready desktop **1.10 s**/3.0, an app's window **0.49 s**/4.0, MoOS's processes
-**0.12%** of CPU while idle/8.0 — all four inside budget. `moai-measure-actions` read
-**80/80** then **79/80** over two runs of 40 fixed Arabic/English cases, no wrong tool in
-either; the one miss was the model answering in words instead of calling (P3.3).
-
-**Updating:** use MoOS Updater (Settings → Update MoOS, or Mo AI) to resolve and stage
-a signed digest, then restart. Nightly builds alone never promote a release.
+**Remote control:** signed `.967` includes the weak-link ladder, H.264 recovery and
+flat pointer mapping. Cellular smoothness remains unproved; see plan P2.14.
 
 ## Closed reviews — what they established
 
@@ -202,9 +185,6 @@ that removes `kcm-fcitx5` until Fedora rebuilds it. No 6.8 candidate yet.
 
 ## Other measured facts
 
-**A wallpaper cannot be clicked (2026-09-18):** over a Hub card neither click nor wheel
-arrives, so every card's second face is turned from the desktop's own menu.
-
 **The free brain is measured where it runs (2026-09-18):** the catalogue carried **21**
 tool-capable zero-price models. `moai-measure-free` asks each two fixed questions through the
 real gateway and writes `~/.local/state/moai/free-ranking.json`, which `moai_cloud_policy`
@@ -214,10 +194,3 @@ entered through Settings, a reboot and the provider-failure surface.
 **A second desktop server:** `moos-health scan` found `krdpserver` on `tcp *:3389` beside Mo PC
 Remote; the finding carries `moos://privacy/stop-sharing`, and `moos-remote-guard off` stops and
 un-autostarts both with no administrator rights.
-
-## Next execution
-
-Integrate W9.10 (Mo AI's desktop hands) into the next candidate with the audio/material batch;
-on the station, measure the 15 new action cases on a free model and walk a close-window and a
-reminder card. Then finish P2.12, W9 transactions and W8's three-size mark; pursue P0.7.
-P4.2–P4.5, German, touch/laptop/multi-output and full accessibility remain open.
