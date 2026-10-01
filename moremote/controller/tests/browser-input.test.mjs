@@ -17,7 +17,7 @@ const errors = [];
 // behaved the same, but it meant no test ever ran against a value the app could actually store.
 // Pass null to leave the preference unset and get the shipped default (Auto).
 async function viewer(options, mode, language = 'en', cursorEmbedded = false, orient = 'off',
-                      encode = null) {
+                      encode = null, linkClass = 'default') {
   const context = await browser.newContext({...options, serviceWorkers: 'block'});
   contexts.push(context);
   await context.addInitScript(({mode, language, orient}) => {
@@ -28,6 +28,9 @@ async function viewer(options, mode, language = 'en', cursorEmbedded = false, or
     if (orient) localStorage.setItem('moremote.orient', JSON.stringify(orient));
     else localStorage.removeItem('moremote.orient');
   }, {mode, language, orient});
+  if (linkClass === 'silent') await context.addInitScript(() => {
+    Object.defineProperty(navigator, 'connection', {value:undefined, configurable:true});
+  });
   const page = await context.newPage();
   page.on('pageerror', e => errors.push(e.message));
   await page.route('**/api/**', route => {
@@ -455,6 +458,31 @@ try {
   const manualWidth = await settingsWidth(capped);
   assert.ok(manualWidth > LOW,
     `choosing Sharp by hand must go past the host ceiling, asked for ${manualWidth}`);
+
+  // A manual Data saver choice must stay pinned while low-RTT pongs keep arriving. On the
+  // owner's cellular relay, the About panel showed Data saver while the wire later climbed back
+  // to Balanced, rebuilding the encoder and bringing back the freezes.
+  const pinned = await viewer({viewport:{width:390,height:844},deviceScaleFactor:3,
+    isMobile:true,hasTouch:true},'touch');
+  await pinned.page.getByRole('button', {name:'Display', exact:true}).click();
+  pinned.packets.length = 0;
+  await pinned.page.getByRole('button', {name:/^Data saver/}).click();
+  await pinned.page.waitForTimeout(400);
+  assert.equal(pinned.packets.filter(p => p.type === 'settings').at(-1)?.width, 1024,
+    'manual Data saver must immediately ask for at most 1024px');
+  assert.equal(await pinned.page.evaluate(() => JSON.parse(localStorage.getItem('moremote.autoQuality'))), false,
+    'a manual quality choice must disable Auto');
+  await pinned.page.waitForTimeout(22000);
+  assert.equal(pinned.packets.filter(p => p.type === 'settings').at(-1)?.width, 1024,
+    'the Auto ladder must not silently undo a manual Data saver choice');
+
+  const safariPhone = await viewer({viewport:{width:393,height:852},deviceScaleFactor:3,
+    isMobile:true,hasTouch:true},'touch','en',false,'off',null,'silent');
+  await safariPhone.page.waitForTimeout(400);
+  assert.ok(safariPhone.packets.filter(p => p.type === 'settings').at(-1)?.width <= 1024,
+    'Auto on a phone with no link class must not send Balanced over a cellular relay');
+  assert.equal(safariPhone.packets.filter(p => p.type === 'settings').at(-1)?.quality, 52,
+    'Auto on Safari-shaped phone must use Data saver from its first hello');
 
   const light = await viewer({viewport:{width:360,height:800},deviceScaleFactor:2,
     isMobile:true,hasTouch:true,colorScheme:'light',reducedMotion:'reduce'},'touch','ar');

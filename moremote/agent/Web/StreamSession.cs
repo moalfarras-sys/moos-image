@@ -108,6 +108,9 @@ public sealed class StreamSession
     private long _lastRejectReport;
     private string _lastRejectReason = "";
     private long _lastKeyframeRequest;
+    private int _lastLoggedWidth = -1;
+    private int _lastLoggedQuality = -1;
+    private int _lastLoggedFps = -1;
     /// <summary>When this viewer last asked the encoder for a recovery IDR after dropping its backlog.</summary>
     private long _lastRecoveryKeyframe;
 
@@ -243,6 +246,8 @@ public sealed class StreamSession
         var inject = InputLoop(ct);
         var authorization = AuthorizationLoop(ct);
         var finished = await Task.WhenAny(send, recv, inject, authorization);
+        Log.Info($"Control transport ended: loop={(finished == recv ? "receive" : finished == send ? "send" : finished == inject ? "input" : "authorization")}, " +
+                 $"socket={_socket.State}, close={_socket.CloseStatus?.ToString() ?? "none"}, requestCancelled={requestAborted.IsCancellationRequested}, stopped={handle.Token.IsCancellationRequested}.");
 
         linked.Cancel();
         _inputQueue.Writer.TryComplete();
@@ -426,7 +431,7 @@ public sealed class StreamSession
             }
         }
         catch (OperationCanceledException) { }
-        catch (WebSocketException) { }
+        catch (WebSocketException ex) { Log.Warn($"Frame transport failed: {ex.WebSocketErrorCode}."); }
         catch (Exception ex) { Log.Warn("Send loop ended: " + ex.Message); }
     }
 
@@ -449,7 +454,11 @@ public sealed class StreamSession
                 do
                 {
                     result = await _socket.ReceiveAsync(new ArraySegment<byte>(buffer), ct);
-                    if (result.MessageType == WebSocketMessageType.Close) return;
+                    if (result.MessageType == WebSocketMessageType.Close)
+                    {
+                        Log.Info($"Viewer sent WebSocket close: {result.CloseStatus?.ToString() ?? "none"}.");
+                        return;
+                    }
                     if (result.MessageType == WebSocketMessageType.Text && !tooBig)
                     {
                         // ReceiveAsync can split inside one Arabic character or emoji. Preserve
@@ -465,7 +474,7 @@ public sealed class StreamSession
             }
         }
         catch (OperationCanceledException) { }
-        catch (WebSocketException) { }
+        catch (WebSocketException ex) { Log.Warn($"Control receive failed: {ex.WebSocketErrorCode}."); }
         catch (Exception ex) { Log.Warn("Receive loop ended: " + ex.Message); }
     }
 
@@ -572,6 +581,14 @@ public sealed class StreamSession
                     // use the fraction", which is what an older client sends by saying nothing.
                     if (root.TryGetProperty("width", out var wv) && wv.ValueKind == JsonValueKind.Number)
                         _width = Math.Clamp((int)Math.Round(wv.GetDouble()), 0, 2560);
+                    if (root.TryGetProperty("width", out _) &&
+                        (_width != _lastLoggedWidth || _quality != _lastLoggedQuality || _fps != _lastLoggedFps))
+                    {
+                        Log.Info($"Client encode request: width={_width}, quality={_quality}, fps={_fps}.");
+                        _lastLoggedWidth = _width;
+                        _lastLoggedQuality = _quality;
+                        _lastLoggedFps = _fps;
+                    }
                     // VOTE ON THE PICTURE SIZE ONLY WHEN THIS MESSAGE WAS ABOUT THE PICTURE SIZE.
                     //
                     // This ran unconditionally, and `video` is not only a settings message — the

@@ -223,6 +223,9 @@ assert.equal(autoPresetLimit(QUALITY_PRESETS, null, AUTO_MAX_PRESET,
   { displayWidthPx: 1170, effectiveType: "4g", downlink: 20 }), PRESET_BALANCED,
   "a fast RTT or coarse 4g hint must not promote a phone to 1080p automatically");
 assert.equal(autoPresetLimit(QUALITY_PRESETS, null, AUTO_MAX_PRESET,
+  { displayWidthPx: 1179 }), PRESET_DATA_SAVER,
+  "Safari's silent link class must keep a phone on Data saver rather than trusting DERP RTT");
+assert.equal(autoPresetLimit(QUALITY_PRESETS, null, AUTO_MAX_PRESET,
   { displayWidthPx: 2560, effectiveType: "4g", downlink: 20 }), PRESET_SHARP,
   "a wide viewer can still use Sharp automatically");
 assert.ok(encodeWidth(1600, hostEncodeCeiling(1920, A1), 0) <= 1280,

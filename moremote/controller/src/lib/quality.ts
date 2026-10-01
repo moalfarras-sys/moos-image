@@ -234,9 +234,14 @@ export function autoPresetLimit(
 ): number {
   if (hints.saveData || hints.effectiveType === "slow-2g" ||
       hints.effectiveType === "2g" || hints.effectiveType === "3g") return PRESET_DATA_SAVER;
-  // RTT alone cannot prove that a cellular relay has enough throughput for 1080p. The short
-  // physical edge of a phone below 1400px cannot display Sharp's pixels at fit size anyway;
-  // leave Sharp available as a manual choice for a deliberate zoom/detail tradeoff.
+  // Safari on iPhone reports no Network Information at all. On the owner's cellular Tailscale
+  // relay it measured a healthy 50-60 ms RTT while the 1366px Balanced stream repeatedly lost
+  // its socket; manually pinning 1024px Data saver steadied it. An RTT cannot tell us how much
+  // throughput the relay has. Keep Auto at Data saver for a phone-sized display when the browser
+  // hides its link class. A manual preset still permits more detail on known fast links.
+  if (hints.displayWidthPx && hints.displayWidthPx < 1400 && !hints.effectiveType)
+    return PRESET_DATA_SAVER;
+  // A reported link class still does not make 1080p useful on a phone's short edge.
   if (hints.displayWidthPx && hints.displayWidthPx < 1400)
     return Math.min(PRESET_BALANCED, hostMaxPreset(presets, host, fallback));
   return hostMaxPreset(presets, host, fallback);
