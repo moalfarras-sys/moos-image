@@ -4,7 +4,7 @@ import {dirname, resolve} from "node:path";
 import {fileURLToPath} from "node:url";
 import {
   pickStartPreset, describeHints, encodeWidth, hostMaxPreset, hostEncodeCeiling, autoPresetLimit,
-  PRESET_DATA_SAVER, PRESET_BALANCED, PRESET_SHARP,
+  PRESET_DATA_SAVER, PRESET_BALANCED, PRESET_SHARP, ladderTick, LADDER, WEAK_LINK,
 } from "../src/lib/quality.ts";
 import { QUALITY_PRESETS, AUTO_MAX_PRESET } from "../src/types.ts";
 
@@ -222,3 +222,49 @@ assert.match(remoteAuto, /onClick=\{\(\) => \{ setAuto\(false\); selectPreset\(i
   "choosing a preset by hand must leave the automatic ceiling behind");
 
 console.log("PASS: the host's published encode budget bounds Auto and nothing else");
+
+// ── A weak link must leave the picture somewhere to go, and must not be read as healthy ──────────
+// Before this, Data saver (~1.1 Mbit/s at 1024px/30) was the floor: on a link with less, the ladder
+// had nowhere left to go and the session froze and reconnected in a loop.
+{
+  const st = { up: 0, down: 0, last: 0 };
+  let t = 100_000;
+  const tick = (rtt: number, idx: number, weak: boolean, pongAge = 100) =>
+    ladderTick(st, rtt, pongAge, (t += LADDER.SAMPLE_MS), idx, PRESET_SHARP, weak);
+
+  // The existing counters are unchanged: Sharp backs off after two bad samples.
+  assert.equal(tick(500, PRESET_SHARP, false), null, "one bad sample is jitter");
+  assert.equal(tick(500, PRESET_SHARP, false), "down", "two agreeing bad samples step Sharp down");
+  // At Data saver, four more agreeing samples take the weak-link rung instead of stopping.
+  for (let i = 0; i < 3; i++) assert.equal(tick(500, PRESET_DATA_SAVER, false), null);
+  t += LADDER.COOLDOWN_DOWN;
+  assert.equal(tick(500, PRESET_DATA_SAVER, false), "weak",
+    "a congested Data saver must go below itself, not stay where the link cannot carry it");
+  assert.equal(tick(500, PRESET_DATA_SAVER, true), null, "there is nothing below the weak rung");
+
+  // Recovery uses the same slow, agreeing climb as any step up.
+  t += LADDER.COOLDOWN_UP;
+  for (let i = 0; i < 3; i++) assert.equal(tick(40, PRESET_DATA_SAVER, true), null);
+  assert.equal(tick(40, PRESET_DATA_SAVER, true), "recover", "a healthy link leaves the weak rung");
+}
+{
+  // A collapsing link acts on ONE sample, and a pong four seconds overdue counts as a slow one.
+  const st = { up: 0, down: 0, last: 0 };
+  assert.equal(ladderTick(st, 2000, 100, 50_000, PRESET_SHARP, PRESET_SHARP, false), "down",
+    "a 2-second round trip cannot wait eight seconds of agreement");
+  assert.equal(ladderTick(st, 2000, 100, 50_500, PRESET_BALANCED, PRESET_SHARP, false), null,
+    "the severe path still has a cooldown");
+  const stale = { up: 0, down: 0, last: 0 };
+  assert.equal(ladderTick(stale, 30, 5000, 60_000, PRESET_BALANCED, PRESET_SHARP, false), "down",
+    "a stale 30 ms sample must not read as healthy while the reply is stuck behind the backlog");
+  assert.equal(ladderTick({ up: 0, down: 0, last: 0 }, 0, 0, 60_000, PRESET_SHARP, PRESET_SHARP, false), null,
+    "no measurement is never a reason to move");
+}
+// The rung itself: about 0.4 Mbit/s, legible, and never a manual choice.
+assert.equal(WEAK_LINK.fps, 15);
+assert.ok(WEAK_LINK.width >= 720, "the weak rung keeps the 720 px legibility floor");
+assert.ok(!QUALITY_PRESETS.some(p => p.width === WEAK_LINK.width && p.fps === WEAK_LINK.fps),
+  "the weak rung is not a preset anyone has to pick");
+assert.match(remoteAuto, /const lean = autoRef\.current && weakRef\.current;/,
+  "only the automatic ladder may put the stream on the weak rung");
+console.log("PASS: the ladder reaches a weak-link rung, acts on collapse at once, and reads an overdue pong as slow");

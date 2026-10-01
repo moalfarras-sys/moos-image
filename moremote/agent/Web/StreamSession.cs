@@ -108,6 +108,24 @@ public sealed class StreamSession
     private long _lastRejectReport;
     private string _lastRejectReason = "";
     private long _lastKeyframeRequest;
+    /// <summary>When this viewer last asked the encoder for a recovery IDR after dropping its backlog.</summary>
+    private long _lastRecoveryKeyframe;
+
+    /// <summary>
+    /// How long one frame may take to leave before the socket is given up for dead.
+    ///
+    /// This was 3 seconds. On a phone link that is not "dead": a burst of loss on cellular or a
+    /// weak Wi-Fi cell puts TCP into retransmission timeouts that back off 1 s, 2 s, 4 s, and a
+    /// handover pauses the link for a few seconds more. Aborting at 3 s turned every such pause
+    /// into a full reconnect — authentication, a new hello, a rebuilt pipeline and a fresh IDR —
+    /// which is several times the traffic and the wait of simply riding it out, and on a weak
+    /// link the reconnect then met the next pause. Meanwhile the backlog is already bounded
+    /// (12 frames, then a clean drop to the next IDR), so waiting costs no stale picture.
+    ///
+    /// 7 s stays below the controller's own 8 s silence watchdog, so a link that really is gone
+    /// is still closed from this side first and the phone's reconnect starts at once.
+    /// </summary>
+    private static readonly TimeSpan SlowSendAbort = TimeSpan.FromSeconds(7);
 
     public StreamSession(AgentServices svc, WebSocket socket, string remote)
     {
@@ -169,8 +187,20 @@ public sealed class StreamSession
             // hole corrupts everything after it until the keyframe this asks for.
             if (queued == H264EnqueueResult.NeedKeyframe)
             {
+                _lastRecoveryKeyframe = Environment.TickCount64;
                 _svc.Capture.RequestKeyframe();
                 Log.Warn("Viewer fell behind; dropped the H.264 backlog and will discard deltas until a keyframe.");
+            }
+            else if (queued == H264EnqueueResult.DroppedWhileWaiting &&
+                     Environment.TickCount64 - _lastRecoveryKeyframe >= 1000)
+            {
+                // Ask again while still waiting. One request could be lost — the helper ignores a
+                // second one inside 500 ms, across every viewer — and nothing asked twice, so the
+                // viewer froze until the scheduled IDR: ten seconds with motion, far longer on a
+                // still desktop. Once a second is enough to cover a lost request without making
+                // the encoder emit back-to-back keyframes onto a link that is already struggling.
+                _lastRecoveryKeyframe = Environment.TickCount64;
+                _svc.Capture.RequestKeyframe();
             }
             // Wake the send loop now rather than at its next tick. Release throws once the semaphore
             // is already at its bound, which simply means "the loop has not consumed the last signal
@@ -882,8 +912,8 @@ public sealed class StreamSession
     /// long as the kernel is willing to retransmit, and because it holds _sendLock the PONG queues
     /// behind it — so the client's stall watchdog and the RTT ladder both go blind at precisely the
     /// moment they are needed, and the measured RTT reports the send backlog rather than the network.
-    /// A frame that cannot leave in 3 seconds is not worth sending: it is already older than the queue
-    /// depth allows, and dropping it lets the pong through so the client can adapt.
+    /// The bound is <see cref="SlowSendAbort"/>, long enough to ride out a phone link's ordinary
+    /// retransmission pauses and still shorter than the controller's silence watchdog.
     /// </summary>
     private async Task SendBinary(byte[] data, CancellationToken ct)
     {
@@ -891,7 +921,7 @@ public sealed class StreamSession
         try
         {
             using var bound = CancellationTokenSource.CreateLinkedTokenSource(ct);
-            bound.CancelAfter(TimeSpan.FromSeconds(3));
+            bound.CancelAfter(SlowSendAbort);
             await _socket.SendAsync(new ArraySegment<byte>(data), WebSocketMessageType.Binary, true, bound.Token);
         }
         catch (OperationCanceledException) when (!ct.IsCancellationRequested)
@@ -899,10 +929,10 @@ public sealed class StreamSession
             // Cancelling a WebSocket send does not "drop the frame" — it ABORTS the socket. There
             // is no carrying on, and the old text here that claimed to was a lie the session then
             // died of: the next send threw into a broad catch and the log never connected the two.
-            // Finish the job honestly instead: a link that cannot move one frame in three seconds
-            // is dead or hopelessly saturated, and an explicit abort is what lets the phone's
+            // Finish the job honestly instead: a link that cannot move one frame in that long is
+            // dead or hopelessly saturated, and an explicit abort is what lets the phone's
             // reconnect (which already owns backoff and recovery) run NOW.
-            Log.Warn($"Frame send exceeded 3s from {_remote}; the link is dead or saturated — closing so the client can reconnect.");
+            Log.Warn($"Frame send exceeded {SlowSendAbort.TotalSeconds:0}s from {_remote}; the link is dead or saturated — closing so the client can reconnect.");
             try { _socket.Abort(); } catch { /* already dead */ }
         }
         finally { _sendLock.Release(); }

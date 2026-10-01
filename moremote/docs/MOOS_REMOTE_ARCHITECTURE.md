@@ -31,6 +31,28 @@ delta frames until the next IDR. A browser decode backlog retires the old `Video
 new generation and rejects late callbacks from the old generation. Automatic quality tops out at
 Sharp; Ultra is manual because RTT is latency, not available uplink bandwidth.
 
+## Weak links (2026-10-01)
+
+A phone on mobile data, a crowded Wi-Fi cell or a Tailscale relay can carry less than Data saver's
+~1.1 Mbit/s. The automatic ladder (`ladderTick` in `controller/src/lib/quality.ts`, tested there)
+therefore has one more rung, `WEAK_LINK`: 854 px, 15 fps, quality 40, about 0.4 Mbit/s. The helper's
+bitrate floor is a per-frame budget (800 kbit/s at 30 fps), so it no longer undoes that rung. The
+ladder acts on one sample when a round trip passes 1.5 s, and a pong four seconds overdue counts as
+a slow one. Leaving the rung takes the same slow, agreeing climb as any step up. It is never a
+manual preset.
+
+On the same links, three things used to turn a pause into a lost session. A single `VideoDecoder`
+error voted the room onto JPEG (12–19× the bytes); now the first error inside 20 s rebuilds the
+decoder from a requested keyframe and only a repeat, or a codec the browser refuses, votes. A frame
+send was aborted after 3 s; it is ridden out to 7 s, still below the controller's 8 s silence
+watchdog. A viewer waiting for its recovery IDR asked once; it asks again each second while it
+waits. A settings change inside the 500 ms push floor is deferred rather than dropped, so an
+automatic step down always reaches the encoder.
+
+The portal grant is single use: Start retires the restore token it was given. The helper holds a
+geometry renewal seen during the handshake until the replacement token is stored (atomically), so a
+display change can no longer throw away the owner's one-time approval.
+
 ## Input and clipboard contract
 
 - One bounded FIFO consumer owns all input. Full queues apply backpressure; a new mouse-up or key

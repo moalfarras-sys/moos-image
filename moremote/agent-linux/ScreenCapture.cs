@@ -24,6 +24,8 @@ public sealed class ScreenCapture : IDisposable
     private double _scale = -1;
     private int _settingsGeneration = -1;   // which helper the values above were pushed to
     private long _lastSettingsPush;
+    private readonly object _pushLock = new();
+    private Timer? _trailingPush;           // a push that arrived inside the 500ms floor, deferred
 
     // spectacle fallback state
     private readonly string _shot = Path.Combine(Path.GetTempPath(), $"mo-remote-{Environment.ProcessId}.png");
@@ -96,23 +98,48 @@ public sealed class ScreenCapture : IDisposable
 
     private void PushSettings(int quality, double scale, int width)
     {
-        bool sameHelper = _settingsGeneration == _portal.Generation;
-        if (sameHelper && quality == _quality && Math.Abs(scale - _scale) < 0.001 && width == _width) return;
-        // A width that has barely moved is not a new request. Quality and scale still get through
-        // untouched — they are cheap element properties, not a reason to rebuild anything.
-        if (sameHelper && quality == _quality && Math.Abs(scale - _scale) < 0.001 &&
-            _width > 0 && width > 0 && Math.Abs(width - _width) < _width * WidthHysteresis) return;
-        if (sameHelper && Environment.TickCount64 - _lastSettingsPush < 500) return;
+        lock (_pushLock)
+        {
+            bool sameHelper = _settingsGeneration == _portal.Generation;
+            if (sameHelper && quality == _quality && Math.Abs(scale - _scale) < 0.001 && width == _width) return;
+            // A width that has barely moved is not a new request. Quality and scale still get through
+            // untouched — they are cheap element properties, not a reason to rebuild anything.
+            if (sameHelper && quality == _quality && Math.Abs(scale - _scale) < 0.001 &&
+                _width > 0 && width > 0 && Math.Abs(width - _width) < _width * WidthHysteresis) return;
+            long since = Environment.TickCount64 - _lastSettingsPush;
+            if (sameHelper && since < 500)
+            {
+                // Defer, never drop. On H.264 nothing polls this method — it runs only when a viewer's
+                // settings change — so a change swallowed here stayed swallowed: an automatic step
+                // down that landed within half a second of a width push never reached the encoder,
+                // exactly when a struggling link needed it. One trailing push re-reads the room's
+                // CURRENT agreed values when the floor has passed.
+                _trailingPush ??= new Timer(_ => PushAgreed(), null, Math.Max(1, 500 - since), Timeout.Infinite);
+                return;
+            }
 
-        // `width` rides alongside `scale` rather than replacing it: the helper prefers the pixel
-        // width when it is non-zero and falls back to the fraction when it is 0, so one message
-        // serves both a current client and one that has never heard of the field.
-        if (!_portal.Send(new { type = "video", quality, scale, width, fps = _fps > 0 ? _fps : 30 })) return;
-        _quality = quality;
-        _scale = scale;
-        _width = width;
-        _settingsGeneration = _portal.Generation;
-        _lastSettingsPush = Environment.TickCount64;
+            // `width` rides alongside `scale` rather than replacing it: the helper prefers the pixel
+            // width when it is non-zero and falls back to the fraction when it is 0, so one message
+            // serves both a current client and one that has never heard of the field.
+            if (!_portal.Send(new { type = "video", quality, scale, width, fps = _fps > 0 ? _fps : 30 })) return;
+            _quality = quality;
+            _scale = scale;
+            _width = width;
+            _settingsGeneration = _portal.Generation;
+            _lastSettingsPush = Environment.TickCount64;
+        }
+    }
+
+    /// <summary>The deferred push: whatever the room agrees on NOW, not what was asked then.</summary>
+    private void PushAgreed()
+    {
+        lock (_pushLock)
+        {
+            _trailingPush?.Dispose();
+            _trailingPush = null;
+        }
+        if (_sessionWants.IsEmpty) return;
+        PushSettings(_wantQuality, _wantScale, _wantWidth);
     }
 
     /// <summary>Tell the encoder not to bother producing more than the client will consume.</summary>
@@ -409,5 +436,9 @@ public sealed class ScreenCapture : IDisposable
     }
 
     private static string Quote(string s) => "\"" + s.Replace("\"", "\\\"") + "\"";
-    public void Dispose() { try { File.Delete(_shot); } catch { } }
+    public void Dispose()
+    {
+        lock (_pushLock) { _trailingPush?.Dispose(); _trailingPush = null; }
+        try { File.Delete(_shot); } catch { }
+    }
 }

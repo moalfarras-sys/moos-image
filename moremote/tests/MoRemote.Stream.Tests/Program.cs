@@ -35,7 +35,8 @@ static class Program
         }
         if (args.Length == 0 || args.Contains("pause")) await PausedInputQueue();
         if (args.Length == 0 || args.Contains("owners")) await ControllerHandoff();
-        Console.WriteLine("PASS: Unicode fragments, stream suspension, IDR resume, input teardown and controller handoff");
+        if (args.Length == 0 || args.Contains("weak")) await WeakLink();
+        Console.WriteLine("PASS: Unicode fragments, stream suspension, IDR resume, input teardown, controller handoff and weak-link recovery");
     }
 
     static void Check(bool condition, string message)
@@ -204,6 +205,37 @@ static class Program
         await Stop(socket, running);
     }
 
+    // A phone link that pauses for a few seconds (loss bursts, a cell handover) must be ridden out,
+    // not aborted into a reconnect, and a viewer waiting for its recovery IDR must keep asking for it.
+    static async Task WeakLink()
+    {
+        var (services, socket, running) = await Start("h264");
+        services.Capture.Emit(Idr);
+        await Until(() => socket.Frames.Count > 0, "the first IDR did not reach the viewer");
+        int before = services.Capture.KeyframeRequests;
+
+        socket.BinaryGate = new SemaphoreSlim(0);            // the link stalls mid-stream
+        for (int i = 0; i < 14; i++) services.Capture.Emit(Delta);
+        await Until(() => services.Capture.KeyframeRequests == before + 1,
+            "dropping the backlog did not ask for a recovery IDR");
+        await Task.Delay(1100);
+        services.Capture.Emit(Delta);
+        Check(services.Capture.KeyframeRequests == before + 2,
+            "a viewer still waiting for its IDR did not ask again after a second");
+        services.Capture.Emit(Delta);
+        Check(services.Capture.KeyframeRequests == before + 2, "repeat keyframe requests must be paced");
+
+        await Task.Delay(3000);                               // over four seconds of stall in total
+        Check(socket.State == WebSocketState.Open, "a four-second pause aborted the viewer into a reconnect");
+        var gate = socket.BinaryGate;
+        socket.BinaryGate = null;
+        gate.Release(64);
+        services.Capture.Emit(Idr);
+        await Until(() => socket.Frames.Count >= 3 && socket.Frames.Last().SequenceEqual(Idr),
+            "the stream did not resume from the recovery IDR after the pause");
+        await Stop(socket, running);
+    }
+
     static async Task ControllerHandoff()
     {
         var (services, first, firstRun) = await Start();
@@ -251,12 +283,14 @@ sealed class TestSocket : WebSocket
         if (next.Type == WebSocketMessageType.Close) state = WebSocketState.CloseReceived;
         return new WebSocketReceiveResult(next.Data.Length, next.Type, next.End);
     }
-    public override Task SendAsync(ArraySegment<byte> buffer, WebSocketMessageType type, bool end, CancellationToken ct)
+    /// <summary>While set, binary sends wait on it: a link that has stopped moving.</summary>
+    public volatile SemaphoreSlim? BinaryGate;
+    public override async Task SendAsync(ArraySegment<byte> buffer, WebSocketMessageType type, bool end, CancellationToken ct)
     {
         ct.ThrowIfCancellationRequested();
+        if (type == WebSocketMessageType.Binary && BinaryGate is { } gate) await gate.WaitAsync(ct);
         if (type == WebSocketMessageType.Binary) Frames.Enqueue(buffer.ToArray());
         else Messages.Enqueue(Encoding.UTF8.GetString(buffer));
-        return Task.CompletedTask;
     }
 }
 

@@ -3,6 +3,20 @@
   "_": "What a person can SEE or DO after an update, newest first. One entry per user-visible change, written for the owner of the machine, not for a developer: what it is, where it is, and (when MoOS has a route to it) a way to try it now. 'merged' is when the change reached main (a little later is fine, earlier is not: an entry dated before a machine's previous system is never marked new there); a machine marks an entry new when the system it ran BEFORE the update was built earlier than that. tests/test_whats_new.py reads every entry the way MoOS Settings will.",
   "entries": [
     {
+      "id": "remote-weak-link",
+      "merged": "2026-10-01T01:00:00Z",
+      "glyph": "video",
+      "route": "moos://settings/remote",
+      "title": {
+        "ar": "Mo PC Remote يصمد مع الاتصال الضعيف",
+        "en": "Mo PC Remote holds on a weak connection"
+      },
+      "body": {
+        "ar": "على نت ضعيف تخفّ الصورة تلقائياً ليبقى الماوس واللمس سريعين، ولا ينقطع الاتصال عند توقف قصير. خطأ عابر في الفيديو لا يحوّلك إلى صور ثقيلة، وموافقتك على التحكم لا تضيع عند تغيّر الشاشة، وأثناء طلب الموافقة يبقى سهم الهاتف فوق سهم الكمبيوتر.",
+        "en": "On a weak link the picture lightens itself so mouse and touch stay quick, and a short stall no longer drops the session. A passing video error no longer means heavy images, your approval survives a display change, and while approval is asked, the phone's pointer stays on the PC's."
+      }
+    },
+    {
       "id": "moplayer-horizon",
       "merged": "2026-10-01T00:00:00Z",
       "glyph": "video",

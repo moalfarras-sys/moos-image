@@ -13,3 +13,14 @@ NumLock=0
 
 [Mouse]
 cursorTheme=MoOS
+
+# Mo PC Remote's fallback pointer: ydotoold's uinput device (vendor 0x2333, product 0x6666).
+# Remote uses it only while KDE's RemoteDesktop grant is missing, e.g. while its approval dialog
+# is waiting. uinput moves are relative, so the agent tracks the cursor by adding its own deltas,
+# and that only works 1:1. KWin gave this device the adaptive profile: measured on the station on
+# 2026-10-01, one 40-unit event moved the cursor 20 px and the 40-unit move back moved it 38, so
+# the phone's cursor and the desktop's drifted apart ("two arrows") exactly when the owner had to
+# click the approval. Flat at speed 0 measured 40 -> 40 px and 300 -> 300 px, back to the start.
+[Libinput][9011][26214][ydotoold virtual device]
+PointerAccelerationProfile=1
+PointerAcceleration=0
