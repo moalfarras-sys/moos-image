@@ -234,6 +234,16 @@ export function autoPresetLimit(
 ): number {
   if (hints.saveData || hints.effectiveType === "slow-2g" ||
       hints.effectiveType === "2g" || hints.effectiveType === "3g") return PRESET_DATA_SAVER;
+  // Safari on iPhone reports no Network Information at all. On the owner's cellular Tailscale
+  // relay it measured a healthy 50-60 ms RTT while the 1366px Balanced stream repeatedly lost
+  // its socket; manually pinning 1024px Data saver steadied it. An RTT cannot tell us how much
+  // throughput the relay has. Keep Auto at Data saver for a phone-sized display when the browser
+  // hides its link class. A manual preset still permits more detail on known fast links.
+  if (hints.displayWidthPx && hints.displayWidthPx < 1400 && !hints.effectiveType)
+    return PRESET_DATA_SAVER;
+  // A reported link class still does not make 1080p useful on a phone's short edge.
+  if (hints.displayWidthPx && hints.displayWidthPx < 1400)
+    return Math.min(PRESET_BALANCED, hostMaxPreset(presets, host, fallback));
   return hostMaxPreset(presets, host, fallback);
 }
 
@@ -247,6 +257,13 @@ export function autoPresetLimit(
 export function hostEncodeCeiling(ceiling: number, host: HostEncode | null | undefined): number {
   const cap = usable(host);
   return cap ? Math.min(ceiling, cap.maxWidth) : ceiling;
+}
+
+/** A quality preset remains a bandwidth limit at 100% layout or while zoomed. */
+export function presetEncodeCeiling(presetWidth: number, host: HostEncode | null | undefined,
+                                    auto: boolean): number {
+  const ceiling = Math.min(presetWidth, 2560);
+  return auto ? hostEncodeCeiling(ceiling, host) : ceiling;
 }
 
 /**

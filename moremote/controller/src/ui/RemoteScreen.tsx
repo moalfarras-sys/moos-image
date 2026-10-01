@@ -10,7 +10,7 @@ import {
   type ClipResult, type FileListing, type FileEntry, type PowerAction, type TrustedDeviceInfo,
 } from "../lib/api";
 import { pickStartPreset, readDeviceHints, describeHints, encodeWidth, autoPresetLimit,
-  hostEncodeCeiling, ladderTick, LADDER, WEAK_LINK, type HostEncode } from "../lib/quality";
+  presetEncodeCeiling, ladderTick, LADDER, WEAK_LINK, type HostEncode } from "../lib/quality";
 import { h264Failures, noteH264Failure, H264_MAX_FAILURES } from "../lib/h264state.ts";
 import { diffToOps } from "../lib/typing.ts";
 import { remoteAlertPermission, requestRemoteAlertPermission, showRemoteAlert } from "../lib/notifications";
@@ -1480,35 +1480,9 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired, l
   // ---------- settings (quality + view) ----------
   // Read the preset through a ref: onHello is wired once, so closing over presetIdx directly
   // would make every reconnect re-send the preset that was selected on first render.
-  /**
-   * How many encoded pixels this viewer can actually SHOW.
-   *
-   * WHY THE PRESET ALONE WAS THE WRONG ANSWER IN BOTH DIRECTIONS
-   *
-   * The request was the preset's width and nothing else — the same 1366 or 1920 whether the picture
-   * was being drawn into a 390px-wide phone or a 2560px-wide browser window. That is wrong twice
-   * over, and each way is one of the two complaints this change exists to answer:
-   *
-   *   ON A PHONE it asks for pixels that are thrown away before they are ever seen. Measured here:
-   *   a 390x844 phone showing the desktop fitted upright draws it 390 CSS px wide; at DPR 3 that is
-   *   1170 real pixels, and "Balanced" was asking the encoder for 1366 while "Sharp" asked for
-   *   1920 — 64% more bits than the display can resolve. Those bits are not free: they are encode
-   *   time, bitrate on a cellular link, and decode work on a phone that is already the slowest thing
-   *   in the chain. Paying them buys literally nothing visible.
-   *
-   *   ON A COMPUTER it asks for FEWER pixels than the window shows, and there is no way to get them
-   *   back. A 2560-wide browser window on the default preset was being sent 1366 and upscaling it by
-   *   1.9x — which is exactly the "the picture is not sharp when I open it on the computer" report,
-   *   and no bitrate could have fixed it, because the detail was discarded before the encoder.
-   *
-   * So ask for what is on screen. The preset stays in charge of BANDWIDTH — it owns quality (bits
-   * per pixel) and fps, and its width remains the ceiling — but it can no longer demand more pixels
-   * than exist. Going past 1920 remains the explicit Ultra choice; display size and RTT never make
-   * that bandwidth decision on the user's behalf.
-   *
-   * Zoom is included deliberately: pinching in to read something asks the encoder for the detail
-   * that makes it readable, which is the one moment resolution is worth spending on.
-   */
+  /** Measure the physical pixels occupied by the view. The selected quality preset remains the
+   * encode ceiling even at 100% or while zoomed; changing the view cannot silently turn Data
+   * Saver into a 2560px stream. The measurement may reduce width below that ceiling. */
   const displayWidthPx = () => {
     const c = canvasRef.current;
     if (!c) return 0;
@@ -1563,22 +1537,9 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired, l
     // zoom as well: on that link the question is whether the pointer still answers, not detail.
     const lean = autoRef.current && weakRef.current;
     const p = lean ? { ...preset, ...WEAK_LINK } : preset;
-    // "100%" means the viewer wants real device pixels rather than a fitted picture, so the preset's
-    // width stops being a ceiling; everywhere else it still is.
-    // Zooming in is an explicit request to inspect detail: the preset ceiling
-    // (tuned for the fitted view) must not pin a 2x zoom to upscaled mush, so a
-    // zoomed viewer may ask up to the hard 2560 cap just like "100%".
-    const zoomed = view.current.zoom > 1.05;
-    let ceiling = !lean && (viewModeRef.current === "actual" || zoomed) ? 2560 : Math.min(p.width, 2560);
-    // And never more pixels than the HOST said it can encode — but only while the QUALITY choice
-    // is automatic. The distinction is which question was answered by a person: a preset is an
-    // answer to "how much bandwidth and CPU is this worth", so it overrides the host's estimate.
-    // "100%" and a zoom answer a different question — how the picture is LAID OUT — and leave the
-    // first one on Auto, so they raise the ceiling to 2560 and this still bounds it. That is not
-    // an oversight: a 2-core box asked for 1920 wide while its own budget said 1280 is exactly
-    // the case that made the desktop unusable, and it does not become affordable because the
-    // viewer zoomed in. Turning Auto off is the way to overrule it, and it is one tap away.
-    if (autoRef.current) ceiling = hostEncodeCeiling(ceiling, hostEncodeRef.current);
+    // Layout and bandwidth are separate choices. Zoom or 100% must not silently turn
+    // manual Data Saver's 1024 px stream into Ultra. Ultra remains an explicit choice.
+    const ceiling = presetEncodeCeiling(p.width, hostEncodeRef.current, autoRef.current);
     const shown = displayWidthPx();
     // A zero means we could not measure right now (no canvas, no size, a frame mid-relayout). That
     // is NOT a request for full size — treating it as one made the encode width ping-pong between
@@ -2810,6 +2771,9 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired, l
               <div>
                 <div className="kv"><span>{tr("appVersion")}</span><b>{BUILD}</b></div>
                 <div className="kv"><span>{tr("connection")}</span><b>{status}</b></div>
+                <div className="kv"><span>{tr("quality")}</span>
+                  <b>{auto ? `${tr("autoMode")} · ` : ""}{tr(QUALITY_LABEL_KEYS[presetIdx])}</b>
+                </div>
                 <div className="kv"><span>{tr("thisDevice")}</span><b>{describeHints(deviceHints)}</b></div>
                 <div className="kv"><span>{tr("video")}</span>
                   <b>{status === "live"

@@ -1,30 +1,47 @@
-# MoOS current state — measured 2026-10-01
+# MoOS current state — measured 2026-10-02
 
-**Installed readback, 2026-10-01:** the NVIDIA station boots signed
-`44.20261001.964` from source `b21c6847` (digest `sha256:7a65ff5e…`), with `.959`
-available for rollback. System and user units have no failures. Mo PC Remote is
-active behind Tailscale Serve. The two online tailnet peers observed during this
-check used relays; the station's UDP probe passed. Fast Remote was enabled live,
-and KWin blur/slide read back disabled without restarting the desktop.
+**Installed readback, 2026-10-02:** the NVIDIA station boots signed
+`44.20261001.967` from source `59e97672` (digest `sha256:f55e1594…`), with `.964`
+available for rollback. `post-update-check.sh` passed 55/55 after an older local
+MoPlayer launcher and bundle were backed up outside the launch path; `moos-selfcheck`
+passed 53 checks with two notes. System and user units have no failures. User apps
+are current and fwupd offers no updates. Mo PC Remote is active behind Tailscale
+Serve. The two online tailnet peers observed during this check used relays; the
+station's UDP probe passed. Fast Remote was enabled live, and KWin blur/slide read
+back disabled without restarting the desktop.
 
-**2026-09-30 release readback:** `main` is `cb61e592` (PR #181); signed `.959` passed build
-`36693894196`, three QCOW2 boots, ISO `36699338568`, x86 promotion `36703620410`; ARM
-`36681324601`. The NVIDIA station boots signed `.959` (`sha256:cbc8c0b8…`, read 21:36),
-`.952` retained. ARM build `36721156819` failed its one-updater gate (base added
-`bootc-fetch-apply-updates.timer`); the scrub fix is source until an ARM image proves it.
+**Remote interruption diagnosis, 2026-10-01:** the installed portal repeatedly
+renewed after `1536x864+0+0@3 -> no outputs`. Source `59e97672` ignores an empty
+GDK snapshot until a real output returns, preserving renewal on actual geometry
+change. A temporary user process ran that exact helper and stopped those false
+geometry renewals, but KDE still closed the portal session when HDMI dropped.
+The DRM connector was observed changing `connected -> disconnected -> connected`
+within one second, simultaneous with `There are no outputs` from the portal,
+PowerDevil, plasmashell and other KDE processes. 1920×1080@60 with matching
+logical desktop size also dropped; 3840×2160@60 and 250% scale were restored.
+KWin stayed running, NVIDIA reported no Xid, and memory pressure was zero. The
+physical HDMI link, monitor power or port needs inspection. The software change
+is merged, signed, booted and the portal helper runs from `/usr/lib/mo-remote`.
+The first live iPhone session delivered pointer input and H.264 via NVENC.
+After reboot, no portal renewal appeared in the observed log window; the phone
+still reported freezes on cellular Tailscale. The `source 0x0` log line also
+records a streaming-off event and alone does not prove HDMI dropped. The fix
+cannot keep a disconnected physical output available to KDE. A cellular-link
+endurance/control proof is still needed.
 
-**MoPlayer, 2026-09-30 (branch `feat/moplayer-reborn-20260930`, source only):** the "freeze" was a 278 MB Hive catalogue decoded on the UI isolate each launch (~6 s, 1.4 GB) plus a 4.9 GB idle GPU reservation from Impeller gradient shaders and window-sized layers. Now: catalogue files on isolates (~1.3 s, 0.5 GB), idle GPU ~0.6 GB, get.php links read as Xtream accounts, playlists sorted, MAC portals, Horizon UI; 4K HEVC live and 1080p VOD played on the station; 255 Flutter tests. Open: a real MAC portal, ~1 GB kept after Stop, signed delivery and installed readback (plan P2.13).
+**MoPlayer, merged and delivered on `.964`:** the "freeze" was a 278 MB Hive catalogue decoded on the UI isolate each launch (~6 s, 1.4 GB) plus a 4.9 GB idle GPU reservation from Impeller gradient shaders and window-sized layers. The merged source moves catalogue work to isolates (~1.3 s, 0.5 GB), reduces idle GPU use to ~0.6 GB, reads get.php links as Xtream accounts, sorts playlists, supports MAC portals and ships Horizon UI. A 4K HEVC live stream and 1080p VOD played on the station from the source bundle; 255 Flutter tests passed. The local launcher that shadowed `.964` is now backed up, and the signed launcher is selected. Open: a real MAC portal, ~1 GB kept after Stop and installed playback readback (plan P2.13).
 
-**Mira source, 2026-09-30:** PRs #177–#180 integrate her six pages, approvals inbox, chat history, KDE entry, new Mo AI actions and ARM packaging. The station's earlier user install proved Arabic voice, a live approval and the page renders; the new signed x86/ARM images and installed behavior remain unproved. See `mira/README.md`.
+**Mira, 2026-10-02:** PRs #177–#180 integrate her six pages, approvals inbox, chat history, KDE entry, new Mo AI actions and ARM packaging. Signed x86/ARM builds include her; the station's earlier user install proved Arabic voice, a live approval and the page renders. Installed `.967` interaction remains unproved. See `mira/README.md`.
 ## Source and release truth
-- **Proven production source is `cb61e592`, `44.20260930.959`**: signed x86 build
-  `36693894196`, QCOW2 `36699322130`/`36699326777`/`36699334133`, offline ISO
-  `36699338568`, x86 promotion `36703620410`; ARM build/boot/promotion `36681324601`.
-  All passed for that exact source and its pinned artifacts; the NVIDIA station boots it.
-- Remote v46 is merged source. Real phone/WAN endurance and installed v46 remain open.
-- The two-icon design approval remains pending. A historical post-`.945` health read was
-  55/0, but five old `drkonqi-coredump-processor` timeouts appeared later; review the
-  post-reboot health before describing the workstation as clear.
+- **Proven production source is `59e97672`, `44.20261001.967`**: signed x86 build
+  `36914573577`, QCOW2 `36922199025`/`36922205044`/`36922210323`, offline ISO
+  `36922215953`, x86 promotion `36927117927`; ARM build/boot proof
+  `36914559982`. The NVIDIA station boots its signed digest, with `.964` retained.
+- Remote v46 and the geometry fix are installed. iPhone pointer input reached
+  the host; continuous phone/WAN endurance remains open. HDMI hotplug is an
+  independent blocker.
+- The two-icon design approval remains pending. Post-`.967` checks passed 55/0
+  and 53 checks with two notes; the HDMI disconnect remains open.
 - **P0.7 is no longer only a captured stack.** Read out of plymouth 24.004.60's source on
   2026-09-21: `ply_boot_splash_free()` frees `pixel_displays` without disarming the
   `on_new_frame` timeout that only `ply_boot_splash_hide()` disarms, and `--retain-splash`
@@ -63,27 +80,14 @@ DLL from composefs; do not weaken SELinux globally.
 | Kernel | `7.2.7-200.fc44.x86_64` (2026-10-01) |
 | Network | Intel AX210 Wi-Fi/Bluetooth + RTL8125 Ethernet |
 | Health | Baloo recovered; post-update 55/0; powersave changed to balanced, turbo read back enabled |
-| Freeze audit (2026-10-01) | 3.7 GiB in zram, no OOM this boot. Mo PC Remote renewed its portal grant ~2,600 times in the previous boot; the new diagnostic now identifies the same repeated `1536x864+0+0@3 -> no outputs` transition on `.964` (833 occurrences in the last 3,000 log lines). KScreen still reports the connected 3840×2160 output at 250%. Source fix ignores a transient empty GDK monitor snapshot while retaining real geometry/replacement and stream-health recovery; signed delivery and live endurance proof are pending. `moai-control` woke rpm-ostreed 59× in 2 h 50 min, now once per boot. The Echo gadget's USB microphone floods the kernel log (~60 xHCI "buffer overrun" warnings/s, journald ~3% CPU): the 500 MB journal spans only ~5 h, so the previous boot's user logs were already gone. The fix is the gadget's packet size (Mira) |
+| Freeze audit (2026-10-01) | 3.7 GiB in zram, no OOM this boot. Mo PC Remote renewed its portal grant ~2,600 times in the previous boot; `.964` logged repeated `1536x864+0+0@3 -> no outputs`. Live monitoring found the HDMI connector itself disconnecting for about one second, and KDE closed its portal session when that happened. The signed `.967` fix suppresses an extra geometry-triggered restart during the dropout; live cellular endurance proof is pending. `moai-control` woke rpm-ostreed 59× in 2 h 50 min, now once per boot. The Echo gadget's USB microphone floods the kernel log (~60 xHCI "buffer overrun" warnings/s, journald ~3% CPU): the 500 MB journal spans only ~5 h, so the previous boot's user logs were already gone. The fix is the gadget's packet size (Mira) |
 
-Measured on the previous `.938`: installed `THEME_REV` **87**
-and its existing-account marker, current Global Theme `org.moos.ui2.gaming`,
-`kwinrc/Plugins/blurEnabled=true`, Arabic session (`ar_SA.UTF-8`). The W8/W9
-image is running and passed live post-update checks;
-that does not qualify suspend, every app or the full visual matrix.
-
-**Mo PC Remote on `.938`, 2026-09-26:** authenticated v42 loopback H.264 Data Saver measured 28–29 fps and 1 ms locally; zoom visibly enlarged the desktop; Auto restored; Island follows live glass clarity.
-**Weak link, in source 2026-10-01 (not yet measured on a phone link):** Auto goes below Data saver to 854 px at 15 fps (~0.4 Mbit/s; the helper's bitrate floor is per frame now), acts on one ≥1.5 s round trip or a pong 4 s overdue, and recovers slowly; a first decoder error resyncs on a keyframe instead of moving the room to JPEG; a stalled send is ridden out to 7 s instead of 3; a viewer waiting for a recovery IDR asks again each second; a settings push inside the 500 ms floor is deferred, not dropped; the one-time portal approval survives a display change mid-handshake; while KDE's dialog waits, the uinput fallback pointer is flat 1:1 (it was adaptive: 40 units moved 20 px and back 38 — the owner's "two arrows"; set live on the station and shipped in `/etc/xdg/kcminputrc`).
-External-network, typing, files and audio remain unproved. Pre-authorizing Remote in KDE's portal (no dialog ever) was refused to the agent as a security change and is the owner's decision.
-The scoped Baloo workaround is a user override pending signed delivery, not image proof.
-
-**Speed and Mo AI measured on `.890`, not re-measured:** P5.4 boot **6.70 s**/9.0,
-login to a ready desktop **1.10 s**/3.0, an app's window **0.49 s**/4.0, MoOS's processes
-**0.12%** of CPU while idle/8.0 — all four inside budget. `moai-measure-actions` read
-**80/80** then **79/80** over two runs of 40 fixed Arabic/English cases, no wrong tool in
-either; the one miss was the model answering in words instead of calling (P3.3).
-
-**Updating:** use MoOS Updater (Settings → Update MoOS, or Mo AI) to resolve and stage
-a signed digest, then restart. Nightly builds alone never promote a release.
+**Remote control:** signed `.967` includes the weak-link ladder, H.264 recovery and
+flat pointer mapping. Live iPhone/DERP testing found Auto returning to a 1320 px
+Balanced stream despite ~50–60 ms RTT; manually choosing 1024 px Data Saver
+stabilized the reported session. Source v49 now caps phone Auto at Data Saver when
+Safari hides its link class. The temporary user service serves v49; sustained
+owner reported a stable short v49 cellular trial at 1024 px; longer endurance and signed delivery remain open (plan P2.14).
 
 ## Closed reviews — what they established
 
@@ -185,9 +189,6 @@ that removes `kcm-fcitx5` until Fedora rebuilds it. No 6.8 candidate yet.
 
 ## Other measured facts
 
-**A wallpaper cannot be clicked (2026-09-18):** over a Hub card neither click nor wheel
-arrives, so every card's second face is turned from the desktop's own menu.
-
 **The free brain is measured where it runs (2026-09-18):** the catalogue carried **21**
 tool-capable zero-price models. `moai-measure-free` asks each two fixed questions through the
 real gateway and writes `~/.local/state/moai/free-ranking.json`, which `moai_cloud_policy`
@@ -197,10 +198,3 @@ entered through Settings, a reboot and the provider-failure surface.
 **A second desktop server:** `moos-health scan` found `krdpserver` on `tcp *:3389` beside Mo PC
 Remote; the finding carries `moos://privacy/stop-sharing`, and `moos-remote-guard off` stops and
 un-autostarts both with no administrator rights.
-
-## Next execution
-
-Integrate W9.10 (Mo AI's desktop hands) into the next candidate with the audio/material batch;
-on the station, measure the 15 new action cases on a free model and walk a close-window and a
-reminder card. Then finish P2.12, W9 transactions and W8's three-size mark; pursue P0.7.
-P4.2–P4.5, German, touch/laptop/multi-output and full accessibility remain open.
