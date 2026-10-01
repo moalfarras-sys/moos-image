@@ -52,5 +52,24 @@ class WeakLinkBitrate(unittest.TestCase):
                 self.assertEqual(bitrate(width, height, fps, quality), old)
 
 
+class FallbackPointerIsLinear(unittest.TestCase):
+    """While KDE's grant is missing, Remote moves the real pointer through ydotoold's uinput
+    device by RELATIVE events and tracks the position itself. That needs a 1:1 device; with
+    KWin's adaptive profile the two cursors drifted apart (measured: 40 units -> 20 px, back 38)."""
+
+    def test_the_uinput_device_is_flat_and_unaccelerated(self):
+        import configparser
+        ini = configparser.ConfigParser(strict=False, interpolation=None)
+        ini.optionxform = str
+        ini.read_string((ROOT / "system_files/etc/xdg/kcminputrc").read_text(encoding="utf-8"))
+        # KWin groups devices as [Libinput][vendor][product][name], decimal ids; ydotoold creates
+        # its device as vendor 0x2333 product 0x6666.
+        group = "Libinput][9011][26214][ydotoold virtual device"
+        self.assertIn(group, ini.sections(), "no per-device entry for ydotoold's virtual pointer")
+        self.assertEqual(ini[group].get("PointerAccelerationProfile"), "1",
+                         "libinput's flat profile is 1 (adaptive is 2)")
+        self.assertEqual(float(ini[group].get("PointerAcceleration", "nan")), 0.0)
+
+
 if __name__ == "__main__":
     unittest.main()
