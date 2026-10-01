@@ -54,13 +54,21 @@ Wayland): three minutes of unbroken 1080p, full-resolution texture, position
 advancing in real time.
 
 So the GL path is now the default **everywhere, NVIDIA included**. What keeps
-that honest is `VideoPathProbe`: a marker written before the texture is created
-and removed once playback has proven itself, either by ten seconds of continuous
-play or by a clean shutdown. Two launches in a row that reach neither, and the
-app falls back to the CPU path by itself and says so. The failure mode this
-guards is unobservable from inside the process, so the check happens on the
-*next* launch — that is the whole design, and `test/video_path_probe_test.dart`
-is what keeps it working.
+that honest is `VideoPathProbe`: a marker written when a video is opened and
+removed when frame dimensions arrive, a stream fails, or playback stops. Two
+unproven video attempts make the app fall back to the CPU path. Merely opening
+the library is not an attempt. The GTK close hook uses `_exit` to avoid an
+NVIDIA EGL teardown crash, so Dart `dispose()` cannot be the clean-shutdown
+signal. `test/video_path_probe_test.dart` checks the counter and repeated
+attempts.
+
+Construct `VideoController` only when playback begins; merely opening the
+library must not create a video output. An earlier note here said the output
+itself reserved "several GiB"; the measurement behind it read `nvidia-smi
+--query-compute-apps`, which omits graphics memory, and the GiB were the app's
+gradient shaders (see "The renderer's rules"). Measured again on 2026-09-30 with
+those removed: idle ~0.6 GB, 1080p VOD ~1.7 GB, 4K HEVC live ~2.3 GB, and ~1 GB
+kept after Stop because media_kit disposes its output only with its `Player`.
 
 The lesson worth keeping is not "GL is dangerous". It is that the last version
 of this file stated a hardware verdict — *NVIDIA crashes* — for what was really
@@ -153,6 +161,64 @@ passes an explicit `$XDG_DATA_HOME/moplayer` path instead. Any new store you add
 gets the same treatment. path_provider is answering an iOS question; on a
 freedesktop system it is simply the wrong question.
 
+### 4. The catalogue never touches the UI isolate
+
+This is the fault the owner reported as "it freezes" (2026-09-30), and it had a
+measured cause. The catalogue lived in a Hive box. Hive loads a box whole when
+it opens and appends every write to one log, and the box had grown to
+**278 MB**: twelve rewrites of each section plus a 146 MB JSON re-encoding of a
+395,424-entry playlist. Every launch decoded all of it on the UI isolate — six
+seconds of a dead window and 1.4 GB resident — and a new playlist was parsed and
+re-encoded there too.
+
+Now (`lib/services/catalog/`, `ContentRepository`):
+
+- each section is fetched, cached as **the server's own bytes** in a file under
+  `$XDG_CACHE_HOME/moplayer/catalog/<source>/`, decoded and indexed (a
+  `Shelf`: category map, counts, folded search keys) **inside `Isolate.run`**;
+- a launch serves the cached copy at once, however old, and refreshes a stale
+  one behind it (`changes` → `catalogRevisionProvider`);
+- the isolate entry points are **static** functions, so their closures capture
+  the job and not the repository (a captured `this` with an HTTP client cannot
+  cross an isolate);
+- the retired `mp_cache.hive` is deleted at start, never opened.
+
+Do not put a catalogue, a playlist or a guide back into Hive, and do not decode
+anything larger than a detail page on the UI isolate.
+
+### 5. Every kind of server, one interface
+
+`ContentRepository.mode` is one of:
+
+- **xtream** — `player_api.php`, one JSON document per section;
+- **m3u** — a playlist, sorted on an isolate into channels, films and series
+  (episodes grouped by `S01E02` / `1x02` / `الحلقة` markers), with the header's
+  `url-tvg` guide;
+- **stalker** — a MAG-style portal signed in with a MAC address
+  (`lib/services/stalker/`): channels whole, films and series a category at a
+  time, and one-time stream links resolved by `create_link` at *every* open.
+
+**A playlist link that carries an account is that account.** The owner's
+subscription arrived as `get.php?username=…&password=…&type=m3u_plus` (121 MB,
+395,424 lines). `PlaylistConfig.xtreamEquivalent` reads it through the API
+instead — 12,975 channels, 20,569 films and 10,834 series in three small
+documents — and only if the panel refuses the API does the source fall back to
+the flat file (remembered in the cache's `mode` file).
+
+A live channel that fails *before it ever played* is retried in its other format
+(`.m3u8` ↔ `.ts`) before a retry is spent: accounts are often limited to one.
+
+### 6. The renderer's rules
+
+Read "The renderer's rules" in `DESIGN.md` before drawing anything. In short:
+no gradient shaders (bake them — `GradientFill`), no window-sized offscreen
+layers (blur, `Opacity`, `FadeTransition`), no vsync-driven indicator
+(`CalmSpinner`). Each one was measured on the station in hundreds of megabytes of
+graphics memory or tens of percent of the main thread. Verify with
+`nvidia-smi` (the full table — `--query-compute-apps` hides graphics-only
+processes, which is how an earlier session read "no GPU allocation" while the
+app held 4.9 GB) and per-thread CPU from `/proc/<pid>/task/*/stat`.
+
 ## What must keep being true
 
 - **libmpv is the system's, not ours.** MoOS ships `mpv-libs`. The app links it
@@ -167,6 +233,8 @@ freedesktop system it is simply the wrong question.
 - **Every user-visible string is bilingual.** `lib/core/l10n/strings.dart`, Arabic
   and English, both filled. The `.desktop` file too. An app that only speaks
   English is the one surface in MoOS that does not.
+- **Nothing heavy on the UI isolate.** See "The catalogue never touches the UI
+  isolate" above; the owner's freeze was exactly this.
 - **Nothing in `bootstrap()` may be fatal.** No keyring, no network, no session
   bus, no Supabase — all of them are survivable, and the app must still open into
   a usable player. A video player that will not start because a *notification*

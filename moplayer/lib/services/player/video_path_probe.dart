@@ -10,26 +10,31 @@ import '../../core/utils/app_paths.dart';
 /// has historically failed on NVIDIA is the reason this class exists: the driver
 /// takes the entire process, with no exception, no coredump and no last log
 /// line. Nothing running inside that process can catch it, so there is exactly
-/// one place left to notice it — **the launch afterwards**.
+/// one place left to notice it — **the next video attempt**.
 ///
-/// Hence a file, written before the video texture is created and removed once
-/// playback has proven itself. A file still present at startup means the run
-/// that wrote it never reached either proof.
+/// Hence a file, written when a video is opened and removed once playback has
+/// proven itself. Merely opening the app to browse must not count as a failed
+/// video attempt.
 ///
 /// It counts rather than latching on the first failure because a power cut, an
 /// `Alt+F4` mid-frame or a `pkill` looks identical to a driver crash from here,
 /// and none of those should silently cost the user their picture quality. Two in
 /// a row is the signal; one is noise.
 class VideoPathProbe {
+  /// The file is versioned. Counts written under the old rule (every launch
+  /// armed the probe, so browsing counted as a failed GPU start) are not
+  /// evidence of anything, and the owner's station carried such a count: it
+  /// had pinned the app to the CPU frame path. A new name starts from zero.
   VideoPathProbe({String? path, this.tripAfter = 2})
-    : path = path ?? '${appDataDir()}/video-path.probe';
+    : path = path ?? '${appDataDir()}/video-path-v2.probe';
 
-  /// Consecutive unproven starts before the GPU path is abandoned.
+  /// Consecutive unproven video starts before the GPU path is abandoned.
   final int tripAfter;
 
   final String path;
 
   bool _cleared = false;
+  bool _armed = false;
 
   /// Whether [healthy] has already been recorded for this run.
   bool get isCleared => _cleared;
@@ -56,6 +61,9 @@ class VideoPathProbe {
 
   /// Record that a GPU-path start is beginning. Undone by [healthy].
   void armed() {
+    if (_armed) return;
+    _armed = true;
+    _cleared = false;
     try {
       final file = File(path);
       file.parent.createSync(recursive: true);
@@ -71,8 +79,9 @@ class VideoPathProbe {
   /// that fixes the crash should restore the good path immediately, not after as
   /// many good runs as there were bad ones.
   void healthy() {
-    if (_cleared) return;
+    if (_cleared || !_armed) return;
     _cleared = true;
+    _armed = false;
     try {
       final file = File(path);
       if (file.existsSync()) file.deleteSync();

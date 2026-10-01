@@ -65,25 +65,19 @@ class FileChooser {
           DBusDict.stringVariant({
             'modal': const DBusBoolean(true),
             'multiple': const DBusBoolean(false),
-            'filters': DBusArray(
-              DBusSignature('(sa(us))'),
-              [
-                DBusStruct([
-                  DBusString(filterName),
-                  DBusArray(
-                    DBusSignature('(us)'),
-                    [
-                      for (final extension in extensions)
-                        DBusStruct([
-                          // 0 = glob pattern, 1 = MIME type.
-                          const DBusUint32(0),
-                          DBusString('*.$extension'),
-                        ]),
-                    ],
-                  ),
+            'filters': DBusArray(DBusSignature('(sa(us))'), [
+              DBusStruct([
+                DBusString(filterName),
+                DBusArray(DBusSignature('(us)'), [
+                  for (final extension in extensions)
+                    DBusStruct([
+                      // 0 = glob pattern, 1 = MIME type.
+                      const DBusUint32(0),
+                      DBusString('*.$extension'),
+                    ]),
                 ]),
-              ],
-            ),
+              ]),
+            ]),
           }),
         ],
         replySignature: DBusSignature('o'),

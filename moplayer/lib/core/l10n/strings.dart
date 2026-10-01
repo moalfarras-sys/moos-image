@@ -145,6 +145,61 @@ class S {
     'Scan the code from your phone',
     'Code mit dem Telefon scannen',
   );
+  String get portal => _('بوابة MAC', 'MAC portal', 'MAC-Portal');
+  String get portalHint => _(
+    'رابط البوابة وعنوان MAC المسجّل عند مزوّد الخدمة',
+    'The portal address and the MAC address your provider registered',
+    'Portal-Adresse und die beim Anbieter registrierte MAC-Adresse',
+  );
+  String get portalUrl => _('رابط البوابة', 'Portal URL', 'Portal-URL');
+  String get macAddress => _('عنوان MAC', 'MAC address', 'MAC-Adresse');
+  String get macInvalid => _(
+    'عنوان MAC غير صحيح — مثال: 00:1A:79:12:34:56',
+    'That is not a MAC address — for example 00:1A:79:12:34:56',
+    'Keine gültige MAC-Adresse — zum Beispiel 00:1A:79:12:34:56',
+  );
+  String get m3uLinkHint => _(
+    'الصق أي رابط: قائمة M3U، أو رابط get.php فيه حسابك — يُقرأ عندها كحساب Xtream كامل',
+    'Paste any link: an M3U playlist, or a get.php link with your account — '
+        'which is then read as the full Xtream account',
+    'Beliebigen Link einfügen: eine M3U-Playlist oder einen get.php-Link mit '
+        'Ihrem Konto — der dann als vollständiges Xtream-Konto gelesen wird',
+  );
+  String get brandAllServers => _(
+    'كل السيرفرات: Xtream و M3U وبوابات MAC',
+    'Every server: Xtream, M3U and MAC portals',
+    'Jeder Server: Xtream, M3U und MAC-Portale',
+  );
+  String get brandLiveGuide => _(
+    'بث مباشر على مسرح جانبي، مع دليل البرامج',
+    'Live TV on its own stage, with the programme guide',
+    'Live-TV auf eigener Bühne, mit Programmführer',
+  );
+  String get brandLibrary => _(
+    'أفلام ومسلسلات تتذكّر أين توقفت',
+    'Films and series that remember where you stopped',
+    'Filme und Serien, die sich merken, wo Sie aufgehört haben',
+  );
+  String get brandSystem => _(
+    'بألوان MoOS، ويتحكّم به شريط النظام ومفاتيح الوسائط',
+    'In MoOS colours, controlled from the system bar and media keys',
+    'In MoOS-Farben, steuerbar über die Systemleiste und Medientasten',
+  );
+  String get subscription => _('الاشتراك', 'Subscription', 'Abonnement');
+  String subscriptionExpires(String date) =>
+      _('ينتهي $date', 'Expires $date', 'Läuft ab am $date');
+  String connectionsAllowed(int n) => _(
+    n == 1 ? 'اتصال واحد' : '$n اتصالات',
+    n == 1 ? '1 connection' : '$n connections',
+    n == 1 ? '1 Verbindung' : '$n Verbindungen',
+  );
+  String get followMoosColours =>
+      _('ألوان MoOS', 'MoOS colours', 'MoOS-Farben');
+  String followMoosColoursHint(String? scheme) => _(
+    'يتبع لون النظام${scheme == null ? '' : ' ($scheme)'}. عند الإيقاف: لون MoPlayer البرتقالي.',
+    'Follows the system colour${scheme == null ? '' : ' ($scheme)'}. Off: MoPlayer ember.',
+    'Folgt der Systemfarbe${scheme == null ? '' : ' ($scheme)'}. Aus: MoPlayer-Glut.',
+  );
   String get serverUrl => _('رابط الخادم', 'Server URL', 'Server-URL');
   String get username => _('اسم المستخدم', 'Username', 'Benutzername');
   String get password => _('كلمة المرور', 'Password', 'Passwort');
@@ -152,6 +207,20 @@ class S {
       _('اسم القائمة', 'Playlist name', 'Name der Playlist');
   String get playlistUrl => _('رابط القائمة', 'Playlist URL', 'Playlist-URL');
   String get sources => _('المصادر', 'Sources', 'Quellen');
+
+  // ── Horizon shell ──────────────────────────────────────────────────────────
+  String get searchEverything => _(
+    'ابحث في القنوات والأفلام والمسلسلات',
+    'Search channels, films and series',
+    'Sender, Filme und Serien suchen',
+  );
+  String get manageSources =>
+      _('إدارة المصادر', 'Manage sources', 'Quellen verwalten');
+  String get sourceKindPanel =>
+      _('سيرفر Xtream', 'Xtream server', 'Xtream-Server');
+  String get sourceKindPlaylist =>
+      _('قائمة تشغيل M3U', 'M3U playlist', 'M3U-Wiedergabeliste');
+  String get sourceKindPortal => _('بوابة MAC', 'MAC portal', 'MAC-Portal');
   String get addSource => _('إضافة مصدر', 'Add source', 'Quelle hinzufügen');
   String get activeSource =>
       _('المصدر النشط', 'Active source', 'Aktive Quelle');

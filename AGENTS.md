@@ -273,6 +273,20 @@ Plasma file `rpm -V` reports that is not registered, and loads the real greeter.
 upstream file means registering it. A new Plasma means a reviewed set, never a wider range or
 an added digest.
 
+**MoPlayer's close hook bypasses Dart cleanup.** Its GTK runner calls `_exit` before
+Flutter's NVIDIA EGL teardown, so `PlayerService.dispose()` does not run when the
+window closes. A crash probe armed at app launch therefore counted ordinary
+library browsing as a failed GPU start and latched onto the CPU video path. Arm
+the probe only for a real video attempt, clear it on a frame/error/stop, and
+construct `VideoController` only when playback starts.
+
+**Measure a Flutter app's graphics memory with the whole `nvidia-smi` table.**
+`--query-compute-apps` omits graphics-only memory; read that way MoPlayer looked
+clean while it held 4.9 GB of an 8 GB card. The cause, found by bisection, was
+Impeller on GLES reserving hundreds of MB for every gradient shader and every
+window-sized offscreen layer (blur, `Opacity`) — see `moplayer/DESIGN.md`,
+"The renderer's rules". MoPlayer now bakes its gradients into small images.
+
 **Boot the image and look at it.** `podman build` + `bootc-image-builder --type qcow2` + qemu
 with `screendump` takes about half an hour and is the only thing that found any of the above.
 
@@ -339,6 +353,13 @@ move backwards after a failed release operation or manual registry edit. Compare
 the validated `org.opencontainers.image.version` label with the booted deployment
 before offering an update, and repeat the check after privilege escalation. A
 digest-only updater can silently downgrade a newer working machine.
+
+**The journal may not reach back one boot.** MoOS caps it at 500 MB, and one noisy device
+fills that in hours: on 2026-10-01 the Echo gadget's USB microphone logged ~60 xHCI "buffer
+overrun" warnings a second, the whole journal spanned about five hours, and the previous
+boot's user logs were gone when a 34-hour Mo PC Remote loop needed explaining. Its own log
+(`~/.local/share/MoRemotePersonal/log.txt`) still had every line. Run `journalctl --list-boots`
+before concluding that nothing happened, and read the component's own log.
 
 **`pgrep -f <name>` matches your own shell.** `until ! pgrep -f bootc-image-builder; do sleep 30;
 done` never exits: the waiting shell's own command line contains the string, so pgrep finds

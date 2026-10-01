@@ -128,7 +128,7 @@ class _ChannelTileState extends State<ChannelTile> {
                     end: widget.selected ? Nova.space2 + 2 : 0,
                   ),
                   decoration: BoxDecoration(
-                    gradient: AppColors.emberGradient,
+                    color: AppColors.primary,
                     borderRadius: BorderRadius.circular(2),
                   ),
                 ),
@@ -534,9 +534,8 @@ class _CategoryPillState extends State<CategoryPill> {
               vertical: Nova.space2,
             ),
             decoration: BoxDecoration(
-              gradient: widget.selected ? AppColors.emberGradient : null,
               color: widget.selected
-                  ? null
+                  ? AppColors.primary
                   : (_hovered ? AppColors.surface3 : AppColors.surface2),
               borderRadius: BorderRadius.circular(999),
               border: Border.all(
@@ -727,8 +726,7 @@ class StatTile extends StatelessWidget {
               width: 38,
               height: 38,
               decoration: BoxDecoration(
-                gradient: accent ? AppColors.emberGradient : null,
-                color: accent ? null : AppColors.surface3,
+                color: accent ? AppColors.primary : AppColors.surface3,
                 borderRadius: BorderRadius.circular(Nova.radiusControl - 2),
               ),
               child: Icon(
@@ -860,8 +858,7 @@ class MoOSBadge extends StatelessWidget {
             width: 8,
             height: 8,
             decoration: BoxDecoration(
-              gradient: on ? AppColors.novaGradient : null,
-              color: on ? null : AppColors.textMuted,
+              color: on ? const Color(0xFF2E7BFF) : AppColors.textMuted,
               shape: BoxShape.circle,
               boxShadow: on
                   ? const [
@@ -917,8 +914,8 @@ class ProgressBar extends StatelessWidget {
             FractionallySizedBox(
               alignment: AlignmentDirectional.centerStart,
               widthFactor: value.clamp(0.0, 1.0),
-              child: const DecoratedBox(
-                decoration: BoxDecoration(gradient: AppColors.emberGradient),
+              child: DecoratedBox(
+                decoration: BoxDecoration(color: AppColors.primary),
               ),
             ),
           ],

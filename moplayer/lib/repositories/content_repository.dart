@@ -1,11 +1,11 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:isolate';
 
-import 'package:dio/dio.dart';
-import 'package:flutter/foundation.dart' show compute;
-import 'package:flutter/services.dart';
+import 'package:flutter/foundation.dart' show visibleForTesting;
+import 'package:flutter/services.dart' show rootBundle;
 
-import '../core/config/app_config.dart';
 import '../core/constants/app_constants.dart';
 import '../core/error/failures.dart';
 import '../core/utils/app_logger.dart';
@@ -15,563 +15,814 @@ import '../models/live_channel.dart';
 import '../models/playlist_config.dart';
 import '../models/series.dart';
 import '../models/vod_movie.dart';
-import '../services/cache/cache_service.dart';
+import '../services/catalog/catalog_files.dart';
+import '../services/catalog/shelf.dart';
+import '../services/epg/guide_job.dart';
 import '../services/epg/xmltv_guide.dart';
+import '../services/m3u/m3u_catalog.dart';
 import '../services/m3u/m3u_parser.dart';
+import '../services/stalker/stalker_api.dart';
 import '../services/xtream/xtream_api.dart';
+import '../services/xtream/xtream_catalog.dart';
 import '../services/xtream/xtream_url_builder.dart';
 
-/// Newest first, by whatever timestamp the panel stamped the item with.
-///
-/// This is the order the catalogue is *served* in, not a view preference, and it
-/// is here because of what the panel's own order actually is. Asked for all
-/// 20,187 films, this subscription answers with its recorded football matches
-/// first — thirty-two of them, every one carrying the identical FIFA artwork. A
-/// user opening the film wall met a grid of the same picture repeated, and
-/// concluded the app had failed to load. Sorted by `added`, the same request
-/// opens on *The Real Charlie Chaplin*, *48 Hrs.*, *Remi Nobody's Boy*.
-///
-/// A panel that stamps nothing keeps its own order, which is already
-/// newest-first by convention — sorting undated items to the bottom would empty
-/// the wall on exactly the panels that need it most.
-List<T> newestFirst<T>(List<T> items, DateTime? Function(T) stamp) {
-  final dated = <T>[];
-  final undated = <T>[];
-  for (final item in items) {
-    (stamp(item) == null ? undated : dated).add(item);
-  }
-  if (dated.isEmpty) return items;
-  dated.sort((a, b) => stamp(b)!.compareTo(stamp(a)!));
-  return [...dated, ...undated];
+export '../services/xtream/xtream_catalog.dart'
+    show CatalogSection, newestFirst;
+
+/// How a source is actually being read.
+enum SourceMode {
+  /// The panel's `player_api.php`: typed JSON per section, with categories,
+  /// artwork, film and series details and a guide.
+  xtream,
+
+  /// A playlist file, sorted into channels, films and series on a background
+  /// isolate.
+  m3u,
+
+  /// A MAG-style middleware portal.
+  stalker,
 }
 
-/// Unified content access for the active playlist. For Xtream it talks to the
-/// panel; for M3U it parses the playlist once and serves everything from the
-/// in-memory + on-disk cache. All methods throw a typed [Failure] on error
-/// (after falling back to any stale cache when possible).
+/// What to open, and what to open instead if that fails.
+///
+/// A panel serves each live channel as HLS (`.m3u8`) and as MPEG-TS (`.ts`),
+/// but an account can be limited to one of them, and some panels answer one
+/// format with a 404 while the other plays. Trying the second format before
+/// reporting a dead channel is the difference between "this server works" and
+/// "half the channels are broken".
+class PlaybackTarget {
+  const PlaybackTarget(this.url, {this.alternatives = const []});
+
+  final String url;
+  final List<String> alternatives;
+}
+
+typedef CatalogSearch = ({
+  List<LiveChannel> live,
+  List<VodMovie> movies,
+  List<SeriesItem> series,
+});
+
+/// Unified content access for the active source.
+///
+/// **Nothing heavy runs on the UI isolate.** Every catalogue section is fetched,
+/// cached and indexed on a background isolate (see [Shelf]), and what comes back
+/// is a finished index. The first read of a section after launch comes from the
+/// on-disk cache, instantly, even when that copy is old; a stale copy is then
+/// refreshed in the background and the screens are told through [changes]. The
+/// network is only waited on when there is no copy at all.
+///
+/// Three kinds of source share this one interface — an Xtream panel, a playlist
+/// file and a Stalker portal — and a playlist link that turns out to *be* an
+/// Xtream account is read through the account's API (see
+/// [PlaylistConfig.xtreamEquivalent]).
 class ContentRepository {
   ContentRepository({
     required this.config,
-    required this._cache,
+    CatalogFiles? files,
     XtreamApi? api,
-  }) : _api = config.isXtream ? (api ?? XtreamApi(config)) : null,
-       _urls = XtreamUrlBuilder(config);
+    @visibleForTesting Duration? staleAfter,
+  }) : _files = files ?? CatalogFiles.forUser(),
+       _xtreamConfig = config.isXtream ? config : config.xtreamEquivalent,
+       _injectedApi = api,
+       _staleAfter = staleAfter ?? CacheTtl.streams {
+    _mode = _initialMode();
+  }
 
   final PlaylistConfig config;
-  final CacheService _cache;
-  final XtreamApi? _api;
-  final XtreamUrlBuilder _urls;
+  final CatalogFiles _files;
+  final PlaylistConfig? _xtreamConfig;
+  final XtreamApi? _injectedApi;
+  final Duration _staleAfter;
 
-  M3uResult? _m3uMemo;
+  late SourceMode _mode;
 
-  String get _ns => config.id; // cache namespace per playlist
+  /// How this source is being read right now. A playlist link can move from
+  /// [SourceMode.xtream] to [SourceMode.m3u] once, if the panel's API refuses
+  /// the account the link carries.
+  SourceMode get mode => _mode;
 
-  bool get supportsVod => config.isXtream;
-  bool get supportsSeries => config.isXtream;
+  String get _ns => config.id;
 
-  // --- Live ----------------------------------------------------------------
+  final StreamController<CatalogSection> _changes =
+      StreamController<CatalogSection>.broadcast();
 
-  Future<List<Category>> liveCategories({bool forceRefresh = false}) async {
-    if (config.isXtream) {
-      return _xtreamCategories(
-        'live_cats',
-        () => _api!.getLiveCategories(),
-        forceRefresh: forceRefresh,
-      );
+  /// A section whose content changed after it was first served — a background
+  /// refresh landed, or the source switched how it is read.
+  Stream<CatalogSection> get changes => _changes.stream;
+
+  bool _disposed = false;
+
+  // Film and series pages exist for every kind of source. A playlist that
+  // carries none simply shows them empty, which says something true.
+  bool get supportsVod => true;
+  bool get supportsSeries => true;
+
+  static const _modeFile = 'mode';
+
+  SourceMode _initialMode() {
+    if (config.isStalker) return SourceMode.stalker;
+    if (config.isXtream) return SourceMode.xtream;
+    if (_xtreamConfig == null) return SourceMode.m3u;
+    // A playlist link that carries an account. Read it through the account's
+    // API unless a previous run learned that the API refuses it.
+    final marker = _files.read(_ns, _modeFile);
+    if (marker != null && utf8.decode(marker, allowMalformed: true) == 'm3u') {
+      return SourceMode.m3u;
     }
-    final m3u = await _loadM3u(forceRefresh: forceRefresh);
-    return m3u.categories;
+    return SourceMode.xtream;
   }
+
+  XtreamApi? _apiInstance;
+  XtreamApi get _api =>
+      _injectedApi ?? (_apiInstance ??= XtreamApi(_xtreamConfig!));
+
+  XtreamUrlBuilder get _urls => XtreamUrlBuilder(_xtreamConfig!);
+
+  // ── Sections ───────────────────────────────────────────────────────────────
+
+  final Map<CatalogSection, Shelf<Object>> _shelves = {};
+  final Map<CatalogSection, Future<Shelf<Object>>> _inflight = {};
+  final Set<CatalogSection> _refreshing = {};
+
+  Future<Shelf<LiveChannel>> liveShelf({bool forceRefresh = false}) async =>
+      (await _shelf(CatalogSection.live, forceRefresh)) as Shelf<LiveChannel>;
+
+  Future<Shelf<VodMovie>> movieShelf({bool forceRefresh = false}) async =>
+      (await _shelf(CatalogSection.movies, forceRefresh)) as Shelf<VodMovie>;
+
+  Future<Shelf<SeriesItem>> seriesShelf({bool forceRefresh = false}) async =>
+      (await _shelf(CatalogSection.series, forceRefresh)) as Shelf<SeriesItem>;
+
+  /// The section if it is already in memory, without waiting. Screens use this
+  /// to draw a first frame with content instead of a spinner.
+  Shelf<T>? peek<T>(CatalogSection section) => _shelves[section] as Shelf<T>?;
+
+  Future<Shelf<Object>> _shelf(CatalogSection section, bool forceRefresh) {
+    if (!forceRefresh) {
+      final ready = _shelves[section];
+      if (ready != null) return Future.value(ready);
+    }
+    final running = _inflight[section];
+    if (running != null) return running;
+    final future = _load(section, forceRefresh).whenComplete(() {
+      _inflight.remove(section);
+    });
+    _inflight[section] = future;
+    return future;
+  }
+
+  Future<Shelf<Object>> _load(CatalogSection section, bool forceRefresh) {
+    return switch (_mode) {
+      SourceMode.xtream => _loadXtream(section, forceRefresh),
+      SourceMode.m3u => _loadM3u(section, forceRefresh),
+      SourceMode.stalker => _loadStalker(section),
+    };
+  }
+
+  XtreamShelfJob _xtreamJob(CatalogSection section) {
+    final x = _xtreamConfig!;
+    return XtreamShelfJob(
+      server: x.normalizedServer,
+      username: x.username,
+      password: x.password,
+      cacheRoot: _files.root,
+      namespace: _ns,
+      section: section,
+    );
+  }
+
+  Future<Shelf<Object>> _loadXtream(
+    CatalogSection section,
+    bool forceRefresh,
+  ) async {
+    final job = _xtreamJob(section);
+    if (!forceRefresh) {
+      final cached = await _runCachedXtream(job);
+      if (cached != null) {
+        _shelves[section] = cached;
+        if (DateTime.now().difference(cached.fetchedAt) > _staleAfter) {
+          _refreshInBackground(section);
+        }
+        return cached;
+      }
+    }
+    try {
+      final fresh = await _runFetchXtream(job);
+      _shelves[section] = fresh;
+      return fresh;
+    } on Failure catch (failure) {
+      final stale = _shelves[section];
+      if (stale != null) return stale;
+      if (_canFallBackToPlaylist(failure)) {
+        _switchToPlaylist();
+        return _loadM3u(section, forceRefresh);
+      }
+      rethrow;
+    }
+  }
+
+  /// A playlist link read as an account falls back to the playlist when the
+  /// panel says the account is not one it will serve through its API. A
+  /// network failure proves nothing about the API, so it does not count.
+  bool _canFallBackToPlaylist(Failure failure) =>
+      config.isM3u &&
+      (failure.kind == FailureKind.auth ||
+          failure.kind == FailureKind.parse ||
+          failure.kind == FailureKind.server);
+
+  void _switchToPlaylist() {
+    if (_mode == SourceMode.m3u) return;
+    log.w('source: the panel API refused this link — reading it as a playlist');
+    _mode = SourceMode.m3u;
+    _shelves.clear();
+    _files.write(_ns, _modeFile, utf8.encode('m3u'));
+  }
+
+  void _refreshInBackground(CatalogSection section) {
+    if (_refreshing.contains(section) || _disposed) return;
+    _refreshing.add(section);
+    final Future<void> work = switch (_mode) {
+      SourceMode.xtream => _runFetchXtream(_xtreamJob(section)).then((fresh) {
+        _shelves[section] = fresh;
+        _announce(section);
+      }),
+      SourceMode.m3u => _fetchM3uLibrary().then((library) {
+        _adoptLibrary(library);
+        for (final s in CatalogSection.values) {
+          _announce(s);
+        }
+      }),
+      SourceMode.stalker => Future<void>.value(),
+    };
+    unawaited(
+      work
+          .catchError((Object error) {
+            log.w('catalogue refresh failed: ${safeLogMessage(error)}');
+          })
+          .whenComplete(() => _refreshing.remove(section)),
+    );
+  }
+
+  void _announce(CatalogSection section) {
+    if (!_disposed) _changes.add(section);
+  }
+
+  // The isolate entry points are static so that their closures capture the
+  // job and nothing else. A closure created inside an instance method can
+  // capture `this`, and a repository holding an HTTP client cannot be copied
+  // into another isolate.
+  static Future<Shelf<Object>?> _runCachedXtream(XtreamShelfJob job) =>
+      _isolate(() => loadCachedXtreamShelf(job));
+
+  static Future<Shelf<Object>> _runFetchXtream(XtreamShelfJob job) =>
+      _isolate(() => fetchXtreamShelf(job));
+
+  static Future<R> _isolate<R>(FutureOr<R> Function() job) async {
+    try {
+      return await Isolate.run(job);
+    } on RemoteError catch (error) {
+      log.w('catalogue job failed: ${safeLogMessage(error)}');
+      throw Failure.server('Could not read the catalogue.');
+    }
+  }
+
+  // ── Playlists ──────────────────────────────────────────────────────────────
+
+  M3uLibrary? _library;
+  Future<M3uLibrary>? _libraryLoad;
+
+  String get _playlistUrl => config.m3uUrl.trim();
+
+  M3uLibraryJob get _m3uJob =>
+      M3uLibraryJob(url: _playlistUrl, cacheRoot: _files.root, namespace: _ns);
+
+  Future<Shelf<Object>> _loadM3u(
+    CatalogSection section,
+    bool forceRefresh,
+  ) async {
+    final library = await _m3uLibrary(forceRefresh: forceRefresh);
+    return _shelves[section] ?? _sectionOf(library, section);
+  }
+
+  static Shelf<Object> _sectionOf(M3uLibrary library, CatalogSection section) =>
+      switch (section) {
+        CatalogSection.live => library.live,
+        CatalogSection.movies => library.movies,
+        CatalogSection.series => library.series,
+      };
+
+  void _adoptLibrary(M3uLibrary library) {
+    _library = library;
+    for (final section in CatalogSection.values) {
+      _shelves[section] = _sectionOf(library, section);
+    }
+  }
+
+  Future<M3uLibrary> _m3uLibrary({bool forceRefresh = false}) {
+    if (!forceRefresh && _library != null) return Future.value(_library);
+    return _libraryLoad ??= _loadLibrary(forceRefresh).whenComplete(() {
+      _libraryLoad = null;
+    });
+  }
+
+  Future<M3uLibrary> _loadLibrary(bool forceRefresh) async {
+    final job = _m3uJob;
+    if (!forceRefresh && job.isRemote) {
+      final cached = await _runCachedLibrary(job);
+      if (cached != null) {
+        _adoptLibrary(cached.library);
+        if (DateTime.now().difference(cached.written) > _staleAfter) {
+          _refreshInBackground(CatalogSection.live);
+        }
+        return cached.library;
+      }
+    }
+    try {
+      final library = await _fetchM3uLibrary();
+      _adoptLibrary(library);
+      return library;
+    } on Failure {
+      final stale = _library;
+      if (stale != null) return stale;
+      rethrow;
+    }
+  }
+
+  static Future<({M3uLibrary library, DateTime written})?> _runCachedLibrary(
+    M3uLibraryJob job,
+  ) => _isolate(() => loadCachedM3uLibrary(job));
+
+  static Future<M3uLibrary> _runFetchLibrary(M3uLibraryJob job) =>
+      _isolate(() => fetchM3uLibrary(job));
+
+  static Future<M3uLibrary> _runParseText(String text) =>
+      _isolate(() => parseM3uText(text));
+
+  Future<M3uLibrary> _fetchM3uLibrary() async {
+    final url = _playlistUrl;
+    if (url.startsWith('asset://')) {
+      final text = await rootBundle.loadString(
+        'assets/${url.substring('asset://'.length)}',
+      );
+      return _runParseText(text);
+    }
+    return _runFetchLibrary(_m3uJob);
+  }
+
+  // ── Portals ────────────────────────────────────────────────────────────────
+  //
+  // A Stalker portal pages its films and series fourteen at a time and has no
+  // "everything" answer to cache, so it is read the way a set-top box reads
+  // it: the channel list whole, and films and series a category at a time, as
+  // the user opens them. Nothing of it is written to disk; a portal hands out
+  // one-time stream links, and its catalogue is only as good as the session
+  // that fetched it.
+
+  StalkerApi? _stalkerInstance;
+  StalkerApi get _stalker => _stalkerInstance ??= StalkerApi(
+    portalUrl: config.serverUrl,
+    macAddress: config.macAddress,
+  );
+
+  List<Category>? _stalkerMovieCategories;
+  List<Category>? _stalkerSeriesCategories;
+  final Map<String, Future<List<VodMovie>>> _stalkerMovies = {};
+  final Map<String, Future<List<SeriesItem>>> _stalkerSeries = {};
+
+  /// How many pages of one category are read up front. A portal page is
+  /// usually fourteen items, so this is the first hundred or so — what a
+  /// screen shows before anybody scrolls, without a hundred requests behind it.
+  static const _stalkerPages = 8;
+
+  Future<Shelf<Object>> _loadStalker(CatalogSection section) async {
+    switch (section) {
+      case CatalogSection.live:
+        final results = await Future.wait<Object>([
+          _stalker.liveGenres(),
+          _stalker.liveChannels(),
+        ]);
+        final shelf = Shelf<LiveChannel>.build(
+          items: results[1] as List<LiveChannel>,
+          categoryOf: (c) => c.categoryId,
+          nameOf: (c) => c.name,
+          declared: results[0] as List<Category>,
+        );
+        _shelves[section] = shelf;
+        return shelf;
+      case CatalogSection.movies:
+        _stalkerMovieCategories ??= await _stalker.vodCategories();
+        final items = await _stalkerMoviesIn(Category.allId);
+        final shelf = Shelf<VodMovie>.build(
+          items: items,
+          categoryOf: (m) => m.categoryId,
+          nameOf: (m) => m.name,
+        );
+        _shelves[section] = shelf;
+        return shelf;
+      case CatalogSection.series:
+        _stalkerSeriesCategories ??= await _stalker.seriesCategories();
+        final items = await _stalkerSeriesIn(Category.allId);
+        final shelf = Shelf<SeriesItem>.build(
+          items: items,
+          categoryOf: (s) => s.categoryId,
+          nameOf: (s) => s.name,
+        );
+        _shelves[section] = shelf;
+        return shelf;
+    }
+  }
+
+  static String _portalCategory(String? id) =>
+      (id == null || id.isEmpty || id == Category.allId) ? '*' : id;
+
+  Future<List<VodMovie>> _stalkerMoviesIn(String? categoryId) {
+    final key = _portalCategory(categoryId);
+    return _stalkerMovies[key] ??=
+        _pages<VodMovie>(
+          (page) => _stalker.vodPage(key, page: page),
+        ).catchError((Object error) {
+          _stalkerMovies.remove(key);
+          throw error;
+        });
+  }
+
+  Future<List<SeriesItem>> _stalkerSeriesIn(String? categoryId) {
+    final key = _portalCategory(categoryId);
+    return _stalkerSeries[key] ??=
+        _pages<SeriesItem>(
+          (page) => _stalker.seriesPage(key, page: page),
+        ).catchError((Object error) {
+          _stalkerSeries.remove(key);
+          throw error;
+        });
+  }
+
+  static Future<List<T>> _pages<T>(
+    Future<StalkerPage<T>> Function(int page) fetch,
+  ) async {
+    final first = await fetch(1);
+    if (!first.hasMore || first.perPage <= 0) return first.items;
+    final total = (first.totalItems / first.perPage).ceil();
+    final last = total < _stalkerPages ? total : _stalkerPages;
+    final rest = await Future.wait([
+      for (var page = 2; page <= last; page++)
+        fetch(page).then((p) => p.items, onError: (Object _) => <T>[]),
+    ]);
+    return [...first.items, for (final items in rest) ...items];
+  }
+
+  // ── Compatibility surface used by the providers ────────────────────────────
+
+  Future<List<Category>> liveCategories({bool forceRefresh = false}) async =>
+      (await liveShelf(forceRefresh: forceRefresh)).categories;
 
   Future<List<LiveChannel>> liveStreams({
     String? categoryId,
     bool forceRefresh = false,
-  }) async {
-    if (config.isXtream) {
-      final all = await _xtreamLive(
-        categoryId: categoryId,
-        forceRefresh: forceRefresh,
-      );
-      return _filterByCategory(all, categoryId, (c) => c.categoryId);
-    }
-    final m3u = await _loadM3u(forceRefresh: forceRefresh);
-    return _filterByCategory(m3u.channels, categoryId, (c) => c.categoryId);
-  }
-
-  /// The guide for one channel.
-  ///
-  /// The panel's own `get_short_epg` is asked first — a panel that implements it
-  /// answers per-channel and answers fast. When it comes back empty (and there
-  /// are panels where it *always* does, while `xmltv.php` returns thousands of
-  /// programmes), the channel is looked up in the XMLTV guide instead. The
-  /// [epgChannelId] is what XMLTV keys on; a channel without one has no guide,
-  /// and that is a fact about the channel, not a failure.
-  Future<List<EpgEntry>> epg(String streamId, {String? epgChannelId}) async {
-    final api = _api;
-    if (api == null) return const [];
-
-    final short = await api.getShortEpg(streamId);
-    if (short.isNotEmpty) return short;
-
-    if (epgChannelId == null || epgChannelId.trim().isEmpty) return const [];
-    final guide = await this.guide();
-    return guide.forChannel(epgChannelId);
-  }
-
-  /// The whole XMLTV guide, cached and parsed off the UI isolate.
-  ///
-  /// Memoised in the repository for the process's lifetime as well as on disk:
-  /// the live screen asks for it once per visible row, and re-reading a
-  /// megabyte out of Hive forty times while the user scrolls is a stutter with
-  /// no cause anyone would look for.
-  Future<EpgGuide> guide({bool forceRefresh = false}) async {
-    if (!config.isXtream) return EpgGuide.empty;
-    if (!forceRefresh && _guideMemo != null) return _guideMemo!;
-
-    final key = '${_ns}_xmltv';
-    if (!forceRefresh) {
-      final cached = _cache.getText(key, ttl: CacheTtl.categories);
-      if (cached != null) {
-        final parsed = await compute(EpgGuide.parse, cached);
-        _guideMemo = parsed;
-        return parsed;
-      }
-    }
-
-    final xml = await _api!.getXmltv();
-    if (xml.trim().isEmpty) {
-      _guideMemo = EpgGuide.empty;
-      return EpgGuide.empty;
-    }
-
-    await _cache.putText(key, xml);
-    final parsed = await compute(EpgGuide.parse, xml);
-    _guideMemo = parsed;
-    return parsed;
-  }
-
-  EpgGuide? _guideMemo;
-
-  // --- Movies --------------------------------------------------------------
+  }) async =>
+      (await liveShelf(forceRefresh: forceRefresh)).inCategory(categoryId);
 
   Future<List<Category>> movieCategories({bool forceRefresh = false}) async {
-    if (!supportsVod) return const [];
-    return _xtreamCategories(
-      'vod_cats',
-      () => _api!.getVodCategories(),
-      forceRefresh: forceRefresh,
-    );
+    final shelf = await movieShelf(forceRefresh: forceRefresh);
+    return _mode == SourceMode.stalker
+        ? (_stalkerMovieCategories ?? const [])
+        : shelf.categories;
   }
 
   Future<List<VodMovie>> movies({
     String? categoryId,
     bool forceRefresh = false,
   }) async {
-    if (!supportsVod) return const [];
-    final all = await _xtreamMovies(
-      categoryId: categoryId,
+    if (_mode == SourceMode.stalker) return _stalkerMoviesIn(categoryId);
+    return (await movieShelf(
       forceRefresh: forceRefresh,
-    );
-    return newestFirst(
-      _filterByCategory(all, categoryId, (m) => m.categoryId),
-      (m) => m.added,
-    );
+    )).inCategory(categoryId);
   }
-
-  /// A film's plot, cast and backdrop — cached for a day.
-  ///
-  /// It was not cached at all, and that was affordable only while nothing asked
-  /// for it. The film wall's preview pane asks for it whenever the cursor settles
-  /// on a poster, so a user sweeping back and forth across a row of ten films
-  /// used to refetch ten plots, then refetch them again on the way back. A detail
-  /// is the same detail tomorrow.
-  Future<MovieDetail> movieInfo(VodMovie base) async {
-    final api = _api;
-    if (api == null) throw Failure.notConfigured();
-
-    final key = '${_ns}_vodinfo_${base.streamId}';
-    final cached = _cache.getText(key, ttl: CacheTtl.info);
-    if (cached != null) {
-      try {
-        return MovieDetail.fromXtream(
-          jsonDecode(cached) as Map<String, dynamic>,
-          base,
-        );
-      } catch (_) {
-        // A corrupt entry is a cache miss, not a broken film.
-      }
-    }
-
-    final raw = await api.getVodInfoRaw(base.streamId);
-    await _cache.putText(key, jsonEncode(raw));
-    return MovieDetail.fromXtream(raw, base);
-  }
-
-  // --- Series --------------------------------------------------------------
 
   Future<List<Category>> seriesCategories({bool forceRefresh = false}) async {
-    if (!supportsSeries) return const [];
-    return _xtreamCategories(
-      'series_cats',
-      () => _api!.getSeriesCategories(),
-      forceRefresh: forceRefresh,
-    );
+    final shelf = await seriesShelf(forceRefresh: forceRefresh);
+    return _mode == SourceMode.stalker
+        ? (_stalkerSeriesCategories ?? const [])
+        : shelf.categories;
   }
 
   Future<List<SeriesItem>> series({
     String? categoryId,
     bool forceRefresh = false,
   }) async {
-    if (!supportsSeries) return const [];
-    final all = await _xtreamSeries(
-      categoryId: categoryId,
+    if (_mode == SourceMode.stalker) return _stalkerSeriesIn(categoryId);
+    return (await seriesShelf(
       forceRefresh: forceRefresh,
-    );
-    return newestFirst(
-      _filterByCategory(all, categoryId, (s) => s.categoryId),
-      (s) => s.lastModified,
-    );
+    )).inCategory(categoryId);
   }
 
-  Future<SeriesDetail> seriesInfo(SeriesItem base) {
-    final api = _api;
-    if (api == null) throw Failure.notConfigured();
-    return api.getSeriesInfo(base);
+  /// Every section this session has loaded, fetched again from the source.
+  Future<void> refreshAll() async {
+    _guideMemo = null;
+    if (_mode == SourceMode.stalker) {
+      _stalkerMovies.clear();
+      _stalkerSeries.clear();
+    }
+    if (_mode == SourceMode.m3u) {
+      final library = await _m3uLibrary(forceRefresh: true);
+      _adoptLibrary(library);
+      for (final section in CatalogSection.values) {
+        _announce(section);
+      }
+      return;
+    }
+    final loaded = _shelves.keys.toList();
+    for (final section in loaded.isEmpty ? [CatalogSection.live] : loaded) {
+      await _shelf(section, true);
+      _announce(section);
+    }
   }
 
-  // --- Search --------------------------------------------------------------
+  // ── Details ────────────────────────────────────────────────────────────────
 
-  Future<
-    ({List<LiveChannel> live, List<VodMovie> movies, List<SeriesItem> series})
-  >
-  search(String query) async {
-    final q = query.trim().toLowerCase();
-    if (q.isEmpty) {
+  /// A film's plot, cast and backdrop — cached for a day.
+  ///
+  /// The film wall's preview pane asks for it whenever the cursor settles on a
+  /// poster, so a user sweeping back and forth across a row of ten films would
+  /// otherwise refetch ten plots, then refetch them again on the way back. A
+  /// detail is the same detail tomorrow.
+  Future<MovieDetail> movieInfo(VodMovie base) async {
+    if (_mode == SourceMode.stalker) return _stalker.movieDetail(base);
+    if (_mode != SourceMode.xtream || base.directUrl != null) {
+      // A playlist carries no details beyond the entry itself.
+      return MovieDetail(movie: base);
+    }
+    final name = 'vodinfo_${base.streamId}.json';
+    final cached = await _readSmall(name, CacheTtl.info);
+    if (cached != null) {
+      try {
+        return MovieDetail.fromXtream(
+          jsonDecode(cached) as Map<String, dynamic>,
+          base,
+        );
+      } on Object {
+        // A corrupt entry is a cache miss, not a broken film.
+      }
+    }
+    final raw = await _api.getVodInfoRaw(base.streamId);
+    _writeSmall(name, jsonEncode(raw));
+    return MovieDetail.fromXtream(raw, base);
+  }
+
+  Future<SeriesDetail> seriesInfo(SeriesItem base) async {
+    if (_mode == SourceMode.stalker) {
+      final portal = await _stalker.seriesDetail(base);
+      final urls = portal.episodeUrls;
+      return SeriesDetail(
+        series: portal.detail.series,
+        seasons: [
+          for (final season in portal.detail.seasons)
+            Season(
+              number: season.number,
+              name: season.name,
+              cover: season.cover,
+              episodes: [
+                for (final e in season.episodes)
+                  Episode(
+                    id: e.id,
+                    title: e.title,
+                    episodeNum: e.episodeNum,
+                    seasonNumber: e.seasonNumber,
+                    containerExtension: e.containerExtension,
+                    durationSecs: e.durationSecs,
+                    plot: e.plot,
+                    image: e.image,
+                    rating: e.rating,
+                    added: e.added,
+                    directUrl: urls[e.id] ?? e.directUrl,
+                  ),
+              ],
+            ),
+        ],
+      );
+    }
+    if (_mode == SourceMode.m3u || base.seriesId.startsWith('m3us_')) {
+      final library = await _m3uLibrary();
+      final episodes = library.episodes[base.seriesId] ?? const <Episode>[];
+      final bySeason = <int, List<Episode>>{};
+      for (final episode in episodes) {
+        bySeason.putIfAbsent(episode.seasonNumber, () => []).add(episode);
+      }
+      final numbers = bySeason.keys.toList()..sort();
+      return SeriesDetail(
+        series: base,
+        seasons: [
+          for (final n in numbers) Season(number: n, episodes: bySeason[n]!),
+        ],
+      );
+    }
+    final name = 'seriesinfo_${base.seriesId}.json';
+    final cached = await _readSmall(name, CacheTtl.info);
+    if (cached != null) {
+      try {
+        return SeriesDetail.fromXtream(
+          jsonDecode(cached) as Map<String, dynamic>,
+          base,
+        );
+      } on Object {
+        // Fall through to the panel.
+      }
+    }
+    final raw = await _api.getSeriesInfoRaw(base.seriesId);
+    _writeSmall(name, jsonEncode(raw));
+    return SeriesDetail.fromXtream(raw, base);
+  }
+
+  Future<String?> _readSmall(String name, Duration ttl) async {
+    final age = _files.age(_ns, name);
+    if (age == null || age > ttl) return null;
+    try {
+      return await File(_files.path(_ns, name)).readAsString();
+    } on Object {
+      return null;
+    }
+  }
+
+  void _writeSmall(String name, String text) {
+    _files.write(_ns, name, utf8.encode(text));
+  }
+
+  // ── Account ────────────────────────────────────────────────────────────────
+
+  XtreamAccountInfo? _account;
+
+  /// The subscription behind an Xtream source — status, expiry, connections —
+  /// or null for a source that has no account to describe.
+  Future<XtreamAccountInfo?> accountInfo({bool forceRefresh = false}) async {
+    if (_mode != SourceMode.xtream) return null;
+    if (!forceRefresh && _account != null) return _account;
+    try {
+      _account = await _api.authenticate();
+    } on Failure {
+      return _account;
+    }
+    return _account;
+  }
+
+  // ── Guide ──────────────────────────────────────────────────────────────────
+
+  /// The guide for one channel.
+  ///
+  /// The whole-panel XMLTV guide is read first: it is one download for every
+  /// channel, cached on disk, and a row scrolling past costs a map lookup. The
+  /// panel's per-channel `get_short_epg` is asked only for a channel the guide
+  /// does not cover — it used to be asked first, which meant one request per
+  /// visible row every time the channel list scrolled, on a subscription whose
+  /// panel answers that endpoint with an empty list for every channel anyway.
+  Future<List<EpgEntry>> epg(String streamId, {String? epgChannelId}) async {
+    if (epgChannelId != null && epgChannelId.trim().isNotEmpty) {
+      final fromGuide = (await guide()).forChannel(epgChannelId);
+      if (fromGuide.isNotEmpty) return fromGuide;
+    }
+    if (_mode == SourceMode.xtream && !streamId.startsWith('m3u_')) {
+      // Remembered for the session, empty answers included: a channel the
+      // panel has no programme for does not gain one by being scrolled past
+      // again.
+      return _shortEpg[streamId] ??= _api.getShortEpg(streamId);
+    }
+    return const [];
+  }
+
+  final Map<String, Future<List<EpgEntry>>> _shortEpg = {};
+
+  EpgGuide? _guideMemo;
+  Future<EpgGuide>? _guideLoad;
+
+  /// The whole XMLTV guide, cached on disk and parsed off the UI isolate.
+  Future<EpgGuide> guide({bool forceRefresh = false}) {
+    if (!forceRefresh && _guideMemo != null) return Future.value(_guideMemo);
+    return _guideLoad ??= _loadGuide(forceRefresh).whenComplete(() {
+      _guideLoad = null;
+    });
+  }
+
+  Future<String?> _guideUrl() async {
+    switch (_mode) {
+      case SourceMode.xtream:
+        return _urls.xmltv().toString();
+      case SourceMode.m3u:
+        return (await _m3uLibrary()).guideUrl;
+      case SourceMode.stalker:
+        return null;
+    }
+  }
+
+  Future<EpgGuide> _loadGuide(bool forceRefresh) async {
+    final url = await _guideUrl();
+    if (url == null) return _guideMemo = EpgGuide.empty;
+    final job = GuideJob(url: url, cacheRoot: _files.root, namespace: _ns);
+    if (!forceRefresh) {
+      final cached = await _runCachedGuide(job);
+      if (cached != null) {
+        _guideMemo = cached.guide;
+        if (DateTime.now().difference(cached.written) > CacheTtl.categories) {
+          unawaited(
+            _runFetchGuide(job)
+                .then((fresh) => _guideMemo = fresh)
+                .catchError((Object _) => cached.guide),
+          );
+        }
+        return cached.guide;
+      }
+    }
+    try {
+      return _guideMemo = await _runFetchGuide(job);
+    } on Failure catch (failure) {
+      log.d('guide unavailable: ${failure.kind}');
+      return _guideMemo = EpgGuide.empty;
+    }
+  }
+
+  static Future<({EpgGuide guide, DateTime written})?> _runCachedGuide(
+    GuideJob job,
+  ) => _isolate(() => loadCachedGuide(job));
+
+  static Future<EpgGuide> _runFetchGuide(GuideJob job) =>
+      _isolate(() => fetchGuide(job));
+
+  // ── Search ─────────────────────────────────────────────────────────────────
+
+  /// Every section searched at once, on titles already folded for comparison
+  /// when the sections were built — no decode, no rebuild, per keystroke.
+  Future<CatalogSearch> search(String query) async {
+    if (query.trim().isEmpty) {
       return (
         live: <LiveChannel>[],
         movies: <VodMovie>[],
         series: <SeriesItem>[],
       );
     }
-    final live = await _safeAll(() => liveStreams());
-    final mv = supportsVod
-        ? await _safeAll(() => _xtreamMovies())
-        : <VodMovie>[];
-    final sr = supportsSeries
-        ? await _safeAll(() => _xtreamSeries())
-        : <SeriesItem>[];
-
-    bool match(String name) => name.toLowerCase().contains(q);
+    final live = await _safe(liveShelf);
+    final movies = await _safe(movieShelf);
+    final series = await _safe(seriesShelf);
     return (
-      live: live.where((c) => match(c.name)).take(120).toList(),
-      movies: mv.where((m) => match(m.name)).take(120).toList(),
-      series: sr.where((s) => match(s.name)).take(120).toList(),
+      live: live?.search(query) ?? <LiveChannel>[],
+      movies: movies?.search(query) ?? <VodMovie>[],
+      series: series?.search(query) ?? <SeriesItem>[],
     );
   }
 
-  Future<List<T>> _safeAll<T>(Future<List<T>> Function() fn) async {
+  Future<T?> _safe<T>(Future<T> Function({bool forceRefresh}) load) async {
     try {
-      return await fn();
-    } catch (_) {
-      return <T>[];
+      return await load();
+    } on Object {
+      return null;
     }
   }
 
-  // --- URL builders --------------------------------------------------------
+  // ── Playback addresses ─────────────────────────────────────────────────────
 
-  String liveUrl(LiveChannel channel, {bool hls = true}) {
-    if (channel.directUrl != null && channel.directUrl!.isNotEmpty) {
-      return channel.directUrl!;
-    }
-    return _urls.liveStream(channel.streamId, hls: hls);
+  PlaybackTarget liveTarget(LiveChannel channel, {bool preferHls = true}) {
+    final direct = channel.directUrl;
+    if (direct != null && direct.isNotEmpty) return PlaybackTarget(direct);
+    final hls = _urls.liveStream(channel.streamId, hls: true);
+    final ts = _urls.liveStream(channel.streamId, hls: false);
+    return preferHls
+        ? PlaybackTarget(hls, alternatives: [ts])
+        : PlaybackTarget(ts, alternatives: [hls]);
   }
 
-  String movieUrl(VodMovie movie) {
-    if (movie.directUrl != null && movie.directUrl!.isNotEmpty) {
-      return movie.directUrl!;
-    }
-    return _urls.movieStream(
-      movie.streamId,
-      ext: movie.containerExtension ?? 'mp4',
+  PlaybackTarget movieTarget(VodMovie movie) {
+    final direct = movie.directUrl;
+    if (direct != null && direct.isNotEmpty) return PlaybackTarget(direct);
+    return PlaybackTarget(
+      _urls.movieStream(movie.streamId, ext: movie.containerExtension ?? 'mp4'),
     );
   }
 
-  String episodeUrl(Episode episode) =>
-      _urls.episodeStream(episode.id, ext: episode.containerExtension ?? 'mp4');
-
-  // --- Internals -----------------------------------------------------------
-
-  Future<List<Category>> _xtreamCategories(
-    String key,
-    Future<List<Category>> Function() fetch, {
-    required bool forceRefresh,
-  }) async {
-    final cacheKey = '${_ns}_$key';
-    if (!forceRefresh) {
-      final cached = _cache.getList(cacheKey, ttl: CacheTtl.categories);
-      if (cached != null) {
-        return cached.map((e) => Category.fromXtream(e)).toList();
-      }
-    }
-    try {
-      final fresh = await fetch();
-      await _cache.putList(
-        cacheKey,
-        fresh
-            .map((c) => {'category_id': c.id, 'category_name': c.name})
-            .toList(),
-      );
-      return fresh;
-    } on Failure {
-      final stale = _cache.getList(cacheKey);
-      if (stale != null) {
-        return stale.map((e) => Category.fromXtream(e)).toList();
-      }
-      rethrow;
-    }
-  }
-
-  Future<List<LiveChannel>> _xtreamLive({
-    String? categoryId,
-    required bool forceRefresh,
-  }) async {
-    final scopedCategory = _scopedCategoryId(categoryId);
-    final cacheKey = '${_ns}_live_$scopedCategory';
-    if (!forceRefresh) {
-      final cached = _cache.getList(cacheKey, ttl: CacheTtl.streams);
-      if (cached != null) {
-        return _mapped(cacheKey, cached, LiveChannel.fromXtream);
-      }
-    }
-    try {
-      final fresh = await _api!.getLiveStreams(categoryId: categoryId);
-      await _cache.putList(cacheKey, fresh.map(_liveToRow).toList());
-      return fresh;
-    } on Failure {
-      final stale = _cache.getList(cacheKey);
-      if (stale != null) {
-        return stale.map((e) => LiveChannel.fromXtream(e)).toList();
-      }
-      rethrow;
-    }
-  }
-
-  /// Rows → models, remembered.
-  ///
-  /// The other half of the same trick [CacheService.getList] plays: it now hands
-  /// back the *same* `List` instance for an unchanged envelope, so identity is
-  /// enough to know the models built from it are still the right models. Search
-  /// asks for the films, the series and the channels on every debounced
-  /// keystroke — 43,000 objects rebuilt per letter, on the UI isolate, for a list
-  /// that has not changed since the app started.
-  ///
-  /// Bounded to the same handful of keys the cache itself keeps.
-  final Map<String, ({List<Map<String, dynamic>> rows, List<Object> models})>
-  _models = {};
-
-  List<T> _mapped<T extends Object>(
-    String key,
-    List<Map<String, dynamic>> rows,
-    T Function(Map<String, dynamic>) build,
-  ) {
-    final memo = _models[key];
-    if (memo != null && identical(memo.rows, rows)) {
-      return memo.models.cast<T>();
-    }
-    final models = rows.map(build).toList();
-    if (_models.length >= 8) _models.remove(_models.keys.first);
-    _models[key] = (rows: rows, models: models.cast<Object>());
-    return models;
-  }
-
-  Future<List<VodMovie>> _xtreamMovies({
-    String? categoryId,
-    bool forceRefresh = false,
-  }) async {
-    final scopedCategory = _scopedCategoryId(categoryId);
-    final cacheKey = '${_ns}_vod_$scopedCategory';
-    if (!forceRefresh) {
-      final cached = _cache.getList(cacheKey, ttl: CacheTtl.streams);
-      if (cached != null) {
-        return _mapped(cacheKey, cached, VodMovie.fromXtream);
-      }
-    }
-    try {
-      final fresh = await _api!.getVodStreams(categoryId: categoryId);
-      await _cache.putList(cacheKey, fresh.map(_movieToRow).toList());
-      return fresh;
-    } on Failure {
-      final stale = _cache.getList(cacheKey);
-      if (stale != null) {
-        return stale.map((e) => VodMovie.fromXtream(e)).toList();
-      }
-      rethrow;
-    }
-  }
-
-  Future<List<SeriesItem>> _xtreamSeries({
-    String? categoryId,
-    bool forceRefresh = false,
-  }) async {
-    final scopedCategory = _scopedCategoryId(categoryId);
-    final cacheKey = '${_ns}_series_$scopedCategory';
-    if (!forceRefresh) {
-      final cached = _cache.getList(cacheKey, ttl: CacheTtl.streams);
-      if (cached != null) {
-        return _mapped(cacheKey, cached, SeriesItem.fromXtream);
-      }
-    }
-    try {
-      final fresh = await _api!.getSeries(categoryId: categoryId);
-      await _cache.putList(cacheKey, fresh.map(_seriesToRow).toList());
-      return fresh;
-    } on Failure {
-      final stale = _cache.getList(cacheKey);
-      if (stale != null) {
-        return stale.map((e) => SeriesItem.fromXtream(e)).toList();
-      }
-      rethrow;
-    }
-  }
-
-  Future<M3uResult> _loadM3u({bool forceRefresh = false}) async {
-    if (_m3uMemo != null && !forceRefresh) return _m3uMemo!;
-    final cacheKey = '${_ns}_m3u_channels';
-
-    if (!forceRefresh) {
-      final cached = _cache.getList(cacheKey, ttl: CacheTtl.streams);
-      if (cached != null) {
-        final channels = cached.map((e) => LiveChannel.fromPayload(e)).toList();
-        _m3uMemo = M3uResult(
-          channels: channels,
-          categories: _deriveCategories(channels),
-        );
-        return _m3uMemo!;
-      }
-    }
-
-    final dio = Dio(
-      BaseOptions(
-        connectTimeout: AppConfig.connectTimeout,
-        receiveTimeout: AppConfig.receiveTimeout,
-        responseType: ResponseType.plain,
-        headers: const {'User-Agent': 'MoPlayerPro/1.0'},
-      ),
+  PlaybackTarget episodeTarget(Episode episode) {
+    final direct = episode.directUrl;
+    if (direct != null && direct.isNotEmpty) return PlaybackTarget(direct);
+    return PlaybackTarget(
+      _urls.episodeStream(episode.id, ext: episode.containerExtension ?? 'mp4'),
     );
-    try {
-      final body = await _readM3uBody(config.m3uUrl.trim(), dio);
-      final parsed = M3uParser.parse(body);
-      _m3uMemo = parsed;
-      await _cache.putList(
-        cacheKey,
-        parsed.channels.map((c) => c.toPayload()).toList(),
-      );
-      return parsed;
-    } on DioException catch (e) {
-      final stale = _cache.getList(cacheKey);
-      if (stale != null) {
-        final channels = stale.map((e) => LiveChannel.fromPayload(e)).toList();
-        _m3uMemo = M3uResult(
-          channels: channels,
-          categories: _deriveCategories(channels),
-        );
-        return _m3uMemo!;
-      }
-      log.e('M3U load failed: ${safeLogMessage(e)}');
-      if (e.type == DioExceptionType.connectionTimeout ||
-          e.type == DioExceptionType.receiveTimeout) {
-        throw Failure.timeout();
-      }
-      throw Failure.network('Could not download the playlist.');
-    } finally {
-      dio.close(force: true);
-    }
   }
 
-  Future<String> _readM3uBody(String url, Dio dio) async {
-    if (url.startsWith('asset://')) {
-      final asset = 'assets/${url.substring('asset://'.length)}';
-      return rootBundle.loadString(asset);
-    }
-    // See AuthRepository._readM3uBody: a playlist can be a file on disk, opened
-    // from the file manager.
-    if (url.startsWith('file://') || url.startsWith('/')) {
-      return File(Uri.parse(url).toFilePath()).readAsString();
-    }
-    final res = await dio.get<String>(url);
-    return res.data ?? '';
+  /// The address to hand the player *now*. A portal's items carry an opaque
+  /// `stalker://` command that becomes a real, one-time stream link only when
+  /// it is asked for — so it is asked for on every open and every retry.
+  Future<String> resolve(String url) async {
+    if (!StalkerApi.isStalkerUrl(url)) return url;
+    return _stalker.resolve(url);
   }
 
-  List<Category> _deriveCategories(List<LiveChannel> channels) {
-    final order = <String>[];
-    final counts = <String, int>{};
-    for (final c in channels) {
-      final g = c.categoryId ?? 'Uncategorized';
-      if (!counts.containsKey(g)) order.add(g);
-      counts[g] = (counts[g] ?? 0) + 1;
-    }
-    return [for (final g in order) Category(id: g, name: g, count: counts[g])];
+  String liveUrl(LiveChannel channel, {bool hls = true}) =>
+      liveTarget(channel, preferHls: hls).url;
+
+  String movieUrl(VodMovie movie) => movieTarget(movie).url;
+
+  String episodeUrl(Episode episode) => episodeTarget(episode).url;
+
+  void dispose() {
+    _disposed = true;
+    unawaited(_changes.close());
+    _apiInstance?.close();
+    _stalkerInstance?.close();
   }
-
-  List<T> _filterByCategory<T>(
-    List<T> all,
-    String? categoryId,
-    String? Function(T) selector,
-  ) {
-    if (categoryId == null ||
-        categoryId.isEmpty ||
-        categoryId == Category.allId) {
-      return all;
-    }
-    return all.where((e) => selector(e) == categoryId).toList();
-  }
-
-  String _scopedCategoryId(String? categoryId) {
-    if (categoryId == null ||
-        categoryId.isEmpty ||
-        categoryId == Category.allId) {
-      return 'all';
-    }
-    return categoryId.replaceAll(RegExp(r'[^a-zA-Z0-9_-]'), '_');
-  }
-
-  Map<String, dynamic> _liveToRow(LiveChannel c) => {
-    'stream_id': c.streamId,
-    'name': c.name,
-    'stream_icon': c.logo,
-    'category_id': c.categoryId,
-    'epg_channel_id': c.epgChannelId,
-    'num': c.number,
-    'container_extension': c.containerExtension,
-  };
-
-  Map<String, dynamic> _movieToRow(VodMovie m) => {
-    'stream_id': m.streamId,
-    'name': m.name,
-    'stream_icon': m.poster,
-    'category_id': m.categoryId,
-    'rating': m.rating,
-    'year': m.year,
-    'added': m.added?.millisecondsSinceEpoch == null
-        ? null
-        : (m.added!.millisecondsSinceEpoch ~/ 1000).toString(),
-    'container_extension': m.containerExtension,
-  };
-
-  Map<String, dynamic> _seriesToRow(SeriesItem s) => {
-    'series_id': s.seriesId,
-    'name': s.name,
-    'cover': s.cover,
-    'category_id': s.categoryId,
-    'rating': s.rating,
-    'plot': s.plot,
-    'genre': s.genre,
-    'releaseDate': s.releaseDate,
-    'last_modified': s.lastModified?.millisecondsSinceEpoch == null
-        ? null
-        : (s.lastModified!.millisecondsSinceEpoch ~/ 1000).toString(),
-    'backdrop_path': s.backdrop == null ? null : [s.backdrop],
-  };
-
-  void dispose() => _api?.close();
 }

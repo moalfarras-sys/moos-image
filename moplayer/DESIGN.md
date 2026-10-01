@@ -1,151 +1,95 @@
-# Glass Orange Cinema — the design system
+# MoPlayer Horizon — the design system
 
-MoPlayer for MoOS has to be two things that pull in opposite directions: a
-MoPlayer, and a MoOS app. This document is the record of where each one won, and
-why.
+MoPlayer is two things that pull in opposite directions: a cinema surface, and a
+MoOS app. **Horizon** (2026-09-30) is the version that stopped choosing between
+them. It replaced *Glass Orange Cinema*; the reasons are below, and most of them
+were measured on the owner's station rather than argued.
 
-## What changed from "Nova Cinema", and why
+## What changed, and why
 
-The first version of this system was called **Nova Cinema**, and it resolved the
-conflict by giving MoOS most of the argument: cool navy-tinted greys, and Nova's
-**cyan focus ring**, adopted verbatim on the grounds that focus is a *system*
-affordance and a MoOS user's eye already knows what that colour means.
-
-That was a defensible call and it is no longer the one this app makes.
-
-| | Nova Cinema (was) | Glass Orange Cinema (is) |
+| | Glass Orange Cinema (was) | Horizon (is) |
 |---|---|---|
-| Surfaces | Cool navy-black (`#07090F`, blue channel leading) | **Warm** near-black (`#070809 → #0D0F12 → #14171B`, plus `#1A1714`) |
-| Focus ring | Nova cyan `#4FC3FF` | **Ember-gold `#FFB347`** |
-| Glass | Chrome only, and rare | Chrome only, and the primary material of the dock, caption and player |
-| Navigation | A left rail | A **floating glass dock**, bottom-centre |
-| Window | KWin's decoration | **Frameless**, with the app's own caption bar |
+| Accent | The brand ember, always | **The desktop's MoOS palette** (`kdeglobals`), live; ember as a Settings choice |
+| Navigation | A floating glass dock, bottom-centre | A **rail** on the start edge; the source switcher at its foot |
+| Frame | Caption bar over the page | Caption + rail are one frame; the page is an **inset panel** with a rounded leading corner |
+| Live TV | Clicking a channel took over the window | Channels play on the page's own **stage**; full screen is a second click |
+| Home | One hero | A **spotlight** of up to six slides, advancing on a timer |
+| Material | Blur, film grain, gradient shaders | Solid fills, hairlines, **baked** gradients, no blur by default |
 
-The reasons, in order of how much they cost to learn:
-
-1. **Warm, because orange is the brand.** Ember on cool grey reads as a
-   *warning*; ember on warm graphite reads as *light*. The accent is the one
-   colour that ever means "this is MoPlayer", and the surface under it decides
-   whether it looks like a brand or an alert.
-2. **The focus ring is a deliberate divergence, and it is the only one.** Every
-   other app in the MoOS image glows Nova cyan when focused, and MoPlayer does
-   not. This app is frequently a full-screen cinema surface where the focus ring
-   is the *only* chrome on top of a moving picture, and a cyan ring over a warm
-   film grade reads as a defect in the video rather than as a control. That is
-   worth breaking the system convention for. Nothing else is.
-3. **Cool colour survives in exactly two places**, and both are the *system*
-   speaking rather than the app: `novaGradient` on the MoOS badge in Settings,
-   and `info` on a network state. Ember leads; Nova signs.
-
-If you are here to "restore consistency" by putting the cyan ring back, read
-point 2 again, then look at the app in fullscreen. The tension is real and it was
-priced.
+1. **The accent is the system's.** The owner switches MoOS between Graphite,
+   Amethyst, Aurora and the rest; an app that ignores the switch looks
+   installed rather than built in. `lib/core/theme/palette.dart` reads the
+   explicit `[General] AccentColor` (or the scheme's selection colour), lifts
+   each stop of the gradient **by luminance** until dark ink reads on it at
+   4.5:1 whatever the hue (`test/palette_test.dart` pins nine awkward hues),
+   and tints the near-black canvas a quarter-strength toward the palette's
+   window colour. It watches `kdeglobals` and recolours while running. The
+   surfaces stay near-neutral on purpose: chrome with a strong hue casts it
+   onto the picture beside it.
+2. **The rail, because MoOS already has a dock.** A maximised MoPlayer stacked
+   its floating dock directly above the MoOS Bar — two capsules, both claiming
+   to be where you go next. A rail costs no height, nothing scrolls under it,
+   and it is where desktop media apps keep their destinations.
+3. **The stage, because watching should not cost the list.** The owner's
+   subscription allows one connection; a guide that has to tune a channel to
+   show what is on it knocks the current channel off. Hovering previews the
+   guide, clicking plays on the stage, clicking the playing channel (or Enter,
+   or a double-click on the picture) goes full screen.
 
 ## The palette
 
-Defined once, in `lib/core/theme/app_colors.dart`. Nothing in the app may write a
-`Color(0x…)` literal of its own.
+Defined once, in `lib/core/theme/app_colors.dart`, from the active `Palette`.
+Nothing in the app writes a `Color(0x…)` literal for a role that file names.
 
 | Role | Value |
 |---|---|
-| Canvas / the player's void | `#070809` |
-| Panels | `#0D0F12` |
-| Cards | `#14171B` |
-| Hover / selected | `#1F2329` |
-| Warm surface (under glass, hero base) | `#1A1714` |
-| Primary (ember) | `#FF8A1F` |
-| Bright amber | `#FFB347` |
-| Foreground on ember | `#070809` |
-| Gold | `#D9A441` |
-| Highlight gold | `#FFD27A` |
-| Text | `#FFF7ED` / `#B9B1A6` / `#8A8377` |
-| Focus ring | `#FFB347` |
-| LIVE badge | `#FF3B30` |
+| Canvas / surfaces 1–3 | Ink `#0A0C11` mixed 22% toward the palette's window colour, then 3.5% / 6.5% / 11% toward white |
+| Accent, bright, deep | From the palette, lifted to luminance ≥ 0.26 / 0.40 / 0.20 |
+| On accent | Dark ink or white — whichever measures higher at every stop |
+| Text | `#F3F5F9` / `#B4BBC8` / `#8A93A3` |
+| Borders | White at 8% / 16% |
+| On air | `#FF3B4E` — neither the danger colour nor the accent |
+| Brand (logo, ember palette) | `#FF4400` core, `#FF8A1F` crown — measured off the mark |
 
-The canvas is *near*-black, not black. A pure `#000000` has no shading left below
-it: every panel above it has to be lighter, and the interface flattens. `#070809`
-keeps one step in reserve.
+## The renderer's rules — read these before you draw anything
 
-The `LIVE` badge is deliberately neither the danger colour nor the brand: an
-on-air badge is not an error and not a selection, and on a wall of channel tiles
-all three must stay distinguishable at a glance.
+MoPlayer runs on Impeller (OpenGL ES) inside GTK3. Three facts about that stack
+were measured on the RTX 2080 SUPER at 4K on 2026-09-30, and each one is a rule:
 
-Ember controls use the single `onEmber` foreground token. White measured only
-**1.78:1 / 2.36:1 / 3.45:1** across the three gradient stops; `#070809` measures
-**11.79:1 / 8.91:1 / 6.08:1**. Text, glyphs and progress indicators on that
-gradient therefore use the dark token in both themes, with a test that measures
-every stop rather than trusting the middle colour.
+- **Never draw a `Gradient` as a shader.** One window-sized `LinearGradient` in a
+  `BoxDecoration` took the process from 360 MB of graphics memory to 1.2 GB; the
+  old ambient scene's three stacked gradients cost 2.2 GB; forty poster-sized
+  ones cost 0.9 GB. The driver keeps what the renderer once asked for, so an
+  idle MoPlayer held **4.9 GB of an 8 GB card** and the desktop slowed down
+  around it. The same gradient pre-rendered into a 96×96 image and drawn
+  stretched measured at the baseline. Use `GradientFill` /
+  `BakedGradients.paint` (`lib/core/theme/baked_gradient.dart`); never a
+  `gradient:` in a decoration, a `Paint.shader`, or a `ShaderMask`.
+- **No offscreen layers over large areas.** A window-sized `BackdropFilter` or
+  `Opacity` measured ~400 MB each (4× MSAA colour and depth at the GTK surface
+  size). Glass panels take `blur: 0` by default; the fill is what makes them
+  legible. Cross-fades use an image's own `opacity:` or a text colour's alpha,
+  never an `Opacity` or `FadeTransition` around a big subtree.
+- **Every frame costs the main thread.** GTK3 uploads the window's cairo surface
+  under Flutter's RGBA frame on each frame it presents (`gdkgl.c`,
+  `gdk_cairo_draw_from_gl`), 4608×2427 pixels at this station's scale. A
+  vsync-driven spinner therefore held the main thread at ~65% of a core while a
+  playlist downloaded. Busy indicators are `CalmSpinner` (10 fps), skeletons
+  breathe at 8 fps, and nothing animates forever. The GTK runner also stops GTK
+  painting the window background while the window is maximised — that fill was
+  half the main thread's time during playback.
 
-## Glass is the material of chrome, and only chrome
+After these, MoPlayer idles at ~0.6 GB of graphics memory (from 4.9 GB) and
+plays 1080p at ~1.7 GB including the decoder.
 
-The recipe (see `GlassPanel`): a soft dark shadow, a real blur, **a dark fill at
-real opacity**, a warm hairline border, and an inner highlight on the top edge
-only — because real glass catches light on the edge that faces it and nowhere
-else.
+## Surfaces
 
-Two hard rules, and the first one is load-bearing:
-
-- **The fill is what makes text readable; the blur is decoration on top of it.**
-  Nova's rule — *no text on a variable background without an opaque-enough surface
-  beneath it* — is stricter here than anywhere else in MoOS, because the "variable
-  background" is a moving video frame. Turn the blur off and the panel must still
-  be legible.
-- **Never on a card in a scrolling grid.** Every `BackdropFilter` is a save-layer,
-  and forty of them in a poster wall is how you drop frames on the integrated GPU
-  a MoOS laptop is likely to have. Cards are `SolidCard`. Glass is for the dock,
-  the caption bar, the player's controls, the mini player, a dashboard widget, a
-  dialog — the things that float *over* something.
-
-## The dock is the signature
-
-A floating, blurred, warm-bordered pane at the bottom centre, with exactly seven
-destinations: **Search · Home · Live · Movies · Series · Favourites ·
-Settings**.
-
-Home used to be hidden behind the MoPlayer logo. Real use settled the argument:
-a corner logo is a convention the user has to learn, while a dock item is a
-route they can see. The primary screen therefore gets the same-sized target as
-every other primary destination. On scaled or narrower desktops the dock
-switches to icon-only mode with tooltips, keeping seven labels from swallowing
-the screen.
-
-The content scrolls *under* the dock and is given the dock's height as bottom
-padding by the shell — so nothing is ever unreachable beneath it, and the glass
-has something real to blur. That padding arrives as
-`MediaQuery.paddingOf(context).bottom`; a screen that ignores it will hide its own
-last row.
-
-## The window is frameless, and it costs something
-
-MoPlayer draws its own caption bar: the logo, the connected source, the window
-buttons. A second, system-drawn title bar above it would be a duplicated header on
-the one app in the image that is supposed to look like a *screen* rather than a
-window.
-
-The bill: server-side decoration provides resize borders, a drop shadow and KWin's
-snapping for free, and going frameless means the app implements the first two
-itself (`ResizeEdges`, `WindowCaption`). `MOPLAYER_SSD=1` hands the window back to
-KWin.
-
-That bill applies before a source is configured too. Every top-level route is
-wrapped in `FramelessWindowFrame`; Login is not allowed to bypass the caption or
-the eight resize edges. The three visible controls use the same quiet **20 × 20**
-rounded plate and original 1.7 px glyph geometry as the MoOS Aurorae decoration;
-their pointer/focus targets remain **40 × 40**. The plates are neutral at rest.
-Close receives Negative only on interaction, maximize receives Ember, and
-minimize stays on the neutral text/surface ladder—there is no borrowed
-red/yellow/green traffic-light palette. Their group occupies a fixed
-physical-left **128 px** strip in both LTR and RTL; only the identity and status
-content mirrors. Geometry, provenance and semantics tests enforce the contract.
-
-**And the trap, which cost an afternoon:** on Wayland,
-`gtk_window_set_decorated(FALSE)` does *nothing*. A GTK3 window with no titlebar
-widget asks KWin for a server-side decoration, and KWin draws one. The way to go
-frameless is to give the window an **empty titlebar widget**, which switches it to
-client-side decoration — at which point KWin stands down and GTK keeps drawing the
-shadow and the invisible resize border for us. See
-`linux/runner/my_application.cc`. On X11 the naive call would have worked, which
-is exactly why it looked correct until someone ran it.
+- **Frame** (caption + rail): `surface1`, one colour.
+- **Panel** (the page): the ambient scene — a baked vertical wash, a baked
+  accent bloom high on the trailing side and a baked vignette.
+- **Cards**: solid `surface2`, hairline border, lift and accent ring on focus.
+- **Glass** (player controls, dialogs, toasts): a fill at real opacity and a
+  hairline; blur only where a panel floats over moving video and asks for it.
 
 ## Scale is not a suggestion
 
@@ -173,7 +117,8 @@ proportional running clock jitters on every digit change.
 
 Calm, short, eased. `hover 150 · press 100 · panel 280 · page 320 · hero 550`.
 A card lifts under the cursor; nothing bounces, nothing springs, nothing pulses
-forever.
+forever. The spotlight advances on a nine-second *timer* — one short transition
+per slide, not a ticker — and pauses under the pointer.
 
 All of it answers to **two** off switches, and both must be obeyed: the system's
 (`MediaQuery.disableAnimations`, which is what a MoOS user's "Reduce animations"
@@ -226,8 +171,10 @@ that handles one of them and forgets the others.
   card grow. (This is also why reduced motion must not remove the ring.)
 - A focused card scrolls itself into view. Without that, arrowing down a grid
   walks the focus off the bottom of the screen and the app looks frozen.
-- The dock is reachable from anywhere with **F6** — because a user three hundred
-  posters deep must not have to arrow through all of them to reach Settings.
+- The rail is reachable from anywhere with **F6** — because a user three hundred
+  posters deep must not have to arrow through all of them to reach Settings —
+  and the shell holds focus from launch so Ctrl+1…5 work before anything is
+  clicked.
 - Login's source methods are a real keyboard tab list: Enter/Space activate,
   physical left/right arrows move to the visually adjacent choice in both
   directions, and selection/focus are exposed to assistive technology.
@@ -239,7 +186,7 @@ that handles one of them and forgets the others.
 
 ## RTL is not a translation
 
-The whole tree flips for Arabic: the dock, the rails, the seek bar, the chevrons.
+The whole tree flips for Arabic: the rail, the shelves, the seek bar, the chevrons.
 Every offset in this codebase is `EdgeInsetsDirectional` / `start` / `end` —
 never `left` / `right`.
 

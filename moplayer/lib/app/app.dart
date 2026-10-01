@@ -6,6 +6,7 @@ import '../core/theme/app_theme.dart';
 import '../core/theme/motion.dart';
 import '../providers/shell_providers.dart';
 import '../providers/system_providers.dart';
+import '../providers/theme_providers.dart';
 import 'router.dart';
 
 class MoPlayerApp extends ConsumerWidget {
@@ -13,6 +14,8 @@ class MoPlayerApp extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    // First: every colour token reads the palette this sets.
+    final palette = ref.watch(paletteProvider);
     final lang = ref.watch(languageProvider);
     final reducedMotion = ref.watch(reducedMotionProvider);
 
@@ -40,7 +43,14 @@ class MoPlayerApp extends ConsumerWidget {
         reduced: reducedMotion,
         child: Directionality(
           textDirection: lang.direction,
-          child: child ?? const SizedBox.shrink(),
+          // The colour tokens are read at build time, and most widgets are
+          // const. A new palette therefore rebuilds the tree from here — a
+          // rare event (the owner switched the desktop's theme), paid in full
+          // rather than half-applied.
+          child: KeyedSubtree(
+            key: ValueKey(palette),
+            child: child ?? const SizedBox.shrink(),
+          ),
         ),
       ),
     );

@@ -56,7 +56,7 @@ class GeometryTests(unittest.TestCase):
         self.pending = []
         self.renewals = []
         self.watch = scope["DisplayGeometryWatch"](
-            self.display, self.pending.append, lambda: self.renewals.append(True))
+            self.display, self.pending.append, self.renewals.append)
 
     def drain(self):
         while self.pending:
@@ -114,10 +114,24 @@ class GeometryTests(unittest.TestCase):
         self.display.emit("monitor-added", self.display.monitors[0])
         self.drain()
         self.assertEqual(len(self.renewals), 1)
+        # The log line must tell a returning output from a real change.
+        self.assertEqual(self.renewals[0], "output replaced, same geometry 1280x720+0+0@2")
+
+    def test_renewal_names_the_old_and_new_geometry(self):
+        monitor = self.display.monitors[0]
+        monitor.rect.width, monitor.rect.height = 1536, 864
+        monitor.emit("notify::geometry", None)
+        self.drain()
+        self.assertEqual(self.renewals, ["1280x720+0+0@2 -> 1536x864+0+0@2"])
+        self.setUp()
+        self.display.monitors.pop()
+        self.display.emit("monitor-removed", None)
+        self.drain()
+        self.assertEqual(self.renewals, ["1280x720+0+0@2 -> no outputs"])
 
     def test_compositor_closed_is_not_healthy(self):
         self.display.emit("closed", False)
-        self.assertEqual(len(self.renewals), 1)
+        self.assertEqual(self.renewals, ["compositor connection closed"])
 
     def test_watch_is_wired_before_portal_grant_without_polling(self):
         source = SOURCE.read_text()
@@ -126,6 +140,7 @@ class GeometryTests(unittest.TestCase):
         self.assertIn('os.environ["GDK_BACKEND"] = "wayland"', source)
         self.assertIn("DisplayGeometryWatch(display, GLib.idle_add", source)
         self.assertIn('die(EXIT_LOST, "display geometry changed;', source)
+        self.assertIn('f" ({detail})"', source)
 
 
 if __name__ == "__main__":

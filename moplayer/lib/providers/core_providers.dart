@@ -144,6 +144,11 @@ class SettingsController extends Notifier<AppSettings> {
     await ref.read(settingsRepositoryProvider).setMediaKeys(value);
     state = state.copyWith(mediaKeys: value);
   }
+
+  Future<void> setAccentFromSystem(bool value) async {
+    await ref.read(settingsRepositoryProvider).setAccentFromSystem(value);
+    state = state.copyWith(accentFromSystem: value);
+  }
 }
 
 final settingsProvider = NotifierProvider<SettingsController, AppSettings>(

@@ -25,6 +25,7 @@ class FramelessWindowFrame extends ConsumerStatefulWidget {
     super.key,
     required this.child,
     this.onHome,
+    this.onSearch,
     this.breadcrumb,
     this.showCaption = true,
     this.resizeEnabled = true,
@@ -32,6 +33,7 @@ class FramelessWindowFrame extends ConsumerStatefulWidget {
 
   final Widget child;
   final VoidCallback? onHome;
+  final VoidCallback? onSearch;
   final String? breadcrumb;
   final bool showCaption;
   final bool resizeEnabled;
@@ -71,7 +73,7 @@ class _FramelessWindowFrameState extends ConsumerState<FramelessWindowFrame>
     final maximized = ref.watch(windowMaximizedProvider);
 
     return Scaffold(
-      backgroundColor: AppColors.surface0,
+      backgroundColor: AppColors.surface1,
       body: ResizeEdges(
         enabled:
             widget.resizeEnabled &&
@@ -82,6 +84,7 @@ class _FramelessWindowFrameState extends ConsumerState<FramelessWindowFrame>
             if (widget.showCaption)
               WindowCaption(
                 onHome: widget.onHome,
+                onSearch: widget.onSearch,
                 breadcrumb: widget.breadcrumb,
               ),
             Expanded(child: widget.child),
@@ -103,7 +106,7 @@ class _FramelessWindowFrameState extends ConsumerState<FramelessWindowFrame>
 /// It is deliberately thin. A caption bar is chrome, and chrome that competes
 /// with a hero image has misunderstood which one the user came for.
 class WindowCaption extends ConsumerWidget {
-  const WindowCaption({super.key, this.onHome, this.breadcrumb});
+  const WindowCaption({super.key, this.onHome, this.breadcrumb, this.onSearch});
 
   /// The logo is the Home action. That is why the dashboard is not a dock slot:
   /// six destinations plus a seventh "Home" is the layout of a website's navbar,
@@ -111,6 +114,9 @@ class WindowCaption extends ConsumerWidget {
   final VoidCallback? onHome;
 
   final String? breadcrumb;
+
+  /// Opens Search. Null on screens that have no catalogue to search (Login).
+  final VoidCallback? onSearch;
 
   static const double height = 46;
   static const double windowControlsWidth =
@@ -123,15 +129,12 @@ class WindowCaption extends ConsumerWidget {
 
     return SizedBox(
       height: height,
-      child: DecoratedBox(
-        decoration: const BoxDecoration(
-          // Not glass: the caption sits against the top edge of the window,
-          // where there is nothing behind it to blur and no light above it to
-          // catch. A blur here would cost a save-layer for a visual effect that
-          // has no source.
-          color: Color(0xE60A0B0D),
-          border: Border(bottom: BorderSide(color: AppColors.borderSubtle)),
-        ),
+      child: ColoredBox(
+        // The caption and the navigation rail are one frame, in one colour,
+        // around the content panel. Not glass: the caption sits against the
+        // top edge of the window, where there is nothing behind it to blur,
+        // and a blur here would cost a save-layer for an effect with no source.
+        color: AppColors.surface1,
         child: Stack(
           fit: StackFit.expand,
           children: [
@@ -152,33 +155,101 @@ class WindowCaption extends ConsumerWidget {
               left: windowControlsWidth,
               child: Row(
                 children: [
-                  const SizedBox(width: Nova.space3),
-                  _HomeButton(onTap: onHome, label: s.home),
-
-                  if (breadcrumb != null) ...[
-                    const SizedBox(width: Nova.space3),
-                    Text('·', style: AppText.caption),
-                    const SizedBox(width: Nova.space3),
-                    Flexible(
-                      child: Text(
-                        breadcrumb!,
-                        style: AppText.caption.copyWith(
-                          color: AppColors.textSecondary,
-                        ),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                  ],
+                  const SizedBox(width: Nova.space4),
+                  _HomeButton(onTap: onHome, label: s.home, title: breadcrumb),
 
                   // Everything between identity and status is drag surface.
                   Expanded(child: _DragRegion(desktop: desktop)),
 
+                  if (onSearch != null) ...[
+                    _SearchPill(onTap: onSearch!, label: s.searchEverything),
+                    const SizedBox(width: Nova.space4),
+                  ],
                   const _SourceStatus(),
                   const SizedBox(width: Nova.space4),
                 ],
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+/// The caption's search affordance: a quiet field-shaped button that opens
+/// Search. Ctrl+F does the same from anywhere.
+class _SearchPill extends StatefulWidget {
+  const _SearchPill({required this.onTap, required this.label});
+
+  final VoidCallback onTap;
+  final String label;
+
+  @override
+  State<_SearchPill> createState() => _SearchPillState();
+}
+
+class _SearchPillState extends State<_SearchPill> {
+  bool _hovered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final width = MediaQuery.sizeOf(context).width;
+    if (width < 900) return const SizedBox.shrink();
+    return Semantics(
+      button: true,
+      label: widget.label,
+      excludeSemantics: true,
+      child: MouseRegion(
+        cursor: SystemMouseCursors.click,
+        onEnter: (_) => setState(() => _hovered = true),
+        onExit: (_) => setState(() => _hovered = false),
+        child: GestureDetector(
+          onTap: widget.onTap,
+          child: AnimatedContainer(
+            duration: Motion.duration(context, Nova.hover),
+            height: 32,
+            width: width < 1200 ? 240 : 320,
+            padding: const EdgeInsets.symmetric(horizontal: Nova.space3),
+            decoration: BoxDecoration(
+              color: _hovered ? AppColors.surface3 : AppColors.surface2,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: AppColors.borderSubtle),
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.search_rounded,
+                  size: 17,
+                  color: AppColors.textMuted,
+                ),
+                const SizedBox(width: Nova.space2),
+                Expanded(
+                  child: Text(
+                    widget.label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppText.caption.copyWith(color: AppColors.textMuted),
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 6,
+                    vertical: 2,
+                  ),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(6),
+                    border: Border.all(color: AppColors.borderStrong),
+                  ),
+                  child: Text(
+                    'Ctrl F',
+                    textDirection: TextDirection.ltr,
+                    style: AppText.caption.copyWith(fontSize: 10.5),
+                  ),
+                ),
+              ],
+            ),
+          ),
         ),
       ),
     );
@@ -211,10 +282,14 @@ class _DragRegion extends StatelessWidget {
 }
 
 class _HomeButton extends StatefulWidget {
-  const _HomeButton({this.onTap, required this.label});
+  const _HomeButton({this.onTap, required this.label, this.title});
 
   final VoidCallback? onTap;
   final String label;
+
+  /// The page's name. Inside the shell the rail carries the logo, so the
+  /// caption names where the user is instead of repeating the brand.
+  final String? title;
 
   @override
   State<_HomeButton> createState() => _HomeButtonState();
@@ -225,22 +300,32 @@ class _HomeButtonState extends State<_HomeButton> {
 
   @override
   Widget build(BuildContext context) {
+    final title = widget.title;
     final identity = Padding(
       padding: const EdgeInsets.symmetric(horizontal: Nova.space2),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const AppLogo(size: 22),
-          const SizedBox(width: Nova.space2),
-          Text(
-            'MoPlayer',
-            style: AppText.control.copyWith(
-              fontWeight: FontWeight.w600,
-              letterSpacing: 0.2,
+      child: title != null
+          ? Text(
+              title,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: AppText.section.copyWith(fontSize: 16),
+            )
+          : Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (widget.onTap == null) ...[
+                  const AppLogo(size: 22, bloom: false),
+                  const SizedBox(width: Nova.space2),
+                ],
+                Text(
+                  'MoPlayer',
+                  style: AppText.control.copyWith(
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: 0.2,
+                  ),
+                ),
+              ],
             ),
-          ),
-        ],
-      ),
     );
 
     if (widget.onTap == null) return identity;

@@ -148,12 +148,7 @@ class _WeatherPainter extends CustomPainter {
   /// rather than watched.
   void _sun(Canvas canvas, Offset c, double r) {
     final breathe = 1 + 0.045 * _wave(t * 2);
-    final disc = Paint()
-      ..shader = const LinearGradient(
-        colors: [AppColors.primaryBright, AppColors.primary],
-        begin: Alignment.topLeft,
-        end: Alignment.bottomRight,
-      ).createShader(Rect.fromCircle(center: c, radius: r * breathe));
+    final disc = Paint()..color = AppColors.primaryBright;
 
     final ray = Paint()
       ..color = AppColors.primary.withValues(alpha: 0.85)

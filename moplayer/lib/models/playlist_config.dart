@@ -2,7 +2,11 @@ import '../core/utils/json_x.dart';
 
 enum PlaylistType {
   xtream,
-  m3u;
+  m3u,
+
+  /// A MAG-style middleware portal (Stalker / Ministra), signed in with the
+  /// device's MAC address instead of a username and password.
+  stalker;
 
   String get wire => name;
   static PlaylistType fromWire(String? v) => PlaylistType.values.firstWhere(
@@ -23,6 +27,7 @@ class PlaylistConfig {
     this.username = '',
     this.password = '',
     this.m3uUrl = '',
+    this.macAddress = '',
     this.createdAt,
   });
 
@@ -38,9 +43,55 @@ class PlaylistConfig {
   // M3U
   final String m3uUrl;
 
+  // Stalker portal: [serverUrl] is the portal, this is the device it knows.
+  final String macAddress;
+
   final DateTime? createdAt;
 
   bool get isXtream => type == PlaylistType.xtream;
+  bool get isStalker => type == PlaylistType.stalker;
+  bool get isM3u => type == PlaylistType.m3u;
+
+  /// The Xtream account a playlist link is really a view of, or null.
+  ///
+  /// A panel's `get.php?username=…&password=…&type=m3u_plus` link is the whole
+  /// account flattened into one file — on the owner's server, 395,424 lines
+  /// in which every episode of every series is a "channel". Read through the
+  /// panel's own API instead, the same account is 12,975 channels, 20,569 films
+  /// and 10,834 series, delivered as three small JSON documents with their
+  /// categories, artwork and guide. So a playlist link that carries an account
+  /// is read as that account, and the flat file is only the fallback for a
+  /// panel whose API refuses to answer.
+  PlaylistConfig? get xtreamEquivalent {
+    if (!isM3u) return null;
+    final uri = Uri.tryParse(m3uUrl.trim());
+    if (uri == null || (uri.scheme != 'http' && uri.scheme != 'https')) {
+      return null;
+    }
+    String? pick(List<String> keys) {
+      for (final key in keys) {
+        final value = uri.queryParameters[key]?.trim();
+        if (value != null && value.isNotEmpty) return value;
+      }
+      return null;
+    }
+
+    final user = pick(const ['username', 'user']);
+    final pass = pick(const ['password', 'pass']);
+    if (user == null || pass == null || uri.host.isEmpty) return null;
+    final origin = uri.hasPort
+        ? '${uri.scheme}://${uri.host}:${uri.port}'
+        : '${uri.scheme}://${uri.host}';
+    return PlaylistConfig(
+      id: id,
+      type: PlaylistType.xtream,
+      name: name,
+      serverUrl: origin,
+      username: user,
+      password: pass,
+      createdAt: createdAt,
+    );
+  }
 
   /// Normalised base server URL with scheme and no trailing slash.
   String get normalizedServer {
@@ -67,9 +118,13 @@ class PlaylistConfig {
   /// Xtream account does not make it a different account, it makes it the same
   /// account with a corrected credential, and the entry should be updated in
   /// place rather than duplicated.
-  String get identityKey => isXtream
-      ? 'xtream:$normalizedServer:${username.trim().toLowerCase()}'
-      : 'm3u:${m3uUrl.trim()}';
+  String get identityKey => switch (type) {
+    PlaylistType.xtream =>
+      'xtream:$normalizedServer:${username.trim().toLowerCase()}',
+    PlaylistType.m3u => 'm3u:${m3uUrl.trim()}',
+    PlaylistType.stalker =>
+      'stalker:$normalizedServer:${macAddress.trim().toUpperCase()}',
+  };
 
   PlaylistConfig copyWith({String? name, DateTime? createdAt}) =>
       PlaylistConfig(
@@ -80,6 +135,7 @@ class PlaylistConfig {
         username: username,
         password: password,
         m3uUrl: m3uUrl,
+        macAddress: macAddress,
         createdAt: createdAt ?? this.createdAt,
       );
 
@@ -91,6 +147,7 @@ class PlaylistConfig {
     'username': username,
     'password': password,
     'm3uUrl': m3uUrl,
+    if (macAddress.isNotEmpty) 'macAddress': macAddress,
     'createdAt': createdAt?.toIso8601String(),
   };
 
@@ -102,6 +159,7 @@ class PlaylistConfig {
     username: JsonX.asString(json['username']),
     password: JsonX.asString(json['password']),
     m3uUrl: JsonX.asString(json['m3uUrl']),
+    macAddress: JsonX.asString(json['macAddress']),
     createdAt: DateTime.tryParse(JsonX.asString(json['createdAt'])),
   );
 }

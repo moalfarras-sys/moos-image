@@ -2,10 +2,10 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 
-/// The dock floats over the foot of the window, and `main_shell.dart` hands
-/// every screen its height through `MediaQuery.padding.bottom`, with a comment
-/// stating that "every scrolling screen reads this and adds it to the bottom of
-/// its scroll padding".
+/// The mini player floats over the foot of the page (it used to be a floating
+/// dock), and `main_shell.dart` hands every screen its height through
+/// `MediaQuery.padding.bottom`, with a comment stating that "every scrolling
+/// screen reads this and adds it to the bottom of its scroll padding".
 ///
 /// Eight of the ten screens did not. The result was the last row of the home
 /// page — "continue watching", the row most likely to be wanted — drawn
@@ -54,7 +54,7 @@ void main() {
     // a single one of them changing.
     final shell = File('lib/app/main_shell.dart').readAsStringSync();
     expect(shell.contains('padding: MediaQuery.paddingOf('), isTrue);
-    expect(shell.contains('bottom: dockReserve'), isTrue);
+    expect(shell.contains('bottom: bottomReserve'), isTrue);
   });
 
   test('no scrolling screen zeroes its padding outright', () {

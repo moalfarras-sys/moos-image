@@ -40,6 +40,8 @@ class StorageKeys {
   /// Recent search terms, newest first. Local only — a search history is one of
   /// the more revealing things an app can hold, and it never leaves the machine.
   static const String searchHistory = 'search_history';
+
+  static const String accentFromSystem = 'accent_from_system';
 }
 
 /// Time-to-live for cached catalog responses before a refresh is suggested.

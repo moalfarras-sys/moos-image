@@ -12,16 +12,24 @@ import '../../widgets/buttons.dart';
 import '../../widgets/focus_surface.dart';
 import '../../widgets/media_card.dart';
 
-/// The bar along the bottom of the shell while a stream is playing and the user
-/// is somewhere else.
+/// The picture-in-picture card that floats at the foot of the page while a
+/// stream plays and the user browses.
 ///
-/// It renders the *live video surface*, not a thumbnail of it. There is exactly
-/// one `VideoController` in the app and only one widget mounts it at a time — the
-/// full player when expanded, this bar when not — so the picture is genuinely
-/// still running here, at 208×117, while the user browses the guide. That is the
-/// whole point: on a desktop, leaving the player should cost you nothing.
+/// It renders the *live video surface*, not a thumbnail of it: there is one
+/// `VideoController` in the app, and this card mounts the same texture the
+/// full player does. That is the point — on a desktop, leaving the player
+/// should cost you nothing, and the channel keeps running in the corner.
+///
+/// Solid, not glass. It floats over posters that scroll, which is exactly where
+/// a backdrop blur would re-render every frame of every scroll.
 class MiniPlayer extends ConsumerWidget {
   const MiniPlayer({super.key});
+
+  static const double width = 420;
+  static const double height = 92;
+
+  /// Bottom padding the shell gives the page while the card is showing.
+  static const double reserve = height + Nova.space5 * 2;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -32,26 +40,38 @@ class MiniPlayer extends ConsumerWidget {
 
     if (now == null) return const SizedBox.shrink();
 
+    final available = MediaQuery.sizeOf(context).width - Nova.space5 * 2;
     return Container(
-      height: 84,
-      decoration: const BoxDecoration(
-        color: AppColors.surface1,
-        border: Border(top: BorderSide(color: AppColors.borderSubtle)),
+      width: available < width ? available : width,
+      height: height,
+      decoration: BoxDecoration(
+        color: AppColors.surface2,
+        borderRadius: BorderRadius.circular(Nova.radiusPanel),
+        border: Border.all(color: AppColors.borderStrong),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x99000000),
+            blurRadius: 30,
+            offset: Offset(0, 14),
+            spreadRadius: -8,
+          ),
+        ],
       ),
       child: Row(
         children: [
           FocusSurface(
             onTap: () => ref.read(playerViewProvider.notifier).expand(),
             semanticLabel: s.miniPlayer,
+            radius: Nova.radiusControl,
             scale: 1,
             bloom: false,
             child: Padding(
-              padding: const EdgeInsets.all(Nova.space3),
+              padding: const EdgeInsets.all(Nova.space2),
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(Nova.radiusControl),
                 child: SizedBox(
-                  width: 104,
-                  height: 58,
+                  width: 134,
+                  height: 76,
                   child: ColoredBox(
                     color: Colors.black,
                     child: Video(
@@ -65,27 +85,21 @@ class MiniPlayer extends ConsumerWidget {
               ),
             ),
           ),
-
+          const SizedBox(width: Nova.space2),
           Expanded(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
-                  children: [
-                    if (now.isLive) ...[
-                      LiveBadge(label: s.onAir),
-                      const SizedBox(width: Nova.space2),
-                    ],
-                    Flexible(
-                      child: Text(
-                        now.media.title,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: AppText.control,
-                      ),
-                    ),
-                  ],
+                if (now.isLive) ...[
+                  LiveBadge(label: s.onAir),
+                  const SizedBox(height: 4),
+                ],
+                Text(
+                  now.media.title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppText.control.copyWith(fontWeight: FontWeight.w600),
                 ),
                 if (now.media.subtitle != null)
                   Text(
@@ -94,30 +108,21 @@ class MiniPlayer extends ConsumerWidget {
                     overflow: TextOverflow.ellipsis,
                     style: AppText.caption,
                   ),
-                if (now.isLive && now.liveChannels.length > 1)
-                  Text(
-                    '${(now.liveChannelIndex ?? 0) + 1} / '
-                    '${now.liveChannels.length}',
-                    style: AppText.caption.copyWith(color: AppColors.textMuted),
-                    textDirection: TextDirection.ltr,
-                  ),
                 if (!now.isLive) ...[
-                  const SizedBox(height: Nova.space2),
-                  _MiniProgress(),
+                  const SizedBox(height: 6),
+                  const _MiniProgress(),
                 ],
               ],
             ),
           ),
-
-          const SizedBox(width: Nova.space4),
-
+          const SizedBox(width: Nova.space2),
           if (now.hasPrevious || now.hasNext)
             IconPill(
               icon: Icons.skip_previous_rounded,
               tooltip: now.isLive ? s.previousChannel : s.previousEpisode,
+              size: 36,
               onPressed: now.hasPrevious ? playback.previous : null,
             ),
-
           StreamBuilder<bool>(
             stream: player.playingStream,
             initialData: player.isPlaying,
@@ -126,31 +131,25 @@ class MiniPlayer extends ConsumerWidget {
                   ? Icons.pause_rounded
                   : Icons.play_arrow_rounded,
               tooltip: snapshot.data == true ? s.pause : s.play,
-              size: 46,
+              size: 42,
               filled: true,
               onPressed: player.playOrPause,
             ),
           ),
-
           if (now.hasPrevious || now.hasNext)
             IconPill(
               icon: Icons.skip_next_rounded,
               tooltip: now.isLive ? s.nextChannel : s.nextEpisode,
+              size: 36,
               onPressed: now.hasNext ? playback.next : null,
             ),
-
-          const SizedBox(width: Nova.space2),
-          IconPill(
-            icon: Icons.open_in_full_rounded,
-            tooltip: s.fullscreen,
-            onPressed: () => ref.read(playerViewProvider.notifier).expand(),
-          ),
           IconPill(
             icon: Icons.close_rounded,
             tooltip: s.stop,
+            size: 36,
             onPressed: playback.stop,
           ),
-          const SizedBox(width: Nova.space3),
+          const SizedBox(width: Nova.space2),
         ],
       ),
     );
@@ -158,6 +157,8 @@ class MiniPlayer extends ConsumerWidget {
 }
 
 class _MiniProgress extends ConsumerWidget {
+  const _MiniProgress();
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final player = ref.watch(playerServiceProvider);
@@ -174,11 +175,6 @@ class _MiniProgress extends ConsumerWidget {
 
         return Row(
           children: [
-            Text(
-              Fmt.duration(position),
-              style: AppText.timecode.copyWith(fontSize: 10.5),
-            ),
-            const SizedBox(width: Nova.space2),
             Expanded(
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(2),
@@ -191,7 +187,8 @@ class _MiniProgress extends ConsumerWidget {
             ),
             const SizedBox(width: Nova.space2),
             Text(
-              Fmt.duration(duration),
+              Fmt.duration(duration - position),
+              textDirection: TextDirection.ltr,
               style: AppText.timecode.copyWith(
                 fontSize: 10.5,
                 color: AppColors.textMuted,

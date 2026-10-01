@@ -4,6 +4,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 
 import '../core/theme/app_colors.dart';
+import '../core/theme/baked_gradient.dart';
 import '../core/theme/motion.dart';
 import '../core/theme/nova.dart';
 
@@ -64,10 +65,7 @@ class Backdrop extends StatelessWidget {
     final link = imageUrl?.trim();
 
     Widget art = link == null || link.isEmpty
-        ? const ColoredBox(
-            key: ValueKey('backdrop-empty'),
-            color: AppColors.surface1,
-          )
+        ? ColoredBox(key: ValueKey('backdrop-empty'), color: AppColors.surface1)
         : CachedNetworkImage(
             key: ValueKey(link),
             imageUrl: link,
@@ -83,9 +81,8 @@ class Backdrop extends StatelessWidget {
             // image would make it arrive twice.
             fadeInDuration: Duration.zero,
             fadeOutDuration: Duration.zero,
-            placeholder: (_, _) => const ColoredBox(color: AppColors.surface1),
-            errorWidget: (_, _, _) =>
-                const ColoredBox(color: AppColors.surface1),
+            placeholder: (_, _) => ColoredBox(color: AppColors.surface1),
+            errorWidget: (_, _, _) => ColoredBox(color: AppColors.surface1),
           );
 
     if (blur > 0) {
@@ -104,7 +101,7 @@ class Backdrop extends StatelessWidget {
       children: [
         // The plate under the crossfade. Without it, the outgoing image shows
         // through the incoming one's transparent half for half a second.
-        const ColoredBox(color: AppColors.surface0),
+        ColoredBox(color: AppColors.surface0),
 
         AnimatedSwitcher(
           duration: Motion.duration(context, duration),
@@ -122,13 +119,9 @@ class Backdrop extends StatelessWidget {
             color: Colors.black.withValues(alpha: darken.clamp(0.0, 1.0)),
           ),
 
-        if (scrim)
-          DecoratedBox(decoration: BoxDecoration(gradient: _heroScrim(rtl))),
+        if (scrim) GradientFill(gradient: _heroScrim(rtl)),
 
-        if (floor)
-          const DecoratedBox(
-            decoration: BoxDecoration(gradient: AppColors.heroFloor),
-          ),
+        if (floor) GradientFill(gradient: AppColors.heroFloor),
 
         ?child,
       ],
@@ -138,7 +131,7 @@ class Backdrop extends StatelessWidget {
   /// [AppColors.heroScrim], flipped for Arabic. The colours and stops are the
   /// palette's; only the direction is this widget's business.
   static LinearGradient _heroScrim(bool rtl) {
-    const source = AppColors.heroScrim;
+    final source = AppColors.heroScrim;
     return LinearGradient(
       begin: rtl ? Alignment.centerRight : Alignment.centerLeft,
       end: rtl ? Alignment.centerLeft : Alignment.centerRight,
@@ -162,12 +155,12 @@ class SceneBackdrop extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: const BoxDecoration(gradient: AppColors.sceneGradient),
+    return GradientFill(
+      gradient: AppColors.sceneGradient,
       child: Stack(
         children: [
           if (showGlow) ...[
-            const Positioned(
+            Positioned(
               top: -140,
               left: -100,
               child: _Bloom(color: AppColors.primary, size: 420, opacity: 0.13),
@@ -199,13 +192,10 @@ class _Bloom extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return IgnorePointer(
-      child: Container(
+      child: SizedBox(
         width: size,
         height: size,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          gradient: AppColors.glow(color, opacity: opacity),
-        ),
+        child: GradientFill(gradient: AppColors.glow(color, opacity: opacity)),
       ),
     );
   }

@@ -173,7 +173,7 @@ void main() {
         _providerHost(
           strings: strings,
           direction: TextDirection.ltr,
-          child: const FramelessWindowFrame(
+          child: FramelessWindowFrame(
             child: ColoredBox(color: AppColors.surface0),
           ),
         ),
@@ -263,7 +263,7 @@ void main() {
               (node) => node.debugLabel?.startsWith('login-method-') == true,
             )
             .toList();
-        expect(methodNodes, hasLength(3));
+        expect(methodNodes, hasLength(4));
 
         methodNodes.first.requestFocus();
         await tester.pump();

@@ -115,8 +115,8 @@ class MovieDetail {
         containerExtension: container,
       ),
       plot:
-          JsonX.asStringOrNull(info['plot']) ??
-          JsonX.asStringOrNull(info['description']),
+          JsonX.asTextOrNull(info['plot']) ??
+          JsonX.asTextOrNull(info['description']),
       cast:
           JsonX.asStringOrNull(info['cast']) ??
           JsonX.asStringOrNull(info['actors']),

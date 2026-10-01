@@ -67,12 +67,13 @@ class AppLogo extends StatelessWidget {
         ),
         if (showWordmark) ...[
           const SizedBox(height: Nova.space3),
-          ShaderMask(
-            shaderCallback: (bounds) =>
-                AppColors.goldGradient.createShader(bounds),
-            child: Text(
+          // Solid, not a gradient through a ShaderMask: a shader mask is an
+          // offscreen layer, and gradients are expensive on this renderer
+          // (see `baked_gradient.dart`).
+          Builder(
+            builder: (context) => Text(
               'MoPlayer',
-              style: AppText.display.copyWith(color: Colors.white),
+              style: AppText.display.copyWith(color: AppColors.goldBright),
               // The wordmark is a mark, not copy: it is Latin in every language
               // the app speaks, exactly as it is in the logo file.
               textDirection: TextDirection.ltr,
@@ -107,9 +108,9 @@ class _DrawnMark extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return DecoratedBox(
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         shape: BoxShape.circle,
-        gradient: AppColors.emberGradient,
+        color: AppColors.brandPrimary,
       ),
       child: Center(
         child: Icon(

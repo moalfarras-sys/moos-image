@@ -1,14 +1,15 @@
-import 'dart:io';
+import 'dart:isolate';
 
-import 'package:dio/dio.dart';
 import 'package:flutter/services.dart';
 
-import '../core/config/app_config.dart';
 import '../core/error/failures.dart';
 import '../core/error/result.dart';
 import '../core/utils/app_logger.dart';
 import '../models/playlist_config.dart';
+import '../services/catalog/catalog_files.dart';
+import '../services/m3u/m3u_catalog.dart';
 import '../services/m3u/m3u_parser.dart';
+import '../services/stalker/stalker_api.dart';
 import '../services/storage/secure_storage_service.dart';
 import '../services/supabase/supabase_service.dart';
 import '../services/xtream/xtream_api.dart';
@@ -69,71 +70,71 @@ class AuthRepository {
 
   /// Validates an M3U URL by fetching and parsing it, returning the channel
   /// count discovered.
+  /// Downloads and sorts a playlist — on a background isolate, and into the
+  /// catalogue cache, so the library the user lands on after signing in is the
+  /// one this probe already fetched rather than a second download of it.
+  ///
+  /// It used to download the whole file and parse it on the UI isolate, and
+  /// then the library downloaded and parsed it again: for the owner's 121 MB
+  /// playlist, two half-minute downloads and a window that stopped responding
+  /// in between.
   Future<Result<int>> testM3u(PlaylistConfig config) async {
     final url = config.m3uUrl.trim();
     if (url.isEmpty) {
       return Err(Failure.parse('Please enter a playlist URL.'));
     }
-    final dio = _m3uDio();
     try {
-      final body = await _readM3uBody(url, dio);
-      if (!body.contains('#EXTINF') && !body.contains('#EXTM3U')) {
-        return Err(
-          Failure.parse('That URL did not return a valid M3U playlist.'),
+      final M3uLibrary library;
+      if (url.startsWith('asset://')) {
+        final text = await rootBundle.loadString(
+          'assets/${url.substring('asset://'.length)}',
+        );
+        library = await _parseText(text);
+      } else {
+        library = await _fetch(
+          M3uLibraryJob(
+            url: url,
+            cacheRoot: CatalogFiles.forUser().root,
+            namespace: config.id,
+          ),
         );
       }
-      final parsed = M3uParser.parse(body);
-      if (parsed.channels.isEmpty) {
+      if (library.totalEntries == 0) {
         return Err(Failure.parse('No channels found in that playlist.'));
       }
-      return Ok(parsed.channels.length);
-    } on DioException catch (e) {
-      if (e.type == DioExceptionType.connectionTimeout ||
-          e.type == DioExceptionType.receiveTimeout) {
-        return Err(Failure.timeout());
-      }
-      return Err(Failure.network('Could not download the playlist.'));
-    } catch (e) {
-      return Err(Failure.parse('$e'));
+      return Ok(library.totalEntries);
+    } on Failure catch (failure) {
+      return Err(failure);
+    } on Object catch (error) {
+      log.e('testM3u failed: ${safeLogMessage(error)}');
+      return Err(Failure.parse('Could not read the playlist data.'));
+    }
+  }
+
+  static Future<M3uLibrary> _fetch(M3uLibraryJob job) =>
+      Isolate.run(() => fetchM3uLibrary(job));
+
+  static Future<M3uLibrary> _parseText(String text) =>
+      Isolate.run(() => parseM3uText(text));
+
+  /// Signs in to a MAC portal: handshake, profile, and the account's state.
+  Future<Result<StalkerAccount>> testPortal(PlaylistConfig config) async {
+    final api = StalkerApi(
+      portalUrl: config.serverUrl,
+      macAddress: config.macAddress,
+    );
+    try {
+      return Ok(await api.connect());
+    } on Failure catch (failure) {
+      return Err(failure);
+    } on Object catch (error) {
+      log.e('testPortal failed: ${safeLogMessage(error)}');
+      return Err(Failure.server('Could not reach the portal.'));
     } finally {
-      dio.close(force: true);
+      api.close();
     }
   }
 
-  Dio _m3uDio() => Dio(
-    BaseOptions(
-      connectTimeout: AppConfig.connectTimeout,
-      receiveTimeout: AppConfig.receiveTimeout,
-      responseType: ResponseType.plain,
-      headers: const {'User-Agent': 'MoPlayerPro/1.0'},
-    ),
-  );
-
-  Future<String> _readM3uBody(String url, Dio dio) async {
-    if (url.startsWith('asset://')) {
-      final asset = 'assets/${url.substring('asset://'.length)}';
-      return rootBundle.loadString(asset);
-    }
-    // A playlist opened from Dolphin. The `.desktop` file registers MoPlayer as
-    // a handler for `application/x-mpegurl`, and a handler that cannot read a
-    // local file is a handler that does nothing.
-    if (url.startsWith('file://') || url.startsWith('/')) {
-      return File(Uri.parse(url).toFilePath()).readAsString();
-    }
-    final res = await dio.get<String>(url);
-    return res.data ?? '';
-  }
-
-  /// Persists a playlist and makes it the active source.
-  ///
-  /// Matching is on [PlaylistConfig.identityKey], not on the id. The id is minted
-  /// at the call site — `pl_<micros>` from the login form, `file_<micros>` from a
-  /// `.m3u` handed over by Dolphin — so an id match only ever happened when the
-  /// caller already had the stored object in hand. Everything else appended.
-  /// Opening the same playlist file three times therefore produced three
-  /// identical rows in Settings, each with its own id, and the user could delete
-  /// two of them and still have one left. Re-using the stored row's id keeps its
-  /// favourites and resume positions attached, which are keyed on it.
   Future<bool> saveAndActivate(PlaylistConfig config) async {
     final list = [...await _secure.readPlaylists()];
     final existingIndex = list.indexWhere(
@@ -151,6 +152,7 @@ class AuthRepository {
         username: config.username,
         password: config.password,
         m3uUrl: config.m3uUrl,
+        macAddress: config.macAddress,
         createdAt: existing.createdAt ?? DateTime.now(),
       );
       list[existingIndex] = stamped;

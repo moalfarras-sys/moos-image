@@ -20,12 +20,15 @@ import '../../providers/library_providers.dart';
 import '../../providers/system_providers.dart';
 import '../../services/activation/activation_service.dart';
 import '../../services/source/source_link.dart';
+import '../../services/stalker/stalker_api.dart';
+import '../../services/stalker/stalker_identity.dart';
 import '../../widgets/app_logo.dart';
 import '../../widgets/backdrop.dart';
 import '../../widgets/buttons.dart';
 import '../../widgets/state_views.dart';
+import '../../widgets/calm_spinner.dart';
 
-enum _Method { xtream, m3u, activation }
+enum _Method { xtream, m3u, portal, activation }
 
 /// The one screen that stands between a fresh install and a picture.
 ///
@@ -50,6 +53,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   final TextEditingController _passCtrl = TextEditingController();
   final TextEditingController _nameCtrl = TextEditingController();
   final TextEditingController _urlCtrl = TextEditingController();
+  final TextEditingController _portalCtrl = TextEditingController();
+  final TextEditingController _macCtrl = TextEditingController();
 
   _Method _method = _Method.xtream;
   bool _busy = false;
@@ -72,6 +77,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     _passCtrl.dispose();
     _nameCtrl.dispose();
     _urlCtrl.dispose();
+    _portalCtrl.dispose();
+    _macCtrl.dispose();
     super.dispose();
   }
 
@@ -227,6 +234,43 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     await _activate(name.isEmpty ? config : config.copyWith(name: name));
   }
 
+  // ── MAC portal ─────────────────────────────────────────────────────────────
+
+  Future<void> _submitPortal() async {
+    final mac = StalkerIdentity.normalizeMac(_macCtrl.text);
+    final portal = _portalCtrl.text.trim();
+    if (mac == null) {
+      setState(() => _error = _s.macInvalid);
+      return;
+    }
+    final config = PlaylistConfig(
+      id: _newId(),
+      type: PlaylistType.stalker,
+      name:
+          Uri.tryParse(
+            portal.contains('://') ? portal : 'http://$portal',
+          )?.host ??
+          _s.portal,
+      serverUrl: portal,
+      macAddress: mac,
+    );
+
+    setState(() {
+      _busy = true;
+      _error = null;
+      _status = null;
+    });
+
+    final result = await ref.read(authRepositoryProvider).testPortal(config);
+    if (!mounted) return;
+    if (result is Err<StalkerAccount>) {
+      _fail(result.failure);
+      return;
+    }
+    setState(() => _status = _s.connected);
+    await _activate(config);
+  }
+
   // ── Activation ─────────────────────────────────────────────────────────────
 
   Future<void> _createSession() async {
@@ -312,80 +356,94 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   Widget build(BuildContext context) {
     final s = ref.watch(stringsProvider);
 
-    return SceneBackdrop(
-      child: Center(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(
-            horizontal: Nova.space5,
-            vertical: Nova.space6,
+    final form = GlassPanel(
+      padding: const EdgeInsets.all(Nova.space6),
+      radius: Nova.radiusOverlay,
+      fill: AppColors.surface1.withValues(alpha: 0.92),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            widget.isAdditional ? s.addSource : s.welcomeTitle,
+            style: AppText.headline,
           ),
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 560),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Center(
-                  child: AppLogo(
-                    size: 88,
-                    showWordmark: true,
-                    showTagline: true,
-                    tagline: s.appTagline,
-                  ),
+          if (!widget.isAdditional) ...[
+            const SizedBox(height: Nova.space2),
+            Text(s.welcomeBody, style: AppText.body),
+          ],
+          const SizedBox(height: Nova.space5),
+          _MethodTabs(method: _method, strings: s, onChanged: _selectMethod),
+          const SizedBox(height: Nova.space3),
+          Text(_methodHint(s), style: AppText.caption),
+          const SizedBox(height: Nova.space5),
+          _form(s),
+          if (_status != null) ...[
+            const SizedBox(height: Nova.space4),
+            _Message(text: _status!, pending: _pending),
+          ],
+          if (_error != null) ...[
+            const SizedBox(height: Nova.space4),
+            _Message(text: _error!, danger: true),
+          ],
+          if (widget.isAdditional) ...[
+            const SizedBox(height: Nova.space4),
+            Align(
+              alignment: AlignmentDirectional.centerStart,
+              child: GhostButton(
+                label: s.cancel,
+                icon: Icons.close_rounded,
+                onPressed: () => context.pop(),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+
+    return SceneBackdrop(
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final wide = constraints.maxWidth >= 1080;
+          final brand = _BrandPanel(strings: s, large: wide);
+          if (!wide) {
+            return Center(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: Nova.space5,
+                  vertical: Nova.space6,
                 ),
-                const SizedBox(height: Nova.space6),
-                GlassPanel(
-                  padding: const EdgeInsets.all(Nova.space5),
-                  radius: Nova.radiusOverlay,
-                  glow: true,
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 580),
                   child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
                     mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      Text(
-                        widget.isAdditional ? s.addSource : s.welcomeTitle,
-                        style: AppText.headline,
-                      ),
-                      if (!widget.isAdditional) ...[
-                        const SizedBox(height: Nova.space1),
-                        Text(s.welcomeBody, style: AppText.body),
-                      ],
-                      const SizedBox(height: Nova.space5),
-                      _MethodTabs(
-                        method: _method,
-                        strings: s,
-                        onChanged: _selectMethod,
-                      ),
-                      const SizedBox(height: Nova.space3),
-                      Text(_methodHint(s), style: AppText.caption),
-                      const SizedBox(height: Nova.space5),
-                      _form(s),
-                      if (_status != null) ...[
-                        const SizedBox(height: Nova.space4),
-                        _Message(text: _status!, pending: _pending),
-                      ],
-                      if (_error != null) ...[
-                        const SizedBox(height: Nova.space4),
-                        _Message(text: _error!, danger: true),
-                      ],
-                      if (widget.isAdditional) ...[
-                        const SizedBox(height: Nova.space4),
-                        Align(
-                          alignment: AlignmentDirectional.centerStart,
-                          child: GhostButton(
-                            label: s.cancel,
-                            icon: Icons.close_rounded,
-                            onPressed: () => context.pop(),
-                          ),
-                        ),
-                      ],
+                      brand,
+                      const SizedBox(height: Nova.space6),
+                      form,
                     ],
                   ),
                 ),
-              ],
+              ),
+            );
+          }
+          return Center(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(Nova.space7),
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 1180),
+                child: Row(
+                  children: [
+                    Expanded(child: brand),
+                    const SizedBox(width: Nova.space7),
+                    SizedBox(width: 540, child: form),
+                  ],
+                ),
+              ),
             ),
-          ),
-        ),
+          );
+        },
       ),
     );
   }
@@ -393,14 +451,46 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   String _methodHint(S s) => switch (_method) {
     _Method.xtream => s.xtreamHint,
     _Method.m3u => s.m3uHint,
+    _Method.portal => s.portalHint,
     _Method.activation => s.activationHint,
   };
 
   Widget _form(S s) => switch (_method) {
     _Method.xtream => _xtreamForm(s),
     _Method.m3u => _m3uForm(s),
+    _Method.portal => _portalForm(s),
     _Method.activation => _activationForm(s),
   };
+
+  Widget _portalForm(S s) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _Field(
+          controller: _portalCtrl,
+          label: s.portalUrl,
+          icon: Icons.router_rounded,
+          latin: true,
+        ),
+        const SizedBox(height: Nova.space4),
+        _Field(
+          controller: _macCtrl,
+          label: s.macAddress,
+          icon: Icons.memory_rounded,
+          latin: true,
+          onSubmitted: (_) => _submitPortal(),
+        ),
+        const SizedBox(height: Nova.space5),
+        EmberButton(
+          label: s.connect,
+          icon: Icons.login_rounded,
+          expand: true,
+          busy: _busy,
+          onPressed: _submitPortal,
+        ),
+      ],
+    );
+  }
 
   Widget _xtreamForm(S s) {
     return Column(
@@ -457,6 +547,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           latin: true,
           onSubmitted: (_) => _submitM3u(),
         ),
+        const SizedBox(height: Nova.space2),
+        Text(s.m3uLinkHint, style: AppText.caption),
         const SizedBox(height: Nova.space5),
         EmberButton(
           label: s.connect,
@@ -538,6 +630,70 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   }
 }
 
+/// The welcome's other half: what MoPlayer is, in four lines.
+class _BrandPanel extends StatelessWidget {
+  const _BrandPanel({required this.strings, required this.large});
+
+  final S strings;
+  final bool large;
+
+  @override
+  Widget build(BuildContext context) {
+    final features = <(IconData, String)>[
+      (Icons.dns_rounded, strings.brandAllServers),
+      (Icons.live_tv_rounded, strings.brandLiveGuide),
+      (Icons.movie_filter_rounded, strings.brandLibrary),
+      (Icons.desktop_windows_rounded, strings.brandSystem),
+    ];
+    return Column(
+      crossAxisAlignment: large
+          ? CrossAxisAlignment.start
+          : CrossAxisAlignment.center,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        AppLogo(
+          size: large ? 112 : 84,
+          showWordmark: true,
+          showTagline: true,
+          tagline: strings.appTagline,
+        ),
+        if (large) ...[
+          const SizedBox(height: Nova.space7),
+          for (final (icon, text) in features)
+            Padding(
+              padding: const EdgeInsets.only(bottom: Nova.space4),
+              child: Row(
+                children: [
+                  Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      color: AppColors.primary.withValues(alpha: 0.14),
+                      borderRadius: BorderRadius.circular(Nova.radiusControl),
+                      border: Border.all(
+                        color: AppColors.primary.withValues(alpha: 0.35),
+                      ),
+                    ),
+                    child: Icon(icon, size: 20, color: AppColors.primaryBright),
+                  ),
+                  const SizedBox(width: Nova.space4),
+                  Expanded(
+                    child: Text(
+                      text,
+                      style: AppText.subtitle.copyWith(
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+        ],
+      ],
+    );
+  }
+}
+
 class _MethodTabs extends StatefulWidget {
   const _MethodTabs({
     required this.method,
@@ -581,8 +737,11 @@ class _MethodTabsState extends State<_MethodTabs> {
   @override
   Widget build(BuildContext context) {
     final tabs = <(_Method, String, IconData)>[
-      (_Method.xtream, widget.strings.xtream, Icons.dns_rounded),
+      // The protocol's own name: "Xtream account" did not fit a quarter of
+      // the strip in Arabic, and the brand name is what providers print.
+      (_Method.xtream, 'Xtream', Icons.dns_rounded),
       (_Method.m3u, widget.strings.m3u, Icons.link_rounded),
+      (_Method.portal, widget.strings.portal, Icons.router_rounded),
       (_Method.activation, widget.strings.activation, Icons.qr_code_rounded),
     ];
 
@@ -690,9 +849,8 @@ class _TabState extends State<_Tab> {
               height: 40,
               padding: const EdgeInsets.symmetric(horizontal: Nova.space2),
               decoration: BoxDecoration(
-                gradient: selected ? AppColors.emberGradient : null,
                 color: selected
-                    ? null
+                    ? AppColors.primary
                     : (_hovered ? AppColors.surface3 : Colors.transparent),
                 borderRadius: BorderRadius.circular(Nova.radiusControl),
                 boxShadow: focusRing(_focused),
@@ -785,7 +943,7 @@ class _Message extends StatelessWidget {
           SizedBox(
             width: 16,
             height: 16,
-            child: CircularProgressIndicator(strokeWidth: 2, color: color),
+            child: CalmSpinner(strokeWidth: 2, color: color),
           )
         else
           Icon(

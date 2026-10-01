@@ -1,20 +1,19 @@
 # MoOS current state — measured 2026-09-30
 
-**2026-09-30 release readback:** `main` is `cb61e592` (PR #181); signed `.959` passed
-build `36693894196`, three QCOW2 boots, ISO `36699338568`, and x86 promotion
-`36703620410`. ARM build, boot and promotion passed in `36681324601`. The NVIDIA
-station still boots signed `.952`, with `.945` for rollback; `.959` is staged at
-`sha256:cbc8c0b8…` and needs a reboot. Later scheduled ARM build `36721156819` failed its one-updater
-gate: a changed base added `timers.target.wants/bootc-fetch-apply-updates.timer`.
-The scrub fix is source work until a new ARM image proves it.
+**2026-09-30 release readback:** `main` is `cb61e592` (PR #181); signed `.959` passed build
+`36693894196`, three QCOW2 boots, ISO `36699338568`, x86 promotion `36703620410`; ARM
+`36681324601`. The NVIDIA station boots signed `.959` (`sha256:cbc8c0b8…`, read 21:36),
+`.952` retained. ARM build `36721156819` failed its one-updater gate (base added
+`bootc-fetch-apply-updates.timer`); the scrub fix is source until an ARM image proves it.
+
+**MoPlayer, 2026-09-30 (branch `feat/moplayer-reborn-20260930`, source only):** the "freeze" was a 278 MB Hive catalogue decoded on the UI isolate each launch (~6 s, 1.4 GB) plus a 4.9 GB idle GPU reservation from Impeller gradient shaders and window-sized layers. Now: catalogue files on isolates (~1.3 s, 0.5 GB), idle GPU ~0.6 GB, get.php links read as Xtream accounts, playlists sorted, MAC portals, Horizon UI; 4K HEVC live and 1080p VOD played on the station; 255 Flutter tests. Open: a real MAC portal, ~1 GB kept after Stop, signed delivery and installed readback (plan P2.13).
 
 **Mira source, 2026-09-30:** PRs #177–#180 integrate her six pages, approvals inbox, chat history, KDE entry, new Mo AI actions and ARM packaging. The station's earlier user install proved Arabic voice, a live approval and the page renders; the new signed x86/ARM images and installed behavior remain unproved. See `mira/README.md`.
 ## Source and release truth
 - **Proven production source is `cb61e592`, `44.20260930.959`**: signed x86 build
   `36693894196`, QCOW2 `36699322130`/`36699326777`/`36699334133`, offline ISO
   `36699338568`, x86 promotion `36703620410`; ARM build/boot/promotion `36681324601`.
-  All passed for that exact source and its pinned artifacts. The installed NVIDIA
-  machine is still on `.952` until the staged digest is booted and checked.
+  All passed for that exact source and its pinned artifacts; the NVIDIA station boots it.
 - Remote v46 is merged source. Real phone/WAN endurance and installed v46 remain open.
 - The two-icon design approval remains pending. A historical post-`.945` health read was
   55/0, but five old `drkonqi-coredump-processor` timeouts appeared later; review the
@@ -53,10 +52,11 @@ DLL from composefs; do not weaken SELinux globally.
 | Target storage | `/dev/sdb`: 512 MiB ESP + 476.4 GiB Btrfs; `/var` 244/477 GiB used, 230 GiB free (2026-09-27) |
 | CPU / RAM | Intel Core i5-14400F / 15.4 GiB |
 | GPU | NVIDIA RTX 2080 SUPER, driver 615.71.09 |
-| Desktop | Plasma/KWin 6.7.5, Wayland, 3840×2160@60, scale 225% (1707×960 logical) on 2026-09-25 |
-| Kernel | `7.2.6-200.fc44.x86_64` |
+| Desktop | Plasma/KWin 6.7.5, Wayland, 3840×2160@60, scale 250% (1536×864 logical) on 2026-10-01 |
+| Kernel | `7.2.7-200.fc44.x86_64` (2026-10-01) |
 | Network | Intel AX210 Wi-Fi/Bluetooth + RTL8125 Ethernet |
 | Health | Baloo recovered; post-update 55/0; powersave changed to balanced, turbo read back enabled |
+| Freeze audit (2026-10-01) | 3.7 GiB in zram, no OOM this boot. Mo PC Remote renewed its portal grant ~2,600 times in the previous boot (every 30–90 s, same 1536×864 desktop each time, cause unrecorded, none since the reboot); 30 forced renewals leaked nothing and the log now names the change. `moai-control` woke rpm-ostreed 59× in 2 h 50 min, now once per boot. The Echo gadget's USB microphone floods the kernel log (~60 xHCI "buffer overrun" warnings/s, journald ~3% CPU): the 500 MB journal spans only ~5 h, so the previous boot's user logs were already gone. The fix is the gadget's packet size (Mira) |
 
 Measured on the previous `.938`: installed `THEME_REV` **87**
 and its existing-account marker, current Global Theme `org.moos.ui2.gaming`,

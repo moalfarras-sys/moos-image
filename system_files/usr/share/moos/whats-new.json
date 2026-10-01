@@ -3,6 +3,19 @@
   "_": "What a person can SEE or DO after an update, newest first. One entry per user-visible change, written for the owner of the machine, not for a developer: what it is, where it is, and (when MoOS has a route to it) a way to try it now. 'merged' is when the change reached main (a little later is fine, earlier is not: an entry dated before a machine's previous system is never marked new there); a machine marks an entry new when the system it ran BEFORE the update was built earlier than that. tests/test_whats_new.py reads every entry the way MoOS Settings will.",
   "entries": [
     {
+      "id": "moplayer-horizon",
+      "merged": "2026-10-01T00:00:00Z",
+      "glyph": "video",
+      "title": {
+        "ar": "MoPlayer من جديد: أسرع وبألوان MoOS ويشغّل كل السيرفرات",
+        "en": "A new MoPlayer: faster, MoOS colours, every server"
+      },
+      "body": {
+        "ar": "يفتح فوراً ولا يتجمّد مع المكتبات الكبيرة، ويستهلك من كرت الشاشة أقل بكثير. رابط get.php فيه حسابك يُقرأ كسيرفر Xtream كامل بأفلامه ومسلسلاته، وتعمل روابط M3U وبوابات MAC. القنوات تُعرض على مسرح بجانب القائمة، والألوان تتبع مظهر MoOS.",
+        "en": "Opens at once, no longer freezes on large libraries and uses far less graphics memory. A get.php link with your account is read as the full Xtream server with films and series; M3U links and MAC portals work too. Channels play on a stage beside the list, in your MoOS colours."
+      }
+    },
+    {
       "id": "mira-assistant",
       "merged": "2026-09-30T00:00:00Z",
       "glyph": "ai",

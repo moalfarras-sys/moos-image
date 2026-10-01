@@ -53,6 +53,11 @@ class AppConfig {
   /// several block anything that looks like a browser.
   static const String userAgent = 'MoPlayer/1.2 (MoOS)';
 
+  /// Sent on catalogue requests (`player_api.php`, playlists, guides). Kept as
+  /// the agent the app has always presented to panels, so a server that learned
+  /// to accept it keeps accepting it.
+  static const String apiUserAgent = 'MoPlayerPro/1.0';
+
   /// The MPRIS bus name suffix: the player owns
   /// `org.mpris.MediaPlayer2.moplayer`. Kept separate from [appId] because the
   /// spec wants a bare, lower-case token here, not a reverse-DNS id.
