@@ -675,11 +675,13 @@ class BudgetHasReaders(unittest.TestCase):
         remote = (root / "moremote/controller/src/ui/RemoteScreen.tsx").read_text(encoding="utf-8")
         code = re.sub(r"/\*[\s\S]*?\*/", "", remote)
         code = "\n".join(l for l in code.splitlines() if not l.lstrip().startswith("//"))
-        self.assertIn("hostEncodeCeiling(ceiling, hostEncodeRef.current)", code,
-                      "the controller must clamp its automatic encode width to the host ceiling")
+        self.assertIn("presetEncodeCeiling(p.width, hostEncodeRef.current, autoRef.current)", code,
+                      "the controller must apply its preset and automatic host encode ceilings")
         self.assertIn("autoPresetLimit(QUALITY_PRESETS, hostEncodeRef.current,", code,
                       "the automatic quality ladder must read its host and browser ceiling")
         quality = (root / "moremote/controller/src/lib/quality.ts").read_text(encoding="utf-8")
+        self.assertIn("return auto ? hostEncodeCeiling(ceiling, host) : ceiling;", quality,
+                      "the preset ceiling must reach the host budget in Auto mode")
         self.assertIn("return hostMaxPreset(presets, host, fallback);", quality,
                       "the browser policy must still enforce the host's encode budget")
 
