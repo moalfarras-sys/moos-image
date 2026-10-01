@@ -10,7 +10,7 @@ import {
   type ClipResult, type FileListing, type FileEntry, type PowerAction, type TrustedDeviceInfo,
 } from "../lib/api";
 import { pickStartPreset, readDeviceHints, describeHints, encodeWidth, autoPresetLimit,
-  hostEncodeCeiling, ladderTick, LADDER, WEAK_LINK, type HostEncode } from "../lib/quality";
+  presetEncodeCeiling, ladderTick, LADDER, WEAK_LINK, type HostEncode } from "../lib/quality";
 import { h264Failures, noteH264Failure, H264_MAX_FAILURES } from "../lib/h264state.ts";
 import { diffToOps } from "../lib/typing.ts";
 import { remoteAlertPermission, requestRemoteAlertPermission, showRemoteAlert } from "../lib/notifications";
@@ -1563,22 +1563,9 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired, l
     // zoom as well: on that link the question is whether the pointer still answers, not detail.
     const lean = autoRef.current && weakRef.current;
     const p = lean ? { ...preset, ...WEAK_LINK } : preset;
-    // "100%" means the viewer wants real device pixels rather than a fitted picture, so the preset's
-    // width stops being a ceiling; everywhere else it still is.
-    // Zooming in is an explicit request to inspect detail: the preset ceiling
-    // (tuned for the fitted view) must not pin a 2x zoom to upscaled mush, so a
-    // zoomed viewer may ask up to the hard 2560 cap just like "100%".
-    const zoomed = view.current.zoom > 1.05;
-    let ceiling = !lean && (viewModeRef.current === "actual" || zoomed) ? 2560 : Math.min(p.width, 2560);
-    // And never more pixels than the HOST said it can encode — but only while the QUALITY choice
-    // is automatic. The distinction is which question was answered by a person: a preset is an
-    // answer to "how much bandwidth and CPU is this worth", so it overrides the host's estimate.
-    // "100%" and a zoom answer a different question — how the picture is LAID OUT — and leave the
-    // first one on Auto, so they raise the ceiling to 2560 and this still bounds it. That is not
-    // an oversight: a 2-core box asked for 1920 wide while its own budget said 1280 is exactly
-    // the case that made the desktop unusable, and it does not become affordable because the
-    // viewer zoomed in. Turning Auto off is the way to overrule it, and it is one tap away.
-    if (autoRef.current) ceiling = hostEncodeCeiling(ceiling, hostEncodeRef.current);
+    // Layout and bandwidth are separate choices. Zoom or 100% must not silently turn
+    // manual Data Saver's 1024 px stream into Ultra. Ultra remains an explicit choice.
+    const ceiling = presetEncodeCeiling(p.width, hostEncodeRef.current, autoRef.current);
     const shown = displayWidthPx();
     // A zero means we could not measure right now (no canvas, no size, a frame mid-relayout). That
     // is NOT a request for full size — treating it as one made the encode width ping-pong between

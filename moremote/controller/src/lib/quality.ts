@@ -234,6 +234,11 @@ export function autoPresetLimit(
 ): number {
   if (hints.saveData || hints.effectiveType === "slow-2g" ||
       hints.effectiveType === "2g" || hints.effectiveType === "3g") return PRESET_DATA_SAVER;
+  // RTT alone cannot prove that a cellular relay has enough throughput for 1080p. The short
+  // physical edge of a phone below 1400px cannot display Sharp's pixels at fit size anyway;
+  // leave Sharp available as a manual choice for a deliberate zoom/detail tradeoff.
+  if (hints.displayWidthPx && hints.displayWidthPx < 1400)
+    return Math.min(PRESET_BALANCED, hostMaxPreset(presets, host, fallback));
   return hostMaxPreset(presets, host, fallback);
 }
 
@@ -247,6 +252,13 @@ export function autoPresetLimit(
 export function hostEncodeCeiling(ceiling: number, host: HostEncode | null | undefined): number {
   const cap = usable(host);
   return cap ? Math.min(ceiling, cap.maxWidth) : ceiling;
+}
+
+/** A quality preset remains a bandwidth limit at 100% layout or while zoomed. */
+export function presetEncodeCeiling(presetWidth: number, host: HostEncode | null | undefined,
+                                    auto: boolean): number {
+  const ceiling = Math.min(presetWidth, 2560);
+  return auto ? hostEncodeCeiling(ceiling, host) : ceiling;
 }
 
 /**

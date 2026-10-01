@@ -3,7 +3,7 @@ import {readFileSync} from "node:fs";
 import {dirname, resolve} from "node:path";
 import {fileURLToPath} from "node:url";
 import {
-  pickStartPreset, describeHints, encodeWidth, hostMaxPreset, hostEncodeCeiling, autoPresetLimit,
+  pickStartPreset, describeHints, encodeWidth, hostMaxPreset, hostEncodeCeiling, presetEncodeCeiling, autoPresetLimit,
   PRESET_DATA_SAVER, PRESET_BALANCED, PRESET_SHARP, ladderTick, LADDER, WEAK_LINK,
 } from "../src/lib/quality.ts";
 import { QUALITY_PRESETS, AUTO_MAX_PRESET } from "../src/types.ts";
@@ -211,13 +211,27 @@ assert.equal(hostEncodeCeiling(1920, A1), 1280, "Auto must ask for no more pixel
 assert.equal(hostEncodeCeiling(1024, A1), 1024, "a request already under the ceiling is untouched");
 assert.equal(hostEncodeCeiling(2560, null), 2560, "no published opinion leaves the request alone");
 assert.equal(hostEncodeCeiling(2560, A1), 1280, "the 100%/zoom escape is still bounded while Auto is on");
+assert.equal(presetEncodeCeiling(1024, A1, false), 1024,
+  "manual Data Saver remains 1024px even when the layout is zoomed or 100%");
+assert.equal(presetEncodeCeiling(1024, A1, true), 1024,
+  "Auto Data Saver keeps its bandwidth limit");
+assert.equal(presetEncodeCeiling(1920, A1, true), 1280,
+  "Auto also respects the host encode budget");
+assert.equal(presetEncodeCeiling(2560, A1, false), 2560,
+  "manual Ultra retains its explicit width");
+assert.equal(autoPresetLimit(QUALITY_PRESETS, null, AUTO_MAX_PRESET,
+  { displayWidthPx: 1170, effectiveType: "4g", downlink: 20 }), PRESET_BALANCED,
+  "a fast RTT or coarse 4g hint must not promote a phone to 1080p automatically");
+assert.equal(autoPresetLimit(QUALITY_PRESETS, null, AUTO_MAX_PRESET,
+  { displayWidthPx: 2560, effectiveType: "4g", downlink: 20 }), PRESET_SHARP,
+  "a wide viewer can still use Sharp automatically");
 assert.ok(encodeWidth(1600, hostEncodeCeiling(1920, A1), 0) <= 1280,
   "the clamp must survive the measured-width path, which is what actually reaches the wire");
 
-// Only Auto is bounded. A preset chosen by hand turns Auto off, and the clamp with it.
+// The chosen preset always bounds bandwidth. Only Auto also obeys the host ceiling.
 const remoteAuto = remote.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
-assert.match(remoteAuto, /if \(autoRef\.current\) ceiling = hostEncodeCeiling\(ceiling, hostEncodeRef\.current\);/,
-  "the host clamp must be conditional on Auto, or a manual preset becomes a dead control");
+assert.match(remoteAuto, /presetEncodeCeiling\(p\.width, hostEncodeRef\.current, autoRef\.current\)/,
+  "the preset bandwidth limit must be wired into RemoteScreen");
 assert.match(remoteAuto, /onClick=\{\(\) => \{ setAuto\(false\); selectPreset\(i\); \}\}/,
   "choosing a preset by hand must leave the automatic ceiling behind");
 
