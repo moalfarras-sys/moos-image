@@ -2771,6 +2771,9 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired, l
               <div>
                 <div className="kv"><span>{tr("appVersion")}</span><b>{BUILD}</b></div>
                 <div className="kv"><span>{tr("connection")}</span><b>{status}</b></div>
+                <div className="kv"><span>{tr("quality")}</span>
+                  <b>{auto ? `${tr("autoMode")} · ` : ""}{tr(QUALITY_LABEL_KEYS[presetIdx])}</b>
+                </div>
                 <div className="kv"><span>{tr("thisDevice")}</span><b>{describeHints(deviceHints)}</b></div>
                 <div className="kv"><span>{tr("video")}</span>
                   <b>{status === "live"

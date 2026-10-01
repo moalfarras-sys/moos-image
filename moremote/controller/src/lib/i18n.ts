@@ -59,6 +59,7 @@ const dict = {
   security: { ar: "الأمان", en: "Security" },
   about: { ar: "حول", en: "About" },
   quality: { ar: "الجودة", en: "Quality" },
+  autoMode: { ar: "تلقائي", en: "Auto" },
   auto: { ar: "تلقائي", en: "Auto" },
   autoQuality: { ar: "جودة تلقائية — تتكيف مع شبكتك", en: "Auto quality — adapts to your network" },
   hostCapPrefix: { ar: "حد البث التلقائي الموصى به لهذا الكمبيوتر", en: "This computer's recommended Auto streaming limit is" },
