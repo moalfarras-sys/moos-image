@@ -1,4 +1,11 @@
-# MoOS current state — measured 2026-09-30
+# MoOS current state — measured 2026-10-01
+
+**Installed readback, 2026-10-01:** the NVIDIA station boots signed
+`44.20261001.964` from source `b21c6847` (digest `sha256:7a65ff5e…`), with `.959`
+available for rollback. System and user units have no failures. Mo PC Remote is
+active behind Tailscale Serve. The two online tailnet peers observed during this
+check used relays; the station's UDP probe passed. Fast Remote was enabled live,
+and KWin blur/slide read back disabled without restarting the desktop.
 
 **2026-09-30 release readback:** `main` is `cb61e592` (PR #181); signed `.959` passed build
 `36693894196`, three QCOW2 boots, ISO `36699338568`, x86 promotion `36703620410`; ARM
@@ -56,7 +63,7 @@ DLL from composefs; do not weaken SELinux globally.
 | Kernel | `7.2.7-200.fc44.x86_64` (2026-10-01) |
 | Network | Intel AX210 Wi-Fi/Bluetooth + RTL8125 Ethernet |
 | Health | Baloo recovered; post-update 55/0; powersave changed to balanced, turbo read back enabled |
-| Freeze audit (2026-10-01) | 3.7 GiB in zram, no OOM this boot. Mo PC Remote renewed its portal grant ~2,600 times in the previous boot (every 30–90 s, same 1536×864 desktop each time, cause unrecorded, none since the reboot); 30 forced renewals leaked nothing and the log now names the change. `moai-control` woke rpm-ostreed 59× in 2 h 50 min, now once per boot. The Echo gadget's USB microphone floods the kernel log (~60 xHCI "buffer overrun" warnings/s, journald ~3% CPU): the 500 MB journal spans only ~5 h, so the previous boot's user logs were already gone. The fix is the gadget's packet size (Mira) |
+| Freeze audit (2026-10-01) | 3.7 GiB in zram, no OOM this boot. Mo PC Remote renewed its portal grant ~2,600 times in the previous boot; the new diagnostic now identifies the same repeated `1536x864+0+0@3 -> no outputs` transition on `.964` (833 occurrences in the last 3,000 log lines). KScreen still reports the connected 3840×2160 output at 250%. Source fix ignores a transient empty GDK monitor snapshot while retaining real geometry/replacement and stream-health recovery; signed delivery and live endurance proof are pending. `moai-control` woke rpm-ostreed 59× in 2 h 50 min, now once per boot. The Echo gadget's USB microphone floods the kernel log (~60 xHCI "buffer overrun" warnings/s, journald ~3% CPU): the 500 MB journal spans only ~5 h, so the previous boot's user logs were already gone. The fix is the gadget's packet size (Mira) |
 
 Measured on the previous `.938`: installed `THEME_REV` **87**
 and its existing-account marker, current Global Theme `org.moos.ui2.gaming`,
