@@ -87,7 +87,7 @@ flat pointer mapping. Live iPhone/DERP testing found Auto returning to a 1320 px
 Balanced stream despite ~50–60 ms RTT; manually choosing 1024 px Data Saver
 stabilized the reported session. Source v49 now caps phone Auto at Data Saver when
 Safari hides its link class. The temporary user service serves v49; sustained
-cellular proof and signed delivery remain open (plan P2.14).
+owner reported a stable short v49 cellular trial at 1024 px; longer endurance and signed delivery remain open (plan P2.14).
 
 ## Closed reviews — what they established
 
