@@ -1480,35 +1480,9 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired, l
   // ---------- settings (quality + view) ----------
   // Read the preset through a ref: onHello is wired once, so closing over presetIdx directly
   // would make every reconnect re-send the preset that was selected on first render.
-  /**
-   * How many encoded pixels this viewer can actually SHOW.
-   *
-   * WHY THE PRESET ALONE WAS THE WRONG ANSWER IN BOTH DIRECTIONS
-   *
-   * The request was the preset's width and nothing else — the same 1366 or 1920 whether the picture
-   * was being drawn into a 390px-wide phone or a 2560px-wide browser window. That is wrong twice
-   * over, and each way is one of the two complaints this change exists to answer:
-   *
-   *   ON A PHONE it asks for pixels that are thrown away before they are ever seen. Measured here:
-   *   a 390x844 phone showing the desktop fitted upright draws it 390 CSS px wide; at DPR 3 that is
-   *   1170 real pixels, and "Balanced" was asking the encoder for 1366 while "Sharp" asked for
-   *   1920 — 64% more bits than the display can resolve. Those bits are not free: they are encode
-   *   time, bitrate on a cellular link, and decode work on a phone that is already the slowest thing
-   *   in the chain. Paying them buys literally nothing visible.
-   *
-   *   ON A COMPUTER it asks for FEWER pixels than the window shows, and there is no way to get them
-   *   back. A 2560-wide browser window on the default preset was being sent 1366 and upscaling it by
-   *   1.9x — which is exactly the "the picture is not sharp when I open it on the computer" report,
-   *   and no bitrate could have fixed it, because the detail was discarded before the encoder.
-   *
-   * So ask for what is on screen. The preset stays in charge of BANDWIDTH — it owns quality (bits
-   * per pixel) and fps, and its width remains the ceiling — but it can no longer demand more pixels
-   * than exist. Going past 1920 remains the explicit Ultra choice; display size and RTT never make
-   * that bandwidth decision on the user's behalf.
-   *
-   * Zoom is included deliberately: pinching in to read something asks the encoder for the detail
-   * that makes it readable, which is the one moment resolution is worth spending on.
-   */
+  /** Measure the physical pixels occupied by the view. The selected quality preset remains the
+   * encode ceiling even at 100% or while zoomed; changing the view cannot silently turn Data
+   * Saver into a 2560px stream. The measurement may reduce width below that ceiling. */
   const displayWidthPx = () => {
     const c = canvasRef.current;
     if (!c) return 0;
