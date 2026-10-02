@@ -13,6 +13,7 @@ Item {
 
     readonly property var items: [
         { id: "home", icon: "home", label: mira.s.nav_home },
+        { id: "lumen", icon: "bulb", label: mira.s.nav_lumen },
         { id: "pc", icon: "monitor", label: mira.s.nav_pc },
         { id: "apps", icon: "apps", label: mira.s.nav_apps },
         { id: "system", icon: "shield", label: mira.s.nav_system },

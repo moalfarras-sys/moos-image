@@ -124,6 +124,15 @@ def stage(controller, window, scene):
     QTimer.singleShot(400, lambda: play(scene, voice, controller, window))
 
 
+def _scroll_page(window, y):
+    """Review only: scroll the open page's longest Flickable to `y` (to capture what is below the fold)."""
+    from PySide6.QtCore import QObject
+    flicks = [o for o in window.findChildren(QObject) if o.metaObject().className().startswith('QQuickFlickable')]
+    if flicks:
+        target = max(flicks, key=lambda f: f.property('contentHeight') or 0)
+        target.setProperty('contentY', min(y, max(0, (target.property('contentHeight') or 0) - (target.property('height') or 0))))
+
+
 def play(scene, voice, controller, window):
     # the old sheet names, as the controller maps them (controller.PANELS): 'computer' is This PC
     scene = {'computer': 'pc'}.get(scene, scene)
@@ -151,6 +160,9 @@ def play(scene, voice, controller, window):
     elif scene == 'error':
         voice('error', 'تعذّر الاتصال بالصوت: TimeoutError')
     elif scene in ('home', 'settings'):
+        home_page = getattr(controller, '_pages', {}).get('home')
+        if scene == 'home' and home_page is not None and hasattr(home_page, 'review'):
+            home_page.review()
         QTimer.singleShot(200, lambda: window.setProperty('sheet', scene))
         section = next((a.split('=', 1)[1] for a in sys.argv if a.startswith('--section=')), '')
         if scene == 'settings' and section.isdigit():
@@ -161,13 +173,16 @@ def play(scene, voice, controller, window):
                 if sheet is not None:
                     sheet.setProperty('section', int(section))
             QTimer.singleShot(700, pick)
-    elif scene in ('pc', 'apps', 'workbench', 'connect', 'brain', 'page-system'):
+    elif scene in ('lumen', 'pc', 'apps', 'workbench', 'connect', 'brain', 'page-system'):
         # A page of the window with its own visibly-sample review data (Page.review()).
         name = 'system' if scene == 'page-system' else scene
         page = getattr(controller, '_pages', {}).get(name)
         if page is not None and hasattr(page, 'review'):
             page.review()
         QTimer.singleShot(200, lambda: window.setProperty('sheet', name))
+        scroll = next((a.split('=', 1)[1] for a in sys.argv if a.startswith('--scroll=')), '')
+        if scroll.isdigit():
+            QTimer.singleShot(1200, lambda: _scroll_page(window, int(scroll)))
     elif scene == 'agent':
         stage_agent(controller)
     elif scene in ('system', 'actions'):

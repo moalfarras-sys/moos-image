@@ -273,6 +273,7 @@ STRINGS = {
 STRINGS.update({
     'nav_mira': ('ميرا', 'Mira'),
     'nav_home': ('البيت', 'Home'),
+    'nav_lumen': ('الإضاءة', 'Lumen'),
     'nav_pc': ('الكمبيوتر', 'This PC'),
     'nav_apps': ('التطبيقات', 'Apps'),
     'nav_system': ('النظام', 'System'),

@@ -685,6 +685,22 @@ KCM.SimpleKCM {
                                     "Checks, repairs, updates and the store. Every system change waits for your approval.")
                 onClicked: root.open("moos://ai/system")
             }
+            FormCard.FormDelegateSeparator {}
+            MoosActionRow {
+                glyph: "home"
+                text: root.t("البيت", "Home")
+                description: root.t("كل أجهزة بيتك بغرفها: سمِّ أي جهاز أو انقله لغرفة، وميرا بتعرف شو بيقدر يعمل كل جهاز.",
+                                    "Every device in your home, by room: rename any device or move it to a room, and Mira knows what each one can do.")
+                onClicked: root.open("moos://ai/home")
+            }
+            FormCard.FormDelegateSeparator {}
+            MoosActionRow {
+                glyph: "bulb"
+                text: root.t("الإضاءة · لومِن", "Lighting · Lumen")
+                description: root.t("كل أضواء البيت وإضاءة الكمبيوتر معاً: مشاهد، ألوان، وأضواء تتبع الشاشة.",
+                                    "Every light in the house and the computer's RGB together: scenes, colours, and lights that follow the screen.")
+                onClicked: root.open("moos://ai/lumen")
+            }
         }
 
         // ══ The brain ═══════════════════════════════════════════════════════════

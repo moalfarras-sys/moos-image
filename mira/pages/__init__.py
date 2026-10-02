@@ -9,6 +9,8 @@ import importlib
 
 # (module, property name on the controller) in navigation order after the Mira stage itself.
 PAGES = [
+    ('home', 'homePage'),
+    ('lumen', 'lumenPage'),
     ('pc', 'pcPage'),
     ('apps', 'appsPage'),
     ('system', 'systemPage'),

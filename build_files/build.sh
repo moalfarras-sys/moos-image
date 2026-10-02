@@ -2045,6 +2045,32 @@ case "$_mira_pages" in
     *MIRA_PAGES_OK) ;;
     *) echo "GATE FAIL: Mira cannot import her pages in this image:"; echo "$_mira_pages"; exit 1 ;;
 esac
+# Lumen, the lighting engine behind Mira's lights (/usr/bin/mira-lumen, mira-lumen.service): its
+# launcher must run the image's own engine, and that engine must start, answer on its private socket
+# and report an honest empty house (no Home Assistant, no lighting controller in a build container).
+# GnuTLS (the Hue stream's DTLS) and GStreamer's PipeWire source (Screen Sync) must load here too:
+# a missing library would only show the day the owner pressed «Start sync».
+test -x /usr/bin/mira-lumen && test -f /usr/lib/mira/app/lumen/engine.py \
+    || { echo "GATE FAIL: Lumen (the lighting engine) is missing from the image"; exit 1; }
+set +e
+_lumen_out="$(env -i PATH=/usr/bin HOME="$_mira_home" XDG_RUNTIME_DIR="$_mira_home" MIRA_LUMEN_SPAWN=0 \
+    timeout 40 /bin/bash -c '
+        /usr/bin/mira-lumen serve >"$HOME/lumen.log" 2>&1 & pid=$!
+        for _ in $(seq 1 50); do [ -S "$XDG_RUNTIME_DIR/mira-lumen.sock" ] && break; sleep 0.2; done
+        /usr/bin/mira-lumen status; rc=$?
+        cd /usr/lib/mira/app && PYTHONPATH=/usr/lib/mira/site:/usr/lib/mira/app PYTHONDONTWRITEBYTECODE=1 /usr/bin/python3 -s -c "
+from lumen import dtls, capture
+dtls._gnutls()
+import gi; gi.require_version(\"Gst\", \"1.0\"); from gi.repository import Gst; Gst.init(None)
+assert Gst.ElementFactory.find(\"pipewiresrc\") is not None, \"no pipewiresrc\"
+print(\"LUMEN_LIBS_OK\")"; rc2=$?
+        kill $pid; wait $pid 2>/dev/null
+        cat "$HOME/lumen.log"; [ $rc -eq 0 ] && [ $rc2 -eq 0 ] && echo LUMEN_OK' 2>&1)"
+set -e
+case "$_lumen_out" in
+    *LUMEN_LIBS_OK*LUMEN_OK) echo "Lumen: the engine starts and answers in the image" ;;
+    *) echo "GATE FAIL: Lumen did not start or answer in this image:"; echo "$_lumen_out"; exit 1 ;;
+esac
 # Her window, offscreen, with stand-in backends: it must render a frame, save it, and say nothing
 # wrong while doing so. The log is written to a file and then searched (no producer piped into
 # `grep -q` under pipefail): a QML warning, a page that did not import or a traceback is a window
@@ -2524,7 +2550,7 @@ systemctl enable moos-flatpak-init.service
 # read-only hardware snapshot to /tmp/moos-hw.json then launches the Hardware
 # Center — both are now compiled panels inside Mo AI, so these commands are
 # thin wrappers around `moai --panel compat|device`.
-chmod 0755 /usr/bin/moplayer /usr/bin/mira
+chmod 0755 /usr/bin/moplayer /usr/bin/mira /usr/bin/mira-lumen
 chmod 0755 /usr/bin/moos-setup /usr/bin/moos-firstrun /usr/bin/moos-compat \
     /usr/bin/moos-hardware /usr/bin/moos-device-plan /usr/bin/moai /usr/bin/moai-start /usr/bin/moai-do \
     /usr/bin/moos-update /usr/bin/moos-rollback /usr/bin/moos-welcome /usr/bin/moos-store /usr/bin/moos-lang \
@@ -2874,9 +2900,14 @@ systemd-analyze verify \
     /usr/lib/systemd/user/moai-agent-api.service \
     /usr/lib/systemd/user/moos-app-drop.path \
     /usr/lib/systemd/user/moos-app-drop.service \
-    /usr/lib/systemd/user/mira.service
+    /usr/lib/systemd/user/mira.service \
+    /usr/lib/systemd/user/mira-lumen.service
 # mira.service (Mira's login start) is verified but never enabled here: it is the person's own
 # switch in her Settings (tests/test_mira_kde_integration.py refuses a global enable).
+# mira-lumen.service IS enabled for everyone, and starts only for a person who has used Lumen
+# (ConditionPathExists=%h/.config/mo-dot/lumen.json): it puts back the case lights the motherboard
+# forgot at power-off and keeps a living scene or Screen Sync running without Mira's window.
+systemctl --global enable mira-lumen.service
 # openclaw-gateway.service is deliberately NOT verified here: its ExecStart is
 # %h/.local/bin/openclaw, a per-user runtime install (moai-do install-openclaw),
 # which does not exist in the build container — systemd-analyze verify resolves

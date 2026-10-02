@@ -218,7 +218,8 @@ ApplicationWindow {
     // destination → page. A page not built yet shows the conversation's old sheet in its frame.
     function pageComponent(name) {
         switch (name) {
-        case "home": return homeC
+        case "home": return mira.homePage ? homePageC : homeC
+        case "lumen": return mira.lumenPage ? lumenPageC : soonC
         case "pc": return mira.pcPage ? pcPageC : pcC
         case "system": return mira.systemPage ? sysPageC : sysC
         case "apps": return mira.appsPage ? appsPageC : sysC
@@ -240,6 +241,8 @@ ApplicationWindow {
     Component { id: setC; SheetFrame { icon: "settings"; title: mira.s.st_title; SettingsSheet { anchors.fill: parent } } }
     Component { id: soonC; PageFrame { icon: "sparkle"; title: mira.s.page_loading } }
     // the new pages (pages/*.py + qml/Mira/*Page.qml); each is used once its file exists
+    Component { id: homePageC; HomePage {} }
+    Component { id: lumenPageC; LumenPage { clock: win.clock } }
     Component { id: pcPageC; PcPage {} }
     Component { id: sysPageC; SystemPage {} }
     Component { id: appsPageC; AppsPage {} }
@@ -279,6 +282,7 @@ ApplicationWindow {
     Shortcut { sequences: ["Ctrl+5"]; onActivated: win.go(win.sheet === "workbench" ? "" : "workbench") }
     Shortcut { sequences: ["Ctrl+6"]; onActivated: win.go(win.sheet === "connect" ? "" : "connect") }
     Shortcut { sequences: ["Ctrl+7"]; onActivated: win.go(win.sheet === "brain" ? "" : "brain") }
+    Shortcut { sequences: ["Ctrl+8"]; onActivated: win.go(win.sheet === "lumen" ? "" : "lumen") }
     Shortcut { sequences: ["Ctrl+,"]; onActivated: win.go(win.sheet === "settings" ? "" : "settings") }
     Shortcut { sequences: ["Ctrl+Shift+F"]; onActivated: mira.toggleFace() }
 }

@@ -62,6 +62,52 @@ DECLARATIONS: list[dict] = [
     {'name': 'home_lights_all',
      'description': 'Turn every currently available Home Assistant light on or off. Use only when the owner explicitly says all lights or every light. Returns each light readback; partial is not full success.',
      'parameters': _obj({'action': {'type': 'STRING', 'enum': ['turn_on', 'turn_off']}}, ['action'])},
+    {'name': 'lights',
+     'description': "Control ANY light by the owner's words, through Lumen (MoOS's lighting engine): the house's lamps "
+                    "(Hue, Tuya … through Home Assistant) AND this computer's own case/motherboard RGB (fans, strips). "
+                    "target: 'all', a room, a group, a light's name or alias, 'pc' (the computer's case lights), 'home' "
+                    "(house lights only); several joined with commas. action on/off/set. color: any colour name in Arabic "
+                    "or English (أحمر، زهري، موف، فيروزي …), '#RRGGBB', or a white such as «أبيض دافئ», «أبيض بارد», '2700K'. "
+                    "brightness 0–100. effect: a lamp's own effect (candle, fire, prism, sparkle …) or, for PC lights, "
+                    "breathe/flash/cycle/wave; 'none' stops it. Prefer this over home_control for every light. "
+                    "Result ok only when each light read back; partial/pending say which did not.",
+     'parameters': _obj({'target': {'type': 'STRING', 'description': "Words: all | pc | home | a room | a light's name"},
+                         'action': {'type': 'STRING', 'enum': ['on', 'off', 'set']},
+                         'color': {'type': 'STRING'},
+                         'brightness': {'type': 'NUMBER', 'description': '0–100'},
+                         'effect': {'type': 'STRING'}}, ['target', 'action'])},
+    {'name': 'light_scene',
+     'description': "Put a whole mood on the lights (each lamp takes a colour of the scene's palette; 'living' scenes drift "
+                    "slowly): aurora (شفق), moos (ألوان MoOS), sunset (غروب), ocean (محيط), forest (غابة), neon (نيون), "
+                    "party (حفلة), cinema (سينما/فيلم), candle (شموع), fire (مدفأة/نار), focus (تركيز/شغل), read (قراءة), "
+                    "relax (استرخاء), night (ليل). target as in lights (default all). stop ends the motion of living scenes.",
+     'parameters': _obj({'scene': {'type': 'STRING', 'enum': ['aurora', 'moos', 'sunset', 'ocean', 'forest', 'neon', 'party',
+                                                              'cinema', 'candle', 'fire', 'focus', 'read', 'relax', 'night', 'stop']},
+                         'target': {'type': 'STRING'},
+                         'brightness': {'type': 'NUMBER', 'description': 'Optional 1–100 instead of the scene\'s own'}}, ['scene'])},
+    {'name': 'screen_sync',
+     'description': "Make the lights follow what is on the computer screen (films, games, anything) — like an ambilight: "
+                    "start, stop, or status. mode video (balanced), game (fast and vivid) or ambient (slow and calm). "
+                    "target as in lights (default: every colour light, the PC case included). The first start shows a "
+                    "screen-share approval on the computer once; say so if the result says asking.",
+     'parameters': _obj({'action': {'type': 'STRING', 'enum': ['start', 'stop', 'status']},
+                         'mode': {'type': 'STRING', 'enum': ['video', 'game', 'ambient']},
+                         'target': {'type': 'STRING'}}, ['action'])},
+    {'name': 'home_rename',
+     'description': "Rename a home device or light for good (in Home Assistant itself, so every app and every later "
+                    "conversation uses the new name), and/or move it to a room (created if new). Use when the owner asks "
+                    "to call a device something, or says which room it is in. device: its current name or entity id; "
+                    "new_name '' keeps the name; room '' keeps the room. PC lights (pc:D_LED1 …) can be renamed too.",
+     'parameters': _obj({'device': {'type': 'STRING'}, 'new_name': {'type': 'STRING'},
+                         'room': {'type': 'STRING'}}, ['device'])},
+    {'name': 'tv_control',
+     'description': "Control the TV through Home Assistant: power_on, power_off, volume_up, volume_down, mute, "
+                    "play_pause, home, back, open_app (app: youtube, netflix, prime, disney, spotify, plex, kodi or a "
+                    "package name). Only what this TV really supports; the result says when it does not.",
+     'parameters': _obj({'action': {'type': 'STRING', 'enum': ['power_on', 'power_off', 'volume_up', 'volume_down', 'mute',
+                                                               'play_pause', 'home', 'back', 'open_app']},
+                         'app': {'type': 'STRING'},
+                         'tv': {'type': 'STRING', 'description': 'Which TV, when there are several'}}, ['action'])},
     {'name': 'current_weather',
      'description': 'Get real current modeled weather from Open-Meteo for a city the owner named. If no city is known, ask for it before calling. Never assume the computer timezone is the city.',
      'parameters': _obj({'city': {'type': 'STRING', 'description': 'City name, optionally with country'}}, ['city'])},
@@ -449,6 +495,237 @@ async def _home_lights_all(args, ctx):
     return result
 
 
+def _lumen(op, **args):
+    from lumen import client
+    return client.request(op, **args)
+
+
+def _light_rows(result, lang_ar=True):
+    rows = result.get('results') or []
+    bad = [r['name'] for r in rows if r.get('status') != 'ok']
+    return bad
+
+
+async def _lights(args, ctx):
+    action = args['action']
+    payload = {'target': args.get('target') or 'all'}
+    if action == 'off':
+        payload['on'] = False
+    elif action == 'on':
+        payload['on'] = True
+    if args.get('color'):
+        payload['color'] = args['color']
+    if args.get('brightness') is not None:
+        payload['brightness'] = max(0, min(100, float(args['brightness'])))
+    if args.get('effect'):
+        payload['effect'] = args['effect']
+    if action == 'set' and len(payload) == 1:
+        return {'status': 'error', 'error': 'nothing to set', 'summary': 'لم يُنفَّذ: ما في شي لتغييره',
+                'summary_en': 'Not done: nothing to change'}
+    result = dict(await _thread(_lumen, 'set', timeout=25, **payload))
+    status = result.get('status', 'error')
+    if status not in STATUSES:
+        status = 'error'
+    result['status'] = status
+    done, total = result.get('confirmed', 0), result.get('total', 0)
+    bad = _light_rows(result)
+    what = {'on': 'تشغيل', 'off': 'إطفاء'}.get(action, 'ضبط')
+    what_en = {'on': 'on', 'off': 'off'}.get(action, 'set')
+    if args.get('color'):
+        what += ' · ' + args['color']
+        what_en += ' · ' + args['color']
+    if args.get('brightness') is not None:
+        what += ' · %d%%' % int(args['brightness'])
+        what_en += ' · %d%%' % int(args['brightness'])
+    if status == 'error':
+        reason = str(result.get('error') or '')
+        if reason == 'lumen-not-running':
+            reason = 'محرك الإضاءة لا يعمل'
+        result['summary'] = 'لم يُنفَّذ: ' + reason
+        result['summary_en'] = 'Not done: ' + str(result.get('error') or '')
+    else:
+        result['summary'] = f'الإضاءة {what} · تأكد {done} من {total}' + (' · لم يتأكد: ' + '، '.join(bad[:4]) if bad else '')
+        result['summary_en'] = f'Lights {what_en} · {done} of {total} confirmed' + (' · not confirmed: ' + ', '.join(bad[:4]) if bad else '')
+    if total > 12:
+        result.pop('results', None)
+    return result
+
+
+async def _light_scene(args, ctx):
+    if args['scene'] == 'stop':
+        result = dict(await _thread(_lumen, 'stop_living', target=args.get('target') or None))
+        result['summary'] = 'أوقفت حركة المشهد'
+        result['summary_en'] = 'Stopped the scene\'s motion'
+        return result
+    payload = {'name': args['scene'], 'target': args.get('target') or 'all'}
+    if args.get('brightness') is not None:
+        payload['brightness'] = max(1, min(100, float(args['brightness'])))
+    result = dict(await _thread(_lumen, 'scene', timeout=30, **payload))
+    status = result.get('status', 'error')
+    result['status'] = status if status in STATUSES else 'error'
+    name = (result.get('scene') or {}).get('name') or args['scene']
+    if result['status'] == 'error':
+        result['summary'] = 'لم يُنفَّذ المشهد: ' + str(result.get('error') or '')
+        result['summary_en'] = 'Scene not applied: ' + str(result.get('error') or '')
+    else:
+        result['summary'] = f"مشهد «{name}» · تأكد {result.get('confirmed', 0)} من {result.get('total', 0)}"
+        result['summary_en'] = f"Scene “{name}” · {result.get('confirmed', 0)} of {result.get('total', 0)} confirmed"
+    result.pop('results', None)
+    return result
+
+
+async def _screen_sync(args, ctx):
+    action = args['action']
+    if action == 'start':
+        result = dict(await _thread(_lumen, 'sync_start', timeout=20, mode=args.get('mode') or 'video',
+                                    target=args.get('target') or None))
+    elif action == 'stop':
+        result = dict(await _thread(_lumen, 'sync_stop'))
+    else:
+        result = dict(await _thread(_lumen, 'sync_status'))
+    sync = result.get('sync') or {}
+    status = result.get('status', 'error')
+    result['status'] = status if status in STATUSES else 'error'
+    if result['status'] == 'error':
+        result['summary'] = 'مزامنة الشاشة: ' + str(result.get('error') or 'تعذّرت')
+        result['summary_en'] = 'Screen sync: ' + str(result.get('error') or 'failed')
+    elif action == 'stop':
+        result['summary'], result['summary_en'] = 'أوقفت مزامنة الشاشة', 'Screen sync stopped'
+    else:
+        n = len(sync.get('lights') or [])
+        state = sync.get('state') or ''
+        if action == 'start':
+            # the capture starts in the background: "running" is only said once the screen is flowing
+            result['status'] = 'pending'
+            result['asking'] = state in ('asking', 'idle')
+        result['summary'] = (f'مزامنة الشاشة تعمل · {n} أضواء' if sync.get('running') else 'مزامنة الشاشة متوقفة') + \
+            (' · بانتظار موافقتك على مشاركة الشاشة' if state == 'asking' else '')
+        result['summary_en'] = (f'Screen sync running · {n} lights' if sync.get('running') else 'Screen sync is off') + \
+            (' · waiting for your screen-share approval' if state == 'asking' else '')
+    return result
+
+
+def _find_device(hub, words):
+    words = (words or '').strip()
+    records = hub.inventory(include_hidden=False)
+    if any(r['entity_id'] == words for r in records):
+        return next(r for r in records if r['entity_id'] == words), records
+    from lumen.engine import norm
+    key = norm(words)
+    exact = [r for r in records if key in {norm(r.get('name') or ''), norm(r.get('default_name') or '')}
+             | {norm(a) for a in r.get('aliases') or []}]
+    if len(exact) == 1:
+        return exact[0], records
+    partial = [r for r in records if key and key in norm(r.get('name') or '')]
+    return (partial[0] if len(partial) == 1 else None), records
+
+
+def _home_rename_sync(args):
+    device = (args.get('device') or '').strip()
+    new_name = (args.get('new_name') or '').strip()
+    room = (args.get('room') or '').strip()
+    if not new_name and not room:
+        return {'status': 'error', 'error': 'nothing to change', 'summary': 'لم يُنفَّذ: ما ذكرت اسماً جديداً أو غرفة'}
+    if device.startswith('pc:'):
+        result = _lumen('rename', id=device, name=new_name)
+        result['summary'] = f'سمّيت ضوء الكمبيوتر «{new_name}»'
+        return result
+    import homehub
+    hub = homehub.load()
+    if hub is None:
+        return {'status': 'error', 'error': 'home not linked', 'summary': 'البيت غير مربوط'}
+    record, records = _find_device(hub, device)
+    if record is None:
+        lumen_snapshot = _lumen('snapshot')
+        for light in lumen_snapshot.get('lights', []):
+            if light['source'] == 'pc' and device in (light['name'], light['ref'], light['id']):
+                result = _lumen('rename', id=light['id'], name=new_name)
+                result['summary'] = f'سمّيت ضوء الكمبيوتر «{new_name}»'
+                return result
+        return {'status': 'error', 'error': 'device not found',
+                'summary': f'ما لقيت جهازاً اسمه «{device}»', 'summary_en': f'No device called “{device}”'}
+    done = []
+    if new_name:
+        back = hub.rename(record['entity_id'], new_name)
+        if (back or {}).get('name') != new_name:
+            return {'status': 'pending', 'summary': 'أُرسل الاسم ولم يتأكد', 'readback': back}
+        done.append(f'الاسم «{new_name}»')
+    if room:
+        back = hub.set_area(record['entity_id'], room)
+        done.append(f'الغرفة «{(back or {}).get("area") or room}»')
+    try:
+        _lumen('snapshot', force=True)
+    except Exception:
+        pass
+    global _home_cache_at
+    _home_cache_at = 0.0
+    return {'status': 'ok', 'entity_id': record['entity_id'], 'old_name': record.get('name'),
+            'summary': f"{record.get('name')} ← " + ' · '.join(done),
+            'summary_en': f"{record.get('name')} → " + ' · '.join(done)}
+
+
+async def _home_rename(args, ctx):
+    return await _thread(_home_rename_sync, args)
+
+
+TV_APPS = {'youtube': 'https://www.youtube.com', 'netflix': 'com.netflix.ninja', 'prime': 'com.amazon.amazonvideo.livingroom',
+           'disney': 'com.disney.disneyplus', 'spotify': 'com.spotify.tv.android', 'plex': 'com.plexapp.android',
+           'kodi': 'org.xbmc.kodi', 'يوتيوب': 'https://www.youtube.com', 'نتفلكس': 'com.netflix.ninja',
+           'نتفليكس': 'com.netflix.ninja'}
+TV_KEYS = {'volume_up': 'VOLUME_UP', 'volume_down': 'VOLUME_DOWN', 'mute': 'MUTE', 'home': 'HOME', 'back': 'BACK',
+           'play_pause': 'MEDIA_PLAY_PAUSE'}
+
+
+def _tv_control_sync(args):
+    import homehub
+    hub = homehub.load()
+    if hub is None:
+        return {'status': 'error', 'error': 'home not linked', 'summary': 'البيت غير مربوط'}
+    records = hub.inventory(include_hidden=False)
+    tvs = [r for r in records if r.get('kind') == 'tv' and r['entity_id'].startswith('media_player.')]
+    remotes = [r for r in records if r['entity_id'].startswith('remote.')]
+    if args.get('tv'):
+        from lumen.engine import norm
+        key = norm(args['tv'])
+        tvs = [r for r in tvs if key in norm(r.get('name') or '')] or tvs
+    live = [r for r in tvs if r.get('available')]
+    tv = (live or tvs or [None])[0]
+    action = args['action']
+    if action in ('power_on', 'power_off', 'open_app') and tv is None:
+        return {'status': 'error', 'error': 'no tv', 'summary': 'ما لقيت تلفزيون في البيت'}
+    if action == 'power_on':
+        hub.call('media_player', 'turn_on', {'entity_id': tv['entity_id']})
+        want = 'on'
+    elif action == 'power_off':
+        hub.call('media_player', 'turn_off', {'entity_id': tv['entity_id']})
+        want = 'off'
+    elif action == 'open_app':
+        app = (args.get('app') or '').strip()
+        target = TV_APPS.get(app.lower(), app)
+        if not target or not re.fullmatch(r'(https://[\w./-]+|[a-zA-Z][\w]*(\.[\w]+)+)', target):
+            return {'status': 'error', 'error': 'unknown app', 'summary': 'ما عرفت التطبيق'}
+        hub.call('media_player', 'play_media', {'entity_id': tv['entity_id'], 'media_content_type': 'app',
+                                                'media_content_id': target})
+        return {'status': 'pending', 'summary': f'طلبت فتح {app} على التلفزيون', 'summary_en': f'Asked the TV to open {app}'}
+    else:
+        if not remotes:
+            return {'status': 'unsupported', 'summary': 'هذا التلفزيون ما عنده تحكم أزرار عبر البيت'}
+        hub.call('remote', 'send_command', {'entity_id': remotes[0]['entity_id'], 'command': TV_KEYS[action]})
+        return {'status': 'ok', 'verified': 'sent', 'summary': 'أرسلت زر ' + TV_KEYS[action] + ' للتلفزيون',
+                'summary_en': 'Sent ' + TV_KEYS[action] + ' to the TV'}
+    import time as _time
+    for _ in range(12):
+        _time.sleep(0.5)
+        if hub.state(tv['entity_id']).get('state') == want:
+            return {'status': 'ok', 'summary': 'التلفزيون ' + ('اشتغل' if want == 'on' else 'انطفى'),
+                    'summary_en': 'The TV is ' + want}
+    return {'status': 'pending', 'summary': 'أُرسل للتلفزيون ولم يتأكد بعد', 'summary_en': 'Sent to the TV, not confirmed yet'}
+
+
+async def _tv_control(args, ctx):
+    return await _thread(_tv_control_sync, args)
+
+
 async def _current_weather(args, ctx):
     import weather_link
     result = dict(await _thread(weather_link.current, args['city']))
@@ -814,6 +1091,11 @@ _EXECUTORS = {
     'home_devices': (_home_devices, 30),
     'home_control': (_home_control, 60),
     'home_lights_all': (_home_lights_all, 150),
+    'lights': (_lights, 40),
+    'light_scene': (_light_scene, 45),
+    'screen_sync': (_screen_sync, 30),
+    'home_rename': (_home_rename, 30),
+    'tv_control': (_tv_control, 20),
     'current_weather': (_current_weather, 20),
     'current_time': (_current_time, 3),
     'remember_color': (_remember_color, 10),
@@ -1007,7 +1289,11 @@ def places() -> dict:
 
 RULES = (
     'للتحكم بصوت سماعتك Echo أو حلقتها المضيئة استخدمي device_control فقط، وميّزي بين صوت الكمبيوتر وصوت سماعتك. '
-    'حين يقول المالك شغّلي أو طفّي أو غيّري لون إضاءة البيت استخدمي home_devices لتجدي الجهاز ثم home_control بمعرّفه الحقيقي. '
+    'لأي ضوء — أضواء البيت وإضاءة الكمبيوتر (الكيس والمراوح واللوحة الأم) — استخدمي lights بكلمات المالك نفسها '
+    '(اسم الضوء أو الغرفة أو «الكل» أو pc للكمبيوتر)، وللمزاج الكامل light_scene، ولتتبع الشاشة screen_sync. '
+    'اعرفي أضواء البيت وغرفها وقدرات كل جهاز من «بيت المالك» أدناه، ولا تعرضي على جهاز ما لا يدعمه. '
+    'إن طلب المالك تسمية جهاز أو قال إنه في غرفة معينة استخدمي home_rename فوراً: الاسم يُحفظ في البيت نفسه. '
+    'للتلفزيون tv_control. للأجهزة الأخرى (قابس، مروحة …) home_devices ثم home_control بمعرّفه الحقيقي. '
     'إذا كانت الإضاءة غير محددة اسألي أي واحدة، وإذا كان اسمها واضحاً نفّذي مباشرة؛ لا تكتفي بوصف ما يمكن فعله. '
     'عندما يسأل «كم ضوء» أو عن عدد أجهزة البيت استخدمي home_summary؛ لا تخمّني العدد. '
     'لطلب «كل الأضواء» الصريح استخدمي home_lights_all واذكري العدد المؤكد والأجهزة غير المتاحة من نتيجته. '
@@ -1259,6 +1545,113 @@ def machine_block(lang: str = 'ar') -> str:
         return ''   # the block is a convenience: it never stops Mira from answering
 
 
+# ─── the owner's home, as Home Assistant and Lumen read it ────────────────
+# Rooms, every device with what it can really do, and the computer's own lights, in a few lines,
+# so «طفي ضو التلفزيون» or «شو بيقدر يعمل الضو الأحمر؟» is understood without a tool round. Read in
+# the background at most every HOME_TTL_S; an instruction never waits more than HOME_WAIT_S for it.
+HOME_TTL_S = 120
+HOME_WAIT_S = 1.2
+_home_lock = threading.Lock()
+_home_cache: dict = {'text': {}, 'thread': None}
+_home_cache_at = 0.0
+
+
+def home_context_enabled() -> bool:
+    flag = os.environ.get('MIRA_HOME_CONTEXT', '')
+    if flag in ('0', '1'):
+        return flag == '1'
+    return os.environ.get('MIRA_TEST_MODE') != '1' and 'unittest' not in sys.modules
+
+
+def format_home(records: list, pc_lights: list, lang: str = 'ar') -> str:
+    """The home block from homehub inventory records and Lumen's PC lights."""
+    ar = lang != 'en'
+    rooms: dict = {}
+    groups = []
+    for rec in records:
+        if rec.get('is_group'):
+            groups.append(f"{rec.get('name')} ({len(rec.get('members') or [])})")
+            continue
+        if rec.get('kind') in ('sensor', 'binary_sensor'):
+            continue
+        state = rec.get('state')
+        if not rec.get('available', True):
+            now = 'غير متاح' if ar else 'unavailable'
+        elif state in ('on', 'off'):
+            now = ('مضاء' if state == 'on' else 'مطفأ') if rec.get('domain') == 'light' else (
+                'يعمل' if state == 'on' else 'متوقف') if ar else state
+        else:
+            now = str(state or '')
+        what = rec.get('summary_ar' if ar else 'summary_en') or rec.get('kind') or ''
+        alias = rec.get('aliases') or []
+        name = rec.get('name') or rec['entity_id']
+        if alias:
+            name += ' / ' + ' / '.join(alias[:3])
+        room = rec.get('area') or ('بلا غرفة' if ar else 'no room')
+        rooms.setdefault(room, []).append(f"«{name}» ({rec['entity_id']}): {what}؛ الآن {now}" if ar
+                                          else f"“{name}” ({rec['entity_id']}): {what}; now {now}")
+    lines = []
+    for room, items in rooms.items():
+        lines.append((f'غرفة «{room}»: ' if ar else f'Room “{room}”: ') + ' • '.join(items[:14]))
+    if pc_lights:
+        pcs = ' • '.join(f"«{l['name']}» ({l['id']})" for l in pc_lights)
+        lines.append(('إضاءة الكمبيوتر نفسه — الكيس واللوحة الأم، تُضبط بـ lights والهدف pc أو الاسم: ' if ar
+                      else "The computer's own lights — case and motherboard, set with lights and target pc or the name: ") + pcs)
+    if groups:
+        lines.append(('مجموعات أضواء (كل مجموعة تشمل عدة أضواء): ' if ar else 'Light groups (each holds several lamps): ')
+                     + ' • '.join(groups[:8]))
+    if not lines:
+        return ''
+    head = ('بيت المالك كما قرأته الآن — اسم كل جهاز بين «» هو اسم المالك له، ثم معرّفه، ثم ما يقدر عليه وحالته. '
+            'لا تخلطي الغرف بالأسماء: ' if ar
+            else "The owner's home as just read — each device's name in quotes is the owner's name for it, then its id, "
+                 "what it can do and its state. Do not mix rooms and names: ")
+    return head + ' | '.join(lines) + '. '
+
+
+def _refresh_home():
+    global _home_cache_at
+    texts = {}
+    try:
+        import homehub
+        hub = homehub.load()
+        records = hub.inventory(include_hidden=False) if hub is not None else []
+    except Exception:
+        records = []
+    pc = []
+    try:
+        from lumen import client
+        if client.available():
+            snap = client.call('snapshot', timeout=6)
+            pc = [l for l in snap.get('lights', []) if l.get('source') == 'pc']
+    except Exception:
+        pc = []
+    for lang in ('ar', 'en'):
+        try:
+            texts[lang] = format_home(records, pc, lang)
+        except Exception:
+            texts[lang] = ''
+    with _home_lock:
+        _home_cache['text'] = texts
+        _home_cache['thread'] = None
+        _home_cache_at = time.monotonic()
+
+
+def home_block(lang: str = 'ar') -> str:
+    if not home_context_enabled():
+        return ''
+    with _home_lock:
+        stale = time.monotonic() - _home_cache_at > HOME_TTL_S
+        thread = _home_cache['thread']
+        if stale and thread is None:
+            thread = threading.Thread(target=_refresh_home, daemon=True, name='mira-home')
+            _home_cache['thread'] = thread
+            thread.start()
+    if not _home_cache['text'] and thread is not None:
+        thread.join(HOME_WAIT_S)
+    return (_home_cache['text'] or {}).get(lang, '')
+
+
 def system_instruction(lang: str = 'ar', city: Optional[str] = None, *, channel: str = 'voice',
                        now: Optional[datetime] = None) -> str:
     """Mira's persona, identity, honesty rules, this machine, owner memory, current time and weather city.
@@ -1280,6 +1673,7 @@ def system_instruction(lang: str = 'ar', city: Optional[str] = None, *, channel:
     else:
         parts.append('إذا سأل عن الطقس دون مدينة فاسأليه عنها أولاً. ')
     parts.append(machine_block(lang))
+    parts.append(home_block(lang))
     try:
         import mira_memory
         memory = mira_memory.load()
