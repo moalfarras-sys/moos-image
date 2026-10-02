@@ -138,6 +138,8 @@ ApplicationWindow {
                         faceStyle: mira.faceStyle
                         mood: mira.mood
                         level: mira.level
+                        mouthLevel: mira.mouthLevel
+                        mouthPacket: mira.mouthPacket
                         clock: win.clock
                         motion: mira.motion
                         onActivated: mira.talk()

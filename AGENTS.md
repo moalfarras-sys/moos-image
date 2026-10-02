@@ -273,6 +273,13 @@ Plasma file `rpm -V` reports that is not registered, and loads the real greeter.
 upstream file means registering it. A new Plasma means a reviewed set, never a wider range or
 an added digest.
 
+**A face that loads is not a face that speaks correctly.** Mira's lip envelope follows
+playback RMS, while the aura keeps peak energy. Never discard a due silence inside
+the notification floor: hold it until it can be sent. Equal-amplitude packets must
+refresh the stale-audio watchdog. Review actual speech, pauses, hidden state and
+Reduced Motion; keep both selected portraits and register new local patches before
+sampling them. A source waveform render is not an installed voice-turn proof.
+
 **MoPlayer's close hook bypasses Dart cleanup.** Its GTK runner calls `_exit` before
 Flutter's NVIDIA EGL teardown, so `PlayerService.dispose()` does not run when the
 window closes. A crash probe armed at app launch therefore counted ordinary

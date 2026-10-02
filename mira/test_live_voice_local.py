@@ -35,6 +35,32 @@ class FakeWriter:
         pass
 
 
+class MouthPlaybackTest(unittest.TestCase):
+    def test_lip_energy_is_rms_and_closes_on_silence(self):
+        from live_voice import mouth_energy
+        quiet = struct.pack('<1024h', *([0] * 1024))
+        impulse = struct.pack('<1024h', *([16000] + [0] * 1023))
+        sustained = struct.pack('<1024h', *([4000, -4000] * 512))
+        self.assertEqual(mouth_energy(quiet), 0)
+        self.assertLess(mouth_energy(impulse), 0.04)
+        self.assertGreater(mouth_energy(sustained), 0.25)
+        self.assertLess(mouth_energy(sustained), 0.35)
+
+    def test_silence_inside_notification_interval_is_not_discarded(self):
+        from live_voice import _Player
+        levels, mouths = [], []
+        p = _Player(lambda _: None, levels.append, say_mouth=mouths.append)
+        p.levels.extend([(1.0, 0.8, 0.4), (1.03, 0.0, 0.0)])
+        p._levels_due(1.0)
+        p._levels_due(1.04)
+        self.assertEqual(mouths, [0.4])
+        p._levels_due(1.08)
+        self.assertEqual(mouths, [0.4, 0.0])
+        self.assertEqual(levels, [0.8, 0.0])
+        p.clear()
+        self.assertEqual(mouths[-1], 0.0)
+
+
 class LocalVoiceTest(unittest.IsolatedAsyncioTestCase):
     async def test_echo_silence_cannot_end_a_pc_microphone_turn(self):
         voice = LiveVoice(FakeApi(), {}, lambda *_: None)

@@ -31,12 +31,14 @@ endurance/control proof is still needed.
 
 **MoPlayer, merged and delivered on `.964`:** the "freeze" was a 278 MB Hive catalogue decoded on the UI isolate each launch (~6 s, 1.4 GB) plus a 4.9 GB idle GPU reservation from Impeller gradient shaders and window-sized layers. The merged source moves catalogue work to isolates (~1.3 s, 0.5 GB), reduces idle GPU use to ~0.6 GB, reads get.php links as Xtream accounts, sorts playlists, supports MAC portals and ships Horizon UI. A 4K HEVC live stream and 1080p VOD played on the station from the source bundle; 255 Flutter tests passed. The local launcher that shadowed `.964` is now backed up, and the signed launcher is selected. Open: a real MAC portal, ~1 GB kept after Stop and installed playback readback (plan P2.13).
 
-**Mira, 2026-10-02:** PRs #177–#180 integrate her six pages, approvals inbox, chat history, KDE entry, new Mo AI actions and ARM packaging. Signed x86/ARM builds include her; the station's earlier user install proved Arabic voice, a live approval and the page renders. Installed `.967` interaction remains unproved. See `mira/README.md`.
+**Mira, 2026-10-02:** PRs #177–#180 integrate her six pages, approvals inbox, chat history, KDE entry, new Mo AI actions and ARM packaging. Signed x86/ARM builds include her; the station's earlier user install proved Arabic voice, a live approval and the page renders. Installed `.967` face was captured. A topic-source live Gemini voice turn on 2026-10-02 proved mouth energy returning to zero in pauses and at idle; 89 controller/QML/voice tests pass. New registered eye/lip patches preserve original portraits. Signed motion delivery and owner-spoken endurance remain open. See `mira/README.md`.
+
 ## Source and release truth
 - **Proven production source is `59e97672`, `44.20261001.967`**: signed x86 build
   `36914573577`, QCOW2 `36922199025`/`36922205044`/`36922210323`, offline ISO
   `36922215953`, x86 promotion `36927117927`; ARM build/boot proof
   `36914559982`. The NVIDIA station boots its signed digest, with `.964` retained.
+- Candidate `36940680423` failed on upstream registry HTTP 503 (generic/cloud); no x86 promotion. ARM `36940635747` passed. A new coherent motion/Remote candidate is needed.
 - Remote v46 and the geometry fix are installed. iPhone pointer input reached
   the host; continuous phone/WAN endurance remains open. HDMI hotplug is an
   independent blocker.
@@ -88,7 +90,6 @@ Balanced stream despite ~50–60 ms RTT; manually choosing 1024 px Data Saver
 stabilized the reported session. Source v49 now caps phone Auto at Data Saver when
 Safari hides its link class. The temporary user service serves v49; sustained
 owner reported a stable short v49 cellular trial at 1024 px; longer endurance and signed delivery remain open (plan P2.14).
-
 ## Closed reviews — what they established
 
 - **W2–W6 on the station** (2026-09-17/18, `.858`/`.862`): every row passed — booted
@@ -186,7 +187,6 @@ that removes `kcm-fcitx5` until Fedora rebuilds it. No 6.8 candidate yet.
   stable cross-engine app IDs remain P4.1 work.
 - Owner decision P3.9: a Mo AI tool that runs a command the model wrote. Re-asked
   2026-09-28; not built. W9.10's 14 fixed desktop hands cover the control it wanted safely.
-
 ## Other measured facts
 
 **The free brain is measured where it runs (2026-09-18):** the catalogue carried **21**

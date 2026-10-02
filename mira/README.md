@@ -4,8 +4,8 @@ Mira is the owner's assistant and, since 2026-09-29, the MoOS assistant: Mo AI's
 The Echo Dot 2 in the room is her ears and voice, the MoOS computer runs her mind and her window,
 Home Assistant is her hands in the house, and every Mo AI tool — through Mo AI's own executor — is
 her hands on the computer. This directory is the whole source of the desktop app and of the Echo's
-on-device client. It is a per-user app (`~/.local/share/mira/app`) that takes over Mo AI's launcher
-for this user; it is **not** yet part of a signed MoOS image.
+on-device client. It ships in signed MoOS images at `/usr/lib/mira/app`; the installed station boots `.967`.
+A user source install can shadow that package and must be reported separately.
 
 Both original faces — the rose one and the holographic one — are kept exactly as drawn
 (`mira-*.png`), with every expression.
@@ -223,3 +223,46 @@ Not done, and not claimed:
 - Screen understanding.
 - A phone interface.
 - Packaging into a signed MoOS image.
+
+
+## Face motion correction — 2026-10-02
+
+The original neutral/mood/blink portraits and their calibration are preserved.
+`mira-rose-motion-v1.png` and `mira-holo-motion-v1.png` are derived motion patches
+(half eyelid, small/medium opening, rounded mouth), generated against the original
+face. `devtools/align_faces.py --motion` registers only these new frames against
+the stable nose bridge; the portal samples the eyelids/lips only. Rounded mouth
+is available artwork, not guessed from quiet audio.
+
+Speech uses PCM RMS on the playback clock, distinct from the aura's peak energy.
+Pending silence survives the level notification floor. Equal-level packets refresh
+a 240 ms watchdog; missing audio, hidden state and reduced motion close the mouth.
+Speaking uses the neutral registration and removes voice-driven whole-head zoom.
+This improves the opening envelope; it does not recognize speech phonemes.
+
+`just check` and 89 controller/QML/voice tests passed; the silence regression
+rejects the old scheduler. Both GPU faces were rendered to 600×600
+H.264/AAC MP4s using a real synthesized Arabic WAV. A source live Gemini voice
+turn delivered mouth packets, reached zero during pauses and at idle, and yielded
+22 face-only captures. The first Echo wake-button diagnostic did not start a turn;
+the live test invoked the native voice-start callback with an explicit text request,
+so it proves conversation output, not owner-spoken wake/microphone capture.
+
+Temporary live process: `mira-face-motion-live.service` runs this topic source
+with the installed dependencies. It replaced the autostart process for review;
+no launcher, credential or permission file changed. After signed delivery, stop
+this unit and launch the installed `mira` again. Reboot naturally selects the
+installed package. Signed motion delivery and owner-spoken endurance are open.
+
+Reproduce a waveform review (keep recordings/output local):
+
+```sh
+PYTHONPATH=/usr/lib/mira/site python3 -s devtools/review_face_motion.py \
+  --audio /path/to/16k-mono.wav --face rose --output /path/to/review.mp4
+```
+
+Research: [MuseTalk](https://github.com/TMElyralab/MuseTalk) performs audio-driven
+face-region synthesis; [LivePortrait](https://github.com/KwaiVGI/LivePortrait)
+provides portrait retargeting; [Rhubarb](https://github.com/DanielSWolf/rhubarb-lip-sync)
+produces timed 2D mouth shapes. None was installed or measured on this station.
+The correction keeps the existing Qt renderer and both selected identities.
