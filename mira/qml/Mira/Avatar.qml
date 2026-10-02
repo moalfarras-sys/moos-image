@@ -23,13 +23,12 @@ Item {
         property variant faceB: src
         property variant eyes: src
         property variant eyesHalf: src
-        property variant mouthSmall: src
         property real speechW: 0
         property real mouthY: 0.665
         property variant mouthOpen: src
         property real mixT: 0
         property real blinkW: 0
-        property real openW: 0
+        property real mouthActive: 0
         property real time: 0
         property real level: 0
         property real scan: 0

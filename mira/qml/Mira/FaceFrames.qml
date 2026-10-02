@@ -4,7 +4,7 @@ import QtQuick
 //  - expression changes cross-fade whole frames (180 ms);
 //  - blinks blend only the eye band of the blink frame (close 70 ms, hold 50 ms, open 130 ms),
 //    at a natural, never-repeating rhythm with occasional double blinks;
-//  - speech blends adjacent restrained openings, driven by playback RMS energy
+//  - speech deforms a single lip surface, driven by playback RMS energy
 //    with a fast attack and a slower release so the mouth never trails the sound.
 Item {
     id: root
@@ -21,7 +21,6 @@ Item {
     property alias b: imgB
     property alias eyes: imgEyes
     property alias eyesHalf: imgEyesHalf
-    property alias mouthSmall: imgSmall
     property alias mouthOpen: imgOpen
     property real mix: 0
     property real blinkW: 0
@@ -30,7 +29,6 @@ Item {
     // Energy reports loudness, not a phoneme. Use an opening envelope rather than
     // making every quiet syllable an exaggerated "oo".
     readonly property real speechW: active ? smooth(0.025, 0.60, mouth) : 0
-    readonly property real openW: smooth(0.38, 1.0, speechW)
 
     function smooth(e0, e1, x) { const t = Math.max(0, Math.min(1, (x - e0) / (e1 - e0))); return t * t * (3 - 2 * t) }
     function url(name) { return "image://mira/" + style + "/" + name }
@@ -40,7 +38,6 @@ Item {
     Image { id: imgB; visible: false; source: root.url(root.shown); sourceSize: Qt.size(768, 768); smooth: true; mipmap: true }
     Image { id: imgEyes; visible: false; source: root.url("blink"); sourceSize: Qt.size(768, 768); smooth: true; mipmap: true }
     Image { id: imgEyesHalf; visible: false; source: root.url("blink_half"); sourceSize: Qt.size(768, 768); smooth: true; mipmap: true }
-    Image { id: imgSmall; visible: false; source: root.url("speaking_small"); sourceSize: Qt.size(768, 768); smooth: true; mipmap: true }
     Image { id: imgOpen; visible: false; source: root.url("speaking_medium"); sourceSize: Qt.size(768, 768); smooth: true; mipmap: true }
 
     // ── expression cross-fade ───────────────────────────────────────

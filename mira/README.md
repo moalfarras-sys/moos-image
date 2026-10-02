@@ -15,7 +15,7 @@ Both original faces — the rose one and the holographic one — are kept exactl
 | Area | v3 | v4 |
 |---|---|---|
 | Interface | QWidget + QPainter, repainting in Python | **Qt Quick on the GPU**: shaders for the aura, the face portal and the background (`shaders/*.frag`, compiled `.qsb`) |
-| Face | whole sprites cross-faded; head jumped between sheets | every frame **aligned** (`faces.json`, `devtools/align_faces.py`); blink blends only the eye band, speech only the mouth band, driven by the playback level |
+| Face | whole sprites cross-faded; head jumped between sheets | every frame **aligned** (`faces.json`, `devtools/align_faces.py`); blink blends only the eye band, speech deforms one registered lip patch with playback RMS |
 | States | colour changes | six distinct states: calm breathing ring, listening (mint, mic-reactive), thinking (violet comets, eyes up), speaking (rose, voice-reactive mouth), executing (amber orbit), error (dim red pulse) |
 | Layout | five tabbed pages | one stage: context rail · Mira · conversation, a single command dock, and Home / Computer / Settings as slide-in workspaces; RTL/LTR mirrored; 4K → phone width |
 | Typed chat | keyword router → free Mo AI model | **same brain as voice**: Gemini with Mira's 13 tools (`tools.py`, `brain.py`), fast model with a fallback chain, then the local router, then Mo AI |
@@ -238,17 +238,25 @@ Speech uses PCM RMS on the playback clock, distinct from the aura's peak energy.
 Pending silence survives the level notification floor. Equal-level packets refresh
 a 240 ms watchdog; missing audio, hidden state and reduced motion close the mouth.
 Speaking uses the neutral registration and removes voice-driven whole-head zoom.
+The mouth now samples **one** medium-opening patch and compresses its inner gap
+in UV space. Each lip moves without shrinking its thickness; deformation fades
+out before the nose/chin. Mouth patches are never cross-faded: their different
+outlines produced duplicate lips at intermediate amplitude. At rest the original
+portrait is used. No original image, blink, face identity or provider changed.
 This improves the opening envelope; it does not recognize speech phonemes.
 
 `just check` and 89 controller/QML/voice tests passed; the silence regression
 rejects the old scheduler. Both GPU faces were rendered to 600×600
 H.264/AAC MP4s using a real synthesized Arabic WAV. A source live Gemini voice
 turn delivered mouth packets, reached zero during pauses and at idle, and yielded
-22 face-only captures. The first Echo wake-button diagnostic did not start a turn;
+28 face-only captures in the corrective single-mouth review. The first Echo wake-button diagnostic did not start a turn;
 the live test invoked the native voice-start callback with an explicit text request,
 so it proves conversation output, not owner-spoken wake/microphone capture.
 
-Temporary live process: `mira-face-motion-live.service` runs this topic source
+Temporary live process: `mira-face-motion-live.service` runs
+`fix/mira-single-mouth-20261002` through the cache-only review runner
+`~/.cache/mira/live-single-mouth-review.py`; its one text-triggered voice diagnostic
+ends after capture, leaving the normal application running. It runs this source
 with the installed dependencies. It replaced the autostart process for review;
 no launcher, credential or permission file changed. After signed delivery, stop
 this unit and launch the installed `mira` again. Reboot naturally selects the

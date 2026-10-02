@@ -31,14 +31,14 @@ endurance/control proof is still needed.
 
 **MoPlayer, merged and delivered on `.964`:** the "freeze" was a 278 MB Hive catalogue decoded on the UI isolate each launch (~6 s, 1.4 GB) plus a 4.9 GB idle GPU reservation from Impeller gradient shaders and window-sized layers. The merged source moves catalogue work to isolates (~1.3 s, 0.5 GB), reduces idle GPU use to ~0.6 GB, reads get.php links as Xtream accounts, sorts playlists, supports MAC portals and ships Horizon UI. A 4K HEVC live stream and 1080p VOD played on the station from the source bundle; 255 Flutter tests passed. The local launcher that shadowed `.964` is now backed up, and the signed launcher is selected. Open: a real MAC portal, ~1 GB kept after Stop and installed playback readback (plan P2.13).
 
-**Mira, 2026-10-02:** PRs #177–#180 integrate her six pages, approvals inbox, chat history, KDE entry, new Mo AI actions and ARM packaging. Signed x86/ARM builds include her; the station's earlier user install proved Arabic voice, a live approval and the page renders. Installed `.967` face was captured. A topic-source live Gemini voice turn on 2026-10-02 proved mouth energy returning to zero in pauses and at idle; 89 controller/QML/voice tests pass. New registered eye/lip patches preserve original portraits. Signed motion delivery and owner-spoken endurance remain open. See `mira/README.md`.
+**Mira, 2026-10-02:** PRs #177–#180 integrate her six pages, approvals inbox, chat history, KDE entry, new Mo AI actions and ARM packaging. Signed x86/ARM builds include her; the station's earlier user install proved Arabic voice, a live approval and the page renders. Installed `.967` face was captured. A topic-source live Gemini voice turn on 2026-10-02 proved mouth energy returning to zero in pauses and at idle; 89 controller/QML/voice tests pass. Registered patches preserve original portraits. A corrective single-mouth UV rig replaces lip cross-fades after the owner showed doubled lips; both GPU waveform renders and a native voice reply (28 captures, pause/idle zero) were reviewed. The station still boots `.967`; a temporary source process runs the correction. Signed motion delivery and owner-spoken endurance remain open. See `mira/README.md`.
 
 ## Source and release truth
 - **Proven production source is `59e97672`, `44.20261001.967`**: signed x86 build
   `36914573577`, QCOW2 `36922199025`/`36922205044`/`36922210323`, offline ISO
   `36922215953`, x86 promotion `36927117927`; ARM build/boot proof
   `36914559982`. The NVIDIA station boots its signed digest, with `.964` retained.
-- Candidate `36940680423` failed on upstream registry HTTP 503 (generic/cloud); no x86 promotion. ARM `36940635747` passed. A new coherent motion/Remote candidate is needed.
+- Candidate `37021853343` built signed `0eed7985`; ARM `37022112781` passed build/boot/promotion. Its x86 release waiter was stopped for the lip-rendering correction before promotion. A new candidate must include the single-mouth rig.
 - Remote v46 and the geometry fix are installed. iPhone pointer input reached
   the host; continuous phone/WAN endurance remains open. HDMI hotplug is an
   independent blocker.

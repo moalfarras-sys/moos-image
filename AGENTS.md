@@ -278,7 +278,9 @@ playback RMS, while the aura keeps peak energy. Never discard a due silence insi
 the notification floor: hold it until it can be sent. Equal-amplitude packets must
 refresh the stale-audio watchdog. Review actual speech, pauses, hidden state and
 Reduced Motion; keep both selected portraits and register new local patches before
-sampling them. A source waveform render is not an installed voice-turn proof.
+sampling them. Never cross-fade different lip outlines: even an opaque outer mask
+leaves doubled lips inside. Deform one registered mouth surface and review quiet
+intermediate openings. A source waveform render is not an installed voice-turn proof.
 
 **MoPlayer's close hook bypasses Dart cleanup.** Its GTK runner calls `_exit` before
 Flutter's NVIDIA EGL teardown, so `PlayerService.dispose()` does not run when the
