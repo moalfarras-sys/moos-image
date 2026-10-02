@@ -1,8 +1,8 @@
 #version 440
 // Mira's face inside a soft circular portal.
 // Expressions cross-fade as whole frames; a blink blends ONLY the eye band of the blink frame and
-// speech blends ONLY the mouth band of the two speaking frames, so the rest of the face never
-// double-exposes. All frames are pre-aligned portraits (faces.json), so the bands line up.
+// speech deforms ONLY one mouth patch, so intermediate openings never
+// double-expose lips. All patches are registered portraits (faces.json).
 layout(location = 0) in vec2 qt_TexCoord0;
 layout(location = 0) out vec4 fragColor;
 layout(std140, binding = 0) uniform buf {
@@ -12,7 +12,7 @@ layout(std140, binding = 0) uniform buf {
     float speechW;
     float mouthY;
     float blinkW;
-    float openW;
+    float mouthActive;
     float time;
     float level;
     float scan;
@@ -26,7 +26,6 @@ layout(binding = 2) uniform sampler2D faceB;
 layout(binding = 3) uniform sampler2D eyes;
 layout(binding = 5) uniform sampler2D mouthOpen;
 layout(binding = 6) uniform sampler2D eyesHalf;
-layout(binding = 7) uniform sampler2D mouthSmall;
 
 float band(vec2 uv, vec2 centre, vec2 halfSize, float soft) {
     vec2 q = (uv - centre) / halfSize;
@@ -49,14 +48,25 @@ void main() {
         ? mix(c, texture(eyesHalf, fuv), blink * 2.0)
         : mix(texture(eyesHalf, fuv), texture(eyes, fuv), (blink - 0.5) * 2.0);
     c = mix(c, eyeFrame, eyeMask);
-    // Only adjacent openings blend. Full-opacity interiors prevent the original
-    // closed lips showing through a speaking frame; feather stays outside the lips.
-    float mouthMask = band(fuv, vec2(0.5, mouthY), vec2(0.17, 0.088), 0.22);
-    float speech = clamp(speechW, 0.0, 1.0);
-    vec4 mouthFrame = speech < 0.38
-        ? mix(c, texture(mouthSmall, fuv), speech / 0.38)
-        : mix(texture(mouthSmall, fuv), texture(mouthOpen, fuv), clamp(openW, 0.0, 1.0));
-    c = mix(c, mouthFrame, mouthMask);
+    // One lip surface, deformed in UV space. Alpha-blending different lip
+    // outlines leaves two mouths at intermediate energy, even with an opaque mask.
+    // Compress only the inner gap; move each lip without thinning it. The warp
+    // reaches zero before the nose/chin so the original face stays stationary.
+    float mouthMask = band(fuv, vec2(0.5, mouthY), vec2(0.17, 0.10), 0.22);
+    float dx = (fuv.x - 0.5) / 0.103;
+    float curve = sqrt(max(0.0, 1.0 - dx * dx));
+    float sourceGap = (mouthY > 0.69 ? 0.022 : 0.020) * curve;
+    float gap = sourceGap * clamp(speechW, 0.0, 1.0);
+    float dy = fuv.y - mouthY;
+    vec2 mouthUV = fuv;
+    if (abs(dy) < gap && gap > 0.00001) {
+        mouthUV.y = mouthY + dy * sourceGap / gap;
+    } else {
+        float falloff = 1.0 - smoothstep(0.035, 0.095, abs(dy));
+        mouthUV.y += sign(dy) * (sourceGap - gap) * falloff;
+    }
+    vec4 mouthFrame = texture(mouthOpen, mouthUV);
+    c = mix(c, mouthFrame, mouthMask * clamp(mouthActive, 0.0, 1.0));
     // depth: darken towards the rim so the face sits inside the light
     c.rgb *= mix(1.0, 0.62, smoothstep(0.26, edge, r));
     float rim = smoothstep(edge - 0.10, edge - 0.005, r) * mask;

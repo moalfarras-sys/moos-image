@@ -138,13 +138,12 @@ Item {
             property variant faceB: frames.b
             property variant eyes: frames.eyes
             property variant eyesHalf: frames.eyesHalf
-            property variant mouthSmall: frames.mouthSmall
             property real speechW: frames.speechW
-            property real mouthY: core.faceStyle === "holo" ? 0.70 : 0.665
+            property real mouthY: core.faceStyle === "holo" ? 0.715 : 0.670
             property variant mouthOpen: frames.mouthOpen
             property real mixT: frames.mix
             property real blinkW: frames.blinkW
-            property real openW: frames.openW
+            property real mouthActive: frames.active && frames.speaking ? 1 : 0
             property real time: core.clock
             property real level: core.lvl
             property real scan: core.wThink * 0.9 + core.wExec * 0.5
