@@ -301,7 +301,7 @@ for unit in \
     moos-theme-sync.path moos-theme-drift.timer moos-health.timer \
     moos-cloud-audio.service moos-update-ready.timer moos-reclaim-disk.timer \
     moos-index-policy.service moos-privacy-monitor.service moos-material-state.service moos-app-drop.path \
-    mo-remote-watchdog.timer; do
+    mo-remote-watchdog.timer mira-lumen.service; do
     test -f "/usr/lib/systemd/user/${unit}" || {
         echo "FATAL: shared user authority is missing: ${unit}"
         exit 1
@@ -314,14 +314,17 @@ systemd-analyze verify \
     /usr/lib/systemd/user/moai-control.service \
     /usr/lib/systemd/user/moai-agent-api.service \
     /usr/lib/systemd/user/moai-wake.service \
-    /usr/lib/systemd/user/mira.service
+    /usr/lib/systemd/user/mira.service \
+    /usr/lib/systemd/user/mira-lumen.service
+# mira-lumen.service (Lumen, Mira's lighting engine) is enabled like x86's: it starts only for a
+# person who has used Lumen (ConditionPathExists on ~/.config/mo-dot/lumen.json).
 systemctl --global enable \
     moai-gateway.service moai-control.service moai-agent-api.service \
     moai-wake.service openclaw-idle.timer \
     moos-theme-sync.path moos-theme-drift.timer moos-health.timer \
     moos-cloud-audio.service moos-update-ready.timer moos-reclaim-disk.timer \
     moos-index-policy.service moos-privacy-monitor.service moos-material-state.service moos-app-drop.path \
-    mo-remote-watchdog.timer
+    mo-remote-watchdog.timer mira-lumen.service
 
 systemctl enable NetworkManager.service sshd.service firewalld.service tailscaled.service
 systemctl enable moos-auto-update.timer
@@ -921,7 +924,8 @@ chmod 0755 /usr/lib/mo-remote/MoRemotePersonal \
     /usr/libexec/moos-install-local-rpm \
     /usr/bin/mo-pc-remote \
     /usr/bin/moplayer \
-    /usr/bin/mira
+    /usr/bin/mira \
+    /usr/bin/mira-lumen
 systemctl --global disable mo-remote-personal.service 2>/dev/null || true
 
 # Mira, the MoOS assistant — the same gate build.sh runs for x86. Her tree and pinned packages
@@ -964,6 +968,32 @@ case "$_mira_pages" in
     *MIRA_PAGES_OK) ;;
     *) echo "GATE FAIL: Mira cannot import her pages in this image:"; echo "$_mira_pages"; exit 1 ;;
 esac
+# Lumen, the lighting engine behind Mira's lights (/usr/bin/mira-lumen, mira-lumen.service): its
+# launcher must run the image's own engine, and that engine must start, answer on its private socket
+# and report an honest empty house (no Home Assistant, no lighting controller in a build container).
+# GnuTLS (the Hue stream's DTLS) and GStreamer's PipeWire source (Screen Sync) must load here too:
+# a missing library would only show the day the owner pressed «Start sync».
+test -x /usr/bin/mira-lumen && test -f /usr/lib/mira/app/lumen/engine.py \
+    || { echo "GATE FAIL: Lumen (the lighting engine) is missing from the image"; exit 1; }
+set +e
+_lumen_out="$(env -i PATH=/usr/bin HOME="$_mira_home" XDG_RUNTIME_DIR="$_mira_home" MIRA_LUMEN_SPAWN=0 \
+    timeout 40 /bin/bash -c '
+        /usr/bin/mira-lumen serve >"$HOME/lumen.log" 2>&1 & pid=$!
+        for _ in $(seq 1 50); do [ -S "$XDG_RUNTIME_DIR/mira-lumen.sock" ] && break; sleep 0.2; done
+        /usr/bin/mira-lumen status; rc=$?
+        cd /usr/lib/mira/app && PYTHONPATH=/usr/lib/mira/site:/usr/lib/mira/app PYTHONDONTWRITEBYTECODE=1 /usr/bin/python3 -s -c "
+from lumen import dtls, capture
+dtls._gnutls()
+import gi; gi.require_version(\"Gst\", \"1.0\"); from gi.repository import Gst; Gst.init(None)
+assert Gst.ElementFactory.find(\"pipewiresrc\") is not None, \"no pipewiresrc\"
+print(\"LUMEN_LIBS_OK\")"; rc2=$?
+        kill $pid; wait $pid 2>/dev/null
+        cat "$HOME/lumen.log"; [ $rc -eq 0 ] && [ $rc2 -eq 0 ] && echo LUMEN_OK' 2>&1)"
+set -e
+case "$_lumen_out" in
+    *LUMEN_LIBS_OK*LUMEN_OK) echo "Lumen: the engine starts and answers in the image" ;;
+    *) echo "GATE FAIL: Lumen did not start or answer in this image:"; echo "$_lumen_out"; exit 1 ;;
+esac
 # Her window, offscreen, with stand-in backends: it must render a frame, save it, and say nothing
 # wrong while doing so. The log is written to a file and then searched (no producer piped into
 # `grep -q` under pipefail): a QML warning, a page that did not import or a traceback is a window
@@ -1000,7 +1030,7 @@ rm -rf "$_mira_home" /tmp/mira-smoke.log
 # Captured, then matched: `find | grep -q` under pipefail can report a match as a failure.
 _mira_pyc="$(find /usr/lib/mira -name '__pycache__' -print -quit)"
 [ -z "$_mira_pyc" ] || { echo "GATE FAIL: bytecode caches reached /usr/lib/mira ($_mira_pyc)"; exit 1; }
-unset -v _mira_home _mira_imports _mira_pages _mira_face _mira_rc _mira_pyc
+unset -v _mira_home _mira_imports _mira_pages _mira_face _mira_rc _mira_pyc _lumen_out
 
 # -----------------------------------------------------------------------------
 # (8) Identity
