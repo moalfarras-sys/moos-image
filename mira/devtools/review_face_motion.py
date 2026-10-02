@@ -24,7 +24,7 @@ def main():
     parser.add_argument('--audio', type=Path, required=True)
     parser.add_argument('--output', type=Path, required=True)
     parser.add_argument('--face', choices=('rose', 'holo'), default='rose')
-    parser.add_argument('--legacy', action='store_true', help='replay old peak-only envelope')
+    parser.add_argument('--legacy', action='store_true', help='peak-only envelope on the current renderer')
     args = parser.parse_args()
     with wave.open(str(args.audio)) as audio:
         if (audio.getnchannels(), audio.getsampwidth(), audio.getframerate()) != (1, 2, 16000):
@@ -57,9 +57,8 @@ MiraCore { objectName: 'face'; anchors.fill: parent; phase: 'speaking'; motion: 
             block = pcm[offset:offset + ECHO_BLOCK]
             energy = min(1.0, pcm_peak(block) / 16000) if block else 0
             face.setProperty('level', energy)
-            if not args.legacy:
-                face.setProperty('mouthLevel', mouth_energy(block) if block else 0)
-                face.setProperty('mouthPacket', i)
+            face.setProperty('mouthLevel', energy if args.legacy else (mouth_energy(block) if block else 0))
+            face.setProperty('mouthPacket', i)
         face.setProperty('clock', t)
         image = view.grabWindow().scaled(600, 600).convertToFormat(QImage.Format_RGBA8888)
         if frames['encoder'] is None:
