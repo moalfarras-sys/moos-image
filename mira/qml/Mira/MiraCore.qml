@@ -8,6 +8,8 @@ Item {
     property string phase: "idle"          // idle listening thinking speaking executing error offline
     property string faceStyle: "rose"
     property string mood: "neutral"
+    property int mouthPacket: 0
+    property real mouthLevel: level * 0.55  // legacy satellites without RMS lip packets
     property real level: 0                  // live mic / voice energy 0..1
     property real clock: 0                  // shared animation clock (seconds)
     property bool motion: true
@@ -109,7 +111,7 @@ Item {
         id: portalBox
         width: core.portalSize
         height: width
-        scale: 1.0 + 0.006 * core.breathe + 0.02 * core.lvl + (core.hovered ? 0.012 : 0)
+        scale: 1.0 + 0.006 * core.breathe + (core.hovered ? 0.012 : 0)
         x: (parent.width - width) / 2 + (core.motion ? width * 0.006 * Math.sin(core.clock * 2 * Math.PI / 6.53) : 0)
         y: (parent.height - height) / 2 + (core.motion ? height * 0.005 * Math.sin(core.clock * 2 * Math.PI / 3.53 + 1.3) : 0)
         rotation: core.motion ? 0.8 * Math.sin(core.clock * 2 * Math.PI / 5.53 + 0.4) : 0
@@ -125,7 +127,8 @@ Item {
             expression: core.expression
             phase: core.phase
             speaking: core.phase === "speaking"
-            level: core.level
+            level: core.mouthLevel
+            packet: core.mouthPacket
             motion: core.motion
         }
 
@@ -134,11 +137,13 @@ Item {
             property variant faceA: frames.a
             property variant faceB: frames.b
             property variant eyes: frames.eyes
-            property variant mouthRound: frames.mouthRound
+            property variant eyesHalf: frames.eyesHalf
+            property variant mouthSmall: frames.mouthSmall
+            property real speechW: frames.speechW
+            property real mouthY: core.faceStyle === "holo" ? 0.70 : 0.665
             property variant mouthOpen: frames.mouthOpen
             property real mixT: frames.mix
             property real blinkW: frames.blinkW
-            property real roundW: frames.roundW
             property real openW: frames.openW
             property real time: core.clock
             property real level: core.lvl
@@ -191,6 +196,7 @@ Item {
         case "executing": return "curious"
         case "error": return "sad"
         case "offline": return "sleepy"
+        case "speaking": return "neutral" // speech patches share the neutral portrait registration
         default: return mood || "neutral"
         }
     }

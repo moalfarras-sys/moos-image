@@ -20,7 +20,7 @@ os.environ['XDG_CONFIG_HOME'] = _config.name
 
 from PySide6.QtCore import QCoreApplication, QMetaMethod, QSettings, QUrl, qInstallMessageHandler  # noqa: E402
 from PySide6.QtGui import QGuiApplication  # noqa: E402
-from PySide6.QtQml import QQmlApplicationEngine  # noqa: E402
+from PySide6.QtQml import QQmlEngine, QQmlComponent, QQmlApplicationEngine  # noqa: E402
 
 import i18n
 import pages  # noqa: E402
@@ -361,6 +361,42 @@ class QmlTest(unittest.TestCase):
         text = 'onClicked: mira.launchMissiles()'
         self.assertEqual(re.findall(r'\bmira\.(\w+)\s*\(', text), ['launchMissiles'])
         self.assertFalse(hasattr(Controller, 'launchMissiles'))
+
+    def test_face_closes_on_stalled_audio_hidden_state_and_reduced_motion(self):
+        engine = QQmlEngine()
+        engine.addImageProvider('mira', FaceProvider())
+        component = QQmlComponent(engine, QUrl.fromLocalFile(str(ROOT / 'qml/Mira/FaceFrames.qml')))
+        face = component.create()
+        self.assertIsNotNone(face, [e.toString() for e in component.errors()])
+        def settle(seconds):
+            end = time.monotonic() + seconds
+            while time.monotonic() < end:
+                QCoreApplication.processEvents()
+                time.sleep(0.005)
+        face.setProperty('speaking', True)
+        face.setProperty('level', 0.5)
+        settle(0.10)
+        self.assertGreater(face.property('mouth'), 0.35)
+        settle(0.35)
+        self.assertLess(face.property('mouth'), 0.001)
+        for packet in range(1, 8):
+            face.setProperty('packet', packet)
+            settle(0.066)
+        self.assertGreater(face.property('mouth'), 0.35)
+        face.setProperty('visible', False)
+        settle(0.05)
+        self.assertEqual(face.property('mouth'), 0)
+        self.assertEqual(face.property('blinkW'), 0)
+        face.setProperty('visible', True)
+        settle(0.10)
+        self.assertEqual(face.property('mouth'), 0)
+        face.setProperty('packet', 8)
+        settle(0.10)
+        face.setProperty('motion', False)
+        settle(0.05)
+        self.assertEqual(face.property('mouth'), 0)
+        face.deleteLater()
+        settle(0.01)
 
     def test_both_faces_cover_every_expression(self):
         library = FaceLibrary()

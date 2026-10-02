@@ -110,6 +110,17 @@ def pcm_rms(data):
     return math.sqrt(sum(map(mul, values, values)) / len(values))
 
 
+def mouth_energy(data):
+    """Restrained lip opening from PCM RMS; peak energy still drives the aura.
+
+    A peak in a 16 ms packet exaggerates almost every voiced syllable. RMS
+    preserves quiet consonants and closes on pauses; tiny room/noise tails stay shut.
+    This is an energy envelope, not a phoneme recognizer.
+    """
+    rms = pcm_rms(data)
+    return max(0.0, min(0.85, (rms - 140.0) / 14000.0))
+
+
 def amplify(data, gain=MIC_GAIN):
     """Multiply S16LE samples by `gain`, clipping at the int16 limits."""
     if np is not None:
@@ -263,9 +274,11 @@ class _Player:
     """Paces 16 kHz reply audio to the Echo at real time and reports levels
     on the device's playback clock (not when a packet arrived)."""
 
-    def __init__(self, send, say_level, lead=None):
+    def __init__(self, send, say_level, lead=None, say_mouth=None):
         self.send = send
         self.say_level = say_level
+        self.say_mouth = say_mouth
+        self.pending_level = None
         self.lead = PLAYBACK_LEAD_S if lead is None else lead
         self.buffer = bytearray()
         self.wake = asyncio.Event()
@@ -285,6 +298,9 @@ class _Player:
         dropped = len(self.buffer)
         self.buffer.clear()
         self.levels.clear()
+        self.pending_level = None
+        if self.say_mouth:
+            self.say_mouth(0.0)
         return dropped
 
     def finish(self):
@@ -295,12 +311,17 @@ class _Player:
         return len(self.buffer) / (ECHO_RATE * 2) + max(0.0, self.clock - time.monotonic())
 
     def _levels_due(self, now):
-        due = None
         while self.levels and self.levels[0][0] <= now:
-            due = self.levels.popleft()[1]
-        if due is not None and now - self.last_level >= LEVEL_INTERVAL_S:
+            self.pending_level = self.levels.popleft()[1:]
+        # Keep a due silence until the notification clock permits it. Previously
+        # a level popped inside 66 ms vanished, leaving the last loud opening.
+        if self.pending_level is not None and now - self.last_level >= LEVEL_INTERVAL_S:
             self.last_level = now
-            self.say_level(due)
+            level, mouth = self.pending_level
+            self.pending_level = None
+            self.say_level(level)
+            if self.say_mouth:
+                self.say_mouth(mouth)
 
     async def run(self):
         bytes_per_s = ECHO_RATE * 2
@@ -319,7 +340,8 @@ class _Player:
                     now = time.monotonic()
                 self._levels_due(now)
                 self.send(block)
-                self.levels.append((self.clock, min(1.0, pcm_peak(block) / 16000)))
+                self.levels.append((self.clock, min(1.0, pcm_peak(block) / 16000),
+                                    mouth_energy(block)))
                 self.sent += len(block)
                 self.clock += len(block) / bytes_per_s
                 continue
@@ -335,6 +357,8 @@ class _Player:
                 break
             await asyncio.sleep(min(0.05, self.clock - now))
         self.say_level(0.0)
+        if self.say_mouth:
+            self.say_mouth(0.0)
 
 
 class _Captions:
@@ -1140,7 +1164,8 @@ class LiveVoice:
                     await link.session.send_realtime_input(text=t['test_text'])
                 t['input_ended'] = True
                 t['input_end_at'] = time.monotonic()
-            player = _Player(self._send_audio, lambda value: self._say('level', f'{value:.3f}'))
+            player = _Player(self._send_audio, lambda value: self._say('level', f'{value:.3f}'),
+                             say_mouth=lambda value: self._say('mouth_level', f'{value:.3f}'))
             t['player'] = player
             t['player_task'] = asyncio.create_task(player.run())
             captions = t['captions'] = _Captions(self._say)

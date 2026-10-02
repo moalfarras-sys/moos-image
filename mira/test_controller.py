@@ -45,6 +45,21 @@ class ControllerTest(unittest.TestCase):
         self.c._on_voice(kind, text)
 
     # ── state machine ───────────────────────────────────────────────
+    def test_mouth_packets_refresh_equal_levels_and_reject_nonfinite_values(self):
+        self.voice('speaking')
+        self.voice('mouth_level', '0.3')
+        count = self.c.mouthPacket
+        self.voice('mouth_level', '0.3')
+        self.assertEqual(self.c.mouthPacket, count + 1)
+        self.assertAlmostEqual(self.c.mouthLevel, 0.3)
+        for value in ('nan', 'inf', 'invalid'):
+            self.voice('mouth_level', value)
+        self.assertEqual(self.c.mouthPacket, count + 1)
+        self.voice('ready')
+        self.assertEqual(self.c.mouthLevel, 0)
+        self.voice('level', '0.4')
+        self.assertAlmostEqual(self.c.mouthLevel, 0.22)
+
     def test_voice_states_drive_one_phase(self):
         self.c.bridge.online = True
         self.c._on_echo_connected([FakeEntity(1, 'speaker')])

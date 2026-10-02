@@ -257,6 +257,70 @@
      423.9
     ],
     "score": 0.679
+   },
+   "blink_half": {
+    "sheet": "mira-rose-motion-v1.png",
+    "cell": [
+     0,
+     0,
+     627,
+     627
+    ],
+    "crop": [
+     20.1,
+     2.4,
+     625.4,
+     625.4
+    ],
+    "score": 0.977
+   },
+   "speaking_small": {
+    "sheet": "mira-rose-motion-v1.png",
+    "cell": [
+     627,
+     0,
+     627,
+     627
+    ],
+    "crop": [
+     650.5,
+     4.6,
+     616.0,
+     616.0
+    ],
+    "score": 0.974
+   },
+   "speaking_medium": {
+    "sheet": "mira-rose-motion-v1.png",
+    "cell": [
+     0,
+     627,
+     627,
+     627
+    ],
+    "crop": [
+     23.5,
+     631.6,
+     616.0,
+     616.0
+    ],
+    "score": 0.985
+   },
+   "speaking_oo": {
+    "sheet": "mira-rose-motion-v1.png",
+    "cell": [
+     627,
+     627,
+     627,
+     627
+    ],
+    "crop": [
+     650.5,
+     631.6,
+     616.0,
+     616.0
+    ],
+    "score": 0.975
    }
   },
   "holo": {
@@ -499,6 +563,70 @@
      443.7
     ],
     "score": 0.815
+   },
+   "blink_half": {
+    "sheet": "mira-holo-motion-v1.png",
+    "cell": [
+     0,
+     0,
+     627,
+     627
+    ],
+    "crop": [
+     -2.5,
+     -15.2,
+     646.8,
+     646.8
+    ],
+    "score": 0.959
+   },
+   "speaking_small": {
+    "sheet": "mira-holo-motion-v1.png",
+    "cell": [
+     627,
+     0,
+     627,
+     627
+    ],
+    "crop": [
+     628.4,
+     -8.4,
+     637.0,
+     637.0
+    ],
+    "score": 0.965
+   },
+   "speaking_medium": {
+    "sheet": "mira-holo-motion-v1.png",
+    "cell": [
+     0,
+     627,
+     627,
+     627
+    ],
+    "crop": [
+     -2.5,
+     611.8,
+     646.8,
+     646.8
+    ],
+    "score": 0.945
+   },
+   "speaking_oo": {
+    "sheet": "mira-holo-motion-v1.png",
+    "cell": [
+     627,
+     627,
+     627,
+     627
+    ],
+    "crop": [
+     638.0,
+     630.2,
+     617.4,
+     617.4
+    ],
+    "score": 0.965
    }
   }
  }

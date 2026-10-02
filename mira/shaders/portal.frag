@@ -9,8 +9,9 @@ layout(std140, binding = 0) uniform buf {
     mat4 qt_Matrix;
     float qt_Opacity;
     float mixT;
+    float speechW;
+    float mouthY;
     float blinkW;
-    float roundW;
     float openW;
     float time;
     float level;
@@ -23,8 +24,9 @@ layout(std140, binding = 0) uniform buf {
 layout(binding = 1) uniform sampler2D faceA;
 layout(binding = 2) uniform sampler2D faceB;
 layout(binding = 3) uniform sampler2D eyes;
-layout(binding = 4) uniform sampler2D mouthRound;
 layout(binding = 5) uniform sampler2D mouthOpen;
+layout(binding = 6) uniform sampler2D eyesHalf;
+layout(binding = 7) uniform sampler2D mouthSmall;
 
 float band(vec2 uv, vec2 centre, vec2 halfSize, float soft) {
     vec2 q = (uv - centre) / halfSize;
@@ -39,11 +41,22 @@ void main() {
     float mask = 1.0 - smoothstep(edge - feather, edge, r);
     vec2 fuv = uv - parallax * 0.012;
     vec4 c = mix(texture(faceA, fuv), texture(faceB, fuv), clamp(mixT, 0.0, 1.0));
-    float eyeMask = band(fuv, vec2(0.5, 0.405), vec2(0.30, 0.085), 0.45);
-    c = mix(c, texture(eyes, fuv), clamp(blinkW, 0.0, 1.0) * eyeMask);
-    float mouthMask = band(fuv, vec2(0.5, 0.665), vec2(0.17, 0.085), 0.5);
-    c = mix(c, texture(mouthRound, fuv), clamp(roundW, 0.0, 1.0) * mouthMask);
-    c = mix(c, texture(mouthOpen, fuv), clamp(openW, 0.0, 1.0) * mouthMask);
+    // Separate eyelids: leave the nose bridge, eyebrows and cheeks untouched.
+    float eyeMask = max(band(fuv, vec2(0.345, 0.405), vec2(0.125, 0.064), 0.25),
+                        band(fuv, vec2(0.655, 0.405), vec2(0.125, 0.064), 0.25));
+    float blink = clamp(blinkW, 0.0, 1.0);
+    vec4 eyeFrame = blink < 0.5
+        ? mix(c, texture(eyesHalf, fuv), blink * 2.0)
+        : mix(texture(eyesHalf, fuv), texture(eyes, fuv), (blink - 0.5) * 2.0);
+    c = mix(c, eyeFrame, eyeMask);
+    // Only adjacent openings blend. Full-opacity interiors prevent the original
+    // closed lips showing through a speaking frame; feather stays outside the lips.
+    float mouthMask = band(fuv, vec2(0.5, mouthY), vec2(0.17, 0.088), 0.22);
+    float speech = clamp(speechW, 0.0, 1.0);
+    vec4 mouthFrame = speech < 0.38
+        ? mix(c, texture(mouthSmall, fuv), speech / 0.38)
+        : mix(texture(mouthSmall, fuv), texture(mouthOpen, fuv), clamp(openW, 0.0, 1.0));
+    c = mix(c, mouthFrame, mouthMask);
     // depth: darken towards the rim so the face sits inside the light
     c.rgb *= mix(1.0, 0.62, smoothstep(0.26, edge, r));
     float rim = smoothstep(edge - 0.10, edge - 0.005, r) * mask;

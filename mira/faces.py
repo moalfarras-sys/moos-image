@@ -20,7 +20,8 @@ CALIBRATION = ROOT / 'faces.json'
 STYLES = ('rose', 'holo')
 EXPRESSIONS = ('neutral', 'happy', 'excited', 'playful', 'thinking', 'sad', 'annoyed',
                'attentive', 'surprised', 'reassuring', 'curious', 'proud', 'sleepy',
-               'blink', 'speaking_round', 'speaking_open')
+               'blink', 'blink_half', 'speaking_small', 'speaking_medium', 'speaking_oo',
+               'speaking_round', 'speaking_open')
 # The holographic set was drawn without a separate "happy"; its warm neutral is that expression.
 FALLBACK = {'happy': 'neutral'}
 PORTRAIT = 768

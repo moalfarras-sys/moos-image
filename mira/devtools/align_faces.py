@@ -11,6 +11,7 @@ artwork. Run it again only when a sheet changes:
     python devtools/align_faces.py            # needs numpy + Pillow
 """
 import json
+import sys
 from pathlib import Path
 
 import numpy as np
@@ -123,5 +124,39 @@ def main():
     (ROOT / 'faces.json').write_text(json.dumps(result, indent=1) + '\n')
 
 
+def motion_frames():
+    """Register only new motion patches; preserve every existing face calibration.
+
+    Match the stable nose/cheek bridge, excluding changing eyelids and lips.
+    Originals remain the neutral/expressive/closed-blink source.
+    """
+    result = json.loads((ROOT / 'faces.json').read_text())
+    for style in ('rose', 'holo'):
+        ref = REFERENCE[style]
+        original = next(c[2] for c in cells(ref['cell'][0], 2 if style == 'rose' else 3, 2)
+                        if c[0] == 0)
+        roi = (250, 275, 375, 345) if style == 'rose' else (165, 300, 250, 365)
+        template = original.crop(roi)
+        names = ('blink_half', 'speaking_small', 'speaking_medium', 'speaking_oo')
+        sheet = 'mira-' + style + '-motion-v1.png'
+        for index, (cx, cy, cw, ch), img in cells(sheet, 2, 2):
+            coarse = locate(img, template, np.arange(0.65, 2.0, 0.025), WORK)
+            fine = locate(img, template, np.arange(coarse[1] - 0.025, coarse[1] + 0.026, 0.005), 0.5)
+            score, scale, (tx, ty) = fine
+            if score < 0.75:
+                raise ValueError(f'{style}/{names[index]} nose registration failed: {score:.3f}')
+            x = cx + scale * (ref['centre'][0] - roi[0] - ref['half']) + tx
+            y = cy + scale * (ref['centre'][1] - roi[1] - ref['half']) + ty
+            side = 2 * scale * ref['half']
+            result['styles'][style][names[index]] = {
+                'sheet': sheet, 'cell': [cx, cy, cw, ch],
+                'crop': [round(float(v), 1) for v in (x, y, side, side)],
+                'score': round(float(score), 3)}
+            print(style, names[index], result['styles'][style][names[index]])
+    (ROOT / 'faces.json').write_text(json.dumps(result, indent=1) + '\n')
+
+
 if __name__ == '__main__':
-    main()
+    if "--motion" not in sys.argv:
+        main()
+    motion_frames()

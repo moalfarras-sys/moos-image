@@ -3,6 +3,7 @@
 Nothing here claims a result it did not observe: Home actions report Home Assistant's readback,
 computer actions report Mo AI's executor status, voice reports what the Echo session did.
 """
+import math
 import json
 import os
 import re
@@ -97,7 +98,7 @@ class Worker(QObject):
 
 class Controller(QObject):
     # ── notify signals ──────────────────────────────────────────────
-    phaseChanged = Signal(); levelChanged = Signal(); statusChanged = Signal(); captionChanged = Signal()
+    phaseChanged = Signal(); levelChanged = Signal(); mouthLevelChanged = Signal(); mouthPacketChanged = Signal(); statusChanged = Signal(); captionChanged = Signal()
     moodChanged = Signal(); faceChanged = Signal(); langChanged = Signal(); motionChanged = Signal()
     servicesChanged = Signal(); weatherChanged = Signal(); homeChanged = Signal(); pcChanged = Signal()
     echoChanged = Signal(); settingsChanged = Signal(); profileChanged = Signal(); busyChanged = Signal()
@@ -135,6 +136,8 @@ class Controller(QObject):
         self._voice_phase = 'connecting'
         self._text_phase = None
         self._level = 0.0
+        self._mouth_level = -1.0
+        self._mouth_packet = 0
         self._status = ''
         self._caption = ''
         self._caption_role = ''
@@ -308,6 +311,9 @@ class Controller(QObject):
     # ── properties ──────────────────────────────────────────────────
     phase = _prop(str, '_phase', phaseChanged)
     level = _prop(float, '_level', levelChanged)
+    mouthPacket = _prop(int, '_mouth_packet', mouthPacketChanged)
+    mouthLevel = Property(float, lambda self: self._mouth_level if self._mouth_level >= 0 else self._level * 0.55,
+                          notify=mouthLevelChanged)
     status = _prop(str, '_status', statusChanged)
     caption = _prop(str, '_caption', captionChanged)
     captionRole = _prop(str, '_caption_role', captionChanged)
@@ -631,14 +637,33 @@ class Controller(QObject):
     # ── voice events (Echo session and typed brain share one vocabulary) ──
     @Slot(str, str)
     def _on_voice(self, kind, text, typed=False):
+        if kind == 'mouth_level' and not typed:
+            try:
+                value = float(text)
+                if not math.isfinite(value):
+                    return
+                self._mouth_level = max(0.0, min(1.0, value))
+                # Identical packets must refresh the stale-audio watchdog, too.
+                self.mouthLevelChanged.emit()
+                self._mouth_packet += 1
+                self.mouthPacketChanged.emit()
+            except ValueError:
+                pass
+            return
+
         if kind == 'level':
             try:
                 value = max(0.0, min(1.0, float(text)))
             except ValueError:
                 return
+            if self._mouth_level < 0:
+                self._mouth_packet += 1
+                self.mouthPacketChanged.emit()
             if abs(value - self._level) > 0.01:
                 self._level = value
                 self.levelChanged.emit()
+                if self._mouth_level < 0:
+                    self.mouthLevelChanged.emit()
             return
         if kind in ('activating', 'listening', 'thinking', 'executing', 'speaking', 'ready', 'off', 'error') and not typed:
             print('Mira voice state:', kind, flush=True)
@@ -665,7 +690,9 @@ class Controller(QObject):
         else:
             if kind in ACTIVE or kind in ('ready', 'off', 'error'):
                 self._voice_phase = kind if kind != 'error' else 'ready'
-                if kind in ('ready', 'off', 'error', 'thinking', 'executing'):
+                if kind in ('ready', 'off', 'error', 'thinking', 'executing', 'listening'):
+                    self._mouth_level = -1.0
+                    self.mouthLevelChanged.emit()
                     self._level = 0.0
                     self.levelChanged.emit()
             if kind in ('activating', 'listening'):
