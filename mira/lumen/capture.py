@@ -74,7 +74,10 @@ try:
     import gi
     gi.require_version('Gst', '1.0')
     from gi.repository import Gio, GLib, Gst
-except (ImportError, ValueError):           # PyGObject or GStreamer typelibs missing
+except (ImportError, ValueError, AttributeError):
+    # PyGObject or GStreamer typelibs missing. AttributeError: a `gi` that is only an empty
+    # namespace package (no PyGObject installed) has no require_version — measured in the ARM
+    # mira-build stage, where importing this module then broke every Lumen suite.
     Gio = GLib = Gst = None
 
 PORTAL_BUS = 'org.freedesktop.portal.Desktop'
