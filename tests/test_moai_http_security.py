@@ -15,6 +15,8 @@ import http.client
 import json
 import os
 import runpy
+import socket
+import sys
 import tempfile
 import threading
 import unittest
@@ -24,6 +26,7 @@ from unittest import mock
 
 
 ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / 'system_files/usr/lib/moai'))
 AGENT_API = ROOT / "system_files/usr/bin/moai-agent-api"
 CONTROL_API = ROOT / "system_files/usr/bin/moai-control"
 GATEWAY = ROOT / "system_files/usr/bin/moai-gateway"
@@ -67,6 +70,50 @@ def request(port: int, method: str, path: str, body=None, headers=None):
         return response.status, {k.lower(): v for k, v in response.getheaders()}, payload
     finally:
         connection.close()
+
+
+class LocalPeerIdentityTests(unittest.TestCase):
+    def test_real_loopback_clients_are_attributed_before_any_handler_operation(self):
+        # Real sockets and the real kernel table; only the sensitive handlers' work
+        # is mocked. A changed expected UID rejects the same genuine client.
+        import moai_local_peer
+        for script, handler_name, path, headers in (
+                (CONTROL_API, 'H', '/status', {'X-Moai-Control': '1'}),
+                (AGENT_API, 'H', '/api/status', {'X-Moai-Agent': '1'}),
+                (GATEWAY, 'Handler', '/healthz', {})):
+            with self.subTest(script=script.name), tempfile.TemporaryDirectory() as home:
+                module = load_script(script, home)
+                handler = module[handler_name]
+                calls = []
+                module_scope = handler.do_GET.__globals__
+                module_scope['brain_online'] = lambda: calls.append('brain') or True
+                module_scope['status'] = lambda: calls.append('status') or {'ok': True}
+                module_scope['load_product_cfg'] = lambda: calls.append('config') or {}
+                with running(handler) as port:
+                    self.assertEqual(request(port, 'GET', path, headers=headers)[0], 200)
+                    calls.clear()
+                    with mock.patch.object(moai_local_peer.os, 'geteuid', return_value=os.getuid() + 1):
+                        self.assertEqual(request(port, 'GET', path, headers=headers)[0], 403)
+                        self.assertEqual(request(port, 'POST', path, body={'confirmed': True},
+                                                 headers={**headers, 'Content-Type': 'application/json'})[0], 403)
+                    self.assertEqual(calls, [])
+
+    def test_socket_table_identity_requires_exact_client_tuple_and_live_inode(self):
+        import moai_local_peer as peer
+        client, server = '0100007F:C001', '0100007F:1F8F'
+        def row(local, remote, uid, state='01', inode='123'):
+            return f'0: {local} {remote} {state} 0:0 00:0 0 {uid} 0 {inode}\n'
+        self.assertEqual(peer._client_uid([row(server, client, 999), row(client, server, 1000)],
+                                         client, server), 1000)
+        for entries in ([], [row(client, server, 1000, state='06')],
+                        [row(client, server, 1000, inode='0')],
+                        [row(client, server, 'bad')], [row(client, '0100007F:0001', 1000)]):
+            self.assertIsNone(peer._client_uid(entries, client, server))
+        fake = mock.Mock(family=socket.AF_INET)
+        fake.getpeername.return_value = ('127.0.0.1', 49153)
+        fake.getsockname.return_value = ('127.0.0.1', 8079)
+        with mock.patch('builtins.open', side_effect=PermissionError):
+            self.assertFalse(peer.same_user(fake))
 
 
 def oversized_request(port: int, limit: int):

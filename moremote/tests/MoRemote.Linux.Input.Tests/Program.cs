@@ -1,8 +1,12 @@
 using System.Text.Json;
+using System.Buffers.Binary;
+using System.Net.Sockets;
 using MoRemote;
 
 // Compile the production injector against an in-memory portal and a deliberately
 // absent uinput socket. These tests cannot send keys to the machine running them.
+try
+{
 Environment.SetEnvironmentVariable("YDOTOOL_SOCKET", Path.Combine(
     Path.GetTempPath(), "moremote-no-input-" + Guid.NewGuid(), "absent.sock"));
 int passed = 0;
@@ -100,6 +104,42 @@ using (var releaseStarted = new ManualResetEventSlim())
     }
     Check(portal.Snapshot().Select(e => e.GetProperty("down").GetBoolean())
         .SequenceEqual([true, false]), "wire order ends released after concurrent cleanup");
+}
+
+// A private datagram recorder exercises the real fallback without /dev/uinput.
+var socketDir = Path.Combine(Path.GetTempPath(), "moremote-input-test-" + Guid.NewGuid());
+Directory.CreateDirectory(socketDir);
+var socketPath = Path.Combine(socketDir, "input.sock");
+try
+{
+    using var recorder = new Socket(AddressFamily.Unix, SocketType.Dgram, ProtocolType.Unspecified);
+    recorder.Bind(new UnixDomainSocketEndPoint(socketPath));
+    recorder.ReceiveTimeout = 2000;
+    Environment.SetEnvironmentVariable("YDOTOOL_SOCKET", socketPath);
+    using var portal = new PortalBridge { Accept = false };
+    using var input = new InputInjector(portal, new ScreenCapture());
+    input.MouseButtonCurrent("left", true);
+    var down = ReceiveKey(recorder);
+    portal.Accept = true;
+    input.MouseButtonCurrent("left", false);
+    var up = ReceiveKey(recorder);
+    Check(down == (0x110, 1) && up == (0x110, 0),
+        "portal recovery releases the button in the fallback that accepted its press");
+    Check(portal.Snapshot().Length == 0, "fallback release never goes to the newly ready portal");
+    input.KeyCode("KeyA", true);
+    portal.Accept = false;
+    input.ReleaseAll();
+    Check(!recorder.Poll(100000, SelectMode.SelectRead),
+        "an unavailable portal's held key is not incorrectly released into fallback");
+    portal.Accept = true;
+    input.ReleaseAll();
+    Check(portal.Snapshot().Select(e => e.GetProperty("down").GetBoolean())
+        .SequenceEqual([true, false]), "portal release is retried against its original backend");
+}
+finally
+{
+    Environment.SetEnvironmentVariable("YDOTOOL_SOCKET", Path.Combine(socketDir, "absent.sock"));
+    Directory.Delete(socketDir, true);
 }
 
 // ── Typing follows the live keymap. Fixture: real libxkbcommon output for MoOS's `ara,de` ring ──
@@ -285,7 +325,27 @@ static (int, bool)[] Shifted(int code) => [(42, true), (code, true), (code, fals
 static (int, bool)[] AltGr(int code) => [(100, true), (code, true), (code, false), (100, false)];
 static (int, bool)[] Seq(params (int, bool)[][] parts) => parts.SelectMany(p => p).ToArray();
 
-Console.WriteLine($"PASS: {passed} Linux input ordering, recovery and disposal assertions (fake portal only)");
+static (int Code, int Value) ReceiveKey(Socket recorder)
+{
+    byte[] data = new byte[24];
+    if (recorder.Receive(data) != 24) throw new Exception("short recorded input event");
+    var result = ((int)BinaryPrimitives.ReadUInt16LittleEndian(data.AsSpan(18)),
+                  BinaryPrimitives.ReadInt32LittleEndian(data.AsSpan(20)));
+    if (BinaryPrimitives.ReadUInt16LittleEndian(data.AsSpan(16)) != 1)
+        throw new Exception("expected recorded key edge");
+    if (recorder.Receive(data) != 24 || BinaryPrimitives.ReadUInt16LittleEndian(data.AsSpan(16)) != 0)
+        throw new Exception("expected recorded SYN_REPORT");
+    return result;
+}
+
+Console.WriteLine($"PASS: {passed} Linux input ordering, recovery and disposal assertions (fake portal/private socket)");
+}
+catch (Exception error)
+{
+    // A regression is a test failure, not a crash report in the owner's journal.
+    Console.Error.WriteLine(error);
+    Environment.ExitCode = 1;
+}
 
 namespace MoRemote
 {

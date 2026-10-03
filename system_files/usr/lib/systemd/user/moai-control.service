@@ -47,6 +47,7 @@ ExecStart=/usr/bin/moai-control
 Restart=on-failure
 RestartSec=5
 TimeoutStopSec=15s
+UMask=0077
 
 [Install]
 WantedBy=default.target

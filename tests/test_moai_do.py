@@ -531,6 +531,24 @@ with tempfile.TemporaryDirectory() as tmp:
     check("NOT updated" in result.stderr,
           "update-firmware must say plainly that nothing was updated")
 
+# Firmware inspection must distinguish "no action" (2) from failure (1/3).
+for refresh_code, updates_code in ((0, 1), (0, 3), (1, 2), (0, 2), (2, 2)):
+    with tempfile.TemporaryDirectory() as tmp:
+        bindir = Path(tmp)
+        (bindir / 'fwupdmgr').write_text(
+            '#!/bin/sh\ncase "$1" in\n'
+            f'refresh) exit {refresh_code} ;;\nget-updates) exit {updates_code} ;;\n'
+            '*) echo "UNEXPECTED UPDATE"; exit 99 ;;\nesac\n')
+        (bindir / 'fwupdmgr').chmod(0o755)
+        result = subprocess.run([BASH, str(MOAI_DO), 'update-firmware'], input='n\n',
+            capture_output=True, text=True, timeout=30,
+            env={**os.environ, 'PATH': f'{bindir}{os.pathsep}{os.environ.get("PATH", "")}'})
+        no_updates = refresh_code in (0, 2) and updates_code == 2
+        check((result.returncode == 0) == no_updates, 'firmware query failure must fail the action')
+        check(('No firmware updates available' in result.stdout) == no_updates,
+              'firmware query failure must never be described as no updates')
+        check('UNEXPECTED UPDATE' not in result.stdout, 'failed/empty inspection must never update firmware')
+
 # ── 5. rollback is a TOGGLE: a queued rescue is never cancelled by asking again ─────────
 # `bootc rollback` makes the running system the default again when a return is already
 # queued. moai-do used to run it anyway and print "next boot will use the previous version".

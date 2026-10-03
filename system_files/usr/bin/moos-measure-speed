@@ -73,7 +73,8 @@ def boot() -> dict:
         return {'measured': False, 'why': 'systemd-analyze reported no startup timing'}
     parts = dict((name, _seconds(value)) for value, name in
                  re.findall(r'(\d[\d.]*(?:min\s+[\d.]+)?\s*(?:min|ms|s))\s*\((\w+)\)', text))
-    total = _seconds(text.split('=')[-1]) if '=' in text else sum(parts.values())
+    startup = next(line for line in text.splitlines() if 'Startup finished' in line)
+    total = _seconds(startup.split('=')[-1]) if '=' in startup else sum(parts.values())
     graphical = re.search(r'graphical\.target reached after ([\d.]+\s*(?:min|ms|s)[^i]*)', text)
     return {
         'measured': True,
@@ -106,6 +107,26 @@ MOOS_PROCESSES = (
     'baloo_file', 'polkit-kde-authentication-agent-1', 'moos-visual-tier',
 )
 
+# Interpreted services have comm=python/python3; their systemd owner, rather than
+# the interpreter name, distinguishes MoOS from the owner's other Python work.
+MOOS_UNITS = frozenset((
+    'mira-lumen.service', 'moai-control.service', 'moai-agent-api.service',
+    'moai-gateway.service', 'moos-health.service', 'mira-homeassistant.service',
+    'mira.service', 'mira-wake.service', 'mo-remote-personal.service',
+))
+
+
+def _owned_process(name: str, cgroup: str) -> bool:
+    if name in MOOS_PROCESSES:
+        return True
+    for line in cgroup.splitlines():
+        units = line.split(':', 2)[-1].split('/')
+        if any(unit in MOOS_UNITS or
+               (unit.startswith('app-org.moos.moai@') and unit.endswith('.service'))
+               for unit in units):
+            return True
+    return False
+
 
 def _cpu_ticks() -> tuple[float, dict]:
     """Total jiffies, and MoOS's own processes' jiffies, from /proc alone."""
@@ -125,7 +146,8 @@ def _cpu_ticks() -> tuple[float, dict]:
             # is positional, and utime/stime are fields 14 and 15 of the whole line.
             name = stat[stat.index('(') + 1:stat.rindex(')')]
             rest = stat[stat.rindex(')') + 2:].split()
-            if name not in MOOS_PROCESSES:
+            cgroup = (entry / 'cgroup').read_text() if name not in MOOS_PROCESSES else ''
+            if not _owned_process(name, cgroup):
                 continue
             ours[entry.name] = float(rest[11]) + float(rest[12])
         except (OSError, ValueError, IndexError):

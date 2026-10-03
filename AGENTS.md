@@ -282,6 +282,16 @@ picker. Claim the Hue area only on the first captured picture: it expires after
 ten silent seconds while a screen picker can wait indefinitely. A lost stream
 must release the area and restore paced house control for its lamps. Preserve
 explicit saved cloud targets on restart. PC state is never physical LED readback.
+
+**Loopback and a fixed request header are not user authentication.** Mo AI's
+three HTTP services verify the connecting client socket's UID from the kernel
+table before doing work (`moai_local_peer.py`). Match the reversed full client
+tuple, not the accepted server socket (which is always ours); missing identity
+fails closed. Preserve the origin/header guards too. Do not expose secrets in a
+status payload to work around this boundary. Held Remote input also belongs to
+the backend that accepted its press: a portal reconnect must never send a
+fallback button's release into the portal. Test it with a private recorder,
+never with the owner's actual uinput socket.
 Login Screen Sync requires an explicit owner opt-in, defaults off and stops
 resuming when Stop is pressed. Publish owner groups to Mira's context and accept
 their exact IDs; one group can contain house lamps, PC headers and Echo.

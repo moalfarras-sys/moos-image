@@ -19,6 +19,9 @@ public sealed class InputInjector : IDisposable
     private readonly ScreenCapture _capture;
     private readonly object _gate = new();
     private readonly HashSet<ushort> _pressed = [];
+    // Each release belongs to the backend that accepted its press. A portal
+    // reconnect between edges must not leave a button held in the uinput device.
+    private readonly HashSet<ushort> _fallbackPressed = [];
     private volatile bool _disposed;
     private Socket? _socket;
     private string _lastError = "";
@@ -699,8 +702,7 @@ public sealed class InputInjector : IDisposable
         lock (_gate)
         {
             if (_disposed) return;
-            if (down) { if (!_pressed.Add(code)) return; }
-            else { if (!_pressed.Remove(code)) return; }
+            if (down == _pressed.Contains(code)) return;
             // Keep the state change and its wire edge under the same lock. A pause or
             // disconnect can call ReleaseAll from another session thread: unlocking
             // before Send lets its key-up overtake this down and leaves a stuck key.
@@ -708,13 +710,25 @@ public sealed class InputInjector : IDisposable
             var msg = isButton
                 ? (object)new { type = "button", button = (int)code, down }
                 : new { type = "key", code = (int)code, down };
-            if (_portal.Send(msg)) return;
-            if (!Emit(EvKey, code, down ? 1 : 0))
+            bool fallback = !down && _fallbackPressed.Contains(code);
+            bool accepted = fallback ? Emit(EvKey, code, 0) : _portal.Send(msg);
+            if (down && !accepted)
             {
-                // Neither backend accepted this edge. Preserve the last accepted
-                // state so recovery can retry a down or an outstanding release.
-                if (down) _pressed.Remove(code);
-                else _pressed.Add(code);
+                fallback = true;
+                accepted = Emit(EvKey, code, 1);
+            }
+            if (accepted)
+            {
+                if (down)
+                {
+                    _pressed.Add(code);
+                    if (fallback) _fallbackPressed.Add(code);
+                }
+                else
+                {
+                    _pressed.Remove(code);
+                    _fallbackPressed.Remove(code);
+                }
             }
         }
     }

@@ -24,6 +24,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import shutil
 import stat
 import struct
@@ -63,15 +64,17 @@ def flatpak_present(reference: str) -> bool:
 def waydroid_initialized() -> bool:
     """Installed is not ready: the Android system image is a separate download.
 
-    `waydroid status` says "not initialized" in its own words when the image was
-    never fetched. Anything else means it can take a package.
+    A stopped session is initialized; an error or unknown response is not evidence.
     """
     try:
         result = subprocess.run(["waydroid", "status"], capture_output=True,
                                 text=True, timeout=20)
     except (OSError, subprocess.SubprocessError):
         return False
-    return "not initialized" not in (result.stdout + result.stderr).lower()
+    status = result.stdout + result.stderr
+    return (result.returncode == 0 and "not initialized" not in status.lower()
+            and re.search(r"^Session:\s*(?:STOPPED|RUNNING|FROZEN)\s*$",
+                          result.stdout, re.MULTILINE) is not None)
 
 
 READY_CHECKS = {"initialized": waydroid_initialized}

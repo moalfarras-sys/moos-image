@@ -611,11 +611,24 @@ do_update_firmware() {
     fi
     # Refresh the metadata first, otherwise "no updates" can simply mean "never checked".
     # --force lets a same-day re-check through instead of erroring on the cache age.
-    fwupdmgr refresh --force >/dev/null 2>&1 || true
+    local refresh_status=0 updates_status=0
+    fwupdmgr refresh --force || refresh_status=$?
+    # fwupdmgr documents 2 as successful execution with no action necessary.
+    if [ "$refresh_status" -ne 0 ] && [ "$refresh_status" -ne 2 ]; then
+        echo "${R}تعذر تحديث معلومات البرامج الثابتة؛ لم يكتمل الفحص.${N}" >&2
+        echo "${R}Could not refresh firmware metadata; the check did not complete.${N}" >&2
+        return 1
+    fi
     echo "${D}البرامج الثابتة المتاحة | Available firmware updates:${N}"
-    if ! fwupdmgr get-updates 2>/dev/null; then
+    fwupdmgr get-updates || updates_status=$?
+    if [ "$updates_status" -eq 2 ]; then
         echo "${G}✓ لا توجد تحديثات برامج ثابتة | No firmware updates available${N}"
         return 0
+    fi
+    if [ "$updates_status" -ne 0 ]; then
+        echo "${R}تعذر فحص تحديثات البرامج الثابتة؛ لم يتغير الجهاز.${N}" >&2
+        echo "${R}Could not check firmware updates; the device was not changed.${N}" >&2
+        return 1
     fi
     echo
     echo "${Y}تحديث البرامج الثابتة قد يتطلب إعادة تشغيل ولا يمكن التراجع عنه.${N}"
