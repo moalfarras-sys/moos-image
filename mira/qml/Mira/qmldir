@@ -36,6 +36,10 @@ Tile 1.0 Tile.qml
 OutputBox 1.0 OutputBox.qml
 NavRail 1.0 NavRail.qml
 SheetFrame 1.0 SheetFrame.qml
+HomePage 1.0 HomePage.qml
+LumenPage 1.0 LumenPage.qml
+LightOrb 1.0 LightOrb.qml
+ColorWheel 1.0 ColorWheel.qml
 PcPage 1.0 PcPage.qml
 SystemPage 1.0 SystemPage.qml
 AppsPage 1.0 AppsPage.qml

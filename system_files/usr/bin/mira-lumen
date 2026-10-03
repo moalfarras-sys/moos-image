@@ -1,0 +1,29 @@
+#!/usr/bin/env bash
+# mira-lumen — Lumen, the MoOS lighting engine (Mira's lights: the house and this computer's RGB).
+#
+#   mira-lumen serve                  run the engine (mira-lumen.service does this at sign-in)
+#   mira-lumen status                 every light, room, scene and what Screen Sync is doing
+#   mira-lumen set TARGET [--on|--off] [--color C] [--brightness N] [--kelvin K] [--effect E]
+#   mira-lumen scene NAME [TARGET]    aurora, sunset, ocean, focus, relax, cinema … (default: all)
+#   mira-lumen sync start|stop|status [--mode video|game|ambient] [--target T]
+#   mira-lumen pc                     the computer's lighting controller and its headers
+#   mira-lumen hue pair|status|forget pair Lumen with the Hue bridge (press its round button)
+#
+# The engine lives in Mira's tree (/usr/lib/mira/app/lumen) and uses only the image's Python and
+# Mira's pinned packages. Mira, System Settings and this command reach it on a private socket,
+# $XDG_RUNTIME_DIR/mira-lumen.sock (0600): nothing on the network can turn the owner's lights.
+set -uo pipefail
+
+APP="${MIRA_APP:-/usr/lib/mira/app}"
+SITE="${MIRA_SITE:-/usr/lib/mira/site}"
+PY="${MIRA_PYTHON:-/usr/bin/python3}"
+
+if [ ! -f "$APP/lumen/engine.py" ]; then
+    echo "mira-lumen: Lumen is not installed in this edition ($APP/lumen)" >&2
+    echo "mira-lumen: مركز الإضاءة غير مثبّت في هذه النسخة" >&2
+    exit 1
+fi
+# -s keeps a person's ~/.local packages out of the engine that turns the house's lights.
+export PYTHONPATH="$SITE:$APP${PYTHONPATH:+:$PYTHONPATH}"
+export PYTHONDONTWRITEBYTECODE=1
+exec "$PY" -s -m lumen "$@"

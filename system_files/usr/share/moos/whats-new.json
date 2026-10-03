@@ -3,6 +3,34 @@
   "_": "What a person can SEE or DO after an update, newest first. One entry per user-visible change, written for the owner of the machine, not for a developer: what it is, where it is, and (when MoOS has a route to it) a way to try it now. 'merged' is when the change reached main (a little later is fine, earlier is not: an entry dated before a machine's previous system is never marked new there); a machine marks an entry new when the system it ran BEFORE the update was built earlier than that. tests/test_whats_new.py reads every entry the way MoOS Settings will.",
   "entries": [
     {
+      "id": "lumen-lighting",
+      "merged": "2026-10-03T00:00:00Z",
+      "glyph": "bulb",
+      "route": "moos://settings/assistant",
+      "title": {
+        "ar": "لومِن: كل أضواء البيت والكمبيوتر بمكان واحد",
+        "en": "Lumen: every light in the house and the PC, in one place"
+      },
+      "body": {
+        "ar": "صفحة الإضاءة في ميرا تتحكم بأضواء البيت وإضاءة الكيس واللوحة الأم معاً: غرف ومجموعات، عجلة ألوان، أبيض دافئ وبارد، مشاهد حيّة مثل الشفق والغروب، ومزامنة تخلي الأضواء تتبع اللي على الشاشة. وقولي لميرا «خلي الكيس بنفسجي» أو «شغلي مشهد السينما».",
+        "en": "Mira's Lighting page drives the house's lamps and the case and motherboard RGB together: rooms and groups, a colour wheel, warm and cool white, living scenes such as Aurora and Sunset, and Screen Sync so the lights follow the screen. Or just tell Mira “make the case violet” or “cinema scene”."
+      }
+    },
+    {
+      "id": "mira-home-centre",
+      "merged": "2026-10-03T00:00:00Z",
+      "glyph": "home",
+      "route": "moos://settings/assistant",
+      "title": {
+        "ar": "البيت في ميرا: كل جهاز بغرفته وباسمك",
+        "en": "Home in Mira: every device in its room, by your names"
+      },
+      "body": {
+        "ar": "سمِّ أي جهاز أو انقله لغرفة أو أعطه أسماء ثانية للصوت، والاسم بينحفظ بالبيت نفسه. ميرا صارت تعرف شو بيقدر يعمل كل جهاز، وعلى جهاز ما فيه مركز بيت بكبسة وحدة بيصير الكمبيوتر مركز البيت وبيكتشف أجهزتك لحاله.",
+        "en": "Rename any device, move it to a room or give it other names for your voice, saved in the home itself. Mira knows what each device can do, and one button makes a computer without a hub your home hub that finds your devices by itself."
+      }
+    },
+    {
       "id": "remote-weak-link",
       "merged": "2026-10-01T01:00:00Z",
       "glyph": "video",

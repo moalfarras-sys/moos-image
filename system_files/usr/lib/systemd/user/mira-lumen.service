@@ -1,0 +1,33 @@
+[Unit]
+Description=Lumen, the MoOS lighting engine (Mira's lights)
+Documentation=file:///usr/bin/mira-lumen
+# Every light Mira can reach — the house (Home Assistant, the Hue bridge) and this computer's own
+# RGB controller — as one engine: scenes that keep moving and Screen Sync keep running while Mira's
+# window is closed, and the case lights the board forgot at power-off are put back at sign-in.
+#
+# Started at sign-in only for a person who has used Lumen (it has written lumen.json); for anyone
+# else Mira starts it the first time she needs a light (`systemctl --user start`, which writes that
+# file first). An edition without Mira's stage has no engine and skips the unit.
+ConditionPathExists=/usr/lib/mira/app/lumen/engine.py
+ConditionPathExists=%h/.config/mo-dot/lumen.json
+ConditionUser=!@system
+PartOf=graphical-session.target
+After=graphical-session.target
+StartLimitIntervalSec=120
+StartLimitBurst=3
+
+[Service]
+Type=exec
+ExecStart=/usr/bin/mira-lumen serve
+Restart=on-failure
+RestartSec=3
+Slice=app.slice
+# A lighting engine has no business being greedy: measured ~17-30 MB and under 2 % of one core
+# while streaming a living scene to the PC at 30 fps.
+MemoryHigh=160M
+MemoryMax=256M
+Nice=5
+TimeoutStopSec=8s
+
+[Install]
+WantedBy=graphical-session.target
