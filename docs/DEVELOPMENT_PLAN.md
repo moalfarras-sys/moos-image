@@ -1,20 +1,33 @@
 # MoOS development plan
 
-### Mira current acceptance work (2026-09-30)
+### Mira current acceptance work (2026-10-03)
 
-Done and measured: the v4 GPU interface and a single voice/text brain. An owner-spoken Arabic wake led to a multi-turn conversation with sub-second replies. The Echo client is supervised by init and survived a reboot. Handoff works both ways. Research, opt-in screen look and the Tailscale phone companion are in. **Mo AI is merged into Mira:**
-- every Mo AI tool by name;
-- owner-approved cards (button, notification, phone, or his later «نعم») with job follow-up;
-- the System centre, desktop tools, reminders, routines, and voice through the PC when no Echo is paired;
-- Mo AI's free cloud brain as the tool loop without a Gemini key.
+Mira's six pages, approvals, desktop tools and single-mouth correction are in
+signed `.975`, booted on the NVIDIA station with signed `.967` rollback. This
+session's installed checks passed 55/55 and 54 selfchecks; no failed units.
 
-On the station she wears Mo AI's launcher, icon and Meta+Space. PRs #177–#181 are merged into `main`; `.959` passed signed x86 candidate, three exact-digest QCOW2 boots, offline ISO and promotion, plus the ARM build/boot/promotion. The station staged `.959` through `moai-do update` and still needs to reboot and prove the installed experience. A later scheduled ARM build failed because the mutable base added a second wants symlink for the competing update timer; its scrub fix awaits image proof. Open, in order:
-1. Reboot into `.959`, then run the installed assistant and post-update checks.
-2. Prove the later ARM base's new timer scrub in a fresh image build and booted disk.
-3. Done without an inbound port: `mira_ar_v2` runs at 0.65 beside the proven model, and announcements are spoken on the Echo. Still owed: the owner's own bare «ميرا» hit rate and false wakes per hour with the pair.
-4. P3.9: the owner decision was recorded on 2026-09-30 in `mira/control-centre-20260930`. A desktop tool that runs model-written commands is still unbuilt; design and safety review remain open.
-5. Measure a power-cut restart. Host Home Assistant on an always-on machine for PC-off home control.
-6. **Home centre + Lumen (2026-10-03, `feat/mira-home-lumen-20261002`):** in source and live on the station from the branch — Home page on HA's registries (rename/room/aliases written to HA), device inventory in Mira's instruction, Lumen lighting engine (HA + direct Hue + Gigabyte RGB Fusion 2), fourteen scenes, Screen Sync through the portal, Mira tools `lights`/`light_scene`/`screen_sync`/`home_rename`/`tv_control`. Owed: the owner presses the Hue bridge button once so Screen Sync streams over Entertainment (DTLS proven locally only), identify which fans hang on D_LED1/D_LED2/LED_C1/LED_C2, signed delivery on all four editions. One-click home hub for a MoOS without Home Assistant is in source (`mira/homesetup.py`: quadlet + first run + token, proven against a throwaway HA 2026.9.4); a real fresh-install run on a second machine is owed.
+The home/Lumen batch (PR #190, `78f72b6c`) is being integrated with the This PC
+media-title correction found in native review. Real Hue colour/brightness and
+restoration, four PC header acknowledgements, Home Assistant registry inventory,
+Mira's Gemini read-only home question and the four native pages were exercised.
+Screen Sync delivered 87 frames at 15 fps and restored four PC headers; volume
+89→84→89 was read back. The title fix failed its regression before the change
+and passed afterward; isolated `test_systools` + `test_page_pc` passed 120 tests.
+Tests and image builds are separate from signed release evidence. Open, in order:
+
+1. Complete integration gates, then exact-source signed candidate, three QCOW2
+   proofs, offline ISO and independent ARM boot/promotion; update through `moai-do`.
+2. After reboot, replace temporary source Mira/Lumen units with the installed
+   launchers and prove the Home/Lumen/Computer/System journeys again.
+3. Four home lamps and the smart plug are unavailable; diagnose connectivity
+   without reporting a global success. The PC reports controller acknowledgement
+   only; the owner must observe which physical fans each header controls.
+4. Hue Entertainment needs Lumen's own bridge pairing; a real stream remains owed.
+5. Measure owner-spoken wake, conversation, interruptions and false wakes over time.
+   `mira_ar_v2` and Echo announcements were previously exercised without inbound ports.
+6. P3.9 owner decision was recorded on 2026-09-30; model-written desktop commands
+   remain unbuilt pending design and safety review. Measure power-cut recovery;
+   an always-on Home Assistant is needed for PC-off home control.
 
 Keep both faces, Beamformer and the Mira-only wake selection `[mira_ar_experimental]` (the owner's choice). Only one ESPHome API client may be connected while voice is tested, because echod routes the pipeline to the newest client.
 

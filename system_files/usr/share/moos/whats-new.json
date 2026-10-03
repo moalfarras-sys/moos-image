@@ -3,6 +3,20 @@
   "_": "What a person can SEE or DO after an update, newest first. One entry per user-visible change, written for the owner of the machine, not for a developer: what it is, where it is, and (when MoOS has a route to it) a way to try it now. 'merged' is when the change reached main (a little later is fine, earlier is not: an entry dated before a machine's previous system is never marked new there); a machine marks an entry new when the system it ran BEFORE the update was built earlier than that. tests/test_whats_new.py reads every entry the way MoOS Settings will.",
   "entries": [
     {
+      "id": "mira-media-title",
+      "merged": "2026-10-03T09:00:00Z",
+      "glyph": "ai",
+      "route": "moos://settings/assistant",
+      "title": {
+        "ar": "عنوان الوسائط واضح في مركز التحكم",
+        "en": "Readable media titles in the control centre"
+      },
+      "body": {
+        "ar": "صفحة الكمبيوتر في ميرا تعرض اسم المقطع والفنان كنص واضح عند التشغيل، بما في ذلك العناوين العربية.",
+        "en": "Mira’s This PC page shows the playing title and artist as readable text, including Arabic titles."
+      }
+    },
+    {
       "id": "lumen-lighting",
       "merged": "2026-10-03T00:00:00Z",
       "glyph": "bulb",

@@ -70,7 +70,18 @@ def _dbus_names() -> list[str]:
 
 def _prop(service, path, interface, name):
     data = _busctl(['get-property', service, path, interface, name])
-    return data.get('data', data) if isinstance(data, dict) else data
+    return _dbus_value(data)
+
+
+def _dbus_value(value):
+    """busctl wraps both the property and every a{sv} member with its D-Bus type."""
+    if isinstance(value, dict):
+        if set(value) == {'type', 'data'} and isinstance(value['type'], str):
+            return _dbus_value(value['data'])
+        return {key: _dbus_value(item) for key, item in value.items()}
+    if isinstance(value, list):
+        return [_dbus_value(item) for item in value]
+    return value
 
 
 # ─── MPRIS media control ──────────────────────────────────────────────
