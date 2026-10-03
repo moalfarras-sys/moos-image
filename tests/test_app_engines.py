@@ -86,6 +86,21 @@ class WindowsFilePreflight(unittest.TestCase):
         self.addCleanup(self.tmp.cleanup)
         self.root = Path(self.tmp.name)
 
+    def test_android_readiness_requires_a_successful_known_status(self):
+        for code, stdout, stderr, ready in (
+            (0, 'Session:\tSTOPPED\nVendor type:\tMAINLINE\n', '', True),
+            (0, 'Session:\tRUNNING\nContainer:\tRUNNING\n', '', True),
+            (1, '', 'ERROR: failed to connect to service', False),
+            (1, 'Session:\tSTOPPED\n', '', False),
+            (0, '', '', False),
+            (0, 'unknown response', '', False),
+            (0, '', 'WayDroid is not initialized', False),
+        ):
+            with self.subTest(code=code, stdout=stdout, stderr=stderr), mock.patch.object(
+                    self.engine.subprocess, 'run', return_value=subprocess.CompletedProcess(
+                        ['waydroid', 'status'], code, stdout, stderr)):
+                self.assertEqual(self.engine.waydroid_initialized(), ready)
+
     def pe(self, name="sample.exe", machine=0x14c, magic=0x10b):
         data = bytearray(128)
         data[:2] = b"MZ"
