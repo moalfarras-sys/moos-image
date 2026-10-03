@@ -13,7 +13,7 @@ Mira's Gemini read-only home question and the four native pages were exercised.
 Screen Sync delivered 87 frames at 15 fps and restored four PC headers; volume
 89→84→89 was read back. The title fix failed its regression before the change
 and passed afterward; isolated `test_systools` + `test_page_pc` passed 120 tests.
-Tests and image builds are separate from signed release evidence. Open, in order:
+PR #191 ARM passed; its x86 build exposed an intermittent Qt crash during test teardown, reproduced under one-CPU container stress. The page fixture now waits for worker termination before releasing Qt objects (40 one-CPU repetitions passed); image suite logs show names and preserve exit status. Reproof is required. Tests and image builds are separate from signed release evidence. Open, in order:
 
 1. Complete integration gates, then exact-source signed candidate, three QCOW2
    proofs, offline ISO and independent ARM boot/promotion; update through `moai-do`.

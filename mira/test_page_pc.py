@@ -154,6 +154,19 @@ def title_only():
 
 class PcPageTest(unittest.TestCase):
     def setUp(self):
+        # Keep each page alive on the GUI thread until its workers have really
+        # exited, not merely until their queued result has been delivered.
+        self.workers = []
+        real_thread = threading.Thread
+
+        def worker(*args, **kwargs):
+            thread = real_thread(*args, **kwargs)
+            self.workers.append(thread)
+            return thread
+
+        threads = patch('pages.base.threading.Thread', side_effect=worker)
+        threads.start()
+        self.addCleanup(threads.stop)
         # The real transport must never be reached from these tests.
         guard = patch('moai_tools._request', side_effect=AssertionError('the real executor was reached'))
         guard.start()
@@ -167,6 +180,20 @@ class PcPageTest(unittest.TestCase):
         self.addCleanup(look.stop)
         self.host = Host('en')
         self.page = pc.PcPage(self.host)
+        self.addCleanup(self.finish_workers)
+
+    def finish_workers(self):
+        deadline = time.monotonic() + 2
+        while True:
+            count = len(self.workers)
+            for worker in list(self.workers):
+                worker.join(timeout=max(0, deadline - time.monotonic()))
+                self.assertFalse(worker.is_alive(), "page worker did not finish")
+            QCoreApplication.processEvents()
+            # Delivering a result can start a queued follow-up read/control.
+            if len(self.workers) == count:
+                break
+            self.assertLess(time.monotonic(), deadline, "page workers did not settle")
 
     def settle(self, predicate):
         self.assertTrue(pump(predicate), 'the page never finished')

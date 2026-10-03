@@ -941,14 +941,25 @@ def mira_suites(text: str) -> set[str]:
     if match is None:
         match = re.search(
             r"for module in((?:\s+\\?\s*test_\w+)+);\s*do\s*\\?\s*"
-            r'python3 -s -m unittest "\$module"',
+            r'(?:if )?python3(?: -X faulthandler)? -s -m unittest(?: -v)? "\$module"',
             text,
         )
     assert match, "no fail-closed mira-build unittest RUN found"
+    if 'if python3' in match.group(0):
+        tail = text[match.end():].split('done', 1)[0]
+        assert 'status=$?' in tail and 'exit "$status"' in tail, "suite failure must stop the build"
     return set(re.findall(r"test_\w+", match.group(1)))
 
 
 class MiraOnBothArchitectures(unittest.TestCase):
+    def test_diagnostic_suite_runner_still_stops_on_failure(self) -> None:
+        runner = ('for module in test_tools test_page_pc; do '
+                  'if python3 -X faulthandler -s -m unittest -v "$module"; then :; else '
+                  'status=$?; exit "$status"; fi; done')
+        self.assertEqual(mira_suites(runner), {'test_tools', 'test_page_pc'})
+        with self.assertRaisesRegex(AssertionError, 'suite failure must stop'):
+            mira_suites(runner.replace('exit "$status"', ':'))
+
     def test_both_stages_run_the_same_suites(self) -> None:
         arm, x86 = mira_suites(read(CONTAINERFILE)), mira_suites(read(X86_CONTAINERFILE))
         self.assertEqual(arm - x86, set(), "ARM runs Mira suites the x86 image does not")
