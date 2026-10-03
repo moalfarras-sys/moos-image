@@ -285,10 +285,14 @@ class DolphinMenus(unittest.TestCase):
             if suites is None or '"$module"' in suites.group(1):
                 suites = re.search(
                     r"for module in((?:\s+\\?\s*test_\w+)+);\s*do\s*\\?\s*"
-                    r'python3 -s -m unittest "\$module"',
+                    r'(?:if )?python3(?: -X faulthandler)? -s -m unittest(?: -v)? "\$module"',
                     text,
                 )
             self.assertIsNotNone(suites, f"{containerfile}: Mira's suites are not run")
+            if 'if python3' in suites.group(0):
+                tail = text[suites.end():].split('done', 1)[0]
+                self.assertIn('status=$?', tail)
+                self.assertIn('exit "$status"', tail)
             self.assertIn("test_kde_integration", suites.group(1).split(),
                           f"{containerfile}: the Dolphin/login/D-Bus suite never runs in the build")
 
