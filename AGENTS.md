@@ -278,7 +278,10 @@ channel regions when adding PC/HA layouts; prove packets contain the targeted
 channels. Screen sync must clear lamp effects (Echo's DNA otherwise keeps moving),
 turn black output off and report failed/declined capture as stopped. A restore
 token remembers a monitor, including a virtual one: give the owner a fresh screen
-picker. PC streaming state is commanded colour, never physical LED readback.
+picker. Claim the Hue area only on the first captured picture: it expires after
+ten silent seconds while a screen picker can wait indefinitely. A lost stream
+must release the area and restore paced house control for its lamps. Preserve
+explicit saved cloud targets on restart. PC state is never physical LED readback.
 
 **A face that loads is not a face that speaks correctly.** Mira's lip envelope follows
 playback RMS, while the aura keeps peak energy. Never discard a due silence inside

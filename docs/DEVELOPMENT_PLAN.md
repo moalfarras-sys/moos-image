@@ -11,13 +11,15 @@ regions, uncleared Echo effects, black-frame fallback, stale PC state, failed
 capture status and screen selection are corrected and targeted-tested. Real
 colour commands/readback passed for Tuya wall light, Hue Büro and Echo; PC only
 acknowledges reports. Hue's link button was pressed and actual Entertainment
-streaming started. The virtual monitor was the wrong capture; HDMI selection
-still needs an owner-approved portal session. Temporary source services and the
-runtime-only Lumen mask are recorded in the state file. Remaining acceptance:
+streaming started. Actual HDMI-A-1 now captures video at 17–20 fps (>2800 frames)
+with an active four-channel Hue area and changing output colours. Hue starts
+only after the first picture, with HA fallback on a lost stream; persisted Tuya
+targets remain selected. Temporary units/mask are recorded in the state file.
+Remaining acceptance:
 
-1. Finish HDMI video sync and physically observe all connected LEDs; three lamps
-   (RGB, Ta5it, Tv Links) remain unavailable after Hue/Tuya reloads.
-2. Repository gates passed, as did 264 Mira checks (6 optional skips). Finish
+1. Physically observe all connected LEDs; three lamps (RGB, Ta5it, Tv Links)
+   remain unavailable; the Hue bridge itself reports the two Hue lamps unreachable.
+2. Full repository gates and 267 Mira checks pass (6 optional skips). Finish
    exact-image build and signed delivery; source services are temporary.
 3. Read back Home/Lumen/Computer/System on that signed deployment, with temporary
    units/masks removed, and repeat owner-spoken wake/interruption endurance.

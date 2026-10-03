@@ -17,14 +17,14 @@ Echo blue/45% read back; four PC headers acknowledged commands (physical colour
 still needs observation). Owner pressed Hue's button: pairing succeeded and a
 real DTLS Entertainment session sent frames alongside PC/Echo. Of 13 light
 endpoints, 10 available; RGB, Ta5it and Tv Links remain unavailable after reloading
-Hue/Tuya. Capture had selected the virtual desktop's wallpaper; HDMI selection
-awaits the owner (the first selection dialog timed out). Temporary user units
+Hue/Tuya; direct Hue Zigbee readback also marks Ta5it/Tv Links unreachable.
+HDMI-A-1 now captures video at 17–20 fps; >2800 changing frames and an active
+four-channel Hue area were read back without errors. Hue starts on the first
+picture and falls back to house control on stream loss; saved Tuya targets persist. Temporary units
 `mira-control-review` and `mira-lumen-control-review` run this source; Lumen's
 installed service has a runtime-only mask to prevent dual ownership. Reboot
 removes these overrides; signed delivery and physical/voice endurance remain open.
-264 targeted tests passed (6 optional skips); new regressions fail on old code.
-Full `just check` passed after condensing this state file to its enforced limit;
-no gate was weakened. Signed delivery remains open.
+267 targeted tests and full `just check` pass (6 optional skips); physical observation remains open.
 
 **Remote interruption diagnosis, 2026-10-01:** the installed portal repeatedly
 renewed after `1536x864+0+0@3 -> no outputs`. Source `59e97672` ignores an empty

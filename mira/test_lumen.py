@@ -428,6 +428,56 @@ class Fusion2Bytes(unittest.TestCase):
 
 
 class ScreenOutputs(unittest.TestCase):
+    def test_hue_is_claimed_only_after_a_screen_frame_arrives(self):
+        from lumen.syncsession import SyncSession
+        engine, hub, pc = engine_with()
+        cap = mock.Mock()
+        session = SyncSession(engine, engine.resolve('pc')[0], capture_factory=lambda *a: cap)
+        with mock.patch.object(session, '_open_stream') as open_stream:
+            session.start()
+            try:
+                open_stream.assert_not_called()
+                session._frame(bytes((255, 0, 0)) * (64 * 36), 64, 36)
+                open_stream.assert_called_once()
+                session._frame(bytes((0, 0, 255)) * (64 * 36), 64, 36)
+                open_stream.assert_called_once()
+            finally:
+                session.stop()
+                session._ha_thread.join(timeout=2)
+                self.assertFalse(session._ha_thread.is_alive())
+        engine.close()
+
+    def test_lost_hue_stream_releases_area_and_returns_lamps_to_home_path(self):
+        from lumen.syncsession import SyncSession
+        from lumen.sync import Analyzer
+        engine, hub, pc = engine_with()
+        lamp = engine.resolve('Büro')[0][0]
+        session = SyncSession(engine, [lamp])
+        session._outputs_started = True
+        session.analyzer = Analyzer()
+        session.stream_channels = {lamp['id']: 2}
+        session.regions = {lamp['id']: (0, 0, 1, 1)}
+        stream = session.stream = mock.Mock()
+        stream.send.side_effect = RuntimeError('DTLS lost')
+        session._frame(bytes((255, 0, 0)) * (64 * 36), 64, 36)
+        self.assertIsNone(session.stream)
+        self.assertEqual(session.stream_channels, {})
+        self.assertIn(lamp['id'], session.regions)
+        self.assertEqual(session.stream_error, 'DTLS lost')
+        stream.close.assert_called_once()
+        engine.close()
+
+    def test_saved_explicit_cloud_selection_is_not_silently_removed(self):
+        engine, hub, pc = engine_with()
+        next(r for r in hub.records if r['entity_id'] == 'light.wall')['integration'] = 'tuya'
+        engine.refresh(force=True)
+        engine.store.set('sync', {'target': ['ha:light.wall']})
+        with mock.patch('lumen.syncsession.SyncSession') as session:
+            session.return_value.status.return_value = {'state': 'asking'}
+            engine.sync_start()
+            self.assertEqual(session.call_args.args[1][0]['id'], 'ha:light.wall')
+        engine.close()
+
     def test_failed_portal_is_stopped_and_keeps_the_real_failure(self):
         from lumen.syncsession import SyncSession
         engine, hub, pc = engine_with()

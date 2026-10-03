@@ -926,7 +926,7 @@ class Engine:
         wanted = target or prefs.get('target') or 'all'
         targets, unknown = self.resolve(wanted)
         targets = [l for l in targets if l['online'] and (l['caps'].get('color') or l['source'] == 'pc')]
-        if not target or norm(str(wanted)) in ALL_N | HOME_N:
+        if norm(str(wanted)) in ALL_N | HOME_N:
             # a lamp behind a cloud service (Tuya's) cannot take several colours a second and the
             # service throttles whoever tries: it follows the screen only when named on purpose
             targets = [l for l in targets if l.get('integration') not in CLOUD_INTEGRATIONS]

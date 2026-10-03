@@ -51,6 +51,7 @@ class SyncSession:
         self._stop = threading.Event()
         self._ha_thread = None
         self._terminal_state = ''
+        self._outputs_started = False
 
     # ── setup ────────────────────────────────────────────────────────
     def _layout(self):
@@ -102,7 +103,6 @@ class SyncSession:
     def start(self) -> None:
         from lumen.sync import Analyzer
         self.analyzer = Analyzer(self.mode, brightness=self.brightness)
-        self._open_stream()
         self._layout()
         if self.capture_factory is not None:
             self.capture = self.capture_factory(self._frame, MODE_FPS[self.mode])
@@ -120,6 +120,17 @@ class SyncSession:
         if self._stop.is_set():
             return
         try:
+            # A Hue area expires after ten silent seconds. The screen picker can stay
+            # open much longer: claim the bridge only once a real picture has arrived.
+            if not self._outputs_started:
+                self._outputs_started = True
+                self._open_stream()
+                self._layout()
+                if self._stop.is_set():
+                    if self.stream is not None:
+                        self.stream.close()
+                        self.stream = None
+                    return
             colours = self.analyzer.regions(rgb, width, height, self.regions) if self.regions else {}
             ambient = self.analyzer.ambient(rgb, width, height)
             pc_frame = {}
@@ -144,7 +155,16 @@ class SyncSession:
                     if lid in colours:
                         packet[channel] = colours[lid]
                 if packet:
-                    self.stream.send(packet)
+                    try:
+                        self.stream.send(packet)
+                    except Exception as exc:
+                        stream, self.stream = self.stream, None
+                        self.stream_error = str(exc) or type(exc).__name__
+                        self.stream_channels.clear()
+                        try:
+                            stream.close()
+                        finally:
+                            self._layout()  # Hue lamps rejoin the paced Home Assistant path
         except Exception as exc:
             self.error = str(exc) or type(exc).__name__
 
