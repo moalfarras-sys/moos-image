@@ -153,6 +153,12 @@ class LumenPageState(unittest.TestCase):
         self.assertEqual(self.page.state['note']['status'], 'pending')
         self.assertIn('1/2', self.page.state['note']['text'])
 
+    def test_choose_screen_asks_the_engine_for_a_fresh_portal_pick(self):
+        pick = ['pc:D_LED1']
+        self.page.chooseScreen('video', pick)
+        self.assertIn(('sync_start', {'mode': 'video', 'target': pick, 'select_screen': True}),
+                      self.client.calls)
+
     def test_sync_start_shows_the_approval_state(self):
         self.page.startSync('game', [])
         self.assertEqual(self.client.calls[0], ('sync_start', {'mode': 'game', 'target': 'all'}))

@@ -914,11 +914,14 @@ class Engine:
             return {'running': False, 'mode': prefs.get('mode', 'video'), 'state': 'idle'}
         return self.sync.status()
 
-    def sync_start(self, mode: str = 'video', target=None, brightness: Optional[float] = None) -> dict:
+    def sync_start(self, mode: str = 'video', target=None, brightness: Optional[float] = None,
+                   select_screen: bool = False) -> dict:
         from lumen.syncsession import SyncSession
         if self.sync is not None:
             self.sync.stop()
             self.sync = None
+        if select_screen:
+            (self.store.dir / 'lumen-screencast.token').unlink(missing_ok=True)
         prefs = dict(self.store.get('sync') or {})
         wanted = target or prefs.get('target') or 'all'
         targets, unknown = self.resolve(wanted)
@@ -939,7 +942,10 @@ class Engine:
         self.sync = SyncSession(self, targets, mode=mode, brightness=prefs.get('brightness', 1.0),
                                 capture_factory=self.capture_factory, hue_factory=self.hue_factory)
         self.sync.start()
-        return {'status': 'ok', 'sync': self.sync.status(), 'unknown': unknown}
+        state = self.sync.status()
+        status = 'error' if state.get('state') in ('error', 'denied') else (
+            'ok' if state.get('state') == 'running' else 'pending')
+        return {'status': status, 'sync': state, 'unknown': unknown, 'error': state.get('error', '')}
 
     def sync_stop(self) -> dict:
         if self.sync is None:

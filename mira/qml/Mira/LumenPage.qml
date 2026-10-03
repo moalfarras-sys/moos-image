@@ -114,8 +114,9 @@ PageFrame {
         StatusPill {
             visible: lp.st.ready
             anchors.verticalCenter: parent.verticalCenter
-            text: (lp.st.counts ? lp.st.counts.on : 0) + " " + mira.s.lu_lights_on + " · " + (lp.st.counts ? lp.st.counts.online : 0)
-            tone: "ok"; icon: "bulb"
+            text: (lp.st.counts ? lp.st.counts.on : 0) + " " + mira.s.lu_lights_on + " · "
+                  + (lp.st.counts ? lp.st.counts.online : 0) + "/" + (lp.st.counts ? lp.st.counts.lights : 0)
+            tone: lp.st.counts && lp.st.counts.online < lp.st.counts.lights ? "warn" : "ok"; icon: "bulb"
         },
         IconButton {
             anchors.verticalCenter: parent.verticalCenter
@@ -569,6 +570,11 @@ PageFrame {
                           lp.sync.error ? lp.sync.error :
                           mira.s.lu_sync_running + " · " + Math.round(lp.sync.fps || 0) + " " + mira.s.lu_fps + " · "
                           + (lp.sync.stream === "hue" ? mira.s.lu_stream_hue : lp.sync.stream === "ha" ? mira.s.lu_stream_ha : mira.s.lu_pc)
+                }
+                PillButton {
+                    text: mira.s.lu_sync_screen
+                    enabled: lp.st.busy !== "sync"
+                    onClicked: lp.page.chooseScreen(lp.syncMode, lp.picked)
                 }
                 PillButton {
                     primary: !lp.sync.running

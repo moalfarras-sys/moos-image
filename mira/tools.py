@@ -598,9 +598,12 @@ async def _screen_sync(args, ctx):
             # the capture starts in the background: "running" is only said once the screen is flowing
             result['status'] = 'pending'
             result['asking'] = state in ('asking', 'idle')
-        result['summary'] = (f'مزامنة الشاشة تعمل · {n} أضواء' if sync.get('running') else 'مزامنة الشاشة متوقفة') + \
+        flowing = sync.get('running') and state == 'running'
+        result['summary'] = (f'مزامنة الشاشة تعمل · {n} أضواء' if flowing else
+                             'بانتظار بدء التقاط الشاشة' if sync.get('running') else 'مزامنة الشاشة متوقفة') + \
             (' · بانتظار موافقتك على مشاركة الشاشة' if state == 'asking' else '')
-        result['summary_en'] = (f'Screen sync running · {n} lights' if sync.get('running') else 'Screen sync is off') + \
+        result['summary_en'] = (f'Screen sync running · {n} lights' if flowing else
+                                'Waiting for screen capture' if sync.get('running') else 'Screen sync is off') + \
             (' · waiting for your screen-share approval' if state == 'asking' else '')
     return result
 

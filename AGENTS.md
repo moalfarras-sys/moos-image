@@ -273,6 +273,13 @@ Plasma file `rpm -V` reports that is not registered, and loads the real greeter.
 upstream file means registering it. A new Plasma means a reviewed set, never a wider range or
 an added digest.
 
+**A Hue stream that connects may still send no lamp colours.** Keep Entertainment
+channel regions when adding PC/HA layouts; prove packets contain the targeted
+channels. Screen sync must clear lamp effects (Echo's DNA otherwise keeps moving),
+turn black output off and report failed/declined capture as stopped. A restore
+token remembers a monitor, including a virtual one: give the owner a fresh screen
+picker. PC streaming state is commanded colour, never physical LED readback.
+
 **A face that loads is not a face that speaks correctly.** Mira's lip envelope follows
 playback RMS, while the aura keeps peak energy. Never discard a due silence inside
 the notification floor: hold it until it can be sent. Equal-amplitude packets must

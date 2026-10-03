@@ -427,6 +427,85 @@ class Fusion2Bytes(unittest.TestCase):
         self.assertEqual(fusion2.find_devices(str(root)), ['/dev/hidraw0'])
 
 
+class ScreenOutputs(unittest.TestCase):
+    def test_failed_portal_is_stopped_and_keeps_the_real_failure(self):
+        from lumen.syncsession import SyncSession
+        engine, hub, pc = engine_with()
+        session = SyncSession(engine, [])
+        session.capture = mock.Mock(state='error', error='screen choice timed out')
+        session.capture.stats.return_value = {}
+        session.stream = mock.Mock()
+        stream = session.stream
+        status = session.status()
+        self.assertFalse(status['running'])
+        self.assertEqual(status['state'], 'error')
+        self.assertEqual(status['error'], 'screen choice timed out')
+        stream.close.assert_called_once()
+        self.assertEqual(session.status()['state'], 'error')
+        engine.close()
+
+    def test_choosing_screen_discards_only_the_saved_capture_grant(self):
+        engine, hub, pc = engine_with()
+        token = engine.store.dir / 'lumen-screencast.token'
+        token.write_text('previous-screen')
+        with mock.patch('lumen.syncsession.SyncSession') as session:
+            session.return_value.status.return_value = {'state': 'asking'}
+            engine.sync_start(target='pc')
+            self.assertEqual(token.read_text(), 'previous-screen')
+            engine.sync_start(target='pc', select_screen=True)
+            self.assertFalse(token.exists())
+        engine.close()
+
+    def test_hue_channel_region_survives_layout_and_receives_frames(self):
+        from lumen.syncsession import SyncSession
+        engine, hub, pc = engine_with()
+        lamp = engine.resolve('Büro')[0][0]
+        session = SyncSession(engine, [lamp])
+        session.stream_channels = {lamp['id']: 2}
+        session.regions = {lamp['id']: (0, 0, 1, 1)}
+        session.stream = mock.Mock()
+        session._layout()
+        session.analyzer = __import__('lumen.sync', fromlist=['Analyzer']).Analyzer()
+        session._frame(bytes((255, 0, 0)) * (64 * 36), 64, 36)
+        session.stream.send.assert_called_once_with({2: (255, 0, 0)})
+        engine.close()
+
+    def test_screen_colour_cancels_ring_effect_and_black_turns_it_off(self):
+        from lumen.syncsession import SyncSession
+        for colour in ((255, 0, 0), (0, 0, 0)):
+            engine, hub, pc = engine_with()
+            lamp = engine.resolve('ha:light.mira_ring_led_ring')[0][0]
+            session = SyncSession(engine, [lamp])
+            session.latest[lamp['id']] = colour
+            received = []
+            def receive(light, request, transition=None):
+                received.append(request)
+                session._stop.set()
+            engine.home.call = receive
+            session._ha_loop()
+            self.assertEqual(len(received), 1)
+            if max(colour):
+                self.assertEqual(received[0]['effect'], 'none')
+                self.assertEqual(received[0]['rgb'], list(colour))
+            else:
+                self.assertIs(received[0]['on'], False)
+            engine.close()
+
+    def test_pc_stream_is_current_but_does_not_replace_saved_choice(self):
+        engine, hub, pc = engine_with()
+        pc.apply('D_LED1', rgb=[0, 0, 255], brightness=55)
+        pc.stream({'D_LED1': [(255, 0, 0)] * 32})
+        state = next(l['state'] for l in pc.lights() if l['ref'] == 'D_LED1')
+        self.assertEqual(state['rgb'], [255, 0, 0])
+        self.assertIsNone(state['effect'])
+        self.assertEqual(engine.store.get('pc')['last']['D_LED1']['rgb'], [0, 0, 255])
+        self.assertEqual(pc.apply('D_LED1', effect='DNA')['status'], 'error')
+        with mock.patch.object(pc.controller, 'stream', side_effect=OSError('USB lost')):
+            self.assertFalse(pc.stream({'D_LED1': [(0, 255, 0)]}))
+            self.assertEqual(pc.error, 'USB lost')
+        engine.close()
+
+
 class Socket(unittest.TestCase):
     def test_round_trip_and_refusals(self):
         from lumen import client, service

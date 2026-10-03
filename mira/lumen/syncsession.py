@@ -50,6 +50,7 @@ class SyncSession:
         self._lock = threading.Lock()
         self._stop = threading.Event()
         self._ha_thread = None
+        self._terminal_state = ''
 
     # ── setup ────────────────────────────────────────────────────────
     def _layout(self):
@@ -57,7 +58,7 @@ class SyncSession:
         home = [l for l in self.lights.values() if l['source'] != 'pc' and l['id'] not in self.stream_channels]
         home.sort(key=lambda l: (l.get('position', 0), l['name']))
         named = regions_for_names([l['id'] for l in home]) if home else {}
-        self.regions = dict(named)
+        self.regions.update(named)
         for light in self.lights.values():
             if light['source'] == 'pc':
                 self.pc_edges[light['id']] = max(1, int(light['caps'].get('leds', 1)))
@@ -135,7 +136,8 @@ class SyncSession:
                 self.ambient = ambient
                 self.frames += 1
             if pc_frame:
-                self.engine.pc.stream(pc_frame)
+                if self.engine.pc.stream(pc_frame) is False:
+                    raise OSError(self.engine.pc.error or 'PC controller unavailable')
             if self.stream is not None and self.stream_channels:
                 packet = {}
                 for lid, channel in self.stream_channels.items():
@@ -149,6 +151,7 @@ class SyncSession:
     def _ha_loop(self) -> None:
         """Home Assistant lamps without a stream: a few updates a second each, smoothly."""
         sent: dict[str, tuple] = {}
+        sent_at: dict[str, float] = {}
         while not self._stop.is_set():
             home = [lid for lid, l in self.lights.items()
                     if l['source'] in ('home', 'hue') and lid not in self.stream_channels]
@@ -164,21 +167,28 @@ class SyncSession:
                     colour = self.latest.get(lid)
                 if light is None or colour is None:
                     continue
+                # A cloud-polled lamp can join when explicitly selected, but never at the
+                # local bridge's update rate. Do not let it consume the shared house budget.
+                if light.get('integration') == 'tuya' and time.monotonic() - sent_at.get(lid, 0) < 2:
+                    self._stop.wait(gap)
+                    continue
                 prev = sent.get(lid)
                 if prev is not None and max(abs(a - b) for a, b in zip(prev, colour)) < 6:
                     self._stop.wait(gap)
                     continue
                 level = max(colour)
                 if level <= 0:
-                    request = {'on': True, 'brightness': 1, 'rgb': [255, 140, 60]}
+                    request = {'on': False}
                 else:
                     full = [int(c * 255 / level) for c in colour]
-                    request = {'on': True, 'brightness': max(1, round(level * 100 / 255)), 'rgb': full}
+                    request = {'on': True, 'brightness': max(1, round(level * 100 / 255)),
+                               'rgb': full, 'effect': 'none'}
                 self.engine._take_budget()
                 backend = self.engine.hue if light['source'] == 'hue' else self.engine.home
                 try:
                     backend.call(light, request, transition=0.4)
                     sent[lid] = colour
+                    sent_at[lid] = time.monotonic()
                 except Exception as exc:
                     self.error = str(exc) or type(exc).__name__
                 self._stop.wait(gap)
@@ -211,6 +221,11 @@ class SyncSession:
     def status(self) -> dict:
         cap = self.capture
         state = getattr(cap, 'state', 'idle') if cap is not None else 'idle'
+        if state in ('error', 'denied') and not self._stop.is_set():
+            self._terminal_state = state
+            self.error = self.error or getattr(cap, 'error', '') or state
+            self.stop()
+        state = self._terminal_state or state
         stats = {}
         try:
             stats = cap.stats() if cap is not None else {}

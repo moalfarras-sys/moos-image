@@ -48,6 +48,7 @@ STRINGS = {
     'lu_sync_sub': ('الأضواء تتبع ما يظهر على الشاشة — أفلام، ألعاب، أي شي', 'Lights follow what is on the screen — films, games, anything'),
     'lu_sync_start': ('ابدأ المزامنة', 'Start sync'),
     'lu_sync_stop': ('أوقف المزامنة', 'Stop sync'),
+    'lu_sync_screen': ('غيّر الشاشة', 'Choose screen'),
     'lu_mode_video': ('فيديو', 'Video'),
     'lu_mode_game': ('ألعاب', 'Games'),
     'lu_mode_ambient': ('هادئ', 'Ambient'),
@@ -300,6 +301,11 @@ class LumenPage(Page):
     @Slot()
     def stopSync(self):
         self._act('sync', 'sync_stop')
+
+    @Slot(str, 'QVariantList')
+    def chooseScreen(self, mode, ids):
+        self._act('sync', 'sync_start', mode=str(mode or 'video'), target=self._target(ids),
+                  select_screen=True)
 
     @Slot(str, str)
     def rename(self, light_id, name):
