@@ -228,6 +228,13 @@ class Words(unittest.TestCase):
         self.assertEqual(norm('الإضاءة'), norm('اضاءه'))
         self.assertEqual(norm('  Büro '), 'büro')
 
+    def test_owner_group_id_reaches_house_pc_and_echo_once(self):
+        ids = ['ha:light.buro', 'pc:D_LED1', 'ha:light.mira_ring_led_ring']
+        self.engine.save_group('إضاءة البيت والكيس', ids)
+        chosen, unknown = self.engine.resolve('group:إضاءة البيت والكيس')
+        self.assertEqual({l['id'] for l in chosen}, set(ids))
+        self.assertEqual(unknown, [])
+
 
 class Control(unittest.TestCase):
     def setUp(self):
@@ -427,6 +434,166 @@ class Fusion2Bytes(unittest.TestCase):
         self.assertEqual(fusion2.find_devices(str(root)), ['/dev/hidraw0'])
 
 
+class ScreenOutputs(unittest.TestCase):
+    def test_login_does_not_capture_or_change_house_lights_by_default(self):
+        engine, hub, pc = engine_with()
+        with mock.patch('lumen.syncsession.SyncSession') as session:
+            try:
+                engine.start()
+                session.assert_not_called()
+                self.assertEqual(hub.calls, [])
+                self.assertFalse(engine.sync_status()['resume_at_login'])
+            finally:
+                engine.close()
+
+    def test_login_resumes_only_the_owners_saved_selection_and_mode(self):
+        engine, hub, pc = engine_with()
+        engine.store.set('sync', {'target': ['ha:light.buro', 'pc:D_LED1'], 'mode': 'game'})
+        engine.sync_resume(True)
+        with mock.patch('lumen.syncsession.SyncSession') as session:
+            session.return_value.status.return_value = {'state': 'asking'}
+            try:
+                engine.start()
+                chosen = session.call_args.args[1]
+                self.assertEqual({l['id'] for l in chosen}, {'ha:light.buro', 'pc:D_LED1'})
+                self.assertEqual(session.call_args.kwargs['mode'], 'game')
+                self.assertTrue(engine.sync_status()['resume_at_login'])
+                engine.sync_stop()
+                self.assertFalse(engine.sync_status()['resume_at_login'])
+                session.reset_mock()
+                engine._resume_screen_sync()
+                session.assert_not_called()
+            finally:
+                engine.close()
+
+    def test_hue_is_claimed_only_after_a_screen_frame_arrives(self):
+        from lumen.syncsession import SyncSession
+        engine, hub, pc = engine_with()
+        cap = mock.Mock()
+        session = SyncSession(engine, engine.resolve('pc')[0], capture_factory=lambda *a: cap)
+        with mock.patch.object(session, '_open_stream') as open_stream:
+            session.start()
+            try:
+                open_stream.assert_not_called()
+                session._frame(bytes((255, 0, 0)) * (64 * 36), 64, 36)
+                open_stream.assert_called_once()
+                session._frame(bytes((0, 0, 255)) * (64 * 36), 64, 36)
+                open_stream.assert_called_once()
+            finally:
+                session.stop()
+                session._ha_thread.join(timeout=2)
+                self.assertFalse(session._ha_thread.is_alive())
+        engine.close()
+
+    def test_lost_hue_stream_releases_area_and_returns_lamps_to_home_path(self):
+        from lumen.syncsession import SyncSession
+        from lumen.sync import Analyzer
+        engine, hub, pc = engine_with()
+        lamp = engine.resolve('Büro')[0][0]
+        session = SyncSession(engine, [lamp])
+        session._outputs_started = True
+        session.analyzer = Analyzer()
+        session.stream_channels = {lamp['id']: 2}
+        session.regions = {lamp['id']: (0, 0, 1, 1)}
+        stream = session.stream = mock.Mock()
+        stream.send.side_effect = RuntimeError('DTLS lost')
+        session._frame(bytes((255, 0, 0)) * (64 * 36), 64, 36)
+        self.assertIsNone(session.stream)
+        self.assertEqual(session.stream_channels, {})
+        self.assertIn(lamp['id'], session.regions)
+        self.assertEqual(session.stream_error, 'DTLS lost')
+        stream.close.assert_called_once()
+        engine.close()
+
+    def test_saved_explicit_cloud_selection_is_not_silently_removed(self):
+        engine, hub, pc = engine_with()
+        next(r for r in hub.records if r['entity_id'] == 'light.wall')['integration'] = 'tuya'
+        engine.refresh(force=True)
+        engine.store.set('sync', {'target': ['ha:light.wall']})
+        with mock.patch('lumen.syncsession.SyncSession') as session:
+            session.return_value.status.return_value = {'state': 'asking'}
+            engine.sync_start()
+            self.assertEqual(session.call_args.args[1][0]['id'], 'ha:light.wall')
+        engine.close()
+
+    def test_failed_portal_is_stopped_and_keeps_the_real_failure(self):
+        from lumen.syncsession import SyncSession
+        engine, hub, pc = engine_with()
+        session = SyncSession(engine, [])
+        session.capture = mock.Mock(state='error', error='screen choice timed out')
+        session.capture.stats.return_value = {}
+        session.stream = mock.Mock()
+        stream = session.stream
+        status = session.status()
+        self.assertFalse(status['running'])
+        self.assertEqual(status['state'], 'error')
+        self.assertEqual(status['error'], 'screen choice timed out')
+        stream.close.assert_called_once()
+        self.assertEqual(session.status()['state'], 'error')
+        engine.close()
+
+    def test_choosing_screen_discards_only_the_saved_capture_grant(self):
+        engine, hub, pc = engine_with()
+        token = engine.store.dir / 'lumen-screencast.token'
+        token.write_text('previous-screen')
+        with mock.patch('lumen.syncsession.SyncSession') as session:
+            session.return_value.status.return_value = {'state': 'asking'}
+            engine.sync_start(target='pc')
+            self.assertEqual(token.read_text(), 'previous-screen')
+            engine.sync_start(target='pc', select_screen=True)
+            self.assertFalse(token.exists())
+        engine.close()
+
+    def test_hue_channel_region_survives_layout_and_receives_frames(self):
+        from lumen.syncsession import SyncSession
+        engine, hub, pc = engine_with()
+        lamp = engine.resolve('Büro')[0][0]
+        session = SyncSession(engine, [lamp])
+        session.stream_channels = {lamp['id']: 2}
+        session.regions = {lamp['id']: (0, 0, 1, 1)}
+        session.stream = mock.Mock()
+        session._layout()
+        session.analyzer = __import__('lumen.sync', fromlist=['Analyzer']).Analyzer()
+        session._frame(bytes((255, 0, 0)) * (64 * 36), 64, 36)
+        session.stream.send.assert_called_once_with({2: (255, 0, 0)})
+        engine.close()
+
+    def test_screen_colour_cancels_ring_effect_and_black_turns_it_off(self):
+        from lumen.syncsession import SyncSession
+        for colour in ((255, 0, 0), (0, 0, 0)):
+            engine, hub, pc = engine_with()
+            lamp = engine.resolve('ha:light.mira_ring_led_ring')[0][0]
+            session = SyncSession(engine, [lamp])
+            session.latest[lamp['id']] = colour
+            received = []
+            def receive(light, request, transition=None):
+                received.append(request)
+                session._stop.set()
+            engine.home.call = receive
+            session._ha_loop()
+            self.assertEqual(len(received), 1)
+            if max(colour):
+                self.assertEqual(received[0]['effect'], 'none')
+                self.assertEqual(received[0]['rgb'], list(colour))
+            else:
+                self.assertIs(received[0]['on'], False)
+            engine.close()
+
+    def test_pc_stream_is_current_but_does_not_replace_saved_choice(self):
+        engine, hub, pc = engine_with()
+        pc.apply('D_LED1', rgb=[0, 0, 255], brightness=55)
+        pc.stream({'D_LED1': [(255, 0, 0)] * 32})
+        state = next(l['state'] for l in pc.lights() if l['ref'] == 'D_LED1')
+        self.assertEqual(state['rgb'], [255, 0, 0])
+        self.assertIsNone(state['effect'])
+        self.assertEqual(engine.store.get('pc')['last']['D_LED1']['rgb'], [0, 0, 255])
+        self.assertEqual(pc.apply('D_LED1', effect='DNA')['status'], 'error')
+        with mock.patch.object(pc.controller, 'stream', side_effect=OSError('USB lost')):
+            self.assertFalse(pc.stream({'D_LED1': [(0, 255, 0)]}))
+            self.assertEqual(pc.error, 'USB lost')
+        engine.close()
+
+
 class Socket(unittest.TestCase):
     def test_round_trip_and_refusals(self):
         from lumen import client, service
@@ -448,6 +615,10 @@ class Socket(unittest.TestCase):
                 self.assertEqual(client.call('set', target='Büro', brightness=400)['status'], 'error')
                 self.assertEqual(client.call('rm -rf')['status'], 'error')
                 self.assertEqual(client.call('sync_start', mode='disco')['status'], 'error')
+                self.assertEqual(client.call('sync_resume', enabled='yes')['status'], 'error')
+                self.assertTrue(client.call('sync_resume', enabled=True)['sync']['resume_at_login'])
+                client.call('sync_stop')
+                self.assertFalse(client.call('sync_status')['sync']['resume_at_login'])
         finally:
             server.shutdown()
             server.server_close()
@@ -478,6 +649,12 @@ class Tools(unittest.TestCase):
         text = tools.format_home(records, [{'id': 'pc:D_LED1', 'name': 'مراوح الواجهة'}], 'ar')
         for word in ('غرفة «Fernseher»', '«Büro / المكتب»', 'light.buro', 'ضوء ملوّن', 'مضاء', 'غير متاح', 'pc:D_LED1'):
             self.assertIn(word, text)
+        group = {'name': 'إضاءة البيت والكيس', 'id': 'group:إضاءة البيت والكيس',
+                 'lights': ['ha:light.buro', 'pc:D_LED1', 'ha:light.mira_ring_led_ring']}
+        for lang in ('ar', 'en'):
+            text = tools.format_home(records, [], lang, [group])
+            self.assertIn(group['id'], text)
+            self.assertIn('screen_sync', text)
 
 
 if __name__ == '__main__':

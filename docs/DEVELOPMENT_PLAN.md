@@ -2,34 +2,39 @@
 
 ### Mira current acceptance work (2026-10-03)
 
-Mira's six pages, approvals, desktop tools and single-mouth correction are in
-signed `.975`, booted on the NVIDIA station with signed `.967` rollback. This
-session's installed checks passed 55/55 and 54 selfchecks; no failed units.
+The station now boots signed NVIDIA `.977` from `7c9d1e43`, with `.975` retained.
+Exact-source x86 builds, three QCOW2 proofs, offline ISO and ARM promotion are
+recorded in `PROJECT_STATE.md`. Installed Mira/Home Assistant/Lumen were active.
 
-The home/Lumen batch and the This PC media-title correction are merged through
-PR #191 into `7c9d1e43`. The Qt worker teardown fix passed its stress proof and
-the fresh x86/ARM builds. Release audit completed: station `just check` passed;
-signed x86 build `37114776308`, three QCOW2 proofs `37116762303`, `37116764826`,
-`37116767187`, and offline ISO `37116769665` all passed on that exact source.
-Promotion `37120191781` published NVIDIA `.977`; ARM's complete pipeline
-`37114740334` also promoted. All existing branch refs are merged and all
-worktrees were clean. Before staging, `.975` passed 55/55 post-update checks,
-54 selfchecks and zero failed units. The previous “current” update answer was
-correct: the x86 promotion had not been dispatched. Open, in order:
+Current corrective slice: `fix/mira-lighting-control-20261003`. Lost Hue stream
+regions, uncleared Echo effects, black-frame fallback, stale PC state, failed
+capture status and screen selection are corrected and targeted-tested. Real
+colour commands/readback passed for Tuya wall light, Hue Büro and Echo; PC only
+acknowledges reports. Hue's link button was pressed and actual Entertainment
+streaming started. Actual HDMI-A-1 now captures video at 17–20 fps (>2800 frames)
+with an active four-channel Hue area; >10000 frames and a red/blue/green HDMI
+test matched Tuya/Echo readback and all commanded outputs. Hue starts
+only after the first picture, with HA fallback on a lost stream; persisted Tuya
+targets remain selected. A station reboot removed the transient fixes and restored
+old code. Local per-user Mira now supplies the fixes at login, with a backed-up
+app and a persistent Lumen MIRA_APP drop-in. Explicit login-sync opt-in resumes
+the saved group/mode; Stop cancels it. Group IDs resolve across house/PC/Echo and
+Mira's context includes owner groups. Remove the Lumen drop-in, restore the
+autostart entry to /usr/bin/mira and retire local launcher/desktop overrides
+after signed delivery. This local install does not change the signed OS.
+Mouse interruption: owner click reached the native test window after restarting
+`ydotoold-moremote.service`. Station pointer tooling had reversed down/up flags;
+corrected button commands and release-on-failed-drag are covered by isolated tests.
+Remaining acceptance:
 
-1. Stage `.977` through `moai-do`, reboot with the previous signed deployment
-   retained, and read back the installed version, health and user journeys.
-2. After reboot, replace temporary source Mira/Lumen units with the installed
-   launchers and prove the Home/Lumen/Computer/System journeys again.
-3. Four home lamps and the smart plug are unavailable; diagnose connectivity
-   without reporting a global success. The PC reports controller acknowledgement
-   only; the owner must observe which physical fans each header controls.
-4. Hue Entertainment needs Lumen's own bridge pairing; a real stream remains owed.
-5. Measure owner-spoken wake, conversation, interruptions and false wakes over time.
-   `mira_ar_v2` and Echo announcements were previously exercised without inbound ports.
-6. P3.9 owner decision was recorded on 2026-09-30; model-written desktop commands
-   remain unbuilt pending design and safety review. Measure power-cut recovery;
-   an always-on Home Assistant is needed for PC-off home control.
+1. Physically observe all connected LEDs; three lamps (RGB, Ta5it, Tv Links)
+   remain unavailable; the Hue bridge itself reports the two Hue lamps unreachable.
+2. 281 Mira checks and full repository gates pass (6 optional skips). Finish
+   exact-image build and signed delivery.
+3. Read back Home/Lumen/Computer/System on that signed deployment after retiring
+   local overrides, and repeat owner-spoken wake/interruption endurance.
+4. P3.9 remains unbuilt pending design and safety review. Measure power-cut
+   recovery; PC-off home control needs an always-on Home Assistant.
 
 Keep both faces, Beamformer and the Mira-only wake selection `[mira_ar_experimental]` (the owner's choice). Only one ESPHome API client may be connected while voice is tested, because echod routes the pipeline to the newest client.
 

@@ -273,6 +273,19 @@ Plasma file `rpm -V` reports that is not registered, and loads the real greeter.
 upstream file means registering it. A new Plasma means a reviewed set, never a wider range or
 an added digest.
 
+**A Hue stream that connects may still send no lamp colours.** Keep Entertainment
+channel regions when adding PC/HA layouts; prove packets contain the targeted
+channels. Screen sync must clear lamp effects (Echo's DNA otherwise keeps moving),
+turn black output off and report failed/declined capture as stopped. A restore
+token remembers a monitor, including a virtual one: give the owner a fresh screen
+picker. Claim the Hue area only on the first captured picture: it expires after
+ten silent seconds while a screen picker can wait indefinitely. A lost stream
+must release the area and restore paced house control for its lamps. Preserve
+explicit saved cloud targets on restart. PC state is never physical LED readback.
+Login Screen Sync requires an explicit owner opt-in, defaults off and stops
+resuming when Stop is pressed. Publish owner groups to Mira's context and accept
+their exact IDs; one group can contain house lamps, PC headers and Echo.
+
 **A face that loads is not a face that speaks correctly.** Mira's lip envelope follows
 playback RMS, while the aura keeps peak energy. Never discard a due silence inside
 the notification floor: hold it until it can be sent. Equal-amplitude packets must
@@ -300,6 +313,12 @@ window-sized offscreen layer (blur, `Opacity`) — see `moplayer/DESIGN.md`,
 with `screendump` takes about half an hour and is the only thing that found any of the above.
 
 ## Things that are easy to get wrong here
+
+**ydotool release must actually release.** Button indices are 0/1/2;
+OR `0x40` sends down, `0x80` sends up, `0xC0` sends both. The station
+helper once sent down from `release()`, leaving the virtual mouse held and
+blocking owner clicks. Release a dragged button in `finally`, including failed
+capture/probe/movement, and test command bytes without driving the live desktop.
 
 **A desktop runtime directory is not a desktop UID.** Installed-ISO SSH uses root
 to inspect `/sysroot`. Session/app checks must drop to `moosci` with `runuser`;

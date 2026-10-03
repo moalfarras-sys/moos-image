@@ -362,6 +362,13 @@ class Engine:
         self._director = threading.Thread(target=self._direct, daemon=True, name='lumen-director')
         self._director.start()
         self._resume_pc_scene()
+        self._resume_screen_sync()
+
+    def _resume_screen_sync(self) -> None:
+        """House lights resume only when the owner explicitly enabled login Screen Sync."""
+        prefs = self.store.get('sync') or {}
+        if prefs.get('resume_at_login') is True:
+            self.sync_start(mode=prefs.get('mode') or 'video')
 
     def _resume_pc_scene(self) -> None:
         """A living scene on the computer's own lights keeps moving after a restart or a new login.
@@ -498,6 +505,8 @@ class Engine:
             return self._expand(raw, lights)
         if ('ha:' + raw) in lights:
             return self._expand('ha:' + raw, lights)
+        if raw.startswith('group:') and raw[6:] in owner_groups:
+            return [i for i in owner_groups[raw[6:]] if i in leaves]
         for name, ids in owner_groups.items():
             if norm(name) == word:
                 return [i for i in ids if i in leaves]
@@ -909,21 +918,32 @@ class Engine:
 
     # ── Screen Sync ──────────────────────────────────────────────────
     def sync_status(self) -> dict:
+        prefs = self.store.get('sync') or {}
         if self.sync is None:
-            prefs = self.store.get('sync') or {}
-            return {'running': False, 'mode': prefs.get('mode', 'video'), 'state': 'idle'}
-        return self.sync.status()
+            state = {'running': False, 'mode': prefs.get('mode', 'video'), 'state': 'idle'}
+        else:
+            state = self.sync.status()
+        return dict(state, resume_at_login=prefs.get('resume_at_login') is True)
 
-    def sync_start(self, mode: str = 'video', target=None, brightness: Optional[float] = None) -> dict:
+    def sync_resume(self, enabled: bool) -> dict:
+        prefs = dict(self.store.get('sync') or {})
+        prefs['resume_at_login'] = enabled
+        self.store.set('sync', prefs)
+        return {'status': 'ok', 'sync': self.sync_status()}
+
+    def sync_start(self, mode: str = 'video', target=None, brightness: Optional[float] = None,
+                   select_screen: bool = False) -> dict:
         from lumen.syncsession import SyncSession
         if self.sync is not None:
             self.sync.stop()
             self.sync = None
+        if select_screen:
+            (self.store.dir / 'lumen-screencast.token').unlink(missing_ok=True)
         prefs = dict(self.store.get('sync') or {})
         wanted = target or prefs.get('target') or 'all'
         targets, unknown = self.resolve(wanted)
         targets = [l for l in targets if l['online'] and (l['caps'].get('color') or l['source'] == 'pc')]
-        if not target or norm(str(wanted)) in ALL_N | HOME_N:
+        if norm(str(wanted)) in ALL_N | HOME_N:
             # a lamp behind a cloud service (Tuya's) cannot take several colours a second and the
             # service throttles whoever tries: it follows the screen only when named on purpose
             targets = [l for l in targets if l.get('integration') not in CLOUD_INTEGRATIONS]
@@ -939,9 +959,13 @@ class Engine:
         self.sync = SyncSession(self, targets, mode=mode, brightness=prefs.get('brightness', 1.0),
                                 capture_factory=self.capture_factory, hue_factory=self.hue_factory)
         self.sync.start()
-        return {'status': 'ok', 'sync': self.sync.status(), 'unknown': unknown}
+        state = self.sync.status()
+        status = 'error' if state.get('state') in ('error', 'denied') else (
+            'ok' if state.get('state') == 'running' else 'pending')
+        return {'status': status, 'sync': state, 'unknown': unknown, 'error': state.get('error', '')}
 
     def sync_stop(self) -> dict:
+        self.sync_resume(False)
         if self.sync is None:
             return {'status': 'ok', 'running': False}
         self.sync.stop()

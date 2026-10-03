@@ -99,14 +99,19 @@ class PcLights:
 
     def _remembered(self, key) -> dict:
         last = ((self.store.get('pc') or {}).get('last') or {}).get(key)
-        return dict(last) if isinstance(last, dict) else {'on': None, 'brightness': None, 'rgb': None,
-                                                           'kelvin': None, 'effect': None}
+        state = dict(last) if isinstance(last, dict) else {'on': None, 'brightness': None, 'rgb': None,
+                                                          'kelvin': None, 'effect': None}
+        if state.get('effect') not in (None, 'breathe', 'flash', 'cycle', 'wave'):
+            state['effect'] = None
+        return state
 
     # ── control ──────────────────────────────────────────────────────
     def apply(self, key: str, *, on=None, rgb=None, brightness=None, kelvin=None, effect=None,
               remember: bool = True) -> dict:
         if self.controller is None or key not in self.controller.zones:
             return {'status': 'error', 'error': 'no such PC light'}
+        if effect is not None and effect not in ('none', 'off', 'static', '', 'breathe', 'flash', 'cycle', 'wave'):
+            return {'status': 'error', 'error': 'unsupported PC effect'}
         prev = self._state.get(key) or self._remembered(key)
         state = dict(prev)
         if kelvin is not None:
@@ -147,14 +152,24 @@ class PcLights:
         pc['last'] = last
         self.store.set('pc', pc)
 
-    def stream(self, frame: dict) -> None:
+    def stream(self, frame: dict) -> bool:
         """Many-times-a-second colours ({zone: [(r,g,b), …]}); never remembered."""
         if self.controller is None:
-            return
+            return False
         try:
             self.controller.stream(frame)
+            for key, colours in frame.items():
+                if key not in self.controller.zones or not colours:
+                    continue
+                rgb = [round(sum(c[i] for c in colours) / len(colours)) for i in range(3)]
+                level = max(rgb)
+                self._state[key] = {'on': level > 0, 'brightness': round(level * 100 / 255),
+                                    'rgb': rgb, 'kelvin': None, 'effect': None}
+            self.error = ''
+            return True
         except OSError as exc:
             self.error = str(exc)
+            return False
 
     def restore(self) -> int:
         """Put back what each header showed last (the board forgot it at power-off)."""

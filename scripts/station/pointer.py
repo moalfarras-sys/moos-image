@@ -46,8 +46,8 @@ SOCKET = os.environ.get("YDOTOOL_SOCKET", "/run/user/1000/.ydotool_socket")
 ENV = os.environ | {"YDOTOOL_SOCKET": SOCKET}
 QDBUS = "qdbus-qt6"
 KLIPPER = ("org.kde.klipper", "/klipper", "org.kde.klipper.klipper")
-# ydotool's button codes: 0x40 left, 0x41 right, 0x42 middle; |0x80 press, |0x00 release.
-BUTTONS = {"left": 0x40, "right": 0x41, "middle": 0x42}
+# ydotool button indices; OR 0x40 for down, 0x80 for up, 0xC0 for a full click.
+BUTTONS = {"left": 0x00, "right": 0x01, "middle": 0x02}
 
 PROBE = (
     'callDBus("org.kde.klipper", "/klipper", "org.kde.klipper.klipper",'
@@ -157,11 +157,11 @@ class Pointer:
         time.sleep(0.25)
 
     def press(self, button: str = "left") -> None:
-        run(["ydotool", "click", f"0x{BUTTONS[button] | 0x80:02x}"])
+        run(["ydotool", "click", f"0x{BUTTONS[button] | 0x40:02x}"])
         time.sleep(0.12)
 
     def release(self, button: str = "left") -> None:
-        run(["ydotool", "click", f"0x{BUTTONS[button]:02x}"])
+        run(["ydotool", "click", f"0x{BUTTONS[button] | 0x80:02x}"])
         time.sleep(0.12)
 
 
@@ -191,10 +191,12 @@ def main() -> int:
             return 0
         if len(args.coordinates) < 4:
             parser.error("drag needs x1 y1 x2 y2")
-        pointer.press(args.button)
-        pointer.move(args.coordinates[2], args.coordinates[3])
-        end = pointer.where()
-        pointer.release(args.button)
+        try:
+            pointer.press(args.button)
+            pointer.move(args.coordinates[2], args.coordinates[3])
+            end = pointer.where()
+        finally:
+            pointer.release(args.button)
         print("dragged %d,%d -> %d,%d" % (landed[0], landed[1], end[0], end[1]))
         return 0
     finally:

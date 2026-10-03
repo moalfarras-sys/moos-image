@@ -70,7 +70,9 @@ DECLARATIONS: list[dict] = [
                     "or English (أحمر، زهري، موف، فيروزي …), '#RRGGBB', or a white such as «أبيض دافئ», «أبيض بارد», '2700K'. "
                     "brightness 0–100. effect: a lamp's own effect (candle, fire, prism, sparkle …) or, for PC lights, "
                     "breathe/flash/cycle/wave; 'none' stops it. Prefer this over home_control for every light. "
-                    "Result ok only when each light read back; partial/pending say which did not.",
+                    "Home lights are verified by state readback; PC headers only acknowledge USB commands and cannot "
+                    "verify physical fan colours. Never claim the case LEDs changed from a controller acknowledgement. "
+                    "partial/pending say which did not confirm.",
      'parameters': _obj({'target': {'type': 'STRING', 'description': "Words: all | pc | home | a room | a light's name"},
                          'action': {'type': 'STRING', 'enum': ['on', 'off', 'set']},
                          'color': {'type': 'STRING'},
@@ -88,7 +90,8 @@ DECLARATIONS: list[dict] = [
     {'name': 'screen_sync',
      'description': "Make the lights follow what is on the computer screen (films, games, anything) — like an ambilight: "
                     "start, stop, or status. mode video (balanced), game (fast and vivid) or ambient (slow and calm). "
-                    "target as in lights (default: every colour light, the PC case included). The first start shows a "
+                    "target as in lights (default: saved selection, otherwise PC and local colour lamps). Tuya cloud "
+                    "lamps and the Echo ring must be explicitly named or included in an owner group. The first start shows a "
                     "screen-share approval on the computer once; say so if the result says asking.",
      'parameters': _obj({'action': {'type': 'STRING', 'enum': ['start', 'stop', 'status']},
                          'mode': {'type': 'STRING', 'enum': ['video', 'game', 'ambient']},
@@ -598,9 +601,12 @@ async def _screen_sync(args, ctx):
             # the capture starts in the background: "running" is only said once the screen is flowing
             result['status'] = 'pending'
             result['asking'] = state in ('asking', 'idle')
-        result['summary'] = (f'مزامنة الشاشة تعمل · {n} أضواء' if sync.get('running') else 'مزامنة الشاشة متوقفة') + \
+        flowing = sync.get('running') and state == 'running'
+        result['summary'] = (f'مزامنة الشاشة تعمل · {n} أضواء' if flowing else
+                             'بانتظار بدء التقاط الشاشة' if sync.get('running') else 'مزامنة الشاشة متوقفة') + \
             (' · بانتظار موافقتك على مشاركة الشاشة' if state == 'asking' else '')
-        result['summary_en'] = (f'Screen sync running · {n} lights' if sync.get('running') else 'Screen sync is off') + \
+        result['summary_en'] = (f'Screen sync running · {n} lights' if flowing else
+                                'Waiting for screen capture' if sync.get('running') else 'Screen sync is off') + \
             (' · waiting for your screen-share approval' if state == 'asking' else '')
     return result
 
@@ -1563,7 +1569,7 @@ def home_context_enabled() -> bool:
     return os.environ.get('MIRA_TEST_MODE') != '1' and 'unittest' not in sys.modules
 
 
-def format_home(records: list, pc_lights: list, lang: str = 'ar') -> str:
+def format_home(records: list, pc_lights: list, lang: str = 'ar', owner_groups: list | None = None) -> str:
     """The home block from homehub inventory records and Lumen's PC lights."""
     ar = lang != 'en'
     rooms: dict = {}
@@ -1600,6 +1606,10 @@ def format_home(records: list, pc_lights: list, lang: str = 'ar') -> str:
     if groups:
         lines.append(('مجموعات أضواء (كل مجموعة تشمل عدة أضواء): ' if ar else 'Light groups (each holds several lamps): ')
                      + ' • '.join(groups[:8]))
+    if owner_groups:
+        names = ' • '.join(f"«{g['name']}» ({g['id']}): {len(g.get('lights') or [])}" for g in owner_groups[:8])
+        lines.append(('مجموعات المالك المشتركة للبيت والكيس وEcho؛ استعملي معرّف المجموعة هدفاً لأدوات lights وscreen_sync: '
+                      if ar else 'Owner lighting groups across house, PC and Echo; use the group id as the target for lights and screen_sync: ') + names)
     if not lines:
         return ''
     head = ('بيت المالك كما قرأته الآن — اسم كل جهاز بين «» هو اسم المالك له، ثم معرّفه، ثم ما يقدر عليه وحالته. '
@@ -1618,17 +1628,18 @@ def _refresh_home():
         records = hub.inventory(include_hidden=False) if hub is not None else []
     except Exception:
         records = []
-    pc = []
+    pc, groups = [], []
     try:
         from lumen import client
         if client.available():
             snap = client.call('snapshot', timeout=6)
             pc = [l for l in snap.get('lights', []) if l.get('source') == 'pc']
+            groups = [g for g in snap.get('groups', []) if g.get('kind') == 'owner']
     except Exception:
         pc = []
     for lang in ('ar', 'en'):
         try:
-            texts[lang] = format_home(records, pc, lang)
+            texts[lang] = format_home(records, pc, lang, groups)
         except Exception:
             texts[lang] = ''
     with _home_lock:
