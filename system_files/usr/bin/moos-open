@@ -615,10 +615,14 @@ PY
     # and the classic Mo AI window both only prefill `--ask`): any web page can open this route,
     # and its words must never reach a cloud model unasked. The question is passed as ONE argv
     # element and is never evaluated; an empty question simply opens the assistant.
-    # Mira's own pages, from her System Settings page: her Settings (voice, Echo, Gemini key, phone)
-    # and the System centre (checks, repairs, updates, the store). Fixed pages, no argument.
+    # Mira's own pages, from her System Settings page: her Settings (voice, Echo, Gemini key, phone),
+    # the System centre (checks, repairs, updates, the store), the home centre (rooms, names, every
+    # device) and Lumen (every light, scenes, Screen Sync, the PC's RGB). Fixed pages, no argument:
+    # opening a page changes nothing in the house.
     ai/settings)   gui moai --panel settings ;;
     ai/system)     gui moai --panel system ;;
+    ai/home)       gui moai --panel home ;;
+    ai/lumen)      gui moai --panel lumen ;;
     ai/ask/*)      query="$(python3 -c 'import sys,urllib.parse; print(urllib.parse.unquote(sys.argv[1])[:2000])' "${tgt#ask/}" 2>/dev/null)";
                    if [ -n "$query" ]; then gui moai --panel chat --ask "$query"; else gui moai; fi ;;
     # The Island's "stop" on a live camera, microphone or screen stream. Both parts

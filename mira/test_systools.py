@@ -451,6 +451,21 @@ class DesktopMocked(unittest.TestCase):
     def test_system_volume_app_bad_value(self):
         self.assertEqual(desktop_tools.system_volume_app('x', 500)['status'], 'error')
 
+    def test_media_unwraps_real_busctl_metadata_variants(self):
+        def busctl(argv, timeout=6.0):
+            if argv[-1] == 'PlaybackStatus':
+                return {'type': 's', 'data': 'Playing'}
+            return {'type': 'a{sv}', 'data': {
+                'xesam:title': {'type': 's', 'data': 'حالة خاصة'},
+                'xesam:artist': {'type': 'as', 'data': ['Artist', 'Second artist']},
+                'mpris:length': {'type': 'x', 'data': 1835306000},
+            }}
+        with mock.patch.object(desktop_tools, '_busctl', side_effect=busctl):
+            out = desktop_tools._player_status('org.mpris.MediaPlayer2.moplayer')
+        self.assertEqual(out['state'], 'Playing')
+        self.assertEqual(out['title'], 'حالة خاصة')
+        self.assertEqual(out['artist'], 'Artist, Second artist')
+
 
 class WindowById(unittest.TestCase):
     """focus_window_id / close_window_id act on the one window the owner clicked, by KWin's id, and

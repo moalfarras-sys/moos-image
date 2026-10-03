@@ -412,9 +412,12 @@ class TheWindowNoLongerDuplicatesIt(unittest.TestCase):
         entry = configparser.ConfigParser(interpolation=None, strict=False)
         entry.optionxform = str
         entry.read(DESKTOP, encoding="utf-8")
-        self.assertEqual(entry["Desktop Entry"]["Actions"], "Device;Settings;Apps;Remote;")
+        self.assertEqual(entry["Desktop Entry"]["Actions"], "Lights;Home;Device;Settings;Apps;Remote;")
         self.assertEqual(entry["Desktop Entry"]["X-KDE-Shortcuts"], "Meta+Space")
-        expected = {"Device": ("Check this device", "moai --panel device"),
+        # Mira's Lighting (Lumen) and Home pages, which `moai --panel` hands to her window
+        expected = {"Lights": ("Lighting", "moai --panel lumen"),
+                    "Home": ("Home", "moai --panel home"),
+                    "Device": ("Check this device", "moai --panel device"),
                     "Settings": ("Mira settings", "moos-settings --section=assistant"),
                     "Apps": ("Install apps", "moos-store"),
                     "Remote": ("Remote control", "moos-settings --section=remote")}

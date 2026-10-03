@@ -402,6 +402,12 @@ runs every auditing suite with a trap that fails if the real one is reached. A b
 test container is not isolated from the host's `systemd-coredump` either: a helper that
 lets a tool abort (bluetoothctl with no system bus) leaves real crash reports on the station.
 
+**A queued result is not a finished worker.** Mira page tests must join their
+workers and drain queued follow-up reads before releasing the Qt page or removing
+backend mocks. On 2026-10-03, a one-CPU container reproduced a PySide queued-call
+segfault on the twelfth suite run; waiting for worker termination passed forty
+runs. Image tests print names, enable faulthandler and preserve the real exit code.
+
 **Plasma's System Settings window is `systemsettings`, not `org.kde.systemsettings`.**
 KWin reads its resourceClass and desktop file as `systemsettings` (measured 2026-09-24), so
 the `StartupWMClass=org.kde.systemsettings` MoOS's entries carried never matched, and a

@@ -274,3 +274,57 @@ face-region synthesis; [LivePortrait](https://github.com/KwaiVGI/LivePortrait)
 provides portrait retargeting; [Rhubarb](https://github.com/DanielSWolf/rhubarb-lip-sync)
 produces timed 2D mouth shapes. None was installed or measured on this station.
 The correction keeps the existing Qt renderer and both selected identities.
+
+
+## Home centre and Lumen — 2026-10-03 (branch `feat/mira-home-lumen-20261002`)
+
+The owner asked for the house to be Mira's most important skill: rename every device so she
+understands it, a control centre for the house, lights as groups and scenes with every effect,
+lights that follow the screen, and the PC's own case RGB.
+
+**Home** (`pages/home.py`, `HomePage.qml`, `homehub.py`). Every device by room, read from Home
+Assistant's own registries (one WebSocket session: areas, devices, entities, voice aliases) and
+states. A name, a room or a voice name set on the page — or by asking Mira (`home_rename`) — is
+written IN Home Assistant and read back, so every later conversation and every app uses it. Each
+device carries what it can really do (`homehub.capabilities`: colour modes, white range, effects,
+media feature bits, remote keys …), in one Arabic and one English line; Mira's instruction carries
+the same inventory (`tools.home_block`), so she never offers a TV a volume level it does not have.
+Without a link, a MoOS with no hub gets one button (`homesetup.py`): Mira writes the owner's own
+Podman quadlet (`~/.config/containers/systemd/mira-homeassistant.container`, image pinned by
+digest, host network for discovery, never over a quadlet that is already there), starts it as his
+user service, then finishes Home Assistant's first run with the name, user name and password he
+types (sent to Home Assistant only) and saves a long-lived token — proven on 2026-10-03 against a
+throwaway Home Assistant 2026.9.4. A Home Assistant that already runs is linked with a token.
+Devices Home Assistant has discovered on the network are listed with a way to add them.
+
+**Lumen** (`lumen/`, `LumenPage.qml`, `/usr/bin/mira-lumen`, `mira-lumen.service`). The MoOS
+lighting engine, its own small user service (17–30 MB) so living scenes and Screen Sync keep
+running while Mira's window is closed. One id scheme for every light: `ha:<entity>` (Hue, Tuya,
+ESPHome … through Home Assistant), `hue:<uuid>` (the Hue bridge directly, when no Home Assistant
+covers it — a fresh install), `pc:<header>` (the motherboard's lighting controller). Targets are
+words — all, a room, a group, a name or alias, `pc` — resolved the same way for the page, the voice
+brain and the text brain.
+
+- *Colour and white*: names in Arabic/Levantine and English, hex, kelvin (`lumen/colors.py`);
+  a white goes to a lamp's colour-temperature channel where it has one.
+- *Scenes* (`lumen/scenes.py`): fourteen moods; each lamp takes its own stop of the palette, living
+  ones drift at a rate the bridge accepts (≤ 8 commands/s for the whole house), Hue's candle and
+  fire run inside the bulb, the PC joins at 30 fps. A living scene on the PC resumes at sign-in;
+  the house's lamps are never changed because the computer started.
+- *Read-back*: ok only when Home Assistant (or the bridge) reads the asked state back; a lamp that
+  stays as it was is `pending`, an unreachable one is named and never counted.
+- *The PC* (`lumen/fusion2.py`): Gigabyte RGB Fusion 2 (ITE IT5701/5702/8297), found by its USB id,
+  driven through hidraw (the image's openrgb udev rules give the seat's user access). Nothing is
+  written to the controller's flash. Its LEDs cannot be read back: "ok" there means the controller
+  acknowledged every report. Headers can be renamed, identified (flash) and sized.
+- *Screen Sync* (`lumen/capture.py`, `lumen/sync.py`, `lumen/syncsession.py`): the ScreenCast portal
+  (approved once, restore token kept), a tiny downscaled frame, colour per light by position; the
+  PC every frame, a Hue Entertainment stream every frame once Lumen holds its own bridge pairing
+  (DTLS-PSK through GnuTLS, `lumen/dtls.py`), other lamps a few times a second with transitions.
+  Cloud-polled lamps (Tuya) follow the screen only when named on purpose.
+- *Hue pairing* (`lumen/hue.py`): the bridge is discovered (mDNS/Avahi), the owner presses its round
+  button, the keys go to `~/.config/mo-dot/lumen-hue.json` (0600) with the certificate fingerprint.
+
+Mira's tools: `lights`, `light_scene`, `screen_sync`, `home_rename`, `tv_control` (beside the
+existing `home_*` tools). Reached from her NavRail (الإضاءة, Ctrl+8), `mira --panel lumen|home`,
+the Mira launcher's Lights/Home actions, `moos://ai/lumen|home`, and System Settings → Mira.

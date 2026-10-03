@@ -20,9 +20,21 @@ X-KDE-Shortcuts=Meta+Space
 # this is the XWayland/fallback safety net (must equal that id).
 StartupWMClass=org.moos.moai
 Categories=Utility;
-Keywords=AI;assistant;Mira;Mo AI;voice;chat;cloud;drivers;hardware;update;install;apps;remote;compatibility;
-Keywords[ar]=ميرا;ذكاء;مساعد;صوت;محادثة;سحابي;تعريفات;أجهزة;تحديث;تثبيت;تطبيقات;توافق;
-Actions=Device;Settings;Apps;Remote;
+Keywords=AI;assistant;Mira;Mo AI;voice;chat;cloud;drivers;hardware;update;install;apps;remote;compatibility;home;lights;lighting;Lumen;RGB;scene;smart home;
+Keywords[ar]=ميرا;ذكاء;مساعد;صوت;محادثة;سحابي;تعريفات;أجهزة;تحديث;تثبيت;تطبيقات;توافق;البيت;إضاءة;أضواء;لومن;مشهد;ألوان;
+Actions=Lights;Home;Device;Settings;Apps;Remote;
+
+# Lumen: every light in the house and the computer's own RGB, scenes and Screen Sync.
+[Desktop Action Lights]
+Name=Lighting
+Name[ar]=الإضاءة
+Exec=moai --panel lumen
+
+# The home centre: every device by room, renamed and understood.
+[Desktop Action Home]
+Name=Home
+Name[ar]=البيت
+Exec=moai --panel home
 
 # The assistant's own check of this computer: the verdict, the daily check and the fixed repairs.
 [Desktop Action Device]

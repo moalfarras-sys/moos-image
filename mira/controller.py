@@ -43,7 +43,8 @@ PANELS = {'device': 'system', 'health': 'system', 'updates': 'system', 'system':
           'apps': 'apps', 'compat': 'apps', 'store': 'apps',
           'dev': 'workbench', 'agent': 'workbench', 'workbench': 'workbench', 'terminal': 'workbench',
           'remote': 'connect', 'connect': 'connect', 'phone': 'connect',
-          'brain': 'brain', 'settings': 'settings', 'home': 'home', 'computer': 'pc', 'pc': 'pc', 'chat': ''}
+          'brain': 'brain', 'settings': 'settings', 'home': 'home', 'computer': 'pc', 'pc': 'pc', 'chat': '',
+          'lumen': 'lumen', 'lights': 'lumen', 'lighting': 'lumen', 'rgb': 'lumen'}
 SETTINGS_PAGES = ('update', 'audio', 'network', 'bluetooth', 'display', 'assistant', 'remote', 'about', 'storage',
                   'default-apps', 'notifications', 'energy')
 CONFIRM_TTL = 180                           # seconds a system change waits for the owner
@@ -360,6 +361,8 @@ class Controller(QObject):
     inboxCount = Property(int, _inbox_count, notify=inboxChanged)
     systemBadge = Property(str, lambda self: getattr(self, '_system_badge', ''), notify=inboxChanged)
 
+    homePage = Property(QObject, lambda self: self._pages.get('home'), constant=True)
+    lumenPage = Property(QObject, lambda self: self._pages.get('lumen'), constant=True)
     pcPage = Property(QObject, lambda self: self._pages.get('pc'), constant=True)
     appsPage = Property(QObject, lambda self: self._pages.get('apps'), constant=True)
     systemPage = Property(QObject, lambda self: self._pages.get('system'), constant=True)
