@@ -12,7 +12,8 @@ capture status and screen selection are corrected and targeted-tested. Real
 colour commands/readback passed for Tuya wall light, Hue Büro and Echo; PC only
 acknowledges reports. Hue's link button was pressed and actual Entertainment
 streaming started. Actual HDMI-A-1 now captures video at 17–20 fps (>2800 frames)
-with an active four-channel Hue area and changing output colours. Hue starts
+with an active four-channel Hue area; >10000 frames and a red/blue/green HDMI
+test matched Tuya/Echo readback and all commanded outputs. Hue starts
 only after the first picture, with HA fallback on a lost stream; persisted Tuya
 targets remain selected. Temporary units/mask are recorded in the state file.
 Remaining acceptance:
