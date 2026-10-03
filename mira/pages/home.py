@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import time
 
-from PySide6.QtCore import QTimer, Slot
+from PySide6.QtCore import Property, QTimer, Signal, Slot
 
 from pages.base import Page, TEST_MODE
 
@@ -124,7 +124,20 @@ def _row(rec: dict, lang: str) -> dict:
 
 
 class HomePage(Page):
+    # Rooms (with their device cards) and areas are their own properties, emitted only when they
+    # change: through `state` every 5 s poll rebuilt every card (see pages/lumen.py).
+    roomsChanged = Signal()
+    areasChanged = Signal()
+    rooms = Property('QVariantList', lambda self: self._lists['rooms'], notify=roomsChanged)
+    areas = Property('QVariantList', lambda self: self._lists['areas'], notify=areasChanged)
+
+    def _set_list(self, name, value):
+        if self._lists.get(name) != value:
+            self._lists[name] = value
+            getattr(self, name + 'Changed').emit()
+
     def __init__(self, host, parent=None):
+        self._lists = {'rooms': [], 'areas': []}
         super().__init__(host, parent)
         self._timer = QTimer(self)
         self._timer.setInterval(POLL_MS)
@@ -136,8 +149,8 @@ class HomePage(Page):
             changed.connect(self.refresh)
 
     def initial(self):
-        return {'ready': False, 'linked': None, 'error': '', 'devices': [], 'rooms': [], 'areas': [],
-                'discovered': [], 'counts': {}, 'probe': {}, 'busy': '', 'note': {}, 'sample': False}
+        return {'ready': False, 'linked': None, 'error': '', 'devices': [], 'discovered': [], 'counts': {},
+                'probe': {}, 'busy': '', 'note': {}, 'sample': False}
 
     # ── lifecycle ────────────────────────────────────────────────────
     def activated(self):
@@ -181,7 +194,8 @@ class HomePage(Page):
         self._reading = False
         status = result.get('status')
         if status == 'unlinked':
-            self.update(ready=True, linked=False, probe=result.get('probe') or {}, devices=[], rooms=[])
+            self._set_list('rooms', [])
+            self.update(ready=True, linked=False, probe=result.get('probe') or {}, devices=[])
             return
         if status != 'ok':
             self.update(ready=True, linked=True, error=result.get('error') or 'error')
@@ -195,13 +209,16 @@ class HomePage(Page):
             room['online'] += row['available']
             room['on'] += row['on']
         ordered = sorted(rooms.values(), key=lambda r: (r['name'] == '', r['name'].casefold()))
-        self.update(ready=True, linked=True, error='', devices=rows, rooms=ordered,
-                    areas=[{'id': a.get('area_id'), 'name': a.get('name')} for a in result.get('areas') or []],
-                    discovered=[{'domain': d.get('domain'), 'title': d.get('title') or d.get('domain')}
-                                for d in result.get('discovered') or []],
-                    url=result.get('url') or '',
-                    counts={'devices': len(rows), 'online': sum(r['available'] for r in rows),
-                            'rooms': len([r for r in ordered if r['name']])})
+        self._set_list('rooms', ordered)
+        self._set_list('areas', [{'id': a.get('area_id'), 'name': a.get('name')} for a in result.get('areas') or []])
+        fields = dict(ready=True, linked=True, error='', devices=rows,
+                      discovered=[{'domain': d.get('domain'), 'title': d.get('title') or d.get('domain')}
+                                  for d in result.get('discovered') or []],
+                      url=result.get('url') or '',
+                      counts={'devices': len(rows), 'online': sum(r['available'] for r in rows),
+                              'rooms': len([r for r in ordered if r['name']])})
+        if any(self._state.get(k) != v for k, v in fields.items()):
+            self.update(**fields)
 
     # ── doing ────────────────────────────────────────────────────────
     def _act(self, label, fn, *args):
@@ -345,8 +362,9 @@ class HomePage(Page):
             r['devices'].append(row)
             r['online'] += row['available']
             r['on'] += row['on']
-        self.update(ready=True, linked=True, sample=True, devices=rows, rooms=list(rooms.values()),
-                    areas=[{'id': n, 'name': n} for n in rooms],
+        self._set_list('rooms', list(rooms.values()))
+        self._set_list('areas', [{'id': n, 'name': n} for n in rooms])
+        self.update(ready=True, linked=True, sample=True, devices=rows,
                     discovered=[{'domain': 'wled', 'title': 'WLED Strip' if not ar else 'شريط WLED'}],
                     counts={'devices': len(rows), 'online': 6, 'rooms': 3})
 

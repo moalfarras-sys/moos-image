@@ -13,7 +13,7 @@ from __future__ import annotations
 import colorsys
 import time
 
-from PySide6.QtCore import QTimer, Slot
+from PySide6.QtCore import Property, QTimer, Signal, Slot
 
 from pages.base import Page, TEST_MODE
 
@@ -128,7 +128,29 @@ def _display(light: dict) -> dict:
 
 
 class LumenPage(Page):
+    # The long lists live in their own properties, each with its own signal, emitted only when the
+    # list really changed: a Repeater given a new array rebuilds every delegate, and through `state`
+    # every 2.5 s poll and every 350 ms sync preview rebuilt all the orbs and scene cards (measured
+    # 2026-10-03: the open page cost ~8 % of a core while nothing changed).
+    lightsChanged = Signal()
+    roomsChanged = Signal()
+    groupsChanged = Signal()
+    scenesChanged = Signal()
+    syncChanged = Signal()
+
+    def _set_list(self, name, value):
+        if self._lists.get(name) != value:
+            self._lists[name] = value
+            getattr(self, name + 'Changed').emit()
+
+    lights = Property('QVariantList', lambda self: self._lists['lights'], notify=lightsChanged)
+    rooms = Property('QVariantList', lambda self: self._lists['rooms'], notify=roomsChanged)
+    groups = Property('QVariantList', lambda self: self._lists['groups'], notify=groupsChanged)
+    scenes = Property('QVariantList', lambda self: self._lists['scenes'], notify=scenesChanged)
+    sync = Property('QVariantMap', lambda self: self._lists['sync'], notify=syncChanged)
+
     def __init__(self, host, parent=None):
+        self._lists = {'lights': [], 'rooms': [], 'groups': [], 'scenes': [], 'sync': {'running': False, 'mode': 'video'}}
         super().__init__(host, parent)
         self._timer = QTimer(self)
         self._timer.setInterval(POLL_MS)
@@ -144,8 +166,7 @@ class LumenPage(Page):
             changed.connect(lambda: self.refresh())
 
     def initial(self):
-        return {'ready': False, 'error': '', 'lights': [], 'rooms': [], 'groups': [], 'scenes': [],
-                'counts': {}, 'scene': None, 'pc': {}, 'hue': {}, 'sync': {'running': False, 'mode': 'video'},
+        return {'ready': False, 'error': '', 'counts': {}, 'scene': None, 'pc': {}, 'hue': {},
                 'home': {}, 'busy': '', 'note': {}, 'sample': False, 'fx': FX}
 
     # ── lifecycle ────────────────────────────────────────────────────
@@ -187,10 +208,15 @@ class LumenPage(Page):
             light['effect_names'] = [{'id': e, 'name': HUE_FX_AR.get(e, e) if self.lang == 'ar' else e}
                                      for e in (light.get('caps') or {}).get('effects', [])]
         sync = result.get('sync') or {}
-        self.update(ready=True, error='', lights=lights, rooms=result.get('rooms', []),
-                    groups=result.get('groups', []), scenes=result.get('scenes', []),
-                    counts=result.get('counts', {}), scene=result.get('scene'), pc=result.get('pc', {}),
-                    hue=result.get('hue', {}), sync=sync, home=result.get('home', {}))
+        self._set_list('lights', lights)
+        self._set_list('rooms', result.get('rooms', []))
+        self._set_list('groups', result.get('groups', []))
+        self._set_list('scenes', result.get('scenes', []))
+        self._set_list('sync', sync)
+        fields = dict(ready=True, error='', counts=result.get('counts', {}), scene=result.get('scene'),
+                      pc=result.get('pc', {}), hue=result.get('hue', {}), home=result.get('home', {}))
+        if any(self._state.get(k) != v for k, v in fields.items()):
+            self.update(**fields)
         if sync.get('running'):
             if not self._sync_timer.isActive():
                 self._sync_timer.start()
@@ -207,7 +233,7 @@ class LumenPage(Page):
         self._sync_reading = False
         if result.get('status') == 'ok':
             sync = result.get('sync') or {}
-            self.update(sync=sync)
+            self._set_list('sync', sync)
             if not sync.get('running'):
                 self._sync_timer.stop()
 
@@ -229,7 +255,7 @@ class LumenPage(Page):
         self.update(note={'status': 'ok' if status == 'ok' else ('error' if status == 'error' else 'pending'),
                           'text': text, 'at': time.time()})
         if 'sync' in result and isinstance(result['sync'], dict):
-            self.update(sync=result['sync'])
+            self._set_list('sync', result['sync'])
             if result['sync'].get('running'):
                 self._sync_timer.start()
         self.refresh()
@@ -334,19 +360,21 @@ class LumenPage(Page):
             r['lights'].append(light['id'])
             r['on'] += light['on']
             r['online'] += light['online']
-        self.update(ready=True, sample=True, lights=lights, rooms=list(rooms.values()),
-                    groups=[{'id': 'group:السهرة', 'name': 'السهرة', 'kind': 'owner',
-                             'lights': ['ha:light.tv_left', 'ha:light.tv_right', 'pc:D_LED1']}],
-                    scenes=scenes.catalog(self.lang),
+        self._set_list('lights', lights)
+        self._set_list('rooms', list(rooms.values()))
+        self._set_list('groups', [{'id': 'group:السهرة', 'name': 'السهرة', 'kind': 'owner',
+                                   'lights': ['ha:light.tv_left', 'ha:light.tv_right', 'pc:D_LED1']}])
+        self._set_list('scenes', scenes.catalog(self.lang))
+        self._set_list('sync', {'running': True, 'mode': 'video', 'state': 'running', 'fps': 30, 'stream': 'ha',
+                                'lights': ['ha:light.tv_left', 'ha:light.tv_right', 'pc:D_LED1'],
+                                'preview': {'ha:light.tv_left': '#2C7BFF', 'ha:light.tv_right': '#FF5A3C',
+                                            'pc:D_LED1': '#8E5BFF'}, 'ambient': '#8E5BFF'})
+        self.update(ready=True, sample=True,
                     scene={'id': 'aurora', 'name': 'شفق' if self.lang == 'ar' else 'Aurora'},
                     counts={'lights': 9, 'online': 8, 'on': 6, 'pc': 3},
                     pc={'present': True, 'maker': 'Gigabyte RGB Fusion 2', 'product': 'IT5701', 'firmware': '3.0.27.0'},
                     hue={'paired': False, 'streaming': False},
-                    home={'linked': True},
-                    sync={'running': True, 'mode': 'video', 'state': 'running', 'fps': 30, 'stream': 'ha',
-                          'lights': ['ha:light.tv_left', 'ha:light.tv_right', 'pc:D_LED1'],
-                          'preview': {'ha:light.tv_left': '#2C7BFF', 'ha:light.tv_right': '#FF5A3C',
-                                      'pc:D_LED1': '#8E5BFF'}, 'ambient': '#8E5BFF'})
+                    home={'linked': True})
 
 
 PAGE = LumenPage

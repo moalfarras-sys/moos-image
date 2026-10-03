@@ -110,15 +110,30 @@ class LumenPageState(unittest.TestCase):
         self.page.refresh()
         st = self.page.state
         self.assertTrue(st['ready'])
-        buro = next(l for l in st['lights'] if l['id'] == 'ha:light.buro')
+        lights = self.page.lights
+        buro = next(l for l in lights if l['id'] == 'ha:light.buro')
         self.assertTrue(buro['on'])
         self.assertEqual(buro['level'], 60)
         self.assertEqual(buro['hex'][0], '#')
         self.assertEqual([e['name'] for e in buro['effect_names']], ['شمعة', 'نار'])
-        offline = next(l for l in st['lights'] if l['id'] == 'ha:light.sa9f')
+        offline = next(l for l in lights if l['id'] == 'ha:light.sa9f')
         self.assertFalse(offline['on'], 'an unreachable lamp is never painted lit')
-        fan = next(l for l in st['lights'] if l['id'] == 'pc:D_LED1')
+        fan = next(l for l in lights if l['id'] == 'pc:D_LED1')
         self.assertNotEqual(fan['hex'], '#5A6282', 'a white temperature is painted as its colour')
+
+    def test_an_unchanged_poll_rebuilds_nothing(self):
+        self.page.refresh()
+        seen = []
+        for name in ('lightsChanged', 'roomsChanged', 'scenesChanged', 'syncChanged', 'changed'):
+            getattr(self.page, name).connect(lambda n=name: seen.append(n))
+        self.page.refresh()
+        self.assertEqual(seen, [], 'the same snapshot again must not rebuild a single delegate')
+        SNAPSHOT['lights'][0]['state']['brightness'] = 61
+        try:
+            self.page.refresh()
+        finally:
+            SNAPSHOT['lights'][0]['state']['brightness'] = 60
+        self.assertEqual(seen, ['lightsChanged'])
 
     def test_every_control_carries_the_pick(self):
         pick = ['ha:light.buro']
@@ -141,8 +156,8 @@ class LumenPageState(unittest.TestCase):
     def test_sync_start_shows_the_approval_state(self):
         self.page.startSync('game', [])
         self.assertEqual(self.client.calls[0], ('sync_start', {'mode': 'game', 'target': 'all'}))
-        self.assertTrue(self.page.state['sync']['running'])
-        self.assertEqual(self.page.state['sync']['state'], 'asking')
+        self.assertTrue(self.page.sync['running'])
+        self.assertEqual(self.page.sync['state'], 'asking')
         self.assertTrue(self.page._sync_timer.isActive(), 'a running sync is polled for its preview')
         self.page.hidden()
         self.assertFalse(self.page._sync_timer.isActive())
@@ -214,14 +229,15 @@ class HomePageState(unittest.TestCase):
         self.page.refresh()
         st = self.page.state
         self.assertTrue(st['linked'])
-        self.assertEqual([r['name'] for r in st['rooms']], ['Fernseher', ''], 'devices without a room come last')
-        buro = st['rooms'][0]['devices'][0]
+        rooms = self.page.rooms
+        self.assertEqual([r['name'] for r in rooms], ['Fernseher', ''], 'devices without a room come last')
+        buro = rooms[0]['devices'][0]
         self.assertEqual(buro['detail'], 'Philips Hue · Hue color lamp')
         self.assertEqual(buro['level'], 60)
         self.assertEqual(buro['aliases'], ['المكتب'])
-        tv = st['rooms'][1]['devices'][0]
+        tv = rooms[1]['devices'][0]
         self.assertTrue(tv['volume_step'])
-        sensor = st['rooms'][0]['devices'][1]
+        sensor = rooms[0]['devices'][1]
         self.assertEqual((sensor['value'], sensor['unit']), ('21.5', '°C'))
         self.assertEqual(st['discovered'], [{'domain': 'wled', 'title': 'WLED'}])
 

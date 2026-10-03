@@ -17,8 +17,12 @@ PageFrame {
 
     readonly property var page: mira.lumenPage
     readonly property var st: page ? page.state : ({})
-    readonly property var lights: (st.lights || []).filter(function(l) { return !l.group })
-    readonly property var sync: st.sync || ({})
+    // the long lists are their own properties (pages/lumen.py): they change only when a light does
+    readonly property var lights: (page ? page.lights : []).filter(function(l) { return !l.group })
+    readonly property var rooms: page ? page.rooms : []
+    readonly property var groups: page ? page.groups : []
+    readonly property var scenes: page ? page.scenes : []
+    readonly property var sync: page ? page.sync : ({})
     readonly property bool wide: contentWidth >= 860
     property real clock: 0                // the window's shared clock (Main.qml), for living lights
     property var picked: []               // light ids; empty = every light
@@ -183,7 +187,7 @@ PageFrame {
             anchors { left: parent.left; right: parent.right; top: parent.top; margins: 18; topMargin: 44 }
             spacing: 22
             Repeater {
-                model: lp.st.rooms || []
+                model: lp.rooms
                 delegate: Column {
                     required property var modelData
                     spacing: 4
@@ -231,7 +235,7 @@ PageFrame {
         spacing: 8
         Chip { text: mira.s.lu_all; glyph: "grid"; active: lp.picked.length === 0; onClicked: lp.pick([], "all") }
         Repeater {
-            model: (lp.st.rooms || []).filter(function(r) { return r.name !== "PC" })
+            model: lp.rooms.filter(function(r) { return r.name !== "PC" })
             delegate: Chip {
                 required property var modelData
                 text: modelData.name; glyph: "home"
@@ -241,8 +245,8 @@ PageFrame {
         }
         Repeater {
             // a Hue room is also a Home Assistant room by the same name: one chip is enough
-            model: (lp.st.groups || []).filter(function(g) {
-                return !(lp.st.rooms || []).some(function(r) { return r.name === g.name })
+            model: lp.groups.filter(function(g) {
+                return !lp.rooms.some(function(r) { return r.name === g.name })
             })
             delegate: Chip {
                 required property var modelData
@@ -402,7 +406,7 @@ PageFrame {
                 columns: Math.max(2, Math.floor((scenesCard.width - 32) / 150))
                 columnSpacing: 10; rowSpacing: 10
                 Repeater {
-                    model: lp.st.scenes || []
+                    model: lp.scenes
                     delegate: AbstractButton {
                         id: sc
                         required property var modelData

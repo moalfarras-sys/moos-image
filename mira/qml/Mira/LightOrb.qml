@@ -14,7 +14,7 @@ AbstractButton {
     property bool picked: false
     property bool pc: false
     property bool living: false
-    property real clock: 0               // the window's shared clock (a living light breathes with it)
+    property real clock: 0               // kept for callers; motion runs on the render thread (Animators)
     property real size: 54
     signal powerRequested()
     implicitWidth: Math.max(size * 1.9, label.implicitWidth + 8)
@@ -25,7 +25,7 @@ AbstractButton {
     onDoubleClicked: orb.powerRequested()
 
     readonly property real glow: !online || !lit ? 0 : 0.35 + 0.65 * Math.min(1, level / 100)
-    readonly property real breathe: living && lit && mira.motion ? 0.06 * Math.sin(clock * 1.6) : 0
+    readonly property bool moving: living && lit && online && mira.motion && visible
 
     background: Item {}
     contentItem: Item {
@@ -34,17 +34,29 @@ AbstractButton {
             width: orb.size * 1.75; height: width
             anchors.horizontalCenter: parent.horizontalCenter
             // halo, two soft rings of the light's own colour
-            Rectangle {
-                anchors.centerIn: parent
-                width: orb.size * (1.55 + orb.breathe); height: width; radius: width / 2
-                color: Qt.rgba(orb.tone.r, orb.tone.g, orb.tone.b, 0.10 * orb.glow)
-                Behavior on color { ColorAnimation { duration: Theme.emphasized } }
-            }
-            Rectangle {
-                anchors.centerIn: parent
-                width: orb.size * (1.22 + orb.breathe * 0.5); height: width; radius: width / 2
-                color: Qt.rgba(orb.tone.r, orb.tone.g, orb.tone.b, 0.20 * orb.glow)
-                Behavior on color { ColorAnimation { duration: Theme.emphasized } }
+            // A living light breathes: a scale Animator runs on the render thread, so no binding is
+            // re-evaluated per frame and nothing runs while the orb is still (or motion is off).
+            Item {
+                anchors.fill: parent
+                Rectangle {
+                    anchors.centerIn: parent
+                    width: orb.size * 1.55; height: width; radius: width / 2
+                    color: Qt.rgba(orb.tone.r, orb.tone.g, orb.tone.b, 0.10 * orb.glow)
+                    Behavior on color { ColorAnimation { duration: Theme.emphasized } }
+                }
+                Rectangle {
+                    anchors.centerIn: parent
+                    width: orb.size * 1.22; height: width; radius: width / 2
+                    color: Qt.rgba(orb.tone.r, orb.tone.g, orb.tone.b, 0.20 * orb.glow)
+                    Behavior on color { ColorAnimation { duration: Theme.emphasized } }
+                }
+                SequentialAnimation on scale {
+                    running: orb.moving
+                    loops: Animation.Infinite
+                    alwaysRunToEnd: true
+                    ScaleAnimator { from: 1.0; to: 1.06; duration: 1900; easing.type: Easing.InOutSine }
+                    ScaleAnimator { from: 1.06; to: 1.0; duration: 1900; easing.type: Easing.InOutSine }
+                }
             }
             // the pick ring
             Rectangle {
@@ -90,7 +102,10 @@ AbstractButton {
                     name: "fan"
                     size: orb.size * 0.46
                     color: Qt.rgba(1, 1, 1, 0.75)
-                    rotation: orb.living && mira.motion ? orb.clock * 90 : 0
+                    RotationAnimator on rotation {
+                        running: orb.moving && orb.pc
+                        from: 0; to: 360; duration: 4000; loops: Animation.Infinite
+                    }
                 }
             }
             scale: orb.down ? 0.94 : (orb.hovered ? 1.04 : 1)

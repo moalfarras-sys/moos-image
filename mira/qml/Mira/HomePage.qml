@@ -110,7 +110,7 @@ PageFrame {
 
     // ── room by room ──
     Repeater {
-        model: hp.st.rooms || []
+        model: hp.page ? hp.page.rooms : []
         delegate: ColumnLayout {
             id: roomBox
             required property var modelData
@@ -280,7 +280,7 @@ PageFrame {
                         id: roomBoxPick
                         Layout.fillWidth: true
                         editable: true
-                        model: (hp.st.areas || []).map(function(a) { return a.name })
+                        model: (hp.page ? hp.page.areas : []).map(function(a) { return a.name })
                         Component.onCompleted: { const i = find(card.modelData.room); currentIndex = i; if (i < 0) editText = card.modelData.room }
                         font.family: Theme.font
                     }
