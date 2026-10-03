@@ -6,17 +6,19 @@ Mira's six pages, approvals, desktop tools and single-mouth correction are in
 signed `.975`, booted on the NVIDIA station with signed `.967` rollback. This
 session's installed checks passed 55/55 and 54 selfchecks; no failed units.
 
-The home/Lumen batch (PR #190, `78f72b6c`) is being integrated with the This PC
-media-title correction found in native review. Real Hue colour/brightness and
-restoration, four PC header acknowledgements, Home Assistant registry inventory,
-Mira's Gemini read-only home question and the four native pages were exercised.
-Screen Sync delivered 87 frames at 15 fps and restored four PC headers; volume
-89→84→89 was read back. The title fix failed its regression before the change
-and passed afterward; isolated `test_systools` + `test_page_pc` passed 120 tests.
-PR #191 ARM passed; its x86 build exposed an intermittent Qt crash during test teardown, reproduced under one-CPU container stress. The page fixture now waits for worker termination before releasing Qt objects (40 one-CPU repetitions passed); image suite logs show names and preserve exit status. Reproof is required. Tests and image builds are separate from signed release evidence. Open, in order:
+The home/Lumen batch and the This PC media-title correction are merged through
+PR #191 into `7c9d1e43`. The Qt worker teardown fix passed its stress proof and
+the fresh x86/ARM builds. Release audit completed: station `just check` passed;
+signed x86 build `37114776308`, three QCOW2 proofs `37116762303`, `37116764826`,
+`37116767187`, and offline ISO `37116769665` all passed on that exact source.
+Promotion `37120191781` published NVIDIA `.977`; ARM's complete pipeline
+`37114740334` also promoted. All existing branch refs are merged and all
+worktrees were clean. Before staging, `.975` passed 55/55 post-update checks,
+54 selfchecks and zero failed units. The previous “current” update answer was
+correct: the x86 promotion had not been dispatched. Open, in order:
 
-1. Complete integration gates, then exact-source signed candidate, three QCOW2
-   proofs, offline ISO and independent ARM boot/promotion; update through `moai-do`.
+1. Stage `.977` through `moai-do`, reboot with the previous signed deployment
+   retained, and read back the installed version, health and user journeys.
 2. After reboot, replace temporary source Mira/Lumen units with the installed
    launchers and prove the Home/Lumen/Computer/System journeys again.
 3. Four home lamps and the smart plug are unavailable; diagnose connectivity
