@@ -20,11 +20,11 @@ endpoints, 10 available; RGB, Ta5it and Tv Links remain unavailable after reload
 Hue/Tuya; direct Hue Zigbee readback also marks Ta5it/Tv Links unreachable.
 HDMI-A-1 captures at 17–20 fps (>10000 frames); red/blue/green HDMI test colours
 matched all outputs and Tuya/Echo readback; Hue remained active. Hue starts on the first
-picture and falls back to house control on stream loss; saved Tuya targets persist. Temporary units
-`mira-control-review` and `mira-lumen-control-review` run this source; Lumen's
-installed service has a runtime-only mask to prevent dual ownership. Reboot
-removes these overrides; signed delivery and physical/voice endurance remain open.
-267 targeted tests and full `just check` pass (6 optional skips); physical observation remains open.
+picture and falls back to house control on stream loss; saved Tuya targets persist.
+Owner reported no response after reboot removed fixes; a backed-up local app now replaces them.
+Persistent `mira-lumen.service.d/40-local-mira-control.conf` selects that app.
+Opt-in login sync survived a service restart; group «إضاءة البيت والكيس» spans all 13.
+281 checks and full `just check` pass (6 skips); physical proof remains open.
 
 **Remote interruption diagnosis, 2026-10-01:** the installed portal repeatedly
 renewed after `1536x864+0+0@3 -> no outputs`. Source `59e97672` ignores an empty

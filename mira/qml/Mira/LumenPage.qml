@@ -585,6 +585,16 @@ PageFrame {
                     onClicked: lp.sync.running ? lp.page.stopSync() : lp.page.startSync(lp.syncMode, lp.picked)
                 }
             }
+            MiraSwitch {
+                text: mira.s.lu_sync_resume
+                checked: lp.sync.resume_at_login === true
+                enabled: lp.st.busy !== "sync"
+                onToggled: {
+                    const want = checked
+                    checked = Qt.binding(function() { return lp.sync.resume_at_login === true })
+                    lp.page.setSyncResume(want)
+                }
+            }
             // a faster, smoother stream once Lumen holds its own Hue pairing
             Rectangle {
                 Layout.fillWidth: true

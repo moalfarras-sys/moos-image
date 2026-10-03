@@ -15,15 +15,21 @@ streaming started. Actual HDMI-A-1 now captures video at 17–20 fps (>2800 fram
 with an active four-channel Hue area; >10000 frames and a red/blue/green HDMI
 test matched Tuya/Echo readback and all commanded outputs. Hue starts
 only after the first picture, with HA fallback on a lost stream; persisted Tuya
-targets remain selected. Temporary units/mask are recorded in the state file.
+targets remain selected. A station reboot removed the transient fixes and restored
+old code. Local per-user Mira now supplies the fixes at login, with a backed-up
+app and a persistent Lumen MIRA_APP drop-in. Explicit login-sync opt-in resumes
+the saved group/mode; Stop cancels it. Group IDs resolve across house/PC/Echo and
+Mira's context includes owner groups. Remove the Lumen drop-in, restore the
+autostart entry to /usr/bin/mira and retire local launcher/desktop overrides
+after signed delivery. This local install does not change the signed OS.
 Remaining acceptance:
 
 1. Physically observe all connected LEDs; three lamps (RGB, Ta5it, Tv Links)
    remain unavailable; the Hue bridge itself reports the two Hue lamps unreachable.
-2. Full repository gates and 267 Mira checks pass (6 optional skips). Finish
-   exact-image build and signed delivery; source services are temporary.
-3. Read back Home/Lumen/Computer/System on that signed deployment, with temporary
-   units/masks removed, and repeat owner-spoken wake/interruption endurance.
+2. 281 Mira checks and full repository gates pass (6 optional skips). Finish
+   exact-image build and signed delivery.
+3. Read back Home/Lumen/Computer/System on that signed deployment after retiring
+   local overrides, and repeat owner-spoken wake/interruption endurance.
 4. P3.9 remains unbuilt pending design and safety review. Measure power-cut
    recovery; PC-off home control needs an always-on Home Assistant.
 

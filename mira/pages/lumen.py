@@ -49,6 +49,7 @@ STRINGS = {
     'lu_sync_start': ('ابدأ المزامنة', 'Start sync'),
     'lu_sync_stop': ('أوقف المزامنة', 'Stop sync'),
     'lu_sync_screen': ('غيّر الشاشة', 'Choose screen'),
+    'lu_sync_resume': ('أعد المزامنة عند تسجيل الدخول', 'Resume sync at sign-in'),
     'lu_mode_video': ('فيديو', 'Video'),
     'lu_mode_game': ('ألعاب', 'Games'),
     'lu_mode_ambient': ('هادئ', 'Ambient'),
@@ -301,6 +302,10 @@ class LumenPage(Page):
     @Slot()
     def stopSync(self):
         self._act('sync', 'sync_stop')
+
+    @Slot(bool)
+    def setSyncResume(self, enabled):
+        self._act('sync', 'sync_resume', enabled=bool(enabled))
 
     @Slot(str, 'QVariantList')
     def chooseScreen(self, mode, ids):

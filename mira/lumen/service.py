@@ -81,6 +81,11 @@ def dispatch(engine: Engine, request: dict) -> dict:
                                  select_screen=select_screen)
     if op == 'sync_stop':
         return engine.sync_stop()
+    if op == 'sync_resume':
+        enabled = a.get('enabled')
+        if not isinstance(enabled, bool):
+            raise ValueError('enabled is true or false')
+        return engine.sync_resume(enabled)
     if op == 'sync_status':
         return {'status': 'ok', 'sync': engine.sync_status()}
     if op == 'rename':

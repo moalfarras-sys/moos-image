@@ -159,6 +159,12 @@ class LumenPageState(unittest.TestCase):
         self.assertIn(('sync_start', {'mode': 'video', 'target': pick, 'select_screen': True}),
                       self.client.calls)
 
+    def test_login_resume_is_an_explicit_owner_setting(self):
+        self.page.setSyncResume(True)
+        self.assertIn(('sync_resume', {'enabled': True}), self.client.calls)
+        self.page.setSyncResume(False)
+        self.assertIn(('sync_resume', {'enabled': False}), self.client.calls)
+
     def test_sync_start_shows_the_approval_state(self):
         self.page.startSync('game', [])
         self.assertEqual(self.client.calls[0], ('sync_start', {'mode': 'game', 'target': 'all'}))

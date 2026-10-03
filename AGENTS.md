@@ -282,6 +282,9 @@ picker. Claim the Hue area only on the first captured picture: it expires after
 ten silent seconds while a screen picker can wait indefinitely. A lost stream
 must release the area and restore paced house control for its lamps. Preserve
 explicit saved cloud targets on restart. PC state is never physical LED readback.
+Login Screen Sync requires an explicit owner opt-in, defaults off and stops
+resuming when Stop is pressed. Publish owner groups to Mira's context and accept
+their exact IDs; one group can contain house lamps, PC headers and Echo.
 
 **A face that loads is not a face that speaks correctly.** Mira's lip envelope follows
 playback RMS, while the aura keeps peak energy. Never discard a due silence inside

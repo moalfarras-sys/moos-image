@@ -228,6 +228,13 @@ class Words(unittest.TestCase):
         self.assertEqual(norm('الإضاءة'), norm('اضاءه'))
         self.assertEqual(norm('  Büro '), 'büro')
 
+    def test_owner_group_id_reaches_house_pc_and_echo_once(self):
+        ids = ['ha:light.buro', 'pc:D_LED1', 'ha:light.mira_ring_led_ring']
+        self.engine.save_group('إضاءة البيت والكيس', ids)
+        chosen, unknown = self.engine.resolve('group:إضاءة البيت والكيس')
+        self.assertEqual({l['id'] for l in chosen}, set(ids))
+        self.assertEqual(unknown, [])
+
 
 class Control(unittest.TestCase):
     def setUp(self):
@@ -428,6 +435,37 @@ class Fusion2Bytes(unittest.TestCase):
 
 
 class ScreenOutputs(unittest.TestCase):
+    def test_login_does_not_capture_or_change_house_lights_by_default(self):
+        engine, hub, pc = engine_with()
+        with mock.patch('lumen.syncsession.SyncSession') as session:
+            try:
+                engine.start()
+                session.assert_not_called()
+                self.assertEqual(hub.calls, [])
+                self.assertFalse(engine.sync_status()['resume_at_login'])
+            finally:
+                engine.close()
+
+    def test_login_resumes_only_the_owners_saved_selection_and_mode(self):
+        engine, hub, pc = engine_with()
+        engine.store.set('sync', {'target': ['ha:light.buro', 'pc:D_LED1'], 'mode': 'game'})
+        engine.sync_resume(True)
+        with mock.patch('lumen.syncsession.SyncSession') as session:
+            session.return_value.status.return_value = {'state': 'asking'}
+            try:
+                engine.start()
+                chosen = session.call_args.args[1]
+                self.assertEqual({l['id'] for l in chosen}, {'ha:light.buro', 'pc:D_LED1'})
+                self.assertEqual(session.call_args.kwargs['mode'], 'game')
+                self.assertTrue(engine.sync_status()['resume_at_login'])
+                engine.sync_stop()
+                self.assertFalse(engine.sync_status()['resume_at_login'])
+                session.reset_mock()
+                engine._resume_screen_sync()
+                session.assert_not_called()
+            finally:
+                engine.close()
+
     def test_hue_is_claimed_only_after_a_screen_frame_arrives(self):
         from lumen.syncsession import SyncSession
         engine, hub, pc = engine_with()
@@ -577,6 +615,10 @@ class Socket(unittest.TestCase):
                 self.assertEqual(client.call('set', target='Büro', brightness=400)['status'], 'error')
                 self.assertEqual(client.call('rm -rf')['status'], 'error')
                 self.assertEqual(client.call('sync_start', mode='disco')['status'], 'error')
+                self.assertEqual(client.call('sync_resume', enabled='yes')['status'], 'error')
+                self.assertTrue(client.call('sync_resume', enabled=True)['sync']['resume_at_login'])
+                client.call('sync_stop')
+                self.assertFalse(client.call('sync_status')['sync']['resume_at_login'])
         finally:
             server.shutdown()
             server.server_close()
@@ -607,6 +649,12 @@ class Tools(unittest.TestCase):
         text = tools.format_home(records, [{'id': 'pc:D_LED1', 'name': 'مراوح الواجهة'}], 'ar')
         for word in ('غرفة «Fernseher»', '«Büro / المكتب»', 'light.buro', 'ضوء ملوّن', 'مضاء', 'غير متاح', 'pc:D_LED1'):
             self.assertIn(word, text)
+        group = {'name': 'إضاءة البيت والكيس', 'id': 'group:إضاءة البيت والكيس',
+                 'lights': ['ha:light.buro', 'pc:D_LED1', 'ha:light.mira_ring_led_ring']}
+        for lang in ('ar', 'en'):
+            text = tools.format_home(records, [], lang, [group])
+            self.assertIn(group['id'], text)
+            self.assertIn('screen_sync', text)
 
 
 if __name__ == '__main__':
