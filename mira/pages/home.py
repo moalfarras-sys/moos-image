@@ -56,6 +56,18 @@ STRINGS = {
     'hm_link_found': ('لقيت Home Assistant على هذا الجهاز — أنشئ رمز وصول طويل الأمد من ملفك الشخصي فيه والصقه هنا',
                       'Found Home Assistant on this computer — create a long-lived access token in its profile page and paste it here'),
     'hm_link_none': ('ما في Home Assistant شغال هلق. شغّله أو أدخل عنوانه.', 'No Home Assistant is running now. Start it or enter its address.'),
+    'hm_hub_title': ('خلّي هالكمبيوتر مركز البيت', 'Make this computer your home hub'),
+    'hm_hub_sub': ('مركز البيت (Home Assistant) بيكتشف أجهزة بيتك لحاله: Hue والتلفزيونات وChromecast وESPHome وغيرها. تحميل لمرة وحدة حوالي 2.5 GB، وبيشتغل كخدمة لحسابك بدون صلاحيات مدير.',
+                   'The home hub (Home Assistant) finds your devices by itself: Hue, TVs, Chromecast, ESPHome and more. A one-time download of about 2.5 GB; it runs as a service of your account, with no administrator rights.'),
+    'hm_hub_setup': ('جهّز مركز البيت', 'Set up the home hub'),
+    'hm_hub_have': ('عندي Home Assistant', 'I already have Home Assistant'),
+    'hm_hub_starting': ('عم يتجهّز مركز البيت… التحميل الأول بياخد كم دقيقة', 'Setting up the home hub… the first download takes a few minutes'),
+    'hm_hub_account': ('آخر خطوة: حساب لمركز البيت', 'Last step: an account for the home hub'),
+    'hm_hub_account_sub': ('الاسم وكلمة السر بيروحوا لمركز البيت بس — ميرا ما بتحفظهم.', 'The name and password go to the home hub only — Mira keeps neither.'),
+    'hm_hub_name': ('اسمك', 'Your name'),
+    'hm_hub_user': ('اسم المستخدم', 'User name'),
+    'hm_hub_pass': ('كلمة السر (8 أحرف أو أكثر)', 'Password (8 characters or more)'),
+    'hm_hub_create': ('أنشئ الحساب واربط', 'Create the account and connect'),
     'hm_token': ('رمز الوصول', 'Access token'),
     'hm_url': ('العنوان', 'Address'),
     'hm_connect': ('اربط', 'Connect'),
@@ -181,7 +193,8 @@ class HomePage(Page):
         import homehub
         hub = homehub.load()
         if hub is None:
-            return {'status': 'unlinked', 'probe': homehub.probe(timeout=1.5)}
+            import homesetup
+            return {'status': 'unlinked', 'probe': homehub.probe(timeout=1.5), 'hub': homesetup.status()}
         records = hub.inventory(include_hidden=False)
         areas = hub.areas()
         try:
@@ -195,7 +208,11 @@ class HomePage(Page):
         status = result.get('status')
         if status == 'unlinked':
             self._set_list('rooms', [])
-            self.update(ready=True, linked=False, probe=result.get('probe') or {}, devices=[])
+            hub = result.get('hub') or {}
+            self.update(ready=True, linked=False, probe=result.get('probe') or {}, devices=[], hub=hub)
+            # while the hub downloads and starts, read again soon; the regular poll is slower
+            if hub.get('stage') in ('installed', 'starting') and not TEST_MODE:
+                QTimer.singleShot(3000, self.refresh)
             return
         if status != 'ok':
             self.update(ready=True, linked=True, error=result.get('error') or 'error')
@@ -321,6 +338,27 @@ class HomePage(Page):
     @Slot(str, str)
     def link(self, token, url):
         self._act('link', self._link, str(token), str(url))
+
+    @staticmethod
+    def _setup():
+        import homesetup
+        result = homesetup.install()
+        return {'status': 'pending', **result}
+
+    @Slot()
+    def setupHub(self):
+        """The owner's button: make this computer the home hub (Home Assistant, his own container)."""
+        self._act('hub', self._setup)
+
+    @staticmethod
+    def _onboard(name, username, password):
+        import homesetup
+        homesetup.onboard(name, username, password)
+        return {'status': 'saved'}
+
+    @Slot(str, str, str)
+    def onboard(self, name, username, password):
+        self._act('onboard', self._onboard, str(name), str(username), str(password))
 
     @Slot()
     def openHomeAssistant(self):

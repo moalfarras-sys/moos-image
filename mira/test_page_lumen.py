@@ -257,6 +257,26 @@ class HomePageState(unittest.TestCase):
             self.page.setPower('switch.plug', True)
         self.assertEqual(self.page.state['note']['status'], 'pending', 'a plug that stays off is not "done"')
 
+    def test_unlinked_offers_the_hub_and_its_first_run(self):
+        import homehub
+        import homesetup
+        with mock.patch('homehub.load', return_value=None), \
+                mock.patch.object(homehub, 'probe', return_value={'reachable': False}), \
+                mock.patch.object(homesetup, 'status', return_value={'stage': 'none'}):
+            self.page.refresh()
+        self.assertEqual(self.page.state['hub']['stage'], 'none')
+        with mock.patch.object(homesetup, 'install', return_value={'status': 'pending', 'written': True}) as install, \
+                mock.patch('homehub.load', return_value=None), \
+                mock.patch.object(homehub, 'probe', return_value={'reachable': False}), \
+                mock.patch.object(homesetup, 'status', return_value={'stage': 'starting'}):
+            self.page.setupHub()
+        install.assert_called_once_with()
+        self.assertEqual(self.page.state['hub']['stage'], 'starting')
+        with mock.patch.object(homesetup, 'onboard', return_value={'status': 'ok'}) as onboard:
+            self.page.onboard('Mohammed', 'mohammed', 'secret-pass-1')
+        onboard.assert_called_once_with('Mohammed', 'mohammed', 'secret-pass-1')
+        self.assertEqual(self.page.state['note']['status'], 'ok')
+
     def test_unlinked_offers_the_link(self):
         import homehub
         with mock.patch('homehub.load', return_value=None), \

@@ -59,9 +59,59 @@ PageFrame {
         }
     ]
 
-    // ── not linked yet ──
+    // ── not linked yet: make this computer the hub, finish its first run, or link one that exists ──
+    readonly property var hubState: st.hub || ({})
+    property bool haveOwn: false
     Card {
-        visible: hp.st.linked === false
+        visible: hp.st.linked === false && !hp.haveOwn && (hp.hubState.stage === "none" || hp.hubState.stage === undefined)
+        icon: "home"; title: mira.s.hm_hub_title; subtitle: mira.s.hm_hub_sub; accent: Theme.cyan
+        RowLayout {
+            Layout.fillWidth: true
+            spacing: 8
+            PillButton { text: mira.s.hm_hub_setup; iconName: "download"; primary: true
+                         enabled: (hp.st.busy || "") === ""; onClicked: hp.page.setupHub() }
+            PillButton { text: mira.s.hm_hub_have; onClicked: hp.haveOwn = true }
+            Item { Layout.fillWidth: true }
+        }
+    }
+    Card {
+        visible: hp.st.linked === false && (hp.hubState.stage === "installed" || hp.hubState.stage === "starting")
+        icon: "home"; title: mira.s.hm_hub_title; accent: Theme.cyan
+        RowLayout {
+            Layout.fillWidth: true
+            spacing: 10
+            Rectangle {
+                width: 18; height: 18; radius: 9; color: "transparent"
+                border.width: 2; border.color: Theme.cyan
+                Rectangle { width: 6; height: 6; radius: 3; color: Theme.cyan; anchors.centerIn: parent }
+                SequentialAnimation on opacity {
+                    running: mira.motion && parent.visible; loops: Animation.Infinite
+                    NumberAnimation { to: 0.3; duration: 700 } NumberAnimation { to: 1; duration: 700 }
+                }
+            }
+            T { Layout.fillWidth: true; text: mira.s.hm_hub_starting; color: Theme.ink2 }
+        }
+    }
+    Card {
+        visible: hp.st.linked === false && hp.hubState.stage === "onboarding"
+        icon: "user"; title: mira.s.hm_hub_account; subtitle: mira.s.hm_hub_account_sub; accent: Theme.cyan
+        GridLayout {
+            Layout.fillWidth: true
+            columns: hp.wide ? 3 : 1
+            columnSpacing: 8; rowSpacing: 8
+            MiraField { id: ownerName; Layout.fillWidth: true; placeholderText: mira.s.hm_hub_name; Accessible.name: mira.s.hm_hub_name }
+            MiraField { id: ownerUser; Layout.fillWidth: true; placeholderText: mira.s.hm_hub_user; Accessible.name: mira.s.hm_hub_user
+                        validator: RegularExpressionValidator { regularExpression: /[a-z0-9._-]{0,40}/ } }
+            MiraField { id: ownerPass; Layout.fillWidth: true; echoMode: TextInput.Password; placeholderText: mira.s.hm_hub_pass; Accessible.name: mira.s.hm_hub_pass }
+        }
+        PillButton {
+            text: mira.s.hm_hub_create; primary: true; iconName: "check"
+            enabled: ownerName.text.trim().length > 0 && ownerUser.text.length > 1 && ownerPass.text.length >= 8 && (hp.st.busy || "") === ""
+            onClicked: { hp.page.onboard(ownerName.text, ownerUser.text, ownerPass.text); ownerPass.clear() }
+        }
+    }
+    Card {
+        visible: hp.st.linked === false && (hp.haveOwn || hp.hubState.stage === "token")
         icon: "link"; title: mira.s.hm_link_title; subtitle: mira.s.hm_link_sub; accent: Theme.cyan
         T {
             Layout.fillWidth: true

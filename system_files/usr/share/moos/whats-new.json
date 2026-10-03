@@ -26,8 +26,8 @@
         "en": "Home in Mira: every device in its room, by your names"
       },
       "body": {
-        "ar": "سمِّ أي جهاز أو انقله لغرفة أو أعطه أسماء ثانية للصوت، والاسم بينحفظ بالبيت نفسه. ميرا صارت تعرف شو بيقدر يعمل كل جهاز، فما بتعرض عليه شي ما بيدعمه.",
-        "en": "Rename any device, move it to a room or give it other names for your voice, saved in the home itself. Mira now knows what each device can do and never offers what it does not support."
+        "ar": "سمِّ أي جهاز أو انقله لغرفة أو أعطه أسماء ثانية للصوت، والاسم بينحفظ بالبيت نفسه. ميرا صارت تعرف شو بيقدر يعمل كل جهاز، وعلى جهاز ما فيه مركز بيت بكبسة وحدة بيصير الكمبيوتر مركز البيت وبيكتشف أجهزتك لحاله.",
+        "en": "Rename any device, move it to a room or give it other names for your voice, saved in the home itself. Mira knows what each device can do, and one button makes a computer without a hub your home hub that finds your devices by itself."
       }
     },
     {

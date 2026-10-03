@@ -191,7 +191,7 @@ RUN mkdir -p /tmp/mira-home/.cache \
         test_live_voice_local test_mira_memory test_group_lights test_moai_agent_link test_visual_tier \
         test_kde_integration test_inbox test_chat_ui test_moos_routes test_page_pc test_page_apps \
         test_page_system test_page_workbench test_page_connect test_page_brain \
-        test_lumen test_lumen_hue test_lumen_sync test_homehub test_page_lumen; do \
+        test_lumen test_lumen_hue test_lumen_sync test_homehub test_homesetup test_page_lumen; do \
         python3 -s -m unittest "$module" || exit 1; \
     done
 # Her tree as the image receives it, proved from the staged copy itself and never from /src/mira,

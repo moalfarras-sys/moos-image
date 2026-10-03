@@ -289,8 +289,13 @@ written IN Home Assistant and read back, so every later conversation and every a
 device carries what it can really do (`homehub.capabilities`: colour modes, white range, effects,
 media feature bits, remote keys …), in one Arabic and one English line; Mira's instruction carries
 the same inventory (`tools.home_block`), so she never offers a TV a volume level it does not have.
-Without a link the page probes `127.0.0.1:8123` and asks for a token; devices Home Assistant has
-discovered on the network are listed with a way to add them.
+Without a link, a MoOS with no hub gets one button (`homesetup.py`): Mira writes the owner's own
+Podman quadlet (`~/.config/containers/systemd/mira-homeassistant.container`, image pinned by
+digest, host network for discovery, never over a quadlet that is already there), starts it as his
+user service, then finishes Home Assistant's first run with the name, user name and password he
+types (sent to Home Assistant only) and saves a long-lived token — proven on 2026-10-03 against a
+throwaway Home Assistant 2026.9.4. A Home Assistant that already runs is linked with a token.
+Devices Home Assistant has discovered on the network are listed with a way to add them.
 
 **Lumen** (`lumen/`, `LumenPage.qml`, `/usr/bin/mira-lumen`, `mira-lumen.service`). The MoOS
 lighting engine, its own small user service (17–30 MB) so living scenes and Screen Sync keep

@@ -159,10 +159,15 @@ def play(scene, voice, controller, window):
             timer.start()
     elif scene == 'error':
         voice('error', 'تعذّر الاتصال بالصوت: TimeoutError')
-    elif scene in ('home', 'settings'):
+    elif scene in ('home', 'settings', 'home-hub', 'home-account'):
         home_page = getattr(controller, '_pages', {}).get('home')
-        if scene == 'home' and home_page is not None and hasattr(home_page, 'review'):
+        if scene.startswith('home') and home_page is not None and hasattr(home_page, 'review'):
             home_page.review()
+            if scene != 'home':     # a MoOS with no home hub yet, or one waiting for its first account
+                home_page._set_list('rooms', [])
+                home_page.update(linked=False, devices=[], discovered=[],
+                                 hub={'stage': 'none' if scene == 'home-hub' else 'onboarding'})
+            scene = 'home' if scene.startswith('home') else scene
         QTimer.singleShot(200, lambda: window.setProperty('sheet', scene))
         section = next((a.split('=', 1)[1] for a in sys.argv if a.startswith('--section=')), '')
         if scene == 'settings' and section.isdigit():
