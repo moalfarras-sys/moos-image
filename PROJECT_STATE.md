@@ -34,14 +34,16 @@ count by systemd ownership. Remote releases held input through the backend that
 accepted its press. Targeted tests pass, including 45 input assertions using a
 private socket recorder; the regression fails the old injector and passes the fix.
 Full `just check`, real owner/second-UID HTTP checks and Linux publish passed;
-these repairs are not signed installed bytes. Physical input acceptance remains open.
+these repairs are not signed installed bytes. A private Remote bundle at source
+`9ffdf92f` is selected by `45-readiness-review.conf`; the owner confirmed clicking
+works. HTTP 200, exact executable path and zero restarts passed; phone/soak remain open.
 Plymouth renderer SIGABRT and Echo USB audio overruns remain open, not suppressed.
 
 **Remote interruption diagnosis:** signed source `59e97672` corrected empty GDK
 snapshots; actual HDMI disconnect and phone/cellular endurance remain open.
 NVIDIA showed no Xid, KWin remained running and memory pressure was zero in the
 observed interruption. A recovered stream or a backend fixture does not prove
-physical mouse/phone acceptance; repeated owner-reported freezes remain open.
+long-term physical mouse/phone acceptance; recurrence/phone endurance remain open.
 
 **MoPlayer, merged and delivered on `.964`:** the "freeze" was a 278 MB Hive catalogue decoded on the UI isolate each launch (~6 s, 1.4 GB) plus a 4.9 GB idle GPU reservation from Impeller gradient shaders and window-sized layers. The merged source moves catalogue work to isolates (~1.3 s, 0.5 GB), reduces idle GPU use to ~0.6 GB, reads get.php links as Xtream accounts, sorts playlists, supports MAC portals and ships Horizon UI. A 4K HEVC live stream and 1080p VOD played on the station from the source bundle; 255 Flutter tests passed. The local launcher that shadowed `.964` is now backed up, and the signed launcher is selected. Open: a real MAC portal, ~1 GB kept after Stop and installed playback readback (plan P2.13).
 
