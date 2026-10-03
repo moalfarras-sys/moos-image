@@ -4,8 +4,7 @@
 NVIDIA `.977` (promotion `37120191781`); exact x86 build `37114776308`, all three
 QCOW2 and offline ISO proofs passed; ARM `37114740334` also promoted. The station
 now boots `.977` with `.975` retained. Installed Mira, Home Assistant and Lumen
-were active, with no failed user/system units. Temporary source review below
-is separate from the signed installed bytes.
+were active; corrective source below is separate from the signed installed bytes.
 
 **Home/control corrective audit, 2026-10-03:** branch
 `fix/mira-lighting-control-20261003` fixes lost Hue Entertainment regions,
@@ -22,9 +21,10 @@ HDMI-A-1 captures at 17–20 fps (>10000 frames); red/blue/green HDMI test colou
 matched all outputs and Tuya/Echo readback; Hue remained active. Hue starts on the first
 picture and falls back to house control on stream loss; saved Tuya targets persist.
 Owner reported no response after reboot removed fixes; a backed-up local app now replaces them.
-Persistent `mira-lumen.service.d/40-local-mira-control.conf` selects that app.
-Opt-in login sync survived a service restart; group «إضاءة البيت والكيس» spans all 13.
+Persistent Lumen `40-local-mira-control.conf` selects it; login sync survived service restart.
+Group «إضاءة البيت والكيس» spans all 13.
 281 checks and full `just check` pass (6 skips); physical proof remains open.
+Mouse clicks recovered after ydotoold restart (owner/test window); fixed station helper's button-down release and failed-drag cleanup.
 
 **Remote interruption diagnosis, 2026-10-01:** the installed portal repeatedly
 renewed after `1536x864+0+0@3 -> no outputs`. Source `59e97672` ignores an empty

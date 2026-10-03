@@ -102,6 +102,34 @@ class ClipboardSafety(unittest.TestCase):
 
 
 class StationPointer(unittest.TestCase):
+    def test_button_commands_match_ydotool_down_up_and_click(self):
+        pointer = pointer_tool.Pointer.__new__(pointer_tool.Pointer)
+        for button, down, up, click in (("left", "0x40", "0x80", "0xc0"),
+                                       ("right", "0x41", "0x81", "0xc1"),
+                                       ("middle", "0x42", "0x82", "0xc2")):
+            with self.subTest(button=button), patch.object(pointer_tool, "run") as run, \
+                    patch.object(pointer_tool.time, "sleep"):
+                pointer.press(button)
+                pointer.release(button)
+                pointer.click(button)
+                self.assertEqual([call.args[0] for call in run.call_args_list],
+                                 [["ydotool", "click", code] for code in (down, up, click)])
+
+    def test_failed_drag_releases_button_before_restoring(self):
+        for fail_at in ("press", "move", "where"):
+            with self.subTest(fail_at=fail_at), patch.object(pointer_tool, "Pointer") as cls, \
+                    patch.object(pointer_tool.sys, "argv", [str(TOOL), "drag", "1", "2", "3", "4"]):
+                pointer = cls.return_value
+                pointer.move.side_effect = [(1, 2), (3, 4)]
+                if fail_at == "move":
+                    pointer.move.side_effect = [(1, 2), RuntimeError("drag failed")]
+                else:
+                    getattr(pointer, fail_at).side_effect = RuntimeError("drag failed")
+                with self.assertRaisesRegex(RuntimeError, "drag failed"):
+                    pointer_tool.main()
+                self.assertEqual([call[0] for call in pointer.mock_calls][-2:],
+                                 ["release", "restore"])
+
     @classmethod
     def setUpClass(cls):
         cls.source = TOOL.read_text(encoding="utf-8")

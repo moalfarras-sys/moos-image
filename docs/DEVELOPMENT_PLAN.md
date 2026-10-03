@@ -22,6 +22,9 @@ the saved group/mode; Stop cancels it. Group IDs resolve across house/PC/Echo an
 Mira's context includes owner groups. Remove the Lumen drop-in, restore the
 autostart entry to /usr/bin/mira and retire local launcher/desktop overrides
 after signed delivery. This local install does not change the signed OS.
+Mouse interruption: owner click reached the native test window after restarting
+`ydotoold-moremote.service`. Station pointer tooling had reversed down/up flags;
+corrected button commands and release-on-failed-drag are covered by isolated tests.
 Remaining acceptance:
 
 1. Physically observe all connected LEDs; three lamps (RGB, Ta5it, Tv Links)

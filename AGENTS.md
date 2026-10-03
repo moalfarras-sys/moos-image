@@ -314,6 +314,12 @@ with `screendump` takes about half an hour and is the only thing that found any 
 
 ## Things that are easy to get wrong here
 
+**ydotool release must actually release.** Button indices are 0/1/2;
+OR `0x40` sends down, `0x80` sends up, `0xC0` sends both. The station
+helper once sent down from `release()`, leaving the virtual mouse held and
+blocking owner clicks. Release a dragged button in `finally`, including failed
+capture/probe/movement, and test command bytes without driving the live desktop.
+
 **A desktop runtime directory is not a desktop UID.** Installed-ISO SSH uses root
 to inspect `/sysroot`. Session/app checks must drop to `moosci` with `runuser`;
 setting `XDG_RUNTIME_DIR` and `DBUS_SESSION_BUS_ADDRESS` as root still fails the
