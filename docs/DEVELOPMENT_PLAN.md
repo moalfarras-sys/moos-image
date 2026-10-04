@@ -710,8 +710,12 @@ PR #197 ARM run `37197862787` passed native ASan and actual RPM cancellation but
 its parser SDK omitted `plymouth-graphics-libs`. The fixture now extracts that
 rebuilt dependency too, with failure stderr. Native positive/BOM-negative control
 passes with base graphics physically removed in a disposable x86 SDK. Runtime
-RPMs and image bytes are unchanged; ARM rerun remains required. Candidate
-`37197917279` was stopped as obsolete, not accepted.
+RPMs and image bytes are unchanged. ARM rerun `37198608404` built the complete
+image successfully, then exposed the workflow's obsolete eight-frame minimum.
+The workflow now requires the one current hero and re-reads every final boot
+archive with the exact package/library/theme-byte gate. The same finished-image
+check passes on the local NVIDIA image; final ARM rerun remains required.
+Candidates `37197917279` and `37199601703` were stopped as obsolete, not accepted.
 `bootc lint` retains its existing nonempty `/boot` warning for boot assets; no
 mutable `/var` payload remains in actual image readback.
 

@@ -236,17 +236,29 @@ jobs:
           grep -q 'ARM aarch64' /tmp/qmlshell.txt || {
             echo "FATAL: moos-qml-shell in the image is not an aarch64 binary"; exit 1; }
 
-          # The splash: the frames, the script, and the console karg that makes
+          # The splash: its current assets and the console karg that makes
           # Oracle's serial console work on ARM rather than on x86's ttyS0.
           podman run --rm "$img" bash -c '
             set -e
             n=$(ls -1 /usr/share/plymouth/themes/moos/intro*.png | wc -l)
             echo "intro frames installed: $n"
-            [ "$n" -ge 8 ] || { echo "FATAL: the boot animation frames are missing"; exit 1; }
+            [ "$n" -eq 1 ] || { echo "FATAL: the single boot hero is missing or retired frames remain"; exit 1; }
             grep -qx "Theme=moos" /etc/plymouth/plymouthd.conf
             grep -q "ttyAMA0" /usr/lib/bootc/kargs.d/50-moos-arm-console.toml
             grep -q "^ID=moos" /usr/lib/os-release
             echo "image identity and splash OK"
+          '
+
+          # Re-read the finished image: exact RPM/library and every asset loaded
+          # by the installed script must agree with each boot archive. A count
+          # of frames alone cannot prove that Plymouth can draw the theme.
+          podman run --rm -v "$PWD/build_files/verify_plymouth_initramfs.py:/tmp/verify-plymouth.py:ro" "$img" bash -c '
+            set -euo pipefail
+            archives=(/usr/lib/modules/*/initramfs.img)
+            [ -f "${archives[0]}" ] || { echo "FATAL: no boot archive"; exit 1; }
+            for archive in "${archives[@]}"; do
+              python3 /tmp/verify-plymouth.py "$archive"
+            done
           '
 
           # THE ENABLEMENT, READ OFF THE BUILT IMAGE — NOT OFF build-arm.sh.
