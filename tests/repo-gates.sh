@@ -110,6 +110,7 @@ python3 tests/test_shipped_bundle_is_tracked.py
 # already built. Keep heavyweight SBOM generation off the release-critical workflow;
 # it may return only in a separate workflow with its own runner budget.
 python3 tests/test_release_workflow_safety.py
+python3 tests/test_public_iso_delivery.py
 # The proof channel and the ISO proof's contracts used to run only inside build-iso.yml,
 # ninety minutes into a release cycle. Both are static and take milliseconds.
 python3 tests/test_ci_proof_channel.py
