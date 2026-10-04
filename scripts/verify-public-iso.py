@@ -22,7 +22,8 @@ ROOT = Path(__file__).resolve().parents[1]
 
 def public_url(url):
     parsed = urllib.parse.urlsplit(url)
-    if parsed.scheme != "https" or not parsed.hostname or parsed.username or parsed.password:
+    if (parsed.scheme != "https" or not parsed.hostname
+            or parsed.username is not None or parsed.password is not None):
         raise ValueError("A public HTTPS URL without embedded credentials is required")
     if parsed.fragment:
         raise ValueError("Download URLs must not contain fragments")

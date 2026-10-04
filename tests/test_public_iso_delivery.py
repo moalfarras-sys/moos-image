@@ -113,7 +113,8 @@ class DeliveryTests(unittest.TestCase):
 
     def test_input_is_rejected_before_network_access(self):
         host = Host()
-        for url in ("http://example.org/moos.iso", "https://u:p@example.org/moos.iso", URL + "#fragment"):
+        for url in ("http://example.org/moos.iso", "https://u:p@example.org/moos.iso",
+                    "https://@example.org/moos.iso", "https://:@example.org/moos.iso", URL + "#fragment"):
             with self.assertRaises(ValueError):
                 module.verify_transfer(url, len(DATA), SHA, opener=host)
         self.assertEqual(host.requests, [])
