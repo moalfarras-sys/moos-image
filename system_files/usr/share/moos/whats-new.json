@@ -3,6 +3,20 @@
   "_": "What a person can SEE or DO after an update, newest first. One entry per user-visible change, written for the owner of the machine, not for a developer: what it is, where it is, and (when MoOS has a route to it) a way to try it now. 'merged' is when the change reached main (a little later is fine, earlier is not: an entry dated before a machine's previous system is never marked new there); a machine marks an entry new when the system it ran BEFORE the update was built earlier than that. tests/test_whats_new.py reads every entry the way MoOS Settings will.",
   "entries": [
     {
+      "id": "cloud-desktop-size",
+      "merged": "2026-10-04T13:30:00Z",
+      "glyph": "video",
+      "route": "moos://settings/remote",
+      "title": {
+        "ar": "سطح مكتب سحابي بحجم شاشتك",
+        "en": "A cloud desktop the size of your screen"
+      },
+      "body": {
+        "ar": "على جهاز بلا شاشة اختر حجم سطح المكتب: «phone» يُرسَل إلى الهاتف بكسلاً ببكسل فيصير النص أوضح والصورة أسلس، و«desk» أوسع للحاسوب. من الطرفية: moos-cloud-desktop display phone، ويُطبَّق عند الدخول التالي. وMo PC Remote يرسل الآن عدد الإطارات الذي اخترته بالضبط.",
+        "en": "On a machine with no monitor, choose the desktop's size: “phone” reaches a phone pixel for pixel, so text is sharper and motion smoother; “desk” gives a computer more room. In a terminal: moos-cloud-desktop display phone — it applies at the next sign-in. Mo PC Remote now also sends exactly the frame rate you chose."
+      }
+    },
+    {
       "id": "light-after-days",
       "merged": "2026-10-04T12:00:00Z",
       "glyph": "pulse",

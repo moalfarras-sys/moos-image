@@ -195,13 +195,38 @@ $H bash -c 'cd /sys/fs/cgroup/user.slice/user-1000.slice/user@1000.service &&
   helper's leak was proved without touching the owner's session.
 - The host has no `bc`; use `awk`. `sudo -n` works. Host-visible scratch is `~/.cache`.
 
-**Streaming cost is the compositor, not the encoder.** With a viewer watching a busy screen at
-1920x1080, a 3 s sample read KWin (llvmpipe plus the ScreenCast copy) at about half a core and
-the encode helper at a quarter. With nobody watching, both are under 1%: the pipeline is torn
-down and that is by design. Lowering the stream's resolution does not touch KWin's half. Two
-candidates are recorded in plan row P5.5 and neither is measured: negotiating `max-framerate`
-with KWin so it stops copying frames the helper drops, and a QPainter compositor. Do not ship
-either on a theory; both change what the owner sees through their only screen.
+**Measure the screen in a second compositor, never in the first.**
+`scripts/station/compositor-rig/rig.sh` starts an invisible `kwin_wayland --virtual` with its own
+socket, its own config home (copies of the live kwinrc and output configuration) and no session
+bus; a busy window is the workload and Mo PC Remote's own chain to the encoder is the consumer.
+PipeWire is shared, so the rig's ScreenCast node is readable with no portal and no dialog.
+
+```bash
+H="flatpak-spawn --host"; R=scripts/station/compositor-rig/rig.sh     # from the checkout
+$H $R O2 off 1920x1080 15                  # what compositing alone costs
+$H $R O2 60  1920x1080 15 1280x720         # a 1080p desktop streamed at 1280 wide
+$H $R O2 60  1280x720  15                  # the same stream from a native 1280x720 desktop
+RIG_RATE=maxrate $H $R O2 60 1920x1080 15  # the rate limiter WITHOUT the helper's pacer
+$H $R Q  60  1920x1080 8                   # another backend: does it offer a ScreenCast at all?
+```
+
+It takes both cores while it runs. Each run prints one `RESULT` line: percent of a core for the
+compositor, the workload and the encode path, and frames delivered and encoded each second.
+What it established on 2026-10-04, so nobody re-litigates it from a theory:
+
+- **The compositor is the cost.** OpenGL on llvmpipe: 71.8% of a core for a busy window with no
+  stream, 77–81% with one. The ScreenCast copy is the small part.
+- **QPainter is not an option.** 12.1% for the same window, and no ScreenCast node — a black
+  remote. `moos-cloud-desktop` refuses a session that is not OpenGL for this reason.
+- **Do not ask KWin for `max-framerate`.** At 30 it saved the compositor nothing and its throttle
+  delivered 25 frames a second, of which 15 reached the encoder.
+- **`videorate max-rate` does not limit a ScreenCast** (variable-rate caps). `FramePacer` in the
+  helper does, by waiting. A limiter that drops by timestamp loses the newest frame.
+- **Fewer pixels is the lever.** Auto sends 1280 px wide on this tier. A 1080p desktop gets there
+  through a 1.5:1 scaler (37.7 frames/s, 64.6%); a 1280x720 desktop is sent as drawn (47.3, 41.5%).
+  `moos-cloud-desktop display` sets the size; it applies at the next sign-in and restarts nothing.
+- **Still open:** a 30 Hz output would halve the compositor, and KWin 6.7's virtual backend
+  hard-codes 60 Hz. That needs a DRM/vkms output and a disposable VM, not this machine.
 
 **Do not prune on sight.** `podman system df` shows tens of GiB reclaimable; that is the layer
 cache the next local ARM build reuses. `/var` had 104 GiB free. Ask before `podman image prune`.

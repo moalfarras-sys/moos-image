@@ -319,6 +319,15 @@ Read a unit's `cpu.stat`. A poll is also load on what it polls: each dump was th
 for every other PipeWire client, which is what fed the leak above. And a daemon that is running is
 not a policy that is applied: `systemd-oomd` was active on that machine and monitored nothing.
 
+**A setting that reads as a limit is not a limit until something counts.** Mo PC Remote's
+frame rate was `videorate drop-only=true max-rate=N`. On a variable-rate source — and a ScreenCast
+is one — that element passes every frame: asked for 30, the A1 encoded 35.6 a second, and the
+weak-link rung's 15 would have been the same 36. The stream worked, the picture moved, and every
+frame got fewer bits than the budget promised it. Count frames on the wire before believing a
+rate. And the fix that drops by timestamp is the next trap: the early frame is the newest
+picture, so `FramePacer` waits. `scripts/station/compositor-rig` measures such a change in a second,
+invisible compositor; on a machine whose screen is Mo PC Remote, never measure it on the first.
+
 **Boot the image and look at it.** `podman build` + `bootc-image-builder --type qcow2` + qemu
 with `screendump` takes about half an hour and is the only thing that found any of the above.
 

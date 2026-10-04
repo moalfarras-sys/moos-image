@@ -11,6 +11,10 @@ use_when: The owner uses an Oracle A1 or another always-on cloud MoOS computer f
   in swap with plenty of memory available is a healthy machine, not a slow one.
 - While someone watches a busy screen the compositor is the largest cost, larger than the video
   encoder; with nobody watching both rest. A lower picture size helps the network, not that cost.
+- A computer with no monitor draws a desktop of a size its owner chose. A phone-sized desktop
+  reaches the phone pixel for pixel, so text is sharper and the picture smoother; the larger one
+  gives a computer's browser more room. The owner changes it from a terminal with the cloud
+  desktop tool's display setting, and it applies the next time they sign in, never at once.
 - `/var` is the real writable disk. Do not diagnose the small read-only `/` view as a full disk.
 - Mo PC Remote should stay private through the paired network path. Never recommend exposing its
   local port directly to the public internet.
