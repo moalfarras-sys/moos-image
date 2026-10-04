@@ -221,6 +221,8 @@ check:
     python3 tests/test_cloud_set_pin.py
     # A headless account chooses its desktop's size; choosing never restarts its only screen.
     python3 tests/test_cloud_display_size.py
+    # The measurement rig is a second compositor: its socket, home and bus must never be the owner's.
+    python3 tests/test_compositor_rig.py
     python3 tests/test_cloud_subid_range.py
     python3 tests/test_moai_ports_fail_closed.py
     python3 tests/test_moai_service_lifecycle.py

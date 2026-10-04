@@ -173,6 +173,9 @@ python3 tests/test_cloud_set_pin.py
 # A cloud desktop was 1920x1080 everywhere while Auto sends 1280: scaled 1.5:1, soft, and the scaler
 # was most of the encode path. `display` sets the size and may tell systemd only daemon-reload.
 python3 tests/test_cloud_display_size.py
+# scripts/station/compositor-rig starts a second KWin on an owner's machine. Its isolation — own
+# socket, own config home, no session bus, only its own units — is the whole reason it is safe.
+python3 tests/test_compositor_rig.py
 # moos-cloud-dev wrote an inverted subuid range (100000-65535) that usermod rejects,
 # aborting a tenant half-created; a fixed range would instead make two tenants share host
 # UIDs. This asserts the allocation is valid and uid-derived (unique).
