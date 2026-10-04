@@ -908,15 +908,20 @@ class WindowTest(unittest.TestCase):
         def settled():
             return all(abs(e.height() - drawn(e)) < 1.5 for e in entries())
 
-        self.assertTrue(pump(1, lambda: len(entries()) == 4 and settled()),
+        self.assertTrue(pump(3, lambda: len(entries()) == 4 and settled()
+                             and entries()[-1].property('canRetry')),
                         [(e.property('role'), e.height(), drawn(e)) for e in entries()])
         card = entries()[-1]
-        self.assertTrue(card.property('canRetry'), 'the lone error must offer «Try again»')
         with_button = card.height()
         controller.chat.append({'role': 'user', 'text': 'again'})
-        self.assertTrue(pump(1, lambda: not card.property('canRetry') and settled()),
-                        f'the error card kept {card.height()} px for {drawn(card)} px of content')
-        self.assertLess(card.height(), with_button, 'the row of the button was not given back')
+        # Wait for the OUTCOME. The Column under the card gives the row back when it is next
+        # polished, a frame after `canRetry` turns false; until then the old height still equals
+        # the old content, so "settled" alone is true one frame too early (it was, on the ARM
+        # image build, and this test failed there on a correct delegate).
+        gave_back = pump(5, lambda: not card.property('canRetry') and settled()
+                         and card.height() < with_button)
+        self.assertTrue(gave_back, f'the error card kept {card.height()} px for '
+                                   f'{drawn(card)} px of content (it was {with_button} with the button)')
         self.assertEqual([m for m in messages if 'MessageDelegate' in m], [])
         controller.chat.clear()
 
