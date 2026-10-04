@@ -219,12 +219,20 @@ check:
     python3 tests/test_kernel_network_tuning.py
     # Claim and recovery for a headless cloud account's PIN — both failures look like a healthy server.
     python3 tests/test_cloud_set_pin.py
+    # A headless account chooses its desktop's size; choosing never restarts its only screen.
+    python3 tests/test_cloud_display_size.py
+    # The measurement rig is a second compositor: its socket, home and bus must never be the owner's.
+    python3 tests/test_compositor_rig.py
     python3 tests/test_cloud_subid_range.py
     python3 tests/test_moai_ports_fail_closed.py
     python3 tests/test_moai_service_lifecycle.py
     python3 tests/test_openclaw_bootstrap_noop.py
     # A connect burst must coalesce into ONE pipeline build, and idle teardown must stay immediate.
     python3 tests/test_remote_rebuild_debounce.py
+    # Every rebuilt pipeline must give its PipeWire remote back: 67 orphaned clients on the A1.
+    python3 tests/test_remote_pipewire_fd.py
+    # The frame rate a viewer asks for is the one sent: videorate max-rate does not limit a ScreenCast.
+    python3 tests/test_remote_frame_pacer.py
     python3 tests/test_remote_connection_lifecycle.py
     python3 tests/test_remote_start_lifecycle.py
     python3 tests/test_remote_async_lifecycle.py
@@ -239,6 +247,8 @@ check:
     # Plymouth's 4K hero assets must downsample, and its logo/field must stop
     # resampling after the bounded entrance.
     python3 tests/test_boot_splash_polish.py
+    python3 tests/test_plymouth_packages.py
+    python3 tests/test_language_pack_transaction.py
     # Phone alerts are explicit, generic and event-driven: never mirror desktop content or poll idle.
     python3 tests/test_remote_background_alerts.py
     # Input must not block the socket that carries the pings the quality ladder measures.
@@ -468,6 +478,8 @@ check:
     python3 tests/test_island_jobs_privacy.py
     # Producer and consumer of the Island's presence tokens, executed for real.
     python3 tests/test_island_tokens.py
+    # The privacy monitor follows one live PipeWire feed: the saving, and that the chip is never wrong.
+    python3 tests/test_privacy_monitor_feed.py
     # Mira inside Plasma: her launcher (GPU rule, Dolphin arguments), login unit and its migration,
     # menus, names, and the staged tree the image receives.
     python3 tests/test_mira_kde_integration.py

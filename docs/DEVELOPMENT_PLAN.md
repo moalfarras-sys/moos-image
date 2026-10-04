@@ -1,35 +1,115 @@
 # MoOS development plan
 
+### Readiness repair batch — owner priority, 2026-10-04
+
+The deep audit executed maintained repo gates, 1,093 Mira cases, 255 MoPlayer
+tests, Remote core/input/stream tests and an isolated real-browser controller
+test. A green suite still missed reproducible failures in error reporting and
+performance accounting. Evidence: `test-results/os-audit-20261004/report-ar.md`.
+This batch takes precedence over cosmetic expansion; M1 remains the active
+product milestone. Source repairs below are **not a signed installed release**.
+
+| Priority / existing row | Bounded work and current result | Evidence required before closure |
+| --- | --- | --- |
+| Immediate — P6.5 / P1.7 | Mo AI control, agent and gateway now check the actual connecting socket's UID in the kernel table, before reads or writes; unknown identity fails closed. Control's private-file umask is 0077. Browser origin/header guards remain. | Passed: positive real loopback, negative identity/missing-table tests and actual second-UID rejection (rootless mapped account). Clean/upgraded account readback remains owed. Server impersonation/port squatting and owner-confirmation capability design remain separate open security work. |
+| Immediate — P6.5 / P5.5 | Remote remembers which backend accepted each held key/button; a reconnect cannot release a uinput press into the portal. Failed releases remain retryable. | Private datagram recorder proves fallback→portal recovery and portal failure/retry without touching host input; owner confirmed clicking works after activating the exact private Remote bundle; phone drag/modifier, disconnect/reconnect and soak acceptance remain owed. This is a reproduced defect, not proof of the cause of every reported freeze. |
+| Immediate — P4.1 / P2.12 | Android readiness requires a successful recognized status. Firmware refresh/query failures fail the action; only documented no-action status means no updates. | Backend failure/empty/unknown status fixtures, actual stopped Android session, firmware failure/no-action/declined privilege fixtures; no flashing during tests. |
+| Immediate — P5.4 | Boot timing excludes the separate graphical-target duration from the total. Interpreted Mira/Lumen/HA and AI services count by their systemd owner, without counting arbitrary Python work. | Regression fixtures; fresh live measurements with screen sync/wake/browser activity stated; remeasure the earlier idle baselines before claiming closure. |
+| Next — P0.7 / P5.1 | Oct 3 Plymouth SIGABRT now resolves to `head != NULL` after quit, consistent with the undisarmed frame callback in the exact vendor source; diagnose Echo's ~62.5 USB audio warnings/s at the packet/device layer. The owner now chooses Mira on demand; its foreground autostart was disabled with a private backup. Echo hardware warnings remain open. | Privileged crash evidence when available; fix without suppressing the failed-unit gate or disabling the owner's microphone; boot-affecting patch needs full image/3×QCOW2/ISO/ARM proof. |
+| Next — W11 / P1.7 | Deliver the pending house/PC/Echo control corrections as one signed batch, then retire the documented local Mira overrides. | Reboot into exact proven NVIDIA digest, recover the saved group, change scenes and stop/resume screen sync; observe physical lamps and case LEDs. Three unreachable lamps remain explicit unavailable devices. |
+
+**P2.12 follow-through, 2026-10-04:** firmware's fixed `moai-do` transaction now
+writes private atomic evidence read by the native Update KCM. Checking, offer,
+installation, completed, none offered, declined, failure and interruption are
+separate; the last check's result never implies present universal readiness.
+A boot/PID-start identity and nonblocking record lock prevent concurrent owner
+transactions; no raw vendor output/device serial reaches the status page.
+Partial install failure says “did not complete”, not “nothing changed”. Forty-one
+Settings tests (including a real unreaped child), 31 action cases, native compiled-KCM contract/build and full
+`just check` passed. Real native-loader renders cover nine states × Arabic/English
+× light/dark; the review fixture was corrected to include MoOS icons. An earlier
+invalid native-loader harness caused a test coredump; the corrected loader uses
+`KQuickConfigModuleLoader` and passed all four render runs. No device was flashed.
+PR #194 required source/image checks passed (x86 `37162314317`, ARM `37162314269`);
+its skipped ARM disk/promotion jobs prove no boot or signed delivery. The advisory
+review step failed internally despite its green workflow result, so no independent
+review is claimed. An exited child retaining its PID/start originally left firmware
+busy; the real-child regression fails that code and passes zombie/dead-state detection. Installed
+firmware status, app timer/failure readback and confirmed-device flow remain open.
+
+### Competitive product acceptance — one roadmap, measurable boundaries
+
+“Complete” means a published, tested support scope, not universal app/device
+compatibility or a promise of zero defects. Do not add a second plan or replace
+the existing native desktop to imitate another OS.
+
+1. **Reliable daily computer (M0/M1, P0/P1/P5):** finish the immediate rows,
+   boot/rollback and suspend recovery; run a 72-hour normal-use soak on each
+   qualified hardware class with no input lockups, first-party crashes or
+   unexplained service failures. Publish remaining issues and actual hardware.
+2. **One clear, beautiful MoOS journey (M1/M2, P2):** retain the approved Liquid
+   Glass/Horizon assets and native KDE surfaces. Review boot/login/lock, dock,
+   search, Island, Settings, Store and Mira as a connected journey. Every action
+   shows real pending/success/failure/unavailable state, supports keyboard and
+   focus restoration, and preserves reduced motion. Review Arabic RTL/English,
+   light/dark, 1080p–4K, fractional scales, contrast and screen-reader labels.
+   German is a future qualified locale; `moos-lang` currently ships Arabic/English.
+3. **Jobs completed without technical setup (M2/M3, P1.6/P2.12/P3/P4):** a fresh
+   offline install can open files, edit, play supported media and use Help;
+   online setup connects networking, devices and optional AI with clear errors.
+   Store install/update/remove, all three update owners, file associations,
+   permissions and house/PC control have one native entry and truthful results.
+4. **Supported applications and hardware (M4, P4/P5):** qualify office/web/media,
+   games and selected Windows/Android apps by name/version. Publish tested
+   compatibility and unsupported features. Require actual laptop battery,
+   Wi-Fi/Bluetooth/camera/audio, touch, multi-monitor, NVIDIA and ARM desktop
+   records; an ARM server boot does not qualify an ARM desktop.
+5. **A release people can depend on (M5, P6):** exact signed artifacts, provenance,
+   staged rollout, recovery and migration rehearsals, security response/support
+   policy and a reproducible bug report. Promote only after the existing signed
+   build, three x86 boot proofs, offline ISO and ARM gates; read back the installed
+   origin and core journeys afterward. A skipped/advisory review is not review.
+
+Performance qualification retains the existing per-tier budgets, adds real cold
+and warm launch p95 and frame pacing, and measures idle separately from AI,
+screen sync and build load. Improve measured bottlenecks rather than increasing
+budgets to hide them. This roadmap changes acceptance, not the identity gates.
+
 ### Mira current acceptance work (2026-10-03)
 
-Mira's six pages, approvals, desktop tools and single-mouth correction are in
-signed `.975`, booted on the NVIDIA station with signed `.967` rollback. This
-session's installed checks passed 55/55 and 54 selfchecks; no failed units.
+The station now boots signed NVIDIA `.977` from `7c9d1e43`, with `.975` retained.
+Exact-source x86 builds, three QCOW2 proofs, offline ISO and ARM promotion are
+recorded in `PROJECT_STATE.md`. Installed Mira/Home Assistant/Lumen were active.
 
-The home/Lumen batch and the This PC media-title correction are merged through
-PR #191 into `7c9d1e43`. The Qt worker teardown fix passed its stress proof and
-the fresh x86/ARM builds. Release audit completed: station `just check` passed;
-signed x86 build `37114776308`, three QCOW2 proofs `37116762303`, `37116764826`,
-`37116767187`, and offline ISO `37116769665` all passed on that exact source.
-Promotion `37120191781` published NVIDIA `.977`; ARM's complete pipeline
-`37114740334` also promoted. All existing branch refs are merged and all
-worktrees were clean. Before staging, `.975` passed 55/55 post-update checks,
-54 selfchecks and zero failed units. The previous “current” update answer was
-correct: the x86 promotion had not been dispatched. Open, in order:
+Current corrective slice: `fix/mira-lighting-control-20261003`. Lost Hue stream
+regions, uncleared Echo effects, black-frame fallback, stale PC state, failed
+capture status and screen selection are corrected and targeted-tested. Real
+colour commands/readback passed for Tuya wall light, Hue Büro and Echo; PC only
+acknowledges reports. Hue's link button was pressed and actual Entertainment
+streaming started. Actual HDMI-A-1 now captures video at 17–20 fps (>2800 frames)
+with an active four-channel Hue area; >10000 frames and a red/blue/green HDMI
+test matched Tuya/Echo readback and all commanded outputs. Hue starts
+only after the first picture, with HA fallback on a lost stream; persisted Tuya
+targets remain selected. A station reboot removed the transient fixes and restored
+old code. Local per-user Mira now supplies the fixes at login, with a backed-up
+app and a persistent Lumen MIRA_APP drop-in. Explicit login-sync opt-in resumes
+the saved group/mode; Stop cancels it. Group IDs resolve across house/PC/Echo and
+Mira's context includes owner groups. Remove the Lumen drop-in, restore the
+autostart entry to /usr/bin/mira and retire local launcher/desktop overrides
+after signed delivery. This local install does not change the signed OS.
+Mouse interruption: owner click reached the native test window after restarting
+`ydotoold-moremote.service`. Station pointer tooling had reversed down/up flags;
+corrected button commands and release-on-failed-drag are covered by isolated tests.
+Remaining acceptance:
 
-1. Stage `.977` through `moai-do`, reboot with the previous signed deployment
-   retained, and read back the installed version, health and user journeys.
-2. After reboot, replace temporary source Mira/Lumen units with the installed
-   launchers and prove the Home/Lumen/Computer/System journeys again.
-3. Four home lamps and the smart plug are unavailable; diagnose connectivity
-   without reporting a global success. The PC reports controller acknowledgement
-   only; the owner must observe which physical fans each header controls.
-4. Hue Entertainment needs Lumen's own bridge pairing; a real stream remains owed.
-5. Measure owner-spoken wake, conversation, interruptions and false wakes over time.
-   `mira_ar_v2` and Echo announcements were previously exercised without inbound ports.
-6. P3.9 owner decision was recorded on 2026-09-30; model-written desktop commands
-   remain unbuilt pending design and safety review. Measure power-cut recovery;
-   an always-on Home Assistant is needed for PC-off home control.
+1. Physically observe all connected LEDs; three lamps (RGB, Ta5it, Tv Links)
+   remain unavailable; the Hue bridge itself reports the two Hue lamps unreachable.
+2. 281 Mira checks and full repository gates pass (6 optional skips). Finish
+   exact-image build and signed delivery.
+3. Read back Home/Lumen/Computer/System on that signed deployment after retiring
+   local overrides, and repeat owner-spoken wake/interruption endurance.
+4. P3.9 remains unbuilt pending design and safety review. Measure power-cut
+   recovery; PC-off home control needs an always-on Home Assistant.
 
 Keep both faces, Beamformer and the Mira-only wake selection `[mira_ar_experimental]` (the owner's choice). Only one ESPHome API client may be connected while voice is tested, because echod routes the pipeline to the newest client.
 
@@ -245,7 +325,7 @@ reviewed live, gated once, merged once and proven once.
 | W9.10 | M3 | **Mo AI's hands on the whole desktop.** Beyond the nine verbs of W9.9, Mo AI now acts on any window BY NAME (bring to front, minimize, restore, maximize, full-screen, keep above, close — close asks first), moves a window to another desktop, goes to a desktop by number, adds or removes a desktop, controls what is playing, locks the screen, sets and lists reminders, opens a web page or a folder, and sets animation speed, automatic-lock delay and single/double click. Fourteen fixed `moos-control` verbs, each found and read back through KDE's own interfaces (KWin's window search + getWindowInfo, MPRIS, the locker, a user systemd timer, KConfig); free text is only ever a search term, a reminder's words or an http(s) address, never a command; the free-text verbs stay OFF the public `moos://` scheme so no web page can reach them. `run_command` (P3.9) is deliberately still absent. | in source (`feat/moai-kde-brain-20260928`); each verb exercised live on the A1 KDE session (keep-above, minimize/restore, maximize, move, add/remove desktop, a real reminder), read back from KWin; 65-tool schema, `just check` green. Installed-image and action-selection measurement of the new tools remain owed |
 | W10 | M3 | Mo Store as one job system for install/update/remove across the UI, Mo AI and URL routes, with a drop target in its own window (P1.7, P4.1–P4.2, P4.7) | planned |
 | W11 | M3 | Mira Neural OS as the MoOS assistant: keep both owner-selected faces; merge Mo AI into Mira (every Mo AI tool, the owner approves every system change); verify every route against live Home Assistant and Mo AI; make hands-free wake reliable on the paired Echo; package the app and pinned dependencies for all editions, then prove a signed booted image | v4 on the station, with Mo AI's launcher, icon, app id and Meta+Space. Owner-spoken Arabic conversation: wake 0.83, replies 0.7 s, 0 s and 1.4 s after speech. Reboot survival 43 s, handoff 5 s and 2 s. **2026-09-29 merge:** all 50 image-declared Mo AI tools by name, owner cards with job follow-up, System centre, desktop tools, reminders, routines, PC voice without an Echo, and Mo AI's free cloud tool loop without a Gemini key. Real `moai-control` approval round trip; Gemini Live with 74 declarations verified. **Image (x86, branch `mira/neural-os-v4`):** the `mira-build` stage (sha256-pinned lock, 188 tests, offscreen window), `/usr/lib/mira`, `moai` → Mira, the Mira launcher and System Settings page, and Mo AI rev-4 migration. The local generic build passed every gate. Open: push/PR and a signed candidate with QCOW2/ISO proofs; the ARM stage (Oracle's files); firewall port 18769 (owner's password) → `mira_ar_v2` and Echo announcements; P3.9 only on the owner's word; power-cut test; PC-off home control |
-| W11 | M2 | MoOS Intro: one horizon scene from Plymouth through login to the Hub; first-run tour; offline first run (P1.6) | planned |
+| W11.1 | M2 | MoOS Intro: one horizon scene from Plymouth through login to the Hub; first-run tour; offline first run (P1.6) | planned |
 | W12+ | M4–M5 | hardware breadth, compatibility products, MoOS Shield encryption, release trust | planned |
 
 ### W8 — MoOS Aurora Glass: what shipped, and what is left
@@ -611,7 +691,53 @@ P0.7 remains open, but it is no longer a mystery: the stack was captured, and th
 now read out of plymouth 24.004.60's own source — `ply_boot_splash_free()` frees
 `pixel_displays` without disarming the `on_new_frame` timeout, which only
 `ply_boot_splash_hide()` does, and `--retain-splash` is precisely the path that skips it.
-The fix is upstream's, not MoOS's; see the P0.7 row.
+**2026-10-04 corrective source:** MoOS rebuilds the exact pinned vendor SRPM with
+all 23 original patches and one narrow frame-cancellation patch. Old native ASan
+and package controls fail, 20 fixed trials each pass; parser and private X11
+renderer pass. Exact root/initramfs library gate is added. Final local NVIDIA image `ce5d668913df` passes identity, initramfs, native apps and
+state gates; actual-image byte readback and altered-hero rejection pass. Signed
+artifact boot proofs and installed acceptance remain open; this is not delivery. The local image gate
+caught its retired ring/head/glow inventory; the corrected gate additionally
+compares every literal theme asset's exact bytes in the final archive. A separate
+container-only language transaction guard sanitizes private Arabic affix copies
+for RPM triggers and restores the exact vendor converter on success/failure.
+Real SDK installation produced 50 dictionaries without converter crashes; source
+fixtures cover restoration and failed/unexpected transactions. The image state
+gate caught empty `/var/spool/plymouth` recreated by its RPM. Exact modes/owners
+are captured into tmpfiles and empty compose directories removed; payloads still
+fail and are preserved. Fourteen state tests include real tmpfiles reconstruction.
+PR #197 ARM run `37197862787` passed native ASan and actual RPM cancellation but
+its parser SDK omitted `plymouth-graphics-libs`. The fixture now extracts that
+rebuilt dependency too, with failure stderr. Native positive/BOM-negative control
+passes with base graphics physically removed in a disposable x86 SDK. Runtime
+RPMs and image bytes are unchanged. ARM rerun `37198608404` built the complete
+image successfully, then exposed the workflow's obsolete eight-frame minimum.
+The workflow now requires the one current hero and re-reads every final boot
+archive with the exact package/library/theme-byte gate. The same finished-image
+check passes on the local NVIDIA image. ARM run `37200216869` on `95b310d0`
+then passed the complete image build and corrected final-image checks; its PR
+disk/promotion jobs were skipped, so this proves no ARM boot or delivery.
+Candidates `37197917279` and `37199601703` were stopped as obsolete, not accepted.
+Candidate `37200066390` was also stopped before image compilation to correct
+the three new What's New cutoffs for the planned end-of-day integration window;
+their dates must not precede the source merge. These are notification cutoffs,
+not evidence that integration or delivery has happened.
+`bootc lint` retains its existing nonempty `/boot` warning for boot assets; no
+mutable `/var` payload remains in actual image readback.
+**Native interaction review:** the 1 Hz prototype erased the composition after
+password updates until its next redraw. Keep 25 Hz dirty-region refresh with no
+sprite changes after the finite entrance, restore that rate after password setup,
+and use 1 Hz only during quit. The native prompt-update gate requires a retained
+hero and changed bullets within 200 ms; the old private control fails and the
+corrected theme passes. Latest 1080p sample is 93 MiB / 0.370 s CPU versus the
+old movie's 169 MiB / 1.177 s. Arabic prompt review also passes. Candidate
+`37200246526` was stopped as obsolete. Full local NVIDIA image `ce5d668913df`
+then passed every gate and lint (existing nonempty-boot warning); actual root
+script matches the source and archive/package/theme readback passes. Maintained
+`just check` passes. Signed final-artifact proofs remain required. Live user
+failed units are zero, but 76 DrKonqi processors timed out on earlier converter
+diagnostic crashes; preserve their records and do not claim a zero-failed-system
+readback. The guard fixed the converter trigger, not the crash-report processor.
 
 ## The two editions did not ship the same desktop (measured 2026-09-21, fixed)
 
@@ -1037,10 +1163,26 @@ So a frame callback already queued in the event loop runs AFTER quit has begun t
     `on_new_frame`; a script-side stop only changes what the theme draws, while
     `flush_displays()` walks the display list regardless of the theme.
 
-    What is actually left, in order of preference: **(1)** fix it upstream — disarm
-    `on_new_frame` in `ply_boot_splash_free()`, or clear `is_shown` there — since that is a
-    four-line change in plymouth, not in MoOS; carrying it as a patch before upstream lands it
-    is still a fork and still the owner's call. **(2)** `plymouth hide-splash` before
+    **2026-10-04 follow-up:** the station's Oct 3 SIGABRT occurs after
+    `plymouth-quit.service` finishes. Installed `libply-splash-core.so.5` disassembly
+    resolves its assertion to `head != NULL` in `ply_renderer_flush_head`, reached
+    through `on_new_frame`; the exact `24.004.60-24.fc44` source RPM retains the
+    same undisarmed callback. The narrow cancellation patch now rebuilds the exact
+    vendor SRPM with all 23 vendor patches and original flags. Actual RPM-library
+    proof observes missing cancellation (3 controls) and fixed cancellation (20
+    passes). Root coredump-body and corrected signed boot remain open.
+    The maintained native proof is now
+    `scripts/review/plymouth-frame-lifetime.py` (usage in its sibling `PLYMOUTH.md`):
+    exact vendor SRPM SHA-256 plus all 23 patches, actual splash source compiled with
+    ASan and the same native event-loop library. Three unmodified trials expose
+    frame use-after-free; twenty trials with the shipped timeout-disarm patch pass. No host compilation, device I/O or reboot; unexpected exits fail and core
+    dumps are disabled. This narrows the package repair, but does not prove the
+    installed SIGABRT is eliminated or replace image/boot/identity acceptance.
+
+    **Owner-authorized repair 2026-10-04:** carry the pinned vendor rebuild until
+    upstream resolves it; unknown NVR fails closed rather than being downgraded.
+    Full image and signed artifact proofs remain mandatory. Retired alternative:
+    `plymouth hide-splash` before
     `quit --retain-splash`: `on_hide_splash()` sets `should_retain_splash = true` and reaches
     `hide_splash()` FIRST, which is exactly the safe order — but it routes through
     `toggle_between_splash_and_details()`, which frees the MoOS splash and instantiates the
@@ -1080,7 +1222,7 @@ preservation must be exercised during P0.2.
 | P1.4 | **Complete:** Build a redacted support bundle | `/usr/libexec/moos-support-bundle` with per-section and whole-bundle caps; redaction proven in `tests/test_support_bundle_redaction.py` and on this machine (51.6 KB, 13 sections, no live address, MAC, home path or credential shape); PR #102 |
 | P1.5 | **Complete:** Establish update observability | `moos-image-update` publishes one atomic record that the Updater window and the journal both read; `tests/test_update_state_machine.py`; PR #102 |
 | P1.6 | Qualify first-run without internet | Store metadata, dictionaries, locale, drivers and Help remain useful; cloud-only features explain connectivity clearly |
-| P1.7 | Version and qualify core/API boundaries | gateway, control, agent API, Settings snapshot and Store job schemas; stale/dead/partial response, timeout, restart and same-host cross-user negative tests |
+| P1.7 | Version and qualify core/API boundaries | gateway, control, agent API, Settings snapshot and Store job schemas; stale/dead/partial response, timeout, restart and same-host cross-user negative tests. **2026-10-04 source:** shared kernel socket-UID guard on all three HTTP APIs; positive live-loopback and negative identity/unknown-record tests. Installed upgrade/reboot and server impersonation remain open. |
 
 Core ownership is not one monolithic daemon. `moai-gateway` owns provider
 requests; `moai-control` owns hardware/service control status; `moai-agent-api`
@@ -1160,7 +1302,7 @@ installed visual matrix; it is not inferred from the global effect answer.
 | P2.10 | Readable text on every scheme | **Open finding (A1, 2026-09-24):** on MoOSUI2AuroraLight Mo AI's indigo action glyphs measured 2.9:1 on their tiles and 2.2:1 on the header button, below the 3:1 non-text minimum. That run used an isolated config, so re-measure on the station's real light session before changing a colour. Settings' Bluetooth chip also says "unavailable" twice, in its title and its subtitle; the Settings files are held by the station agent. **In source (W6):** secondary text was the DISABLED role — 1.6:1 on light schemes; all five apps now use text at 72% (≥4.66:1 on all 16 schemes), held by `tests/test_secondary_text_contrast.py`. **Open:** the same arithmetic for plasmoids, the launcher and the greeter, and for state colours on tinted fills |
 | P2.11 | **In source (W6.3):** tell a person what an update brought | The owner updated across six waves and "felt no change". `/usr/share/moos/whats-new.json` lists what a person can see or do, newest first; MoOS Settings → System → What's new shows it with "Try it" routes and marks what this machine did not have before its last update (`fresh` = merged after the rollback deployment's build); `moos-whats-new-notify` says it ONCE at the first login on a new version (never to a brand-new user, never for an update with nothing visible, retried when the message did not go out). One reader (`usr/lib/moos/moos_whats_new.py`) for both. Since 2026-09-24 an entry may carry `"arch"`, and the reader shows it only on those machines. An ARM parity fix is news on ARM and would be a false "new" card on x86. The image gate reads the list as each architecture; `tests/test_whats_new.py` runs the notifier end to end under bubblewrap and refuses an entry the reader would drop, a glyph the catalogue lacks or a route Settings may not open. **Rule:** a user-visible change ships with its entry. **Open:** a station review of the notification on a real update |
 | P2.8 | **In progress:** compose MoOS Bar, Search and Island (experience goals 1–2 in `artwork/MOOS_UI2_DESIGN.md`) | one anchored Milou surface with recent apps/destinations/Mo AI, stale-result protection and complete keyboard escape/traversal; Remote keeps privacy priority while its popup can switch to media; native ≥40 px controls; localized clock/hub; typed queries reviewed live on the station; MoOS Hub has desktop right-click controls. **Installed proof 2026-09-20:** on the signed current image, the Search-labelled Island button opened the embedded canonical Search—not the launcher—accepted Arabic keyboard input (`الملفات`), returned grouped app/settings/recent-file rows, and kept the compact Island fixed at 4K/265%; no QML errors. Remaining: English/German session matrix and the full accessibility matrix. |
-| P2.12 | Open: one update surface for the system, its apps and its firmware | The owner meets three silent owners today. The image has `moos-image-update`'s record, which Settings shows. Apps update through two Flatpak timers and `moos-flatpak-update`, which writes no record, so their result lives only in the journal. Firmware gets `fwupd` metadata and nothing on screen. **In source (W9.9):** the three rows exist, `moos-flatpak-update --user` takes Mo Store's lock and writes `~/.local/state/moos/app-updates.json` with per-app reasons, and the app/firmware buttons run without a terminal. Settings → Update must show three rows (System, Applications, Device firmware), each read from its own owner and each with one action that opens that owner's existing transaction. The app updater must publish an atomic record the way P1.5 did for the image. Exit: an app update is observed in the row after the timer runs; a failed app update says which app and why; firmware shows "none offered" or the offer from `fwupd`; Arabic/English light/dark frames; no second updater. |
+| P2.12 | Open: one update surface for the system, its apps and its firmware | The owner meets three silent owners today. The image has `moos-image-update`'s record, which Settings shows. Apps already update through the existing timers and `moos-flatpak-update`, with an atomic per-app record; the native Update page already has System/Applications/Firmware rows. Firmware refresh/query errors were still misreported as no updates until the 2026-10-04 source repair. **In source (W9.9):** the three rows exist, `moos-flatpak-update --user` takes Mo Store's lock and writes `~/.local/state/moos/app-updates.json` with per-app reasons, and the app/firmware buttons run without a terminal. Settings → Update must show three rows (System, Applications, Device firmware), each read from its own owner and each with one action that opens that owner's existing transaction. Do not rebuild the existing app-update record; qualify timer/failure readback. **2026-10-04 source:** private firmware offer/failure/declined/interrupted/completed records, busy guard and native row are implemented and tested; nine states rendered in Arabic/English light/dark. Installed acceptance is still owed. Exit: an app update is observed in the row after the timer runs; a failed app update says which app and why; firmware shows "none offered" or the offer from `fwupd`; Arabic/English light/dark frames; no second updater. |
 | P2.13 | MoPlayer: the freeze, every server kind, Horizon UI | **Merged and delivered on signed `.964`, source measured 2026-09-30:** catalogue moved from a 278 MB Hive box to per-section files decoded on isolates (start ~6 s → ~1.3 s main-thread CPU, 1.4 GB → 0.5 GB); get.php links read as their Xtream account; playlists sorted into channels/films/series; MAC/Stalker portals; m3u8↔ts fallback; GPU idle 4.9 GB → ~0.6 GB by removing gradient shaders and window-sized offscreen layers; Horizon UI (rail, system palette, spotlight, Live stage). 255 Flutter tests. **Open:** a real Stalker portal test; release media_kit's ~1 GB kept after Stop; installed playback readback on the station. |
 | P2.14 | Mo PC Remote on a weak link, and control that does not wait for a dialog | **Installed on `.967`, 2026-10-02 (owner: "works even on weak internet"):** Auto reaches a weak-link rung below Data saver (854 px, 15 fps, ~0.4 Mbit/s with a per-frame bitrate floor), steps down on one ≥1.5 s round trip or a pong 4 s overdue, and climbs back slowly; a first VideoDecoder error resyncs on a keyframe (only a repeat within 20 s votes for JPEG, a refused codec at once); a stalled frame send is ridden out to 7 s; recovery IDRs are re-requested each second; settings inside the 500 ms floor are deferred, not dropped; the one-time portal approval survives a mid-handshake display change; and while the grant is missing (KDE's dialog), the uinput fallback pointer is flat 1:1 (`/etc/xdg/kcminputrc`, measured adaptive 40→20 px and back 38 = "two arrows"; flat 40→40, 300→300). The `.964` station log identified repeated portal renewals after an empty GDK monitor list. The merged and signed `.967` fix stopped those geometry renewals in a temporary live run, then revealed the independent failure: the HDMI DRM connector physically disconnected for about one second; all KDE clients lost their output and the portal closed. The dropout also occurred at 1080p/60, so the original 4K/250% setting was restored. Screen power management reports on and PowerDevil already has a sleep/idle inhibitor. Inspect cable, port and monitor power before calling the connection stable. Tailscale relayed the iPhone on cellular at about 70 ms and used a direct LAN path at about 6 ms; Fast Remote was enabled on the KDE desktop. A live iPhone session reached the host pointer path using NVENC H.264 at 1320×742, and the phone still reported freezes on cellular Tailscale. Its first cellular run requested repeated 1320–2560 px changes outside Auto; `source 0×0` in the agent log can also mean streaming was turned off and is not by itself a display-disconnect proof. No portal renewal appeared after the `.967` reboot during the observed window. A source fix keeps zoom and 100% within the chosen preset width. In live iPhone testing over cellular Tailscale DERP, Auto returned to a 1320 px Balanced stream despite 50–60 ms RTT; the owner reported that manually choosing 1024 px Data Saver stabilized the picture. Source v49 caps phone Auto at Data Saver when Safari hides its link class, and the current user service temporarily serves that bundle. Controller and real Chromium tests pass; the owner reported a stable short v49 test on 5G/Tailscale, and the agent logged 1024×576 without a return to Balanced during that session. Signed delivery and longer cellular endurance proof remain open. Gates: controller `quality`/`decode-renegotiate` tests, `MoRemote.Stream.Tests weak`, `tests/test_remote_weak_link.py`, `tests/test_remote_display_geometry.py`, each failing on the old code. **Open:** installed endurance proof on a cellular link; measure on a real phone on mobile data (rung reached and left, no JPEG fallback, no reconnect loop, input latency); the owner's decision whether KDE's portal may pre-authorize Remote (no dialog ever), which the agent was refused as a security change. |
 | P2.15 | Mira face motion: preserve identity, natural speech/rest/blinks | **Topic source, 2026-10-02:** owner reports the mouth stays open. Original portraits/calibrations remain intact; generated intermediate eyelid and restrained lip patches are registered by the stable nose bridge (correlation 0.945–0.985). Mouth uses a separate playback-clock RMS envelope; aura retains peak energy. A due silence inside the 66 ms notification floor was discarded, now retained. The face closes after 240 ms without a packet, including repeated equal-amplitude packets, hiding and reduced motion. The owner showed duplicated lips after reboot into `.967`; source review also found ghosted intermediate outlines. A corrective single-mouth UV rig compresses one patch’s inner gap rather than cross-fading different mouths, with measured centres for both styles. Neutral speech registration and no voice-driven whole-head zoom. 89 controller/QML/voice tests passed; GPU MP4s for both faces use an actual synthesized Arabic waveform. A corrective topic-source Gemini voice turn captured 28 face-only frames: levels reached zero during pauses and at idle. `just check` passed; the silence regression rejects the old behavior. **Open:** PR CI, signed four-edition delivery and owner-spoken conversation readback; accurate phonetic visemes remain future work. Software/reduced-motion tiers retain the original still portrait. No new model/runtime/provider dependency. |
@@ -1370,10 +1512,10 @@ testing isolated; drivers and privileged services do not belong in a Flatpak.^6
 | P5.1 | Hardware qualification lab | repeatable GPU/audio/Wi-Fi/Bluetooth/camera/storage/firmware suite and published device records |
 | P5.2 | Laptop policy | lid, brightness, battery health, power profiles and two suspend cycles on at least three platforms; **tap-to-click and natural scrolling by default** — KWin 6.7.5 stores libinput settings per device (`kcminputrc [Libinput][vendor][product][name]`, keys `TapToClick`, `NaturalScroll`, … confirmed in `libkwin.so`) and no system-wide defaults group was found, so a file in `/etc/xdg` would be dead config; the supported route is a one-time, ledger-recorded first-login step that sets the properties KWin exposes per device on D-Bus for touchpads the person has not configured. Needs a real laptop |
 | P5.3 | Touch/tablet policy | automatic mode, ≥44 px targets, keyboard, rotation, gestures and stylus on real hardware |
-| P5.4 | Performance budgets | boot, idle CPU/PSS/wakeups, app launch p95, scroll/frame pacing, build load and AI latency per tier. **Owed by W5:** `moos-privacy-monitor` polls PipeWire every 1.5 s for the whole session on every machine and was never measured; W6 cut it from three `pw-dump` spawns per round to one (12 ms → 4 ms on an idle pipewire 1.6.8), **Measured 2026-09-17** off the station (Fedora 44 under WSL2, x86, idle PipeWire with 37 objects): 60 s of the loop cost 0.39 s of CPU including its `pw-dump` children — 0.66% of one core, 40 process spawns a minute. Small enough to leave the simple poll alone on a desktop; its cost on the station and on the A1's slower cores, and its wakeups on a battery, are still unmeasured — prefer `pw-dump --monitor` with a slow safety poll only if one of those shows **Closed for the flagship tier, 2026-09-18 (W9.2):** `moos-measure-speed` measures boot userspace, session ready, an app's window appearing (asked of KWin) and MoOS's OWN idle CPU against `speed-budgets.json`, keyed on `moos-visual-tier`. Station: 6.034 s / 1.108 s / 0.46 s / 2.6%, all inside budget. **The essential tier is now measured too, 2026-09-21** on the ARM station (`moos-arm-oracle`, Oracle A1, 2 vCPU): boot **10.02 s**/30.0, session **2.583 s**/12.0, idle **0.47–0.57%**/20.0 — three rows inside budget, and the first numbers behind that tier rather than derived ones. The fourth row exposed a defect in the TOOL, not in MoOS: the launch probe answers through Klipper, and plasmashell owns `org.kde.klipper` without exposing `/klipper` when the clipboard applet is not in the tray — which MoOS curates. Every read returned `''`, the probe waited 60 s and reported “the window never reached KWin”, about apps that had just opened and rendered on that same session (Mo AI, MoPlayer and Mo Store, screenshotted). It now proves the clipboard round trip BEFORE timing and names the channel instead of the app, returning at once — verified live on that station; `tests/test_moos_speed_budgets.py::TheLaunchProbeBlamesTheRightThing` holds both halves. **Still open:** the balanced tier, the essential tier's app-launch row (needs an image carrying the fixed probe, or a session with the clipboard applet), plus app-launch p95 and frame pacing, which this tool does not attempt. |
-| P5.5 | Cloud desktop efficiency | encode CPU/GPU, frame pacing, bandwidth degradation, reconnect, multiple accounts and audio sync |
+| P5.4 | Performance budgets | boot, idle CPU/PSS/wakeups, app launch p95, scroll/frame pacing, build load and AI latency per tier. **Owed by W5:** `moos-privacy-monitor` polls PipeWire every 1.5 s for the whole session on every machine and was never measured; W6 cut it from three `pw-dump` spawns per round to one (12 ms → 4 ms on an idle pipewire 1.6.8), **Measured 2026-09-17** off the station (Fedora 44 under WSL2, x86, idle PipeWire with 37 objects): 60 s of the loop cost 0.39 s of CPU including its `pw-dump` children — 0.66% of one core, 40 process spawns a minute. Small enough to leave the simple poll alone on a desktop; its cost on the station and its wakeups on a battery are still unmeasured. **Measured on the A1 and closed in source, 2026-10-04:** read from the unit's cgroup 61 h after boot, the poll had used 52.1 CPU-minutes (1.4% of a core for the whole uptime; `ps` showed 19 because it omits the `pw-dump` children) — more than `kwin_wayland`'s 50.1, and each dump is three registry events for every other PipeWire client. The monitor now follows one `pw-dump --monitor` with a one-minute full resync and a poll fallback. Adjacent 240 s windows on that session, nobody connected: 2.51% → 0.05% of a core (pipewire 0.19% → 0.01%, wireplumber 0.18% → 0.01%); one real capture produced the same token 0.04 s after it began instead of 0.64 s (`tests/test_privacy_monitor_feed.py`, five mutations fail it). Owed: the installed image. **Closed for the flagship tier, 2026-09-18 (W9.2):** `moos-measure-speed` measures boot userspace, session ready, an app's window appearing (asked of KWin) and MoOS's OWN idle CPU against `speed-budgets.json`, keyed on `moos-visual-tier`. Station: 6.034 s / 1.108 s / 0.46 s / 2.6%, all inside budget. **The essential tier is now measured too, 2026-09-21** on the ARM station (`moos-arm-oracle`, Oracle A1, 2 vCPU): boot **10.02 s**/30.0, session **2.583 s**/12.0, idle **0.47–0.57%**/20.0 — three rows inside budget, and the first numbers behind that tier rather than derived ones. The fourth row exposed a defect in the TOOL, not in MoOS: the launch probe answers through Klipper, and plasmashell owns `org.kde.klipper` without exposing `/klipper` when the clipboard applet is not in the tray — which MoOS curates. Every read returned `''`, the probe waited 60 s and reported “the window never reached KWin”, about apps that had just opened and rendered on that same session (Mo AI, MoPlayer and Mo Store, screenshotted). It now proves the clipboard round trip BEFORE timing and names the channel instead of the app, returning at once — verified live on that station; `tests/test_moos_speed_budgets.py::TheLaunchProbeBlamesTheRightThing` holds both halves. **Still open:** the balanced tier, the essential tier's app-launch row (needs an image carrying the fixed probe, or a session with the clipboard applet), plus app-launch p95 and frame pacing, which this tool does not attempt. |
+| P5.5 | Cloud desktop efficiency | encode CPU/GPU, frame pacing, bandwidth degradation, reconnect, multiple accounts and audio sync. **Oracle A1 live audit, 2026-10-03/04** (branch `test/oracle-cloud-workstation-20261003`; source and gates, not signed or installed): Mo PC Remote stayed up for the whole 61 h boot, loopback-only behind Tailscale Serve. The three largest costs were not its picture. (1) Mira's chat: an entry's height passed through 1208 px then 452 while it was made, and bound into the ListView that remade entries for ever — 8.9 GiB at the OOM kill; reproduced from source at 98% of a core and 386→759 MiB in 30 s, 172 MiB and 0% with a settled, content-driven height; both launch paths also stop at 1.5 GiB. (2) The portal helper left one PipeWire remote open per rebuilt pipeline (`pipewiresrc` closes only its duplicate): 67 orphaned clients, `pipewire` 464 MiB + 104 MiB swap, +11.6 MiB/h with nobody connected (`tests/test_remote_pipewire_fd.py` reports 40 of 40 on the shipped helper). (3) The privacy monitor's poll, row P5.4. **Measured in an isolated second compositor, 2026-10-04** (`scripts/station/compositor-rig`: its own Wayland socket and config home, no session bus, so nothing here touched the owner's screen; a busy window, Mo PC Remote's own chain to openh264; percent of one core from each unit's cgroup). *The compositor is the cost, and the ScreenCast is not:* OpenGL on llvmpipe drew the window for 71.8% with no stream and 77–81% with one. *QPainter is no way out:* it drew the same window for 12.1% — and offers no ScreenCast node, which is why `moos-cloud-desktop` refuses a session that is not OpenGL. *Asking KWin for `max-framerate=30` is a loss:* compositor 78.8% against 77.1%, and its throttle delivered 25.2 frames a second of which 15.5 reached the encoder. Not shipped. *The frame-rate setting was not a limit* (fixed, `tests/test_remote_frame_pacer.py`): `videorate max-rate=N` passes every frame of a variable-rate ScreenCast — asked for 30, 35.6 were encoded. `FramePacer` waits instead of dropping, so the newest frame is never lost: 28.9 encoded/s and the encode path from 71.0% to 57.7% at 1080p, 15.0/s for fps=15. It changes the feel of a busy stream on NVENC too; no installed or cellular run yet. *The desktop's size is the lever a GPU-less machine has* (shipped as a choice, `moos-cloud-desktop display phone|desk|WxH`, `tests/test_cloud_display_size.py`): the `remote_encode` budget is consumed by `HostBudget.cs`, so Auto sends 1280 px on this tier and a 1920×1080 desktop reaches the phone through a 1.5:1 bilinear scaler that is most of the encode path. 1080p scaled to 720p: 37.7 frames/s for 64.6%; a 1280×720 desktop sent as drawn: 47.3 for 41.5%, pixel for pixel; with the pacer 29.9/s for 27.4%. The default stays 1920×1080 and the size applies at the next sign-in — the command restarts nothing. (An earlier line here said the budget had no consumer. It was wrong: the search had not covered `moremote/agent/Core`.) **Open, each needing a measured win before it ships:** (a) a 30 Hz output: the stream is 30 frames a second and the compositor renders 60, which is half its cost for nothing, but KWin 6.7's virtual backend hard-codes 60000 mHz (read in `virtual_output.cpp`; the command line passes size and scale only), so this needs a DRM/vkms output with a custom mode and a disposable VM; (b) the size in Settings and as a fixed Mo AI verb, and a desktop that follows the viewer — the client already sends its viewport and pixel ratio with every input message and nothing on the host reads them; (c) the owner's own browser IDE (`code-server` behind Tailscale Serve, a user unit outside the image) is the sharpest way to edit code from a phone because the phone draws the text itself: decide whether MoOS ships and gates it; (d) signed installed endurance of every fix above, frame pacing and bandwidth degradation, reconnect, multiple accounts, audio sync. A Mo AI playbook (`oracle-cloud-workstation`) and the agents' live-development reference carry the measured way to read this machine |
 | P5.6 | Storage lifecycle | update headroom, Flatpak/container cleanup, log bounds and low-space recovery without deleting user data |
-| P5.7 | Qualify kernel policy and driver transitions | MoKernel sysctl/module/karg readback; exact kernel/NVIDIA match; boot/initramfs, frame pacing, audio underruns, CPU/RAM pressure and thermal/power regression measurements. **Scheduler experiment (owner asked for a MoOS kernel, 2026-09-24):** the kernel stays Fedora's signed one (see MoOS One). `sched_ext` is available in the 7.2 kernel, but no scheduler package exists in Fedora; rawhide had none on 2026-09-24. An experiment needs a reviewed COPR, runs on a scratch deployment, and reports input-to-frame latency and frame pacing under a build load against the default scheduler. It becomes MoKernel policy only with a measured win on the flagship and essential tiers and a clean fallback when the scheduler exits |
+| P5.7 | Qualify kernel policy and driver transitions | MoKernel sysctl/module/karg readback; exact kernel/NVIDIA match; boot/initramfs, frame pacing, audio underruns, CPU/RAM pressure and thermal/power regression measurements. **Scheduler experiment (owner asked for a MoOS kernel, 2026-09-24):** the kernel stays Fedora's signed one (see MoOS One). `sched_ext` is available in the 7.2 kernel, but no scheduler package exists in Fedora; rawhide had none on 2026-09-24. An experiment needs a reviewed COPR, runs on a scratch deployment, and reports input-to-frame latency and frame pacing under a build load against the default scheduler. It becomes MoKernel policy only with a measured win on the flagship and essential tiers and a clean fallback when the scheduler exits. **Memory-pressure policy is unowned on ARM (measured 2026-10-04):** `systemd-oomd` is active on the A1 and monitors no cgroup — `systemd-oomd-defaults` is not in the fedora-bootc base, although `plasma-kwin_wayland`'s guard sets `ManagedOOMPreference=avoid` for it. Both session-wide OOMs there (KWin 2026-09-06, Mira 2026-10-02) ended in the kernel's killer after minutes of thrash. A confined experiment showed the wiring works with no root configuration (a user slice asking for `ManagedOOMMemoryPressure=kill` was listed by `oomctl` at once) and that upstream's default would not have acted: a process thrashing through zram at its `MemoryHigh` held 67–70% `full` pressure for 60 s, under the 80% limit, and was not killed. Installing the upstream defaults is therefore parity, not protection; a MoOS policy needs a threshold measured against a runaway AND a legitimate build load, on zram. Whether the x86 base carries the package was not read |
 | P5.8 | Qualify Wayland and compositor lifetime | portal consent/revocation/restart; multi-output scale/hotplug; clipboard/input-layout continuity; separate users; long-session KWin PSS/pressure and recovery |
 
 `mokernel` is MoOS's policy/readback wrapper around the signed Linux kernel,
@@ -1431,8 +1573,11 @@ Do not layer compilers onto the immutable host merely for convenience. Do not
 put API keys in `.env`, committed config, shell history or test fixtures.
 
 Performance work starts with repeated measurements, not removing dependencies
-based on RPM size metadata. The current boot is 36.783 s with 5.325 s in
-`ldconfig`; P5.4 must check another boot and a real idle interval. P5.6 must
+based on RPM size metadata. The latest station systemd boot totals 33.225 s: firmware 10.103, loader 5.344,
+kernel 6.069, initrd 3.778 and userspace 7.928 s. This is not power-button-to-usable
+desktop stopwatch evidence. Owner's Mira autostart was disabled and its foreground
+cgroup stopped (~914 MiB); Home Assistant and lighting are retained. P5.4 still
+needs repeated cold boots and a real idle interval without build load. P5.6 must
 measure final image/ISO bytes and package reverse dependencies before removing
 unused payload. Compiler SDKs stay in user/development environments; optional
 office, Android and compatibility stacks remain on demand.

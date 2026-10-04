@@ -3,6 +3,75 @@
   "_": "What a person can SEE or DO after an update, newest first. One entry per user-visible change, written for the owner of the machine, not for a developer: what it is, where it is, and (when MoOS has a route to it) a way to try it now. 'merged' is when the change reached main (a little later is fine, earlier is not: an entry dated before a machine's previous system is never marked new there); a machine marks an entry new when the system it ran BEFORE the update was built earlier than that. tests/test_whats_new.py reads every entry the way MoOS Settings will.",
   "entries": [
     {
+      "id": "graphite-boot-still",
+      "merged": "2026-10-05T00:00:00Z",
+      "glyph": "spark",
+      "title": {
+        "ar": "إقلاع أخف بهوية MoOS",
+        "en": "A lighter MoOS boot"
+      },
+      "body": {
+        "ar": "شعار MoOS على خلفية زجاجية موحدة مع شاشة الدخول، بحركة قصيرة تنتهي فوراً عند جاهزية النظام. شاشة الإقلاع تحمل صورة واحدة بدل فيلم متتابع.",
+        "en": "The MoOS mark shares the glass landscape of the login screen, with a brief entrance that yields immediately when ready. One image replaces the frame sequence."
+      }
+    },
+    {
+      "id": "firmware-update-results",
+      "merged": "2026-10-04T23:59:00Z",
+      "glyph": "spark",
+      "route": "moos://settings/update",
+      "title": {
+        "ar": "نتيجة تحديث الأجهزة واضحة",
+        "en": "Clear firmware update results"
+      },
+      "body": {
+        "ar": "صفحة التحديثات تعرض حالة فحص وتحديث الأجهزة وأسباب تعذّر العملية، وتكتشف العملية المنقطعة بدلاً من ترك حالة «جارٍ التحديث».",
+        "en": "The Updates page shows firmware checks and update results, explains failures, and detects interrupted work instead of leaving “Updating” indefinitely."
+      }
+    },
+    {
+      "id": "lumen-screen-controls",
+      "merged": "2026-10-04T23:58:00Z",
+      "glyph": "bulb",
+      "route": "moos://settings/assistant",
+      "title": {
+        "ar": "مزامنة الإضاءة مع الشاشة المختارة",
+        "en": "Lighting sync with your chosen screen"
+      },
+      "body": {
+        "ar": "غيّر الشاشة من صفحة الإضاءة في ميرا. مزامنة Hue تحافظ على مواقع اللمبات وتوقف تأثير Echo السابق، ويظهر عدد الأضواء المتصلة من الإجمالي.",
+        "en": "Choose the screen from Mira’s Lighting page. Hue sync keeps lamp positions, clears the previous Echo effect, and shows connected lights out of the total."
+      }
+    },
+    {
+      "id": "cloud-desktop-size",
+      "merged": "2026-10-04T13:30:00Z",
+      "glyph": "video",
+      "route": "moos://settings/remote",
+      "title": {
+        "ar": "سطح مكتب سحابي بحجم شاشتك",
+        "en": "A cloud desktop the size of your screen"
+      },
+      "body": {
+        "ar": "على جهاز بلا شاشة اختر حجم سطح المكتب: «phone» يُرسَل إلى الهاتف بكسلاً ببكسل فيصير النص أوضح والصورة أسلس، و«desk» أوسع للحاسوب. من الطرفية: moos-cloud-desktop display phone، ويُطبَّق عند الدخول التالي. وMo PC Remote يرسل الآن عدد الإطارات الذي اخترته بالضبط.",
+        "en": "On a machine with no monitor, choose the desktop's size: “phone” reaches a phone pixel for pixel, so text is sharper and motion smoother; “desk” gives a computer more room. In a terminal: moos-cloud-desktop display phone — it applies at the next sign-in. Mo PC Remote now also sends exactly the frame rate you chose."
+      }
+    },
+    {
+      "id": "light-after-days",
+      "merged": "2026-10-04T12:00:00Z",
+      "glyph": "pulse",
+      "route": "moos://settings/remote",
+      "title": {
+        "ar": "MoOS يبقى خفيفاً بعد أيام من التشغيل",
+        "en": "MoOS stays light after days of running"
+      },
+      "body": {
+        "ar": "Mo PC Remote لم يعد يترك اتصال شاشة قديماً مفتوحاً كلما أُعيد بناء الصورة، فتتوقف خدمة الصوت عن التضخم. مؤشر الخصوصية يظهر لحظة بدء الالتقاط ولا يكلّف شيئاً في السكون، ومحادثة ميرا لم تعد تستهلك الذاكرة بلا حدّ.",
+        "en": "Mo PC Remote no longer leaves an old screen connection open each time the picture is rebuilt, so the sound service stops growing. The privacy chip appears the moment a capture starts and costs nothing while idle, and Mira's chat can no longer run away with memory."
+      }
+    },
+    {
       "id": "mira-media-title",
       "merged": "2026-10-03T09:00:00Z",
       "glyph": "ai",

@@ -603,29 +603,76 @@ pc_games_supported() {
     esac
 }
 
+firmware_record() {
+    # Fixed user-state publisher; it neither probes nor changes a device.
+    "$(dirname "${BASH_SOURCE[0]}")/../libexec/moos-firmware-state" "$@"
+}
+
 do_update_firmware() {
     hdr "تحديث البرامج الثابتة" "Update device firmware"
+    local record_status=0
+    firmware_record checking || record_status=$?
+    if [ "$record_status" -ne 0 ]; then
+        echo "${R}تعذر بدء الفحص أو توجد عملية برامج ثابتة أخرى قيد التنفيذ.${N}" >&2
+        echo "${R}Could not start the check, or another firmware action is still running.${N}" >&2
+        return 1
+    fi
     if ! command -v fwupdmgr >/dev/null 2>&1; then
+        firmware_record failed unavailable || true
         echo "${R}fwupd غير متوفر | fwupd is not available${N}" >&2
         return 1
     fi
     # Refresh the metadata first, otherwise "no updates" can simply mean "never checked".
     # --force lets a same-day re-check through instead of erroring on the cache age.
-    fwupdmgr refresh --force >/dev/null 2>&1 || true
+    local refresh_status=0 updates_status=0
+    fwupdmgr refresh --force || refresh_status=$?
+    # fwupdmgr documents 2 as successful execution with no action necessary.
+    if [ "$refresh_status" -ne 0 ] && [ "$refresh_status" -ne 2 ]; then
+        firmware_record failed metadata || true
+        echo "${R}تعذر تحديث معلومات البرامج الثابتة؛ لم يكتمل الفحص.${N}" >&2
+        echo "${R}Could not refresh firmware metadata; the check did not complete.${N}" >&2
+        return 1
+    fi
     echo "${D}البرامج الثابتة المتاحة | Available firmware updates:${N}"
-    if ! fwupdmgr get-updates 2>/dev/null; then
+    fwupdmgr get-updates || updates_status=$?
+    if [ "$updates_status" -eq 2 ]; then
+        firmware_record none || true
         echo "${G}✓ لا توجد تحديثات برامج ثابتة | No firmware updates available${N}"
         return 0
+    fi
+    if [ "$updates_status" -ne 0 ]; then
+        firmware_record failed query || true
+        echo "${R}تعذر فحص تحديثات البرامج الثابتة؛ لم يتغير الجهاز.${N}" >&2
+        echo "${R}Could not check firmware updates; the device was not changed.${N}" >&2
+        return 1
     fi
     echo
     echo "${Y}تحديث البرامج الثابتة قد يتطلب إعادة تشغيل ولا يمكن التراجع عنه.${N}"
     echo "${Y}Firmware updates may require a reboot and cannot be rolled back.${N}"
-    confirm || return 0
-    if ! run_priv fwupdmgr update; then
-        echo "${R}لم يُحدَّث البرنامج الثابت: أُلغي طلب صلاحية المسؤول أو فشل التحديث.${N}" >&2
-        echo "${R}Firmware was NOT updated: the administrator prompt was dismissed or the update failed.${N}" >&2
+    firmware_record available || true
+    if ! confirm; then
+        firmware_record cancelled || true
+        return 0
+    fi
+    firmware_record installing || true
+    local install_status=0
+    run_priv fwupdmgr update || install_status=$?
+    if [ "$install_status" -eq 2 ]; then
+        firmware_record none || true
+        echo "${G}✓ لم يعد هناك تحديث برامج ثابتة مطلوب | No firmware update is needed now${N}"
+        return 0
+    fi
+    if [ "$install_status" -ne 0 ]; then
+        if [ "$install_status" -eq 126 ]; then
+            firmware_record cancelled permission || true
+        else
+            firmware_record failed install || true
+        fi
+        echo "${R}لم يكتمل تحديث البرامج الثابتة؛ راجع إصدارات الجهاز قبل إعادة المحاولة.${N}" >&2
+        echo "${R}Firmware update did not complete; review device versions before trying again.${N}" >&2
         return 1
     fi
+    firmware_record updated || true
     echo "${G}✓ اكتمل | Done${N}"
 }
 

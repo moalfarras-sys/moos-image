@@ -87,6 +87,11 @@ constexpr Field StatusShape[] = {
     {"apps", "state", QJsonValue::String},
     {"apps", "updated", QJsonValue::Double},
     {"apps", "failures", QJsonValue::Array},
+    {"firmware", "known", QJsonValue::Bool},
+    {"firmware", "state", QJsonValue::String},
+    {"firmware", "updated", QJsonValue::Double},
+    {"firmware", "reason", QJsonValue::String},
+    {"firmware", "busy", QJsonValue::Bool},
     {"memory", "total", QJsonValue::String},
     {"storage", "total", QJsonValue::String},
     {"storage", "free", QJsonValue::String},
@@ -379,6 +384,7 @@ void MoOSSettingsModule::watchSources()
     }
     for (const QString &source : {QStringLiteral("/run/moos/update-state.json"),
                                   QDir(stateDirectory()).filePath(QStringLiteral("app-updates.json")),
+                                  QDir(stateDirectory()).filePath(QStringLiteral("firmware-updates.json")),
                                   QDir(stateDirectory()).filePath(QStringLiteral("fast-remote.on")),
                                   remoteLink}) {
         if (!m_sourceModified.contains(source))

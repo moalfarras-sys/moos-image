@@ -143,6 +143,94 @@ the review import path globally into the desktop's user manager.
   copy. `moos-apply-theme` removes MoOS-owned shadows on the next `THEME_REV`, but
   record any shadow you leave in `PROJECT_STATE.md` with the reason.
 
+## The Oracle A1 cloud station (`moos-arm-oracle`)
+
+Read this when `hostname` says `moos-arm-oracle`. Everything here was read from that machine;
+the dates are in `PROJECT_STATE.md`. Re-measure before repeating a number.
+
+**What it is.** 2 vCPU aarch64, 11.6 GiB, no GPU. KWin runs `--virtual 1920x1080` at 60 Hz and
+composites in OpenGL on llvmpipe; `moos-visual-tier` says essential. There is no monitor: the
+owner's screen is Mo PC Remote (loopback behind Tailscale Serve), from a phone or a browser.
+SSH over the tailnet is the only other way in.
+
+**The Remote is the monitor. Do not turn it off to look at it.** Never restart or stop
+`mo-remote-personal.service`, its portal helper, KWin, plasmashell, PipeWire or
+`xdg-desktop-portal` there as a diagnostic. A restarted helper has to restore its ScreenCast
+grant with nobody at the machine to press Allow. Report the command and the reason; the owner
+chooses the moment. For the same reason do not start anything that asks for consent on screen
+(a second ScreenCast session, a polkit prompt): an unanswered dialog sits on the owner's desktop.
+
+**You are the largest tenant.** The desktop is light and the tooling is not. On 2026-10-04 the
+VS Code Flatpak scopes held 3.2 GiB of RAM and 1.7 GiB of swap for the editor, three agent
+sessions and their MCP servers, and had used 166 of the 404 core-minutes the whole machine had
+spent since boot. KWin, plasmashell and a healthy PipeWire together are under 1 GiB. Close the
+sessions and browsers you opened, run one gate suite at a time (`just check` uses both cores),
+and build images when the owner is not working through the Remote.
+
+**Measure with cgroups, decide with pressure.**
+
+```bash
+H="flatpak-spawn --host"
+$H cat /proc/pressure/cpu /proc/pressure/memory /proc/pressure/io     # is it slow, and why
+# RAM and swap per unit, CPU time per unit since boot (leaf cgroups of the session):
+$H bash -c 'cd /sys/fs/cgroup/user.slice/user-1000.slice/user@1000.service &&
+  for d in $(find . -name memory.current -printf "%h\n"); do
+    [ -z "$(ls -d $d/*/ 2>/dev/null)" ] || continue
+    printf "%6dM ram %6dM swap %7.1f cpu-min  %s\n" $(( $(cat $d/memory.current)/1048576 )) \
+      $(( $(cat $d/memory.swap.current)/1048576 )) \
+      $(awk "/^usage_usec/{print \$2/60000000}" $d/cpu.stat) ${d##*/}
+  done | sort -rn | head -20'
+```
+
+- `free` reading "5.9G used, 2.7G swap" is not a slow machine. Swap is zstd zram first
+  (`swappiness=150` is deliberate): 2.6 GiB of cold pages were 0.6 GiB of RAM. Pressure says
+  whether anything is waiting; `memory some avg60` was 0.02 with those numbers.
+- `ps`/`top` show lifetime averages and miss children. `moos-privacy-monitor` looked like 19
+  CPU-minutes in `ps`; its cgroup, which includes the `pw-dump` it spawned, said 52.
+- A PipeWire that grows is a client that stopped reading. Count clients by owner:
+  `pw-dump | grep -c '"application.name": "python3.14"'`, or group by `pipewire.sec.pid`. A
+  portal-mediated client carries the PORTAL's pid there, not the app's.
+- A PipeWire experiment does not need the portal: connect a socket to
+  `$XDG_RUNTIME_DIR/pipewire-0` and hand its fd to `pipewiresrc fd=`. That is how the Remote
+  helper's leak was proved without touching the owner's session.
+- The host has no `bc`; use `awk`. `sudo -n` works. Host-visible scratch is `~/.cache`.
+
+**Measure the screen in a second compositor, never in the first.**
+`scripts/station/compositor-rig/rig.sh` starts an invisible `kwin_wayland --virtual` with its own
+socket, its own config home (copies of the live kwinrc and output configuration) and no session
+bus; a busy window is the workload and Mo PC Remote's own chain to the encoder is the consumer.
+PipeWire is shared, so the rig's ScreenCast node is readable with no portal and no dialog.
+
+```bash
+H="flatpak-spawn --host"; R=scripts/station/compositor-rig/rig.sh     # from the checkout
+$H $R O2 off 1920x1080 15                  # what compositing alone costs
+$H $R O2 60  1920x1080 15 1280x720         # a 1080p desktop streamed at 1280 wide
+$H $R O2 60  1280x720  15                  # the same stream from a native 1280x720 desktop
+RIG_RATE=maxrate $H $R O2 60 1920x1080 15  # the rate limiter WITHOUT the helper's pacer
+$H $R Q  60  1920x1080 8                   # another backend: does it offer a ScreenCast at all?
+```
+
+It takes both cores while it runs. Each run prints one `RESULT` line: percent of a core for the
+compositor, the workload and the encode path, and frames delivered and encoded each second.
+What it established on 2026-10-04, so nobody re-litigates it from a theory:
+
+- **The compositor is the cost.** OpenGL on llvmpipe: 71.8% of a core for a busy window with no
+  stream, 77–81% with one. The ScreenCast copy is the small part.
+- **QPainter is not an option.** 12.1% for the same window, and no ScreenCast node — a black
+  remote. `moos-cloud-desktop` refuses a session that is not OpenGL for this reason.
+- **Do not ask KWin for `max-framerate`.** At 30 it saved the compositor nothing and its throttle
+  delivered 25 frames a second, of which 15 reached the encoder.
+- **`videorate max-rate` does not limit a ScreenCast** (variable-rate caps). `FramePacer` in the
+  helper does, by waiting. A limiter that drops by timestamp loses the newest frame.
+- **Fewer pixels is the lever.** Auto sends 1280 px wide on this tier. A 1080p desktop gets there
+  through a 1.5:1 scaler (37.7 frames/s, 64.6%); a 1280x720 desktop is sent as drawn (47.3, 41.5%).
+  `moos-cloud-desktop display` sets the size; it applies at the next sign-in and restarts nothing.
+- **Still open:** a 30 Hz output would halve the compositor, and KWin 6.7's virtual backend
+  hard-codes 60 Hz. That needs a DRM/vkms output and a disposable VM, not this machine.
+
+**Do not prune on sight.** `podman system df` shows tens of GiB reclaimable; that is the layer
+cache the next local ARM build reuses. `/var` had 104 GiB free. Ask before `podman image prune`.
+
 ## Leave a usable workstation
 
 SDKs and editor extensions belong to the development profile, not automatically

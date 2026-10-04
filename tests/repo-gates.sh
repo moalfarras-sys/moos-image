@@ -170,6 +170,12 @@ python3 tests/test_cloud_private_desktop.py
 # A cloud account with no PIN answers /api/setup to whoever reaches it first, and one with
 # a forgotten PIN has no way back in at all. Both are silent on a healthy-looking server.
 python3 tests/test_cloud_set_pin.py
+# A cloud desktop was 1920x1080 everywhere while Auto sends 1280: scaled 1.5:1, soft, and the scaler
+# was most of the encode path. `display` sets the size and may tell systemd only daemon-reload.
+python3 tests/test_cloud_display_size.py
+# scripts/station/compositor-rig starts a second KWin on an owner's machine. Its isolation — own
+# socket, own config home, no session bus, only its own units — is the whole reason it is safe.
+python3 tests/test_compositor_rig.py
 # moos-cloud-dev wrote an inverted subuid range (100000-65535) that usermod rejects,
 # aborting a tenant half-created; a fixed range would instead make two tenants share host
 # UIDs. This asserts the allocation is valid and uid-derived (unique).
@@ -213,6 +219,14 @@ python3 tests/test_island_jobs_privacy.py
 # (it asserts that strings exist) stayed green. This runs the real producers and the shipped
 # IslandTokens.js against each other.
 python3 tests/test_island_tokens.py
+# The privacy monitor polled pw-dump every 1.5 s: 52 CPU-minutes in 61 h on the Oracle A1, more
+# than the compositor. It now follows one `pw-dump --monitor`; this proves both the saving and
+# that the chip is still never wrong (ended stream, dead feed, missed delta, non-JSON text).
+python3 tests/test_privacy_monitor_feed.py
+# The privacy monitor polled pw-dump every 1.5 s: 52 CPU-minutes in 61 h on the Oracle A1, more
+# than the compositor. It now follows one `pw-dump --monitor`; this proves both the saving and
+# that the chip is still never wrong (ended stream, dead feed, missed delta, non-JSON text).
+python3 tests/test_privacy_monitor_feed.py
 # Mira inside Plasma: the launcher passes Dolphin's arguments through and picks the software scene
 # graph without a real GPU, her login unit is never enabled for everyone, the Dolphin entries run
 # arguments she parses, and the tree mira/packaging/stage.sh gives the image carries her pages.
@@ -255,6 +269,13 @@ python3 tests/test_kernel_network_tuning.py
 # One connecting phone used to rebuild the encode pipeline four times in two seconds:
 # the picture appears, blanks, appears, blanks, appears. Reads as a bad link; is not one.
 python3 tests/test_remote_rebuild_debounce.py
+# pipewiresrc connects through a DUPLICATE of the fd it is given, so every rebuilt pipeline left
+# its PipeWire remote open: 67 orphaned clients and a 570 MiB pipewire after 61 h on the Oracle A1.
+# This one runs build() and teardown() and asks the kernel what is still open.
+python3 tests/test_remote_pipewire_fd.py
+# `videorate max-rate=N` passes every frame of a variable-rate ScreenCast: asked for 30, the A1
+# encoded 35.6 a second. The pacer waits instead of dropping, so the newest frame is never lost.
+python3 tests/test_remote_frame_pacer.py
 python3 tests/test_remote_connection_lifecycle.py
 python3 tests/test_remote_async_lifecycle.py
 python3 tests/test_remote_logout_revocation.py

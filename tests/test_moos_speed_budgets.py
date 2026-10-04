@@ -134,6 +134,24 @@ class TheVerdict(unittest.TestCase):
         self.assertEqual(speed._seconds("1min 4.203s"), 64.203)
         self.assertEqual(speed._seconds("nothing here"), 0.0)
 
+    def test_boot_total_does_not_add_the_graphical_target_twice(self):
+        with patch.object(speed, 'run', return_value=(
+                'Startup finished in 10s (firmware) + 2s (loader) + 3s (kernel) + '
+                '9s (userspace) = 24s\ngraphical.target reached after 7.611s in userspace.\n')):
+            result = speed.boot()
+        self.assertEqual(result['total_s'], 24)
+        self.assertEqual(result['graphical_s'], 7.611)
+        self.assertEqual(result['userspace_s'], 9)
+
+    def test_interpreted_moos_services_are_counted_without_counting_all_python(self):
+        for unit in ('mira-lumen.service', 'mira-homeassistant.service',
+                     'moai-control.service', 'app-org.moos.moai@abc.service'):
+            self.assertTrue(speed._owned_process('python3',
+                            f'0::/user.slice/user@1000.service/app.slice/{unit}'))
+        for unit in ('my-script.service', 'not-mira-lumen.service', 'app-code@abc.service'):
+            self.assertFalse(speed._owned_process('python3', f'0::/app.slice/{unit}'))
+        self.assertFalse(speed._owned_process('python3', ''))
+
 
 class TheLaunchProbeBlamesTheRightThing(unittest.TestCase):
     """A dead channel must not be reported as a dead app.

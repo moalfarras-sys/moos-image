@@ -273,6 +273,40 @@ Plasma file `rpm -V` reports that is not registered, and loads the real greeter.
 upstream file means registering it. A new Plasma means a reviewed set, never a wider range or
 an added digest.
 
+**A fixed boot library outside the initramfs cannot fix boot.** The Plymouth
+frame-lifetime patch is rebuilt from the pinned vendor SRPM with all vendor
+patches. Keep the old/fixed native negative control and actual-package proof;
+verify the final archive contains the root library's exact bytes after the last
+dracut. Upstream NVR drift needs review, never a downgrade or a relaxed gate.
+A private X11 renderer proves pixels, not firmware/DRM or a signed cold boot.
+RPM Arabic dictionary triggers can abort before the later dictionary pass; a
+zero core limit does not stop host collection via a piped core handler. Keep the
+container-only private-affix transaction guard and exact vendor restoration;
+never suppress the final Arabic/English dictionary gate.
+
+**A Hue stream that connects may still send no lamp colours.** Keep Entertainment
+channel regions when adding PC/HA layouts; prove packets contain the targeted
+channels. Screen sync must clear lamp effects (Echo's DNA otherwise keeps moving),
+turn black output off and report failed/declined capture as stopped. A restore
+token remembers a monitor, including a virtual one: give the owner a fresh screen
+picker. Claim the Hue area only on the first captured picture: it expires after
+ten silent seconds while a screen picker can wait indefinitely. A lost stream
+must release the area and restore paced house control for its lamps. Preserve
+explicit saved cloud targets on restart. PC state is never physical LED readback.
+
+**Loopback and a fixed request header are not user authentication.** Mo AI's
+three HTTP services verify the connecting client socket's UID from the kernel
+table before doing work (`moai_local_peer.py`). Match the reversed full client
+tuple, not the accepted server socket (which is always ours); missing identity
+fails closed. Preserve the origin/header guards too. Do not expose secrets in a
+status payload to work around this boundary. Held Remote input also belongs to
+the backend that accepted its press: a portal reconnect must never send a
+fallback button's release into the portal. Test it with a private recorder,
+never with the owner's actual uinput socket.
+Login Screen Sync requires an explicit owner opt-in, defaults off and stops
+resuming when Stop is pressed. Publish owner groups to Mira's context and accept
+their exact IDs; one group can contain house lamps, PC headers and Echo.
+
 **A face that loads is not a face that speaks correctly.** Mira's lip envelope follows
 playback RMS, while the aura keeps peak energy. Never discard a due silence inside
 the notification floor: hold it until it can be sent. Equal-amplitude packets must
@@ -296,10 +330,48 @@ Impeller on GLES reserving hundreds of MB for every gradient shader and every
 window-sized offscreen layer (blur, `Opacity`) — see `moplayer/DESIGN.md`,
 "The renderer's rules". MoPlayer now bakes its gradients into small images.
 
+**A descriptor you hand to an element is still yours.** `pipewiresrc fd=` connects through a
+duplicate and NULL closes only that. Mo PC Remote's helper believed its own comment ("pipewiresrc
+closes it on NULL") and left one PipeWire remote open per rebuilt pipeline: after 61 hours on the
+Oracle A1, 67 orphaned clients and a `pipewire` holding 464 MiB plus 104 MiB of swap, still growing
+with nobody connected, because the daemon queues events for a client that never reads. Every Remote
+gate read the pipeline STRING; none ran a build and a teardown and asked what was still open. When
+a comment says who closes something, prove it: `tests/test_remote_pipewire_fd.py` asks the far end
+of each socket whether it was hung up.
+
+**A delegate's height while it is being made is not its height.** A Mira chat entry reported
+1208 px, then 452, during creation. Bound into a ListView that follows its newest entry, that
+remade the entries above it for ever: one core, 30 MiB a second, 8.9 GiB at the OOM kill. The review
+fixture never showed it; the real bridge and the saved chat did. A delegate's height is state written
+by a deferred measurement — and measured again when the content changes. The first fix measured once
+and left a gap the moment a button disappeared, with every static assertion green.
+
+**A cost measured as free on one machine is a cost on the next, and `ps` does not count children.**
+The privacy monitor's 1.5 s `pw-dump` poll measured 0.66% of a core on x86 and was left alone. On
+the A1 its cgroup had used 52 CPU-minutes in 61 hours, more than the compositor; `ps` showed 19.
+Read a unit's `cpu.stat`. A poll is also load on what it polls: each dump was three registry events
+for every other PipeWire client, which is what fed the leak above. And a daemon that is running is
+not a policy that is applied: `systemd-oomd` was active on that machine and monitored nothing.
+
+**A setting that reads as a limit is not a limit until something counts.** Mo PC Remote's
+frame rate was `videorate drop-only=true max-rate=N`. On a variable-rate source — and a ScreenCast
+is one — that element passes every frame: asked for 30, the A1 encoded 35.6 a second, and the
+weak-link rung's 15 would have been the same 36. The stream worked, the picture moved, and every
+frame got fewer bits than the budget promised it. Count frames on the wire before believing a
+rate. And the fix that drops by timestamp is the next trap: the early frame is the newest
+picture, so `FramePacer` waits. `scripts/station/compositor-rig` measures such a change in a second,
+invisible compositor; on a machine whose screen is Mo PC Remote, never measure it on the first.
+
 **Boot the image and look at it.** `podman build` + `bootc-image-builder --type qcow2` + qemu
 with `screendump` takes about half an hour and is the only thing that found any of the above.
 
 ## Things that are easy to get wrong here
+
+**ydotool release must actually release.** Button indices are 0/1/2;
+OR `0x40` sends down, `0x80` sends up, `0xC0` sends both. The station
+helper once sent down from `release()`, leaving the virtual mouse held and
+blocking owner clicks. Release a dragged button in `finally`, including failed
+capture/probe/movement, and test command bytes without driving the live desktop.
 
 **A desktop runtime directory is not a desktop UID.** Installed-ISO SSH uses root
 to inspect `/sysroot`. Session/app checks must drop to `moosci` with `runuser`;
@@ -401,6 +473,19 @@ into it, because three suites ran the real `logger`. Tests stub `logger`, and a 
 runs every auditing suite with a trap that fails if the real one is reached. A build or
 test container is not isolated from the host's `systemd-coredump` either: a helper that
 lets a tool abort (bluetoothctl with no system bus) leaves real crash reports on the station.
+
+**A firmware failure does not prove nothing changed.** A multi-device update can
+fail after one device was flashed. Say the operation did not complete and direct
+the owner to re-check device versions. Persistent transaction state is private,
+atomic, tied to boot/PID start identity and written only by the fixed executor;
+fixtures must isolate `XDG_STATE_HOME` so they cannot fabricate owner history.
+A completed process is a transaction result, not physical firmware readback.
+
+**A native KCM needs its real loader.** Direct `KPluginFactory` construction without
+`KQuickConfigModuleLoader` omits the QML engine and can crash a review harness.
+Use the native loader, drain jobs before release and keep HOME/XDG/session state
+private. Negative native crash probes must disable coredumps and fail on unexpected
+signals; test-container execution alone does not isolate the host coredump collector.
 
 **A queued result is not a finished worker.** Mira page tests must join their
 workers and drain queued follow-up reads before releasing the Qt page or removing

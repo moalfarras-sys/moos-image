@@ -25,6 +25,7 @@ import sys as _policy_sys
 from pathlib import Path as _PolicyPath
 _policy_sys.path.insert(0, str(_PolicyPath(__file__).resolve().parent.parent / "lib/moai"))
 import moai_cloud_policy as cloud_policy
+from moai_local_peer import same_user
 import moai_tool_schemas as tool_schemas
 _policy_sys.path.insert(0, str(_PolicyPath(__file__).resolve().parent.parent / "lib/moos"))
 import moos_hardware as hardware
@@ -2211,6 +2212,9 @@ class H(BaseHTTPRequestHandler):
         )
 
     def _guard(self):
+        if not same_user(self.connection):
+            self._reject(403, "different or unknown local user")
+            return False
         # CSRF/cross-origin defense for this localhost API. A browser cannot set
         # a custom header without a CORS preflight, which we never approve (no
         # OPTIONS handler, no ACAO) — so requiring this header blocks any web

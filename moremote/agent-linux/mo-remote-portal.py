@@ -322,12 +322,45 @@ pipewire_target = int(node_props.get("pipewire-serial", node_id))
 logical_w, logical_h = (int(v) for v in node_props["size"])
 
 def open_pipewire_fd():
-    """A fresh PipeWire remote fd. Each pipeline gets its own; pipewiresrc closes it on NULL."""
+    """A fresh PipeWire remote fd. Each pipeline gets its own, and THIS HELPER owns it: build()
+    keeps it in pipeline_fd and teardown() closes it. See close_pipewire_fd()."""
     reply, fds = bus.call_with_unix_fd_list_sync(
         BUS, PATH, CAST, "OpenPipeWireRemote",
         GLib.Variant("(oa{sv})", (session, {})),
         GLib.VariantType.new("(h)"), Gio.DBusCallFlags.NONE, 5000, None, None)
     return fds.get(reply.unpack()[0])
+
+
+# The remote the standing pipeline was built on, or -1.
+pipeline_fd = -1
+
+
+def close_pipewire_fd():
+    """Close the PipeWire remote of a pipeline that has just gone to NULL.
+
+    pipewiresrc does NOT take the fd it is given. It connects through a duplicate of it and NULL
+    closes only that duplicate, so the number handed to `fd=` stays open in this process until
+    somebody closes it. Nobody did: this file said "pipewiresrc closes it on NULL" and every
+    build leaked one socket.
+
+    A leaked socket is not a leaked integer. The daemon keeps a client for it, and keeps queueing
+    events for a reader that will never read. Measured on the Oracle A1 on 2026-10-04 after 61 h
+    of viewers joining and changing quality: 73 sockets in this helper, 67 orphaned
+    clients in `pw-dump`, and pipewire at 464 MiB resident plus 104 MiB in swap, still growing by
+    about 12 MiB an hour with nobody connected. Run outside the portal, the same sequence shows it
+    directly: the fd is still open after NULL, the client is still registered, and it goes the
+    moment the fd is closed.
+
+    Close AFTER set_state(NULL), never before: until then the element may still be reading through
+    its duplicate, and the order is what lets the next pipeline reuse the number safely.
+    """
+    global pipeline_fd
+    fd, pipeline_fd = pipeline_fd, -1
+    if fd >= 0:
+        try:
+            os.close(fd)
+        except OSError:
+            pass
 
 
 empty = {}
@@ -1030,6 +1063,68 @@ def monotonic_ms():
     return GLib.get_monotonic_time() // 1000
 
 
+class FramePacer:
+    """Make `fps` true: let at most that many frames a second through, and lose none of them.
+
+    THE LIMITER DID NOT LIMIT. `videorate drop-only=true max-rate=N` drops nothing when its input
+    is a variable-rate stream, and a ScreenCast is one (`framerate=0/1, max-framerate=60/1`).
+    Measured on the Oracle A1 on 2026-10-04 with this pipeline's own chain on a busy 1920x1080
+    screen and fps=30: the compositor delivered 36.8 frames a second and 35.6 were encoded. Asked
+    for 15 — the weak-link rung — the same 36 would have been.
+
+    That costs three things. CPU: software H.264 on two cores paid for every extra frame. The
+    link: more frames than the ladder asked for. And the picture: the bitrate budget is
+    bits-per-pixel x pixels x FPS (see h264_bitrate_bps), so every frame got 30/36 of the bits it
+    was promised — on NVENC at 60 Hz, half.
+
+    WHY IT WAITS INSTEAD OF DROPPING. A frame that arrives early could be dropped by its
+    timestamp, and that is how the last frame of a scroll, or the pointer's final position, goes
+    missing until pipewiresrc's one-second keepalive: the dropped frame WAS the newest picture.
+    So an early frame waits for its turn, on the thread downstream of `capq`. While it waits the
+    leaky queue behind it keeps the newest two frames and drops the rest, which is the right
+    thing to lose, and when the screen goes still what is in the queue is still delivered.
+
+    The same chain, same screen, with this pacer:
+
+        fps=30   1920x1080   35.6 -> 29.4 encoded/s   encoder 71.0% -> 58.8% of a core
+        fps=30   1280x720    45.9 -> 29.9             41.3% -> 27.6%
+        fps=15   1920x1080           15.0             29.9%
+
+    A frame that arrives on time — a keystroke, a pointer move on a quiet desktop — never waits;
+    under load the wait averaged 10 ms at 1080p and 21 ms at 720p.
+    """
+
+    # A sleeping streaming thread delays teardown by as much; no client asks for fewer than 5 fps.
+    MAX_WAIT_NS = 200_000_000
+
+    def __init__(self):
+        self.next_ns = 0
+
+    def reset(self):
+        self.next_ns = 0
+
+    def wait_ns(self, now_ns, fps):
+        """How long the frame arriving at `now_ns` waits before it may pass."""
+        interval = 1_000_000_000 // max(1, min(60, int(fps)))
+        if now_ns >= self.next_ns:
+            self.next_ns = now_ns + interval    # on time, or the screen was still: a new cadence
+            return 0
+        wait = min(self.next_ns - now_ns, self.MAX_WAIT_NS)
+        self.next_ns += interval
+        return wait
+
+
+frame_pacer = FramePacer()
+
+
+def pace_frame(_pad, _info):
+    """Pad probe on the rate limiter's sink: hold an early frame until its turn. Never drops."""
+    wait = frame_pacer.wait_ns(time.monotonic_ns(), state["fps"])
+    if wait:
+        time.sleep(wait / 1_000_000_000)
+    return Gst.PadProbeReturn.OK
+
+
 # ---------------------------------------------------------------- codec selection
 #
 # JPEG has no temporal compression at all: every frame is a whole picture, so a desktop that is
@@ -1448,13 +1543,16 @@ def on_bus(_b, msg):
 
 
 def teardown():
-    """Drop the pipeline. NULL makes pipewiresrc close its fd, which deactivates the ScreenCast
-    stream — that is what actually stops the compositor copying frames and takes idle back to 0%.
+    """Drop the pipeline. NULL makes pipewiresrc close its connection, which deactivates the
+    ScreenCast stream — that is what actually stops the compositor copying frames and takes idle
+    back to 0%. The remote that connection was duplicated from is ours, and is closed here too.
     The portal SESSION stays open, so resuming costs a pipeline build (~200ms) and never re-prompts
     the user for permission."""
     global pipeline, enc, rate, pipeline_bus, pipeline_bus_handler
     video_health.stop()
     if pipeline is None:
+        # A build that opened its remote and then failed to parse leaves an fd and no pipeline.
+        close_pipewire_fd()
         return False
     if pipeline_bus is not None:
         if pipeline_bus_handler is not None:
@@ -1463,6 +1561,7 @@ def teardown():
         pipeline_bus_handler = None
         pipeline_bus = None
     pipeline.set_state(Gst.State.NULL)
+    close_pipewire_fd()
     pipeline = None
     enc = rate = None
     state["out"] = (0, 0)
@@ -1550,13 +1649,18 @@ def _rebuild_now():
 
 
 def build(w, h):
-    global pipeline, enc, rate, pipeline_bus, pipeline_bus_handler
+    global pipeline, enc, rate, pipeline_bus, pipeline_bus_handler, pipeline_fd
+
+    # One remote per pipeline, held until teardown() has taken that pipeline to NULL. Every caller
+    # tears down first, so this close is only for a remote that never became a pipeline.
+    close_pipewire_fd()
+    pipeline_fd = open_pipewire_fd()
 
     # Scale BEFORE the colour convert: on a 4K source, converting every pixel to I420 and only
     # then shrinking costs more than the encode itself.
     caps = f"! video/x-raw,width={w},height={h} " if w else ""
     head = (
-        f"pipewiresrc fd={open_pipewire_fd()} path={pipewire_target} do-timestamp=true "
+        f"pipewiresrc fd={pipeline_fd} path={pipewire_target} do-timestamp=true "
         f"keepalive-time={FRAME_KEEPALIVE_MS} "
         # THE QUEUE IS NOT DECORATION — IT IS WHAT KEEPS A SLOW ENCODER OFF THE COMPOSITOR'S THREAD.
         #
@@ -1677,6 +1781,9 @@ def build(w, h):
     pipeline = Gst.parse_launch(head + tail)
     enc = pipeline.get_by_name("enc")
     rate = pipeline.get_by_name("rate")
+    # `max-rate` on that element does not limit a variable-rate source; FramePacer does.
+    frame_pacer.reset()
+    rate.get_static_pad("sink").add_probe(Gst.PadProbeType.BUFFER, pace_frame)
     if codec == "h264":
         tune_for_latency(enc, _bps, state["fps"])
     pipeline.get_by_name("sink").connect("new-sample", on_sample)

@@ -30,7 +30,10 @@ Rectangle {
             color: pill.dot
             anchors.verticalCenter: parent.verticalCenter
             SequentialAnimation on opacity {
-                running: pill.state_ === "connecting" && pill.visible
+                // A cloud desktop can remain disconnected from an optional home/Echo service.
+                // Do not animate that permanent state on a software renderer, or when the owner
+                // disables motion; the controller's motion policy already covers both cases.
+                running: pill.state_ === "connecting" && pill.visible && mira.motion
                 loops: Animation.Infinite
                 NumberAnimation { to: 0.3; duration: 700 }
                 NumberAnimation { to: 1; duration: 700 }

@@ -902,6 +902,7 @@ SKILLS: tuple[str, ...] = (
     "install-an-app",
     "no-internet",
     "no-sound",
+    "oracle-cloud-workstation",
     "slow-system",
     "update-and-rollback",
 )
