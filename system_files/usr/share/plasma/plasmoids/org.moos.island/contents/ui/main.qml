@@ -285,6 +285,24 @@ PlasmoidItem {
         }
     }
 
+    // THE MODEL'S SIGNALS ARE THE FEED, AND ONE OF THEM CAN BE LOST. FolderListModel re-reads its
+    // folder on a worker thread that is woken by a condition variable. A directory event that
+    // arrives while that thread is still reading wakes nobody, so the change is not seen until the
+    // NEXT event — and a job's last rename has no next event. The chip then says "Installing…"
+    // for ever. Measured on the Oracle A1 with one busy core: the end of a job was never shown in
+    // 1 run of 14 (tests/test_moai_control.py, the Island's real-model probe).
+    //
+    // So while a job is shown as RUNNING, and only then, the folder is read again every second and
+    // a half. Toggling showHidden is the re-read: it sets the worker's own "needs update" flag,
+    // and nothing a `job-*` filter shows is a hidden file. Idle, this timer does not run.
+    Timer {
+        id: storeJobRecheck
+        interval: 1500
+        repeat: true
+        running: root.storeJobActive
+        onTriggered: storeJobPresence.showHidden = !storeJobPresence.showHidden
+    }
+
     function storeJobVerb(action, name) {
         if (action === "update") {
             return name ? root.local("تحديث " + name, "Updating " + name)
@@ -388,6 +406,17 @@ PlasmoidItem {
         onTriggered: {
             root.moaiJobPresent = false;
         }
+    }
+
+    // The same lost wake-up as the Store's feed above, and the same remedy: while one of Mira's
+    // jobs is shown as running, read the folder again, so its end is announced even when the
+    // rename's own event was lost.
+    Timer {
+        id: moaiJobRecheck
+        interval: 1500
+        repeat: true
+        running: root.moaiJobActive
+        onTriggered: moaiJobPresence.showHidden = !moaiJobPresence.showHidden
     }
 
     function syncMoaiJob() {

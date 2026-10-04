@@ -132,6 +132,8 @@ owner reported a stable short v49 cellular trial at 1024 px; longer endurance an
   Settings deep-links Update, Recovery and Remote to their transaction owners, with owner-read
   busy/superseded update, queued rollback and failed Remote rows (Arabic/English light/dark Qt
   captures passed). Installed routes and real transactions remain unproven; neither is installed.
+- **The Island's job feed no longer depends on one event (source, `THEME_REV` 98, 2026-10-04):** `FolderListModel` loses a directory event that arrives while it is re-reading, so a job's last rename could leave the chip on "Installing…" (2 of 60 probe runs on the A1 with one busy core; with the guarded re-read 0 of 60). The Store and Mira job folders are read again while a job is shown as running, and `moos-privacy-monitor` publishes each change twice, a second apart (seen live: one capture, two writes). Owed: the installed Island; Mo PC Remote's own presence tokens still ring once.
+
 ## Development environment
 
 - On the station: VS Code is a Flatpak; host work uses `flatpak-spawn --host`. There is
