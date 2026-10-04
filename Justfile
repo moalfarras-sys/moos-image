@@ -219,6 +219,8 @@ check:
     python3 tests/test_kernel_network_tuning.py
     # Claim and recovery for a headless cloud account's PIN — both failures look like a healthy server.
     python3 tests/test_cloud_set_pin.py
+    # A headless account chooses its desktop's size; choosing never restarts its only screen.
+    python3 tests/test_cloud_display_size.py
     python3 tests/test_cloud_subid_range.py
     python3 tests/test_moai_ports_fail_closed.py
     python3 tests/test_moai_service_lifecycle.py

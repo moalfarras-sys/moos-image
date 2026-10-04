@@ -5,6 +5,7 @@
 #   sudo moos-cloud-desktop off
 #        moos-cloud-desktop status
 #        moos-cloud-desktop doctor [user]
+#        moos-cloud-desktop display [phone|desk|WIDTHxHEIGHT]
 #   sudo moos-cloud-desktop grant-input <user> [donor]
 #
 # WHY THIS IS A COMMAND AND NOT A DEFAULT
@@ -992,14 +993,132 @@ cmd_doctor() {
     done < <(getent passwd)
 }
 
+# ── display: how large a desktop a headless account draws ────────────────────
+#
+# A machine with no monitor has no "native" resolution. Its compositor draws
+# whatever size it was started with, and until now that was 1920x1080 for every
+# account on every cloud machine, written in three places and changeable in none.
+#
+# The size is not cosmetic on a machine without a GPU. Measured on the Oracle A1
+# (2 vCPU, llvmpipe) on 2026-10-04, in an isolated second compositor with a busy
+# window and Mo PC Remote's own chain to openh264, quality on Auto (which sends
+# 1280 px wide on this tier):
+#
+#   desktop 1920x1080, scaled to 1280x720   37.7 frames/s   encode path 64.6% of a core
+#   desktop 1280x720,  sent as it is        47.3 frames/s   encode path 41.5%
+#
+# A quarter more frames for a third less work — because the scaler, not the
+# encoder, was most of that path — and the smaller desktop is sent 1:1: every
+# pixel the phone gets is a pixel the desktop drew. The 1080p one arrives 1.5:1
+# through a bilinear filter, which is what makes small text soft.
+#
+# The price is room, and that is the owner's to weigh: a phone wants `phone`, a
+# laptop browser with the quality set to Sharp wants `desk`.
+#
+# THIS NEVER RESTARTS ANYTHING. The compositor is the owner's only screen on a
+# cloud machine and restarting it closes every window. The new size is written
+# into the account's own drop-in and takes effect the next time that account
+# signs in. Only a drop-in this file (or the ARM image) generated is touched; a
+# hand-written compositor override is somebody's decision and is left alone.
+DISPLAY_START='^ExecStart=/usr/bin/kwin_wayland_wrapper --virtual --width [0-9]+ --height [0-9]+( --xwayland)?$'
+
+display_dropin() {
+    local dir="${HOME}/.config/systemd/user/plasma-kwin_wayland.service.d" name
+    for name in 20-moos-virtual-output.conf 20-moos-arm-virtual-output.conf; do
+        if [ -f "${dir}/${name}" ] && grep -Eq "$DISPLAY_START" "${dir}/${name}"; then
+            printf '%s\n' "${dir}/${name}"
+            return 0
+        fi
+    done
+    return 1
+}
+
+display_size_in() {
+    sed -n -E 's/^ExecStart=.* --width ([0-9]+) --height ([0-9]+).*/\1x\2/p' "$1" | tail -n 1
+}
+
+# What the compositor that is running NOW was started with, or nothing when that cannot be read.
+display_size_running() {
+    local pid
+    pid="$(systemctl --user show plasma-kwin_wayland.service -p MainPID --value 2>/dev/null || true)"
+    case "$pid" in ''|0|*[!0-9]*) return 0 ;; esac
+    [ -r "/proc/${pid}/cmdline" ] || return 0
+    tr '\0' ' ' < "/proc/${pid}/cmdline" \
+        | sed -n -E 's/.* --width ([0-9]+) --height ([0-9]+).*/\1x\2/p'
+}
+
+cmd_display() {
+    [ "$(id -u)" != 0 ] \
+        || die "run this as the account that owns the desktop, without sudo — it changes only that account's own setting."
+    local want="${1:-}" file current size w h
+    file="$(display_dropin)" \
+        || die "this account does not draw to a virtual display. A desktop with a real screen takes its size from that screen."
+    current="$(display_size_in "$file")"
+
+    if [ -z "$want" ]; then
+        local running
+        running="$(display_size_running)"
+        if [ -n "$running" ] && [ "$running" != "$current" ]; then
+            printf '  desktop size: %s now, %s from the next sign-in\n' "$running" "$current"
+        else
+            printf '  desktop size: %s\n' "$current"
+        fi
+        local sent
+        sent="$(python3 - "${XDG_STATE_HOME:-${HOME}/.local/state}/moos-visual-tier.json" <<'PYBUDGET' 2>/dev/null || true
+import json, sys
+try:
+    print(str(json.load(open(sys.argv[1]))["budget"]["remote_encode"]).split("x")[0])
+except Exception:
+    pass
+PYBUDGET
+)"
+        case "$sent" in
+            ''|*[!0-9]*) ;;
+            *)  if [ "${current%x*}" -le "$sent" ]; then
+                    note "Mo PC Remote on Auto sends ${sent} px wide here: this desktop arrives 1:1, pixel for pixel."
+                else
+                    note "Mo PC Remote on Auto sends ${sent} px wide here: this desktop is scaled down to fit, which softens small text."
+                fi ;;
+        esac
+        note "phone  1280x720   sent as it is drawn: sharper on a phone, more frames for less work"
+        note "desk   1920x1080  more room: for a laptop or desktop browser with the quality set to Sharp"
+        return 0
+    fi
+
+    case "$want" in
+        phone) size=1280x720 ;;
+        desk)  size=1920x1080 ;;
+        *)     size="$want" ;;
+    esac
+    [[ "$size" =~ ^([0-9]{3,4})x([0-9]{3,4})$ ]] \
+        || die "a size is phone, desk, or WIDTHxHEIGHT such as 1600x900 — not: ${want}"
+    w="${BASH_REMATCH[1]}"; h="${BASH_REMATCH[2]}"
+    [ "$w" -ge 960 ] && [ "$w" -le 2560 ] && [ "$h" -ge 540 ] && [ "$h" -le 1600 ] \
+        || die "${size} is outside 960x540 … 2560x1600"
+    [ $((w % 2)) -eq 0 ] && [ $((h % 2)) -eq 0 ] \
+        || die "${size}: both numbers must be even, or the video encoder cannot take the picture"
+
+    if [ "$size" = "$current" ]; then
+        ok "the desktop is already set to ${size}"
+        return 0
+    fi
+    sed -i -E "s|^(ExecStart=/usr/bin/kwin_wayland_wrapper --virtual) --width [0-9]+ --height [0-9]+|\\1 --width ${w} --height ${h}|" "$file"
+    [ "$(display_size_in "$file")" = "$size" ] || die "could not write ${size} into ${file}"
+    systemctl --user daemon-reload >/dev/null 2>&1 || true
+    ok "the desktop will be ${size} from the next sign-in"
+    note "Nothing was restarted, so nothing you have open was closed. It is ${current} until this"
+    note "account signs in again or the machine restarts; Mo PC Remote reconnects by itself."
+}
+
 case "${1:-status}" in
     on)     need_root; shift; cmd_on "$@" ;;
     own)    need_root; shift; own_screen "$@" ;;
     off)    need_root; cmd_off ;;
     status) cmd_status ;;
     doctor) shift; cmd_doctor "$@" ;;
+    display) shift; cmd_display "$@" ;;
     grant-input) need_root; shift; grant_input "$@" ;;
     set-pin) need_root; shift; set_pin "$@" ;;
-    -h|--help) sed -n '3,9p' "$0" | sed 's/^# \{0,1\}//' ;;
-    *)      die "unknown command: $1 (try: on <user>, own <user> [port], set-pin <user>, grant-input <user>, doctor [user], off, status)" ;;
+    -h|--help) sed -n '3,10p' "$0" | sed 's/^# \{0,1\}//' ;;
+    *)      die "unknown command: $1 (try: on <user>, own <user> [port], set-pin <user>, grant-input <user>, doctor [user], display [size], off, status)" ;;
 esac

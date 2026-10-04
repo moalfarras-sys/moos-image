@@ -170,6 +170,9 @@ python3 tests/test_cloud_private_desktop.py
 # A cloud account with no PIN answers /api/setup to whoever reaches it first, and one with
 # a forgotten PIN has no way back in at all. Both are silent on a healthy-looking server.
 python3 tests/test_cloud_set_pin.py
+# A cloud desktop was 1920x1080 everywhere while Auto sends 1280: scaled 1.5:1, soft, and the scaler
+# was most of the encode path. `display` sets the size and may tell systemd only daemon-reload.
+python3 tests/test_cloud_display_size.py
 # moos-cloud-dev wrote an inverted subuid range (100000-65535) that usermod rejects,
 # aborting a tenant half-created; a fixed range would instead make two tenants share host
 # UIDs. This asserts the allocation is valid and uid-derived (unique).
