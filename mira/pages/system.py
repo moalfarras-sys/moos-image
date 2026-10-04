@@ -318,6 +318,8 @@ STRINGS = {
     'sy_sk_install-an-app': ('تثبيت تطبيق من Mo Store أو من ملف منزَّل', 'Install an app, from Mo Store or a downloaded file'),
     'sy_sk_no-internet': ('لا يوجد إنترنت، أو الاتصال غير مستقر', 'No internet, or an unstable connection'),
     'sy_sk_no-sound': ('لا يوجد صوت، أو الصوت يخرج من جهاز خاطئ', 'No sound, or sound from the wrong device'),
+    'sy_sk_oracle-cloud-workstation': ('حاسوب سحابي عبر Mo PC Remote: بطيء أو صورته غير واضحة',
+                                       'A cloud computer through Mo PC Remote: slow, or an unclear picture'),
     'sy_sk_slow-system': ('الجهاز بطيء أو يتجمّد', 'The computer is slow or freezes'),
     'sy_sk_update-and-rollback': ('تحديث MoOS، أو الرجوع بعد تحديث سيّئ', 'Update MoOS, or go back after a bad update'),
 }

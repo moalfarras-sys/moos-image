@@ -130,6 +130,11 @@ REMOTE_START_BUDGET = 8.0
 REMOTE_STATE_TIMEOUT = 5
 REMOTE_RESTART_TIMEOUT = 20
 FAST_REMOTE_VALUES = ("on", "off")
+# The size a desktop WITHOUT a monitor is drawn at (moos-cloud-desktop display). A phone-sized
+# desktop reaches a phone pixel for pixel; the larger one gives a computer's browser more room.
+# It applies at the next sign-in and restarts nothing, so it can never cut off an owner whose
+# only screen is Mo PC Remote — which is why it needs no card.
+DESKTOP_SIZES = {"phone": "1280x720", "desk": "1920x1080"}
 # How long a Fast Remote switch is waited for. `remote restart` and `fast-remote off` need no
 # card, so moai-control runs them in the request itself and gives up after 60 s — reporting a
 # failure for an action that is still going. Every such verb therefore answers within 50 s:
@@ -220,6 +225,7 @@ USAGE = """moos-control — تحكّم فوري بالجهاز | instant control
   moos-control click <single|double>
   moos-control remote <on|off|restart>
   moos-control fast-remote <on|off>
+  moos-control desktop-size <phone|desk>
 """
 
 
@@ -1097,6 +1103,27 @@ def fast_remote(value):
             else "✨ عادت تجربة MoOS الكاملة | Fast Remote off")
 
 
+def desktop_size(value):
+    one_of(value, tuple(DESKTOP_SIZES), "desktop-size")
+    pixels = DESKTOP_SIZES[value]
+    # The tool decides whether this machine HAS a size to choose: a desktop with a real screen
+    # takes it from the screen, and says so. Its own words are the answer in that case.
+    try:
+        run(["moos-cloud-desktop", "display", value])
+    except Unavailable as error:
+        said = re.sub(r"\x1b\[[0-9;]*m", "", str(error)).strip().splitlines()
+        raise Unavailable(said[-1].lstrip("✗ ").strip() if said else "the desktop size was not changed") from error
+    # Read back from the tool, never from what was asked.
+    now = re.sub(r"\x1b\[[0-9;]*m", "", run(["moos-cloud-desktop", "display"]))
+    first = now.strip().splitlines()[0].strip() if now.strip() else ""
+    if pixels not in first:
+        raise Unavailable(f"the desktop size was not changed ({first or 'no answer'})")
+    if f"{pixels} from the next sign-in" in first:
+        return (f"🖥️ سطح المكتب سيصبح {pixels} عند تسجيل الدخول التالي | "
+                f"The desktop will be {pixels} from the next sign-in")
+    return f"🖥️ سطح المكتب {pixels} | The desktop is {pixels}"
+
+
 # ── Status (read-only) ──────────────────────────────────────────────────────
 def bluez_running(timeout):
     """Is bluez actually on the bus, without starting it?
@@ -1252,6 +1279,7 @@ ACTIONS = {
     "lock": (0, lock),
     "remote": (1, remote),
     "fast-remote": (1, fast_remote),
+    "desktop-size": (1, desktop_size),
     "mute": (0, lambda: mute(True)),
     "unmute": (0, lambda: mute(False)),
     "screenshot": (0, screenshot),

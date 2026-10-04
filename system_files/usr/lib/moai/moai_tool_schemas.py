@@ -866,6 +866,22 @@ _CONTROL_TOOLS: list[dict[str, Any]] = [
                      "pauses a local AI model if one is running, until you turn it off, which "
                      "restores everything as it was."),
     ),
+    # A computer with no monitor draws a desktop of a chosen size. `phone` reaches a phone pixel
+    # for pixel (sharper text, a smoother picture, less work for a machine without a GPU); `desk`
+    # gives a computer's browser more room. It applies at the next sign-in and restarts nothing,
+    # so neither value needs a card. On a computer with a real screen the executor refuses and
+    # says why.
+    _schema(
+        "desktop_size",
+        "Choose the size of this computer's desktop when it has NO monitor and is watched "
+        "through Mo PC Remote: phone (sharper and smoother on a phone) or desk (more room for "
+        "a computer). Applies at the next sign-in — يختار حجم سطح المكتب لحاسوب بلا شاشة "
+        "يُشاهَد عبر Mo PC Remote: هاتف أو مكتب، ويُطبَّق عند الدخول التالي",
+        category=CONTROL, executor="moos-control", command="desktop-size",
+        parameters={"value": {"type": "string", "enum": ["phone", "desk"],
+                              "description": "phone for a phone-sized desktop, desk for a larger one"}},
+        required=["value"],
+    ),
 ]
 
 if SETTINGS_PAGES:
