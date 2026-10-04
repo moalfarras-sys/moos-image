@@ -143,6 +143,69 @@ the review import path globally into the desktop's user manager.
   copy. `moos-apply-theme` removes MoOS-owned shadows on the next `THEME_REV`, but
   record any shadow you leave in `PROJECT_STATE.md` with the reason.
 
+## The Oracle A1 cloud station (`moos-arm-oracle`)
+
+Read this when `hostname` says `moos-arm-oracle`. Everything here was read from that machine;
+the dates are in `PROJECT_STATE.md`. Re-measure before repeating a number.
+
+**What it is.** 2 vCPU aarch64, 11.6 GiB, no GPU. KWin runs `--virtual 1920x1080` at 60 Hz and
+composites in OpenGL on llvmpipe; `moos-visual-tier` says essential. There is no monitor: the
+owner's screen is Mo PC Remote (loopback behind Tailscale Serve), from a phone or a browser.
+SSH over the tailnet is the only other way in.
+
+**The Remote is the monitor. Do not turn it off to look at it.** Never restart or stop
+`mo-remote-personal.service`, its portal helper, KWin, plasmashell, PipeWire or
+`xdg-desktop-portal` there as a diagnostic. A restarted helper has to restore its ScreenCast
+grant with nobody at the machine to press Allow. Report the command and the reason; the owner
+chooses the moment. For the same reason do not start anything that asks for consent on screen
+(a second ScreenCast session, a polkit prompt): an unanswered dialog sits on the owner's desktop.
+
+**You are the largest tenant.** The desktop is light and the tooling is not. On 2026-10-04 the
+VS Code Flatpak scopes held 3.2 GiB of RAM and 1.7 GiB of swap for the editor, three agent
+sessions and their MCP servers, and had used 166 of the 404 core-minutes the whole machine had
+spent since boot. KWin, plasmashell and a healthy PipeWire together are under 1 GiB. Close the
+sessions and browsers you opened, run one gate suite at a time (`just check` uses both cores),
+and build images when the owner is not working through the Remote.
+
+**Measure with cgroups, decide with pressure.**
+
+```bash
+H="flatpak-spawn --host"
+$H cat /proc/pressure/cpu /proc/pressure/memory /proc/pressure/io     # is it slow, and why
+# RAM and swap per unit, CPU time per unit since boot (leaf cgroups of the session):
+$H bash -c 'cd /sys/fs/cgroup/user.slice/user-1000.slice/user@1000.service &&
+  for d in $(find . -name memory.current -printf "%h\n"); do
+    [ -z "$(ls -d $d/*/ 2>/dev/null)" ] || continue
+    printf "%6dM ram %6dM swap %7.1f cpu-min  %s\n" $(( $(cat $d/memory.current)/1048576 )) \
+      $(( $(cat $d/memory.swap.current)/1048576 )) \
+      $(awk "/^usage_usec/{print \$2/60000000}" $d/cpu.stat) ${d##*/}
+  done | sort -rn | head -20'
+```
+
+- `free` reading "5.9G used, 2.7G swap" is not a slow machine. Swap is zstd zram first
+  (`swappiness=150` is deliberate): 2.6 GiB of cold pages were 0.6 GiB of RAM. Pressure says
+  whether anything is waiting; `memory some avg60` was 0.02 with those numbers.
+- `ps`/`top` show lifetime averages and miss children. `moos-privacy-monitor` looked like 19
+  CPU-minutes in `ps`; its cgroup, which includes the `pw-dump` it spawned, said 52.
+- A PipeWire that grows is a client that stopped reading. Count clients by owner:
+  `pw-dump | grep -c '"application.name": "python3.14"'`, or group by `pipewire.sec.pid`. A
+  portal-mediated client carries the PORTAL's pid there, not the app's.
+- A PipeWire experiment does not need the portal: connect a socket to
+  `$XDG_RUNTIME_DIR/pipewire-0` and hand its fd to `pipewiresrc fd=`. That is how the Remote
+  helper's leak was proved without touching the owner's session.
+- The host has no `bc`; use `awk`. `sudo -n` works. Host-visible scratch is `~/.cache`.
+
+**Streaming cost is the compositor, not the encoder.** With a viewer watching a busy screen at
+1920x1080, a 3 s sample read KWin (llvmpipe plus the ScreenCast copy) at about half a core and
+the encode helper at a quarter. With nobody watching, both are under 1%: the pipeline is torn
+down and that is by design. Lowering the stream's resolution does not touch KWin's half. Two
+candidates are recorded in plan row P5.5 and neither is measured: negotiating `max-framerate`
+with KWin so it stops copying frames the helper drops, and a QPainter compositor. Do not ship
+either on a theory; both change what the owner sees through their only screen.
+
+**Do not prune on sight.** `podman system df` shows tens of GiB reclaimable; that is the layer
+cache the next local ARM build reuses. `/var` had 104 GiB free. Ask before `podman image prune`.
+
 ## Leave a usable workstation
 
 SDKs and editor extensions belong to the development profile, not automatically
