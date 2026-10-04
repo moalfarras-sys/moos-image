@@ -75,8 +75,13 @@ class FakeBus:
     def timed_pop_filtered(self, *_a): return None
 
 
+class FakePad:
+    def add_probe(self, *_a): return 1
+
+
 class FakeElement:
     def connect(self, *_a): return 1
+    def get_static_pad(self, _name): return FakePad()
 
 
 class FakePipeline:
@@ -121,6 +126,7 @@ class World:
             class State: PLAYING, NULL = "PLAYING", "NULL"
             class StateChangeReturn: SUCCESS, NO_PREROLL, FAILURE = "SUCCESS", "NO_PREROLL", "FAILURE"
             class MessageType: ERROR = "ERROR"
+            class PadProbeType: BUFFER = "BUFFER"
 
             @staticmethod
             def parse_launch(launch):
@@ -146,6 +152,8 @@ class World:
             "os": os, "Gst": Gst, "open_pipewire_fd": open_pipewire_fd, "die": die,
             "video_health": Health(), "emit": lambda **_m: None, "monotonic_ms": lambda: 0,
             "on_sample": lambda *_a: None, "on_bus": lambda *_a: None,
+            "pace_frame": lambda *_a: None,
+            "frame_pacer": type("Pacer", (), {"reset": lambda self: None})(),
             "element_factory_name": lambda _e: "", "is_h264_encoder_factory": lambda _f: False,
             "state": {"want": "jpeg", "fps": 30, "quality": 70, "sw": 1920, "sh": 1080,
                       "out": (0, 0), "codec": "jpeg"},

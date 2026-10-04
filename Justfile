@@ -227,6 +227,8 @@ check:
     python3 tests/test_remote_rebuild_debounce.py
     # Every rebuilt pipeline must give its PipeWire remote back: 67 orphaned clients on the A1.
     python3 tests/test_remote_pipewire_fd.py
+    # The frame rate a viewer asks for is the one sent: videorate max-rate does not limit a ScreenCast.
+    python3 tests/test_remote_frame_pacer.py
     python3 tests/test_remote_connection_lifecycle.py
     python3 tests/test_remote_start_lifecycle.py
     python3 tests/test_remote_async_lifecycle.py

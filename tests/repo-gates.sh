@@ -267,6 +267,9 @@ python3 tests/test_remote_rebuild_debounce.py
 # its PipeWire remote open: 67 orphaned clients and a 570 MiB pipewire after 61 h on the Oracle A1.
 # This one runs build() and teardown() and asks the kernel what is still open.
 python3 tests/test_remote_pipewire_fd.py
+# `videorate max-rate=N` passes every frame of a variable-rate ScreenCast: asked for 30, the A1
+# encoded 35.6 a second. The pacer waits instead of dropping, so the newest frame is never lost.
+python3 tests/test_remote_frame_pacer.py
 python3 tests/test_remote_connection_lifecycle.py
 python3 tests/test_remote_async_lifecycle.py
 python3 tests/test_remote_logout_revocation.py
