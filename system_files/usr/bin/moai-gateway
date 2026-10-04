@@ -60,6 +60,7 @@ import sys as _policy_sys
 from pathlib import Path as _PolicyPath
 _policy_sys.path.insert(0, str(_PolicyPath(__file__).resolve().parent.parent / "lib/moai"))
 import moai_cloud_policy as cloud_policy
+from moai_local_peer import same_user
 import threading as _hermes_threading
 import time as _hermes_time
 
@@ -1014,6 +1015,8 @@ class Handler(BaseHTTPRequestHandler):
     # ── GET ──────────────────────────────────────────────────────────────────
 
     def do_GET(self):
+        if not same_user(self.connection):
+            return self._err(403, "different or unknown local user")
         if self._foreign_origin():
             return self._err(403, "foreign origin")
         cfg = load_product_cfg()
@@ -1074,6 +1077,8 @@ class Handler(BaseHTTPRequestHandler):
     # ── POST ─────────────────────────────────────────────────────────────────
 
     def do_POST(self):
+        if not same_user(self.connection):
+            return self._err(403, "different or unknown local user")
         if self._foreign_origin():
             return self._err(403, "foreign origin")
         media_type = self.headers.get("Content-Type", "").split(";", 1)[0].strip().lower()

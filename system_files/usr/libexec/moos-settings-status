@@ -28,6 +28,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "lib/moos"))
 import moos_hardware as hardware
 # What each update brought: one reader, shared with the after-update notification.
 from moos_whats_new import whats_new_state
+from moos_firmware_state import read_state as firmware_state
 
 
 def runtime_path() -> Path:
@@ -476,6 +477,7 @@ def dynamic_state() -> dict[str, object]:
         "update": update_state(),
         "remote": remote_state(),
         "apps": apps_state(),
+        "firmware": firmware_state(),
     }
 
 

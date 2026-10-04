@@ -45,6 +45,20 @@ COPY tests/qml/motion-review.qml /motion-review.qml
 # test file (the stage below runs the same probe as a suite), never shipped.
 COPY mira/test_visual_tier.py /mira/test_visual_tier.py
 
+# Same reviewed vendor source and fix, compiled natively on the ARM runner.
+FROM base AS plymouth-build
+RUN dnf5 -y install --setopt=install_weak_deps=False gcc libasan rpm-build cpio patch \
+    'dnf5-command(builddep)' python3 plymouth-core-libs
+COPY build_files/build_plymouth_fix.sh build_files/plymouth_rpms.py /src/
+COPY build_files/plymouth/frame-lifetime.patch /src/frame-lifetime.patch
+COPY build_files/plymouth/frame-lifetime-native.c /src/frame-lifetime-native.c
+COPY build_files/verify_plymouth_package.py /src/verify_plymouth_package.py
+COPY scripts/review/plymouth-frame-lifetime.py /src/plymouth-frame-lifetime.py
+RUN bash /src/build_plymouth_fix.sh
+COPY build_files/plymouth/script-parser.c build_files/verify_plymouth_script.py /src/
+COPY system_files/usr/share/plymouth/themes/moos/moos.script /src/moos.script
+RUN python3 /src/verify_plymouth_script.py
+
 # Keep a pristine copy of the shared MoOS filesystem overlay. Fedora packages
 # are installed during build-arm.sh and may replace session/default files that
 # were copied earlier. Re-applying this mounted snapshot after the last package
@@ -250,6 +264,7 @@ COPY --from=mira-build /out/site/ /usr/lib/mira/site/
 
 RUN --mount=type=bind,from=ctx,source=/,target=/ctx \
     --mount=type=bind,from=system-files,source=/,target=/moos-overlay \
+    --mount=type=bind,from=plymouth-build,source=/out,target=/plymouth-rpms \
     --mount=type=cache,dst=/var/cache \
     --mount=type=cache,dst=/var/log \
     --mount=type=tmpfs,dst=/tmp \

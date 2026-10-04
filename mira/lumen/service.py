@@ -74,9 +74,18 @@ def dispatch(engine: Engine, request: dict) -> dict:
         mode = a.get('mode') or 'video'
         if mode not in ('video', 'game', 'ambient'):
             raise ValueError('mode is video, game or ambient')
-        return engine.sync_start(mode, a.get('target'), _num(a.get('brightness'), 0.1, 1.0))
+        select_screen = a.get('select_screen', False)
+        if not isinstance(select_screen, bool):
+            raise ValueError('select_screen is true or false')
+        return engine.sync_start(mode, a.get('target'), _num(a.get('brightness'), 0.1, 1.0),
+                                 select_screen=select_screen)
     if op == 'sync_stop':
         return engine.sync_stop()
+    if op == 'sync_resume':
+        enabled = a.get('enabled')
+        if not isinstance(enabled, bool):
+            raise ValueError('enabled is true or false')
+        return engine.sync_resume(enabled)
     if op == 'sync_status':
         return {'status': 'ok', 'sync': engine.sync_status()}
     if op == 'rename':

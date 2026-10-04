@@ -1,56 +1,9 @@
-// MoOS boot splash ÔÇö Plymouth Script module (v4, "the render").
-//
-// WHAT IS ON SCREEN
-//   The owner's rendered MoOS logo sting, played as the boot intro: a plasma
-//   ring ignites, the mark's arcs tear out of it and rotate into place, the
-//   solid mark lands on its reflective floor, and the MoOS wordmark fades up.
-//   Then it comes to rest and stays there until the desktop takes over.
-//
-// WHY A FRAME SEQUENCE AND NOT SPRITES
-//   The previous version synthesised a reveal by moving sprites ÔÇö a dim mark,
-//   six angular wedges lit in turn, orbiting particles. It was cheap and it
-//   looked synthesised, because the sting has 3D rotation, plasma and a floor
-//   reflection in it and none of those can be faked by translating images. The
-//   sequence is 32 frames cut from the render by artwork/build_boot_frames.py.
-//
-// WHAT THAT COSTS, AND THE THREE THINGS THAT KEEP IT CHEAP
-//   * SIZE. The frames keep the render's original 856x556 crop ÔÇö 11.27 MiB on
-//     disk and 58.1 MiB once Plymouth decodes all 32. That is the whole budget:
-//     every frame lives in the initramfs and is decoded on every boot.
-//   * SCALING. Frames are scaled to the screen ONLY when the displayed frame
-//     changes ÔÇö 25 times a second, not 50 ÔÇö and only one scaled copy exists at a
-//     time. Pre-scaling all 32 would cost ~219 MiB at 1080p, which is why it is
-//     not done.
-//   * SHARPNESS. The source render is 1024x576, so the sequence is an upscale at
-//     boot size and there is no way around that ÔÇö it is the master. What IS
-//     avoidable is throwing resolution away before shipping, so the frames are
-//     stored at the render's own crop width rather than downscaled first.
-//     An earlier cut crossfaded the last frame into a high-resolution still
-//     rebuilt from a separate reference render; the owner rejected it ÔÇö the two
-//     renders do not match closely enough for the swap to be invisible, and a
-//     splash that visibly changes its own artwork at the end is worse than a
-//     soft one. The sequence now simply holds its last frame.
-//
-// SAFETY
-//   If any image fails to load, Plymouth falls back to its text splash and the
-//   machine still boots. Nothing here can block a boot: Plymouth drives this
-//   script, not the other way round.
-//
-// The handoff is not this file's job alone ÔÇö plymouth-quit runs with
-// --retain-splash (plymouth-quit.service.d/10-moos-retain-splash.conf) so the
-// last frame drawn here stays on screen until KWin paints. quit_callback below
-// makes that retained frame the composed still rather than whatever the
-// animation happened to be showing.
-
-// ÔöÇÔöÇ the ground ÔÇö the SAME canvas the desktop opens on ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ
-// The flat UI2 canvas remains underneath as a fail-safe: before Plymouth has
-// decoded the backdrop, the first pixel is still MoOS graphite rather than
-// video black. boot-backdrop.png is a lightweight derivative of the exact
-// Graphite scene Plasma Login Manager paints next. The retained Plymouth frame
-// and first login frame therefore share their whole ground; only the centred
-// boot mark is replaced by the authentication surface.
-Window.SetBackgroundTopColor(0.078, 0.098, 0.110);      // #14191C ÔÇö UI2 canvas
-Window.SetBackgroundBottomColor(0.078, 0.098, 0.110);   // #14191C ÔÇö flat, no seam
+// MoOS UI — Graphite Horizon. A single approved rendered mark, not a movie.
+// No minimum display time, fake percentage, perpetual orbit or full-screen blur.
+// Decode one hero; scale it once. The short opacity entrance finishes in 360 ms;
+// shutdown and quit immediately present the resting composition.
+Window.SetBackgroundTopColor(0.078, 0.098, 0.110);      // #14191C UI2 canvas
+Window.SetBackgroundBottomColor(0.078, 0.098, 0.110);   // #14191C — flat, no seam
 
 sw = Window.GetWidth(0);
 sh = Window.GetHeight(0);
@@ -76,193 +29,51 @@ backdrop_sprite.SetX(cx - backdrop_w / 2);
 backdrop_sprite.SetY(cy - backdrop_h / 2);
 backdrop_sprite.SetZ(0);
 
-// ÔöÇÔöÇ the sequence ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ
-INTRO_COUNT  = 32;
-INTRO_HOLD   = 2;        // refreshes per frame; Plymouth refreshes at 50 Hz -> 25 fps
-INTRO_ASPECT = 1.5396;   // MUST equal the frame aspect build_boot_frames.py reports
-CUE_DELAY    = 120;      // refreshes before the slow-boot cue appears (~2.4 s) — faster, still elegant
 
-// The stage rectangle. Bounded by WIDTH as well as height: on a 5:4 or 4:3
-// panel a height-derived width overflows the screen and the composition gets
-// cropped at the sides.
-stage_w = fmin(sw * 0.88, sh * 0.86 * INTRO_ASPECT);
+INTRO_COUNT = 1;
+INTRO_ASPECT = 1.5396;
+stage_w = fmin(sw * 0.70, sh * 0.62 * INTRO_ASPECT);
 stage_h = stage_w / INTRO_ASPECT;
 stage_x = cx - stage_w / 2;
 stage_y = cy - stage_h / 2;
 OVERLAY_MAX_W = sw * 0.78;
-
-// The sequence, loaded by literal filename.
-//
-// The obvious version of this is a loop building "intro" + i + ".png". It is not
-// used, because Plymouth's script language has no string formatting and its
-// number-to-string conversion is not specified to produce "1" rather than
-// "1.000000" ÔÇö and if it produces the latter, every Image() here silently
-// resolves to a file that does not exist, every load fails, and Plymouth drops
-// the whole theme to its TEXT console. That is precisely the failure this splash
-// exists to prevent, and it would only ever show up on someone's machine.
-//
-// Indexing the hash with a number afterwards is safe whichever way the
-// conversion goes, because the same conversion is applied on both the store and
-// the lookup. It is only the FILENAME that must be exact.
 frames[1] = Image("intro1.png");
-frames[2] = Image("intro2.png");
-frames[3] = Image("intro3.png");
-frames[4] = Image("intro4.png");
-frames[5] = Image("intro5.png");
-frames[6] = Image("intro6.png");
-frames[7] = Image("intro7.png");
-frames[8] = Image("intro8.png");
-frames[9] = Image("intro9.png");
-frames[10] = Image("intro10.png");
-frames[11] = Image("intro11.png");
-frames[12] = Image("intro12.png");
-frames[13] = Image("intro13.png");
-frames[14] = Image("intro14.png");
-frames[15] = Image("intro15.png");
-frames[16] = Image("intro16.png");
-frames[17] = Image("intro17.png");
-frames[18] = Image("intro18.png");
-frames[19] = Image("intro19.png");
-frames[20] = Image("intro20.png");
-frames[21] = Image("intro21.png");
-frames[22] = Image("intro22.png");
-frames[23] = Image("intro23.png");
-frames[24] = Image("intro24.png");
-frames[25] = Image("intro25.png");
-frames[26] = Image("intro26.png");
-frames[27] = Image("intro27.png");
-frames[28] = Image("intro28.png");
-frames[29] = Image("intro29.png");
-frames[30] = Image("intro30.png");
-frames[31] = Image("intro31.png");
-frames[32] = Image("intro32.png");
-
-// ÔöÇÔöÇ the slow-boot cue ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ
-// A fast boot is over before any of this appears. It exists so that a boot that
-// genuinely takes a while ÔÇö a first boot, an fsck, a cloud instance ÔÇö does not
-// present a still image that reads as a hang.
-glow_size   = sh * 1.05;
-ring_size   = sh * 1.02;
-head_size   = sh * 0.075;
-ring_radius = ring_size * 0.44;
-
-glow_sprite = Sprite(Image("glow.png").Scale(glow_size, glow_size));
-glow_sprite.SetX(cx - glow_size / 2);
-glow_sprite.SetY(cy - glow_size / 2);
-glow_sprite.SetZ(1);
-glow_sprite.SetOpacity(0);
-
-ring_sprite = Sprite(Image("ring.png").Scale(ring_size, ring_size));
-ring_sprite.SetX(cx - ring_size / 2);
-ring_sprite.SetY(cy - ring_size / 2);
-ring_sprite.SetZ(2);
-ring_sprite.SetOpacity(0);
-
-head_image  = Image("head.png").Scale(head_size, head_size);
-head_sprite = Sprite(head_image);
-head_sprite.SetZ(3);
-head_sprite.SetOpacity(0);
-
-// ÔöÇÔöÇ the stage ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ
-intro_sprite = Sprite();
+hero = frames[INTRO_COUNT].Scale(stage_w, stage_h);
+intro_sprite = Sprite(hero);
 intro_sprite.SetX(stage_x);
 intro_sprite.SetY(stage_y);
 intro_sprite.SetZ(5);
 intro_sprite.SetOpacity(1);
 
-mode = Plymouth.GetMode();
-// On shutdown or reboot nobody wants a title sequence ÔÇö they want the machine to
-// look calm while it stops. Go straight to the still.
-calm = 0;
-if (mode == "shutdown" || mode == "reboot") { calm = 1; }
-
+// Only a finite entrance. Pre-login has no desktop Reduced Motion preference;
+// use a still composition after nine ticks and during password entry/quit.
 tick = 0;
-held = 0;        // refreshes the current intro frame has been on screen
-shown = 0;       // which intro frame is currently on the sprite
-rested = 0;      // set once the crossfade has finished
-
-if (calm == 1) {
-    // Shutdown and reboot get the resting frame straight away ÔÇö nobody wants a
-    // title sequence while the machine stops.
-    intro_sprite.SetImage(frames[INTRO_COUNT].Scale(stage_w, stage_h));
-    shown = INTRO_COUNT;
-    rested = 1;
-} else {
-    // Draw frame 1 immediately, so Plymouth's very first painted frame already
-    // has MoOS on it rather than an empty ground.
-    intro_sprite.SetImage(frames[1].Scale(stage_w, stage_h));
-    shown = 1;
-}
-
+finished = 0;
+mode = Plymouth.GetMode();
+if (mode == "shutdown" || mode == "reboot") { finished = 1; }
+if (finished == 0) { intro_sprite.SetOpacity(0.70); }
+Plymouth.SetRefreshRate(25);
 fun refresh() {
-    tick++;
-
-    if (rested == 0) {
-        // Advance by counting, not by dividing tick. Integer division would need
-        // a rounding builtin whose presence varies between Plymouth's script
-        // plugin versions, and a splash that fails to parse falls back to the
-        // text console ÔÇö the exact thing this theme exists to prevent.
-        held++;
-        if (held >= INTRO_HOLD) {
-            held = 0;
-            if (shown < INTRO_COUNT) {
-                shown++;
-                // Scale here and only here: once per displayed frame, and the
-                // old scaled copy is released as the new one replaces it.
-                intro_sprite.SetImage(frames[shown].Scale(stage_w, stage_h));
-            }
+    if (finished == 0) {
+        tick++;
+        intro_sprite.SetOpacity(0.70 + 0.30 * clamp01(tick / 9.0));
+        if (tick >= 9) {
+            finished = 1;
+            // Keep input/status redraws responsive. The mark is now still;
+            // sprite refresh draws only damaged regions, not a new movie frame.
         }
-
-        // The sequence ends on its own last frame and simply stays there.
-        if (shown >= INTRO_COUNT) { rested = 1; }
-    }
-
-    // ÔöÇÔöÇ the slow-boot cue ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ
-    if (tick > CUE_DELAY) {
-        t = (tick - CUE_DELAY) / 50.0;
-        // A slow, shallow breath under the mark, and a faint head running the
-        // ring. Both fade IN over a second so their arrival is not a blink.
-        into = clamp01(t / 1.0);
-        glow_sprite.SetOpacity(into * (0.16 + 0.05 * Math.Sin(t * 2 * PI / 4.5)));
-        ring_sprite.SetOpacity(into * 0.35);
-        ang = t * 130;                       // degrees; one lap every ~2.8 s
-        rad = ang * PI / 180 - PI / 2;
-        head_sprite.SetX(cx + ring_radius * Math.Cos(rad) - head_size / 2);
-        head_sprite.SetY(cy + ring_radius * Math.Sin(rad) - head_size / 2);
-        head_sprite.SetOpacity(into * 0.85);
     }
 }
 Plymouth.SetRefreshFunction(refresh);
-
-// ÔöÇÔöÇ the handoff frame ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ
-//
-// plymouth-quit runs `plymouth quit --retain-splash`, which leaves the LAST
-// FRAME DRAWN standing on screen until KWin's first modeset paints over it.
-// Whatever this function puts there is therefore the image the user looks at for
-// the whole login-manager / Wayland / DRM bring-up ÔÇö several seconds on a cold
-// boot. Without it that image is an arbitrary mid-animation frame with a plasma
-// burst or a comet frozen in place, which reads as a hang.
-//
-// So compose it deliberately: jump to the sequence's LAST frame ÔÇö the mark at
-// rest with its wordmark ÔÇö and hide everything that moves, so nothing looks
-// frozen because nothing was moving. If quit arrives before the sequence has
-// finished, this is also what cuts it short, which is the right behaviour: the
-// splash must never be the thing being waited for.
 fun quit_callback() {
-    intro_sprite.SetImage(frames[INTRO_COUNT].Scale(stage_w, stage_h));
+    finished = 1;
+    intro_sprite.SetImage(hero);
     intro_sprite.SetOpacity(1);
-    ring_sprite.SetOpacity(0);
-    head_sprite.SetOpacity(0);
-    glow_sprite.SetOpacity(0);
+    Plymouth.SetRefreshRate(1);
 }
 Plymouth.SetQuitFunction(quit_callback);
 
-// ÔöÇÔöÇ boot messages (fsck etc.), shown quietly below the mark ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ
-//
-// The three Image.Text tints are the exact UI2 tokens: muted #9CAFAC for status
-// text, text #E8F1EF for the passphrase prompt, primary #4ED7C8 for the bullets.
-// Plymouth takes floats, so each channel is the byte/255 rounded to three
-// places, which round-trips back to the same byte.
+// Event-driven status and encrypted-volume prompts. Never delay handoff.
 message_sprite = Sprite();
 message_sprite.SetZ(20);
 fun message_callback(text) {
@@ -278,12 +89,14 @@ fun message_callback(text) {
 fun hide_message() { message_sprite.SetOpacity(0); }
 Plymouth.SetMessageFunction(message_callback);
 
-// ÔöÇÔöÇ LUKS / login passphrase prompt (only appears on encrypted systems) ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ
+// ── LUKS / login passphrase prompt (only appears on encrypted systems) ───────
 prompt_sprite = Sprite();
 prompt_sprite.SetZ(20);
 bullets_sprite = Sprite();
 bullets_sprite.SetZ(20);
 fun display_password(prompt, bullets) {
+    quit_callback();
+    Plymouth.SetRefreshRate(25);
     hide_message();
     pimg = Image.Text(prompt, 0.910, 0.945, 0.937);   // text #E8F1EF
     if (pimg.GetWidth() > OVERLAY_MAX_W) {
@@ -312,7 +125,7 @@ fun clear_password() {
 }
 Plymouth.SetDisplayPasswordFunction(display_password);
 
-// On a normal display (no prompt/message), clear both overlays ÔÇö the mark and
+// On a normal display (no prompt/message), clear both overlays — the mark and
 // its wordmark are all that should remain.
 fun display_normal() {
     hide_message();

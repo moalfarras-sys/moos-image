@@ -975,5 +975,81 @@ waiting = false; assert.equal(settled(), false);
         self.assertEqual(errors, [])
 
 
+class FirmwareEvidence(unittest.TestCase):
+    def setUp(self):
+        import sys
+        runpy.run_path(str(STATUS))
+        self.state = sys.modules['moos_firmware_state']
+        self.home = tempfile.TemporaryDirectory()
+        self.addCleanup(self.home.cleanup)
+        self.path = Path(self.home.name) / 'moos/firmware-updates.json'
+
+    def test_private_atomic_record_roundtrip_and_presentation_shape(self):
+        self.assertEqual(self.state.read_state(self.path), self.state.UNKNOWN)
+        for state in sorted(self.state.STATES):
+            with self.subTest(state=state):
+                self.state.record(state, path=self.path)
+                result = self.state.read_state(self.path)
+                self.assertEqual(result['state'], state)
+                self.assertTrue(result['known'])
+                self.assertEqual(result['busy'], state in self.state.ACTIVE)
+                self.assertEqual(stat.S_IMODE(self.path.stat().st_mode), 0o600)
+                self.assertEqual(stat.S_IMODE(self.path.parent.stat().st_mode), 0o700)
+                self.assertFalse(list(self.path.parent.glob('.firmware-*')))
+
+    def test_invalid_public_symlink_and_oversized_records_are_unknown(self):
+        self.state.record('none', path=self.path)
+        good = json.loads(self.path.read_text())
+        for bad in ({**good, 'schema': True}, {**good, 'state': ['none']},
+                    {**good, 'updated': True}, {**good, 'updated': int(time.time()) + 99},
+                    {**good, 'reason': 'raw private device dump'}):
+            self.path.write_text(json.dumps(bad))
+            self.assertEqual(self.state.read_state(self.path), self.state.UNKNOWN)
+        self.path.write_text(json.dumps(good)); self.path.chmod(0o644)
+        self.assertEqual(self.state.read_state(self.path), self.state.UNKNOWN)
+        self.path.chmod(0o600); self.path.write_bytes(b' ' * 20000)
+        self.assertEqual(self.state.read_state(self.path), self.state.UNKNOWN)
+        self.path.unlink(); self.path.symlink_to(Path(self.home.name) / 'not-a-record')
+        self.assertEqual(self.state.read_state(self.path), self.state.UNKNOWN)
+
+    def test_exit_reboot_or_pid_reuse_cannot_leave_busy_forever(self):
+        self.state.record('installing', path=self.path)
+        for patch_name, value in (('_process_start', 'a different process'), ('_boot_id', 'previous boot')):
+            with patch.object(self.state, patch_name, return_value=value):
+                result = self.state.read_state(self.path)
+                self.assertEqual(result['state'], 'interrupted')
+                self.assertFalse(result['busy'])
+        self.state.record('available', path=self.path)
+        with patch.object(self.state, '_process_start', return_value=''):
+            result = self.state.read_state(self.path)
+            self.assertEqual(result['state'], 'available')
+            self.assertFalse(result['busy'], 'a previous offer remains evidence, not an active transaction')
+
+    def test_a_second_transaction_cannot_replace_a_live_confirmation(self):
+        self.state.record('available', path=self.path)
+        original = self.path.read_bytes()
+        with self.assertRaises(self.state.BusyError):
+            self.state.record('checking', path=self.path, pid=os.getpid() + 1)
+        self.assertEqual(self.path.read_bytes(), original)
+
+    def test_an_exited_unreaped_worker_is_interrupted_and_does_not_block_retry(self):
+        child = subprocess.Popen(['sleep', '30'])
+        try:
+            self.state.record('checking', path=self.path, pid=child.pid)
+            self.assertTrue(self.state.read_state(self.path)['busy'])
+            child.terminate()
+            # Wait for exit without reaping: /proc still has the same PID/start.
+            os.waitid(os.P_PID, child.pid, os.WEXITED | os.WNOWAIT)
+            result = self.state.read_state(self.path)
+            self.assertEqual(result['state'], 'interrupted')
+            self.assertFalse(result['busy'])
+            self.state.record('checking', path=self.path)
+            self.assertTrue(self.state.read_state(self.path)['busy'])
+        finally:
+            if child.poll() is None:
+                child.terminate()
+            child.wait(timeout=5)
+
+
 if __name__ == "__main__":
     unittest.main()

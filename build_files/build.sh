@@ -383,6 +383,9 @@ fi
 dnf5 -y install dracut-live livesys-scripts grub2-efi-x64-cdboot \
     plymouth-plugin-script plymouth-plugin-two-step
 
+# Replace existing boot subpackages before identity assets and initramfs compose.
+python3 /ctx/plymouth_rpms.py install /plymouth-rpms
+
 # shim's removable-media fallback creates the firmware's visible boot entry
 # from BOOT*.CSV. Keep one shared rewrite for x86 and ARM so neither edition
 # can register another product name in the UEFI picker.
@@ -1047,7 +1050,7 @@ fi
 # could fall back into a German UI — the "system shows German" bug. The layout gives
 # the right keys; it never changes the UI language.
 # (MoPlayer keeps its own in-app ar/en/de strings; it does not need the OS langpack.)
-dnf5 -y install langpacks-ar langpacks-en
+bash /ctx/install_language_packs.sh
 
 # --- fcitx5 must not be on this machine --------------------------------------
 # It is an input-method framework MoOS does not need — Arabic and English are xkb
@@ -3861,8 +3864,8 @@ if [ "${_final_lsrc}" -eq 0 ]; then
     grep -q 'plymouth/themes/moos/moos.plymouth' /tmp/moos-final-initrd.txt || {
         echo "FATAL: final initramfs lacks the MoOS Plymouth descriptor"; exit 1;
     }
-    # The Script theme's mark, shared login backdrop, animation script and moving
-    # sprites must all be in the initramfs, or Plymouth renders a flat ground with
+    # The Script theme's approved hero, shared login backdrop and script
+    # must all be in the initramfs, or Plymouth renders a flat ground with
     # no reveal/continuity, or aborts to text. The script plugin (script.so) is the
     # difference between a full render and that fallback — the equivalent of the
     # old two-step.so check.
@@ -3872,7 +3875,7 @@ if [ "${_final_lsrc}" -eq 0 ]; then
     grep -q 'plymouth/themes/moos/moos.script' /tmp/moos-final-initrd.txt || {
         echo "FATAL: final initramfs lacks moos.script — the Script splash would abort to text"; exit 1;
     }
-    for _spr in boot-backdrop ring head glow; do
+    for _spr in boot-backdrop intro1; do
         grep -q "plymouth/themes/moos/${_spr}.png" /tmp/moos-final-initrd.txt || {
             echo "FATAL: final initramfs lacks the MoOS ${_spr} sprite — the reveal cannot draw"; exit 1;
         }
@@ -3903,6 +3906,8 @@ fi
 rm -f /tmp/moos-final-dracut.log /tmp/moos-final-initrd.txt \
     /tmp/moos-final-plymouth.conf /tmp/moos-final-initrd-group
 unset -v _final_lsrc
+
+python3 /ctx/verify_plymouth_initramfs.py "/usr/lib/modules/${kver}/initramfs.img"
 
 # -----------------------------------------------------------------------------
 # (e0) The C++ toolchain is a BUILD tool, and it must never ship

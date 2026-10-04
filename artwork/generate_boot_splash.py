@@ -1,38 +1,7 @@
 #!/usr/bin/env python3
-"""Render the non-sequence sprites of the MoOS Plymouth boot theme.
-
-WHERE THE ANIMATION COMES FROM
-    The boot intro is no longer synthesised here. It is a frame sequence cut
-    from the owner's rendered logo sting by artwork/build_boot_frames.py — a
-    plasma ring ignites, the mark's arcs tear out of it and rotate into place,
-    the solid mark lands on a reflective floor and the MoOS wordmark fades up.
-    That has real 3D rotation, plasma and a floor reflection in it; the previous
-    version of this file tried to approximate the same idea by moving sprites
-    (a ghost mark, six angular wedges, orbiting particles) and the result was
-    recognisably a synthesis rather than the render.
-
-    The splash comes to rest on the sequence's own last frame. An earlier cut
-    crossfaded into a high-resolution still rebuilt from a separate reference
-    render; the owner rejected it — the two renders do not match closely enough
-    for the swap to be invisible, and a splash that visibly changes its own
-    artwork at the end is worse than a soft one.
-
-    So this file now produces only what the sequence does NOT carry:
-
-      logo.png     the mark on its own. Still required: build.sh copies it over
-                   Fedora's spinner watermark and then gates that the two are
-                   byte-identical, which is what keeps the Fedora wordmark out
-                   of the fallback splash.
-      glow / ring / head
-                   the three small sprites moos.script uses for the SLOW-BOOT
-                   cue only — a soft breath and, after several seconds, a faint
-                   orbiting head. A fast boot never shows them.
-
-    Pure PIL and numpy, deterministic.
-
-USAGE
-    python artwork/build_boot_frames.py     # the intro sequence, from the video
-    python artwork/generate_boot_splash.py  # this file
+"""Maintain the canonical fallback watermark for MoOS Plymouth.
+The shipped hero is the approved render's resting frame, preserved as intro1.png.
+It is not regenerated from a different logo. Retired animated sprites are removed.
 """
 from __future__ import annotations
 
@@ -57,7 +26,7 @@ VIOLET = (139, 92, 246)
 RETIRED = (
     "arc1", "arc2", "arc3", "arc4", "arc5", "arc6",
     "logo_ghost", "halo", "field", "wordmark", "ring2", "particle", "pulse",
-    "settled",
+    "settled", "glow", "ring", "head",
 )
 
 
@@ -156,9 +125,6 @@ def sweep_retired() -> int:
 def render():
     THEME.mkdir(parents=True, exist_ok=True)
     make_logo()
-    make_glow()
-    make_ring()
-    make_head()
     gone = sweep_retired()
 
     frames = _intro_frames()
@@ -167,7 +133,7 @@ def render():
     print(f"theme -> {THEME}")
     fw, fh = Image.open(frames[0]).size
     print(f"  intro   : {len(frames)} frames, {fw}x{fh} each, {seq/1024:.0f} KiB")
-    print(f"  cue     : glow, ring, head    (slow boots only)")
+    print("  motion  : finite 360 ms opacity entrance; then still")
     print(f"  logo    : kept for the spinner-watermark gate in build.sh")
     if gone:
         print(f"  removed : {gone} retired sprite(s) from the previous synthesised reveal")

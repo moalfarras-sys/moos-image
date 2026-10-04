@@ -50,6 +50,8 @@ class SyncSession:
         self._lock = threading.Lock()
         self._stop = threading.Event()
         self._ha_thread = None
+        self._terminal_state = ''
+        self._outputs_started = False
 
     # ── setup ────────────────────────────────────────────────────────
     def _layout(self):
@@ -57,7 +59,7 @@ class SyncSession:
         home = [l for l in self.lights.values() if l['source'] != 'pc' and l['id'] not in self.stream_channels]
         home.sort(key=lambda l: (l.get('position', 0), l['name']))
         named = regions_for_names([l['id'] for l in home]) if home else {}
-        self.regions = dict(named)
+        self.regions.update(named)
         for light in self.lights.values():
             if light['source'] == 'pc':
                 self.pc_edges[light['id']] = max(1, int(light['caps'].get('leds', 1)))
@@ -101,7 +103,6 @@ class SyncSession:
     def start(self) -> None:
         from lumen.sync import Analyzer
         self.analyzer = Analyzer(self.mode, brightness=self.brightness)
-        self._open_stream()
         self._layout()
         if self.capture_factory is not None:
             self.capture = self.capture_factory(self._frame, MODE_FPS[self.mode])
@@ -119,6 +120,17 @@ class SyncSession:
         if self._stop.is_set():
             return
         try:
+            # A Hue area expires after ten silent seconds. The screen picker can stay
+            # open much longer: claim the bridge only once a real picture has arrived.
+            if not self._outputs_started:
+                self._outputs_started = True
+                self._open_stream()
+                self._layout()
+                if self._stop.is_set():
+                    if self.stream is not None:
+                        self.stream.close()
+                        self.stream = None
+                    return
             colours = self.analyzer.regions(rgb, width, height, self.regions) if self.regions else {}
             ambient = self.analyzer.ambient(rgb, width, height)
             pc_frame = {}
@@ -135,20 +147,31 @@ class SyncSession:
                 self.ambient = ambient
                 self.frames += 1
             if pc_frame:
-                self.engine.pc.stream(pc_frame)
+                if self.engine.pc.stream(pc_frame) is False:
+                    raise OSError(self.engine.pc.error or 'PC controller unavailable')
             if self.stream is not None and self.stream_channels:
                 packet = {}
                 for lid, channel in self.stream_channels.items():
                     if lid in colours:
                         packet[channel] = colours[lid]
                 if packet:
-                    self.stream.send(packet)
+                    try:
+                        self.stream.send(packet)
+                    except Exception as exc:
+                        stream, self.stream = self.stream, None
+                        self.stream_error = str(exc) or type(exc).__name__
+                        self.stream_channels.clear()
+                        try:
+                            stream.close()
+                        finally:
+                            self._layout()  # Hue lamps rejoin the paced Home Assistant path
         except Exception as exc:
             self.error = str(exc) or type(exc).__name__
 
     def _ha_loop(self) -> None:
         """Home Assistant lamps without a stream: a few updates a second each, smoothly."""
         sent: dict[str, tuple] = {}
+        sent_at: dict[str, float] = {}
         while not self._stop.is_set():
             home = [lid for lid, l in self.lights.items()
                     if l['source'] in ('home', 'hue') and lid not in self.stream_channels]
@@ -164,21 +187,28 @@ class SyncSession:
                     colour = self.latest.get(lid)
                 if light is None or colour is None:
                     continue
+                # A cloud-polled lamp can join when explicitly selected, but never at the
+                # local bridge's update rate. Do not let it consume the shared house budget.
+                if light.get('integration') == 'tuya' and time.monotonic() - sent_at.get(lid, 0) < 2:
+                    self._stop.wait(gap)
+                    continue
                 prev = sent.get(lid)
                 if prev is not None and max(abs(a - b) for a, b in zip(prev, colour)) < 6:
                     self._stop.wait(gap)
                     continue
                 level = max(colour)
                 if level <= 0:
-                    request = {'on': True, 'brightness': 1, 'rgb': [255, 140, 60]}
+                    request = {'on': False}
                 else:
                     full = [int(c * 255 / level) for c in colour]
-                    request = {'on': True, 'brightness': max(1, round(level * 100 / 255)), 'rgb': full}
+                    request = {'on': True, 'brightness': max(1, round(level * 100 / 255)),
+                               'rgb': full, 'effect': 'none'}
                 self.engine._take_budget()
                 backend = self.engine.hue if light['source'] == 'hue' else self.engine.home
                 try:
                     backend.call(light, request, transition=0.4)
                     sent[lid] = colour
+                    sent_at[lid] = time.monotonic()
                 except Exception as exc:
                     self.error = str(exc) or type(exc).__name__
                 self._stop.wait(gap)
@@ -211,6 +241,11 @@ class SyncSession:
     def status(self) -> dict:
         cap = self.capture
         state = getattr(cap, 'state', 'idle') if cap is not None else 'idle'
+        if state in ('error', 'denied') and not self._stop.is_set():
+            self._terminal_state = state
+            self.error = self.error or getattr(cap, 'error', '') or state
+            self.stop()
+        state = self._terminal_state or state
         stats = {}
         try:
             stats = cap.stats() if cap is not None else {}

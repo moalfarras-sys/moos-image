@@ -54,10 +54,15 @@ class ImageStateTests(unittest.TestCase):
             root = Path(directory); self.fixture(root)
             package_state = root/'var/lib/lxc'
             package_state.mkdir(mode=0o750)
+            spool = root/'var/spool/plymouth'
+            spool.mkdir(parents=True)
+            spool.chmod(0o700)
             runtime = root/'run/systemd/ask-password'; runtime.mkdir(parents=True)
             finalize(root)
             policy = root/'usr/lib/tmpfiles.d/moos-image-state.conf'
             self.assertIn('d /var/lib/lxc 0750 ', policy.read_text())
+            self.assertIn('d /var/spool/plymouth 0700 ', policy.read_text())
+            self.assertFalse((root/'var/spool').exists())
             self.assertNotIn('winbindd_privileged', policy.read_text())
             self.assertFalse(runtime.exists())
             self.assertFalse(package_state.exists())
@@ -70,6 +75,17 @@ class ImageStateTests(unittest.TestCase):
                             str(policy)], check=True, capture_output=True)
             self.assertTrue(package_state.is_dir())
             self.assertEqual(package_state.stat().st_mode & 0o777, 0o750)
+            self.assertEqual(spool.stat().st_mode & 0o777, 0o700)
+
+    def test_plymouth_spool_content_is_never_silently_removed(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory); self.fixture(root)
+            log = root/'var/spool/plymouth/owner-log'
+            log.parent.mkdir(parents=True)
+            log.write_text('preserve')
+            with self.assertRaisesRegex(RuntimeError, 'expected empty package state'):
+                finalize(root)
+            self.assertEqual(log.read_text(), 'preserve')
 
     def test_installed_apps_and_missing_bootstrap_are_rejected(self):
         for invalid in ('app', 'runtime', 'refs', 'missing-bootstrap'):
