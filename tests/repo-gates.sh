@@ -217,6 +217,10 @@ python3 tests/test_island_tokens.py
 # than the compositor. It now follows one `pw-dump --monitor`; this proves both the saving and
 # that the chip is still never wrong (ended stream, dead feed, missed delta, non-JSON text).
 python3 tests/test_privacy_monitor_feed.py
+# The privacy monitor polled pw-dump every 1.5 s: 52 CPU-minutes in 61 h on the Oracle A1, more
+# than the compositor. It now follows one `pw-dump --monitor`; this proves both the saving and
+# that the chip is still never wrong (ended stream, dead feed, missed delta, non-JSON text).
+python3 tests/test_privacy_monitor_feed.py
 # Mira inside Plasma: the launcher passes Dolphin's arguments through and picks the software scene
 # graph without a real GPU, her login unit is never enabled for everyone, the Dolphin entries run
 # arguments she parses, and the tree mira/packaging/stage.sh gives the image carries her pages.

@@ -8,21 +8,38 @@ Inspects PipeWire streams in real-time to detect active hardware and capture usa
 
 Publishes atomic status tokens into $XDG_RUNTIME_DIR/moos-privacy/ for instant,
 zero-polling consumption by the MoOS Island plasmoid (org.moos.island).
+
+It follows the graph through ONE long-lived `pw-dump --monitor` instead of asking for a new dump
+every 1.5 s. Read GraphFeed before changing that back.
 """
 
 from __future__ import annotations
 
 import argparse
+import codecs
 import json
 import os
 from pathlib import Path
 import re
+import select
 import signal
 import subprocess
 import sys
 import time
 from typing import Any
 import urllib.parse
+
+# Without a live feed (no `pw-dump --monitor`, or PipeWire is restarting) this is the old loop.
+POLL_SECONDS = 1.5
+# With one: an authoritative full read, so a delta this file mis-merged cannot outlive a minute.
+RESYNC_SECONDS = 60.0
+# Starting a capture is a burst of events (client, node, ports, link, state). Let it land.
+SETTLE_SECONDS = 0.2
+# How long a feed that died is left alone before it is tried again.
+FEED_RETRY_SECONDS = 30.0
+# One array of the monitor's output is the whole graph at most (~220 kB on a desktop). Text that
+# has grown far past that without closing is not JSON that is still arriving.
+FEED_BUFFER_LIMIT = 8 * 1024 * 1024
 
 
 def get_runtime_dir() -> Path:
@@ -94,22 +111,163 @@ def partition_dump(objects: list[Any]) -> tuple[list[dict[str, Any]], list[dict[
     return wanted["Node"], wanted["Link"], wanted["Client"]
 
 
-def query_pipewire() -> tuple[list[dict[str, Any]], list[dict[str, Any]], list[dict[str, Any]]]:
-    """Query PipeWire nodes, links and clients with ONE pw-dump.
-
-    This loop runs every 1.5 s for the whole session on every machine, including a two-core
-    cloud instance. It used to spawn three filtered dumps per round; measured on pipewire 1.6.8
-    that is 12 ms a round against 4 ms for one full dump carrying the same objects.
-    """
+def full_dump() -> list[Any] | None:
+    """The whole graph from ONE one-shot pw-dump, or None when PipeWire did not answer."""
     try:
         res = subprocess.run(["pw-dump"], capture_output=True, text=True, check=False, timeout=3)
         if res.returncode == 0 and res.stdout.strip():
             data = json.loads(res.stdout)
             if isinstance(data, list):
-                return partition_dump(data)
+                return data
     except (subprocess.TimeoutExpired, json.JSONDecodeError, OSError):
         pass
-    return [], [], []
+    return None
+
+
+def query_pipewire() -> tuple[list[dict[str, Any]], list[dict[str, Any]], list[dict[str, Any]]]:
+    """Query PipeWire nodes, links and clients with ONE pw-dump.
+
+    It used to be three filtered dumps per round; measured on pipewire 1.6.8 that is 12 ms a
+    round against 4 ms for one full dump carrying the same objects. This is `--once` and the
+    fallback loop; a running session reads GraphFeed instead.
+    """
+    return partition_dump(full_dump() or [])
+
+
+class GraphFeed:
+    """PipeWire's object graph, kept current by ONE long-lived `pw-dump --monitor`.
+
+    WHY NOT A POLL. The poll looked free and was measured as free: 0.66% of a core on an x86
+    desktop. On the Oracle A1 (2 vCPU, read from the unit's cgroup on 2026-10-04, 61 h after
+    boot) it had used 52.1 CPU-minutes — more than kwin_wayland's 50.1, and the largest cost of
+    anything MoOS itself keeps running. 145,000 processes were spawned to learn, almost every
+    time, that nothing had changed.
+
+    And it is not only its own cost. Every pw-dump is a client that connects and leaves, which is
+    three events for every other client's registry. A client that is not reading them — and Mo PC
+    Remote leaked 67 of those, see close_pipewire_fd() in its portal helper — makes the daemon
+    queue them for ever: pipewire grew by about 12 MiB an hour on that machine with nobody
+    connected, to 570 MiB.
+
+    WHAT THE FEED IS. `pw-dump --monitor` prints the whole graph once and then one JSON array per
+    change: each changed object again in full, and `{"id": N, "info": null}` for one that went
+    away. It flushes each array, so through a pipe an event arrives when it happens (measured: a
+    client's own events were readable by the time it had exited). An idle desktop therefore costs
+    nothing, and a capture is published within SETTLE_SECONDS instead of within 1.5 s.
+
+    WHAT IT IS NOT. It is not trusted alone. Once every RESYNC_SECONDS the loop takes one ordinary
+    full dump and replaces what this object holds, and if the feed ends the loop goes back to the
+    poll until it can be started again. The privacy chip may be late; it may not be wrong for long.
+    """
+
+    COMMAND = ("pw-dump", "--monitor", "--no-colors")
+
+    def __init__(self) -> None:
+        self.proc: subprocess.Popen[bytes] | None = None
+        self.objects: dict[Any, dict[str, Any]] = {}
+        self._text = ""
+        self._utf8 = codecs.getincrementaldecoder("utf-8")(errors="replace")
+        self._json = json.JSONDecoder()
+
+    def start(self) -> bool:
+        self.stop()
+        try:
+            self.proc = subprocess.Popen(self.COMMAND, stdin=subprocess.DEVNULL,
+                                         stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
+        except OSError:
+            self.proc = None
+            return False
+        os.set_blocking(self.proc.stdout.fileno(), False)
+        return True
+
+    def stop(self) -> None:
+        proc, self.proc = self.proc, None
+        self._text = ""
+        self._utf8.reset()
+        if proc is None:
+            return
+        try:
+            proc.terminate()
+            proc.wait(timeout=2)
+        except (OSError, subprocess.TimeoutExpired):
+            try:
+                proc.kill()
+                proc.wait(timeout=2)
+            except (OSError, subprocess.TimeoutExpired):
+                pass
+        if proc.stdout is not None:
+            proc.stdout.close()
+
+    def alive(self) -> bool:
+        return self.proc is not None
+
+    def replace(self, objects: list[Any]) -> None:
+        """Take a one-shot dump as the truth."""
+        self.objects = {o.get("id"): o for o in objects if isinstance(o, dict) and "id" in o}
+
+    def apply(self, array: list[Any]) -> None:
+        for item in array:
+            if not isinstance(item, dict) or "id" not in item:
+                continue
+            if item.get("info") is None:
+                self.objects.pop(item["id"], None)
+            else:
+                self.objects[item["id"]] = item
+
+    def feed(self, text: str) -> bool:
+        """Take whatever arrived; apply every array that is complete. True when one was."""
+        self._text += text
+        changed = False
+        while True:
+            pending = self._text.lstrip()
+            if not pending:
+                self._text = ""
+                break
+            try:
+                array, end = self._json.raw_decode(pending)
+            except json.JSONDecodeError:
+                self._text = pending            # the rest of this array has not arrived yet
+                break
+            self._text = pending[end:]
+            if isinstance(array, list):
+                self.apply(array)
+                changed = True
+        return changed
+
+    def wait(self, timeout: float) -> bool:
+        """Sleep until the graph changes or `timeout` passes. True when it changed.
+
+        A feed that ended, or that is sending something which is not JSON, is stopped here; the
+        caller sees alive() go false and falls back to the poll."""
+        if self.proc is None or self.proc.stdout is None:
+            return False
+        fd = self.proc.stdout.fileno()
+        try:
+            ready, _, _ = select.select([fd], [], [], max(0.0, timeout))
+        except (OSError, ValueError):
+            self.stop()
+            return False
+        if not ready:
+            return False
+        changed = False
+        while True:
+            try:
+                chunk = os.read(fd, 65536)
+            except BlockingIOError:
+                break
+            except OSError:
+                chunk = b""
+            if not chunk:                       # EOF: pw-dump left, usually with PipeWire
+                self.stop()
+                return changed
+            changed = self.feed(self._utf8.decode(chunk)) or changed
+            if len(self._text) > FEED_BUFFER_LIMIT:
+                self.stop()
+                return changed
+        return changed
+
+    def snapshot(self) -> list[dict[str, Any]]:
+        return list(self.objects.values())
 
 
 def analyze_streams(
@@ -301,16 +459,65 @@ def main() -> int:
     signal.signal(signal.SIGTERM, handle_sig)
     signal.signal(signal.SIGINT, handle_sig)
 
-    while True:
-        nodes, links, clients = query_pipewire()
-        streams = analyze_streams(nodes, links, clients)
+    if args.once:
+        streams = analyze_streams(*query_pipewire())
         write_tokens(streams, target_dir)
+        print(json.dumps(streams, ensure_ascii=False, indent=2))
+        return 0
 
-        if args.once:
-            print(json.dumps(streams, ensure_ascii=False, indent=2))
-            return 0
+    watch = Watch(GraphFeed(), target_dir)
+    try:
+        while True:
+            watch.step()
+    finally:
+        watch.feed.stop()
 
-        time.sleep(1.5)
+
+class Watch:
+    """The session-long loop, one round at a time so a test can drive it."""
+
+    def __init__(self, feed: GraphFeed, target_dir: Path) -> None:
+        self.feed = feed
+        self.target_dir = target_dir
+        self.published: list[dict[str, Any]] | None = None
+        self.retry_at = 0.0
+        self.resync_at = 0.0
+
+    def step(self) -> None:
+        feed = self.feed
+        now = time.monotonic()
+
+        if not feed.alive() and now >= self.retry_at:
+            self.retry_at = now + FEED_RETRY_SECONDS
+            feed.start()
+            self.resync_at = 0.0                # a new feed starts from a full read
+
+        if not feed.alive():
+            # No feed: exactly what this program did before it had one.
+            self.published = analyze_streams(*query_pipewire())
+            write_tokens(self.published, self.target_dir)
+            time.sleep(POLL_SECONDS)
+            return
+
+        resynced = now >= self.resync_at
+        if resynced:
+            full = full_dump()
+            if full is not None:
+                feed.replace(full)
+            self.resync_at = now + RESYNC_SECONDS
+            feed.wait(0)                        # anything newer than that read goes on top of it
+        elif feed.wait(self.resync_at - now):
+            feed.wait(SETTLE_SECONDS)           # the rest of the burst
+        else:
+            return                              # the resync is due, or the feed has ended
+
+        streams = analyze_streams(*partition_dump(feed.snapshot()))
+        # A resync rewrites the tokens even when nothing changed, so a runtime directory that was
+        # cleaned under us is repaired within a minute. A graph event that changes no stream —
+        # nearly all of them — writes nothing, and the Island's folder watch stays quiet.
+        if resynced or streams != self.published:
+            write_tokens(streams, self.target_dir)
+            self.published = streams
 
 
 if __name__ == "__main__":
