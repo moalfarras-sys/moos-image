@@ -30,6 +30,13 @@ RestartSec=5
 Slice=app.slice
 ExitType=cgroup
 TimeoutStopSec=10s
+# Mira normally settles below 300 MiB. Throttle a regression before it makes the desktop swap,
+# and stop it before one assistant window can OOM the whole cloud workstation.
+MemoryAccounting=yes
+MemoryHigh=1G
+MemoryMax=1536M
+MemorySwapMax=512M
+OOMPolicy=stop
 
 [Install]
 WantedBy=graphical-session.target

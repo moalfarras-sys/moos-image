@@ -866,6 +866,60 @@ class WindowTest(unittest.TestCase):
         self.assertEqual(controller.copied, ['# اعرض النشر\nbootc status'])   # only the code
         controller.chat.clear()
 
+    def test_delegate_height_is_settled_outside_the_listview_layout_binding(self):
+        """An entry's height passes through wrong values while it is made (a reply measured 1208 px,
+        then 452). Bound to the view, those made the ListView release and remake its entries for
+        ever: one core, 30 MiB a second, 8.9 GiB at the OOM kill on the Oracle A1. The height is
+        state, written only by a deferred measurement."""
+        qml = (ROOT / 'qml' / 'Mira' / 'MessageDelegate.qml').read_text(encoding='utf-8')
+        self.assertIn('property real settledHeight:', qml)
+        self.assertIn('height: settledHeight', qml)
+        self.assertIn('Qt.callLater(settleHeight)', qml)
+        self.assertIn('onWidthChanged: Qt.callLater(settleHeight)', qml)
+        self.assertIn('onNewDayChanged: Qt.callLater(settleHeight)', qml)
+        self.assertNotRegex(qml, r'(?m)^\s*height:\s*sep\.height\s*\+\s*body\.height',
+                            'delegate height is bound back into ListView geometry again')
+        # every writer of the height is deferred: an immediate one is the binding by another name
+        for line in qml.splitlines():
+            if 'settleHeight' in line and 'function settleHeight' not in line:
+                self.assertIn('Qt.callLater(', line, line.strip())
+
+    def test_an_entry_keeps_the_height_of_what_it_draws(self):
+        """A height measured once is wrong the first time the entry changes. «Try again» leaves an
+        error card when the next message arrives; the first version of the settled height kept
+        the button's row, a 34 px gap under the card."""
+        root, controller, messages = window()
+        controller.chat.clear()
+        controller.chat.append({'role': 'user', 'text': 'q'})
+        controller.chat.append({'role': 'mira', 'text': 'a long reply that wraps. ' * 30})
+        controller.chat.append({'role': 'user', 'text': 'q2'})
+        controller.chat.append({'role': 'error', 'text': 'offline', 'status': 'error'})
+        pump(0.6)
+        chat = visible(root, 'chatList')
+
+        def entries():
+            found = [i for i in tree(chat) if i.property('settledHeight') is not None
+                     and i.property('role') is not None]
+            return sorted(found, key=lambda i: i.property('index'))
+
+        def drawn(entry):       # sep + body + the entry's margins, read from the items themselves
+            return max(child.y() + child.height() for child in entry.childItems()) + 7
+
+        def settled():
+            return all(abs(e.height() - drawn(e)) < 1.5 for e in entries())
+
+        self.assertTrue(pump(1, lambda: len(entries()) == 4 and settled()),
+                        [(e.property('role'), e.height(), drawn(e)) for e in entries()])
+        card = entries()[-1]
+        self.assertTrue(card.property('canRetry'), 'the lone error must offer «Try again»')
+        with_button = card.height()
+        controller.chat.append({'role': 'user', 'text': 'again'})
+        self.assertTrue(pump(1, lambda: not card.property('canRetry') and settled()),
+                        f'the error card kept {card.height()} px for {drawn(card)} px of content')
+        self.assertLess(card.height(), with_button, 'the row of the button was not given back')
+        self.assertEqual([m for m in messages if 'MessageDelegate' in m], [])
+        controller.chat.clear()
+
     def test_the_open_drawer_keeps_every_click_wheel_and_tab(self):
         root, controller, messages = window()
         controller.chat.clear()

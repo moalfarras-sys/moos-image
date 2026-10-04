@@ -45,9 +45,33 @@ Item {
 
     property real maxBubble: width * 0.86
     property real rise: 0
+    property real settledHeight: 60
     width: ListView.view ? ListView.view.width : 300
-    height: sep.height + body.height + 14
+    height: settledHeight
     transform: Translate { y: d.rise }
+
+    function settleHeight() {
+        // The view must never see a height that is half-way through a layout. While an entry is
+        // being made its bubble is first as narrow as its margins and its words wrap into a
+        // column: on the Oracle A1 a reply reported 1208 px, then 452. A height BOUND to that
+        // (`height: sep.height + body.height + 14`) told the ListView the viewport was full, then
+        // that it was not; the view followed the newest entry, released the entries above, made
+        // them again, and each new one began with the same wrong height. One core and 30 MiB a
+        // second, for ever: 8.9 GiB before the kernel ended it.
+        //
+        // So the height is state, measured once the layout has come to rest (callLater runs after
+        // every binding of this turn), and measured again whenever what the entry draws really
+        // changes — see the Connections below.
+        const measured = Math.ceil(sep.height + body.height + 14)
+        if (measured > 0 && measured !== settledHeight)
+            settledHeight = measured
+    }
+
+    // What an entry draws can change after it is made: «Try again» leaves an error card when the
+    // next message arrives, and a reply's pieces are laid out a frame after the entry exists.
+    // Without these the entry kept its first height and left a gap, or clipped its last line.
+    Connections { target: body; function onHeightChanged() { Qt.callLater(d.settleHeight) } }
+    Connections { target: sep; function onHeightChanged() { Qt.callLater(d.settleHeight) } }
 
     // The newest entry fades in and rises into place; entries made while scrolling back do not.
     ParallelAnimation {
@@ -55,7 +79,12 @@ Item {
         NumberAnimation { target: d; property: "opacity"; from: 0; to: 1; duration: Theme.normal }
         NumberAnimation { target: d; property: "rise"; from: 22; to: 0; duration: Theme.normal; easing.type: Easing.OutCubic }
     }
-    Component.onCompleted: if (isLast) appear.start()
+    Component.onCompleted: {
+        Qt.callLater(settleHeight)
+        if (isLast) appear.start()
+    }
+    onWidthChanged: Qt.callLater(settleHeight)
+    onNewDayChanged: Qt.callLater(settleHeight)
 
     // a small control of one entry (copy, a fresh answer)
     component MiniButton: AbstractButton {

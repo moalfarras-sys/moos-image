@@ -31,6 +31,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 LAUNCHER = ROOT / "system_files/usr/bin/mira"
 UNIT = ROOT / "system_files/usr/lib/systemd/user/mira.service"
+TRANSIENT_GUARD = (ROOT / "system_files/usr/lib/systemd/user/"
+                   "app-org.moos.moai@.service.d/50-moos-memory-guard.conf")
 MENUS = ROOT / "system_files/usr/share/kio/servicemenus"
 KDE_MODULE = ROOT / "mira/kde_integration.py"
 ISLAND = ROOT / "system_files/usr/share/plasma/plasmoids/org.moos.island/contents/ui"
@@ -214,6 +216,18 @@ class LoginUnit(unittest.TestCase):
         module = KDE_MODULE.read_text(encoding="utf-8")
         self.assertIn("UNIT = 'mira.service'", module)
         self.assertIn("['systemctl', '--user', 'enable' if enabled else 'disable', UNIT]", module)
+
+    def test_both_launch_paths_contain_a_runaway_without_starving_healthy_mira(self):
+        service = self.keys("Service")
+        for key, value in (("MemoryAccounting", "yes"), ("MemoryHigh", "1G"),
+                           ("MemoryMax", "1536M"), ("MemorySwapMax", "512M"),
+                           ("OOMPolicy", "stop")):
+            self.assertEqual(service[key], [value])
+        guard = TRANSIENT_GUARD.read_text(encoding="utf-8")
+        self.assertTrue(TRANSIENT_GUARD.parent.name.startswith("app-org.moos.moai@"))
+        for line in ("MemoryAccounting=yes", "MemoryHigh=1G", "MemoryMax=1536M",
+                     "MemorySwapMax=512M", "OOMPolicy=stop"):
+            self.assertIn(line, guard)
 
 
 class DolphinMenus(unittest.TestCase):
