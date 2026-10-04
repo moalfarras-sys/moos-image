@@ -273,6 +273,17 @@ Plasma file `rpm -V` reports that is not registered, and loads the real greeter.
 upstream file means registering it. A new Plasma means a reviewed set, never a wider range or
 an added digest.
 
+**A fixed boot library outside the initramfs cannot fix boot.** The Plymouth
+frame-lifetime patch is rebuilt from the pinned vendor SRPM with all vendor
+patches. Keep the old/fixed native negative control and actual-package proof;
+verify the final archive contains the root library's exact bytes after the last
+dracut. Upstream NVR drift needs review, never a downgrade or a relaxed gate.
+A private X11 renderer proves pixels, not firmware/DRM or a signed cold boot.
+RPM Arabic dictionary triggers can abort before the later dictionary pass; a
+zero core limit does not stop host collection via a piped core handler. Keep the
+container-only private-affix transaction guard and exact vendor restoration;
+never suppress the final Arabic/English dictionary gate.
+
 **A Hue stream that connects may still send no lamp colours.** Keep Entertainment
 channel regions when adding PC/HA layouts; prove packets contain the targeted
 channels. Screen sync must clear lamp effects (Echo's DNA otherwise keeps moving),

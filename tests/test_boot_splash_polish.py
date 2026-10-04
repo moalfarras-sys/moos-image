@@ -190,11 +190,11 @@ class BootSplashTests(unittest.TestCase):
         # downscaled, because the splash now rests on its last frame and that
         # frame is what the user looks at longest. That buys sharpness and costs
         # RAM inside the initramfs; this is where the trade is pinned.
-        self.assertLess(decoded_mib, 72,
+        self.assertLess(decoded_mib, 4,
                         f"the intro sequence decodes to {decoded_mib:.0f} MiB in the "
                         f"initramfs; that is charged to every boot on every machine")
         on_disk_mib = sum(p.stat().st_size for p in frames) / 1048576
-        self.assertLess(on_disk_mib, 16,
+        self.assertLess(on_disk_mib, 1,
                         f"the intro sequence is {on_disk_mib:.1f} MiB on disk and is copied "
                         f"into the initramfs")
 
@@ -213,13 +213,20 @@ class BootSplashTests(unittest.TestCase):
                       "login-manager bring-up")
         quit_body = text.split("fun quit_callback()", 1)[1].split("}", 1)[0]
         # It must PIN the last frame, not leave whatever was mid-flight.
-        self.assertIn("frames[INTRO_COUNT]", quit_body,
+        self.assertIn("intro_sprite.SetImage(hero)", quit_body,
                       "quit does not jump to the sequence's resting frame")
         self.assertIn("intro_sprite.SetOpacity(1)", quit_body)
-        for moving in ("ring_sprite", "head_sprite"):
-            self.assertIn(f"{moving}.SetOpacity(0)", quit_body,
-                          f"{moving} is still visible in the retained frame; a stopped "
-                          f"animation reads as a hang")
+        self.assertIn("finished = 1", quit_body)
+        self.assertNotIn(".Scale(", quit_body)
+
+    def test_entrance_finishes_and_refresh_is_idle(self) -> None:
+        text = script_text()
+        refresh = text.split("fun refresh()", 1)[1].split("Plymouth.SetRefreshFunction", 1)[0]
+        self.assertNotIn(".Scale(", refresh)
+        self.assertIn("tick >= 9", refresh)
+        self.assertIn("finished = 1", refresh)
+        self.assertIn("Plymouth.SetRefreshRate(1)", refresh)
+        self.assertEqual(len(intro_frames()), 1)
 
     def test_the_ground_is_the_desktop_canvas(self) -> None:
         # #14191C is the UI2 canvas the desktop opens on. Any other colour here

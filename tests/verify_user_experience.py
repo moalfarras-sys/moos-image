@@ -4826,7 +4826,7 @@ require('omit_dracutmodules+=" nfs "' in build and build.count('--omit "nfs"') >
 # boot/login scene is real only if each finished archive contains the backdrop;
 # a source-only check would leave ARM or recovery booting the old flat plate.
 require(
-    "for _spr in boot-backdrop ring head glow" in build,
+    "for _spr in boot-backdrop intro1" in build,
     "build_files/build.sh does not prove boot-backdrop.png reached the final initramfs",
 )
 for build_script in ("build_files/build-arm.sh", "build_files/build-arm-recovery.sh"):
@@ -4888,17 +4888,17 @@ require(f"Window.SetBackgroundBottomColor({_ground})" in moos_script_src,
         f"the boot splash's bottom background is not the UI2 canvas #{_canvas} — the ground "
         f"must be FLAT, or the splash-to-desktop seam shows")
 
-# The splash is LOGO-HERO: the rendered stage is centred and the slow-boot cue
-# orbits that same centre. Gate the relationships, not retired sprite variable
-# names from the synthetic reveal that preceded the frame sequence.
+# The approved hero remains centred. The owner requests a lighter boot: retire
+# the perpetual orbit, require finite motion and idle refresh instead. Identity,
+# retain-splash, shared backdrop and image/initramfs gates remain in force.
 require("stage_x = cx - stage_w / 2" in moos_script_src
         and "stage_y = cy - stage_h / 2" in moos_script_src
         and "intro_sprite.SetX(stage_x)" in moos_script_src
         and "intro_sprite.SetY(stage_y)" in moos_script_src,
         "the rendered boot stage must be centred as the hero")
-require("head_sprite.SetX(cx + ring_radius * Math.Cos(rad)" in moos_script_src
-        and "head_sprite.SetY(cy + ring_radius * Math.Sin(rad)" in moos_script_src,
-        "the slow-boot loading head must orbit the ring around the hero")
+require("tick >= 9" in moos_script_src and "finished = 1" in moos_script_src
+        and "Plymouth.SetRefreshRate(1)" in moos_script_src,
+        "boot entrance must finish and leave idle refresh, without an endless orbit")
 # Scale to screen height, so it is crisp at 1080p and 4K without stretching.
 require("Window.GetHeight(0)" in moos_script_src,
         "the boot splash must size itself from the screen height (crisp at 1080p and 4K)")

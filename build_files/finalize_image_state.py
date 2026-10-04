@@ -42,6 +42,10 @@ PACKAGE_STATE_DIRECTORIES = (
     "var/lib/samba",
     "var/lib/samba/winbindd_privileged",
     "var/lib/xkb",
+    # Reinstalled Plymouth owns this empty spool; capture its exact ownership
+    # into tmpfiles rather than shipping mutable state or silently deleting logs.
+    "var/spool",
+    "var/spool/plymouth",
     "run/cloud-init",
     "run/cups",
     "run/cups/certs",

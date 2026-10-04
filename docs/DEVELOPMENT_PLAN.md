@@ -15,7 +15,7 @@ product milestone. Source repairs below are **not a signed installed release**.
 | Immediate — P6.5 / P5.5 | Remote remembers which backend accepted each held key/button; a reconnect cannot release a uinput press into the portal. Failed releases remain retryable. | Private datagram recorder proves fallback→portal recovery and portal failure/retry without touching host input; owner confirmed clicking works after activating the exact private Remote bundle; phone drag/modifier, disconnect/reconnect and soak acceptance remain owed. This is a reproduced defect, not proof of the cause of every reported freeze. |
 | Immediate — P4.1 / P2.12 | Android readiness requires a successful recognized status. Firmware refresh/query failures fail the action; only documented no-action status means no updates. | Backend failure/empty/unknown status fixtures, actual stopped Android session, firmware failure/no-action/declined privilege fixtures; no flashing during tests. |
 | Immediate — P5.4 | Boot timing excludes the separate graphical-target duration from the total. Interpreted Mira/Lumen/HA and AI services count by their systemd owner, without counting arbitrary Python work. | Regression fixtures; fresh live measurements with screen sync/wake/browser activity stated; remeasure the earlier idle baselines before claiming closure. |
-| Next — P0.7 / P5.1 | Oct 3 Plymouth SIGABRT now resolves to `head != NULL` after quit, consistent with the undisarmed frame callback in the exact vendor source; diagnose Echo's ~62.5 USB audio warnings/s at the packet/device layer. Its active microphone feeds Mira Local Wake. | Privileged crash evidence when available; fix without suppressing the failed-unit gate or disabling the owner's microphone; boot-affecting patch needs full image/3×QCOW2/ISO/ARM proof. |
+| Next — P0.7 / P5.1 | Oct 3 Plymouth SIGABRT now resolves to `head != NULL` after quit, consistent with the undisarmed frame callback in the exact vendor source; diagnose Echo's ~62.5 USB audio warnings/s at the packet/device layer. The owner now chooses Mira on demand; its foreground autostart was disabled with a private backup. Echo hardware warnings remain open. | Privileged crash evidence when available; fix without suppressing the failed-unit gate or disabling the owner's microphone; boot-affecting patch needs full image/3×QCOW2/ISO/ARM proof. |
 | Next — W11 / P1.7 | Deliver the pending house/PC/Echo control corrections as one signed batch, then retire the documented local Mira overrides. | Reboot into exact proven NVIDIA digest, recover the saved group, change scenes and stop/resume screen sync; observe physical lamps and case LEDs. Three unreachable lamps remain explicit unavailable devices. |
 
 **P2.12 follow-through, 2026-10-04:** firmware's fixed `moai-do` transaction now
@@ -691,7 +691,23 @@ P0.7 remains open, but it is no longer a mystery: the stack was captured, and th
 now read out of plymouth 24.004.60's own source — `ply_boot_splash_free()` frees
 `pixel_displays` without disarming the `on_new_frame` timeout, which only
 `ply_boot_splash_hide()` does, and `--retain-splash` is precisely the path that skips it.
-The fix is upstream's, not MoOS's; see the P0.7 row.
+**2026-10-04 corrective source:** MoOS rebuilds the exact pinned vendor SRPM with
+all 23 original patches and one narrow frame-cancellation patch. Old native ASan
+and package controls fail, 20 fixed trials each pass; parser and private X11
+renderer pass. Exact root/initramfs library gate is added. Local NVIDIA image `b649a612533a` now passes identity, initramfs, native apps and
+state gates; actual-image byte readback and altered-hero rejection pass. Signed
+artifact boot proofs and installed acceptance remain open; this is not delivery. The local image gate
+caught its retired ring/head/glow inventory; the corrected gate additionally
+compares every literal theme asset's exact bytes in the final archive. A separate
+container-only language transaction guard sanitizes private Arabic affix copies
+for RPM triggers and restores the exact vendor converter on success/failure.
+Real SDK installation produced 50 dictionaries without converter crashes; source
+fixtures cover restoration and failed/unexpected transactions. The image state
+gate caught empty `/var/spool/plymouth` recreated by its RPM. Exact modes/owners
+are captured into tmpfiles and empty compose directories removed; payloads still
+fail and are preserved. Fourteen state tests include real tmpfiles reconstruction.
+`bootc lint` retains its existing nonempty `/boot` warning for boot assets; no
+mutable `/var` payload remains in actual image readback.
 
 ## The two editions did not ship the same desktop (measured 2026-09-21, fixed)
 
@@ -1121,21 +1137,22 @@ So a frame callback already queued in the event loop runs AFTER quit has begun t
     `plymouth-quit.service` finishes. Installed `libply-splash-core.so.5` disassembly
     resolves its assertion to `head != NULL` in `ply_renderer_flush_head`, reached
     through `on_new_frame`; the exact `24.004.60-24.fc44` source RPM retains the
-    same undisarmed callback. This supports the teardown diagnosis; no package
-    patch, root coredump-body inspection or corrected boot has yet occurred.
+    same undisarmed callback. The narrow cancellation patch now rebuilds the exact
+    vendor SRPM with all 23 vendor patches and original flags. Actual RPM-library
+    proof observes missing cancellation (3 controls) and fixed cancellation (20
+    passes). Root coredump-body and corrected signed boot remain open.
     The maintained native proof is now
     `scripts/review/plymouth-frame-lifetime.py` (usage in its sibling `PLYMOUTH.md`):
     exact vendor SRPM SHA-256 plus all 23 patches, actual splash source compiled with
     ASan and the same native event-loop library. Three unmodified trials expose
-    frame use-after-free; twenty trials with an artifact-only timeout-disarm patch
-    pass. No host compilation, device I/O or reboot; unexpected exits fail and core
+    frame use-after-free; twenty trials with the shipped timeout-disarm patch pass. No host compilation, device I/O or reboot; unexpected exits fail and core
     dumps are disabled. This narrows the package repair, but does not prove the
     installed SIGABRT is eliminated or replace image/boot/identity acceptance.
 
-    What is actually left, in order of preference: **(1)** fix it upstream — disarm
-    `on_new_frame` in `ply_boot_splash_free()`, or clear `is_shown` there — since that is a
-    four-line change in plymouth, not in MoOS; carrying it as a patch before upstream lands it
-    is still a fork and still the owner's call. **(2)** `plymouth hide-splash` before
+    **Owner-authorized repair 2026-10-04:** carry the pinned vendor rebuild until
+    upstream resolves it; unknown NVR fails closed rather than being downgraded.
+    Full image and signed artifact proofs remain mandatory. Retired alternative:
+    `plymouth hide-splash` before
     `quit --retain-splash`: `on_hide_splash()` sets `should_retain_splash = true` and reaches
     `hide_splash()` FIRST, which is exactly the safe order — but it routes through
     `toggle_between_splash_and_details()`, which frees the MoOS splash and instantiates the
@@ -1526,8 +1543,11 @@ Do not layer compilers onto the immutable host merely for convenience. Do not
 put API keys in `.env`, committed config, shell history or test fixtures.
 
 Performance work starts with repeated measurements, not removing dependencies
-based on RPM size metadata. The current boot is 36.783 s with 5.325 s in
-`ldconfig`; P5.4 must check another boot and a real idle interval. P5.6 must
+based on RPM size metadata. The latest station systemd boot totals 33.225 s: firmware 10.103, loader 5.344,
+kernel 6.069, initrd 3.778 and userspace 7.928 s. This is not power-button-to-usable
+desktop stopwatch evidence. Owner's Mira autostart was disabled and its foreground
+cgroup stopped (~914 MiB); Home Assistant and lighting are retained. P5.4 still
+needs repeated cold boots and a real idle interval without build load. P5.6 must
 measure final image/ISO bytes and package reverse dependencies before removing
 unused payload. Compiler SDKs stay in user/development environments; optional
 office, Android and compatibility stacks remain on demand.

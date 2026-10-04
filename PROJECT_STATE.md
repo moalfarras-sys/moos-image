@@ -5,7 +5,6 @@ NVIDIA `.977` (promotion `37120191781`); exact x86 build `37114776308`, all thre
 QCOW2 and offline ISO proofs passed; ARM `37114740334` also promoted. The station
 now boots `.977` with `.975` retained. Installed Mira, Home Assistant and Lumen
 were active; corrective source below is separate from the signed installed bytes.
-
 **Home/control corrective audit, 2026-10-03:** branch
 `fix/mira-lighting-control-20261003` fixes lost Hue Entertainment regions,
 Echo effects overriding screen colour, black frames leaving lamps orange, stale
@@ -25,7 +24,6 @@ Persistent Lumen `40-local-mira-control.conf` selects it; login sync survived se
 Group «إضاءة البيت والكيس» spans all 13.
 281 checks and full `just check` pass (6 skips); physical proof remains open.
 Mouse clicks recovered after ydotoold restart (owner/test window); fixed station helper's button-down release and failed-drag cleanup.
-
 **Readiness source repair, 2026-10-04:** `fix/os-readiness-20261004` extends
 pending Mira corrective source. Kernel socket-UID checks isolate all three Mo AI
 HTTP APIs; Android/firmware errors no longer report readiness/no updates; boot
@@ -45,16 +43,22 @@ concurrent-action guard and dead-process detection, including unreaped exits.
 36 AR/EN light/dark native frames cover all states without flashing hardware.
 Installed firmware/timer acceptance remains open. Plymouth SIGABRT resolves to
 `head != NULL` after quit; exact vendor source confirms the undisarmed callback.
-Echo feeds Mira Local Wake; ~62.5 USB warnings/s remain open, its input kept active.
-
+Boot correction is being integrated on `fix/boot-journey-20261004`: pinned vendor
+RPM rebuild cancels the freed frame callback; native ASan 3 old/20 fixed and actual
+RPM-library 3 old/20 fixed trials pass; native parser positive/BOM-negative pass.
+Real renderer: 640×480/1080p/4K and password prompt; 1080p sample peak RSS 169→91 MiB.
+Language guard builds 50 dictionaries without crashes; converter restored; spool uses tmpfiles.
+Approved resting hero replaces 32 frames (58.1→1.82 MiB decode), finite 360 ms
+entrance and shared login ground. Local NVIDIA `b649a612533a` passes all image gates;
+actual archive/library/theme readback and tamper rejection pass; signed boots open.
+Owner's Mira autostart disabled; stopped foreground cgroup charged ~914 MiB;
+Backup `~/.local/lib/moos-review/20261004-095219/mira-login`; voice on demand. Current boot: 33.225 s (15.447 firmware/loader), not a stopwatch. Echo hardware repair remains open.
 **Remote:** signed `59e97672` corrected empty GDK snapshots; no Xid or memory pressure
 was observed and KWin stayed running. HDMI and physical mouse/phone endurance remain open.
-
 **MoPlayer, merged and delivered on `.964`:** the "freeze" was a 278 MB Hive catalogue decoded on the UI isolate each launch (~6 s, 1.4 GB) plus a 4.9 GB idle GPU reservation from Impeller gradient shaders and window-sized layers. The merged source moves catalogue work to isolates (~1.3 s, 0.5 GB), reduces idle GPU use to ~0.6 GB, reads get.php links as Xtream accounts, sorts playlists, supports MAC portals and ships Horizon UI. A 4K HEVC live stream and 1080p VOD played on the station from the source bundle; 255 Flutter tests passed. The local launcher that shadowed `.964` is now backed up, and the signed launcher is selected. Open: a real MAC portal, ~1 GB kept after Stop and installed playback readback (plan P2.13).
-
 **Mira, 2026-10-02:** PRs #177–#180 integrate her six pages, approvals inbox, chat history, KDE entry, new Mo AI actions and ARM packaging. Signed x86/ARM builds include her; the station's earlier user install proved Arabic voice, a live approval and the page renders. Installed `.967` face was captured. A topic-source live Gemini voice turn on 2026-10-02 proved mouth energy returning to zero in pauses and at idle; 89 controller/QML/voice tests pass. Registered patches preserve original portraits. A corrective single-mouth UV rig replaces lip cross-fades after the owner showed doubled lips; both GPU waveform renders and a native voice reply (28 captures, pause/idle zero) were reviewed. The station now boots `.975`, which delivers the single-mouth correction; owner-spoken endurance remains open. See `mira/README.md`. **Mira home centre + Lumen, 2026-10-03 (merged and signed in `.977`; station readback below is from temporary source):** Home Assistant's registries drive a room-by-room Home page where names, rooms and voice aliases are written back into HA (rename and area round-trips read back and restored); Mira's instruction carries the same device inventory with real capabilities. Lumen, the lighting engine (`/usr/bin/mira-lumen`, user service), unifies HA lamps, the Hue bridge directly and the PC's Gigabyte RGB Fusion 2 controller (IT5701 v3.0.27.0 on this B660 GAMING X DDR4, hidraw, nothing written to flash). Measured live: a Hue lamp set violet 60 % read back in 0.43 s and was restored to its exact xy; a living scene streamed to the four PC headers at 30 fps for 1.8 % of one core; the owner approved the ScreenCast portal once and Screen Sync ran at ~14–16 fps (static desktop) with the restore token sparing a second dialog — Lumen 7 % and KWin +7.5 % of one core while syncing, Lumen 0.1 % idle; the Hue bridge was discovered (mDNS/Avahi) and a DTLS-PSK round trip through GnuTLS was proven against `openssl s_server`; Mira's text brain answered a device-capability question from the inventory and ran `light_scene`/`lights` on the PC. The station uses the documented backed-up per-user Mira app/launcher/autostart and persistent Lumen MIRA_APP drop-in until a signed image carries the corrections. Hue pairing and actual HDMI Entertainment streaming are now proven in the corrective audit above. Open: which physical fans hang on which header (needs the owner), installed Home/Lumen acceptance after reboot.
-
 ## Source and release truth
+
 - **Proven production source is `7c9d1e43`, NVIDIA `44.20261003.977`**:
   signed candidate `37114776308`, promotion `37120191781`; ARM
   build/boot/promotion `37114740334`. The station now boots signed `.977` with `.975` retained.
@@ -86,7 +90,6 @@ channels let 2.3 GB download, the container run, and F-Droid open after App Drop
 VLC's real window is captured in `test-results/android-vlc-source-live.png`. The 4K Windows
 UI density is measured. PE32 remains blocked by an SELinux `execmod` denial for an i386 PE
 DLL from composefs; do not weaken SELinux globally.
-
 ## Physical development station
 
 | Area | Measured state |
@@ -129,7 +132,6 @@ owner reported a stable short v49 cellular trial at 1024 px; longer endurance an
   Settings deep-links Update, Recovery and Remote to their transaction owners, with owner-read
   busy/superseded update, queued rollback and failed Remote rows (Arabic/English light/dark Qt
   captures passed). Installed routes and real transactions remain unproven; neither is installed.
-
 ## Development environment
 
 - On the station: VS Code is a Flatpak; host work uses `flatpak-spawn --host`. There is
@@ -138,14 +140,15 @@ owner reported a stable short v49 cellular trial at 1024 px; longer endurance an
   goes through `scripts/station/pointer.py` — KWin confirms every position before a click.
 - Off the station: Windows 11 + WSL2 `FedoraLinux-44`. `scripts/review/` holds the toolchain
   installer, the gate mirror and the from-source renderers; `release-candidate.sh` needs `TMPDIR`.
-
 ## ARM station `moos-arm-oracle` (Oracle A1, measured 2026-09-21)
 
 The only ARM MoOS machine: 2 vCPU / 11 GiB, `kwin_wayland --virtual 1920x1080 --xwayland`.
+
 **Read back 2026-09-24:** signed `moos-arm@sha256:eff234df…` = `44.20260923.568` (ARM
 `latest`), kernel `7.2.7-200.fc44.aarch64`, Plasma 6.7.5, Qt 6.11.2, no failed units. The rest
 was measured on `.545`: `blessed`/`attempts: 0`, `post-update-check.sh` 55/0, `moos-selfcheck`
 50 passed + 3 owner-choice notes. Idle cost over 10 s of `/proc/<pid>/stat`: `kwin_wayland`
+
 **2.1%**, `plasmashell` **0.6%** of one core (`ps`'s ~26% is a lifetime average with startup).
 
 **Seen on the live A1 on 2026-09-24, and fixed in source with a gate:** the MoOS Bar and Dolphin
@@ -156,7 +159,6 @@ a full local ARM build. Mo AI's chat texture drew stray logos on the software sc
 runtime-gated); it answered in 0.65 s on the free route, APIs loopback-only. Three readings look
 like defects and are not (`cost_policy: "paid"`, `"gateway": false`, sandboxed
 `systemd-tmpfiles`): see the plan.
-
 ## Plasma 6.8 readiness (measured 2026-09-24; detail in plan row P6.7)
 
 On KDE SIG's 6.8 beta (`6.7.90`) MoOS's 6.7 lock screen falls back to the emergency locker (6.8
@@ -165,7 +167,6 @@ removed `VirtualKeyboardLoader`). **Canary run `35980381601` built the whole gen
 loaded the merged lock screen in the real greeter; PR #161's 6.7.5 builds pass it too. CI also
 fixed Breeze Global Themes hidden on x86 (one shared step) and flagged a libplasma soname bump
 that removes `kcm-fcitx5` until Fedora rebuilds it. No 6.8 candidate yet.
-
 ## Open evidence gaps
 
 - **W9.9 source, live from the worktree (2026-09-25):** the seven System Settings modules on the
@@ -177,7 +178,6 @@ that removes `kcm-fcitx5` until Fedora rebuilds it. No 6.8 candidate yet.
 - **Testing side effects, now gated (2026-09-24/25):** repo tests wrote fake `moai-do`/`moos-update`
   audit lines and dumped `bluetoothctl` core; tests now stub `logger` under a meta-gate and skip
   Bluetooth without a system bus.
-
 - M1 visual/accessibility matrix: English/German, light/dark, reduced motion, 1080p–4K,
   100–250%, island Remote/Media (Arabic only so far).
 - Hardware: suspend/resume, multi-monitor, audio/network recovery, deliberate rollback,

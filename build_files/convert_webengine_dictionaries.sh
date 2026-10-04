@@ -33,13 +33,10 @@ work="$(mktemp -d)"
 trap 'rm -rf "$work"' EXIT
 mkdir -p "$out"
 
-# The SIGTRAPs below are expected and their cores carry zero signal, but the
-# HOST's systemd-coredump still collects ~26 of them from every rootless local
-# build — a crash burst that reads like a real incident in `coredumpctl list`
-# (it derailed one live audit already, and the ARM ones were how this very bug
-# was found). A zero core limit keeps known build-container crashes out of the
-# host journal; the gate below still asserts the converted output, which is the
-# only truth that matters.
+# Avoid known converter fatal paths by sanitizing private Arabic inputs below.
+# A zero core limit alone does NOT stop the host's piped coredump collector.
+# install_language_packs.sh also protects the earlier RPM file triggers and
+# restores the original converter; both final Arabic/English gates stay active.
 ulimit -c 0 2>/dev/null || true
 
 built=0

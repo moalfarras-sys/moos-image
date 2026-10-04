@@ -129,7 +129,12 @@ def main() -> int:
                     help="stored frame width. THIS IS A MEMORY BUDGET, not a quality "
                          "knob: Plymouth decodes every frame into RAM inside the "
                          "initramfs, so N frames cost N*w*h*4 bytes there.")
+    ap.add_argument("--output", type=pathlib.Path, required=True,
+                    help="private review artifact directory; never the shipped theme")
     args = ap.parse_args()
+    if args.output.resolve() == THEME.resolve():
+        sys.exit("FATAL: raw cuts must not overwrite the approved resting hero")
+    args.output.mkdir(parents=True, exist_ok=True)
 
     src = pathlib.Path(args.source)
     if not src.exists():
@@ -153,7 +158,7 @@ def main() -> int:
         box = content_box(picked)
         cw, ch = box[2] - box[0], box[3] - box[1]
 
-        for f in THEME.glob("intro*.png"):
+        for f in args.output.glob("intro*.png"):
             f.unlink()
         total = 0
         sw = args.width
@@ -163,7 +168,7 @@ def main() -> int:
             # Unpadded on purpose: Plymouth's script language builds these
             # names by concatenating a loop counter and has no formatting, so
             # intro1..intro36 is what it can actually address.
-            p = THEME / f"intro{n}.png"
+            p = args.output / f"intro{n}.png"
             out.save(p, optimize=True)
             total += p.stat().st_size
 
@@ -172,7 +177,7 @@ def main() -> int:
           f"-> {args.frames} frames @ {args.fps} fps = {args.frames/args.fps:.2f} s")
     print(f"crop     : {cw}x{ch} (from the sequence's own content, +6% pad)")
     print(f"stored   : {sw}x{sh_} per frame")
-    print(f"written  : {THEME}/intro1..{args.frames}.png  total {total/1024:.0f} KiB on disk")
+    print(f"written  : {args.output}/intro1..{args.frames}.png  total {total/1024:.0f} KiB on disk")
     print(f"ram      : ~{args.frames * sw * sh_ * 4 / 1048576:.0f} MiB decoded in the initramfs")
     print(f"aspect   : {sw/sh_:.4f}   <- moos.script INTRO_ASPECT must match this")
     return 0

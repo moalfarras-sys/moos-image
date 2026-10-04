@@ -60,6 +60,20 @@ COPY tests/qml/motion-review.qml /motion-review.qml
 # test file (the mira-build stage runs the same probe as a suite), never shipped.
 COPY mira/test_visual_tier.py /mira/test_visual_tier.py
 
+# P0.7: native vendor RPM rebuild; SDK and regression evidence never ship.
+FROM base AS plymouth-build
+RUN dnf5 -y install --setopt=install_weak_deps=False gcc libasan rpm-build cpio patch \
+    'dnf5-command(builddep)' python3 plymouth-core-libs
+COPY build_files/build_plymouth_fix.sh build_files/plymouth_rpms.py /src/
+COPY build_files/plymouth/frame-lifetime.patch /src/frame-lifetime.patch
+COPY build_files/plymouth/frame-lifetime-native.c /src/frame-lifetime-native.c
+COPY build_files/verify_plymouth_package.py /src/verify_plymouth_package.py
+COPY scripts/review/plymouth-frame-lifetime.py /src/plymouth-frame-lifetime.py
+RUN bash /src/build_plymouth_fix.sh
+COPY build_files/plymouth/script-parser.c build_files/verify_plymouth_script.py /src/
+COPY system_files/usr/share/plymouth/themes/moos/moos.script /src/moos.script
+RUN python3 /src/verify_plymouth_script.py
+
 # -----------------------------------------------------------------------------
 # Stage "akmods": ublue's NVIDIA kmod + driver RPMs, bind-mounted (not copied) at
 # /akmods during the build. The generic edition mounts it and never reads it —
@@ -317,6 +331,7 @@ COPY --from=kcm-contract /out/kcm/usr/ /usr/
 # on Windows, where git usually drops the executable bit.
 RUN --mount=type=bind,from=ctx,source=/,target=/ctx \
     --mount=type=bind,from=akmods,source=/,target=/akmods \
+    --mount=type=bind,from=plymouth-build,source=/out,target=/plymouth-rpms \
     --mount=type=cache,dst=/var/cache \
     --mount=type=cache,dst=/var/log \
     --mount=type=tmpfs,dst=/tmp \

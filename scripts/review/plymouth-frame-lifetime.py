@@ -22,7 +22,10 @@ SRPM_SHA = 'e45ef414519b4c9d441b086fbb6b3456df523d61890c9cc3876c069f0eaf57a4'
 SOURCE_SHA = '534300245b54b301638bb474deeda7fd1e98c2e295b2155c8af9d6f664d42a9c'
 RELATIVE = Path('src/libply-splash-core/ply-boot-splash.c')
 REPRO = '''#include SPLASH_SOURCE
-static void finish(ply_event_loop_t *loop) { ply_event_loop_exit(loop, 0); }
+static void finish(void *data, ply_event_loop_t *loop) {
+    (void) data;
+    ply_event_loop_exit(loop, 0);
+}
 int main(void) {
     static const ply_boot_splash_plugin_interface_t plugin = {0};
     ply_event_loop_t *loop = ply_event_loop_new();
@@ -32,8 +35,7 @@ int main(void) {
     splash->is_shown = true;
     ply_event_loop_watch_for_timeout(loop, 0.000001,
         (ply_event_loop_timeout_handler_t) on_new_frame, splash);
-    ply_event_loop_watch_for_timeout(loop, 0.002,
-        (ply_event_loop_timeout_handler_t) finish, loop);
+    ply_event_loop_watch_for_timeout(loop, 0.002, finish, loop);
     ply_boot_splash_free(splash);
     int result = ply_event_loop_run(loop);
     ply_event_loop_free(loop);

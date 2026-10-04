@@ -170,6 +170,8 @@ TAILSCALE_REPO
 _PLASMA+=(tailscale)
 dnf5 -y install --setopt=install_weak_deps=False "${_PLASMA[@]}"
 
+python3 /ctx/plymouth_rpms.py install /plymouth-rpms
+
 # cosign is not always packaged for aarch64 — install the static binary when needed.
 if ! command -v cosign >/dev/null 2>&1; then
     if ! dnf5 -y install --setopt=install_weak_deps=False cosign 2>/dev/null; then
@@ -193,7 +195,7 @@ dnf5 -y install --setopt=install_weak_deps=False \
     ibm-plex-sans-fonts ibm-plex-sans-arabic-fonts ibm-plex-mono-fonts \
     google-noto-sans-fonts google-noto-sans-arabic-fonts \
     google-noto-color-emoji-fonts jetbrains-mono-fonts
-dnf5 -y install langpacks-ar langpacks-en
+bash /ctx/install_language_packs.sh
 
 # Optional local ChatGPT RPMs are accepted only after their publisher signature
 # verifies against this pinned key; the large application does not ship in the
@@ -1288,6 +1290,8 @@ dracut --no-hostonly --force --reproducible \
     --add "ostree plymouth" \
     "/usr/lib/modules/${kver}/initramfs.img" "${kver}" 2>&1 | tail -20
 rmdir /var/roothome
+
+python3 /ctx/verify_plymouth_initramfs.py "/usr/lib/modules/${kver}/initramfs.img"
 
 # GATE: the splash has to actually be inside the initramfs. Everything else can
 # be green while it is not, and the failure is only visible on a boot.

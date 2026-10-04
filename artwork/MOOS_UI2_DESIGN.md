@@ -382,3 +382,23 @@ python3 tests/verify_user_experience.py
 ```
 
 The release decision still requires clean-VM and upgraded-real-host visual proof.
+
+## Boot — Graphite Horizon
+
+The boot stage extends the existing UI2 contract, using the exact Graphite login
+landscape and approved resting rendered mark. Keep the first frame recognizably
+MoOS: centre the hero, bound it to 70% screen width / 62% height, preserve aspect.
+Use the approved image unchanged; no new logo, added slogan, decorative panels or
+fake progress percentage. The hero's reflection is part of the approved master.
+
+Motion is finite: 0.70→1 opacity over 360 ms; shutdown, password prompt and quit
+immediately settle. No minimum display time, spinner loop or additional session
+splash. Pre-login has no user's Plasma motion settings. Native text stays bounded
+and uses the existing muted/text/primary tokens. Once settled, refresh performs
+no scaling or sprite movement; one hero replaces the 32-frame movie.
+
+Developer handoff: `system_files/usr/share/plymouth/themes/moos/README.md` owns
+geometry, tokens, generators and native review commands. Keep root/initramfs
+package byte proof and all identity/retain-splash/rollback gates. Review with
+`scripts/review/plymouth-render.sh` in a private SDK, including small-screen
+password entry. Native pixels prove composition, not a signed cold boot.
