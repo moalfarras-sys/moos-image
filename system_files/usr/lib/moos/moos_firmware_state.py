@@ -27,7 +27,10 @@ def state_path():
 def _process_start(pid):
     try:
         text = Path(f'/proc/{pid}/stat').read_text()
-        return text[text.rindex(')') + 2:].split()[19]
+        fields = text[text.rindex(')') + 2:].split()
+        # A dead child can retain its PID/start identity until its parent reaps
+        # it. That process cannot finish the transaction or write a result.
+        return '' if fields[0] in ('Z', 'X', 'x') else fields[19]
     except (OSError, ValueError, IndexError):
         return ''
 

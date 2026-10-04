@@ -24,14 +24,17 @@ installation, completed, none offered, declined, failure and interruption are
 separate; the last check's result never implies present universal readiness.
 A boot/PID-start identity and nonblocking record lock prevent concurrent owner
 transactions; no raw vendor output/device serial reaches the status page.
-Partial install failure says “did not complete”, not “nothing changed”. Forty
-Settings tests, 31 action cases, native compiled-KCM contract/build and full
+Partial install failure says “did not complete”, not “nothing changed”. Forty-one
+Settings tests (including a real unreaped child), 31 action cases, native compiled-KCM contract/build and full
 `just check` passed. Real native-loader renders cover nine states × Arabic/English
 × light/dark; the review fixture was corrected to include MoOS icons. An earlier
 invalid native-loader harness caused a test coredump; the corrected loader uses
 `KQuickConfigModuleLoader` and passed all four render runs. No device was flashed.
 PR #194 required source/image checks passed (x86 `37162314317`, ARM `37162314269`);
-its skipped ARM disk/promotion jobs prove no boot or signed delivery. Installed
+its skipped ARM disk/promotion jobs prove no boot or signed delivery. The advisory
+review step failed internally despite its green workflow result, so no independent
+review is claimed. An exited child retaining its PID/start originally left firmware
+busy; the real-child regression fails that code and passes zombie/dead-state detection. Installed
 firmware status, app timer/failure readback and confirmed-device flow remain open.
 
 ### Competitive product acceptance — one roadmap, measurable boundaries
@@ -1120,6 +1123,14 @@ So a frame callback already queued in the event loop runs AFTER quit has begun t
     through `on_new_frame`; the exact `24.004.60-24.fc44` source RPM retains the
     same undisarmed callback. This supports the teardown diagnosis; no package
     patch, root coredump-body inspection or corrected boot has yet occurred.
+    The maintained native proof is now
+    `scripts/review/plymouth-frame-lifetime.py` (usage in its sibling `PLYMOUTH.md`):
+    exact vendor SRPM SHA-256 plus all 23 patches, actual splash source compiled with
+    ASan and the same native event-loop library. Three unmodified trials expose
+    frame use-after-free; twenty trials with an artifact-only timeout-disarm patch
+    pass. No host compilation, device I/O or reboot; unexpected exits fail and core
+    dumps are disabled. This narrows the package repair, but does not prove the
+    installed SIGABRT is eliminated or replace image/boot/identity acceptance.
 
     What is actually left, in order of preference: **(1)** fix it upstream — disarm
     `on_new_frame` in `ply_boot_splash_free()`, or clear `is_shown` there — since that is a
