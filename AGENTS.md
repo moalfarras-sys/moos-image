@@ -431,6 +431,13 @@ runs every auditing suite with a trap that fails if the real one is reached. A b
 test container is not isolated from the host's `systemd-coredump` either: a helper that
 lets a tool abort (bluetoothctl with no system bus) leaves real crash reports on the station.
 
+**A firmware failure does not prove nothing changed.** A multi-device update can
+fail after one device was flashed. Say the operation did not complete and direct
+the owner to re-check device versions. Persistent transaction state is private,
+atomic, tied to boot/PID start identity and written only by the fixed executor;
+fixtures must isolate `XDG_STATE_HOME` so they cannot fabricate owner history.
+A completed process is a transaction result, not physical firmware readback.
+
 **A queued result is not a finished worker.** Mira page tests must join their
 workers and drain queued follow-up reads before releasing the Qt page or removing
 backend mocks. On 2026-10-03, a one-CPU container reproduced a PySide queued-call

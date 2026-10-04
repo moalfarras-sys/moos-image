@@ -37,13 +37,18 @@ Full `just check`, real owner/second-UID HTTP checks and Linux publish passed;
 these repairs are not signed installed bytes. A private Remote bundle at source
 `9ffdf92f` is selected by `45-readiness-review.conf`; the owner confirmed clicking
 works. HTTP 200, exact executable path and zero restarts passed; phone/soak remain open.
-Plymouth renderer SIGABRT and Echo USB audio overruns remain open, not suppressed.
+PR #194's repo, .NET/controller, generic x86 image and native ARM image checks passed;
+PR boot/promotion jobs were skipped, so this is not artifact-delivery evidence.
+Native Update Settings reads nine firmware states with private atomic records,
+concurrent-action guard and dead-process interruption detection.
+40 Settings/31 action fixtures, native KCM contract and `just check` pass;
+36 AR/EN light/dark native frames cover all states without flashing hardware.
+Installed firmware/timer acceptance remains open. Plymouth SIGABRT resolves to
+`head != NULL` after quit; exact vendor source confirms the undisarmed callback.
+Echo feeds Mira Local Wake; ~62.5 USB warnings/s remain open, its input kept active.
 
-**Remote interruption diagnosis:** signed source `59e97672` corrected empty GDK
-snapshots; actual HDMI disconnect and phone/cellular endurance remain open.
-NVIDIA showed no Xid, KWin remained running and memory pressure was zero in the
-observed interruption. A recovered stream or a backend fixture does not prove
-long-term physical mouse/phone acceptance; recurrence/phone endurance remain open.
+**Remote:** signed `59e97672` corrected empty GDK snapshots; no Xid or memory pressure
+was observed and KWin stayed running. HDMI and physical mouse/phone endurance remain open.
 
 **MoPlayer, merged and delivered on `.964`:** the "freeze" was a 278 MB Hive catalogue decoded on the UI isolate each launch (~6 s, 1.4 GB) plus a 4.9 GB idle GPU reservation from Impeller gradient shaders and window-sized layers. The merged source moves catalogue work to isolates (~1.3 s, 0.5 GB), reduces idle GPU use to ~0.6 GB, reads get.php links as Xtream accounts, sorts playlists, supports MAC portals and ships Horizon UI. A 4K HEVC live stream and 1080p VOD played on the station from the source bundle; 255 Flutter tests passed. The local launcher that shadowed `.964` is now backed up, and the signed launcher is selected. Open: a real MAC portal, ~1 GB kept after Stop and installed playback readback (plan P2.13).
 
@@ -53,22 +58,17 @@ long-term physical mouse/phone acceptance; recurrence/phone endurance remain ope
 - **Proven production source is `7c9d1e43`, NVIDIA `44.20261003.977`**:
   signed candidate `37114776308`, promotion `37120191781`; ARM
   build/boot/promotion `37114740334`. The station now boots signed `.977` with `.975` retained.
-- Home/Lumen and the media-title/worker correction are integrated through PR
-  #191; exact-source signed builds, three x86 boots, offline ISO and ARM passed.
-  The corrective review above is not signed delivery of its fixes.
-- Remote v46 and the geometry fix are installed. iPhone pointer input reached
-  the host; continuous phone/WAN endurance remains open. HDMI hotplug is an
-  independent blocker.
-- The two-icon design approval remains pending. Post-`.967` checks passed 55/0
-  and 53 checks with two notes; the HDMI disconnect remains open.
+- PR #191 Home/Lumen/media corrections passed signed builds, 3×QCOW2, ISO and ARM;
+  the later corrective source above is not signed delivery.
+- Remote v46/geometry are installed; iPhone input reached the host.
+  Phone/WAN endurance and HDMI hotplug remain open.
+- Two-icon design approval and HDMI disconnect remain open; prior post-update checks passed.
 - **P0.7 is no longer only a captured stack.** Read out of plymouth 24.004.60's source on
   2026-09-21: `ply_boot_splash_free()` frees `pixel_displays` without disarming the
   `on_new_frame` timeout that only `ply_boot_splash_hide()` disarms, and `--retain-splash`
   is the path that skips that hide. Both recorded workarounds are disproven, and upstream
   `main` still has the defect (2026-09-24), so Fedora 45's Plymouth 26.x will not close it.
-- A merge or local image is not an installed release. Production requires exact-candidate
-  3×QCOW2 + ISO; ARM is separately required evidence.
-
+- Production requires exact signed-candidate 3×QCOW2 + ISO and separate ARM proof.
 ## App engines — what this machine can actually run
 
 **Corrective source work, 2026-09-27:** THEME_REV 90 adds a reviewed 6.7/6.8 dock material seam and shared Hub material; isolated clear/solid Hub renders and local image gates passed.

@@ -22,6 +22,7 @@ Nothing here installs, removes, or escalates anything: the only arguments given 
 are ones it must refuse before it reaches a confirmation prompt or pkexec.
 """
 import os
+import json
 import re
 import shutil
 import subprocess
@@ -520,6 +521,7 @@ with tempfile.TemporaryDirectory() as tmp:
         (bindir / name).chmod(0o755)
     env = os.environ.copy()
     env["PATH"] = f"{bindir}{os.pathsep}{env.get('PATH', '')}"
+    env["XDG_STATE_HOME"] = str(bindir / 'state')
     result = subprocess.run([BASH, str(MOAI_DO), "update-firmware"], input="y\n",
                             capture_output=True, text=True, encoding="utf-8",
                             errors="replace", timeout=30, env=env)
@@ -528,8 +530,11 @@ with tempfile.TemporaryDirectory() as tmp:
           f"it exited {result.returncode}")
     check("✓" not in result.stdout,
           f"update-firmware printed a success mark after a dismissed prompt: {result.stdout!r}")
-    check("NOT updated" in result.stderr,
-          "update-firmware must say plainly that nothing was updated")
+    check("did not complete" in result.stderr,
+          "update-firmware must report a failed operation, not assume all devices are unchanged")
+    firmware = json.loads((bindir / 'state/moos/firmware-updates.json').read_text())
+    check(firmware['state'] == 'cancelled' and firmware['reason'] == 'permission',
+          'dismissed privilege must be recorded as cancelled, never updated')
 
 # Firmware inspection must distinguish "no action" (2) from failure (1/3).
 for refresh_code, updates_code in ((0, 1), (0, 3), (1, 2), (0, 2), (2, 2)):
@@ -542,12 +547,41 @@ for refresh_code, updates_code in ((0, 1), (0, 3), (1, 2), (0, 2), (2, 2)):
         (bindir / 'fwupdmgr').chmod(0o755)
         result = subprocess.run([BASH, str(MOAI_DO), 'update-firmware'], input='n\n',
             capture_output=True, text=True, timeout=30,
-            env={**os.environ, 'PATH': f'{bindir}{os.pathsep}{os.environ.get("PATH", "")}'})
+            env={**os.environ, 'XDG_STATE_HOME': str(bindir / 'state'),
+                 'PATH': f'{bindir}{os.pathsep}{os.environ.get("PATH", "")}'})
         no_updates = refresh_code in (0, 2) and updates_code == 2
         check((result.returncode == 0) == no_updates, 'firmware query failure must fail the action')
         check(('No firmware updates available' in result.stdout) == no_updates,
               'firmware query failure must never be described as no updates')
         check('UNEXPECTED UPDATE' not in result.stdout, 'failed/empty inspection must never update firmware')
+        firmware = json.loads((bindir / 'state/moos/firmware-updates.json').read_text())
+        check(firmware['state'] == ('none' if no_updates else 'failed'),
+              'the recorded firmware state must be the real inspection result')
+
+# A real action flow, with only fwupd/privilege/logger replaced; no device is changed.
+for answer, privilege, state, reason, success in (
+        ('n\n', 0, 'cancelled', '', True), ('y\n', 0, 'updated', '', True),
+        ('y\n', 1, 'failed', 'install', False), ('y\n', 2, 'none', '', True),
+        ('y\n', 126, 'cancelled', 'permission', False)):
+    with tempfile.TemporaryDirectory() as tmp:
+        bindir = Path(tmp)
+        (bindir / 'fwupdmgr').write_text('#!/bin/sh\necho "Device update offer"\nexit 0\n')
+        (bindir / 'pkexec').write_text(f'#!/bin/sh\ntouch "{bindir}/privilege-called"\nexit {privilege}\n')
+        for name in ('fwupdmgr', 'pkexec'):
+            (bindir / name).chmod(0o755)
+        result = subprocess.run([BASH, str(MOAI_DO), 'update-firmware'], input=answer,
+            capture_output=True, text=True, timeout=30,
+            env={**os.environ, 'XDG_STATE_HOME': str(bindir / 'state'),
+                 'PATH': f'{bindir}{os.pathsep}{os.environ.get("PATH", "")}'})
+        firmware = json.loads((bindir / 'state/moos/firmware-updates.json').read_text())
+        check((result.returncode == 0) == success, 'firmware action must return the real result')
+        check((firmware['state'], firmware['reason']) == (state, reason),
+              'firmware history must distinguish cancel, partial failure, success and no action')
+        check((bindir / 'privilege-called').exists() == (answer == 'y\n'),
+              'declining firmware must never invoke privilege escalation')
+        if privilege == 1:
+            check('NOT updated' not in result.stderr and 'did not complete' in result.stderr,
+                  'a failed multi-device firmware transaction may have updated some devices')
 
 # ── 5. rollback is a TOGGLE: a queued rescue is never cancelled by asking again ─────────
 # `bootc rollback` makes the running system the default again when a return is already
