@@ -8,9 +8,9 @@
     .ColorScheme-NeutralText { color: #D29922; fill: currentColor; }
     .ColorScheme-NegativeText { color: #F85149; fill: currentColor; }
   </style>
-  <path class="ColorScheme-Text" fill="#2e3436" fill-rule="evenodd" d="M11.136 5.696 L4.536 16.996 A1 1 0 0 1 6.264 18.004 L12.864 6.704 A1 1 0 0 1 11.136 5.696 Z"/>
-  <path class="ColorScheme-Highlight" fill="#2e3436" fill-rule="evenodd" d="M11.136 6.704 L17.736 18.004 A1 1 0 0 1 19.464 16.996 L12.864 5.696 A1 1 0 0 1 11.136 6.704 Z"/>
-  <path class="ColorScheme-Text" fill="#2e3436" fill-rule="evenodd" d="M5.4 18.5 L18.6 18.5 A1 1 0 0 1 18.6 16.5 L5.4 16.5 A1 1 0 0 1 5.4 18.5 Z"/>
+  <path class="ColorScheme-Text" fill="#2e3436" fill-rule="evenodd" d="M11.136 5.696 L4.536 16.996 A1 1 0 0 0 6.264 18.004 L12.864 6.704 A1 1 0 0 0 11.136 5.696 Z"/>
+  <path class="ColorScheme-Highlight" fill="#2e3436" fill-rule="evenodd" d="M11.136 6.704 L17.736 18.004 A1 1 0 0 0 19.464 16.996 L12.864 5.696 A1 1 0 0 0 11.136 6.704 Z"/>
+  <path class="ColorScheme-Text" fill="#2e3436" fill-rule="evenodd" d="M5.4 18.5 L18.6 18.5 A1 1 0 0 0 18.6 16.5 L5.4 16.5 A1 1 0 0 0 5.4 18.5 Z"/>
   <path class="ColorScheme-Text" fill="#2e3436" fill-rule="evenodd" d="M15 5 A3 3 0 1 1 9 5 A3 3 0 1 1 15 5 Z"/>
   <path class="ColorScheme-Text" fill="#2e3436" fill-rule="evenodd" d="M7.75 18.5 A3 3 0 1 1 1.75 18.5 A3 3 0 1 1 7.75 18.5 Z"/>
   <path class="ColorScheme-Text" fill="#2e3436" fill-rule="evenodd" d="M22.25 18.5 A3 3 0 1 1 16.25 18.5 A3 3 0 1 1 22.25 18.5 Z"/>

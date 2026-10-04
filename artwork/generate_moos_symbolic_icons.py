@@ -118,11 +118,16 @@ def capsule(x1: float, y1: float, x2: float, y2: float, width: float = 2) -> str
         return circle(x1, y1, width / 2)
     radius = width / 2
     nx, ny = -dy / length * radius, dx / length * radius
+    # The outline runs counter-clockwise on screen (y points down), so a cap
+    # that bulges OUT of the ribbon is also drawn counter-clockwise: sweep 0.
+    # Sweep 1 bit a half-disc INTO each end. Every ribbon had fish-tail ends,
+    # and one shorter than its width (the first stroke of "pulse") crossed
+    # itself and vanished under evenodd, leaving a speck on the What's new page.
     return (
         f"M{_pt(x1 + nx, y1 + ny)} L{_pt(x2 + nx, y2 + ny)} "
-        f"A{_n(radius)} {_n(radius)} 0 0 1 {_pt(x2 - nx, y2 - ny)} "
+        f"A{_n(radius)} {_n(radius)} 0 0 0 {_pt(x2 - nx, y2 - ny)} "
         f"L{_pt(x1 - nx, y1 - ny)} "
-        f"A{_n(radius)} {_n(radius)} 0 0 1 {_pt(x1 + nx, y1 + ny)} Z"
+        f"A{_n(radius)} {_n(radius)} 0 0 0 {_pt(x1 + nx, y1 + ny)} Z"
     )
 
 
