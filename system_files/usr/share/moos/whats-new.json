@@ -53,8 +53,8 @@
         "en": "A cloud desktop the size of your screen"
       },
       "body": {
-        "ar": "على جهاز بلا شاشة اختر حجم سطح المكتب: «phone» يُرسَل إلى الهاتف بكسلاً ببكسل فيصير النص أوضح والصورة أسلس، و«desk» أوسع للحاسوب. من الطرفية: moos-cloud-desktop display phone، ويُطبَّق عند الدخول التالي. وMo PC Remote يرسل الآن عدد الإطارات الذي اخترته بالضبط.",
-        "en": "On a machine with no monitor, choose the desktop's size: “phone” reaches a phone pixel for pixel, so text is sharper and motion smoother; “desk” gives a computer more room. In a terminal: moos-cloud-desktop display phone — it applies at the next sign-in. Mo PC Remote now also sends exactly the frame rate you chose."
+        "ar": "على جهاز بلا شاشة اختر حجم سطح المكتب: «phone» يصل الهاتف بكسلاً ببكسل فيصير النص أوضح والصورة أسلس، و«desk» أوسع للحاسوب. اطلبه من ميرا، أو من الطرفية: moos-cloud-desktop display phone. يُطبَّق عند الدخول التالي. وMo PC Remote يرسل الآن عدد الإطارات الذي اخترته بالضبط.",
+        "en": "On a machine with no monitor, choose the desktop's size: “phone” reaches a phone pixel for pixel, so text is sharper and motion smoother; “desk” gives a computer more room. Ask Mira, or run moos-cloud-desktop display phone. It applies at the next sign-in. Mo PC Remote now sends exactly the frame rate you chose."
       }
     },
     {

@@ -177,6 +177,7 @@ class TestToolSchemaIntegrity(unittest.TestCase):
             "open-folder": tuple(control.FOLDERS), "animations": tuple(control.ANIMATION_SPEEDS),
             "click": control.CLICK_MODES,
             "remote": control.REMOTE_VALUES, "fast-remote": control.FAST_REMOTE_VALUES,
+            "desktop-size": tuple(control.DESKTOP_SIZES),
         }
         # A valid stand-in for every other required argument, so an enum on one parameter of a
         # multi-argument tool can still be built. Integers use the declared minimum; a free
@@ -219,7 +220,8 @@ class TestToolSchemaIntegrity(unittest.TestCase):
         # one the model can ask for, so no verb is reachable only by typing it.
         for verb in ("window", "arrange", "desktop", "dnd", "mic", "motion", "clarity",
                      "power-profile", "window-do", "media", "desktops", "reminders",
-                     "open-folder", "animations", "click", "remote", "fast-remote"):
+                     "open-folder", "animations", "click", "remote", "fast-remote",
+                     "desktop-size"):
             self.assertEqual(advertised[verb], set(accepted[verb]),
                              f"the schema and moos-control disagree about {verb}")
         # The multi-argument and integer verbs W9.10 added carry their arguments in order.
@@ -519,6 +521,10 @@ class TestToolSchemaIntegrity(unittest.TestCase):
                 (CONTROL, ["moos-control", "remote", "restart"]),
             ("fast_remote", (("value", "on"),)): (CONTROL, ["moos-control", "fast-remote", "on"]),
             ("fast_remote", (("value", "off"),)): (CONTROL, ["moos-control", "fast-remote", "off"]),
+            ("desktop_size", (("value", "phone"),)):
+                (CONTROL, ["moos-control", "desktop-size", "phone"]),
+            ("desktop_size", (("value", "desk"),)):
+                (CONTROL, ["moos-control", "desktop-size", "desk"]),
         }
         for (name, arguments), (category, argv) in expected.items():
             with self.subTest(tool=name, arguments=arguments):
@@ -614,6 +620,23 @@ case "$1" in
           [ -n "$STUB_FAST_STUCK" ] || echo "$1" > "$STUB_ROOT/fast"; echo "Fast Remote: $1";;
 esac
 ''',
+    # moos-cloud-desktop display, as far as moos-control can tell: the chosen size is kept in a
+    # file, the running desktop stays 1920x1080, and a machine with a real screen refuses.
+    "moos-cloud-desktop": '''[ "$1" = display ] || exit 2
+if [ -n "$STUB_REAL_SCREEN" ]; then
+  printf '\\033[31m✗\\033[0m %s\\n' "this account does not draw to a virtual display. A desktop with a real screen takes its size from that screen." >&2
+  exit 1
+fi
+size=1920x1080; read -r size < "$STUB_ROOT/size" 2>/dev/null
+case "${2:-}" in
+  "") if [ "$size" = 1920x1080 ]; then echo "  desktop size: $size"
+      else echo "  desktop size: 1920x1080 now, $size from the next sign-in"; fi;;
+  phone) [ -n "$STUB_SIZE_STUCK" ] || echo 1280x720 > "$STUB_ROOT/size"
+         echo "✓ the desktop will be 1280x720 from the next sign-in";;
+  desk) echo 1920x1080 > "$STUB_ROOT/size"; echo "✓ the desktop will be 1920x1080 from the next sign-in";;
+  *) exit 1;;
+esac
+''',
     "logger": "",
 }
 
@@ -694,6 +717,41 @@ class TestRemoteVerbs(unittest.TestCase):
         self.assertEqual(done.returncode, 0, done.stderr)
         self.assertEqual(self.acting(), [["systemctl", "--user", "try-restart",
                                           "mo-remote-personal.service"]])
+
+    def test_desktop_size_asks_the_cloud_desktop_tool_and_reads_it_back(self):
+        done = self.control("desktop-size", "phone")
+        self.assertEqual(done.returncode, 0, done.stderr)
+        self.assertIn("1280x720 from the next sign-in", done.stdout)
+        self.assertIn(["moos-cloud-desktop", "display", "phone"], self.calls())
+        self.assertIn(["moos-cloud-desktop", "display"], self.calls(), "the answer must be read back")
+        # It applies at the next sign-in: this verb itself restarts nothing, ever.
+        self.assertEqual([call for call in self.calls() if call[0] == "systemctl"], [])
+        back = self.control("desktop-size", "desk")
+        self.assertEqual(back.returncode, 0, back.stderr)
+        self.assertIn("1920x1080", back.stdout)
+        self.assertNotIn("next sign-in", back.stdout, "desk is what is already running here")
+
+    def test_desktop_size_does_not_claim_a_change_that_did_not_happen(self):
+        stuck = self.control("desktop-size", "phone", STUB_SIZE_STUCK="1")
+        self.assertNotEqual(stuck.returncode, 0)
+        self.assertIn("not changed", stuck.stderr)
+        self.assertNotIn("1280x720 from", stuck.stdout)
+
+    def test_desktop_size_on_a_real_screen_repeats_the_tools_own_reason(self):
+        done = self.control("desktop-size", "phone", STUB_REAL_SCREEN="1")
+        self.assertNotEqual(done.returncode, 0)
+        self.assertIn("real screen", done.stderr)
+        self.assertNotIn("\x1b[", done.stderr, "terminal colours must not reach the model")
+        self.assertNotIn("✗", done.stderr)
+
+    def test_desktop_size_takes_two_names_and_nothing_else(self):
+        for value in ("1600x900", "tablet", "phone;id", "--help", ""):
+            done = self.control("desktop-size", value)
+            self.assertNotEqual(done.returncode, 0, value)
+        self.assertEqual([call for call in self.calls() if call[0] == "moos-cloud-desktop"], [],
+                         "a value outside the list must not reach the tool")
+        self.assertFalse(needs_confirmation("desktop_size", {"value": "phone"}),
+                         "it applies at the next sign-in and cuts nobody off: no card")
 
     def test_fast_remote_runs_its_own_tool_and_reads_it_back(self):
         done = self.control("fast-remote", "on")

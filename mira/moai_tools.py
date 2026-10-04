@@ -58,6 +58,7 @@ TITLES_AR = {
     'smart_setup': 'الإعداد الذكي للتطبيقات', 'check_system_update': 'البحث عن تحديث MoOS',
     'restart_computer': 'إعادة تشغيل الكمبيوتر', 'install_rpm': 'تثبيت حزمة RPM موقّعة',
     'remote_control': 'Mo PC Remote', 'fast_remote': 'الوضع السريع في Mo PC Remote',
+    'desktop_size': 'حجم سطح المكتب السحابي',
     # The desktop's hands (W9.10).
     'list_windows': 'النوافذ وأسطح المكتب', 'window_action': 'نافذة', 'move_window_to_desktop': 'نقل نافذة',
     'go_to_desktop': 'الانتقال إلى سطح مكتب', 'add_or_remove_desktop': 'أسطح المكتب', 'control_media': 'الوسائط',
@@ -88,6 +89,7 @@ TITLES_EN = {
     'smart_setup': 'Smart app setup', 'check_system_update': 'Check for a MoOS update',
     'restart_computer': 'Restart the computer', 'install_rpm': 'Install a signed RPM package',
     'remote_control': 'Mo PC Remote', 'fast_remote': 'Mo PC Remote fast mode',
+    'desktop_size': 'Cloud desktop size',
     'list_windows': 'Windows and desktops', 'window_action': 'Window', 'move_window_to_desktop': 'Move a window',
     'go_to_desktop': 'Go to a desktop', 'add_or_remove_desktop': 'Desktops', 'control_media': 'Media',
     'lock_screen': 'Lock the screen', 'set_reminder': 'Reminder', 'manage_reminders': 'Reminders',
