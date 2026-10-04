@@ -24,8 +24,8 @@ installation, completed, none offered, declined, failure and interruption are
 separate; the last check's result never implies present universal readiness.
 A boot/PID-start identity and nonblocking record lock prevent concurrent owner
 transactions; no raw vendor output/device serial reaches the status page.
-Partial install failure says “did not complete”, not “nothing changed”. Forty
-Settings tests, 31 action cases, native compiled-KCM contract/build and full
+Partial install failure says “did not complete”, not “nothing changed”. Forty-one
+Settings tests (including a real unreaped child), 31 action cases, native compiled-KCM contract/build and full
 `just check` passed. Real native-loader renders cover nine states × Arabic/English
 × light/dark; the review fixture was corrected to include MoOS icons. An earlier
 invalid native-loader harness caused a test coredump; the corrected loader uses
@@ -33,7 +33,8 @@ invalid native-loader harness caused a test coredump; the corrected loader uses
 PR #194 required source/image checks passed (x86 `37162314317`, ARM `37162314269`);
 its skipped ARM disk/promotion jobs prove no boot or signed delivery. The advisory
 review step failed internally despite its green workflow result, so no independent
-review is claimed. Installed
+review is claimed. An exited child retaining its PID/start originally left firmware
+busy; the real-child regression fails that code and passes zombie/dead-state detection. Installed
 firmware status, app timer/failure readback and confirmed-device flow remain open.
 
 ### Competitive product acceptance — one roadmap, measurable boundaries

@@ -1032,6 +1032,24 @@ class FirmwareEvidence(unittest.TestCase):
             self.state.record('checking', path=self.path, pid=os.getpid() + 1)
         self.assertEqual(self.path.read_bytes(), original)
 
+    def test_an_exited_unreaped_worker_is_interrupted_and_does_not_block_retry(self):
+        child = subprocess.Popen(['sleep', '30'])
+        try:
+            self.state.record('checking', path=self.path, pid=child.pid)
+            self.assertTrue(self.state.read_state(self.path)['busy'])
+            child.terminate()
+            # Wait for exit without reaping: /proc still has the same PID/start.
+            os.waitid(os.P_PID, child.pid, os.WEXITED | os.WNOWAIT)
+            result = self.state.read_state(self.path)
+            self.assertEqual(result['state'], 'interrupted')
+            self.assertFalse(result['busy'])
+            self.state.record('checking', path=self.path)
+            self.assertTrue(self.state.read_state(self.path)['busy'])
+        finally:
+            if child.poll() is None:
+                child.terminate()
+            child.wait(timeout=5)
+
 
 if __name__ == "__main__":
     unittest.main()

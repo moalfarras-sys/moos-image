@@ -40,8 +40,8 @@ works. HTTP 200, exact executable path and zero restarts passed; phone/soak rema
 PR #194 repo/.NET/controller/x86/ARM image checks passed; boot/promotion skipped.
 Its advisory reviewer failed internally despite the green job; no review acceptance claimed.
 Native Update Settings reads nine firmware states with private atomic records,
-concurrent-action guard and dead-process interruption detection.
-40 Settings/31 action fixtures, native KCM contract and `just check` pass;
+concurrent-action guard and dead-process detection, including unreaped exits.
+41 Settings/31 action fixtures, native KCM contract and `just check` pass;
 36 AR/EN light/dark native frames cover all states without flashing hardware.
 Installed firmware/timer acceptance remains open. Plymouth SIGABRT resolves to
 `head != NULL` after quit; exact vendor source confirms the undisarmed callback.
