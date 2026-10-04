@@ -694,7 +694,7 @@ now read out of plymouth 24.004.60's own source — `ply_boot_splash_free()` fre
 **2026-10-04 corrective source:** MoOS rebuilds the exact pinned vendor SRPM with
 all 23 original patches and one narrow frame-cancellation patch. Old native ASan
 and package controls fail, 20 fixed trials each pass; parser and private X11
-renderer pass. Exact root/initramfs library gate is added. Local NVIDIA image `b649a612533a` now passes identity, initramfs, native apps and
+renderer pass. Exact root/initramfs library gate is added. Final local NVIDIA image `ce5d668913df` passes identity, initramfs, native apps and
 state gates; actual-image byte readback and altered-hero rejection pass. Signed
 artifact boot proofs and installed acceptance remain open; this is not delivery. The local image gate
 caught its retired ring/head/glow inventory; the corrected gate additionally
@@ -731,8 +731,13 @@ and use 1 Hz only during quit. The native prompt-update gate requires a retained
 hero and changed bullets within 200 ms; the old private control fails and the
 corrected theme passes. Latest 1080p sample is 93 MiB / 0.370 s CPU versus the
 old movie's 169 MiB / 1.177 s. Arabic prompt review also passes. Candidate
-`37200246526` was stopped as obsolete; a new full local image and signed proofs
-are required for this actual interaction fix.
+`37200246526` was stopped as obsolete. Full local NVIDIA image `ce5d668913df`
+then passed every gate and lint (existing nonempty-boot warning); actual root
+script matches the source and archive/package/theme readback passes. Maintained
+`just check` passes. Signed final-artifact proofs remain required. Live user
+failed units are zero, but 76 DrKonqi processors timed out on earlier converter
+diagnostic crashes; preserve their records and do not claim a zero-failed-system
+readback. The guard fixed the converter trigger, not the crash-report processor.
 
 ## The two editions did not ship the same desktop (measured 2026-09-21, fixed)
 

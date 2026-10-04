@@ -49,10 +49,10 @@ RPM-library controls pass on x86/ARM. Parser fixed to load rebuilt graphics, not
 Real renderer: 640×480/1080p/4K and changing password prompt; final native 1080p sample peak RSS 169→93 MiB, CPU 1.177→0.370 s. Slow redraw control fails.
 Language guard builds 50 dictionaries without crashes; converter restored; spool uses tmpfiles.
 Approved resting hero replaces 32 frames (58.1→1.82 MiB decode), finite 360 ms
-entrance and shared login ground. Local NVIDIA `b649a612533a` passes all image gates;
+entrance and shared login ground. Final local NVIDIA `ce5d668913df` passes all image gates;
 actual archive/library/theme readback and tamper rejection pass; signed boots open.
 Owner's Mira autostart disabled; stopped foreground cgroup charged ~914 MiB;
-Backup `~/.local/lib/moos-review/20261004-095219/mira-login`; voice on demand. Current boot: 33.225 s (15.447 firmware/loader), not a stopwatch. Echo hardware repair remains open.
+Backup `~/.local/lib/moos-review/20261004-095219/mira-login`; voice on demand. Current boot: 33.225 s (15.447 firmware/loader), not a stopwatch. Echo repair open; 76 old converter crash handlers timed out, preserved; user failed units 0.
 **Remote:** signed `59e97672` corrected empty GDK snapshots; no Xid or memory pressure
 was observed and KWin stayed running. HDMI and physical mouse/phone endurance remain open.
 **MoPlayer, merged and delivered on `.964`:** the "freeze" was a 278 MB Hive catalogue decoded on the UI isolate each launch (~6 s, 1.4 GB) plus a 4.9 GB idle GPU reservation from Impeller gradient shaders and window-sized layers. The merged source moves catalogue work to isolates (~1.3 s, 0.5 GB), reduces idle GPU use to ~0.6 GB, reads get.php links as Xtream accounts, sorts playlists, supports MAC portals and ships Horizon UI. A 4K HEVC live stream and 1080p VOD played on the station from the source bundle; 255 Flutter tests passed. The local launcher that shadowed `.964` is now backed up, and the signed launcher is selected. Open: a real MAC portal, ~1 GB kept after Stop and installed playback readback (plan P2.13).
