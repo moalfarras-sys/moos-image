@@ -322,12 +322,45 @@ pipewire_target = int(node_props.get("pipewire-serial", node_id))
 logical_w, logical_h = (int(v) for v in node_props["size"])
 
 def open_pipewire_fd():
-    """A fresh PipeWire remote fd. Each pipeline gets its own; pipewiresrc closes it on NULL."""
+    """A fresh PipeWire remote fd. Each pipeline gets its own, and THIS HELPER owns it: build()
+    keeps it in pipeline_fd and teardown() closes it. See close_pipewire_fd()."""
     reply, fds = bus.call_with_unix_fd_list_sync(
         BUS, PATH, CAST, "OpenPipeWireRemote",
         GLib.Variant("(oa{sv})", (session, {})),
         GLib.VariantType.new("(h)"), Gio.DBusCallFlags.NONE, 5000, None, None)
     return fds.get(reply.unpack()[0])
+
+
+# The remote the standing pipeline was built on, or -1.
+pipeline_fd = -1
+
+
+def close_pipewire_fd():
+    """Close the PipeWire remote of a pipeline that has just gone to NULL.
+
+    pipewiresrc does NOT take the fd it is given. It connects through a duplicate of it and NULL
+    closes only that duplicate, so the number handed to `fd=` stays open in this process until
+    somebody closes it. Nobody did: this file said "pipewiresrc closes it on NULL" and every
+    build leaked one socket.
+
+    A leaked socket is not a leaked integer. The daemon keeps a client for it, and keeps queueing
+    events for a reader that will never read. Measured on the Oracle A1 on 2026-10-04 after 61 h
+    of viewers joining and changing quality: 73 sockets in this helper, 67 orphaned
+    clients in `pw-dump`, and pipewire at 464 MiB resident plus 104 MiB in swap, still growing by
+    about 12 MiB an hour with nobody connected. Run outside the portal, the same sequence shows it
+    directly: the fd is still open after NULL, the client is still registered, and it goes the
+    moment the fd is closed.
+
+    Close AFTER set_state(NULL), never before: until then the element may still be reading through
+    its duplicate, and the order is what lets the next pipeline reuse the number safely.
+    """
+    global pipeline_fd
+    fd, pipeline_fd = pipeline_fd, -1
+    if fd >= 0:
+        try:
+            os.close(fd)
+        except OSError:
+            pass
 
 
 empty = {}
@@ -1448,13 +1481,16 @@ def on_bus(_b, msg):
 
 
 def teardown():
-    """Drop the pipeline. NULL makes pipewiresrc close its fd, which deactivates the ScreenCast
-    stream — that is what actually stops the compositor copying frames and takes idle back to 0%.
+    """Drop the pipeline. NULL makes pipewiresrc close its connection, which deactivates the
+    ScreenCast stream — that is what actually stops the compositor copying frames and takes idle
+    back to 0%. The remote that connection was duplicated from is ours, and is closed here too.
     The portal SESSION stays open, so resuming costs a pipeline build (~200ms) and never re-prompts
     the user for permission."""
     global pipeline, enc, rate, pipeline_bus, pipeline_bus_handler
     video_health.stop()
     if pipeline is None:
+        # A build that opened its remote and then failed to parse leaves an fd and no pipeline.
+        close_pipewire_fd()
         return False
     if pipeline_bus is not None:
         if pipeline_bus_handler is not None:
@@ -1463,6 +1499,7 @@ def teardown():
         pipeline_bus_handler = None
         pipeline_bus = None
     pipeline.set_state(Gst.State.NULL)
+    close_pipewire_fd()
     pipeline = None
     enc = rate = None
     state["out"] = (0, 0)
@@ -1550,13 +1587,18 @@ def _rebuild_now():
 
 
 def build(w, h):
-    global pipeline, enc, rate, pipeline_bus, pipeline_bus_handler
+    global pipeline, enc, rate, pipeline_bus, pipeline_bus_handler, pipeline_fd
+
+    # One remote per pipeline, held until teardown() has taken that pipeline to NULL. Every caller
+    # tears down first, so this close is only for a remote that never became a pipeline.
+    close_pipewire_fd()
+    pipeline_fd = open_pipewire_fd()
 
     # Scale BEFORE the colour convert: on a 4K source, converting every pixel to I420 and only
     # then shrinking costs more than the encode itself.
     caps = f"! video/x-raw,width={w},height={h} " if w else ""
     head = (
-        f"pipewiresrc fd={open_pipewire_fd()} path={pipewire_target} do-timestamp=true "
+        f"pipewiresrc fd={pipeline_fd} path={pipewire_target} do-timestamp=true "
         f"keepalive-time={FRAME_KEEPALIVE_MS} "
         # THE QUEUE IS NOT DECORATION — IT IS WHAT KEEPS A SLOW ENCODER OFF THE COMPOSITOR'S THREAD.
         #

@@ -225,6 +225,8 @@ check:
     python3 tests/test_openclaw_bootstrap_noop.py
     # A connect burst must coalesce into ONE pipeline build, and idle teardown must stay immediate.
     python3 tests/test_remote_rebuild_debounce.py
+    # Every rebuilt pipeline must give its PipeWire remote back: 67 orphaned clients on the A1.
+    python3 tests/test_remote_pipewire_fd.py
     python3 tests/test_remote_connection_lifecycle.py
     python3 tests/test_remote_start_lifecycle.py
     python3 tests/test_remote_async_lifecycle.py

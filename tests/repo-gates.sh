@@ -213,6 +213,10 @@ python3 tests/test_island_jobs_privacy.py
 # (it asserts that strings exist) stayed green. This runs the real producers and the shipped
 # IslandTokens.js against each other.
 python3 tests/test_island_tokens.py
+# The privacy monitor polled pw-dump every 1.5 s: 52 CPU-minutes in 61 h on the Oracle A1, more
+# than the compositor. It now follows one `pw-dump --monitor`; this proves both the saving and
+# that the chip is still never wrong (ended stream, dead feed, missed delta, non-JSON text).
+python3 tests/test_privacy_monitor_feed.py
 # Mira inside Plasma: the launcher passes Dolphin's arguments through and picks the software scene
 # graph without a real GPU, her login unit is never enabled for everyone, the Dolphin entries run
 # arguments she parses, and the tree mira/packaging/stage.sh gives the image carries her pages.
@@ -255,6 +259,10 @@ python3 tests/test_kernel_network_tuning.py
 # One connecting phone used to rebuild the encode pipeline four times in two seconds:
 # the picture appears, blanks, appears, blanks, appears. Reads as a bad link; is not one.
 python3 tests/test_remote_rebuild_debounce.py
+# pipewiresrc connects through a DUPLICATE of the fd it is given, so every rebuilt pipeline left
+# its PipeWire remote open: 67 orphaned clients and a 570 MiB pipewire after 61 h on the Oracle A1.
+# This one runs build() and teardown() and asks the kernel what is still open.
+python3 tests/test_remote_pipewire_fd.py
 python3 tests/test_remote_connection_lifecycle.py
 python3 tests/test_remote_async_lifecycle.py
 python3 tests/test_remote_logout_revocation.py
