@@ -4,7 +4,7 @@
   "entries": [
     {
       "id": "graphite-boot-still",
-      "merged": "2026-10-04T10:30:00Z",
+      "merged": "2026-10-05T00:00:00Z",
       "glyph": "spark",
       "title": {
         "ar": "إقلاع أخف بهوية MoOS",
@@ -17,7 +17,7 @@
     },
     {
       "id": "firmware-update-results",
-      "merged": "2026-10-04T10:29:00Z",
+      "merged": "2026-10-04T23:59:00Z",
       "glyph": "spark",
       "route": "moos://settings/update",
       "title": {
@@ -31,7 +31,7 @@
     },
     {
       "id": "lumen-screen-controls",
-      "merged": "2026-10-03T17:00:00Z",
+      "merged": "2026-10-04T23:58:00Z",
       "glyph": "bulb",
       "route": "moos://settings/assistant",
       "title": {

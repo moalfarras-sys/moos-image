@@ -716,6 +716,10 @@ The workflow now requires the one current hero and re-reads every final boot
 archive with the exact package/library/theme-byte gate. The same finished-image
 check passes on the local NVIDIA image; final ARM rerun remains required.
 Candidates `37197917279` and `37199601703` were stopped as obsolete, not accepted.
+Candidate `37200066390` was also stopped before image compilation to correct
+the three new What's New cutoffs for the planned end-of-day integration window;
+their dates must not precede the source merge. These are notification cutoffs,
+not evidence that integration or delivery has happened.
 `bootc lint` retains its existing nonempty `/boot` warning for boot assets; no
 mutable `/var` payload remains in actual image readback.
 
