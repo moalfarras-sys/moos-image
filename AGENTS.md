@@ -296,6 +296,29 @@ Impeller on GLES reserving hundreds of MB for every gradient shader and every
 window-sized offscreen layer (blur, `Opacity`) — see `moplayer/DESIGN.md`,
 "The renderer's rules". MoPlayer now bakes its gradients into small images.
 
+**A descriptor you hand to an element is still yours.** `pipewiresrc fd=` connects through a
+duplicate and NULL closes only that. Mo PC Remote's helper believed its own comment ("pipewiresrc
+closes it on NULL") and left one PipeWire remote open per rebuilt pipeline: after 61 hours on the
+Oracle A1, 67 orphaned clients and a `pipewire` holding 464 MiB plus 104 MiB of swap, still growing
+with nobody connected, because the daemon queues events for a client that never reads. Every Remote
+gate read the pipeline STRING; none ran a build and a teardown and asked what was still open. When
+a comment says who closes something, prove it: `tests/test_remote_pipewire_fd.py` asks the far end
+of each socket whether it was hung up.
+
+**A delegate's height while it is being made is not its height.** A Mira chat entry reported
+1208 px, then 452, during creation. Bound into a ListView that follows its newest entry, that
+remade the entries above it for ever: one core, 30 MiB a second, 8.9 GiB at the OOM kill. The review
+fixture never showed it; the real bridge and the saved chat did. A delegate's height is state written
+by a deferred measurement — and measured again when the content changes. The first fix measured once
+and left a gap the moment a button disappeared, with every static assertion green.
+
+**A cost measured as free on one machine is a cost on the next, and `ps` does not count children.**
+The privacy monitor's 1.5 s `pw-dump` poll measured 0.66% of a core on x86 and was left alone. On
+the A1 its cgroup had used 52 CPU-minutes in 61 hours, more than the compositor; `ps` showed 19.
+Read a unit's `cpu.stat`. A poll is also load on what it polls: each dump was three registry events
+for every other PipeWire client, which is what fed the leak above. And a daemon that is running is
+not a policy that is applied: `systemd-oomd` was active on that machine and monitored nothing.
+
 **Boot the image and look at it.** `podman build` + `bootc-image-builder --type qcow2` + qemu
 with `screendump` takes about half an hour and is the only thing that found any of the above.
 

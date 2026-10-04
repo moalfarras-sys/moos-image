@@ -1,21 +1,6 @@
-# MoOS current state — measured 2026-10-03
+# MoOS current state — measured 2026-10-04
 
-**Release audit, 2026-10-03:** all 70 local/remote branch refs present at the
-audit are ancestors of `7c9d1e43`; all 17 worktrees are clean and there are no
-open PRs. Home/Lumen and the media/Qt worker fixes are merged through PR #191.
-`just check` passed again on the station. Signed x86 build `37114776308`,
-QCOW2 proofs `37116762303` (generic), `37116764826` (NVIDIA), `37116767187`
-(cloud), and offline ISO proof `37116769665` all succeeded on that exact SHA,
-first attempt. Downloaded evidence matches the signed digests and two healthy
-boots; the ISO proof records ten app open/close/reopen journeys. Promotion
-`37120191781` succeeded: NVIDIA `44.20261003.977`, digest
-`sha256:f22a9b9fcca7245541edc1fa8cad40a5f773a55955f5ab61f45e69537646ec61`.
-ARM pipeline `37114740334` built, booted and promoted the same source.
-The update previously answered “current” correctly because x86 production was
-still `.975`; the missing step was promotion, not a broken update resolver.
-Before staging, `.975` passed 55/55 post-update checks and 54 selfchecks with
-no failed units and 125 GiB free on `/var`. The physical station's reboot and
-installed `.977` Home/Lumen journeys still require evidence.
+**Release audit, 2026-10-03:** all 70 local/remote branch refs present at the audit are ancestors of `7c9d1e43`; all 17 worktrees are clean and there are no open PRs. Home/Lumen and the media/Qt worker fixes are merged through PR #191. `just check` passed again on the station. Signed x86 build `37114776308`, QCOW2 proofs `37116762303` (generic), `37116764826` (NVIDIA), `37116767187` (cloud), and offline ISO proof `37116769665` all succeeded on that exact SHA, first attempt. Downloaded evidence matches the signed digests and two healthy boots; the ISO proof records ten app open/close/reopen journeys. Promotion `37120191781` succeeded: NVIDIA `44.20261003.977`, digest `sha256:f22a9b9fcca7245541edc1fa8cad40a5f773a55955f5ab61f45e69537646ec61`. ARM pipeline `37114740334` built, booted and promoted the same source. The update previously answered “current” correctly because x86 production was still `.975`; the missing step was promotion, not a broken update resolver. Before staging, `.975` passed 55/55 post-update checks and 54 selfchecks with no failed units and 125 GiB free on `/var`. The physical station's reboot and installed `.977` Home/Lumen journeys still require evidence.
 
 **Installed readback, 2026-10-03:** signed NVIDIA `44.20261002.975` from
 `fa519da1`, digest `sha256:76cb690f…`, with signed `.967` rollback. This session:
@@ -26,24 +11,7 @@ Mira's real Gemini `home_summary`: 4/8 available lamps, one on. Native Home/Lume
 the integration unwraps real variants, regression proven red before the fix.
 Screen Sync: 87 frames at 15 fps, stopped with four PC headers restored. Volume 89→84→89 read back. `just check` and 27 Mira suites passed (isolated fixture `.cache` corrected). Initial NVIDIA build passed; PR #191 x86 exposed an intermittent Qt worker teardown crash, reproduced under one-CPU stress. The fixture now joins workers before releasing pages; 40 one-CPU repetitions passed; both image builds report test names and actual exit status. Built media-reader/What’s New hashes match source, Lumen is enabled for the graphical session, no bytecode, `/var` only `tmp`; lint 13 passed, one nonempty-boot warning for EFI/GRUB assets. Signed delivery, owner-spoken endurance and physical RGB observation remain owed.
 
-**Remote interruption diagnosis, 2026-10-01:** the installed portal repeatedly
-renewed after `1536x864+0+0@3 -> no outputs`. Source `59e97672` ignores an empty
-GDK snapshot until a real output returns, preserving renewal on actual geometry
-change. A temporary user process ran that exact helper and stopped those false
-geometry renewals, but KDE still closed the portal session when HDMI dropped.
-The DRM connector was observed changing `connected -> disconnected -> connected`
-within one second, simultaneous with `There are no outputs` from the portal,
-PowerDevil, plasmashell and other KDE processes. 1920×1080@60 with matching
-logical desktop size also dropped; 3840×2160@60 and 250% scale were restored.
-KWin stayed running, NVIDIA reported no Xid, and memory pressure was zero. The
-physical HDMI link, monitor power or port needs inspection. The software change
-is merged, signed, booted and the portal helper runs from `/usr/lib/mo-remote`.
-The first live iPhone session delivered pointer input and H.264 via NVENC.
-After reboot, no portal renewal appeared in the observed log window; the phone
-still reported freezes on cellular Tailscale. The `source 0x0` log line also
-records a streaming-off event and alone does not prove HDMI dropped. The fix
-cannot keep a disconnected physical output available to KDE. A cellular-link
-endurance/control proof is still needed.
+**Remote interruption diagnosis, 2026-10-01:** the installed portal repeatedly renewed after `1536x864+0+0@3 -> no outputs`. Source `59e97672` ignores an empty GDK snapshot until a real output returns, preserving renewal on actual geometry change. A temporary user process ran that exact helper and stopped those false geometry renewals, but KDE still closed the portal session when HDMI dropped. The DRM connector was observed changing `connected -> disconnected -> connected` within one second, simultaneous with `There are no outputs` from the portal, PowerDevil, plasmashell and other KDE processes. 1920×1080@60 with matching logical desktop size also dropped; 3840×2160@60 and 250% scale were restored. KWin stayed running, NVIDIA reported no Xid, and memory pressure was zero. The physical HDMI link, monitor power or port needs inspection. The software change is merged, signed, booted and the portal helper runs from `/usr/lib/mo-remote`. The first live iPhone session delivered pointer input and H.264 via NVENC. After reboot, no portal renewal appeared in the observed log window; the phone still reported freezes on cellular Tailscale. The `source 0x0` log line also records a streaming-off event and alone does not prove HDMI dropped. The fix cannot keep a disconnected physical output available to KDE. A cellular-link endurance/control proof is still needed.
 
 **MoPlayer, merged and delivered on `.964`:** the "freeze" was a 278 MB Hive catalogue decoded on the UI isolate each launch (~6 s, 1.4 GB) plus a 4.9 GB idle GPU reservation from Impeller gradient shaders and window-sized layers. The merged source moves catalogue work to isolates (~1.3 s, 0.5 GB), reduces idle GPU use to ~0.6 GB, reads get.php links as Xtream accounts, sorts playlists, supports MAC portals and ships Horizon UI. A 4K HEVC live stream and 1080p VOD played on the station from the source bundle; 255 Flutter tests passed. The local launcher that shadowed `.964` is now backed up, and the signed launcher is selected. Open: a real MAC portal, ~1 GB kept after Stop and installed playback readback (plan P2.13).
 
@@ -157,14 +125,16 @@ owner reported a stable short v49 cellular trial at 1024 px; longer endurance an
 - Off the station: Windows 11 + WSL2 `FedoraLinux-44`. `scripts/review/` holds the toolchain
   installer, the gate mirror and the from-source renderers; `release-candidate.sh` needs `TMPDIR`.
 
-## ARM station `moos-arm-oracle` (Oracle A1, measured 2026-09-21)
+## ARM station `moos-arm-oracle` (Oracle A1, measured 2026-10-04)
 
-The only ARM MoOS machine: 2 vCPU / 11 GiB, `kwin_wayland --virtual 1920x1080 --xwayland`.
-**Read back 2026-09-24:** signed `moos-arm@sha256:eff234df…` = `44.20260923.568` (ARM
-`latest`), kernel `7.2.7-200.fc44.aarch64`, Plasma 6.7.5, Qt 6.11.2, no failed units. The rest
-was measured on `.545`: `blessed`/`attempts: 0`, `post-update-check.sh` 55/0, `moos-selfcheck`
-50 passed + 3 owner-choice notes. Idle cost over 10 s of `/proc/<pid>/stat`: `kwin_wayland`
-**2.1%**, `plasmashell` **0.6%** of one core (`ps`'s ~26% is a lifetime average with startup).
+The only ARM MoOS machine: 2 vCPU / 11.6 GiB, no GPU, `kwin_wayland --virtual 1920x1080` at 60 Hz on llvmpipe, essential tier; the owner's screen is Mo PC Remote (loopback behind Tailscale Serve). **Read back 2026-10-04, 61 h after boot:** booted signed `44.20260930.638`, `44.20261003.669` staged, `.632` kept; kernel `7.2.7-200.fc44.aarch64`; graphical target 8.5 s; `/var` 199 GiB, 103 GiB free; no failed system unit; Plasma 6.7.5, Qt 6.11.2. 5.8 GiB available; 2.6 GiB of cold pages in zram cost 0.6 GiB; memory pressure 0.01. The editor and agent scopes hold 3.2 GiB + 1.7 GiB swap and 166 of the machine's 404 core-minutes. Idle `kwin_wayland` **2.1%**, `plasmashell` **0.6%** of one core (2026-09-21).
+
+**Three defects measured there, fixed in source with gates (branch `test/oracle-cloud-workstation-20261003`; not signed, not installed):**
+- **Mira's chat ran away to 8.9 GiB (OOM, 2026-10-02).** An entry's height passed through 1208 px, then 452, while it was made; bound into the ListView that remade entries 2–7 about 27 times in 8 s. Reproduced from source (98% of a core, 386→759 MiB in 30 s); with a settled, content-driven height: 172 MiB, 0%. Both launch paths also stop at 1.5 GiB; a template drop-in was read back on a transient unit.
+- **Mo PC Remote leaked one PipeWire remote per rebuilt pipeline** (`pipewiresrc` closes only its duplicate): 67 orphaned clients, `pipewire` 464 MiB + 104 MiB swap, growing 11.6 MiB/h idle. The station's helper keeps them until Remote restarts or a fixed image boots.
+- **`moos-privacy-monitor`'s 1.5 s poll had used 52.1 CPU-minutes**, more than KWin's 50.1. One `pw-dump --monitor` feed with a one-minute resync: 2.51% → 0.05% of a core; a real capture gave the same token 0.04 s after it began instead of 0.64 s.
+
+**Measured, not changed:** a viewer watching a busy 1080p screen costs KWin (llvmpipe + ScreenCast copy) ~49% and the encoder ~25% of a core (one 3 s sample), both under 1% with nobody watching. `systemd-oomd` runs with nothing to monitor (no `systemd-oomd-defaults` on ARM), and a confined zram thrash held 67–70% pressure for a minute, below upstream's 80% limit: plan P5.5 and P5.7.
 
 **Seen on the live A1 on 2026-09-24, and fixed in source with a gate:** the MoOS Bar and Dolphin
 read LTR in Arabic, GTK windows drew Adwaita light, App Drop's `ask()` returned False (no

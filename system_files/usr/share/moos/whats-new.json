@@ -3,6 +3,20 @@
   "_": "What a person can SEE or DO after an update, newest first. One entry per user-visible change, written for the owner of the machine, not for a developer: what it is, where it is, and (when MoOS has a route to it) a way to try it now. 'merged' is when the change reached main (a little later is fine, earlier is not: an entry dated before a machine's previous system is never marked new there); a machine marks an entry new when the system it ran BEFORE the update was built earlier than that. tests/test_whats_new.py reads every entry the way MoOS Settings will.",
   "entries": [
     {
+      "id": "light-after-days",
+      "merged": "2026-10-04T12:00:00Z",
+      "glyph": "pulse",
+      "route": "moos://settings/remote",
+      "title": {
+        "ar": "MoOS يبقى خفيفاً بعد أيام من التشغيل",
+        "en": "MoOS stays light after days of running"
+      },
+      "body": {
+        "ar": "Mo PC Remote لم يعد يترك اتصال شاشة قديماً مفتوحاً كلما أُعيد بناء الصورة، فتتوقف خدمة الصوت عن التضخم. مؤشر الخصوصية يظهر لحظة بدء الالتقاط ولا يكلّف شيئاً في السكون، ومحادثة ميرا لم تعد تستهلك الذاكرة بلا حدّ.",
+        "en": "Mo PC Remote no longer leaves an old screen connection open each time the picture is rebuilt, so the sound service stops growing. The privacy chip appears the moment a capture starts and costs nothing while idle, and Mira's chat can no longer run away with memory."
+      }
+    },
+    {
       "id": "mira-media-title",
       "merged": "2026-10-03T09:00:00Z",
       "glyph": "ai",
