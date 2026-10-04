@@ -1087,7 +1087,10 @@ class TheRealProducerReachesARealIsland(island_probe.RealIslandProbe, unittest.T
         folder = jobs.directory
         running = publish("0e0e0e0e", "update_apps", "running", folder=folder)
         self.assertEqual(running, "job-0e0e0e0e-running-update_apps")
-        self.assertTrue(output.wait_for("probe-state running:0e0e0e0e", 10),
+        # A full ARM gate run keeps both cores busy. The probe normally answers in milliseconds,
+        # but its software QML event loop may not be scheduled inside a ten-second wall-clock
+        # window; a missing state still fails, just without turning essential-tier load into a flake.
+        self.assertTrue(output.wait_for("probe-state running:0e0e0e0e", 30),
                         "\n".join(output.seen[-20:]))
         long_ago = time.time() - 60                  # the job has run for a minute
         os.utime(folder / running, (long_ago, long_ago))
@@ -1100,7 +1103,7 @@ class TheRealProducerReachesARealIsland(island_probe.RealIslandProbe, unittest.T
         with mock.patch.object(os, "replace", replace_then_yield):
             ended = publish("0e0e0e0e", "update_apps", "done", running, folder=folder)
         self.assertEqual(ended, "job-0e0e0e0e-done-update_apps")
-        self.assertTrue(output.wait_for("probe-state done:0e0e0e0e", 10),
+        self.assertTrue(output.wait_for("probe-state done:0e0e0e0e", 30),
                         "a job that ran for a minute ended, and the Island's chip vanished "
                         "instead of announcing it\n" + "\n".join(output.seen[-20:]))
 

@@ -964,8 +964,11 @@ def restart_gate():
             check(words in done.stderr, f"the refusal for {label} must say why: {done.stderr!r}")
             check("Continue?" not in done.stdout, f"with {label} the question must not be asked")
         check(not (root / "systemctl.log.pkexec").exists(), "a restart never goes through pkexec")
-        check(not Path("/run/lock/moos-image-update.lock").exists()
-              or Path("/run/lock/moos-image-update.lock").stat().st_uid == 0,
+        live_lock = Path("/run/lock/moos-image-update.lock")
+        # The journal-isolation meta-gate runs this suite in a one-id user namespace. A real
+        # root-owned host lock is then deliberately unmapped and reads as uid 65534, not 0.
+        # What this test owns is the invariant that the caller did not create it as itself.
+        check(not live_lock.exists() or live_lock.stat().st_uid != os.getuid(),
               "the check must never create the deployment lock as a user")
 
 
