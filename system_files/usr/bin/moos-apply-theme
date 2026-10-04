@@ -346,7 +346,10 @@ set -uo pipefail
 #     Ctrl+Enter), a label-less job chip ("A Mira action") and the launcher's card name
 #     her, and the new install/restart/Remote jobs and the controls confirmed for one
 #     value carry words. Cached Island and launcher QML would keep saying Mo AI.
-THEME_REV=97
+# 98: the Island reads its Store and Mira job folders again while a job is shown as
+#     running, so a job's end is announced even when the rename's own event was lost.
+#     Cached Island QML would keep the chip that can stay on "Installing…" for ever.
+THEME_REV=98
 state_dir="${XDG_STATE_HOME:-$HOME/.local/state}"
 mkdir -p "$state_dir" 2>/dev/null || true
 marker="${state_dir}/moos-ui2-theme-applied.v${THEME_REV}"

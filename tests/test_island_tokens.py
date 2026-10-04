@@ -569,6 +569,47 @@ class ProbeOutput:
         return False
 
 
+class AJobsEndIsNotLeftToOneEvent(unittest.TestCase):
+    """FolderListModel's worker is woken by a condition variable. A directory event that arrives
+    while it is still reading wakes nobody, and the change waits for the NEXT event — which a
+    job's last rename does not have. On the Oracle A1 with one busy core the probe below never
+    saw a job end in 2 runs of 60 (and 0 of 60 with the re-read). The remedy is a re-read while a
+    job is shown as running, and it must stay guarded: an Island that re-reads for ever is a timer
+    in plasmashell on every machine, for a chip that is usually not there."""
+
+    def setUp(self):
+        self.qml = "\n".join(l for l in (ISLAND / "main.qml").read_text(encoding="utf-8").splitlines()
+                             if not l.strip().startswith("//"))
+
+    def timer(self, name):
+        found = re.search(r"Timer \{\s*id: " + name + r"\b([^}]*)\}", self.qml)
+        self.assertIsNotNone(found, f"the Island has no {name}")
+        return " ".join(found.group(1).split())
+
+    def test_each_job_feed_is_read_again_only_while_a_job_runs(self):
+        for name, active, model in (("storeJobRecheck", "root.storeJobActive", "storeJobPresence"),
+                                    ("moaiJobRecheck", "root.moaiJobActive", "moaiJobPresence")):
+            body = self.timer(name)
+            self.assertIn(f"running: {active}", body,
+                          f"{name} must run only while a job is shown as running")
+            self.assertIn("repeat: true", body)
+            self.assertIn(f"onTriggered: {model}.showHidden = !{model}.showHidden", body,
+                          f"{name} must make the model's worker read the folder again")
+            interval = int(re.search(r"interval: (\d+)", body).group(1))
+            self.assertTrue(500 <= interval <= 3000, f"{name}: {interval} ms")
+
+    def test_the_probe_carries_the_same_remedy_as_the_island(self):
+        probe = " ".join(RealIslandProbe.PROBE.split())
+        self.assertIn("running: watched.length > 0 onTriggered: jobs.showHidden = !jobs.showHidden", probe,
+                      "the probe would no longer measure what the Island does")
+
+    def test_a_hidden_file_can_never_be_a_job(self):
+        # showHidden is safe to toggle only because the filter cannot match a dotfile.
+        for model in ("storeJobPresence", "moaiJobPresence"):
+            block = self.qml[self.qml.index(f"id: {model}"):][:400]
+            self.assertIn('nameFilters: ["job-*"]', block)
+
+
 class RealIslandProbe:
     """A real FolderListModel wired like the Island's syncMoaiJob, in a private session.
 
@@ -611,6 +652,10 @@ Item {
         shown = now;
     }
     Component.onCompleted: console.warn("probe-ready")
+    // The Island's moaiJobRecheck: while a job is shown as running, read the folder again. A
+    // directory event that lands while FolderListModel is still reading is lost until the next.
+    Timer { interval: 1500; repeat: true; running: watched.length > 0
+            onTriggered: jobs.showHidden = !jobs.showHidden }
     Timer { id: finished; interval: 300; onTriggered: Qt.exit(0) }
     Timer { interval: 30000; running: true; onTriggered: Qt.exit(90) }
 }
