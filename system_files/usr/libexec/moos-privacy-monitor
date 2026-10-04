@@ -37,6 +37,8 @@ RESYNC_SECONDS = 60.0
 SETTLE_SECONDS = 0.2
 # How long a feed that died is left alone before it is tried again.
 FEED_RETRY_SECONDS = 30.0
+# A change is published twice, this far apart. See Watch.step.
+RETOUCH_SECONDS = 1.0
 # One array of the monitor's output is the whole graph at most (~220 kB on a desktop). Text that
 # has grown far past that without closing is not JSON that is still arriving.
 FEED_BUFFER_LIMIT = 8 * 1024 * 1024
@@ -482,10 +484,24 @@ class Watch:
         self.published: list[dict[str, Any]] | None = None
         self.retry_at = 0.0
         self.resync_at = 0.0
+        self.retouch_at: float | None = None
 
     def step(self) -> None:
         feed = self.feed
         now = time.monotonic()
+
+        # THE SECOND DOORBELL. The Island learns of a token from its FolderListModel, whose worker
+        # is woken by a condition variable: a directory event that arrives while it is still
+        # reading wakes nobody, and the change waits for the NEXT event. Publishing a token is
+        # itself such a burst (a temporary file, then a rename over the name). When this program
+        # rewrote every token each 1.5 s the next event was never far away; now that it writes only
+        # on a change, a lost one would leave the privacy chip wrong until the minute's resync. So
+        # every change is written once more a second later: same names, a fresh event.
+        if self.retouch_at is not None and now >= self.retouch_at:
+            self.retouch_at = None
+            if self.published is not None:
+                write_tokens(self.published, self.target_dir)
+            return                              # one thing per round; the next one waits
 
         if not feed.alive() and now >= self.retry_at:
             self.retry_at = now + FEED_RETRY_SECONDS
@@ -506,16 +522,18 @@ class Watch:
                 feed.replace(full)
             self.resync_at = now + RESYNC_SECONDS
             feed.wait(0)                        # anything newer than that read goes on top of it
-        elif feed.wait(self.resync_at - now):
+        elif feed.wait(min(self.resync_at, self.retouch_at or self.resync_at) - now):
             feed.wait(SETTLE_SECONDS)           # the rest of the burst
         else:
-            return                              # the resync is due, or the feed has ended
+            return                              # the resync or the doorbell is due, or the feed ended
 
         streams = analyze_streams(*partition_dump(feed.snapshot()))
         # A resync rewrites the tokens even when nothing changed, so a runtime directory that was
         # cleaned under us is repaired within a minute. A graph event that changes no stream —
         # nearly all of them — writes nothing, and the Island's folder watch stays quiet.
         if resynced or streams != self.published:
+            if streams != self.published:
+                self.retouch_at = time.monotonic() + RETOUCH_SECONDS
             write_tokens(streams, self.target_dir)
             self.published = streams
 

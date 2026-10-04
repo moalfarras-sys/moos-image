@@ -362,6 +362,17 @@ rate. And the fix that drops by timestamp is the next trap: the early frame is t
 picture, so `FramePacer` waits. `scripts/station/compositor-rig` measures such a change in a second,
 invisible compositor; on a machine whose screen is Mo PC Remote, never measure it on the first.
 
+**A change signal is not a delivery guarantee.** The Island learns everything from
+`FolderListModel` signals. That model's worker is woken by a condition variable, and a directory
+event that arrives while it is still reading wakes nobody: the change waits for the NEXT event. A
+job's last rename has no next event, so the chip could say "Installing…" for ever. On the A1 with
+one busy core the Island's real-model probe never saw a job end in 2 runs of 60, and one
+`just check` in four failed there for that reason. The Island now reads a job folder again while a
+job is shown as running (guarded: idle it does nothing; 0 misses in 60), and
+`moos-privacy-monitor` writes a changed token once more a second later. If you add a token
+producer, either its consumer reads again or the producer rings twice. A gate that fails one run
+in four on the slow machine is telling you about the product, not about the machine.
+
 **Boot the image and look at it.** `podman build` + `bootc-image-builder --type qcow2` + qemu
 with `screendump` takes about half an hour and is the only thing that found any of the above.
 

@@ -13,8 +13,7 @@ use_when: The owner uses an Oracle A1 or another always-on cloud MoOS computer f
   encoder; with nobody watching both rest. A lower picture size helps the network, not that cost.
 - A computer with no monitor draws a desktop of a size its owner chose. A phone-sized desktop
   reaches the phone pixel for pixel, so text is sharper and the picture smoother; the larger one
-  gives a computer's browser more room. The owner changes it from a terminal with the cloud
-  desktop tool's display setting, and it applies the next time they sign in, never at once.
+  gives a computer's browser more room. It applies the next time they sign in, never at once.
 - `/var` is the real writable disk. Do not diagnose the small read-only `/` view as a full disk.
 - Mo PC Remote should stay private through the paired network path. Never recommend exposing its
   local port directly to the public internet.
@@ -40,6 +39,9 @@ use_when: The owner uses an Oracle A1 or another always-on cloud MoOS computer f
    private path exists. If the picture is laggy but connected, offer `fast_remote` value=`on`; it asks
    first and temporarily reduces visual effects. Do not turn the remote off while the owner may be
    using it.
+   If the picture is soft or small on a phone and the owner mostly watches from one, offer
+   `desktop_size` value=`phone`; for a computer's browser offer `desktop_size` value=`desk`. Say
+   that it takes effect when they next sign in and closes nothing now.
 7. If `os_state` says a signed update is already staged, explain that a later owner-chosen restart
    applies it. Never restart an always-on development station for the owner.
 

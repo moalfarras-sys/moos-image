@@ -6,6 +6,7 @@ The report, scan and self-check shapes below are the live station's answers of 2
 the check_system_update outputs are moai-do's own `check-update` lines.
 """
 import copy
+import importlib.util
 import json
 import os
 import re
@@ -312,8 +313,17 @@ class Helpers(unittest.TestCase):
                                 (ROOT / 'pages' / 'system.py').read_text()))
         for key in {k for group in stored for k in group if k}:
             self.assertIn(key, sysmod.STRINGS, key)
-        shipped = sorted(p.stem for p in (ROOT.parent / 'system_files/usr/share/moos/moai/skills').glob('*.md'))
-        for skill in shipped:
+        shipped = {p.stem for p in (ROOT.parent / 'system_files/usr/share/moos/moai/skills').glob('*.md')}
+        # The image build copies the schema file into this stage but not the playbooks themselves,
+        # so the folder above is empty there and this check passed on nothing: a playbook reached
+        # main with no words (2026-10-04). SKILLS in the schema file names the same set.
+        if TREE_SCHEMA_FILE.is_file():
+            spec = importlib.util.spec_from_file_location('tree_schemas_for_skill_words', TREE_SCHEMA_FILE)
+            schemas = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(schemas)
+            shipped |= set(schemas.SKILLS)
+            self.assertGreaterEqual(len(schemas.SKILLS), 12)
+        for skill in sorted(shipped):
             self.assertIn('sy_sk_' + skill, sysmod.STRINGS, skill)
         for key, (ar, en) in sysmod.STRINGS.items():
             self.assertTrue(ar.strip() and en.strip(), key)

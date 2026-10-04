@@ -216,6 +216,10 @@ class TheLoop(unittest.TestCase):
 
     def test_a_capture_is_published_from_the_feed_without_another_dump(self):
         self.watch.step()
+        # the stand-in logs its own start a few milliseconds after it is spawned
+        deadline = time.monotonic() + 3
+        while self.spawns("monitor") < 1 and time.monotonic() < deadline:
+            time.sleep(0.01)
         self.assertEqual((self.spawns("monitor"), self.spawns("oneshot")), (1, 1))
         self.say([CLIENT, MIC])
         self.assertTrue(self.step_until(lambda: self.names() == ["active-mic-61-Telegram"]),
@@ -227,6 +231,33 @@ class TheLoop(unittest.TestCase):
         self.assertTrue(self.step_until(lambda: self.names() == []),
                         f"an ended stream stayed on the Island: {self.names()}")
         self.assertEqual(self.spawns("oneshot"), 1)
+
+    def test_a_change_rings_the_islands_bell_twice_and_no_more(self):
+        """The Island's FolderListModel can lose a directory event that lands while it is reading.
+        A change is therefore written again a moment later — and then left alone."""
+        self.monitor.RETOUCH_SECONDS = 0.3
+        self.monitor.RESYNC_SECONDS = 60.0          # no resync in this test: it rewrites by design
+        self.watch.step()
+        self.graph(IDLE_GRAPH + [CLIENT, MIC])
+        self.say([CLIENT, MIC])
+        token = self.tokens / "active-mic-61-Telegram"
+        self.assertTrue(self.step_until(token.exists))
+        first = token.stat().st_ino
+        self.assertTrue(self.step_until(lambda: token.exists() and token.stat().st_ino != first, 2.0),
+                        "the token was written once: a lost event would leave the chip wrong "
+                        "until the next resync")
+        second = token.stat().st_ino
+        self.assertEqual(self.spawns("oneshot"), 1, "the second write must not cost a dump")
+        for other in range(9000, 9006):             # graph events that change no stream
+            self.say([{"id": other, "type": "PipeWire:Interface:Client", "info": {"props": {}}}])
+            self.assertTrue(self.step_until(lambda: other in self.watch.feed.objects))
+        self.assertEqual(token.stat().st_ino, second, "an unchanged token must not be rewritten "
+                                                      "by every graph event")
+        # a stream that ended is rung twice as well: the directory is touched again while empty
+        self.graph(IDLE_GRAPH)
+        self.say([{"id": 61, "info": None}])
+        self.assertTrue(self.step_until(lambda: self.names() == []))
+        self.assertIsNotNone(self.watch.retouch_at)
 
     def test_an_array_cut_inside_an_arabic_name_arrives_whole(self):
         self.watch.step()

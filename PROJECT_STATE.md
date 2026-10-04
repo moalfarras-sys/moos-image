@@ -1,10 +1,6 @@
 # MoOS current state — measured 2026-10-04
 
-**Release and installed readback, 2026-10-03:** production source `7c9d1e43`, signed
-NVIDIA `.977` (promotion `37120191781`); exact x86 build `37114776308`, all three
-QCOW2 and offline ISO proofs passed; ARM `37114740334` also promoted. The station
-now boots `.977` with `.975` retained. Installed Mira, Home Assistant and Lumen
-were active; corrective source below is separate from the signed installed bytes.
+**Release, 2026-10-04:** production source is `0dafbba1` (PR #198: the Oracle cloud-station batch and the station's repair stack #197, one integration). x86 `44.20261004.987` for `moos`, `moos-nvidia` and `moos-cloud`: signed build `37209857843`, QCOW2 `37213693258`/`37213695770`/`37213698125`, offline ISO `37213700216`, promotion `37216459374`, every proof a first attempt. ARM `44.20261004.689` (`sha256:c7011c53…`): build, boot and promotion `37209793214`. `just check` passed on the A1 at each step (229 gates). The A1 has `.689` staged over booted `.638` with `.632` kept; nobody has rebooted into it, so Remote's pacer and descriptor fix, the feed-driven privacy monitor, Mira's settled chat and the 1280×720 desktop are staged, not seen. The NVIDIA station was last read on `.977` with `.975` retained (2026-10-03); its update to `.987` and every installed journey of this batch are owed.
 **Home/control corrective audit, 2026-10-03:** branch
 `fix/mira-lighting-control-20261003` fixes lost Hue Entertainment regions,
 Echo effects overriding screen colour, black frames leaving lamps orange, stale
@@ -59,9 +55,8 @@ was observed and KWin stayed running. HDMI and physical mouse/phone endurance re
 **Mira, 2026-10-02:** PRs #177–#180 integrate her six pages, approvals inbox, chat history, KDE entry, new Mo AI actions and ARM packaging. Signed x86/ARM builds include her; the station's earlier user install proved Arabic voice, a live approval and the page renders. Installed `.967` face was captured. A topic-source live Gemini voice turn on 2026-10-02 proved mouth energy returning to zero in pauses and at idle; 89 controller/QML/voice tests pass. Registered patches preserve original portraits. A corrective single-mouth UV rig replaces lip cross-fades after the owner showed doubled lips; both GPU waveform renders and a native voice reply (28 captures, pause/idle zero) were reviewed. The station now boots `.975`, which delivers the single-mouth correction; owner-spoken endurance remains open. See `mira/README.md`. **Mira home centre + Lumen, 2026-10-03 (merged and signed in `.977`; station readback below is from temporary source):** Home Assistant's registries drive a room-by-room Home page where names, rooms and voice aliases are written back into HA (rename and area round-trips read back and restored); Mira's instruction carries the same device inventory with real capabilities. Lumen, the lighting engine (`/usr/bin/mira-lumen`, user service), unifies HA lamps, the Hue bridge directly and the PC's Gigabyte RGB Fusion 2 controller (IT5701 v3.0.27.0 on this B660 GAMING X DDR4, hidraw, nothing written to flash). Measured live: a Hue lamp set violet 60 % read back in 0.43 s and was restored to its exact xy; a living scene streamed to the four PC headers at 30 fps for 1.8 % of one core; the owner approved the ScreenCast portal once and Screen Sync ran at ~14–16 fps (static desktop) with the restore token sparing a second dialog — Lumen 7 % and KWin +7.5 % of one core while syncing, Lumen 0.1 % idle; the Hue bridge was discovered (mDNS/Avahi) and a DTLS-PSK round trip through GnuTLS was proven against `openssl s_server`; Mira's text brain answered a device-capability question from the inventory and ran `light_scene`/`lights` on the PC. The station uses the documented backed-up per-user Mira app/launcher/autostart and persistent Lumen MIRA_APP drop-in until a signed image carries the corrections. Hue pairing and actual HDMI Entertainment streaming are now proven in the corrective audit above. Open: which physical fans hang on which header (needs the owner), installed Home/Lumen acceptance after reboot.
 ## Source and release truth
 
-- **Proven production source is `7c9d1e43`, NVIDIA `44.20261003.977`**:
-  signed candidate `37114776308`, promotion `37120191781`; ARM
-  build/boot/promotion `37114740334`. The station now boots signed `.977` with `.975` retained.
+- **Proven production source is `0dafbba1`: x86 `44.20261004.987`, ARM `44.20261004.689`**
+  (run ids in the first paragraph). Before it: `7c9d1e43`, NVIDIA `.977`, promotion `37120191781`.
 - PR #191 Home/Lumen/media corrections passed signed builds, 3×QCOW2, ISO and ARM;
   the later corrective source above is not signed delivery.
 - Remote v46/geometry are installed; iPhone input reached the host.
@@ -132,6 +127,8 @@ owner reported a stable short v49 cellular trial at 1024 px; longer endurance an
   Settings deep-links Update, Recovery and Remote to their transaction owners, with owner-read
   busy/superseded update, queued rollback and failed Remote rows (Arabic/English light/dark Qt
   captures passed). Installed routes and real transactions remain unproven; neither is installed.
+- **The Island's job feed no longer depends on one event (source, `THEME_REV` 98, 2026-10-04):** `FolderListModel` loses a directory event that arrives while it is re-reading, so a job's last rename could leave the chip on "Installing…" (2 of 60 probe runs on the A1 with one busy core; with the guarded re-read 0 of 60). The Store and Mira job folders are read again while a job is shown as running, and `moos-privacy-monitor` publishes each change twice, a second apart (seen live: one capture, two writes). Owed: the installed Island; Mo PC Remote's own presence tokens still ring once.
+
 ## Development environment
 
 - On the station: VS Code is a Flatpak; host work uses `flatpak-spawn --host`. There is
