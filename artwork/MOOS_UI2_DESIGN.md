@@ -396,6 +396,10 @@ immediately settle. No minimum display time, spinner loop or additional session
 splash. Pre-login has no user's Plasma motion settings. Native text stays bounded
 and uses the existing muted/text/primary tokens. Once settled, refresh performs
 no scaling or sprite movement; one hero replaces the 32-frame movie.
+Keep dirty-region redraws at 25 Hz while the boot UI can receive input/status;
+reducing script refresh to 1 Hz made password updates temporarily erase the
+composition. Native review must update a visible prompt, preserve the resting
+hero and paint the new bullets within 200 ms; a static prompt alone is insufficient.
 
 Developer handoff: `system_files/usr/share/plymouth/themes/moos/README.md` owns
 geometry, tokens, generators and native review commands. Keep root/initramfs

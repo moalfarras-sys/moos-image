@@ -219,13 +219,12 @@ class BootSplashTests(unittest.TestCase):
         self.assertIn("finished = 1", quit_body)
         self.assertNotIn(".Scale(", quit_body)
 
-    def test_entrance_finishes_and_refresh_is_idle(self) -> None:
+    def test_entrance_finishes_without_perpetual_motion(self) -> None:
         text = script_text()
         refresh = text.split("fun refresh()", 1)[1].split("Plymouth.SetRefreshFunction", 1)[0]
         self.assertNotIn(".Scale(", refresh)
         self.assertIn("tick >= 9", refresh)
         self.assertIn("finished = 1", refresh)
-        self.assertIn("Plymouth.SetRefreshRate(1)", refresh)
         self.assertEqual(len(intro_frames()), 1)
 
     def test_the_ground_is_the_desktop_canvas(self) -> None:

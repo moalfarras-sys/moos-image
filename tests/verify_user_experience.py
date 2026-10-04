@@ -4889,16 +4889,15 @@ require(f"Window.SetBackgroundBottomColor({_ground})" in moos_script_src,
         f"must be FLAT, or the splash-to-desktop seam shows")
 
 # The approved hero remains centred. The owner requests a lighter boot: retire
-# the perpetual orbit, require finite motion and idle refresh instead. Identity,
+# the perpetual orbit, require finite motion instead. Identity,
 # retain-splash, shared backdrop and image/initramfs gates remain in force.
 require("stage_x = cx - stage_w / 2" in moos_script_src
         and "stage_y = cy - stage_h / 2" in moos_script_src
         and "intro_sprite.SetX(stage_x)" in moos_script_src
         and "intro_sprite.SetY(stage_y)" in moos_script_src,
         "the rendered boot stage must be centred as the hero")
-require("tick >= 9" in moos_script_src and "finished = 1" in moos_script_src
-        and "Plymouth.SetRefreshRate(1)" in moos_script_src,
-        "boot entrance must finish and leave idle refresh, without an endless orbit")
+require("tick >= 9" in moos_script_src and "finished = 1" in moos_script_src,
+        "boot entrance must finish without an endless orbit")
 # Scale to screen height, so it is crisp at 1080p and 4K without stretching.
 require("Window.GetHeight(0)" in moos_script_src,
         "the boot splash must size itself from the screen height (crisp at 1080p and 4K)")

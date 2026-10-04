@@ -714,7 +714,9 @@ RPMs and image bytes are unchanged. ARM rerun `37198608404` built the complete
 image successfully, then exposed the workflow's obsolete eight-frame minimum.
 The workflow now requires the one current hero and re-reads every final boot
 archive with the exact package/library/theme-byte gate. The same finished-image
-check passes on the local NVIDIA image; final ARM rerun remains required.
+check passes on the local NVIDIA image. ARM run `37200216869` on `95b310d0`
+then passed the complete image build and corrected final-image checks; its PR
+disk/promotion jobs were skipped, so this proves no ARM boot or delivery.
 Candidates `37197917279` and `37199601703` were stopped as obsolete, not accepted.
 Candidate `37200066390` was also stopped before image compilation to correct
 the three new What's New cutoffs for the planned end-of-day integration window;
@@ -722,6 +724,15 @@ their dates must not precede the source merge. These are notification cutoffs,
 not evidence that integration or delivery has happened.
 `bootc lint` retains its existing nonempty `/boot` warning for boot assets; no
 mutable `/var` payload remains in actual image readback.
+**Native interaction review:** the 1 Hz prototype erased the composition after
+password updates until its next redraw. Keep 25 Hz dirty-region refresh with no
+sprite changes after the finite entrance, restore that rate after password setup,
+and use 1 Hz only during quit. The native prompt-update gate requires a retained
+hero and changed bullets within 200 ms; the old private control fails and the
+corrected theme passes. Latest 1080p sample is 93 MiB / 0.370 s CPU versus the
+old movie's 169 MiB / 1.177 s. Arabic prompt review also passes. Candidate
+`37200246526` was stopped as obsolete; a new full local image and signed proofs
+are required for this actual interaction fix.
 
 ## The two editions did not ship the same desktop (measured 2026-09-21, fixed)
 

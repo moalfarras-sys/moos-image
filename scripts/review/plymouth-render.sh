@@ -33,6 +33,25 @@ for resolution in 640x480 1920x1080 3840x2160; do
  DISPLAY=:99 LD_LIBRARY_PATH=/review/lib/usr/lib64 /review/render /review/theme/moos.plymouth /review/lib/usr/lib64/plymouth/ "${ARTIFACT_DIR}/native-${resolution}.ppm"
  if [ "$resolution" = 640x480 ]; then
   DISPLAY=:99 LD_LIBRARY_PATH=/review/lib/usr/lib64 /review/render /review/theme/moos.plymouth /review/lib/usr/lib64/plymouth/ "${ARTIFACT_DIR}/native-password.ppm" 'Unlock encrypted disk'
+  DISPLAY=:99 LD_LIBRARY_PATH=/review/lib/usr/lib64 /review/render /review/theme/moos.plymouth /review/lib/usr/lib64/plymouth/ "${ARTIFACT_DIR}/native-password-update.ppm" 'Unlock encrypted disk' --prompt-update
+  python3 - "$ARTIFACT_DIR" <<'PY'
+import sys
+from pathlib import Path
+def pixels(name):
+    with (Path(sys.argv[1]) / name).open('rb') as stream:
+        assert stream.readline() == b'P6\n'
+        w, h = map(int, stream.readline().split())
+        assert stream.readline() == b'255\n'
+        return w, h, stream.read()
+w, h, resting = pixels('native-640x480.ppm')
+w2, h2, updated = pixels('native-password-update.ppm')
+assert (w, h) == (w2, h2)
+split = w * (h * 3 // 4) * 3
+assert resting[:split] == updated[:split], 'typing erased or delayed the resting MoOS composition'
+_, _, password = pixels('native-password.ppm')
+assert password[split:] != updated[split:], 'the password bullet update has not painted within 200 ms'
+print('Native prompt redraw passed: composition retained and changed bullets visible within 200 ms')
+PY
  fi
  kill "$xpid"
  wait "$xpid" || true

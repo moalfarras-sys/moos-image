@@ -59,7 +59,8 @@ fun refresh() {
         intro_sprite.SetOpacity(0.70 + 0.30 * clamp01(tick / 9.0));
         if (tick >= 9) {
             finished = 1;
-            Plymouth.SetRefreshRate(1);
+            // Keep input/status redraws responsive. The mark is now still;
+            // sprite refresh draws only damaged regions, not a new movie frame.
         }
     }
 }
@@ -95,6 +96,7 @@ bullets_sprite = Sprite();
 bullets_sprite.SetZ(20);
 fun display_password(prompt, bullets) {
     quit_callback();
+    Plymouth.SetRefreshRate(25);
     hide_message();
     pimg = Image.Text(prompt, 0.910, 0.945, 0.937);   // text #E8F1EF
     if (pimg.GetWidth() > OVERLAY_MAX_W) {

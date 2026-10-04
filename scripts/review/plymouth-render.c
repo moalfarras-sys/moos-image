@@ -2,7 +2,9 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <stdlib.h>
+#include <string.h>
 #include <sys/resource.h>
+#include <sys/prctl.h>
 #include <ply-boot-splash.h>
 #include <ply-pixel-display.h>
 #include <ply-renderer.h>
@@ -10,6 +12,12 @@
 static ply_renderer_t *renderer;
 static ply_renderer_head_t *head;
 static const char *output;
+static ply_boot_splash_t *active_splash;
+static const char *password_prompt;
+static void type_one(void *data, ply_event_loop_t *loop) {
+    (void)data; (void)loop;
+    ply_boot_splash_display_password(active_splash, password_prompt, 1);
+}
 static void capture(void *data, ply_event_loop_t *loop) {
     (void)data;
     ply_pixel_buffer_t *buffer = ply_renderer_get_buffer_for_head(renderer, head);
@@ -32,9 +40,12 @@ static void capture(void *data, ply_event_loop_t *loop) {
     ply_event_loop_exit(loop, 0);
 }
 int main(int argc, char **argv) {
+    /* RLIMIT_CORE alone does not stop a host's piped core collector. */
+    if (prctl(PR_SET_DUMPABLE, 0)) return 2;
     struct rlimit limit = {0, 0};
     if (setrlimit(RLIMIT_CORE, &limit)) return 2;
-    if (argc < 4 || argc > 5) return 2;
+    if (argc < 4 || argc > 6) return 2;
+    if (argc == 6 && strcmp(argv[5], "--prompt-update")) return 2;
     output = argv[3];
     ply_event_loop_t *loop = ply_event_loop_get_default();
     renderer = ply_renderer_new(PLY_RENDERER_TYPE_X11, NULL, NULL, NULL);
@@ -48,8 +59,13 @@ int main(int argc, char **argv) {
     ply_boot_splash_add_pixel_display(splash, display);
     ply_renderer_activate(renderer);
     if (!ply_boot_splash_show(splash, PLY_BOOT_SPLASH_MODE_BOOT_UP)) return 4;
-    if (argc == 5) ply_boot_splash_display_password(splash, argv[4], 4);
-    ply_event_loop_watch_for_timeout(loop, 1.2, capture, NULL);
+    if (argc >= 5) ply_boot_splash_display_password(splash, argv[4], 4);
+    if (argc == 6) {
+        active_splash = splash;
+        password_prompt = argv[4];
+        ply_event_loop_watch_for_timeout(loop, 1.35, type_one, NULL);
+    }
+    ply_event_loop_watch_for_timeout(loop, argc == 6 ? 1.55 : 1.2, capture, NULL);
     int result = ply_event_loop_run(loop);
     ply_boot_splash_hide(splash);
     ply_boot_splash_free(splash);
