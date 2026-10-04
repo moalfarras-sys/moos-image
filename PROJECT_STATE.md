@@ -45,7 +45,7 @@ Installed firmware/timer acceptance remains open. Plymouth SIGABRT resolves to
 `head != NULL` after quit; exact vendor source confirms the undisarmed callback.
 Boot correction is being integrated on `fix/boot-journey-20261004`: pinned vendor
 RPM rebuild cancels the freed frame callback; native ASan 3 old/20 fixed and actual
-RPM-library 3 old/20 fixed trials pass; native parser positive/BOM-negative pass.
+RPM-library controls pass on x86/ARM. Parser fixed to load rebuilt graphics, not base SDK.
 Real renderer: 640×480/1080p/4K and password prompt; 1080p sample peak RSS 169→91 MiB.
 Language guard builds 50 dictionaries without crashes; converter restored; spool uses tmpfiles.
 Approved resting hero replaces 32 frames (58.1→1.82 MiB decode), finite 360 ms

@@ -706,6 +706,12 @@ fixtures cover restoration and failed/unexpected transactions. The image state
 gate caught empty `/var/spool/plymouth` recreated by its RPM. Exact modes/owners
 are captured into tmpfiles and empty compose directories removed; payloads still
 fail and are preserved. Fourteen state tests include real tmpfiles reconstruction.
+PR #197 ARM run `37197862787` passed native ASan and actual RPM cancellation but
+its parser SDK omitted `plymouth-graphics-libs`. The fixture now extracts that
+rebuilt dependency too, with failure stderr. Native positive/BOM-negative control
+passes with base graphics physically removed in a disposable x86 SDK. Runtime
+RPMs and image bytes are unchanged; ARM rerun remains required. Candidate
+`37197917279` was stopped as obsolete, not accepted.
 `bootc lint` retains its existing nonempty `/boot` warning for boot assets; no
 mutable `/var` payload remains in actual image readback.
 

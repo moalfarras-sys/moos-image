@@ -9,7 +9,7 @@ resource.setrlimit(resource.RLIMIT_CORE, (0, 0))
 root = Path('/work/plymouth-script-proof')
 root.mkdir()
 manifest = json.loads(Path('/out/manifest.json').read_text())
-for name in ('plymouth-plugin-script', 'plymouth-core-libs'):
+for name in ('plymouth-plugin-script', 'plymouth-core-libs', 'plymouth-graphics-libs'):
     package = next(p for p in manifest['packages'] if p['name'] == name)
     payload = subprocess.check_output(['rpm2cpio', '/out/' + package['file']])
     subprocess.run(['cpio', '-idm', '--no-absolute-filenames', '--no-preserve-owner'],
@@ -26,6 +26,8 @@ for path, expected in ((script, 0), (negative, 71)):
                             env=dict(os.environ, LD_LIBRARY_PATH=str(root / 'usr/lib64')))
     (root / (path.stem + '.log')).write_text(result.stdout + result.stderr)
     trials.append({'fixture': path.name, 'exit': result.returncode, 'expected': expected})
+    if result.returncode != expected:
+        print(f'{path.name}: native parser failure: {result.stderr}', flush=True)
 proof = {'schema': 1, 'scope': 'actual rebuilt native script parser; not boot/pixel proof',
          'trials': trials, 'passed': all(t['exit'] == t['expected'] for t in trials)}
 Path('/out/proof/script.json').write_text(json.dumps(proof, indent=2) + '\n')
