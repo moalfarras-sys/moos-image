@@ -37,8 +37,8 @@ Full `just check`, real owner/second-UID HTTP checks and Linux publish passed;
 these repairs are not signed installed bytes. A private Remote bundle at source
 `9ffdf92f` is selected by `45-readiness-review.conf`; the owner confirmed clicking
 works. HTTP 200, exact executable path and zero restarts passed; phone/soak remain open.
-PR #194's repo, .NET/controller, generic x86 image and native ARM image checks passed;
-PR boot/promotion jobs were skipped, so this is not artifact-delivery evidence.
+PR #194 repo/.NET/controller/x86/ARM image checks passed; boot/promotion skipped.
+Its advisory reviewer failed internally despite the green job; no review acceptance claimed.
 Native Update Settings reads nine firmware states with private atomic records,
 concurrent-action guard and dead-process interruption detection.
 40 Settings/31 action fixtures, native KCM contract and `just check` pass;
@@ -63,11 +63,11 @@ was observed and KWin stayed running. HDMI and physical mouse/phone endurance re
 - Remote v46/geometry are installed; iPhone input reached the host.
   Phone/WAN endurance and HDMI hotplug remain open.
 - Two-icon design approval and HDMI disconnect remain open; prior post-update checks passed.
-- **P0.7 is no longer only a captured stack.** Read out of plymouth 24.004.60's source on
-  2026-09-21: `ply_boot_splash_free()` frees `pixel_displays` without disarming the
-  `on_new_frame` timeout that only `ply_boot_splash_hide()` disarms, and `--retain-splash`
-  is the path that skips that hide. Both recorded workarounds are disproven, and upstream
-  `main` still has the defect (2026-09-24), so Fedora 45's Plymouth 26.x will not close it.
+- **P0.7 now has native reproduction:** `scripts/review/plymouth-frame-lifetime.py`
+  verifies the exact vendor SRPM plus 23 patches. ASan catches frame use-after-free
+  in 3/3 unmodified trials; a proposed timeout-disarm patch passes 20/20. It remains
+  artifact-only: no patched package/image or corrected boot is proven. Earlier
+  workarounds are disproven; upstream still lacked the disarm at the last source check.
 - Production requires exact signed-candidate 3×QCOW2 + ISO and separate ARM proof.
 ## App engines — what this machine can actually run
 

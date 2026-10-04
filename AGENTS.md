@@ -438,6 +438,12 @@ atomic, tied to boot/PID start identity and written only by the fixed executor;
 fixtures must isolate `XDG_STATE_HOME` so they cannot fabricate owner history.
 A completed process is a transaction result, not physical firmware readback.
 
+**A native KCM needs its real loader.** Direct `KPluginFactory` construction without
+`KQuickConfigModuleLoader` omits the QML engine and can crash a review harness.
+Use the native loader, drain jobs before release and keep HOME/XDG/session state
+private. Negative native crash probes must disable coredumps and fail on unexpected
+signals; test-container execution alone does not isolate the host coredump collector.
+
 **A queued result is not a finished worker.** Mira page tests must join their
 workers and drain queued follow-up reads before releasing the Qt page or removing
 backend mocks. On 2026-10-03, a one-CPU container reproduced a PySide queued-call
