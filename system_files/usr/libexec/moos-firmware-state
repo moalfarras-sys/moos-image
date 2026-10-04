@@ -1,0 +1,18 @@
+#!/usr/bin/python3
+"""Publish a fixed firmware phase for the calling moai-do process."""
+import os
+from pathlib import Path
+import sys
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / 'lib/moos'))
+from moos_firmware_state import BusyError, record
+
+if len(sys.argv) not in (2, 3):
+    raise SystemExit(2)
+try:
+    record(sys.argv[1], sys.argv[2] if len(sys.argv) == 3 else '', pid=os.getppid())
+except BusyError:
+    raise SystemExit(3)
+except (OSError, ValueError) as error:
+    print('Could not record firmware status: ' + type(error).__name__, file=sys.stderr)
+    raise SystemExit(1)

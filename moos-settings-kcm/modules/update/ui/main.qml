@@ -3,7 +3,7 @@
 // from its owner's record, never inferred here:
 //   System            the booted/staged deployment and /run/moos/update-state.json
 //   Applications      ~/.local/state/moos/app-updates.json from moos-flatpak-update
-//   Device firmware   no record yet; the row starts the confirmed firmware check
+//   Device firmware   ~/.local/state/moos/firmware-updates.json from moai-do
 // Every action is an existing fixed route; the router and moai-do confirm and escalate.
 import QtQuick
 import QtQuick.Controls as Controls
@@ -24,6 +24,7 @@ KCM.SimpleKCM {
     readonly property var deployment: kcm.status.deployment || ({})
     readonly property var updateRecord: kcm.status.update || ({})
     readonly property var apps: kcm.status.apps || ({})
+    readonly property var firmware: kcm.status.firmware || ({})
     readonly property var failures: ready && apps.failures ? apps.failures : []
     readonly property real cardWidth: Kirigami.Units.gridUnit * 40
     readonly property color secondaryInk: Qt.rgba(Kirigami.Theme.textColor.r, Kirigami.Theme.textColor.g,
@@ -104,6 +105,44 @@ KCM.SimpleKCM {
                  detail: t("آخر تحديث: ", "Last update: ") + when }
     }
     readonly property var appState: appsSummary()
+    function firmwareSummary() {
+        if (!ready || firmware.known !== true)
+            return { title: t("لم يُفحص بعد", "Not checked yet"),
+                     detail: t("افحص لمعرفة ما يقدّمه مصنّع هذا الجهاز.",
+                               "Check to see what this device's maker offers.") }
+        var when = t("آخر محاولة: ", "Last attempt: ") + whenLabel(firmware.updated)
+        if (firmware.state === "checking")
+            return { title: t("جارٍ فحص برامج الجهاز", "Checking device firmware"), detail: when }
+        if (firmware.state === "installing")
+            return { title: t("جارٍ تحديث برامج الجهاز", "Updating device firmware"),
+                     detail: t("اترك الجهاز متصلاً بالكهرباء حتى تنتهي العملية.",
+                               "Keep the device connected to power until the operation finishes.") }
+        if (firmware.state === "available")
+            return { title: t("تحديثات برامج جهاز متاحة", "Device firmware updates are available"),
+                     detail: when + (firmware.busy
+                         ? t(". راجع نافذة التأكيد المفتوحة.", ". Review the open confirmation window.") : "") }
+        if (firmware.state === "none")
+            return { title: t("لم يُعرض تحديث في آخر فحص", "No update was offered at the last check"), detail: when }
+        if (firmware.state === "updated")
+            return { title: t("اكتمل آخر تحديث لبرامج الجهاز", "The last firmware update completed"), detail: when }
+        if (firmware.state === "cancelled")
+            return { title: t("أُلغي تحديث برامج الجهاز", "Firmware update was cancelled"), detail: when }
+        if (firmware.state === "interrupted")
+            return { title: t("توقفت العملية قبل تسجيل نتيجة", "The operation stopped without a result"),
+                     detail: t("افحص إصدارات الجهاز قبل إعادة المحاولة.",
+                               "Check device versions before trying again.") }
+        var why = firmware.reason === "metadata"
+            ? t("تعذّر تحديث معلومات المصنّع.", "Could not refresh the maker's update information.")
+            : firmware.reason === "query"
+                ? t("تعذّر فحص التحديثات المتاحة.", "Could not check available updates.")
+                : firmware.reason === "unavailable"
+                    ? t("فحص برامج الجهاز غير متوفر على هذا النظام.", "Firmware checking is unavailable on this system.")
+                    : t("لم يكتمل التحديث. افحص إصدارات الجهاز قبل إعادة المحاولة.",
+                        "The update did not complete. Check device versions before trying again.")
+        return { title: t("تعذّر إكمال العملية", "The operation could not complete"), detail: why + " " + when }
+    }
+    readonly property var firmwareStatus: firmwareSummary()
+    readonly property bool firmwareBusy: ready && firmware.busy === true
     // Why one application did not update, from the helper's closed set of kinds. The
     // updater's own sentence is English and may name the machinery; it goes to the
     // clipboard through "Copy details", never onto the page.
@@ -272,12 +311,19 @@ KCM.SimpleKCM {
         FormCard.FormCard {
             maximumWidth: root.cardWidth
 
+            MoosInfoRow {
+                glyph: "cpu"
+                text: root.firmwareStatus.title
+                description: root.firmwareStatus.detail
+            }
+            FormCard.FormDelegateSeparator {}
             MoosActionRow {
                 glyph: "cpu"
                 text: root.t("فحص برامج الجهاز", "Check device firmware")
                 description: root.t("تفتح نافذة تعرض تحديثات الشركة المصنّعة المتاحة لكل قطعة وإصدارها، ولا يُثبَّت شيء قبل أن توافق هناك.",
                                     "Opens a window listing each update this device's maker offers, with its device and version. Nothing is installed until you agree there.")
                 onClicked: root.open("moos://do/update-firmware")
+                enabled: !root.firmwareBusy
             }
         }
     }
