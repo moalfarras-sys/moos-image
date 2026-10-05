@@ -349,7 +349,8 @@ set -uo pipefail
 # 98: the Island reads its Store and Mira job folders again while a job is shown as
 #     running, so a job's end is announced even when the rename's own event was lost.
 #     Cached Island QML would keep the chip that can stay on "Installing…" for ever.
-THEME_REV=98
+# 99–100: single-line, content-sized Island tabs; hidden domains no longer squeeze Arabic.
+THEME_REV=100
 state_dir="${XDG_STATE_HOME:-$HOME/.local/state}"
 mkdir -p "$state_dir" 2>/dev/null || true
 marker="${state_dir}/moos-ui2-theme-applied.v${THEME_REV}"

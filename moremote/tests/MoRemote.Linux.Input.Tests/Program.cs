@@ -142,6 +142,71 @@ finally
     Directory.Delete(socketDir, true);
 }
 
+// Model the compositor with only the private socket's relative events. Portal and
+// local moves deliberately happen behind the fallback estimate's back.
+var pointerDir = Path.Combine(Path.GetTempPath(), "moremote-pointer-test-" + Guid.NewGuid());
+Directory.CreateDirectory(pointerDir);
+try
+{
+    using var recorder = new Socket(AddressFamily.Unix, SocketType.Dgram, ProtocolType.Unspecified);
+    var pointerSocketPath = Path.Combine(pointerDir, "input.sock");
+    recorder.Bind(new UnixDomainSocketEndPoint(pointerSocketPath));
+    Environment.SetEnvironmentVariable("YDOTOOL_SOCKET", pointerSocketPath);
+    using var portal = new PortalBridge { Accept = false };
+    var capture = new ScreenCapture();
+    using var input = new InputInjector(portal, capture);
+    int actualX = 0, actualY = 0;
+    List<(int Type, int Code, int Value)> Drain()
+    {
+        var events = new List<(int, int, int)>();
+        while (recorder.Poll(10000, SelectMode.SelectRead))
+        {
+            byte[] data = new byte[24];
+            Check(recorder.Receive(data) == 24, "private pointer event is complete");
+            int type = BinaryPrimitives.ReadUInt16LittleEndian(data.AsSpan(16));
+            int code = BinaryPrimitives.ReadUInt16LittleEndian(data.AsSpan(18));
+            int value = BinaryPrimitives.ReadInt32LittleEndian(data.AsSpan(20));
+            events.Add((type, code, value));
+            if (type == 2 && code == 0) actualX = Math.Clamp(actualX + value, 0, capture.InputBounds.Width - 1);
+            if (type == 2 && code == 1) actualY = Math.Clamp(actualY + value, 0, capture.InputBounds.Height - 1);
+        }
+        return events;
+    }
+    input.MouseMove(.2, .3); Drain();
+    portal.Accept = true;
+    input.MouseMove(.8, .7);
+    actualX = 1535; actualY = 755;
+    portal.Accept = false;
+    input.MouseMove(.25, .25);
+    var afterPortal = Drain();
+    Check((actualX, actualY) == (480, 270), "absolute fallback reacquires after portal motion");
+    Check(afterPortal.Any(e => e == (2, 0, 4096)), "portal handoff invalidates the old estimate");
+    portal.Accept = true;
+    input.MouseMoveRelative(100, -20);
+    actualX += 100; actualY -= 20;
+    portal.Accept = false;
+    input.MouseMove(.5, .5); Drain();
+    Check((actualX, actualY) == (960, 540), "relative portal motion also invalidates fallback tracking");
+    actualX = 0; actualY = 0; // owner moved the physical mouse, with no Remote event
+    input.Click("left", .5, .5);
+    var click = Drain();
+    Check((actualX, actualY) == (960, 540), "tap reacquires after external pointer movement");
+    Check(click.Where(e => e.Type == 1).Select(e => e.Value).SequenceEqual([1, 0]),
+        "recalibrated click still ends with one complete button pair");
+    capture.InputBounds = (1536, 864);
+    input.MouseMove(.5, .5); Drain();
+    Check((actualX, actualY) == (768, 432), "fractional-scale workspace change invalidates the old extent");
+    capture.InputBounds = (0, 0);
+    Check(!input.IsReady, "unknown geometry is not advertised as ready");
+    input.Click("left", .4, .4);
+    Check(!recorder.Poll(10000, SelectMode.SelectRead), "unknown geometry never clicks a guessed target");
+}
+finally
+{
+    Environment.SetEnvironmentVariable("YDOTOOL_SOCKET", Path.Combine(pointerDir, "absent.sock"));
+    Directory.Delete(pointerDir, true);
+}
+
 // ── Typing follows the live keymap. Fixture: real libxkbcommon output for MoOS's `ara,de` ring ──
 // (tests/test_remote_live_keymap.py proves it against the compiler and the live Arabic measurement).
 using (var portal = new PortalBridge { Keymap = Fixture(0) })
@@ -370,7 +435,7 @@ namespace MoRemote
     }
     public sealed class ScreenCapture
     {
-        public (int Width, int Height) InputBounds => (1920, 1080);
+        public (int Width, int Height) InputBounds { get; set; } = (1920, 1080);
     }
     public static class ClipboardBridge
     {

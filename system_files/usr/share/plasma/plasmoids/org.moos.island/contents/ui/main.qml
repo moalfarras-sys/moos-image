@@ -1439,41 +1439,110 @@ PlasmoidItem {
             anchors.left: parent.left
             anchors.right: parent.right
             anchors.margins: root.design.space4
+            height: 44
+            clip: true
             visible: root.active && root.multipleContexts
             currentIndex: root.showRemoteDetails ? 0
                 : (root.showPrivacyDetails ? 1
                     : (root.showStoreDetails ? 2 : (root.showMoaiDetails ? 3 : 4)))
             LayoutMirroring.enabled: root.rtl
             LayoutMirroring.childrenInherit: true
+            // Invisible TabBar children still count in its default equal-width formula.
+            // Give each active tab its text width, and inactive tabs no width at all.
             PC3.TabButton {
+                id: remoteTab
                 visible: root.remotePresent
+                width: visible ? Math.max(96, implicitWidth) : 0
+                height: contextTabs.height
+                topPadding: 6
+                bottomPadding: 6
+                leftPadding: 12
+                rightPadding: 12
                 text: root.local("التحكم عن بُعد", "Remote")
-                icon.name: "moos-pc-remote"
                 onClicked: root.detailContext = "remote"
+                contentItem: PC3.Label {
+                    text: remoteTab.text
+                    wrapMode: Text.NoWrap
+                    elide: Text.ElideRight
+                    horizontalAlignment: Text.AlignHCenter
+                    verticalAlignment: Text.AlignVCenter
+                }
             }
             PC3.TabButton {
+                id: privacyTab
                 visible: root.privacyPresent
+                width: visible ? Math.max(96, implicitWidth) : 0
+                height: contextTabs.height
+                topPadding: 6
+                bottomPadding: 6
+                leftPadding: 12
+                rightPadding: 12
                 text: root.local("الخصوصية", "Privacy")
-                icon.name: root.privacyIcon
                 onClicked: root.detailContext = "privacy"
+                contentItem: PC3.Label {
+                    text: privacyTab.text
+                    wrapMode: Text.NoWrap
+                    elide: Text.ElideRight
+                    horizontalAlignment: Text.AlignHCenter
+                    verticalAlignment: Text.AlignVCenter
+                }
             }
             PC3.TabButton {
+                id: storeTab
                 visible: root.storeJobPresent
+                width: visible ? Math.max(96, implicitWidth) : 0
+                height: contextTabs.height
+                topPadding: 6
+                bottomPadding: 6
+                leftPadding: 12
+                rightPadding: 12
                 text: root.local("المتجر", "Store")
-                icon.name: root.storeJobIcon
                 onClicked: root.detailContext = "store"
+                contentItem: PC3.Label {
+                    text: storeTab.text
+                    wrapMode: Text.NoWrap
+                    elide: Text.ElideRight
+                    horizontalAlignment: Text.AlignHCenter
+                    verticalAlignment: Text.AlignVCenter
+                }
             }
             PC3.TabButton {
+                id: moaiTab
                 visible: root.moaiJobPresent
+                width: visible ? Math.max(96, implicitWidth) : 0
+                height: contextTabs.height
+                topPadding: 6
+                bottomPadding: 6
+                leftPadding: 12
+                rightPadding: 12
                 text: root.local("ميرا", "Mira")
-                icon.name: root.moaiJobIcon
                 onClicked: root.detailContext = "moai"
+                contentItem: PC3.Label {
+                    text: moaiTab.text
+                    wrapMode: Text.NoWrap
+                    elide: Text.ElideRight
+                    horizontalAlignment: Text.AlignHCenter
+                    verticalAlignment: Text.AlignVCenter
+                }
             }
             PC3.TabButton {
+                id: mediaTab
                 visible: root.mediaPresent
+                width: visible ? Math.max(96, implicitWidth) : 0
+                height: contextTabs.height
+                topPadding: 6
+                bottomPadding: 6
+                leftPadding: 12
+                rightPadding: 12
                 text: root.local("الوسائط", "Media")
-                icon.name: root.playerIcon
                 onClicked: root.detailContext = "media"
+                contentItem: PC3.Label {
+                    text: mediaTab.text
+                    wrapMode: Text.NoWrap
+                    elide: Text.ElideRight
+                    horizontalAlignment: Text.AlignHCenter
+                    verticalAlignment: Text.AlignVCenter
+                }
             }
         }
 

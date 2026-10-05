@@ -27,7 +27,7 @@ public sealed class InputInjector : IDisposable
     private string _lastError = "";
     private DateTimeOffset _lastConnectAttempt;
     private bool _cursorKnown;
-    private int _cursorX, _cursorY;
+    private int _cursorX, _cursorY, _cursorWidth, _cursorHeight;
 
     // Position we last commanded, normalized. The client also tracks this, but keeping it here
     // lets *Current()-style calls (click where the cursor already is) work on the portal path.
@@ -140,7 +140,8 @@ public sealed class InputInjector : IDisposable
         EnsureConnected(force: true);
     }
 
-    public bool IsReady => !_disposed && (_portal.IsReady || EnsureConnectedLocked());
+    public bool IsReady => !_disposed && (_portal.IsReady ||
+        (_capture.InputBounds.Width > 0 && _capture.InputBounds.Height > 0 && EnsureConnectedLocked()));
     public string BackendName => _portal.IsReady
         ? "KDE RemoteDesktop portal (absolute)"
         : "ydotoold/uinput fallback (relative)";
@@ -154,11 +155,21 @@ public sealed class InputInjector : IDisposable
 
     // ---------------------------------------------------------------- pointer
 
-    public void MouseMove(double x, double y)
+    public void MouseMove(double x, double y) => MovePointer(x, y, recalibrate: false);
+
+    private bool MovePointer(double x, double y, bool recalibrate)
     {
-        Remember(x, y);
-        if (_portal.Send(new { type = "absolute", x, y })) return;
-        FallbackMoveAbsolute(x, y, recalibrate: false);
+        lock (_gate)
+        {
+            Remember(x, y);
+            if (_portal.Send(new { type = "absolute", x, y }))
+            {
+                // The compositor moved the pointer outside the fallback's estimate.
+                _cursorKnown = false;
+                return true;
+            }
+            return FallbackMoveAbsolute(x, y, recalibrate);
+        }
     }
 
     public void MouseMoveRelative(double dx, double dy, double sensitivity = 1)
@@ -168,6 +179,7 @@ public sealed class InputInjector : IDisposable
         if (x == 0 && y == 0) return;
         if (_portal.Send(new { type = "relative", dx = x, dy = y }))
         {
+            lock (_gate) _cursorKnown = false;
             var b = _capture.InputBounds;
             if (b.Width > 0 && b.Height > 0)
                 Remember(Math.Clamp(_lastX + (double)x / b.Width, 0, 1),
@@ -197,11 +209,11 @@ public sealed class InputInjector : IDisposable
     // is pasted into whatever that tap just focused. MouseMove is deliberately NOT
     // flushed: moving the pointer alone changes no caret, and flushing on every motion
     // event would defeat the gather entirely.
-    public void Click(string button, double x, double y) { FlushPendingText(); MouseMove(x, y); ClickCode(Button(button)); }
+    public void Click(string button, double x, double y) { FlushPendingText(); if (MovePointer(x, y, recalibrate: true)) ClickCode(Button(button)); }
     public void ClickCurrent(string button) { FlushPendingText(); ClickCode(Button(button)); }
-    public void DoubleClick(double x, double y) { FlushPendingText(); MouseMove(x, y); DoubleClickCurrent(); }
+    public void DoubleClick(double x, double y) { FlushPendingText(); if (MovePointer(x, y, recalibrate: true)) DoubleClickCurrent(); }
     public void DoubleClickCurrent() { FlushPendingText(); ClickCode(BtnLeft); Thread.Sleep(40); ClickCode(BtnLeft); }
-    public void MouseButton(string button, bool down, double x, double y) { FlushPendingText(); MouseMove(x, y); Set(Button(button), down); }
+    public void MouseButton(string button, bool down, double x, double y) { FlushPendingText(); if (MovePointer(x, y, recalibrate: down) || !down) Set(Button(button), down); }
     public void MouseButtonCurrent(string button, bool down) { FlushPendingText(); Set(Button(button), down); }
 
     private void ClickCode(ushort code) { Set(code, true); Thread.Sleep(25); Set(code, false); }
@@ -770,21 +782,24 @@ public sealed class InputInjector : IDisposable
         catch (Exception ex) { _lastError = ex.Message; return false; }
     }
 
-    private void FallbackMoveAbsolute(double x, double y, bool recalibrate)
+    private bool FallbackMoveAbsolute(double x, double y, bool recalibrate)
     {
         var b = _capture.InputBounds;
+        if (b.Width <= 0 || b.Height <= 0 || !double.IsFinite(x) || !double.IsFinite(y)) return false;
         int px = (int)Math.Round(Math.Clamp(x, 0, 1) * Math.Max(0, b.Width - 1));
         int py = (int)Math.Round(Math.Clamp(y, 0, 1) * Math.Max(0, b.Height - 1));
         lock (_gate)
         {
-            if (!EnsureConnected()) return;
+            if (!EnsureConnected()) return false;
             try
             {
                 // uinput is relative-only: park the cursor in the far corner once, then track it.
-                if (recalibrate || !_cursorKnown)
+                if (!_cursorKnown || b.Width != _cursorWidth || b.Height != _cursorHeight
+                    || (recalibrate && !_pressed.Any(code => code >= BtnLeft)))
                 {
                     SendEvent(EvRel, RelX, 4096); SendEvent(EvRel, RelY, 4096); SendEvent(EvSyn, SynReport, 0);
                     _cursorX = Math.Max(0, b.Width - 1); _cursorY = Math.Max(0, b.Height - 1);
+                    _cursorWidth = b.Width; _cursorHeight = b.Height;
                     _cursorKnown = true;
                 }
                 int dx = px - _cursorX, dy = py - _cursorY;
@@ -792,8 +807,9 @@ public sealed class InputInjector : IDisposable
                 if (dy != 0) SendEvent(EvRel, RelY, dy);
                 if (dx != 0 || dy != 0) SendEvent(EvSyn, SynReport, 0);
                 _cursorX = px; _cursorY = py;
+                return true;
             }
-            catch (Exception ex) { Drop(ex); }
+            catch (Exception ex) { Drop(ex); return false; }
         }
     }
 

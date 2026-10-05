@@ -32,17 +32,48 @@ public sealed class ScreenCapture : IDisposable
     private byte[]? _lastFallback;
     private long _lastFallbackTicks;
 
-    public ScreenCapture(PortalBridge portal) { _portal = portal; }
+    private readonly object _geometryGate = new();
+    private (int Width, int Height) _desktopSize;
+    private Task<(int Width, int Height)>? _geometryRefresh;
+    private long _nextGeometryRefresh;
 
-    private int Width => _portal.LogicalWidth > 0 ? _portal.LogicalWidth : 1920;
-    private int Height => _portal.LogicalHeight > 0 ? _portal.LogicalHeight : 1080;
+    public ScreenCapture(PortalBridge portal)
+    {
+        _portal = portal;
+        _desktopSize = KdeDesktopGeometry.Read();
+        _nextGeometryRefresh = Environment.TickCount64 + 2000;
+    }
+
+    private (int Width, int Height) DesktopSize
+    {
+        get
+        {
+            if (_portal.IsReady) return (_portal.LogicalWidth, _portal.LogicalHeight);
+            lock (_geometryGate)
+            {
+                if (_geometryRefresh?.IsCompleted == true)
+                {
+                    _desktopSize = _geometryRefresh.GetAwaiter().GetResult();
+                    _geometryRefresh = null;
+                    _nextGeometryRefresh = Environment.TickCount64 + 2000;
+                }
+                // Keep KScreen subprocesses off the input/socket loops.
+                if (_geometryRefresh is null && Environment.TickCount64 >= _nextGeometryRefresh)
+                    _geometryRefresh = Task.Run(KdeDesktopGeometry.Read);
+                return _desktopSize;
+            }
+        }
+    }
+
+    private int Width => DesktopSize.Width;
+    private int Height => DesktopSize.Height;
 
     public IReadOnlyList<MonitorInfo> Monitors =>
         new[] { new MonitorInfo(0, $"Desktop · {Width}×{Height}", new(0, 0, Width, Height), true) };
     public int SelectedIndex => 0;
     public Bounds SelectedBounds => new(0, 0, Width, Height);
-    public Bounds InputBounds => new(0, 0, Width, Height);
-    public (int w, int h) ScreenSize => (Width, Height);
+    public Bounds InputBounds { get { var size = DesktopSize; return new(0, 0, size.Width, size.Height); } }
+    public (int w, int h) ScreenSize => DesktopSize;
     public void SelectMonitor(int index) { }
 
     /// <summary>
@@ -412,7 +443,7 @@ public sealed class ScreenCapture : IDisposable
         _lastFallbackTicks = Environment.TickCount64;
         try
         {
-            var args = $"--background --nonotify --fullscreen {(drawCursor ? "--pointer" : "")} --output {Quote(_shot)}";
+            var args = $"--background --nonotify --fullscreen {(drawCursor && AppConfig.Current.EmbedCursor ? "--pointer" : "")} --output {Quote(_shot)}";
             using var p = Process.Start(new ProcessStartInfo("spectacle", args)
             { UseShellExecute = false, RedirectStandardError = true });
             if (p == null || !p.WaitForExit(5000) || p.ExitCode != 0 || !File.Exists(_shot))
@@ -439,6 +470,9 @@ public sealed class ScreenCapture : IDisposable
     public void Dispose()
     {
         lock (_pushLock) { _trailingPush?.Dispose(); _trailingPush = null; }
+        Task? refresh;
+        lock (_geometryGate) refresh = _geometryRefresh;
+        refresh?.GetAwaiter().GetResult();
         try { File.Delete(_shot); } catch { }
     }
 }

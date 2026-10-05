@@ -19,6 +19,12 @@ void Eq<T>(T expected,T actual,string name){if(!EqualityComparer<T>.Default.Equa
 void Throws(Action a,string name){try{a();throw new Exception(name+": did not reject");}catch(ArgumentOutOfRangeException){passed++;}}
 (double x,double y) Client(double px,double py,double left,double top,double width,double height)=>(Math.Clamp((px-left)/width,0,1),Math.Clamp((py-top)/height,0,1));
 
+// KScreen reports physical output pixels and the actual logical workspace separately.
+var scaledDesktop = """{"outputs":[{"enabled":true,"connected":true,"size":{"width":3840,"height":2160},"scale":2.5}],"screen":{"currentSize":{"width":1536,"height":864}}}""";
+Eq((1536, 864), KdeDesktopGeometry.Parse(scaledDesktop), "fallback uses fractional-scale logical workspace before portal consent");
+Eq((0, 0), KdeDesktopGeometry.Parse(scaledDesktop.Replace("\"connected\":true", "\"connected\":false")), "no connected output has no injectable extent");
+Eq((0, 0), KdeDesktopGeometry.Parse(scaledDesktop.Replace("\"width\":1536", "\"width\":0")), "zero workspace is never guessed to be 1080p");
+
 var normal=new LogicalRect(0,0,1397,786);
 Eq((0,0),CoordinateMapper.NormalizedToDesktop(0,0,normal),"top-left");
 Eq((1396,785),CoordinateMapper.NormalizedToDesktop(1,1,normal),"bottom-right");
