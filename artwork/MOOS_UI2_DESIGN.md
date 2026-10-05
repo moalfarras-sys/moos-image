@@ -180,6 +180,42 @@ Plasma Login Manager owns two intentional states: MoOS idle clock and password
 form. Its upstream ten-second timeout hides the form; therefore `ShowClock=true`
 is required. Any key/pointer action restores authentication immediately.
 
+### Login, lock and power — one session design
+
+The three session surfaces are one scene with one set of parts, and the parts are
+shared files, not look-alikes:
+
+| Part | Where it is on screen | The one file that draws it |
+| --- | --- | --- |
+| Scene | the family's wallpaper under the session veil (lighter while idle, the session scrim once the island is up) | lock: `org.kde.breeze.components/WallpaperFader.qml`; login: `org.moos.ui2.greeter`; power: `Logout.qml` |
+| Signature | emblem, wordmark and one accent stroke in the **leading** top corner | `org.moos.ui/SessionSignature.qml`, instantiated once by each scene |
+| Clock | top-centre, on the island's axis: ExtraLight time, accent colon, horizon cut, one date in the session locale and the clock's numerals | `org.kde.breeze.components/Clock.qml` |
+| Island | one glass plate, centred, that **hugs** what it frames; crest on its top edge, maker's mark on its bottom edge | lock and login: `SessionManagementScreen.qml`; power: `Logout.qml`, same material |
+| Face | accent ring and bloom; an initial on a two-tone disc when the account has no photo, on both doors. Up to five accounts stand in one centred row inside a wider island; more than that is upstream's carousel | `UserDelegate.qml`, `UserList.qml` |
+| Password row | field and key at one height and one radius; the key is flat accent under the scheme's paired ink | `SessionManagementScreen.qml` gives upstream's stock controls this face |
+| Action keys | below the island, never inside it | `ActionButton.qml`; power: `MoOSUI2ActionButton.qml` |
+
+Rules that follow from it:
+
+- Nothing shares the top-centre with the clock, and nothing sits on the island's
+  top edge but its crest. The brand mark is in its corner; it used to stand in both
+  places and collided with each.
+- The island is sized from its content, never from outside. A card drawn by the
+  caller was a third taller than what it held.
+- Sizes come from the **window's** logical height. The clock scales below 670 px
+  and gives up its date below 560; it never overlaps the island. Both greeters hide
+  a clock that does not fit, so "fits" is a number in the clock, not a hope.
+- Session surfaces wear the Complementary set in every family, light ones included:
+  the island is deliberate dark glass.
+- Motion is finite and borrowed: the island rises with the fade both greeters
+  already run and plays its one glint on arrival. Nothing on these screens loops.
+- MoOS replaces no file that carries authentication. The session design is drawn by
+  the breeze components; see `build_files/plasma-seams/README.md`.
+
+Review any change with `scripts/station/session-review/review.sh`, at 640×480 and
+at the station's 1536×864@2.5 at least, in Arabic and one left-to-right language,
+with the password row idle, typed into and refused.
+
 ### Panel and launcher
 
 The configured floating bar remains a capsule beside maximized windows. Glass

@@ -289,7 +289,7 @@ it as a ~60 MB filesystem that is 100% full. `shutil.disk_usage("/")` therefore 
 The real filesystem is the one under `/sysroot` (`/var` is part of it). `moai-do` already knew
 this — `do_optimize` measures `/var` — and `moai-control` did not.
 
-**A fork of an upstream file belongs to the version it forked.** MoOS replaces ten files
+**A fork of an upstream file belongs to the version it forked.** MoOS replaces twelve files
 inside Plasma's own packages, and the survival gate proved only that MoOS's bytes were still
 there. On 2026-09-24 Plasma 6.8 beta was measured to remove `VirtualKeyboardLoader`, a type
 MoOS's 6.7 lock screen instantiates. The real greeter fell back to kscreenlocker's emergency
@@ -299,6 +299,25 @@ upstream digest it was reviewed against. `plasma_seams.py` refuses drift, refuse
 Plasma file `rpm -V` reports that is not registered, and loads the real greeter. Replacing a new
 upstream file means registering it. A new Plasma means a reviewed set, never a wider range or
 an added digest.
+
+**Never fork the file that authenticates; restyle what it draws.** That lock screen was a fork
+of `LockScreenUi.qml` and `MainBlock.qml`, the two files holding the authenticator wiring, made
+to draw a card and a clock around the password row. It needed a new hand-derived variant for
+every Plasma release, and the login screen, whose QML is compiled into its binary, could not
+have the same card at all, so the two doors drifted apart. Both screens build their layout from
+one breeze component, `SessionManagementScreen`, which never sees a password. The MoOS session
+design lives there and in its siblings now; the lock screen runs upstream's own two files, and
+`build.sh` refuses a MoOS copy at either path. Before forking a file to change how it looks,
+find what it instantiates.
+
+**A cached compile outlives the file it was compiled from.** Qt checks a `.qmlc` against its
+source's mtime, OSTree pins every mtime under `/usr` to the epoch, and a zero timestamp turns
+the check off: after an update a process keeps running the previous image's QML until its
+cache is deleted. `moos-apply-theme` purges the user's caches on every `THEME_REV`, so changed
+QML under `/usr` needs the bump. Nobody logs into the `plasmalogin` account, so that purge
+never reached the login screen; its cache is removed at boot by the greeter tmpfiles rule,
+which `finalize_moos_desktop.sh` rewrites after `build.sh`. A rule in one and not the other is
+lost.
 
 **A fixed boot library outside the initramfs cannot fix boot.** The Plymouth
 frame-lifetime patch is rebuilt from the pinned vendor SRPM with all vendor

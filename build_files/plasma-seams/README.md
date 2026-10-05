@@ -1,11 +1,23 @@
 # MoOS seams in Plasma
 
-MoOS replaces eleven files that live inside Plasma's own packages: the shell package's lock screen
-(`LockScreenUi.qml`, `MainBlock.qml`, `MediaControls.qml`), widget explorer, edit mode,
-`defaults` and panel template, plus the breeze components `ActionButton`, `Clock` and
-`UserDelegate` that the login, lock and logout screens draw. Each one is a fork of the upstream
-file at one Plasma version. `seams.json` lists them, and `rpm -V` in the build proves the list
-is complete.
+MoOS replaces twelve files that live inside Plasma's own packages: the shell package's widget
+explorer, edit mode, panel, lock-screen media strip (`MediaControls.qml`), `defaults` and panel
+template, plus six breeze components the login, lock and power screens draw (`ActionButton`,
+`Clock`, `UserDelegate`, `UserList`, `SessionManagementScreen` and `WallpaperFader`). Each one is a fork of the
+upstream file at one Plasma version. `seams.json` lists them, and `rpm -V` in the build proves the
+list is complete.
+
+**No seam carries authentication.** Until 2026-10-05 two of them did: MoOS forked the lock screen's
+own `LockScreenUi.qml` and `MainBlock.qml` to draw a card, a clock and a brand mark around the
+password row. Those are the files that hold the authenticator wiring, upstream rewrites them every
+release, and by 6.8 beta 2 MoOS was carrying three hand-derived variants of one and two of the other
+(beta 1 is the release whose missing `VirtualKeyboardLoader` this whole gate exists for). The MoOS
+session design now lives in what those two files *instantiate*. `SessionManagementScreen` is the
+layout both the lock screen's `MainBlock` and the login greeter's compiled `Login` are built from, so
+the island it draws is on both screens; `WallpaperFader` is the lock screen's backdrop, so it carries
+the session veil and signature. Neither ever sees a password or an authenticator. The lock screen
+runs the two files `plasma-desktop` ships, on every Plasma, and `build.sh` refuses a MoOS copy at
+either path. Do not make an authentication file a seam again: restyle what it draws.
 
 `build_files/plasma_seams.py build` runs in `build.sh` and `build-arm.sh` after the last package
 transaction. It selects the set whose Plasma range holds the image's `plasma-workspace`,
@@ -37,9 +49,10 @@ Plasma usually shows up there weeks before it reaches the base.
    upstream bytes changed, and writes a three-way merge (`git merge-file`) of each one into
    `~/.cache/moos-plasma-next/rederive/`, with the upstream diff beside it.
 
-2. Resolve every conflict by taking upstream's authentication logic **verbatim**:
-   authenticator connections, the password path, the StackView and the footer. MoOS's part is
-   visual only. The file's header says so, and it must stay true.
+2. Resolve every conflict by taking upstream's side **verbatim**: its public properties,
+   aliases and signals, its anchor lines and its states. MoOS's part is visual only. The file's
+   header says so, and it must stay true. (A conflict in authentication logic cannot happen any
+   more — no seam contains any — and if one ever does, the seam is the mistake.)
 
 3. Put the result under `build_files/plasma-seams/<set>/<image path>` and give the set a
    `sources` entry for it. A seam whose upstream change does not touch what MoOS replaced
@@ -59,6 +72,18 @@ Plasma usually shows up there weeks before it reaches the base.
 
 Never widen a range or add a digest to make a build pass. A digest in `reviewed` is a claim that
 a person merged that upstream version into MoOS's copy and watched the real greeter load it.
+That is why the beta-1-only set (6.7.90) was removed on 2026-10-05 instead of being given digests
+for the two new seams: no 6.7.90 stack exists any more to load the greeter on.
+
+## Seeing the session surfaces from a worktree
+
+`scripts/station/session-review/review.sh shots.txt` renders the lock, login and power screens
+from the tree with the real greeter binaries (`kscreenlocker_greet --testing`,
+`plasma-login-greeter --test`, `ksmserver-logout-greeter --windowed`) in a throwaway container,
+at any logical size, scale, language and MoOS family, idle or with the password row active,
+typed into, or refused. `MOOS_REVIEW_IMAGE=<a Plasma-next image> SEAM_SET=6.8` lays a variant
+set over a newer Plasma, and a `probe <name>` line runs `probe-lockscreen` there with its
+negative control. It never touches the owner's desktop.
 
 ## Live material, 2026-09-26
 
