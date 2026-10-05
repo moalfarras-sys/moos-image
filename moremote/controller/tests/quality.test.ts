@@ -9,7 +9,7 @@ import {
 import { QUALITY_PRESETS, AUTO_MAX_PRESET } from "../src/types.ts";
 
 // The owner's local iPhone must be allowed to sharpen after actual video progress,
-// while the measured 50-60 ms cellular case keeps its conservative ceiling.
+// and a healthy 50-60 ms relay must not be stuck at Data Saver merely for its RTT.
 const phoneHints = { hardwareConcurrency: 6, displayWidthPx: 1179 };
 const local = {good:0,bad:0,responsive:false};
 for(let n=0;n<3;n++) assert.equal(sampleDetailProbe(local,6,20,0,true),false);
@@ -23,8 +23,14 @@ assert.equal(sampleDetailProbe(local,45,20,0,true),true,'one interaction jitter 
 assert.equal(sampleDetailProbe(local,6,4100,0,true),false,'a stale pong retires the trial immediately');
 const relay = {good:0,bad:0,responsive:false};
 for(let n=0;n<20;n++) sampleDetailProbe(relay,55,100,0,true);
-assert.equal(relay.responsive,false);
-assert.equal(autoPresetLimit(QUALITY_PRESETS,null,AUTO_MAX_PRESET,phoneHints,relay.responsive,true),PRESET_DATA_SAVER);
+assert.equal(relay.responsive,true);
+assert.equal(autoPresetLimit(QUALITY_PRESETS,null,AUTO_MAX_PRESET,phoneHints,relay.responsive),PRESET_BALANCED);
+assert.equal(sampleDetailProbe(relay,110,100,0,true),true,'ordinary relay jitter retains the earned trial');
+sampleDetailProbe(relay,160,100,0,true);
+assert.equal(sampleDetailProbe(relay,160,100,0,true),false,'sustained congestion retires the trial');
+const congested = {good:0,bad:0,responsive:false};
+for(let n=0;n<20;n++) sampleDetailProbe(congested,180,100,0,true);
+assert.equal(autoPresetLimit(QUALITY_PRESETS,null,AUTO_MAX_PRESET,phoneHints,congested.responsive,true),PRESET_DATA_SAVER);
 const stalled = {good:0,bad:0,responsive:false};
 for(let n=0;n<4;n++) sampleDetailProbe(stalled,5,20,0,true);
 sampleDetailProbe(stalled,5,20,900,true);

@@ -220,6 +220,14 @@ try {
     await cp.getByText('Computer locked',{exact:true}).waitFor();
     assert.equal(await secret.getAttribute('type'),'password');
     await capture(cp,'locked-keyboard-en');
+    await cp.getByRole('button',{name:'Done',exact:true}).click();
+    control.packets.length=0;
+    await cp.getByRole('button',{name:'Keyboard',exact:true}).click();
+    await cp.waitForTimeout(100);
+    assert.equal(control.packets.filter(p=>p.type==='key'&&p.key==='Shift').length,1,
+      'opening the locked keyboard wakes the real prompt with one non-printing key');
+    assert.equal(control.packets.filter(p=>p.type==='combo').length,0,
+      'waking the prompt does not erase an existing password field');
     control.sockets.at(-1).send(JSON.stringify({type:'hostState',locked:false}));
     await cp.getByText('Computer locked',{exact:true}).waitFor({state:'hidden'});
     await cp.getByRole('button',{name:'Done',exact:true}).click();
@@ -673,17 +681,21 @@ try {
   assert.equal(safariPhone.packets.filter(p => p.type === 'settings').at(-1)?.quality, 52,
     'Auto on Safari-shaped phone must use Data saver from its first hello');
 
-  // A direct responsive link can earn more detail; a relay-shaped link cannot.
+  // Fresh video can earn detail over both direct and healthy relay-shaped links.
   // Both receive freshly decoded pictures, so this exercises the actual settings wire.
   const directPhone = await viewer({viewport:{width:393,height:852},deviceScaleFactor:3,
     isMobile:true,hasTouch:true},'touch','en',false,'off',null,'silent',false,6);
   const relayPhone = await viewer({viewport:{width:393,height:852},deviceScaleFactor:3,
     isMobile:true,hasTouch:true},'touch','en',false,'off',null,'silent',false,60);
+  const congestedPhone = await viewer({viewport:{width:393,height:852},deviceScaleFactor:3,
+    isMobile:true,hasTouch:true},'touch','en',false,'off',null,'silent',false,180);
   await directPhone.page.waitForTimeout(30000);
   assert.equal(directPhone.packets.filter(p => p.type === 'settings').at(-1)?.quality,68,
     'fresh low RTT and decoded video must permit one bounded detail upgrade');
-  assert.equal(relayPhone.packets.filter(p => p.type === 'settings').at(-1)?.quality,52,
-    'relay latency must retain the Safari phone starting ceiling');
+  assert.equal(relayPhone.packets.filter(p => p.type === 'settings').at(-1)?.quality,68,
+    'fresh decoded video over a healthy relay must permit readable detail');
+  assert.equal(congestedPhone.packets.filter(p => p.type === 'settings').at(-1)?.quality,52,
+    'congestion must retain the conservative phone ceiling');
   assert.ok(directPhone.packets.filter(p => p.type === 'settings').every(p => p.width <= 1366),
     'an unzoomed narrow phone must not jump to Sharp or Ultra');
 

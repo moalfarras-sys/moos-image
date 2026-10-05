@@ -432,6 +432,30 @@ def notify_sync(method, sig, args):
                   Gio.DBusCallFlags.NO_AUTO_START, 2000, None)
 
 
+def notify_secure(method, sig, args):
+    """Give the lock-screen client time to process each sensitive key edge.
+
+    Measured against the real MoOS greeter: a tight EIS batch typed R/V as r/v,
+    while the same batch reached GTK correctly. A libei ping did not fix it;
+    it acknowledges KWin's input stream, not the greeter's modifier processing.
+    Modifier-only 4 ms and full 12 ms pacing still failed on a fresh greeter.
+    Sensitive keys use 40 ms edges plus non-printing prompt preparation.
+    Only sensitive native batches pay this cost; ordinary typing stays fast.
+    """
+    notify_sync(method, sig, args)
+    if eis is not None and method.startswith("NotifyKeyboard"):
+        time.sleep(.04)
+
+
+def prepare_secure_input(send):
+    """Wake/focus the normal password prompt without inserting or erasing text."""
+    try:
+        send("NotifyKeyboardKeycode", "(oa{sv}iu)", (session, empty, 42, 1))
+    finally:
+        send("NotifyKeyboardKeycode", "(oa{sv}iu)", (session, empty, 42, 0))
+    time.sleep(.05)
+
+
 # ---------------------------------------------------------------- keymap group
 #
 # Arabic is typed by selecting the Arabic group and pressing the keys that carry it, because
@@ -2097,6 +2121,8 @@ def handle(m):
         # picture for no ordering benefit.
         ordered = bool(m.get("sync")) or any("layout" in e for e in events)
         send = notify_sync if ordered else notify
+        if ordered and m.get("secure") and eis is not None:
+            send = notify_secure
         # TYPED TEXT IS EXACT CHARACTERS, SO IT MUST NOT INHERIT A CAPS LOCK LEFT ON AT THE DESK.
         # Measured live 2026-09-15 with the lock on: "Hello World" arrived "hELLO wORLD", ß arrived
         # ẞ and AltGr symbols landed a level up. The agent marks text batches; the lock is released
@@ -2118,6 +2144,8 @@ def handle(m):
                     # exists to prevent — so the run is dropped and reported.
                     emit(type="warn", warn="dropped a typed run: its keyboard group is unavailable")
                     break
+                if m.get("secure") and eis is not None:
+                    prepare_secure_input(send)
             elif "code" in event:
                 send("NotifyKeyboardKeycode", "(oa{sv}iu)",
                      (session, empty, int(event["code"]), 1 if event["down"] else 0))

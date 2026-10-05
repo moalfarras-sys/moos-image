@@ -164,7 +164,7 @@ public sealed class InputInjector : IDisposable
             return false;
         }
         foreach (var run in plan)
-            if (!SendOnGroup(run.Group, run))
+            if (!SendOnGroup(run.Group, run, secure: true))
             {
                 _secureError = "Secure keyboard input was interrupted.";
                 return false;
@@ -628,7 +628,7 @@ public sealed class InputInjector : IDisposable
     /// what was held. A held Shift would otherwise turn the Alt+Shift group toggle into a different
     /// chord and change the level of every planned stroke.
     /// </summary>
-    private bool SendOnGroup(GroupKeymap group, PlannedRun run)
+    private bool SendOnGroup(GroupKeymap group, PlannedRun run, bool secure = false)
     {
         var held = HeldLevelModifiers();
         var events = new List<object>();
@@ -638,7 +638,7 @@ public sealed class InputInjector : IDisposable
         foreach (var code in held) events.Add(new { code = (int)code, down = true });
         // `text` marks exact characters: the helper neutralizes a Caps Lock left on at the desk for
         // this batch and restores it afterwards.
-        return _portal.Send(new { type = "keysyms", text = true, events });
+        return _portal.Send(new { type = "keysyms", text = true, secure, events });
     }
 
     /// <summary>

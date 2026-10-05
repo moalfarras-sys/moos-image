@@ -240,8 +240,8 @@ export function autoPresetLimit(
       (hints.hardwareConcurrency !== undefined && hints.hardwareConcurrency <= 2))
     return PRESET_DATA_SAVER;
   // Safari starts conservatively, then permits a bounded detail trial after
-  // fresh low-latency pongs AND successful picture decoding. A 50-60 ms relay
-  // does not meet that condition. Congestion still steps down on the same ladder.
+  // fresh pongs AND successful picture decoding. A healthy 50-60 ms relay
+  // can earn readable detail too. Congestion still steps down on the same ladder.
   if (hints.displayWidthPx && hints.displayWidthPx < 1400 && !hints.effectiveType && !responsiveVideo)
     return PRESET_DATA_SAVER;
   // A reported link class still does not make 1080p useful on a phone's short edge.
@@ -256,10 +256,10 @@ export interface DetailProbeState { good: number; bad: number; responsive: boole
 export function sampleDetailProbe(state: DetailProbeState, rtt: number, pongAge: number,
                                   decodeLag: number, hasPicture: boolean): boolean {
   const fresh = rtt > 0 && pongAge < 3500 && hasPicture;
-  if (fresh && rtt <= 30 && decodeLag < 350) {
+  if (fresh && rtt <= 90 && decodeLag < 350) {
     state.good++; state.bad = 0;
     if (state.good >= 4) state.responsive = true;
-  } else if (!fresh || rtt > 90 || decodeLag > 800) {
+  } else if (!fresh || rtt > 150 || decodeLag > 800) {
     state.good = 0; state.bad++;
     if (state.bad >= 2 || pongAge >= LADDER.PONG_STALE_MS || rtt >= LADDER.SEVERE_MS)
       state.responsive = false;

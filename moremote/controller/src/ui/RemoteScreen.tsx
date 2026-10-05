@@ -1781,6 +1781,13 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired, l
   };
 
   // ---------- keyboard ----------
+  useEffect(() => {
+    // The owner can open the keyboard before the first host-state reply.
+    // Prepare the real prompt once both that reply and native input are ready.
+    if (kbOpen && hostLocked === true && secureKeyboardAvailable && status === "live") {
+      connRef.current?.keyTap("Shift");
+    }
+  }, [kbOpen, hostLocked, secureKeyboardAvailable, status]);
   // A real visible input. Tapping it raises the iOS keyboard; we diff its value so typing
   // AND Backspace both work (the field must hold text for iOS to fire delete events).
   const openKeyboard = () => {

@@ -695,7 +695,7 @@ gh auth refresh -h github.com -s workflow
 
 ## What is NOT done — do not claim otherwise
 
-- **Mo PC Remote v53 is a local/source review, not a signed OS release.** Native session EIS input survives capture renewal; a production browser drove click/text in private KWin while capture was failing. Native devices remained ready under a real private lock, but normal-password unlock and owner phone acceptance remain unproved. Unattended capture consent belongs only to `org.moos.remote`, never the empty host app ID. Preserve PIN/device authentication and held-input ownership. See `moremote/ONE_REMOTE.md`.
+- **Mo PC Remote v55 is a local/source review, not a signed OS release.** Native session EIS input survives capture renewal; a production browser drove click/text in private KWin while capture was failing. Native devices remained ready under a real private lock, and v55 passed repeated normal-password unlock on a disposable signed-base guest beyond the grace interval; owner phone/WAN acceptance remains open. Unattended capture consent belongs only to `org.moos.remote`, never the empty host app ID. Preserve PIN/device authentication and held-input ownership. See `moremote/ONE_REMOTE.md`.
 
 Being honest about this list is more useful than shrinking it.
 

@@ -286,7 +286,7 @@ class AgentUsesLiveKeymap(unittest.TestCase):
         helper = HELPER.read_text(encoding="utf-8")
         self.assertIn("KeymapPlanner.TryPlan(run, keymap, out var plan)", injector)
         self.assertIn("new { layout = group.Code, group = group.Group }", injector)
-        self.assertIn('new { type = "keysyms", text = true, events }', injector)
+        self.assertIn('new { type = "keysyms", text = true, secure, events }', injector)
         self.assertIn('new { type = "keysyms", text = false, capsLock = viewerLock, events }', injector)
         self.assertIn("keymap?.ShortcutPosition(letter)", injector)
         self.assertIn("keymap.PlanPhysical(c, produced, out var group)", injector)

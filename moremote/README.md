@@ -66,8 +66,10 @@ Everything is local. The only network in play is your private Tailscale tailnet.
 
 - **Windows 10 or 11** (x64).
 - **Linux / MoOS (KDE Wayland)** is supported by the native Linux agent in `agent-linux/`. It uses
-  one restored XDG RemoteDesktop + ScreenCast portal session, a persistent PipeWire stream,
-  hardware H.264 when available, explicit `wl-clipboard`, and portal input injection.
+  a restored display portal and persistent PipeWire stream for the picture, hardware H.264 when
+  available, and independent native KWin EIS mouse/keyboard input. Desktop and Keyboard keep
+  the picture visible; Touchpad works without it. Sensitive typing uses native keys and the
+  normal account password path, with no PC clipboard or reconnect replay. See [One Remote](ONE_REMOTE.md).
 - **[Tailscale](https://tailscale.com/download)** on the PC and the phone (same account).
 - To **build** from source: [.NET SDK 10+](https://dotnet.microsoft.com/download) and [Node.js 18+](https://nodejs.org).
   *(The built app is self-contained — the .NET runtime is bundled, so running it needs no install.)*
@@ -90,7 +92,7 @@ sh scripts/install-linux.sh
 
 This installs the app in `~/.local/lib/mo-remote-personal`, creates the same launcher and
 icon, and enables the `mo-remote-personal.service` user service at login. The `ydotool`
-package provides the fallback input path. MoOS v53 uses native KWin EIS input independently of the PipeWire display stream; see [One Remote](ONE_REMOTE.md).
+package provides the fallback input path. MoOS v55 uses native KWin EIS input independently of the PipeWire display stream; see [One Remote](ONE_REMOTE.md).
 
 This builds the PWA + a self-contained Windows app, copies it to `%LOCALAPPDATA%\MoRemotePersonal\app`, adds a Start-Menu shortcut, enables start-with-Windows, and launches it.
 

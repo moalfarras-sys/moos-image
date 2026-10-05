@@ -25,6 +25,8 @@ using (var input = new InputInjector(portal, new ScreenCapture()))
     var sent = portal.Snapshot();
     Check(sent.Length == 5 && sent[0].GetProperty("type").GetString() == "keysyms",
         "touchpad double-click drains gathered text before selecting or changing focus");
+    Check(!sent[0].GetProperty("secure").GetBoolean(),
+        "ordinary committed typing retains its fast native input path");
     Check(sent.Skip(1).Select(e => e.GetProperty("down").GetBoolean())
         .SequenceEqual([true, false, true, false]), "double-click keeps both press/release pairs");
 }
@@ -286,6 +288,8 @@ using (var input = new InputInjector(portal, new ScreenCapture()))
     Check(input.TypeTextSecure("Hello123"), "a supported password is delivered as physical keys");
     Check(portal.Snapshot().Length > 0 && ClipboardBridge.Published.Count == 0,
         "secure typing never writes the clipboard");
+    Check(portal.Snapshot().All(e => e.GetProperty("secure").GetBoolean()),
+        "password batches preserve native modifier pacing in the helper");
     var before = portal.Snapshot().Length;
     Check(!input.TypeTextSecure("secret👍") && portal.Snapshot().Length == before
         && ClipboardBridge.Published.Count == 0, "an unsupported password fails before any prefix or paste");
