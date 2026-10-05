@@ -49,6 +49,14 @@ Eq(H264EnqueueResult.Recovered, h264Queue.Enqueue(recoveryIdr), "h264 IDR restar
 Eq(true, h264Queue.TryDequeue(out var recoveredAu), "h264 recovery exposes the IDR");
 Eq(true, ReferenceEquals(recoveryIdr, recoveredAu), "h264 recovery exposes only the IDR it received");
 Eq(false, h264Queue.TryDequeue(out _), "no broken delta follows the recovery IDR");
+long beforeSource = h264Queue.Sequence;
+h264Queue.Enqueue(Delta(6), sourceGeneration: 1);
+Eq(0, h264Queue.Count, "a fresh helper cannot seed a decoder with a delta");
+h264Queue.Enqueue(Idr(7), sourceGeneration: 1);
+Eq(true, h264Queue.TryDequeue(out _, out var sourceSequence), "new helper IDR is delivered");
+Eq(true, sourceSequence > beforeSource, "an identical-format helper has a fresh video sequence");
+h264Queue.Enqueue(Idr(8), sourceGeneration: 0);
+Eq(0, h264Queue.Count, "a late retired helper cannot replace the current stream");
 
 var unicode="مرحباً Grüße English";Eq(unicode,System.Text.Encoding.UTF8.GetString(System.Text.Encoding.UTF8.GetBytes(unicode)),"clipboard unicode");
 var presenceDir = Path.Combine(Path.GetTempPath(), "moremote-presence-" + Guid.NewGuid());

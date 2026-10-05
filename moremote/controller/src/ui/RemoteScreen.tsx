@@ -891,6 +891,7 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired, l
       }
     }, () => connRef.current?.requestKeyframe());
     h264Ref.current = h264;
+    let videoSequence: number | undefined;
 
     const conn = new RemoteConnection(token, {
       onHello: (h) => {
@@ -926,11 +927,13 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired, l
         if (codecRef.current === "h264") { h264Ref.current?.push(buf); return; }
         jpegRef.current?.push(buf);
       },
-      onCodec: (codec) => {
-        if (codec === codecRef.current) return;
+      onCodec: (codec, sequence) => {
+        if (codec === codecRef.current && sequence === videoSequence) return;
+        videoSequence = sequence;
         codecRef.current = codec;
         // Whatever is half-decoded belongs to the codec we just left.
         resetVideo();
+        h264.restart();
         setCodec(codec);
       },
       onStopped: () => setStatus("stopped"),

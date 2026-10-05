@@ -54,7 +54,7 @@ internal static class PortalRecoveryTests
                     !bridge.IsReady, "first private helper did not exit");
                 Eq(false, bridge.SetVideoSettings(34, .45, 854, 15), "latest offline preset is remembered");
                 int pictures = 0;
-                bridge.H264Frame += _ => Interlocked.Increment(ref pictures);
+                bridge.H264Frame += (_, _) => Interlocked.Increment(ref pictures);
                 await Until(() => Volatile.Read(ref pictures) > 0, "restarted private helper delivered no frame");
                 var firstCommands = new Dictionary<int, JsonElement>();
                 foreach (var line in File.ReadAllLines(commands))

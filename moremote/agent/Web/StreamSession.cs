@@ -90,6 +90,7 @@ public sealed class StreamSession
                 FullMode = System.Threading.Channels.BoundedChannelFullMode.Wait,
             });
     private string _sentCodec = "";
+    private long _sentVideoSequence = -1;
     /// <summary>
     /// Has this client told us what it can decode yet? ScreenCapture treats an undeclared viewer as
     /// "no opinion" so a fresh connection does not slam the room to JPEG and back (see
@@ -99,6 +100,7 @@ public sealed class StreamSession
     /// cannot read, and the failure mode of that is a black picture with no error anywhere.
     /// </summary>
     private bool _codecDeclared;
+    private bool _loggedControllerBuild;
     private readonly long _startedTicks = Environment.TickCount64;
     private const int CodecDeclareGraceMs = 3000;
     private bool _inputConfirmed;
@@ -171,12 +173,12 @@ public sealed class StreamSession
         // the backlog is worthless — it would arrive late and still be behind — so it is dropped
         // whole and a fresh IDR is requested, which is the one point where discarding H.264 is
         // right: not a hole in the middle of a stream, but a clean restart of it.
-        using var h264 = _svc.Capture.SubscribeH264(au =>
+        using var h264 = _svc.Capture.SubscribeH264((au, generation) =>
         {
             // Another viewer can keep the shared encoder running while this tab is hidden.
             // Its frames must not build a private backlog or trigger shared recovery requests.
             if (!_watching || _svc.State.IsPaused) return;
-            var queued = _encoded.Enqueue(au);
+            var queued = _encoded.Enqueue(au, generation);
             // 12, not 90. The cap is a LATENCY budget, not a memory one, and 90 frames at 30fps is
             // three entire seconds of the past waiting its turn to be drawn. Long before the cap was
             // reached the session was unusable: the picture lags the input by seconds, so every click
@@ -365,9 +367,8 @@ public sealed class StreamSession
                 var codec = _svc.Capture.Codec;
                 if (codec != _sentCodec)
                 {
-                    _sentCodec = codec;
                     _encoded.Clear(waitForKeyframe: true);    // old references cannot seed the new codec
-                    await SendJson(new { type = "codec", codec }, ct);
+                    await AnnounceVideo(codec, _encoded.Sequence, ct);
                     if (codec == "h264" && _watching) _svc.Capture.RequestKeyframe();
                 }
 
@@ -388,8 +389,11 @@ public sealed class StreamSession
                     // safe — upstream of the encoder, in the helper's videorate.
                     if (!_screenOk) { _screenOk = true; await SendJson(new { type = "screen", available = true }, ct); }
                     while (_watching && !_svc.State.IsPaused && _svc.Sessions.IsValid(_accessToken) && _svc.Capture.Codec == "h264" &&
-                        _encoded.TryDequeue(out var au))
+                        _encoded.TryDequeue(out var au, out var sequence))
                     {
+                        // A restarted helper or an overflow starts a new reference history even
+                        // when the SPS and codec match. The ordered marker must precede its IDR.
+                        await AnnounceVideo("h264", sequence, ct);
                         await SendBinary(au, ct);
                         _lastFrameSent = Environment.TickCount64;
                     }
@@ -532,6 +536,17 @@ public sealed class StreamSession
                     if (root.TryGetProperty("h264", out var hv) &&
                         (hv.ValueKind == JsonValueKind.True || hv.ValueKind == JsonValueKind.False))
                     {
+                        if (!_loggedControllerBuild)
+                        {
+                            _loggedControllerBuild = true;
+                            var build = root.TryGetProperty("build", out var bv) && bv.ValueKind == JsonValueKind.String
+                                ? bv.GetString() ?? "" : "";
+                            // Only public version text; never log arbitrary client payloads.
+                            if (build.Length is > 0 and <= 96 &&
+                                build.All(c => char.IsLetterOrDigit(c) || c is ' ' or '.' or '·' or '-'))
+                                Log.Info("Client controller build: " + build);
+                            else Log.Info("Client controller build: legacy/unreported.");
+                        }
                         _codecDeclared = true;
                         // A client that turns H.264 OFF mid-session drops the WHOLE ROOM to JPEG,
                         // and until now it did so silently: the log recorded the consequence
@@ -921,6 +936,18 @@ public sealed class StreamSession
         catch { return null; }
     }
 
+    private async Task AnnounceVideo(string codec, long sequence, CancellationToken ct)
+    {
+        if (_sentVideoSequence == sequence && _sentCodec == codec) return;
+        if (!await SendJson(new { type = "codec", codec, sequence }, ct))
+        {
+            _socket.Abort();
+            throw new IOException("Video reset marker could not be delivered.");
+        }
+        _sentVideoSequence = sequence;
+        _sentCodec = codec;
+    }
+
     /// <summary>
     /// Send one frame, bounded.
     ///
@@ -955,9 +982,9 @@ public sealed class StreamSession
         finally { _sendLock.Release(); }
     }
 
-    private async Task SendJson(object payload, CancellationToken ct)
+    private async Task<bool> SendJson(object payload, CancellationToken ct)
     {
-        if (_socket.State != WebSocketState.Open) return;
+        if (_socket.State != WebSocketState.Open) return false;
         var bytes = JsonSerializer.SerializeToUtf8Bytes(payload);
         try
         {
@@ -967,12 +994,13 @@ public sealed class StreamSession
             await _sendLock.WaitAsync(cts.Token);
             try
             {
-                if (_socket.State != WebSocketState.Open) return; // re-check inside the lock (TOCTOU)
+                if (_socket.State != WebSocketState.Open) return false; // re-check inside the lock (TOCTOU)
                 await _socket.SendAsync(new ArraySegment<byte>(bytes), WebSocketMessageType.Text, true, cts.Token);
+                return true;
             }
             finally { _sendLock.Release(); }
         }
-        catch (Exception ex) { Log.Warn("SendJson failed: " + ex.Message); }
+        catch (Exception ex) { Log.Warn("SendJson failed: " + ex.Message); return false; }
     }
 
     private async Task CloseQuietly(WebSocketCloseStatus status, string desc)

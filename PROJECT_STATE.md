@@ -107,12 +107,12 @@ DLL from composefs; do not weaken SELinux globally.
 | Health | Baloo recovered; post-update 55/0; powersave changed to balanced, turbo read back enabled |
 | Freeze audit (2026-10-01) | 3.7 GiB in zram, no OOM this boot. Mo PC Remote renewed its portal grant ~2,600 times in the previous boot; `.964` logged repeated `1536x864+0+0@3 -> no outputs`. Live monitoring found the HDMI connector itself disconnecting for about one second, and KDE closed its portal session when that happened. The signed `.967` fix suppresses an extra geometry-triggered restart during the dropout; live cellular endurance proof is pending. `moai-control` woke rpm-ostreed 59× in 2 h 50 min, now once per boot. The Echo gadget's USB microphone floods the kernel log (~60 xHCI "buffer overrun" warnings/s, journald ~3% CPU): the 500 MB journal spans only ~5 h, so the previous boot's user logs were already gone. The fix is the gadget's packet size (Mira) |
 
-**Remote control:** signed `.967` includes the weak-link ladder, H.264 recovery and
-flat pointer mapping. Live iPhone/DERP testing found Auto returning to a 1320 px
-Balanced stream despite ~50–60 ms RTT; manually choosing 1024 px Data Saver
-stabilized the reported session. Source v49 now caps phone Auto at Data Saver when
-Safari hides its link class. The temporary user service serves v49; sustained
-owner reported a stable short v49 cellular trial at 1024 px; longer endurance and signed delivery remain open (plan P2.14).
+**Remote control:** signed `.989` serves a private v51 review app (2026-10-05 07:29 CEST).
+The owner's preceding iPhone trial still failed with portal renewals, backlog drops,
+Safari errors and aborted sockets. v51 orders fresh video history before recovery IDRs;
+upgrades retire the old JPEG verdict while same-revision reconnects keep a bounded budget.
+Controller/.NET/Chromium checks pass; 270 native NVENC frames decode without error; HTTPS
+serves exact v51 bytes. Three HDMI losses in 65 s persist; phone endurance is open (P2.14).
 ## Proven source/image behavior
 
 - **W9.10 — Mo AI's desktop hands (source, `THEME_REV` 96, 2026-09-28).** `moos-control` gains

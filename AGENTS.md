@@ -247,7 +247,7 @@ Ready/PLAYING. Keep rapid-crash backoff and the five-minute permission-refusal
 cooldown. A new viewer may wake an idle output-loss retry; refusal is never
 woken. Restore the agreed quality/width/FPS/codec before the renewed helper
 encodes; H.264 never polls the JPEG settings path. Use a private child/socket
-recorder for this proof, never the owner’s portal or input socket.
+recorder for this proof, never the owner’s portal or input socket. A new helper or a dropped H.264 backlog is also a new reference history even when its codec and SPS match. Carry that boundary to the viewer in socket order before the new IDR; never send that history if its reset marker failed. The source's error budget does not belong to its replacement.
 
 **A colour named after a role is not that role's use.** Four apps painted secondary text with
 `Kirigami.Theme.disabledTextColor` because the token gate only required "follow the theme". As

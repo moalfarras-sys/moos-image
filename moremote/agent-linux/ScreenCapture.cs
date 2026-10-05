@@ -156,7 +156,7 @@ public sealed class ScreenCapture : IDisposable
     public string Codec => _portal.Codec;
 
     /// <summary>All H.264 access units, in order. Returns null when the codec is JPEG.</summary>
-    public IDisposable? SubscribeH264(Action<byte[]> onFrame)
+    public IDisposable? SubscribeH264(Action<byte[], int> onFrame)
     {
         _portal.H264Frame += onFrame;
         return new Unsubscriber(() => _portal.H264Frame -= onFrame);

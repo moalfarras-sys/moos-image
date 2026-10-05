@@ -139,6 +139,19 @@ FakeDecoder.instances[1].opts.error(new Error("EncodingError: Decoder failure"))
 assert.equal(flaky.length, 1, "a repeat inside the window is a real failure and votes for JPEG");
 
 FakeDecoder.instances.length = 0;
+const freshFailures: string[] = [];
+const fresh = new H264Stream(() => {}, why => freshFailures.push(why), () => {});
+fresh.push(au(sps(0x41), idr));
+FakeDecoder.instances.at(-1)!.opts.error(new Error("EncodingError: old source"));
+fresh.restart();
+fresh.push(au(sps(0x41), idr));
+FakeDecoder.instances.at(-1)!.opts.error(new Error("EncodingError: new source"));
+assert.deepEqual(freshFailures, [], "a retired source's error must not spend the fresh source's recovery budget");
+fresh.push(au(sps(0x41), idr));
+FakeDecoder.instances.at(-1)!.opts.error(new Error("EncodingError: repeat on new source"));
+assert.equal(freshFailures.length, 1, "repeated errors within the same source still fall back");
+
+FakeDecoder.instances.length = 0;
 const refused: string[] = [];
 const unsupportedLate = new H264Stream(() => {}, why => refused.push(why), () => {});
 unsupportedLate.push(au(sps(0x41), idr));

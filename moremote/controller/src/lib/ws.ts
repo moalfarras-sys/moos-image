@@ -1,4 +1,4 @@
-import type { Hello, MouseButton } from "../types";
+import { BUILD, type Hello, type MouseButton } from "../types.ts";
 
 import { h264GivenUp } from "./h264state.ts";
 import { canDecodeH264 } from "./decode.ts";
@@ -46,7 +46,7 @@ interface Handlers {
   onInputState?: (ready: boolean, error?: string) => void;
   /** Which codec the agent is producing right now. It can change mid-session: the helper drops to
    *  JPEG on its own if the hardware encoder will not open, and climbs back when it will. */
-  onCodec?: (codec: "jpeg" | "h264") => void;
+  onCodec?: (codec: "jpeg" | "h264", sequence?: number) => void;
 }
 
 /**
@@ -119,7 +119,7 @@ export class RemoteConnection {
     // END/START one second apart re-offered H.264 immediately. Sessions there reconnect every one
     // to two minutes, and every codec change is a pipeline rebuild the user sees as the screen
     // cutting out — so this is the difference between "settles down" and "never stops".
-    ws.send(JSON.stringify({ type: "video", h264: canDecodeH264() && !h264GivenUp(), watching: this.watching }));
+    ws.send(JSON.stringify({ type: "video", h264: canDecodeH264() && !h264GivenUp(), watching: this.watching, build: BUILD }));
       this.h.onOpen?.();
       this.startPing();
     };
@@ -163,7 +163,8 @@ export class RemoteConnection {
             this.h.onScreen?.(!!m.available);
             break;
           case "codec":
-            this.h.onCodec?.(m.codec === "h264" ? "h264" : "jpeg");
+            this.h.onCodec?.(m.codec === "h264" ? "h264" : "jpeg",
+              Number.isSafeInteger(m.sequence) && m.sequence >= 0 ? m.sequence : undefined);
             break;
           case "pong":
             // Aliveness is already stamped for every message at the top of onmessage; the pong's

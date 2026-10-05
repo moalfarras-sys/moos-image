@@ -428,7 +428,7 @@ public sealed class PortalBridge : IDisposable
     /// frame that is skipped is not a frame that is missed, it is every frame after it corrupted
     /// until the next IDR. So H.264 is pushed, and every subscriber gets all of it.
     /// </summary>
-    public event Action<byte[]>? H264Frame;
+    public event Action<byte[], int>? H264Frame;
 
     private void ReadFrames(Socket listener, int generation, PortalRunProgress progress)
     {
@@ -446,7 +446,7 @@ public sealed class PortalBridge : IDisposable
                 if (generation != Generation) break;
                 if (Codec == "h264")
                 {
-                    H264Frame?.Invoke(buf);
+                    H264Frame?.Invoke(buf, generation);
                 }
                 else
                 {

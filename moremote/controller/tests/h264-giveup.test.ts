@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 
 // A tab-scoped sessionStorage double, installed before the module under test is imported.
 const store = new Map<string, string>();
+store.set("h264Failures", "3"); // the tab exhausted the retired controller's decoder budget
 (globalThis as any).sessionStorage = {
   getItem: (k: string) => (store.has(k) ? store.get(k)! : null),
   setItem: (k: string, v: string) => void store.set(k, v),
@@ -13,7 +14,7 @@ const { h264Failures, noteH264Failure, h264GivenUp, H264_MAX_FAILURES } =
   await import("../src/lib/h264state.ts");
 
 // ── A fresh tab always gets to try ────────────────────────────────────────────────────────
-assert.equal(h264Failures(), 0, "a fresh tab has no history");
+assert.equal(h264Failures(), 0, "the new decoder revision must not inherit a retired controller's JPEG verdict");
 assert.equal(h264GivenUp(), false, "a fresh tab must be allowed to offer H.264");
 
 // ── Failures accumulate, and the budget is exactly the backoff it gates (15s, 30s, 60s) ──

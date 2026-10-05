@@ -25,6 +25,7 @@ async function viewer(options, mode, language = 'en', cursorEmbedded = false, or
     localStorage.setItem('moremote.mode', JSON.stringify(mode));
     localStorage.setItem('moremote.seenGestureHint', '1');
     localStorage.setItem('mo-remote-lang', language);
+    sessionStorage.setItem('h264Failures', '3'); // upgrading from the failed controller
     if (orient) localStorage.setItem('moremote.orient', JSON.stringify(orient));
     else localStorage.removeItem('moremote.orient');
   }, {mode, language, orient});
@@ -79,7 +80,7 @@ async function viewer(options, mode, language = 'en', cursorEmbedded = false, or
   await page.locator('.toolbar-primary').waitFor();
   await page.locator('.topbar.mini[aria-expanded="false"]').waitFor();
   await page.waitForTimeout(100);
-  return {page, packets, sockets, hello, holdHello: () => { autoHello = false; }};
+  return {page, packets, sockets, hello, sendFrame, holdHello: () => { autoHello = false; }};
 }
 // Everything that MOVES OR TYPES ON THE REMOTE PC. `scroll` and `dblclick` were missing, so
 // every "this must never reach the remote" assertion below was blind to a stray wheel event, and
@@ -97,6 +98,20 @@ try {
     'touch','en',false,'off',null,'silent',true);
   const rp = recovery.page;
   await rp.waitForFunction(() => window.testDecoders.length > 0);
+  assert.equal(recovery.packets.find(p => p.type === 'video')?.h264, true,
+    'the upgraded phone must try the new recovery implementation despite the retired revision verdict');
+  const beforeRestart = await rp.evaluate(() => window.testDecoders.length);
+  recovery.sockets.at(-1).send(JSON.stringify({type:'codec',codec:'h264',sequence:2}));
+  recovery.sendFrame(recovery.sockets.at(-1));
+  await rp.waitForFunction(count => window.testDecoders.length > count, beforeRestart, {timeout:3000});
+  assert.equal(await rp.evaluate(count => window.testDecoders[count - 1].closed, beforeRestart), true,
+    'an identical-format portal restart must close the old phone decoder before its next frame');
+  const afterRestart = await rp.evaluate(() => window.testDecoders.length);
+  recovery.sockets.at(-1).send(JSON.stringify({type:'codec',codec:'h264',sequence:2}));
+  recovery.sendFrame(recovery.sockets.at(-1));
+  await rp.waitForTimeout(100);
+  assert.equal(await rp.evaluate(() => window.testDecoders.length), afterRestart,
+    'repeated metadata for the same video sequence must not churn the decoder');
   await rp.evaluate(() => window.dispatchEvent(new PageTransitionEvent('pagehide')));
   assert.equal(await rp.evaluate(() => window.testDecoders.at(-1).closed), true,
     'Safari pagehide must retire the decoder even without visibilitychange');

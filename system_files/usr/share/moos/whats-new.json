@@ -12,8 +12,8 @@
         "en": "Mobile Remote video recovers cleanly"
       },
       "body": {
-        "ar": "تعود صورة الهاتف بحالة جديدة بعد الرجوع من الخلفية أو إعادة الاتصال. عند انقطاع الالتقاط، يستعيد البث إعداد الجودة المختار ويبدأ التعافي سريعًا؛ فتح الهاتف يعجّل إعادة المحاولة بعد انقطاع حدث دون مشاهد.",
-        "en": "Phone video starts fresh after returning from the background or reconnecting. Interrupted capture restores the chosen quality and retries promptly; opening the phone brings forward recovery after a loss with nobody watching."
+        "ar": "تعود صورة الهاتف بحالة جديدة بعد الرجوع من الخلفية أو إعادة الاتصال. عند انقطاع الالتقاط، يستعيد البث إعداد الجودة المختار ويبدأ التعافي سريعًا؛ فتح الهاتف يعجّل إعادة المحاولة بعد انقطاع حدث دون مشاهد. تبدأ الصورة من جديد أيضًا بعد تجديد الالتقاط أو امتلاء طابور الفيديو.",
+        "en": "Phone video starts fresh after returning from the background or reconnecting. Interrupted capture restores the chosen quality and retries promptly; opening the phone brings forward recovery after a loss with nobody watching. Capture renewals and dropped video queues also start a fresh decoder history."
       }
     },
     {

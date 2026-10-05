@@ -359,6 +359,11 @@ export class H264Stream {
   }
 
   /** Forget everything and wait for the next keyframe. */
+  restart() {
+    this.lastErrorAt = 0;
+    this.reset();
+  }
+
   reset() {
     this.retireDecoder();
     this.resyncing = false;
