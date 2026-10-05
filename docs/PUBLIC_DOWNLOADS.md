@@ -24,11 +24,24 @@ single-file ISO download therefore needs a large-file host. Do not manufacture
 a URL, split the consumer download into obscure pieces, or enable the button
 because the artifact exists in Actions.
 
+If no suitable existing host is available, Cloudflare R2 **Standard** is a
+practical default: its monthly allowance includes 10 GB-month of storage and
+egress is free; extra storage/operations remain billable
+([current pricing](https://developers.cloudflare.com/r2/pricing/)). Use a
+dedicated public release bucket with a custom domain, not a private backup
+bucket or the development-only `r2.dev` endpoint
+([public buckets](https://developers.cloudflare.com/r2/buckets/public-buckets/)).
+Upload a multi-GB ISO through the S3 multipart API, for example with `rclone`;
+the consumer still downloads **one file**. Single PUT uploads are limited to
+5 GiB ([upload limits](https://developers.cloudflare.com/r2/objects/upload-objects/)).
+Account activation and upload credentials belong to the website/hosting owner;
+this procedure does not activate billing or change DNS.
+
 ## Qualify the public endpoint
 
 Upload the preserved files to the chosen host. Keep the existing website worker
 responsible for its routes/CMS; send it the delivery evidence rather than editing
-the website from an OS branch. Run this on the host with `cosign` available:
+the website from an OS branch. Run this on the host with Python 3 and OpenSSL available:
 
 ```sh
 python3 scripts/verify-public-iso.py \
@@ -38,11 +51,14 @@ python3 scripts/verify-public-iso.py \
   --output /absolute/path/to/public-download-proof.json
 ```
 
-The command checks the signature with the repository's **public** key before
+The command checks the CI's detached ECDSA/SHA-256 signature with the
+repository's **public** key before
 network access. It requests no credentials or cookies, requires HTTPS even
 through redirects, verifies ranges at both ends (including a nonzero resume
 offset), and streams the entire HTTP 200 download to verify its exact length
-and SHA-256. It uses bounded memory and does not save another ISO copy. A 200
+and SHA-256. It pipes the local bytes through OpenSSL while hashing those same
+bytes, so neither signature verification nor download loads the ISO into RAM.
+It does not save another ISO copy. A 200
 error page, truncated/changed file, wrong range, transformed body, or signature
 failure stops the check. The JSON is written atomically after success only.
 Check the command's exit status and `checkedAt`; an old report is not evidence
@@ -70,5 +86,6 @@ runtime is not proof that all Windows/Android apps work. P4.3–P4.5 owns the
 remaining managed Windows app journey and compatibility matrix.
 
 Sources: [GitHub release asset limits](https://docs.github.com/en/repositories/releasing-projects-on-github/about-releases),
+the [cosign SHA-256 and legacy blob verifier](https://github.com/sigstore/cosign/blob/v3.1.3/cmd/cosign/cli/verify/verify_blob.go),
 the workflow's `retention-days` in `.github/workflows/build-iso.yml`, and measured
 delivery results in `test-results/readiness-20261005/` (local, ignored).

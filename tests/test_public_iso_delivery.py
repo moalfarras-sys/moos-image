@@ -1,9 +1,12 @@
 #!/usr/bin/env python3
 """Delivery regressions: a valid URL or status alone cannot qualify an ISO."""
+import base64
 import hashlib
 import importlib.util
 import io
 from pathlib import Path
+import subprocess
+import tempfile
 import unittest
 
 
@@ -118,6 +121,48 @@ class DeliveryTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 module.verify_transfer(url, len(DATA), SHA, opener=host)
         self.assertEqual(host.requests, [])
+
+
+class SignatureTests(unittest.TestCase):
+    def setUp(self):
+        self.temporary = tempfile.TemporaryDirectory(prefix="moos-signature-test-")
+        self.addCleanup(self.temporary.cleanup)
+        self.root = Path(self.temporary.name)
+        self.iso = self.root / "fixture.iso"
+        self.iso.write_bytes(DATA)
+        self.public = self.root / "test-public.pem"
+        self.signature = self.root / "fixture.iso.sig"
+        # Ephemeral fixture key only; never touches the owner's cosign.key.
+        private = self.root / "test-private.pem"
+        subprocess.run(["openssl", "genpkey", "-algorithm", "EC", "-pkeyopt",
+                        "ec_paramgen_curve:prime256v1", "-out", str(private)], check=True,
+                       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        subprocess.run(["openssl", "pkey", "-in", str(private), "-pubout", "-out", str(self.public)],
+                       check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        raw = self.root / "signature.der"
+        subprocess.run(["openssl", "dgst", "-sha256", "-sign", str(private), "-out", str(raw), str(self.iso)],
+                       check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        self.signature.write_bytes(base64.b64encode(raw.read_bytes()) + b"\n")
+
+    def verify(self):
+        return module.verify_signed_iso(self.iso, self.signature, public_key=self.public)
+
+    def test_valid_detached_signature_binds_the_returned_hash_and_size(self):
+        result = self.verify()
+        self.assertTrue(result["signatureVerified"])
+        self.assertEqual(result["sha256"], SHA)
+        self.assertEqual(result["sizeBytes"], len(DATA))
+
+    def test_modified_payload_cannot_keep_the_signature(self):
+        self.iso.write_bytes(DATA[:-1] + bytes([DATA[-1] ^ 1]))
+        with self.assertRaisesRegex(ValueError, "signature could not be verified"):
+            self.verify()
+
+    def test_invalid_and_oversized_signatures_fail_closed(self):
+        for invalid in (b"not base64!", b"A" * 16385, base64.b64encode(b"not an ECDSA signature")):
+            with self.subTest(signature=invalid[:20]), self.assertRaises(ValueError):
+                self.signature.write_bytes(invalid)
+                self.verify()
 
 
 if __name__ == "__main__":

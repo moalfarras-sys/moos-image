@@ -5,6 +5,8 @@ Checks the entire anonymous download, not just HEAD or a successful redirect.
 This does not upload files, publish a release, or qualify new hardware.
 """
 import argparse
+import base64
+import binascii
 from datetime import datetime, timezone
 import hashlib
 import json
@@ -36,12 +38,50 @@ class HttpsRedirects(urllib.request.HTTPRedirectHandler):
         return super().redirect_request(request, response, code, message, headers, newurl)
 
 
-def checksum(path):
-    result = hashlib.sha256()
-    with path.open("rb") as file:
-        for block in iter(lambda: file.read(1024 * 1024), b""):
-            result.update(block)
-    return result.hexdigest()
+def verify_signed_iso(path, signature, *, public_key=None):
+    """Verify the CI's detached ECDSA/SHA-256 signature and hash the SAME bytes.
+
+    MoOS's pinned public key is P-256; cosign sign-blob emits a base64 DER
+    signature over SHA-256. The legacy cosign verifier reads the whole blob
+    into RAM. OpenSSL verifies this same signature through a bounded pipe.
+    Release workflows and their cosign/transparency checks remain unchanged.
+    """
+    public_key = public_key or ROOT / "cosign.pub"
+    with signature.open("rb") as file:
+        encoded = file.read(16385)
+    if len(encoded) > 16384:
+        raise ValueError("The detached ISO signature is oversized")
+    try:
+        decoded = base64.b64decode(b"".join(encoded.split()), validate=True)
+    except (ValueError, binascii.Error) as error:
+        raise ValueError("The detached ISO signature is not valid base64") from error
+    digest, received = hashlib.sha256(), 0
+    with tempfile.TemporaryDirectory(prefix="moos-iso-signature-") as temporary:
+        der = Path(temporary) / "signature.der"
+        der.write_bytes(decoded)
+        process = subprocess.Popen([
+            "openssl", "dgst", "-sha256", "-verify", str(public_key), "-signature", str(der),
+        ], stdin=subprocess.PIPE, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        try:
+            with path.open("rb") as file:
+                for block in iter(lambda: file.read(1024 * 1024), b""):
+                    process.stdin.write(block)
+                    digest.update(block)
+                    received += len(block)
+        except BaseException as error:
+            process.kill()
+            process.wait()
+            if isinstance(error, OSError):
+                raise ValueError("The ISO signature could not be verified with the MoOS public key") from error
+            raise
+        finally:
+            try:
+                process.stdin.close()
+            except OSError:
+                pass
+        if process.wait():
+            raise ValueError("The ISO signature could not be verified with the MoOS public key")
+    return {"sha256": digest.hexdigest(), "sizeBytes": received, "signatureVerified": True}
 
 
 def verify_transfer(url, size, sha256, *, opener=None, timeout=60):
@@ -113,13 +153,8 @@ def main():
         parser.error("The ISO and its CI signature must both exist")
     try:
         public_url(args.url)
-        signature = subprocess.run([
-            "cosign", "verify-blob", "--key", str(ROOT / "cosign.pub"),
-            "--signature", str(args.signature), str(args.iso),
-        ], capture_output=True, check=False)
-        if signature.returncode:
-            raise ValueError("The local ISO signature could not be verified with the MoOS public key")
-        report = verify_transfer(args.url, args.iso.stat().st_size, checksum(args.iso))
+        signed = verify_signed_iso(args.iso, args.signature)
+        report = verify_transfer(args.url, signed["sizeBytes"], signed["sha256"])
         report.update({
             "schema": 1, "checkedAt": datetime.now(timezone.utc).isoformat(),
             "signatureVerified": True,
