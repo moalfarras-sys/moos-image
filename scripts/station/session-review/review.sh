@@ -11,6 +11,8 @@
 # It runs a throwaway container from a local image that carries stock Plasma + Xvfb
 # (MOOS_REVIEW_IMAGE), lays system_files over it the way the image build does, and borrows the
 # station's installed fonts and icon themes read-only, because the image build generates those.
+# REVIEW_OVERLAY=0 with MOOS_REVIEW_IMAGE=<a built MoOS image that has Xvfb added> renders the
+# image's own files instead: what was built, not what is in the tree.
 # Source-harness evidence on X11 with software GL: no KWin blur, no Wayland layer-shell, and
 # not the station's GPU. It answers "does it load, fit and read", never "is it fast".
 set -euo pipefail
@@ -20,6 +22,9 @@ OUT="$(realpath -m "${2:-$HOME/.cache/moos-session-review/out}")"
 IMAGE="${MOOS_REVIEW_IMAGE:-localhost/moos-plymouth-render:20261004}"
 HOST=()
 if [ -e /.flatpak-info ]; then HOST=(flatpak-spawn --host); fi
+# A built MoOS image carries its own fonts and icon themes; a stock Plasma borrows the station's.
+BORROWED=(-v /usr/share/fonts:/usr/share/fonts:ro -v /usr/share/icons:/usr/share/icons:ro)
+if [ "${REVIEW_OVERLAY:-1}" = 0 ]; then BORROWED=(); fi
 mkdir -p "$OUT" "$HOME/.cache/moos-session-review"
 WORK="$(mktemp -d "$HOME/.cache/moos-session-review/work.XXXXXX")"
 cp "$SHOTS" "$WORK/shots.txt"
@@ -27,7 +32,8 @@ cp "$SHOTS" "$WORK/shots.txt"
     --userns=keep-id --user 0:0 \
     --env REVIEW_UID="$(id -u)" --env SEAM_SET="${SEAM_SET:-}" \
     --env LOGIN_WALLPAPER="${LOGIN_WALLPAPER:-0}" --env REVIEW_USERS="${REVIEW_USERS:-1}" \
+    --env REVIEW_OVERLAY="${REVIEW_OVERLAY:-1}" \
     -v "$ROOT":/src:ro -v "$OUT":/out -v "$WORK":/work \
-    -v /usr/share/fonts:/usr/share/fonts:ro -v /usr/share/icons:/usr/share/icons:ro \
+    "${BORROWED[@]}" \
     --entrypoint bash "$IMAGE" /src/scripts/station/session-review/in-container.sh
 echo "out: $OUT   (work kept for logs: $WORK)"

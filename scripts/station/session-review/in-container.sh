@@ -27,6 +27,12 @@ OUT=/out
 HERE="$SRC/scripts/station/session-review"
 
 overlay() {
+    if [ "${REVIEW_OVERLAY:-1}" = 0 ]; then
+        # A BUILT MoOS image (plus Xvfb): render what the image itself carries, untouched.
+        echo "no overlay: rendering the image's own files"
+        review_user
+        return
+    fi
     local share="$SRC/system_files/usr/share"
     cp -a "$share/pixmaps/." /usr/share/pixmaps/
     cp -a "$share/color-schemes/." /usr/share/color-schemes/
@@ -44,6 +50,10 @@ overlay() {
         cp -a "$SRC/build_files/plasma-seams/$SEAM_SET/usr/." /usr/
     fi
     fc-cache -f >/dev/null 2>&1
+    review_user
+}
+
+review_user() {
     # The review user is the HOST user's uid (podman --userns=keep-id), so every PNG and log
     # it writes into the mounted out/work directories belongs to the person who ran this.
     local uid="${REVIEW_UID:-1000}"
