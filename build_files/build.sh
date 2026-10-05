@@ -3277,6 +3277,15 @@ cat > /usr/lib/tmpfiles.d/moos-plasmalogin-greeter.conf <<'EOF'
 r! /var/lib/plasmalogin/.config/kdeglobals
 r! /var/lib/plasmalogin/.config/plasmarc
 d  /var/lib/plasmalogin/.config             0700 plasmalogin plasmalogin -
+# The same account's compiled-QML cache, for the same reason and with one more: Qt
+# validates a cached compile against the source file's mtime, OSTree pins every
+# mtime under /usr to the epoch, and a zero timestamp switches the check OFF. So
+# after an update the greeter and its wallpaper keep running the PREVIOUS image's
+# session QML (the clock, the face, the island, the scene) for ever: nobody logs
+# into this account, so the per-user THEME_REV purge never reaches it. Removed
+# once per boot; what is recompiled is MoOS's handful of on-disk session files,
+# because Plasma's own QML is compiled into its libraries and needs no cache.
+R! /var/lib/plasmalogin/.cache/*/qmlcache
 C+ /var/lib/plasmalogin/.config/kdeglobals  0600 plasmalogin plasmalogin - /usr/share/moos/plasmalogin/kdeglobals
 C+ /var/lib/plasmalogin/.config/plasmarc    0600 plasmalogin plasmalogin - /usr/share/moos/plasmalogin/plasmarc
 EOF
@@ -4703,11 +4712,12 @@ fi
 
 # ── The Plasma shell overlay, first: the seam set reviewed for THIS Plasma ─────────
 #
-# MoOS replaces ten files inside plasma-desktop and plasma-workspace (the six below plus the
-# panel template and three breeze components). Each is a fork of upstream at ONE Plasma
+# MoOS replaces twelve files inside plasma-desktop and plasma-workspace (the five below plus
+# the panel template and six breeze components). Each is a fork of upstream at ONE Plasma
 # version, and the base tag moves by itself. Measured 2026-09-24 on Plasma 6.8 beta: upstream
-# rewrote LockScreenUi.qml/MainBlock.qml and removed VirtualKeyboardLoader, so MoOS's 6.7 lock
-# screen would not load — kscreenlocker's emergency locker on every machine, every gate green.
+# rewrote LockScreenUi.qml/MainBlock.qml and removed VirtualKeyboardLoader, so the 6.7 lock
+# screen MoOS then forked would not load — kscreenlocker's emergency locker on every machine,
+# every gate green. (Since 2026-10-05 MoOS no longer forks those two files at all; see below.)
 # plasma_seams.py selects the set reviewed for this Plasma (build_files/plasma-seams/), installs
 # it, refuses any replaced file whose upstream bytes changed since review and any modified
 # Plasma file rpm reports that is not registered, then loads the real greeter offscreen with no
@@ -4720,26 +4730,24 @@ python3 /ctx/plasma_seams.py build || {
 
 # ── The Plasma shell overlay must survive into the finished image ─────────────
 #
-# MoOS restyles SIX files that belong to plasma-desktop's own shell package by
+# MoOS restyles FIVE files that belong to plasma-desktop's own shell package by
 # dropping its versions on top with `COPY system_files/ /`:
 #
 #   contents/explorer/WidgetExplorer.qml  -- Customize Desktop (the MoOS UI2 panel)
 #   contents/views/DesktopEditMode.qml    -- Arrange, drawn without a GPU
-#   contents/lockscreen/LockScreenUi.qml  -- the MoOS lock screen
-#   contents/lockscreen/MainBlock.qml     -- its password block
-#   contents/lockscreen/MediaControls.qml -- its media controls
+#   contents/views/Panel.qml              -- the panel's material
+#   contents/lockscreen/MediaControls.qml -- the lock screen's media controls
 #   contents/defaults                     -- the shell's own wallpaper default
 #
 # Measured on the station 2026-09-19: `rpm -V plasma-desktop` reports `S.5....T.`
-# for exactly those six paths — size, checksum and mtime all differ from what the
-# package shipped. (contents/lockscreen/MoOSClock.qml and the two lockscreen PNGs
-# are NEW files the package does not own, so rpm has nothing to say about them.)
-# The list below had two of the six. The four it was missing include the LOCK
-# SCREEN, which is among the most-seen surfaces on any machine, and the failure
-# mode the comment below describes is not hypothetical for it: a dnf5 transaction
-# later in this script that pulls plasma-desktop would restore stock Plasma's
-# lock screen at the same path, every repo gate would stay green, and the owner
-# would find a Breeze lock screen on a MoOS machine.
+# for every replaced path — size, checksum and mtime all differ from what the
+# package shipped. The list below once had two of them, and the ones it was
+# missing included the LOCK SCREEN, which is among the most-seen surfaces on any
+# machine: a dnf5 transaction later in this script that pulls plasma-desktop
+# restores stock Plasma at the same path, every repo gate stays green, and the
+# owner finds a Breeze surface on a MoOS machine. (The lock screen's own
+# LockScreenUi.qml and MainBlock.qml were in this list until 2026-10-05. MoOS no
+# longer replaces them — the gate after this one says why and holds it.)
 #
 # Overlaying is the supported way to restyle the shell, but it is fragile in one
 # specific direction: the base image owns those paths too. A plasma-workspace
@@ -4757,8 +4765,6 @@ for _pair in \
     "/usr/share/plasma/shells/org.kde.plasma.desktop/contents/explorer/WidgetExplorer.qml:moosDesktopCustomizer" \
     "/usr/share/plasma/shells/org.kde.plasma.desktop/contents/views/DesktopEditMode.qml:softwareRendering" \
     "/usr/share/plasma/shells/org.kde.plasma.desktop/contents/views/Panel.qml:translucentMaterialOpacity" \
-    "/usr/share/plasma/shells/org.kde.plasma.desktop/contents/lockscreen/LockScreenUi.qml:MoOSClock" \
-    "/usr/share/plasma/shells/org.kde.plasma.desktop/contents/lockscreen/MainBlock.qml:org.moos.ui" \
     "/usr/share/plasma/shells/org.kde.plasma.desktop/contents/lockscreen/MediaControls.qml:org.moos.ui" \
     "/usr/share/plasma/shells/org.kde.plasma.desktop/contents/defaults:org.moos.ui2.wallpaper"
 do
@@ -4775,6 +4781,29 @@ do
     }
 done
 unset -v _pair _f _marker
+
+# ── …and the lock screen's two authentication files must be UPSTREAM's ────────
+#
+# The inverse of the gate above, for the two files MoOS used to fork and no longer
+# does. LockScreenUi.qml and MainBlock.qml carry the authenticator wiring, upstream
+# rewrites them every release, and a stale MoOS copy at either path is how a Plasma
+# update turns into the emergency locker. The MoOS lock screen is drawn by the breeze
+# components those files instantiate (SessionManagementScreen, WallpaperFader, Clock,
+# UserList, UserDelegate), so nothing MoOS may sit at these two paths: not from system_files,
+# not from a seam variant, not from a layer cached before the change.
+for _f in LockScreenUi.qml MainBlock.qml; do
+    _f="/usr/share/plasma/shells/org.kde.plasma.desktop/contents/lockscreen/${_f}"
+    [ -f "$_f" ] || {
+        echo "GATE FAIL: $_f is missing — kscreenlocker would fall back to its emergency locker."
+        exit 1
+    }
+    if grep -q -e "org.moos" -e "Moalfarras" "$_f"; then
+        echo "GATE FAIL: $_f is a MoOS fork. This file carries authentication and must be"
+        echo "           the one plasma-desktop ships; restyle the breeze components instead."
+        exit 1
+    fi
+done
+unset -v _f
 
 # The panel is only reachable if its launcher shipped too -- Settings routes
 # moos://settings/desktop straight at this binary.

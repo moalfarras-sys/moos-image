@@ -33,12 +33,15 @@ IMAGE_PREFIX = "/usr/share/plasma/shells/org.kde.plasma.desktop/contents"
 # Files MoOS ADDS rather than replaces. `rpm -qf` does not own them, so no upstream
 # transaction can overwrite them and the survival gate has nothing to assert. They are
 # named — not pattern-matched — because "it looked new to me" is how the lock screen
-# went ungated for four revisions.
-MOOS_ADDITIONS = {
-    "lockscreen/MoOSClock.qml",
-    "lockscreen/images/ring.png",
-    "lockscreen/images/spark.png",
-}
+# went ungated for four revisions. None today: the lock screen's own clock and its two
+# images were retired on 2026-10-05 with the LockScreenUi.qml fork that used them.
+MOOS_ADDITIONS: set[str] = set()
+
+# The lock screen's two authentication-carrying files. MoOS replaced both until
+# 2026-10-05 and had to re-derive them by hand for every Plasma release; the MoOS lock
+# screen is now drawn by the breeze components those files instantiate, and these two
+# paths belong to plasma-desktop alone. See tests/test_plasma_seams.py.
+UPSTREAM_ONLY = ("lockscreen/LockScreenUi.qml", "lockscreen/MainBlock.qml")
 
 
 def gate_entries(script: str) -> dict[str, str]:
@@ -79,6 +82,16 @@ class PlasmaShellOverlay(unittest.TestCase):
                 "checks they survived the build — a package transaction would restore "
                 "stock Plasma at the same path with every repo gate still green:\n  "
                 + "\n  ".join(missing))
+
+    def test_the_authentication_files_are_left_to_upstream(self):
+        for name in UPSTREAM_ONLY:
+            self.assertNotIn(name, self.tracked,
+                             f"{name} is back in the overlay: it carries the authenticator "
+                             "wiring, and a MoOS copy of it is how a Plasma update becomes "
+                             "the emergency locker")
+            for script, gated in sorted(self.scripts.items()):
+                self.assertNotIn(f"{IMAGE_PREFIX}/{name}", gated,
+                                 f"{script} still demands a MoOS copy of {name}")
 
     def test_every_addition_is_really_an_addition(self):
         """The allowlist may not be used to excuse a file that IS in the tree's way."""

@@ -3,6 +3,20 @@
   "_": "What a person can SEE or DO after an update, newest first. One entry per user-visible change, written for the owner of the machine, not for a developer: what it is, where it is, and (when MoOS has a route to it) a way to try it now. 'merged' is when the change reached main (a little later is fine, earlier is not: an entry dated before a machine's previous system is never marked new there); a machine marks an entry new when the system it ran BEFORE the update was built earlier than that. tests/test_whats_new.py reads every entry the way MoOS Settings will.",
   "entries": [
     {
+      "id": "session-one-design",
+      "merged": "2026-10-06T06:00:00Z",
+      "glyph": "lock",
+      "route": "moos://settings/lock",
+      "title": {
+        "ar": "شاشة القفل والدخول والطاقة صارت تصميماً واحداً",
+        "en": "Lock, login and power screens are one design"
+      },
+      "body": {
+        "ar": "وأنت بعيد، الشاشة غلاف بساعة كبيرة. عند أول حركة تنسحب الساعة وتصعد جزيرة زجاجية فيها صورتك داخل إطار مضيء، ويدور ضوء حول حافتها ثم يستقر. كل شيء يكبر ويصغر مع حجم شاشتك، ولا يتداخل شيء مع شيء.",
+        "en": "While you are away the screen is a cover with a large clock. At the first movement the clock draws back and a glass island rises with your picture in a lit frame; a light runs round its edge, then settles. Everything scales with your screen, and nothing overlaps anything else."
+      }
+    },
+    {
       "id": "remote-one-controller",
       "merged": "2026-10-05T19:30:00Z",
       "glyph": "video",

@@ -157,7 +157,7 @@ EOF
 finalize_login() {
     local qmldir=/usr/lib64/qt6/qml/org/kde/breeze/components/qmldir
     test -f "${qmldir}" || { echo "FATAL: Plasma Breeze QML module is missing"; exit 1; }
-    for component in ActionButton Clock UserDelegate; do
+    for component in ActionButton Clock UserDelegate UserList SessionManagementScreen WallpaperFader; do
         test -f "/usr/lib64/qt6/qml/org/kde/breeze/components/${component}.qml" || {
             echo "FATAL: MoOS login component is missing: ${component}.qml"
             exit 1
@@ -181,10 +181,15 @@ finalize_login() {
         printf '\n[KDE]\nwidgetStyle=Breeze\nLookAndFeelPackage=org.moos.ui2\n'
     } > /usr/share/moos/plasmalogin/kdeglobals
     printf '[Theme]\nname=MoOSUI2\n' > /usr/share/moos/plasmalogin/plasmarc
+    # The last line of the rules is the greeter account's compiled-QML cache. Qt checks a
+    # cached compile against the source's mtime, OSTree pins every mtime under /usr to the
+    # epoch, and a zero timestamp switches that check off, so without it the login screen
+    # keeps running the PREVIOUS image's session QML after every update (build.sh says more).
     cat > /usr/lib/tmpfiles.d/moos-plasmalogin-greeter.conf <<'EOF'
 r! /var/lib/plasmalogin/.config/kdeglobals
 r! /var/lib/plasmalogin/.config/plasmarc
 d  /var/lib/plasmalogin/.config             0700 plasmalogin plasmalogin -
+R! /var/lib/plasmalogin/.cache/*/qmlcache
 C+ /var/lib/plasmalogin/.config/kdeglobals  0600 plasmalogin plasmalogin - /usr/share/moos/plasmalogin/kdeglobals
 C+ /var/lib/plasmalogin/.config/plasmarc    0600 plasmalogin plasmalogin - /usr/share/moos/plasmalogin/plasmarc
 EOF

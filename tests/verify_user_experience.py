@@ -3069,8 +3069,10 @@ require("http://127.0.0.1:11434/api/tags" in moai_do_code
 # The versioned migration is what makes the redesign visible to existing users.
 apply_theme = read("system_files/usr/bin/moos-apply-theme")
 apply_theme_code = code(apply_theme)
-require("THEME_REV=100" in apply_theme_code,
-        "MoOS visual schema must migrate existing users to the Island that hosts Search itself "
+require("THEME_REV=101" in apply_theme_code,
+        "MoOS visual schema must purge the cached compile of the retired lock-screen fork (it "
+        "asks for a MoOSClock that no longer ships) and of the stock session screen, and "
+        "migrate existing users to the Island that hosts Search itself "
         "and shows Mo AI jobs, the retired Hero Clock/Search packages, and the KWin shadow "
         "quarantine; before that, the W5 island (Store jobs, "
         "privacy chips) and inline search answers, the cardless centred "
@@ -4110,17 +4112,20 @@ require("Math.min(root.width" in logout_qml,
 #    3-arg form silently discards the format string and applies the locale's own
 #    LongFormat, so the English date rendered month-first ("July 21" not
 #    "21 July"). The fix is Qt.locale(...).toString(date, fmt).
-_moosclock = code(read("system_files/usr/share/plasma/shells/org.kde.plasma.desktop/"
-                       "contents/lockscreen/MoOSClock.qml"), style="slash")
-require("Qt.formatDate" not in _moosclock and ".toString(" in _moosclock,
-        "MoOSClock must render its date with Qt.locale(...).toString(date, fmt), "
+_session_clock = code(read("system_files/usr/lib64/qt6/qml/org/kde/breeze/components/"
+                           "Clock.qml"), style="slash")
+require("Qt.formatDate" not in _session_clock and ".toString(" in _session_clock
+        and "latinNumerals(" in _session_clock,
+        "the session clock must render its date with Qt.locale(...).toString(date, fmt), "
         "never Qt.formatDate(date, locale, string) — the 3-arg form discards the "
-        "format string and the lock date reverts to month-first. (The count was "
-        "`>= 2` while the clock printed the date TWICE, hardcoded ar over hardcoded "
-        "en, so an English session got an Arabic date it could not read and an "
-        "Arabic one got the same day said twice. It prints ONE date in the session "
-        "locale now, so there is one call; the ban on the 3-arg form is what this "
-        "gate is actually for and it is unchanged.)")
+        "format string and the date reverts to month-first — and fold the date's digits "
+        "to the clock's own numerals. (This gate read the lock screen's private MoOSClock "
+        "until 2026-10-05; the lock, login and power screens share ONE clock now, the "
+        "breeze component, so this is the file the three-arg form would have to return to.)")
+require(not (ROOT / "system_files/usr/share/plasma/shells/org.kde.plasma.desktop/contents/"
+             "lockscreen/MoOSClock.qml").exists(),
+        "the lock screen has a second clock again: the session clock is the breeze "
+        "component both greeters instantiate")
 # 2) The logout action button's background turns highlightColor when emphasized
 #    or pressed; a highlightColor glyph vanishes into it (the primary Cancel
 #    button did exactly this). The non-destructive icon colour must switch to a
@@ -4149,21 +4154,32 @@ require(re.search(r"filledInk:\s*control\.destructive\s*"
         "Selection ink/accent for normal actions, Complementary background/negative "
         "for destructive actions; accentB is decorative rim only")
 
-_lock_main = code(read("system_files/usr/share/plasma/shells/"
-                       "org.kde.plasma.desktop/contents/lockscreen/MainBlock.qml"),
-                  style="slash")
-_unlock_start = _lock_main.find("id: loginButton")
-_unlock_end = _lock_main.find("component FailableLabel", _unlock_start)
-_unlock = _lock_main[_unlock_start:_unlock_end]
+_session_screen = code(read("system_files/usr/lib64/qt6/qml/org/kde/breeze/components/"
+                            "SessionManagementScreen.qml"), style="slash")
+_unlock_start = _session_screen.find("id: keyFace")
+_unlock_end = _session_screen.find("MoUI.GlassSurface {", _unlock_start)
+_unlock = _session_screen[_unlock_start:_unlock_end]
 require(_unlock_start >= 0 and _unlock_end > _unlock_start
-        and "color: sessionManager.accentA" in _unlock
-        and "color: Kirigami.Theme.highlightedTextColor" in _unlock
-        and "scale: loginButton.down ? sessionManager.design.pressScale : 1.0" in _unlock
+        and "color: key.armed ? root.accentA" in _unlock
+        and "readonly property color ink: glyph.armed ? Kirigami.Theme.highlightedTextColor" in _unlock
+        and "strokeColor: glyph.ink" in _unlock
+        and "color: Kirigami.Theme.highlightedTextColor" not in _unlock
+        and "scale: key.control.down ? root.design.pressScale : 1.0" in _unlock
         and "gradient: Gradient" not in _unlock
+        and "color: root.accentB" not in _unlock
         and re.search(r'color\s*:\s*["\']white["\']|'
                       r'Qt\.rgba\(\s*1\s*,\s*1\s*,\s*1\s*,', _unlock) is None,
-        "the lock-screen Unlock glyph must use the scheme's selected ink on flat "
-        "accentA; literal white/accentB gradients fall below 3:1 in seven themes")
+        "the session Unlock/Log In key must use the scheme's selected ink on flat "
+        "accentA when it is armed and the ordinary foreground on glass when it is not, "
+        "from one switch; literal white/accentB gradients fall below 3:1 in seven themes")
+# The lock screen's own two files carry the authenticator wiring. MoOS replaced them until
+# 2026-10-05 and re-derived them by hand for every Plasma release; a copy returning to the
+# overlay is how a Plasma update becomes kscreenlocker's emergency locker.
+for _auth_file in ("LockScreenUi.qml", "MainBlock.qml"):
+    require(not (ROOT / "system_files/usr/share/plasma/shells/org.kde.plasma.desktop/contents/"
+                 "lockscreen" / _auth_file).exists(),
+            f"system_files replaces the lock screen's {_auth_file} again: restyle the breeze "
+            "components it instantiates, never the file that talks to the authenticator")
 # 3) Every MoOS doorway uses one Tidal Horizon geometry and the ACTIVE theme.
 #    The component is code-native and byte-identical across Splash, Login, Lock
 #    and Logout; each host supplies semantic accent/ink/surface roles. Doorway
@@ -4936,90 +4952,130 @@ require("THE IDENTITY CONTRACT" in read("AGENTS.md"),
 
 # ── The lock screen is MoOS's own, and it can still authenticate ──────────────
 #
-# The lock screen was the last surface still drawn by Plasma's shell default
-# (Breeze clock, field and typography). kscreenlocker draws it from the SHELL
-# package, NOT the look-and-feel (verified live 2026-07-14: a [Greeter] Theme
-# pointing at a look-and-feel silently fell back to this shell default), so MoOS
-# overrides the shell's LockScreenUi.qml directly. This is a SECURITY surface:
-# the file is a fork that keeps the base's auth path, and the base shell provides
-# MainBlock/PasswordSync beside it — this gate makes sure the override stays MoOS
-# AND keeps the auth wiring, so it can neither look un-MoOS nor lock a user out.
+# kscreenlocker draws the lock screen from the SHELL package, NOT the look-and-feel
+# (verified live 2026-07-14: a [Greeter] Theme pointing at a look-and-feel silently
+# fell back to the shell default). MoOS used to answer that by FORKING the shell's
+# LockScreenUi.qml and MainBlock.qml — the two files that carry the authenticator
+# wiring — and this gate then had to hold their auth path "byte-for-byte present",
+# for a file upstream rewrites every release (three hand-derived variants by 6.8
+# beta 2, and a measured emergency locker on the first one).
+#
+# Since 2026-10-05 both guarantees are held structurally instead:
+#   · it can still authenticate, because MoOS replaces NEITHER file. The lock screen
+#     runs the LockScreenUi.qml and MainBlock.qml plasma-desktop ships, on every
+#     Plasma. (Asserted above, in build.sh on the finished image, and in
+#     tests/test_plasma_seams.py.)
+#   · it is MoOS's own, because everything those two files DRAW is a breeze
+#     component MoOS ships: the island and the password row's face
+#     (SessionManagementScreen), the scene and the signature (WallpaperFader), the
+#     clock, the face and the action keys. The login greeter instantiates the same
+#     components from its compiled QML, which is what makes the two doors one design.
+# What this gate holds is therefore the seam between them: the session screen must
+# keep the API upstream's callers were written against, name for name. A caller that
+# cannot find `userList` or the prompt slot does not degrade — it fails to load.
 shell_lock = "system_files/usr/share/plasma/shells/org.kde.plasma.desktop/contents/lockscreen"
-for lock_file in ("LockScreenUi.qml", "MoOSClock.qml"):
-    require((ROOT / shell_lock / lock_file).is_file(),
-            f"the shell lockscreen override is missing {lock_file} — the lock "
-            "screen would be Plasma's default, not MoOS's")
-lock_ui = read(f"{shell_lock}/LockScreenUi.qml")
-# The auth path must stay the proven one: it still talks to the authenticator
-# and still hands the password to MainBlock.
-require("authenticator" in lock_ui,
-        "the lock screen override no longer talks to the authenticator — unlock would break")
-require("MainBlock" in lock_ui and "onPasswordResult" in lock_ui,
-        "the lock screen override lost the MainBlock password path — the password would go nowhere")
-# It must be MoOS, not the stock shell UI: the MoOS clock has to be there.
-require("MoOSClock" in lock_ui,
-        "the lock screen override dropped the MoOS clock — it would read as the Breeze default")
-require("TidalHorizon" not in qml_strip(lock_ui) if "qml_strip" in dir() else "TidalHorizon {" not in lock_ui,
+_session_components = "system_files/usr/lib64/qt6/qml/org/kde/breeze/components"
+_session_backdrop = code(read(f"{_session_components}/WallpaperFader.qml"), style="slash")
+for _api, _why in (
+        ("property alias notificationMessage: notificationsLabel.text",
+         "the notice line both greeters write failures and Caps Lock into"),
+        ("property alias actionItems: actionItemsLayout.children",
+         "the action row (Sleep, Switch User, Restart, Shut Down)"),
+        ("property alias actionItemsVisible: actionItemsLayout.visible",
+         "the action row's visibility switch"),
+        ("property alias userListModel: userListView.model", "the user model"),
+        ("property alias userListCurrentIndex: userListView.currentIndex",
+         "the selected user, which the login greeter restores"),
+        ("property alias userListCurrentItem: userListView.currentItem",
+         "the selected user's delegate"),
+        ("property bool showUserList: true", "the user-list switch of the username prompt"),
+        ("property alias userList: userListView",
+         "the user list BOTH greeters place their clock by and the password row reads"),
+        ("property real fontSize:", "the font size the login greeter overrides"),
+        ("default property alias _children: innerLayout.children",
+         "the default slot the password row is dropped into"),
+        ("signal userSelected()", "the signal that moves focus to the password field"),
+        ("function playHighlightAnimation()", "the repeated-refusal acknowledgement"),
+        ("bottom: parent.verticalCenter", "upstream's anchor line for the user list"),
+        ("anchors.top: parent.verticalCenter", "upstream's anchor line for the prompts"),
+):
+    require(_api in _session_screen,
+            f"MoOS's SessionManagementScreen lost {_why} ({_api!r}). The lock screen's "
+            "MainBlock and the login greeter's compiled Login are written against "
+            "upstream's API: a missing name is a lock or login screen that does not load.")
+# It must be MoOS, not the stock layout: the island, drawn once for both doors.
+require("MoUI.GlassSurface {" in _session_screen and "id: island" in _session_screen
+        and "id: fieldFace" in _session_screen and "id: keyFace" in _session_screen,
+        "the session screen dropped the MoOS island or the password row's face — the "
+        "lock and login screens would read as the Breeze default")
+require("TidalHorizon" not in _session_screen and "TidalHorizon" not in _session_backdrop,
         "the lock must not draw the retired arc")
-require("MoOSClock" in read(f"{shell_lock}/MoOSClock.qml") or "MoOS" in read(f"{shell_lock}/MoOSClock.qml"),
-        "MoOSClock.qml is not the MoOS clock")
+# The lock scene: upstream's fade machinery whole, plus the session veil and signature.
+for _kept in ("FastBlur {", "id: wallpaperShader", 'name: "on"', 'name: "off"',
+              "property Item clock", "property Item mainStack", "property Item footer",
+              "property alias source: wallpaperBlur.source", "property bool alwaysShowClock"):
+    require(_kept in _session_backdrop,
+            f"MoOS's WallpaperFader lost upstream's {_kept!r} — LockScreenUi.qml sets these "
+            "by name and fades the whole lock screen through them")
+require("id: sessionVeil" in _session_backdrop
+        and "MoUI.SessionSignature {" in _session_backdrop,
+        "the lock backdrop dropped the MoOS session veil or signature — an idle lock "
+        "screen would be a bare wallpaper with nothing on it that says MoOS")
 # Qt.formatTime has no (date, locale, format-string) overload. With a locale
 # slipped in, the "HH"/"mm" formats were IGNORED and the greeter drew the full
 # long time — "20:03:56 UTC+00:00" — at display size, twice, clear across the
 # lock screen (seen live in the 179 ISO walkthrough). formatDate is fine with
 # a locale; formatTime is the one that must stay two-argument.
-require(re.search(r"formatTime\s*\([^)]*Qt\.locale", read(f"{shell_lock}/MoOSClock.qml")) is None,
-        "MoOSClock.qml calls Qt.formatTime with a locale argument — Qt ignores "
-        "the format string and the greeter draws the long UTC time at 7.4x")
+require(re.search(r"formatTime\s*\([^)]*Qt\.locale", _session_clock) is None
+        and re.search(r"formatTime\s*\([^)]*sessionLocale", _session_clock) is None,
+        "the session clock calls Qt.formatTime with a locale argument — Qt ignores "
+        "the format string and the greeter draws the long UTC time at display size")
 # No stale [Greeter] Theme pointing at a look-and-feel (which silently falls back).
 require(re.search(r"^Theme=", read("system_files/etc/xdg/kscreenlockerrc"), re.MULTILINE) is None,
         "kscreenlockerrc sets a [Greeter] Theme again — the greeter loads the "
         "SHELL lockscreen, so a look-and-feel Theme there just misleads and "
-        "falls back; the override is what draws MoOS")
-# The brand and the clock live on different rulers (the brand in gridUnits, the
-# clock derived from the userlist geometry), and on a 4K panel the halfway
-# formula parked the clock INSIDE the emblem+wordmark (seen live 2026-07-16 via
-# kscreenlocker_greet --testing). The floor below the brand is what keeps them
-# apart; a rewrite that loses it re-ships the collision on every tall screen.
-require(re.search(r"MoOSClock\s*\{(?:[^{}]|\{[^{}]*\})*anchors\.(?:left|right):\s*parent\.(?:left|right)",
-                  lock_ui, re.DOTALL) is not None
-        or ("anchors.left: lockScreenUi.rtl ? undefined : parent.left" in lock_ui
-            and "anchors.right: lockScreenUi.rtl ? parent.right : undefined" in lock_ui),
-        "the lock clock must anchor to a top CORNER (a hero, off the centred brand) "
-        "so it never draws through the MoOS emblem and wordmark on a tall panel")
-# The auth cluster INSIDE the card (avatar, password field, unlock button) was
-# the last stock-Breeze surface — the deferred "auth card". MoOS now overrides
-# the shell's lockscreen MainBlock.qml too. It is THE unlock path: this gate
-# holds the auth wiring byte-for-byte present so a future restyle can never
-# quietly break login. The visual dressing is free to change; these wires are not.
-mainblock = read(f"{shell_lock}/MainBlock.qml")
-require("SessionManagementScreen" in mainblock,
-        "MainBlock.qml is no longer a SessionManagementScreen — it would lose the "
-        "user avatar/list and the whole auth screen contract")
-for wire, why in (
-        (r"signal\s+passwordResult\s*\(\s*string\s+password\s*\)",
-         "the passwordResult(string) signal LockScreenUi connects to authenticator.respond"),
-        (r"function\s+startLogin\s*\(", "the startLogin() entry point"),
-        (r"passwordResult\s*\(\s*password\s*\)", "the passwordResult(password) emit inside startLogin"),
-        (r"alias\s+mainPasswordBox\s*:\s*passwordBox", "the mainPasswordBox alias LockScreenUi drives"),
-        (r"target:\s*PasswordSync", "the PasswordSync binding that carries the typed secret"),
-        (r"onClicked:\s*sessionManager\.startLogin\(\)", "the unlock button wired to startLogin"),
-        (r"PlasmaExtras\.PasswordField", "the real password field (secret entry, not a plain TextField)"),
-):
-    require(re.search(wire, mainblock) is not None,
-            f"MoOS MainBlock.qml lost {why} — the lock/login could stop accepting "
-            "the password. Restyle the auth card, never rewire it.")
-# And it must actually be MoOS, not a copy of the stock file: the auth-safety
-# contract banner is the tell that this is the deliberate MoOS fork.
-require("AUTH SAFETY CONTRACT" in mainblock,
-        "MoOS MainBlock.qml lost its AUTH SAFETY CONTRACT banner — either it "
-        "reverted to stock Breeze or someone rewrote it without the guardrails")
-require("Layout.preferredWidth: loginButton.Layout.preferredHeight * 1.28" in mainblock
-        and "radius: sessionManager.design.radiusCard" in mainblock
-        and "width: parent.width * 0.30" in mainblock
-        and "width: parent.width * 0.42" in mainblock,
-        "the lock-screen Unlock action must be the compact Tidal Portal key; a "
-        "square circular button breaks the session control family")
+        "falls back; the breeze components are what draw MoOS")
+# The brand and the clock used to share the top-centre of the lock screen, on two
+# different rulers, and collided: on a 4K panel the clock parked INSIDE the emblem
+# and wordmark (seen live 2026-07-16), and the fix of the day — a hero clock pinned
+# to a corner — slid under the password card on a small screen (the owner's
+# screenshots, 2026-10-05). They cannot meet now: the clock keeps the centre axis,
+# where both greeters place it, and the signature keeps a top corner.
+_signature_at = _session_backdrop[_session_backdrop.find("MoUI.SessionSignature {"):]
+_signature_at = _signature_at[:_signature_at.find("states: [")]
+require("anchors.left: parent.left" in _signature_at
+        and "anchors.top: parent.top" in _signature_at
+        and "horizontalCenter" not in _signature_at,
+        "the lock screen's MoOS signature left its corner — top-centre is the clock's, "
+        "and the two collide on every panel where they share it")
+# Several accounts: nobody's face may straddle the island's edge, and nobody is out of
+# frame while there is room. Up to five accounts stand in one centred row (UserList); the
+# island is as wide as the row; beyond that the list is upstream's carousel again and the
+# delegate steps aside past the neighbours the island holds.
+_user_list = code(read(f"{_session_components}/UserList.qml"), style="slash")
+require("readonly property bool showsEveryone: count > 1 && count <= rowLimit" in _user_list
+        and "highlightRangeMode: showsEveryone ? ListView.NoHighlightRange" in _user_list
+        and ": ListView.StrictlyEnforceRange" in _user_list
+        and "userListView.userItemWidth * userSlots" in _session_screen
+        and "readonly property int userReach:" in _session_screen
+        and "ListView.view.parent.userReach" in code(
+            read(f"{_session_components}/UserDelegate.qml"), style="slash"),
+        "the login screen's account row lost its contract with the island: with several "
+        "accounts a face would sit across the island's edge or wait out of frame")
+for _kept in ("signal userSelected()", "readonly property string selectedUser",
+              "readonly property int userItemWidth", "readonly property int userItemHeight",
+              "readonly property bool constrainText: count > 1",
+              "Keys.onEscapePressed: view.userSelected()"):
+    require(_kept in _user_list,
+            f"MoOS's UserList lost upstream's {_kept!r} — the login greeter reads the "
+            "selected user from it and both greeters size the screen by it")
+# The Unlock/Log In key and its field are one control family, at one radius.
+require(_session_screen.count(
+            "radius: Math.round((root.design.radiusControl + 2) * root.sessionScale)") == 2
+        and _session_screen.count(
+            "Math.round(root.design.targetControl * root.sessionScale)") == 3,
+        "the session password field and its key must share the family's control "
+        "radius and height; a pill beside a squircle is the mismatch this replaced")
 # ── Any pre-baked brand sprite still named by QML must travel with that QML.
 #    Doorway identity is now code-native and static; this remains a guard for
 #    components outside the doorway that intentionally retain a shipped sprite.
@@ -5077,16 +5133,31 @@ require('bilingual("ماذا تريد أن تفعل؟", "What would you like to 
         "the logout heading bypasses the shared bilingual formatter")
 
 # plasma-login-manager's wallpaper is a separate process. If it is late or
-# unavailable, the compiled greeter falls back to a flat colour; the shared user
-# delegate must still identify the surface as MoOS and must not regress to the
+# unavailable, the compiled greeter falls back to a flat colour; the surface the
+# greeter draws ITSELF must still identify as MoOS, and must not regress to the
 # cheap generic outline avatar for accounts without a custom photo.
+#
+# The mark used to be an emblem pinned to the corner of the user's face. It is the
+# maker's mark on the session island now — the island is drawn by the greeter's own
+# process on the login screen and the lock screen alike, and it is on screen
+# whenever a password can be typed, including on the "type a user name" page,
+# which has no face to pin anything to.
 user_delegate = read("system_files/usr/lib64/qt6/qml/org/kde/breeze/components/UserDelegate.qml")
-require('source: "file:///usr/share/pixmaps/moos-logo.png"' in user_delegate,
-        "the login user delegate lost its MoOS fallback badge")
+_island_mark = _session_screen[_session_screen.find("id: makersMark"):]
+_island_mark = _island_mark[:_island_mark.find("Repeater {")]
+require('source: "file:///usr/share/pixmaps/moos-logo.png"' in _island_mark
+        and 'text: "MoOS"' in _island_mark
+        and "anchors.verticalCenter: island.bottom" in _island_mark,
+        "the session island lost its MoOS maker's mark — with the login wallpaper late or "
+        "absent, nothing on the password surface would say whose it is")
+require("moos-logo" not in code(user_delegate, style="slash"),
+        "the MoOS emblem is pinned to the user's face again; the island carries the mark")
 require("wrapper.name.charAt(0).toUpperCase()" in user_delegate
-        and "visible: faceIcon.visible" in user_delegate,
-        "accounts without a custom photo must use an intentional initial avatar, "
-        "not Plasma's generic outline")
+        and "visible: wrapper.placeholderFace && !wrapper.anonymous" in user_delegate
+        and '.indexOf("/org/kde/plasma/login/") >= 0' in user_delegate,
+        "accounts without a custom photo must use an intentional initial avatar on BOTH "
+        "doors: the login greeter hands every such account a stock silhouette compiled "
+        "into its binary, which the delegate has to recognise as no photo at all")
 login_wallpaper = code(read(
     "system_files/usr/share/plasma/wallpapers/org.moos.ui2.greeter/contents/ui/main.qml"
 ), style="slash")
@@ -5102,8 +5173,8 @@ require("The Tidal Portal key" in login_action
         and "radius: design.radiusPanel" in login_action
         and "font.family: design.interfaceFamily" in login_action
         and "import org.moos.ui as MoUI" in login_action
-        and "readonly property real compactScale" in login_action
-        and "Screen.height - 320" in login_action,
+        and "readonly property real compactScale: design.sessionScale(sceneWidth, sceneHeight)" in login_action
+        and "Window.height > 0 ? Window.height : Screen.height" in login_action,
         "the compiled plasma-login controls must use the shared MoOS portal-key "
         "geometry, responsive low-resolution fit and typography instead of "
         "generic circular Breeze actions")
@@ -5114,8 +5185,9 @@ require("trackSeconds: false" in login_clock
         and "sessionLocale.dateFormat(Locale.LongFormat)" in login_clock
         and "LayoutMirroring.enabled: false" in login_clock
         and "layoutDirection: Qt.LeftToRight" in login_clock
-        and "readonly property real responsiveScale" in login_clock
-        and "Screen.height - 320" in login_clock,
+        and "readonly property real responsiveScale: design.sessionScale(sceneWidth, sceneHeight)" in login_clock
+        and "Window.height > 0 ? Window.height : Screen.height" in login_clock
+        and "loops:" not in login_clock,
         "the login clock must be one static MoOS editorial face: active-locale "
         "date, accent colon, minute precision, semantic LTR time, low-resolution "
         "fit and no idle animation")
@@ -6650,6 +6722,15 @@ require("/usr/lib/tmpfiles.d/moos-plasmalogin-greeter.conf" in _build
         and "/usr/share/moos/plasmalogin/kdeglobals" in _build,
         "build.sh must provision the plasmalogin greeter account's palette deterministically; "
         "unprovisioned, /var/lib/plasmalogin decides the login chrome's colours")
+# build.sh writes the rules and finalize_moos_desktop.sh, the shared x86/ARM authority that
+# runs after it, REWRITES the file: a rule added to one and not the other is silently lost.
+_finalize = code(read("build_files/finalize_moos_desktop.sh"))
+for _script, _text in (("build.sh", _build), ("finalize_moos_desktop.sh", _finalize)):
+    require("R! /var/lib/plasmalogin/.cache/*/qmlcache" in _text,
+            f"{_script} does not clear the greeter account's QML cache at boot. Nobody logs "
+            "into that account, so no THEME_REV purge reaches it, and Qt accepts a cached "
+            "compile for ever on OSTree's epoch mtimes — an update would change the login "
+            "screen's QML on disk while the machine kept drawing the previous image's")
 require("r! /var/lib/plasmalogin/.config/kdeglobals" in _build,
         "the greeter palette tmpfiles rule needs a boot-only `r!` before its `C+`: measured on "
         "systemd 259.8, `C+` does NOT replace an existing file, so the rule would be a no-op on "

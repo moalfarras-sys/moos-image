@@ -350,7 +350,8 @@ def main() -> None:
     breeze_qmldir = read("/usr/lib64/qt6/qml/org/kde/breeze/components/qmldir")
     require(not any(line.startswith("prefer ") for line in breeze_qmldir.splitlines()),
             "Plasma Login Manager still prefers compiled Breeze controls over MoOS QML")
-    for component in ("ActionButton.qml", "Clock.qml", "UserDelegate.qml"):
+    for component in ("ActionButton.qml", "Clock.qml", "UserDelegate.qml", "UserList.qml",
+                      "SessionManagementScreen.qml", "WallpaperFader.qml"):
         require((ROOT / "usr/lib64/qt6/qml/org/kde/breeze/components" / component).is_file(),
                 f"MoOS login control is absent: {component}")
     greeter_palette = read("/usr/share/moos/plasmalogin/kdeglobals")
@@ -361,6 +362,9 @@ def main() -> None:
     require("r! /var/lib/plasmalogin/.config/kdeglobals" in greeter_tmpfiles
             and "C+ /var/lib/plasmalogin/.config/kdeglobals" in greeter_tmpfiles,
             "the immutable greeter palette is not materialized on every boot")
+    require("R! /var/lib/plasmalogin/.cache/*/qmlcache" in greeter_tmpfiles,
+            "the greeter account's QML cache is not cleared at boot: after an update the "
+            "login screen would keep running the previous image's session QML")
 
     display_manager = ROOT / "etc/systemd/system/display-manager.service"
     require(display_manager.is_symlink()

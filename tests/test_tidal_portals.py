@@ -60,7 +60,8 @@ class TidalPortalContractTests(unittest.TestCase):
         self.assertFalse(PORTAL_MASTER.exists(),
                          "the retired arc master must not return")
         for surface in (
-            LOCK_ROOT / "LockScreenUi.qml",
+            BREEZE_COMPONENTS / "WallpaperFader.qml",
+            BREEZE_COMPONENTS / "SessionManagementScreen.qml",
             LOGIN_ROOT / "main.qml",
             LNF_ROOT / "org.moos.ui2/contents/logout/Logout.qml",
             LNF_ROOT / "org.moos.ui2/contents/splash/Splash.qml",
@@ -130,9 +131,12 @@ class TidalPortalContractTests(unittest.TestCase):
             encoding="utf-8"
         )
         clock = (BREEZE_COMPONENTS / "Clock.qml").read_text(encoding="utf-8")
-        lock = (LOCK_ROOT / "LockScreenUi.qml").read_text(encoding="utf-8")
-        lock_clock = (LOCK_ROOT / "MoOSClock.qml").read_text(encoding="utf-8")
-        main_block = (LOCK_ROOT / "MainBlock.qml").read_text(encoding="utf-8")
+        island = qml_code(
+            (BREEZE_COMPONENTS / "SessionManagementScreen.qml").read_text(encoding="utf-8")
+        )
+        backdrop = qml_code(
+            (BREEZE_COMPONENTS / "WallpaperFader.qml").read_text(encoding="utf-8")
+        )
 
         for forbidden in ("Timer {", "Animation.Infinite", "ShaderEffect"):
             self.assertNotIn(forbidden, login)
@@ -141,7 +145,6 @@ class TidalPortalContractTests(unittest.TestCase):
         self.assertNotIn("radius: width / 2", action)
         self.assertIn("font.family: design.interfaceFamily", action)
         self.assertIn("readonly property real compactScale", action)
-        self.assertIn("Screen.height - 320", action)
         self.assertIn("largeSpacing * 4 * compactScale", action)
         self.assertIn("6.6 * Math.max(0.82, root.compactScale)", action)
         self.assertIn("trackSeconds: false", clock)
@@ -151,23 +154,117 @@ class TidalPortalContractTests(unittest.TestCase):
         self.assertIn("LayoutMirroring.enabled: false", clock)
         self.assertIn("layoutDirection: Qt.LeftToRight", clock)
         self.assertIn("readonly property real responsiveScale", clock)
-        self.assertIn("Screen.height - 320", clock)
+        # ONE number sizes the session family, and it comes from the window each
+        # component is actually in — never the screen alone, never a private formula.
+        self.assertIn(
+            "readonly property real responsiveScale: design.sessionScale(sceneWidth, sceneHeight)",
+            clock)
+        self.assertIn(
+            "readonly property real compactScale: design.sessionScale(sceneWidth, sceneHeight)",
+            action)
+        for sized in (clock, action):
+            self.assertIn(
+                "readonly property real sceneHeight: "
+                "Window.height > 0 ? Window.height : Screen.height", sized)
+            self.assertNotIn("Screen.height - 320", sized)
+        tokens = (ROOT / "system_files/usr/lib64/qt6/qml/org/moos/ui/Tokens.qml").read_text(
+            encoding="utf-8")
+        self.assertIn("function sessionScale(width, height) {", tokens)
+        self.assertIn("const fit = Math.min(height / 864, width / 1100)", tokens)
+        self.assertIn("Math.max(0.6, Math.min(1.6, fit))", tokens)
+        # The clock has a cover pose and a working pose and moves between them on the
+        # `uiVisible` both greeters keep; the move is finite and the band holds both.
+        self.assertIn(
+            "readonly property bool sessionActive: (parent && parent.uiVisible !== undefined)",
+            clock)
+        self.assertIn("property bool heroWhenIdle: true", clock)
+        self.assertIn("Behavior on presence {", clock)
+        self.assertNotIn("loops:", clock)
+        self.assertNotIn("Timer {", clock)
 
-        self.assertNotIn("Animation.Infinite", lock)
-        self.assertIn(
-            "anchors.left: lockScreenUi.rtl ? undefined : parent.left", lock
+        # ONE island for both doors: the lock screen's MainBlock and the login greeter's
+        # Login are each a SessionManagementScreen, so what is drawn here is drawn on both.
+        for surface in (island, backdrop):
+            self.assertNotIn("Animation.Infinite", surface)
+            self.assertNotIn("Timer {", surface)
+        self.assertIn("MoUI.GlassSurface {", island)
+        self.assertIn("id: island", island)
+        self.assertIn("root.design.radiusDialog * Math.max(0.8, root.sessionScale)", island)
+        self.assertIn("fillOpacity: root.design.sessionGlassOpacity", island)
+        # It hugs the cluster it frames instead of being sized from outside…
+        self.assertIn("userListView.y + faceInset - root.islandPadTop", island)
+        self.assertIn("prompts.y + promptBlock.y + promptBlock.height", island)
+        # …and keeps upstream's two anchor lines, which both greeters place their clock by.
+        self.assertIn("bottom: parent.verticalCenter", island)
+        self.assertIn("anchors.top: parent.verticalCenter", island)
+        # The face of the stock password row: one field, one key, the family's radius.
+        self.assertEqual(
+            island.count("Math.round(root.design.targetControl * root.sessionScale)"), 3)
+        self.assertEqual(
+            island.count("radius: Math.round((root.design.radiusControl + 2) * root.sessionScale)"), 2)
+        # Its motion is counted, never endless: one arrival, and an orbit of a stated
+        # number of turns. A machine left at a half-typed password keeps this screen up.
+        self.assertIn("loops: root.orbitTurns", island)
+        self.assertEqual(island.count("loops:"), 2)       # the orbit, and the notice's `loops: 1`
+        self.assertIn("root.orbit(1);", island)
+        self.assertIn("orbit(2);", island)
+        # The island signs itself (the login scene is another process and may be absent).
+        self.assertIn('source: "file:///usr/share/pixmaps/moos-logo.png"', island)
+
+        # The lock backdrop carries the session veil and the shared signature, and keeps
+        # upstream's fade machinery whole.
+        self.assertIn("MoUI.SessionSignature {", backdrop)
+        self.assertIn("anchors.left: parent.left", backdrop)
+        self.assertIn("anchors.top: parent.top", backdrop)
+        self.assertIn("wallpaperFader.design.sessionScrimTopOpacity", backdrop)
+        for upstream in ("FastBlur {", "id: wallpaperShader", 'name: "on"', 'name: "off"',
+                         "clock.shadow.opacity", "mainStack.opacity: 1"):
+            self.assertIn(upstream, backdrop)
+        # The login scene signs with the same component, in the same corner.
+        self.assertIn("MoUI.SessionSignature {", login)
+
+    def test_the_lock_screen_draws_no_second_clock_or_card(self) -> None:
+        """The fork this design replaced kept its own clock, card and images in the shell
+        package. Any of them returning means two clocks, or a card behind the island."""
+        for retired in ("MoOSClock.qml", "LockScreenUi.qml", "MainBlock.qml", "images"):
+            self.assertFalse((LOCK_ROOT / retired).exists(),
+                             f"{retired} is back in the lock screen overlay")
+        self.assertEqual(sorted(p.name for p in LOCK_ROOT.iterdir()), ["MediaControls.qml"])
+
+    def test_one_signature_component_signs_every_session_surface(self) -> None:
+        signature = (
+            ROOT / "system_files/usr/lib64/qt6/qml/org/moos/ui/SessionSignature.qml"
+        ).read_text(encoding="utf-8")
+        self.assertIn('source: "file:///usr/share/pixmaps/moos-logo.png"', signature)
+        self.assertIn('text: "MoOS"', signature)
+        # It reads nothing ambient: the caller supplies the ink.
+        self.assertNotIn("Kirigami", signature)
+        self.assertNotIn("Tokens", qml_code(signature))
+        self.assertNotIn("Animation", qml_code(signature))
+        users = {
+            "lock": BREEZE_COMPONENTS / "WallpaperFader.qml",
+            "login": LOGIN_ROOT / "main.qml",
+            "power": LNF_ROOT / "org.moos.ui2/contents/logout/Logout.qml",
+        }
+        for name, path in users.items():
+            text = qml_code(path.read_text(encoding="utf-8"))
+            self.assertEqual(text.count("MoUI.SessionSignature {"), 1, name)
+            self.assertNotIn('text: "MoOS"', text, f"{name} draws a second wordmark of its own")
+
+    def test_power_screen_borrows_the_session_clock_and_face(self) -> None:
+        logout = qml_code(
+            (LNF_ROOT / "org.moos.ui2/contents/logout/Logout.qml").read_text(encoding="utf-8")
         )
-        self.assertIn(
-            "anchors.right: lockScreenUi.rtl ? parent.right : undefined", lock
-        )
-        self.assertIn("IBM Plex Sans Arabic", lock_clock)
-        self.assertIn(
-            "Layout.preferredWidth: loginButton.Layout.preferredHeight * 1.28",
-            main_block,
-        )
-        self.assertIn("radius: sessionManager.design.radiusCard", main_block)
-        self.assertIn("width: parent.width * 0.30", main_block)
-        self.assertIn("width: parent.width * 0.42", main_block)
+        self.assertIn("import org.kde.breeze.components as SessionComponents", logout)
+        self.assertEqual(logout.count("SessionComponents.Clock {"), 1)
+        self.assertEqual(logout.count("SessionComponents.UserDelegate {"), 1)
+        # No private clock: one numeral system, one face, one date format.
+        for retired in ("nowTime", "nowDate", "toLocaleDateString", "Qt.formatTime"):
+            self.assertNotIn(retired, logout)
+        # The clock yields whole when the island leaves it no band, and keeps the
+        # working pose: this screen places it itself.
+        self.assertIn("visible: root.clockFits", logout)
+        self.assertIn("heroWhenIdle: false", logout)
 
 
 if __name__ == "__main__":

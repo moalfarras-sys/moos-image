@@ -1474,11 +1474,12 @@ install -d -m 0755 /usr/local/sbin
 
 # ── The Plasma shell overlay, first: the seam set reviewed for THIS Plasma ─────────
 #
-# MoOS replaces ten files inside plasma-desktop and plasma-workspace (the six below plus the
-# panel template and three breeze components). Each is a fork of upstream at ONE Plasma
+# MoOS replaces twelve files inside plasma-desktop and plasma-workspace (the five below plus
+# the panel template and six breeze components). Each is a fork of upstream at ONE Plasma
 # version, and the base tag moves by itself. Measured 2026-09-24 on Plasma 6.8 beta: upstream
-# rewrote LockScreenUi.qml/MainBlock.qml and removed VirtualKeyboardLoader, so MoOS's 6.7 lock
-# screen would not load — kscreenlocker's emergency locker on every machine, every gate green.
+# rewrote LockScreenUi.qml/MainBlock.qml and removed VirtualKeyboardLoader, so the 6.7 lock
+# screen MoOS then forked would not load — kscreenlocker's emergency locker on every machine,
+# every gate green. (Since 2026-10-05 MoOS no longer forks those two files at all; see below.)
 # plasma_seams.py selects the set reviewed for this Plasma (build_files/plasma-seams/), installs
 # it, refuses any replaced file whose upstream bytes changed since review and any modified
 # Plasma file rpm reports that is not registered, then loads the real greeter offscreen with no
@@ -1498,12 +1499,12 @@ python3 /ctx/plasma_seams.py build || {
 # black rectangle over the desktop with the widgets being arranged invisible
 # behind it. DesktopEditMode.qml carries the guard that fixes it.
 #
-# All six paths are owned by plasma-desktop, so a later dnf5 transaction can
+# Every one of these paths is owned by plasma-desktop, so a later dnf5 transaction can
 # restore stock Plasma over our bytes while every repo gate stays green. Assert
 # on the finished filesystem that each file is present AND still ours — a
 # reinstall puts upstream's content back at the very same path.
 #
-# The list held two of the six for as long as the other four existed, on this
+# The list once held two of the paths for as long as the others existed, on this
 # script and on build.sh alike: a rule added to one and not the other is the
 # invisible drift this repository has been bitten by before. It is now derived
 # from the tree by tests/test_plasma_shell_overlay.py, which checks BOTH
@@ -1513,8 +1514,6 @@ for _pair in \
     "/usr/share/plasma/shells/org.kde.plasma.desktop/contents/explorer/WidgetExplorer.qml:moosDesktopCustomizer" \
     "/usr/share/plasma/shells/org.kde.plasma.desktop/contents/views/DesktopEditMode.qml:softwareRendering" \
     "/usr/share/plasma/shells/org.kde.plasma.desktop/contents/views/Panel.qml:translucentMaterialOpacity" \
-    "/usr/share/plasma/shells/org.kde.plasma.desktop/contents/lockscreen/LockScreenUi.qml:MoOSClock" \
-    "/usr/share/plasma/shells/org.kde.plasma.desktop/contents/lockscreen/MainBlock.qml:org.moos.ui" \
     "/usr/share/plasma/shells/org.kde.plasma.desktop/contents/lockscreen/MediaControls.qml:org.moos.ui" \
     "/usr/share/plasma/shells/org.kde.plasma.desktop/contents/defaults:org.moos.ui2.wallpaper"
 do
@@ -1531,6 +1530,29 @@ do
     }
 done
 unset -v _pair _f _marker
+
+# ── …and the lock screen's two authentication files must be UPSTREAM's ────────
+#
+# The inverse of the gate above, for the two files MoOS used to fork and no longer
+# does. LockScreenUi.qml and MainBlock.qml carry the authenticator wiring, upstream
+# rewrites them every release, and a stale MoOS copy at either path is how a Plasma
+# update turns into the emergency locker. The MoOS lock screen is drawn by the breeze
+# components those files instantiate (SessionManagementScreen, WallpaperFader, Clock,
+# UserList, UserDelegate), so nothing MoOS may sit at these two paths: not from system_files,
+# not from a seam variant, not from a layer cached before the change.
+for _f in LockScreenUi.qml MainBlock.qml; do
+    _f="/usr/share/plasma/shells/org.kde.plasma.desktop/contents/lockscreen/${_f}"
+    [ -f "$_f" ] || {
+        echo "GATE FAIL: $_f is missing — kscreenlocker would fall back to its emergency locker."
+        exit 1
+    }
+    if grep -q -e "org.moos" -e "Moalfarras" "$_f"; then
+        echo "GATE FAIL: $_f is a MoOS fork. This file carries authentication and must be"
+        echo "           the one plasma-desktop ships; restyle the breeze components instead."
+        exit 1
+    fi
+done
+unset -v _f
 
 [ -x /usr/bin/moos-desktop-edit ] \
     || { echo "GATE FAIL: moos-desktop-edit missing; Customize Desktop would be a dead button"; exit 1; }

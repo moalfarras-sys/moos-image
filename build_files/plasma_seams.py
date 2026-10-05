@@ -3,9 +3,9 @@
 
 WHY THIS EXISTS (plan row P6.7)
 
-MoOS restyles Plasma by REPLACING ten files inside two Plasma packages (the shell package's lock
-screen, widget explorer, edit mode, defaults and panel template; three breeze components the login,
-lock and logout screens draw). Each replacement is a fork of the upstream file at one Plasma
+MoOS restyles Plasma by REPLACING twelve files inside two Plasma packages (the shell package's
+widget explorer, edit mode, panel, lock-screen media strip, defaults and panel template; six breeze
+components the login, lock and logout screens draw). Each replacement is a fork of the upstream file at one Plasma
 version. Nothing in the build knew which version: the survival gate proves MoOS's bytes are still
 there, which is exactly what goes wrong when upstream moves on.
 
@@ -15,6 +15,12 @@ instantiates that type, so on 6.8 kscreenlocker would print "Failed to load lock
 falling back to built-in locker" — every MoOS machine would get the emergency locker the day the
 base image moved to 6.8, while every gate stayed green. The mutable `kinoite-main:44` tag moves
 by itself; nobody would have had to touch this repository for it to happen.
+
+That measurement is also why, since 2026-10-05, MoOS forks neither of those two files: they carry
+the authenticator wiring and upstream rewrites them every release. The MoOS session design moved
+into the breeze components both greeters instantiate (SessionManagementScreen, WallpaperFader,
+Clock, UserList, UserDelegate, ActionButton), which carry no authentication, and the lock screen runs
+upstream's own LockScreenUi.qml and MainBlock.qml on whatever Plasma the base delivers.
 
 So this tool, run by build.sh and build-arm.sh after the last package transaction:
 
@@ -80,7 +86,9 @@ LOAD_FAILURES = (
 # Script errors count only when they come from a file MoOS owns: upstream is not MoOS's to judge
 # under an offscreen platform with no bus, but MoOS's own code must run clean there.
 SCRIPT_ERROR = re.compile(r"\b(TypeError|ReferenceError|Unable to assign)\b")
-MOOS_OWNED = re.compile(r"/lockscreen/|/org/kde/breeze/components/|/org/moos/")
+# The lock screen's own LockScreenUi.qml and MainBlock.qml are upstream's since 2026-10-05; the
+# one file MoOS still owns in that directory is the media strip.
+MOOS_OWNED = re.compile(r"/lockscreen/MediaControls\.qml|/org/kde/breeze/components/|/org/moos/")
 LOCKED = re.compile(r"^Locked at \d+")
 
 

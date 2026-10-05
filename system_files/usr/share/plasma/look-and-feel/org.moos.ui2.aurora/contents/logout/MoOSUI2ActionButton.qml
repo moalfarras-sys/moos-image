@@ -19,6 +19,7 @@
 import QtQuick
 import QtQuick.Controls as QQC2
 import QtQuick.Layouts
+import QtQuick.Window
 
 import org.kde.kirigami as Kirigami
 import org.moos.ui as MoUI
@@ -85,9 +86,16 @@ QQC2.AbstractButton {
 
     // The tile IS the control: glyph and caption share one surface, so the
     // whole footprint is interactive and the dock has real visual mass.
-    readonly property real keyHeight: Kirigami.Units.gridUnit * (control.subtle ? 3.1 : 6.2)
-    readonly property real keyWidth: Kirigami.Units.gridUnit * (control.subtle ? 10.4 : 8.6)
-    implicitWidth: keyWidth
+    // The session family's one size, from the window this tile is in.
+    readonly property real sessionScale: design.sessionScale(Window.width, Window.height)
+    readonly property real keyHeight: Kirigami.Units.gridUnit * (control.subtle ? 3.1 : 6.2) * sessionScale
+    readonly property real keyWidth: Kirigami.Units.gridUnit * (control.subtle ? 10.4 : 8.6) * sessionScale
+    // The way out is one line of words, and it must never be cut short: on a
+    // small screen the pill takes the width its caption needs.
+    readonly property real fittedWidth: control.subtle
+        ? Math.max(keyWidth, caption.implicitWidth + Kirigami.Units.gridUnit * 2)
+        : keyWidth
+    implicitWidth: fittedWidth
     implicitHeight: keyHeight
     padding: 0
     opacity: control.motionEnabled ? 0 : 1
@@ -134,7 +142,7 @@ QQC2.AbstractButton {
     background: null
 
     contentItem: Item {
-        implicitWidth: control.keyWidth
+        implicitWidth: control.fittedWidth
         implicitHeight: control.keyHeight
 
         // Accent bloom behind a lit or armed tile — still, never looping.
@@ -229,6 +237,7 @@ QQC2.AbstractButton {
                         : (control.destructive && control.lit ? control.accentA : control.ink)
                 }
                 QQC2.Label {
+                    id: caption
                     Layout.alignment: Qt.AlignHCenter
                     Layout.fillWidth: true
                     horizontalAlignment: Text.AlignHCenter
@@ -241,7 +250,8 @@ QQC2.AbstractButton {
                     // Plex carries both scripts so focus never swaps typefaces.
                     font.family: design.interfaceFamily
                     font.weight: control.subtle ? Font.Normal : Font.DemiBold
-                    font.pointSize: Kirigami.Theme.defaultFont.pointSize
+                    font.pointSize: Math.max(8, Math.round(Kirigami.Theme.defaultFont.pointSize
+                                                           * Math.min(1.3, control.sessionScale)))
                 }
             }
         }

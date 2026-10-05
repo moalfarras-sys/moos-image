@@ -26,7 +26,11 @@ Item {
     readonly property var design: MoUI.Tokens
 
     visible: instantiator.count > 0
-    implicitHeight: Kirigami.Units.gridUnit * 3
+    // The lock screen's Loader sizes itself from this whether or not the item
+    // is visible, so a fixed height reserved three grid units of nothing under
+    // the password row on every lock screen with no player running — and the
+    // session island, which hugs its content, drew that as an empty shelf.
+    implicitHeight: instantiator.count > 0 ? Kirigami.Units.gridUnit * 3 : 0
     implicitWidth: Kirigami.Units.gridUnit * 16
 
     Repeater {

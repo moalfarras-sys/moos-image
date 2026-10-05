@@ -180,6 +180,65 @@ Plasma Login Manager owns two intentional states: MoOS idle clock and password
 form. Its upstream ten-second timeout hides the form; therefore `ShowClock=true`
 is required. Any key/pointer action restores authentication immediately.
 
+### Login, lock and power — one session design
+
+The three session surfaces are one scene with one set of parts, and the parts are
+shared files, not look-alikes:
+
+| Part | Where it is on screen | The one file that draws it |
+| --- | --- | --- |
+| Scene | the family's wallpaper under the session veil (lighter while idle, the session scrim once the island is up) | lock: `org.kde.breeze.components/WallpaperFader.qml`; login: `org.moos.ui2.greeter`; power: `Logout.qml` |
+| Signature | emblem, wordmark and one accent stroke in the **leading** top corner | `org.moos.ui/SessionSignature.qml`, instantiated once by each scene |
+| Clock | top-centre, on the island's axis: ExtraLight time, accent colon, horizon cut, one date in the session locale and the clock's numerals | `org.kde.breeze.components/Clock.qml` |
+| Island | one glass plate, centred, that **hugs** what it frames; crest on its top edge, maker's mark on its bottom edge | lock and login: `SessionManagementScreen.qml`; power: `Logout.qml`, same material |
+| Face | accent ring and bloom; an initial on a two-tone disc when the account has no photo, on both doors. Up to five accounts stand in one centred row inside a wider island; more than that is upstream's carousel | `UserDelegate.qml`, `UserList.qml` |
+| Password row | field and key at one height and one radius; the key is flat accent under the scheme's paired ink | `SessionManagementScreen.qml` gives upstream's stock controls this face |
+| Action keys | below the island, never inside it | `ActionButton.qml`; power: `MoOSUI2ActionButton.qml` |
+
+Rules that follow from it:
+
+- **One size.** Every session component multiplies its metrics by
+  `Tokens.sessionScale(width, height)` of the window it is in: 1.0 on the reference
+  1536×864 desktop, 1.25 at 1080 logical pixels of height, capped at 1.6, floored
+  at 0.6, held by width on a portrait or narrow window. The clock, the island, the
+  faces and the keys grow and shrink together; nothing has a private formula. That
+  is what keeps a 640×480 firmware mode and a 1080p monitor at 100% the same
+  composition as the station.
+- **Two poses.** With nobody at the keyboard the screen is a cover: the clock is its
+  headline, up to half as large again, standing low in its band. At the first key
+  or movement the clock draws back and rises, and the island arrives under it: the
+  plate settles with a small overshoot, then the face, the prompts and the action
+  keys, as slices of one finite driver.
+- **The frame.** The selected face stands in a ring of the accent's two tones, a
+  hair's width off the picture, over a still bloom. A photo sits in it like a stone
+  in a bezel. A face without a photo is its initial on a two-tone disc.
+- **The orbit.** When the island arrives a light runs round its rim and round the
+  face's frame, twice; a typed character sends it round once more; then it docks
+  in the crest and is no longer drawn. It is always a counted number of turns,
+  never a loop: a machine left at a half-typed password keeps this screen up
+  indefinitely. Measured on the station (NVIDIA, 3840×2160@2.5): 0.3% of a core as
+  a cover, 6.5% while the orbit turns, 0.0% once it has docked.
+- **The key answers.** The Unlock/Log In key is glass until its field holds
+  something, then fills with the accent and its arrow leans forward. A refusal
+  flashes the island's rim once in the negative role, with the notice.
+- Nothing shares the top-centre with the clock, and nothing sits on the island's
+  top edge but its crest. The brand mark is in its corner and on the island's
+  lower edge.
+- The island is sized from its content, never from outside.
+- Session surfaces wear the Complementary set in every family, light ones included:
+  the island is deliberate dark glass.
+- With animations off nothing moves: the clock keeps its working pose's size rules,
+  the arrival driver rests at 1 and the orbit refuses to start.
+- MoOS replaces no file that carries authentication. The session design is drawn by
+  the breeze components; see `build_files/plasma-seams/README.md`.
+
+Review any change with `scripts/station/session-review/review.sh`, at 640×480 and
+at the station's 1536×864@2.5 at least, in Arabic and one left-to-right language,
+with the password row idle, typed into and refused. `frames=` and `motion=6` capture an
+arrival as a sequence; a live look on the station's own GPU is one transient unit away
+(`kscreenlocker_greet --testing` with a private `QML_IMPORT_PATH`), and is where the
+orbit's cost is measured.
+
 ### Panel and launcher
 
 The configured floating bar remains a capsule beside maximized windows. Glass

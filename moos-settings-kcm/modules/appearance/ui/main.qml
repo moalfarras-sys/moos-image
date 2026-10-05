@@ -782,5 +782,35 @@ KCM.SimpleKCM {
                 onClicked: root.open("moos://settings/fonts")
             }
         }
+
+        // ── The screens before the desktop ─────────────────────────────────────────────
+        // The lock screen follows the theme chosen above by itself. The login screen is
+        // drawn before anyone has signed in, so it has its own page (and its own
+        // administrator's confirmation); both wear the same MoOS session design.
+        FormCard.FormHeader {
+            maximumWidth: root.cardWidth
+            title: root.t("شاشات القفل والدخول", "Lock and login screens")
+        }
+        FormCard.FormCard {
+            maximumWidth: root.cardWidth
+
+            MoosActionRow {
+                glyph: "lock"
+                text: root.t("شاشة القفل", "Lock screen")
+                description: root.t("متى تُقفل الشاشة، وهل تظهر الساعة وأزرار الوسائط. خلفيتها تتبع السمة.",
+                                    "When the screen locks, and whether the clock and media controls show. Its wallpaper follows the theme.")
+                enabled: !root.busy && root.nativeAvailable("lock")
+                onClicked: root.open("moos://settings/lock")
+            }
+            FormCard.FormDelegateSeparator {}
+            MoosActionRow {
+                glyph: "user"
+                text: root.t("شاشة الدخول", "Login screen")
+                description: root.t("خلفية شاشة الدخول والساعة، ومطابقتها لسطح مكتبك.",
+                                    "The login screen's wallpaper and clock, and matching it to your desktop.")
+                enabled: !root.busy && root.nativeAvailable("login-screen")
+                onClicked: root.open("moos://settings/login-screen")
+            }
+        }
     }
 }
