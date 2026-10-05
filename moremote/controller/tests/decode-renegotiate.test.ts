@@ -35,7 +35,7 @@ class FakeChunk {
 Object.defineProperty(globalThis, "VideoDecoder", { configurable: true, value: FakeDecoder });
 Object.defineProperty(globalThis, "EncodedVideoChunk", { configurable: true, value: FakeChunk });
 
-const { H264Stream } = await import("../src/lib/decode.ts");
+const { H264Stream, JpegStream } = await import("../src/lib/decode.ts");
 
 // Annex-B building blocks. The SPS payloads differ only PAST the three bytes the
 // codec string is read from — exactly the shape of a resolution-only change.
@@ -139,9 +139,90 @@ FakeDecoder.instances[1].opts.error(new Error("EncodingError: Decoder failure"))
 assert.equal(flaky.length, 1, "a repeat inside the window is a real failure and votes for JPEG");
 
 FakeDecoder.instances.length = 0;
+const freshFailures: string[] = [];
+const fresh = new H264Stream(() => {}, why => freshFailures.push(why), () => {});
+fresh.push(au(sps(0x41), idr));
+FakeDecoder.instances.at(-1)!.opts.error(new Error("EncodingError: old source"));
+fresh.restart();
+fresh.push(au(sps(0x41), idr));
+FakeDecoder.instances.at(-1)!.opts.error(new Error("EncodingError: new source"));
+assert.deepEqual(freshFailures, [], "a retired source's error must not spend the fresh source's recovery budget");
+fresh.push(au(sps(0x41), idr));
+FakeDecoder.instances.at(-1)!.opts.error(new Error("EncodingError: repeat on new source"));
+assert.equal(freshFailures.length, 1, "repeated errors within the same source still fall back");
+
+FakeDecoder.instances.length = 0;
 const refused: string[] = [];
 const unsupportedLate = new H264Stream(() => {}, why => refused.push(why), () => {});
 unsupportedLate.push(au(sps(0x41), idr));
 FakeDecoder.instances[0].opts.error({ toString: () => "NotSupportedError: Decoder creation failed" } as Error);
 assert.equal(refused.length, 1, "a codec the browser refuses is not retried as a resync");
 console.log("PASS: a decode error resyncs on a keyframe first and only a repeat falls back to JPEG");
+
+// Reproduce a decoder that consumes access units without output or an error.
+// Pongs and a zero decodeQueueSize both look healthy in this failure mode.
+let clock = 10000;
+const originalPerformance = globalThis.performance;
+Object.defineProperty(globalThis, "performance", {configurable: true, value: {now: () => clock}});
+try {
+  FakeDecoder.instances.length = 0;
+  const failures: string[] = [];
+  let requests = 0;
+  const silent = new H264Stream(() => {}, why => failures.push(why), () => requests++);
+  silent.push(au(sps(0x51), idr));
+  const frozen = FakeDecoder.instances[0];
+  clock += 2999;
+  silent.push(au(delta));
+  assert.equal(frozen.closed, false, "a brief decode delay must not restart the stream");
+  clock++;
+  silent.push(au(delta));
+  assert.equal(frozen.closed, true, "silent output starvation must retire even an empty decoder queue");
+  assert.equal(requests, 1);
+  silent.push(au(delta));
+  assert.equal(requests, 1, "recovery must not request an IDR for every arriving delta");
+  clock += 1000;
+  silent.push(au(delta));
+  assert.equal(requests, 2, "a lost recovery IDR must be requested again without a reconnect");
+  silent.push(au(sps(0x51), idr));
+  const recovered = FakeDecoder.instances[1];
+  clock += 2000;
+  recovered.opts.output({close: () => {}});
+  clock += 2000;
+  silent.push(au(delta));
+  assert.equal(recovered.closed, false, "actual decoded output refreshes the progress deadline");
+  assert.deepEqual(failures, [], "silent recovery must keep the low-bandwidth H.264 codec");
+  silent.reset();
+} finally {
+  Object.defineProperty(globalThis, "performance", {configurable: true, value: originalPerformance});
+}
+console.log("PASS: silent decoder stalls recover on an IDR with bounded retries and no JPEG vote");
+
+// A slow image decode from before suspension must not paint over the recovered
+// picture, or release the replacement generation's in-flight queue.
+const jobs: {buf: ArrayBuffer; resolve: (frame: any) => void; reject: () => void}[] = [];
+const shown: unknown[] = [];
+const jpeg = new JpegStream(frame => shown.push(frame), buf => new Promise((resolve, reject) => {
+  jobs.push({buf, resolve, reject: () => reject(new Error("bad image"))});
+}));
+const first = au([1]), obsolete = au([2]), current = au([3]), latest = au([4]);
+jpeg.push(first); jpeg.push(obsolete);
+jpeg.reset(); jpeg.push(current); jpeg.push(latest);
+let staleClosed = false;
+jobs[0].resolve({close: () => { staleClosed = true; }});
+await Promise.resolve();
+assert.equal(staleClosed, true, "a retired JPEG result must release its image bitmap");
+assert.deepEqual(shown, [], "a retired JPEG must never overwrite the replacement picture");
+assert.equal(jobs.length, 2, "a retired completion cannot unlock the new decode queue");
+const newFrame = {close: () => {}};
+jobs[1].resolve(newFrame);
+await Promise.resolve();
+assert.deepEqual(shown, [newFrame]);
+assert.equal(jobs[2].buf, latest, "the replacement generation retains its latest waiting picture");
+jpeg.push(obsolete);
+jobs[2].reject();
+await Promise.resolve();
+assert.equal(jobs[3].buf, obsolete, "a rejected image decode cannot leave later frames frozen");
+jpeg.reset();
+jobs[3].resolve(null);
+await Promise.resolve();
+console.log("PASS: async JPEG results cannot cross hide/reconnect generations or wedge the frame queue");

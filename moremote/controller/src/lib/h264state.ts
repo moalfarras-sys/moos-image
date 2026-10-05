@@ -34,7 +34,9 @@
  * times that it cannot hold the stream settles on a picture that works.
  */
 
-const KEY = "h264Failures";
+// A verdict from the retired decoder cannot condemn this recovery implementation.
+// Socket reconnects and page reloads of this revision still share the same bounded budget.
+const KEY = "h264Failures:stream-v51";
 // Storage can throw in private contexts. The current tab still needs one retry budget shared
 // by the decoder and every replacement WebSocket, even when persistence is unavailable.
 let localFailures = 0;

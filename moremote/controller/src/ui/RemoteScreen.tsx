@@ -2,15 +2,16 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { RemoteConnection } from "../lib/ws";
 import { GestureController } from "../lib/gestures";
 import { DesktopInput } from "../lib/desktop";
+import { Touchpad } from "./Touchpad";
 import {normalizeContentPoint, normalizeRotatedPoint, projectPoint} from "../lib/coordinates";
-import { decodeJpeg, drawableSize, closeDrawable, canDecodeH264, H264Stream, type Drawable } from "../lib/decode";
+import { drawableSize, closeDrawable, canDecodeH264, H264Stream, JpegStream, type Drawable } from "../lib/decode";
 import {
   getClipboard, setClipboard, setClipboardImage, listFiles, fileDownloadUrl, audioStreamUrl, uploadFile, powerAction,
   listTrustedDevices, revokeTrustedDevice, SessionExpiredError,
   type ClipResult, type FileListing, type FileEntry, type PowerAction, type TrustedDeviceInfo,
 } from "../lib/api";
 import { pickStartPreset, readDeviceHints, describeHints, encodeWidth, autoPresetLimit,
-  presetEncodeCeiling, ladderTick, LADDER, WEAK_LINK, type HostEncode } from "../lib/quality";
+  presetEncodeCeiling, ladderTick, sampleDetailProbe, LADDER, WEAK_LINK, type HostEncode } from "../lib/quality";
 import { h264Failures, noteH264Failure, H264_MAX_FAILURES } from "../lib/h264state.ts";
 import { diffToOps } from "../lib/typing.ts";
 import { remoteAlertPermission, requestRemoteAlertPermission, showRemoteAlert } from "../lib/notifications";
@@ -335,12 +336,19 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired, l
   const audioFailsRef = useRef(0);
 
   const frameRef = useRef<Drawable | null>(null);
-  const decodingRef = useRef(false);
-  const pendingRef = useRef<ArrayBuffer | null>(null);
+  const jpegRef = useRef<JpegStream | null>(null);
+  const watchingRef = useRef(!document.hidden);
+  const [workspace, setWorkspace] = useState<"screen" | "touchpad" | "keyboard">("screen");
+  const workspaceRef = useRef(workspace);
+  workspaceRef.current = workspace;
   // What the agent is sending right now. A ref because the frame handler runs outside React's
   // render and must never route a frame to the decoder we have just left.
   const codecRef = useRef<"jpeg" | "h264">("jpeg");
   const h264Ref = useRef<H264Stream | null>(null);
+  const resetVideo = useCallback(() => {
+    jpegRef.current?.reset();
+    h264Ref.current?.reset();
+  }, []);
   /**
    * How many times we have re-offered H.264 after a decode failure, and the pending re-offer.
    *
@@ -374,6 +382,12 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired, l
   const view = useRef({ zoom: 1, panX: 0, panY: 0 });
   const fpsCount = useRef(0);
   const lastVal = useRef("");
+  const [secureTyping, setSecureTyping] = useState(false);
+  const [secureKeyboardAvailable, setSecureKeyboardAvailable] = useState(false);
+  const secureTypingRef = useRef(false);
+  const [hostLocked, setHostLocked] = useState<boolean | null>(null);
+  const hostLockedRef = useRef<boolean | null>(null);
+  secureTypingRef.current = secureTyping || hostLocked === true;
   const composingRef = useRef(false);
   const compositionStartRef = useRef("");
   const cursorNorm = useRef({ x: 0.5, y: 0.5 });
@@ -436,6 +450,9 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired, l
   }, []);
   const [mods, setMods] = useState<Set<string>>(new Set());
   const [fps, setFps] = useState(0);
+  const decodedAtRef = useRef(0);
+  const receivedAtRef = useRef(0);
+  const detailProbeRef = useRef({ good: 0, bad: 0, responsive: false });
   const [latency, setLatency] = useState(0);
   const [toast, setToast] = useState<string | null>(null);
   const [toolbar, setToolbar] = useState(true);
@@ -841,19 +858,13 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired, l
       if (disposed) { closeDrawable(d); return; }
       const old = frameRef.current;
       frameRef.current = d;
+      decodedAtRef.current = performance.now();
       fpsCount.current++;
       drawEpochRef.current++;   // a new picture is the whole point of repainting
       closeDrawable(old);
     };
 
-    const decodeNext = async (buf: ArrayBuffer) => {
-      decodingRef.current = true;
-      const d = await decodeJpeg(buf);
-      if (d) show(d);
-      decodingRef.current = false;
-      const next = pendingRef.current; pendingRef.current = null;
-      if (next) decodeNext(next);
-    };
+    jpegRef.current = new JpegStream(show);
 
     // H.264 decodes synchronously into the decoder's own output callback — there is no promise to
     // await and no "still decoding" state to guard, because the frames must go in IN ORDER and the
@@ -897,9 +908,13 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired, l
     // suspended; the visibility handler resumes it when it is actually seen.
     if (document.hidden) h264.suspend();
     h264Ref.current = h264;
+    let videoSequence: number | undefined;
 
     const conn = new RemoteConnection(token, {
       onHello: (h) => {
+        // A replacement connection starts a new encoder history even if its
+        // codec and dimensions match. Neither decoder may carry old work over.
+        resetVideo();
         latRef.current = 0; latAtRef.current = 0;
         connectionEstablishedRef.current = true;
         connectionAlertedRef.current = false;
@@ -908,6 +923,9 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired, l
         setMonitors(h.monitors ?? []);
         setSelMonitor(h.monitor ?? 0);
         setInputOk(!!h.input?.ready);
+        setSecureKeyboardAvailable(h.input?.secureText === true);
+        hostLockedRef.current = h.hostLocked ?? null;
+        setHostLocked(hostLockedRef.current);
         setClipboardOk(!!h.clipboard?.ready);
         cursorEmbeddedRef.current = h.cursorEmbedded === true;
         if (cursorRef.current) cursorRef.current.hidden = cursorEmbeddedRef.current;
@@ -925,20 +943,31 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired, l
       },
       onStatus: (paused) => setStatus(paused ? "paused" : "live"),
       onFrame: (buf) => {
+        if (!watchingRef.current || document.hidden) return;
+        receivedAtRef.current = performance.now();
         if (codecRef.current === "h264") { h264Ref.current?.push(buf); return; }
-        if (decodingRef.current) pendingRef.current = buf; else decodeNext(buf);
+        jpegRef.current?.push(buf);
       },
-      onCodec: (codec) => {
-        if (codec === codecRef.current) return;
+      onCodec: (codec, sequence) => {
+        if (codec === codecRef.current && sequence === videoSequence) return;
+        videoSequence = sequence;
         codecRef.current = codec;
         // Whatever is half-decoded belongs to the codec we just left.
-        h264Ref.current?.reset();
-        pendingRef.current = null;
+        resetVideo();
+        h264.restart();
         setCodec(codec);
       },
       onStopped: () => setStatus("stopped"),
       onAuthFail: () => onAuthExpired(),
       onClose: (willReconnect) => {
+        detailProbeRef.current = { good: 0, bad: 0, responsive: false };
+        decodedAtRef.current = 0; receivedAtRef.current = 0;
+        if (secureTypingRef.current) {
+          if (inputRef.current) inputRef.current.value = "";
+          lastVal.current = "";
+          compositionStartRef.current = "";
+        }
+        resetVideo();
         latRef.current = 0; latAtRef.current = 0;
         gestureRef.current?.cancelAll();
         desktopRef.current?.releaseAll();
@@ -958,6 +987,13 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired, l
       onIdle: () => setStatus("idle"),
       onScreen: (avail) => setScreenOk(avail),
       onInputState: (ready,error) => { setInputOk(ready); if(error)showToast(`${tr("inputPrefix")} ${error}`); },
+      onHostState: locked => {
+        if (hostLockedRef.current === true && locked !== true) {
+          if (inputRef.current) inputRef.current.value = "";
+          lastVal.current = ""; compositionStartRef.current = "";
+        }
+        hostLockedRef.current = locked; setHostLocked(locked);
+      },
     }, () => {
       // Geometry for every input event. Returning {} here is not harmless: the agent's
       // ValidateEnvelope REQUIRES content and source on every absolute event and silently rejects
@@ -991,6 +1027,7 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired, l
         canvas:{left:r.left,top:r.top,width:r.width,height:r.height}, source:src };
     });
     connRef.current = conn;
+    conn.setWatching(watchingRef.current && !document.hidden);
     conn.connect();
 
     const gest = new GestureController(canvas, toNorm, () => view.current.zoom, {
@@ -1128,6 +1165,8 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired, l
       h264RetryTimer.current = null;
       h264Ref.current?.reset();
       h264Ref.current = null;
+      jpegRef.current?.reset();
+      jpegRef.current = null;
       cancelAnimationFrame(raf);
       window.clearInterval(fpsTimer);
       if (gestureHintTimer) window.clearTimeout(gestureHintTimer);
@@ -1176,36 +1215,38 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired, l
    * is far cheaper than waiting up to a full GOP staring at a frozen picture.
    */
   useEffect(() => {
-    const onVis = () => {
+    const onHide = () => {
+      detailProbeRef.current = { good: 0, bad: 0, responsive: false };
+      decodedAtRef.current = 0; receivedAtRef.current = 0;
+      watchingRef.current = false;
+      connRef.current?.setWatching(false);
+      resetVideo();
+      h264Ref.current?.suspend();
+      gestureRef.current?.cancelAll();
+      desktopRef.current?.releaseAll();
+    };
+    const onShow = () => {
+      // pageshow can be delivered while another tab is still in front.
+      if (document.hidden) return;
+      watchingRef.current = workspaceRef.current !== "touchpad";
+      if (watchingRef.current) h264Ref.current?.resume();
       const conn = connRef.current;
       if (!conn) return;
-      if (document.hidden) {
-        conn.setWatching(false);
-        h264Ref.current?.suspend();
-        pendingRef.current = null;
-      } else {
-        latRef.current = 0; latAtRef.current = 0;
-        h264Ref.current?.resume();
-        conn.setWatching(true);
-        conn.requestKeyframe();
-        // iOS suspends the PWA whole while it is away, and the server has usually aborted the
-        // socket by the time we return — but the phone's own object still reads OPEN. Probe it:
-        // proof of life within 2s or it is closed and the reconnect runs NOW, instead of the
-        // user staring at a frozen desktop for the full stall watchdog.
-        conn.probe();
-        // The canvas still holds the last frame from before, and the first new one may be a moment
-        // away; repaint so the letterboxing is right for whatever size we came back at.
-        drawEpochRef.current++;
-      }
+      latRef.current = 0; latAtRef.current = 0;
+      conn.setWatching(watchingRef.current);
+      if (watchingRef.current) conn.requestKeyframe();
+      // iOS suspends the PWA whole while it is away, and the server has usually aborted the
+      // socket by the time we return — but the phone's own object still reads OPEN. Probe it:
+      // proof of life within 2s or it is closed and the reconnect runs NOW, instead of the
+      // user staring at a frozen desktop for the full stall watchdog.
+      conn.probe();
+      // The canvas still holds the last frame from before, and the first new one may be a moment
+      // away; repaint so the letterboxing is right for whatever size we came back at.
+      drawEpochRef.current++;
     };
+    const onVis = () => document.hidden ? onHide() : onShow();
     // iOS fires pagehide rather than visibilitychange when Safari is backgrounded from the app
     // switcher. Same intent, different name; both are wired, and both are removed.
-    const onHide = () => { h264Ref.current?.suspend(); connRef.current?.setWatching(false); };
-    const onShow = () => {
-      if (document.hidden) return;            // a pageshow for a page that is still not visible
-      h264Ref.current?.resume();
-      connRef.current?.setWatching(true); connRef.current?.requestKeyframe(); connRef.current?.probe();
-    };
     document.addEventListener("visibilitychange", onVis);
     window.addEventListener("pagehide", onHide);
     window.addEventListener("pageshow", onShow);
@@ -1316,10 +1357,27 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired, l
     // remote currently thinks is held, so switching modes mid-drag cannot leave a button down.
     const desk = desktopRef.current;
     if (!desk) return;
-    if (mode === "desktop" && !sheet && !powerConfirm && !kbOpen && status === "live")
+    if (workspace !== "touchpad" && mode === "desktop" && !sheet && !powerConfirm && !kbOpen && status === "live")
       desk.attach();
     else desk.detach();
-  }, [mode, sheet, powerConfirm, kbOpen, status]);
+  }, [mode, sheet, powerConfirm, kbOpen, status, workspace]);
+
+  useEffect(() => {
+    gestureRef.current?.cancelAll();
+    desktopRef.current?.releaseAll();
+    watchingRef.current = workspace !== "touchpad" && !document.hidden;
+    connRef.current?.setWatching(watchingRef.current);
+    connRef.current?.setInputMode(workspace === "touchpad" ? "trackpad" : mode);
+    if (watchingRef.current) {
+      h264Ref.current?.resume();
+      connRef.current?.requestKeyframe();
+    } else {
+      detailProbeRef.current = { good: 0, bad: 0, responsive: false };
+      decodedAtRef.current = 0; receivedAtRef.current = 0;
+      resetVideo();
+      h264Ref.current?.suspend();
+    }
+  }, [workspace]);
 
   // The bar stays painted while a sheet is open, so its hide timer must not keep running behind
   // it — otherwise reading the quality presets or dragging a sensitivity slider always outlives
@@ -1536,7 +1594,8 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired, l
    * says 720p still gets Sharp, because a preset button that quietly does nothing is a defect.
    */
   const autoMaxPreset = () => autoPresetLimit(QUALITY_PRESETS, hostEncodeRef.current,
-                                             AUTO_MAX_PRESET, deviceHints);
+    AUTO_MAX_PRESET, deviceHints, detailProbeRef.current.responsive,
+    view.current.zoom > 1.2 || viewModeRef.current === "actual" || displayWidthPx() >= 1400);
 
   /** The last width we asked for, and when — the dead band and the floor that protect the helper. */
   const lastPushedWidth = useRef(0);
@@ -1628,13 +1687,21 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired, l
       // Injection bursts (typing, drags) load the compositor and briefly inflate
       // RTT. That is the session working, not the network failing — stepping the
       // picture down on it is why quality cratered exactly while typing.
-      if (Date.now() - inputBurstAtRef.current < 1500) return;
       // A suspended page or a socket between connections has no pongs for reasons that are not
       // the link; its silence must not be read as a collapse.
-      if (document.hidden || !connRef.current?.open) return;
+      if (document.hidden || !connRef.current?.open || !watchingRef.current) return;
       const pongAge = latAtRef.current ? performance.now() - latAtRef.current : 0;
+      sampleDetailProbe(detailProbeRef.current, latRef.current, pongAge,
+        Math.max(0, receivedAtRef.current - decodedAtRef.current),
+        decodedAtRef.current > 0 && performance.now() - decodedAtRef.current < LADDER.PONG_STALE_MS);
+      // Ordinary interaction jitter is not congestion. A stale/severe pong
+      // must still relieve the stream even while the owner is typing.
+      if (Date.now() - inputBurstAtRef.current < 1500 &&
+          latRef.current < LADDER.SEVERE_MS && pongAge < LADDER.PONG_STALE_MS) return;
+      const cap = autoMaxPreset();
+      if (presetIdxRef.current > cap) { setPresetIdx(cap); return; }
       const move = ladderTick(autoStateRef.current, latRef.current, pongAge, Date.now(),
-                              presetIdxRef.current, autoMaxPreset(), weakRef.current);
+                              presetIdxRef.current, cap, weakRef.current);
       if (move === "down") setPresetIdx((idx) => Math.max(0, idx - 1));
       else if (move === "up") setPresetIdx((idx) => Math.min(autoMaxPreset(), idx + 1));
       else if (move === "weak") { weakRef.current = true; setWeak(true); showToast(tr("weakLinkOn")); }
@@ -1714,6 +1781,13 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired, l
   };
 
   // ---------- keyboard ----------
+  useEffect(() => {
+    // The owner can open the keyboard before the first host-state reply.
+    // Prepare the real prompt once both that reply and native input are ready.
+    if (kbOpen && hostLocked === true && secureKeyboardAvailable && status === "live") {
+      connRef.current?.keyTap("Shift");
+    }
+  }, [kbOpen, hostLocked, secureKeyboardAvailable, status]);
   // A real visible input. Tapping it raises the iOS keyboard; we diff its value so typing
   // AND Backspace both work (the field must hold text for iOS to fire delete events).
   const openKeyboard = () => {
@@ -1800,7 +1874,10 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired, l
   const onInput = (event: React.FormEvent<HTMLInputElement>) => {
     const el = event.currentTarget, v = el.value, last = lastVal.current;
     const c = connRef.current;
-    if (!c?.open) return; // retain the local draft until authenticated recovery
+    if (!c?.open) {
+      if (secureTypingRef.current) { el.value = ""; lastVal.current = ""; }
+      return;
+    }
     if (composingRef.current || (event.nativeEvent as InputEvent).isComposing) return;
     inputBurstAtRef.current = Date.now();
     if (mods.size > 0 && v.startsWith(last) && v.length > last.length) {
@@ -1823,14 +1900,25 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired, l
     const c = connRef.current;
     if (!c) return;
     for (const op of diffToOps(before, after)) {
-      if (op.t === "text") c.text(op.v);
+      if (op.t === "text") {
+        if (secureTypingRef.current) {
+          if (!c.secretText(op.v)) showToast(tr("secureTypingUnavailable"));
+        }
+        else c.text(op.v);
+      }
       else for (let i = 0; i < op.n; i++) c.keyTap(op.k);
     }
   };
   const onCompositionEnd = (_e: React.CompositionEvent<HTMLInputElement>) => {
     if (!composingRef.current) return; // a shortcut or reconnect retired this composition
     composingRef.current = false;
-    if (!connRef.current?.open) return; // hello commits the retained draft
+    if (!connRef.current?.open) {
+      if (secureTypingRef.current) {
+        if (inputRef.current) inputRef.current.value = "";
+        lastVal.current = ""; compositionStartRef.current = "";
+      }
+      return;
+    }
     const after = inputRef.current?.value ?? "";
     const before = compositionStartRef.current;
     // WAS: `after.startsWith(before) ? after.slice(before.length) : e.data`, which is correct only
@@ -1910,19 +1998,39 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired, l
     } finally { setClipboardBusy(""); }
   };
   const pasteFromDevice = async () => {
-    if (!connRef.current?.open) { showToast(tr("reconnectingStatus")); return; }
+    const connection = connRef.current;
+    if (!connection?.open) { showToast(tr("reconnectingStatus")); return; }
+    const version = connection.connectionVersion;
+    const secret = secureTypingRef.current;
+    const manualPaste = () => {
+      if (secret || secureTypingRef.current) {
+        setSheet(null); setWorkspace("keyboard"); openKeyboard();
+      } else setSheet("clip");
+      showToast(tr("pastePhoneManually"));
+    };
     // readText must be called from this tap, not after opening a sheet. A
     // denied/unavailable browser API opens the editable manual-paste path.
     if (!window.isSecureContext || !navigator.clipboard?.readText) {
-      setSheet("clip"); showToast(tr("pastePhoneManually")); return;
+      manualPaste(); return;
     }
     let text: string;
     try {
       text = await navigator.clipboard.readText();
     } catch {
-      setSheet("clip"); showToast(tr("pastePhoneManually")); return;
+      manualPaste(); return;
     }
-    if (!text) { setSheet("clip"); showToast(tr("pastePhoneManually")); return; }
+    if (secret || secureTypingRef.current) {
+      // Reading the phone clipboard may outlive a connection or an unlock.
+      // Never publish a password to the PC clipboard, or deliver it later.
+      if (connRef.current !== connection || connection.connectionVersion !== version ||
+          (secret && !secureTypingRef.current)) {
+        showToast(tr("secureTypingUnavailable")); return;
+      }
+      resetTypingContext();
+      if (!connection.secretText(text)) { showToast(tr("secureTypingUnavailable")); return; }
+      showToast(tr("textTypedPc")); return;
+    }
+    if (!text) { manualPaste(); return; }
     setClipboardBusy(tr("sendingPastingText"));
     try {
       await setClipboard(token, text); // confirmed on the PC before Ctrl+V
@@ -2046,15 +2154,6 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired, l
 
   // ---------- toolbar actions ----------
   const c = () => connRef.current;
-  const cycleMode = () => {
-    // Walks the three real models. "direct" is a variant of touch (the one-finger-drag
-    // switch in the Controls sheet), so cycling into it here would step through a state
-    // the toolbar has no way to explain.
-    const order: GestureMode[] = ["touch", "trackpad", "desktop"];
-    const cur = mode === "direct" ? "touch" : mode;
-    const next = order[(order.indexOf(cur) + 1) % order.length];
-    setMode(next); showToast(`${tr("modePrefix")} ${modeName(next)}`);
-  };
   const taskMgr = () => { c()?.combo(["Control", "Shift", "Escape"]); showToast(tr("taskManagerSafe")); };
 
   // ---------- sound ----------
@@ -2292,7 +2391,7 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired, l
   // Healthy means: there is nothing to tell the user. The bar collapses to a dot, and hides with
   // the toolbar. Tapping it opens the numbers (fps / latency / mode) for anyone who wants them;
   // anything actually broken overrides both and keeps the bar open until it is fixed.
-  const healthy = status === "live" && screenOk && inputOk && clipboardOk;
+  const healthy = status === "live" && (workspace === "touchpad" || screenOk) && inputOk && clipboardOk;
   const compactBar = healthy && !statsOpen;
 
   return (
@@ -2306,9 +2405,13 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired, l
     //
     // The chrome now owns a separate grid track, keeps the stage geometry stable, and is summoned
     // deliberately by the safe 48px .show-tab handle rendered only while the controls are hidden.
-    <div className={"remote" + (mode === "desktop" ? " mouse-mode" : "")}>
+    <div className={"remote workspace-" + workspace + (mode === "desktop" ? " mouse-mode" : "")}>
       <main className="remote-stage" aria-label={tr("remoteMoosDesktopAria")}>
-      <canvas ref={canvasRef} className="screen-canvas" tabIndex={0} aria-label={tr("screen")} />
+      <canvas ref={canvasRef} className="screen-canvas" tabIndex={workspace === "touchpad" ? -1 : 0}
+        aria-hidden={workspace === "touchpad"} aria-label={tr("screen")} />
+      {workspace === "touchpad" && <Touchpad connection={() => connRef.current}
+        enabled={status === "live" && inputOk && !sheet} sensitivity={mouseSensitivity}
+        scrollSensitivity={scrollSensitivity} naturalScroll={naturalScroll} tr={tr} />}
       {/* The server's sound, on this same origin. Never `autoPlay` — the browser would refuse it
           without a gesture and the refusal is indistinguishable from the stream being broken. */}
       <audio ref={audioRef} hidden />
@@ -2351,7 +2454,7 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired, l
         {!compactBar && (
           <>
             <b>{statusInfo.text}</b>
-            {!screenOk && <span className="bad">· {tr("noVideo")}</span>}
+            {workspace !== "touchpad" && !screenOk && <span className="bad">· {tr("noVideo")}</span>}
             {!inputOk && <span className="bad">· {tr("noInput")}</span>}
             {!clipboardOk && <span className="bad">· {tr("noClipboard")}</span>}
             {status === "live" && <span>· {fps}fps · {latency}ms · {codec === "h264" ? "H.264" : "JPEG"} · {modeName(mode)}</span>}
@@ -2419,15 +2522,20 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired, l
         </div>
       )}
 
-      {!screenOk && status === "live" && (
+      {hostLocked === true && status === "live" && (
+        <div className="host-lock-note" role="status" aria-live="polite">
+          <IconLock />
+          <div><b>{tr("hostLockedTitle")}</b><span>{tr("hostLockedHint")}</span></div>
+          {!kbOpen && <button className="btn" disabled={!secureKeyboardAvailable}
+            onClick={() => { setWorkspace("keyboard"); openKeyboard(); }}>{tr("secureTyping")}</button>}
+        </div>
+      )}
+      {!screenOk && status === "live" && workspace !== "touchpad" && hostLocked !== true && (
         <div className="session-state recovery" role="status">
           <div className="state-icon"><IconLock /></div>
           <div className="state-copy">
             <b>{tr("notSharing")}</b>
-            <span>
-              Unlock the computer or wake its display, then reconnect. To keep it reachable, enable
-              <b> “Never lock — stay reachable”</b> from Mo PC Remote on the computer.
-            </span>
+            <span>{tr("pictureRecovery")}</span>
           </div>
         </div>
       )}
@@ -2438,6 +2546,17 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired, l
         {/* THE SCROLL CONTAINER MUST NOT PREVENT ITS OWN DEFAULT — the row scrolls sideways, and
             that scroll IS a default action. Focus is defended on the BUTTONS instead; see keepFocus. */}
         <div className="keyrow">
+          <button {...keepFocus} className={"kkey" + (secureTyping || hostLocked === true ? " on" : "")}
+            aria-pressed={secureTyping || hostLocked === true}
+            disabled={!secureKeyboardAvailable || hostLocked === true}
+            onClick={() => {
+              resetTypingContext();
+              if (inputRef.current) inputRef.current.value = "";
+              lastVal.current = "";
+              compositionStartRef.current = "";
+              setSecureTyping(!secureTyping);
+            }}>
+            <IconLock />{tr("secureTyping")}</button>
           <button {...keepFocus} className="kkey" onClick={() => sendShortcut(["Control", "A"])}>{tr("selectAll")}</button>
           <button {...keepFocus} className="kkey" onClick={() => void copyFromPc()}>{tr("copyToThisDevice")}</button>
           <button {...keepFocus} className="kkey" onClick={() => void pasteFromDevice()}>{tr("pasteFromThisDevice")}</button>
@@ -2462,7 +2581,7 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired, l
         </div>
         <div className="kbinput-row">
           <input
-            ref={inputRef} className="kbinput" type="text" inputMode="text" dir="auto"
+            ref={inputRef} className="kbinput" type={secureTyping || hostLocked === true ? "password" : "text"} inputMode="text" dir="auto"
             autoCapitalize="off" autoCorrect="off" autoComplete="off" spellCheck={false}
             placeholder={tr("typeHere")} aria-label={tr("typeHere")}
             onInput={onInput} onKeyDown={onInputKeyDown}
@@ -2489,35 +2608,18 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired, l
 
       {/* Reserved controller chrome: a sibling grid track, never an overlay on streamed pixels. */}
       {!kbOpen && (
-        <div className={"toolbar" + (toolbar || sheet ? "" : " fade-toolbar")}
-             inert={!(toolbar || sheet)} aria-hidden={!(toolbar || sheet)}>
+        <div className={"toolbar" + (toolbar || sheet || workspace !== "screen" ? "" : " fade-toolbar")}
+             inert={!(toolbar || sheet || workspace !== "screen")} aria-hidden={!(toolbar || sheet || workspace !== "screen")}>
           <div className="toolbar-primary" role="toolbar" aria-label={tr("remoteControlsAria")}>
-            <button className="tbtn" onClick={openKeyboard}><IconKeyboard /><span>{tr("type")}</span></button>
-            <button className="tbtn" onClick={() => { setSheet("clip"); getPcClip(); }}><IconClipboard /><span>{tr("clipboard")}</span></button>
-            <button className="tbtn" onClick={cycleMode}>
-              {mode === "trackpad" ? <IconTrackpad /> : mode === "desktop" ? <IconDesktop /> : <IconMouse />}<span>{tr(mode === "touch" ? "touch" : mode === "trackpad" ? "trackpad" : mode === "desktop" ? "desktop" : "drag")}</span>
-            </button>
-            <button className="tbtn" onClick={() => setSheet("view")}>
-              {viewMode === "fit" ? <IconFit /> : <IconActual />}<span>{tr("display")}</span>
-            </button>
-            <button
-              className="tbtn toolbar-secondary"
-              onClick={() => {
-                const c = canvasRef.current;
-                if (!c) return;
-                const r = c.getBoundingClientRect();
-                zoomToggleAt(r.left + r.width / 2, r.top + r.height / 2);
-                bumpToolbar();
-              }}
-              aria-label={tr("zoomCenterAria")}
-            >
-              <IconActual /><span>{tr("zoom")}</span>
-            </button>
-            <button className={"tbtn toolbar-secondary" + (sound === "on" ? " on" : "")} onClick={toggleSound}>
-              {sound === "on" ? <IconSpeaker /> : <IconSpeakerOff />}
-              <span>{sound === "connecting" ? tr("connecting") : tr("sound")}</span>
-            </button>
-            <button className="tbtn toolbar-secondary" onClick={fullscreen}><IconFullscreen /><span>{tr("fullscreen")}</span></button>
+            <div className="workspace-switch" role="group" aria-label={tr("chooseWorkspace")}>
+              <button className="tbtn" aria-pressed={workspace === "screen"} onClick={() => { closeKeyboard(); setWorkspace("screen"); }}>
+                <IconDesktop /><span>{tr("screenWorkspace")}</span></button>
+              <button className="tbtn" aria-pressed={workspace === "touchpad"} onClick={() => { closeKeyboard(); setWorkspace("touchpad"); }}>
+                <IconTrackpad /><span>{tr("touchpadWorkspace")}</span></button>
+              <button className="tbtn" aria-pressed={workspace === "keyboard"} onClick={() => { setWorkspace("keyboard"); openKeyboard(); }}>
+                <IconKeyboard /><span>{tr("keyboardWorkspace")}</span></button>
+            </div>
+
           </div>
           <button className="tbtn toolbar-settings accent" onClick={() => setSheet("more")}><IconSettings /><span>{tr("settings")}</span></button>
         </div>
@@ -2740,6 +2842,8 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired, l
           <div className="card">
             <div className="card-pad">
               <div className="grid">
+                <button className="cell" onClick={() => setSheet("view")}><IconDesktop />{tr("display")}</button>
+                <button className="cell" onClick={() => { setSheet("clip"); getPcClip(); }}><IconClipboard />{tr("clipboard")}</button>
                 <button className="cell" onClick={openFiles}><IconFolder /> {tr("filesTitle")}</button>
                 <button className="cell" onClick={() => { taskMgr(); setSheet(null); }}><IconShield /> {tr("ctrlAltDel")}</button>
                 <button className="cell" onClick={() => void copyFromPc()}><IconCopy /> {tr("copyToThisDevice")}</button>

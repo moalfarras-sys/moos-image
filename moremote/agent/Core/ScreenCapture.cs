@@ -73,7 +73,7 @@ public sealed class ScreenCapture : IDisposable
     // here has no encoder behind it, so it says so plainly and StreamSession takes the JPEG road.
     // These exist because StreamSession is shared, not because Windows is expected to grow them.
     public string Codec => "jpeg";
-    public IDisposable? SubscribeH264(Action<byte[]> onFrame) => null;
+    public IDisposable? SubscribeH264(Action<byte[], int> onFrame) => null;
     public void RequestKeyframe() { }
     public void SessionCodec(Guid id, bool canH264) { }
     // On Linux these gate the capture pipeline on somebody actually watching. DXGI only grabs a

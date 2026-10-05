@@ -17,7 +17,7 @@ const errors = [];
 // behaved the same, but it meant no test ever ran against a value the app could actually store.
 // Pass null to leave the preference unset and get the shipped default (Auto).
 async function viewer(options, mode, language = 'en', cursorEmbedded = false, orient = 'off',
-                      encode = null, linkClass = 'default') {
+                      encode = null, linkClass = 'default', h264Fixture = false, liveRtt = null) {
   const context = await browser.newContext({...options, serviceWorkers: 'block'});
   contexts.push(context);
   await context.addInitScript(({mode, language, orient}) => {
@@ -25,11 +25,25 @@ async function viewer(options, mode, language = 'en', cursorEmbedded = false, or
     localStorage.setItem('moremote.mode', JSON.stringify(mode));
     localStorage.setItem('moremote.seenGestureHint', '1');
     localStorage.setItem('mo-remote-lang', language);
+    sessionStorage.setItem('h264Failures', '3'); // upgrading from the failed controller
     if (orient) localStorage.setItem('moremote.orient', JSON.stringify(orient));
     else localStorage.removeItem('moremote.orient');
   }, {mode, language, orient});
   if (linkClass === 'silent') await context.addInitScript(() => {
     Object.defineProperty(navigator, 'connection', {value:undefined, configurable:true});
+  });
+  if (h264Fixture) await context.addInitScript(() => {
+    // A browser decoder that accepts chunks silently; transport remains alive.
+    window.testDecoders = [];
+    window.VideoDecoder = class {
+      decodeQueueSize = 0;
+      closed = false;
+      chunks = 0;
+      constructor(callbacks) { this.callbacks = callbacks; window.testDecoders.push(this); }
+      configure() {}
+      decode() { this.chunks++; }
+      close() { this.closed = true; }
+    };
   });
   const page = await context.newPage();
   page.on('pageerror', e => errors.push(e.message));
@@ -43,10 +57,13 @@ async function viewer(options, mode, language = 'en', cursorEmbedded = false, or
   const packets = [];
   const sockets = [];
   let autoHello = true;
+  const keyframe = Buffer.from([0,0,0,1,0x67,0x64,0,0x28,0x51,0,0,0,1,0x65,0x88,0x84]);
+  const sendFrame = ws => ws.send(h264Fixture ? keyframe : frame);
   const hello = ws => {
     ws.send(JSON.stringify({type:'hello', screen:{w:1920,h:1080}, paused:false,
-      cursorEmbedded, input:{ready:true}, clipboard:{ready:true}, monitors:[], encode}));
-    ws.send(frame);
+      cursorEmbedded, input:{ready:true,secureText:true}, clipboard:{ready:true}, monitors:[], encode}));
+    if (h264Fixture) ws.send(JSON.stringify({type:'codec',codec:'h264'}));
+    sendFrame(ws);
   };
   await page.routeWebSocket('**/ws', ws => {
     sockets.push(ws);
@@ -55,15 +72,20 @@ async function viewer(options, mode, language = 'en', cursorEmbedded = false, or
       packets.push(msg);
       if (msg.type === 'auth') {
         if (autoHello) hello(ws);
-      } else if (msg.type === 'ping') ws.send(JSON.stringify({type:'pong',t:msg.t}));
-      else if (msg.type === 'keyframe') ws.send(frame);
+      } else if (msg.type === 'ping') {
+        if (liveRtt !== null) setTimeout(() => {
+          ws.send(JSON.stringify({type:'pong',t:msg.t})); sendFrame(ws);
+        }, liveRtt);
+        else ws.send(JSON.stringify({type:'pong',t:msg.t}));
+      }
+      else if (msg.type === 'keyframe') sendFrame(ws);
     });
   });
   await page.goto(origin);
   await page.locator('.toolbar-primary').waitFor();
   await page.locator('.topbar.mini[aria-expanded="false"]').waitFor();
   await page.waitForTimeout(100);
-  return {page, packets, sockets, hello, holdHello: () => { autoHello = false; }};
+  return {page, packets, sockets, hello, sendFrame, holdHello: () => { autoHello = false; }};
 }
 // Everything that MOVES OR TYPES ON THE REMOTE PC. `scroll` and `dblclick` were missing, so
 // every "this must never reach the remote" assertion below was blind to a stray wheel event, and
@@ -77,6 +99,143 @@ async function capture(page, name) {
   await page.screenshot({path:`${evidence}/${name}.png`});
 }
 try {
+  const recovery = await viewer({viewport:{width:393,height:852},isMobile:true,hasTouch:true},
+    'touch','en',false,'off',null,'silent',true);
+  const rp = recovery.page;
+  await rp.waitForFunction(() => window.testDecoders.length > 0);
+  assert.equal(recovery.packets.find(p => p.type === 'video')?.h264, true,
+    'the upgraded phone must try the new recovery implementation despite the retired revision verdict');
+  const beforeRestart = await rp.evaluate(() => window.testDecoders.length);
+  recovery.sockets.at(-1).send(JSON.stringify({type:'codec',codec:'h264',sequence:2}));
+  recovery.sendFrame(recovery.sockets.at(-1));
+  await rp.waitForFunction(count => window.testDecoders.length > count, beforeRestart, {timeout:3000});
+  assert.equal(await rp.evaluate(count => window.testDecoders[count - 1].closed, beforeRestart), true,
+    'an identical-format portal restart must close the old phone decoder before its next frame');
+  const afterRestart = await rp.evaluate(() => window.testDecoders.length);
+  recovery.sockets.at(-1).send(JSON.stringify({type:'codec',codec:'h264',sequence:2}));
+  recovery.sendFrame(recovery.sockets.at(-1));
+  await rp.waitForTimeout(100);
+  assert.equal(await rp.evaluate(() => window.testDecoders.length), afterRestart,
+    'repeated metadata for the same video sequence must not churn the decoder');
+  await rp.evaluate(() => window.dispatchEvent(new PageTransitionEvent('pagehide')));
+  assert.equal(await rp.evaluate(() => window.testDecoders.at(-1).closed), true,
+    'Safari pagehide must retire the decoder even without visibilitychange');
+  assert.equal(recovery.packets.filter(p => p.type === 'video').at(-1)?.watching, false);
+  const hiddenCount = await rp.evaluate(() => window.testDecoders.length);
+  recovery.hello(recovery.sockets.at(-1));
+  await rp.waitForTimeout(100);
+  assert.equal(await rp.evaluate(() => window.testDecoders.length), hiddenCount,
+    'frames arriving after pagehide must not reopen a background decoder');
+  await rp.evaluate(() => window.dispatchEvent(new PageTransitionEvent('pageshow')));
+  await rp.waitForFunction(count => window.testDecoders.length > count, hiddenCount);
+  const resumedCount = await rp.evaluate(() => window.testDecoders.length);
+  recovery.sockets.at(-1).close();
+  await rp.waitForFunction(count => window.testDecoders.length > count, resumedCount);
+  assert.equal(await rp.evaluate(count => window.testDecoders[count - 1].closed, resumedCount), true,
+    'reconnect must retire the old H.264 history even when codec and dimensions match');
+  const beforeStall = await rp.evaluate(() => window.testDecoders.length);
+  await rp.waitForTimeout(3100);
+  recovery.sockets.at(-1).send(Buffer.from([0,0,0,1,0x41,0x9a,0x22]));
+  await rp.waitForFunction(count => window.testDecoders.length > count, beforeStall);
+  assert.equal(await rp.evaluate(count => window.testDecoders[count - 1].closed, beforeStall), true,
+    'a silent decoder must recover while pongs continue and its queue stays empty');
+  assert.equal(recovery.packets.filter(p => p.type === 'video' && p.h264 === false).length, 0,
+    'silent recovery must not vote a weak-link phone onto JPEG');
+  console.log('PASS: real browser mobile hide/resume, identical-codec reconnect and silent decoder recovery');
+
+  {
+    const control = await viewer({viewport:{width:393,height:852},isMobile:true,hasTouch:true}, 'touch');
+    const cp = control.page;
+    await cp.getByRole('button', {name:'Touchpad',exact:true}).click();
+    const pad = cp.getByTestId('remote-touchpad');
+    const box = await pad.boundingBox();
+    assert.ok(box && box.height >= 160);
+    assert.equal(control.packets.filter(p=>p.type==='video').at(-1)?.watching, false,
+      'touchpad input stops unneeded screen streaming');
+    control.packets.length = 0;
+    const cdp = await cp.context().newCDPSession(cp);
+    const x = box.x + box.width*.4, y = box.y + box.height*.4;
+    await cdp.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{id:3,x,y}]});
+    await cdp.send('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[{id:3,x:x+45,y:y+12}]});
+    await cp.waitForTimeout(60);
+    await cdp.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});
+    await cp.waitForTimeout(60);
+    assert.ok(input(control.packets).some(p=>p.type==='moveRelative'),
+      'dedicated touchpad moves the pointer without a captured picture');
+    assert.equal(input(control.packets).filter(p=>['move','click','down','scroll'].includes(p.type)).length,0,
+      'one finger on the dedicated touchpad cannot become absolute screen input');
+    await cp.getByRole('button',{name:'Right click',exact:true}).click();
+    assert.ok(control.packets.some(p=>p.type==='clickCurrent' && p.button==='right'));
+    await capture(cp,'touchpad-en-light');
+    await cp.setViewportSize({width:852,height:393});
+    await capture(cp,'touchpad-en-landscape');
+    await cp.setViewportSize({width:393,height:852});
+    await cp.getByRole('button',{name:'Keyboard',exact:true}).click();
+    assert.equal(control.packets.filter(p=>p.type==='video').at(-1)?.watching,true,
+      'keyboard typing keeps the actual computer screen streaming');
+    assert.equal(await cp.locator('.screen-canvas').evaluate(el=>getComputedStyle(el).visibility),'visible',
+      'the real screen remains visible above the typing controls');
+    await cp.getByRole('button',{name:'Password typing',exact:true}).click();
+    const secret = cp.locator('.kbinput');
+    assert.equal(await secret.getAttribute('type'),'password');
+    control.packets.length = 0;
+    await secret.fill('private-fixture');
+    await cp.waitForTimeout(300);
+    assert.ok(control.packets.some(p=>p.type==='text' && p.value==='private-fixture' && p.secure===true),
+      'password typing explicitly selects native keyboard delivery');
+    let clipboardWrites=0;
+    await cp.route('**/api/clipboard',route=>{
+      if(route.request().method()!=='GET') clipboardWrites++;
+      return route.fulfill({json:{ok:true}});
+    });
+    await cp.evaluate(()=>Object.defineProperty(navigator,'clipboard',{configurable:true,value:{
+      readText:async()=> 'private-paste',
+    }}));
+    control.packets.length=0;
+    await cp.getByRole('button',{name:'Paste from this device',exact:true}).click();
+    await cp.waitForTimeout(100);
+    assert.ok(control.packets.some(p=>p.type==='text' && p.value==='private-paste' && p.secure===true),
+      'pasting into password typing uses native input');
+    assert.equal(clipboardWrites,0,'a password paste never writes the PC clipboard');
+    assert.equal(control.packets.filter(p=>p.type==='combo').length,0,'password paste never sends Ctrl+V');
+    await cp.evaluate(()=>{navigator.clipboard.readText=()=>new Promise(resolve=>{window.finishSecretPaste=resolve;});});
+    await cp.getByRole('button',{name:'Paste from this device',exact:true}).click();
+    control.holdHello();
+    const socketCount = control.sockets.length;
+    control.sockets.at(-1).close();
+    await cp.waitForTimeout(100);
+    assert.equal(await secret.inputValue(),'','a password is cleared on connection loss');
+    control.packets.length=0;
+    await secret.fill('offline-secret');
+    assert.equal(await secret.inputValue(),'','offline password input cannot become a reconnect draft');
+    for (let n=0;n<40 && control.sockets.length<=socketCount;n++) await cp.waitForTimeout(100);
+    control.hello(control.sockets.at(-1));
+    await cp.waitForTimeout(300);
+    await cp.evaluate(()=>window.finishSecretPaste('late-secret'));
+    await cp.waitForTimeout(100);
+    assert.equal(control.packets.filter(p=>p.type==='text').length,0,'reconnection never replays a password');
+    assert.equal(clipboardWrites,0,'an interrupted clipboard read cannot publish a password');
+    await capture(cp,'secure-keyboard-en');
+    control.sockets.at(-1).send(JSON.stringify({type:'hostState',locked:true}));
+    await cp.getByText('Computer locked',{exact:true}).waitFor();
+    assert.equal(await secret.getAttribute('type'),'password');
+    await capture(cp,'locked-keyboard-en');
+    await cp.getByRole('button',{name:'Done',exact:true}).click();
+    control.packets.length=0;
+    await cp.getByRole('button',{name:'Keyboard',exact:true}).click();
+    await cp.waitForTimeout(100);
+    assert.equal(control.packets.filter(p=>p.type==='key'&&p.key==='Shift').length,1,
+      'opening the locked keyboard wakes the real prompt with one non-printing key');
+    assert.equal(control.packets.filter(p=>p.type==='combo').length,0,
+      'waking the prompt does not erase an existing password field');
+    control.sockets.at(-1).send(JSON.stringify({type:'hostState',locked:false}));
+    await cp.getByText('Computer locked',{exact:true}).waitFor({state:'hidden'});
+    await cp.getByRole('button',{name:'Done',exact:true}).click();
+    await cp.getByRole('button',{name:'Desktop',exact:true}).click();
+    assert.equal(control.packets.filter(p=>p.type==='video').at(-1)?.watching,true);
+    console.log('PASS: independent touchpad, workspace switching and live-only password keyboard');
+  }
+
   const phone = await viewer({viewport:{width:390,height:844}, deviceScaleFactor:3,
     isMobile:true, hasTouch:true}, 'touch', 'ar');
   const {page, packets} = phone;
@@ -85,8 +244,41 @@ try {
   const touchLaptop = await viewer({viewport:{width:1920,height:1080},hasTouch:true},'desktop');
   assert.equal(touchLaptop.packets.filter(p => p.type === 'settings').at(-1)?.quality,80,
     'a wide touchscreen laptop remains Sharp instead of being mistaken for a phone');
+  {
+  const desktopPhone = await viewer({viewport:{width:390,height:844},isMobile:true,hasTouch:true},'desktop');
+  const dp = desktopPhone.page;
+  const db = await dp.locator('.screen-canvas').boundingBox();
+  const tx = db.x + db.width * .35, ty = db.y + db.height * .5;
+  desktopPhone.packets.length = 0;
+  await dp.touchscreen.tap(tx,ty);
+  await dp.waitForTimeout(80);
+  assert.equal(desktopPhone.packets.filter(p=>p.type==='click').length,1,
+    'a phone retaining Mouse + Keys gets one finger click');
+  assert.equal(desktopPhone.packets.filter(p=>p.type==='down'||p.type==='up').length,0,
+    'compatibility mouse presses cannot duplicate the finger click');
+  desktopPhone.packets.length = 0;
+  const dc = await desktopPhone.page.context().newCDPSession(dp);
+  const contact = (x,y) => [{id:7,x,y}];
+  await dc.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:contact(tx,ty)});
+  await dc.send('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:contact(tx+50,ty+20)});
+  await dp.waitForTimeout(40);
+  await dc.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});
+  await dp.waitForTimeout(80);
+  const dw = input(desktopPhone.packets);
+  assert.equal(dw.filter(p=>p.type==='down').length,1,'finger movement starts one desktop drag');
+  assert.equal(dw.filter(p=>p.type==='up').length,1,'finger drag releases once');
+  assert.equal(dw.filter(p=>p.type==='click'||p.type==='scroll').length,0,'drag is not a tap or scroll');
+  assert.ok(dw.findIndex(p=>p.type==='move') < dw.findIndex(p=>p.type==='down'));
+  assert.equal(dw.at(-1)?.type,'up','queued compatibility movement cannot land after the release');
+  desktopPhone.packets.length = 0;
+  await dp.mouse.click(tx,ty);
+  await dp.waitForTimeout(80);
+  assert.deepEqual(input(desktopPhone.packets).filter(p=>p.type==='down'||p.type==='up').map(p=>p.type),
+    ['down','up'],'a physical mouse still has exactly one press/release after finger input');
+  console.log('PASS: phone touch and real mouse coexist in saved desktop mode, with one click and an ordered drag');
+  }
   await capture(page, 'phone-ar');
-  await page.getByRole('button', {name:'كتابة', exact:true}).click();
+  await page.getByRole('button', {name:'كيبورد', exact:true}).click();
   const field = page.locator('.kbinput');
   assert.ok(await field.evaluate(el=>document.activeElement===el),'typing tap must focus synchronously');
   await field.fill('ab😀');
@@ -139,6 +331,7 @@ try {
   assert.deepEqual(input(packets).map(p=>[p.type,p.value]), [['text','مسودة جديدة']],
     'recovery commits the complete interrupted IME draft exactly once');
   await page.getByRole('button', {name:'تم', exact:true}).click();
+  await page.getByRole('button', {name:'شاشة وتحكم', exact:true}).click();
   await page.locator('.toolbar.fade-toolbar').waitFor({state:'attached',timeout:10_000});
 
   for (const [width,height] of [[844,390],[390,844],[844,390],[390,844]]) {
@@ -255,6 +448,7 @@ try {
   assert.ok(headingClear, 'Arabic sheet title and 44px close target must not overlap');
   await capture(trackpad.page,'settings-dark-ar');
   await trackpad.page.locator('.sheet-close').click();
+  await trackpad.page.getByRole('button',{name:'الإعدادات',exact:true}).click();
   await trackpad.page.getByRole('button',{name:'الشاشة',exact:true}).click();
   await capture(trackpad.page,'display-dark-ar');
   await trackpad.page.getByRole('button',{name:/توفير البيانات 576p/}).click();
@@ -281,6 +475,7 @@ try {
     pcText = route.request().postDataJSON().text;
     return route.fulfill({json:{ok:true}});
   });
+  await cp.getByRole('button',{name:'الإعدادات',exact:true}).click();
   await cp.getByRole('button',{name:'الحافظة',exact:true}).click();
   await cp.locator('textarea[readonly]').filter({visible:true}).waitFor();
   await cp.waitForFunction(() => document.querySelector('textarea[readonly]')?.value === 'من الكمبيوتر 😀');
@@ -346,7 +541,7 @@ try {
   assert.deepEqual(input(trackpad.packets),[],
     'failed transfer must not paste stale PC clipboard from the Settings button');
   await cp.locator('.sheet-close').click();
-  await cp.getByRole('button',{name:'كتابة',exact:true}).click();
+  await cp.getByRole('button',{name:'كيبورد',exact:true}).click();
   assert.ok(await cp.locator('.kbinput').evaluate(el=>document.activeElement===el));
   for (const [height,offsetTop] of [[480,0],[370,20],[844,0]]) {
     await cp.evaluate(({height,offsetTop}) => {
@@ -447,6 +642,7 @@ try {
 
   // It has to SAY so. A limit that acts without explaining itself is indistinguishable from the
   // app being bad at its job.
+  await capped.page.getByRole('button', {name:'Settings', exact:true}).click();
   await capped.page.getByRole('button', {name:'Display', exact:true}).click();
   await capped.page.getByRole('dialog').waitFor();
   assert.match(await capped.page.locator('.sheet').innerText(), /960×540@30/,
@@ -464,6 +660,7 @@ try {
   // to Balanced, rebuilding the encoder and bringing back the freezes.
   const pinned = await viewer({viewport:{width:390,height:844},deviceScaleFactor:3,
     isMobile:true,hasTouch:true},'touch');
+  await pinned.page.getByRole('button', {name:'Settings', exact:true}).click();
   await pinned.page.getByRole('button', {name:'Display', exact:true}).click();
   pinned.packets.length = 0;
   await pinned.page.getByRole('button', {name:/^Data saver/}).click();
@@ -483,6 +680,24 @@ try {
     'Auto on a phone with no link class must not send Balanced over a cellular relay');
   assert.equal(safariPhone.packets.filter(p => p.type === 'settings').at(-1)?.quality, 52,
     'Auto on Safari-shaped phone must use Data saver from its first hello');
+
+  // Fresh video can earn detail over both direct and healthy relay-shaped links.
+  // Both receive freshly decoded pictures, so this exercises the actual settings wire.
+  const directPhone = await viewer({viewport:{width:393,height:852},deviceScaleFactor:3,
+    isMobile:true,hasTouch:true},'touch','en',false,'off',null,'silent',false,6);
+  const relayPhone = await viewer({viewport:{width:393,height:852},deviceScaleFactor:3,
+    isMobile:true,hasTouch:true},'touch','en',false,'off',null,'silent',false,60);
+  const congestedPhone = await viewer({viewport:{width:393,height:852},deviceScaleFactor:3,
+    isMobile:true,hasTouch:true},'touch','en',false,'off',null,'silent',false,180);
+  await directPhone.page.waitForTimeout(30000);
+  assert.equal(directPhone.packets.filter(p => p.type === 'settings').at(-1)?.quality,68,
+    'fresh low RTT and decoded video must permit one bounded detail upgrade');
+  assert.equal(relayPhone.packets.filter(p => p.type === 'settings').at(-1)?.quality,68,
+    'fresh decoded video over a healthy relay must permit readable detail');
+  assert.equal(congestedPhone.packets.filter(p => p.type === 'settings').at(-1)?.quality,52,
+    'congestion must retain the conservative phone ceiling');
+  assert.ok(directPhone.packets.filter(p => p.type === 'settings').every(p => p.width <= 1366),
+    'an unzoomed narrow phone must not jump to Sharp or Ultra');
 
   const light = await viewer({viewport:{width:360,height:800},deviceScaleFactor:2,
     isMobile:true,hasTouch:true,colorScheme:'light',reducedMotion:'reduce'},'touch','ar');

@@ -36,6 +36,8 @@ static class Program
         if (args.Length == 0 || args.Contains("pause")) await PausedInputQueue();
         if (args.Length == 0 || args.Contains("owners")) await ControllerHandoff();
         if (args.Length == 0 || args.Contains("weak")) await WeakLink();
+        if (args.Length == 0 || args.Contains("restart")) await RestartedCapture();
+        if (args.Length == 0 || args.Contains("restart")) await FailedResetMarker();
         Console.WriteLine("PASS: Unicode fragments, stream suspension, IDR resume, input teardown, controller handoff and weak-link recovery");
     }
 
@@ -233,7 +235,51 @@ static class Program
         services.Capture.Emit(Idr);
         await Until(() => socket.Frames.Count >= 3 && socket.Frames.Last().SequenceEqual(Idr),
             "the stream did not resume from the recovery IDR after the pause");
+        CheckResetBeforeIdr(socket, "backlog recovery");
         await Stop(socket, running);
+    }
+
+    static void CheckResetBeforeIdr(TestSocket socket, string context)
+    {
+        var events = socket.Events.ToArray();
+        Check(events.Length >= 2 && events[^1].Type == WebSocketMessageType.Binary &&
+            events[^1].Data.SequenceEqual(Idr) && events[^2].Type == WebSocketMessageType.Text,
+            context + " did not send its reset immediately before the IDR");
+        using var marker = JsonDocument.Parse(events[^2].Data);
+        Check(marker.RootElement.GetProperty("type").GetString() == "codec" &&
+            marker.RootElement.TryGetProperty("sequence", out var sequence) && sequence.GetInt64() > 1,
+            context + " did not announce a fresh video sequence");
+    }
+
+    static async Task RestartedCapture()
+    {
+        var (services, socket, running) = await Start("h264");
+        socket.Text("""{"type":"video","h264":true,"build":"v51 fixture"}""");
+        await Barrier(socket, 82);
+        Check(Log.Messages.Any(m => m.Contains("Client controller build: v51 fixture")),
+            "the live controller version did not reach the diagnostic log");
+        services.Capture.Emit(Idr);
+        await Until(() => socket.Frames.Count == 1, "initial capture frame missing");
+        services.Capture.Generation++;
+        services.Capture.Emit(Delta);
+        await Barrier(socket, 83);
+        Check(socket.Frames.Count == 1, "a new helper sent deltas from an unknown reference history");
+        services.Capture.Emit(Idr); // byte-identical SPS and dimensions, a different encoder history
+        await Until(() => socket.Frames.Count == 2, "replacement helper IDR missing");
+        CheckResetBeforeIdr(socket, "portal restart with identical SPS");
+        await Stop(socket, running);
+    }
+
+    static async Task FailedResetMarker()
+    {
+        var (services, socket, running) = await Start("h264");
+        services.Capture.Emit(Idr);
+        await Until(() => socket.Frames.Count == 1, "initial capture frame missing");
+        socket.FailCodec = true;
+        services.Capture.Generation++;
+        services.Capture.Emit(Idr);
+        await running.WaitAsync(TimeSpan.FromSeconds(3));
+        Check(socket.Frames.Count == 1, "a new reference history was sent after its reset marker failed");
     }
 
     static async Task ControllerHandoff()
@@ -262,6 +308,7 @@ sealed class TestSocket : WebSocket
     WebSocketState state = WebSocketState.Open;
     public ConcurrentQueue<string> Messages { get; } = new();
     public ConcurrentQueue<byte[]> Frames { get; } = new();
+    public ConcurrentQueue<(WebSocketMessageType Type, byte[] Data)> Events { get; } = new();
     public override WebSocketCloseStatus? CloseStatus => WebSocketCloseStatus.NormalClosure;
     public override string? CloseStatusDescription => "test";
     public override string? SubProtocol => null;
@@ -285,10 +332,15 @@ sealed class TestSocket : WebSocket
     }
     /// <summary>While set, binary sends wait on it: a link that has stopped moving.</summary>
     public volatile SemaphoreSlim? BinaryGate;
+    public bool FailCodec;
     public override async Task SendAsync(ArraySegment<byte> buffer, WebSocketMessageType type, bool end, CancellationToken ct)
     {
         ct.ThrowIfCancellationRequested();
+        if (FailCodec && type == WebSocketMessageType.Text &&
+            Encoding.UTF8.GetString(buffer).Contains("\"type\":\"codec\""))
+            throw new IOException("private reset-marker failure");
         if (type == WebSocketMessageType.Binary && BinaryGate is { } gate) await gate.WaitAsync(ct);
+        Events.Enqueue((type, buffer.ToArray()));
         if (type == WebSocketMessageType.Binary) Frames.Enqueue(buffer.ToArray());
         else Messages.Enqueue(Encoding.UTF8.GetString(buffer));
     }
@@ -330,14 +382,15 @@ public sealed class TestHandle : IDisposable
 }
 public sealed class TestCapture
 {
-    Action<byte[]>? subscriber;
+    Action<byte[], int>? subscriber;
     public string Codec { get; set; } = "jpeg";
     public int SelectedIndex => 0;
     public (int, int) ScreenSize => (1920, 1080);
     public IEnumerable<(int Index, string Name, bool Primary)> Monitors => [(0, "MoOS", true)];
     public int KeyframeRequests;
-    public void Emit(byte[] unit) => subscriber?.Invoke(unit);
-    public IDisposable SubscribeH264(Action<byte[]> callback) { subscriber = callback; return new TestHandle(); }
+    public int Generation;
+    public void Emit(byte[] unit) => subscriber?.Invoke(unit, Generation);
+    public IDisposable SubscribeH264(Action<byte[], int> callback) { subscriber = callback; return new TestHandle(); }
     public void SessionArrived(Guid id) { }
     public void SessionGone(Guid id) { subscriber = null; }
     public void SessionCodec(Guid id, bool supported) { }
@@ -357,6 +410,8 @@ public sealed class TestInput
     public Action? BeforeClick;
     public bool IsReady => true;
     public string BackendName => "isolated-test";
+    public bool? SessionLocked => null;
+    public bool TypeTextSecure(string text) { TypeText(text); return true; }
     public string LastError => "";
     public void ReleaseAll() => Interlocked.Increment(ref Releases);
     public void MouseMove(double x, double y) { }

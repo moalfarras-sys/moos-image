@@ -95,7 +95,7 @@ assert.equal(second.decoded[0].type, "key");
 second.emitFrame();
 second.fail();
 assert.deepEqual(failures, [], "one error is a resync, not a give-up");
-assert.equal(keyframeRequests, 1, "and the resync asks for a keyframe");
+assert.equal(keyframeRequests, 2, "return requests the missing IDR and a decode error requests a fresh one");
 
 // ... and a second one inside the window is a real give-up, which now says what the page was doing.
 stream.push(keyframe());

@@ -5,7 +5,7 @@
 // tell at a glance which one you are looking at. v14 also described behaviour that no longer
 // exists ("fill-screen portrait" was the automatic quarter-turn, now removed), so it was
 // actively misleading while debugging exactly that.
-export const BUILD = "v50 · MoOS Liquid Glass · Pocket-safe H.264";
+export const BUILD = "v55 · MoOS Liquid Glass · Native password typing";
 
 export interface ServerStatus {
   name: string;
@@ -24,6 +24,7 @@ export interface MonitorInfo {
 
 export interface Hello {
   type: "hello";
+  hostLocked?: boolean | null;
   screen: { w: number; h: number };
   quality: number;
   fps: number;
@@ -33,7 +34,7 @@ export interface Hello {
   cursorEmbedded?: boolean;
   monitors?: MonitorInfo[];
   monitor?: number;
-  input?: { ready: boolean; backend: string; error?: string };
+  input?: { ready: boolean; backend: string; error?: string; secureText?: boolean };
   clipboard?: { ready: boolean };
   /**
    * What the HOST can afford to encode, from moos-visual-tier's published budget.

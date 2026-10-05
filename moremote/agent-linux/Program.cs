@@ -66,9 +66,10 @@ using var mutex = new Mutex(true, mutexName, out var first);
 if (!first) return 0;
 var config=AppConfig.Load(); UserSettings.Apply(config);
 var tls=TlsManager.TryLoad();
-// One portal session backs both the video stream and input injection.
+// Capture may renew on output loss; session input must survive that renewal.
 using var portal=new PortalBridge();
-using var capture=new ScreenCapture(portal); using var input=new InputInjector(portal,capture);
+using var nativeInput=new PortalBridge(inputOnly: true);
+using var capture=new ScreenCapture(portal); using var input=new InputInjector(nativeInput,capture);
 using var svc=new AgentServices{Config=config,Sessions=new SessionManager(config),State=new SessionState(),Capture=capture,Input=input,HttpsHost=tls?.Host};
 var builder=WebApplication.CreateBuilder(new WebApplicationOptions{ContentRootPath=AppContext.BaseDirectory,Args=args});
 builder.Logging.ClearProviders(); builder.Services.AddSingleton(svc);

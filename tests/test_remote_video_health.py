@@ -174,6 +174,17 @@ def main() -> int:
             "PortalBridge does not advance health after every delivered frame", errors)
     require(error_case is not None and "fatal" in error_case.group(1) and "_ready = false" in error_case.group(1),
             "a fatal helper event can leave PortalBridge reporting IsReady=true", errors)
+    require("RunOnce(progress)" in bridge and "progress.DeliveredForFiveSeconds" in bridge
+            and "retry.AfterExit" in bridge and read_frames is not None
+            and "progress.NoteFrame" in read_frames.group(0),
+            "useful frame delivery does not reset supervisor crash backoff", errors)
+    ready_case = re.search(r'case "ready":(.*?)break;', bridge, re.S)
+    require(ready_case is not None and "_videoSettings" in ready_case.group(1)
+            and all(field in ready_case.group(1) for field in ("settings.Width", "settings.Quality", "settings.Fps")),
+            "a restarted helper starts encoding before restoring the agreed phone preset", errors)
+    require("_wakeIdleRetry = exitCode == 4 && !_streaming" in bridge
+            and "on && !_streaming && _wakeIdleRetry" in bridge,
+            "new-viewer retry wake does not preserve refusal/crash cooldown boundaries", errors)
 
     if errors:
         print("GATE FAIL: remote video may remain black/frozen while reported healthy.\n")

@@ -9,6 +9,7 @@ later event.  It marks that batch ``sync:true``; layout-changing batches remain 
 import ast
 import sys
 import unittest
+from types import SimpleNamespace
 from pathlib import Path
 
 from test_remote_portal_layout_refresh import LayoutRefreshTests
@@ -16,6 +17,59 @@ from test_remote_portal_layout_refresh import LayoutRefreshTests
 
 ROOT = Path(__file__).resolve().parents[1]
 HELPER = ROOT / "moremote/agent-linux/mo-remote-portal.py"
+
+
+class SecureModifierTests(unittest.TestCase):
+    """The greeter workaround must never slow ordinary keys or legacy input."""
+    def test_only_sensitive_native_keyboard_edges_are_paced(self):
+        sent, waits = [], []
+        tree = ast.parse(HELPER.read_text())
+        fn = next(n for n in tree.body if isinstance(n, ast.FunctionDef) and n.name == "notify_secure")
+        scope = {"notify_sync": lambda *args: sent.append(args), "eis": object(),
+                 "time": SimpleNamespace(sleep=waits.append)}
+        exec(compile(ast.Module(body=[fn], type_ignores=[]), str(HELPER), "exec"), scope)
+        for code in (42, 54, 100):
+            for down in (1, 0):
+                scope["notify_secure"]("NotifyKeyboardKeycode", "", (code, down))
+        self.assertEqual(waits, [.04] * 6)
+        scope["notify_secure"]("NotifyKeyboardKeycode", "", (30, 1))
+        scope["notify_secure"]("NotifyPointerButton", "", (42, 1))
+        scope["eis"] = None
+        scope["notify_secure"]("NotifyKeyboardKeycode", "", (42, 1))
+        self.assertEqual(len(waits), 7)
+        self.assertEqual(len(sent), 9, "every press/release still reaches its original backend")
+
+    def test_ordinary_ordered_text_keeps_its_existing_sender(self):
+        tree = ast.parse(HELPER.read_text())
+        handle = next(n for n in tree.body if isinstance(n, ast.FunctionDef) and n.name == "handle")
+        calls = []
+        scope = dict(eis=object(), session="session", empty={},
+            notify=lambda *args: calls.append("async"), notify_sync=lambda *args: calls.append("ordered"),
+            notify_secure=lambda *args: calls.append("secure"), caps_lock_state=lambda: False,
+            select_group=lambda *args: True, prepare_secure_input=lambda send: calls.append("prepare"),
+            layout_state={})
+        exec(compile(ast.Module(body=[handle], type_ignores=[]), str(HELPER), "exec"), scope)
+        batch = dict(type="keysyms", text=True, sync=True, events=[dict(code=42, down=True)])
+        scope["handle"](batch)
+        scope["handle"]({**batch, "secure": True})
+        scope["eis"] = None
+        scope["handle"]({**batch, "secure": True})
+        self.assertEqual(calls, ["ordered", "secure", "ordered"])
+
+    def test_prompt_preparation_always_releases_its_own_shift(self):
+        tree = ast.parse(HELPER.read_text())
+        fn = next(n for n in tree.body if isinstance(n, ast.FunctionDef) and n.name == "prepare_secure_input")
+        waits, edges = [], []
+        scope = dict(session="session", empty={}, time=SimpleNamespace(sleep=waits.append))
+        exec(compile(ast.Module(body=[fn], type_ignores=[]), str(HELPER), "exec"), scope)
+        def send(method, signature, args):
+            edges.append(args[-1])
+            if args[-1] == 1:
+                raise RuntimeError("private recorder failure")
+        with self.assertRaises(RuntimeError):
+            scope["prepare_secure_input"](send)
+        self.assertEqual(edges, [1, 0])
+        self.assertEqual(waits, [], "a failed preparation cannot continue to password text")
 
 
 def main() -> int:
@@ -43,7 +97,9 @@ def main() -> int:
         return 1
 
     print("OK: keysyms sync:true and layout changes use ordered portal delivery.")
-    result = unittest.TextTestRunner().run(unittest.defaultTestLoader.loadTestsFromTestCase(LayoutRefreshTests))
+    suite = unittest.TestSuite(unittest.defaultTestLoader.loadTestsFromTestCase(cls)
+                               for cls in (LayoutRefreshTests, SecureModifierTests))
+    result = unittest.TextTestRunner().run(suite)
     if not result.wasSuccessful():
         return 1
     return 0

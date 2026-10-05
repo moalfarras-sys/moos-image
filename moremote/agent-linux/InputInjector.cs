@@ -25,9 +25,10 @@ public sealed class InputInjector : IDisposable
     private volatile bool _disposed;
     private Socket? _socket;
     private string _lastError = "";
+    private string _secureError = "";
     private DateTimeOffset _lastConnectAttempt;
     private bool _cursorKnown;
-    private int _cursorX, _cursorY;
+    private int _cursorX, _cursorY, _cursorWidth, _cursorHeight;
 
     // Position we last commanded, normalized. The client also tracks this, but keeping it here
     // lets *Current()-style calls (click where the cursor already is) work on the portal path.
@@ -140,13 +141,41 @@ public sealed class InputInjector : IDisposable
         EnsureConnected(force: true);
     }
 
-    public bool IsReady => !_disposed && (_portal.IsReady || EnsureConnectedLocked());
+    public bool IsReady => !_disposed && (_portal.IsReady ||
+        (_capture.InputBounds.Width > 0 && _capture.InputBounds.Height > 0 && EnsureConnectedLocked()));
     public string BackendName => _portal.IsReady
-        ? "KDE RemoteDesktop portal (absolute)"
+        ? _portal.BackendName
         : "ydotoold/uinput fallback (relative)";
+    public bool? SessionLocked => _portal.SessionLocked;
+
+    public bool TypeTextSecure(string text)
+    {
+        // A field switch into password typing must retire an ordinary text
+        // gather. It must never publish that gather through the clipboard.
+        lock (_textBuf)
+        {
+            _pending.Clear();
+            _textTimer?.Change(Timeout.Infinite, Timeout.Infinite);
+        }
+        var keymap = _portal.Keymap;
+        if (!_portal.IsReady || keymap is null || !KeymapPlanner.TryPlan(text, keymap, out var plan))
+        {
+            _secureError = "Secure typing needs the native keyboard and a loaded keyboard layout.";
+            return false;
+        }
+        foreach (var run in plan)
+            if (!SendOnGroup(run.Group, run, secure: true))
+            {
+                _secureError = "Secure keyboard input was interrupted.";
+                return false;
+            }
+        _secureError = "";
+        return true;
+    }
     public string LastError
     {
-        get { lock (_gate) return _portal.IsReady ? "" : _lastError; }
+        get { lock (_gate) return _secureError.Length > 0 ? _secureError :
+            _portal.IsReady ? _portal.LastError : _lastError.Length > 0 ? _lastError : _portal.LastError; }
     }
 
     private static string SocketPath => Environment.GetEnvironmentVariable("YDOTOOL_SOCKET")
@@ -154,11 +183,21 @@ public sealed class InputInjector : IDisposable
 
     // ---------------------------------------------------------------- pointer
 
-    public void MouseMove(double x, double y)
+    public void MouseMove(double x, double y) => MovePointer(x, y, recalibrate: false);
+
+    private bool MovePointer(double x, double y, bool recalibrate)
     {
-        Remember(x, y);
-        if (_portal.Send(new { type = "absolute", x, y })) return;
-        FallbackMoveAbsolute(x, y, recalibrate: false);
+        lock (_gate)
+        {
+            Remember(x, y);
+            if (_portal.Send(new { type = "absolute", x, y }))
+            {
+                // The compositor moved the pointer outside the fallback's estimate.
+                _cursorKnown = false;
+                return true;
+            }
+            return FallbackMoveAbsolute(x, y, recalibrate);
+        }
     }
 
     public void MouseMoveRelative(double dx, double dy, double sensitivity = 1)
@@ -168,6 +207,7 @@ public sealed class InputInjector : IDisposable
         if (x == 0 && y == 0) return;
         if (_portal.Send(new { type = "relative", dx = x, dy = y }))
         {
+            lock (_gate) _cursorKnown = false;
             var b = _capture.InputBounds;
             if (b.Width > 0 && b.Height > 0)
                 Remember(Math.Clamp(_lastX + (double)x / b.Width, 0, 1),
@@ -197,11 +237,11 @@ public sealed class InputInjector : IDisposable
     // is pasted into whatever that tap just focused. MouseMove is deliberately NOT
     // flushed: moving the pointer alone changes no caret, and flushing on every motion
     // event would defeat the gather entirely.
-    public void Click(string button, double x, double y) { FlushPendingText(); MouseMove(x, y); ClickCode(Button(button)); }
+    public void Click(string button, double x, double y) { FlushPendingText(); if (MovePointer(x, y, recalibrate: true)) ClickCode(Button(button)); }
     public void ClickCurrent(string button) { FlushPendingText(); ClickCode(Button(button)); }
-    public void DoubleClick(double x, double y) { FlushPendingText(); MouseMove(x, y); DoubleClickCurrent(); }
+    public void DoubleClick(double x, double y) { FlushPendingText(); if (MovePointer(x, y, recalibrate: true)) DoubleClickCurrent(); }
     public void DoubleClickCurrent() { FlushPendingText(); ClickCode(BtnLeft); Thread.Sleep(40); ClickCode(BtnLeft); }
-    public void MouseButton(string button, bool down, double x, double y) { FlushPendingText(); MouseMove(x, y); Set(Button(button), down); }
+    public void MouseButton(string button, bool down, double x, double y) { FlushPendingText(); if (MovePointer(x, y, recalibrate: down) || !down) Set(Button(button), down); }
     public void MouseButtonCurrent(string button, bool down) { FlushPendingText(); Set(Button(button), down); }
 
     private void ClickCode(ushort code) { Set(code, true); Thread.Sleep(25); Set(code, false); }
@@ -568,6 +608,7 @@ public sealed class InputInjector : IDisposable
     /// </summary>
     private void Deliver(string run)
     {
+        if (SessionLocked == true) { TypeTextSecure(run); return; }
         var keymap = _portal.Keymap;
         if (keymap is not null && KeymapPlanner.TryPlan(run, keymap, out var plan))
         {
@@ -587,7 +628,7 @@ public sealed class InputInjector : IDisposable
     /// what was held. A held Shift would otherwise turn the Alt+Shift group toggle into a different
     /// chord and change the level of every planned stroke.
     /// </summary>
-    private bool SendOnGroup(GroupKeymap group, PlannedRun run)
+    private bool SendOnGroup(GroupKeymap group, PlannedRun run, bool secure = false)
     {
         var held = HeldLevelModifiers();
         var events = new List<object>();
@@ -597,7 +638,7 @@ public sealed class InputInjector : IDisposable
         foreach (var code in held) events.Add(new { code = (int)code, down = true });
         // `text` marks exact characters: the helper neutralizes a Caps Lock left on at the desk for
         // this batch and restores it afterwards.
-        return _portal.Send(new { type = "keysyms", text = true, events });
+        return _portal.Send(new { type = "keysyms", text = true, secure, events });
     }
 
     /// <summary>
@@ -770,21 +811,24 @@ public sealed class InputInjector : IDisposable
         catch (Exception ex) { _lastError = ex.Message; return false; }
     }
 
-    private void FallbackMoveAbsolute(double x, double y, bool recalibrate)
+    private bool FallbackMoveAbsolute(double x, double y, bool recalibrate)
     {
         var b = _capture.InputBounds;
+        if (b.Width <= 0 || b.Height <= 0 || !double.IsFinite(x) || !double.IsFinite(y)) return false;
         int px = (int)Math.Round(Math.Clamp(x, 0, 1) * Math.Max(0, b.Width - 1));
         int py = (int)Math.Round(Math.Clamp(y, 0, 1) * Math.Max(0, b.Height - 1));
         lock (_gate)
         {
-            if (!EnsureConnected()) return;
+            if (!EnsureConnected()) return false;
             try
             {
                 // uinput is relative-only: park the cursor in the far corner once, then track it.
-                if (recalibrate || !_cursorKnown)
+                if (!_cursorKnown || b.Width != _cursorWidth || b.Height != _cursorHeight
+                    || (recalibrate && !_pressed.Any(code => code >= BtnLeft)))
                 {
                     SendEvent(EvRel, RelX, 4096); SendEvent(EvRel, RelY, 4096); SendEvent(EvSyn, SynReport, 0);
                     _cursorX = Math.Max(0, b.Width - 1); _cursorY = Math.Max(0, b.Height - 1);
+                    _cursorWidth = b.Width; _cursorHeight = b.Height;
                     _cursorKnown = true;
                 }
                 int dx = px - _cursorX, dy = py - _cursorY;
@@ -792,8 +836,9 @@ public sealed class InputInjector : IDisposable
                 if (dy != 0) SendEvent(EvRel, RelY, dy);
                 if (dx != 0 || dy != 0) SendEvent(EvSyn, SynReport, 0);
                 _cursorX = px; _cursorY = py;
+                return true;
             }
-            catch (Exception ex) { Drop(ex); }
+            catch (Exception ex) { Drop(ex); return false; }
         }
     }
 

@@ -1,4 +1,4 @@
-import type { Hello, MouseButton } from "../types";
+import { BUILD, type Hello, type MouseButton } from "../types.ts";
 
 import { h264GivenUp } from "./h264state.ts";
 import { canDecodeH264 } from "./decode.ts";
@@ -44,9 +44,10 @@ interface Handlers {
   onClose?: (willReconnect: boolean) => void;
   onPong?: (rttMs: number) => void;
   onInputState?: (ready: boolean, error?: string) => void;
+  onHostState?: (locked: boolean | null) => void;
   /** Which codec the agent is producing right now. It can change mid-session: the helper drops to
    *  JPEG on its own if the hardware encoder will not open, and climbs back when it will. */
-  onCodec?: (codec: "jpeg" | "h264") => void;
+  onCodec?: (codec: "jpeg" | "h264", sequence?: number) => void;
 }
 
 /**
@@ -119,7 +120,7 @@ export class RemoteConnection {
     // END/START one second apart re-offered H.264 immediately. Sessions there reconnect every one
     // to two minutes, and every codec change is a pipeline rebuild the user sees as the screen
     // cutting out — so this is the difference between "settles down" and "never stops".
-    ws.send(JSON.stringify({ type: "video", h264: canDecodeH264() && !h264GivenUp(), watching: this.watching }));
+    ws.send(JSON.stringify({ type: "video", h264: canDecodeH264() && !h264GivenUp(), watching: this.watching, build: BUILD }));
       this.h.onOpen?.();
       this.startPing();
     };
@@ -137,6 +138,7 @@ export class RemoteConnection {
         }
         switch (m.type) {
           case "hello":
+            this.secureKeyboard = m.input?.secureText === true;
             this.authenticated = true;
             this.backoff = 500;
             this.stopConnectTimeout();
@@ -163,7 +165,8 @@ export class RemoteConnection {
             this.h.onScreen?.(!!m.available);
             break;
           case "codec":
-            this.h.onCodec?.(m.codec === "h264" ? "h264" : "jpeg");
+            this.h.onCodec?.(m.codec === "h264" ? "h264" : "jpeg",
+              Number.isSafeInteger(m.sequence) && m.sequence >= 0 ? m.sequence : undefined);
             break;
           case "pong":
             // Aliveness is already stamped for every message at the top of onmessage; the pong's
@@ -172,6 +175,9 @@ export class RemoteConnection {
             break;
           case "inputState":
             this.h.onInputState?.(!!m.ready,m.error);
+            break;
+          case "hostState":
+            this.h.onHostState?.(typeof m.locked === "boolean" ? m.locked : null);
             break;
           case "error":
             if (m.error === "unauthorized") {
@@ -337,6 +343,9 @@ export class RemoteConnection {
    * command — see ScreenCapture.SessionWatching.
    */
   setWatching(watching: boolean) {
+    // Returning to the picture starts a fresh decode history. A keyframe asked for
+    // just before hiding cannot satisfy it; allow this first recovery request.
+    if (watching && !this.watching) this.lastKeyframeAsk = -Infinity;
     this.watching = watching;
     this.send({ type: "video", watching });
   }
@@ -345,6 +354,9 @@ export class RemoteConnection {
   get open() {
     return this.authenticated && this.ws?.readyState === WebSocket.OPEN;
   }
+
+  /** Async input belongs to the authenticated socket on which it was requested. */
+  get connectionVersion() { return this.generation; }
 
   /**
    * Ask for an IDR because THIS client has nothing to decode against any more.
@@ -477,6 +489,17 @@ export class RemoteConnection {
     if (Date.now() - this.textQueuedAt >= TEXT_COALESCE_MAX_MS) { this.flushText(); return; }
     const remaining = TEXT_COALESCE_MAX_MS - (Date.now() - this.textQueuedAt);
     this.textTimer=window.setTimeout(()=>this.flushText(),Math.min(remaining,fast?FAST_FLUSH_MS:COMPLEX_TEXT_FLUSH_MS));
+  }
+
+  /** Sensitive typing is live-only. It never enters the offline replay buffer. */
+  private secureKeyboard = false;
+  secretText(value: string): boolean {
+    // An older host ignores the secure flag and may use clipboard paste.
+    // A cached newer controller must never send a password to such a host.
+    if (!this.open || !this.secureKeyboard || !value) return false;
+    this.clearText();
+    this.input({ type: "text", value, secure: true });
+    return true;
   }
   private clearText() {
     if (this.textTimer !== null) window.clearTimeout(this.textTimer);

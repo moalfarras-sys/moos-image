@@ -34,6 +34,21 @@ export function initLang(): Lang {
 }
 
 const dict = {
+  secureTyping: { ar: "كتابة كلمة مرور", en: "Password typing" },
+  hostLockedTitle: { ar: "الكمبيوتر مقفول", en: "Computer locked" },
+  hostLockedHint: { ar: "قد يحجب النظام الصورة عند القفل. اكتب كلمة مرور حساب الكمبيوتر ثم اضغط Enter.", en: "The system may hide the picture while locked. Type your computer account password, then press Enter." },
+  secureTypingUnavailable: { ar: "الخدمة لا تدعم كتابة كلمة المرور الآمنة بعد.", en: "This host does not support secure password typing yet." },
+  chooseWorkspace: { ar: "طريقة التحكم", en: "Control workspace" },
+  screenWorkspace: { ar: "شاشة وتحكم", en: "Desktop" },
+  touchpadWorkspace: { ar: "لوحة لمس", en: "Touchpad" },
+  keyboardWorkspace: { ar: "كيبورد", en: "Keyboard" },
+  touchpadSurface: { ar: "حرّك إصبعك هنا", en: "Slide your finger here" },
+  touchpadInstructions: { ar: "لمسة للنقر · إصبعان للتمرير · اضغط ثم اسحب للسحب", en: "Tap to click · two fingers to scroll · hold then move to drag" },
+  keyboardInstructions: { ar: "اكتب على الكمبيوتر من هاتفك. تعمل الكتابة دون تشغيل عرض الشاشة.", en: "Type on your computer from your phone. Screen streaming can stay off." },
+  openKeyboard: { ar: "فتح الكيبورد", en: "Open keyboard" },
+  leftClick: { ar: "نقرة يسار", en: "Left click" },
+  rightClick: { ar: "نقرة يمين", en: "Right click" },
+  pictureRecovery: { ar: "ننتظر عودة الصورة. يمكنك استخدام لوحة اللمس والكيبورد أثناء استعادة العرض.", en: "Waiting for the picture. Touchpad and keyboard remain available while video recovers." },
   // ── Connection / status ──
   connecting: { ar: "جارٍ الاتصال…", en: "Connecting…" },
   reconnect: { ar: "إعادة الاتصال", en: "Reconnect" },
@@ -200,6 +215,7 @@ const dict = {
   inputPrefix: { ar: "الإدخال:", en: "Input:" },
   imagePastedPc: { ar: "تم لصق الصورة على الكمبيوتر", en: "Image pasted on PC" },
   textPastedPc: { ar: "تم لصق النص على الكمبيوتر", en: "Text pasted on PC" },
+  textTypedPc: { ar: "تمت كتابة النص على الكمبيوتر", en: "Text typed on PC" },
   imageSendFailedNothingPasted: { ar: "تعذّر إرسال الصورة — لم يُلصق شيء", en: "Couldn't send the image — nothing pasted" },
   textSendFailedNothingPasted: { ar: "تعذّر إرسال النص — لم يُلصق شيء", en: "Couldn't send the text — nothing pasted" },
   folderOpenFailed: { ar: "تعذّر فتح هذا المجلد", en: "Can't open that folder" },

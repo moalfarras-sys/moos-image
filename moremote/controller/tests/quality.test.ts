@@ -4,9 +4,39 @@ import {dirname, resolve} from "node:path";
 import {fileURLToPath} from "node:url";
 import {
   pickStartPreset, describeHints, encodeWidth, hostMaxPreset, hostEncodeCeiling, presetEncodeCeiling, autoPresetLimit,
-  PRESET_DATA_SAVER, PRESET_BALANCED, PRESET_SHARP, ladderTick, LADDER, WEAK_LINK,
+  PRESET_DATA_SAVER, PRESET_BALANCED, PRESET_SHARP, ladderTick, sampleDetailProbe, LADDER, WEAK_LINK,
 } from "../src/lib/quality.ts";
 import { QUALITY_PRESETS, AUTO_MAX_PRESET } from "../src/types.ts";
+
+// The owner's local iPhone must be allowed to sharpen after actual video progress,
+// and a healthy 50-60 ms relay must not be stuck at Data Saver merely for its RTT.
+const phoneHints = { hardwareConcurrency: 6, displayWidthPx: 1179 };
+const local = {good:0,bad:0,responsive:false};
+for(let n=0;n<3;n++) assert.equal(sampleDetailProbe(local,6,20,0,true),false);
+assert.equal(sampleDetailProbe(local,6,20,0,true),true);
+assert.equal(autoPresetLimit(QUALITY_PRESETS,null,AUTO_MAX_PRESET,phoneHints,local.responsive),PRESET_BALANCED);
+assert.equal(autoPresetLimit(QUALITY_PRESETS,null,AUTO_MAX_PRESET,phoneHints,local.responsive,true),PRESET_SHARP,
+  'a zoomed/typing view on a responsive link can request readable detail');
+assert.equal(autoPresetLimit(QUALITY_PRESETS,null,AUTO_MAX_PRESET,{...phoneHints,saveData:true},true,true),PRESET_DATA_SAVER);
+assert.equal(autoPresetLimit(QUALITY_PRESETS,null,AUTO_MAX_PRESET,{...phoneHints,hardwareConcurrency:2},true,true),PRESET_DATA_SAVER);
+assert.equal(sampleDetailProbe(local,45,20,0,true),true,'one interaction jitter sample cannot undo detail');
+assert.equal(sampleDetailProbe(local,6,4100,0,true),false,'a stale pong retires the trial immediately');
+const relay = {good:0,bad:0,responsive:false};
+for(let n=0;n<20;n++) sampleDetailProbe(relay,55,100,0,true);
+assert.equal(relay.responsive,true);
+assert.equal(autoPresetLimit(QUALITY_PRESETS,null,AUTO_MAX_PRESET,phoneHints,relay.responsive),PRESET_BALANCED);
+assert.equal(sampleDetailProbe(relay,110,100,0,true),true,'ordinary relay jitter retains the earned trial');
+sampleDetailProbe(relay,160,100,0,true);
+assert.equal(sampleDetailProbe(relay,160,100,0,true),false,'sustained congestion retires the trial');
+const congested = {good:0,bad:0,responsive:false};
+for(let n=0;n<20;n++) sampleDetailProbe(congested,180,100,0,true);
+assert.equal(autoPresetLimit(QUALITY_PRESETS,null,AUTO_MAX_PRESET,phoneHints,congested.responsive,true),PRESET_DATA_SAVER);
+const stalled = {good:0,bad:0,responsive:false};
+for(let n=0;n<4;n++) sampleDetailProbe(stalled,5,20,0,true);
+sampleDetailProbe(stalled,5,20,900,true);
+assert.equal(sampleDetailProbe(stalled,5,20,1200,true),false,'low RTT with a stalled decoder cannot request more pixels');
+const absent = {good:0,bad:0,responsive:false};
+for(let n=0;n<20;n++) assert.equal(sampleDetailProbe(absent,5,20,0,false),false,'pongs without a picture prove no video headroom');
 
 // ── A failed measurement must not become a request for full size ─────────────────────────
 // Every distinct encode width costs the helper a full GStreamer teardown and rebuild, which the
@@ -173,12 +203,13 @@ console.log("PASS: opening-quality choice (device + link aware)");
 // RTT promote the stream to Ultra, even though RTT says nothing about the available bandwidth.
 const here = dirname(fileURLToPath(import.meta.url));
 const remote = readFileSync(resolve(here, "../src/ui/RemoteScreen.tsx"), "utf8");
-assert.match(remote, /const autoMaxPreset = \(\) => autoPresetLimit\(QUALITY_PRESETS, hostEncodeRef\.current,\s*AUTO_MAX_PRESET, deviceHints\);/,
+assert.match(remote, /const autoMaxPreset = \(\) => autoPresetLimit\(QUALITY_PRESETS, hostEncodeRef\.current,\s*AUTO_MAX_PRESET, deviceHints, detailProbeRef\.current\.responsive,/,
   "the RTT ladder must stop at Sharp, the host cap and the browser's Data Saver policy");
 assert.match(remote, /const limit = autoPresetLimit\(QUALITY_PRESETS, cap, AUTO_MAX_PRESET, deviceHints\);/,
   "a persisted manual preset must be capped when Auto reconnects on a slow link");
-assert.ok(!/autoMaxPreset\s*=\s*\(\)\s*=>[^;]*displayWidthPx/.test(remote),
-  "display size must not bypass the automatic Sharp ceiling");
+assert.equal(autoPresetLimit(QUALITY_PRESETS,null,AUTO_MAX_PRESET,
+  {displayWidthPx:3840},true,true),PRESET_SHARP,
+  "responsive video and a large/zoomed view must still stop at Sharp");
 
 console.log("PASS: Auto quality cannot promote a wide display to Ultra from RTT");
 

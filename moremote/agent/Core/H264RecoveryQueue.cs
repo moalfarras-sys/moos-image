@@ -19,6 +19,8 @@ public sealed class H264RecoveryQueue
     private readonly Queue<byte[]> _items = new();
     private readonly int _maxDepth;
     private bool _waitingForIdr;
+    private int _sourceGeneration;
+    private long _sequence;
 
     public H264RecoveryQueue(int maxDepth = 12)
     {
@@ -26,12 +28,20 @@ public sealed class H264RecoveryQueue
         _maxDepth = maxDepth;
     }
 
-    public H264EnqueueResult Enqueue(byte[] accessUnit)
+    public H264EnqueueResult Enqueue(byte[] accessUnit, int sourceGeneration = 0)
     {
         ArgumentNullException.ThrowIfNull(accessUnit);
         bool randomAccess = H264AccessUnit.IsRandomAccess(accessUnit);
         lock (_sync)
         {
+            if (sourceGeneration < _sourceGeneration) return H264EnqueueResult.DroppedWhileWaiting;
+            if (sourceGeneration != _sourceGeneration)
+            {
+                _sourceGeneration = sourceGeneration;
+                _items.Clear();
+                _waitingForIdr = true;
+                _sequence++;
+            }
             if (_waitingForIdr)
             {
                 if (!randomAccess) return H264EnqueueResult.DroppedWhileWaiting;
@@ -48,6 +58,7 @@ public sealed class H264RecoveryQueue
             // client decode corruption until the next IDR, which is the black/frozen interval this
             // queue exists to remove.
             _items.Clear();
+            _sequence++;
             if (randomAccess)
             {
                 _items.Enqueue(accessUnit);
@@ -59,9 +70,13 @@ public sealed class H264RecoveryQueue
     }
 
     public bool TryDequeue(out byte[] accessUnit)
+        => TryDequeue(out accessUnit, out _);
+
+    public bool TryDequeue(out byte[] accessUnit, out long sequence)
     {
         lock (_sync)
         {
+            sequence = _sequence;
             if (_items.TryDequeue(out var value))
             {
                 accessUnit = value;
@@ -78,11 +93,13 @@ public sealed class H264RecoveryQueue
         {
             _items.Clear();
             _waitingForIdr = waitForKeyframe;
+            _sequence++;
         }
     }
 
     public int Count { get { lock (_sync) return _items.Count; } }
     public bool WaitingForIdr { get { lock (_sync) return _waitingForIdr; } }
+    public long Sequence { get { lock (_sync) return _sequence; } }
 }
 
 public static class H264AccessUnit

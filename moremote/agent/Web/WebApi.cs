@@ -53,6 +53,7 @@ public static class WebApi
             locked = svc.Sessions.LockoutRemainingSeconds() > 0,
             lockoutSeconds = svc.Sessions.LockoutRemainingSeconds(),
             hostPowerAllowed = PowerActions.HostPowerAllowed,
+            input = new { ready = svc.Input.IsReady, backend = svc.Input.BackendName },
         }));
         app.MapGet("/api/local-diagnostic-token",(HttpContext ctx)=>
         {

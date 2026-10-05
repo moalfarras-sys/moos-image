@@ -1,6 +1,6 @@
 # Mo Remote Personal
 
-A **private**, local-only remote control for your own Windows PC, driven from your iPhone (or any browser) over **Tailscale**. View your screen and control the mouse + keyboard by touch — no VPS, no cloud, no database, no domain, no open router ports.
+A **private** remote control for your MoOS or Windows PC, driven from your iPhone (or any browser) over **Tailscale**. View your screen and control the mouse + keyboard by touch — no VPS, no cloud, no database, no domain, no open router ports.
 
 > ⚠️ **Personal use only.** This tool is deliberately **not stealthy**: it always shows a red "Remote control active" banner on the PC and has an instant Stop button. Use it only on computers you own or are authorized to control.
 
@@ -66,8 +66,10 @@ Everything is local. The only network in play is your private Tailscale tailnet.
 
 - **Windows 10 or 11** (x64).
 - **Linux / MoOS (KDE Wayland)** is supported by the native Linux agent in `agent-linux/`. It uses
-  one restored XDG RemoteDesktop + ScreenCast portal session, a persistent PipeWire stream,
-  hardware H.264 when available, explicit `wl-clipboard`, and portal input injection.
+  a restored display portal and persistent PipeWire stream for the picture, hardware H.264 when
+  available, and independent native KWin EIS mouse/keyboard input. Desktop and Keyboard keep
+  the picture visible; Touchpad works without it. Sensitive typing uses native keys and the
+  normal account password path, with no PC clipboard or reconnect replay. See [One Remote](ONE_REMOTE.md).
 - **[Tailscale](https://tailscale.com/download)** on the PC and the phone (same account).
 - To **build** from source: [.NET SDK 10+](https://dotnet.microsoft.com/download) and [Node.js 18+](https://nodejs.org).
   *(The built app is self-contained — the .NET runtime is bundled, so running it needs no install.)*
@@ -90,7 +92,7 @@ sh scripts/install-linux.sh
 
 This installs the app in `~/.local/lib/mo-remote-personal`, creates the same launcher and
 icon, and enables the `mo-remote-personal.service` user service at login. The `ydotool`
-package must be installed on the host for remote mouse and keyboard input.
+package provides the fallback input path. MoOS v55 uses native KWin EIS input independently of the PipeWire display stream; see [One Remote](ONE_REMOTE.md).
 
 This builds the PWA + a self-contained Windows app, copies it to `%LOCALAPPDATA%\MoRemotePersonal\app`, adds a Start-Menu shortcut, enables start-with-Windows, and launches it.
 
@@ -179,7 +181,7 @@ A small ring shows the current pointer position. The PC's resolution is **never*
 
 **View** button: **Fit** (whole screen) / **100%** (original size, pan around) / Zoom in-out / quality **Auto / Low / Balanced / High** (Auto adapts to your network) / **Monitor** picker (multi-display).
 
-**Controls** (auto-hide; tap **Controls** to reveal): **Type · Clipboard · Mouse mode · Display · Zoom · Sound · Fullscreen · More**. On a phone they occupy a reserved bottom dock; in landscape and desktop browsers they occupy a reserved right rail. They never sit on top of the remote picture. *More* has Ctrl+Alt+Del, Copy, Paste, Refresh stream, Disconnect, and a **Power** section. *Display* has a monitor picker when the PC has more than one display.
+**Controls**: **Desktop · Touchpad · Keyboard · Settings**. Desktop controls auto-hide; tap **Controls** to reveal them. Clipboard, display, sound, files and power are in Settings. On a phone they occupy a reserved bottom dock; in landscape and desktop browsers they occupy a reserved right rail. They never sit on top of the remote picture. *More* has Ctrl+Alt+Del, Copy, Paste, Refresh stream, Disconnect, and a **Power** section. *Display* has a monitor picker when the PC has more than one display.
 
 **Keyboard:** tap **Type** to open the native phone keyboard. MoOS types ASCII and Arabic through real keyboard groups, and uses a confirmed exact-text compatibility path for German characters, accents, emoji and composed Unicode that the installed input protocol cannot represent. The shortcut row has sticky **Ctrl / Alt / Shift / Win**, one-tap **Ctrl+C / Ctrl+V / Ctrl+A / Alt+Tab**, and Esc, Tab, arrows, Home, End, Del.
 

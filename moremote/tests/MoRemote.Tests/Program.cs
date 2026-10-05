@@ -1,13 +1,29 @@
 using System.Text.Json;
 using MoRemote;
 
+if (args.Contains("--portal-recorder"))
+{
+    try { await PortalRecoveryTests.Record(args[^2], args[^1], args.Contains("--idle"), args.Contains("--decline")); }
+    catch (Exception ex) { Console.Error.WriteLine(ex.Message); Environment.ExitCode = 1; }
+    return;
+}
+
 var trustDir = Path.Combine(Path.GetTempPath(), "moremote-tests-" + Guid.NewGuid());
 Environment.SetEnvironmentVariable("MOREMOTE_DATA_DIR", trustDir);
+Directory.CreateDirectory(trustDir);
 
 int passed=0;
+try { passed += await PortalRecoveryTests.Run(); }
+catch (Exception ex) { Console.Error.WriteLine("FAIL: " + ex.Message); Environment.ExitCode = 1; return; }
 void Eq<T>(T expected,T actual,string name){if(!EqualityComparer<T>.Default.Equals(expected,actual))throw new Exception($"{name}: expected {expected}, got {actual}");passed++;}
 void Throws(Action a,string name){try{a();throw new Exception(name+": did not reject");}catch(ArgumentOutOfRangeException){passed++;}}
 (double x,double y) Client(double px,double py,double left,double top,double width,double height)=>(Math.Clamp((px-left)/width,0,1),Math.Clamp((py-top)/height,0,1));
+
+// KScreen reports physical output pixels and the actual logical workspace separately.
+var scaledDesktop = """{"outputs":[{"enabled":true,"connected":true,"size":{"width":3840,"height":2160},"scale":2.5}],"screen":{"currentSize":{"width":1536,"height":864}}}""";
+Eq((1536, 864), KdeDesktopGeometry.Parse(scaledDesktop), "fallback uses fractional-scale logical workspace before portal consent");
+Eq((0, 0), KdeDesktopGeometry.Parse(scaledDesktop.Replace("\"connected\":true", "\"connected\":false")), "no connected output has no injectable extent");
+Eq((0, 0), KdeDesktopGeometry.Parse(scaledDesktop.Replace("\"width\":1536", "\"width\":0")), "zero workspace is never guessed to be 1080p");
 
 var normal=new LogicalRect(0,0,1397,786);
 Eq((0,0),CoordinateMapper.NormalizedToDesktop(0,0,normal),"top-left");
@@ -39,6 +55,14 @@ Eq(H264EnqueueResult.Recovered, h264Queue.Enqueue(recoveryIdr), "h264 IDR restar
 Eq(true, h264Queue.TryDequeue(out var recoveredAu), "h264 recovery exposes the IDR");
 Eq(true, ReferenceEquals(recoveryIdr, recoveredAu), "h264 recovery exposes only the IDR it received");
 Eq(false, h264Queue.TryDequeue(out _), "no broken delta follows the recovery IDR");
+long beforeSource = h264Queue.Sequence;
+h264Queue.Enqueue(Delta(6), sourceGeneration: 1);
+Eq(0, h264Queue.Count, "a fresh helper cannot seed a decoder with a delta");
+h264Queue.Enqueue(Idr(7), sourceGeneration: 1);
+Eq(true, h264Queue.TryDequeue(out _, out var sourceSequence), "new helper IDR is delivered");
+Eq(true, sourceSequence > beforeSource, "an identical-format helper has a fresh video sequence");
+h264Queue.Enqueue(Idr(8), sourceGeneration: 0);
+Eq(0, h264Queue.Count, "a late retired helper cannot replace the current stream");
 
 var unicode="مرحباً Grüße English";Eq(unicode,System.Text.Encoding.UTF8.GetString(System.Text.Encoding.UTF8.GetBytes(unicode)),"clipboard unicode");
 var presenceDir = Path.Combine(Path.GetTempPath(), "moremote-presence-" + Guid.NewGuid());

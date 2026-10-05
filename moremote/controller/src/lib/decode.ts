@@ -54,6 +54,42 @@ export async function decodeJpeg(buf: ArrayBuffer): Promise<Drawable | null> {
   });
 }
 
+/** Keep only the latest waiting JPEG and retire async results on hide/reconnect. */
+export class JpegStream {
+  private generation = 0;
+  private decoding = false;
+  private pending: ArrayBuffer | null = null;
+
+  constructor(
+    private readonly onFrame: (frame: Drawable) => void,
+    private readonly decode: (buf: ArrayBuffer) => Promise<Drawable | null> = decodeJpeg,
+  ) {}
+
+  push(buf: ArrayBuffer) {
+    if (this.decoding) this.pending = buf;
+    else void this.decodeNext(buf);
+  }
+
+  reset() {
+    this.generation++;
+    this.decoding = false;
+    this.pending = null;
+  }
+
+  private async decodeNext(buf: ArrayBuffer) {
+    const generation = this.generation;
+    this.decoding = true;
+    let frame: Drawable | null = null;
+    try { frame = await this.decode(buf); } catch { /* a bad image must not hold the queue */ }
+    if (generation !== this.generation) { closeDrawable(frame); return; }
+    if (frame) this.onFrame(frame);
+    this.decoding = false;
+    const next = this.pending;
+    this.pending = null;
+    if (next) this.push(next);
+  }
+}
+
 // ---------------------------------------------------------------- H.264 (Annex-B)
 
 /** Walk the start codes and hand back each NAL's type and where its payload begins. */
@@ -152,6 +188,10 @@ function bytesEqual(a: Uint8Array, b: Uint8Array): boolean {
  * 8 is ~0.27s at 30fps: past any decode hiccup worth riding out, short of what a person reads as lag.
  */
 const MAX_DECODE_QUEUE = 8;
+// Queue consumption does not prove that WebCodecs produced a picture. A silent
+// decoder can keep decodeQueueSize at zero while the canvas stays frozen.
+const OUTPUT_STALL_MS = 3000;
+const KEYFRAME_RETRY_MS = 1000;
 
 /**
  * A decode error is first a reason to resynchronise, and only a repeat is a reason to leave H.264.
@@ -185,6 +225,8 @@ export class H264Stream {
   private lastSps: Uint8Array | null = null;
   /** When the last decode error was absorbed by a resync (performance.now()), or 0. */
   private lastErrorAt = 0;
+  private lastOutputAt = 0;
+  private lastKeyframeAt: number | null = null;
   /**
    * True while the page is hidden. See suspend(): nothing is decoded and every arriving access
    * unit is dropped, so the decoder that resumes starts from a keyframe on a visible page.
@@ -237,23 +279,28 @@ export class H264Stream {
     if (this.suspended) return;              // hidden: this picture will never be seen
     const b = new Uint8Array(buf);
     const key = isKeyframe(b);
+    const now = performance.now();
 
     // Falling behind means the decoder itself owns a queue of OLD pictures. Merely refusing to
     // call decode() again does not empty that queue: the requested IDR would sit behind it and the
     // viewer would still watch the past catch up. Retire the decoder now, before examining this
     // access unit. A keyframe already in hand can seed the replacement immediately; otherwise skip
     // deltas and ask for one.
-    if (this.started && !this.resyncing && (this.dec?.decodeQueueSize ?? 0) > MAX_DECODE_QUEUE) {
+    if (this.started && !this.resyncing &&
+        ((this.dec?.decodeQueueSize ?? 0) > MAX_DECODE_QUEUE || now - this.lastOutputAt >= OUTPUT_STALL_MS)) {
       this.retireDecoder();
       if (!key) {
         this.resyncing = true;
-        this.onNeedKeyframe();
+        this.requestRecoveryKeyframe(now);
         return;
       }
     }
 
     if (!this.started) {
-      if (!key) return;                       // still waiting for something to start FROM
+      if (!key) {
+        this.requestRecoveryKeyframe(now);
+        return;                              // still waiting for something to start FROM
+      }
       const codec = codecFromSps(b);
       if (!codec) return;                     // a keyframe with no SPS is not a place to start
       if (!this.open(codec)) return;
@@ -289,6 +336,7 @@ export class H264Stream {
       if (!key) return;                       // still catching up; this frame is already history
       this.resyncing = false;
     }
+    this.lastKeyframeAt = null;
 
     try {
       this.dec!.decode(new EncodedVideoChunk({
@@ -320,7 +368,13 @@ export class H264Stream {
       return;
     }
     this.lastErrorAt = t;
-    this.onNeedKeyframe();                  // reset() cleared `started`: the next IDR reopens
+    this.requestRecoveryKeyframe(t);       // reset() cleared `started`: the next IDR reopens
+  }
+
+  private requestRecoveryKeyframe(now: number) {
+    if (this.lastKeyframeAt !== null && now - this.lastKeyframeAt < KEYFRAME_RETRY_MS) return;
+    this.lastKeyframeAt = now;
+    this.onNeedKeyframe();
   }
 
   private open(codec: string): boolean {
@@ -331,6 +385,7 @@ export class H264Stream {
       const dec = new VideoDecoder({
         output: (f) => {
           if (generation !== this.generation) { f.close(); return; }
+          this.lastOutputAt = performance.now();
           this.decodedHere++;
           this.onFrame(f);
         },
@@ -347,6 +402,7 @@ export class H264Stream {
       this.decodedHere = 0;
       dec.configure({ codec, optimizeForLatency: true });
       this.codec = codec;
+      this.lastOutputAt = performance.now();
       return true;
     } catch (e) {
       this.reset();
@@ -356,9 +412,15 @@ export class H264Stream {
   }
 
   /** Forget everything and wait for the next keyframe. */
+  restart() {
+    this.lastErrorAt = 0;
+    this.reset();
+  }
+
   reset() {
     this.retireDecoder();
     this.resyncing = false;
+    this.lastKeyframeAt = null;
   }
 
   /** Close only the codec state. Recovery deliberately keeps its `resyncing` decision. */

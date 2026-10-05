@@ -232,6 +232,33 @@ and should not. Wave W5 read Mo Store's `job.json` and the privacy token that wa
 through a `FolderListModel`, the way the Remote chip always has (`IslandTokens.js`), or from
 D-Bus. `tests/test_island_tokens.py` runs both ends and fails any MoOS plasmoid that tries.
 
+**A live socket and an empty decode queue do not prove a picture.** A browser
+can consume H.264 chunks without output while its pongs remain healthy. Recover
+against actual decoded output, with bounded IDR requests; keep incoming-data
+silence separate from a decoder failure. Retire both decoder generations on
+reconnect and Safari `pagehide`, and release late JPEG bitmaps without painting
+or unlocking the new generation's queue. Isolated browser fixtures are not phone
+endurance, and a measured DRM HDMI disconnect is not repaired by controller code.
+
+**A working capture can be shorter than a crash cooldown.** Repeated output loss
+closed useful Remote helpers every 20–60 s and grew the supervisor wait to 30 s.
+Reset that wait on sustained frame delivery from the same helper, not merely
+Ready/PLAYING. Keep rapid-crash backoff and the five-minute permission-refusal
+cooldown. A new viewer may wake an idle output-loss retry; refusal is never
+woken. Restore the agreed quality/width/FPS/codec before the renewed helper
+encodes; H.264 never polls the JPEG settings path. Use a private child/socket
+recorder for this proof, never the owner’s portal or input socket. A new helper or a dropped H.264 backlog is also a new reference history even when its codec and SPS match. Carry that boundary to the viewer in socket order before the new IDR; never send that history if its reset marker failed. The source's error budget does not belong to its replacement.
+
+**A hidden tab still has width, and fallback coordinates still need a real desktop.**
+Plasma TabBar counts invisible children in its default equal-width formula. Five declared
+Island tabs left two active Arabic labels a letter-wide column. Render the real Qt controls:
+active tabs need content width, hidden tabs zero width, and single-line ink inside a bounded
+strip. Remote's pre-consent fallback must read KScreen's logical workspace (including fractional
+scale), never assume 1920×1080 or use video pixels. Portal motion invalidates the fallback
+estimate; a later tap must reacquire after external mouse motion. Keep the two capture paths'
+embedded-cursor choice consistent. Prove transitions with a private datagram recorder; native
+GUI consent assistance and phone acceptance are separate from those isolated tests.
+
 **A colour named after a role is not that role's use.** Four apps painted secondary text with
 `Kirigami.Theme.disabledTextColor` because the token gate only required "follow the theme". As
 text a person reads it measured 1.6:1 on the light schemes. Secondary ink is the theme's text
@@ -377,6 +404,8 @@ in four on the slow machine is telling you about the product, not about the mach
 with `screendump` takes about half an hour and is the only thing that found any of the above.
 
 ## Things that are easy to get wrong here
+
+**A saved mouse mode must not disable a finger.** A phone can retain desktop mode and a laptop can have both inputs. Route actual touch pointers through gestures, real mouse events through DesktopInput, suppress compatibility mouse presses/movement and retire pending mouse motion before the finger takes over. Exercise both with an intercepted browser transport, never the owner’s uinput socket. A GDK no-output state can be one 0×0 placeholder rather than an empty monitor list: neither is a valid resize for renewing the portal grant.
 
 **ydotool release must actually release.** Button indices are 0/1/2;
 OR `0x40` sends down, `0x80` sends up, `0xC0` sends both. The station
@@ -665,6 +694,8 @@ gh auth refresh -h github.com -s workflow
 ```
 
 ## What is NOT done — do not claim otherwise
+
+- **Mo PC Remote v55 is a local/source review, not a signed OS release.** Native session EIS input survives capture renewal; a production browser drove click/text in private KWin while capture was failing. Native devices remained ready under a real private lock, and v55 passed repeated normal-password unlock on a disposable signed-base guest beyond the grace interval; owner phone/WAN acceptance remains open. Unattended capture consent belongs only to `org.moos.remote`, never the empty host app ID. Preserve PIN/device authentication and held-input ownership. See `moremote/ONE_REMOTE.md`.
 
 Being honest about this list is more useful than shrinking it.
 

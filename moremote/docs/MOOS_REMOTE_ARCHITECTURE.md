@@ -144,6 +144,19 @@ Primary references used for that decision:
   <https://webkit.org/blog/7929/designing-websites-for-iphone-x/> and
   <https://webkit.org/blog/12445/new-webkit-features-in-safari-15-4/>
 
+## Linux fallback pointer recovery
+
+Before native consent, KScreen's `screen.currentSize` supplies the logical desktop extent;
+4K video pixels and an assumed 1080p workspace do not describe fractional scaling. Refreshes
+run off the input/socket loops. An unknown workspace cannot inject a positional click.
+Portal movement invalidates the relative fallback's estimate. A resized extent or positional
+tap after external pointer movement reacquires the corner before targeting the normalized
+point; held-button releases retain their original backend. Spectacle fallback uses the same
+`EmbedCursor` choice as the portal, so a hidden captured cursor never duplicates the viewer
+arrow. Private socket fixtures model portal motion, local motion, resize and unavailable
+geometry without using the owner's input device. HDMI link loss and phone acceptance remain
+separate live evidence.
+
 ## v38 input and recovery refinements
 
 `hello.cursorEmbedded` advertises the Linux capture cursor. With that cursor,

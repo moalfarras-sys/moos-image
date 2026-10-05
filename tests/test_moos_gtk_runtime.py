@@ -744,5 +744,55 @@ class TestMoOSGtkRuntime(unittest.TestCase):
         )
 
 
+class RemoteConsentTests(unittest.TestCase):
+    def namespace(self, permissions):
+        # Extract the native functions with a private bus recorder. Never load a
+        # permission-store object from the workstation's session.
+        tree=ast.parse(REMOTE_PATH.read_text())
+        functions=[n for n in tree.body if isinstance(n,ast.FunctionDef)
+                   and n.name in ("unattended_allowed","set_unattended_allowed")]
+        class Error(Exception): pass
+        class Bus:
+            def call_sync(self,*args):
+                self_args=args
+                if isinstance(permissions,Exception): raise permissions
+                return types.SimpleNamespace(unpack=lambda:(permissions,None))
+        gio=types.SimpleNamespace(bus_get_sync=lambda *_:Bus(),
+            BusType=types.SimpleNamespace(SESSION=1),DBusCallFlags=types.SimpleNamespace(NONE=0))
+        glib=types.SimpleNamespace(GError=Error,Variant=lambda *_:None)
+        ns=dict(Gio=gio,GLib=glib,REMOTE_APP_ID="org.moos.remote",UNIT="mo-remote-personal.service",
+                local_text=lambda a,b:b,active=lambda _:False)
+        exec(compile(ast.Module(body=functions,type_ignores=[]),str(REMOTE_PATH),"exec"),ns)
+        return ns,Error
+
+    def test_a_wildcard_or_another_apps_grant_never_authorizes_remote(self):
+        for permissions in ({"": ["yes"]},{"org.kde.krdpserver":["yes"]},{"org.moos.remote":["no"]}):
+            ns,_=self.namespace(permissions)
+            self.assertIs(ns["unattended_allowed"](),False)
+        ns,_=self.namespace({"org.moos.remote":["yes"]})
+        self.assertIs(ns["unattended_allowed"](),True)
+
+    def test_enable_and_revoke_touch_only_the_named_remote_app(self):
+        ns,_=self.namespace({})
+        calls=[]
+        ns["run"]=lambda *cmd:(calls.append(cmd) or types.SimpleNamespace(returncode=0))
+        ns["unattended_allowed"]=lambda:True
+        ns["set_unattended_allowed"](True)
+        ns["unattended_allowed"]=lambda:False
+        ns["set_unattended_allowed"](False)
+        self.assertEqual(calls,[
+            ("flatpak","permission-set","kde-authorized","remote-desktop","org.moos.remote","yes"),
+            ("flatpak","permission-remove","kde-authorized","remote-desktop","org.moos.remote")])
+        ns["unattended_allowed"]=lambda:True;ns["active"]=lambda _:True
+        ns["set_unattended_allowed"](True)
+        self.assertEqual(calls[-1],("systemctl","--user","try-restart","mo-remote-personal.service"))
+
+    def test_failure_cannot_be_reported_as_an_access_change(self):
+        ns,_=self.namespace({});ns["run"]=lambda *_:types.SimpleNamespace(returncode=0)
+        ns["unattended_allowed"]=lambda:None
+        with self.assertRaisesRegex(RuntimeError,"verify"):
+            ns["set_unattended_allowed"](True)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

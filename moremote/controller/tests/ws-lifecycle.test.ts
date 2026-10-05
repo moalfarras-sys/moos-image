@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import {RemoteConnection} from "../src/lib/ws.ts";
+import {BUILD} from "../src/types.ts";
 
 let latest: TestSocket;
 let nextTimer = 1;
@@ -13,7 +14,8 @@ class TestSocket {
   onclose: (() => void) | null = null;
   onerror: (() => void) | null = null;
   constructor(_url: string) { latest = this; }
-  send(_data: string) {}
+  sent: string[] = [];
+  send(data: string) { this.sent.push(data); }
   close() { this.readyState = 3; this.onclose?.(); }
 }
 
@@ -34,6 +36,18 @@ Object.defineProperty(globalThis, "WebSocket", {configurable: true, value: TestS
 
 const closes: boolean[] = [];
 const connection = new RemoteConnection("token", {onClose: recoverable => closes.push(recoverable)});
+const codecs: [string, number | undefined][] = [];
+const videoConnection = new RemoteConnection("token", {onCodec: (codec, sequence) => codecs.push([codec, sequence])});
+videoConnection.connect();
+latest.readyState = TestSocket.OPEN;
+latest.onopen?.();
+assert.equal(JSON.parse(latest.sent[1]).build, BUILD,
+  "the live phone must report its running controller version, independently of the host's assets");
+latest.onmessage?.({data: JSON.stringify({type: "codec", codec: "h264", sequence: 17})});
+latest.onmessage?.({data: JSON.stringify({type: "codec", codec: "h264", sequence: -1})});
+assert.deepEqual(codecs, [["h264", 17], ["h264", undefined]],
+  "the capture reset sequence must reach the viewer; invalid sequences remain legacy codec messages");
+videoConnection.disconnect();
 
 connection.connect();
 latest.close();
@@ -261,6 +275,21 @@ const open = (conn: RemoteConnection) => {
   assert.notEqual(latest, stuck, "a CONNECTING socket without a handshake must have a deadline");
   conn.disconnect();
   deadlines.clear();
+}
+
+{ // Password packets require an explicitly capable host and a live authenticated socket.
+  const conn = new RemoteConnection("token", {});
+  conn.connect();const socket = latest;socket.readyState=TestSocket.OPEN;socket.onopen?.();
+  socket.onmessage?.({data:JSON.stringify({type:"hello",input:{ready:true}})});
+  assert.equal(conn.secretText("legacy-host"),false);
+  assert.equal(socket.sent.map(x=>JSON.parse(x)).filter(x=>x.type==="text").length,0,
+    "a cached new controller must not send a secret to an older host's clipboard path");
+  socket.onmessage?.({data:JSON.stringify({type:"hello",input:{ready:true,secureText:true}})});
+  assert.equal(conn.secretText("private-test"),true);
+  const packet=socket.sent.map(x=>JSON.parse(x)).find(x=>x.type==="text");
+  assert.equal(packet.secure,true);
+  socket.close();assert.equal(conn.secretText("offline-test"),false);
+  conn.disconnect();deadlines.clear();
 }
 
 Date.now = realDateNow;

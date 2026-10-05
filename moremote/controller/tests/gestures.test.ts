@@ -3,7 +3,7 @@ import {test} from "node:test";
 import {GestureController, type GestureCallbacks} from "../src/lib/gestures.ts";
 import {FakeSurface, inputEnvironment} from "./input-harness.ts";
 
-function setup(options: {mode?: "touch" | "direct" | "trackpad"; rotated?: boolean;
+function setup(options: {mode?: "touch" | "direct" | "trackpad" | "desktop"; pointerType?: string; rotated?: boolean;
   relative?: boolean; pan?: {x: boolean; y: boolean}; inContent?: (x: number, y: number) => boolean} = {}) {
   const env = inputEnvironment();
   const surface = new FakeSurface();
@@ -21,7 +21,7 @@ function setup(options: {mode?: "touch" | "direct" | "trackpad"; rotated?: boole
     () => options.pan ?? {x: false, y: false}, () => options.rotated ?? false, () => options.relative ?? false);
   if (options.mode) gestures.setMode(options.mode);
   const pointer = (type: string, id: number, x: number, y: number) =>
-    surface.emit(type, {pointerId: id, clientX: x, clientY: y});
+    surface.emit(type, {pointerId: id, pointerType: options.pointerType ?? "touch", clientX: x, clientY: y});
   const down = (id = 1, x = 100, y = 200) => pointer("pointerdown", id, x, y);
   const move = (id = 1, x = 100, y = 200) => pointer("pointermove", id, x, y);
   const up = (id = 1, x = 100, y = 200) => pointer("pointerup", id, x, y);
@@ -29,6 +29,20 @@ function setup(options: {mode?: "touch" | "direct" | "trackpad"; rotated?: boole
   const events = (kind: string) => output.filter(item => item.kind === kind).map(item => item.values);
   return {env, surface, gestures, down, move, up, tap, events, output};
 }
+
+test("desktop mode still accepts a finger tap and drag without taking real mouse presses", () => {
+  const touch = setup({mode: "desktop"});
+  touch.tap(100, 200);
+  assert.deepEqual(touch.events("click"), [["left", 100 / 390, 200 / 844]]);
+  touch.down(); touch.move(1, 150, 230); touch.up(1, 180, 250);
+  assert.deepEqual(touch.events("down"), [[100 / 390, 200 / 844]]);
+  assert.deepEqual(touch.events("up"), [[180 / 390, 250 / 844]]);
+  touch.gestures.destroy();
+  const mouse = setup({mode: "desktop", pointerType: "mouse"});
+  mouse.tap(100, 200); mouse.down(); mouse.move(1, 160, 250); mouse.up();
+  assert.equal(mouse.output.length, 0, "DesktopInput alone owns a physical mouse");
+  mouse.gestures.destroy();
+});
 
 test("touch taps are immediate; a double-tap totals exactly two same-point clicks", () => {
   const h = setup();
