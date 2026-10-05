@@ -4,7 +4,7 @@
   "entries": [
     {
       "id": "remote-one-controller",
-      "merged": "2026-10-05T13:40:33Z",
+      "merged": "2026-10-05T19:00:00Z",
       "glyph": "video",
       "route": "moos://settings/remote",
       "title": {
@@ -12,8 +12,8 @@
         "en": "Desktop, touchpad and keyboard in Mo PC Remote"
       },
       "body": {
-        "ar": "اختر شاشة وتحكّم، أو لوحة لمس، أو كيبورد من شريط واحد. التحكم بالماوس والكيبورد مستقل عن تجديد بث الشاشة. لوحة الكمبيوتر تتيح الوصول دون موافقة محلية، مع بقاء المصادقة وكلمة مرور الحساب لفتح القفل.",
-        "en": "Choose Desktop, Touchpad or Keyboard from one dock. Mouse and keyboard input survives screen-capture renewal. The PC panel offers unattended access while retaining Remote authentication and your account password for unlocking."
+        "ar": "اختر شاشة وتحكّم، أو لوحة لمس، أو كيبورد من شريط واحد. تبقى الشاشة ظاهرة أثناء الكتابة، وتتكيف الجودة مع الاستجابة. التحكم مستقل عن تجديد البث، وكتابة كلمة المرور لا تستخدم حافظة الكمبيوتر. لوحة الكمبيوتر تتيح الوصول دون موافقة محلية، مع بقاء المصادقة وكلمة مرور الحساب لفتح القفل.",
+        "en": "Choose Desktop, Touchpad or Keyboard from one dock. The screen stays visible while typing and quality adapts to responsiveness. Input survives capture renewal; password typing avoids the PC clipboard. The PC panel offers unattended access while retaining Remote authentication and your account password for unlocking."
       }
     },
     {

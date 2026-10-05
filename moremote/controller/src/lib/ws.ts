@@ -355,6 +355,9 @@ export class RemoteConnection {
     return this.authenticated && this.ws?.readyState === WebSocket.OPEN;
   }
 
+  /** Async input belongs to the authenticated socket on which it was requested. */
+  get connectionVersion() { return this.generation; }
+
   /**
    * Ask for an IDR because THIS client has nothing to decode against any more.
    *

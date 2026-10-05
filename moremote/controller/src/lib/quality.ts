@@ -231,20 +231,40 @@ export function autoPresetLimit(
   host: HostEncode | null | undefined,
   fallback: number,
   hints: DeviceHints,
+  responsiveVideo = false,
+  needsDetail = false,
 ): number {
   if (hints.saveData || hints.effectiveType === "slow-2g" ||
       hints.effectiveType === "2g" || hints.effectiveType === "3g") return PRESET_DATA_SAVER;
-  // Safari on iPhone reports no Network Information at all. On the owner's cellular Tailscale
-  // relay it measured a healthy 50-60 ms RTT while the 1366px Balanced stream repeatedly lost
-  // its socket; manually pinning 1024px Data saver steadied it. An RTT cannot tell us how much
-  // throughput the relay has. Keep Auto at Data saver for a phone-sized display when the browser
-  // hides its link class. A manual preset still permits more detail on known fast links.
-  if (hints.displayWidthPx && hints.displayWidthPx < 1400 && !hints.effectiveType)
+  if ((hints.deviceMemory !== undefined && hints.deviceMemory <= 2) ||
+      (hints.hardwareConcurrency !== undefined && hints.hardwareConcurrency <= 2))
+    return PRESET_DATA_SAVER;
+  // Safari starts conservatively, then permits a bounded detail trial after
+  // fresh low-latency pongs AND successful picture decoding. A 50-60 ms relay
+  // does not meet that condition. Congestion still steps down on the same ladder.
+  if (hints.displayWidthPx && hints.displayWidthPx < 1400 && !hints.effectiveType && !responsiveVideo)
     return PRESET_DATA_SAVER;
   // A reported link class still does not make 1080p useful on a phone's short edge.
-  if (hints.displayWidthPx && hints.displayWidthPx < 1400)
+  if (hints.displayWidthPx && hints.displayWidthPx < 1400 && !(responsiveVideo && needsDetail))
     return Math.min(PRESET_BALANCED, hostMaxPreset(presets, host, fallback));
   return hostMaxPreset(presets, host, fallback);
+}
+
+export interface DetailProbeState { good: number; bad: number; responsive: boolean; }
+
+/** Permit one-step detail trials, with hysteresis; this is not a bandwidth estimate. */
+export function sampleDetailProbe(state: DetailProbeState, rtt: number, pongAge: number,
+                                  decodeLag: number, hasPicture: boolean): boolean {
+  const fresh = rtt > 0 && pongAge < 3500 && hasPicture;
+  if (fresh && rtt <= 30 && decodeLag < 350) {
+    state.good++; state.bad = 0;
+    if (state.good >= 4) state.responsive = true;
+  } else if (!fresh || rtt > 90 || decodeLag > 800) {
+    state.good = 0; state.bad++;
+    if (state.bad >= 2 || pongAge >= LADDER.PONG_STALE_MS || rtt >= LADDER.SEVERE_MS)
+      state.responsive = false;
+  } else { state.good = 0; state.bad = 0; }
+  return state.responsive;
 }
 
 /**

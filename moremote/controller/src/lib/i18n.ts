@@ -35,6 +35,8 @@ export function initLang(): Lang {
 
 const dict = {
   secureTyping: { ar: "كتابة كلمة مرور", en: "Password typing" },
+  hostLockedTitle: { ar: "الكمبيوتر مقفول", en: "Computer locked" },
+  hostLockedHint: { ar: "قد يحجب النظام الصورة عند القفل. اكتب كلمة مرور حساب الكمبيوتر ثم اضغط Enter.", en: "The system may hide the picture while locked. Type your computer account password, then press Enter." },
   secureTypingUnavailable: { ar: "الخدمة لا تدعم كتابة كلمة المرور الآمنة بعد.", en: "This host does not support secure password typing yet." },
   chooseWorkspace: { ar: "طريقة التحكم", en: "Control workspace" },
   screenWorkspace: { ar: "شاشة وتحكم", en: "Desktop" },
@@ -213,6 +215,7 @@ const dict = {
   inputPrefix: { ar: "الإدخال:", en: "Input:" },
   imagePastedPc: { ar: "تم لصق الصورة على الكمبيوتر", en: "Image pasted on PC" },
   textPastedPc: { ar: "تم لصق النص على الكمبيوتر", en: "Text pasted on PC" },
+  textTypedPc: { ar: "تمت كتابة النص على الكمبيوتر", en: "Text typed on PC" },
   imageSendFailedNothingPasted: { ar: "تعذّر إرسال الصورة — لم يُلصق شيء", en: "Couldn't send the image — nothing pasted" },
   textSendFailedNothingPasted: { ar: "تعذّر إرسال النص — لم يُلصق شيء", en: "Couldn't send the text — nothing pasted" },
   folderOpenFailed: { ar: "تعذّر فتح هذا المجلد", en: "Can't open that folder" },

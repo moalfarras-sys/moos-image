@@ -17,7 +17,7 @@ const errors = [];
 // behaved the same, but it meant no test ever ran against a value the app could actually store.
 // Pass null to leave the preference unset and get the shipped default (Auto).
 async function viewer(options, mode, language = 'en', cursorEmbedded = false, orient = 'off',
-                      encode = null, linkClass = 'default', h264Fixture = false) {
+                      encode = null, linkClass = 'default', h264Fixture = false, liveRtt = null) {
   const context = await browser.newContext({...options, serviceWorkers: 'block'});
   contexts.push(context);
   await context.addInitScript(({mode, language, orient}) => {
@@ -72,7 +72,12 @@ async function viewer(options, mode, language = 'en', cursorEmbedded = false, or
       packets.push(msg);
       if (msg.type === 'auth') {
         if (autoHello) hello(ws);
-      } else if (msg.type === 'ping') ws.send(JSON.stringify({type:'pong',t:msg.t}));
+      } else if (msg.type === 'ping') {
+        if (liveRtt !== null) setTimeout(() => {
+          ws.send(JSON.stringify({type:'pong',t:msg.t})); sendFrame(ws);
+        }, liveRtt);
+        else ws.send(JSON.stringify({type:'pong',t:msg.t}));
+      }
       else if (msg.type === 'keyframe') sendFrame(ws);
     });
   });
@@ -161,11 +166,15 @@ try {
       'one finger on the dedicated touchpad cannot become absolute screen input');
     await cp.getByRole('button',{name:'Right click',exact:true}).click();
     assert.ok(control.packets.some(p=>p.type==='clickCurrent' && p.button==='right'));
-    await capture(cp,'touchpad-en-dark');
+    await capture(cp,'touchpad-en-light');
     await cp.setViewportSize({width:852,height:393});
     await capture(cp,'touchpad-en-landscape');
     await cp.setViewportSize({width:393,height:852});
     await cp.getByRole('button',{name:'Keyboard',exact:true}).click();
+    assert.equal(control.packets.filter(p=>p.type==='video').at(-1)?.watching,true,
+      'keyboard typing keeps the actual computer screen streaming');
+    assert.equal(await cp.locator('.screen-canvas').evaluate(el=>getComputedStyle(el).visibility),'visible',
+      'the real screen remains visible above the typing controls');
     await cp.getByRole('button',{name:'Password typing',exact:true}).click();
     const secret = cp.locator('.kbinput');
     assert.equal(await secret.getAttribute('type'),'password');
@@ -174,6 +183,23 @@ try {
     await cp.waitForTimeout(300);
     assert.ok(control.packets.some(p=>p.type==='text' && p.value==='private-fixture' && p.secure===true),
       'password typing explicitly selects native keyboard delivery');
+    let clipboardWrites=0;
+    await cp.route('**/api/clipboard',route=>{
+      if(route.request().method()!=='GET') clipboardWrites++;
+      return route.fulfill({json:{ok:true}});
+    });
+    await cp.evaluate(()=>Object.defineProperty(navigator,'clipboard',{configurable:true,value:{
+      readText:async()=> 'private-paste',
+    }}));
+    control.packets.length=0;
+    await cp.getByRole('button',{name:'Paste from this device',exact:true}).click();
+    await cp.waitForTimeout(100);
+    assert.ok(control.packets.some(p=>p.type==='text' && p.value==='private-paste' && p.secure===true),
+      'pasting into password typing uses native input');
+    assert.equal(clipboardWrites,0,'a password paste never writes the PC clipboard');
+    assert.equal(control.packets.filter(p=>p.type==='combo').length,0,'password paste never sends Ctrl+V');
+    await cp.evaluate(()=>{navigator.clipboard.readText=()=>new Promise(resolve=>{window.finishSecretPaste=resolve;});});
+    await cp.getByRole('button',{name:'Paste from this device',exact:true}).click();
     control.holdHello();
     const socketCount = control.sockets.length;
     control.sockets.at(-1).close();
@@ -185,8 +211,17 @@ try {
     for (let n=0;n<40 && control.sockets.length<=socketCount;n++) await cp.waitForTimeout(100);
     control.hello(control.sockets.at(-1));
     await cp.waitForTimeout(300);
+    await cp.evaluate(()=>window.finishSecretPaste('late-secret'));
+    await cp.waitForTimeout(100);
     assert.equal(control.packets.filter(p=>p.type==='text').length,0,'reconnection never replays a password');
+    assert.equal(clipboardWrites,0,'an interrupted clipboard read cannot publish a password');
     await capture(cp,'secure-keyboard-en');
+    control.sockets.at(-1).send(JSON.stringify({type:'hostState',locked:true}));
+    await cp.getByText('Computer locked',{exact:true}).waitFor();
+    assert.equal(await secret.getAttribute('type'),'password');
+    await capture(cp,'locked-keyboard-en');
+    control.sockets.at(-1).send(JSON.stringify({type:'hostState',locked:false}));
+    await cp.getByText('Computer locked',{exact:true}).waitFor({state:'hidden'});
     await cp.getByRole('button',{name:'Done',exact:true}).click();
     await cp.getByRole('button',{name:'Desktop',exact:true}).click();
     assert.equal(control.packets.filter(p=>p.type==='video').at(-1)?.watching,true);
@@ -637,6 +672,20 @@ try {
     'Auto on a phone with no link class must not send Balanced over a cellular relay');
   assert.equal(safariPhone.packets.filter(p => p.type === 'settings').at(-1)?.quality, 52,
     'Auto on Safari-shaped phone must use Data saver from its first hello');
+
+  // A direct responsive link can earn more detail; a relay-shaped link cannot.
+  // Both receive freshly decoded pictures, so this exercises the actual settings wire.
+  const directPhone = await viewer({viewport:{width:393,height:852},deviceScaleFactor:3,
+    isMobile:true,hasTouch:true},'touch','en',false,'off',null,'silent',false,6);
+  const relayPhone = await viewer({viewport:{width:393,height:852},deviceScaleFactor:3,
+    isMobile:true,hasTouch:true},'touch','en',false,'off',null,'silent',false,60);
+  await directPhone.page.waitForTimeout(30000);
+  assert.equal(directPhone.packets.filter(p => p.type === 'settings').at(-1)?.quality,68,
+    'fresh low RTT and decoded video must permit one bounded detail upgrade');
+  assert.equal(relayPhone.packets.filter(p => p.type === 'settings').at(-1)?.quality,52,
+    'relay latency must retain the Safari phone starting ceiling');
+  assert.ok(directPhone.packets.filter(p => p.type === 'settings').every(p => p.width <= 1366),
+    'an unzoomed narrow phone must not jump to Sharp or Ultra');
 
   const light = await viewer({viewport:{width:360,height:800},deviceScaleFactor:2,
     isMobile:true,hasTouch:true,colorScheme:'light',reducedMotion:'reduce'},'touch','ar');

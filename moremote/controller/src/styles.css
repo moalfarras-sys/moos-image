@@ -325,9 +325,9 @@ button {
   background: var(--active-soft); color: var(--accent);
   box-shadow: inset 0 0 0 1px var(--glass-edge);
 }
-.workspace-touchpad .screen-canvas, .workspace-keyboard .screen-canvas,
-.workspace-touchpad .remote-cursor, .workspace-keyboard .remote-cursor,
-.workspace-touchpad .fill-offer, .workspace-keyboard .fill-offer {
+.workspace-touchpad .screen-canvas,
+.workspace-touchpad .remote-cursor,
+.workspace-touchpad .fill-offer {
   visibility: hidden; pointer-events: none;
 }
 .input-workspace {
@@ -1026,6 +1026,30 @@ button {
   animation: state-arrive 0.34s cubic-bezier(.2,.8,.2,1) both;
 }
 .session-state.quiet { background: rgba(7, 11, 13, 0.58); }
+.host-lock-note {
+  position: absolute;
+  inset-block-start: 20px;
+  inset-inline: 16px;
+  z-index: 19;
+  margin-inline: auto;
+  max-width: 440px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  background: var(--glass-dense);
+  color: var(--text);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+.host-lock-note > svg { width: 24px; height: 24px; flex: 0 0 auto; }
+.host-lock-note > div { flex: 1; min-width: 160px; display: grid; gap: 5px; }
+.host-lock-note b { font-size: 16px; }
+.host-lock-note span { color: var(--muted); font-size: 13px; line-height: 1.5; }
+.host-lock-note .btn { min-height: 44px; }
 .state-copy {
   display: grid;
   justify-items: center;
