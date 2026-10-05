@@ -124,6 +124,25 @@ class GeometryTests(unittest.TestCase):
         # The log line must tell a returning output from a real change.
         self.assertEqual(self.renewals[0], "output replaced, same geometry 1280x720+0+0@2")
 
+    def test_zero_size_placeholder_does_not_renew_mid_handshake(self):
+        # On the station HDMI loss leaves one 0x0 GDK monitor, rather than an
+        # empty list. It must not invalidate the grant before Start saves its
+        # replacement token. Returning to the real extent is compared normally.
+        old = self.display.monitors[0]
+        self.display.monitors[0] = Monitor(width=0, height=0)
+        self.display.emit("monitor-added", self.display.monitors[0])
+        self.drain()
+        self.assertFalse(self.watch.invalid)
+        self.assertEqual(self.renewals, [])
+        self.display.monitors[0] = old
+        self.display.emit("monitor-added", old)
+        self.drain()
+        self.assertEqual(self.renewals, [])
+        old.rect.width = 1536
+        old.emit("notify::geometry", None)
+        self.drain()
+        self.assertEqual(len(self.renewals), 1)
+
     def test_renewal_names_the_old_and_new_geometry(self):
         monitor = self.display.monitors[0]
         monitor.rect.width, monitor.rect.height = 1536, 864

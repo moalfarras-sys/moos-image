@@ -146,6 +146,39 @@ try {
   const touchLaptop = await viewer({viewport:{width:1920,height:1080},hasTouch:true},'desktop');
   assert.equal(touchLaptop.packets.filter(p => p.type === 'settings').at(-1)?.quality,80,
     'a wide touchscreen laptop remains Sharp instead of being mistaken for a phone');
+  {
+  const desktopPhone = await viewer({viewport:{width:390,height:844},isMobile:true,hasTouch:true},'desktop');
+  const dp = desktopPhone.page;
+  const db = await dp.locator('.screen-canvas').boundingBox();
+  const tx = db.x + db.width * .35, ty = db.y + db.height * .5;
+  desktopPhone.packets.length = 0;
+  await dp.touchscreen.tap(tx,ty);
+  await dp.waitForTimeout(80);
+  assert.equal(desktopPhone.packets.filter(p=>p.type==='click').length,1,
+    'a phone retaining Mouse + Keys gets one finger click');
+  assert.equal(desktopPhone.packets.filter(p=>p.type==='down'||p.type==='up').length,0,
+    'compatibility mouse presses cannot duplicate the finger click');
+  desktopPhone.packets.length = 0;
+  const dc = await desktopPhone.page.context().newCDPSession(dp);
+  const contact = (x,y) => [{id:7,x,y}];
+  await dc.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:contact(tx,ty)});
+  await dc.send('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:contact(tx+50,ty+20)});
+  await dp.waitForTimeout(40);
+  await dc.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});
+  await dp.waitForTimeout(80);
+  const dw = input(desktopPhone.packets);
+  assert.equal(dw.filter(p=>p.type==='down').length,1,'finger movement starts one desktop drag');
+  assert.equal(dw.filter(p=>p.type==='up').length,1,'finger drag releases once');
+  assert.equal(dw.filter(p=>p.type==='click'||p.type==='scroll').length,0,'drag is not a tap or scroll');
+  assert.ok(dw.findIndex(p=>p.type==='move') < dw.findIndex(p=>p.type==='down'));
+  assert.equal(dw.at(-1)?.type,'up','queued compatibility movement cannot land after the release');
+  desktopPhone.packets.length = 0;
+  await dp.mouse.click(tx,ty);
+  await dp.waitForTimeout(80);
+  assert.deepEqual(input(desktopPhone.packets).filter(p=>p.type==='down'||p.type==='up').map(p=>p.type),
+    ['down','up'],'a physical mouse still has exactly one press/release after finger input');
+  console.log('PASS: phone touch and real mouse coexist in saved desktop mode, with one click and an ordered drag');
+  }
   await capture(page, 'phone-ar');
   await page.getByRole('button', {name:'كتابة', exact:true}).click();
   const field = page.locator('.kbinput');

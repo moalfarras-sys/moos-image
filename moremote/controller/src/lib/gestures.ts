@@ -222,15 +222,17 @@ export class GestureController {
   };
 
   /**
-   * In "desktop" mode a real mouse is driving, and lib/desktop.ts handles it from the mouse events.
-   * A mouse ALSO raises pointer events, so without this guard every click would be delivered twice —
-   * once interpreted as a tap here and once as a real button there.
+   * DesktopInput owns real mouse events. A finger still needs a gesture path,
+   * including when a phone has retained "desktop" mode or a touchscreen laptop
+   * has both devices. Cancelling its pointerdown suppresses compatibility mouse
+   * presses; DesktopInput also ignores compatibility movement after touch.
    */
-  private get inert() { return this.mode === "desktop"; }
+  private inert(e: PointerEvent) { return this.mode === "desktop" && e.pointerType !== "touch"; }
+  private get gestureMode() { return this.mode === "desktop" ? "direct" : this.mode; }
 
   // ---------------- down ----------------
   private onDown = (e: PointerEvent) => {
-    if (this.inert) return;
+    if (this.inert(e)) return;
     e.preventDefault();
     this.stopGlide();   // a finger on the glass always outranks the glide it is interrupting
     try { this.el.setPointerCapture(e.pointerId); } catch { /* */ }
@@ -246,11 +248,11 @@ export class GestureController {
     this.lastX = e.clientX;
     this.lastY = e.clientY;
     // Trackpad mode is relative — a finger anywhere is legitimate, including the black.
-    this.outside = this.mode !== "trackpad" && !this.inContent(e.clientX, e.clientY);
+    this.outside = this.gestureMode !== "trackpad" && !this.inContent(e.clientX, e.clientY);
 
     // In the absolute modes the cursor goes under the finger straight away, so the desktop
     // hovers/highlights exactly what you are touching before you even lift.
-    if (this.mode !== "trackpad" && !this.outside) {
+    if (this.gestureMode !== "trackpad" && !this.outside) {
       const t = this.toNorm(e.clientX, e.clientY);
       this.moveTo(t.x, t.y, false);
     }
@@ -268,7 +270,7 @@ export class GestureController {
 
   // ---------------- move ----------------
   private onMove = (e: PointerEvent) => {
-    if (this.inert) return;
+    if (this.inert(e)) return;
     const p = this.pointers.get(e.pointerId);
     if (!p) return;
     e.preventDefault();
@@ -282,7 +284,7 @@ export class GestureController {
     }
     if (this.pointers.size !== 1) return;
     // A direct drag may clamp after leaving the picture, but may never start in the letterbox.
-    if (this.outside && this.mode === "direct") return;
+    if (this.outside && this.gestureMode === "direct") return;
 
     const dx = p.x - this.lastX;
     const dy = p.y - this.lastY;
@@ -295,13 +297,13 @@ export class GestureController {
       this.cb.dragStart(this.cx, this.cy);
     } else if (this.phase === "down" && far) {
       this.cancelLong();
-      if (this.mode === "direct") {
+      if (this.gestureMode === "direct") {
         this.phase = "drag";
         const s = this.toNorm(p.sx, p.sy);
         this.moveTo(s.x, s.y, false);
         this.cb.dragStart(s.x, s.y);
         this.lastTapAt = -Infinity;   // a tap that became a drag cannot start a double-click
-      } else if (this.mode === "trackpad") {
+      } else if (this.gestureMode === "trackpad") {
         this.phase = "move";
       } else {
         this.phase = "scroll"; // touch mode: a swipe scrolls, like on any phone
@@ -312,7 +314,7 @@ export class GestureController {
 
     this.lastX = p.x; this.lastY = p.y;
 
-    if (this.mode === "trackpad" && this.relativeTrackpad() && this.cb.moveRelative &&
+    if (this.gestureMode === "trackpad" && this.relativeTrackpad() && this.cb.moveRelative &&
         (this.phase === "drag" || this.phase === "move")) {
       const d = rotateDelta(dx, dy, this.isRotated());
       const gain = TRACKPAD_GAIN * this.getSensitivity();
@@ -322,7 +324,7 @@ export class GestureController {
       return;
     }
     if (this.phase === "drag") {
-      const t = this.mode === "trackpad" ? this.nudge(dx, dy) : this.toNorm(p.x, p.y);
+      const t = this.gestureMode === "trackpad" ? this.nudge(dx, dy) : this.toNorm(p.x, p.y);
       this.queueMove(t.x, t.y, true);
     } else if (this.phase === "move") {
       const t = this.nudge(dx, dy);
@@ -349,14 +351,14 @@ export class GestureController {
    * emit nothing else.
    */
   private onCancel = (e: PointerEvent) => {
-    if (this.inert || !this.pointers.has(e.pointerId)) return;
+    if (this.inert(e) || !this.pointers.has(e.pointerId)) return;
     e.preventDefault();
     this.cancelAll();
   };
 
   // ---------------- up ----------------
   private onUp = (e: PointerEvent) => {
-    if (this.inert) return;
+    if (this.inert(e)) return;
     const p = this.pointers.get(e.pointerId);
     if (!p) return;
     e.preventDefault();
@@ -440,7 +442,7 @@ export class GestureController {
           const near = dist(p.sx, p.sy, this.lastTapCX, this.lastTapCY) < DOUBLE_TAP_PX;
           if (now() - this.lastTapAt < DOUBLE_TAP_MS && near) {
             // The FIRST tap's point: it is the one the user aimed, before any wobble.
-            if (!(this.mode === "trackpad" && this.relativeTrackpad()))
+            if (!(this.gestureMode === "trackpad" && this.relativeTrackpad()))
               this.moveTo(this.lastTapNx, this.lastTapNy, false);
             this.cb.click("left", this.lastTapNx, this.lastTapNy);
             this.cb.haptic?.();
@@ -466,7 +468,7 @@ export class GestureController {
         //
         // Safe against double-firing because the scroll deltas that went out for a movement this
         // small are a pixel or two — below anything a person can see, let alone intend.
-        if (this.mode !== "trackpad" && now() - p.st < TAP_RESCUE_MS && p.travel < TAP_RESCUE_PX) {
+        if (this.gestureMode !== "trackpad" && now() - p.st < TAP_RESCUE_MS && p.travel < TAP_RESCUE_PX) {
           const s = this.toNorm(p.sx, p.sy);   // where the finger LANDED, not where it drifted to
           this.moveTo(s.x, s.y, false);
           this.cb.click("left", s.x, s.y);

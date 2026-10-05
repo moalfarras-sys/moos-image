@@ -24,6 +24,20 @@ function setup() {
   return {env, surface, desktop, mouse, key, events, output};
 }
 
+test("touch compatibility mouse events do not undo a finger's position or double its click", () => {
+  const h = setup();
+  h.mouse("mousemove", 50, 350); // still queued when a finger takes over
+  h.env.window.emit("pointerdown", {pointerType: "touch"});
+  h.mouse("mousemove", 100, 350); h.mouse("mousedown"); h.mouse("mouseup");
+  h.env.frame();
+  assert.equal(h.output.length, 0);
+  h.env.window.emit("pointermove", {pointerType: "mouse"});
+  h.mouse("mousedown"); h.mouse("mouseup");
+  assert.equal(h.events("down").length, 1);
+  assert.equal(h.events("up").length, 1, "a real mouse works immediately after touch");
+  h.desktop.destroy();
+});
+
 test("all three mouse buttons press/release at the latest point", () => {
   const h = setup();
   for (let button = 0; button < 3; button++) {

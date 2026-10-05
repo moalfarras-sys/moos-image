@@ -99,6 +99,7 @@ export class DesktopInput {
   private held = new Set<Button>();
   private heldCodes = new Set<string>();
   private locked = false;
+  private lastPointerType = "mouse";
   private cx = 0.5;
   private cy = 0.5;
 
@@ -127,6 +128,8 @@ export class DesktopInput {
     this.el.addEventListener("mousemove", this.onMove, { passive: false });
     this.el.addEventListener("wheel", this.onWheel, { passive: false });
     this.el.addEventListener("contextmenu", this.prevent, { passive: false });
+    window.addEventListener("pointerdown", this.onPointer, { passive: true, capture: true });
+    window.addEventListener("pointermove", this.onPointer, { passive: true, capture: true });
     // Releases and keys go on window: a button released off-canvas, or a key pressed while the
     // toolbar has focus, still belongs to the remote desktop.
     window.addEventListener("mouseup", this.onUp, { passive: false });
@@ -145,6 +148,8 @@ export class DesktopInput {
     this.el.removeEventListener("mousemove", this.onMove);
     this.el.removeEventListener("wheel", this.onWheel);
     this.el.removeEventListener("contextmenu", this.prevent);
+    window.removeEventListener("pointerdown", this.onPointer, true);
+    window.removeEventListener("pointermove", this.onPointer, true);
     window.removeEventListener("mouseup", this.onUp);
     window.removeEventListener("mousemove", this.onWindowMove);
     window.removeEventListener("keydown", this.onKeyDown);
@@ -203,6 +208,13 @@ export class DesktopInput {
   // ---------------------------------------------------------------- mouse
 
   private prevent = (e: Event) => e.preventDefault();
+  // Touch may still generate compatibility mousemove after its pointerdown was
+  // cancelled. Its gesture already owns that position. A real mouse pointer
+  // event restores the mouse path immediately, including on hybrid devices.
+  private onPointer = (e: PointerEvent) => {
+    this.lastPointerType = e.pointerType || "mouse";
+    if (this.lastPointerType === "touch") this.qMove = this.qRel = null;
+  };
 
   private onVisibility = () => { if (document.hidden) this.releaseAll(); };
 
@@ -215,6 +227,7 @@ export class DesktopInput {
   };
 
   private onDown = (e: MouseEvent) => {
+    if (this.lastPointerType === "touch") return;
     const b = BUTTONS[e.button];
     if (!b) return;                       // 3/4 are back/forward; the desktop has no use for them
     if (!this.locked && !this.inContent(e.clientX, e.clientY)) return;
@@ -243,6 +256,7 @@ export class DesktopInput {
   };
 
   private onMove = (e: MouseEvent) => {
+    if (this.lastPointerType === "touch") return;
     if (this.locked) {
       // Pointer lock exists for the case absolute positioning cannot serve: a 3D view or a game
       // that warps the cursor itself, where the local pointer would otherwise hit the window edge

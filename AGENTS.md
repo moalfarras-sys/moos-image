@@ -405,6 +405,8 @@ with `screendump` takes about half an hour and is the only thing that found any 
 
 ## Things that are easy to get wrong here
 
+**A saved mouse mode must not disable a finger.** A phone can retain desktop mode and a laptop can have both inputs. Route actual touch pointers through gestures, real mouse events through DesktopInput, suppress compatibility mouse presses/movement and retire pending mouse motion before the finger takes over. Exercise both with an intercepted browser transport, never the owner’s uinput socket. A GDK no-output state can be one 0×0 placeholder rather than an empty monitor list: neither is a valid resize for renewing the portal grant.
+
 **ydotool release must actually release.** Button indices are 0/1/2;
 OR `0x40` sends down, `0x80` sends up, `0xC0` sends both. The station
 helper once sent down from `release()`, leaving the virtual mouse held and
