@@ -893,6 +893,9 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired, l
         }, wait);
       }
     }, () => connRef.current?.requestKeyframe());
+    // A page opened in the background (a restored tab, a PWA launched behind another app) starts
+    // suspended; the visibility handler resumes it when it is actually seen.
+    if (document.hidden) h264.suspend();
     h264Ref.current = h264;
 
     const conn = new RemoteConnection(token, {
@@ -1161,8 +1164,11 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired, l
    * Three things happen on hide, and each is doing different work:
    *   - the agent is told nobody is watching, which (once every viewer agrees) tears the encode
    *     pipeline down and stops the compositor copying frames at all;
-   *   - the H.264 decoder is reset, because whatever it holds will be stale by the time anyone
-   *     looks again and a half-decoded GOP is not worth carrying;
+   *   - the H.264 decoder is SUSPENDED: closed, and fed nothing until the page is shown again.
+   *     Merely resetting it reopened a decoder on the next keyframe while still hidden, and a phone
+   *     refuses to decode for a page it has put away — two errors, and the room fell to JPEG (see
+   *     H264Stream.suspend). Both hide events do this: iOS fires pagehide, not visibilitychange,
+   *     when the app switcher sends Safari away;
    *   - nothing else. In particular the socket stays open, so the session, the token and the input
    *     path all survive a glance at another app.
    *
@@ -1175,10 +1181,11 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired, l
       if (!conn) return;
       if (document.hidden) {
         conn.setWatching(false);
-        h264Ref.current?.reset();
+        h264Ref.current?.suspend();
         pendingRef.current = null;
       } else {
         latRef.current = 0; latAtRef.current = 0;
+        h264Ref.current?.resume();
         conn.setWatching(true);
         conn.requestKeyframe();
         // iOS suspends the PWA whole while it is away, and the server has usually aborted the
@@ -1193,8 +1200,12 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired, l
     };
     // iOS fires pagehide rather than visibilitychange when Safari is backgrounded from the app
     // switcher. Same intent, different name; both are wired, and both are removed.
-    const onHide = () => connRef.current?.setWatching(false);
-    const onShow = () => { connRef.current?.setWatching(true); connRef.current?.requestKeyframe(); connRef.current?.probe(); };
+    const onHide = () => { h264Ref.current?.suspend(); connRef.current?.setWatching(false); };
+    const onShow = () => {
+      if (document.hidden) return;            // a pageshow for a page that is still not visible
+      h264Ref.current?.resume();
+      connRef.current?.setWatching(true); connRef.current?.requestKeyframe(); connRef.current?.probe();
+    };
     document.addEventListener("visibilitychange", onVis);
     window.addEventListener("pagehide", onHide);
     window.addEventListener("pageshow", onShow);

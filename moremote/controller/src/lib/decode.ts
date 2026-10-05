@@ -167,6 +167,9 @@ const MAX_DECODE_QUEUE = 8;
  */
 const DECODE_ERROR_WINDOW_MS = 20000;
 
+const now = () => (typeof performance !== "undefined" ? performance.now() : Date.now());
+const pageHidden = () => typeof document !== "undefined" && document.hidden === true;
+
 export class H264Stream {
   private dec: VideoDecoder | null = null;
   private codec = "";
@@ -182,6 +185,16 @@ export class H264Stream {
   private lastSps: Uint8Array | null = null;
   /** When the last decode error was absorbed by a resync (performance.now()), or 0. */
   private lastErrorAt = 0;
+  /**
+   * True while the page is hidden. See suspend(): nothing is decoded and every arriving access
+   * unit is dropped, so the decoder that resumes starts from a keyframe on a visible page.
+   */
+  private suspended = false;
+  /** When the page was last shown, when the current decoder was opened, and what it produced —
+   *  carried in a give-up reason so the agent's log says what the browser was doing. */
+  private shownAt = now();
+  private openedAt = 0;
+  private decodedHere = 0;
 
   constructor(
     private readonly onFrame: (f: VideoFrame) => void,
@@ -190,7 +203,38 @@ export class H264Stream {
     private readonly onNeedKeyframe: () => void = () => {},
   ) {}
 
+  /**
+   * The page is going out of sight: retire the decoder and decode nothing until resume().
+   *
+   * WHY A HIDDEN PAGE MUST NOT DECODE AT ALL
+   *
+   * A phone takes the hardware video decoder away from a page it has put in the background — iOS
+   * does this the moment Safari or the installed app leaves the screen — and every decode after
+   * that fails. Frames keep arriving for a while (the agent only stops once it hears that nobody
+   * is watching, and a periodic keyframe can land in that gap), so a page that keeps feeding its
+   * decoder collects two errors in quick succession and votes the room down to JPEG. Read off the
+   * Oracle machine's log on 2026-10-05: 51 such give-ups since 19 September, and 40 of them were
+   * followed by the phone's session ending within 30 seconds — the phone going away, not the
+   * stream going bad. Three give-ups pin that tab to JPEG for the rest of its life.
+   *
+   * The visibilitychange path already reset the decoder; pagehide, which iOS fires instead when
+   * the app switcher sends Safari away, did not, and a reset alone reopens on the next keyframe
+   * while still hidden. Suspension closes both: hidden means no decoder and no decoding.
+   */
+  suspend() {
+    this.retireDecoder();
+    this.resyncing = false;
+    this.suspended = true;
+  }
+
+  /** The page is visible again. The next keyframe — which the caller asks for — opens a decoder. */
+  resume() {
+    this.suspended = false;
+    this.shownAt = now();
+  }
+
   push(buf: ArrayBuffer) {
+    if (this.suspended) return;              // hidden: this picture will never be seen
     const b = new Uint8Array(buf);
     const key = isKeyframe(b);
 
@@ -261,15 +305,21 @@ export class H264Stream {
 
   /** Resync on the next keyframe, or give up on H.264 if this is a repeat. See DECODE_ERROR_WINDOW_MS. */
   private decodeError(why: string) {
+    // What the browser was doing when it failed, measured at the failure. The agent logs the
+    // reason it is sent, and until now that was only "EncodingError: Decoder failure" — which
+    // cannot tell a phone that went into a pocket from a stream that went bad.
+    const t = now();
+    const context = ` [hidden=${pageHidden() ? 1 : 0} shown=${Math.round(t - this.shownAt)}ms` +
+      ` open=${this.openedAt ? Math.round(t - this.openedAt) : -1}ms decoded=${this.decodedHere}]`;
     this.reset();
-    const now = performance.now();
-    const repeat = this.lastErrorAt > 0 && now - this.lastErrorAt < DECODE_ERROR_WINDOW_MS;
+    if (this.suspended) return;              // a decoder retired by suspend() is not evidence
+    const repeat = this.lastErrorAt > 0 && t - this.lastErrorAt < DECODE_ERROR_WINDOW_MS;
     if (repeat || why.startsWith("NotSupportedError")) {
       this.lastErrorAt = 0;
-      this.onFail(why);
+      this.onFail(why + context);
       return;
     }
-    this.lastErrorAt = now;
+    this.lastErrorAt = t;
     this.onNeedKeyframe();                  // reset() cleared `started`: the next IDR reopens
   }
 
@@ -281,6 +331,7 @@ export class H264Stream {
       const dec = new VideoDecoder({
         output: (f) => {
           if (generation !== this.generation) { f.close(); return; }
+          this.decodedHere++;
           this.onFrame(f);
         },
         // A decoder that errors is not a decoder that recovers: it is closed, and the next
@@ -292,6 +343,8 @@ export class H264Stream {
         },
       });
       this.dec = dec;
+      this.openedAt = now();
+      this.decodedHere = 0;
       dec.configure({ codec, optimizeForLatency: true });
       this.codec = codec;
       return true;
