@@ -49,14 +49,13 @@ PlasmaComponents3.AbstractButton {
     readonly property bool softwareRendering: GraphicsInfo.api === GraphicsInfo.Software
     readonly property bool motionEnabled: Kirigami.Units.longDuration > 1
     readonly property var design: MoUI.Tokens
-    // Firmware and software-rendered ARM guests can enter the greeter at
-    // 640x480. Preserve every power action by compacting only below 720 logical
-    // pixels; normal desktop and high-DPI geometry stays byte-for-byte full size.
-    // The window's height, not the screen's: the two differ in kscreenlocker's
-    // testing window, where screen-sized keys ran off the bottom of the window.
+    // The session family is sized by one number, taken from the window
+    // (Tokens.sessionScale): these keys shrink with everything else in a
+    // 640x480 firmware mode, where software-rendered ARM guests commonly enter
+    // the greeter, and grow with it on a large desktop.
+    readonly property real sceneWidth: Window.width > 0 ? Window.width : Screen.width
     readonly property real sceneHeight: Window.height > 0 ? Window.height : Screen.height
-    readonly property real compactScale: Math.min(
-        1.0, Math.max(0.60, (sceneHeight - 320) / 400))
+    readonly property real compactScale: design.sessionScale(sceneWidth, sceneHeight)
 
     // MoOS: the greeter hands us a full-colour icon name. Map it to the symbolic
     // glyph so isMask can paint it in the brand colour. Names already ending in
@@ -99,7 +98,8 @@ PlasmaComponents3.AbstractButton {
     // screen as the Plex date. Plex Arabic carries a full Latin set. And
     // font.families does not exist on Qt 6.11.1 here — see Logout.qml.
     font.family: design.interfaceFamily
-    font.pointSize: Kirigami.Theme.defaultFont.pointSize + 1
+    font.pointSize: Math.max(8, Math.round((Kirigami.Theme.defaultFont.pointSize + 1)
+                                           * Math.min(1.25, compactScale)))
     font.underline: root.activeFocus
 
     // MoOS token: medium glyph inside the same portal key used by Logout, so
@@ -176,7 +176,7 @@ PlasmaComponents3.AbstractButton {
         // single long translation from distorting the session layout.
         implicitWidth: Math.max(
             Kirigami.Units.gridUnit * 6.6 * Math.max(0.82, root.compactScale),
-            Math.min(Kirigami.Units.gridUnit * 9,
+            Math.min(Kirigami.Units.gridUnit * 9 * Math.max(1, root.compactScale),
                      root.implicitContentWidth + Kirigami.Units.gridUnit * 1.2))
         implicitHeight: Kirigami.Units.gridUnit * 4.8 * root.compactScale
         // explicitly set size to keep it from expanding or shrinking
@@ -299,7 +299,7 @@ PlasmaComponents3.AbstractButton {
             // label up to a generous language-safe ceiling; the surrounding
             // portal follows this content width above.  Elision remains only
             // as a last resort for genuinely exceptional translations.
-            width: Math.min(implicitWidth, Kirigami.Units.gridUnit * 8.2)
+            width: Math.min(implicitWidth, Kirigami.Units.gridUnit * 8.2 * Math.max(1, root.compactScale))
             text: root.Kirigami.MnemonicData.richTextLabel
             style: root.softwareRendering ? Text.Outline : Text.Normal
             styleColor: Kirigami.Theme.backgroundColor // Unused without outline

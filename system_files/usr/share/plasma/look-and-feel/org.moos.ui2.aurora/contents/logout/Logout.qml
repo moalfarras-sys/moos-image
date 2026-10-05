@@ -84,6 +84,9 @@ Item {
     readonly property color accent: Kirigami.Theme.highlightColor
     readonly property bool motionEnabled: Kirigami.Units.longDuration > 1
     readonly property var design: MoUI.Tokens
+    // The session family's one size (Tokens.sessionScale): the island, its
+    // tiles and its type grow and shrink with the clock and the face.
+    readonly property real sessionScale: design.sessionScale(root.width, root.height)
     // accentB — the two-tone partner (accentA hue-rotated +0.09 in HSL), same
     // derivation as the portal rim. The horizon rides accentA/accentB so its
     // hue is 100% theme-derived — no hardcoded base colour anywhere.
@@ -317,6 +320,8 @@ Item {
 
     SessionComponents.Clock {
         id: sessionClock
+        // This screen places the clock itself: no cover pose here.
+        heroWhenIdle: false
         anchors.horizontalCenter: parent.horizontalCenter
         y: root.groupTop
         visible: root.clockFits
@@ -334,7 +339,7 @@ Item {
         anchors.horizontalCenter: parent.horizontalCenter
         y: root.groupTop + (root.clockFits ? sessionClock.implicitHeight + root.clockGap : 0)
         width: Math.min(root.width - Kirigami.Units.gridUnit * 3,
-                        Math.max(Kirigami.Units.gridUnit * 26,
+                        Math.max(Kirigami.Units.gridUnit * 26 * root.sessionScale,
                                  column.implicitWidth + Kirigami.Units.gridUnit * 4))
         height: Math.min(root.height - Kirigami.Units.gridUnit * 3,
                          column.implicitHeight + Kirigami.Units.gridUnit * 3.6)
@@ -440,7 +445,7 @@ Item {
                 Layout.preferredWidth: Math.min(column.width, Kirigami.Units.gridUnit * 16)
                 Layout.preferredHeight: faceInset + faceSize + nameLine.height
                                         + Kirigami.Units.gridUnit * 0.9
-                faceSize: Kirigami.Units.gridUnit * 4
+                faceSize: Kirigami.Units.gridUnit * 4 * root.sessionScale
                 // The delegate draws the name four points above `fontSize`,
                 // which here lands on the secondary size: the question below
                 // is this island's headline, not the name.
@@ -475,7 +480,8 @@ Item {
                 elide: Text.ElideRight
                 font.family: root.design.interfaceFamily
                 font.weight: Font.DemiBold
-                font.pointSize: Kirigami.Theme.defaultFont.pointSize + 7
+                font.pointSize: Math.max(10, Math.round((Kirigami.Theme.defaultFont.pointSize + 7)
+                                                        * root.sessionScale))
             }
 
             // ── Countdown ring (only while an action is pending) ──
@@ -587,7 +593,7 @@ Item {
                 readonly property int actionCount: root.visibleDockActions().length
                 readonly property int widthLimit: Math.max(1, Math.floor(
                     ((root.width - Kirigami.Units.gridUnit * 7) + columnSpacing)
-                    / (Kirigami.Units.gridUnit * 8.6 + columnSpacing)))
+                    / (Kirigami.Units.gridUnit * 8.6 * root.sessionScale + columnSpacing)))
                 columns: Math.max(1, Math.min(4, widthLimit,
                     actionCount <= 4 ? actionCount : Math.ceil(actionCount / 2)))
 

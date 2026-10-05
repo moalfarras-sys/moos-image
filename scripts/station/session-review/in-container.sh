@@ -17,7 +17,10 @@
 #   wallpaper=MoOSUI2Graphite   override the family's wallpaper
 #   state=idle|active|typed|failed      (lock/login) what the capture shows
 #   mode=all|shutdown|reboot|logout     (logout) which prompt
-#   motion=1|0           0 writes AnimationDurationFactor=0
+#   motion=1             AnimationDurationFactor: 0 is the owner's "animations off"; 6 runs
+#                        every animation six times slower, so frames can be caught
+#   frames=1 every=0.3   capture a SEQUENCE (name-01.png ...) starting at the input; played
+#                        back at motion/every it is the motion at its real speed
 #   face=0|1             1 gives the review user a photo
 #   wait=8 after=2.5     seconds before input / before capture
 #   xi="move 10 10 ..."  extra xinput.py commands (logical pixels) before the capture
@@ -71,11 +74,11 @@ review_user() {
 shot() {
     local surface="$1" name="$2"; shift 2
     local lang=ar size=1536x864 scale=1 theme=org.moos.ui2.aurora wallpaper=""
-    local state=idle mode=all motion=1 face=0 wait=8 after=2.5 xi=""
+    local state=idle mode=all motion=1 face=0 wait=8 after=2.5 xi="" frames=1 every=0.3
     local kv
     for kv in "$@"; do
         case "$kv" in
-            lang=*|size=*|scale=*|theme=*|wallpaper=*|state=*|mode=*|motion=*|face=*|wait=*|after=*|xi=*)
+            lang=*|size=*|scale=*|theme=*|wallpaper=*|state=*|mode=*|motion=*|face=*|wait=*|after=*|xi=*|frames=*|every=*)
                 printf -v "${kv%%=*}" '%s' "${kv#*=}" ;;
             *) echo "unknown option: $kv" >&2; return 2 ;;
         esac
@@ -105,7 +108,7 @@ shot() {
     cp "/usr/share/color-schemes/$family.colors" "$home/.config/kdeglobals" || return 2
     {
         printf '\n[KDE]\nLookAndFeelPackage=%s\n' "$lnf"
-        [ "$motion" = 0 ] && printf 'AnimationDurationFactor=0\n'
+        [ "$motion" != 1 ] && printf 'AnimationDurationFactor=%s\n' "$motion"
     } >> "$home/.config/kdeglobals"
     printf '[Theme]\nname=%s\n' "$style" > "$home/.config/plasmarc"
     cat > "$home/.config/kscreenlockerrc" <<EOF
@@ -151,8 +154,16 @@ EOF
 $command >"$work/surface.log" 2>&1 &
 sleep "$wait"
 python3 "$HERE/xinput.py" scale "$scale" $actions $xi 2>>"$work/input.log"
-sleep "$after"
-import -silent -window root "$OUT/$name.png" 2>>"$work/shot.log"
+if [ "$frames" -gt 1 ]; then
+    for i in \$(seq -w 1 "$frames"); do
+        import -silent -window root "$OUT/$name-\$i.png" 2>>"$work/shot.log"
+        sleep "$every"
+    done
+    cp "$OUT/$name-\$(printf '%0*d' \${#frames} "$frames").png" "$OUT/$name.png"
+else
+    sleep "$after"
+    import -silent -window root "$OUT/$name.png" 2>>"$work/shot.log"
+fi
 EOF
     chmod +x "$work/session.sh"
 
@@ -164,7 +175,7 @@ EOF
         LIBGL_ALWAYS_SOFTWARE=1 QT_QPA_PLATFORM=xcb QML_DISABLE_DISK_CACHE=1 \
         LOGIN_WALLPAPER="${LOGIN_WALLPAPER:-0}" \
         QT_SCALE_FACTOR="$scale" QT_FORCE_STDERR_LOGGING=1 \
-        timeout 90 dbus-run-session -- \
+        timeout $((90 + frames * 2)) dbus-run-session -- \
         xvfb-run -a -s "-screen 0 ${pw}x${ph}x24 -nolisten tcp" "$work/session.sh" \
         >"$work/session.out" 2>&1
     if [ -s "$OUT/$name.png" ]; then

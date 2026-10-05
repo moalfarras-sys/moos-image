@@ -19,6 +19,7 @@
 import QtQuick
 import QtQuick.Controls as QQC2
 import QtQuick.Layouts
+import QtQuick.Window
 
 import org.kde.kirigami as Kirigami
 import org.moos.ui as MoUI
@@ -85,8 +86,10 @@ QQC2.AbstractButton {
 
     // The tile IS the control: glyph and caption share one surface, so the
     // whole footprint is interactive and the dock has real visual mass.
-    readonly property real keyHeight: Kirigami.Units.gridUnit * (control.subtle ? 3.1 : 6.2)
-    readonly property real keyWidth: Kirigami.Units.gridUnit * (control.subtle ? 10.4 : 8.6)
+    // The session family's one size, from the window this tile is in.
+    readonly property real sessionScale: design.sessionScale(Window.width, Window.height)
+    readonly property real keyHeight: Kirigami.Units.gridUnit * (control.subtle ? 3.1 : 6.2) * sessionScale
+    readonly property real keyWidth: Kirigami.Units.gridUnit * (control.subtle ? 10.4 : 8.6) * sessionScale
     implicitWidth: keyWidth
     implicitHeight: keyHeight
     padding: 0
@@ -241,7 +244,8 @@ QQC2.AbstractButton {
                     // Plex carries both scripts so focus never swaps typefaces.
                     font.family: design.interfaceFamily
                     font.weight: control.subtle ? Font.Normal : Font.DemiBold
-                    font.pointSize: Kirigami.Theme.defaultFont.pointSize
+                    font.pointSize: Math.max(8, Math.round(Kirigami.Theme.defaultFont.pointSize
+                                                           * Math.min(1.3, control.sessionScale)))
                 }
             }
         }

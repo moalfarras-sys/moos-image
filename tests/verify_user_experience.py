@@ -4160,16 +4160,18 @@ _unlock_start = _session_screen.find("id: keyFace")
 _unlock_end = _session_screen.find("MoUI.GlassSurface {", _unlock_start)
 _unlock = _session_screen[_unlock_start:_unlock_end]
 require(_unlock_start >= 0 and _unlock_end > _unlock_start
-        and "color: root.accentA" in _unlock
-        and "strokeColor: Kirigami.Theme.highlightedTextColor" in _unlock
-        and "color: Kirigami.Theme.highlightedTextColor" in _unlock
+        and "color: key.armed ? root.accentA" in _unlock
+        and "readonly property color ink: glyph.armed ? Kirigami.Theme.highlightedTextColor" in _unlock
+        and "strokeColor: glyph.ink" in _unlock
+        and "color: Kirigami.Theme.highlightedTextColor" not in _unlock
         and "scale: key.control.down ? root.design.pressScale : 1.0" in _unlock
         and "gradient: Gradient" not in _unlock
         and "color: root.accentB" not in _unlock
         and re.search(r'color\s*:\s*["\']white["\']|'
                       r'Qt\.rgba\(\s*1\s*,\s*1\s*,\s*1\s*,', _unlock) is None,
         "the session Unlock/Log In key must use the scheme's selected ink on flat "
-        "accentA; literal white/accentB gradients fall below 3:1 in seven themes")
+        "accentA when it is armed and the ordinary foreground on glass when it is not, "
+        "from one switch; literal white/accentB gradients fall below 3:1 in seven themes")
 # The lock screen's own two files carry the authenticator wiring. MoOS replaced them until
 # 2026-10-05 and re-derived them by hand for every Plasma release; a copy returning to the
 # overlay is how a Plasma update becomes kscreenlocker's emergency locker.
@@ -5068,9 +5070,10 @@ for _kept in ("signal userSelected()", "readonly property string selectedUser",
             f"MoOS's UserList lost upstream's {_kept!r} — the login greeter reads the "
             "selected user from it and both greeters size the screen by it")
 # The Unlock/Log In key and its field are one control family, at one radius.
-require(_session_screen.count("radius: root.design.radiusControl + 2") == 2
-        and "implicitHeight: root.design.targetControl" in _session_screen
-        and "implicitWidth: root.design.targetControl" in _session_screen,
+require(_session_screen.count(
+            "radius: Math.round((root.design.radiusControl + 2) * root.sessionScale)") == 2
+        and _session_screen.count(
+            "Math.round(root.design.targetControl * root.sessionScale)") == 3,
         "the session password field and its key must share the family's control "
         "radius and height; a pill beside a squircle is the mismatch this replaced")
 # ── Any pre-baked brand sprite still named by QML must travel with that QML.
@@ -5170,8 +5173,7 @@ require("The Tidal Portal key" in login_action
         and "radius: design.radiusPanel" in login_action
         and "font.family: design.interfaceFamily" in login_action
         and "import org.moos.ui as MoUI" in login_action
-        and "readonly property real compactScale" in login_action
-        and "sceneHeight - 320" in login_action
+        and "readonly property real compactScale: design.sessionScale(sceneWidth, sceneHeight)" in login_action
         and "Window.height > 0 ? Window.height : Screen.height" in login_action,
         "the compiled plasma-login controls must use the shared MoOS portal-key "
         "geometry, responsive low-resolution fit and typography instead of "
@@ -5183,9 +5185,9 @@ require("trackSeconds: false" in login_clock
         and "sessionLocale.dateFormat(Locale.LongFormat)" in login_clock
         and "LayoutMirroring.enabled: false" in login_clock
         and "layoutDirection: Qt.LeftToRight" in login_clock
-        and "readonly property real responsiveScale" in login_clock
-        and "roomForDate ? (sceneHeight - 385) / 300" in login_clock
-        and "Window.height > 0 ? Window.height : Screen.height" in login_clock,
+        and "readonly property real responsiveScale: design.sessionScale(sceneWidth, sceneHeight)" in login_clock
+        and "Window.height > 0 ? Window.height : Screen.height" in login_clock
+        and "loops:" not in login_clock,
         "the login clock must be one static MoOS editorial face: active-locale "
         "date, accent colon, minute precision, semantic LTR time, low-resolution "
         "fit and no idle animation")

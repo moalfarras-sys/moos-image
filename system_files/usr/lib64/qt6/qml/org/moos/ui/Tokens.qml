@@ -165,6 +165,24 @@ QtObject {
         return Math.round(role * Math.max(0.75, scale || 1))
     }
 
+    // One size for the whole session family, from the window it is in.
+    //
+    // The login, lock and power screens are posters, not dialogs: what reads as
+    // right is a share of the screen, not a count of logical pixels. Drawn at
+    // fixed sizes they were designed on the station's 1536x864 desktop and
+    // were lost on a 1080p monitor at 100% (a quarter more room each way, the
+    // same island) and collided with one another in a 640x480 firmware mode.
+    // Every session component multiplies its metrics by this ONE number, so
+    // the clock, the island, the face and the keys grow and shrink together
+    // and keep their proportions: 1.0 on the reference desktop, 1.25 at 1080
+    // logical pixels of height, capped at 1.6, floored at 0.6. A portrait or
+    // narrow window is held by its width instead.
+    function sessionScale(width, height) {
+        if (!(width > 0) || !(height > 0)) { return 1.0 }
+        const fit = Math.min(height / 864, width / 1100)
+        return Math.round(Math.max(0.6, Math.min(1.6, fit)) * 100) / 100
+    }
+
     function duration(enabled, role) {
         return enabled ? role : 0
     }

@@ -45,6 +45,8 @@
 
 import QtQuick
 import QtQuick.Layouts
+// Under a name: QtQuick.Shapes has gradients of the same names, and they are not Items.
+import Qt5Compat.GraphicalEffects as Effects
 import QtQuick.Shapes
 import QtQuick.Templates as T
 import QtQuick.Window
@@ -117,7 +119,14 @@ FocusScope {
 
     // ── MoOS session tokens ────────────────────────────────────────────────
     readonly property bool motionEnabled: Kirigami.Units.longDuration > 1
+    readonly property bool softwareRendering: GraphicsInfo.api === GraphicsInfo.Software
     readonly property var design: MoUI.Tokens
+    // ONE number sizes the whole session family from the window it is in
+    // (Tokens.sessionScale): the clock, the faces, this island and the keys grow
+    // and shrink together. `unit` is the grid unit at that size.
+    readonly property real sessionScale: userListView.sessionScale !== undefined
+        ? userListView.sessionScale : design.sessionScale(Window.width, Window.height)
+    readonly property real unit: Kirigami.Units.gridUnit * sessionScale
     readonly property color accentA: Kirigami.Theme.highlightColor
     // The second hue of the two-tone signature, derived from the live accent so
     // every family gets its own pair. Decorative only: it has no paired ink in
@@ -137,7 +146,7 @@ FocusScope {
     // screen too short to spare that margin above the face (a 640x480 firmware
     // mode leaves the clock about a hundred pixels) the top margin gives way
     // first, so the plate can never climb into the clock.
-    readonly property real islandPad: Math.round(Kirigami.Units.gridUnit * 1.5)
+    readonly property real islandPad: Math.round(unit * 1.5)
     readonly property real islandPadTop: Math.round(Math.max(
         Kirigami.Units.smallSpacing * 2,
         Math.min(islandPad, userListView.y * 0.16)))
@@ -156,7 +165,7 @@ FocusScope {
         if (everyoneShown) {
             return userListView.count;
         }
-        const fits = Math.floor((root.width - Kirigami.Units.gridUnit - islandPad * 2)
+        const fits = Math.floor((root.width - root.unit - islandPad * 2)
                                 / userListView.userItemWidth);
         const wanted = userListView.count > 3 ? 5 : 3;
         return Math.max(1, Math.min(wanted, fits % 2 === 0 ? fits - 1 : fits));
@@ -164,8 +173,8 @@ FocusScope {
     readonly property int userReach: everyoneShown ? userListView.count
                                                    : (userSlots - 1) / 2
     readonly property real islandWidth: Math.min(
-        root.width - Kirigami.Units.gridUnit,
-        Math.max(Kirigami.Units.gridUnit * 16,
+        root.width - root.unit,
+        Math.max(root.unit * 16,
                  userListView.userItemWidth * userSlots) + islandPad * 2)
     // Where there are neighbours, a neighbour's name may run to a second line,
     // and it stands over the password row's own columns. Upstream makes room
@@ -173,23 +182,102 @@ FocusScope {
     // out of the clock's band; the prompts step DOWN instead, and by the two
     // lines MoOS's delegate allows, so the clock never has to know.
     readonly property real neighbourRoom: userListView.constrainText
-        ? Kirigami.Units.gridUnit * 2 : 0
+        ? root.unit * 2 : 0
 
+    // ── Arrival ─────────────────────────────────────────────────────────────
     // Both greeters fade this screen by fading the StackView that holds it, so
-    // the holder's opacity IS the doorway opening. The island rides it — a few
-    // pixels of rise, in lockstep with upstream's own animation — instead of
-    // running a clock of its own: nothing here can be out of step with the
-    // fade, loop, or move at all when the owner has animations off.
-    readonly property real stage: (motionEnabled && parent) ? parent.opacity : 1
+    // the holder's opacity says when the doorway opens. When it does, ONE driver
+    // runs from 0 to 1 and everything on the island takes its cue from a slice
+    // of it: the plate rises and settles with a little overshoot, the face
+    // follows, then the prompts, then the action keys — a short wave, not a
+    // slab. The orbit below starts with it. One finite animation; with
+    // animations off the driver simply rests at 1.
+    readonly property real stage: parent ? parent.opacity : 1
     readonly property bool staged: stage > 0.02
+    property real arrival: motionEnabled ? 0 : 1
+    onMotionEnabledChanged: if (!motionEnabled) { arrival = 1; }
     onStagedChanged: {
         if (staged) {
+            if (motionEnabled) {
+                arrivalRun.restart();
+            } else {
+                arrival = 1;
+            }
             island.arrivalPlayed = false;
             island.playArrival();
+            orbit(2);
+        } else {
+            arrivalRun.stop();
+            orbitRun.stop();
+            orbitGlow = 0;
+            arrival = motionEnabled ? 0 : 1;
         }
     }
-    transform: Translate {
-        y: (1 - root.stage) * Kirigami.Units.gridUnit * 0.8
+    NumberAnimation {
+        id: arrivalRun
+        target: root; property: "arrival"
+        from: 0; to: 1
+        duration: root.design.duration(root.motionEnabled, root.design.motionPortal) * 1.4
+    }
+    // The slice [from, to] of the arrival, as 0..1.
+    function slice(from, to) {
+        return Math.max(0, Math.min(1, (root.arrival - from) / (to - from)));
+    }
+    function settle(t) {    // ease-out cubic
+        const u = 1 - t;
+        return 1 - u * u * u;
+    }
+    function spring(t) {    // ease-out back: one small overshoot
+        const c = 1.45, u = t - 1;
+        return 1 + (c + 1) * u * u * u + c * u * u;
+    }
+
+    // ── The orbit ───────────────────────────────────────────────────────────
+    // A light runs round the island's rim: twice when it arrives, once more for
+    // a typed character, and then it docks in the crest. It is the same gesture
+    // the face's frame makes, on the same count. Always a counted number of
+    // turns, never a loop: a machine left at a half-typed password keeps this
+    // screen up indefinitely, and must not spend the night animating.
+    property real orbitAngle: 0
+    property real orbitGlow: 0
+    property int orbitTurns: 2
+    function orbit(turns) {
+        if (!root.motionEnabled || root.softwareRendering) {
+            return;
+        }
+        root.orbitTurns = turns;
+        orbitRun.restart();
+    }
+    // A typed character: the orbit answers, and so does the face's frame.
+    function poke() {
+        if (!root.staged) {
+            return;
+        }
+        if (!orbitRun.running) {
+            root.orbit(1);
+        }
+        const face = userListView.currentItem;
+        if (face && face.poke !== undefined) {
+            face.poke();
+        }
+    }
+    SequentialAnimation {
+        id: orbitRun
+        NumberAnimation {
+            target: root; property: "orbitGlow"; to: 1
+            duration: root.design.duration(root.motionEnabled, root.design.motionGeometry)
+        }
+        NumberAnimation {
+            target: root; property: "orbitAngle"
+            from: 0; to: 360
+            loops: root.orbitTurns
+            duration: root.design.duration(root.motionEnabled, root.design.motionPortal) * 8
+            easing.type: Easing.InOutSine
+        }
+        NumberAnimation {
+            target: root; property: "orbitGlow"; to: 0
+            duration: root.design.duration(root.motionEnabled, root.design.motionPortal)
+        }
     }
 
     // A refusal wears the negative role; a hint (Caps Lock, a PAM prompt) must
@@ -230,7 +318,7 @@ FocusScope {
     // purpose, because the build's greeter probe fails on it.
     property var adoptedControls: []
 
-    function adoptControl(control) {
+    function adoptControl(control, partner) {
         if (root.adoptedControls.indexOf(control) >= 0) {
             return;
         }
@@ -239,6 +327,9 @@ FocusScope {
             control.Kirigami.Theme.inherit = false;
             control.Kirigami.Theme.colorSet = Kirigami.Theme.Complementary;
             control.background = fieldFace.createObject(control, { control: control });
+            control.font.pointSize = Qt.binding(() => Math.max(8, Math.round(
+                (Kirigami.Theme.defaultFont.pointSize + 2) * root.sessionScale)));
+            fieldWatch.createObject(control, { target: control });
             // Both greeters run outside a normal application window, where an
             // assistive client cannot be assumed to fall back to the
             // placeholder. A field nobody named says what it asks for.
@@ -249,8 +340,9 @@ FocusScope {
             root.adoptedControls.push(control);
             control.Kirigami.Theme.inherit = false;
             control.Kirigami.Theme.colorSet = Kirigami.Theme.Complementary;
-            control.background = keyFace.createObject(control, { control: control });
-            control.contentItem = keyGlyph.createObject(control, { control: control });
+            const face = keyFace.createObject(control, { control: control, partner: partner || null });
+            control.background = face;
+            control.contentItem = keyGlyph.createObject(control, { control: control, face: face });
             // The key now shows a drawn arrow instead of text or a themed icon,
             // so its role is stated rather than inferred.
             control.Accessible.role = Accessible.Button;
@@ -264,9 +356,17 @@ FocusScope {
         const slot = innerLayout.children;
         for (let i = 0; i < slot.length; ++i) {
             if (slot[i] instanceof RowLayout) {
+                // The key takes the field beside it as its partner: it lights
+                // when that field has something in it.
                 const row = slot[i].children;
+                let field = null;
                 for (let j = 0; j < row.length; ++j) {
-                    root.adoptControl(row[j]);
+                    if (row[j] instanceof T.TextField) {
+                        field = row[j];
+                    }
+                }
+                for (let j = 0; j < row.length; ++j) {
+                    root.adoptControl(row[j], field);
                 }
             } else {
                 root.adoptControl(slot[i]);
@@ -276,6 +376,17 @@ FocusScope {
 
     Component.onCompleted: adoptPromptControls()
 
+    // A change of a field's text is a keystroke. Only the EVENT is used — the
+    // orbit answers it — never what was typed.
+    Component {
+        id: fieldWatch
+        Connections {
+            function onTextChanged() {
+                root.poke();
+            }
+        }
+    }
+
     Component {
         id: fieldFace
 
@@ -284,15 +395,15 @@ FocusScope {
             required property T.TextField control
             // Plasma's TextField takes its padding from these when they exist.
             readonly property QtObject margins: QtObject {
-                readonly property real left: Math.round(Kirigami.Units.gridUnit * 0.9)
+                readonly property real left: Math.round(root.unit * 0.9)
                 readonly property real right: left
-                readonly property real top: Math.round(Kirigami.Units.smallSpacing * 2.5)
+                readonly property real top: Math.round(Kirigami.Units.smallSpacing * 2.5 * root.sessionScale)
                 readonly property real bottom: top
             }
 
-            implicitWidth: Kirigami.Units.gridUnit * 8 + margins.left + margins.right
-            implicitHeight: root.design.targetControl
-            radius: root.design.radiusControl + 2
+            implicitWidth: root.unit * 8 + margins.left + margins.right
+            implicitHeight: Math.round(root.design.targetControl * root.sessionScale)
+            radius: Math.round((root.design.radiusControl + 2) * root.sessionScale)
             color: Qt.rgba(Kirigami.Theme.backgroundColor.r,
                            Kirigami.Theme.backgroundColor.g,
                            Kirigami.Theme.backgroundColor.b,
@@ -331,17 +442,26 @@ FocusScope {
     Component {
         id: keyFace
 
-        // The Portal key. Its fill stays on accentA — the scheme's Selection
-        // background — because highlightedTextColor is contrast-gated against
-        // that exact role in every MoOS palette; accentB lives in the rim only.
+        // The Portal key. It is ARMED when the field beside it holds something
+        // (or when there is no field: a password-less account's "Log In"): then
+        // it fills with accentA — the scheme's Selection background, the one
+        // role highlightedTextColor is contrast-gated against in every MoOS
+        // palette. Unarmed it is glass with the accent on its edge, so an empty
+        // field does not shout a button nobody can use yet. accentB lives in the
+        // rim only.
         Rectangle {
             id: key
             required property T.AbstractButton control
+            property T.TextField partner: null
+            readonly property bool armed: !key.partner || !key.partner.visible
+                                          || key.partner.length > 0
 
-            implicitWidth: root.design.targetControl
-            implicitHeight: root.design.targetControl
-            radius: root.design.radiusControl + 2
-            color: root.accentA
+            implicitWidth: Math.round(root.design.targetControl * root.sessionScale)
+            implicitHeight: Math.round(root.design.targetControl * root.sessionScale)
+            radius: Math.round((root.design.radiusControl + 2) * root.sessionScale)
+            color: key.armed ? root.accentA
+                             : Qt.rgba(Kirigami.Theme.textColor.r, Kirigami.Theme.textColor.g,
+                                       Kirigami.Theme.textColor.b, root.design.surfaceRestingOpacity)
             opacity: key.control.enabled ? 1 : root.design.disabledOpacity
             scale: key.control.down ? root.design.pressScale : 1.0
             border.width: key.control.visualFocus ? root.design.focusWidth
@@ -352,12 +472,15 @@ FocusScope {
                 duration: root.design.duration(root.motionEnabled, root.design.motionFast)
                 easing.type: root.design.easeStandard
             } }
+            Behavior on color { ColorAnimation {
+                duration: root.design.duration(root.motionEnabled, root.design.motionGeometry)
+            } }
 
             // Hover and press read as light on the key, never as a second hue.
             Rectangle {
                 anchors.fill: parent
                 radius: parent.radius
-                color: Kirigami.Theme.highlightedTextColor
+                color: key.armed ? Kirigami.Theme.highlightedTextColor : Kirigami.Theme.textColor
                 opacity: key.control.down ? 0.16 : (key.control.hovered ? 0.08 : 0)
             }
         }
@@ -369,10 +492,15 @@ FocusScope {
         Item {
             id: glyph
             required property T.AbstractButton control
+            // The key's face: the glyph wears the ink that is paired with its fill.
+            property Item face: null
+            readonly property bool armed: !glyph.face || glyph.face.armed
+            readonly property color ink: glyph.armed ? Kirigami.Theme.highlightedTextColor
+                                                     : Kirigami.Theme.textColor
             readonly property bool labelled: glyph.control.text !== ""
 
             implicitWidth: glyph.labelled
-                ? keyLabel.implicitWidth + Kirigami.Units.gridUnit * 2
+                ? keyLabel.implicitWidth + root.unit * 2
                 : root.design.iconControl
             implicitHeight: root.design.iconControl
 
@@ -390,13 +518,26 @@ FocusScope {
                 width: root.design.iconControl
                 height: root.design.iconControl
                 preferredRendererType: Shape.CurveRenderer
-                transform: Scale {
-                    origin.x: root.design.iconControl / 2
-                    xScale: glyph.backward ? -1 : 1
-                }
+                opacity: glyph.armed ? 1 : root.design.mutedOpacity
+                transform: [
+                    Scale {
+                        origin.x: root.design.iconControl / 2
+                        origin.y: root.design.iconControl / 2
+                        xScale: (glyph.backward ? -1 : 1) * root.sessionScale
+                        yScale: root.sessionScale
+                    },
+                    // Armed, the arrow leans a step towards where it goes.
+                    Translate {
+                        x: glyph.armed ? (glyph.backward ? -1 : 1) * root.unit * 0.08 : 0
+                        Behavior on x { NumberAnimation {
+                            duration: root.design.duration(root.motionEnabled, root.design.motionGeometry)
+                            easing.type: root.design.easeSpring
+                        } }
+                    }
+                ]
                 ShapePath {
                     strokeWidth: 2
-                    strokeColor: Kirigami.Theme.highlightedTextColor
+                    strokeColor: glyph.ink
                     fillColor: "transparent"
                     capStyle: ShapePath.RoundCap
                     joinStyle: ShapePath.RoundJoin
@@ -410,11 +551,11 @@ FocusScope {
             Kirigami.Icon {
                 anchors.centerIn: parent
                 visible: !glyph.labelled && !glyph.forward && !glyph.backward
-                width: root.design.iconControl
-                height: root.design.iconControl
+                width: Math.round(root.design.iconControl * root.sessionScale)
+                height: width
                 source: glyph.control.icon.name
                 isMask: true
-                color: Kirigami.Theme.highlightedTextColor
+                color: glyph.ink
             }
             PlasmaComponents3.Label {
                 id: keyLabel
@@ -422,9 +563,11 @@ FocusScope {
                 visible: glyph.labelled
                 text: glyph.control.Kirigami.MnemonicData.richTextLabel
                 textFormat: Text.StyledText
-                color: Kirigami.Theme.highlightedTextColor
+                color: glyph.ink
                 font.family: root.design.interfaceFamily
                 font.weight: Font.DemiBold
+                font.pointSize: Math.max(8, Math.round(
+                    (Kirigami.Theme.defaultFont.pointSize + 1) * root.sessionScale))
             }
         }
     }
@@ -450,10 +593,11 @@ FocusScope {
                                            + root.islandPad
 
         x: Math.round((root.width - width) / 2)
-        y: Math.round(topEdge)
+        y: Math.round(topEdge + (1 - root.settle(root.slice(0, 0.7))) * root.unit * 1.4)
         width: root.islandWidth
         height: Math.round(bottomEdge - topEdge)
-        radius: root.design.radiusDialog
+        scale: 0.94 + 0.06 * root.spring(root.slice(0, 0.8))
+        radius: Math.round(root.design.radiusDialog * Math.max(0.8, root.sessionScale))
         depth: root.design.glassLevelDialog
         surfaceColor: Kirigami.Theme.backgroundColor
         fillOpacity: root.design.sessionGlassOpacity
@@ -482,14 +626,97 @@ FocusScope {
             anchors.horizontalCenter: parent.horizontalCenter
             anchors.top: parent.top
             anchors.topMargin: -height / 2
-            width: Kirigami.Units.gridUnit * 4
-            height: 3
+            width: root.unit * 4
+            height: Math.max(3, Math.round(3 * root.sessionScale))
             radius: height / 2
             gradient: Gradient {
                 orientation: Gradient.Horizontal
                 GradientStop { position: 0; color: root.accentA }
                 GradientStop { position: 1; color: root.accentB }
             }
+        }
+
+        // The orbit's light: a conical sweep of the accent's two tones with a
+        // bright head and a long tail, cut to the plate's own rim. Two stock
+        // effects over two textures the size of the island; it repaints only
+        // while it turns, and is not drawn at all once it has docked.
+        Item {
+            id: rimMask
+            anchors.fill: parent
+            visible: false
+            layer.enabled: root.orbitGlow > 0
+            Rectangle {
+                anchors.fill: parent
+                radius: island.radius
+                color: "transparent"
+                border.width: Math.max(2, Math.round(2 * root.sessionScale))
+                border.color: "black"
+                antialiasing: true
+            }
+        }
+        Effects.ConicalGradient {
+            id: rimPaint
+            anchors.fill: parent
+            visible: false
+            angle: root.orbitAngle
+            gradient: Gradient {
+                GradientStop { position: 0.00; color: Qt.alpha(root.accentA, 0.0) }
+                GradientStop { position: 0.70; color: Qt.alpha(root.accentA, 0.0) }
+                GradientStop { position: 0.90; color: Qt.alpha(root.accentB, 0.85) }
+                GradientStop { position: 0.985; color: root.accentA }
+                GradientStop { position: 1.00; color: Qt.alpha(root.accentA, 0.0) }
+            }
+        }
+        Effects.OpacityMask {
+            anchors.fill: parent
+            source: rimPaint
+            maskSource: rimMask
+            visible: root.orbitGlow > 0 && !root.softwareRendering
+            opacity: root.orbitGlow
+        }
+
+        // A refusal: the rim answers once in the negative role, with the notice.
+        Rectangle {
+            id: refusalRim
+            anchors.fill: parent
+            radius: island.radius
+            color: "transparent"
+            border.width: Math.max(2, Math.round(2 * root.sessionScale))
+            border.color: Kirigami.Theme.negativeTextColor
+            opacity: 0
+            visible: opacity > 0
+            SequentialAnimation {
+                id: refusalFlash
+                NumberAnimation {
+                    target: refusalRim; property: "opacity"; from: 0; to: 0.9
+                    duration: root.design.duration(root.motionEnabled, root.design.motionFast)
+                }
+                NumberAnimation {
+                    target: refusalRim; property: "opacity"; to: 0
+                    duration: root.design.duration(root.motionEnabled, root.design.motionPortal)
+                    easing.type: root.design.easeStandard
+                }
+            }
+        }
+    }
+    onNoticeIsAlertChanged: if (noticeIsAlert && motionEnabled) { refusalFlash.restart(); }
+
+    // Light behind the plate: one still pool of the accent, so the island reads
+    // as lit from within the scene rather than laid on it.
+    Effects.RadialGradient {
+        z: -2
+        anchors.centerIn: island
+        width: island.width * 2.6
+        height: island.height * 2.0
+        horizontalRadius: width / 2
+        verticalRadius: height / 2
+        visible: !root.softwareRendering
+        opacity: root.settle(root.slice(0, 1))
+        gradient: Gradient {
+            GradientStop { position: 0.0; color: Qt.alpha(root.accentA, 0.20) }
+            GradientStop { position: 0.45; color: Qt.alpha(root.accentB, 0.07) }
+            GradientStop { position: 0.72; color: "transparent" }
+            GradientStop { position: 1.0; color: "transparent" }
         }
     }
     // The maker's mark, on the island's lower edge — the counterpart of the
@@ -503,9 +730,10 @@ FocusScope {
         id: makersMark
         anchors.horizontalCenter: island.horizontalCenter
         anchors.verticalCenter: island.bottom
-        width: makersRow.implicitWidth + Kirigami.Units.gridUnit
-        height: Math.round(Kirigami.Units.gridUnit * 1.2)
+        width: makersRow.implicitWidth + root.unit
+        height: Math.round(root.unit * 1.2)
         radius: height / 2
+        opacity: root.slice(0.5, 1)
         color: Kirigami.Theme.backgroundColor
         border.width: root.design.borderHairline
         border.color: Qt.rgba(Kirigami.Theme.textColor.r,
@@ -558,8 +786,9 @@ FocusScope {
             required property var modelData
             z: -1
             anchors.fill: island
-            anchors.margins: -Kirigami.Units.gridUnit * modelData.grow
-            radius: island.radius + Kirigami.Units.gridUnit * modelData.grow
+            anchors.margins: -root.unit * modelData.grow
+            radius: island.radius + root.unit * modelData.grow
+            scale: island.scale
             color: Qt.rgba(0, 0, 0, modelData.ink)
         }
     }
@@ -578,6 +807,9 @@ FocusScope {
         fontSize: root.fontSize
         // bubble up the signal
         onUserSelected: root.userSelected()
+        transform: Translate {
+            y: (1 - root.settle(root.slice(0.08, 0.8))) * root.unit * 1.2
+        }
     }
 
     // The prompts, then the action buttons. Upstream stretched the prompt
@@ -611,7 +843,7 @@ FocusScope {
             id: noticeSlot
             Layout.alignment: Qt.AlignHCenter
             Layout.fillWidth: true
-            Layout.maximumWidth: Kirigami.Units.gridUnit * 16
+            Layout.maximumWidth: root.unit * 16
             implicitHeight: Math.max(noticePill.implicitHeight,
                                      noticeMetrics.height + Kirigami.Units.largeSpacing)
                             + Kirigami.Units.smallSpacing * 2
@@ -629,18 +861,18 @@ FocusScope {
                 // OWN width: a wrapping Text whose width comes from its parent
                 // while the parent's implicit width comes from the Text is the
                 // classic binding loop.
-                implicitWidth: notificationsLabel.width + Kirigami.Units.gridUnit * 1.6
+                implicitWidth: notificationsLabel.width + root.unit * 1.6
                 implicitHeight: notificationsLabel.implicitHeight + Kirigami.Units.largeSpacing
                 width: implicitWidth
                 height: implicitHeight
                 // A pill for one line, a rounded card when PAM says something
                 // long enough to wrap. The message is never elided: here the
                 // text IS the reason the machine refused.
-                radius: Math.min(height / 2, Kirigami.Units.gridUnit * 1.2)
+                radius: Math.min(height / 2, root.unit * 1.2)
                 visible: opacity > 0
                 opacity: notificationsLabel.text !== "" ? 1 : 0
                 transform: Translate {
-                    y: (1 - noticePill.opacity) * Kirigami.Units.gridUnit * 0.4
+                    y: (1 - noticePill.opacity) * root.unit * 0.4
                 }
 
                 color: root.noticeIsAlert
@@ -668,9 +900,10 @@ FocusScope {
                 PlasmaComponents3.Label {
                     id: notificationsLabel
                     anchors.centerIn: parent
-                    width: Math.min(implicitWidth, Kirigami.Units.gridUnit * 14)
+                    width: Math.min(implicitWidth, root.unit * 14)
                     font.family: root.design.interfaceFamily
-                    font.pointSize: Kirigami.Theme.defaultFont.pointSize
+                    font.pointSize: Math.max(8, Math.round(Kirigami.Theme.defaultFont.pointSize
+                                                           * root.sessionScale))
                     font.weight: Font.Medium
                     horizontalAlignment: Text.AlignHCenter
                     verticalAlignment: Text.AlignVCenter
@@ -707,10 +940,14 @@ FocusScope {
 
         ColumnLayout {
             id: promptBlock
-            Layout.maximumWidth: Kirigami.Units.gridUnit * 16
+            Layout.maximumWidth: root.unit * 16
             Layout.alignment: Qt.AlignHCenter
             Layout.fillWidth: true
             spacing: Kirigami.Units.smallSpacing
+            opacity: root.slice(0.2, 0.75)
+            transform: Translate {
+                y: (1 - root.settle(root.slice(0.2, 0.9))) * root.unit * 1.4
+            }
 
             ColumnLayout {
                 id: innerLayout
@@ -726,8 +963,8 @@ FocusScope {
         // but never below the plate's own margin.
         Item {
             Layout.fillWidth: true
-            Layout.minimumHeight: root.islandPad + Kirigami.Units.gridUnit * 0.8
-            Layout.preferredHeight: root.islandPad + Kirigami.Units.gridUnit * 1.8
+            Layout.minimumHeight: root.islandPad + root.unit * 0.8
+            Layout.preferredHeight: root.islandPad + root.unit * 1.8
             Layout.maximumHeight: Layout.preferredHeight
             Layout.fillHeight: true
         }
@@ -736,6 +973,10 @@ FocusScope {
             Layout.alignment: Qt.AlignHCenter
             implicitHeight: actionItemsLayout.implicitHeight
             implicitWidth: actionItemsLayout.implicitWidth
+            opacity: root.slice(0.4, 0.95)
+            transform: Translate {
+                y: (1 - root.settle(root.slice(0.4, 1))) * root.unit * 1.6
+            }
             GridLayout {
                 id: actionItemsLayout
                 anchors.centerIn: parent

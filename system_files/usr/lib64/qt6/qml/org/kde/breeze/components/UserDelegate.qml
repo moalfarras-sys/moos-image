@@ -16,10 +16,14 @@
 //   1. The ring around the face is the brand colour and LIGHTS for the selected
 //      user: on a two-user machine the ring is what tells you who you are about
 //      to log in as. Upstream drew a plain white hoop.
-//   2. The face sits in light. A still three-step bloom in the accent stands
-//      behind the selected user, drawn HERE so the login screen has it too. The
-//      lock screen used to paint it from outside, at a hand-measured offset that
-//      was a grid unit low and that the login screen could not have at all.
+//   2. The face has a FRAME, and the frame is alive. A ring in the accent's two
+//      tones floats a hair's width off the picture, so a photo sits in it like a
+//      stone in a bezel instead of being outlined. When the session island comes
+//      up the ring snaps on and its light runs twice round the face; a typed
+//      character sends it round once more. Then it rests. A still bloom in the
+//      accent stands behind it. All of it is drawn HERE, so the login screen has
+//      it too (the lock screen used to paint a bloom from outside, a grid unit
+//      low). Software rendering gets a plain accent ring.
 //   3. An account with no photo shows its initial on a two-tone jewel disc. The
 //      login greeter hands every such account a stock grey silhouette (a file
 //      compiled into its binary) while the lock screen handed over nothing, so
@@ -47,6 +51,7 @@
 
 import QtQuick
 import QtQuick.Window
+import Qt5Compat.GraphicalEffects
 
 import org.kde.plasma.components as PlasmaComponents3
 import org.kde.kirigami as Kirigami
@@ -84,11 +89,65 @@ Item {
     property real fontSize: Kirigami.Theme.defaultFont.pointSize + 2
     signal clicked()
 
+    // MoOS's session screen, when this face stands in one (login and lock).
+    readonly property Item sessionScreen: (ListView.view && ListView.view.parent
+                                           && ListView.view.parent.userReach !== undefined)
+        ? ListView.view.parent : null
+    // The one number that sizes the session family (Tokens.sessionScale).
+    readonly property real sessionScale: (ListView.view && ListView.view.sessionScale !== undefined)
+        ? ListView.view.sessionScale
+        : design.sessionScale(Window.width, Window.height)
+    // The island is up and somebody is looking at it.
+    readonly property bool onStage: sessionScreen ? sessionScreen.staged === true : true
+
     // The face block is upstream's seven grid units; the face gives the top
     // six-tenths of one back as air, which is what lets the session island
-    // start below the clock's date instead of crowding it.
-    readonly property real faceInset: Math.round(Kirigami.Units.gridUnit * 0.6)
-    property real faceSize: Kirigami.Units.gridUnit * 7 - faceInset
+    // start below the clock's date instead of crowding it — and what the frame
+    // stands in.
+    readonly property real faceInset: Math.round(Kirigami.Units.gridUnit * 0.6 * sessionScale)
+    property real faceSize: Kirigami.Units.gridUnit * 7 * sessionScale - faceInset
+
+    // ── The frame ───────────────────────────────────────────────────────────
+    readonly property real ringGap: Math.max(2, Math.round(faceSize * 0.04))
+    readonly property real ringWidth: Math.max(2, Math.round(faceSize * 0.03))
+    property real orbitAngle: 0
+    property real framePop: 1
+
+    // The ring snaps on and its light goes round: twice on arrival, once for a
+    // typed character. Always a counted number of turns — a machine left at a
+    // half-typed password must not spend the night animating.
+    function arrive() {
+        if (!wrapper.isCurrent || wrapper.softwareRendering || !wrapper.motionEnabled) {
+            return;
+        }
+        framePopRun.restart();
+        orbitRun.loops = 2;
+        orbitRun.restart();
+    }
+    function poke() {
+        if (wrapper.isCurrent && wrapper.motionEnabled && !wrapper.softwareRendering
+                && !orbitRun.running) {
+            orbitRun.loops = 1;
+            orbitRun.restart();
+        }
+    }
+    onOnStageChanged: if (onStage) { arrive(); }
+    Component.onCompleted: if (onStage && !sessionScreen) { arrive(); }
+
+    NumberAnimation {
+        id: orbitRun
+        target: wrapper; property: "orbitAngle"
+        from: 0; to: 360
+        duration: design.duration(wrapper.motionEnabled, design.motionPortal) * 8
+        easing.type: Easing.InOutSine
+    }
+    NumberAnimation {
+        id: framePopRun
+        target: wrapper; property: "framePop"
+        from: 0.82; to: 1
+        duration: design.duration(wrapper.motionEnabled, design.motionEmphasis)
+        easing.type: design.easeSpring
+    }
 
     // In a list of accounts the session island holds the selected face and a
     // few neighbours each way (it says how many); a face further off would
@@ -147,6 +206,61 @@ Item {
         }
     }
 
+    // The frame itself: a conical sweep of the accent's two tones, cut to a ring.
+    // Two stock effects and two small textures; it repaints only while it turns.
+    Item {
+        id: frame
+        anchors.centerIn: imageSource
+        width: imageSource.width + (wrapper.ringGap + wrapper.ringWidth) * 2
+        height: width
+        visible: wrapper.isCurrent && !wrapper.softwareRendering
+        scale: wrapper.framePop
+
+        Item {
+            id: frameMask
+            anchors.fill: parent
+            visible: false
+            layer.enabled: true
+            Rectangle {
+                anchors.fill: parent
+                radius: width / 2
+                color: "transparent"
+                border.width: wrapper.ringWidth
+                border.color: "black"
+                antialiasing: true
+            }
+        }
+        ConicalGradient {
+            id: framePaint
+            anchors.fill: parent
+            visible: false
+            angle: wrapper.orbitAngle
+            gradient: Gradient {
+                GradientStop { position: 0.00; color: Kirigami.Theme.highlightColor }
+                GradientStop { position: 0.28; color: wrapper.accentB }
+                GradientStop { position: 0.58; color: Qt.alpha(Kirigami.Theme.highlightColor, 0.30) }
+                GradientStop { position: 0.82; color: wrapper.accentB }
+                GradientStop { position: 1.00; color: Kirigami.Theme.highlightColor }
+            }
+        }
+        OpacityMask {
+            anchors.fill: parent
+            source: framePaint
+            maskSource: frameMask
+        }
+    }
+    // Without a GPU the frame is one plain ring in the accent.
+    Rectangle {
+        anchors.centerIn: imageSource
+        width: imageSource.width + (wrapper.ringGap + wrapper.ringWidth) * 2
+        height: width
+        radius: width / 2
+        visible: wrapper.isCurrent && wrapper.softwareRendering
+        color: "transparent"
+        border.width: wrapper.ringWidth
+        border.color: Kirigami.Theme.highlightColor
+    }
+
     // The disc under the picture — MoOS glass in the accent's two tones, so an
     // initial sits on a jewel rather than on a flat grey wash.
     Rectangle {
@@ -182,7 +296,8 @@ Item {
                                           design.motionGeometry)
             }
         }
-        width: wrapper.isCurrent ? wrapper.faceSize : wrapper.faceSize - Kirigami.Units.gridUnit
+        width: wrapper.isCurrent ? wrapper.faceSize
+                                 : wrapper.faceSize - Kirigami.Units.gridUnit * wrapper.sessionScale
         height: width
 
         //Image takes priority, taking a full path to a file, if that doesn't exist we show an icon
@@ -248,19 +363,20 @@ Item {
             live: true // otherwise the user in focus will show a blurred avatar
         }
 
-        // MoOS: the ring is the brand's, and it answers selection. Upstream drew
-        // it in textColor — a white hoop that survived every other change.
+        // MoOS: the luminous ring is the frame above, a hair's width OUTSIDE the
+        // picture. What upstream's shader draws on the picture's own edge is
+        // therefore the bezel: the island's dark, so the gap between photo and
+        // frame reads as depth. A neighbour, which has no frame, keeps a quiet
+        // ink edge.
         //
         // No Behavior here, deliberately: a Behavior on a `readonly` property is
         // rejected, and the way QML rejects it is to fail the WHOLE component
         // silently — `qml: Did not load any objects` with no error line and no
-        // avatar. On the login screen that is not a cosmetic slip, it is a
-        // greeter that cannot draw its user. Caught by rendering it (2026-07-17);
-        // qmllint passed it. The property stays readonly because that is what the
-        // ShaderEffect reads it as, and the selection colour simply snaps — which
-        // is right anyway, since the size Behavior below already carries the move.
+        // avatar. On the login screen that is a greeter that cannot draw its
+        // user. Caught by rendering it (2026-07-17); qmllint passed it.
         readonly property color colorBorder: wrapper.isCurrent
-            ? Kirigami.Theme.highlightColor
+            ? (wrapper.softwareRendering ? Kirigami.Theme.highlightColor
+                                         : Kirigami.Theme.backgroundColor)
             : Kirigami.Theme.textColor
 
         fragmentShader: "qrc:/qt/qml/org/kde/breeze/components/shaders/UserDelegate.frag.qsb"
@@ -270,18 +386,18 @@ Item {
         id: usernameDelegate
 
         anchors.top: imageSource.bottom
-        anchors.topMargin: Math.round(Kirigami.Units.gridUnit * 0.45)
+        anchors.topMargin: Math.round(Kirigami.Units.gridUnit * 0.45 * wrapper.sessionScale)
         anchors.horizontalCenter: parent.horizontalCenter
 
         // Make it bigger than other fonts to match the scale of the avatar better
         font.family: design.interfaceFamily
-        font.pointSize: wrapper.fontSize + 4
+        font.pointSize: Math.max(8, Math.round((wrapper.fontSize + 4) * wrapper.sessionScale))
 
         // A lone user is not boxed in by neighbours, but the name still has to
         // stay inside the island that frames it (sixteen grid units of prompts).
         width: wrapper.constrainText
             ? parent.width
-            : Math.min(implicitWidth, Kirigami.Units.gridUnit * 16)
+            : Math.min(implicitWidth, Kirigami.Units.gridUnit * 16 * wrapper.sessionScale)
         text: wrapper.name
         textFormat: Text.PlainText
         style: wrapper.softwareRendering ? Text.Outline : Text.Normal

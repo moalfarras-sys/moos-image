@@ -756,7 +756,7 @@ class TestMoOSUI2(unittest.TestCase):
             ROOT / "system_files/usr/lib64/qt6/qml/org/kde/breeze/components/"
             "SessionManagementScreen.qml"
         ).read_text(encoding="utf-8"))
-        adopt = screen[screen.index("function adoptControl(control)"):
+        adopt = screen[screen.index("function adoptControl(control, partner)"):
                        screen.index("function adoptPromptControls()")]
         # A field nobody named says what it asks for…
         self.assertIn('if (control.Accessible.name === "")', adopt)
@@ -769,7 +769,7 @@ class TestMoOSUI2(unittest.TestCase):
             if assigned:
                 self.assertIn(assigned.group(1), {
                     "Kirigami.Theme.inherit", "Kirigami.Theme.colorSet", "background",
-                    "contentItem", "Accessible.name", "Accessible.role",
+                    "contentItem", "Accessible.name", "Accessible.role", "font.pointSize",
                 }, f"the session screen writes {assigned.group(1)} on an upstream control")
         self.assertNotIn("control.text", adopt)
         self.assertNotIn("echoMode", screen)
@@ -797,7 +797,7 @@ class TestMoOSUI2(unittest.TestCase):
         for contract in (
             "root.implicitContentWidth + Kirigami.Units.gridUnit * 1.2",
             "Math.min(Kirigami.Units.gridUnit * 9",
-            "width: Math.min(implicitWidth, Kirigami.Units.gridUnit * 8.2)",
+            "width: Math.min(implicitWidth, Kirigami.Units.gridUnit * 8.2 * Math.max(1, root.compactScale))",
         ):
             self.assertIn(contract, action)
 
@@ -834,7 +834,7 @@ class TestMoOSUI2(unittest.TestCase):
         components = ROOT / "system_files/usr/lib64/qt6/qml/org/kde/breeze/components"
         for filename, owner, expected_durations in (
             ("ActionButton.qml", "root", 6),
-            ("UserDelegate.qml", "wrapper", 2),
+            ("UserDelegate.qml", "wrapper", 4),
         ):
             with self.subTest(filename=filename):
                 source = qml_code((components / filename).read_text(encoding="utf-8"))
@@ -858,19 +858,25 @@ class TestMoOSUI2(unittest.TestCase):
             "readonly property bool motionEnabled: Kirigami.Units.longDuration > 1",
             source,
         )
-        self.assertEqual(source.count("duration:"), 6)
+        self.assertEqual(source.count("duration:"), 14)
         guarded = re.findall(
             r"duration:\s*root\.design\.duration\(\s*root\.motionEnabled\s*,\s*"
             r"root\.design\.motion(?:Press|Fast|Geometry|Emphasis|Portal)\s*\)",
             source,
         )
-        self.assertEqual(len(guarded), 6)
-        # The island's rise is not an animation of its own: it rides the fade both greeters
-        # already run on the stack that holds this screen, and stands still without one.
-        self.assertIn("readonly property real stage: (motionEnabled && parent) ? parent.opacity : 1",
-                      source)
-        self.assertNotIn("Behavior on y", source)
-        self.assertNotIn("loops: Animation.Infinite", source)
+        self.assertEqual(len(guarded), 14)
+        # One finite driver runs the arrival and rests at 1 with animations off; the
+        # orbit refuses to start at all then, and is counted when it does run.
+        self.assertIn("property real arrival: motionEnabled ? 0 : 1", source)
+        self.assertIn("arrival = motionEnabled ? 0 : 1;", source)
+        orbit = source[source.index("function orbit(turns)"):source.index("function poke()")]
+        self.assertIn("if (!root.motionEnabled || root.softwareRendering) {", orbit)
+        self.assertNotIn("Animation.Infinite", source)
+        self.assertNotIn("Timer {", source)
+        # Leaving the stage stops everything that was turning.
+        left = source[source.index("onStagedChanged:"):source.index("NumberAnimation {\n        id: arrivalRun")]
+        self.assertIn("orbitRun.stop();", left)
+        self.assertIn("arrivalRun.stop();", left)
         # A repeated refusal bounces the pill that carries it, through the same gate.
         bounce = source[source.index("id: bounceAnimation"):]
         self.assertEqual(bounce.count("root.design.duration(root.motionEnabled,"), 2)
@@ -931,9 +937,17 @@ class TestMoOSUI2(unittest.TestCase):
         # The key's face and its glyph: everything between the two components' ids and
         # the island that follows them.
         unlock = screen[screen.index("id: keyFace"):screen.index("MoUI.GlassSurface {")]
-        self.assertIn("color: root.accentA", unlock)
-        self.assertIn("strokeColor: Kirigami.Theme.highlightedTextColor", unlock)
-        self.assertGreaterEqual(unlock.count("color: Kirigami.Theme.highlightedTextColor"), 3)
+        # Armed, the key is flat accentA under the ink the scheme pairs with it; unarmed
+        # it is glass under the ordinary foreground. The glyph takes its ink from the
+        # same switch, so the two can never be mixed.
+        self.assertIn("color: key.armed ? root.accentA", unlock)
+        self.assertIn(
+            "readonly property color ink: glyph.armed ? Kirigami.Theme.highlightedTextColor",
+            unlock)
+        self.assertIn(": Kirigami.Theme.textColor", unlock)
+        self.assertIn("strokeColor: glyph.ink", unlock)
+        self.assertEqual(unlock.count("color: glyph.ink"), 2)
+        self.assertNotIn("color: Kirigami.Theme.highlightedTextColor", unlock)
         self.assertIn(
             "scale: key.control.down ? root.design.pressScale : 1.0",
             unlock,

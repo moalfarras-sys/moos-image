@@ -21,8 +21,10 @@
 pragma ComponentBehavior: Bound
 
 import QtQuick
+import QtQuick.Window
 
 import org.kde.kirigami as Kirigami
+import org.moos.ui as MoUI
 
 /*
  * A model with a list of users to show in the view.
@@ -45,8 +47,11 @@ import org.kde.kirigami as Kirigami
 ListView {
     id: view
     readonly property string selectedUser: currentItem ? (currentItem as UserDelegate).userName : ""
-    readonly property int userItemWidth: Kirigami.Units.gridUnit * 8
-    readonly property int userItemHeight: Kirigami.Units.gridUnit * 9
+    // MoOS: the session family is sized by ONE number, taken from the window
+    // (Tokens.sessionScale); the delegates and the island read it from here.
+    readonly property real sessionScale: MoUI.Tokens.sessionScale(Window.width, Window.height)
+    readonly property int userItemWidth: Math.round(Kirigami.Units.gridUnit * 8 * sessionScale)
+    readonly property int userItemHeight: Math.round(Kirigami.Units.gridUnit * 9 * sessionScale)
     readonly property bool constrainText: count > 1
     property real fontSize: Kirigami.Theme.defaultFont.pointSize + 2
 
