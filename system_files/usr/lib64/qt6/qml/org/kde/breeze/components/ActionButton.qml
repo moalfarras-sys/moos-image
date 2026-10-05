@@ -52,8 +52,11 @@ PlasmaComponents3.AbstractButton {
     // Firmware and software-rendered ARM guests can enter the greeter at
     // 640x480. Preserve every power action by compacting only below 720 logical
     // pixels; normal desktop and high-DPI geometry stays byte-for-byte full size.
+    // The window's height, not the screen's: the two differ in kscreenlocker's
+    // testing window, where screen-sized keys ran off the bottom of the window.
+    readonly property real sceneHeight: Window.height > 0 ? Window.height : Screen.height
     readonly property real compactScale: Math.min(
-        1.0, Math.max(0.60, (Screen.height - 320) / 400))
+        1.0, Math.max(0.60, (sceneHeight - 320) / 400))
 
     // MoOS: the greeter hands us a full-colour icon name. Map it to the symbolic
     // glyph so isMask can paint it in the brand colour. Names already ending in

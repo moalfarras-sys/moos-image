@@ -6,31 +6,24 @@
     SPDX-License-Identifier: LGPL-2.0-or-later
 */
 
-// MoOS: Plasma's own greeter clock, wearing the MoOS face.
+// MoOS: Plasma's own session clock, wearing the MoOS face.
 //
-// This clock is what the LOGIN screen draws — plasma-login-manager's greeter
-// instantiates BreezeComponents.Clock, and its own QML is compiled into the
-// binary, so this file on disk is the only way to reach it.
+// This is the clock of BOTH doors. plasma-login-manager's greeter instantiates
+// BreezeComponents.Clock from QML compiled into its binary, and the lock screen's
+// own LockScreenUi.qml instantiates the same type — so this file on disk is the
+// one clock the login screen and the lock screen share, and the power screen
+// borrows it too. (The lock screen used to carry a second, different clock in a
+// forked LockScreenUi.qml: larger, pinned to a corner, and able to slide under
+// the password card on a small screen. One clock now, in one place.)
 //
-// It used to be HIDDEN. MoOS shipped `ShowClock=false` in
-// plasmalogin.conf.d/10-moos-ui2.conf because the stock Breeze face — DemiBold,
-// -3 letter spacing, one long English date — could not be re-skinned and read as
-// foreign one second before MoOS's own lock clock appeared. Hiding it was a
-// workaround, and it cost the login screen its clock. Now the face IS MoOS, so
-// the clock is switched back ON: nothing is hidden, nothing is covered, the
-// surface simply belongs to MoOS.
-//
-// The face is the one MoOS already uses on the lock screen (MoOSClock.qml) and
-// on the desktop Hero Clock — the same family, the same weights, so the login
-// screen, the lock screen and the desktop read as one system:
-//   · large Light-weight HH:mm, because Light at scale is what modern reads like;
-//   · one static brand-colour colon and one horizon cut;
-//   · one date in the active locale. Session surfaces never print two languages
-//     at once.
+// The face is the family's: large ExtraLight HH:mm, because light at scale is
+// what modern reads like; one static brand-colour colon and one horizon cut; one
+// date in the session's locale and in the clock's own numerals. Session surfaces
+// never print two languages or two numeral systems at once.
 //
 // Upstream's ENGINE is kept on purpose: PlasmaClock.Clock is the system clock
 // source and handles timezone and resume correctly. Only the face changed, and
-// the root stays a ColumnLayout so the compiled greeter's `y:` maths and its
+// the root stays a ColumnLayout so both greeters' `y:` maths and their
 // DropShadow keep working untouched.
 
 import QtQuick
@@ -48,14 +41,28 @@ ColumnLayout {
     readonly property bool softwareRendering: GraphicsInfo.api === GraphicsInfo.Software
     readonly property var sessionLocale: Qt.locale()
     readonly property var design: MoUI.Tokens
-    // AArch64 firmware and first-boot VMs commonly start at 640x480 before the
-    // desktop applies its preferred mode. Plasma places this clock only when its
-    // implicit height fits above the user card; a fixed desktop-sized face is
-    // therefore hidden at boot and turns the idle greeter into bare wallpaper.
-    // Scale the same face down in logical pixels, then grow smoothly to its full
-    // editorial size. This also keeps large host scale factors honest.
+    // Both greeters centre this clock in the band above the user's face and
+    // HIDE it when it does not fit (`visible: y > 0`). The face sits nine grid
+    // units above the centre line, so that band is about half the scene less
+    // 135 px; the session island starts a little above the face, which takes
+    // another 32 px off what the clock may fill. The full clock is about
+    // 160 px tall, so it fits whole from 685 logical pixels of height upwards
+    // and scales below that. Under 560 the band holds the time and nothing
+    // else: the date steps aside and the digits take the room — two-thirds
+    // size in a 640x480 firmware mode, which is where AArch64 guests and
+    // first-boot VMs commonly start. Scaling it is what keeps the idle greeter
+    // from being bare wallpaper there. (The old divisor was 760, which shrank
+    // the clock to 0.72 on the station's own 864-pixel-high desktop.)
+    //
+    // The height is the WINDOW's, not the screen's. They are the same on a
+    // real lock or login screen, but kscreenlocker's testing window and the
+    // power screen's windowed mode are smaller than the screen they open on,
+    // and a clock sized for the screen slid its date under the island there.
+    readonly property real sceneHeight: Window.height > 0 ? Window.height : Screen.height
+    readonly property bool roomForDate: sceneHeight >= 560
     readonly property real responsiveScale: Math.min(
-        1.0, Math.max(0.28, (Screen.height - 320) / 760))
+        1.0, Math.max(0.4, roomForDate ? (sceneHeight - 385) / 300
+                                       : (sceneHeight - 346) / 200))
 
     function latinNumerals(s) {
         return String(s)
@@ -67,10 +74,29 @@ ColumnLayout {
     }
 
     spacing: Math.max(Kirigami.Units.smallSpacing,
-                      Math.round(Kirigami.Units.largeSpacing * responsiveScale))
+                      Math.round(Kirigami.Units.largeSpacing * 1.5 * responsiveScale))
+
+    // Plex Arabic reserves room above and below every line for Arabic marks —
+    // about as much again as the digits are tall. Left in, that leading made
+    // the clock half as tall again as what it shows: the horizon cut hung a
+    // finger's width under the time, and both greeters, which hide a clock
+    // that does not fit, hid this one on small screens for the sake of blank
+    // space. The time row gives back the leading its digits never use.
+    FontMetrics {
+        id: timeMetrics
+        font: hours.font
+    }
+    TextMetrics {
+        id: digitMetrics
+        font: hours.font
+        text: "0"
+    }
 
     RowLayout {
         Layout.alignment: Qt.AlignHCenter
+        Layout.topMargin: -Math.round(Math.max(
+            0, timeMetrics.ascent - digitMetrics.tightBoundingRect.height) * 0.7)
+        Layout.bottomMargin: -Math.round(timeMetrics.descent * 0.7)
         // Time is semantic LTR even in an Arabic session. Without this explicit
         // island, LayoutMirroring reverses the three children and 11:26 is drawn
         // as 26:11 on the real plasma-login greeter.
@@ -92,7 +118,7 @@ ColumnLayout {
             color: Kirigami.Theme.textColor
             font.family: design.interfaceFamily
             font.pointSize: Math.round(Kirigami.Theme.defaultFont.pointSize
-                                       * 7.4 * root.responsiveScale)
+                                       * 7.8 * root.responsiveScale)
             font.weight: Font.ExtraLight
             renderType: Text.CurveRendering
         }
@@ -125,6 +151,7 @@ ColumnLayout {
 
     // The one luminous horizon cut. It is static by design.
     Rectangle {
+        visible: root.roomForDate
         Layout.alignment: Qt.AlignHCenter
         Layout.preferredWidth: Math.round(hours.implicitWidth * 0.6)
         Layout.preferredHeight: Math.round(Kirigami.Units.smallSpacing * 0.6)
@@ -134,6 +161,7 @@ ColumnLayout {
     }
 
     PlasmaComponents3.Label {
+        visible: root.roomForDate
         Layout.alignment: Qt.AlignHCenter
         text: root.latinNumerals(
             root.sessionLocale.toString(
@@ -149,7 +177,9 @@ ColumnLayout {
                                    * Math.max(0.75, root.responsiveScale))
         font.weight: Font.Normal
         horizontalAlignment: Text.AlignHCenter
-        renderType: Text.NativeRendering
+        // Not NativeRendering: on a fractional scale it snaps glyphs to whole
+        // device pixels and the date picks up a colour fringe under the clock.
+        renderType: Text.QtRendering
     }
 
     PlasmaClock.Clock {

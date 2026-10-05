@@ -3,19 +3,25 @@
 
 WHY THIS EXISTS (plan row P6.7)
 
-MoOS replaces ten files inside plasma-desktop and plasma-workspace. tests/test_plasma_shell_overlay.py
+MoOS replaces twelve files inside plasma-desktop and plasma-workspace. tests/test_plasma_shell_overlay.py
 proves the build checks those files SURVIVED; nothing proved they still FIT. The base tag moves by
 itself, and on 2026-09-24 Plasma 6.8 beta 1 was measured to remove `VirtualKeyboardLoader` from
-org.kde.breeze.components while MoOS's 6.7 LockScreenUi.qml instantiates it: kscreenlocker's real
-greeter printed "Failed to load lockscreen QML, falling back to built-in locker".
+org.kde.breeze.components while the 6.7 LockScreenUi.qml MoOS then forked instantiated it:
+kscreenlocker's real greeter printed "Failed to load lockscreen QML, falling back to built-in locker".
 
 build_files/plasma_seams.py now selects a reviewed set per Plasma version, refuses upstream drift
 and unregistered modifications (from rpm, not memory), and loads the real greeter. This test holds
 the registry to the tree and proves every refusal actually refuses.
+
+Since 2026-10-05 the registry also holds a boundary: MoOS forks NO file that carries authentication.
+LockScreenUi.qml and MainBlock.qml are upstream's own, on every Plasma, and the MoOS session design
+lives in the breeze components both greeters instantiate — files that never see a password or an
+authenticator. `NoAuthenticationFileIsForked` below is that boundary.
 """
 
 from __future__ import annotations
 
+import difflib
 import hashlib
 import json
 import os
@@ -35,12 +41,14 @@ REGISTRY = plasma_seams.load_registry()
 SEAM_PATHS = [s["path"] for s in REGISTRY["seams"]]
 SYSTEM = ROOT / "system_files"
 LOCK = "/usr/share/plasma/shells/org.kde.plasma.desktop/contents/lockscreen"
+COMPONENTS = "/usr/lib64/qt6/qml/org/kde/breeze/components"
+SESSION_SCREEN = f"{COMPONENTS}/SessionManagementScreen.qml"
+BACKDROP = f"{COMPONENTS}/WallpaperFader.qml"
+# The two lock-screen files that carry the authenticator wiring. Upstream's, never MoOS's.
+AUTH_FILES = (f"{LOCK}/LockScreenUi.qml", f"{LOCK}/MainBlock.qml")
 # Files MoOS ADDS beside Plasma's (rpm owns none of them, so no upstream can drift under them).
-MOOS_ADDITIONS = {
-    f"{LOCK}/MoOSClock.qml",
-    f"{LOCK}/images/ring.png",
-    f"{LOCK}/images/spark.png",
-}
+# None today: the lock screen's own clock and its two images went with the fork that used them.
+MOOS_ADDITIONS: set[str] = set()
 # Namespaces whose files belong to Plasma's own packages when MoOS ships a file there.
 PLASMA_OWNED = (
     "usr/share/plasma/shells/org.kde.plasma.desktop/",
@@ -97,10 +105,12 @@ class TheRegistryIsTheTree(unittest.TestCase):
         for (lo, hi, sid), (lo2, _hi2, sid2) in zip(spans, spans[1:]):
             self.assertLess(lo, hi, sid)
             self.assertLessEqual(hi, lo2, f"sets {sid} and {sid2} overlap")
-        cases = {"6.7.0": "6.7", "6.7.5": "6.7", "6.7.90": "6.8", "6.7.91": "6.8-beta2", "6.8.0": "6.8-beta2", "6.8.6": "6.8-beta2"}
+        cases = {"6.7.0": "6.7", "6.7.5": "6.7", "6.7.91": "6.8-beta2", "6.8.0": "6.8-beta2", "6.8.6": "6.8-beta2"}
         for version, expected in cases.items():
             self.assertEqual(plasma_seams.select_set(REGISTRY, version)["id"], expected, version)
-        for version in ("6.6.5", "6.8.90", "6.9.0", "7.0.0"):
+        # 6.7.90 (6.8 beta 1) had a set until 2026-10-05. Its lock-screen variants went with the
+        # fork, and no beta-1 stack exists to load the greeter on, so it is unreviewed again.
+        for version in ("6.6.5", "6.7.90", "6.8.90", "6.9.0", "7.0.0"):
             with self.assertRaises(plasma_seams.SeamError, msg=version):
                 plasma_seams.select_set(REGISTRY, version)
 
@@ -108,7 +118,7 @@ class TheRegistryIsTheTree(unittest.TestCase):
         for script in ("build.sh", "build-arm.sh"):
             text = code((ROOT / "build_files" / script).read_text(encoding="utf-8"))
             call = text.find("python3 /ctx/plasma_seams.py build")
-            survival = text.find('"/usr/share/plasma/shells/org.kde.plasma.desktop/contents/lockscreen/LockScreenUi.qml:MoOSClock"')
+            survival = text.find('"/usr/share/plasma/shells/org.kde.plasma.desktop/contents/lockscreen/MediaControls.qml:org.moos.ui"')
             self.assertGreater(call, 0, f"{script} never runs the seam gate")
             self.assertGreater(survival, call, f"{script} checks survival before the seams are installed")
             # A Plasma transaction after the gate could restore upstream bytes under the review.
@@ -116,41 +126,123 @@ class TheRegistryIsTheTree(unittest.TestCase):
                                 f"{script} changes a Plasma package after the seam gate")
 
 
+class NoAuthenticationFileIsForked(unittest.TestCase):
+    """The lock screen's LockScreenUi.qml and MainBlock.qml are upstream's, on every Plasma."""
+
+    def test_the_tree_ships_neither_file(self):
+        for path in AUTH_FILES:
+            self.assertFalse((SYSTEM / path.lstrip("/")).exists(),
+                             f"system_files replaces {path}: it carries the authenticator wiring and "
+                             "upstream rewrites it every release — restyle the breeze components")
+
+    def test_no_set_reviews_or_installs_either_file(self):
+        self.assertFalse(set(AUTH_FILES) & set(SEAM_PATHS), "an authentication file is a seam again")
+        for chosen in REGISTRY["sets"]:
+            for path in AUTH_FILES:
+                self.assertNotIn(path, chosen["reviewed"], chosen["id"])
+                self.assertNotIn(path, chosen["sources"], chosen["id"])
+        variants = [p for p in (ROOT / "build_files/plasma-seams").rglob("*.qml")
+                    if p.name in ("LockScreenUi.qml", "MainBlock.qml")]
+        self.assertEqual(variants, [], "a seam variant would install a fork of an authentication file")
+
+    def test_both_builds_refuse_a_fork_in_the_finished_image(self):
+        for script in ("build.sh", "build-arm.sh"):
+            text = code((ROOT / "build_files" / script).read_text(encoding="utf-8"))
+            gate = text[text.find("for _f in LockScreenUi.qml MainBlock.qml; do"):]
+            self.assertTrue(gate.startswith("for _f in"), f"{script} no longer holds the boundary")
+            gate = gate[:gate.index("unset -v _f")]
+            self.assertIn('grep -q -e "org.moos" -e "Moalfarras" "$_f"', gate, script)
+            self.assertIn("exit 1", gate, script)
+
+    def test_the_session_design_carries_no_authentication(self):
+        # What replaced the forks must not grow the thing the forks were retired for.
+        names = ("SessionManagementScreen.qml", "WallpaperFader.qml", "Clock.qml",
+                 "UserList.qml", "UserDelegate.qml", "ActionButton.qml")
+        sources = [SYSTEM / COMPONENTS.lstrip("/") / name for name in names]
+        sources += [p for p in (ROOT / "build_files/plasma-seams").rglob("*.qml")
+                    if p.name in names]
+        for source in sources:
+            text = qml_code(source.read_text(encoding="utf-8"))
+            for wiring in ("authenticator", "Authenticator", "PasswordSync", "kcheckpass",
+                           ".respond(", "startAuthenticating", "loginRequest", ".text ="):
+                self.assertNotIn(wiring, text,
+                                 f"{source.relative_to(ROOT)} touches {wiring!r}: the session design "
+                                 "may paint the password row, never read or drive it")
+
+
 class TheSixEightSetFitsSixEight(unittest.TestCase):
     """Static half of what the canary and the real greeter prove on 6.8."""
 
-    def variant(self, name: str) -> str:
-        chosen = next(s for s in REGISTRY["sets"] if s["id"] == "6.8")
-        src = chosen["sources"][f"{LOCK}/{name}"]
-        return (ROOT / "build_files/plasma-seams" / src).read_text(encoding="utf-8")
+    def variant(self, path: str, set_id: str = "6.8-beta2") -> str:
+        chosen = next(s for s in REGISTRY["sets"] if s["id"] == set_id)
+        return (ROOT / "build_files/plasma-seams" / chosen["sources"][path]).read_text(encoding="utf-8")
 
-    def test_no_type_or_id_that_six_eight_removed(self):
-        text = qml_code(self.variant("LockScreenUi.qml"))
-        for gone in ("VirtualKeyboardLoader", "inputPanel", "graceLockTimer",
-                     "PW.KeyboardLayoutSwitcher", "org.kde.plasma.workspace.components"):
-            self.assertFalse(gone in text, f"the 6.8 lock screen still uses {gone}, which 6.8 removed")
-        self.assertNotIn("graceLocked", qml_code(self.variant("MainBlock.qml")))
+    def test_upstream_six_eight_additions_are_kept(self):
+        # 6.7.90 gave the session screen an authentication-type indicator and rewrote the
+        # backdrop's footer state change; both are upstream's, taken verbatim.
+        for set_id in ("6.8-beta2",):
+            screen = qml_code(self.variant(SESSION_SCREEN, set_id))
+            for kept in ("property Item authenticationTypeItem: null",
+                         "visible: root.authenticationTypeItem !== null",
+                         "children: [root.authenticationTypeItem]"):
+                self.assertIn(kept, screen, f"the {set_id} session screen lost upstream's {kept!r}")
+            backdrop = qml_code(self.variant(BACKDROP, set_id))
+            self.assertEqual(backdrop.count("target: footer"), 2, set_id)
+            self.assertNotIn("footer.opacity:", backdrop, set_id)
 
-    def test_upstream_six_eight_auth_path_is_kept(self):
-        text = self.variant("LockScreenUi.qml")
-        for kept in ("pragma ComponentBehavior: Bound", "LoginLockScreen.Footer",
-                     "ScreenLocker.AuthenticatorModel", "function onPamTimeoutChanged",
-                     "authenticator.respond(lockScreenUi.pendingPassword)",
-                     "onTriggered: authenticator.startAuthenticating()",
-                     "ScreenLocker.ActiveScreenMonitor"):
-            self.assertIn(kept, text, f"the 6.8 lock screen lost upstream's {kept!r}")
-        self.assertIn("property alias passwordInputVisible: passwordLayout.visible",
-                      self.variant("MainBlock.qml"))
+    def test_the_six_seven_files_do_not_carry_six_eight_api(self):
+        # The other direction: a 6.8 file left at the 6.7 path would still load, and hide the drift.
+        screen = qml_code((SYSTEM / SESSION_SCREEN.lstrip("/")).read_text(encoding="utf-8"))
+        self.assertNotIn("authenticationTypeItem", screen)
+        backdrop = qml_code((SYSTEM / BACKDROP.lstrip("/")).read_text(encoding="utf-8"))
+        self.assertEqual(backdrop.count("footer.opacity:"), 2)
 
-    def test_the_survival_markers_hold_for_the_variant_too(self):
-        # build.sh checks these markers on whatever the seam gate installed.
-        self.assertIn("MoOSClock", self.variant("LockScreenUi.qml"))
-        self.assertIn("org.moos.ui", self.variant("MainBlock.qml"))
+    def test_the_variants_differ_from_six_seven_only_by_upstream(self):
+        # Comments aside, a variant IS MoOS's 6.7 file plus upstream's own 6.7.5 -> 6.7.90 hunks,
+        # line for line. The design cannot fork between Plasma versions, and a hunk nobody
+        # reviewed cannot ride in on a variant.
+        upstream = {
+            SESSION_SCREEN: sorted([
+                "+property Item authenticationTypeItem: null",
+                "+RowLayout {",
+                "+Layout.maximumWidth: Kirigami.Units.gridUnit * 16",
+                "+Layout.alignment: Qt.AlignHCenter",
+                "+Layout.fillWidth: true",
+                "+Layout.fillHeight: false",
+                "+Layout.topMargin: Kirigami.Units.largeSpacing",
+                "+spacing: 0",
+                "+visible: root.authenticationTypeItem !== null",
+                "+children: [root.authenticationTypeItem]",
+                "+}",
+            ]),
+            BACKDROP: sorted([
+                "-footer.opacity: 1", "-footer.opacity: 0",
+                "+PropertyChanges {", "+target: footer", "+opacity: 1", "+}",
+                "+PropertyChanges {", "+target: footer", "+opacity: 0", "+}",
+            ]),
+        }
+        for path, expected in upstream.items():
+            base = [line.strip() for line in
+                    qml_code((SYSTEM / path.lstrip("/")).read_text(encoding="utf-8")).splitlines()]
+            other = [line.strip() for line in qml_code(self.variant(path)).splitlines()]
+            changed = sorted(line[0] + line[1:].strip()
+                             for line in difflib.unified_diff(base, other, lineterm="", n=0)
+                             if line[:1] in "+-" and line[:3] not in ("+++", "---")
+                             and line[1:].strip())
+            self.assertEqual(changed, expected,
+                             f"{path}: the 6.8 variant differs from MoOS's 6.7 file by more "
+                             "than upstream's own change")
+
+    def test_the_moos_markers_hold_for_the_variants_too(self):
+        # verify_image_experience.py checks this marker on whatever the seam gate installed.
+        for path in (SESSION_SCREEN, BACKDROP):
+            self.assertIn("MoOS", self.variant(path))
+            self.assertIn("org.moos.ui", self.variant(path))
 
     def test_no_merge_residue(self):
-        for name in ("LockScreenUi.qml", "MainBlock.qml"):
+        for path in (SESSION_SCREEN, BACKDROP):
             for marker in ("<<<<<<<", "=======\n", ">>>>>>>"):
-                self.assertNotIn(marker, self.variant(name), name)
+                self.assertNotIn(marker, self.variant(path), path)
 
 
 def fake_rpm(version: str, digests: dict[str, str], verify: dict[str, str]):
@@ -200,44 +292,56 @@ class TheGateRefuses(unittest.TestCase):
             self.assertEqual((self.root / p.lstrip("/")).read_bytes(), before[p], p)
 
     def test_six_eight_installs_its_variants(self):
-        self.run_gate("6.7.90", self.reviewed("6.8"))
-        chosen = next(s for s in REGISTRY["sets"] if s["id"] == "6.8")
+        self.run_gate("6.7.91", self.reviewed("6.8-beta2"))
+        chosen = next(s for s in REGISTRY["sets"] if s["id"] == "6.8-beta2")
         for path, source in chosen["sources"].items():
             self.assertEqual((self.root / path.lstrip("/")).read_bytes(),
                              (ROOT / "build_files/plasma-seams" / source).read_bytes(), path)
 
-    def test_beta_two_requires_its_review_and_installs_the_new_prompt_path(self):
-        with self.assertRaises(plasma_seams.SeamError):
-            self.run_gate("6.7.91", self.reviewed("6.8"))
+    def test_beta_two_installs_the_session_screen_reviewed_for_it(self):
+        # Beta 2 changed only LockScreenUi.qml, which MoOS no longer replaces: its set reviews the
+        # same upstream bytes as beta 1 and installs the same two component variants.
         self.run_gate("6.7.91", self.reviewed("6.8-beta2"))
-        text = (self.root / f"{LOCK}/LockScreenUi.qml".lstrip("/")).read_text()
-        self.assertIn("required property bool showPrompt", text)
-        self.assertIn("lockScreenUi.showPrompt = showPrompt", text)
-        self.assertIn("PW.KeyboardLayoutSwitcher", text)
-        self.assertNotIn("LoginLockScreen.Footer", text)
+        text = (self.root / SESSION_SCREEN.lstrip("/")).read_text()
+        self.assertIn("property Item authenticationTypeItem: null", text)
+        self.assertIn("children: [root.authenticationTypeItem]", text)
+        backdrop = (self.root / BACKDROP.lstrip("/")).read_text()
+        self.assertIn("target: footer", backdrop)
 
     def test_upstream_drift_is_refused(self):
         digests = self.reviewed("6.7")
-        digests[f"{LOCK}/LockScreenUi.qml"] = hashlib.sha256(b"a 6.7.6 bug fix").hexdigest()
-        with self.assertRaisesRegex(plasma_seams.SeamError, "LockScreenUi.qml.*Upstream changed"):
+        digests[SESSION_SCREEN] = hashlib.sha256(b"a 6.7.6 bug fix").hexdigest()
+        with self.assertRaisesRegex(plasma_seams.SeamError,
+                                    "SessionManagementScreen.qml.*Upstream changed"):
             self.run_gate("6.7.6", digests)
 
     def test_six_eight_bytes_under_a_six_seven_version_are_refused(self):
-        # The exact case measured: 6.8's lock screen, judged by the 6.7 review.
+        # The exact case this gate exists for: 6.8's session screen, judged by the 6.7 review.
         digests = self.reviewed("6.7")
-        digests[f"{LOCK}/LockScreenUi.qml"] = self.reviewed("6.8")[f"{LOCK}/LockScreenUi.qml"]
+        self.assertNotEqual(digests[SESSION_SCREEN], self.reviewed("6.8-beta2")[SESSION_SCREEN])
+        digests[SESSION_SCREEN] = self.reviewed("6.8-beta2")[SESSION_SCREEN]
         with self.assertRaises(plasma_seams.SeamError):
             self.run_gate("6.7.5", digests)
 
+    def test_six_seven_bytes_under_a_six_eight_version_are_refused(self):
+        digests = self.reviewed("6.8-beta2")
+        digests[BACKDROP] = self.reviewed("6.7")[BACKDROP]
+        with self.assertRaises(plasma_seams.SeamError):
+            self.run_gate("6.7.91", digests)
+
+    def test_beta_one_is_unreviewed_again(self):
+        with self.assertRaisesRegex(plasma_seams.SeamError, "no reviewed MoOS seam set"):
+            self.run_gate("6.7.90", self.reviewed("6.8-beta2"))
+
     def test_a_file_upstream_stopped_shipping_is_refused(self):
         digests = self.reviewed("6.7")
-        del digests[f"{LOCK}/MainBlock.qml"]
+        del digests[BACKDROP]
         with self.assertRaisesRegex(plasma_seams.SeamError, "no longer ships"):
             self.run_gate("6.7.5", digests)
 
     def test_an_unreviewed_plasma_is_refused(self):
         with self.assertRaisesRegex(plasma_seams.SeamError, "no reviewed MoOS seam set"):
-            self.run_gate("6.8.90", self.reviewed("6.8"))
+            self.run_gate("6.8.90", self.reviewed("6.8-beta2"))
 
     def test_an_unregistered_modified_plasma_file_is_refused(self):
         verify = {"plasma-workspace": "S.5....T.    /usr/share/plasma/look-and-feel/org.kde.breeze.desktop/contents/splash/Splash.qml\n"}
@@ -325,9 +429,14 @@ class TheProbeReadsTheGreeter(unittest.TestCase):
 
     def test_script_errors_count_only_in_moos_owned_files(self):
         upstream = "file:///usr/share/plasma/look-and-feel/x/Foo.qml:3: TypeError: Cannot read property 'x' of null"
-        ours = "file:///usr/share/plasma/shells/org.kde.plasma.desktop/contents/lockscreen/LockScreenUi.qml:40: ReferenceError: accentB is not defined"
+        ours = "file:///usr/lib64/qt6/qml/org/kde/breeze/components/SessionManagementScreen.qml:40: ReferenceError: accentB is not defined"
+        media = "file:///usr/share/plasma/shells/org.kde.plasma.desktop/contents/lockscreen/MediaControls.qml:9: TypeError: x"
+        # Upstream's again since 2026-10-05, and so not MoOS's to judge with no session bus.
+        theirs = "file:///usr/share/plasma/shells/org.kde.plasma.desktop/contents/lockscreen/LockScreenUi.qml:40: TypeError: Cannot read property 'x' of null"
         self.assertEqual(plasma_seams.classify_greeter_output([upstream]), [])
+        self.assertEqual(plasma_seams.classify_greeter_output([theirs]), [])
         self.assertEqual(plasma_seams.classify_greeter_output([ours]), [ours])
+        self.assertEqual(plasma_seams.classify_greeter_output([media]), [media])
 
     def test_the_probe_cannot_reach_a_live_session(self):
         source = (ROOT / "build_files/plasma_seams.py").read_text(encoding="utf-8")

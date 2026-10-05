@@ -12,3 +12,4 @@ IconButton 1.0 IconButton.qml
 Separator 1.0 Separator.qml
 FocusRing 1.0 FocusRing.qml
 SymbolIcon 1.0 SymbolIcon.qml
+SessionSignature 1.0 SessionSignature.qml

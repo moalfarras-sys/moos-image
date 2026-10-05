@@ -5,13 +5,18 @@
 
     The host contract (signals, ShutdownType, spdMethods, maysd, canLogout,
     softwareUpdatePending, remainingTime) is KDE Plasma 6.7's org.kde.breeze
-    Logout.qml — untouched, so every action stays wired to the system. The
-    visual design is the second-generation MoOS UI2 rework: the Tidal Horizon
-    stays as the doorway's depth signature BEHIND a real Glass Island — one
-    substantial layered-material card that carries the clock, the question,
-    the signed-in identity, the countdown ring and a dock of large action
-    tiles. Shut Down / Restart are gated behind a confirm tap (armOrFire);
-    the signal each tile emits stays byte-identical to the stock contract.
+    Logout.qml — untouched, so every action stays wired to the system.
+
+    The design is the MoOS session family's, and it is the same scene the lock
+    and login screens draw: the theme's wallpaper under the session veil, the
+    MoOS signature in the leading corner, the session clock top-centre, and ONE
+    glass island in the middle that carries who is signed in, the question, the
+    countdown ring and a dock of large action tiles. The clock and the face are
+    not look-alikes of the lock screen's — they are the same two components
+    (org.kde.breeze.components Clock and UserDelegate, both MoOS's files), so
+    the three doors cannot drift apart. Shut Down / Restart are gated behind a
+    confirm tap (armOrFire); the signal each tile emits stays byte-identical to
+    the stock contract.
 */
 pragma ComponentBehavior: Bound
 
@@ -21,6 +26,7 @@ import QtQuick.Layouts
 import QtQuick.Shapes
 import Qt5Compat.GraphicalEffects
 
+import org.kde.breeze.components as SessionComponents
 import org.kde.coreaddons as KCoreAddons
 import org.kde.kirigami as Kirigami
 import org.kde.plasma.private.sessions
@@ -55,21 +61,24 @@ Item {
 
     // ═══════════════════ MoOS Session Design Tokens ═══════════════════════
     // ONE canonical set for every session surface (lock, power, login scene).
-    // Mirrored exactly on the lock (LockScreenUi/MainBlock/MoOSClock) and the
-    // breeze ActionButton; documented here as the single source of truth so no
-    // surface drifts. Change a token here → change it on the lock to match.
+    // The lock and login screens draw theirs in the breeze components
+    // (SessionManagementScreen, WallpaperFader, ActionButton); the clock and
+    // the face are not mirrored at all — this screen instantiates the same
+    // two components. Change a token here → change it there to match.
     //   accentA = Kirigami.Theme.highlightColor       · live theme accent
     //   accentB = accentA HSL hue +0.09               · two-tone signature
     //   ink     = Kirigami.Theme.textColor            · neutral glyph / text
-    //   island  = bg 0.58 fill · sheen ink 0.05→0 · border ink 0.14
-    //             accent top-rim gradient · radius gridUnit*2 · depth halo
+    //   island  = bg 0.58 fill · sheen ink 0.06→0 · border ink 0.16
+    //             accent crest gradient · radius radiusDialog · depth halo
+    //             (the same plate SessionManagementScreen draws for lock/login)
     //   tile    = gridUnit*8.6 × 6.2 · icon 0.30 of height · radius gu*1.4
     //             idle fill ink 0.09 · lit fill ink 0.16 · crest cut + horizon
     //   ring    = countdown: Shape arc, stroke 3, accentA on accentA 0.18
     //   scrim   = backgroundColor  0.52 / 0.30 / 0.60  (top / mid / foot)
     //   blur    = 54 wallpaper (lock's breeze WallpaperFader = 50)
     //   fonts   = IBM Plex Sans Arabic across both scripts and all numerals
-    //   clock   = Font.Thin · letterSpacing -2 · accent colon · hairline accent
+    //   clock   = org.kde.breeze.components Clock — the one session clock
+    //   face    = org.kde.breeze.components UserDelegate — the one session face
     //   motion  = Units.shortDuration (hover/press) · longDuration (fades) · OutCubic
     // ══════════════════════════════════════════════════════════════════════
     readonly property color accent: Kirigami.Theme.highlightColor
@@ -85,16 +94,6 @@ Item {
         if (c.hslSaturation < 0.08 || c.hslHue < 0) { return Qt.lighter(c, 1.28); }
         let nh = c.hslHue + 0.09; if (nh > 1) { nh -= 1; }
         return Qt.hsla(nh, Math.min(1, c.hslSaturation), Math.min(0.72, c.hslLightness * 1.08), 1);
-    }
-
-    property string nowTime: Qt.formatTime(new Date(), "HH:mm")
-    property string nowDate: new Date().toLocaleDateString(Qt.locale(), Locale.LongFormat)
-    Timer {
-        interval: 15000; repeat: true; running: root.visible
-        onTriggered: {
-            root.nowTime = Qt.formatTime(new Date(), "HH:mm");
-            root.nowDate = new Date().toLocaleDateString(Qt.locale(), Locale.LongFormat);
-        }
     }
 
     function stopCountdown() { countdownTimer.stop(); }
@@ -282,6 +281,48 @@ Item {
     // cancel (or worse, race) a pending shutdown.
     MouseArea { anchors.fill: parent; acceptedButtons: Qt.AllButtons }
 
+    // ── The session frame: signature and clock ───────────────────────────────
+    // The same two marks, in the same two places, as the lock and login
+    // screens. The signature keeps its leading corner; the clock shares the
+    // vertical axis with the island and stands above it.
+    MoUI.SessionSignature {
+        id: signature
+        anchors.left: parent.left
+        anchors.top: parent.top
+        anchors.leftMargin: Math.max(Kirigami.Units.gridUnit * 2,
+                                     Math.round(root.width * 0.028))
+        anchors.topMargin: Math.max(Kirigami.Units.gridUnit * 1.6,
+                                    Math.round(root.height * 0.04))
+        sceneHeight: root.height
+        ink: Kirigami.Theme.textColor
+        accent: root.accent
+        opacity: wallpaper.opacity
+        // In a 640x480 mode the island reaches the corner; the island wins.
+        visible: sheet.y > y + height + Kirigami.Units.smallSpacing
+                 || x + width + Kirigami.Units.largeSpacing < sheet.x
+                 || x > sheet.x + sheet.width + Kirigami.Units.largeSpacing
+    }
+
+    // The clock and the island are centred as ONE group. A dock of two tile
+    // rows on a short screen leaves no band for the clock; it steps aside
+    // whole rather than squeeze against the island, exactly as both greeters
+    // hide a clock that does not fit.
+    readonly property real stageMargin: Kirigami.Units.gridUnit * 2
+    readonly property real clockGap: Kirigami.Units.gridUnit * 2.5
+    readonly property bool clockFits: sessionClock.implicitHeight + clockGap + sheet.height
+                                      + stageMargin * 2 <= root.height
+    readonly property real groupHeight: sheet.height
+                                        + (clockFits ? sessionClock.implicitHeight + clockGap : 0)
+    readonly property real groupTop: Math.round((root.height - groupHeight) / 2)
+
+    SessionComponents.Clock {
+        id: sessionClock
+        anchors.horizontalCenter: parent.horizontalCenter
+        y: root.groupTop
+        visible: root.clockFits
+        opacity: wallpaper.opacity
+    }
+
     // ── The Glass Island ─────────────────────────────────────────────────────
     // One substantial layered-material card carries the whole doorway: header
     // (emblem · clock · date), the question, the signed-in identity, the
@@ -290,7 +331,8 @@ Item {
     // wear it natively, and there is no offscreen effect layer behind it.
     Item {
         id: sheet
-        anchors.centerIn: parent
+        anchors.horizontalCenter: parent.horizontalCenter
+        y: root.groupTop + (root.clockFits ? sessionClock.implicitHeight + root.clockGap : 0)
         width: Math.min(root.width - Kirigami.Units.gridUnit * 3,
                         Math.max(Kirigami.Units.gridUnit * 26,
                                  column.implicitWidth + Kirigami.Units.gridUnit * 4))
@@ -351,33 +393,31 @@ Item {
             border.width: root.design.borderHairline
             border.color: Qt.rgba(Kirigami.Theme.textColor.r,
                                   Kirigami.Theme.textColor.g,
-                                  Kirigami.Theme.textColor.b, 0.14)
+                                  Kirigami.Theme.textColor.b, 0.16)
 
             // Sheen — the glass catch-light across the island's upper field.
             Rectangle {
                 anchors { top: parent.top; left: parent.left; right: parent.right }
                 anchors.margins: 1
-                height: parent.height * 0.38
+                height: parent.height * 0.42
                 radius: parent.radius - 1
                 gradient: Gradient {
                     GradientStop { position: 0.0; color: Qt.rgba(Kirigami.Theme.textColor.r,
-                        Kirigami.Theme.textColor.g, Kirigami.Theme.textColor.b, 0.05) }
+                        Kirigami.Theme.textColor.g, Kirigami.Theme.textColor.b, 0.06) }
                     GradientStop { position: 1.0; color: Qt.rgba(Kirigami.Theme.textColor.r,
                         Kirigami.Theme.textColor.g, Kirigami.Theme.textColor.b, 0.0) }
                 }
             }
 
-            // The accent rim — the island's Tidal signature: a two-tone light
-            // along the top edge, wider and brighter than a hairline, sitting
-            // exactly on the border so it reads as the card catching the crest.
+            // The crest — the two-tone mark every MoOS session island carries
+            // on its top edge, the same width as the one on the lock and login.
             Rectangle {
                 anchors.horizontalCenter: parent.horizontalCenter
                 anchors.top: parent.top
                 anchors.topMargin: -height / 2
-                width: parent.width * 0.34
+                width: Kirigami.Units.gridUnit * 4
                 height: 3
                 radius: height / 2
-                opacity: 0.92
                 gradient: Gradient {
                     orientation: Gradient.Horizontal
                     GradientStop { position: 0; color: root.accent }
@@ -392,112 +432,50 @@ Item {
             width: sheet.width - Kirigami.Units.gridUnit * 4
             spacing: Kirigami.Units.largeSpacing
 
-            // ── Header: emblem beside the live clock, date beneath ──
-            RowLayout {
+            // ── Who is signed in — the session face, the one the lock shows ──
+            SessionComponents.UserDelegate {
+                id: identity
                 Layout.alignment: Qt.AlignHCenter
                 Layout.topMargin: Kirigami.Units.smallSpacing
-                spacing: Kirigami.Units.largeSpacing
+                Layout.preferredWidth: Math.min(column.width, Kirigami.Units.gridUnit * 16)
+                Layout.preferredHeight: faceInset + faceSize + nameLine.height
+                                        + Kirigami.Units.gridUnit * 0.9
+                faceSize: Kirigami.Units.gridUnit * 4
+                // The delegate draws the name four points above `fontSize`,
+                // which here lands on the secondary size: the question below
+                // is this island's headline, not the name.
+                fontSize: Kirigami.Theme.defaultFont.pointSize - 2
+                name: currentUser.fullName.length > 0 ? currentUser.fullName
+                                                      : currentUser.loginName
+                userName: currentUser.loginName
+                avatarPath: currentUser.faceIconUrl
+                iconSource: "user-identity"
+                constrainText: false
+                isCurrent: true
+                // A portrait, not a control: this screen's keys are the tiles,
+                // and it is never a focus stop (nothing gives it focus).
+                Accessible.ignored: true
 
-                Item {
-                    Layout.preferredWidth: Kirigami.Units.gridUnit * 3.4
-                    Layout.preferredHeight: Kirigami.Units.gridUnit * 3.4
-                    // Crisp emblem — no halo: the island's accent rim already
-                    // carries the two-tone signature, and a radial bloom at this
-                    // size only smears the mark into the clock.
-                    Image {
-                        anchors.fill: parent
-                        source: "../splash/images/moos-logo.png"
-                        fillMode: Image.PreserveAspectFit; smooth: true; asynchronous: true
-                    }
-                }
-
-                // Editorial clock — the ONE MoOS clock face, unified with the
-                // lock's MoOSClock: ultra-thin, an accent colon. Forced LTR so
-                // HH:mm never mirrors under RTL.
-                RowLayout {
-                    LayoutMirroring.enabled: false
-                    layoutDirection: Qt.LeftToRight
-                    spacing: 0
-                    QQC2.Label {
-                        text: root.nowTime.split(":")[0]
-                        color: Kirigami.Theme.textColor
-                        font.family: root.design.interfaceFamily; font.weight: Font.ExtraLight
-                        font.pointSize: Kirigami.Theme.defaultFont.pointSize + 26
-                        font.letterSpacing: -2
-                    }
-                    QQC2.Label {
-                        text: ":"
-                        color: root.accent
-                        font.family: root.design.interfaceFamily; font.weight: Font.ExtraLight
-                        font.pointSize: Kirigami.Theme.defaultFont.pointSize + 26
-                    }
-                    QQC2.Label {
-                        text: root.nowTime.split(":")[1]
-                        color: Kirigami.Theme.textColor
-                        font.family: root.design.interfaceFamily; font.weight: Font.ExtraLight
-                        font.pointSize: Kirigami.Theme.defaultFont.pointSize + 26
-                        font.letterSpacing: -2
-                    }
+                FontMetrics {
+                    id: nameLine
+                    font.family: root.design.interfaceFamily
+                    font.pointSize: identity.fontSize + 4
                 }
             }
-            QQC2.Label {
-                Layout.alignment: Qt.AlignHCenter
-                text: root.nowDate
-                color: Kirigami.Theme.textColor
-                opacity: root.design.mutedOpacity
-                font.family: root.design.interfaceFamily
-                font.pointSize: Kirigami.Theme.smallFont.pointSize + 1
-            }
 
-            // ── The question — display weight, with the accent hairline ──
-            Rectangle {
-                Layout.alignment: Qt.AlignHCenter
-                Layout.topMargin: Kirigami.Units.smallSpacing
-                Layout.preferredWidth: Kirigami.Units.gridUnit * 4
-                Layout.preferredHeight: 2; radius: 1
-                color: root.accent
-                opacity: 0.9
-            }
+            // ── The question — display weight ──
             QQC2.Label {
                 Layout.alignment: Qt.AlignHCenter
                 Layout.maximumWidth: Kirigami.Units.gridUnit * 36
                 horizontalAlignment: Text.AlignHCenter
                 text: root.headingText()
                 // The question is the point of this screen: foreground role at
-                // display size, softened only by the clock's larger presence.
+                // display size.
                 color: Kirigami.Theme.textColor
                 elide: Text.ElideRight
                 font.family: root.design.interfaceFamily
                 font.weight: Font.DemiBold
                 font.pointSize: Kirigami.Theme.defaultFont.pointSize + 7
-            }
-
-            // The signed-in identity — a quiet chip: initial-in-ring + name.
-            RowLayout {
-                Layout.alignment: Qt.AlignHCenter
-                spacing: Kirigami.Units.smallSpacing
-                visible: currentUser.fullName.length > 0
-                Rectangle {
-                    Layout.preferredWidth: Kirigami.Units.gridUnit * 1.6
-                    Layout.preferredHeight: Kirigami.Units.gridUnit * 1.6
-                    radius: width / 2
-                    color: Qt.rgba(root.accent.r, root.accent.g, root.accent.b, 0.16)
-                    border.width: root.design.borderHairline
-                    border.color: Qt.rgba(root.accent.r, root.accent.g, root.accent.b, 0.55)
-                    QQC2.Label {
-                        anchors.centerIn: parent
-                        text: currentUser.fullName.length > 0 ? currentUser.fullName.charAt(0).toUpperCase() : ""
-                        color: Kirigami.Theme.textColor
-                        font.family: root.design.interfaceFamily; font.weight: Font.DemiBold
-                        font.pointSize: Kirigami.Theme.smallFont.pointSize
-                    }
-                }
-                QQC2.Label {
-                    text: currentUser.fullName
-                    color: Kirigami.Theme.textColor
-                    font.family: root.design.interfaceFamily; font.weight: Font.DemiBold
-                    font.pointSize: Kirigami.Theme.smallFont.pointSize + 1
-                }
             }
 
             // ── Countdown ring (only while an action is pending) ──

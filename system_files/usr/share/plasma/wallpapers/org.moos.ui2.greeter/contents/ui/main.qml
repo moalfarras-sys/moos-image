@@ -2,9 +2,9 @@
 //
 // Plasma Login Manager owns the password card; this wallpaper owns only the calm
 // scene behind it. The image, legibility veil and shared Tidal Horizon Portal
-// paint synchronously so the password boundary is never delayed. The static
-// portal frames the compiled authentication cluster; the protected brand stays
-// a quiet top-left signature.
+// paint synchronously so the password boundary is never delayed. The island
+// around the authentication cluster is drawn by the greeter itself (MoOS's
+// SessionManagementScreen); this scene adds the quiet corner signature.
 //
 // The greeter compiles its own layout into a Qt resource
 // (qrc:/qt/qml/org/kde/plasma/login/Main.qml), so this scene and
@@ -16,7 +16,7 @@
 // QStringLiteral as UTF-16, and reading that as "the module is unused" is wrong.
 //
 // Gate contract (build_files/verify_image_experience.py): no repeaters, shaders,
-// canvases or permanent motion, and the brand MUST stay anchored to the top-left
+// canvases or permanent motion, and the brand MUST stay anchored to its top
 // corner so it can never overlap the centred password surface. Only that quiet
 // signature receives one reduced-motion-aware entrance; the authentication scene
 // paints immediately and remains static.
@@ -26,6 +26,7 @@ import QtQuick
 import QtQuick.Window
 import org.kde.kirigami as Kirigami
 import org.kde.plasma.plasmoid
+import org.moos.ui as MoUI
 
 WallpaperItem {
     id: root
@@ -186,16 +187,16 @@ WallpaperItem {
         }
     }
 
-    // ── MoOS signature — quiet, top-left (gate: brand stays in its corner) ──
+    // ── MoOS signature — quiet, in its corner (gate: it never leaves it) ──
     //
     // The signature arrives; the security surface does not wait for it.
     //
     // This scene was fully static because "authentication must paint
     // immediately even with software rendering" — a real constraint, and it
     // still holds for everything above: the base plate, the wallpaper and both
-    // veils are painted synchronously and are never animated. But this Row is
-    // the one element that is neither the background nor the password card: it
-    // is drawn by plasma-login-wallpaper BEHIND the greeter's compiled
+    // veils are painted synchronously and are never animated. But the signature
+    // is the one element that is neither the background nor the password card:
+    // it is drawn by plasma-login-wallpaper BEHIND the greeter's compiled
     // authentication cluster, in a separate process, so a bounded fade here
     // cannot delay the prompt by a frame.
     //
@@ -204,7 +205,15 @@ WallpaperItem {
     // the rest of the session. No loop, no Animation.Infinite, no shader, no
     // Canvas — a login screen that keeps moving is a login screen that keeps
     // costing GPU while someone types a password.
-    Row {
+    //
+    // It is the SAME component the lock and power screens sign themselves with
+    // (org.moos.ui SessionSignature), so the three cannot drift in size or
+    // spacing. And it sits in the LEADING corner, as it does there: top-left for
+    // a left-to-right system language, top-right for Arabic. The lock and power
+    // screens mirror because their window does; this process has no mirrored
+    // root, so the signature mirrors itself by the system locale — the anchors
+    // below stay written as left/top, and Qt flips them.
+    MoUI.SessionSignature {
         id: signature
         opacity: 0
         scale: root.motionEnabled ? 0.96 : 1
@@ -213,6 +222,8 @@ WallpaperItem {
             id: signatureShift
             y: root.motionEnabled ? 14 : 0
         }
+        LayoutMirroring.enabled: Qt.locale().textDirection === Qt.RightToLeft
+        LayoutMirroring.childrenInherit: true
         Component.onCompleted: {
             if (root.motionEnabled) {
                 signatureEntrance.start();
@@ -254,50 +265,8 @@ WallpaperItem {
                                      Math.round(root.width * 0.028))
         anchors.topMargin: Math.max(Kirigami.Units.gridUnit * 1.6,
                                     Math.round(root.height * 0.04))
-        spacing: Kirigami.Units.largeSpacing
-
-        Image {
-            anchors.verticalCenter: parent.verticalCenter
-            width: Math.max(34, Math.round(root.height * 0.038))
-            height: width
-            source: "file:///usr/share/pixmaps/moos-logo.png"
-            fillMode: Image.PreserveAspectFit
-            asynchronous: false
-            smooth: true
-            mipmap: true
-        }
-
-        Column {
-            anchors.verticalCenter: parent.verticalCenter
-            spacing: Math.round(root.height * 0.006)
-
-            Text {
-                text: "MoOS"
-                color: root.ink
-                font.family: "IBM Plex Sans Arabic"
-                font.pixelSize: Math.max(22, Math.round(root.height * 0.03))
-                font.weight: Font.DemiBold
-                font.letterSpacing: 1
-                // QtRendering, not NativeRendering. The flagship panel runs at
-                // 225% — a FRACTIONAL devicePixelRatio — and Qt's native
-                // rasteriser hints glyphs onto whole device pixels, which do not
-                // line up with fractional logical ones. The wordmark's stems land
-                // off-grid and the letterSpacing above rounds unevenly, so "MoOS"
-                // reads slightly smeared beside the crisp emblem next to it. The
-                // distance-field path scales cleanly at any ratio and is what
-                // every other MoOS brand surface already uses.
-                renderType: Text.QtRendering
-            }
-            Rectangle {
-                width: Math.max(26, Math.round(root.height * 0.04))
-                height: 2
-                radius: 1
-                gradient: Gradient {
-                    orientation: Gradient.Horizontal
-                    GradientStop { position: 0.0; color: root.accent }
-                    GradientStop { position: 1.0; color: Qt.alpha(root.accent, 0.0) }
-                }
-            }
-        }
+        sceneHeight: root.height
+        ink: root.ink
+        accent: root.accent
     }
 }

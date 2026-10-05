@@ -161,9 +161,10 @@ class DesignCoreTests(unittest.TestCase):
             SHARE / "plasma/look-and-feel/org.moos.ui2/contents/splash/Splash.qml",
             SHARE / "plasma/look-and-feel/org.moos.ui2/contents/logout/Logout.qml",
             SHARE / "plasma/look-and-feel/org.moos.ui2/contents/logout/MoOSUI2ActionButton.qml",
-            SHARE / "plasma/shells/org.kde.plasma.desktop/contents/lockscreen/LockScreenUi.qml",
-            SHARE / "plasma/shells/org.kde.plasma.desktop/contents/lockscreen/MainBlock.qml",
-            SHARE / "plasma/shells/org.kde.plasma.desktop/contents/lockscreen/MoOSClock.qml",
+            # The lock screen's own LockScreenUi/MainBlock are upstream's since 2026-10-05; the
+            # session island and the lock backdrop are the two components that replaced the forks.
+            ROOT / "system_files/usr/lib64/qt6/qml/org/kde/breeze/components/SessionManagementScreen.qml",
+            ROOT / "system_files/usr/lib64/qt6/qml/org/kde/breeze/components/WallpaperFader.qml",
             ROOT / "system_files/usr/lib64/qt6/qml/org/kde/breeze/components/ActionButton.qml",
             ROOT / "system_files/usr/lib64/qt6/qml/org/kde/breeze/components/UserDelegate.qml",
             ROOT / "system_files/usr/lib64/qt6/qml/org/kde/breeze/components/Clock.qml",

@@ -574,10 +574,11 @@ class TestMoOSUI2(unittest.TestCase):
         runtime_roots = (
             SHARE / "plasma/look-and-feel/org.moos.ui2",
             SHARE / "plasma/look-and-feel/org.moos.ui2.light",
-            SHARE / (
-                "plasma/shells/org.kde.plasma.desktop/contents/"
-                "lockscreen/MainBlock.qml"
+            ROOT / (
+                "system_files/usr/lib64/qt6/qml/org/kde/breeze/components/"
+                "SessionManagementScreen.qml"
             ),
+            ROOT / "system_files/usr/lib64/qt6/qml/org/moos/ui/SessionSignature.qml",
             SHARE / "plasma/desktoptheme/MoOSUI2",
             SHARE / "plasma/desktoptheme/MoOSUI2Light",
             SHARE / "aurorae/themes/MoOSUI2",
@@ -744,27 +745,36 @@ class TestMoOSUI2(unittest.TestCase):
         for direction in ("Up", "Down", "Left", "Right"):
             self.assertIn(f"Keys.on{direction}Pressed: navigate(", button)
 
-    def test_lock_authentication_exposes_explicit_accessibility_state(self) -> None:
-        lock_path = (
-            SHARE / "plasma/shells/org.kde.plasma.desktop/contents/lockscreen/"
-            "MainBlock.qml"
-        )
-        lock = qml_code(lock_path.read_text(encoding="utf-8"))
-        password_start = lock.index("id: passwordBox")
-        password = lock[password_start:lock.index("Binding {", password_start)]
-        self.assertIn("Accessible.name:", password)
+    def test_session_password_row_exposes_explicit_accessibility_state(self) -> None:
+        """Both greeters run outside a normal application window.
 
-        unlock_start = lock.index("id: loginButton")
-        unlock = lock[unlock_start:lock.index("component FailableLabel", unlock_start)]
-        for contract in (
-            "Accessible.role: Accessible.Button",
-            "Accessible.name:",
-            "Accessible.pressed: down",
-            "Accessible.onPressAction: loginButton.clicked()",
-            "Keys.onEnterPressed: clicked()",
-            "Keys.onReturnPressed: clicked()",
-        ):
-            self.assertIn(contract, unlock)
+        The password row itself is upstream's now (the lock screen's MainBlock and the
+        login greeter's compiled Login); MoOS's session screen gives it its face and
+        must not leave it less describable than the fork it replaced did.
+        """
+        screen = qml_code((
+            ROOT / "system_files/usr/lib64/qt6/qml/org/kde/breeze/components/"
+            "SessionManagementScreen.qml"
+        ).read_text(encoding="utf-8"))
+        adopt = screen[screen.index("function adoptControl(control)"):
+                       screen.index("function adoptPromptControls()")]
+        # A field nobody named says what it asks for…
+        self.assertIn('if (control.Accessible.name === "")', adopt)
+        self.assertIn("control.Accessible.name = Qt.binding(() => control.placeholderText)", adopt)
+        # …and the key, which now shows a drawn arrow, states its role.
+        self.assertIn("control.Accessible.role = Accessible.Button", adopt)
+        # The face is assigned and nothing else: no text, echo mode, handler or signal.
+        for line in adopt.splitlines():
+            assigned = re.match(r"\s*control\.([A-Za-z.]+)\s*=[^=]", line)
+            if assigned:
+                self.assertIn(assigned.group(1), {
+                    "Kirigami.Theme.inherit", "Kirigami.Theme.colorSet", "background",
+                    "contentItem", "Accessible.name", "Accessible.role",
+                }, f"the session screen writes {assigned.group(1)} on an upstream control")
+        self.assertNotIn("control.text", adopt)
+        self.assertNotIn("echoMode", screen)
+        # Upstream's own names for the two keys must still be what the reader hears.
+        self.assertNotIn("Accessible.name:", screen)
 
     def test_login_greeter_actions_are_operable_by_assistive_clients(self) -> None:
         components = ROOT / "system_files/usr/lib64/qt6/qml/org/kde/breeze/components"
@@ -824,7 +834,7 @@ class TestMoOSUI2(unittest.TestCase):
         components = ROOT / "system_files/usr/lib64/qt6/qml/org/kde/breeze/components"
         for filename, owner, expected_durations in (
             ("ActionButton.qml", "root", 6),
-            ("UserDelegate.qml", "wrapper", 3),
+            ("UserDelegate.qml", "wrapper", 2),
         ):
             with self.subTest(filename=filename):
                 source = qml_code((components / filename).read_text(encoding="utf-8"))
@@ -841,39 +851,45 @@ class TestMoOSUI2(unittest.TestCase):
                 )
                 self.assertEqual(len(guarded), expected_durations)
 
-    def test_lock_authentication_reduced_motion_is_a_true_static_state(self) -> None:
-        lock_root = (
-            SHARE / "plasma/shells/org.kde.plasma.desktop/contents/lockscreen"
+    def test_session_island_reduced_motion_is_a_true_static_state(self) -> None:
+        components = ROOT / "system_files/usr/lib64/qt6/qml/org/kde/breeze/components"
+        source = qml_code((components / "SessionManagementScreen.qml").read_text(encoding="utf-8"))
+        self.assertIn(
+            "readonly property bool motionEnabled: Kirigami.Units.longDuration > 1",
+            source,
         )
-        for filename, owner, expected_durations in (
-            ("MainBlock.qml", "sessionManager", 8),
-            ("LockScreenUi.qml", "lockScreenUi", 5),
-        ):
-            with self.subTest(filename=filename):
-                source = qml_code((lock_root / filename).read_text(encoding="utf-8"))
-                self.assertIn(
-                    "readonly property bool motionEnabled: Kirigami.Units.longDuration > 1",
-                    source,
-                )
-                self.assertEqual(source.count("duration:"), expected_durations)
-                guarded = re.findall(
-                    rf"duration:\s*{re.escape(owner)}\.design\.duration\(\s*"
-                    rf"{re.escape(owner)}\.motionEnabled\s*,\s*"
-                    rf"{re.escape(owner)}\.design\.motion"
-                    r"(?:Press|Fast|Geometry|Emphasis|Portal)\s*\)",
-                    source,
-                )
-                self.assertEqual(len(guarded), expected_durations)
-        main_block = qml_code((lock_root / "MainBlock.qml").read_text(encoding="utf-8"))
-        repeated = main_block[main_block.index("function onNotificationRepeated"):
-                              main_block.index("}", main_block.index("function onNotificationRepeated")) + 1]
-        self.assertIn("if (sessionManager.motionEnabled)", repeated)
+        self.assertEqual(source.count("duration:"), 6)
+        guarded = re.findall(
+            r"duration:\s*root\.design\.duration\(\s*root\.motionEnabled\s*,\s*"
+            r"root\.design\.motion(?:Press|Fast|Geometry|Emphasis|Portal)\s*\)",
+            source,
+        )
+        self.assertEqual(len(guarded), 6)
+        # The island's rise is not an animation of its own: it rides the fade both greeters
+        # already run on the stack that holds this screen, and stands still without one.
+        self.assertIn("readonly property real stage: (motionEnabled && parent) ? parent.opacity : 1",
+                      source)
+        self.assertNotIn("Behavior on y", source)
+        self.assertNotIn("loops: Animation.Infinite", source)
+        # A repeated refusal bounces the pill that carries it, through the same gate.
+        bounce = source[source.index("id: bounceAnimation"):]
+        self.assertEqual(bounce.count("root.design.duration(root.motionEnabled,"), 2)
+
+        # The backdrop adds no motion at all: its veil follows the factor upstream animates.
+        backdrop = qml_code((components / "WallpaperFader.qml").read_text(encoding="utf-8"))
+        layer = backdrop[backdrop.index("id: sessionVeil"):backdrop.index("states: [")]
+        for moving in ("Animation", "Behavior", "Timer"):
+            self.assertNotIn(moving, layer)
+        self.assertGreaterEqual(layer.count("wallpaperFader.factor"), 3)
 
     def test_lock_wallpaper_migrates_existing_users_and_matches_exactly(self) -> None:
         apply = (ROOT / "system_files/usr/bin/moos-apply-theme").read_text(encoding="utf-8")
         switch = (ROOT / "system_files/usr/bin/moos-theme").read_text(encoding="utf-8")
         self.assertIn(
-            "THEME_REV=100", apply,
+            "THEME_REV=101", apply,
+            "existing v100 users would keep a cached compile of the retired MoOS LockScreenUi that "
+            "asks for a MoOSClock which no longer ships (kscreenlocker's emergency locker) and a "
+            "cached stock session screen with no island; "
             "existing v85 users would keep the cached Island that imports the retired Search "
             "applet and shows no Mo AI jobs, the launcher with three settings tiles, and a home "
             "copy of the MoOS task switcher; "
@@ -907,17 +923,19 @@ class TestMoOSUI2(unittest.TestCase):
         actions also used Selection foreground on ForegroundNegative (2.78:1 in
         Daylight).  Hold both the QML relationship and all 16 numeric schemes.
         """
-        lock_path = (
-            SHARE / "plasma/shells/org.kde.plasma.desktop/contents/"
-            "lockscreen/MainBlock.qml"
+        screen_path = (
+            ROOT / "system_files/usr/lib64/qt6/qml/org/kde/breeze/components/"
+            "SessionManagementScreen.qml"
         )
-        lock = qml_code(lock_path.read_text(encoding="utf-8"))
-        unlock_start = lock.index("id: loginButton")
-        unlock = lock[unlock_start:lock.index("component FailableLabel", unlock_start)]
-        self.assertIn("color: sessionManager.accentA", unlock)
-        self.assertIn("color: Kirigami.Theme.highlightedTextColor", unlock)
+        screen = qml_code(screen_path.read_text(encoding="utf-8"))
+        # The key's face and its glyph: everything between the two components' ids and
+        # the island that follows them.
+        unlock = screen[screen.index("id: keyFace"):screen.index("MoUI.GlassSurface {")]
+        self.assertIn("color: root.accentA", unlock)
+        self.assertIn("strokeColor: Kirigami.Theme.highlightedTextColor", unlock)
+        self.assertGreaterEqual(unlock.count("color: Kirigami.Theme.highlightedTextColor"), 3)
         self.assertIn(
-            "scale: loginButton.down ? sessionManager.design.pressScale : 1.0",
+            "scale: key.control.down ? root.design.pressScale : 1.0",
             unlock,
             "contrast-safe flat fill must still acknowledge a press",
         )
@@ -931,6 +949,8 @@ class TestMoOSUI2(unittest.TestCase):
             r'color\s*:\s*["\']white["\']|Qt\.rgba\(\s*1\s*,\s*1\s*,\s*1\s*,',
             "Unlock must use the active scheme's selected ink, never literal white",
         )
+        # accentB may rim the key; it may never be what the glyph sits on.
+        self.assertNotIn("color: root.accentB", unlock)
 
         logout_root = SHARE / "plasma/look-and-feel/org.moos.ui2/contents/logout"
         logout_screen = qml_code(
@@ -2525,8 +2545,9 @@ class TestMoOSUI2(unittest.TestCase):
             return len(line) - len(line.lstrip())
 
         handlers = [i for i, line in enumerate(lines) if re.match(r"\s*(onClicked|onPicked):", line)]
-        # Undo, a look card, two canvas rows, two three-way rows, six fine-control rows.
-        self.assertEqual(len(handlers), 12)
+        # Undo, a look card, two canvas rows, two three-way rows, six fine-control rows and
+        # the two rows that open the lock and login screens' own pages.
+        self.assertEqual(len(handlers), 14)
         for index in handlers:
             indent = depth(lines[index])
             start = index

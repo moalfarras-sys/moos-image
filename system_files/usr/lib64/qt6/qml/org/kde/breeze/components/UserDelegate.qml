@@ -8,21 +8,32 @@
 
 // MoOS: Plasma's own user avatar, wearing the MoOS ring.
 //
-// The last stock surface on the login and lock screens. Same story as
-// ActionButton and Clock: the greeter's QML is compiled in, but the avatar it
-// draws comes from this file on disk, so this is where MoOS reaches it.
+// The login greeter's QML is compiled in, and the lock screen's is upstream's
+// own, but the avatar both draw comes from this file on disk — so this is where
+// MoOS reaches the face on every session surface (the power screen uses it too).
 //
-// What changed, and nothing else did:
-//   1. The ring around the face was Kirigami.Theme.textColor — a plain white
-//      hoop, the one piece of the login screen still shouting Breeze once the
-//      buttons and the clock became MoOS. It is the brand colour now, and it
-//      LIGHTS when this user is the selected one: on a two-user machine the ring
-//      is what tells you who you are about to log in as, so it should be the
-//      thing that answers.
-//   2. The disc behind the face was flat Theme.backgroundColor at 60%. It is the
-//      MoOS glass tint now — the same brand-tinted surface the action buttons,
-//      the dock and the lock card sit on.
-//   3. IBM Plex Sans on the name, like every other MoOS surface.
+// What MoOS owns here, and nothing else changed:
+//   1. The ring around the face is the brand colour and LIGHTS for the selected
+//      user: on a two-user machine the ring is what tells you who you are about
+//      to log in as. Upstream drew a plain white hoop.
+//   2. The face sits in light. A still three-step bloom in the accent stands
+//      behind the selected user, drawn HERE so the login screen has it too. The
+//      lock screen used to paint it from outside, at a hand-measured offset that
+//      was a grid unit low and that the login screen could not have at all.
+//   3. An account with no photo shows its initial on a two-tone jewel disc. The
+//      login greeter hands every such account a stock grey silhouette (a file
+//      compiled into its binary) while the lock screen handed over nothing, so
+//      the same person was a silhouette at login and a letter one screen later.
+//      Both are the letter now. The "type a user name" entry, which is nobody
+//      yet, gets a person glyph instead of the first letter of an instruction.
+//   4. IBM Plex Sans Arabic on the name, like every other MoOS surface, and a
+//      long single name wraps inside the island instead of running past it.
+//
+// The MoOS emblem that used to be pinned to the corner of the face is gone on
+// purpose. It was there so the login screen still said MoOS if its wallpaper
+// process had not painted yet; every session surface now carries the corner
+// signature, and a logo sitting on the owner's own face was the first thing the
+// owner asked to have cleaned up.
 //
 // LEFT ALONE ON PURPOSE — the ShaderEffect below. MoOS's own packages ban
 // always-on shaders (there is a gate), but this is Plasma's, it is what ROUNDS
@@ -49,6 +60,16 @@ Item {
     readonly property bool softwareRendering: GraphicsInfo.api === GraphicsInfo.Software
     readonly property bool motionEnabled: Kirigami.Units.longDuration > 1
     readonly property var design: MoUI.Tokens
+    // The accent's second tone — decorative only, it never sits under a glyph.
+    readonly property color accentB: {
+        const c = Kirigami.Theme.highlightColor;
+        if (c.hslSaturation < 0.08 || c.hslHue < 0) {
+            return Qt.lighter(c, 1.28);
+        }
+        let nh = c.hslHue + 0.09;
+        if (nh > 1) { nh -= 1; }
+        return Qt.hsla(nh, Math.min(1, c.hslSaturation), Math.min(0.72, c.hslLightness * 1.08), 1);
+    }
 
     property bool isCurrent: true
 
@@ -63,9 +84,30 @@ Item {
     property real fontSize: Kirigami.Theme.defaultFont.pointSize + 2
     signal clicked()
 
-    property real faceSize: Kirigami.Units.gridUnit * 7
+    // The face block is upstream's seven grid units; the face gives the top
+    // six-tenths of one back as air, which is what lets the session island
+    // start below the clock's date instead of crowding it.
+    readonly property real faceInset: Math.round(Kirigami.Units.gridUnit * 0.6)
+    property real faceSize: Kirigami.Units.gridUnit * 7 - faceInset
 
-    opacity: isCurrent ? 1.0 : design.mutedOpacity
+    // In a list of accounts the session island holds the selected face and a
+    // few neighbours each way (it says how many); a face further off would
+    // straddle the island's edge, so it waits out of sight until the selection
+    // moves towards it. Outside such a list — the lock and power screens —
+    // nothing is ever out of reach.
+    readonly property int reach: (ListView.view && ListView.view.parent
+                                  && ListView.view.parent.userReach !== undefined)
+        ? ListView.view.parent.userReach : -1
+    readonly property bool inReach: {
+        if (reach < 0 || !ListView.view) {
+            return true;
+        }
+        const own = wrapper["index"];
+        return own === undefined || Math.abs(own - ListView.view.currentIndex) <= reach;
+    }
+
+    opacity: !inReach ? 0 : (isCurrent ? 1.0 : design.mutedOpacity)
+    enabled: inReach
 
     Behavior on opacity {
         OpacityAnimator {
@@ -74,25 +116,55 @@ Item {
         }
     }
 
-    // Draw a translucent background circle under the user picture — MoOS glass,
-    // brand-tinted rather than a flat grey wash.
+    // The account has no picture of its own: nothing was supplied, it failed to
+    // load, or it is the silhouette plasma-login-manager compiles into its
+    // binary for every account without one.
+    readonly property bool placeholderFace: face.status === Image.Error
+        || face.status === Image.Null
+        || String(wrapper.avatarPath).indexOf("/org/kde/plasma/login/") >= 0
+    // The "type a user name" entry has no account behind it yet.
+    readonly property bool anonymous: wrapper.userName === ""
+
+    // The bloom: three still discs of the accent behind the selected face.
+    // Plain rectangles — no effect layer, nothing animated.
+    Repeater {
+        // Sized as a share of the face, so the small portrait on the power
+        // screen wears the same bloom in proportion.
+        model: [
+            { grow: 0.54, glow: 0.035 },
+            { grow: 0.33, glow: 0.06 },
+            { grow: 0.14, glow: 0.10 },
+        ]
+        Rectangle {
+            required property var modelData
+            anchors.centerIn: imageSource
+            width: Math.round(imageSource.width * (1 + modelData.grow))
+            height: width
+            radius: width / 2
+            color: Kirigami.Theme.highlightColor
+            opacity: modelData.glow
+            visible: wrapper.isCurrent && !wrapper.softwareRendering
+        }
+    }
+
+    // The disc under the picture — MoOS glass in the accent's two tones, so an
+    // initial sits on a jewel rather than on a flat grey wash.
     Rectangle {
         anchors.centerIn: imageSource
         width: imageSource.width - 2 // Subtract to prevent fringing
         height: width
         radius: width / 2
 
-        color: wrapper.softwareRendering
-             ? Kirigami.Theme.backgroundColor
-             : Kirigami.Theme.highlightColor
-        opacity: wrapper.softwareRendering ? design.mutedOpacity
-                 : (wrapper.isCurrent ? design.glassRestingOpacity
-                                      : design.surfaceRestingOpacity)
-        Behavior on opacity {
-            NumberAnimation {
-                duration: design.duration(wrapper.motionEnabled,
-                                          design.motionGeometry)
-                easing.type: design.easeStandard
+        color: Kirigami.Theme.backgroundColor
+        opacity: wrapper.softwareRendering ? design.mutedOpacity : 1
+        Rectangle {
+            anchors.fill: parent
+            radius: parent.radius
+            visible: !wrapper.softwareRendering
+            opacity: wrapper.isCurrent ? 1 : design.disabledOpacity
+            gradient: Gradient {
+                GradientStop { position: 0.0; color: Qt.alpha(wrapper.accentB, 0.46) }
+                GradientStop { position: 1.0; color: Qt.alpha(Kirigami.Theme.highlightColor, 0.18) }
             }
         }
     }
@@ -100,6 +172,7 @@ Item {
     Item {
         id: imageSource
         anchors.top: parent.top
+        anchors.topMargin: wrapper.faceInset
         anchors.horizontalCenter: parent.horizontalCenter
 
         Behavior on width {
@@ -119,24 +192,23 @@ Item {
             sourceSize: Qt.size(wrapper.faceSize * Screen.devicePixelRatio, wrapper.faceSize * Screen.devicePixelRatio)
             fillMode: Image.PreserveAspectCrop
             anchors.fill: parent
+            visible: !wrapper.placeholderFace
         }
 
         Kirigami.Icon {
             id: faceIcon
             source: wrapper.iconSource
-            visible: face.status === Image.Error || face.status === Image.Null
+            visible: wrapper.placeholderFace
             anchors.fill: parent
             opacity: 0
         }
 
-        // A generated profile should still look intentional. Plasma's generic
-        // outline avatar made the first MoOS screen look like an unthemed
-        // fallback whenever the account had no custom photo. Use the user's
-        // first character instead; the accessible/user identity remains the
-        // name immediately below and multi-user selection still stays clear.
+        // An account without a photo is its initial; the username prompt, which
+        // is nobody yet, is a person glyph. The name itself stays immediately
+        // below and remains the accessible identity.
         Text {
             anchors.centerIn: parent
-            visible: faceIcon.visible
+            visible: wrapper.placeholderFace && !wrapper.anonymous
             text: wrapper.name.length > 0 ? wrapper.name.charAt(0).toUpperCase() : "M"
             color: Kirigami.Theme.textColor
             // Plex Arabic, never Inter: Inter has no Arabic coverage, so its Arabic
@@ -144,14 +216,24 @@ Item {
             // screen as the Plex date. Plex Arabic carries a full Latin set. And
             // font.families does not exist on Qt 6.11.1 here — see Logout.qml.
             font.family: design.interfaceFamily
-            font.pixelSize: imageSource.width * 0.42
+            font.pixelSize: imageSource.width * 0.40
             font.weight: Font.Medium
-            renderType: Text.NativeRendering
+            renderType: Text.QtRendering
+        }
+        Kirigami.Icon {
+            anchors.centerIn: parent
+            visible: wrapper.placeholderFace && wrapper.anonymous
+            width: Math.round(imageSource.width * 0.46)
+            height: width
+            source: "user-symbolic"
+            isMask: true
+            color: Kirigami.Theme.textColor
         }
     }
 
     ShaderEffect {
         anchors.top: parent.top
+        anchors.topMargin: wrapper.faceInset
         anchors.horizontalCenter: parent.horizontalCenter
 
         width: imageSource.width
@@ -184,53 +266,30 @@ Item {
         fragmentShader: "qrc:/qt/qml/org/kde/breeze/components/shaders/UserDelegate.frag.qsb"
     }
 
-    // The wallpaper service normally carries the full scene, but the login
-    // manager must retain MoOS identity even while that service is starting or
-    // when it falls back to a plain colour. Keep this badge small: it certifies
-    // the surface without competing with the person being authenticated.
-    Rectangle {
-        anchors {
-            right: imageSource.right
-            bottom: imageSource.bottom
-            rightMargin: -Kirigami.Units.smallSpacing
-            bottomMargin: -Kirigami.Units.smallSpacing
-        }
-        width: design.targetControl
-        height: width
-        radius: width / 2
-        color: Kirigami.Theme.backgroundColor
-        border.width: design.borderHairline
-        border.color: Kirigami.Theme.highlightColor
-        visible: wrapper.isCurrent
-
-        Image {
-            anchors.fill: parent
-            anchors.margins: Math.max(3, Math.round(parent.width * 0.16))
-            source: "file:///usr/share/pixmaps/moos-logo.png"
-            fillMode: Image.PreserveAspectFit
-            smooth: true
-            asynchronous: false
-        }
-    }
-
     PlasmaComponents3.Label {
         id: usernameDelegate
 
         anchors.top: imageSource.bottom
-        anchors.topMargin: Kirigami.Units.gridUnit
+        anchors.topMargin: Math.round(Kirigami.Units.gridUnit * 0.45)
         anchors.horizontalCenter: parent.horizontalCenter
 
         // Make it bigger than other fonts to match the scale of the avatar better
         font.family: design.interfaceFamily
         font.pointSize: wrapper.fontSize + 4
 
-        width: wrapper.constrainText ? parent.width : undefined
+        // A lone user is not boxed in by neighbours, but the name still has to
+        // stay inside the island that frames it (sixteen grid units of prompts).
+        width: wrapper.constrainText
+            ? parent.width
+            : Math.min(implicitWidth, Kirigami.Units.gridUnit * 16)
         text: wrapper.name
         textFormat: Text.PlainText
         style: wrapper.softwareRendering ? Text.Outline : Text.Normal
         styleColor: wrapper.softwareRendering ? Kirigami.Theme.backgroundColor : "transparent" //no outline, doesn't matter
         wrapMode: Text.WordWrap
-        maximumLineCount: wrapper.constrainText ? 3 : 1
+        // Two lines either way. Upstream allows three beside neighbours; the
+        // session island keeps room under the faces for exactly one more.
+        maximumLineCount: 2
         elide: Text.ElideRight
         horizontalAlignment: Text.AlignHCenter
         //make an indication that this has active focus, this only happens when reached with keyboard navigation

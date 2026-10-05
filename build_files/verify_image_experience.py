@@ -849,7 +849,8 @@ if "plasmalogin" in dm_target:
             "ignores MoOS's ActionButton.qml/Clock.qml on disk — the login screen "
             "silently reverts to Breeze's full-colour discs while every file check "
             "stays green. build.sh must drop that line.")
-    for own in ("ActionButton.qml", "Clock.qml", "UserDelegate.qml"):
+    for own in ("ActionButton.qml", "Clock.qml", "UserDelegate.qml", "UserList.qml",
+                "SessionManagementScreen.qml", "WallpaperFader.qml"):
         body = (breeze_components / own)
         require(body.is_file(),
                 f"MoOS's {own} is missing from org.kde.breeze.components — the "
@@ -863,7 +864,8 @@ if "plasmalogin" in dm_target:
     # login screen that means a greeter with no avatar at all. It shipped for
     # exactly one edit of UserDelegate.qml, qmllint passed it, and only rendering
     # it caught it. Cheap check, catastrophic failure.
-    for own in ("ActionButton.qml", "Clock.qml", "UserDelegate.qml"):
+    for own in ("ActionButton.qml", "Clock.qml", "UserDelegate.qml", "UserList.qml",
+                "SessionManagementScreen.qml", "WallpaperFader.qml"):
         text_of = (breeze_components / own).read_text(encoding="utf-8")
         for prop in re.findall(r"readonly\s+property\s+\w+\s+(\w+)", text_of):
             require(re.search(rf"Behavior\s+on\s+{prop}\b", text_of) is None,
@@ -895,6 +897,13 @@ if "plasmalogin" in dm_target:
     # (measured on systemd 259.8), so without a boot-only `r!` the rule is a no-op on
     # exactly the machines that already have the wrong palette — which is every machine
     # that has ever shown a greeter.
+    # Nobody logs into the greeter account, so the per-user THEME_REV purge never reaches
+    # its compiled-QML cache, and on OSTree's epoch mtimes Qt accepts a stale compile for
+    # ever. Without this rule an update changes the login screen's QML on disk and the
+    # machine keeps drawing the previous image's.
+    require("R! /var/lib/plasmalogin/.cache/*/qmlcache" in _greeter_rules,
+            "nothing clears the greeter account's QML cache at boot — after an update the "
+            "login screen would keep running the previous image's session QML")
     require("r! /var/lib/plasmalogin/.config/kdeglobals" in _greeter_rules,
             "the greeter palette rule has no `r!` removal, so `C+` will silently leave a "
             "pre-existing wrong palette in place on every already-installed machine")
