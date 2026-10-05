@@ -12,8 +12,8 @@
         "en": "Mobile Remote video recovers cleanly"
       },
       "body": {
-        "ar": "عند الرجوع من الخلفية أو إعادة الاتصال، يبدأ الفيديو بحالة جديدة. يتعافى فك الفيديو المتوقف بصمت بطلب صورة مرجعية، دون التحول مباشرة إلى بث JPEG الأثقل.",
-        "en": "Returning from the background or reconnecting starts fresh video state. A decoder that silently stops producing pictures requests a recovery keyframe without immediately switching to heavier JPEG."
+        "ar": "تعود صورة الهاتف بحالة جديدة بعد الرجوع من الخلفية أو إعادة الاتصال. عند انقطاع الالتقاط، يستعيد البث إعداد الجودة المختار ويبدأ التعافي سريعًا؛ فتح الهاتف يعجّل إعادة المحاولة بعد انقطاع حدث دون مشاهد.",
+        "en": "Phone video starts fresh after returning from the background or reconnecting. Interrupted capture restores the chosen quality and retries promptly; opening the phone brings forward recovery after a loss with nobody watching."
       }
     },
     {

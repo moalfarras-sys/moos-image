@@ -240,6 +240,15 @@ reconnect and Safari `pagehide`, and release late JPEG bitmaps without painting
 or unlocking the new generation's queue. Isolated browser fixtures are not phone
 endurance, and a measured DRM HDMI disconnect is not repaired by controller code.
 
+**A working capture can be shorter than a crash cooldown.** Repeated output loss
+closed useful Remote helpers every 20–60 s and grew the supervisor wait to 30 s.
+Reset that wait on sustained frame delivery from the same helper, not merely
+Ready/PLAYING. Keep rapid-crash backoff and the five-minute permission-refusal
+cooldown. A new viewer may wake an idle output-loss retry; refusal is never
+woken. Restore the agreed quality/width/FPS/codec before the renewed helper
+encodes; H.264 never polls the JPEG settings path. Use a private child/socket
+recorder for this proof, never the owner’s portal or input socket.
+
 **A colour named after a role is not that role's use.** Four apps painted secondary text with
 `Kirigami.Theme.disabledTextColor` because the token gate only required "follow the theme". As
 text a person reads it measured 1.6:1 on the light schemes. Secondary ink is the theme's text

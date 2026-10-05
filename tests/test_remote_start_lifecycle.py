@@ -13,6 +13,7 @@ import unittest
 ROOT = Path(__file__).resolve().parents[1]
 LAUNCHER = ROOT / "system_files/usr/libexec/mo-remote-start"
 UNIT = ROOT / "system_files/usr/lib/systemd/user/mo-remote-personal.service"
+STOP_POLICY = UNIT.with_name(UNIT.name + ".d") / "20-stop-policy.conf"
 
 
 def executable(path: Path, source: str) -> None:
@@ -21,6 +22,16 @@ def executable(path: Path, source: str) -> None:
 
 
 class RemoteStartLifecycleTests(unittest.TestCase):
+    def test_stop_policy_overrides_the_global_abort_dropin(self):
+        import configparser
+
+        self.assertGreater(STOP_POLICY.name, "10-timeout-abort.conf")
+        merged = configparser.ConfigParser(strict=False)
+        merged.read_string("[Service]\nTimeoutStopFailureMode=abort\n")
+        self.assertEqual(merged.read(STOP_POLICY), [str(STOP_POLICY)])
+        self.assertEqual(merged["Service"]["TimeoutStopFailureMode"], "kill")
+        self.assertEqual(merged["Service"]["TimeoutStopSec"], "5s")
+
     def run_launcher(self, root: Path, inhibitor: Path, agent: Path):
         resolver = root / "resolver"
         executable(resolver, """\

@@ -1,5 +1,10 @@
 using MoRemote;
 
+var dataDir = Path.Combine(Path.GetTempPath(), "moremote-power-tests-" + Guid.NewGuid());
+Environment.SetEnvironmentVariable("MOREMOTE_DATA_DIR", dataDir);
+Directory.CreateDirectory(dataDir);
+try
+{
 var passed = 0;
 void Eq(bool expected, bool actual, string name)
 {
@@ -17,3 +22,6 @@ Eq(false, PowerActions.Execute(new("/path/that/does/not/exist", []), "test"),
     "a command that never started cannot report success");
 
 Console.WriteLine($"PASS: {passed} Windows power acceptance tests");
+}
+catch (Exception ex) { Console.Error.WriteLine("FAIL: " + ex.Message); Environment.ExitCode = 1; }
+finally { Directory.Delete(dataDir, true); }

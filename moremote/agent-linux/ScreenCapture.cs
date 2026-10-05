@@ -121,7 +121,7 @@ public sealed class ScreenCapture : IDisposable
             // `width` rides alongside `scale` rather than replacing it: the helper prefers the pixel
             // width when it is non-zero and falls back to the fraction when it is 0, so one message
             // serves both a current client and one that has never heard of the field.
-            if (!_portal.Send(new { type = "video", quality, scale, width, fps = _fps > 0 ? _fps : 30 })) return;
+            if (!_portal.SetVideoSettings(quality, scale, width, _fps > 0 ? _fps : 30)) return;
             _quality = quality;
             _scale = scale;
             _width = width;
@@ -147,7 +147,7 @@ public sealed class ScreenCapture : IDisposable
     {
         if (fps == _fps && _settingsGeneration == _portal.Generation) return;
         _fps = fps;
-        _portal.Send(new { type = "video", fps });
+        _portal.SetFps(fps);
     }
 
     // ---------------------------------------------------------------- codec

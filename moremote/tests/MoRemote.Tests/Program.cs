@@ -1,10 +1,20 @@
 using System.Text.Json;
 using MoRemote;
 
+if (args.Contains("--portal-recorder"))
+{
+    try { await PortalRecoveryTests.Record(args[^2], args[^1], args.Contains("--idle"), args.Contains("--decline")); }
+    catch (Exception ex) { Console.Error.WriteLine(ex.Message); Environment.ExitCode = 1; }
+    return;
+}
+
 var trustDir = Path.Combine(Path.GetTempPath(), "moremote-tests-" + Guid.NewGuid());
 Environment.SetEnvironmentVariable("MOREMOTE_DATA_DIR", trustDir);
+Directory.CreateDirectory(trustDir);
 
 int passed=0;
+try { passed += await PortalRecoveryTests.Run(); }
+catch (Exception ex) { Console.Error.WriteLine("FAIL: " + ex.Message); Environment.ExitCode = 1; return; }
 void Eq<T>(T expected,T actual,string name){if(!EqualityComparer<T>.Default.Equals(expected,actual))throw new Exception($"{name}: expected {expected}, got {actual}");passed++;}
 void Throws(Action a,string name){try{a();throw new Exception(name+": did not reject");}catch(ArgumentOutOfRangeException){passed++;}}
 (double x,double y) Client(double px,double py,double left,double top,double width,double height)=>(Math.Clamp((px-left)/width,0,1),Math.Clamp((py-top)/height,0,1));
