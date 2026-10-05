@@ -90,7 +90,12 @@ QQC2.AbstractButton {
     readonly property real sessionScale: design.sessionScale(Window.width, Window.height)
     readonly property real keyHeight: Kirigami.Units.gridUnit * (control.subtle ? 3.1 : 6.2) * sessionScale
     readonly property real keyWidth: Kirigami.Units.gridUnit * (control.subtle ? 10.4 : 8.6) * sessionScale
-    implicitWidth: keyWidth
+    // The way out is one line of words, and it must never be cut short: on a
+    // small screen the pill takes the width its caption needs.
+    readonly property real fittedWidth: control.subtle
+        ? Math.max(keyWidth, caption.implicitWidth + Kirigami.Units.gridUnit * 2)
+        : keyWidth
+    implicitWidth: fittedWidth
     implicitHeight: keyHeight
     padding: 0
     opacity: control.motionEnabled ? 0 : 1
@@ -137,7 +142,7 @@ QQC2.AbstractButton {
     background: null
 
     contentItem: Item {
-        implicitWidth: control.keyWidth
+        implicitWidth: control.fittedWidth
         implicitHeight: control.keyHeight
 
         // Accent bloom behind a lit or armed tile — still, never looping.
@@ -232,6 +237,7 @@ QQC2.AbstractButton {
                         : (control.destructive && control.lit ? control.accentA : control.ink)
                 }
                 QQC2.Label {
+                    id: caption
                     Layout.alignment: Qt.AlignHCenter
                     Layout.fillWidth: true
                     horizontalAlignment: Text.AlignHCenter

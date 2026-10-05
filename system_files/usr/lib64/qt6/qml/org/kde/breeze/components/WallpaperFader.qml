@@ -64,6 +64,10 @@ Item {
     ShaderEffect {
         id: wallpaperShader
         anchors.fill: parent
+        // MoOS: the scene pushes in a little as it blurs, so the island arrives
+        // in front of something that moved back. It rides the `factor` upstream
+        // already animates: no animation of its own, nothing running at rest.
+        scale: 1 + 0.035 * wallpaperFader.factor
         supportsAtlasTextures: true
         property var source: ShaderEffectSource {
             sourceItem: wallpaperBlur

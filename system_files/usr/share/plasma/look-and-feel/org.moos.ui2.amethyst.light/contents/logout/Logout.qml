@@ -25,6 +25,8 @@ import QtQuick.Controls as QQC2
 import QtQuick.Layouts
 import QtQuick.Shapes
 import Qt5Compat.GraphicalEffects
+// Under a name as well: QtQuick.Shapes has gradients of the same names, and they are not Items.
+import Qt5Compat.GraphicalEffects as Effects
 
 import org.kde.breeze.components as SessionComponents
 import org.kde.coreaddons as KCoreAddons
@@ -87,6 +89,31 @@ Item {
     // The session family's one size (Tokens.sessionScale): the island, its
     // tiles and its type grow and shrink with the clock and the face.
     readonly property real sessionScale: design.sessionScale(root.width, root.height)
+
+    // The orbit: the light that runs round the lock and login island's rim runs
+    // round this one too, twice, when the island arrives, and then docks in the
+    // crest. A counted number of turns, never a loop.
+    property real orbitAngle: 0
+    property real orbitGlow: 0
+    SequentialAnimation {
+        id: orbitRun
+        PauseAnimation { duration: root.design.motionPortal }
+        NumberAnimation {
+            target: root; property: "orbitGlow"; to: 1
+            duration: root.design.duration(root.motionEnabled, root.design.motionGeometry)
+        }
+        NumberAnimation {
+            target: root; property: "orbitAngle"
+            from: 0; to: 360
+            loops: 2
+            duration: root.design.duration(root.motionEnabled, root.design.motionPortal) * 8
+            easing.type: Easing.InOutSine
+        }
+        NumberAnimation {
+            target: root; property: "orbitGlow"; to: 0
+            duration: root.design.duration(root.motionEnabled, root.design.motionPortal)
+        }
+    }
     // accentB — the two-tone partner (accentA hue-rotated +0.09 in HSL), same
     // derivation as the portal rim. The horizon rides accentA/accentB so its
     // hue is 100% theme-derived — no hardcoded base colour anywhere.
@@ -351,6 +378,9 @@ Item {
         Component.onCompleted: {
             if (root.motionEnabled) {
                 sheetEnter.start();
+                if (GraphicsInfo.api !== GraphicsInfo.Software) {
+                    orbitRun.start();
+                }
             } else {
                 sheetRise.y = 0;
                 sheet.scale = 1;
@@ -428,6 +458,42 @@ Item {
                     GradientStop { position: 0; color: root.accent }
                     GradientStop { position: 1; color: root.accentB }
                 }
+            }
+
+            // The orbit's light, cut to the island's own rim; not drawn once docked.
+            Item {
+                id: rimMask
+                anchors.fill: parent
+                visible: false
+                layer.enabled: root.orbitGlow > 0
+                Rectangle {
+                    anchors.fill: parent
+                    radius: island.radius
+                    color: "transparent"
+                    border.width: 2
+                    border.color: "black"
+                    antialiasing: true
+                }
+            }
+            Effects.ConicalGradient {
+                id: rimPaint
+                anchors.fill: parent
+                visible: false
+                angle: root.orbitAngle
+                gradient: Gradient {
+                    GradientStop { position: 0.00; color: Qt.alpha(root.accent, 0.0) }
+                    GradientStop { position: 0.70; color: Qt.alpha(root.accent, 0.0) }
+                    GradientStop { position: 0.90; color: Qt.alpha(root.accentB, 0.85) }
+                    GradientStop { position: 0.985; color: root.accent }
+                    GradientStop { position: 1.00; color: Qt.alpha(root.accent, 0.0) }
+                }
+            }
+            Effects.OpacityMask {
+                anchors.fill: parent
+                source: rimPaint
+                maskSource: rimMask
+                visible: root.orbitGlow > 0
+                opacity: root.orbitGlow
             }
         }
 
