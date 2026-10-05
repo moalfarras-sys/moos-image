@@ -58,6 +58,10 @@ revision واحد، ثم يُقلع artifact النهائي نفسه، ثم يُ
 الـQCOW2 x86 اسمه `moos-ci-verified-disk-qcow2` وهو CI fixture بلا credential
 قابل للاستعمال البشري. artifact المستخدم النهائي هو `moos-live-iso`.
 
+إثبات ISO في CI لا يثبت أن رابط التحميل العام يعمل. بعد الترقية، اتبع
+[`docs/PUBLIC_DOWNLOADS.md`](docs/PUBLIC_DOWNLOADS.md) لحفظ الملف الموقّع نفسه،
+ورفعه إلى مضيف ملفات كبيرة، وفحص التحميل الكامل قبل تفعيل صفحة الموقع.
+
 ## ARM
 
 `build-arm.yml` هو pipeline واحد: native aarch64 candidate → cosign → QCOW2 →
