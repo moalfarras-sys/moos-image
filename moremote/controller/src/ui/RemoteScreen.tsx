@@ -890,6 +890,9 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired, l
         }, wait);
       }
     }, () => connRef.current?.requestKeyframe());
+    // A page opened in the background (a restored tab, a PWA launched behind another app) starts
+    // suspended; the visibility handler resumes it when it is actually seen.
+    if (document.hidden) h264.suspend();
     h264Ref.current = h264;
     let videoSequence: number | undefined;
 
@@ -1168,8 +1171,11 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired, l
    * Three things happen on hide, and each is doing different work:
    *   - the agent is told nobody is watching, which (once every viewer agrees) tears the encode
    *     pipeline down and stops the compositor copying frames at all;
-   *   - the H.264 decoder is reset, because whatever it holds will be stale by the time anyone
-   *     looks again and a half-decoded GOP is not worth carrying;
+   *   - the H.264 decoder is SUSPENDED: closed, and fed nothing until the page is shown again.
+   *     Merely resetting it reopened a decoder on the next keyframe while still hidden, and a phone
+   *     refuses to decode for a page it has put away — two errors, and the room fell to JPEG (see
+   *     H264Stream.suspend). Both hide events do this: iOS fires pagehide, not visibilitychange,
+   *     when the app switcher sends Safari away;
    *   - nothing else. In particular the socket stays open, so the session, the token and the input
    *     path all survive a glance at another app.
    *
@@ -1181,6 +1187,7 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired, l
       watchingRef.current = false;
       connRef.current?.setWatching(false);
       resetVideo();
+      h264Ref.current?.suspend();
       gestureRef.current?.cancelAll();
       desktopRef.current?.releaseAll();
     };
@@ -1188,6 +1195,7 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired, l
       // pageshow can be delivered while another tab is still in front.
       if (document.hidden) return;
       watchingRef.current = true;
+      h264Ref.current?.resume();
       const conn = connRef.current;
       if (!conn) return;
       latRef.current = 0; latAtRef.current = 0;
