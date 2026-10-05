@@ -17,7 +17,7 @@ const errors = [];
 // behaved the same, but it meant no test ever ran against a value the app could actually store.
 // Pass null to leave the preference unset and get the shipped default (Auto).
 async function viewer(options, mode, language = 'en', cursorEmbedded = false, orient = 'off',
-                      encode = null, linkClass = 'default') {
+                      encode = null, linkClass = 'default', h264Fixture = false) {
   const context = await browser.newContext({...options, serviceWorkers: 'block'});
   contexts.push(context);
   await context.addInitScript(({mode, language, orient}) => {
@@ -31,6 +31,19 @@ async function viewer(options, mode, language = 'en', cursorEmbedded = false, or
   if (linkClass === 'silent') await context.addInitScript(() => {
     Object.defineProperty(navigator, 'connection', {value:undefined, configurable:true});
   });
+  if (h264Fixture) await context.addInitScript(() => {
+    // A browser decoder that accepts chunks silently; transport remains alive.
+    window.testDecoders = [];
+    window.VideoDecoder = class {
+      decodeQueueSize = 0;
+      closed = false;
+      chunks = 0;
+      constructor(callbacks) { this.callbacks = callbacks; window.testDecoders.push(this); }
+      configure() {}
+      decode() { this.chunks++; }
+      close() { this.closed = true; }
+    };
+  });
   const page = await context.newPage();
   page.on('pageerror', e => errors.push(e.message));
   await page.route('**/api/**', route => {
@@ -43,10 +56,13 @@ async function viewer(options, mode, language = 'en', cursorEmbedded = false, or
   const packets = [];
   const sockets = [];
   let autoHello = true;
+  const keyframe = Buffer.from([0,0,0,1,0x67,0x64,0,0x28,0x51,0,0,0,1,0x65,0x88,0x84]);
+  const sendFrame = ws => ws.send(h264Fixture ? keyframe : frame);
   const hello = ws => {
     ws.send(JSON.stringify({type:'hello', screen:{w:1920,h:1080}, paused:false,
       cursorEmbedded, input:{ready:true}, clipboard:{ready:true}, monitors:[], encode}));
-    ws.send(frame);
+    if (h264Fixture) ws.send(JSON.stringify({type:'codec',codec:'h264'}));
+    sendFrame(ws);
   };
   await page.routeWebSocket('**/ws', ws => {
     sockets.push(ws);
@@ -56,7 +72,7 @@ async function viewer(options, mode, language = 'en', cursorEmbedded = false, or
       if (msg.type === 'auth') {
         if (autoHello) hello(ws);
       } else if (msg.type === 'ping') ws.send(JSON.stringify({type:'pong',t:msg.t}));
-      else if (msg.type === 'keyframe') ws.send(frame);
+      else if (msg.type === 'keyframe') sendFrame(ws);
     });
   });
   await page.goto(origin);
@@ -77,6 +93,36 @@ async function capture(page, name) {
   await page.screenshot({path:`${evidence}/${name}.png`});
 }
 try {
+  const recovery = await viewer({viewport:{width:393,height:852},isMobile:true,hasTouch:true},
+    'touch','en',false,'off',null,'silent',true);
+  const rp = recovery.page;
+  await rp.waitForFunction(() => window.testDecoders.length > 0);
+  await rp.evaluate(() => window.dispatchEvent(new PageTransitionEvent('pagehide')));
+  assert.equal(await rp.evaluate(() => window.testDecoders.at(-1).closed), true,
+    'Safari pagehide must retire the decoder even without visibilitychange');
+  assert.equal(recovery.packets.filter(p => p.type === 'video').at(-1)?.watching, false);
+  const hiddenCount = await rp.evaluate(() => window.testDecoders.length);
+  recovery.hello(recovery.sockets.at(-1));
+  await rp.waitForTimeout(100);
+  assert.equal(await rp.evaluate(() => window.testDecoders.length), hiddenCount,
+    'frames arriving after pagehide must not reopen a background decoder');
+  await rp.evaluate(() => window.dispatchEvent(new PageTransitionEvent('pageshow')));
+  await rp.waitForFunction(count => window.testDecoders.length > count, hiddenCount);
+  const resumedCount = await rp.evaluate(() => window.testDecoders.length);
+  recovery.sockets.at(-1).close();
+  await rp.waitForFunction(count => window.testDecoders.length > count, resumedCount);
+  assert.equal(await rp.evaluate(count => window.testDecoders[count - 1].closed, resumedCount), true,
+    'reconnect must retire the old H.264 history even when codec and dimensions match');
+  const beforeStall = await rp.evaluate(() => window.testDecoders.length);
+  await rp.waitForTimeout(3100);
+  recovery.sockets.at(-1).send(Buffer.from([0,0,0,1,0x41,0x9a,0x22]));
+  await rp.waitForFunction(count => window.testDecoders.length > count, beforeStall);
+  assert.equal(await rp.evaluate(count => window.testDecoders[count - 1].closed, beforeStall), true,
+    'a silent decoder must recover while pongs continue and its queue stays empty');
+  assert.equal(recovery.packets.filter(p => p.type === 'video' && p.h264 === false).length, 0,
+    'silent recovery must not vote a weak-link phone onto JPEG');
+  console.log('PASS: real browser mobile hide/resume, identical-codec reconnect and silent decoder recovery');
+
   const phone = await viewer({viewport:{width:390,height:844}, deviceScaleFactor:3,
     isMobile:true, hasTouch:true}, 'touch', 'ar');
   const {page, packets} = phone;

@@ -232,6 +232,14 @@ and should not. Wave W5 read Mo Store's `job.json` and the privacy token that wa
 through a `FolderListModel`, the way the Remote chip always has (`IslandTokens.js`), or from
 D-Bus. `tests/test_island_tokens.py` runs both ends and fails any MoOS plasmoid that tries.
 
+**A live socket and an empty decode queue do not prove a picture.** A browser
+can consume H.264 chunks without output while its pongs remain healthy. Recover
+against actual decoded output, with bounded IDR requests; keep incoming-data
+silence separate from a decoder failure. Retire both decoder generations on
+reconnect and Safari `pagehide`, and release late JPEG bitmaps without painting
+or unlocking the new generation's queue. Isolated browser fixtures are not phone
+endurance, and a measured DRM HDMI disconnect is not repaired by controller code.
+
 **A colour named after a role is not that role's use.** Four apps painted secondary text with
 `Kirigami.Theme.disabledTextColor` because the token gate only required "follow the theme". As
 text a person reads it measured 1.6:1 on the light schemes. Secondary ink is the theme's text

@@ -3,7 +3,7 @@ import { RemoteConnection } from "../lib/ws";
 import { GestureController } from "../lib/gestures";
 import { DesktopInput } from "../lib/desktop";
 import {normalizeContentPoint, normalizeRotatedPoint, projectPoint} from "../lib/coordinates";
-import { decodeJpeg, drawableSize, closeDrawable, canDecodeH264, H264Stream, type Drawable } from "../lib/decode";
+import { drawableSize, closeDrawable, canDecodeH264, H264Stream, JpegStream, type Drawable } from "../lib/decode";
 import {
   getClipboard, setClipboard, setClipboardImage, listFiles, fileDownloadUrl, audioStreamUrl, uploadFile, powerAction,
   listTrustedDevices, revokeTrustedDevice, SessionExpiredError,
@@ -335,12 +335,16 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired, l
   const audioFailsRef = useRef(0);
 
   const frameRef = useRef<Drawable | null>(null);
-  const decodingRef = useRef(false);
-  const pendingRef = useRef<ArrayBuffer | null>(null);
+  const jpegRef = useRef<JpegStream | null>(null);
+  const watchingRef = useRef(!document.hidden);
   // What the agent is sending right now. A ref because the frame handler runs outside React's
   // render and must never route a frame to the decoder we have just left.
   const codecRef = useRef<"jpeg" | "h264">("jpeg");
   const h264Ref = useRef<H264Stream | null>(null);
+  const resetVideo = useCallback(() => {
+    jpegRef.current?.reset();
+    h264Ref.current?.reset();
+  }, []);
   /**
    * How many times we have re-offered H.264 after a decode failure, and the pending re-offer.
    *
@@ -846,14 +850,7 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired, l
       closeDrawable(old);
     };
 
-    const decodeNext = async (buf: ArrayBuffer) => {
-      decodingRef.current = true;
-      const d = await decodeJpeg(buf);
-      if (d) show(d);
-      decodingRef.current = false;
-      const next = pendingRef.current; pendingRef.current = null;
-      if (next) decodeNext(next);
-    };
+    jpegRef.current = new JpegStream(show);
 
     // H.264 decodes synchronously into the decoder's own output callback — there is no promise to
     // await and no "still decoding" state to guard, because the frames must go in IN ORDER and the
@@ -897,6 +894,9 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired, l
 
     const conn = new RemoteConnection(token, {
       onHello: (h) => {
+        // A replacement connection starts a new encoder history even if its
+        // codec and dimensions match. Neither decoder may carry old work over.
+        resetVideo();
         latRef.current = 0; latAtRef.current = 0;
         connectionEstablishedRef.current = true;
         connectionAlertedRef.current = false;
@@ -922,20 +922,21 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired, l
       },
       onStatus: (paused) => setStatus(paused ? "paused" : "live"),
       onFrame: (buf) => {
+        if (!watchingRef.current || document.hidden) return;
         if (codecRef.current === "h264") { h264Ref.current?.push(buf); return; }
-        if (decodingRef.current) pendingRef.current = buf; else decodeNext(buf);
+        jpegRef.current?.push(buf);
       },
       onCodec: (codec) => {
         if (codec === codecRef.current) return;
         codecRef.current = codec;
         // Whatever is half-decoded belongs to the codec we just left.
-        h264Ref.current?.reset();
-        pendingRef.current = null;
+        resetVideo();
         setCodec(codec);
       },
       onStopped: () => setStatus("stopped"),
       onAuthFail: () => onAuthExpired(),
       onClose: (willReconnect) => {
+        resetVideo();
         latRef.current = 0; latAtRef.current = 0;
         gestureRef.current?.cancelAll();
         desktopRef.current?.releaseAll();
@@ -988,6 +989,7 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired, l
         canvas:{left:r.left,top:r.top,width:r.width,height:r.height}, source:src };
     });
     connRef.current = conn;
+    conn.setWatching(watchingRef.current && !document.hidden);
     conn.connect();
 
     const gest = new GestureController(canvas, toNorm, () => view.current.zoom, {
@@ -1125,6 +1127,8 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired, l
       h264RetryTimer.current = null;
       h264Ref.current?.reset();
       h264Ref.current = null;
+      jpegRef.current?.reset();
+      jpegRef.current = null;
       cancelAnimationFrame(raf);
       window.clearInterval(fpsTimer);
       if (gestureHintTimer) window.clearTimeout(gestureHintTimer);
@@ -1170,31 +1174,34 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired, l
    * is far cheaper than waiting up to a full GOP staring at a frozen picture.
    */
   useEffect(() => {
-    const onVis = () => {
+    const onHide = () => {
+      watchingRef.current = false;
+      connRef.current?.setWatching(false);
+      resetVideo();
+      gestureRef.current?.cancelAll();
+      desktopRef.current?.releaseAll();
+    };
+    const onShow = () => {
+      // pageshow can be delivered while another tab is still in front.
+      if (document.hidden) return;
+      watchingRef.current = true;
       const conn = connRef.current;
       if (!conn) return;
-      if (document.hidden) {
-        conn.setWatching(false);
-        h264Ref.current?.reset();
-        pendingRef.current = null;
-      } else {
-        latRef.current = 0; latAtRef.current = 0;
-        conn.setWatching(true);
-        conn.requestKeyframe();
-        // iOS suspends the PWA whole while it is away, and the server has usually aborted the
-        // socket by the time we return — but the phone's own object still reads OPEN. Probe it:
-        // proof of life within 2s or it is closed and the reconnect runs NOW, instead of the
-        // user staring at a frozen desktop for the full stall watchdog.
-        conn.probe();
-        // The canvas still holds the last frame from before, and the first new one may be a moment
-        // away; repaint so the letterboxing is right for whatever size we came back at.
-        drawEpochRef.current++;
-      }
+      latRef.current = 0; latAtRef.current = 0;
+      conn.setWatching(true);
+      conn.requestKeyframe();
+      // iOS suspends the PWA whole while it is away, and the server has usually aborted the
+      // socket by the time we return — but the phone's own object still reads OPEN. Probe it:
+      // proof of life within 2s or it is closed and the reconnect runs NOW, instead of the
+      // user staring at a frozen desktop for the full stall watchdog.
+      conn.probe();
+      // The canvas still holds the last frame from before, and the first new one may be a moment
+      // away; repaint so the letterboxing is right for whatever size we came back at.
+      drawEpochRef.current++;
     };
+    const onVis = () => document.hidden ? onHide() : onShow();
     // iOS fires pagehide rather than visibilitychange when Safari is backgrounded from the app
     // switcher. Same intent, different name; both are wired, and both are removed.
-    const onHide = () => connRef.current?.setWatching(false);
-    const onShow = () => { connRef.current?.setWatching(true); connRef.current?.requestKeyframe(); connRef.current?.probe(); };
     document.addEventListener("visibilitychange", onVis);
     window.addEventListener("pagehide", onHide);
     window.addEventListener("pageshow", onShow);
