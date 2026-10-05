@@ -6,7 +6,7 @@ sys.path.insert(0, "/usr/lib/moos")
 
 import gi
 gi.require_version("Gtk", "4.0")
-from gi.repository import Gtk, Gdk, GLib
+from gi.repository import Gtk, Gdk, GLib, Gio
 
 # The palette and the CSS live in ONE place now — /usr/lib/moos/moos_ui2.py. They used to live
 # here, and then MoOS grew two more GTK apps (the updater and Recovery); three copies of a palette
@@ -15,6 +15,33 @@ from moos_ui2 import UI2StyleController, local_text, logical_start, ui_is_rtl
 
 UNIT = "mo-remote-personal.service"
 DEFAULT_PORT = 8765
+REMOTE_APP_ID = "org.moos.remote"
+
+def unattended_allowed():
+    """Read only Mo PC Remote's grant; never the empty host application ID."""
+    try:
+        bus = Gio.bus_get_sync(Gio.BusType.SESSION, None)
+        answer = bus.call_sync("org.freedesktop.impl.portal.PermissionStore",
+            "/org/freedesktop/impl/portal/PermissionStore",
+            "org.freedesktop.impl.portal.PermissionStore", "Lookup",
+            GLib.Variant("(ss)", ("kde-authorized", "remote-desktop")),
+            None, Gio.DBusCallFlags.NONE, 2000, None)
+        permissions, _data = answer.unpack()
+        return "yes" in permissions.get(REMOTE_APP_ID, [])
+    except GLib.GError as exc:
+        return False if "NotFound" in str(exc) else None
+
+def set_unattended_allowed(allowed):
+    command = ("permission-set", "kde-authorized", "remote-desktop", REMOTE_APP_ID, "yes") if allowed else (
+        "permission-remove", "kde-authorized", "remote-desktop", REMOTE_APP_ID)
+    result = run("flatpak", *command)
+    if result.returncode != 0 or unattended_allowed() != allowed:
+        raise RuntimeError(local_text("تعذّر التحقق من إذن الوصول.", "Could not verify the access permission."))
+    # Recreate the screen grant. An off service stays off.
+    if active(UNIT):
+        result = run("systemctl", "--user", "try-restart", UNIT)
+        if result.returncode != 0:
+            raise RuntimeError(local_text("تغيّر الإذن؛ أعد تشغيل الخدمة.", "Permission changed; restart the service."))
 
 # MoOS UI2 semantic colours.  Keep this panel on the same Graphite/Tidal rails as
 # the phone controller instead of letting ad-hoc Nova/purple colours creep into
@@ -240,6 +267,14 @@ def collect_remote_snapshot():
     """
     on = active(UNIT)
     port = configured_port()
+    input_ready = None
+    if on:
+        try:
+            with urllib.request.urlopen(f"http://127.0.0.1:{port}/api/status", timeout=1) as response:
+                ready = json.load(response).get("input", {}).get("ready")
+                if isinstance(ready, bool): input_ready = ready
+        except (OSError, ValueError, TypeError):
+            pass
     far = tailscale_url(port) if on else None
     qr_path = None
     if far:
@@ -262,6 +297,8 @@ def collect_remote_snapshot():
         ),
         "firewall": active("firewalld.service", user=False),
         "fast_on": _fast_remote_enabled(),
+        "unattended": unattended_allowed(),
+        "input_ready": input_ready,
         "log": _recent_log(),
     }
 
@@ -392,6 +429,21 @@ class App(Gtk.Application):
         fast.append(self.fast_switch)
         outer.append(fast)
 
+        access=Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL,spacing=16)
+        access.add_css_class("ui2-card")
+        access_text=Gtk.Box(orientation=Gtk.Orientation.VERTICAL,spacing=2,hexpand=True)
+        title=Gtk.Label(label=local_text("الوصول دون موافقة عند الكمبيوتر", "Unattended access"),xalign=logical_start())
+        title.add_css_class("heading");access_text.append(title)
+        self.access_sub=Gtk.Label(label=local_text(
+            "الأجهزة المصادَق عليها. فتح القفل يحتاج كلمة مرور حسابك.",
+            "Authenticated Remote devices. Unlocking requires your account password."),xalign=logical_start())
+        self.access_sub.set_wrap(True);self.access_sub.add_css_class("dim-label");access_text.append(self.access_sub)
+        access.append(access_text)
+        self.access_switch=Gtk.Switch(valign=Gtk.Align.CENTER)
+        self.access_switch.set_sensitive(False)
+        self.access_switch.connect("state-set",self.on_access_toggled);access.append(self.access_switch)
+        outer.append(access)
+
         # Address block: the one that works anywhere first, the house-only one second, and a QR
         # so the phone never has to be told an address at all.
         addr=Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL,spacing=16)
@@ -461,6 +513,21 @@ class App(Gtk.Application):
         if getattr(self,"_fast_syncing",False): return False
         run("moos-fast-remote","on" if state else "off"); self.refresh()
         return False
+
+    def on_access_toggled(self,_switch,state):
+        if getattr(self,"_access_syncing",False): return False
+        self.access_switch.set_sensitive(False)
+        def change():
+            error=None
+            try: set_unattended_allowed(state)
+            except Exception as exc: error=str(exc)
+            def done():
+                if error: self.access_sub.set_text(error)
+                self.refresh()
+                return False
+            GLib.idle_add(done)
+        threading.Thread(target=change,daemon=True).start()
+        return True
 
     def on_enable_anywhere(self,*_):
         # This used to call `tailscale serve` immediately. On a fresh MoOS install Tailscale is
@@ -621,7 +688,7 @@ class App(Gtk.Application):
         while c:=self.grid.get_first_child(): self.grid.remove(c)
         portal=snapshot["portal"]
         pipe=snapshot["pipewire"]
-        sock=snapshot["input_socket"]
+        input_ready=snapshot.get("input_ready")
         fw=snapshot["firewall"]
         self.row(
             0,
@@ -643,11 +710,11 @@ class App(Gtk.Application):
         )
         self.row(
             3,
-            local_text("إذن الإدخال", "Input permission"),
-            local_text("مقبس مستخدم خاص", "private user socket")
-            if sock
-            else local_text("غير جاهز", "not ready"),
-            sock,
+            local_text("الماوس والكيبورد", "Mouse and keyboard"),
+            local_text("جاهزان", "ready") if input_ready is True
+            else local_text("غير جاهزين", "not ready") if input_ready is False
+            else local_text("تعذّر التحقق", "could not verify"),
+            input_ready is True,
         )
         self.row(
             4,
@@ -663,6 +730,11 @@ class App(Gtk.Application):
         self._fast_syncing=True
         self.fast_switch.set_active(fast_on)
         self._fast_syncing=False
+        self._access_syncing=True
+        if snapshot["unattended"] is not None:
+            self.access_switch.set_active(snapshot["unattended"])
+        self.access_switch.set_sensitive(snapshot["unattended"] is not None)
+        self._access_syncing=False
         self.fast_sub.set_text(
             local_text(
                 "مفعّل. يُعطى الاتصال الأولوية، فتتوقف الخلفية الحية "

@@ -279,6 +279,21 @@ using (var input = new InputInjector(portal, new ScreenCapture()))
     ClipboardBridge.Published.Clear();
 }
 
+// Passwords use native keys only: no clipboard transaction and no guessed fallback.
+{
+    using var portal = new PortalBridge { Keymap = Fixture(1), SessionLocked = true };
+    using var input = new InputInjector(portal, new ScreenCapture());
+    Check(input.TypeTextSecure("Hello123"), "a supported password is delivered as physical keys");
+    Check(portal.Snapshot().Length > 0 && ClipboardBridge.Published.Count == 0,
+        "secure typing never writes the clipboard");
+    var before = portal.Snapshot().Length;
+    Check(!input.TypeTextSecure("secret👍") && portal.Snapshot().Length == before
+        && ClipboardBridge.Published.Count == 0, "an unsupported password fails before any prefix or paste");
+    portal.Accept = false;
+    Check(!input.TypeTextSecure("secret") && ClipboardBridge.Published.Count == 0,
+        "a disconnected secure keyboard cannot silently paste through a fallback");
+}
+
 foreach (var current in new[] { 0, 1 })
 {
     using var portal = new PortalBridge { Keymap = Fixture(current) };
@@ -420,6 +435,9 @@ namespace MoRemote
         private readonly List<JsonElement> _events = [];
         public bool Accept { get; set; } = true;
         public bool IsReady => Accept;
+        public string BackendName => "private recorder";
+        public string LastError => "";
+        public bool? SessionLocked { get; set; }
         public Action<JsonElement>? BeforeSend { get; set; }
         public LiveKeymap? Keymap { get; set; }
         public bool Send(object message)

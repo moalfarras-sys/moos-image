@@ -25,6 +25,7 @@ public sealed class InputInjector : IDisposable
     private volatile bool _disposed;
     private Socket? _socket;
     private string _lastError = "";
+    private string _secureError = "";
     private DateTimeOffset _lastConnectAttempt;
     private bool _cursorKnown;
     private int _cursorX, _cursorY, _cursorWidth, _cursorHeight;
@@ -143,11 +144,38 @@ public sealed class InputInjector : IDisposable
     public bool IsReady => !_disposed && (_portal.IsReady ||
         (_capture.InputBounds.Width > 0 && _capture.InputBounds.Height > 0 && EnsureConnectedLocked()));
     public string BackendName => _portal.IsReady
-        ? "KDE RemoteDesktop portal (absolute)"
+        ? _portal.BackendName
         : "ydotoold/uinput fallback (relative)";
+    public bool? SessionLocked => _portal.SessionLocked;
+
+    public bool TypeTextSecure(string text)
+    {
+        // A field switch into password typing must retire an ordinary text
+        // gather. It must never publish that gather through the clipboard.
+        lock (_textBuf)
+        {
+            _pending.Clear();
+            _textTimer?.Change(Timeout.Infinite, Timeout.Infinite);
+        }
+        var keymap = _portal.Keymap;
+        if (!_portal.IsReady || keymap is null || !KeymapPlanner.TryPlan(text, keymap, out var plan))
+        {
+            _secureError = "Secure typing needs the native keyboard and a loaded keyboard layout.";
+            return false;
+        }
+        foreach (var run in plan)
+            if (!SendOnGroup(run.Group, run))
+            {
+                _secureError = "Secure keyboard input was interrupted.";
+                return false;
+            }
+        _secureError = "";
+        return true;
+    }
     public string LastError
     {
-        get { lock (_gate) return _portal.IsReady ? "" : _lastError; }
+        get { lock (_gate) return _secureError.Length > 0 ? _secureError :
+            _portal.IsReady ? _portal.LastError : _lastError.Length > 0 ? _lastError : _portal.LastError; }
     }
 
     private static string SocketPath => Environment.GetEnvironmentVariable("YDOTOOL_SOCKET")
@@ -580,6 +608,7 @@ public sealed class InputInjector : IDisposable
     /// </summary>
     private void Deliver(string run)
     {
+        if (SessionLocked == true) { TypeTextSecure(run); return; }
         var keymap = _portal.Keymap;
         if (keymap is not null && KeymapPlanner.TryPlan(run, keymap, out var plan))
         {

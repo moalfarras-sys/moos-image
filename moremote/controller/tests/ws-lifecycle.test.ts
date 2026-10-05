@@ -277,5 +277,20 @@ const open = (conn: RemoteConnection) => {
   deadlines.clear();
 }
 
+{ // Password packets require an explicitly capable host and a live authenticated socket.
+  const conn = new RemoteConnection("token", {});
+  conn.connect();const socket = latest;socket.readyState=TestSocket.OPEN;socket.onopen?.();
+  socket.onmessage?.({data:JSON.stringify({type:"hello",input:{ready:true}})});
+  assert.equal(conn.secretText("legacy-host"),false);
+  assert.equal(socket.sent.map(x=>JSON.parse(x)).filter(x=>x.type==="text").length,0,
+    "a cached new controller must not send a secret to an older host's clipboard path");
+  socket.onmessage?.({data:JSON.stringify({type:"hello",input:{ready:true,secureText:true}})});
+  assert.equal(conn.secretText("private-test"),true);
+  const packet=socket.sent.map(x=>JSON.parse(x)).find(x=>x.type==="text");
+  assert.equal(packet.secure,true);
+  socket.close();assert.equal(conn.secretText("offline-test"),false);
+  conn.disconnect();deadlines.clear();
+}
+
 Date.now = realDateNow;
 console.log("PASS: bounded typing latency, retired socket isolation and stalled-close recovery");

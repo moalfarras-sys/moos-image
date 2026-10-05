@@ -28,6 +28,10 @@ TOKEN_FILE = os.path.join(
     "MoRemote", "portal-restore-token",
 )
 
+input_only = "--input-only" in sys.argv[2:]
+capture_only = "--capture-only" in sys.argv[2:]
+eis = None
+
 bus = Gio.bus_get_sync(Gio.BusType.SESSION, None)
 out_lock = threading.Lock()
 
@@ -244,82 +248,93 @@ def watch_display_geometry():
                                    f" ({detail})")))
 
 
-# Observe BEFORE Start, including changes while its permission picker is open.
-display_watch = watch_display_geometry()
+# Input belongs to the session, not to the output grant. HDMI hotplug and
+# permission renewal must not retire a held mouse/keyboard device.
+if input_only:
+    from mo_remote_eis import EisInput
+    try:
+        eis = EisInput(bus, Gio, GLib)
+    except Exception as e:
+        die(EXIT_LOST, "native session input unavailable: " + str(e))
+    session, node_id, pipewire_target = "", 0, 0
+    logical_w = logical_h = 0
+else:
+    # Observe BEFORE Start, including changes while its permission picker is open.
+    display_watch = watch_display_geometry()
 
 
-# ---------------------------------------------------------------- portal session
-try:
-    tok = "moremote_" + uuid.uuid4().hex
-    created = request("CreateSession", "(a{sv})", ({
-        "handle_token": GLib.Variant("s", tok),
-        "session_handle_token": GLib.Variant("s", tok + "s"),
-    },))
-    session = created["session_handle"]
-except PortalDenied as e:
-    die(EXIT_DENIED if e.by_user else EXIT_LOST, str(e))
+    # ---------------------------------------------------------------- portal session
+    try:
+        tok = "moremote_" + uuid.uuid4().hex
+        created = request("CreateSession", "(a{sv})", ({
+            "handle_token": GLib.Variant("s", tok),
+            "session_handle_token": GLib.Variant("s", tok + "s"),
+        },))
+        session = created["session_handle"]
+    except PortalDenied as e:
+        die(EXIT_DENIED if e.by_user else EXIT_LOST, str(e))
 
-# Pointer (1) | keyboard (2). persist_mode 2 = keep the grant across restarts.
-select_devices = {
-    "handle_token": GLib.Variant("s", tok + "d"),
-    "types": GLib.Variant("u", 3),
-    "persist_mode": GLib.Variant("u", 2),
-}
-restore = load_token()
-if restore:
-    select_devices["restore_token"] = GLib.Variant("s", restore)
-try:
-    request("SelectDevices", "(oa{sv})", (session, select_devices))
-except PortalDenied as e:
-    die(EXIT_DENIED if e.by_user else EXIT_LOST, str(e))
+    # Pointer (1) | keyboard (2). persist_mode 2 = keep the grant across restarts.
+    select_devices = {
+        "handle_token": GLib.Variant("s", tok + "d"),
+        "types": GLib.Variant("u", 3),
+        "persist_mode": GLib.Variant("u", 2),
+    }
+    restore = load_token()
+    if restore:
+        select_devices["restore_token"] = GLib.Variant("s", restore)
+    try:
+        request("SelectDevices", "(oa{sv})", (session, select_devices))
+    except PortalDenied as e:
+        die(EXIT_DENIED if e.by_user else EXIT_LOST, str(e))
 
-# Same session also carries the video stream: MONITOR source.
-#
-# cursor_mode matters enormously for cost. EMBEDDED (2) paints the cursor into the frames,
-# so every pointer move damages the screen and forces a full JPEG re-encode (~285KB) — at
-# 30fps that is ~64 Mbit/s just to move the mouse. HIDDEN (1) means pointer motion produces
-# no frames at all; the phone draws its own cursor at the position it commanded, which is
-# both free and instant. EMBEDDED stays available for anyone who wants the true cursor.
-#
-# No persist_mode here — on a combined session the portal refuses it and the RemoteDesktop
-# restore token above already covers the sources too.
-CURSOR_EMBEDDED, CURSOR_HIDDEN = 2, 1
-cursor_mode = CURSOR_EMBEDDED if os.environ.get("MOREMOTE_EMBED_CURSOR") == "1" else CURSOR_HIDDEN
-select_sources = {
-    "handle_token": GLib.Variant("s", tok + "v"),
-    "types": GLib.Variant("u", 1),          # MONITOR
-    "multiple": GLib.Variant("b", False),
-    "cursor_mode": GLib.Variant("u", cursor_mode),
-}
-try:
-    request("SelectSources", "(oa{sv})", (session, select_sources), iface=CAST)
-    started = request("Start", "(osa{sv})", (session, "", {"handle_token": GLib.Variant("s", tok + "x")}))
-except PortalDenied as e:
-    die(EXIT_DENIED if e.by_user else EXIT_LOST, str(e))
+    # Same session also carries the video stream: MONITOR source.
+    #
+    # cursor_mode matters enormously for cost. EMBEDDED (2) paints the cursor into the frames,
+    # so every pointer move damages the screen and forces a full JPEG re-encode (~285KB) — at
+    # 30fps that is ~64 Mbit/s just to move the mouse. HIDDEN (1) means pointer motion produces
+    # no frames at all; the phone draws its own cursor at the position it commanded, which is
+    # both free and instant. EMBEDDED stays available for anyone who wants the true cursor.
+    #
+    # No persist_mode here — on a combined session the portal refuses it and the RemoteDesktop
+    # restore token above already covers the sources too.
+    CURSOR_EMBEDDED, CURSOR_HIDDEN = 2, 1
+    cursor_mode = CURSOR_EMBEDDED if os.environ.get("MOREMOTE_EMBED_CURSOR") == "1" else CURSOR_HIDDEN
+    select_sources = {
+        "handle_token": GLib.Variant("s", tok + "v"),
+        "types": GLib.Variant("u", 1),          # MONITOR
+        "multiple": GLib.Variant("b", False),
+        "cursor_mode": GLib.Variant("u", cursor_mode),
+    }
+    try:
+        request("SelectSources", "(oa{sv})", (session, select_sources), iface=CAST)
+        started = request("Start", "(osa{sv})", (session, "", {"handle_token": GLib.Variant("s", tok + "x")}))
+    except PortalDenied as e:
+        die(EXIT_DENIED if e.by_user else EXIT_LOST, str(e))
 
-save_token(started.get("restore_token"))
-grant_guard.stored()
+    save_token(started.get("restore_token"))
+    grant_guard.stored()
 
-streams = started.get("streams", [])
-if not streams:
-    die(EXIT_LOST, "portal returned no video stream")
-node_id, node_props = streams[0]
-node_id = int(node_id)
+    streams = started.get("streams", [])
+    if not streams:
+        die(EXIT_LOST, "portal returned no video stream")
+    node_id, node_props = streams[0]
+    node_id = int(node_id)
 
-# ScreenCast v6 gives us a stable PipeWire object serial in addition to the
-# transient node id. A node id may be reused after suspend/resume, a monitor
-# hot-plug or a mode switch; reconnecting pipewiresrc to that stale number can
-# therefore produce a healthy-looking pipeline whose frames belong to nothing
-# (the controller sees a black/frozen desktop). `pipewiresrc path=` maps to
-# PW_KEY_TARGET_OBJECT, which the portal specification says must use the serial
-# when it is available. Old portal backends do not publish the property, so the
-# node id remains the compatibility fallback.
-pipewire_target = int(node_props.get("pipewire-serial", node_id))
+    # ScreenCast v6 gives us a stable PipeWire object serial in addition to the
+    # transient node id. A node id may be reused after suspend/resume, a monitor
+    # hot-plug or a mode switch; reconnecting pipewiresrc to that stale number can
+    # therefore produce a healthy-looking pipeline whose frames belong to nothing
+    # (the controller sees a black/frozen desktop). `pipewiresrc path=` maps to
+    # PW_KEY_TARGET_OBJECT, which the portal specification says must use the serial
+    # when it is available. Old portal backends do not publish the property, so the
+    # node id remains the compatibility fallback.
+    pipewire_target = int(node_props.get("pipewire-serial", node_id))
 
-# The portal validates absolute pointer coordinates against the *logical* desktop size it
-# advertises here (e.g. 1396x785 on a 3840x2160 screen at 2.75x scale) — NOT against the
-# pixel size of the video stream. Anything else comes back as "Invalid position".
-logical_w, logical_h = (int(v) for v in node_props["size"])
+    # The portal validates absolute pointer coordinates against the *logical* desktop size it
+    # advertises here (e.g. 1396x785 on a 3840x2160 screen at 2.75x scale) — NOT against the
+    # pixel size of the video stream. Anything else comes back as "Invalid position".
+    logical_w, logical_h = (int(v) for v in node_props["size"])
 
 def open_pipewire_fd():
     """A fresh PipeWire remote fd. Each pipeline gets its own, and THIS HELPER owns it: build()
@@ -371,9 +386,10 @@ empty = {}
 # session: every click would be silently swallowed and the video would freeze on its last frame,
 # while the agent still believed everything was fine. Exiting lets the agent respawn us (which
 # restores from the token, no dialog) and, failing that, fall back to ydotool/spectacle.
-bus.signal_subscribe(BUS, "org.freedesktop.portal.Session", "Closed", session, None,
-                     Gio.DBusSignalFlags.NONE,
-                     lambda *_: die(EXIT_LOST, "portal session closed"))
+if not input_only:
+    bus.signal_subscribe(BUS, "org.freedesktop.portal.Session", "Closed", session, None,
+                         Gio.DBusSignalFlags.NONE,
+                         lambda *_: die(EXIT_LOST, "portal session closed"))
 
 _notify_failures = 0
 
@@ -399,6 +415,9 @@ def notify(method, sig, args):
     KWin was also being hammered — which is exactly when the picture froze.
     Ordering is safe: async calls on one GDBus connection are sent in call
     order, so down always precedes up."""
+    if eis is not None:
+        eis.send(method, args, eis_keysym_code)
+        return
     bus.call(BUS, PATH, REMOTE, method, GLib.Variant(sig, args), None,
              Gio.DBusCallFlags.NO_AUTO_START, 1000, None, _notify_done)
 
@@ -406,6 +425,9 @@ def notify(method, sig, args):
 def notify_sync(method, sig, args):
     """The same injection, AWAITED. Used only inside a batch that also changes the
     keymap group, where the whole point is that nothing may overtake anything."""
+    if eis is not None:
+        eis.send(method, args, eis_keysym_code)
+        return
     bus.call_sync(BUS, PATH, REMOTE, method, GLib.Variant(sig, args), None,
                   Gio.DBusCallFlags.NO_AUTO_START, 2000, None)
 
@@ -883,6 +905,22 @@ def _group_keymap(lib, keymap, group, code):
             if 0x20 <= char < 0x110000 and char != 0x7f and not 0xd800 <= char < 0xe000:
                 levels.append([key, mods, char])
     return {"code": code, "group": group, "shift": shift, "level3": level3, "levels": levels, "dead": dead}
+
+
+def eis_keysym_code(keysym):
+    special = {0xffe1: 42, 0xffe2: 54, 0xffe3: 29, 0xffe4: 97,
+               0xffe9: 56, 0xffea: 100, 0xffeb: 125, 0xffec: 126}
+    if keysym in special:
+        return special[keysym]
+    lib = _xkb_library()
+    char = lib.xkb_keysym_to_utf32(keysym) if lib is not None else 0
+    maps = layout_state.get("keymaps") or []
+    group = layout_state.get("current", 0)
+    if group < len(maps):
+        matches = [row for row in maps[group]["levels"] if row[2] == char]
+        if matches:
+            return min(matches, key=lambda row: row[1])[0]
+    raise RuntimeError("keysym has no physical position on the current keyboard group")
 
 
 CAPS_LOCK_CODE = 58
@@ -1974,7 +2012,7 @@ def set_video(m):
             # The last viewer leaving is the honest moment to hand the keyboard group back: the
             # phone that borrowed it is gone, and whoever sits at the desk next should find
             # their own layout. A quieter timer would guess; this is an event.
-            if not want:
+            if not want and not capture_only:
                 restore_layout()
             emit(type="video", streaming=want)
     # FPS FIRST, AND THE ORDER IS THE FIX.
@@ -2024,7 +2062,9 @@ def set_video(m):
 
 def handle(m):
     t = m.get("type")
-    if t == "absolute":
+    if t == "absolute" and eis is not None:
+        eis.absolute(float(m["x"]), float(m["y"]))
+    elif t == "absolute":
         # x,y arrive normalized 0..1; the portal wants the logical desktop space.
         notify("NotifyPointerMotionAbsolute", "(oa{sv}udd)",
                (session, empty, node_id,
@@ -2092,7 +2132,7 @@ def handle(m):
         # A phone that just connected has no reference frame. Asking costs one larger frame;
         # not asking costs it up to a whole GOP of garbage.
         GLib.idle_add(lambda: (force_keyframe(), False)[1])
-    elif t == "video":
+    elif t == "video" and not input_only:
         GLib.idle_add(set_video, m)
     elif t == "ping":
         emit(type="pong")
@@ -2110,7 +2150,8 @@ def stdin_loop():
     loop.quit()
 
 
-load_layouts()
+if not capture_only:
+    load_layouts()
 
 
 def _keyboard_changed(_connection, _sender, _path, _interface, signal, _parameters):
@@ -2119,14 +2160,50 @@ def _keyboard_changed(_connection, _sender, _path, _interface, signal, _paramete
     load_layouts(refresh_keymaps=signal == "layoutListChanged")
 
 
-bus.signal_subscribe(KEYBOARD_BUS, KEYBOARD_IFACE, None, KEYBOARD_PATH, None,
-                     Gio.DBusSignalFlags.NONE, _keyboard_changed)
+if not capture_only:
+    bus.signal_subscribe(KEYBOARD_BUS, KEYBOARD_IFACE, None, KEYBOARD_PATH, None,
+                         Gio.DBusSignalFlags.NONE, _keyboard_changed)
 
-emit(type="ready", backend="KDE RemoteDesktop + ScreenCast portal", node=node_id,
+if input_only:
+    def session_lock_changed(_c, _s, _p, _i, _sig, params):
+        emit(type="session", locked=bool(params.unpack()[0]))
+    bus.signal_subscribe("org.freedesktop.ScreenSaver", "org.freedesktop.ScreenSaver",
+        "ActiveChanged", "/ScreenSaver", None, Gio.DBusSignalFlags.NONE, session_lock_changed)
+    def read_session_lock():
+        try:
+            reply = bus.call_sync("org.freedesktop.ScreenSaver", "/ScreenSaver",
+                "org.freedesktop.ScreenSaver", "GetActive", None,
+                GLib.VariantType.new("(b)"), Gio.DBusCallFlags.NO_AUTO_START, 1000, None)
+            locked = bool(reply.unpack()[0])
+        except GLib.GError:
+            locked = None
+        emit(type="session", locked=locked)
+        return True
+    read_session_lock()
+    GLib.timeout_add_seconds(2, read_session_lock)
+
+emit(type="ready", backend="MoOS native session input (EIS)" if input_only else
+     "KDE RemoteDesktop + ScreenCast portal", node=node_id,
      logical_width=logical_w, logical_height=logical_h)
 
 loop = GLib.MainLoop()
-GLib.timeout_add(FRAME_HEALTH_CHECK_MS, check_video_health)
+if eis is not None:
+    eis_available = eis.ready
+    def dispatch_eis(_fd, _condition):
+        global eis_available
+        try:
+            eis.dispatch()
+            available = eis.ready
+            if available != eis_available:
+                eis_available = available
+                emit(type="input-availability", ready=available,
+                     error="" if available else "KWin input devices are temporarily unavailable")
+        except Exception as e:
+            die(EXIT_LOST, "native session input lost: " + str(e))
+        return True
+    GLib.io_add_watch(eis.fd, GLib.IO_IN | GLib.IO_HUP | GLib.IO_ERR, dispatch_eis)
+else:
+    GLib.timeout_add(FRAME_HEALTH_CHECK_MS, check_video_health)
 threading.Thread(target=stdin_loop, daemon=True).start()
 try:
     loop.run()
@@ -2134,5 +2211,8 @@ finally:
     # Give the user their own keyboard group back before going away. Leaving a desk keyboard
     # on Arabic because a phone typed a word an hour ago is the same class of theft the
     # clipboard borrow was careful to avoid.
-    restore_layout()
+    if not capture_only:
+        restore_layout()
+    if eis is not None:
+        eis.close()
     teardown()

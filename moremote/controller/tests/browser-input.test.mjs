@@ -61,7 +61,7 @@ async function viewer(options, mode, language = 'en', cursorEmbedded = false, or
   const sendFrame = ws => ws.send(h264Fixture ? keyframe : frame);
   const hello = ws => {
     ws.send(JSON.stringify({type:'hello', screen:{w:1920,h:1080}, paused:false,
-      cursorEmbedded, input:{ready:true}, clipboard:{ready:true}, monitors:[], encode}));
+      cursorEmbedded, input:{ready:true,secureText:true}, clipboard:{ready:true}, monitors:[], encode}));
     if (h264Fixture) ws.send(JSON.stringify({type:'codec',codec:'h264'}));
     sendFrame(ws);
   };
@@ -138,6 +138,61 @@ try {
     'silent recovery must not vote a weak-link phone onto JPEG');
   console.log('PASS: real browser mobile hide/resume, identical-codec reconnect and silent decoder recovery');
 
+  {
+    const control = await viewer({viewport:{width:393,height:852},isMobile:true,hasTouch:true}, 'touch');
+    const cp = control.page;
+    await cp.getByRole('button', {name:'Touchpad',exact:true}).click();
+    const pad = cp.getByTestId('remote-touchpad');
+    const box = await pad.boundingBox();
+    assert.ok(box && box.height >= 160);
+    assert.equal(control.packets.filter(p=>p.type==='video').at(-1)?.watching, false,
+      'touchpad input stops unneeded screen streaming');
+    control.packets.length = 0;
+    const cdp = await cp.context().newCDPSession(cp);
+    const x = box.x + box.width*.4, y = box.y + box.height*.4;
+    await cdp.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{id:3,x,y}]});
+    await cdp.send('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[{id:3,x:x+45,y:y+12}]});
+    await cp.waitForTimeout(60);
+    await cdp.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});
+    await cp.waitForTimeout(60);
+    assert.ok(input(control.packets).some(p=>p.type==='moveRelative'),
+      'dedicated touchpad moves the pointer without a captured picture');
+    assert.equal(input(control.packets).filter(p=>['move','click','down','scroll'].includes(p.type)).length,0,
+      'one finger on the dedicated touchpad cannot become absolute screen input');
+    await cp.getByRole('button',{name:'Right click',exact:true}).click();
+    assert.ok(control.packets.some(p=>p.type==='clickCurrent' && p.button==='right'));
+    await capture(cp,'touchpad-en-dark');
+    await cp.setViewportSize({width:852,height:393});
+    await capture(cp,'touchpad-en-landscape');
+    await cp.setViewportSize({width:393,height:852});
+    await cp.getByRole('button',{name:'Keyboard',exact:true}).click();
+    await cp.getByRole('button',{name:'Password typing',exact:true}).click();
+    const secret = cp.locator('.kbinput');
+    assert.equal(await secret.getAttribute('type'),'password');
+    control.packets.length = 0;
+    await secret.fill('private-fixture');
+    await cp.waitForTimeout(300);
+    assert.ok(control.packets.some(p=>p.type==='text' && p.value==='private-fixture' && p.secure===true),
+      'password typing explicitly selects native keyboard delivery');
+    control.holdHello();
+    const socketCount = control.sockets.length;
+    control.sockets.at(-1).close();
+    await cp.waitForTimeout(100);
+    assert.equal(await secret.inputValue(),'','a password is cleared on connection loss');
+    control.packets.length=0;
+    await secret.fill('offline-secret');
+    assert.equal(await secret.inputValue(),'','offline password input cannot become a reconnect draft');
+    for (let n=0;n<40 && control.sockets.length<=socketCount;n++) await cp.waitForTimeout(100);
+    control.hello(control.sockets.at(-1));
+    await cp.waitForTimeout(300);
+    assert.equal(control.packets.filter(p=>p.type==='text').length,0,'reconnection never replays a password');
+    await capture(cp,'secure-keyboard-en');
+    await cp.getByRole('button',{name:'Done',exact:true}).click();
+    await cp.getByRole('button',{name:'Desktop',exact:true}).click();
+    assert.equal(control.packets.filter(p=>p.type==='video').at(-1)?.watching,true);
+    console.log('PASS: independent touchpad, workspace switching and live-only password keyboard');
+  }
+
   const phone = await viewer({viewport:{width:390,height:844}, deviceScaleFactor:3,
     isMobile:true, hasTouch:true}, 'touch', 'ar');
   const {page, packets} = phone;
@@ -180,7 +235,7 @@ try {
   console.log('PASS: phone touch and real mouse coexist in saved desktop mode, with one click and an ordered drag');
   }
   await capture(page, 'phone-ar');
-  await page.getByRole('button', {name:'كتابة', exact:true}).click();
+  await page.getByRole('button', {name:'كيبورد', exact:true}).click();
   const field = page.locator('.kbinput');
   assert.ok(await field.evaluate(el=>document.activeElement===el),'typing tap must focus synchronously');
   await field.fill('ab😀');
@@ -233,6 +288,7 @@ try {
   assert.deepEqual(input(packets).map(p=>[p.type,p.value]), [['text','مسودة جديدة']],
     'recovery commits the complete interrupted IME draft exactly once');
   await page.getByRole('button', {name:'تم', exact:true}).click();
+  await page.getByRole('button', {name:'شاشة وتحكم', exact:true}).click();
   await page.locator('.toolbar.fade-toolbar').waitFor({state:'attached',timeout:10_000});
 
   for (const [width,height] of [[844,390],[390,844],[844,390],[390,844]]) {
@@ -349,6 +405,7 @@ try {
   assert.ok(headingClear, 'Arabic sheet title and 44px close target must not overlap');
   await capture(trackpad.page,'settings-dark-ar');
   await trackpad.page.locator('.sheet-close').click();
+  await trackpad.page.getByRole('button',{name:'الإعدادات',exact:true}).click();
   await trackpad.page.getByRole('button',{name:'الشاشة',exact:true}).click();
   await capture(trackpad.page,'display-dark-ar');
   await trackpad.page.getByRole('button',{name:/توفير البيانات 576p/}).click();
@@ -375,6 +432,7 @@ try {
     pcText = route.request().postDataJSON().text;
     return route.fulfill({json:{ok:true}});
   });
+  await cp.getByRole('button',{name:'الإعدادات',exact:true}).click();
   await cp.getByRole('button',{name:'الحافظة',exact:true}).click();
   await cp.locator('textarea[readonly]').filter({visible:true}).waitFor();
   await cp.waitForFunction(() => document.querySelector('textarea[readonly]')?.value === 'من الكمبيوتر 😀');
@@ -440,7 +498,7 @@ try {
   assert.deepEqual(input(trackpad.packets),[],
     'failed transfer must not paste stale PC clipboard from the Settings button');
   await cp.locator('.sheet-close').click();
-  await cp.getByRole('button',{name:'كتابة',exact:true}).click();
+  await cp.getByRole('button',{name:'كيبورد',exact:true}).click();
   assert.ok(await cp.locator('.kbinput').evaluate(el=>document.activeElement===el));
   for (const [height,offsetTop] of [[480,0],[370,20],[844,0]]) {
     await cp.evaluate(({height,offsetTop}) => {
@@ -541,6 +599,7 @@ try {
 
   // It has to SAY so. A limit that acts without explaining itself is indistinguishable from the
   // app being bad at its job.
+  await capped.page.getByRole('button', {name:'Settings', exact:true}).click();
   await capped.page.getByRole('button', {name:'Display', exact:true}).click();
   await capped.page.getByRole('dialog').waitFor();
   assert.match(await capped.page.locator('.sheet').innerText(), /960×540@30/,
@@ -558,6 +617,7 @@ try {
   // to Balanced, rebuilding the encoder and bringing back the freezes.
   const pinned = await viewer({viewport:{width:390,height:844},deviceScaleFactor:3,
     isMobile:true,hasTouch:true},'touch');
+  await pinned.page.getByRole('button', {name:'Settings', exact:true}).click();
   await pinned.page.getByRole('button', {name:'Display', exact:true}).click();
   pinned.packets.length = 0;
   await pinned.page.getByRole('button', {name:/^Data saver/}).click();

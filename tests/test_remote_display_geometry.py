@@ -219,5 +219,42 @@ class GrantKeptTests(unittest.TestCase):
             self.assertEqual(target.read_text(), "new-token", "an empty answer erased the grant")
 
 
+class NativeEisLifecycleTests(unittest.TestCase):
+    def input(self, events):
+        import importlib.util, threading
+        source=SOURCE.with_name("mo_remote_eis.py")
+        spec=importlib.util.spec_from_file_location("private_eis_test",source)
+        module=importlib.util.module_from_spec(spec);spec.loader.exec_module(module)
+        class Recorder:
+            def __init__(self): self.starts=[]
+            def ei_dispatch(self,_): pass
+            def ei_get_event(self,_):
+                self.event=events.pop(0) if events else None
+                return 1 if self.event else 0
+            def ei_event_get_type(self,_): return self.event[0]
+            def ei_event_get_device(self,_): return self.event[1]
+            def ei_event_unref(self,_): pass
+            def ei_device_ref(self,_): pass
+            def ei_device_unref(self,_): pass
+            def ei_device_start_emulating(self,device,sequence): self.starts.append((device,sequence))
+        obj=module.EisInput.__new__(module.EisInput)
+        obj.lock=threading.RLock();obj.devices={};obj.held={};obj.ctx=1;obj.sequence=0;obj.lib=Recorder()
+        return obj
+
+    def test_a_device_resume_starts_a_new_emulation_transaction(self):
+        eis=self.input([(5,10),(8,10),(7,10),(8,10)])
+        eis.dispatch()
+        self.assertEqual(eis.lib.starts,[(10,1),(10,2)],
+            "libei requires a strictly increasing transaction sequence after resume")
+        self.assertTrue(eis.devices[10])
+
+    def test_removed_device_cannot_own_a_later_release(self):
+        eis=self.input([(6,10)])
+        eis.devices={10:True,20:True};eis.held={(True,42):10,(False,272):20}
+        eis.dispatch()
+        self.assertNotIn(10,eis.devices)
+        self.assertEqual(eis.held,{(False,272):20})
+
+
 if __name__ == "__main__":
     unittest.main()

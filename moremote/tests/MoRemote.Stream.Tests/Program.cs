@@ -410,6 +410,8 @@ public sealed class TestInput
     public Action? BeforeClick;
     public bool IsReady => true;
     public string BackendName => "isolated-test";
+    public bool? SessionLocked => null;
+    public bool TypeTextSecure(string text) { TypeText(text); return true; }
     public string LastError => "";
     public void ReleaseAll() => Interlocked.Increment(ref Releases);
     public void MouseMove(double x, double y) { }

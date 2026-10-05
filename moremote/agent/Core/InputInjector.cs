@@ -271,6 +271,9 @@ public sealed class InputInjector : IDisposable
     }
 
     /// <summary>Type a Unicode string (handles any character incl. Arabic, emoji).</summary>
+    public bool? SessionLocked => null;
+    public bool TypeTextSecure(string text) { TypeText(text); return true; }
+
     public void TypeText(string text)
     {
         if (string.IsNullOrEmpty(text)) return;

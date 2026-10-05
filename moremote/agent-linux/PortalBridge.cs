@@ -16,6 +16,7 @@ namespace MoRemote;
 /// </summary>
 public sealed class PortalBridge : IDisposable
 {
+    private static int _bridgeIds;
     private readonly object _gate = new();
     private readonly string _socketPath;
     private readonly Func<string, ProcessStartInfo> _helperCommand;
@@ -53,6 +54,8 @@ public sealed class PortalBridge : IDisposable
     public bool IsReady => _ready && !_disposed;
     internal bool WaitingForIdleViewer { get { lock (_gate) return _wakeIdleRetry; } }
     public string LastError => _lastError;
+    public string BackendName { get; private set; } = "Session input initializing";
+    public bool? SessionLocked { get; private set; }
     public int LogicalWidth { get; private set; }
     public int LogicalHeight { get; private set; }
     public int VideoWidth { get; private set; }
@@ -134,14 +137,31 @@ public sealed class PortalBridge : IDisposable
         }
     }
 
-    public PortalBridge() : this(Environment.GetEnvironmentVariable("XDG_RUNTIME_DIR") ?? "/tmp",
+    public PortalBridge(bool inputOnly = false) : this(Environment.GetEnvironmentVariable("XDG_RUNTIME_DIR") ?? "/tmp",
         socketPath =>
         {
             var helper = Path.Combine(AppContext.BaseDirectory, "mo-remote-portal.py");
             if (!File.Exists(helper)) throw new FileNotFoundException("portal helper missing", helper);
-            var command = new ProcessStartInfo("python3");
+            // A named app scope gives the portal the real MoOS app ID. A grant
+            // for org.moos.remote must never become the empty-ID host wildcard.
+            bool named = !inputOnly && string.IsNullOrEmpty(Environment.GetEnvironmentVariable("MOREMOTE_DATA_DIR"))
+                && File.Exists("/usr/share/applications/org.moos.remote.desktop")
+                && File.Exists("/usr/bin/systemd-run");
+            var command = new ProcessStartInfo(named ? "systemd-run" : "python3");
+            if (named)
+            {
+                command.ArgumentList.Add("--user");
+                command.ArgumentList.Add("--scope");
+                command.ArgumentList.Add("--quiet");
+                command.ArgumentList.Add("--collect");
+                command.ArgumentList.Add($"--unit=app-org.moos.remote-{Environment.ProcessId}.scope");
+                command.ArgumentList.Add("--property=PartOf=mo-remote-personal.service");
+                command.ArgumentList.Add("python3");
+            }
             command.ArgumentList.Add(helper);
             command.ArgumentList.Add(socketPath);
+            if (inputOnly) command.ArgumentList.Add("--input-only");
+            else command.ArgumentList.Add("--capture-only");
             return command;
         }) { }
 
@@ -149,7 +169,7 @@ public sealed class PortalBridge : IDisposable
     internal PortalBridge(string runtime, Func<string, ProcessStartInfo> helperCommand)
     {
         _helperCommand = helperCommand;
-        _socketPath = Path.Combine(runtime, $"mo-remote-frames-{Environment.ProcessId}.sock");
+        _socketPath = Path.Combine(runtime, $"mo-r-{Environment.ProcessId}-{Interlocked.Increment(ref _bridgeIds)}.sock");
         _supervisor = new Thread(Supervise) { IsBackground = true, Name = "portal-supervisor" };
         _supervisor.Start();
     }
@@ -327,7 +347,16 @@ public sealed class PortalBridge : IDisposable
         var type = root.TryGetProperty("type", out var t) ? t.GetString() : null;
         switch (type)
         {
+            case "input-availability":
+                _ready = root.TryGetProperty("ready", out var available) && available.ValueKind == JsonValueKind.True;
+                _lastError = root.TryGetProperty("error", out var availabilityError) ? availabilityError.GetString() ?? "" : "";
+                break;
+            case "session":
+                SessionLocked = root.TryGetProperty("locked", out var locked) &&
+                    locked.ValueKind is JsonValueKind.True or JsonValueKind.False ? locked.GetBoolean() : null;
+                break;
             case "ready":
+                BackendName = root.GetProperty("backend").GetString() ?? "Session input";
                 LogicalWidth = GetInt(root, "logical_width", LogicalWidth);
                 LogicalHeight = GetInt(root, "logical_height", LogicalHeight);
                 Interlocked.Exchange(ref _lastFrameTicks, Environment.TickCount64);

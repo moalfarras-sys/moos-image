@@ -44,6 +44,7 @@ interface Handlers {
   onClose?: (willReconnect: boolean) => void;
   onPong?: (rttMs: number) => void;
   onInputState?: (ready: boolean, error?: string) => void;
+  onHostState?: (locked: boolean | null) => void;
   /** Which codec the agent is producing right now. It can change mid-session: the helper drops to
    *  JPEG on its own if the hardware encoder will not open, and climbs back when it will. */
   onCodec?: (codec: "jpeg" | "h264", sequence?: number) => void;
@@ -137,6 +138,7 @@ export class RemoteConnection {
         }
         switch (m.type) {
           case "hello":
+            this.secureKeyboard = m.input?.secureText === true;
             this.authenticated = true;
             this.backoff = 500;
             this.stopConnectTimeout();
@@ -173,6 +175,9 @@ export class RemoteConnection {
             break;
           case "inputState":
             this.h.onInputState?.(!!m.ready,m.error);
+            break;
+          case "hostState":
+            this.h.onHostState?.(typeof m.locked === "boolean" ? m.locked : null);
             break;
           case "error":
             if (m.error === "unauthorized") {
@@ -338,6 +343,9 @@ export class RemoteConnection {
    * command — see ScreenCapture.SessionWatching.
    */
   setWatching(watching: boolean) {
+    // Returning to the picture starts a fresh decode history. A keyframe asked for
+    // just before hiding cannot satisfy it; allow this first recovery request.
+    if (watching && !this.watching) this.lastKeyframeAsk = -Infinity;
     this.watching = watching;
     this.send({ type: "video", watching });
   }
@@ -478,6 +486,17 @@ export class RemoteConnection {
     if (Date.now() - this.textQueuedAt >= TEXT_COALESCE_MAX_MS) { this.flushText(); return; }
     const remaining = TEXT_COALESCE_MAX_MS - (Date.now() - this.textQueuedAt);
     this.textTimer=window.setTimeout(()=>this.flushText(),Math.min(remaining,fast?FAST_FLUSH_MS:COMPLEX_TEXT_FLUSH_MS));
+  }
+
+  /** Sensitive typing is live-only. It never enters the offline replay buffer. */
+  private secureKeyboard = false;
+  secretText(value: string): boolean {
+    // An older host ignores the secure flag and may use clipboard paste.
+    // A cached newer controller must never send a password to such a host.
+    if (!this.open || !this.secureKeyboard || !value) return false;
+    this.clearText();
+    this.input({ type: "text", value, secure: true });
+    return true;
   }
   private clearText() {
     if (this.textTimer !== null) window.clearTimeout(this.textTimer);

@@ -3,6 +3,20 @@
   "_": "What a person can SEE or DO after an update, newest first. One entry per user-visible change, written for the owner of the machine, not for a developer: what it is, where it is, and (when MoOS has a route to it) a way to try it now. 'merged' is when the change reached main (a little later is fine, earlier is not: an entry dated before a machine's previous system is never marked new there); a machine marks an entry new when the system it ran BEFORE the update was built earlier than that. tests/test_whats_new.py reads every entry the way MoOS Settings will.",
   "entries": [
     {
+      "id": "remote-one-controller",
+      "merged": "2026-10-05T13:40:33Z",
+      "glyph": "video",
+      "route": "moos://settings/remote",
+      "title": {
+        "ar": "الشاشة ولوحة اللمس والكيبورد في Mo PC Remote",
+        "en": "Desktop, touchpad and keyboard in Mo PC Remote"
+      },
+      "body": {
+        "ar": "اختر شاشة وتحكّم، أو لوحة لمس، أو كيبورد من شريط واحد. التحكم بالماوس والكيبورد مستقل عن تجديد بث الشاشة. لوحة الكمبيوتر تتيح الوصول دون موافقة محلية، مع بقاء المصادقة وكلمة مرور الحساب لفتح القفل.",
+        "en": "Choose Desktop, Touchpad or Keyboard from one dock. Mouse and keyboard input survives screen-capture renewal. The PC panel offers unattended access while retaining Remote authentication and your account password for unlocking."
+      }
+    },
+    {
       "id": "remote-pocket-safe-video",
       "merged": "2026-10-05T07:00:00Z",
       "glyph": "video",

@@ -227,9 +227,11 @@ public sealed class StreamSession
             paused = _svc.State.IsPaused,
             cursor = _svc.Config.ShowRemoteCursor,
             cursorEmbedded = OperatingSystem.IsLinux() && _svc.Config.EmbedCursor,
+            hostLocked = _svc.Input.SessionLocked,
             monitors = _svc.Capture.Monitors.Select(m => new { index = m.Index, name = m.Name, primary = m.Primary }).ToArray(),
             monitor = _svc.Capture.SelectedIndex,
-            input = new { ready = _svc.Input.IsReady, backend = _svc.Input.BackendName, error = _svc.Input.LastError },
+            input = new { ready = _svc.Input.IsReady, backend = _svc.Input.BackendName, error = _svc.Input.LastError,
+                secureText = true },
             clipboard = new { ready = ClipboardBridge.IsReady },
             // What this HOST can afford to encode, as moos-visual-tier already decided it. Only
             // the host can read the host's own state file, so the viewer is told rather than left
@@ -303,6 +305,11 @@ public sealed class StreamSession
     private async Task SendLoop(CancellationToken ct)
     {
         bool lastPaused = !_svc.State.IsPaused; // force an initial status emit
+        bool lastInputReady = _svc.Input.IsReady;
+        string lastInputBackend = _svc.Input.BackendName, lastInputError = _svc.Input.LastError;
+        bool? lastHostLocked = _svc.Input.SessionLocked;
+        long nextInputStatus = 0;
+
         try
         {
             while (!ct.IsCancellationRequested && _socket.State == WebSocketState.Open)
@@ -350,6 +357,24 @@ public sealed class StreamSession
 
                 int fps = Math.Clamp(_fps, 1, 60);
                 var frameStart = Environment.TickCount64;
+                if (frameStart >= nextInputStatus)
+                {
+                    nextInputStatus = frameStart + 1000;
+                    var ready = _svc.Input.IsReady;
+                    var backend = _svc.Input.BackendName;
+                    var error = _svc.Input.LastError;
+                    if (ready != lastInputReady || backend != lastInputBackend || error != lastInputError)
+                    {
+                        lastInputReady = ready; lastInputBackend = backend; lastInputError = error;
+                        await SendJson(new { type = "inputState", ready, backend, error }, ct);
+                    }
+                    var locked = _svc.Input.SessionLocked;
+                    if (locked != lastHostLocked)
+                    {
+                        lastHostLocked = locked;
+                        await SendJson(new { type = "hostState", locked }, ct);
+                    }
+                }
 
                 // A client that has not declared its decoder by now is not going to. Vote on its
                 // behalf so the room can stop waiting — see the field's note.
@@ -868,7 +893,10 @@ public sealed class StreamSession
                         var v = GetStr(root, "value", "");
                         if (v.Length > 4096) v = v[..4096];
                         if(InputDiagnostics) Log.Info($"Input sample {_remote}: text length={v.Length}.");
-                        input.TypeText(v);
+                        if (input.SessionLocked == true ||
+                            root.TryGetProperty("secure", out var secure) && secure.ValueKind == JsonValueKind.True)
+                            input.TypeTextSecure(v);
+                        else input.TypeText(v);
                         break;
                     }
             }
