@@ -16,7 +16,13 @@ readiness. This precedes further visual expansion.
 Dependency follow-through: candidate `37430716738` failed closed on
 [GHSA-68fv-2mgg-jv7q](https://github.com/advisories/GHSA-68fv-2mgg-jv7q).
 The lock-only 1.2.2 correction, zero audit findings and unchanged frontend bytes
-are delivered in `.1003`. An older guest's artwork/fixture failures are retained
+are delivered in `.1003`. Candidate `37496769111` then failed closed before image build on
+[GHSA-wq5f-xc86-pv6w](https://github.com/advisories/GHSA-wq5f-xc86-pv6w);
+its early ARM build was cancelled before any boot proof. Only Sharp and its
+platform packages advance to 0.35.5 / libvips bundle 1.3.4 (actual librsvg 2.63.2).
+Zero audit findings, type/unit/production-browser and all .NET checks pass;
+shipped frontend bytes match. The full maintained repo gates pass. Required:
+CI gates, a fresh signed cycle and physical installed acceptance. An older guest's artwork/fixture failures are retained
 separately; the current guest's exact signed-base proof establishes the bounded
 startup/logout conflict, not the owner's physical root cause.
 
