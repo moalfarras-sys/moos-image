@@ -21,7 +21,9 @@ api = read("moremote/agent/Web/WebApi.cs")
 client_api = read("moremote/controller/src/lib/api.ts")
 app = read("moremote/controller/src/App.tsx")
 auth = read("moremote/controller/src/ui/AuthScreens.tsx")
-screen = read("moremote/controller/src/ui/RemoteScreen.tsx")
+# The device inventory lives in Settings ▸ General since v56; read the whole remote UI tree.
+screen = "\n".join(read(str(path.relative_to(ROOT)))
+                   for path in sorted((ROOT / "moremote/controller/src/ui").rglob("*.tsx")))
 
 errors: list[str] = []
 

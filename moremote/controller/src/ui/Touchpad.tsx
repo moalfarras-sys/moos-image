@@ -1,14 +1,22 @@
 import { useEffect, useRef } from "react";
 import { GestureController } from "../lib/gestures";
 import type { RemoteConnection } from "../lib/ws";
-import { IconMouse, IconTrackpad } from "./icons";
+import { IconDesktop, IconMouse, IconTrackpad } from "./icons";
 import type { makeT } from "../lib/i18n";
 
-export function Touchpad({ connection, enabled, sensitivity, scrollSensitivity, naturalScroll, tr }: {
+/**
+ * Pad only: the phone becomes a trackpad and the picture stops.
+ *
+ * For when the computer's own screen is in front of you — a PC on the TV, a desk across the room.
+ * Video is suspended (the agent is told nobody is watching), so the phone neither decodes nor
+ * downloads a picture it would only duplicate. The pad is relative and needs no frame at all.
+ */
+export function Touchpad({ connection, enabled, sensitivity, scrollSensitivity, naturalScroll, tr, onShowPicture }: {
   connection: () => RemoteConnection | null; enabled: boolean; sensitivity: number;
   scrollSensitivity: number;
   naturalScroll: boolean;
   tr: ReturnType<typeof makeT>;
+  onShowPicture: () => void;
 }) {
   const surface = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -26,18 +34,21 @@ export function Touchpad({ connection, enabled, sensitivity, scrollSensitivity, 
     gesture.setMode("trackpad");
     return () => gesture.destroy();
   }, [enabled, sensitivity, scrollSensitivity, naturalScroll]);
-  return <section className="input-workspace" aria-label={tr("touchpadWorkspace")}>
-    <div className="workspace-heading"><IconTrackpad /><h1>{tr("touchpadWorkspace")}</h1>
-      <p>{tr("touchpadInstructions")}</p></div>
+  return <section className="input-workspace" aria-label={tr("padOnly")}>
+    <div className="workspace-heading">
+      <span className="workspace-badge" aria-hidden="true"><IconTrackpad /></span>
+      <div><h1>{tr("padOnly")}</h1><p>{tr("touchpadInstructions")}</p></div>
+      <button type="button" className="chip" onClick={onShowPicture}><IconDesktop />{tr("screen")}</button>
+    </div>
     <div ref={surface} className={"touchpad-surface" + (enabled ? "" : " disabled")}
       data-testid="remote-touchpad" aria-label={tr("touchpadSurface")}>
-      <div className="touchpad-horizon" aria-hidden="true" />
+      <div className="touchpad-glow" aria-hidden="true" />
       <span>{enabled ? tr("touchpadSurface") : tr("noInput")}</span>
     </div>
     <div className="touchpad-buttons">
-      <button className="cell" disabled={!enabled} onClick={() => connection()?.clickCurrent("left")}>
+      <button type="button" className="pad-btn" disabled={!enabled} onClick={() => connection()?.clickCurrent("left")}>
         <IconMouse />{tr("leftClick")}</button>
-      <button className="cell" disabled={!enabled} onClick={() => connection()?.clickCurrent("right")}>
+      <button type="button" className="pad-btn" disabled={!enabled} onClick={() => connection()?.clickCurrent("right")}>
         <IconMouse />{tr("rightClick")}</button>
     </div>
   </section>;

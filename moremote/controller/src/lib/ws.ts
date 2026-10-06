@@ -457,6 +457,12 @@ export class RemoteConnection {
     this.flushText();
     this.input(produced ? { type: "key", code, down, ch: produced } : { type: "key", code, down });
   }
+  /** Tap one PHYSICAL key that has no character: Print, the volume and media keys. Both agents
+   *  route a `code` without `down` to KeyTapCode(), which knows only physical positions. */
+  keyTapCode(code: string) {
+    this.flushText();
+    this.input({ type: "key", code });
+  }
   combo(keys: string[]) {
     this.flushText();
     this.input({ type: "combo", keys });
