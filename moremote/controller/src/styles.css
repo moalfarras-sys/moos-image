@@ -288,7 +288,9 @@ svg { flex: none; }
 .trust-device b { font-size: 13px; font-weight: 650; }
 .trust-device small { color: var(--muted); font-size: 11.5px; line-height: 1.4; }
 .trust-device:focus-within { border-color: var(--accent); }
+/* A number pad reads 1-2-3 from the left in every language, as on the phone's own passcode pad. */
 .keypad {
+  direction: ltr;
   display: grid;
   grid-template-columns: repeat(3, 76px);
   gap: 14px 22px;
