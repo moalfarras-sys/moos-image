@@ -1,5 +1,11 @@
 {
   "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "enabledMcpjsonServers": [
+    "sequential-thinking",
+    "context7",
+    "chrome-devtools",
+    "image-gen"
+  ],
   "permissions": {
     "allow": [
       "mcp__sequential-thinking",
@@ -91,6 +97,17 @@
       "Bash(git commit *)",
       "Bash(git stash *)"
     ],
+    "ask": [
+      "Edit(build_files/verify_*.py)",
+      "Edit(.github/workflows/**)",
+      "Edit(.mcp.json)",
+      "Bash(git reset --hard:*)",
+      "Bash(git clean -fd:*)",
+      "Bash(git clean -fdx:*)",
+      "Bash(git rebase:*)",
+      "Bash(git merge:*)",
+      "Bash(flatpak-spawn --host sudo -n rm:*)"
+    ],
     "deny": [
       "Bash(git push --force:*)",
       "Bash(git push -f:*)",
@@ -114,23 +131,6 @@
       "Read(**/*.pem)",
       "Read(**/id_rsa*)",
       "Read(**/id_ed25519*)"
-    ],
-    "ask": [
-      "Edit(build_files/verify_*.py)",
-      "Edit(.github/workflows/**)",
-      "Edit(.mcp.json)",
-      "Bash(git reset --hard:*)",
-      "Bash(git clean -fd:*)",
-      "Bash(git clean -fdx:*)",
-      "Bash(git rebase:*)",
-      "Bash(git merge:*)",
-      "Bash(flatpak-spawn --host sudo -n rm:*)"
     ]
-  },
-  "enabledMcpjsonServers": [
-    "sequential-thinking",
-    "context7",
-    "chrome-devtools",
-    "image-gen"
-  ]
+  }
 }
