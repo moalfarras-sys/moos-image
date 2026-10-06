@@ -14,6 +14,12 @@ preserves the owner's local `Bash(git commit *)` and `Bash(git stash *)` allow
 rules. All 22 pinned permission guards and the four approved MCP servers pass
 the maintained configuration gate; no credential is introduced.
 
+The A1's full check exposed a recorder race in
+`tests/test_windows_installer_folder.py`: its background stub created the
+result before writing JSON, and the parent observed an empty file. The stub
+now publishes a closed record with `os.replace`. The two-second bound and
+exact read-only, per-launch and cancellation assertions remain intact.
+
 The three older local branch tips were reviewed individually and reconciled
 with ancestry-only merges. Their old bytes must not replace maintained source:
 
