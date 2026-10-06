@@ -28,7 +28,13 @@ class InstallerFolder(unittest.TestCase):
                 "notify-send": "#!/bin/sh\nexit 0\n",
                 # Synchronous in the fixture, never detach a real desktop process.
                 "setsid": '#!/bin/sh\nexec "$@"\n',
-                "flatpak": '#!/usr/bin/python3\nimport json,os,sys\nopen(os.environ["TEST_ARGS"],"w").write(json.dumps(sys.argv[1:]))\n',
+                # The real launcher backgrounds this child. Existence must mean
+                # a complete recorder result, not the gap between open and write.
+                "flatpak": ('#!/usr/bin/python3\nimport json,os,sys\n'
+                            'target = os.environ["TEST_ARGS"]\n'
+                            'with open(target + ".tmp", "w") as output:\n'
+                            '    json.dump(sys.argv[1:], output)\n'
+                            'os.replace(target + ".tmp", target)\n'),
             }
             for name, text in scripts.items():
                 path = tools / name
