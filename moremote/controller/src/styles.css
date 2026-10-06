@@ -683,7 +683,7 @@ svg { flex: none; }
   text-align: center;
   background: radial-gradient(70% 60% at 50% 40%, rgba(78, 215, 200, 0.12), transparent 70%), rgba(5, 7, 13, 0.86);
   color: #e8f1ef;
-  animation: fade 0.3s ease both;
+  animation: rise 0.3s var(--ease);
 }
 .session-state.quiet { background: rgba(5, 7, 13, 0.6); }
 .state-copy { display: grid; gap: 8px; max-width: 420px; }
@@ -908,7 +908,7 @@ svg { flex: none; }
 .sheet-lead { margin: 0 2px 14px; color: var(--muted); font-size: 13.5px; line-height: 1.55; }
 .tabs { margin: 2px 0 14px; }
 .tabs > button { min-height: 42px; }
-.tab-panel { animation: fade 0.2s ease both; }
+.tab-panel { animation: rise 0.2s var(--ease); }
 
 .section { margin-top: 16px; }
 .section:first-child { margin-top: 0; }
@@ -1677,9 +1677,13 @@ svg { flex: none; }
    ===================================================================================== */
 @keyframes spin { to { transform: rotate(360deg); } }
 @keyframes fade { from { opacity: 0; } to { opacity: 1; } }
-@keyframes fade-up { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
-@keyframes slide-up { from { transform: translateY(40px); opacity: 0; } to { transform: none; opacity: 1; } }
-@keyframes toast-in { from { opacity: 0; transform: translate(-50%, -8px); } to { opacity: 1; transform: translate(-50%, 0); } }
+@keyframes rise { from { transform: translateY(8px); } to { transform: none; } }
+/* Entrances move, they never start invisible: on a browser whose animation clock is throttled or
+   stalled (seen in headless WebKit, and possible on a phone under load) a first keyframe of
+   opacity 0 would leave a sheet, a toast or a whole tab unreadable. Only the scrim fades. */
+@keyframes fade-up { from { transform: translateY(14px); } to { transform: none; } }
+@keyframes slide-up { from { transform: translateY(32px); } to { transform: none; } }
+@keyframes toast-in { from { transform: translate(-50%, -10px); } to { transform: translate(-50%, 0); } }
 @keyframes shake {
   0%, 100% { transform: translateX(0); }
   20% { transform: translateX(-6px); }
