@@ -448,6 +448,18 @@ with `screendump` takes about half an hour and is the only thing that found any 
 
 ## Things that are easy to get wrong here
 
+**A new package does not replace a daemon selected by `/etc`.** On the A1,
+Tailscale 1.102.5 was installed while a custom system unit kept running the 1.102.3
+standalone binary. Read the resolved unit, its ExecStart and the actual process
+executable/version before claiming an update landed. Preserve node identity and
+transport configuration when correcting it; verify every private Serve route.
+A root-issued reboot also sees the owner's active login as another user: request
+native `moai-do restart` from the actual owner, with authorization and inhibitor
+checks intact, and confirm a changed boot ID afterwards. An accepted schedule is
+not a reboot; a root system unit does not inherit HOME by default.
+
+
+
 **A saved mouse mode must not disable a finger.** A phone can retain desktop mode and a laptop can have both inputs. Route actual touch pointers through gestures, real mouse events through DesktopInput, suppress compatibility mouse presses/movement and retire pending mouse motion before the finger takes over. Exercise both with an intercepted browser transport, never the owner’s uinput socket. A GDK no-output state can be one 0×0 placeholder rather than an empty monitor list: neither is a valid resize for renewing the portal grant.
 
 **ydotool release must actually release.** Button indices are 0/1/2;
