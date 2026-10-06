@@ -142,46 +142,55 @@ public sealed class SessionManager
         grant = new AuthGrant("");
         lock (_authGate)
         {
-            if (LockoutRemainingSeconds() > 0)
-                return LoginResult.LockedOut;
-
-            if (!PinHasher.Verify(pin, _cfg.PinHash))
-            {
-                _cfg.FailedAttempts++;
-                if (_cfg.FailedAttempts >= MaxAttempts)
-                {
-                    _cfg.LockoutUntilUnix = DateTimeOffset.UtcNow.Add(LockoutDuration).ToUnixTimeSeconds();
-                    _cfg.FailedAttempts = 0;
-                    _cfg.Save();
-                    Log.Warn($"Too many failed PIN attempts — locked out for {LockoutDuration.TotalMinutes} min.");
-                    return LoginResult.LockedOut;
-                }
-                _cfg.Save();
-                Log.Warn($"Failed PIN attempt ({_cfg.FailedAttempts}/{MaxAttempts}).");
-                return LoginResult.InvalidPin;
-            }
-
-            _cfg.FailedAttempts = 0;
-            _cfg.LockoutUntilUnix = 0;
-            _cfg.Save();
+            var result = VerifyPinLocked(pin);
+            if (result != LoginResult.Ok) return result;
             grant = IssueGrant(deviceName);
             Log.Info("Login OK — token issued.");
             return LoginResult.Ok;
         }
     }
 
-    public bool ChangePin(string currentPin, string newPin)
+    public bool ChangePin(string currentPin, string newPin) =>
+        ChangePinWithResult(currentPin, newPin) == LoginResult.Ok;
+
+    public LoginResult ChangePinWithResult(string currentPin, string newPin)
     {
         lock (_authGate)
         {
-            if (!PinHasher.Verify(currentPin, _cfg.PinHash)) return false;
+            var result = VerifyPinLocked(currentPin);
+            if (result != LoginResult.Ok) return result;
             _cfg.PinHash = PinHasher.Hash(newPin);
             _cfg.TrustedDevices.Clear();
             _cfg.Save();
             _tokens.Clear(); // force re-login everywhere after a PIN change
             Log.Info("PIN changed — all sessions invalidated.");
-            return true;
+            return LoginResult.Ok;
         }
+    }
+
+    // Both remote PIN-verification routes share one persisted budget under _authGate.
+    private LoginResult VerifyPinLocked(string pin)
+    {
+        if (LockoutRemainingSeconds() > 0) return LoginResult.LockedOut;
+        if (!PinHasher.Verify(pin, _cfg.PinHash))
+        {
+            _cfg.FailedAttempts++;
+            if (_cfg.FailedAttempts >= MaxAttempts)
+            {
+                _cfg.LockoutUntilUnix = DateTimeOffset.UtcNow.Add(LockoutDuration).ToUnixTimeSeconds();
+                _cfg.FailedAttempts = 0;
+                _cfg.Save();
+                Log.Warn($"Too many failed PIN attempts — locked out for {LockoutDuration.TotalMinutes} min.");
+                return LoginResult.LockedOut;
+            }
+            _cfg.Save();
+            Log.Warn($"Failed PIN attempt ({_cfg.FailedAttempts}/{MaxAttempts}).");
+            return LoginResult.InvalidPin;
+        }
+        _cfg.FailedAttempts = 0;
+        _cfg.LockoutUntilUnix = 0;
+        _cfg.Save();
+        return LoginResult.Ok;
     }
 
     /// <summary>Owner-side change (from the tray) without knowing the current PIN.</summary>

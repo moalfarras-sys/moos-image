@@ -144,9 +144,15 @@ public static class WebApi
             var req = await ReadJson<ChangePinReq>(ctx);
             if (!IsValidPin(req?.newPin ?? ""))
                 return Results.Json(new { error = "weak_pin", minLength = MinPinLength }, statusCode: 400);
-            var ok = svc.Sessions.ChangePin(req!.currentPin ?? "", req.newPin ?? "");
-            return ok ? Results.Json(new { ok = true })
-                      : Results.Json(new { error = "invalid_pin" }, statusCode: 401);
+            var result = svc.Sessions.ChangePinWithResult(req!.currentPin ?? "", req.newPin ?? "");
+            return result switch
+            {
+                LoginResult.Ok => Results.Json(new { ok = true }),
+                LoginResult.LockedOut => Results.Json(
+                    new { error = "locked", lockoutSeconds = svc.Sessions.LockoutRemainingSeconds() },
+                    statusCode: 423),
+                _ => Results.Json(new { error = "invalid_pin" }, statusCode: 401),
+            };
         });
 
         // ---- Logout ----

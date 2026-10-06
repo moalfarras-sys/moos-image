@@ -274,6 +274,34 @@ Eq(false, restartedAuth.IsValid(resumed), "revoked device loses an already-open 
 Eq(false, restartedAuth.ResumeTrustedDevice(grant.DeviceId, grant.DeviceToken, out _), "revoked device cannot resume");
 try { await AudioLeaseTests.Run(restartedAuth, Eq<bool>); }
 catch (Exception ex) { Console.Error.WriteLine("FAIL: " + ex.Message); Environment.ExitCode = 1; return; }
+// Changing a PIN verifies the same secret as login and must consume the same budget.
+try
+{
+    var pinConfig = new AppConfig { PinHash = PinHasher.Hash("246810") };
+    var pinAuth = new SessionManager(pinConfig);
+    Eq(false, pinAuth.ChangePin("wrong", "135790"), "wrong current PIN cannot change the PIN");
+    Eq(1, pinConfig.FailedAttempts, "change-PIN failure consumes the shared PIN budget");
+    Eq(LoginResult.InvalidPin, pinAuth.Login("wrong", out _), "login consumes the same budget");
+    Eq(false, pinAuth.ChangePin("wrong", "135790"), "third shared PIN failure is rejected");
+    Eq(LoginResult.InvalidPin, pinAuth.Login("wrong", out _), "fourth shared PIN failure is rejected");
+    Eq(false, pinAuth.ChangePin("wrong", "135790"), "fifth shared PIN failure locks out");
+    Eq(true, pinAuth.LockoutRemainingSeconds() > 0, "change-PIN cannot bypass login lockout");
+    Eq(LoginResult.LockedOut, pinAuth.ChangePinWithResult("246810", "135790"), "PIN route can report the typed lockout result");
+    Eq(false, pinAuth.ChangePin("246810", "135790"), "correct PIN cannot change the PIN during lockout");
+    Eq(true, PinHasher.Verify("246810", pinConfig.PinHash), "lockout leaves the configured PIN intact");
+    var lockedPinAuth = new SessionManager(AppConfig.Load());
+    Eq(false, lockedPinAuth.ChangePin("246810", "135790"), "change-PIN lockout survives agent restart");
+    pinConfig.LockoutUntilUnix = DateTimeOffset.UtcNow.AddSeconds(-1).ToUnixTimeSeconds();
+    Eq(LoginResult.Ok, pinAuth.Login("246810", "PIN test phone", out var pinGrant), "expired lockout accepts the owner PIN");
+    Eq(false, pinAuth.ChangePin("wrong", "135790"), "a later wrong current PIN is counted");
+    Eq(true, pinAuth.ChangePin("246810", "135790"), "owner changes PIN after expiry");
+    Eq(0, pinConfig.FailedAttempts, "successful PIN change clears the shared failures");
+    Eq(0L, pinConfig.LockoutUntilUnix, "successful PIN change clears the shared lockout");
+    Eq(false, pinAuth.IsValid(pinGrant.Token), "successful PIN change revokes access sessions");
+    Eq(false, pinAuth.ResumeTrustedDevice(pinGrant.DeviceId, pinGrant.DeviceToken, out _), "successful PIN change revokes trusted devices");
+    Eq(LoginResult.Ok, pinAuth.Login("135790", out _), "new PIN signs in after change");
+}
+catch (Exception ex) { Console.Error.WriteLine("FAIL: " + ex.Message); Environment.ExitCode = 1; return; }
 Directory.Delete(trustDir, true);
 // ── Typing prefers real keymaps; unsupported Unicode has an ordered fallback ───────
 {
