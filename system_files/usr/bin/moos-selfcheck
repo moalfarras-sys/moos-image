@@ -518,12 +518,30 @@ fi
 
 # ── The lock screen and boot splash are MoOS ──────────────────────────────────
 head_ "القفل والإقلاع | Lock screen & boot"
-lock=/usr/share/plasma/shells/org.kde.plasma.desktop/contents/lockscreen/LockScreenUi.qml
-if [ -f "$lock" ] && grep -q "MoOS" "$lock" 2>/dev/null; then
-    ok "the lock screen is the MoOS override (drawn by the shell package)"
+# Authentication belongs to the upstream shell; the session design lives in
+# the components it loads. Requiring "MoOS" in LockScreenUi demanded the very
+# authentication fork retired at THEME_REV 101 and falsely failed signed .999.
+lock_dir=/usr/share/plasma/shells/org.kde.plasma.desktop/contents/lockscreen
+session_components=/usr/lib64/qt6/qml/org/kde/breeze/components
+lock_identity=1
+for auth_file in LockScreenUi.qml MainBlock.qml; do
+    if [ ! -f "$lock_dir/$auth_file" ] || \
+       grep -q -e 'org.moos' -e 'Moalfarras' "$lock_dir/$auth_file" 2>/dev/null; then
+        lock_identity=0
+    fi
+done
+for component in SessionManagementScreen WallpaperFader Clock UserList UserDelegate ActionButton; do
+    if ! grep -q '^import org\.moos\.ui as MoUI' \
+         "$session_components/$component.qml" 2>/dev/null; then
+        lock_identity=0
+    fi
+done
+if [ "$lock_identity" = 1 ]; then
+    ok "the lock screen uses the MoOS session components with upstream authentication"
 else
-    bad "the lock screen is not MoOS's — the greeter will fall back to Breeze"
+    bad "the lock screen is missing MoOS session components or has a retired authentication override"
 fi
+unset -v auth_file component lock_identity lock_dir session_components
 if [ -d /usr/share/plymouth/themes/moos ]; then
     plymouth_theme="$(plymouth-set-default-theme 2>/dev/null || true)"
     if [ -n "$plymouth_theme" ]; then

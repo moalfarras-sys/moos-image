@@ -1,4 +1,34 @@
-# MoOS current state — measured 2026-10-05
+# MoOS current state — measured 2026-10-06
+
+**Session-return audit, 2026-10-06:** the station boots signed NVIDIA
+`44.20261005.999` (`b5c4d84f…`, source `a803a075`), with signed `.989` retained;
+`moai-do check-update` reports current. All 99 refs inspected before this audit
+were already in main except PR #208's documentation; its reviewed green change
+is now merged as `ad7429c4`. All 21 worktrees were clean. No unique code was
+removed. Source/current runtime evidence is private under the audit worktree's
+`test-results/session-audit-20261006/`.
+The morning's two failed returns retained the autologin session and created a
+second Wayland session for the same owner. Plasma Login Manager 6.7.5's reuse
+filter accepts service `plasmalogin` but excludes `plasmalogin-autologin`.
+A fresh overlay of SHA-256-recorded signed-base QCOW2 reproduced the duplicate
+sessions with ordinary password entry; manual login plus user switching reused
+one session and unlocked it with zero compositor restarts. The station's
+September development autologin drop-in is identified; retiring only those
+exact bytes is prepared, requires administrator authentication, and takes
+effect after a normal logout or reboot. Its backup must be outside both
+configuration directories: the loader reads every regular file, including
+`.disabled` files. Physical logout/relogin acceptance remains open.
+Three obsolete Remote home selectors were moved to a private reversible backup;
+the running agent is now `/usr/lib/mo-remote/MoRemotePersonal`, active with zero
+restarts. Installed post-update checks improved from 53/2 to **55/0**. User Store
+and system Flatpak updates completed; the existing publisher-declared EOL app
+and runtimes remain explicit. The old selfcheck wrongly demanded the retired
+MoOS authentication fork in `LockScreenUi.qml`; source now checks both upstream
+files and all six actual MoOS session components. Nine overlay/negative-fixture
+checks, the revised source selfcheck (**54/0**) on the live `.999` files, and full
+`just check` pass. This selfcheck correction is source, not yet signed delivery.
+The linked Claude artifact is inaccessible through both available readers;
+no linked specification or visual approval was inferred from it.
 
 **Session design released, 2026-10-06 (P2.16):** PR #207 merged at `a803a075` on the owner's explicit decision; `scripts/release-candidate.sh --promote` from the station signed `moos` `57aca4e3…`, `moos-nvidia` `b5c4d84f…`, `moos-cloud` `09b47b00…`, passed the generic, NVIDIA and cloud QCOW2 boots, the ISO proof and the ARM pipeline (first attempt), and promotion run 37394260892 succeeded. The station resolved `moai-do update` to the NVIDIA digest; staging was waiting on the administrator prompt when this was written, so the booted system was still `.989` with `.997` staged. Apps were up to date (`moai-do update-apps`). Earlier history of this work, written before the merge: the owner sent three screenshots — the lock clock drawn under the password card, the brand mark on the card's rim, a bare login screen. Reproduced from the tree at 640×480 and, for the rim, at the station's own 1536×864. Cause: the lock screen was a fork of `LockScreenUi.qml`/`MainBlock.qml` with a card sized from outside and a second, corner-pinned clock; the login screen, compiled, could have neither. Now the lock, login and power screens share one clock, one face, one signature and one island drawn by the breeze components (`SessionManagementScreen`, `WallpaperFader`, `Clock`, `UserList`, `UserDelegate`); MoOS forks no file that authenticates, the two lock-screen forks and their three 6.8 variants are deleted, and `build.sh`/`build-arm.sh` refuse a MoOS copy at either path. `THEME_REV` 101 purges the cached compile of the retired fork; the greeter account's QML cache, which no purge ever reached, is cleared at boot. **Measured:** the three real greeter binaries rendered from the tree under Xvfb (software GL) on Plasma 6.7.5 at 640×480, 1024×600, 1280×720, 1536×864 and 3840×2160@2.5, Arabic/English/German, idle/active/typed/refused, all sixteen families; `probe-lockscreen` passes and its negative control fails on 6.7.5 and on a real Plasma 6.7.91 stack with the 6.8 variants; full `just check` passes. **Local image, same day:** the generic x86 image built from `8b57a788` (`localhost/moos:session-design-20261005`, the later commits on the branch touch only the review harness and documents) with every in-image gate: seam set 6.7, twelve seams matching their reviewed upstream bytes, the real greeter loading the lock screen, the image-experience, motion, identity and image-state gates, seven Settings modules loaded, lint with the one existing `nonempty-boot` warning. Read back from the image, not the source: `LockScreenUi.qml` and `MainBlock.qml` carry upstream's digests (`32850178…`, `ca4116aa…`), the six components are MoOS's, the greeter tmpfiles file has the cache rule, `THEME_REV` is 101; and the image's own files, with an X server added, render the same lock, login and power screens. **Not measured:** the installed lock screen on the NVIDIA GPU with KWin blur, a real login (this station autologs in), the power screen with a power backend (the harness has none, so it shows two of the six tiles), the two new Appearance rows as pixels (the module loads), Orca, the NVIDIA/cloud/ARM editions, a boot. Nothing is installed: the station still runs the old lock screen. **Second pass, same day, after the owner called the first one ordinary:** one `Tokens.sessionScale` sizes the whole family from the window (0.6–1.6; 1.0 at 1536×864, 1.25 at 1080p); the clock has a cover pose and a working pose and moves between them; the island arrives as a wave; the selected face stands in a two-tone ring a hair's width off the picture; a light orbits the island's rim and the frame a counted number of turns (twice on arrival, once per typed character) and docks; the key is glass until its field holds something. **Measured live on the station's session and GPU** (`kscreenlocker_greet --testing` from the worktree through a private import path, the owner's real account photo, media strip and Sleep/Switch User keys): 0.3% of a core as a cover, 6.5% while the orbit turns, 0.0% docked and back as a cover; no QML error in the journal. The real greeter probe passes and its negative control fails on 6.7.5 and 6.7.91 with this pass. The image was NOT rebuilt for the second pass (no Tier 1 file changed); PR CI builds it.
 

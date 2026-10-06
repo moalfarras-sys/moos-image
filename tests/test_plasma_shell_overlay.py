@@ -24,6 +24,10 @@ So: the gate list is derived from the tree here, not maintained by hand there.
 """
 from pathlib import Path
 import re
+import os
+import shutil
+import subprocess
+import tempfile
 import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -119,6 +123,70 @@ class PlasmaShellOverlay(unittest.TestCase):
                 marker, source.read_text(encoding="utf-8", errors="replace"),
                 f"a build script looks for '{marker}' in {name} to prove the file is "
                 f"MoOS's, but the MoOS copy does not contain it")
+
+
+class InstalledSessionIdentity(unittest.TestCase):
+    """Execute selfcheck's real lock section against a private installed tree.
+
+    A stock authentication file plus MoOS components is healthy since rev 101.
+    Neither a missing component nor a restored authentication fork may pass.
+    """
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.image = Path(self.tmp.name)
+        self.lock = self.image / IMAGE_PREFIX.lstrip("/") / "lockscreen"
+        self.lock.mkdir(parents=True)
+        for name in ("LockScreenUi.qml", "MainBlock.qml"):
+            (self.lock / name).write_text("import QtQuick\nItem {}\n")
+        self.components = self.image / "usr/lib64/qt6/qml/org/kde/breeze/components"
+        shutil.copytree(ROOT / "system_files/usr/lib64/qt6/qml/org/kde/breeze/components",
+                        self.components)
+
+    def report(self):
+        text = (ROOT / "system_files/usr/bin/moos-selfcheck").read_text()
+        section = text.split('head_ "القفل والإقلاع | Lock screen & boot"\n', 1)[1]
+        section = section.split("if [ -d /usr/share/plymouth/themes/moos ]; then", 1)[0]
+        section = section.replace("/usr/", str(self.image / "usr") + "/")
+        result = subprocess.run(
+            ["bash", "-c", 'set -uo pipefail\nok() { echo "OK $1"; }\n'
+             'bad() { echo "BAD $1"; }\n' + section],
+            capture_output=True, text=True, timeout=10,
+            env={"PATH": os.environ.get("PATH", "/usr/bin:/bin"),
+                 "HOME": str(self.image), "DBUS_SESSION_BUS_ADDRESS": "unix:path=/nonexistent",
+                 "DISPLAY": "", "WAYLAND_DISPLAY": ""})
+        self.assertEqual(result.returncode, 0, result.stderr)
+        return result.stdout
+
+    def test_upstream_authentication_and_moos_components_pass(self):
+        self.assertTrue(self.report().startswith("OK "))
+
+    def test_each_missing_component_fails(self):
+        for name in ("SessionManagementScreen", "WallpaperFader", "Clock",
+                     "UserList", "UserDelegate", "ActionButton"):
+            path = self.components / (name + ".qml")
+            content = path.read_text()
+            with self.subTest(component=name):
+                path.unlink()
+                self.assertTrue(self.report().startswith("BAD "))
+            path.write_text(content)
+
+    def test_upstream_component_with_only_a_moos_comment_fails(self):
+        (self.components / "SessionManagementScreen.qml").write_text(
+            "// MoOS imports org.moos.ui as MoUI\nimport QtQuick\nItem {}\n")
+        self.assertTrue(self.report().startswith("BAD "))
+
+    def test_missing_authentication_and_retired_fork_fail(self):
+        for name in ("LockScreenUi.qml", "MainBlock.qml"):
+            path = self.lock / name
+            with self.subTest(file=name, state="missing"):
+                path.unlink()
+                self.assertTrue(self.report().startswith("BAD "))
+            with self.subTest(file=name, state="fork"):
+                path.write_text("import org.moos.ui\nItem {}\n")
+                self.assertTrue(self.report().startswith("BAD "))
+            path.write_text("import QtQuick\nItem {}\n")
 
 
 if __name__ == "__main__":

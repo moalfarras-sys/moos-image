@@ -1,5 +1,17 @@
 # MoOS development plan
 
+### Session-return acceptance — owner priority, 2026-10-06
+
+Active slice: diagnose the owner's logout/return failure, retire delivered
+review overrides, and qualify the actual installed session before declaring
+readiness. This precedes further visual expansion.
+
+| Existing row | Measured result | Exit evidence still required |
+| --- | --- | --- |
+| P5.8 / P0.7 | Signed NVIDIA `.999` is current; `.989` remains. Morning logs and a fresh signed-base guest reproduce an autologin session excluded from Plasma Login Manager 6.7.5's reuse filter, followed by a second session for the same account. Manual login plus user switching reuses its original session, with no compositor restart. | Retire only the station's temporary development autologin drop-in after native administrator authentication; backup outside the parsed directories. Real station logout/relogin and repeated ordinary guest logout/relogin. No authentication fork or gate relaxation. |
+| P2.16 / P1.7 | Source selfcheck recognizes the upstream authentication files and the six shared session components; missing components, comment-only markers and retired forks fail executable private fixtures. Revised source selfcheck is 54/0 on installed `.999`. | Signed delivery of the diagnostic correction. Source validation never proves a physical return to login. |
+| P6.1 / P6.5 | All pre-audit code refs integrated; PR #208 documentation reviewed/merged. Three delivered Remote home selectors backed up and retired; exact installed executable active. `post-update-check.sh` 55/0; Store/system Flatpak update exits 0. | Physical phone/WAN endurance, HDMI loss and EOL publisher migration remain open; the next-Plasma canary's mutable-filesystem failure is separate open acceptance. |
+
 ### Readiness repair batch — owner priority, 2026-10-04
 
 The deep audit executed maintained repo gates, 1,093 Mira cases, 255 MoPlayer
