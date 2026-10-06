@@ -5,7 +5,9 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 helper = (ROOT / "moremote/controller/src/lib/notifications.ts").read_text(encoding="utf-8")
 dictionary = (ROOT / "moremote/controller/src/lib/i18n.ts").read_text(encoding="utf-8")
-screen = (ROOT / "moremote/controller/src/ui/RemoteScreen.tsx").read_text(encoding="utf-8")
+# The remote UI spans RemoteScreen.tsx and its dock/sheet components since v56; read all of it.
+screen = "\n".join(path.read_text(encoding="utf-8")
+                   for path in sorted((ROOT / "moremote/controller/src/ui").rglob("*.tsx")))
 socket = (ROOT / "moremote/controller/src/lib/ws.ts").read_text(encoding="utf-8")
 worker = (ROOT / "moremote/controller/public/notification-sw.js").read_text(encoding="utf-8")
 

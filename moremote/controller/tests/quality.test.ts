@@ -266,8 +266,11 @@ assert.ok(encodeWidth(1600, hostEncodeCeiling(1920, A1), 0) <= 1280,
 const remoteAuto = remote.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
 assert.match(remoteAuto, /presetEncodeCeiling\(p\.width, hostEncodeRef\.current, autoRef\.current\)/,
   "the preset bandwidth limit must be wired into RemoteScreen");
-assert.match(remoteAuto, /onClick=\{\(\) => \{ setAuto\(false\); selectPreset\(i\); \}\}/,
+assert.match(remoteAuto, /choosePreset: \(i: number\) => \{ setAuto\(false\); selectPreset\(i\); \}/,
   "choosing a preset by hand must leave the automatic ceiling behind");
+const settingsSheet = readFileSync(new URL("../src/ui/remote/SettingsSheet.tsx", import.meta.url), "utf8");
+assert.match(settingsSheet, /onClick=\{\(\) => m\.choosePreset\(i\)\}/,
+  "every preset card must go through the manual-choice path");
 
 console.log("PASS: the host's published encode budget bounds Auto and nothing else");
 
@@ -316,3 +319,22 @@ assert.ok(!QUALITY_PRESETS.some(p => p.width === WEAK_LINK.width && p.fps === WE
 assert.match(remoteAuto, /const lean = autoRef\.current && weakRef\.current;/,
   "only the automatic ladder may put the stream on the weak rung");
 console.log("PASS: the ladder reaches a weak-link rung, acts on collapse at once, and reads an overdue pong as slow");
+
+// ---- the cost readout and the frame-rate choice ----
+{
+  const { estimateMbps, effectiveFps, WEAK_LINK: weak } = await import("../src/lib/quality.ts");
+  // The helper's own numbers: Data saver is ~1.1 Mbit/s (MOOS_REMOTE_ARCHITECTURE.md), the
+  // weak-link rung sits on the 15 fps floor of 0.4, and Ultra is held at the 12 Mbit/s ceiling.
+  assert.equal(estimateMbps(52, 1024, 30), 1.1);
+  assert.equal(estimateMbps(weak.quality, weak.width, weak.fps), 0.4);
+  assert.equal(estimateMbps(85, 2560, 60), 12);
+  assert.ok(estimateMbps(68, 1366, 30) > estimateMbps(52, 1024, 30));
+  assert.ok(estimateMbps(80, 1920, 60) > estimateMbps(80, 1920, 30), "60 fps costs more than 30");
+  // An explicit rate replaces the preset's; the weak-link rung keeps its own 15 fps.
+  assert.equal(effectiveFps(30, 0, false), 30);
+  assert.equal(effectiveFps(30, 60, false), 60);
+  assert.equal(effectiveFps(60, 30, false), 30);
+  assert.equal(effectiveFps(15, 60, true), 15);
+  assert.equal(effectiveFps(30, 45, false), 30, "an unknown stored value falls back to the preset");
+  console.log("PASS: stream cost readout mirrors the helper budget; frame-rate choice is bounded");
+}

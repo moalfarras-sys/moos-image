@@ -177,6 +177,7 @@ export function SetupScreen({ onDone }: { onDone: (grant: AuthResult) => Promise
 
   return (
     <div className="auth" aria-busy={busy}>
+      <div className="auth-card">
       <Brand subtitle={step === "create" ? tr("pinSetup") : tr("pinConfirmTitle")} />
       <PinDots count={pin.length} error={error} />
       <div className={"hint" + (error ? " error" : "")} role={error ? "alert" : "status"}>{hint}</div>
@@ -184,6 +185,7 @@ export function SetupScreen({ onDone }: { onDone: (grant: AuthResult) => Promise
       <Keypad onDigit={add} onBackspace={back} onSubmit={submit}
               canSubmit={pin.length >= 6 && !busy} disabled={busy} />
       <Signature />
+      </div>
     </div>
   );
 }
@@ -252,6 +254,7 @@ export function LoginScreen({ onDone, lockoutSeconds }: { onDone: (grant: AuthRe
 
   return (
     <div className="auth" aria-busy={busy}>
+      <div className="auth-card">
       <Brand subtitle={tr("privateRemote")} />
       <PinDots count={pin.length} error={error} />
       <div className={"hint" + (error ? " error" : locked > 0 ? " error" : "")}
@@ -263,6 +266,7 @@ export function LoginScreen({ onDone, lockoutSeconds }: { onDone: (grant: AuthRe
               canSubmit={pin.length >= 6 && locked <= 0 && !busy}
               disabled={busy || locked > 0} />
       <Signature />
+      </div>
     </div>
   );
 }

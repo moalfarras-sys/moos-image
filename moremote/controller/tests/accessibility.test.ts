@@ -1,10 +1,18 @@
 import assert from "node:assert/strict";
-import {readFileSync} from "node:fs";
+import {readFileSync, readdirSync} from "node:fs";
 import {dirname, resolve} from "node:path";
 import {fileURLToPath} from "node:url";
 
 const here = dirname(fileURLToPath(import.meta.url));
-const source = readFileSync(resolve(here, "../src/ui/RemoteScreen.tsx"), "utf8");
+// The remote UI is split since v56: RemoteScreen owns the session, kit.tsx the shared modal sheet
+// and controls, ui/remote/* the dock, keyboard and sheets. The contracts below hold for the whole.
+const remoteDir = resolve(here, "../src/ui/remote");
+const source = [
+  readFileSync(resolve(here, "../src/ui/RemoteScreen.tsx"), "utf8"),
+  readFileSync(resolve(here, "../src/ui/kit.tsx"), "utf8"),
+  ...readdirSync(remoteDir).filter((f) => f.endsWith(".tsx")).sort()
+    .map((f) => readFileSync(resolve(remoteDir, f), "utf8")),
+].join("\n");
 const auth = readFileSync(resolve(here, "../src/ui/AuthScreens.tsx"), "utf8");
 const styles = readFileSync(resolve(here, "../src/styles.css"), "utf8");
 
@@ -23,13 +31,15 @@ for (const contract of [
 ]) {
   assert.ok(source.includes(contract), `remote sheet misses ${contract}`);
 }
-assert.equal((source.match(/<SheetPanel label=/g) ?? []).length, 4,
-  "Display, Settings, Files and Clipboard must all use the modal sheet contract");
+assert.equal((source.match(/<SheetPanel label=/g) ?? []).length, 3,
+  "Settings, MoOS commands and Transfer must all use the modal sheet contract");
 assert.ok(!source.includes('<div className="sheet">'),
   "a raw visual-only sheet bypasses focus containment and Escape handling");
 
-assert.match(source, /<button\s+type="button"\s+className=\{[\s\S]*?topbar[\s\S]*?aria-expanded=\{!compactBar\}/,
-  "connection details must be a keyboard-operable disclosure button");
+assert.match(source, /<button type="button" className=\{"status-orb " \+ m\.health\} aria-haspopup="dialog"/,
+  "the connection orb must be a real button that announces it opens the picture settings");
+assert.match(source, /aria-label=\{`\$\{m\.statusText\}\$\{m\.issue/,
+  "the orb's accessible name must carry the connection state and the one problem, not only a colour");
 assert.match(source, /className=\{?"toast"[^>]*?\s+role="status"\s+aria-live="polite"/,
   "transient remote errors and confirmations must be announced politely");
 
@@ -66,10 +76,14 @@ console.log("PASS: Reduced Motion is a true static state across the complete PWA
 for (const contract of [
   'className="remote-stage"',
   'className="toolbar-primary" role="toolbar" aria-label={tr("remoteControlsAria")}',
-  'aria-label={tr("showRemoteControls")}',
-  // The label text is now i18n-resolved at runtime: assert the binding exists
-  '>{tr("controls")}</span>',
+  // The dock is permanent: only the keyboard panel, which takes its place, may make it inert.
+  'inert={m.kbOpen} aria-hidden={m.kbOpen}',
+  'aria-orientation={m.rail ? "vertical" : "horizontal"}',
   'role="status" aria-live="polite"',
+  // Tabs inside a sheet are real tabs with an associated panel.
+  'role="tablist"',
+  'role="tab"',
+  'role="tabpanel"',
 ]) assert.ok(source.includes(contract), `responsive remote chrome misses ${contract}`);
 assert.match(styles, /\.remote\s*\{[\s\S]*?display:\s*grid;[\s\S]*?grid-template-areas:\s*"stage"\s*"controls";/,
   "phone layout must reserve separate stage and controls tracks");
@@ -78,8 +92,14 @@ assert.match(styles, /\.remote-stage\s*\{[\s\S]*?grid-area:\s*stage;/,
 assert.match(styles, /\.toolbar\s*\{[\s\S]*?grid-area:\s*controls;[\s\S]*?position:\s*relative;/,
   "toolbar must live in reserved chrome, never as a fixed/absolute picture overlay");
 assert.match(styles, /height:\s*100dvh;/, "remote shell must follow Safari's dynamic viewport");
-assert.match(styles, /\.topbar\s*\{[\s\S]*?min-width:\s*44px;[\s\S]*?min-height:\s*44px;/,
-  "the compact connection disclosure must remain a safe touch target");
+assert.match(styles, /\.status-orb\s*\{[\s\S]*?min-width:\s*44px;[\s\S]*?min-height:\s*44px;/,
+  "the connection orb must remain a safe touch target");
+for (const target of [".dock-btn", ".chip", ".kbicon", ".sheet-close", ".pad-btn"]) {
+  const rule = styles.match(new RegExp(target.replace(".", "\\.") + "\\s*\\{([^}]*)\\}"));
+  assert.ok(rule, `styles.css has no ${target} rule`);
+  const size = rule![1].match(/(?:min-)?height:\s*(\d+)px/);
+  assert.ok(size && Number(size[1]) >= 44, `${target} must be at least 44px tall, got ${size?.[1]}`);
+}
 
 console.log("PASS: responsive chrome reserves the Horizon-safe stage and keeps 44px targets");
 

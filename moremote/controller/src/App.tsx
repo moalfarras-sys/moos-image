@@ -136,18 +136,9 @@ export default function App() {
 
 function InstallBanner({ onInstall, tt }: { onInstall: () => void; tt: (id: Parameters<ReturnType<typeof makeT>>[0]) => string }) {
   return (
-    <div
-      style={{
-        position: "fixed", bottom: 14, left: 14, right: 14, zIndex: 40,
-        display: "flex", gap: 10, alignItems: "center", justifyContent: "space-between",
-        padding: "10px 12px", borderRadius: 14,
-        background: "rgba(20,25,28,.92)", border: "1px solid rgba(78,200,200,.35)",
-        boxShadow: "0 8px 24px rgba(0,0,0,.45)", color: "#e8f1f1",
-      }}
-      role="status"
-    >
-      <span style={{ fontSize: 13 }}>{tt("installBanner")}</span>
-      <button className="btn" onClick={onInstall} style={{ flexShrink: 0 }}>
+    <div className="install-banner" role="status">
+      <span>{tt("installBanner")}</span>
+      <button type="button" className="btn" onClick={onInstall} style={{ flexShrink: 0, minHeight: 40 }}>
         {tt("install")}
       </button>
     </div>

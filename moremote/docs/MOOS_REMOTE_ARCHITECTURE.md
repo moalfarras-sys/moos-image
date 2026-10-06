@@ -94,10 +94,19 @@ opens the native control center; service-active alone is never presented as a li
 ## Controller layout contract
 
 The encoded desktop and controller chrome are sibling grid tracks. Portrait phones reserve a
-safe-area-aware bottom dock; phone landscape, tablet and desktop reserve a right rail. Hiding the
-controls keeps the track stable, and every visible target is at least 44 × 44 CSS pixels. The
-remote Horizon Bar is never under a controller hit target. Reduced Motion removes decorative
-transitions, while connection, recovery, pause and locked states remain explicit.
+safe-area-aware bottom dock; phone landscape, tablet and desktop reserve a side rail (the end
+side, so the left in Arabic). Since v56 the dock is permanent — it holds the connection orb, the
+Touch / Trackpad / Mouse switch and Keyboard · MoOS · Transfer · Settings — and every visible
+target is at least 44 × 44 CSS pixels. The remote Horizon Bar is never under a controller hit
+target. The only drawing over the stage that is not a modal state is decoration in the letterbox
+(the Trackpad pad outline, the rotate offer), never over encoded pixels. Reduced Motion removes
+decorative transitions, while connection, recovery, pause and locked states remain explicit.
+
+The view is split from the session (v56): `RemoteScreen.tsx` owns the connection, decoders,
+gesture engines, quality ladder, typing, clipboard, files, sound and power, and hands one explicit
+`RemoteModel` (`ui/remote/model.ts`) to `Dock`, `KeyboardPanel`, `SettingsSheet`, `ActionsSheet`
+and `TransferSheet`; the shared modal sheet, switch, segmented control and tabs live in
+`ui/kit.tsx`. A component can only call what the model hands it.
 
 iPhone Safari cannot programmatically hide all browser chrome from a normal tab. The supported
 immersive route is **Add to Home Screen**, where the controller runs as an installed PWA and uses

@@ -1,6 +1,12 @@
 #!/usr/bin/env python3
 """Gate: the controller's toolbar edge must be decided by ONE query, in CSS and in JS.
 
+Since v56 (the Glass Console) the controls are permanent — a bottom dock on a portrait phone, a
+side rail on a computer or a phone on its side — so JS no longer reveals a hidden bar. It still
+reads the same constant to tell assistive technology which way the toolbar runs
+(aria-orientation), and CSS still places the track with it. The history below is why that
+constant asks about AVAILABLE pointers.
+
 WHY THIS EXISTS
 
 The bottom edge of the window is not the controller's to use. The remote MoOS desktop keeps its
@@ -76,8 +82,8 @@ def main() -> int:
     if occurrences < 2:
         errors.append(
             f"styles.css contains {occurrences} `@media <POINTER_BAR_QUERY>` block(s); expected at "
-            f"least 2 (the toolbar itself and the .show-tab handle that must move with it). CSS and "
-            f"JS must agree on the edge or the summon gesture opens the opposite wall.")
+            f"least 2 (the shell's rail track and the rail's own vertical layout). CSS and JS must "
+            f"agree on the edge or the toolbar announces one orientation and draws the other.")
 
     # 4. JS must read the constant rather than a copy of the string.
     if "matchMedia(POINTER_BAR_QUERY)" not in screen:
@@ -99,7 +105,7 @@ def main() -> int:
             print(f"  - {e}")
         return 1
 
-    print("OK: one POINTER_BAR_QUERY drives both the CSS placement and the JS summon edge, it asks "
+    print("OK: one POINTER_BAR_QUERY drives both the CSS placement and the JS orientation, it asks "
           "about available pointers, and the short-landscape rail still wins.")
     return 0
 
