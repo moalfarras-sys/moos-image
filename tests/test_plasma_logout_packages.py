@@ -63,7 +63,8 @@ class NativePackageBoundary(unittest.TestCase):
     def transaction(self, argv, check):
         self.assertTrue(check)
         self.assertEqual(argv[:4], ['dnf5', '-y', 'install', '--setopt=install_weak_deps=False'])
-        self.assertEqual({Path(p).stem for p in argv[4:]}, self.owned)
+        self.assertEqual(argv[4], '--exclude=kernel,kernel-core,kernel-modules,kernel-modules-core,kernel-modules-extra')
+        self.assertEqual({Path(p).stem for p in argv[5:]}, self.owned)
         self.installed = True
 
     def install(self):
@@ -80,6 +81,13 @@ class NativePackageBoundary(unittest.TestCase):
         self.install()
         with contextlib.redirect_stdout(io.StringIO()):
             rpms.verify(self.root)
+
+    def test_x86_vendor_install_precedes_the_authoritative_overlay(self):
+        recipe = (ROOT / 'Containerfile').read_text().split('FROM base\n', 1)[1]
+        install = 'python3 /ctx/plasma_logout/rpms.py install /plasma-logout-rpms'
+        self.assertEqual(recipe.count(install), 1)
+        self.assertLess(recipe.index(install), recipe.index('COPY system_files/ /'))
+        self.assertNotIn(install, (ROOT / 'build_files/build.sh').read_text())
 
     def test_complete_vendor_split_collects_runtime_and_skips_compilers(self):
         for name in rpms.VENDOR_PACKAGES | {'plasma-workspace-devel', 'libkworkspace6-debuginfo'}:

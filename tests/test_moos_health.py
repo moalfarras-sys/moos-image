@@ -29,6 +29,19 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 HEALTH = ROOT / "system_files/usr/bin/moos-health"
 
+# The subprocess reads a synthetic disk too: image builds can fill the real
+# workstation past 90%, which must not alter this planted machine's findings.
+# Patch only in the fixture runner; the shipped scanner retains real statvfs.
+FIXTURE_RUNNER = """
+import os, runpy, sys
+from unittest.mock import patch
+free = int(os.environ.pop('PRIVATE_HEALTH_DISK_FREE'))
+disk = os.statvfs_result((4096, 4096, 100000, free, free, 1000, 500, 500, 0, 255))
+sys.argv = sys.argv[1:]
+with patch('os.statvfs', return_value=disk):
+    runpy.run_path(sys.argv[0], run_name='__main__')
+"""
+
 RECORD = 'line="${0##*/}"; for a in "$@"; do line="$line$(printf \'\\t%s\' "$a")"; done; printf \'%s\\n\' "$line" >> "$STUB_LOG"\n'
 
 STUBS = {
@@ -96,6 +109,7 @@ READ_ONLY_VERBS = {
 class HealthMachine:
     def __init__(self):
         self._tmp = tempfile.TemporaryDirectory()
+        self.disk_free = 50000
         root = Path(self._tmp.name)
         self.bin, self.home, self.proc = root / "bin", root / "home", root / "proc"
         self.state, self.log = root / "state", root / "calls.log"
@@ -150,11 +164,12 @@ class HealthMachine:
             "MOOS_HEALTH_OS_RELEASE": str(self.os_release),
             "MOOS_HEALTH_EDITION": str(self.edition),
             "MOOS_HEALTH_SAMPLE_SECONDS": "0.05",
+            "PRIVATE_HEALTH_DISK_FREE": str(self.disk_free),
             "LANG": "ar_SA.UTF-8",
         }
 
     def run(self, *args):
-        return subprocess.run([sys.executable, str(HEALTH), *args], env=self.env(),
+        return subprocess.run([sys.executable, "-c", FIXTURE_RUNNER, str(HEALTH), *args], env=self.env(),
                               capture_output=True, text=True, timeout=120)
 
     def calls(self):
@@ -286,6 +301,19 @@ class MoosHealthUnknownIsNotHealthyTests(unittest.TestCase):
         # between them, so only a per-ref query can read its permissions.
         _, findings = self.scan(self.machine())
         self.assertEqual([fid for fid in findings if fid.startswith("check-incomplete-")], [])
+
+    def test_disk_warnings_follow_fixture_space_and_preserve_thresholds(self):
+        for free, expected in ((50000, None), (10000, 'warning'), (3000, 'important')):
+            with self.subTest(free=free):
+                machine = self.machine()
+                machine.disk_free = free
+                report, findings = self.scan(machine)
+                self.assertEqual(report['resources']['disks'][0]['used_percent'], 100-free//1000)
+                if expected is None:
+                    self.assertNotIn('disk-system', findings)
+                else:
+                    self.assertEqual(findings['disk-system']['severity'], expected)
+                    self.assertNotIn('disk-home', findings)
 
     def test_a_nightly_success_is_a_run_only_with_its_own_end_time(self):
         # systemd says Result=success for a unit that never ran, and resets it at every boot

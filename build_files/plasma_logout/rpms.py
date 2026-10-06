@@ -76,6 +76,7 @@ def install(folder, root=Path('/')):
         selected.append(path)
     assert names == owned, 'missing installed Plasma subpackage'
     subprocess.run(['dnf5', '-y', 'install', '--setopt=install_weak_deps=False',
+                    '--exclude=kernel,kernel-core,kernel-modules,kernel-modules-core,kernel-modules-extra',
                     *map(str, selected)], check=True)
     for name in sorted(owned):
         actual = command(['rpm', '-q', '--qf', '%{VERSION}-%{RELEASE}', name])

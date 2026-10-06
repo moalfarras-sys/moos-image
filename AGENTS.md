@@ -329,6 +329,10 @@ Inspect the transaction and target/session readback, not merely the worker PID.
 Preserve save/close prompts and authentication. Native upstream corrections
 must retain vendor patches/flags, refuse an unreviewed NVR and prove both the
 old negative control and repeated real logout/login before signed delivery.
+The rebuilt workspace/common RPMs own the session picker too: install them
+before the authoritative MoOS overlay (or its existing final reapply), exclude
+kernel packages in that transaction, and let the unchanged identity gates
+verify the final image. Package presence never proves the overlay survived.
 
 **A cached compile outlives the file it was compiled from.** Qt checks a `.qmlc` against its
 source's mtime, OSTree pins every mtime under `/usr` to the epoch, and a zero timestamp turns
@@ -546,6 +550,10 @@ fixture profile until `moos-theme-drift.timer` put it back — recorded for week
 an unexplained "wallpaper drift". Isolate `DBUS_SESSION_BUS_ADDRESS`, `DISPLAY`,
 `WAYLAND_DISPLAY`, HOME and the XDG directories before executing such a tool, and
 read the live state back before and after when you suspect a side effect.
+A synthetic health machine must also isolate `os.statvfs`: image builds drove the
+station past 90% used and made a planted quiet-machine test report the real disk.
+Keep the production probe real; private fixture disk values must still prove the
+90% warning and 97% important thresholds.
 The owner's journal is live state too: until 2026-09-25 a host `just check` wrote 36
 fabricated `moai-do` audit lines ("action=update verdict=ok") and 22 `moos-update` records
 into it, because three suites ran the real `logger`. Tests stub `logger`, and a meta-gate

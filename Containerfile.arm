@@ -53,7 +53,8 @@ COPY build_files/plasma_logout/build.sh build_files/plasma_logout/logout-transac
 RUN bash /src/build.sh prepare
 RUN bash /src/build.sh compile
 COPY build_files/plasma_logout/rpms.py build_files/plasma_logout/native-proof.cpp build_files/plasma_logout/native-proof.sh /src/
-RUN python3 /src/rpms.py collect /work/plasma-logout-rpmbuild/RPMS /out \
+RUN dnf5 -y install --setopt=install_weak_deps=False dbus-daemon \
+    && python3 /src/rpms.py collect /work/plasma-logout-rpmbuild/RPMS /out \
     && bash /src/native-proof.sh
 
 # Same reviewed vendor source and fix, compiled natively on the ARM runner.
