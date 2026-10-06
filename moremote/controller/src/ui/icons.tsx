@@ -247,3 +247,195 @@ export const IconConnection = (p: P) => (
     <path d="M4 5.5h4M6 3.5v4M16 5.5h4M18 3.5v4" opacity=".72" />
   </S>
 );
+
+// ---- v56 Glass Console additions: same 24px stroke grammar, same aria-hidden contract ----
+export const IconTouch = (p: P) => (
+  <S {...p}>
+    <path d="M9 11V5.5a1.5 1.5 0 0 1 3 0V11" />
+    <path d="M12 10V8.5a1.5 1.5 0 0 1 3 0V11M15 10.5a1.5 1.5 0 0 1 3 0V15a6 6 0 0 1-6 6h-.6a6 6 0 0 1-4.9-2.6L4 14.7a1.6 1.6 0 0 1 2.4-2l2.6 2.3" />
+    <path d="M6.5 5.5a4.5 4.5 0 0 1 8 0" opacity=".6" />
+  </S>
+);
+export const IconMoos = (p: P) => (
+  <S {...p}>
+    <circle cx="12" cy="12" r="8.5" opacity=".55" />
+    <path d="M7.5 15.5v-7l4.5 5 4.5-5v7" />
+  </S>
+);
+export const IconTransfer = (p: P) => (
+  <S {...p}>
+    <path d="M4 8h13l-3.5-3.5M20 16H7l3.5 3.5" />
+  </S>
+);
+export const IconLauncher = (p: P) => (
+  <S {...p}>
+    <rect x="4" y="4" width="6" height="6" rx="1.6" />
+    <rect x="14" y="4" width="6" height="6" rx="1.6" />
+    <rect x="4" y="14" width="6" height="6" rx="1.6" />
+    <rect x="14" y="14" width="6" height="6" rx="1.6" />
+  </S>
+);
+export const IconSparkle = (p: P) => (
+  <S {...p}>
+    <path d="M12 3.5l1.8 5.2L19 10.5l-5.2 1.8L12 17.5l-1.8-5.2L5 10.5l5.2-1.8z" />
+    <path d="M18.5 16.5l.7 1.8 1.8.7-1.8.7-.7 1.8-.7-1.8-1.8-.7 1.8-.7z" />
+  </S>
+);
+export const IconSearch = (p: P) => (
+  <S {...p}>
+    <circle cx="10.5" cy="10.5" r="6.5" />
+    <path d="M20 20l-4.6-4.6" />
+  </S>
+);
+export const IconTerminal = (p: P) => (
+  <S {...p}>
+    <rect x="2.5" y="4" width="19" height="16" rx="2.5" />
+    <path d="M7 9.5l3 2.5-3 2.5M12.5 15h4.5" />
+  </S>
+);
+export const IconPulse = (p: P) => (
+  <S {...p}>
+    <path d="M2.5 12.5h4l2.5-6 4 12 2.5-6h6" />
+  </S>
+);
+export const IconEmoji = (p: P) => (
+  <S {...p}>
+    <circle cx="12" cy="12" r="9" />
+    <path d="M8.5 14.5a4.5 4.5 0 0 0 7 0M9 9.5h.01M15 9.5h.01" />
+  </S>
+);
+export const IconOverview = (p: P) => (
+  <S {...p}>
+    <rect x="3" y="4" width="8" height="7" rx="1.5" />
+    <rect x="13" y="4" width="8" height="7" rx="1.5" />
+    <rect x="3" y="13" width="8" height="7" rx="1.5" />
+    <rect x="13" y="13" width="8" height="7" rx="1.5" />
+  </S>
+);
+export const IconWindows2 = (p: P) => (
+  <S {...p}>
+    <rect x="3" y="7" width="13" height="11" rx="2" />
+    <path d="M8 7V5a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-3" />
+  </S>
+);
+export const IconMaximize = (p: P) => (
+  <S {...p}>
+    <rect x="3.5" y="3.5" width="17" height="17" rx="2.5" />
+    <path d="M9 15l6-6M10 9h5v5" />
+  </S>
+);
+export const IconMinimize = (p: P) => (
+  <S {...p}>
+    <rect x="3.5" y="3.5" width="17" height="17" rx="2.5" />
+    <path d="M8 16h8" />
+  </S>
+);
+export const IconTileLeft = (p: P) => (
+  <S {...p}>
+    <rect x="3" y="4" width="18" height="16" rx="2" />
+    <path d="M12 4v16" />
+    <path d="M5.5 7.5h4v9h-4z" fill="currentColor" stroke="none" opacity=".45" />
+  </S>
+);
+export const IconTileRight = (p: P) => (
+  <S {...p}>
+    <rect x="3" y="4" width="18" height="16" rx="2" />
+    <path d="M12 4v16" />
+    <path d="M14.5 7.5h4v9h-4z" fill="currentColor" stroke="none" opacity=".45" />
+  </S>
+);
+export const IconDeskPrev = (p: P) => (
+  <S {...p}>
+    <rect x="8" y="5" width="13" height="10" rx="2" />
+    <path d="M6 9H5a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2" opacity=".6" />
+    <path d="M15.5 8 13 10l2.5 2" />
+  </S>
+);
+export const IconDeskNext = (p: P) => (
+  <S {...p}>
+    <rect x="3" y="5" width="13" height="10" rx="2" />
+    <path d="M18 9h1a2 2 0 0 1 2 2v6a2 2 0 0 1-2 2h-8a2 2 0 0 1-2-2" opacity=".6" />
+    <path d="M8.5 8 11 10l-2.5 2" />
+  </S>
+);
+export const IconVolumeDown = (p: P) => (
+  <S {...p}>
+    <path d="M5 9h3l5-4.5v15L8 15H5z" />
+    <path d="M16.5 12h4" />
+  </S>
+);
+export const IconVolumeUp = (p: P) => (
+  <S {...p}>
+    <path d="M5 9h3l5-4.5v15L8 15H5z" />
+    <path d="M16.5 12h5M19 9.5v5" />
+  </S>
+);
+export const IconPrevTrack = (p: P) => (
+  <S {...p}>
+    <path d="M6 5v14M19 5.5v13L9 12z" />
+  </S>
+);
+export const IconNextTrack = (p: P) => (
+  <S {...p}>
+    <path d="M18 5v14M5 5.5v13L15 12z" />
+  </S>
+);
+export const IconPlayPause = (p: P) => (
+  <S {...p}>
+    <path d="M4 5.5v13L12.5 12z" />
+    <path d="M15.5 6v12M19.5 6v12" />
+  </S>
+);
+export const IconCamera = (p: P) => (
+  <S {...p}>
+    <path d="M4 8a2 2 0 0 1 2-2h2l1.5-2h5L16 6h2a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z" />
+    <circle cx="12" cy="13" r="3.5" />
+  </S>
+);
+export const IconRegion = (p: P) => (
+  <S {...p}>
+    <path d="M4 8V5a1 1 0 0 1 1-1h3M16 4h3a1 1 0 0 1 1 1v3M20 16v3a1 1 0 0 1-1 1h-3M8 20H5a1 1 0 0 1-1-1v-3" />
+    <path d="M9 12h6M12 9v6" />
+  </S>
+);
+export const IconCheck = (p: P) => (
+  <S {...p}>
+    <path d="M5 12.5l4.5 4.5L19 7.5" />
+  </S>
+);
+export const IconImage = (p: P) => (
+  <S {...p}>
+    <rect x="3" y="4" width="18" height="16" rx="2.5" />
+    <circle cx="9" cy="10" r="1.8" />
+    <path d="M21 16l-5.5-5.5L5 20" />
+  </S>
+);
+export const IconChevronEnd = (p: P) => (
+  <S {...p}>
+    <path d="M9 6l6 6-6 6" />
+  </S>
+);
+export const IconKeyboardHide = (p: P) => (
+  <S {...p}>
+    <rect x="3" y="3" width="18" height="12" rx="2" />
+    <path d="M6.5 6.5h1.5M10 6.5h1.5M13.5 6.5h1.5M17 6.5h.5M7.5 11h9M9 18.5l3 2.5 3-2.5" />
+  </S>
+);
+export const IconGlobe = (p: P) => (
+  <S {...p}>
+    <circle cx="12" cy="12" r="9" />
+    <path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18" />
+  </S>
+);
+export const IconBell = (p: P) => (
+  <S {...p}>
+    <path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15z" />
+    <path d="M10 20.5a2 2 0 0 0 4 0" />
+  </S>
+);
+export const IconInfo = (p: P) => (
+  <S {...p}>
+    <circle cx="12" cy="12" r="9" />
+    <path d="M12 11v6M12 7.5h.01" />
+  </S>
+);

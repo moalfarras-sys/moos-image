@@ -364,3 +364,39 @@ export function ladderTick(st: LadderState, rtt: number, pongAge: number, now: n
   }
   return null;
 }
+
+/**
+ * The most a stream can cost, in Mbit/s — the number to weigh before choosing a picture on
+ * mobile data or a Tailscale relay.
+ *
+ * This is the HELPER's own budget (`h264_bitrate_bps` in mo-remote-portal.py), not a guess: bits
+ * per pixel per frame rise from 0.03 at quality 10 to 0.10 at 95, multiplied by the encoded size
+ * and frame rate, with a per-frame floor of 800 kbit/s at 30 fps and a 12 Mbit/s ceiling. It is
+ * an UPPER bound. Capture is damage-driven, so a still desktop sends almost nothing and typing
+ * sends a fraction of this; only full-screen motion reaches it. The height assumes a 16:9 desktop.
+ */
+export function estimateMbps(quality: number, width: number, fps: number): number {
+  const q = Math.max(10, Math.min(95, quality));
+  const bpp = 0.03 + (q - 10) / 85 * 0.07;
+  const height = Math.round(width * 9 / 16);
+  const floor = 800_000 * Math.min(fps, 30) / 30;
+  const bps = Math.max(floor, Math.min(12_000_000, bpp * width * height * fps));
+  return Math.round(bps / 100_000) / 10;
+}
+
+/**
+ * Frame-rate choices the owner can make on top of a resolution. 0 keeps the preset's own rate.
+ *
+ * A separate choice because resolution and smoothness are separate needs: reading a document
+ * wants pixels, watching a video or moving windows wants frames. The weak-link rung still wins
+ * while Auto is relieving a collapsing link, because there the question is whether the pointer
+ * answers at all.
+ */
+export const FPS_CHOICES = [0, 30, 60] as const;
+export type FpsChoice = (typeof FPS_CHOICES)[number];
+
+/** The frame rate that actually goes on the wire for a preset and the owner's choice. */
+export function effectiveFps(presetFps: number, choice: number, weakLink: boolean): number {
+  if (weakLink) return presetFps;
+  return choice === 30 || choice === 60 ? choice : presetFps;
+}

@@ -17,10 +17,15 @@ const errors = [];
 // behaved the same, but it meant no test ever ran against a value the app could actually store.
 // Pass null to leave the preference unset and get the shipped default (Auto).
 async function viewer(options, mode, language = 'en', cursorEmbedded = false, orient = 'off',
-                      encode = null, linkClass = 'default', h264Fixture = false, liveRtt = null) {
+                      encode = null, linkClass = 'default', h264Fixture = false, liveRtt = null,
+                      backend = 'KWin EIS') {
   const context = await browser.newContext({...options, serviceWorkers: 'block'});
   contexts.push(context);
   await context.addInitScript(({mode, language, orient}) => {
+    // pickStartPreset reads this browser's cores, and a 2-core runner (the Oracle A1) is a
+    // "weak device" that opens at Data saver. Pin the count so the geometry and quality
+    // assertions mean the same thing on every machine that runs them.
+    Object.defineProperty(navigator, 'hardwareConcurrency', {value: 8, configurable: true});
     localStorage.setItem('mo_remote_token', 'isolated-browser-test');
     localStorage.setItem('moremote.mode', JSON.stringify(mode));
     localStorage.setItem('moremote.seenGestureHint', '1');
@@ -61,7 +66,7 @@ async function viewer(options, mode, language = 'en', cursorEmbedded = false, or
   const sendFrame = ws => ws.send(h264Fixture ? keyframe : frame);
   const hello = ws => {
     ws.send(JSON.stringify({type:'hello', screen:{w:1920,h:1080}, paused:false,
-      cursorEmbedded, input:{ready:true,secureText:true}, clipboard:{ready:true}, monitors:[], encode}));
+      cursorEmbedded, input:{ready:true,secureText:true,backend}, clipboard:{ready:true}, monitors:[], encode}));
     if (h264Fixture) ws.send(JSON.stringify({type:'codec',codec:'h264'}));
     sendFrame(ws);
   };
@@ -83,7 +88,7 @@ async function viewer(options, mode, language = 'en', cursorEmbedded = false, or
   });
   await page.goto(origin);
   await page.locator('.toolbar-primary').waitFor();
-  await page.locator('.topbar.mini[aria-expanded="false"]').waitFor();
+  await page.locator('.status-orb.ok').waitFor();
   await page.waitForTimeout(100);
   return {page, packets, sockets, hello, sendFrame, holdHello: () => { autoHello = false; }};
 }
@@ -146,7 +151,12 @@ try {
   {
     const control = await viewer({viewport:{width:393,height:852},isMobile:true,hasTouch:true}, 'touch');
     const cp = control.page;
-    await cp.getByRole('button', {name:'Touchpad',exact:true}).click();
+    // Pad only is a Trackpad option: dock Trackpad, then Settings ▸ Control ▸ Pad only.
+    await cp.getByRole('button', {name:'Trackpad',exact:true}).click();
+    await cp.getByRole('button', {name:'Settings',exact:true}).click();
+    await cp.getByRole('tab', {name:'Control'}).click();
+    await cp.getByRole('switch', {name:'Pad only, no picture'}).click();
+    await cp.locator('.sheet-close').click();
     const pad = cp.getByTestId('remote-touchpad');
     const box = await pad.boundingBox();
     assert.ok(box && box.height >= 160);
@@ -170,6 +180,9 @@ try {
     await cp.setViewportSize({width:852,height:393});
     await capture(cp,'touchpad-en-landscape');
     await cp.setViewportSize({width:393,height:852});
+    await cp.getByRole('button',{name:'Screen',exact:true}).click();
+    assert.equal(control.packets.filter(p=>p.type==='video').at(-1)?.watching,true,
+      'leaving pad only brings the picture back');
     await cp.getByRole('button',{name:'Keyboard',exact:true}).click();
     assert.equal(control.packets.filter(p=>p.type==='video').at(-1)?.watching,true,
       'keyboard typing keeps the actual computer screen streaming');
@@ -231,8 +244,10 @@ try {
     control.sockets.at(-1).send(JSON.stringify({type:'hostState',locked:false}));
     await cp.getByText('Computer locked',{exact:true}).waitFor({state:'hidden'});
     await cp.getByRole('button',{name:'Done',exact:true}).click();
-    await cp.getByRole('button',{name:'Desktop',exact:true}).click();
-    assert.equal(control.packets.filter(p=>p.type==='video').at(-1)?.watching,true);
+    await cp.getByRole('button',{name:'Touch',exact:true}).click();
+    assert.ok(!control.packets.some(p=>p.type==='video' && p.watching===false),
+      'switching modes on the picture never stops the stream');
+    assert.equal(await cp.locator('.screen-canvas').evaluate(el=>getComputedStyle(el).visibility),'visible');
     console.log('PASS: independent touchpad, workspace switching and live-only password keyboard');
   }
 
@@ -331,8 +346,8 @@ try {
   assert.deepEqual(input(packets).map(p=>[p.type,p.value]), [['text','مسودة جديدة']],
     'recovery commits the complete interrupted IME draft exactly once');
   await page.getByRole('button', {name:'تم', exact:true}).click();
-  await page.getByRole('button', {name:'شاشة وتحكم', exact:true}).click();
-  await page.locator('.toolbar.fade-toolbar').waitFor({state:'attached',timeout:10_000});
+  // The dock is permanent now: it must still be there, uncovered, after the keyboard closes.
+  await page.locator('.toolbar:not(.under-keyboard)').waitFor();
 
   for (const [width,height] of [[844,390],[390,844],[844,390],[390,844]]) {
     await page.setViewportSize({width,height});
@@ -449,7 +464,7 @@ try {
   await capture(trackpad.page,'settings-dark-ar');
   await trackpad.page.locator('.sheet-close').click();
   await trackpad.page.getByRole('button',{name:'الإعدادات',exact:true}).click();
-  await trackpad.page.getByRole('button',{name:'الشاشة',exact:true}).click();
+  await trackpad.page.getByRole('tab',{name:'الصورة'}).click();
   await capture(trackpad.page,'display-dark-ar');
   await trackpad.page.getByRole('button',{name:/توفير البيانات 576p/}).click();
   await trackpad.page.getByRole('button',{name:'تلقائي',exact:true}).click();
@@ -475,8 +490,7 @@ try {
     pcText = route.request().postDataJSON().text;
     return route.fulfill({json:{ok:true}});
   });
-  await cp.getByRole('button',{name:'الإعدادات',exact:true}).click();
-  await cp.getByRole('button',{name:'الحافظة',exact:true}).click();
+  await cp.getByRole('button',{name:'الحافظة والملفات',exact:true}).click();
   await cp.locator('textarea[readonly]').filter({visible:true}).waitFor();
   await cp.waitForFunction(() => document.querySelector('textarea[readonly]')?.value === 'من الكمبيوتر 😀');
   await cp.getByRole('button',{name:'نسخ',exact:true}).click();
@@ -521,7 +535,8 @@ try {
   rejectWrite = false;
   pcText = 'Selected on PC';
   await cp.evaluate(() => { navigator.clipboard.readText = async () => window.phoneClipboard; });
-  await cp.getByRole('button',{name:'الإعدادات',exact:true}).click();
+  await cp.getByRole('button',{name:'الحافظة والملفات',exact:true}).click();
+  await cp.locator('textarea[readonly]').filter({visible:true}).waitFor();
   trackpad.packets.length = 0;
   await cp.getByRole('button',{name:'نسخ إلى هذا الجهاز',exact:true}).click();
   await cp.waitForFunction(() => window.phoneClipboard === 'Selected on PC');
@@ -643,10 +658,10 @@ try {
   // It has to SAY so. A limit that acts without explaining itself is indistinguishable from the
   // app being bad at its job.
   await capped.page.getByRole('button', {name:'Settings', exact:true}).click();
-  await capped.page.getByRole('button', {name:'Display', exact:true}).click();
+  await capped.page.getByRole('tab', {name:'Picture'}).click();
   await capped.page.getByRole('dialog').waitFor();
   assert.match(await capped.page.locator('.sheet').innerText(), /960×540@30/,
-    'the Display sheet must name the host limit it is applying');
+    'the Picture settings must name the host limit they are applying');
 
   // And a preset chosen by hand goes past it, or the button is a dead control.
   capped.packets.length = 0;
@@ -661,7 +676,7 @@ try {
   const pinned = await viewer({viewport:{width:390,height:844},deviceScaleFactor:3,
     isMobile:true,hasTouch:true},'touch');
   await pinned.page.getByRole('button', {name:'Settings', exact:true}).click();
-  await pinned.page.getByRole('button', {name:'Display', exact:true}).click();
+  await pinned.page.getByRole('tab', {name:'Picture'}).click();
   pinned.packets.length = 0;
   await pinned.page.getByRole('button', {name:/^Data saver/}).click();
   await pinned.page.waitForTimeout(400);
@@ -698,6 +713,114 @@ try {
     'congestion must retain the conservative phone ceiling');
   assert.ok(directPhone.packets.filter(p => p.type === 'settings').every(p => p.width <= 1366),
     'an unzoomed narrow phone must not jump to Sharp or Ultra');
+
+  // ---------------------------------------------------------------------------------------------
+  // THE GLASS CONSOLE (v56): the three modes in the dock, the desktop's own commands, the frame
+  // rate as its own choice, sticky modifiers, and a Windows host getting Windows shortcuts.
+  {
+    const gc = await viewer({viewport:{width:390,height:844},deviceScaleFactor:3,isMobile:true,hasTouch:true},
+      'touch','en');
+    const gp = gc.page;
+    assert.equal(await gp.locator('.toolbar-primary').getAttribute('aria-orientation'),'horizontal',
+      'a portrait phone gets the bottom dock');
+
+    // Trackpad: the picture goes to the top of the portrait stage and the space below is the pad.
+    await gp.getByRole('button',{name:'Trackpad',exact:true}).click();
+    await gp.locator('.pad-zone:not([hidden])').waitFor();
+    const topPixel = await gp.evaluate(() => {
+      const c = document.querySelector('canvas.screen-canvas');
+      return [...c.getContext('2d').getImageData(Math.round(c.width / 2), Math.round(c.height * 0.04), 1, 1).data];
+    });
+    assert.ok(topPixel.some((n,i) => i < 3 && n > 13), 'Trackpad anchors the picture to the top of a portrait stage');
+    const zone = await gp.locator('.pad-zone').boundingBox();
+    const stage = await gp.locator('.remote-stage').boundingBox();
+    assert.ok(zone.height >= 116 && zone.y + zone.height <= stage.y + stage.height + 1,
+      'the pad outline fills the free space below the picture, inside the stage');
+    gc.packets.length = 0;
+    const gcd = await gp.context().newCDPSession(gp);
+    const zx = zone.x + zone.width / 2, zy = zone.y + zone.height / 2;
+    await gcd.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{id:11,x:zx,y:zy}]});
+    await gcd.send('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[{id:11,x:zx+40,y:zy-12}]});
+    await gp.waitForTimeout(40);
+    await gcd.send('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[{id:11,x:zx+70,y:zy-20}]});
+    await gp.waitForTimeout(40);
+    await gcd.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});
+    await gp.waitForTimeout(80);
+    const padInput = input(gc.packets);
+    assert.ok(padInput.some(p => (p.type === 'move' || p.type === 'moveRelative') && p.mode === 'trackpad'),
+      'a finger in the pad zone drives the pointer');
+    assert.equal(padInput.filter(p => ['click','down','scroll'].includes(p.type)).length, 0,
+      'sliding in the pad zone is neither a click, a drag nor a scroll');
+    await capture(gp,'glass-trackpad-en');
+
+    await gp.getByRole('button',{name:'Mouse & keys',exact:true}).click();
+    assert.equal(await gp.locator('.remote.mouse-mode').count(), 1, 'the dock switches to Mouse & keys');
+    await gp.getByRole('button',{name:'Touch',exact:true}).click();
+    assert.equal(await gp.locator('.pad-zone:not([hidden])').count(), 0, 'Touch does not draw a pad');
+
+    // The desktop's own commands: a media key keeps the sheet up, a desktop command closes it.
+    await gp.getByRole('button',{name:'MoOS commands',exact:true}).click();
+    await gp.getByRole('dialog',{name:'MoOS commands'}).waitFor();
+    await capture(gp,'glass-moos-en');
+    gc.packets.length = 0;
+    await gp.getByRole('button',{name:'Volume up',exact:true}).click();
+    assert.ok(gc.packets.some(p => p.type === 'key' && p.code === 'AudioVolumeUp' && p.down === undefined),
+      'Volume up taps the physical media key');
+    assert.equal(await gp.getByRole('dialog').count(), 1, 'volume keeps the sheet open for repeated presses');
+    await gp.getByRole('button',{name:'Mira',exact:true}).click();
+    assert.deepEqual(gc.packets.filter(p => p.type === 'combo').at(-1)?.keys, ['Meta','Space'],
+      'Mira is MoOS\'s own Meta+Space');
+    assert.equal(await gp.getByRole('dialog').count(), 0, 'a desktop command closes the sheet so its result shows');
+    await gp.getByRole('button',{name:'MoOS commands',exact:true}).click();
+    gc.packets.length = 0;
+    await gp.getByRole('button',{name:'Overview',exact:true}).click();
+    assert.deepEqual(gc.packets.filter(p => p.type === 'combo').map(p => p.keys), [['Meta','w']]);
+
+    // Frame rate is its own choice on top of the resolution, and the readout follows it.
+    await gp.getByRole('button',{name:'Settings',exact:true}).click();
+    await gp.getByRole('tab',{name:'Picture'}).click();
+    await gp.getByRole('button',{name:/^Sharp/}).click();
+    gc.packets.length = 0;
+    await gp.getByRole('button',{name:'60 fps',exact:true}).click();
+    await gp.waitForTimeout(300);
+    const fast = gc.packets.filter(p => p.type === 'settings').at(-1);
+    assert.equal(fast?.fps, 60, '60 fps reaches the encoder request');
+    assert.equal(fast?.quality, 80, 'the resolution choice is kept');
+    assert.match(await gp.getByRole('button',{name:/^Sharp/}).getAttribute('aria-label'), /60 fps/,
+      'the preset card states the frame rate and cost it will actually use');
+    await capture(gp,'glass-picture-en');
+    await gp.getByRole('button',{name:'From quality',exact:true}).click();
+    await gp.waitForTimeout(300);
+    assert.equal(gc.packets.filter(p => p.type === 'settings').at(-1)?.fps, 30, 'From quality restores the preset rate');
+    await gp.locator('.sheet-close').click();
+
+    // One-shot modifiers on the phone keyboard.
+    await gp.getByRole('button',{name:'Keyboard',exact:true}).click();
+    gc.packets.length = 0;
+    await gp.getByRole('button',{name:'Ctrl',exact:true}).click();
+    await gp.locator('.kbinput').fill('c');
+    await gp.waitForTimeout(150);
+    assert.deepEqual(input(gc.packets).filter(p => p.type === 'combo').map(p => p.keys), [['Control','c']],
+      'Ctrl then c sends one Ctrl+C');
+    assert.equal(input(gc.packets).filter(p => p.type === 'text').length, 0, 'the modified letter is not also typed');
+    await gp.getByRole('button',{name:'F5',exact:true}).click();
+    assert.ok(input(gc.packets).some(p => p.type === 'key' && p.key === 'F5'), 'function keys are on the panel');
+    await capture(gp,'glass-keyboard-en');
+    await gp.getByRole('button',{name:'Done',exact:true}).click();
+
+    const win = await viewer({viewport:{width:1366,height:900}},'desktop','en',false,'off',null,'default',
+      false,null,'Win32 SendInput');
+    assert.equal(await win.page.locator('.toolbar-primary').getAttribute('aria-orientation'),'vertical',
+      'a computer gets the side rail');
+    await win.page.getByRole('button',{name:'Windows commands',exact:true}).click();
+    await win.page.getByRole('dialog',{name:'Windows commands'}).waitFor();
+    assert.equal(await win.page.getByRole('button',{name:'Mira',exact:true}).count(), 0,
+      'a Windows host is not offered MoOS-only commands');
+    win.packets.length = 0;
+    await win.page.getByRole('button',{name:'Task Manager',exact:true}).click();
+    assert.deepEqual(win.packets.filter(p => p.type === 'combo').at(-1)?.keys, ['Control','Shift','Escape']);
+    console.log('PASS: Glass Console modes, pad zone, desktop commands, frame rate, sticky keys and Windows host');
+  }
 
   const light = await viewer({viewport:{width:360,height:800},deviceScaleFactor:2,
     isMobile:true,hasTouch:true,colorScheme:'light',reducedMotion:'reduce'},'touch','ar');
