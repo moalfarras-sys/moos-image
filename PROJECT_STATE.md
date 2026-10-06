@@ -1,6 +1,6 @@
 # MoOS current state — measured 2026-10-06
 
-**Oracle A1, 2026-10-06:** booted signed `.710` (`a2ee890d…`, source `66653f76`), `.696` rollback. Installed selfcheck 51/0 and post-update 55/0; no failed units/kernel errors. Private FileBrowser/code-server/rootless Immich 3.2.4 provide files/code/photos; original upload/download, thumbnails/video and encrypted configuration/catalog restore pass.
+**Oracle A1, 2026-10-06:** booted signed `.710` (`a2ee890d…`, source `66653f76`), `.696` rollback. Installed selfcheck 51/0 and post-update 55/0; no failed units/kernel errors. Private FileBrowser/code-server/rootless Immich 3.2.4 and SMB3 provide files/code/photos; original upload/download, thumbnails/video and encrypted configuration/catalog restore pass.
 Packaged Tailscale 1.102.5 now owns the daemon; its stale `/etc` executable shadow was retired. Phone background upload and off-host originals backup remain unproven; `oomd` still monitors nothing. Host profile/evidence: [Oracle cloud workstation](docs/ORACLE_CLOUD_WORKSTATION.md), P5.5/P5.7.
 
 

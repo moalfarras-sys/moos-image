@@ -7,6 +7,7 @@ or a second product backlog. Open work belongs to DEVELOPMENT_PLAN P5.5/P5.7.
 | --- | --- | --- |
 | Desktop | signed MoOS ARM .710, 1280×720 virtual seat | existing Mo PC Remote, HTTPS 443 |
 | General files | FileBrowser Quantum 1.5.8, private `~/CloudFiles` | HTTPS 8443 / authenticated WebDAV |
+| iPhone Files | rootless Samba 4.23.8, same CloudFiles | SMB3 through tailnet TCP Serve 445 |
 | Development | code-server 4.140.0, existing Projects/repositories | HTTPS 8444, password auth |
 | Photos/video | Immich 3.2.4, stable exact-release rootless Compose | HTTPS 8445, separate local account |
 | Resources | `System-Status.json` every five minutes | authenticated file portal; native System Monitor |
@@ -70,3 +71,33 @@ Sources: [Immich installation](https://docs.immich.app/install/docker-compose/),
 [requirements](https://docs.immich.app/install/requirements/),
 [mobile backup](https://docs.immich.app/features/mobile-backup/),
 [backup/restore](https://docs.immich.app/administration/backup-and-restore/).
+
+## Native iPhone Files connection
+
+The owner-requested native Files route uses `smb://<Oracle tailnet IP>`.
+Activate Tailscale on the iPhone, then Files → Browse → … → Connect to Server →
+Registered User. Use the private SMB username/password section in the owner
+handoff, not the gallery's email login; choose `CloudFiles` and add it to Favorites.
+It is the same folder as the web file portal, so documents/photos/videos saved
+there remain visible from both interfaces. Immich still handles automatic album
+uploads; a network Files share alone does not implement camera-roll backup.
+
+A rootless ARM64 `ghcr.io/servercontainers/samba` image is pinned at
+`sha256:31b90ea7fe3258d30fccd971c85743b92694605f4b43dc8a4df23a202fced06a`.
+Backend 127.0.0.1:1445 reaches only the dedicated CloudFiles mount; Tailscale TCP
+Serve exposes 445 on tailnet addresses. No public port, privileged-port sysctl or
+SELinux exception is needed. Registered-user-only access, SMB3 minimum, mandatory
+signing and disabled symlink/wide-link traversal are read back from Samba.
+Container UID 0 maps to the ordinary host owner in rootless Podman; file ownership
+is preserved. The new user service is enabled with 192 MiB/.5-core bounds.
+
+Wire proof to the tailnet endpoint: authenticated mkdir/put/get/rename/delete/
+rmdir succeeded and bytes matched; anonymous access failed; an owned symlink to
+outside the share failed with NT_STATUS_STOPPED_ON_SYMLINK. Only test artifacts
+were removed. An unsupported systemd socket-proxy trial was archived/uninstalled
+before using native Tailscale forwarding; host confinement was retained. Actual
+iPhone navigation is still owner-device acceptance.
+
+References: [Apple Files server connection](https://support.apple.com/en-au/guide/iphone/iphe9aff429a/ios),
+[Tailscale file-server access](https://tailscale.com/docs/use-cases/personal-or-at-home-use/access-nas-media-file-servers),
+[Samba image](https://github.com/ServerContainers/samba).
