@@ -245,6 +245,11 @@ const main = readFileSync(join(import.meta.dirname, "..", "src", "main.tsx"), "u
 assert.match(vite, /skipWaiting: true/, "a waiting service worker serves the old app for ever");
 assert.match(vite, /clientsClaim: true/);
 assert.match(main, /controllerchange/, "the page must reload when a new worker takes over");
+// A Home Screen app is resumed, not reloaded: without a check on the way back to the foreground an
+// installed copy kept the previous controller until it was force-quit (measured, 2026-10-06).
+assert.match(main, /addEventListener\("visibilitychange", askWhenShown\)/,
+  "returning to the app must ask for a newer service worker");
+assert.match(main, /reg\.update\(\)/);
 
 console.log("PASS: client letterbox/orientation/turned-view/keyboard/update tests");
 
