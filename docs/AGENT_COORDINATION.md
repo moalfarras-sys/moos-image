@@ -27,7 +27,7 @@ rebuild of the same commit killed the cycle's build and the cycle reported FAIL.
 reuses a finished build of the exact revision and adopts a superseding one. Expect to rebase
 rather than to conflict.
 
-**2026-10-06: the owner has reserved the next release cycle for the station’s native logout correction (#211) and reviewed Oracle documentation integration.** The final source is being integrated before one standard `scripts/release-candidate.sh --promote` cycle; no duplicate cycle. Main freezes at that final candidate revision until promotion/failure. The station’s own intermediate `ef8ec7ea` push builds were cancelled before any boot/promotion proof started; they are not delivery evidence.
+**2026-10-06: the owner has reserved the next release cycle for the station’s native logout correction (#211) and reviewed Oracle documentation integration.** The standard `scripts/release-candidate.sh --promote` cycle on `0b44d435` failed closed (`37496769111`) before image publication on a new Sharp advisory. A narrow security patch must merge before the next cycle; main freezes at that next candidate revision until promotion/failure. The station’s own intermediate `ef8ec7ea` push builds were cancelled before any boot/promotion proof started; they are not delivery evidence.
 
 **Release cycles** normally belong to the off-station agent. On 2026-09-18 the owner
 asked the station to run one for W8 so every edition updates; say so here when that
