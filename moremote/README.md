@@ -32,11 +32,12 @@ A **private** remote control for your MoOS or Windows PC, driven from your iPhon
 - **Data-saving + Auto quality** — identical frames are never resent (a still screen uses almost no data/battery); an **Auto** quality mode adapts JPEG quality/scale to your network latency.
 - **Optional HTTPS** — serve over a real Tailscale certificate (tray ▸ *Enable HTTPS*) to unlock the phone's native clipboard and offline PWA install.
 - **Optional SYSTEM service** *(experimental)* — run across the lock/login screen (see below).
-- **Three smart touch modes** — **Touch** (tap = click, swipe = scroll, long-press = right-click), **Trackpad** (relative cursor), **Direct** (press-and-drag). Double-tap = double click. Pinch-zoom + pan the view. A live cursor indicator shows the pointer.
-- **Display controls** — Fit-to-screen / Original 100% / Zoom in-out / Fullscreen, with accurate touch coordinates at any zoom.
+- **Three modes, one tap apart** — **Touch** (the screen acts as a touchscreen; one-finger drag optional), **Trackpad** (a relative pointer; on an upright phone the space below the picture is the pad) and **Mouse & keys** (a real mouse and keyboard). Double-tap = double click. Pinch-zoom + pan the view.
+- **Picture controls** — Auto or a chosen resolution with its data cost, 30/60 fps, Fit / 100% / zoom, rotation lock and fullscreen, with accurate touch coordinates at any zoom.
+- **MoOS commands** — the desktop's own shortcuts as one-tap tiles: launcher, Mira, search, Overview, window snapping, desktops, volume/media, screenshot and confirmed power actions.
 - **Full keyboard** — opens the native iPhone keyboard; types Arabic + English + symbols straight into Windows. Shortcut bar: Ctrl / Alt / Shift / Win, Ctrl+C / Ctrl+V / Ctrl+A, Alt+Tab, Esc, Tab, arrows, Home/End/Del, plus Ctrl+Alt+Del (safe).
 - **Clipboard sync** (button-only, never automatic) — *Get PC Clipboard* pulls the PC's text to the phone; *Set PC Clipboard* pushes the phone's text to the PC.
-- **Non-overlapping adaptive controls** — a thumb dock below the picture on phones and a right rail on landscape/desktop. Every control lives outside the encoded desktop, so the MoOS Horizon Bar remains visible and clickable.
+- **Non-overlapping adaptive controls** — a permanent thumb dock below the picture on phones and a side rail on landscape/desktop. Every control lives outside the encoded desktop, so the MoOS Horizon Bar remains visible and clickable.
 - **Text and image clipboard** (explicit, never background polling) — set only, or send and paste after exact read-back. Desktop Ctrl/Cmd+V transfers the browser's text or image first, then pastes remotely; a failed transfer never pastes stale PC content.
 - **Security** — first-run PIN (Argon2id-hashed), short-lived session tokens, 5-attempts → 5-minute lockout, **idle-timeout disconnect**, DPAPI-encrypted local config.
 - **Tailscale-only** — accepts connections only from `100.64.0.0/10` + loopback. Never exposed to the internet.
@@ -166,26 +167,47 @@ Common commands inside `controller/`:
 
 ## Touch, keyboard & clipboard guide
 
-Tap the **Mouse mode** button on the toolbar to switch between three modes:
+The dock under the picture (a rail beside it on a computer or a phone on its side) has three
+modes and four buttons. It never hides and never covers the remote desktop.
 
-| Gesture          | Touch (default)        | Trackpad                | Direct                  |
-| ---------------- | ---------------------- | ----------------------- | ----------------------- |
-| Tap              | Left click             | Left click              | Left click              |
-| Double-tap       | Double click           | Double click            | Double click            |
-| Long-press       | Right click            | Right click             | Right click             |
-| One-finger drag  | **Scroll** (swipe)     | Move cursor (relative)  | Press-and-drag (windows / select) |
-| Two-finger drag  | Pan when zoomed        | Scroll                  | Scroll                  |
-| Pinch            | Zoom the view          | Zoom the view           | Zoom the view           |
+| Gesture          | Touch (default on a phone) | Trackpad                       | Mouse & keys            |
+| ---------------- | -------------------------- | ------------------------------ | ----------------------- |
+| Tap              | Left click where you tap   | Left click at the pointer      | (real mouse buttons)    |
+| Double-tap       | Double click               | Double click                   | —                       |
+| Long-press       | Right click                | Right click                    | —                       |
+| One-finger drag  | **Scroll** (or drag, with *One-finger drag* on) | Move the pointer | Drag (finger) / real mouse |
+| Two-finger tap   | Right click                | Right click                    | —                       |
+| Two-finger drag  | Scroll / pan when zoomed   | Scroll                         | Scroll                  |
+| Pinch            | Zoom the view              | Zoom the view                  | Zoom the view           |
 
-A small ring shows the current pointer position. The PC's resolution is **never** changed — zoom only affects your phone view.
+In **Trackpad** on an upright phone the picture moves to the top and the empty space below it
+becomes the pad, so your thumb never covers what it is pointing at. **Pad only** (Settings ▸
+Control) turns the picture off when the computer's own screen is in front of you.
 
-**View** button: **Fit** (whole screen) / **100%** (original size, pan around) / Zoom in-out / quality **Auto / Low / Balanced / High** (Auto adapts to your network) / **Monitor** picker (multi-display).
+The **connection orb** shows the link state and round trip; tap it for **Settings ▸ Picture**:
+Auto or a resolution (Data saver 576p, Balanced 768p, Sharp 1080p, Ultra 1440p) with what each
+can cost in Mbit/s, the frame rate (preset, 30 or 60 fps), Fit / 100 %, zoom, the rotation lock,
+the monitor, sound and fullscreen. **Settings ▸ Control** explains the modes and holds pointer
+and scroll speed; **Settings ▸ General** has language, alerts, trusted devices and the version.
 
-**Controls**: **Desktop · Touchpad · Keyboard · Settings**. Desktop controls auto-hide; tap **Controls** to reveal them. Clipboard, display, sound, files and power are in Settings. On a phone they occupy a reserved bottom dock; in landscape and desktop browsers they occupy a reserved right rail. They never sit on top of the remote picture. *More* has Ctrl+Alt+Del, Copy, Paste, Refresh stream, Disconnect, and a **Power** section. *Display* has a monitor picker when the PC has more than one display.
+**MoOS** opens the desktop's own commands, one tap each: launcher, Mira, search, Overview, show
+desktop, files, terminal, system settings, system monitor, clipboard history, emoji, window
+snapping, previous/next desktop, close window, volume and media keys, screenshot, region capture
+and (behind a confirmation) lock, sleep, sign out, restart and shut down. A Windows PC gets the
+Windows shortcuts instead.
 
-**Keyboard:** tap **Type** to open the native phone keyboard. MoOS types ASCII and Arabic through real keyboard groups, and uses a confirmed exact-text compatibility path for German characters, accents, emoji and composed Unicode that the installed input protocol cannot represent. The shortcut row has sticky **Ctrl / Alt / Shift / Win**, one-tap **Ctrl+C / Ctrl+V / Ctrl+A / Alt+Tab**, and Esc, Tab, arrows, Home, End, Del.
+**Keyboard** opens the phone's own keyboard — every language it has, including Arabic and
+dictation — with two rows of PC keys above it: password typing, one-shot **Ctrl / Alt / Shift /
+Meta**, Esc, Tab, arrows, Home/End/PgUp/PgDn/Del, copy to this device, paste from this device,
+select all, undo, redo, cut and F1–F12. MoOS types ASCII and Arabic through real keyboard groups,
+and uses a confirmed exact-text path for characters the input protocol cannot represent.
 
-**Clipboard**: **Get from PC** fetches text or a PNG preview. For outgoing text use **Set only** or **Send & Paste**; for a photo use **Set image only** or **Photo & Paste**. On a desktop browser Ctrl/Cmd+V over the remote picture transfers local text or the first image and waits for the PC to serve the exact payload before sending Paste. Nothing is synchronized automatically.
+**Transfer** holds the clipboard and files. **Copy to this device** presses Ctrl+C on the PC and
+brings the result to the phone; **Paste from this device** sends the phone's clipboard and pastes
+it. Below them: text and PNG in both directions with **Set only** / **Send & Paste**, and a file
+browser with download and resumable upload. On a desktop browser Ctrl/Cmd+V over the remote
+picture transfers local text or the first image and waits for the PC to serve the exact payload
+before sending Paste. Nothing is synchronized automatically.
 
 > **About Ctrl+Alt+Del:** Windows blocks software from injecting the real Secure Attention Sequence (a security feature). The button sends **Ctrl+Shift+Esc** (Task Manager) as the safe equivalent.
 
@@ -245,7 +267,7 @@ The PIN is **never** stored here — it's Argon2id-hashed and the whole `config.
 - **No login, no access.** First run forces a PIN.
 - **PINs are hashed** with Argon2id; the config blob is DPAPI-encrypted to the current Windows user.
 - **Session tokens** are random 256-bit values, in-memory only (a restart forces re-login), with a sliding expiry.
-- **Brute-force protection:** 5 wrong attempts → 5-minute lockout.
+- **Brute-force protection:** login and remote PIN changes share five wrong attempts → a two-minute lockout, persisted across agent restarts.
 - **Tailscale-only:** connections are accepted only from `100.64.0.0/10` (Tailscale) + loopback. The agent binds to the Tailscale IP; the public internet is never reachable.
 - **No telemetry, no external calls.** Nothing leaves your machine.
 - **Always visible:** the on-screen banner + tray indicator make hidden control impossible.

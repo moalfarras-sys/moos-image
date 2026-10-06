@@ -93,7 +93,9 @@
       "Bash(flatpak-spawn --host systemctl --user disable:*)",
       "Bash(flatpak-spawn --host kwriteconfig6:*)",
       "Bash(flatpak-spawn --host moos-update:*)",
-      "Edit(//var/home/moos/.cache/moos-*/**)"
+      "Edit(//var/home/moos/.cache/moos-*/**)",
+      "Bash(git commit *)",
+      "Bash(git stash *)"
     ],
     "ask": [
       "Edit(build_files/verify_*.py)",

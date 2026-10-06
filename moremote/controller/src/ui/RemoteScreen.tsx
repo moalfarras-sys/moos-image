@@ -10,24 +10,29 @@ import {
   listTrustedDevices, revokeTrustedDevice, SessionExpiredError,
   type ClipResult, type FileListing, type FileEntry, type PowerAction, type TrustedDeviceInfo,
 } from "../lib/api";
-import { pickStartPreset, readDeviceHints, describeHints, encodeWidth, autoPresetLimit,
+import { pickStartPreset, readDeviceHints, encodeWidth, autoPresetLimit, effectiveFps,
   presetEncodeCeiling, ladderTick, sampleDetailProbe, LADDER, WEAK_LINK, type HostEncode } from "../lib/quality";
+import { hostKindFrom, type HostAction, type HostKind } from "../lib/hostActions";
 import { h264Failures, noteH264Failure, H264_MAX_FAILURES } from "../lib/h264state.ts";
 import { diffToOps } from "../lib/typing.ts";
 import { remoteAlertPermission, requestRemoteAlertPermission, showRemoteAlert } from "../lib/notifications";
 import { makeT, type Lang, type StringId } from "../lib/i18n";
 import { QUALITY_PRESETS, AUTO_MAX_PRESET, MAX_DPR, POINTER_BAR_QUERY, BUILD, type GestureMode, type ViewMode, type MonitorInfo } from "../types";
-import {
-  IconAltTab, IconActual, IconArrowUp, IconBackspace, IconChevronDown, IconClipboard, IconClose,
-  IconConnection, IconCopy, IconDesktop, IconEnter, IconEsc, IconFile, IconFit, IconFolder, IconFullscreen, IconKeyboard,
-  IconLock, IconMore, IconMouse, IconPaste, IconPause, IconPower, IconRefresh, IconRotate, IconSend, IconSettings, IconShield,
-  IconSpeaker, IconSpeakerOff, IconTrackpad, IconUpload,
-  IconWindows, IconZoomIn, IconZoomOut,
-} from "./icons";
+import { IconClose, IconConnection, IconLock, IconPause, IconPower, IconRotate, IconTrackpad } from "./icons";
+import { SheetPanel } from "./kit";
+import { Dock } from "./remote/Dock";
+import { KeyboardPanel } from "./remote/KeyboardPanel";
+import { SettingsSheet } from "./remote/SettingsSheet";
+import { ActionsSheet } from "./remote/ActionsSheet";
+import { TransferSheet } from "./remote/TransferSheet";
+import type { Conn, ControlMode, Orient, RemoteModel, SettingsTab, TransferTab } from "./remote/model";
 
-type Conn = "connecting" | "live" | "paused" | "stopped" | "reconnecting" | "idle";
-type Sheet = null | "view" | "more" | "clip" | "files";
+type Sheet = null | "settings" | "actions" | "transfer";
 type PendingPower = { action: PowerAction; label: string };
+/** The phone-on-its-side rail. Declared after POINTER_BAR_QUERY in styles.css, where it must win. */
+const SHORT_LANDSCAPE_QUERY = "(orientation: landscape) and (max-height: 520px)";
+/** The least room below a top-anchored picture worth calling a trackpad, in CSS px. */
+const PAD_ZONE_MIN = 140;
 /**
  * The on-screen rectangle the picture occupies, and whether it is drawn turned a quarter turn
  * inside it. `dispW`/`dispH` are always the SCREEN box — so letterboxing, panning, zoom clamping
@@ -166,132 +171,6 @@ function defaultMode(): GestureMode {
   }
 }
 
-/**
- * A settings row: title (and optional explanation) on the left, its control on the right.
- *
- * This is the shape the whole sheet is built from, and it exists as a component so every
- * row is the same height and the same alignment. The previous sheet reached for a
- * `.seg` button per boolean — a button whose only "on" signal was a background tint, which
- * on a phone in daylight is not a signal at all.
- */
-function Row({ title, sub, children }: { title: string; sub?: string; children: React.ReactNode }) {
-  return (
-    <div className="row">
-      <div className="row-main">
-        <div className="row-title">{title}</div>
-        {sub && <div className="row-sub">{sub}</div>}
-      </div>
-      {children}
-    </div>
-  );
-}
-
-/**
- * A real switch, not a tinted button.
- *
- * role/aria-checked rather than a styled <input>: the sheet is scrollable and a native
- * checkbox drags oddly inside one on iOS, and this way the accessible state is explicit
- * rather than inferred from a class name. The knob moves, so on/off reads at a glance
- * without reading the label — which is the entire reason to use a switch here.
- */
-function Switch({ on, onToggle }: { on: boolean; onToggle: () => void }) {
-  return (
-    <button
-      type="button"
-      role="switch"
-      aria-checked={on}
-      className="switch"
-      onClick={onToggle}
-    />
-  );
-}
-
-/**
- * A bottom sheet is a modal dialog, not merely a card drawn above a scrim.
- * Own focus while it is open, close on Escape, wrap Tab inside it, and restore
- * the invoking control afterwards. This keeps phone screen-readers and desktop
- * keyboard users on the same interaction path as touch users.
- */
-function SheetPanel({ label, closeLabel, onClose, children, role = "dialog", descriptionId,
-  initialFocusSelector = ".sheet-close", dismissible = true }: {
-  label: string;
-  /** Fully composed, already-translated "Close <sheet name>" text for the close button. */
-  closeLabel: string;
-  onClose: () => void;
-  children: React.ReactNode;
-  role?: "dialog" | "alertdialog";
-  descriptionId?: string;
-  initialFocusSelector?: string;
-  dismissible?: boolean;
-}) {
-  const panelRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const viewport = window.visualViewport;
-    const panel = panelRef.current;
-    if (!viewport || !panel) return;
-    const resize = () => {
-      panel.style.bottom = `${Math.max(0, window.innerHeight - viewport.height - viewport.offsetTop)}px`;
-      panel.style.maxHeight = `${Math.max(0, Math.min(window.innerHeight * .82, viewport.height - 16))}px`;
-    };
-    viewport.addEventListener("resize", resize);
-    viewport.addEventListener("scroll", resize);
-    resize();
-    return () => {
-      viewport.removeEventListener("resize", resize);
-      viewport.removeEventListener("scroll", resize);
-    };
-  }, []);
-
-  useEffect(() => {
-    const panel = panelRef.current;
-    if (!panel) return;
-    const previous = document.activeElement instanceof HTMLElement ? document.activeElement : null;
-    const focusable = () => Array.from(panel.querySelectorAll<HTMLElement>(
-      'button:not([disabled]), input:not([disabled]), textarea:not([disabled]), summary, [contenteditable="true"], [tabindex]:not([tabindex="-1"])',
-    )).filter((item) => !item.hidden && item.getAttribute("aria-hidden") !== "true");
-
-    (panel.querySelector<HTMLElement>(initialFocusSelector) ?? focusable()[0] ?? panel).focus();
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        event.preventDefault();
-        if (dismissible) onClose();
-        return;
-      }
-      if (event.key !== "Tab") return;
-      const items = focusable();
-      if (items.length === 0) {
-        event.preventDefault();
-        panel.focus();
-        return;
-      }
-      const first = items[0];
-      const last = items[items.length - 1];
-      if (event.shiftKey && document.activeElement === first) {
-        event.preventDefault();
-        last.focus();
-      } else if (!event.shiftKey && document.activeElement === last) {
-        event.preventDefault();
-        first.focus();
-      }
-    };
-    panel.addEventListener("keydown", onKeyDown);
-    return () => {
-      panel.removeEventListener("keydown", onKeyDown);
-      previous?.focus();
-    };
-  }, [dismissible, initialFocusSelector, onClose]);
-
-  return (
-    <div ref={panelRef} className="sheet" role={role} aria-modal="true" aria-label={label}
-         aria-describedby={descriptionId} tabIndex={-1}>
-      <button type="button" className="sheet-close" onClick={onClose} disabled={!dismissible}
-              aria-label={closeLabel}><IconClose /></button>
-      {children}
-    </div>
-  );
-}
-
 /** QUALITY_PRESETS is fixed order (data saver, balanced, sharp, ultra); translate its labels by index. */
 const QUALITY_LABEL_KEYS: StringId[] = ["qualityDataSaver", "qualityBalanced", "qualitySharp", "qualityUltra"];
 
@@ -399,7 +278,6 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired, l
   // skips the blit when nothing has — see the draw loop for why that matters on a phone.
   const drawEpochRef = useRef(0);
   const invalidate = useCallback(() => { drawEpochRef.current++; }, []);
-  const hideTimer = useRef<number | null>(null);
   const toastTimer = useRef<number | null>(null);
 
   const [status, setStatus] = useState<Conn>("connecting");
@@ -436,6 +314,20 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired, l
   const weakRef = useRef(false);
   const [kbOpen, setKbOpen] = useState(false);
   const [sheet, setSheet] = useState<Sheet>(null);
+  const [settingsTab, setSettingsTab] = useState<SettingsTab>("picture");
+  const [transferTab, setTransferTab] = useState<TransferTab>("clipboard");
+  const openSettings = useCallback((tab: SettingsTab) => { setSettingsTab(tab); setSheet("settings"); }, []);
+  const openTransfer = useCallback((tab: TransferTab) => { setTransferTab(tab); setSheet("transfer"); }, []);
+  /** Which desktop is on the other end; it decides which quick-action shortcuts are offered. */
+  const [hostKind, setHostKind] = useState<HostKind>("moos");
+  /** What the encoder was last asked for, for the live readout in Settings. */
+  const [stream, setStream] = useState({ width: 0, fps: 0, quality: 0 });
+  /** 0 = the preset's own frame rate; 30 or 60 = the owner's explicit choice (see effectiveFps). */
+  const [fpsPref, setFpsPref] = usePref<number>("fpsChoice", 0);
+  const fpsPrefRef = useRef(fpsPref); fpsPrefRef.current = fpsPref;
+  /** Touch mode's one-finger-drag flavour, remembered across a trip to Trackpad or Mouse. */
+  const [touchDrag, setTouchDrag] = usePref("touchDrag", false);
+  const padZoneRef = useRef<HTMLDivElement>(null);
   const [trustedDevices, setTrustedDevices] = useState<TrustedDeviceInfo[] | null>(null);
   const [trustedDevicesFailed, setTrustedDevicesFailed] = useState(false);
   const [deviceLoadAttempt, setDeviceLoadAttempt] = useState(0);
@@ -446,7 +338,7 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired, l
   const powerInFlightRef = useRef(false);
   const cancelPowerConfirm = useCallback(() => {
     setPowerConfirm(null);
-    setSheet("more");
+    setSheet("actions");
   }, []);
   const [mods, setMods] = useState<Set<string>>(new Set());
   const [fps, setFps] = useState(0);
@@ -455,8 +347,6 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired, l
   const detailProbeRef = useRef({ good: 0, bad: 0, responsive: false });
   const [latency, setLatency] = useState(0);
   const [toast, setToast] = useState<string | null>(null);
-  const [toolbar, setToolbar] = useState(true);
-  const [statsOpen, setStatsOpen] = useState(false);
   /**
    * Does the desktop cover so little of the stage that the offer to turn it is worth making?
    *
@@ -504,7 +394,6 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired, l
    * The two locks are the point: "I decide when it turns, or I lock it" is the request, and a lock
    * that only holds in one direction is not a lock.
    */
-  type Orient = "auto" | "on" | "off";
   const [orient,setOrient]=usePref<Orient>("orient","auto");
   const mouseSensitivityRef=useRef(mouseSensitivity);mouseSensitivityRef.current=mouseSensitivity;
   const scrollSensitivityRef=useRef(scrollSensitivity);scrollSensitivityRef.current=scrollSensitivity;
@@ -603,7 +492,7 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired, l
   };
 
   useEffect(() => {
-    if (sheet !== "more") return;
+    if (sheet !== "settings" || settingsTab !== "general") return;
     let live = true;
     setTrustedDevices(null);
     setTrustedDevicesFailed(false);
@@ -617,7 +506,7 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired, l
       else setTrustedDevicesFailed(true);
     });
     return () => { live = false; };
-  }, [sheet, token, deviceLoadAttempt, onAuthExpired]);
+  }, [sheet, settingsTab, token, deviceLoadAttempt, onAuthExpired]);
 
   const revokeDevice = async (device: TrustedDeviceInfo) => {
     if (deviceBusy) return;
@@ -632,13 +521,6 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired, l
     } finally {
       setDeviceBusy("");
     }
-  };
-
-  // ---------- toolbar auto-hide ----------
-  const bumpToolbar = () => {
-    setToolbar(true);
-    if (hideTimer.current) window.clearTimeout(hideTimer.current);
-    hideTimer.current = window.setTimeout(() => setToolbar(false), 6000);
   };
 
   // ---------- layout / mapping ----------
@@ -686,8 +568,38 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired, l
     const z = view.current.zoom;
     const dispW = sw * base * z, dispH = sh * base * z;
     const ox = (cssW - dispW) / 2 + view.current.panX;
-    const oy = (cssH - dispH) / 2 + view.current.panY;
+    const oy = fitTop(cssW, cssH, dispH) + view.current.panY;
     return { dispW, dispH, ox, oy, rot };
+  };
+
+  /**
+   * Where a picture that fits sits vertically: centred, or at the TOP of a portrait stage while
+   * the trackpad is in use.
+   *
+   * That second case is the laptop shape — the screen above, the trackpad below. A 16:9 desktop on
+   * an upright phone leaves most of the stage empty, and in Trackpad mode a finger anywhere moves
+   * the pointer, so lifting the picture to the top turns the whole empty half into a trackpad the
+   * thumb can use without covering what it is pointing at. The pad's outline is drawn there (see
+   * placePadZone); the canvas under it still owns the gesture.
+   *
+   * Only while the picture genuinely fits with room to spare: zoomed or turned, it goes back to the
+   * centred geometry every pan and clamp rule was written for. Every consumer — draw, hit-test, the
+   * frameless input geometry — calls this one function, so they cannot disagree.
+   */
+  const fitTop = (cssW: number, cssH: number, dispH: number) =>
+    modeRef.current === "trackpad" && workspaceRef.current !== "touchpad"
+      && cssH > cssW * 1.15 && dispH <= cssH - PAD_ZONE_MIN ? 0 : (cssH - dispH) / 2;
+
+  /** Show the trackpad's outline in the space below a top-anchored picture, or hide it. */
+  const placePadZone = (l: Layout | null) => {
+    const zone = padZoneRef.current, c = canvasRef.current;
+    if (!zone || !c) return;
+    const top = l ? l.oy + l.dispH + 10 : 0;
+    const room = c.clientHeight - top - 10;
+    const show = !!l && !l.rot && modeRef.current === "trackpad" && workspaceRef.current !== "touchpad"
+      && Math.abs(l.oy) < 0.5 && room >= PAD_ZONE_MIN - 24 && !kbOpenRef.current;
+    zone.hidden = !show;
+    if (show) { zone.style.top = `${top}px`; zone.style.height = `${room}px`; }
   };
 
   const toNorm = (clientX: number, clientY: number) => {
@@ -847,6 +759,7 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired, l
           dot.style.transform = `translate(${p.x}px, ${p.y}px)` + (l.rot ? " rotate(-90deg)" : "");
         }
       }
+      placePadZone(l);
       raf = requestAnimationFrame(draw);
     };
     raf = requestAnimationFrame(draw);
@@ -923,6 +836,7 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired, l
         setMonitors(h.monitors ?? []);
         setSelMonitor(h.monitor ?? 0);
         setInputOk(!!h.input?.ready);
+        setHostKind(hostKindFrom(h.input?.backend));
         setSecureKeyboardAvailable(h.input?.secureText === true);
         hostLockedRef.current = h.hostLocked ?? null;
         setHostLocked(hostLockedRef.current);
@@ -1023,7 +937,7 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired, l
       const sw = rot ? src.h : src.w, sh = rot ? src.w : src.h;
       const base = Math.min(r.width / sw, r.height / sh);
       const dispW = sw * base, dispH = sh * base;
-      return { content:{left:(r.width-dispW)/2, top:(r.height-dispH)/2, width:dispW, height:dispH},
+      return { content:{left:(r.width-dispW)/2, top:fitTop(r.width, r.height, dispH), width:dispW, height:dispH},
         canvas:{left:r.left,top:r.top,width:r.width,height:r.height}, source:src };
     });
     connRef.current = conn;
@@ -1141,7 +1055,6 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired, l
     if (modeRef.current === "desktop") desk.attach();
 
     const fpsTimer = window.setInterval(() => { setFps(fpsCount.current); fpsCount.current = 0; }, 1000);
-    bumpToolbar();
     // No "Turn your phone sideways for a full-size desktop" nag on every portrait launch: nagging
     // the user about how to hold their phone is exactly the kind of pushiness the owner asked to be
     // rid of. The picture follows the phone (see shouldRotate); if they want it bigger they turn the
@@ -1174,7 +1087,6 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired, l
       refreshTimerRef.current = null;
       if (toastTimer.current) window.clearTimeout(toastTimer.current);
       toastTimer.current = null;
-      if (hideTimer.current) window.clearTimeout(hideTimer.current);
       window.removeEventListener("resize", resize);
       window.removeEventListener("orientationchange", resize);
       gest.destroy();
@@ -1315,40 +1227,33 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired, l
   }, [mode, token]);
 
   /**
-   * On a computer, reach for the controls at the outer rail. The bottom edge belongs to the
-   * REMOTE desktop's own Horizon Bar, so the controller reserves a separate rail and never
-   * places a hit target over the streamed desktop.
+   * Which shape the reserved controller track has: a bottom dock (portrait phone) or a side rail
+   * (a computer, a wide landscape window, a phone on its side).
    *
-   * The rail hides itself after a few seconds so the controller becomes visually quiet while its
-   * reserved track keeps the desktop geometry stable. The way back is a labelled 48px control in
-   * that same track: near a thumb on a phone, and easy to acquire with a mouse or keyboard.
+   * styles.css PLACES the track with these exact queries and this effect only mirrors the answer
+   * for what CSS cannot say — the toolbar's aria-orientation and the vertical mode switch. One
+   * exported constant, POINTER_BAR_QUERY, so the two can never disagree about which wall the
+   * controls are on (test_remote_toolbar_edge.py holds both halves to it).
    *
-   * A mouse has something a finger does not: it can hover. So in desktop mode the outer strip of
-   * the window summons the rail. The handle stays for keyboard and switch users.
-   *
-   * Deliberately not wired in the touch modes: there is no hover there, and a pointermove from a
-   * finger already means something else entirely.
+   * The track is permanent now. It used to fade after six seconds and come back through a hover
+   * strip or a "Controls" handle — but the track stayed reserved while hidden, so hiding bought
+   * no pixels, and the way back was one more thing to learn. A calm, always-present dock is both
+   * simpler and exactly as large as the picture allows: in portrait the 16:9 picture is limited
+   * by width, and on a phone on its side by height, so the dock and the rail sit in space the
+   * picture could never have used.
    */
+  const [rail, setRail] = useState(false);
   useEffect(() => {
-    if (mode !== "desktop") return;
-    const EDGE = 76;
-    // POINTER_BAR_QUERY is shared with CSS: when it selects the reserved rail, JS must reveal
-    // that same edge. Short phone landscape uses the same rail even without a fine pointer.
-    const railBar = window.matchMedia(POINTER_BAR_QUERY).matches
-      || window.matchMedia("(orientation: landscape) and (max-height: 520px)").matches;
-    let armed = true;
-    const onMove = (e: PointerEvent) => {
-      const near = railBar ? e.clientX > window.innerWidth - EDGE : e.clientY > window.innerHeight - EDGE;
-      // Re-arm only after the pointer has LEFT the strip, so sitting still down there does not
-      // restart the hide timer on every jitter — and so the bar can still time out while the
-      // pointer rests over the dock the user is actually aiming at.
-      if (near && armed) { armed = false; bumpToolbar(); }
-      else if (!near) armed = true;
+    const queries = [window.matchMedia(POINTER_BAR_QUERY), window.matchMedia(SHORT_LANDSCAPE_QUERY)];
+    const update = () => setRail(queries.some((q) => q.matches));
+    update();
+    for (const q of queries) q.addEventListener?.("change", update);
+    window.addEventListener("resize", update);
+    return () => {
+      for (const q of queries) q.removeEventListener?.("change", update);
+      window.removeEventListener("resize", update);
     };
-    window.addEventListener("pointermove", onMove, { passive: true });
-    return () => window.removeEventListener("pointermove", onMove);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mode]);
+  }, []);
 
   useEffect(() => {
     gestureRef.current?.setMode(mode);
@@ -1379,18 +1284,9 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired, l
     }
   }, [workspace]);
 
-  // The bar stays painted while a sheet is open, so its hide timer must not keep running behind
-  // it — otherwise reading the quality presets or dragging a sensitivity slider always outlives
-  // the 4.5s, and the toolbar vanishes the instant the sheet is dismissed, for no visible reason.
-  useEffect(() => {
-    if (sheet) { if (hideTimer.current) window.clearTimeout(hideTimer.current); }
-    else bumpToolbar();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sheet]);
-
   // Load the file listing whenever the Files sheet opens (avoids a race with the sheet mount).
   useEffect(() => {
-    if (sheet !== "files") return;
+    if (sheet !== "transfer" || transferTab !== "files") return;
     let cancelled = false;
     setFileBusy(true);
     listFiles(token, fileList?.path ?? null)
@@ -1399,7 +1295,7 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired, l
       .finally(() => { if (!cancelled) setFileBusy(false); });
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sheet, token]);
+  }, [sheet, transferTab, token]);
 
   /**
    * TYPING ON A PHONE, AND WHY THIS IS NOT A LAYOUT PROBLEM.
@@ -1621,11 +1517,14 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired, l
     // phone, and the encode cost of 720 vs 480 is noise even on llvmpipe.
     const width = encodeWidth(shown, ceiling, lastPushedWidth.current);
     lastPushedWidth.current = width;
-    connRef.current?.settings(p.quality, p.fps, width, Math.min(1, width / 2560));
+    // The owner's frame-rate choice rides on top of the resolution; the weak-link rung keeps its own.
+    const fps = effectiveFps(p.fps, fpsPrefRef.current, lean);
+    setStream({ width, fps, quality: p.quality });
+    connRef.current?.settings(p.quality, fps, width, Math.min(1, width / 2560));
   };
   // `orient` belongs here: turning the picture swaps which of the source's axes runs across the
   // screen, so the number of encoded pixels this viewer can show changes with it.
-  useEffect(() => { pushSettings(); /* eslint-disable-next-line */ }, [presetIdx, viewMode, orient, weak]);
+  useEffect(() => { pushSettings(); /* eslint-disable-next-line */ }, [presetIdx, viewMode, orient, weak, fpsPref]);
 
   /**
    * Re-ask when the size the picture is drawn at has genuinely moved.
@@ -1987,13 +1886,13 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired, l
       setPcClip(result);
       if (result.kind === "text" && result.text) {
         if (await copyTextToClipboard(result.text)) showToast(tr("copiedOnPhone"));
-        else { setSheet("clip"); showToast(tr("longPressToCopy")); }
+        else { openTransfer("clipboard"); showToast(tr("longPressToCopy")); }
       } else {
-        setSheet("clip");
+        openTransfer("clipboard");
         showToast(result.kind === "image" ? tr("gotPcImage") : tr("pcClipboardEmpty"));
       }
     } catch {
-      setSheet("clip");
+      openTransfer("clipboard");
       showToast(tr("pcClipboardReadFailed"));
     } finally { setClipboardBusy(""); }
   };
@@ -2004,8 +1903,8 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired, l
     const secret = secureTypingRef.current;
     const manualPaste = () => {
       if (secret || secureTypingRef.current) {
-        setSheet(null); setWorkspace("keyboard"); openKeyboard();
-      } else setSheet("clip");
+        setSheet(null); setWorkspace("screen"); openKeyboard();
+      } else openTransfer("clipboard");
       showToast(tr("pastePhoneManually"));
     };
     // readText must be called from this tap, not after opening a sheet. A
@@ -2123,7 +2022,7 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired, l
     catch { showToast(tr("folderOpenFailed")); }
     setFileBusy(false);
   };
-  const openFiles = () => setSheet("files"); // the effect below loads the listing on open
+  const openFiles = () => openTransfer("files"); // the effect above loads the listing on open
   const downloadFile = async (en: FileEntry) => {
     const a = document.createElement("a");
     try { a.href = await fileDownloadUrl(token, en.path); }
@@ -2153,8 +2052,6 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired, l
   };
 
   // ---------- toolbar actions ----------
-  const c = () => connRef.current;
-  const taskMgr = () => { c()?.combo(["Control", "Shift", "Escape"]); showToast(tr("taskManagerSafe")); };
 
   // ---------- sound ----------
   //
@@ -2376,6 +2273,58 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired, l
     void runPower(pending);
   };
 
+
+  // ---------- the three control modes ----------
+  //
+  // Touch, Trackpad and Mouse & keys are what the owner chooses between; "direct" is Touch with
+  // one-finger drag switched on, so it lives as a switch inside Touch (touchDrag) rather than as a
+  // fourth button. The wire still carries all four GestureMode values, which the agent validates.
+  const controlMode: ControlMode = mode === "trackpad" ? "trackpad" : mode === "desktop" ? "desktop" : "touch";
+  const padOnly = workspace === "touchpad";
+  useEffect(() => {
+    // An older build stored "direct" as a mode of its own; keep the switch telling the truth.
+    if (mode === "direct" && !touchDrag) setTouchDrag(true);
+    else if (mode === "touch" && touchDrag) setTouchDrag(false);
+    invalidate();   // the trackpad lifts the picture to the top of a portrait stage (fitTop)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mode, workspace]);
+
+  const MODE_LABEL_KEYS: Record<ControlMode, StringId> = { touch: "modeTouch", trackpad: "modeTrackpad", desktop: "modeMouse" };
+  const chooseMode = (next: ControlMode) => {
+    if (kbOpenRef.current) closeKeyboard();
+    setMode(next === "touch" ? (touchDrag ? "direct" : "touch") : next);
+    // Pad only belongs to the trackpad; any other mode needs the picture back.
+    if (next !== "trackpad" && workspaceRef.current === "touchpad") setWorkspace("screen");
+    if (next !== controlMode) showToast(tr(MODE_LABEL_KEYS[next]));
+  };
+  const setPadOnly = (on: boolean) => {
+    if (on) setMode("trackpad");
+    setWorkspace(on ? "touchpad" : "screen");
+  };
+  const setOneFingerDrag = (on: boolean) => {
+    setTouchDrag(on);
+    if (mode === "touch" || mode === "direct") setMode(on ? "direct" : "touch");
+  };
+
+  /**
+   * Press one of the desktop's own shortcuts (lib/hostActions.ts). Sound and media tiles leave the
+   * sheet open — volume is pressed several times in a row; everything else closes it so the result
+   * is visible on the picture straight away.
+   */
+  const runAction = (action: HostAction, keepOpen = false) => {
+    const conn = connRef.current;
+    if (!conn?.open) { showToast(tr("reconnectingStatus")); return; }
+    resetTypingContext();
+    inputBurstAtRef.current = Date.now();
+    const send = action.send;
+    if (send.kind === "combo") conn.combo(send.keys);
+    else if (send.kind === "tap") conn.keyTap(send.key);
+    else conn.keyTapCode(send.code);
+    if (hapticsRef.current) navigator.vibrate?.(8);
+    if (!keepOpen) setSheet(null);
+    showToast(`${tr("sentPrefix")} ${tr(action.label as StringId)}`);
+  };
+
   const statusInfo = {
     connecting: { cls: "warn", text: tr("connecting") },
     live: { cls: "", text: tr("connectedStatus") },
@@ -2387,36 +2336,96 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired, l
 
   const terminalOverlay = status === "stopped" || status === "idle";
   const waitingOverlay = status === "connecting" || status === "reconnecting";
+  // Nothing to say when it works. The orb names ONE problem when there is one — a list of ticks
+  // is noise, "No video" is news.
+  const issue = status !== "live" ? "" : (!padOnly && !screenOk) ? tr("noVideo") : !inputOk ? tr("noInput") : "";
+  const health: RemoteModel["health"] = status === "live" ? (issue ? "bad" : weak ? "warn" : "ok")
+    : terminalOverlay ? "bad" : "warn";
 
-  // Healthy means: there is nothing to tell the user. The bar collapses to a dot, and hides with
-  // the toolbar. Tapping it opens the numbers (fps / latency / mode) for anyone who wants them;
-  // anything actually broken overrides both and keeps the bar open until it is fixed.
-  const healthy = status === "live" && (workspace === "touchpad" || screenOk) && inputOk && clipboardOk;
-  const compactBar = healthy && !statsOpen;
+  const m: RemoteModel = {
+    tr, lang, onLangSwitch,
+    status, statusText: statusInfo.text, health, issue, fps, latency, codec, weak, clipboardOk,
+    stream, hostEncode, deviceHints,
+    rail, mode, controlMode, chooseMode, padOnly, setPadOnly, touchDrag, setOneFingerDrag,
+    kbOpen, openKeyboard, closeKeyboard,
+    openSettings, openActions: () => setSheet("actions"),
+    openTransfer: (tab: TransferTab) => { openTransfer(tab); if (tab === "clipboard") void getPcClip(); },
+    closeSheet, settingsTab, setSettingsTab, transferTab, setTransferTab, fullscreen,
+    auto,
+    chooseAuto: () => {
+      // Turning Auto back on after a manual Data saver choice should immediately use the
+      // device/link hints, not stay at 576p until the slow upward ladder has climbed three rungs.
+      if (!auto) setPresetIdx(Math.min(pickStartPreset(deviceHints), autoMaxPreset()));
+      setAuto(true);
+      showToast(tr("autoQuality"));
+    },
+    presetIdx,
+    choosePreset: (i: number) => { setAuto(false); selectPreset(i); },
+    qualityLabel: (i: number) => tr(QUALITY_LABEL_KEYS[i] ?? "qualityBalanced"),
+    fpsPref,
+    setFpsPref: (fps: number) => { setFpsPref(fps); fpsPrefRef.current = fps; },
+    viewMode, chooseView, zoomBy, resetZoom, orient, chooseOrient, monitors, selMonitor, chooseMonitor,
+    sound, toggleSound,
+    pointerLock, togglePointerLock: () => setPointerLock(v => !v),
+    mouseSensitivity, setMouseSensitivity, scrollSensitivity, setScrollSensitivity,
+    naturalScroll, toggleNaturalScroll: () => setNaturalScroll(v => !v),
+    haptics, toggleHaptics: () => setHaptics(v => !v),
+    typingZoom, toggleTypingZoom: () => setTypingZoom(v => !v),
+    backgroundAlerts, backgroundAlertsGranted: remoteAlertPermission() === "granted", toggleBackgroundAlerts,
+    trustedDevices, trustedDevicesFailed, retryTrustedDevices: () => setDeviceLoadAttempt(attempt => attempt + 1),
+    deviceBusy, revokeDevice, refreshStream, disconnect, build: BUILD,
+    kbbarRef, inputRef, secureTyping, hostLocked, secureKeyboardAvailable,
+    toggleSecureTyping: () => {
+      resetTypingContext();
+      if (inputRef.current) inputRef.current.value = "";
+      lastVal.current = "";
+      compositionStartRef.current = "";
+      setSecureTyping(!secureTyping);
+    },
+    mods, toggleMod, sendKey, sendShortcut, keepFocus,
+    onInput, onInputKeyDown, onCompositionStart, onCompositionEnd,
+    onInputBlur: () => {
+      // The bar used to outlive the keyboard that justified it. Every control inside it defends
+      // focus (keepFocus preventDefaults the pointerdown), so a real blur means the PHONE dismissed
+      // its own keyboard — swipe-down, its Done key, an app switch. It leaves when the keyboard leaves.
+      window.setTimeout(() => {
+        if (document.activeElement !== inputRef.current) closeKeyboard();
+      }, 120);
+    },
+    hostKind, runAction, hostPowerAllowed, doPower,
+    copyFromPc, pasteFromDevice, pcClip, getPcClip, copyToPhone, sendText, setSendText, readPhoneClip, sendToPc,
+    clipboardBusy, phoneClipRef,
+    pickImage: (paste: boolean) => { imagePasteRef.current = paste; fileRef.current?.click(); },
+    onPasteBox, onPasteBoxInput,
+    fileList, fileBusy, uploadProgress, navFiles, downloadFile,
+    pickUpload: () => fileUpRef.current?.click(),
+    fmtSize,
+  };
 
   return (
-    // No onPointerDown={bumpToolbar} here, and its absence is the feature.
-    //
-    // It used to be on this div, which covers the whole remote screen, so EVERY touch anywhere on the
-    // desktop re-armed the timer and brought the controls back over the bottom of the
-    // picture. The one thing guaranteed to keep it on screen was using the remote desktop — and the
-    // bottom of a desktop is where the dock and the taskbar live, so the controls sat on top of
-    // exactly what the user was reaching for. That is the "something is always covering it" complaint.
-    //
-    // The chrome now owns a separate grid track, keeps the stage geometry stable, and is summoned
-    // deliberately by the safe 48px .show-tab handle rendered only while the controls are hidden.
-    <div className={"remote workspace-" + workspace + (mode === "desktop" ? " mouse-mode" : "")}>
+    // The stage and the controls are SIBLING grid tracks (styles.css): the dock never sits on the
+    // streamed desktop, so the remote Horizon Bar stays visible and clickable in every layout.
+    <div className={"remote workspace-" + workspace + " control-" + controlMode
+      + (mode === "desktop" ? " mouse-mode" : "") + (rail ? " rail" : "") + (kbOpen ? " typing" : "")}>
       <main className="remote-stage" aria-label={tr("remoteMoosDesktopAria")}>
-      <canvas ref={canvasRef} className="screen-canvas" tabIndex={workspace === "touchpad" ? -1 : 0}
-        aria-hidden={workspace === "touchpad"} aria-label={tr("screen")} />
-      {workspace === "touchpad" && <Touchpad connection={() => connRef.current}
+      <canvas ref={canvasRef} className="screen-canvas" tabIndex={padOnly ? -1 : 0}
+        aria-hidden={padOnly} aria-label={tr("screen")} />
+      {/* The trackpad below a top-anchored picture: only an outline and a hint, never a control —
+          the canvas underneath owns every finger (see fitTop and placePadZone). */}
+      <div ref={padZoneRef} className="pad-zone" hidden aria-hidden="true">
+        <span className="pad-zone-icon"><IconTrackpad /></span>
+        <b>{tr("padZoneHint")}</b>
+        <span>{tr("touchpadInstructions")}</span>
+      </div>
+      {padOnly && <Touchpad connection={() => connRef.current}
         enabled={status === "live" && inputOk && !sheet} sensitivity={mouseSensitivity}
-        scrollSensitivity={scrollSensitivity} naturalScroll={naturalScroll} tr={tr} />}
+        scrollSensitivity={scrollSensitivity} naturalScroll={naturalScroll} tr={tr}
+        onShowPicture={() => setPadOnly(false)} />}
       {/* The server's sound, on this same origin. Never `autoPlay` — the browser would refuse it
           without a gesture and the refusal is indistinguishable from the stream being broken. */}
       <audio ref={audioRef} hidden />
-      {/* The video stream carries no cursor (drawing one would re-encode a full frame on every
-          pointer move), so this *is* the cursor. It sits exactly where the next click will land. */}
+      {/* The video stream carries no cursor on every host, so this *is* the cursor there. It sits
+          exactly where the next click will land; a host that embeds its own cursor hides it. */}
       <div ref={cursorRef} className="remote-cursor">
         <svg width="20" height="24" viewBox="0 0 20 24" aria-hidden="true">
           <path
@@ -2426,50 +2435,12 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired, l
         </svg>
       </div>
 
-      {/* The status bar has to earn the space it takes, and on a phone it was not earning it.
-          It sat across the top of the desktop permanently, spelling out "Connected · Video ✓ ·
-          Mouse ✓ · Keys ✓ · Clip ✓" — four ticks that say nothing you did not already know from
-          the fact that the screen is moving, over the part of the screen you are trying to see.
-
-          So: when everything works it shrinks to a single dot and then fades out with the
-          toolbar, and the desktop gets the whole display. Touch anything and it is back.
-
-          When something is actually wrong it does the opposite — it stays put, refuses to hide,
-          and names ONLY the thing that broke. A list of ticks is noise; "No video" is news. */}
-      <button
-        type="button"
-        className={
-          "topbar"
-          + (compactBar ? " mini" : "")
-          + (compactBar && !toolbar ? " gone" : "")
-        }
-        onClick={() => { if (healthy) setStatsOpen((v) => !v); }}
-        aria-expanded={!compactBar}
-        aria-label={healthy
-          ? (compactBar ? tr("connHealthyShow") : tr("connHealthyHide"))
-          : `${statusInfo.text}. ${tr("connDetailsShown")}`}
-        aria-live="polite"
-      >
-        <span className={"dot " + statusInfo.cls} />
-        {!compactBar && (
-          <>
-            <b>{statusInfo.text}</b>
-            {workspace !== "touchpad" && !screenOk && <span className="bad">· {tr("noVideo")}</span>}
-            {!inputOk && <span className="bad">· {tr("noInput")}</span>}
-            {!clipboardOk && <span className="bad">· {tr("noClipboard")}</span>}
-            {status === "live" && <span>· {fps}fps · {latency}ms · {codec === "h264" ? "H.264" : "JPEG"} · {modeName(mode)}</span>}
-          </>
-        )}
-      </button>
-
-      {/* The dead space, made to say something. Live sessions only, never over a modal state,
-          never while typing (the keyboard already owns the bottom of the screen), and never in
-          desktop mode where a mouse-driven window has no orientation problem to solve. */}
-      {/* "not locked" rather than "=== auto": the stored preference is whatever a previous build
-          wrote, and an unrecognised value must not silently withhold the only way out of a
-          28%-of-the-screen desktop. shouldRotate treats the same values as Auto. */}
+      {/* The dead space around an upright desktop on an upright phone, made to say something: one
+          tap turns the picture to fill the screen. Live Touch sessions only, never while typing,
+          and "not locked" rather than "=== auto" so an unrecognised stored value cannot withhold
+          the only way out of a 28%-of-the-screen desktop. */}
       {pictureSmall && orient !== "on" && orient !== "off" && !fillOfferHidden && !kbOpen
-        && mode !== "desktop" && status === "live" && (
+        && controlMode === "touch" && !padOnly && status === "live" && (
         <div className="fill-offer">
           <button
             type="button"
@@ -2509,8 +2480,8 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired, l
             <span>{status === "idle" ? tr("idleReconnectBody") : tr("stoppedSignoutBody")}</span>
           </div>
           <div className="state-actions">
-            <button className="btn" onClick={reconnect}>{tr("reconnect")}</button>
-            <button className="btn ghost" onClick={onExit}>{tr("signOut")}</button>
+            <button type="button" className="btn" onClick={reconnect}>{tr("reconnect")}</button>
+            <button type="button" className="btn ghost" onClick={onExit}>{tr("signOut")}</button>
           </div>
         </div>
       )}
@@ -2526,11 +2497,11 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired, l
         <div className="host-lock-note" role="status" aria-live="polite">
           <IconLock />
           <div><b>{tr("hostLockedTitle")}</b><span>{tr("hostLockedHint")}</span></div>
-          {!kbOpen && <button className="btn" disabled={!secureKeyboardAvailable}
-            onClick={() => { setWorkspace("keyboard"); openKeyboard(); }}>{tr("secureTyping")}</button>}
+          {!kbOpen && <button type="button" className="btn" disabled={!secureKeyboardAvailable}
+            onClick={() => { setWorkspace("screen"); openKeyboard(); }}>{tr("secureTyping")}</button>}
         </div>
       )}
-      {!screenOk && status === "live" && workspace !== "touchpad" && hostLocked !== true && (
+      {!screenOk && status === "live" && !padOnly && hostLocked !== true && (
         <div className="session-state recovery" role="status">
           <div className="state-icon"><IconLock /></div>
           <div className="state-copy">
@@ -2541,91 +2512,9 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired, l
       )}
       </main>
 
-      {/* keyboard bar: a shortcuts row + a visible input (so typing AND Backspace work). */}
-      <div className={"kbbar" + (kbOpen ? " open" : "")} ref={kbbarRef} inert={!kbOpen} aria-hidden={!kbOpen}>
-        {/* THE SCROLL CONTAINER MUST NOT PREVENT ITS OWN DEFAULT — the row scrolls sideways, and
-            that scroll IS a default action. Focus is defended on the BUTTONS instead; see keepFocus. */}
-        <div className="keyrow">
-          <button {...keepFocus} className={"kkey" + (secureTyping || hostLocked === true ? " on" : "")}
-            aria-pressed={secureTyping || hostLocked === true}
-            disabled={!secureKeyboardAvailable || hostLocked === true}
-            onClick={() => {
-              resetTypingContext();
-              if (inputRef.current) inputRef.current.value = "";
-              lastVal.current = "";
-              compositionStartRef.current = "";
-              setSecureTyping(!secureTyping);
-            }}>
-            <IconLock />{tr("secureTyping")}</button>
-          <button {...keepFocus} className="kkey" onClick={() => sendShortcut(["Control", "A"])}>{tr("selectAll")}</button>
-          <button {...keepFocus} className="kkey" onClick={() => void copyFromPc()}>{tr("copyToThisDevice")}</button>
-          <button {...keepFocus} className="kkey" onClick={() => void pasteFromDevice()}>{tr("pasteFromThisDevice")}</button>
-          <button {...keepFocus} className="kkey" onClick={() => sendShortcut(["Control", "Z"])}>{tr("undo")}</button>
-          <span className="kdiv" />
-          {(["Control", "Alt", "Shift"] as const).map((m) => (
-            <button key={m} {...keepFocus} className={"kkey" + (mods.has(m) ? " on" : "")} onClick={() => toggleMod(m)}>
-              {m === "Control" ? "Ctrl" : m}
-            </button>
-          ))}
-          <button {...keepFocus} className="kkey" onClick={() => sendKey("Win")}>Win</button>
-          <span className="kdiv" />
-          <button {...keepFocus} className="kkey" onClick={() => sendShortcut(["Control", "X"])}>⌃X</button>
-          <button {...keepFocus} className="kkey" onClick={() => sendShortcut(["Alt", "Tab"])}>Alt·Tab</button>
-          <span className="kdiv" />
-          <button {...keepFocus} className="kkey" onClick={() => sendKey("Escape")}>Esc</button>
-          <button {...keepFocus} className="kkey" onClick={() => sendKey("Tab")}>Tab</button>
-          <button {...keepFocus} className="kkey" onClick={() => sendKey("ArrowLeft")}>←</button>
-          <button {...keepFocus} className="kkey" onClick={() => sendKey("ArrowUp")}>↑</button>
-          <button {...keepFocus} className="kkey" onClick={() => sendKey("ArrowDown")}>↓</button>
-          <button {...keepFocus} className="kkey" onClick={() => sendKey("ArrowRight")}>→</button>
-        </div>
-        <div className="kbinput-row">
-          <input
-            ref={inputRef} className="kbinput" type={secureTyping || hostLocked === true ? "password" : "text"} inputMode="text" dir="auto"
-            autoCapitalize="off" autoCorrect="off" autoComplete="off" spellCheck={false}
-            placeholder={tr("typeHere")} aria-label={tr("typeHere")}
-            onInput={onInput} onKeyDown={onInputKeyDown}
-            onCompositionStart={onCompositionStart} onCompositionEnd={onCompositionEnd}
-            onBlur={() => {
-              // The bar used to outlive the keyboard that justified it. Every
-              // control inside it defends focus (keepFocus preventDefaults the
-              // pointerdown), so a real blur means the PHONE dismissed its own
-              // keyboard — swipe-down, its Done key, an app switch. Leaving the
-              // bar behind then covered the screen with something the user had
-              // no obvious way to remove. It leaves when the keyboard leaves.
-              window.setTimeout(() => {
-                if (document.activeElement !== inputRef.current) closeKeyboard();
-              }, 120);
-            }}
-          />
-          <button {...keepFocus} className="kbicon" onClick={() => sendKey("Backspace")} aria-label="Backspace"><IconBackspace /></button>
-          <button {...keepFocus} className="kbicon" onClick={() => sendKey("Enter")} aria-label="Enter"><IconEnter /></button>
-          <button {...keepFocus} className="kbdone" onClick={closeKeyboard}>{tr("done")}</button>
-        </div>
-      </div>
+      <Dock m={m} />
+      <KeyboardPanel m={m} />
 
-      {/* small affordance: when keyboard closed, the toolbar "Keys" button opens it */}
-
-      {/* Reserved controller chrome: a sibling grid track, never an overlay on streamed pixels. */}
-      {!kbOpen && (
-        <div className={"toolbar" + (toolbar || sheet || workspace !== "screen" ? "" : " fade-toolbar")}
-             inert={!(toolbar || sheet || workspace !== "screen")} aria-hidden={!(toolbar || sheet || workspace !== "screen")}>
-          <div className="toolbar-primary" role="toolbar" aria-label={tr("remoteControlsAria")}>
-            <div className="workspace-switch" role="group" aria-label={tr("chooseWorkspace")}>
-              <button className="tbtn" aria-pressed={workspace === "screen"} onClick={() => { closeKeyboard(); setWorkspace("screen"); }}>
-                <IconDesktop /><span>{tr("screenWorkspace")}</span></button>
-              <button className="tbtn" aria-pressed={workspace === "touchpad"} onClick={() => { closeKeyboard(); setWorkspace("touchpad"); }}>
-                <IconTrackpad /><span>{tr("touchpadWorkspace")}</span></button>
-              <button className="tbtn" aria-pressed={workspace === "keyboard"} onClick={() => { setWorkspace("keyboard"); openKeyboard(); }}>
-                <IconKeyboard /><span>{tr("keyboardWorkspace")}</span></button>
-            </div>
-
-          </div>
-          <button className="tbtn toolbar-settings accent" onClick={() => setSheet("more")}><IconSettings /><span>{tr("settings")}</span></button>
-        </div>
-      )}
-
-      {/* sheets */}
       {(sheet || powerConfirm) && (
         <div className="sheet-backdrop" aria-hidden="true"
              onClick={powerConfirm ? (powerBusy ? undefined : cancelPowerConfirm) : closeSheet} />
@@ -2640,8 +2529,8 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired, l
           initialFocusSelector="#power-confirm-cancel"
           onClose={cancelPowerConfirm}
           dismissible={!powerBusy}
+          className="confirm-sheet"
         >
-          <div className="grip" />
           <div className="confirm-panel">
             <div className="confirm-icon"><IconPower /></div>
             <h3>{powerConfirm.label} {tr("thisPcQuestion")}</h3>
@@ -2664,347 +2553,11 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired, l
         </SheetPanel>
       )}
 
-      {sheet === "view" && (
-        <SheetPanel label={tr("display")} closeLabel={`${tr("closePrefix")} ${tr("display")}`} onClose={closeSheet}>
-          <div className="grip" /><h3>{tr("display")}</h3>
-          <div className="row-label">{tr("screen")}</div>
-          <div className="seg">
-            <button className={viewMode === "fit" ? "on" : ""} onClick={() => chooseView("fit")}><IconFit /> {tr("fitScreen")}</button>
-            <button className={viewMode === "actual" ? "on" : ""} onClick={() => chooseView("actual")}><IconActual /> 100%</button>
-          </div>
-          {/* THE LOCK. Offered on every device, including the ones where it currently changes
-              nothing — because the request is not "turn it for me", it is "let me decide, and then
-              stop changing your mind". A control that appears and disappears with the viewport
-              cannot deliver that promise: the moment you want the lock is the moment the picture
-              just moved, and on a phone that is exactly when a portrait-only control is gone. */}
-          <div className="row-label">{tr("rotation")}</div>
-          <div className="seg">
-          <button className={orient === "auto" ? "on" : ""} onClick={() => chooseOrient("auto")}>{tr("fitPhone")}</button>
-            <button className={orient === "on" ? "on" : ""} onClick={() => chooseOrient("on")}><IconRotate /> {tr("sideways")}</button>
-            <button className={orient === "off" ? "on" : ""} onClick={() => chooseOrient("off")}><IconLock /> {tr("upright")}</button>
-          </div>
-          <p className="hint">
-            {tr("rotationHelp")}
-          </p>
-          {monitors.length > 1 && (
-            <>
-              <div className="row-label">{tr("monitor")}</div>
-              <div className="seg">
-                {monitors.map((m, i) => (
-                  <button key={m.index} className={selMonitor === i ? "on" : ""} onClick={() => chooseMonitor(i)}>
-                    {m.primary ? tr("mainScreen") : `${tr("screenNumberPrefix")} ${i + 1}`}
-                  </button>
-                ))}
-              </div>
-            </>
-          )}
-          <div className="row-label">{tr("zoom")}</div>
-          <div className="zoomrow">
-            <button className="cell" onClick={() => zoomBy(0.77)}><IconZoomOut /> {tr("zoomOut")}</button>
-            <button className="cell" onClick={resetZoom}>{tr("reset")}</button>
-            <button className="cell" onClick={() => zoomBy(1.3)}><IconZoomIn /> {tr("zoomIn")}</button>
-          </div>
-          <div className="row-label">{tr("actions")}</div>
-          <div className="zoomrow">
-            <button className="cell" onClick={toggleSound} aria-pressed={sound === "on"}>
-              {sound === "on" ? <IconSpeaker /> : <IconSpeakerOff />}
-              {sound === "connecting" ? tr("connecting") : tr("sound")}
-            </button>
-            <button className="cell" onClick={() => { fullscreen(); setSheet(null); }}>
-              <IconFullscreen /> {tr("fullscreen")}
-            </button>
-          </div>
-          <div className="row-label">{tr("quality")}</div>
-          <div className="seg">
-            <button className={auto ? "on" : ""} onClick={() => {
-              // Turning Auto back on after a manual Data saver choice should
-              // immediately use the device/link hints, not stay at 576p until
-              // the slow upward ladder has climbed three rungs.
-              if (!auto) setPresetIdx(Math.min(pickStartPreset(deviceHints), autoMaxPreset()));
-              setAuto(true);
-              showToast(tr("autoQuality"));
-            }}>{tr("auto")}{auto && weak && <small>{tr("weakLinkShort")}</small>}</button>
-            {QUALITY_PRESETS.map((p, i) => (
-              <button key={p.label} className={!auto && presetIdx === i ? "on" : ""} onClick={() => { setAuto(false); selectPreset(i); }}
-                title={p.detail}>{tr(QUALITY_LABEL_KEYS[i])}<small>{p.detail}</small></button>
-            ))}
-          </div>
-          {/* Say the limit out loud. The host's ceiling used to be invisible — a value MoOS had
-              computed and nobody read — and a limit that acts without explaining itself is
-              indistinguishable from the app being bad at its job. */}
-          {hostEncode && (
-            <p className="hint" style={{ margin: "10px 0 0" }}>
-              {tr("hostCapPrefix")}{" "}
-              <b dir="ltr">{hostEncode.maxWidth}×{hostEncode.maxHeight}@{hostEncode.maxFps}</b>.{" "}
-              {tr("hostCapSuffix")}
-            </p>
-          )}
-        </SheetPanel>
-      )}
-
-      {sheet === "more" && (
-        <SheetPanel label={tr("settingsTitle")} closeLabel={`${tr("closePrefix")} ${tr("settingsTitle")}`} onClose={closeSheet}>
-          {/* Rebuilt as grouped cards. See styles.css "Settings sheet" for why this shape:
-              a small uppercase label, then a card holding related rows. The card edge is
-              what lets you find a row without reading every line — which the previous flat
-              column of sliders and buttons did not give you. */}
-          <div className="grip" /><h3><IconSettings /> {tr("settingsTitle")}</h3>
-
-          <div className="sec-label">{tr("pointer")}</div>
-          <div className="card">
-            <div className="card-pad">
-              {/* Three buttons, not four. "Touch" and "Direct" were never two models — they
-                  differ in one branch of the gesture recogniser, what a one-finger swipe
-                  does — so that difference is the switch below, not a mode of its own. */}
-              <div className="seg">
-                <button className={mode === "touch" || mode === "direct" ? "on" : ""}
-                        onClick={() => setMode("touch")}><IconMouse /> {tr("touch")}</button>
-                <button className={mode === "trackpad" ? "on" : ""}
-                        onClick={() => setMode("trackpad")}><IconTrackpad /> {tr("trackpad")}</button>
-                <button className={mode === "desktop" ? "on" : ""}
-                        onClick={() => setMode("desktop")}><IconMouse /> {tr("mouseKeys")}</button>
-              </div>
-              <p className="hint" style={{ margin: "10px 0 0" }}>{tr(mode === "touch" ? "modeHintTouch" : mode === "direct" ? "modeHintDirect" : mode === "trackpad" ? "modeHintTrackpad" : "modeHintDesktop")}</p>
-            </div>
-            {(mode === "touch" || mode === "direct") && (
-              <Row title={tr("oneFingerDrag")} sub={tr("oneFingerDragSub")}>
-                <Switch on={mode === "direct"}
-                        onToggle={() => setMode(mode === "direct" ? "touch" : "direct")} />
-              </Row>
-            )}
-            {mode === "desktop" && (
-              <Row title={tr("capturePointer")}
-                   sub={tr("capturePointerSub")}>
-                <Switch on={pointerLock} onToggle={() => setPointerLock(v => !v)} />
-              </Row>
-            )}
-          </div>
-
-          <div className="sec-label">{tr("feel")}</div>
-          <div className="card">
-            <div className="slider-row">
-              <div className="row"><div className="row-main"><div className="row-title">{tr("mouseSpeed")}</div></div>
-                <div className="row-value">{mouseSensitivity.toFixed(1)}</div></div>
-              <input type="range" min="0.4" max="2.5" step="0.1" value={mouseSensitivity}
-                     onChange={e => setMouseSensitivity(Number(e.target.value))} />
-            </div>
-            <div className="slider-row">
-              <div className="row"><div className="row-main"><div className="row-title">{tr("scrollSpeed")}</div></div>
-                <div className="row-value">{scrollSensitivity.toFixed(1)}</div></div>
-              <input type="range" min="0.4" max="2.5" step="0.1" value={scrollSensitivity}
-                     onChange={e => setScrollSensitivity(Number(e.target.value))} />
-            </div>
-            <Row title={tr("naturalScroll")} sub={tr("naturalScrollSub")}>
-              <Switch on={naturalScroll} onToggle={() => setNaturalScroll(v => !v)} />
-            </Row>
-            <Row title={tr("haptics")} sub={tr("hapticsSub")}>
-              <Switch on={haptics} onToggle={() => setHaptics(v => !v)} />
-            </Row>
-            <Row title={tr("magnifyTyping")}
-                 sub={tr("magnifyTypingSub")}>
-              <Switch on={typingZoom} onToggle={() => setTypingZoom(v => !v)} />
-            </Row>
-          </div>
-
-          <div className="sec-label">{tr("alerts")}</div>
-          <div className="card">
-            <Row title={tr("backgroundAlerts")}
-                 sub={tr("backgroundAlertsSub")}>
-              <Switch on={backgroundAlerts && remoteAlertPermission() === "granted"}
-                      onToggle={() => void toggleBackgroundAlerts()} />
-            </Row>
-          </div>
-
-          <div className="sec-label">{tr("security")}</div>
-          <div className="card trusted-list" aria-busy={trustedDevices === null && !trustedDevicesFailed}>
-            {trustedDevicesFailed && <div className="card-pad">
-              <div role="alert">{tr("trustedDevicesLoadFailed")}</div>
-              <button className="btn" onClick={() => setDeviceLoadAttempt(attempt => attempt + 1)}>{tr("retry")}</button>
-            </div>}
-            {trustedDevices === null && !trustedDevicesFailed && <div className="card-pad muted" role="status">{tr("loadingTrustedDevices")}</div>}
-            {trustedDevices?.length === 0 && <div className="card-pad muted">{tr("noRememberedDevices")}</div>}
-            {trustedDevices?.map(device => (
-              <div className="trusted-row" key={device.id}>
-                <div className="row-main">
-                  <div className="row-title">{device.name}{device.current ? tr("thisDeviceSuffix") : ""}</div>
-                  <div className="row-sub">{tr("lastUsedPrefix")} {new Date(device.lastUsedUnix * 1000).toLocaleDateString()}</div>
-                </div>
-                <button className="device-revoke" disabled={!!deviceBusy}
-                        onClick={() => void revokeDevice(device)}
-                        aria-label={`${tr("removeTrustedDeviceAria")} ${device.name}`}>
-                  {deviceBusy === device.id ? tr("removingDevice") : tr("removeDevice")}
-                </button>
-              </div>
-            ))}
-          </div>
-
-          <div className="sec-label">{tr("actions")}</div>
-          <div className="card">
-            <div className="card-pad">
-              <div className="grid">
-                <button className="cell" onClick={() => setSheet("view")}><IconDesktop />{tr("display")}</button>
-                <button className="cell" onClick={() => { setSheet("clip"); getPcClip(); }}><IconClipboard />{tr("clipboard")}</button>
-                <button className="cell" onClick={openFiles}><IconFolder /> {tr("filesTitle")}</button>
-                <button className="cell" onClick={() => { taskMgr(); setSheet(null); }}><IconShield /> {tr("ctrlAltDel")}</button>
-                <button className="cell" onClick={() => void copyFromPc()}><IconCopy /> {tr("copyToThisDevice")}</button>
-                <button className="cell" onClick={() => void pasteFromDevice()}><IconPaste /> {tr("pasteFromThisDevice")}</button>
-                <button className="cell" onClick={() => { refreshStream(); setSheet(null); }}><IconRefresh /> {tr("refresh")}</button>
-                <button className="cell" onClick={() => { fullscreen(); setSheet(null); }}><IconFullscreen /> {tr("fullscreen")}</button>
-                <button className="cell danger" onClick={disconnect}><IconPower /> {tr("disconnect")}</button>
-              </div>
-            </div>
-          </div>
-
-          {/* Power is SHUT. These change the state of the computer you are looking at, and
-              "Shut down" sitting one tap below "Copy" is how a phone in a pocket ends a
-              session. Opening the section is the deliberate act that earns the buttons. */}
-          <div className="sec-label">{tr("power")}</div>
-          <div className="card">
-            <details className="fold">
-              <summary><span>{hostPowerAllowed ? tr("powerSummaryAllowed") : tr("powerSummaryManaged")}</span><IconChevronDown /></summary>
-              <div className="card-pad">
-                {hostPowerAllowed ? <div className="grid">
-                  <button className="cell" onClick={() => doPower("lock", tr("lock"))}><IconLock /> {tr("lock")}</button>
-                  <button className="cell" onClick={() => doPower("sleep", tr("sleep"))}><IconPower /> {tr("sleep")}</button>
-                  <button className="cell" onClick={() => doPower("signout", tr("signOutPower"), true)}><IconLock /> {tr("signOutPower")}</button>
-                  <button className="cell" onClick={() => doPower("restart", tr("restart"), true)}><IconRefresh /> {tr("restart")}</button>
-                  <button className="cell danger" onClick={() => doPower("shutdown", tr("shutDown"), true)}><IconPower /> {tr("shutDown")}</button>
-                </div> : <p className="muted" style={{ margin: 0 }}>
-                  {tr("powerCloudManagedBody")}
-                </p>}
-              </div>
-            </details>
-          </div>
-
-          {/* About answers "which build is my phone running?" WHERE YOU CAN ASK IT. The
-              version used to appear only on the connect screen — the one screen you stop
-              seeing the moment you connect. */}
-          <div className="sec-label">{tr("about")}</div>
-          <div className="card">
-            <details className="fold">
-              <summary><span>{tr("versionAndConnection")}</span><IconChevronDown /></summary>
-              <div>
-                <div className="kv"><span>{tr("appVersion")}</span><b>{BUILD}</b></div>
-                <div className="kv"><span>{tr("connection")}</span><b>{status}</b></div>
-                <div className="kv"><span>{tr("quality")}</span>
-                  <b>{auto ? `${tr("autoMode")} · ` : ""}{tr(QUALITY_LABEL_KEYS[presetIdx])}</b>
-                </div>
-                <div className="kv"><span>{tr("thisDevice")}</span><b>{describeHints(deviceHints)}</b></div>
-                <div className="kv"><span>{tr("video")}</span>
-                  <b>{status === "live"
-                       ? `${codec === "h264" ? "H.264" : "JPEG"} · ${fps} fps · ${latency} ms`
-                       : "—"}</b>
-                </div>
-                <p className="hint" style={{ padding: "0 14px 12px", margin: 0 }}>
-                  If the version is not the newest, close the app and open it again — the
-                  offline cache serves the previous build until a new one takes over.
-                </p>
-              </div>
-            </details>
-          </div>
-
-          {/* Language switch — a first-class setting, not a browser accident. The default
-              follows the phone; this flips the whole UI and the RTL direction live. */}
-          <div className="card" style={{ display: "flex", gap: 8, padding: "10px 14px", alignItems: "center" }}>
-            <span style={{ color: "var(--muted)", fontSize: 13, flex: 1 }}>{tr("language")}</span>
-            <button
-              className="cell"
-              onClick={() => onLangSwitch(lang === "ar" ? "en" : "ar")}
-              style={{ padding: "6px 14px", borderRadius: 999 }}
-            >
-              {lang === "ar" ? "العربية" : "English"} ⇄
-            </button>
-          </div>
-
-          <div className="credit">Mo PC Remote · by Moalfarras</div>
-        </SheetPanel>
-      )}
-
-      {sheet === "files" && (
-        <SheetPanel label={tr("filesTitle")} closeLabel={`${tr("closePrefix")} ${tr("filesTitle")}`} onClose={closeSheet}>
-          <div className="grip" />
-          <h3>{tr("filesTitle")} · {fileList?.title ?? "…"}</h3>
-          <div className="file-actions">
-            {fileList?.path && <button className="cell" onClick={() => navFiles(fileList.parent)}><IconArrowUp /> {tr("up")}</button>}
-            {fileList?.path && <button className="cell" onClick={() => fileUpRef.current?.click()}><IconUpload /> {tr("uploadHere")}</button>}
-            <button className="cell" onClick={() => navFiles(fileList?.path ?? null)}><IconRefresh /> {tr("refresh")}</button>
-          </div>
-          <input ref={fileUpRef} type="file" multiple hidden onChange={onUploadFiles} />
-          <div className="file-list">
-            {fileBusy && <div className="hintline" role="status">{uploadProgress || tr("loadingEllipsis")}</div>}
-            {!fileBusy && fileList?.truncated &&
-              <div className="hintline" role="status">{tr("truncatedFolderNotice")}</div>}
-            {!fileBusy && fileList && fileList.entries.length === 0 && <div className="hintline">{tr("emptyFolder")}</div>}
-            {!fileBusy && fileList?.entries.map((en) => (
-              <button key={en.path} className="file-row" onClick={() => (en.isDir ? navFiles(en.path) : downloadFile(en))}>
-                <span className="file-ic">{en.isDir ? <IconFolder /> : <IconFile />}</span>
-                <span className="file-name">{en.name}</span>
-                <span className="file-meta">{en.isDir ? (lang === "ar" ? "‹" : "›") : fmtSize(en.size)}</span>
-              </button>
-            ))}
-          </div>
-        </SheetPanel>
-      )}
-
-      {sheet === "clip" && (
-        <SheetPanel label={tr("clipboardSync")} closeLabel={`${tr("closePrefix")} ${tr("clipboardSync")}`} onClose={closeSheet}>
-          <div className="grip" /><h3><IconClipboard />{tr("clipboardSync")}</h3>
-
-          <section className="clip-section">
-          <div className="row-label">{tr("pcToPhone")}</div>
-          {pcClip.kind === "image" ? (
-            <img className="clip-img" src={pcClip.dataUrl} alt={tr("pcToPhone")} />
-          ) : (
-            <textarea className="clip-area" dir="auto" aria-label={tr("pcToPhone")} readOnly value={pcClip.text ?? ""} placeholder={tr("pressGetToFetch")} />
-          )}
-          <div className="cliprow">
-            <button className="cell" onClick={getPcClip}><IconRefresh /> {tr("getPcClipboard")}</button>
-            <button className="cell" onClick={copyToPhone} disabled={pcClip.kind !== "text"}><IconCopy /> {tr("copy")}</button>
-          </div>
-          {pcClip.kind === "image" && <div className="hintline">{tr("longPressImageSaveCopy")}</div>}
-          </section>
-
-          <section className="clip-section">
-          <div className="row-label">{tr("phoneToPcText")}</div>
-          <button className="cell wide phone-clip-read" onClick={() => void readPhoneClip()}><IconPaste />{tr("readPhoneClipboard")}</button>
-          <textarea ref={phoneClipRef} className="clip-area" dir="auto" aria-label={tr("phoneToPcText")} value={sendText} onChange={(e) => setSendText(e.target.value)} placeholder={tr("typeOrPasteText")} />
-          <div className="clipboard-actions">
-            <button className="cell wide" disabled={!sendText || !!clipboardBusy} onClick={() => void sendToPc(false)}>
-              <IconClipboard /> {tr("setOnly")}
-            </button>
-            <button className="cell wide primary" disabled={!sendText || !!clipboardBusy} onClick={() => void sendToPc(true)}>
-              <IconSend /> {tr("sendPaste")}
-            </button>
-          </div>
-          </section>
-
-          <div className="row-label">{tr("phoneToPcImage")}</div>
-          <div className="clipboard-actions">
-            <button className="cell wide" disabled={!!clipboardBusy} onClick={() => { imagePasteRef.current = false; fileRef.current?.click(); }}>
-              <IconClipboard /> {tr("setImageOnly")}
-            </button>
-            <button className="cell wide primary" disabled={!!clipboardBusy} onClick={() => { imagePasteRef.current = true; fileRef.current?.click(); }}>
-              <IconSend /> {tr("photoAndPaste")}
-            </button>
-          </div>
-          <input ref={fileRef} type="file" accept="image/*" hidden onChange={onPickPhoto} />
-          {clipboardBusy && <div className="transfer-status" role="status" aria-live="polite"><i />{clipboardBusy}</div>}
-          <div
-            className="paste-box"
-            contentEditable
-            suppressContentEditableWarning
-            onPaste={onPasteBox}
-            onInput={onPasteBoxInput}
-            data-ph={tr("longPressPasteHint")}
-          />
-        </SheetPanel>
-      )}
-
-      {!toolbar && !kbOpen && !sheet && !terminalOverlay && (
-        <button className="show-tab" onClick={bumpToolbar} aria-label={tr("showRemoteControls")}>
-          <IconChevronDown /><span>{tr("controls")}</span>
-        </button>
-      )}
+      {sheet === "settings" && <SettingsSheet m={m} />}
+      {sheet === "actions" && <ActionsSheet m={m} />}
+      {sheet === "transfer" && <TransferSheet m={m} />}
+      <input ref={fileRef} type="file" accept="image/*" hidden onChange={onPickPhoto} />
+      <input ref={fileUpRef} type="file" multiple hidden onChange={onUploadFiles} />
 
       {toast && <div className={"toast" + (sheet || powerConfirm ? " in-sheet" : "")} role="status" aria-live="polite">{toast}</div>}
     </div>

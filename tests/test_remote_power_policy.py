@@ -7,7 +7,9 @@ build = (ROOT / "build_files/build.sh").read_text(encoding="utf-8")
 linux = (ROOT / "moremote/agent-linux/PowerActions.cs").read_text(encoding="utf-8")
 windows = (ROOT / "moremote/agent/Core/PowerActions.cs").read_text(encoding="utf-8")
 api = (ROOT / "moremote/agent/Web/WebApi.cs").read_text(encoding="utf-8")
-ui = (ROOT / "moremote/controller/src/ui/RemoteScreen.tsx").read_text(encoding="utf-8")
+# The power tiles live in the MoOS commands sheet since v56; read the whole remote UI tree.
+ui = "\n".join(path.read_text(encoding="utf-8")
+               for path in sorted((ROOT / "moremote/controller/src/ui").rglob("*.tsx")))
 
 checks = {
     "the image does not bake an authoritative edition marker":

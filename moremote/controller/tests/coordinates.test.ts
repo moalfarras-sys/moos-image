@@ -245,6 +245,11 @@ const main = readFileSync(join(import.meta.dirname, "..", "src", "main.tsx"), "u
 assert.match(vite, /skipWaiting: true/, "a waiting service worker serves the old app for ever");
 assert.match(vite, /clientsClaim: true/);
 assert.match(main, /controllerchange/, "the page must reload when a new worker takes over");
+// A Home Screen app is resumed, not reloaded: without a check on the way back to the foreground an
+// installed copy kept the previous controller until it was force-quit (measured, 2026-10-06).
+assert.match(main, /addEventListener\("visibilitychange", askWhenShown\)/,
+  "returning to the app must ask for a newer service worker");
+assert.match(main, /reg\.update\(\)/);
 
 console.log("PASS: client letterbox/orientation/turned-view/keyboard/update tests");
 
@@ -294,8 +299,14 @@ for (const dimension of ["width", "height"] as const) {
 
 const css = readFileSync(join(import.meta.dirname, "..", "src", "styles.css"), "utf8");
 for (const [selector, why] of [
-  [".sheet h3 svg", "the settings sheet header renders a gear"],
-  [".fold > summary svg", "each disclosure row renders a chevron"],
+  [".sheet h3 svg", "every sheet header renders its icon"],
+  // The Glass Console (v56) has no disclosure rows; these are the containers that render bare icons.
+  [".dock-btn svg", "every dock button renders an icon"],
+  [".tile-icon svg", "every MoOS command tile renders an icon"],
+  [".segmented > button svg", "the mode switch and option pickers render icons"],
+  [".chip svg", "every chip button renders an icon"],
+  [".kkey svg", "the keyboard row renders lock/copy/paste icons"],
+  [".row-icon svg", "settings rows render a leading icon"],
 ] as const) {
   const rule = new RegExp(
     selector.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "\\s*\\{[^}]*\\bwidth\\s*:", "s");

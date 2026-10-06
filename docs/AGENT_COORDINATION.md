@@ -118,3 +118,7 @@ Still open in W7, for whoever picks it up next: the live preview the plan's idea
 asks for in the Arrange surface, touchpad and gesture defaults (P5.2), and
 carrying `Tokens.scaled()` to the per-surface motion aliases in the plasmoids and
 apps.
+
+**2026-10-06: the owner now asks the station to integrate every active branch, update the physical NVIDIA station and reboot.** The reserved logout/Sharp cycle stays fixed on `97f4f121` through its promotion/failure. The next station batch preserves #214's reviewed v56 ancestry and adds the shared PIN lockout correction; start one standard signed cycle only after that fixed cycle resolves. All final edition proofs, signatures and installed readback remain required.
+
+**Oracle additions to that final batch:** `integrate/all-owner-20261006` preserves #215 product source exactly and adds reviewed historical ancestry, two owner Git allow rules and an atomic installer-test recorder. Its files are ready for integration; no product files remain held. Integrate these additions before the final signed cycle. The station owns that cycle; the Oracle agent follows its proven ARM release for the authorized A1 update/reboot without a duplicate dispatch. Audit: `docs/INTEGRATION_AUDIT_20261006.md`.

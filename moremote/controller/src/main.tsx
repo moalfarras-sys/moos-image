@@ -33,6 +33,22 @@ if ("serviceWorker" in navigator && window.isSecureContext) {
       // A remote desktop is a long-lived page. Somebody who leaves it open for a day would otherwise
       // never ask whether there is a newer app; an hourly check costs one conditional request.
       setInterval(() => reg.update().catch(() => {}), 60 * 60 * 1000);
+      // AND EVERY TIME THE APP COMES BACK TO THE FRONT.
+      //
+      // An app on the iPhone Home Screen is rarely LOADED again: going home and coming back resumes
+      // the same page, so neither the `load` registration above nor a navigation ever asks for a
+      // newer worker. Measured on 2026-10-06 with v55 installed and v56 served: the resumed page
+      // kept v55 indefinitely, and only a force-quit and relaunch updated it (in about 3 s). Asking
+      // on every return to the foreground makes "close it and open it again" unnecessary. Bounded
+      // to once a minute, so flicking between apps costs nothing.
+      let lastAsk = Date.now();
+      const askWhenShown = () => {
+        if (document.hidden || Date.now() - lastAsk < 60_000) return;
+        lastAsk = Date.now();
+        reg.update().catch(() => {});
+      };
+      document.addEventListener("visibilitychange", askWhenShown);
+      window.addEventListener("pageshow", askWhenShown);
       let reloading = false;
       navigator.serviceWorker.addEventListener("controllerchange", () => {
         if (reloading) return;
