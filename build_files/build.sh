@@ -386,6 +386,9 @@ dnf5 -y install dracut-live livesys-scripts grub2-efi-x64-cdboot \
 # Replace existing boot subpackages before identity assets and initramfs compose.
 python3 /ctx/plymouth_rpms.py install /plymouth-rpms
 
+# Preserve the vendor package ownership and every Plasma/authentication seam.
+python3 /ctx/plasma_logout/rpms.py install /plasma-logout-rpms
+
 # shim's removable-media fallback creates the firmware's visible boot entry
 # from BOOT*.CSV. Keep one shared rewrite for x86 and ARM so neither edition
 # can register another product name in the UEFI picker.
@@ -4890,6 +4893,7 @@ unset -v _rival_wants
 # its last transaction. The script is idempotent.
 bash /ctx/verify_settings_modules.sh || exit 1
 
+python3 /ctx/plasma_logout/rpms.py verify
 python3 /ctx/finalize_image_state.py --root /
 python3 /ctx/verify_no_foreign_identity.py
 

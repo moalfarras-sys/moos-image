@@ -321,6 +321,15 @@ Since the session design no longer forks authentication, a selfcheck requiring
 "MoOS" in `LockScreenUi.qml` is stale: inspect the actual shared components and
 preserve negative controls for missing components and a reintroduced fork.
 
+**A finished logout worker can leave a session running.** Plasma 6.7.5 stops
+`graphical-session.target` in job mode `fail` and ignores the D-Bus reply. A
+pending start of a MoOS oneshot can make that entire stop transaction fail as
+`TransactionIsDestructive`; the worker exits and KSMServer remains in Quitting.
+Inspect the transaction and target/session readback, not merely the worker PID.
+Preserve save/close prompts and authentication. Native upstream corrections
+must retain vendor patches/flags, refuse an unreviewed NVR and prove both the
+old negative control and repeated real logout/login before signed delivery.
+
 **A cached compile outlives the file it was compiled from.** Qt checks a `.qmlc` against its
 source's mtime, OSTree pins every mtime under `/usr` to the epoch, and a zero timestamp turns
 the check off: after an update a process keeps running the previous image's QML until its
