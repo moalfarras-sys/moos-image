@@ -310,6 +310,17 @@ design lives there and in its siblings now; the lock screen runs upstream's own 
 `build.sh` refuses a MoOS copy at either path. Before forking a file to change how it looks,
 find what it instantiates.
 
+**A disabled filename can still be live configuration.** Plasma Login Manager
+6.7.5 reads every regular file in its configuration directories, not only
+`*.conf`. Keep a retired development autologin backup outside those directories.
+Its existing-session reuse filter accepts `plasmalogin` but not
+`plasmalogin-autologin`; switching back to an automatically logged-in account
+can start a second session for that same user. Compare actual logind session
+IDs, services and compositor ownership before claiming logout/relogin passed.
+Since the session design no longer forks authentication, a selfcheck requiring
+"MoOS" in `LockScreenUi.qml` is stale: inspect the actual shared components and
+preserve negative controls for missing components and a reintroduced fork.
+
 **A cached compile outlives the file it was compiled from.** Qt checks a `.qmlc` against its
 source's mtime, OSTree pins every mtime under `/usr` to the epoch, and a zero timestamp turns
 the check off: after an update a process keeps running the previous image's QML until its
