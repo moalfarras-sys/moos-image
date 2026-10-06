@@ -3,6 +3,19 @@
   "_": "What a person can SEE or DO after an update, newest first. One entry per user-visible change, written for the owner of the machine, not for a developer: what it is, where it is, and (when MoOS has a route to it) a way to try it now. 'merged' is when the change reached main (a little later is fine, earlier is not: an entry dated before a machine's previous system is never marked new there); a machine marks an entry new when the system it ran BEFORE the update was built earlier than that. tests/test_whats_new.py reads every entry the way MoOS Settings will.",
   "entries": [
     {
+      "id": "remote-pin-lockout",
+      "merged": "2026-10-07T00:00:00Z",
+      "glyph": "lock",
+      "title": {
+        "ar": "حماية موحّدة لرمز التحكم البعيد",
+        "en": "Shared protection for the Remote PIN"
+      },
+      "body": {
+        "ar": "محاولات الرمز الخاطئة عند تغييره تُحتسب مع محاولات تسجيل الدخول. بعد خمس محاولات، ينتظر التحكم البعيد دقيقتين قبل المحاولة مجددًا. تغيير الرمز الصحيح يُخرج الجلسات والأجهزة الموثوقة السابقة.",
+        "en": "Wrong PIN attempts while changing it share the login limit. After five attempts, Remote waits two minutes before another attempt. Changing the PIN signs out previous sessions and trusted devices."
+      }
+    },
+    {
       "id": "remote-glass-console",
       "merged": "2026-10-07T00:00:00Z",
       "glyph": "video",
