@@ -9,7 +9,10 @@ Do not advance main until that release succeeds or fails.
 ## Reviewed source
 
 `integrate/all-owner-20261006` starts from `97f4f121` and merges the exact
-Remote v56 head `3b4c6d53` (#214). Its only additional configuration change
+Remote v56 head `3b4c6d53` (#214), followed by the reviewed shared PIN-lockout
+batch `233d6038` (#215). Login and PIN changes now share the persisted
+five-attempt/two-minute lockout; HTTP 423 reports an active lockout. This
+integration retains that branch's product source exactly. Its only additional configuration change
 preserves the owner's local `Bash(git commit *)` and `Bash(git stash *)` allow
 rules. All 22 pinned permission guards and the four approved MCP servers pass
 the maintained configuration gate; no credential is introduced.
@@ -68,8 +71,11 @@ are documented in [Oracle cloud workstation](ORACLE_CLOUD_WORKSTATION.md).
 ## Acceptance boundary
 
 Run `just check` on the final integration tree and retain CI results for that
-head. Existing #214 image checks alone do not prove its eventual signed
-release. Main must preserve the integrated ancestry; delivery then follows
+head. Existing #214/#215 image checks alone do not prove their eventual signed
+release. The additional Oracle changes target the station's #215 integration
+branch so the reviewed history and fixture fix can join its single final batch.
+The station owns that signed cycle; the Oracle agent follows its proven ARM
+release without dispatching a duplicate. Main must preserve the integrated ancestry; delivery then follows
 `RELEASE.md`: exact signed candidates, successful artifact boots and promotion,
 the host update authority, and post-reboot checks. Record final run IDs and the
 actual booted digest only after they exist. Phone/WAN endurance, phone photo
