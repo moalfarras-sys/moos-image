@@ -267,7 +267,7 @@ The PIN is **never** stored here — it's Argon2id-hashed and the whole `config.
 - **No login, no access.** First run forces a PIN.
 - **PINs are hashed** with Argon2id; the config blob is DPAPI-encrypted to the current Windows user.
 - **Session tokens** are random 256-bit values, in-memory only (a restart forces re-login), with a sliding expiry.
-- **Brute-force protection:** 5 wrong attempts → 5-minute lockout.
+- **Brute-force protection:** login and remote PIN changes share five wrong attempts → a two-minute lockout, persisted across agent restarts.
 - **Tailscale-only:** connections are accepted only from `100.64.0.0/10` (Tailscale) + loopback. The agent binds to the Tailscale IP; the public internet is never reachable.
 - **No telemetry, no external calls.** Nothing leaves your machine.
 - **Always visible:** the on-screen banner + tray indicator make hidden control impossible.
