@@ -32,6 +32,7 @@ bash -n build_files/build.sh
 python3 tests/test_shell_line_continuations.py
 python3 tests/test_usr_local_layout.py
 python3 tests/test_image_state.py
+python3 tests/test_plasma_logout_packages.py
 python3 tests/test_settings_hardware_identity.py
 python3 tests/test_theme_drift_repair.py
 python3 tests/test_moai_severity_banner.py

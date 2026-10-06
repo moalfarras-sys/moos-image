@@ -60,6 +60,18 @@ COPY tests/qml/motion-review.qml /motion-review.qml
 # test file (the mira-build stage runs the same probe as a suite), never shipped.
 COPY mira/test_visual_tier.py /mira/test_visual_tier.py
 
+# P5.8: exact vendor Plasma rebuild; only the logout transaction is corrected.
+FROM base AS plasma-logout-build
+RUN dnf5 -y install --setopt=install_weak_deps=False gcc-c++ rpm-build cpio patch \
+    'dnf5-command(builddep)' python3 curl plasma-workspace
+COPY build_files/plasma_logout/build.sh build_files/plasma_logout/logout-transaction.patch /src/
+RUN bash /src/build.sh prepare
+RUN bash /src/build.sh compile
+COPY build_files/plasma_logout/rpms.py build_files/plasma_logout/native-proof.cpp build_files/plasma_logout/native-proof.sh /src/
+RUN dnf5 -y install --setopt=install_weak_deps=False dbus-daemon \
+    && python3 /src/rpms.py collect /work/plasma-logout-rpmbuild/RPMS /out \
+    && bash /src/native-proof.sh
+
 # P0.7: native vendor RPM rebuild; SDK and regression evidence never ship.
 FROM base AS plymouth-build
 RUN dnf5 -y install --setopt=install_weak_deps=False gcc libasan rpm-build cpio patch \
@@ -294,6 +306,15 @@ LABEL org.opencontainers.image.title="MoOS" \
 # MoOS identity, Nova desktop/login/boot themes, applications, service units,
 # and boot/install configuration. build_files/build.sh performs the package-
 # dependent wiring and final validation.
+# Install the reviewed vendor packages BEFORE the authoritative MoOS overlay;
+# workspace-common owns the session picker and otherwise restores upstream bytes.
+# The helper excludes kernel packages in this transaction; build.sh retains its
+# existing base-kernel freeze for every later transaction.
+RUN --mount=type=bind,from=ctx,source=/,target=/ctx \
+    --mount=type=bind,from=plasma-logout-build,source=/out,target=/plasma-logout-rpms \
+    --mount=type=cache,dst=/var/cache \
+    --mount=type=cache,dst=/var/log \
+    python3 /ctx/plasma_logout/rpms.py install /plasma-logout-rpms
 COPY system_files/ /
 COPY --from=moremote-build /out/ /usr/lib/mo-remote/
 # Keep the vendored app's standalone icon byte-identical to MoOS's new

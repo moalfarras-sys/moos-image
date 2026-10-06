@@ -8,17 +8,17 @@ readiness. This precedes further visual expansion.
 
 | Existing row | Measured result | Exit evidence still required |
 | --- | --- | --- |
-| P5.8 / P0.7 | Signed NVIDIA `.999` is current; `.989` remains. Morning logs and a fresh signed-base guest reproduce an autologin session excluded from Plasma Login Manager 6.7.5's reuse filter, followed by a second session for the same account. Manual login plus user switching reuses its original session, with no compositor restart. | Retire only the station's temporary development autologin drop-in after native administrator authentication; backup outside the parsed directories. Real station logout/relogin and repeated ordinary guest logout/relogin. No authentication fork or gate relaxation. |
-| P2.16 / P1.7 | Source selfcheck recognizes the upstream authentication files and the six shared session components; missing components, comment-only markers and retired forks fail executable private fixtures. Revised source selfcheck is 54/0 on installed `.999`. | Signed delivery of the diagnostic correction. Source validation never proves a physical return to login. |
-| P6.1 / P6.5 | All pre-audit code refs integrated; PR #208 documentation reviewed/merged. Three delivered Remote home selectors backed up and retired; exact installed executable active. `post-update-check.sh` 55/0; Store/system Flatpak update exits 0. | Physical phone/WAN endurance, HDMI loss and EOL publisher migration remain open; the next-Plasma canary's mutable-filesystem failure is separate open acceptance. |
+| P5.8 / P0.7 | Signed NVIDIA `.999` boots; signed `.989` rollback verified. The exact-byte local development autologin override was retired after native administrator authentication; its backup is outside PLM's parsed directories. Owner clarified full logout then same-account login. | Reboot to load the configuration, then actual station logout/relogin with one normal `plasmalogin` session. Preserve authentication and rollback. |
+| P5.8 | Exact signed `.999` guest: three settled ordinary logout/password-login cycles pass with no reboot. Early full logout fails twice; native journal shows `TransactionIsDestructive` for a queued MoOS theme-sync start, discarded by upstream's final `StopUnit(fail)`. Actual private systemd units reproduce the failure and succeed with `replace`. | Source-worker guest bind: three early cycles pass with a separate observer UID; restoring the original worker fails again. KWrite’s native save prompt preserves the file and completes logout; power-prompt cancellation keeps its unsaved editor. Native old/fixed/error/cancellation cases and 18 package fixtures pass. Local NVIDIA image gates/lint and actual RPM/activation/MoOS picker readbacks pass; SDK proof dependencies are corrected after the ARM failure. Health fixtures isolate the synthetic disk and preserve 90/97% warnings (20 cases). The full maintained repo gates pass with live-journal traps; corrected-head image CI, a new signed release and physical readback remain required. |
+| P2.16 / P1.7 | #209 merged at `66653f76`; selfcheck's upstream-authentication/six-component repair and source-map-js 1.2.2 lock fix reached promoted signed `.1003`. All three QCOW2 boots, ISO and ARM proof/promotion passed first attempt; receipts in `PROJECT_STATE.md`. | The unstarted `.1003` prompt was cancelled before any worker ran; wait for the native correction’s signed release. `.1003` is not staged or booted. Installed diagnostic readback remains after reboot. |
+| P6.1 / P6.5 | All 100 refs reviewed before this new correction integrated; 21 worktrees were clean. Three delivered Remote selectors backed up/retired; exact image executable active, zero restarts. Installed post-update 55/0; app updates exit 0; native firmware check completed with no updates available. | Physical phone/WAN endurance, HDMI loss, EOL publisher migration and next-Plasma canary remain open. |
 
 Dependency follow-through: candidate `37430716738` failed closed on
 [GHSA-68fv-2mgg-jv7q](https://github.com/advisories/GHSA-68fv-2mgg-jv7q).
-The source-map-js transitive lock entry is now 1.2.2, with no unrelated npm
-metadata changes, zero audit findings, passing type/unit/production-browser
-and .NET checks, and unchanged shipped frontend bytes. Repeated private-guest
-returns remain inconclusive/failing after the first manual success; the guest
-has older session artwork. This never closes physical `.999` acceptance.
+The lock-only 1.2.2 correction, zero audit findings and unchanged frontend bytes
+are delivered in `.1003`. An older guest's artwork/fixture failures are retained
+separately; the current guest's exact signed-base proof establishes the bounded
+startup/logout conflict, not the owner's physical root cause.
 
 ### Readiness repair batch — owner priority, 2026-10-04
 

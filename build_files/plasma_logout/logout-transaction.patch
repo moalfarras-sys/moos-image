@@ -1,0 +1,23 @@
+--- a/startkde/plasma-shutdown/shutdown.cpp
++++ b/startkde/plasma-shutdown/shutdown.cpp
+@@ -154,8 +154,18 @@
+                                                   QStringLiteral("/org/freedesktop/systemd1"),
+                                                   QStringLiteral("org.freedesktop.systemd1.Manager"),
+                                                   QStringLiteral("StopUnit"));
+-        msg << QStringLiteral("graphical-session.target") << QStringLiteral("fail");
+-        QDBusConnection::sessionBus().call(msg);
++        // Ordinary logout supersedes pending desktop startup jobs. "fail" can
++        // reject the entire stop transaction while an appearance oneshot starts,
++        // leaving KSMServer in Quitting after this worker exits.
++        msg << QStringLiteral("graphical-session.target") << QStringLiteral("replace");
++        const QDBusReply<QDBusObjectPath> reply = QDBusConnection::sessionBus().call(msg);
++        if (!reply.isValid()) {
++            qCWarning(PLASMA_SESSION) << "Failed to stop graphical session" << reply.error();
++            OrgKdeKSMServerInterfaceInterface ksmserverIface(QStringLiteral("org.kde.ksmserver"), QStringLiteral("/KSMServer"), QDBusConnection::sessionBus());
++            ksmserverIface.resetLogout();
++            logoutCancelled();
++            return;
++        }
+     } else {
+         auto msg = QDBusMessage::createMethodCall(QStringLiteral("org.kde.ksmserver"),
+                                                   QStringLiteral("/MainApplication"),

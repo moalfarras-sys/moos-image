@@ -172,6 +172,9 @@ dnf5 -y install --setopt=install_weak_deps=False "${_PLASMA[@]}"
 
 python3 /ctx/plymouth_rpms.py install /plymouth-rpms
 
+# Preserve the vendor package ownership and every Plasma/authentication seam.
+python3 /ctx/plasma_logout/rpms.py install /plasma-logout-rpms
+
 # cosign is not always packaged for aarch64 — install the static binary when needed.
 if ! command -v cosign >/dev/null 2>&1; then
     if ! dnf5 -y install --setopt=install_weak_deps=False cosign 2>/dev/null; then
@@ -1620,6 +1623,7 @@ rm -rf /var/cache/* /var/log/* /tmp/* || true
 # bootc requires /var to be empty of anything the image is not entitled to own.
 find /var -mindepth 1 -maxdepth 1 ! -name 'lib' ! -name 'tmp' -exec rm -rf {} + 2>/dev/null || true
 
+python3 /ctx/plasma_logout/rpms.py verify
 python3 /ctx/finalize_image_state.py --root /
 
 
