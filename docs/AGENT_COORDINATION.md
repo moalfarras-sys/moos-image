@@ -27,7 +27,7 @@ rebuild of the same commit killed the cycle's build and the cycle reported FAIL.
 reuses a finished build of the exact revision and adopts a superseding one. Expect to rebase
 rather than to conflict.
 
-**2026-10-06: the owner has reserved the next release cycle for the station’s native logout correction (#211) and reviewed Oracle documentation integration.** The standard `scripts/release-candidate.sh --promote` cycle on `0b44d435` failed closed (`37496769111`) before image publication on a new Sharp advisory. A narrow security patch must merge before the next cycle; main freezes at that next candidate revision until promotion/failure. The station’s own intermediate `ef8ec7ea` push builds were cancelled before any boot/promotion proof started; they are not delivery evidence.
+**2026-10-07: the station completed the owner-authorized final cycle at `fa85b2da`.** #215 includes exact #214/v56, shared PIN protection and reviewed Oracle #216 history/recorder updates. X86 build `37552824167`, three QCOW2 proofs, offline ISO and promotion `37562359722` all succeed; ARM `37539003204` succeeds at the same source. Production is x86 `.1011` and ARM `.724`. Main's candidate freeze is released. The station holds only its delivery/readback paragraphs in `PROJECT_STATE.md`, `docs/DEVELOPMENT_PLAN.md` and this file on `docs/session-delivery-20261007`; it requested the official NVIDIA host update, while native authentication/staging/reboot and physical full logout remain pending. Oracle follows the proven ARM release for its own installed acceptance without a duplicate cycle.
 
 **Release cycles** normally belong to the off-station agent. On 2026-09-18 the owner
 asked the station to run one for W8 so every edition updates; say so here when that
