@@ -1,10 +1,10 @@
 # Oracle repository integration — 2026-10-06
 
 The owner requested integration of local and remote branches and worktrees,
-followed by a signed system update and reboot. Source integration and delivery
-are separate: the installed A1 still runs signed ARM `.710`, source `66653f76`,
-while the station's reserved release at `97f4f121` is proving its artifacts.
-Do not advance main until that release succeeds or fails.
+followed by a signed system update and reboot. This integration is delivered:
+#216 joined #215, which merged at `fa85b2da`. The final signed release completed
+on 2026-10-07; the A1 rebooted into its exact ARM `.724`, retaining signed `.710`
+for rollback. The earlier reserved `97f4f121` cycle also completed before integration.
 
 ## Reviewed source
 
@@ -70,14 +70,18 @@ are documented in [Oracle cloud workstation](ORACLE_CLOUD_WORKSTATION.md).
 
 ## Acceptance boundary
 
-Run `just check` on the final integration tree and retain CI results for that
-head. Existing #214/#215 image checks alone do not prove their eventual signed
-release. The additional Oracle changes target the station's #215 integration
-branch so the reviewed history and fixture fix can join its single final batch.
-The station owns that signed cycle; the Oracle agent follows its proven ARM
-release without dispatching a duplicate. Main must preserve the integrated ancestry; delivery then follows
-`RELEASE.md`: exact signed candidates, successful artifact boots and promotion,
-the host update authority, and post-reboot checks. Record final run IDs and the
-actual booted digest only after they exist. Phone/WAN endurance, phone photo
-background upload and an off-host backup of originals remain separate open
-acceptance work.
+The final integration passed maintained `just check` and required CI. Signed
+x86 build `37552824167`, QCOW2 runs `37558743993` / `37558747906` /
+`37558751431`, final offline ISO `37558755639` and promotion `37562359722`
+passed first attempt. ARM pipeline `37539003204` built, booted twice and
+promoted the same source. No duplicate release was dispatched from the A1.
+
+Actual A1 post-reboot acceptance at 2026-10-07 06:48 CEST: signed origin
+`ghcr.io/moalfarras-sys/moos-arm@sha256:f9441728f373cf19d59bdc4116c42833392a628e3ac01f33905cd76fce3c7305`,
+new boot ID, rollback `.710`, selfcheck 51/0, post-update 55/0, no failed
+system/user units or kernel errors. All four media/SMB containers are healthy;
+files, IDE login and photos ping respond; Remote uses the immutable executable.
+Private receipt: `~/.local/state/moos/integration-20261006-2232/post-reboot.txt`.
+Phone/WAN endurance, phone photo background upload and off-host originals
+backup remain open. Public ISO delivery remains blocked separately; see
+[release readiness](RELEASE_READINESS_20261007.md).

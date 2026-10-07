@@ -5,7 +5,7 @@ or a second product backlog. Open work belongs to DEVELOPMENT_PLAN P5.5/P5.7.
 
 | Capability | Installed implementation | Owner access |
 | --- | --- | --- |
-| Desktop | signed MoOS ARM .710, 1280×720 virtual seat | existing Mo PC Remote, HTTPS 443 |
+| Desktop | signed MoOS ARM .724, 1280×720 virtual seat | existing Mo PC Remote, HTTPS 443 |
 | General files | FileBrowser Quantum 1.5.8, private `~/CloudFiles` | HTTPS 8443 / authenticated WebDAV |
 | iPhone Files | rootless Samba 4.23.8, same CloudFiles | SMB3 through tailnet TCP Serve 445 |
 | Development | code-server 4.140.0, existing Projects/repositories | HTTPS 8444, password auth |
@@ -43,16 +43,25 @@ cannot authorize the phone's Photos access or prove its background scheduling.
 
 ## Verified flows and practical limits
 
-On signed .710: maintained next-boot selfcheck 51 passed and post-update 55/0;
-zero failed units/kernel errors. Generated JPEG and MP4: authenticated upload,
+On signed .710, generated JPEG and MP4: authenticated upload,
 SHA-256-identical original download, generated thumbnail HTTP 200; anonymous
 original HTTP 401. A real browser loaded the Arabic phone-size onboarding.
 Originals survived stack recreation with the same hashes and processed video playback returned 200. This is server evidence, not owner-device backup/endurance evidence.
+
+After the actual 2026-10-07 reboot to signed `.724` (source `fa85b2da`),
+selfcheck passed 51/0, post-update 55/0, no failed units/kernel errors; signed
+`.710` rollback remains. Four containers are healthy and files, IDE login and
+gallery ping respond. Remote uses the immutable executable after retiring the
+exact delivered review selector. The latest stable Immich/FileBrowser/code-server
+release tags were checked against the installed versions on the same day.
 
 The packaged Tailscale daemon path was restored in the existing custom system
 unit after backing it up under `/etc/moos/local-backups/20261006/`. The same
 node remained logged in, and the four private Serve routes were verified.
 The old standalone daemon must not shadow later signed system updates again.
+The home CLI shadow was also archived on 2026-10-07; its replacement links to
+the packaged `/usr/bin/tailscale` 1.102.5, matching the daemon. Existing node,
+four private HTTPS routes and SMB forwarding remain intact.
 
 `moos-cloud-backup.timer` runs a private encrypted restic snapshot at 03:15
 (with jitter). It first creates a consistent `pg_dump`, then backs up database
