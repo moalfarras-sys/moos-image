@@ -89,7 +89,13 @@ post-update **55 / 0**, zero failed system/user units and no kernel errors.
 Boot was 13.6 s, graphical target 8.6 s. Remote runs the immutable executable;
 the exact delivered home override was archived/retired. Files, browser IDE,
 photos and authenticated SMB services survived reboot; four containers are
-healthy. User and system Flatpak update queries offer no updates. Installed
+healthy. User and system native Flatpak update/repair transactions complete
+successfully with nothing left to update. Five OCI entries still appear in
+`remote-ls --updates`, but every installed `xa.alt-id` matches the remote
+manifest digest: these are false pending entries, not missing updates. A
+targeted native transaction also reports nothing to update; the discrepancy
+has an [upstream OCI report](https://github.com/flatpak/flatpak/issues/3748).
+Installed
 Plasma is 6.7.5, Qt 6.11.2, kernel 7.2.8 and Tailscale daemon/CLI 1.102.5;
 the stale home CLI was backed up and replaced with the packaged CLI link.
 This follows the signed approved release rather than an unqualified beta.
