@@ -1,0 +1,22 @@
+{
+  "url": "https://moalfarras.space/api/os/download?type=iso",
+  "sizeBytes": 5796462592,
+  "sha256": "cbe92573e620101f274081c884671e4b63ffbcdb765521713d21ada1dbe9cb1c",
+  "http": 200,
+  "rangeHttp": 206,
+  "anonymous": true,
+  "fullHashVerified": true,
+  "schema": 1,
+  "checkedAt": "2026-10-08T15:14:41.406843+00:00",
+  "signatureVerified": true,
+  "scope": "Delivery only; match the ISO's successful boot/install and promotion proofs before publication.",
+  "version": "44.20261007.1011",
+  "sourceRevision": "fa85b2daf3db0f1f823b3159bb46b25571a99740",
+  "imageDigest": "sha256:c3689b0e64c48cdf7d5de7d83b3dc156bf264f6381cce98d36376681b07ebf99",
+  "isoRun": 37558755639,
+  "promotionRun": 37562359722,
+  "websitePublicationRevision": "dfe3c70b63cbd0207ec3e15cd3bcef3df58b16d0",
+  "websiteProductionDeployment": "dpl_Cpm4ueK4wk5URvHaX5MWYdDZrSkx",
+  "publicDeliveryService": "https://moos-downloads.moalfarras-moos.workers.dev",
+  "sidecarsVerified": true
+}

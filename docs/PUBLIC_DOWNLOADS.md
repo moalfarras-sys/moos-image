@@ -3,7 +3,8 @@
 The release contract in `RELEASE.md` proves the OS. This procedure proves that
 the public receives the same bytes. It never substitutes for boot, offline
 installation, installed-system login/reboot/poweroff, or production promotion.
-The only open work item for this procedure is P0.12 in `DEVELOPMENT_PLAN.md`.
+Delivery is tracked as P0.12 in `DEVELOPMENT_PLAN.md`; the October 8 receipt
+closes the current release. Future releases must repeat this procedure.
 
 ## Preserve the qualified artifact
 
@@ -27,10 +28,13 @@ because the artifact exists in Actions.
 If no suitable existing host is available, Cloudflare R2 **Standard** is a
 practical default: its monthly allowance includes 10 GB-month of storage and
 egress is free; extra storage/operations remain billable
-([current pricing](https://developers.cloudflare.com/r2/pricing/)). Use a
-dedicated public release bucket with a custom domain, not a private backup
-bucket or the development-only `r2.dev` endpoint
-([public buckets](https://developers.cloudflare.com/r2/buckets/public-buckets/)).
+([current pricing](https://developers.cloudflare.com/r2/pricing/)). Use a dedicated release bucket, not a private backup bucket. Either expose it
+through a custom domain ([public buckets](https://developers.cloudflare.com/r2/buckets/public-buckets/)),
+or keep it private and stream only explicit release files through a persistent
+named Worker ([R2 bindings](https://developers.cloudflare.com/r2/api/workers/workers-api-usage/)),
+with a stable download entry on the existing website. Do not use expiring
+previews or the development-only `r2.dev` endpoint. The October 8 delivery
+uses the latter private-bucket path without changing the site/mail DNS.
 Upload a multi-GB ISO through the S3 multipart API, for example with `rclone`;
 the consumer still downloads **one file**. Single PUT uploads are limited to
 5 GiB ([upload limits](https://developers.cloudflare.com/r2/objects/upload-objects/)).
