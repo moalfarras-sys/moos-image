@@ -1,10 +1,13 @@
 # MoOS release readiness — verified 2026-10-07
 
 The four production editions are signed and boot-proven at source
-`fa85b2daf3db0f1f823b3159bb46b25571a99740`. The public launch is **not ready**:
-the anonymous ISO route returns HTTP 503 and the existing public Blob store
-returns HTTP 403, `Your store is blocked`. A valid CI ISO is preserved before
-its seven-day artifact expiry; it is not yet a qualified public download.
+`fa85b2daf3db0f1f823b3159bb46b25571a99740`. **Public download delivered 2026-10-08:** the exact ISO is now served from
+private Cloudflare R2 through a persistent named Worker. A complete anonymous
+transfer verified its size, SHA-256, detached signature and resumed ranges
+before enabling the website. Public/admin site deployment at `dfe3c70b` is
+READY; the MoOS page and sidecar links work in Arabic/English desktop/phone
+checks. Final canonical full-transfer readback passed at `2026-10-08T15:14:41Z`: exact size/hash/signature and HTTP 206 ranges. The old blocked
+Blob store is bypassed without deleting unrelated files.
 This document records evidence and hardware sizing; the sole backlog remains
 `DEVELOPMENT_PLAN.md`, especially P0.12, P5.1, P5.5 and P5.7.
 
@@ -42,12 +45,21 @@ The owner can also find these files in private
 share disk extents while keeping the archive independent. This is authenticated tailnet access,
 not the anonymous public download qualification.
 
-CI artifact access requires a GitHub login and expires; it is not the public
-release link. Follow [public delivery qualification](PUBLIC_DOWNLOADS.md)
-before publishing: one stable anonymous HTTPS file, exact size/full hash and
-both byte ranges, matching signature and successful promotion. Leave website
-availability false until that passes. The blocked store also contains existing
-MoPlayer downloads; do not delete unrelated files or silently upgrade billing.
+The stable public entry is [Download MoOS ISO](https://moalfarras.space/api/os/download?type=iso),
+with [signature](https://moalfarras.space/api/os/download?type=iso&asset=signature)
+and [SHA-256 file](https://moalfarras.space/api/os/download?type=iso&asset=checksum).
+Release page: [Arabic](https://moalfarras.space/ar/moos),
+[English](https://moalfarras.space/en/moos). Source/proof metadata lives in the
+website manifest and public `/downloads/moos/delivery-proof.json`; the final
+canonical receipt is [preserved here](releases/2026-10-08-public-download-proof.json). The hosting
+account was activated by the owner; upload credentials are scoped to the
+release bucket and kept outside Git. R2 and Workers allowances are not a
+hard spending cap. The existing site/mail DNS did not change.
+
+CI artifact access still requires authentication and expires; the public
+release uses the preserved, signed bytes on permanent named hosting. Future
+releases must repeat [public delivery qualification](PUBLIC_DOWNLOADS.md)
+before changing availability, and preserve the versioned old download path.
 
 ## PC requirements and support scope
 
