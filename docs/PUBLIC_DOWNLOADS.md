@@ -3,7 +3,8 @@
 The release contract in `RELEASE.md` proves the OS. This procedure proves that
 the public receives the same bytes. It never substitutes for boot, offline
 installation, installed-system login/reboot/poweroff, or production promotion.
-The only open work item for this procedure is P0.12 in `DEVELOPMENT_PLAN.md`.
+Delivery is tracked as P0.12 in `DEVELOPMENT_PLAN.md`; the October 8 receipt
+closes the current release. Future releases must repeat this procedure.
 
 ## Preserve the qualified artifact
 
