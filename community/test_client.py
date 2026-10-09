@@ -177,6 +177,11 @@ class ShippedLauncher(unittest.TestCase):
             good=subprocess.run(command,cwd=root,env=env,capture_output=True,text=True,timeout=15)
             self.assertEqual(good.returncode,0,good.stdout+good.stderr)
             self.assertIn('MOOS_COMMUNITY_UI_READY',good.stdout);self.assertTrue((root/'frame.png').is_file())
+            # Include teardown: a rendered frame alone can still leave QML
+            # bindings alive after their Python context object is destroyed.
+            output=good.stdout+good.stderr
+            for error in ('ReferenceError','TypeError','Unable to assign','Binding loop','binding loop','Traceback'):
+                self.assertNotIn(error,output,output)
             (root/'frame.png').unlink()
             (root/'community/main.qml').write_text('import QtQuick\nThisTypeDoesNotExist {}')
             bad=subprocess.run(command,cwd=root,env=env,capture_output=True,text=True,timeout=15)

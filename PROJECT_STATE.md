@@ -166,7 +166,8 @@ Participation beta: 34 API/privacy/retry/proxy/release, 10 native Qt HTTP/launch
 pass. Oracle API runs under a dedicated unprivileged account; public TLS, six
 API cases and physical Wayland Arabic/image flow passed. Synthetic data removed.
 Four real packaging cases pass; all-edition packaging is added. Full image
-and signed delivery remain open; latest maintained repository run passed 243 gates.
+caught a QML context teardown defect: old-container negative/fixed positive pass.
+Signed delivery remains open; latest maintained repository run passed 243 gates.
 
 ## Installer mechanism preserved in the integrated batch
 

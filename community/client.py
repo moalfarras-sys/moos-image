@@ -16,7 +16,7 @@ os.environ['QML_DISABLE_DISK_CACHE'] = '1'
 
 sys.path.insert(0, '/usr/lib/mira/site')
 from PySide6.QtCore import (QObject, Property, QRunnable, QThreadPool, QTimer, QUrl,
-                           Signal, Slot, QLocale, QBuffer, QByteArray, QIODevice)
+                           Signal, Slot, QLocale, QBuffer, QByteArray, QIODevice, QEvent)
 from PySide6.QtGui import QGuiApplication, QIcon, QImage, QImageReader, QPainter
 from PySide6.QtQml import QQmlApplicationEngine
 from PySide6.QtQuick import QQuickWindow
@@ -511,7 +511,15 @@ def main():
     if args.operator_session:
         token = read_operator(args.operator_session)
         QTimer.singleShot(0, lambda: controller.operator_login(token))
-    raise SystemExit(app.exec())
+    try:
+        result = app.exec()
+    finally:
+        # QML keeps bindings to the Python context object during teardown.
+        # Destroy the engine while its controller is still alive; relying on
+        # interpreter-local destruction order leaves those bindings null.
+        engine.deleteLater()
+        app.sendPostedEvents(None, QEvent.Type.DeferredDelete)
+    raise SystemExit(result)
 
 
 if __name__ == '__main__':
