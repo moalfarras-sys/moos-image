@@ -562,7 +562,9 @@ def create_app(directory, *, public_origin, release_verifier=None, registration_
     @app.post('/v1/notifications/{notification_id}/seen')
     def seen(notification_id: int, current=Depends(user)):
         with store.connect(write=True) as db:
-            db.execute('UPDATE notifications SET seen=1 WHERE id=? AND owner=?',(notification_id,current['id']))
+            result=db.execute('UPDATE notifications SET seen=1 WHERE id=? AND owner=?',(notification_id,current['id']))
+            if result.rowcount != 1:
+                fail(404,'notification_not_found')
         return {'schema':1,'seen':True}
 
     @app.post('/v1/moderation/{identity}/hide')

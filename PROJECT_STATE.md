@@ -144,7 +144,7 @@ private privileged state and bounded diagnostics; candidate build 37910223752
 passed; ISO 37916929153, disks 37916917245/37916921267/37916925157 and ARM
 37916934408 all succeeded. PR221 merged at 46b46e87 with the exact candidate
 tree; x86 promotion 37946594645 succeeded. NVIDIA .1018 (`c5977fc7…`) is published;
-local staging awaits Polkit. Its installer proof excludes this later owner batch.
+official local staging completed; reboot/readback remain owed. Its installer proof excludes this later owner batch.
 
 ## Owner milestone — source work, not promoted delivery
 
@@ -160,7 +160,7 @@ This does not fix unmuted USB firmware or prove physical speech. Full maintained
 `just check` passed all 240 gates; this source is not installed or signed/promoted yet.
 Recovery's unreadable state now differs from a proven absent rollback, with a
 read-only retry. Its regression gate and actual native AR/EN GTK source review
-pass; no rollback mechanism or boot choice changed. The gallery holds 27 unique
+pass; no rollback mechanism or boot choice changed. The gallery holds 30 unique
 real frames with explicit source/CI/private-host boundaries and missing stages.
 Participation beta: 34 API/privacy/retry/proxy/release, 10 native Qt HTTP/launcher cases
 pass. Oracle API runs under a dedicated unprivileged account; public TLS, six

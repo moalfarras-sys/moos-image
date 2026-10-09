@@ -196,8 +196,10 @@ class Participation(unittest.TestCase):
             json={'client_id':key(),'body':'رد فريق التطوير'})
         records=self.client.get('/v1/notifications',headers=self.headers['alice']).json()['notifications']
         self.assertEqual(records[0]['event'],'reply')
-        self.client.post('/v1/notifications/'+str(records[0]['id'])+'/seen',headers=self.headers['bob'])
+        self.assertEqual(self.client.post('/v1/notifications/'+str(records[0]['id'])+'/seen',headers=self.headers['bob']).status_code,404)
+        self.assertEqual(self.client.post('/v1/notifications/999999/seen',headers=self.headers['alice']).status_code,404)
         self.assertEqual(self.client.get('/v1/notifications',headers=self.headers['alice']).json()['notifications'][0]['seen'],0)
+        self.assertEqual(self.client.post('/v1/notifications/'+str(records[0]['id'])+'/seen',headers=self.headers['alice']).status_code,200)
         route='/v1/moderation/'+identity+'/hide'
         self.assertEqual(self.client.post(route,headers=self.headers['bob']).status_code,403)
         self.assertEqual(self.client.post(route,headers=self.headers['staff']).status_code,200)

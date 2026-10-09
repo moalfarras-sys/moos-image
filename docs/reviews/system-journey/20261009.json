@@ -591,6 +591,78 @@
       },
       "private_owner_content": false,
       "publishable_after_review": true
+    },
+    {
+      "file": "community-light-final/report-editor-ar.png",
+      "title_ar": "مجتمع MoOS — الثيم الفاتح",
+      "note_ar": "Qt أصلية معزولة بثيم UI2 Arena Light، بيانات اصطناعية، وقراءة فعلية لاتجاه الحبر. ليست صورة إصدار مشحون.",
+      "sha256": "518cf8a9f916fd5055206049fd0085d3e09d18a8452f9b4116472bd27d9bea7d",
+      "physical_px": [
+        1040,
+        760
+      ],
+      "logical_px": [
+        1040,
+        760
+      ],
+      "environment": "native-offscreen/private-api-fixture",
+      "language": "ar",
+      "version": "unreleased-source",
+      "source_files_sha256": {
+        "client.py": "f8787438bd4e4bae869a3fc68755e82cc09bc0da70c827ba284f123d89da3939",
+        "main.qml": "14e5af4d6d4d9ad0bef2b3b779a6293aab01dc35dbfd78929d8a503b90308f14",
+        "service.py": "f8e8c8e8eebcf7a69ed51222718ab102654bbcba05315a4005875e5fb16d0932"
+      },
+      "private_owner_content": false,
+      "publishable_after_review": true
+    },
+    {
+      "file": "community-light-final/conversations-ar.png",
+      "title_ar": "مجتمع MoOS — الثيم الفاتح",
+      "note_ar": "Qt أصلية معزولة بثيم UI2 Arena Light، بيانات اصطناعية، وقراءة فعلية لاتجاه الحبر. ليست صورة إصدار مشحون.",
+      "sha256": "3eee0656ae1b7d709382dbcc0d3adf7fbacfd6f2bea8a1a4d7353e4315e98d11",
+      "physical_px": [
+        1040,
+        760
+      ],
+      "logical_px": [
+        1040,
+        760
+      ],
+      "environment": "native-offscreen/private-api-fixture",
+      "language": "ar",
+      "version": "unreleased-source",
+      "source_files_sha256": {
+        "client.py": "f8787438bd4e4bae869a3fc68755e82cc09bc0da70c827ba284f123d89da3939",
+        "main.qml": "14e5af4d6d4d9ad0bef2b3b779a6293aab01dc35dbfd78929d8a503b90308f14",
+        "service.py": "f8e8c8e8eebcf7a69ed51222718ab102654bbcba05315a4005875e5fb16d0932"
+      },
+      "private_owner_content": false,
+      "publishable_after_review": true
+    },
+    {
+      "file": "community-light-final/private-conversation-ar.png",
+      "title_ar": "مجتمع MoOS — الثيم الفاتح",
+      "note_ar": "Qt أصلية معزولة بثيم UI2 Arena Light، بيانات اصطناعية، وقراءة فعلية لاتجاه الحبر. ليست صورة إصدار مشحون.",
+      "sha256": "b3b4ec83b74eb4117a49a9883615ef2f7efa71df11fbf3d571573df7aa2f9ace",
+      "physical_px": [
+        1040,
+        760
+      ],
+      "logical_px": [
+        1040,
+        760
+      ],
+      "environment": "native-offscreen/private-api-fixture",
+      "language": "ar",
+      "version": "unreleased-source",
+      "source_files_sha256": {
+        "client.py": "f8787438bd4e4bae869a3fc68755e82cc09bc0da70c827ba284f123d89da3939",
+        "main.qml": "14e5af4d6d4d9ad0bef2b3b779a6293aab01dc35dbfd78929d8a503b90308f14",
+        "service.py": "f8e8c8e8eebcf7a69ed51222718ab102654bbcba05315a4005875e5fb16d0932"
+      },
+      "private_owner_content": false,
+      "publishable_after_review": true
     }
   ],
   "deduplicated": [
@@ -604,6 +676,6 @@
     }
   ],
   "raw_ci_logs": "kept privately in audit state outside gallery",
-  "gallery_unique_frames": 27,
+  "gallery_unique_frames": 30,
   "community_live_acceptance": "actual Oracle TLS + private two-account/image/release API proof; source-native UI, not signed image delivery"
 }
