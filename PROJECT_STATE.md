@@ -10,12 +10,15 @@ The sole execution backlog is [DEVELOPMENT_PLAN.md](docs/DEVELOPMENT_PLAN.md).
 
 - Signed MoOS ARM 44.20261006.724, source fa85b2daf3db0f1f823b3159bb46b25571a99740.
   Digest: sha256:f9441728f373cf19d59bdc4116c42833392a628e3ac01f33905cd76fce3c7305.
-- Signed .710 rollback remains. The owner-authorized reboot was verified on
+- Signed ARM 44.20261009.728 (source 8ebe0591, digest
+  sha256:abc5aff9496d57917d94254c67da5af4caa94c412067d62a72a537a8e907f673)
+  is staged through moai-do update, not yet booted. Signed .710 rollback remains. The owner-authorized reboot was verified on
   2026-10-07; this audit has not replaced the installed origin with a local image.
 - Recorded installed selfcheck: 51 passed, 2 notes, no broken checks. Notes are
   owner-masked mpris-proxy and obex, not missing MoOS code.
 - No failed system/user units. Four rootless photos/database/cache/SMB
-  containers are healthy. About 98 GiB writable storage remains.
+  containers are healthy. About 52 GiB writable storage remains during artifact qualification;
+  removing two audit-owned superseded builds reclaimed about 4 GiB.
 - Session LANG/LANGUAGE and region formats are Arabic. KDE translation is ar.
   System fallback locale C.UTF-8 is distinct from the actual Arabic session.
   Look-and-feel readback: org.moos.ui2.nova.
@@ -32,16 +35,16 @@ The sole execution backlog is [DEVELOPMENT_PLAN.md](docs/DEVELOPMENT_PLAN.md).
 
 ## Promoted releases and public delivery
 
-The three x86 stable editions remain at source fa85b2da. ARM .728 completed
-build, disk and promotion at source 8ebe0591 (run 37881437511); its exact
-registry digest and cosign signature were read back on 2026-10-09.
-Source-only merges and image-only scheduled builds do not constitute promotion.
+The x86 editions are promoted from candidate 144b1a6a by run 37946594645.
+All five exact-artifact proofs succeeded on attempt 1; main 46b46e87 preserves
+candidate ancestry and its identical tree. ARM .728 remains source 8ebe0591.
+Image-only scheduled builds and later owner source do not imply delivery.
 
 | Edition | Version | Signed digest |
 | --- | --- | --- |
-| Desktop | 44.20261007.1011 | c3689b0e64c48cdf7d5de7d83b3dc156bf264f6381cce98d36376681b07ebf99 |
-| NVIDIA | 44.20261007.1011 | 9b77fc3eaed85d2b3e9b38809c9ab91c1de22854f31706f79d6b4d2f76bd4e8e |
-| Cloud x86 | 44.20261007.1011 | 4e187edbcced76e0c134ee68ab45c83bf3f9bf4ebae259235ed1306a289162cb |
+| Desktop | 44.20261009.1018 | 3055eb28ac032492a053da1efb9493c9780e7bfa20a01c7c3300961693bfee92 |
+| NVIDIA | 44.20261009.1018 | c5977fc7d68bc6cd708b85931711f3ff8eb44be5a4468edc7e9c490b9dfc0dd0 |
+| Cloud x86 | 44.20261009.1018 | 0160fddaab3deb4a8f3eef1d87d5343b3f0a1472e6f3f26f1bba4882dfccb977 |
 | ARM | 44.20261009.728 | abc5aff9496d57917d94254c67da5af4caa94c412067d62a72a537a8e907f673 |
 
 First-attempt stable proofs: signed build 37552824167; generic/NVIDIA/cloud disks
@@ -163,6 +166,14 @@ Participation beta: 34 API/privacy/retry/proxy/release and 7 native Qt HTTP case
 pass. Oracle API runs under a dedicated unprivileged account; public TLS, six
 API cases and physical Wayland Arabic/image flow passed. Synthetic data removed.
 All-edition native packaging is added; full image and signed delivery remain open.
+
+## Installer mechanism preserved in the integrated batch
+
+The repair retains private mount namespaces, checked target/subvolume/ESP
+readback, mandatory lock before state reset, private 0700/0600 diagnostics and
+bounded QGA reads. The old detacher is unidentified; native negative controls
+prove the failure class, while the final offline ISO now proves install/reboot.
+The detailed incident remains in AGENTS.md and the dated Arabic audit.
 
 ## Evidence still owed
 

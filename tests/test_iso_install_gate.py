@@ -4,6 +4,8 @@
 import ast
 from pathlib import Path
 import re
+import subprocess
+import tempfile
 from types import SimpleNamespace
 import unittest
 from unittest.mock import Mock
@@ -14,6 +16,58 @@ script_path = root / "tests/install_live_iso.sh"
 workflow_path = root / ".github/workflows/build-iso.yml"
 script = script_path.read_text(encoding="utf-8")
 workflow = workflow_path.read_text(encoding="utf-8")
+
+# Load the live helper's deadline and bounded collector without running QEMU.
+live_start = script.index('qga, qemu_pid, expected, password, evidence_arg, proof_key')
+live_start = script.rfind("<<'PY'\n", 0, live_start) + len("<<'PY'\n")
+live_code = script[live_start:].split('\nPY\n', 1)[0]
+live_tree = ast.parse(live_code)
+live_functions = ast.Module(body=[n for n in live_tree.body
+                                 if isinstance(n, ast.FunctionDef)
+                                 and n.name in {'exec_wait', 'collect_installer_diagnostics'}],
+                            type_ignores=[])
+
+
+class LiveDiagnosticTests(unittest.TestCase):
+    def test_timeout_reports_its_actual_deadline(self):
+        request = Mock(return_value={'pid': 123})
+        clock = Mock(side_effect=[0, 31])
+        namespace = {'request': request, 'time': SimpleNamespace(monotonic=clock)}
+        exec(compile(live_functions, str(script_path), 'exec'), namespace)
+        with self.assertRaisesRegex(TimeoutError, '123.*30 seconds'):
+            namespace['exec_wait']('read log', [], 30)
+
+    def test_collector_is_bounded_and_requires_success(self):
+        namespace = {}
+        exec(compile(live_functions, str(script_path), 'exec'), namespace)
+        fake_file = Mock()
+        class Sink:
+            def __truediv__(self, name):
+                return fake_file
+        namespace['evidence'] = Sink()
+        run = Mock(return_value=(0, 'captured', ''))
+        namespace['exec_wait'] = run
+        self.assertTrue(namespace['collect_installer_diagnostics']())
+        self.assertEqual(run.call_count, 2)
+        for call in run.call_args_list:
+            self.assertIn('head -c 65536', call.args[0])
+            self.assertIn('tail -c 65536', call.args[0])
+            self.assertEqual(call.args[2], 30)
+        run.return_value = (1, '', 'permission denied')
+        self.assertFalse(namespace['collect_installer_diagnostics']())
+        command = run.call_args_list[0].args[0]
+        with tempfile.TemporaryDirectory(prefix='moos-iso-log-') as directory:
+            path = Path(directory) / 'log'
+            missing = subprocess.run(['bash', '-c', command, '--', str(path)],
+                                     capture_output=True)
+            self.assertNotEqual(missing.returncode, 0)
+            path.write_bytes(b'first\n' + b'x' * 300000 + b'\nlast\n')
+            actual = subprocess.run(['bash', '-c', command, '--', str(path)],
+                                    capture_output=True)
+            self.assertEqual(actual.returncode, 0)
+            self.assertLess(len(actual.stdout), 131200)
+            self.assertTrue(actual.stdout.startswith(b'first\n'))
+            self.assertTrue(actual.stdout.endswith(b'\nlast\n'))
 
 required_script = (
     'file=$iso,media=cdrom,format=raw,readonly=on',

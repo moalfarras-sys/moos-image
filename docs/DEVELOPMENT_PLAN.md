@@ -23,14 +23,15 @@ its 30-second diagnostic timeout a 45-minute installer failure. Diagnose and
 bound diagnostic transfer, preserve accurate timeouts, then repeat the whole
 installed-ISO proof before x86 promotion; retain every existing gate.
 
-Current stable delivery is x86 .1011 at fa85b2da and ARM .728 at 8ebe0591.
-Public .1011 ISO hosting is qualified and P0.12 is closed. Both stations develop
-the same product; each hardware result must name its device and deployment.
-The NVIDIA station completed app updates and rebooted into exact signed .1011
-from .1009, retaining .1009 rollback; installed checks passed 55/0 and
-selfcheck passed 54. Its real app launches and Mira/MoPlayer frames were read
-back, while physical voice, suspend and deliberate rollback remain unproven.
-Running scheduled/image-only builds
+Current promoted x86 is .1018 from candidate 144b1a6a, after exact three disks,
+offline ISO and promotion 37946594645. Main 46b46e87 preserves its tree/ancestry.
+ARM .728 at 8ebe0591 is staged, not booted on Oracle's last readback.
+Public .1011 ISO hosting remains separately qualified; replacement transfer
+acceptance is required for a newer public ISO. Both stations develop one
+product; every result names its device/deployment. NVIDIA remains booted .1011
+with .1009 rollback and 55/0 installed checks; .1018 stage awaits local Polkit.
+The integrated installer repair preserves private mounts/layout checks, mandatory
+lock/private logs and bounded diagnostics. Running scheduled/image-only builds
 never imply promotion. No new model-written shell or hardware acceptance is inferred.
 
 The cadence of release cycles is the security cadence: a nightly image-only
@@ -297,7 +298,7 @@ itself and an unreviewed MoOS would ship kscreenlocker's emergency locker.
 | P0.5 | Configure and accept free Mo AI on a clean account | Open / acceptance not complete | Clean-account provider setup, free route, reboot, cancellation and network/quota/key failures. |
 | P0.6 | Promote only proven digests and update the physical PC | Stable mechanism/artifact evidence recorded; preserve required gates | Promote only exact proven signed digests; separately verify installed stage/reboot/rollback. |
 | P0.7 | Remove the intermittent `plymouthd` crash (ARM second boot; x86 first boot) | Implemented/delivered within recorded scope; wider acceptance remains | Pinned vendor Plymouth fix, old/fixed negative, exact final initramfs and actual boot visuals. |
-| P0.8 | Make the ISO installed-reboot proof deterministic | Stable mechanism/artifact evidence recorded; preserve required gates | Repeated installed-ISO reboot with DHCP/SSH-channel evidence and console failures visible. |
+| P0.8 | Make the ISO installed-reboot proof deterministic | Reopened: lost ESP and diagnostic collection corrected in source; fresh release proof pending | Repeated installed-ISO reboot with DHCP/SSH-channel evidence and console failures visible. |
 | P0.9 | Run image-only gates before the merge | Stable mechanism/artifact evidence recorded; preserve required gates | PR generic image gates block real image failures; no signing/publishing from PR. |
 | P0.10 | Gate NVIDIA persistence on a bound GPU | Stable mechanism/artifact evidence recorded; preserve required gates | Bound NVIDIA hardware and exact-kernel persistence/initramfs proof. |
 | P0.11 | Give first-boot Flatpak setup a realistic finite timeout | Stable mechanism/artifact evidence recorded; preserve required gates | Finite realistic first-boot app setup timeout and actual ARM reboot. |
