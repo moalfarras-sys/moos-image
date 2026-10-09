@@ -40,6 +40,28 @@ Kirigami.ApplicationWindow {
         horizontalAlignment: Text.AlignLeft
     }
     component QuietInk: Ink { color: Qt.alpha(Kirigami.Theme.textColor, 0.78) }
+    component SurfaceDialog: QQC2.Dialog {
+        id: surface
+        // Popups can resolve the controls palette separately from Kirigami's
+        // ink. Use the same theme roles for both sides, including private
+        // review profiles that have no platform palette provider.
+        background: Rectangle {
+            color: Kirigami.Theme.backgroundColor
+            radius: MoUI.Tokens.radiusCard
+            border.width: 1
+            border.color: Qt.alpha(Kirigami.Theme.textColor, 0.22)
+        }
+        header: Ink {
+            objectName: "conversationHeader"
+            // User-supplied report titles must never trigger AutoText/image URLs.
+            text: surface.title
+            visible: surface.title !== ""
+            wrapMode: Text.NoWrap
+            elide: Text.ElideRight
+            font.bold: true
+            padding: 12
+        }
+    }
     // The installed Breeze mobile toolbar types its target as TextInput,
     // while TextArea is TextEdit. Use Qt's public Basic template for this
     // multiline field, with the same MoOS palette and focus roles; no vendor fork.
@@ -265,7 +287,7 @@ Kirigami.ApplicationWindow {
         QuietInk { Layout.fillWidth: true; text: root.local("صدور الإصلاح يختلف عن تثبيته على جهازك. نعرض ما تؤكده الخدمة فقط.", "A released fix and an installed update are different. We show verified service state."); font.pixelSize: 12 }
     }
 
-    QQC2.Dialog {
+    SurfaceDialog {
         id: registration
         title: root.local("حسابك في مجتمع MoOS", "Your MoOS Community account")
         modal: true
@@ -284,7 +306,7 @@ Kirigami.ApplicationWindow {
         }
     }
 
-    QQC2.Dialog {
+    SurfaceDialog {
         id: editor
         objectName: "reportEditor"
         title: root.local("مشكلة أو فكرة جديدة", "New report or idea")
@@ -335,7 +357,7 @@ Kirigami.ApplicationWindow {
         onAccepted: community.choosePicture(selectedFile.toString(), root.pictureTarget)
     }
 
-    QQC2.Dialog {
+    SurfaceDialog {
         id: conversation
         objectName: "conversation"
         title: root.s.selectedTitle || root.local("المحادثة الخاصة", "Private conversation")
@@ -399,7 +421,7 @@ Kirigami.ApplicationWindow {
             }
         }
     }
-    QQC2.Dialog {
+    SurfaceDialog {
         id: deleteThread
         title: root.local("حذف المحادثة؟", "Delete conversation?")
         modal: true; anchors.centerIn: parent; width: Math.min(460, root.width - 48)
@@ -412,7 +434,7 @@ Kirigami.ApplicationWindow {
             }
         }
     }
-    QQC2.Dialog {
+    SurfaceDialog {
         id: discardDraft
         property string identity: ""
         title: root.local("حذف المسودة؟", "Discard draft?")

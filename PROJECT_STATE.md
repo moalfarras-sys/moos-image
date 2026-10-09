@@ -6,23 +6,23 @@ and registry promotion is not proof that either machine has rebooted into it.
 The full audit and acceptance gaps are in [the Arabic audit](docs/AUDIT_20261008_AR.md).
 The sole execution backlog is [DEVELOPMENT_PLAN.md](docs/DEVELOPMENT_PLAN.md).
 
-## Installed Oracle system — last recorded readback 2026-10-07
+## Installed Oracle system — live readback 2026-10-09
 
-- Signed MoOS ARM 44.20261006.724, source fa85b2daf3db0f1f823b3159bb46b25571a99740.
-  Digest: sha256:f9441728f373cf19d59bdc4116c42833392a628e3ac01f33905cd76fce3c7305.
-- Signed ARM 44.20261009.728 (source 8ebe0591, digest
-  sha256:abc5aff9496d57917d94254c67da5af4caa94c412067d62a72a537a8e907f673)
-  is staged through moai-do update, not yet booted. Signed .710 rollback remains. The owner-authorized reboot was verified on
-  2026-10-07; this audit has not replaced the installed origin with a local image.
-- Recorded installed selfcheck: 51 passed, 2 notes, no broken checks. Notes are
-  owner-masked mpris-proxy and obex, not missing MoOS code.
+- Signed MoOS ARM 44.20261009.733, source 46b46e87, is now booted:
+  sha256:8b7857b6e2b5ac95d93768ee6c0699f09bd00041b75a4c676ff55f6eb7c810de.
+- Actual boot ID is `4f30b1be-c4ce-4d94-aab7-988cdbad473e`; no staged image.
+  Signed .724 (`f9441728…`) rollback remains. Another station applied this
+  update before the resumed SSH readback; no local-image rebase occurred.
+- Direct SSH omitted Plasma's XDG cascade and reported 4/5 appearance failures.
+  Reapplying the selected Nova through the official owner succeeded; checks in
+  the actual graphical user environment pass 51/0 and 55/0, with two mask notes.
 - No failed system/user units. Four rootless photos/database/cache/SMB
   containers are healthy. About 52 GiB writable storage remains during artifact qualification;
   removing two audit-owned superseded builds reclaimed about 4 GiB.
 - Session LANG/LANGUAGE and region formats are Arabic. KDE translation is ar.
   System fallback locale C.UTF-8 is distinct from the actual Arabic session.
   Look-and-feel readback: org.moos.ui2.nova.
-- Kernel 7.2.8; Plasma 6.7.5 and Qt 6.11.2 are the installed stack recorded by
+- Kernel 7.2.9; Plasma 6.7.5 and Qt 6.11.2 are the installed stack recorded by
   release acceptance. Do not separately layer a new desktop or kernel.
 - systemd-oomd is running but monitors no cgroup. KWin's shipped MemoryHigh
   guard is separate protection, not evidence of an applied oomd policy.
@@ -37,7 +37,7 @@ The sole execution backlog is [DEVELOPMENT_PLAN.md](docs/DEVELOPMENT_PLAN.md).
 
 The x86 editions are promoted from candidate 144b1a6a by run 37946594645.
 All five exact-artifact proofs succeeded on attempt 1; main 46b46e87 preserves
-candidate ancestry and its identical tree. ARM .728 remains source 8ebe0591.
+candidate ancestry and its identical tree. ARM .733 is main 46b46e87 (37946472626).
 Image-only scheduled builds and later owner source do not imply delivery.
 
 | Edition | Version | Signed digest |
@@ -45,7 +45,7 @@ Image-only scheduled builds and later owner source do not imply delivery.
 | Desktop | 44.20261009.1018 | 3055eb28ac032492a053da1efb9493c9780e7bfa20a01c7c3300961693bfee92 |
 | NVIDIA | 44.20261009.1018 | c5977fc7d68bc6cd708b85931711f3ff8eb44be5a4468edc7e9c490b9dfc0dd0 |
 | Cloud x86 | 44.20261009.1018 | 0160fddaab3deb4a8f3eef1d87d5343b3f0a1472e6f3f26f1bba4882dfccb977 |
-| ARM | 44.20261009.728 | abc5aff9496d57917d94254c67da5af4caa94c412067d62a72a537a8e907f673 |
+| ARM | 44.20261009.733 | 8b7857b6e2b5ac95d93768ee6c0699f09bd00041b75a4c676ff55f6eb7c810de |
 
 First-attempt stable proofs: signed build 37552824167; generic/NVIDIA/cloud disks
 37558743993, 37558747906, 37558751431; offline ISO 37558755639; x86 promotion
@@ -135,8 +135,8 @@ dependency audits, language locking/startup, ARM disk-consent/install metadata
 and pinned cosign 3.1.3 passed their recorded native/source checks. Detailed
 negative controls and rights inventory are in the linked Arabic audit and
 [OWNERSHIP.md](OWNERSHIP.md); no universal compatibility/security claim follows.
-The batch is delivered to ARM .728. Oracle SSH is now verified through one Tailscale session; `.724` remains booted,
-`.728` staged. New installed acceptance remains unverified; no remote origin changed.
+The batch is delivered to ARM .733. Fresh authenticated Oracle SSH readback
+proves .733 booted/.724 rollback; actual graphical acceptance passes 51/0 and 55/0.
 
 X86 build 37881477050 and three disk proofs passed at 8ebe0591; ISO 37888192868
 failed on an empty `efi`. Retry 37900328567 installed before diagnostics timed
@@ -161,14 +161,16 @@ This does not fix unmuted USB firmware or prove physical speech. Full maintained
 `just check` passed all 240 gates; this source is not installed or signed/promoted yet.
 Recovery's unreadable state now differs from a proven absent rollback, with a
 read-only retry. Its regression gate and actual native AR/EN GTK source review
-pass; no rollback mechanism or boot choice changed. The gallery holds 31 unique
+pass; no rollback mechanism or boot choice changed. The gallery holds 37 unique
 real frames with explicit source/CI/private-host boundaries and missing stages.
-Participation beta: 34 API/privacy/retry/proxy/release, 10 native Qt HTTP/launcher cases
+Participation beta: 34 API/privacy/retry/proxy/release, 11 native Qt HTTP/launcher cases
 pass. Oracle API runs under a dedicated unprivileged account; public TLS, six
 API cases and physical Wayland Arabic/image flow passed. Synthetic data removed.
-Four packaging cases, all 243 repo gates and the full generic image pass at 2cb1e863;
+Four packaging cases, all 243 repo gates and final full generic image 69108321f886 pass;
 five shipped runtime hashes match. Old/fixed QML teardown controls fail/pass.
-Image 9a2d355605ff has kernel 7.2.9; signed owner-batch delivery remains open.
+Final review blocks title-triggered image fetch (old beacon fails/fix passes),
+with narrow AR/EN light/dark dialogs. ARM's gate found missing dbus-run-session;
+dbus-daemon is explicit now. Signed owner-batch delivery remains open.
 
 ## Installer mechanism preserved in the integrated batch
 
@@ -196,5 +198,3 @@ The detailed incident remains in AGENTS.md and the dated Arabic audit.
   SBOM/provenance, support window and staged rollout.
 - Complete rights/attribution inventory. KDE/Linux rights permit independent
   modification; official naming/signatures distinguish the maintainer's release.
-
-Past incidents remain in Git; rules belong in AGENTS.md and component docs.

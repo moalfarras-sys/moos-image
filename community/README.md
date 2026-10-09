@@ -23,6 +23,9 @@ python3 -m community.client --service-url https://SERVICE-HOST:10000
 ```
 
 Native tests require private HOME/XDG/session bus and offscreen software Qt.
+`check.sh --native` creates and removes that private environment itself. Use
+the native system Python with the pinned API/test dependency path available;
+an API-only virtualenv does not contain the system PySide6 runtime.
 Missing Qt fails an explicit native check. CI runs the same maintained API lane;
 its backend success never substitutes for native rendered/input acceptance.
 
@@ -119,10 +122,22 @@ Both image scripts run `verify_community_client.py` against the actual launcher
 with private HOME/runtime/bus and a real Arabic capture. Server, operator tools,
 tests and dependencies never ship on desktop machines. QML disk cache is disabled
 like the other first-party apps, so no shell-theme revision change is required.
-The full local generic image passed at `2cb1e863` (image `9a2d355605ff`),
+The latest full local generic image passed with final main.qml hash `262e3c884170`
+(image `69108321f886`),
 including actual Arabic launch/teardown, identity, native Settings and initramfs;
 all five shipped runtime hashes match source. The old/fixed container control
 proves the teardown gate refuses a null Python context after rendering.
+The final source review also found Qt's default Dialog header could interpret
+a private report title as rich text and fetch an image URL. A real local HTTP
+beacon reproduced the request on the old header; the shared PlainText MoOS
+dialog header sends none. Matching theme-role backgrounds keep the ink readable
+in private light/dark profiles as well as the desktop. Eleven native cases pass;
+both languages were rendered and clicked at 560×520 in both palettes. ARM's
+first packaging build correctly failed because dbus-run-session was absent;
+dbus-daemon is now an explicit dependency, with the unchanged launch gate.
+The final client also passed two real Arabic Wayland-button clicks and private
+image receipt against Oracle's TLS endpoint; its synthetic report, session and
+account were removed. The service retains only its maintainer bootstrap account.
 The standard signed candidate, edition boot proofs and installed client readback
 remain required before delivery.
 No source branch, local override or merely listening API closes that acceptance.

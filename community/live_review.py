@@ -16,7 +16,7 @@ import time
 from community.test_client import APP,pump
 from community.client import Controller
 from community.transport import Api
-from PySide6.QtCore import QObject,QUrl,QLocale,QPointF,QPoint,Qt,qInstallMessageHandler
+from PySide6.QtCore import QObject,QUrl,QLocale,QPointF,QPoint,Qt,qInstallMessageHandler,QEvent
 from PySide6.QtQml import QQmlApplicationEngine
 from PySide6.QtQuick import QQuickItem
 from PySide6.QtTest import QTest
@@ -35,7 +35,7 @@ def main():
     api=Api(args.service_url)
     credentials={'username':'audit_station_'+secrets.token_hex(4),'password':secrets.token_urlsafe(24)}
     api.request('POST','/v1/accounts',body=credentials|{'display_name':'اختبار خاص للواجهة الأصلية'})
-    controller=None;identity=None;token=None;frames=[];warnings=[]
+    controller=None;engine=None;identity=None;token=None;frames=[];warnings=[]
     previous=qInstallMessageHandler(lambda mode,context,message:warnings.append(message))
     receipt={'schema':1,'service_url':api.endpoint,'scope':'real-physical-wayland/source-qt/actual-oracle-https/synthetic-private-account',
              'fixture_username':credentials['username'],'source_file_sha256':{name:hashlib.sha256(Path(__file__).with_name(name).read_bytes()).hexdigest() for name in ('client.py','main.qml','transport.py')}}
@@ -80,9 +80,13 @@ def main():
             assert not faults,faults
             receipt.update(passed=True,frames=frames,rtl=root.property('rtl'),actual_tls=True,real_button_clicks=2,
                            fixture_thread=identity,layout_errors=faults,private_owner_content=False)
-            root.close();controller.close();controller=None
-            engine.deleteLater();APP.processEvents()
+            root.close();engine.deleteLater()
+            APP.sendPostedEvents(None,QEvent.Type.DeferredDelete);engine=None
+            controller.close();controller=None
     finally:
+        if engine:
+            for window in engine.rootObjects():window.close()
+            engine.deleteLater();APP.sendPostedEvents(None,QEvent.Type.DeferredDelete)
         if controller:controller.close()
         if identity and token:
             api.request('DELETE','/v1/threads/'+identity,token=token)

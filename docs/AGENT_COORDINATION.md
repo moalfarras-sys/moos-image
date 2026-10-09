@@ -30,6 +30,14 @@ rather than to conflict.
 
 **2026-10-07: the station completed the owner-authorized final cycle at `fa85b2da`.** #215 includes exact #214/v56, shared PIN protection and reviewed Oracle #216 history/recorder updates. X86 build `37552824167`, three QCOW2 proofs, offline ISO and promotion `37562359722` all succeed; ARM `37539003204` succeeds at the same source. Production is x86 `.1011` and ARM `.724`. Main's candidate freeze is released. The station holds only its delivery/readback paragraphs in `PROJECT_STATE.md`, `docs/DEVELOPMENT_PLAN.md` and this file on `docs/session-delivery-20261007`; it requested the official NVIDIA host update, while native authentication/staging/reboot and physical full logout remain pending. Oracle follows the proven ARM release for its own installed acceptance without a duplicate cycle.
 
+**2026-10-09: owner-authorized station delivery of PR #222.** The owner-milestone
+agent will run one standard `scripts/release-candidate.sh --promote` after the
+final local image and PR checks pass, then official NVIDIA/Oracle readback.
+No owner-batch cycle has started yet. Its image additions also own the explicit
+`dbus-daemon` dependency for the community gate in `build_files/build-arm.sh`.
+Main freezes at that cycle's recorded SHA through promotion/failure; do not
+dispatch a duplicate cycle. The accepted installer cycle at `144b1a6a` is complete.
+
 **Release cycles** normally belong to the off-station agent. On 2026-09-18 the owner
 asked the station to run one for W8 so every edition updates; say so here when that
 happens, because two agents dispatching a cycle at once would prove nothing twice.

@@ -10,7 +10,7 @@ import time
 
 from community.test_client import NativeClient,APP,pump
 from community.client import Controller
-from PySide6.QtCore import QObject,QUrl,QLocale,QMetaObject,QPoint,Qt,qInstallMessageHandler
+from PySide6.QtCore import QObject,QUrl,QLocale,QMetaObject,QPoint,Qt,qInstallMessageHandler,QEvent
 from PySide6.QtQml import QQmlApplicationEngine,QQmlExpression
 from PySide6.QtQuick import QQuickItem
 from PySide6.QtTest import QTest
@@ -91,9 +91,13 @@ def main():
                      'frames':frames,'real_button_clicks':2,'layout_errors':faults}
             (args.output/('review-'+args.language+'.json')).write_text(json.dumps(receipt,ensure_ascii=False,indent=2)+'\n')
             print(json.dumps({'review':'passed','language':args.language,'rtl':receipt['rtl'],'frames':len(frames)}))
-            root.close();controller.close();controller=None
-            engine.deleteLater();APP.processEvents();engine=None
+            root.close();engine.deleteLater()
+            APP.sendPostedEvents(None,QEvent.Type.DeferredDelete);engine=None
+            controller.close();controller=None
     finally:
+        if engine:
+            for window in engine.rootObjects():window.close()
+            engine.deleteLater();APP.sendPostedEvents(None,QEvent.Type.DeferredDelete)
         if controller:controller.close()
         NativeClient.tearDownClass();qInstallMessageHandler(previous)
 

@@ -207,6 +207,14 @@ read it back from the running desktop.** `kreadconfig6`, `gsettings get`, and
 `Gtk.Settings.get_default()` answer what the user actually has. A file in `system_files/` does
 not, and neither does a gate that reads one.
 
+**A remote shell does not inherit Plasma's configuration cascade.** On the Oracle
+`.733` boot, SSH omitted `XDG_CONFIG_DIRS`, including `~/.config/kdedefaults`, and
+the native readback reported four/five mixed-theme failures. The actual graphical
+user environment passed 51/0 and 55/0. Run desktop acceptance in an owned transient
+user unit inheriting that environment, or read its exact configuration paths;
+do not guess them or call an SSH fallback value the running desktop. Keep the
+same checks and their failure evidence; never weaken them to hide the context.
+
 **A button is only as real as its route.** Mo AI is pure QML: it cannot exec, so every button
 is a `Qt.openUrlExternally("moos://…")` that lands in `moos-open`'s `case`, which runs the
 matching `moai-do` action. Nothing checked that the two agreed. Eleven buttons once shipped —

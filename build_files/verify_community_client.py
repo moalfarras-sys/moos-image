@@ -10,11 +10,14 @@ import os
 from pathlib import Path
 import subprocess
 import tempfile
+import shutil
 
 RUNTIME={'__init__.py','client.py','transport.py','outbox.py','main.qml'}
 
 
 def main():
+    if not shutil.which('dbus-run-session'):
+        raise SystemExit('GATE FAIL: native participation proof needs dbus-daemon (dbus-run-session)')
     root=Path('/usr/lib/moos-community/community')
     if not root.is_dir() or {p.name for p in root.iterdir()} != RUNTIME:
         raise SystemExit('GATE FAIL: native participation runtime is incomplete or contains server/developer files')

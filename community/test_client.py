@@ -18,11 +18,12 @@ from community.client import Controller, normalized_picture, private_directory
 from community.transport import Api,ApiError
 from community.service import create_app
 from PIL import Image,PngImagePlugin
-from PySide6.QtCore import QObject,QUrl,QLocale,qInstallMessageHandler
+from PySide6.QtCore import QObject,QUrl,QLocale,qInstallMessageHandler,QEvent,QMetaObject
 from PySide6.QtGui import QGuiApplication
-from PySide6.QtQml import QQmlApplicationEngine
+from PySide6.QtQml import QQmlApplicationEngine,QQmlExpression
 import uvicorn
 import socket
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 APP=QGuiApplication.instance() or QGuiApplication([])
 
@@ -125,6 +126,37 @@ class NativeClient(unittest.TestCase):
         self.assertFalse(self.c.data['registrationOpen'])
         self.c.refresh();pump(lambda:self.c.data['registrationOpen'] and not self.c.data['busy'])
         self.assertFalse(self.c.data['error']);self.assertEqual(self.c.data['status'],'')
+
+    def test_private_conversation_title_is_literal_and_never_fetches_markup(self):
+        requests=[]
+        class Beacon(BaseHTTPRequestHandler):
+            def do_GET(self):
+                requests.append(self.path)
+                self.send_response(204);self.end_headers()
+            def log_message(self,*args):pass
+        beacon=ThreadingHTTPServer(('127.0.0.1',0),Beacon)
+        thread=threading.Thread(target=beacon.serve_forever,daemon=True);thread.start()
+        self.addCleanup(beacon.server_close);self.addCleanup(beacon.shutdown)
+        title=f'<img src="http://127.0.0.1:{beacon.server_port}/private-title">'
+        self.c.createThread(title,'A private title must remain literal text.','problem',False)
+        pump(lambda:self.c.data['selectedTitle']==title and not self.c.data['busy'])
+        engine=QQmlApplicationEngine();engine.rootContext().setContextProperty('community',self.c)
+        engine.load(QUrl.fromLocalFile(str(Path(__file__).with_name('main.qml'))))
+        self.assertEqual(len(engine.rootObjects()),1)
+        root=engine.rootObjects()[0];dialog=root.findChild(QObject,'conversation')
+        self.assertTrue(QMetaObject.invokeMethod(dialog,'open'))
+        for _ in range(50):APP.processEvents();time.sleep(.01)
+        try:
+            self.assertEqual(requests,[], 'private title caused an outbound image request')
+            header=dialog.property('header')
+            self.assertEqual(header.property('text'),title)
+            text_format,undefined=QQmlExpression(engine.contextForObject(header),header,
+                                                'Number(textFormat)').evaluate()
+            self.assertFalse(undefined)
+            self.assertEqual(text_format,0, 'dialog header must render PlainText')
+        finally:
+            root.close();engine.deleteLater()
+            APP.sendPostedEvents(None,QEvent.Type.DeferredDelete)
 
     def test_real_qml_loads_both_directions_and_narrow_layout_without_warnings(self):
         for locale,direction in (('ar_SA',True),('en_US',False)):

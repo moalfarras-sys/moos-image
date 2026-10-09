@@ -149,6 +149,9 @@ _PLASMA=(
     # python3-websockets is already named above for Mo PC Remote.
     python3-pyside6 python3-numpy python3-jeepney python3-httpx python3-requests
     python3-cryptography
+    # The native community image proof needs a private session bus. Kinoite
+    # carries dbus-run-session; bare bootc with weak deps disabled does not.
+    dbus-daemon
 )
 
 # Mo PC Remote publishes its authenticated loopback agent through Tailscale

@@ -418,154 +418,367 @@
       "publishable_after_review": true
     },
     {
-      "file": "community-final-en/report-editor-en.png",
-      "title_ar": "محرّر بلاغ مع صورة اختيارية",
-      "note_ar": "إنجليزي · اختبار اتجاه القراءة؛ بيانات اصطناعية ومصدر تطوير، لا إثبات إصدار نظام مشحون.",
-      "sha256": "75c12ebbe69e0a340a494dece5cdd3237bd304fdc6f069ff8f01fb7852b36999",
+      "file": "community-final-Arena-ar/report-editor-ar.png",
+      "title_ar": "محرّر البلاغ مع الصورة الاختيارية — عربي / Arena",
+      "note_ar": "آخر مصدر عميل، Qt أصلية وAPI خاص ببيانات اصطناعية، 560×520. طُبّقت لوحة UI2 يدويًا في بيئة معزولة؛ ليست إثبات تطبيق ثيم الجهاز أو إصدار مشحون.",
+      "sha256": "dbe1d2bb5f66a2d74769d861c07fbba98a833098d3bfaced37b1ef6efa3377bb",
       "physical_px": [
-        1040,
-        760
-      ],
-      "logical_px": [
-        1040,
-        760
-      ],
-      "language": "en",
-      "environment": "native-offscreen/private-api-fixture",
-      "version": "unreleased-source",
-      "source_files_sha256": {
-        "client.py": "f1636a33b567a4d88d76e19835d32fb2646947b87b782c3336395101b42f8999",
-        "main.qml": "14e5af4d6d4d9ad0bef2b3b779a6293aab01dc35dbfd78929d8a503b90308f14",
-        "service.py": "f8e8c8e8eebcf7a69ed51222718ab102654bbcba05315a4005875e5fb16d0932"
-      },
-      "private_owner_content": false,
-      "publishable_after_review": true
-    },
-    {
-      "file": "community-final-en/conversations-en.png",
-      "title_ar": "قائمة المحادثات الخاصة",
-      "note_ar": "إنجليزي · اختبار اتجاه القراءة؛ بيانات اصطناعية ومصدر تطوير، لا إثبات إصدار نظام مشحون.",
-      "sha256": "83a979be6fe7bd73b20784642161bfe07af0dd61fb8f44f2447a356269fde4ed",
-      "physical_px": [
-        1040,
-        760
-      ],
-      "logical_px": [
-        1040,
-        760
-      ],
-      "language": "en",
-      "environment": "native-offscreen/private-api-fixture",
-      "version": "unreleased-source",
-      "source_files_sha256": {
-        "client.py": "f1636a33b567a4d88d76e19835d32fb2646947b87b782c3336395101b42f8999",
-        "main.qml": "14e5af4d6d4d9ad0bef2b3b779a6293aab01dc35dbfd78929d8a503b90308f14",
-        "service.py": "f8e8c8e8eebcf7a69ed51222718ab102654bbcba05315a4005875e5fb16d0932"
-      },
-      "private_owner_content": false,
-      "publishable_after_review": true
-    },
-    {
-      "file": "community-final-en/private-conversation-en.png",
-      "title_ar": "المحادثة والصورة الخاصة",
-      "note_ar": "إنجليزي · اختبار اتجاه القراءة؛ بيانات اصطناعية ومصدر تطوير، لا إثبات إصدار نظام مشحون.",
-      "sha256": "a0e1a182a8e612f2a3660440be72b427cabf51ab445d3c12afc6118e3271a4ae",
-      "physical_px": [
-        1040,
-        760
-      ],
-      "logical_px": [
-        1040,
-        760
-      ],
-      "language": "en",
-      "environment": "native-offscreen/private-api-fixture",
-      "version": "unreleased-source",
-      "source_files_sha256": {
-        "client.py": "f1636a33b567a4d88d76e19835d32fb2646947b87b782c3336395101b42f8999",
-        "main.qml": "14e5af4d6d4d9ad0bef2b3b779a6293aab01dc35dbfd78929d8a503b90308f14",
-        "service.py": "f8e8c8e8eebcf7a69ed51222718ab102654bbcba05315a4005875e5fb16d0932"
-      },
-      "private_owner_content": false,
-      "publishable_after_review": true
-    },
-    {
-      "file": "community-small-final/report-editor-ar.png",
-      "title_ar": "محرّر بلاغ مع صورة اختيارية",
-      "note_ar": "عربي · نافذة صغيرة 560×520؛ بيانات اصطناعية ومصدر تطوير، لا إثبات إصدار نظام مشحون.",
-      "sha256": "725baeec76a2146d12a3bf12a020e2d0cf58560c0a92572cfcdaa2e1c723d122",
-      "physical_px": [
-        1400,
-        1300
+        560,
+        520
       ],
       "logical_px": [
         560,
         520
       ],
       "language": "ar",
-      "environment": "native-wayland/private-api-fixture",
+      "scale": 1,
+      "environment": "private native offscreen API fixture with explicitly applied canonical MoOS UI2 Arena QPalette",
       "version": "unreleased-source",
-      "source_files_sha256": {
-        "client.py": "f1636a33b567a4d88d76e19835d32fb2646947b87b782c3336395101b42f8999",
-        "main.qml": "14e5af4d6d4d9ad0bef2b3b779a6293aab01dc35dbfd78929d8a503b90308f14",
-        "service.py": "f8e8c8e8eebcf7a69ed51222718ab102654bbcba05315a4005875e5fb16d0932"
+      "source_file_sha256": {
+        "client.py": "e2a4bd57849a2e07a54bd06565ab5407e4d50245eef23635126ad537ebc1a841",
+        "main.qml": "262e3c8841708943b3ee3edc80ad1ca73f8001a1425ca5b7f8ab77823cec232d",
+        "service.py": "3012907149c15bdd77a9feae91338b13af1bb17fca1e2d942d8ff72397ba510b"
       },
       "private_owner_content": false,
       "publishable_after_review": true
     },
     {
-      "file": "community-small-final/conversations-ar.png",
-      "title_ar": "قائمة المحادثات الخاصة",
-      "note_ar": "عربي · نافذة صغيرة 560×520؛ بيانات اصطناعية ومصدر تطوير، لا إثبات إصدار نظام مشحون.",
-      "sha256": "cae3c79bea3b54092ff70c428deec50e19e3e072c694eb4a18e57dcc79c139e4",
+      "file": "community-final-Arena-ar/conversations-ar.png",
+      "title_ar": "قائمة المحادثات الخاصة — عربي / Arena",
+      "note_ar": "آخر مصدر عميل، Qt أصلية وAPI خاص ببيانات اصطناعية، 560×520. طُبّقت لوحة UI2 يدويًا في بيئة معزولة؛ ليست إثبات تطبيق ثيم الجهاز أو إصدار مشحون.",
+      "sha256": "d4d651409b9e2b43b7e4dd10032d0facc545907840b4ce46f5997d4ad586aaed",
       "physical_px": [
-        1400,
-        1300
+        560,
+        520
       ],
       "logical_px": [
         560,
         520
       ],
       "language": "ar",
-      "environment": "native-wayland/private-api-fixture",
+      "scale": 1,
+      "environment": "private native offscreen API fixture with explicitly applied canonical MoOS UI2 Arena QPalette",
       "version": "unreleased-source",
-      "source_files_sha256": {
-        "client.py": "f1636a33b567a4d88d76e19835d32fb2646947b87b782c3336395101b42f8999",
-        "main.qml": "14e5af4d6d4d9ad0bef2b3b779a6293aab01dc35dbfd78929d8a503b90308f14",
-        "service.py": "f8e8c8e8eebcf7a69ed51222718ab102654bbcba05315a4005875e5fb16d0932"
+      "source_file_sha256": {
+        "client.py": "e2a4bd57849a2e07a54bd06565ab5407e4d50245eef23635126ad537ebc1a841",
+        "main.qml": "262e3c8841708943b3ee3edc80ad1ca73f8001a1425ca5b7f8ab77823cec232d",
+        "service.py": "3012907149c15bdd77a9feae91338b13af1bb17fca1e2d942d8ff72397ba510b"
       },
       "private_owner_content": false,
       "publishable_after_review": true
     },
     {
-      "file": "community-small-final/private-conversation-ar.png",
-      "title_ar": "المحادثة والصورة الخاصة",
-      "note_ar": "عربي · نافذة صغيرة 560×520؛ بيانات اصطناعية ومصدر تطوير، لا إثبات إصدار نظام مشحون.",
-      "sha256": "89a4f9b5cad86b4fd7f8f6eb83e0ab0ba163354cfc27ebed9a7310605777ca67",
+      "file": "community-final-Arena-ar/private-conversation-ar.png",
+      "title_ar": "المحادثة الخاصة والصورة — عربي / Arena",
+      "note_ar": "آخر مصدر عميل، Qt أصلية وAPI خاص ببيانات اصطناعية، 560×520. طُبّقت لوحة UI2 يدويًا في بيئة معزولة؛ ليست إثبات تطبيق ثيم الجهاز أو إصدار مشحون.",
+      "sha256": "4e41209338e92951ecd6b38861f1a859f280851437e58c9e9c2fde1751385eec",
       "physical_px": [
-        1400,
-        1300
+        560,
+        520
       ],
       "logical_px": [
         560,
         520
       ],
       "language": "ar",
-      "environment": "native-wayland/private-api-fixture",
+      "scale": 1,
+      "environment": "private native offscreen API fixture with explicitly applied canonical MoOS UI2 Arena QPalette",
       "version": "unreleased-source",
-      "source_files_sha256": {
-        "client.py": "f1636a33b567a4d88d76e19835d32fb2646947b87b782c3336395101b42f8999",
-        "main.qml": "14e5af4d6d4d9ad0bef2b3b779a6293aab01dc35dbfd78929d8a503b90308f14",
-        "service.py": "f8e8c8e8eebcf7a69ed51222718ab102654bbcba05315a4005875e5fb16d0932"
+      "source_file_sha256": {
+        "client.py": "e2a4bd57849a2e07a54bd06565ab5407e4d50245eef23635126ad537ebc1a841",
+        "main.qml": "262e3c8841708943b3ee3edc80ad1ca73f8001a1425ca5b7f8ab77823cec232d",
+        "service.py": "3012907149c15bdd77a9feae91338b13af1bb17fca1e2d942d8ff72397ba510b"
       },
       "private_owner_content": false,
       "publishable_after_review": true
     },
     {
-      "file": "community-oracle-final/oracle-report-editor-ar.png",
-      "title_ar": "مجتمع MoOS متصل فعليًا بـOracle",
-      "note_ar": "عميل مصدر على Wayland الحقيقي؛ حساب وصورة اختبار خاصان عبر HTTPS الحقيقي. حُذفت المحادثة والحساب بعد القبول؛ ليست نسخة OS مشحونة.",
-      "sha256": "56962aba9bbeea1a582f0e65b73706c928203bc7e48e03a351d27d1ebb4785c3",
+      "file": "community-final-Arena-en/report-editor-en.png",
+      "title_ar": "محرّر البلاغ مع الصورة الاختيارية — إنجليزي / Arena",
+      "note_ar": "آخر مصدر عميل، Qt أصلية وAPI خاص ببيانات اصطناعية، 560×520. طُبّقت لوحة UI2 يدويًا في بيئة معزولة؛ ليست إثبات تطبيق ثيم الجهاز أو إصدار مشحون.",
+      "sha256": "18be47775b51d0f80f09c7fde3ed363ac5de4b5d0d86b80a964c15467c198448",
+      "physical_px": [
+        560,
+        520
+      ],
+      "logical_px": [
+        560,
+        520
+      ],
+      "language": "en",
+      "scale": 1,
+      "environment": "private native offscreen API fixture with explicitly applied canonical MoOS UI2 Arena QPalette",
+      "version": "unreleased-source",
+      "source_file_sha256": {
+        "client.py": "e2a4bd57849a2e07a54bd06565ab5407e4d50245eef23635126ad537ebc1a841",
+        "main.qml": "262e3c8841708943b3ee3edc80ad1ca73f8001a1425ca5b7f8ab77823cec232d",
+        "service.py": "3012907149c15bdd77a9feae91338b13af1bb17fca1e2d942d8ff72397ba510b"
+      },
+      "private_owner_content": false,
+      "publishable_after_review": true
+    },
+    {
+      "file": "community-final-Arena-en/conversations-en.png",
+      "title_ar": "قائمة المحادثات الخاصة — إنجليزي / Arena",
+      "note_ar": "آخر مصدر عميل، Qt أصلية وAPI خاص ببيانات اصطناعية، 560×520. طُبّقت لوحة UI2 يدويًا في بيئة معزولة؛ ليست إثبات تطبيق ثيم الجهاز أو إصدار مشحون.",
+      "sha256": "78ee9d17753ef3b905c9b0a0e050f83e0f5ceb78d9b66dfc13479f8a44abcf4d",
+      "physical_px": [
+        560,
+        520
+      ],
+      "logical_px": [
+        560,
+        520
+      ],
+      "language": "en",
+      "scale": 1,
+      "environment": "private native offscreen API fixture with explicitly applied canonical MoOS UI2 Arena QPalette",
+      "version": "unreleased-source",
+      "source_file_sha256": {
+        "client.py": "e2a4bd57849a2e07a54bd06565ab5407e4d50245eef23635126ad537ebc1a841",
+        "main.qml": "262e3c8841708943b3ee3edc80ad1ca73f8001a1425ca5b7f8ab77823cec232d",
+        "service.py": "3012907149c15bdd77a9feae91338b13af1bb17fca1e2d942d8ff72397ba510b"
+      },
+      "private_owner_content": false,
+      "publishable_after_review": true
+    },
+    {
+      "file": "community-final-Arena-en/private-conversation-en.png",
+      "title_ar": "المحادثة الخاصة والصورة — إنجليزي / Arena",
+      "note_ar": "آخر مصدر عميل، Qt أصلية وAPI خاص ببيانات اصطناعية، 560×520. طُبّقت لوحة UI2 يدويًا في بيئة معزولة؛ ليست إثبات تطبيق ثيم الجهاز أو إصدار مشحون.",
+      "sha256": "6448ad23eeee690d59eb2cfd78f2cb83067d664e9ff95ec56df8bf15091fbb83",
+      "physical_px": [
+        560,
+        520
+      ],
+      "logical_px": [
+        560,
+        520
+      ],
+      "language": "en",
+      "scale": 1,
+      "environment": "private native offscreen API fixture with explicitly applied canonical MoOS UI2 Arena QPalette",
+      "version": "unreleased-source",
+      "source_file_sha256": {
+        "client.py": "e2a4bd57849a2e07a54bd06565ab5407e4d50245eef23635126ad537ebc1a841",
+        "main.qml": "262e3c8841708943b3ee3edc80ad1ca73f8001a1425ca5b7f8ab77823cec232d",
+        "service.py": "3012907149c15bdd77a9feae91338b13af1bb17fca1e2d942d8ff72397ba510b"
+      },
+      "private_owner_content": false,
+      "publishable_after_review": true
+    },
+    {
+      "file": "community-final-AuroraLight-ar/report-editor-ar.png",
+      "title_ar": "محرّر البلاغ مع الصورة الاختيارية — عربي / AuroraLight",
+      "note_ar": "آخر مصدر عميل، Qt أصلية وAPI خاص ببيانات اصطناعية، 560×520. طُبّقت لوحة UI2 يدويًا في بيئة معزولة؛ ليست إثبات تطبيق ثيم الجهاز أو إصدار مشحون.",
+      "sha256": "bc4106c9c62aa2f2bfdd0abb518d6175eea0a4ad96f0a68798ba9dacfc45d353",
+      "physical_px": [
+        560,
+        520
+      ],
+      "logical_px": [
+        560,
+        520
+      ],
+      "language": "ar",
+      "scale": 1,
+      "environment": "private native offscreen API fixture with explicitly applied canonical MoOS UI2 AuroraLight QPalette",
+      "version": "unreleased-source",
+      "source_file_sha256": {
+        "client.py": "e2a4bd57849a2e07a54bd06565ab5407e4d50245eef23635126ad537ebc1a841",
+        "main.qml": "262e3c8841708943b3ee3edc80ad1ca73f8001a1425ca5b7f8ab77823cec232d",
+        "service.py": "3012907149c15bdd77a9feae91338b13af1bb17fca1e2d942d8ff72397ba510b"
+      },
+      "private_owner_content": false,
+      "publishable_after_review": true
+    },
+    {
+      "file": "community-final-AuroraLight-ar/conversations-ar.png",
+      "title_ar": "قائمة المحادثات الخاصة — عربي / AuroraLight",
+      "note_ar": "آخر مصدر عميل، Qt أصلية وAPI خاص ببيانات اصطناعية، 560×520. طُبّقت لوحة UI2 يدويًا في بيئة معزولة؛ ليست إثبات تطبيق ثيم الجهاز أو إصدار مشحون.",
+      "sha256": "44d73acd113692e01ecc5100a4cc04c6052770910b154eceb772e9942a42add8",
+      "physical_px": [
+        560,
+        520
+      ],
+      "logical_px": [
+        560,
+        520
+      ],
+      "language": "ar",
+      "scale": 1,
+      "environment": "private native offscreen API fixture with explicitly applied canonical MoOS UI2 AuroraLight QPalette",
+      "version": "unreleased-source",
+      "source_file_sha256": {
+        "client.py": "e2a4bd57849a2e07a54bd06565ab5407e4d50245eef23635126ad537ebc1a841",
+        "main.qml": "262e3c8841708943b3ee3edc80ad1ca73f8001a1425ca5b7f8ab77823cec232d",
+        "service.py": "3012907149c15bdd77a9feae91338b13af1bb17fca1e2d942d8ff72397ba510b"
+      },
+      "private_owner_content": false,
+      "publishable_after_review": true
+    },
+    {
+      "file": "community-final-AuroraLight-ar/private-conversation-ar.png",
+      "title_ar": "المحادثة الخاصة والصورة — عربي / AuroraLight",
+      "note_ar": "آخر مصدر عميل، Qt أصلية وAPI خاص ببيانات اصطناعية، 560×520. طُبّقت لوحة UI2 يدويًا في بيئة معزولة؛ ليست إثبات تطبيق ثيم الجهاز أو إصدار مشحون.",
+      "sha256": "6fe8fc33b78c2f3fb4c8c070584de00b852f65763cea8a376eb56554e44c1fa9",
+      "physical_px": [
+        560,
+        520
+      ],
+      "logical_px": [
+        560,
+        520
+      ],
+      "language": "ar",
+      "scale": 1,
+      "environment": "private native offscreen API fixture with explicitly applied canonical MoOS UI2 AuroraLight QPalette",
+      "version": "unreleased-source",
+      "source_file_sha256": {
+        "client.py": "e2a4bd57849a2e07a54bd06565ab5407e4d50245eef23635126ad537ebc1a841",
+        "main.qml": "262e3c8841708943b3ee3edc80ad1ca73f8001a1425ca5b7f8ab77823cec232d",
+        "service.py": "3012907149c15bdd77a9feae91338b13af1bb17fca1e2d942d8ff72397ba510b"
+      },
+      "private_owner_content": false,
+      "publishable_after_review": true
+    },
+    {
+      "file": "community-final-AuroraLight-en/report-editor-en.png",
+      "title_ar": "محرّر البلاغ مع الصورة الاختيارية — إنجليزي / AuroraLight",
+      "note_ar": "آخر مصدر عميل، Qt أصلية وAPI خاص ببيانات اصطناعية، 560×520. طُبّقت لوحة UI2 يدويًا في بيئة معزولة؛ ليست إثبات تطبيق ثيم الجهاز أو إصدار مشحون.",
+      "sha256": "f23153933679cfa08b07033219a10828f66d1181a87cc98a2aea1ad5a5eb76ee",
+      "physical_px": [
+        560,
+        520
+      ],
+      "logical_px": [
+        560,
+        520
+      ],
+      "language": "en",
+      "scale": 1,
+      "environment": "private native offscreen API fixture with explicitly applied canonical MoOS UI2 AuroraLight QPalette",
+      "version": "unreleased-source",
+      "source_file_sha256": {
+        "client.py": "e2a4bd57849a2e07a54bd06565ab5407e4d50245eef23635126ad537ebc1a841",
+        "main.qml": "262e3c8841708943b3ee3edc80ad1ca73f8001a1425ca5b7f8ab77823cec232d",
+        "service.py": "3012907149c15bdd77a9feae91338b13af1bb17fca1e2d942d8ff72397ba510b"
+      },
+      "private_owner_content": false,
+      "publishable_after_review": true
+    },
+    {
+      "file": "community-final-AuroraLight-en/conversations-en.png",
+      "title_ar": "قائمة المحادثات الخاصة — إنجليزي / AuroraLight",
+      "note_ar": "آخر مصدر عميل، Qt أصلية وAPI خاص ببيانات اصطناعية، 560×520. طُبّقت لوحة UI2 يدويًا في بيئة معزولة؛ ليست إثبات تطبيق ثيم الجهاز أو إصدار مشحون.",
+      "sha256": "f562b5aece7e78dd863740640808e713756038db04908a34c26bd52f0084a163",
+      "physical_px": [
+        560,
+        520
+      ],
+      "logical_px": [
+        560,
+        520
+      ],
+      "language": "en",
+      "scale": 1,
+      "environment": "private native offscreen API fixture with explicitly applied canonical MoOS UI2 AuroraLight QPalette",
+      "version": "unreleased-source",
+      "source_file_sha256": {
+        "client.py": "e2a4bd57849a2e07a54bd06565ab5407e4d50245eef23635126ad537ebc1a841",
+        "main.qml": "262e3c8841708943b3ee3edc80ad1ca73f8001a1425ca5b7f8ab77823cec232d",
+        "service.py": "3012907149c15bdd77a9feae91338b13af1bb17fca1e2d942d8ff72397ba510b"
+      },
+      "private_owner_content": false,
+      "publishable_after_review": true
+    },
+    {
+      "file": "community-final-AuroraLight-en/private-conversation-en.png",
+      "title_ar": "المحادثة الخاصة والصورة — إنجليزي / AuroraLight",
+      "note_ar": "آخر مصدر عميل، Qt أصلية وAPI خاص ببيانات اصطناعية، 560×520. طُبّقت لوحة UI2 يدويًا في بيئة معزولة؛ ليست إثبات تطبيق ثيم الجهاز أو إصدار مشحون.",
+      "sha256": "251f4be970041edd73d369ed3bd048b0d43cb6b2e3f835af7f34e09fa9edb7c7",
+      "physical_px": [
+        560,
+        520
+      ],
+      "logical_px": [
+        560,
+        520
+      ],
+      "language": "en",
+      "scale": 1,
+      "environment": "private native offscreen API fixture with explicitly applied canonical MoOS UI2 AuroraLight QPalette",
+      "version": "unreleased-source",
+      "source_file_sha256": {
+        "client.py": "e2a4bd57849a2e07a54bd06565ab5407e4d50245eef23635126ad537ebc1a841",
+        "main.qml": "262e3c8841708943b3ee3edc80ad1ca73f8001a1425ca5b7f8ab77823cec232d",
+        "service.py": "3012907149c15bdd77a9feae91338b13af1bb17fca1e2d942d8ff72397ba510b"
+      },
+      "private_owner_content": false,
+      "publishable_after_review": true
+    },
+    {
+      "file": "host-desktop-1018.png",
+      "title_ar": "سطح المكتب الحقيقي بعد تحديث .1018",
+      "note_ar": "لقطة خاصة من جهاز المالك بعد الإقلاع الموقّع .1018؛ قد تحتوي محادثات/ملفات شخصية، لا تُنشر. فتح التطبيق ليس إثبات تشغيل وسائط أو كلام فعلي.",
+      "sha256": "b7f2bfc883728d37005ff352efc8afe3921e12842890a10d6e3ea814b299d717",
+      "physical_px": [
+        3840,
+        2160
+      ],
+      "logical_px": "actual session 1536×864, window crop varies",
+      "language": "ar",
+      "scale": 2.5,
+      "environment": "actual-installed-nvidia-wayland",
+      "version": "44.20261009.1018",
+      "source_sha": "144b1a6ad04f0b7fa442183110ad6d969f636add",
+      "image_digest": "sha256:c5977fc7d68bc6cd708b85931711f3ff8eb44be5a4468edc7e9c490b9dfc0dd0",
+      "private_owner_content": true,
+      "publishable_after_review": false
+    },
+    {
+      "file": "post-1018-mira-window.png",
+      "title_ar": "ميرا المثبتة فعليًا — عربي",
+      "note_ar": "لقطة خاصة من جهاز المالك بعد الإقلاع الموقّع .1018؛ قد تحتوي محادثات/ملفات شخصية، لا تُنشر. فتح التطبيق ليس إثبات تشغيل وسائط أو كلام فعلي.",
+      "sha256": "043f0e16311e875e084f8f67ed093ff6304d5107fe39831e34e8c0bfe2944520",
+      "physical_px": [
+        3810,
+        2115
+      ],
+      "logical_px": "actual session 1536×864, window crop varies",
+      "language": "ar",
+      "scale": 2.5,
+      "environment": "actual-installed-nvidia-wayland",
+      "version": "44.20261009.1018",
+      "source_sha": "144b1a6ad04f0b7fa442183110ad6d969f636add",
+      "image_digest": "sha256:c5977fc7d68bc6cd708b85931711f3ff8eb44be5a4468edc7e9c490b9dfc0dd0",
+      "private_owner_content": true,
+      "publishable_after_review": false
+    },
+    {
+      "file": "post-1018-moplayer-window.png",
+      "title_ar": "MoPlayer المثبت فعليًا — عربي",
+      "note_ar": "لقطة خاصة من جهاز المالك بعد الإقلاع الموقّع .1018؛ قد تحتوي محادثات/ملفات شخصية، لا تُنشر. فتح التطبيق ليس إثبات تشغيل وسائط أو كلام فعلي.",
+      "sha256": "b95ba8f14d0cde4d936251bd0d03a55b475302d038cbe1552c5ae00acef84d05",
+      "physical_px": [
+        3840,
+        2025
+      ],
+      "logical_px": "actual session 1536×864, window crop varies",
+      "language": "ar",
+      "scale": 2.5,
+      "environment": "actual-installed-nvidia-wayland",
+      "version": "44.20261009.1018",
+      "source_sha": "144b1a6ad04f0b7fa442183110ad6d969f636add",
+      "image_digest": "sha256:c5977fc7d68bc6cd708b85931711f3ff8eb44be5a4468edc7e9c490b9dfc0dd0",
+      "private_owner_content": true,
+      "publishable_after_review": false
+    },
+    {
+      "file": "community-oracle-title-final/oracle-report-editor-ar.png",
+      "title_ar": "مجتمع MoOS — آخر عميل عربي متصل بـOracle",
+      "note_ar": "آخر QML بالمصدر، نافذة Wayland حقيقية 1040×760/250%، ضغطتان وصورة اختبار خاصة عبر TLS. البلاغ والجلسة والحساب أزيلت. ليست نسخة OS مشحونة.",
+      "sha256": "dcc9cd33e7f65049cbf43db9806c3fc64486ccdce9376b25e07fb1f022d6f491",
       "physical_px": [
         2600,
         1900
@@ -574,23 +787,23 @@
         1040,
         760
       ],
+      "scale": 2.5,
       "language": "ar",
       "environment": "real-physical-wayland/source-qt/actual-oracle-https/synthetic-private-account",
-      "service_url": "https://moos-oracle.tailab78a5.ts.net:10000",
       "version": "unreleased-source-client/live-oracle-api",
-      "source_files_sha256": {
-        "client.py": "f1636a33b567a4d88d76e19835d32fb2646947b87b782c3336395101b42f8999",
-        "main.qml": "14e5af4d6d4d9ad0bef2b3b779a6293aab01dc35dbfd78929d8a503b90308f14",
+      "source_file_sha256": {
+        "client.py": "e2a4bd57849a2e07a54bd06565ab5407e4d50245eef23635126ad537ebc1a841",
+        "main.qml": "262e3c8841708943b3ee3edc80ad1ca73f8001a1425ca5b7f8ab77823cec232d",
         "transport.py": "f563e93556940ac78dfc8d800ea950d69435b0f9ed9b162620cf962e015b573d"
       },
       "private_owner_content": false,
       "publishable_after_review": true
     },
     {
-      "file": "community-oracle-final/oracle-private-image-ar.png",
-      "title_ar": "مجتمع MoOS متصل فعليًا بـOracle",
-      "note_ar": "عميل مصدر على Wayland الحقيقي؛ حساب وصورة اختبار خاصان عبر HTTPS الحقيقي. حُذفت المحادثة والحساب بعد القبول؛ ليست نسخة OS مشحونة.",
-      "sha256": "f6b9f395679707f0e6260520c48dc98d66b376dea49bffaacc21559b0af02740",
+      "file": "community-oracle-title-final/oracle-private-image-ar.png",
+      "title_ar": "مجتمع MoOS — آخر عميل عربي متصل بـOracle",
+      "note_ar": "آخر QML بالمصدر، نافذة Wayland حقيقية 1040×760/250%، ضغطتان وصورة اختبار خاصة عبر TLS. البلاغ والجلسة والحساب أزيلت. ليست نسخة OS مشحونة.",
+      "sha256": "d9b278e4213d329f2c1bf4db19ee22393a4d5a984afe0c0efe054924acb30354",
       "physical_px": [
         2600,
         1900
@@ -599,86 +812,14 @@
         1040,
         760
       ],
+      "scale": 2.5,
       "language": "ar",
       "environment": "real-physical-wayland/source-qt/actual-oracle-https/synthetic-private-account",
-      "service_url": "https://moos-oracle.tailab78a5.ts.net:10000",
       "version": "unreleased-source-client/live-oracle-api",
-      "source_files_sha256": {
-        "client.py": "f1636a33b567a4d88d76e19835d32fb2646947b87b782c3336395101b42f8999",
-        "main.qml": "14e5af4d6d4d9ad0bef2b3b779a6293aab01dc35dbfd78929d8a503b90308f14",
+      "source_file_sha256": {
+        "client.py": "e2a4bd57849a2e07a54bd06565ab5407e4d50245eef23635126ad537ebc1a841",
+        "main.qml": "262e3c8841708943b3ee3edc80ad1ca73f8001a1425ca5b7f8ab77823cec232d",
         "transport.py": "f563e93556940ac78dfc8d800ea950d69435b0f9ed9b162620cf962e015b573d"
-      },
-      "private_owner_content": false,
-      "publishable_after_review": true
-    },
-    {
-      "file": "community-light-final/report-editor-ar.png",
-      "title_ar": "مجتمع MoOS — الثيم الفاتح",
-      "note_ar": "Qt أصلية معزولة بثيم UI2 Arena Light، بيانات اصطناعية، وقراءة فعلية لاتجاه الحبر. ليست صورة إصدار مشحون.",
-      "sha256": "518cf8a9f916fd5055206049fd0085d3e09d18a8452f9b4116472bd27d9bea7d",
-      "physical_px": [
-        1040,
-        760
-      ],
-      "logical_px": [
-        1040,
-        760
-      ],
-      "environment": "native-offscreen/private-api-fixture",
-      "language": "ar",
-      "version": "unreleased-source",
-      "source_files_sha256": {
-        "client.py": "f8787438bd4e4bae869a3fc68755e82cc09bc0da70c827ba284f123d89da3939",
-        "main.qml": "14e5af4d6d4d9ad0bef2b3b779a6293aab01dc35dbfd78929d8a503b90308f14",
-        "service.py": "f8e8c8e8eebcf7a69ed51222718ab102654bbcba05315a4005875e5fb16d0932"
-      },
-      "private_owner_content": false,
-      "publishable_after_review": true
-    },
-    {
-      "file": "community-light-final/conversations-ar.png",
-      "title_ar": "مجتمع MoOS — الثيم الفاتح",
-      "note_ar": "Qt أصلية معزولة بثيم UI2 Arena Light، بيانات اصطناعية، وقراءة فعلية لاتجاه الحبر. ليست صورة إصدار مشحون.",
-      "sha256": "3eee0656ae1b7d709382dbcc0d3adf7fbacfd6f2bea8a1a4d7353e4315e98d11",
-      "physical_px": [
-        1040,
-        760
-      ],
-      "logical_px": [
-        1040,
-        760
-      ],
-      "environment": "native-offscreen/private-api-fixture",
-      "language": "ar",
-      "version": "unreleased-source",
-      "source_files_sha256": {
-        "client.py": "f8787438bd4e4bae869a3fc68755e82cc09bc0da70c827ba284f123d89da3939",
-        "main.qml": "14e5af4d6d4d9ad0bef2b3b779a6293aab01dc35dbfd78929d8a503b90308f14",
-        "service.py": "f8e8c8e8eebcf7a69ed51222718ab102654bbcba05315a4005875e5fb16d0932"
-      },
-      "private_owner_content": false,
-      "publishable_after_review": true
-    },
-    {
-      "file": "community-light-final/private-conversation-ar.png",
-      "title_ar": "مجتمع MoOS — الثيم الفاتح",
-      "note_ar": "Qt أصلية معزولة بثيم UI2 Arena Light، بيانات اصطناعية، وقراءة فعلية لاتجاه الحبر. ليست صورة إصدار مشحون.",
-      "sha256": "b3b4ec83b74eb4117a49a9883615ef2f7efa71df11fbf3d571573df7aa2f9ace",
-      "physical_px": [
-        1040,
-        760
-      ],
-      "logical_px": [
-        1040,
-        760
-      ],
-      "environment": "native-offscreen/private-api-fixture",
-      "language": "ar",
-      "version": "unreleased-source",
-      "source_files_sha256": {
-        "client.py": "f8787438bd4e4bae869a3fc68755e82cc09bc0da70c827ba284f123d89da3939",
-        "main.qml": "14e5af4d6d4d9ad0bef2b3b779a6293aab01dc35dbfd78929d8a503b90308f14",
-        "service.py": "f8e8c8e8eebcf7a69ed51222718ab102654bbcba05315a4005875e5fb16d0932"
       },
       "private_owner_content": false,
       "publishable_after_review": true
