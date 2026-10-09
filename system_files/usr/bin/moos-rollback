@@ -48,7 +48,12 @@ def deployments():
                            capture_output=True, text=True, timeout=25)
         if r.returncode != 0:
             return None, None, False
-        deps = json.loads(r.stdout).get("deployments", [])
+        status = json.loads(r.stdout)
+        if not isinstance(status, dict):
+            return None, None, False
+        deps = status.get("deployments", [])
+        if not isinstance(deps, list) or any(not isinstance(d, dict) for d in deps):
+            return None, None, False
     except (OSError, subprocess.SubprocessError, ValueError):
         return None, None, False
 
@@ -105,6 +110,16 @@ def deployments():
 
     target = next((d for d in deps[booted_at + 1:] if not d.get("staged")), None)
     return label_of(deps[booted_at]), (label_of(target) if target else None), False
+
+
+def target_description(booted, target):
+    """Unknown readback is different from a proven single deployment."""
+    if booted is None:
+        return local_text("تعذّرت قراءة حالة الرجوع", "Could not read rollback state")
+    if target:
+        return target
+    return local_text("لا توجد نسخة سابقة على هذا الجهاز",
+                      "No previous version exists on this machine")
 
 
 class Recovery(MoOSApp):
@@ -168,17 +183,11 @@ class Recovery(MoOSApp):
         current_heading.add_css_class("ui2-kicker")
 
         back = Gtk.Label(xalign=logical_start(), wrap=True)
-        if target:
-            back.set_markup(f"<b>{GLib.markup_escape_text(target)}</b>")
+        description = GLib.markup_escape_text(target_description(booted, target))
+        if target or booted is None:
+            back.set_markup(f"<b>{description}</b>")
         else:
-            back.set_markup(
-                "<span alpha='65%'>"
-                + local_text(
-                    "لا توجد نسخة سابقة على هذا الجهاز",
-                    "No previous version exists on this machine",
-                )
-                + "</span>"
-            )
+            back.set_markup(f"<span alpha='65%'>{description}</span>")
         # The heading has to match the state, or it says the opposite of what will happen.
         self.target_heading = Gtk.Label(
             label=(
@@ -207,7 +216,16 @@ class Recovery(MoOSApp):
 
         self.status = Gtk.Label(xalign=logical_start(), wrap=True)
         self.status.add_css_class("ui2-status")
+        if booted is None:
+            self.status.add_css_class("error")
         self.status.set_text(
+            local_text(
+                "تعذّرت قراءة النسخة الحالية وخيار الرجوع. أعد الفحص. لم يتغيّر اختيار الإقلاع.",
+                "Could not read the running version and rollback choice. Check again. "
+                "The boot choice is unchanged.",
+            )
+            if booted is None
+            else
             local_text(
                 "الرجوع مُجهَّز بالفعل. أعد التشغيل لتطبيقه، أو ألغِه "
                 "للبقاء على النسخة الحالية.",
@@ -256,6 +274,9 @@ class Recovery(MoOSApp):
         self.back_btn.set_sensitive(bool(target))
         self.back_btn.connect("clicked", self.on_rollback)
 
+        self.refresh_btn = Gtk.Button(label=local_text("أعد الفحص", "Check again"))
+        self.refresh_btn.connect("clicked", self.on_refresh)
+
         self.reboot_btn = Gtk.Button(
             label=local_text("إعادة التشغيل الآن", "Restart now")
         )
@@ -265,9 +286,15 @@ class Recovery(MoOSApp):
             "clicked", lambda *_: os.execvp("systemctl", ["systemctl", "reboot"]))
 
         row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=10, halign=Gtk.Align.END)
+        row.append(self.refresh_btn)
         row.append(self.back_btn)
         row.append(self.reboot_btn)
         page.append(row)
+
+    def on_refresh(self, _btn):
+        # Reopen this same read-only app, never a privileged action or a second
+        # instance. The new process reads the deployment state from scratch.
+        os.execv(sys.executable, [sys.executable, __file__])
 
     def say(self, text):
         buf = self.log.get_buffer()
@@ -322,6 +349,7 @@ class Recovery(MoOSApp):
         # user just saw; its completion copy must describe that same operation.
         self.action_cancels_rollback = self.rollback_queued
         self.back_btn.set_sensitive(False)
+        self.refresh_btn.set_sensitive(False)
         self.say("$ bootc rollback")
         self.spinner.set_visible(True)
         self.spinner.start()
@@ -376,6 +404,7 @@ class Recovery(MoOSApp):
         )
 
     def _rollback_done(self, returncode):
+        self.refresh_btn.set_sensitive(True)
         self.spinner.stop()
         self.spinner.set_visible(False)
 

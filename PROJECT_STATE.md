@@ -153,6 +153,10 @@ already-muted real USB without capture/overruns, three virtual-source unmute/mut
 cycles and removal, with helper/socket/module cleanup and unchanged defaults.
 This does not fix unmuted USB firmware or prove physical speech. Full maintained
 `just check` passed all 240 gates; this source is not installed or signed/promoted yet.
+Recovery's unreadable state now differs from a proven absent rollback, with a
+read-only retry. Its regression gate and actual native AR/EN GTK source review
+pass; no rollback mechanism or boot choice changed. The gallery holds 16 unique
+real frames with explicit source/CI/private-host boundaries and missing stages.
 
 ## Evidence still owed
 

@@ -207,6 +207,29 @@ def main() -> int:
     unpack_check("rpm-ostree emits unparseable JSON", stdout="<html>gateway timeout</html>")
     unpack_check("JSON parses but names no booted deployment",
                  stdout=json.dumps({"deployments": [{"version": "44.orphan"}]}))
+    for payload in ([], None, {"deployments": {}}, {"deployments": [None]}):
+        unpack_check("malformed deployment shape", stdout=json.dumps(payload))
+
+    # A failed read cannot prove that a previous version does not exist. This
+    # exact misleading copy is visible in the signed .1011 ISO app screenshot.
+    module = load_module()
+    if "Could not read" not in module.target_description(None, None):
+        errors.append("unknown rollback readback still claims there is no previous version")
+    if "No previous version" not in module.target_description("44.ONLY", None):
+        errors.append("a proven single deployment does not explain why rollback is unavailable")
+    if module.target_description("44.BOOTED", "44.PRIOR") != "44.PRIOR":
+        errors.append("a readable rollback target is no longer displayed")
+    module.local_text = lambda arabic, _english: arabic
+    if "تعذّرت قراءة" not in module.target_description(None, None):
+        errors.append("the Arabic unknown state is missing")
+    if "لا توجد نسخة سابقة" not in module.target_description("44.ONLY", None):
+        errors.append("the Arabic single-deployment state is missing")
+    module = load_module()
+    recovery = module.Recovery()
+    with mock.patch.object(module.os, "execv") as restart:
+        recovery.on_refresh(None)
+    restart.assert_called_once_with(module.sys.executable,
+                                    [module.sys.executable, str(SCRIPT)])
 
     # 8. THE QUEUED STATE IS A CANCELLATION, ALL THE WAY THROUGH THE UI.
     #
@@ -295,6 +318,7 @@ def main() -> int:
         errors.append("queued rollback confirmation does not name the version that will boot")
 
     recovery.back_btn = FakeWidget()
+    recovery.refresh_btn = FakeWidget()
     recovery.spinner = FakeWidget()
     recovery.status = FakeWidget()
     recovery.target_heading = FakeWidget()

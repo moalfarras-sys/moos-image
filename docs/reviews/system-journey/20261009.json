@@ -281,6 +281,50 @@
       "image_digest": "sha256:9b77fc3eaed85d2b3e9b38809c9ab91c1de22854f31706f79d6b4d2f76bd4e8e",
       "private_owner_content": true,
       "publishable_after_review": false
+    },
+    {
+      "file": "source-recovery-unknown-ar.png",
+      "title_ar": "الاسترداد عند تعذر القراءة — عربي",
+      "note_ar": "مراجعة مصدر GTK فعلية بحالة تعذر قراءة مفروضة للاختبار؛ ليست من إصدار مشحون. الرجوع معطل وإعادة الفحص متاحة، واتجاه اللغة صحيح.",
+      "sha256": "e2d622809bac0f5b147a14243271719c2a3c4b536c4031a40184ad1f3e5e5d79",
+      "physical_px": [
+        2010,
+        1740
+      ],
+      "environment": "native-source-review/forced-unreadable-state",
+      "language": "ar",
+      "display_scale": 2.5,
+      "version": "unreleased-source",
+      "source_sha": null,
+      "checkout_head_at_capture": "71e7978b",
+      "source_dirty_at_capture": true,
+      "source_files_sha256": {
+        "system_files/usr/bin/moos-rollback": "7eb6c6bffc04865ec1609e65f822e8b2ed106cc8186cd3e43c254190bba3afbe"
+      },
+      "private_owner_content": false,
+      "publishable_after_review": true
+    },
+    {
+      "file": "source-recovery-unknown-en.png",
+      "title_ar": "الاسترداد عند تعذر القراءة — إنجليزي",
+      "note_ar": "مراجعة مصدر GTK فعلية بحالة تعذر قراءة مفروضة للاختبار؛ ليست من إصدار مشحون. الرجوع معطل وإعادة الفحص متاحة، واتجاه اللغة صحيح.",
+      "sha256": "07fc12d451994ab807e6e7b6fb7cba4128c0ce22436556eb5e29ac9e9926313b",
+      "physical_px": [
+        2010,
+        1680
+      ],
+      "environment": "native-source-review/forced-unreadable-state",
+      "language": "en",
+      "display_scale": 2.5,
+      "version": "unreleased-source",
+      "source_sha": null,
+      "checkout_head_at_capture": "71e7978b",
+      "source_dirty_at_capture": true,
+      "source_files_sha256": {
+        "system_files/usr/bin/moos-rollback": "7eb6c6bffc04865ec1609e65f822e8b2ed106cc8186cd3e43c254190bba3afbe"
+      },
+      "private_owner_content": false,
+      "publishable_after_review": true
     }
   ],
   "deduplicated": [
