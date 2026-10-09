@@ -672,7 +672,7 @@ build_files/build.sh   everything package-dependent, plus the boot/identity gate
 system_files/          copied verbatim onto / — identity, themes, apps, units
 moremote/              Mo PC Remote, vendored source; built by a stage in the Containerfile
 moplayer/              MoPlayer (Flutter), first-party source; built by a stage in the Containerfile
-mira/                  Mira, the MoOS assistant (Mo AI's app); tested and staged by the mira-build stage (x86)
+mira/                  Mira, the MoOS assistant (Mo AI's app); tested and staged by mira-build on x86 and native ARM
 tests/                 run these before pushing; they are the same gates CI runs
 skills/                the mandatory moos-engineering agent skill
 .github/workflows/     build.yml (moos + moos-nvidia + moos-cloud), build-iso.yml (ISO), build-disk.yml (qcow2)
@@ -754,7 +754,7 @@ gh auth refresh -h github.com -s workflow
 
 ## What is NOT done — do not claim otherwise
 
-- **Mo PC Remote v55 is a local/source review, not a signed OS release.** Native session EIS input survives capture renewal; a production browser drove click/text in private KWin while capture was failing. Native devices remained ready under a real private lock, and v55 passed repeated normal-password unlock on a disposable signed-base guest beyond the grace interval; owner phone/WAN acceptance remains open. Unattended capture consent belongs only to `org.moos.remote`, never the empty host app ID. Preserve PIN/device authentication and held-input ownership. See `moremote/ONE_REMOTE.md`.
+- **Remote v56 is delivered in the signed `.1011` / ARM `.724` scope.** Source/native input and browser recovery proofs do not close owner phone/WAN endurance. The installed A1 runs immutable Remote without the earlier review override. Unattended capture consent belongs only to `org.moos.remote`, never the empty host app ID. Preserve PIN/device authentication and held-input ownership. New audit corrections still need their own signed delivery; see `PROJECT_STATE.md` and `moremote/ONE_REMOTE.md`.
 
 Being honest about this list is more useful than shrinking it.
 

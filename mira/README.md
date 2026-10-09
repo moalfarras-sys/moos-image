@@ -4,7 +4,9 @@ Mira is the owner's assistant and, since 2026-09-29, the MoOS assistant: Mo AI's
 The Echo Dot 2 in the room is her ears and voice, the MoOS computer runs her mind and her window,
 Home Assistant is her hands in the house, and every Mo AI tool — through Mo AI's own executor — is
 her hands on the computer. This directory is the whole source of the desktop app and of the Echo's
-on-device client. It ships in signed MoOS images at `/usr/lib/mira/app`; the installed station boots `.967`.
+on-device client. It ships in signed MoOS images at `/usr/lib/mira/app` on x86 and
+ARM. Read `../PROJECT_STATE.md` for the actual station and promoted release;
+dated experiments below are not current deployment readback.
 A user source install can shadow that package and must be reported separately.
 
 Both original faces — the rose one and the holographic one — are kept exactly as drawn
@@ -48,7 +50,7 @@ Echo Dot (TECHO5 Linux) ── encrypted ESPHome API ──► mira_bridge.Bridg
 
 ```sh
 # normal launch (the menu entry and login autostart do this)
-~/.local/share/mira/venv/bin/python ~/.local/share/mira/app/app.py
+/usr/bin/mira
 
 # render the source UI on the live session with stand-in data, without touching the Echo:
 MIRA_TEST_MODE=1 MIRA_INSTANCE=review XDG_CONFIG_HOME=$(mktemp -d) \

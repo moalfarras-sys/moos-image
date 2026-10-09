@@ -55,6 +55,13 @@ The capture helper runs in `app-org.moos.remote-<pid>.scope`, so KDE resolves th
 
 ## Evidence and handoff
 
+Current delivery, 2026-10-08: v56 is shipped in the signed x86 `.1011` and
+same-source ARM `.724`; the A1 uses immutable Remote without the earlier home
+selector. The dated v55/v56 review transcripts below describe their original
+test scope, not an outstanding source merge. Owner iPhone/cellular endurance
+still remains open. The current audit's fallback codec corrections require a
+new signed cycle; see `../PROJECT_STATE.md`.
+
 **v56 (2026-10-06, source, Oracle A1):** the view was replaced and the session engine kept. The
 controller typecheck, the complete unit chain (including the new quick-action key-table gate,
 which was proven to fail on an invented key) and the real-Chromium end-to-end test pass on the

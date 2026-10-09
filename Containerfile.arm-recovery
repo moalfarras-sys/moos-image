@@ -20,6 +20,7 @@ COPY system_files /
 
 FROM base
 COPY --from=ctx /build-arm-recovery.sh /usr/libexec/moos-build-arm-recovery.sh
+COPY --from=ctx /install_cosign_arm.sh /usr/libexec/moos-install-cosign-arm.sh
 COPY --from=system-files / /
 RUN bash /usr/libexec/moos-build-arm-recovery.sh \
-    && rm -f /usr/libexec/moos-build-arm-recovery.sh
+    && rm -f /usr/libexec/moos-build-arm-recovery.sh /usr/libexec/moos-install-cosign-arm.sh

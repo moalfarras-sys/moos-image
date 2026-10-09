@@ -5,7 +5,6 @@ set -euo pipefail
 REGISTRY="ghcr.io/moalfarras-sys/moos-arm"
 COSIGN_KEY="${MOOS_UTM_COSIGN_KEY:-/etc/pki/containers/moos.pub}"
 MANIFEST_LOCAL="/usr/share/moos/release/arm-latest.json"
-MANIFEST_URL="${MOOS_UTM_MANIFEST_URL:-https://raw.githubusercontent.com/moalfarras-sys/moos-image/main/release/arm-latest.json}"
 TARGET_DEV="${MOOS_UTM_TARGET_DEV:-}"
 LOG="${MOOS_UTM_INSTALL_LOG:-/var/log/moos-utm-net-install.log}"
 STATUS_FILE="/run/moos-utm-installer-status"
@@ -22,36 +21,50 @@ require_cmd() {
 }
 
 pick_target_disk() {
-    if [ -n "$TARGET_DEV" ] && [ -b "$TARGET_DEV" ]; then
-        echo "$TARGET_DEV"
+    if [ -n "$TARGET_DEV" ]; then
+        if [ ! -b "$TARGET_DEV" ] || [ "$(lsblk -dnro TYPE "$TARGET_DEV" 2>/dev/null)" != disk ]; then
+            log "FATAL: explicit target is not a whole block disk: $TARGET_DEV" >&2
+            return 1
+        fi
+        printf '%s\n' "$TARGET_DEV"
         return 0
     fi
-    lsblk -dnpo NAME,TYPE,PKNAME | awk '
-        $2 == "disk" && $4 == "" {
-            if (seen++) { print $1; exit 0 }
-        }
-    '
+    local inventory
+    inventory="$(lsblk -dnpo NAME,TYPE)" || return 1
+    # This recovery bundle has exactly two disks. Additional disks make the
+    # second-disk convention ambiguous; require an explicit inspected target.
+    awk '$2 == "disk" { disks[++count] = $1 }
+         END { if (count == 2) print disks[2] }' <<<"$inventory"
 }
 
-target_has_moos() {
-    local dev="$1"
-    lsblk -rnpo FSTYPE "$dev" 2>/dev/null | grep -qx btrfs
+target_has_data() {
+    local dev="$1" layout
+    layout="$(lsblk -rnpo TYPE,FSTYPE "$dev" 2>/dev/null)" || return 2
+    # A partition or any recognized filesystem requires explicit erase consent,
+    # irrespective of its OS. An unreadable layout is never an empty disk.
+    awk '$1 == "part" || NF > 1 { occupied = 1 }
+         END { exit !occupied }' <<<"$layout"
 }
 
 resolve_digest() {
     require_cmd jq
+    require_cmd skopeo
     local body digest version
-    if [ -r "$MANIFEST_LOCAL" ]; then
+    # Promotion owns this tag. Resolve it ONCE to immutable bytes; the static
+    # recovery snapshot cannot be the authority for future releases.
+    if body="$(skopeo --command-timeout 30s --override-arch arm64 --override-os linux \
+        inspect "docker://${REGISTRY}:latest")"; then
+        digest="$(jq -r '.Digest // empty' <<<"$body")"
+        version="$(jq -r '.Labels["org.opencontainers.image.version"] // "unknown"' <<<"$body")"
+    elif [ -r "$MANIFEST_LOCAL" ]; then
+        log "Live registry unavailable; using the bundled signed release snapshot (may be older)." >&2
         body="$(cat "$MANIFEST_LOCAL")"
+        digest="$(jq -r '.digest // .arm.digest // empty' <<<"$body")"
+        version="$(jq -r '.version // .product_sha // "unknown"' <<<"$body")"
     else
-        require_cmd curl
-        body="$(curl -fsSL "$MANIFEST_URL")" || {
-            status "Network error: could not fetch release manifest"
-            exit 1
-        }
+        status "Network error: could not fetch release manifest"
+        exit 1
     fi
-    digest="$(jq -r '.digest // .arm.digest // empty' <<<"$body")"
-    version="$(jq -r '.product_sha // .version // "unknown"' <<<"$body")"
     [[ "$digest" =~ ^sha256:[0-9a-f]{64}$ ]] || {
         status "Release manifest invalid — no sha256 digest"
         exit 1
@@ -60,7 +73,7 @@ resolve_digest() {
 }
 
 verify_and_install() {
-    local target="$1" digest="$2"
+    local target="$1" digest="$2" reinstall="${3:-0}"
     local ref="${REGISTRY}@${digest}"
 
     require_cmd cosign
@@ -72,6 +85,15 @@ verify_and_install() {
         status "Signature: FAILED — installation stopped"
         exit 1
     }
+    # Authentication must finish before the first destructive target operation.
+    if [ "$reinstall" = 1 ]; then
+        require_cmd wipefs
+        status "Signature: VERIFIED\nReinstall: clearing the selected target..."
+        wipefs -af -- "$target" >>"$LOG" 2>&1 || {
+            status "Target clearing FAILED — installation stopped"
+            exit 1
+        }
+    fi
     status "Signature: VERIFIED\nDownloading and installing to target disk..."
 
     bootc install to-disk \
@@ -102,24 +124,30 @@ main() {
     target="$(pick_target_disk || true)"
     [ -n "$target" ] || { status "No UTM target disk (expected 2nd VirtIO disk)"; exit 1; }
 
-    if target_has_moos "$target"; then
+    reinstall=0
+    if target_has_data "$target"; then
         if [ "${MOOS_UTM_ALLOW_REINSTALL:-0}" = 1 ]; then
-            status "Reinstall: wiping target ${target}..."
-            wipefs -af "$target" 2>/dev/null || true
+            reinstall=1
         elif [ "${MOOS_UTM_REPAIR:-0}" = 1 ]; then
-            status "Repair: target already has MoOS — checking boot entries..."
-            log "repair noop on populated target ${target}"
-            exit 0
+            status "An existing target was found. Automatic boot repair is not implemented; no changes were made."
+            exit 1
         else
-            status "MoOS already on target — use Reinstall to erase"
+            status "Existing target data — inspect its contents before choosing Reinstall."
             exit 2
+        fi
+    else
+        layout_status=$?
+        if [ "$layout_status" -ne 1 ]; then
+            status "Target layout could not be read — installation stopped."
+            exit 1
         fi
     fi
 
-    IFS='|' read -r digest version < <(resolve_digest)
+    resolved="$(resolve_digest)" || { status "Release resolution failed — installation stopped"; exit 1; }
+    IFS='|' read -r digest version <<<"$resolved"
     log "resolved ${digest} (product ${version})"
     status "Checking latest MoOS ARM...\nFound: ${version} (${digest#sha256:})"
-    verify_and_install "$target" "$digest"
+    verify_and_install "$target" "$digest" "$reinstall"
     log "install complete — reboot to target disk"
 }
 

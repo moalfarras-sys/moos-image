@@ -1,5 +1,12 @@
 # Mo AI — cloud-only inference and Hermes
 
+This is a component architecture/acceptance reference, not a second product
+execution plan. The single backlog is DEVELOPMENT_PLAN.md. Its OpenRouter
+policy describes Mo AI's gateway; Mira's own configured Gemini brain/voice is
+separate and must not be described as universally free or as a local model.
+Current delivered status is in PROJECT_STATE.md; dated measurements below
+retain their original scope.
+
 **Latest owner decision, 2026-09-06:** Mo AI must never download or run a local
 model. Cloud models may be **free or paid**. Free is the default; paid is an
 explicit labelled selection, never an automatic fallback from a free quota.

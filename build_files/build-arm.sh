@@ -175,14 +175,8 @@ python3 /ctx/plymouth_rpms.py install /plymouth-rpms
 # Preserve the vendor package ownership and every Plasma/authentication seam.
 python3 /ctx/plasma_logout/rpms.py install /plasma-logout-rpms
 
-# cosign is not always packaged for aarch64 — install the static binary when needed.
-if ! command -v cosign >/dev/null 2>&1; then
-    if ! dnf5 -y install --setopt=install_weak_deps=False cosign 2>/dev/null; then
-        curl -fsSL "https://github.com/sigstore/cosign/releases/download/v2.4.1/cosign-linux-arm64" \
-            -o /usr/bin/cosign
-        chmod +x /usr/bin/cosign
-    fi
-fi
+# Both ARM images use the same reviewed upstream binary, verified before exec.
+bash /ctx/install_cosign_arm.sh /usr/bin/cosign
 command -v cosign >/dev/null || { echo "FATAL: cosign unavailable for UTM net install"; exit 1; }
 
 # Prefer a portable software H.264 encoder when Fedora's Cisco repository has
