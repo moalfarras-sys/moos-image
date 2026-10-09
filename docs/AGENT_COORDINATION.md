@@ -43,6 +43,12 @@ The station also holds the narrow D-Bus empty-directory correction in
 37987720523 passed the real community launcher, then correctly refused
 `/var/lib/dbus`. Preserve its vendor tmpfiles authority and all state refusals;
 this does not take over the broader next-Plasma canary cleanup lane.
+Actual GUI ISO review then reproduced Arabic `برلين` returning no zone while
+`Berlin` works. The station holds `system_files/usr/share/moos/apps/installer/main.qml`,
+its new immutable localized-zone data/generator and native regression gate,
+plus installer-copy Mira naming only. Installer mount/privilege/authentication
+mechanisms remain unchanged. PR integration watcher is stopped before merge;
+finish this measured user-path correction before the one signed batch.
 Main freezes at that cycle's recorded SHA through promotion/failure; do not
 dispatch a duplicate cycle. The accepted installer cycle at `144b1a6a` is complete.
 
