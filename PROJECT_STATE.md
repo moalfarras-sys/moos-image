@@ -169,8 +169,8 @@ API cases and physical Wayland Arabic/image flow passed. Synthetic data removed.
 Four packaging cases, all 243 repo gates and final full generic image 69108321f886 pass;
 five shipped runtime hashes match. Old/fixed QML teardown controls fail/pass.
 Final review blocks title-triggered image fetch (old beacon fails/fix passes),
-with narrow AR/EN light/dark dialogs. ARM's gate found missing dbus-run-session;
-dbus-daemon is explicit now. Signed owner-batch delivery remains open.
+with narrow AR/EN light/dark dialogs. ARM 37987720523 passed the launcher, then refused dbus-daemon's empty /var/lib/dbus.
+Native ARM old/fixed/vendor tmpfiles proofs pass; populated/link/mount/missing-policy cases fail safely. Final image/CI and signed owner-batch delivery remain open.
 
 ## Installer mechanism preserved in the integrated batch
 

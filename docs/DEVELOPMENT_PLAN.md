@@ -25,11 +25,12 @@ installed-ISO proof before x86 promotion; retain every existing gate.
 
 Current promoted x86 is .1018 from candidate 144b1a6a, after exact three disks,
 offline ISO and promotion 37946594645. Main 46b46e87 preserves its tree/ancestry.
-ARM .728 at 8ebe0591 is staged, not booted on Oracle's last readback.
+Oracle now boots signed ARM .733 at 46b46e87, with .724 rollback and 51/0, 55/0
+checks in the actual graphical user environment; no staged image.
 Public .1011 ISO hosting remains separately qualified; replacement transfer
 acceptance is required for a newer public ISO. Both stations develop one
-product; every result names its device/deployment. NVIDIA remains booted .1011
-with .1009 rollback and 55/0 installed checks; .1018 stage awaits local Polkit.
+product; every result names its device/deployment. NVIDIA now boots signed .1018,
+with .1011 rollback and 54/0, 55/0 post-reboot checks.
 The integrated installer repair preserves private mounts/layout checks, mandatory
 lock/private logs and bounded diagnostics. Running scheduled/image-only builds
 never imply promotion. No new model-written shell or hardware acceptance is inferred.
@@ -389,7 +390,7 @@ itself and an unreviewed MoOS would ship kscreenlocker's emergency locker.
 | P6.6 | Establish support lifecycle and migration policy | Open / acceptance not complete | Published support/upgrade/rollback/EOL policy plus clear licences, attribution and official identity. |
 | P6.7 | Reviewed Plasma seams before upstream transitions | Implemented/delivered within recorded scope; wider acceptance remains | Actual next-Plasma canary, registered reviewed seams and old/broken/native controls. |
 | P6.8 | Separate reviewed next-base transition lane | Open / acceptance not complete | Reviewed next-base packages, all native seams/boot/apps/identity gates and migration/support qualification. |
-| P6.9 | Native user/developer participation | Final source passes 34 API/11 native cases, title-fetch negative control, narrow AR/EN light/dark and real Arabic Wayland/TLS image flow; fixtures removed. Full generic image 69108321f886 exact five hashes and all 243 gates pass. ARM gate found missing dbus-run-session; explicit dbus-daemon fixes source, final ARM/signed delivery pending | Real authenticated service/client, private image attachments, account isolation and bounded uploads, admin moderation, retry/offline and promoted-release notifications; no secrets or automatic screenshots. |
+| P6.9 | Native user/developer participation | Final source passes 34 API/11 native cases, title-fetch control, narrow AR/EN light/dark and actual Wayland/Oracle TLS flow; fixtures removed. Generic image 69108321f886 and 243 gates pass. Native ARM 37987720523 passed launcher then refused empty D-Bus compose state; exact vendor-authority cleanup passes native ARM old/fixed/tmpfiles and preservation controls. Final image/CI and signed delivery pending | Real authenticated service/client, private image attachments, account isolation and bounded uploads, admin moderation, retry/offline and promoted-release notifications; no secrets or automatic screenshots. |
 
 ## Development-machine profile
 

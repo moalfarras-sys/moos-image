@@ -392,6 +392,13 @@ the launch process through shutdown, not only its ready marker: the old native
 community container rendered a frame then raised a null-context TypeError;
 the unchanged image gate refused it, and old/fixed container controls prove it.
 
+**A native test dependency can add compose state.** The ARM community launcher
+passed after installing dbus-daemon, then the finalizer correctly refused its
+empty `/var/lib/dbus`. Remove only that empty package directory under the
+vendor `/usr/lib/tmpfiles.d/dbus.conf` authority; prove native tmpfiles recreates
+the directory/machine-id link and rejects populated, linked or mounted state.
+Never delete the live directory or permit arbitrary mutable image entries.
+
 **A declared UID guard needs the host UID namespace.** The community API
 correctly refused its Tailscale proxy from a sandboxed user unit: despite
 `PrivateUsers=no`, the process's actual `uid_map` mapped only UID 1000 and the

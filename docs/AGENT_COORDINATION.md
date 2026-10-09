@@ -38,6 +38,11 @@ No owner-batch cycle has started yet. Its image additions also own the explicit
 Native client trigger additions in `.github/workflows/pr-image-gates.yml`,
 `.github/workflows/build-arm.yml` and `tests/test_pr_image_gates_workflow.py`
 belong to this packaging batch too; existing matrix/jobs/permissions stay intact.
+The station also holds the narrow D-Bus empty-directory correction in
+`build_files/finalize_image_state.py` and `tests/test_image_state.py`: native ARM
+37987720523 passed the real community launcher, then correctly refused
+`/var/lib/dbus`. Preserve its vendor tmpfiles authority and all state refusals;
+this does not take over the broader next-Plasma canary cleanup lane.
 Main freezes at that cycle's recorded SHA through promotion/failure; do not
 dispatch a duplicate cycle. The accepted installer cycle at `144b1a6a` is complete.
 
