@@ -7,6 +7,9 @@ import threading
 import time
 import unittest
 import uuid
+import subprocess
+import sys
+import shutil
 from unittest.mock import patch
 
 os.environ.setdefault('QT_QPA_PLATFORM','offscreen')
@@ -145,6 +148,39 @@ class PictureSafety(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             Path(directory).chmod(0o755)
             with self.assertRaises(ValueError):private_directory(directory)
+
+
+class ShippedLauncher(unittest.TestCase):
+    def test_actual_staged_entrypoint_renders_and_bad_qml_fails(self):
+        from community.stage_client import stage
+        source=Path(__file__).parent
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory);stage(source,root/'community')
+            home=root/'home';home.mkdir(mode=0o700)
+            config=root/'service.json';config.write_text('{"schema":1,"service_url":"https://community.example.test"}')
+            env=dict(os.environ,HOME=str(home),XDG_CONFIG_HOME=str(home/'.config'),
+                     XDG_DATA_HOME=str(home/'.local/share'),QT_QPA_PLATFORM='offscreen',
+                     QT_QUICK_BACKEND='software',QT_QUICK_CONTROLS_STYLE='Basic')
+            command=[sys.executable,'-m','community.client','--service-config',str(config),
+                     '--capture',str(root/'frame.png')]
+            good=subprocess.run(command,cwd=root,env=env,capture_output=True,text=True,timeout=15)
+            self.assertEqual(good.returncode,0,good.stdout+good.stderr)
+            self.assertIn('MOOS_COMMUNITY_UI_READY',good.stdout);self.assertTrue((root/'frame.png').is_file())
+            (root/'frame.png').unlink()
+            (root/'community/main.qml').write_text('import QtQuick\nThisTypeDoesNotExist {}')
+            bad=subprocess.run(command,cwd=root,env=env,capture_output=True,text=True,timeout=15)
+            self.assertNotEqual(bad.returncode,0);self.assertFalse((root/'frame.png').exists())
+            self.assertIn('failed to load',bad.stderr)
+
+    def test_failed_capture_exits_instead_of_leaving_a_live_hung_probe(self):
+        with tempfile.TemporaryDirectory() as directory:
+            env=dict(os.environ,HOME=directory,XDG_CONFIG_HOME=directory+'/.config',
+                     XDG_DATA_HOME=directory+'/.local/share',QT_QPA_PLATFORM='offscreen',
+                     QT_QUICK_BACKEND='software',QT_QUICK_CONTROLS_STYLE='Basic')
+            result=subprocess.run([sys.executable,'-m','community.client','--service-url','https://community.example.test',
+                '--capture',str(Path(directory)/'missing-parent/frame.png')],env=env,capture_output=True,text=True,timeout=15)
+            self.assertEqual(result.returncode,2,result.stdout+result.stderr)
+            self.assertIn('MOOS_COMMUNITY_CAPTURE_FAILED',result.stdout)
 
 
 if __name__=='__main__':unittest.main()

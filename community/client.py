@@ -19,6 +19,7 @@ from PySide6.QtCore import (QObject, Property, QRunnable, QThreadPool, QTimer, Q
                            Signal, Slot, QLocale, QBuffer, QByteArray, QIODevice)
 from PySide6.QtGui import QGuiApplication, QIcon, QImage, QImageReader, QPainter
 from PySide6.QtQml import QQmlApplicationEngine
+from PySide6.QtQuick import QQuickWindow
 
 from community.transport import Api, ApiError
 from community.outbox import Outbox
@@ -484,8 +485,13 @@ def main():
         # Build review has no account or network activity. This is the actual
         # launcher/engine, never a fake backend success or owner screenshot.
         def capture():
-            frame = engine.rootObjects()[0].grabWindow()
-            if frame.isNull() or not frame.save(str(args.capture)):
+            try:
+                frame = engine.rootObjects()[0].grabWindow()
+                saved = not frame.isNull() and frame.save(str(args.capture))
+            except Exception:
+                saved = False
+            if not saved:
+                print('MOOS_COMMUNITY_CAPTURE_FAILED', flush=True)
                 app.exit(2)
             else:
                 print('MOOS_COMMUNITY_UI_READY', flush=True); app.quit()
