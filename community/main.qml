@@ -81,7 +81,7 @@ Kirigami.ApplicationWindow {
                 Ink { text: root.local("نطوّر MoOS معك", "Build MoOS with us"); font.pixelSize: 28; font.bold: true; Layout.fillWidth: true }
                 QuietInk { text: root.local("مشكلة تُحلّ. فكرة تُحدث فرقًا. ومعك نتابع النتيجة.", "Report a problem, share an idea, and follow the result."); Layout.fillWidth: true }
             }
-            MoUI.Button { label: root.local("تحديث", "Refresh"); enabled: !root.s.busy; onClicked: { community.refresh(); community.loadSuggestions() } }
+            MoUI.Button { label: root.local("تحديث", "Refresh"); enabled: !root.s.busy; onClicked: community.refresh() }
             MoUI.Button { visible: root.s.signedIn; label: root.local("خروج", "Sign out"); onClicked: community.logout() }
         }
 
@@ -153,13 +153,15 @@ Kirigami.ApplicationWindow {
                         MoUI.Button { objectName: "newReport"; primary: true; label: root.local("مشكلة أو فكرة جديدة", "New report or idea"); onClicked: editor.open() }
                     }
                     QQC2.ScrollView {
+                        id: pendingScroll
+                        contentWidth: availableWidth
                         visible: root.s.signedIn && root.s.pending > 0
                         Layout.fillWidth: true
                         Layout.preferredHeight: Math.min(160, pendingColumn.implicitHeight)
                         clip: true
                         ColumnLayout {
                             id: pendingColumn
-                            width: parent.width
+                            width: pendingScroll.availableWidth
                             Repeater {
                                 model: root.s.drafts
                                 delegate: RowLayout {
@@ -174,12 +176,14 @@ Kirigami.ApplicationWindow {
                     }
 
                     QQC2.ScrollView {
+                        id: threadsScroll
+                        contentWidth: availableWidth
                         visible: root.s.signedIn
                         Layout.fillWidth: true
                         Layout.fillHeight: true
                         clip: true
                         ColumnLayout {
-                            width: parent.width
+                            width: threadsScroll.availableWidth
                             spacing: 12
                             QuietInk { visible: root.s.threads.length === 0; text: root.local("ابدأ بأول بلاغ أو فكرة. سنجمع محادثاتك هنا.", "Start your first report or idea. Your conversations appear here."); Layout.fillWidth: true }
                             Repeater {
@@ -206,9 +210,11 @@ Kirigami.ApplicationWindow {
             }
 
             QQC2.ScrollView {
+                id: publicScroll
+                contentWidth: availableWidth
                 clip: true
                 ColumnLayout {
-                    width: parent.width; spacing: 12
+                    width: publicScroll.availableWidth; spacing: 12
                     QuietInk { visible: root.s.suggestions.length === 0; text: root.local("لا توجد اقتراحات منشورة بعد.", "No public suggestions yet."); Layout.fillWidth: true }
                     Repeater {
                         model: root.s.suggestions
@@ -230,9 +236,11 @@ Kirigami.ApplicationWindow {
             }
 
             QQC2.ScrollView {
+                id: notificationsScroll
+                contentWidth: availableWidth
                 clip: true
                 ColumnLayout {
-                    width: parent.width; spacing: 12
+                    width: notificationsScroll.availableWidth; spacing: 12
                     QuietInk { visible: !root.s.signedIn; text: root.local("سجّل الدخول لقراءة ردود الفريق وتحديثات بلاغاتك.", "Sign in to read replies and report updates."); Layout.fillWidth: true }
                     QuietInk { visible: root.s.signedIn && root.s.notifications.length === 0; text: root.local("لا توجد إشعارات جديدة.", "No new notifications."); Layout.fillWidth: true }
                     Repeater {
@@ -340,9 +348,11 @@ Kirigami.ApplicationWindow {
             Ink { visible: root.s.status !== ""; text: root.s.status; Layout.fillWidth: true; color: root.s.error ? Kirigami.Theme.negativeTextColor : Kirigami.Theme.textColor }
             QuietInk { visible: root.s.release.version !== undefined; text: root.local("الإصدار المعتمد: ", "Verified release: ") + (root.s.release.version || "") + " · " + (root.s.release.edition || ""); Layout.fillWidth: true }
             QQC2.ScrollView {
+                id: conversationScroll
+                contentWidth: availableWidth
                 Layout.fillWidth: true; Layout.fillHeight: true; clip: true
                 ColumnLayout {
-                    width: parent.width; spacing: 12
+                    width: conversationScroll.availableWidth; spacing: 12
                     Repeater {
                         model: root.s.messages
                         delegate: Panel {

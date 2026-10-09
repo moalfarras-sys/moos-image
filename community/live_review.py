@@ -30,6 +30,7 @@ def main():
     args=parser.parse_args()
     if ctypes.CDLL(None).prctl(4,0,0,0,0)!=0:raise RuntimeError('private review required')
     QLocale.setDefault(QLocale('ar_SA'))
+    APP.setLayoutDirection(QLocale().textDirection())
     args.output.mkdir(parents=True,mode=0o700,exist_ok=True)
     api=Api(args.service_url)
     credentials={'username':'audit_station_'+secrets.token_hex(4),'password':secrets.token_urlsafe(24)}

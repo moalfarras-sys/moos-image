@@ -225,13 +225,17 @@ class Controller(QObject):
 
     @Slot()
     def refresh(self):
-        if not self.token or self.data['busy']:
+        if self.data['busy']:
+            return
+        if not self.token:
+            self.start()
             return
         token = self.token
         self.submit(lambda: self.api.request('GET', '/v1/threads', token=token),
                     lambda r: self.publish(threads=r['threads']))
         self.submit(lambda: self.api.request('GET', '/v1/notifications', token=token),
                     lambda r: self.publish(notifications=r['notifications']))
+        self.loadSuggestions()
         if self.data['selectedThread']:
             self.selectThread(self.data['selectedThread'], preserve=True)
 
@@ -471,6 +475,7 @@ def main():
     if args.language:
         QLocale.setDefault(QLocale('ar_SA' if args.language == 'ar' else 'en_US'))
     app = QGuiApplication([sys.argv[0]])
+    app.setLayoutDirection(QLocale().textDirection())
     app.setApplicationName('MoOS Community'); app.setDesktopFileName('org.moos.community')
     app.setWindowIcon(QIcon.fromTheme('moos-logo'))
     controller = Controller(Api(args.service_url, review=args.review), args.profile, args.language)

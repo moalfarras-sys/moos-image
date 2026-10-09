@@ -62,7 +62,10 @@ class NativeClient(unittest.TestCase):
         self.profile=tempfile.TemporaryDirectory();self.addCleanup(self.profile.cleanup)
         self.c=Controller(self.api,self.profile.name,'ar')
         self.addCleanup(self.c.close)
-        self.c.login('alice','private-fixture-pass-alice')
+        # Reuse an actual API-authenticated fixture session. Individual flow
+        # cases still exercise login; setup does not exhaust the real limiter.
+        session=self.accounts['alice']
+        self.c.signed_in(session['token'],session['user'])
         pump(lambda:self.c.data['signedIn'] and not self.c.data['busy'])
 
     def test_report_photo_receipt_private_read_and_restart_draft(self):
@@ -114,6 +117,13 @@ class NativeClient(unittest.TestCase):
             self.c.selectThread('first');self.c.selectThread('second')
         queued[0][1]({'thread':{'id':'first','title':'private first','state':'received'},'messages':[],'images':[]})
         self.assertEqual(self.c.data['selectedThread'],'second')
+
+    def test_start_before_network_and_explicit_refresh_recovers_signup_state(self):
+        self.c.reset_account()
+        with patch.object(self.api,'request',side_effect=ApiError('offline')):
+            self.c.start();pump(lambda:self.c.data['error'] and not self.c.data['busy'])
+        self.assertFalse(self.c.data['registrationOpen'])
+        self.c.refresh();pump(lambda:self.c.data['registrationOpen'] and not self.c.data['busy'])
 
     def test_real_qml_loads_both_directions_and_narrow_layout_without_warnings(self):
         for locale,direction in (('ar_SA',True),('en_US',False)):

@@ -5,6 +5,7 @@ from pathlib import Path
 import subprocess
 import tempfile
 import unittest
+import sys
 
 ROOT=Path(__file__).resolve().parents[1]
 spec=importlib.util.spec_from_file_location('community_stage',ROOT/'community/stage_client.py')
@@ -12,6 +13,14 @@ module=importlib.util.module_from_spec(spec);spec.loader.exec_module(module)
 
 
 class Packaging(unittest.TestCase):
+    def test_real_python_entrypoint_stages_without_shadowing_standard_modules(self):
+        with tempfile.TemporaryDirectory() as directory:
+            target=Path(directory)/'community'
+            result=subprocess.run([sys.executable,'-B',str(ROOT/'community/stage_client.py'),
+                                   str(ROOT/'community'),str(target)],capture_output=True,text=True,timeout=10)
+            self.assertEqual(result.returncode,0,result.stdout+result.stderr)
+            self.assertEqual({p.name for p in target.iterdir()},set(module.RUNTIME))
+
     def test_real_stage_contains_exact_client_bytes_without_server_or_private_files(self):
         with tempfile.TemporaryDirectory() as directory:
             target=Path(directory)/'community'

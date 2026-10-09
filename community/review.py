@@ -26,6 +26,7 @@ def main():
     args=parser.parse_args()
     if ctypes.CDLL(None).prctl(4,0,0,0,0)!=0:raise RuntimeError('private review required')
     QLocale.setDefault(QLocale('ar_SA' if args.language=='ar' else 'en_US'))
+    APP.setLayoutDirection(QLocale().textDirection())
     args.output.mkdir(parents=True,mode=0o700,exist_ok=True)
     NativeClient.setUpClass()
     controller=None;engine=None
