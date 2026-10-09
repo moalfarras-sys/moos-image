@@ -347,7 +347,9 @@ nmcli networking off
 systemctl daemon-reload
 systemctl stop NetworkManager.service
 ! ip route show default | grep -q .
-PKEXEC_UID="$(id -u liveuser)" /usr/bin/moos-install-to-disk "$cache/install.status"
+# Keep bootc mount validation in the failure artifact; an empty ESP can
+# otherwise conceal whether a prepared mount disappeared before import.
+RUST_LOG=bootc=trace PKEXEC_UID="$(id -u liveuser)" /usr/bin/moos-install-to-disk "$cache/install.status"
 grep -qx DONE "$cache/install.status"
 ! grep -q '^FAIL ' "$cache/install.status"
 grep -Fq 'source: local containers-storage (offline)' /tmp/moos-install-to-disk.log
