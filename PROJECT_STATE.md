@@ -131,14 +131,15 @@ dependency audits, language locking/startup, ARM disk-consent/install metadata
 and pinned cosign 3.1.3 passed their recorded native/source checks. Detailed
 negative controls and rights inventory are in the linked Arabic audit and
 [OWNERSHIP.md](OWNERSHIP.md); no universal compatibility/security claim follows.
-The batch is delivered to ARM .728. Oracle is online but SSH trust is absent
-here; current installed acceptance remains unverified and no remote origin changed.
+The batch is delivered to ARM .728. Oracle SSH is now verified through one Tailscale session; `.724` remains booted,
+`.728` staged. New installed acceptance remains unverified; no remote origin changed.
 
 X86 build 37881477050 and three disk proofs passed at 8ebe0591; ISO 37888192868
 failed on an empty `efi`. Retry 37900328567 installed before diagnostics timed
 out. The independent installer repair at 144b1a6a now holds mount namespaces,
 private privileged state and bounded diagnostics; candidate build 37910223752
-passed, with ISO, three disk proofs and ARM now running. Promotion remains owed; never substitute
+passed; ISO 37916929153, disks 37916917245/37916921267/37916925157 and ARM
+37916934408 all succeeded. Promotion remains owed; never substitute
 the branch's source tests for signed delivery. Follow [RELEASE.md](RELEASE.md).
 
 ## Owner milestone — source work, not promoted delivery
@@ -157,6 +158,9 @@ Recovery's unreadable state now differs from a proven absent rollback, with a
 read-only retry. Its regression gate and actual native AR/EN GTK source review
 pass; no rollback mechanism or boot choice changed. The gallery holds 16 unique
 real frames with explicit source/CI/private-host boundaries and missing stages.
+Participation beta: 34 API/privacy/retry/proxy/release and 7 native Qt HTTP cases
+pass. AR/EN actual-button review produced six source Qt frames. Dependencies
+are hash-pinned and audit clean; Oracle TLS/public and signed OS delivery remain open.
 
 ## Evidence still owed
 

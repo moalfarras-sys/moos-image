@@ -32,6 +32,14 @@ default:
 dotnet-check:
     bash moremote/dotnet-check.sh
 
+# Participation needs its hash-pinned API dependencies. Native Qt flow acceptance
+# is explicit rather than silently skipped on an SDK-free CI worker.
+community-check:
+    bash community/check.sh
+
+community-native-check:
+    bash community/check.sh --native
+
 # Read-only host inventory, including from VS Code Flatpak. Does not install SDKs.
 workstation-check:
     bash scripts/setup-development-machine.sh --check
