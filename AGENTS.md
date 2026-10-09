@@ -283,6 +283,19 @@ record the harness always keeps; a fixture's progress and failures go there
 forward per boot), was measured as irrelevant by the run that proved the real one: **when you
 fix on a theory, make the green run measure the theory.**
 
+**A prepared mount must survive the installer process.** ISO 37888192868
+passed live boot but bootc refused an empty `efi` directory. A private virtual-disk
+control reproduced that exact refusal by detaching the ESP externally; a private
+mount namespace retained it. This measures the failure class, not the identity
+of the original detacher. Keep target/subvolume readback and bootc's own empty-root
+guard; never bypass it or call a successful copy a login/reboot proof. A broad
+trace then installed successfully but its unbounded QGA log read timed out:
+bound diagnostics, preserve unreadable-file failures and state the real deadline.
+Root installer logs belong in a private directory; a fixed shared /tmp filename
+can redirect truncation. Acquire the mandatory install lock before resetting
+shared state. Scope redirection on `exec` with a group: an unscoped `2>/dev/null`
+also silences all later errors from that shell.
+
 **`/` is not the disk.** On bootc/OSTree, `/` is a read-only composefs overlay; `statvfs` reports
 it as a ~60 MB filesystem that is 100% full. `shutil.disk_usage("/")` therefore returns 0 total,
 0 free, and the Hardware Centre showed "?" for storage on every MoOS machine it ever ran on.

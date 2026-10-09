@@ -61,18 +61,46 @@ export LC_ALL=C LANG=C
 # is setuid and drops `stdbuf`'s LD_PRELOAD, so a redirected stdout would be
 # block-buffered and the progress bar would freeze (seen live: FAIL stalled).
 STATUS="${1:-/dev/stdout}"
-# Truncate the status file at the start of every run. We APPEND progress lines, so a
-# previous attempt's stale `FAIL …` / `DONE` would otherwise linger at the top and
-# the QML front-end (which polls this file) would show the OLD outcome — seen live:
-# a successful retry still reported failure. Harmless when STATUS is /dev/stdout.
-if [ "$STATUS" != "/dev/stdout" ]; then : > "$STATUS" 2>/dev/null || true; fi
 emit()  { printf '%s\n' "$*" >> "$STATUS" 2>/dev/null; }
 phase() { emit "PHASE $1"; }
 prog()  { emit "PROGRESS $1"; }
 fail()  { emit "FAIL ${1:-generic}"; exit 1; }
 
-LOG="/tmp/moos-install-to-disk.log"
-: > "$LOG" 2>/dev/null || true
+[ "$(id -u)" = "0" ] || fail "not-root"
+# Acquire before touching the shared log, recipe or progress. A second begin
+# must neither wipe a disk nor replace the first install's visible progress.
+command -v flock >/dev/null 2>&1 || fail "busy"
+{ exec 9>/run/moos-install.lock; } 2>/dev/null || fail "busy"
+if ! flock -n 9; then
+    printf 'FAIL busy\n' >&2
+    exit 1
+fi
+command -v unshare >/dev/null 2>&1 || fail "generic"
+# Truncate the status file at the start of every run. We APPEND progress lines, so a
+# previous attempt's stale `FAIL …` / `DONE` would otherwise linger at the top and
+# the QML front-end (which polls this file) would show the OLD outcome — seen live:
+# a successful retry still reported failure. Harmless when STATUS is /dev/stdout.
+if [ "$STATUS" != "/dev/stdout" ]; then : > "$STATUS" 2>/dev/null || true; fi
+
+# A shared /tmp filename can be a link planted by another local user. Keep
+# account/install diagnostics in a private directory under root-owned /run.
+LOG_DIR=/run/moos-installer
+LOG="$LOG_DIR/install.log"
+prepare_install_log() {
+    [ ! -L "$LOG_DIR" ] || return 1
+    (umask 077; mkdir -p -- "$LOG_DIR") || return 1
+    [ "$(stat -c %u -- "$LOG_DIR")" = "$EUID" ] || return 1
+    chmod 0700 -- "$LOG_DIR" || return 1
+    [ ! -L "$LOG" ] || return 1
+    if [ -e "$LOG" ]; then
+        [ -f "$LOG" ] || return 1
+        [ "$(stat -c %u -- "$LOG")" = "$EUID" ] || return 1
+        [ "$(stat -c %h -- "$LOG")" = 1 ] || return 1
+    fi
+    (umask 077; : > "$LOG") || return 1
+    chmod 0600 -- "$LOG" || return 1
+}
+prepare_install_log || fail "generic"
 
 IMGREF_FILE="/usr/lib/moos/install-imageref"
 TARGET_IMGREF="ghcr.io/moalfarras-sys/moos:latest"
@@ -140,7 +168,6 @@ R_PASS=""
 wipe_recipe   # done with the recipe — no plaintext lingers during the install
 
 # ── guards ────────────────────────────────────────────────────────────────────
-[ "$(id -u)" = "0" ] || fail "not-root"
 if ! grep -q 'rd.live.image' /proc/cmdline 2>/dev/null && [ ! -d /run/initramfs/live ]; then
     fail "not-live"
 fi
@@ -179,15 +206,6 @@ fi
 if [ -z "$LIVE" ]; then
     _rm="$(lsblk -ndo RM "$NODE" 2>/dev/null | tr -d ' ')"
     [ "$_rm" = "1" ] && fail "live-node"
-fi
-
-# One install at a time. A re-fired begin (the QML Retry, an impatient double-tap,
-# or a drive-by moos://installer/begin) must never start a SECOND target preparation
-# on the same disk while the first is still partitioning or copying. Hold an
-# exclusive lock for the whole destructive run.
-exec 9>/run/moos-install.lock 2>/dev/null || true
-if command -v flock >/dev/null 2>&1; then
-    flock -n 9 || fail "busy"
 fi
 
 # Early liveness: the QML poller times out on ~30s of silence, but the online
@@ -299,6 +317,28 @@ bind_stage_tmp() {
     return 0
 }
 
+check_prepared_mount() {
+    local target="$1" expected_device="$2" expected_type="$3" expected_root="$4"
+    local record device kind fsroot extra
+    record="$(findmnt -rn -o SOURCE,FSTYPE,FSROOT --mountpoint "$target" 2>>"$LOG")" || {
+        printf 'mount-readback: missing %s\n' "$target" >>"$LOG"
+        return 1
+    }
+    [[ "$record" != *$'\n'* ]] || return 1
+    read -r device kind fsroot extra <<<"$record"
+    printf 'mount-readback: %s %s\n' "$target" "$record" >>"$LOG"
+    device="${device%%\[*}"
+    [ "$device" = "$expected_device" ] && [ "$kind" = "$expected_type" ] \
+        && [ "$fsroot" = "$expected_root" ] && [ -z "$extra" ]
+}
+
+verify_prepared_target() {
+    check_prepared_mount "$TARGET_ROOT" "$ROOT_PART" btrfs /root \
+        && check_prepared_mount "$TARGET_STAGE" "$ROOT_PART" btrfs /bootc-stage \
+        && check_prepared_mount /var/tmp "$ROOT_PART" btrfs /bootc-stage \
+        && check_prepared_mount "$TARGET_ROOT/boot/efi" "$ESP_PART" vfat /
+}
+
 prepare_target() {
     local i root_id
     cleanup_target
@@ -377,7 +417,11 @@ run_install() {
     # --generic-image installs portable BIOS+UEFI bootloader state; the installed
     # origin remains the registry ref for day-2 updates and is rewritten to the
     # signed transport in seed_target.
-    TMPDIR="$TARGET_STAGE" bootc install to-filesystem \
+    # Keep the prepared mounts alive in the install process even if a live
+    # desktop service detaches one from the outer namespace during import.
+    # Partition eligibility/free_target still run in the caller's namespace;
+    # bootc's empty-root check, SELinux, signing and finalization policy remain.
+    TMPDIR="$TARGET_STAGE" unshare --mount --propagation private -- bootc install to-filesystem \
         --source-imgref "$SRC" \
         --target-transport registry --target-imgref "$TARGET_IMGREF" \
         --skip-fetch-check \
@@ -415,6 +459,12 @@ for _try in 1 2 3; do
     if ! bind_stage_tmp; then
         rc=1
         echo "target staging bind failed on attempt $_try" >>"$LOG"
+        cleanup_target
+        break
+    fi
+    if ! verify_prepared_target; then
+        rc=1
+        echo "prepared target mount verification failed on attempt $_try" >>"$LOG"
         cleanup_target
         break
     fi

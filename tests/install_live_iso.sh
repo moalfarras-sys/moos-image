@@ -307,7 +307,31 @@ def exec_wait(script, args, timeout):
             stderr = base64.b64decode(status.get("err-data", "")).decode(errors="replace")
             return status.get("exitcode", 1), stdout, stderr
         time.sleep(5)
-    raise SystemExit("ISO INSTALL FATAL: installer did not finish within 45 minutes")
+    raise TimeoutError(f"guest command {pid} did not finish within {timeout} seconds")
+
+
+def collect_installer_diagnostics():
+    # QGA returns one JSON response: collecting an unbounded trace can itself
+    # time out after the installation succeeded. Retain both ends, including
+    # the source/mount check, and keep this independent of the install deadline.
+    for guest_path, host_name in (
+        ("/run/moos-installer/install.log", "installer.log"),
+        ("/var/home/liveuser/.cache/moos-installer/install.status", "installer-status.raw"),
+    ):
+        try:
+            code, out, err = exec_wait(
+                'set -eu; head -c 65536 -- "$1"; '
+                'printf "\\n=== final diagnostics ===\\n"; '
+                'tail -c 65536 -- "$1"',
+                [guest_path], 30)
+            (evidence / host_name).write_text(
+                out + ("\n=== stderr ===\n" + err if err else ""))
+            if code != 0:
+                return False
+        except (OSError, ValueError, RuntimeError, TimeoutError) as error:
+            (evidence / (host_name + ".error")).write_text(str(error))
+            return False
+    return True
 
 
 wait_qga()
@@ -349,11 +373,11 @@ systemctl stop NetworkManager.service
 ! ip route show default | grep -q .
 # Keep bootc mount validation in the failure artifact; an empty ESP can
 # otherwise conceal whether a prepared mount disappeared before import.
-RUST_LOG=bootc=trace PKEXEC_UID="$(id -u liveuser)" /usr/bin/moos-install-to-disk "$cache/install.status"
+RUST_LOG=bootc::install=trace PKEXEC_UID="$(id -u liveuser)" /usr/bin/moos-install-to-disk "$cache/install.status"
 grep -qx DONE "$cache/install.status"
 ! grep -q '^FAIL ' "$cache/install.status"
-grep -Fq 'source: local containers-storage (offline)' /tmp/moos-install-to-disk.log
-! grep -Fq 'source: registry (online)' /tmp/moos-install-to-disk.log
+grep -Fq 'source: local containers-storage (offline)' /run/moos-installer/install.log
+! grep -Fq 'source: registry (online)' /run/moos-installer/install.log
 [ ! -e "$cache/recipe.json" ]
 
 # Add a one-boot CI access fixture to this disposable target only. The shipped
@@ -478,31 +502,22 @@ sync
 lsblk -nrpo NAME,FSTYPE,PARTLABEL "$node"
 printf 'install=done\nsource=embedded-offline\nnetwork=disabled\ntarget=%s\nci-proof=ephemeral-ssh\n' "$node"
 '''
-code, out, err = exec_wait(install, [expected, password, proof_key], 2700)
+try:
+    code, out, err = exec_wait(install, [expected, password, proof_key], 2700)
+except (OSError, ValueError, RuntimeError, TimeoutError) as error:
+    collect_installer_diagnostics()
+    raise SystemExit(f"ISO INSTALL FATAL: install command failed: {error}")
 (evidence / "install.status").write_text(out + ("\n=== stderr ===\n" + err if err else ""))
 if code != 0:
     # The installer's own log and status are the ONLY record of WHY it failed,
     # but the guest may be dying (QGA torn down mid-install). Collect them on a
     # best-effort basis so a red run is diagnosable; run 34880117263 exited 1
     # with empty stdout/stderr and no installer.log at all.
-    for guest_path, host_name in (
-        ("/tmp/moos-install-to-disk.log", "installer.log"),
-        ("/var/home/liveuser/.cache/moos-installer/install.status", "installer-status.raw"),
-    ):
-        try:
-            _, diag_out, diag_err = exec_wait("cat -- \"$1\"", [guest_path], 30)
-            (evidence / host_name).write_text(
-                diag_out + ("\n=== stderr ===\n" + diag_err if diag_err else ""))
-        except (OSError, ValueError, RuntimeError, SystemExit):
-            pass
+    collect_installer_diagnostics()
     raise SystemExit(f"ISO INSTALL FATAL: installer gate exited {code}: {err or out}")
 
-for guest_path, host_name in (
-    ("/tmp/moos-install-to-disk.log", "installer.log"),
-    ("/var/home/liveuser/.cache/moos-installer/install.status", "installer-status.raw"),
-):
-    code, out, err = exec_wait("cat -- \"$1\"", [guest_path], 30)
-    (evidence / host_name).write_text(out + ("\n=== stderr ===\n" + err if err else ""))
+if not collect_installer_diagnostics():
+    raise SystemExit("ISO INSTALL FATAL: installed but diagnostic collection failed")
 
 # Live media can carry a desktop-session inhibitor that ignores QGA's generic
 # shutdown request and the emulated ACPI button. Run 33820398690 proved that

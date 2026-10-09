@@ -12,7 +12,12 @@ language transaction/startup consistency, and current signed ARM install
 metadata. Source regressions and native tests pass; the new image, exact
 candidate/boot/promotion and installed checks remain required.
 
-Current stable delivery remains source fa85b2da: x86 .1011 and ARM .724.
+Current stable x86 remains fa85b2da/.1011. ARM .728 from 8ebe0591 passed
+first-attempt pipeline 37881437511 and is staged, not yet booted here.
+The new x86 candidate passed all disks but ISO 37888192868 failed on a lost ESP;
+37900328567 installed, then trace collection timed out. The installer follow-up
+adds private mounts, checked layout, mandatory lock/private logs and bounded
+diagnostics. Fresh full image/candidate/ISO/promotion and installed checks remain owed.
 Public ISO hosting is qualified and P0.12 is closed. Historical NVIDIA hardware
 results do not describe this Oracle A1. Running scheduled/image-only builds
 never imply promotion. No new model-written shell or hardware acceptance is inferred.
@@ -281,7 +286,7 @@ itself and an unreviewed MoOS would ship kscreenlocker's emergency locker.
 | P0.5 | Configure and accept free Mo AI on a clean account | Open / acceptance not complete | Clean-account provider setup, free route, reboot, cancellation and network/quota/key failures. |
 | P0.6 | Promote only proven digests and update the physical PC | Stable mechanism/artifact evidence recorded; preserve required gates | Promote only exact proven signed digests; separately verify installed stage/reboot/rollback. |
 | P0.7 | Remove the intermittent `plymouthd` crash (ARM second boot; x86 first boot) | Implemented/delivered within recorded scope; wider acceptance remains | Pinned vendor Plymouth fix, old/fixed negative, exact final initramfs and actual boot visuals. |
-| P0.8 | Make the ISO installed-reboot proof deterministic | Stable mechanism/artifact evidence recorded; preserve required gates | Repeated installed-ISO reboot with DHCP/SSH-channel evidence and console failures visible. |
+| P0.8 | Make the ISO installed-reboot proof deterministic | Reopened: lost ESP and diagnostic collection corrected in source; fresh release proof pending | Repeated installed-ISO reboot with DHCP/SSH-channel evidence and console failures visible. |
 | P0.9 | Run image-only gates before the merge | Stable mechanism/artifact evidence recorded; preserve required gates | PR generic image gates block real image failures; no signing/publishing from PR. |
 | P0.10 | Gate NVIDIA persistence on a bound GPU | Stable mechanism/artifact evidence recorded; preserve required gates | Bound NVIDIA hardware and exact-kernel persistence/initramfs proof. |
 | P0.11 | Give first-boot Flatpak setup a realistic finite timeout | Stable mechanism/artifact evidence recorded; preserve required gates | Finite realistic first-boot app setup timeout and actual ARM reboot. |

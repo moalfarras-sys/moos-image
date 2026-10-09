@@ -30,6 +30,8 @@ cd "$(dirname "$0")/.."
 
 bash -n build_files/build.sh
 python3 tests/test_shell_line_continuations.py
+python3 tests/test_installer_private_state.py
+python3 tests/test_installer_mount_namespace.py
 python3 tests/test_usr_local_layout.py
 python3 tests/test_image_state.py
 python3 tests/test_plasma_logout_packages.py
