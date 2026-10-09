@@ -1,4 +1,4 @@
-# MoOS current state — measured 2026-10-08
+# MoOS current state — measured 2026-10-09
 
 This machine is the Oracle A1 ARM station. Historical NVIDIA workstation
 measurements are separate hardware evidence; they are not current A1 readback.
@@ -9,12 +9,15 @@ The sole execution backlog is [DEVELOPMENT_PLAN.md](docs/DEVELOPMENT_PLAN.md).
 
 - Signed MoOS ARM 44.20261006.724, source fa85b2daf3db0f1f823b3159bb46b25571a99740.
   Digest: sha256:f9441728f373cf19d59bdc4116c42833392a628e3ac01f33905cd76fce3c7305.
-- Signed .710 rollback remains. The owner-authorized reboot was verified on
+- Signed ARM 44.20261009.728 (source 8ebe0591, digest
+  sha256:abc5aff9496d57917d94254c67da5af4caa94c412067d62a72a537a8e907f673)
+  is staged through moai-do update, not yet booted. Signed .710 rollback remains. The owner-authorized reboot was verified on
   2026-10-07; this audit has not replaced the installed origin with a local image.
 - Fresh installed selfcheck: 51 passed, 2 notes, no broken checks. Notes are
   owner-masked mpris-proxy and obex, not missing MoOS code.
 - No failed system/user units. Four rootless photos/database/cache/SMB
-  containers are healthy. About 98 GiB writable storage remains.
+  containers are healthy. About 52 GiB writable storage remains during artifact qualification;
+  removing two audit-owned superseded builds reclaimed about 4 GiB.
 - Session LANG/LANGUAGE and region formats are Arabic. KDE translation is ar.
   System fallback locale C.UTF-8 is distinct from the actual Arabic session.
   Look-and-feel readback: org.moos.ui2.nova.
@@ -31,15 +34,16 @@ The sole execution backlog is [DEVELOPMENT_PLAN.md](docs/DEVELOPMENT_PLAN.md).
 
 ## Promoted releases and public delivery
 
-All four stable editions share source fa85b2da; source-only documentation
-merges and image-only scheduled builds do not constitute newer promoted releases.
+Stable x86 editions still share source fa85b2da. ARM .728 is promoted from
+8ebe0591 with first-attempt build/two boots/promotion 37881437511. Source-only
+merges and image-only builds do not constitute promoted releases.
 
 | Edition | Version | Signed digest |
 | --- | --- | --- |
 | Desktop | 44.20261007.1011 | c3689b0e64c48cdf7d5de7d83b3dc156bf264f6381cce98d36376681b07ebf99 |
 | NVIDIA | 44.20261007.1011 | 9b77fc3eaed85d2b3e9b38809c9ab91c1de22854f31706f79d6b4d2f76bd4e8e |
 | Cloud x86 | 44.20261007.1011 | 4e187edbcced76e0c134ee68ab45c83bf3f9bf4ebae259235ed1306a289162cb |
-| ARM | 44.20261006.724 | f9441728f373cf19d59bdc4116c42833392a628e3ac01f33905cd76fce3c7305 |
+| ARM | 44.20261009.728 | abc5aff9496d57917d94254c67da5af4caa94c412067d62a72a537a8e907f673 |
 
 First-attempt stable proofs: signed build 37552824167; generic/NVIDIA/cloud disks
 37558743993, 37558747906, 37558751431; offline ISO 37558755639; x86 promotion
@@ -104,6 +108,35 @@ receives native .NET checks and the cached full-image build before push.
 Exact candidate, boot/promotion and installed acceptance for this
 new batch remain required before calling these changes delivered. Follow
 [RELEASE.md](RELEASE.md); all unchanged identity/signature/initramfs gates remain.
+
+## Offline installer follow-up — fresh delivery still required
+
+The 8ebe0591 signed x86 build 37881477050 and its three QCOW2 proofs
+37888183362/37888186631/37888189800 passed. ISO 37888192868 refused an
+empty EFI mount directory; x86 promotion correctly stopped. Diagnostic ISO
+37900328567 installed offline successfully, then failed while collecting its
+large trace. That is not an installed-system login/reboot proof.
+
+The actual process which detached EFI remains unidentified. A private native
+virtual-disk negative control reproduced the exact bootc error after external
+ESP detachment. The same real invocation in a private mount namespace retained
+the ESP and reached the deliberately nonexistent image source. The helper now
+checks the root/staging/ESP mounts and staging alias before invoking bootc,
+then isolates the install process's mounts. Eligibility, source, SELinux,
+signed-origin rearming, empty-root verification and finalization stay enforced.
+
+Additional source fixes make the install lock mandatory before shared state
+is touched, and move diagnostics from a linkable shared /tmp name to a private
+0700 directory/0600 file. Busy admission preserves the backend's existing
+progress/log; links and foreign/hard-linked state are refused. This does not
+prove every front-end concurrency path. ISO evidence collection now caps each
+file to 128 KiB plus a separator, fails on unreadable files and reports the
+actual command deadline. Fresh full image, exact candidate and boot proofs
+are required for this follow-up before promotion or replacing the public ISO.
+
+User/system application updates ran again on October 9; Chromium updated to
+154.0.8037.97. Website's eleven apparently unique historical tips match the
+exact heads of merged squash PRs; their product work is already integrated.
 
 ## Evidence still owed
 
