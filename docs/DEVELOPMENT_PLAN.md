@@ -1,6 +1,6 @@
 # MoOS development plan — current execution backlog
 
-Updated 2026-10-08. This is the single execution backlog, not an incident diary.
+Updated 2026-10-09. This is the single execution backlog, not an incident diary.
 Current measurements live in PROJECT_STATE.md; detailed audit evidence and
 remaining boundaries are in AUDIT_20261008_AR.md. Git preserves prior waves.
 
@@ -9,12 +9,20 @@ remaining boundaries are in AUDIT_20261008_AR.md. Git preserves prior waves.
 Priority before the M1 visual work: support-report privacy/atomic output,
 Remote's vulnerable fallback dependency and fail-closed NuGet audits,
 language transaction/startup consistency, and current signed ARM install
-metadata. Source regressions and native tests pass; the new image, exact
-candidate/boot/promotion and installed checks remain required.
+metadata. Source regressions and native tests pass. ARM .728 completed
+exact-source build, disk proof and promotion at 8ebe0591; installed Oracle
+readback remains owed. X86's build and three disks passed, but offline ISO
+installation first failed on an empty `efi`. The diagnostic retry records
+`install=done` before a later file-read timeout; the harness misleadingly calls
+its 30-second diagnostic timeout a 45-minute installer failure. Diagnose and
+bound diagnostic transfer, preserve accurate timeouts, then repeat the whole
+installed-ISO proof before x86 promotion; retain every existing gate.
 
-Current stable delivery remains source fa85b2da: x86 .1011 and ARM .724.
-Public ISO hosting is qualified and P0.12 is closed. Historical NVIDIA hardware
-results do not describe this Oracle A1. Running scheduled/image-only builds
+Current stable delivery is x86 .1011 at fa85b2da and ARM .728 at 8ebe0591.
+Public .1011 ISO hosting is qualified and P0.12 is closed. Both stations develop
+the same product; each hardware result must name its device and deployment.
+The NVIDIA station staged signed .1011 from .1009 and completed app updates;
+post-reboot acceptance is separate. Running scheduled/image-only builds
 never imply promotion. No new model-written shell or hardware acceptance is inferred.
 
 The cadence of release cycles is the security cadence: a nightly image-only
@@ -275,7 +283,7 @@ itself and an unreviewed MoOS would ship kscreenlocker's emergency locker.
 | ID | Outcome | Current boundary | Required acceptance |
 | --- | --- | --- | --- |
 | P0.1 | Integrate the reviewed first-install repairs and create one candidate revision | Stable mechanism/artifact evidence recorded; preserve required gates | Exact candidate source, all integrated fixes and no local override counted as release. |
-| P0.2 | Run generic, NVIDIA and cloud QCOW2 proofs plus offline ISO install/second boot | Stable mechanism/artifact evidence recorded; preserve required gates | Three exact-digest x86 QCOW2 journeys, offline installed ISO and separate ARM two-boot proof. |
+| P0.2 | Run generic, NVIDIA and cloud QCOW2 proofs plus offline ISO install/second boot | .1011 stable proof retained; 8ebe0591 disks pass but final offline ISO installation fails | Three exact-digest x86 QCOW2 journeys, offline installed ISO and separate ARM two-boot proof. |
 | P0.3 | Finish physical NVIDIA qualification | Open / acceptance not complete | Actual NVIDIA GPU, initramfs module, displays, suspend and clean recovery on qualified hardware. |
 | P0.4 | Prove failed-update recovery | Open / acceptance not complete | Deliberate bad update, automatic/manual rollback and forward return without owner data loss. |
 | P0.5 | Configure and accept free Mo AI on a clean account | Open / acceptance not complete | Clean-account provider setup, free route, reboot, cancellation and network/quota/key failures. |
@@ -356,7 +364,7 @@ itself and an unreviewed MoOS would ship kscreenlocker's emergency locker.
 | P5.3 | Touch/tablet policy | Open / acceptance not complete | Actual touch/tablet targets, keyboard/rotation/gestures/stylus and ≥44px controls. |
 | P5.4 | Performance budgets | Open / acceptance not complete | Measured boot/idle PSS/CPU/wakeups, app launch p95, frame pacing, build load and AI latency per tier. |
 | P5.5 | Cloud desktop efficiency | Implemented/delivered within recorded scope; wider acceptance remains | Efficient cloud desktop plus actual private files/photos/IDE access, phone background and off-host restore. |
-| P5.6 | Storage lifecycle | Open / acceptance not complete | Headroom, cache/log bounds, low-space recovery and cleanup that never removes owner data. |
+| P5.6 | Storage lifecycle | Open: NVIDIA cleanup restores headroom and preserves source/checkpoints/rollback; sustainable limits still owed | Headroom, cache/log bounds, low-space recovery and cleanup that never removes owner data. |
 | P5.7 | Qualify kernel policy and driver transitions | Open: oomd monitors no cgroup; policy needs measured safe application | Kernel/driver readback and measured frame/audio/CPU/RAM policy; oomd running is not applied monitoring. |
 | P5.8 | Qualify Wayland and compositor lifetime | Open / acceptance not complete | Portal consent/revocation/restart, output/scale/hotplug, clipboard/input and long session-return soak. |
 
@@ -402,9 +410,9 @@ Do not layer compilers onto the immutable host merely for convenience. Do not
 put API keys in `.env`, committed config, shell history or test fixtures.
 
 Performance work starts with repeated measurements, not RPM size guesses.
-The current development box is Oracle A1; historical NVIDIA boot totals and
-autostart choices are not its live state. Read PROJECT_STATE.md and the current
-audit for baseline, workload and exact evidence. P5.4 requires repeated cold
+Oracle A1 and the NVIDIA workstation share the development source; boot totals
+and autostart choices belong to the measured device. Read PROJECT_STATE.md and
+the current audit for baseline, workload and exact evidence. P5.4 requires repeated cold
 boots and an actual idle interval; P5.6 requires bytes/headroom and reverse
 dependencies before payload removal. SDKs remain in development environments.
 

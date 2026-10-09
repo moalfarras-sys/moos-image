@@ -1,17 +1,18 @@
-# MoOS current state — measured 2026-10-08
+# MoOS current state — measured 2026-10-09
 
-This machine is the Oracle A1 ARM station. Historical NVIDIA workstation
-measurements are separate hardware evidence; they are not current A1 readback.
+Oracle A1 and the physical NVIDIA workstation develop the same MoOS product.
+Evidence below names its device: Oracle measurements are not NVIDIA readback,
+and registry promotion is not proof that either machine has rebooted into it.
 The full audit and acceptance gaps are in [the Arabic audit](docs/AUDIT_20261008_AR.md).
 The sole execution backlog is [DEVELOPMENT_PLAN.md](docs/DEVELOPMENT_PLAN.md).
 
-## Installed Oracle system
+## Installed Oracle system — last recorded readback 2026-10-07
 
 - Signed MoOS ARM 44.20261006.724, source fa85b2daf3db0f1f823b3159bb46b25571a99740.
   Digest: sha256:f9441728f373cf19d59bdc4116c42833392a628e3ac01f33905cd76fce3c7305.
 - Signed .710 rollback remains. The owner-authorized reboot was verified on
   2026-10-07; this audit has not replaced the installed origin with a local image.
-- Fresh installed selfcheck: 51 passed, 2 notes, no broken checks. Notes are
+- Recorded installed selfcheck: 51 passed, 2 notes, no broken checks. Notes are
   owner-masked mpris-proxy and obex, not missing MoOS code.
 - No failed system/user units. Four rootless photos/database/cache/SMB
   containers are healthy. About 98 GiB writable storage remains.
@@ -31,20 +32,59 @@ The sole execution backlog is [DEVELOPMENT_PLAN.md](docs/DEVELOPMENT_PLAN.md).
 
 ## Promoted releases and public delivery
 
-All four stable editions share source fa85b2da; source-only documentation
-merges and image-only scheduled builds do not constitute newer promoted releases.
+The three x86 stable editions remain at source fa85b2da. ARM .728 completed
+build, disk and promotion at source 8ebe0591 (run 37881437511); its exact
+registry digest and cosign signature were read back on 2026-10-09.
+Source-only merges and image-only scheduled builds do not constitute promotion.
 
 | Edition | Version | Signed digest |
 | --- | --- | --- |
 | Desktop | 44.20261007.1011 | c3689b0e64c48cdf7d5de7d83b3dc156bf264f6381cce98d36376681b07ebf99 |
 | NVIDIA | 44.20261007.1011 | 9b77fc3eaed85d2b3e9b38809c9ab91c1de22854f31706f79d6b4d2f76bd4e8e |
 | Cloud x86 | 44.20261007.1011 | 4e187edbcced76e0c134ee68ab45c83bf3f9bf4ebae259235ed1306a289162cb |
-| ARM | 44.20261006.724 | f9441728f373cf19d59bdc4116c42833392a628e3ac01f33905cd76fce3c7305 |
+| ARM | 44.20261009.728 | abc5aff9496d57917d94254c67da5af4caa94c412067d62a72a537a8e907f673 |
 
 First-attempt stable proofs: signed build 37552824167; generic/NVIDIA/cloud disks
 37558743993, 37558747906, 37558751431; offline ISO 37558755639; x86 promotion
 37562359722; ARM build/two UEFI boots/promotion 37539003204.
 Ten actual apps opened, closed and reopened in the final offline-installed ISO.
+
+## Physical NVIDIA workstation — live 2026-10-09
+
+- Booted signed .1009 (`608f702a…`); official `moai-do update` completed staging
+  signed .1011 (`9b77fc3e…`). .1009 and .999 remain present. This pre-reboot
+  audit does not claim .1011 has booted. Mo Store app updates completed.
+- Selfcheck: 53 passed, 2 notes; live pre-update readback: 55 passed, 0 failed.
+  No failed system/user units. Arabic session, 3840×2160@60, scale 250%, UI2
+  Arena. Plasma 6.7.5, Qt 6.11.2, kernel 7.2.8, NVIDIA 615.71.09. Boot accounting
+  was 33.053 s including firmware/loader; not a repeated cold-boot benchmark.
+- Installed Mira, Store, native Settings and MoPlayer opened; Settings and
+  MoPlayer reopened. Settings logged `MOOS_KCM_READY kcm_moos`. A synthetic
+  free cloud reply returned HTTP 200 in 10.13 s. This is not owner-spoken
+  voice or complete action acceptance. Remote retained its existing viewer
+  and zero service restarts. Review units were stopped after inspection.
+- Remaining live faults: 37,535 USB audio buffer-overrun warnings in a
+  ten-minute sample; Home Assistant Bluetooth scanning errors with no system
+  D-Bus socket in its container; three Lumen lights unavailable. Inspection
+  did not flash the Echo or alter owner lighting.
+- Owner-authorized cleanup removed seven old VM disks, eight retired runtime
+  copies, 13 stopped test containers and 147 inactive build containers, plus
+  obsolete images, private review homes and crash dumps. Writable headroom
+  rose from about 45 to 272 GiB (91% to 40% used). Git checkpoints are preserved
+  in local `refs/archive/moos-audit-20261009/` before duplicate bundles were
+  removed. Firmware recovery images, databases and source branches remain.
+- Opened checkout and local main match origin/main 8ebe0591. All 49 local
+  tips inspected before the documentation branch were ancestors of main;
+  all 25 inspected worktrees were clean. The remote ISO trace branch has one
+  unmerged diagnostic commit, not an accepted installer fix.
+- Maintained `just check` passed: 239 test scripts with environment skips
+  recorded. All Remote .NET builds/executables, controller typecheck/tests
+  and production dependency audit passed. MoPlayer: 255 Flutter tests passed.
+  Mira's 28 native modules ran 1,098 cases, with seven explicit skips; one
+  private-HOME setup error was corrected and the affected module reran green.
+  Python AST (419), JSON (92) and shell-file (60) parsing found no errors.
+  Component logs and private captures remain outside Git in the station audit
+  directory; these do not prove every app interaction or hardware device.
 
 The generic x86-64 Intel/AMD UEFI ISO is 5,796,462,592 bytes, SHA-256
 cbe92573e620101f274081c884671e4b63ffbcdb765521713d21ada1dbe9cb1c.
@@ -101,8 +141,15 @@ Native ARM desktop and recovery full builds passed. A concurrent desktop build
 failed the unchanged 10-second KCM readiness gate; the isolated full rebuild
 passed all seven modules without changing that gate. Final capture privacy
 receives native .NET checks and the cached full-image build before push.
-Exact candidate, boot/promotion and installed acceptance for this
-new batch remain required before calling these changes delivered. Follow
+The batch is delivered to promoted ARM .728; installed Oracle acceptance was
+not accessible from this station (the SSH alias did not resolve). X86 build
+37881477050 and disk proofs 37888183362/37888186631/37888189800 passed at
+8ebe0591; offline ISO 37888192868 failed on an empty `efi` directory. Diagnostic
+retry 37900328567 records `install=done` before its later diagnostic file read
+times out. The harness incorrectly labels every exec timeout as a 45-minute
+installer failure, including its 30-second diagnostic reads; the exact cause
+of that read stall remains unproven. X86 promotion and
+installed acceptance remain blocked by that actual installer proof. Follow
 [RELEASE.md](RELEASE.md); all unchanged identity/signature/initramfs gates remain.
 
 ## Evidence still owed
