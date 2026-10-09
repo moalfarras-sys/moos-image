@@ -11,7 +11,7 @@ import time
 from community.test_client import NativeClient,APP,pump
 from community.client import Controller
 from PySide6.QtCore import QObject,QUrl,QLocale,QMetaObject,QPoint,Qt,qInstallMessageHandler
-from PySide6.QtQml import QQmlApplicationEngine
+from PySide6.QtQml import QQmlApplicationEngine,QQmlExpression
 from PySide6.QtQuick import QQuickItem
 from PySide6.QtTest import QTest
 from PIL import Image
@@ -76,6 +76,11 @@ def main():
             controller.loadImage(controller.data['images'][0]['id'])
             pump(lambda:bool(controller.data['images'][0].get('source')) and not controller.data['busy'])
             frames.append(capture('private-conversation'))
+            area=root.findChild(QObject,'replyArea')
+            effective,undefined=QQmlExpression(engine.contextForObject(area),area,
+                                               'Number(effectiveHorizontalAlignment)').evaluate()
+            if undefined or effective != int(Qt.AlignRight if args.language=='ar' else Qt.AlignLeft):
+                raise AssertionError('multiline ink is not aligned to the locale start')
             faults=[w for w in warnings if any(x in w for x in ('ReferenceError','TypeError','Binding loop','binding loop','Unable to assign'))]
             if faults:raise AssertionError(faults)
             receipt={'schema':1,'scope':'source-native-qt/private-real-http/synthetic-accounts',

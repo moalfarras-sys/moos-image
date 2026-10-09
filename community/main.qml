@@ -36,7 +36,8 @@ Kirigami.ApplicationWindow {
         textFormat: Text.PlainText
         wrapMode: Text.Wrap
         color: Kirigami.Theme.textColor
-        horizontalAlignment: root.rtl ? Text.AlignRight : Text.AlignLeft
+        // Logical start; inherited LayoutMirroring supplies the RTL direction.
+        horizontalAlignment: Text.AlignLeft
     }
     component QuietInk: Ink { color: Qt.alpha(Kirigami.Theme.textColor, 0.78) }
     // The installed Breeze mobile toolbar types its target as TextInput,
@@ -45,7 +46,7 @@ Kirigami.ApplicationWindow {
     component WriteArea: Basic.TextArea {
         textFormat: TextEdit.PlainText
         wrapMode: TextEdit.Wrap
-        horizontalAlignment: root.rtl ? Text.AlignRight : Text.AlignLeft
+        horizontalAlignment: Text.AlignLeft
         color: Kirigami.Theme.textColor
         placeholderTextColor: Qt.alpha(Kirigami.Theme.textColor, 0.78)
         selectionColor: Kirigami.Theme.highlightColor
@@ -344,7 +345,7 @@ Kirigami.ApplicationWindow {
         height: Math.min(640, root.height - 48)
         ColumnLayout {
             anchors.fill: parent; spacing: 12
-            Ink { text: root.stateLabel(root.s.selectedState); font.bold: true; Layout.fillWidth: true }
+            Ink { objectName: "conversationState"; text: root.stateLabel(root.s.selectedState); font.bold: true; Layout.fillWidth: true }
             Ink { visible: root.s.status !== ""; text: root.s.status; Layout.fillWidth: true; color: root.s.error ? Kirigami.Theme.negativeTextColor : Kirigami.Theme.textColor }
             QuietInk { visible: root.s.release.version !== undefined; text: root.local("الإصدار المعتمد: ", "Verified release: ") + (root.s.release.version || "") + " · " + (root.s.release.edition || ""); Layout.fillWidth: true }
             QQC2.ScrollView {
@@ -363,7 +364,7 @@ Kirigami.ApplicationWindow {
                                 id: messageColumn
                                 anchors.fill: parent; anchors.margins: 12; spacing: 8
                                 QuietInk { text: modelData.display_name + " · " + (modelData.role === "maintainer" ? root.local("فريق التطوير", "Development team") : root.local("المستخدم", "Member")); Layout.fillWidth: true }
-                                Ink { text: modelData.body; Layout.fillWidth: true }
+                                Ink { objectName: "messageBody"; text: modelData.body; Layout.fillWidth: true }
                             }
                         }
                     }
@@ -384,7 +385,7 @@ Kirigami.ApplicationWindow {
                 MoUI.Button { label: root.local("قيد الفحص", "Under review"); onClicked: community.markState("triage") }
                 MoUI.Button { label: root.local("إصلاح قيد الاختبار", "Fix being tested"); onClicked: community.markState("testing") }
             }
-            WriteArea { id: reply; text: root.s.replyDraft; Layout.fillWidth: true; Layout.preferredHeight: 80; placeholderText: root.local("اكتب ردًا خاصًا…", "Write a private reply…"); Accessible.name: root.local("الرد الخاص", "Private reply"); onTextChanged: if (conversation.opened) community.saveReplyDraft(text) }
+            WriteArea { id: reply; objectName: "replyArea"; text: root.s.replyDraft; Layout.fillWidth: true; Layout.preferredHeight: 80; placeholderText: root.local("اكتب ردًا خاصًا…", "Write a private reply…"); Accessible.name: root.local("الرد الخاص", "Private reply"); onTextChanged: if (conversation.opened) community.saveReplyDraft(text) }
             Image { visible: root.s.replyPicture !== ""; source: root.s.replyPicture; fillMode: Image.PreserveAspectFit; Layout.fillWidth: true; Layout.preferredHeight: visible ? 90 : 0 }
             RowLayout {
                 MoUI.Button { label: root.local("أرفق صورة", "Attach a picture"); onClicked: { root.pictureTarget = "reply"; picturePicker.open() } }
