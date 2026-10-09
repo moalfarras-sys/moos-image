@@ -58,6 +58,10 @@ Ten actual apps opened, closed and reopened in the final offline-installed ISO.
   No failed system/user units. Arabic session, 3840×2160@60, scale 250%, UI2
   Arena. Plasma 6.7.5, Qt 6.11.2, kernel 7.2.8, NVIDIA 615.71.09. Boot accounting
   was 33.053 s including firmware/loader; not a repeated cold-boot benchmark.
+- Unlike the recorded Oracle state, station `oomctl dump` shows system/user
+  pressure-monitored cgroups. Pressure is currently zero; this does not prove
+  recovery under imposed memory pressure. After the review workload, RAM was
+  4.5 GiB used/10 GiB available, with 3.6 GiB still in swap; not an idle baseline.
 - Installed Mira, Store, native Settings and MoPlayer opened; Settings and
   MoPlayer reopened. Settings logged `MOOS_KCM_READY kcm_moos`. A synthetic
   free cloud reply returned HTTP 200 in 10.13 s. This is not owner-spoken

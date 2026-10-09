@@ -365,7 +365,7 @@ itself and an unreviewed MoOS would ship kscreenlocker's emergency locker.
 | P5.4 | Performance budgets | Open / acceptance not complete | Measured boot/idle PSS/CPU/wakeups, app launch p95, frame pacing, build load and AI latency per tier. |
 | P5.5 | Cloud desktop efficiency | Implemented/delivered within recorded scope; wider acceptance remains | Efficient cloud desktop plus actual private files/photos/IDE access, phone background and off-host restore. |
 | P5.6 | Storage lifecycle | Open: NVIDIA cleanup restores headroom and preserves source/checkpoints/rollback; sustainable limits still owed | Headroom, cache/log bounds, low-space recovery and cleanup that never removes owner data. |
-| P5.7 | Qualify kernel policy and driver transitions | Open: oomd monitors no cgroup; policy needs measured safe application | Kernel/driver readback and measured frame/audio/CPU/RAM policy; oomd running is not applied monitoring. |
+| P5.7 | Qualify kernel policy and driver transitions | Open: recorded Oracle oomd has no monitored cgroup; NVIDIA station monitors system/user groups, but pressure-recovery qualification is owed | Kernel/driver readback and measured frame/audio/CPU/RAM policy; oomd running is not applied monitoring. |
 | P5.8 | Qualify Wayland and compositor lifetime | Open / acceptance not complete | Portal consent/revocation/restart, output/scale/hotplug, clipboard/input and long session-return soak. |
 
 ## P6 — Long-term release trust
