@@ -377,6 +377,18 @@ ten silent seconds while a screen picker can wait indefinitely. A lost stream
 must release the area and restore paced house control for its lamps. Preserve
 explicit saved cloud targets on restart. PC state is never physical LED readback.
 
+**A declared UID guard needs the host UID namespace.** The community API
+correctly refused its Tailscale proxy from a sandboxed user unit: despite
+`PrivateUsers=no`, the process's actual `uid_map` mapped only UID 1000 and the
+root client was indistinguishable from other foreign UIDs. Never trust the
+shared overflow UID or a forwarded header to make it pass. A root-managed
+system unit with a dedicated unprivileged `User=moos-community` preserves the
+host namespace, root-owned code and a private writable data/home directory.
+Check the actual map and full reversed socket tuple; prove forged local headers
+fail and the reviewed TLS proxy overwrites incoming X-Forwarded-For. Cosign's
+public Sigstore trust cache belongs in that account's owned home, never by
+relaxing signature/transparency checks or making code writable.
+
 **Loopback and a fixed request header are not user authentication.** Mo AI's
 three HTTP services verify the connecting client socket's UID from the kernel
 table before doing work (`moai_local_peer.py`). Match the reversed full client

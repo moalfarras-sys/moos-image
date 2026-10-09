@@ -124,6 +124,7 @@ class NativeClient(unittest.TestCase):
             self.c.start();pump(lambda:self.c.data['error'] and not self.c.data['busy'])
         self.assertFalse(self.c.data['registrationOpen'])
         self.c.refresh();pump(lambda:self.c.data['registrationOpen'] and not self.c.data['busy'])
+        self.assertFalse(self.c.data['error']);self.assertEqual(self.c.data['status'],'')
 
     def test_real_qml_loads_both_directions_and_narrow_layout_without_warnings(self):
         for locale,direction in (('ar_SA',True),('en_US',False)):

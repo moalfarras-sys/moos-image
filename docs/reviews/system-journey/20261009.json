@@ -325,6 +325,272 @@
       },
       "private_owner_content": false,
       "publishable_after_review": true
+    },
+    {
+      "file": "community-live-final/report-editor-ar.png",
+      "title_ar": "محرّر بلاغ مع صورة اختيارية",
+      "note_ar": "عربي · ثيم MoOS الفعلي؛ بيانات اصطناعية ومصدر تطوير، لا إثبات إصدار نظام مشحون.",
+      "sha256": "a266c5f89eab027b72d14c325e06135cdef3e668f1e6c59e389e13965041c5c4",
+      "physical_px": [
+        2600,
+        1900
+      ],
+      "logical_px": [
+        1040,
+        760
+      ],
+      "language": "ar",
+      "environment": "native-wayland/private-api-fixture",
+      "version": "unreleased-source",
+      "source_files_sha256": {
+        "client.py": "f1636a33b567a4d88d76e19835d32fb2646947b87b782c3336395101b42f8999",
+        "main.qml": "14e5af4d6d4d9ad0bef2b3b779a6293aab01dc35dbfd78929d8a503b90308f14",
+        "service.py": "f8e8c8e8eebcf7a69ed51222718ab102654bbcba05315a4005875e5fb16d0932"
+      },
+      "private_owner_content": false,
+      "publishable_after_review": true
+    },
+    {
+      "file": "community-live-final/conversations-ar.png",
+      "title_ar": "قائمة المحادثات الخاصة",
+      "note_ar": "عربي · ثيم MoOS الفعلي؛ بيانات اصطناعية ومصدر تطوير، لا إثبات إصدار نظام مشحون.",
+      "sha256": "0a13ea5b4d34c7fa3b642034db5da7f18ab29a0285a49d27b5e2e97e66bcc292",
+      "physical_px": [
+        2600,
+        1900
+      ],
+      "logical_px": [
+        1040,
+        760
+      ],
+      "language": "ar",
+      "environment": "native-wayland/private-api-fixture",
+      "version": "unreleased-source",
+      "source_files_sha256": {
+        "client.py": "f1636a33b567a4d88d76e19835d32fb2646947b87b782c3336395101b42f8999",
+        "main.qml": "14e5af4d6d4d9ad0bef2b3b779a6293aab01dc35dbfd78929d8a503b90308f14",
+        "service.py": "f8e8c8e8eebcf7a69ed51222718ab102654bbcba05315a4005875e5fb16d0932"
+      },
+      "private_owner_content": false,
+      "publishable_after_review": true
+    },
+    {
+      "file": "community-live-final/private-conversation-ar.png",
+      "title_ar": "المحادثة والصورة الخاصة",
+      "note_ar": "عربي · ثيم MoOS الفعلي؛ بيانات اصطناعية ومصدر تطوير، لا إثبات إصدار نظام مشحون.",
+      "sha256": "ab42ba0198c71ab23d48a89be7b10fc1a3c3f2a4924d66e726b30414a1021839",
+      "physical_px": [
+        2600,
+        1900
+      ],
+      "logical_px": [
+        1040,
+        760
+      ],
+      "language": "ar",
+      "environment": "native-wayland/private-api-fixture",
+      "version": "unreleased-source",
+      "source_files_sha256": {
+        "client.py": "f1636a33b567a4d88d76e19835d32fb2646947b87b782c3336395101b42f8999",
+        "main.qml": "14e5af4d6d4d9ad0bef2b3b779a6293aab01dc35dbfd78929d8a503b90308f14",
+        "service.py": "f8e8c8e8eebcf7a69ed51222718ab102654bbcba05315a4005875e5fb16d0932"
+      },
+      "private_owner_content": false,
+      "publishable_after_review": true
+    },
+    {
+      "file": "community-final-en/report-editor-en.png",
+      "title_ar": "محرّر بلاغ مع صورة اختيارية",
+      "note_ar": "إنجليزي · اختبار اتجاه القراءة؛ بيانات اصطناعية ومصدر تطوير، لا إثبات إصدار نظام مشحون.",
+      "sha256": "75c12ebbe69e0a340a494dece5cdd3237bd304fdc6f069ff8f01fb7852b36999",
+      "physical_px": [
+        1040,
+        760
+      ],
+      "logical_px": [
+        1040,
+        760
+      ],
+      "language": "en",
+      "environment": "native-offscreen/private-api-fixture",
+      "version": "unreleased-source",
+      "source_files_sha256": {
+        "client.py": "f1636a33b567a4d88d76e19835d32fb2646947b87b782c3336395101b42f8999",
+        "main.qml": "14e5af4d6d4d9ad0bef2b3b779a6293aab01dc35dbfd78929d8a503b90308f14",
+        "service.py": "f8e8c8e8eebcf7a69ed51222718ab102654bbcba05315a4005875e5fb16d0932"
+      },
+      "private_owner_content": false,
+      "publishable_after_review": true
+    },
+    {
+      "file": "community-final-en/conversations-en.png",
+      "title_ar": "قائمة المحادثات الخاصة",
+      "note_ar": "إنجليزي · اختبار اتجاه القراءة؛ بيانات اصطناعية ومصدر تطوير، لا إثبات إصدار نظام مشحون.",
+      "sha256": "83a979be6fe7bd73b20784642161bfe07af0dd61fb8f44f2447a356269fde4ed",
+      "physical_px": [
+        1040,
+        760
+      ],
+      "logical_px": [
+        1040,
+        760
+      ],
+      "language": "en",
+      "environment": "native-offscreen/private-api-fixture",
+      "version": "unreleased-source",
+      "source_files_sha256": {
+        "client.py": "f1636a33b567a4d88d76e19835d32fb2646947b87b782c3336395101b42f8999",
+        "main.qml": "14e5af4d6d4d9ad0bef2b3b779a6293aab01dc35dbfd78929d8a503b90308f14",
+        "service.py": "f8e8c8e8eebcf7a69ed51222718ab102654bbcba05315a4005875e5fb16d0932"
+      },
+      "private_owner_content": false,
+      "publishable_after_review": true
+    },
+    {
+      "file": "community-final-en/private-conversation-en.png",
+      "title_ar": "المحادثة والصورة الخاصة",
+      "note_ar": "إنجليزي · اختبار اتجاه القراءة؛ بيانات اصطناعية ومصدر تطوير، لا إثبات إصدار نظام مشحون.",
+      "sha256": "a0e1a182a8e612f2a3660440be72b427cabf51ab445d3c12afc6118e3271a4ae",
+      "physical_px": [
+        1040,
+        760
+      ],
+      "logical_px": [
+        1040,
+        760
+      ],
+      "language": "en",
+      "environment": "native-offscreen/private-api-fixture",
+      "version": "unreleased-source",
+      "source_files_sha256": {
+        "client.py": "f1636a33b567a4d88d76e19835d32fb2646947b87b782c3336395101b42f8999",
+        "main.qml": "14e5af4d6d4d9ad0bef2b3b779a6293aab01dc35dbfd78929d8a503b90308f14",
+        "service.py": "f8e8c8e8eebcf7a69ed51222718ab102654bbcba05315a4005875e5fb16d0932"
+      },
+      "private_owner_content": false,
+      "publishable_after_review": true
+    },
+    {
+      "file": "community-small-final/report-editor-ar.png",
+      "title_ar": "محرّر بلاغ مع صورة اختيارية",
+      "note_ar": "عربي · نافذة صغيرة 560×520؛ بيانات اصطناعية ومصدر تطوير، لا إثبات إصدار نظام مشحون.",
+      "sha256": "725baeec76a2146d12a3bf12a020e2d0cf58560c0a92572cfcdaa2e1c723d122",
+      "physical_px": [
+        1400,
+        1300
+      ],
+      "logical_px": [
+        560,
+        520
+      ],
+      "language": "ar",
+      "environment": "native-wayland/private-api-fixture",
+      "version": "unreleased-source",
+      "source_files_sha256": {
+        "client.py": "f1636a33b567a4d88d76e19835d32fb2646947b87b782c3336395101b42f8999",
+        "main.qml": "14e5af4d6d4d9ad0bef2b3b779a6293aab01dc35dbfd78929d8a503b90308f14",
+        "service.py": "f8e8c8e8eebcf7a69ed51222718ab102654bbcba05315a4005875e5fb16d0932"
+      },
+      "private_owner_content": false,
+      "publishable_after_review": true
+    },
+    {
+      "file": "community-small-final/conversations-ar.png",
+      "title_ar": "قائمة المحادثات الخاصة",
+      "note_ar": "عربي · نافذة صغيرة 560×520؛ بيانات اصطناعية ومصدر تطوير، لا إثبات إصدار نظام مشحون.",
+      "sha256": "cae3c79bea3b54092ff70c428deec50e19e3e072c694eb4a18e57dcc79c139e4",
+      "physical_px": [
+        1400,
+        1300
+      ],
+      "logical_px": [
+        560,
+        520
+      ],
+      "language": "ar",
+      "environment": "native-wayland/private-api-fixture",
+      "version": "unreleased-source",
+      "source_files_sha256": {
+        "client.py": "f1636a33b567a4d88d76e19835d32fb2646947b87b782c3336395101b42f8999",
+        "main.qml": "14e5af4d6d4d9ad0bef2b3b779a6293aab01dc35dbfd78929d8a503b90308f14",
+        "service.py": "f8e8c8e8eebcf7a69ed51222718ab102654bbcba05315a4005875e5fb16d0932"
+      },
+      "private_owner_content": false,
+      "publishable_after_review": true
+    },
+    {
+      "file": "community-small-final/private-conversation-ar.png",
+      "title_ar": "المحادثة والصورة الخاصة",
+      "note_ar": "عربي · نافذة صغيرة 560×520؛ بيانات اصطناعية ومصدر تطوير، لا إثبات إصدار نظام مشحون.",
+      "sha256": "89a4f9b5cad86b4fd7f8f6eb83e0ab0ba163354cfc27ebed9a7310605777ca67",
+      "physical_px": [
+        1400,
+        1300
+      ],
+      "logical_px": [
+        560,
+        520
+      ],
+      "language": "ar",
+      "environment": "native-wayland/private-api-fixture",
+      "version": "unreleased-source",
+      "source_files_sha256": {
+        "client.py": "f1636a33b567a4d88d76e19835d32fb2646947b87b782c3336395101b42f8999",
+        "main.qml": "14e5af4d6d4d9ad0bef2b3b779a6293aab01dc35dbfd78929d8a503b90308f14",
+        "service.py": "f8e8c8e8eebcf7a69ed51222718ab102654bbcba05315a4005875e5fb16d0932"
+      },
+      "private_owner_content": false,
+      "publishable_after_review": true
+    },
+    {
+      "file": "community-oracle-final/oracle-report-editor-ar.png",
+      "title_ar": "مجتمع MoOS متصل فعليًا بـOracle",
+      "note_ar": "عميل مصدر على Wayland الحقيقي؛ حساب وصورة اختبار خاصان عبر HTTPS الحقيقي. حُذفت المحادثة والحساب بعد القبول؛ ليست نسخة OS مشحونة.",
+      "sha256": "56962aba9bbeea1a582f0e65b73706c928203bc7e48e03a351d27d1ebb4785c3",
+      "physical_px": [
+        2600,
+        1900
+      ],
+      "logical_px": [
+        1040,
+        760
+      ],
+      "language": "ar",
+      "environment": "real-physical-wayland/source-qt/actual-oracle-https/synthetic-private-account",
+      "service_url": "https://moos-oracle.tailab78a5.ts.net:10000",
+      "version": "unreleased-source-client/live-oracle-api",
+      "source_files_sha256": {
+        "client.py": "f1636a33b567a4d88d76e19835d32fb2646947b87b782c3336395101b42f8999",
+        "main.qml": "14e5af4d6d4d9ad0bef2b3b779a6293aab01dc35dbfd78929d8a503b90308f14",
+        "transport.py": "f563e93556940ac78dfc8d800ea950d69435b0f9ed9b162620cf962e015b573d"
+      },
+      "private_owner_content": false,
+      "publishable_after_review": true
+    },
+    {
+      "file": "community-oracle-final/oracle-private-image-ar.png",
+      "title_ar": "مجتمع MoOS متصل فعليًا بـOracle",
+      "note_ar": "عميل مصدر على Wayland الحقيقي؛ حساب وصورة اختبار خاصان عبر HTTPS الحقيقي. حُذفت المحادثة والحساب بعد القبول؛ ليست نسخة OS مشحونة.",
+      "sha256": "f6b9f395679707f0e6260520c48dc98d66b376dea49bffaacc21559b0af02740",
+      "physical_px": [
+        2600,
+        1900
+      ],
+      "logical_px": [
+        1040,
+        760
+      ],
+      "language": "ar",
+      "environment": "real-physical-wayland/source-qt/actual-oracle-https/synthetic-private-account",
+      "service_url": "https://moos-oracle.tailab78a5.ts.net:10000",
+      "version": "unreleased-source-client/live-oracle-api",
+      "source_files_sha256": {
+        "client.py": "f1636a33b567a4d88d76e19835d32fb2646947b87b782c3336395101b42f8999",
+        "main.qml": "14e5af4d6d4d9ad0bef2b3b779a6293aab01dc35dbfd78929d8a503b90308f14",
+        "transport.py": "f563e93556940ac78dfc8d800ea950d69435b0f9ed9b162620cf962e015b573d"
+      },
+      "private_owner_content": false,
+      "publishable_after_review": true
     }
   ],
   "deduplicated": [
@@ -337,5 +603,7 @@
       "same_as": "ci-stable-1011-37558755639/moos-iso-install-proof/installed-app-mo-pc-remote.png"
     }
   ],
-  "raw_ci_logs": "kept privately in audit state outside gallery"
+  "raw_ci_logs": "kept privately in audit state outside gallery",
+  "gallery_unique_frames": 27,
+  "community_live_acceptance": "actual Oracle TLS + private two-account/image/release API proof; source-native UI, not signed image delivery"
 }

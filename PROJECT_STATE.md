@@ -160,12 +160,13 @@ This does not fix unmuted USB firmware or prove physical speech. Full maintained
 `just check` passed all 240 gates; this source is not installed or signed/promoted yet.
 Recovery's unreadable state now differs from a proven absent rollback, with a
 read-only retry. Its regression gate and actual native AR/EN GTK source review
-pass; no rollback mechanism or boot choice changed. The gallery holds 16 unique
+pass; no rollback mechanism or boot choice changed. The gallery holds 27 unique
 real frames with explicit source/CI/private-host boundaries and missing stages.
-Participation beta: 34 API/privacy/retry/proxy/release and 7 native Qt HTTP cases
+Participation beta: 34 API/privacy/retry/proxy/release, 10 native Qt HTTP/launcher cases
 pass. Oracle API runs under a dedicated unprivileged account; public TLS, six
 API cases and physical Wayland Arabic/image flow passed. Synthetic data removed.
-All-edition native packaging is added; full image and signed delivery remain open.
+Four real packaging cases pass; all-edition packaging is added. Full image
+and signed delivery remain open; latest maintained repository run passed 243 gates.
 
 ## Installer mechanism preserved in the integrated batch
 
@@ -194,6 +195,4 @@ The detailed incident remains in AGENTS.md and the dated Arabic audit.
 - Complete rights/attribution inventory. KDE/Linux rights permit independent
   modification; official naming/signatures distinguish the maintainer's release.
 
-Past incidents, rejected prototypes and dated station diaries remain in Git.
-Keep safety lessons in AGENTS.md and operational contracts in component docs;
-do not append superseded current-state snapshots here.
+Past incidents remain in Git; rules belong in AGENTS.md and component docs.

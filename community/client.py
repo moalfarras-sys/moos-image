@@ -161,8 +161,13 @@ class Controller(QObject):
 
     @Slot()
     def start(self):
+        def ready(result):
+            changes = {'registrationOpen': result.get('registration_open') is True}
+            if self.data['status'] == self.tr(*ERRORS['offline']):
+                changes.update(status='', error=False)
+            self.publish(**changes)
         self.submit(lambda: self.api.request('GET', '/v1/health'),
-                    lambda r: self.publish(registrationOpen=r.get('registration_open') is True))
+                    ready)
         self.loadSuggestions()
 
     @Slot(str, str, str)
