@@ -99,6 +99,10 @@ Ten actual apps opened, closed and reopened in the final offline-installed ISO.
   tips inspected before the documentation branch were ancestors of main;
   all 25 inspected worktrees were clean. The remote ISO trace branch has one
   unmerged diagnostic commit, not an accepted installer fix.
+  Archived snapshots are preserved too: the old indexing-section and icon-cap
+  corrections already exist in current source. The retired translucent-dialog
+  prototype is not integrated or qualified against today's themes; review its
+  blur-off fallback instead of restoring its obsolete theme revision/assets.
 - Maintained `just check` passed: 239 test scripts with environment skips
   recorded. All Remote .NET builds/executables, controller typecheck/tests
   and production dependency audit passed. MoPlayer: 255 Flutter tests passed.
@@ -179,6 +183,9 @@ installed acceptance remain blocked by that actual installer proof. Follow
 
 ## Evidence still owed
 
+- Next-Plasma acceptance: latest canary 37378905167 (2026-10-05, 1e4a46e8)
+  failed the image-build job. No later successful canary is recorded; current
+  6.7.5 installed acceptance is not readiness for the next desktop version.
 - Hardware boot visuals, suspend, hotplug/multi-monitor, laptop/touch and a
   deliberately broken-update rollback/forward cycle.
 - Arabic/English accessibility, keyboard/screen-reader and full scale/light/dark
