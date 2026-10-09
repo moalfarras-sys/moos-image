@@ -1,8 +1,5 @@
 using System.Collections.Concurrent;
 using System.Diagnostics;
-using SixLabors.ImageSharp;
-using SixLabors.ImageSharp.Formats.Jpeg;
-using SixLabors.ImageSharp.Processing;
 
 namespace MoRemote;
 
@@ -28,7 +25,6 @@ public sealed class ScreenCapture : IDisposable
     private Timer? _trailingPush;           // a push that arrived inside the 500ms floor, deferred
 
     // spectacle fallback state
-    private readonly string _shot = Path.Combine(Path.GetTempPath(), $"mo-remote-{Environment.ProcessId}.png");
     private byte[]? _lastFallback;
     private long _lastFallbackTicks;
 
@@ -443,18 +439,16 @@ public sealed class ScreenCapture : IDisposable
         _lastFallbackTicks = Environment.TickCount64;
         try
         {
-            var args = $"--background --nonotify --fullscreen {(drawCursor && AppConfig.Current.EmbedCursor ? "--pointer" : "")} --output {Quote(_shot)}";
+            // CreateTempSubdirectory is owner-only (0700) on Unix, before any
+            // screenshot exists. A fresh path cannot reuse an earlier picture.
+            using var scratch = new CaptureScratch();
+            var shot = scratch.FilePath;
+            var args = $"--background --nonotify --fullscreen {(drawCursor && AppConfig.Current.EmbedCursor ? "--pointer" : "")} --output {Quote(shot)}";
             using var p = Process.Start(new ProcessStartInfo("spectacle", args)
             { UseShellExecute = false, RedirectStandardError = true });
-            if (p == null || !p.WaitForExit(5000) || p.ExitCode != 0 || !File.Exists(_shot))
+            if (p == null || !p.WaitForExit(5000) || p.ExitCode != 0 || !File.Exists(shot))
                 return new(null, false, false);
-            using var image = Image.Load(_shot);
-            scale = Math.Clamp(scale, .2, 1);
-            if (scale < .995)
-                image.Mutate(x => x.Resize(Math.Max(1, (int)(image.Width * scale)), Math.Max(1, (int)(image.Height * scale))));
-            using var ms = new MemoryStream();
-            image.Save(ms, new JpegEncoder { Quality = Math.Clamp(quality, 10, 95) });
-            var bytes = ms.ToArray();
+            var bytes = FallbackJpegEncoder.Encode(shot, quality, scale);
             bool changed = _lastFallback == null || !_lastFallback.AsSpan().SequenceEqual(bytes);
             _lastFallback = bytes;
             return new(bytes, true, changed);
@@ -473,6 +467,5 @@ public sealed class ScreenCapture : IDisposable
         Task? refresh;
         lock (_geometryGate) refresh = _geometryRefresh;
         refresh?.GetAwaiter().GetResult();
-        try { File.Delete(_shot); } catch { }
     }
 }

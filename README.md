@@ -1,13 +1,15 @@
 # MoOS
 
 MoOS is an atomic desktop operating system with its own identity, signed image
-updates, a KDE Plasma 6 Wayland session, first-party system applications, Mo AI,
+updates, a KDE Plasma 6 Wayland session, first-party system applications, Mira
+(with Mo AI's fixed executors),
 Mo Store, MoPlayer and Mo PC Remote. This repository is the single source used
 to build the installable images; a local override is never a release.
 
 **The bar is Windows, macOS, Android and iOS** — not as API targets, but as the
-quality every screen, animation and first-run is measured against. MoOS reuses
-Plasma, KWin and Wayland as the engine and never forks them; it owns the
+quality every screen, animation and first-run is measured against. MoOS uses
+Plasma, KWin and Wayland as the engine, with reviewed seams and vendor-preserving
+corrections where measured defects require them. It owns the
 identity, every surface the owner looks at, every default and every recovery
 path. Work happens in **waves**: one coherent, user-visible release per branch,
 reviewed live, gated once, merged once, proven once. A change that makes no
@@ -53,6 +55,8 @@ Containerfile.arm             native ARM image
 build_files/                  image assembly and build-time gates
 system_files/                 immutable MoOS filesystem overlay
 artwork/                      canonical design sources and deterministic generators
+mira/                         shipped Mira assistant, controller and device adapters
+moos-settings-kcm/            native MoOS modules inside KDE System Settings
 moplayer/                     first-party MoPlayer source and tests
 moremote/                     Mo PC Remote source and component documentation
 iso/                          offline ISO inputs
@@ -62,6 +66,7 @@ scripts/review/               off-station tools: run the gates on a mirror, rend
 docs/DEVELOPMENT_PLAN.md      ordered product plan
 PROJECT_STATE.md              current measured state only
 RELEASE.md                    release/promotion contract
+OWNERSHIP.md                  existing licences, name and official-release identity
 ```
 
 ## Development workflow
@@ -141,20 +146,17 @@ initramfs, signature, route or runtime-loading gate to get a green result.
 
 1. `git log --oneline -15` and `gh pr list` — what landed last and what is open.
 2. [`PROJECT_STATE.md`](PROJECT_STATE.md) — what production really is (it quotes the
-   registry read-back), what has never been seen on a MoOS desktop, and "Next
-   execution".
-3. [`docs/DEVELOPMENT_PLAN.md`](docs/DEVELOPMENT_PLAN.md) — the wave table says
-   what each wave delivered and its release state; "Station review owed" is the
-   ordered checklist for the first session after an update; rows marked **Owner
-   decision** are not yours to take.
+   registry read-back), the installed machine and the remaining evidence gaps.
+3. [`docs/DEVELOPMENT_PLAN.md`](docs/DEVELOPMENT_PLAN.md) — the single current
+   milestone/task ledger and its acceptance requirements. Source implementation
+   and installed qualification are separate; owner product decisions remain explicit.
 4. Read the registry, not a document, before you claim a version:
    `skopeo inspect docker://ghcr.io/moalfarras-sys/moos-nvidia:latest`.
 5. An installed MoOS updates through the MoOS Updater (origins are digest-pinned,
    so `bootc upgrade` answers "no changes" forever).
-6. More than one agent works here at once, on different machines:
-   [`docs/AGENT_COORDINATION.md`](docs/AGENT_COORDINATION.md) says who holds which
-   files. Claim files, not tasks; touch only your own rows of the shared documents;
-   `git fetch` before every push and expect to rebase.
+6. Preserve unrelated changes and other people's worktrees. Coordinate file
+   ownership when parallel work is explicitly assigned, fetch before integration
+   and keep a release candidate's source fixed during proof.
 7. A change a person can see or do ships with its line in
    `system_files/usr/share/moos/whats-new.json` — that is how MoOS tells the owner
    what an update brought (Settings → System → What's new, and one notification at
@@ -162,10 +164,14 @@ initramfs, signature, route or runtime-loading gate to get a green result.
 
 ## Current status
 
-The wave board in [`docs/DEVELOPMENT_PLAN.md`](docs/DEVELOPMENT_PLAN.md) says what each
-wave delivered and what is still owed.
+The task ledger in [`docs/DEVELOPMENT_PLAN.md`](docs/DEVELOPMENT_PLAN.md) records
+current scope and required acceptance.
 
 Everything measured — the installed version, what has never been seen on a MoOS
 desktop, the station review and the open hardware checks — is in
 [`PROJECT_STATE.md`](PROJECT_STATE.md). This entry point carries no duplicate
 release or readiness status.
+
+The 2026-10-08 [Arabic audit](docs/AUDIT_20261008_AR.md) records actual checks,
+source defects, fixes and remaining limits. [OWNERSHIP.md](OWNERSHIP.md) explains
+existing licences, attribution and how official signatures distinguish MoOS.

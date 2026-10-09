@@ -698,6 +698,9 @@ try {
 
   // Fresh video can earn detail over both direct and healthy relay-shaped links.
   // Both receive freshly decoded pictures, so this exercises the actual settings wire.
+  // Finished scenarios must not keep their decoders, pings and renderer processes
+  // competing with this measured 60 ms link on a two-core native runner.
+  for (const context of contexts.splice(0)) await context.close();
   const directPhone = await viewer({viewport:{width:393,height:852},deviceScaleFactor:3,
     isMobile:true,hasTouch:true},'touch','en',false,'off',null,'silent',false,6);
   const relayPhone = await viewer({viewport:{width:393,height:852},deviceScaleFactor:3,
@@ -713,6 +716,7 @@ try {
     'congestion must retain the conservative phone ceiling');
   assert.ok(directPhone.packets.filter(p => p.type === 'settings').every(p => p.width <= 1366),
     'an unzoomed narrow phone must not jump to Sharp or Ultra');
+  for (const context of contexts.splice(0)) await context.close();
 
   // ---------------------------------------------------------------------------------------------
   // THE GLASS CONSOLE (v56): the three modes in the dock, the desktop's own commands, the frame

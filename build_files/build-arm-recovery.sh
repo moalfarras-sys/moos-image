@@ -18,16 +18,6 @@ echo "=== MoOS ARM recovery build: edition=${MOOS_EDITION} arch=$(uname -m) ==="
 }
 
 echo "=== (1) installer tooling ==="
-install_cosign() {
-    command -v cosign >/dev/null 2>&1 && return 0
-    if dnf5 -y install --setopt=install_weak_deps=False cosign 2>/dev/null; then
-        return 0
-    fi
-    local ver="2.4.1"
-    curl -fsSL "https://github.com/sigstore/cosign/releases/download/v${ver}/cosign-linux-arm64" \
-        -o /usr/bin/cosign
-    chmod +x /usr/bin/cosign
-}
 _RECOVERY=(
     NetworkManager-wifi
     cloud-init
@@ -38,7 +28,7 @@ _RECOVERY=(
     plymouth plymouth-plugin-script plymouth-plugin-two-step
 )
 dnf5 -y install --setopt=install_weak_deps=False "${_RECOVERY[@]}"
-install_cosign
+bash /usr/libexec/moos-install-cosign-arm.sh /usr/bin/cosign
 
 echo "=== (2) boot splash (MoOS — no Fedora on screen) ==="
 _MOOS=/usr/share/plymouth/themes/moos

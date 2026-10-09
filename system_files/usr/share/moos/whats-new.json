@@ -3,6 +3,59 @@
   "_": "What a person can SEE or DO after an update, newest first. One entry per user-visible change, written for the owner of the machine, not for a developer: what it is, where it is, and (when MoOS has a route to it) a way to try it now. 'merged' is when the change reached main (a little later is fine, earlier is not: an entry dated before a machine's previous system is never marked new there); a machine marks an entry new when the system it ran BEFORE the update was built earlier than that. tests/test_whats_new.py reads every entry the way MoOS Settings will.",
   "entries": [
     {
+      "id": "audit-arm-install-before-write",
+      "merged": "2026-10-09T04:00:00Z",
+      "glyph": "lock",
+      "title": {
+        "ar": "التحقق قبل مسح قرص ARM",
+        "en": "Verify before clearing an ARM install disk"
+      },
+      "body": {
+        "ar": "مُثبّت ARM يتحقق من الصورة الموقّعة قبل مسح بيانات موجودة، ويتوقف عند تعذر قراءة القرص أو التباس اختياره. أداة التحقق محدثة ويُثبت أصل ملفها قبل تشغيله. إلغاء القائمة يخرج منها، وفشل التثبيت لا يعلن النجاح أو يعيد التشغيل. اختيار الإقلاع غير الواضح يحتاج ضبطه من UTM؛ الإصلاح غير المنفذ لا يعلن نجاحًا وهميًا.",
+        "en": "ARM installs check the signed image before erasing data, using an updated verifier checked before execution. Unreadable or ambiguous targets stop. Cancel exits; failed installs never announce completion or reboot. Ambiguous boot selection needs UTM settings; unimplemented repair never reports success."
+      }
+    },
+    {
+      "id": "audit-support-privacy",
+      "merged": "2026-10-09T04:00:00Z",
+      "glyph": "lock",
+      "title": {
+        "ar": "حماية أقوى لتقرير الدعم",
+        "en": "Stronger support-report privacy"
+      },
+      "body": {
+        "ar": "تقرير الدعم يخفي مفاتيح JSON وOAuth والمفاتيح الخاصة كاملة وعناوين IPv6 المختصرة قبل قص السجلات. الملف يُكتب بخصوصية منذ إنشائه دون اتباع رابط مؤقت متوقع.",
+        "en": "Support reports redact JSON/OAuth credentials, complete private keys and compressed IPv6 before trimming logs. Files are private from creation and avoid predictable temporary links."
+      }
+    },
+    {
+      "id": "audit-remote-fallback-codec",
+      "merged": "2026-10-09T04:00:00Z",
+      "glyph": "video",
+      "route": "moos://settings/remote",
+      "title": {
+        "ar": "ترميز احتياطي آمن للتحكم البعيد",
+        "en": "A safer Remote fallback encoder"
+      },
+      "body": {
+        "ar": "أزيلت تبعية الصور ذات النشرات الأمنية. اللقطة الاحتياطية تُحفظ مؤقتًا في مجلد خاص ثم تُحذف بعد التحويل إلى JPEG بحدود للحجم والدقة، ويُرفض الملف التالف دون تغيير مسار PipeWire الأساسي.",
+        "en": "The vulnerable image dependency is removed. Each fallback picture uses a private temporary directory and is deleted after bounded JPEG conversion. Corrupt input is refused while retaining the primary PipeWire path."
+      }
+    },
+    {
+      "id": "audit-language-transaction",
+      "merged": "2026-10-09T04:00:00Z",
+      "glyph": "globe",
+      "title": {
+        "ar": "لغة متماسكة عند بدء ميرا وتغيير الإعداد",
+        "en": "Consistent Mira startup and language changes"
+      },
+      "body": {
+        "ar": "ميرا تتبع لغة الجلسة المدعومة عند أول تشغيل، مع العربية افتراضيًا واحترام اختيارك المحفوظ. تغيير اللغة يتوقف إن كانت عملية أخرى تضبطها، بدل خلط ملفات الإعداد.",
+        "en": "Mira follows the supported session language on first launch, defaults to Arabic and preserves your saved choice. A busy language transaction stops instead of mixing configuration writes."
+      }
+    },
+    {
       "id": "remote-pin-lockout",
       "merged": "2026-10-07T00:00:00Z",
       "glyph": "lock",

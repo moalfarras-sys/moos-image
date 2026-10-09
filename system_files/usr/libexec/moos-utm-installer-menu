@@ -12,9 +12,12 @@ pick_target_disk() {
     /usr/libexec/moos-utm-net-install --print-target 2>/dev/null || true
 }
 
-target_has_moos() {
-    local dev="$1"
-    [ -n "$dev" ] && lsblk -rnpo FSTYPE "$dev" 2>/dev/null | grep -qx btrfs
+target_has_data() {
+    local dev="$1" layout
+    [ -n "$dev" ] || return 1
+    layout="$(lsblk -rnpo TYPE,FSTYPE "$dev" 2>/dev/null)" || return 2
+    awk '$1 == "part" || NF > 1 { occupied = 1 }
+         END { exit !occupied }' <<<"$layout"
 }
 
 show_status() {
@@ -39,18 +42,33 @@ wait_network() {
 }
 
 boot_installed() {
-    local target
+    local target entry line firmware
+    local -a entries=()
     target="$(pick_target_disk || true)"
     [ -n "$target" ] || { whiptail --msgbox "No target disk found." 10 60 2>/dev/null || true; return 1; }
-    if ! target_has_moos "$target"; then
-        whiptail --msgbox "Target disk has no MoOS installation yet." 10 60 2>/dev/null || true
+    if ! target_has_data "$target"; then
+        whiptail --msgbox "لم يتم التعرف على نظام مثبت | No installed target was identified." 10 60 2>/dev/null || true
         return 1
     fi
-    show_status "MoOS Installer\n\nBooting installed MoOS..."
-    if command -v efibootmgr >/dev/null 2>&1; then
-        entry=$(efibootmgr 2>/dev/null | awk -F'\*' '/Boot[0-9]+/ {print $1}' | head -1 | tr -d 'Boot' || true)
-        [ -n "$entry" ] && efibootmgr -n "$entry" >/dev/null 2>&1 || true
+    # A Btrfs partition is not MoOS identity. Never select the first firmware
+    # entry (often this recovery image), or strip valid hexadecimal B digits.
+    if command -v efibootmgr >/dev/null 2>&1 && firmware="$(efibootmgr 2>/dev/null)"; then
+        while IFS= read -r line; do
+            if [[ "$line" =~ ^Boot([[:xdigit:]]{4})\*?[[:space:]]+MoOS([[:space:]]|$) ]]; then
+                entries+=("${BASH_REMATCH[1]}")
+            fi
+        done <<<"$firmware"
     fi
+    if [ "${#entries[@]}" -ne 1 ]; then
+        whiptail --msgbox "اختر قرص النظام من إعدادات إقلاع UTM.\nNo unique MoOS firmware entry; select the installed disk in UTM boot settings." 12 72 2>/dev/null || true
+        return 1
+    fi
+    entry="${entries[0]}"
+    efibootmgr -n "$entry" >/dev/null 2>&1 || {
+        whiptail --msgbox "تعذر اختيار الإقلاع | Firmware boot selection failed." 10 60 2>/dev/null || true
+        return 1
+    }
+    show_status "MoOS Installer\n\nBooting installed MoOS..."
     systemctl reboot
 }
 
@@ -65,43 +83,45 @@ run_install() {
     fi
 }
 
-run_repair() {
-    wait_network || return 1
-    show_status "MoOS Installer\n\nRepair: re-verifying signed origin..."
-    MOOS_UTM_REPAIR=1 /usr/libexec/moos-utm-net-install
-}
-
 main_menu() {
-    local target has_moos=0 choice
+    local target has_data=0 choice layout_status
     target="$(pick_target_disk || true)"
-    target_has_moos "$target" && has_moos=1
+    if target_has_data "$target"; then
+        has_data=1
+    else
+        layout_status=$?
+        if [ "$layout_status" -ne 1 ]; then
+            whiptail --msgbox "تعذرت قراءة القرص | Target layout could not be read; no action taken." 10 72 2>/dev/null || true
+            return 1
+        fi
+    fi
 
     while true; do
-        if [ "$has_moos" -eq 1 ]; then
+        if [ "$has_data" -eq 1 ]; then
             choice=$(whiptail --backtitle "MoOS Installer" --title "MoOS UTM" \
-                --menu "Choose an action:" 18 72 6 \
-                1 "Boot installed MoOS" "" \
+                --menu "اختر إجراءً | Choose an action:" 18 72 6 \
+                1 "إقلاع MoOS من UEFI | Boot MoOS firmware entry" "" \
                 2 "Install latest signed MoOS" "" \
-                3 "Repair" "" \
-                4 "Reinstall (erase target)" "" \
-                3>&1 1>&2 2>&3) || choice=1
+                4 "إعادة التثبيت: مسح القرص | Reinstall (erase target)" "" \
+                3>&1 1>&2 2>&3) || return 0
         else
             choice=$(whiptail --backtitle "MoOS Installer" --title "MoOS UTM" \
-                --menu "Choose an action:" 16 72 4 \
+                --menu "اختر إجراءً | Choose an action:" 16 72 4 \
                 2 "Install latest signed MoOS" "" \
-                3 "Repair" "" \
                 5 "Shell / serial debug" "" \
-                3>&1 1>&2 2>&3) || choice=2
+                3>&1 1>&2 2>&3) || return 0
         fi
 
         case "$choice" in
-            1) boot_installed ;;
+            1) boot_installed || return 1 ;;
             2)
-                run_install install
-                whiptail --msgbox "Installation complete.\nRebooting into MoOS..." 10 60 2>/dev/null || true
-                systemctl reboot
+                if run_install install; then
+                    whiptail --msgbox "اكتمل التثبيت | Installation complete.\nRebooting into MoOS..." 10 60 2>/dev/null || true
+                    systemctl reboot
+                else
+                    whiptail --msgbox "التثبيت لم يكتمل | Installation did not complete.\nCheck the installer log before retrying." 10 60 2>/dev/null || true
+                fi
                 ;;
-            3) run_repair; whiptail --msgbox "Repair finished." 8 50 2>/dev/null || true ;;
             4)
                 whiptail --yesno "Reinstall will ERASE MoOS on the target disk.\n\nContinue?" 12 60 2>/dev/null \
                     && run_install reinstall && systemctl reboot

@@ -147,6 +147,13 @@ python3 tests/test_remote_toolbar_edge.py
 python3 tests/test_remote_input_mode.py
 python3 tests/test_remote_scroll_direction.py
 python3 tests/test_dotnet_project_coverage.py
+python3 tests/test_nuget_audit_policy.py
+python3 tests/test_moos_lang_lock.py
+python3 tests/test_arm_release_manifest.py
+python3 tests/test_utm_manifest_resolution.py
+python3 tests/test_utm_install_write_order.py
+python3 tests/test_utm_installer_menu.py
+python3 tests/test_cosign_arm_install.py
 python3 tests/test_remote_live_keymap.py
 python3 tests/test_remote_group_resolution.py
 python3 tests/test_remote_keycode_flush.py

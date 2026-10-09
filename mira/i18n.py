@@ -1,5 +1,24 @@
 """Mira's interface text in Arabic and English. QML reads the active table as `mira.s`."""
 
+import os
+
+
+def initial_language(preferred=None, environment=None):
+    """Honor a saved choice; a fresh profile follows the supported session UI.
+
+    Arabic is the MoOS fallback for C, unknown and unsupported locales. Locale
+    inspection reads only language variables, never provider configuration.
+    """
+    if preferred in ('ar', 'en'):
+        return preferred
+    env = os.environ if environment is None else environment
+    for name in ('LANGUAGE', 'LC_ALL', 'LC_MESSAGES', 'LANG'):
+        for candidate in str(env.get(name, '')).split(':'):
+            code = candidate.split('.', 1)[0].split('@', 1)[0].replace('-', '_').split('_', 1)[0].lower()
+            if code in ('ar', 'en'):
+                return code
+    return 'ar'
+
 STRINGS = {
     'app_title': ('ميرا', 'Mira'),
     'tagline': ('مساعدتك الذكية', 'Your AI companion'),

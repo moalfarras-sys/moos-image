@@ -9,5 +9,11 @@
     <Compile Include="../../agent-linux/InputInjector.cs" Link="InputInjector.cs" />
     <Compile Include="../../agent-linux/LiveKeymap.cs" Link="LiveKeymap.cs" />
     <Compile Include="../../agent-linux/TextKeysym.cs" Link="TextKeysym.cs" />
+    <Compile Include="../../agent-linux/FallbackJpegEncoder.cs" Link="FallbackJpegEncoder.cs" />
+    <Compile Include="../../agent-linux/CaptureScratch.cs" Link="CaptureScratch.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="SkiaSharp" Version="4.153.1" />
+    <PackageReference Include="SkiaSharp.NativeAssets.Linux.NoDependencies" Version="4.153.1" />
   </ItemGroup>
 </Project>

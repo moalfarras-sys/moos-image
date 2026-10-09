@@ -1,0 +1,10 @@
+<Project>
+  <PropertyGroup>
+    <!-- Compilation is not a security audit. All official restore/build callers
+         inherit this policy, including the image stages and every linked test. -->
+    <NuGetAudit>true</NuGetAudit>
+    <NuGetAuditMode>all</NuGetAuditMode>
+    <NuGetAuditLevel>low</NuGetAuditLevel>
+    <WarningsAsErrors>$(WarningsAsErrors);NU1900;NU1901;NU1902;NU1903;NU1904;NU1905</WarningsAsErrors>
+  </PropertyGroup>
+</Project>

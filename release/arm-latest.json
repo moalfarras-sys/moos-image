@@ -2,7 +2,10 @@
   "schema": 1,
   "edition": "moos-arm",
   "repository": "ghcr.io/moalfarras-sys/moos-arm",
-  "digest": "sha256:e1ace22c3a6a207f2bcd3507fe98f2071bdb9a9d6bd3bfbf7de03e1d0de28601",
-  "product_sha": "196f8679",
-  "note": "Updated by release engineer when a new signed ARM candidate is boot-proven"
+  "digest": "sha256:f9441728f373cf19d59bdc4116c42833392a628e3ac01f33905cd76fce3c7305",
+  "product_sha": "fa85b2daf3db0f1f823b3159bb46b25571a99740",
+  "version": "44.20261006.724",
+  "proof_run": 37539003204,
+  "note": "Signed production ARM release, verified through two UEFI boots and promotion. This is an install target, not the current source-build candidate.",
+  "scope_note": "Known signed fallback snapshot; the installer resolves the official promoted registry tag for the current release. This is not a live latest authority."
 }

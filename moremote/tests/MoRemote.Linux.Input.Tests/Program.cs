@@ -7,6 +7,7 @@ using MoRemote;
 // absent uinput socket. These tests cannot send keys to the machine running them.
 try
 {
+FallbackJpegEncoderTests.Run();
 Environment.SetEnvironmentVariable("YDOTOOL_SOCKET", Path.Combine(
     Path.GetTempPath(), "moremote-no-input-" + Guid.NewGuid(), "absent.sock"));
 int passed = 0;

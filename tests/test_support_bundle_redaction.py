@@ -19,6 +19,8 @@ import importlib.util
 from pathlib import Path
 import re
 import sys
+import io
+import tempfile
 import unittest
 from unittest import mock
 
@@ -82,6 +84,68 @@ class SupportBundleRedaction(unittest.TestCase):
         kept = self.bundle.redact("listening on 127.0.0.1:7777 from 10.0.2.2")
         self.assertIn("127.0.0.1", kept)
         self.assertIn("10.0.2.2", kept)
+
+    def test_quoted_json_and_oauth_values_do_not_escape_redaction(self):
+        for field in ("password", "token", "access_token", "refresh_token", "id_token", "api_key"):
+            secret = "SYNTHETIC_AUDIT_VALUE_123456"
+            with self.subTest(field=field):
+                for quote in ('"', "'"):
+                    value = f"{{{quote}{field}{quote}: {quote}{secret}{quote}}}"
+                    self.assertNotIn(secret, self.bundle.redact(value))
+
+    def test_private_key_contents_and_truncated_blocks_are_removed(self):
+        for kind in ("PRIVATE KEY", "RSA PRIVATE KEY", "OPENSSH PRIVATE KEY", "ENCRYPTED PRIVATE KEY"):
+            body = "SYNTHETIC_KEY_BODY_NOT_A_REAL_KEY"
+            with self.subTest(kind=kind):
+                block = f"-----BEGIN {kind}-----\n{body}\n-----END {kind}-----"
+                redacted = self.bundle.redact("before\n" + block + "\nafter")
+                self.assertNotIn(body, redacted)
+                self.assertIn("after", redacted)
+                self.assertNotIn(body, self.bundle.redact(block.rsplit("\n", 1)[0]))
+
+    def test_fine_grained_github_credentials_are_removed_without_a_field_name(self):
+        token = "github_pat_" + "A" * 45
+        self.assertNotIn(token, self.bundle.redact("connection failed with " + token))
+
+    def test_provider_keys_and_cloud_fields_are_redacted(self):
+        google = "AIza" + "B" * 35
+        self.assertNotIn(google, self.bundle.redact("request ?key=" + google))
+        for field in ("aws_secret_access_key", "access_key_id"):
+            secret = "SYNTHETIC_CLOUD_VALUE_123456"
+            self.assertNotIn(secret, self.bundle.redact(field + "=" + secret))
+
+    def test_redaction_precedes_journal_tail_truncation(self):
+        secret = "SYNTHETIC_KEY_BODY_NOT_A_REAL_KEY"
+        hostile = "-----BEGIN PRIVATE KEY-----\n" + "padding\n" * 10000 + secret + "\n-----END PRIVATE KEY-----"
+        with mock.patch.object(self.bundle, "run", return_value=hostile), \
+             mock.patch.object(self.bundle, "deployment_facts", return_value={
+                 "edition": "moos", "version": "44", "origin": "", "digest": ""}):
+            body = self.bundle.collect()
+        self.assertNotIn(secret, body, "trimming removed the private-key opener before redaction")
+
+    def test_output_does_not_follow_a_predictable_temporary_symlink(self):
+        with tempfile.TemporaryDirectory() as directory:
+            parent = Path(directory)
+            victim = parent / "keep.txt"
+            victim.write_text("keep owner data", encoding="utf-8")
+            target = parent / "support.txt"
+            target.with_name(target.name + ".tmp").symlink_to(victim)
+            with mock.patch.object(self.bundle, "collect", return_value="safe report"), \
+                 mock.patch.object(sys, "argv", [str(COLLECTOR), "--output", str(target)]), \
+                 mock.patch.object(sys, "stdout", io.StringIO()):
+                self.assertEqual(self.bundle.main(), 0)
+            self.assertEqual(victim.read_text(), "keep owner data")
+            self.assertEqual(target.read_text(), "safe report")
+            self.assertEqual(target.stat().st_mode & 0o777, 0o600)
+
+    def test_compressed_ipv6_is_private_but_clocks_and_loopback_remain_useful(self):
+        for address in ("fe80::1234:abcd", "2001:db8::42", "fe80::1234%eth0", "::ffff:192.0.2.44"):
+            with self.subTest(address=address):
+                self.assertNotIn(address, self.bundle.redact("peer [" + address + "]"))
+        diagnostic = self.bundle.redact("time 12:34:56 local [::1]:7777 value sha256:abcdef")
+        self.assertIn("12:34:56", diagnostic)
+        self.assertIn("[::1]:7777", diagnostic)
+        self.assertIn("sha256:abcdef", diagnostic)
 
     def test_collect_redacts_hostile_command_output_and_states_its_own_policy(self):
         hostile = "\n".join(LEAKS)

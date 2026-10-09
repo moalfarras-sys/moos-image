@@ -76,7 +76,9 @@ internal static class PortalRecoveryTests
             using (var bridge = RecorderBridge(dir, idle: true))
             {
                 await Until(() => bridge.Generation >= 3 && bridge.WaitingForIdleViewer,
-                    "idle failures did not reach the four-second recovery wait");
+                    "idle failures did not reach the four-second recovery wait",
+                    () => $"generation={bridge.Generation}, idle={bridge.WaitingForIdleViewer}, ready={bridge.IsReady}, error={bridge.LastError}",
+                    seconds: 15);
                 var resumed = Stopwatch.StartNew();
                 bridge.SetStreaming(true);
                 await Until(() => bridge.Generation >= 4 && bridge.IsReady,
@@ -154,12 +156,15 @@ internal static class PortalRecoveryTests
         }
     }
 
-    private static async Task Until(Func<bool> condition, string message)
+    private static async Task Until(Func<bool> condition, string message, Func<string>? diagnostic = null, int seconds = 5)
     {
-        using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+        // Preparing three helpers includes the intentional 1s + 2s backoff plus
+        // three cold .NET startups. It is not the viewer-wake latency assertion,
+        // which remains independently capped at two seconds above.
+        using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(seconds));
         while (!condition())
         {
-            if (deadline.IsCancellationRequested) throw new Exception(message);
+            if (deadline.IsCancellationRequested) throw new Exception(message + (diagnostic is null ? "" : ": " + diagnostic()));
             await Task.Delay(10);
         }
     }

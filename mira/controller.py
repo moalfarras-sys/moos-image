@@ -119,8 +119,7 @@ class Controller(QObject):
     def __init__(self, bridge_class=None, parent=None):
         super().__init__(parent)
         self.settings = QSettings('MoOS', 'Mira')
-        lang = self.settings.value('language', 'ar')
-        self._lang = lang if lang in ('ar', 'en') else 'ar'
+        self._lang = i18n.initial_language(self.settings.value('language', None))
         face = self.settings.value('face_style', 'rose')
         self._face = face if face in ('rose', 'holo') else 'rose'
         voice = self.settings.value('voice_name', 'Aoede')

@@ -12,8 +12,8 @@
 #   login:
 #     * Plasma's UI is translated (KDE ships the ar/en catalogues already), AND
 #     * every app launched inherits that LANG — including the MoOS QML apps, which
-#       derive Qt.application.layoutDirection (Arabic ⇒ RTL ⇒ Arabic strings)
-#       from it with zero locale logic of their own.
+#       read MoUI.Locale (Arabic ⇒ RTL ⇒ Arabic strings), never the translator's
+#       Qt.application.layoutDirection, which is not this session's locale.
 #   Flatpak language is a separate axis (flatpak config --set languages), set here
 #   too so Flathub apps carry the picked language's locale extension.
 #
@@ -39,10 +39,18 @@ mkdir -p "$(dirname "$log")" 2>/dev/null || true
 echo "=== moos-lang $(date -u '+%FT%TZ') → ${CODE} ===" >>"$log" 2>/dev/null || true
 
 # A per-user lock so a double-tap in the wizard cannot interleave two writes.
-if command -v flock >/dev/null 2>&1; then
-    lock_dir="${XDG_RUNTIME_DIR:-${XDG_STATE_HOME:-$HOME/.local/state}}"
-    mkdir -p "$lock_dir" 2>/dev/null || true
-    if exec 9>"${lock_dir}/moos-lang.lock"; then flock -w 10 9 || true; fi
+if ! command -v flock >/dev/null 2>&1; then
+    echo "تعذّر قفل إعداد اللغة | Language transaction lock is unavailable." >&2
+    exit 1
+fi
+lock_dir="${XDG_RUNTIME_DIR:-${XDG_STATE_HOME:-$HOME/.local/state}}"
+if ! mkdir -p "$lock_dir" || ! exec 9>"${lock_dir}/moos-lang.lock"; then
+    echo "تعذّر قفل إعداد اللغة | Cannot open the language transaction lock." >&2
+    exit 1
+fi
+if ! flock -w 10 9; then
+    echo "تغيير آخر للغة جارٍ الآن | Another language change is running; try again." >&2
+    exit 1
 fi
 
 failed=0
