@@ -3,8 +3,9 @@
 Native, Arabic-first support conversations on Oracle, with public suggestions
 only by the author's explicit choice. Only the original suggestion text and
 display name become public; replies and every image remain author/team private.
-This component is independently prepared on the owner milestone branch. Source
-acceptance does not mean it is shipped in an OS image or installed on a station.
+The API is deployed on Oracle; the native client passed actual physical Wayland
+acceptance against its HTTPS endpoint. All-edition source packaging is now added,
+but signed image delivery and installed acceptance remain separate requirements.
 
 ## Run and verify
 
@@ -27,10 +28,20 @@ its backend success never substitutes for native rendered/input acceptance.
 
 ## Oracle deployment contract
 
+Production endpoint: `https://moos-oracle.tailab78a5.ts.net:10000`. Its public
+TLS path was tested through all three ingress addresses (one initially failed
+then passed). This fixed service URL is separate from future branded custom DNS.
+
 Use a dedicated loopback backend (`127.0.0.1:8939`) and a separately configured
 TLS proxy endpoint. Do not reset an existing Tailscale Serve configuration or
-reuse occupied 443/8443/8444/8445 listeners. The current Oracle access is one
-verified Tailscale SSH session. Its existing services and owner data stay intact.
+reuse occupied 443/8443/8444/8445 listeners. The Oracle deployment uses a system unit with a dedicated unprivileged
+`moos-community` account, root-owned source/venv and an owned 0700 data directory.
+Set that account's actual home to `/var/lib/moos-community/data`; cosign needs its
+verified public Sigstore trust cache there. `ProtectSystem=strict`, `ProtectHome=yes`,
+NoNewPrivileges and resource limits remain. Existing routes/data stay intact.
+A sandboxed user unit remaps foreign UIDs and fails the proxy proof; never accept
+the shared overflow UID to work around it. Root-managed `User=moos-community`
+retains the host UID namespace while running the application without privilege.
 
 The server requires the connecting proxy's full kernel socket tuple and reviewed
 UID before trusting X-Forwarded-For. Missing identity fails closed. Tailscale
@@ -102,10 +113,21 @@ Native image previews are reencoded rasters in a private cache, never arbitrary
 selected file URLs. Source native frames belong in the owner's private journey
 gallery or a sanitized CI artifact, not Git.
 
-Before OS integration: add the native launcher/AppStream/route to all editions,
-ship this exact source and maintained dependencies, register actual QML launch
-and interaction checks, then run the standard signed candidate and boot proofs.
+All editions now stage exactly five native runtime files from this tree. The
+launcher, desktop/AppStream identity and reviewed TLS configuration are shared.
+Both image scripts run `verify_community_client.py` against the actual launcher
+with private HOME/runtime/bus and a real Arabic capture. Server, operator tools,
+tests and dependencies never ship on desktop machines. QML disk cache is disabled
+like the other first-party apps, so no shell-theme revision change is required.
+Full local image gates, the standard signed candidate, boot proofs and installed
+readback are still required before delivery.
 No source branch, local override or merely listening API closes that acceptance.
 Public custom DNS, password recovery, audited team identity onboarding, OS-native
 notification preference, retention/support terms and broad hardware/accessibility
 qualification remain explicit product decisions/evidence in P6.9.
+
+Recorded live acceptance: six API cases (retry, two-account privacy, actual image,
+actual promoted/signature release notification, no public disclosure and explicit
+deletion); two real native-button clicks and two Arabic physical Wayland frames
+against Oracle. Every synthetic report/account was removed. These are small
+bounded acceptance flows, not long-term load/security/accessibility qualification.

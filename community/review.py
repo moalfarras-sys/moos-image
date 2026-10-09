@@ -43,6 +43,8 @@ def main():
             button=root.findChild(QQuickItem,'newReport')
             from PySide6.QtCore import QPointF
             position=button.mapToScene(QPointF(button.width()/2,button.height()/2))
+            if not (0<=position.x()<root.width() and 0<=position.y()<root.height()):
+                raise AssertionError('new-report button is outside the window')
             QTest.mouseClick(root,Qt.LeftButton,Qt.NoModifier,QPoint(round(position.x()),round(position.y())))
             dialog=root.findChild(QObject,'reportEditor');pump(lambda:dialog.property('opened'))
             title=root.findChild(QObject,'reportTitle');body=root.findChild(QObject,'reportBody')
@@ -62,6 +64,8 @@ def main():
             frames=[capture('report-editor')]
             send=root.findChild(QQuickItem,'sendReport')
             position=send.mapToScene(QPointF(send.width()/2,send.height()/2))
+            if not (0<=position.x()<root.width() and 0<=position.y()<root.height()):
+                raise AssertionError('send button is outside the window')
             if not send.property('enabled'):raise AssertionError('valid report button disabled')
             QTest.mouseClick(root,Qt.LeftButton,Qt.NoModifier,QPoint(round(position.x()),round(position.y())))
             pump(lambda:controller.data['pending']==0 and bool(controller.data['images']) and not controller.data['busy'])

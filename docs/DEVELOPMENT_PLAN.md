@@ -388,7 +388,7 @@ itself and an unreviewed MoOS would ship kscreenlocker's emergency locker.
 | P6.6 | Establish support lifecycle and migration policy | Open / acceptance not complete | Published support/upgrade/rollback/EOL policy plus clear licences, attribution and official identity. |
 | P6.7 | Reviewed Plasma seams before upstream transitions | Implemented/delivered within recorded scope; wider acceptance remains | Actual next-Plasma canary, registered reviewed seams and old/broken/native controls. |
 | P6.8 | Separate reviewed next-base transition lane | Open / acceptance not complete | Reviewed next-base packages, all native seams/boot/apps/identity gates and migration/support qualification. |
-| P6.9 | Native user/developer participation | Source beta: 34 API/privacy/retry/proxy/release tests and 7 native Qt HTTP cases pass; Oracle deployment and signed all-edition integration pending | Real authenticated service/client, private image attachments, account isolation and bounded uploads, admin moderation, retry/offline and promoted-release notifications; no secrets or automatic screenshots. |
+| P6.9 | Native user/developer participation | Oracle API and actual native Arabic/TLS acceptance pass; source all-edition packaging added. Signed candidate/installed delivery and broader product qualification pending | Real authenticated service/client, private image attachments, account isolation and bounded uploads, admin moderation, retry/offline and promoted-release notifications; no secrets or automatic screenshots. |
 
 ## Development-machine profile
 

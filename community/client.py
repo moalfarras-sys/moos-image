@@ -10,6 +10,10 @@ import stat
 import sys
 import tempfile
 
+# OSTree's frozen source mtimes cannot validate a previous compiled QML cache.
+# This app follows the other first-party launchers and always reads its source.
+os.environ['QML_DISABLE_DISK_CACHE'] = '1'
+
 sys.path.insert(0, '/usr/lib/mira/site')
 from PySide6.QtCore import (QObject, Property, QRunnable, QThreadPool, QTimer, QUrl,
                            Signal, Slot, QLocale, QBuffer, QByteArray, QIODevice)
@@ -448,12 +452,19 @@ def read_operator(path):
 
 def main():
     parser = argparse.ArgumentParser(description='MoOS participation')
-    parser.add_argument('--service-url', required=True)
+    parser.add_argument('--service-url')
+    parser.add_argument('--service-config', type=Path, default=Path('/usr/share/moos/community-service.json'))
     parser.add_argument('--profile', type=Path, default=Path.home()/'.local/state/moos-community')
     parser.add_argument('--review', action='store_true')
     parser.add_argument('--language', choices=('ar', 'en'))
     parser.add_argument('--operator-session', type=Path)
+    parser.add_argument('--capture', type=Path, help='explicit source/image review of this app only')
     args = parser.parse_args()
+    if not args.service_url:
+        config = json.loads(args.service_config.read_text())
+        if type(config.get('schema')) is not int or config['schema'] != 1:
+            raise ValueError('valid MoOS service configuration required')
+        args.service_url = config['service_url']
     if ctypes.CDLL(None).prctl(4, 0, 0, 0, 0) != 0:
         raise RuntimeError('private process dump protection unavailable')
     if args.language:
@@ -469,7 +480,18 @@ def main():
     if not engine.rootObjects():
         raise SystemExit('MoOS participation UI failed to load')
     app.aboutToQuit.connect(controller.close)
-    QTimer.singleShot(0, controller.start)
+    if args.capture:
+        # Build review has no account or network activity. This is the actual
+        # launcher/engine, never a fake backend success or owner screenshot.
+        def capture():
+            frame = engine.rootObjects()[0].grabWindow()
+            if frame.isNull() or not frame.save(str(args.capture)):
+                app.exit(2)
+            else:
+                print('MOOS_COMMUNITY_UI_READY', flush=True); app.quit()
+        QTimer.singleShot(500, capture)
+    else:
+        QTimer.singleShot(0, controller.start)
     if args.operator_session:
         token = read_operator(args.operator_session)
         QTimer.singleShot(0, lambda: controller.operator_login(token))

@@ -1,5 +1,6 @@
 import QtQuick
 import QtQuick.Controls as QQC2
+import QtQuick.Controls.Basic as Basic
 import QtQuick.Layouts
 import QtQuick.Dialogs
 import org.kde.kirigami as Kirigami
@@ -38,6 +39,25 @@ Kirigami.ApplicationWindow {
         horizontalAlignment: root.rtl ? Text.AlignRight : Text.AlignLeft
     }
     component QuietInk: Ink { color: Qt.alpha(Kirigami.Theme.textColor, 0.78) }
+    // The installed Breeze mobile toolbar types its target as TextInput,
+    // while TextArea is TextEdit. Use Qt's public Basic template for this
+    // multiline field, with the same MoOS palette and focus roles; no vendor fork.
+    component WriteArea: Basic.TextArea {
+        textFormat: TextEdit.PlainText
+        wrapMode: TextEdit.Wrap
+        horizontalAlignment: root.rtl ? Text.AlignRight : Text.AlignLeft
+        color: Kirigami.Theme.textColor
+        placeholderTextColor: Qt.alpha(Kirigami.Theme.textColor, 0.78)
+        selectionColor: Kirigami.Theme.highlightColor
+        selectedTextColor: Kirigami.Theme.highlightedTextColor
+        padding: 12
+        background: Rectangle {
+            color: Kirigami.Theme.backgroundColor
+            radius: MoUI.Tokens.radiusControl
+            border.width: parent.activeFocus ? 2 : 1
+            border.color: parent.activeFocus ? Kirigami.Theme.focusColor : Qt.alpha(Kirigami.Theme.textColor, 0.22)
+        }
+    }
     component Panel: Rectangle {
         radius: MoUI.Tokens.radiusCard
         color: Kirigami.Theme.alternateBackgroundColor
@@ -262,6 +282,7 @@ Kirigami.ApplicationWindow {
         modal: true
         anchors.centerIn: parent
         width: Math.min(640, root.width - 48)
+        height: Math.min(680, root.height - 48)
         onAboutToShow: {
             const d = root.s.composer
             reportTitle.text = d.title || ""
@@ -269,12 +290,16 @@ Kirigami.ApplicationWindow {
             kind.currentIndex = d.kind || 0
             makePublic.checked = d.public === true
         }
-        ColumnLayout {
-            width: parent.width; spacing: 12
+        contentItem: QQC2.ScrollView {
+            id: editorScroll
+            clip: true
+            contentWidth: availableWidth
+            ColumnLayout {
+            width: editorScroll.availableWidth; spacing: 12
             QQC2.ComboBox { id: kind; objectName: "reportKind"; Layout.fillWidth: true; implicitHeight: 44; model: [root.local("مشكلة أريد حلّها", "Report a problem"), root.local("فكرة لتطوير النظام", "Suggest an improvement")]; Accessible.name: root.local("نوع الطلب", "Request type"); onCurrentIndexChanged: root.persistReport() }
             QQC2.TextField { id: reportTitle; objectName: "reportTitle"; Layout.fillWidth: true; implicitHeight: 44; placeholderText: root.local("عنوان واضح", "A clear title"); maximumLength: 160; Accessible.name: placeholderText; onTextChanged: root.persistReport() }
             QQC2.ScrollView { Layout.fillWidth: true; Layout.preferredHeight: 150
-                QQC2.TextArea { id: reportBody; objectName: "reportBody"; placeholderText: root.local("ماذا حدث؟ ماذا كنت تتوقع؟ أو كيف ستساعدنا فكرتك؟", "What happened, what did you expect, or how would your idea help?"); wrapMode: TextEdit.Wrap; Accessible.name: root.local("وصف الطلب", "Request details"); onTextChanged: root.persistReport() }
+                WriteArea { id: reportBody; objectName: "reportBody"; placeholderText: root.local("ماذا حدث؟ ماذا كنت تتوقع؟ أو كيف ستساعدنا فكرتك؟", "What happened, what did you expect, or how would your idea help?"); Accessible.name: root.local("وصف الطلب", "Request details"); onTextChanged: root.persistReport() }
             }
             QQC2.CheckBox { id: makePublic; objectName: "reportConsent"; visible: kind.currentIndex === 1; text: root.local("أنشر الفكرة الأولى كاقتراح عام باسمي المعروض", "Publish the original idea with my display name"); onVisibleChanged: if (!visible) checked = false; onCheckedChanged: root.persistReport() }
             QuietInk { visible: makePublic.checked; Layout.fillWidth: true; text: root.local("العنوان والوصف سيظهران للجميع. المحادثة والصورة تبقيان خاصتين.", "The title and description become public. The conversation and image stay private.") }
@@ -284,10 +309,13 @@ Kirigami.ApplicationWindow {
             }
             Image { visible: root.s.picture !== ""; source: root.s.picture; fillMode: Image.PreserveAspectFit; Layout.fillWidth: true; Layout.preferredHeight: visible ? 100 : 0 }
             QuietInk { visible: root.s.picture !== ""; Layout.fillWidth: true; text: root.local("راجع الصورة قبل الإرسال وتأكد أنها لا تحتوي معلومات خاصة.", "Review the picture before sending and check it contains no private information.") }
-            RowLayout {
+            }
+        }
+        footer: RowLayout {
+                spacing: 12
+                Item { Layout.fillWidth: true }
                 MoUI.Button { objectName: "sendReport"; primary: true; label: root.local("أرسل", "Send"); enabled: reportTitle.text.trim().length >= 3 && reportBody.text.trim().length >= 5 && reportBody.text.length <= 8000 && !root.s.busy; onClicked: { editor.close(); community.createThread(reportTitle.text, reportBody.text, kind.currentIndex === 0 ? "problem" : "suggestion", makePublic.checked) } }
                 MoUI.Button { label: root.local("إلغاء", "Cancel"); onClicked: editor.close() }
-            }
         }
     }
 
@@ -346,7 +374,7 @@ Kirigami.ApplicationWindow {
                 MoUI.Button { label: root.local("قيد الفحص", "Under review"); onClicked: community.markState("triage") }
                 MoUI.Button { label: root.local("إصلاح قيد الاختبار", "Fix being tested"); onClicked: community.markState("testing") }
             }
-            QQC2.TextArea { id: reply; text: root.s.replyDraft; Layout.fillWidth: true; Layout.preferredHeight: 80; placeholderText: root.local("اكتب ردًا خاصًا…", "Write a private reply…"); wrapMode: TextEdit.Wrap; Accessible.name: root.local("الرد الخاص", "Private reply"); onTextChanged: if (conversation.opened) community.saveReplyDraft(text) }
+            WriteArea { id: reply; text: root.s.replyDraft; Layout.fillWidth: true; Layout.preferredHeight: 80; placeholderText: root.local("اكتب ردًا خاصًا…", "Write a private reply…"); Accessible.name: root.local("الرد الخاص", "Private reply"); onTextChanged: if (conversation.opened) community.saveReplyDraft(text) }
             Image { visible: root.s.replyPicture !== ""; source: root.s.replyPicture; fillMode: Image.PreserveAspectFit; Layout.fillWidth: true; Layout.preferredHeight: visible ? 90 : 0 }
             RowLayout {
                 MoUI.Button { label: root.local("أرفق صورة", "Attach a picture"); onClicked: { root.pictureTarget = "reply"; picturePicker.open() } }

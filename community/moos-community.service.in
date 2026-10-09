@@ -1,0 +1,38 @@
+# MoOS participation. Render @SOURCE@, @PYTHON@, @DATA@ and @ORIGIN@ only.
+[Unit]
+Description=MoOS private support conversations
+After=network.target
+StartLimitIntervalSec=300
+StartLimitBurst=5
+
+[Service]
+Type=exec
+User=moos-community
+Group=moos-community
+WorkingDirectory=@SOURCE@
+ExecStart=@PYTHON@ -m community.run --data @DATA@ serve --public-origin @ORIGIN@ --proxy-uid 0 --registration-open
+UMask=0077
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=20
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateUsers=no
+ReadWritePaths=@DATA@
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictSUIDSGID=yes
+RestrictRealtime=yes
+LockPersonality=yes
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6 AF_NETLINK
+MemoryHigh=384M
+MemoryMax=768M
+TasksMax=96
+CPUQuota=150%
+LimitCORE=0
+
+[Install]
+WantedBy=multi-user.target

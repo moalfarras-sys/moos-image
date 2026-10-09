@@ -2113,6 +2113,10 @@ _mira_pyc="$(find /usr/lib/mira -name '__pycache__' -print -quit)"
 [ -z "$_mira_pyc" ] || { echo "GATE FAIL: bytecode caches reached /usr/lib/mira ($_mira_pyc)"; exit 1; }
 unset -v _mira_home _mira_imports _mira_pages _mira_face _mira_rc _mira_pyc _lumen_out
 
+# Participation has a Python controller, so the standalone QML glob cannot
+# host it. Prove its actual shipped launcher/runtime in a private session.
+python3 /ctx/verify_community_client.py
+
 # The desktop's own sound, in the phone's tab — for EVERY edition, not just cloud.
 #
 # This enable used to live inside the cloud-only branch, and the consequence was an asymmetry

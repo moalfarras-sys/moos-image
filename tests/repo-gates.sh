@@ -197,6 +197,7 @@ python3 tests/test_cloud_subid_range.py
 # update — rpm-ostree lists a staged update at index 0, so "first non-booted" pointed the
 # rescue screen at the newer version, the opposite of what rollback does.
 python3 tests/test_recovery_rollback_target.py
+python3 tests/test_community_packaging.py
 python3 tests/test_update_state_machine.py
 python3 tests/test_support_bundle_redaction.py
 python3 tests/test_rollback_proof_harness.py

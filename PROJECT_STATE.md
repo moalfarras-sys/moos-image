@@ -139,8 +139,9 @@ failed on an empty `efi`. Retry 37900328567 installed before diagnostics timed
 out. The independent installer repair at 144b1a6a now holds mount namespaces,
 private privileged state and bounded diagnostics; candidate build 37910223752
 passed; ISO 37916929153, disks 37916917245/37916921267/37916925157 and ARM
-37916934408 all succeeded. Promotion remains owed; never substitute
-the branch's source tests for signed delivery. Follow [RELEASE.md](RELEASE.md).
+37916934408 all succeeded. PR221 merged at 46b46e87 with the exact candidate
+tree; x86 promotion 37946594645 succeeded. NVIDIA .1018 (`c5977fc7…`) is published;
+local staging awaits Polkit. Its installer proof excludes this later owner batch.
 
 ## Owner milestone — source work, not promoted delivery
 
@@ -159,8 +160,9 @@ read-only retry. Its regression gate and actual native AR/EN GTK source review
 pass; no rollback mechanism or boot choice changed. The gallery holds 16 unique
 real frames with explicit source/CI/private-host boundaries and missing stages.
 Participation beta: 34 API/privacy/retry/proxy/release and 7 native Qt HTTP cases
-pass. AR/EN actual-button review produced six source Qt frames. Dependencies
-are hash-pinned and audit clean; Oracle TLS/public and signed OS delivery remain open.
+pass. Oracle API runs under a dedicated unprivileged account; public TLS, six
+API cases and physical Wayland Arabic/image flow passed. Synthetic data removed.
+All-edition native packaging is added; full image and signed delivery remain open.
 
 ## Evidence still owed
 

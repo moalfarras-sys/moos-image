@@ -1,0 +1,7 @@
+#!/bin/sh
+# The native client owns no OS privilege or daemon. All account work uses TLS.
+set -eu
+cd /usr/lib/moos-community
+export PYTHONDONTWRITEBYTECODE=1
+export QML_DISABLE_DISK_CACHE=1
+exec /usr/bin/python3 -s -m community.client "$@"
