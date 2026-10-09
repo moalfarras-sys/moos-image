@@ -4,6 +4,11 @@ Updated 2026-10-09. This is the single execution backlog, not an incident diary.
 Current measurements live in PROJECT_STATE.md; detailed audit evidence and
 remaining boundaries are in AUDIT_20261008_AR.md. Git preserves prior waves.
 
+The owner's ordered implementation and cross-device handoff are recorded in
+[OWNER_EXECUTION_20261009_AR.md](OWNER_EXECUTION_20261009_AR.md). Its active slice
+is reliability/release acceptance, before the remaining four milestones. The
+new private feedback/optional public suggestions product is P6.9 below.
+
 ## Active audit correction batch
 
 Priority before the M1 visual work: support-report privacy/atomic output,
@@ -383,6 +388,7 @@ itself and an unreviewed MoOS would ship kscreenlocker's emergency locker.
 | P6.6 | Establish support lifecycle and migration policy | Open / acceptance not complete | Published support/upgrade/rollback/EOL policy plus clear licences, attribution and official identity. |
 | P6.7 | Reviewed Plasma seams before upstream transitions | Implemented/delivered within recorded scope; wider acceptance remains | Actual next-Plasma canary, registered reviewed seams and old/broken/native controls. |
 | P6.8 | Separate reviewed next-base transition lane | Open / acceptance not complete | Reviewed next-base packages, all native seams/boot/apps/identity gates and migration/support qualification. |
+| P6.9 | Native user/developer participation | Owner-requested: private support conversations and optional public suggestions; implementation open | Real authenticated service/client, private image attachments, account isolation and bounded uploads, admin moderation, retry/offline and promoted-release notifications; no secrets or automatic screenshots. |
 
 ## Development-machine profile
 
