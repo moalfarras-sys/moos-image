@@ -21,8 +21,11 @@ installed-ISO proof before x86 promotion; retain every existing gate.
 Current stable delivery is x86 .1011 at fa85b2da and ARM .728 at 8ebe0591.
 Public .1011 ISO hosting is qualified and P0.12 is closed. Both stations develop
 the same product; each hardware result must name its device and deployment.
-The NVIDIA station staged signed .1011 from .1009 and completed app updates;
-post-reboot acceptance is separate. Running scheduled/image-only builds
+The NVIDIA station completed app updates and rebooted into exact signed .1011
+from .1009, retaining .1009 rollback; installed checks passed 55/0 and
+selfcheck passed 54. Its real app launches and Mira/MoPlayer frames were read
+back, while physical voice, suspend and deliberate rollback remain unproven.
+Running scheduled/image-only builds
 never imply promotion. No new model-written shell or hardware acceptance is inferred.
 
 The cadence of release cycles is the security cadence: a nightly image-only
@@ -325,7 +328,7 @@ itself and an unreviewed MoOS would ship kscreenlocker's emergency locker.
 | P2.12 | One update surface for OS, apps and firmware | Open / acceptance not complete | OS image, Flatpak apps and firmware share truthful pending/failure/unsupported/finished states. |
 | P2.13 | MoPlayer performance and server/stream compatibility | Implemented/delivered within recorded scope; wider acceptance remains | Installed playback/reopen/stop and memory on real server kinds, MAC portal, HEVC/interlaced samples. |
 | P2.14 | Remote input, recovery and mobile/WAN video | Implemented/delivered within recorded scope; wider acceptance remains | Held-input ownership, decoded pictures, browser recovery and owner iPhone/cellular endurance. |
-| P2.15 | Mira face, speech/rest and original portrait identity | Implemented/delivered within recorded scope; wider acceptance remains | Both portraits retained; single mouth, real voice/pause/idle/hidden/reduced-motion readback. |
+| P2.15 | Mira face, speech/rest and original portrait identity | Implemented/delivered within recorded scope; live local-wake capture triggers USB overruns even on a muted source; wider acceptance remains | Both portraits retained; single mouth, real voice/pause/idle/hidden/reduced-motion readback; capture-device/mute policy and USB audio qualification. |
 | P2.16 | Shared login, lock and power experience | Implemented/delivered within recorded scope; wider acceptance remains | Native greeters 640×480–4K@2.5, password refusal, multi-user, save/logout and accessibility. |
 
 ## P3 — Trustworthy assistant
@@ -359,7 +362,7 @@ itself and an unreviewed MoOS would ship kscreenlocker's emergency locker.
 
 | ID | Outcome | Current boundary | Required acceptance |
 | --- | --- | --- | --- |
-| P5.1 | Hardware qualification lab | Open / acceptance not complete | GPU/audio/network/Bluetooth/camera/storage/firmware records across actual hardware. |
+| P5.1 | Hardware qualification lab | Open: station USB capture overruns reproduced; Home Assistant Bluetooth/DHCP/duplicate entities and first-start protocol failure remain | GPU/audio/network/Bluetooth/camera/storage/firmware records across actual hardware; distinguish host hardware from rootless home-hub integration faults. |
 | P5.2 | Laptop policy | Open / acceptance not complete | Three laptop classes, lid/battery/brightness/power and two suspend cycles each. |
 | P5.3 | Touch/tablet policy | Open / acceptance not complete | Actual touch/tablet targets, keyboard/rotation/gestures/stylus and ≥44px controls. |
 | P5.4 | Performance budgets | Open / acceptance not complete | Measured boot/idle PSS/CPU/wakeups, app launch p95, frame pacing, build load and AI latency per tier. |

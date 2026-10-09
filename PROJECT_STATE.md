@@ -51,33 +51,51 @@ Ten actual apps opened, closed and reopened in the final offline-installed ISO.
 
 ## Physical NVIDIA workstation — live 2026-10-09
 
-- Booted signed .1009 (`608f702a…`); official `moai-do update` completed staging
-  signed .1011 (`9b77fc3e…`). .1009 and .999 remain present. This pre-reboot
-  audit does not claim .1011 has booted. Mo Store app updates completed.
-- Selfcheck: 53 passed, 2 notes; live pre-update readback: 55 passed, 0 failed.
+- Official `moai-do update` and Mo Store app updates completed. The owner-
+  authorized reboot now runs signed .1011 (`9b77fc3e…`), with signed .1009
+  (`608f702a…`) retained for rollback. Boot ID changed to
+  `2dc8a81a-c467-4a60-8595-1b381de1aad1`; the post-reboot receipt at
+  `~/.local/state/moos-audit/20261009/post-reboot-receipt.json` records the
+  exact expected/booted digest and both successful check exits.
+- Post-reboot selfcheck: 54 passed; installed acceptance: 55 passed, 0 failed.
   No failed system/user units. Arabic session, 3840×2160@60, scale 250%, UI2
   Arena. Plasma 6.7.5, Qt 6.11.2, kernel 7.2.8, NVIDIA 615.71.09. Boot accounting
-  was 33.053 s including firmware/loader; not a repeated cold-boot benchmark.
+  was 33.071 s including firmware/loader; not a repeated cold-boot benchmark.
 - Unlike the recorded Oracle state, station `oomctl dump` shows system/user
   pressure-monitored cgroups. Pressure is currently zero; this does not prove
-  recovery under imposed memory pressure. After the review workload, RAM was
-  4.5 GiB used/10 GiB available, with 3.6 GiB still in swap; not an idle baseline.
+  recovery under imposed memory pressure. Fresh reboot readback had about
+  6.3 GiB RAM used/9.2 GiB available and no swap; opening four apps with the
+  editor/browser workload later measured 7.9/7.5 GiB and 27 MiB swap. Neither
+  sample is an idle baseline. The running default font reads IBM Plex Sans;
+  Arabic fallback resolves to Noto Sans Arabic.
 - Installed Mira, Store, native Settings and MoPlayer opened; Settings and
   MoPlayer reopened. Settings logged `MOOS_KCM_READY kcm_moos`. A synthetic
   free cloud reply returned HTTP 200 in 10.13 s. This is not owner-spoken
-  voice or complete action acceptance. Remote retained its existing viewer
-  and zero service restarts. Review units were stopped after inspection.
-- Remaining live faults: 37,535 USB audio buffer-overrun warnings in a
-  ten-minute sample; Home Assistant Bluetooth scanning errors with no system
-  D-Bus socket in its container; three Lumen lights unavailable. Inspection
-  did not flash the Echo or alter owner lighting.
+  voice or complete action acceptance. All four installed apps launched again
+  after reboot; Settings again logged native readiness, and actual Mira and
+  MoPlayer Arabic frames were inspected at 4K/250%. Their review processes
+  stayed alive; this does not prove media playback or every app action.
+  Remote, gateway, control and Lumen had zero service restarts after reboot.
+- Remaining live faults: the initially quiet USB sample was conditional.
+  With Mira's local wake listener capturing the muted `Webcam gadget` USB
+  source, 18,761 xHCI buffer-overrun warnings occurred in five minutes. Its
+  ALSA stream reads 16 kHz mono at USB port `1-6.2`; after stopping only the
+  owned Mira review unit, the stream disappeared and a later 15-second sample
+  had zero overruns. This isolates capture as the trigger, not the firmware
+  root cause or the device's identity as the paired Echo. No NVIDIA Xid was
+  present in that five-minute sample. Home Assistant Bluetooth scanning still
+  errors with no system D-Bus socket in its container; Tuya duplicate IDs skip
+  entities and rootless DHCP discovery lacks packet-capture permission. Its
+  first start failed with `protocol`, then restarted successfully once; no
+  notification-race fix is inferred. Three Lumen lights remain unavailable.
+  Inspection did not flash firmware, rewrite integrations or alter lighting.
 - Owner-authorized cleanup removed seven old VM disks, eight retired runtime
   copies, 13 stopped test containers and 147 inactive build containers, plus
   obsolete images, private review homes and crash dumps. Writable headroom
-  rose from about 45 to 272 GiB (91% to 40% used). Git checkpoints are preserved
+  rose from about 45 to 275 GiB (91% to 40% used). Git checkpoints are preserved
   in local `refs/archive/moos-audit-20261009/` before duplicate bundles were
   removed. Firmware recovery images, databases and source branches remain.
-- Opened checkout and local main match origin/main 8ebe0591. All 49 local
+- Product base of the opened checkout and local main match origin/main 8ebe0591. All 49 local
   tips inspected before the documentation branch were ancestors of main;
   all 25 inspected worktrees were clean. The remote ISO trace branch has one
   unmerged diagnostic commit, not an accepted installer fix.
@@ -102,7 +120,7 @@ Website PR52 is merged at 50db25d9: Mira's actual installed interface and both
 original faces replace the retired Mo AI picture. Arabic/English desktop/phone
 and full-size image checks passed; displayed demo data is disclosed.
 
-## Audit correction batch — source, not installed delivery
+## Audit correction batch — edition delivery boundaries
 
 The audit baseline covered 4,383 tracked files, including 3,806 text files and
 411 Python AST parses with zero syntax errors. Full maintained repository gates
@@ -145,8 +163,11 @@ Native ARM desktop and recovery full builds passed. A concurrent desktop build
 failed the unchanged 10-second KCM readiness gate; the isolated full rebuild
 passed all seven modules without changing that gate. Final capture privacy
 receives native .NET checks and the cached full-image build before push.
-The batch is delivered to promoted ARM .728; installed Oracle acceptance was
-not accessible from this station (the SSH alias did not resolve). X86 build
+The batch is delivered to promoted ARM .728; current installed Oracle
+acceptance remains unverified from this station. The discovered tailnet peer
+is online, but the existing SSH trust store has no key for its DNS name or IP;
+strict verification refused connection. No remote deployment was changed.
+X86 build
 37881477050 and disk proofs 37888183362/37888186631/37888189800 passed at
 8ebe0591; offline ISO 37888192868 failed on an empty `efi` directory. Diagnostic
 retry 37900328567 records `install=done` before its later diagnostic file read
