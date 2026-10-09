@@ -91,6 +91,7 @@ check:
     python3 tests/test_moai_skills.py
     # Every tool and playbook MoOS declares has a name in both languages in Mira's window.
     python3 tests/test_mira_names_every_capability.py
+    python3 tests/test_mira_capture_policy.py
     python3 tests/test_moai_rail_layout.py
     # Mo AI's brain is a cloud API and nothing is ever downloaded to the
     # machine. Free, no-card providers must exist and come first.

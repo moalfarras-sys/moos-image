@@ -126,60 +126,33 @@ and full-size image checks passed; displayed demo data is disclosed.
 
 ## Audit correction batch — edition delivery boundaries
 
-The audit baseline covered 4,383 tracked files, including 3,806 text files and
-411 Python AST parses with zero syntax errors. Full maintained repository gates
-and every Remote .NET executable passed. This inventory is not a claim that
-every behavior, third-party package or hardware combination is qualified.
+Privacy redaction/private output, Remote's SkiaSharp replacement and fail-closed
+dependency audits, language locking/startup, ARM disk-consent/install metadata
+and pinned cosign 3.1.3 passed their recorded native/source checks. Detailed
+negative controls and rights inventory are in the linked Arabic audit and
+[OWNERSHIP.md](OWNERSHIP.md); no universal compatibility/security claim follows.
+The batch is delivered to ARM .728. Oracle is online but SSH trust is absent
+here; current installed acceptance remains unverified and no remote origin changed.
 
-- Support privacy: reproduced leaks from quoted JSON/OAuth, PEM contents,
-  fine-grained GitHub keys and compressed IPv6. Redaction now precedes trimming;
-  output uses private unpredictable atomic files. New regressions fail old code.
-- Remote: NuGet reported five ImageSharp 3.1.11 advisories despite successful
-  compilation. The single fallback conversion now uses pinned MIT SkiaSharp
-  4.153.1, bounds input/pixels and rejects incomplete PNG/JPEG data. Native ARM
-  pixel/scale/quality/invalid-input tests pass. Fresh production audit has no
-  findings. All Remote projects inherit fail-closed NuGet audit policy; restoring
-  the old package fails on the real advisories.
-  Each fallback screenshot uses its own 0700 temporary directory and is removed
-  after conversion, rather than a predictable shared-/tmp filename.
-- Language: a refused flock previously continued into KDE/Flatpak/session writes.
-  It now stops before changing anything. Fresh Mira profiles follow supported
-  session language, with Arabic fallback and explicit saved choices preserved.
-- ARM net-install: both stale target manifests now name the independently
-  signature/label-verified .724 fallback snapshot. Recovery resolves the official
-  promoted registry tag once, with a 30-second bound, then verifies its immutable
-  digest. Static metadata is only an explicitly older fallback on retrieval failure. Reinstall
-  clearing follows successful signature verification, invalid explicit targets
-  cannot select another disk, and unimplemented repair never reports success.
-  All filesystems/partitions need explicit erase consent, unreadable layouts
-  stop, and auto-selection refuses more than the bundle's two disks.
-  Menu cancellation stops, failed installs cannot announce completion or reboot,
-  and firmware boot selection requires one named MoOS entry with intact hex ID.
-- ARM verifier: the built image exposed the old cosign 2.4.1 static fallback.
-  Desktop and recovery now use one reviewed 3.1.3 upstream asset with its
-  SHA-256 pin verified before execution/install; wrong bytes/version/architecture
-  and failed downloads stop. Native image and exact-release verification follow.
-- [OWNERSHIP.md](OWNERSHIP.md) records existing licences, attribution and official
-  identity without relicensing upstream works. CODEOWNERS names the maintainer.
-  It does not prevent copying/forking or claim a registered trademark.
+X86 build 37881477050 and three disk proofs passed at 8ebe0591; ISO 37888192868
+failed on an empty `efi`. Retry 37900328567 installed before diagnostics timed
+out. The independent installer repair at 144b1a6a now holds mount namespaces,
+private privileged state and bounded diagnostics; candidate build 37910223752
+passed, with ISO, three disk proofs and ARM now running. Promotion remains owed; never substitute
+the branch's source tests for signed delivery. Follow [RELEASE.md](RELEASE.md).
 
-Native ARM desktop and recovery full builds passed. A concurrent desktop build
-failed the unchanged 10-second KCM readiness gate; the isolated full rebuild
-passed all seven modules without changing that gate. Final capture privacy
-receives native .NET checks and the cached full-image build before push.
-The batch is delivered to promoted ARM .728; current installed Oracle
-acceptance remains unverified from this station. The discovered tailnet peer
-is online, but the existing SSH trust store has no key for its DNS name or IP;
-strict verification refused connection. No remote deployment was changed.
-X86 build
-37881477050 and disk proofs 37888183362/37888186631/37888189800 passed at
-8ebe0591; offline ISO 37888192868 failed on an empty `efi` directory. Diagnostic
-retry 37900328567 records `install=done` before its later diagnostic file read
-times out. The harness incorrectly labels every exec timeout as a 45-minute
-installer failure, including its 30-second diagnostic reads; the exact cause
-of that read stall remains unproven. X86 promotion and
-installed acceptance remain blocked by that actual installer proof. Follow
-[RELEASE.md](RELEASE.md); all unchanged identity/signature/initramfs gates remain.
+## Owner milestone — source work, not promoted delivery
+
+[Execution/handoff](docs/OWNER_EXECUTION_20261009_AR.md) records five ordered
+milestones, private support conversations/optional public suggestions, and the
+image gallery. The active slice is reliability. Source microphone policy now
+pauses on mute/missing/unknown source, invalidates pending recognition and lazily
+loads the wake model. Eleven dependency-free regressions, seven wake tests and
+45 native controller cases pass. Live source-helper proof passed eight stages:
+already-muted real USB without capture/overruns, three virtual-source unmute/mute
+cycles and removal, with helper/socket/module cleanup and unchanged defaults.
+This does not fix unmuted USB firmware or prove physical speech. Full maintained
+`just check` passed all 240 gates; this source is not installed or signed/promoted yet.
 
 ## Evidence still owed
 

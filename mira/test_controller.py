@@ -655,6 +655,22 @@ class ControllerTest(unittest.TestCase):
         self.assertEqual(ctl.mood_for('أي ضو تقصد؟'), 'curious')
         self.assertEqual(ctl.mood_for('anything', 'error'), 'sad')
 
+    def test_paused_wake_health_never_claims_audio_is_being_received(self):
+        for language, muted_label in (('ar', 'الميكروفون مكتوم'), ('en', 'Microphone muted')):
+            self.c.setLang(language)
+            for reason in ('muted', 'missing', 'unavailable', 'unknown', 'monitor_refused'):
+                with self.subTest(language=language, reason=reason):
+                    health = {'state': reason, 'frames_per_second': 99,
+                              'last_match_at': time.time()}
+                    with patch.object(Path, 'read_text', return_value=json.dumps(health)):
+                        self.c._check_local_wake()
+                    label = self.c.wake['state']
+                    self.assertNotIn('99', label)
+                    self.assertNotIn('Heard', label)
+                    self.assertNotIn('التقط', label)
+                    if reason == 'muted':
+                        self.assertIn(muted_label, label)
+
 
 if __name__ == '__main__':
     unittest.main()

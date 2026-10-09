@@ -75,6 +75,7 @@ python3 tests/test_moai_skills.py
 # A tool or playbook without Mira's words shows as its raw identifier in an Arabic window; her own
 # check for playbooks passed on an empty folder in the image build.
 python3 tests/test_mira_names_every_capability.py
+python3 tests/test_mira_capture_policy.py
 python3 tests/test_moai_rail_layout.py
 # Mo AI's brain is a cloud API and nothing is ever downloaded to the
 # machine. Free, no-card providers must exist and come first.

@@ -1897,6 +1897,17 @@ class Controller(QObject):
             return
         try:
             health = json.loads(Path(f'/run/user/{os.getuid()}/mira-wake-health.json').read_text())
+            stopped = {
+                'muted': ('الميكروفون مكتوم · النداء معلّق', 'Microphone muted · wake paused'),
+                'missing': ('الميكروفون غير متصل', 'Microphone disconnected'),
+                'unavailable': ('الميكروفون غير متاح', 'Microphone unavailable'),
+                'unknown': ('تعذّر التحقق من الميكروفون · النداء معلّق', 'Microphone check unavailable · wake paused'),
+                'monitor_refused': ('اختر ميكروفونًا للنداء', 'Choose a microphone for wake'),
+            }
+            if health.get('state') in stopped:
+                ar, en = stopped[health['state']]
+                self._update('_wake', self.settingsChanged, state=ar if self._lang == 'ar' else en)
+                return
             fps = health.get('frames_per_second', 0)
             label = (f'يستقبل صوتاً · {fps:.0f} إطار/ث' if self._lang == 'ar' else f'Receiving audio · {fps:.0f} fps')
             if time.time() - health.get('last_match_at', 0) < 30:
