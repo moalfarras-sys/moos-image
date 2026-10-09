@@ -1,9 +1,9 @@
 {
   "schema": 1,
   "date": "2026-10-09",
-  "ci_run": 37558755639,
-  "iso_sha256": "cbe92573e620101f274081c884671e4b63ffbcdb765521713d21ada1dbe9cb1c",
-  "scope": "Reviewed actual captures; no complete Arabic installation/hardware qualification claimed",
+  "ci_run": 37916929153,
+  "iso_sha256": "612a175308a76436549590cfb3d0ff7771ffe075a89a3fd77ab7ca47e675055a",
+  "scope": "Actual reviewed .1018 ISO CI frames and native/host captures; full Arabic installation and hardware qualification remain open",
   "missing_stages": [
     "UEFI/boot splash",
     "installer language selection",
@@ -14,238 +14,10 @@
   ],
   "entries": [
     {
-      "file": "ci-stable-1011-37558755639/moos-iso-install-proof/installed-app-dolphin.png",
-      "title_ar": "مدير الملفات",
-      "note_ar": "الإنجليزية؛ نافذة حقيقية. ليست مراجعة عربية أو اكتمال التخطيط الصغير.",
-      "sha256": "55bbb032a2f7fd82e34d3f7f7ec5f08dff6dc2d47823a139ccded57118d94099",
-      "physical_px": [
-        640,
-        505
-      ],
-      "environment": "final-iso-ci-vm",
-      "language": "en",
-      "scale": "not recorded",
-      "logical_px": "not recorded",
-      "version": "44.20261007.1011",
-      "source_sha": "fa85b2daf3db0f1f823b3159bb46b25571a99740",
-      "image_digest": "sha256:c3689b0e64c48cdf7d5de7d83b3dc156bf264f6381cce98d36376681b07ebf99",
-      "private_owner_content": false,
-      "publishable_after_review": true
-    },
-    {
-      "file": "ci-stable-1011-37558755639/moos-iso-install-proof/installed-app-konsole.png",
-      "title_ar": "الطرفية",
-      "note_ar": "الإنجليزية؛ نافذة حقيقية.",
-      "sha256": "677d6a7572d59b4248f06d44bf2c72724086da3af28667cd27befd25f994130c",
-      "physical_px": [
-        640,
-        505
-      ],
-      "environment": "final-iso-ci-vm",
-      "language": "en",
-      "scale": "not recorded",
-      "logical_px": "not recorded",
-      "version": "44.20261007.1011",
-      "source_sha": "fa85b2daf3db0f1f823b3159bb46b25571a99740",
-      "image_digest": "sha256:c3689b0e64c48cdf7d5de7d83b3dc156bf264f6381cce98d36376681b07ebf99",
-      "private_owner_content": false,
-      "publishable_after_review": true
-    },
-    {
-      "file": "ci-stable-1011-37558755639/moos-iso-install-proof/installed-app-mo-ai.png",
-      "title_ar": "ميرا",
-      "note_ar": "ميرا عربية داخل fixture سطح مكتب إنجليزي؛ ليست إثبات سلطة لغة موحدة.",
-      "sha256": "7c4e74b19c96457b18c50223e5b6eaf13a263fe082affa348339a300dbb0dfc4",
-      "physical_px": [
-        640,
-        505
-      ],
-      "environment": "final-iso-ci-vm",
-      "language": "ar-app/en-session",
-      "scale": "not recorded",
-      "logical_px": "not recorded",
-      "version": "44.20261007.1011",
-      "source_sha": "fa85b2daf3db0f1f823b3159bb46b25571a99740",
-      "image_digest": "sha256:c3689b0e64c48cdf7d5de7d83b3dc156bf264f6381cce98d36376681b07ebf99",
-      "private_owner_content": false,
-      "publishable_after_review": true
-    },
-    {
-      "file": "ci-stable-1011-37558755639/moos-iso-install-proof/installed-app-mo-pc-remote.png",
-      "title_ar": "Mo PC Remote",
-      "note_ar": "حالة stopped واضحة؛ لا تثبت اتصال هاتف أو بث فيديو.",
-      "sha256": "d3b2375aeebf3267072c231ca8d7145cfa1fa74951fa7f8d9e50073d8db34607",
-      "physical_px": [
-        640,
-        505
-      ],
-      "environment": "final-iso-ci-vm",
-      "language": "en",
-      "scale": "not recorded",
-      "logical_px": "not recorded",
-      "version": "44.20261007.1011",
-      "source_sha": "fa85b2daf3db0f1f823b3159bb46b25571a99740",
-      "image_digest": "sha256:c3689b0e64c48cdf7d5de7d83b3dc156bf264f6381cce98d36376681b07ebf99",
-      "private_owner_content": false,
-      "publishable_after_review": true
-    },
-    {
-      "file": "ci-stable-1011-37558755639/moos-iso-install-proof/installed-app-mo-store.png",
-      "title_ar": "المتجر",
-      "note_ar": "عملية تنزيل ظاهرة؛ أطراف المحتوى مقصوصة عند 640×480. ليست دليل انتهاء التثبيت.",
-      "sha256": "7b4f5d7ebd446ce06df207739c6671a4f2841af70ef42333d801f2a821ce9f63",
-      "physical_px": [
-        640,
-        505
-      ],
-      "environment": "final-iso-ci-vm",
-      "language": "en",
-      "scale": "not recorded",
-      "logical_px": "not recorded",
-      "version": "44.20261007.1011",
-      "source_sha": "fa85b2daf3db0f1f823b3159bb46b25571a99740",
-      "image_digest": "sha256:c3689b0e64c48cdf7d5de7d83b3dc156bf264f6381cce98d36376681b07ebf99",
-      "private_owner_content": false,
-      "publishable_after_review": true
-    },
-    {
-      "file": "ci-stable-1011-37558755639/moos-iso-install-proof/installed-app-moos-settings.png",
-      "title_ar": "إعدادات MoOS",
-      "note_ar": "تحميل مبكر: Reading device status / signature unknown؛ لا يثبت انتهاء قراءة الحالة.",
-      "sha256": "9f81efa08d07ec7cfd80e28758222789e4953f8af54d4ecf96ba83f8be64c092",
-      "physical_px": [
-        640,
-        505
-      ],
-      "environment": "final-iso-ci-vm",
-      "language": "en",
-      "scale": "not recorded",
-      "logical_px": "not recorded",
-      "version": "44.20261007.1011",
-      "source_sha": "fa85b2daf3db0f1f823b3159bb46b25571a99740",
-      "image_digest": "sha256:c3689b0e64c48cdf7d5de7d83b3dc156bf264f6381cce98d36376681b07ebf99",
-      "private_owner_content": false,
-      "publishable_after_review": true
-    },
-    {
-      "file": "ci-stable-1011-37558755639/moos-iso-install-proof/installed-app-moplayer.png",
-      "title_ar": "MoPlayer",
-      "note_ar": "نافذة سوداء مبكرة؛ لا تثبت رسم التطبيق أو تشغيل الوسائط.",
-      "sha256": "39df24529dc35df5fe2f31ff6eeb003d62c909209f6b0266bedf424098b44124",
-      "physical_px": [
-        640,
-        505
-      ],
-      "environment": "final-iso-ci-vm",
-      "language": "en",
-      "scale": "not recorded",
-      "logical_px": "not recorded",
-      "version": "44.20261007.1011",
-      "source_sha": "fa85b2daf3db0f1f823b3159bb46b25571a99740",
-      "image_digest": "sha256:c3689b0e64c48cdf7d5de7d83b3dc156bf264f6381cce98d36376681b07ebf99",
-      "private_owner_content": false,
-      "publishable_after_review": true
-    },
-    {
-      "file": "ci-stable-1011-37558755639/moos-iso-install-proof/installed-app-recovery.png",
-      "title_ar": "الاسترداد",
-      "note_ar": "الإصدار غير مقروء؛ لا تؤخذ رسالة عدم وجود نسخة سابقة كدليل عندما القراءة مجهولة.",
-      "sha256": "f2f53e5dfd5e58946c3640dd08952688e51235d1d75e2618f2c65d01b71fd542",
-      "physical_px": [
-        640,
-        505
-      ],
-      "environment": "final-iso-ci-vm",
-      "language": "en",
-      "scale": "not recorded",
-      "logical_px": "not recorded",
-      "version": "44.20261007.1011",
-      "source_sha": "fa85b2daf3db0f1f823b3159bb46b25571a99740",
-      "image_digest": "sha256:c3689b0e64c48cdf7d5de7d83b3dc156bf264f6381cce98d36376681b07ebf99",
-      "private_owner_content": false,
-      "publishable_after_review": true
-    },
-    {
-      "file": "ci-stable-1011-37558755639/moos-iso-install-proof/installed-app-themes.png",
-      "title_ar": "المظهر الموحّد",
-      "note_ar": "صفحة MoOS Themes الأصلية داخل إعدادات KDE.",
-      "sha256": "eff7c61fca98e6117f0bb9e5b807f497a1e7824d35511c0e06e6847012da8d22",
-      "physical_px": [
-        640,
-        505
-      ],
-      "environment": "final-iso-ci-vm",
-      "language": "en",
-      "scale": "not recorded",
-      "logical_px": "not recorded",
-      "version": "44.20261007.1011",
-      "source_sha": "fa85b2daf3db0f1f823b3159bb46b25571a99740",
-      "image_digest": "sha256:c3689b0e64c48cdf7d5de7d83b3dc156bf264f6381cce98d36376681b07ebf99",
-      "private_owner_content": false,
-      "publishable_after_review": true
-    },
-    {
-      "file": "ci-stable-1011-37558755639/moos-iso-install-proof/installed-app-updater.png",
-      "title_ar": "التحديث",
-      "note_ar": "أصل غير معروف وفحص تحديث غير ناجح في اللقطة؛ فتح/إغلاق/إعادة فتح وحده لا يثبت صحة تحديث VM.",
-      "sha256": "c475f42c236ce3835aa980956f2b123e1b7978a730c76f3b3753dce580a11a0c",
-      "physical_px": [
-        640,
-        505
-      ],
-      "environment": "final-iso-ci-vm",
-      "language": "en",
-      "scale": "not recorded",
-      "logical_px": "not recorded",
-      "version": "44.20261007.1011",
-      "source_sha": "fa85b2daf3db0f1f823b3159bb46b25571a99740",
-      "image_digest": "sha256:c3689b0e64c48cdf7d5de7d83b3dc156bf264f6381cce98d36376681b07ebf99",
-      "private_owner_content": false,
-      "publishable_after_review": true
-    },
-    {
-      "file": "ci-stable-1011-37558755639/moos-iso-install-proof/installed-login-attempt1.png",
-      "title_ar": "تسجيل الدخول بعد التثبيت",
-      "note_ar": "باب تسجيل الدخول الحقيقي لمستخدم CI، بالإنجليزية.",
-      "sha256": "2de0d71dca4fffda523ce4248f85307157244733eb9340c4c43eef000d30817b",
-      "physical_px": [
-        640,
-        505
-      ],
-      "environment": "final-iso-ci-vm",
-      "language": "en",
-      "scale": "not recorded",
-      "logical_px": "not recorded",
-      "version": "44.20261007.1011",
-      "source_sha": "fa85b2daf3db0f1f823b3159bb46b25571a99740",
-      "image_digest": "sha256:c3689b0e64c48cdf7d5de7d83b3dc156bf264f6381cce98d36376681b07ebf99",
-      "private_owner_content": false,
-      "publishable_after_review": true
-    },
-    {
-      "file": "ci-stable-1011-37558755639/moos-iso-install-proof/installed-login.png",
-      "title_ar": "تهيئة الجلسة",
-      "note_ar": "تعرض Preparing your space؛ ليست شاشة كلمة المرور.",
-      "sha256": "6468f9c9384e386d19e10b79a46d598bf2f46ea8252324cb072a290ca3c995b6",
-      "physical_px": [
-        640,
-        505
-      ],
-      "environment": "final-iso-ci-vm",
-      "language": "en",
-      "scale": "not recorded",
-      "logical_px": "not recorded",
-      "version": "44.20261007.1011",
-      "source_sha": "fa85b2daf3db0f1f823b3159bb46b25571a99740",
-      "image_digest": "sha256:c3689b0e64c48cdf7d5de7d83b3dc156bf264f6381cce98d36376681b07ebf99",
-      "private_owner_content": false,
-      "publishable_after_review": true
-    },
-    {
-      "file": "ci-stable-1011-37558755639/moos-live-iso-boot-proof/graphical.png",
+      "file": "ci-stable-1018-37916929153/graphical.png",
       "title_ar": "إقلاع ISO الحي / الترحيب",
       "note_ar": "لقطة مبكرة باللغة الإنجليزية؛ محتوى الترحيب مقصوص عند 640×480. ليست واجهة خطوات التثبيت كاملة.",
-      "sha256": "0d90febe05cb891c90f2b62f84852636c0dbef0a6b3f1f3c35efd260513d3ae3",
+      "sha256": "9d11823c35cf3a131bfda7a2b5aad16022a496dea98cad7c66945baecc3aae5e",
       "physical_px": [
         640,
         505
@@ -254,9 +26,256 @@
       "language": "en",
       "scale": "not recorded",
       "logical_px": "not recorded",
-      "version": "44.20261007.1011",
-      "source_sha": "fa85b2daf3db0f1f823b3159bb46b25571a99740",
-      "image_digest": "sha256:c3689b0e64c48cdf7d5de7d83b3dc156bf264f6381cce98d36376681b07ebf99",
+      "version": "44.20261009.1018",
+      "source_sha": "144b1a6ad04f0b7fa442183110ad6d969f636add",
+      "image_digest": "sha256:3055eb28ac032492a053da1efb9493c9780e7bfa20a01c7c3300961693bfee92",
+      "private_owner_content": false,
+      "publishable_after_review": true
+    },
+    {
+      "file": "ci-stable-1018-37916929153/installed-app-dolphin.png",
+      "title_ar": "مدير الملفات",
+      "note_ar": "الإنجليزية؛ نافذة حقيقية. ليست مراجعة عربية أو اكتمال التخطيط الصغير.",
+      "sha256": "f868243a83553189ec792bdb522996c587bc8710b1fb92523b26f68e05872111",
+      "physical_px": [
+        640,
+        505
+      ],
+      "environment": "final-iso-ci-vm",
+      "language": "en",
+      "scale": "not recorded",
+      "logical_px": "not recorded",
+      "version": "44.20261009.1018",
+      "source_sha": "144b1a6ad04f0b7fa442183110ad6d969f636add",
+      "image_digest": "sha256:3055eb28ac032492a053da1efb9493c9780e7bfa20a01c7c3300961693bfee92",
+      "private_owner_content": false,
+      "publishable_after_review": true
+    },
+    {
+      "file": "ci-stable-1018-37916929153/installed-app-konsole.png",
+      "title_ar": "الطرفية",
+      "note_ar": "الإنجليزية؛ نافذة حقيقية.",
+      "sha256": "4f6b88362e4b1984d81a0dc282dd71123e18f0efa9831a33c161f473f2ce3281",
+      "physical_px": [
+        640,
+        505
+      ],
+      "environment": "final-iso-ci-vm",
+      "language": "en",
+      "scale": "not recorded",
+      "logical_px": "not recorded",
+      "version": "44.20261009.1018",
+      "source_sha": "144b1a6ad04f0b7fa442183110ad6d969f636add",
+      "image_digest": "sha256:3055eb28ac032492a053da1efb9493c9780e7bfa20a01c7c3300961693bfee92",
+      "private_owner_content": false,
+      "publishable_after_review": true
+    },
+    {
+      "file": "ci-stable-1018-37916929153/installed-app-mo-ai.png",
+      "title_ar": "ميرا",
+      "note_ar": "ميرا باللغة الإنجليزية في جلسة CI إنجليزية؛ ليست مراجعة عربية على جهاز المالك.",
+      "sha256": "2d9bcaac51b0a5f9642b41b2f8c95234ee69840acf63e4bca512fc652bf218d8",
+      "physical_px": [
+        640,
+        505
+      ],
+      "environment": "final-iso-ci-vm",
+      "language": "en",
+      "scale": "not recorded",
+      "logical_px": "not recorded",
+      "version": "44.20261009.1018",
+      "source_sha": "144b1a6ad04f0b7fa442183110ad6d969f636add",
+      "image_digest": "sha256:3055eb28ac032492a053da1efb9493c9780e7bfa20a01c7c3300961693bfee92",
+      "private_owner_content": false,
+      "publishable_after_review": true
+    },
+    {
+      "file": "ci-stable-1018-37916929153/installed-app-mo-pc-remote.png",
+      "title_ar": "Mo PC Remote",
+      "note_ar": "حالة stopped واضحة؛ لا تثبت اتصال هاتف أو بث فيديو.",
+      "sha256": "54dbdcfa551fbe1c3bc9bf45f98e6093e66508fe46d26118a26a82103a2bf9f8",
+      "physical_px": [
+        640,
+        505
+      ],
+      "environment": "final-iso-ci-vm",
+      "language": "en",
+      "scale": "not recorded",
+      "logical_px": "not recorded",
+      "version": "44.20261009.1018",
+      "source_sha": "144b1a6ad04f0b7fa442183110ad6d969f636add",
+      "image_digest": "sha256:3055eb28ac032492a053da1efb9493c9780e7bfa20a01c7c3300961693bfee92",
+      "private_owner_content": false,
+      "publishable_after_review": true
+    },
+    {
+      "file": "ci-stable-1018-37916929153/installed-app-mo-store.png",
+      "title_ar": "المتجر",
+      "note_ar": "عملية تنزيل ظاهرة؛ أطراف المحتوى مقصوصة عند 640×480. ليست دليل انتهاء التثبيت.",
+      "sha256": "0588fb259b4a5ea1e4086c2d441b8cbf6cea16440d45af5211dbf306419049a9",
+      "physical_px": [
+        640,
+        505
+      ],
+      "environment": "final-iso-ci-vm",
+      "language": "en",
+      "scale": "not recorded",
+      "logical_px": "not recorded",
+      "version": "44.20261009.1018",
+      "source_sha": "144b1a6ad04f0b7fa442183110ad6d969f636add",
+      "image_digest": "sha256:3055eb28ac032492a053da1efb9493c9780e7bfa20a01c7c3300961693bfee92",
+      "private_owner_content": false,
+      "publishable_after_review": true
+    },
+    {
+      "file": "ci-stable-1018-37916929153/installed-app-moos-settings.png",
+      "title_ar": "إعدادات MoOS",
+      "note_ar": "تحميل مبكر: Reading device status / signature unknown؛ لا يثبت انتهاء قراءة الحالة.",
+      "sha256": "0dee1d28db972b1b87b4d4f1527a88639a58e668ac3ce426978031cbc08214dc",
+      "physical_px": [
+        640,
+        505
+      ],
+      "environment": "final-iso-ci-vm",
+      "language": "en",
+      "scale": "not recorded",
+      "logical_px": "not recorded",
+      "version": "44.20261009.1018",
+      "source_sha": "144b1a6ad04f0b7fa442183110ad6d969f636add",
+      "image_digest": "sha256:3055eb28ac032492a053da1efb9493c9780e7bfa20a01c7c3300961693bfee92",
+      "private_owner_content": false,
+      "publishable_after_review": true
+    },
+    {
+      "file": "ci-stable-1018-37916929153/installed-app-moplayer.png",
+      "title_ar": "MoPlayer",
+      "note_ar": "نافذة سوداء مبكرة؛ لا تثبت رسم التطبيق أو تشغيل الوسائط.",
+      "sha256": "0212ab1f73d5c933d0f9def09187dd2c3fc1975845199619d644328180af8b5a",
+      "physical_px": [
+        640,
+        505
+      ],
+      "environment": "final-iso-ci-vm",
+      "language": "en",
+      "scale": "not recorded",
+      "logical_px": "not recorded",
+      "version": "44.20261009.1018",
+      "source_sha": "144b1a6ad04f0b7fa442183110ad6d969f636add",
+      "image_digest": "sha256:3055eb28ac032492a053da1efb9493c9780e7bfa20a01c7c3300961693bfee92",
+      "private_owner_content": false,
+      "publishable_after_review": true
+    },
+    {
+      "file": "ci-stable-1018-37916929153/installed-app-recovery.png",
+      "title_ar": "الاسترداد",
+      "note_ar": "الإصدار غير مقروء؛ لا تؤخذ رسالة عدم وجود نسخة سابقة كدليل عندما القراءة مجهولة.",
+      "sha256": "ad8f47e6ca1d39703da308e11f2bffeb7250886e151afe15416c193ddc50a82e",
+      "physical_px": [
+        640,
+        505
+      ],
+      "environment": "final-iso-ci-vm",
+      "language": "en",
+      "scale": "not recorded",
+      "logical_px": "not recorded",
+      "version": "44.20261009.1018",
+      "source_sha": "144b1a6ad04f0b7fa442183110ad6d969f636add",
+      "image_digest": "sha256:3055eb28ac032492a053da1efb9493c9780e7bfa20a01c7c3300961693bfee92",
+      "private_owner_content": false,
+      "publishable_after_review": true
+    },
+    {
+      "file": "ci-stable-1018-37916929153/installed-app-themes.png",
+      "title_ar": "المظهر الموحّد",
+      "note_ar": "صفحة MoOS Themes الأصلية داخل إعدادات KDE.",
+      "sha256": "fa43f1622f17b9a28caba7408c2fbdbab5be8d50b296d956af3ac17c090ea791",
+      "physical_px": [
+        640,
+        505
+      ],
+      "environment": "final-iso-ci-vm",
+      "language": "en",
+      "scale": "not recorded",
+      "logical_px": "not recorded",
+      "version": "44.20261009.1018",
+      "source_sha": "144b1a6ad04f0b7fa442183110ad6d969f636add",
+      "image_digest": "sha256:3055eb28ac032492a053da1efb9493c9780e7bfa20a01c7c3300961693bfee92",
+      "private_owner_content": false,
+      "publishable_after_review": true
+    },
+    {
+      "file": "ci-stable-1018-37916929153/installed-app-updater.png",
+      "title_ar": "التحديث",
+      "note_ar": "أصل غير معروف وفحص تحديث غير ناجح في اللقطة؛ فتح/إغلاق/إعادة فتح وحده لا يثبت صحة تحديث VM.",
+      "sha256": "f9898ca291211d87beb025d3968af97e14e2ea2bf1d2822e24baa350914cd91b",
+      "physical_px": [
+        640,
+        505
+      ],
+      "environment": "final-iso-ci-vm",
+      "language": "en",
+      "scale": "not recorded",
+      "logical_px": "not recorded",
+      "version": "44.20261009.1018",
+      "source_sha": "144b1a6ad04f0b7fa442183110ad6d969f636add",
+      "image_digest": "sha256:3055eb28ac032492a053da1efb9493c9780e7bfa20a01c7c3300961693bfee92",
+      "private_owner_content": false,
+      "publishable_after_review": true
+    },
+    {
+      "file": "ci-stable-1018-37916929153/installed-desktop-apps.png",
+      "title_ar": "آخر تطبيق أعيد فتحه",
+      "note_ar": "لقطة Remote؛ ليست سطح مكتب خاليًا من التطبيقات.",
+      "sha256": "5309e2a2530da509b99289de0ee11e2712c666db2aa6a1fe3653de93278fac27",
+      "physical_px": [
+        640,
+        505
+      ],
+      "environment": "final-iso-ci-vm",
+      "language": "en",
+      "scale": "not recorded",
+      "logical_px": "not recorded",
+      "version": "44.20261009.1018",
+      "source_sha": "144b1a6ad04f0b7fa442183110ad6d969f636add",
+      "image_digest": "sha256:3055eb28ac032492a053da1efb9493c9780e7bfa20a01c7c3300961693bfee92",
+      "private_owner_content": false,
+      "publishable_after_review": true
+    },
+    {
+      "file": "ci-stable-1018-37916929153/installed-login-attempt1.png",
+      "title_ar": "تسجيل الدخول بعد التثبيت",
+      "note_ar": "باب تسجيل الدخول الحقيقي لمستخدم CI، بالإنجليزية.",
+      "sha256": "1453b1858cb7502f34f190d94a32bfbd311bfd2e8c3f11beb97707c9bd0d8936",
+      "physical_px": [
+        640,
+        505
+      ],
+      "environment": "final-iso-ci-vm",
+      "language": "en",
+      "scale": "not recorded",
+      "logical_px": "not recorded",
+      "version": "44.20261009.1018",
+      "source_sha": "144b1a6ad04f0b7fa442183110ad6d969f636add",
+      "image_digest": "sha256:3055eb28ac032492a053da1efb9493c9780e7bfa20a01c7c3300961693bfee92",
+      "private_owner_content": false,
+      "publishable_after_review": true
+    },
+    {
+      "file": "ci-stable-1018-37916929153/installed-login.png",
+      "title_ar": "تهيئة الجلسة",
+      "note_ar": "تعرض Preparing your space؛ ليست شاشة كلمة المرور.",
+      "sha256": "466152f4a2a920d71ea4f7a7e8e12a969a67c29229eef10257c98fb347d5e05f",
+      "physical_px": [
+        640,
+        505
+      ],
+      "environment": "final-iso-ci-vm",
+      "language": "en",
+      "scale": "not recorded",
+      "logical_px": "not recorded",
+      "version": "44.20261009.1018",
+      "source_sha": "144b1a6ad04f0b7fa442183110ad6d969f636add",
+      "image_digest": "sha256:3055eb28ac032492a053da1efb9493c9780e7bfa20a01c7c3300961693bfee92",
       "private_owner_content": false,
       "publishable_after_review": true
     },
@@ -677,5 +696,11 @@
   ],
   "raw_ci_logs": "kept privately in audit state outside gallery",
   "gallery_unique_frames": 30,
-  "community_live_acceptance": "actual Oracle TLS + private two-account/image/release API proof; source-native UI, not signed image delivery"
+  "community_live_acceptance": "actual Oracle TLS + private two-account/image/release API proof; source-native UI, not signed image delivery",
+  "duplicates_removed": [
+    {
+      "removed_duplicate": "window-probe.png",
+      "same_as": "installed-desktop-apps.png"
+    }
+  ]
 }

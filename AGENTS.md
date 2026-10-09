@@ -377,6 +377,13 @@ ten silent seconds while a screen picker can wait indefinitely. A lost stream
 must release the area and restore paced house control for its lamps. Preserve
 explicit saved cloud targets on restart. PC state is never physical LED readback.
 
+**A rendered Qt frame can still fail during teardown.** QML bindings outlive a
+Python context object if interpreter-local cleanup chooses the wrong order.
+Keep the controller alive until the QML engine is actually destroyed. Inspect
+the launch process through shutdown, not only its ready marker: the old native
+community container rendered a frame then raised a null-context TypeError;
+the unchanged image gate refused it, and old/fixed container controls prove it.
+
 **A declared UID guard needs the host UID namespace.** The community API
 correctly refused its Tailscale proxy from a sandboxed user unit: despite
 `PrivateUsers=no`, the process's actual `uid_map` mapped only UID 1000 and the

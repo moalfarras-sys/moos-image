@@ -54,16 +54,15 @@ Ten actual apps opened, closed and reopened in the final offline-installed ISO.
 
 ## Physical NVIDIA workstation — live 2026-10-09
 
-- Official `moai-do update` and Mo Store app updates completed. The owner-
-  authorized reboot now runs signed .1011 (`9b77fc3e…`), with signed .1009
-  (`608f702a…`) retained for rollback. Boot ID changed to
-  `2dc8a81a-c467-4a60-8595-1b381de1aad1`; the post-reboot receipt at
-  `~/.local/state/moos-audit/20261009/post-reboot-receipt.json` records the
-  exact expected/booted digest and both successful check exits.
+- Official update/reboot now runs signed .1018 (`c5977fc7…`), with signed .1011
+  (`9b77fc3e…`) retained for rollback. Boot ID changed to
+  `51a8ca7f-9feb-427b-837b-0e5c033d7077`; the private
+  `~/.local/state/moos-audit/20261009/post-proven-1018-receipt.json` records
+  exact expected/booted digest, signed origin/rollback and both successful checks.
 - Post-reboot selfcheck: 54 passed; installed acceptance: 55 passed, 0 failed.
   No failed system/user units. Arabic session, 3840×2160@60, scale 250%, UI2
-  Arena. Plasma 6.7.5, Qt 6.11.2, kernel 7.2.8, NVIDIA 615.71.09. Boot accounting
-  was 33.071 s including firmware/loader; not a repeated cold-boot benchmark.
+  Arena. Plasma 6.7.5, Qt 6.11.2, kernel 7.2.9, NVIDIA 615.78.08. Boot accounting
+  was 34.886 s including firmware/loader; not a repeated cold-boot benchmark.
 - Unlike the recorded Oracle state, station `oomctl dump` shows system/user
   pressure-monitored cgroups. Pressure is currently zero; this does not prove
   recovery under imposed memory pressure. Fresh reboot readback had about
@@ -77,14 +76,16 @@ Ten actual apps opened, closed and reopened in the final offline-installed ISO.
   voice or complete action acceptance. All four installed apps launched again
   after reboot; Settings again logged native readiness, and actual Mira and
   MoPlayer Arabic frames were inspected at 4K/250%. Their review processes
-  stayed alive; this does not prove media playback or every app action.
-  Remote, gateway, control and Lumen had zero service restarts after reboot.
+  stayed alive; this does not prove media playback or every app action. On .1018,
+  all four apps opened without QML errors; native Settings readiness and Arabic
+  Mira/MoPlayer pixels passed. Remote/gateway/control/Lumen have zero restarts.
 - Remaining live faults: the initially quiet USB sample was conditional.
   With Mira's local wake listener capturing the muted `Webcam gadget` USB
   source, 18,761 xHCI buffer-overrun warnings occurred in five minutes. Its
   ALSA stream reads 16 kHz mono at USB port `1-6.2`; after stopping only the
   owned Mira review unit, the stream disappeared and a later 15-second sample
-  had zero overruns. This isolates capture as the trigger, not the firmware
+  had zero overruns. .1018 still produced 5,744 in a three-minute Mira sample;
+  only its owned review unit was stopped. This isolates capture, not the firmware
   root cause or the device's identity as the paired Echo. No NVIDIA Xid was
   present in that five-minute sample. Home Assistant Bluetooth scanning still
   errors with no system D-Bus socket in its container; Tuya duplicate IDs skip
@@ -98,10 +99,10 @@ Ten actual apps opened, closed and reopened in the final offline-installed ISO.
   rose from about 45 to 275 GiB (91% to 40% used). Git checkpoints are preserved
   in local `refs/archive/moos-audit-20261009/` before duplicate bundles were
   removed. Firmware recovery images, databases and source branches remain.
-- Product base of the opened checkout and local main match origin/main 8ebe0591. All 49 local
-  tips inspected before the documentation branch were ancestors of main;
-  all 25 inspected worktrees were clean. The remote ISO trace branch has one
-  unmerged diagnostic commit, not an accepted installer fix.
+- Initial product audit matched main 8ebe0591: all 49 inspected local tips were
+  ancestors and all 25 worktrees clean. Main is now 46b46e87, preserving the
+  accepted installer repair; PR222 contains the later owner batch. Earlier
+  diagnostic-only trace history remains preserved, not counted as a repair.
   Archived snapshots are preserved too: the old indexing-section and icon-cap
   corrections already exist in current source. The retired translucent-dialog
   prototype is not integrated or qualified against today's themes; review its
@@ -144,7 +145,7 @@ private privileged state and bounded diagnostics; candidate build 37910223752
 passed; ISO 37916929153, disks 37916917245/37916921267/37916925157 and ARM
 37916934408 all succeeded. PR221 merged at 46b46e87 with the exact candidate
 tree; x86 promotion 37946594645 succeeded. NVIDIA .1018 (`c5977fc7…`) is published;
-official local staging completed; reboot/readback remain owed. Its installer proof excludes this later owner batch.
+official reboot/readback passed 54/0 and 55/0, with signed .1011 rollback. Its installer proof excludes this later owner batch.
 
 ## Owner milestone — source work, not promoted delivery
 
@@ -160,14 +161,14 @@ This does not fix unmuted USB firmware or prove physical speech. Full maintained
 `just check` passed all 240 gates; this source is not installed or signed/promoted yet.
 Recovery's unreadable state now differs from a proven absent rollback, with a
 read-only retry. Its regression gate and actual native AR/EN GTK source review
-pass; no rollback mechanism or boot choice changed. The gallery holds 30 unique
+pass; no rollback mechanism or boot choice changed. The gallery holds 31 unique
 real frames with explicit source/CI/private-host boundaries and missing stages.
 Participation beta: 34 API/privacy/retry/proxy/release, 10 native Qt HTTP/launcher cases
 pass. Oracle API runs under a dedicated unprivileged account; public TLS, six
 API cases and physical Wayland Arabic/image flow passed. Synthetic data removed.
-Four real packaging cases pass; all-edition packaging is added. Full image
-caught a QML context teardown defect: old-container negative/fixed positive pass.
-Signed delivery remains open; latest maintained repository run passed 243 gates.
+Four packaging cases, all 243 repo gates and the full generic image pass at 2cb1e863;
+five shipped runtime hashes match. Old/fixed QML teardown controls fail/pass.
+Image 9a2d355605ff has kernel 7.2.9; signed owner-batch delivery remains open.
 
 ## Installer mechanism preserved in the integrated batch
 

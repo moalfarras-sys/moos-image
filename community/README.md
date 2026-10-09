@@ -119,8 +119,12 @@ Both image scripts run `verify_community_client.py` against the actual launcher
 with private HOME/runtime/bus and a real Arabic capture. Server, operator tools,
 tests and dependencies never ship on desktop machines. QML disk cache is disabled
 like the other first-party apps, so no shell-theme revision change is required.
-Full local image gates, the standard signed candidate, boot proofs and installed
-readback are still required before delivery.
+The full local generic image passed at `2cb1e863` (image `9a2d355605ff`),
+including actual Arabic launch/teardown, identity, native Settings and initramfs;
+all five shipped runtime hashes match source. The old/fixed container control
+proves the teardown gate refuses a null Python context after rendering.
+The standard signed candidate, edition boot proofs and installed client readback
+remain required before delivery.
 No source branch, local override or merely listening API closes that acceptance.
 Public custom DNS, password recovery, audited team identity onboarding, OS-native
 notification preference, retention/support terms and broad hardware/accessibility
