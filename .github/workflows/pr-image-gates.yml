@@ -36,6 +36,8 @@ on:
       # Mira, the assistant: her mira-build stage runs her suites and stages her tree, and
       # build.sh gates the installed app; a change to her source reaches the image.
       - "mira/**"
+      # The native participation stage ships these bytes, including main.qml.
+      - "community/**"
       - ".github/workflows/pr-image-gates.yml"
   workflow_dispatch:
 

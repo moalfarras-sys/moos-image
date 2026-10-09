@@ -35,6 +35,9 @@ agent will run one standard `scripts/release-candidate.sh --promote` after the
 final local image and PR checks pass, then official NVIDIA/Oracle readback.
 No owner-batch cycle has started yet. Its image additions also own the explicit
 `dbus-daemon` dependency for the community gate in `build_files/build-arm.sh`.
+Native client trigger additions in `.github/workflows/pr-image-gates.yml`,
+`.github/workflows/build-arm.yml` and `tests/test_pr_image_gates_workflow.py`
+belong to this packaging batch too; existing matrix/jobs/permissions stay intact.
 Main freezes at that cycle's recorded SHA through promotion/failure; do not
 dispatch a duplicate cycle. The accepted installer cycle at `144b1a6a` is complete.
 

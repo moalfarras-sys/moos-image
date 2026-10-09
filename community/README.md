@@ -135,6 +135,9 @@ in private light/dark profiles as well as the desktop. Eleven native cases pass;
 both languages were rendered and clicked at 560×520 in both palettes. ARM's
 first packaging build correctly failed because dbus-run-session was absent;
 dbus-daemon is now an explicit dependency, with the unchanged launch gate.
+Native client-only changes now trigger x86 PR and ARM push/PR image gates.
+The existing workflow contract test reproduced the missing-trigger failure
+before those path additions; permissions and candidate/promotion jobs stay intact.
 The final client also passed two real Arabic Wayland-button clicks and private
 image receipt against Oracle's TLS endpoint; its synthetic report, session and
 account were removed. The service retains only its maintainer bootstrap account.
