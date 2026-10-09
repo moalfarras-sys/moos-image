@@ -9,3 +9,11 @@ Each entry identifies the source SHA, signed image digest, language, logical and
 physical geometry, scale, stage and environment (installed host / final ISO VM /
 source review). Missing stages stay missing until captured. Passing a screenshot
 does not replace offline installation, installed reboot and hardware acceptance.
+
+[2026-10-09 manifest](20261009.json): 14 unique actual frames, two duplicate PNGs
+removed. CI evidence is from signed generic `.1011`, run `37558755639`, at
+640×480; the private station desktop is 3840×2160 at 250%. Raw CI logs were moved
+out of the picture gallery into private audit state. No owner pixels are in Git.
+The manifest explicitly retains missing installer stages and failed/incomplete
+visual readbacks: mixed fixture language, clipping, black early MoPlayer window,
+unreadable Updater/Recovery state. App open/close/reopen is narrower evidence.
