@@ -18,6 +18,13 @@ gh run download ISO_RUN --repo moalfarras-sys/moos-image \
   --name moos-live-iso --dir /absolute/path/to/preserved-release
 ```
 
+For multi-GB artifacts, place the GitHub CLI temporary ZIP on writable disk,
+not a small /tmp tmpfs. The October 9 first download exhausted that tmpfs
+quota; downloading the same qualified artifact with a private TMPDIR under
+/var succeeded. For example, create a 0700 directory under the preserved
+release's parent and prefix the command with TMPDIR=/absolute/private/path.
+Check free disk space for the archive and extracted ISO before downloading.
+
 CI artifact retention is seven days. Archive the final files outside the source
 tree before expiry; keep them out of Git. GitHub Releases allows only 2 GiB per
 asset, while the measured October 4 ISO artifact is about 5.8 GB. A normal,

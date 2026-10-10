@@ -1,26 +1,32 @@
 # MoOS development plan — current execution backlog
 
-Updated 2026-10-08. This is the single execution backlog, not an incident diary.
+Updated 2026-10-09. This is the single execution backlog, not an incident diary.
 Current measurements live in PROJECT_STATE.md; detailed audit evidence and
 remaining boundaries are in AUDIT_20261008_AR.md. Git preserves prior waves.
 
 ## Active audit correction batch
 
-Priority before the M1 visual work: support-report privacy/atomic output,
-Remote's vulnerable fallback dependency and fail-closed NuGet audits,
-language transaction/startup consistency, and current signed ARM install
-metadata. Source regressions and native tests pass; the new image, exact
-candidate/boot/promotion and installed checks remain required.
+The support/Remote/language/recovery correction batch and the offline
+installer follow-up are merged in PR220/PR221. Maintained gates, full native
+image and all first-attempt exact-candidate boot/install proofs passed.
+Generic/NVIDIA/cloud .1018 are promoted from 144b1a6a; ARM .733 from main
+46b46e87 has the same tree and passed native build/two boots/promotion
+37946472626. ARM .733 is staged locally, not yet booted.
 
-Current stable x86 remains fa85b2da/.1011. ARM .728 from 8ebe0591 passed
-first-attempt pipeline 37881437511 and is staged, not yet booted here.
-The new x86 candidate passed all disks but ISO 37888192868 failed on a lost ESP;
-37900328567 installed, then trace collection timed out. The installer follow-up
-adds private mounts, checked layout, mandatory lock/private logs and bounded
-diagnostics. Fresh full image/candidate/ISO/promotion and installed checks remain owed.
-Public ISO hosting is qualified and P0.12 is closed. Historical NVIDIA hardware
-results do not describe this Oracle A1. Running scheduled/image-only builds
-never imply promotion. No new model-written shell or hardware acceptance is inferred.
+New ISO 37916929153 completed offline installation and installed login/reboot;
+x86 promotion 37946594645 passed. Its versioned full anonymous delivery passed. Website publication at 49a0dd9f and canonical/browser readback passed.
+The local update reboot/readback remains required. The old qualified public ISO
+remains available meanwhile. P0.12 requires repeated verification for each
+replacement. Historical NVIDIA hardware results do not describe this A1.
+Image-only builds, skipped proofs and model-generated instructions never
+imply promotion or hardware acceptance.
+
+Follow-up team review found three independently reproduced engine defects:
+downloaded APK success without a verified result, unsupported Windows PE
+architecture admission, and Android initialization claimed from failed status.
+Their isolated source correction/review is the next P4 correctness slice;
+it is not included in the promoted .733/.1018 release. The current Oracle
+ARM host has Linux-only engines. Binder/QEMU presence is not app acceptance.
 
 The cadence of release cycles is the security cadence: a nightly image-only
 build cannot deliver a base fix. P6.3 remains an explicit gap until bounded,
@@ -286,7 +292,7 @@ itself and an unreviewed MoOS would ship kscreenlocker's emergency locker.
 | P0.5 | Configure and accept free Mo AI on a clean account | Open / acceptance not complete | Clean-account provider setup, free route, reboot, cancellation and network/quota/key failures. |
 | P0.6 | Promote only proven digests and update the physical PC | Stable mechanism/artifact evidence recorded; preserve required gates | Promote only exact proven signed digests; separately verify installed stage/reboot/rollback. |
 | P0.7 | Remove the intermittent `plymouthd` crash (ARM second boot; x86 first boot) | Implemented/delivered within recorded scope; wider acceptance remains | Pinned vendor Plymouth fix, old/fixed negative, exact final initramfs and actual boot visuals. |
-| P0.8 | Make the ISO installed-reboot proof deterministic | Reopened: lost ESP and diagnostic collection corrected in source; fresh release proof pending | Repeated installed-ISO reboot with DHCP/SSH-channel evidence and console failures visible. |
+| P0.8 | Make the ISO installed-reboot proof deterministic | Closed for candidate 144b1a6a: first-attempt offline installed login/reboot proof 37916929153; physical hardware acceptance remains separate | Repeated installed-ISO reboot with DHCP/SSH-channel evidence and console failures visible. |
 | P0.9 | Run image-only gates before the merge | Stable mechanism/artifact evidence recorded; preserve required gates | PR generic image gates block real image failures; no signing/publishing from PR. |
 | P0.10 | Gate NVIDIA persistence on a bound GPU | Stable mechanism/artifact evidence recorded; preserve required gates | Bound NVIDIA hardware and exact-kernel persistence/initramfs proof. |
 | P0.11 | Give first-boot Flatpak setup a realistic finite timeout | Stable mechanism/artifact evidence recorded; preserve required gates | Finite realistic first-boot app setup timeout and actual ARM reboot. |

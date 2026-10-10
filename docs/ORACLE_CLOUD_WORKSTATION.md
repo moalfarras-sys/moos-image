@@ -6,10 +6,10 @@ or a second product backlog. Open work belongs to DEVELOPMENT_PLAN P5.5/P5.7.
 | Capability | Installed implementation | Owner access |
 | --- | --- | --- |
 | Desktop | signed MoOS ARM .724, 1280×720 virtual seat | existing Mo PC Remote, HTTPS 443 |
-| General files | FileBrowser Quantum 1.5.8, private `~/CloudFiles` | HTTPS 8443 / authenticated WebDAV |
+| General files | FileBrowser Quantum 2.0.0-stable, private `~/CloudFiles` | HTTPS 8443 / authenticated WebDAV |
 | iPhone Files | rootless Samba 4.23.8, same CloudFiles | SMB3 through tailnet TCP Serve 445 |
-| Development | code-server 4.140.0, existing Projects/repositories | HTTPS 8444, password auth |
-| Photos/video | Immich 3.2.4, stable exact-release rootless Compose | HTTPS 8445, separate local account |
+| Development | code-server 4.141.0 selected for next restart, existing Projects/repositories | HTTPS 8444, password auth |
+| Photos/video | Immich 3.3.1, stable exact-release rootless Compose | HTTPS 8445, separate local account |
 | Resources | `System-Status.json` every five minutes | authenticated file portal; native System Monitor |
 | Backup tooling | restic 0.19.1, rclone 1.75.1 | private user commands, verified ARM64 binaries |
 
@@ -22,7 +22,7 @@ credentials live in `~/MoOS-Cloud-Access.txt` (0600); never add them to Git.
 
 `~/.config/moos-photos/compose.yaml` and its private `.env` describe three
 rootless Podman containers. Images are pinned by digest to the publisher's
-3.2.4 release, including its selected vector-enabled PostgreSQL and Valkey.
+3.3.1 release, including its selected vector-enabled PostgreSQL and Valkey.
 `moos-photos.service` starts the stack at sign-in. It owns only new directories
 under `~/.local/share/moos-photos/{library,postgres,redis}`. Podman's `:Z,U`
 options label/map these dedicated paths to container UID 1000; never apply
@@ -35,6 +35,23 @@ quota for original assets; allowance for previews, video derivatives, updates
 and development remains outside it. Originals are retained. ML is disabled and
 its container is absent; all job queues use concurrency 1, FFmpeg one thread,
 and required 720p previews. Limits bound the new service, not the whole desktop.
+
+October 9 update: Immich 3.3.1 and its upstream-selected Valkey digest are
+installed; PostgreSQL's reviewed digest is unchanged. A private custom-format
+database backup passed pg_restore --list before migration. Containers and the
+actual 3.3.1 version endpoint are healthy. FileBrowser 2.0.0-stable passed
+private BoltDB-to-SQLite migration, preserved owner-password login, Arabic
+profile and authenticated listing through tailnet HTTPS; anonymous listing
+returns 401. Its old database/config/binary remain archived for rollback.
+The conflicting redundant config signing key was removed so v2 uses its
+persisted database key; the signing-key mismatch refusal was preserved.
+Its one-time migrateFrom setting was retired after validation.
+
+code-server 4.141.0 passed the publisher's SHA-256 and native version check.
+The service selector now points to it; the existing 4.140.0 process is kept
+until the authorized OS restart. Preboot authenticated workbench is working.
+The Arabic language pack was not available from this extension registry:
+Arabic across every third-party tool is not qualified.
 
 The app's configuration remains editable through authenticated Administration.
 Use a matching mobile release. On iPhone, select backup albums and enable
@@ -64,10 +81,11 @@ the packaged `/usr/bin/tailscale` 1.102.5, matching the daemon. Existing node,
 four private HTTPS routes and SMB forwarding remain intact.
 
 `moos-cloud-backup.timer` runs a private encrypted restic snapshot at 03:15
-(with jitter). It first creates a consistent `pg_dump`, then backs up database
+(with jitter). It first creates a consistent `pg_dump`, then takes an online SQLite backup of FileBrowser and backs up both databases
 and service/account configuration. Retention is 7 daily / 4 weekly / 3 monthly;
-under 20 GiB free it refuses work. `restic check` and restore passed with the
-same dump hash. This is local configuration recovery on the same disk: it
+under 20 GiB free it refuses work. The October 9 encrypted repository check and FileBrowser SQLite restore passed
+with an identical backup hash and SQLite integrity check; the earlier photo
+database restore proof is retained. This is local configuration recovery on the same disk: it
 neither replicates original photos nor survives loss of the Oracle volume.
 An external destination requires the owner's selection and its credentials.
 
