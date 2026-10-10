@@ -52,6 +52,9 @@ finish this measured user-path correction before the one signed batch.
 The existing cache migration advances to THEME_REV 102; the station also owns
 only its exact revision assertions in `tests/test_moos_ui2.py` and
 `tests/verify_user_experience.py`, preserving all migration/cache guards.
+Its generated `tests/theme-rev-fingerprint.json` accompanies that revision;
+own installer incident/provenance paragraphs in `AGENTS.md` and `OWNERSHIP.md`
+record the native negative control and original data notices.
 Main freezes at that cycle's recorded SHA through promotion/failure; do not
 dispatch a duplicate cycle. The accepted installer cycle at `144b1a6a` is complete.
 
