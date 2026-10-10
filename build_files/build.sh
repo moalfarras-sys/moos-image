@@ -2116,6 +2116,7 @@ unset -v _mira_home _mira_imports _mira_pages _mira_face _mira_rc _mira_pyc _lum
 # Participation has a Python controller, so the standalone QML glob cannot
 # host it. Prove its actual shipped launcher/runtime in a private session.
 python3 /ctx/verify_community_client.py
+python3 /ctx/verify_installer_timezones.py --native
 
 # The desktop's own sound, in the phone's tab — for EVERY edition, not just cloud.
 #

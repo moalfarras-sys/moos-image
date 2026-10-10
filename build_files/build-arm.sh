@@ -1036,6 +1036,7 @@ unset -v _mira_home _mira_imports _mira_pages _mira_face _mira_rc _mira_pyc _lum
 
 # The identical native participation app and launcher proof used by x86.
 python3 /ctx/verify_community_client.py
+python3 /ctx/verify_installer_timezones.py --native
 
 # -----------------------------------------------------------------------------
 # (8) Identity

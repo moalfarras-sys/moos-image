@@ -149,29 +149,29 @@ official reboot/readback passed 54/0 and 55/0, with signed .1011 rollback. Its i
 
 ## Owner milestone — source work, not promoted delivery
 
-[Execution/handoff](docs/OWNER_EXECUTION_20261009_AR.md) records five ordered
-milestones, private support conversations/optional public suggestions, and the
-image gallery. The active slice is reliability. Source microphone policy now
-pauses on mute/missing/unknown source, invalidates pending recognition and lazily
-loads the wake model. Eleven dependency-free regressions, seven wake tests and
-45 native controller cases pass. Live source-helper proof passed eight stages:
-already-muted real USB without capture/overruns, three virtual-source unmute/mute
-cycles and removal, with helper/socket/module cleanup and unchanged defaults.
-This does not fix unmuted USB firmware or prove physical speech. Full maintained
-`just check` passed all 240 gates; this source is not installed or signed/promoted yet.
-Recovery's unreadable state now differs from a proven absent rollback, with a
-read-only retry. Its regression gate and actual native AR/EN GTK source review
-pass; no rollback mechanism or boot choice changed. The gallery holds 37 unique
-real frames with explicit source/CI/private-host boundaries and missing stages.
-Participation beta: 34 API/privacy/retry/proxy/release, 11 native Qt HTTP/launcher cases
-pass. Oracle API runs under a dedicated unprivileged account; public TLS, six
-API cases and physical Wayland Arabic/image flow passed. Synthetic data removed.
-Four packaging cases, all 243 repo gates and final full generic image 69108321f886 pass;
-five shipped runtime hashes match. Old/fixed QML teardown controls fail/pass.
-Final review blocks title-triggered image fetch (old beacon fails/fix passes),
-with narrow AR/EN light/dark dialogs. ARM 37987720523 passed the launcher, then refused dbus-daemon's empty /var/lib/dbus.
-Native ARM old/fixed/vendor tmpfiles proofs pass; populated/link/mount/missing-policy cases fail safely. Final image/CI and signed owner-batch delivery remain open.
-
+[Execution/handoff](docs/OWNER_EXECUTION_20261009_AR.md) links five ordered
+milestones, private support/optional public suggestions and the image gallery.
+Reliability capture pauses on mute/missing/unknown source and invalidates pending
+recognition; wake loading is lazy. Eleven boundary,
+seven wake and 45 native controller tests pass. Live source-helper proof passed
+eight stages: real muted USB with zero capture/overruns, three private virtual
+unmute/mute cycles and removal, cleanup and unchanged owner defaults. Unmuted
+USB firmware and physical speech remain unqualified; signed delivery is pending.
+Recovery distinguishes unreadable state from proven absence, with read-only
+retry. Native AR/EN GTK source review passes; rollback mechanics are unchanged.
+Participation beta passes 34 API and 11 native cases, actual Wayland/Oracle TLS
+image flow, title-fetch negative control and narrow AR/EN light/dark dialogs.
+Fixtures are removed; Oracle runs the dedicated unprivileged service. All 243
+prior repo gates and full image 93026ce526f7 pass with nine exact runtime hashes.
+ARM 37987720523 refused empty /var/lib/dbus after its launcher passed; the exact
+vendor tmpfiles-authority fix passes native ARM old/fixed/preservation proofs.
+PR x86/ARM builds at eafe0cdd pass; boot/delivery proofs remain separate.
+Actual offline ISO GUI review found Arabic city search empty while accepting a
+hidden unmatched guess. New CLDR labels cover all 312 selectable zones; actual
+Qt AR/EN input, row click, stable IANA selection and mismatch refusal pass.
+The old raw-ID search fails its native control; THEME_REV/fingerprint = 102. All 244 source gates/catalogue and full image 926579dbe394 pass (12 hashes).
+Actual .1018 GUI offline install reaches DONE; its first greeter shows no account.
+Do not merge/promote the batch before real password login/reboot acceptance.
 ## Installer mechanism preserved in the integrated batch
 
 The repair retains private mount namespaces, checked target/subvolume/ESP

@@ -272,6 +272,15 @@ GUI consent assistance and phone acceptance are separate from those isolated tes
 text a person reads it measured 1.6:1 on the light schemes. Secondary ink is the theme's text
 colour at an alpha (`tests/test_secondary_text_contrast.py` does the arithmetic per scheme).
 
+**A translated placeholder does not make a search Arabic.** The live ISO
+offered "برلين" as its example but searched only IANA identifiers; the result
+was empty while Next accepted a hidden Riyadh guess. Keep localized CLDR city
+labels separate from the IANA recipe value, and require the selected zone to
+match the current search. `verify_installer_timezones.py` exercises actual Qt
+Arabic/English input, row clicks and unmatched/no-result refusal in both images;
+the old raw-ID-only search is a native negative control. A live source overlay
+tests that UI path, not the identity of a subsequently signed ISO.
+
 **A property that does not exist is not an error QML reports.** `root.novaOrange` evaluated to
 `undefined`, the privileged-action card painted Qt's defaults, the window opened and the launch
 gate passed. `tests/test_qml_root_references.py` is the static half; `scripts/review/render-app.sh`

@@ -1,0 +1,2083 @@
+{
+  "schema": 1,
+  "source": "Unicode CLDR through Babel 2.18.0",
+  "tzdata": "2026e",
+  "license": "Unicode-3.0",
+  "untranslated_city_fallbacks": [
+    "America/Coyhaique"
+  ],
+  "zones": {
+    "Africa/Abidjan": {
+      "ar": "أبيدجان · ساحل العاج",
+      "en": "Abidjan · Côte d’Ivoire"
+    },
+    "Africa/Accra": {
+      "ar": "أكرا · غانا",
+      "en": "Accra · Ghana"
+    },
+    "Africa/Addis_Ababa": {
+      "ar": "أديس أبابا · إثيوبيا",
+      "en": "Addis Ababa · Ethiopia"
+    },
+    "Africa/Algiers": {
+      "ar": "الجزائر · الجزائر",
+      "en": "Algiers · Algeria"
+    },
+    "Africa/Asmara": {
+      "ar": "أسمرة · إريتريا",
+      "en": "Asmara · Eritrea"
+    },
+    "Africa/Asmera": {
+      "ar": "أسمرة · إريتريا",
+      "en": "Asmara · Eritrea"
+    },
+    "Africa/Bamako": {
+      "ar": "باماكو · مالي",
+      "en": "Bamako · Mali"
+    },
+    "Africa/Bangui": {
+      "ar": "بانغوي · جمهورية أفريقيا الوسطى",
+      "en": "Bangui · Central African Republic"
+    },
+    "Africa/Banjul": {
+      "ar": "بانجول · غامبيا",
+      "en": "Banjul · Gambia"
+    },
+    "Africa/Bissau": {
+      "ar": "بيساو · غينيا بيساو",
+      "en": "Bissau · Guinea-Bissau"
+    },
+    "Africa/Blantyre": {
+      "ar": "بلانتاير · ملاوي",
+      "en": "Blantyre · Malawi"
+    },
+    "Africa/Brazzaville": {
+      "ar": "برازافيل · الكونغو - برازافيل",
+      "en": "Brazzaville · Congo - Brazzaville"
+    },
+    "Africa/Bujumbura": {
+      "ar": "بوجومبورا · بوروندي",
+      "en": "Bujumbura · Burundi"
+    },
+    "Africa/Cairo": {
+      "ar": "القاهرة · مصر",
+      "en": "Cairo · Egypt"
+    },
+    "Africa/Casablanca": {
+      "ar": "الدار البيضاء · المغرب",
+      "en": "Casablanca · Morocco"
+    },
+    "Africa/Ceuta": {
+      "ar": "سيتا · إسبانيا",
+      "en": "Ceuta · Spain"
+    },
+    "Africa/Conakry": {
+      "ar": "كوناكري · غينيا",
+      "en": "Conakry · Guinea"
+    },
+    "Africa/Dakar": {
+      "ar": "داكار · السنغال",
+      "en": "Dakar · Senegal"
+    },
+    "Africa/Dar_es_Salaam": {
+      "ar": "دار السلام · تنزانيا",
+      "en": "Dar es Salaam · Tanzania"
+    },
+    "Africa/Djibouti": {
+      "ar": "جيبوتي · جيبوتي",
+      "en": "Djibouti · Djibouti"
+    },
+    "Africa/Douala": {
+      "ar": "دوالا · الكاميرون",
+      "en": "Douala · Cameroon"
+    },
+    "Africa/El_Aaiun": {
+      "ar": "العيون · الصحراء الغربية",
+      "en": "El Aaiun · Western Sahara"
+    },
+    "Africa/Freetown": {
+      "ar": "فري تاون · سيراليون",
+      "en": "Freetown · Sierra Leone"
+    },
+    "Africa/Gaborone": {
+      "ar": "غابورون · بوتسوانا",
+      "en": "Gaborone · Botswana"
+    },
+    "Africa/Harare": {
+      "ar": "هراري · زيمبابوي",
+      "en": "Harare · Zimbabwe"
+    },
+    "Africa/Johannesburg": {
+      "ar": "جوهانسبرغ · جنوب أفريقيا",
+      "en": "Johannesburg · South Africa"
+    },
+    "Africa/Juba": {
+      "ar": "جوبا · جنوب السودان",
+      "en": "Juba · South Sudan"
+    },
+    "Africa/Kampala": {
+      "ar": "كامبالا · أوغندا",
+      "en": "Kampala · Uganda"
+    },
+    "Africa/Khartoum": {
+      "ar": "الخرطوم · السودان",
+      "en": "Khartoum · Sudan"
+    },
+    "Africa/Kigali": {
+      "ar": "كيغالي · رواندا",
+      "en": "Kigali · Rwanda"
+    },
+    "Africa/Kinshasa": {
+      "ar": "كينشاسا · الكونغو - كينشاسا",
+      "en": "Kinshasa · Congo - Kinshasa"
+    },
+    "Africa/Lagos": {
+      "ar": "لاغوس · نيجيريا",
+      "en": "Lagos · Nigeria"
+    },
+    "Africa/Libreville": {
+      "ar": "ليبرفيل · الغابون",
+      "en": "Libreville · Gabon"
+    },
+    "Africa/Lome": {
+      "ar": "لومي · توغو",
+      "en": "Lome · Togo"
+    },
+    "Africa/Luanda": {
+      "ar": "لواندا · أنغولا",
+      "en": "Luanda · Angola"
+    },
+    "Africa/Lubumbashi": {
+      "ar": "لومبباشا · الكونغو - كينشاسا",
+      "en": "Lubumbashi · Congo - Kinshasa"
+    },
+    "Africa/Lusaka": {
+      "ar": "لوساكا · زامبيا",
+      "en": "Lusaka · Zambia"
+    },
+    "Africa/Malabo": {
+      "ar": "مالابو · غينيا الاستوائية",
+      "en": "Malabo · Equatorial Guinea"
+    },
+    "Africa/Maputo": {
+      "ar": "مابوتو · موزمبيق",
+      "en": "Maputo · Mozambique"
+    },
+    "Africa/Maseru": {
+      "ar": "ماسيرو · ليسوتو",
+      "en": "Maseru · Lesotho"
+    },
+    "Africa/Mbabane": {
+      "ar": "مباباني · إسواتيني",
+      "en": "Mbabane · Eswatini"
+    },
+    "Africa/Mogadishu": {
+      "ar": "مقديشيو · الصومال",
+      "en": "Mogadishu · Somalia"
+    },
+    "Africa/Monrovia": {
+      "ar": "مونروفيا · ليبيريا",
+      "en": "Monrovia · Liberia"
+    },
+    "Africa/Nairobi": {
+      "ar": "نيروبي · كينيا",
+      "en": "Nairobi · Kenya"
+    },
+    "Africa/Ndjamena": {
+      "ar": "نجامينا · تشاد",
+      "en": "Ndjamena · Chad"
+    },
+    "Africa/Niamey": {
+      "ar": "نيامي · النيجر",
+      "en": "Niamey · Niger"
+    },
+    "Africa/Nouakchott": {
+      "ar": "نواكشوط · موريتانيا",
+      "en": "Nouakchott · Mauritania"
+    },
+    "Africa/Ouagadougou": {
+      "ar": "واغادوغو · بوركينا فاسو",
+      "en": "Ouagadougou · Burkina Faso"
+    },
+    "Africa/Porto-Novo": {
+      "ar": "بورتو نوفو · بنين",
+      "en": "Porto-Novo · Benin"
+    },
+    "Africa/Sao_Tome": {
+      "ar": "ساو تومي · ساو تومي وبرينسيبي",
+      "en": "São Tomé · São Tomé & Príncipe"
+    },
+    "Africa/Timbuktu": {
+      "ar": "باماكو · مالي",
+      "en": "Bamako · Mali"
+    },
+    "Africa/Tripoli": {
+      "ar": "طرابلس · ليبيا",
+      "en": "Tripoli · Libya"
+    },
+    "Africa/Tunis": {
+      "ar": "تونس · تونس",
+      "en": "Tunis · Tunisia"
+    },
+    "Africa/Windhoek": {
+      "ar": "ويندهوك · ناميبيا",
+      "en": "Windhoek · Namibia"
+    },
+    "America/Adak": {
+      "ar": "أداك · الولايات المتحدة",
+      "en": "Adak · United States"
+    },
+    "America/Anchorage": {
+      "ar": "أنشوراج · الولايات المتحدة",
+      "en": "Anchorage · United States"
+    },
+    "America/Anguilla": {
+      "ar": "أنغويلا · أنغويلا",
+      "en": "Anguilla · Anguilla"
+    },
+    "America/Antigua": {
+      "ar": "أنتيغوا · أنتيغوا وبربودا",
+      "en": "Antigua · Antigua & Barbuda"
+    },
+    "America/Araguaina": {
+      "ar": "أروجوانيا · البرازيل",
+      "en": "Araguaina · Brazil"
+    },
+    "America/Argentina/Buenos_Aires": {
+      "ar": "بوينوس أيرس · الأرجنتين",
+      "en": "Buenos Aires · Argentina"
+    },
+    "America/Argentina/Catamarca": {
+      "ar": "كاتاماركا · الأرجنتين",
+      "en": "Catamarca · Argentina"
+    },
+    "America/Argentina/ComodRivadavia": {
+      "ar": "كاتاماركا · الأرجنتين",
+      "en": "Catamarca · Argentina"
+    },
+    "America/Argentina/Cordoba": {
+      "ar": "كوردوبا · الأرجنتين",
+      "en": "Cordoba · Argentina"
+    },
+    "America/Argentina/Jujuy": {
+      "ar": "جوجو · الأرجنتين",
+      "en": "Jujuy · Argentina"
+    },
+    "America/Argentina/La_Rioja": {
+      "ar": "لا ريوجا · الأرجنتين",
+      "en": "La Rioja · Argentina"
+    },
+    "America/Argentina/Mendoza": {
+      "ar": "ميندوزا · الأرجنتين",
+      "en": "Mendoza · Argentina"
+    },
+    "America/Argentina/Rio_Gallegos": {
+      "ar": "ريو جالييوس · الأرجنتين",
+      "en": "Rio Gallegos · Argentina"
+    },
+    "America/Argentina/Salta": {
+      "ar": "سالطا · الأرجنتين",
+      "en": "Salta · Argentina"
+    },
+    "America/Argentina/San_Juan": {
+      "ar": "سان خوان · الأرجنتين",
+      "en": "San Juan · Argentina"
+    },
+    "America/Argentina/San_Luis": {
+      "ar": "سان لويس · الأرجنتين",
+      "en": "San Luis · Argentina"
+    },
+    "America/Argentina/Tucuman": {
+      "ar": "تاكمان · الأرجنتين",
+      "en": "Tucuman · Argentina"
+    },
+    "America/Argentina/Ushuaia": {
+      "ar": "أشوا · الأرجنتين",
+      "en": "Ushuaia · Argentina"
+    },
+    "America/Aruba": {
+      "ar": "أروبا · أروبا",
+      "en": "Aruba · Aruba"
+    },
+    "America/Asuncion": {
+      "ar": "أسونسيون · باراغواي",
+      "en": "Asunción · Paraguay"
+    },
+    "America/Atikokan": {
+      "ar": "كورال هاربر · كندا",
+      "en": "Atikokan · Canada"
+    },
+    "America/Atka": {
+      "ar": "أداك · الولايات المتحدة",
+      "en": "Adak · United States"
+    },
+    "America/Bahia": {
+      "ar": "باهيا · البرازيل",
+      "en": "Bahia · Brazil"
+    },
+    "America/Bahia_Banderas": {
+      "ar": "باهيا بانديراس · المكسيك",
+      "en": "Bahía de Banderas · Mexico"
+    },
+    "America/Barbados": {
+      "ar": "بربادوس · بربادوس",
+      "en": "Barbados · Barbados"
+    },
+    "America/Belem": {
+      "ar": "بلم · البرازيل",
+      "en": "Belem · Brazil"
+    },
+    "America/Belize": {
+      "ar": "بليز · بليز",
+      "en": "Belize · Belize"
+    },
+    "America/Blanc-Sablon": {
+      "ar": "بلانك-سابلون · كندا",
+      "en": "Blanc-Sablon · Canada"
+    },
+    "America/Boa_Vista": {
+      "ar": "باو فيستا · البرازيل",
+      "en": "Boa Vista · Brazil"
+    },
+    "America/Bogota": {
+      "ar": "بوغوتا · كولومبيا",
+      "en": "Bogota · Colombia"
+    },
+    "America/Boise": {
+      "ar": "بويس · الولايات المتحدة",
+      "en": "Boise · United States"
+    },
+    "America/Buenos_Aires": {
+      "ar": "بوينوس أيرس · الأرجنتين",
+      "en": "Buenos Aires · Argentina"
+    },
+    "America/Cambridge_Bay": {
+      "ar": "كامبرديج باي · كندا",
+      "en": "Cambridge Bay · Canada"
+    },
+    "America/Campo_Grande": {
+      "ar": "كومبو جراند · البرازيل",
+      "en": "Campo Grande · Brazil"
+    },
+    "America/Cancun": {
+      "ar": "كانكون · المكسيك",
+      "en": "Cancún · Mexico"
+    },
+    "America/Caracas": {
+      "ar": "كاراكاس · فنزويلا",
+      "en": "Caracas · Venezuela"
+    },
+    "America/Catamarca": {
+      "ar": "كاتاماركا · الأرجنتين",
+      "en": "Catamarca · Argentina"
+    },
+    "America/Cayenne": {
+      "ar": "كايين · غويانا الفرنسية",
+      "en": "Cayenne · French Guiana"
+    },
+    "America/Cayman": {
+      "ar": "كايمان · جزر كايمان",
+      "en": "Cayman · Cayman Islands"
+    },
+    "America/Chicago": {
+      "ar": "شيكاغو · الولايات المتحدة",
+      "en": "Chicago · United States"
+    },
+    "America/Chihuahua": {
+      "ar": "تشيواوا · المكسيك",
+      "en": "Chihuahua · Mexico"
+    },
+    "America/Ciudad_Juarez": {
+      "ar": "سيوداد خواريز · المكسيك",
+      "en": "Ciudad Juárez · Mexico"
+    },
+    "America/Coral_Harbour": {
+      "ar": "كورال هاربر · كندا",
+      "en": "Atikokan · Canada"
+    },
+    "America/Cordoba": {
+      "ar": "كوردوبا · الأرجنتين",
+      "en": "Cordoba · Argentina"
+    },
+    "America/Costa_Rica": {
+      "ar": "كوستاريكا · كوستاريكا",
+      "en": "Costa Rica · Costa Rica"
+    },
+    "America/Coyhaique": {
+      "ar": "Coyhaique · تشيلي",
+      "en": "Coyhaique · Chile"
+    },
+    "America/Creston": {
+      "ar": "كريستون · كندا",
+      "en": "Creston · Canada"
+    },
+    "America/Cuiaba": {
+      "ar": "كيابا · البرازيل",
+      "en": "Cuiaba · Brazil"
+    },
+    "America/Curacao": {
+      "ar": "كوراساو · كوراساو",
+      "en": "Curaçao · Curaçao"
+    },
+    "America/Danmarkshavn": {
+      "ar": "دانمرك شافن · غرينلاند",
+      "en": "Danmarkshavn · Greenland"
+    },
+    "America/Dawson": {
+      "ar": "داوسان · كندا",
+      "en": "Dawson · Canada"
+    },
+    "America/Dawson_Creek": {
+      "ar": "داوسن كريك · كندا",
+      "en": "Dawson Creek · Canada"
+    },
+    "America/Denver": {
+      "ar": "دنفر · الولايات المتحدة",
+      "en": "Denver · United States"
+    },
+    "America/Detroit": {
+      "ar": "ديترويت · الولايات المتحدة",
+      "en": "Detroit · United States"
+    },
+    "America/Dominica": {
+      "ar": "دومينيكا · دومينيكا",
+      "en": "Dominica · Dominica"
+    },
+    "America/Edmonton": {
+      "ar": "ايدمونتون · كندا",
+      "en": "Edmonton · Canada"
+    },
+    "America/Eirunepe": {
+      "ar": "ايرونبي · البرازيل",
+      "en": "Eirunepe · Brazil"
+    },
+    "America/El_Salvador": {
+      "ar": "السلفادور · السلفادور",
+      "en": "El Salvador · El Salvador"
+    },
+    "America/Ensenada": {
+      "ar": "تيخوانا · المكسيك",
+      "en": "Tijuana · Mexico"
+    },
+    "America/Fort_Nelson": {
+      "ar": "فورت نيلسون · كندا",
+      "en": "Fort Nelson · Canada"
+    },
+    "America/Fort_Wayne": {
+      "ar": "إنديانابوليس · الولايات المتحدة",
+      "en": "Indianapolis · United States"
+    },
+    "America/Fortaleza": {
+      "ar": "فورتاليزا · البرازيل",
+      "en": "Fortaleza · Brazil"
+    },
+    "America/Glace_Bay": {
+      "ar": "جلاس باي · كندا",
+      "en": "Glace Bay · Canada"
+    },
+    "America/Godthab": {
+      "ar": "غودثاب · غرينلاند",
+      "en": "Nuuk · Greenland"
+    },
+    "America/Goose_Bay": {
+      "ar": "جوس باي · كندا",
+      "en": "Goose Bay · Canada"
+    },
+    "America/Grand_Turk": {
+      "ar": "غراند ترك · جزر توركس وكايكوس",
+      "en": "Grand Turk · Turks & Caicos Islands"
+    },
+    "America/Grenada": {
+      "ar": "غرينادا · غرينادا",
+      "en": "Grenada · Grenada"
+    },
+    "America/Guadeloupe": {
+      "ar": "غوادلوب · غوادلوب",
+      "en": "Guadeloupe · Guadeloupe"
+    },
+    "America/Guatemala": {
+      "ar": "غواتيمالا · غواتيمالا",
+      "en": "Guatemala · Guatemala"
+    },
+    "America/Guayaquil": {
+      "ar": "غواياكويل · الإكوادور",
+      "en": "Guayaquil · Ecuador"
+    },
+    "America/Guyana": {
+      "ar": "غيانا · غيانا",
+      "en": "Guyana · Guyana"
+    },
+    "America/Halifax": {
+      "ar": "هاليفاكس · كندا",
+      "en": "Halifax · Canada"
+    },
+    "America/Havana": {
+      "ar": "هافانا · كوبا",
+      "en": "Havana · Cuba"
+    },
+    "America/Hermosillo": {
+      "ar": "هيرموسيلو · المكسيك",
+      "en": "Hermosillo · Mexico"
+    },
+    "America/Indiana/Indianapolis": {
+      "ar": "إنديانابوليس · الولايات المتحدة",
+      "en": "Indianapolis · United States"
+    },
+    "America/Indiana/Knox": {
+      "ar": "كونكس · الولايات المتحدة",
+      "en": "Knox, Indiana · United States"
+    },
+    "America/Indiana/Marengo": {
+      "ar": "مارنجو · الولايات المتحدة",
+      "en": "Marengo, Indiana · United States"
+    },
+    "America/Indiana/Petersburg": {
+      "ar": "بيترسبرغ · الولايات المتحدة",
+      "en": "Petersburg, Indiana · United States"
+    },
+    "America/Indiana/Tell_City": {
+      "ar": "مدينة تل، إنديانا · الولايات المتحدة",
+      "en": "Tell City, Indiana · United States"
+    },
+    "America/Indiana/Vevay": {
+      "ar": "فيفاي · الولايات المتحدة",
+      "en": "Vevay, Indiana · United States"
+    },
+    "America/Indiana/Vincennes": {
+      "ar": "فينسينس · الولايات المتحدة",
+      "en": "Vincennes, Indiana · United States"
+    },
+    "America/Indiana/Winamac": {
+      "ar": "ويناماك · الولايات المتحدة",
+      "en": "Winamac, Indiana · United States"
+    },
+    "America/Indianapolis": {
+      "ar": "إنديانابوليس · الولايات المتحدة",
+      "en": "Indianapolis · United States"
+    },
+    "America/Inuvik": {
+      "ar": "اينوفيك · كندا",
+      "en": "Inuvik · Canada"
+    },
+    "America/Iqaluit": {
+      "ar": "اكويلت · كندا",
+      "en": "Iqaluit · Canada"
+    },
+    "America/Jamaica": {
+      "ar": "جامايكا · جامايكا",
+      "en": "Jamaica · Jamaica"
+    },
+    "America/Jujuy": {
+      "ar": "جوجو · الأرجنتين",
+      "en": "Jujuy · Argentina"
+    },
+    "America/Juneau": {
+      "ar": "جوني · الولايات المتحدة",
+      "en": "Juneau · United States"
+    },
+    "America/Kentucky/Louisville": {
+      "ar": "لويس فيل · الولايات المتحدة",
+      "en": "Louisville · United States"
+    },
+    "America/Kentucky/Monticello": {
+      "ar": "مونتيسيلو · الولايات المتحدة",
+      "en": "Monticello, Kentucky · United States"
+    },
+    "America/Knox_IN": {
+      "ar": "كونكس · الولايات المتحدة",
+      "en": "Knox, Indiana · United States"
+    },
+    "America/Kralendijk": {
+      "ar": "كرالنديك · هولندا الكاريبية",
+      "en": "Kralendijk · Caribbean Netherlands"
+    },
+    "America/La_Paz": {
+      "ar": "لا باز · بوليفيا",
+      "en": "La Paz · Bolivia"
+    },
+    "America/Lima": {
+      "ar": "ليما · بيرو",
+      "en": "Lima · Peru"
+    },
+    "America/Los_Angeles": {
+      "ar": "لوس انجلوس · الولايات المتحدة",
+      "en": "Los Angeles · United States"
+    },
+    "America/Louisville": {
+      "ar": "لويس فيل · الولايات المتحدة",
+      "en": "Louisville · United States"
+    },
+    "America/Lower_Princes": {
+      "ar": "حي الأمير السفلي · سانت مارتن",
+      "en": "Lower Prince’s Quarter · Sint Maarten"
+    },
+    "America/Maceio": {
+      "ar": "ماشيو · البرازيل",
+      "en": "Maceio · Brazil"
+    },
+    "America/Managua": {
+      "ar": "ماناغوا · نيكاراغوا",
+      "en": "Managua · Nicaragua"
+    },
+    "America/Manaus": {
+      "ar": "ماناوس · البرازيل",
+      "en": "Manaus · Brazil"
+    },
+    "America/Marigot": {
+      "ar": "ماريغوت · سان مارتن",
+      "en": "Marigot · St. Martin"
+    },
+    "America/Martinique": {
+      "ar": "المارتينيك · جزر المارتينيك",
+      "en": "Martinique · Martinique"
+    },
+    "America/Matamoros": {
+      "ar": "ماتاموروس · المكسيك",
+      "en": "Matamoros · Mexico"
+    },
+    "America/Mazatlan": {
+      "ar": "مازاتلان · المكسيك",
+      "en": "Mazatlan · Mexico"
+    },
+    "America/Mendoza": {
+      "ar": "ميندوزا · الأرجنتين",
+      "en": "Mendoza · Argentina"
+    },
+    "America/Menominee": {
+      "ar": "مينوميني · الولايات المتحدة",
+      "en": "Menominee · United States"
+    },
+    "America/Merida": {
+      "ar": "ميريدا · المكسيك",
+      "en": "Mérida · Mexico"
+    },
+    "America/Metlakatla": {
+      "ar": "ميتلاكاتلا · الولايات المتحدة",
+      "en": "Metlakatla · United States"
+    },
+    "America/Mexico_City": {
+      "ar": "مكسيكو سيتي · المكسيك",
+      "en": "Mexico City · Mexico"
+    },
+    "America/Miquelon": {
+      "ar": "مكويلون · سان بيير ومكويلون",
+      "en": "Miquelon · St. Pierre & Miquelon"
+    },
+    "America/Moncton": {
+      "ar": "وينكتون · كندا",
+      "en": "Moncton · Canada"
+    },
+    "America/Monterrey": {
+      "ar": "مونتيري · المكسيك",
+      "en": "Monterrey · Mexico"
+    },
+    "America/Montevideo": {
+      "ar": "مونتفيديو · أورغواي",
+      "en": "Montevideo · Uruguay"
+    },
+    "America/Montreal": {
+      "ar": "تورونتو · كندا",
+      "en": "Toronto · Canada"
+    },
+    "America/Montserrat": {
+      "ar": "مونتسيرات · مونتسرات",
+      "en": "Montserrat · Montserrat"
+    },
+    "America/Nassau": {
+      "ar": "ناسو · جزر البهاما",
+      "en": "Nassau · Bahamas"
+    },
+    "America/New_York": {
+      "ar": "نيويورك · الولايات المتحدة",
+      "en": "New York · United States"
+    },
+    "America/Nipigon": {
+      "ar": "تورونتو · كندا",
+      "en": "Toronto · Canada"
+    },
+    "America/Nome": {
+      "ar": "نوم · الولايات المتحدة",
+      "en": "Nome · United States"
+    },
+    "America/Noronha": {
+      "ar": "نوروناه · البرازيل",
+      "en": "Fernando de Noronha · Brazil"
+    },
+    "America/North_Dakota/Beulah": {
+      "ar": "بيولا، داكوتا الشمالية · الولايات المتحدة",
+      "en": "Beulah, North Dakota · United States"
+    },
+    "America/North_Dakota/Center": {
+      "ar": "سنتر · الولايات المتحدة",
+      "en": "Center, North Dakota · United States"
+    },
+    "America/North_Dakota/New_Salem": {
+      "ar": "نيو ساليم · الولايات المتحدة",
+      "en": "New Salem, North Dakota · United States"
+    },
+    "America/Nuuk": {
+      "ar": "غودثاب · غرينلاند",
+      "en": "Nuuk · Greenland"
+    },
+    "America/Ojinaga": {
+      "ar": "أوجيناجا · المكسيك",
+      "en": "Ojinaga · Mexico"
+    },
+    "America/Panama": {
+      "ar": "بنما · بنما",
+      "en": "Panama · Panama"
+    },
+    "America/Pangnirtung": {
+      "ar": "اكويلت · كندا",
+      "en": "Iqaluit · Canada"
+    },
+    "America/Paramaribo": {
+      "ar": "باراماريبو · سورينام",
+      "en": "Paramaribo · Suriname"
+    },
+    "America/Phoenix": {
+      "ar": "فينكس · الولايات المتحدة",
+      "en": "Phoenix · United States"
+    },
+    "America/Port-au-Prince": {
+      "ar": "بورت أو برنس · هايتي",
+      "en": "Port-au-Prince · Haiti"
+    },
+    "America/Port_of_Spain": {
+      "ar": "بورت أوف سبين · ترينيداد وتوباغو",
+      "en": "Port of Spain · Trinidad & Tobago"
+    },
+    "America/Porto_Acre": {
+      "ar": "ريوبرانكو · البرازيل",
+      "en": "Rio Branco · Brazil"
+    },
+    "America/Porto_Velho": {
+      "ar": "بورتو فيلو · البرازيل",
+      "en": "Porto Velho · Brazil"
+    },
+    "America/Puerto_Rico": {
+      "ar": "بورتوريكو · بورتوريكو",
+      "en": "Puerto Rico · Puerto Rico"
+    },
+    "America/Punta_Arenas": {
+      "ar": "بونتا أريناز · تشيلي",
+      "en": "Punta Arenas · Chile"
+    },
+    "America/Rainy_River": {
+      "ar": "وينيبيج · كندا",
+      "en": "Winnipeg · Canada"
+    },
+    "America/Rankin_Inlet": {
+      "ar": "رانكن انلت · كندا",
+      "en": "Rankin Inlet · Canada"
+    },
+    "America/Recife": {
+      "ar": "ريسيف · البرازيل",
+      "en": "Recife · Brazil"
+    },
+    "America/Regina": {
+      "ar": "ريجينا · كندا",
+      "en": "Regina · Canada"
+    },
+    "America/Resolute": {
+      "ar": "ريزولوت · كندا",
+      "en": "Resolute · Canada"
+    },
+    "America/Rio_Branco": {
+      "ar": "ريوبرانكو · البرازيل",
+      "en": "Rio Branco · Brazil"
+    },
+    "America/Rosario": {
+      "ar": "كوردوبا · الأرجنتين",
+      "en": "Cordoba · Argentina"
+    },
+    "America/Santa_Isabel": {
+      "ar": "تيخوانا · المكسيك",
+      "en": "Tijuana · Mexico"
+    },
+    "America/Santarem": {
+      "ar": "سانتاريم · البرازيل",
+      "en": "Santarem · Brazil"
+    },
+    "America/Santiago": {
+      "ar": "سانتياغو · تشيلي",
+      "en": "Santiago · Chile"
+    },
+    "America/Santo_Domingo": {
+      "ar": "سانتو دومينغو · جمهورية الدومينيكان",
+      "en": "Santo Domingo · Dominican Republic"
+    },
+    "America/Sao_Paulo": {
+      "ar": "ساو باولو · البرازيل",
+      "en": "Sao Paulo · Brazil"
+    },
+    "America/Scoresbysund": {
+      "ar": "سكورسبيسند · غرينلاند",
+      "en": "Ittoqqortoormiit · Greenland"
+    },
+    "America/Shiprock": {
+      "ar": "دنفر · الولايات المتحدة",
+      "en": "Denver · United States"
+    },
+    "America/Sitka": {
+      "ar": "سيتكا · الولايات المتحدة",
+      "en": "Sitka · United States"
+    },
+    "America/St_Barthelemy": {
+      "ar": "سانت بارتيليمي · سان بارتليمي",
+      "en": "St. Barthélemy · St. Barthélemy"
+    },
+    "America/St_Johns": {
+      "ar": "سانت جونس · كندا",
+      "en": "St. John’s · Canada"
+    },
+    "America/St_Kitts": {
+      "ar": "سانت كيتس · سانت كيتس ونيفيس",
+      "en": "St. Kitts · St. Kitts & Nevis"
+    },
+    "America/St_Lucia": {
+      "ar": "سانت لوشيا · سانت لوسيا",
+      "en": "St. Lucia · St. Lucia"
+    },
+    "America/St_Thomas": {
+      "ar": "سانت توماس · جزر فيرجن الأمريكية",
+      "en": "St. Thomas · U.S. Virgin Islands"
+    },
+    "America/St_Vincent": {
+      "ar": "سانت فنسنت · سانت فنسنت وجزر غرينادين",
+      "en": "St. Vincent · St. Vincent & Grenadines"
+    },
+    "America/Swift_Current": {
+      "ar": "سوفت كارنت · كندا",
+      "en": "Swift Current · Canada"
+    },
+    "America/Tegucigalpa": {
+      "ar": "تيغوسيغالبا · هندوراس",
+      "en": "Tegucigalpa · Honduras"
+    },
+    "America/Thule": {
+      "ar": "ثيل · غرينلاند",
+      "en": "Thule · Greenland"
+    },
+    "America/Thunder_Bay": {
+      "ar": "تورونتو · كندا",
+      "en": "Toronto · Canada"
+    },
+    "America/Tijuana": {
+      "ar": "تيخوانا · المكسيك",
+      "en": "Tijuana · Mexico"
+    },
+    "America/Toronto": {
+      "ar": "تورونتو · كندا",
+      "en": "Toronto · Canada"
+    },
+    "America/Tortola": {
+      "ar": "تورتولا · جزر فيرجن البريطانية",
+      "en": "Tortola · British Virgin Islands"
+    },
+    "America/Vancouver": {
+      "ar": "فانكوفر · كندا",
+      "en": "Vancouver · Canada"
+    },
+    "America/Virgin": {
+      "ar": "سانت توماس · جزر فيرجن الأمريكية",
+      "en": "St. Thomas · U.S. Virgin Islands"
+    },
+    "America/Whitehorse": {
+      "ar": "وايت هورس · كندا",
+      "en": "Whitehorse · Canada"
+    },
+    "America/Winnipeg": {
+      "ar": "وينيبيج · كندا",
+      "en": "Winnipeg · Canada"
+    },
+    "America/Yakutat": {
+      "ar": "ياكوتات · الولايات المتحدة",
+      "en": "Yakutat · United States"
+    },
+    "America/Yellowknife": {
+      "ar": "ايدمونتون · كندا",
+      "en": "Edmonton · Canada"
+    },
+    "Antarctica/Casey": {
+      "ar": "كاساي · أنتاركتيكا",
+      "en": "Casey · Antarctica"
+    },
+    "Antarctica/Davis": {
+      "ar": "دافيز · أنتاركتيكا",
+      "en": "Davis · Antarctica"
+    },
+    "Antarctica/DumontDUrville": {
+      "ar": "دي مونت دو روفيل · أنتاركتيكا",
+      "en": "Dumont-d’Urville · Antarctica"
+    },
+    "Antarctica/Macquarie": {
+      "ar": "ماكواري · أستراليا",
+      "en": "Macquarie Island · Australia"
+    },
+    "Antarctica/Mawson": {
+      "ar": "ماوسون · أنتاركتيكا",
+      "en": "Mawson · Antarctica"
+    },
+    "Antarctica/McMurdo": {
+      "ar": "ماك موردو · أنتاركتيكا",
+      "en": "McMurdo · Antarctica"
+    },
+    "Antarctica/Palmer": {
+      "ar": "بالمير · أنتاركتيكا",
+      "en": "Palmer · Antarctica"
+    },
+    "Antarctica/Rothera": {
+      "ar": "روثيرا · أنتاركتيكا",
+      "en": "Rothera · Antarctica"
+    },
+    "Antarctica/South_Pole": {
+      "ar": "أوكلاند · نيوزيلندا",
+      "en": "Auckland · New Zealand"
+    },
+    "Antarctica/Syowa": {
+      "ar": "سايووا · أنتاركتيكا",
+      "en": "Syowa · Antarctica"
+    },
+    "Antarctica/Troll": {
+      "ar": "ترول · أنتاركتيكا",
+      "en": "Troll · Antarctica"
+    },
+    "Antarctica/Vostok": {
+      "ar": "فوستوك · أنتاركتيكا",
+      "en": "Vostok · Antarctica"
+    },
+    "Arctic/Longyearbyen": {
+      "ar": "لونجيربين · سفالبارد وجان ماين",
+      "en": "Longyearbyen · Svalbard & Jan Mayen"
+    },
+    "Asia/Aden": {
+      "ar": "عدن · اليمن",
+      "en": "Aden · Yemen"
+    },
+    "Asia/Almaty": {
+      "ar": "ألماتي · كازاخستان",
+      "en": "Almaty · Kazakhstan"
+    },
+    "Asia/Amman": {
+      "ar": "عمّان · الأردن",
+      "en": "Amman · Jordan"
+    },
+    "Asia/Anadyr": {
+      "ar": "أندير · روسيا",
+      "en": "Anadyr · Russia"
+    },
+    "Asia/Aqtau": {
+      "ar": "أكتاو · كازاخستان",
+      "en": "Aqtau · Kazakhstan"
+    },
+    "Asia/Aqtobe": {
+      "ar": "أكتوب · كازاخستان",
+      "en": "Aqtobe · Kazakhstan"
+    },
+    "Asia/Ashgabat": {
+      "ar": "عشق آباد · تركمانستان",
+      "en": "Ashgabat · Turkmenistan"
+    },
+    "Asia/Ashkhabad": {
+      "ar": "عشق آباد · تركمانستان",
+      "en": "Ashgabat · Turkmenistan"
+    },
+    "Asia/Atyrau": {
+      "ar": "أتيراو · كازاخستان",
+      "en": "Atyrau · Kazakhstan"
+    },
+    "Asia/Baghdad": {
+      "ar": "بغداد · العراق",
+      "en": "Baghdad · Iraq"
+    },
+    "Asia/Bahrain": {
+      "ar": "البحرين · البحرين",
+      "en": "Bahrain · Bahrain"
+    },
+    "Asia/Baku": {
+      "ar": "باكو · أذربيجان",
+      "en": "Baku · Azerbaijan"
+    },
+    "Asia/Bangkok": {
+      "ar": "بانكوك · تايلاند",
+      "en": "Bangkok · Thailand"
+    },
+    "Asia/Barnaul": {
+      "ar": "بارناول · روسيا",
+      "en": "Barnaul · Russia"
+    },
+    "Asia/Beirut": {
+      "ar": "بيروت · لبنان",
+      "en": "Beirut · Lebanon"
+    },
+    "Asia/Bishkek": {
+      "ar": "بشكيك · قيرغيزستان",
+      "en": "Bishkek · Kyrgyzstan"
+    },
+    "Asia/Brunei": {
+      "ar": "بروناي · بروناي",
+      "en": "Brunei · Brunei"
+    },
+    "Asia/Calcutta": {
+      "ar": "كالكتا · الهند",
+      "en": "Kolkata · India"
+    },
+    "Asia/Chita": {
+      "ar": "تشيتا · روسيا",
+      "en": "Chita · Russia"
+    },
+    "Asia/Choibalsan": {
+      "ar": "آلانباتار · منغوليا",
+      "en": "Ulaanbaatar · Mongolia"
+    },
+    "Asia/Chongqing": {
+      "ar": "شنغهاي · الصين",
+      "en": "Shanghai · China"
+    },
+    "Asia/Chungking": {
+      "ar": "شنغهاي · الصين",
+      "en": "Shanghai · China"
+    },
+    "Asia/Colombo": {
+      "ar": "كولومبو · سريلانكا",
+      "en": "Colombo · Sri Lanka"
+    },
+    "Asia/Dacca": {
+      "ar": "دكا · بنغلاديش",
+      "en": "Dhaka · Bangladesh"
+    },
+    "Asia/Damascus": {
+      "ar": "دمشق · سوريا",
+      "en": "Damascus · Syria"
+    },
+    "Asia/Dhaka": {
+      "ar": "دكا · بنغلاديش",
+      "en": "Dhaka · Bangladesh"
+    },
+    "Asia/Dili": {
+      "ar": "ديلي · تيمور - ليشتي",
+      "en": "Dili · Timor-Leste"
+    },
+    "Asia/Dubai": {
+      "ar": "دبي · الإمارات العربية المتحدة",
+      "en": "Dubai · United Arab Emirates"
+    },
+    "Asia/Dushanbe": {
+      "ar": "دوشانبي · طاجيكستان",
+      "en": "Dushanbe · Tajikistan"
+    },
+    "Asia/Famagusta": {
+      "ar": "فاماغوستا · قبرص",
+      "en": "Famagusta · Cyprus"
+    },
+    "Asia/Gaza": {
+      "ar": "غزة · الأراضي الفلسطينية",
+      "en": "Gaza · Palestinian Territories"
+    },
+    "Asia/Harbin": {
+      "ar": "شنغهاي · الصين",
+      "en": "Shanghai · China"
+    },
+    "Asia/Hebron": {
+      "ar": "هيبرون (مدينة الخليل) · الأراضي الفلسطينية",
+      "en": "Hebron · Palestinian Territories"
+    },
+    "Asia/Ho_Chi_Minh": {
+      "ar": "مدينة هو تشي منة · فيتنام",
+      "en": "Ho Chi Minh City · Vietnam"
+    },
+    "Asia/Hong_Kong": {
+      "ar": "هونغ كونغ · هونغ كونغ الصينية (منطقة إدارية خاصة)",
+      "en": "Hong Kong · Hong Kong SAR China"
+    },
+    "Asia/Hovd": {
+      "ar": "هوفد · منغوليا",
+      "en": "Hovd · Mongolia"
+    },
+    "Asia/Irkutsk": {
+      "ar": "ايركيتسك · روسيا",
+      "en": "Irkutsk · Russia"
+    },
+    "Asia/Istanbul": {
+      "ar": "إسطنبول · تركيا",
+      "en": "Istanbul · Türkiye"
+    },
+    "Asia/Jakarta": {
+      "ar": "جاكرتا · إندونيسيا",
+      "en": "Jakarta · Indonesia"
+    },
+    "Asia/Jayapura": {
+      "ar": "جايابيورا · إندونيسيا",
+      "en": "Jayapura · Indonesia"
+    },
+    "Asia/Jerusalem": {
+      "ar": "القدس · إسرائيل",
+      "en": "Jerusalem · Israel"
+    },
+    "Asia/Kabul": {
+      "ar": "كابول · أفغانستان",
+      "en": "Kabul · Afghanistan"
+    },
+    "Asia/Kamchatka": {
+      "ar": "كامتشاتكا · روسيا",
+      "en": "Kamchatka · Russia"
+    },
+    "Asia/Karachi": {
+      "ar": "كراتشي · باكستان",
+      "en": "Karachi · Pakistan"
+    },
+    "Asia/Kashgar": {
+      "ar": "أرومكي · الصين",
+      "en": "Urumqi · China"
+    },
+    "Asia/Kathmandu": {
+      "ar": "كاتماندو · نيبال",
+      "en": "Kathmandu · Nepal"
+    },
+    "Asia/Katmandu": {
+      "ar": "كاتماندو · نيبال",
+      "en": "Kathmandu · Nepal"
+    },
+    "Asia/Khandyga": {
+      "ar": "خانديجا · روسيا",
+      "en": "Khandyga · Russia"
+    },
+    "Asia/Kolkata": {
+      "ar": "كالكتا · الهند",
+      "en": "Kolkata · India"
+    },
+    "Asia/Krasnoyarsk": {
+      "ar": "كراسنويارسك · روسيا",
+      "en": "Krasnoyarsk · Russia"
+    },
+    "Asia/Kuala_Lumpur": {
+      "ar": "كوالا لامبور · ماليزيا",
+      "en": "Kuala Lumpur · Malaysia"
+    },
+    "Asia/Kuching": {
+      "ar": "كيشينج · ماليزيا",
+      "en": "Kuching · Malaysia"
+    },
+    "Asia/Kuwait": {
+      "ar": "الكويت · الكويت",
+      "en": "Kuwait · Kuwait"
+    },
+    "Asia/Macao": {
+      "ar": "ماكاو · منطقة ماكاو الإدارية الخاصة",
+      "en": "Macao · Macao SAR China"
+    },
+    "Asia/Macau": {
+      "ar": "ماكاو · منطقة ماكاو الإدارية الخاصة",
+      "en": "Macao · Macao SAR China"
+    },
+    "Asia/Magadan": {
+      "ar": "مجادن · روسيا",
+      "en": "Magadan · Russia"
+    },
+    "Asia/Makassar": {
+      "ar": "ماكسار · إندونيسيا",
+      "en": "Makassar · Indonesia"
+    },
+    "Asia/Manila": {
+      "ar": "مانيلا · الفلبين",
+      "en": "Manila · Philippines"
+    },
+    "Asia/Muscat": {
+      "ar": "مسقط · عُمان",
+      "en": "Muscat · Oman"
+    },
+    "Asia/Nicosia": {
+      "ar": "نيقوسيا · قبرص",
+      "en": "Nicosia · Cyprus"
+    },
+    "Asia/Novokuznetsk": {
+      "ar": "نوفوكوزنتسك · روسيا",
+      "en": "Novokuznetsk · Russia"
+    },
+    "Asia/Novosibirsk": {
+      "ar": "نوفوسبيرسك · روسيا",
+      "en": "Novosibirsk · Russia"
+    },
+    "Asia/Omsk": {
+      "ar": "أومسك · روسيا",
+      "en": "Omsk · Russia"
+    },
+    "Asia/Oral": {
+      "ar": "أورال · كازاخستان",
+      "en": "Oral · Kazakhstan"
+    },
+    "Asia/Phnom_Penh": {
+      "ar": "بنوم بنه · كمبوديا",
+      "en": "Phnom Penh · Cambodia"
+    },
+    "Asia/Pontianak": {
+      "ar": "بونتيانك · إندونيسيا",
+      "en": "Pontianak · Indonesia"
+    },
+    "Asia/Pyongyang": {
+      "ar": "بيونغ يانغ · كوريا الشمالية",
+      "en": "Pyongyang · North Korea"
+    },
+    "Asia/Qatar": {
+      "ar": "قطر · قطر",
+      "en": "Qatar · Qatar"
+    },
+    "Asia/Qostanay": {
+      "ar": "قوستاناي · كازاخستان",
+      "en": "Kostanay · Kazakhstan"
+    },
+    "Asia/Qyzylorda": {
+      "ar": "كيزيلوردا · كازاخستان",
+      "en": "Qyzylorda · Kazakhstan"
+    },
+    "Asia/Rangoon": {
+      "ar": "رانغون · ميانمار (بورما)",
+      "en": "Yangon · Myanmar (Burma)"
+    },
+    "Asia/Riyadh": {
+      "ar": "الرياض · المملكة العربية السعودية",
+      "en": "Riyadh · Saudi Arabia"
+    },
+    "Asia/Saigon": {
+      "ar": "مدينة هو تشي منة · فيتنام",
+      "en": "Ho Chi Minh City · Vietnam"
+    },
+    "Asia/Sakhalin": {
+      "ar": "سكالين · روسيا",
+      "en": "Sakhalin · Russia"
+    },
+    "Asia/Samarkand": {
+      "ar": "سمرقند · أوزبكستان",
+      "en": "Samarkand · Uzbekistan"
+    },
+    "Asia/Seoul": {
+      "ar": "سول · كوريا الجنوبية",
+      "en": "Seoul · South Korea"
+    },
+    "Asia/Shanghai": {
+      "ar": "شنغهاي · الصين",
+      "en": "Shanghai · China"
+    },
+    "Asia/Singapore": {
+      "ar": "سنغافورة · سنغافورة",
+      "en": "Singapore · Singapore"
+    },
+    "Asia/Srednekolymsk": {
+      "ar": "سريدنكوليمسك · روسيا",
+      "en": "Srednekolymsk · Russia"
+    },
+    "Asia/Taipei": {
+      "ar": "تايبيه · تايوان",
+      "en": "Taipei · Taiwan"
+    },
+    "Asia/Tashkent": {
+      "ar": "طشقند · أوزبكستان",
+      "en": "Tashkent · Uzbekistan"
+    },
+    "Asia/Tbilisi": {
+      "ar": "تبليسي · جورجيا",
+      "en": "Tbilisi · Georgia"
+    },
+    "Asia/Tehran": {
+      "ar": "طهران · إيران",
+      "en": "Tehran · Iran"
+    },
+    "Asia/Tel_Aviv": {
+      "ar": "القدس · إسرائيل",
+      "en": "Jerusalem · Israel"
+    },
+    "Asia/Thimbu": {
+      "ar": "تيمفو · بوتان",
+      "en": "Thimphu · Bhutan"
+    },
+    "Asia/Thimphu": {
+      "ar": "تيمفو · بوتان",
+      "en": "Thimphu · Bhutan"
+    },
+    "Asia/Tokyo": {
+      "ar": "طوكيو · اليابان",
+      "en": "Tokyo · Japan"
+    },
+    "Asia/Tomsk": {
+      "ar": "تومسك · روسيا",
+      "en": "Tomsk · Russia"
+    },
+    "Asia/Ujung_Pandang": {
+      "ar": "ماكسار · إندونيسيا",
+      "en": "Makassar · Indonesia"
+    },
+    "Asia/Ulaanbaatar": {
+      "ar": "آلانباتار · منغوليا",
+      "en": "Ulaanbaatar · Mongolia"
+    },
+    "Asia/Ulan_Bator": {
+      "ar": "آلانباتار · منغوليا",
+      "en": "Ulaanbaatar · Mongolia"
+    },
+    "Asia/Urumqi": {
+      "ar": "أرومكي · الصين",
+      "en": "Urumqi · China"
+    },
+    "Asia/Ust-Nera": {
+      "ar": "أوست نيرا · روسيا",
+      "en": "Ust-Nera · Russia"
+    },
+    "Asia/Vientiane": {
+      "ar": "فيانتيان · لاوس",
+      "en": "Vientiane · Laos"
+    },
+    "Asia/Vladivostok": {
+      "ar": "فلاديفوستك · روسيا",
+      "en": "Vladivostok · Russia"
+    },
+    "Asia/Yakutsk": {
+      "ar": "ياكتسك · روسيا",
+      "en": "Yakutsk · Russia"
+    },
+    "Asia/Yangon": {
+      "ar": "رانغون · ميانمار (بورما)",
+      "en": "Yangon · Myanmar (Burma)"
+    },
+    "Asia/Yekaterinburg": {
+      "ar": "يكاترنبيرج · روسيا",
+      "en": "Yekaterinburg · Russia"
+    },
+    "Asia/Yerevan": {
+      "ar": "يريفان · أرمينيا",
+      "en": "Yerevan · Armenia"
+    },
+    "Atlantic/Azores": {
+      "ar": "أزورس · البرتغال",
+      "en": "Azores · Portugal"
+    },
+    "Atlantic/Bermuda": {
+      "ar": "برمودا · برمودا",
+      "en": "Bermuda · Bermuda"
+    },
+    "Atlantic/Canary": {
+      "ar": "كناري · إسبانيا",
+      "en": "Canary · Spain"
+    },
+    "Atlantic/Cape_Verde": {
+      "ar": "الرأس الأخضر · الرأس الأخضر",
+      "en": "Cape Verde · Cape Verde"
+    },
+    "Atlantic/Faeroe": {
+      "ar": "فارو · جزر فارو",
+      "en": "Faroe · Faroe Islands"
+    },
+    "Atlantic/Faroe": {
+      "ar": "فارو · جزر فارو",
+      "en": "Faroe · Faroe Islands"
+    },
+    "Atlantic/Jan_Mayen": {
+      "ar": "لونجيربين · سفالبارد وجان ماين",
+      "en": "Longyearbyen · Svalbard & Jan Mayen"
+    },
+    "Atlantic/Madeira": {
+      "ar": "ماديرا · البرتغال",
+      "en": "Madeira · Portugal"
+    },
+    "Atlantic/Reykjavik": {
+      "ar": "ريكيافيك · آيسلندا",
+      "en": "Reykjavik · Iceland"
+    },
+    "Atlantic/South_Georgia": {
+      "ar": "جورجيا الجنوبية · جورجيا الجنوبية وجزر ساندويتش الجنوبية",
+      "en": "South Georgia · South Georgia & South Sandwich Islands"
+    },
+    "Atlantic/St_Helena": {
+      "ar": "سانت هيلينا · سانت هيلينا",
+      "en": "St. Helena · St. Helena"
+    },
+    "Atlantic/Stanley": {
+      "ar": "استانلي · جزر فوكلاند",
+      "en": "Stanley · Falkland Islands"
+    },
+    "Australia/ACT": {
+      "ar": "سيدني · أستراليا",
+      "en": "Sydney · Australia"
+    },
+    "Australia/Adelaide": {
+      "ar": "أديليد · أستراليا",
+      "en": "Adelaide · Australia"
+    },
+    "Australia/Brisbane": {
+      "ar": "برسيبان · أستراليا",
+      "en": "Brisbane · Australia"
+    },
+    "Australia/Broken_Hill": {
+      "ar": "بروكن هيل · أستراليا",
+      "en": "Broken Hill · Australia"
+    },
+    "Australia/Canberra": {
+      "ar": "سيدني · أستراليا",
+      "en": "Sydney · Australia"
+    },
+    "Australia/Currie": {
+      "ar": "هوبارت · أستراليا",
+      "en": "Hobart · Australia"
+    },
+    "Australia/Darwin": {
+      "ar": "دارون · أستراليا",
+      "en": "Darwin · Australia"
+    },
+    "Australia/Eucla": {
+      "ar": "أوكلا · أستراليا",
+      "en": "Eucla · Australia"
+    },
+    "Australia/Hobart": {
+      "ar": "هوبارت · أستراليا",
+      "en": "Hobart · Australia"
+    },
+    "Australia/LHI": {
+      "ar": "لورد هاو · أستراليا",
+      "en": "Lord Howe Island · Australia"
+    },
+    "Australia/Lindeman": {
+      "ar": "ليندمان · أستراليا",
+      "en": "Lindeman · Australia"
+    },
+    "Australia/Lord_Howe": {
+      "ar": "لورد هاو · أستراليا",
+      "en": "Lord Howe Island · Australia"
+    },
+    "Australia/Melbourne": {
+      "ar": "ميلبورن · أستراليا",
+      "en": "Melbourne · Australia"
+    },
+    "Australia/NSW": {
+      "ar": "سيدني · أستراليا",
+      "en": "Sydney · Australia"
+    },
+    "Australia/North": {
+      "ar": "دارون · أستراليا",
+      "en": "Darwin · Australia"
+    },
+    "Australia/Perth": {
+      "ar": "برثا · أستراليا",
+      "en": "Perth · Australia"
+    },
+    "Australia/Queensland": {
+      "ar": "برسيبان · أستراليا",
+      "en": "Brisbane · Australia"
+    },
+    "Australia/South": {
+      "ar": "أديليد · أستراليا",
+      "en": "Adelaide · Australia"
+    },
+    "Australia/Sydney": {
+      "ar": "سيدني · أستراليا",
+      "en": "Sydney · Australia"
+    },
+    "Australia/Tasmania": {
+      "ar": "هوبارت · أستراليا",
+      "en": "Hobart · Australia"
+    },
+    "Australia/Victoria": {
+      "ar": "ميلبورن · أستراليا",
+      "en": "Melbourne · Australia"
+    },
+    "Australia/West": {
+      "ar": "برثا · أستراليا",
+      "en": "Perth · Australia"
+    },
+    "Australia/Yancowinna": {
+      "ar": "بروكن هيل · أستراليا",
+      "en": "Broken Hill · Australia"
+    },
+    "Brazil/Acre": {
+      "ar": "ريوبرانكو · البرازيل",
+      "en": "Rio Branco · Brazil"
+    },
+    "Brazil/DeNoronha": {
+      "ar": "نوروناه · البرازيل",
+      "en": "Fernando de Noronha · Brazil"
+    },
+    "Brazil/East": {
+      "ar": "ساو باولو · البرازيل",
+      "en": "Sao Paulo · Brazil"
+    },
+    "Brazil/West": {
+      "ar": "ماناوس · البرازيل",
+      "en": "Manaus · Brazil"
+    },
+    "Canada/Atlantic": {
+      "ar": "هاليفاكس · كندا",
+      "en": "Halifax · Canada"
+    },
+    "Canada/Central": {
+      "ar": "وينيبيج · كندا",
+      "en": "Winnipeg · Canada"
+    },
+    "Canada/Eastern": {
+      "ar": "تورونتو · كندا",
+      "en": "Toronto · Canada"
+    },
+    "Canada/Mountain": {
+      "ar": "ايدمونتون · كندا",
+      "en": "Edmonton · Canada"
+    },
+    "Canada/Newfoundland": {
+      "ar": "سانت جونس · كندا",
+      "en": "St. John’s · Canada"
+    },
+    "Canada/Pacific": {
+      "ar": "فانكوفر · كندا",
+      "en": "Vancouver · Canada"
+    },
+    "Canada/Saskatchewan": {
+      "ar": "ريجينا · كندا",
+      "en": "Regina · Canada"
+    },
+    "Canada/Yukon": {
+      "ar": "وايت هورس · كندا",
+      "en": "Whitehorse · Canada"
+    },
+    "Chile/Continental": {
+      "ar": "سانتياغو · تشيلي",
+      "en": "Santiago · Chile"
+    },
+    "Chile/EasterIsland": {
+      "ar": "استر · تشيلي",
+      "en": "Easter Island · Chile"
+    },
+    "Europe/Amsterdam": {
+      "ar": "أمستردام · هولندا",
+      "en": "Amsterdam · Netherlands"
+    },
+    "Europe/Andorra": {
+      "ar": "أندورا · أندورا",
+      "en": "Andorra · Andorra"
+    },
+    "Europe/Astrakhan": {
+      "ar": "أستراخان · روسيا",
+      "en": "Astrakhan · Russia"
+    },
+    "Europe/Athens": {
+      "ar": "أثينا · اليونان",
+      "en": "Athens · Greece"
+    },
+    "Europe/Belfast": {
+      "ar": "لندن · المملكة المتحدة",
+      "en": "London · United Kingdom"
+    },
+    "Europe/Belgrade": {
+      "ar": "بلغراد · صربيا",
+      "en": "Belgrade · Serbia"
+    },
+    "Europe/Berlin": {
+      "ar": "برلين · ألمانيا",
+      "en": "Berlin · Germany"
+    },
+    "Europe/Bratislava": {
+      "ar": "براتيسلافا · سلوفاكيا",
+      "en": "Bratislava · Slovakia"
+    },
+    "Europe/Brussels": {
+      "ar": "بروكسل · بلجيكا",
+      "en": "Brussels · Belgium"
+    },
+    "Europe/Bucharest": {
+      "ar": "بوخارست · رومانيا",
+      "en": "Bucharest · Romania"
+    },
+    "Europe/Budapest": {
+      "ar": "بودابست · هنغاريا",
+      "en": "Budapest · Hungary"
+    },
+    "Europe/Busingen": {
+      "ar": "بوسنغن · ألمانيا",
+      "en": "Busingen · Germany"
+    },
+    "Europe/Chisinau": {
+      "ar": "تشيسيناو · مولدوفا",
+      "en": "Chisinau · Moldova"
+    },
+    "Europe/Copenhagen": {
+      "ar": "كوبنهاغن · الدانمرك",
+      "en": "Copenhagen · Denmark"
+    },
+    "Europe/Dublin": {
+      "ar": "دبلن · أيرلندا",
+      "en": "Dublin · Ireland"
+    },
+    "Europe/Gibraltar": {
+      "ar": "جبل طارق · جبل طارق",
+      "en": "Gibraltar · Gibraltar"
+    },
+    "Europe/Guernsey": {
+      "ar": "غيرنزي · غيرنزي",
+      "en": "Guernsey · Guernsey"
+    },
+    "Europe/Helsinki": {
+      "ar": "هلسنكي · فنلندا",
+      "en": "Helsinki · Finland"
+    },
+    "Europe/Isle_of_Man": {
+      "ar": "جزيرة مان · جزيرة مان",
+      "en": "Isle of Man · Isle of Man"
+    },
+    "Europe/Istanbul": {
+      "ar": "إسطنبول · تركيا",
+      "en": "Istanbul · Türkiye"
+    },
+    "Europe/Jersey": {
+      "ar": "جيرسي · جيرسي",
+      "en": "Jersey · Jersey"
+    },
+    "Europe/Kaliningrad": {
+      "ar": "كالينجراد · روسيا",
+      "en": "Kaliningrad · Russia"
+    },
+    "Europe/Kiev": {
+      "ar": "كييف · أوكرانيا",
+      "en": "Kyiv · Ukraine"
+    },
+    "Europe/Kirov": {
+      "ar": "كيروف · روسيا",
+      "en": "Kirov · Russia"
+    },
+    "Europe/Kyiv": {
+      "ar": "كييف · أوكرانيا",
+      "en": "Kyiv · Ukraine"
+    },
+    "Europe/Lisbon": {
+      "ar": "لشبونة · البرتغال",
+      "en": "Lisbon · Portugal"
+    },
+    "Europe/Ljubljana": {
+      "ar": "ليوبليانا · سلوفينيا",
+      "en": "Ljubljana · Slovenia"
+    },
+    "Europe/London": {
+      "ar": "لندن · المملكة المتحدة",
+      "en": "London · United Kingdom"
+    },
+    "Europe/Luxembourg": {
+      "ar": "لوكسمبورغ · لوكسمبورغ",
+      "en": "Luxembourg · Luxembourg"
+    },
+    "Europe/Madrid": {
+      "ar": "مدريد · إسبانيا",
+      "en": "Madrid · Spain"
+    },
+    "Europe/Malta": {
+      "ar": "مالطة · مالطا",
+      "en": "Malta · Malta"
+    },
+    "Europe/Mariehamn": {
+      "ar": "ماريهامن · جزر آلاند",
+      "en": "Mariehamn · Åland Islands"
+    },
+    "Europe/Minsk": {
+      "ar": "مينسك · بيلاروس",
+      "en": "Minsk · Belarus"
+    },
+    "Europe/Monaco": {
+      "ar": "موناكو · موناكو",
+      "en": "Monaco · Monaco"
+    },
+    "Europe/Moscow": {
+      "ar": "موسكو · روسيا",
+      "en": "Moscow · Russia"
+    },
+    "Europe/Nicosia": {
+      "ar": "نيقوسيا · قبرص",
+      "en": "Nicosia · Cyprus"
+    },
+    "Europe/Oslo": {
+      "ar": "أوسلو · النرويج",
+      "en": "Oslo · Norway"
+    },
+    "Europe/Paris": {
+      "ar": "باريس · فرنسا",
+      "en": "Paris · France"
+    },
+    "Europe/Podgorica": {
+      "ar": "بودغوريكا · الجبل الأسود",
+      "en": "Podgorica · Montenegro"
+    },
+    "Europe/Prague": {
+      "ar": "براغ · التشيك",
+      "en": "Prague · Czechia"
+    },
+    "Europe/Riga": {
+      "ar": "ريغا · لاتفيا",
+      "en": "Riga · Latvia"
+    },
+    "Europe/Rome": {
+      "ar": "روما · إيطاليا",
+      "en": "Rome · Italy"
+    },
+    "Europe/Samara": {
+      "ar": "سمراء · روسيا",
+      "en": "Samara · Russia"
+    },
+    "Europe/San_Marino": {
+      "ar": "سان مارينو · سان مارينو",
+      "en": "San Marino · San Marino"
+    },
+    "Europe/Sarajevo": {
+      "ar": "سراييفو · البوسنة والهرسك",
+      "en": "Sarajevo · Bosnia & Herzegovina"
+    },
+    "Europe/Saratov": {
+      "ar": "ساراتوف · روسيا",
+      "en": "Saratov · Russia"
+    },
+    "Europe/Simferopol": {
+      "ar": "سيمفروبول · روسيا",
+      "en": "Simferopol · Russia"
+    },
+    "Europe/Skopje": {
+      "ar": "سكوبي · مقدونيا الشمالية",
+      "en": "Skopje · North Macedonia"
+    },
+    "Europe/Sofia": {
+      "ar": "صوفيا · بلغاريا",
+      "en": "Sofia · Bulgaria"
+    },
+    "Europe/Stockholm": {
+      "ar": "ستوكهولم · السويد",
+      "en": "Stockholm · Sweden"
+    },
+    "Europe/Tallinn": {
+      "ar": "تالين · إستونيا",
+      "en": "Tallinn · Estonia"
+    },
+    "Europe/Tirane": {
+      "ar": "تيرانا · ألبانيا",
+      "en": "Tirane · Albania"
+    },
+    "Europe/Tiraspol": {
+      "ar": "تشيسيناو · مولدوفا",
+      "en": "Chisinau · Moldova"
+    },
+    "Europe/Ulyanovsk": {
+      "ar": "أوليانوفسك · روسيا",
+      "en": "Ulyanovsk · Russia"
+    },
+    "Europe/Uzhgorod": {
+      "ar": "كييف · أوكرانيا",
+      "en": "Kyiv · Ukraine"
+    },
+    "Europe/Vaduz": {
+      "ar": "فادوز · ليختنشتاين",
+      "en": "Vaduz · Liechtenstein"
+    },
+    "Europe/Vatican": {
+      "ar": "الفاتيكان · الفاتيكان",
+      "en": "Vatican · Vatican City"
+    },
+    "Europe/Vienna": {
+      "ar": "فيينا · النمسا",
+      "en": "Vienna · Austria"
+    },
+    "Europe/Vilnius": {
+      "ar": "فيلنيوس · ليتوانيا",
+      "en": "Vilnius · Lithuania"
+    },
+    "Europe/Volgograd": {
+      "ar": "فولوجراد · روسيا",
+      "en": "Volgograd · Russia"
+    },
+    "Europe/Warsaw": {
+      "ar": "وارسو · بولندا",
+      "en": "Warsaw · Poland"
+    },
+    "Europe/Zagreb": {
+      "ar": "زغرب · كرواتيا",
+      "en": "Zagreb · Croatia"
+    },
+    "Europe/Zaporozhye": {
+      "ar": "كييف · أوكرانيا",
+      "en": "Kyiv · Ukraine"
+    },
+    "Europe/Zurich": {
+      "ar": "زيورخ · سويسرا",
+      "en": "Zurich · Switzerland"
+    },
+    "Indian/Antananarivo": {
+      "ar": "أنتاناناريفو · مدغشقر",
+      "en": "Antananarivo · Madagascar"
+    },
+    "Indian/Chagos": {
+      "ar": "تشاغوس · الإقليم البريطاني في المحيط الهندي",
+      "en": "Chagos · British Indian Ocean Territory"
+    },
+    "Indian/Christmas": {
+      "ar": "كريسماس · جزيرة كريسماس",
+      "en": "Christmas Island · Christmas Island"
+    },
+    "Indian/Cocos": {
+      "ar": "كوكوس · جزر كوكوس (كيلينغ)",
+      "en": "Cocos Islands · Cocos (Keeling) Islands"
+    },
+    "Indian/Comoro": {
+      "ar": "جزر القمر · جزر القمر",
+      "en": "Comoro · Comoros"
+    },
+    "Indian/Kerguelen": {
+      "ar": "كيرغويلين · الأقاليم الجنوبية الفرنسية",
+      "en": "Kerguelen · French Southern Territories"
+    },
+    "Indian/Mahe": {
+      "ar": "ماهي · سيشل",
+      "en": "Mahe · Seychelles"
+    },
+    "Indian/Maldives": {
+      "ar": "المالديف · جزر المالديف",
+      "en": "Maldives · Maldives"
+    },
+    "Indian/Mauritius": {
+      "ar": "موريشيوس · موريشيوس",
+      "en": "Mauritius · Mauritius"
+    },
+    "Indian/Mayotte": {
+      "ar": "مايوت · مايوت",
+      "en": "Mayotte · Mayotte"
+    },
+    "Indian/Reunion": {
+      "ar": "ريونيون · روينيون",
+      "en": "Réunion · Réunion"
+    },
+    "Mexico/BajaNorte": {
+      "ar": "تيخوانا · المكسيك",
+      "en": "Tijuana · Mexico"
+    },
+    "Mexico/BajaSur": {
+      "ar": "مازاتلان · المكسيك",
+      "en": "Mazatlan · Mexico"
+    },
+    "Mexico/General": {
+      "ar": "مكسيكو سيتي · المكسيك",
+      "en": "Mexico City · Mexico"
+    },
+    "Pacific/Apia": {
+      "ar": "أبيا · ساموا",
+      "en": "Apia · Samoa"
+    },
+    "Pacific/Auckland": {
+      "ar": "أوكلاند · نيوزيلندا",
+      "en": "Auckland · New Zealand"
+    },
+    "Pacific/Bougainville": {
+      "ar": "بوغانفيل · بابوا غينيا الجديدة",
+      "en": "Bougainville · Papua New Guinea"
+    },
+    "Pacific/Chatham": {
+      "ar": "تشاثام · نيوزيلندا",
+      "en": "Chatham · New Zealand"
+    },
+    "Pacific/Chuuk": {
+      "ar": "ترك · ميكرونيزيا",
+      "en": "Chuuk · Micronesia"
+    },
+    "Pacific/Easter": {
+      "ar": "استر · تشيلي",
+      "en": "Easter Island · Chile"
+    },
+    "Pacific/Efate": {
+      "ar": "إيفات · فانواتو",
+      "en": "Efate · Vanuatu"
+    },
+    "Pacific/Enderbury": {
+      "ar": "اندربيرج · كيريباتي",
+      "en": "Kanton · Kiribati"
+    },
+    "Pacific/Fakaofo": {
+      "ar": "فاكاوفو · توكيلاو",
+      "en": "Fakaofo · Tokelau"
+    },
+    "Pacific/Fiji": {
+      "ar": "فيجي · فيجي",
+      "en": "Fiji · Fiji"
+    },
+    "Pacific/Funafuti": {
+      "ar": "فونافوتي · توفالو",
+      "en": "Funafuti · Tuvalu"
+    },
+    "Pacific/Galapagos": {
+      "ar": "جلاباجوس · الإكوادور",
+      "en": "Galapagos · Ecuador"
+    },
+    "Pacific/Gambier": {
+      "ar": "جامبير · بولينيزيا الفرنسية",
+      "en": "Gambier · French Polynesia"
+    },
+    "Pacific/Guadalcanal": {
+      "ar": "غوادالكانال · جزر سليمان",
+      "en": "Guadalcanal · Solomon Islands"
+    },
+    "Pacific/Guam": {
+      "ar": "غوام · غوام",
+      "en": "Guam · Guam"
+    },
+    "Pacific/Honolulu": {
+      "ar": "هونولولو · الولايات المتحدة",
+      "en": "Honolulu · United States"
+    },
+    "Pacific/Johnston": {
+      "ar": "هونولولو · الولايات المتحدة",
+      "en": "Honolulu · United States"
+    },
+    "Pacific/Kanton": {
+      "ar": "كانتون · كيريباتي",
+      "en": "Kanton · Kiribati"
+    },
+    "Pacific/Kiritimati": {
+      "ar": "كيريتي ماتي · كيريباتي",
+      "en": "Kiritimati · Kiribati"
+    },
+    "Pacific/Kosrae": {
+      "ar": "كوسرا · ميكرونيزيا",
+      "en": "Kosrae · Micronesia"
+    },
+    "Pacific/Kwajalein": {
+      "ar": "كواجالين · جزر مارشال",
+      "en": "Kwajalein · Marshall Islands"
+    },
+    "Pacific/Majuro": {
+      "ar": "ماجورو · جزر مارشال",
+      "en": "Majuro · Marshall Islands"
+    },
+    "Pacific/Marquesas": {
+      "ar": "ماركيساس · بولينيزيا الفرنسية",
+      "en": "Marquesas · French Polynesia"
+    },
+    "Pacific/Midway": {
+      "ar": "ميدواي · جزر الولايات المتحدة النائية",
+      "en": "Midway · U.S. Outlying Islands"
+    },
+    "Pacific/Nauru": {
+      "ar": "ناورو · ناورو",
+      "en": "Nauru · Nauru"
+    },
+    "Pacific/Niue": {
+      "ar": "نيوي · نيوي",
+      "en": "Niue · Niue"
+    },
+    "Pacific/Norfolk": {
+      "ar": "نورفولك · جزيرة نورفولك",
+      "en": "Norfolk Island · Norfolk Island"
+    },
+    "Pacific/Noumea": {
+      "ar": "نوميا · كاليدونيا الجديدة",
+      "en": "Noumea · New Caledonia"
+    },
+    "Pacific/Pago_Pago": {
+      "ar": "باغو باغو · ساموا الأمريكية",
+      "en": "Pago Pago · American Samoa"
+    },
+    "Pacific/Palau": {
+      "ar": "بالاو · بالاو",
+      "en": "Palau · Palau"
+    },
+    "Pacific/Pitcairn": {
+      "ar": "بيتكيرن · جزر بيتكيرن",
+      "en": "Pitcairn · Pitcairn Islands"
+    },
+    "Pacific/Pohnpei": {
+      "ar": "باناب · ميكرونيزيا",
+      "en": "Pohnpei · Micronesia"
+    },
+    "Pacific/Ponape": {
+      "ar": "باناب · ميكرونيزيا",
+      "en": "Pohnpei · Micronesia"
+    },
+    "Pacific/Port_Moresby": {
+      "ar": "بور مورسبي · بابوا غينيا الجديدة",
+      "en": "Port Moresby · Papua New Guinea"
+    },
+    "Pacific/Rarotonga": {
+      "ar": "راروتونغا · جزر كوك",
+      "en": "Rarotonga · Cook Islands"
+    },
+    "Pacific/Saipan": {
+      "ar": "سايبان · جزر ماريانا الشمالية",
+      "en": "Saipan · Northern Mariana Islands"
+    },
+    "Pacific/Samoa": {
+      "ar": "باغو باغو · ساموا الأمريكية",
+      "en": "Pago Pago · American Samoa"
+    },
+    "Pacific/Tahiti": {
+      "ar": "تاهيتي · بولينيزيا الفرنسية",
+      "en": "Tahiti · French Polynesia"
+    },
+    "Pacific/Tarawa": {
+      "ar": "تاراوا · كيريباتي",
+      "en": "Tarawa · Kiribati"
+    },
+    "Pacific/Tongatapu": {
+      "ar": "تونغاتابو · تونغا",
+      "en": "Tongatapu · Tonga"
+    },
+    "Pacific/Truk": {
+      "ar": "ترك · ميكرونيزيا",
+      "en": "Chuuk · Micronesia"
+    },
+    "Pacific/Wake": {
+      "ar": "واك · جزر الولايات المتحدة النائية",
+      "en": "Wake Island · U.S. Outlying Islands"
+    },
+    "Pacific/Wallis": {
+      "ar": "واليس · جزر والس وفوتونا",
+      "en": "Wallis · Wallis & Futuna"
+    },
+    "Pacific/Yap": {
+      "ar": "ترك · ميكرونيزيا",
+      "en": "Chuuk · Micronesia"
+    },
+    "US/Alaska": {
+      "ar": "أنشوراج · الولايات المتحدة",
+      "en": "Anchorage · United States"
+    },
+    "US/Aleutian": {
+      "ar": "أداك · الولايات المتحدة",
+      "en": "Adak · United States"
+    },
+    "US/Arizona": {
+      "ar": "فينكس · الولايات المتحدة",
+      "en": "Phoenix · United States"
+    },
+    "US/Central": {
+      "ar": "شيكاغو · الولايات المتحدة",
+      "en": "Chicago · United States"
+    },
+    "US/East-Indiana": {
+      "ar": "إنديانابوليس · الولايات المتحدة",
+      "en": "Indianapolis · United States"
+    },
+    "US/Eastern": {
+      "ar": "نيويورك · الولايات المتحدة",
+      "en": "New York · United States"
+    },
+    "US/Hawaii": {
+      "ar": "هونولولو · الولايات المتحدة",
+      "en": "Honolulu · United States"
+    },
+    "US/Indiana-Starke": {
+      "ar": "كونكس · الولايات المتحدة",
+      "en": "Knox, Indiana · United States"
+    },
+    "US/Michigan": {
+      "ar": "ديترويت · الولايات المتحدة",
+      "en": "Detroit · United States"
+    },
+    "US/Mountain": {
+      "ar": "دنفر · الولايات المتحدة",
+      "en": "Denver · United States"
+    },
+    "US/Pacific": {
+      "ar": "لوس انجلوس · الولايات المتحدة",
+      "en": "Los Angeles · United States"
+    },
+    "US/Samoa": {
+      "ar": "باغو باغو · ساموا الأمريكية",
+      "en": "Pago Pago · American Samoa"
+    }
+  }
+}
