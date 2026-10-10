@@ -42,7 +42,10 @@ passes, Wi-Fi is connected, Bluetooth is powered and two camera device nodes
 exist. Those are enumeration/current-state checks, not suspend/hotplug/camera
 quality or a universal hardware matrix. Earlier user-unit failures remain in
 private evidence; current post-reboot failed lists are empty. Writable /var has
-about 212 GiB free. Current RAM is active tooling, not an idle benchmark.
+about 212 GiB free at acceptance; retiring only the exact old local .1018
+ISO triple afterward reclaimed 5,808,128,179 bytes and leaves about 218 GiB.
+Current .1022 local files and installed signed rollback remain. Current RAM is
+active tooling, not an idle benchmark.
 
 Official Mo Store `update-apps` reports apps up to date. Settings, Store,
 Mira and MoPlayer were previously opened/reopened on installed .1018 without
