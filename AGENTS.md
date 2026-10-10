@@ -313,6 +313,17 @@ can redirect truncation. Acquire the mandatory install lock before resetting
 shared state. Scope redirection on `exec` with a group: an unscoped `2>/dev/null`
 also silences all later errors from that shell.
 
+**An idle greeter is not an empty account list.** Plasma Login Manager 6.7.5
+hides controls after ten seconds; capture after waking it and allowing the
+animation to finish (one second), then prove ordinary password login. The
+private .1018 Arabic install passed two such logins across clean shutdown and
+cold boot. Earlier background-only captures were fixture timing, not an account
+defect. QGA's confined root is not the authenticated native user's context.
+Offline containers-storage can rewrite a manifest: record its local digest
+separately from the verified registry source, compare actual uncompressed layers
+and runtime config, and keep a strict digest mismatch visible. Never rewrite
+origin metadata or relax a gate to make that comparison green.
+
 **`/` is not the disk.** On bootc/OSTree, `/` is a read-only composefs overlay; `statvfs` reports
 it as a ~60 MB filesystem that is 100% full. `shutil.disk_usage("/")` therefore returns 0 total,
 0 free, and the Hardware Centre showed "?" for storage on every MoOS machine it ever ran on.
