@@ -49,6 +49,9 @@ its new immutable localized-zone data/generator and native regression gate,
 plus installer-copy Mira naming only. Installer mount/privilege/authentication
 mechanisms remain unchanged. PR integration watcher is stopped before merge;
 finish this measured user-path correction before the one signed batch.
+The existing cache migration advances to THEME_REV 102; the station also owns
+only its exact revision assertions in `tests/test_moos_ui2.py` and
+`tests/verify_user_experience.py`, preserving all migration/cache guards.
 Main freezes at that cycle's recorded SHA through promotion/failure; do not
 dispatch a duplicate cycle. The accepted installer cycle at `144b1a6a` is complete.
 
