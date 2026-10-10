@@ -140,7 +140,8 @@ into signed .749 on 2026-10-11 Berlin; native graphical checks pass 51/0 and
 The original first autostart evidence retains transient container-health/launcher
 failures; unchanged steady-state checks pass after convergence. Four containers
 are healthy; four private HTTPS routes respond and the workstation SSH master
-automatically reconnects. Workstation reboot/reconnect remains separate.
+automatically reconnects. The physical workstation also booted signed .1022 and its managed SSH master
+reconnected successfully, with no new interactive authentication.
 Never copy a private key, managed Cloudflare/Vercel login or rclone profile into
 Git or between hosts; the same home path on two hosts is not the same tool state.
 

@@ -15,9 +15,10 @@ Owner reliability/release slice is integrated at main `1a73a4e0` (PR222).
 All 244 maintained source gates, catalogue, full local image and exact signed
 build/three QCOW2/offline installed ISO/ARM proofs pass on attempt 1.
 X86 .1022 promotion 38053736733 and ARM .749 pipeline 38042996902 passed.
-Physical NVIDIA .1022 is officially staged; its actual rebooted acceptance is
-owed. Oracle booted signed ARM .749 and passes native 51/0 + 55/0, twelve
-runtime hashes, preserved services and automatic SSH reconnection. Signed
+Physical NVIDIA booted signed .1022 and passes native 53/0 + 55/0; Oracle
+booted signed ARM .749 and passes 51/0 + 55/0. Both match twelve delivered
+runtime hashes, preserve signed rollback and services, and native SSH reconnects
+automatically across both real reboots. Signed
 rollback remains. A scheduled image-only build is not delivery.
 
 Public Vercel availability is restored on all 14 primary projects through the
@@ -297,7 +298,7 @@ itself and an unreviewed MoOS would ship kscreenlocker's emergency locker.
 | ID | Outcome | Current boundary | Required acceptance |
 | --- | --- | --- | --- |
 | P0.1 | Integrate the reviewed first-install repairs and create one candidate revision | Stable mechanism/artifact evidence recorded; preserve required gates | Exact candidate source, all integrated fixes and no local override counted as release. |
-| P0.2 | Run generic, NVIDIA and cloud QCOW2 proofs plus offline ISO install/second boot | Exact .1022 three QCOW2/offline installed ISO proofs and ARM .749 two boots pass; Oracle installed acceptance passes, physical NVIDIA reboot pending | Three exact-digest x86 QCOW2 journeys, offline installed ISO and separate ARM two-boot proof. |
+| P0.2 | Run generic, NVIDIA and cloud QCOW2 proofs plus offline ISO install/second boot | Exact .1022 three QCOW2/offline installed ISO proofs and ARM .749 two boots pass; both physical NVIDIA and Oracle installed acceptance pass | Three exact-digest x86 QCOW2 journeys, offline installed ISO and separate ARM two-boot proof. |
 | P0.3 | Finish physical NVIDIA qualification | Open / acceptance not complete | Actual NVIDIA GPU, initramfs module, displays, suspend and clean recovery on qualified hardware. |
 | P0.4 | Prove failed-update recovery | Open / acceptance not complete | Deliberate bad update, automatic/manual rollback and forward return without owner data loss. |
 | P0.5 | Configure and accept free Mo AI on a clean account | Open / acceptance not complete | Clean-account provider setup, free route, reboot, cancellation and network/quota/key failures. |
@@ -339,7 +340,7 @@ itself and an unreviewed MoOS would ship kscreenlocker's emergency locker.
 | P2.12 | One update surface for OS, apps and firmware | Open / acceptance not complete | OS image, Flatpak apps and firmware share truthful pending/failure/unsupported/finished states. |
 | P2.13 | MoPlayer performance and server/stream compatibility | Implemented/delivered within recorded scope; wider acceptance remains | Installed playback/reopen/stop and memory on real server kinds, MAC portal, HEVC/interlaced samples. |
 | P2.14 | Remote input, recovery and mobile/WAN video | Implemented/delivered within recorded scope; wider acceptance remains | Held-input ownership, decoded pictures, browser recovery and owner iPhone/cellular endurance. |
-| P2.15 | Mira face, speech/rest and original portrait identity | Capture policy integrated/promoted in .1022/.749; host booted delivery pending. Source/private-helper boundary and muted real USB pass; physical unmuted speech and long capture remain open | Both portraits retained; single mouth, real voice/pause/idle/hidden/reduced-motion readback; 11 private-process boundary tests, 45 controller tests, real muted USB with zero captures/overruns and three synthetic unmute/mute cycles. Physical unmuted voice/device and signed delivery remain open. |
+| P2.15 | Mira face, speech/rest and original portrait identity | Capture policy integrated/promoted in .1022/.749; both hosts booted with matching delivered hashes. Source/private-helper boundary and muted real USB pass; physical unmuted speech and long capture remain open | Both portraits retained; single mouth, real voice/pause/idle/hidden/reduced-motion readback; 11 private-process boundary tests, 45 controller tests, real muted USB with zero captures/overruns and three synthetic unmute/mute cycles. Physical unmuted voice/device and signed delivery remain open. |
 | P2.16 | Shared login, lock and power experience | Delivered within recorded scope. Private .1018 native Arabic lock/power and wrong/correct password transitions pass; login greeter buttons/date remain English. Review locale authority without forking authentication; wider acceptance remains | Native greeters 640×480–4K@2.5, password refusal, multi-user, save/logout and accessibility. |
 
 ## P3 — Trustworthy assistant
@@ -394,7 +395,7 @@ itself and an unreviewed MoOS would ship kscreenlocker's emergency locker.
 | P6.6 | Establish support lifecycle and migration policy | Open / acceptance not complete | Published support/upgrade/rollback/EOL policy plus clear licences, attribution and official identity. |
 | P6.7 | Reviewed Plasma seams before upstream transitions | Current Plasma seam guards delivered; next-Plasma canary 37378905167 is failed. Reviewed correction and native acceptance are required before the Oct14 transition | Actual next-Plasma canary, registered reviewed seams and old/broken/native controls. |
 | P6.8 | Separate reviewed next-base transition lane | Open / acceptance not complete | Reviewed next-base packages, all native seams/boot/apps/identity gates and migration/support qualification. |
-| P6.9 | Native user/developer participation | Beta integrated/promoted in .1022/.749; native launch/shutdown and ARM D-Bus controls pass, plus 34 API/11 native and actual Wayland/Oracle TLS flow. Host rebooted client and public custom DNS/onboarding/recovery/moderation/preferences/endurance remain open | Real authenticated service/client, private image attachments, account isolation and bounded uploads, admin moderation, retry/offline and promoted-release notifications; no secrets or automatic screenshots. |
+| P6.9 | Native user/developer participation | Beta integrated/promoted in .1022/.749; native launch/shutdown and ARM D-Bus controls pass, plus 34 API/11 native and actual Wayland/Oracle TLS flow. Both hosts boot delivered client bytes; actual .1022 native capture/shutdown passes and Oracle public health is ready. Capture retains Qt/portal-registration warnings; installed image-picker flow still needs acceptance. Branded DNS/onboarding/recovery/full moderation UI/preferences/endurance remain open | Real authenticated service/client, private image attachments, account isolation and bounded uploads, admin moderation, retry/offline and promoted-release notifications; no secrets or automatic screenshots. |
 
 ## Development-machine profile
 

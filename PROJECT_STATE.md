@@ -29,20 +29,20 @@ it is not a new release. This documentation branch is not new OS runtime code.
 
 ## Physical NVIDIA workstation
 
-Official `moai-do update` staged signed .1022 (`4abf5afd…`), with .1018
-(`c5977fc7…`) still booted. Current pre-delivery boot ID is
-`5ce8fd8d-0702-4a0b-93db-303e5d3304ac`; staged is not installed acceptance.
-The signed .1011 rollback remains before this reboot. An owned post-login
-proof checks new boot ID, exact digest, signed origin/rollback, 12 installed
-hashes, native selfcheck/post-update checks and failed units after restart.
+Official update and restart booted signed NVIDIA .1022 (`4abf5afd…`),
+boot ID `83a69153-a981-42cb-9652-5baf8f025f45`. Native post-login acceptance
+at 22:40:06 UTC passed 53 selfchecks, 55 post-update checks, twelve exact
+runtime hashes, signed origin/rollback and no failed system/user units. Signed
+.1018 (`c5977fc7…`) remains for rollback. The owned autostart proof retired
+itself after acceptance; stage-only evidence is no longer the current state.
 
-Last accepted .1018 checks were 54/0 and 55/0. Installed stack: kernel 7.2.9,
-Plasma 6.7.5, Qt 6.11.2 and NVIDIA 615.78.08; Arabic session, 4K/250%, UI2
-Arena. Current system has no failed units. One earlier Chrome launcher and two
-owned review/publication processes have recorded user-unit failures; these
-are not erased or called post-reboot OS failures. Writable `/var` has about
-212 GiB free before final release cleanup. Current RAM is an active tooling
-sample, not an idle or cold-boot benchmark.
+Installed stack: kernel 7.2.9, Plasma 6.7.5, Qt 6.11.2 and NVIDIA 615.78.08;
+Arabic session, 4K/250%, UI2 Arena. Actual RTX 2080 SUPER driver/display readback
+passes, Wi-Fi is connected, Bluetooth is powered and two camera device nodes
+exist. Those are enumeration/current-state checks, not suspend/hotplug/camera
+quality or a universal hardware matrix. Earlier user-unit failures remain in
+private evidence; current post-reboot failed lists are empty. Writable /var has
+about 212 GiB free. Current RAM is active tooling, not an idle benchmark.
 
 Official Mo Store `update-apps` reports apps up to date. Settings, Store,
 Mira and MoPlayer were previously opened/reopened on installed .1018 without
@@ -77,7 +77,8 @@ strictly authenticated master and reconnects on failure. It uses an owned
 fail its ownership check; global SSH permissions/checks were not relaxed.
 Actual native key login, sudo and master/control socket pass. The workstation
 master automatically reconnected across Oracle's real reboot (new PID 139935).
-Physical-workstation restart/reconnect remains separate acceptance. No private
+After the workstation reboot its native SSH master is active (PID 2626), and
+actual Oracle commands reach the same accepted ARM boot without reauthentication. No private
 key is in Git. Oracle's current dirty docs remain unchanged on their original
 branch; verified bundle/ref `archive/owner-pre-reboot-20261011` (`b3b886b6…`)
 preserves them on both stations without altering the owner's index.
@@ -138,8 +139,11 @@ two ordinary password logins across clean shutdown/cold boot (51/0 twice),
 and wrong/correct lock-password refusal/unlock. It is distinct from the exact
 .1022 signed ISO CI proof. Strict offline manifest mismatch remains 54/1;
 all 261 uncompressed layers/runtime config match. No origin rewrite hides it.
-Desktop `~/سطح المكتب/صور MoOS` contains 3,723 unique actual image assets,
-including 12 unique .1022 CI captures; images only. Private owner frames stay
+Desktop `~/سطح المكتب/صور MoOS` contains 3,724 unique actual image assets,
+including 12 unique .1022 CI captures and one actual installed .1022 Arabic
+community frame; images only. Native community frame/shutdown returns 0 with
+no null-context teardown error. Its deprecation/portal-registration warnings
+remain in evidence; this capture mode does not test the image picker or network. Private owner frames stay
 local. CI English/small-screen fixtures are not owner Arabic hardware evidence.
 
 ## Integrated owner features and remaining boundaries
