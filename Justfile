@@ -32,6 +32,14 @@ default:
 dotnet-check:
     bash moremote/dotnet-check.sh
 
+# Participation needs its hash-pinned API dependencies. Native Qt flow acceptance
+# is explicit rather than silently skipped on an SDK-free CI worker.
+community-check:
+    bash community/check.sh
+
+community-native-check:
+    bash community/check.sh --native
+
 # Read-only host inventory, including from VS Code Flatpak. Does not install SDKs.
 workstation-check:
     bash scripts/setup-development-machine.sh --check
@@ -91,6 +99,7 @@ check:
     python3 tests/test_moai_skills.py
     # Every tool and playbook MoOS declares has a name in both languages in Mira's window.
     python3 tests/test_mira_names_every_capability.py
+    python3 tests/test_mira_capture_policy.py
     python3 tests/test_moai_rail_layout.py
     # Mo AI's brain is a cloud API and nothing is ever downloaded to the
     # machine. Free, no-card providers must exist and come first.
@@ -448,6 +457,8 @@ check:
     # Recovery is where a broken update sends the user: its target, queued-state
     # copy, and non-blocking Polkit/bootc path belong in the local gate too.
     python3 tests/test_recovery_rollback_target.py
+    python3 tests/test_community_packaging.py
+    python3 tests/test_installer_timezone_labels.py
     python3 tests/test_update_state_machine.py
     python3 tests/test_support_bundle_redaction.py
     python3 tests/test_rollback_proof_harness.py

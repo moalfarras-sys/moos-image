@@ -22,6 +22,18 @@ another author's work. A complete rights inventory remains required before a
 new general licence is applied. Previously distributed licence grants cannot
 be withdrawn retroactively.
 
+The installer's Arabic/English timezone labels are derived from Unicode CLDR
+through Babel 2.18.0, against tzdata 2026e. The original Babel and Unicode v3
+notices ship in `/usr/share/doc/moos/installer-timezones/`; they govern that
+derived data, not the rest of this repository. Refresh with
+`artwork/generate_installer_timezones.py --output system_files/usr/share/moos/installer-timezones.json`
+in a disposable SDK containing those reviewed versions, then run the native
+timezone gate. Babel is not a runtime dependency. CLDR historical-ID exemplar
+cities are resolved through the tzdata alias family. Coyhaique currently keeps
+its proper-name fallback with an Arabic country label; do not invent a CLDR
+translation. The image gate rejects new selectable zones without labels.
+Primary data API: [Babel timezone location](https://babel.pocoo.org/en/latest/api/dates.html#babel.dates.get_timezone_location).
+
 ## Name and endorsement
 
 The MoOS name, original logo and official-release presentation identify the

@@ -1,0 +1,13 @@
+[Desktop Entry]
+Type=Application
+Name=MoOS Community
+Name[ar]=مجتمع MoOS
+Comment=Private support conversations and optional public suggestions
+Comment[ar]=بلاغات خاصة واقتراحات تطوير اختيارية مع فريق MoOS
+Exec=/usr/bin/moos-community
+Icon=moos-logo
+Terminal=false
+Categories=System;Utility;
+StartupNotify=true
+StartupWMClass=org.moos.community
+X-KDE-StartupNotify=true

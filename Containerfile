@@ -60,6 +60,12 @@ COPY tests/qml/motion-review.qml /motion-review.qml
 # test file (the mira-build stage runs the same probe as a suite), never shipped.
 COPY mira/test_visual_tier.py /mira/test_visual_tier.py
 
+# Native participation is one small, dependency-free client package. The Oracle
+# server, operator tooling and test SDK never enter the desktop image.
+FROM base AS community-build
+COPY community/ /src/community/
+RUN python3 -B /src/community/stage_client.py /src/community /out/community
+
 # P5.8: exact vendor Plasma rebuild; only the logout transaction is corrected.
 FROM base AS plasma-logout-build
 RUN dnf5 -y install --setopt=install_weak_deps=False gcc-c++ rpm-build cpio patch \
@@ -334,6 +340,7 @@ COPY --from=moplayer-build /out/ /usr/lib/moplayer/
 # MoPlayer: that directory is the QML smoke gate's, and Mira has her own gate in build.sh.
 COPY --from=mira-build /out/app/ /usr/lib/mira/app/
 COPY --from=mira-build /out/site/ /usr/lib/mira/site/
+COPY --from=community-build /out/community/ /usr/lib/moos-community/community/
 
 # The QML host that gives MoOS's apps their real app_id — the single stripped
 # binary from the qmlshell-build stage. Must land BEFORE build.sh runs, which

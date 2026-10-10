@@ -149,6 +149,9 @@ _PLASMA=(
     # python3-websockets is already named above for Mo PC Remote.
     python3-pyside6 python3-numpy python3-jeepney python3-httpx python3-requests
     python3-cryptography
+    # The native community image proof needs a private session bus. Kinoite
+    # carries dbus-run-session; bare bootc with weak deps disabled does not.
+    dbus-daemon
 )
 
 # Mo PC Remote publishes its authenticated loopback agent through Tailscale
@@ -1030,6 +1033,10 @@ rm -rf "$_mira_home" /tmp/mira-smoke.log
 _mira_pyc="$(find /usr/lib/mira -name '__pycache__' -print -quit)"
 [ -z "$_mira_pyc" ] || { echo "GATE FAIL: bytecode caches reached /usr/lib/mira ($_mira_pyc)"; exit 1; }
 unset -v _mira_home _mira_imports _mira_pages _mira_face _mira_rc _mira_pyc _lumen_out
+
+# The identical native participation app and launcher proof used by x86.
+python3 /ctx/verify_community_client.py
+python3 /ctx/verify_installer_timezones.py --native
 
 # -----------------------------------------------------------------------------
 # (8) Identity

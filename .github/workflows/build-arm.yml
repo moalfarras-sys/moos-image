@@ -45,6 +45,7 @@ on:
       - "moremote/**"
       # Mira: Containerfile.arm's mira-build stage runs her suites and stages her tree.
       - "mira/**"
+      - "community/**"
       - "moos-settings-kcm/**"
       - "system_files/**"
       - "tests/boot_arm_qcow2.sh"
@@ -72,6 +73,7 @@ on:
       - "moremote/**"
       # Mira: Containerfile.arm's mira-build stage runs her suites and stages her tree.
       - "mira/**"
+      - "community/**"
       - "moos-settings-kcm/**"
       - "system_files/**"
       - "tests/test_moos_arm.py"

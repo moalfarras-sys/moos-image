@@ -207,6 +207,14 @@ read it back from the running desktop.** `kreadconfig6`, `gsettings get`, and
 `Gtk.Settings.get_default()` answer what the user actually has. A file in `system_files/` does
 not, and neither does a gate that reads one.
 
+**A remote shell does not inherit Plasma's configuration cascade.** On the Oracle
+`.733` boot, SSH omitted `XDG_CONFIG_DIRS`, including `~/.config/kdedefaults`, and
+the native readback reported four/five mixed-theme failures. The actual graphical
+user environment passed 51/0 and 55/0. Run desktop acceptance in an owned transient
+user unit inheriting that environment, or read its exact configuration paths;
+do not guess them or call an SSH fallback value the running desktop. Keep the
+same checks and their failure evidence; never weaken them to hide the context.
+
 **A button is only as real as its route.** Mo AI is pure QML: it cannot exec, so every button
 is a `Qt.openUrlExternally("moos://…")` that lands in `moos-open`'s `case`, which runs the
 matching `moai-do` action. Nothing checked that the two agreed. Eleven buttons once shipped —
@@ -264,6 +272,15 @@ GUI consent assistance and phone acceptance are separate from those isolated tes
 text a person reads it measured 1.6:1 on the light schemes. Secondary ink is the theme's text
 colour at an alpha (`tests/test_secondary_text_contrast.py` does the arithmetic per scheme).
 
+**A translated placeholder does not make a search Arabic.** The live ISO
+offered "برلين" as its example but searched only IANA identifiers; the result
+was empty while Next accepted a hidden Riyadh guess. Keep localized CLDR city
+labels separate from the IANA recipe value, and require the selected zone to
+match the current search. `verify_installer_timezones.py` exercises actual Qt
+Arabic/English input, row clicks and unmatched/no-result refusal in both images;
+the old raw-ID-only search is a native negative control. A live source overlay
+tests that UI path, not the identity of a subsequently signed ISO.
+
 **A property that does not exist is not an error QML reports.** `root.novaOrange` evaluated to
 `undefined`, the privileged-action card painted Qt's defaults, the window opened and the launch
 gate passed. `tests/test_qml_root_references.py` is the static half; `scripts/review/render-app.sh`
@@ -295,6 +312,17 @@ Root installer logs belong in a private directory; a fixed shared /tmp filename
 can redirect truncation. Acquire the mandatory install lock before resetting
 shared state. Scope redirection on `exec` with a group: an unscoped `2>/dev/null`
 also silences all later errors from that shell.
+
+**An idle greeter is not an empty account list.** Plasma Login Manager 6.7.5
+hides controls after ten seconds; capture after waking it and allowing the
+animation to finish (one second), then prove ordinary password login. The
+private .1018 Arabic install passed two such logins across clean shutdown and
+cold boot. Earlier background-only captures were fixture timing, not an account
+defect. QGA's confined root is not the authenticated native user's context.
+Offline containers-storage can rewrite a manifest: record its local digest
+separately from the verified registry source, compare actual uncompressed layers
+and runtime config, and keep a strict digest mismatch visible. Never rewrite
+origin metadata or relax a gate to make that comparison green.
 
 **`/` is not the disk.** On bootc/OSTree, `/` is a read-only composefs overlay; `statvfs` reports
 it as a ~60 MB filesystem that is 100% full. `shutil.disk_usage("/")` therefore returns 0 total,
@@ -376,6 +404,32 @@ picker. Claim the Hue area only on the first captured picture: it expires after
 ten silent seconds while a screen picker can wait indefinitely. A lost stream
 must release the area and restore paced house control for its lamps. Preserve
 explicit saved cloud targets on restart. PC state is never physical LED readback.
+
+**A rendered Qt frame can still fail during teardown.** QML bindings outlive a
+Python context object if interpreter-local cleanup chooses the wrong order.
+Keep the controller alive until the QML engine is actually destroyed. Inspect
+the launch process through shutdown, not only its ready marker: the old native
+community container rendered a frame then raised a null-context TypeError;
+the unchanged image gate refused it, and old/fixed container controls prove it.
+
+**A native test dependency can add compose state.** The ARM community launcher
+passed after installing dbus-daemon, then the finalizer correctly refused its
+empty `/var/lib/dbus`. Remove only that empty package directory under the
+vendor `/usr/lib/tmpfiles.d/dbus.conf` authority; prove native tmpfiles recreates
+the directory/machine-id link and rejects populated, linked or mounted state.
+Never delete the live directory or permit arbitrary mutable image entries.
+
+**A declared UID guard needs the host UID namespace.** The community API
+correctly refused its Tailscale proxy from a sandboxed user unit: despite
+`PrivateUsers=no`, the process's actual `uid_map` mapped only UID 1000 and the
+root client was indistinguishable from other foreign UIDs. Never trust the
+shared overflow UID or a forwarded header to make it pass. A root-managed
+system unit with a dedicated unprivileged `User=moos-community` preserves the
+host namespace, root-owned code and a private writable data/home directory.
+Check the actual map and full reversed socket tuple; prove forged local headers
+fail and the reviewed TLS proxy overwrites incoming X-Forwarded-For. Cosign's
+public Sigstore trust cache belongs in that account's owned home, never by
+relaxing signature/transparency checks or making code writable.
 
 **Loopback and a fixed request header are not user authentication.** Mo AI's
 three HTTP services verify the connecting client socket's UID from the kernel

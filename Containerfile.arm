@@ -45,6 +45,11 @@ COPY tests/qml/motion-review.qml /motion-review.qml
 # test file (the stage below runs the same probe as a suite), never shipped.
 COPY mira/test_visual_tier.py /mira/test_visual_tier.py
 
+# Exactly the same native participation client as all x86 editions.
+FROM base AS community-build
+COPY community/ /src/community/
+RUN python3 -B /src/community/stage_client.py /src/community /out/community
+
 # P5.8: exact vendor Plasma rebuild; only the logout transaction is corrected.
 FROM base AS plasma-logout-build
 RUN dnf5 -y install --setopt=install_weak_deps=False gcc-c++ rpm-build cpio patch \
@@ -273,6 +278,7 @@ COPY --from=moplayer-build /out/ /usr/lib/moplayer/
 # so build-arm.sh's final overlay restore leaves them alone.
 COPY --from=mira-build /out/app/ /usr/lib/mira/app/
 COPY --from=mira-build /out/site/ /usr/lib/mira/site/
+COPY --from=community-build /out/community/ /usr/lib/moos-community/community/
 
 RUN --mount=type=bind,from=ctx,source=/,target=/ctx \
     --mount=type=bind,from=system-files,source=/,target=/moos-overlay \

@@ -87,6 +87,68 @@ class ImageStateTests(unittest.TestCase):
                 finalize(root)
             self.assertEqual(log.read_text(), 'preserve')
 
+    def dbus_fixture(self, root):
+        self.fixture(root)
+        (root/'var/lib/dbus').mkdir()
+        policy = root/'usr/lib/tmpfiles.d/dbus.conf'
+        policy.parent.mkdir(parents=True, exist_ok=True)
+        # The actual dbus-daemon vendor policy; do not generate a competing one.
+        policy.write_text('d /var/lib/dbus 0755 - - -\n'
+                          'L /var/lib/dbus/machine-id - - - - /etc/machine-id\n')
+        (root/'etc/machine-id').write_text('0123456789abcdef0123456789abcdef\n')
+        return policy
+
+    def test_old_finalizer_rejects_dbus_package_directory(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory); self.dbus_fixture(root)
+            old = tuple(entry for entry in finalize.__globals__['STATIC_STATE_DIRECTORIES']
+                        if entry[0] != 'var/lib/dbus')
+            with mock.patch.dict(finalize.__globals__, STATIC_STATE_DIRECTORIES=old), \
+                    self.assertRaisesRegex(RuntimeError, 'unexpected mutable.*var/lib/dbus'):
+                finalize(root)
+            self.assertTrue((root/'var/lib/dbus').is_dir())
+
+    def test_dbus_vendor_tmpfiles_recreates_cleaned_state(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory); policy = self.dbus_fixture(root)
+            original = policy.read_bytes()
+            finalize(root)
+            self.assertFalse((root/'var/lib').exists())
+            self.assertEqual(policy.read_bytes(), original)
+            self.assertNotIn('/var/lib/dbus',
+                             (root/'usr/lib/tmpfiles.d/moos-image-state.conf').read_text())
+            subprocess.run(['systemd-tmpfiles', '--root', directory, '--create', str(policy)],
+                           check=True, capture_output=True)
+            self.assertEqual((root/'var/lib/dbus').stat().st_mode & 0o777, 0o755)
+            self.assertEqual((root/'var/lib/dbus/machine-id').readlink(), Path('/etc/machine-id'))
+            self.assertEqual((root/'etc/machine-id').read_text(),
+                             '0123456789abcdef0123456789abcdef\n')
+
+    def test_dbus_state_without_safe_empty_directory_and_authority_is_preserved(self):
+        for kind in ('populated', 'symlink', 'file', 'mount', 'missing-policy'):
+            with self.subTest(kind=kind), tempfile.TemporaryDirectory() as directory:
+                root = Path(directory); policy = self.dbus_fixture(root)
+                path = root/'var/lib/dbus'
+                if kind == 'populated':
+                    (path/'machine-id').write_text('preserve')
+                elif kind in ('symlink', 'file'):
+                    path.rmdir()
+                    if kind == 'symlink':
+                        path.symlink_to(root/'boot', target_is_directory=True)
+                    else:
+                        path.write_text('preserve')
+                elif kind == 'missing-policy':
+                    policy.unlink()
+                context = mock.patch('os.path.ismount', side_effect=lambda p:
+                                     kind == 'mount' and Path(p) == path)
+                with context, self.assertRaisesRegex(
+                        RuntimeError, 'expected empty|unexpected symlink|unsafe mount|missing tmpfiles'):
+                    finalize(root)
+                self.assertTrue(path.exists())
+                if kind == 'populated':
+                    self.assertEqual((path/'machine-id').read_text(), 'preserve')
+                self.assertTrue((root/'boot/efi/EFI/moos/loader.efi').exists())
+
     def test_installed_apps_and_missing_bootstrap_are_rejected(self):
         for invalid in ('app', 'runtime', 'refs', 'missing-bootstrap'):
             with self.subTest(invalid=invalid), tempfile.TemporaryDirectory() as directory:

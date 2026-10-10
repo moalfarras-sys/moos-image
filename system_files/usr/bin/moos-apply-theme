@@ -356,7 +356,9 @@ set -uo pipefail
 #      would still ask for MoOSClock, which no longer exists — kscreenlocker would fall
 #      back to its emergency locker — and a cached stock SessionManagementScreen would
 #      draw the old layout with no island at all.
-THEME_REV=101
+# 102: the installer searches localized CLDR city names and names Mira consistently.
+# Changed QML under /usr must not reuse a previous deployment's compiled cache.
+THEME_REV=102
 state_dir="${XDG_STATE_HOME:-$HOME/.local/state}"
 mkdir -p "$state_dir" 2>/dev/null || true
 marker="${state_dir}/moos-ui2-theme-applied.v${THEME_REV}"

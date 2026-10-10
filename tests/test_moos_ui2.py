@@ -892,7 +892,7 @@ class TestMoOSUI2(unittest.TestCase):
         apply = (ROOT / "system_files/usr/bin/moos-apply-theme").read_text(encoding="utf-8")
         switch = (ROOT / "system_files/usr/bin/moos-theme").read_text(encoding="utf-8")
         self.assertIn(
-            "THEME_REV=101", apply,
+            "THEME_REV=102", apply,
             "existing v100 users would keep a cached compile of the retired MoOS LockScreenUi that "
             "asks for a MoOSClock which no longer ships (kscreenlocker's emergency locker) and a "
             "cached stock session screen with no island; "

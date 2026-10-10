@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>org.moos.community</id>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>LicenseRef-proprietary</project_license>
+  <name>MoOS Community</name>
+  <name xml:lang="ar">مجتمع MoOS</name>
+  <summary>Private support conversations and optional public suggestions</summary>
+  <summary xml:lang="ar">بلاغات خاصة واقتراحات تطوير اختيارية</summary>
+  <description>
+    <p>Report a problem, attach a selected picture, and follow a private conversation with the MoOS development team. Publish an original suggestion only by explicit choice.</p>
+    <p xml:lang="ar">أرسل بلاغًا، وأرفق صورة تختارها، وتابع المحادثة الخاصة مع فريق MoOS. انشر فكرتك الأولى كاقتراح عام باختيار صريح فقط.</p>
+  </description>
+  <launchable type="desktop-id">org.moos.community.desktop</launchable>
+  <url type="homepage">https://moalfarras.space</url>
+  <developer id="moalfarras"><name>MoOS</name></developer>
+  <provides><binary>moos-community</binary></provides>
+  <content_rating type="oars-1.1"/>
+</component>

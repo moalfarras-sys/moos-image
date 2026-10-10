@@ -1,0 +1,1707 @@
+{
+  "schema": 1,
+  "date": "2026-10-09",
+  "ci_run": 37916929153,
+  "iso_sha256": "612a175308a76436549590cfb3d0ff7771ffe075a89a3fd77ab7ca47e675055a",
+  "scope": "Actual .1018 CI/native/host captures plus private offline Arabic GUI install with reviewed installer frontend overlay; native password login/lock/unlock passed. Not a new signed owner release or universal hardware qualification.",
+  "missing_stages": [
+    "owner lock screen",
+    "physical firmware/DRM cold-boot splash"
+  ],
+  "entries": [
+    {
+      "file": "ci-stable-1018-37916929153/graphical.png",
+      "title_ar": "إقلاع ISO الحي / الترحيب",
+      "note_ar": "لقطة مبكرة باللغة الإنجليزية؛ محتوى الترحيب مقصوص عند 640×480. ليست واجهة خطوات التثبيت كاملة.",
+      "sha256": "9d11823c35cf3a131bfda7a2b5aad16022a496dea98cad7c66945baecc3aae5e",
+      "physical_px": [
+        640,
+        505
+      ],
+      "environment": "final-iso-ci-vm",
+      "language": "en",
+      "scale": "not recorded",
+      "logical_px": "not recorded",
+      "version": "44.20261009.1018",
+      "source_sha": "144b1a6ad04f0b7fa442183110ad6d969f636add",
+      "image_digest": "sha256:3055eb28ac032492a053da1efb9493c9780e7bfa20a01c7c3300961693bfee92",
+      "private_owner_content": false,
+      "publishable_after_review": true
+    },
+    {
+      "file": "ci-stable-1018-37916929153/installed-app-dolphin.png",
+      "title_ar": "مدير الملفات",
+      "note_ar": "الإنجليزية؛ نافذة حقيقية. ليست مراجعة عربية أو اكتمال التخطيط الصغير.",
+      "sha256": "f868243a83553189ec792bdb522996c587bc8710b1fb92523b26f68e05872111",
+      "physical_px": [
+        640,
+        505
+      ],
+      "environment": "final-iso-ci-vm",
+      "language": "en",
+      "scale": "not recorded",
+      "logical_px": "not recorded",
+      "version": "44.20261009.1018",
+      "source_sha": "144b1a6ad04f0b7fa442183110ad6d969f636add",
+      "image_digest": "sha256:3055eb28ac032492a053da1efb9493c9780e7bfa20a01c7c3300961693bfee92",
+      "private_owner_content": false,
+      "publishable_after_review": true
+    },
+    {
+      "file": "ci-stable-1018-37916929153/installed-app-konsole.png",
+      "title_ar": "الطرفية",
+      "note_ar": "الإنجليزية؛ نافذة حقيقية.",
+      "sha256": "4f6b88362e4b1984d81a0dc282dd71123e18f0efa9831a33c161f473f2ce3281",
+      "physical_px": [
+        640,
+        505
+      ],
+      "environment": "final-iso-ci-vm",
+      "language": "en",
+      "scale": "not recorded",
+      "logical_px": "not recorded",
+      "version": "44.20261009.1018",
+      "source_sha": "144b1a6ad04f0b7fa442183110ad6d969f636add",
+      "image_digest": "sha256:3055eb28ac032492a053da1efb9493c9780e7bfa20a01c7c3300961693bfee92",
+      "private_owner_content": false,
+      "publishable_after_review": true
+    },
+    {
+      "file": "ci-stable-1018-37916929153/installed-app-mo-ai.png",
+      "title_ar": "ميرا",
+      "note_ar": "ميرا باللغة الإنجليزية في جلسة CI إنجليزية؛ ليست مراجعة عربية على جهاز المالك.",
+      "sha256": "2d9bcaac51b0a5f9642b41b2f8c95234ee69840acf63e4bca512fc652bf218d8",
+      "physical_px": [
+        640,
+        505
+      ],
+      "environment": "final-iso-ci-vm",
+      "language": "en",
+      "scale": "not recorded",
+      "logical_px": "not recorded",
+      "version": "44.20261009.1018",
+      "source_sha": "144b1a6ad04f0b7fa442183110ad6d969f636add",
+      "image_digest": "sha256:3055eb28ac032492a053da1efb9493c9780e7bfa20a01c7c3300961693bfee92",
+      "private_owner_content": false,
+      "publishable_after_review": true
+    },
+    {
+      "file": "ci-stable-1018-37916929153/installed-app-mo-pc-remote.png",
+      "title_ar": "Mo PC Remote",
+      "note_ar": "حالة stopped واضحة؛ لا تثبت اتصال هاتف أو بث فيديو.",
+      "sha256": "54dbdcfa551fbe1c3bc9bf45f98e6093e66508fe46d26118a26a82103a2bf9f8",
+      "physical_px": [
+        640,
+        505
+      ],
+      "environment": "final-iso-ci-vm",
+      "language": "en",
+      "scale": "not recorded",
+      "logical_px": "not recorded",
+      "version": "44.20261009.1018",
+      "source_sha": "144b1a6ad04f0b7fa442183110ad6d969f636add",
+      "image_digest": "sha256:3055eb28ac032492a053da1efb9493c9780e7bfa20a01c7c3300961693bfee92",
+      "private_owner_content": false,
+      "publishable_after_review": true
+    },
+    {
+      "file": "ci-stable-1018-37916929153/installed-app-mo-store.png",
+      "title_ar": "المتجر",
+      "note_ar": "عملية تنزيل ظاهرة؛ أطراف المحتوى مقصوصة عند 640×480. ليست دليل انتهاء التثبيت.",
+      "sha256": "0588fb259b4a5ea1e4086c2d441b8cbf6cea16440d45af5211dbf306419049a9",
+      "physical_px": [
+        640,
+        505
+      ],
+      "environment": "final-iso-ci-vm",
+      "language": "en",
+      "scale": "not recorded",
+      "logical_px": "not recorded",
+      "version": "44.20261009.1018",
+      "source_sha": "144b1a6ad04f0b7fa442183110ad6d969f636add",
+      "image_digest": "sha256:3055eb28ac032492a053da1efb9493c9780e7bfa20a01c7c3300961693bfee92",
+      "private_owner_content": false,
+      "publishable_after_review": true
+    },
+    {
+      "file": "ci-stable-1018-37916929153/installed-app-moos-settings.png",
+      "title_ar": "إعدادات MoOS",
+      "note_ar": "تحميل مبكر: Reading device status / signature unknown؛ لا يثبت انتهاء قراءة الحالة.",
+      "sha256": "0dee1d28db972b1b87b4d4f1527a88639a58e668ac3ce426978031cbc08214dc",
+      "physical_px": [
+        640,
+        505
+      ],
+      "environment": "final-iso-ci-vm",
+      "language": "en",
+      "scale": "not recorded",
+      "logical_px": "not recorded",
+      "version": "44.20261009.1018",
+      "source_sha": "144b1a6ad04f0b7fa442183110ad6d969f636add",
+      "image_digest": "sha256:3055eb28ac032492a053da1efb9493c9780e7bfa20a01c7c3300961693bfee92",
+      "private_owner_content": false,
+      "publishable_after_review": true
+    },
+    {
+      "file": "ci-stable-1018-37916929153/installed-app-moplayer.png",
+      "title_ar": "MoPlayer",
+      "note_ar": "نافذة سوداء مبكرة؛ لا تثبت رسم التطبيق أو تشغيل الوسائط.",
+      "sha256": "0212ab1f73d5c933d0f9def09187dd2c3fc1975845199619d644328180af8b5a",
+      "physical_px": [
+        640,
+        505
+      ],
+      "environment": "final-iso-ci-vm",
+      "language": "en",
+      "scale": "not recorded",
+      "logical_px": "not recorded",
+      "version": "44.20261009.1018",
+      "source_sha": "144b1a6ad04f0b7fa442183110ad6d969f636add",
+      "image_digest": "sha256:3055eb28ac032492a053da1efb9493c9780e7bfa20a01c7c3300961693bfee92",
+      "private_owner_content": false,
+      "publishable_after_review": true
+    },
+    {
+      "file": "ci-stable-1018-37916929153/installed-app-recovery.png",
+      "title_ar": "الاسترداد",
+      "note_ar": "الإصدار غير مقروء؛ لا تؤخذ رسالة عدم وجود نسخة سابقة كدليل عندما القراءة مجهولة.",
+      "sha256": "ad8f47e6ca1d39703da308e11f2bffeb7250886e151afe15416c193ddc50a82e",
+      "physical_px": [
+        640,
+        505
+      ],
+      "environment": "final-iso-ci-vm",
+      "language": "en",
+      "scale": "not recorded",
+      "logical_px": "not recorded",
+      "version": "44.20261009.1018",
+      "source_sha": "144b1a6ad04f0b7fa442183110ad6d969f636add",
+      "image_digest": "sha256:3055eb28ac032492a053da1efb9493c9780e7bfa20a01c7c3300961693bfee92",
+      "private_owner_content": false,
+      "publishable_after_review": true
+    },
+    {
+      "file": "ci-stable-1018-37916929153/installed-app-themes.png",
+      "title_ar": "المظهر الموحّد",
+      "note_ar": "صفحة MoOS Themes الأصلية داخل إعدادات KDE.",
+      "sha256": "fa43f1622f17b9a28caba7408c2fbdbab5be8d50b296d956af3ac17c090ea791",
+      "physical_px": [
+        640,
+        505
+      ],
+      "environment": "final-iso-ci-vm",
+      "language": "en",
+      "scale": "not recorded",
+      "logical_px": "not recorded",
+      "version": "44.20261009.1018",
+      "source_sha": "144b1a6ad04f0b7fa442183110ad6d969f636add",
+      "image_digest": "sha256:3055eb28ac032492a053da1efb9493c9780e7bfa20a01c7c3300961693bfee92",
+      "private_owner_content": false,
+      "publishable_after_review": true
+    },
+    {
+      "file": "ci-stable-1018-37916929153/installed-app-updater.png",
+      "title_ar": "التحديث",
+      "note_ar": "أصل غير معروف وفحص تحديث غير ناجح في اللقطة؛ فتح/إغلاق/إعادة فتح وحده لا يثبت صحة تحديث VM.",
+      "sha256": "f9898ca291211d87beb025d3968af97e14e2ea2bf1d2822e24baa350914cd91b",
+      "physical_px": [
+        640,
+        505
+      ],
+      "environment": "final-iso-ci-vm",
+      "language": "en",
+      "scale": "not recorded",
+      "logical_px": "not recorded",
+      "version": "44.20261009.1018",
+      "source_sha": "144b1a6ad04f0b7fa442183110ad6d969f636add",
+      "image_digest": "sha256:3055eb28ac032492a053da1efb9493c9780e7bfa20a01c7c3300961693bfee92",
+      "private_owner_content": false,
+      "publishable_after_review": true
+    },
+    {
+      "file": "ci-stable-1018-37916929153/installed-desktop-apps.png",
+      "title_ar": "آخر تطبيق أعيد فتحه",
+      "note_ar": "لقطة Remote؛ ليست سطح مكتب خاليًا من التطبيقات.",
+      "sha256": "5309e2a2530da509b99289de0ee11e2712c666db2aa6a1fe3653de93278fac27",
+      "physical_px": [
+        640,
+        505
+      ],
+      "environment": "final-iso-ci-vm",
+      "language": "en",
+      "scale": "not recorded",
+      "logical_px": "not recorded",
+      "version": "44.20261009.1018",
+      "source_sha": "144b1a6ad04f0b7fa442183110ad6d969f636add",
+      "image_digest": "sha256:3055eb28ac032492a053da1efb9493c9780e7bfa20a01c7c3300961693bfee92",
+      "private_owner_content": false,
+      "publishable_after_review": true
+    },
+    {
+      "file": "ci-stable-1018-37916929153/installed-login-attempt1.png",
+      "title_ar": "تسجيل الدخول بعد التثبيت",
+      "note_ar": "باب تسجيل الدخول الحقيقي لمستخدم CI، بالإنجليزية.",
+      "sha256": "1453b1858cb7502f34f190d94a32bfbd311bfd2e8c3f11beb97707c9bd0d8936",
+      "physical_px": [
+        640,
+        505
+      ],
+      "environment": "final-iso-ci-vm",
+      "language": "en",
+      "scale": "not recorded",
+      "logical_px": "not recorded",
+      "version": "44.20261009.1018",
+      "source_sha": "144b1a6ad04f0b7fa442183110ad6d969f636add",
+      "image_digest": "sha256:3055eb28ac032492a053da1efb9493c9780e7bfa20a01c7c3300961693bfee92",
+      "private_owner_content": false,
+      "publishable_after_review": true
+    },
+    {
+      "file": "ci-stable-1018-37916929153/installed-login.png",
+      "title_ar": "تهيئة الجلسة",
+      "note_ar": "تعرض Preparing your space؛ ليست شاشة كلمة المرور.",
+      "sha256": "466152f4a2a920d71ea4f7a7e8e12a969a67c29229eef10257c98fb347d5e05f",
+      "physical_px": [
+        640,
+        505
+      ],
+      "environment": "final-iso-ci-vm",
+      "language": "en",
+      "scale": "not recorded",
+      "logical_px": "not recorded",
+      "version": "44.20261009.1018",
+      "source_sha": "144b1a6ad04f0b7fa442183110ad6d969f636add",
+      "image_digest": "sha256:3055eb28ac032492a053da1efb9493c9780e7bfa20a01c7c3300961693bfee92",
+      "private_owner_content": false,
+      "publishable_after_review": true
+    },
+    {
+      "file": "host-desktop-1011.png",
+      "title_ar": "سطح المكتب على الجهاز الحقيقي",
+      "note_ar": "لقطة 4K من سطح مكتب افتراضي مؤقت؛ أعيد السطح الأصلي وعدده. فيها أسماء ملفات وإشعار شخصي: تبقى خاصة ولا تصلح للنشر.",
+      "sha256": "230041a009a3a76f55bf29f2db2714f5591e87941566861d0bb6cc59f85578f4",
+      "physical_px": [
+        3840,
+        2160
+      ],
+      "environment": "installed-host-temporary-desktop",
+      "language": "ar",
+      "scale": 2.5,
+      "logical_px": [
+        1536,
+        864
+      ],
+      "version": "44.20261007.1011",
+      "source_sha": "fa85b2daf3db0f1f823b3159bb46b25571a99740",
+      "image_digest": "sha256:9b77fc3eaed85d2b3e9b38809c9ab91c1de22854f31706f79d6b4d2f76bd4e8e",
+      "private_owner_content": true,
+      "publishable_after_review": false
+    },
+    {
+      "file": "source-recovery-unknown-ar.png",
+      "title_ar": "الاسترداد عند تعذر القراءة — عربي",
+      "note_ar": "مراجعة مصدر GTK فعلية بحالة تعذر قراءة مفروضة للاختبار؛ ليست من إصدار مشحون. الرجوع معطل وإعادة الفحص متاحة، واتجاه اللغة صحيح.",
+      "sha256": "e2d622809bac0f5b147a14243271719c2a3c4b536c4031a40184ad1f3e5e5d79",
+      "physical_px": [
+        2010,
+        1740
+      ],
+      "environment": "native-source-review/forced-unreadable-state",
+      "language": "ar",
+      "display_scale": 2.5,
+      "version": "unreleased-source",
+      "source_sha": null,
+      "checkout_head_at_capture": "71e7978b",
+      "source_dirty_at_capture": true,
+      "source_files_sha256": {
+        "system_files/usr/bin/moos-rollback": "7eb6c6bffc04865ec1609e65f822e8b2ed106cc8186cd3e43c254190bba3afbe"
+      },
+      "private_owner_content": false,
+      "publishable_after_review": true
+    },
+    {
+      "file": "source-recovery-unknown-en.png",
+      "title_ar": "الاسترداد عند تعذر القراءة — إنجليزي",
+      "note_ar": "مراجعة مصدر GTK فعلية بحالة تعذر قراءة مفروضة للاختبار؛ ليست من إصدار مشحون. الرجوع معطل وإعادة الفحص متاحة، واتجاه اللغة صحيح.",
+      "sha256": "07fc12d451994ab807e6e7b6fb7cba4128c0ce22436556eb5e29ac9e9926313b",
+      "physical_px": [
+        2010,
+        1680
+      ],
+      "environment": "native-source-review/forced-unreadable-state",
+      "language": "en",
+      "display_scale": 2.5,
+      "version": "unreleased-source",
+      "source_sha": null,
+      "checkout_head_at_capture": "71e7978b",
+      "source_dirty_at_capture": true,
+      "source_files_sha256": {
+        "system_files/usr/bin/moos-rollback": "7eb6c6bffc04865ec1609e65f822e8b2ed106cc8186cd3e43c254190bba3afbe"
+      },
+      "private_owner_content": false,
+      "publishable_after_review": true
+    },
+    {
+      "file": "community-live-final/report-editor-ar.png",
+      "title_ar": "محرّر بلاغ مع صورة اختيارية",
+      "note_ar": "عربي · ثيم MoOS الفعلي؛ بيانات اصطناعية ومصدر تطوير، لا إثبات إصدار نظام مشحون.",
+      "sha256": "a266c5f89eab027b72d14c325e06135cdef3e668f1e6c59e389e13965041c5c4",
+      "physical_px": [
+        2600,
+        1900
+      ],
+      "logical_px": [
+        1040,
+        760
+      ],
+      "language": "ar",
+      "environment": "native-wayland/private-api-fixture",
+      "version": "unreleased-source",
+      "source_files_sha256": {
+        "client.py": "f1636a33b567a4d88d76e19835d32fb2646947b87b782c3336395101b42f8999",
+        "main.qml": "14e5af4d6d4d9ad0bef2b3b779a6293aab01dc35dbfd78929d8a503b90308f14",
+        "service.py": "f8e8c8e8eebcf7a69ed51222718ab102654bbcba05315a4005875e5fb16d0932"
+      },
+      "private_owner_content": false,
+      "publishable_after_review": true
+    },
+    {
+      "file": "community-live-final/conversations-ar.png",
+      "title_ar": "قائمة المحادثات الخاصة",
+      "note_ar": "عربي · ثيم MoOS الفعلي؛ بيانات اصطناعية ومصدر تطوير، لا إثبات إصدار نظام مشحون.",
+      "sha256": "0a13ea5b4d34c7fa3b642034db5da7f18ab29a0285a49d27b5e2e97e66bcc292",
+      "physical_px": [
+        2600,
+        1900
+      ],
+      "logical_px": [
+        1040,
+        760
+      ],
+      "language": "ar",
+      "environment": "native-wayland/private-api-fixture",
+      "version": "unreleased-source",
+      "source_files_sha256": {
+        "client.py": "f1636a33b567a4d88d76e19835d32fb2646947b87b782c3336395101b42f8999",
+        "main.qml": "14e5af4d6d4d9ad0bef2b3b779a6293aab01dc35dbfd78929d8a503b90308f14",
+        "service.py": "f8e8c8e8eebcf7a69ed51222718ab102654bbcba05315a4005875e5fb16d0932"
+      },
+      "private_owner_content": false,
+      "publishable_after_review": true
+    },
+    {
+      "file": "community-live-final/private-conversation-ar.png",
+      "title_ar": "المحادثة والصورة الخاصة",
+      "note_ar": "عربي · ثيم MoOS الفعلي؛ بيانات اصطناعية ومصدر تطوير، لا إثبات إصدار نظام مشحون.",
+      "sha256": "ab42ba0198c71ab23d48a89be7b10fc1a3c3f2a4924d66e726b30414a1021839",
+      "physical_px": [
+        2600,
+        1900
+      ],
+      "logical_px": [
+        1040,
+        760
+      ],
+      "language": "ar",
+      "environment": "native-wayland/private-api-fixture",
+      "version": "unreleased-source",
+      "source_files_sha256": {
+        "client.py": "f1636a33b567a4d88d76e19835d32fb2646947b87b782c3336395101b42f8999",
+        "main.qml": "14e5af4d6d4d9ad0bef2b3b779a6293aab01dc35dbfd78929d8a503b90308f14",
+        "service.py": "f8e8c8e8eebcf7a69ed51222718ab102654bbcba05315a4005875e5fb16d0932"
+      },
+      "private_owner_content": false,
+      "publishable_after_review": true
+    },
+    {
+      "file": "community-final-Arena-ar/report-editor-ar.png",
+      "title_ar": "محرّر البلاغ مع الصورة الاختيارية — عربي / Arena",
+      "note_ar": "آخر مصدر عميل، Qt أصلية وAPI خاص ببيانات اصطناعية، 560×520. طُبّقت لوحة UI2 يدويًا في بيئة معزولة؛ ليست إثبات تطبيق ثيم الجهاز أو إصدار مشحون.",
+      "sha256": "dbe1d2bb5f66a2d74769d861c07fbba98a833098d3bfaced37b1ef6efa3377bb",
+      "physical_px": [
+        560,
+        520
+      ],
+      "logical_px": [
+        560,
+        520
+      ],
+      "language": "ar",
+      "scale": 1,
+      "environment": "private native offscreen API fixture with explicitly applied canonical MoOS UI2 Arena QPalette",
+      "version": "unreleased-source",
+      "source_file_sha256": {
+        "client.py": "e2a4bd57849a2e07a54bd06565ab5407e4d50245eef23635126ad537ebc1a841",
+        "main.qml": "262e3c8841708943b3ee3edc80ad1ca73f8001a1425ca5b7f8ab77823cec232d",
+        "service.py": "3012907149c15bdd77a9feae91338b13af1bb17fca1e2d942d8ff72397ba510b"
+      },
+      "private_owner_content": false,
+      "publishable_after_review": true
+    },
+    {
+      "file": "community-final-Arena-ar/conversations-ar.png",
+      "title_ar": "قائمة المحادثات الخاصة — عربي / Arena",
+      "note_ar": "آخر مصدر عميل، Qt أصلية وAPI خاص ببيانات اصطناعية، 560×520. طُبّقت لوحة UI2 يدويًا في بيئة معزولة؛ ليست إثبات تطبيق ثيم الجهاز أو إصدار مشحون.",
+      "sha256": "d4d651409b9e2b43b7e4dd10032d0facc545907840b4ce46f5997d4ad586aaed",
+      "physical_px": [
+        560,
+        520
+      ],
+      "logical_px": [
+        560,
+        520
+      ],
+      "language": "ar",
+      "scale": 1,
+      "environment": "private native offscreen API fixture with explicitly applied canonical MoOS UI2 Arena QPalette",
+      "version": "unreleased-source",
+      "source_file_sha256": {
+        "client.py": "e2a4bd57849a2e07a54bd06565ab5407e4d50245eef23635126ad537ebc1a841",
+        "main.qml": "262e3c8841708943b3ee3edc80ad1ca73f8001a1425ca5b7f8ab77823cec232d",
+        "service.py": "3012907149c15bdd77a9feae91338b13af1bb17fca1e2d942d8ff72397ba510b"
+      },
+      "private_owner_content": false,
+      "publishable_after_review": true
+    },
+    {
+      "file": "community-final-Arena-ar/private-conversation-ar.png",
+      "title_ar": "المحادثة الخاصة والصورة — عربي / Arena",
+      "note_ar": "آخر مصدر عميل، Qt أصلية وAPI خاص ببيانات اصطناعية، 560×520. طُبّقت لوحة UI2 يدويًا في بيئة معزولة؛ ليست إثبات تطبيق ثيم الجهاز أو إصدار مشحون.",
+      "sha256": "4e41209338e92951ecd6b38861f1a859f280851437e58c9e9c2fde1751385eec",
+      "physical_px": [
+        560,
+        520
+      ],
+      "logical_px": [
+        560,
+        520
+      ],
+      "language": "ar",
+      "scale": 1,
+      "environment": "private native offscreen API fixture with explicitly applied canonical MoOS UI2 Arena QPalette",
+      "version": "unreleased-source",
+      "source_file_sha256": {
+        "client.py": "e2a4bd57849a2e07a54bd06565ab5407e4d50245eef23635126ad537ebc1a841",
+        "main.qml": "262e3c8841708943b3ee3edc80ad1ca73f8001a1425ca5b7f8ab77823cec232d",
+        "service.py": "3012907149c15bdd77a9feae91338b13af1bb17fca1e2d942d8ff72397ba510b"
+      },
+      "private_owner_content": false,
+      "publishable_after_review": true
+    },
+    {
+      "file": "community-final-Arena-en/report-editor-en.png",
+      "title_ar": "محرّر البلاغ مع الصورة الاختيارية — إنجليزي / Arena",
+      "note_ar": "آخر مصدر عميل، Qt أصلية وAPI خاص ببيانات اصطناعية، 560×520. طُبّقت لوحة UI2 يدويًا في بيئة معزولة؛ ليست إثبات تطبيق ثيم الجهاز أو إصدار مشحون.",
+      "sha256": "18be47775b51d0f80f09c7fde3ed363ac5de4b5d0d86b80a964c15467c198448",
+      "physical_px": [
+        560,
+        520
+      ],
+      "logical_px": [
+        560,
+        520
+      ],
+      "language": "en",
+      "scale": 1,
+      "environment": "private native offscreen API fixture with explicitly applied canonical MoOS UI2 Arena QPalette",
+      "version": "unreleased-source",
+      "source_file_sha256": {
+        "client.py": "e2a4bd57849a2e07a54bd06565ab5407e4d50245eef23635126ad537ebc1a841",
+        "main.qml": "262e3c8841708943b3ee3edc80ad1ca73f8001a1425ca5b7f8ab77823cec232d",
+        "service.py": "3012907149c15bdd77a9feae91338b13af1bb17fca1e2d942d8ff72397ba510b"
+      },
+      "private_owner_content": false,
+      "publishable_after_review": true
+    },
+    {
+      "file": "community-final-Arena-en/conversations-en.png",
+      "title_ar": "قائمة المحادثات الخاصة — إنجليزي / Arena",
+      "note_ar": "آخر مصدر عميل، Qt أصلية وAPI خاص ببيانات اصطناعية، 560×520. طُبّقت لوحة UI2 يدويًا في بيئة معزولة؛ ليست إثبات تطبيق ثيم الجهاز أو إصدار مشحون.",
+      "sha256": "78ee9d17753ef3b905c9b0a0e050f83e0f5ceb78d9b66dfc13479f8a44abcf4d",
+      "physical_px": [
+        560,
+        520
+      ],
+      "logical_px": [
+        560,
+        520
+      ],
+      "language": "en",
+      "scale": 1,
+      "environment": "private native offscreen API fixture with explicitly applied canonical MoOS UI2 Arena QPalette",
+      "version": "unreleased-source",
+      "source_file_sha256": {
+        "client.py": "e2a4bd57849a2e07a54bd06565ab5407e4d50245eef23635126ad537ebc1a841",
+        "main.qml": "262e3c8841708943b3ee3edc80ad1ca73f8001a1425ca5b7f8ab77823cec232d",
+        "service.py": "3012907149c15bdd77a9feae91338b13af1bb17fca1e2d942d8ff72397ba510b"
+      },
+      "private_owner_content": false,
+      "publishable_after_review": true
+    },
+    {
+      "file": "community-final-Arena-en/private-conversation-en.png",
+      "title_ar": "المحادثة الخاصة والصورة — إنجليزي / Arena",
+      "note_ar": "آخر مصدر عميل، Qt أصلية وAPI خاص ببيانات اصطناعية، 560×520. طُبّقت لوحة UI2 يدويًا في بيئة معزولة؛ ليست إثبات تطبيق ثيم الجهاز أو إصدار مشحون.",
+      "sha256": "6448ad23eeee690d59eb2cfd78f2cb83067d664e9ff95ec56df8bf15091fbb83",
+      "physical_px": [
+        560,
+        520
+      ],
+      "logical_px": [
+        560,
+        520
+      ],
+      "language": "en",
+      "scale": 1,
+      "environment": "private native offscreen API fixture with explicitly applied canonical MoOS UI2 Arena QPalette",
+      "version": "unreleased-source",
+      "source_file_sha256": {
+        "client.py": "e2a4bd57849a2e07a54bd06565ab5407e4d50245eef23635126ad537ebc1a841",
+        "main.qml": "262e3c8841708943b3ee3edc80ad1ca73f8001a1425ca5b7f8ab77823cec232d",
+        "service.py": "3012907149c15bdd77a9feae91338b13af1bb17fca1e2d942d8ff72397ba510b"
+      },
+      "private_owner_content": false,
+      "publishable_after_review": true
+    },
+    {
+      "file": "community-final-AuroraLight-ar/report-editor-ar.png",
+      "title_ar": "محرّر البلاغ مع الصورة الاختيارية — عربي / AuroraLight",
+      "note_ar": "آخر مصدر عميل، Qt أصلية وAPI خاص ببيانات اصطناعية، 560×520. طُبّقت لوحة UI2 يدويًا في بيئة معزولة؛ ليست إثبات تطبيق ثيم الجهاز أو إصدار مشحون.",
+      "sha256": "bc4106c9c62aa2f2bfdd0abb518d6175eea0a4ad96f0a68798ba9dacfc45d353",
+      "physical_px": [
+        560,
+        520
+      ],
+      "logical_px": [
+        560,
+        520
+      ],
+      "language": "ar",
+      "scale": 1,
+      "environment": "private native offscreen API fixture with explicitly applied canonical MoOS UI2 AuroraLight QPalette",
+      "version": "unreleased-source",
+      "source_file_sha256": {
+        "client.py": "e2a4bd57849a2e07a54bd06565ab5407e4d50245eef23635126ad537ebc1a841",
+        "main.qml": "262e3c8841708943b3ee3edc80ad1ca73f8001a1425ca5b7f8ab77823cec232d",
+        "service.py": "3012907149c15bdd77a9feae91338b13af1bb17fca1e2d942d8ff72397ba510b"
+      },
+      "private_owner_content": false,
+      "publishable_after_review": true
+    },
+    {
+      "file": "community-final-AuroraLight-ar/conversations-ar.png",
+      "title_ar": "قائمة المحادثات الخاصة — عربي / AuroraLight",
+      "note_ar": "آخر مصدر عميل، Qt أصلية وAPI خاص ببيانات اصطناعية، 560×520. طُبّقت لوحة UI2 يدويًا في بيئة معزولة؛ ليست إثبات تطبيق ثيم الجهاز أو إصدار مشحون.",
+      "sha256": "44d73acd113692e01ecc5100a4cc04c6052770910b154eceb772e9942a42add8",
+      "physical_px": [
+        560,
+        520
+      ],
+      "logical_px": [
+        560,
+        520
+      ],
+      "language": "ar",
+      "scale": 1,
+      "environment": "private native offscreen API fixture with explicitly applied canonical MoOS UI2 AuroraLight QPalette",
+      "version": "unreleased-source",
+      "source_file_sha256": {
+        "client.py": "e2a4bd57849a2e07a54bd06565ab5407e4d50245eef23635126ad537ebc1a841",
+        "main.qml": "262e3c8841708943b3ee3edc80ad1ca73f8001a1425ca5b7f8ab77823cec232d",
+        "service.py": "3012907149c15bdd77a9feae91338b13af1bb17fca1e2d942d8ff72397ba510b"
+      },
+      "private_owner_content": false,
+      "publishable_after_review": true
+    },
+    {
+      "file": "community-final-AuroraLight-ar/private-conversation-ar.png",
+      "title_ar": "المحادثة الخاصة والصورة — عربي / AuroraLight",
+      "note_ar": "آخر مصدر عميل، Qt أصلية وAPI خاص ببيانات اصطناعية، 560×520. طُبّقت لوحة UI2 يدويًا في بيئة معزولة؛ ليست إثبات تطبيق ثيم الجهاز أو إصدار مشحون.",
+      "sha256": "6fe8fc33b78c2f3fb4c8c070584de00b852f65763cea8a376eb56554e44c1fa9",
+      "physical_px": [
+        560,
+        520
+      ],
+      "logical_px": [
+        560,
+        520
+      ],
+      "language": "ar",
+      "scale": 1,
+      "environment": "private native offscreen API fixture with explicitly applied canonical MoOS UI2 AuroraLight QPalette",
+      "version": "unreleased-source",
+      "source_file_sha256": {
+        "client.py": "e2a4bd57849a2e07a54bd06565ab5407e4d50245eef23635126ad537ebc1a841",
+        "main.qml": "262e3c8841708943b3ee3edc80ad1ca73f8001a1425ca5b7f8ab77823cec232d",
+        "service.py": "3012907149c15bdd77a9feae91338b13af1bb17fca1e2d942d8ff72397ba510b"
+      },
+      "private_owner_content": false,
+      "publishable_after_review": true
+    },
+    {
+      "file": "community-final-AuroraLight-en/report-editor-en.png",
+      "title_ar": "محرّر البلاغ مع الصورة الاختيارية — إنجليزي / AuroraLight",
+      "note_ar": "آخر مصدر عميل، Qt أصلية وAPI خاص ببيانات اصطناعية، 560×520. طُبّقت لوحة UI2 يدويًا في بيئة معزولة؛ ليست إثبات تطبيق ثيم الجهاز أو إصدار مشحون.",
+      "sha256": "f23153933679cfa08b07033219a10828f66d1181a87cc98a2aea1ad5a5eb76ee",
+      "physical_px": [
+        560,
+        520
+      ],
+      "logical_px": [
+        560,
+        520
+      ],
+      "language": "en",
+      "scale": 1,
+      "environment": "private native offscreen API fixture with explicitly applied canonical MoOS UI2 AuroraLight QPalette",
+      "version": "unreleased-source",
+      "source_file_sha256": {
+        "client.py": "e2a4bd57849a2e07a54bd06565ab5407e4d50245eef23635126ad537ebc1a841",
+        "main.qml": "262e3c8841708943b3ee3edc80ad1ca73f8001a1425ca5b7f8ab77823cec232d",
+        "service.py": "3012907149c15bdd77a9feae91338b13af1bb17fca1e2d942d8ff72397ba510b"
+      },
+      "private_owner_content": false,
+      "publishable_after_review": true
+    },
+    {
+      "file": "community-final-AuroraLight-en/conversations-en.png",
+      "title_ar": "قائمة المحادثات الخاصة — إنجليزي / AuroraLight",
+      "note_ar": "آخر مصدر عميل، Qt أصلية وAPI خاص ببيانات اصطناعية، 560×520. طُبّقت لوحة UI2 يدويًا في بيئة معزولة؛ ليست إثبات تطبيق ثيم الجهاز أو إصدار مشحون.",
+      "sha256": "f562b5aece7e78dd863740640808e713756038db04908a34c26bd52f0084a163",
+      "physical_px": [
+        560,
+        520
+      ],
+      "logical_px": [
+        560,
+        520
+      ],
+      "language": "en",
+      "scale": 1,
+      "environment": "private native offscreen API fixture with explicitly applied canonical MoOS UI2 AuroraLight QPalette",
+      "version": "unreleased-source",
+      "source_file_sha256": {
+        "client.py": "e2a4bd57849a2e07a54bd06565ab5407e4d50245eef23635126ad537ebc1a841",
+        "main.qml": "262e3c8841708943b3ee3edc80ad1ca73f8001a1425ca5b7f8ab77823cec232d",
+        "service.py": "3012907149c15bdd77a9feae91338b13af1bb17fca1e2d942d8ff72397ba510b"
+      },
+      "private_owner_content": false,
+      "publishable_after_review": true
+    },
+    {
+      "file": "community-final-AuroraLight-en/private-conversation-en.png",
+      "title_ar": "المحادثة الخاصة والصورة — إنجليزي / AuroraLight",
+      "note_ar": "آخر مصدر عميل، Qt أصلية وAPI خاص ببيانات اصطناعية، 560×520. طُبّقت لوحة UI2 يدويًا في بيئة معزولة؛ ليست إثبات تطبيق ثيم الجهاز أو إصدار مشحون.",
+      "sha256": "251f4be970041edd73d369ed3bd048b0d43cb6b2e3f835af7f34e09fa9edb7c7",
+      "physical_px": [
+        560,
+        520
+      ],
+      "logical_px": [
+        560,
+        520
+      ],
+      "language": "en",
+      "scale": 1,
+      "environment": "private native offscreen API fixture with explicitly applied canonical MoOS UI2 AuroraLight QPalette",
+      "version": "unreleased-source",
+      "source_file_sha256": {
+        "client.py": "e2a4bd57849a2e07a54bd06565ab5407e4d50245eef23635126ad537ebc1a841",
+        "main.qml": "262e3c8841708943b3ee3edc80ad1ca73f8001a1425ca5b7f8ab77823cec232d",
+        "service.py": "3012907149c15bdd77a9feae91338b13af1bb17fca1e2d942d8ff72397ba510b"
+      },
+      "private_owner_content": false,
+      "publishable_after_review": true
+    },
+    {
+      "file": "host-desktop-1018.png",
+      "title_ar": "سطح المكتب الحقيقي بعد تحديث .1018",
+      "note_ar": "لقطة خاصة من جهاز المالك بعد الإقلاع الموقّع .1018؛ قد تحتوي محادثات/ملفات شخصية، لا تُنشر. فتح التطبيق ليس إثبات تشغيل وسائط أو كلام فعلي.",
+      "sha256": "b7f2bfc883728d37005ff352efc8afe3921e12842890a10d6e3ea814b299d717",
+      "physical_px": [
+        3840,
+        2160
+      ],
+      "logical_px": "actual session 1536×864, window crop varies",
+      "language": "ar",
+      "scale": 2.5,
+      "environment": "actual-installed-nvidia-wayland",
+      "version": "44.20261009.1018",
+      "source_sha": "144b1a6ad04f0b7fa442183110ad6d969f636add",
+      "image_digest": "sha256:c5977fc7d68bc6cd708b85931711f3ff8eb44be5a4468edc7e9c490b9dfc0dd0",
+      "private_owner_content": true,
+      "publishable_after_review": false
+    },
+    {
+      "file": "post-1018-mira-window.png",
+      "title_ar": "ميرا المثبتة فعليًا — عربي",
+      "note_ar": "لقطة خاصة من جهاز المالك بعد الإقلاع الموقّع .1018؛ قد تحتوي محادثات/ملفات شخصية، لا تُنشر. فتح التطبيق ليس إثبات تشغيل وسائط أو كلام فعلي.",
+      "sha256": "043f0e16311e875e084f8f67ed093ff6304d5107fe39831e34e8c0bfe2944520",
+      "physical_px": [
+        3810,
+        2115
+      ],
+      "logical_px": "actual session 1536×864, window crop varies",
+      "language": "ar",
+      "scale": 2.5,
+      "environment": "actual-installed-nvidia-wayland",
+      "version": "44.20261009.1018",
+      "source_sha": "144b1a6ad04f0b7fa442183110ad6d969f636add",
+      "image_digest": "sha256:c5977fc7d68bc6cd708b85931711f3ff8eb44be5a4468edc7e9c490b9dfc0dd0",
+      "private_owner_content": true,
+      "publishable_after_review": false
+    },
+    {
+      "file": "post-1018-moplayer-window.png",
+      "title_ar": "MoPlayer المثبت فعليًا — عربي",
+      "note_ar": "لقطة خاصة من جهاز المالك بعد الإقلاع الموقّع .1018؛ قد تحتوي محادثات/ملفات شخصية، لا تُنشر. فتح التطبيق ليس إثبات تشغيل وسائط أو كلام فعلي.",
+      "sha256": "b95ba8f14d0cde4d936251bd0d03a55b475302d038cbe1552c5ae00acef84d05",
+      "physical_px": [
+        3840,
+        2025
+      ],
+      "logical_px": "actual session 1536×864, window crop varies",
+      "language": "ar",
+      "scale": 2.5,
+      "environment": "actual-installed-nvidia-wayland",
+      "version": "44.20261009.1018",
+      "source_sha": "144b1a6ad04f0b7fa442183110ad6d969f636add",
+      "image_digest": "sha256:c5977fc7d68bc6cd708b85931711f3ff8eb44be5a4468edc7e9c490b9dfc0dd0",
+      "private_owner_content": true,
+      "publishable_after_review": false
+    },
+    {
+      "file": "community-oracle-title-final/oracle-report-editor-ar.png",
+      "title_ar": "مجتمع MoOS — آخر عميل عربي متصل بـOracle",
+      "note_ar": "آخر QML بالمصدر، نافذة Wayland حقيقية 1040×760/250%، ضغطتان وصورة اختبار خاصة عبر TLS. البلاغ والجلسة والحساب أزيلت. ليست نسخة OS مشحونة.",
+      "sha256": "dcc9cd33e7f65049cbf43db9806c3fc64486ccdce9376b25e07fb1f022d6f491",
+      "physical_px": [
+        2600,
+        1900
+      ],
+      "logical_px": [
+        1040,
+        760
+      ],
+      "scale": 2.5,
+      "language": "ar",
+      "environment": "real-physical-wayland/source-qt/actual-oracle-https/synthetic-private-account",
+      "version": "unreleased-source-client/live-oracle-api",
+      "source_file_sha256": {
+        "client.py": "e2a4bd57849a2e07a54bd06565ab5407e4d50245eef23635126ad537ebc1a841",
+        "main.qml": "262e3c8841708943b3ee3edc80ad1ca73f8001a1425ca5b7f8ab77823cec232d",
+        "transport.py": "f563e93556940ac78dfc8d800ea950d69435b0f9ed9b162620cf962e015b573d"
+      },
+      "private_owner_content": false,
+      "publishable_after_review": true
+    },
+    {
+      "file": "community-oracle-title-final/oracle-private-image-ar.png",
+      "title_ar": "مجتمع MoOS — آخر عميل عربي متصل بـOracle",
+      "note_ar": "آخر QML بالمصدر، نافذة Wayland حقيقية 1040×760/250%، ضغطتان وصورة اختبار خاصة عبر TLS. البلاغ والجلسة والحساب أزيلت. ليست نسخة OS مشحونة.",
+      "sha256": "d9b278e4213d329f2c1bf4db19ee22393a4d5a984afe0c0efe054924acb30354",
+      "physical_px": [
+        2600,
+        1900
+      ],
+      "logical_px": [
+        1040,
+        760
+      ],
+      "scale": 2.5,
+      "language": "ar",
+      "environment": "real-physical-wayland/source-qt/actual-oracle-https/synthetic-private-account",
+      "version": "unreleased-source-client/live-oracle-api",
+      "source_file_sha256": {
+        "client.py": "e2a4bd57849a2e07a54bd06565ab5407e4d50245eef23635126ad537ebc1a841",
+        "main.qml": "262e3c8841708943b3ee3edc80ad1ca73f8001a1425ca5b7f8ab77823cec232d",
+        "transport.py": "f563e93556940ac78dfc8d800ea950d69435b0f9ed9b162620cf962e015b573d"
+      },
+      "private_owner_content": false,
+      "publishable_after_review": true
+    },
+    {
+      "file": "private-offline-gui-1018/source-review-welcome-en-1440.png",
+      "title_ar": "01 ـ الترحيب الحي بالإنجليزية",
+      "note_ar": "Isolated .1018 ISO VM; installer frontend source overlay only; installed desktop is old signed image content. Greeter controls hide after 10s idle; actual password login passed.",
+      "sha256": "e4aab136c53cf019f458473eee644dacc7ef3828d31469a228e83d0a44c65e03",
+      "physical_px": [
+        1440,
+        900
+      ],
+      "logical_px": [
+        1440,
+        900
+      ],
+      "scale": "100%",
+      "environment": "isolated-offline-iso-vm",
+      "language": "en",
+      "version": "44.20261009.1018",
+      "source_sha": "144b1a6ad04f0b7fa442183110ad6d969f636add",
+      "image_digest": "sha256:3055eb28ac032492a053da1efb9493c9780e7bfa20a01c7c3300961693bfee92",
+      "installed_manifest_digest": "sha256:1f91d2b51cd1531578dad2d7bc7e80d49953ae7af8bad7142ce21bbc2d03f97d",
+      "source_overlay_scope": null,
+      "private_owner_content": false,
+      "publishable_after_review": true
+    },
+    {
+      "file": "private-offline-gui-1018/source-review-welcome-ar-1440.png",
+      "title_ar": "02 ـ اختيار العربية",
+      "note_ar": "Isolated .1018 ISO VM; installer frontend source overlay only; installed desktop is old signed image content. Greeter controls hide after 10s idle; actual password login passed.",
+      "sha256": "87dd8ec4d514feb77614cc5fb4000cdaa7b472347e10f84b8abca17169d7f9ce",
+      "physical_px": [
+        1440,
+        900
+      ],
+      "logical_px": [
+        1440,
+        900
+      ],
+      "scale": "100%",
+      "environment": "isolated-offline-iso-vm",
+      "language": "ar",
+      "version": "44.20261009.1018",
+      "source_sha": "144b1a6ad04f0b7fa442183110ad6d969f636add",
+      "image_digest": "sha256:3055eb28ac032492a053da1efb9493c9780e7bfa20a01c7c3300961693bfee92",
+      "installed_manifest_digest": "sha256:1f91d2b51cd1531578dad2d7bc7e80d49953ae7af8bad7142ce21bbc2d03f97d",
+      "source_overlay_scope": null,
+      "private_owner_content": false,
+      "publishable_after_review": true
+    },
+    {
+      "file": "private-offline-gui-1018/source-review-installer-new-welcome.png",
+      "title_ar": "03 ـ بداية التثبيت ـ مراجعة المصدر",
+      "note_ar": "Isolated .1018 ISO VM; installer frontend source overlay only; installed desktop is old signed image content. Greeter controls hide after 10s idle; actual password login passed.",
+      "sha256": "9da10ccd858c0980e1e07d668010c0b5644d7de4a1865f27be7bf5f9c148c3ac",
+      "physical_px": [
+        1440,
+        900
+      ],
+      "logical_px": [
+        1440,
+        900
+      ],
+      "scale": "100%",
+      "environment": "isolated-offline-iso-vm",
+      "language": "ar",
+      "version": "44.20261009.1018",
+      "source_sha": "ff1ee514e49e6f93ba4bf47cf75b592e78d200fd",
+      "image_digest": "sha256:3055eb28ac032492a053da1efb9493c9780e7bfa20a01c7c3300961693bfee92",
+      "installed_manifest_digest": null,
+      "source_overlay_scope": "Installer frontend/timezone catalogue only; offline installed image unchanged",
+      "private_owner_content": false,
+      "publishable_after_review": true
+    },
+    {
+      "file": "private-offline-gui-1018/source-review-installer-overview-ar.png",
+      "title_ar": "04 ـ تعريف النظام وميرا ـ مراجعة المصدر",
+      "note_ar": "Isolated .1018 ISO VM; installer frontend source overlay only; installed desktop is old signed image content. Greeter controls hide after 10s idle; actual password login passed.",
+      "sha256": "1b49307053112ca65a309a52519dd4b22ec2e37bfb733019e391571c0a730f28",
+      "physical_px": [
+        1440,
+        900
+      ],
+      "logical_px": [
+        1440,
+        900
+      ],
+      "scale": "100%",
+      "environment": "isolated-offline-iso-vm",
+      "language": "ar",
+      "version": "44.20261009.1018",
+      "source_sha": "ff1ee514e49e6f93ba4bf47cf75b592e78d200fd",
+      "image_digest": "sha256:3055eb28ac032492a053da1efb9493c9780e7bfa20a01c7c3300961693bfee92",
+      "installed_manifest_digest": null,
+      "source_overlay_scope": "Installer frontend/timezone catalogue only; offline installed image unchanged",
+      "private_owner_content": false,
+      "publishable_after_review": true
+    },
+    {
+      "file": "private-offline-gui-1018/source-review-installer-disks-ar.png",
+      "title_ar": "05 ـ القرص الافتراضي الفارغ",
+      "note_ar": "Isolated .1018 ISO VM; installer frontend source overlay only; installed desktop is old signed image content. Greeter controls hide after 10s idle; actual password login passed.",
+      "sha256": "4e1bf9f566698df42fdaa35f41ff9757afebc71e9fe5dabfed9c5627ac931617",
+      "physical_px": [
+        1440,
+        900
+      ],
+      "logical_px": [
+        1440,
+        900
+      ],
+      "scale": "100%",
+      "environment": "isolated-offline-iso-vm",
+      "language": "ar",
+      "version": "44.20261009.1018",
+      "source_sha": "ff1ee514e49e6f93ba4bf47cf75b592e78d200fd",
+      "image_digest": "sha256:3055eb28ac032492a053da1efb9493c9780e7bfa20a01c7c3300961693bfee92",
+      "installed_manifest_digest": null,
+      "source_overlay_scope": "Installer frontend/timezone catalogue only; offline installed image unchanged",
+      "private_owner_content": false,
+      "publishable_after_review": true
+    },
+    {
+      "file": "private-offline-gui-1018/source-review-installer-method-ar.png",
+      "title_ar": "06 ـ اختيار طريقة التثبيت",
+      "note_ar": "Isolated .1018 ISO VM; installer frontend source overlay only; installed desktop is old signed image content. Greeter controls hide after 10s idle; actual password login passed.",
+      "sha256": "a138ac009e7360cf3fba53d1ccd305ff74106c80aeb9e51182fbea08486e90a0",
+      "physical_px": [
+        1440,
+        900
+      ],
+      "logical_px": [
+        1440,
+        900
+      ],
+      "scale": "100%",
+      "environment": "isolated-offline-iso-vm",
+      "language": "ar",
+      "version": "44.20261009.1018",
+      "source_sha": "ff1ee514e49e6f93ba4bf47cf75b592e78d200fd",
+      "image_digest": "sha256:3055eb28ac032492a053da1efb9493c9780e7bfa20a01c7c3300961693bfee92",
+      "installed_manifest_digest": null,
+      "source_overlay_scope": "Installer frontend/timezone catalogue only; offline installed image unchanged",
+      "private_owner_content": false,
+      "publishable_after_review": true
+    },
+    {
+      "file": "private-offline-gui-1018/source-review-installer-account-ar-secured.png",
+      "title_ar": "07 ـ الحساب وكلمة مرور الاختبار المخفية",
+      "note_ar": "Isolated .1018 ISO VM; installer frontend source overlay only; installed desktop is old signed image content. Greeter controls hide after 10s idle; actual password login passed.",
+      "sha256": "95cdfcc42647a8bce6cfe42344640aa0803629fb3eee780b66eb52facc965e11",
+      "physical_px": [
+        1440,
+        900
+      ],
+      "logical_px": [
+        1440,
+        900
+      ],
+      "scale": "100%",
+      "environment": "isolated-offline-iso-vm",
+      "language": "ar",
+      "version": "44.20261009.1018",
+      "source_sha": "ff1ee514e49e6f93ba4bf47cf75b592e78d200fd",
+      "image_digest": "sha256:3055eb28ac032492a053da1efb9493c9780e7bfa20a01c7c3300961693bfee92",
+      "installed_manifest_digest": null,
+      "source_overlay_scope": "Installer frontend/timezone catalogue only; offline installed image unchanged",
+      "private_owner_content": false,
+      "publishable_after_review": true
+    },
+    {
+      "file": "private-offline-gui-1018/source-review-installer-localized-zones-ar.png",
+      "title_ar": "08 ـ المدن والدول بالعربية ـ مراجعة المصدر",
+      "note_ar": "Isolated .1018 ISO VM; installer frontend source overlay only; installed desktop is old signed image content. Greeter controls hide after 10s idle; actual password login passed.",
+      "sha256": "3b06fad4901e999855711d85d0f257a1f94d1a45b28af99979cf0fa3d90d209a",
+      "physical_px": [
+        1440,
+        900
+      ],
+      "logical_px": [
+        1440,
+        900
+      ],
+      "scale": "100%",
+      "environment": "isolated-offline-iso-vm",
+      "language": "ar",
+      "version": "44.20261009.1018",
+      "source_sha": "ff1ee514e49e6f93ba4bf47cf75b592e78d200fd",
+      "image_digest": "sha256:3055eb28ac032492a053da1efb9493c9780e7bfa20a01c7c3300961693bfee92",
+      "installed_manifest_digest": null,
+      "source_overlay_scope": "Installer frontend/timezone catalogue only; offline installed image unchanged",
+      "private_owner_content": false,
+      "publishable_after_review": true
+    },
+    {
+      "file": "private-offline-gui-1018/source-review-arabic-berlin-match-unselected.png",
+      "title_ar": "09 ـ البحث العربي ومنع الاختيار المختلف",
+      "note_ar": "Isolated .1018 ISO VM; installer frontend source overlay only; installed desktop is old signed image content. Greeter controls hide after 10s idle; actual password login passed.",
+      "sha256": "47032cf160b5e3a6fbc3ed2d52cfcdd0aa164045eebe52cba4600fdaeff01704",
+      "physical_px": [
+        1440,
+        900
+      ],
+      "logical_px": [
+        1440,
+        900
+      ],
+      "scale": "100%",
+      "environment": "isolated-offline-iso-vm",
+      "language": "ar",
+      "version": "44.20261009.1018",
+      "source_sha": "ff1ee514e49e6f93ba4bf47cf75b592e78d200fd",
+      "image_digest": "sha256:3055eb28ac032492a053da1efb9493c9780e7bfa20a01c7c3300961693bfee92",
+      "installed_manifest_digest": null,
+      "source_overlay_scope": "Installer frontend/timezone catalogue only; offline installed image unchanged",
+      "private_owner_content": false,
+      "publishable_after_review": true
+    },
+    {
+      "file": "private-offline-gui-1018/source-review-arabic-berlin-selected.png",
+      "title_ar": "10 ـ اختيار برلين فعليا",
+      "note_ar": "Isolated .1018 ISO VM; installer frontend source overlay only; installed desktop is old signed image content. Greeter controls hide after 10s idle; actual password login passed.",
+      "sha256": "dfaee59408e2ab870dd45cc56a2c3dfa5dea1f52173272cab1c92459ca30c214",
+      "physical_px": [
+        1440,
+        900
+      ],
+      "logical_px": [
+        1440,
+        900
+      ],
+      "scale": "100%",
+      "environment": "isolated-offline-iso-vm",
+      "language": "ar",
+      "version": "44.20261009.1018",
+      "source_sha": "ff1ee514e49e6f93ba4bf47cf75b592e78d200fd",
+      "image_digest": "sha256:3055eb28ac032492a053da1efb9493c9780e7bfa20a01c7c3300961693bfee92",
+      "installed_manifest_digest": null,
+      "source_overlay_scope": "Installer frontend/timezone catalogue only; offline installed image unchanged",
+      "private_owner_content": false,
+      "publishable_after_review": true
+    },
+    {
+      "file": "private-offline-gui-1018/source-review-installer-erase-confirm-ar.png",
+      "title_ar": "11 ـ الموافقة قبل المسح",
+      "note_ar": "Isolated .1018 ISO VM; installer frontend source overlay only; installed desktop is old signed image content. Greeter controls hide after 10s idle; actual password login passed.",
+      "sha256": "3f00be202a301924e998bf448a2d64ea2f5c44d79a44f87b27eb0c8a667174ab",
+      "physical_px": [
+        1440,
+        900
+      ],
+      "logical_px": [
+        1440,
+        900
+      ],
+      "scale": "100%",
+      "environment": "isolated-offline-iso-vm",
+      "language": "ar",
+      "version": "44.20261009.1018",
+      "source_sha": "ff1ee514e49e6f93ba4bf47cf75b592e78d200fd",
+      "image_digest": "sha256:3055eb28ac032492a053da1efb9493c9780e7bfa20a01c7c3300961693bfee92",
+      "installed_manifest_digest": null,
+      "source_overlay_scope": "Installer frontend/timezone catalogue only; offline installed image unchanged",
+      "private_owner_content": false,
+      "publishable_after_review": true
+    },
+    {
+      "file": "private-offline-gui-1018/source-review-installer-progress-ar.png",
+      "title_ar": "12 ـ تقدم التثبيت دون إنترنت",
+      "note_ar": "Isolated .1018 ISO VM; installer frontend source overlay only; installed desktop is old signed image content. Greeter controls hide after 10s idle; actual password login passed.",
+      "sha256": "05d28cea830fe2787cad9f2b89472ae60e1eb36431fe5cb7869d7dfe5a39a8a0",
+      "physical_px": [
+        1440,
+        900
+      ],
+      "logical_px": [
+        1440,
+        900
+      ],
+      "scale": "100%",
+      "environment": "isolated-offline-iso-vm",
+      "language": "ar",
+      "version": "44.20261009.1018",
+      "source_sha": "ff1ee514e49e6f93ba4bf47cf75b592e78d200fd",
+      "image_digest": "sha256:3055eb28ac032492a053da1efb9493c9780e7bfa20a01c7c3300961693bfee92",
+      "installed_manifest_digest": null,
+      "source_overlay_scope": "Installer frontend/timezone catalogue only; offline installed image unchanged",
+      "private_owner_content": false,
+      "publishable_after_review": true
+    },
+    {
+      "file": "private-offline-gui-1018/source-review-installer-success-ar.png",
+      "title_ar": "13 ـ اكتمال التثبيت",
+      "note_ar": "Isolated .1018 ISO VM; installer frontend source overlay only; installed desktop is old signed image content. Greeter controls hide after 10s idle; actual password login passed.",
+      "sha256": "846cca5c29364e688e8179c13be2b5d154b80890dfcb25cbe64399ea8bda1405",
+      "physical_px": [
+        1440,
+        900
+      ],
+      "logical_px": [
+        1440,
+        900
+      ],
+      "scale": "100%",
+      "environment": "isolated-offline-iso-vm",
+      "language": "ar",
+      "version": "44.20261009.1018",
+      "source_sha": "ff1ee514e49e6f93ba4bf47cf75b592e78d200fd",
+      "image_digest": "sha256:3055eb28ac032492a053da1efb9493c9780e7bfa20a01c7c3300961693bfee92",
+      "installed_manifest_digest": null,
+      "source_overlay_scope": "Installer frontend/timezone catalogue only; offline installed image unchanged",
+      "private_owner_content": false,
+      "publishable_after_review": true
+    },
+    {
+      "file": "private-offline-gui-1018/source-review-installed-poweroff-dialog-late.png",
+      "title_ar": "14 ـ تأكيد الإطفاء بالعربية",
+      "note_ar": "Isolated .1018 ISO VM; installer frontend source overlay only; installed desktop is old signed image content. Greeter controls hide after 10s idle; actual password login passed.",
+      "sha256": "33c2dde0201ed3a082caeb7bea01491bca122557cdd4f15218a61b90ecc565e3",
+      "physical_px": [
+        1440,
+        900
+      ],
+      "logical_px": [
+        1440,
+        900
+      ],
+      "scale": "100%",
+      "environment": "isolated-offline-iso-vm",
+      "language": "ar",
+      "version": "44.20261009.1018",
+      "source_sha": "144b1a6ad04f0b7fa442183110ad6d969f636add",
+      "image_digest": "sha256:3055eb28ac032492a053da1efb9493c9780e7bfa20a01c7c3300961693bfee92",
+      "installed_manifest_digest": "sha256:1f91d2b51cd1531578dad2d7bc7e80d49953ae7af8bad7142ce21bbc2d03f97d",
+      "source_overlay_scope": null,
+      "private_owner_content": false,
+      "publishable_after_review": true
+    },
+    {
+      "file": "private-offline-gui-1018/installed-return-vt1.png",
+      "title_ar": "15 ـ شاشة الدخول في حالة الخمول",
+      "note_ar": "Isolated .1018 ISO VM; installer frontend source overlay only; installed desktop is old signed image content. Greeter controls hide after 10s idle; actual password login passed.",
+      "sha256": "4d0728d1364fa2678761b3a3d5e619951e214c0b2a876add91bb1b96f77bb3eb",
+      "physical_px": [
+        1440,
+        900
+      ],
+      "logical_px": [
+        1440,
+        900
+      ],
+      "scale": "100%",
+      "environment": "isolated-offline-iso-vm",
+      "language": "en",
+      "version": "44.20261009.1018",
+      "source_sha": "144b1a6ad04f0b7fa442183110ad6d969f636add",
+      "image_digest": "sha256:3055eb28ac032492a053da1efb9493c9780e7bfa20a01c7c3300961693bfee92",
+      "installed_manifest_digest": "sha256:1f91d2b51cd1531578dad2d7bc7e80d49953ae7af8bad7142ce21bbc2d03f97d",
+      "source_overlay_scope": null,
+      "private_owner_content": false,
+      "publishable_after_review": true
+    },
+    {
+      "file": "private-offline-gui-1018/installed-second-boot-greeter.png",
+      "title_ar": "16 ـ الخمول في شاشة الدخول بالإقلاع الثاني",
+      "note_ar": "Isolated .1018 ISO VM; installer frontend source overlay only; installed desktop is old signed image content. Greeter controls hide after 10s idle; actual password login passed.",
+      "sha256": "94708837fab5f4aae14ed19ebd6889f6225472fae0036c0ffd4eec99366091e3",
+      "physical_px": [
+        640,
+        507
+      ],
+      "logical_px": [
+        640,
+        507
+      ],
+      "scale": "100%",
+      "environment": "isolated-offline-iso-vm",
+      "language": "en",
+      "version": "44.20261009.1018",
+      "source_sha": "144b1a6ad04f0b7fa442183110ad6d969f636add",
+      "image_digest": "sha256:3055eb28ac032492a053da1efb9493c9780e7bfa20a01c7c3300961693bfee92",
+      "installed_manifest_digest": "sha256:1f91d2b51cd1531578dad2d7bc7e80d49953ae7af8bad7142ce21bbc2d03f97d",
+      "source_overlay_scope": null,
+      "private_owner_content": false,
+      "publishable_after_review": true
+    },
+    {
+      "file": "private-offline-gui-1018/installed-third-greeter-space-wake-1s.png",
+      "title_ar": "17 ـ شاشة الدخول بعد إيقاظها ـ حساب الاختبار",
+      "note_ar": "Actual isolated .1018 offline installed VM with synthetic account. Native password login/lock/unlock; no owner data; not final owner batch release.",
+      "sha256": "8c972e671fdc377656f276b7bb87921e181620a573d60e983297a2d80bf5ba1a",
+      "physical_px": [
+        1440,
+        900
+      ],
+      "logical_px": [
+        1440,
+        900
+      ],
+      "scale": "100%",
+      "environment": "isolated-offline-iso-vm",
+      "language": "en",
+      "version": "44.20261009.1018",
+      "source_sha": "144b1a6ad04f0b7fa442183110ad6d969f636add",
+      "image_digest": "sha256:3055eb28ac032492a053da1efb9493c9780e7bfa20a01c7c3300961693bfee92",
+      "installed_manifest_digest": "sha256:1f91d2b51cd1531578dad2d7bc7e80d49953ae7af8bad7142ce21bbc2d03f97d",
+      "source_overlay_scope": null,
+      "private_owner_content": false,
+      "publishable_after_review": true
+    },
+    {
+      "file": "private-offline-gui-1018/installed-third-login-after-password.png",
+      "title_ar": "18 ـ أول دخول فعلي بكلمة المرور",
+      "note_ar": "Actual isolated .1018 offline installed VM with synthetic account. Native password login/lock/unlock; no owner data; not final owner batch release.",
+      "sha256": "c3d5dbf6dc0d7d7b98ba9fb395bade0e9bdada9d4203647dc2c088e4459e9b0a",
+      "physical_px": [
+        1440,
+        900
+      ],
+      "logical_px": [
+        1440,
+        900
+      ],
+      "scale": "100%",
+      "environment": "isolated-offline-iso-vm",
+      "language": "ar",
+      "version": "44.20261009.1018",
+      "source_sha": "144b1a6ad04f0b7fa442183110ad6d969f636add",
+      "image_digest": "sha256:3055eb28ac032492a053da1efb9493c9780e7bfa20a01c7c3300961693bfee92",
+      "installed_manifest_digest": "sha256:1f91d2b51cd1531578dad2d7bc7e80d49953ae7af8bad7142ce21bbc2d03f97d",
+      "source_overlay_scope": null,
+      "private_owner_content": false,
+      "publishable_after_review": true
+    },
+    {
+      "file": "private-offline-gui-1018/installed-welcome-appearance-ready.png",
+      "title_ar": "19 ـ اختيار مظهر النظام",
+      "note_ar": "Actual isolated .1018 offline installed VM with synthetic account. Native password login/lock/unlock; no owner data; not final owner batch release.",
+      "sha256": "625f7f44977ebbe31ff50eea3408111a18eede07bde79ec0f3e8f888ca41fc03",
+      "physical_px": [
+        1440,
+        900
+      ],
+      "logical_px": [
+        1440,
+        900
+      ],
+      "scale": "100%",
+      "environment": "isolated-offline-iso-vm",
+      "language": "ar",
+      "version": "44.20261009.1018",
+      "source_sha": "144b1a6ad04f0b7fa442183110ad6d969f636add",
+      "image_digest": "sha256:3055eb28ac032492a053da1efb9493c9780e7bfa20a01c7c3300961693bfee92",
+      "installed_manifest_digest": "sha256:1f91d2b51cd1531578dad2d7bc7e80d49953ae7af8bad7142ce21bbc2d03f97d",
+      "source_overlay_scope": null,
+      "private_owner_content": false,
+      "publishable_after_review": true
+    },
+    {
+      "file": "private-offline-gui-1018/installed-welcome-purpose-stable.png",
+      "title_ar": "20 ـ اختيار وجهة الاستخدام",
+      "note_ar": "Actual isolated .1018 offline installed VM with synthetic account. Native password login/lock/unlock; no owner data; not final owner batch release.",
+      "sha256": "529050af650bfe156d71340d2da757b1f6aa8470cfca1e5264a8574e52f36790",
+      "physical_px": [
+        1440,
+        900
+      ],
+      "logical_px": [
+        1440,
+        900
+      ],
+      "scale": "100%",
+      "environment": "isolated-offline-iso-vm",
+      "language": "ar",
+      "version": "44.20261009.1018",
+      "source_sha": "144b1a6ad04f0b7fa442183110ad6d969f636add",
+      "image_digest": "sha256:3055eb28ac032492a053da1efb9493c9780e7bfa20a01c7c3300961693bfee92",
+      "installed_manifest_digest": "sha256:1f91d2b51cd1531578dad2d7bc7e80d49953ae7af8bad7142ce21bbc2d03f97d",
+      "source_overlay_scope": null,
+      "private_owner_content": false,
+      "publishable_after_review": true
+    },
+    {
+      "file": "private-offline-gui-1018/installed-welcome-applications.png",
+      "title_ar": "21 ـ التطبيقات الاختيارية",
+      "note_ar": "Actual isolated .1018 offline installed VM with synthetic account. Native password login/lock/unlock; no owner data; not final owner batch release.",
+      "sha256": "13fb572bc0bdb963f0caa3a1978137263ad833d367a51f3a9c83361828295e62",
+      "physical_px": [
+        1440,
+        900
+      ],
+      "logical_px": [
+        1440,
+        900
+      ],
+      "scale": "100%",
+      "environment": "isolated-offline-iso-vm",
+      "language": "ar",
+      "version": "44.20261009.1018",
+      "source_sha": "144b1a6ad04f0b7fa442183110ad6d969f636add",
+      "image_digest": "sha256:3055eb28ac032492a053da1efb9493c9780e7bfa20a01c7c3300961693bfee92",
+      "installed_manifest_digest": "sha256:1f91d2b51cd1531578dad2d7bc7e80d49953ae7af8bad7142ce21bbc2d03f97d",
+      "source_overlay_scope": null,
+      "private_owner_content": false,
+      "publishable_after_review": true
+    },
+    {
+      "file": "private-offline-gui-1018/installed-welcome-applications-optional-none.png",
+      "title_ar": "22 ـ المتابعة دون تنزيل تطبيقات اختيارية",
+      "note_ar": "Actual isolated .1018 offline installed VM with synthetic account. Native password login/lock/unlock; no owner data; not final owner batch release.",
+      "sha256": "6a3b923be4bbdf16eca5dd3d87ff790a08b26d767e0e4daba8d0840780342867",
+      "physical_px": [
+        1440,
+        900
+      ],
+      "logical_px": [
+        1440,
+        900
+      ],
+      "scale": "100%",
+      "environment": "isolated-offline-iso-vm",
+      "language": "ar",
+      "version": "44.20261009.1018",
+      "source_sha": "144b1a6ad04f0b7fa442183110ad6d969f636add",
+      "image_digest": "sha256:3055eb28ac032492a053da1efb9493c9780e7bfa20a01c7c3300961693bfee92",
+      "installed_manifest_digest": "sha256:1f91d2b51cd1531578dad2d7bc7e80d49953ae7af8bad7142ce21bbc2d03f97d",
+      "source_overlay_scope": null,
+      "private_owner_content": false,
+      "publishable_after_review": true
+    },
+    {
+      "file": "private-offline-gui-1018/installed-welcome-assistant.png",
+      "title_ar": "23 ـ اكتمال التجهيز دون إنترنت",
+      "note_ar": "Actual isolated .1018 offline installed VM with synthetic account. Native password login/lock/unlock; no owner data; not final owner batch release.",
+      "sha256": "87a8759eedfa7e1a1e91927eed963b8dd52aa18dadeff04f5d4c267a8238e4c3",
+      "physical_px": [
+        1440,
+        900
+      ],
+      "logical_px": [
+        1440,
+        900
+      ],
+      "scale": "100%",
+      "environment": "isolated-offline-iso-vm",
+      "language": "ar",
+      "version": "44.20261009.1018",
+      "source_sha": "144b1a6ad04f0b7fa442183110ad6d969f636add",
+      "image_digest": "sha256:3055eb28ac032492a053da1efb9493c9780e7bfa20a01c7c3300961693bfee92",
+      "installed_manifest_digest": "sha256:1f91d2b51cd1531578dad2d7bc7e80d49953ae7af8bad7142ce21bbc2d03f97d",
+      "source_overlay_scope": null,
+      "private_owner_content": false,
+      "publishable_after_review": true
+    },
+    {
+      "file": "private-offline-gui-1018/installed-welcome-finished.png",
+      "title_ar": "24 ـ نهاية الترحيب بالعربية",
+      "note_ar": "Actual isolated .1018 offline installed VM with synthetic account. Native password login/lock/unlock; no owner data; not final owner batch release.",
+      "sha256": "4f533bff4c7ef959d94042f7a0763fe6aa5e8c0eeceeb38fd64976ecac783146",
+      "physical_px": [
+        1440,
+        900
+      ],
+      "logical_px": [
+        1440,
+        900
+      ],
+      "scale": "100%",
+      "environment": "isolated-offline-iso-vm",
+      "language": "ar",
+      "version": "44.20261009.1018",
+      "source_sha": "144b1a6ad04f0b7fa442183110ad6d969f636add",
+      "image_digest": "sha256:3055eb28ac032492a053da1efb9493c9780e7bfa20a01c7c3300961693bfee92",
+      "installed_manifest_digest": "sha256:1f91d2b51cd1531578dad2d7bc7e80d49953ae7af8bad7142ce21bbc2d03f97d",
+      "source_overlay_scope": null,
+      "private_owner_content": false,
+      "publishable_after_review": true
+    },
+    {
+      "file": "private-offline-gui-1018/installed-arabic-desktop.png",
+      "title_ar": "25 ـ سطح المكتب بعد تثبيت فعلي",
+      "note_ar": "Actual isolated .1018 offline installed VM with synthetic account. Native password login/lock/unlock; no owner data; not final owner batch release.",
+      "sha256": "72de88dda3553ce08f34a60304eab148c130aadf023e323156639e1ad00c5fd4",
+      "physical_px": [
+        1440,
+        900
+      ],
+      "logical_px": [
+        1440,
+        900
+      ],
+      "scale": "100%",
+      "environment": "isolated-offline-iso-vm",
+      "language": "ar",
+      "version": "44.20261009.1018",
+      "source_sha": "144b1a6ad04f0b7fa442183110ad6d969f636add",
+      "image_digest": "sha256:3055eb28ac032492a053da1efb9493c9780e7bfa20a01c7c3300961693bfee92",
+      "installed_manifest_digest": "sha256:1f91d2b51cd1531578dad2d7bc7e80d49953ae7af8bad7142ce21bbc2d03f97d",
+      "source_overlay_scope": null,
+      "private_owner_content": false,
+      "publishable_after_review": true
+    },
+    {
+      "file": "private-offline-gui-1018/installed-arabic-native-konsole.png",
+      "title_ar": "26 ـ الطرفية العربية الأصلية",
+      "note_ar": "Actual isolated .1018 offline installed VM with synthetic account. Native password login/lock/unlock; no owner data; not final owner batch release.",
+      "sha256": "346a9daee942c8338d59401857dc9241a1a070382db440670ecc7dfd599ea2e5",
+      "physical_px": [
+        1440,
+        900
+      ],
+      "logical_px": [
+        1440,
+        900
+      ],
+      "scale": "100%",
+      "environment": "isolated-offline-iso-vm",
+      "language": "ar",
+      "version": "44.20261009.1018",
+      "source_sha": "144b1a6ad04f0b7fa442183110ad6d969f636add",
+      "image_digest": "sha256:3055eb28ac032492a053da1efb9493c9780e7bfa20a01c7c3300961693bfee92",
+      "installed_manifest_digest": "sha256:1f91d2b51cd1531578dad2d7bc7e80d49953ae7af8bad7142ce21bbc2d03f97d",
+      "source_overlay_scope": null,
+      "private_owner_content": false,
+      "publishable_after_review": true
+    },
+    {
+      "file": "private-offline-gui-1018/installed-arabic-lock-screen.png",
+      "title_ar": "27 ـ شاشة القفل العربية",
+      "note_ar": "Actual isolated .1018 offline installed VM with synthetic account. Native password login/lock/unlock; no owner data; not final owner batch release.",
+      "sha256": "4baa16c6f4e67d78a89b0bb5901902ef2435f57194adec4d904c9955605cc27d",
+      "physical_px": [
+        1440,
+        900
+      ],
+      "logical_px": [
+        1440,
+        900
+      ],
+      "scale": "100%",
+      "environment": "isolated-offline-iso-vm",
+      "language": "ar",
+      "version": "44.20261009.1018",
+      "source_sha": "144b1a6ad04f0b7fa442183110ad6d969f636add",
+      "image_digest": "sha256:3055eb28ac032492a053da1efb9493c9780e7bfa20a01c7c3300961693bfee92",
+      "installed_manifest_digest": "sha256:1f91d2b51cd1531578dad2d7bc7e80d49953ae7af8bad7142ce21bbc2d03f97d",
+      "source_overlay_scope": null,
+      "private_owner_content": false,
+      "publishable_after_review": true
+    },
+    {
+      "file": "private-offline-gui-1018/installed-lock-wrong-password-refused.png",
+      "title_ar": "28 ـ القفل بعد رفض كلمة مرور خاطئة",
+      "note_ar": "Actual isolated .1018 offline installed VM with synthetic account. Native password login/lock/unlock; no owner data; not final owner batch release.",
+      "sha256": "95efa524ed5b005ad3e2a1d900b328485f30edb650f1eeaa38b26fff5c9327fd",
+      "physical_px": [
+        1440,
+        900
+      ],
+      "logical_px": [
+        1440,
+        900
+      ],
+      "scale": "100%",
+      "environment": "isolated-offline-iso-vm",
+      "language": "ar",
+      "version": "44.20261009.1018",
+      "source_sha": "144b1a6ad04f0b7fa442183110ad6d969f636add",
+      "image_digest": "sha256:3055eb28ac032492a053da1efb9493c9780e7bfa20a01c7c3300961693bfee92",
+      "installed_manifest_digest": "sha256:1f91d2b51cd1531578dad2d7bc7e80d49953ae7af8bad7142ce21bbc2d03f97d",
+      "source_overlay_scope": null,
+      "private_owner_content": false,
+      "publishable_after_review": true
+    },
+    {
+      "file": "private-offline-gui-1018/installed-after-native-unlock.png",
+      "title_ar": "29 ـ العودة إلى سطح المكتب بكلمة المرور الصحيحة",
+      "note_ar": "Actual isolated .1018 offline installed VM with synthetic account. Native password login/lock/unlock; no owner data; not final owner batch release.",
+      "sha256": "7462ca7afc08c7b925a37aeb38049312b4251ea54f02e62550a8a408c55eb60c",
+      "physical_px": [
+        1440,
+        900
+      ],
+      "logical_px": [
+        1440,
+        900
+      ],
+      "scale": "100%",
+      "environment": "isolated-offline-iso-vm",
+      "language": "ar",
+      "version": "44.20261009.1018",
+      "source_sha": "144b1a6ad04f0b7fa442183110ad6d969f636add",
+      "image_digest": "sha256:3055eb28ac032492a053da1efb9493c9780e7bfa20a01c7c3300961693bfee92",
+      "installed_manifest_digest": "sha256:1f91d2b51cd1531578dad2d7bc7e80d49953ae7af8bad7142ce21bbc2d03f97d",
+      "source_overlay_scope": null,
+      "private_owner_content": false,
+      "publishable_after_review": true
+    },
+    {
+      "file": "private-offline-gui-1018/installed-native-clean-poweroff-dialog.png",
+      "title_ar": "30 ـ قائمة الطاقة الأصلية بالعربية",
+      "note_ar": "Actual isolated .1018 offline installed VM with synthetic account. Native password login/lock/unlock; no owner data; not final owner batch release.",
+      "sha256": "5d84957bd523015a0b01325a6a7bbea4ef9b2d238a591578483d3c7533b1eff3",
+      "physical_px": [
+        1440,
+        900
+      ],
+      "logical_px": [
+        1440,
+        900
+      ],
+      "scale": "100%",
+      "environment": "isolated-offline-iso-vm",
+      "language": "ar",
+      "version": "44.20261009.1018",
+      "source_sha": "144b1a6ad04f0b7fa442183110ad6d969f636add",
+      "image_digest": "sha256:3055eb28ac032492a053da1efb9493c9780e7bfa20a01c7c3300961693bfee92",
+      "installed_manifest_digest": "sha256:1f91d2b51cd1531578dad2d7bc7e80d49953ae7af8bad7142ce21bbc2d03f97d",
+      "source_overlay_scope": null,
+      "private_owner_content": false,
+      "publishable_after_review": true
+    },
+    {
+      "file": "private-offline-gui-1018/installed-native-clean-poweroff-confirm.png",
+      "title_ar": "31 ـ تأكيد إيقاف التشغيل",
+      "note_ar": "Actual isolated .1018 offline installed VM with synthetic account. Native password login/lock/unlock; no owner data; not final owner batch release.",
+      "sha256": "a57192fa026d4dd0ddf0c1ebc388173b15b27bff23e07ff5ce71eb37014d852f",
+      "physical_px": [
+        1440,
+        900
+      ],
+      "logical_px": [
+        1440,
+        900
+      ],
+      "scale": "100%",
+      "environment": "isolated-offline-iso-vm",
+      "language": "ar",
+      "version": "44.20261009.1018",
+      "source_sha": "144b1a6ad04f0b7fa442183110ad6d969f636add",
+      "image_digest": "sha256:3055eb28ac032492a053da1efb9493c9780e7bfa20a01c7c3300961693bfee92",
+      "installed_manifest_digest": "sha256:1f91d2b51cd1531578dad2d7bc7e80d49953ae7af8bad7142ce21bbc2d03f97d",
+      "source_overlay_scope": null,
+      "private_owner_content": false,
+      "publishable_after_review": true
+    },
+    {
+      "file": "private-offline-gui-1018/installed-fourth-greeter-awake.png",
+      "title_ar": "32 ـ شاشة الدخول بعد الإقلاع التالي",
+      "note_ar": "Actual isolated .1018 offline installed VM with synthetic account. Native password login/lock/unlock; no owner data; not final owner batch release.",
+      "sha256": "dd92262e870511dd3274f1614c5a468d68b7ca0e5db4e54eed558f91ee404477",
+      "physical_px": [
+        1440,
+        900
+      ],
+      "logical_px": [
+        1440,
+        900
+      ],
+      "scale": "100%",
+      "environment": "isolated-offline-iso-vm",
+      "language": "en",
+      "version": "44.20261009.1018",
+      "source_sha": "144b1a6ad04f0b7fa442183110ad6d969f636add",
+      "image_digest": "sha256:3055eb28ac032492a053da1efb9493c9780e7bfa20a01c7c3300961693bfee92",
+      "installed_manifest_digest": "sha256:1f91d2b51cd1531578dad2d7bc7e80d49953ae7af8bad7142ce21bbc2d03f97d",
+      "source_overlay_scope": null,
+      "private_owner_content": false,
+      "publishable_after_review": true
+    },
+    {
+      "file": "private-offline-gui-1018/installed-fourth-second-password-desktop.png",
+      "title_ar": "33 ـ الدخول الثاني بكلمة المرور بعد إطفاء طبيعي",
+      "note_ar": "Actual isolated .1018 offline installed VM with synthetic account. Native password login/lock/unlock; no owner data; not final owner batch release.",
+      "sha256": "740858eec320e107790d744befcd9a857ef2bcb40378d36132d5e3c64a975eb2",
+      "physical_px": [
+        1440,
+        900
+      ],
+      "logical_px": [
+        1440,
+        900
+      ],
+      "scale": "100%",
+      "environment": "isolated-offline-iso-vm",
+      "language": "ar",
+      "version": "44.20261009.1018",
+      "source_sha": "144b1a6ad04f0b7fa442183110ad6d969f636add",
+      "image_digest": "sha256:3055eb28ac032492a053da1efb9493c9780e7bfa20a01c7c3300961693bfee92",
+      "installed_manifest_digest": "sha256:1f91d2b51cd1531578dad2d7bc7e80d49953ae7af8bad7142ce21bbc2d03f97d",
+      "source_overlay_scope": null,
+      "private_owner_content": false,
+      "publishable_after_review": true
+    },
+    {
+      "file": "private-offline-gui-1018/installed-fourth-native-store.png",
+      "title_ar": "34 ـ متجر MoOS العربي في التثبيت الجديد",
+      "note_ar": "Actual isolated .1018 offline installed VM with synthetic account. Native password login/lock/unlock; no owner data; not final owner batch release.",
+      "sha256": "15f2c306d592ca6a73691ecb76664439d7815662dc9c5356c33f4a115e7c52c2",
+      "physical_px": [
+        1440,
+        900
+      ],
+      "logical_px": [
+        1440,
+        900
+      ],
+      "scale": "100%",
+      "environment": "isolated-offline-iso-vm",
+      "language": "ar",
+      "version": "44.20261009.1018",
+      "source_sha": "144b1a6ad04f0b7fa442183110ad6d969f636add",
+      "image_digest": "sha256:3055eb28ac032492a053da1efb9493c9780e7bfa20a01c7c3300961693bfee92",
+      "installed_manifest_digest": "sha256:1f91d2b51cd1531578dad2d7bc7e80d49953ae7af8bad7142ce21bbc2d03f97d",
+      "source_overlay_scope": null,
+      "private_owner_content": false,
+      "publishable_after_review": true
+    },
+    {
+      "file": "private-offline-gui-1018/installed-fourth-native-settings.png",
+      "title_ar": "35 ـ إعدادات النظام الأصلية بالعربية",
+      "note_ar": "Actual isolated .1018 offline installed VM with synthetic account. Native password login/lock/unlock; no owner data; not final owner batch release.",
+      "sha256": "ee5e9ceec3fcef36fa658b55c302af29443b59d8dff92b5ee40890f9f6567ea7",
+      "physical_px": [
+        1440,
+        900
+      ],
+      "logical_px": [
+        1440,
+        900
+      ],
+      "scale": "100%",
+      "environment": "isolated-offline-iso-vm",
+      "language": "ar",
+      "version": "44.20261009.1018",
+      "source_sha": "144b1a6ad04f0b7fa442183110ad6d969f636add",
+      "image_digest": "sha256:3055eb28ac032492a053da1efb9493c9780e7bfa20a01c7c3300961693bfee92",
+      "installed_manifest_digest": "sha256:1f91d2b51cd1531578dad2d7bc7e80d49953ae7af8bad7142ce21bbc2d03f97d",
+      "source_overlay_scope": null,
+      "private_owner_content": false,
+      "publishable_after_review": true
+    },
+    {
+      "file": "private-offline-gui-1018/installed-fourth-native-mira.png",
+      "title_ar": "36 ـ ميرا داخل التثبيت الجديد",
+      "note_ar": "Actual isolated .1018 offline installed VM with synthetic account. Native password login/lock/unlock; no owner data; not final owner batch release.",
+      "sha256": "78842b706a646c057901872fa90e5f0b74bfaa3784ee2ecae4be5fcd007cd258",
+      "physical_px": [
+        1440,
+        900
+      ],
+      "logical_px": [
+        1440,
+        900
+      ],
+      "scale": "100%",
+      "environment": "isolated-offline-iso-vm",
+      "language": "ar",
+      "version": "44.20261009.1018",
+      "source_sha": "144b1a6ad04f0b7fa442183110ad6d969f636add",
+      "image_digest": "sha256:3055eb28ac032492a053da1efb9493c9780e7bfa20a01c7c3300961693bfee92",
+      "installed_manifest_digest": "sha256:1f91d2b51cd1531578dad2d7bc7e80d49953ae7af8bad7142ce21bbc2d03f97d",
+      "source_overlay_scope": null,
+      "private_owner_content": false,
+      "publishable_after_review": true
+    }
+  ],
+  "deduplicated": [
+    {
+      "removed_duplicate": "ci-stable-1011-37558755639/moos-iso-install-proof/installed-desktop-apps.png",
+      "same_as": "ci-stable-1011-37558755639/moos-iso-install-proof/installed-app-mo-pc-remote.png"
+    },
+    {
+      "removed_duplicate": "ci-stable-1011-37558755639/moos-iso-install-proof/window-probe.png",
+      "same_as": "ci-stable-1011-37558755639/moos-iso-install-proof/installed-app-mo-pc-remote.png"
+    }
+  ],
+  "raw_ci_logs": "kept privately in audit state outside gallery",
+  "gallery_unique_frames": 73,
+  "community_live_acceptance": "actual Oracle TLS + private two-account/image/release API proof; source-native UI, not signed image delivery",
+  "duplicates_removed": [
+    {
+      "removed_duplicate": "window-probe.png",
+      "same_as": "installed-desktop-apps.png"
+    }
+  ]
+}

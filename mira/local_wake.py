@@ -20,6 +20,7 @@ from pathlib import Path
 import numpy as np
 from faster_whisper import WhisperModel
 from faster_whisper.vad import VadOptions, get_speech_timestamps
+from capture_policy import SourceWatch
 
 RATE = 16000
 FRAME_BYTES = RATE * 2 // 10
@@ -28,11 +29,25 @@ ALIASES = {'ميرا', 'ميره', 'ميرة', 'ميرى', 'مير', 'ميا', '
 PREFIXES = {'يا', 'هاي', 'هي', 'hey', 'hi'}
 VAD = VadOptions(threshold=.35, min_speech_duration_ms=120,
                  min_silence_duration_ms=250, speech_pad_ms=100)
+_health_lock = threading.Lock()
+
+
+def runtime_root(uid):
+    root = Path(os.environ.get('XDG_RUNTIME_DIR', f'/run/user/{uid}'))
+    stat = root.stat()
+    if not root.is_absolute() or not root.is_dir() or stat.st_uid != uid or stat.st_mode & 0o077:
+        raise ValueError('private runtime directory required')
+    return root
 
 
 def diagnostic(uid, **state):
+    with _health_lock:
+        _diagnostic(uid, **state)
+
+
+def _diagnostic(uid, **state):
     """Coarse health counters only, never audio or recognized words."""
-    root = Path(f'/run/user/{uid}')
+    root = runtime_root(uid)
     if not root.exists():
         return
     path = root / 'mira-wake-health.json'
@@ -104,7 +119,7 @@ def send_wake(uid):
 
 
 def audio_path(uid):
-    return Path(f'/run/user/{uid}/mira-pcm.sock')
+    return runtime_root(uid) / 'mira-pcm.sock'
 
 
 def frames(stream):
@@ -115,9 +130,9 @@ def frames(stream):
         yield frame
 
 
-def offer_speech(pending, pcm):
+def offer_speech(pending, pcm, generation=None):
     """Keep at most the newest two phrases; stale room audio cannot wake later."""
-    item = (time.monotonic(), pcm)
+    item = (time.monotonic(), pcm, generation)
     try:
         pending.put_nowait(item)
     except queue.Full:
@@ -128,19 +143,23 @@ def offer_speech(pending, pcm):
         pending.put_nowait(item)
 
 
-def recognize_loop(args, model, pending, stop_event):
+def recognize_loop(args, model, pending, stop_event, watch):
     last_wake = 0.0
     while not stop_event.is_set():
         try:
-            captured_at, pcm = pending.get(timeout=.5)
+            captured_at, pcm, generation = pending.get(timeout=.5)
         except queue.Empty:
             continue
-        if time.monotonic() - captured_at > 4 or time.monotonic() - last_wake < 12:
+        if (not watch.permits(generation) or time.monotonic() - captured_at > 4
+                or time.monotonic() - last_wake < 12):
             continue
         try:
             matched = transcribe_wake(model, pcm)
         except Exception:
-            diagnostic(args.uid,state='recognition_failed',last_result='recognition_failed')
+            if watch.permits(generation):
+                diagnostic(args.uid,state='recognition_failed',last_result='recognition_failed')
+            continue
+        if not watch.permits(generation):
             continue
         if not matched:
             diagnostic(args.uid,last_result='not_matched')
@@ -165,28 +184,46 @@ def listen(args, model):
     server = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
     pending = queue.Queue(maxsize=2)
     stop_event = threading.Event()
+    def source_changed(state):
+        # A stale phrase must not survive a mute/disconnect/reconnect even if
+        # its expensive recognition would finish after the source returns.
+        while True:
+            try:
+                pending.get_nowait()
+            except queue.Empty:
+                break
+        diagnostic(args.uid, state=state.reason, frames=0, frames_per_second=0,
+                   last_result='', last_match_at=0)
+    watch = SourceWatch(args.source, source_changed)
     worker = threading.Thread(target=recognize_loop,
-                              args=(args, model, pending, stop_event), daemon=True)
+                              args=(args, model, pending, stop_event, watch), daemon=True)
     worker.start()
     try:
         server.bind(str(path))
         os.chmod(path, 0o600)
         server.listen(1)
         server.setblocking(False)
+        diagnostic(args.uid, state='unknown', frames=0, frames_per_second=0,
+                   last_result='', last_match_at=0)
+        watch.start()
         while os.getppid() == args.parent_pid:
-            _capture_loop(args, command, server, pending)
-            time.sleep(2)
+            if watch.wait_ready():
+                _capture_loop(args, command, server, pending, watch)
+                stop_event.wait(.2)
     finally:
         stop_event.set()
+        watch.close()
         worker.join(timeout=2)
         server.close()
         path.unlink(missing_ok=True)
 
 
-def _capture_loop(args, command, server, pending):
+def _capture_loop(args, command, server, pending, watch):
+        generation, state = watch.snapshot()
+        if not state.allowed:
+            return
         recorder = subprocess.Popen(command, stdout=subprocess.PIPE,
                                     stderr=subprocess.DEVNULL, bufsize=FRAME_BYTES * 4)
-        diagnostic(args.uid, state='capturing', frames=0, last_result='')
         prior = collections.deque(maxlen=4)
         speech = []
         voiced_frames = 0
@@ -198,8 +235,11 @@ def _capture_loop(args, command, server, pending):
         measured_at = time.monotonic()
         measured_frames = 0
         try:
+            if not watch.attach_recorder(recorder, generation):
+                return
+            diagnostic(args.uid, state='capturing', frames=0, last_result='')
             for frame in frames(recorder.stdout):
-                if os.getppid() != args.parent_pid:
+                if os.getppid() != args.parent_pid or not watch.permits(generation):
                     return
                 samples = np.frombuffer(frame, dtype='<i2').astype(np.float32)
                 level = float(np.sqrt(np.mean(samples * samples)))
@@ -248,11 +288,12 @@ def _capture_loop(args, command, server, pending):
                 diagnostic(args.uid,state='recognizing',segment_seconds=round(duration,1),
                            peak_rms=peak_level)
                 if 0.35 <= duration <= 3.7 and voiced_frames >= 2:
-                    offer_speech(pending, b''.join(speech))
+                    offer_speech(pending, b''.join(speech), generation)
                 speech = []
                 voiced_frames = 0
                 prior.clear()
         finally:
+            watch.detach_recorder(recorder)
             if audio_peer:
                 audio_peer.close()
             recorder.terminate()
@@ -261,7 +302,23 @@ def _capture_loop(args, command, server, pending):
             except subprocess.TimeoutExpired:
                 recorder.kill()
                 recorder.wait()
-            diagnostic(args.uid,state='reconnecting',last_result='microphone_disconnected')
+            recorder.stdout.close()
+            _, state = watch.snapshot()
+            diagnostic(args.uid, state='reconnecting' if state.allowed else state.reason,
+                       frames_per_second=0, last_result='microphone_disconnected')
+
+
+class LazyWhisperModel:
+    """A muted/quiet listener does not load the wake model into RAM."""
+    def __init__(self, path):
+        self.path = path
+        self.model = None
+
+    def transcribe(self, *args, **kwargs):
+        if self.model is None:
+            self.model = WhisperModel(str(self.path), device='cpu', compute_type='int8',
+                                      cpu_threads=2, num_workers=1)
+        return self.model.transcribe(*args, **kwargs)
 
 
 def main():
@@ -272,8 +329,7 @@ def main():
     parser.add_argument('--uid', type=int, required=True)
     args = parser.parse_args()
     signal.signal(signal.SIGTERM, lambda *_: exit(0))
-    model = WhisperModel(str(args.model), device='cpu', compute_type='int8',
-                         cpu_threads=2, num_workers=1)
+    model = LazyWhisperModel(args.model)
     listen(args, model)
 
 

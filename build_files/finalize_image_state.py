@@ -54,6 +54,9 @@ PACKAGE_STATE_DIRECTORIES = (
 
 STATIC_STATE_DIRECTORIES = (
     ("var/lib/authselect", "usr/lib/tmpfiles.d/moos-authselect-state.conf"),
+    # dbus-daemon owns this empty directory on native ARM (37987720523).
+    # Its vendor policy recreates the directory and machine-id link at boot.
+    ("var/lib/dbus", "usr/lib/tmpfiles.d/dbus.conf"),
     ("var/lib/waydroid", "usr/lib/tmpfiles.d/waydroid.conf"),
 )
 
@@ -230,11 +233,13 @@ def finalize(root: Path) -> None:
         elif path.exists():
             path.unlink()
     # These paths already have a dedicated immutable policy, including the
-    # copy-if-absent authselect seed and Waydroid's SELinux relabel operation.
+    # authselect seed, D-Bus machine-id link and Waydroid's relabel operation.
     for relative, authority in STATIC_STATE_DIRECTORIES:
         path = owned_path(root, relative)
         if not path.exists():
             continue
+        if os.path.ismount(path):
+            raise RuntimeError(f"unsafe mount in compose package state: {relative}")
         if path.is_symlink() or not path.is_dir() or any(path.iterdir()):
             raise RuntimeError(f"expected empty package state directory: {relative}")
         if not (root / authority).is_file():

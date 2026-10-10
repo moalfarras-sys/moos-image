@@ -34,6 +34,21 @@ def code(text: str) -> str:
 
 
 class SameImage(unittest.TestCase):
+    def test_participation_client_changes_build_both_images_before_merge(self) -> None:
+        for containerfile in ('Containerfile', 'Containerfile.arm'):
+            self.assertIn('COPY community/', (ROOT / containerfile).read_text())
+        workflow = code(PR)
+        trigger = workflow[workflow.index('on:'):workflow.index('concurrency:')]
+        self.assertIn('"community/**"', trigger,
+                      'a native client-only PR must execute the x86 image gate')
+        arm = code(ARM)
+        trigger = arm[arm.index('on:'):arm.index('\nenv:')]
+        push = trigger[trigger.index('  push:'):trigger.index('  pull_request:')]
+        pull_request = trigger[trigger.index('  pull_request:'):]
+        for name, block in (('push', push), ('pull_request', pull_request)):
+            self.assertIn('"community/**"', block,
+                          f'a native client-only {name} must execute the ARM image gate')
+
     def test_it_runs_before_the_merge_for_everything_that_reaches_the_image(self) -> None:
         workflow = code(PR)
         trigger = workflow[workflow.index("on:"):workflow.index("concurrency:")]

@@ -12,6 +12,7 @@ merge instead of editing it.
 
 | Agent | Machine | Holds | Files it may change |
 | --- | --- | --- | --- |
+| Owner-milestone agent | Physical NVIDIA station | `feat/owner-milestones-20261009`: ordered owner request, muted/disconnected local-wake capture policy, honest unreadable-recovery state, journey evidence and independently prepared private-participation service; do not edit the running installer candidate `144b1a6a` | `docs/OWNER_EXECUTION_20261009_AR.md`, `docs/reviews/system-journey/**`, `mira/capture_policy.py`, `mira/local_wake.py`, `mira/test_local_wake.py`, `tests/test_mira_capture_policy.py`, own test registrations in `tests/repo-gates.sh` and `Justfile`, local-wake health lines in `mira/controller.py` and relevant tests, `system_files/usr/bin/moos-rollback`, `tests/test_recovery_rollback_target.py`, `community/**`, `tests/test_community*.py`, `.github/workflows/community-check.yml`; own truth/plan rows only. Live API/client acceptance passed. Image integration additions only: community stage/COPY lines in `Containerfile` and `Containerfile.arm`, independent community gate call in `build_files/build.sh` and `build_files/build-arm.sh`, `build_files/verify_community_client.py`, `system_files/usr/bin/moos-community`, `system_files/usr/share/applications/org.moos.community.desktop`, `system_files/usr/share/metainfo/org.moos.community.metainfo.xml`, `system_files/usr/share/moos/community-service.json`, and THEME_REV increment in `system_files/usr/bin/moos-apply-theme`. Existing Mira/Lumen/Remote/seam lines stay with their holders. |
 | Station agent | The physical x86 NVIDIA workstation | `feat/remote-unified-system-20261005`: P2.14 — v55 visible typing and healthy relay detail; native EIS input independent of capture; narrow unattended consent. Disposable signed-base VM typing/video and repeated ordinary password unlock proven; owner phone/WAN still open. Final integration #206, phone/WAN and signed delivery remain open. | `moremote/agent-linux/**`, `moremote/agent/Web/StreamSession.cs`, `moremote/agent/Core/InputInjector.cs`, `moremote/controller/**`, `moremote/agent/wwwroot/**`, `moremote/tests/**`, `moremote/ONE_REMOTE.md`, `moremote/README.md`, `system_files/usr/bin/mo-pc-remote`, `tests/test_moos_gtk_runtime.py`, the Remote row of `system_files/usr/share/moos/whats-new.json`. Shared docs: only the Remote evidence/plan rows. |
 | Station agent (Mira home + Lumen) | The physical x86 NVIDIA workstation | `feat/mira-home-lumen-20261002`: Mira's home centre (rooms, renaming through Home Assistant's registry, what each device can do, discovery) and **Lumen**, the MoOS lighting engine: every light as one system (Home Assistant, the Hue bridge directly, the PC's own RGB controller), groups, scenes, effects, and lights that follow the screen. | `mira/lumen/**`, `mira/homehub.py`, `mira/home_link.py`, `mira/pages/home.py`, `mira/pages/lumen.py`, `mira/qml/Mira/{HomePage,LumenPage,Lumen*}.qml`, the home/light tools and the home inventory in `mira/tools.py`, their lines in `mira/controller.py`, `mira/i18n.py`, `mira/review_fakes.py`, `mira/qml/Main.qml`, `mira/qml/Mira/NavRail.qml`, `mira/packaging/stage.sh` and their tests (`mira/test_lumen*.py`, `mira/test_homehub.py`, `mira/test_page_home.py`, `mira/test_page_lumen.py`, `mira/test_group_lights.py`); `system_files/usr/bin/mira-lumen`, the Home and Lighting rows of `moos-settings-kcm/modules/ai/ui/main.qml`, the `ai/home` and `ai/lumen` routes in `system_files/usr/bin/moos-open`, the Lights/Home actions in `org.moos.moai.desktop`, the Mira test list in `Containerfile.arm`, `system_files/usr/lib/systemd/user/mira-lumen.service`, the Lumen launcher entry and its `whats-new.json` lines; the Mira test list in the `Containerfile` mira-build stage and the Lumen lines of the Mira gate in `build_files/build.sh`; the Mira rows (W11/P3.x home) in `PROJECT_STATE.md` and `docs/DEVELOPMENT_PLAN.md`. |
 | Remote agent | Off-station: Windows 11 + WSL2, no live KWin | No pushed product branch. Release tooling and off-station review remain reserved; coordinate before editing them. | `scripts/review/**`, `scripts/release-candidate.sh`; release rows in `PROJECT_STATE.md` |
@@ -28,6 +29,34 @@ reuses a finished build of the exact revision and adopts a superseding one. Expe
 rather than to conflict.
 
 **2026-10-07: the station completed the owner-authorized final cycle at `fa85b2da`.** #215 includes exact #214/v56, shared PIN protection and reviewed Oracle #216 history/recorder updates. X86 build `37552824167`, three QCOW2 proofs, offline ISO and promotion `37562359722` all succeed; ARM `37539003204` succeeds at the same source. Production is x86 `.1011` and ARM `.724`. Main's candidate freeze is released. The station holds only its delivery/readback paragraphs in `PROJECT_STATE.md`, `docs/DEVELOPMENT_PLAN.md` and this file on `docs/session-delivery-20261007`; it requested the official NVIDIA host update, while native authentication/staging/reboot and physical full logout remain pending. Oracle follows the proven ARM release for its own installed acceptance without a duplicate cycle.
+
+**2026-10-09: owner-authorized station delivery of PR #222.** The owner-milestone
+agent will run one standard `scripts/release-candidate.sh --promote` after the
+final local image and PR checks pass, then official NVIDIA/Oracle readback.
+No owner-batch cycle has started yet. Its image additions also own the explicit
+`dbus-daemon` dependency for the community gate in `build_files/build-arm.sh`.
+Native client trigger additions in `.github/workflows/pr-image-gates.yml`,
+`.github/workflows/build-arm.yml` and `tests/test_pr_image_gates_workflow.py`
+belong to this packaging batch too; existing matrix/jobs/permissions stay intact.
+The station also holds the narrow D-Bus empty-directory correction in
+`build_files/finalize_image_state.py` and `tests/test_image_state.py`: native ARM
+37987720523 passed the real community launcher, then correctly refused
+`/var/lib/dbus`. Preserve its vendor tmpfiles authority and all state refusals;
+this does not take over the broader next-Plasma canary cleanup lane.
+Actual GUI ISO review then reproduced Arabic `برلين` returning no zone while
+`Berlin` works. The station holds `system_files/usr/share/moos/apps/installer/main.qml`,
+its new immutable localized-zone data/generator and native regression gate,
+plus installer-copy Mira naming only. Installer mount/privilege/authentication
+mechanisms remain unchanged. PR integration watcher is stopped before merge;
+finish this measured user-path correction before the one signed batch.
+The existing cache migration advances to THEME_REV 102; the station also owns
+only its exact revision assertions in `tests/test_moos_ui2.py` and
+`tests/verify_user_experience.py`, preserving all migration/cache guards.
+Its generated `tests/theme-rev-fingerprint.json` accompanies that revision;
+own installer incident/provenance paragraphs in `AGENTS.md` and `OWNERSHIP.md`
+record the native negative control and original data notices.
+Main freezes at that cycle's recorded SHA through promotion/failure; do not
+dispatch a duplicate cycle. The accepted installer cycle at `144b1a6a` is complete.
 
 **Release cycles** normally belong to the off-station agent. On 2026-09-18 the owner
 asked the station to run one for W8 so every edition updates; say so here when that

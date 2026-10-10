@@ -256,6 +256,21 @@ ApplicationWindow {
     property string tz: ""
     property string zoneFilter: ""
     readonly property string zoneTabPath: "/usr/share/zoneinfo/zone1970.tab"
+    property string zoneLabelsPath: "/usr/share/moos/installer-timezones.json"
+    property var zoneLabels: ({})
+    property bool zoneLabelsReady: false
+
+    function loadZoneLabels() {
+        try {
+            var req = new XMLHttpRequest()
+            req.open("GET", "file://" + win.zoneLabelsPath, false)
+            req.send()
+            var data = JSON.parse(req.responseText)
+            if (data.schema !== 1 || !data.zones) return
+            win.zoneLabels = data.zones
+            win.zoneLabelsReady = true
+        } catch (e) { win.zoneLabelsReady = false }
+    }
 
     function loadZones() {
         var out = []
@@ -279,17 +294,36 @@ ApplicationWindow {
         if (win.tz === "") win.tz = win.tzForLang()
     }
 
-    // Matches on the whole zone name, so "berlin", "europe" and "Europe/Ber" all find it.
+    // Search both localized names and the unchanged IANA identifier. Language
+    // changes the label, never the value handed to the privileged installer.
+    function zoneFold(value) {
+        return value.toLowerCase().replace(/[\u064b-\u065f\u0670\u0640]/g, "")
+                    .replace(/[أإآ]/g, "ا").replace(/ى/g, "ي").replace(/_/g, " ").trim()
+    }
+    function zoneMatches(zone, query) {
+        var label = win.zoneLabels[zone]
+        var text = zone + " " + (label ? label.ar + " " + label.en : "")
+        var tokens = win.zoneFold(query).split(/\s+/)
+        text = win.zoneFold(text)
+        for (var i = 0; i < tokens.length; i++)
+            if (text.indexOf(tokens[i]) === -1) return false
+        return true
+    }
     function zonesFiltered() {
-        var q = win.zoneFilter.trim().toLowerCase()
+        var q = win.zoneFilter.trim()
         if (win.zones.length === 0) return win.tz === "" ? [] : [win.tz]
         if (q === "") return win.zones
         var out = []
         for (var i = 0; i < win.zones.length; i++)
-            if (win.zones[i].toLowerCase().indexOf(q) !== -1) out.push(win.zones[i])
+            if (win.zoneMatches(win.zones[i], q)) out.push(win.zones[i])
         return out
     }
-    function zoneLabel(z) { return z.replace(/_/g, " ").replace("/", " › ") }
+    function zoneLabel(z) {
+        var label = win.zoneLabels[z]
+        return label ? (win.lang === "ar" ? label.ar : label.en)
+                     : z.replace(/_/g, " ").replace("/", " › ")
+    }
+    readonly property bool zoneChoiceReady: win.tz !== "" && win.zoneMatches(win.tz, win.zoneFilter)
     readonly property bool acctUserValid: /^[a-z_][a-z0-9_-]{0,31}$/.test(win.acctUser)
     // The owner chooses the password length. Empty is never a password, while a
     // short password is accepted with an honest recommendation instead of an
@@ -567,7 +601,7 @@ ApplicationWindow {
         foreground: tint
     }
 
-    Component.onCompleted: { loadDisks(); loadZones() }
+    Component.onCompleted: { loadDisks(); loadZoneLabels(); loadZones() }
 
     // ═══════════════════════════════ BACKGROUND ═══════════════════════════════
     Rectangle {
@@ -842,8 +876,8 @@ ApplicationWindow {
                         spacing: 18
                         Repeater {
                             model: [
-                                { glyph: "spark",  ar: "جاهز من أول إقلاع", ar2: "متجر Mo Store، ومساعد Mo AI، ومظهر أنيق — دون إعداد يدوي.",
-                                  en: "Ready on first boot", en2: "Mo Store, the Mo AI assistant, and a refined look — no manual setup." },
+                                { glyph: "spark",  ar: "جاهز من أول إقلاع", ar2: "متجر Mo Store، وميرا، ومظهر أنيق — دون إعداد يدوي.",
+                                  en: "Ready on first boot", en2: "Mo Store, Mira, and a refined look — no manual setup." },
                                 { glyph: "shield", ar: "يحدّث نفسه بأمان", ar2: "تحديثات ذرّية كاملة، وإن ساء تحديث تعود للسابق بنقرة.",
                                   en: "Updates safely", en2: "Full atomic updates; if one goes wrong you roll back in a click." },
                                 { glyph: "gear",   ar: "لك أنت", ar2: "عربي أو إنجليزي، فاتح أو داكن، ووجهة الجهاز تختارها بعد الإقلاع.",
@@ -1637,6 +1671,9 @@ ApplicationWindow {
                         border.color: zoneSearch.activeFocus ? win.accent : win.outline
                         TextInput {
                             id: zoneSearch
+                            objectName: "installerZoneSearch"
+                            activeFocusOnTab: true
+                            Accessible.name: win.tr("ابحث عن منطقتك الزمنية", "Search for your time zone")
                             anchors.fill: parent
                             anchors.leftMargin: 14; anchors.rightMargin: 14
                             verticalAlignment: TextInput.AlignVCenter
@@ -1657,6 +1694,23 @@ ApplicationWindow {
                         }
                     }
                     Item { Layout.preferredHeight: win.fs(12) }
+                    Text {
+                        Layout.fillWidth: true
+                        text: win.tr("المنطقة المختارة: ", "Selected zone: ") + win.zoneLabel(win.tz)
+                        color: win.txt2
+                        font.family: win.uiFont; font.pixelSize: win.typePx(13)
+                        wrapMode: Text.WordWrap
+                    }
+                    Text {
+                        Layout.fillWidth: true
+                        visible: !win.zoneLabelsReady
+                        text: win.tr("تعذّرت قراءة الأسماء المعرّبة. ابحث بالاسم الإنجليزي مثل Berlin.",
+                                     "Localized names are unavailable. Search by the English name, such as Berlin.")
+                        color: win.txt2
+                        font.family: win.uiFont; font.pixelSize: win.typePx(13)
+                        wrapMode: Text.WordWrap
+                    }
+                    Item { Layout.preferredHeight: win.fs(8) }
 
                     // the list
                     Rectangle {
@@ -1670,6 +1724,7 @@ ApplicationWindow {
 
                         ListView {
                             id: zoneList
+                            objectName: "installerZoneList"
                             anchors.fill: parent
                             anchors.margins: 6
                             clip: true
@@ -1704,6 +1759,7 @@ ApplicationWindow {
                             Component.onCompleted: revealPick()
                             delegate: Rectangle {
                                 required property string modelData
+                                objectName: "installerZoneChoice_" + modelData
                                 width: zoneList.width - 12
                                 height: 40
                                 radius: design.radiusSmall
@@ -2410,10 +2466,11 @@ ApplicationWindow {
 
                 Rectangle {   // next
                     id: installerNavNext
+                    objectName: "installerNavNext"
                     readonly property bool ready: (win.step === win.stepDisk && win.targetNode !== "")
                                                   || win.step === win.stepMethod
                                                   || (win.step === win.stepAccount && win.acctValid)
-                                                  || (win.step === win.stepZone && win.tz !== "")
+                                                  || (win.step === win.stepZone && win.zoneChoiceReady)
                     Layout.preferredHeight: win.fs(46)
                     implicitWidth: nextRow.implicitWidth + 52
                     radius: height / 2
