@@ -1,0 +1,25 @@
+{
+  "url": "https://moos-downloads.moalfarras-moos.workers.dev/releases/44.20261010.1022/x86_64/moos-offline.iso",
+  "sizeBytes": 5827067904,
+  "sha256": "0927826e1d28cbbd8c9054ba19b49c9904184c9f0ea304bf60050dfc76d926f3",
+  "http": 200,
+  "rangeHttp": 206,
+  "anonymous": true,
+  "fullHashVerified": true,
+  "schema": 1,
+  "checkedAt": "2026-10-10T22:10:02.941997+00:00",
+  "signatureVerified": true,
+  "scope": "Delivery only; match the ISO's successful boot/install and promotion proofs before publication.",
+  "sourceRevision": "1a73a4e08b33d5a49f0eda42947acaca037d0d9a",
+  "imageDigest": "sha256:8134f32a09ab4ff2301554a7bac16858e7d48d907ec7bd48631b5fd35e97fef1",
+  "version": "44.20261010.1022",
+  "buildRun": 38042999495,
+  "diskRuns": [
+    38051449009,
+    38051451818,
+    38051454259
+  ],
+  "isoRun": 38051456847,
+  "promotionRun": 38053736733,
+  "sidecarsVerified": true
+}

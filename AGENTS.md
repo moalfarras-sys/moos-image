@@ -513,6 +513,15 @@ in four on the slow machine is telling you about the product, not about the mach
 **Boot the image and look at it.** `podman build` + `bootc-image-builder --type qcow2` + qemu
 with `screendump` takes about half an hour and is the only thing that found any of the above.
 
+**The same home path on two stations is not the same account state.**
+R2 publication's rclone/profile and managed Wrangler login live on Oracle;
+calling their identical-looking paths on NVIDIA failed before any upload.
+Transfer only reviewed source/public artifact bytes and execute the account's
+managed CLI on its actual host. Never copy private profiles to make a path work.
+A user-unit namespace can also make a vendor SSH include fail its owner check:
+use a dedicated owned `-F` configuration with strict identity/host-key checks;
+never relax global ownership checks or file permissions to hide it.
+
 ## Things that are easy to get wrong here
 
 **A new package does not replace a daemon selected by `/etc`.** On the A1,

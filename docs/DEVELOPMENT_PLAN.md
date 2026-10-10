@@ -1,6 +1,6 @@
 # MoOS development plan — current execution backlog
 
-Updated 2026-10-09. This is the single execution backlog, not an incident diary.
+Updated 2026-10-11. This is the single execution backlog, not an incident diary.
 Current measurements live in PROJECT_STATE.md; detailed audit evidence and
 remaining boundaries are in AUDIT_20261008_AR.md. Git preserves prior waves.
 
@@ -9,35 +9,40 @@ The owner's ordered implementation and cross-device handoff are recorded in
 is reliability/release acceptance, before the remaining four milestones. The
 new private feedback/optional public suggestions product is P6.9 below.
 
-## Active audit correction batch
+## Active delivery and acceptance batch
 
-Priority before the M1 visual work: support-report privacy/atomic output,
-Remote's vulnerable fallback dependency and fail-closed NuGet audits,
-language transaction/startup consistency, and current signed ARM install
-metadata. Source regressions and native tests pass. ARM .728 completed
-exact-source build, disk proof and promotion at 8ebe0591; installed Oracle
-readback remains owed. X86's build and three disks passed, but offline ISO
-installation first failed on an empty `efi`. The diagnostic retry records
-`install=done` before a later file-read timeout; the harness misleadingly calls
-its 30-second diagnostic timeout a 45-minute installer failure. Diagnose and
-bound diagnostic transfer, preserve accurate timeouts, then repeat the whole
-installed-ISO proof before x86 promotion; retain every existing gate.
+Owner reliability/release slice is integrated at main `1a73a4e0` (PR222).
+All 244 maintained source gates, catalogue, full local image and exact signed
+build/three QCOW2/offline installed ISO/ARM proofs pass on attempt 1.
+X86 .1022 promotion 38053736733 and ARM .749 pipeline 38042996902 passed.
+Physical NVIDIA booted signed .1022 and passes native 53/0 + 55/0; Oracle
+booted signed ARM .749 and passes 51/0 + 55/0. Both match twelve delivered
+runtime hashes, preserve signed rollback and services, and native SSH reconnects
+automatically across both real reboots. Signed
+rollback remains. A scheduled image-only build is not delivery.
 
-Current promoted x86 is .1018 from candidate 144b1a6a, after exact three disks,
-offline ISO and promotion 37946594645. Main 46b46e87 preserves its tree/ancestry.
-Oracle now boots signed ARM .733 at 46b46e87, with .724 rollback and 51/0, 55/0
-checks in the actual graphical user environment; no staged image.
-Public .1011 ISO hosting remains separately qualified; replacement transfer
-acceptance is required for a newer public ISO. Both stations develop one
-product; every result names its device/deployment. NVIDIA now boots signed .1018,
-with .1011 rollback and 54/0, 55/0 post-reboot checks.
-The integrated installer repair preserves private mounts/layout checks, mandatory
-lock/private logs and bounded diagnostics. Running scheduled/image-only builds
-never imply promotion. No new model-written shell or hardware acceptance is inferred.
+Public Vercel availability is restored on all 14 primary projects through the
+provider's documented unpause operation, while account fair-use/deploy blocking
+and historical counters remain visible. MoOS's frontend is independent Cloudflare
+Static Assets, with five scoped CDN redirects from its old entrypoints and no
+MoOS CMS/ISR/image optimizer/beacon traffic. Current .1022 public full transfer,
+signature/hash/ranges/sidecars and paired metadata pass; eight refreshed public
+browser views and fourteen routing checks pass. .1011 is deleted; .1018 retains
+original bytes through 15:00 UTC October 11, with guarded exact-key retirement
+scheduled for 15:05 UTC. The completed Oracle upload scratch is retired.
+No paid plan/spend-cap relaxation was enabled. Supabase egress and the old A&D
+alias are separate remaining availability defects, not OS release gates.
 
-The cadence of release cycles is the security cadence: a nightly image-only
-build cannot deliver a base fix. P6.3 remains an explicit gap until bounded,
-boot-proven release cycles keep every supported edition current.
+After delivery, the next owner slice is M1/P2.3–P2.5: qualify Arabic/English
+locale, fonts and keyboard/reader/scale/motion on native surfaces. P6.7's failed
+next-Plasma canary needs reviewed seams before the 14 October upstream move.
+Do not count theme configuration or installed packages as these user flows.
+Mira real unmuted USB/voice, community public onboarding/moderation and M4
+preserved APK/PE work remain named acceptance tasks, not silently merged work.
+
+The cadence of release cycles is the security cadence: nightly image-only
+builds cannot deliver a base fix. P6.3 stays open until bounded, boot-proven
+cycles keep every supported edition current.
 
 ## Product acceptance
 
@@ -293,17 +298,17 @@ itself and an unreviewed MoOS would ship kscreenlocker's emergency locker.
 | ID | Outcome | Current boundary | Required acceptance |
 | --- | --- | --- | --- |
 | P0.1 | Integrate the reviewed first-install repairs and create one candidate revision | Stable mechanism/artifact evidence recorded; preserve required gates | Exact candidate source, all integrated fixes and no local override counted as release. |
-| P0.2 | Run generic, NVIDIA and cloud QCOW2 proofs plus offline ISO install/second boot | .1011 stable proof retained; 8ebe0591 disks pass but final offline ISO installation fails | Three exact-digest x86 QCOW2 journeys, offline installed ISO and separate ARM two-boot proof. |
+| P0.2 | Run generic, NVIDIA and cloud QCOW2 proofs plus offline ISO install/second boot | Exact .1022 three QCOW2/offline installed ISO proofs and ARM .749 two boots pass; both physical NVIDIA and Oracle installed acceptance pass | Three exact-digest x86 QCOW2 journeys, offline installed ISO and separate ARM two-boot proof. |
 | P0.3 | Finish physical NVIDIA qualification | Open / acceptance not complete | Actual NVIDIA GPU, initramfs module, displays, suspend and clean recovery on qualified hardware. |
 | P0.4 | Prove failed-update recovery | Open / acceptance not complete | Deliberate bad update, automatic/manual rollback and forward return without owner data loss. |
 | P0.5 | Configure and accept free Mo AI on a clean account | Open / acceptance not complete | Clean-account provider setup, free route, reboot, cancellation and network/quota/key failures. |
 | P0.6 | Promote only proven digests and update the physical PC | Stable mechanism/artifact evidence recorded; preserve required gates | Promote only exact proven signed digests; separately verify installed stage/reboot/rollback. |
 | P0.7 | Remove the intermittent `plymouthd` crash (ARM second boot; x86 first boot) | Implemented/delivered within recorded scope; wider acceptance remains | Pinned vendor Plymouth fix, old/fixed negative, exact final initramfs and actual boot visuals. |
-| P0.8 | Make the ISO installed-reboot proof deterministic | Repair at 144b1a6a passed exact offline ISO 37916929153; physical .1018 reboot passed. Actual GUI found broken Arabic city search/unmatched hidden selection; CLDR/native AR/EN and old-search negative controls pass. Full image 926579dbe394 matches 12 runtime hashes; ff1ee514 PR x86/ARM CI pass. Offline .1018 GUI install reaches DONE; two ordinary password logins across clean shutdown/cold boot pass 51/0 in native sessions. Earlier account absence was the 10-second idle-hide window. Strict registry-manifest comparison remains 54/1; all 261 uncompressed layers/runtime config match after offline serialization. Final owner signed cycle still owed; mount/authentication guards preserved | Repeated installed-ISO reboot with DHCP/SSH-channel evidence and console failures visible. |
+| P0.8 | Make the ISO installed-reboot proof deterministic | Integrated at 1a73a4e0; .1022 exact offline ISO 38051456847 passes. CLDR/native AR/EN row clicks and mismatch negatives pass. Earlier .1018 private two password logins/cold boot pass 51/0 twice; offline serialization strict mismatch remains visible. Host batch reboot is separate | Repeated installed-ISO reboot with DHCP/SSH-channel evidence and console failures visible. |
 | P0.9 | Run image-only gates before the merge | Stable mechanism/artifact evidence recorded; preserve required gates | PR generic image gates block real image failures; no signing/publishing from PR. |
 | P0.10 | Gate NVIDIA persistence on a bound GPU | Stable mechanism/artifact evidence recorded; preserve required gates | Bound NVIDIA hardware and exact-kernel persistence/initramfs proof. |
 | P0.11 | Give first-boot Flatpak setup a realistic finite timeout | Stable mechanism/artifact evidence recorded; preserve required gates | Finite realistic first-boot app setup timeout and actual ARM reboot. |
-| P0.12 | Deliver the exact signed, installed-system-proven ISO through a stable anonymous download | Closed: full public transfer/signature/hash/ranges and website proved | Stable anonymous full signed ISO, exact size/hash and resumed ranges; sidecars and site readback. |
+| P0.12 | Deliver the exact signed, installed-system-proven ISO through a stable anonymous download | Delivered .1022: full anonymous transfer/signature/hash/ranges/sidecars, paired independent frontend and old-link readback pass; public receipt dated Oct10. .1018 grace-period retirement scheduled, not yet deleted | Repeat stable anonymous full signed ISO, exact size/hash and resumed ranges, sidecars and site readback for each release. |
 
 ## P1 — Reliability and first run
 
@@ -335,7 +340,7 @@ itself and an unreviewed MoOS would ship kscreenlocker's emergency locker.
 | P2.12 | One update surface for OS, apps and firmware | Open / acceptance not complete | OS image, Flatpak apps and firmware share truthful pending/failure/unsupported/finished states. |
 | P2.13 | MoPlayer performance and server/stream compatibility | Implemented/delivered within recorded scope; wider acceptance remains | Installed playback/reopen/stop and memory on real server kinds, MAC portal, HEVC/interlaced samples. |
 | P2.14 | Remote input, recovery and mobile/WAN video | Implemented/delivered within recorded scope; wider acceptance remains | Held-input ownership, decoded pictures, browser recovery and owner iPhone/cellular endurance. |
-| P2.15 | Mira face, speech/rest and original portrait identity | Delivered within recorded face scope; event-driven local-wake mute/removal policy source-tested and live-proven on the station, not yet signed-delivered; underlying USB audio qualification remains | Both portraits retained; single mouth, real voice/pause/idle/hidden/reduced-motion readback; 11 private-process boundary tests, 45 controller tests, real muted USB with zero captures/overruns and three synthetic unmute/mute cycles. Physical unmuted voice/device and signed delivery remain open. |
+| P2.15 | Mira face, speech/rest and original portrait identity | Capture policy integrated/promoted in .1022/.749; both hosts booted with matching delivered hashes. Source/private-helper boundary and muted real USB pass; physical unmuted speech and long capture remain open | Both portraits retained; single mouth, real voice/pause/idle/hidden/reduced-motion readback; 11 private-process boundary tests, 45 controller tests, real muted USB with zero captures/overruns and three synthetic unmute/mute cycles. Signed installed delivery passes on both hosts; physical unmuted voice/device acceptance remains open. |
 | P2.16 | Shared login, lock and power experience | Delivered within recorded scope. Private .1018 native Arabic lock/power and wrong/correct password transitions pass; login greeter buttons/date remain English. Review locale authority without forking authentication; wider acceptance remains | Native greeters 640×480–4K@2.5, password refusal, multi-user, save/logout and accessibility. |
 
 ## P3 — Trustworthy assistant
@@ -388,9 +393,9 @@ itself and an unreviewed MoOS would ship kscreenlocker's emergency locker.
 | P6.4 | Add staged rollout and release health | Open / acceptance not complete | Staged rings, halt/rollback criteria and actual field release health. |
 | P6.5 | URL, Remote, AI and diagnostic security boundaries | Implemented/delivered within recorded scope; wider acceptance remains; new audit corrections await signed delivery | Auth/UID/URL/PIN/upload/secret boundaries and failure controls; native dependency advisories refuse release. |
 | P6.6 | Establish support lifecycle and migration policy | Open / acceptance not complete | Published support/upgrade/rollback/EOL policy plus clear licences, attribution and official identity. |
-| P6.7 | Reviewed Plasma seams before upstream transitions | Implemented/delivered within recorded scope; wider acceptance remains | Actual next-Plasma canary, registered reviewed seams and old/broken/native controls. |
+| P6.7 | Reviewed Plasma seams before upstream transitions | Current Plasma seam guards delivered; next-Plasma canary 37378905167 is failed. Reviewed correction and native acceptance are required before the Oct14 transition | Actual next-Plasma canary, registered reviewed seams and old/broken/native controls. |
 | P6.8 | Separate reviewed next-base transition lane | Open / acceptance not complete | Reviewed next-base packages, all native seams/boot/apps/identity gates and migration/support qualification. |
-| P6.9 | Native user/developer participation | Source passes 34 API/11 native cases, title-fetch control, narrow AR/EN light/dark and actual Wayland/Oracle TLS flow; fixtures removed. Final source passes 244 plus catalogue. Exact D-Bus vendor-authority fix passes native ARM old/fixed/tmpfiles/preservation controls. Full generic image 926579dbe394 matches 12 runtime hashes; ff1ee514 x86/ARM PR CI pass. Actual offline GUI password login/reboot is now proven; signed owner delivery still owed. Custom service DNS, recovery/onboarding, notification preferences and endurance remain beta gaps | Real authenticated service/client, private image attachments, account isolation and bounded uploads, admin moderation, retry/offline and promoted-release notifications; no secrets or automatic screenshots. |
+| P6.9 | Native user/developer participation | Beta integrated/promoted in .1022/.749; native launch/shutdown and ARM D-Bus controls pass, plus 34 API/11 native and actual Wayland/Oracle TLS flow. Both hosts boot delivered client bytes; actual .1022 native capture/shutdown passes and Oracle public health is ready. Capture retains Qt/portal-registration warnings; installed image-picker flow still needs acceptance. Branded DNS/onboarding/recovery/full moderation UI/preferences/endurance remain open | Real authenticated service/client, private image attachments, account isolation and bounded uploads, admin moderation, retry/offline and promoted-release notifications; no secrets or automatic screenshots. |
 
 ## Development-machine profile
 

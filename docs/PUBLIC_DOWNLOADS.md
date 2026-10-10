@@ -3,8 +3,8 @@
 The release contract in `RELEASE.md` proves the OS. This procedure proves that
 the public receives the same bytes. It never substitutes for boot, offline
 installation, installed-system login/reboot/poweroff, or production promotion.
-Delivery is tracked as P0.12 in `DEVELOPMENT_PLAN.md`; the October 8 receipt
-closes the current release. Future releases must repeat this procedure.
+Delivery is tracked as P0.12 in `DEVELOPMENT_PLAN.md`; the October 10 receipt
+qualifies public release .1022. Future releases must repeat this procedure.
 
 ## Preserve the qualified artifact
 
@@ -43,8 +43,8 @@ this procedure does not activate billing or change DNS.
 
 ## Qualify the public endpoint
 
-Upload the preserved files to the chosen host. Keep the existing website worker
-responsible for its routes/CMS; send it the delivery evidence rather than editing
+Upload the preserved files to the chosen host. Keep the independent website worker
+responsible for its reviewed static publication; send it delivery evidence rather than editing
 the website from an OS branch. Run this on the host with Python 3 and OpenSSL available:
 
 ```sh
@@ -93,3 +93,22 @@ Sources: [GitHub release asset limits](https://docs.github.com/en/repositories/r
 the [cosign SHA-256 and legacy blob verifier](https://github.com/sigstore/cosign/blob/v3.1.3/cmd/cosign/cli/verify/verify_blob.go),
 the workflow's `retention-days` in `.github/workflows/build-iso.yml`, and measured
 delivery results in `test-results/readiness-20261005/` (local, ignored).
+
+## Current public release
+
+Exact .1022 ISO run 38051456847 and promotion 38053736733 passed. Anonymous
+full transfer, detached signature, size/SHA-256 and resumed ranges pass in
+[the public receipt](releases/2026-10-10-public-download-proof.json); both
+verification sidecars match. Current download:
+https://moos-downloads.moalfarras-moos.workers.dev/releases/44.20261010.1022/x86_64/moos-offline.iso .
+The paired manifest/proof and AR/EN page are independently published at
+https://moos-site.moalfarras-moos.workers.dev/ar/ . Eight public browser views
+and 14 old-link/script/range readbacks pass. Website PR55 is merged at ce02840f;
+its handoff records the exact Worker/CDN versions without mixing OS and site source.
+
+Superseded .1011 keys are deleted and return explicit 410. .1018 preserves its
+original immutable bytes through 2026-10-11 15:00 UTC; its guarded retirement is
+scheduled five minutes later on Oracle. Never redirect an old immutable ISO
+URL to new bytes or expire the only qualified publication. Installed signed
+rollback is separate and retained. The completed Oracle upload scratch is
+retired; the workstation keeps the current signed three-file release.
