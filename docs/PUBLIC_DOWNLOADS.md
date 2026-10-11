@@ -118,6 +118,10 @@ PR56 is merged at `11cb5052`; web/admin/dashboard source CI all pass. Existing
 Vercel previews retain the separate account-block error. Frontend version:
 `7fc92c0a-3f66-4114-8a74-dda39cf1681f`; download Worker:
 `72141578-1b4c-4a48-8e2c-e3e70295bb05`.
+Fourteen fresh public entrypoint/paired metadata/exact installer/query/resumed-range
+checks pass at 21:56:52 UTC, including the >4 GiB resume and an unrelated
+MoPlayer page remaining on its original host. Initial redirects still count as
+small Vercel CDN requests; subsequent MoOS assets/downloads execute on Cloudflare.
 
 Superseded .1011 keys are deleted and return explicit 410. .1018 preserved its
 original immutable bytes through 2026-10-11 15:00 UTC; guarded retirement
