@@ -19,7 +19,7 @@ real decoded frames and scoped trust; AR/EN renders/seven .NET projects pass.
 Native masked-PIN validation/close clearing and GTK ink correction pass;
 managed opt-in/units and real listener/trust revocation pass native VM controls;
 disabled cold boot stays off. Full local image `5ce19e082374` passes/31 files match;
-Oracle's separate public Community/private Remote passes actual old/fixed TLS controls; PC's private proxy/certificate-verified HTTPS passes. Greeter enrollment is fixture-only; signed/hardware/phone acceptance remains P2.17. Cycle: x86 38169917085, ARM 38169587234; main frozen.
+Oracle's separate public Community/private Remote and PC private certificate-verified HTTPS pass. Greeter enrollment is fixture-only; hardware/phone acceptance remains P2.17. ARM 38169587234 is promoted as .756 (`0a02cbd7…`), not booted here; its greeter theme-sync timeout also exists in .752, while native owner reconcile passes. X86 38169917085 is running; main frozen.
 
 ## Source and promoted delivery
 
@@ -41,7 +41,7 @@ generic/NVIDIA/cloud disks 38133971240, 38133974055, 38133976682;
 final offline ISO install/installed boot/shutdown 38133979283;
 x86 promotion 38136731168; ARM build/disk/two boots/promotion 38128647066.
 Both ARM boots prove actual system/native-user memory monitoring, failed units=0.
-The qualified .1026 ISO is not yet the public .1022 download or a pre-login Remote release.
+The qualified .1026 ISO is now public; it predates pre-login Remote.
 
 ## Physical NVIDIA workstation
 
@@ -61,7 +61,7 @@ ESP offline proof repaired only dirty byte 65; clone/live bytes match, all 16
 boot-file hashes and both vfat peers are preserved; 1 GiB owned scratch retired.
 The preceding independent-unmount mistake aborted before fsck and was restored;
 private old/fixed shared-mount controls pass. Next cold boot is still owed.
-Writable /var has 172,437,958,656 bytes free; this is active tooling.
+Old local .989 ISO/signature/checksum retired after full old hash/ancestry/no-holder checks; 5,786,763,443 logical bytes removed. Native /var delayed readback=177,792,430,080 bytes free; source/VM controls/.1022 rollback preserved.
 
 Official Mo Store `update-apps` reports apps up to date. Settings, Store,
 Mira and MoPlayer were previously opened/reopened on installed .1018 without
@@ -85,7 +85,7 @@ Arabic session/UI2 Nova is distinct from system fallback `C.UTF-8`.
 Files, photos, database/cache, SMB, IDE and Remote are existing owner services;
 no data directories or ingress routes were removed. The completed R2 upload
 scratch was retired after matching its full hash to the qualified public proof,
-reclaiming 5,827,068,083 bytes; writable /var now has about 35 GiB free.
+reclaiming 5,827,068,083 bytes; new .1026 archive is preserved, native /var=33,144,696,832 bytes free. Temporary artifact ZIP retired after successful extraction.
 System-wide pressure/frame/audio recovery and weak-device endurance remain P5.7 gaps.
 
 Owner-authorized persistent native SSH now uses a dedicated workstation-only
@@ -120,30 +120,30 @@ New Vercel deploys remain account-blocked.
 MoOS's independent AR/EN frontend is deployed at
 https://moos-site.moalfarras-moos.workers.dev/ar/ . HTML/images/fonts/JS
 are static Cloudflare assets; only download routing executes its small Worker.
-Eight refreshed .1022 public AR/EN width/input/motion views pass without Vercel calls. Five
+Eight .1026 public AR/EN width/input/motion views pass without Vercel calls. Five
 scoped live Vercel CDN 307 rules preserve existing MoOS entrypoints/queries;
 MoPlayer, admin and business APIs retain their existing ownership.
 
 Only the obsolete September Blob ISO (5,884,149,760 bytes) was deleted with
 size/ETag preconditions after validating current R2 routing. All five MoPlayer
 assets remain, exactly 333,653,409 bytes total. Monthly usage is not reset.
-Website source/handoff: Mohammad-alfarras PR55; source CI passes all three
+Website source/handoff: Mohammad-alfarras PR56 merged at `11cb5052`; source CI passes all three
 jobs, while Vercel preview checks correctly retain the account-block error.
 
 ## ISO and visual evidence
 
-The current public .1022 ISO from final run 38051456847 is preserved on
-the workstation and published to R2 (5,827,067,904 bytes):
-SHA-256 `0927826e1d28cbbd8c9054ba19b49c9904184c9f0ea304bf60050dfc76d926f3`.
-Full local signature/hash checks passed on both stations. Full anonymous public
-hash/signature/range verification passed at 22:10:02 UTC; both sidecars match.
-The paired frontend is deployed as `fc9c2a50-0ae4-422b-b855-7d63c22fbd36`;
-download Worker `49a3c101-15ef-4dc0-91d5-5d9c4807b6c9` carries the .1022
-publication marker. All five CDN rules are live; 14 final routing checks pass.
+The current public .1026 ISO from final run 38133979283 is preserved on
+Oracle and published to R2 (5,827,133,440 bytes):
+SHA-256 `288fcb001aabc990103653cd622d11734a5472cf7942715429eb1934dd3cb57b`.
+Local signature/hash and full anonymous public verification passed at
+21:24:17 UTC; resumed ranges and both exact sidecars match.
+Frontend `7fc92c0a-3f66-4114-8a74-dda39cf1681f` passes eight local/eight public
+views; download Worker `72141578-1b4c-4a48-8e2c-e3e70295bb05` carries .1026.
+Five existing CDN rules remain; fourteen fresh .1026 routing/metadata/script/range checks pass at 21:56:52 UTC.
 .1011's exact three objects were deleted (5,796,462,771 bytes). .1018's original
 bytes survived the full grace period; guarded retirement at 15:05:09 UTC
-deleted only its three public objects (5,808,128,179 bytes); .1022 stays current.
-Public receipt: `docs/releases/2026-10-10-public-download-proof.json`.
+deleted only its three public objects (5,808,128,179 bytes). .1022 retains original bytes through Oct12 12:00 UTC; persistent guarded retirement at 12:05 passes five read-only negatives, not yet executed.
+Public receipt: `docs/releases/2026-10-11-public-download-proof.json`.
 Worker source/native tests pass 21 cases, including
 immutable-path retirement, grace period, sidecars and >4 GiB resumes.
 

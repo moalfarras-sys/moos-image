@@ -21,17 +21,19 @@ Oracle booted signed ARM .752 and passes native 51/0 + 55/0, fourteen delivered
 runtime hashes and actual system/native-user memory monitoring. Both preserve
 signed rollback and services; native SSH reconnects across Oracle's new reboot.
 Native .1026 reboot/readback passed. A scheduled image-only build is not delivery.
-Remote PR225 merged at `d44cecfd`; its fixed-SHA release cycle is running
-(x86 dispatch 38169917085, ARM 38169587234). Main stays frozen until resolved.
-This is source integration, not installed pre-login Remote acceptance.
+Remote PR225 merged at `d44cecfd`; x86 dispatch 38169917085 is running.
+ARM 38169587234 passed and promoted .756 (`0a02cbd7…`), not booted here.
+Its greeter theme-sync timeout also exists in .752; native owner reconcile
+passes. Desktop-only maintenance scoping is under native review on an independent
+topic. Main stays frozen; source/promotion is not installed pre-login acceptance.
 
 Public Vercel availability is restored on all 14 primary projects through the
 provider's documented unpause operation, while account fair-use/deploy blocking
 and historical counters remain visible. MoOS's frontend is independent Cloudflare
 Static Assets, with five scoped CDN redirects from its old entrypoints and no
-MoOS CMS/ISR/image optimizer/beacon traffic. Current .1022 public full transfer,
+MoOS CMS/ISR/image optimizer/beacon traffic. Current .1026 public full transfer,
 signature/hash/ranges/sidecars and paired metadata pass; eight refreshed public
-browser views and fourteen routing checks pass. .1011 is deleted; .1018 retained
+browser views pass; fourteen earlier .1022 routing checks remain separate. .1011 is deleted; .1018 retained
 original bytes through 15:00 UTC October 11. Guarded retirement actually deleted
 its three exact public keys at 15:05:09 UTC (5,808,128,179 bytes). The completed Oracle upload scratch is retired.
 No paid plan/spend-cap relaxation was enabled. Supabase egress and the old A&D
@@ -320,7 +322,7 @@ itself and an unreviewed MoOS would ship kscreenlocker's emergency locker.
 | P0.9 | Run image-only gates before the merge | Stable mechanism/artifact evidence recorded; preserve required gates | PR generic image gates block real image failures; no signing/publishing from PR. |
 | P0.10 | Gate NVIDIA persistence on a bound GPU | Stable mechanism/artifact evidence recorded; preserve required gates | Bound NVIDIA hardware and exact-kernel persistence/initramfs proof. |
 | P0.11 | Give first-boot Flatpak setup a realistic finite timeout | Stable mechanism/artifact evidence recorded; preserve required gates | Finite realistic first-boot app setup timeout and actual ARM reboot. |
-| P0.12 | Deliver the exact signed, installed-system-proven ISO through a stable anonymous download | Delivered .1022: full anonymous transfer/signature/hash/ranges/sidecars, paired independent frontend and old-link readback pass; public receipt dated Oct10. .1018 three exact public objects retired after grace at 15:05:09 UTC; .1026 ISO remains qualified but unpublished | Repeat stable anonymous full signed ISO, exact size/hash and resumed ranges, sidecars and site readback for each release. |
+| P0.12 | Deliver the exact signed, installed-system-proven ISO through a stable anonymous download | Delivered .1026: full anonymous transfer/signature/hash/resumed ranges/exact sidecars at Oct11 21:24:17 UTC; paired independent frontend, eight local/eight public views pass. .1018 keys retired; .1022 original bytes retained through Oct12 12:00 UTC with persistent guarded retirement five minutes later (five read-only negatives pass, not executed). .989 local archive retired after hash/ancestry/no-holder checks | Repeat stable anonymous full signed ISO, exact size/hash and resumed ranges, sidecars and site readback for each release. |
 
 ## P1 — Reliability and first run
 
@@ -354,7 +356,7 @@ itself and an unreviewed MoOS would ship kscreenlocker's emergency locker.
 | P2.14 | Remote input, recovery and mobile/WAN video | Implemented/delivered within recorded scope; wider acceptance remains | Held-input ownership, decoded pictures, browser recovery and owner iPhone/cellular endurance. |
 | P2.15 | Mira face, speech/rest and original portrait identity | Capture policy integrated/promoted in .1022/.749; both hosts booted with matching delivered hashes. Source/private-helper boundary and muted real USB pass; physical unmuted speech and long capture remain open | Both portraits retained; single mouth, real voice/pause/idle/hidden/reduced-motion readback; 11 private-process boundary tests, 45 controller tests, real muted USB with zero captures/overruns and three synthetic unmute/mute cycles. Signed installed delivery passes on both hosts; physical unmuted voice/device acceptance remains open. |
 | P2.16 | Shared login, lock and power experience | Delivered within recorded scope. Private .1018 native Arabic lock/power and wrong/correct password transitions pass; login buttons remain English. Source locale authority restores the Arabic greeter date in the private .1022 guest without an authentication fork; signed delivery and wider acceptance remain | Native greeters 640×480–4K@2.5, password refusal, multi-user, save/logout and accessibility. |
-| P2.17 | Mo PC Remote before account login after reboot | PR225 merged at d44cecfd; signed cycle 38169917085/38169587234 running, not delivered. Private .1022/r10 guest passes repeated cold login, decoded greeter, wrong/correct PIN and PAM password, account handoff/logout and scoped trust. Native managed units/listener stop, credential revocation/account-byte preservation and disabled cold boot pass; enrollment TLS JSON is explicitly fixture-only. EIS readiness, seven .NET projects, AR/EN renders and the full local image pass (31 matching files). Actual Oracle old/fixed controls accept its separate public Community/private Remote, preserve ingress bytes and reject public Remote paths in isolated controls; this does not enroll the greeter. Real private-TLS enrollment, multi-account/hardware/phone endurance and signed NVIDIA/ARM delivery remain | Explicit opt-in, authenticated PIN/trusted-device and private TLS access before login; greeter-owned capture/input with no authentication fork, autologin or saved account password; ordinary PAM wrong/correct password through the actual controller after cold boot; bounded handoff to the active user's agent and back after logout; account isolation, no pre-login files/clipboard access, no public listener, and NVIDIA/ARM native reboot proofs. |
+| P2.17 | Mo PC Remote before account login after reboot | PR225 merged at d44cecfd; x86 38169917085 running, ARM 38169587234 promoted .756 but not booted. Known baseline greeter theme-sync timeout is under separate review; no installed pre-login acceptance yet. Private .1022/r10 guest passes repeated cold login, decoded greeter, wrong/correct PIN and PAM password, account handoff/logout and scoped trust. Native managed units/listener stop, credential revocation/account-byte preservation and disabled cold boot pass; enrollment TLS JSON is explicitly fixture-only. EIS readiness, seven .NET projects, AR/EN renders and the full local image pass (31 matching files). Actual Oracle old/fixed controls accept its separate public Community/private Remote, preserve ingress bytes and reject public Remote paths in isolated controls; this does not enroll the greeter. Real private-TLS enrollment, multi-account/hardware/phone endurance and signed NVIDIA/ARM delivery remain | Explicit opt-in, authenticated PIN/trusted-device and private TLS access before login; greeter-owned capture/input with no authentication fork, autologin or saved account password; ordinary PAM wrong/correct password through the actual controller after cold boot; bounded handoff to the active user's agent and back after logout; account isolation, no pre-login files/clipboard access, no public listener, and NVIDIA/ARM native reboot proofs. |
 
 ## P3 — Trustworthy assistant
 
