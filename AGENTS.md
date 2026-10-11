@@ -825,6 +825,16 @@ transports and malformed proxy URLs, while permitting the unrelated service.
 Keep the real Oracle old/fixed read-only control and public-Remote negative
 controls; do not change ingress or enroll a greeter to diagnose this boundary.
 
+**Two ESP paths can be one shared mount.** On the owner's bootc workstation,
+unmounting `/boot/efi` also unmounted `/sysroot/boot/efi`; treating them as
+independent aborted before fsck, and a fallback bind exposed the empty underlying
+directory. Inspect actual mountinfo peer groups. Detach once and restore the
+authoritative vfat mount once, then verify both real sources/options and boot
+file hashes. Keep the private old/fixed propagation control and failed evidence.
+Never repair a mounted ESP: a dirty-bit-only clone proof must reject all other
+byte changes, match the actual offline result and retire only its owned scratch.
+Offline fsck and restored mounts do not prove the next firmware cold boot.
+
 ## Before you push
 
 Run `just check` for repository changes and the affected component checks.

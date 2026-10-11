@@ -5,21 +5,21 @@ Source, promoted artifacts, staged/booted systems are separate evidence; backlog
 
 ## Current owner development (delivery pending)
 
-Reliability PR224 at `3abe787a` is promoted: x86 38136731168, ARM 38128647066. Local image `90fae1cabecd` and 246 source gates pass; NVIDIA .1026 is staged, ARM .752 booted/accepted.
+Reliability PR224 at `3abe787a` is promoted: x86 38136731168, ARM 38128647066. Local image `90fae1cabecd` and 246 source gates pass; NVIDIA .1026 and ARM .752 are booted/accepted.
 Canary 38099434894 passes reviewed 6.7.91/12 seams, native RPM/greeter and
 final image gates; stable 6.8.0 stays unreviewed/refused.
-Native 30 s: NVIDIA 7.7–8.6 GiB available, PSI=0, GPU 0–3%/2.2 GiB VRAM;
-Code dominates RAM; stopped MoPlayer 4.2% core; Baloo 26% indexing 427k files.
-Generated `~/moos-wt/` copies excluded; no causal after-benchmark yet.
+Native active-workload 30 s: 6.4–6.7 GiB available, PSI=0, GPU 0–21%/1.62–1.81 GiB VRAM;
+Code/browser dominate active work; idle Baloo restart reduced PSS 2.23 GiB→104 MiB,
+anonymous 970→13 MiB; all 303,766 indexed files/probe/config preserved. Generated `~/moos-wt/` excluded; durable weak-tier policy unproven.
 ARM boot guard/256 MiB pressure controls pass both hosts (22.25/31.42 s,
-sentinel survives, kernel OOM=0); ARM native monitoring passes after signed boot; NVIDIA reboot remains.
-Remote topic has restricted/scoped v57 source; installed stations lack pre-login Remote.
+sentinel survives, kernel OOM=0); both hosts prove native monitoring after signed boot.
+Remote PR225 merged at `d44cecfd`; its fixed-SHA signed cycle is running, not delivered.
 Private .1022/r10 guest passes repeated cold PAM login, account handoff/logout,
 real decoded frames and scoped trust; AR/EN renders/seven .NET projects pass.
 Native masked-PIN validation/close clearing and GTK ink correction pass;
 managed opt-in/units and real listener/trust revocation pass native VM controls;
 disabled cold boot stays off. Full local image `5ce19e082374` passes/31 files match;
-Oracle's separate public Community/private Remote passes actual old/fixed TLS controls; greeter enrollment TLS is fixture-only; signed/hardware/phone acceptance remains P2.17.
+Oracle's separate public Community/private Remote passes actual old/fixed TLS controls; PC's private proxy/certificate-verified HTTPS passes. Greeter enrollment is fixture-only; signed/hardware/phone acceptance remains P2.17. Cycle: x86 38169917085, ARM 38169587234; main frozen.
 
 ## Source and promoted delivery
 
@@ -45,23 +45,23 @@ The qualified .1026 ISO is not yet the public .1022 download or a pre-login Remo
 
 ## Physical NVIDIA workstation
 
-Official update and restart booted signed NVIDIA .1022 (`4abf5afd…`),
-boot ID `83a69153-a981-42cb-9652-5baf8f025f45`. Native post-login acceptance
-at 22:40:06 UTC passed 53 selfchecks, 55 post-update checks, twelve exact
-runtime hashes, signed origin/rollback and no failed system/user units. Signed
-.1018 (`c5977fc7…`) remains for rollback. The owned autostart proof retired
-itself after acceptance; stage-only evidence is no longer the current state.
+Official update and restart booted signed NVIDIA .1026 (`782032d1…`),
+boot ID `b8bcee30-0e8c-4ea0-8f66-489fe57510f2`. Native post-login acceptance
+at 19:44:24 UTC passed 54 selfchecks, 55 post-update checks, fourteen exact
+runtime hashes, actual system/native-user memory monitoring, signed origin and
+no failed production units. Signed .1022 (`4abf5afd…`) remains for rollback.
+Ordinary PLM login and the self-retiring autostart proof passed; boot=32.989 s.
 
 Installed stack: kernel 7.2.9, Plasma 6.7.5, Qt 6.11.2 and NVIDIA 615.78.08;
 Arabic session, 4K/250%, UI2 Arena. Actual RTX 2080 SUPER driver/display readback
 passes, Wi-Fi is connected, Bluetooth is powered and two camera device nodes
 exist. Those are enumeration/current-state checks, not suspend/hotplug/camera
-quality or a universal hardware matrix. Earlier user-unit failures remain in
-private evidence; current post-reboot failed lists are empty. Writable /var has
-about 212 GiB free at acceptance; retiring only the exact old local .1018
-ISO triple afterward reclaimed 5,808,128,179 bytes and leaves about 218 GiB.
-Current .1022 local files and installed signed rollback remain. Current RAM is
-active tooling, not an idle benchmark.
+quality or a universal hardware matrix. Earlier failures remain in private evidence.
+ESP offline proof repaired only dirty byte 65; clone/live bytes match, all 16
+boot-file hashes and both vfat peers are preserved; 1 GiB owned scratch retired.
+The preceding independent-unmount mistake aborted before fsck and was restored;
+private old/fixed shared-mount controls pass. Next cold boot is still owed.
+Writable /var has 172,437,958,656 bytes free; this is active tooling.
 
 Official Mo Store `update-apps` reports apps up to date. Settings, Store,
 Mira and MoPlayer were previously opened/reopened on installed .1018 without
