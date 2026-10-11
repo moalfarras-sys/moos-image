@@ -207,6 +207,14 @@ read it back from the running desktop.** `kreadconfig6`, `gsettings get`, and
 `Gtk.Settings.get_default()` answer what the user actually has. A file in `system_files/` does
 not, and neither does a gate that reads one.
 
+**A sudo child can leave its user's unit.** Oracle's official .756 update
+continued in root's PAM session after the owned user-unit wrapper stopped;
+its empty Tasks count and memory limit did not describe the real transaction.
+Read rpm-ostree's actual transaction/deployments before retrying. Do not cancel
+an in-flight update or claim the wrapper bounded it. An owner restart needs
+the native graphical user-manager context; SSH's authentication failure is
+not permission to alter policy or manufacture a polkit identity.
+
 **A remote shell does not inherit Plasma's configuration cascade.** On the Oracle
 `.733` boot, SSH omitted `XDG_CONFIG_DIRS`, including `~/.config/kdedefaults`, and
 the native readback reported four/five mixed-theme failures. The actual graphical
