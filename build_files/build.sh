@@ -4896,6 +4896,7 @@ unset -v _rival_wants
 bash /ctx/verify_settings_modules.sh || exit 1
 
 python3 /ctx/plasma_logout/rpms.py verify
+python3 /ctx/verify_memory_policy.py --root /
 python3 /ctx/finalize_image_state.py --root /
 python3 /ctx/verify_no_foreign_identity.py
 

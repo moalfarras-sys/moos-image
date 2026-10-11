@@ -1,0 +1,31 @@
+#!/usr/bin/bash
+# Read the native daemon's actual monitored paths. Read-only; no pressure test.
+set -euo pipefail
+
+fail() { printf 'MoOS memory monitoring failed: %s\n' "$*" >&2; exit 1; }
+[ ! -e /.flatpak-info ] && [ ! -e /run/.containerenv ] \
+    || fail 'run this check on the installed native system'
+uid="$(id -u)"
+[[ "$uid" =~ ^[0-9]+$ ]] && [ "$uid" -ne 0 ] \
+    || fail 'run as the native account being checked'
+systemctl is-active --quiet systemd-oomd.service \
+    || fail 'the daemon is inactive'
+
+# The user manager reports slice membership asynchronously during first boot.
+# Bound that convergence without treating a permission or command error as idle.
+policy_deadline=$((SECONDS + 20))
+while :; do
+    if ! observed="$(timeout 5 oomctl --no-pager 2>&1)"; then
+        printf '%s\n' "$observed" >&2
+        fail 'cannot read daemon monitoring'
+    fi
+    if grep -Eq '^[[:space:]]*Path: /system\.slice$' <<<"$observed" \
+            && grep -Eq "^[[:space:]]*Path: /user\.slice/user-${uid}\.slice/user@${uid}\.service(/|$)" <<<"$observed"; then
+        printf 'memory-monitoring=system+native-user\n'
+        exit 0
+    fi
+    [ "$SECONDS" -lt "$policy_deadline" ] || break
+    sleep 1
+done
+printf '%s\n' "$observed" >&2
+fail 'the running daemon does not monitor both the system and this account'

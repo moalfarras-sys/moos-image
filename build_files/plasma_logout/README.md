@@ -35,6 +35,19 @@ Review a new upstream NVR explicitly. When upstream fixes the transaction,
 remove this rebuild and its package helper after proving the ordinary journeys
 on that exact upstream package; never force a later upstream back to this NVR.
 
+The 11 October next-Plasma audit additionally selects **only**
+`6.7.91-1.fc44` from the signed KDE SIG source RPM. `sources.json` is the one
+exact-NVR registry; it is not a version range. Its source digest
+`ea53028165eea647897ddd5424a062e5f33f0401ccbb9a2bc323fffbfabbd7a9`
+matches COPR primary metadata and the verified signer fingerprint
+`396c685b2e2c13f81f6171205b1ca2f53505c547`. The same patch applies with zero
+fuzz; the patched shutdown source is byte-identical to the reviewed 6.7.5
+worker (`76ed150d…`). Vendor spec/patches/flags remain intact, including the
+new source's Wayland-only choice. The SDK must still run all four actual
+old/fixed/rejected/cancelled executable controls before acceptance. Source
+selection and 38 package fixtures are not a native compiled-package proof.
+The final 6.8.0 source and any changed release remain refused until reviewed.
+
 Primary sources: [upstream shutdown worker, v6.7.5](https://github.com/KDE/plasma-workspace/blob/v6.7.5/startkde/plasma-shutdown/shutdown.cpp),
 [systemd manager job modes](https://www.freedesktop.org/software/systemd/man/latest/org.freedesktop.systemd1.html).
 Private native evidence is in the session audit worktree's ignored

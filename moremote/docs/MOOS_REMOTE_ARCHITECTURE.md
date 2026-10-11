@@ -132,6 +132,26 @@ Every release must prove all of the following, not merely compile:
 
 ## Deliberate next architecture
 
+### First login after cold boot (P2.17)
+
+This is an owner-requested target, **not current behaviour**. The existing
+user service requires a running Plasma session. A lock screen inside that
+session is a different boundary from the greeter before anyone signs in.
+Qualification uses a private signed-base ISO guest and synthetic credentials.
+
+The implementation must be explicitly enabled by the owner, keep ordinary PAM
+and the upstream greeter intact, and authenticate Remote before any capture or
+input. Greeter capture/input belong to that greeter's exact Wayland/logind
+context. Do not borrow an existing user's portal or grant the empty app ID.
+Account passwords travel as transient input only, never config, argv, logs or
+clipboard. Pre-login file/clipboard APIs are unavailable. Transition to the
+real signed-in user's agent must retire the old input/capture generation and
+preserve isolation and a clear authenticated reconnect. Normal password
+refusal, correct login, logout return, two cold boots, stopped/disabled behaviour
+and owner phone/WAN acceptance are required before it is called delivered.
+
+### Per-viewer media transport
+
 The current H.264-over-WebSocket transport is repaired and bounded, but all viewers in a room still
 share one capture/encode choice. A slow phone can therefore constrain a sharp desktop viewer. The
 next major version should keep the same portal source and move media to GStreamer's WebRTC stack,

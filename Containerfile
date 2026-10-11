@@ -70,7 +70,7 @@ RUN python3 -B /src/community/stage_client.py /src/community /out/community
 FROM base AS plasma-logout-build
 RUN dnf5 -y install --setopt=install_weak_deps=False gcc-c++ rpm-build cpio patch \
     'dnf5-command(builddep)' python3 curl plasma-workspace
-COPY build_files/plasma_logout/build.sh build_files/plasma_logout/logout-transaction.patch /src/
+COPY build_files/plasma_logout/build.sh build_files/plasma_logout/logout-transaction.patch build_files/plasma_logout/rpms.py build_files/plasma_logout/sources.json /src/
 RUN bash /src/build.sh prepare
 RUN bash /src/build.sh compile
 COPY build_files/plasma_logout/rpms.py build_files/plasma_logout/native-proof.cpp build_files/plasma_logout/native-proof.sh /src/

@@ -5,6 +5,22 @@ Source, promoted artifacts, staged deployments and actual booted systems are
 separate evidence. The only backlog is [DEVELOPMENT_PLAN.md](docs/DEVELOPMENT_PLAN.md).
 The owner handoff is [OWNER_EXECUTION_20261009_AR.md](docs/OWNER_EXECUTION_20261009_AR.md).
 
+## Current owner reliability development (not delivered)
+
+Topic `feat/owner-reliability-20261011` starts at `a76c4dd1`; nothing new is delivered.
+Native 30 s: NVIDIA 7.7–8.6 GiB available/zero memory PSI, GPU 0–3%/2.2 GiB VRAM;
+stopped MoPlayer 4.2% core; Code dominates RAM; Baloo 26% core indexing 427k files.
+Only generated `~/moos-wt/` copies are excluded; main/source/branches are preserved.
+The after sample overlapped gates, not a causal benchmark. Oracle: 8.7 GiB available.
+ARM vendor monitoring policy/native boot readback are added in source; native package
+and 256 MiB negative/positive pressure controls pass on both hosts (22.25/31.42 s,
+sentinel survives, kernel OOM=0, clean fixture retirement). Whole-machine/latency proof
+is still owed; .749 remains globally unmonitored until delivery. Earlier failures stay.
+Fresh canary 38096160112 refuses the 6.7.5-only logout SDK on 6.7.91. Two exact SRPM
+pins/38 controls and inactive-store input equality (1,274 modules)/9 controls pass;
+complete canary/native-package/greeter acceptance is pending, stable 6.8.0 refused.
+Remote first login is not implemented; see P5.7/P6.7/P2.17 and ignored owner-reliability-20261011 evidence.
+
 ## Source and promoted delivery
 
 Owner PR222 is merged at `1a73a4e08b33d5a49f0eda42947acaca037d0d9a`,
@@ -99,8 +115,7 @@ readback (21:47 UTC): 24/25 addresses return actual application pages;
 the old A&D vercel.app alias remains disabled while its custom domain works.
 28 isolated browser views rendered all 14 sites on phone/desktop, with no JS
 errors or visibly broken images. This did not submit business forms/accounts.
-Pünktlich's newer deployment remains separately blocked by Git-author access;
-its older READY production works. New Vercel deploys remain account-blocked.
+New Vercel deploys remain account-blocked.
 
 MoOS's independent AR/EN frontend is deployed at
 https://moos-site.moalfarras-moos.workers.dev/ar/ . HTML/images/fonts/JS
@@ -112,11 +127,6 @@ MoPlayer, admin and business APIs retain their existing ownership.
 Only the obsolete September Blob ISO (5,884,149,760 bytes) was deleted with
 size/ETag preconditions after validating current R2 routing. All five MoPlayer
 assets remain, exactly 333,653,409 bytes total. Monthly usage is not reset.
-Four Alhasaka photos fail at Supabase origin with `exceed_egress_quota`; one
-cached real photo was recovered privately. Account access, quota reset date
-and complete data workflows are unqualified. Main website's bounded last-hour
-logs contain 27 image-proxy upstream failures (15×502, 12×504); other projects
-had no 5xx entries in that query, not proof of all authenticated workflows.
 Website source/handoff: Mohammad-alfarras PR55; source CI passes all three
 jobs, while Vercel preview checks correctly retain the account-block error.
 

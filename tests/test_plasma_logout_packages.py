@@ -16,6 +16,8 @@ spec.loader.exec_module(rpms)
 
 
 class NativePackageBoundary(unittest.TestCase):
+    base = '6.7.5-1.fc44'
+
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
@@ -24,15 +26,17 @@ class NativePackageBoundary(unittest.TestCase):
         self.folder.mkdir()
         self.owned = set(rpms.CORE)
         self.installed = False
-        self.current = rpms.BASE
+        self.review = rpms.source_review(self.base)
+        self.fixed = self.review['fixed']
+        self.current = self.base
         self.worker = self.root / 'usr/bin/plasma-shutdown'
         self.worker.parent.mkdir(parents=True)
         self.worker.write_bytes(b'private native worker fixture')
         self.activation = self.root / 'usr/share/dbus-1/services/org.kde.Shutdown.service'
         self.activation.parent.mkdir(parents=True)
         self.activation.write_text('[D-BUS Service]\nName=org.kde.Shutdown\nExec=/usr/bin/plasma-shutdown\n')
-        self.manifest = {'schema': 1, 'base': rpms.BASE, 'fixed': rpms.FIXED,
-                         'arch': 'x86_64', 'source_sha256': rpms.SOURCE, 'packages': []}
+        self.manifest = {'schema': 1, 'base': self.base, 'fixed': self.fixed,
+                         'arch': 'x86_64', 'source_sha256': self.review['source_sha256'], 'packages': []}
         for name in sorted(self.owned | {'plasma-workspace-doc'}):
             p = self.folder / (name + '.rpm')
             p.write_bytes(name.encode())
@@ -53,12 +57,12 @@ class NativePackageBoundary(unittest.TestCase):
             return f'/usr/bin/plasma-shutdown 20 0 {rpms.sha(self.worker)} 0100755 root root 0 0 0 X'
         if argv[:3] == ['rpm', '-q', '--qf']:
             if argv[3] == '%{SOURCERPM}':
-                return f'plasma-workspace-{rpms.BASE}.src.rpm'
-            return rpms.FIXED if self.installed else self.current
+                return f'plasma-workspace-{self.base}.src.rpm'
+            return self.fixed if self.installed else self.current
         raise AssertionError(argv)
 
     def metadata(self, path):
-        return [path.stem, rpms.FIXED, 'x86_64']
+        return [path.stem, self.fixed, 'x86_64']
 
     def transaction(self, argv, check):
         self.assertTrue(check)
@@ -184,6 +188,15 @@ class NativePackageBoundary(unittest.TestCase):
         with patch.object(rpms, 'command', changed_dump):
             with self.assertRaisesRegex(AssertionError, 'differs from its native RPM'):
                 rpms.verify(self.root)
+
+    def test_final_stable_and_other_beta_nvrs_remain_unreviewed(self):
+        for base in ('6.8.0-1.fc44', '6.7.90-1.fc44', '6.7.91-2.fc44'):
+            with self.assertRaisesRegex(AssertionError, 'unreviewed Plasma source NVR'):
+                rpms.source_review(base)
+
+
+class NextNativePackageBoundary(NativePackageBoundary):
+    base = '6.7.91-1.fc44'
 
 
 if __name__ == '__main__':
