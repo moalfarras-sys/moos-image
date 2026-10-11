@@ -5,7 +5,7 @@
 // tell at a glance which one you are looking at. v14 also described behaviour that no longer
 // exists ("fill-screen portrait" was the automatic quarter-turn, now removed), so it was
 // actively misleading while debugging exactly that.
-export const BUILD = "v56 · MoOS Glass Console";
+export const BUILD = "v57 · MoOS Glass Console";
 
 export interface ServerStatus {
   name: string;
@@ -14,6 +14,8 @@ export interface ServerStatus {
   locked: boolean;
   lockoutSeconds: number;
   hostPowerAllowed: boolean;
+  preLogin?: boolean;
+  credentialScope?: string;
 }
 
 export interface MonitorInfo {
@@ -25,6 +27,7 @@ export interface MonitorInfo {
 export interface Hello {
   type: "hello";
   hostLocked?: boolean | null;
+  preLogin?: boolean;
   screen: { w: number; h: number };
   quality: number;
   fps: number;

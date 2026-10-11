@@ -57,16 +57,16 @@ export function KeyboardPanel({ m }: { m: RemoteModel }) {
         {key("Del", () => m.sendKey("Delete"))}
       </div>
       <div className="keyrow edit" role="toolbar" aria-label={tr("editKeys")}>
-        <button type="button" {...keepFocus} className="kkey action" onClick={() => void m.copyFromPc()}>
+        {!m.preLogin && <button type="button" {...keepFocus} className="kkey action" onClick={() => void m.copyFromPc()}>
           <IconCopy /><span>{tr("copyToThisDevice")}</span>
-        </button>
+        </button>}
         <button type="button" {...keepFocus} className="kkey action" onClick={() => void m.pasteFromDevice()}>
           <IconPaste /><span>{tr("pasteFromThisDevice")}</span>
         </button>
         {key(tr("selectAll"), () => m.sendShortcut(["Control", "A"]))}
         {key(tr("undo"), () => m.sendShortcut(["Control", "Z"]))}
         {key(tr("redo"), () => m.sendShortcut(redo))}
-        {key(tr("cut"), () => m.sendShortcut(["Control", "X"]))}
+        {!m.preLogin && key(tr("cut"), () => m.sendShortcut(["Control", "X"]))}
         <span className="kdiv" aria-hidden="true" />
         {F_KEYS.map((f) => key(f, () => m.sendKey(f), "fkey"))}
       </div>

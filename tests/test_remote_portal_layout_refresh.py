@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
 """Exercise real portal layout selection with a compositor whose keymap changes."""
 import ast
+import os
 from pathlib import Path
 import types
 import unittest
+from unittest.mock import patch
 
 SOURCE = Path(__file__).resolve().parents[1] / "moremote/agent-linux/mo-remote-portal.py"
 
@@ -24,7 +26,7 @@ class LayoutRefreshTests(unittest.TestCase):
             return types.SimpleNamespace(unpack=lambda: (value,))
         class Error(Exception):
             message = "unavailable"
-        self.ns = dict(layout_state=state, _layout_call=call,
+        self.ns = dict(layout_state=state, _layout_call=call, os=os, eis=None,
             GLib=types.SimpleNamespace(GError=Error), emit=lambda **kw: None,
             _group_toggle_available=lambda: True, time=types.SimpleNamespace(sleep=lambda _: None),
             MAX_TOGGLE_ATTEMPTS=8, TOGGLE_CONFIRM_TRIES=12, TOGGLE_CONFIRM_POLL_MS=5,
@@ -76,6 +78,19 @@ class LayoutRefreshTests(unittest.TestCase):
         self.codes = ["de", "us"]
         self.assertFalse(self.ns["select_group"]("ara", self.send))
         self.assertFalse(self.sent)
+    def test_greeter_missing_eis_never_compiles_a_desktop_guess(self):
+        with patch.dict(os.environ, {"MOREMOTE_PRELOGIN": "1"}):
+            self.assertTrue(self.ns["load_layouts"](refresh_keymaps=True))
+        self.assertEqual(self.compiled, [], "an unavailable greeter keyboard must not inherit desktop maps")
+    def test_greeter_reads_the_owned_device_not_desktop_names(self):
+        self.codes = ["us"]
+        observed = []
+        self.ns["eis"] = types.SimpleNamespace(keyboard_keymap=lambda: b"owned-device-map")
+        self.ns["build_eis_keymaps"] = lambda codes, data: observed.append((codes[:],data))
+        with patch.dict(os.environ, {"MOREMOTE_PRELOGIN": "1"}):
+            self.assertTrue(self.ns["load_layouts"](refresh_keymaps=True))
+        self.assertEqual(observed, [(["us"], b"owned-device-map")])
+        self.assertEqual(self.compiled, [])
 
 if __name__ == "__main__":
     unittest.main()

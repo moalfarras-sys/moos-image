@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import {
-  deviceStore, getStatus, logout, resumeTrustedDevice, tokenStore, validateSession,
+  deviceStore, getStatus, logout, resumeTrustedDevice, tokenStore, validateSession, setAuthScope, getAuthScope,
   type AuthResult,
 } from "./lib/api";
 import { SetupScreen, LoginScreen } from "./ui/AuthScreens";
@@ -30,22 +30,36 @@ export default function App() {
   const decide = async () => {
     try {
       const s = await getStatus();
+      if (s.preLogin === true && s.credentialScope !== "greeter") {
+        throw new Error("Greeter authentication scope is missing");
+      }
+      setAuthScope(s.credentialScope);
       if (s.firstRun) {
         tokenStore.clear(); deviceStore.clear();
         return setView({ name: "setup" });
       }
-      const tok = tokenStore.get();
-      if (tok && await validateSession(tok))
+      const mayMigrate = !!s.credentialScope && s.preLogin !== true;
+      const tok = tokenStore.get() || (mayMigrate ? tokenStore.legacy() : "");
+      if (tok && await validateSession(tok)) {
+        tokenStore.set(tok);
+        if (mayMigrate) tokenStore.clearLegacy();
         return setView({ name: "remote", token: tok, hostPowerAllowed: s.hostPowerAllowed !== false });
+      }
       tokenStore.clear();
-      const remembered = deviceStore.get();
+      const stored = deviceStore.get();
+      const fromLegacy = mayMigrate && (!stored.id || !stored.token);
+      const remembered = fromLegacy ? deviceStore.legacy() : stored;
       if (remembered.id && remembered.token) {
         const resumed = await resumeTrustedDevice(remembered.id, remembered.token);
         if (resumed.ok && resumed.token) {
           tokenStore.set(resumed.token);
+          deviceStore.set(remembered.id, remembered.token);
+          if (fromLegacy) deviceStore.clearLegacy();
           return setView({ name: "remote", token: resumed.token, hostPowerAllowed: s.hostPowerAllowed !== false });
         }
-        deviceStore.clear();
+        // A rejected legacy device may belong to another account on this same
+        // machine. Do not erase it when the active account changed.
+        if (!fromLegacy) deviceStore.clear();
       }
       return setView({ name: "login", lockout: s.locked ? s.lockoutSeconds : 0 });
     } catch {
@@ -59,11 +73,18 @@ export default function App() {
 
   const enterRemote = async (grant: AuthResult) => {
     if (!grant.token) return;
+    const issuedScope = getAuthScope();
     tokenStore.set(grant.token);
     if (grant.deviceId && grant.deviceToken) deviceStore.set(grant.deviceId, grant.deviceToken);
     setView({ name: "loading" });
     try {
       const status = await getStatus();
+      if ((status.credentialScope ?? "") !== issuedScope) {
+        // Ordinary PAM may have changed the endpoint's owner during the PIN
+        // handoff. The old grant stays in its own scope; re-authenticate the
+        // newly active profile before opening a stream.
+        return void await decide();
+      }
       setView({ name: "remote", token: grant.token, hostPowerAllowed: status.hostPowerAllowed !== false });
     } catch {
       // Keep the freshly issued token. Retry runs decide(), and as soon as status is reachable it

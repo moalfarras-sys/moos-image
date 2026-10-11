@@ -90,6 +90,22 @@ Object.defineProperty(globalThis, "window", {
 Object.defineProperty(globalThis, "screen", { configurable: true, value: { orientation: { type: "portrait-primary" } } });
 const fireTimers = () => { const cbs = [...timers.values()]; timers.clear(); for (const cb of cbs) cb(); };
 
+{ // A native keyboard can lose/reacquire its actual keymap while pointer/video stay ready.
+  const conn = new RemoteConnection("token", {});
+  conn.connect(); const socket = latest;
+  socket.readyState=TestSocket.OPEN; socket.onopen?.();
+  socket.onmessage?.({data:JSON.stringify({type:"hello",input:{ready:true,secureText:false}})});
+  assert.equal(conn.secretText("missing-map-fixture"),false);
+  socket.onmessage?.({data:JSON.stringify({type:"inputState",ready:true,secureText:true})});
+  assert.equal(conn.secretText("live-map-fixture"),true,"native capability recovery must reach sensitive delivery");
+  socket.onmessage?.({data:JSON.stringify({type:"inputState",ready:true,secureText:false})});
+  assert.equal(conn.secretText("retired-map-fixture"),false,"a retired keyboard map must immediately refuse sensitive text");
+  const texts=socket.sent.map(value=>JSON.parse(value)).filter(packet=>packet.type==="text");
+  assert.deepEqual(texts.map(packet=>packet.value),["live-map-fixture"]);
+  assert.equal(texts[0].secure,true);
+  conn.disconnect(); timers.clear();
+}
+
 { // 1 — the word survives the reconnect window
   const conn = new RemoteConnection("token", {});
   conn.connect();

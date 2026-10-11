@@ -227,12 +227,13 @@ public sealed class StreamSession
             paused = _svc.State.IsPaused,
             cursor = _svc.Config.ShowRemoteCursor,
             cursorEmbedded = OperatingSystem.IsLinux() && _svc.Config.EmbedCursor,
-            hostLocked = _svc.Input.SessionLocked,
+            hostLocked = _svc.PreLogin ? true : _svc.Input.SessionLocked,
+            preLogin = _svc.PreLogin,
             monitors = _svc.Capture.Monitors.Select(m => new { index = m.Index, name = m.Name, primary = m.Primary }).ToArray(),
             monitor = _svc.Capture.SelectedIndex,
             input = new { ready = _svc.Input.IsReady, backend = _svc.Input.BackendName, error = _svc.Input.LastError,
-                secureText = true },
-            clipboard = new { ready = ClipboardBridge.IsReady },
+                secureText = _svc.Input.SecureTextReady },
+            clipboard = new { ready = !_svc.PreLogin && ClipboardBridge.IsReady },
             // What this HOST can afford to encode, as moos-visual-tier already decided it. Only
             // the host can read the host's own state file, so the viewer is told rather than left
             // to guess from its own phone's cores. Absent on a machine with no published opinion;
@@ -305,9 +306,12 @@ public sealed class StreamSession
     private async Task SendLoop(CancellationToken ct)
     {
         bool lastPaused = !_svc.State.IsPaused; // force an initial status emit
-        bool lastInputReady = _svc.Input.IsReady;
+        // Force the first native snapshot: a helper can become ready between
+        // hello and this loop. Sampling it as "already sent" loses that edge.
+        bool? lastInputReady = null;
+        bool? lastSecureTextReady = null;
         string lastInputBackend = _svc.Input.BackendName, lastInputError = _svc.Input.LastError;
-        bool? lastHostLocked = _svc.Input.SessionLocked;
+        bool? lastHostLocked = _svc.PreLogin ? true : _svc.Input.SessionLocked;
         long nextInputStatus = 0;
 
         try
@@ -363,12 +367,14 @@ public sealed class StreamSession
                     var ready = _svc.Input.IsReady;
                     var backend = _svc.Input.BackendName;
                     var error = _svc.Input.LastError;
-                    if (ready != lastInputReady || backend != lastInputBackend || error != lastInputError)
+                    var secureText = _svc.Input.SecureTextReady;
+                    if (ready != lastInputReady || backend != lastInputBackend || error != lastInputError || secureText != lastSecureTextReady)
                     {
                         lastInputReady = ready; lastInputBackend = backend; lastInputError = error;
-                        await SendJson(new { type = "inputState", ready, backend, error }, ct);
+                        lastSecureTextReady = secureText;
+                        await SendJson(new { type = "inputState", ready, backend, error, secureText }, ct);
                     }
-                    var locked = _svc.Input.SessionLocked;
+                    var locked = _svc.PreLogin ? true : _svc.Input.SessionLocked;
                     if (locked != lastHostLocked)
                     {
                         lastHostLocked = locked;
@@ -801,7 +807,7 @@ public sealed class StreamSession
                 // A blocked viewer must not hold the shared input lease while the
                 // server sends its one-time confirmation over that viewer's socket.
                 if (confirmInput)
-                    await SendJson(new { type="inputState", ready=_svc.Input.IsReady,
+                    await SendJson(new { type="inputState", ready=_svc.Input.IsReady, secureText=_svc.Input.SecureTextReady,
                         backend=_svc.Input.BackendName, error=_svc.Input.LastError }, ct);
             }
         }
@@ -893,7 +899,7 @@ public sealed class StreamSession
                         var v = GetStr(root, "value", "");
                         if (v.Length > 4096) v = v[..4096];
                         if(InputDiagnostics) Log.Info($"Input sample {_remote}: text length={v.Length}.");
-                        if (input.SessionLocked == true ||
+                        if (_svc.PreLogin || input.SessionLocked == true ||
                             root.TryGetProperty("secure", out var secure) && secure.ValueKind == JsonValueKind.True)
                             input.TypeTextSecure(v);
                         else input.TypeText(v);

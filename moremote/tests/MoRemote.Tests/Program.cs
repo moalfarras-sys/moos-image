@@ -17,6 +17,15 @@ try { passed += await PortalRecoveryTests.Run(); }
 catch (Exception ex) { Console.Error.WriteLine("FAIL: " + ex.Message); Environment.ExitCode = 1; return; }
 void Eq<T>(T expected,T actual,string name){if(!EqualityComparer<T>.Default.Equals(expected,actual))throw new Exception($"{name}: expected {expected}, got {actual}");passed++;}
 void Throws(Action a,string name){try{a();throw new Exception(name+": did not reject");}catch(ArgumentOutOfRangeException){passed++;}}
+foreach (var path in new[] { "/", "/index.html", "/assets/index-D-7NrdBK.js", "/assets/index-DfqbDz4g.css", "/ws", "/api/status", "/api/session", "/icons/favicon-64.png", "/icons/brand-logo.png", "/icons/icon-192.png", "/icons/icon-512.png", "/icons/maskable-512.png", "/icons/apple-touch-icon.png", "/manifest.webmanifest", "/sw.js", "/workbox-0bb07689.js" })
+    Eq(true, PreLoginRequestPolicy.Allows("GET", path), "greeter public shell/normal authenticated wire " + path);
+foreach (var path in new[] { "/api/login", "/api/devices/resume", "/api/logout" })
+    Eq(true, PreLoginRequestPolicy.Allows("POST", path), "greeter ordinary Remote authentication " + path);
+foreach (var path in new[] { "/api/setup", "/api/local-diagnostic-token", "/api/pin", "/api/devices", "/api/devices/revoke", "/api/clipboard", "/api/clipboard/image", "/api/files", "/api/files/download-ticket", "/api/files/download", "/api/files/upload", "/api/files/upload/start", "/api/files/upload/status", "/api/files/upload/chunk", "/api/files/upload/commit", "/api/files/upload/cancel", "/api/audio/ticket", "/api/audio/stream.webm", "/api/power", "/future-admin", "/assets/../api/files", "//api/files", "/API/files" })
+    foreach (var method in new[] { "GET", "POST", "PATCH", "DELETE", "HEAD", "CONNECT" })
+        Eq(false, PreLoginRequestPolicy.Allows(method, path), "greeter refuses desktop/unknown endpoint " + method + " " + path);
+Eq(false, PreLoginRequestPolicy.Allows("POST", "/ws"), "greeter refuses non-WebSocket writes");
+Eq(false, PreLoginRequestPolicy.Allows("GET", null), "greeter refuses missing path");
 (double x,double y) Client(double px,double py,double left,double top,double width,double height)=>(Math.Clamp((px-left)/width,0,1),Math.Clamp((py-top)/height,0,1));
 
 // KScreen reports physical output pixels and the actual logical workspace separately.

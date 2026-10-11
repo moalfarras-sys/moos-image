@@ -65,12 +65,23 @@ if (!string.IsNullOrEmpty(isolatedDataDir))
 using var mutex = new Mutex(true, mutexName, out var first);
 if (!first) return 0;
 var config=AppConfig.Load(); UserSettings.Apply(config);
+// The system-owned greeter launcher selects this restricted profile. A missing
+// or corrupt provisioned PIN is never a browser-claimable first run.
+bool preLogin = Environment.GetEnvironmentVariable("MOREMOTE_PRELOGIN") == "1";
+if (preLogin && (config.FirstRun || Environment.UserName != "plasmalogin"))
+{
+    Console.Error.WriteLine("Greeter Remote requires its provisioned PIN and greeter account.");
+    return 2;
+}
+if (preLogin) config.AllowLan = false;
 var tls=TlsManager.TryLoad();
 // Capture may renew on output loss; session input must survive that renewal.
 using var portal=new PortalBridge();
 using var nativeInput=new PortalBridge(inputOnly: true);
 using var capture=new ScreenCapture(portal); using var input=new InputInjector(nativeInput,capture);
-using var svc=new AgentServices{Config=config,Sessions=new SessionManager(config),State=new SessionState(),Capture=capture,Input=input,HttpsHost=tls?.Host};
+var credentialScope = preLogin ? "greeter" : "account-" + Convert.ToHexString(
+    SHA256.HashData(Encoding.UTF8.GetBytes(Environment.UserName + "\0" + Paths.DataDir)))[..24].ToLowerInvariant();
+using var svc=new AgentServices{Config=config,Sessions=new SessionManager(config),State=new SessionState(),Capture=capture,Input=input,HttpsHost=tls?.Host,PreLogin=preLogin,CredentialScope=credentialScope};
 var builder=WebApplication.CreateBuilder(new WebApplicationOptions{ContentRootPath=AppContext.BaseDirectory,Args=args});
 builder.Logging.ClearProviders(); builder.Services.AddSingleton(svc);
 // Linux is published through `tailscale serve`, which terminates HTTPS on the MagicDNS name and

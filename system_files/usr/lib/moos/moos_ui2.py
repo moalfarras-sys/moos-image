@@ -377,7 +377,9 @@ window.moos-ui2 .moos-shell {{
 }}
 window.moos-ui2 .title-1,
 window.moos-ui2 .heading {{ color: @ui2_text; }}
-window.moos-ui2 .dim-label {{ color: @ui2_muted; }}
+/* Muted ink already meets 4.5:1. The vendor dim-label opacity would dim it
+   a second time, turning readable instructions into disabled-looking text. */
+window.moos-ui2 .dim-label {{ color: @ui2_muted; opacity: 1; }}
 window.moos-ui2 .ui2-card {{
   background-color: @ui2_card;
   color: @ui2_text;

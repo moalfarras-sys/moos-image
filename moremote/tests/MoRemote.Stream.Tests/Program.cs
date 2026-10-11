@@ -27,6 +27,7 @@ static class Program
         if (args.Length == 0 || args.Contains("h264")) await HiddenViewer("h264");
         if (args.Length == 0 || args.Contains("input")) await FailedInputLoop();
         if (args.Length == 0 || args.Contains("auth")) await RejectedAuth();
+        if (args.Length == 0 || args.Contains("greeter")) await GreeterSecureInput();
         if (args.Length == 0 || args.Contains("revoke"))
         {
             await RevokedLiveSession("jpeg");
@@ -56,9 +57,9 @@ static class Program
         }
     }
 
-    static async Task<(AgentServices Services, TestSocket Socket, Task Running)> Start(string codec = "jpeg")
+    static async Task<(AgentServices Services, TestSocket Socket, Task Running)> Start(string codec = "jpeg", bool preLogin = false)
     {
-        var services = new AgentServices();
+        var services = new AgentServices { PreLogin = preLogin };
         services.Capture.Codec = codec;
         var socket = new TestSocket();
         socket.Text("""{"type":"auth","token":"test"}""");
@@ -91,6 +92,19 @@ static class Program
             "WebSocket fragmentation corrupted Arabic/emoji text");
         Check(!Log.Messages.Any(message => message.Contains("Input sample")),
             "ordinary input must not trigger synchronous diagnostic disk logging");
+        await Stop(socket, running);
+    }
+
+    static async Task GreeterSecureInput()
+    {
+        var (services, socket, running) = await Start(preLogin: true);
+        using var hello = JsonDocument.Parse(socket.Messages.First(m => m.Contains("\"type\":\"hello\"")));
+        Check(hello.RootElement.GetProperty("preLogin").GetBoolean(), "greeter stage is explicit");
+        Check(hello.RootElement.GetProperty("hostLocked").GetBoolean(), "greeter always requires sensitive typing");
+        Check(!hello.RootElement.GetProperty("clipboard").GetProperty("ready").GetBoolean(), "greeter never advertises clipboard access");
+        socket.Text("""{"type":"text","value":"private-fixture","secure":false}""");
+        await Until(() => !services.Input.SecureTexts.IsEmpty, "greeter input did not use the sensitive path");
+        Check(services.Input.SecureTexts.TryPeek(out var text) && text == "private-fixture", "greeter preserves text through native sensitive input");
         await Stop(socket, running);
     }
 
@@ -348,6 +362,7 @@ sealed class TestSocket : WebSocket
 
 public sealed class AgentServices
 {
+    public bool PreLogin { get; init; }
     public InputControlLease InputControl { get; } = new();
     public TestConfig Config { get; } = new();
     public TestSessions Sessions { get; } = new();
@@ -404,14 +419,16 @@ public sealed class TestCapture
 public sealed class TestInput
 {
     public ConcurrentQueue<string> Texts { get; } = new();
+    public ConcurrentQueue<string> SecureTexts { get; } = new();
     public bool FailClicks;
     public int Releases;
     public int ButtonDowns;
     public Action? BeforeClick;
     public bool IsReady => true;
+    public bool SecureTextReady => true;
     public string BackendName => "isolated-test";
     public bool? SessionLocked => null;
-    public bool TypeTextSecure(string text) { TypeText(text); return true; }
+    public bool TypeTextSecure(string text) { SecureTexts.Enqueue(text); TypeText(text); return true; }
     public string LastError => "";
     public void ReleaseAll() => Interlocked.Increment(ref Releases);
     public void MouseMove(double x, double y) { }

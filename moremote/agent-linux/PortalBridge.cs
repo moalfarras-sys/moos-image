@@ -144,7 +144,8 @@ public sealed class PortalBridge : IDisposable
             if (!File.Exists(helper)) throw new FileNotFoundException("portal helper missing", helper);
             // A named app scope gives the portal the real MoOS app ID. A grant
             // for org.moos.remote must never become the empty-ID host wildcard.
-            bool named = !inputOnly && string.IsNullOrEmpty(Environment.GetEnvironmentVariable("MOREMOTE_DATA_DIR"))
+            bool preLogin = Environment.GetEnvironmentVariable("MOREMOTE_PRELOGIN") == "1";
+            bool named = !inputOnly && (preLogin || string.IsNullOrEmpty(Environment.GetEnvironmentVariable("MOREMOTE_DATA_DIR")))
                 && File.Exists("/usr/share/applications/org.moos.remote.desktop")
                 && File.Exists("/usr/bin/systemd-run");
             var command = new ProcessStartInfo(named ? "systemd-run" : "python3");
@@ -155,7 +156,9 @@ public sealed class PortalBridge : IDisposable
                 command.ArgumentList.Add("--quiet");
                 command.ArgumentList.Add("--collect");
                 command.ArgumentList.Add($"--unit=app-org.moos.remote-{Environment.ProcessId}.scope");
-                command.ArgumentList.Add("--property=PartOf=mo-remote-personal.service");
+                command.ArgumentList.Add(preLogin
+                    ? "--property=PartOf=mo-remote-greeter.service"
+                    : "--property=PartOf=mo-remote-personal.service");
                 command.ArgumentList.Add("python3");
             }
             command.ArgumentList.Add(helper);
@@ -392,7 +395,9 @@ public sealed class PortalBridge : IDisposable
                             root.TryGetProperty("compose", out var compose);
                             _keymap = LiveKeymap.Parse(keymaps, compose, current);
                             if (_keymap is null)
-                                Log.Warn("Portal: no usable live keymap; typed text that needs one uses exact paste.");
+                                Log.Warn(Environment.GetEnvironmentVariable("MOREMOTE_PRELOGIN") == "1"
+                                    ? "Portal: no usable greeter keymap; secure typing is unavailable."
+                                    : "Portal: no usable live keymap; typed text that needs one uses exact paste.");
                         }
                         else if (_keymap is not null) _keymap = _keymap.WithCurrent(current);
                     }

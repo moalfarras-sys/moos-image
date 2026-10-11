@@ -8,6 +8,11 @@ public sealed class AgentServices : IDisposable
     public required SessionState State { get; init; }
     public required ScreenCapture Capture { get; init; }
     public required InputInjector Input { get; init; }
+    /// <summary>The greeter profile exposes only authenticated picture/input and Remote login.
+    /// It never exposes an account's files, clipboard, audio or power/session actions.</summary>
+    public bool PreLogin { get; init; }
+    /// <summary>Opaque, stable browser storage boundary for this account/profile.</summary>
+    public string CredentialScope { get; init; } = "";
     public InputControlLease InputControl { get; } = new();
     public AccessTicketStore Tickets { get; } = new();
     public UploadSessionStore Uploads { get; } = new();

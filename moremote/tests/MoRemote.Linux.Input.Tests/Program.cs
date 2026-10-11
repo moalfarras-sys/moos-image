@@ -138,6 +138,26 @@ try
     input.ReleaseAll();
     Check(portal.Snapshot().Select(e => e.GetProperty("down").GetBoolean())
         .SequenceEqual([true, false]), "portal release is retried against its original backend");
+
+    Environment.SetEnvironmentVariable("MOREMOTE_PRELOGIN", "1");
+    try
+    {
+        using var greeterPortal = new PortalBridge { Accept = false };
+        using var greeterInput = new InputInjector(greeterPortal, new ScreenCapture());
+        Check(!greeterInput.IsReady, "greeter cannot advertise a fallback input device");
+        Check(!greeterInput.SecureTextReady, "missing native greeter keyboard cannot advertise password delivery");
+        greeterInput.MouseButtonCurrent("left", true);
+        Check(!recorder.Poll(100000, SelectMode.SelectRead), "greeter never writes to even a present fallback socket");
+        greeterPortal.Accept = true;
+        Check(!greeterInput.SecureTextReady, "native greeter input alone does not prove a password keymap");
+        greeterPortal.Keymap = Fixture(1);
+        Check(greeterInput.SecureTextReady, "owned native device and actual keymap make password typing available");
+        greeterInput.TypeText("A");
+        Check(greeterPortal.Snapshot().Any(e => e.GetProperty("type").GetString() == "keysyms"
+            && e.GetProperty("secure").GetBoolean()), "ordinary greeter text is forced through sensitive native typing");
+        Check(greeterInput.SessionLocked == true, "greeter stays sensitive even without a screensaver object");
+    }
+    finally { Environment.SetEnvironmentVariable("MOREMOTE_PRELOGIN", null); }
 }
 finally
 {

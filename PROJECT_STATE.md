@@ -1,25 +1,25 @@
 # MoOS current state — updated 2026-10-11
 
 Oracle A1 and the physical NVIDIA workstation develop one MoOS product.
-Source, promoted artifacts, staged deployments and actual booted systems are
-separate evidence. The only backlog is [DEVELOPMENT_PLAN.md](docs/DEVELOPMENT_PLAN.md).
-The owner handoff is [OWNER_EXECUTION_20261009_AR.md](docs/OWNER_EXECUTION_20261009_AR.md).
+Source, promoted artifacts, staged/booted systems are separate evidence; backlog: [DEVELOPMENT_PLAN.md](docs/DEVELOPMENT_PLAN.md).
 
-## Current owner reliability development (not delivered)
+## Current owner development (delivery pending)
 
-Topic `feat/owner-reliability-20261011` starts at `a76c4dd1`; nothing new is delivered.
-Native 30 s: NVIDIA 7.7–8.6 GiB available/zero memory PSI, GPU 0–3%/2.2 GiB VRAM;
-stopped MoPlayer 4.2% core; Code dominates RAM; Baloo 26% core indexing 427k files.
-Only generated `~/moos-wt/` copies are excluded; main/source/branches are preserved.
-The after sample overlapped gates, not a causal benchmark. Oracle: 8.7 GiB available.
-ARM vendor monitoring policy/native boot readback are added in source; native package
-and 256 MiB negative/positive pressure controls pass on both hosts (22.25/31.42 s,
-sentinel survives, kernel OOM=0, clean fixture retirement). Whole-machine/latency proof
-is still owed; .749 remains globally unmonitored until delivery. Earlier failures stay.
-Fresh canary 38096160112 refuses the 6.7.5-only logout SDK on 6.7.91. Two exact SRPM
-pins/38 controls and inactive-store input equality (1,274 modules)/9 controls pass;
-complete canary/native-package/greeter acceptance is pending, stable 6.8.0 refused.
-Remote first login is not implemented; see P5.7/P6.7/P2.17 and ignored owner-reliability-20261011 evidence.
+Reliability PR224 merged at `3abe787a`; signed cycle 38128732396 freezes that main SHA. Local image `90fae1cabecd`, 246 source gates and native ARM build pass.
+Canary 38099434894 passes reviewed 6.7.91/12 seams, native RPM/greeter and
+final image gates; stable 6.8.0 stays unreviewed/refused.
+Native 30 s: NVIDIA 7.7–8.6 GiB available, PSI=0, GPU 0–3%/2.2 GiB VRAM;
+Code dominates RAM; stopped MoPlayer 4.2% core; Baloo 26% indexing 427k files.
+Generated `~/moos-wt/` copies excluded; no causal after-benchmark yet.
+ARM boot guard/256 MiB pressure controls pass both hosts (22.25/31.42 s,
+sentinel survives, kernel OOM=0); .749 awaits delivery.
+Remote topic has restricted/scoped v57 source; installed stations lack pre-login Remote.
+Private .1022/r10 guest passes repeated cold PAM login, account handoff/logout,
+real decoded frames and scoped trust; AR/EN renders/seven .NET projects pass.
+Native masked-PIN validation/close clearing and GTK ink correction pass;
+managed opt-in/units and real listener/trust revocation pass native VM controls;
+disabled cold boot stays off. Enrollment TLS readback is fixture-only; signed
+delivery, real TLS/phone and NVIDIA/ARM acceptance remain P2.17.
 
 ## Source and promoted delivery
 

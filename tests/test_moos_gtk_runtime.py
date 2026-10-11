@@ -433,6 +433,17 @@ class TestMoOSGtkRuntime(unittest.TestCase):
                     )
 
                 css = UI2.ui2_css(palette)
+                muted_rule = css.split("window.moos-ui2 .dim-label", 1)[1].split("}", 1)[0]
+                opacity = re.search(r"\bopacity:\s*([0-9.]+)", muted_rule)
+                # Native GTK inherited a second dimming layer while token-only
+                # checks passed. Evaluate the ink the CSS actually leaves.
+                alpha = float(opacity.group(1)) if opacity else 0.55
+                foreground = parse_hex(palette["muted"])
+                background = parse_hex(palette["card"])
+                effective = tuple(round(f * alpha + b * (1 - alpha))
+                                  for f, b in zip(foreground, background))
+                self.assertGreaterEqual(contrast(effective, background), 4.5,
+                                        f"{path.name}: vendor dimming destroys secondary ink contrast")
                 suggested = css.split(
                     "window.moos-ui2 button.suggested-action", 1
                 )[1].split("}", 1)[0]

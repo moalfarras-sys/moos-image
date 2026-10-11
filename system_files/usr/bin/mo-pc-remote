@@ -16,6 +16,42 @@ from moos_ui2 import UI2StyleController, local_text, logical_start, ui_is_rtl
 UNIT = "mo-remote-personal.service"
 DEFAULT_PORT = 8765
 REMOTE_APP_ID = "org.moos.remote"
+GREETER_HELPER = "/usr/libexec/mo-remote-greeter"
+
+
+def greeter_status():
+    try:
+        result = run(GREETER_HELPER, "status")
+        value = json.loads(result.stdout)
+        if result.returncode or not isinstance(value, dict) or type(value.get("enabled")) is not bool:
+            return {"enabled": None}
+        return value
+    except (OSError, ValueError, subprocess.SubprocessError):
+        return {"enabled": None}
+
+
+def greeter_change(action, payload=None):
+    # Administrative authorization is displayed by native polkit. The Remote
+    # PIN never appears in argv, the environment, a log or a configuration dump.
+    result = subprocess.run(["/usr/bin/pkexec", GREETER_HELPER, action],
+                            input=json.dumps(payload) if payload is not None else "",
+                            text=True, capture_output=True, timeout=180)
+    if result.returncode in (126, 127):
+        raise RuntimeError(local_text("لم يُعتمد التغيير.", "The change was not authorized."))
+    try:
+        value = json.loads(result.stdout)
+    except ValueError:
+        value = {}
+    if result.returncode or "error" in value:
+        message = {
+            "private_tls_required": local_text("فعّل رابط Tailscale الخاص أولًا.", "Enable the private Tailscale address first."),
+            "unsupported_login": local_text("شاشة الدخول الحالية لا تدعم هذه الميزة.", "This login manager does not support this feature."),
+            "stop_failed": local_text("أُوقف التفعيل، لكن تعذّر تأكيد توقف الخدمة.", "Enrollment was removed, but service shutdown could not be verified."),
+        }.get(value.get("error"), local_text("لم يكتمل التغيير. حاول مرة أخرى.", "The change did not complete. Try again."))
+        raise RuntimeError(message)
+    if value.get("enabled") is not (action == "enable"):
+        raise RuntimeError(local_text("تعذّر التحقق من التغيير.", "Could not verify the change."))
+    return value
 
 def unattended_allowed():
     """Read only Mo PC Remote's grant; never the empty host application ID."""
@@ -99,7 +135,7 @@ def configured_port(environ=None):
     try:
         with open(os.path.join(data_home, "MoRemotePersonal", "settings.json")) as source:
             settings = json.load(source)
-        port = settings.get("port")
+        port = settings.get("Port", settings.get("port"))
         if isinstance(port, int) and not isinstance(port, bool) and 0 < port < 65536:
             return port
     except (OSError, ValueError, TypeError, AttributeError):
@@ -298,6 +334,7 @@ def collect_remote_snapshot():
         "firewall": active("firewalld.service", user=False),
         "fast_on": _fast_remote_enabled(),
         "unattended": unattended_allowed(),
+        "greeter": greeter_status(),
         "input_ready": input_ready,
         "log": _recent_log(),
     }
@@ -444,6 +481,20 @@ class App(Gtk.Application):
         self.access_switch.connect("state-set",self.on_access_toggled);access.append(self.access_switch)
         outer.append(access)
 
+        login=Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL,spacing=16)
+        login.add_css_class("ui2-card")
+        login_text=Gtk.Box(orientation=Gtk.Orientation.VERTICAL,spacing=4,hexpand=True)
+        login_title=Gtk.Label(label=local_text("الدخول بعد إعادة التشغيل", "Sign in after reboot"),xalign=logical_start())
+        login_title.add_css_class("heading");login_text.append(login_title)
+        self.login_sub=Gtk.Label(xalign=logical_start())
+        # These are sign-in/security instructions, not disabled decoration.
+        self.login_sub.set_wrap(True);login_text.append(self.login_sub)
+        login.append(login_text)
+        self.login_switch=Gtk.Switch(valign=Gtk.Align.CENTER)
+        self.login_switch.set_sensitive(False)
+        self.login_switch.connect("state-set",self.on_login_toggled);login.append(self.login_switch)
+        outer.append(login)
+
         # Address block: the one that works anywhere first, the house-only one second, and a QR
         # so the phone never has to be told an address at all.
         addr=Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL,spacing=16)
@@ -495,8 +546,80 @@ class App(Gtk.Application):
         self._sync_service_buttons(True); self.refresh()
 
     def stop(self,*_):
-        run("systemctl","--user","disable","--now",UNIT)
-        self._sync_service_buttons(False); self.refresh()
+        self._change_remote(stop=True)
+
+    def _change_remote(self, *, stop=False, payload=None):
+        self._login_busy=True
+        self.login_switch.set_sensitive(False)
+        self.service_buttons["stop"].set_sensitive(False)
+        self.login_sub.set_text(local_text("جارٍ تطبيق اختيارك…", "Applying your choice…"))
+        def change():
+            error=None
+            try:
+                if stop:
+                    result=subprocess.run(["/usr/bin/moos-control","remote","off"],
+                                          text=True,capture_output=True,timeout=200)
+                    if result.returncode:
+                        raise RuntimeError(local_text("لم يكتمل الإيقاف. إذا كانت شاشة الدخول مفعّلة، اعتمد إيقافها في نافذة المسؤول.",
+                                                      "Stop did not complete. If login-screen access is enabled, authorize its shutdown in the administrator prompt."))
+                elif payload is not None:
+                    greeter_change("enable",payload)
+                else:
+                    current=greeter_status()
+                    if current.get("enabled") is True or current.get("error"):
+                        greeter_change("disable")
+                    elif current.get("enabled") is None:
+                        raise RuntimeError(local_text("تعذّر التحقق من الوصول إلى شاشة الدخول.", "Could not verify login-screen access."))
+            except Exception as exc:
+                error=str(exc)[:300]
+            def done():
+                self._login_busy=False
+                self._login_error=error
+                self.refresh()
+                return False
+            GLib.idle_add(done)
+        threading.Thread(target=change,daemon=True).start()
+
+    def on_login_toggled(self,_switch,state):
+        if getattr(self,"_login_syncing",False): return False
+        if getattr(self,"_login_busy",False): return True
+        if not state:
+            self._change_remote()
+            return True
+        # Choosing this option explicitly provisions a separate login-screen
+        # PIN. No account PIN/hash/device credentials are copied across scopes.
+        dialog=Gtk.Window(title=local_text("الدخول إلى MoOS عن بُعد", "Remote sign-in to MoOS"),
+                          transient_for=self.win,modal=True)
+        dialog.set_direction(self.win.get_direction());dialog.add_css_class("moos-ui2")
+        dialog.set_default_size(440,320)
+        box=Gtk.Box(orientation=Gtk.Orientation.VERTICAL,spacing=12,
+                    margin_top=24,margin_bottom=24,margin_start=24,margin_end=24)
+        hint=Gtk.Label(label=local_text(
+            "اختر رمزًا من 6 أرقام لشاشة الدخول. بعد الاتصال، اكتب كلمة مرور حسابك داخل شاشة MoOS. الوصول عبر رابط Tailscale الخاص فقط. زر «إيقاف» يلغي هذا التفعيل أيضًا.",
+            "Choose a 6-digit PIN for the login screen. Once connected, enter your account password inside MoOS. Access uses your private Tailscale address. Stop also disables this enrollment."),xalign=logical_start())
+        hint.set_wrap(True);box.append(hint)
+        entries=[]
+        for label in (local_text("رمز شاشة الدخول", "Login-screen PIN"),local_text("أعد كتابة الرمز", "Repeat the PIN")):
+            caption=Gtk.Label(label=label,xalign=logical_start());box.append(caption)
+            entry=Gtk.Entry(visibility=False,input_purpose=Gtk.InputPurpose.PIN,max_length=6)
+            entry.set_direction(Gtk.TextDirection.LTR);entries.append(entry);box.append(entry)
+        buttons=Gtk.Box(spacing=8,halign=Gtk.Align.END)
+        cancel=Gtk.Button(label=local_text("إلغاء", "Cancel"));confirm=Gtk.Button(label=local_text("تفعيل", "Enable"))
+        confirm.add_css_class("suggested-action");confirm.set_sensitive(False)
+        for entry in entries:
+            entry.connect("changed",lambda *_: confirm.set_sensitive(
+                bool(re.fullmatch(r"[0-9]{6}",entries[0].get_text())) and entries[0].get_text()==entries[1].get_text()))
+        def clear(*_):
+            for entry in entries: entry.set_text("")
+            return False
+        def enable(*_):
+            payload={"port":getattr(self,"_login_port",DEFAULT_PORT),"pin":entries[0].get_text()}
+            clear();dialog.close();self._change_remote(payload=payload)
+        cancel.connect("clicked",lambda *_: dialog.close())
+        confirm.connect("clicked",enable);dialog.connect("close-request",clear)
+        buttons.append(cancel);buttons.append(confirm);box.append(buttons)
+        dialog.set_child(box);dialog.present();entries[0].grab_focus()
+        return True
 
     def _sync_service_buttons(self,on):
         """Offer only the action that changes the service; an unknown state offers both."""
@@ -504,6 +627,9 @@ class App(Gtk.Application):
         if not buttons: return
         buttons["start"].set_sensitive(on is not True)
         buttons["stop"].set_sensitive(on is not False)
+        if getattr(self,"_login_busy",False):
+            buttons["start"].set_sensitive(False)
+            buttons["stop"].set_sensitive(False)
 
     # Fast Remote toggle. The switch drives the ONE moos-fast-remote script; refresh() reads
     # its status back so the panel always reflects the real mode (e.g. if it was flipped in
@@ -735,6 +861,22 @@ class App(Gtk.Application):
             self.access_switch.set_active(snapshot["unattended"])
         self.access_switch.set_sensitive(snapshot["unattended"] is not None)
         self._access_syncing=False
+        login=snapshot.get("greeter",{"enabled":None})
+        self._login_port=snapshot["port"]
+        self._login_syncing=True
+        self.login_switch.set_active(login.get("enabled") is True)
+        self.login_switch.set_sensitive(not getattr(self,"_login_busy",False) and (
+            login.get("enabled") is True or (login.get("enabled") is False and bool(on) and bool(far))))
+        self._login_syncing=False
+        if not getattr(self,"_login_busy",False):
+            self.login_sub.set_text(getattr(self,"_login_error",None) or (
+                local_text("مفعّل. رمز شاشة الدخول مستقل؛ تسجيل الدخول يحتاج كلمة مرور حسابك.",
+                           "On. The login-screen PIN is separate; signing in requires your account password.")
+                if login.get("enabled") is True else
+                local_text("متوقف. شغّل التحكم البعيد وفعّل رابط Tailscale الخاص، ثم اختر رمز شاشة الدخول.",
+                           "Off. Start Remote and enable its private Tailscale address, then choose a login-screen PIN.")
+                if login.get("enabled") is False else
+                local_text("تعذّر التحقق من الميزة في هذه النسخة.", "Could not verify this feature in this version.")))
         self.fast_sub.set_text(
             local_text(
                 "مفعّل. يُعطى الاتصال الأولوية، فتتوقف الخلفية الحية "

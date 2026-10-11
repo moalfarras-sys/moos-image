@@ -842,9 +842,9 @@ _CONTROL_TOOLS: list[dict[str, Any]] = [
         required=["value"],
         confirm_values={"value": ["on", "off"]},
         consequence=("التشغيل يسمح لهاتفك المقترن بالتحكم بهذا الكمبيوتر ويبقى بعد كل إقلاع؛ "
-                     "الإيقاف يقطع أي هاتف يتحكم به الآن.",
+                     "الإيقاف يقطع أي هاتف يتحكم به الآن ويلغي الوصول إلى شاشة الدخول إن كان مفعّلًا، وقد يطلب كلمة مرور المسؤول لإلغائه.",
                      "On lets your paired phone control this computer, also after every "
-                     "restart; off disconnects any phone controlling it right now."),
+                     "restart; off disconnects any phone controlling it right now and revokes login-screen access if enabled. Revoking that enrollment may require the administrator password."),
     ),
     # Fast Remote trades the look for a lighter stream: blur, animations and wallpaper motion
     # pause, the keyboard switches to US for the phone, and a local AI model is paused if one is

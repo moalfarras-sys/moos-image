@@ -18,22 +18,23 @@ const errors = [];
 // Pass null to leave the preference unset and get the shipped default (Auto).
 async function viewer(options, mode, language = 'en', cursorEmbedded = false, orient = 'off',
                       encode = null, linkClass = 'default', h264Fixture = false, liveRtt = null,
-                      backend = 'KWin EIS') {
+                      backend = 'KWin EIS', preLogin = false) {
   const context = await browser.newContext({...options, serviceWorkers: 'block'});
   contexts.push(context);
-  await context.addInitScript(({mode, language, orient}) => {
+  await context.addInitScript(({mode, language, orient, preLogin}) => {
     // pickStartPreset reads this browser's cores, and a 2-core runner (the Oracle A1) is a
     // "weak device" that opens at Data saver. Pin the count so the geometry and quality
     // assertions mean the same thing on every machine that runs them.
     Object.defineProperty(navigator, 'hardwareConcurrency', {value: 8, configurable: true});
     localStorage.setItem('mo_remote_token', 'isolated-browser-test');
+    if (preLogin) localStorage.setItem('mo_remote_token_greeter', 'isolated-greeter-test');
     localStorage.setItem('moremote.mode', JSON.stringify(mode));
     localStorage.setItem('moremote.seenGestureHint', '1');
     localStorage.setItem('mo-remote-lang', language);
     sessionStorage.setItem('h264Failures', '3'); // upgrading from the failed controller
     if (orient) localStorage.setItem('moremote.orient', JSON.stringify(orient));
     else localStorage.removeItem('moremote.orient');
-  }, {mode, language, orient});
+  }, {mode, language, orient, preLogin});
   if (linkClass === 'silent') await context.addInitScript(() => {
     Object.defineProperty(navigator, 'connection', {value:undefined, configurable:true});
   });
@@ -55,7 +56,8 @@ async function viewer(options, mode, language = 'en', cursorEmbedded = false, or
   await page.route('**/api/**', route => {
     const path = new URL(route.request().url()).pathname;
     const body = path === '/api/status'
-      ? {name:'Mo PC Remote', version:'test', firstRun:false, locked:false, lockoutSeconds:0, hostPowerAllowed:true}
+      ? {name:'Mo PC Remote', version:'test', firstRun:false, locked:false, lockoutSeconds:0,
+          hostPowerAllowed:!preLogin, preLogin, credentialScope:preLogin ? 'greeter' : undefined}
       : path === '/api/devices' ? {devices:[]} : {ok:true, kind:'empty'};
     return route.fulfill({json:body});
   });
@@ -66,7 +68,8 @@ async function viewer(options, mode, language = 'en', cursorEmbedded = false, or
   const sendFrame = ws => ws.send(h264Fixture ? keyframe : frame);
   const hello = ws => {
     ws.send(JSON.stringify({type:'hello', screen:{w:1920,h:1080}, paused:false,
-      cursorEmbedded, input:{ready:true,secureText:true,backend}, clipboard:{ready:true}, monitors:[], encode}));
+      preLogin, hostLocked:preLogin, cursorEmbedded, input:{ready:true,secureText:true,backend},
+      clipboard:{ready:!preLogin}, monitors:[], encode}));
     if (h264Fixture) ws.send(JSON.stringify({type:'codec',codec:'h264'}));
     sendFrame(ws);
   };
@@ -825,6 +828,34 @@ try {
     assert.deepEqual(win.packets.filter(p => p.type === 'combo').at(-1)?.keys, ['Control','Shift','Escape']);
     console.log('PASS: Glass Console modes, pad zone, desktop commands, frame rate, sticky keys and Windows host');
   }
+
+  for (const language of ['ar', 'en']) {
+    const greeter = await viewer({viewport:{width:393,height:852},isMobile:true,hasTouch:true,
+      reducedMotion:'reduce'}, 'touch', language, false, 'off', null, 'default', false, null, 'KWin EIS', true);
+    const p = greeter.page;
+    const title = language === 'ar' ? 'تسجيل الدخول إلى MoOS' : 'Sign in to MoOS';
+    await p.getByText(title, {exact:true}).waitFor();
+    assert.equal(await p.getByRole('button',{name:language === 'ar' ? 'أوامر MoOS' : 'MoOS commands',exact:true}).count(),0);
+    assert.equal(await p.getByRole('button',{name:language === 'ar' ? 'الحافظة والملفات' : 'Clipboard & files',exact:true}).count(),0);
+    await capture(p, `prelogin-phone-${language}`);
+    const passwordAction=p.getByRole('button',{name:language === 'ar' ? 'كتابة كلمة مرور' : 'Password typing',exact:true});
+    greeter.sockets.at(-1).send(JSON.stringify({type:'inputState',ready:true,secureText:false}));
+    await p.waitForTimeout(50);assert.equal(await passwordAction.isDisabled(),true);
+    greeter.sockets.at(-1).send(JSON.stringify({type:'inputState',ready:true,secureText:true}));
+    await p.waitForTimeout(50);assert.equal(await passwordAction.isEnabled(),true);
+    await p.getByRole('button',{name:language === 'ar' ? 'كيبورد' : 'Keyboard',exact:true}).click();
+    assert.equal(await p.locator('.kbinput').getAttribute('type'), 'password');
+    assert.equal(await p.getByRole('button',{name:language === 'ar' ? 'نسخ إلى هذا الجهاز' : 'Copy to this device',exact:true}).count(),0);
+    greeter.packets.length=0;
+    await p.locator('.kbinput').fill('private-greeter-fixture');
+    await p.waitForTimeout(150);
+    assert.ok(greeter.packets.some(packet=>packet.type==='text' && packet.secure===true));
+    await p.getByRole('button',{name:language === 'ar' ? 'تم' : 'Done',exact:true}).click();
+    assert.equal(await p.locator('.kbinput').inputValue(), '', 'closing a greeter keyboard clears its secret');
+    await p.setViewportSize({width:852,height:393});
+    await capture(p, `prelogin-landscape-${language}`);
+  }
+  console.log('PASS: greeter AR/EN portrait/landscape, scoped auth, restricted actions and native-only password keyboard');
 
   const light = await viewer({viewport:{width:360,height:800},deviceScaleFactor:2,
     isMobile:true,hasTouch:true,colorScheme:'light',reducedMotion:'reduce'},'touch','ar');

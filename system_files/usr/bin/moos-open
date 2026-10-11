@@ -125,12 +125,20 @@ term() {
     fi
 }
 
-# Mo PC Remote is a user service, so start/stop/reconnect need no privilege and
-# no terminal — they are instant and Mo AI shows the resulting state. `enable
+# Mo PC Remote is a user service. Revoking an explicitly enabled login-screen
+# profile additionally requires its own native administrator authorization. `enable
 # --now` / `disable --now` (not plain start/stop) to match the Mo PC Remote
 # panel, so the two never disagree about whether it comes back after a reboot.
 REMOTE_UNIT="mo-remote-personal.service"
 remote_ctl() {
+    if [ "${1:-}" = disable ]; then
+        if moos-control remote off >/dev/null 2>&1; then
+            notify "Mo PC Remote ✓"
+        else
+            notify "Mo PC Remote: لم يكتمل الإيقاف | stop did not complete"
+        fi
+        return
+    fi
     if systemctl --user "$@" "$REMOTE_UNIT" >/dev/null 2>&1; then
         notify "Mo PC Remote ✓"
     else

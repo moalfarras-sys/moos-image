@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE policyconfig PUBLIC "-//freedesktop//DTD PolicyKit Policy Configuration 1.0//EN"
+ "http://www.freedesktop.org/standards/PolicyKit/1.0/policyconfig.dtd">
+<policyconfig>
+  <vendor>MoOS</vendor>
+  <vendor_url>https://github.com/moalfarras-sys/moos-image</vendor_url>
+  <icon_name>mo-pc-remote</icon_name>
+  <action id="org.moos.remote-greeter">
+    <description>Change Remote access to the MoOS login screen</description>
+    <description xml:lang="ar">تغيير الوصول البعيد إلى شاشة دخول MoOS</description>
+    <message>Authenticate as an administrator to enable or disable Remote on the MoOS login screen. Signing in still requires the account password.</message>
+    <message xml:lang="ar">أدخل كلمة مرور المسؤول لتفعيل أو إيقاف التحكم البعيد بشاشة دخول MoOS. تسجيل الدخول يبقى بحاجة إلى كلمة مرور الحساب.</message>
+    <defaults>
+      <allow_any>auth_admin</allow_any>
+      <allow_inactive>auth_admin</allow_inactive>
+      <allow_active>auth_admin</allow_active>
+    </defaults>
+    <annotate key="org.freedesktop.policykit.exec.path">/usr/libexec/mo-remote-greeter</annotate>
+  </action>
+</policyconfig>

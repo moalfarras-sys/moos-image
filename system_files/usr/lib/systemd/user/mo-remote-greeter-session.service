@@ -1,0 +1,15 @@
+[Unit]
+Description=Mo PC Remote login-screen access policy
+ConditionUser=plasmalogin
+After=plasma-login-kwin_wayland.service
+Before=mo-remote-greeter-portal.service plasma-xdg-desktop-portal-kde.service
+PartOf=plasma-login-wayland.target
+
+[Service]
+Type=oneshot
+# Even when disabled, revoke only the login account's named Remote grant.
+ExecStart=/usr/libexec/mo-remote-greeter session
+RemainAfterExit=yes
+
+[Install]
+WantedBy=plasma-login-wayland.target

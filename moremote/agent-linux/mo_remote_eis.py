@@ -48,6 +48,10 @@ class EisInput:
             "ei_device_scroll_discrete": (None, [C.c_void_p, C.c_int32, C.c_int32]),
             "ei_device_button_button": (None, [C.c_void_p, C.c_uint32, C.c_bool]),
             "ei_device_keyboard_key": (None, [C.c_void_p, C.c_uint32, C.c_bool]),
+            "ei_device_keyboard_get_keymap": (C.c_void_p, [C.c_void_p]),
+            "ei_keymap_get_fd": (C.c_int, [C.c_void_p]),
+            "ei_keymap_get_size": (C.c_size_t, [C.c_void_p]),
+            "ei_keymap_get_type": (C.c_int, [C.c_void_p]),
         }
         for name in ("x", "y", "width", "height"):
             signatures["ei_region_get_" + name] = (C.c_uint32, [C.c_void_p])
@@ -127,6 +131,26 @@ class EisInput:
     def frame(self, device):
         self.lib.ei_device_frame(device, time.monotonic_ns() // 1000)
         self.lib.ei_dispatch(self.ctx)
+
+    def keyboard_keymap(self):
+        """Read KWin's actual per-device XKB keymap while the device is owned.
+        Never close libei's borrowed descriptor or substitute a config guess."""
+        with self.lock:
+            device = self.device(KEYBOARD, required=False)
+            keymap = self.lib.ei_device_keyboard_get_keymap(device) if device else None
+            if not keymap or self.lib.ei_keymap_get_type(keymap) != 1:
+                return None
+            size = self.lib.ei_keymap_get_size(keymap)
+            fd = self.lib.ei_keymap_get_fd(keymap)
+            if fd < 0 or not 0 < size <= 1024 * 1024:
+                return None
+            data = os.pread(fd, size, 0)
+            return data if len(data) == size else None
+
+    @property
+    def keyboard_device(self):
+        with self.lock:
+            return self.device(KEYBOARD, required=False)
 
     def absolute(self, x, y):
         with self.lock:
