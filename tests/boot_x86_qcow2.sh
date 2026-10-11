@@ -489,6 +489,7 @@ routes="$(ip -4 route show default)"
 for helper in moos-settings moos-update moos-rollback moos-store moai moplayer mo-pc-remote; do
     [ -x "/usr/bin/$helper" ] || gate_fail "missing-command-${helper}"
 done
+/usr/libexec/moos-memory-policy-check || gate_fail actual-memory-monitoring
 origin="$(deployed_origin || true)"
 origin_digest="${origin##*@}"
 [ "$origin" = "ostree-image-signed:docker://${expected}" ] || gate_fail signed-origin

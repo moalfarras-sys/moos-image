@@ -33,9 +33,16 @@ scheduled for 15:05 UTC. The completed Oracle upload scratch is retired.
 No paid plan/spend-cap relaxation was enabled. Supabase egress and the old A&D
 alias are separate remaining availability defects, not OS release gates.
 
-After delivery, the next owner slice is M1/P2.3–P2.5: qualify Arabic/English
-locale, fonts and keyboard/reader/scale/motion on native surfaces. P6.7's failed
-next-Plasma canary needs reviewed seams before the 14 October upstream move.
+The 11 October owner request prioritizes the reliability slice P6.7/P5.7,
+then P2.17 (Remote before account login), before returning to M1/P2.3–P2.5:
+qualify Arabic/English locale, fonts and keyboard/reader/scale/motion on native surfaces.
+Current-source canary 38096160112 reached Plasma 6.7.91 and correctly refused
+the 6.7.5-only logout package build. The topic branch reviews that exact vendor
+SRPM and retains the same patch/prepared worker bytes, with unknown NVR refusal.
+It also retires the experimental base's inactive /var SELinux store only after
+all module inputs match the configured /etc store and boot policy bytes match;
+native duplicate-store and nine refusal controls pass. No final-image gate is relaxed.
+Full new canary/native-package acceptance is still required before the 14 October move.
 Do not count theme configuration or installed packages as these user flows.
 Mira real unmuted USB/voice, community public onboarding/moderation and M4
 preserved APK/PE work remain named acceptance tasks, not silently merged work.
@@ -342,6 +349,7 @@ itself and an unreviewed MoOS would ship kscreenlocker's emergency locker.
 | P2.14 | Remote input, recovery and mobile/WAN video | Implemented/delivered within recorded scope; wider acceptance remains | Held-input ownership, decoded pictures, browser recovery and owner iPhone/cellular endurance. |
 | P2.15 | Mira face, speech/rest and original portrait identity | Capture policy integrated/promoted in .1022/.749; both hosts booted with matching delivered hashes. Source/private-helper boundary and muted real USB pass; physical unmuted speech and long capture remain open | Both portraits retained; single mouth, real voice/pause/idle/hidden/reduced-motion readback; 11 private-process boundary tests, 45 controller tests, real muted USB with zero captures/overruns and three synthetic unmute/mute cycles. Signed installed delivery passes on both hosts; physical unmuted voice/device acceptance remains open. |
 | P2.16 | Shared login, lock and power experience | Delivered within recorded scope. Private .1018 native Arabic lock/power and wrong/correct password transitions pass; login greeter buttons/date remain English. Review locale authority without forking authentication; wider acceptance remains | Native greeters 640×480–4K@2.5, password refusal, multi-user, save/logout and accessibility. |
+| P2.17 | Mo PC Remote before account login after reboot | Owner-requested 2026-10-11; not implemented/delivered. Existing per-user Remote reaches an already-running session/lock screen, not first login. A private .1022 ISO VM is being used for native greeter qualification | Explicit opt-in, authenticated PIN/trusted-device and private TLS access before login; greeter-owned capture/input with no authentication fork, autologin or saved account password; ordinary PAM wrong/correct password through the actual controller after cold boot; bounded handoff to the active user's agent and back after logout; account isolation, no pre-login files/clipboard access, no public listener, and NVIDIA/ARM native reboot proofs. |
 
 ## P3 — Trustworthy assistant
 
@@ -380,7 +388,7 @@ itself and an unreviewed MoOS would ship kscreenlocker's emergency locker.
 | P5.4 | Performance budgets | Open / acceptance not complete | Measured boot/idle PSS/CPU/wakeups, app launch p95, frame pacing, build load and AI latency per tier. |
 | P5.5 | Cloud desktop efficiency | Implemented/delivered within recorded scope; wider acceptance remains | Efficient cloud desktop plus actual private files/photos/IDE access, phone background and off-host restore. |
 | P5.6 | Storage lifecycle | Open: NVIDIA cleanup restores headroom and preserves source/checkpoints/rollback; sustainable limits still owed | Headroom, cache/log bounds, low-space recovery and cleanup that never removes owner data. |
-| P5.7 | Qualify kernel policy and driver transitions | Open: recorded Oracle oomd has no monitored cgroup; NVIDIA station monitors system/user groups, but pressure-recovery qualification is owed | Kernel/driver readback and measured frame/audio/CPU/RAM policy; oomd running is not applied monitoring. |
+| P5.7 | Qualify kernel policy and driver transitions | Source adds ARM's missing vendor oomd-defaults, final-image guard and actual native-monitor readback in both disk boot proofs. Eight compose controls, native ARM package install, and bounded native negative/positive pressure controls pass on both stations (256 MiB cap; no kernel OOM; protected sentinel survives). Current ARM .749 still lacks global monitoring until a qualified delivery. System-wide recovery/weak-hardware frame latency remains open | Kernel/driver readback and measured frame/audio/CPU/RAM policy; actual daemon monitoring after signed boot; sustained frame/audio latency under bounded pressure on qualified weak tiers, never an uncontrolled OOM on the owner's workstation. |
 | P5.8 | Qualify Wayland and compositor lifetime | Open / acceptance not complete | Portal consent/revocation/restart, output/scale/hotplug, clipboard/input and long session-return soak. |
 
 ## P6 — Long-term release trust
@@ -393,7 +401,7 @@ itself and an unreviewed MoOS would ship kscreenlocker's emergency locker.
 | P6.4 | Add staged rollout and release health | Open / acceptance not complete | Staged rings, halt/rollback criteria and actual field release health. |
 | P6.5 | URL, Remote, AI and diagnostic security boundaries | Implemented/delivered within recorded scope; wider acceptance remains; new audit corrections await signed delivery | Auth/UID/URL/PIN/upload/secret boundaries and failure controls; native dependency advisories refuse release. |
 | P6.6 | Establish support lifecycle and migration policy | Open / acceptance not complete | Published support/upgrade/rollback/EOL policy plus clear licences, attribution and official identity. |
-| P6.7 | Reviewed Plasma seams before upstream transitions | Current Plasma seam guards delivered; next-Plasma canary 37378905167 is failed. Reviewed correction and native acceptance are required before the Oct14 transition | Actual next-Plasma canary, registered reviewed seams and old/broken/native controls. |
+| P6.7 | Reviewed Plasma seams before upstream transitions | Current seams delivered. Fresh canary 38096160112 refuses the 6.7.5-only native logout rebuild on 6.7.91. Topic source pins the exact signed COPR 6.7.91 SRPM (ea530281…), unchanged prepared worker SHA (76ed150d…), and retains all vendor spec flags/patches; 38 package boundary controls pass. Native inactive-store input/boot-policy equality and nine refusal controls pass. Full canary and new package/native greeter acceptance are pending; final 6.8.0 NVR stays unreviewed/refused | Actual next-Plasma canary, registered reviewed seams and old/broken/native controls; review the final stable NVR separately rather than widening an allowed range. |
 | P6.8 | Separate reviewed next-base transition lane | Open / acceptance not complete | Reviewed next-base packages, all native seams/boot/apps/identity gates and migration/support qualification. |
 | P6.9 | Native user/developer participation | Beta integrated/promoted in .1022/.749; native launch/shutdown and ARM D-Bus controls pass, plus 34 API/11 native and actual Wayland/Oracle TLS flow. Both hosts boot delivered client bytes; actual .1022 native capture/shutdown passes and Oracle public health is ready. Capture retains Qt/portal-registration warnings; installed image-picker flow still needs acceptance. Branded DNS/onboarding/recovery/full moderation UI/preferences/endurance remain open | Real authenticated service/client, private image attachments, account isolation and bounded uploads, admin moderation, retry/offline and promoted-release notifications; no secrets or automatic screenshots. |
 

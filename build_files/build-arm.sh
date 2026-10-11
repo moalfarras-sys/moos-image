@@ -108,6 +108,10 @@ _PLASMA=(
     orca speech-dispatcher espeak-ng
     bubblewrap
     pipewire pipewire-pulseaudio wireplumber
+    # bare bootc ships the oomd executable, but not its monitoring policy.
+    # On the accepted .749 A1 oomctl had no monitored cgroup at all. Use the
+    # same vendor policy Kinoite carries; an active daemon alone is not a guard.
+    systemd-oomd-defaults
     NetworkManager NetworkManager-wifi
     plymouth plymouth-plugin-script plymouth-plugin-two-step plymouth-system-theme
     dracut-network
@@ -1638,6 +1642,7 @@ python3 /ctx/verify_no_foreign_identity.py
 # image can prove; okular reached production this way.
 python3 /ctx/verify_mime_handlers.py --root /
 python3 /ctx/verify_desktop_parity.py --root /
+python3 /ctx/verify_memory_policy.py --root /
 
 
 echo "=== MoOS ARM build complete: ${MOOS_EDITION} (aarch64) ==="

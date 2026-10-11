@@ -52,6 +52,9 @@ if [ "${graphical_state:-}" != active ] || [ "${display_state:-}" != active ] \
 fi
 [ "$(systemctl is-enabled moos-flatpak-init.service)" = enabled ]
 [ "$(systemctl is-enabled flatpak-add-fedora-repos.service)" = masked ]
+# Presence in /usr is not applied monitoring. Query the real daemon from the
+# authenticated native user on both cold boot and reboot; QGA is not authority.
+/usr/libexec/moos-memory-policy-check
 # Observe first-boot store state before Flatpak can initialize it implicitly.
 [ -s /var/lib/flatpak/repo/config ]
 [ -s /var/lib/flatpak/repo/flathub.trustedkeys.gpg ]

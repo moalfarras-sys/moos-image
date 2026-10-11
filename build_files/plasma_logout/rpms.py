@@ -6,15 +6,33 @@ from pathlib import Path
 import shutil
 import subprocess
 import sys
+import re
 
-BASE = '6.7.5-1.fc44'
-FIXED = '6.7.5-1.1.moos1.fc44'
-SOURCE = '7ed5cf4427c852286f9835ebb2a6bc1482758dcde411318ad8e4a5b2517c9263'
 CORE = {'plasma-workspace', 'plasma-workspace-common', 'plasma-workspace-libs', 'libkworkspace6'}
 # The vendor source also produces its existing theme/doc subpackages. Replace
 # them only if the edition already owns them; the final identity scrub still
 # removes the vendor theme. Never publish those names in the runtime receipt.
 VENDOR_PACKAGES = CORE | {'plasma-workspace-doc', 'plasma-lookandfeel-fedora', 'sddm-wayland-plasma'}
+
+
+def source_review(base):
+    """Exact vendor NVRs only. A newer release is a review, never a fallback."""
+    registry = json.loads(Path(__file__).with_name('sources.json').read_text())
+    assert registry['schema'] == 1
+    reviews = registry['sources']
+    assert len({entry['base'] for entry in reviews}) == len(reviews), 'duplicate source NVR'
+    for entry in reviews:
+        assert re.fullmatch(r'6\.[0-9]+\.[0-9]+-[0-9]+\.fc44', entry['base'])
+        assert entry['fixed'] == entry['base'].replace('.fc44', '.1.moos1.fc44')
+        for key in ('source_sha256', 'prepared_shutdown_sha256'):
+            assert re.fullmatch(r'[a-f0-9]{64}', entry[key])
+        assert entry['source_url'].startswith((
+            'https://kojipkgs.fedoraproject.org/packages/plasma-workspace/',
+            'https://download.copr.fedorainfracloud.org/results/@kdesig/kde-beta/'))
+        assert entry['source_url'].endswith(f'/plasma-workspace-{entry["base"]}.src.rpm')
+    matches = [entry for entry in reviews if entry['base'] == base]
+    assert len(matches) == 1, f'unreviewed Plasma source NVR: {base}'
+    return matches[0]
 
 
 def command(argv):
@@ -32,36 +50,38 @@ def metadata(path):
 def collect(folder, output):
     arch = command(['rpm', '--eval', '%{_arch}'])
     assert arch in ('x86_64', 'aarch64'), arch
+    review = source_review(command(['rpm', '-q', '--qf', '%{VERSION}-%{RELEASE}', 'plasma-workspace']))
     packages = []
     for package in sorted(folder.rglob('*.rpm')):
         name, version, target = metadata(package)
         if any(name.endswith(end) for end in ('-devel', '-debuginfo', '-debugsource')):
             continue
-        assert name in VENDOR_PACKAGES and version == FIXED and target in (arch, 'noarch'), (name, version, target)
+        assert name in VENDOR_PACKAGES and version == review['fixed'] and target in (arch, 'noarch'), (name, version, target)
         destination = output / package.name
         shutil.copy2(package, destination)
         packages.append({'name': name, 'file': package.name, 'arch': target, 'sha256': sha(destination)})
     assert CORE <= {item['name'] for item in packages}
     (output / 'manifest.json').write_text(json.dumps({
-        'schema': 1, 'base': BASE, 'fixed': FIXED, 'arch': arch,
-        'source_sha256': SOURCE, 'packages': packages,
+        'schema': 1, 'base': review['base'], 'fixed': review['fixed'], 'arch': arch,
+        'source_sha256': review['source_sha256'], 'packages': packages,
     }, indent=2) + '\n')
 
 
 def install(folder, root=Path('/')):
     manifest = json.loads((folder / 'manifest.json').read_text())
     arch = command(['rpm', '--eval', '%{_arch}'])
+    review = source_review(manifest['base'])
     assert manifest['schema'] == 1 and manifest['arch'] == arch
-    assert manifest['base'] == BASE and manifest['fixed'] == FIXED
-    assert manifest['source_sha256'] == SOURCE
+    assert manifest['fixed'] == review['fixed']
+    assert manifest['source_sha256'] == review['source_sha256']
     installed = set(command(['rpm', '-qa', '--qf', '%{NAME}\n']).splitlines())
     owned = installed & VENDOR_PACKAGES
     assert CORE <= owned, 'missing native Plasma runtime package'
     for name in sorted(owned):
         current = command(['rpm', '-q', '--qf', '%{VERSION}-%{RELEASE}', name])
-        assert current == BASE, f'unreviewed Plasma package {name}: {current}'
+        assert current == review['base'], f'unreviewed Plasma package {name}: {current}'
         source = command(['rpm', '-q', '--qf', '%{SOURCERPM}', name])
-        assert source == f'plasma-workspace-{BASE}.src.rpm', f'unreviewed Plasma source {name}: {source}'
+        assert source == f'plasma-workspace-{review["base"]}.src.rpm', f'unreviewed Plasma source {name}: {source}'
     selected = []
     names = set()
     for item in manifest['packages']:
@@ -71,7 +91,7 @@ def install(folder, root=Path('/')):
         assert path.parent == folder and path.is_file() and not path.is_symlink()
         assert item['name'] not in names, 'duplicate subpackage'
         assert sha(path) == item['sha256']
-        assert metadata(path) == [item['name'], FIXED, item['arch']]
+        assert metadata(path) == [item['name'], review['fixed'], item['arch']]
         names.add(item['name'])
         selected.append(path)
     assert names == owned, 'missing installed Plasma subpackage'
@@ -80,9 +100,9 @@ def install(folder, root=Path('/')):
                     *map(str, selected)], check=True)
     for name in sorted(owned):
         actual = command(['rpm', '-q', '--qf', '%{VERSION}-%{RELEASE}', name])
-        assert actual == FIXED, f'logout fix did not reach {name}: {actual}'
+        assert actual == review['fixed'], f'logout fix did not reach {name}: {actual}'
     worker = root / 'usr/bin/plasma-shutdown'
-    record = {'schema': 1, 'base': BASE, 'fixed': FIXED, 'source_sha256': SOURCE,
+    record = {'schema': 1, 'base': review['base'], 'fixed': review['fixed'], 'source_sha256': review['source_sha256'],
               'worker_sha256': sha(worker), 'packages': sorted(owned & CORE)}
     target = root / 'usr/share/moos/plasma-logout-transaction.json'
     target.parent.mkdir(parents=True, exist_ok=True)
@@ -92,14 +112,15 @@ def install(folder, root=Path('/')):
 
 def verify(root=Path('/')):
     record = json.loads((root / 'usr/share/moos/plasma-logout-transaction.json').read_text())
-    assert record['schema'] == 1 and record['base'] == BASE and record['fixed'] == FIXED
-    assert record['source_sha256'] == SOURCE
+    review = source_review(record['base'])
+    assert record['schema'] == 1 and record['fixed'] == review['fixed']
+    assert record['source_sha256'] == review['source_sha256']
     worker = root / 'usr/bin/plasma-shutdown'
     assert sha(worker) == record['worker_sha256'], 'logout worker changed after package install'
     activation = (root / 'usr/share/dbus-1/services/org.kde.Shutdown.service').read_text().splitlines()
     assert activation.count('Exec=/usr/bin/plasma-shutdown') == 1, 'D-Bus does not launch the verified worker'
     for name in record['packages']:
-        assert command(['rpm', '-q', '--qf', '%{VERSION}-%{RELEASE}', name]) == FIXED
+        assert command(['rpm', '-q', '--qf', '%{VERSION}-%{RELEASE}', name]) == review['fixed']
     # Read the RPM database's own payload digest as well as our install receipt.
     rows = command(['rpm', '-q', '--dump', 'plasma-workspace']).splitlines()
     matches = [row.split() for row in rows if row.split()[0] == '/usr/bin/plasma-shutdown']
@@ -108,11 +129,13 @@ def verify(root=Path('/')):
 
 
 if __name__ == '__main__':
-    if len(sys.argv) == 4 and sys.argv[1] == 'collect':
+    if len(sys.argv) == 3 and sys.argv[1] == 'source':
+        print(json.dumps(source_review(sys.argv[2])))
+    elif len(sys.argv) == 4 and sys.argv[1] == 'collect':
         collect(Path(sys.argv[2]), Path(sys.argv[3]))
     elif len(sys.argv) == 3 and sys.argv[1] == 'install':
         install(Path(sys.argv[2]))
     elif len(sys.argv) == 2 and sys.argv[1] == 'verify':
         verify()
     else:
-        raise SystemExit('usage: rpms.py collect INPUT OUTPUT | install INPUT | verify')
+        raise SystemExit('usage: rpms.py source NVR | collect INPUT OUTPUT | install INPUT | verify')

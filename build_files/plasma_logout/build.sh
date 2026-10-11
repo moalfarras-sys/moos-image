@@ -6,10 +6,16 @@ _logout_mode="${1:-}"
 case "$_logout_mode" in
     prepare)
 mkdir -p "${_logout_top}/SOURCES" "${_logout_top}/SPECS" /out
+_logout_base="$(rpm -q --qf '%{VERSION}-%{RELEASE}' plasma-workspace)"
+# The selector must finish successfully before a download or package change.
+# No range, downgrade, environment override or experimental guard bypass.
+python3 /src/rpms.py source "$_logout_base" > /work/plasma-logout-source.json
+_logout_url="$(python3 -c 'import json; print(json.load(open("/work/plasma-logout-source.json"))["source_url"])')"
+_logout_sha="$(python3 -c 'import json; print(json.load(open("/work/plasma-logout-source.json"))["source_sha256"])')"
 curl --fail --location --retry 3 --connect-timeout 30 \
-    https://kojipkgs.fedoraproject.org/packages/plasma-workspace/6.7.5/1.fc44/src/plasma-workspace-6.7.5-1.fc44.src.rpm \
+    "$_logout_url" \
     -o /work/plasma-workspace.src.rpm
-echo '7ed5cf4427c852286f9835ebb2a6bc1482758dcde411318ad8e4a5b2517c9263  /work/plasma-workspace.src.rpm' | sha256sum --check
+echo "$_logout_sha  /work/plasma-workspace.src.rpm" | sha256sum --check
 (cd "${_logout_top}/SOURCES"; rpm2cpio /work/plasma-workspace.src.rpm | cpio -idm --no-absolute-filenames --no-preserve-owner)
 cp "${_logout_top}/SOURCES/plasma-workspace.spec" "${_logout_top}/SPECS/plasma-workspace.spec"
 cp /src/logout-transaction.patch "${_logout_top}/SOURCES/moos-logout-transaction.patch"
@@ -17,6 +23,8 @@ python3 - <<'PY'
 from pathlib import Path
 spec = Path('/work/plasma-logout-rpmbuild/SPECS/plasma-workspace.spec')
 text = spec.read_text()
+import json
+review = json.loads(Path('/work/plasma-logout-source.json').read_text())
 assert text.count('Release:') == 1
 import re
 text, count = re.subn(r'^Release:.*$', 'Release: 1.1.moos1%{?dist}', text, flags=re.M)
@@ -29,11 +37,11 @@ text = text.replace(marker, 'Patch: moos-logout-transaction.patch\n\n' + marker,
 # modern rpmbuild removes BUILD after successfully packaging the RPMs.
 assert text.count('%build\n') == 1
 text = text.replace('%build\n', '%build\n' +
-    "echo '76ed150d4931b20295c53cd3100298056db4814d5b750ba9ad86659bbbf04ae8  startkde/plasma-shutdown/shutdown.cpp' | sha256sum --check\n", 1)
+    f"echo '{review['prepared_shutdown_sha256']}  startkde/plasma-shutdown/shutdown.cpp' | sha256sum --check\n", 1)
 spec.write_text(text)
 PY
 dnf5 -y builddep "${_logout_top}/SPECS/plasma-workspace.spec"
-test "$(rpm -q --qf '%{VERSION}-%{RELEASE}' plasma-workspace)" = 6.7.5-1.fc44
+test "$(rpm -q --qf '%{VERSION}-%{RELEASE}' plasma-workspace)" = "$_logout_base"
         ;;
     compile)
 rpmbuild -bb --define "_topdir ${_logout_top}" --define '_buildhost moos-build' \
