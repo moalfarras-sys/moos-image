@@ -50,7 +50,7 @@ CONFIG = {"LayoutList": "ara,de", "VariantList": ",", "Options": "grp:alt_shift_
           "ResetOldOptions": "true"}
 SHIFT, LEVEL3 = 1, 2
 
-FUNCTIONS = {"_xkb_library", "_kxkbrc_layout_config", "_kconfig_bool", "build_keymaps",
+FUNCTIONS = {"_xkb_library", "_kxkbrc_layout_config", "_kconfig_bool", "build_keymaps", "build_eis_keymaps",
              "_group_keymap", "keymap_composition"}
 CONSTANTS = {"XKB_DEAD_MARKS", "XKB_KEY_SHIFT_L", "XKB_KEY_ISO_LEVEL3_SHIFT", "XKB_MOD_INVALID",
              "KEYMAP_TYPING_CODES", "KEYMAP_MOD_SHIFT", "KEYMAP_MOD_LEVEL3", "KEYMAP_SHIFT_CODE",
@@ -146,6 +146,34 @@ class LiveKeymapCompiler(unittest.TestCase):
         self.assertIsNone(build(["ara", "de"], {"LayoutList": "de,ara"}),
                           "positions for a layout order KWin is not using would be wrong")
         self.assertIsNone(build([], dict(CONFIG)))
+
+    def test_greeter_uses_actual_device_map_despite_desktop_defaults(self):
+        self.require_keymap()
+        lib = self.ns["_xkb_library"]()
+        lib.xkb_keymap_get_as_string.restype = ctypes.c_void_p
+        lib.xkb_keymap_get_as_string.argtypes = [ctypes.c_void_p, ctypes.c_int]
+        libc = ctypes.CDLL(None)
+        libc.free.argtypes = [ctypes.c_void_p]
+        context = lib.xkb_context_new(0)
+        names = lib.RuleNames(b"evdev", b"pc104", b"us", None, None)
+        keymap = lib.xkb_keymap_new_from_names(context, ctypes.byref(names), 0)
+        self.assertTrue(keymap)
+        ptr = lib.xkb_keymap_get_as_string(keymap, 1)
+        try:
+            data = ctypes.string_at(ptr)
+            self.assertIsNone(self.ns["build_keymaps"](["us"], dict(CONFIG)))
+            for actual in (data, data + b"\0"):
+                groups = self.ns["build_eis_keymaps"](["us"], actual)
+                self.assertIn([21, 0, ord("y")], groups[0]["levels"])
+                self.assertIn([21, SHIFT, ord("Y")], groups[0]["levels"])
+                self.assertNotIn([21, 0, ord("z")], groups[0]["levels"])
+            for bad in (b"", b"invalid", data + b"\0trailing", b"x" * (1024 * 1024 + 1)):
+                self.assertIsNone(self.ns["build_eis_keymaps"](["us"], bad))
+            self.assertIsNone(self.ns["build_eis_keymaps"](["us", "de"], data))
+        finally:
+            libc.free(ptr)
+            lib.xkb_keymap_unref(keymap)
+            lib.xkb_context_unref(context)
 
     def test_kxkbrc_cascade_lets_the_user_file_win(self):
         with tempfile.TemporaryDirectory() as home:

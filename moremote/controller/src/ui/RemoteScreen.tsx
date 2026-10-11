@@ -265,6 +265,7 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired, l
   const [secureKeyboardAvailable, setSecureKeyboardAvailable] = useState(false);
   const secureTypingRef = useRef(false);
   const [hostLocked, setHostLocked] = useState<boolean | null>(null);
+  const [preLogin, setPreLogin] = useState(false);
   const hostLockedRef = useRef<boolean | null>(null);
   secureTypingRef.current = secureTyping || hostLocked === true;
   const composingRef = useRef(false);
@@ -492,7 +493,7 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired, l
   };
 
   useEffect(() => {
-    if (sheet !== "settings" || settingsTab !== "general") return;
+    if (preLogin || sheet !== "settings" || settingsTab !== "general") return;
     let live = true;
     setTrustedDevices(null);
     setTrustedDevicesFailed(false);
@@ -506,7 +507,7 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired, l
       else setTrustedDevicesFailed(true);
     });
     return () => { live = false; };
-  }, [sheet, settingsTab, token, deviceLoadAttempt, onAuthExpired]);
+  }, [preLogin, sheet, settingsTab, token, deviceLoadAttempt, onAuthExpired]);
 
   const revokeDevice = async (device: TrustedDeviceInfo) => {
     if (deviceBusy) return;
@@ -840,6 +841,8 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired, l
         setSecureKeyboardAvailable(h.input?.secureText === true);
         hostLockedRef.current = h.hostLocked ?? null;
         setHostLocked(hostLockedRef.current);
+        setPreLogin(h.preLogin === true);
+        if (h.preLogin === true) setSheet(null);
         setClipboardOk(!!h.clipboard?.ready);
         cursorEmbeddedRef.current = h.cursorEmbedded === true;
         if (cursorRef.current) cursorRef.current.hidden = cursorEmbeddedRef.current;
@@ -900,7 +903,11 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired, l
       onPong: (rtt) => { const v = Math.round(rtt); setLatency(v); latRef.current = v; latAtRef.current = performance.now(); },
       onIdle: () => setStatus("idle"),
       onScreen: (avail) => setScreenOk(avail),
-      onInputState: (ready,error) => { setInputOk(ready); if(error)showToast(`${tr("inputPrefix")} ${error}`); },
+      onInputState: (ready,error,secureText) => {
+        setInputOk(ready);
+        if (typeof secureText === "boolean") setSecureKeyboardAvailable(secureText);
+        if(error)showToast(`${tr("inputPrefix")} ${error}`);
+      },
       onHostState: locked => {
         if (hostLockedRef.current === true && locked !== true) {
           if (inputRef.current) inputRef.current.value = "";
@@ -2392,7 +2399,8 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired, l
         if (document.activeElement !== inputRef.current) closeKeyboard();
       }, 120);
     },
-    hostKind, runAction, hostPowerAllowed, doPower,
+    hostKind, runAction, hostPowerAllowed: hostPowerAllowed && !preLogin, doPower,
+    preLogin,
     copyFromPc, pasteFromDevice, pcClip, getPcClip, copyToPhone, sendText, setSendText, readPhoneClip, sendToPc,
     clipboardBusy, phoneClipRef,
     pickImage: (paste: boolean) => { imagePasteRef.current = paste; fileRef.current?.click(); },
@@ -2496,7 +2504,7 @@ export function RemoteScreen({ token, hostPowerAllowed, onExit, onAuthExpired, l
       {hostLocked === true && status === "live" && (
         <div className="host-lock-note" role="status" aria-live="polite">
           <IconLock />
-          <div><b>{tr("hostLockedTitle")}</b><span>{tr("hostLockedHint")}</span></div>
+          <div><b>{tr(preLogin ? "preLoginTitle" : "hostLockedTitle")}</b><span>{tr(preLogin ? "preLoginHint" : "hostLockedHint")}</span></div>
           {!kbOpen && <button type="button" className="btn" disabled={!secureKeyboardAvailable}
             onClick={() => { setWorkspace("screen"); openKeyboard(); }}>{tr("secureTyping")}</button>}
         </div>

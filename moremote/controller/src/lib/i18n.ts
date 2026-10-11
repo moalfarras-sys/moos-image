@@ -36,6 +36,8 @@ export function initLang(): Lang {
 const dict = {
   secureTyping: { ar: "كتابة كلمة مرور", en: "Password typing" },
   hostLockedTitle: { ar: "الكمبيوتر مقفول", en: "Computer locked" },
+  preLoginTitle: { ar: "تسجيل الدخول إلى MoOS", en: "Sign in to MoOS" },
+  preLoginHint: { ar: "اختر حسابك من الشاشة، ثم اكتب كلمة مروره واضغط Enter. تُكتب كلمة المرور مباشرةً دون حفظها أو نسخها إلى الحافظة.", en: "Choose your account on screen, then type its password and press Enter. The password is typed directly, without saving it or copying it to the clipboard." },
   hostLockedHint: { ar: "قد يحجب النظام الصورة عند القفل. اكتب كلمة مرور حساب الكمبيوتر ثم اضغط Enter.", en: "The system may hide the picture while locked. Type your computer account password, then press Enter." },
   secureTypingUnavailable: { ar: "الخدمة لا تدعم كتابة كلمة المرور الآمنة بعد.", en: "This host does not support secure password typing yet." },
   chooseWorkspace: { ar: "طريقة التحكم", en: "Control workspace" },

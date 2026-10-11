@@ -4,30 +4,40 @@ const TOKEN_KEY = "mo_remote_token";
 const DEVICE_ID_KEY = "mo_remote_device_id";
 const DEVICE_TOKEN_KEY = "mo_remote_device_token";
 const CONTROL_REQUEST_TIMEOUT_MS = 15_000;
+let authScope = "";
+export function setAuthScope(scope?: string): void {
+  authScope = scope && /^[a-z0-9-]{1,80}$/.test(scope) ? scope : "";
+}
+export const getAuthScope = () => authScope;
+const scopedKey = (key: string) => authScope ? `${key}_${authScope}` : key;
 
 const storageGet = (key: string) => { try { return localStorage.getItem(key) || ""; } catch { return ""; } };
 const storageSet = (key: string, value: string) => { try { localStorage.setItem(key, value); } catch { /* private mode */ } };
 const storageRemove = (key: string) => { try { localStorage.removeItem(key); } catch { /* private mode */ } };
 
 export const tokenStore = {
-  get: () => storageGet(TOKEN_KEY),
-  set: (t: string) => storageSet(TOKEN_KEY, t),
-  clear: () => storageRemove(TOKEN_KEY),
+  get: () => storageGet(scopedKey(TOKEN_KEY)),
+  set: (t: string) => storageSet(scopedKey(TOKEN_KEY), t),
+  clear: () => storageRemove(scopedKey(TOKEN_KEY)),
+  legacy: () => storageGet(TOKEN_KEY),
+  clearLegacy: () => storageRemove(TOKEN_KEY),
 };
 
 export const deviceStore = {
   get: () => ({
-    id: storageGet(DEVICE_ID_KEY),
-    token: storageGet(DEVICE_TOKEN_KEY),
+    id: storageGet(scopedKey(DEVICE_ID_KEY)),
+    token: storageGet(scopedKey(DEVICE_TOKEN_KEY)),
   }),
   set: (id: string, token: string) => {
-    storageSet(DEVICE_ID_KEY, id);
-    storageSet(DEVICE_TOKEN_KEY, token);
+    storageSet(scopedKey(DEVICE_ID_KEY), id);
+    storageSet(scopedKey(DEVICE_TOKEN_KEY), token);
   },
   clear: () => {
-    storageRemove(DEVICE_ID_KEY);
-    storageRemove(DEVICE_TOKEN_KEY);
+    storageRemove(scopedKey(DEVICE_ID_KEY));
+    storageRemove(scopedKey(DEVICE_TOKEN_KEY));
   },
+  legacy: () => ({ id: storageGet(DEVICE_ID_KEY), token: storageGet(DEVICE_TOKEN_KEY) }),
+  clearLegacy: () => { storageRemove(DEVICE_ID_KEY); storageRemove(DEVICE_TOKEN_KEY); },
 };
 
 /** Bound short control-plane requests without imposing a deadline on file upload or media. */

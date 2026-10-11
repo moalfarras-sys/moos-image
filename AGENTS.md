@@ -240,6 +240,23 @@ and should not. Wave W5 read Mo Store's `job.json` and the privacy token that wa
 through a `FolderListModel`, the way the Remote chip always has (`IslandTokens.js`), or from
 D-Bus. `tests/test_island_tokens.py` runs both ends and fails any MoOS plasmoid that tries.
 
+**A greeter API is not a greeter picture or password login.** Its user manager
+does not own `graphical-session.target`; import the actual owned Wayland display
+before the vendor KDE portal backend starts. Keep its named app grant in its own
+store. `--locale1` can make its actual EIS device map differ from desktop KConfig:
+read the bounded borrowed keymap FD, never close it or guess a desktop map. Missing
+device/map means unavailable sensitive typing, including after reconnect. Force
+the first input capability snapshot: a helper can become ready between hello and
+the loop. Preserve ordinary PAM and account isolation; a disabled successor agent
+is not a failed PAM login. Require real decoded frames and session ownership.
+
+**Resuming a private VM must never recreate its disk.** Assert the existing
+qcow2 format/virtual size and firmware state before launch; creation is a separate,
+exclusive operation. A client disconnect must not kill the VM control server.
+OVMF's stored BootOrder can select an installed disk despite `-boot order=d`:
+read actual mounts and the QGA security context before claiming a live-root test.
+These are fixture rules, never exceptions to installed authentication or boot gates.
+
 **A live socket and an empty decode queue do not prove a picture.** A browser
 can consume H.264 chunks without output while its pongs remain healthy. Recover
 against actual decoded output, with bounded IDR requests; keep incoming-data
@@ -790,6 +807,23 @@ tree once; only a later image change or a real failed gate justifies repeating i
 rollback guarantee and identity rule in this file still holds, a boot/initramfs/
 signing/installer change is still proven before it ships, and nothing is called
 released before promotion.
+
+**GTK secondary ink can be dimmed twice.** Its palette colour already passes
+4.5:1; vendor `.dim-label` opacity can undo that on the real screen. Own the
+final opacity for readable secondary labels and keep disabled controls distinct.
+Native old/fixed frames and all-scheme negative controls guard this boundary.
+
+**Pre-login Remote enrollment is root authority, off by default.** Only its
+exact administrator helper may publish the root-owned marker after private
+TLS/PIN provisioning. Session units follow the native login target; no PAM,
+autologin or authentication fork. Stop from the panel/control/URL paths revokes
+the greeter profile and its device trust; On never silently restores it. A TLS
+JSON fixture proves lifecycle logic, not a real private-TLS enrollment.
+The node may also publish Community on a separate HTTPS Funnel. Validate the
+actual endpoint/handler map: refuse public Remote on any port/path, unknown
+transports and malformed proxy URLs, while permitting the unrelated service.
+Keep the real Oracle old/fixed read-only control and public-Remote negative
+controls; do not change ingress or enroll a greeter to diagnose this boundary.
 
 ## Before you push
 

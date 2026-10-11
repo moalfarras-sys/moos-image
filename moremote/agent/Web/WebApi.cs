@@ -38,6 +38,12 @@ public static class WebApi
                 await ctx.Response.WriteAsync("Forbidden: this device is only reachable over Tailscale.");
                 return;
             }
+            if (svc.PreLogin && !PreLoginRequestPolicy.Allows(ctx.Request.Method, ctx.Request.Path.Value))
+            {
+                ctx.Response.StatusCode = StatusCodes.Status403Forbidden;
+                await ctx.Response.WriteAsJsonAsync(new { error = "unavailable_before_account_login" });
+                return;
+            }
             await next();
         });
     }
@@ -52,7 +58,9 @@ public static class WebApi
             firstRun = svc.Sessions.FirstRun,
             locked = svc.Sessions.LockoutRemainingSeconds() > 0,
             lockoutSeconds = svc.Sessions.LockoutRemainingSeconds(),
-            hostPowerAllowed = PowerActions.HostPowerAllowed,
+            hostPowerAllowed = !svc.PreLogin && PowerActions.HostPowerAllowed,
+            preLogin = svc.PreLogin,
+            credentialScope = svc.CredentialScope,
             input = new { ready = svc.Input.IsReady, backend = svc.Input.BackendName },
         }));
         app.MapGet("/api/local-diagnostic-token",(HttpContext ctx)=>

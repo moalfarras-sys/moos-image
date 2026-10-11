@@ -157,10 +157,10 @@ function PictureTab({ m }: { m: RemoteModel }) {
       </Section>
 
       <Section title={tr("actions")}>
-        <Row title={tr("computerSound")} sub={m.sound === "connecting" ? tr("connecting") : tr("computerSoundSub")}
+        {!m.preLogin && <Row title={tr("computerSound")} sub={m.sound === "connecting" ? tr("connecting") : tr("computerSoundSub")}
              icon={<IconSpeaker />}>
           <Switch on={m.sound === "on" || m.sound === "connecting"} onToggle={m.toggleSound} label={tr("computerSound")} />
-        </Row>
+        </Row>}
         <Row title={tr("fullscreen")} sub={tr("fullscreenSub")} icon={<IconFullscreen />}>
           <button type="button" className="chip" onClick={() => { m.fullscreen(); m.closeSheet(); }}>{tr("fullscreen")}</button>
         </Row>
@@ -244,7 +244,7 @@ function GeneralTab({ m }: { m: RemoteModel }) {
         </Row>
       </Section>
 
-      <Section title={tr("trustedDevicesTitle")}>
+      {!m.preLogin && <Section title={tr("trustedDevicesTitle")}>
         <div className="trusted-list" aria-busy={trustedDevices === null && !m.trustedDevicesFailed}>
           {m.trustedDevicesFailed && <div className="card-pad">
             <div role="alert">{tr("trustedDevicesLoadFailed")}</div>
@@ -267,7 +267,7 @@ function GeneralTab({ m }: { m: RemoteModel }) {
             </div>
           ))}
         </div>
-      </Section>
+      </Section>}
 
       <Section title={tr("sessionSection")}>
         <Row title={tr("refresh")} sub={tr("refreshStreamSub")} icon={<IconRefresh />}>

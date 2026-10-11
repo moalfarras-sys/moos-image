@@ -1,0 +1,27 @@
+[Unit]
+Description=Mo PC Remote on the MoOS login screen
+ConditionUser=plasmalogin
+ConditionPathExists=/var/lib/mo-remote-greeter/enabled.json
+After=plasma-login-kwin_wayland.service mo-remote-greeter-portal.service
+Requires=mo-remote-greeter-portal.service
+BindsTo=plasma-login-kwin_wayland.service
+PartOf=plasma-login-wayland.target
+StartLimitIntervalSec=300
+StartLimitBurst=5
+
+[Service]
+ExecStart=/usr/libexec/mo-remote-start
+Environment=MOREMOTE_PRELOGIN=1
+Environment=MOREMOTE_DATA_DIR=/var/lib/mo-remote-greeter/data
+Environment=DOTNET_EnableDiagnostics=0
+Environment=DBUS_SESSION_BUS_ADDRESS=unix:path=%t/bus
+Environment=XDG_RUNTIME_DIR=%t
+Environment=XDG_CURRENT_DESKTOP=KDE
+Environment=QT_QPA_PLATFORM=wayland
+Restart=on-failure
+RestartSec=3
+TimeoutStopSec=5s
+TimeoutStopFailureMode=kill
+
+[Install]
+WantedBy=plasma-login-wayland.target

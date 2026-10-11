@@ -23,6 +23,7 @@ public sealed class InputInjector : IDisposable
     // reconnect between edges must not leave a button held in the uinput device.
     private readonly HashSet<ushort> _fallbackPressed = [];
     private volatile bool _disposed;
+    private readonly bool _preLogin = Environment.GetEnvironmentVariable("MOREMOTE_PRELOGIN") == "1";
     private Socket? _socket;
     private string _lastError = "";
     private string _secureError = "";
@@ -143,10 +144,11 @@ public sealed class InputInjector : IDisposable
 
     public bool IsReady => !_disposed && (_portal.IsReady ||
         (_capture.InputBounds.Width > 0 && _capture.InputBounds.Height > 0 && EnsureConnectedLocked()));
+    public bool SecureTextReady => !_disposed && _portal.IsReady && _portal.Keymap is not null;
     public string BackendName => _portal.IsReady
         ? _portal.BackendName
-        : "ydotoold/uinput fallback (relative)";
-    public bool? SessionLocked => _portal.SessionLocked;
+        : _preLogin ? "MoOS native session input (EIS unavailable)" : "ydotoold/uinput fallback (relative)";
+    public bool? SessionLocked => _preLogin ? true : _portal.SessionLocked;
 
     public bool TypeTextSecure(string text)
     {
@@ -522,6 +524,7 @@ public sealed class InputInjector : IDisposable
     public void TypeText(string text)
     {
         if (string.IsNullOrEmpty(text)) return;
+        if (_preLogin) { TypeTextSecure(text); return; }
 
         lock (_textBuf)
         {
@@ -795,7 +798,7 @@ public sealed class InputInjector : IDisposable
 
     private bool EnsureConnected(bool force = false)
     {
-        if (_disposed) return false;
+        if (_disposed || _preLogin) return false;
         if (_socket != null) return true;
         if (!force && DateTimeOffset.UtcNow - _lastConnectAttempt < TimeSpan.FromSeconds(1)) return false;
         _lastConnectAttempt = DateTimeOffset.UtcNow;

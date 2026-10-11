@@ -1,0 +1,20 @@
+[Unit]
+Description=Mo PC Remote login-screen desktop portal
+ConditionUser=plasmalogin
+ConditionPathExists=/var/lib/mo-remote-greeter/enabled.json
+After=plasma-login-kwin_wayland.service plasma-xdg-desktop-portal-kde.service mo-remote-greeter-session.service
+Requires=mo-remote-greeter-session.service
+Wants=plasma-xdg-desktop-portal-kde.service pipewire.service wireplumber.service
+BindsTo=plasma-login-kwin_wayland.service
+PartOf=plasma-login-wayland.target
+
+[Service]
+# The vendor frontend requires graphical-session.target, which the native
+# login manager does not start. Keep the original backend and authentication.
+Type=dbus
+BusName=org.freedesktop.portal.Desktop
+ExecStart=/usr/libexec/xdg-desktop-portal
+Environment=XDG_CURRENT_DESKTOP=KDE
+EnvironmentFile=-/etc/locale.conf
+TimeoutStopSec=5s
+TimeoutStopFailureMode=kill

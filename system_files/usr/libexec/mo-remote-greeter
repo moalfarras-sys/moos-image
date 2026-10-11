@@ -1,0 +1,339 @@
+#!/usr/bin/python3
+"""Administrator-owned opt-in for Remote on the native MoOS login screen.
+
+PINs travel on stdin only. No account password, arbitrary path, shell command,
+public listener, PAM change or automatic enrollment is accepted here.
+"""
+import argparse
+import fcntl
+import json
+import os
+from pathlib import Path
+import pwd
+import re
+import stat
+import subprocess
+import sys
+import tempfile
+from urllib.parse import urlsplit
+
+STATE = Path("/var/lib/mo-remote-greeter")
+MARKER = STATE / "enabled.json"
+DATA = STATE / "data"
+AGENT = "/usr/lib/mo-remote/MoRemotePersonal"
+TAILSCALE = "/usr/bin/tailscale"
+APP_ID = "org.moos.remote"
+UNITS = ("mo-remote-greeter.service", "mo-remote-greeter-portal.service",
+         "mo-remote-greeter-session.service")
+
+
+class Refused(Exception):
+    pass
+
+
+def command(argv, *, input=None, timeout=10):
+    return subprocess.run(argv, input=input, text=True, capture_output=True,
+                          timeout=timeout, env={"PATH": "/usr/bin:/usr/sbin", "LANG": "C.UTF-8"})
+
+
+def greeter():
+    account = pwd.getpwnam("plasmalogin")
+    if not 0 < account.pw_uid < 1000:
+        raise Refused("unsupported_login")
+    return account
+
+
+def private_directory(path, uid, gid, mode, *, create=False):
+    if create:
+        try:
+            path.mkdir(mode=mode)
+            os.chown(path, uid, gid, follow_symlinks=False)
+        except FileExistsError:
+            pass
+    info = path.lstat()
+    if not stat.S_ISDIR(info.st_mode) or info.st_uid != uid or stat.S_IMODE(info.st_mode) != mode:
+        raise Refused("unsafe_state")
+
+
+def read_json(path, uid, mode, limit=4096):
+    fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
+    try:
+        info = os.fstat(fd)
+        if (not stat.S_ISREG(info.st_mode) or info.st_uid != uid
+                or stat.S_IMODE(info.st_mode) != mode or info.st_nlink != 1
+                or info.st_size > limit):
+            raise Refused("unsafe_state")
+        value = json.loads(os.read(fd, limit + 1))
+        if not isinstance(value, dict):
+            raise Refused("unsafe_state")
+        return value
+    finally:
+        os.close(fd)
+
+
+def write_json(path, value, uid, gid, mode):
+    # Parent ownership is checked by the caller. Never truncate a predictable
+    # filename, follow a symlink, or chmod/chown the replaced destination.
+    fd, temporary = tempfile.mkstemp(prefix=".new-", dir=path.parent)
+    try:
+        os.fchmod(fd, mode)
+        os.fchown(fd, uid, gid)
+        with os.fdopen(fd, "w", encoding="utf-8") as stream:
+            json.dump(value, stream)
+            stream.flush()
+            os.fsync(stream.fileno())
+        os.replace(temporary, path)
+    finally:
+        if os.path.lexists(temporary):
+            os.unlink(temporary)
+
+
+def marker_value():
+    private_directory(STATE, 0, 0, 0o755)
+    value = read_json(MARKER, 0, 0o644)
+    if (type(value.get("schema")) is not int or value["schema"] != 1 or type(value.get("owner_uid")) is not int
+            or value["owner_uid"] < 1000 or type(value.get("port")) is not int
+            or not 1024 <= value["port"] <= 65525):
+        raise Refused("unsafe_state")
+    return value
+
+
+def status():
+    try:
+        value = marker_value()
+        return {"enabled": True, "owner_uid": value["owner_uid"], "port": value["port"]}
+    except FileNotFoundError:
+        return {"enabled": False}
+    except (Refused, OSError, ValueError):
+        return {"enabled": False, "error": "unsafe_state"}
+
+
+def private_tls_proxy(serve, node, port):
+    """Interpret the actual Serve JSON; text substrings cannot prove a route."""
+    if not isinstance(serve, dict) or not isinstance(node, dict) or node.get("BackendState") != "Running":
+        return False
+    own = node.get("Self")
+    if not isinstance(own, dict) or not isinstance(own.get("DNSName"), str):
+        return False
+    name = own["DNSName"].rstrip(".")
+    if not re.fullmatch(r"[a-zA-Z0-9.-]+\.ts\.net", name):
+        return False
+    # A public community service may share this node. Refuse public access to
+    # Remote itself, including another HTTPS port/path proxying to its listener.
+    # Uninterpretable public transports/configuration still fail closed.
+    funnel = serve.get("AllowFunnel", {})
+    if not isinstance(funnel, dict) or any(type(value) is not bool for value in funnel.values()):
+        return False
+    tcp_map, web_map = serve.get("TCP"), serve.get("Web")
+    if not isinstance(tcp_map, dict) or not isinstance(web_map, dict):
+        return False
+    for endpoint, public in funnel.items():
+        if not public:
+            continue
+        match = re.fullmatch(r"[a-zA-Z0-9.-]+\.ts\.net:([0-9]{1,5})", endpoint) if isinstance(endpoint, str) else None
+        if not match or not 1 <= int(match[1]) <= 65535 or endpoint == name + ":443":
+            return False
+        public_tcp = tcp_map.get(match[1])
+        public_web = web_map.get(endpoint)
+        if (not isinstance(public_tcp, dict) or public_tcp.get("HTTPS") is not True
+                or public_tcp.get("TCPForward") is not None
+                or not isinstance(public_web, dict) or not isinstance(public_web.get("Handlers"), dict)):
+            return False
+        for handler in public_web["Handlers"].values():
+            if not isinstance(handler, dict):
+                return False
+            if "Proxy" not in handler:
+                continue
+            try:
+                target = urlsplit(handler["Proxy"])
+                if (target.scheme not in ("http", "https") or not target.hostname
+                        or target.username is not None or target.password is not None
+                        or target.port == port):
+                    return False
+            except (ValueError, TypeError, AttributeError):
+                return False
+    tcp, web = tcp_map.get("443"), web_map.get(name + ":443")
+    if not isinstance(tcp, dict) or not isinstance(web, dict) or not isinstance(web.get("Handlers"), dict):
+        return False
+    root = web["Handlers"].get("/")
+    if not isinstance(root, dict):
+        return False
+    return tcp.get("HTTPS") is True and root.get("Proxy") in (
+        f"http://127.0.0.1:{port}", f"http://localhost:{port}")
+
+
+def require_tls(port):
+    try:
+        serve = command([TAILSCALE, "serve", "status", "--json"], timeout=5)
+        node = command([TAILSCALE, "status", "--json"], timeout=5)
+        if (serve.returncode or node.returncode
+                or not private_tls_proxy(json.loads(serve.stdout), json.loads(node.stdout), port)):
+            raise Refused("private_tls_required")
+    except (OSError, ValueError, TypeError, AttributeError, subprocess.SubprocessError):
+        raise Refused("private_tls_required") from None
+
+
+def user_command(account, args, *, input=None, timeout=10):
+    runtime = f"/run/user/{account.pw_uid}"
+    return command(["/usr/sbin/runuser", "-u", account.pw_name, "--", "/usr/bin/env",
+                    f"HOME={account.pw_dir}", f"XDG_RUNTIME_DIR={runtime}",
+                    f"DBUS_SESSION_BUS_ADDRESS=unix:path={runtime}/bus",
+                    f"MOREMOTE_DATA_DIR={DATA}", *args], input=input, timeout=timeout)
+
+
+def bus_present(account):
+    path = Path(f"/run/user/{account.pw_uid}/bus")
+    try:
+        info = path.lstat()
+        return stat.S_ISSOCK(info.st_mode) and info.st_uid == account.pw_uid
+    except FileNotFoundError:
+        return False
+
+
+def permission_args(allowed):
+    # These are permission-store verbs, never app install/remove/update verbs.
+    # Keep the exact account/table/entry/application boundary in one place.
+    return (["permission-set", "kde-authorized", "remote-desktop", APP_ID, "yes"]
+            if allowed else ["permission-remove", "kde-authorized", "remote-desktop", APP_ID])
+
+
+def retire(account):
+    # Removing authority comes FIRST: a failure or reboot cannot resume Remote.
+    MARKER.unlink(missing_ok=True)
+    if not bus_present(account):
+        return
+    stopped = user_command(account, ["/usr/bin/systemctl", "--user", "stop", *UNITS], timeout=25)
+    if stopped.returncode:
+        raise Refused("stop_failed")
+    for unit in UNITS[:2]:
+        result = user_command(account, ["/usr/bin/systemctl", "--user", "show", unit,
+                                       "--property=ActiveState", "--value"])
+        if result.returncode or result.stdout.strip() not in ("inactive", "failed"):
+            raise Refused("stop_failed")
+    # No root access to the greeter's permission database. The account revokes
+    # only its named Remote grant; next greeter startup repeats that revocation
+    # even when the account/bus did not exist during this disable.
+    user_command(account, ["/usr/bin/flatpak", *permission_args(False)])
+
+
+def validate_request(value):
+    if not isinstance(value, dict) or set(value) != {"port", "pin"}:
+        raise Refused("invalid_request")
+    if type(value["port"]) is not int or not 1024 <= value["port"] <= 65525:
+        raise Refused("invalid_request")
+    if not isinstance(value["pin"], str) or not re.fullmatch(r"[0-9]{6}", value["pin"]):
+        raise Refused("invalid_pin")
+    return value["port"], value["pin"]
+
+
+def change(action, request):
+    if os.geteuid() != 0:
+        raise Refused("administrator_required")
+    owner = os.environ.get("PKEXEC_UID", "")
+    if not owner.isascii() or not owner.isdigit() or int(owner) < 1000:
+        raise Refused("administrator_required")
+    owner_uid = int(owner)
+    pwd.getpwuid(owner_uid)  # No invented account or caller-selected home/path.
+    account = greeter()
+    if Path("/etc/systemd/system/display-manager.service").resolve().name != "plasmalogin.service":
+        raise Refused("unsupported_login")
+    port, pin = validate_request(request) if action == "enable" else (None, None)
+    if port is not None:
+        require_tls(port)  # A failed prerequisite does not stop existing Remote.
+    private_directory(STATE, 0, 0, 0o755, create=True)
+    lock_fd = os.open(STATE / ".lock", os.O_RDWR | os.O_CREAT | os.O_NOFOLLOW | os.O_NONBLOCK, 0o600)
+    try:
+        lock_info = os.fstat(lock_fd)
+        if (not stat.S_ISREG(lock_info.st_mode) or lock_info.st_uid != 0
+                or stat.S_IMODE(lock_info.st_mode) != 0o600 or lock_info.st_nlink != 1):
+            raise Refused("unsafe_state")
+        fcntl.flock(lock_fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        retire(account)
+        private_directory(DATA, account.pw_uid, account.pw_gid, 0o700, create=True)
+        # This replaces only the greeter's private config, invalidating every
+        # former trusted device. Account configurations are never touched.
+        settings = {"Port": port or 8765, "PinHash": "", "TrustedDevices": [],
+                    "AllowLan": False, "NeverLock": False}
+        write_json(DATA / "config.dat", settings, account.pw_uid, account.pw_gid, 0o600)
+        if action == "disable":
+            return {"enabled": False}
+        result = user_command(account, [AGENT, "--set-pin"], input=pin + "\n", timeout=20)
+        if result.returncode:
+            raise Refused("provision_failed")
+        config = read_json(DATA / "config.dat", account.pw_uid, 0o600, 65536)
+        if (config.get("Port") != port or not isinstance(config.get("PinHash"), str)
+                or not config["PinHash"].startswith("$argon2id$v=19$m=65536,t=3,p=2$")
+                or config.get("TrustedDevices") or config.get("AllowLan") or config.get("NeverLock")):
+            raise Refused("provision_failed")
+        require_tls(port)  # Recheck the proxy after the bounded provisioning step.
+        write_json(MARKER, {"schema": 1, "owner_uid": owner_uid, "port": port}, 0, 0, 0o644)
+        if bus_present(account):
+            target = user_command(account, ["/usr/bin/systemctl", "--user", "is-active", "--quiet",
+                                            "plasma-login-wayland.target"])
+            if target.returncode == 0:
+                start = user_command(account, ["/usr/bin/systemctl", "--user", "reset-failed", *UNITS])
+                start = user_command(account, ["/usr/bin/systemctl", "--user", "start", UNITS[0]], timeout=25)
+                if start.returncode:
+                    retire(account)
+                    raise Refused("start_failed")
+        return {"enabled": True, "owner_uid": owner_uid, "port": port}
+    finally:
+        os.close(lock_fd)
+
+
+def session():
+    account = greeter()
+    if os.geteuid() != account.pw_uid:
+        raise Refused("greeter_required")
+    current = status()
+    permission_env = ["/usr/bin/env", f"HOME={account.pw_dir}", f"XDG_RUNTIME_DIR=/run/user/{account.pw_uid}",
+                      f"DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/{account.pw_uid}/bus"]
+    if not current.get("enabled"):
+        command([*permission_env, "/usr/bin/flatpak", *permission_args(False)])
+        if current.get("error"):
+            raise Refused(current["error"])
+        return current
+    private_directory(DATA, account.pw_uid, account.pw_gid, 0o700)
+    config = read_json(DATA / "config.dat", account.pw_uid, 0o600, 65536)
+    if not config.get("PinHash") or config.get("Port") != current["port"]:
+        raise Refused("provision_failed")
+    display = command(["/usr/libexec/moos-wayland-display"], timeout=6)
+    if display.returncode or not re.fullmatch(r"wayland-[A-Za-z0-9._-]+", display.stdout.strip()):
+        raise Refused("wayland_required")
+    os.environ["WAYLAND_DISPLAY"] = display.stdout.strip()
+    os.environ["XDG_CURRENT_DESKTOP"] = "KDE"
+    # command() intentionally strips caller environment. Here these two exact
+    # values are the ones imported into the actual greeter user manager.
+    result = command(["/usr/bin/env", f"WAYLAND_DISPLAY={display.stdout.strip()}", "XDG_CURRENT_DESKTOP=KDE",
+                      f"DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/{account.pw_uid}/bus",
+                      "/usr/bin/systemctl", "--user", "import-environment", "WAYLAND_DISPLAY", "XDG_CURRENT_DESKTOP"])
+    grant = command([*permission_env, "/usr/bin/flatpak", *permission_args(True)])
+    if result.returncode or grant.returncode:
+        raise Refused("permission_failed")
+    return current
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("action", choices=("status", "enable", "disable", "session"))
+    args = parser.parse_args()
+    try:
+        if args.action == "status":
+            answer = status()
+        elif args.action == "session":
+            answer = session()
+        else:
+            raw = sys.stdin.buffer.read(1025) if args.action == "enable" else b""
+            if len(raw) > 1024:
+                raise Refused("invalid_request")
+            answer = change(args.action, json.loads(raw) if raw else None)
+        print(json.dumps(answer))
+        return 0
+    except (Refused, OSError, ValueError, KeyError, subprocess.SubprocessError) as exc:
+        # Never echo request bodies, credentials, child output or exception text.
+        print(json.dumps({"error": str(exc) if isinstance(exc, Refused) else "operation_failed"}))
+        return 1
+
+
+if __name__ == "__main__":
+    sys.exit(main())

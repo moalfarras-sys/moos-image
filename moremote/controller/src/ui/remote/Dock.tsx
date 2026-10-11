@@ -37,14 +37,14 @@ export function Dock({ m }: { m: RemoteModel }) {
           <button type="button" className="dock-btn" onClick={m.openKeyboard}>
             <IconKeyboard /><span>{tr("keyboardWorkspace")}</span>
           </button>
-          <button type="button" className="dock-btn moos" onClick={m.openActions}
+          {!m.preLogin && <button type="button" className="dock-btn moos" onClick={m.openActions}
                   aria-label={m.hostKind === "windows" ? tr("windowsActionsTitle") : tr("moosActionsTitle")}>
             <IconMoos /><span>{tr("dockMoos")}</span>
-          </button>
-          <button type="button" className="dock-btn" onClick={() => m.openTransfer("clipboard")}
+          </button>}
+          {!m.preLogin && <button type="button" className="dock-btn" onClick={() => m.openTransfer("clipboard")}
                   aria-label={tr("transferTitle")}>
             <IconTransfer /><span>{tr("dockTransfer")}</span>
-          </button>
+          </button>}
           {m.rail && m.controlMode === "desktop" && (
             <button type="button" className="dock-btn" onClick={m.fullscreen} aria-label={tr("fullscreen")}>
               <IconFullscreen /><span>{tr("dockFullscreen")}</span>

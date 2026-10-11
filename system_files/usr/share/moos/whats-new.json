@@ -3,8 +3,37 @@
   "_": "What a person can SEE or DO after an update, newest first. One entry per user-visible change, written for the owner of the machine, not for a developer: what it is, where it is, and (when MoOS has a route to it) a way to try it now. 'merged' is when the change reached main (a little later is fine, earlier is not: an entry dated before a machine's previous system is never marked new there); a machine marks an entry new when the system it ran BEFORE the update was built earlier than that. tests/test_whats_new.py reads every entry the way MoOS Settings will.",
   "entries": [
     {
+      "id": "gtk-readable-secondary-ink",
+      "merged": "2026-10-11T11:10:00Z",
+      "glyph": "ui",
+      "title": {
+        "ar": "تعليمات أوضح في تطبيقات MoOS",
+        "en": "Clearer instructions in MoOS apps"
+      },
+      "body": {
+        "ar": "أصبحت النصوص الثانوية في تطبيقات MoOS أوضح؛ أزيل تخفيف إضافي كان يجعل التعليمات تبدو معطّلة، مع الحفاظ على ألوان النظام.",
+        "en": "Secondary text in MoOS apps is easier to read. An extra dimming layer made instructions look disabled; the system colours are preserved."
+      }
+    },
+    {
+      "id": "remote-sign-in-after-reboot",
+      "merged": "2026-10-11T11:00:00Z",
+      "glyph": "lock",
+      "route": "moos://settings/remote",
+      "title": {
+        "ar": "الدخول إلى MoOS من الهاتف بعد إعادة التشغيل",
+        "en": "Sign in to MoOS from your phone after reboot"
+      },
+      "body": {
+        "ar": "من Mo PC Remote يمكنك تفعيل الوصول إلى شاشة الدخول عبر رابط Tailscale الخاص، برمز مستقل وصلاحية المسؤول. تختار حسابك وتكتب كلمة مروره داخل شاشة MoOS؛ الملفات والحافظة والصوت غير متاحة قبل الدخول. زر إيقاف يلغي تفعيل شاشة الدخول أيضًا.",
+        "en": "In Mo PC Remote, enable login-screen access through your private Tailscale address with a separate PIN and administrator authorization. Select your account and enter its password inside MoOS; files, clipboard and audio are unavailable before login. Stop also disables login-screen enrollment."
+      }
+    },
+    {
       "id": "arm-memory-pressure-monitoring",
-      "arch": ["aarch64"],
+      "arch": [
+        "aarch64"
+      ],
       "merged": "2026-10-11T00:30:00Z",
       "glyph": "lock",
       "title": {

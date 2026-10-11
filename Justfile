@@ -252,6 +252,7 @@ check:
     python3 tests/test_remote_frame_pacer.py
     python3 tests/test_remote_connection_lifecycle.py
     python3 tests/test_remote_start_lifecycle.py
+    python3 tests/test_remote_prelogin_management.py
     python3 tests/test_remote_async_lifecycle.py
     python3 tests/test_remote_logout_revocation.py
     python3 tests/test_remote_dotnet_dependencies.py

@@ -13,6 +13,7 @@ namespace MoRemote;
 public sealed class InputInjector : IDisposable
 {
     public bool IsReady => true;
+    public bool SecureTextReady => true;
     public string BackendName => "Win32 SendInput";
     public string LastError => "";
     /// <summary>Set true when running as the SYSTEM service worker, so injection follows the input desktop.</summary>

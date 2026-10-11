@@ -115,6 +115,7 @@ export interface RemoteModel {
   inputRef: RefObject<HTMLInputElement | null>;
   secureTyping: boolean;
   hostLocked: boolean | null;
+  preLogin: boolean;
   secureKeyboardAvailable: boolean;
   toggleSecureTyping: () => void;
   mods: Set<string>;

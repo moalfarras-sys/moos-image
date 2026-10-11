@@ -543,15 +543,25 @@ def load_layouts(refresh_keymaps=False):
     if rebuild:
         layout_state["keymaps_built"] = True
         try:
-            keymaps = build_keymaps(codes)
+            # --locale1 makes the greeter use the system keyboard, while its
+            # KConfig defaults still describe the desktop's ara,de groups.
+            # A greeter password must use the actual EIS device map, never that
+            # unrelated file or a clipboard fallback. Keep ordinary desktop
+            # layout switching on its existing reviewed configuration path.
+            if os.environ.get("MOREMOTE_PRELOGIN") == "1":
+                keymaps = (build_eis_keymaps(codes, eis.keyboard_keymap())
+                           if eis is not None else None)
+            else:
+                keymaps = build_keymaps(codes)
             compose = keymap_composition(keymaps) if keymaps else []
         except Exception as e:  # keymap introspection must never stop video or the rest of input
             keymaps, compose = None, []
             emit(type="warn", warn=f"live keymap failed: {e}")
         layout_state["keymaps"], layout_state["compose"] = keymaps, compose
         if keymaps is None:
-            emit(type="warn", warn="the running keymap could not be reproduced from kxkbrc; "
-                                   "typed text is delivered by exact paste")
+            emit(type="warn", warn=("native greeter keymap unavailable; secure typing is unavailable"
+                 if os.environ.get("MOREMOTE_PRELOGIN") == "1" else
+                 "the running keymap could not be reproduced from kxkbrc; typed text is delivered by exact paste"))
     if rebuild or codes != previous_codes or current != previous_current:
         event = dict(type="layouts", codes=codes, current=current, arabic=layout_state["ara"],
                      us=layout_state["us"], toggle=layout_state["toggle"])
@@ -801,6 +811,7 @@ def _xkb_library():
             ("xkb_context_new", vp, [ctypes.c_int]),
             ("xkb_context_unref", None, [vp]),
             ("xkb_keymap_new_from_names", vp, [vp, ctypes.POINTER(RuleNames), ctypes.c_int]),
+            ("xkb_keymap_new_from_string", vp, [vp, ctypes.c_char_p, ctypes.c_int, ctypes.c_int]),
             ("xkb_keymap_unref", None, [vp]),
             ("xkb_keymap_num_layouts", u32, [vp]),
             ("xkb_keymap_num_levels_for_key", u32, [vp, u32, u32]),
@@ -876,6 +887,33 @@ def build_keymaps(codes, config=None):
         if not keymap or lib.xkb_keymap_num_layouts(keymap) != len(codes):
             return None
         return [_group_keymap(lib, keymap, group, code) for group, code in enumerate(codes)]
+    finally:
+        if keymap:
+            lib.xkb_keymap_unref(keymap)
+        lib.xkb_context_unref(context)
+
+
+def build_eis_keymaps(codes, data):
+    """Bounded actual XKB v1 input. Refuse incomplete or mismatched devices."""
+    if not data or len(data) > 1024 * 1024 or len(codes) != 1:
+        return None
+    # EIS supplies a byte-sized map; unlike wl_keyboard it need not include a
+    # terminal NUL. ctypes supplies that terminator for libxkbcommon's C API.
+    data = data.removesuffix(b"\0")
+    if not data or b"\0" in data:
+        return None
+    lib = _xkb_library()
+    if lib is None:
+        return None
+    context = lib.xkb_context_new(0)
+    if not context:
+        return None
+    keymap = None
+    try:
+        keymap = lib.xkb_keymap_new_from_string(context, data, 1, 0)
+        if not keymap or lib.xkb_keymap_num_layouts(keymap) != 1:
+            return None
+        return [_group_keymap(lib, keymap, 0, codes[0])]
     finally:
         if keymap:
             lib.xkb_keymap_unref(keymap)
@@ -2217,10 +2255,18 @@ emit(type="ready", backend="MoOS native session input (EIS)" if input_only else
 loop = GLib.MainLoop()
 if eis is not None:
     eis_available = eis.ready
+    eis_keyboard = eis.keyboard_device
     def dispatch_eis(_fd, _condition):
-        global eis_available
+        global eis_available, eis_keyboard
         try:
             eis.dispatch()
+            keyboard = eis.keyboard_device
+            if os.environ.get("MOREMOTE_PRELOGIN") == "1" and keyboard != eis_keyboard:
+                eis_keyboard = keyboard
+                # The old device's map must not outlive it, even if the new
+                # device is ready in the same dispatch or metadata is missing.
+                emit(type="layouts", current=-1, keymaps=None, compose=[])
+                load_layouts(refresh_keymaps=True)
             available = eis.ready
             if available != eis_available:
                 eis_available = available

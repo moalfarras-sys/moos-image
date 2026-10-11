@@ -1,25 +1,25 @@
 # MoOS current state — updated 2026-10-11
 
 Oracle A1 and the physical NVIDIA workstation develop one MoOS product.
-Source, promoted artifacts, staged deployments and actual booted systems are
-separate evidence. The only backlog is [DEVELOPMENT_PLAN.md](docs/DEVELOPMENT_PLAN.md).
-The owner handoff is [OWNER_EXECUTION_20261009_AR.md](docs/OWNER_EXECUTION_20261009_AR.md).
+Source, promoted artifacts, staged/booted systems are separate evidence; backlog: [DEVELOPMENT_PLAN.md](docs/DEVELOPMENT_PLAN.md).
 
-## Current owner reliability development (not delivered)
+## Current owner development (delivery pending)
 
-Topic `feat/owner-reliability-20261011` starts at `a76c4dd1`; nothing new is delivered.
-Native 30 s: NVIDIA 7.7–8.6 GiB available/zero memory PSI, GPU 0–3%/2.2 GiB VRAM;
-stopped MoPlayer 4.2% core; Code dominates RAM; Baloo 26% core indexing 427k files.
-Only generated `~/moos-wt/` copies are excluded; main/source/branches are preserved.
-The after sample overlapped gates, not a causal benchmark. Oracle: 8.7 GiB available.
-ARM vendor monitoring policy/native boot readback are added in source; native package
-and 256 MiB negative/positive pressure controls pass on both hosts (22.25/31.42 s,
-sentinel survives, kernel OOM=0, clean fixture retirement). Whole-machine/latency proof
-is still owed; .749 remains globally unmonitored until delivery. Earlier failures stay.
-Fresh canary 38096160112 refuses the 6.7.5-only logout SDK on 6.7.91. Two exact SRPM
-pins/38 controls and inactive-store input equality (1,274 modules)/9 controls pass;
-complete canary/native-package/greeter acceptance is pending, stable 6.8.0 refused.
-Remote first login is not implemented; see P5.7/P6.7/P2.17 and ignored owner-reliability-20261011 evidence.
+Reliability PR224 at `3abe787a` is promoted: x86 38136731168, ARM 38128647066. Local image `90fae1cabecd` and 246 source gates pass; NVIDIA .1026 is staged, ARM .752 booted/accepted.
+Canary 38099434894 passes reviewed 6.7.91/12 seams, native RPM/greeter and
+final image gates; stable 6.8.0 stays unreviewed/refused.
+Native 30 s: NVIDIA 7.7–8.6 GiB available, PSI=0, GPU 0–3%/2.2 GiB VRAM;
+Code dominates RAM; stopped MoPlayer 4.2% core; Baloo 26% indexing 427k files.
+Generated `~/moos-wt/` copies excluded; no causal after-benchmark yet.
+ARM boot guard/256 MiB pressure controls pass both hosts (22.25/31.42 s,
+sentinel survives, kernel OOM=0); ARM native monitoring passes after signed boot; NVIDIA reboot remains.
+Remote topic has restricted/scoped v57 source; installed stations lack pre-login Remote.
+Private .1022/r10 guest passes repeated cold PAM login, account handoff/logout,
+real decoded frames and scoped trust; AR/EN renders/seven .NET projects pass.
+Native masked-PIN validation/close clearing and GTK ink correction pass;
+managed opt-in/units and real listener/trust revocation pass native VM controls;
+disabled cold boot stays off. Full local image `5ce19e082374` passes/31 files match;
+Oracle's separate public Community/private Remote passes actual old/fixed TLS controls; greeter enrollment TLS is fixture-only; signed/hardware/phone acceptance remains P2.17.
 
 ## Source and promoted delivery
 
@@ -31,17 +31,17 @@ installer mount or rollback guard was weakened.
 
 | Edition | Version | Proven signed digest |
 | --- | --- | --- |
-| Desktop | 44.20261010.1022 | 8134f32a09ab4ff2301554a7bac16858e7d48d907ec7bd48631b5fd35e97fef1 |
-| NVIDIA | 44.20261010.1022 | 4abf5afd9bedc52aba992c81e93b9ae3b7fbed8274643be5e88e75d81eafaa4c |
-| Cloud x86 | 44.20261010.1022 | 691a6bd9da96a18fc0acce11fd037ff21b95d9b75207fed6c2913f334cb6ede5 |
-| ARM | 44.20261010.749 | 3b6e9edf7a9d852c84fbaef6b6606b49b1e039fb4bf241c3fd0699197fd25ed6 |
+| Desktop | 44.20261011.1026 | a1ac3c6b0eec756f2d20f238abb1896ba8f7e25228cc2e8458952201ffe7524a |
+| NVIDIA | 44.20261011.1026 | 782032d1739b775d7f673bc8e91c858e5246a5cd2d631b3944c470a99b98046e |
+| Cloud x86 | 44.20261011.1026 | aa2d4fefa1c45d3cb2f6bc08d5c0ad73b7b890cef3f5aad52e86221425b2143a |
+| ARM | 44.20261011.752 | e621e284e05e0745722c15e1786d96e01c52538fe807092e40d1ca954bc6a394 |
 
-All exact proofs passed on attempt 1: signed x86 build 38042999495;
-generic/NVIDIA/cloud disks 38051449009, 38051451818, 38051454259;
-final offline ISO install/installed boot/shutdown 38051456847;
-x86 promotion 38053736733; ARM build/disk/two boots/promotion 38042996902.
-Later scheduled ARM run 38055271505 built an image but skipped disk/promotion;
-it is not a new release. This documentation branch is not new OS runtime code.
+Latest exact proofs pass on attempt 1: signed x86 build 38128732396;
+generic/NVIDIA/cloud disks 38133971240, 38133974055, 38133976682;
+final offline ISO install/installed boot/shutdown 38133979283;
+x86 promotion 38136731168; ARM build/disk/two boots/promotion 38128647066.
+Both ARM boots prove actual system/native-user memory monitoring, failed units=0.
+The qualified .1026 ISO is not yet the public .1022 download or a pre-login Remote release.
 
 ## Physical NVIDIA workstation
 
@@ -71,14 +71,14 @@ prove spoken voice, every action, media playback or hardware endurance.
 
 ## Oracle A1
 
-Oracle rebooted into signed ARM .749 (`3b6e9edf…`), boot ID
-`9bc626eb-1aae-404d-a343-1522984b36af`; signed .733 is retained for rollback.
-Native graphical-context acceptance at 22:18:34 UTC passed 51 selfchecks,
-55 post-update checks, all 12 runtime hashes and no failed units. Initial
-autostart evidence retains early transient container-health failures and a
-launcher inspection race; the later unchanged checks pass after actual service
-convergence. Four containers are healthy and all four private HTTPS routes
-return their application/login/ping responses. An SSH shell
+Oracle rebooted into signed ARM .752 (`e621e284…`), boot ID
+`8506a4e3-46ff-46cd-9a41-f9d26fec5476`; signed .749 is retained for rollback.
+Native graphical-context acceptance at 12:10:24 UTC passed 51 selfchecks,
+55 post-update checks, all 14 runtime hashes and no failed units. Actual system
+and native-user oomd monitoring pass; boot=14.616 s, network=connected/full.
+Four containers remain healthy; Community and personal Remote are active.
+Kernel retains audit throttling/accountsd/bootupd metadata warnings; bootloader update succeeds/latest. Earlier failures remain recorded.
+Existing private account HTTPS passes certificate-verified readback. An SSH shell
 omits Plasma's XDG cascade and is not an authoritative desktop-theme probe.
 Arabic session/UI2 Nova is distinct from system fallback `C.UTF-8`.
 
@@ -86,7 +86,7 @@ Files, photos, database/cache, SMB, IDE and Remote are existing owner services;
 no data directories or ingress routes were removed. The completed R2 upload
 scratch was retired after matching its full hash to the qualified public proof,
 reclaiming 5,827,068,083 bytes; writable /var now has about 35 GiB free.
-The station's systemd-oomd still monitors no cgroup, an explicit P5.7 gap.
+System-wide pressure/frame/audio recovery and weak-device endurance remain P5.7 gaps.
 
 Owner-authorized persistent native SSH now uses a dedicated workstation-only
 Ed25519 key, verified server host key, password-disabled existing sshd and
@@ -140,9 +140,9 @@ hash/signature/range verification passed at 22:10:02 UTC; both sidecars match.
 The paired frontend is deployed as `fc9c2a50-0ae4-422b-b855-7d63c22fbd36`;
 download Worker `49a3c101-15ef-4dc0-91d5-5d9c4807b6c9` carries the .1022
 publication marker. All five CDN rules are live; 14 final routing checks pass.
-.1011's exact three objects were deleted (5,796,462,771 bytes). .1018 retains
-its original bytes until 2026-10-11 15:00 UTC; Oracle's guarded persistent
-retirement timer is due at 15:05 UTC. Scheduled deletion is not completed proof.
+.1011's exact three objects were deleted (5,796,462,771 bytes). .1018's original
+bytes survived the full grace period; guarded retirement at 15:05:09 UTC
+deleted only its three public objects (5,808,128,179 bytes); .1022 stays current.
 Public receipt: `docs/releases/2026-10-10-public-download-proof.json`.
 Worker source/native tests pass 21 cases, including
 immutable-path retirement, grace period, sidecars and >4 GiB resumes.
@@ -152,8 +152,8 @@ two ordinary password logins across clean shutdown/cold boot (51/0 twice),
 and wrong/correct lock-password refusal/unlock. It is distinct from the exact
 .1022 signed ISO CI proof. Strict offline manifest mismatch remains 54/1;
 all 261 uncompressed layers/runtime config match. No origin rewrite hides it.
-Desktop `~/سطح المكتب/صور MoOS` contains 3,724 unique actual image assets,
-including 12 unique .1022 CI captures and one actual installed .1022 Arabic
+Desktop `~/سطح المكتب/صور MoOS` contains 3,744 image assets, images only,
+including 12 new qualified .1026 CI captures and an actual installed .1022 Arabic
 community frame; images only. Native community frame/shutdown returns 0 with
 no null-context teardown error. Its deprecation/portal-registration warnings
 remain in evidence; this capture mode does not test the image picker or network. Private owner frames stay
@@ -188,8 +188,8 @@ local. CI English/small-screen fixtures are not owner Arabic hardware evidence.
 
 ## Evidence still owed
 
-P6.7 next-Plasma canary remains failed at run 37378905167; Plasma 6.8 is
-scheduled 14 October. Qt 6.12 LTS is released but not integrated/qualified.
+P6.7 reviewed next-Plasma canary 38099434894 passes 6.7.91/12 seams;
+stable 6.8.0 and Qt 6.12 are not integrated/qualified for signed delivery.
 Do not layer either over the signed image or widen a seam gate to pass it.
 Hardware boot visuals, suspend/hotplug/multi-monitor/laptops/touch, deliberately
 bad update recovery, full AR/EN accessibility/contrast/scale/motion matrix,

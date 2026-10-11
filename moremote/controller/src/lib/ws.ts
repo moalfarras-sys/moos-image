@@ -43,7 +43,7 @@ interface Handlers {
   /** Whether this close is an outage the connection will automatically recover from. */
   onClose?: (willReconnect: boolean) => void;
   onPong?: (rttMs: number) => void;
-  onInputState?: (ready: boolean, error?: string) => void;
+  onInputState?: (ready: boolean, error?: string, secureText?: boolean) => void;
   onHostState?: (locked: boolean | null) => void;
   /** Which codec the agent is producing right now. It can change mid-session: the helper drops to
    *  JPEG on its own if the hardware encoder will not open, and climbs back when it will. */
@@ -174,7 +174,8 @@ export class RemoteConnection {
             if (typeof m.t === "number") this.h.onPong?.(Math.max(0, performance.now() - m.t));
             break;
           case "inputState":
-            this.h.onInputState?.(!!m.ready,m.error);
+            if (typeof m.secureText === "boolean") this.secureKeyboard = m.secureText;
+            this.h.onInputState?.(!!m.ready,m.error,typeof m.secureText === "boolean" ? m.secureText : undefined);
             break;
           case "hostState":
             this.h.onHostState?.(typeof m.locked === "boolean" ? m.locked : null);

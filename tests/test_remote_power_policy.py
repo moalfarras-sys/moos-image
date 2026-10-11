@@ -18,8 +18,8 @@ checks = {
         '!= "moos-cloud"' in linux and "HostPowerAllowed" in linux,
     "the API does not enforce the edition policy before execution":
         "PowerActions.CanRun(action)" in api and 'error = "unavailable_on_edition"' in api,
-    "the status response does not advertise the power capability":
-        "hostPowerAllowed = PowerActions.HostPowerAllowed" in api,
+    "the status response does not retain both greeter refusal and the host edition policy":
+        "hostPowerAllowed = !svc.PreLogin && PowerActions.HostPowerAllowed" in api,
     "the phone does not gate the complete session/power surface in Cloud":
         'hostPowerAllowed ? <div className="grid">' in ui
         # The Cloud-managed fallback copy is now i18n-resolved at runtime: assert the binding exists.

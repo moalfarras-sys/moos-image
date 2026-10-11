@@ -134,10 +134,41 @@ Every release must prove all of the following, not merely compile:
 
 ### First login after cold boot (P2.17)
 
-This is an owner-requested target, **not current behaviour**. The existing
-user service requires a running Plasma session. A lock screen inside that
-session is a different boundary from the greeter before anyone signs in.
-Qualification uses a private signed-base ISO guest and synthetic credentials.
+The shipped user service requires a running Plasma session. The topic branch
+now has a restricted `MOREMOTE_PRELOGIN=1` protocol/UI profile and managed
+greeter opt-in/units; they are **not signed or delivered**. A lock screen
+inside an account remains a different boundary from first login.
+
+On 11 October a private installed .1022 ISO guest with the exact r10 payload
+passed actual decoded greeter frames, refused Remote PIN/ordinary PAM password,
+correct password via the actual controller, account handoff, confirmed native
+logout and greeter return across repeated cold boots. Browser credentials stay separate across the two
+profiles. AR/EN mobile renders are independently tested with intercepted
+transport. Both evidence types use synthetic credentials, never the owner's.
+See [PRELOGIN_DESIGN.md](PRELOGIN_DESIGN.md) for the presentation contract.
+
+The administrator helper requires actual private HTTPS Serve JSON matching the
+configured loopback port and refuses Funnel, missing PINs and unsafe files.
+It provisions a separate greeter PIN via stdin, never copies account secrets,
+and publishes root-owned opt-in only after provisioning. Native VM lifecycle
+controls prove listener shutdown, invalidation of old bearers/device trust,
+account-byte preservation and disabled cold boot. Their enrollment-only TLS
+readback is a fixture; real TLS enrollment remains release acceptance. Stop
+uses one authority from the native panel, Mo AI/control and URL routes; On
+never restores the explicitly disabled greeter.
+
+The greeter's user manager does not own `graphical-session.target`. Its portal
+frontend must follow the actual login Wayland target, import its owned display
+before the vendor KDE backend starts, and grant only `org.moos.remote` in that
+greeter's own permission store. Its `--locale1` KWin used a US EIS map while
+KConfig described `ara,de`; password mapping therefore reads the actual bounded
+device XKB file descriptor. No missing device/map may inherit a desktop guess.
+The backend advertises live sensitive-typing readiness, including recovery;
+the controller refuses unavailable sensitive input and never queues it.
+
+A private account that had never enabled its desktop Remote passed PAM but
+had no successor listener. Qualification must provision/enable that account
+explicitly; never interpret this as permission to enable every other account.
 
 The implementation must be explicitly enabled by the owner, keep ordinary PAM
 and the upstream greeter intact, and authenticate Remote before any capture or

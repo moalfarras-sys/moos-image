@@ -2,13 +2,42 @@ import assert from "node:assert/strict";
 import {readFileSync} from "node:fs";
 import {dirname, resolve} from "node:path";
 import {fileURLToPath} from "node:url";
-import {fetchWithTimeout, getStatus, resumeTrustedDevice, listTrustedDevices, SessionExpiredError} from "../src/lib/api.ts";
+import {fetchWithTimeout, getStatus, resumeTrustedDevice, listTrustedDevices, SessionExpiredError, setAuthScope, tokenStore, deviceStore} from "../src/lib/api.ts";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const app = readFileSync(resolve(here, "../src/App.tsx"), "utf8");
 const auth = readFileSync(resolve(here, "../src/ui/AuthScreens.tsx"), "utf8");
 
 const originalFetch = globalThis.fetch;
+const originalStorage = Object.getOwnPropertyDescriptor(globalThis, "localStorage");
+try {
+  const stored = new Map<string, string>();
+  Object.defineProperty(globalThis, "localStorage", { configurable: true, value: {
+    getItem: (key: string) => stored.get(key) ?? null,
+    setItem: (key: string, value: string) => stored.set(key, value),
+    removeItem: (key: string) => stored.delete(key),
+  } });
+  setAuthScope(); tokenStore.set("legacy-session"); deviceStore.set("legacy-device", "legacy-key");
+  setAuthScope("account-owner"); tokenStore.set("owner-session"); deviceStore.set("owner-device", "owner-key");
+  setAuthScope("greeter");
+  assert.equal(tokenStore.get(), "", "greeter must not receive the desktop bearer");
+  assert.deepEqual(deviceStore.get(), { id: "", token: "" }, "greeter must not borrow desktop device credentials");
+  tokenStore.set("greeter-session"); deviceStore.set("greeter-device", "greeter-key");
+  setAuthScope("account-second");
+  assert.equal(tokenStore.get(), "", "another account must not receive the greeter bearer");
+  assert.equal(deviceStore.get().token, "", "another account must not receive the owner's device key");
+  tokenStore.clear(); deviceStore.clear();
+  setAuthScope("account-owner");
+  assert.equal(tokenStore.get(), "owner-session", "another account's rejection preserves the owner's bearer");
+  assert.equal(deviceStore.get().token, "owner-key", "another account's rejection preserves the owner's device key");
+  setAuthScope("greeter"); tokenStore.clear(); deviceStore.clear();
+  assert.equal(tokenStore.legacy(), "legacy-session", "greeter sign-out preserves legacy desktop access");
+  assert.equal(deviceStore.legacy().token, "legacy-key", "greeter sign-out does not erase pre-upgrade desktop credentials");
+} finally {
+  setAuthScope();
+  if (originalStorage) Object.defineProperty(globalThis, "localStorage", originalStorage);
+  else Reflect.deleteProperty(globalThis, "localStorage");
+}
 try {
   globalThis.fetch = async () => new Response('{}', {status: 401});
   await assert.rejects(listTrustedDevices("session"), SessionExpiredError);

@@ -3,8 +3,8 @@
 
 WHY: Mo AI could repair, update and install software (moai-do), but not do the
 everyday things people ask an assistant for: turn it down, dim the screen, night
-light on, take a screenshot. Each action here runs as the logged-in user with no
-privilege, maps to ONE fixed argv (never a shell, never free text) and is undone
+light on, take a screenshot. Each action here runs as the logged-in user, maps
+to ONE fixed argv (never a shell, never free text) and is undone
 by its opposite. moos-open exposes them as moos://control/… routes; Mo AI shows
 them as buttons, and nothing runs until the user taps one.
 
@@ -27,6 +27,9 @@ The remote verbs (remote, fast-remote) drive Mo PC Remote the way its settings p
 moos://remote/… routes do: the one user unit, enabled or disabled with --now so it agrees with
 the page about the next boot, and the Fast Remote profile through its own tool. Each reads the
 result back; a unit that did not come up is a failure, not "on".
+Stopping also revokes previously enabled login-screen access through its exact
+administrator helper. That opt-in boundary needs native polkit authorization;
+turning Remote on never enables login-screen access automatically.
 
 Exit codes: 0 done, 2 invalid request, 69 that control is unavailable here.
 """
@@ -121,6 +124,7 @@ DISPLAY_NAME = re.compile(r"[A-Za-z0-9_]{1,64}")
 # settings page switch. restart is try-restart: it reconnects a remote that is on and can never
 # turn one on.
 REMOTE_UNIT = "mo-remote-personal.service"
+GREETER_HELPER = "/usr/libexec/mo-remote-greeter"
 REMOTE_VALUES = ("on", "off", "restart")
 REMOTE_RUNNING = ("active", "activating", "reloading")
 # A unit that dies in its first second (a port clash, a missing runtime) still reads "active"
@@ -1036,6 +1040,35 @@ def remote_came_up():
     return False, state
 
 
+def disable_login_remote():
+    """Stop also revokes explicit login-screen enrollment; On never enrolls it.
+
+    Old images without this feature keep their existing account-only behaviour.
+    The privileged change requires native administrator authentication only when
+    the owner previously enabled login-screen access.
+    """
+    if not os.path.isfile(GREETER_HELPER):
+        return
+    try:
+        result = subprocess.run([GREETER_HELPER, "status"], capture_output=True,
+                                text=True, timeout=5, stdin=subprocess.DEVNULL)
+        state = json.loads(result.stdout)
+    except (OSError, ValueError, subprocess.SubprocessError) as exc:
+        raise Unavailable("Could not verify login-screen Remote enrollment") from exc
+    if result.returncode or not isinstance(state, dict) or type(state.get("enabled")) is not bool:
+        raise Unavailable("Could not verify login-screen Remote enrollment")
+    if state["enabled"] or state.get("error"):
+        run(["pkexec", GREETER_HELPER, "disable"], timeout=180)
+        readback = subprocess.run([GREETER_HELPER, "status"], capture_output=True,
+                                  text=True, timeout=5, stdin=subprocess.DEVNULL)
+        try:
+            checked = json.loads(readback.stdout)
+        except ValueError as exc:
+            raise Unavailable("Could not verify login-screen Remote shutdown") from exc
+        if readback.returncode or not isinstance(checked, dict) or checked.get("enabled") is not False or checked.get("error"):
+            raise Unavailable("Login-screen Remote is not confirmed disabled")
+
+
 def remote(value):
     one_of(value, REMOTE_VALUES, "remote")
     if value == "on":
@@ -1045,6 +1078,7 @@ def remote(value):
             raise Unavailable(f"Mo PC Remote did not start (it is {state})")
         return "📱 Mo PC Remote يعمل | Mo PC Remote on"
     if value == "off":
+        disable_login_remote()
         run(["systemctl", "--user", "disable", "--now", REMOTE_UNIT], timeout=60)
         if remote_state() in REMOTE_RUNNING:
             raise Unavailable("Mo PC Remote is still running")
