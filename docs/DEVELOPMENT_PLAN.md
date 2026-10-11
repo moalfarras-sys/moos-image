@@ -11,15 +11,15 @@ new private feedback/optional public suggestions product is P6.9 below.
 
 ## Active delivery and acceptance batch
 
-Owner reliability/release slice is integrated at main `1a73a4e0` (PR222).
-All 244 maintained source gates, catalogue, full local image and exact signed
+Owner reliability/release slice is integrated at main `3abe787a` (PR224).
+All 246 maintained source gates, catalogue, full local image and exact signed
 build/three QCOW2/offline installed ISO/ARM proofs pass on attempt 1.
-X86 .1022 promotion 38053736733 and ARM .749 pipeline 38042996902 passed.
-Physical NVIDIA booted signed .1022 and passes native 53/0 + 55/0; Oracle
-booted signed ARM .749 and passes 51/0 + 55/0. Both match twelve delivered
-runtime hashes, preserve signed rollback and services, and native SSH reconnects
-automatically across both real reboots. Signed
-rollback remains. A scheduled image-only build is not delivery.
+X86 .1026 promotion 38136731168 and ARM .752 pipeline 38128647066 passed.
+Physical NVIDIA still runs accepted .1022 (53/0 + 55/0), with signed .1026 staged.
+Oracle booted signed ARM .752 and passes native 51/0 + 55/0, fourteen delivered
+runtime hashes and actual system/native-user memory monitoring. Both preserve
+signed rollback and services; native SSH reconnects across Oracle's new reboot.
+Physical .1026 reboot/readback remains. A scheduled image-only build is not delivery.
 
 Public Vercel availability is restored on all 14 primary projects through the
 provider's documented unpause operation, while account fair-use/deploy blocking
@@ -27,22 +27,23 @@ and historical counters remain visible. MoOS's frontend is independent Cloudflar
 Static Assets, with five scoped CDN redirects from its old entrypoints and no
 MoOS CMS/ISR/image optimizer/beacon traffic. Current .1022 public full transfer,
 signature/hash/ranges/sidecars and paired metadata pass; eight refreshed public
-browser views and fourteen routing checks pass. .1011 is deleted; .1018 retains
-original bytes through 15:00 UTC October 11, with guarded exact-key retirement
-scheduled for 15:05 UTC. The completed Oracle upload scratch is retired.
+browser views and fourteen routing checks pass. .1011 is deleted; .1018 retained
+original bytes through 15:00 UTC October 11. Guarded retirement actually deleted
+its three exact public keys at 15:05:09 UTC (5,808,128,179 bytes). The completed Oracle upload scratch is retired.
 No paid plan/spend-cap relaxation was enabled. Supabase egress and the old A&D
 alias are separate remaining availability defects, not OS release gates.
 
 The 11 October owner request prioritizes the reliability slice P6.7/P5.7,
 then P2.17 (Remote before account login), before returning to M1/P2.3–P2.5:
 qualify Arabic/English locale, fonts and keyboard/reader/scale/motion on native surfaces.
-Current-source canary 38096160112 reached Plasma 6.7.91 and correctly refused
-the 6.7.5-only logout package build. The topic branch reviews that exact vendor
-SRPM and retains the same patch/prepared worker bytes, with unknown NVR refusal.
-It also retires the experimental base's inactive /var SELinux store only after
-all module inputs match the configured /etc store and boot policy bytes match;
-native duplicate-store and nine refusal controls pass. No final-image gate is relaxed.
-Full new canary/native-package acceptance is still required before the 14 October move.
+Canary 38099434894 passes reviewed Plasma 6.7.91, all twelve seams, the exact
+vendor logout RPM/greeter and final-image gates. Unknown NVR refusal remains;
+final stable 6.8.0 requires separate vendor review. The experimental inactive
+/var SELinux store is retired only after module and configured /etc boot-policy
+equality; native duplicate-store and nine refusal controls pass. No gate is relaxed.
+Remote's full local image and 31 runtime files pass; actual Oracle read-only
+old/fixed controls accept separate public Community/private Remote and preserve
+ingress bytes. Production greeter enrollment remains separate from account TLS.
 Do not count theme configuration or installed packages as these user flows.
 Mira real unmuted USB/voice, community public onboarding/moderation and M4
 preserved APK/PE work remain named acceptance tasks, not silently merged work.
@@ -305,7 +306,7 @@ itself and an unreviewed MoOS would ship kscreenlocker's emergency locker.
 | ID | Outcome | Current boundary | Required acceptance |
 | --- | --- | --- | --- |
 | P0.1 | Integrate the reviewed first-install repairs and create one candidate revision | Stable mechanism/artifact evidence recorded; preserve required gates | Exact candidate source, all integrated fixes and no local override counted as release. |
-| P0.2 | Run generic, NVIDIA and cloud QCOW2 proofs plus offline ISO install/second boot | Exact .1022 three QCOW2/offline installed ISO proofs and ARM .749 two boots pass; both physical NVIDIA and Oracle installed acceptance pass | Three exact-digest x86 QCOW2 journeys, offline installed ISO and separate ARM two-boot proof. |
+| P0.2 | Run generic, NVIDIA and cloud QCOW2 proofs plus offline ISO install/second boot | Exact .1026 three QCOW2/offline installed ISO proofs and ARM .752 two boots pass; Oracle .752 installed acceptance passes; physical NVIDIA .1026 is staged | Three exact-digest x86 QCOW2 journeys, offline installed ISO and separate ARM two-boot proof. |
 | P0.3 | Finish physical NVIDIA qualification | Open / acceptance not complete | Actual NVIDIA GPU, initramfs module, displays, suspend and clean recovery on qualified hardware. |
 | P0.4 | Prove failed-update recovery | Open / acceptance not complete | Deliberate bad update, automatic/manual rollback and forward return without owner data loss. |
 | P0.5 | Configure and accept free Mo AI on a clean account | Open / acceptance not complete | Clean-account provider setup, free route, reboot, cancellation and network/quota/key failures. |
@@ -315,7 +316,7 @@ itself and an unreviewed MoOS would ship kscreenlocker's emergency locker.
 | P0.9 | Run image-only gates before the merge | Stable mechanism/artifact evidence recorded; preserve required gates | PR generic image gates block real image failures; no signing/publishing from PR. |
 | P0.10 | Gate NVIDIA persistence on a bound GPU | Stable mechanism/artifact evidence recorded; preserve required gates | Bound NVIDIA hardware and exact-kernel persistence/initramfs proof. |
 | P0.11 | Give first-boot Flatpak setup a realistic finite timeout | Stable mechanism/artifact evidence recorded; preserve required gates | Finite realistic first-boot app setup timeout and actual ARM reboot. |
-| P0.12 | Deliver the exact signed, installed-system-proven ISO through a stable anonymous download | Delivered .1022: full anonymous transfer/signature/hash/ranges/sidecars, paired independent frontend and old-link readback pass; public receipt dated Oct10. .1018 grace-period retirement scheduled, not yet deleted | Repeat stable anonymous full signed ISO, exact size/hash and resumed ranges, sidecars and site readback for each release. |
+| P0.12 | Deliver the exact signed, installed-system-proven ISO through a stable anonymous download | Delivered .1022: full anonymous transfer/signature/hash/ranges/sidecars, paired independent frontend and old-link readback pass; public receipt dated Oct10. .1018 three exact public objects retired after grace at 15:05:09 UTC; .1026 ISO remains qualified but unpublished | Repeat stable anonymous full signed ISO, exact size/hash and resumed ranges, sidecars and site readback for each release. |
 
 ## P1 — Reliability and first run
 
@@ -349,7 +350,7 @@ itself and an unreviewed MoOS would ship kscreenlocker's emergency locker.
 | P2.14 | Remote input, recovery and mobile/WAN video | Implemented/delivered within recorded scope; wider acceptance remains | Held-input ownership, decoded pictures, browser recovery and owner iPhone/cellular endurance. |
 | P2.15 | Mira face, speech/rest and original portrait identity | Capture policy integrated/promoted in .1022/.749; both hosts booted with matching delivered hashes. Source/private-helper boundary and muted real USB pass; physical unmuted speech and long capture remain open | Both portraits retained; single mouth, real voice/pause/idle/hidden/reduced-motion readback; 11 private-process boundary tests, 45 controller tests, real muted USB with zero captures/overruns and three synthetic unmute/mute cycles. Signed installed delivery passes on both hosts; physical unmuted voice/device acceptance remains open. |
 | P2.16 | Shared login, lock and power experience | Delivered within recorded scope. Private .1018 native Arabic lock/power and wrong/correct password transitions pass; login buttons remain English. Source locale authority restores the Arabic greeter date in the private .1022 guest without an authentication fork; signed delivery and wider acceptance remain | Native greeters 640×480–4K@2.5, password refusal, multi-user, save/logout and accessibility. |
-| P2.17 | Mo PC Remote before account login after reboot | Source implementation, not delivered. Private .1022/r10 guest passes repeated cold login, decoded greeter, wrong/correct PIN and PAM password, account handoff/logout and scoped trust. Native managed units/listener stop, credential revocation/account-byte preservation and disabled cold boot pass; enrollment TLS JSON is explicitly fixture-only. EIS readiness, seven .NET projects, AR/EN renders and the full local image pass (31 matching files). Actual existing-account private TLS passes read-only validation; this does not enroll the greeter. Real private-TLS enrollment, multi-account/hardware/phone endurance and signed NVIDIA/ARM delivery remain | Explicit opt-in, authenticated PIN/trusted-device and private TLS access before login; greeter-owned capture/input with no authentication fork, autologin or saved account password; ordinary PAM wrong/correct password through the actual controller after cold boot; bounded handoff to the active user's agent and back after logout; account isolation, no pre-login files/clipboard access, no public listener, and NVIDIA/ARM native reboot proofs. |
+| P2.17 | Mo PC Remote before account login after reboot | Source implementation, not delivered. Private .1022/r10 guest passes repeated cold login, decoded greeter, wrong/correct PIN and PAM password, account handoff/logout and scoped trust. Native managed units/listener stop, credential revocation/account-byte preservation and disabled cold boot pass; enrollment TLS JSON is explicitly fixture-only. EIS readiness, seven .NET projects, AR/EN renders and the full local image pass (31 matching files). Actual Oracle old/fixed controls accept its separate public Community/private Remote, preserve ingress bytes and reject public Remote paths in isolated controls; this does not enroll the greeter. Real private-TLS enrollment, multi-account/hardware/phone endurance and signed NVIDIA/ARM delivery remain | Explicit opt-in, authenticated PIN/trusted-device and private TLS access before login; greeter-owned capture/input with no authentication fork, autologin or saved account password; ordinary PAM wrong/correct password through the actual controller after cold boot; bounded handoff to the active user's agent and back after logout; account isolation, no pre-login files/clipboard access, no public listener, and NVIDIA/ARM native reboot proofs. |
 
 ## P3 — Trustworthy assistant
 
@@ -388,8 +389,8 @@ itself and an unreviewed MoOS would ship kscreenlocker's emergency locker.
 | P5.4 | Performance budgets | Open / acceptance not complete | Measured boot/idle PSS/CPU/wakeups, app launch p95, frame pacing, build load and AI latency per tier. |
 | P5.5 | Cloud desktop efficiency | Implemented/delivered within recorded scope; wider acceptance remains | Efficient cloud desktop plus actual private files/photos/IDE access, phone background and off-host restore. |
 | P5.6 | Storage lifecycle | Open: NVIDIA cleanup restores headroom and preserves source/checkpoints/rollback; sustainable limits still owed | Headroom, cache/log bounds, low-space recovery and cleanup that never removes owner data. |
-| P5.7 | Qualify kernel policy and driver transitions | Source adds ARM's missing vendor oomd-defaults, final-image guard and actual native-monitor readback in both disk boot proofs. Eight compose controls, native ARM package install, and bounded native negative/positive pressure controls pass on both stations (256 MiB cap; no kernel OOM; protected sentinel survives). Current ARM .749 still lacks global monitoring until a qualified delivery. System-wide recovery/weak-hardware frame latency remains open | Kernel/driver readback and measured frame/audio/CPU/RAM policy; actual daemon monitoring after signed boot; sustained frame/audio latency under bounded pressure on qualified weak tiers, never an uncontrolled OOM on the owner's workstation. |
-| P5.8 | Qualify Wayland and compositor lifetime | Open / acceptance not complete | Portal consent/revocation/restart, output/scale/hotplug, clipboard/input and long session-return soak. |
+| P5.7 | Qualify kernel policy and driver transitions | Source adds ARM's missing vendor oomd-defaults, final-image guard and actual native-monitor readback in both disk boot proofs. Eight compose controls, native ARM package install, and bounded native negative/positive pressure controls pass on both stations (256 MiB cap; no kernel OOM; protected sentinel survives). Signed ARM .752 is booted and proves actual system/native-user monitoring; NVIDIA .1026 is staged for native reboot/readback. System-wide recovery/weak-hardware frame latency remains open | Kernel/driver readback and measured frame/audio/CPU/RAM policy; actual daemon monitoring after signed boot; sustained frame/audio latency under bounded pressure on qualified weak tiers, never an uncontrolled OOM on the owner's workstation. |
+| P5.8 | Qualify Wayland and compositor lifetime | Open / acceptance not complete; Oracle .752 retains bootupd metadata/accountsd SELinux warnings, while bootloader update returns success/latest and no unit fails | Portal consent/revocation/restart, output/scale/hotplug, clipboard/input and long session-return soak; review native SELinux warnings without disabling enforcement or guessing labels. |
 
 ## P6 — Long-term release trust
 
@@ -401,7 +402,7 @@ itself and an unreviewed MoOS would ship kscreenlocker's emergency locker.
 | P6.4 | Add staged rollout and release health | Open / acceptance not complete | Staged rings, halt/rollback criteria and actual field release health. |
 | P6.5 | URL, Remote, AI and diagnostic security boundaries | Implemented/delivered within recorded scope; wider acceptance remains; new audit corrections await signed delivery | Auth/UID/URL/PIN/upload/secret boundaries and failure controls; native dependency advisories refuse release. |
 | P6.6 | Establish support lifecycle and migration policy | Open / acceptance not complete | Published support/upgrade/rollback/EOL policy plus clear licences, attribution and official identity. |
-| P6.7 | Reviewed Plasma seams before upstream transitions | Reliability PR224 merged. Canary 38099434894 passes exact signed COPR 6.7.91 SRPM (ea530281…), unchanged prepared worker SHA (76ed150d…), preserved vendor flags/patches, 38 package controls and inactive-store input/boot-policy equality (1,274 modules)/nine refusal controls. Actual canary packages, 12 reviewed seams, native logout RPM/greeter and final image gates pass; signed delivery cycle 38128732396 remains separate. Final 6.8.0 NVR stays unreviewed/refused | Actual next-Plasma canary, registered reviewed seams and old/broken/native controls; review the final stable NVR separately rather than widening an allowed range. |
+| P6.7 | Reviewed Plasma seams before upstream transitions | Reliability PR224 merged. Canary 38099434894 passes exact signed COPR 6.7.91 SRPM (ea530281…), unchanged prepared worker SHA (76ed150d…), preserved vendor flags/patches, 38 package controls and inactive-store input/boot-policy equality (1,274 modules)/nine refusal controls. Actual canary packages, 12 reviewed seams, native logout RPM/greeter and final image gates pass; signed reliability cycle 38128732396/38136731168 is qualified/promoted; it does not deliver unreviewed stable 6.8.0. Final 6.8.0 NVR stays unreviewed/refused | Actual next-Plasma canary, registered reviewed seams and old/broken/native controls; review the final stable NVR separately rather than widening an allowed range. |
 | P6.8 | Separate reviewed next-base transition lane | Open / acceptance not complete | Reviewed next-base packages, all native seams/boot/apps/identity gates and migration/support qualification. |
 | P6.9 | Native user/developer participation | Beta integrated/promoted in .1022/.749; native launch/shutdown and ARM D-Bus controls pass, plus 34 API/11 native and actual Wayland/Oracle TLS flow. Both hosts boot delivered client bytes; actual .1022 native capture/shutdown passes and Oracle public health is ready. Capture retains Qt/portal-registration warnings; installed image-picker flow still needs acceptance. Branded DNS/onboarding/recovery/full moderation UI/preferences/endurance remain open | Real authenticated service/client, private image attachments, account isolation and bounded uploads, admin moderation, retry/offline and promoted-release notifications; no secrets or automatic screenshots. |
 

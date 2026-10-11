@@ -5,21 +5,21 @@ Source, promoted artifacts, staged/booted systems are separate evidence; backlog
 
 ## Current owner development (delivery pending)
 
-Reliability PR224 at `3abe787a` is promoted: x86 38136731168, ARM 38128647066. Local image `90fae1cabecd` and 246 source gates pass; NVIDIA .1026 is staged, ARM staging continues.
+Reliability PR224 at `3abe787a` is promoted: x86 38136731168, ARM 38128647066. Local image `90fae1cabecd` and 246 source gates pass; NVIDIA .1026 is staged, ARM .752 booted/accepted.
 Canary 38099434894 passes reviewed 6.7.91/12 seams, native RPM/greeter and
 final image gates; stable 6.8.0 stays unreviewed/refused.
 Native 30 s: NVIDIA 7.7–8.6 GiB available, PSI=0, GPU 0–3%/2.2 GiB VRAM;
 Code dominates RAM; stopped MoPlayer 4.2% core; Baloo 26% indexing 427k files.
 Generated `~/moos-wt/` copies excluded; no causal after-benchmark yet.
 ARM boot guard/256 MiB pressure controls pass both hosts (22.25/31.42 s,
-sentinel survives, kernel OOM=0); actual new-image boot acceptance remains.
+sentinel survives, kernel OOM=0); ARM native monitoring passes after signed boot; NVIDIA reboot remains.
 Remote topic has restricted/scoped v57 source; installed stations lack pre-login Remote.
 Private .1022/r10 guest passes repeated cold PAM login, account handoff/logout,
 real decoded frames and scoped trust; AR/EN renders/seven .NET projects pass.
 Native masked-PIN validation/close clearing and GTK ink correction pass;
 managed opt-in/units and real listener/trust revocation pass native VM controls;
-disabled cold boot stays off. Full local image `13ce614c0461` passes/31 files match;
-actual account TLS passes, greeter enrollment TLS is fixture-only; signed/hardware/phone acceptance remains P2.17.
+disabled cold boot stays off. Full local image `5ce19e082374` passes/31 files match;
+Oracle's separate public Community/private Remote passes actual old/fixed TLS controls; greeter enrollment TLS is fixture-only; signed/hardware/phone acceptance remains P2.17.
 
 ## Source and promoted delivery
 
@@ -71,14 +71,14 @@ prove spoken voice, every action, media playback or hardware endurance.
 
 ## Oracle A1
 
-Oracle rebooted into signed ARM .749 (`3b6e9edf…`), boot ID
-`9bc626eb-1aae-404d-a343-1522984b36af`; signed .733 is retained for rollback.
-Native graphical-context acceptance at 22:18:34 UTC passed 51 selfchecks,
-55 post-update checks, all 12 runtime hashes and no failed units. Initial
-autostart evidence retains early transient container-health failures and a
-launcher inspection race; the later unchanged checks pass after actual service
-convergence. Four containers are healthy and all four private HTTPS routes
-return their application/login/ping responses. An SSH shell
+Oracle rebooted into signed ARM .752 (`e621e284…`), boot ID
+`8506a4e3-46ff-46cd-9a41-f9d26fec5476`; signed .749 is retained for rollback.
+Native graphical-context acceptance at 12:10:24 UTC passed 51 selfchecks,
+55 post-update checks, all 14 runtime hashes and no failed units. Actual system
+and native-user oomd monitoring pass; boot=14.616 s, network=connected/full.
+Four containers remain healthy; Community and personal Remote are active.
+Kernel retains audit throttling/accountsd/bootupd metadata warnings; bootloader update succeeds/latest. Earlier failures remain recorded.
+Existing private account HTTPS passes certificate-verified readback. An SSH shell
 omits Plasma's XDG cascade and is not an authoritative desktop-theme probe.
 Arabic session/UI2 Nova is distinct from system fallback `C.UTF-8`.
 
@@ -86,7 +86,7 @@ Files, photos, database/cache, SMB, IDE and Remote are existing owner services;
 no data directories or ingress routes were removed. The completed R2 upload
 scratch was retired after matching its full hash to the qualified public proof,
 reclaiming 5,827,068,083 bytes; writable /var now has about 35 GiB free.
-The station's systemd-oomd still monitors no cgroup, an explicit P5.7 gap.
+System-wide pressure/frame/audio recovery and weak-device endurance remain P5.7 gaps.
 
 Owner-authorized persistent native SSH now uses a dedicated workstation-only
 Ed25519 key, verified server host key, password-disabled existing sshd and
@@ -140,9 +140,9 @@ hash/signature/range verification passed at 22:10:02 UTC; both sidecars match.
 The paired frontend is deployed as `fc9c2a50-0ae4-422b-b855-7d63c22fbd36`;
 download Worker `49a3c101-15ef-4dc0-91d5-5d9c4807b6c9` carries the .1022
 publication marker. All five CDN rules are live; 14 final routing checks pass.
-.1011's exact three objects were deleted (5,796,462,771 bytes). .1018 retains
-its original bytes until 2026-10-11 15:00 UTC; Oracle's guarded persistent
-retirement timer is due at 15:05 UTC. Scheduled deletion is not completed proof.
+.1011's exact three objects were deleted (5,796,462,771 bytes). .1018's original
+bytes survived the full grace period; guarded retirement at 15:05:09 UTC
+deleted only its three public objects (5,808,128,179 bytes); .1022 stays current.
 Public receipt: `docs/releases/2026-10-10-public-download-proof.json`.
 Worker source/native tests pass 21 cases, including
 immutable-path retirement, grace period, sidecars and >4 GiB resumes.
@@ -152,8 +152,8 @@ two ordinary password logins across clean shutdown/cold boot (51/0 twice),
 and wrong/correct lock-password refusal/unlock. It is distinct from the exact
 .1022 signed ISO CI proof. Strict offline manifest mismatch remains 54/1;
 all 261 uncompressed layers/runtime config match. No origin rewrite hides it.
-Desktop `~/سطح المكتب/صور MoOS` contains 3,724 unique actual image assets,
-including 12 unique .1022 CI captures and one actual installed .1022 Arabic
+Desktop `~/سطح المكتب/صور MoOS` contains 3,744 image assets, images only,
+including 12 new qualified .1026 CI captures and an actual installed .1022 Arabic
 community frame; images only. Native community frame/shutdown returns 0 with
 no null-context teardown error. Its deprecation/portal-registration warnings
 remain in evidence; this capture mode does not test the image picker or network. Private owner frames stay

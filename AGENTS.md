@@ -819,6 +819,11 @@ TLS/PIN provisioning. Session units follow the native login target; no PAM,
 autologin or authentication fork. Stop from the panel/control/URL paths revokes
 the greeter profile and its device trust; On never silently restores it. A TLS
 JSON fixture proves lifecycle logic, not a real private-TLS enrollment.
+The node may also publish Community on a separate HTTPS Funnel. Validate the
+actual endpoint/handler map: refuse public Remote on any port/path, unknown
+transports and malformed proxy URLs, while permitting the unrelated service.
+Keep the real Oracle old/fixed read-only control and public-Remote negative
+controls; do not change ingress or enroll a greeter to diagnose this boundary.
 
 ## Before you push
 

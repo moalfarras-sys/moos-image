@@ -15,6 +15,7 @@ import stat
 import subprocess
 import sys
 import tempfile
+from urllib.parse import urlsplit
 
 STATE = Path("/var/lib/mo-remote-greeter")
 MARKER = STATE / "enabled.json"
@@ -117,14 +118,40 @@ def private_tls_proxy(serve, node, port):
     name = own["DNSName"].rstrip(".")
     if not re.fullmatch(r"[a-zA-Z0-9.-]+\.ts\.net", name):
         return False
-    # Never enroll a login screen into a publicly published Funnel, even if
-    # another port/path appears to contain the requested private proxy.
+    # A public community service may share this node. Refuse public access to
+    # Remote itself, including another HTTPS port/path proxying to its listener.
+    # Uninterpretable public transports/configuration still fail closed.
     funnel = serve.get("AllowFunnel", {})
-    if not isinstance(funnel, dict) or any(value is not False for value in funnel.values()):
+    if not isinstance(funnel, dict) or any(type(value) is not bool for value in funnel.values()):
         return False
     tcp_map, web_map = serve.get("TCP"), serve.get("Web")
     if not isinstance(tcp_map, dict) or not isinstance(web_map, dict):
         return False
+    for endpoint, public in funnel.items():
+        if not public:
+            continue
+        match = re.fullmatch(r"[a-zA-Z0-9.-]+\.ts\.net:([0-9]{1,5})", endpoint) if isinstance(endpoint, str) else None
+        if not match or not 1 <= int(match[1]) <= 65535 or endpoint == name + ":443":
+            return False
+        public_tcp = tcp_map.get(match[1])
+        public_web = web_map.get(endpoint)
+        if (not isinstance(public_tcp, dict) or public_tcp.get("HTTPS") is not True
+                or public_tcp.get("TCPForward") is not None
+                or not isinstance(public_web, dict) or not isinstance(public_web.get("Handlers"), dict)):
+            return False
+        for handler in public_web["Handlers"].values():
+            if not isinstance(handler, dict):
+                return False
+            if "Proxy" not in handler:
+                continue
+            try:
+                target = urlsplit(handler["Proxy"])
+                if (target.scheme not in ("http", "https") or not target.hostname
+                        or target.username is not None or target.password is not None
+                        or target.port == port):
+                    return False
+            except (ValueError, TypeError, AttributeError):
+                return False
     tcp, web = tcp_map.get("443"), web_map.get(name + ":443")
     if not isinstance(tcp, dict) or not isinstance(web, dict) or not isinstance(web.get("Handlers"), dict):
         return False

@@ -64,6 +64,28 @@ class ManagementTests(unittest.TestCase):
         for bad_node in ({}, {**node, "BackendState": "NeedsLogin"}, {"BackendState": "Running", "Self": True}):
             self.assertFalse(G.private_tls_proxy(good, bad_node, 8865))
 
+    def test_separate_public_community_does_not_publish_the_private_login_screen(self):
+        node = {"BackendState": "Running", "Self": {"DNSName": "review.tail123.ts.net."}}
+        serve = {"TCP": {"443": {"HTTPS": True}, "10000": {"HTTPS": True}},
+                 "Web": {"review.tail123.ts.net:443": {"Handlers": {"/": {"Proxy": "http://127.0.0.1:8865"}}},
+                         "review.tail123.ts.net:10000": {"Handlers": {"/": {"Proxy": "http://127.0.0.1:8102"}}}},
+                 "AllowFunnel": {"review.tail123.ts.net:10000": True}}
+        self.assertTrue(G.private_tls_proxy(serve, node, 8865))
+        # The old all-Funnel refusal rejects this real Oracle topology.
+        self.assertTrue(any(v is not False for v in serve["AllowFunnel"].values()))
+        for proxy in ("http://127.0.0.1:8865", "http://localhost:8865/remote", "http://[::1]:8865",
+                      "https://another-node.invalid:8865/path", "bad proxy", "http://127.0.0.1:bad"):
+            value = copy.deepcopy(serve)
+            value["Web"]["review.tail123.ts.net:10000"]["Handlers"]["/remote"] = {"Proxy": proxy}
+            with self.subTest(proxy=proxy):
+                self.assertFalse(G.private_tls_proxy(value, node, 8865))
+        for tcp in ({"TCPForward": "127.0.0.1:8865"}, {"HTTPS": True, "TCPForward": "127.0.0.1:8865"}, True):
+            value=copy.deepcopy(serve);value["TCP"]["10000"]=tcp
+            self.assertFalse(G.private_tls_proxy(value, node, 8865))
+        for endpoint in ("not-an-endpoint", "review.tail123.ts.net:65536", "review.tail123.ts.net:443"):
+            value=copy.deepcopy(serve);value["AllowFunnel"][endpoint]=True
+            self.assertFalse(G.private_tls_proxy(value, node, 8865))
+
     def test_safe_files_reject_links_fifo_permissions_owner_and_oversize(self):
         with tempfile.TemporaryDirectory() as name:
             root = Path(name); path = root / "settings.json"
