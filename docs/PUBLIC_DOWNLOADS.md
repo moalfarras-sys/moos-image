@@ -25,6 +25,15 @@ single-file ISO download therefore needs a large-file host. Do not manufacture
 a URL, split the consumer download into obscure pieces, or enable the button
 because the artifact exists in Actions.
 
+`gh run download` first buffers the complete artifact ZIP in `TMPDIR`, then
+extracts it. On the development hosts the default `/tmp` is memory-backed.
+Use a private, task-owned temporary directory on the real writable disk
+(`/var/tmp` on these hosts), budget space for both ZIP and extracted ISO, and
+bound the download unit's memory. Check the native filesystem, not the IDE
+sandbox's `/var`. The CLI removes its ZIP after successful extraction; retire
+only the resulting empty owned scratch directory. The October 11 download
+measured this trap, moved to disk and preserved the exact .1026 signed bytes.
+
 If no suitable existing host is available, Cloudflare R2 **Standard** is a
 practical default: its monthly allowance includes 10 GB-month of storage and
 egress is free; extra storage/operations remain billable
@@ -106,9 +115,9 @@ https://moos-site.moalfarras-moos.workers.dev/ar/ . Eight public browser views
 and 14 old-link/script/range readbacks pass. Website PR55 is merged at ce02840f;
 its handoff records the exact Worker/CDN versions without mixing OS and site source.
 
-Superseded .1011 keys are deleted and return explicit 410. .1018 preserves its
-original immutable bytes through 2026-10-11 15:00 UTC; its guarded retirement is
-scheduled five minutes later on Oracle. Never redirect an old immutable ISO
+Superseded .1011 keys are deleted and return explicit 410. .1018 preserved its
+original immutable bytes through 2026-10-11 15:00 UTC; guarded retirement
+deleted only its three keys at 15:05:09 UTC (5,808,128,179 bytes). Never redirect an old immutable ISO
 URL to new bytes or expire the only qualified publication. Installed signed
 rollback is separate and retained. The completed Oracle upload scratch is
 retired; the workstation keeps the current signed three-file release.

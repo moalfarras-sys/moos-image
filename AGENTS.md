@@ -347,6 +347,14 @@ it as a ~60 MB filesystem that is 100% full. `shutil.disk_usage("/")` therefore 
 The real filesystem is the one under `/sysroot` (`/var` is part of it). `moai-do` already knew
 this — `do_optimize` measures `/var` — and `moai-control` did not.
 
+**A bounded download process can still fill RAM with its temporary file.**
+GitHub CLI buffers the entire Actions ZIP before extracting it; its default
+`/tmp` is tmpfs on these hosts. The .1026 archive download was stopped after
+1,084,719,104 bytes there, then completed in a private on-disk `/var/tmp` with
+a 768 MiB unit cap. Use native filesystem/space readback, budget ZIP plus ISO,
+and retire only owned scratch after successful extraction. The IDE sandbox's
+`/var` is a different filesystem; its free-space figure is not host capacity.
+
 **A fork of an upstream file belongs to the version it forked.** MoOS replaces twelve files
 inside Plasma's own packages, and the survival gate proved only that MoOS's bytes were still
 there. On 2026-09-24 Plasma 6.8 beta was measured to remove `VirtualKeyboardLoader`, a type
