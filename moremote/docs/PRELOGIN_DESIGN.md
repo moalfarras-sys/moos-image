@@ -95,3 +95,10 @@ masked PIN entries, mismatch refusal, matched confirmation and clearing on close
 The shared GTK secondary-ink correction overrides inherited dimming; all sixteen
 schemes pass effective-ink contrast, and the old opacity fails every scheme.
 These screenshots use a private fixture, not the owner’s desktop or credentials.
+
+Final source checks and the full local image `13ce614c0461` pass; 31 changed
+overlay/portal/controller files match the built bytes. Read-only validation of
+the owner's existing account route passes actual Tailscale Serve JSON and a
+certificate-verified HTTPS status request. It does not enroll the greeter; real
+production greeter enrollment, phone endurance and signed hardware acceptance
+remain separate P2.17 exit evidence.

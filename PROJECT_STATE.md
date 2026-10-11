@@ -5,21 +5,21 @@ Source, promoted artifacts, staged/booted systems are separate evidence; backlog
 
 ## Current owner development (delivery pending)
 
-Reliability PR224 merged at `3abe787a`; signed cycle 38128732396 freezes that main SHA. Local image `90fae1cabecd`, 246 source gates and native ARM build pass.
+Reliability PR224 at `3abe787a` is promoted: x86 38136731168, ARM 38128647066. Local image `90fae1cabecd` and 246 source gates pass; NVIDIA .1026 is staged, ARM staging continues.
 Canary 38099434894 passes reviewed 6.7.91/12 seams, native RPM/greeter and
 final image gates; stable 6.8.0 stays unreviewed/refused.
 Native 30 s: NVIDIA 7.7–8.6 GiB available, PSI=0, GPU 0–3%/2.2 GiB VRAM;
 Code dominates RAM; stopped MoPlayer 4.2% core; Baloo 26% indexing 427k files.
 Generated `~/moos-wt/` copies excluded; no causal after-benchmark yet.
 ARM boot guard/256 MiB pressure controls pass both hosts (22.25/31.42 s,
-sentinel survives, kernel OOM=0); .749 awaits delivery.
+sentinel survives, kernel OOM=0); actual new-image boot acceptance remains.
 Remote topic has restricted/scoped v57 source; installed stations lack pre-login Remote.
 Private .1022/r10 guest passes repeated cold PAM login, account handoff/logout,
 real decoded frames and scoped trust; AR/EN renders/seven .NET projects pass.
 Native masked-PIN validation/close clearing and GTK ink correction pass;
 managed opt-in/units and real listener/trust revocation pass native VM controls;
-disabled cold boot stays off. Enrollment TLS readback is fixture-only; signed
-delivery, real TLS/phone and NVIDIA/ARM acceptance remain P2.17.
+disabled cold boot stays off. Full local image `13ce614c0461` passes/31 files match;
+actual account TLS passes, greeter enrollment TLS is fixture-only; signed/hardware/phone acceptance remains P2.17.
 
 ## Source and promoted delivery
 
@@ -31,17 +31,17 @@ installer mount or rollback guard was weakened.
 
 | Edition | Version | Proven signed digest |
 | --- | --- | --- |
-| Desktop | 44.20261010.1022 | 8134f32a09ab4ff2301554a7bac16858e7d48d907ec7bd48631b5fd35e97fef1 |
-| NVIDIA | 44.20261010.1022 | 4abf5afd9bedc52aba992c81e93b9ae3b7fbed8274643be5e88e75d81eafaa4c |
-| Cloud x86 | 44.20261010.1022 | 691a6bd9da96a18fc0acce11fd037ff21b95d9b75207fed6c2913f334cb6ede5 |
-| ARM | 44.20261010.749 | 3b6e9edf7a9d852c84fbaef6b6606b49b1e039fb4bf241c3fd0699197fd25ed6 |
+| Desktop | 44.20261011.1026 | a1ac3c6b0eec756f2d20f238abb1896ba8f7e25228cc2e8458952201ffe7524a |
+| NVIDIA | 44.20261011.1026 | 782032d1739b775d7f673bc8e91c858e5246a5cd2d631b3944c470a99b98046e |
+| Cloud x86 | 44.20261011.1026 | aa2d4fefa1c45d3cb2f6bc08d5c0ad73b7b890cef3f5aad52e86221425b2143a |
+| ARM | 44.20261011.752 | e621e284e05e0745722c15e1786d96e01c52538fe807092e40d1ca954bc6a394 |
 
-All exact proofs passed on attempt 1: signed x86 build 38042999495;
-generic/NVIDIA/cloud disks 38051449009, 38051451818, 38051454259;
-final offline ISO install/installed boot/shutdown 38051456847;
-x86 promotion 38053736733; ARM build/disk/two boots/promotion 38042996902.
-Later scheduled ARM run 38055271505 built an image but skipped disk/promotion;
-it is not a new release. This documentation branch is not new OS runtime code.
+Latest exact proofs pass on attempt 1: signed x86 build 38128732396;
+generic/NVIDIA/cloud disks 38133971240, 38133974055, 38133976682;
+final offline ISO install/installed boot/shutdown 38133979283;
+x86 promotion 38136731168; ARM build/disk/two boots/promotion 38128647066.
+Both ARM boots prove actual system/native-user memory monitoring, failed units=0.
+The qualified .1026 ISO is not yet the public .1022 download or a pre-login Remote release.
 
 ## Physical NVIDIA workstation
 
@@ -188,8 +188,8 @@ local. CI English/small-screen fixtures are not owner Arabic hardware evidence.
 
 ## Evidence still owed
 
-P6.7 next-Plasma canary remains failed at run 37378905167; Plasma 6.8 is
-scheduled 14 October. Qt 6.12 LTS is released but not integrated/qualified.
+P6.7 reviewed next-Plasma canary 38099434894 passes 6.7.91/12 seams;
+stable 6.8.0 and Qt 6.12 are not integrated/qualified for signed delivery.
 Do not layer either over the signed image or widen a seam gate to pass it.
 Hardware boot visuals, suspend/hotplug/multi-monitor/laptops/touch, deliberately
 bad update recovery, full AR/EN accessibility/contrast/scale/motion matrix,
