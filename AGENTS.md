@@ -401,6 +401,16 @@ never reached the login screen; its cache is removed at boot by the greeter tmpf
 which `finalize_moos_desktop.sh` rewrites after `build.sh`. A rule in one and not the other is
 lost.
 
+**The greeter's workspace target is not a desktop.** ARM's .752 and .756
+proofs booted successfully while `moos-theme-sync.service` spent 45 seconds
+trying to reconcile a nonexistent desktop scene in the `plasmalogin` account.
+Its palette comes from the image's greeter seed/tmpfiles, not the owner's
+Konsole/GTK/scene supplement reconciler. Keep desktop maintenance's service,
+path and timer scoped with `ConditionUser=!@system`; retain the owner's finite
+retry/timeout and every image identity gate. Native private unit-condition
+controls must admit the ordinary owner and reject the actual greeter UID;
+silence in the owner's failed-unit list says nothing about the greeter.
+
 **A fixed boot library outside the initramfs cannot fix boot.** The Plymouth
 frame-lifetime patch is rebuilt from the pinned vendor SRPM with all vendor
 patches. Keep the old/fixed native negative control and actual-package proof;

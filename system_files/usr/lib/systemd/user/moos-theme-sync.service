@@ -2,6 +2,10 @@
 Description=Reconcile the complete MoOS theme after any Global Theme change
 After=plasma-workspace.target
 PartOf=plasma-workspace.target
+# Desktop supplements require plasmashell, Konsole and the user's GTK state.
+# The system greeter owns a separate immutable palette seeded by tmpfiles;
+# its plasma-workspace.target is not a desktop and cannot reconcile a scene.
+ConditionUser=!@system
 # No START rate limit, and that is the whole point. This unit is triggered by
 # moos-theme-sync.path watching ~/.config/kdeglobals, and Plasma rewrites that file
 # several times within the first seconds of a session (colours, fonts, theme init).

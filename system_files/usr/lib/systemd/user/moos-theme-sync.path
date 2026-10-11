@@ -1,6 +1,8 @@
 [Unit]
 Description=Watch automatic light/dark theme transitions for MoOS supplements
 PartOf=plasma-workspace.target
+# Do not watch the separate system greeter's palette as a desktop theme.
+ConditionUser=!@system
 
 [Path]
 # KConfig atomically rewrites this file when AutomaticLookAndFeel switches its

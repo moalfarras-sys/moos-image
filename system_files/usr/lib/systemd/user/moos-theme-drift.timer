@@ -18,6 +18,8 @@ Description=Repair a MoOS desktop that has drifted from its own theme
 # so a calm periodic pass costs nothing measurable and has a predictable cost
 # ceiling, unlike a watch tied to how often the owner drags a widget.
 PartOf=plasma-workspace.target
+# A system greeter has no desktop scene to repair, even after three minutes.
+ConditionUser=!@system
 
 [Timer]
 OnStartupSec=3min
