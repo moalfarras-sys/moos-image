@@ -119,33 +119,13 @@ key is in Git. Oracle's current dirty docs remain unchanged on their original
 branch; verified bundle/ref `archive/owner-pre-reboot-20261011` (`b3b886b6…`)
 preserves them on both stations without altering the owner's index. Pre-.756 checks reuse the matching tree ref; six current dirty files and the original branch remain intact, with no duplicate snapshot.
 
-## Public website incident and isolation
+## Public hosting
 
-Authenticated Vercel Hobby billing is active, but team metadata reports
-`FAIR_USE_LIMITS_EXCEEDED`, specifically `fluidCpuDuration`, at
-2026-10-10 01:50 Berlin. Dashboard totals: CPU 11h40/4h, ISR writes
-839K/200K, Blob 6.22GB/1GB, origin transfer 12.12GB/10GB. Paid observability
-would be required for project CPU attribution; none was enabled.
-
-Documented project unpause restored all 14 primary sites. Latest anonymous
-readback (21:47 UTC): 24/25 addresses return actual application pages;
-the old A&D vercel.app alias remains disabled while its custom domain works.
-28 isolated browser views rendered all 14 sites on phone/desktop, with no JS
-errors or visibly broken images. This did not submit business forms/accounts.
-New Vercel deploys remain account-blocked.
-
-MoOS's independent AR/EN frontend is deployed at
-https://moos-site.moalfarras-moos.workers.dev/ar/ . HTML/images/fonts/JS
-are static Cloudflare assets; only download routing executes its small Worker.
-Eight .1026 public AR/EN width/input/motion views pass without Vercel calls. Five
-scoped live Vercel CDN 307 rules preserve existing MoOS entrypoints/queries;
-MoPlayer, admin and business APIs retain their existing ownership.
-
-Only the obsolete September Blob ISO (5,884,149,760 bytes) was deleted with
-size/ETag preconditions after validating current R2 routing. All five MoPlayer
-assets remain, exactly 333,653,409 bytes total. Monthly usage is not reset.
-Website source/handoff: Mohammad-alfarras PR56 merged at `11cb5052`; source CI passes all three
-jobs, while Vercel preview checks correctly retain the account-block error.
+MoOS uses Cloudflare Static Assets/R2 with five scoped Vercel CDN redirects.
+Website PR56 is merged at `11cb5052`; latest source CI is green, no PR is open.
+The separate Vercel account fair-use/deployment restriction and other-site
+incidents remain in [the owner handoff](docs/OWNER_EXECUTION_20261009_AR.md).
+No paid plan or billing limit was changed by this audit.
 
 ## ISO and visual evidence
 
