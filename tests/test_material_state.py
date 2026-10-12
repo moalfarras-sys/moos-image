@@ -37,14 +37,14 @@ class MaterialStateTests(unittest.TestCase):
         self.addCleanup(self.state.close)
 
     def names(self):
-        return {p.name for p in self.publisher.directory.iterdir()}
+        return {"state-" + p.name.split("-", 2)[2] for p in self.publisher.directory.iterdir()}
 
     def tick(self):
         key = min(self.jobs)
         return self.jobs.pop(key)[1]()
 
     def test_startup_is_private_and_off(self):
-        self.assertEqual(self.names(), {"blur-off", "clarity-clear"})
+        self.assertEqual(self.names(), {"state-off-clear"})
         self.assertEqual(self.publisher.directory.stat().st_mode & 0o777, 0o700)
         self.assertEqual(self.probes, 0)
 
@@ -53,7 +53,7 @@ class MaterialStateTests(unittest.TestCase):
             self.state.changed()
         self.assertEqual(len(self.jobs), 1)
         self.assertFalse(self.tick())
-        self.assertEqual(self.names(), {"blur-on", "clarity-clear"})
+        self.assertEqual(self.names(), {"state-on-clear"})
         self.assertEqual(len(self.jobs), 1)
         self.assertFalse(self.tick())
         self.assertEqual(self.probes, 2)
@@ -62,20 +62,20 @@ class MaterialStateTests(unittest.TestCase):
     def test_event_immediately_invalidates_previous_on(self):
         self.publisher.publish(True)
         self.state.changed()
-        self.assertEqual(self.names(), {"blur-off", "clarity-clear"})
+        self.assertEqual(self.names(), {"state-off-clear"})
 
     def test_failure_unknown_and_false_are_off(self):
         for answer in (False, None, "true", 1, RuntimeError("bus lost")):
             self.answer = answer
             self.state.refresh(False)
-            self.assertEqual(self.names(), {"blur-off", "clarity-clear"})
+            self.assertEqual(self.names(), {"state-off-clear"})
 
     def test_reload_race_second_probe_corrects_result(self):
         self.state.changed()
         self.tick()
         self.answer = False
         self.tick()
-        self.assertEqual(self.names(), {"blur-off", "clarity-clear"})
+        self.assertEqual(self.names(), {"state-off-clear"})
 
     def test_close_removes_markers_and_cancels_events(self):
         self.state.changed()
@@ -95,7 +95,7 @@ class MaterialStateTests(unittest.TestCase):
     def test_symlink_marker_is_not_followed(self):
         target = Path(self.temp.name) / "private"
         target.write_text("untouched")
-        (self.publisher.directory / "blur-on").symlink_to(target)
+        (self.publisher.directory / "state-1-on-clear").symlink_to(target)
         with self.assertRaises(OSError):
             self.publisher.publish(True)
         self.assertEqual(target.read_text(), "untouched")
@@ -104,16 +104,16 @@ class MaterialStateTests(unittest.TestCase):
         selected = "clear"
         self.state.clarity_probe = lambda: selected
         self.state.refresh(False)
-        self.assertEqual(self.names(), {"blur-on", "clarity-clear"})
+        self.assertEqual(self.names(), {"state-on-clear"})
         selected = "solid"
         self.state.changed()
         self.tick()
-        self.assertEqual(self.names(), {"blur-on", "clarity-solid"})
+        self.assertEqual(self.names(), {"state-on-solid"})
 
     def test_invalid_clarity_falls_back_to_clear(self):
         self.state.clarity_probe = lambda: "transparent-ish"
         self.state.refresh(False)
-        self.assertEqual(self.names(), {"blur-on", "clarity-clear"})
+        self.assertEqual(self.names(), {"state-on-clear"})
 
     def test_xdg_clarity_reader_is_read_only_and_prioritised(self):
         with tempfile.TemporaryDirectory() as raw:

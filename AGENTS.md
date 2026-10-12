@@ -276,6 +276,17 @@ OVMF's stored BootOrder can select an installed disk despite `-boot order=d`:
 read actual mounts and the QGA security context before claiming a live-root test.
 These are fixture rules, never exceptions to installed authentication or boot gates.
 
+**A directory scan is not a state transaction.** Native Qt lost the last remove
+of the old blur/clarity marker pair while its asynchronous scan was finishing;
+the real publisher reproduced a stale view. Publish both fields through one
+atomic generation filename. Keep the existing finite 100/750 ms event readback,
+never a recurring heartbeat. A fixture must use that actual event policy and
+acknowledge this generation or newer, never an old matching line in its pipe.
+Preserve ambiguous/missing/invalid opaque controls and the broken-reader negative.
+Changing the shared QML reader requires THEME_REV/cache invalidation, including
+the existing greeter tmpfiles authority; an isolated transition proof is not
+installed or phone/scale acceptance.
+
 **A live socket and an empty decode queue do not prove a picture.** A browser
 can consume H.264 chunks without output while its pongs remain healthy. Recover
 against actual decoded output, with bounded IDR requests; keep incoming-data

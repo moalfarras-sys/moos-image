@@ -33,7 +33,7 @@ ARM/generic-image/source CI pass; their skipped ARM boot/promotion jobs prove
 no boot. The .1029 cycle is complete. Combined audit integration/delivery remain;
 pre-login opt-in is still off, not inferred from source/installed acceptance.
 
-The 12 October station audit is the current bounded M0/P2.2/P5.6 slice:
+The 12 October station audit is the current bounded M0/P2.2/P2.5/P5.6 slice:
 actual ARM readback, reviewed cache retirement and one native Settings launcher.
 An account's old hidden launcher produced zero Settings menu entries despite
 51/0 + 55/0. A shared effective-XDG probe and recoverable exact-byte migration
@@ -361,7 +361,7 @@ itself and an unreviewed MoOS would ship kscreenlocker's emergency locker.
 | P2.2 | One Settings entry and stable application identity | 12 October native audit repaired the zero-entry account shadow. One real KDE menu entry, 52/0 source selfcheck and seven isolated native KCM loads pass. Shared probe/recoverable migration and six controls await signed delivery; wider entry/keyboard/scale acceptance remains | One actual System Settings identity/window and correct native destinations from all entry points. |
 | P2.3 | One qualified Arabic/English locale authority | Arabic session works; new lock/Mira startup correction in source; cross-app unity remains | KDE/QML/GTK/Mira/MoPlayer/Flatpak selection after relogin/reboot; Arabic first, English supported. |
 | P2.4 | Keyboard and screen-reader operation | Open / acceptance not complete | Real keyboard traversal/focus and Orca Arabic/English on all primary flows. |
-| P2.5 | Visual, contrast, scale and reduced-motion matrix | Open / acceptance not complete | 1080p–4K, 100–250%, Arabic RTL/English LTR, light/dark, reduced motion and measured readable contrast. |
+| P2.5 | Visual, contrast, scale and reduced-motion matrix | Native audit reproduces a lost blur/clarity file update with the real producer. Atomic generation publication and unchanged finite event readback pass 480 native transitions, invalid/ambiguous/absent and broken-reader controls; THEME_REV/fingerprint=103 in source. Installed delivery and the full visual/scale/motion matrix remain open | 1080p–4K, 100–250%, Arabic RTL/English LTR, light/dark, reduced motion and measured readable contrast. |
 | P2.6 | Asset reachability and removal of retired UI | Open: archived translucent-dialog prototype retained, but current-theme blur-off qualification/integration remains | Generator/runtime/test consumers proven; retain negative fixtures and required upstream notices; never restore obsolete generated assets over today's theme. |
 | P2.7 | Horizon feedback, clock input and system sound | Open / acceptance not complete | Finite stable-hit feedback, reversal/hidden/reduced-motion proof, clock keys and actual event sound. |
 | P2.8 | MoOS Bar, Search and Island as one shell | Open / acceptance not complete | Native accessible Search/Island/Bar, keyboard escape, multi-context tabs and truthful lifecycle tokens. |

@@ -15,7 +15,9 @@ The native KDE menu had no Settings entry despite those green checks: a local
 old hidden launcher outranked the image. The new shared launcher probe fails
 that negative control; its narrow digest-reviewed migration restores one native
 menu entry and preserves the original. Source selfcheck now passes 52/0.
-This account repair is applied; the image helper/migration still needs delivery.
+This account repair is applied; signed helper delivery remains. Atomic material
+state/generation plus finite readback pass 480 native transitions and a broken-reader
+negative; THEME_REV/fingerprint=103 in source. Wider installed visual proof remains.
 
 Three exact unused audit images were retired after container-use/ancestry
 checks. Native writable headroom increased from 61,826,691,072 to
@@ -25,9 +27,8 @@ editor/services workload sample has 7.17–7.28 GiB available; it is not idle
 acceptance. Official Mo Store updated the available user apps.
 
 Reliability PR224 at `3abe787a` is promoted: x86 38136731168, ARM 38128647066. Local image `90fae1cabecd` and 246 source gates pass; NVIDIA .1026 and ARM .752 are booted/accepted.
-Canary 38099434894 passes reviewed 6.7.91/12 seams, native RPM/greeter and
-final image gates; stable 6.8.0 stays unreviewed/refused.
-Native active-workload 30 s: 6.4–6.7 GiB available, PSI=0, GPU 0–21%/1.62–1.81 GiB VRAM;
+Canary 38099434894 passes reviewed 6.7.91/12 seams and image gates; stable 6.8.0 stays unreviewed/refused.
+Earlier NVIDIA active-workload 30 s: 6.4–6.7 GiB available, PSI=0, GPU 0–21%/1.62–1.81 GiB VRAM;
 Code/browser dominate active work; idle Baloo restart reduced PSS 2.23 GiB→104 MiB,
 anonymous 970→13 MiB; all 303,766 indexed files/probe/config preserved. Generated `~/moos-wt/` excluded; durable weak-tier policy unproven.
 ARM boot guard/256 MiB pressure controls pass both hosts (22.25/31.42 s,
@@ -160,7 +161,6 @@ remain in evidence; this capture mode does not test the image picker or network.
 local. CI English/small-screen fixtures are not owner Arabic hardware evidence.
 
 ## Integrated owner features and remaining boundaries
-
 - Mira capture pauses on mute, missing/unknown source, discards late recognition
   and loads wake recognition lazily. Eleven boundary, seven wake and 45 controller
   tests pass. Eight real/private-helper stages include muted physical USB with
