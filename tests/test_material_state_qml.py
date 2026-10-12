@@ -15,6 +15,10 @@ the P2.5 "Liquid Glass is see-through" defect, live, on a shipped path.
 A string-matching test cannot check any of this. Only a real engine can say what
 a FolderListModel does when a file appears under it, so this runs one.
 
+The logical names below are shorthand for the single state-generation filename.
+The production event policy keeps its existing 100/750 ms finite readback; there
+is no recurring poll. Every acknowledgement must carry this request's generation
+or a newer one, never a matching value left in the pipe from an earlier cycle.
 The contract being checked, in the order it matters:
 
   * no publisher at all  -> the startup kwinrc policy still decides. A greeter or
@@ -29,6 +33,9 @@ The contract being checked, in the order it matters:
   * marker changes while running -> the value follows, with no restart.
 """
 from pathlib import Path
+import importlib.machinery
+import importlib.util
+import re
 import shutil
 import select
 import subprocess
@@ -38,6 +45,10 @@ import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
 UI = ROOT / "system_files/usr/lib64/qt6/qml"
+LOADER = importlib.machinery.SourceFileLoader("material_publisher_for_qml", str(ROOT / "system_files/usr/libexec/moos-material-state"))
+SPEC = importlib.util.spec_from_loader(LOADER.name, LOADER)
+PUBLISHER = importlib.util.module_from_spec(SPEC)
+LOADER.exec_module(PUBLISHER)
 RUNTIME = next((name for name in ("moos-qml-shell", "qml-qt6", "qml6", "qml")
                 if shutil.which(name)), None)
 
@@ -56,16 +67,25 @@ QtObject {
                   + " observed=" + String(MoUI.Tokens.materialObserved)
                   + " clarity=" + String(MoUI.Tokens.clarityPreference)
                   + " value=" + Number(MoUI.Tokens.glassClarity).toFixed(1)
-        if (now === probe.last) return
-        probe.last = now
-        console.log("MATERIAL " + now)
+        let files = []
+        for (let i = 0; i < MoUI.Tokens.materialFiles.count; ++i)
+            files.push(String(MoUI.Tokens.materialFiles.get(i, 'fileName')))
+        const snapshot = now + " files=" + files.sort().join(",")
+        if (snapshot === probe.last) return
+        probe.last = snapshot
+        console.log("MATERIAL " + snapshot)
     }
     property var watcher: Connections {
         target: MoUI.Tokens
-        function onBlurActiveChanged() { probe.record() }
-        function onMaterialObservedChanged() { probe.record() }
-        function onClarityPreferenceChanged() { probe.record() }
-        function onGlassClarityChanged() { probe.record() }
+        function onBlurActiveChanged() { Qt.callLater(probe.record) }
+        function onMaterialObservedChanged() { Qt.callLater(probe.record) }
+        function onClarityPreferenceChanged() { Qt.callLater(probe.record) }
+        function onGlassClarityChanged() { Qt.callLater(probe.record) }
+    }
+    property var stateWatcher: Connections {
+        target: MoUI.Tokens.materialFiles
+        function onDataChanged() { Qt.callLater(probe.record) }
+        function onCountChanged() { Qt.callLater(probe.record) }
     }
     Component.onCompleted: record()
 }
@@ -88,6 +108,12 @@ class Probe:
         probe = work / "probe.qml"
         probe.write_text(PROBE, encoding="utf-8")
         self.seen: list[str] = []
+        self.expected_files = ""
+        self.minimum_generation = 0
+        self.state = None
+        self.pending = {}
+        self.serial = 0
+        self.requested = (False, "clear")
         command = ([RUNTIME, "--app-id", "org.moos.material.gate", "--qml", str(probe)]
                    if RUNTIME == "moos-qml-shell" else [RUNTIME, str(probe)])
         self.process = subprocess.Popen(
@@ -107,15 +133,48 @@ class Probe:
         self.reader = self.process.stdout
 
     def mark(self, *names: str) -> None:
-        """Make the marker directory hold exactly these files."""
-        self.material.mkdir(mode=0o700, exist_ok=True)
-        for name in ("blur-on", "blur-off", "clarity-clear",
-                     "clarity-balanced", "clarity-solid"):
-            path = self.material / name
-            if name in names:
-                path.touch()
+        """Publish normal states through the real producer; plant ambiguous controls."""
+        producer = PUBLISHER.Publisher(self.runtime_dir)
+        blurs = [name[5:] for name in names if name.startswith("blur-")]
+        clarities = [name[8:] for name in names if name.startswith("clarity-")]
+        if len(blurs) == 1 and len(clarities) == 1:
+            self.requested = (blurs[0] == "on", clarities[0])
+            self.minimum_generation = time.monotonic_ns()
+            self.expected_files = None
+            if self.state is None:
+                self.state = PUBLISHER.State(
+                    producer, lambda: self.requested[0], self.schedule,
+                    lambda key: self.pending.pop(key, None),
+                    lambda: self.requested[1])
+            self.state.changed()
+        elif not names:
+            if self.state is not None:
+                self.state.close()
+                self.state = None
             else:
-                path.unlink(missing_ok=True)
+                producer.close()
+            self.expected_files = ""
+            self.minimum_generation = 0
+        else:
+            desired = {f"state-1-{blur}-{clarity}" for blur in blurs for clarity in clarities}
+            for name in desired:
+                (self.material / name).touch()
+            for path in self.material.glob("state-*"):
+                if path.name not in desired:
+                    path.unlink()
+            self.expected_files = ",".join(sorted(desired))
+            self.minimum_generation = 0
+
+    def schedule(self, delay, callback):
+        self.serial += 1
+        self.pending[self.serial] = (time.monotonic() + delay / 1000, callback)
+        return self.serial
+
+    def run_due(self):
+        for key, (due, callback) in list(self.pending.items()):
+            if key in self.pending and due <= time.monotonic():
+                self.pending.pop(key)
+                callback()
 
     def expect(self, value: str, timeout: float = 20.0) -> str:
         """Wait for the engine to REPORT this value, and say so if it never does.
@@ -124,16 +183,26 @@ class Probe:
         what keeps the live-change cases honest: a bridge that never fires looks
         exactly like a stable value if you only sample.
         """
-        if self.seen and self.seen[-1] == value:
+        def matches(reported):
+            prefix, _, files = reported.partition(" files=")
+            if prefix != value:
+                return False
+            if self.expected_files is not None:
+                return files == self.expected_files
+            generation = re.fullmatch(r"state-([0-9]+)-(on|off)-(clear|balanced|solid)", files)
+            return bool(generation and int(generation[1]) >= self.minimum_generation)
+        if self.seen and matches(self.seen[-1]):
             return value
         deadline = time.monotonic() + timeout
         while time.monotonic() < deadline:
+            self.run_due()
             # A blocking readline() never looks at the deadline: when the engine stays silent,
             # the gate hung for good (seen on the A1, 2026-09-24) instead of failing with what
             # it saw. Wait for output only as long as the deadline allows.
-            ready, _, _ = select.select([self.reader], [], [], max(0.0, deadline - time.monotonic()))
+            next_due = min((item[0] for item in self.pending.values()), default=deadline)
+            ready, _, _ = select.select([self.reader], [], [], max(0.0, min(deadline, next_due) - time.monotonic()))
             if not ready:
-                break
+                continue
             line = self.reader.readline()
             if not line:
                 if self.process.poll() is not None:
@@ -143,12 +212,15 @@ class Probe:
             if "MATERIAL " in text:
                 reported = text.split("MATERIAL ", 1)[1].strip()
                 self.seen.append(reported)
-                if reported == value:
+                if matches(reported):
                     return reported
         raise AssertionError(
-            f"the engine never reported {value!r}; it reported {self.seen}")
+            f"the engine never reported {value!r} for generation >= {self.minimum_generation}; last snapshots: {self.seen[-20:]}")
 
     def close(self) -> None:
+        if self.state is not None:
+            self.state.close()
+            self.state = None
         if self.reader is not None:
             self.reader.close()
             self.reader = None
@@ -157,6 +229,7 @@ class Probe:
             self.process.wait(timeout=10)
         except subprocess.TimeoutExpired:
             self.process.kill()
+            self.process.wait(timeout=5)
 
 
 @unittest.skipIf(RUNTIME is None, "no QML runtime on this machine (CI)")
@@ -232,6 +305,56 @@ class MaterialStateInARealEngine(unittest.TestCase):
             (("blur-on", "clarity-clear", "clarity-solid"),
              "true observed=true clarity=solid value=1.0"),
         ])
+
+    def test_real_publisher_rapid_transitions_do_not_leave_a_stale_snapshot(self):
+        # Old multi-file publication lost the last remove while Qt's directory
+        # worker was scanning: the real producer reproduced it on native ARM.
+        # One live consumer, all four required states, every cycle acknowledged.
+        cycle = [
+            (("blur-on", "clarity-clear"), "true observed=true clarity=clear value=0.0"),
+            (("blur-on", "clarity-balanced"), "true observed=true clarity=balanced value=0.5"),
+            (("blur-on", "clarity-solid"), "true observed=true clarity=solid value=1.0"),
+            (("blur-off", "clarity-clear"), "false observed=true clarity=clear value=1.0"),
+        ]
+        self.run_case(True, cycle * 40)
+
+    def test_unknown_state_is_opaque(self):
+        with tempfile.TemporaryDirectory() as raw:
+            work = Path(raw)
+            (work / "empty-system").mkdir()
+            probe = Probe(work, True)
+            try:
+                probe.material.mkdir()
+                (probe.material / "state-invalid").touch()
+                probe.expected_files = "state-invalid"
+                probe.expect("false observed=true clarity=solid value=1.0")
+            finally:
+                probe.close()
+
+    def test_a_broken_consumer_cannot_pass_the_live_transition_gate(self):
+        global UI
+        original = UI
+        with tempfile.TemporaryDirectory() as raw:
+            work = Path(raw)
+            staged = work / "qml"
+            shutil.copytree(UI, staged)
+            tokens = staged / "org/moos/ui/Tokens.qml"
+            text = tokens.read_text()
+            tokens.write_text(text.replace(
+                "if (clarityMarkers.indexOf(fields[2]) < 0) clarityMarkers.push(fields[2])",
+                "if (clarityMarkers.indexOf('clear') < 0) clarityMarkers.push('clear')"))
+            UI = staged
+            (work / "empty-system").mkdir()
+            probe = Probe(work, True)
+            try:
+                probe.mark("blur-on", "clarity-clear")
+                probe.expect("true observed=true clarity=clear value=0.0")
+                probe.mark("blur-on", "clarity-balanced")
+                with self.assertRaisesRegex(AssertionError, "never reported"):
+                    probe.expect("true observed=true clarity=balanced value=0.5", timeout=2)
+            finally:
+                probe.close()
+                UI = original
 
 
 if __name__ == "__main__":

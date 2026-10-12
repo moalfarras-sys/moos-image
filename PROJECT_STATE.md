@@ -1,67 +1,86 @@
-# MoOS current state — updated 2026-10-11
+# MoOS current state — updated 2026-10-12
 
 Oracle A1 and the physical NVIDIA workstation develop one MoOS product.
 Source, promoted artifacts, staged/booted systems are separate evidence; backlog: [DEVELOPMENT_PLAN.md](docs/DEVELOPMENT_PLAN.md).
 
-## Current owner development (delivery pending)
+## Current audit and owner development
 
-Reliability PR224 at `3abe787a` is promoted: x86 38136731168, ARM 38128647066. Local image `90fae1cabecd` and 246 source gates pass; NVIDIA .1026 is staged, ARM .752 booted/accepted.
-Canary 38099434894 passes reviewed 6.7.91/12 seams, native RPM/greeter and
-final image gates; stable 6.8.0 stays unreviewed/refused.
-Native 30 s: NVIDIA 7.7–8.6 GiB available, PSI=0, GPU 0–3%/2.2 GiB VRAM;
-Code dominates RAM; stopped MoPlayer 4.2% core; Baloo 26% indexing 427k files.
-Generated `~/moos-wt/` copies excluded; no causal after-benchmark yet.
+Oracle native audit on 2026-10-12 confirms signed ARM .756 with .752 rollback,
+51 installed selfchecks / 55 post-update checks, no failed units, and actual
+oomd monitoring. Seven installed MoOS KCMs load through the native loader in
+isolated Arabic homes with ready markers and no QML errors. All seven Remote
+.NET projects build; every executable test passes. [Audit evidence](docs/AUDIT_20261012_AR.md).
+
+The native KDE menu had no Settings entry despite those green checks: a local
+old hidden launcher outranked the image. The new shared launcher probe fails
+that negative control; its narrow digest-reviewed migration restores one native
+menu entry and preserves the original. Source selfcheck now passes 52/0.
+This account repair is applied; signed helper delivery remains. Atomic material
+state/generation plus finite readback pass 480 native transitions and a broken-reader
+negative; THEME_REV/fingerprint=103 in source. Wider installed visual proof remains.
+
+Three exact unused audit images were retired after container-use/ancestry
+checks. Native writable headroom increased from 61,826,691,072 to
+79,343,939,584 bytes (17,517,248,512 reclaimed). SDK/stopped containers, all four
+healthy owner-service containers, data and signed rollback remain. A 30 s
+editor/services workload sample has 7.17–7.28 GiB available; it is not idle
+acceptance. Official Mo Store updated the available user apps.
+
+Reliability PR224 at `3abe787a` is promoted: x86 38136731168, ARM 38128647066. Local image `90fae1cabecd` and 246 source gates pass; NVIDIA .1026 and ARM .752 are booted/accepted.
+Canary 38099434894 passes reviewed 6.7.91/12 seams and image gates; stable 6.8.0 stays unreviewed/refused.
+Earlier NVIDIA active-workload 30 s: 6.4–6.7 GiB available, PSI=0, GPU 0–21%/1.62–1.81 GiB VRAM;
+Code/browser dominate active work; idle Baloo restart reduced PSS 2.23 GiB→104 MiB,
+anonymous 970→13 MiB; all 303,766 indexed files/probe/config preserved. Generated `~/moos-wt/` excluded; durable weak-tier policy unproven.
 ARM boot guard/256 MiB pressure controls pass both hosts (22.25/31.42 s,
-sentinel survives, kernel OOM=0); ARM native monitoring passes after signed boot; NVIDIA reboot remains.
-Remote topic has restricted/scoped v57 source; installed stations lack pre-login Remote.
+sentinel survives, kernel OOM=0); both hosts prove native monitoring after signed boot.
+Remote PR225 merged at `d44cecfd`; ARM .756 is booted/accepted; x86 .1029 is promoted.
 Private .1022/r10 guest passes repeated cold PAM login, account handoff/logout,
 real decoded frames and scoped trust; AR/EN renders/seven .NET projects pass.
 Native masked-PIN validation/close clearing and GTK ink correction pass;
 managed opt-in/units and real listener/trust revocation pass native VM controls;
 disabled cold boot stays off. Full local image `5ce19e082374` passes/31 files match;
-Oracle's separate public Community/private Remote passes actual old/fixed TLS controls; greeter enrollment TLS is fixture-only; signed/hardware/phone acceptance remains P2.17.
+Oracle's separate public Community/private Remote and PC certificate-verified HTTPS pass. Greeter enrollment is fixture-only; hardware/phone acceptance remains P2.17. X86 signed build 38169917085, .1029 disks 38178926184/38178929064/38178932277, ISO 38178935305 and promotion 38181945282 pass. That cycle is complete.
+PR227 scopes three desktop maintenance units away from system accounts: 247 gates, 17 native theme tests, actual owner/greeter old/fixed conditions and full image `e0fbe27e2932` pass; three final unit hashes match. Its ARM/generic-image/source CI all pass; skipped ARM disk/promotion jobs are not boot evidence. Combined audit integration and signed delivery remain. This correction is not in .756/.1029; no theme/authentication gate changed.
 
 ## Source and promoted delivery
 
-Owner PR222 is merged at `1a73a4e08b33d5a49f0eda42947acaca037d0d9a`,
-with candidate ancestry preserved. Final owner source passes 244 maintained
-checks plus catalogue and the full local image `926579dbe394` (12 runtime
-hashes). THEME_REV/fingerprint is 102. No identity, authentication, signature,
-installer mount or rollback guard was weakened.
+Owner PR222 (`1a73a4e0`) preserves candidate ancestry; 244 checks, catalogue,
+full image `926579dbe394` and 12 runtime hashes pass. THEME_REV=102.
+Identity, authentication, signature, installer mount and rollback guards remain.
 
 | Edition | Version | Proven signed digest |
 | --- | --- | --- |
-| Desktop | 44.20261011.1026 | a1ac3c6b0eec756f2d20f238abb1896ba8f7e25228cc2e8458952201ffe7524a |
-| NVIDIA | 44.20261011.1026 | 782032d1739b775d7f673bc8e91c858e5246a5cd2d631b3944c470a99b98046e |
-| Cloud x86 | 44.20261011.1026 | aa2d4fefa1c45d3cb2f6bc08d5c0ad73b7b890cef3f5aad52e86221425b2143a |
-| ARM | 44.20261011.752 | e621e284e05e0745722c15e1786d96e01c52538fe807092e40d1ca954bc6a394 |
+| Desktop | 44.20261011.1029 | 562b5ba91dfe19686fe23c201733979920a66a588c7624f5b81e83495e162d26 |
+| NVIDIA | 44.20261011.1029 | eeeef7436eb089a1da394ee01a41359383b56c756878df3dadd935b9c19ec055 |
+| Cloud x86 | 44.20261011.1029 | 3180a443162cd0069ed7786c1718a0df8b0e6be7bfebe2e4d3d65b9b6871f6c2 |
+| ARM | 44.20261011.756 | 0a02cbd72e25656fea4c3d814f04ceb67b2ec82f2256fcea7368058960d9180b |
 
-Latest exact proofs pass on attempt 1: signed x86 build 38128732396;
-generic/NVIDIA/cloud disks 38133971240, 38133974055, 38133976682;
-final offline ISO install/installed boot/shutdown 38133979283;
-x86 promotion 38136731168; ARM build/disk/two boots/promotion 38128647066.
+Latest exact proofs pass on attempt 1: signed x86 build 38169917085;
+generic/NVIDIA/cloud disks 38178926184, 38178929064, 38178932277;
+final offline ISO install/installed boot/shutdown 38178935305;
+x86 promotion 38181945282; latest ARM build/disk/two boots/promotion 38169587234.
 Both ARM boots prove actual system/native-user memory monitoring, failed units=0.
-The qualified .1026 ISO is not yet the public .1022 download or a pre-login Remote release.
+The qualified .1026 ISO is now public; it predates pre-login Remote.
 
 ## Physical NVIDIA workstation
 
-Official update and restart booted signed NVIDIA .1022 (`4abf5afd…`),
-boot ID `83a69153-a981-42cb-9652-5baf8f025f45`. Native post-login acceptance
-at 22:40:06 UTC passed 53 selfchecks, 55 post-update checks, twelve exact
-runtime hashes, signed origin/rollback and no failed system/user units. Signed
-.1018 (`c5977fc7…`) remains for rollback. The owned autostart proof retired
-itself after acceptance; stage-only evidence is no longer the current state.
+Official update and restart booted signed NVIDIA .1026 (`782032d1…`),
+boot ID `b8bcee30-0e8c-4ea0-8f66-489fe57510f2`. Native post-login acceptance
+at 19:44:24 UTC passed 54 selfchecks, 55 post-update checks, fourteen exact
+runtime hashes, actual system/native-user memory monitoring, signed origin and
+no failed production units. Signed .1022 (`4abf5afd…`) remains for rollback.
+Ordinary PLM login and the self-retiring autostart proof passed; boot=32.989 s.
 
 Installed stack: kernel 7.2.9, Plasma 6.7.5, Qt 6.11.2 and NVIDIA 615.78.08;
 Arabic session, 4K/250%, UI2 Arena. Actual RTX 2080 SUPER driver/display readback
 passes, Wi-Fi is connected, Bluetooth is powered and two camera device nodes
 exist. Those are enumeration/current-state checks, not suspend/hotplug/camera
-quality or a universal hardware matrix. Earlier user-unit failures remain in
-private evidence; current post-reboot failed lists are empty. Writable /var has
-about 212 GiB free at acceptance; retiring only the exact old local .1018
-ISO triple afterward reclaimed 5,808,128,179 bytes and leaves about 218 GiB.
-Current .1022 local files and installed signed rollback remain. Current RAM is
-active tooling, not an idle benchmark.
+quality or a universal hardware matrix. Earlier failures remain in private evidence.
+ESP offline proof repaired only dirty byte 65; clone/live bytes match, all 16
+boot-file hashes and both vfat peers are preserved; 1 GiB owned scratch retired.
+The preceding independent-unmount mistake aborted before fsck and was restored;
+private old/fixed shared-mount controls pass. Next cold boot is still owed.
+Old local .989 ISO/signature/checksum retired after full old hash/ancestry/no-holder checks; 5,786,763,443 logical bytes removed. Native /var delayed readback=177,792,430,080 bytes free; source/VM controls/.1022 rollback preserved.
 
 Official Mo Store `update-apps` reports apps up to date. Settings, Store,
 Mira and MoPlayer were previously opened/reopened on installed .1018 without
@@ -71,12 +90,12 @@ prove spoken voice, every action, media playback or hardware endurance.
 
 ## Oracle A1
 
-Oracle rebooted into signed ARM .752 (`e621e284…`), boot ID
-`8506a4e3-46ff-46cd-9a41-f9d26fec5476`; signed .749 is retained for rollback.
-Native graphical-context acceptance at 12:10:24 UTC passed 51 selfchecks,
-55 post-update checks, all 14 runtime hashes and no failed units. Actual system
-and native-user oomd monitoring pass; boot=14.616 s, network=connected/full.
-Four containers remain healthy; Community and personal Remote are active.
+Oracle rebooted into signed ARM .756 (`0a02cbd7…`), boot ID
+`0ac1f5dc-082e-4948-abcd-ccad1169ce9c`; signed .752 is retained for rollback.
+Native graphical-context acceptance at 22:12:40 UTC October 11 passed 51 selfchecks,
+55 post-update checks, all 31 Remote runtime hashes and no failed units. Actual system
+and native-user oomd monitoring pass; boot=14.064 s, network=connected/full.
+At 22:14:39 UTC four containers are healthy and certificate-verified Remote/Community return 200; pre-login remains explicitly off. Existing autologin is not ordinary password acceptance. The .752/.756 CI greeter maintenance timeout is tracked by PR227; native owner reconcile passes.
 Kernel retains audit throttling/accountsd/bootupd metadata warnings; bootloader update succeeds/latest. Earlier failures remain recorded.
 Existing private account HTTPS passes certificate-verified readback. An SSH shell
 omits Plasma's XDG cascade and is not an authoritative desktop-theme probe.
@@ -85,7 +104,7 @@ Arabic session/UI2 Nova is distinct from system fallback `C.UTF-8`.
 Files, photos, database/cache, SMB, IDE and Remote are existing owner services;
 no data directories or ingress routes were removed. The completed R2 upload
 scratch was retired after matching its full hash to the qualified public proof,
-reclaiming 5,827,068,083 bytes; writable /var now has about 35 GiB free.
+reclaiming 5,827,068,083 bytes; the current public .1026 archive is preserved. Current local headroom is measured above; temporary artifact ZIP is retired.
 System-wide pressure/frame/audio recovery and weak-device endurance remain P5.7 gaps.
 
 Owner-authorized persistent native SSH now uses a dedicated workstation-only
@@ -95,55 +114,37 @@ strictly authenticated master and reconnects on failure. It uses an owned
 `-F` config because namespace mapping made the vendor root-owned SSH include
 fail its ownership check; global SSH permissions/checks were not relaxed.
 Actual native key login, sudo and master/control socket pass. The workstation
-master automatically reconnected across Oracle's real reboot (new PID 139935).
-After the workstation reboot its native SSH master is active (PID 2626), and
-actual Oracle commands reach the same accepted ARM boot without reauthentication. No private
+master automatically reconnected across Oracle's real .756 reboot without reauthentication.
+Actual Oracle commands reach the accepted ARM boot. No private
 key is in Git. Oracle's current dirty docs remain unchanged on their original
 branch; verified bundle/ref `archive/owner-pre-reboot-20261011` (`b3b886b6…`)
-preserves them on both stations without altering the owner's index.
+preserves them on both stations without altering the owner's index. Pre-.756 checks reuse the matching tree ref; six current dirty files and the original branch remain intact, with no duplicate snapshot.
 
-## Public website incident and isolation
+## Public hosting
 
-Authenticated Vercel Hobby billing is active, but team metadata reports
-`FAIR_USE_LIMITS_EXCEEDED`, specifically `fluidCpuDuration`, at
-2026-10-10 01:50 Berlin. Dashboard totals: CPU 11h40/4h, ISR writes
-839K/200K, Blob 6.22GB/1GB, origin transfer 12.12GB/10GB. Paid observability
-would be required for project CPU attribution; none was enabled.
-
-Documented project unpause restored all 14 primary sites. Latest anonymous
-readback (21:47 UTC): 24/25 addresses return actual application pages;
-the old A&D vercel.app alias remains disabled while its custom domain works.
-28 isolated browser views rendered all 14 sites on phone/desktop, with no JS
-errors or visibly broken images. This did not submit business forms/accounts.
-New Vercel deploys remain account-blocked.
-
-MoOS's independent AR/EN frontend is deployed at
-https://moos-site.moalfarras-moos.workers.dev/ar/ . HTML/images/fonts/JS
-are static Cloudflare assets; only download routing executes its small Worker.
-Eight refreshed .1022 public AR/EN width/input/motion views pass without Vercel calls. Five
-scoped live Vercel CDN 307 rules preserve existing MoOS entrypoints/queries;
-MoPlayer, admin and business APIs retain their existing ownership.
-
-Only the obsolete September Blob ISO (5,884,149,760 bytes) was deleted with
-size/ETag preconditions after validating current R2 routing. All five MoPlayer
-assets remain, exactly 333,653,409 bytes total. Monthly usage is not reset.
-Website source/handoff: Mohammad-alfarras PR55; source CI passes all three
-jobs, while Vercel preview checks correctly retain the account-block error.
+MoOS uses Cloudflare Static Assets/R2 with five scoped Vercel CDN redirects.
+Website PR56 is merged at `11cb5052`; latest source CI is green, no PR is open.
+The separate Vercel account fair-use/deployment restriction and other-site
+incidents remain in [the owner handoff](docs/OWNER_EXECUTION_20261009_AR.md).
+No paid plan or billing limit was changed by this audit.
 
 ## ISO and visual evidence
 
-The current public .1022 ISO from final run 38051456847 is preserved on
-the workstation and published to R2 (5,827,067,904 bytes):
-SHA-256 `0927826e1d28cbbd8c9054ba19b49c9904184c9f0ea304bf60050dfc76d926f3`.
-Full local signature/hash checks passed on both stations. Full anonymous public
-hash/signature/range verification passed at 22:10:02 UTC; both sidecars match.
-The paired frontend is deployed as `fc9c2a50-0ae4-422b-b855-7d63c22fbd36`;
-download Worker `49a3c101-15ef-4dc0-91d5-5d9c4807b6c9` carries the .1022
-publication marker. All five CDN rules are live; 14 final routing checks pass.
+The current public .1026 ISO from final run 38133979283 is preserved on
+Oracle and published to R2 (5,827,133,440 bytes):
+SHA-256 `288fcb001aabc990103653cd622d11734a5472cf7942715429eb1934dd3cb57b`.
+Local signature/hash and full anonymous public verification passed at
+21:24:17 UTC; resumed ranges and both exact sidecars match.
+Frontend `7fc92c0a-3f66-4114-8a74-dda39cf1681f` passes eight local/eight public
+views; download Worker `72141578-1b4c-4a48-8e2c-e3e70295bb05` carries .1026.
+Five existing CDN rules remain; fourteen fresh .1026 routing/metadata/script/range checks pass at 21:56:52 UTC. Six owned website test caches retired after CI/public acceptance: 1,263,339,069 logical bytes; original dependencies/source/lockfiles remain. Concurrent image writes and CoW preclude claiming equal physical free-space gain.
 .1011's exact three objects were deleted (5,796,462,771 bytes). .1018's original
 bytes survived the full grace period; guarded retirement at 15:05:09 UTC
-deleted only its three public objects (5,808,128,179 bytes); .1022 stays current.
-Public receipt: `docs/releases/2026-10-10-public-download-proof.json`.
+deleted only its three public objects (5,808,128,179 bytes). .1022 retained its
+original bytes through October 12 12:00 UTC; guarded retirement at 12:05:06 UTC
+deleted only its three public objects (5,827,068,083 bytes). Its recorded receipt
+keeps .1026 as the active qualified public release.
+Public receipt: `docs/releases/2026-10-11-public-download-proof.json`.
 Worker source/native tests pass 21 cases, including
 immutable-path retirement, grace period, sidecars and >4 GiB resumes.
 
@@ -160,7 +161,6 @@ remain in evidence; this capture mode does not test the image picker or network.
 local. CI English/small-screen fixtures are not owner Arabic hardware evidence.
 
 ## Integrated owner features and remaining boundaries
-
 - Mira capture pauses on mute, missing/unknown source, discards late recognition
   and loads wake recognition lazily. Eleven boundary, seven wake and 45 controller
   tests pass. Eight real/private-helper stages include muted physical USB with

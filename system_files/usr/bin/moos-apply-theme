@@ -358,7 +358,8 @@ set -uo pipefail
 #      draw the old layout with no island at all.
 # 102: the installer searches localized CLDR city names and names Mira consistently.
 # Changed QML under /usr must not reuse a previous deployment's compiled cache.
-THEME_REV=102
+# 103: publish blur/clarity as one atomic runtime state; retire cached UI readers.
+THEME_REV=103
 state_dir="${XDG_STATE_HOME:-$HOME/.local/state}"
 mkdir -p "$state_dir" 2>/dev/null || true
 marker="${state_dir}/moos-ui2-theme-applied.v${THEME_REV}"
@@ -513,6 +514,14 @@ if [ "$quarantined_kwin" = "1" ]; then
         timeout 5 gdbus call --session --dest org.kde.KWin --object-path /KWin \
             --method org.kde.KWin.reconfigure >>"$log" 2>&1 || true
     fi
+fi
+
+# A reviewed old hidden launcher outranks the image's single Settings entry.
+# This narrow, recoverable migration also runs before the revision fast path;
+# unknown personal overrides stay intact and the live selfcheck reports them.
+settings_launcher_helper="$(dirname "${BASH_SOURCE[0]}")/../lib/moos/moos_settings_launcher.py"
+if [ -f "$settings_launcher_helper" ]; then
+    python3 "$settings_launcher_helper" repair >>"$log" 2>&1 || true
 fi
 
 # RETIRED MoOS assets are removed from the user share UNCONDITIONALLY — the

@@ -1,8 +1,8 @@
 #!/usr/bin/python3
 """Publish KWin's live material state, never change its policy.
 
-Consumers accept one blur marker and one clarity marker. Missing/ambiguous blur
-state is opaque. Clarity is a preference; blur capability always wins over it.
+Consumers read one atomically renamed state filename containing blur and clarity.
+Missing/ambiguous blur state is opaque. Clarity is a preference; capability wins.
 This is not a promise that a particular window has a blur region.
 """
 import fcntl
@@ -10,6 +10,8 @@ import os
 from pathlib import Path
 import signal
 import stat
+import tempfile
+import time
 
 
 class Publisher:
@@ -24,24 +26,33 @@ class Publisher:
     def publish(self, enabled, clarity="clear"):
         if clarity not in ("clear", "balanced", "solid"):
             clarity = "clear"
-        selected = self.directory / ("blur-on" if enabled is True else "blur-off")
-        other = self.directory / ("blur-off" if enabled is True else "blur-on")
-        # Add before removing: observers may briefly see both, never false clarity.
-        fd = os.open(selected, os.O_WRONLY | os.O_CREAT | os.O_NOFOLLOW, 0o600)
-        os.close(fd)
-        other.unlink(missing_ok=True)
-        clarity_name = "clarity-" + clarity
-        clarity_path = self.directory / clarity_name
-        fd = os.open(clarity_path, os.O_WRONLY | os.O_CREAT | os.O_NOFOLLOW, 0o600)
-        os.close(fd)
-        for name in ("clarity-clear", "clarity-balanced", "clarity-solid"):
-            if name != clarity_name:
-                (self.directory / name).unlink(missing_ok=True)
+        selected = self.directory / f"state-{time.monotonic_ns()}-{'on' if enabled is True else 'off'}-{clarity}"
+        states = list(self.directory.glob("state-*"))
+        for path in states:
+            info = path.lstat()
+            if not stat.S_ISREG(info.st_mode) or info.st_uid != os.getuid():
+                raise OSError("unsafe material state marker")
+        # FolderListModel can finish an asynchronous scan between an add and a
+        # remove and miss the latter. Native old/real-publisher controls left a
+        # stale clarity marker indefinitely. One rename publishes both fields
+        # together with no intermediate file set, gap, or recurring heartbeat.
+        if len(states) == 1:
+            os.replace(states[0], selected)
+        else:
+            fd, temporary = tempfile.mkstemp(prefix=".state-", dir=self.directory)
+            os.close(fd)
+            try:
+                os.replace(temporary, selected)
+            finally:
+                Path(temporary).unlink(missing_ok=True)
+            for path in states:
+                if path != selected:
+                    path.unlink(missing_ok=True)
+        return selected.name
 
     def close(self):
-        for name in ("blur-on", "blur-off", "clarity-clear", "clarity-balanced",
-                     "clarity-solid"):
-            (self.directory / name).unlink(missing_ok=True)
+        for path in self.directory.glob("state-*"):
+            path.unlink(missing_ok=True)
 
 
 class State:

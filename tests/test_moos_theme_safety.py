@@ -98,6 +98,43 @@ def moos_themes_page() -> tuple[str, str, str, str]:
 
 
 class TestMoOSThemeSafety(unittest.TestCase):
+    @unittest.skipUnless(shutil.which("systemd-analyze"), "native systemd condition evaluator unavailable")
+    def test_theme_maintenance_requires_an_ordinary_desktop_account(self):
+        # Load the real unit conditions in a private user-manager context. No
+        # service is started and no live user bus/configuration is consulted.
+        # root CI exercises refusal; a native owner run exercises admission.
+        evaluator = shutil.which("systemd-analyze")
+        membership = subprocess.run(
+            [evaluator, "condition", "ConditionUser=@system"],
+            capture_output=True, text=True, timeout=10,
+        )
+        self.assertIn(membership.returncode, (0, 1), membership.stderr)
+        system_account = membership.returncode == 0
+        with _tempfile.TemporaryDirectory(dir=_ISOLATED) as temporary:
+            private = Path(temporary)
+            runtime = private / "run"
+            runtime.mkdir(mode=0o700)
+            env = dict(os.environ, SYSTEMD_UNIT_PATH=str(private),
+                       XDG_RUNTIME_DIR=str(runtime))
+            for name in ("moos-theme-sync.service", "moos-theme-sync.path",
+                         "moos-theme-drift.timer"):
+                source = (ROOT / "system_files/usr/lib/systemd/user" / name).read_text()
+                with self.subTest(unit=name):
+                    self.assertIn("\nConditionUser=!@system\n", source)
+                    unit = private / name
+                    unit.write_text(source)
+                    command = [evaluator, "--user", "condition", f"--unit={name}"]
+                    result = subprocess.run(command, env=env, capture_output=True,
+                                            text=True, timeout=10)
+                    self.assertEqual(result.returncode, 1 if system_account else 0,
+                                     result.stderr)
+                    # The old units admitted a system greeter. Removing the
+                    # guard must restore that admission in the native evaluator.
+                    unit.write_text(source.replace("ConditionUser=!@system\n", ""))
+                    old = subprocess.run(command, env=env, capture_output=True,
+                                         text=True, timeout=10)
+                    self.assertEqual(old.returncode, 0, old.stderr)
+
     def test_suite_cannot_reach_the_live_desktop(self) -> None:
         self.assertNotIn("WAYLAND_DISPLAY", os.environ)
         self.assertNotIn("DISPLAY", os.environ)

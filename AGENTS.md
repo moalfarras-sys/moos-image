@@ -98,7 +98,8 @@ A broken promoted image can still prevent this workstation from booting.
 
 **This physical PC is the dedicated MoOS development station.** `main` builds
 signed candidates; the boot-proof promotion workflows control production tags.
-The installed machine follows the signed NVIDIA release. A broken promoted
+The physical NVIDIA station follows the signed NVIDIA release; the Oracle A1
+station follows signed ARM. Identify the current host before acting. A broken promoted
 image can stop this workstation from booting and interrupt development itself.
 
 This has already happened once. It is the reason for most of the guards you will find in
@@ -207,6 +208,14 @@ read it back from the running desktop.** `kreadconfig6`, `gsettings get`, and
 `Gtk.Settings.get_default()` answer what the user actually has. A file in `system_files/` does
 not, and neither does a gate that reads one.
 
+**A sudo child can leave its user's unit.** Oracle's official .756 update
+continued in root's PAM session after the owned user-unit wrapper stopped;
+its empty Tasks count and memory limit did not describe the real transaction.
+Read rpm-ostree's actual transaction/deployments before retrying. Do not cancel
+an in-flight update or claim the wrapper bounded it. An owner restart needs
+the native graphical user-manager context; SSH's authentication failure is
+not permission to alter policy or manufacture a polkit identity.
+
 **A remote shell does not inherit Plasma's configuration cascade.** On the Oracle
 `.733` boot, SSH omitted `XDG_CONFIG_DIRS`, including `~/.config/kdedefaults`, and
 the native readback reported four/five mixed-theme failures. The actual graphical
@@ -214,6 +223,16 @@ user environment passed 51/0 and 55/0. Run desktop acceptance in an owned transi
 user unit inheriting that environment, or read its exact configuration paths;
 do not guess them or call an SSH fallback value the running desktop. Keep the
 same checks and their failure evidence; never weaken them to hide the context.
+
+**A correct image launcher can be hidden by an old account copy.** On Oracle
+ARM .756, 51 selfchecks and 55 post-update checks passed while the native menu
+listed no Settings entry: `~/.local/share/applications/systemsettings.desktop`
+still held the old vendor file with `NoDisplay=true`. Inspect effective XDG data
+precedence and the native menu, not only `/usr/share/applications`. The shared
+launcher helper reports hidden/duplicate/foreign entries and quarantines only
+the exact reviewed legacy bytes after verifying the image replacement. Unknown
+owner overrides stay intact. Run this migration before the applied-revision
+fast path and preserve its backup; do not restart the cloud compositor to fix a menu.
 
 **A button is only as real as its route.** Mo AI is pure QML: it cannot exec, so every button
 is a `Qt.openUrlExternally("moos://…")` that lands in `moos-open`'s `case`, which runs the
@@ -256,6 +275,17 @@ exclusive operation. A client disconnect must not kill the VM control server.
 OVMF's stored BootOrder can select an installed disk despite `-boot order=d`:
 read actual mounts and the QGA security context before claiming a live-root test.
 These are fixture rules, never exceptions to installed authentication or boot gates.
+
+**A directory scan is not a state transaction.** Native Qt lost the last remove
+of the old blur/clarity marker pair while its asynchronous scan was finishing;
+the real publisher reproduced a stale view. Publish both fields through one
+atomic generation filename. Keep the existing finite 100/750 ms event readback,
+never a recurring heartbeat. A fixture must use that actual event policy and
+acknowledge this generation or newer, never an old matching line in its pipe.
+Preserve ambiguous/missing/invalid opaque controls and the broken-reader negative.
+Changing the shared QML reader requires THEME_REV/cache invalidation, including
+the existing greeter tmpfiles authority; an isolated transition proof is not
+installed or phone/scale acceptance.
 
 **A live socket and an empty decode queue do not prove a picture.** A browser
 can consume H.264 chunks without output while its pongs remain healthy. Recover
@@ -347,6 +377,14 @@ it as a ~60 MB filesystem that is 100% full. `shutil.disk_usage("/")` therefore 
 The real filesystem is the one under `/sysroot` (`/var` is part of it). `moai-do` already knew
 this — `do_optimize` measures `/var` — and `moai-control` did not.
 
+**A bounded download process can still fill RAM with its temporary file.**
+GitHub CLI buffers the entire Actions ZIP before extracting it; its default
+`/tmp` is tmpfs on these hosts. The .1026 archive download was stopped after
+1,084,719,104 bytes there, then completed in a private on-disk `/var/tmp` with
+a 768 MiB unit cap. Use native filesystem/space readback, budget ZIP plus ISO,
+and retire only owned scratch after successful extraction. The IDE sandbox's
+`/var` is a different filesystem; its free-space figure is not host capacity.
+
 **A fork of an upstream file belongs to the version it forked.** MoOS replaces twelve files
 inside Plasma's own packages, and the survival gate proved only that MoOS's bytes were still
 there. On 2026-09-24 Plasma 6.8 beta was measured to remove `VirtualKeyboardLoader`, a type
@@ -400,6 +438,16 @@ QML under `/usr` needs the bump. Nobody logs into the `plasmalogin` account, so 
 never reached the login screen; its cache is removed at boot by the greeter tmpfiles rule,
 which `finalize_moos_desktop.sh` rewrites after `build.sh`. A rule in one and not the other is
 lost.
+
+**The greeter's workspace target is not a desktop.** ARM's .752 and .756
+proofs booted successfully while `moos-theme-sync.service` spent 45 seconds
+trying to reconcile a nonexistent desktop scene in the `plasmalogin` account.
+Its palette comes from the image's greeter seed/tmpfiles, not the owner's
+Konsole/GTK/scene supplement reconciler. Keep desktop maintenance's service,
+path and timer scoped with `ConditionUser=!@system`; retain the owner's finite
+retry/timeout and every image identity gate. Native private unit-condition
+controls must admit the ordinary owner and reject the actual greeter UID;
+silence in the owner's failed-unit list says nothing about the greeter.
 
 **A fixed boot library outside the initramfs cannot fix boot.** The Plymouth
 frame-lifetime patch is rebuilt from the pinned vendor SRPM with all vendor
@@ -824,6 +872,16 @@ actual endpoint/handler map: refuse public Remote on any port/path, unknown
 transports and malformed proxy URLs, while permitting the unrelated service.
 Keep the real Oracle old/fixed read-only control and public-Remote negative
 controls; do not change ingress or enroll a greeter to diagnose this boundary.
+
+**Two ESP paths can be one shared mount.** On the owner's bootc workstation,
+unmounting `/boot/efi` also unmounted `/sysroot/boot/efi`; treating them as
+independent aborted before fsck, and a fallback bind exposed the empty underlying
+directory. Inspect actual mountinfo peer groups. Detach once and restore the
+authoritative vfat mount once, then verify both real sources/options and boot
+file hashes. Keep the private old/fixed propagation control and failed evidence.
+Never repair a mounted ESP: a dirty-bit-only clone proof must reject all other
+byte changes, match the actual offline result and retire only its owned scratch.
+Offline fsck and restored mounts do not prove the next firmware cold boot.
 
 ## Before you push
 
