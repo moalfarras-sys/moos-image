@@ -207,6 +207,14 @@ read it back from the running desktop.** `kreadconfig6`, `gsettings get`, and
 `Gtk.Settings.get_default()` answer what the user actually has. A file in `system_files/` does
 not, and neither does a gate that reads one.
 
+**A sudo child can leave its user's unit.** Oracle's official .756 update
+continued in root's PAM session after the owned user-unit wrapper stopped;
+its empty Tasks count and memory limit did not describe the real transaction.
+Read rpm-ostree's actual transaction/deployments before retrying. Do not cancel
+an in-flight update or claim the wrapper bounded it. An owner restart needs
+the native graphical user-manager context; SSH's authentication failure is
+not permission to alter policy or manufacture a polkit identity.
+
 **A remote shell does not inherit Plasma's configuration cascade.** On the Oracle
 `.733` boot, SSH omitted `XDG_CONFIG_DIRS`, including `~/.config/kdedefaults`, and
 the native readback reported four/five mixed-theme failures. The actual graphical
@@ -346,6 +354,14 @@ it as a ~60 MB filesystem that is 100% full. `shutil.disk_usage("/")` therefore 
 0 free, and the Hardware Centre showed "?" for storage on every MoOS machine it ever ran on.
 The real filesystem is the one under `/sysroot` (`/var` is part of it). `moai-do` already knew
 this — `do_optimize` measures `/var` — and `moai-control` did not.
+
+**A bounded download process can still fill RAM with its temporary file.**
+GitHub CLI buffers the entire Actions ZIP before extracting it; its default
+`/tmp` is tmpfs on these hosts. The .1026 archive download was stopped after
+1,084,719,104 bytes there, then completed in a private on-disk `/var/tmp` with
+a 768 MiB unit cap. Use native filesystem/space readback, budget ZIP plus ISO,
+and retire only owned scratch after successful extraction. The IDE sandbox's
+`/var` is a different filesystem; its free-space figure is not host capacity.
 
 **A fork of an upstream file belongs to the version it forked.** MoOS replaces twelve files
 inside Plasma's own packages, and the survival gate proved only that MoOS's bytes were still
@@ -834,6 +850,16 @@ actual endpoint/handler map: refuse public Remote on any port/path, unknown
 transports and malformed proxy URLs, while permitting the unrelated service.
 Keep the real Oracle old/fixed read-only control and public-Remote negative
 controls; do not change ingress or enroll a greeter to diagnose this boundary.
+
+**Two ESP paths can be one shared mount.** On the owner's bootc workstation,
+unmounting `/boot/efi` also unmounted `/sysroot/boot/efi`; treating them as
+independent aborted before fsck, and a fallback bind exposed the empty underlying
+directory. Inspect actual mountinfo peer groups. Detach once and restore the
+authoritative vfat mount once, then verify both real sources/options and boot
+file hashes. Keep the private old/fixed propagation control and failed evidence.
+Never repair a mounted ESP: a dirty-bit-only clone proof must reject all other
+byte changes, match the actual offline result and retire only its owned scratch.
+Offline fsck and restored mounts do not prove the next firmware cold boot.
 
 ## Before you push
 

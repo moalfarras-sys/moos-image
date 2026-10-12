@@ -1,4 +1,4 @@
-# MoOS current state — updated 2026-10-11
+# MoOS current state — updated 2026-10-12
 
 Oracle A1 and the physical NVIDIA workstation develop one MoOS product.
 Source, promoted artifacts, staged/booted systems are separate evidence; backlog: [DEVELOPMENT_PLAN.md](docs/DEVELOPMENT_PLAN.md).
@@ -13,33 +13,32 @@ Code/browser dominate active work; idle Baloo restart reduced PSS 2.23 GiB→104
 anonymous 970→13 MiB; all 303,766 indexed files/probe/config preserved. Generated `~/moos-wt/` excluded; durable weak-tier policy unproven.
 ARM boot guard/256 MiB pressure controls pass both hosts (22.25/31.42 s,
 sentinel survives, kernel OOM=0); both hosts prove native monitoring after signed boot.
-Remote PR225 merged at `d44cecfd`; its fixed-SHA signed cycle is running, not delivered.
+Remote PR225 merged at `d44cecfd`; ARM .756 is booted/accepted; x86 .1029 proofs are running.
 Private .1022/r10 guest passes repeated cold PAM login, account handoff/logout,
 real decoded frames and scoped trust; AR/EN renders/seven .NET projects pass.
 Native masked-PIN validation/close clearing and GTK ink correction pass;
 managed opt-in/units and real listener/trust revocation pass native VM controls;
 disabled cold boot stays off. Full local image `5ce19e082374` passes/31 files match;
-Oracle's separate public Community/private Remote and PC private certificate-verified HTTPS pass. Greeter enrollment is fixture-only; hardware/phone acceptance remains P2.17. ARM 38169587234 is promoted as .756 (`0a02cbd7…`), not booted here; its greeter theme-sync timeout also exists in .752. Independent desktop-only unit scoping passes 17 native theme tests and private old/fixed conditions for owner UID 1000/greeter 969; seed/QML/45 s retries stay unchanged. Correction is source evidence, not delivered. X86 38169917085 is running; main frozen.
+Oracle's separate public Community/private Remote and PC certificate-verified HTTPS pass. Greeter enrollment is fixture-only; hardware/phone acceptance remains P2.17. X86 signed build 38169917085 passed; .1029 disk proofs 38178926184/38178929064/38178932277 and ISO 38178935305 are running; main frozen.
+PR227 scopes three desktop maintenance units away from system accounts: 247 gates, 17 native theme tests, actual owner/greeter old/fixed conditions and full image `e0fbe27e2932` pass; three final unit hashes match. Native ARM/x86 CI and signed delivery are pending. This correction is not in .756/.1029; no theme/authentication gate changed.
 
 ## Source and promoted delivery
 
-Owner PR222 is merged at `1a73a4e08b33d5a49f0eda42947acaca037d0d9a`,
-with candidate ancestry preserved. Final owner source passes 244 maintained
-checks plus catalogue and the full local image `926579dbe394` (12 runtime
-hashes). THEME_REV/fingerprint is 102. No identity, authentication, signature,
-installer mount or rollback guard was weakened.
+Owner PR222 (`1a73a4e0`) preserves candidate ancestry; 244 checks, catalogue,
+full image `926579dbe394` and 12 runtime hashes pass. THEME_REV=102.
+Identity, authentication, signature, installer mount and rollback guards remain.
 
 | Edition | Version | Proven signed digest |
 | --- | --- | --- |
 | Desktop | 44.20261011.1026 | a1ac3c6b0eec756f2d20f238abb1896ba8f7e25228cc2e8458952201ffe7524a |
 | NVIDIA | 44.20261011.1026 | 782032d1739b775d7f673bc8e91c858e5246a5cd2d631b3944c470a99b98046e |
 | Cloud x86 | 44.20261011.1026 | aa2d4fefa1c45d3cb2f6bc08d5c0ad73b7b890cef3f5aad52e86221425b2143a |
-| ARM | 44.20261011.752 | e621e284e05e0745722c15e1786d96e01c52538fe807092e40d1ca954bc6a394 |
+| ARM | 44.20261011.756 | 0a02cbd72e25656fea4c3d814f04ceb67b2ec82f2256fcea7368058960d9180b |
 
 Latest exact proofs pass on attempt 1: signed x86 build 38128732396;
 generic/NVIDIA/cloud disks 38133971240, 38133974055, 38133976682;
 final offline ISO install/installed boot/shutdown 38133979283;
-x86 promotion 38136731168; ARM build/disk/two boots/promotion 38128647066.
+x86 promotion 38136731168; latest ARM build/disk/two boots/promotion 38169587234.
 Both ARM boots prove actual system/native-user memory monitoring, failed units=0.
 The qualified .1026 ISO is now public; it predates pre-login Remote.
 
@@ -71,12 +70,12 @@ prove spoken voice, every action, media playback or hardware endurance.
 
 ## Oracle A1
 
-Oracle rebooted into signed ARM .752 (`e621e284…`), boot ID
-`8506a4e3-46ff-46cd-9a41-f9d26fec5476`; signed .749 is retained for rollback.
-Native graphical-context acceptance at 12:10:24 UTC passed 51 selfchecks,
-55 post-update checks, all 14 runtime hashes and no failed units. Actual system
-and native-user oomd monitoring pass; boot=14.616 s, network=connected/full.
-Four containers remain healthy; Community and personal Remote are active.
+Oracle rebooted into signed ARM .756 (`0a02cbd7…`), boot ID
+`0ac1f5dc-082e-4948-abcd-ccad1169ce9c`; signed .752 is retained for rollback.
+Native graphical-context acceptance at 22:12:40 UTC October 11 passed 51 selfchecks,
+55 post-update checks, all 31 Remote runtime hashes and no failed units. Actual system
+and native-user oomd monitoring pass; boot=14.064 s, network=connected/full.
+At 22:14:39 UTC four containers are healthy and certificate-verified Remote/Community return 200; pre-login remains explicitly off. Existing autologin is not ordinary password acceptance. The .752/.756 CI greeter maintenance timeout is tracked by PR227; native owner reconcile passes.
 Kernel retains audit throttling/accountsd/bootupd metadata warnings; bootloader update succeeds/latest. Earlier failures remain recorded.
 Existing private account HTTPS passes certificate-verified readback. An SSH shell
 omits Plasma's XDG cascade and is not an authoritative desktop-theme probe.
@@ -85,7 +84,7 @@ Arabic session/UI2 Nova is distinct from system fallback `C.UTF-8`.
 Files, photos, database/cache, SMB, IDE and Remote are existing owner services;
 no data directories or ingress routes were removed. The completed R2 upload
 scratch was retired after matching its full hash to the qualified public proof,
-reclaiming 5,827,068,083 bytes; new .1026 archive is preserved, native /var=33,144,696,832 bytes free. Temporary artifact ZIP retired after successful extraction.
+reclaiming 5,827,068,083 bytes; new .1026 archive is preserved; pre-.756 native /var=33,144,696,832 bytes free. Temporary artifact ZIP retired after successful extraction.
 System-wide pressure/frame/audio recovery and weak-device endurance remain P5.7 gaps.
 
 Owner-authorized persistent native SSH now uses a dedicated workstation-only
@@ -95,12 +94,11 @@ strictly authenticated master and reconnects on failure. It uses an owned
 `-F` config because namespace mapping made the vendor root-owned SSH include
 fail its ownership check; global SSH permissions/checks were not relaxed.
 Actual native key login, sudo and master/control socket pass. The workstation
-master automatically reconnected across Oracle's real reboot (new PID 139935).
-After the workstation reboot its native SSH master is active (PID 2626), and
-actual Oracle commands reach the same accepted ARM boot without reauthentication. No private
+master automatically reconnected across Oracle's real .756 reboot without reauthentication.
+Actual Oracle commands reach the accepted ARM boot. No private
 key is in Git. Oracle's current dirty docs remain unchanged on their original
 branch; verified bundle/ref `archive/owner-pre-reboot-20261011` (`b3b886b6…`)
-preserves them on both stations without altering the owner's index.
+preserves them on both stations without altering the owner's index. Pre-.756 checks reuse the matching tree ref; six current dirty files and the original branch remain intact, with no duplicate snapshot.
 
 ## Public website incident and isolation
 
@@ -139,7 +137,7 @@ Local signature/hash and full anonymous public verification passed at
 21:24:17 UTC; resumed ranges and both exact sidecars match.
 Frontend `7fc92c0a-3f66-4114-8a74-dda39cf1681f` passes eight local/eight public
 views; download Worker `72141578-1b4c-4a48-8e2c-e3e70295bb05` carries .1026.
-Five existing CDN rules remain; fourteen earlier .1022 routing checks are separate.
+Five existing CDN rules remain; fourteen fresh .1026 routing/metadata/script/range checks pass at 21:56:52 UTC. Six owned website test caches retired after CI/public acceptance: 1,263,339,069 logical bytes; original dependencies/source/lockfiles remain. Concurrent image writes and CoW preclude claiming equal physical free-space gain.
 .1011's exact three objects were deleted (5,796,462,771 bytes). .1018's original
 bytes survived the full grace period; guarded retirement at 15:05:09 UTC
 deleted only its three public objects (5,808,128,179 bytes). .1022 retains original bytes through Oct12 12:00 UTC; persistent guarded retirement at 12:05 passes five read-only negatives, not yet executed.
