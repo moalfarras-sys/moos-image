@@ -3,6 +3,19 @@
   "_": "What a person can SEE or DO after an update, newest first. One entry per user-visible change, written for the owner of the machine, not for a developer: what it is, where it is, and (when MoOS has a route to it) a way to try it now. 'merged' is when the change reached main (a little later is fine, earlier is not: an entry dated before a machine's previous system is never marked new there); a machine marks an entry new when the system it ran BEFORE the update was built earlier than that. tests/test_whats_new.py reads every entry the way MoOS Settings will.",
   "entries": [
     {
+      "id": "moplayer-direct-file-controls",
+      "merged": "2026-10-12T22:14:56Z",
+      "glyph": "ui",
+      "title": {
+        "ar": "تحكّم صحيح بالفيديو في MoPlayer",
+        "en": "Correct video controls in MoPlayer"
+      },
+      "body": {
+        "ar": "تعرض ملفات الفيديو المحلية مدتها وأدوات التقديم والإيقاف المؤقت بدل أدوات البث المباشر. تفتح روابط الملفات ذات الأسماء العربية والمسافات، ولا تُضاف الملفات المنفصلة إلى سجل مصادر التلفاز.",
+        "en": "Local videos show their duration, seeking and pause controls instead of live-stream controls. File links with Arabic names and spaces open correctly, and standalone files stay out of television-source history."
+      }
+    },
+    {
       "id": "material-state-atomic-transition",
       "merged": "2026-10-12T17:10:00Z",
       "glyph": "ui",

@@ -1,4 +1,4 @@
-# MoOS current state — updated 2026-10-12
+# MoOS current state — updated 2026-10-13
 
 Oracle A1 and the physical NVIDIA workstation develop one MoOS product.
 Source, promoted artifacts, staged/booted systems are separate evidence; backlog: [DEVELOPMENT_PLAN.md](docs/DEVELOPMENT_PLAN.md).
@@ -6,33 +6,34 @@ Source, promoted artifacts, staged/booted systems are separate evidence; backlog
 ## Current audit and owner development
 
 Oracle native audit on 2026-10-12 confirms signed ARM .756 with .752 rollback,
-51 installed selfchecks / 55 post-update checks, no failed units, and actual
-oomd monitoring. Seven installed MoOS KCMs load through the native loader in
-isolated Arabic homes with ready markers and no QML errors. All seven Remote
-.NET projects build; every executable test passes. [Audit evidence](docs/AUDIT_20261012_AR.md).
+51 installed selfchecks / 55 post-update checks, no failed units and native oomd monitoring.
+Seven installed KCMs load in isolated Arabic homes without QML errors; all seven Remote
+.NET projects/test executables pass. [Audit evidence](docs/AUDIT_20261012_AR.md).
 
 The native KDE menu had no Settings entry despite those green checks: a local
 old hidden launcher outranked the image. The new shared launcher probe fails
 that negative control; its narrow digest-reviewed migration restores one native
 menu entry and preserves the original. Source selfcheck now passes 52/0.
-This account repair is applied; signed helper delivery remains. Atomic material
-state/generation plus finite readback pass 480 native transitions and a broken-reader
-negative; THEME_REV/fingerprint=103 in source. Wider installed visual proof remains.
+PR228 merged at `4ee7f158`: complete native check, final ARM local image/9 payload
+hashes and final ARM/generic PR CI pass. Signed cycle 38311291809/38311239191 is
+running; source/CI are not boot proof. Account repair is applied; THEME_REV=103.
+Atomic material/finite readback pass 480 transitions and a broken-reader negative.
 
-Three exact unused audit images were retired after container-use/ancestry
-checks. Native writable headroom increased from 61,826,691,072 to
-79,343,939,584 bytes (17,517,248,512 reclaimed). SDK/stopped containers, all four
-healthy owner-service containers, data and signed rollback remain. A 30 s
-editor/services workload sample has 7.17–7.28 GiB available; it is not idle
-acceptance. Official Mo Store updated the available user apps.
+Four exact unused audit images were retired; the fourth was replaced by the
+verified new local image. Total reclaimed=23,179,071,488 bytes; after rebuilding,
+writable headroom is 61 GiB. SDK/owner containers, data and signed rollback remain.
+The 30 s editor/services sample has 7.17–7.28 GiB available; it is not idle proof.
+Official Mo Store updated the available user apps; obsolete completed retirement timers are archived.
+
+Native ARM MoPlayer plays a private MPEG4. Its local-file live controls were wrong;
+the independent source fix passes 258 Flutter tests and native encoded Arabic URI,
+20 s MPRIS length/CanSeek, paused +5 s seek and actual frames. Source bundle is not installed signed acceptance; image/CI/delivery remain pending.
 
 Reliability PR224 at `3abe787a` is promoted: x86 38136731168, ARM 38128647066. Local image `90fae1cabecd` and 246 source gates pass; NVIDIA .1026 and ARM .752 are booted/accepted.
 Canary 38099434894 passes reviewed 6.7.91/12 seams and image gates; stable 6.8.0 stays unreviewed/refused.
 Earlier NVIDIA active-workload 30 s: 6.4–6.7 GiB available, PSI=0, GPU 0–21%/1.62–1.81 GiB VRAM;
-Code/browser dominate active work; idle Baloo restart reduced PSS 2.23 GiB→104 MiB,
-anonymous 970→13 MiB; all 303,766 indexed files/probe/config preserved. Generated `~/moos-wt/` excluded; durable weak-tier policy unproven.
-ARM boot guard/256 MiB pressure controls pass both hosts (22.25/31.42 s,
-sentinel survives, kernel OOM=0); both hosts prove native monitoring after signed boot.
+Code/browser dominate work; idle Baloo restart reduced PSS 2.23 GiB→104 MiB/anonymous 970→13 MiB with all 303,766 indexed files/probe/config preserved. Generated worktrees excluded; durable weak-tier policy unproven.
+ARM boot guard/256 MiB controls pass both hosts (22.25/31.42 s), sentinel survives, kernel OOM=0; native monitoring passes after signed boot.
 Remote PR225 merged at `d44cecfd`; ARM .756 is booted/accepted; x86 .1029 is promoted.
 Private .1022/r10 guest passes repeated cold PAM login, account handoff/logout,
 real decoded frames and scoped trust; AR/EN renders/seven .NET projects pass.
@@ -40,13 +41,12 @@ Native masked-PIN validation/close clearing and GTK ink correction pass;
 managed opt-in/units and real listener/trust revocation pass native VM controls;
 disabled cold boot stays off. Full local image `5ce19e082374` passes/31 files match;
 Oracle's separate public Community/private Remote and PC certificate-verified HTTPS pass. Greeter enrollment is fixture-only; hardware/phone acceptance remains P2.17. X86 signed build 38169917085, .1029 disks 38178926184/38178929064/38178932277, ISO 38178935305 and promotion 38181945282 pass. That cycle is complete.
-PR227 scopes three desktop maintenance units away from system accounts: 247 gates, 17 native theme tests, actual owner/greeter old/fixed conditions and full image `e0fbe27e2932` pass; three final unit hashes match. Its ARM/generic-image/source CI all pass; skipped ARM disk/promotion jobs are not boot evidence. Combined audit integration and signed delivery remain. This correction is not in .756/.1029; no theme/authentication gate changed.
+PR227's three system-account maintenance conditions and PR226's handoff are integrated through PR228; all commit ancestries remain. Native owner/greeter controls, 17 theme tests and final image/three unit hashes pass. Signed delivery is in the current cycle; .756/.1029 lack this correction. No authentication/identity gate changed.
 
 ## Source and promoted delivery
 
 Owner PR222 (`1a73a4e0`) preserves candidate ancestry; 244 checks, catalogue,
-full image `926579dbe394` and 12 runtime hashes pass. THEME_REV=102.
-Identity, authentication, signature, installer mount and rollback guards remain.
+full image `926579dbe394` and 12 runtime hashes pass. THEME_REV=102; all identity/authentication/signature/installer/rollback guards remain.
 
 | Edition | Version | Proven signed digest |
 | --- | --- | --- |

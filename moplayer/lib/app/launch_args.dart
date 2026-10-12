@@ -80,7 +80,18 @@ class LaunchArgs {
     final path = arg.split('?').first.toLowerCase();
     const playable = ['.m3u8', '.ts', '.mp4', '.mkv', '.avi', '.mov', '.webm'];
     if (!playable.any(path.endsWith)) return false;
-    return arg.startsWith('http') || File(arg).existsSync();
+    if (arg.startsWith('http')) return true;
+    final uri = Uri.tryParse(arg);
+    if (uri != null && uri.scheme == 'file') {
+      try {
+        return File.fromUri(uri).existsSync();
+      } on ArgumentError {
+        return false;
+      } on UnsupportedError {
+        return false;
+      }
+    }
+    return File(arg).existsSync();
   }
 
   static String? _route(String value) => switch (value.toLowerCase()) {
