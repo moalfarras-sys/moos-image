@@ -132,8 +132,10 @@ retired. The exact .1026 three-file archive is preserved on Oracle. Old local
 .989 ISO/signature/checksum are retired only after full hash, source ancestry
 and no-holder checks; its small historical verification/key remain.
 
-.1022's immutable original bytes remain until 2026-10-12 12:00 UTC (14:00 Berlin).
-Oracle's persistent `moos-owner-retire-1022.timer` runs at 12:05 UTC and refuses
+.1022's immutable original bytes remained until 2026-10-12 12:00 UTC (14:00 Berlin).
+Oracle's persistent `moos-owner-retire-1022.timer` ran at 12:05 UTC and refuses
 early execution, a different current publication, a failed .1026 qualification,
 unexpected old objects or missing immutable 410 responses. Five read-only
-negative controls pass; actual .1022 deletion has not occurred.
+negative controls pass. Its receipt at 12:05:06 UTC records deletion of exactly
+the ISO/signature/checksum, 5,827,068,083 bytes. The active qualified publication
+and preserved .1026 archive remain distinct from the newer .1029 OS promotion.

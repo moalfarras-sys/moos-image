@@ -515,6 +515,14 @@ if [ "$quarantined_kwin" = "1" ]; then
     fi
 fi
 
+# A reviewed old hidden launcher outranks the image's single Settings entry.
+# This narrow, recoverable migration also runs before the revision fast path;
+# unknown personal overrides stay intact and the live selfcheck reports them.
+settings_launcher_helper="$(dirname "${BASH_SOURCE[0]}")/../lib/moos/moos_settings_launcher.py"
+if [ -f "$settings_launcher_helper" ]; then
+    python3 "$settings_launcher_helper" repair >>"$log" 2>&1 || true
+fi
+
 # RETIRED MoOS assets are removed from the user share UNCONDITIONALLY — the
 # image no longer carries them, so neither quarantine_moos_data_shadows (it moves
 # only ids the image still ships) nor the [-e /usr/share/…] guard of the sweep

@@ -797,6 +797,14 @@ else
 fi
 
 # ── Nothing shadowing the image ──────────────────────────────────────────────
+head_ "إعدادات MoOS | MoOS Settings"
+settings_launcher_helper="$(dirname "${BASH_SOURCE[0]}")/../lib/moos/moos_settings_launcher.py"
+if python3 "$settings_launcher_helper" check >/dev/null 2>&1; then
+    ok "one effective MoOS Settings launcher reaches the native window"
+else
+    bad "the effective Settings launcher is hidden, duplicated or overridden — inspect the account's applications directory"
+fi
+
 # A MoOS asset staged into ~/.local or ~/.config OUTRANKS the copy in /usr and
 # freezes it at whatever it said the day it was written. This is the single most
 # common way a MoOS fix reaches the image and never reaches the user.

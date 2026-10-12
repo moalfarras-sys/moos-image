@@ -22,14 +22,27 @@ runtime hashes and actual system/native-user memory monitoring. Both preserve
 signed rollback and services; native SSH reconnects across Oracle's new reboot.
 Native .1026 reboot/readback passed. A scheduled image-only build is not delivery.
 Remote PR225 merged at `d44cecfd`; x86 signed build 38169917085 passed (.1029).
-Disk proofs 38178926184/38178929064/38178932277 and ISO 38178935305 are running.
+Disk proofs 38178926184/38178929064/38178932277, ISO 38178935305 and promotion
+38181945282 passed on attempt 1; all three x86 editions are promoted as .1029.
 ARM 38169587234 passed; .756 (`0a02cbd7…`) booted with native 31-file acceptance,
 healthy preserved services and private TLS; existing autologin is not a password proof.
 PR227 corrects the .752/.756 baseline greeter theme-sync timeout by scoping three
 desktop units away from system accounts. 247 maintained gates, 17 native tests,
 owner/greeter old/fixed conditions and full image e0fbe27e2932/three unit hashes pass;
-ARM/x86 CI and signed delivery remain. Main stays frozen during the .1029 cycle;
+ARM/generic-image/source CI pass; their skipped ARM boot/promotion jobs prove
+no boot. The .1029 cycle is complete. Combined audit integration/delivery remain;
 pre-login opt-in is still off, not inferred from source/installed acceptance.
+
+The 12 October station audit is the current bounded M0/P2.2/P5.6 slice:
+actual ARM readback, reviewed cache retirement and one native Settings launcher.
+An account's old hidden launcher produced zero Settings menu entries despite
+51/0 + 55/0. A shared effective-XDG probe and recoverable exact-byte migration
+now restore one KDE menu entry, preserve the original, refuse unknown overrides
+and pass six isolated controls. Source selfcheck passes 52/0; installed image
+delivery remains separate. Seven installed KCMs load in private Arabic contexts;
+all Remote .NET builds/test executables pass. Native cleanup reclaimed
+17,517,248,512 bytes without touching containers/data/rollback. The 30 s sample
+has 7.17–7.28 GiB available with the editor/services active, not clean idle.
 
 Public Vercel availability is restored on all 14 primary projects through the
 provider's documented unpause operation, while account fair-use/deploy blocking
@@ -345,7 +358,7 @@ itself and an unreviewed MoOS would ship kscreenlocker's emergency locker.
 | ID | Outcome | Current boundary | Required acceptance |
 | --- | --- | --- | --- |
 | P2.1 | Native MoOS modules inside KDE System Settings | Implemented/delivered within recorded scope; wider acceptance remains | Installed native loader, every MoOS module and backend; readback and keyboard/locale/scale frames. |
-| P2.2 | One Settings entry and stable application identity | Implemented/delivered within recorded scope; wider acceptance remains | One actual System Settings identity/window and correct native destinations from all entry points. |
+| P2.2 | One Settings entry and stable application identity | 12 October native audit repaired the zero-entry account shadow. One real KDE menu entry, 52/0 source selfcheck and seven isolated native KCM loads pass. Shared probe/recoverable migration and six controls await signed delivery; wider entry/keyboard/scale acceptance remains | One actual System Settings identity/window and correct native destinations from all entry points. |
 | P2.3 | One qualified Arabic/English locale authority | Arabic session works; new lock/Mira startup correction in source; cross-app unity remains | KDE/QML/GTK/Mira/MoPlayer/Flatpak selection after relogin/reboot; Arabic first, English supported. |
 | P2.4 | Keyboard and screen-reader operation | Open / acceptance not complete | Real keyboard traversal/focus and Orca Arabic/English on all primary flows. |
 | P2.5 | Visual, contrast, scale and reduced-motion matrix | Open / acceptance not complete | 1080p–4K, 100–250%, Arabic RTL/English LTR, light/dark, reduced motion and measured readable contrast. |
@@ -398,7 +411,7 @@ itself and an unreviewed MoOS would ship kscreenlocker's emergency locker.
 | P5.3 | Touch/tablet policy | Open / acceptance not complete | Actual touch/tablet targets, keyboard/rotation/gestures/stylus and ≥44px controls. |
 | P5.4 | Performance budgets | Open: native active-workload 30 s has 6.4–6.7 GiB available/PSI=0/GPU 0–21%. Idle Baloo restart reduces PSS 2.23 GiB→104 MiB and anonymous memory 970→13 MiB; all 303,766 indexed files, actual indexed probe and config preserved. This is one local intervention, not durable policy or weak-tier acceptance | Measured boot/idle PSS/CPU/wakeups, app launch p95, frame pacing, build load and AI latency per tier. |
 | P5.5 | Cloud desktop efficiency | Implemented/delivered within recorded scope; wider acceptance remains | Efficient cloud desktop plus actual private files/photos/IDE access, phone background and off-host restore. |
-| P5.6 | Storage lifecycle | Open: NVIDIA cleanup restores headroom and preserves source/checkpoints/rollback; sustainable limits still owed | Headroom, cache/log bounds, low-space recovery and cleanup that never removes owner data. |
+| P5.6 | Storage lifecycle | Native ARM audit retires three exact unused/superseded audit images: 17,517,248,512 bytes reclaimed, 79,343,939,584 bytes available; SDK/stopped/owner containers, data, source and signed rollback retained. Weekly sweep, 500 MiB journal and 1 GiB core limits are active; sustainable tagged-build retention and low-space recovery remain open | Headroom, cache/log bounds, low-space recovery and cleanup that never removes owner data. |
 | P5.7 | Qualify kernel policy and driver transitions | Source adds ARM's missing vendor oomd-defaults, final-image guard and actual native-monitor readback in both disk boot proofs. Eight compose controls, native ARM package install, and bounded native negative/positive pressure controls pass on both stations (256 MiB cap; no kernel OOM; protected sentinel survives). Signed ARM .756 and NVIDIA .1026 are booted and prove actual system/native-user monitoring. System-wide recovery/weak-hardware frame latency remains open | Kernel/driver readback and measured frame/audio/CPU/RAM policy; actual daemon monitoring after signed boot; sustained frame/audio latency under bounded pressure on qualified weak tiers, never an uncontrolled OOM on the owner's workstation. |
 | P5.8 | Qualify Wayland and compositor lifetime | Open / acceptance not complete; Oracle .752 retains bootupd metadata/accountsd SELinux warnings, while bootloader update returns success/latest and no unit fails | Portal consent/revocation/restart, output/scale/hotplug, clipboard/input and long session-return soak; review native SELinux warnings without disabling enforcement or guessing labels. |
 

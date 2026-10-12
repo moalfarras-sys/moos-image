@@ -3,6 +3,20 @@
   "_": "What a person can SEE or DO after an update, newest first. One entry per user-visible change, written for the owner of the machine, not for a developer: what it is, where it is, and (when MoOS has a route to it) a way to try it now. 'merged' is when the change reached main (a little later is fine, earlier is not: an entry dated before a machine's previous system is never marked new there); a machine marks an entry new when the system it ran BEFORE the update was built earlier than that. tests/test_whats_new.py reads every entry the way MoOS Settings will.",
   "entries": [
     {
+      "id": "settings-launcher-account-shadow",
+      "merged": "2026-10-12T16:30:00Z",
+      "glyph": "ui",
+      "route": "moos://settings/overview",
+      "title": {
+        "ar": "إعدادات MoOS في قائمة التطبيقات",
+        "en": "MoOS Settings in the application menu"
+      },
+      "body": {
+        "ar": "تُستعاد الإعدادات إذا أخفتها نسخة قديمة معروفة داخل الحساب، وتُحفظ النسخة القديمة للرجوع إليها. يفحص النظام مدخل الإعدادات الفعلي حتى لا يخفي نجاح التحديث مدخلًا مفقودًا أو مكررًا.",
+        "en": "Settings is restored when a reviewed old account entry hides it, with the old copy preserved. The system checks the effective Settings entry so a successful update cannot conceal a missing or duplicate launcher."
+      }
+    },
+    {
       "id": "gtk-readable-secondary-ink",
       "merged": "2026-10-11T11:10:00Z",
       "glyph": "ui",

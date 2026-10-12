@@ -3,7 +3,26 @@
 Oracle A1 and the physical NVIDIA workstation develop one MoOS product.
 Source, promoted artifacts, staged/booted systems are separate evidence; backlog: [DEVELOPMENT_PLAN.md](docs/DEVELOPMENT_PLAN.md).
 
-## Current owner development (delivery pending)
+## Current audit and owner development
+
+Oracle native audit on 2026-10-12 confirms signed ARM .756 with .752 rollback,
+51 installed selfchecks / 55 post-update checks, no failed units, and actual
+oomd monitoring. Seven installed MoOS KCMs load through the native loader in
+isolated Arabic homes with ready markers and no QML errors. All seven Remote
+.NET projects build; every executable test passes. [Audit evidence](docs/AUDIT_20261012_AR.md).
+
+The native KDE menu had no Settings entry despite those green checks: a local
+old hidden launcher outranked the image. The new shared launcher probe fails
+that negative control; its narrow digest-reviewed migration restores one native
+menu entry and preserves the original. Source selfcheck now passes 52/0.
+This account repair is applied; the image helper/migration still needs delivery.
+
+Three exact unused audit images were retired after container-use/ancestry
+checks. Native writable headroom increased from 61,826,691,072 to
+79,343,939,584 bytes (17,517,248,512 reclaimed). SDK/stopped containers, all four
+healthy owner-service containers, data and signed rollback remain. A 30 s
+editor/services workload sample has 7.17–7.28 GiB available; it is not idle
+acceptance. Official Mo Store updated the available user apps.
 
 Reliability PR224 at `3abe787a` is promoted: x86 38136731168, ARM 38128647066. Local image `90fae1cabecd` and 246 source gates pass; NVIDIA .1026 and ARM .752 are booted/accepted.
 Canary 38099434894 passes reviewed 6.7.91/12 seams, native RPM/greeter and
@@ -13,14 +32,14 @@ Code/browser dominate active work; idle Baloo restart reduced PSS 2.23 GiB→104
 anonymous 970→13 MiB; all 303,766 indexed files/probe/config preserved. Generated `~/moos-wt/` excluded; durable weak-tier policy unproven.
 ARM boot guard/256 MiB pressure controls pass both hosts (22.25/31.42 s,
 sentinel survives, kernel OOM=0); both hosts prove native monitoring after signed boot.
-Remote PR225 merged at `d44cecfd`; ARM .756 is booted/accepted; x86 .1029 proofs are running.
+Remote PR225 merged at `d44cecfd`; ARM .756 is booted/accepted; x86 .1029 is promoted.
 Private .1022/r10 guest passes repeated cold PAM login, account handoff/logout,
 real decoded frames and scoped trust; AR/EN renders/seven .NET projects pass.
 Native masked-PIN validation/close clearing and GTK ink correction pass;
 managed opt-in/units and real listener/trust revocation pass native VM controls;
 disabled cold boot stays off. Full local image `5ce19e082374` passes/31 files match;
-Oracle's separate public Community/private Remote and PC certificate-verified HTTPS pass. Greeter enrollment is fixture-only; hardware/phone acceptance remains P2.17. X86 signed build 38169917085 passed; .1029 disk proofs 38178926184/38178929064/38178932277 and ISO 38178935305 are running; main frozen.
-PR227 scopes three desktop maintenance units away from system accounts: 247 gates, 17 native theme tests, actual owner/greeter old/fixed conditions and full image `e0fbe27e2932` pass; three final unit hashes match. Native ARM/x86 CI and signed delivery are pending. This correction is not in .756/.1029; no theme/authentication gate changed.
+Oracle's separate public Community/private Remote and PC certificate-verified HTTPS pass. Greeter enrollment is fixture-only; hardware/phone acceptance remains P2.17. X86 signed build 38169917085, .1029 disks 38178926184/38178929064/38178932277, ISO 38178935305 and promotion 38181945282 pass. That cycle is complete.
+PR227 scopes three desktop maintenance units away from system accounts: 247 gates, 17 native theme tests, actual owner/greeter old/fixed conditions and full image `e0fbe27e2932` pass; three final unit hashes match. Its ARM/generic-image/source CI all pass; skipped ARM disk/promotion jobs are not boot evidence. Combined audit integration and signed delivery remain. This correction is not in .756/.1029; no theme/authentication gate changed.
 
 ## Source and promoted delivery
 
@@ -30,15 +49,15 @@ Identity, authentication, signature, installer mount and rollback guards remain.
 
 | Edition | Version | Proven signed digest |
 | --- | --- | --- |
-| Desktop | 44.20261011.1026 | a1ac3c6b0eec756f2d20f238abb1896ba8f7e25228cc2e8458952201ffe7524a |
-| NVIDIA | 44.20261011.1026 | 782032d1739b775d7f673bc8e91c858e5246a5cd2d631b3944c470a99b98046e |
-| Cloud x86 | 44.20261011.1026 | aa2d4fefa1c45d3cb2f6bc08d5c0ad73b7b890cef3f5aad52e86221425b2143a |
+| Desktop | 44.20261011.1029 | 562b5ba91dfe19686fe23c201733979920a66a588c7624f5b81e83495e162d26 |
+| NVIDIA | 44.20261011.1029 | eeeef7436eb089a1da394ee01a41359383b56c756878df3dadd935b9c19ec055 |
+| Cloud x86 | 44.20261011.1029 | 3180a443162cd0069ed7786c1718a0df8b0e6be7bfebe2e4d3d65b9b6871f6c2 |
 | ARM | 44.20261011.756 | 0a02cbd72e25656fea4c3d814f04ceb67b2ec82f2256fcea7368058960d9180b |
 
-Latest exact proofs pass on attempt 1: signed x86 build 38128732396;
-generic/NVIDIA/cloud disks 38133971240, 38133974055, 38133976682;
-final offline ISO install/installed boot/shutdown 38133979283;
-x86 promotion 38136731168; latest ARM build/disk/two boots/promotion 38169587234.
+Latest exact proofs pass on attempt 1: signed x86 build 38169917085;
+generic/NVIDIA/cloud disks 38178926184, 38178929064, 38178932277;
+final offline ISO install/installed boot/shutdown 38178935305;
+x86 promotion 38181945282; latest ARM build/disk/two boots/promotion 38169587234.
 Both ARM boots prove actual system/native-user memory monitoring, failed units=0.
 The qualified .1026 ISO is now public; it predates pre-login Remote.
 
@@ -84,7 +103,7 @@ Arabic session/UI2 Nova is distinct from system fallback `C.UTF-8`.
 Files, photos, database/cache, SMB, IDE and Remote are existing owner services;
 no data directories or ingress routes were removed. The completed R2 upload
 scratch was retired after matching its full hash to the qualified public proof,
-reclaiming 5,827,068,083 bytes; new .1026 archive is preserved; pre-.756 native /var=33,144,696,832 bytes free. Temporary artifact ZIP retired after successful extraction.
+reclaiming 5,827,068,083 bytes; the current public .1026 archive is preserved. Current local headroom is measured above; temporary artifact ZIP is retired.
 System-wide pressure/frame/audio recovery and weak-device endurance remain P5.7 gaps.
 
 Owner-authorized persistent native SSH now uses a dedicated workstation-only
@@ -140,7 +159,10 @@ views; download Worker `72141578-1b4c-4a48-8e2c-e3e70295bb05` carries .1026.
 Five existing CDN rules remain; fourteen fresh .1026 routing/metadata/script/range checks pass at 21:56:52 UTC. Six owned website test caches retired after CI/public acceptance: 1,263,339,069 logical bytes; original dependencies/source/lockfiles remain. Concurrent image writes and CoW preclude claiming equal physical free-space gain.
 .1011's exact three objects were deleted (5,796,462,771 bytes). .1018's original
 bytes survived the full grace period; guarded retirement at 15:05:09 UTC
-deleted only its three public objects (5,808,128,179 bytes). .1022 retains original bytes through Oct12 12:00 UTC; persistent guarded retirement at 12:05 passes five read-only negatives, not yet executed.
+deleted only its three public objects (5,808,128,179 bytes). .1022 retained its
+original bytes through October 12 12:00 UTC; guarded retirement at 12:05:06 UTC
+deleted only its three public objects (5,827,068,083 bytes). Its recorded receipt
+keeps .1026 as the active qualified public release.
 Public receipt: `docs/releases/2026-10-11-public-download-proof.json`.
 Worker source/native tests pass 21 cases, including
 immutable-path retirement, grace period, sidecars and >4 GiB resumes.

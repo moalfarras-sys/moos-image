@@ -98,7 +98,8 @@ A broken promoted image can still prevent this workstation from booting.
 
 **This physical PC is the dedicated MoOS development station.** `main` builds
 signed candidates; the boot-proof promotion workflows control production tags.
-The installed machine follows the signed NVIDIA release. A broken promoted
+The physical NVIDIA station follows the signed NVIDIA release; the Oracle A1
+station follows signed ARM. Identify the current host before acting. A broken promoted
 image can stop this workstation from booting and interrupt development itself.
 
 This has already happened once. It is the reason for most of the guards you will find in
@@ -222,6 +223,16 @@ user environment passed 51/0 and 55/0. Run desktop acceptance in an owned transi
 user unit inheriting that environment, or read its exact configuration paths;
 do not guess them or call an SSH fallback value the running desktop. Keep the
 same checks and their failure evidence; never weaken them to hide the context.
+
+**A correct image launcher can be hidden by an old account copy.** On Oracle
+ARM .756, 51 selfchecks and 55 post-update checks passed while the native menu
+listed no Settings entry: `~/.local/share/applications/systemsettings.desktop`
+still held the old vendor file with `NoDisplay=true`. Inspect effective XDG data
+precedence and the native menu, not only `/usr/share/applications`. The shared
+launcher helper reports hidden/duplicate/foreign entries and quarantines only
+the exact reviewed legacy bytes after verifying the image replacement. Unknown
+owner overrides stay intact. Run this migration before the applied-revision
+fast path and preserve its backup; do not restart the cloud compositor to fix a menu.
 
 **A button is only as real as its route.** Mo AI is pure QML: it cannot exec, so every button
 is a `Qt.openUrlExternally("moos://…")` that lands in `moos-open`'s `case`, which runs the
