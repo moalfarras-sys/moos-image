@@ -11,6 +11,14 @@ new private feedback/optional public suggestions product is P6.9 below.
 
 ## Active delivery and acceptance batch
 
+PR232's runtime slice is integrated at `b11f5aa2` with all native/PR source and
+image gates passing. Its full local ARM build exposed a pre-existing padded
+Plymouth SRPM pipe SIGPIPE; the actual 27 extracted files match, but the producer
+can return -13 after the consumer exits. The first owned candidate runs
+38391961158/38391840384 are cancelled before promotion. Finish/check the
+producer in a private build-stage archive, retain all failure controls and
+existing native-library/initramfs proofs, then qualify a fresh Tier 1 candidate.
+
 Current bounded P3.1/P3.2/P5.7 follow-up: existing-account free cloud reply,
 SSE and isolated Hermes path now pass native synthetic journeys. Reported direct
 cost is zero; saved provider choice is preserved. Native cgroup leaves separate

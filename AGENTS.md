@@ -147,6 +147,14 @@ These are not conventions, they are gates. The image build fails if you break th
 
 ## A green build proves nothing about what the user sees
 
+**A valid archive can close its consumer before its producer is finished.**
+The pinned Plymouth SRPM has 8,836 zero bytes after its newc trailer. Native
+ARM extraction reproduced rpm2cpio SIGPIPE (-13) with cpio succeeding and all
+27 files intact. Finish/check rpm2cpio into a private build-stage archive before
+cpio reads it. Keep the padded-stream negative and producer/corrupt-archive/
+consumer failure controls; never suppress a pipeline status or weaken the
+source digest, vendor patches, native library or final-initramfs proofs.
+
 **A returned proxy call does not transfer ownership to garbage collection.**
 Mo AI's relay now closes the upstream response after success, truncation, failed
 headers, a departing client, explicit/authentication refusal or an automatic
