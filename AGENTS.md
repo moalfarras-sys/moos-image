@@ -559,6 +559,19 @@ Impeller on GLES reserving hundreds of MB for every gradient shader and every
 window-sized offscreen layer (blur, `Opacity`) — see `moplayer/DESIGN.md`,
 "The renderer's rules". MoPlayer now bakes its gradients into small images.
 
+**A live login-screen server is not a keyboard.** Native KDE's backend was
+started while Remote was disabled with neither `XDG_CURRENT_DESKTOP=KDE` nor
+`WAYLAND_DISPLAY`; it exported no ScreenCast/RemoteDesktop interface. Publish
+those desktop facts before the backend even while access stays disabled; grant
+only after owner opt-in. On warm enable, probe actual interfaces and renew only
+the greeter account's incomplete backend. Refuse and retire failed enrollment.
+EIS ready still did not mean secure text: the real greeter's de/us/ara device map
+was refused by a single-group parser. Compile the actual bounded EIS map with
+its exact live group count, never desktop defaults; retain missing/mismatch
+controls. A fresh authenticated hello's secureText and real ordinary login/handoff
+are separate proofs. Temporary greeter-only source overrides are documented,
+never counted as signed delivery, and retired after matching delivered bytes.
+
 **A descriptor you hand to an element is still yours.** `pipewiresrc fd=` connects through a
 duplicate and NULL closes only that. Mo PC Remote's helper believed its own comment ("pipewiresrc
 closes it on NULL") and left one PipeWire remote open per rebuilt pipeline: after 61 hours on the

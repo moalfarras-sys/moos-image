@@ -895,7 +895,7 @@ def build_keymaps(codes, config=None):
 
 def build_eis_keymaps(codes, data):
     """Bounded actual XKB v1 input. Refuse incomplete or mismatched devices."""
-    if not data or len(data) > 1024 * 1024 or len(codes) != 1:
+    if not data or len(data) > 1024 * 1024 or not 1 <= len(codes) <= 4:
         return None
     # EIS supplies a byte-sized map; unlike wl_keyboard it need not include a
     # terminal NUL. ctypes supplies that terminator for libxkbcommon's C API.
@@ -911,9 +911,9 @@ def build_eis_keymaps(codes, data):
     keymap = None
     try:
         keymap = lib.xkb_keymap_new_from_string(context, data, 1, 0)
-        if not keymap or lib.xkb_keymap_num_layouts(keymap) != 1:
+        if not keymap or lib.xkb_keymap_num_layouts(keymap) != len(codes):
             return None
-        return [_group_keymap(lib, keymap, 0, codes[0])]
+        return [_group_keymap(lib, keymap, group, code) for group, code in enumerate(codes)]
     finally:
         if keymap:
             lib.xkb_keymap_unref(keymap)

@@ -175,6 +175,30 @@ class LiveKeymapCompiler(unittest.TestCase):
             lib.xkb_keymap_unref(keymap)
             lib.xkb_context_unref(context)
 
+    def test_greeter_device_with_three_system_layouts_keeps_each_actual_group(self):
+        self.require_keymap()
+        lib=self.ns["_xkb_library"]()
+        lib.xkb_keymap_get_as_string.restype=ctypes.c_void_p
+        lib.xkb_keymap_get_as_string.argtypes=[ctypes.c_void_p,ctypes.c_int]
+        libc=ctypes.CDLL(None);libc.free.argtypes=[ctypes.c_void_p]
+        context=lib.xkb_context_new(0)
+        names=lib.RuleNames(b"evdev",b"pc104",b"de,us,ara",None,None)
+        keymap=lib.xkb_keymap_new_from_names(context,ctypes.byref(names),0)
+        self.assertTrue(keymap)
+        ptr=lib.xkb_keymap_get_as_string(keymap,1)
+        try:
+            data=ctypes.string_at(ptr)
+            groups=self.ns["build_eis_keymaps"](["de","us","ara"],data)
+            self.assertIsNotNone(groups,"three actual greeter groups must support secure typing")
+            self.assertEqual([g["code"] for g in groups],["de","us","ara"])
+            self.assertIn([21,0,ord("z")],groups[0]["levels"])
+            self.assertIn([21,0,ord("y")],groups[1]["levels"])
+            self.assertIn([30,0,ord("ش")],groups[2]["levels"])
+            for codes in ([],["de"],["de","us"],["de","us","ara","fr"],["de"]*5):
+                self.assertIsNone(self.ns["build_eis_keymaps"](codes,data))
+        finally:
+            libc.free(ptr);lib.xkb_keymap_unref(keymap);lib.xkb_context_unref(context)
+
     def test_kxkbrc_cascade_lets_the_user_file_win(self):
         with tempfile.TemporaryDirectory() as home:
             (Path(home) / "kdedefaults").mkdir()

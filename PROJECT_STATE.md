@@ -7,23 +7,30 @@ Native audit: [AUDIT_20261012_AR.md](docs/AUDIT_20261012_AR.md).
 
 ## Current engineering batch
 
-PR232's runtime fixes merged at `b11f5aa2`; all repo/x86/ARM PR gates pass.
-PR233's padded-SRPM extraction correction merged at `1c321a53`: full native
-`just check`, four extraction controls and ARM/x86 image CI pass. Final local
-ARM image `f8a036d610a5` passes every image gate and fifteen source payload
-hashes; compiled MoPlayer matches the tested .763 bundle. Old extraction fails
-three controls. Both early candidate runs were cancelled before promotion.
-No new signed delivery is claimed. The owned automatic push builds on
-`1c321a53` were cancelled while finishing this combined batch.
+PR232/233/234 are integrated at `c5f2451b`. The combined first-attempt cycle
+passed signed build 38446133446, three disk proofs
+38454884448/38454887386/38454893061, offline ISO 38454900845, x86 promotion
+38461170910 and full ARM 38445991140. All four latest tags match the exact
+candidate. Final local ARM `0693eb6f4c68` passes every image gate/16 source
+hashes; 34 Community API/12 native Qt tests and actual AR/EN Wayland pickers pass.
+Padded-SRPM extraction and seven cloud-response lifetime negative controls hold.
+Receipt: [native runtime release proof](docs/releases/2026-10-13-native-runtime-release-proof.json).
 
-The native audit recovered Community's QApplication correction from the one
-unmerged NVIDIA merge commit `407c1eed`; the original branch stays preserved.
-Actual client bootstrap now opens KDE's native picker; private Arabic/English
-cancel controls preserve attachment/draft state with zero API requests. The
-old QGuiApplication has zero native picker widgets and fails that control.
-34 API and 12 native Qt tests pass; actual NVIDIA Wayland Arabic/English pickers pass.
-This is source/native-dialog evidence; installed delivery and full picture
-selection/upload acceptance remain separate.
+NVIDIA's real pre-login Remote exposed two further defects: KDE's backend
+started without KDE/Wayland desktop facts, and its actual de/us/ara EIS map was
+refused by a single-group parser. Greeter-only backend renewal restores both
+interfaces; the actual 43,505-byte device map fails old source and yields
+178/98/144 entries with the correction. Fresh authenticated hello changes
+secureText false→true without audit input; the owner then reports successful
+password login and native logind confirms ordinary plasmalogin/Wayland handoff.
+Source publishes desktop facts even when Remote stays disabled, checks actual
+interfaces on warm enable, retires failed enrollment and accepts exact matching
+EIS group counts. Administrator opt-in/PIN/private TLS/PAM remain unchanged.
+The live correction is an explicitly documented temporary greeter-only copied
+bundle via the existing MO_REMOTE_AGENT override in /run. It is not a signed
+release; native owner .1042 acceptance below still checks immutable image bytes.
+Deliver the correction through the full release path, then retire the exact
+owned override/bundle after signature/source and no-holder checks.
 
 Existing-account free cloud replies and SSE succeed on both stations. Oracle
 JSON/SSE first content takes 1.01/1.28 s; NVIDIA 1.47/.91 s, with reported
@@ -33,55 +40,20 @@ or provider change. Seven socket-backed relay controls pass and old source
 fails all seven. Selfcheck labels connections honestly and preserves the
 Oracle monitor. Wider cancellation/stall/voice/clean-account acceptance remains.
 
-PR228 merged at `4ee7f158`, retaining PR226/227 ancestry. Its signed cycle is
-complete: x86 build 38311291809, disks 38318191729/38318194809/38318198405,
-offline ISO 38318201656, promotion 38322153729; ARM 38311239191. Every run
-passed on attempt 1. x86 .1032 and ARM .761 include the following corrections:
-
-- The native KDE menu had zero Settings entries despite 51/55 green checks.
-  An exact legacy hidden account launcher outranked the image. Six controls
-  and a bounded, owner-checked digest migration restore one real menu entry,
-  preserve its private backup and retain unknown customization. The account
-  repair is applied; the source selfcheck passes 52/0.
-- The three theme maintenance units exclude system accounts. Native owner and
-  greeter conditions/old controls pass. Authentication remains upstream.
-- Material state is one atomic generation filename, with bounded 100/750 ms
-  event readback, opaque ambiguity and no heartbeat. Real publisher/Qt tests
-  pass 480 transitions and a broken-reader negative. THEME_REV=103.
-
-PR229 merged at `45ffc8fc`, retaining `9d1717fe` with an identical source tree.
-Native installed ARM MoPlayer played a private MPEG4 but labelled it Live.
-The correction accepts encoded Arabic file URIs, uses finite controls for
-local/explicit movie URLs and leaves HLS/unknown streaming policy intact.
-Direct playback produces no unusable catalogue history or resume records.
-258 Flutter tests, analysis, native release build and all maintained repo
-checks pass. A private Wayland source bundle proves actual moving frames,
-20 s MPRIS length/CanSeek and paused +5 s seek; the restored old factory fails.
-Final local ARM image `6537d0fba7c9` passes every image gate/9 payload hashes;
-its 9,700,232-byte libapp.so SHA-256 is
-`65b5a7fe283aae20c42b5985e6aed687f356b94ba9830cb7a77976d916503205`,
-exactly matching the native tested bundle. No host bundle was replaced.
-The x86 PR workflow now watches its real `moplayer/**` COPY input; the old
-workflow fails the input negative control. Final repo/x86/ARM PR CI passes.
-
-The final signed cycle on `45ffc8fc` is complete, all on attempt 1: x86 build
-38349913971, disks 38355997007/38356002795/38356005878, offline ISO
-38356009395, x86 promotion 38360661403 and full ARM pipeline 38349794036.
-All final artifact references, signed origins, distinct QCOW2 boot IDs, zero
-failed units and clean shutdown hashes match. Ten ISO-installed apps open,
-close and reopen. All four live latest tags resolve to these exact digests.
-Receipt: [station-readiness proof](docs/releases/2026-10-13-station-readiness-proof.json).
-Oracle now proves the exact installed signed ARM image and local-video journey;
-physical NVIDIA and the wider acceptance matrix remain separate.
+Earlier PR228/229 delivered the single native Settings entry, theme maintenance
+scoping and atomic material generations (THEME_REV=103), plus finite MoPlayer
+controls and encoded Arabic file URIs. 480 native material transitions and old
+controls, 258 Flutter tests, native ARM build/frames/seek and signed .1034/.763
+acceptance pass in their recorded scope. Current .1042/.771 retain those fixes.
 
 ## Promoted release and public delivery
 
 | Edition | Version | Proven signed digest (sha256) |
 | --- | --- | --- |
-| Desktop | 44.20261013.1034 | 3504d19d826a74ecc6e4c5d4f40d417139af4e1c90917691aaf5b5a5079fba12 |
-| NVIDIA | 44.20261013.1034 | 029961958ae2c243d018cad949da8a0f8d80e85be401fa8ff00b3a9e3a0dbf48 |
-| Cloud x86 | 44.20261013.1034 | 28fcaf9e4670cf9a7982a791f56f8f56145dc3afc80487a6f5f8e340d50fa8d2 |
-| ARM | 44.20261013.763 | a2ee6a1c5d10b16cae027f98797dd01ca3d5a5dfafd6e78470ab4f287f71d3b4 |
+| Desktop | 44.20261013.1042 | e136bc339543995b15ad9d129453ca31df77a7fa2fe9eaa4fba469f35ae13384 |
+| NVIDIA | 44.20261013.1042 | 88953ed40528ddca8ed16f1888b57c6420699f72897909819433f4a455559562 |
+| Cloud x86 | 44.20261013.1042 | 8a65514db492da10afba7833b61fea4d7d3329a173b315c6dd902ab23a3a583a |
+| ARM | 44.20261013.771 | e4f94b5d735dbf1e3ecad94e60a5d86c37568133eddeac6303906b1dcbcec8c5 |
 
 All three x86 QCOW2 proofs cover exact signed origins across boot/reboot and
 clean shutdown. The final ISO installs offline and boots its installed target.
@@ -94,7 +66,9 @@ The public ISO remains qualified .1026, from final run 38133979283,
 `288fcb001aabc990103653cd622d11734a5472cf7942715429eb1934dd3cb57b`.
 Full anonymous transfer/hash, local signature, ranges and sidecars pass.
 Receipt: [2026-10-11-public-download-proof.json](docs/releases/2026-10-11-public-download-proof.json).
-A newer CI ISO is not a newer public download. The existing archive is preserved.
+Exact .1042 ISO is preserved: 5,827,985,408 bytes, SHA-256
+`57f3d61ad8000595cc3266f1a48309d0ffe885ef7511ca05d61bd53f8aa9a2c0`,
+local detached signature/hash verified. Public transfer/site qualification remains.
 Public .1018/.1022 retirement completed after grace periods; .1022's three
 objects reclaimed 5,827,068,083 bytes at October 12 12:05:06 UTC.
 Cloudflare Static Assets/R2 remain the public hosts with five scoped Vercel
@@ -129,9 +103,9 @@ not ordinary PAM acceptance. Private Remote/public Community TLS pass.
 Gateway is live with an owner-selected paid policy; no paid inference or key
 read was performed. A prior free synthetic reply on NVIDIA was a separate proof.
 
-Five exact unused audit images retired only after container/ancestry/replacement
-checks: total physical free-space gain 26,505,392,128 bytes (~24.7 GiB).
-After this build, writable /var has about 41 GiB free/80% used. Composefs /
+Seven exact unused audit images retired only after container/ancestry/replacement
+checks: total physical free-space gain 33,544,560,640 bytes (~31.2 GiB).
+With the qualified ISO archive, writable /var has about 38 GiB free. Composefs /
 100% is not writable disk exhaustion. SDK/owner containers/data/rollback stay.
 Obsolete completed retirement units are archived. Mo Store updated available
 user apps. Core/journal bounds and weekly cleanup are active.
@@ -145,16 +119,22 @@ worktrees hold tested changes; the local main ref follows integrated ancestry.
 
 ## Physical NVIDIA workstation
 
-Current native boot is signed .1032 (`4bbb7e5b…`) with signed .1029 rollback
-(`eeeef743…`), boot ID `227076f6-dd24-4e17-914e-d93e5317b6b1`.
-Owner and root Tailscale SSH are authenticated; the browser check is complete.
-No SSH host-key field in status is not proof that SSH is disabled. No password
-policy/ACL change is needed. Native owner Wayland readback passes 55 selfchecks,
-one Settings entry, theme rev 103, GTK Breeze and one desktop portal front door.
-Post-update baseline is 54/1: our `plasmashell --version` diagnostic outside a
-graphical context aborted, not the real desktop. Its exact PID/core is attributed
-and only its own 1.2 MiB core retired; journal evidence/gates remain unchanged.
-Real KWin/plasmashell PIDs continue. Fresh-boot acceptance is still required.
+Native signed .1042 (`88953ed4…`) is booted, with signed .1032 rollback,
+boot ID `4b5cb64e-a7ee-46f9-bcfa-49ed17771926`. Owner/root Tailscale SSH work.
+Owner Wayland checks pass 55 selfchecks/55 post-update/0 failures, 16 payload
+hashes and compiled player equality with the exact signed NVIDIA candidate.
+Theme rev 103, one Settings entry and no failed system/owner units; boot=36.174 s.
+One ordinary plasmalogin session/compositor is active. Remote hands off from
+restricted greeter to account scope; its temporary correction is described above.
+Installed Arabic-file-URI MPEG4 passes 20 s/CanSeek, time advance and paused
++5 s seek. RSS=765.9 MiB; full GPU table shows player=593 MiB, absent after Quit.
+This is transport/resource evidence, not native moving-pixel/HDR/endurance proof.
+New direct/SSE cloud calls pass 1.02/1.11 s first content with reported cost=0;
+isolated Hermes passes 4.30 s, usage absent. No provider or private-context change.
+Old .1032's 54/1 diagnostic abort remains historical; fresh .1042 passes 55/0.
+New 30 s sample: KWin/plasmashell 1.43/1.31% of one core, 263/483 MiB;
+gateway .01%/21 MiB. Baloo's 1.75 GiB is file cache, anonymous=25 MiB;
+Lumen 6.08% with owner lights. CPU/RAM PSI avg10=0, sampled swap=0. Not endurance.
 Kernel 7.2.9, Plasma 6.7.5, Qt 6.11.2, NVIDIA 615.78.08; RTX 2080 SUPER,
 Arabic 3840×2160@60, logical 1536×864 at 250%, UI2 Arena. Writable disk has
 179 GiB free/61% used; about 10 GiB RAM available in the recorded baseline.
@@ -166,7 +146,7 @@ Whole GPU table reads 1.74–2.05 GiB, 0–12% utilization under owner workload.
 The clean native checkout and main worktree are fast-forwarded to integrated
 source after ancestry proof; archive preserves the old tip. One unique merge's
 Community change is recovered, without deleting its branch or other worktrees.
-Cold boot/suspend/hotplug, physical video/GPU endurance and broader hardware
+USB-C UCSI -110 remains at boot; cold boot/suspend/hotplug, video/GPU endurance and broader hardware
 acceptance remain. Earlier .1026's 54/55 native acceptance is historical evidence.
 
 ## Integrated features and evidence still owed
