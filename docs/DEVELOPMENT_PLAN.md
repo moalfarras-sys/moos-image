@@ -11,13 +11,18 @@ new private feedback/optional public suggestions product is P6.9 below.
 
 ## Active delivery and acceptance batch
 
-PR232's runtime slice is integrated at `b11f5aa2` with all native/PR source and
-image gates passing. Its full local ARM build exposed a pre-existing padded
-Plymouth SRPM pipe SIGPIPE; the actual 27 extracted files match, but the producer
-can return -13 after the consumer exits. The first owned candidate runs
-38391961158/38391840384 are cancelled before promotion. Finish/check the
-producer in a private build-stage archive, retain all failure controls and
-existing native-library/initramfs proofs, then qualify a fresh Tier 1 candidate.
+PR232 is integrated at `b11f5aa2`. PR233's padded Plymouth SRPM extractor
+is integrated at `1c321a53`: full native source checks, local final ARM image/
+15 payload hashes and ARM/x86 image CI pass. Producer/archive/consumer failure
+controls and existing native-library/initramfs gates hold; old source fails
+three controls. The initial owned candidate and redundant pre-batch push runs
+are cancelled before promotion. Finish the recovered Community native-picker
+correction in the same batch, then qualify one fresh exact-source signed cycle.
+Native picker cancellation now passes Arabic/English on actual bootstrap; old
+GUI-only bootstrap fails. 34 API/12 native tests pass, plus physical NVIDIA
+Wayland Arabic/English readback. Native NVIDIA .1032 passes 55 selfchecks; its 54/1
+post-update baseline attributes the lone abort to our display-less version
+probe. Keep that failure visible and require clean new-boot acceptance.
 
 Current bounded P3.1/P3.2/P5.7 follow-up: existing-account free cloud reply,
 SSE and isolated Hermes path now pass native synthetic journeys. Reported direct
@@ -468,7 +473,7 @@ itself and an unreviewed MoOS would ship kscreenlocker's emergency locker.
 | P6.6 | Establish support lifecycle and migration policy | Open / acceptance not complete | Published support/upgrade/rollback/EOL policy plus clear licences, attribution and official identity. |
 | P6.7 | Reviewed Plasma seams before upstream transitions | Reliability PR224 merged. Canary 38099434894 passes exact signed COPR 6.7.91 SRPM (ea530281…), unchanged prepared worker SHA (76ed150d…), preserved vendor flags/patches, 38 package controls and inactive-store input/boot-policy equality (1,274 modules)/nine refusal controls. Actual canary packages, 12 reviewed seams, native logout RPM/greeter and final image gates pass; signed reliability cycle 38128732396/38136731168 is qualified/promoted; it does not deliver unreviewed stable 6.8.0. Final 6.8.0 NVR stays unreviewed/refused | Actual next-Plasma canary, registered reviewed seams and old/broken/native controls; review the final stable NVR separately rather than widening an allowed range. |
 | P6.8 | Separate reviewed next-base transition lane | Open / acceptance not complete | Reviewed next-base packages, all native seams/boot/apps/identity gates and migration/support qualification. |
-| P6.9 | Native user/developer participation | Beta integrated/promoted in .1022/.749; native launch/shutdown and ARM D-Bus controls pass, plus 34 API/11 native and actual Wayland/Oracle TLS flow. Both hosts boot delivered client bytes; actual .1022 native capture/shutdown passes and Oracle public health is ready. Capture retains Qt/portal-registration warnings; installed image-picker flow still needs acceptance. Branded DNS/onboarding/recovery/full moderation UI/preferences/endurance remain open | Real authenticated service/client, private image attachments, account isolation and bounded uploads, admin moderation, retry/offline and promoted-release notifications; no secrets or automatic screenshots. |
+| P6.9 | Native user/developer participation | Beta integrated/promoted in .1022/.749; native launch/shutdown and ARM D-Bus controls pass, plus 34 API/11 native and actual Wayland/Oracle TLS flow. Both hosts boot delivered client bytes; actual .1022 native capture/shutdown passes and Oracle public health is ready. Capture retains Qt/portal-registration warnings; the recovered QApplication picker correction passes source native Arabic/English cancellation and physical Wayland readback; its signed installed selection/upload flow still needs acceptance. Branded DNS/onboarding/recovery/full moderation UI/preferences/endurance remain open | Real authenticated service/client, private image attachments, account isolation and bounded uploads, admin moderation, retry/offline and promoted-release notifications; no secrets or automatic screenshots. |
 
 ## Development-machine profile
 

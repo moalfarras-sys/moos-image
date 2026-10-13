@@ -7,29 +7,31 @@ Native audit: [AUDIT_20261012_AR.md](docs/AUDIT_20261012_AR.md).
 
 ## Current engineering batch
 
-PR232 merged at `b11f5aa2`, preserving `8c37bfda` with an identical tree;
-final native repo checks and x86/ARM PR image gates pass. The full local ARM
-build exposed the existing Plymouth SRPM extraction SIGPIPE (exit 141).
-Its actual pinned input reproduces producer -13/consumer 0 with all 27 files
-unchanged and 8,836 trailing zero bytes. The first signed cycle's owned runs
-38391961158/38391840384 are cancelled before promotion; no boot qualification
-is claimed. The extraction fix completes/checks the archive producer first.
-Four targeted controls pass; old extraction fails three. Full image and fresh
-signed delivery remain pending, with boot/signature/identity gates intact.
+PR232's runtime fixes merged at `b11f5aa2`; all repo/x86/ARM PR gates pass.
+PR233's padded-SRPM extraction correction merged at `1c321a53`: full native
+`just check`, four extraction controls and ARM/x86 image CI pass. Final local
+ARM image `f8a036d610a5` passes every image gate and fifteen source payload
+hashes; compiled MoPlayer matches the tested .763 bundle. Old extraction fails
+three controls. Both early candidate runs were cancelled before promotion.
+No new signed delivery is claimed. The owned automatic push builds on
+`1c321a53` were cancelled while finishing this combined batch.
 
-Runtime/cloud follow-up on October 13 proves existing-account free reply in
-1.01 s (reported cost=0), real SSE first content in 1.28 s and an isolated
-Hermes reply in 9.24 s. No key read, private context submitted, action requested
-or provider change.
-Native 30 s cgroup accounting distinguishes 2.2 GiB editor file cache from
-anonymous memory; no RAM pressure/local inference process. KDE/KWin/Wayland,
-GTK Breeze/system palette and the one desktop portal front door are active.
-Source relay fix closes upstream resources across seven real HTTP/socket cases,
-including refused requests and automatic retry; old source fails all seven.
-Diagnostic TCP counts no longer claim decoded
-streaming/causal load or advise stopping the only monitor. Initial full
-`just check` and expanded targeted tests pass; the final repeat, local image,
-signed delivery and installed acceptance are pending.
+The native audit recovered Community's QApplication correction from the one
+unmerged NVIDIA merge commit `407c1eed`; the original branch stays preserved.
+Actual client bootstrap now opens KDE's native picker; private Arabic/English
+cancel controls preserve attachment/draft state with zero API requests. The
+old QGuiApplication has zero native picker widgets and fails that control.
+34 API and 12 native Qt tests pass; actual NVIDIA Wayland Arabic/English pickers pass.
+This is source/native-dialog evidence; installed delivery and full picture
+selection/upload acceptance remain separate.
+
+Existing-account free cloud replies and SSE succeed on both stations. Oracle
+JSON/SSE first content takes 1.01/1.28 s; NVIDIA 1.47/.91 s, with reported
+cost=0. Isolated Hermes replies take 9.24/4.41 s; missing Hermes usage is not
+measured zero cost. No secret read, private context submitted, action requested
+or provider change. Seven socket-backed relay controls pass and old source
+fails all seven. Selfcheck labels connections honestly and preserves the
+Oracle monitor. Wider cancellation/stall/voice/clean-account acceptance remains.
 
 PR228 merged at `4ee7f158`, retaining PR226/227 ancestry. Its signed cycle is
 complete: x86 build 38311291809, disks 38318191729/38318194809/38318198405,
@@ -129,7 +131,7 @@ read was performed. A prior free synthetic reply on NVIDIA was a separate proof.
 
 Five exact unused audit images retired only after container/ancestry/replacement
 checks: total physical free-space gain 26,505,392,128 bytes (~24.7 GiB).
-After rebuilding, writable /var has about 58 GiB free/70% used. Composefs /
+After this build, writable /var has about 41 GiB free/80% used. Composefs /
 100% is not writable disk exhaustion. SDK/owner containers/data/rollback stay.
 Obsolete completed retirement units are archived. Mo Store updated available
 user apps. Core/journal bounds and weekly cleanup are active.
@@ -143,23 +145,29 @@ worktrees hold tested changes; the local main ref follows integrated ancestry.
 
 ## Physical NVIDIA workstation
 
-The last accepted native boot is signed .1026 (`782032d1…`) with .1022
-rollback, boot ID `b8bcee30-0e8c-4ea0-8f66-489fe57510f2`.
-It passed 54 selfchecks/55 post-update checks/14 runtime hashes, native oomd,
-ordinary PLM login, no failed production units and boot=32.989 s.
+Current native boot is signed .1032 (`4bbb7e5b…`) with signed .1029 rollback
+(`eeeef743…`), boot ID `227076f6-dd24-4e17-914e-d93e5317b6b1`.
+Owner and root Tailscale SSH are authenticated; the browser check is complete.
+No SSH host-key field in status is not proof that SSH is disabled. No password
+policy/ACL change is needed. Native owner Wayland readback passes 55 selfchecks,
+one Settings entry, theme rev 103, GTK Breeze and one desktop portal front door.
+Post-update baseline is 54/1: our `plasmashell --version` diagnostic outside a
+graphical context aborted, not the real desktop. Its exact PID/core is attributed
+and only its own 1.2 MiB core retired; journal evidence/gates remain unchanged.
+Real KWin/plasmashell PIDs continue. Fresh-boot acceptance is still required.
 Kernel 7.2.9, Plasma 6.7.5, Qt 6.11.2, NVIDIA 615.78.08; RTX 2080 SUPER,
-Arabic 4K/250% UI2 Arena, connected Wi-Fi/powered Bluetooth/two camera nodes.
-These are earlier native readings, not current candidate acceptance.
-The device is now online on the tailnet and certificate-verified Remote HTTPS
-responds, but SSH port 22 refuses connections. No admin command/new update or
-GPU acceptance was performed in this audit. Remote has no generic shell API.
-The previous authenticated PC-to-Oracle master is not Oracle-to-PC access.
-Owner guidance is to start existing sshd locally; no password/key requested.
-Earlier ESP dirty-byte repair preserves all 16 boot-file hashes; next cold boot,
-suspend/hotplug and hardware endurance still need measured acceptance.
-Earlier workload had 6.4–6.7 GiB available and 1.62–1.81 GiB VRAM. Baloo
-restart preserved 303,766 indexed files while reducing PSS 2.23 GiB→104 MiB;
-durable weak-tier policy is unproven. Measure whole graphics GPU table.
+Arabic 3840×2160@60, logical 1536×864 at 250%, UI2 Arena. Writable disk has
+179 GiB free/61% used; about 10 GiB RAM available in the recorded baseline.
+Thirty-second active-workload cgroup sampling has zero RAM PSI. Large Code's
+4.77 GiB includes 3.85 GiB file cache and .86 GiB anonymous memory. KWin and
+plasmashell use 9.06/9.65% of one of 16 logical CPUs; this is not an idle proof.
+Lumen uses 5.23% of one core while four PC lights animate; screen sync is off.
+Whole GPU table reads 1.74–2.05 GiB, 0–12% utilization under owner workload.
+The clean native checkout and main worktree are fast-forwarded to integrated
+source after ancestry proof; archive preserves the old tip. One unique merge's
+Community change is recovered, without deleting its branch or other worktrees.
+Cold boot/suspend/hotplug, physical video/GPU endurance and broader hardware
+acceptance remain. Earlier .1026's 54/55 native acceptance is historical evidence.
 
 ## Integrated features and evidence still owed
 

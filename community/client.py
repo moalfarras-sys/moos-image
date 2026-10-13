@@ -17,7 +17,8 @@ os.environ['QML_DISABLE_DISK_CACHE'] = '1'
 sys.path.insert(0, '/usr/lib/mira/site')
 from PySide6.QtCore import (QObject, Property, QRunnable, QThreadPool, QTimer, QUrl,
                            Signal, Slot, QLocale, QBuffer, QByteArray, QIODevice, QEvent)
-from PySide6.QtGui import QGuiApplication, QIcon, QImage, QImageReader, QPainter
+from PySide6.QtGui import QIcon, QImage, QImageReader, QPainter
+from PySide6.QtWidgets import QApplication
 from PySide6.QtQml import QQmlApplicationEngine
 from PySide6.QtQuick import QQuickWindow
 
@@ -479,7 +480,9 @@ def main():
         raise RuntimeError('private process dump protection unavailable')
     if args.language:
         QLocale.setDefault(QLocale('ar_SA' if args.language == 'ar' else 'en_US'))
-    app = QGuiApplication([sys.argv[0]])
+    # Plasma's native file-dialog helper uses Widgets even for this QML client.
+    # A QGuiApplication falls back to a separate Quick picker on KDE.
+    app = QApplication([sys.argv[0]])
     app.setLayoutDirection(QLocale().textDirection())
     app.setApplicationName('MoOS Community'); app.setDesktopFileName('org.moos.community')
     app.setWindowIcon(QIcon.fromTheme('moos-logo'))
