@@ -5,7 +5,7 @@ or a second product backlog. Open work belongs to DEVELOPMENT_PLAN P5.5/P5.7.
 
 | Capability | Installed implementation | Owner access |
 | --- | --- | --- |
-| Desktop | booted signed MoOS ARM .749; virtual seat | existing Mo PC Remote, HTTPS 443 |
+| Desktop | booted signed MoOS ARM .756; virtual seat; current staged/promoted state in PROJECT_STATE.md | existing Mo PC Remote, HTTPS 443 |
 | General files | FileBrowser Quantum 1.5.8, private `~/CloudFiles` | HTTPS 8443 / authenticated WebDAV |
 | iPhone Files | rootless Samba 4.23.8, same CloudFiles | SMB3 through tailnet TCP Serve 445 |
 | Development | code-server 4.140.0, existing Projects/repositories | HTTPS 8444, password auth |
@@ -15,7 +15,9 @@ or a second product backlog. Open work belongs to DEVELOPMENT_PLAN P5.5/P5.7.
 
 Use `https://<Oracle tailnet hostname>:<port>`, with Tailscale active on the
 phone. The general file portal also links to Photos, Development and Remote.
-No public Funnel or public database/Redis port was enabled. Private handoff
+These owner services have no public Funnel or public database/Redis port.
+The separately enabled public Community service is a distinct route; it does
+not publish these owner services. Private handoff
 credentials live in `~/MoOS-Cloud-Access.txt` (0600); never add them to Git.
 
 ## Persistent data and lifecycle

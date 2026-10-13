@@ -1,0 +1,209 @@
+{
+  "schema": 1,
+  "checkedAt": "2026-10-13T07:12:40Z",
+  "candidateRevision": "45ffc8fcab2e733cff3f628756eed41c2bbd7fe3",
+  "sourceRevision": "9d1717fe2b934a289557e6686b6bd702e8864d44",
+  "sourcePullRequests": [
+    228,
+    229
+  ],
+  "scope": "First-attempt signed build, final artifact boot/install proofs and production promotion; Oracle staged update. This is not physical NVIDIA, new Oracle boot, universal compatibility or complete Arabic acceptance.",
+  "releases": [
+    {
+      "edition": "moos",
+      "version": "44.20261013.1034",
+      "digest": "sha256:3504d19d826a74ecc6e4c5d4f40d417139af4e1c90917691aaf5b5a5079fba12",
+      "revision": "45ffc8fcab2e733cff3f628756eed41c2bbd7fe3"
+    },
+    {
+      "edition": "moos-nvidia",
+      "version": "44.20261013.1034",
+      "digest": "sha256:029961958ae2c243d018cad949da8a0f8d80e85be401fa8ff00b3a9e3a0dbf48",
+      "revision": "45ffc8fcab2e733cff3f628756eed41c2bbd7fe3"
+    },
+    {
+      "edition": "moos-cloud",
+      "version": "44.20261013.1034",
+      "digest": "sha256:28fcaf9e4670cf9a7982a791f56f8f56145dc3afc80487a6f5f8e340d50fa8d2",
+      "revision": "45ffc8fcab2e733cff3f628756eed41c2bbd7fe3"
+    },
+    {
+      "edition": "moos-arm",
+      "version": "44.20261013.763",
+      "digest": "sha256:a2ee6a1c5d10b16cae027f98797dd01ca3d5a5dfafd6e78470ab4f287f71d3b4",
+      "revision": "45ffc8fcab2e733cff3f628756eed41c2bbd7fe3"
+    }
+  ],
+  "workflows": [
+    {
+      "conclusion": "success",
+      "event": "workflow_dispatch",
+      "head_branch": "main",
+      "head_sha": "45ffc8fcab2e733cff3f628756eed41c2bbd7fe3",
+      "html_url": "https://github.com/moalfarras-sys/moos-image/actions/runs/38349913971",
+      "id": 38349913971,
+      "path": ".github/workflows/build.yml",
+      "run_attempt": 1,
+      "status": "completed"
+    },
+    {
+      "conclusion": "success",
+      "event": "workflow_dispatch",
+      "head_branch": "main",
+      "head_sha": "45ffc8fcab2e733cff3f628756eed41c2bbd7fe3",
+      "html_url": "https://github.com/moalfarras-sys/moos-image/actions/runs/38355997007",
+      "id": 38355997007,
+      "path": ".github/workflows/build-disk.yml",
+      "run_attempt": 1,
+      "status": "completed"
+    },
+    {
+      "conclusion": "success",
+      "event": "workflow_dispatch",
+      "head_branch": "main",
+      "head_sha": "45ffc8fcab2e733cff3f628756eed41c2bbd7fe3",
+      "html_url": "https://github.com/moalfarras-sys/moos-image/actions/runs/38356002795",
+      "id": 38356002795,
+      "path": ".github/workflows/build-disk.yml",
+      "run_attempt": 1,
+      "status": "completed"
+    },
+    {
+      "conclusion": "success",
+      "event": "workflow_dispatch",
+      "head_branch": "main",
+      "head_sha": "45ffc8fcab2e733cff3f628756eed41c2bbd7fe3",
+      "html_url": "https://github.com/moalfarras-sys/moos-image/actions/runs/38356005878",
+      "id": 38356005878,
+      "path": ".github/workflows/build-disk.yml",
+      "run_attempt": 1,
+      "status": "completed"
+    },
+    {
+      "conclusion": "success",
+      "event": "workflow_dispatch",
+      "head_branch": "main",
+      "head_sha": "45ffc8fcab2e733cff3f628756eed41c2bbd7fe3",
+      "html_url": "https://github.com/moalfarras-sys/moos-image/actions/runs/38356009395",
+      "id": 38356009395,
+      "path": ".github/workflows/build-iso.yml",
+      "run_attempt": 1,
+      "status": "completed"
+    },
+    {
+      "conclusion": "success",
+      "event": "push",
+      "head_branch": "main",
+      "head_sha": "45ffc8fcab2e733cff3f628756eed41c2bbd7fe3",
+      "html_url": "https://github.com/moalfarras-sys/moos-image/actions/runs/38349794036",
+      "id": 38349794036,
+      "path": ".github/workflows/build-arm.yml",
+      "run_attempt": 1,
+      "status": "completed"
+    },
+    {
+      "conclusion": "success",
+      "event": "workflow_dispatch",
+      "head_branch": "main",
+      "head_sha": "45ffc8fcab2e733cff3f628756eed41c2bbd7fe3",
+      "html_url": "https://github.com/moalfarras-sys/moos-image/actions/runs/38360661403",
+      "id": 38360661403,
+      "path": ".github/workflows/promote-x86.yml",
+      "run_attempt": 1,
+      "status": "completed"
+    }
+  ],
+  "nativeDevelopment": {
+    "maintainedRepoChecks": "pass",
+    "flutterTests": 258,
+    "flutterAnalysis": "pass",
+    "nativeArmReleaseBundle": "pass",
+    "encodedArabicFileUri": "pass",
+    "finiteMprisLengthUs": 20000000,
+    "pausedSeekDeltaUs": 5000000,
+    "actualMovingFramesReviewed": true,
+    "localArmImage": "6537d0fba7c9eebe2b265b4625f54a81f0fa2b9eff563466ddd4b30a7a5a9ac5",
+    "localImageGates": "pass",
+    "sourcePayloadHashesMatched": 9,
+    "compiledMoplayerSha256": "65b5a7fe283aae20c42b5985e6aed687f356b94ba9830cb7a77976d916503205",
+    "localImageMatchesNativeTestedBundle": true,
+    "sourceProofIsNotInstalledBootAcceptance": true,
+    "realMaterialTransitions": 480,
+    "legacySettingsMenuEntriesBefore": 0,
+    "nativeSettingsMenuEntriesAfter": 1,
+    "oldPlayerFactoryAndOldWorkflowNegativeControls": "fail as required",
+    "themeRev": 103
+  },
+  "artifactProofs": {
+    "qcow2": {
+      "generic": {
+        "run": 38355997007,
+        "sha256": "24c5a110f55d50f1ab4cce26fc0ff040263deeacd9dfc1b3bebd7e66ea763589"
+      },
+      "nvidia": {
+        "run": 38356002795,
+        "sha256": "c2b6814a69f588f8056282ce608d347bac0958374887769905ffad2fe320face"
+      },
+      "cloud": {
+        "run": 38356005878,
+        "sha256": "277831fd19f484586129bcb9c88000fb23c533f220c9dd816d50e8abe0cbdd3d"
+      }
+    },
+    "allQcow2OriginsSignedAndExact": true,
+    "distinctBootsPerQcow2": 2,
+    "failedUnits": 0,
+    "shutdown": "clean",
+    "arm": {
+      "run": 38349794036,
+      "rawQcow2Sha256": "f90cebf201090a0aa2b058496d4442e4b39e5055d36148a4c863b6a64a799945",
+      "boots": 2,
+      "poweroff": "clean"
+    },
+    "iso": {
+      "run": 38356009395,
+      "sha256": "58b6454b532d385ff56196c85dd153071750e53d70157874703b1c3f5321de4f",
+      "offlineInstall": true,
+      "installedBoots": 2,
+      "poweroff": "clean",
+      "tenAppsOpenedClosedReopened": true
+    }
+  },
+  "oracle": {
+    "bootedVersion": "44.20261011.756",
+    "bootedDigest": "sha256:0a02cbd72e25656fea4c3d814f04ceb67b2ec82f2256fcea7368058960d9180b",
+    "stagedVersion": "44.20261013.763",
+    "stagedDigest": "sha256:a2ee6a1c5d10b16cae027f98797dd01ca3d5a5dfafd6e78470ab4f287f71d3b4",
+    "rollbackVersion": "44.20261011.752",
+    "rollbackDigest": "sha256:e621e284e05e0745722c15e1786d96e01c52538fe807092e40d1ca954bc6a394",
+    "originsEnforceSignatures": true,
+    "transactionEnded": true,
+    "updateAuthority": "moos-auto-update.service -> /usr/libexec/moos-image-update auto",
+    "stageCompletedAt": "2026-10-13T06:54:48Z",
+    "newBootAcceptance": "pending",
+    "privateOneAttemptGraphicalPostbootProbePrepared": true,
+    "ownerServicesAndDirtyWorkPreserved": true
+  },
+  "physicalNvidia": {
+    "lastAcceptedVersion": "44.20261011.1026",
+    "tailnetResponds": true,
+    "certificateVerifiedRemoteHttps": 200,
+    "adminSsh": "connection refused",
+    "newCandidateAcceptance": "not performed"
+  },
+  "cleanup": {
+    "exactUnusedImagesRetired": 5,
+    "physicalFreeBytesRecovered": 26505392128,
+    "writableFreeBytesAfterBuildAndStage": 62035578880,
+    "writableUsedPercent": 70,
+    "ownerSdkContainersDataAndSignedRollbackPreserved": true,
+    "broadPrune": false
+  },
+  "publicDownload": {
+    "version": "44.20261011.1026",
+    "sha256": "288fcb001aabc990103653cd622d11734a5472cf7942715429eb1934dd3cb57b",
+    "receipt": "2026-10-11-public-download-proof.json",
+    "newIsoPublishedToPublicHost": false
+  },
+  "acceptanceBacklog": "../DEVELOPMENT_PLAN.md",
+  "mainCandidateAncestryAndTreeVerifiedAtPromotion": true
+}
