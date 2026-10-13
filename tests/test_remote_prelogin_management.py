@@ -124,20 +124,85 @@ class ManagementTests(unittest.TestCase):
 
     def test_disabled_session_revokes_only_greeter_app_grant(self):
         account=SimpleNamespace(pw_uid=967,pw_dir="/var/lib/plasmalogin")
-        with patch.object(G, "greeter", return_value=account), patch.object(G.os, "geteuid", return_value=967), patch.object(G, "status", return_value={"enabled": False}), patch.object(G, "command") as command:
+        replies = [subprocess.CompletedProcess([], 0, "", ""),
+                   subprocess.CompletedProcess([], 0, "wayland-0\n", ""),
+                   subprocess.CompletedProcess([], 0, "", "")]
+        with patch.object(G, "greeter", return_value=account), patch.object(G.os, "geteuid", return_value=967), patch.object(G, "status", return_value={"enabled": False}), patch.object(G, "command", side_effect=replies) as command, patch.dict(G.os.environ, {}, clear=True):
             self.assertEqual(G.session(), {"enabled": False})
-            args=command.call_args.args[0]
+            args=command.call_args_list[0].args[0]
             self.assertIn("DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/967/bus",args)
             self.assertEqual(args[-5:], ["/usr/bin/flatpak", "permission-remove", "kde-authorized", "remote-desktop", "org.moos.remote"])
-            self.assertNotIn("permission-set",args)
+            self.assertEqual(command.call_count, 3)
+            imported = command.call_args_list[2].args[0]
+            self.assertIn("WAYLAND_DISPLAY=wayland-0", imported)
+            self.assertIn("XDG_CURRENT_DESKTOP=KDE", imported)
+            self.assertEqual(imported[-3:], ["import-environment", "WAYLAND_DISPLAY", "XDG_CURRENT_DESKTOP"])
+            self.assertTrue(all("permission-set" not in call.args[0] for call in command.call_args_list))
+
+    def test_disabled_session_rejects_missing_display_after_revocation(self):
+        account=SimpleNamespace(pw_uid=967,pw_dir="/var/lib/plasmalogin")
+        replies=[subprocess.CompletedProcess([],0,"",""),subprocess.CompletedProcess([],1,"","")]
+        with patch.object(G,"greeter",return_value=account),patch.object(G.os,"geteuid",return_value=967),patch.object(G,"status",return_value={"enabled":False}),patch.object(G,"command",side_effect=replies) as call:
+            with self.assertRaisesRegex(G.Refused,"wayland_required"):
+                G.session()
+            self.assertIn("permission-remove",call.call_args_list[0].args[0])
+
+    def test_portal_probe_requires_both_actual_direct_interfaces(self):
+        good='<node><interface name="org.freedesktop.impl.portal.RemoteDesktop"/><interface name="org.freedesktop.impl.portal.ScreenCast"/></node>'
+        self.assertTrue(G.portal_interfaces_present(subprocess.CompletedProcess([],0,good,"")))
+        for code, xml in ((1,good),(0,""),(0,"<node>"),(0,good.replace("ScreenCast","Screenshot")),
+                          (0,'<node><!-- '+good+' --></node>'),(0,'<node><node>'+good+'</node></node>'),
+                          (0,good+' '*65536)):
+            with self.subTest(code=code,xml=xml[:60]):
+                self.assertFalse(G.portal_interfaces_present(subprocess.CompletedProcess([],code,xml,"")))
+
+    def test_warm_enable_preserves_healthy_backend_and_renews_only_incomplete_greeter_backend(self):
+        good='<node><interface name="org.freedesktop.impl.portal.RemoteDesktop"/><interface name="org.freedesktop.impl.portal.ScreenCast"/></node>'
+        account=SimpleNamespace(pw_uid=967)
+        for missing in (False,True):
+            replies=[subprocess.CompletedProcess([],0,"","")]
+            if missing:replies += [subprocess.CompletedProcess([],0,"<node/>",""),subprocess.CompletedProcess([],0,"","")]
+            replies.append(subprocess.CompletedProcess([],0,good,""))
+            with patch.object(G,"user_command",side_effect=replies) as call:
+                G.prepare_portal_backend(account)
+                self.assertEqual(call.call_args_list[0].args,(account,["/usr/bin/systemctl","--user","start",G.UNITS[2]]))
+                self.assertTrue(all(c.args[0] is account for c in call.call_args_list))
+                renewals=[c.args[1] for c in call.call_args_list if "restart" in c.args[1]]
+                self.assertEqual(renewals,[["/usr/bin/systemctl","--user","restart",G.KDE_PORTAL_UNIT]] if missing else [])
+
+    def test_warm_enable_refuses_failed_policy_missing_interfaces_and_transport_errors(self):
+        ok=subprocess.CompletedProcess([],0,"","");bad=subprocess.CompletedProcess([],1,"","")
+        for replies in ([bad],[ok,bad,bad],[ok,bad,ok,ok],
+                        [subprocess.TimeoutExpired("probe",10)], [OSError("private failure")]):
+            with self.subTest(replies=replies),patch.object(G,"user_command",side_effect=replies):
+                with self.assertRaises(G.Refused):G.prepare_portal_backend(SimpleNamespace(pw_uid=967))
 
     def test_policy_requires_admin_and_exact_helper_without_cached_authorization(self):
+        # The grant remains administrator-owned even when desktop facts are
+        # published while access is disabled.
         policy=ET.parse(ROOT / "system_files/usr/share/polkit-1/actions/org.moos.remote-greeter.policy")
         action=policy.getroot().find("action")
         self.assertEqual(action.attrib["id"],"org.moos.remote-greeter")
         self.assertEqual({node.text for node in action.find("defaults")},{"auth_admin"})
         self.assertEqual(action.find("annotate").text,"/usr/libexec/mo-remote-greeter")
         self.assertTrue(any(node.attrib.get("{http://www.w3.org/XML/1998/namespace}lang")=="ar" for node in action.findall("message")))
+
+    def test_live_activation_failures_retire_enrollment_but_absent_login_target_does_not(self):
+        ok=subprocess.CompletedProcess([],0,"","");bad=subprocess.CompletedProcess([],1,"","")
+        account=SimpleNamespace(pw_uid=967)
+        cases=([ok,bad],[ok,ok,bad],[subprocess.TimeoutExpired("private",10)],[OSError("private")])
+        for replies in cases:
+            with self.subTest(replies=replies),patch.object(G,"user_command",side_effect=replies),patch.object(G,"prepare_portal_backend"),patch.object(G,"retire") as retire:
+                with self.assertRaises(G.Refused):G.start_live_greeter(account)
+                retire.assert_called_once_with(account)
+        with patch.object(G,"user_command",side_effect=[ok,ok]),patch.object(G,"prepare_portal_backend",side_effect=G.Refused("portal_backend_required")),patch.object(G,"retire") as retire:
+            with self.assertRaisesRegex(G.Refused,"portal_backend_required"):G.start_live_greeter(account)
+            retire.assert_called_once_with(account)
+        for replies,ready in (([bad],False),([ok,ok,ok],True)):
+            with patch.object(G,"user_command",side_effect=replies),patch.object(G,"prepare_portal_backend") as prepare,patch.object(G,"retire") as retire:
+                G.start_live_greeter(account)
+                self.assertEqual(prepare.call_count,1 if ready else 0)
+                retire.assert_not_called()
 
     def test_source_wiring_off_by_default_and_no_authentication_fork(self):
         directory=ROOT / "system_files/usr/lib/systemd/user"

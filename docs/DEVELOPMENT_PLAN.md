@@ -11,18 +11,34 @@ new private feedback/optional public suggestions product is P6.9 below.
 
 ## Active delivery and acceptance batch
 
-PR232 is integrated at `b11f5aa2`. PR233's padded Plymouth SRPM extractor
-is integrated at `1c321a53`: full native source checks, local final ARM image/
-15 payload hashes and ARM/x86 image CI pass. Producer/archive/consumer failure
-controls and existing native-library/initramfs gates hold; old source fails
-three controls. The initial owned candidate and redundant pre-batch push runs
-are cancelled before promotion. Finish the recovered Community native-picker
-correction in the same batch, then qualify one fresh exact-source signed cycle.
-Native picker cancellation now passes Arabic/English on actual bootstrap; old
-GUI-only bootstrap fails. 34 API/12 native tests pass, plus physical NVIDIA
-Wayland Arabic/English readback. Native NVIDIA .1032 passes 55 selfchecks; its 54/1
-post-update baseline attributes the lone abort to our display-less version
-probe. Keep that failure visible and require clean new-boot acceptance.
+PR232/233/234 are integrated at `c5f2451b`. Final local ARM image/16 hashes,
+repo checks, Community 34 API/12 native Qt controls and native AR/EN Wayland
+pickers pass. The combined first-attempt signed cycle is complete: build
+38446133446, disks 38454884448/38454887386/38454893061, offline ISO 38454900845,
+x86 promotion 38461170910, full ARM 38445991140. All four latest tags match.
+NVIDIA now boots signed .1042 with .1032 rollback: native 55/0 selfcheck,
+55/0 post-update, 16 hashes/compiled player equality and 36.174 s boot.
+Installed encoded Arabic file URI/finite 20 s/paused +5 s seek/593 MiB graphics
+memory/owned-process release pass; this is not moving-pixel/HDR/endurance proof.
+Oracle .771 is officially staged with a one-attempt native login probe prepared;
+its booted acceptance remains .763. Exact .1042 ISO signature/hash/5,827,985,408
+bytes are archived; public delivery remains qualified .1026.
+
+**Current P2.17 correction:** native default-disabled greeter omitted KDE/Wayland
+desktop facts before KDE's backend started, and secure typing rejected its actual
+three-group de/us/ara EIS map. Greeter-only renewal restores both interfaces.
+The actual device map fails old source and passes the correction; fresh private
+Remote authentication reports secureText false→true with no audit input.
+Owner reports accepted password login; actual ordinary plasmalogin/Wayland session
+and restricted-greeter→account handoff agree. A documented temporary greeter-only
+copied runtime enables that journey. It is not a signed release. Source publishes
+those desktop facts while access remains disabled, checks actual interfaces on
+warm enable, retires failed enrollment and compiles exactly matching EIS groups.
+15 management/14 native keymap controls, full native repo checks and every .NET
+project/test executable pass. Next: final local image, PR image gates and one
+signed artifact cycle; retire the exact transient override after delivered-byte
+readback, then repeat native opt-in/disabled/login journeys. Private TLS/PIN,
+owner authorization, PAM and default-disabled access remain load-bearing.
 
 Current bounded P3.1/P3.2/P5.7 follow-up: existing-account free cloud reply,
 SSE and isolated Hermes path now pass native synthetic journeys. Reported direct
@@ -32,8 +48,9 @@ The source relay now closes owned upstream responses on every return/error;
 Seven private socket-backed HTTP controls fail against old source and pass fixed,
 including explicit/authentication refusal and automatic free-candidate retry.
 Selfcheck describes connections honestly and preserves the Oracle monitor.
-Full source/image/signed delivery and broader cancellation/stall/voice/clean
-account qualification remain separate; see [runtime audit](AUDIT_20261013_RUNTIME_AR.md).
+Source/image/signed delivery passes in .1042/.771; native NVIDIA direct/SSE
+1.02/1.11 s/cost=0 and isolated Hermes 4.30 s/absent usage pass. Broader
+cancellation/stall/voice/clean-account qualification remains separate; see [runtime audit](AUDIT_20261013_RUNTIME_AR.md).
 
 Owner reliability/release slice is integrated at main `3abe787a` (PR224).
 All 246 maintained source gates, catalogue, full local image and exact signed
@@ -57,8 +74,8 @@ launcher/material audit at `4ee7f158`. Its first-attempt signed cycle is complet
 x86 build 38311291809, three disks 38318191729/38318194809/38318198405,
 offline ISO 38318201656, promotion 38322153729 and ARM 38311239191.
 Production x86 .1032/ARM .761 are proven. Oracle's official timer staged .761;
-it then ran .756; the owner-applied .763 boot is recorded below. Pre-login opt-in
-is off; virtual proof is not native acceptance.
+it then ran .756; the owner-applied .763 boot is recorded below. Pre-login remains off on Oracle; NVIDIA now opted in for owner-requested Remote
+login, with the temporary correction and installed boundary recorded above.
 
 The 12 October station audit is the current bounded M0/P2.2/P2.5/P5.6 slice:
 actual ARM readback, reviewed cache retirement and one native Settings launcher.
@@ -68,8 +85,8 @@ now restore one KDE menu entry, preserve the original, refuse unknown overrides
 and pass six isolated controls. Source selfcheck passes 52/0; signed delivery
 passes, with Oracle .763 native acceptance now passing within recorded scope. Seven KCMs load in private Arabic contexts;
 all Remote .NET builds/test executables pass. Native cleanup reclaimed
-26,505,392,128 bytes across five exact superseded images without touching
-owner containers/data/rollback. Current headroom after building is about 58 GiB. The 30 s sample
+33,544,560,640 bytes across seven exact superseded images without touching
+owner containers/data/rollback. Headroom with the .1042 ISO archive is about 38 GiB. The 30 s sample
 has 7.17–7.28 GiB available with the editor/services active, not clean idle.
 
 The native MPEG4 journey exposed incorrect Live controls and encoded Arabic
@@ -375,8 +392,8 @@ itself and an unreviewed MoOS would ship kscreenlocker's emergency locker.
 | ID | Outcome | Current boundary | Required acceptance |
 | --- | --- | --- | --- |
 | P0.1 | Integrate the reviewed first-install repairs and create one candidate revision | Stable mechanism/artifact evidence recorded; preserve required gates | Exact candidate source, all integrated fixes and no local override counted as release. |
-| P0.2 | Run generic, NVIDIA and cloud QCOW2 proofs plus offline ISO install/second boot | Exact .1026 three QCOW2/offline installed ISO proofs and ARM .752 two boots pass; Oracle .752 and physical NVIDIA .1026 installed acceptance pass | Three exact-digest x86 QCOW2 journeys, offline installed ISO and separate ARM two-boot proof. |
-| P0.3 | Finish physical NVIDIA qualification | Open: signed .1026 native 54/0 + 55/0 and 14 hashes pass. Offline ESP dirty-bit-only clone/live proof passes, 16 boot-file hashes preserved and both shared vfat mounts restored; the prior unmount mistake failed before fsck and has a private old/fixed topology control. Next cold-boot warning readback, suspend/hotplug and recovery remain | Actual NVIDIA GPU, initramfs module, displays, suspend and clean recovery on qualified hardware. |
+| P0.2 | Run generic, NVIDIA and cloud QCOW2 proofs plus offline ISO install/second boot | Exact .1042 three QCOW2/offline installed ISO proofs and ARM .771 two boots pass; physical NVIDIA .1042 native acceptance passes, Oracle .771 remains staged | Three exact-digest x86 QCOW2 journeys, offline installed ISO and separate ARM two-boot proof. |
+| P0.3 | Finish physical NVIDIA qualification | Open: signed .1042 native 55/0 + 55/0, 16 hashes and exact signed player bytes pass; one URI/finite seek/resource journey passes. Kernel -201 NVIDIA vermagic matches. USB-C UCSI -110 remains; broader physical acceptance is open. Offline ESP dirty-bit-only clone/live proof passes, 16 boot-file hashes preserved and both shared vfat mounts restored; the prior unmount mistake failed before fsck and has a private old/fixed topology control. Next cold-boot warning readback, suspend/hotplug and recovery remain | Actual NVIDIA GPU, initramfs module, displays, suspend and clean recovery on qualified hardware. |
 | P0.4 | Prove failed-update recovery | Open / acceptance not complete | Deliberate bad update, automatic/manual rollback and forward return without owner data loss. |
 | P0.5 | Configure and accept free Mo AI on a clean account | Open / acceptance not complete | Clean-account provider setup, free route, reboot, cancellation and network/quota/key failures. |
 | P0.6 | Promote only proven digests and update the physical PC | Stable mechanism/artifact evidence recorded; preserve required gates | Promote only exact proven signed digests; separately verify installed stage/reboot/rollback. |
@@ -419,7 +436,7 @@ itself and an unreviewed MoOS would ship kscreenlocker's emergency locker.
 | P2.14 | Remote input, recovery and mobile/WAN video | Implemented/delivered within recorded scope; wider acceptance remains | Held-input ownership, decoded pictures, browser recovery and owner iPhone/cellular endurance. |
 | P2.15 | Mira face, speech/rest and original portrait identity | Capture policy integrated/promoted in .1022/.749; both hosts booted with matching delivered hashes. Source/private-helper boundary and muted real USB pass; physical unmuted speech and long capture remain open | Both portraits retained; single mouth, real voice/pause/idle/hidden/reduced-motion readback; 11 private-process boundary tests, 45 controller tests, real muted USB with zero captures/overruns and three synthetic unmute/mute cycles. Signed installed delivery passes on both hosts; physical unmuted voice/device acceptance remains open. |
 | P2.16 | Shared login, lock and power experience | Delivered within earlier recorded scope; private Arabic lock/power/wrong/correct-password controls pass, login buttons remain English. PR227 maintenance scoping is integrated through PR228 with both native PR image CIs, owner/greeter conditions, 17 theme tests and final local ARM/three unit hashes passing. Signed .1034/.763 delivery passes; Oracle native boot/bytes pass; ordinary-login/hardware acceptance remains; authentication stays upstream | Native greeters 640×480–4K@2.5, password refusal, multi-user, save/logout and accessibility. |
-| P2.17 | Mo PC Remote before account login after reboot | PR225 merged at d44cecfd; signed x86 .1029 build 38169917085, three disk proofs, offline ISO and promotion 38181945282 all pass. ARM 38169587234 promoted/booted .756: native 51/0 + 55/0, 31 runtime files, preserved services/private TLS pass. Pre-login stays off and existing Oracle autologin does not prove PAM. The maintenance correction is integrated through PR228; it is delivered in signed .1034/.763, with ARM .763 now booted; physical NVIDIA last native acceptance remains .1026. Private .1022/r10 guest passes repeated cold login, decoded greeter, wrong/correct PIN and PAM password, account handoff/logout and scoped trust. Native managed units/listener stop, credential revocation/account-byte preservation and disabled cold boot pass; enrollment TLS JSON is explicitly fixture-only. EIS readiness, seven .NET projects, AR/EN renders and full local image pass (31 files). Actual Oracle old/fixed controls accept its separate public Community/private Remote, preserve ingress bytes and reject public Remote paths in isolated controls. Real private-TLS enrollment, multi-account/hardware/phone endurance and signed NVIDIA installed acceptance remain | Explicit opt-in, authenticated PIN/trusted-device and private TLS access before login; greeter-owned capture/input with no authentication fork, autologin or saved account password; ordinary PAM wrong/correct password through the actual controller after cold boot; bounded handoff to the active user's agent and back after logout; account isolation, no pre-login files/clipboard access, no public listener, and NVIDIA/ARM native reboot proofs. |
+| P2.17 | Mo PC Remote before account login after reboot | .1042/.771 artifacts are promoted; NVIDIA .1042 boots with 55/55 checks/16 hashes. Real default-disabled→warm-enabled greeter exposed missing KDE environment and rejected three-group EIS keymap. Source/29 controls plus actual device old/fixed proof pass. Temporary greeter-only runtime enables secureText and the owner reports successful ordinary password login; logind/account handoff agree. This correction is not signed delivery yet. Oracle pre-login remains off; owner phone/WAN/multi-account/endurance and repeated native negative/cold-boot acceptance remain | Explicit opt-in, authenticated PIN/trusted-device/private TLS; native greeter capture/input with upstream PAM and no saved account password; real wrong/correct PIN/password, bounded handoff/logout/account isolation; default-disabled/native NVIDIA and ARM reboot evidence. |
 
 ## P3 — Trustworthy assistant
 

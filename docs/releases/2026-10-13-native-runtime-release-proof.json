@@ -1,0 +1,279 @@
+{
+  "schema": 1,
+  "checkedAt": "2026-10-13T21:14:07.829667+00:00",
+  "candidateRevision": "c5f2451ba16594ade98ac59172db69de060b79e6",
+  "sourceRevision": "582f552555ebdc9e86b975b843f217176feef0d5",
+  "sourcePullRequests": [
+    232,
+    233,
+    234
+  ],
+  "scope": "First-attempt signed four-edition artifact qualification/promotion and native NVIDIA .1042 boot/runtime/player/cloud acceptance. One owner-reported Remote PAM login uses a documented temporary greeter helper correction; that correction is not signed delivery. Oracle .771 remains staged, and new public ISO transfer is separate.",
+  "releases": [
+    {
+      "edition": "moos",
+      "version": "44.20261013.1042",
+      "digest": "sha256:e136bc339543995b15ad9d129453ca31df77a7fa2fe9eaa4fba469f35ae13384",
+      "revision": "c5f2451ba16594ade98ac59172db69de060b79e6"
+    },
+    {
+      "edition": "moos-nvidia",
+      "version": "44.20261013.1042",
+      "digest": "sha256:88953ed40528ddca8ed16f1888b57c6420699f72897909819433f4a455559562",
+      "revision": "c5f2451ba16594ade98ac59172db69de060b79e6"
+    },
+    {
+      "edition": "moos-cloud",
+      "version": "44.20261013.1042",
+      "digest": "sha256:8a65514db492da10afba7833b61fea4d7d3329a173b315c6dd902ab23a3a583a",
+      "revision": "c5f2451ba16594ade98ac59172db69de060b79e6"
+    },
+    {
+      "edition": "moos-arm",
+      "version": "44.20261013.771",
+      "digest": "sha256:e4f94b5d735dbf1e3ecad94e60a5d86c37568133eddeac6303906b1dcbcec8c5",
+      "revision": "c5f2451ba16594ade98ac59172db69de060b79e6"
+    }
+  ],
+  "workflows": [
+    {
+      "conclusion": "success",
+      "event": "push",
+      "head_branch": "main",
+      "head_sha": "c5f2451ba16594ade98ac59172db69de060b79e6",
+      "html_url": "https://github.com/moalfarras-sys/moos-image/actions/runs/38445991140",
+      "id": 38445991140,
+      "path": ".github/workflows/build-arm.yml",
+      "run_attempt": 1,
+      "status": "completed"
+    },
+    {
+      "conclusion": "success",
+      "event": "workflow_dispatch",
+      "head_branch": "main",
+      "head_sha": "c5f2451ba16594ade98ac59172db69de060b79e6",
+      "html_url": "https://github.com/moalfarras-sys/moos-image/actions/runs/38446133446",
+      "id": 38446133446,
+      "path": ".github/workflows/build.yml",
+      "run_attempt": 1,
+      "status": "completed"
+    },
+    {
+      "conclusion": "success",
+      "event": "workflow_dispatch",
+      "head_branch": "main",
+      "head_sha": "c5f2451ba16594ade98ac59172db69de060b79e6",
+      "html_url": "https://github.com/moalfarras-sys/moos-image/actions/runs/38454884448",
+      "id": 38454884448,
+      "path": ".github/workflows/build-disk.yml",
+      "run_attempt": 1,
+      "status": "completed"
+    },
+    {
+      "conclusion": "success",
+      "event": "workflow_dispatch",
+      "head_branch": "main",
+      "head_sha": "c5f2451ba16594ade98ac59172db69de060b79e6",
+      "html_url": "https://github.com/moalfarras-sys/moos-image/actions/runs/38454887386",
+      "id": 38454887386,
+      "path": ".github/workflows/build-disk.yml",
+      "run_attempt": 1,
+      "status": "completed"
+    },
+    {
+      "conclusion": "success",
+      "event": "workflow_dispatch",
+      "head_branch": "main",
+      "head_sha": "c5f2451ba16594ade98ac59172db69de060b79e6",
+      "html_url": "https://github.com/moalfarras-sys/moos-image/actions/runs/38454893061",
+      "id": 38454893061,
+      "path": ".github/workflows/build-disk.yml",
+      "run_attempt": 1,
+      "status": "completed"
+    },
+    {
+      "conclusion": "success",
+      "event": "workflow_dispatch",
+      "head_branch": "main",
+      "head_sha": "c5f2451ba16594ade98ac59172db69de060b79e6",
+      "html_url": "https://github.com/moalfarras-sys/moos-image/actions/runs/38454900845",
+      "id": 38454900845,
+      "path": ".github/workflows/build-iso.yml",
+      "run_attempt": 1,
+      "status": "completed"
+    },
+    {
+      "conclusion": "success",
+      "event": "workflow_dispatch",
+      "head_branch": "main",
+      "head_sha": "c5f2451ba16594ade98ac59172db69de060b79e6",
+      "html_url": "https://github.com/moalfarras-sys/moos-image/actions/runs/38461170910",
+      "id": 38461170910,
+      "path": ".github/workflows/promote-x86.yml",
+      "run_attempt": 1,
+      "status": "completed"
+    }
+  ],
+  "artifactProofs": {
+    "qcow2": {
+      "moos": {
+        "sha256": "d7a42abab6d4ab66cae81fe09a2dfd1dfcc31efdd28dfc9c32770bf3e81071f4",
+        "firstBootId": "0d681190-39f7-4c7e-b4f0-562d100b03cd",
+        "secondBootId": "91a9d206-f51c-4846-a135-5bfb12a0df76",
+        "failedUnits": 0,
+        "shutdown": "clean"
+      },
+      "moos-nvidia": {
+        "sha256": "33f0e12385ad2d174c3395f43b3f5894ff2c969f32ac9f4abac5dec03e811023",
+        "firstBootId": "9ee79521-796a-43bd-ad72-ebed0350acb2",
+        "secondBootId": "4972cc66-c4eb-42ab-a28c-161b81e9d60e",
+        "failedUnits": 0,
+        "shutdown": "clean"
+      },
+      "moos-cloud": {
+        "sha256": "f0cf4d6c5b1ee59ac47a2b2681e8267d869381c6188d9846e5b16c064986510e",
+        "firstBootId": "abb66a15-fd77-46b2-9c55-554b4bfdea15",
+        "secondBootId": "a9c5b683-2a72-4689-b5ca-cddfafce6f81",
+        "failedUnits": 0,
+        "shutdown": "clean"
+      },
+      "moos-arm": {
+        "sha256": "371ffa2bb7020b1b350074e19876c6f24c1c63b803cf1ec53af7f57dab672a25",
+        "firstBootId": "0c723b36-f003-4ba0-8ee1-256a69428ebe",
+        "secondBootId": "99ddfbb4-cdb5-412a-bea6-a4077058f3d7",
+        "failedUnits": 0,
+        "shutdown": "clean"
+      }
+    },
+    "iso": {
+      "sha256": "57f3d61ad8000595cc3266f1a48309d0ffe885ef7511ca05d61bd53f8aa9a2c0",
+      "networkDuringInstall": "disabled",
+      "installedSecondBoot": "healthy",
+      "poweroff": "clean",
+      "applications": {
+        "dolphin": "opened-closed-reopened",
+        "konsole": "opened-closed-reopened",
+        "moos-settings": "opened-closed-reopened",
+        "mo-ai": "opened-closed-reopened",
+        "mo-store": "opened-closed-reopened",
+        "updater": "opened-closed-reopened",
+        "recovery": "opened-closed-reopened",
+        "themes": "opened-closed-reopened",
+        "moplayer": "opened-closed-reopened",
+        "mo-pc-remote": "opened-closed-reopened"
+      }
+    }
+  },
+  "nativeDevelopment": {
+    "localArmImage": "0693eb6f4c686c09c0c16cfbd744c9ae726442e6ff6396617e8fdc28544ec4b3",
+    "localImageGates": "pass",
+    "sourcePayloadHashesMatched": 16,
+    "cloudRelayLifetimeCases": 7,
+    "oldCloudRelayFailsAllSeven": true,
+    "plymouthExtractionControls": 4,
+    "oldExtractionFailsThree": true,
+    "communityApiTests": 34,
+    "communityNativeQtTests": 12,
+    "nativeWaylandPickerLanguages": [
+      "ar",
+      "en"
+    ],
+    "nativePickerCancelPreservesState": true,
+    "nativePickerApiRequests": 0,
+    "nvidiaSignedCompiledMoplayerSha256": "013b9da059004acd4b42543b0bea22d0c8297b00ecf3316e377b76caf568ceca"
+  },
+  "nativeAcceptance": {
+    "oracle": "staging; fresh boot not yet measured",
+    "nvidia": {
+      "version": "44.20261013.1042",
+      "bootId": "4b5cb64e-a7ee-46f9-bcfa-49ed17771926",
+      "digest": "sha256:88953ed40528ddca8ed16f1888b57c6420699f72897909819433f4a455559562",
+      "signedRollbackVersion": "44.20261012.1032",
+      "selfcheckPassed": 55,
+      "postUpdatePassed": 55,
+      "failedChecks": 0,
+      "payloadHashesMatched": 16,
+      "compiledMoplayerMatchesSignedCandidate": true,
+      "themeRev": 103,
+      "bootSeconds": 36.174,
+      "logindService": "plasmalogin",
+      "sessionType": "wayland",
+      "oneOwnerCompositor": true,
+      "remoteHandoffToAccount": true,
+      "ownerReportedRemotePasswordLoginAccepted": true,
+      "player": {
+        "passed": true,
+        "rss_kib": 784300,
+        "paused_seek_delta_us": 5000000,
+        "owned_process_closed": true,
+        "scope": "Installed signed NVIDIA .1042, one private silent MPEG4 and encoded Arabic file URI. Transport and full GPU table; moving pixels, HDR, other codecs, servers and endurance are separate."
+      },
+      "cloud": {
+        "directHttp": 200,
+        "directSeconds": 1.0161045509998985,
+        "directReportedCost": 0,
+        "streamHttp": 200,
+        "streamFirstContentSeconds": 1.1076518059999216,
+        "streamEvents": 32,
+        "streamDone": true,
+        "streamReportedCost": 0,
+        "isolatedHermesHttp": 200,
+        "isolatedHermesSeconds": 4.297210667999934,
+        "isolatedHermesReportedUsage": null
+      },
+      "resourceSample": {
+        "seconds": 30,
+        "scope": "Native user cgroup leaves with owner services/lighting; no long idle or pressure qualification",
+        "kwinPercentOneCore": 1.43,
+        "kwinMemoryMiB": 263.0,
+        "plasmashellPercentOneCore": 1.31,
+        "plasmashellMemoryMiB": 482.9,
+        "gatewayPercentOneCore": 0.01,
+        "gatewayMemoryMiB": 21.2,
+        "lumenPercentOneCore": 6.08,
+        "lumenMemoryMiB": 21.8,
+        "balooFileCacheMiB": 1788.4,
+        "balooAnonymousMiB": 24.9,
+        "memoryPressureAvg10": 0.0,
+        "cpuPressureAvg10": 0.0,
+        "sampledSwapMiB": 0.0
+      }
+    }
+  },
+  "publicIso": {
+    "qualifiedVersion": "44.20261011.1026",
+    "new1042ArtifactArchive": "preserved; exact local hash and detached signature verified",
+    "new1042Bytes": 5827985408,
+    "new1042Sha256": "57f3d61ad8000595cc3266f1a48309d0ffe885ef7511ca05d61bd53f8aa9a2c0",
+    "new1042PublicTransferQualified": false
+  },
+  "cleanup": {
+    "retiredAuditImages": 7,
+    "observedFreeSpaceGainBytes": 33544560640,
+    "ownerDataAndRollbackPreserved": true
+  },
+  "greeterCorrection": {
+    "sourceDelivery": "pending",
+    "nativeInitialPortalInterfacesPresent": false,
+    "nativeInitialKdeDesktopEnvironmentPresent": false,
+    "nativeInitialSecureTyping": false,
+    "actualEisKeymapBytes": 43505,
+    "actualKeyboardGroups": [
+      "de",
+      "us",
+      "ara"
+    ],
+    "oldParserAcceptsActualMap": false,
+    "fixedKeymapEntries": [
+      178,
+      98,
+      144
+    ],
+    "temporaryAuthenticatedHelloSecureText": true,
+    "probeInputSent": false,
+    "probeTrustedDeviceCreated": false,
+    "temporaryRuntimeScope": "plasmalogin only; existing launcher agent override in /run; owner data, PAM, passwords and signed OS origin unchanged",
+    "temporaryHelperSha256": "e441588880577be128b8eb6e8f0609364e34f1ae8a842a9b18ca8de942000e14",
+    "temporaryRuntimeRetirement": "after matching signed helper is installed and no process holds the copied bundle"
+  }
+}

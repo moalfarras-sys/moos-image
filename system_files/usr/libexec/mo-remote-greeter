@@ -15,6 +15,7 @@ import stat
 import subprocess
 import sys
 import tempfile
+import xml.etree.ElementTree as ET
 from urllib.parse import urlsplit
 
 STATE = Path("/var/lib/mo-remote-greeter")
@@ -25,6 +26,7 @@ TAILSCALE = "/usr/bin/tailscale"
 APP_ID = "org.moos.remote"
 UNITS = ("mo-remote-greeter.service", "mo-remote-greeter-portal.service",
          "mo-remote-greeter-session.service")
+KDE_PORTAL_UNIT = "plasma-xdg-desktop-portal-kde.service"
 
 
 class Refused(Exception):
@@ -226,6 +228,62 @@ def validate_request(value):
     return value["port"], value["pin"]
 
 
+def portal_interfaces_present(result):
+    if result.returncode or len(result.stdout) > 65536:
+        return False
+    try:
+        node = ET.fromstring(result.stdout)
+    except ET.ParseError:
+        return False
+    return node.tag == "node" and {
+        "org.freedesktop.impl.portal.RemoteDesktop",
+        "org.freedesktop.impl.portal.ScreenCast",
+    }.issubset({entry.get("name") for entry in node.findall("interface")})
+
+
+def _prepare_portal_backend(account):
+    # Enabling on a running, previously disabled login screen must publish the
+    # desktop environment before starting/probing KDE's backend. A healthy
+    # backend is kept; only this greeter account's incomplete backend is renewed.
+    policy = user_command(account, ["/usr/bin/systemctl", "--user", "start", UNITS[2]])
+    if policy.returncode:
+        raise Refused("permission_failed")
+    probe = ["/usr/bin/busctl", "--user", "--xml-interface", "introspect",
+             "org.freedesktop.impl.portal.desktop.kde", "/org/freedesktop/portal/desktop"]
+    if portal_interfaces_present(user_command(account, probe)):
+        return
+    renewed = user_command(account, ["/usr/bin/systemctl", "--user", "restart", KDE_PORTAL_UNIT], timeout=25)
+    if renewed.returncode or not portal_interfaces_present(user_command(account, probe)):
+        raise Refused("portal_backend_required")
+
+
+def prepare_portal_backend(account):
+    try:
+        _prepare_portal_backend(account)
+    except (OSError, subprocess.SubprocessError):
+        raise Refused("portal_backend_required") from None
+
+
+def start_live_greeter(account):
+    try:
+        target = user_command(account, ["/usr/bin/systemctl", "--user", "is-active", "--quiet",
+                                        "plasma-login-wayland.target"])
+        if target.returncode != 0:
+            return  # Enrollment is retained for the next native login screen.
+        reset = user_command(account, ["/usr/bin/systemctl", "--user", "reset-failed", *UNITS])
+        if reset.returncode:
+            raise Refused("start_failed")
+        prepare_portal_backend(account)
+        started = user_command(account, ["/usr/bin/systemctl", "--user", "start", UNITS[0]], timeout=25)
+        if started.returncode:
+            raise Refused("start_failed")
+    except (Refused, OSError, subprocess.SubprocessError) as error:
+        retire(account)
+        if isinstance(error, Refused):
+            raise
+        raise Refused("start_failed") from None
+
+
 def change(action, request):
     if os.geteuid() != 0:
         raise Refused("administrator_required")
@@ -268,17 +326,25 @@ def change(action, request):
         require_tls(port)  # Recheck the proxy after the bounded provisioning step.
         write_json(MARKER, {"schema": 1, "owner_uid": owner_uid, "port": port}, 0, 0, 0o644)
         if bus_present(account):
-            target = user_command(account, ["/usr/bin/systemctl", "--user", "is-active", "--quiet",
-                                            "plasma-login-wayland.target"])
-            if target.returncode == 0:
-                start = user_command(account, ["/usr/bin/systemctl", "--user", "reset-failed", *UNITS])
-                start = user_command(account, ["/usr/bin/systemctl", "--user", "start", UNITS[0]], timeout=25)
-                if start.returncode:
-                    retire(account)
-                    raise Refused("start_failed")
+            start_live_greeter(account)
         return {"enabled": True, "owner_uid": owner_uid, "port": port}
     finally:
         os.close(lock_fd)
+
+
+def publish_desktop_environment(account):
+    display = command(["/usr/libexec/moos-wayland-display"], timeout=6)
+    if display.returncode or not re.fullmatch(r"wayland-[A-Za-z0-9._-]+", display.stdout.strip()):
+        raise Refused("wayland_required")
+    os.environ["WAYLAND_DISPLAY"] = display.stdout.strip()
+    os.environ["XDG_CURRENT_DESKTOP"] = "KDE"
+    # command() intentionally strips caller environment. Here these two exact
+    # values are the ones imported into the actual greeter user manager.
+    result = command(["/usr/bin/env", f"WAYLAND_DISPLAY={display.stdout.strip()}", "XDG_CURRENT_DESKTOP=KDE",
+                      f"DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/{account.pw_uid}/bus",
+                      "/usr/bin/systemctl", "--user", "import-environment", "WAYLAND_DISPLAY", "XDG_CURRENT_DESKTOP"])
+    if result.returncode:
+        raise Refused("permission_failed")
 
 
 def session():
@@ -292,23 +358,18 @@ def session():
         command([*permission_env, "/usr/bin/flatpak", *permission_args(False)])
         if current.get("error"):
             raise Refused(current["error"])
+        # KDE creates its ScreenCast/RemoteDesktop interfaces only in a KDE
+        # environment. Publishing these two desktop facts grants no Remote
+        # permission and must also precede the backend while access is disabled.
+        publish_desktop_environment(account)
         return current
     private_directory(DATA, account.pw_uid, account.pw_gid, 0o700)
     config = read_json(DATA / "config.dat", account.pw_uid, 0o600, 65536)
     if not config.get("PinHash") or config.get("Port") != current["port"]:
         raise Refused("provision_failed")
-    display = command(["/usr/libexec/moos-wayland-display"], timeout=6)
-    if display.returncode or not re.fullmatch(r"wayland-[A-Za-z0-9._-]+", display.stdout.strip()):
-        raise Refused("wayland_required")
-    os.environ["WAYLAND_DISPLAY"] = display.stdout.strip()
-    os.environ["XDG_CURRENT_DESKTOP"] = "KDE"
-    # command() intentionally strips caller environment. Here these two exact
-    # values are the ones imported into the actual greeter user manager.
-    result = command(["/usr/bin/env", f"WAYLAND_DISPLAY={display.stdout.strip()}", "XDG_CURRENT_DESKTOP=KDE",
-                      f"DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/{account.pw_uid}/bus",
-                      "/usr/bin/systemctl", "--user", "import-environment", "WAYLAND_DISPLAY", "XDG_CURRENT_DESKTOP"])
+    publish_desktop_environment(account)
     grant = command([*permission_env, "/usr/bin/flatpak", *permission_args(True)])
-    if result.returncode or grant.returncode:
+    if grant.returncode:
         raise Refused("permission_failed")
     return current
 
