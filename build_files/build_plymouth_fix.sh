@@ -7,7 +7,11 @@ curl --fail --location --retry 3 --connect-timeout 30 \
     https://kojipkgs.fedoraproject.org/packages/plymouth/24.004.60/24.fc44/src/plymouth-24.004.60-24.fc44.src.rpm \
     -o /work/plymouth.src.rpm
 echo 'e45ef414519b4c9d441b086fbb6b3456df523d61890c9cc3876c069f0eaf57a4  /work/plymouth.src.rpm' | sha256sum --check
-(cd "${_top}/SOURCES"; rpm2cpio /work/plymouth.src.rpm | cpio -idm --no-absolute-filenames --no-preserve-owner)
+# cpio stops at TRAILER!!!; this vendor archive has trailing zero padding.
+# Finish/check the producer first so a small pipe cannot turn that into SIGPIPE.
+rpm2cpio /work/plymouth.src.rpm > /work/plymouth-source.cpio
+(cd "${_top}/SOURCES"; cpio -idm --no-absolute-filenames --no-preserve-owner < /work/plymouth-source.cpio)
+rm /work/plymouth-source.cpio
 cp "${_top}/SOURCES/plymouth.spec" "${_top}/SPECS/plymouth.spec"
 cp /src/frame-lifetime.patch "${_top}/SOURCES/moos-frame-lifetime.patch"
 python3 - <<'PY'

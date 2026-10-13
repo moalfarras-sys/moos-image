@@ -7,9 +7,20 @@ Native audit: [AUDIT_20261012_AR.md](docs/AUDIT_20261012_AR.md).
 
 ## Current engineering batch
 
+PR232 merged at `b11f5aa2`, preserving `8c37bfda` with an identical tree;
+final native repo checks and x86/ARM PR image gates pass. The full local ARM
+build exposed the existing Plymouth SRPM extraction SIGPIPE (exit 141).
+Its actual pinned input reproduces producer -13/consumer 0 with all 27 files
+unchanged and 8,836 trailing zero bytes. The first signed cycle's owned runs
+38391961158/38391840384 are cancelled before promotion; no boot qualification
+is claimed. The extraction fix completes/checks the archive producer first.
+Four targeted controls pass; old extraction fails three. Full image and fresh
+signed delivery remain pending, with boot/signature/identity gates intact.
+
 Runtime/cloud follow-up on October 13 proves existing-account free reply in
 1.01 s (reported cost=0), real SSE first content in 1.28 s and an isolated
-Hermes reply in 9.24 s. No key read, private context, action or provider change.
+Hermes reply in 9.24 s. No key read, private context submitted, action requested
+or provider change.
 Native 30 s cgroup accounting distinguishes 2.2 GiB editor file cache from
 anonymous memory; no RAM pressure/local inference process. KDE/KWin/Wayland,
 GTK Breeze/system palette and the one desktop portal front door are active.

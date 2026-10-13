@@ -267,6 +267,7 @@ check:
     # resampling after the bounded entrance.
     python3 tests/test_boot_splash_polish.py
     python3 tests/test_plymouth_packages.py
+    python3 tests/test_plymouth_srpm_extraction.py
     python3 tests/test_language_pack_transaction.py
     # Phone alerts are explicit, generic and event-driven: never mirror desktop content or poll idle.
     python3 tests/test_remote_background_alerts.py
