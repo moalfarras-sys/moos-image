@@ -13,6 +13,7 @@ from pathlib import Path
 import json
 import os
 import re
+import shutil
 import subprocess
 import tempfile
 import unittest
@@ -210,6 +211,99 @@ class IslandLivingSurfaceTests(unittest.TestCase):
 
     def test_motion_is_finite_and_gated(self):
         self.assertNotIn("Animation.Infinite", self.qml)
+
+
+@unittest.skipUnless(shutil.which("node"), "context-routing execution requires Node.js")
+class IslandContextKeyboard(unittest.TestCase):
+    """Execute shipped arrow handlers; native Qt delivery is reviewed separately."""
+
+    def routes(self, cases):
+        source = code(ISLAND_QML)
+        match = re.search(r"            function focusAdjacent\(fromIndex, direction\) \{.*?^            \}",
+                          source, re.MULTILINE | re.DOTALL)
+        self.assertIsNotNone(match, "visible-context navigation is missing")
+        handlers = []
+        for name in ("remote", "privacy", "store", "moai", "media"):
+            block = source.split("id: " + name + "Tab", 1)[1].split("contentItem:", 1)[0]
+            pair = {}
+            for key in ("Left", "Right"):
+                handler = re.search(r"Keys.on" + key + r"Pressed: event => \{(.*?)\n                \}", block, re.DOTALL)
+                self.assertIsNotNone(handler, name + " has no " + key + " route")
+                pair[key] = handler.group(1)
+            handlers.append(pair)
+        runner = r'''
+const fs = require('node:fs');
+const vm = require('node:vm');
+const input = JSON.parse(fs.readFileSync(0, 'utf8'));
+const results = input.cases.map(c => {
+    const focused = [], activated = [];
+    const tabs = Array.from({length:5}, (_,i) => ({
+        visible:c.visible.includes(i), enabled:!c.disabled?.includes(i),
+        forceActiveFocus() {focused.push(i)}, clicked() {activated.push(i)}
+    }));
+    const context = vm.createContext({root:{rtl:c.rtl}, event:{accepted:false},
+        Qt:{TabFocusReason:1}, count:5, itemAt:i=>tabs[i]});
+    vm.runInContext(input.function, context, {timeout:1000});
+    context.contextTabs = {focusAdjacent:context.focusAdjacent};
+    vm.runInContext(input.handlers[c.from][c.key],context,{timeout:1000});
+    return {focused,activated,accepted:context.event.accepted};
+});
+process.stdout.write(JSON.stringify(results));
+'''
+        result = subprocess.run([shutil.which("node"), "-e", runner],
+                                input=json.dumps({"function":match.group(0),"handlers":handlers,"cases":cases}),
+                                capture_output=True, text=True, timeout=20, check=True)
+        return json.loads(result.stdout)
+
+    def test_every_visible_subset_wraps_in_the_locale_direction(self):
+        cases, expected = [], []
+        for mask in range(1, 32):
+            visible = [i for i in range(5) if mask & (1 << i)]
+            for rtl in (False, True):
+                for start in visible:
+                    for key, delta in (("Left",1 if rtl else -1), ("Right",-1 if rtl else 1)):
+                        cases.append({"visible":visible,"rtl":rtl,"from":start,"key":key})
+                        expected.append(visible[(visible.index(start)+delta)%len(visible)])
+        for case, target, actual in zip(cases, expected, self.routes(cases)):
+            with self.subTest(case=case):
+                self.assertEqual(actual, {"focused":[target],"activated":[target],"accepted":True})
+
+    def test_disabled_visible_tabs_cannot_receive_focus_or_activation(self):
+        cases = [{"visible":[0,1,4],"disabled":[1],"rtl":False,"from":0,"key":"Right"},
+                 {"visible":[0,1,4],"disabled":[1],"rtl":True,"from":4,"key":"Right"}]
+        for target, actual in zip((4,0), self.routes(cases)):
+            self.assertEqual(actual, {"focused":[target],"activated":[target],"accepted":True})
+
+    def test_empty_or_disabled_strip_never_invokes_an_action(self):
+        cases = [{"visible":[],"rtl":False,"from":1,"key":"Right"},
+                 {"visible":[0,1,4],"disabled":[0,1,4],"rtl":True,"from":4,"key":"Left"}]
+        for actual in self.routes(cases):
+            self.assertEqual(actual, {"focused":[],"activated":[],"accepted":True})
+
+    def test_retired_or_unknown_context_selects_a_present_domain(self):
+        source = code(ISLAND_QML)
+        expression = re.search(r"readonly property string selectedDetailContext:\s*(.*?)\n    readonly property bool showRemoteDetails:",
+                               source, re.DOTALL)
+        self.assertIsNotNone(expression, "completed contexts have no live fallback")
+        domains = ("remote", "privacy", "store", "moai", "media")
+        fields = ("remotePresent", "privacyPresent", "storeJobPresent", "moaiJobPresent", "mediaPresent")
+        cases, expected = [], []
+        for mask in range(32):
+            present = [domain for i,domain in enumerate(domains) if mask & (1 << i)]
+            for requested in (*domains,"retired",""):
+                cases.append({**{field:bool(mask & (1 << i)) for i,field in enumerate(fields)},
+                              "detailContext":requested})
+                expected.append(requested if requested in present else (present[0] if present else ""))
+        runner = r'''
+const fs = require('node:fs'), vm = require('node:vm');
+const input = JSON.parse(fs.readFileSync(0,'utf8'));
+process.stdout.write(JSON.stringify(input.cases.map(root =>
+    vm.runInNewContext(input.expression,{root},{timeout:1000}))));
+'''
+        result = subprocess.run([shutil.which("node"),"-e",runner],
+                                input=json.dumps({"expression":expression.group(1),"cases":cases}),
+                                capture_output=True,text=True,check=True,timeout=20)
+        self.assertEqual(json.loads(result.stdout),expected)
 
 
 if __name__ == "__main__":

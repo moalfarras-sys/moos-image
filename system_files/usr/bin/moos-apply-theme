@@ -359,7 +359,9 @@ set -uo pipefail
 # 102: the installer searches localized CLDR city names and names Mira consistently.
 # Changed QML under /usr must not reuse a previous deployment's compiled cache.
 # 103: publish blur/clarity as one atomic runtime state; retire cached UI readers.
-THEME_REV=103
+# 104: Island arrow keys traverse only visible contexts and activate the same
+#      domain as pointer/Space input; purge epoch-mtime QML caches after delivery.
+THEME_REV=104
 state_dir="${XDG_STATE_HOME:-$HOME/.local/state}"
 mkdir -p "$state_dir" 2>/dev/null || true
 marker="${state_dir}/moos-ui2-theme-applied.v${THEME_REV}"

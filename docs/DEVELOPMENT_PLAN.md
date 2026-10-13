@@ -1,6 +1,6 @@
 # MoOS development plan — current execution backlog
 
-Updated 2026-10-13. This is the single execution backlog, not an incident diary.
+Updated 2026-10-14. This is the single execution backlog, not an incident diary.
 Current measurements live in PROJECT_STATE.md; detailed audit evidence and
 remaining boundaries are in [AUDIT_20261012_AR.md](AUDIT_20261012_AR.md). Git preserves prior waves.
 
@@ -35,10 +35,20 @@ copied runtime enables that journey. It is not a signed release. Source publishe
 those desktop facts while access remains disabled, checks actual interfaces on
 warm enable, retires failed enrollment and compiles exactly matching EIS groups.
 15 management/14 native keymap controls, full native repo checks and every .NET
-project/test executable pass. Next: final local image, PR image gates and one
-signed artifact cycle; retire the exact transient override after delivered-byte
+project/test executable pass. PR235 is merged at bfb158dd; final local ARM/18
+hashes and PR gates pass. Signed build 38481320383/full ARM 38481265631 are
+running on the fixed revision. Complete that artifact cycle; retire the exact transient override after delivered-byte
 readback, then repeat native opt-in/disabled/login journeys. Private TLS/PIN,
 owner authorization, PAM and default-disabled access remain load-bearing.
+
+Independent M1/P2.4/P2.8 source follow-up: actual Qt keys reproduce hidden-tab
+focus, selection/content disagreement and absent Return/Enter activation; finishing
+Store can leave a blank popup. Topic source routes locale-aware arrows through a
+visible tab's action, ignores held Enter and resolves a retired domain. THEME_REV
+104 remains source only. Forty-eight native ARM component configurations pass
+(AR/EN, light/dark, two/five contexts, 100/150/250%, normal/reduced); original
+250% source fails completed controls with 28 measured arrow mismatches. Isolated
+software/offscreen review does not close native shell/Orca/Wayland acceptance.
 
 Current bounded P3.1/P3.2/P5.7 follow-up: existing-account free cloud reply,
 SSE and isolated Hermes path now pass native synthetic journeys. Reported direct
@@ -423,11 +433,11 @@ itself and an unreviewed MoOS would ship kscreenlocker's emergency locker.
 | P2.1 | Native MoOS modules inside KDE System Settings | Implemented/delivered within recorded scope; wider acceptance remains | Installed native loader, every MoOS module and backend; readback and keyboard/locale/scale frames. |
 | P2.2 | One Settings entry and stable application identity | Native audit repaired the zero-entry account shadow. One real KDE entry, 52/0 source selfcheck, six launcher controls/seven isolated KCMs pass. Integrated PR228 at 4ee7f158 passes final local ARM/9 hashes and ARM/generic PR CI; signed .1034/.763 delivery passes. Oracle native boot/one entry pass; wider keyboard/scale entry acceptance remains | One actual System Settings identity/window and correct native destinations from all entry points. |
 | P2.3 | One qualified Arabic/English locale authority | Arabic session works; new lock/Mira startup correction in source; cross-app unity remains | KDE/QML/GTK/Mira/MoPlayer/Flatpak selection after relogin/reboot; Arabic first, English supported. |
-| P2.4 | Keyboard and screen-reader operation | Open / acceptance not complete | Real keyboard traversal/focus and Orca Arabic/English on all primary flows. |
+| P2.4 | Keyboard and screen-reader operation | Source Island correction passes 48 native Qt configurations and original-source controls; full shell/Orca acceptance remains | Real keyboard traversal/focus and Orca Arabic/English on all primary flows. |
 | P2.5 | Visual, contrast, scale and reduced-motion matrix | Native audit reproduces a lost blur/clarity file update with the real producer. Atomic generation publication and unchanged finite event readback pass 480 native transitions, invalid/ambiguous/absent and broken-reader controls; THEME_REV/fingerprint=103 in source. Signed .1034/.763 delivery passes; Oracle native boot/bytes pass; full visual/scale/motion matrix remains open | 1080p–4K, 100–250%, Arabic RTL/English LTR, light/dark, reduced motion and measured readable contrast. |
 | P2.6 | Asset reachability and removal of retired UI | Open: archived translucent-dialog prototype retained, but current-theme blur-off qualification/integration remains | Generator/runtime/test consumers proven; retain negative fixtures and required upstream notices; never restore obsolete generated assets over today's theme. |
 | P2.7 | Horizon feedback, clock input and system sound | Open / acceptance not complete | Finite stable-hit feedback, reversal/hidden/reduced-motion proof, clock keys and actual event sound. |
-| P2.8 | MoOS Bar, Search and Island as one shell | Open / acceptance not complete | Native accessible Search/Island/Bar, keyboard escape, multi-context tabs and truthful lifecycle tokens. |
+| P2.8 | MoOS Bar, Search and Island as one shell | Source Island visible-context arrows, Return/Enter and retired-domain correction pass isolated native Qt; signed/native full-shell acceptance remains | Native accessible Search/Island/Bar, keyboard escape, multi-context tabs and truthful lifecycle tokens. |
 | P2.9 | User-visible MoOS identity on every surface | Implemented/delivered within recorded scope; wider acceptance remains | Unchanged identity gates plus actual login/boot/desktop/app surfaces; legal attribution preserved. |
 | P2.10 | Readable text and glyph contrast on every palette | Open / acceptance not complete | All schemes meet role-specific contrast; actual glyph/card/pointer frames instead of token names. |
 | P2.11 | Visible, bilingual update changes | Implemented/delivered within recorded scope; wider acceptance remains | Readable current entries and working routes, delivered update/notification readback. |
@@ -474,7 +484,7 @@ itself and an unreviewed MoOS would ship kscreenlocker's emergency locker.
 | P5.3 | Touch/tablet policy | Open / acceptance not complete | Actual touch/tablet targets, keyboard/rotation/gestures/stylus and ≥44px controls. |
 | P5.4 | Performance budgets | Open: native active-workload 30 s has 6.4–6.7 GiB available/PSI=0/GPU 0–21%. Idle Baloo restart reduces PSS 2.23 GiB→104 MiB and anonymous memory 970→13 MiB; all 303,766 indexed files, actual indexed probe and config preserved. This is one local intervention, not durable policy or weak-tier acceptance | Measured boot/idle PSS/CPU/wakeups, app launch p95, frame pacing, build load and AI latency per tier. |
 | P5.5 | Cloud desktop efficiency | Implemented/delivered within recorded scope; wider acceptance remains | Efficient cloud desktop plus actual private files/photos/IDE access, phone background and off-host restore. |
-| P5.6 | Storage lifecycle | Native ARM audit retires four exact unused/superseded audit images, the fourth only after its replacement final image/9 payload hashes passed: 23,179,071,488 bytes reclaimed total; about 61 GiB available after the new build. SDK/owner/stopped containers, data, source and signed rollback retained. Weekly sweep, 500 MiB journal/1 GiB cores active; tagged-build retention and low-space recovery remain open | Headroom, cache/log bounds, low-space recovery and cleanup that never removes owner data. |
+| P5.6 | Storage lifecycle | Seven exact unused audit images reclaimed 33,544,560,640 measured bytes (~31.2 GiB); an eighth old final proof is retired after its replacement/18 hashes pass. Its separate gain is not measured; native writable /var has about 35 GiB free after ISO/archive/staging. SDK/owner/stopped containers, data, source and signed rollback retained. Weekly sweep, 500 MiB journal/1 GiB cores active; tagged-build retention and low-space recovery remain open | Headroom, cache/log bounds, low-space recovery and cleanup that never removes owner data. |
 | P5.7 | Qualify kernel policy and driver transitions | Source adds ARM's missing vendor oomd-defaults, final-image guard and actual native-monitor readback in both disk boot proofs. Eight compose controls, native ARM package install, and bounded native negative/positive pressure controls pass on both stations (256 MiB cap; no kernel OOM; protected sentinel survives). Signed ARM .756 and NVIDIA .1026 are booted and prove actual system/native-user monitoring. System-wide recovery/weak-hardware frame latency remains open | Kernel/driver readback and measured frame/audio/CPU/RAM policy; actual daemon monitoring after signed boot; sustained frame/audio latency under bounded pressure on qualified weak tiers, never an uncontrolled OOM on the owner's workstation. |
 | P5.8 | Qualify Wayland and compositor lifetime | Open / acceptance not complete; Oracle .752 retains bootupd metadata/accountsd SELinux warnings, while bootloader update returns success/latest and no unit fails | Portal consent/revocation/restart, output/scale/hotplug, clipboard/input and long session-return soak; review native SELinux warnings without disabling enforcement or guessing labels. |
 

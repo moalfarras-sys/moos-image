@@ -332,6 +332,18 @@ estimate; a later tap must reacquire after external mouse motion. Keep the two c
 embedded-cursor choice consistent. Prove transitions with a private datagram recorder; native
 GUI consent assistance and phone acceptance are separate from those isolated tests.
 
+**A visible tab is not a keyboard destination.** Native Qt arrows moved the Island's
+selection into a hidden tab, and changing currentIndex did not run onClicked, so
+visible ink and content disagreed. Return/keypad Enter did nothing, and a finished
+Store context could leave every detail page hidden while other domains remained.
+Route arrows from the focused tab through its ordinary action, skip absent/disabled
+contexts, retain the locale direction and the domain binding, and ignore held Enter.
+Resolve retired domains to a present one. `scripts/review/island-tabs.py` sends real
+Qt keys and checks focus, selection, shown content and disappearance in isolated
+state; Node routing checks alone are not that proof. Bound initialization too,
+keep the private bus free of service activation and distinguish a fixture timeout
+from a completed functional negative control. Changed /usr QML needs THEME_REV.
+
 **A colour named after a role is not that role's use.** Four apps painted secondary text with
 `Kirigami.Theme.disabledTextColor` because the token gate only required "follow the theme". As
 text a person reads it measured 1.6:1 on the light schemes. Secondary ink is the theme's text

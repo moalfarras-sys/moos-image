@@ -576,16 +576,26 @@ PlasmoidItem {
         + (root.storeJobPresent ? 1 : 0)
         + (root.moaiJobPresent ? 1 : 0)
         + (root.mediaPresent ? 1 : 0) > 1
+    readonly property string selectedDetailContext:
+        ((root.detailContext === "remote" && root.remotePresent)
+         || (root.detailContext === "privacy" && root.privacyPresent)
+         || (root.detailContext === "store" && root.storeJobPresent)
+         || (root.detailContext === "moai" && root.moaiJobPresent)
+         || (root.detailContext === "media" && root.mediaPresent))
+        ? root.detailContext
+        : (root.remotePresent ? "remote" : (root.privacyPresent ? "privacy"
+            : (root.storeJobPresent ? "store" : (root.moaiJobPresent ? "moai"
+                : (root.mediaPresent ? "media" : "")))))
     readonly property bool showRemoteDetails: root.remotePresent
-        && (root.detailContext === "remote" || (!root.mediaPresent && !root.privacyPresent && !root.storeJobPresent && !root.moaiJobPresent))
+        && root.selectedDetailContext === "remote"
     readonly property bool showPrivacyDetails: root.privacyPresent
-        && (root.detailContext === "privacy" || (!root.remotePresent && !root.storeJobPresent && !root.moaiJobPresent && !root.mediaPresent))
+        && root.selectedDetailContext === "privacy"
     readonly property bool showStoreDetails: root.storeJobPresent
-        && (root.detailContext === "store" || (!root.remotePresent && !root.privacyPresent && !root.moaiJobPresent && !root.mediaPresent))
+        && root.selectedDetailContext === "store"
     readonly property bool showMoaiDetails: root.moaiJobPresent
-        && (root.detailContext === "moai" || (!root.remotePresent && !root.privacyPresent && !root.storeJobPresent && !root.mediaPresent))
+        && root.selectedDetailContext === "moai"
     readonly property bool showMediaDetails: root.mediaPresent
-        && (root.detailContext === "media" || (!root.remotePresent && !root.privacyPresent && !root.storeJobPresent && !root.moaiJobPresent))
+        && root.selectedDetailContext === "media"
     function openDetails() {
         if (root.remotePresent) { root.detailContext = "remote"; }
         else if (root.privacyPresent) { root.detailContext = "privacy"; }
@@ -1444,13 +1454,44 @@ PlasmoidItem {
             visible: root.active && root.multipleContexts
             currentIndex: root.showRemoteDetails ? 0
                 : (root.showPrivacyDetails ? 1
-                    : (root.showStoreDetails ? 2 : (root.showMoaiDetails ? 3 : 4)))
+                    : (root.showStoreDetails ? 2 : (root.showMoaiDetails ? 3
+                        : (root.showMediaDetails ? 4 : -1))))
             LayoutMirroring.enabled: root.rtl
             LayoutMirroring.childrenInherit: true
+            // Qt's native arrow navigation counts hidden children and changes
+            // currentIndex without clicking. Route from the focused visible
+            // tab through its ordinary action, keeping the domain binding live.
+            function focusAdjacent(fromIndex, direction) {
+                for (let step = 1; step <= count; ++step) {
+                    const index = (fromIndex + direction * step + count) % count;
+                    const tab = itemAt(index);
+                    if (tab && tab.visible && tab.enabled) {
+                        tab.forceActiveFocus(Qt.TabFocusReason);
+                        tab.clicked();
+                        return;
+                    }
+                }
+            }
             // Invisible TabBar children still count in its default equal-width formula.
             // Give each active tab its text width, and inactive tabs no width at all.
             PC3.TabButton {
                 id: remoteTab
+                Keys.onReturnPressed: event => {
+                    if (!event.isAutoRepeat) clicked();
+                    event.accepted = true;
+                }
+                Keys.onEnterPressed: event => {
+                    if (!event.isAutoRepeat) clicked();
+                    event.accepted = true;
+                }
+                Keys.onLeftPressed: event => {
+                    contextTabs.focusAdjacent(0, root.rtl ? 1 : -1);
+                    event.accepted = true;
+                }
+                Keys.onRightPressed: event => {
+                    contextTabs.focusAdjacent(0, root.rtl ? -1 : 1);
+                    event.accepted = true;
+                }
                 visible: root.remotePresent
                 width: visible ? Math.max(96, implicitWidth) : 0
                 height: contextTabs.height
@@ -1470,6 +1511,22 @@ PlasmoidItem {
             }
             PC3.TabButton {
                 id: privacyTab
+                Keys.onReturnPressed: event => {
+                    if (!event.isAutoRepeat) clicked();
+                    event.accepted = true;
+                }
+                Keys.onEnterPressed: event => {
+                    if (!event.isAutoRepeat) clicked();
+                    event.accepted = true;
+                }
+                Keys.onLeftPressed: event => {
+                    contextTabs.focusAdjacent(1, root.rtl ? 1 : -1);
+                    event.accepted = true;
+                }
+                Keys.onRightPressed: event => {
+                    contextTabs.focusAdjacent(1, root.rtl ? -1 : 1);
+                    event.accepted = true;
+                }
                 visible: root.privacyPresent
                 width: visible ? Math.max(96, implicitWidth) : 0
                 height: contextTabs.height
@@ -1489,6 +1546,22 @@ PlasmoidItem {
             }
             PC3.TabButton {
                 id: storeTab
+                Keys.onReturnPressed: event => {
+                    if (!event.isAutoRepeat) clicked();
+                    event.accepted = true;
+                }
+                Keys.onEnterPressed: event => {
+                    if (!event.isAutoRepeat) clicked();
+                    event.accepted = true;
+                }
+                Keys.onLeftPressed: event => {
+                    contextTabs.focusAdjacent(2, root.rtl ? 1 : -1);
+                    event.accepted = true;
+                }
+                Keys.onRightPressed: event => {
+                    contextTabs.focusAdjacent(2, root.rtl ? -1 : 1);
+                    event.accepted = true;
+                }
                 visible: root.storeJobPresent
                 width: visible ? Math.max(96, implicitWidth) : 0
                 height: contextTabs.height
@@ -1508,6 +1581,22 @@ PlasmoidItem {
             }
             PC3.TabButton {
                 id: moaiTab
+                Keys.onReturnPressed: event => {
+                    if (!event.isAutoRepeat) clicked();
+                    event.accepted = true;
+                }
+                Keys.onEnterPressed: event => {
+                    if (!event.isAutoRepeat) clicked();
+                    event.accepted = true;
+                }
+                Keys.onLeftPressed: event => {
+                    contextTabs.focusAdjacent(3, root.rtl ? 1 : -1);
+                    event.accepted = true;
+                }
+                Keys.onRightPressed: event => {
+                    contextTabs.focusAdjacent(3, root.rtl ? -1 : 1);
+                    event.accepted = true;
+                }
                 visible: root.moaiJobPresent
                 width: visible ? Math.max(96, implicitWidth) : 0
                 height: contextTabs.height
@@ -1527,6 +1616,22 @@ PlasmoidItem {
             }
             PC3.TabButton {
                 id: mediaTab
+                Keys.onReturnPressed: event => {
+                    if (!event.isAutoRepeat) clicked();
+                    event.accepted = true;
+                }
+                Keys.onEnterPressed: event => {
+                    if (!event.isAutoRepeat) clicked();
+                    event.accepted = true;
+                }
+                Keys.onLeftPressed: event => {
+                    contextTabs.focusAdjacent(4, root.rtl ? 1 : -1);
+                    event.accepted = true;
+                }
+                Keys.onRightPressed: event => {
+                    contextTabs.focusAdjacent(4, root.rtl ? -1 : 1);
+                    event.accepted = true;
+                }
                 visible: root.mediaPresent
                 width: visible ? Math.max(96, implicitWidth) : 0
                 height: contextTabs.height
