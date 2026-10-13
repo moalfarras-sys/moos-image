@@ -194,6 +194,27 @@ class PictureSafety(unittest.TestCase):
 
 
 class ShippedLauncher(unittest.TestCase):
+    def test_actual_bootstrap_opens_kde_picture_picker_and_cancel_preserves_state(self):
+        for language in ('ar', 'en'):
+            with self.subTest(language=language), tempfile.TemporaryDirectory() as directory:
+                root=Path(directory); runtime=root/'run'; runtime.mkdir(mode=0o700)
+                env=dict(PATH='/usr/bin:/bin', LANG='C.UTF-8', HOME=directory,
+                         XDG_CONFIG_HOME=str(root/'config'),
+                         XDG_DATA_HOME=str(root/'data'), XDG_CACHE_HOME=str(root/'cache'),
+                         XDG_RUNTIME_DIR=str(runtime), XDG_CONFIG_DIRS='/etc/xdg',
+                         DISPLAY='', WAYLAND_DISPLAY='', QT_QPA_PLATFORM='offscreen',
+                         QT_QPA_PLATFORMTHEME='kde', QT_QUICK_BACKEND='software')
+                command=['dbus-run-session','--',sys.executable,
+                         str(Path(__file__).with_name('dialog_review.py')),
+                         '--output',str(root/'proof'),'--language',language]
+                result=subprocess.run(command,env=env,capture_output=True,text=True,timeout=15)
+                self.assertEqual(result.returncode,0,result.stdout+result.stderr)
+                import json
+                receipt=json.loads((root/'proof/receipt.json').read_text())
+                self.assertTrue(receipt['passed'],receipt)
+                self.assertTrue(receipt['cancel_preserved_state'],receipt)
+                self.assertEqual(receipt['network_requests'],0)
+
     def test_actual_staged_entrypoint_renders_and_bad_qml_fails(self):
         from community.stage_client import stage
         source=Path(__file__).parent

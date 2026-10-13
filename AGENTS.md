@@ -602,6 +602,17 @@ job is shown as running (guarded: idle it does nothing; 0 misses in 60), and
 producer, either its consumer reads again or the producer rings twice. A gate that fails one run
 in four on the slow machine is telling you about the product, not about the machine.
 
+**A QML window can load while its native picker never exists.** Community used
+QGuiApplication and fell back to a separate Quick file picker; Plasma's native
+KDE helper needs QApplication. Test the actual client bootstrap, not a fixture
+that silently chooses a different application class. `community/dialog_review.py`
+opens the real QML picker, observes KFileWidget and rejects it without touching
+an account or network. Schedule observation before native `open()` enters its
+nested dialog loop; missing observation fails even after a clean client exit.
+Give private children a clean environment and their own bus/HOME: inherited
+Flatpak variables can route a supposed native fixture into a portal. Pixels from
+an offscreen widget do not prove the scaled owner Wayland surface; review both.
+
 **Boot the image and look at it.** `podman build` + `bootc-image-builder --type qcow2` + qemu
 with `screendump` takes about half an hour and is the only thing that found any of the above.
 
