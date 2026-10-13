@@ -13,10 +13,12 @@ Hermes reply in 9.24 s. No key read, private context, action or provider change.
 Native 30 s cgroup accounting distinguishes 2.2 GiB editor file cache from
 anonymous memory; no RAM pressure/local inference process. KDE/KWin/Wayland,
 GTK Breeze/system palette and the one desktop portal front door are active.
-Source relay fix closes upstream resources across four real HTTP/socket cases;
-old source fails all four. Diagnostic TCP counts no longer claim decoded
-streaming/causal load or advise stopping the only monitor. Full `just check`
-passes; local image, signed delivery and installed acceptance are pending.
+Source relay fix closes upstream resources across seven real HTTP/socket cases,
+including refused requests and automatic retry; old source fails all seven.
+Diagnostic TCP counts no longer claim decoded
+streaming/causal load or advise stopping the only monitor. Initial full
+`just check` and expanded targeted tests pass; the final repeat, local image,
+signed delivery and installed acceptance are pending.
 
 PR228 merged at `4ee7f158`, retaining PR226/227 ancestry. Its signed cycle is
 complete: x86 build 38311291809, disks 38318191729/38318194809/38318198405,

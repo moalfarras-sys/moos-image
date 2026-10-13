@@ -149,7 +149,8 @@ These are not conventions, they are gates. The image build fails if you break th
 
 **A returned proxy call does not transfer ownership to garbage collection.**
 Mo AI's relay now closes the upstream response after success, truncation, failed
-headers or a departing client. Keep the private socket-backed HTTP controls and
+headers, a departing client, explicit/authentication refusal or an automatic
+free-candidate retry. Keep the private socket-backed HTTP controls and
 retained-response negative: the far end must see FIN/reset. This proves release
 after the relay returns, not cancellation of a provider stalled before data.
 Remote TCP connections can be status/control requests; they do not prove decoded

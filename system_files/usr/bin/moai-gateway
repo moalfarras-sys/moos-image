@@ -1299,7 +1299,8 @@ class Handler(BaseHTTPRequestHandler):
                                          auth_headers(key, "openai"),
                                          json.dumps(out).encode("utf-8"))
             except urllib.error.HTTPError as error:
-                detail = error.read().decode("utf-8", "replace")
+                with error:
+                    detail = error.read().decode("utf-8", "replace")
                 cloud_policy.note_upstream_failure(candidate, error.code)
                 if error.code in cloud_policy.RETRIABLE_STATUS and index + 1 < len(attempts):
                     continue
@@ -1328,7 +1329,8 @@ class Handler(BaseHTTPRequestHandler):
             try:
                 upstream = self._open_upstream(method, url, headers, body)
             except urllib.error.HTTPError as e:
-                return self._err(e.code, e.read().decode("utf-8", "replace"))
+                with e:
+                    return self._err(e.code, e.read().decode("utf-8", "replace"))
             except Exception as e:
                 return self._err(502, "request failed: %s" % e)
         up = upstream
