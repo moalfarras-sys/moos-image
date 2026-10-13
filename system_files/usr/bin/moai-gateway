@@ -1,56 +1,14 @@
 #!/usr/bin/env python3
-# moai-gateway — Mo AI's FRONT DOOR. One port, two brains, chosen PER REQUEST.
+# moai-gateway — the one per-user cloud front door for Mo AI and Mira.
 #
-# WHY THIS EXISTS IN THIS SHAPE (read before you touch a port number)
-#   Mo AI used to have a hard either/or. moai.service (RamaLama, the local brain)
-#   and this gateway (the cloud proxy) BOTH listened on 8080, so only one of them
-#   could ever run, and switching brain meant `systemctl disable --now` one and
-#   `enable --now` the other — a global, service-bouncing setting buried in a
-#   settings sheet. Choosing a brain per conversation was not possible at all.
-#
-#   Now there is one door:
-#
-#       8080   moai-gateway       ALWAYS ON. The app's only front door.
-#       8081   moai.service       RamaLama fallback, started on demand.
-#      11434   ollama/moai-brain  Ollama engine, when selected, on demand.
-#
-#   The app still speaks exactly ONE dialect — OpenAI /v1/chat/completions with
-#   SSE deltas — and still never sees the API key. What is new is that it may say
-#   WHICH brain it wants, in the request's `model` field:
-#
-#   ┌─ THE ROUTING CONTRACT ───────────────────────────────────────────────────┐
-#   │  "local"              → the local brain, whatever model it is serving     │
-#   │  "local:<model>"      → the local brain, serving <model>                  │
-#   │  "cloud"              → the configured provider + its configured model    │
-#   │  "cloud:<model-id>"   → the configured provider, <model-id> upstream      │
-#   │  absent / anything    → the default in ~/.config/moai/config.json         │
-#   │                         (mode=local|cloud) — the pre-split behaviour, so   │
-#   │                         an older client keeps working unchanged.           │
-#   └──────────────────────────────────────────────────────────────────────────┘
-#
-#   The split is on the FIRST colon, so a model id may contain colons of its own
-#   ("local:qwen3:4b" → local, "qwen3:4b").
-#
-# WHY THE TWO LOCAL ENGINES SWITCH DIFFERENTLY
-#   Ollama honours the request's model, so its selected tag is passed through
-#   directly and the unit is never restarted. RamaLama serves llama.cpp, which
-#   IGNORES that field (verified with a deliberately made-up model name), so its
-#   unit must be repointed and restarted. Both paths accept only models already
-#   present locally: a chat message must never begin a multi-gigabyte download
-#   behind the user's back.
-#
-# WIRE PROTOCOLS (the cloud side, unchanged)
-#   openai     — OpenAI, OpenRouter, Google Gemini (its OpenAI-compatible
-#                endpoint), Groq, Together, a local vLLM, and any private
-#                OpenAI-compatible gateway. Passed through almost untouched.
-#   anthropic  — Claude's NATIVE API (/v1/messages). A genuinely different shape:
-#                the system prompt is a top-level field, max_tokens is required,
-#                auth is x-api-key, and the stream is content_block_delta events.
-#                Translated in both directions here so the app stays unchanged.
-#
-# This process is the only thing that ever sees the API key: it reads the provider
-# (base URL + model + wire) from ~/.config/moai/config.json and the KEY from Mo
-# AI's private XDG data store. Stdlib only (no pip deps).
+# The product speaks OpenAI-compatible chat/SSE without exposing provider keys.
+# cloud / cloud:<model> use the selected Settings provider. Explicit local/private
+# requests are refused; no local inference engine or downloaded model starts here.
+# The free route admits verified zero-price models and sends a zero max_price.
+# Billed models require the provider selection saved explicitly by the owner.
+# Agent requests may use the isolated Hermes adapter; unavailable agent execution
+# is distinguished from an explicitly reported direct-chat fallback.
+# Unreachable legacy conversion helpers are not supported product routes.
 import json, os, re, socket, subprocess, sys, tempfile, threading, time
 import urllib.error, urllib.parse, urllib.request
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -1341,7 +1299,8 @@ class Handler(BaseHTTPRequestHandler):
                                          auth_headers(key, "openai"),
                                          json.dumps(out).encode("utf-8"))
             except urllib.error.HTTPError as error:
-                detail = error.read().decode("utf-8", "replace")
+                with error:
+                    detail = error.read().decode("utf-8", "replace")
                 cloud_policy.note_upstream_failure(candidate, error.code)
                 if error.code in cloud_policy.RETRIABLE_STATUS and index + 1 < len(attempts):
                     continue
@@ -1370,70 +1329,76 @@ class Handler(BaseHTTPRequestHandler):
             try:
                 upstream = self._open_upstream(method, url, headers, body)
             except urllib.error.HTTPError as e:
-                return self._err(e.code, e.read().decode("utf-8", "replace"))
+                with e:
+                    return self._err(e.code, e.read().decode("utf-8", "replace"))
             except Exception as e:
                 return self._err(502, "request failed: %s" % e)
         up = upstream
 
-        self.send_response(up.status)
-        ctype = up.headers.get("Content-Type", "application/json")
-        if wire == "anthropic":
-            # We rewrite the body, so never echo the upstream content type.
-            ctype = "text/event-stream" if streaming else "application/json"
-        self.send_header("Content-Type", ctype)
-        if getattr(self, "moai_route", ""):
-            self.send_header("X-MoAI-Route", self.moai_route)
-            self.send_header("X-MoAI-Route-Reason", self.moai_route_reason)
-        if getattr(self, "moai_agent", ""):
-            self.send_header("X-MoAI-Agent", self.moai_agent)
-        if getattr(self, "moai_model", ""):
-            self.send_header("X-MoAI-Model", self.moai_model)
-        self.send_header("Transfer-Encoding", "chunked")
-        self.end_headers()
-
-        def write(data):
-            self.wfile.write(b"%X\r\n%s\r\n" % (len(data), data))
-            self.wfile.flush()
-
-        completed = False
+        # The relay owns every response it opens or receives, including header
+        # failures and a client that leaves. A retained reference is not cleanup.
         try:
+            self.send_response(up.status)
+            ctype = up.headers.get("Content-Type", "application/json")
             if wire == "anthropic":
-                if streaming:
-                    anthropic_stream_to_openai(up, write)
+                # We rewrite the body, so never echo the upstream content type.
+                ctype = "text/event-stream" if streaming else "application/json"
+            self.send_header("Content-Type", ctype)
+            if getattr(self, "moai_route", ""):
+                self.send_header("X-MoAI-Route", self.moai_route)
+                self.send_header("X-MoAI-Route-Reason", self.moai_route_reason)
+            if getattr(self, "moai_agent", ""):
+                self.send_header("X-MoAI-Agent", self.moai_agent)
+            if getattr(self, "moai_model", ""):
+                self.send_header("X-MoAI-Model", self.moai_model)
+            self.send_header("Transfer-Encoding", "chunked")
+            self.end_headers()
+
+            def write(data):
+                self.wfile.write(b"%X\r\n%s\r\n" % (len(data), data))
+                self.wfile.flush()
+
+            completed = False
+            try:
+                if wire == "anthropic":
+                    if streaming:
+                        anthropic_stream_to_openai(up, write)
+                    else:
+                        write(anthropic_whole_to_openai(up.read()))
                 else:
-                    write(anthropic_whole_to_openai(up.read()))
-            else:
-                # Stream (SSE or plain) straight through. read1() returns as soon
-                # as ANY bytes are available; read() would block until the buffer
-                # fills, defeating live streaming.
-                while True:
-                    chunk = up.read1(65536)
-                    if not chunk:
-                        break
-                    write(chunk)
-            self.wfile.write(b"0\r\n\r\n")
-            completed = True
-        except Exception:
-            # An upstream drop mid-generation (provider rate-limit/overload, the local
-            # engine evicting a loaded model, a network blip, or the urlopen timeout)
-            # lands here. The old `pass` left the terminating chunk unwritten and the
-            # HTTP/1.1 connection open, so the handler looped back to readline() and the
-            # client's streaming socket hung for ever on a half-finished body with no
-            # [DONE] — the "spinner that never clears". Once headers are sent the status
-            # can no longer change, so the only signals left are a synthetic error and a
-            # clean socket close.
-            if not completed:
-                if streaming:
+                    # Stream (SSE or plain) straight through. read1() returns as soon
+                    # as ANY bytes are available; read() would block until the buffer
+                    # fills, defeating live streaming.
+                    while True:
+                        chunk = up.read1(65536)
+                        if not chunk:
+                            break
+                        write(chunk)
+                self.wfile.write(b"0\r\n\r\n")
+                completed = True
+            except Exception:
+                # An upstream drop mid-generation (provider rate-limit/overload, the local
+                # engine evicting a loaded model, a network blip, or the urlopen timeout)
+                # lands here. The old `pass` left the terminating chunk unwritten and the
+                # HTTP/1.1 connection open, so the handler looped back to readline() and the
+                # client's streaming socket hung for ever on a half-finished body with no
+                # [DONE] — the "spinner that never clears". Once headers are sent the status
+                # can no longer change, so the only signals left are a synthetic error and a
+                # clean socket close.
+                if not completed:
+                    if streaming:
+                        try:
+                            write(b'data: {"error":{"message":"upstream stream ended early"}}\n\n')
+                            write(b"data: [DONE]\n\n")
+                        except Exception:
+                            pass
                     try:
-                        write(b'data: {"error":{"message":"upstream stream ended early"}}\n\n')
-                        write(b"data: [DONE]\n\n")
+                        self.wfile.write(b"0\r\n\r\n")   # terminate the chunked body
                     except Exception:
                         pass
-                try:
-                    self.wfile.write(b"0\r\n\r\n")   # terminate the chunked body
-                except Exception:
-                    pass
-                self.close_connection = True          # give the client an EOF, not a hang
+                    self.close_connection = True          # give the client an EOF, not a hang
+        finally:
+            up.close()
 
     def _send_json(self, code, obj):
         payload = json.dumps(obj, ensure_ascii=False).encode("utf-8")
@@ -1485,9 +1450,7 @@ def main():
                 time.sleep(2)
                 continue
             raise
-    sys.stderr.write("moai-gateway: front door on 127.0.0.1:%d "
-                     "(local brain: %s on 127.0.0.1:%d)\n"
-                     % (PORT, LOCAL_UNIT, LOCAL_PORT))
+    sys.stderr.write("moai-gateway: cloud-only front door on 127.0.0.1:%d\n" % PORT)
     sys.stderr.flush()
     srv.serve_forever()
 

@@ -11,6 +11,17 @@ new private feedback/optional public suggestions product is P6.9 below.
 
 ## Active delivery and acceptance batch
 
+Current bounded P3.1/P3.2/P5.7 follow-up: existing-account free cloud reply,
+SSE and isolated Hermes path now pass native synthetic journeys. Reported direct
+cost is zero; saved provider choice is preserved. Native cgroup leaves separate
+file cache from anonymous RAM and include capture outside the Remote server.
+The source relay now closes owned upstream responses on every return/error;
+Seven private socket-backed HTTP controls fail against old source and pass fixed,
+including explicit/authentication refusal and automatic free-candidate retry.
+Selfcheck describes connections honestly and preserves the Oracle monitor.
+Full source/image/signed delivery and broader cancellation/stall/voice/clean
+account qualification remain separate; see [runtime audit](AUDIT_20261013_RUNTIME_AR.md).
+
 Owner reliability/release slice is integrated at main `3abe787a` (PR224).
 All 246 maintained source gates, catalogue, full local image and exact signed
 build/three QCOW2/offline installed ISO/ARM proofs pass on attempt 1.

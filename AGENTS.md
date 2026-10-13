@@ -147,6 +147,16 @@ These are not conventions, they are gates. The image build fails if you break th
 
 ## A green build proves nothing about what the user sees
 
+**A returned proxy call does not transfer ownership to garbage collection.**
+Mo AI's relay now closes the upstream response after success, truncation, failed
+headers, a departing client, explicit/authentication refusal or an automatic
+free-candidate retry. Keep the private socket-backed HTTP controls and
+retained-response negative: the far end must see FIN/reset. This proves release
+after the relay returns, not cancellation of a provider stalled before data.
+Remote TCP connections can be status/control requests; they do not prove decoded
+frames or CPU cost. Include the separate capture scope in accounting and never
+recommend stopping the Oracle owner's only monitor as a diagnostic repair.
+
 Everything in this section shipped while every gate passed.
 
 **The identity gate ran before `set -e` and its failure was ignored.** It was the second line of

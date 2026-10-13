@@ -7,6 +7,19 @@ Native audit: [AUDIT_20261012_AR.md](docs/AUDIT_20261012_AR.md).
 
 ## Current engineering batch
 
+Runtime/cloud follow-up on October 13 proves existing-account free reply in
+1.01 s (reported cost=0), real SSE first content in 1.28 s and an isolated
+Hermes reply in 9.24 s. No key read, private context, action or provider change.
+Native 30 s cgroup accounting distinguishes 2.2 GiB editor file cache from
+anonymous memory; no RAM pressure/local inference process. KDE/KWin/Wayland,
+GTK Breeze/system palette and the one desktop portal front door are active.
+Source relay fix closes upstream resources across seven real HTTP/socket cases,
+including refused requests and automatic retry; old source fails all seven.
+Diagnostic TCP counts no longer claim decoded
+streaming/causal load or advise stopping the only monitor. Initial full
+`just check` and expanded targeted tests pass; the final repeat, local image,
+signed delivery and installed acceptance are pending.
+
 PR228 merged at `4ee7f158`, retaining PR226/227 ancestry. Its signed cycle is
 complete: x86 build 38311291809, disks 38318191729/38318194809/38318198405,
 offline ISO 38318201656, promotion 38322153729; ARM 38311239191. Every run
@@ -85,7 +98,8 @@ Booted signed ARM .763 (`a2ee6a1c…`), boot ID
 Owner-timed native restart applied the official staged update. Native owner
 UID 1000 acceptance at October 13 09:58:44 Berlin passes 51 selfchecks/4 notes,
 55 post-update checks/0 failures, THEME_REV=103, all 9 payload hashes and the
-exact compiled MoPlayer bytes. Notes are active viewers/owner mpris-obex masks.
+exact compiled MoPlayer bytes. Notes count Remote connections and owner
+mpris/obex masks; TCP counts alone do not prove viewers or capture cost.
 No failed system/user units; boot=15.055 s. The private one-attempt graphical
 probe retired its own launcher. Existing autologin is not ordinary PAM proof.
 Installed /usr/lib/moplayer (no source override) opens encoded Arabic file URI,

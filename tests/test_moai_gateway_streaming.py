@@ -19,8 +19,9 @@ spinner that never cleared:
      arrives after the 200, or a stream that just stops without message_stop, fell through
      to a clean [DONE] — indistinguishable from a finished but blank reply.
 
-This drives the REAL translator with faked streams, and reads _proxy's source to pin the
-close-on-drop behaviour (a full handler is impractical to instantiate here).
+This drives the REAL translator with faked streams and pins the close-on-drop
+source contract. test_moai_gateway_response_lifetime.py additionally runs the
+real HTTP handler with private socket-backed responses, including upstream drops.
 """
 
 import importlib.util
@@ -118,8 +119,8 @@ def main() -> int:
     if "⚠️" in got or "early" in got.lower():
         errors.append("a normal completion wrongly shows an error/ended-early warning")
 
-    # 4. _proxy must close the connection on a mid-stream drop (source-level: a full handler
-    #    is impractical to instantiate). The success path sets a completion flag; the except
+    # 4. Pin _proxy's close-on-drop contract alongside the real HTTP lifetime tests.
+    #    The success path sets a completion flag; the except
     #    path must, when not completed, set self.close_connection = True.
     code = GATEWAY.read_text(encoding="utf-8")
     if 'tempfile.mkstemp(prefix=".moai-activity-"' not in code:
