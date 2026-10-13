@@ -117,6 +117,7 @@ check:
     python3 tests/test_image_gate_source_parser.py
     python3 tests/test_moai_http_security.py
     python3 tests/test_moai_gateway_streaming.py
+    python3 tests/test_moai_gateway_response_lifetime.py
     python3 tests/test_moai_credential_store.py
     python3 tests/test_moos_cloud_audio.py
     python3 tests/test_fwupd_refresh_policy.py

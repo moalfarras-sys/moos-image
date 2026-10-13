@@ -344,30 +344,23 @@ if [ -n "${MOAI_LOCAL_PORT:-}" ] && [ "${MOAI_LOCAL_PORT}" != "8081" ]; then
     bad "MOAI_LOCAL_PORT is ${MOAI_LOCAL_PORT}, not the shared 8081 — this account would load its OWN copy of the model"
 fi
 
-# ── Is somebody watching this screen right now? ───────────────────────────────
+# ── Remote connection context ────────────────────────────────────────────────
 #
-# A live Mo PC Remote viewer costs REAL money on this desktop: the PipeWire
-# capture plus the encoder ran kwin_wayland at ~80% of a core here, and kwin is
-# single-threaded, so every window operation on the machine queues behind it.
-# The desktop felt broken and looked like a bad update.
-#
-# It was a phone left connected over Tailscale. Nothing on screen said so, and
-# this script — the thing you run when the machine feels wrong — said nothing
-# either. So say it. This is a NOTE, not a failure: streaming your own screen on
-# purpose is the feature working. It is only a problem when you did not know.
+# Connections are useful context, not decoded-picture or performance proof.
+# HTTP/status connections can use this port too, and capture may live in a
+# separate app-org.moos.remote scope. Inspect actual delivery/cgroup counters
+# before blaming it for a slow desktop. On Oracle, Remote is the monitor.
 head_ "البث عن بُعد | Remote viewing"
 if systemctl --user is-active mo-remote-personal.service >/dev/null 2>&1; then
-    # Count the server side of established connections to the agent's port, so a
-    # Tailscale-proxied viewer (which arrives from 127.0.0.1) is counted too.
-    viewers="$(ss -tn state established '( sport = :8765 )' 2>/dev/null | tail -n +2 | wc -l)"
-    if [ "${viewers:-0}" -gt 0 ]; then
-        note "your screen is being streamed to ${viewers} viewer(s) RIGHT NOW — this is why the desktop may feel slow"
-        note "  stop it with: systemctl --user stop mo-remote-personal.service (or the switch in Mo AI → Access)"
+    connections="$(ss -tn state established '( sport = :8765 )' 2>/dev/null | tail -n +2 | wc -l)"
+    if [ "${connections:-0}" -gt 0 ]; then
+        note "Mo PC Remote has ${connections} active connection(s); connections alone do not prove capture or its cost"
+        note "review connected devices in Mo AI → Access; keep Remote running when it is your only display"
     else
-        ok "Mo PC Remote is on and idle — no viewer, so nothing is being captured"
+        ok "Mo PC Remote is on; no established connection was observed"
     fi
 else
-    ok "Mo PC Remote is off — nothing is capturing this screen"
+    ok "Mo PC Remote service is off"
 fi
 
 # ── The wallet policy ────────────────────────────────────────────────────────
