@@ -24,12 +24,24 @@ class NowPlaying {
     this.imageUrl,
     this.payload = const {},
     this.trackProgress = true,
+    this.recordHistory = true,
     this.seasonEpisodes,
     this.episodeIndex,
     this.series,
     this.liveChannels = const [],
     this.liveChannelIndex,
   });
+
+  factory NowPlaying.direct(String url, {String? title}) => NowPlaying(
+    media: PlayableMedia(
+      url: url,
+      title: title ?? directMediaTitle(url),
+      kind: directMediaKind(url),
+    ),
+    refId: url,
+    trackProgress: false,
+    recordHistory: false,
+  );
 
   final PlayableMedia media;
 
@@ -41,6 +53,9 @@ class NowPlaying {
 
   /// False for live: a channel has no position worth remembering.
   final bool trackProgress;
+
+  /// A bare file or URL has no catalogue payload to reopen from history.
+  final bool recordHistory;
 
   final List<Episode>? seasonEpisodes;
   final int? episodeIndex;
@@ -70,6 +85,7 @@ class NowPlaying {
     imageUrl: imageUrl,
     payload: payload,
     trackProgress: trackProgress,
+    recordHistory: recordHistory,
     seasonEpisodes: seasonEpisodes,
     episodeIndex: episodeIndex,
     series: series,
@@ -92,6 +108,21 @@ String directMediaTitle(String url) {
   if (segments.isNotEmpty) return segments.last;
   if (uri.host.isNotEmpty) return uri.host;
   return url;
+}
+
+/// Local videos and explicit movie URLs have finite transport controls.
+/// HLS and unclassified network endpoints retain the live-stream policy.
+MediaKind directMediaKind(String url) {
+  final uri = Uri.tryParse(url);
+  if (uri == null) return MediaKind.live;
+  final path = uri.path.toLowerCase();
+  if (path.endsWith('.m3u8')) return MediaKind.live;
+  if (uri.scheme.isEmpty || uri.scheme == 'file') return MediaKind.movie;
+  if (uri.scheme == 'http' || uri.scheme == 'https') {
+    const files = ['.mp4', '.mkv', '.avi', '.mov', '.webm', '.m4v'];
+    if (files.any(path.endsWith)) return MediaKind.movie;
+  }
+  return MediaKind.live;
 }
 
 /// Is the player taking the whole window, or sitting in the mini bar?
@@ -460,18 +491,20 @@ class PlaybackController extends Notifier<NowPlaying?> {
     // History is written on open, not on finish: a user who watched ten minutes
     // and gave up still watched it, and the row is what "Continue watching"
     // hangs off.
-    await ref
-        .read(libraryActionsProvider)
-        .recordHistory(
-          HistoryItem(
-            playlistId: nextPlaylistId,
-            kind: next.kind,
-            refId: next.refId,
-            title: next.media.title,
-            imageUrl: next.imageUrl,
-            payload: next.payload,
-          ),
-        );
+    if (next.recordHistory) {
+      await ref
+          .read(libraryActionsProvider)
+          .recordHistory(
+            HistoryItem(
+              playlistId: nextPlaylistId,
+              kind: next.kind,
+              refId: next.refId,
+              title: next.media.title,
+              imageUrl: next.imageUrl,
+              payload: next.payload,
+            ),
+          );
+    }
   }
 
   String get _playlistId => ref.read(activePlaylistProvider)?.id ?? '';
@@ -497,21 +530,11 @@ class PlaybackController extends Notifier<NowPlaying?> {
   /// Play a bare URL, with no catalogue behind it.
   ///
   /// This is `moplayer https://…/master.m3u8` — and the seam anything else in
-  /// MoOS can drive the player through. It is treated as live: there is no
-  /// catalogue entry to hang a resume position off, and nothing to put in
-  /// history that the user could ever click again.
+  /// MoOS can drive the player through. Finite files expose seeking and length;
+  /// unknown endpoints remain live. Neither gets catalogue history or resume
+  /// records, since neither carries a catalogue payload to reopen.
   Future<void> playDirect(String url, {String? title}) async {
-    await _start(
-      NowPlaying(
-        media: PlayableMedia(
-          url: url,
-          title: title ?? directMediaTitle(url),
-          kind: MediaKind.live,
-        ),
-        refId: url,
-        trackProgress: false,
-      ),
-    );
+    await _start(NowPlaying.direct(url, title: title));
   }
 
   Future<void> playLive(

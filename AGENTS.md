@@ -525,6 +525,15 @@ library browsing as a failed GPU start and latched onto the CPU video path. Arm
 the probe only for a real video attempt, clear it on a frame/error/stop, and
 construct `VideoController` only when playback starts.
 
+**A decoded file is not a live channel.** The native ARM audit played a private
+20-second movie while its overlay called it live. Classify direct local files and
+explicit movie URLs as finite; retain live policy for HLS and unknown network
+endpoints. Direct media has no catalogue payload for history or resume. Desktop
+file URIs must accept existing Arabic/space-containing paths and refuse missing
+or foreign-host files. Read actual MPRIS length/CanSeek and paused seek, and wait
+for visible frames: the first source-bundle capture was black while MPRIS played.
+Keep source-bundle, installed-app and signed-boot acceptance separate.
+
 **Measure a Flutter app's graphics memory with the whole `nvidia-smi` table.**
 `--query-compute-apps` omits graphics-only memory; read that way MoPlayer looked
 clean while it held 4.9 GB of an 8 GB card. The cause, found by bisection, was

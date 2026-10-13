@@ -34,6 +34,21 @@ def code(text: str) -> str:
 
 
 class SameImage(unittest.TestCase):
+    def test_moplayer_changes_build_both_images_before_merge(self) -> None:
+        for containerfile in ('Containerfile', 'Containerfile.arm'):
+            self.assertIn('COPY moplayer/', (ROOT / containerfile).read_text())
+        workflow = code(PR)
+        trigger = workflow[workflow.index('on:'):workflow.index('concurrency:')]
+        self.assertIn('"moplayer/**"', trigger,
+                      'a MoPlayer-only PR must execute the x86 image gate')
+        arm = code(ARM)
+        trigger = arm[arm.index('on:'):arm.index('\nenv:')]
+        push = trigger[trigger.index('  push:'):trigger.index('  pull_request:')]
+        pull_request = trigger[trigger.index('  pull_request:'):]
+        for name, block in (('push', push), ('pull_request', pull_request)):
+            self.assertIn('"moplayer/**"', block,
+                          f'a MoPlayer-only {name} must execute the ARM image gate')
+
     def test_participation_client_changes_build_both_images_before_merge(self) -> None:
         for containerfile in ('Containerfile', 'Containerfile.arm'):
             self.assertIn('COPY community/', (ROOT / containerfile).read_text())

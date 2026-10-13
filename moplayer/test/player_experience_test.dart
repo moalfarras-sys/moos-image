@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:moplayer_moos/app/launch_args.dart';
 import 'package:moplayer_moos/core/utils/app_logger.dart';
 import 'package:moplayer_moos/models/live_channel.dart';
 import 'package:moplayer_moos/models/media_kind.dart';
@@ -80,6 +81,55 @@ void main() {
         contains('!playingDirectUrl'),
         reason: 'a clean install must play a direct URL without an IPTV source',
       );
+    });
+
+    test('direct files use finite controls without catalogue records', () {
+      for (final url in [
+        '/tmp/film.mkv',
+        'file:///tmp/film%20one.mp4',
+        '/tmp/recording.ts',
+        'https://media.example/film.MP4?token=private',
+      ]) {
+        final now = NowPlaying.direct(url);
+        expect(now.isLive, isFalse, reason: url);
+        expect(now.trackProgress, isFalse);
+        expect(now.recordHistory, isFalse);
+        expect(now.hasNext, isFalse);
+        expect(now.hasPrevious, isFalse);
+        expect(now.withMedia(now.media.copyWith()).recordHistory, isFalse);
+      }
+    });
+
+    test('desktop file URIs open existing videos with spaces and Arabic', () {
+      final dir = Directory.systemTemp.createTempSync('moplayer-file-uri-');
+      try {
+        final file = File('${dir.path}/فيديو one.mp4')
+          ..writeAsStringSync('test');
+        final uri = file.uri.toString();
+        expect(LaunchArgs.parse([uri]).playUrl, uri);
+        expect(LaunchArgs.parse([file.path]).playUrl, file.path);
+        file.deleteSync();
+        expect(LaunchArgs.parse([uri]).playUrl, isNull);
+        expect(LaunchArgs.parse(['file://foreign/film.mp4']).playUrl, isNull);
+      } finally {
+        dir.deleteSync(recursive: true);
+      }
+    });
+
+    test('direct HLS and unknown endpoints retain live controls', () {
+      for (final url in [
+        'https://media.example/master.m3u8?token=private',
+        '/tmp/rolling.m3u8',
+        'https://media.example/live/channel.ts',
+        'https://media.example',
+        'rtsp://media.example/channel',
+      ]) {
+        final now = NowPlaying.direct(url, title: 'Channel');
+        expect(now.isLive, isTrue, reason: url);
+        expect(now.media.title, 'Channel');
+        expect(now.trackProgress, isFalse);
+        expect(now.recordHistory, isFalse);
+      }
     });
 
     test('playback diagnostics never persist source credentials', () {

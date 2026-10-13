@@ -7,8 +7,8 @@ name: Image gates (pull request)
 #
 # `build.yml` runs on pushes to `main`, never on pull requests, and the gates that read a finished
 # image — build_files/verify_image_experience.py and everything else build.sh asserts after it has
-# assembled the system — run only inside that build. The ARM pull-request build does not call
-# them. So a pull request could be green on every check it had and still break all three x86
+# assembled the system — run inside that build. ARM proves its separate native assembly;
+# it cannot prove the x86 Containerfile/packages. A green pull request could still break all three x86
 # editions the moment it merged:
 #
 #   * wave W5 (PR #111): every check green; `main` red for a day, because a shell parameter
@@ -30,6 +30,8 @@ on:
       - "Containerfile"
       - "build_files/**"
       - "system_files/**"
+      # MoPlayer is compiled and tested from this in-tree source on both architectures.
+      - "moplayer/**"
       # The native System Settings modules compile in the Containerfile's qmlshell-build
       # stage and build.sh gates the installed plugins; a change there reaches the image.
       - "moos-settings-kcm/**"
