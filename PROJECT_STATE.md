@@ -45,7 +45,8 @@ All final artifact references, signed origins, distinct QCOW2 boot IDs, zero
 failed units and clean shutdown hashes match. Ten ISO-installed apps open,
 close and reopen. All four live latest tags resolve to these exact digests.
 Receipt: [station-readiness proof](docs/releases/2026-10-13-station-readiness-proof.json).
-Source/native bundle/local image/PR CI are not installed signed acceptance.
+Oracle now proves the exact installed signed ARM image and local-video journey;
+physical NVIDIA and the wider acceptance matrix remain separate.
 
 ## Promoted release and public delivery
 
@@ -79,13 +80,18 @@ No provider billing choice or paid plan was changed.
 
 Native aarch64, 2 vCPU/11.6 GiB, no GPU; Wayland Arabic UI2 Nova,
 virtual 1280×720 at 100%. Kernel 7.2.9, Plasma 6.7.5, Qt 6.11.2.
-Booted signed ARM .756 (`0a02cbd7…`), boot ID
-`0ac1f5dc-082e-4948-abcd-ccad1169ce9c`; signed .752 remains rollback.
-Official updater replaced staged .761 with signed .763 (`a2ee6a1c…`) at
-October 13 08:54:48 Berlin; transaction ended successfully. It has not booted.
-A private one-attempt graphical autostart proof checks this exact next boot,
-9 runtime hashes/selfcheck/post-update and retires only its own launcher.
-It does not restart services or prove video/PAM/hardware; receipt is pending.
+Booted signed ARM .763 (`a2ee6a1c…`), boot ID
+`e569e39e-3dc0-4e8f-85be-32d360dae4d3`; signed .756 is the actual rollback.
+Owner-timed native restart applied the official staged update. Native owner
+UID 1000 acceptance at October 13 09:58:44 Berlin passes 51 selfchecks/4 notes,
+55 post-update checks/0 failures, THEME_REV=103, all 9 payload hashes and the
+exact compiled MoPlayer bytes. Notes are active viewers/owner mpris-obex masks.
+No failed system/user units; boot=15.055 s. The private one-attempt graphical
+probe retired its own launcher. Existing autologin is not ordinary PAM proof.
+Installed /usr/lib/moplayer (no source override) opens encoded Arabic file URI,
+plays actual MPEG4 frames, reports 20 s/CanSeek and paused +5 s seek. Rendered
+finite controls/timecodes pass; owned unit closed. RSS=578.4 MiB with Remote
+active; one small silent sample is not a codec/server/GPU/endurance matrix.
 Native graphical acceptance of .756 passed 51 selfchecks/55 post-update checks,
 31 Remote hashes, actual oomd monitoring, no failed units; boot=14.064 s.
 Seven KCMs load in isolated Arabic homes without QML errors; seven Remote

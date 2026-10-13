@@ -1,13 +1,13 @@
 {
   "schema": 1,
-  "checkedAt": "2026-10-13T07:12:40Z",
+  "checkedAt": "2026-10-13T08:20:58.008310+00:00",
   "candidateRevision": "45ffc8fcab2e733cff3f628756eed41c2bbd7fe3",
   "sourceRevision": "9d1717fe2b934a289557e6686b6bd702e8864d44",
   "sourcePullRequests": [
     228,
     229
   ],
-  "scope": "First-attempt signed build, final artifact boot/install proofs and production promotion; Oracle staged update. This is not physical NVIDIA, new Oracle boot, universal compatibility or complete Arabic acceptance.",
+  "scope": "First-attempt signed build, final artifact boot/install proofs and production promotion; Oracle native signed boot, runtime checks and installed local-video journey. Not physical NVIDIA, ordinary PAM, universal compatibility or complete Arabic acceptance.",
   "releases": [
     {
       "edition": "moos",
@@ -169,19 +169,51 @@
     }
   },
   "oracle": {
-    "bootedVersion": "44.20261011.756",
-    "bootedDigest": "sha256:0a02cbd72e25656fea4c3d814f04ceb67b2ec82f2256fcea7368058960d9180b",
-    "stagedVersion": "44.20261013.763",
-    "stagedDigest": "sha256:a2ee6a1c5d10b16cae027f98797dd01ca3d5a5dfafd6e78470ab4f287f71d3b4",
-    "rollbackVersion": "44.20261011.752",
-    "rollbackDigest": "sha256:e621e284e05e0745722c15e1786d96e01c52538fe807092e40d1ca954bc6a394",
+    "bootedVersion": "44.20261013.763",
+    "bootedDigest": "sha256:a2ee6a1c5d10b16cae027f98797dd01ca3d5a5dfafd6e78470ab4f287f71d3b4",
+    "stagedVersion": null,
+    "stagedDigest": null,
+    "rollbackVersion": "44.20261011.756",
+    "rollbackDigest": "sha256:0a02cbd72e25656fea4c3d814f04ceb67b2ec82f2256fcea7368058960d9180b",
     "originsEnforceSignatures": true,
     "transactionEnded": true,
     "updateAuthority": "moos-auto-update.service -> /usr/libexec/moos-image-update auto",
     "stageCompletedAt": "2026-10-13T06:54:48Z",
-    "newBootAcceptance": "pending",
+    "newBootAcceptance": "pass within recorded scope",
     "privateOneAttemptGraphicalPostbootProbePrepared": true,
-    "ownerServicesAndDirtyWorkPreserved": true
+    "ownerServicesAndDirtyWorkPreserved": true,
+    "privateOneAttemptGraphicalPostbootProbeRetired": true,
+    "nativeAcceptance": {
+      "checkedAt": "2026-10-13T07:58:44.621307+00:00",
+      "bootId": "e569e39e-3dc0-4e8f-85be-32d360dae4d3",
+      "uid": 1000,
+      "selfchecksPassed": 51,
+      "notes": 4,
+      "noteScope": "Two active viewers plus preserved owner masks; no broken check",
+      "postUpdatePassed": 55,
+      "postUpdateFailed": 0,
+      "failedSystemAndUserUnits": 0,
+      "themeRev103Applied": true,
+      "runtimePayloadHashesMatched": 9,
+      "compiledMoplayerMatchesNativeTestedBundle": true,
+      "bootSeconds": 15.055,
+      "ownerServiceContainersHealthy": 4,
+      "existingAutologinIsNotOrdinaryPamProof": true,
+      "remoteCertificateVerifiedHttps": 200,
+      "communityCertificateVerifiedHttps": 200
+    },
+    "installedPlayback": {
+      "passed": true,
+      "signedInstalledExecutableVerified": true,
+      "encodedArabicFileUri": true,
+      "mprisLengthUs": 20000000,
+      "canSeek": true,
+      "pausedSeekDeltaUs": 5000000,
+      "actualFramesAndFiniteControlsReviewed": true,
+      "ownedTestUnitClosed": true,
+      "rssKiB": 592304,
+      "scope": "One silent 640x360 MPEG4 on Oracle software graphics with active Remote; not codec/server/GPU/endurance matrix"
+    }
   },
   "physicalNvidia": {
     "lastAcceptedVersion": "44.20261011.1026",
@@ -205,5 +237,14 @@
     "newIsoPublishedToPublicHost": false
   },
   "acceptanceBacklog": "../DEVELOPMENT_PLAN.md",
-  "mainCandidateAncestryAndTreeVerifiedAtPromotion": true
+  "mainCandidateAncestryAndTreeVerifiedAtPromotion": true,
+  "oracleStagingSnapshot": {
+    "bootedVersion": "44.20261011.756",
+    "bootedDigest": "sha256:0a02cbd72e25656fea4c3d814f04ceb67b2ec82f2256fcea7368058960d9180b",
+    "stagedVersion": "44.20261013.763",
+    "stagedDigest": "sha256:a2ee6a1c5d10b16cae027f98797dd01ca3d5a5dfafd6e78470ab4f287f71d3b4",
+    "rollbackVersion": "44.20261011.752",
+    "rollbackDigest": "sha256:e621e284e05e0745722c15e1786d96e01c52538fe807092e40d1ca954bc6a394",
+    "stageCompletedAt": "2026-10-13T06:54:48Z"
+  }
 }

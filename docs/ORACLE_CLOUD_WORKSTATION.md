@@ -5,7 +5,7 @@ or a second product backlog. Open work belongs to DEVELOPMENT_PLAN P5.5/P5.7.
 
 | Capability | Installed implementation | Owner access |
 | --- | --- | --- |
-| Desktop | booted signed MoOS ARM .756; virtual seat; current staged/promoted state in PROJECT_STATE.md | existing Mo PC Remote, HTTPS 443 |
+| Desktop | booted signed MoOS ARM .763; .756 rollback; virtual seat; current promoted state in PROJECT_STATE.md | existing Mo PC Remote, HTTPS 443 |
 | General files | FileBrowser Quantum 1.5.8, private `~/CloudFiles` | HTTPS 8443 / authenticated WebDAV |
 | iPhone Files | rootless Samba 4.23.8, same CloudFiles | SMB3 through tailnet TCP Serve 445 |
 | Development | code-server 4.140.0, existing Projects/repositories | HTTPS 8444, password auth |
