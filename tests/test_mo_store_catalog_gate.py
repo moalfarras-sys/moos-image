@@ -507,7 +507,7 @@ class TheIndexAndTheGateAgree(unittest.TestCase):
 
 
 NEW_KIND_TOKENS = ("_install_webapp", "_install_appdrop", "_install_windows_portable",
-                   "_install_vendor_rpm")
+                   "_install_vendor_app")
 
 
 def storectl_with(tokens: bool) -> str:

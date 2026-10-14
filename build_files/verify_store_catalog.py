@@ -1046,10 +1046,12 @@ KIND_HANDLER = {
     "npm": ("_install_npm", 'install.get("pkg")', '"--prefix"'),
     "web": ("_install_web", "urlsplit", "XDG_OPEN"),
     # The backend's install paths for the v2 kinds (docs/MO_STORE.md "Kinds of app").
-    "webapp": ("_install_webapp",),
-    "appdrop": ("_install_appdrop",),
-    "windows-portable": ("_install_windows_portable",),
-    "vendor-rpm": ("_install_vendor_rpm",),
+    "webapp": ("_install_webapp", "parse_entry("),
+    "appdrop": ("_install_appdrop", "pinned_artifact(", "appdrop.plan_for("),
+    "windows-portable": ("_install_windows_portable", "pe_architecture(", "_wine_argv("),
+    # The publisher's own signed package: storectl never reimplements the module's checks.
+    "vendor-rpm": ("_install_vendor_app", "vendor.parse_entry(install)",
+                   "vendor.install(app_id, entry", "VENDOR_FAILURE_KEYS.get(code)"),
 }
 
 
