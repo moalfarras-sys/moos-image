@@ -131,36 +131,41 @@ class FakeAdapter:
 
 
 class StoreTestCase(unittest.TestCase):
+    ISOLATED = ("HOME", "XDG_CACHE_HOME", "XDG_RUNTIME_DIR", "XDG_DATA_HOME", "XDG_STATE_HOME",
+                "XDG_CONFIG_HOME", "XDG_DATA_DIRS", "DBUS_SESSION_BUS_ADDRESS", "DISPLAY",
+                "WAYLAND_DISPLAY", "PATH")
+
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
         self.base = Path(self.temp.name)
-        self.old_home = os.environ.get("HOME")
-        self.old_cache = os.environ.get("XDG_CACHE_HOME")
-        self.old_runtime = os.environ.get("XDG_RUNTIME_DIR")
+        self.saved_environment = {name: os.environ.get(name) for name in self.ISOLATED}
+        self.addCleanup(self._restore_environment)
         os.environ["HOME"] = str(self.base / "home")
         os.environ["XDG_CACHE_HOME"] = str(self.base / "cache")
         # A job publishes its Island marker under $XDG_RUNTIME_DIR/moos-store. Left at the
         # real session's value, `just check` on a MoOS desktop parked "Installing First"
         # in the owner's Island for good (A1, 2026-09-18).
         os.environ["XDG_RUNTIME_DIR"] = str(self.base / "run")
+        # Launchers, records and settings land in this test's home, and nothing here can reach
+        # the session bus, a display or the menu tools of the desktop running the tests.
+        os.environ["XDG_DATA_HOME"] = str(self.base / "home/.local/share")
+        os.environ["XDG_STATE_HOME"] = str(self.base / "home/.local/state")
+        os.environ["XDG_CONFIG_HOME"] = str(self.base / "home/.config")
+        os.environ["XDG_DATA_DIRS"] = str(self.base / "system-share")
+        os.environ["DBUS_SESSION_BUS_ADDRESS"] = "unix:path=/nonexistent"
+        os.environ.pop("DISPLAY", None)
+        os.environ.pop("WAYLAND_DISPLAY", None)
+        os.environ["PATH"] = str(self.base / "no-tools")
         (self.base / "home").mkdir()
         (self.base / "run").mkdir(mode=0o700)
-        self.addCleanup(self._restore_environment)
 
     def _restore_environment(self):
-        if self.old_home is None:
-            os.environ.pop("HOME", None)
-        else:
-            os.environ["HOME"] = self.old_home
-        if self.old_cache is None:
-            os.environ.pop("XDG_CACHE_HOME", None)
-        else:
-            os.environ["XDG_CACHE_HOME"] = self.old_cache
-        if self.old_runtime is None:
-            os.environ.pop("XDG_RUNTIME_DIR", None)
-        else:
-            os.environ["XDG_RUNTIME_DIR"] = self.old_runtime
+        for name, value in self.saved_environment.items():
+            if value is None:
+                os.environ.pop(name, None)
+            else:
+                os.environ[name] = value
 
     def store(self):
         return MODULE.JobStore(self.base / "cache/moos-store")
@@ -504,7 +509,7 @@ class StatusAndLockTests(StoreTestCase):
         self.assertEqual(store.path.read_bytes(), before)
 
     def test_a_job_publishes_its_island_marker_only_inside_the_test(self):
-        real = self.old_runtime
+        real = self.saved_environment["XDG_RUNTIME_DIR"]
         before = sorted(Path(real, "moos-store").glob("job-*")) if real else []
         MODULE.Job(self.store(), "install", ["org.example.Isolated"])
         self.assertTrue(list((self.base / "run/moos-store").glob("job-install-*org.example.Isolated")))
@@ -717,24 +722,29 @@ class InstallTests(StoreTestCase):
         self.assertEqual(result["items"][0]["state"], "skipped")
         self.assertEqual(code, 0)
 
-    def test_unpinned_appimage_is_rejected(self):
+    def test_the_retired_appimage_kind_is_refused_and_says_why(self):
+        # A bare file in ~/.local/bin with no launcher: retired for App Drop's `appdrop` kind.
         recipe = {
             "id": "cursor",
             "source": "moos",
             "install": {
                 "kind": "appimage",
                 "url": "https://example.test/Cursor.AppImage",
+                "sha256": "0" * 64,
                 "bin": "cursor",
                 "external": True,
                 "requires_review": True,
-                "risk": "external-download",
+                "risk": "downloaded-executable",
             },
         }
-        controller, _ = self.controller([recipe])
+        runner = FakeRunner()
+        controller, _ = self.controller([recipe], runner=runner)
         code, result = controller.install(["cursor"])
         self.assertEqual(code, 1)
         self.assertEqual(result["state"], "failed")
-        self.assertIn("not pinned", result["items"][0]["message"])
+        self.assertEqual(result["items"][0]["message_key"], "unsupported_kind")
+        self.assertFalse((self.base / "home/.local/bin/cursor.AppImage").exists())
+        self.assertNotIn("_install_pinned_appimage", SCRIPT.read_text(encoding="utf-8"))
 
 
 class LifecycleTests(StoreTestCase):

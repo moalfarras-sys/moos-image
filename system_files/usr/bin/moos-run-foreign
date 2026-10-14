@@ -163,6 +163,69 @@ wine_run() {
     return "$code"
 }
 
+# A Windows program Mo Store installed from its catalogue (`moos-storectl install <id>`, kind
+# windows-portable). Its launcher's only instruction is `moos-run-foreign --app <id>`; every path
+# is recomputed here from the id, and the record names nothing but the program inside app/.
+# Each program has its own prefix, so one program's settings and fixes never touch another's.
+windows_app_run() {
+    local id="$1" data base app prefix record exe root real foreign state log code
+    if ! [[ "$id" =~ ^[a-z0-9]([a-z0-9-]{0,62}[a-z0-9])?$ ]]; then
+        notify "لم يُعثر على هذا البرنامج. | This program was not found."
+        return 2
+    fi
+    data="${XDG_DATA_HOME:-$HOME/.local/share}"
+    base="$data/moos/windows-apps/$id"
+    app="$base/app"
+    prefix="$base/prefix"
+    record="$data/moos/windows-apps/$id.json"
+    if [ -L "$base" ] || [ -L "$app" ] || [ -L "$prefix" ] || [ ! -d "$app" ] \
+            || [ ! -f "$prefix/system.reg" ] || [ ! -f "$record" ]; then
+        notify "هذا البرنامج غير مثبّت. ثبّته من متجر Mo. | This program is not installed. Install it from Mo Store."
+        return 2
+    fi
+    exe="$(python3 -I - "$record" <<'PY' 2>/dev/null
+import json, re, sys
+try:
+    with open(sys.argv[1], encoding="utf-8") as handle:
+        value = json.load(handle).get("exe")
+except (OSError, ValueError, AttributeError):
+    raise SystemExit(1)
+if (not isinstance(value, str) or not value or len(value) > 255 or value.startswith("/")
+        or "\\" in value or re.search(r"[\x00-\x1f\x7f]", value)
+        or any(part in ("", ".", "..") for part in value.split("/"))):
+    raise SystemExit(1)
+print(value)
+PY
+)" || exe=""
+    root="$(realpath -e -- "$app" 2>/dev/null)" || root=""
+    real=""
+    if [ -n "$exe" ] && [ -n "$root" ]; then
+        real="$(realpath -e -- "$app/$exe" 2>/dev/null)" || real=""
+    fi
+    case "$real" in
+        "$root"/*) ;;
+        *) real="" ;;
+    esac
+    if [ -z "$real" ] || [ ! -f "$real" ]; then
+        notify "ملفات هذا البرنامج ناقصة. أعد تثبيته من متجر Mo. | This program's files are incomplete. Reinstall it from Mo Store."
+        return 2
+    fi
+    foreign="${XDG_STATE_HOME:-$HOME/.local/state}/moos-foreign"
+    state="$foreign/$id"
+    log="$foreign/$id.log"
+    mkdir -p "$state" 2>/dev/null || return 1
+    wine_prepare_display "$prefix" "$state"
+    # Portable programs keep their files beside themselves; start them where they live.
+    cd -- "$(dirname -- "$real")" || return 2
+    env WINEPREFIX="$prefix" WINEDLLOVERRIDES="mscoree,mshtml=;winemenubuilder.exe=d" \
+        WINEDEBUG=-all wine "$real" >"$log" 2>&1
+    code=$?
+    if [ "$code" -ne 0 ]; then
+        notify "تعذّر فتح البرنامج. يمكن لـ Mo AI فحص المشكلة. | This program could not be opened. Mo AI can inspect the problem."
+    fi
+    return "$code"
+}
+
 # Runtime files are not proof that the kernel can map them. The 2026-09-19
 # signed image contains the complete modern 32-bit payload, yet a real PE32
 # program fails before main() because SELinux rejects an executable composefs
@@ -220,7 +283,7 @@ print(next((d.get("checksum", "") for d in deployments if d.get("booted")), ""))
     return 1
 }
 
-usage() { echo "usage: moos-run-foreign <file.exe|file.msi|file.apk>" >&2; exit 2; }
+usage() { echo "usage: moos-run-foreign <file.exe|file.msi|file.apk> | --app <id>" >&2; exit 2; }
 
 # ---------------------------------------------------------------------------------
 # One decision for every foreign file, from the shared engine registry.
@@ -343,6 +406,7 @@ apk_install() {
 case "${1:-}" in
     --apk-install) shift; [ -n "${1:-}" ] || usage; apk_install "$1"; exit $? ;;
     --wine-run) shift; [ -n "${1:-}" ] || usage; wine_run "$1"; exit $? ;;
+    --app) shift; [ "$#" -eq 1 ] || usage; windows_app_run "$1"; exit $? ;;
     -h|--help|"") usage ;;
 esac
 

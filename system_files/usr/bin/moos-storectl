@@ -8,6 +8,13 @@ shipped catalog, and exposes one atomic JSON job document for the UI to poll.
 Flatpak installs, removals and updates use libflatpak transactions.  In
 particular, progress comes from FlatpakTransactionProgress; indeterminate work
 is represented as JSON null instead of a timer or invented percentage.
+
+Every kind of app has one verb set here (docs/MO_STORE.md, "Kinds of app"):
+Flatpak, web app, App Drop (a pinned AppImage or archive, or a file the person
+dropped), a pinned portable Windows program, Android, npm and a publisher page.
+Pinned downloads share one helper: the publisher's HTTPS URL, its exact size and
+SHA-256 from the signed catalogue, every redirect hop HTTPS, saved on disk under
+~/.cache/moos-store/downloads/ — never in the RAM-backed /tmp.
 """
 
 from __future__ import annotations
@@ -19,12 +26,15 @@ import dataclasses
 import datetime as dt
 import fcntl
 import hashlib
+import http.client
 import json
 import os
 import platform
-from pathlib import Path
+from pathlib import Path, PurePosixPath
+import pwd
 import re
 import secrets
+import shutil
 import signal
 import subprocess
 import sys
@@ -34,6 +44,7 @@ import time
 from typing import Any, Callable, Iterable, Sequence
 import urllib.parse
 import urllib.request
+import zipfile
 
 
 SCHEMA = 1
@@ -60,6 +71,47 @@ WAYDROID = "/usr/bin/waydroid"
 STORE_INDEX = "/usr/bin/moos-store-index"
 ONE_STORE = "/usr/bin/moos-one-store"
 BAZAAR_ID = "io.github.kolunmi.Bazaar"
+GTK_LAUNCH = "/usr/bin/gtk-launch"
+WEBAPP_RUNTIME = "/usr/bin/moos-webapp"
+RUN_FOREIGN = "/usr/bin/moos-run-foreign"
+FLATPAK_CLI = "/usr/bin/flatpak"
+WINE = "/usr/bin/wine"
+WINESERVER = "/usr/bin/wineserver"
+WRESTOOL = "/usr/bin/wrestool"
+ICOTOOL = "/usr/bin/icotool"
+TIMEOUT_TOOL = "/usr/bin/timeout"
+ENV_TOOL = "/usr/bin/env"
+XRDB = "/usr/bin/xrdb"
+
+# A pinned download names its exact size; this is the ceiling for any one of them, and the cap
+# for the older Android recipes that do not carry a size yet.
+MAX_PINNED_BYTES = 8 * 1024 ** 3
+UNSIZED_DOWNLOAD_CAP = 2 * 1024 ** 3
+DOWNLOAD_BLOCK = 1024 * 1024
+# The image's own glyph for a Windows program whose icon could not be read.
+WINDOWS_FALLBACK_ICON = "moos-cube-symbolic"
+# Windows programs: the prefix never makes .NET/HTML runtime prompts or menu entries of its own.
+WINE_OVERRIDES = "mscoree,mshtml=;winemenubuilder.exe=d"
+
+# The closed vocabularies the window and the bridge share (docs/MO_STORE.md).
+FLATPAK_PERMISSION_KEYS = ("network", "files-home", "files-all", "downloads", "devices",
+                           "sound", "bluetooth", "background")
+WEBAPP_PERMISSION_KEYS = ("notifications", "microphone", "camera", "location", "clipboard",
+                          "screen")
+PERMISSION_VALUES = ("allow", "deny", "reset")
+# What `flatpak override --user` is told for each key: (allow, deny). Fixed argv, no free paths.
+FLATPAK_OVERRIDES: dict[str, tuple[str, str]] = {
+    "network": ("--share=network", "--unshare=network"),
+    "files-home": ("--filesystem=home", "--nofilesystem=home"),
+    "files-all": ("--filesystem=host", "--nofilesystem=host"),
+    "downloads": ("--filesystem=xdg-download", "--nofilesystem=xdg-download"),
+    "devices": ("--device=all", "--nodevice=all"),
+    "sound": ("--socket=pulseaudio", "--nosocket=pulseaudio"),
+    "bluetooth": ("--allow=bluetooth", "--disallow=bluetooth"),
+}
+# facts.json: what a Flathub app would be able to do, in the same closed words.
+FACT_PERMISSION_KEYS = ("network", "files-home", "files-all", "downloads", "devices", "sound",
+                        "bluetooth", "host-commands")
 
 ENGINE_COMMANDS: dict[str, tuple[str, ...]] = {
     # Bazaar is special-cased in open_engine: this fixed launch command is used
@@ -92,17 +144,28 @@ _ANDROID_PACKAGE_RE = re.compile(
 )
 _SHA256_RE = re.compile(r"^[0-9a-fA-F]{64}$")
 _ANSI_RE = re.compile(r"\x1b\[[0-?]*[ -/]*[@-~]")
+_VERSION_RE = re.compile(r"^[0-9A-Za-z][0-9A-Za-z.+_~-]{0,63}$")
+_WM_CLASS_RE = re.compile(r"^[A-Za-z0-9._ -]{1,80}$")
 _REVIEW_RISKS = {
     "developer-tool",  # accepted during upgrades from the first catalog draft
     "downloaded-executable",
     "external-download",
     "runs-package-scripts",
+    "web-app",
 }
 _UNSET = object()
 
 
 class StoreError(RuntimeError):
-    """A user-visible, expected store failure."""
+    """A user-visible, expected store failure.
+
+    `message_key`, when set, is the stable key the window renders in the person's language
+    instead of the English text (tests/test_store_job_language.py holds both sides to it).
+    """
+
+    def __init__(self, message: object = "", *, message_key: str | None = None):
+        super().__init__(message)
+        self.message_key = message_key
 
 
 class BusyError(StoreError):
@@ -125,6 +188,19 @@ def clean_message(value: object, limit: int = 600) -> str:
     text = _ANSI_RE.sub("", str(value)).replace("\x00", " ")
     text = " ".join(text.split())
     return text[:limit] or "Operation failed"
+
+
+def display_text(value: object, limit: int) -> str:
+    """One line of catalogue text for a launcher or a record: no control characters, bounded."""
+    if not isinstance(value, str):
+        return ""
+    text = "".join(ch for ch in value if ch >= " " and ch != "\x7f" and ch not in "\u2028\u2029")
+    return " ".join(text.split())[:limit]
+
+
+def desktop_value(value: str) -> str:
+    """A Desktop Entry string value: one line, backslashes escaped."""
+    return display_text(value, 400).replace("\\", "\\\\")
 
 
 def validate_flatpak_id(app_id: str) -> bool:
@@ -170,6 +246,115 @@ def cache_dir() -> Path:
     else:
         base = Path.home() / ".cache"
     return base / "moos-store"
+
+
+def _xdg_dir(variable: str, fallback: str) -> Path:
+    configured = os.environ.get(variable)
+    if configured and Path(configured).is_absolute():
+        return Path(configured)
+    return Path.home() / fallback
+
+
+def data_home() -> Path:
+    return _xdg_dir("XDG_DATA_HOME", ".local/share")
+
+
+def state_home() -> Path:
+    return _xdg_dir("XDG_STATE_HOME", ".local/state")
+
+
+def config_home() -> Path:
+    return _xdg_dir("XDG_CONFIG_HOME", ".config")
+
+
+def downloads_dir() -> Path:
+    """Where pinned downloads land: on disk, and inside HOME.
+
+    Inside HOME because App Drop installs only files from the person's own folders, and on disk
+    because /tmp is a RAM disk on MoOS. A cache directory configured outside HOME is not used.
+    """
+    home = Path.home()
+    candidate = cache_dir() / "downloads"
+    try:
+        candidate.resolve().relative_to(home.resolve())
+        return candidate
+    except (OSError, ValueError):
+        return home / ".cache" / "moos-store" / "downloads"
+
+
+def store_settings_path() -> Path:
+    return config_home() / "moos" / "store.json"
+
+
+def auto_updates_enabled() -> bool:
+    """The owner's choice in Mo Store; absent or unreadable means on, the default."""
+    try:
+        value = json.loads(store_settings_path().read_text(encoding="utf-8"))
+    except (OSError, UnicodeError, json.JSONDecodeError):
+        return True
+    return not (isinstance(value, dict) and value.get("auto_updates") is False)
+
+
+@dataclasses.dataclass(frozen=True)
+class WindowsPaths:
+    """Everything one catalogue Windows program owns, recomputed from its id — never stored."""
+
+    base: Path
+    app: Path
+    prefix: Path
+    icon: Path
+    record: Path
+    launcher: Path
+    state: Path
+    log: Path
+
+
+def windows_paths(app_id: str) -> WindowsPaths:
+    if not validate_curated_id(app_id):
+        raise StoreError(f"Invalid app ID: {app_id}", message_key="invalid_id")
+    root = data_home() / "moos" / "windows-apps"
+    base = root / app_id
+    foreign = state_home() / "moos-foreign"
+    return WindowsPaths(
+        base=base,
+        app=base / "app",
+        prefix=base / "prefix",
+        icon=base / "icon.png",
+        record=root / f"{app_id}.json",
+        launcher=data_home() / "applications" / f"org.moos.windows.{app_id}.desktop",
+        state=foreign / app_id,
+        log=foreign / f"{app_id}.log",
+    )
+
+
+def android_record_path(package: str) -> Path:
+    return data_home() / "moos" / "android" / f"{package}.json"
+
+
+def _remove_tree(path: Path) -> bool:
+    """Delete a directory this backend owns, never following a link to somewhere else."""
+    if path.is_symlink():
+        path.unlink()
+        return True
+    if path.is_dir():
+        shutil.rmtree(path)
+        return True
+    return False
+
+
+def _read_json(path: Path) -> dict[str, Any]:
+    try:
+        value = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeError, json.JSONDecodeError):
+        return {}
+    return value if isinstance(value, dict) else {}
+
+
+def _write_json(path: Path, document: dict[str, Any], mode: int = 0o600, *,
+                private_parent: bool = True) -> None:
+    payload = json.dumps(document, ensure_ascii=False, sort_keys=True,
+                         separators=(",", ":")).encode("utf-8") + b"\n"
+    _atomic_bytes(path, payload, mode, private_parent=private_parent)
 
 
 # ── Presence for the MoOS Island ─────────────────────────────────────────────
@@ -220,14 +405,19 @@ def presence_name(document: dict[str, Any]) -> str | None:
     return f"job-{action}-{state}-{step}-{encoded}"
 
 
-def _atomic_bytes(path: Path, data: bytes, mode: int = 0o600) -> None:
-    """Replace *path* atomically with bytes created in the same directory."""
+def _atomic_bytes(path: Path, data: bytes, mode: int = 0o600, *, private_parent: bool = True) -> None:
+    """Replace *path* atomically with bytes created in the same directory.
+
+    `private_parent` makes the directory owner-only; a shared folder such as ~/.config/moos keeps
+    the permissions its other owners gave it.
+    """
 
     path.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
-    try:
-        path.parent.chmod(0o700)
-    except OSError:
-        pass
+    if private_parent:
+        try:
+            path.parent.chmod(0o700)
+        except OSError:
+            pass
     temporary = path.with_name(
         f".{path.name}.{os.getpid()}.{secrets.token_hex(6)}.tmp"
     )
@@ -501,11 +691,15 @@ class Job:
     def fail(self, message: object, item_ids: Iterable[str] | None = None) -> None:
         with self._lock:
             reason = clean_message(message)
+            # A failure keeps its real words. Only an error that deliberately carries a key (a
+            # refusal the window can say in the person's language) brings one; any other clears
+            # the last step's key, so its progress line can never stand over the error.
+            key = getattr(message, "message_key", None)
             targets = set(item_ids if item_ids is not None else self._items)
             for item_id, item in self._items.items():
                 if item_id in targets and item["state"] in {"queued", "running"}:
                     item.update(state="failed", message=reason,
-                                message_key=None)
+                                message_key=key)
             states = [item["state"] for item in self._items.values()]
             has_success = any(state in {"done", "opened", "skipped"} for state in states)
             has_failure = any(state == "failed" for state in states)
@@ -515,7 +709,7 @@ class Job:
                 progress=100 if state == "partial" else self.document["progress"],
                 current_id=None,
                 message=reason,
-                message_key=None,
+                message_key=key,
             )
 
     def cancelled(self) -> None:
@@ -654,6 +848,207 @@ class CommandRunner:
             # apart from silence.
             reason = clean_message(raw_reason) if raw_reason.strip() else ""
             return CommandResult(process.returncode or 0, reason, cancelled)
+
+
+def _https_url_ok(url: object) -> bool:
+    if not isinstance(url, str) or len(url) > 2048 or any(ch <= " " or ch == "\x7f" for ch in url):
+        return False
+    parsed = urllib.parse.urlsplit(url)
+    return (parsed.scheme == "https" and bool(parsed.hostname)
+            and parsed.username is None and parsed.password is None)
+
+
+class HttpsOnlyRedirects(urllib.request.HTTPRedirectHandler):
+    """Follow a redirect only to another HTTPS address.
+
+    The pinned SHA-256 already protects what arrives; this keeps the route honest too, so a
+    publisher mirror that bounces through plain HTTP fails the job instead of being followed.
+    """
+
+    max_redirections = 10
+
+    def redirect_request(self, req, fp, code, msg, headers, newurl):  # noqa: D401 - urllib API
+        if not _https_url_ok(newurl):
+            with contextlib.suppress(Exception):
+                fp.close()
+            raise StoreError("The download was redirected to an address that is not secure")
+        return super().redirect_request(req, fp, code, msg, headers, newurl)
+
+
+def build_opener() -> urllib.request.OpenerDirector:
+    return urllib.request.build_opener(HttpsOnlyRedirects())
+
+
+@dataclasses.dataclass(frozen=True)
+class PinnedArtifact:
+    url: str
+    sha256: str
+    size: int | None
+
+
+def pinned_artifact(app_id: str, install: dict[str, Any], *, size_required: bool = True) -> PinnedArtifact:
+    """The download the signed catalogue pins for THIS machine's architecture.
+
+    `install.downloads[<arch>]` = {url, sha256, size}. The older Android recipes carry url and
+    sha256 at the top of `install` and may omit the size; they are still capped.
+    """
+    downloads = install.get("downloads")
+    if downloads is not None:
+        if not isinstance(downloads, dict):
+            raise StoreError(f"Catalog has invalid downloads for {app_id}")
+        entry = downloads.get(running_arch())
+        if not isinstance(entry, dict):
+            raise StoreError(f"{app_id} has no download for this computer", message_key="unsupported_arch")
+    else:
+        entry = install
+    url = entry.get("url")
+    digest = entry.get("sha256")
+    size = entry.get("size")
+    if not _https_url_ok(url) or not isinstance(digest, str) or not _SHA256_RE.fullmatch(digest):
+        raise StoreError(f"Recipe for {app_id} is not pinned to a valid SHA-256")
+    if size is None and not size_required:
+        return PinnedArtifact(url, digest.lower(), None)
+    if isinstance(size, bool) or not isinstance(size, int) or not 0 < size <= MAX_PINNED_BYTES:
+        raise StoreError(f"Recipe for {app_id} does not pin a valid size")
+    return PinnedArtifact(url, digest.lower(), size)
+
+
+def file_suffix(head: bytes, kind: str) -> str:
+    """The name a verified download is saved under, from what it IS.
+
+    App Drop treats compressed data as an archive only under an archive name, and the Android
+    container wants `.apk`, so the suffix matters — but it follows the bytes, not the URL.
+    """
+    if kind == "android":
+        return ".apk"
+    if head[:4] == b"\x7fELF" and head[8:10] == b"AI":
+        return ".AppImage"
+    if head[:4] == b"PK\x03\x04":
+        return ".zip"
+    if head[:2] == b"MZ":
+        return ".exe"
+    if head[:2] == b"\x1f\x8b":
+        return ".tar.gz"
+    if head[:6] == b"\xfd7zXZ\x00":
+        return ".tar.xz"
+    if head[:3] == b"BZh":
+        return ".tar.bz2"
+    if head[:4] == b"\x28\xb5\x2f\xfd":
+        return ".tar.zst"
+    if head[257:262] == b"ustar":
+        return ".tar"
+    return ".download"
+
+
+def _relative_inside(value: object, *, limit: int = 255) -> str | None:
+    """A catalogue path relative to an app folder: no root, no `..`, no control characters."""
+    if not isinstance(value, str) or not value or len(value) > limit:
+        return None
+    if value.startswith("/") or "\\" in value or any(ord(ch) < 32 or ord(ch) == 127 for ch in value):
+        return None
+    parts = value.split("/")
+    if any(part in ("", ".", "..") for part in parts):
+        return None
+    return value
+
+
+def parse_keyfile(text: str) -> dict[str, dict[str, str]]:
+    """A Flatpak metadata/permissions key file as {group: {key: value}}; first value wins."""
+    groups: dict[str, dict[str, str]] = {}
+    current: dict[str, str] | None = None
+    for raw in text.splitlines():
+        line = raw.strip()
+        if not line or line.startswith("#"):
+            continue
+        if line.startswith("[") and line.endswith("]"):
+            current = groups.setdefault(line[1:-1], {})
+        elif current is not None and "=" in line:
+            key, _, value = line.partition("=")
+            current.setdefault(key.strip(), value.strip())
+    return groups
+
+
+def _keyfile_list(value: str) -> set[str]:
+    return {item.strip() for item in value.split(";") if item.strip()}
+
+
+def flatpak_grants(text: str) -> dict[str, bool]:
+    """What an app may do, in Mo Store's closed words, from a [Context] key file.
+
+    `flatpak info --show-permissions` prints the effective set (the app's metadata with the
+    person's overrides merged); a remote ref's metadata is what the app asks for. A `!` entry
+    is a revocation and grants nothing.
+    """
+    groups = parse_keyfile(text)
+    context = groups.get("Context", {})
+    shared = _keyfile_list(context.get("shared", ""))
+    sockets = _keyfile_list(context.get("sockets", ""))
+    devices = _keyfile_list(context.get("devices", ""))
+    features = _keyfile_list(context.get("features", ""))
+    filesystems = {entry.split(":", 1)[0].rstrip("/")
+                   for entry in _keyfile_list(context.get("filesystems", ""))
+                   if not entry.startswith("!")}
+    host = "host" in filesystems
+    home = host or "home" in filesystems or "~" in filesystems
+    return {
+        "network": "network" in shared,
+        "files-home": home,
+        "files-all": host,
+        "downloads": home or "xdg-download" in filesystems,
+        "devices": "all" in devices,
+        "sound": "pulseaudio" in sockets,
+        "bluetooth": "bluetooth" in features,
+        "host-commands": groups.get("Session Bus Policy", {}).get("org.freedesktop.Flatpak") == "talk",
+        "x11": "x11" in sockets,
+        "wayland": "wayland" in sockets,
+    }
+
+
+def flatpak_permission_rows(effective: str, background: str | None) -> list[dict[str, Any]]:
+    """The permissions document's rows for a Flatpak app.
+
+    A toggle is not changeable when a broader grant already includes it: the home folder while
+    every file is shared, Downloads while the home folder is. `background` is the portal's
+    answer ("yes"/"no"/"ask") or None when the person was never asked, which lets the app run
+    in the background and tells the person when it does.
+    """
+    grants = flatpak_grants(effective)
+    granted_home = grants["files-home"]
+    rows = []
+    for key in FLATPAK_PERMISSION_KEYS:
+        if key == "background":
+            state = "deny" if background == "no" else "allow"
+            changeable = True
+        else:
+            state = "allow" if grants[key] else "deny"
+            changeable = not ((key == "files-home" and grants["files-all"])
+                              or (key == "downloads" and granted_home))
+        rows.append({"key": key, "state": state, "changeable": changeable})
+    return rows
+
+
+def background_answer(permission_show: str, app_id: str) -> str | None:
+    """The background portal's stored answer for `app_id` in `flatpak permission-show` output."""
+    for line in permission_show.splitlines():
+        fields = line.split("\t")
+        if len(fields) >= 4 and fields[:3] == ["background", "background", app_id]:
+            return fields[3].split(",")[0].strip() or None
+    return None
+
+
+def ref_facts(metadata: str, download: int, installed: int, eol: str | None,
+              eol_rebase: str | None) -> dict[str, Any]:
+    """One Flathub app's facts for facts.json, from its cached remote metadata."""
+    grants = flatpak_grants(metadata)
+    return {
+        "download": int(download or 0),
+        "installed": int(installed or 0),
+        "eol": display_text(eol, 300) or None,
+        "eol_rebase": eol_rebase if eol_rebase and validate_flatpak_id(eol_rebase) else None,
+        "permissions": [key for key in FACT_PERMISSION_KEYS if grants[key]],
+        "x11_only": grants["x11"] and not grants["wayland"],
+        "extra_data": "Extra Data" in parse_keyfile(metadata),
+    }
 
 
 class TransactionEvents:
@@ -1195,6 +1590,56 @@ class FlatpakAdapter:
             watcher_stop.set()
             watcher.join(timeout=1)
 
+    def remote_facts(self) -> dict[str, dict[str, Any]]:
+        """Offline facts for every Flathub app: sizes, end of life and what it may do.
+
+        Read-only and network-free: ONLY_CACHED reads the summary the installation already
+        has. Only the verified Flathub remotes are read; the person's own installation wins
+        where both list an app, and the stable branch wins over others.
+        """
+        facts: dict[str, dict[str, Any]] = {}
+        arch = self.Flatpak.get_default_arch()
+        trusted = False
+        for installation in (self.user, self.system):
+            try:
+                remotes = list(installation.list_remotes(None))
+            except Exception:
+                continue
+            for remote in remotes:
+                if not self._official_remote(remote):
+                    continue
+                trusted = True
+                try:
+                    refs = installation.list_remote_refs_sync_full(
+                        remote.get_name(), self.Flatpak.QueryFlags.ONLY_CACHED, None)
+                except Exception:
+                    continue
+                chosen: dict[str, Any] = {}
+                for ref in refs:
+                    try:
+                        if ref.get_kind() != self.Flatpak.RefKind.APP or ref.get_arch() != arch:
+                            continue
+                        name = ref.get_name()
+                        branch = ref.get_branch()
+                    except Exception:
+                        continue
+                    if name in facts or not validate_flatpak_id(name):
+                        continue
+                    current = chosen.get(name)
+                    if current is None or (branch == "stable" and current.get_branch() != "stable"):
+                        chosen[name] = ref
+                for name, ref in chosen.items():
+                    try:
+                        metadata = ref.get_metadata()
+                        text = bytes(metadata.get_data()).decode("utf-8", "replace") if metadata else ""
+                        facts[name] = ref_facts(text, ref.get_download_size(), ref.get_installed_size(),
+                                                ref.get_eol(), ref.get_eol_rebase())
+                    except Exception:
+                        continue
+        if not trusted:
+            raise StoreError("No verified app source is configured")
+        return facts
+
     def launch(self, app_id: str) -> None:
         installation = self.user if self.is_user_installed(app_id) else self.system
         try:
@@ -1221,12 +1666,15 @@ class Controller:
         adapter_factory: Callable[[], Any] = FlatpakAdapter,
         runner: CommandRunner | None = None,
         catalog_path: Path = DEFAULT_CATALOG,
+        opener: Any | None = None,
     ):
         self.store = store
         self.adapter_factory = adapter_factory
         self.runner = runner or CommandRunner()
         self.catalog_path = catalog_path
         self._adapter: Any | None = None
+        # The HTTPS opener for pinned downloads; tests hand in one that trusts their own server.
+        self.opener = opener
 
     @property
     def adapter(self) -> Any:
@@ -1254,18 +1702,56 @@ class Controller:
             "progress": None,
             "current_id": None,
             "message": "Another Mo Store operation is already running",
+            "message_key": "busy",
             "items": [
                 {
                     "id": item_id,
-                    "state": "queued",
+                    "state": "skipped",
                     "progress": None,
-                    "message": "Waiting for the active job",
+                    "message": "Another Mo Store operation is already running",
+                    "message_key": "busy",
                 }
                 for item_id in item_ids
             ],
             "started_at": now,
             "updated_at": now,
         }
+
+    def _refuse_busy(self, action: str, item_ids: Sequence[str]) -> tuple[int, dict[str, Any]]:
+        """Busy is an answer too: publish it where the window looks, unless that is a live job."""
+        document = self._busy_document(action, item_ids)
+        publish_refusal(self.store, document)
+        return 75, document
+
+    @staticmethod
+    def _library(name: str) -> Any:
+        import importlib
+        library = str(Path(__file__).resolve().parent.parent / "lib/moos")
+        if library not in sys.path:
+            sys.path.insert(0, library)
+        return importlib.import_module(name)
+
+    @classmethod
+    def _webapp_policy(cls) -> Any:
+        return cls._library("moos_webapp_policy")
+
+    @staticmethod
+    def _app_engine() -> Any:
+        """moos-app-engine's PE reader: one reading of a Windows header for the whole system."""
+        name = "moos_app_engine_for_storectl"
+        loaded = sys.modules.get(name)
+        if loaded is None:
+            import importlib.machinery
+            import importlib.util
+            path = Path(__file__).resolve().parent.parent / "libexec/moos-app-engine"
+            loader = importlib.machinery.SourceFileLoader(name, str(path))
+            spec = importlib.util.spec_from_loader(name, loader)
+            if spec is None:
+                raise StoreError("The Windows program reader is unavailable")
+            loaded = importlib.util.module_from_spec(spec)
+            loader.exec_module(loaded)
+            sys.modules[name] = loaded
+        return loaded
 
     def _catalog(self) -> dict[str, dict[str, Any]]:
         try:
@@ -1440,22 +1926,570 @@ class Controller:
         message = "Opened the official download page"
         if note:
             message += f" ({note})"
-        job.update_item(app_id, state="opened", progress=100, message=message, message_key=None)
+        # Opened, never installed: nothing of this app is on the machine until the person installs
+        # it from the publisher's page, so the item says "opened" in either language.
+        job.update_item(app_id, state="opened", progress=100, message=message, message_key="opened")
         job.update(
             state="running", current_id=app_id, message=message,
             message_key=None,
         )
+
+    # ── Pinned downloads: one helper for every kind that fetches a file ────────────────────────
+    def _download_progress(self, job: Job, item_id: str, downloaded: int, size: int | None,
+                           message: str, message_key: str) -> None:
+        percent = min(99, int(downloaded * 100 / size)) if size else None
+        job.update_item(item_id, state="running", progress=percent, message=message,
+                        message_key=message_key)
+        job.update(state="running", progress=percent, current_id=item_id, message=message,
+                   message_key=message_key)
+
+    def _download_pinned(self, job: Job, item_id: str, pin: PinnedArtifact, *, kind: str,
+                         message: str, message_key: str) -> Path:
+        """Fetch a pinned artifact from its publisher and return the verified file on disk.
+
+        Refused: a Content-Length or a body larger than the pinned size, a body of any other
+        size, a digest that differs, and any redirect hop that is not HTTPS. Checked for
+        cancellation between blocks, which also keeps the job's heartbeat. The caller deletes
+        the file once it has been handed on.
+        """
+        directory = downloads_dir()
+        directory.mkdir(mode=0o700, parents=True, exist_ok=True)
+        limit = pin.size if pin.size is not None else UNSIZED_DOWNLOAD_CAP
+        fd, partial_name = tempfile.mkstemp(prefix=f".{item_id}.", suffix=".part", dir=directory)
+        partial = Path(partial_name)
+        hasher = hashlib.sha256()
+        downloaded = 0
+        opener = self.opener or build_opener()
+        try:
+            request = urllib.request.Request(
+                pin.url, headers={"User-Agent": "MoOS-Store/1"}, method="GET"
+            )
+            try:
+                with os.fdopen(fd, "wb") as output, opener.open(request, timeout=30) as response:
+                    if not _https_url_ok(response.geturl()):
+                        raise StoreError("The download was redirected to an address that is not secure")
+                    declared = (response.headers.get("Content-Length") or "").strip()
+                    if declared.isdigit() and int(declared) > limit:
+                        raise StoreError("The download is larger than the catalogue says it is")
+                    self._download_progress(job, item_id, 0, pin.size, message, message_key)
+                    reader = getattr(response, "read1", None) or response.read
+                    last = -1
+                    while True:
+                        if self._cancelled(job):
+                            raise CancelledError("Cancelled")
+                        block = reader(DOWNLOAD_BLOCK)
+                        if not block:
+                            break
+                        downloaded += len(block)
+                        if downloaded > limit:
+                            raise StoreError("The download is larger than the catalogue says it is")
+                        output.write(block)
+                        hasher.update(block)
+                        step = int(downloaded * 100 / pin.size) if pin.size else downloaded >> 24
+                        if step != last:
+                            last = step
+                            self._download_progress(job, item_id, downloaded, pin.size, message,
+                                                    message_key)
+                    output.flush()
+                    os.fsync(output.fileno())
+            except (StoreError, CancelledError):
+                raise
+            except (OSError, ValueError, http.client.HTTPException) as error:
+                # URLError, HTTPError, timeouts and TLS failures are OSErrors; a connection that
+                # ends early is an IncompleteRead.
+                raise StoreError(f"Download failed: {clean_message(error, 300)}") from error
+            if pin.size is not None and downloaded != pin.size:
+                raise StoreError(
+                    f"The download is {downloaded} bytes; the catalogue pins {pin.size}"
+                )
+            if hasher.hexdigest() != pin.sha256:
+                raise StoreError("SHA-256 verification failed")
+            with partial.open("rb") as handle:
+                head = handle.read(600)
+            final = directory / f"{item_id}{file_suffix(head, kind)}"
+            os.chmod(partial, 0o600)
+            os.replace(partial, final)
+            return final
+        except BaseException:
+            with contextlib.suppress(FileNotFoundError):
+                partial.unlink()
+            raise
+
+    @staticmethod
+    def _recipe_version(app_id: str, install: dict[str, Any], *, required: bool = True) -> str:
+        version = install.get("version")
+        if version is None and not required:
+            return ""
+        if not isinstance(version, str) or not _VERSION_RE.fullmatch(version):
+            raise StoreError(f"Catalog has an invalid version for {app_id}")
+        return version
+
+    @staticmethod
+    def _menu_categories(app_id: str, install: dict[str, Any], allowed: Iterable[str]) -> list[str]:
+        value = install.get("categories")
+        if value is None:
+            return []
+        allowed = set(allowed)
+        if (not isinstance(value, list) or not value or len(value) > 8
+                or any(not isinstance(item, str) or item not in allowed for item in value)):
+            raise StoreError(f"Catalog has invalid menu categories for {app_id}")
+        return list(value)
+
+    # ── App Drop: a pinned AppImage or archive from the catalogue ──────────────────────────────
+    def _appdrop_progress(self, job: Job, item_id: str) -> Callable[[str, int | None], None]:
+        def stage(percent: int | None, message: str, message_key: str) -> None:
+            job.update_item(item_id, state="running", progress=percent,
+                            message=message, message_key=message_key)
+            job.update(state="running", progress=percent, current_id=item_id,
+                       message=message, message_key=message_key)
+
+        def progress(name: str, percent: int | None) -> None:
+            # Literal keys, so tests/test_store_job_language.py can hold the UI to them.
+            if name == "inspecting_file":
+                stage(percent, "Reading the file", message_key="inspecting_file")
+            elif name == "extracting_file":
+                stage(percent, "Unpacking the application", message_key="extracting_file")
+            else:
+                stage(percent, "Adding it to the launcher", message_key="integrating_app")
+
+        return progress
+
+    def _appdrop_pins(self, app_id: str, recipe: dict[str, Any]) -> dict[str, Any]:
+        """The launcher facts a reviewed recipe states, each checked before App Drop sees it."""
+        appdrop = self._appdrop()
+        install = recipe.get("install") or {}
+        pinned: dict[str, Any] = {
+            "name": display_text(recipe.get("en"), 80) or app_id,
+            "name_ar": display_text(recipe.get("ar"), 80),
+        }
+        for key in ("exec", "icon"):
+            if key in install:
+                if _relative_inside(install[key]) is None:
+                    raise StoreError(f"Catalog has an invalid {key} path for {app_id}")
+                pinned[key] = install[key]
+        if "wm_class" in install:
+            value = install["wm_class"]
+            if not isinstance(value, str) or not _WM_CLASS_RE.fullmatch(value):
+                raise StoreError(f"Catalog has an invalid window class for {app_id}")
+            pinned["wm_class"] = value
+        if "desktop_id" in install:
+            value = install["desktop_id"]
+            if not isinstance(value, str) or len(value) > 200 or not appdrop.DESKTOP_ID.fullmatch(value):
+                raise StoreError(f"Catalog has an invalid desktop id for {app_id}")
+            pinned["desktop_id"] = value
+        categories = self._menu_categories(app_id, install, appdrop.MAIN_CATEGORIES)
+        if categories:
+            pinned["categories"] = categories
+        return pinned
+
+    def _install_appdrop(self, job: Job, app_id: str, recipe: dict[str, Any]) -> None:
+        """Download the pinned file, then let App Drop install it under the catalogue's id.
+
+        One job and one lock, like any other install. App Drop extracts it (an AppImage only
+        inside its sandbox), writes the launcher and the record, and swaps an update in only
+        once the new version is complete.
+        """
+        install = recipe.get("install")
+        if not isinstance(install, dict):
+            raise StoreError(f"Catalog has no App Drop recipe for {app_id}")
+        note = self._review_note(recipe)
+        if install.get("external") is not True:
+            raise StoreError(f"External download metadata is missing for {app_id}")
+        artifact = install.get("artifact")
+        if artifact not in ("appimage", "archive"):
+            raise StoreError(f"Catalog has an invalid artifact for {app_id}")
+        appdrop = self._appdrop()
+        if not appdrop.SLUG.fullmatch(app_id):
+            raise StoreError(f"Invalid app ID: {app_id}", message_key="invalid_id")
+        version = self._recipe_version(app_id, install)
+        pin = pinned_artifact(app_id, install)
+        pinned = self._appdrop_pins(app_id, recipe)
+        download = self._download_pinned(job, app_id, pin, kind=artifact,
+                                         message="Downloading a verified file",
+                                         message_key="downloading_file")
+        try:
+            try:
+                plan = appdrop.plan_for(download, pinned["name"], app_id)
+                if plan.kind != artifact:
+                    raise StoreError(f"The download for {app_id} is not the kind of file the catalogue names")
+                appdrop.install(plan, progress=self._appdrop_progress(job, app_id),
+                                cancelled=lambda: self._cancelled(job), pinned=pinned,
+                                record_extra={"catalog_id": app_id, "version": version, "url": pin.url})
+            except appdrop.DropError as failure:
+                if failure.code == "cancelled":
+                    raise CancelledError("Cancelled") from failure
+                raise StoreError(f"{failure.code}: {failure.detail or failure.code}") from failure
+        finally:
+            with contextlib.suppress(FileNotFoundError):
+                download.unlink()
+        job.update_item(app_id, state="done", progress=100, message=f"Installed ({note})",
+                        message_key="installed")
+
+    # ── Web apps: a website as an app, drawn by moos-webapp ────────────────────────────────────
+    def _webapp(self, app_id: str, recipe: dict[str, Any]) -> Any:
+        policy = self._webapp_policy()
+        try:
+            return policy.parse_entry(recipe)
+        except policy.WebAppError as error:
+            raise StoreError(f"Catalog web app {app_id} is invalid: {error.code}") from error
+
+    def _install_webapp(self, job: Job, app_id: str, recipe: dict[str, Any]) -> None:
+        self._review_note(recipe)
+        app = self._webapp(app_id, recipe)
+        job.update_item(app_id, state="running", progress=None,
+                        message="Adding it to the launcher", message_key="integrating_app")
+        job.update(state="running", progress=None, current_id=app_id,
+                   message="Adding it to the launcher", message_key="integrating_app")
+        self._webapp_policy().install(app)
+        self._appdrop().refresh_menu()
+        job.update_item(app_id, state="done", progress=100, message="Installed",
+                        message_key="installed")
+
+    # ── Windows programs: a pinned portable 64-bit program with its own prefix ─────────────────
+    @staticmethod
+    def _wine_argv(prefix: Path, command: Sequence[str], *, seconds: int = 300) -> list[str]:
+        """A Windows-runtime command that cannot open a window.
+
+        A clean environment: no display, no compositor socket and no session bus, so neither
+        graphics driver can connect, and both are disabled as well. The person's language
+        passes through, because a new prefix takes its locale from it.
+        """
+        user = pwd.getpwuid(os.getuid()).pw_name
+        environment = [
+            f"HOME={Path.home()}", "PATH=/usr/bin:/bin", f"USER={user}", f"LOGNAME={user}",
+            f"WINEPREFIX={prefix}",
+            f"WINEDLLOVERRIDES={WINE_OVERRIDES};winex11.drv,winewayland.drv=d",
+            "WINEDEBUG=-all", "DBUS_SESSION_BUS_ADDRESS=unix:path=/nonexistent",
+        ]
+        for name in ("LANG", "LC_ALL", "LC_CTYPE", "LC_MESSAGES"):
+            value = os.environ.get(name, "")
+            if value and re.fullmatch(r"[A-Za-z0-9_.@-]{1,64}", value):
+                environment.append(f"{name}={value}")
+        return [TIMEOUT_TOOL, "--kill-after=10", str(seconds), ENV_TOOL, "-i", *environment,
+                *command]
+
+    def _display_dpi(self) -> int:
+        """The desktop density, clamped like moos-run-foreign's wine_display_dpi: 96..192."""
+        result = self.runner.capture([XRDB, "-query"], timeout=10) if Path(XRDB).is_file() else None
+        dpi = 96.0
+        if result is not None and result.returncode == 0:
+            for line in result.output.splitlines():
+                fields = line.split()
+                if len(fields) >= 2 and fields[0] == "Xft.dpi:":
+                    with contextlib.suppress(ValueError):
+                        dpi = float(fields[1])
+                    break
+        return int(f"{min(192.0, max(96.0, dpi)):.0f}")
+
+    def _run_step(self, job: Job, argv: Sequence[str], failure: str) -> None:
+        result = self.runner.run_cancellable(argv, lambda: self._cancelled(job))
+        if result.cancelled:
+            raise CancelledError("Cancelled")
+        if result.returncode:
+            raise StoreError(f"{failure}: {result.reason}" if result.reason else failure)
+
+    def _init_windows_prefix(self, job: Job, paths: WindowsPaths) -> None:
+        """Create the program's own prefix, headless, then give it the desktop's density."""
+        paths.prefix.mkdir(mode=0o700, parents=True, exist_ok=True)
+        job.update_item(paths.base.name, state="running", progress=None,
+                        message="Preparing the Windows program", message_key="preparing_windows")
+        job.update(state="running", progress=None, current_id=paths.base.name,
+                   message="Preparing the Windows program", message_key="preparing_windows")
+        self._run_step(job, self._wine_argv(paths.prefix, [WINE, "wineboot", "--init"]),
+                       "The Windows program's settings folder could not be prepared")
+        dpi = self._display_dpi()
+        self._run_step(job, self._wine_argv(paths.prefix, [
+            WINE, "reg", "add", "HKCU\\Control Panel\\Desktop", "/v", "LogPixels",
+            "/t", "REG_DWORD", "/d", str(dpi), "/f"], seconds=120),
+            "The Windows program's display density could not be set")
+        # The registry reaches the disk when the runtime's server stops; wait for that.
+        self._run_step(job, self._wine_argv(paths.prefix, [WINESERVER, "--wait"], seconds=120),
+                       "The Windows program's settings folder did not finish")
+        if not (paths.prefix / "system.reg").is_file():
+            raise StoreError("The Windows program's settings folder could not be prepared")
+        # moos-run-foreign --app re-applies the density only when it changes.
+        paths.state.mkdir(mode=0o700, parents=True, exist_ok=True)
+        (paths.state / "windows-dpi").write_text(f"{dpi}\n", encoding="utf-8")
+
+    def _stop_windows_prefix(self, job: Job | None, paths: WindowsPaths) -> None:
+        """End every Windows process of this one program, so its folders can be removed."""
+        if not paths.prefix.is_dir() or paths.prefix.is_symlink() or not Path(WINESERVER).is_file():
+            return
+        result = self.runner.run_cancellable(
+            self._wine_argv(paths.prefix, [WINESERVER, "--kill"], seconds=30),
+            (lambda: self._cancelled(job)) if job is not None else (lambda: False))
+        if result.cancelled:
+            raise CancelledError("Cancelled")
+        # A non-zero answer here only says that nothing was running.
+
+    def _windows_icon(self, program: Path, destination: Path, work_parent: Path) -> bool:
+        """The program's own icon as a PNG, read inside the sandbox; False when there is none."""
+        appdrop = self._appdrop()
+        if not all(Path(tool).is_file() for tool in (appdrop.BWRAP, WRESTOOL, ICOTOOL)):
+            return False
+        with tempfile.TemporaryDirectory(prefix=".icon.", dir=work_parent) as raw:
+            work = Path(raw)
+            groups = work / "groups"
+            images = work / "images"
+            groups.mkdir()
+            images.mkdir()
+            self.runner.capture(appdrop.tool_sandbox_argv(
+                {"app.exe": program}, groups,
+                [WRESTOOL, "--extract", "--type=14", "--output=/out", "/in/app.exe"]), timeout=60)
+
+            def order(path: Path) -> tuple[int, Any]:
+                # Windows shows the first icon group: named entries, then numeric ids, ascending.
+                match = re.search(r"_14_([^_]+)(?:_\d+)?\.ico$", path.name)
+                name = match.group(1) if match else path.name
+                return (1, int(name)) if name.isdigit() else (0, name.upper())
+
+            found = sorted((p for p in groups.iterdir()
+                            if p.suffix.lower() == ".ico" and p.is_file() and not p.is_symlink()),
+                           key=order)
+            if not found:
+                return False
+            self.runner.capture(appdrop.tool_sandbox_argv(
+                {"icon.ico": found[0]}, images,
+                [ICOTOOL, "--extract", "--output=/out", "/in/icon.ico"]), timeout=60)
+            best: Path | None = None
+            best_area = 0
+            for image in images.iterdir():
+                if image.is_symlink() or not image.is_file() or image.stat().st_size > 4 * 1024 * 1024:
+                    continue
+                with image.open("rb") as handle:
+                    head = handle.read(24)
+                if head[:8] != b"\x89PNG\r\n\x1a\n" or head[12:16] != b"IHDR":
+                    continue
+                width, height = int.from_bytes(head[16:20], "big"), int.from_bytes(head[20:24], "big")
+                if 0 < width <= 1024 and 0 < height <= 1024 and width * height > best_area:
+                    best, best_area = image, width * height
+            if best is None:
+                return False
+            temporary = destination.with_name(f".{destination.name}.new")
+            shutil.copyfile(best, temporary)
+            os.chmod(temporary, 0o644)
+            os.replace(temporary, destination)
+            return True
+
+    @staticmethod
+    def _windows_launcher(app_id: str, name_en: str, name_ar: str, icon: str, wm_class: str,
+                          categories: Sequence[str]) -> str:
+        lines = ["[Desktop Entry]", "Type=Application", f"Name={desktop_value(name_en)}"]
+        if name_ar:
+            lines.append(f"Name[ar]={desktop_value(name_ar)}")
+        lines += [
+            f"Exec={RUN_FOREIGN} --app {app_id}",
+            f"TryExec={RUN_FOREIGN}",
+            f"Icon={desktop_value(icon)}",
+            "Terminal=false",
+            "Categories=" + ";".join(categories or ["Utility"]) + ";",
+            f"StartupWMClass={wm_class}",
+            "StartupNotify=true",
+            f"X-MoOS-WindowsApp={app_id}",
+            "",
+        ]
+        return "\n".join(lines)
+
+    def _install_windows_portable(self, job: Job, app_id: str, recipe: dict[str, Any]) -> None:
+        """A portable 64-bit Windows program: its own folder, its own prefix, a MoOS launcher.
+
+        ~/.local/share/moos/windows-apps/<id>/{app,prefix,icon.png}, a record beside it and
+        org.moos.windows.<id>.desktop, whose only instruction is `moos-run-foreign --app <id>`.
+        The prefix is created once, without a display, and kept across updates.
+        """
+        install = recipe.get("install")
+        if not isinstance(install, dict):
+            raise StoreError(f"Catalog has no Windows program recipe for {app_id}")
+        note = self._review_note(recipe)
+        if install.get("external") is not True:
+            raise StoreError(f"External download metadata is missing for {app_id}")
+        if running_arch() != "x86_64":
+            raise StoreError("Windows programs run on 64-bit PC (x86_64) computers only",
+                             message_key="unsupported_arch")
+        program_path = _relative_inside(install.get("exe"))
+        if program_path is None or not program_path.lower().endswith(".exe"):
+            raise StoreError(f"Catalog has an invalid program path for {app_id}")
+        version = self._recipe_version(app_id, install)
+        wm_class = install.get("wm_class", PurePosixPath(program_path).name.lower())
+        if not isinstance(wm_class, str) or not _WM_CLASS_RE.fullmatch(wm_class):
+            raise StoreError(f"Catalog has an invalid window class for {app_id}")
+        appdrop = self._appdrop()
+        categories = self._menu_categories(app_id, install, appdrop.MAIN_CATEGORIES)
+        if not all(Path(tool).is_file() for tool in (WINE, WINESERVER, TIMEOUT_TOOL, ENV_TOOL)):
+            raise StoreError("This MoOS edition cannot run Windows programs")
+        pin = pinned_artifact(app_id, install)
+        paths = windows_paths(app_id)
+        for owned in (paths.base, paths.app, paths.prefix):
+            if owned.is_symlink():
+                raise StoreError(f"{owned.name} is a link; Mo Store does not install through links")
+        had_record = paths.record.is_file()
+        fresh_prefix = not (paths.prefix / "system.reg").is_file()
+        created_base = not paths.base.exists()
+        download = self._download_pinned(job, app_id, pin, kind="windows",
+                                         message="Downloading a verified file",
+                                         message_key="downloading_file")
+        staging = paths.base / ".app.installing"
+        previous = paths.base / ".app.previous"
+        swapped = committed = False
+        try:
+            paths.base.mkdir(mode=0o700, parents=True, exist_ok=True)
+            _remove_tree(staging)
+            staging.mkdir(mode=0o755)
+            self._appdrop_progress(job, app_id)("extracting_file", None)
+            with download.open("rb") as handle:
+                head = handle.read(8)
+            if head[:4] == b"PK\x03\x04":
+                budget = appdrop._Budget(download.stat().st_size, lambda: self._cancelled(job),
+                                         lambda _done: None)
+                try:
+                    appdrop.extract_zip(download, staging, budget)
+                except appdrop.DropError as failure:
+                    if failure.code == "cancelled":
+                        raise CancelledError("Cancelled") from failure
+                    raise StoreError(f"{failure.code}: {failure.detail or failure.code}") from failure
+                except (zipfile.BadZipFile, EOFError) as error:
+                    raise StoreError(f"The download for {app_id} is not a valid archive") from error
+            elif head[:2] == b"MZ":
+                if "/" in program_path:
+                    raise StoreError(f"Catalog names a folder inside a single program for {app_id}")
+                shutil.copyfile(download, staging / program_path)
+            else:
+                raise StoreError(f"The download for {app_id} is not a Windows program")
+            try:
+                program = (staging / program_path).resolve(strict=True)
+                program.relative_to(staging.resolve())
+            except (OSError, ValueError) as error:
+                raise StoreError(f"The catalogue's program {program_path} is not in the download") from error
+            if not program.is_file():
+                raise StoreError(f"The catalogue's program {program_path} is not in the download")
+            architecture = self._app_engine().pe_architecture(program)
+            if architecture == "x86":
+                raise StoreError(
+                    "This is a 32-bit Windows program; Mo Store installs 64-bit Windows programs",
+                    message_key="windows_legacy_program")
+            if architecture != "x86_64":
+                raise StoreError(f"{program_path} is not a 64-bit Windows program")
+            if fresh_prefix:
+                self._init_windows_prefix(job, paths)
+            self._appdrop_progress(job, app_id)("integrating_app", None)
+            try:
+                has_icon = self._windows_icon(program, paths.icon, paths.base)
+            except (OSError, StoreError):
+                has_icon = False                         # an icon is cosmetic; the glyph stands in
+            has_icon = has_icon or paths.icon.is_file()
+            _remove_tree(previous)
+            if paths.app.exists():
+                paths.app.rename(previous)
+            staging.rename(paths.app)
+            swapped = True
+            launcher = self._windows_launcher(
+                app_id, display_text(recipe.get("en"), 80) or app_id,
+                display_text(recipe.get("ar"), 80),
+                str(paths.icon) if has_icon else WINDOWS_FALLBACK_ICON, wm_class, categories)
+            _atomic_bytes(paths.launcher, launcher.encode("utf-8"), 0o644, private_parent=False)
+            _write_json(paths.record, {
+                "schema": 1, "id": app_id, "name": display_text(recipe.get("en"), 80) or app_id,
+                "version": version, "sha256": pin.sha256, "url": pin.url, "exe": program_path,
+                "wm_class": wm_class, "launcher": paths.launcher.name,
+                "installed_at": int(time.time()),
+            })
+            committed = True
+            with contextlib.suppress(OSError):
+                _remove_tree(previous)
+            appdrop.refresh_menu()
+        except BaseException:
+            with contextlib.suppress(OSError):
+                _remove_tree(staging)
+            if not committed:
+                if swapped:
+                    with contextlib.suppress(OSError):
+                        _remove_tree(paths.app)
+                        if previous.exists():
+                            previous.rename(paths.app)
+                if not had_record:
+                    # A first install that did not finish leaves nothing of itself behind.
+                    with contextlib.suppress(Exception):
+                        self._stop_windows_prefix(None, paths)
+                    with contextlib.suppress(OSError):
+                        if created_base:
+                            _remove_tree(paths.base)
+                        elif fresh_prefix:
+                            _remove_tree(paths.prefix)
+                        if self._windows_launcher_is_ours(paths, app_id):
+                            paths.launcher.unlink()
+                        if fresh_prefix:
+                            _remove_tree(paths.state)
+            raise
+        finally:
+            with contextlib.suppress(FileNotFoundError):
+                download.unlink()
+        job.update_item(app_id, state="done", progress=100, message=f"Installed ({note})",
+                        message_key="installed")
+
+    @staticmethod
+    def _windows_launcher_is_ours(paths: WindowsPaths, app_id: str) -> bool:
+        if paths.launcher.is_symlink() or not paths.launcher.is_file():
+            return False
+        try:
+            text = paths.launcher.read_text(encoding="utf-8", errors="replace")
+        except OSError:
+            return False
+        return f"X-MoOS-WindowsApp={app_id}" in text.splitlines()
+
+    def _remove_windows(self, job: Job, app_id: str, delete_data: bool) -> None:
+        paths = windows_paths(app_id)
+        if not (paths.record.is_file() or paths.base.exists() or self._windows_launcher_is_ours(paths, app_id)):
+            job.update_item(app_id, state="skipped", progress=100, message="App is not installed",
+                            message_key="not_installed")
+            return
+        job.update_item(app_id, state="running", progress=None,
+                        message="Removing application", message_key=None)
+        job.update(state="running", progress=None, current_id=app_id,
+                   message="Removing application", message_key=None)
+        self._stop_windows_prefix(job, paths)
+        # The program, its prefix (its settings and registry) and MoOS's own traces of it.
+        _remove_tree(paths.base)
+        if self._windows_launcher_is_ours(paths, app_id):
+            paths.launcher.unlink()
+        paths.record.unlink(missing_ok=True)
+        _remove_tree(paths.state)
+        paths.log.unlink(missing_ok=True)
+        self._appdrop().refresh_menu()
+        if delete_data:
+            job.update_item(app_id, state="done", progress=100, message="Removed with its data",
+                            message_key="removed_with_data")
+        else:
+            job.update_item(app_id, state="done", progress=100, message="Removed",
+                            message_key="removed")
+
+    # ── Android ─────────────────────────────────────────────────────────────────────────────────
+    def _android_packages(self) -> set[str] | None:
+        """The packages the Android container reports, or None when it could not say."""
+        result = self.runner.capture([WAYDROID, "app", "list"], timeout=60)
+        if result.returncode:
+            return None
+        return set(re.findall(
+            r"(?m)^\s*packageName:\s*([A-Za-z][A-Za-z0-9_]*(?:\.[A-Za-z][A-Za-z0-9_]*)+)\s*$",
+            result.output))
+
+    @staticmethod
+    def _write_android_record(package: str, *, sha256: str, source: str, catalog_id: str = "",
+                              version: str = "", file_name: str = "") -> None:
+        _write_json(android_record_path(package), {
+            "schema": 1, "id": package, "package": package, "catalog_id": catalog_id,
+            "version": version, "sha256": sha256, "source": source, "file": file_name,
+            "installed_at": int(time.time()),
+        })
 
     def _install_pinned_android(
         self, job: Job, app_id: str, recipe: dict[str, Any]
     ) -> None:
         """An Android app from the catalogue: pinned URL, verified digest, one job.
 
-        Deliberately the same shape as the AppImage path above, because the risk is
-        the same: MoOS is fetching a binary from the internet and then running it.
-        https only, no credentials in the URL, no insecure redirect, and a SHA-256
-        that must match before anything is handed to the container. A catalogue
-        entry that is not pinned is refused rather than downloaded.
+        The same shape as every pinned kind, because the risk is the same: MoOS is fetching a
+        binary from the internet and then running it. https only, no credentials in the URL,
+        no insecure redirect hop, a size cap, and a SHA-256 that must match before anything is
+        handed to the container. A catalogue entry that is not pinned is refused.
 
         The Android runtime must already be ready. The store does not silently pull
         a ~1 GB system image behind an install button: `moos-app-engine` reports
@@ -1467,69 +2501,20 @@ class Controller:
         note = self._review_note(recipe)
         if install.get("external") is not True:
             raise StoreError(f"External download metadata is missing for {app_id}")
-        url = install.get("url")
-        digest = install.get("sha256")
         package = self._android_package(app_id, recipe)
-        parsed = urllib.parse.urlsplit(url) if isinstance(url, str) else None
-        if (
-            not isinstance(url, str)
-            or parsed is None
-            or parsed.scheme != "https"
-            or not parsed.hostname
-            or parsed.username is not None
-            or parsed.password is not None
-            or not isinstance(digest, str)
-            or not _SHA256_RE.fullmatch(digest)
-        ):
-            raise StoreError(
-                f"Android recipe for {app_id} is not pinned to a valid SHA-256"
-            )
+        pin = pinned_artifact(app_id, install, size_required=False)
+        version = self._recipe_version(app_id, install, required=False)
         self._ensure_android_session(job)
-        fd, temporary_name = tempfile.mkstemp(prefix=f".{package}.", suffix=".apk")
-        temporary = Path(temporary_name)
-        hasher = hashlib.sha256()
+        download = self._download_pinned(job, app_id, pin, kind="android",
+                                         message="Downloading verified app",
+                                         message_key="downloading_android")
         try:
-            request = urllib.request.Request(
-                url, headers={"User-Agent": "MoOS-Store/1"}, method="GET"
-            )
-            with os.fdopen(fd, "wb") as output, urllib.request.urlopen(
-                request, timeout=30
-            ) as response:
-                if urllib.parse.urlsplit(response.geturl()).scheme != "https":
-                    raise StoreError("Android download used an insecure redirect")
-                total = response.headers.get("Content-Length")
-                total_bytes = int(total) if total and total.isdigit() else 0
-                downloaded = 0
-                while True:
-                    if self._cancelled(job):
-                        raise CancelledError("Cancelled")
-                    block = response.read(1024 * 1024)
-                    if not block:
-                        break
-                    output.write(block)
-                    hasher.update(block)
-                    downloaded += len(block)
-                    percent = (
-                        min(99, int(downloaded * 100 / total_bytes))
-                        if total_bytes
-                        else None
-                    )
-                    job.update_item(
-                        app_id,
-                        state="running",
-                        progress=percent,
-                        message="Downloading verified app", message_key="downloading_android",
-                    )
-                output.flush()
-                os.fsync(output.fileno())
-            if hasher.hexdigest().lower() != digest.lower():
-                raise StoreError("Android app SHA-256 verification failed")
             job.update_item(
                 app_id, state="running", progress=None,
                 message="Installing application", message_key="integrating_app",
             )
             result = self.runner.run_cancellable(
-                [WAYDROID, "app", "install", str(temporary)],
+                [WAYDROID, "app", "install", str(download)],
                 lambda: self._cancelled(job),
             )
             if result.cancelled:
@@ -1538,103 +2523,15 @@ class Controller:
                 r"\b(?:error|failed)\b", result.reason, re.IGNORECASE
             ):
                 raise StoreError(result.reason or "Android installation failed")
+            self._write_android_record(package, sha256=pin.sha256, source="catalog",
+                                       catalog_id=app_id, version=version)
             job.update_item(
                 app_id, state="done", progress=100,
-                message=f"Installed ({note})", message_key=None,
+                message=f"Installed ({note})", message_key="installed",
             )
         finally:
             with contextlib.suppress(FileNotFoundError):
-                temporary.unlink()
-
-    def _install_pinned_appimage(
-        self, job: Job, app_id: str, recipe: dict[str, Any]
-    ) -> None:
-        install = recipe.get("install")
-        if not isinstance(install, dict):
-            raise StoreError(f"Catalog has no AppImage recipe for {app_id}")
-        note = self._review_note(recipe)
-        if install.get("external") is not True:
-            raise StoreError(f"External download metadata is missing for {app_id}")
-        url = install.get("url")
-        digest = install.get("sha256")
-        binary = install.get("bin")
-        parsed = urllib.parse.urlsplit(url) if isinstance(url, str) else None
-        if (
-            not isinstance(url, str)
-            or parsed is None
-            or parsed.scheme != "https"
-            or not parsed.hostname
-            or parsed.username is not None
-            or parsed.password is not None
-            or not isinstance(digest, str)
-            or not _SHA256_RE.fullmatch(digest)
-            or not isinstance(binary, str)
-            or not _BIN_RE.fullmatch(binary)
-        ):
-            raise StoreError(
-                f"AppImage recipe for {app_id} is not pinned to a valid SHA-256"
-            )
-        target_dir = Path.home() / ".local" / "bin"
-        target_dir.mkdir(mode=0o700, parents=True, exist_ok=True)
-        fd, temporary_name = tempfile.mkstemp(
-            prefix=f".{binary}.", suffix=".download", dir=target_dir
-        )
-        temporary = Path(temporary_name)
-        hasher = hashlib.sha256()
-        try:
-            request = urllib.request.Request(
-                url, headers={"User-Agent": "MoOS-Store/1"}, method="GET"
-            )
-            with os.fdopen(fd, "wb") as output, urllib.request.urlopen(
-                request, timeout=30
-            ) as response:
-                if urllib.parse.urlsplit(response.geturl()).scheme != "https":
-                    raise StoreError("AppImage download used an insecure redirect")
-                total = response.headers.get("Content-Length")
-                total_bytes = int(total) if total and total.isdigit() else 0
-                downloaded = 0
-                while True:
-                    if self._cancelled(job):
-                        raise CancelledError("Cancelled")
-                    block = response.read(1024 * 1024)
-                    if not block:
-                        break
-                    output.write(block)
-                    hasher.update(block)
-                    downloaded += len(block)
-                    percent = (
-                        min(99, int(downloaded * 100 / total_bytes))
-                        if total_bytes
-                        else None
-                    )
-                    job.update_item(
-                        app_id,
-                        state="running",
-                        progress=percent,
-                        message="Downloading verified AppImage", message_key="downloading_appimage",
-                    )
-                    job.update(
-                        state="running",
-                        progress=percent,
-                        current_id=app_id,
-                        message="Downloading verified AppImage", message_key="downloading_appimage",
-                    )
-                output.flush()
-                os.fsync(output.fileno())
-            if hasher.hexdigest().lower() != digest.lower():
-                raise StoreError("AppImage SHA-256 verification failed")
-            os.chmod(temporary, 0o700)
-            os.replace(temporary, target_dir / f"{binary}.AppImage")
-            job.update_item(
-                app_id,
-                state="done",
-                progress=100,
-                message=f"Installed verified AppImage ({note})",
-                message_key=None,
-            )
-        finally:
-            with contextlib.suppress(FileNotFoundError):
-                temporary.unlink()
+                download.unlink()
 
     def install(self, raw_ids: Sequence[str]) -> tuple[int, dict[str, Any]]:
         if not raw_ids or len(raw_ids) > MAX_BATCH:
@@ -1645,12 +2542,13 @@ class Controller:
             or "\x00" in app_id
             for app_id in raw_ids
         ):
-            raise StoreError("App IDs must be non-empty text of at most 255 characters")
+            raise StoreError("App IDs must be non-empty text of at most 255 characters",
+                             message_key="invalid_id")
         app_ids = dedupe(raw_ids)
         try:
             lock, job = self._begin("install", app_ids)
         except BusyError:
-            return 75, self._busy_document("install", app_ids)
+            return self._refuse_busy("install", app_ids)
         with lock:
             try:
                 catalog = self._catalog()
@@ -1689,13 +2587,18 @@ class Controller:
                             self._install_npm(job, app_id, recipe)
                         elif kind == "web":
                             self._install_web(job, app_id, recipe)
-                        elif kind == "appimage":
-                            self._install_pinned_appimage(job, app_id, recipe)
+                        elif kind == "webapp":
+                            self._install_webapp(job, app_id, recipe)
+                        elif kind == "appdrop":
+                            self._install_appdrop(job, app_id, recipe)
+                        elif kind == "windows-portable":
+                            self._install_windows_portable(job, app_id, recipe)
                         elif kind == "android":
                             self._install_pinned_android(job, app_id, recipe)
                         else:
                             raise StoreError(
-                                f"Unsupported curated install kind for {app_id}: {kind}"
+                                f"Unsupported curated install kind for {app_id}: {kind}",
+                                message_key="unsupported_kind",
                             )
                     except CancelledError:
                         raise
@@ -1705,7 +2608,7 @@ class Controller:
                             state="failed",
                             progress=None,
                             message=clean_message(error),
-                            message_key=None,
+                            message_key=getattr(error, "message_key", None),
                         )
 
                 pending_flatpaks: list[str] = []
@@ -1756,7 +2659,14 @@ class Controller:
                                     message=clean_message(error),
                                     message_key=None,
                                 )
-                job.finish_from_items("All requested apps are ready", "all_ready")
+                # A publisher page that was opened is not an app that is ready: say which.
+                states = [item["state"] for item in job.document["items"]]
+                if states and all(state == "opened" for state in states):
+                    job.finish_from_items("Opened the publisher's page", "publisher_page_opened")
+                elif "opened" in states:
+                    job.finish_from_items("Completed", "completed")
+                else:
+                    job.finish_from_items("All requested apps are ready", "all_ready")
             except CancelledError:
                 job.cancelled()
             except Exception as error:
@@ -1764,30 +2674,37 @@ class Controller:
             return exit_code(job.document["state"]), job.snapshot()
 
     def _remove_curated(
-        self, app_id: str, recipe: dict[str, Any]
+        self, app_id: str, recipe: dict[str, Any], delete_data: bool = False
     ) -> tuple[int, dict[str, Any]]:
         """Reverse a curated (non-Flatpak) install. Install is kind-aware, so
         removal has to be too: an npm tool installed with `npm install --global
         --prefix ~/.local` is removed with the symmetric uninstall, a pinned
-        AppImage is the single file we wrote under ~/.local/bin, and a `web`
-        entry only ever opened a vendor page — there is nothing of ours to
-        remove. Without this, `moos-storectl remove claude-code` hit the
-        Flatpak-ID validator and failed, so the tool showed as installed for
-        ever with no way back."""
+        App Drop app through App Drop, a web app's launcher (and with
+        --delete-data its sign-in and storage) through its policy, a Windows
+        program with its own prefix, and a `web` entry only ever opened a vendor
+        page — there is nothing of ours to remove. Without this, `moos-storectl
+        remove claude-code` hit the Flatpak-ID validator and failed, so the tool
+        showed as installed for ever with no way back."""
         install = recipe.get("install") or {}
         kind = install.get("kind")
         try:
             lock, job = self._begin("remove", [app_id])
         except BusyError:
-            return 75, self._busy_document("remove", [app_id])
+            return self._refuse_busy("remove", [app_id])
         with lock:
             try:
                 if kind == "npm":
-                    self._remove_npm(job, app_id, install)
+                    self._remove_npm(job, app_id, install, delete_data)
                 elif kind == "appimage":
                     self._remove_appimage(job, app_id, install)
                 elif kind == "android":
-                    self._remove_android(job, app_id, recipe)
+                    self._remove_android(job, app_id, recipe, delete_data)
+                elif kind == "webapp":
+                    self._remove_webapp(job, app_id, delete_data)
+                elif kind == "appdrop":
+                    self._remove_appdrop(job, app_id, delete_data)
+                elif kind == "windows-portable":
+                    self._remove_windows(job, app_id, delete_data)
                 elif kind == "web":
                     job.update_item(
                         app_id,
@@ -1799,7 +2716,8 @@ class Controller:
                     )
                 else:
                     raise StoreError(
-                        f"Unsupported curated install kind for {app_id}: {kind}"
+                        f"Unsupported curated install kind for {app_id}: {kind}",
+                        message_key="unsupported_kind",
                     )
                 job.finish_from_items("App removed", "app_removed")
             except CancelledError:
@@ -1808,7 +2726,21 @@ class Controller:
                 job.fail(error, [app_id])
             return exit_code(job.document["state"]), job.snapshot()
 
-    def _remove_npm(self, job: Job, app_id: str, install: dict[str, Any]) -> None:
+    @staticmethod
+    def _removed_untracked(job: Job, app_id: str, delete_data: bool) -> None:
+        """App Drop and npm apps keep their own settings wherever they chose; say so, honestly."""
+        if delete_data:
+            job.update_item(
+                app_id, state="done", progress=100,
+                message="Removed. Settings the app saved elsewhere in your home folder were kept",
+                message_key="removed_data_untracked",
+            )
+        else:
+            job.update_item(app_id, state="done", progress=100, message="Removed",
+                            message_key="removed")
+
+    def _remove_npm(self, job: Job, app_id: str, install: dict[str, Any],
+                    delete_data: bool = False) -> None:
         package = install.get("pkg")
         if not isinstance(package, str) or not _NPM_PACKAGE_RE.fullmatch(package):
             raise StoreError(f"Catalog has an invalid npm package for {app_id}")
@@ -1840,20 +2772,16 @@ class Controller:
             raise CancelledError("Cancelled")
         if result.returncode:
             raise StoreError(result.reason or f"npm exited with {result.returncode}")
-        job.update_item(
-            app_id, state="done", progress=100, message="Removed",
-            message_key="removed",
-        )
+        self._removed_untracked(job, app_id, delete_data)
 
     def _remove_appimage(
         self, job: Job, app_id: str, install: dict[str, Any]
     ) -> None:
+        # The retired `appimage` kind wrote one bare file in ~/.local/bin. No catalogue entry
+        # installs it any more; removing a copy an older Store left behind stays possible.
         binary = install.get("bin")
         if not isinstance(binary, str) or not _BIN_RE.fullmatch(binary):
             raise StoreError(f"Catalog has an invalid AppImage executable for {app_id}")
-        # Exactly the file _install_pinned_appimage wrote — and the same path
-        # moos-store-index's nonflatpak_installed() reports installed from, so
-        # the app flips to not-installed on the next index refresh.
         target = Path.home() / ".local" / "bin" / f"{binary}.AppImage"
         try:
             target.unlink()
@@ -1868,17 +2796,51 @@ class Controller:
             message_key="removed",
         )
 
+    def _remove_appdrop(self, job: Job, app_id: str, delete_data: bool) -> None:
+        appdrop = self._appdrop()
+        try:
+            removed = appdrop.remove(app_id)
+        except appdrop.DropError as failure:
+            raise StoreError(f"{failure.code}: {failure.detail or failure.code}") from failure
+        if not removed:
+            job.update_item(app_id, state="skipped", progress=100, message="App is not installed",
+                            message_key="not_installed")
+            return
+        self._removed_untracked(job, app_id, delete_data)
+
+    def _remove_webapp(self, job: Job, app_id: str, delete_data: bool) -> None:
+        policy = self._webapp_policy()
+        try:
+            was_installed = policy.is_installed(app_id)
+            removed = policy.remove(app_id, delete_data=delete_data)
+        except policy.WebAppError as error:
+            raise StoreError(f"Could not remove {app_id}: {error.code}") from error
+        if not was_installed and not removed:
+            job.update_item(app_id, state="skipped", progress=100, message="App is not installed",
+                            message_key="not_installed")
+            return
+        self._appdrop().refresh_menu()
+        if delete_data:
+            job.update_item(app_id, state="done", progress=100, message="Removed with its data",
+                            message_key="removed_with_data")
+        else:
+            job.update_item(app_id, state="done", progress=100, message="Removed",
+                            message_key="removed")
+
     def _remove_android(
-        self, job: Job, app_id: str, recipe: dict[str, Any]
+        self, job: Job, app_id: str, recipe: dict[str, Any], delete_data: bool = False
     ) -> None:
-        package = self._android_package(app_id, recipe)
+        self._remove_android_package(job, app_id, self._android_package(app_id, recipe), delete_data)
+
+    def _remove_android_package(self, job: Job, item_id: str, package: str,
+                                delete_data: bool = False) -> None:
         self._ensure_android_session(job)
         job.update_item(
-            app_id, state="running", progress=None,
+            item_id, state="running", progress=None,
             message="Removing application", message_key=None,
         )
         job.update(
-            state="running", progress=None, current_id=app_id,
+            state="running", progress=None, current_id=item_id,
             message="Removing application", message_key=None,
         )
         result = self.runner.run_cancellable(
@@ -1893,12 +2855,73 @@ class Controller:
             re.IGNORECASE,
         ):
             raise StoreError(result.reason or "Could not remove the application")
-        job.update_item(
-            app_id, state="done", progress=100, message="Removed",
-            message_key="removed",
+        android_record_path(package).unlink(missing_ok=True)
+        # Android deletes an app's own data when the app is removed.
+        if delete_data:
+            job.update_item(item_id, state="done", progress=100, message="Removed with its data",
+                            message_key="removed_with_data")
+        else:
+            job.update_item(
+                item_id, state="done", progress=100, message="Removed",
+                message_key="removed",
+            )
+
+    def _remove_dropped(self, app_id: str, delete_data: bool) -> tuple[int, dict[str, Any]]:
+        """An app installed from a file the person dropped: App Drop's own record, no recipe."""
+        try:
+            lock, job = self._begin("remove", [app_id])
+        except BusyError:
+            return self._refuse_busy("remove", [app_id])
+        with lock:
+            try:
+                self._remove_appdrop(job, app_id, delete_data)
+                job.finish_from_items("App removed", "app_removed")
+            except CancelledError:
+                job.cancelled()
+            except Exception as error:
+                job.fail(error, [app_id])
+            return exit_code(job.document["state"]), job.snapshot()
+
+    def _remove_android_record(self, package: str, delete_data: bool) -> tuple[int, dict[str, Any]]:
+        """An Android app installed from a file: the record MoOS wrote names its package."""
+        try:
+            lock, job = self._begin("remove", [package])
+        except BusyError:
+            return self._refuse_busy("remove", [package])
+        with lock:
+            try:
+                self._remove_android_package(job, package, package, delete_data)
+                job.finish_from_items("App removed", "app_removed")
+            except CancelledError:
+                job.cancelled()
+            except Exception as error:
+                job.fail(error, [package])
+            return exit_code(job.document["state"]), job.snapshot()
+
+    def _dropped_android(self, app_id: str) -> bool:
+        """An Android app installed from a file: MoOS wrote a record naming its package.
+
+        When a Flatpak with the same reverse-DNS id is installed, that id keeps meaning the
+        Flatpak, as it always did; the Android copy is then reached only from Android's own menu.
+        """
+        return bool(
+            _ANDROID_PACKAGE_RE.fullmatch(app_id)
+            and android_record_path(app_id).is_file()
+            and not (validate_flatpak_id(app_id)
+                     and (self.adapter.is_user_installed(app_id)
+                          or self.adapter.is_system_installed(app_id)))
         )
 
-    def remove(self, app_id: str) -> tuple[int, dict[str, Any]]:
+    def _delete_flatpak_data(self, job: Job, app_id: str) -> None:
+        """What `flatpak uninstall --delete-data` removes, plus the person's changed permissions."""
+        if not validate_flatpak_id(app_id):
+            raise StoreError(f"Invalid app ID: {app_id}", message_key="invalid_id")
+        _remove_tree(Path.home() / ".var" / "app" / app_id)
+        for argv in ([FLATPAK_CLI, "override", "--user", "--reset", app_id],
+                     [FLATPAK_CLI, "permission-reset", app_id]):
+            self._run_step(job, argv, "Could not reset the app's permissions")
+
+    def remove(self, app_id: str, delete_data: bool = False) -> tuple[int, dict[str, Any]]:
         # A curated (source="moos") app is not a Flatpak, so it must be handled
         # before the Flatpak-ID validator that would otherwise reject it.
         recipe = self._catalog().get(app_id)
@@ -1907,13 +2930,18 @@ class Controller:
             and recipe.get("source") == "moos"
             and self._curated_id_is_valid(app_id, recipe)
         ):
-            return self._remove_curated(app_id, recipe)
+            return self._remove_curated(app_id, recipe, delete_data)
+        # An app installed from a file is removable from the Store too, by the id App Drop gave it.
+        if validate_curated_id(app_id) and self._appdrop().read_record(app_id):
+            return self._remove_dropped(app_id, delete_data)
+        if self._dropped_android(app_id):
+            return self._remove_android_record(app_id, delete_data)
         if not validate_flatpak_id(app_id):
-            raise StoreError(f"Invalid Flatpak app ID: {app_id}")
+            raise StoreError(f"Invalid app ID: {app_id}", message_key="invalid_id")
         try:
             lock, job = self._begin("remove", [app_id])
         except BusyError:
-            return 75, self._busy_document("remove", [app_id])
+            return self._refuse_busy("remove", [app_id])
         with lock:
             try:
                 if not self.adapter.is_user_installed(app_id):
@@ -1922,21 +2950,34 @@ class Controller:
                             "This app is installed system-wide; Mo Store only removes "
                             "user installations"
                         )
-                    job.update_item(
-                        app_id,
-                        state="skipped",
-                        progress=100,
-                        message="App is not installed", message_key="not_installed",
-                    )
+                    if delete_data and (Path.home() / ".var" / "app" / app_id).exists():
+                        # Gone already, but its data was left behind: the person asked for that too.
+                        self._delete_flatpak_data(job, app_id)
+                        job.update_item(app_id, state="done", progress=100,
+                                        message="Removed with its data",
+                                        message_key="removed_with_data")
+                    else:
+                        job.update_item(
+                            app_id,
+                            state="skipped",
+                            progress=100,
+                            message="App is not installed", message_key="not_installed",
+                        )
                 else:
                     events = TransactionEvents(job, [app_id])
                     self.adapter.remove(
                         app_id, events, lambda: self._cancelled(job)
                     )
-                    job.update_item(
-                        app_id, state="done", progress=100, message="Removed",
-                        message_key="removed",
-                    )
+                    if delete_data:
+                        self._delete_flatpak_data(job, app_id)
+                        job.update_item(app_id, state="done", progress=100,
+                                        message="Removed with its data",
+                                        message_key="removed_with_data")
+                    else:
+                        job.update_item(
+                            app_id, state="done", progress=100, message="Removed",
+                            message_key="removed",
+                        )
                 job.finish_from_items("App removed", "app_removed")
             except CancelledError:
                 job.cancelled()
@@ -1949,11 +2990,7 @@ class Controller:
     # Store job like any other: one lock, one job document, one progress feed for the Island.
     @staticmethod
     def _appdrop() -> Any:
-        import importlib
-        library = str(Path(__file__).resolve().parent.parent / "lib/moos")
-        if library not in sys.path:
-            sys.path.insert(0, library)
-        return importlib.import_module("moos_appdrop")
+        return Controller._library("moos_appdrop")
 
     def inspect_file(self, raw_path: str) -> tuple[int, dict[str, Any]]:
         """Read-only: what this file is and what installing it would do. Writes no job."""
@@ -1979,36 +3016,37 @@ class Controller:
         try:
             lock, job = self._begin("install", [plan.slug])
         except BusyError:
-            return 75, self._busy_document("install", [plan.slug])
+            return self._refuse_busy("install", [plan.slug])
         with lock:
             code = ""
             try:
-                def stage(percent: int | None, message: str, message_key: str) -> None:
-                    job.update_item(plan.slug, state="running", progress=percent,
-                                    message=message, message_key=message_key)
-                    job.update(state="running", progress=percent, current_id=plan.slug,
-                               message=message, message_key=message_key)
-
-                def progress(name: str, percent: int | None) -> None:
-                    # Literal keys, so tests/test_store_job_language.py can hold the UI to them.
-                    if name == "inspecting_file":
-                        stage(percent, "Reading the file", message_key="inspecting_file")
-                    elif name == "extracting_file":
-                        stage(percent, "Unpacking the application", message_key="extracting_file")
-                    else:
-                        stage(percent, "Adding it to the launcher", message_key="integrating_app")
-
+                progress = self._appdrop_progress(job, plan.slug)
                 if plan.kind == "android":
-                    # Session setup stays with the Android adapter; mutation,
-                    # locking, cancellation and result publication belong here.
-                    stage(None, "Installing application", "integrating_app")
+                    # The same container readiness and the same honest result as a catalogue
+                    # install; mutation, locking, cancellation and publication belong here.
+                    self._ensure_android_session(job)
+                    before = self._android_packages()
+                    progress("integrating_app", None)
                     result = self.runner.run_cancellable(
                         ["/usr/bin/waydroid", "app", "install", str(plan.path)],
                         lambda: self._cancelled(job))
                     if result.cancelled:
                         raise appdrop.DropError("cancelled")
-                    if result.returncode:
+                    if result.returncode or re.search(
+                        r"\b(?:error|failed)\b", result.reason, re.IGNORECASE
+                    ):
                         raise appdrop.DropError("failed", result.reason or "Android installation failed")
+                    after = self._android_packages()
+                    # The package a file adds is named only inside the file; the container's own
+                    # list before and after says which one it was. Anything less certain writes
+                    # no record rather than a wrong one.
+                    if before is not None and after is not None and len(after - before) == 1:
+                        digest = hashlib.sha256()
+                        with plan.path.open("rb") as handle:
+                            for block in iter(lambda: handle.read(4 * 1024 * 1024), b""):
+                                digest.update(block)
+                        self._write_android_record((after - before).pop(), sha256=digest.hexdigest(),
+                                                   source="file", file_name=plan.path.name[:255])
                 else:
                     appdrop.install(plan, progress=progress, cancelled=lambda: self._cancelled(job))
                 job.update_item(plan.slug, state="done", progress=100, message="Installed",
@@ -2020,6 +3058,9 @@ class Controller:
                     job.cancelled()
                 else:
                     job.fail(f"{failure.code}: {failure.detail or failure.code}", [plan.slug])
+            except CancelledError:
+                code = "cancelled"
+                job.cancelled()
             except Exception as error:                   # noqa: BLE001 - reported to the person
                 job.fail(error, [plan.slug])
             document = job.snapshot()
@@ -2032,7 +3073,7 @@ class Controller:
         try:
             lock, job = self._begin("remove", [slug])
         except BusyError:
-            return 75, self._busy_document("remove", [slug])
+            return self._refuse_busy("remove", [slug])
         with lock:
             try:
                 if appdrop.remove(slug):
@@ -2049,13 +3090,16 @@ class Controller:
             return exit_code(job.document["state"]), job.snapshot()
 
     def _run_android(
-        self, app_id: str, recipe: dict[str, Any]
+        self, app_id: str, recipe: dict[str, Any] | None
     ) -> tuple[int, dict[str, Any]]:
-        package = self._android_package(app_id, recipe)
+        # A catalogue entry names its package; a dropped APK's record was written for it.
+        package = self._android_package(app_id, recipe) if recipe is not None else app_id
+        if not _ANDROID_PACKAGE_RE.fullmatch(package):
+            raise StoreError(f"Invalid app ID: {app_id}", message_key="invalid_id")
         try:
             lock, job = self._begin("run", [app_id])
         except BusyError:
-            return 75, self._busy_document("run", [app_id])
+            return self._refuse_busy("run", [app_id])
         with lock:
             try:
                 job.update_item(
@@ -2089,22 +3133,75 @@ class Controller:
                 job.fail(error, [app_id])
             return exit_code(job.document["state"]), job.snapshot()
 
+    def _launcher_for(self, app_id: str, kind: str) -> str:
+        """The MoOS-written launcher that opens this app, by file name; refused when it is gone."""
+        if kind == "windows":
+            paths = windows_paths(app_id)
+            if paths.record.is_file() and self._windows_launcher_is_ours(paths, app_id):
+                return paths.launcher.name
+        else:
+            entry = self._appdrop().launcher_path(app_id)
+            if entry is not None:
+                return entry.name
+        raise StoreError("App is not installed", message_key="not_installed")
+
+    def _run_installed(self, app_id: str, kind: str) -> tuple[int, dict[str, Any]]:
+        """Open a web app, an App Drop app or a Windows program the way its launcher would."""
+        try:
+            lock, job = self._begin("run", [app_id])
+        except BusyError:
+            return self._refuse_busy("run", [app_id])
+        with lock:
+            try:
+                if kind == "webapp":
+                    if not self._webapp_policy().is_installed(app_id):
+                        raise StoreError("App is not installed", message_key="not_installed")
+                    argv = [WEBAPP_RUNTIME, app_id]
+                else:
+                    argv = [GTK_LAUNCH, self._launcher_for(app_id, kind)]
+                job.update_item(app_id, state="running", progress=None, message="Opening app",
+                                message_key="opening")
+                job.update(state="running", current_id=app_id, progress=None,
+                           message="Preparing GPU headroom", message_key="preparing_gpu")
+                self.runner.gpu_guard()
+                self.runner.spawn(argv)
+                job.update_item(app_id, state="done", progress=100, message="Opened",
+                                message_key="opened")
+                job.finish_from_items("App opened", "app_opened")
+            except CancelledError:
+                job.cancelled()
+            except Exception as error:
+                job.fail(error, [app_id])
+            return exit_code(job.document["state"]), job.snapshot()
+
     def run(self, app_id: str) -> tuple[int, dict[str, Any]]:
         recipe = self._catalog().get(app_id)
         if (
             recipe is not None
             and recipe.get("source") == "moos"
             and isinstance(recipe.get("install"), dict)
-            and (recipe.get("install") or {}).get("kind") == "android"
             and self._curated_id_is_valid(app_id, recipe)
         ):
-            return self._run_android(app_id, recipe)
+            kind = recipe["install"].get("kind")
+            if kind == "android":
+                return self._run_android(app_id, recipe)
+            if kind == "webapp":
+                return self._run_installed(app_id, "webapp")
+            if kind == "appdrop":
+                return self._run_installed(app_id, "appdrop")
+            if kind == "windows-portable":
+                return self._run_installed(app_id, "windows")
+            raise StoreError(f"Mo Store cannot open {app_id}", message_key="unsupported_kind")
+        if validate_curated_id(app_id) and self._appdrop().read_record(app_id):
+            return self._run_installed(app_id, "appdrop")
+        if self._dropped_android(app_id):
+            return self._run_android(app_id, None)
         if not validate_flatpak_id(app_id):
-            raise StoreError(f"Invalid Flatpak app ID: {app_id}")
+            raise StoreError(f"Invalid app ID: {app_id}", message_key="invalid_id")
         try:
             lock, job = self._begin("run", [app_id])
         except BusyError:
-            return 75, self._busy_document("run", [app_id])
+            return self._refuse_busy("run", [app_id])
         with lock:
             try:
                 if not (
@@ -2133,6 +3230,71 @@ class Controller:
                 job.fail(error, [app_id])
             return exit_code(job.document["state"]), job.snapshot()
 
+    # ── Updates: Flatpaks and catalogue pins together ──────────────────────────────────────────
+    def _pinned_record(self, app_id: str, recipe: dict[str, Any]) -> dict[str, Any]:
+        """What is installed of a pinned catalogue app, as its record says; {} when nothing."""
+        kind = (recipe.get("install") or {}).get("kind")
+        if kind == "appdrop":
+            return self._appdrop().read_record(app_id)
+        if kind == "windows-portable":
+            paths = windows_paths(app_id)
+            return _read_json(paths.record) if paths.app.is_dir() else {}
+        if kind == "android":
+            record = _read_json(android_record_path(app_id))
+            data = data_home() / "waydroid" / "data" / "data" / app_id
+            return record if record and data.exists() else {}
+        return {}
+
+    def _pin_update_row(self, app_id: str, recipe: dict[str, Any]) -> dict[str, Any] | None:
+        """An update row when the installed bytes differ from what the catalogue now pins."""
+        install = recipe.get("install")
+        if not isinstance(install, dict) or install.get("kind") not in ("appdrop", "windows-portable", "android"):
+            return None
+        record = self._pinned_record(app_id, recipe)
+        if not record:
+            return None
+        try:
+            pin = pinned_artifact(app_id, install, size_required=install.get("kind") != "android")
+        except StoreError:
+            return None
+        if str(record.get("sha256", "")).lower() == pin.sha256:
+            return None
+        version = install.get("version") if isinstance(install.get("version"), str) else None
+        installed = record.get("version") if isinstance(record.get("version"), str) else None
+        return {"id": app_id, "kind": "pin", "name": display_text(recipe.get("en"), 80) or app_id,
+                "version": version, "installed_version": installed or None}
+
+    def _pin_update_rows(self) -> list[tuple[dict[str, Any], dict[str, Any]]]:
+        """(row, recipe) for every pinned app with a newer pin. Never raises: it is advisory."""
+        try:
+            catalog = self._catalog()
+        except StoreError:
+            return []
+        rows = []
+        for app_id, recipe in catalog.items():
+            if recipe.get("source") != "moos" or not self._curated_id_is_valid(app_id, recipe):
+                continue
+            try:
+                row = self._pin_update_row(app_id, recipe)
+            except (StoreError, OSError):
+                row = None
+            if row is not None:
+                rows.append((row, recipe))
+        rows.sort(key=lambda pair: pair[0]["name"].casefold())
+        return rows
+
+    def _reinstall_pin(self, job: Job, app_id: str, recipe: dict[str, Any]) -> None:
+        kind = (recipe.get("install") or {}).get("kind")
+        if kind == "appdrop":
+            self._install_appdrop(job, app_id, recipe)
+        elif kind == "windows-portable":
+            self._install_windows_portable(job, app_id, recipe)
+        elif kind == "android":
+            self._install_pinned_android(job, app_id, recipe)
+        else:
+            raise StoreError(f"Mo Store cannot update {app_id}", message_key="unsupported_kind")
+        job.update_item(app_id, state="done", progress=100, message="Updated", message_key="updated")
+
     def check_updates(self) -> tuple[int, dict[str, Any]]:
         """Report what `update` would act on, changing nothing.
 
@@ -2140,19 +3302,23 @@ class Controller:
         stay answerable while an install is running, and the UI correlates
         job.json against a request it made.  A failure here is reported in the
         document rather than raised, so an offline machine gets an honest "could
-        not check" instead of a Store that looks broken.
+        not check" instead of a Store that looks broken.  Catalogue pins whose
+        installed bytes differ from the pin are listed beside the Flatpaks, and
+        the owner's automatic-update choice rides along for the Updates page.
         """
 
         now = utc_now()
+        pins = [row for row, _recipe in self._pin_update_rows()]
         document: dict[str, Any] = {
             "schema": SCHEMA,
             "action": "check-updates",
             "state": "success",
             "checked_at": now,
-            "count": 0,
-            "app_count": 0,
-            "items": [],
+            "count": len(pins),
+            "app_count": len(pins),
+            "items": pins,
             "message": "Apps are up to date",
+            "auto_updates": auto_updates_enabled(),
         }
         try:
             candidates = self.adapter.update_candidates()
@@ -2163,28 +3329,31 @@ class Controller:
             self.store.write_updates(document)
             return 2, document
         apps = [item for item in candidates if item["kind"] == "app"]
-        document["items"] = candidates
-        document["count"] = len(candidates)
-        document["app_count"] = len(apps)
-        if candidates:
+        document["items"] = candidates + pins
+        document["count"] = len(candidates) + len(pins)
+        document["app_count"] = len(apps) + len(pins)
+        if document["items"]:
             document["message"] = (
-                f"{len(apps)} app update(s) available"
-                if apps
+                f"{document['app_count']} app update(s) available"
+                if document["app_count"]
                 else f"{len(candidates)} component update(s) available"
             )
         self.store.prepare()
         self.store.write_updates(document)
         return 0, document
 
-    def update(self) -> tuple[int, dict[str, Any]]:
+    def update(self, app_id: str | None = None) -> tuple[int, dict[str, Any]]:
+        if app_id is not None:
+            return self._update_one(app_id)
         try:
             lock, job = self._begin("update", [])
         except BusyError:
-            return 75, self._busy_document("update", [])
+            return self._refuse_busy("update", [])
         with lock:
             try:
                 refs = self.adapter.update_refs()
-                if not refs:
+                pins = self._pin_update_rows()
+                if not refs and not pins:
                     job.update(
                         state="success",
                         progress=100,
@@ -2195,20 +3364,44 @@ class Controller:
                     # The update list is discovered after job creation.  Rebuild the
                     # exact schema before the transaction starts.
                     names = dedupe(name for name, _ref in refs)
-                    job.replace_items(names)
-                    events = TransactionEvents(job, names)
-                    self.adapter.update_many(
-                        refs, events, lambda: self._cancelled(job)
-                    )
-                    for name in names:
-                        if job._items[name]["state"] in {"queued", "running"}:
-                            job.update_item(
-                                name,
-                                state="done",
-                                progress=100,
-                                message="Updated",
-                                message_key="updated",
+                    pin_ids = [row["id"] for row, _recipe in pins if row["id"] not in names]
+                    job.replace_items([*names, *pin_ids])
+                    if refs:
+                        events = TransactionEvents(job, names)
+                        try:
+                            self.adapter.update_many(
+                                refs, events, lambda: self._cancelled(job)
                             )
+                            for name in names:
+                                if job._items[name]["state"] in {"queued", "running"}:
+                                    job.update_item(
+                                        name,
+                                        state="done",
+                                        progress=100,
+                                        message="Updated",
+                                        message_key="updated",
+                                    )
+                        except CancelledError:
+                            raise
+                        except StoreError as error:
+                            # One failed transaction must not cost the pinned apps their turn.
+                            for name in names:
+                                if job._items[name]["state"] in {"queued", "running"}:
+                                    job.update_item(name, state="failed", progress=None,
+                                                    message=clean_message(error), message_key=None)
+                    for row, recipe in pins:
+                        if row["id"] not in pin_ids:
+                            continue
+                        if self._cancelled(job):
+                            raise CancelledError("Cancelled")
+                        try:
+                            self._reinstall_pin(job, row["id"], recipe)
+                        except CancelledError:
+                            raise
+                        except Exception as error:      # noqa: BLE001 - one app's failure
+                            job.update_item(row["id"], state="failed", progress=None,
+                                            message=clean_message(error),
+                                            message_key=getattr(error, "message_key", None))
                     job.finish_from_items("Apps updated", "apps_updated")
             except CancelledError:
                 job.cancelled()
@@ -2216,12 +3409,88 @@ class Controller:
                 job.fail(error)
             return exit_code(job.document["state"]), job.snapshot()
 
+    def _update_one(self, app_id: str) -> tuple[int, dict[str, Any]]:
+        """Update one app of any kind; an app with nothing newer says so instead of failing."""
+        recipe = self._catalog().get(app_id)
+        curated = (recipe is not None and recipe.get("source") == "moos"
+                   and self._curated_id_is_valid(app_id, recipe))
+        kind = (recipe.get("install") or {}).get("kind") if curated else None
+        if curated and kind not in ("appdrop", "windows-portable", "android", "webapp", "npm"):
+            raise StoreError(f"Mo Store cannot update {app_id}", message_key="unsupported_kind")
+        if not curated:
+            if validate_curated_id(app_id) and self._appdrop().read_record(app_id):
+                raise StoreError("This app was installed from a file; install a newer file of it to update it",
+                                 message_key="update_by_file")
+            if not validate_flatpak_id(app_id):
+                raise StoreError(f"Invalid app ID: {app_id}", message_key="invalid_id")
+        try:
+            lock, job = self._begin("update", [app_id])
+        except BusyError:
+            return self._refuse_busy("update", [app_id])
+        with lock:
+            try:
+                if curated:
+                    self._update_curated(job, app_id, recipe)
+                else:
+                    self._update_flatpak(job, app_id)
+                job.finish_from_items("Apps updated", "apps_updated")
+            except CancelledError:
+                job.cancelled()
+            except Exception as error:
+                job.fail(error, [app_id])
+            return exit_code(job.document["state"]), job.snapshot()
+
+    def _update_curated(self, job: Job, app_id: str, recipe: dict[str, Any]) -> None:
+        install = recipe.get("install") or {}
+        kind = install.get("kind")
+        if kind == "webapp":
+            if not self._webapp_policy().is_installed(app_id):
+                raise StoreError("App is not installed", message_key="not_installed")
+            # A web app is always the publisher's current site; refreshing its launcher is the update.
+            self._webapp_policy().install(self._webapp(app_id, recipe))
+            job.update_item(app_id, state="done", progress=100, message="Updated",
+                            message_key="updated")
+            return
+        if kind == "npm":
+            binary = install.get("bin")
+            if not isinstance(binary, str) or not _BIN_RE.fullmatch(binary):
+                raise StoreError(f"Catalog has an invalid npm executable for {app_id}")
+            if not (Path.home() / ".local" / "bin" / binary).exists():
+                raise StoreError("App is not installed", message_key="not_installed")
+            self._install_npm(job, app_id, recipe)
+            job.update_item(app_id, state="done", progress=100, message="Updated",
+                            message_key="updated")
+            return
+        if not self._pinned_record(app_id, recipe):
+            raise StoreError("App is not installed", message_key="not_installed")
+        if self._pin_update_row(app_id, recipe) is None:
+            job.update_item(app_id, state="skipped", progress=100, message="This app is up to date",
+                            message_key="app_up_to_date")
+            return
+        self._reinstall_pin(job, app_id, recipe)
+
+    def _update_flatpak(self, job: Job, app_id: str) -> None:
+        refs = [(name, ref) for name, ref in self.adapter.update_refs() if name == app_id]
+        if not refs:
+            if self.adapter.is_user_installed(app_id):
+                job.update_item(app_id, state="skipped", progress=100,
+                                message="This app is up to date", message_key="app_up_to_date")
+                return
+            if self.adapter.is_system_installed(app_id):
+                raise StoreError("This app is installed system-wide; Mo Store updates only your own apps")
+            raise StoreError("App is not installed", message_key="not_installed")
+        events = TransactionEvents(job, [app_id])
+        self.adapter.update_many(refs, events, lambda: self._cancelled(job))
+        if job._items[app_id]["state"] in {"queued", "running"}:
+            job.update_item(app_id, state="done", progress=100, message="Updated",
+                            message_key="updated")
+
     def refresh_index(self) -> tuple[int, dict[str, Any]]:
         item_id = "flathub"
         try:
             lock, job = self._begin("refresh-index", [item_id])
         except BusyError:
-            return 75, self._busy_document("refresh-index", [item_id])
+            return self._refuse_busy("refresh-index", [item_id])
         with lock:
             try:
                 events = TransactionEvents(job, [item_id])
@@ -2275,7 +3544,7 @@ class Controller:
         try:
             lock, job = self._begin("open-engine", [name])
         except BusyError:
-            return 75, self._busy_document("open-engine", [name])
+            return self._refuse_busy("open-engine", [name])
         with lock:
             try:
                 job.update_item(
@@ -2329,6 +3598,165 @@ class Controller:
                 job.fail(error, [name])
             return exit_code(job.document["state"]), job.snapshot()
 
+    # ── Permissions: what an app may do, and the person's changes to it ────────────────────────
+    def _permission_subject(self, app_id: str) -> tuple[str, dict[str, Any] | None]:
+        """(kind, recipe) for an app whose permissions Mo Store can describe."""
+        recipe = self._catalog().get(app_id)
+        if recipe is not None and recipe.get("source") == "moos" and self._curated_id_is_valid(app_id, recipe):
+            kind = (recipe.get("install") or {}).get("kind")
+            return ("webapp" if kind == "webapp" else "android" if kind == "android"
+                    else "unsandboxed"), recipe
+        if validate_curated_id(app_id) and self._appdrop().read_record(app_id):
+            return "unsandboxed", None
+        if validate_flatpak_id(app_id):
+            return "flatpak", recipe
+        if _ANDROID_PACKAGE_RE.fullmatch(app_id) and android_record_path(app_id).is_file():
+            return "android", None
+        raise StoreError(f"Invalid app ID: {app_id}", message_key="invalid_id")
+
+    def _flatpak_scope(self, app_id: str) -> list[str] | None:
+        """--user or --system for the installation that holds the app; None when neither does."""
+        try:
+            if self.adapter.is_user_installed(app_id):
+                return ["--user"]
+            if self.adapter.is_system_installed(app_id):
+                return ["--system"]
+        except StoreError:
+            return []
+        return None
+
+    def _permission_document(self, app_id: str) -> dict[str, Any]:
+        kind, recipe = self._permission_subject(app_id)
+        document: dict[str, Any] = {"schema": 1, "id": app_id, "kind": kind, "generated_at": utc_now()}
+        if kind == "flatpak":
+            scope = self._flatpak_scope(app_id)
+            shown = self.runner.capture(
+                [FLATPAK_CLI, "info", *(scope or []), "--show-permissions", app_id], timeout=30
+            ) if scope is not None else None
+            if shown is None or shown.returncode:
+                document.update(sandboxed=True, installed=False, rows=[], note_key="not_installed")
+                return document
+            portal = self.runner.capture([FLATPAK_CLI, "permission-show", app_id], timeout=30)
+            background = background_answer(portal.output, app_id) if portal.returncode == 0 else None
+            document.update(sandboxed=True, installed=True,
+                            rows=flatpak_permission_rows(shown.output, background))
+            return document
+        if kind == "webapp":
+            policy = self._webapp_policy()
+            app = self._webapp(app_id, recipe or {})
+            store = policy.PermissionStore(app, policy.paths(app_id).permissions)
+            rows = []
+            for name in app.permissions:
+                decision = store.decision(name)
+                # Unanswered is not granted: the app asks the person the first time it needs it.
+                rows.append({"key": name, "state": "allow" if decision == "allow" else "deny",
+                             "changeable": True, "ask": decision == "ask"})
+            document.update(sandboxed=True, installed=policy.is_installed(app_id), rows=rows)
+            return document
+        if kind == "android":
+            # Each Android app's permissions live in its own Android settings, inside the container.
+            document.update(sandboxed=True, rows=[], note_key="android_managed")
+            return document
+        # App Drop, Windows programs, npm tools and publisher downloads run as the person, honestly.
+        document.update(sandboxed=False, rows=[], note_key="full_access")
+        return document
+
+    def _publish_permissions(self, app_id: str) -> dict[str, Any]:
+        document = self._permission_document(app_id)
+        _write_json(self.store.directory / "permissions" / f"{app_id}.json", document)
+        return document
+
+    def permissions(self, app_id: str) -> tuple[int, dict[str, Any]]:
+        """Read-only, no lock: ~/.cache/moos-store/permissions/<id>.json for the app's page."""
+        self.store.prepare()
+        return 0, self._publish_permissions(app_id)
+
+    def set_permission(self, app_id: str, key: str, value: str) -> tuple[int, dict[str, Any]]:
+        """Change one permission through a fixed command per key, as a job the window can follow."""
+        kind, recipe = self._permission_subject(app_id)
+        if value not in PERMISSION_VALUES:
+            raise StoreError(f"Unknown permission value: {value}", message_key="invalid_permission")
+        if kind == "flatpak":
+            if key not in FLATPAK_PERMISSION_KEYS:
+                raise StoreError(f"Unknown permission: {key}", message_key="invalid_permission")
+        elif kind == "webapp":
+            if key not in self._webapp(app_id, recipe or {}).permissions:
+                raise StoreError(f"{app_id} does not use {key}", message_key="invalid_permission")
+        else:
+            raise StoreError(f"Mo Store cannot change permissions of {app_id}",
+                             message_key="unsupported_kind")
+        try:
+            lock, job = self._begin("set-permission", [app_id])
+        except BusyError:
+            return self._refuse_busy("set-permission", [app_id])
+        with lock:
+            try:
+                job.update_item(app_id, state="running", progress=None, message="Changing permissions",
+                                message_key=None)
+                if kind == "flatpak":
+                    self._set_flatpak_permission(job, app_id, key, value)
+                else:
+                    policy = self._webapp_policy()
+                    app = self._webapp(app_id, recipe or {})
+                    policy.PermissionStore(app, policy.paths(app_id).permissions).set(
+                        key, None if value == "reset" else value)
+                self._publish_permissions(app_id)
+                if value == "reset":
+                    job.update_item(app_id, state="done", progress=100, message="Permissions reset",
+                                    message_key="permissions_reset")
+                    job.finish_from_items("Permissions reset", "permissions_reset")
+                else:
+                    job.update_item(app_id, state="done", progress=100, message="Permission changed",
+                                    message_key="permission_changed")
+                    job.finish_from_items("Permission changed", "permission_changed")
+            except CancelledError:
+                job.cancelled()
+            except Exception as error:
+                job.fail(error, [app_id])
+            return exit_code(job.document["state"]), job.snapshot()
+
+    def _set_flatpak_permission(self, job: Job, app_id: str, key: str, value: str) -> None:
+        if not self._flatpak_scope(app_id):
+            raise StoreError("App is not installed", message_key="not_installed")
+        failure = "Could not change the app's permission"
+        if value == "reset":
+            self._run_step(job, [FLATPAK_CLI, "override", "--user", "--reset", app_id], failure)
+            self._run_step(job, [FLATPAK_CLI, "permission-reset", app_id], failure)
+        elif key == "background":
+            self._run_step(job, [FLATPAK_CLI, "permission-set", "background", "background", app_id,
+                                 "yes" if value == "allow" else "no"], failure)
+        else:
+            allow, deny = FLATPAK_OVERRIDES[key]
+            self._run_step(job, [FLATPAK_CLI, "override", "--user",
+                                 allow if value == "allow" else deny, app_id], failure)
+
+    # ── Facts and settings ──────────────────────────────────────────────────────────────────────
+    def facts(self) -> tuple[int, dict[str, Any]]:
+        """Read-only, no lock, no network: facts.json from the cached Flathub summary."""
+        document: dict[str, Any] = {"schema": 1, "generated_at": utc_now(), "state": "success",
+                                    "apps": {}}
+        code = 0
+        try:
+            document["apps"] = self.adapter.remote_facts()
+        except StoreError as error:
+            document["state"] = "failed"
+            document["message"] = clean_message(error)
+            code = 2
+        self.store.prepare()
+        _write_json(self.store.directory / "facts.json", document)
+        summary = {key: value for key, value in document.items() if key != "apps"}
+        summary.update(action="facts", count=len(document["apps"]))
+        return code, summary
+
+    def set_auto_updates(self, enabled: bool) -> tuple[int, dict[str, Any]]:
+        """The owner's choice for the scheduled updater; a setting, so it waits for no job."""
+        path = store_settings_path()
+        document = _read_json(path)
+        document.update(schema=1, auto_updates=enabled)
+        _write_json(path, document, 0o600, private_parent=False)
+        return 0, {"schema": SCHEMA, "action": "auto-updates", "state": "success",
+                   "auto_updates": enabled}
+
     def cancel(self, requested_job_id: str | None) -> tuple[int, dict[str, Any]]:
         current = self.store.read()
         if not current or not isinstance(current.get("job_id"), str):
@@ -2354,6 +3782,77 @@ def exit_code(state: str) -> int:
     if state == "busy":
         return 75
     return 1
+
+
+def _parse_time(value: object) -> float | None:
+    if not isinstance(value, str):
+        return None
+    try:
+        return dt.datetime.fromisoformat(value.replace("Z", "+00:00")).timestamp()
+    except ValueError:
+        return None
+
+
+def publish_refusal(store: JobStore, document: dict[str, Any]) -> bool:
+    """Publish a job that never started as a terminal job document, so the window can say why.
+
+    The window starts moos-storectl detached and cannot read its output; until this existed an
+    invalid id or a busy refusal reached the person as "the operation did not start". It is
+    never written over a live job another process is still reporting in (fresh within the
+    window's own 120 s staleness rule): that job's window keeps its document.
+    """
+    current = store.read()
+    if current and current.get("state") in {"starting", "running"}:
+        updated = _parse_time(current.get("updated_at"))
+        if updated is not None and time.time() - updated < 120:
+            return False
+    try:
+        store.prepare()
+        store.write(document)
+    except OSError:
+        return False
+    return True
+
+
+# Commands whose refusals the window waits for in job.json, and the ids it expects there.
+JOB_COMMANDS = {"install", "remove", "run", "update", "refresh-index", "open-engine",
+                "set-permission", "remove-file"}
+
+
+def refusal_document(command: str, item_ids: Sequence[str], error: StoreError) -> dict[str, Any]:
+    now = utc_now()
+    message = clean_message(error)
+    key = getattr(error, "message_key", None)
+    document: dict[str, Any] = {
+        "schema": SCHEMA,
+        "job_id": secrets.token_hex(16),
+        "action": "remove" if command == "remove-file" else command,
+        "state": "failed",
+        "progress": None,
+        "current_id": None,
+        "message": message,
+        "items": [
+            {"id": item_id, "state": "failed", "progress": None, "message": message,
+             "message_key": key}
+            for item_id in item_ids
+        ],
+        "started_at": now,
+        "updated_at": now,
+    }
+    document["message_key"] = key
+    return document
+
+
+def requested_ids(options: argparse.Namespace) -> list[str]:
+    """The ids a refused command named, as the window expects them back in job.json."""
+    if options.command == "install":
+        return [value[:255] for value in dedupe(options.ids)][:MAX_BATCH]
+    if options.command == "refresh-index":
+        return ["flathub"]
+    if options.command == "open-engine":
+        return [options.name]
+    value = getattr(options, "id", None)
+    return [value[:255]] if isinstance(value, str) else []
 
 
 def extract_catalog_argument(argv: Sequence[str]) -> tuple[list[str], Path]:
@@ -2391,13 +3890,31 @@ def parser() -> argparse.ArgumentParser:
     install = commands.add_parser("install", help="install one or more apps")
     install.add_argument("ids", nargs="+")
     remove = commands.add_parser("remove", help="remove a user app")
+    remove.add_argument(
+        "--delete-data", action="store_true",
+        help="also delete the app's own data and the permissions changed for it")
     remove.add_argument("id")
     run = commands.add_parser("run", help="run an installed app")
     run.add_argument("id")
-    commands.add_parser("update", help="update user Flatpaks")
+    update = commands.add_parser(
+        "update", help="update user Flatpaks and catalogue apps, or one app by id")
+    update.add_argument("id", nargs="?")
     commands.add_parser(
         "check-updates", help="report pending updates without changing anything"
     )
+    permissions = commands.add_parser(
+        "permissions", help="describe what an app may do; changes nothing")
+    permissions.add_argument("id")
+    set_permission = commands.add_parser(
+        "set-permission", help="allow, deny or reset one permission of an app")
+    set_permission.add_argument("id")
+    set_permission.add_argument("key")
+    set_permission.add_argument("value")
+    commands.add_parser(
+        "facts", help="describe every Flathub app from the cached summary; no network")
+    auto_updates = commands.add_parser(
+        "auto-updates", help="turn the scheduled app updates on or off")
+    auto_updates.add_argument("state", choices=("on", "off"))
     commands.add_parser("refresh-index", help="refresh the Flathub app index")
     engine = commands.add_parser("open-engine", help="open a store engine")
     engine.add_argument("name", choices=tuple(ENGINE_COMMANDS))
@@ -2422,6 +3939,7 @@ def main(
     runner: CommandRunner | None = None,
 ) -> int:
     arguments = list(sys.argv[1:] if argv is None else argv)
+    options: argparse.Namespace | None = None
     try:
         arguments, catalog_path = extract_catalog_argument(arguments)
         options = parser().parse_args(arguments)
@@ -2434,11 +3952,19 @@ def main(
         if options.command == "install":
             code, document = controller.install(options.ids)
         elif options.command == "remove":
-            code, document = controller.remove(options.id)
+            code, document = controller.remove(options.id, options.delete_data)
         elif options.command == "run":
             code, document = controller.run(options.id)
         elif options.command == "update":
-            code, document = controller.update()
+            code, document = controller.update(options.id)
+        elif options.command == "permissions":
+            code, document = controller.permissions(options.id)
+        elif options.command == "set-permission":
+            code, document = controller.set_permission(options.id, options.key, options.value)
+        elif options.command == "facts":
+            code, document = controller.facts()
+        elif options.command == "auto-updates":
+            code, document = controller.set_auto_updates(options.state == "on")
         elif options.command == "check-updates":
             code, document = controller.check_updates()
         elif options.command == "refresh-index":
@@ -2454,19 +3980,27 @@ def main(
         else:
             code, document = controller.cancel(options.job_id)
     except StoreError as error:
-        now = utc_now()
-        document = {
-            "schema": SCHEMA,
-            "job_id": secrets.token_hex(16),
-            "action": arguments[0] if arguments else "invalid",
-            "state": "failed",
-            "progress": None,
-            "current_id": None,
-            "message": clean_message(error),
-            "items": [],
-            "started_at": now,
-            "updated_at": now,
-        }
+        command = options.command if options is not None else ""
+        if command in JOB_COMMANDS:
+            # Refused before a job began: the window waits for job.json, so the reason goes there.
+            document = refusal_document(command, requested_ids(options), error)
+            publish_refusal(store or JobStore(), document)
+        else:
+            now = utc_now()
+            document = {
+                "schema": SCHEMA,
+                "job_id": secrets.token_hex(16),
+                "action": arguments[0] if arguments else "invalid",
+                "state": "failed",
+                "progress": None,
+                "current_id": None,
+                "message": clean_message(error),
+                "items": [],
+                "started_at": now,
+                "updated_at": now,
+            }
+            if getattr(error, "message_key", None):
+                document["message_key"] = error.message_key
         code = 2
     print(json.dumps(document, ensure_ascii=False, separators=(",", ":")))
     return code
