@@ -1,0 +1,14 @@
+[Unit]
+Description=Tell the person when automatic app updates could not finish
+Documentation=man:systemd.path(5)
+PartOf=plasma-workspace.target
+
+[Path]
+# moos-flatpak-update --user rewrites this record atomically after every run; the notifier
+# reads it, says something only for a NEW failed run, and exits. The directory is created by
+# the updater's first run; a path unit on a missing file simply waits.
+PathChanged=%h/.local/state/moos/app-updates.json
+Unit=moos-store-notify.service
+
+[Install]
+WantedBy=plasma-workspace.target

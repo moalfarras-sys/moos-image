@@ -517,6 +517,10 @@ check:
     python3 tests/test_moos_shortcuts.py
     # App Drop: install from a file, with real hostile archives and the real sandbox.
     python3 tests/test_app_drop.py
+    # Mo Store's web apps, its search runner and its update notifier (docs/MO_STORE.md).
+    python3 tests/test_moos_webapp.py
+    python3 tests/test_moos_store_krunner.py
+    python3 tests/test_moos_store_notify.py
     # The administrator question for a local package, and what a dismissed one prints.
     python3 tests/test_moos_local_rpm_authentication.py
     # The station's pointer tool must keep asking KWin where the pointer is.

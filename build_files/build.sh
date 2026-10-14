@@ -2922,6 +2922,8 @@ systemd-analyze verify \
     /usr/lib/systemd/user/moai-agent-api.service \
     /usr/lib/systemd/user/moos-app-drop.path \
     /usr/lib/systemd/user/moos-app-drop.service \
+    /usr/lib/systemd/user/moos-store-notify.path \
+    /usr/lib/systemd/user/moos-store-notify.service \
     /usr/lib/systemd/user/mira.service \
     /usr/lib/systemd/user/mira-lumen.service
 # mira.service (Mira's login start) is verified but never enabled here: it is the person's own
@@ -3016,6 +3018,11 @@ systemctl --global enable moos-material-state.service
 # what is enabled; its service only ever runs `moos-app-drop --scan`, which installs nothing
 # without a dialog whose default is No.
 systemctl --global enable moos-app-drop.path
+# Mo Store says once, by name, when automatic app updates could not finish (success stays
+# silent). The path unit is what is enabled; the service reads two files and exits.
+systemctl --global enable moos-store-notify.path
+[ -L /etc/systemd/user/plasma-workspace.target.wants/moos-store-notify.path ] \
+    || { echo "GATE FAIL: moos-store-notify.path did not wire into the session"; exit 1; }
 
 # An installed bootc system uses an OSTree/composefs overlay for /. Anaconda's
 # generated physical-root fstab entry makes systemd-remount-fs attempt an

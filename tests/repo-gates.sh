@@ -253,6 +253,9 @@ python3 tests/test_mira_kde_integration.py
 # saying Exec=sh -c, a file merely CALLED .AppImage, a ref naming a foreign remote. The
 # AppImage sandbox is run under the real bwrap where it exists.
 python3 tests/test_app_drop.py
+python3 tests/test_moos_webapp.py
+python3 tests/test_moos_store_krunner.py
+python3 tests/test_moos_store_notify.py
 # The owner reads the administrator prompt in their own language, and cancelling it prints
 # MoOS's line instead of pkexec's "This incident has been reported." (station, 2026-09-18).
 python3 tests/test_moos_local_rpm_authentication.py

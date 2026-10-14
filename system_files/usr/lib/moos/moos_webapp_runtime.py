@@ -94,13 +94,13 @@ _LIVE: set = set()   # notification processes still waiting for an answer
 def notify(app: policy.WebApp, icon: Path, summary: str, body: str,
            on_click=None) -> None:
     """A desktop notification filed under THIS web app's launcher (its own entry in Settings)."""
-    argv = ["--app-name", app_name(app), "--icon", str(icon),
+    argv = ["notify-send", "--app-name", app_name(app), "--icon", str(icon),
             f"--hint=string:desktop-entry:{app.desktop_id}"]
     if on_click is not None:
         argv += ["--action", f"default={words('open')}", "--wait"]
     process = QProcess()
-    process.setProgram("notify-send")
-    process.setArguments(argv + ["--", summary[:200], body[:500]])
+    process.setProgram(argv[0])
+    process.setArguments(argv[1:] + ["--", summary[:200], body[:500]])
 
     def finished(*_):
         _LIVE.discard(process)

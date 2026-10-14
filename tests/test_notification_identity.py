@@ -37,6 +37,7 @@ ROOT = Path(__file__).resolve().parents[1]
 SYSTEM = ROOT / "system_files"
 APPLICATIONS = SYSTEM / "usr/share/applications"
 OWNERS = {"systemsettings", "org.moos.moai", "org.moos.store"}
+WEBAPP_OWNER = "org.moos.webapp.<id>"
 # Who each sender speaks for. A new sender joins this table or the gate fails.
 EXPECTED = {
     "usr/bin/moos-open": {"systemsettings", "org.moos.store"},
@@ -46,6 +47,11 @@ EXPECTED = {
     "usr/bin/moos-installer": {"systemsettings"},
     "usr/libexec/moos-update-ready": {"systemsettings"},
     "usr/libexec/moos-whats-new-notify": {"systemsettings"},
+    "usr/libexec/moos-store-notify": {"org.moos.store"},
+    # A web app's own notifications (a ChatGPT reply, a WhatsApp message) belong to THAT app,
+    # exactly as a browser web app's do: they are filed under the launcher Mo Store wrote for it,
+    # org.moos.webapp.<id>, so Settings › Notifications lists and mutes each app by its name.
+    "usr/lib/moos/moos_webapp_runtime.py": {WEBAPP_OWNER},
 }
 HINT = re.compile(r"desktop-entry:(?:\$\{owner\}|([A-Za-z0-9_.-]+))")
 
@@ -99,6 +105,13 @@ class EverySenderIsFiled(unittest.TestCase):
                     self.assertRegex(call, r"""--hint=["']?string:desktop-entry:""",
                                      "a MoOS notification with no owner is anonymous in "
                                      "System Settings › Notifications")
+            if EXPECTED.get(relative) == {WEBAPP_OWNER}:
+                for call in calls:
+                    self.assertIn('desktop-entry:{app.desktop_id}', call, relative)
+                policy = (SYSTEM / "usr/lib/moos/moos_webapp_policy.py").read_text(encoding="utf-8")
+                self.assertIn('DESKTOP_PREFIX = "org.moos.webapp."', policy)
+                self.assertIn('return DESKTOP_PREFIX + self.id', policy)
+                continue
             named = {name for call in calls for name in HINT.findall(call) if name}
             dynamic = any("${owner}" in call for call in calls)
             if dynamic:
