@@ -521,6 +521,9 @@ check:
     python3 tests/test_moos_webapp.py
     python3 tests/test_moos_store_krunner.py
     python3 tests/test_moos_store_notify.py
+    # A publisher's own signed package unpacked into the home: rpm's version order, pinned
+    # downloads, the catalogue's key only, hostile payloads, MoOS's own launcher, atomic update.
+    python3 tests/test_moos_vendor_rpm.py
     # The administrator question for a local package, and what a dismissed one prints.
     python3 tests/test_moos_local_rpm_authentication.py
     # The station's pointer tool must keep asking KWin where the pointer is.

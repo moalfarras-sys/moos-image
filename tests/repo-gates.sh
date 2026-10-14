@@ -256,6 +256,10 @@ python3 tests/test_app_drop.py
 python3 tests/test_moos_webapp.py
 python3 tests/test_moos_store_krunner.py
 python3 tests/test_moos_store_notify.py
+# Mo Store's vendor packages (the official ChatGPT app ships only as a signed RPM): rpm's own
+# version order, https-only pinned downloads, a signature by the catalogue's key judged on the
+# real rpm 6 outputs, hostile payloads built for real, and remove() touching only marked files.
+python3 tests/test_moos_vendor_rpm.py
 # The owner reads the administrator prompt in their own language, and cancelling it prints
 # MoOS's line instead of pkexec's "This incident has been reported." (station, 2026-09-18).
 python3 tests/test_moos_local_rpm_authentication.py
