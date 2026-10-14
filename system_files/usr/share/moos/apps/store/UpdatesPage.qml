@@ -1,282 +1,369 @@
 pragma ComponentBehavior: Bound
 
 import QtQuick
+import QtQuick.Controls
 import QtQuick.Layouts
 import org.moos.ui as MoUI
 
-// Mo Store — Updates: what is pending (not checked yet / none / failed / known), the
-// apps waiting, and the three update paths (apps here; the MoOS image and firmware on
-// their signed system paths).
+// Mo Store — Updates: what is true now (not checked yet / checking / could not check / up to date
+// / N waiting), Update all and Check now, when it was last checked, every app waiting with its
+// version from → to and its own Update, the "Update apps automatically" switch, and two calm
+// cards for what the Store does not update itself: MoOS (its signed updater) and device firmware
+// (MoOS Settings → Update, where each device is shown before anything is flashed).
 //
 // Drawn from main.qml's state: `win` is the Store window, which owns the data, the actions
 // and the palette. This file only presents them.
-Flickable {
-    id: updatesFlick
+Item {
+    id: updatesPage
     required property var win
     readonly property var design: win.design
+    readonly property real padding: updatesPage.width > win.fs(1000) ? design.space6 : design.space5
+    readonly property int waiting: win.updatesState === "known" ? win.updateItems().length : 0
+
     anchors.fill: parent
     visible: win.page === "updates"
-    contentWidth: width
-    contentHeight: updateBody.implicitHeight + 50
-    clip: true
-    Keys.onPressed: (event) => MoUI.KeyboardViewport.pageScrollKeys(updatesFlick, event)
-    ColumnLayout {
-        id: updateBody
-        x: 26
-        width: parent.width - 52
-        spacing: design.space4
-        Item { Layout.preferredHeight: win.fs(4) }
-        Rectangle {
-            Layout.fillWidth: true
-            Layout.preferredHeight: win.fs(210)
-            radius: win.fs(27)
-            gradient: Gradient {
-                orientation: Gradient.Horizontal
-                GradientStop { position: 0; color: Qt.rgba(win.accent.r, win.accent.g, win.accent.b, 0.2) }
-                GradientStop { position: 1; color: Qt.rgba(win.surface.r, win.surface.g, win.surface.b, 0.88) }
-            }
-            border.width: 1
-            border.color: Qt.rgba(win.accent.r, win.accent.g, win.accent.b, 0.36)
-            RowLayout {
-                anchors.fill: parent
-                anchors.margins: 28
-                spacing: design.space5
-                Rectangle {
-                    Layout.preferredWidth: win.fs(92)
-                    Layout.preferredHeight: win.fs(92)
-                    radius: win.fs(30)
-                    color: Qt.rgba(win.accent.r, win.accent.g, win.accent.b, 0.14)
-                    Glyph { win: updatesFlick.win; anchors.centerIn: parent; width: 46; height: 46; name: "refresh"; tint: win.accent }
-                }
-                ColumnLayout {
-                    Layout.fillWidth: true
-                    spacing: 7
-                    Text {
-                        // Say what is true, and say "not checked yet" when
-                        // that is what is true. Never show 0 before looking.
-                        text: {
-                            if (win.updatesChecking)
-                                return win.rtl ? "نفحص التحديثات…" : "Checking for updates…"
-                            if (win.updatesState === "failed")
-                                return win.rtl ? "تعذّر فحص التحديثات" : "Could not check for updates"
-                            if (win.updatesState === "unknown")
-                                return win.rtl ? "تطبيقاتك، وتحديثاتها." : "Your apps, and their updates."
-                            var n = win.updateItems().length
-                            if (n === 0 && win.updateComponentCount() > 0)
-                                return win.rtl
-                                    ? "توجد تحديثات لمكوّنات مشتركة."
-                                    : "Shared components have updates."
-                            if (n === 0)
-                                return win.rtl ? "كل تطبيقاتك محدّثة." : "Everything is up to date."
-                            return win.rtl
-                                ? (n === 1 ? "تطبيق واحد ينتظر التحديث." : n + " تطبيقات تنتظر التحديث.")
-                                : (n === 1 ? "1 app has an update." : n + " apps have updates.")
-                        }
-                        color: win.txt
-                        font.family: win.uiFont
-                        font.pixelSize: win.typePx(24)
-                        font.bold: true
-                    }
-                    Text {
-                        Layout.fillWidth: true
-                        text: {
-                            if (win.updatesState === "failed")
-                                return win.rtl
-                                    ? "تحقّق من اتصالك ثم أعد الفحص. تحديث صورة MoOS والبرامج الثابتة تبقى في مسارات النظام الموقّعة."
-                                    : "Check your connection and try again. MoOS image and firmware updates stay on their signed system paths."
-                            var extra = win.updateComponentCount()
-                            if (win.updatesState === "known" && extra > 0)
-                                return win.rtl
-                                    ? "بالإضافة إلى " + extra + " مكوّن مشترك يُحدَّث معها. تحديث صورة MoOS والبرامج الثابتة تبقى في مسارات النظام الموقّعة."
-                                    : "Plus " + extra + " shared component(s) that update with them. MoOS image and firmware updates stay on their signed system paths."
-                            return win.rtl
-                                ? "حدّث تطبيقاتك هنا. تحديث صورة MoOS والبرامج الثابتة يبقيان في مسارات النظام الموقّعة."
-                                : "Update your apps here. MoOS image and firmware updates stay on their signed system paths."
-                        }
-                        color: win.txt2
-                        font.family: win.uiFont
-                        font.pixelSize: win.typePx(12)
-                        wrapMode: Text.WordWrap
-                    }
-                    RowLayout {
-                        spacing: design.space2
-                        ActionButton {
-                            win: updatesFlick.win
-                            label: win.updateItems().length === 0
-                                   && win.updateComponentCount() > 0
-                                ? (win.rtl ? "تحديث المكوّنات الآن" : "Update components now")
-                                : (win.rtl ? "تحديث التطبيقات الآن" : "Update apps now")
-                            glyphName: "refresh"
-                            primary: true
-                            // Nothing pending is a reason not to offer the
-                            // button, once we actually know that.
-                            enabled: !win.jobIsActive() && !win.updatesChecking
-                                && !(win.updatesState === "known" && win.updates.count === 0)
-                            triggered: function() { win.updateAll() }
-                        }
-                        ActionButton {
-                            win: updatesFlick.win
-                            label: win.rtl ? "إعادة الفحص" : "Check again"
-                            glyphName: "search"
-                            enabled: !win.updatesChecking
-                            triggered: function() {
-                                win.updatesState = "unknown"
-                                win.updatesCheckedAt = ""
-                                win.checkUpdates()
-                            }
-                        }
-                        ActionButton {
-                            win: updatesFlick.win
-                            label: win.rtl ? "تحديث MoOS" : "Update MoOS"
-                            glyphName: "shield"
-                            triggered: function() { win.openSystemUpdater() }
-                        }
-                    }
-                }
-            }
-        }
-        // The list the page was missing: what actually has an
-        // update, named, with the version currently installed.
+    transform: pageEnter.shift
+    PageEnter { id: pageEnter; win: updatesPage.win; target: updatesPage }
+
+    Flickable {
+        id: updatesFlick
+        objectName: "updatesFlick"
+        anchors.fill: parent
+        contentWidth: width
+        contentHeight: updateBody.implicitHeight + updatesPage.design.space6 * 2
+        clip: true
+        boundsBehavior: Flickable.StopAtBounds
+        Keys.onPressed: (event) => MoUI.KeyboardViewport.pageScrollKeys(updatesFlick, event)
+        ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
+
         ColumnLayout {
-            Layout.fillWidth: true
-            spacing: 9
-            visible: win.updatesState === "known" && win.updateItems().length > 0
-            Text {
-                text: win.rtl ? "بانتظار التحديث" : "Waiting to update"
-                color: win.txt2
-                font.family: win.uiFont
-                font.pixelSize: win.typePx(12)
-                font.bold: true
-            }
-            Repeater {
-                model: win.updatesState === "known" ? win.updateItems() : []
-                delegate: Rectangle {
-                    id: pendingRow
-                    required property var modelData
-                    Layout.fillWidth: true
-                    Layout.preferredHeight: win.fs(62)
-                    radius: design.radiusCard
-                    color: Qt.rgba(win.surface.r, win.surface.g, win.surface.b, 0.72)
-                    border.width: 1
-                    border.color: win.outline
-                    RowLayout {
-                        anchors.fill: parent
-                        anchors.leftMargin: 16
-                        anchors.rightMargin: 16
-                        spacing: 13
-                        Rectangle {
-                            Layout.preferredWidth: win.fs(36)
-                            Layout.preferredHeight: win.fs(36)
-                            radius: design.radiusControl
-                            color: Qt.rgba(win.accent.r, win.accent.g, win.accent.b, 0.14)
-                            Glyph {
-                                win: updatesFlick.win
-                                anchors.centerIn: parent
-                                width: 19; height: 19
-                                name: "download"; tint: win.accent
-                            }
-                        }
-                        ColumnLayout {
-                            Layout.fillWidth: true
-                            spacing: 1
-                            Text {
-                                Layout.fillWidth: true
-                                text: pendingRow.modelData.name || pendingRow.modelData.id
-                                color: win.txt
-                                font.family: win.uiFont
-                                font.pixelSize: win.typePx(14)
-                                font.bold: true
-                                elide: Text.ElideRight
-                            }
-                            Text {
-                                Layout.fillWidth: true
-                                text: pendingRow.modelData.id
-                                    + (pendingRow.modelData.version
-                                        ? " · " + pendingRow.modelData.version : "")
-                                color: win.txt2
-                                font.family: win.uiFont
-                                font.pixelSize: win.typePx(11)
-                                elide: Text.ElideRight
-                            }
-                        }
-                        Text {
-                            text: pendingRow.modelData.origin || ""
-                            color: win.txt2
-                            font.family: win.uiFont
-                            font.pixelSize: win.typePx(11)
-                        }
+            id: updateBody
+            x: updatesPage.padding
+            y: updatesPage.design.space2
+            width: updatesFlick.width - updatesPage.padding * 2
+            spacing: updatesPage.design.space5
+
+            // ── where things stand ──
+            Rectangle {
+                Layout.fillWidth: true
+                Layout.preferredHeight: statusRow.implicitHeight + updatesPage.design.space6 * 2
+                radius: updatesPage.design.radiusPanel
+                color: updatesPage.win.cardColor
+                border.width: 1
+                border.color: updatesPage.win.cardBorder
+                SoftShadow { win: updatesPage.win; radius: updatesPage.design.radiusPanel; strength: 1.2 }
+                Rectangle {
+                    anchors.fill: parent
+                    anchors.margins: 1
+                    radius: parent.radius - 1
+                    gradient: Gradient {
+                        orientation: Gradient.Horizontal
+                        GradientStop { position: 0; color: updatesPage.win.tint(updatesPage.win.accent, updatesPage.win.rtl ? 0 : 0.14) }
+                        GradientStop { position: 1; color: updatesPage.win.tint(updatesPage.win.accent, updatesPage.win.rtl ? 0.14 : 0) }
                     }
                 }
-            }
-        }
-        GridLayout {
-            Layout.fillWidth: true
-            columns: 3
-            columnSpacing: 13
-            Repeater {
-                model: [
-                    { glyph: "grid", ar: "تحديثات التطبيقات", en: "App updates", ar2: "تحديث آمن بصلاحيات المستخدم", en2: "Safe per-user transactions", action: "update" },
-                    { glyph: "shield", ar: "صورة MoOS", en: "MoOS image", ar2: "تحديث موقّع يُطبق بعد إعادة التشغيل", en2: "Signed, applied after reboot", action: "system-update" },
-                    { glyph: "gear", ar: "البرامج الثابتة", en: "Device firmware", ar2: "تحديثات العتاد من المصدر الموثوق", en2: "Trusted hardware updates", action: "firmware" }
-                ]
-                delegate: Rectangle {
-                    id: updateCard
-                    required property var modelData
-                    Layout.fillWidth: true
-                    Layout.preferredHeight: win.fs(156)
-                    radius: win.fs(21)
-                    color: Qt.rgba(win.surface.r, win.surface.g, win.surface.b, 0.78)
-                    border.width: 1
-                    border.color: win.outline
-                    ColumnLayout {
-                        anchors.fill: parent
-                        anchors.margins: 16
-                        spacing: design.space2
+                RowLayout {
+                    id: statusRow
+                    anchors.left: parent.left
+                    anchors.right: parent.right
+                    anchors.verticalCenter: parent.verticalCenter
+                    anchors.leftMargin: updatesPage.design.space6
+                    anchors.rightMargin: updatesPage.design.space6
+                    spacing: updatesPage.design.space5
+                    Rectangle {
+                        Layout.preferredWidth: updatesPage.win.fs(88)
+                        Layout.preferredHeight: updatesPage.win.fs(88)
+                        radius: width / 2
+                        color: updatesPage.win.tint(updatesPage.win.updatesState === "failed" ? updatesPage.win.warningInk
+                                                    : updatesPage.waiting > 0 ? updatesPage.win.accent : updatesPage.win.positiveInk,
+                                                    updatesPage.win.lightScheme ? 0.16 : 0.20)
                         Glyph {
-                            win: updatesFlick.win
-                            name: updateCard.modelData.glyph
-                            tint: win.accent
-                            Layout.preferredWidth: win.fs(27)
-                            Layout.preferredHeight: win.fs(27)
+                            win: updatesPage.win
+                            anchors.centerIn: parent
+                            width: updatesPage.win.fs(44)
+                            height: width
+                            name: updatesPage.win.updatesState === "failed" ? "warning"
+                                : updatesPage.waiting > 0 || updatesPage.win.updatesChecking ? "safe-update" : "check"
+                            tint: updatesPage.win.updatesState === "failed" ? updatesPage.win.warningInk
+                                : updatesPage.waiting > 0 ? updatesPage.win.accent : updatesPage.win.positiveInk
                         }
+                    }
+                    ColumnLayout {
+                        Layout.fillWidth: true
+                        spacing: updatesPage.design.space2
                         Text {
-                            text: win.rtl ? updateCard.modelData.ar : updateCard.modelData.en
-                            color: win.txt
-                            font.family: win.uiFont
-                            font.pixelSize: win.typePx(14)
-                            font.bold: true
+                            Layout.fillWidth: true
+                            // Say what is true, and say "not checked yet" when that is what is true.
+                            // Never show 0 before looking.
+                            text: {
+                                if (win.updatesChecking)
+                                    return win.rtl ? "نفحص التحديثات…" : "Checking for updates…"
+                                if (win.updatesState === "failed")
+                                    return win.rtl ? "تعذّر فحص التحديثات" : "Could not check for updates"
+                                if (win.updatesState === "unknown")
+                                    return win.rtl ? "تطبيقاتك، وتحديثاتها." : "Your apps, and their updates."
+                                var n = win.updateItems().length
+                                if (n === 0 && win.updateComponentCount() > 0)
+                                    return win.rtl
+                                        ? "توجد تحديثات لمكوّنات مشتركة."
+                                        : "Shared components have updates."
+                                if (n === 0)
+                                    return win.rtl ? "كل تطبيقاتك محدّثة." : "Everything is up to date."
+                                return win.rtl ? win.updatesCountText(n) + " بانتظارك"
+                                               : (n === 1 ? "1 update is ready" : n + " updates are ready")
+                            }
+                            color: updatesPage.win.txt
+                            font.family: updatesPage.win.uiFont
+                            font.pixelSize: updatesPage.win.typePx(28)
+                            font.weight: Font.Bold
+                            wrapMode: Text.WordWrap
+                            Accessible.role: Accessible.Heading
                         }
                         Text {
                             Layout.fillWidth: true
-                            text: win.rtl ? updateCard.modelData.ar2 : updateCard.modelData.en2
-                            color: win.txt2
-                            font.family: win.uiFont
-                            font.pixelSize: win.typePx(10)
+                            text: {
+                                if (updatesPage.win.updatesState === "failed")
+                                    return updatesPage.win.local("تحقّق من اتصالك ثم أعد الفحص.", "Check your connection and try again.")
+                                var when = updatesPage.win.agoText(updatesPage.win.updatesCheckedAt)
+                                var line = when !== "" ? updatesPage.win.local("آخر فحص ", "Last checked ") + when : ""
+                                var extra = updatesPage.win.updateComponentCount()
+                                if (updatesPage.win.updatesState === "known" && extra > 0)
+                                    line += (line !== "" ? "  ·  " : "")
+                                          + updatesPage.win.local("ومعها ", "plus ") + updatesPage.win.componentsCountText(extra)
+                                return line !== "" ? line : updatesPage.win.local("يفحص المتجر عندما تفتح هذه الصفحة.", "The Store checks when you open this page.")
+                            }
+                            color: updatesPage.win.txt2
+                            font.family: updatesPage.win.uiFont
+                            font.pixelSize: updatesPage.win.typePx(14)
                             wrapMode: Text.WordWrap
                         }
-                        Item { Layout.fillHeight: true }
-                        ActionButton {
-                            win: updatesFlick.win
-                            label: updateCard.modelData.action === "update"
-                                ? win.updateItems().length === 0
-                                    && win.updateComponentCount() > 0
+                        RowLayout {
+                            Layout.topMargin: updatesPage.design.space2
+                            spacing: updatesPage.design.space3
+                            ActionButton {
+                                win: updatesPage.win
+                                pill: true
+                                primary: true
+                                label: win.updateItems().length === 0 && win.updateComponentCount() > 0
                                     ? (win.rtl ? "حدّث المكوّنات الآن" : "Update components now")
-                                    : (win.rtl ? "حدّث التطبيقات الآن" : "Update apps now")
-                                : updateCard.modelData.action === "system-update"
-                                    ? (win.rtl ? "افتح محدّث MoOS" : "Open MoOS Updater")
-                                    : (win.rtl ? "افتح تحديثات البرامج الثابتة" : "Open firmware updates")
-                            glyphName: updateCard.modelData.action === "update"
-                                ? "refresh" : "external"
-                            enabled: updateCard.modelData.action !== "update"
-                                || (!win.jobIsActive()
-                                    && !win.updatesChecking
-                                    && !(win.updatesState === "known"
-                                         && win.updates.count === 0))
-                            triggered: function() {
-                                if (updateCard.modelData.action === "update") win.updateAll()
-                                else if (updateCard.modelData.action === "system-update")
-                                    win.openSystemUpdater()
-                                else win.openSourceEngine(updateCard.modelData.action)
+                                    : updatesPage.waiting > 0 ? updatesPage.win.local("حدّث الكل", "Update all") + " (" + updatesPage.waiting + ")"
+                                    : updatesPage.win.local("حدّث الكل", "Update all")
+                                glyphName: "refresh"
+                                // Nothing pending is a reason not to offer the button, once we know it.
+                                enabled: !win.jobIsActive() && !win.updatesChecking
+                                    && !(win.updatesState === "known" && win.updates.count === 0)
+                                triggered: function() { updatesPage.win.updateAll() }
+                            }
+                            ActionButton {
+                                win: updatesPage.win
+                                pill: true
+                                label: updatesPage.win.local("افحص الآن", "Check now")
+                                glyphName: "search"
+                                enabled: !updatesPage.win.updatesChecking
+                                triggered: function() {
+                                    updatesPage.win.updatesState = "unknown"
+                                    updatesPage.win.updatesCheckedAt = ""
+                                    updatesPage.win.checkUpdates()
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // ── automatic updates ──
+            Rectangle {
+                Layout.fillWidth: true
+                Layout.preferredHeight: autoRow.implicitHeight + updatesPage.design.space4 * 2
+                radius: updatesPage.design.radiusCard + 2
+                color: updatesPage.win.cardColor
+                border.width: 1
+                border.color: updatesPage.win.cardBorder
+                AutoUpdateRow {
+                    id: autoRow
+                    win: updatesPage.win
+                    anchors.left: parent.left
+                    anchors.right: parent.right
+                    anchors.verticalCenter: parent.verticalCenter
+                    anchors.leftMargin: updatesPage.design.space5
+                    anchors.rightMargin: updatesPage.design.space5
+                }
+            }
+
+            // ── what is waiting ──
+            // The list the page was missing: what actually has an update, named, with the version
+            // it has and the version it gets, and its own Update.
+            ColumnLayout {
+                Layout.fillWidth: true
+                spacing: updatesPage.design.space2
+                visible: win.updatesState === "known" && win.updateItems().length > 0
+                Text {
+                    text: win.rtl ? "بانتظار التحديث" : "Waiting to update"
+                    color: updatesPage.win.txt
+                    font.family: updatesPage.win.uiFont
+                    font.pixelSize: updatesPage.win.typePx(20)
+                    font.weight: Font.Bold
+                    Accessible.role: Accessible.Heading
+                }
+                Repeater {
+                    model: win.updatesState === "known" ? win.updateItems() : []
+                    delegate: Rectangle {
+                        id: pendingRow
+                        required property var modelData
+                        readonly property var app: updatesPage.win.appById(pendingRow.modelData.id)
+                        readonly property string from: pendingRow.modelData.kind === "pin"
+                            ? (pendingRow.modelData.installed_version || "") : (pendingRow.modelData.version || "")
+                        readonly property string to: pendingRow.modelData.kind === "pin"
+                            ? (pendingRow.modelData.version || "")
+                            : (pendingRow.app && pendingRow.app.version && pendingRow.app.version !== pendingRow.from
+                               ? pendingRow.app.version : "")
+                        Layout.fillWidth: true
+                        Layout.preferredHeight: updatesPage.win.fs(72)
+                        radius: updatesPage.design.radiusCard
+                        color: updatesPage.win.cardColor
+                        border.width: 1
+                        border.color: rowHover.hovered ? updatesPage.win.tint(updatesPage.win.accent, 0.45) : updatesPage.win.cardBorder
+                        HoverHandler { id: rowHover }
+                        TapHandler { enabled: pendingRow.app !== null; onTapped: updatesPage.win.openDetails(pendingRow.app) }
+                        RowLayout {
+                            anchors.fill: parent
+                            anchors.leftMargin: updatesPage.design.space4
+                            anchors.rightMargin: updatesPage.design.space4
+                            spacing: updatesPage.design.space4
+                            AppIcon {
+                                win: updatesPage.win
+                                app: pendingRow.app || ({ id: pendingRow.modelData.id, name: pendingRow.modelData.name })
+                                size: updatesPage.win.fs(44)
+                            }
+                            ColumnLayout {
+                                Layout.fillWidth: true
+                                spacing: 2
+                                Text {
+                                    horizontalAlignment: Text.AlignLeft
+                                    Layout.fillWidth: true
+                                    text: pendingRow.app ? updatesPage.win.localName(pendingRow.app)
+                                                         : (pendingRow.modelData.name || pendingRow.modelData.id)
+                                    color: updatesPage.win.txt
+                                    font.family: updatesPage.win.uiFont
+                                    font.pixelSize: updatesPage.win.typePx(15)
+                                    font.weight: Font.DemiBold
+                                    elide: Text.ElideRight
+                                }
+                                Text {
+                                    horizontalAlignment: Text.AlignLeft
+                                    Layout.fillWidth: true
+                                    text: {
+                                        var parts = []
+                                        if (pendingRow.from !== "" && pendingRow.to !== "")
+                                            parts.push(updatesPage.win.ltr(pendingRow.from + "  →  " + pendingRow.to))
+                                        else if (pendingRow.to !== "")
+                                            parts.push(updatesPage.win.local("إلى ", "to ") + updatesPage.win.ltr(pendingRow.to))
+                                        else if (pendingRow.from !== "")
+                                            parts.push(updatesPage.win.local("المثبّت ", "installed ") + updatesPage.win.ltr(pendingRow.from))
+                                        parts.push(pendingRow.app ? updatesPage.win.kindLabel(updatesPage.win.appKind(pendingRow.app))
+                                                                  : updatesPage.win.kindLabel(pendingRow.modelData.kind === "pin" ? "appdrop" : "flatpak"))
+                                        return parts.join("  ·  ")
+                                    }
+                                    color: updatesPage.win.txt2
+                                    font.family: updatesPage.win.uiFont
+                                    font.pixelSize: updatesPage.win.typePx(12)
+                                    elide: Text.ElideRight
+                                }
+                            }
+                            ActionButton {
+                                win: updatesPage.win
+                                pill: true
+                                compact: true
+                                label: updatesPage.win.local("تحديث", "Update")
+                                glyphName: "refresh"
+                                enabled: !updatesPage.win.jobIsActive()
+                                Accessible.name: updatesPage.win.local("حدّث ", "Update ")
+                                                 + (pendingRow.modelData.name || pendingRow.modelData.id)
+                                triggered: function() {
+                                    updatesPage.win.updateOne(pendingRow.app || { id: pendingRow.modelData.id })
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // ── what the Store does not update itself ──
+            GridLayout {
+                Layout.fillWidth: true
+                columns: updateBody.width > updatesPage.win.fs(760) ? 2 : 1
+                columnSpacing: updatesPage.design.space4
+                rowSpacing: updatesPage.design.space4
+                Repeater {
+                    model: [
+                        { id: "system", glyph: "shield", ar: "نظام MoOS نفسه", en: "MoOS itself",
+                          ar2: "تحديثات النظام موقّعة وتُطبَّق عند إعادة التشغيل، ويبقى الإصدار السابق جاهزًا للعودة إليه.",
+                          en2: "System updates are signed and applied on restart, and the previous version stays ready to return to." },
+                        { id: "firmware", glyph: "cpu", ar: "البرامج الثابتة للأجهزة", en: "Device firmware",
+                          ar2: "تظهر في إعدادات MoOS ← التحديث، حيث ترى كل جهاز وإصداره قبل أن يُثبَّت أي شيء.",
+                          en2: "Listed in MoOS Settings → Update, where you see each device and version before anything is installed." }
+                    ]
+                    delegate: Rectangle {
+                        id: systemCard
+                        required property var modelData
+                        Layout.fillWidth: true
+                        Layout.preferredHeight: systemColumn.implicitHeight + updatesPage.design.space5 * 2
+                        radius: updatesPage.design.radiusCard + 2
+                        color: updatesPage.win.cardColor
+                        border.width: 1
+                        border.color: updatesPage.win.cardBorder
+                        ColumnLayout {
+                            id: systemColumn
+                            anchors.left: parent.left
+                            anchors.right: parent.right
+                            anchors.top: parent.top
+                            anchors.margins: updatesPage.design.space5
+                            spacing: updatesPage.design.space2
+                            RowLayout {
+                                spacing: updatesPage.design.space3
+                                Rectangle {
+                                    Layout.preferredWidth: updatesPage.win.fs(40)
+                                    Layout.preferredHeight: updatesPage.win.fs(40)
+                                    radius: updatesPage.design.radiusControl
+                                    color: updatesPage.win.tint(updatesPage.win.txt, updatesPage.win.lightScheme ? 0.06 : 0.08)
+                                    Glyph {
+                                        win: updatesPage.win
+                                        anchors.centerIn: parent
+                                        width: updatesPage.win.fs(20)
+                                        height: width
+                                        name: systemCard.modelData.glyph
+                                        tint: updatesPage.win.txt
+                                    }
+                                }
+                                Text {
+                                    text: updatesPage.win.localName(systemCard.modelData)
+                                    color: updatesPage.win.txt
+                                    font.family: updatesPage.win.uiFont
+                                    font.pixelSize: updatesPage.win.typePx(15)
+                                    font.weight: Font.DemiBold
+                                }
+                            }
+                            Text {
+                                Layout.fillWidth: true
+                                text: updatesPage.win.rtl ? systemCard.modelData.ar2 : systemCard.modelData.en2
+                                color: updatesPage.win.txt2
+                                font.family: updatesPage.win.uiFont
+                                font.pixelSize: updatesPage.win.typePx(13)
+                                wrapMode: Text.WordWrap
+                            }
+                            ActionButton {
+                                win: updatesPage.win
+                                Layout.topMargin: updatesPage.design.space2
+                                pill: true
+                                compact: true
+                                label: systemCard.modelData.id === "system"
+                                    ? (updatesPage.win.rtl ? "افتح محدّث MoOS" : "Open MoOS Updater")
+                                    : (updatesPage.win.rtl ? "افتح تحديثات البرامج الثابتة" : "Open firmware updates")
+                                glyphName: "external"
+                                triggered: function() {
+                                    if (systemCard.modelData.id === "system") updatesPage.win.openSystemUpdater()
+                                    else updatesPage.win.openSystemRoute("firmware")
+                                }
                             }
                         }
                     }
