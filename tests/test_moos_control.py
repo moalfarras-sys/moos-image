@@ -85,6 +85,8 @@ esac
     "logger": "",
     "moos-theme": "",
     "gtk-launch": "",
+    # Mo Store opens what it installed (web apps, Windows programs…) and refuses the rest.
+    "moos-storectl": 'case "$1 $2" in "run chatgpt") exit 0;; run*) exit 1;; esac\n',
     "flatpak": 'case "$1 $2" in "info org.mozilla.firefox") exit 0;; info*) exit 1;; esac\n'
                'case "$1" in run) exit "${STUB_APP_EXIT:-0}";; esac\n',
     # The pages' own hosts, as the settings registry names them. STUB_PAGE_EXIT makes the
@@ -235,6 +237,11 @@ class MoosControlTests(unittest.TestCase):
         self.assertIn(["flatpak", "run", "org.mozilla.firefox"], calls)
         missing = self.control("open", "org.example.NotInstalled", WAYLAND_DISPLAY=DISPLAY_NAME)
         self.assertEqual(missing.returncode, 69)
+        # Anything Mo Store installed that is not a Flatpak opens through Mo Store itself.
+        web = self.control("open", "chatgpt", WAYLAND_DISPLAY=DISPLAY_NAME)
+        self.assertEqual(web.returncode, 0, web.stderr)
+        self.assertIn(["moos-storectl", "run", "chatgpt"], self.machine.calls(settle=0.5))
+        self.assertEqual(self.control("open", "not-installed", WAYLAND_DISPLAY=DISPLAY_NAME).returncode, 69)
 
     def test_settings_opens_only_the_pages_mo_ai_offers(self):
         """Each page opens with the registry's own command — the one moos-open's arm runs."""
