@@ -60,6 +60,7 @@ Popup {
 
     ColumnLayout {
         id: removeBody
+        objectName: "removeSheet"
         anchors.fill: parent
         anchors.margins: removeSheet.design.space5
         spacing: removeSheet.design.space4

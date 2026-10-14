@@ -634,7 +634,7 @@ Item {
                         }
                         Text {
                             Layout.fillWidth: true
-                            visible: appPage.app !== null && appPage.app.compat
+                            visible: appPage.app !== null && !!appPage.app.compat
                                      && (appPage.app.compat.reasons || []).indexOf("not_verified") >= 0
                             text: appPage.win.compatReasonText("not_verified")
                             color: appPage.win.warningInk

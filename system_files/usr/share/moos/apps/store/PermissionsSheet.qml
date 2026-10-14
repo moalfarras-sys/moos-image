@@ -43,6 +43,7 @@ Popup {
 
     ColumnLayout {
         id: permissionBody
+        objectName: "permissionsSheet"
         anchors.fill: parent
         anchors.margins: permissionsSheet.design.space5
         spacing: permissionsSheet.design.space4

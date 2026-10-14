@@ -34,6 +34,7 @@ Popup {
 
     ColumnLayout {
         id: sheetBody
+        objectName: "reviewSheet"
         anchors.fill: parent
         anchors.margins: review.design.space5
         spacing: review.design.space4

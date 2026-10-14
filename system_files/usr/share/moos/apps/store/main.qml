@@ -2042,8 +2042,9 @@ ApplicationWindow {
         review.open()
     }
 
-    // The selection shelf (SelectionShelf.qml) opens the review and steps aside while it is open.
-    readonly property bool reviewOpened: review.opened
+    // The selection shelf (SelectionShelf.qml) opens the review and steps aside while it is on
+    // screen, from the first frame of its entrance.
+    readonly property bool reviewOpened: review.visible
     function openReview() {
         review.open()
     }
@@ -2086,8 +2087,9 @@ ApplicationWindow {
 
     // Whether the installed shell's bridge offers a method this window would call (a newer
     // window can run on an older shell until the next MoOS update).
+    // The shell clears the bridge to null while the window closes, and views still bind to this.
     function bridgeHas(name) {
-        return typeof MoosStore !== "undefined" && typeof MoosStore[name] === "function"
+        return typeof MoosStore !== "undefined" && MoosStore !== null && typeof MoosStore[name] === "function"
     }
 
     // Returns whether MoOS took the file. The caller needs the answer: telling the
@@ -2361,11 +2363,13 @@ ApplicationWindow {
         screenshotViewer.open()
     }
 
+    // Escape closes the sheet on screen first. A sheet still arriving (`opened` turns true only
+    // when its entrance ends) counts as on screen: Escape pressed at once must not go Back.
     function escapeAction() {
-        if (screenshotViewer.opened) screenshotViewer.close()
-        else if (removeSheet.opened) removeSheet.close()
-        else if (permissionsSheet.opened) permissionsSheet.close()
-        else if (review.opened) review.close()
+        if (screenshotViewer.visible) screenshotViewer.close()
+        else if (removeSheet.visible) removeSheet.close()
+        else if (permissionsSheet.visible) permissionsSheet.close()
+        else if (review.visible) review.close()
         else if (win.page === "search" || win.canGoBack) win.goBack()
     }
 

@@ -42,6 +42,7 @@ Popup {
 
     Item {
         id: stage
+        objectName: "screenshotViewer"
         anchors.fill: parent
         focus: true
         LayoutMirroring.enabled: viewer.win.rtl

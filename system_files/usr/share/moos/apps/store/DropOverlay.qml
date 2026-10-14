@@ -12,6 +12,7 @@ import org.moos.ui as MoUI
 // and the palette. This file only presents them.
 Rectangle {
     id: dropOverlay
+    objectName: "dropOverlay"
     required property var win
     anchors.fill: parent
     z: 100

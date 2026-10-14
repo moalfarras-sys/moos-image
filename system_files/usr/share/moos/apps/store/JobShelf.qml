@@ -13,6 +13,7 @@ import QtQuick.Layouts
 // and the palette. This file only presents them.
 Item {
     id: jobShelf
+    objectName: "jobShelf"
     required property var win
     readonly property var design: win.design
     readonly property bool shown: win.jobIsActive() || win.jobIsTerminal()

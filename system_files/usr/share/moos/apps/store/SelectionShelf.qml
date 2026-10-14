@@ -11,6 +11,7 @@ import QtQuick.Layouts
 // and the palette. This file only presents them.
 Item {
     id: selectionShelf
+    objectName: "selectionShelf"
     required property var win
     readonly property var design: win.design
     readonly property var picked: {

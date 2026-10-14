@@ -40,6 +40,7 @@ Popup {
     }
     Text {
         id: toastLabel
+        objectName: "storeToast"
         anchors.centerIn: parent
         width: parent.width - toast.design.space5 * 2
         horizontalAlignment: Text.AlignHCenter
