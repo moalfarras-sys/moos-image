@@ -1,0 +1,119 @@
+{
+  "schema": 1,
+  "checkedAt": "2026-10-14T08:06:31.684654+00:00",
+  "sourceRevision": "1b947c21e6b3846f8eeaa73e2b75a6221dd172ac",
+  "topicRevision": "fafa408a911a309380f00b439f8c69caeca4b73d",
+  "themeRevision": 104,
+  "scope": "Signed exact-source candidates, first-attempt CI boot/offline-install proof and promoted registry; physical installed acceptance recorded separately",
+  "runs": {
+    "build": 38494227738,
+    "moos": 38499628341,
+    "moos-nvidia": 38499631679,
+    "moos-cloud": 38499635277,
+    "iso": 38499638470,
+    "arm": 38493744772,
+    "promotion": 38503482331
+  },
+  "firstAttemptSuccess": true,
+  "promoted": [
+    {
+      "edition": "moos",
+      "digest": "sha256:d10ceea0353908ac1aecbea3c847ed02e1de3e69b05901733bc3d4a6d411fdab",
+      "revision": "1b947c21e6b3846f8eeaa73e2b75a6221dd172ac",
+      "version": "44.20261014.1046",
+      "architecture": "amd64"
+    },
+    {
+      "edition": "moos-nvidia",
+      "digest": "sha256:0235cad7d5da41af9df25355f7b7beb395893db66e56f9bc5b5b514365579739",
+      "revision": "1b947c21e6b3846f8eeaa73e2b75a6221dd172ac",
+      "version": "44.20261014.1046",
+      "architecture": "amd64"
+    },
+    {
+      "edition": "moos-cloud",
+      "digest": "sha256:df39c6e5dca53be9a5d3d6eea1dc0775d9cf1f8e535f25df64cc057e8cc26c1f",
+      "revision": "1b947c21e6b3846f8eeaa73e2b75a6221dd172ac",
+      "version": "44.20261014.1046",
+      "architecture": "amd64"
+    },
+    {
+      "edition": "moos-arm",
+      "digest": "sha256:fb0ba6379b8cff1c11d9aad46ed34b2aa0d3cc1bdd2291b6e71c3eff63be78cc",
+      "revision": "1b947c21e6b3846f8eeaa73e2b75a6221dd172ac",
+      "version": "44.20261014.775",
+      "architecture": "arm64"
+    }
+  ],
+  "runtimeBoots": {
+    "moos": [
+      {
+        "boot_id": "16deffed-ab3d-4f6c-8c2e-2cc5665ef227",
+        "signed_origin": "ostree-image-signed:docker://ghcr.io/moalfarras-sys/moos@sha256:d10ceea0353908ac1aecbea3c847ed02e1de3e69b05901733bc3d4a6d411fdab",
+        "graphical": "active",
+        "failed_units": 0
+      },
+      {
+        "boot_id": "7ca25f06-3ece-41ca-9c29-679220f4fb2f",
+        "signed_origin": "ostree-image-signed:docker://ghcr.io/moalfarras-sys/moos@sha256:d10ceea0353908ac1aecbea3c847ed02e1de3e69b05901733bc3d4a6d411fdab",
+        "graphical": "active",
+        "failed_units": 0
+      }
+    ],
+    "moos-nvidia": [
+      {
+        "boot_id": "0d6f8d3a-9579-4218-8f1a-cfc26bc941b1",
+        "signed_origin": "ostree-image-signed:docker://ghcr.io/moalfarras-sys/moos-nvidia@sha256:0235cad7d5da41af9df25355f7b7beb395893db66e56f9bc5b5b514365579739",
+        "graphical": "active",
+        "failed_units": 0
+      },
+      {
+        "boot_id": "ed1481e8-59ed-4a73-a3e6-002ecfe59f8c",
+        "signed_origin": "ostree-image-signed:docker://ghcr.io/moalfarras-sys/moos-nvidia@sha256:0235cad7d5da41af9df25355f7b7beb395893db66e56f9bc5b5b514365579739",
+        "graphical": "active",
+        "failed_units": 0
+      }
+    ],
+    "moos-cloud": [
+      {
+        "boot_id": "bb136220-9238-4b3c-907c-17ba6ad57b6f",
+        "signed_origin": "ostree-image-signed:docker://ghcr.io/moalfarras-sys/moos-cloud@sha256:df39c6e5dca53be9a5d3d6eea1dc0775d9cf1f8e535f25df64cc057e8cc26c1f",
+        "graphical": "active",
+        "failed_units": 0
+      },
+      {
+        "boot_id": "38b9b94e-248d-43a2-87d4-4bfbb0df5764",
+        "signed_origin": "ostree-image-signed:docker://ghcr.io/moalfarras-sys/moos-cloud@sha256:df39c6e5dca53be9a5d3d6eea1dc0775d9cf1f8e535f25df64cc057e8cc26c1f",
+        "graphical": "active",
+        "failed_units": 0
+      }
+    ],
+    "moos-arm": [
+      {
+        "boot_id": "73c8cd83-1c48-4bcf-9710-c06c900c8b8f",
+        "signed_origin": "ostree-image-signed:docker://ghcr.io/moalfarras-sys/moos-arm@sha256:fb0ba6379b8cff1c11d9aad46ed34b2aa0d3cc1bdd2291b6e71c3eff63be78cc",
+        "graphical": "active",
+        "failed_units": 0
+      },
+      {
+        "boot_id": "fa81229c-87ee-4d7e-9d5b-84013ed90ef3",
+        "signed_origin": "ostree-image-signed:docker://ghcr.io/moalfarras-sys/moos-arm@sha256:fb0ba6379b8cff1c11d9aad46ed34b2aa0d3cc1bdd2291b6e71c3eff63be78cc",
+        "graphical": "active",
+        "failed_units": 0
+      }
+    ]
+  },
+  "iso": {
+    "sha256": "37053a88ae313f994875794055035d53134206a88eb44fb160b39fef3bb04821",
+    "liveBoot": true,
+    "offlineInstalledReboot": true,
+    "tenOpenedClosedReopenedApps": true,
+    "publicDeliveryQualified": false
+  },
+  "limits": [
+    "NVIDIA VM proof is not physical GPU qualification",
+    "Isolated Island Qt tests are not installed full-shell or screen-reader acceptance",
+    "Public ISO remains separately qualified .1026",
+    "Native .1046/.775 boot/owner-runtime acceptance still pending"
+  ]
+}

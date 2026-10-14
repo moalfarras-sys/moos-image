@@ -1,0 +1,23 @@
+{
+  "scope": "Three exact unused superseded local 1042 archive files; qualified replacement, ancestry and no holders proven. Public 1026 bytes and installed rollback preserved.",
+  "deleted_files": [
+    "moos-offline.iso",
+    "moos-offline.iso.sig",
+    "moos-offline.iso.sha256"
+  ],
+  "deleted_logical_bytes": 5827985587,
+  "physical_available_gain": 5827317760,
+  "physical_gain_scope": "Concurrent official update/dependency activity; net writable-host readback",
+  "replacement_proof": {
+    "sha256": "457fb3c85e3a82d2b134dacdff80d82b913b4c604faa1a2ce7b9f05343155b2f",
+    "sizeBytes": 5830410240,
+    "signatureVerified": true
+  },
+  "prior_proof": {
+    "sha256": "57f3d61ad8000595cc3266f1a48309d0ffe885ef7511ca05d61bd53f8aa9a2c0",
+    "sizeBytes": 5827985408,
+    "signatureVerified": true
+  },
+  "holders": [],
+  "checkedAt": "2026-10-14T08:07:06.556896+00:00"
+}

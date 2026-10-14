@@ -11,142 +11,58 @@ new private feedback/optional public suggestions product is P6.9 below.
 
 ## Active delivery and acceptance batch
 
-PR232/233/234 are integrated at `c5f2451b`. Final local ARM image/16 hashes,
-repo checks, Community 34 API/12 native Qt controls and native AR/EN Wayland
-pickers pass. The combined first-attempt signed cycle is complete: build
-38446133446, disks 38454884448/38454887386/38454893061, offline ISO 38454900845,
-x86 promotion 38461170910, full ARM 38445991140. All four latest tags match.
-NVIDIA now boots signed .1042 with .1032 rollback: native 55/0 selfcheck,
-55/0 post-update, 16 hashes/compiled player equality and 36.174 s boot.
-Installed encoded Arabic file URI/finite 20 s/paused +5 s seek/593 MiB graphics
-memory/owned-process release pass; this is not moving-pixel/HDR/endurance proof.
-Oracle .771 is officially staged with a one-attempt native login probe prepared;
-its booted acceptance remains .763. Exact .1042 ISO signature/hash/5,827,985,408
-bytes are archived; public delivery remains qualified .1026.
+PR232–236 are integrated. Latest source `1b947c21` ships THEME_REV=104 and
+passes full source/image/PR gates, exact 19-file local ARM readback and the
+complete first-attempt signed cycle: build 38494227738, disks
+38499628341/38499631679/38499635277, ISO 38499638470,
+ARM 38493744772 and promotion 38503482331. The four registry tags now resolve
+to x86 .1046 / ARM .775. Exact digests, eight healthy CI boot IDs and ten ISO
+app journeys are in [the qualified receipt](releases/2026-10-14-qualified-release-proof.json).
+These are promoted artifacts, not installed hardware or full product acceptance.
 
-**Current P2.17 correction:** native default-disabled greeter omitted KDE/Wayland
-desktop facts before KDE's backend started, and secure typing rejected its actual
-three-group de/us/ara EIS map. Greeter-only renewal restores both interfaces.
-The actual device map fails old source and passes the correction; fresh private
-Remote authentication reports secureText false→true with no audit input.
-Owner reports accepted password login; actual ordinary plasmalogin/Wayland session
-and restricted-greeter→account handoff agree. A documented temporary greeter-only
-copied runtime enables that journey. It is not a signed release. Source publishes
-those desktop facts while access remains disabled, checks actual interfaces on
-warm enable, retires failed enrollment and compiles exactly matching EIS groups.
-15 management/14 native keymap controls, full native repo checks and every .NET
-project/test executable pass. PR235 is merged at bfb158dd; final local ARM/18
-hashes and PR gates pass. Signed build 38481320383/full ARM 38481265631 are
-running on the fixed revision. Complete that artifact cycle; retire the exact transient override after delivered-byte
-readback, then repeat native opt-in/disabled/login journeys. Private TLS/PIN,
-owner authorization, PAM and default-disabled access remain load-bearing.
+M1/P2.4/P2.8 Island keys now avoid hidden tabs, synchronize selection/content,
+activate Return/keypad Enter once and resolve disappearing domains. Forty-eight
+native Qt component samples pass across AR/EN, light/dark, two/five contexts,
+100/150/250% and normal/reduced; completed original-source 250% controls fail.
+Next acceptance is native installed shell input/focus and screen-reader behavior.
 
-Independent M1/P2.4/P2.8 source follow-up: actual Qt keys reproduce hidden-tab
-focus, selection/content disagreement and absent Return/Enter activation; finishing
-Store can leave a blank popup. Topic source routes locale-aware arrows through a
-visible tab's action, ignores held Enter and resolves a retired domain. THEME_REV
-104 remains source only. Forty-eight native ARM component configurations pass
-(AR/EN, light/dark, two/five contexts, 100/150/250%, normal/reduced); original
-250% source fails completed controls with 28 measured arrow mismatches. Isolated
-software/offscreen review does not close native shell/Orca/Wayland acceptance.
+P2.17 greeter desktop facts/actual matching EIS groups are signed in .1044/.773
+and retained in the current images. Its full cycle completed. An HTTP 500 while
+reading an already-dispatched proof was recovered by adopting exact existing
+runs, never duplicate dispatch or rerun. Improve bounded metadata-read recovery
+without retrying mutations or weakening artifact/source checks.
+Physical NVIDIA booted .1044 with its corrected immutable helper hashes and
+signed .1042 rollback; its /run override disappeared naturally. The owner
+reports the desktop opened. Post-login readback and exact copied-bundle
+retirement await renewed Tailscale management authentication. Preserve opt-in,
+PIN/private TLS/upstream PAM/default-off and the owner’s password flow.
+Oracle still boots .763; the official authority staged current .775. Exact
+19-file staged payload/compiled player equality and THEME_REV=104 pass. Complete actual reboot/native owner acceptance before changing
+its installed-state claim. Preserve signed rollback and the owner’s monitor.
 
-Current bounded P3.1/P3.2/P5.7 follow-up: existing-account free cloud reply,
-SSE and isolated Hermes path now pass native synthetic journeys. Reported direct
-cost is zero; saved provider choice is preserved. Native cgroup leaves separate
-file cache from anonymous RAM and include capture outside the Remote server.
-The source relay now closes owned upstream responses on every return/error;
-Seven private socket-backed HTTP controls fail against old source and pass fixed,
-including explicit/authentication refusal and automatic free-candidate retry.
-Selfcheck describes connections honestly and preserves the Oracle monitor.
-Source/image/signed delivery passes in .1042/.771; native NVIDIA direct/SSE
-1.02/1.11 s/cost=0 and isolated Hermes 4.30 s/absent usage pass. Broader
-cancellation/stall/voice/clean-account qualification remains separate; see [runtime audit](AUDIT_20261013_RUNTIME_AR.md).
+Existing-account cloud JSON/SSE/free replies and isolated Hermes journeys pass
+on both stations. Reported direct cost=0; missing Hermes usage is not zero cost.
+Response-lifetime, Community API/native Qt pickers, finite MoPlayer controls and
+URI/source gates remain delivered within their recorded scope. Broader
+cancellation/stall/quota/voice/clean-account and hardware/application journeys
+remain open in their rows. See [runtime evidence](AUDIT_20261013_RUNTIME_AR.md).
 
-Owner reliability/release slice is integrated at main `3abe787a` (PR224).
-All 246 maintained source gates, catalogue, full local image and exact signed
-build/three QCOW2/offline installed ISO/ARM proofs pass on attempt 1.
-X86 .1026 promotion 38136731168 and ARM .752 pipeline 38128647066 passed.
-Physical NVIDIA booted signed .1026 and passes native 54/0 + 55/0, fourteen
-runtime hashes and actual system/native-user memory monitoring.
-Oracle now boots signed ARM .763: native 51 successful selfchecks/4 informational
-notes, 55/0 post-update, 9 new runtime hashes/compiled player equality and real
-system/native-user memory monitoring; the prior .756 Remote acceptance covered 31 files. Both preserve
-signed rollback and services; native SSH reconnects across Oracle's new reboot.
-Native .1026 reboot/readback passed. A scheduled image-only build is not delivery.
-Remote PR225 merged at `d44cecfd`; x86 signed build 38169917085 passed (.1029).
-Disk proofs 38178926184/38178929064/38178932277, ISO 38178935305 and promotion
-38181945282 passed on attempt 1; all three x86 editions are promoted as .1029.
-ARM 38169587234 passed; .756 (`0a02cbd7…`) booted with native 31-file acceptance,
-healthy preserved services and private TLS; existing autologin is not a password proof.
-PR227 corrects the .752/.756 greeter theme-sync timeout by scoping three desktop
-units away from system accounts. PR228 integrates that correction and the native
-launcher/material audit at `4ee7f158`. Its first-attempt signed cycle is complete:
-x86 build 38311291809, three disks 38318191729/38318194809/38318198405,
-offline ISO 38318201656, promotion 38322153729 and ARM 38311239191.
-Production x86 .1032/ARM .761 are proven. Oracle's official timer staged .761;
-it then ran .756; the owner-applied .763 boot is recorded below. Pre-login remains off on Oracle; NVIDIA now opted in for owner-requested Remote
-login, with the temporary correction and installed boundary recorded above.
-
-The 12 October station audit is the current bounded M0/P2.2/P2.5/P5.6 slice:
-actual ARM readback, reviewed cache retirement and one native Settings launcher.
-An account's old hidden launcher produced zero Settings menu entries despite
-51/0 + 55/0. A shared effective-XDG probe and recoverable exact-byte migration
-now restore one KDE menu entry, preserve the original, refuse unknown overrides
-and pass six isolated controls. Source selfcheck passes 52/0; signed delivery
-passes, with Oracle .763 native acceptance now passing within recorded scope. Seven KCMs load in private Arabic contexts;
-all Remote .NET builds/test executables pass. Native cleanup reclaimed
-33,544,560,640 bytes across seven exact superseded images without touching
-owner containers/data/rollback. Headroom with the .1042 ISO archive is about 38 GiB. The 30 s sample
-has 7.17–7.28 GiB available with the editor/services active, not clean idle.
-
-The native MPEG4 journey exposed incorrect Live controls and encoded Arabic
-file-URI rejection in MoPlayer. PR229 at `45ffc8fc` preserves `9d1717fe` and fixes
-finite controls/history policy/URI handling; 258 Flutter tests, native paused
-seek/actual frames and full local ARM image/9 hashes pass. Its final libapp.so
-matches the native tested bundle exactly. The omitted x86 PR input trigger is
-fixed with an old-workflow negative control; all final PR CI passes. The final
-signed cycle on `45ffc8fc` passed on attempt 1: build 38349913971, disks
-38355997007/38356002795/38356005878, ISO 38356009395, x86 promotion
-38360661403 and full ARM 38349794036. All four latest tags match the exact
-digests; production x86 .1034/ARM .763 include both PR228/229. Official Oracle
-update completed staging .763 at 08:54:48 Berlin, with booted .756/rollback .752
-preserved at stage. The owner-timed restart now boots signed .763 with .756
-rollback. Native owner context passes 51 selfchecks/4 informational notes, 55/0
-post-update checks, 9 runtime hashes/compiled player byte equality and 15.055 s
-boot; the private probe retired itself. Installed native MPEG4/encoded Arabic
-URI, 20 s finite MPRIS, paused +5 s seek and actual frame/control review pass.
-Physical NVIDIA is online but SSH refuses; no new native GPU/update proof.
-
-Public Vercel availability is restored on all 14 primary projects through the
-provider's documented unpause operation, while account fair-use/deploy blocking
-and historical counters remain visible. MoOS's frontend is independent Cloudflare
-Static Assets, with five scoped CDN redirects from its old entrypoints and no
-MoOS CMS/ISR/image optimizer/beacon traffic. Current .1026 public full transfer,
-signature/hash/ranges/sidecars and paired metadata pass; eight refreshed public
-browser views and fourteen fresh .1026 routing checks pass. .1011 is deleted; .1018 retained
-original bytes through 15:00 UTC October 11. Guarded retirement actually deleted
-its three exact public keys at 15:05:09 UTC (5,808,128,179 bytes). The completed Oracle upload scratch is retired.
-No paid plan/spend-cap relaxation was enabled. Supabase egress and the old A&D
-alias are separate remaining availability defects, not OS release gates.
-
-The 11 October owner request prioritizes the reliability slice P6.7/P5.7,
-then P2.17 (Remote before account login), before returning to M1/P2.3–P2.5:
-qualify Arabic/English locale, fonts and keyboard/reader/scale/motion on native surfaces.
-Canary 38099434894 passes reviewed Plasma 6.7.91, all twelve seams, the exact
-vendor logout RPM/greeter and final-image gates. Unknown NVR refusal remains;
-final stable 6.8.0 requires separate vendor review. The experimental inactive
-/var SELinux store is retired only after module and configured /etc boot-policy
-equality; native duplicate-store and nine refusal controls pass. No gate is relaxed.
-Remote's full local image and 31 runtime files pass; actual Oracle read-only
-old/fixed controls accept separate public Community/private Remote and preserve
-ingress bytes. Production greeter enrollment remains separate from account TLS.
-Do not count theme configuration or installed packages as these user flows.
-Mira real unmuted USB/voice, community public onboarding/moderation and M4
-preserved APK/PE work remain named acceptance tasks, not silently merged work.
+P0.12 public ISO remains fully qualified .1026. .1044 local archive signature/hash
+pass; .1046 CI ISO installs offline and reboots, but new anonymous full-transfer,
+sidecars/ranges and website qualification remain. Retire only exact unused
+superseded local archives after replacement/signature/ancestry/holder proof.
+The website audit also found unsafe mutable-tag conversion commands and
+scripts allowing skipped signature checks. A separate website branch withdraws
+those paths, retains the qualified generic ISO and gives edition-specific,
+bilingual installation/update guidance. Require maintained web/admin/static
+checks, old/fixed executable controls and actual browser/production readback.
+Source edits alone do not correct the public website.
 
 The cadence of release cycles is the security cadence: nightly image-only
 builds cannot deliver a base fix. P6.3 stays open until bounded, boot-proven
-cycles keep every supported edition current.
+cycles keep every supported edition current. Reviewed Plasma 6.7.91 canary
+evidence does not qualify stable 6.8.0; unknown vendor NVRs and seams remain
+refused pending separate review. Never widen pins to update the desktop.
 
 ## Product acceptance
 
@@ -437,7 +353,7 @@ itself and an unreviewed MoOS would ship kscreenlocker's emergency locker.
 | P2.5 | Visual, contrast, scale and reduced-motion matrix | Native audit reproduces a lost blur/clarity file update with the real producer. Atomic generation publication and unchanged finite event readback pass 480 native transitions, invalid/ambiguous/absent and broken-reader controls; THEME_REV/fingerprint=103 in source. Signed .1034/.763 delivery passes; Oracle native boot/bytes pass; full visual/scale/motion matrix remains open | 1080p–4K, 100–250%, Arabic RTL/English LTR, light/dark, reduced motion and measured readable contrast. |
 | P2.6 | Asset reachability and removal of retired UI | Open: archived translucent-dialog prototype retained, but current-theme blur-off qualification/integration remains | Generator/runtime/test consumers proven; retain negative fixtures and required upstream notices; never restore obsolete generated assets over today's theme. |
 | P2.7 | Horizon feedback, clock input and system sound | Open / acceptance not complete | Finite stable-hit feedback, reversal/hidden/reduced-motion proof, clock keys and actual event sound. |
-| P2.8 | MoOS Bar, Search and Island as one shell | Source Island visible-context arrows, Return/Enter and retired-domain correction pass isolated native Qt; signed/native full-shell acceptance remains | Native accessible Search/Island/Bar, keyboard escape, multi-context tabs and truthful lifecycle tokens. |
+| P2.8 | MoOS Bar, Search and Island as one shell | Island visible-context arrows, Return/Enter and retired-domain correction pass native isolated Qt and signed .1046/.775 qualification; installed full-shell/accessibility acceptance remains | Native accessible Search/Island/Bar, keyboard escape, multi-context tabs and truthful lifecycle tokens. |
 | P2.9 | User-visible MoOS identity on every surface | Implemented/delivered within recorded scope; wider acceptance remains | Unchanged identity gates plus actual login/boot/desktop/app surfaces; legal attribution preserved. |
 | P2.10 | Readable text and glyph contrast on every palette | Open / acceptance not complete | All schemes meet role-specific contrast; actual glyph/card/pointer frames instead of token names. |
 | P2.11 | Visible, bilingual update changes | Implemented/delivered within recorded scope; wider acceptance remains | Readable current entries and working routes, delivered update/notification readback. |
