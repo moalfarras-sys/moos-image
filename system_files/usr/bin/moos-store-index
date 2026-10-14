@@ -1002,7 +1002,8 @@ def appstream_sources(
     for root, scope in roots:
         if not root.is_dir():
             continue
-        allowed_origins = official_flatpak_origins(root) if official_only else None
+        remote_urls = official_flatpak_remotes(root) if official_only else None
+        allowed_origins = set(remote_urls) if remote_urls is not None else None
         try:
             root_resolved = root.resolve()
             remote_dirs = sorted(root.iterdir(), key=lambda path: path.name)
@@ -1072,12 +1073,21 @@ def appstream_sources(
                     return active, modified, str(path)
 
                 chosen = max(revisions, key=candidate_key)
-                revision_name = chosen.parent.resolve().name
+                revision_dir = chosen.parent.resolve()
+                revision_name = revision_dir.name
                 revision = (
                     revision_name
                     if re.fullmatch(r"[0-9a-f]{64}", revision_name)
                     else None
                 )
+                # When this revision was checked out. The plain appstream.xml
+                # is an OSTree checkout whose mtime is the epoch, so the file
+                # cannot say which installation holds the newer catalogue; the
+                # revision directory is created at checkout and can.
+                try:
+                    revision_mtime_ns = revision_dir.stat().st_mtime_ns
+                except OSError:
+                    revision_mtime_ns = 0
                 sources.append(
                     {
                         "kind": "flatpak-appstream",
@@ -1086,13 +1096,18 @@ def appstream_sources(
                         "arch": arch,
                         "revision": revision,
                         "path": chosen,
+                        "url": (remote_urls or {}).get(origin),
+                        "revision_mtime_ns": revision_mtime_ns,
                     }
                 )
     return sources
 
 
-def official_flatpak_origins(appstream_root: Path) -> set[str]:
-    """Return configured, enabled remotes backed by the official Flathub repo.
+FLATHUB_REPO_URL = "https://dl.flathub.org/repo/"
+
+
+def official_flatpak_remotes(appstream_root: Path) -> dict[str, str]:
+    """Return {remote name: URL} for enabled remotes backed by the official Flathub repo.
 
     AppStream directories can survive remote removal.  Treating every leftover
     directory as live metadata lets an orphan/custom remote claim verification,
@@ -1100,16 +1115,27 @@ def official_flatpak_origins(appstream_root: Path) -> set[str]:
     that source.  Production auto-discovery therefore reads the installation's
     own repo config and keeps only remotes whose URL/GPG policy matches the
     backend. Explicit --appstream-root fixtures remain available for tests.
+
+    GPG verification is OSTree's DEFAULT: a remote section with no
+    `gpg-verify` line verifies. `flatpak remote-add --user` writes no such
+    line, so reading a missing key as "false" (as this function did until
+    2026-10-14) silently threw away the person's own user-scope Flathub
+    AppStream — the one `moos-storectl refresh-index` refreshes — and the Store
+    could only ever show the system copy. An implicit default is accepted only
+    together with the remote's trusted keyring in the same repo, which is where
+    `remote-add` stores the key verification uses; an explicit
+    `gpg-verify=false` is still refused.
     """
 
-    config = appstream_root.parent / "repo" / "config"
+    repo = appstream_root.parent / "repo"
+    config = repo / "config"
     parser = configparser.ConfigParser(interpolation=None, strict=False)
     try:
         with config.open(encoding="utf-8") as handle:
             parser.read_file(handle)
     except (OSError, UnicodeError, configparser.Error):
-        return set()
-    result: set[str] = set()
+        return {}
+    result: dict[str, str] = {}
     for section in parser.sections():
         match = re.fullmatch(r'remote "([^"]+)"', section)
         if not match:
@@ -1117,12 +1143,67 @@ def official_flatpak_origins(appstream_root: Path) -> set[str]:
         name = match.group(1)
         if not REMOTE_RE.fullmatch(name):
             continue
-        url = parser.get(section, "url", fallback="").rstrip("/") + "/"
-        gpg = parser.getboolean(section, "gpg-verify", fallback=False)
-        disabled = parser.getboolean(section, "xa.disable", fallback=False)
-        if url == "https://dl.flathub.org/repo/" and gpg and not disabled:
-            result.add(name)
+        url = parser.get(section, "url", fallback="").strip().rstrip("/") + "/"
+        try:
+            if parser.has_option(section, "gpg-verify"):
+                gpg = parser.getboolean(section, "gpg-verify")
+            else:
+                keyring = repo / f"{name}.trustedkeys.gpg"
+                gpg = keyring.is_file() and keyring.stat().st_size > 0
+            disabled = parser.getboolean(section, "xa.disable", fallback=False)
+        except (ValueError, OSError):
+            continue
+        if url == FLATHUB_REPO_URL and gpg and not disabled:
+            result[name] = url
     return result
+
+
+def official_flatpak_origins(appstream_root: Path) -> set[str]:
+    """The names of the trusted Flathub remotes (see official_flatpak_remotes)."""
+
+    return set(official_flatpak_remotes(appstream_root))
+
+
+def supersede_older_sources(sources: list[dict]) -> tuple[list[dict], list[dict]]:
+    """Keep only the newest AppStream revision of each remote URL and architecture.
+
+    The user and the system installation usually both carry Flathub. Their
+    AppStream checkouts are two revisions of ONE catalogue, so parsing both
+    doubled a cold build (measured 3.2 s -> 6.2 s) to produce the same apps
+    twice. A source with a known URL is compared with every other source of
+    that URL: the revision checked out last wins (Flathub's AppStream only
+    moves forward), and a tie goes to the user installation, which is where
+    Mo Store installs. A source with no known URL (an explicit
+    --appstream-root fixture) is never merged away. Returns (kept, superseded);
+    each superseded source names the path that replaced it.
+    """
+
+    groups: dict[tuple[str, str], list[dict]] = {}
+    kept: list[dict] = []
+    for source in sources:
+        url = source.get("url")
+        if not url:
+            kept.append(source)
+            continue
+        groups.setdefault((url, source["arch"]), []).append(source)
+    superseded: list[dict] = []
+    for members in groups.values():
+        ordered = sorted(
+            members,
+            key=lambda item: (
+                item.get("revision_mtime_ns") or 0,
+                item["scope"] == "user",
+                str(item["path"]),
+            ),
+            reverse=True,
+        )
+        winner = ordered[0]
+        kept.append(winner)
+        for loser in ordered[1:]:
+            superseded.append(dict(loser, superseded_by=str(winner["path"])))
+    order = {id(source): index for index, source in enumerate(sources)}
+    kept.sort(key=lambda item: order.get(id(item), 0))
+    return kept, superseded
 
 
 def deployed_origin(active: Path) -> str:
@@ -1967,7 +2048,8 @@ def build_index(
         else:
             apps_by_id[app["id"]] = app
 
-    for source in discovered_sources:
+    parsed_sources, superseded_sources = supersede_older_sources(discovered_sources)
+    for source in parsed_sources:
         source_components = 0
         source_accepted = 0
         source_invalid = 0
@@ -2048,6 +2130,27 @@ def build_index(
                 "error": source_error,
                 "metadata_reused": metadata_reused,
                 "metadata_reused_from": reused_from,
+                "superseded_by": None,
+            }
+        )
+
+    for source in superseded_sources:
+        sources_output.append(
+            {
+                "kind": source["kind"],
+                "origin": source["origin"],
+                "scope": source["scope"],
+                "arch": source["arch"],
+                "revision": source.get("revision"),
+                "path": str(source["path"]),
+                "components": 0,
+                "accepted": 0,
+                "skipped": 0,
+                "invalid": 0,
+                "error": None,
+                "metadata_reused": False,
+                "metadata_reused_from": None,
+                "superseded_by": source["superseded_by"],
             }
         )
 
@@ -2106,6 +2209,7 @@ def build_index(
             "error": None,
             "metadata_reused": False,
             "metadata_reused_from": None,
+            "superseded_by": None,
         }
     )
 
@@ -2126,6 +2230,7 @@ def build_index(
         "catalog_fallback_apps": catalog_fallbacks,
         "metadata_indexes_parsed": metadata_indexes_parsed,
         "metadata_indexes_reused": metadata_indexes_reused,
+        "metadata_indexes_superseded": len(superseded_sources),
     }
 
     content_for_id = {

@@ -317,6 +317,8 @@ check:
     python3 tests/test_remote_linux_network_boundary.py
     python3 tests/test_remote_trusted_devices.py
     python3 tests/test_moos_store_index.py
+    # Which AppStream the Store indexes: the user's own Flathub remote, and one revision per URL.
+    python3 tests/test_mo_store_index_sources.py
     # The Store may not offer an app this machine cannot install. The browse
     # index is built from the RUNNING arch's AppStream, but a curated entry with
     # no match was MANUFACTURED into the index -- so eleven x86-only apps, two of
