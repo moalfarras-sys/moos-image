@@ -43,6 +43,10 @@ READY="${CACHEDIR}/index.ready"
 # Pending updates are their own document: a read-only check must never look
 # like a transaction to the UI, which correlates job.json to its own request.
 UPDATES="${CACHEDIR}/updates.json"
+# Sizes, permissions and end-of-life of every app in the trusted catalogue, read by the backend
+# from the cached catalogue summary (no network); and the person's own Store choices.
+FACTS="${CACHEDIR}/facts.json"
+SETTINGS="${XDG_CONFIG_HOME:-$HOME/.config}/moos/store.json"
 
 # What this machine is, written BEFORE the first frame. The Store paints the
 # curated catalogue immediately (Component.onCompleted -> loadCurated()) and only
@@ -81,6 +85,9 @@ fi
 OPEN_APP=()
 for arg in "$@"; do
     case "$arg" in
+        # The launcher's jump list ("Updates", "My apps") opens one page by name.
+        --page=discover|--page=apps|--page=games|--page=library|--page=updates|--page=settings)
+            OPEN_APP=("--open-page=${arg#--page=}"); continue ;;
         --app=*) candidate="${arg#--app=}" ;;
         appstream://*) candidate="${arg#appstream://}" ;;
         appstream:*) candidate="${arg#appstream:}" ;;
@@ -93,6 +100,10 @@ for arg in "$@"; do
     fi
 done
 
+if [ -x /usr/bin/moos-storectl ]; then
+    ( /usr/bin/moos-storectl facts >/dev/null 2>&1 || true ) &
+fi
+
 # moos-qml-shell, not the bare runtime: qml-qt6 names every window it hosts
 # org.qt-project.qml-qt6, so Plasma cannot match this window to
 # org.moos.store.desktop and shows the generic green Qt icon. The shell sets the
@@ -101,7 +112,8 @@ if [ -x /usr/bin/moos-qml-shell ]; then
     exec /usr/bin/moos-qml-shell \
         --app-id org.moos.store --icon moos-store --qml "$QML" \
         -- --cache="$CACHEDIR" --index="$INDEX" --job="$JOB" --ready="$READY" \
-           --updates="$UPDATES" --machine="$MACHINE" "${OPEN_APP[@]}"
+           --updates="$UPDATES" --machine="$MACHINE" --facts="$FACTS" --settings="$SETTINGS" \
+           "${OPEN_APP[@]}"
 fi
 
 # Fallback: wrong icon beats no window.
