@@ -35,7 +35,7 @@ Item {
         objectName: "settingsFlick"
         anchors.fill: parent
         contentWidth: width
-        contentHeight: settingsBody.implicitHeight + settingsPage.design.space6 * 2
+        contentHeight: settingsBody.implicitHeight + settingsPage.design.space6 * 2 + settingsPage.win.footClearance
         clip: true
         boundsBehavior: Flickable.StopAtBounds
         Keys.onPressed: (event) => MoUI.KeyboardViewport.pageScrollKeys(settingsFlick, event)
@@ -173,7 +173,7 @@ Item {
                         ? settingsPage.win.local("لا يتضمن هذا الإصدار من MoOS ما يشغّل تطبيقات أندرويد على هذا النوع من الحواسيب.",
                                                  "This edition of MoOS has nothing to run Android apps on this kind of computer.")
                         : settingsPage.androidState && settingsPage.androidState.initialized === false
-                          ? settingsPage.win.local("تحتاج إعدادًا لمرة واحدة (تنزيل نحو 1 غيغابايت).", "Needs a one-time setup (about a 1 GB download).")
+                          ? settingsPage.win.local("تحتاج إعدادًا لمرة واحدة (تنزيل يزيد على 2 غيغابايت).", "Needs a one-time setup (a download of over 2 GB).")
                         : settingsPage.androidState && settingsPage.androidState.graphics === "software"
                           ? settingsPage.win.local("جاهزة، لكنها ترسم هنا دون تسريع رسومي، فقد تبطؤ الألعاب.",
                                                    "Ready, but they draw without graphics acceleration here, so games may be slow.")

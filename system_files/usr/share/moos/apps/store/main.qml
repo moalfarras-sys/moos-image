@@ -107,6 +107,10 @@ ApplicationWindow {
     readonly property bool lightScheme: design.isLight(Kirigami.Theme.backgroundColor)
     readonly property bool rtl: MoUI.Locale.rtl
     readonly property bool compactRail: win.width < 1100
+    // Room every page leaves at its foot while a shelf floats there (a selection, a job), so its
+    // last row can always scroll clear of the shelf.
+    readonly property real footClearance: win.pickCount > 0 || win.jobIsActive() || win.jobIsTerminal()
+                                          ? win.fs(112) : 0
 
     // A colour at an alpha, so a view never spells out four channels to fade one role.
     function tint(color, alpha) { return Qt.rgba(color.r, color.g, color.b, alpha) }
@@ -690,7 +694,7 @@ ApplicationWindow {
         if (kind === "flatpak" && fact && fact.permissions) {
             var factRows = []
             for (var f = 0; f < fact.permissions.length; ++f)
-                factRows.push({ key: fact.permissions[f], allowed: true, changeable: false, ask: false })
+                factRows.push({ key: fact.permissions[f], allowed: false, changeable: false, ask: false, requested: true })
             return factRows
         }
         return []
@@ -764,7 +768,7 @@ ApplicationWindow {
     }
 
     function contentRatingText(rating) {
-        if (rating === "all") return win.local("مناسب للجميع", "Suitable for everyone")
+        if (rating === "all") return win.local("للجميع", "Everyone")
         if (rating === "teen") return win.local("للمراهقين فما فوق", "Teens and up")
         if (rating === "mature") return win.local("للبالغين", "Adults only")
         return win.local("غير مصنّف", "Not rated")

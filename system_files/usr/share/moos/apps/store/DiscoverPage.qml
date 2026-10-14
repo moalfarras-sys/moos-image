@@ -35,7 +35,7 @@ Item {
         objectName: "discoverFlick"
         anchors.fill: parent
         contentWidth: width
-        contentHeight: discoverBody.implicitHeight + discover.design.space6 * 2
+        contentHeight: discoverBody.implicitHeight + discover.design.space6 * 2 + discover.win.footClearance
         clip: true
         boundsBehavior: Flickable.StopAtBounds
         Keys.onPressed: (event) => MoUI.KeyboardViewport.pageScrollKeys(discoverFlick, event)

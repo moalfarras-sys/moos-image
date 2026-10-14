@@ -57,6 +57,7 @@ Item {
             clip: true
             spacing: searchPage.design.space2
             model: searchPage.visible ? searchPage.win.searchResults : []
+            bottomMargin: searchPage.win.footClearance
             boundsBehavior: Flickable.StopAtBounds
             keyNavigationEnabled: true
             reuseItems: true

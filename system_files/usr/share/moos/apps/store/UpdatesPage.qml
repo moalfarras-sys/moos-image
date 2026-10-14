@@ -30,7 +30,7 @@ Item {
         objectName: "updatesFlick"
         anchors.fill: parent
         contentWidth: width
-        contentHeight: updateBody.implicitHeight + updatesPage.design.space6 * 2
+        contentHeight: updateBody.implicitHeight + updatesPage.design.space6 * 2 + updatesPage.win.footClearance
         clip: true
         boundsBehavior: Flickable.StopAtBounds
         Keys.onPressed: (event) => MoUI.KeyboardViewport.pageScrollKeys(updatesFlick, event)
@@ -148,8 +148,10 @@ Item {
                                     ? (win.rtl ? "حدّث المكوّنات الآن" : "Update components now")
                                     : updatesPage.waiting > 0 ? updatesPage.win.local("حدّث الكل", "Update all") + " (" + updatesPage.waiting + ")"
                                     : updatesPage.win.local("حدّث الكل", "Update all")
-                                glyphName: "refresh"
-                                // Nothing pending is a reason not to offer the button, once we know it.
+                                glyphName: "download"
+                                // Nothing pending is a reason not to offer the button, once we know it:
+                                // it steps aside rather than standing there greyed out.
+                                visible: !(updatesPage.win.updatesState === "known" && updatesPage.win.updates.count === 0)
                                 enabled: !win.jobIsActive() && !win.updatesChecking
                                     && !(win.updatesState === "known" && win.updates.count === 0)
                                 triggered: function() { updatesPage.win.updateAll() }
@@ -275,7 +277,7 @@ Item {
                                 pill: true
                                 compact: true
                                 label: updatesPage.win.local("تحديث", "Update")
-                                glyphName: "refresh"
+                                glyphName: "download"
                                 enabled: !updatesPage.win.jobIsActive()
                                 Accessible.name: updatesPage.win.local("حدّث ", "Update ")
                                                  + (pendingRow.modelData.name || pendingRow.modelData.id)

@@ -101,17 +101,26 @@ Popup {
             wrapMode: Text.WordWrap
         }
 
+        // Every row when the window has room (a Linux app has eight); a scroll bar when it has not.
         Flickable {
+            id: permissionList
             Layout.fillWidth: true
-            Layout.preferredHeight: Math.min(permissionColumn.implicitHeight, permissionsSheet.win.fs(380))
+            Layout.preferredHeight: Math.max(permissionsSheet.win.fs(120),
+                                             Math.min(permissionColumn.implicitHeight,
+                                                      permissionsSheet.win.height - permissionsSheet.win.fs(320)))
             visible: permissionsSheet.rows.length > 0
             contentWidth: width
             contentHeight: permissionColumn.implicitHeight
             clip: true
             boundsBehavior: Flickable.StopAtBounds
+            readonly property bool scrolls: permissionList.contentHeight > permissionList.height + 1
+            readonly property real gutter: permissionList.scrolls ? permissionsSheet.win.fs(14) : 0
+            ScrollBar.vertical: ScrollBar { policy: permissionList.scrolls ? ScrollBar.AlwaysOn : ScrollBar.AlwaysOff }
             ColumnLayout {
                 id: permissionColumn
-                width: parent.width
+                // The rows stay clear of the scroll bar, which sits on the reading side's far edge.
+                x: permissionsSheet.win.rtl ? permissionList.gutter : 0
+                width: parent.width - permissionList.gutter
                 spacing: 0
                 Repeater {
                     model: permissionsSheet.rows

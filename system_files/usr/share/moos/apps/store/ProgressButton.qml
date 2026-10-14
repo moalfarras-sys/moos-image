@@ -49,7 +49,7 @@ Rectangle {
         return win.primaryLabel(button.action)
     }
     readonly property string glyph: button.action === "open" ? "external"
-                                  : button.action === "update" ? "refresh"
+                                  : button.action === "update" ? "download"
                                   : button.action === "installed" || button.action === "added" ? "check"
                                   : button.action === "website" ? "globe"
                                   : button.action === "blocked" ? "lock" : ""

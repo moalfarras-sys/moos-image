@@ -2,12 +2,12 @@ pragma ComponentBehavior: Bound
 
 import QtQuick
 import QtQuick.Layouts
-import org.moos.ui as MoUI
 
 // Mo Store — one thing an app may do, in a person's words: its glyph, its name and one line about
-// it, and on the trailing side either what is true (Allowed / Not allowed / Asks first), a switch,
-// or — for a web app — Allow · Ask each time · Don't allow. A row that a broader permission
-// already covers says so instead of offering a switch that could not change anything.
+// it, and on the trailing side either what is true (Allowed / Not allowed / Asks first, or
+// Requested for an app not installed yet), a switch, or — for a web app — Allow · Ask each time ·
+// Don't allow. A row that a broader permission already covers says so instead of offering a
+// switch that could not change anything.
 //
 // Drawn from main.qml's state: `win` is the Store window, which owns the data, the actions
 // and the palette. This file only presents them.
@@ -18,6 +18,8 @@ Item {
     property string key: ""
     property bool allowed: false
     property bool ask: false
+    // Read from the catalogue for an app that is not installed: what it asks for, granted nothing yet.
+    property bool requested: false
     property bool changeable: false
     // "info" (words only), "switch", or "choice" (allow / ask / deny).
     property string mode: "info"
@@ -26,7 +28,8 @@ Item {
 
     implicitHeight: Math.max(win.fs(56), rowLayout.implicitHeight + design.space3 * 2)
 
-    readonly property string stateText: row.ask ? win.local("يسأل أولًا", "Asks first")
+    readonly property string stateText: row.requested ? win.local("يطلبه", "Requested")
+                                      : row.ask ? win.local("يسأل أولًا", "Asks first")
                                       : row.allowed ? win.local("مسموح", "Allowed")
                                       : win.local("غير مسموح", "Not allowed")
 
@@ -82,13 +85,13 @@ Item {
             Layout.preferredHeight: row.win.fs(26)
             Layout.preferredWidth: stateLabel.implicitWidth + row.design.space3 * 2
             radius: height / 2
-            color: row.win.tint(row.allowed && !row.ask ? row.win.positiveInk : row.win.txt,
+            color: row.win.tint(row.allowed && !row.ask && !row.requested ? row.win.positiveInk : row.win.txt,
                                 row.win.lightScheme ? 0.10 : 0.12)
             Text {
                 id: stateLabel
                 anchors.centerIn: parent
                 text: row.stateText
-                color: row.allowed && !row.ask ? row.win.positiveInk : row.win.txt2
+                color: row.allowed && !row.ask && !row.requested ? row.win.positiveInk : row.win.txt2
                 font.family: row.win.uiFont
                 font.pixelSize: row.win.typePx(11)
                 font.weight: Font.DemiBold

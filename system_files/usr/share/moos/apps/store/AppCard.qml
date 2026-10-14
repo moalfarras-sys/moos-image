@@ -121,10 +121,18 @@ Rectangle {
         // The foot: where it comes from, a limit on this PC when there is one (its words are on
         // the app's page), and the one button. The badge gives way before the button does.
         RowLayout {
+            id: gridFoot
             Layout.fillWidth: true
             spacing: card.design.space2
-            SourceBadge { win: card.win; app: card.app; maxWidth: card.width * 0.46 }
+            SourceBadge {
+                win: card.win; app: card.app;
+                // What the button and the limit glyph leave, and never more than half the card.
+                maxWidth: Math.max(card.win.fs(30), Math.min(card.width * 0.46,
+                    gridFoot.width - gridButton.implicitWidth - gridFoot.spacing * 2
+                    - (gridLimit.visible ? gridLimit.Layout.preferredWidth + gridFoot.spacing : 0)))
+            }
             Glyph {
+                id: gridLimit
                 win: card.win
                 visible: card.compat.known && card.compat.verdict !== "ok"
                 name: card.compat.verdict === "blocked" ? "danger" : "warning"
@@ -134,6 +142,7 @@ Rectangle {
             }
             Item { Layout.fillWidth: true }
             ProgressButton {
+                id: gridButton
                 win: card.win
                 app: card.app
                 tabStop: !card.compositeFocus

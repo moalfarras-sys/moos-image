@@ -138,6 +138,7 @@ Item {
             onContentWidthChanged: chipFlick.snapToReadingStart()
             onWidthChanged: chipFlick.snapToReadingStart()
             Component.onCompleted: chipFlick.snapToReadingStart()
+            EdgeFades { parent: chipFlick; anchors.fill: parent; win: appsPage.win; flick: chipFlick }
             RowLayout {
                 id: categoryRow
                 height: parent.height
@@ -159,26 +160,49 @@ Item {
         }
 
         // ── the kinds, and the order ──
+        // The kinds scroll sideways when the window is narrow; the order keeps its place at the end.
         RowLayout {
             Layout.fillWidth: true
-            spacing: appsPage.design.space2
-            Repeater {
-                model: [{ id: "all", ar: "الكل", en: "All", glyph: "" }].concat(appsPage.win.kindDefs)
-                delegate: KindChip {
-                    id: kindChip
-                    required property var modelData
-                    win: appsPage.win
-                    label: kindChip.modelData.id === "all" ? appsPage.win.local("كل الأنواع", "Every kind")
-                                                           : appsPage.win.localName(kindChip.modelData)
-                    glyph: kindChip.modelData.glyph
-                    count: appsPage.win.viewKindCounts[kindChip.modelData.id] || 0
-                    checked: appsPage.win.activeKind === kindChip.modelData.id
-                    visible: kindChip.modelData.id === "all" || kindChip.checked
-                             || (appsPage.win.viewKindCounts[kindChip.modelData.id] || 0) > 0
-                    onActivated: appsPage.win.activeKind = kindChip.modelData.id
+            spacing: appsPage.design.space3
+            Flickable {
+                id: kindFlick
+                Layout.fillWidth: true
+                Layout.preferredHeight: kindRow.implicitHeight
+                contentWidth: kindRow.implicitWidth
+                contentHeight: height
+                clip: true
+                interactive: contentWidth > width
+                boundsBehavior: Flickable.StopAtBounds
+                function snapToReadingStart() {
+                    if (appsPage.win.rtl && !kindFlick.moving && !kindFlick.dragging)
+                        kindFlick.contentX = Math.max(0, kindFlick.contentWidth - kindFlick.width)
+                }
+                onContentWidthChanged: kindFlick.snapToReadingStart()
+                onWidthChanged: kindFlick.snapToReadingStart()
+                Component.onCompleted: kindFlick.snapToReadingStart()
+                EdgeFades { parent: kindFlick; anchors.fill: parent; win: appsPage.win; flick: kindFlick }
+                RowLayout {
+                    id: kindRow
+                    height: parent.height
+                    spacing: appsPage.design.space2
+                    Repeater {
+                        model: [{ id: "all", ar: "الكل", en: "All", glyph: "" }].concat(appsPage.win.kindDefs)
+                        delegate: KindChip {
+                            id: kindChip
+                            required property var modelData
+                            win: appsPage.win
+                            label: kindChip.modelData.id === "all" ? appsPage.win.local("كل الأنواع", "Every kind")
+                                                                   : appsPage.win.localName(kindChip.modelData)
+                            glyph: kindChip.modelData.glyph
+                            count: appsPage.win.viewKindCounts[kindChip.modelData.id] || 0
+                            checked: appsPage.win.activeKind === kindChip.modelData.id
+                            visible: kindChip.modelData.id === "all" || kindChip.checked
+                                     || (appsPage.win.viewKindCounts[kindChip.modelData.id] || 0) > 0
+                            onActivated: appsPage.win.activeKind = kindChip.modelData.id
+                        }
+                    }
                 }
             }
-            Item { Layout.fillWidth: true }
             Text {
                 text: appsPage.win.local("الترتيب", "Order")
                 color: appsPage.win.txt2
@@ -219,6 +243,7 @@ Item {
             boundsBehavior: Flickable.StopAtBounds
             reuseItems: true
             cacheBuffer: cellHeight * 2
+            bottomMargin: appsPage.win.footClearance
             header: appsPage.games ? gamesBanner : null
             activeFocusOnTab: visible && count > 0
             keyNavigationEnabled: true

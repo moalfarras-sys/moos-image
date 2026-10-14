@@ -164,7 +164,11 @@ Item {
                     text: jobShelf.win.job.state === "partial"
                         ? jobShelf.win.local("انتهى بعضها ولم ينتهِ بعضها.", "Some finished and some did not.")
                         : jobShelf.win.job.state === "cancelled" ? jobShelf.win.local("أُلغي قبل أن يكتمل.", "Cancelled before it finished.")
-                        : jobShelf.win.job.message || ""
+                        // The backend's own sentence, unless the line above already says it.
+                        : (jobShelf.win.job.message || "") !== ""
+                          && jobShelf.win.jobText(jobShelf.win.job, "") !== jobShelf.win.job.message
+                            ? jobShelf.win.job.message
+                        : jobShelf.win.local("يمكنك المحاولة مجددًا.", "You can try again.")
                     color: jobShelf.win.txt2
                     font.family: jobShelf.win.uiFont
                     font.pixelSize: jobShelf.win.typePx(12)

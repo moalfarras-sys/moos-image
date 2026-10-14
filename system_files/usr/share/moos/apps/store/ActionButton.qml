@@ -32,7 +32,9 @@ MoUI.Button {
     leftPadding: design.space4
     rightPadding: design.space4
     // The shared button sizes itself for its own, narrower padding; a Store action measures its
-    // label with the padding it actually has, so a label is never cut to "Det…".
-    implicitWidth: Math.max(implicitHeight, contentItem.implicitWidth + leftPadding + rightPadding)
+    // label with the padding it actually has, so a label is never cut to "Det…". A labelled pill
+    // never shrinks into a circle around a short word ("تم", "OK").
+    implicitWidth: Math.max(implicitHeight, action.pill && action.label !== "" ? win.fs(88) : 0,
+                            contentItem.implicitWidth + leftPadding + rightPadding)
     onClicked: if (action.triggered) action.triggered()
 }

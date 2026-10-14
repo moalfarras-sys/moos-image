@@ -16,7 +16,7 @@ Rectangle {
     required property var win
     anchors.fill: parent
     z: 100
-    color: win.tint(win.canvas, 0.92)
+    color: win.tint(win.canvas, 0.97)
 
     Rectangle {
         anchors.fill: parent

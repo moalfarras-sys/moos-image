@@ -123,11 +123,21 @@ Item {
                        detail: appPage.fact && appPage.fact.installed > 0
                                ? win.local("بعد التثبيت ", "Installed ") + win.sizeText(appPage.fact.installed) : win.local("للتنزيل", "To download"),
                        glyph: "download", tone: win.accent })
-        var version = app.installed_version || (appPage.release ? appPage.release.version : "") || app.version || ""
-        if (version !== "")
+        // The version on this computer when it is installed, the newest one otherwise; the date only
+        // belongs to the release it names, and an update says what it brings.
+        var installedVersion = win.isInstalled(app) ? "" + (app.installed_version || "") : ""
+        var pending = win.updateFor(app)
+        var target = !pending ? "" : pending.kind === "pin" ? "" + (pending.version || "") : "" + (app.version || "")
+        var version = installedVersion || (appPage.release ? "" + appPage.release.version : "") || "" + (app.version || "")
+        if (version !== "") {
+            var versionDetail = ""
+            if (target !== "" && target !== version)
+                versionDetail = win.local("يتوفر الإصدار ", "Version ") + win.ltr(target) + win.local("", " is out")
+            else if (appPage.release && appPage.release.date && "" + appPage.release.version === version)
+                versionDetail = win.dateText(appPage.release.date)
             out.push({ caption: win.local("الإصدار", "Version"), value: win.ltr(version),
-                       detail: appPage.release && appPage.release.date ? win.dateText(appPage.release.date) : "",
-                       glyph: "refresh", tone: win.accent })
+                       detail: versionDetail, glyph: "refresh", tone: win.accent })
+        }
         if (app.content_rating !== undefined && app.content_rating !== null)
             out.push({ caption: win.local("العمر", "Age"), value: win.contentRatingText(app.content_rating),
                        detail: "", glyph: "user", tone: win.accent })
@@ -166,7 +176,7 @@ Item {
         objectName: "detailFlick"
         anchors.fill: parent
         contentWidth: width
-        contentHeight: detailBody.implicitHeight + appPage.design.space6 * 2
+        contentHeight: detailBody.implicitHeight + appPage.design.space6 * 2 + appPage.win.footClearance
         clip: true
         boundsBehavior: Flickable.StopAtBounds
         Keys.onPressed: (event) => MoUI.KeyboardViewport.pageScrollKeys(detailFlick, event)
@@ -359,7 +369,11 @@ Item {
                     anchors.left: parent.left
                     anchors.right: parent.right
                     anchors.verticalCenter: parent.verticalCenter
-                    readonly property int perRow: Math.max(1, Math.min(appPage.tiles.length, Math.floor(width / appPage.win.fs(132))))
+                    // As many to a row as fit their words, in rows of even length (seven on a narrow
+                    // window is four and three, never six and a lonely one).
+                    readonly property int fits: Math.max(1, Math.floor(width / appPage.win.fs(150)))
+                    readonly property int rows: Math.max(1, Math.ceil(appPage.tiles.length / tileFlow.fits))
+                    readonly property int perRow: Math.max(1, Math.ceil(appPage.tiles.length / tileFlow.rows))
                     Repeater {
                         model: appPage.tiles
                         delegate: Item {
@@ -379,6 +393,7 @@ Item {
                             }
                             Rectangle {
                                 visible: (tileCell.index + 1) % tileFlow.perRow !== 0
+                                         && tileCell.index !== appPage.tiles.length - 1
                                 anchors.right: parent.right
                                 anchors.verticalCenter: parent.verticalCenter
                                 width: 1
@@ -570,8 +585,9 @@ Item {
                         }
                         SafetyLabel { win: appPage.win; Layout.fillWidth: true; app: appPage.app }
                         // An app from outside the sandboxed catalogue is reviewed before it installs,
-                        // and the page says so before the button is pressed. The OR-chain is
-                        // `undefined` for an app with no recipe; `!!` keeps the binding a boolean.
+                        // and the page says so before the button is pressed (once it is installed
+                        // the note has nothing left to warn about). The OR-chain is `undefined` for
+                        // an app with no recipe; `!!` keeps the binding a boolean.
                         Rectangle {
                             Layout.fillWidth: true
                             Layout.preferredHeight: reviewNote.implicitHeight + appPage.design.space3 * 2
@@ -579,6 +595,7 @@ Item {
                                                                     || (win.selectedApp.install
                                                                         && win.selectedApp.install.requires_review === true)
                                                                     || (win.selectedApp.install && win.selectedApp.install.kind === "npm"))
+                                     && !appPage.win.isInstalled(win.selectedApp)
                             radius: appPage.design.radiusControl
                             color: appPage.win.tint(appPage.win.warningInk, appPage.win.lightScheme ? 0.10 : 0.12)
                             Text {
@@ -614,6 +631,7 @@ Item {
                                 key: modelData.key
                                 allowed: modelData.allowed
                                 ask: modelData.ask
+                                requested: modelData.requested === true
                                 mode: "info"
                             }
                         }
@@ -622,7 +640,10 @@ Item {
                             visible: text !== ""
                             text: appPage.win.permissionState === "loading" ? appPage.win.local("تُقرأ الأذونات…", "Reading its permissions…")
                                 : appPage.win.permissionState === "unsupported" ? appPage.win.needsUpdateText
-                                : appPage.win.permissionState === "ready" && appPage.win.permissionDoc && appPage.win.permissionDoc.note_key
+                                // Full access and Android's own settings are already the safety line above;
+                                // only "not installed" (the backend found no app) adds something.
+                                : appPage.win.permissionState === "ready" && appPage.win.permissionDoc
+                                  && appPage.win.permissionDoc.note_key === "not_installed"
                                     ? appPage.win.permissionNoteText(appPage.win.permissionDoc.note_key)
                                 : appPage.win.permissionState === "facts" && appPage.kind === "flatpak" && !appPage.fact
                                     ? appPage.win.local("سيعرض المتجر ما يطلبه بعد قراءة الكتالوج.", "The Store shows what it asks for once the catalogue is read.")

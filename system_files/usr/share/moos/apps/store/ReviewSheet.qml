@@ -97,7 +97,9 @@ Popup {
         ListView {
             id: pickList
             Layout.fillWidth: true
-            Layout.preferredHeight: Math.min(contentHeight, review.win.fs(320))
+            // Every app of a set when the window has room for it; the list scrolls only when not.
+            Layout.preferredHeight: Math.max(review.win.fs(76),
+                                             Math.min(contentHeight, review.win.height - review.win.fs(330)))
             clip: true
             spacing: review.design.space2
             model: Object.keys(review.win.picks)
@@ -111,7 +113,7 @@ Popup {
                     && !!(reviewItem.app.requires_review === true
                           || (reviewItem.app.install && reviewItem.app.install.requires_review === true))
                 width: ListView.view.width
-                height: review.win.fs(68)
+                height: Math.max(review.win.fs(68), reviewWords.implicitHeight + review.design.space3 * 2)
                 radius: review.design.radiusCard
                 color: review.win.tint(review.win.txt, review.win.lightScheme ? 0.04 : 0.05)
                 border.width: 1
@@ -123,6 +125,7 @@ Popup {
                     spacing: review.design.space3
                     AppIcon { win: review.win; app: reviewItem.app; size: review.win.fs(44); showKind: true }
                     ColumnLayout {
+                        id: reviewWords
                         Layout.fillWidth: true
                         spacing: 2
                         Text {
@@ -142,6 +145,10 @@ Popup {
                             color: reviewItem.outside ? review.win.warningInk : review.win.txt2
                             font.family: review.win.uiFont
                             font.pixelSize: review.win.typePx(12)
+                            // Where it comes from and how it is checked is the point of a review:
+                            // two lines before anything is cut.
+                            wrapMode: Text.Wrap
+                            maximumLineCount: 2
                             elide: Text.ElideRight
                         }
                     }

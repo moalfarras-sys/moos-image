@@ -54,7 +54,7 @@ Item {
                 pill: true
                 primary: true
                 label: library.win.local("حدّث الكل", "Update all")
-                glyphName: "refresh"
+                glyphName: "download"
                 enabled: !library.win.jobIsActive()
                 triggered: function() { library.win.updateAll() }
             }
@@ -89,6 +89,7 @@ Item {
             clip: true
             spacing: library.design.space2
             model: library.visible ? library.win.libraryApps : []
+            bottomMargin: library.win.footClearance
             boundsBehavior: Flickable.StopAtBounds
             keyNavigationEnabled: true
             reuseItems: true
@@ -106,8 +107,13 @@ Item {
                 readonly property var app: entry.modelData
                 readonly property bool runnable: library.win.hasRunnableLifecycle(entry.app)
                 readonly property var pending: library.win.updateFor(entry.app)
+                // The version an update brings: a catalogue pin names it; a Linux app's newest is
+                // the catalogue's own version of it.
+                readonly property string updateTarget: !entry.pending ? ""
+                    : entry.pending.kind === "pin" ? "" + (entry.pending.version || "")
+                    : entry.app.version && entry.app.version !== entry.pending.version ? "" + entry.app.version : ""
                 width: libraryList.width
-                height: library.win.fs(76)
+                height: Math.max(library.win.fs(76), entryWords.implicitHeight + library.design.space3 * 2)
                 radius: library.design.radiusCard
                 color: library.win.cardColor
                 border.width: 1
@@ -122,6 +128,7 @@ Item {
                     spacing: library.design.space4
                     AppIcon { win: library.win; app: entry.app; size: library.win.fs(48); showKind: true }
                     ColumnLayout {
+                        id: entryWords
                         Layout.fillWidth: true
                         spacing: 2
                         Text {
@@ -140,7 +147,12 @@ Item {
                             text: {
                                 var parts = [library.win.kindLabel(library.win.appKind(entry.app))]
                                 var version = entry.app.installed_version || entry.app.version || ""
-                                if (version !== "") parts.push(library.win.ltr(version))
+                                if (version !== "" && entry.updateTarget !== "" && entry.updateTarget !== version)
+                                    parts.push(library.win.ltr(version + "  →  " + entry.updateTarget))
+                                else if (version !== "")
+                                    parts.push(library.win.ltr(version))
+                                else if (entry.pending !== null)
+                                    parts.push(library.win.local("تحديث متاح", "Update available"))
                                 var fact = library.win.factOf(entry.app)
                                 if (fact && fact.installed > 0) parts.push(library.win.sizeText(fact.installed))
                                 if (library.win.systemManagedOnly(entry.app)) parts.push(library.win.local("لكل المستخدمين", "For everyone"))
@@ -151,26 +163,17 @@ Item {
                             font.pixelSize: library.win.typePx(12)
                             elide: Text.ElideRight
                         }
-                    }
-                    Rectangle {
-                        visible: entry.pending !== null
-                        Layout.preferredHeight: library.win.fs(24)
-                        Layout.preferredWidth: updateLabel.implicitWidth + library.design.space3 * 2
-                        radius: height / 2
-                        color: library.win.tint(library.win.accent, library.win.lightScheme ? 0.14 : 0.18)
+                        // An installed app its developer has stopped updating: said where the owner
+                        // looks after what they have.
                         Text {
-                            id: updateLabel
-                            anchors.centerIn: parent
-                            readonly property string target: !entry.pending ? ""
-                                : entry.pending.kind === "pin" ? (entry.pending.version || "")
-                                : entry.app.version && entry.app.version !== entry.pending.version ? entry.app.version : ""
-                            text: updateLabel.target !== ""
-                                ? library.win.local("تحديث إلى ", "Update to ") + library.win.ltr(updateLabel.target)
-                                : library.win.local("تحديث متاح", "Update available")
-                            color: library.win.accent
+                            horizontalAlignment: Text.AlignLeft
+                            Layout.fillWidth: true
+                            visible: !!entry.app.eol
+                            text: library.win.compatReasonText("eol")
+                            color: library.win.warningInk
                             font.family: library.win.uiFont
-                            font.pixelSize: library.win.typePx(11)
-                            font.weight: Font.DemiBold
+                            font.pixelSize: library.win.typePx(12)
+                            elide: Text.ElideRight
                         }
                     }
                     ProgressButton {
