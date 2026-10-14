@@ -2751,7 +2751,7 @@ def launcher_for_record(record: dict, slug: str) -> Path | None:
     applications = data_home() / "applications"
     candidates = []
     stored = record.get("desktop")
-    if isinstance(stored, str) and stored.endswith(".desktop"):
+    if isinstance(stored, str) and stored.startswith("/") and stored.endswith(".desktop"):
         candidates.append(Path(stored))
     candidates.append(applications / f"appdrop-{slug}.desktop")
     try:
