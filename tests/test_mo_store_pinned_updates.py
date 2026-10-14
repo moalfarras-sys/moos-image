@@ -2,17 +2,21 @@
 """Mo Store offers a catalogue pin only to what it installed itself, and one app that cannot
 install here fails alone.
 
-moos-storectl's check-updates and update and moos-store-index's update_available answer "is
-there an update?" by one rule (docs/MO_STORE.md). Each class holds one part of it, run for real
-against a private HOME:
+moos-storectl's check-updates and update answer "is there an update?" by the rule that
+moos-store-index's update_available has to share (docs/MO_STORE.md). Each class holds one part
+of it, run for real against a private HOME:
 
   AdoptedAppDrop  a file the person dropped into a catalogue app's slot (App Drop's record has
                   no catalog_id) is theirs: never a pin row, never replaced by Update all, and
                   `update <id>` says to install a newer file instead of putting the pin back;
   LegacyAndroid   an Android app an earlier Mo Store installed has its data directory but no
-                  record: it is installed with unknown bytes, so its pin is offered and
+                  record: it is installed, its pin is offered while its bytes are unknown and
                   installing the pin writes the record; a record without the data directory is
                   no installed app;
+  InstalledApk    the APK Android keeps names those bytes when it can be read: an app that
+                  already is its pin byte for byte is up to date (no row, no download), any
+                  other build is offered the pin, and two copies, a link, another account's
+                  data or no APK at all leave the bytes unknown;
   FlatpakBatch    one picked app with no build for this computer fails alone (in the window's
                   words when the catalogue names other computers only) and the rest of the batch
                   still installs in one transaction. This runs the real install() and the real
@@ -31,6 +35,7 @@ import io
 import json
 import os
 from pathlib import Path
+import shutil
 import sys
 import tarfile
 import tempfile
@@ -279,17 +284,18 @@ class AdoptedAppDrop(Backend):
 
 
 # ── Android: installed is the per-package data directory; the record names the bytes ──────────
-class LegacyAndroid(Backend):
+class Android(Backend):
     PACKAGE = "org.example.maps"
 
-    def recipe(self, body: bytes, version: str) -> dict:
+    def recipe(self, body: bytes, version: str, *, sized: bool = False) -> dict:
         url = f"https://f-droid.example/{self.PACKAGE}_{version}.apk"
         self.opener.files[url] = body
-        return {"id": self.PACKAGE, "source": "moos", "en": "Maps",
-                "install": {"kind": "android", "package": self.PACKAGE, "version": version,
-                            "url": url, "sha256": hashlib.sha256(body).hexdigest(),
-                            "risk": "external-download", "requires_review": True,
-                            "external": True}}
+        install = {"kind": "android", "package": self.PACKAGE, "version": version, "url": url,
+                   "sha256": hashlib.sha256(body).hexdigest(), "risk": "external-download",
+                   "requires_review": True, "external": True}
+        if sized:                               # as the shipped catalogue pins every APK
+            install["size"] = len(body)
+        return {"id": self.PACKAGE, "source": "moos", "en": "Maps", "install": install}
 
     def data(self) -> Path:
         return self.home / ".local/share/waydroid/data/data" / self.PACKAGE
@@ -300,6 +306,8 @@ class LegacyAndroid(Backend):
     def installs(self) -> list[list[str]]:
         return [argv for argv in self.runner.commands if argv[1:3] == ["app", "install"]]
 
+
+class LegacyAndroid(Android):
     def test_an_app_an_earlier_store_installed_is_offered_its_pin(self):
         # What the station has: Android's data directory, and no record (none was written then).
         self.data().mkdir(parents=True)
@@ -366,6 +374,153 @@ class LegacyAndroid(Backend):
         self.assertEqual((result["items"][0]["state"], result["items"][0]["message_key"]),
                          ("skipped", "app_up_to_date"))
         self.assertEqual(self.installs(), [])
+
+
+# ── Android: the APK Android keeps tells whether an app already is its pin ────────────────────
+class InstalledApk(Android):
+    """The APK Android keeps: /data/app/~~<random>/<package>-<random>/base.apk (Android 11 and
+    later; /data/app/<package>-<n>/base.apk before), under the runtime's data directory."""
+
+    NEWER, OLDER = b"PK\x03\x04maps 26092932", b"PK\x03\x04maps 26082718"
+
+    @property
+    def apps(self) -> Path:
+        return self.home / ".local/share/waydroid/data/app"
+
+    def apk(self, body: bytes, folder: str = "") -> Path:
+        path = self.apps / (folder or f"~~Zm9vYmFy==/{self.PACKAGE}-c2VjcmV0==") / "base.apk"
+        path.parent.mkdir(parents=True)
+        path.write_bytes(body)
+        return path
+
+    def test_an_app_whose_apk_already_is_the_pin_is_up_to_date(self):
+        # The station's VLC and F-Droid: no record, and Android keeps exactly today's pin.
+        self.data().mkdir(parents=True)
+        self.apk(self.NEWER)
+        controller = self.controller([self.recipe(self.NEWER, "26092932", sized=True)])
+        document = controller.check_updates()[1]
+        self.assertEqual(document["items"], [], "the pin was offered to an app that already is it")
+        self.assertEqual((document["count"], document["app_count"]), (0, 0))
+        code, result = controller.update()
+        self.assertEqual((code, result["state"], result["message_key"]), (0, "success", "up_to_date"),
+                         result)
+        code, result = controller.update(self.PACKAGE)
+        self.assertEqual((result["items"][0]["state"], result["items"][0]["message_key"]),
+                         ("skipped", "app_up_to_date"), result)
+        self.assertEqual(self.opener.requests, [], "the same APK was downloaded again")
+        self.assertEqual(self.installs(), [])
+        self.assertFalse(self.record().exists())
+
+    def test_an_app_whose_apk_is_another_build_is_offered_the_pin(self):
+        # Android keeps a build of the same size as the pin, with other bytes: the digest decides.
+        self.data().mkdir(parents=True)
+        self.apk(self.OLDER)
+        controller = self.controller([self.recipe(self.NEWER, "26092932", sized=True)])
+        self.assertEqual(controller.check_updates()[1]["items"],
+                         [{"id": self.PACKAGE, "kind": "pin", "name": "Maps",
+                           "version": "26092932", "installed_version": None}])
+        code, result = controller.update()
+        self.assertEqual([(item["id"], item["state"]) for item in result["items"]],
+                         [(self.PACKAGE, "done")], result)
+        self.assertEqual(len(self.installs()), 1)
+        self.assertEqual(json.loads(self.record().read_text(encoding="utf-8"))["sha256"],
+                         hashlib.sha256(self.NEWER).hexdigest())
+
+    def test_the_station_offers_only_the_app_whose_apk_moved(self):
+        # Three apps the earlier Store installed, as the owner's station has them: two are their
+        # pin byte for byte, and the third is the older Organic Maps build (another size).
+        apps = []
+        for package, installed, pinned in (
+                ("org.example.player", b"PK\x03\x04player 3.7.1", b"PK\x03\x04player 3.7.1"),
+                ("org.example.maps", self.OLDER + b" (an older build)", self.NEWER),
+                ("org.example.repo", b"PK\x03\x04repo 1.23.2", b"PK\x03\x04repo 1.23.2")):
+            name = package.rsplit(".", 1)[-1]
+            (self.home / ".local/share/waydroid/data/data" / package).mkdir(parents=True)
+            self.apk(installed, f"~~{name}==/{package}-{name}==")
+            url = f"https://f-droid.example/{package}.apk"
+            self.opener.files[url] = pinned
+            apps.append({"id": package, "source": "moos", "en": name.title(),
+                         "install": {"kind": "android", "package": package, "version": "2",
+                                     "url": url, "sha256": hashlib.sha256(pinned).hexdigest(),
+                                     "size": len(pinned), "risk": "external-download",
+                                     "requires_review": True, "external": True}})
+        controller = self.controller(apps)
+        self.assertEqual([row["id"] for row in controller.check_updates()[1]["items"]],
+                         ["org.example.maps"])
+        code, result = controller.update()
+        self.assertEqual([(item["id"], item["state"]) for item in result["items"]],
+                         [("org.example.maps", "done")], result)
+        self.assertEqual(self.opener.requests, ["https://f-droid.example/org.example.maps.apk"])
+
+    def test_the_older_android_layout_is_read_too(self):
+        # /data/app/<package>-<n>/base.apk, and a pin that names no size.
+        self.data().mkdir(parents=True)
+        self.apk(self.NEWER, f"{self.PACKAGE}-1")
+        self.assertEqual(self.controller([self.recipe(self.NEWER, "26092932")])
+                         .check_updates()[1]["items"], [])
+
+    def test_a_record_of_an_older_pin_yields_to_what_android_keeps(self):
+        # The Store installed the older pin; the app has since reached today's pin outside it
+        # (the repository the catalogue pins from serves the same file).
+        self.data().mkdir(parents=True)
+        self.apk(self.NEWER)
+        self.record().parent.mkdir(parents=True)
+        self.record().write_text(json.dumps({"schema": 1, "id": self.PACKAGE, "package": self.PACKAGE,
+                                             "catalog_id": self.PACKAGE, "version": "26082718",
+                                             "sha256": hashlib.sha256(self.OLDER).hexdigest()}),
+                                 encoding="utf-8")
+        controller = self.controller([self.recipe(self.NEWER, "26092932", sized=True)])
+        self.assertEqual(controller.check_updates()[1]["items"], [])
+        self.assertEqual(controller.update()[1]["message_key"], "up_to_date")
+        self.assertEqual(self.installs(), [])
+
+    def test_an_apk_that_cannot_be_told_apart_leaves_the_pin_offered(self):
+        def two_copies():                       # Android replacing the app: old and new side by side
+            self.apk(self.NEWER, f"~~YQ==/{self.PACKAGE}-YQ==")
+            self.apk(self.NEWER, f"~~Yg==/{self.PACKAGE}-Yg==")
+
+        def a_linked_file():
+            target = self.base / "elsewhere.apk"
+            target.write_bytes(self.NEWER)
+            link = self.apk(b"", f"~~YQ==/{self.PACKAGE}-YQ==")
+            link.unlink()
+            link.symlink_to(target)
+
+        def a_linked_folder():
+            real = self.base / "elsewhere"
+            real.mkdir(exist_ok=True)
+            (real / "base.apk").write_bytes(self.NEWER)
+            (self.apps / "~~YQ==").mkdir(parents=True)
+            (self.apps / "~~YQ==" / f"{self.PACKAGE}-YQ==").symlink_to(real)
+
+        def another_package_with_a_longer_name():
+            self.apk(self.NEWER, f"~~YQ==/{self.PACKAGE}.pro-YQ==")
+
+        def none_at_all():
+            pass
+
+        self.data().mkdir(parents=True)
+        recipe = self.recipe(self.NEWER, "26092932", sized=True)
+        for case in (two_copies, a_linked_file, a_linked_folder,
+                     another_package_with_a_longer_name, none_at_all):
+            with self.subTest(case.__name__):
+                if self.apps.exists():
+                    shutil.rmtree(self.apps)
+                case()
+                self.assertEqual([row["id"] for row in
+                                  self.controller([recipe]).check_updates()[1]["items"]],
+                                 [self.PACKAGE])
+
+    @unittest.skipIf(os.geteuid() == 0, "root reads every account's files")
+    def test_android_data_another_account_owns_leaves_the_pin_offered(self):
+        # Android's system account owns /data/app (0771): another login account cannot list it.
+        self.data().mkdir(parents=True)
+        self.apk(self.NEWER)
+        self.apps.chmod(0o111)
+        self.addCleanup(self.apps.chmod, 0o755)
+        self.assertEqual([row["id"] for row in self.controller(
+            [self.recipe(self.NEWER, "26092932", sized=True)]).check_updates()[1]["items"]],
+                         [self.PACKAGE])
 
 
 # ── Flatpak: the real install() and FlatpakAdapter over a stand-in libflatpak ─────────────────
