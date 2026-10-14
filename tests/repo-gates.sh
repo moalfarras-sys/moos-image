@@ -333,6 +333,10 @@ python3 tests/test_moos_storectl.py
 python3 tests/test_store_job_language.py
 python3 tests/test_mo_store_backend_kinds.py
 python3 tests/test_mo_store_backend_windows.py
+python3 tests/test_mo_store_backend2_vendor.py
+python3 tests/test_mo_store_backend2_windows_template.py
+python3 tests/test_mo_store_backend2_index.py
+python3 tests/test_mo_store_backend2_run_foreign.py
 # One globally importable MoUI module must own identity metrics and shared
 # controls; an app-local copy cannot silently grow back.
 python3 tests/test_moos_design_core.py

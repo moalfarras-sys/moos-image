@@ -13,6 +13,7 @@ the words. Failures are the deliberate exception -- they carry no key so their
 real diagnostic text reaches the user verbatim.
 """
 
+import ast
 import pathlib
 import re
 import sys
@@ -52,6 +53,45 @@ spelled = re.findall(r'message_key="([^"]*)"', ctl_code)
 spelled += re.findall(r'"message_key":\s*"([^"]*)"', ctl_code)
 unseen = sorted({key for key in spelled if not re.fullmatch(r"[a-z_]+", key)})
 assert not unseen, f"message keys this gate cannot hold to a phrase: {unseen}"
+
+# ------------------------------------- a publisher's own package: every refusal has words
+# usr/lib/moos/moos_vendor_rpm.py refuses with stable codes; moos-storectl turns each one into a
+# key through ONE table, VENDOR_FAILURE_KEYS, and keeps the same refusal in English in
+# VENDOR_FAILURE_WORDS for its diagnostic message. The table must name exactly the module's
+# ERROR_CODES: a code it misses would reach an Arabic session as English prose, and a code the
+# module no longer raises is a phrase nothing can show. Its keys count as emitted below, so the
+# phrase check runs both ways for them too.
+VENDOR = ROOT / "system_files/usr/lib/moos/moos_vendor_rpm.py"
+
+
+def module_constant(tree: ast.Module, name: str):
+    for node in tree.body:
+        targets = (node.targets if isinstance(node, ast.Assign)
+                   else [node.target] if isinstance(node, ast.AnnAssign) else [])
+        if any(isinstance(target, ast.Name) and target.id == name for target in targets):
+            value = node.value
+            if isinstance(value, ast.Call) and getattr(value.func, "id", "") == "frozenset":
+                value = value.args[0]
+            return ast.literal_eval(value)
+    raise AssertionError(f"{name} is not defined as a literal")
+
+
+ctl_tree = ast.parse(ctl)
+vendor_keys = module_constant(ctl_tree, "VENDOR_FAILURE_KEYS")
+vendor_words = module_constant(ctl_tree, "VENDOR_FAILURE_WORDS")
+vendor_codes = set(module_constant(ast.parse(VENDOR.read_text(encoding="utf-8")), "ERROR_CODES"))
+unmapped = sorted(vendor_codes - set(vendor_keys))
+assert not unmapped, f"moos_vendor_rpm codes moos-storectl has no key for: {unmapped}"
+unknown = sorted(set(vendor_keys) - vendor_codes)
+assert not unknown, f"VENDOR_FAILURE_KEYS maps codes the module never raises: {unknown}"
+assert all(re.fullmatch(r"[a-z_]+", key) for key in vendor_keys.values()), \
+    "a vendor failure key this gate cannot hold to a phrase"
+assert set(vendor_words) == set(vendor_keys.values()), (
+    "every vendor failure key needs its English diagnostic words, and only those keys: "
+    f"{sorted(set(vendor_words) ^ set(vendor_keys.values()))}")
+assert "VENDOR_FAILURE_KEYS.get(code)" in ctl_code, \
+    "moos-storectl must turn a vendor refusal into its key through the table"
+emitted |= set(vendor_keys.values())
 
 # ------------------------------------------------------------------- UI phrases
 block = re.search(r"readonly property var jobPhrases: \(\{(.*?)\n    \}\)", qml_code, re.S)

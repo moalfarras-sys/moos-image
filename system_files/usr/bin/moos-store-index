@@ -9,7 +9,8 @@ usable while the machine is offline and straightforward to test.
 What it writes, next to --output (docs/MO_STORE.md is the contract):
   index.json         every app: Flathub AppStream (newest revision per remote),
                      the signed catalogue, and what is installed (both Flatpak
-                     scopes, web apps, App Drop, Windows, Android, npm);
+                     scopes, web apps, App Drop, Windows, publishers' own
+                     packages, Android, npm);
   details/<id>.json  one document per AppStream app, published as one generation;
 and, with --print-machine, machine.json on stdout. It reads facts.json (from
 `moos-storectl facts`) beside the index when present.
@@ -23,6 +24,9 @@ Keys this indexer adds beyond the contract's list, for the window and tests:
               empty;
   cat         the Store category (catalogue ids); `category` keeps the older
               14 values the current window groups by.
+machine.json's `windows` adds `reflink` (can a program's settings folder share
+the template's extents here: true, false, or null when unknown) and `template`
+(moos-storectl's template settings folder is complete); low_disk reads both.
 """
 
 from __future__ import annotations
@@ -84,6 +88,7 @@ INSTALL_KIND_INDEX = {
     "webapp": "webapp",
     "appdrop": "appdrop",
     "windows-portable": "windows",
+    "vendor-rpm": "vendor",
     "android": "android",
     "npm": "npm",
     "web": "web",
@@ -117,6 +122,17 @@ DESKTOP_CATEGORY_RE = re.compile(r"^[A-Za-z][A-Za-z0-9-]{0,63}$")
 APPDROP_ARTIFACTS = frozenset({"appimage", "archive"})
 MAX_PINNED_DOWNLOAD = 16 * 1024 ** 3
 MAX_KEYWORDS = 12
+# A publisher's own signed Linux package (kind `vendor`, usr/lib/moos/moos_vendor_rpm.py, whose
+# parse_entry() is the authority: the reviewed repositories and the one key each may be signed
+# with live there). These shapes only keep a malformed entry's fields out of the index; the
+# module itself is asked when an index is BUILT (catalog_installable), never on a launch.
+VENDOR_ARCHES = ("x86_64", "aarch64")
+VENDOR_PACKAGE_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._+-]{0,127}$")
+VENDOR_FINGERPRINT_RE = re.compile(r"^[0-9A-Fa-f]{40}$")
+VENDOR_SCHEME_RE = re.compile(r"^[a-z][a-z0-9+.-]{1,31}$")
+VENDOR_WM_CLASS_RE = re.compile(r"^[A-Za-z0-9._ -]{1,80}$")
+VENDOR_EVR_RE = re.compile(r"^[A-Za-z0-9._+~^]{1,128}$")
+VENDOR_MARKER = ".moos-vendor"
 
 PRIMARY_CATEGORIES = {
     "internet",
@@ -2097,6 +2113,60 @@ def sanitize_windows_install(raw: dict, app_id: object) -> dict:
     return result
 
 
+def exact_catalog_text(raw: dict, key: str, app_id: object, limit: int, *,
+                       required: bool = True) -> str:
+    """A field the backend compares byte for byte (a repository, a package path): text that
+    cleaning would leave unchanged, or the entry is refused."""
+
+    value = raw.get(key)
+    if value is None and not required:
+        return ""
+    if not isinstance(value, str) or not value or len(value) > limit \
+            or clean_text(value, limit) != value:
+        raise CatalogError(f"catalog {key} for {app_id!r} is invalid")
+    return value
+
+
+def vendor_payload_path(value: str, key: str, app_id: object) -> str:
+    """An absolute, already normal path inside the publisher's package."""
+
+    if (not value.startswith("/") or value.startswith("//") or value == "/" or "\\" in value
+            or os.path.normpath(value) != value):
+        raise CatalogError(f"catalog {key} for {app_id!r} must be a normal absolute path")
+    return value
+
+
+def sanitize_vendor_install(raw: dict, app_id: object) -> dict:
+    repo = exact_catalog_text(raw, "repo", app_id, 2048)
+    if repo.count("$basearch") != 1 or not safe_https_url(repo.replace("$basearch", "x86_64")):
+        raise CatalogError(f"catalog repo for {app_id!r} must be an HTTPS folder with $basearch")
+    package = exact_catalog_text(raw, "package", app_id, 128)
+    fingerprint = exact_catalog_text(raw, "key_fingerprint", app_id, 40)
+    if not VENDOR_PACKAGE_RE.fullmatch(package) or not VENDOR_FINGERPRINT_RE.fullmatch(fingerprint):
+        raise CatalogError(f"catalog package or key for {app_id!r} is invalid")
+    result: dict = {"repo": repo, "package": package, "key_fingerprint": fingerprint}
+    for key in ("install_root", "desktop"):
+        result[key] = vendor_payload_path(exact_catalog_text(raw, key, app_id, 1024), key, app_id)
+    if not result["desktop"].endswith(".desktop"):
+        raise CatalogError(f"catalog desktop for {app_id!r} must name a .desktop file")
+    result["exec"] = safe_relative_path(raw.get("exec"), "exec", app_id)
+    icon = exact_catalog_text(raw, "icon", app_id, 1024, required=False)
+    if icon:
+        if not vendor_payload_path(icon, "icon", app_id).endswith((".png", ".svg")):
+            raise CatalogError(f"catalog icon for {app_id!r} must be a PNG or SVG file")
+        result["icon"] = icon
+    result["wm_class"] = exact_catalog_text(raw, "wm_class", app_id, 80)
+    if not VENDOR_WM_CLASS_RE.fullmatch(result["wm_class"]):
+        raise CatalogError(f"catalog wm_class for {app_id!r} is invalid")
+    schemes = raw.get("schemes", [])
+    if (not isinstance(schemes, list) or len(schemes) > 4
+            or not all(isinstance(item, str) and VENDOR_SCHEME_RE.fullmatch(item) for item in schemes)):
+        raise CatalogError(f"catalog schemes for {app_id!r} are invalid")
+    if schemes:
+        result["schemes"] = list(dict.fromkeys(schemes))
+    return result
+
+
 def sanitize_install(entry: dict, app_id: str) -> dict:
     raw = entry.get("install")
     if raw is None:
@@ -2134,7 +2204,8 @@ def sanitize_install(entry: dict, app_id: str) -> dict:
             raise CatalogError(f"catalog package for {app_id!r} is invalid")
         result["pkg"] = package
 
-    android_package = safe_catalog_text(raw, "package", 255)
+    # A vendor entry's `package` is an RPM name, checked by sanitize_vendor_install below.
+    android_package = safe_catalog_text(raw, "package", 255) if kind != "vendor-rpm" else ""
     if android_package:
         if not ANDROID_PACKAGE_RE.fullmatch(android_package):
             raise CatalogError(
@@ -2182,6 +2253,8 @@ def sanitize_install(entry: dict, app_id: str) -> dict:
         result.update(sanitize_appdrop_install(raw, app_id))
     elif kind == "windows-portable":
         result.update(sanitize_windows_install(raw, app_id))
+    elif kind == "vendor-rpm":
+        result.update(sanitize_vendor_install(raw, app_id))
     elif kind == "android" and raw.get("size") is not None:
         size = raw.get("size")
         if (isinstance(size, bool) or not isinstance(size, int)
@@ -2619,7 +2692,42 @@ def catalog_installable(entry: dict, arch: str | None = None) -> bool:
         if kind == "appdrop" and install.get("artifact") not in APPDROP_ARTIFACTS:
             return False
         return bool(downloads) and (arch is None or arch in downloads)
+    if kind == "vendor-rpm":
+        return vendor_entry_installable(install, arch)
     return False
+
+
+@functools.lru_cache(maxsize=1)
+def vendor_module():
+    """usr/lib/moos/moos_vendor_rpm.py, imported only when an index is built (~25 ms of network
+    and TLS imports a launch never pays); None when this image does not ship it."""
+
+    import importlib
+
+    library = str(Path(__file__).resolve().parent.parent / "lib/moos")
+    if library not in sys.path:
+        sys.path.insert(0, library)
+    try:
+        return importlib.import_module("moos_vendor_rpm")
+    except Exception as error:  # noqa: BLE001 - an image without it offers no vendor app
+        log(f"publisher packages cannot be offered: {clean_text(str(error), 160)}")
+        return None
+
+
+def vendor_entry_installable(install: dict, arch: str | None) -> bool:
+    """Installable here when moos_vendor_rpm.parse_entry() accepts the entry — a reviewed
+    repository and its own key — and publishes builds for this processor."""
+
+    if arch is not None and arch not in VENDOR_ARCHES:
+        return False
+    module = vendor_module()
+    if module is None:
+        return False
+    try:
+        module.parse_entry(install)
+    except Exception:  # noqa: BLE001 - VendorError or a malformed value: not offered
+        return False
+    return True
 
 
 # ── What is installed, for every kind ────────────────────────────────────────
@@ -2631,13 +2739,17 @@ def catalog_installable(entry: dict, arch: str | None = None) -> bool:
 #   appdrop   the App Drop record ~/.local/share/moos/appdrop/<id>.json, which a
 #             catalogue install marks with catalog_id=<id>;
 #   windows   the record ~/.local/share/moos/windows-apps/<id>.json;
+#   vendor    the record ~/.local/share/moos/vendor/<id>.json, the marked folder
+#             ~/Applications/<id> and MoOS's launcher org.moos.vendor.<id>.desktop, all
+#             three (moos_vendor_rpm.intact(), by file reads);
 #   android   the per-package data directory the Android runtime creates;
 #   npm       the command in ~/.local/bin;
 #   web       never installed: it opens the publisher's page.
 # An App Drop record with no catalogue id is an app of its own, kind "dropped";
 # a Flatpak that no listed entry covers (AppStream dropped it, or it is not an
-# app the Store offers) is listed as installed so it can still be found and
-# removed. Both carry listed=false and installable=false.
+# app the Store offers), and a publisher's app whose catalogue entry is not
+# offered here any more, are listed as installed so they can still be found and
+# removed. All of them carry listed=false and installable=false.
 
 RECORD_LIMIT = 64 * 1024
 TEXT_FILE_LIMIT = 256 * 1024
@@ -2795,6 +2907,84 @@ def version_newer(candidate: str, installed: str) -> bool:
     return longer_is_candidate if isinstance(first_extra, int) else not longer_is_candidate
 
 
+VENDOR_ID_RE = re.compile(r"^[a-z0-9][a-z0-9-]{1,62}$")
+
+
+def vendor_app_dir(app_id: str) -> Path:
+    return home_dir() / "Applications" / app_id
+
+
+def vendor_record(app_id: str) -> dict | None:
+    """MoOS's record of a publisher's app while everything it wrote is in place.
+
+    The record (schema 1, this id, a version rpm could read), the app folder carrying MoOS's
+    marker, and MoOS's own launcher: the test moos_vendor_rpm.intact() makes, by file reads.
+    A record whose launcher or folder is gone is not "installed": the Store offers Install,
+    which repairs it, instead of an Open that cannot work."""
+
+    if not VENDOR_ID_RE.fullmatch(app_id):
+        return None
+    record = read_record(data_home() / "moos/vendor" / f"{app_id}.json")
+    if record is None or record.get("schema") != 1 or record.get("id") != app_id:
+        return None
+    epoch = record.get("epoch", 0)
+    version, release = record.get("version"), record.get("release", "")
+    if (not re.fullmatch(r"[0-9]{1,10}", str(epoch if epoch not in (None, "") else 0))
+            or not isinstance(version, str) or not VENDOR_EVR_RE.fullmatch(version)
+            or not isinstance(release, str) or (release and not VENDOR_EVR_RE.fullmatch(release))):
+        return None
+    folder = vendor_app_dir(app_id)
+    marker = folder / VENDOR_MARKER
+    if (folder.is_symlink() or not folder.is_dir() or marker.is_symlink() or not marker.is_file()
+            or read_small_text(marker, 256).strip() != app_id):
+        return None
+    launcher = data_home() / "applications" / f"org.moos.vendor.{app_id}.desktop"
+    if launcher.is_symlink() or f"X-MoOS-Vendor={app_id}" not in (
+            line.strip() for line in read_small_text(launcher, 64 * 1024).splitlines()):
+        return None
+    return record
+
+
+def vendor_version(record: dict) -> str:
+    """version-release, as rpm prints a build (the epoch is not part of what a person reads)."""
+
+    version, release = record["version"], record.get("release") or ""
+    return f"{version}-{release}" if release else version
+
+
+def vendor_icon(record: dict, app_id: str) -> str | None:
+    """The record's icon — a path inside the app's own folder — when it is an image file under
+    the person's home; nothing the record says is trusted as a place."""
+
+    icon = record.get("icon")
+    if (not isinstance(icon, str) or not icon or len(icon) > 255 or icon.startswith("/")
+            or "\\" in icon or CONTROL_CHARACTERS.search(icon)
+            or any(part in ("", ".", "..") for part in icon.split("/"))):
+        return None
+    return home_file_icon(str(vendor_app_dir(app_id) / icon))
+
+
+def vendor_orphans(claimed: set[str]) -> list[dict]:
+    """Publishers' apps MoOS installed that no catalogue entry offered here accounts for."""
+
+    folder = data_home() / "moos/vendor"
+    try:
+        paths = sorted(folder.glob("*.json"))
+    except OSError:
+        return []
+    found = []
+    for path in paths:
+        app_id = path.stem
+        if app_id in claimed or not VENDOR_ID_RE.fullmatch(app_id):
+            continue
+        record = vendor_record(app_id)
+        if record is None:
+            continue
+        found.append({"id": app_id, "name": record_text(record, "name", 80) or app_id,
+                      "icon": vendor_icon(record, app_id), "version": vendor_version(record)})
+    return found
+
+
 def catalog_install_state(entry: dict, arch: str | None = None) -> dict:
     """{installed, version, update, icon, adopted} of one catalogue entry, from files."""
 
@@ -2843,6 +3033,14 @@ def catalog_install_state(entry: dict, arch: str | None = None) -> dict:
             icon = record.get("icon")
             if isinstance(icon, str):
                 state["icon"] = home_file_icon(icon)
+    elif kind == "vendor":
+        # The newest build lives in the publisher's repository: updates.json (moos-storectl
+        # check-updates, over the network) owns update_available, as it does for Flatpaks.
+        record = vendor_record(app_id)
+        if record is not None:
+            state["installed"] = True
+            state["version"] = vendor_version(record)
+            state["icon"] = vendor_icon(record, app_id)
     elif kind == "android":
         package = install.get("package")
         # The runtime creates this per-package data directory only after the
@@ -2922,6 +3120,7 @@ def lifecycle_snapshot(catalog: dict) -> dict:
     arch = catalog.get("arch")
     states: dict[str, dict] = {}
     claimed: set[str] = set()
+    vendors: set[str] = set()
     for entry in catalog["apps"]:
         if entry["source"] in {"flathub", "flatpak"}:
             continue
@@ -2929,7 +3128,11 @@ def lifecycle_snapshot(catalog: dict) -> dict:
         states[entry["id"]] = state
         if state["installed"] and catalog_kind(entry) == "appdrop":
             claimed.add(entry["id"])
-    return {"catalog": states, "dropped": dropped_records(claimed)}
+        if catalog_kind(entry) == "vendor":
+            # Offered here: its own entry shows its record, intact or not.
+            vendors.add(entry["id"])
+    return {"catalog": states, "dropped": dropped_records(claimed),
+            "vendor": vendor_orphans(vendors)}
 
 
 # ── flatpak's deploy data ────────────────────────────────────────────────────
@@ -3187,6 +3390,42 @@ def dropped_entry(record: dict, app_id: str) -> dict:
     }
 
 
+def vendor_orphan_entry(record: dict) -> dict:
+    """A publisher's app MoOS installed whose catalogue entry is not offered here any more:
+    listed only as installed, so it can still be opened and removed by its id."""
+
+    return {
+        "id": record["id"],
+        "source": "moos",
+        "kind": "vendor",
+        "origin": "moos",
+        "scope": "user",
+        "installable": False,
+        "listed": False,
+        "flatpak_ref": None,
+        "arch": None,
+        "branch": None,
+        "name": record["name"],
+        "name_en": record["name"],
+        "summary": "",
+        "description": "",
+        "developer": "",
+        "license": "",
+        "category": "other",
+        "categories": [],
+        "icon": record["icon"],
+        "screenshot": None,
+        "verified": False,
+        "installed": True,
+        "version": record["version"],
+        "curated": False,
+        "branding": None,
+        "content_rating": None,
+        "details": None,
+        "origins": [],
+    }
+
+
 LIFECYCLE_KEYS = ("installed_origin", "installed_scope", "installed_scopes")
 
 
@@ -3270,6 +3509,15 @@ def apply_lifecycle(apps: list[dict], *, installed: dict[str, list[dict]],
         entry["eol"] = False
         extra.append(finish_app(entry))
         taken.add(app_id)
+    for record in snapshot.get("vendor", []):
+        if record["id"] in taken:
+            continue
+        entry = vendor_orphan_entry(record)
+        entry["installed_version"] = entry["version"] or None
+        entry["update_available"] = False
+        entry["eol"] = False
+        extra.append(finish_app(entry))
+        taken.add(record["id"])
     result = sorted(listed + extra,
                     key=lambda app: (app["name"].casefold(), app["id"].casefold()))
     for app in result:
@@ -3329,6 +3577,23 @@ BLOCKING_REASONS = frozenset({"arch", "engine_missing", "low_disk", "eol"})
 BROAD_PERMISSIONS = frozenset({"files-all", "devices"})
 FACTS_LIMIT = 64 * 1024 * 1024
 MIB = 1024 * 1024
+# A Windows program's own settings folder (moos-storectl): a copy of one template folder.
+# Measured on the station's btrfs with Wine 11.0 (2026-10-14, private HOME): the template is
+# 917.6 MB of data (Wine copies its libraries into it) and so is a full copy; a copy that shares
+# the template's extents adds 0 bytes of data and 624-672 KiB of metadata, which btrfs keeps
+# twice (DUP): about 1.3 MiB, counted as 2 MiB.
+WINDOWS_SETTINGS_BYTES = 900 * 1000 ** 2
+WINDOWS_SHARED_SETTINGS_BYTES = 2 * MIB
+
+
+def windows_settings_bytes(machine: dict) -> int:
+    """What installing the next Windows program adds besides its download: its own settings
+    folder (shared extents where the filesystem can, a full copy elsewhere or when unknown),
+    plus the template the first one makes while there is none."""
+
+    windows = machine.get("windows") if isinstance(machine.get("windows"), dict) else {}
+    own = WINDOWS_SHARED_SETTINGS_BYTES if windows.get("reflink") is True else WINDOWS_SETTINGS_BYTES
+    return own + (0 if windows.get("template") is True else WINDOWS_SETTINGS_BYTES)
 
 
 def read_facts(path: Path | None) -> dict | None:
@@ -3417,6 +3682,8 @@ def compat_verdict(app: dict, machine: dict | None, facts: dict | None) -> dict:
     free = (machine.get("free_bytes") or {}).get("apps") if isinstance(
         machine.get("free_bytes"), dict) else None
     size = needs.get("size")
+    if kind == "windows" and not installed:
+        size = (size if isinstance(size, int) else 0) + windows_settings_bytes(machine)
     if not installed and isinstance(size, int) and isinstance(free, int) and size > free:
         reasons.add("low_disk")
     memory = machine.get("memory_bytes")
@@ -4638,6 +4905,52 @@ def windows_x86_32() -> bool:
     return read_small_text(Path(newest.path), 64).strip() == "available"
 
 
+# Filesystems where `cp --reflink` shares a file's extents instead of copying them, so a Windows
+# program's settings folder copied from the template costs almost nothing. XFS can too, but only
+# when it was made with reflink support, which mountinfo does not say: it counts as a full copy.
+REFLINK_FILESYSTEMS = frozenset({"btrfs", "bcachefs"})
+MOUNTINFO_ESCAPE = re.compile(r"\\([0-7]{3})")
+
+
+def mount_filesystem(root: Path, path: Path) -> str | None:
+    """The type of the filesystem holding `path`: the longest mount point in mountinfo."""
+
+    text = read_small_text(under_root(root, "/proc/self/mountinfo"), 4 * 1024 * 1024)
+    where = nearest_existing(path)
+    if not text or where is None:
+        return None
+    target = os.path.realpath(where)
+    best, found = -1, None
+    for line in text.splitlines():
+        fields = line.split(" ")
+        if "-" not in fields:
+            continue
+        separator = fields.index("-")
+        if separator < 6 or len(fields) <= separator + 1:
+            continue
+        point = MOUNTINFO_ESCAPE.sub(lambda match: chr(int(match.group(1), 8)), fields[4])
+        inside = point == "/" or target == point or target.startswith(point.rstrip("/") + "/")
+        if inside and len(point) > best:
+            best, found = len(point), fields[separator + 1]
+    return found
+
+
+def windows_reflink(root: Path) -> bool | None:
+    """Can the folder Windows programs live in share extents with the template? None: unknown."""
+
+    filesystem = mount_filesystem(root, data_home() / "moos/windows-apps")
+    return None if filesystem is None else filesystem in REFLINK_FILESYSTEMS
+
+
+def windows_template_ready() -> bool:
+    """moos-storectl's template settings folder is complete (its record is written last)."""
+
+    folder = data_home() / "moos/windows-apps"
+    template = folder / ".template"
+    return (not template.is_symlink() and (template / "system.reg").is_file()
+            and (folder / ".template.json").is_file())
+
+
 def edid_identity(blob: bytes) -> str:
     """KWin's edidIdentifier prefix: maker, product code, serial, week, year."""
 
@@ -4745,6 +5058,9 @@ def machine_facts(engines: list[str] | None, root: Path = Path("/")) -> dict:
         "windows": {
             "ready": None if ready is None else "windows" in ready,
             "x86_32": bool(fact(windows_x86_32)),
+            # What the next Windows program's own settings folder costs (compat_verdict).
+            "reflink": fact(windows_reflink, root),
+            "template": bool(fact(windows_template_ready)),
         },
         "screen": fact(screen_facts, root),
     }

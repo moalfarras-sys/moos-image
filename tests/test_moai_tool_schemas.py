@@ -424,6 +424,28 @@ class TestToolSchemaIntegrity(unittest.TestCase):
         self.assertEqual(consequence("check_system_update", "en"), "")
         self.assertEqual(consequence("a tool that does not exist", "ar"), "")
 
+    def test_app_tools_take_any_mo_store_id_and_the_card_names_no_mechanism(self):
+        """install_app/uninstall_app take a Mo Store app id of ANY kind (moai-do hands it to
+        moos-storectl): the model must learn that `chatgpt` is as valid as org.mozilla.firefox,
+        and the person's card must not say how an app is packaged."""
+        tools = {tool["function"]["name"]: tool for tool in ALL_TOOLS}
+        mechanisms = re.compile(r"(?i)flatpak|flathub|rpm|appimage|wine|waydroid|bottles|npm|"
+                                r"web ?app|android|windows|package")
+        for name in ("install_app", "uninstall_app"):
+            with self.subTest(tool=name):
+                description = tools[name]["function"]["description"]
+                argument = tools[name]["function"]["parameters"]["properties"]["app_id"]["description"]
+                for text in (description, argument):
+                    self.assertIn("Mo Store", text)
+                    self.assertIn("org.mozilla.firefox", text)
+                    for catalogue_id in ("chatgpt", "claude", "photocraft"):
+                        self.assertIn(catalogue_id, text)
+                self.assertNotIn("Flatpak", description, "the tool still claims to be Flatpak-only")
+                for language in ("ar", "en"):
+                    self.assertNotRegex(consequence(name, language), mechanisms,
+                                        f"{name}'s card names a packaging mechanism")
+                self.assertEqual(build_command(name, {"app_id": "chatgpt"})[-1], "chatgpt")
+
     def test_a_card_promises_a_password_exactly_when_its_action_can_ask_for_one(self):
         """The card's password line is held to the code: a `run_priv` the action can reach.
 

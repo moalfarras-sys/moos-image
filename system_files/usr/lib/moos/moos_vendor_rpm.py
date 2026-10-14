@@ -79,6 +79,7 @@ is stable (the Store owns the bilingual words for it), `detail` is for a log onl
       progress(stage, percent | None) with stage in STAGES; atomic: a failed update keeps the
       version that worked
   installed(app_id) -> dict | None
+  intact(app_id) -> bool                        the record, MoOS's launcher and the marked folder
   update_available(app_id, newest) -> bool      newest: a resolve() result or "[E:]V-R"
   remove(app_id, *, refresh_menu=True) -> bool
   rpmvercmp(a, b) -> -1 | 0 | 1;  evr_compare(a, b) -> -1 | 0 | 1
@@ -1968,6 +1969,13 @@ def installed(app_id: str) -> dict[str, Any] | None:
     return record
 
 
+def intact(app_id: str) -> bool:
+    """Is everything install() wrote still in place: the record, MoOS's own launcher and the
+    marked app folder? What opens the app, and what may skip a reinstall, asks this."""
+    return (installed(app_id) is not None and _marked_launcher(launcher_path(app_id), app_id)
+            and _marked_tree(app_dir(app_id), app_id))
+
+
 def update_available(app_id: str, newest: Any) -> bool:
     """True only when `newest` sorts after what is installed (a lower build is never an update)."""
     record = installed(app_id)
@@ -2107,7 +2115,9 @@ def install(app_id: str, entry: Mapping[str, Any] | Entry, *, arch: str | None =
         check_header(package, resolved, run=run)
         if stop():
             raise VendorError("cancelled")
-        report("extracting", 0)
+        # Indeterminate while rpm2cpio writes the payload (it reports nothing); the reader that
+        # follows reports real percentages.
+        report("extracting", None)
         extras = [path for path in (spec.desktop, spec.icon) if path and _inside(path, spec.install_root) is None]
         extracted = extract(package, spec.install_root, staging, extras=extras, work_dir=work,
                             cancelled=stop, progress=lambda percent: report("extracting", percent),
