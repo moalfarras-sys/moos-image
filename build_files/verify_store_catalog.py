@@ -916,7 +916,13 @@ def check_catalog(catalog, root: Path = IMAGE_ROOT, build_dir: Path = BUILD_DIR,
             indexer = load_source_module("moos_store_index_for_gate",
                                          root / MOOS_STORE_INDEX.lstrip("/"))
             for arch_name in ARCHES:
-                indexer.load_catalog(catalog_path, arch_name)
+                loaded = indexer.load_catalog(catalog_path, arch_name)
+                # The indexer skips a bad entry (and logs why) instead of failing the whole index,
+                # so a refusal is only visible here: an entry it skips is an app that silently
+                # disappears from the Store.
+                for skipped in (loaded.get("skipped") or []) if isinstance(loaded, dict) else []:
+                    require(False, f"moos-store-index refuses the catalogue {skipped.get('section')} "
+                                   f"entry {skipped.get('id')} on {arch_name}: {skipped.get('reason')}")
         except (OSError, ImportError, SyntaxError, AttributeError) as error:
             require(False, f"cannot load moos-store-index to cross-check the catalogue: {error}")
         except Exception as error:  # noqa: BLE001 - CatalogError and anything it raises
