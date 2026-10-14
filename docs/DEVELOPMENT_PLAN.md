@@ -36,8 +36,9 @@ Fourteen executable controls, including restored-old failures, pass; mutations,
 source/digest/attempt checks and promotion requirements remain unchanged.
 Physical NVIDIA booted .1044 with its corrected immutable helper hashes and
 signed .1042 rollback; its /run override disappeared naturally. The owner
-reports the desktop opened. Post-login readback and exact copied-bundle
-retirement await renewed Tailscale management authentication. Preserve opt-in,
+reports the desktop opened. .1044 native 55/55, 18 hashes and player pass;
+exact unused copied-bundle retirement completed after owner authentication.
+.1046 is officially staged with 19 hashes/player matching, not yet booted. Preserve opt-in,
 PIN/private TLS/upstream PAM/default-off and the owner’s password flow.
 Oracle now boots signed .775 with .763 rollback. Native graphical checks pass
 51 selfchecks/4 notes and 55 post-update/0 failures, all 19 payload hashes,
@@ -330,7 +331,7 @@ itself and an unreviewed MoOS would ship kscreenlocker's emergency locker.
 | ID | Outcome | Current boundary | Required acceptance |
 | --- | --- | --- | --- |
 | P0.1 | Integrate the reviewed first-install repairs and create one candidate revision | Stable mechanism/artifact evidence recorded; preserve required gates | Exact candidate source, all integrated fixes and no local override counted as release. |
-| P0.2 | Run generic, NVIDIA and cloud QCOW2 proofs plus offline ISO install/second boot | Exact .1046 three QCOW2/offline installed ISO and ARM .775 two-boot proofs pass. Native Oracle .775 boot/19 payload hashes/51 selfchecks and 55 post-update checks pass with earlier failed attempts preserved. Physical NVIDIA .1044 post-login receipt remains pending; .1046 hardware acceptance is open | Three exact-digest x86 QCOW2 journeys, offline installed ISO and separate ARM two-boot proof. |
+| P0.2 | Run generic, NVIDIA and cloud QCOW2 proofs plus offline ISO install/second boot | Exact .1046 three QCOW2/offline installed ISO and ARM .775 two-boot proofs pass. Native Oracle .775 boot/19 payload hashes/51 selfchecks and 55 post-update checks pass with earlier failed attempts preserved. Physical NVIDIA .1044 passes 55/55 and 18 hashes; .1046 is staged with 19 hashes/player matching, boot/hardware acceptance open | Three exact-digest x86 QCOW2 journeys, offline installed ISO and separate ARM two-boot proof. |
 | P0.3 | Finish physical NVIDIA qualification | Open: signed .1042 native 55/0 + 55/0, 16 hashes and exact signed player bytes pass; one URI/finite seek/resource journey passes. Kernel -201 NVIDIA vermagic matches. USB-C UCSI -110 remains; broader physical acceptance is open. Offline ESP dirty-bit-only clone/live proof passes, 16 boot-file hashes preserved and both shared vfat mounts restored; the prior unmount mistake failed before fsck and has a private old/fixed topology control. Next cold-boot warning readback, suspend/hotplug and recovery remain | Actual NVIDIA GPU, initramfs module, displays, suspend and clean recovery on qualified hardware. |
 | P0.4 | Prove failed-update recovery | Open / acceptance not complete | Deliberate bad update, automatic/manual rollback and forward return without owner data loss. |
 | P0.5 | Configure and accept free Mo AI on a clean account | Open / acceptance not complete | Clean-account provider setup, free route, reboot, cancellation and network/quota/key failures. |
@@ -442,6 +443,19 @@ tool paths, native SDK availability, KVM access and redacted GitHub readiness.
 It installs nothing and does not launch apps. A successful inventory is not a
 successful SDK build. `.vscode/extensions.json` carries the shared editor
 recommendations; machine-specific paths remain local.
+
+The [October 14 workstation audit](WORKSTATION_20261014_AR.md) adds actual
+QML old/fixed/live-startup evidence, .NET host/Flatpak Arabic execution,
+C++/Go/Rust/Java builds, and native Flutter analyze/test/Linux-build evidence.
+The same four MCP servers pass protocol/call checks; Codex and VS Code local
+registration is recorded separately from active-session discovery. Preserve
+the original failures, private backups and the compatible GitHub extension.
+All optional extension flows, subscriptions/quotas and the complete auditable
+cross-machine provisioning profile remain acceptance work, not green by inventory.
+One existing live Island first-token probe timed out during a repeated native
+gate; 15 private diagnostic trials passed. Component completion precedes model
+readiness, but the failure's cause is unproven. Preserve the failed log and
+investigate without weakening the gate or claiming a product correction.
 
 The remaining provisioning slice must:
 

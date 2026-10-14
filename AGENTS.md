@@ -645,6 +645,16 @@ Give private children a clean environment and their own bus/HOME: inherited
 Flatpak variables can route a supposed native fixture into a portal. Pixels from
 an offscreen widget do not prove the scaled owner Wayland surface; review both.
 
+**An editor download is not a working SDK.** Qt's downloaded `qmlls` failed
+inside VS Code Flatpak on a missing native library. A Toolbox proxy passed an
+LSP test but missed the actual extension's one-second executable probe. Prove
+the editor starts its server, then exercise valid and invalid QML. A small
+user-space QML SDK must match the installed Qt package exactly; preserve the
+version-mismatch negative control and refresh it after a Qt transition. Never
+fix a language server by layering packages on the signed OS. MCP configuration
+and an account's stored login are likewise separate from actual tool calls,
+active-session discovery and provider entitlements.
+
 **Boot the image and look at it.** `podman build` + `bootc-image-builder --type qcow2` + qemu
 with `screendump` takes about half an hour and is the only thing that found any of the above.
 

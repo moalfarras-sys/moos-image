@@ -1,0 +1,638 @@
+{
+  "scope": "Measured workstation SDK/MCP and NVIDIA staged/native acceptance; no universal extension/account/boot/endurance claim",
+  "code": {
+    "version": "1.139.1",
+    "oracleInstalledExtensionCount": 50,
+    "nvidiaInstalledExtensionCount": 35,
+    "githubCompatibleVersion": "0.166.1",
+    "github168InstallRefused": true,
+    "observedOptionalExtensionIssues": [
+      "Startup OpenRouter model-catalog fetch failed",
+      "Startup Vercel AI Gateway model metadata validation required missing context_window"
+    ],
+    "rooClineUpdateAttempt": "Both CLI install --force calls reported already installed; no source patch or owner provider changes",
+    "githubInstallProbeHost": "oracle-arm"
+  },
+  "qml": {
+    "scope": "Native user-space SDK Qt language-server round trip through VS Code Flatpak host portal; no owner buffers or immutable-host package installation",
+    "server": null,
+    "good_diagnostics": [],
+    "bad_diagnostic_count": 1,
+    "bad_property_detected": true,
+    "passed": true
+  },
+  "mcpStdio": {
+    "sequential-thinking": {
+      "scope": "Protocol initialization and listed tools; no image generation or paid inference",
+      "server": {
+        "name": "sequential-thinking-server",
+        "version": "1.0.0"
+      },
+      "tool_names": [
+        "sequentialthinking"
+      ],
+      "private_thought_call_passed": true,
+      "passed": true
+    },
+    "chrome-devtools": {
+      "scope": "Protocol initialization and listed tools; no image generation or paid inference",
+      "server": {
+        "name": "chrome_devtools",
+        "title": "Chrome DevTools MCP server",
+        "version": "1.10.1"
+      },
+      "tool_names": [
+        "click",
+        "close_page",
+        "drag",
+        "emulate",
+        "evaluate_script",
+        "fill",
+        "fill_form",
+        "get_console_message",
+        "get_css_styles",
+        "get_network_request",
+        "handle_dialog",
+        "hover",
+        "lighthouse_audit",
+        "list_console_messages",
+        "list_network_requests",
+        "list_pages",
+        "navigate_page",
+        "new_page",
+        "performance_analyze_insight",
+        "performance_start_trace",
+        "performance_stop_trace",
+        "press_key",
+        "resize_page",
+        "select_page",
+        "take_heapsnapshot",
+        "take_screenshot",
+        "take_snapshot",
+        "type_text",
+        "upload_file",
+        "wait_for"
+      ],
+      "isolated_browser_call_passed": true,
+      "passed": true
+    },
+    "image-gen": {
+      "scope": "Protocol initialization and listed tools; no image generation or paid inference",
+      "server": {
+        "name": "mcp-image-server",
+        "version": "0.13.2"
+      },
+      "tool_names": [
+        "generate_image"
+      ],
+      "passed": true
+    }
+  },
+  "mcpHttp": {
+    "scope": "Anonymous Context7 protocol and public Qt library lookup; no credential read or model inference",
+    "http": 200,
+    "server": {
+      "name": "Context7",
+      "version": "4.4.1",
+      "websiteUrl": "https://context7.com",
+      "description": "Context7 provides up-to-date documentation and code examples for libraries and frameworks.",
+      "icons": [
+        {
+          "src": "https://context7.com/context7-icon-green.png",
+          "mimeType": "image/png"
+        }
+      ]
+    },
+    "tool_names": [
+      "resolve-library-id",
+      "query-docs"
+    ],
+    "library_lookup_passed": true,
+    "passed": true
+  },
+  "localMcpRegistration": {
+    "servers": [
+      "sequential-thinking",
+      "context7",
+      "chrome-devtools",
+      "image-gen"
+    ],
+    "clients": [
+      "Codex CLI/IDE configuration",
+      "VS Code MCP configuration"
+    ],
+    "scope": "Same four repository servers; no keys, models, permissions or owner providers changed. Active-session discovery still requires client readback/reload.",
+    "context7Default": "Anonymous URL; optional key is not required by local Codex configuration"
+  },
+  "sdkSmokes": {
+    "dotnet-restore": {
+      "exit": 0,
+      "stdout": "  Determining projects to restore...\n  Restored /var/home/moos/.cache/moos-workstation-audit-20261014/sdk-smoke/dotnet/SdkProbe.csproj (in 140 ms).\n",
+      "stderr": ""
+    },
+    "dotnet-build-host": {
+      "exit": 0,
+      "stdout": "  SdkProbe -> /var/home/moos/.cache/moos-workstation-audit-20261014/sdk-smoke/dotnet/out/SdkProbe.dll\n\nBuild succeeded.\n    0 Warning(s)\n    0 Error(s)\n\nTime Elapsed 00:00:03.68\n",
+      "stderr": ""
+    },
+    "dotnet-run-flatpak": {
+      "exit": 0,
+      "stdout": "{\"result\":\"MOOS_SDK_OK\",\"architecture\":\"Arm64\",\"arabicRtl\":true}\n",
+      "stderr": ""
+    },
+    "dotnet-run-host": {
+      "exit": 0,
+      "stdout": "{\"result\":\"MOOS_SDK_OK\",\"architecture\":\"Arm64\",\"arabicRtl\":true}\n",
+      "stderr": ""
+    },
+    "cpp-compile": {
+      "exit": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    "cpp-run-host": {
+      "exit": 0,
+      "stdout": "MOOS_CPP_OK\n",
+      "stderr": ""
+    },
+    "go-run": {
+      "exit": 0,
+      "stdout": "MOOS_GO_OK\n",
+      "stderr": ""
+    },
+    "rust-compile": {
+      "exit": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    "rust-run-host": {
+      "exit": 0,
+      "stdout": "MOOS_RUST_OK\n",
+      "stderr": ""
+    },
+    "java-compile": {
+      "exit": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    "java-run": {
+      "exit": 0,
+      "stdout": "MOOS_JAVA_OK\n",
+      "stderr": ""
+    }
+  },
+  "flutter": {
+    "frameworkVersion": "3.47.4",
+    "dartVersion": "3.13.3",
+    "analyzePassed": true,
+    "widgetTestPassed": true,
+    "linuxArmBuildPassed": true,
+    "offlinePubInitiallyFailed": true,
+    "scope": "Private scaffold; not MoPlayer source or a graphical application acceptance"
+  },
+  "nvidiaStaged": {
+    "scope": "Read-only exact signed staged NVIDIA .1046; not boot acceptance",
+    "boot_id": "5cf457a9-75d6-4ed6-9376-fe392244145d",
+    "version": "44.20261014.1046",
+    "digest": "sha256:0235cad7d5da41af9df25355f7b7beb395893db66e56f9bc5b5b514365579739",
+    "payload_sha256": {
+      "/usr/bin/moai-gateway": "bb4ae9a734d479ebf5ba272177d3a32e73db68327b9a1123bfc55dcb5817ee7b",
+      "/usr/bin/moos-apply-theme": "7f33498a5f006cfb44edab541d25edd8abc85e6a2a0456fdd9bcf50265aba89f",
+      "/usr/bin/moos-selfcheck": "e6ae1309dba602048fefff40315bec6e2469b4a29912a4340d8c69d4b8a8cea1",
+      "/usr/lib/mo-remote/mo-remote-portal.py": "e441588880577be128b8eb6e8f0609364e34f1ae8a842a9b18ca8de942000e14",
+      "/usr/lib/moai/moai_cloud_policy.py": "39f7a1fab74b053208d1e8b6cf9b0af3db5acb64ffdc597af11852b2dc0db7f2",
+      "/usr/lib/moai/moai_local_peer.py": "1815c2161e147e0b98399a6b221ec32d01877baa015c73e715216957cdc9931a",
+      "/usr/lib/moos-community/community/client.py": "3b780d588054817ffc9b4ff595c79fd095200557eb33f4ecc154098f51a9e6c7",
+      "/usr/lib/moos/moos_settings_launcher.py": "60d8817f07e409d3fd9de6154ed787bf54cf14374894696fd86d7e0325610d7f",
+      "/usr/lib/systemd/user/moai-gateway.service": "7f8698f166c0bd58b01306803e1dab34394c2619d323fb81ffd28440e5a51e75",
+      "/usr/lib/systemd/user/moai-hermes.service": "dd3488f24bf15669a19a539e6deed66553c33b03ac7dedf072535e0538d768f2",
+      "/usr/lib/systemd/user/moos-theme-drift.timer": "dd62178ba70517023a6ec5c46508b4ac0a9d676f0070d71ce22054f5b637e3b3",
+      "/usr/lib/systemd/user/moos-theme-sync.path": "069349e668240654b1e7586070712c5fd0a2ec1066e5b38288f736e9fc307d22",
+      "/usr/lib/systemd/user/moos-theme-sync.service": "fbf4f14e305c94aed034413e333f03d936d21d984cefb895e82e0943392b5ffe",
+      "/usr/lib64/qt6/qml/org/moos/ui/Tokens.qml": "58917731df830d67203a2adc9f3007df3064e723c6340433aaa812206af88890",
+      "/usr/libexec/mo-remote-greeter": "aafaeabb47ae315c9db43dfb5e72d7ccfa1aa8f9d8a1324d5c0c8de88957f31e",
+      "/usr/libexec/moai-hermes": "cc2dccbcbc7ffb721b95c7319af3b8acba903a729f242943d940bf117ba61bdc",
+      "/usr/libexec/moos-material-state": "3ca57545deea900c374041924a9786dfb626800661ef43d724ab7e44fb06570b",
+      "/usr/share/moos/whats-new.json": "a713fdf07e4301bf02587a72eed067db8f53f2db965da829c379cbb728c4e899",
+      "/usr/share/plasma/plasmoids/org.moos.island/contents/ui/main.qml": "9287449facc20e2482bb7ed5bd60906a362a42bcc2fb5299f3e08b8ab9e3a9df"
+    },
+    "payload_matches": true,
+    "compiled_moplayer_sha256": "013b9da059004acd4b42543b0bea22d0c8297b00ecf3316e377b76caf568ceca",
+    "compiled_moplayer_matches": true
+  },
+  "nvidiaRetirement": {
+    "scope": "Exact superseded temporary greeter audit bundle only; keep owner enrollment/PIN/TLS and immutable rollback",
+    "checkedAtEpoch": 1791981599.097444,
+    "holders": [],
+    "immutable_helpers_match": true,
+    "logical_bytes": 124296811,
+    "retired": true
+  },
+  "nvidiaNative": {
+    "schema": 1,
+    "boot_id": "5cf457a9-75d6-4ed6-9376-fe392244145d",
+    "expected_digest": "sha256:df557bb0bcb81d2e2c1729a96d8805a43368f6b15275a55562c4fdba2acf4e43",
+    "source_revision": "5f0f2c65d2583f6c128ca3ea4577334333f7083d",
+    "checked_at_epoch": 1791964408.6736574,
+    "uid": 1000,
+    "scope": "Native graphical-login checks and runtime bytes; no ordinary PAM, video, phone or hardware endurance proof",
+    "passed": true,
+    "deployments": [
+      {
+        "version": "44.20261013.1044",
+        "booted": true,
+        "staged": false,
+        "container-image-reference": "ostree-image-signed:docker://ghcr.io/moalfarras-sys/moos-nvidia@sha256:df557bb0bcb81d2e2c1729a96d8805a43368f6b15275a55562c4fdba2acf4e43",
+        "container-image-reference-digest": "sha256:df557bb0bcb81d2e2c1729a96d8805a43368f6b15275a55562c4fdba2acf4e43"
+      },
+      {
+        "version": "44.20261013.1042",
+        "booted": false,
+        "staged": false,
+        "container-image-reference": "ostree-image-signed:docker://ghcr.io/moalfarras-sys/moos-nvidia@sha256:88953ed40528ddca8ed16f1888b57c6420699f72897909819433f4a455559562",
+        "container-image-reference-digest": "sha256:88953ed40528ddca8ed16f1888b57c6420699f72897909819433f4a455559562"
+      }
+    ],
+    "theme_rev_103_applied": true,
+    "payload_sha256": {
+      "/usr/bin/moai-gateway": "bb4ae9a734d479ebf5ba272177d3a32e73db68327b9a1123bfc55dcb5817ee7b",
+      "/usr/bin/moos-apply-theme": "05aeeca66af7e72f0ce6572ab0b4e0852c5d0590d0c6e323b7a917d61ab667cd",
+      "/usr/bin/moos-selfcheck": "e6ae1309dba602048fefff40315bec6e2469b4a29912a4340d8c69d4b8a8cea1",
+      "/usr/lib/mo-remote/mo-remote-portal.py": "e441588880577be128b8eb6e8f0609364e34f1ae8a842a9b18ca8de942000e14",
+      "/usr/lib/moai/moai_cloud_policy.py": "39f7a1fab74b053208d1e8b6cf9b0af3db5acb64ffdc597af11852b2dc0db7f2",
+      "/usr/lib/moai/moai_local_peer.py": "1815c2161e147e0b98399a6b221ec32d01877baa015c73e715216957cdc9931a",
+      "/usr/lib/moos-community/community/client.py": "3b780d588054817ffc9b4ff595c79fd095200557eb33f4ecc154098f51a9e6c7",
+      "/usr/lib/moos/moos_settings_launcher.py": "60d8817f07e409d3fd9de6154ed787bf54cf14374894696fd86d7e0325610d7f",
+      "/usr/lib/systemd/user/moai-gateway.service": "7f8698f166c0bd58b01306803e1dab34394c2619d323fb81ffd28440e5a51e75",
+      "/usr/lib/systemd/user/moai-hermes.service": "dd3488f24bf15669a19a539e6deed66553c33b03ac7dedf072535e0538d768f2",
+      "/usr/lib/systemd/user/moos-theme-drift.timer": "dd62178ba70517023a6ec5c46508b4ac0a9d676f0070d71ce22054f5b637e3b3",
+      "/usr/lib/systemd/user/moos-theme-sync.path": "069349e668240654b1e7586070712c5fd0a2ec1066e5b38288f736e9fc307d22",
+      "/usr/lib/systemd/user/moos-theme-sync.service": "fbf4f14e305c94aed034413e333f03d936d21d984cefb895e82e0943392b5ffe",
+      "/usr/lib64/qt6/qml/org/moos/ui/Tokens.qml": "58917731df830d67203a2adc9f3007df3064e723c6340433aaa812206af88890",
+      "/usr/libexec/mo-remote-greeter": "aafaeabb47ae315c9db43dfb5e72d7ccfa1aa8f9d8a1324d5c0c8de88957f31e",
+      "/usr/libexec/moai-hermes": "cc2dccbcbc7ffb721b95c7319af3b8acba903a729f242943d940bf117ba61bdc",
+      "/usr/libexec/moos-material-state": "3ca57545deea900c374041924a9786dfb626800661ef43d724ab7e44fb06570b",
+      "/usr/share/moos/whats-new.json": "a713fdf07e4301bf02587a72eed067db8f53f2db965da829c379cbb728c4e899"
+    },
+    "payload_matches": true,
+    "compiled_moplayer_sha256": "013b9da059004acd4b42543b0bea22d0c8297b00ecf3316e377b76caf568ceca",
+    "compiled_moplayer_matches": true,
+    "xdg_config_dirs": "/var/home/moos/.config/kdedefaults:/etc/xdg:/usr/share/kde-settings/kde-profile/default/xdg",
+    "checks": {
+      "selfcheck": 0,
+      "post_update": 0
+    }
+  },
+  "limits": [
+    "NVIDIA .1046 is staged, not yet boot-proven on hardware.",
+    "MCP registration does not prove automatic rediscovery by every already-open agent session.",
+    "Image generation, paid provider entitlements/quotas and all optional extension flows are untested.",
+    "KVM is unavailable on Oracle; storage is below the estimated 60 GiB budget for local image/VM builds.",
+    "VS Code raw process-memory display is not a valid RAM measurement in this Flatpak context; use native cgroups/pressure.",
+    "One existing live Island first-token probe timed out in the gate; 15 isolated diagnostic trials passed. Original failure retained; cause not proven.",
+    "NVIDIA QML SDK passes native/Flatpak launches and LSP, but the owner workspace extension startup was not observed."
+  ],
+  "logSha256": {
+    "flutter-analyze.log": "7b8876d48c9b05dbcee4ef341f04597412b602d52fa2da2a89772ce0128ffc03",
+    "flutter-test.log": "e38f573c90108ebed0a829fbaf0c581d58542285b1780631f8713edca9475b3c",
+    "flutter-build.log": "f8146c6de28059df78ee1ea05d6e4a392bf1e5815c77e2c471edae6702e6d716",
+    "flutter-pub-offline.log": "d48b69a7c38ec9207d71ba757f5683f4d8fe9ffdec50ae2d7d5074aeafb935ca",
+    "sdk-build-dependencies.log": "9b3a3b7a78f239c4473bb193476b1a860c91f1c2b4fab9c7639eceea414a60fb",
+    "sdk-build-dependencies-rootless.log": "3b87b68f5e3a7cc9357184a587966f870afaa12fed2fc01d5fe4f4cb2d0fa1ad"
+  },
+  "qmlPackageControl": {
+    "scope": "Actual installed Qt package and native qmlls; private manifest only, no owner SDK edits",
+    "installed_qt_package": "6.11.2-2.fc44",
+    "helper_sha256": "c4a6cacaa0675cc13b45a9ba9e6eee4bbe0a0b866d68ebb4885d9393801d70a6",
+    "incompatible_manifest_exit": 69,
+    "incompatible_manifest_stdout_empty": true,
+    "matching_manifest_exit": 0,
+    "matching_manifest_version": "qmlls 6.11.2",
+    "passed": true
+  },
+  "oracleResourcesDuringAudit": {
+    "scope": "Native Oracle booted signed .775; 20-second cgroup sample including children. Editor, owner services and Remote remain; no idle or endurance claim. Capture helper is separately measured only if found at its immutable argv path. Input helper 2859 shares the personal-service cgroup; exclude it from any sum of units.",
+    "boot_id": "c5df8872-c80a-4265-8b30-5db89f7aca5f",
+    "sample_epoch": 1791981924.270616,
+    "elapsed_seconds": 20.00008014100058,
+    "units": {
+      "plasma-kwin_wayland.service": {
+        "known": true,
+        "active": "active",
+        "cpu_usec": 745249937,
+        "memory_bytes": 408104960,
+        "swap_bytes": 0,
+        "anonymous_bytes": 277327872,
+        "file_bytes": 117755904,
+        "cpu_percent_one_core": 2.4970399942358186
+      },
+      "plasma-plasmashell.service": {
+        "known": true,
+        "active": "active",
+        "cpu_usec": 28032006,
+        "memory_bytes": 248590336,
+        "swap_bytes": 0,
+        "anonymous_bytes": 207052800,
+        "file_bytes": 30048256,
+        "cpu_percent_one_core": 0.35525857646111086
+      },
+      "moai-gateway.service": {
+        "known": true,
+        "active": "active",
+        "cpu_usec": 1248196,
+        "memory_bytes": 24838144,
+        "swap_bytes": 0,
+        "anonymous_bytes": 24551424,
+        "file_bytes": 4096,
+        "cpu_percent_one_core": 0.006164975296635559
+      },
+      "moos-privacy-monitor.service": {
+        "known": true,
+        "active": "active",
+        "cpu_usec": 5674639,
+        "memory_bytes": 28356608,
+        "swap_bytes": 0,
+        "anonymous_bytes": 26800128,
+        "file_bytes": 1179648,
+        "cpu_percent_one_core": 0.07177971237510145
+      },
+      "mo-remote-personal.service": {
+        "known": true,
+        "active": "active",
+        "cpu_usec": 20591371,
+        "memory_bytes": 172777472,
+        "swap_bytes": 0,
+        "anonymous_bytes": 103534592,
+        "file_bytes": 65437696,
+        "cpu_percent_one_core": 0.4696981178961431
+      },
+      "pipewire.service": {
+        "known": true,
+        "active": "active",
+        "cpu_usec": 513069,
+        "memory_bytes": 13873152,
+        "swap_bytes": 0,
+        "anonymous_bytes": 12574720,
+        "file_bytes": 868352,
+        "cpu_percent_one_core": 0.007169971269566416
+      },
+      "remote-capture-helper-2857": {
+        "known": true,
+        "active": "process-present",
+        "cpu_usec": 196139987,
+        "memory_bytes": 54661120,
+        "swap_bytes": 0,
+        "anonymous_bytes": 49524736,
+        "file_bytes": 3993600,
+        "cpu_percent_one_core": 0.004134983430914523
+      },
+      "remote-input-helper-2859": {
+        "known": true,
+        "active": "process-present",
+        "cpu_usec": 20591371,
+        "memory_bytes": 172777472,
+        "swap_bytes": 0,
+        "anonymous_bytes": 103534592,
+        "file_bytes": 65437696,
+        "cpu_percent_one_core": 0.4696981178961431
+      }
+    },
+    "memory_available_kib": 6301048,
+    "swap_used_kib": 318564,
+    "psi": {
+      "cpu": "some avg10=6.86 avg60=16.06 avg300=16.46 total=617354364\nfull avg10=0.00 avg60=0.00 avg300=0.00 total=0\n",
+      "memory": "some avg10=0.08 avg60=0.03 avg300=0.06 total=3635593\nfull avg10=0.08 avg60=0.02 avg300=0.05 total=3002093\n",
+      "io": "some avg10=2.10 avg60=1.37 avg300=0.73 total=96510601\nfull avg10=1.63 avg60=0.94 avg300=0.42 total=51432547\n"
+    },
+    "writable_var": {
+      "total_bytes": 213148217344,
+      "available_bytes": 28203102208
+    }
+  },
+  "islandProbeInvestigation": {
+    "scope": "Private real-QML fixture diagnostics; no owner desktop or source edits",
+    "trials": 15,
+    "failures": 0,
+    "errors": 0,
+    "gateFirstRecordedExit": 1,
+    "failedTest": "ARealFolderListModelSeesTheRename.test_a_lingering_failure_never_speaks_for_a_success",
+    "initialGateLogSha256": "379eec55d295fd37479910ab1ef42c250195c4f6716a62fda5cc59406aa9b47d",
+    "componentReadyPrecedesModelReady": true,
+    "causeProven": false,
+    "sourceTestOrProductChanged": false
+  },
+  "nvidiaWorkstation": {
+    "qml": {
+      "scope": "Native NVIDIA user-space SDK QML round trip; no owner buffers or immutable-host package installation",
+      "server": null,
+      "good_diagnostics": [],
+      "bad_diagnostic_count": 1,
+      "bad_property_detected": true,
+      "passed": true
+    },
+    "mcpStdio": {
+      "sequential-thinking": {
+        "scope": "Protocol initialization and listed tools; no image generation or paid inference",
+        "server": {
+          "name": "sequential-thinking-server",
+          "version": "1.0.0"
+        },
+        "tool_names": [
+          "sequentialthinking"
+        ],
+        "private_thought_call_passed": true,
+        "passed": true
+      },
+      "chrome-devtools": {
+        "scope": "Protocol initialization and listed tools; no image generation or paid inference",
+        "server": {
+          "name": "chrome_devtools",
+          "title": "Chrome DevTools MCP server",
+          "version": "1.10.1"
+        },
+        "tool_names": [
+          "click",
+          "close_page",
+          "drag",
+          "emulate",
+          "evaluate_script",
+          "fill",
+          "fill_form",
+          "get_console_message",
+          "get_css_styles",
+          "get_network_request",
+          "handle_dialog",
+          "hover",
+          "lighthouse_audit",
+          "list_console_messages",
+          "list_network_requests",
+          "list_pages",
+          "navigate_page",
+          "new_page",
+          "performance_analyze_insight",
+          "performance_start_trace",
+          "performance_stop_trace",
+          "press_key",
+          "resize_page",
+          "select_page",
+          "take_heapsnapshot",
+          "take_screenshot",
+          "take_snapshot",
+          "type_text",
+          "upload_file",
+          "wait_for"
+        ],
+        "isolated_browser_call_passed": true,
+        "passed": true
+      },
+      "image-gen": {
+        "scope": "Protocol initialization and listed tools; no image generation or paid inference",
+        "server": {
+          "name": "mcp-image-server",
+          "version": "0.13.2"
+        },
+        "tool_names": [
+          "generate_image"
+        ],
+        "passed": true
+      }
+    },
+    "registration": {
+      "scope": "Native NVIDIA editor SDK/MCP registration; private backups, no credential/model/provider changes",
+      "canonicalServers": [
+        "sequential-thinking",
+        "context7",
+        "chrome-devtools",
+        "image-gen"
+      ],
+      "preservedCodexServers": [
+        "node_repl"
+      ],
+      "preservedOriginalCodexServers": true,
+      "qmlSettingsRegistered": true,
+      "vimMissingFileCreated": true,
+      "sdkProfileRenamed": false,
+      "context7Default": "anonymous URL; no optional-key requirement",
+      "activeSessionDiscoveryProven": false
+    },
+    "clientAndHttp": {
+      "scope": "Native NVIDIA client configuration readback and anonymous Context7 calls; no paid inference or credential read",
+      "codexMcpListExit": 0,
+      "codexCanonicalFourAndNodeReplRead": true,
+      "codexLoginStatusExit": 0,
+      "codexChatgptLoginReported": true,
+      "activeAgentDiscoveryProven": false,
+      "context7AnonymousHttp": 200,
+      "context7Server": {
+        "name": "Context7",
+        "version": "4.4.1",
+        "websiteUrl": "https://context7.com",
+        "description": "Context7 provides up-to-date documentation and code examples for libraries and frameworks.",
+        "icons": [
+          {
+            "src": "https://context7.com/context7-icon-green.png",
+            "mimeType": "image/png"
+          }
+        ]
+      },
+      "context7ToolNames": [
+        "resolve-library-id",
+        "query-docs"
+      ],
+      "context7QtLibraryLookupPassed": true,
+      "passed": true
+    },
+    "qmlLiveStart": {
+      "actualQmlExtensionStarts": []
+    },
+    "sdkSmokes": {
+      "dotnet-restore": {
+        "exit": 0,
+        "stdout": "  Determining projects to restore...\n  Restored /var/home/moos/.cache/moos-workstation-sdk-audit-20261014/sdk-smoke/dotnet/SdkProbe.csproj (in 48 ms).\n",
+        "stderr": ""
+      },
+      "dotnet-build-host": {
+        "exit": 0,
+        "stdout": "  SdkProbe -> /var/home/moos/.cache/moos-workstation-sdk-audit-20261014/sdk-smoke/dotnet/out/SdkProbe.dll\n\nBuild succeeded.\n    0 Warning(s)\n    0 Error(s)\n\nTime Elapsed 00:00:01.54\n",
+        "stderr": ""
+      },
+      "dotnet-run-flatpak": {
+        "exit": 0,
+        "stdout": "{\"result\":\"MOOS_SDK_OK\",\"architecture\":\"X64\",\"arabicRtl\":true}\n",
+        "stderr": ""
+      },
+      "dotnet-run-host": {
+        "exit": 0,
+        "stdout": "{\"result\":\"MOOS_SDK_OK\",\"architecture\":\"X64\",\"arabicRtl\":true}\n",
+        "stderr": ""
+      },
+      "cpp-compile": {
+        "exit": 0,
+        "stdout": "",
+        "stderr": ""
+      },
+      "cpp-run-host": {
+        "exit": 0,
+        "stdout": "MOOS_CPP_OK\n",
+        "stderr": ""
+      },
+      "go-run": {
+        "exit": 0,
+        "stdout": "MOOS_GO_OK\n",
+        "stderr": ""
+      },
+      "rust-compile": {
+        "exit": 0,
+        "stdout": "",
+        "stderr": ""
+      },
+      "rust-run-host": {
+        "exit": 0,
+        "stdout": "MOOS_RUST_OK\n",
+        "stderr": ""
+      },
+      "java-compile": {
+        "exit": 0,
+        "stdout": "",
+        "stderr": ""
+      },
+      "java-run": {
+        "exit": 0,
+        "stdout": "MOOS_JAVA_OK\n",
+        "stderr": ""
+      }
+    },
+    "flutter": {
+      "scope": "Native NVIDIA user-space Flutter scaffold; analyze/test/Linux x64 build, no graphical app or MoPlayer acceptance",
+      "frameworkVersion": "3.47.4",
+      "frameworkRevision": "9584c6713b324636289d067944a46fd6b49df14b",
+      "dartVersion": "3.13.3",
+      "exit": 0,
+      "analyzePassed": true,
+      "widgetTestPassed": true,
+      "linuxX64BuildPassed": true,
+      "artifactBytes": 20344,
+      "initialRootlessSdkExecFailed": true,
+      "sdkDependenciesV2Exit": 0,
+      "firstJavaProbeAssumedAbsentBundledJdk": true,
+      "logs": {
+        "flutter-pub.log": "7ec8828c33d61692da9a9c318fddc9e7c64a2be6265af48ddabeb07b52b642f1",
+        "flutter-analyze.log": "16dd816316ca7082547dfd208a4067ab2eef119dc76bb4c73bf6a456a2cb7457",
+        "flutter-test.log": "cc33dd3c2787c8e136ba198f22e68c4f3e54857f0c1471e3b74ea894fee7cb88",
+        "flutter-build.log": "252479abd13964ef665e5a05ba419e27a0a0007f2bfde86efa1d92b2e726b1e1",
+        "sdk-dependencies.log": "b8e5bb9f3299b18b27f021d6901c95273a5573e75341e4acd3d138e62a490aac",
+        "sdk-dependencies-v2.log": "c5218b26a286c26d31cd82b78ae9b6ad9a1b2b71e04616dff4e3f9d059dafbba",
+        "java-sdk-install.log": "2d47319f82a14a99c06009dc65140b31f40a615a909bafa1b37f8a4a8268c02c",
+        "qml-sdk-setup.log": "2e874e0a91894a24e1111d99c11c03132a1808d67811134b563359bbe9aa6b52"
+      }
+    }
+  },
+  "repoGate": {
+    "command": "just check",
+    "nativeHost": "oracle-arm",
+    "exit": 0,
+    "logSha256": "428b5337e4efdbf619d0b6be440adf804514fc8aafb6de16b0cca0db4540c7c0",
+    "earlierFailureRetained": true,
+    "islandProductAndGateUnchanged": true
+  }
+}
