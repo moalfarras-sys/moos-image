@@ -3622,10 +3622,19 @@ class Controller:
 
     # ── Updates: Flatpaks and catalogue pins together ──────────────────────────────────────────
     def _pinned_record(self, app_id: str, recipe: dict[str, Any]) -> dict[str, Any]:
-        """What is installed of a pinned catalogue app, as its record says; {} when nothing."""
+        """What the Store installed of a pinned catalogue app, as its record says; {} when nothing.
+
+        moos-store-index decides update_available by the same rule, so the app page, the Updates
+        page and Update all never disagree (docs/MO_STORE.md):
+          appdrop  only a record naming this catalogue id is the Store's own install. A file the
+                   person dropped into the app's slot has no catalog_id (the index calls it
+                   adopted); it is theirs, and the pin, which may be older, never replaces it.
+          windows  the record, while the program's folder is there.
+        """
         kind = (recipe.get("install") or {}).get("kind")
         if kind == "appdrop":
-            return self._appdrop().read_record(app_id)
+            record = self._appdrop().read_record(app_id)
+            return record if record.get("catalog_id") == app_id else {}
         if kind == "windows-portable":
             paths = windows_paths(app_id)
             return _read_json(paths.record) if paths.app.is_dir() else {}
@@ -3889,6 +3898,11 @@ class Controller:
                             message_key="updated")
             return
         if not self._pinned_record(app_id, recipe):
+            dropped = self._appdrop().read_record(app_id) if kind == "appdrop" else {}
+            if dropped and not dropped.get("catalog_id"):
+                # The person's own file in this app's slot: a newer file updates it, never the pin.
+                raise StoreError("This app was installed from a file; install a newer file of it to update it",
+                                 message_key="update_by_file")
             raise StoreError("App is not installed", message_key="not_installed")
         if kind == "vendor-rpm":
             # One resolve inside the job decides; the module swaps the new build in atomically.
