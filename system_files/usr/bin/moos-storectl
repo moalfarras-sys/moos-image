@@ -11,7 +11,8 @@ is represented as JSON null instead of a timer or invented percentage.
 
 Every kind of app has one verb set here (docs/MO_STORE.md, "Kinds of app"):
 Flatpak, web app, App Drop (a pinned AppImage or archive, or a file the person
-dropped), a pinned portable Windows program, Android, npm and a publisher page.
+dropped), a pinned portable Windows program, a publisher's own signed Linux
+package (usr/lib/moos/moos_vendor_rpm.py), Android, npm and a publisher page.
 Pinned downloads share one helper: the publisher's HTTPS URL, its exact size and
 SHA-256 from the signed catalogue, every redirect hop HTTPS, saved on disk under
 ~/.cache/moos-store/downloads/ — never in the RAM-backed /tmp.
@@ -82,6 +83,7 @@ ICOTOOL = "/usr/bin/icotool"
 TIMEOUT_TOOL = "/usr/bin/timeout"
 ENV_TOOL = "/usr/bin/env"
 XRDB = "/usr/bin/xrdb"
+CP_TOOL = "/usr/bin/cp"
 
 # A pinned download names its exact size; this is the ceiling for any one of them, and the cap
 # for the older Android recipes that do not carry a size yet.
@@ -92,6 +94,80 @@ DOWNLOAD_BLOCK = 1024 * 1024
 WINDOWS_FALLBACK_ICON = "moos-cube-symbolic"
 # Windows programs: the prefix never makes .NET/HTML runtime prompts or menu entries of its own.
 WINE_OVERRIDES = "mscoree,mshtml=;winemenubuilder.exe=d"
+# A publisher's own signed Linux package (usr/lib/moos/moos_vendor_rpm.py) answers a few network
+# questions while Mo Store only checks for updates; past this the answer is "no row", not a wait.
+VENDOR_CHECK_SECONDS = 45
+
+# moos_vendor_rpm's stable failure codes, each with the key the window says it in (jobPhrases holds
+# the Arabic and English words). tests/test_store_job_language.py holds this table to the module's
+# ERROR_CODES and to the phrases in both directions, so a new code cannot reach a person as a code.
+VENDOR_FAILURE_KEYS: dict[str, str] = {
+    "bad_entry": "vendor_bad_entry",
+    "bad_id": "invalid_id",
+    "unsupported_arch": "unsupported_arch",
+    "network_error": "vendor_network",
+    "insecure_redirect": "vendor_insecure_source",
+    "too_many_redirects": "vendor_network",
+    "metadata_too_large": "vendor_metadata_invalid",
+    "metadata_invalid": "vendor_metadata_invalid",
+    "metadata_digest_mismatch": "vendor_metadata_invalid",
+    "metadata_unsupported": "vendor_metadata_invalid",
+    "package_not_found": "vendor_package_not_found",
+    "foreign_host": "vendor_insecure_source",
+    "download_too_large": "vendor_download_mismatch",
+    "download_incomplete": "vendor_download_mismatch",
+    "digest_mismatch": "vendor_download_mismatch",
+    "no_space": "vendor_no_space",
+    "cancelled": "cancelled",
+    "tool_missing": "vendor_tool_missing",
+    "key_not_installed": "vendor_key_missing",
+    "signature_untrusted_key": "vendor_signature_failed",
+    "signature_invalid": "vendor_signature_failed",
+    "signature_missing": "vendor_signature_failed",
+    "signature_wrong_key": "vendor_signature_failed",
+    "signature_weak": "vendor_signature_failed",
+    "payload_unverified": "vendor_signature_failed",
+    "header_mismatch": "vendor_signature_failed",
+    "extract_failed": "vendor_unpack_failed",
+    "archive_invalid": "vendor_unpack_failed",
+    "unsupported_archive": "vendor_unpack_failed",
+    "unsafe_archive": "vendor_unsafe_package",
+    "archive_bomb": "vendor_unsafe_package",
+    "install_root_missing": "vendor_nothing_to_open",
+    "nothing_to_launch": "vendor_nothing_to_open",
+    "sandbox_unavailable": "vendor_sandbox_unavailable",
+    "name_taken": "vendor_name_taken",
+    "unsafe_path": "vendor_unsafe_path",
+}
+# The same refusals in English, for the job's diagnostic `message` (what moai-do prints and a log
+# keeps); the window shows the key's phrase in the person's language instead.
+VENDOR_FAILURE_WORDS: dict[str, str] = {
+    "vendor_bad_entry": "Mo Store's entry for this app cannot be used; nothing was installed",
+    "invalid_id": "This app ID is not valid",
+    "unsupported_arch": "This app is not available for this kind of computer",
+    "vendor_network": "Could not reach the publisher; check the internet connection and try again",
+    "vendor_insecure_source": ("The download did not come from the publisher's own secure address; "
+                               "nothing was installed"),
+    "vendor_metadata_invalid": "The publisher's list of versions could not be read safely; nothing was installed",
+    "vendor_package_not_found": "The publisher does not offer this app for this computer right now",
+    "vendor_download_mismatch": ("The download was incomplete or not what the publisher announced; "
+                                 "it was deleted and nothing was installed"),
+    "vendor_no_space": ("Not enough free space in your home folder: installing this app briefly needs "
+                        "about three times its download size"),
+    "cancelled": "Cancelled",
+    "vendor_tool_missing": "This MoOS edition lacks a tool needed to check this app; nothing was installed",
+    "vendor_key_missing": "This version of MoOS does not hold the publisher's key yet; update MoOS and try again",
+    "vendor_signature_failed": ("The publisher's signature could not be verified; the download was deleted "
+                                "and nothing was installed"),
+    "vendor_unpack_failed": "The publisher's package could not be unpacked; nothing was installed",
+    "vendor_unsafe_package": "The publisher's package contains files MoOS does not allow; nothing was installed",
+    "vendor_nothing_to_open": "The package does not contain the app Mo Store expected; nothing was installed",
+    "vendor_sandbox_unavailable": ("This app cannot turn on its own protection on this computer, so it was "
+                                   "not installed"),
+    "vendor_name_taken": ("Another app or folder with this name is already in your home folder; Mo Store "
+                          "left it as it is"),
+    "vendor_unsafe_path": "Your home folder's location cannot be written into this app's launcher safely",
+}
 
 # The closed vocabularies the window and the bridge share (docs/MO_STORE.md).
 FLATPAK_PERMISSION_KEYS = ("network", "files-home", "files-all", "downloads", "devices",
@@ -325,6 +401,31 @@ def windows_paths(app_id: str) -> WindowsPaths:
         state=foreign / app_id,
         log=foreign / f"{app_id}.log",
     )
+
+
+@dataclasses.dataclass(frozen=True)
+class WindowsTemplate:
+    """The one settings folder every Windows program's own folder starts as a copy of.
+
+    Each program still gets its own folder and its own registry; only their starting point is
+    shared. Wine copies its libraries into every new folder, so making each one from scratch cost
+    917.6 MB and 12-20 s per program. A copy made with `cp --reflink=auto` shares the template's
+    extents on btrfs, MoOS's default: measured on the station (Wine 11.0), 0 bytes of data, about
+    0.65 MiB of metadata and 0.17 s per program. Elsewhere it is a full copy (917.6 MB, 1.9 s).
+    Rebuilt when the Windows runtime's version changes.
+    """
+
+    root: Path
+    prefix: Path
+    staging: Path
+    record: Path
+
+
+def windows_template() -> WindowsTemplate:
+    root = data_home() / "moos" / "windows-apps"
+    # Program ids are slugs, so a dot-name can never be a program's folder or record.
+    return WindowsTemplate(root=root, prefix=root / ".template", staging=root / ".template.new",
+                           record=root / ".template.json")
 
 
 def android_record_path(package: str) -> Path:
@@ -1675,6 +1776,9 @@ class Controller:
         self._adapter: Any | None = None
         # The HTTPS opener for pinned downloads; tests hand in one that trusts their own server.
         self.opener = opener
+        # moos_vendor_rpm.install()'s tool seams (run, convert, proc_sys); empty means the
+        # image's own rpmkeys/rpm/rpm2cpio and /proc/sys.
+        self.vendor_options: dict[str, Any] = {}
 
     @property
     def adapter(self) -> Any:
@@ -2188,39 +2292,120 @@ class Controller:
         if result.returncode:
             raise StoreError(f"{failure}: {result.reason}" if result.reason else failure)
 
-    def _init_windows_prefix(self, job: Job, paths: WindowsPaths) -> None:
-        """Create the program's own prefix, headless, then give it the desktop's density."""
-        paths.prefix.mkdir(mode=0o700, parents=True, exist_ok=True)
-        job.update_item(paths.base.name, state="running", progress=None,
+    def _wine_version(self, template: WindowsTemplate) -> str:
+        """The Windows runtime's own version line ("wine-11.0 (Staging)"); "" when it cannot say.
+
+        An unreadable version still installs: the template is then rebuilt the first time the
+        runtime names itself, which is the cost of not knowing, never a wrong program."""
+        result = self.runner.capture(
+            self._wine_argv(template.prefix, [WINE, "--version"], seconds=30), timeout=40)
+        lines = result.output.strip().splitlines() if result.returncode == 0 else []
+        version = lines[0].strip() if lines else ""
+        return version if re.fullmatch(r"[A-Za-z0-9 ._()+~:-]{1,80}", version) else ""
+
+    def _windows_preparing(self, job: Job, item_id: str) -> None:
+        job.update_item(item_id, state="running", progress=None,
                         message="Preparing the Windows program", message_key="preparing_windows")
-        job.update(state="running", progress=None, current_id=paths.base.name,
+        job.update(state="running", progress=None, current_id=item_id,
                    message="Preparing the Windows program", message_key="preparing_windows")
-        self._run_step(job, self._wine_argv(paths.prefix, [WINE, "wineboot", "--init"]),
+
+    def _ensure_windows_template(self, job: Job, item_id: str) -> dict[str, Any]:
+        """The template settings folder for this runtime version, made once, headless.
+
+        Built in a staging folder and swapped in only when complete, so an interrupted build
+        never counts; its record (runtime version, density) is written last. Programs installed
+        earlier keep their own folders: an older template is only replaced, never theirs."""
+        template = windows_template()
+        for owned in (template.root, template.prefix, template.staging, template.record):
+            if owned.is_symlink():
+                raise StoreError(f"{owned.name} is a link; Mo Store does not install through links")
+        version = self._wine_version(template)
+        record = _read_json(template.record)
+        if (record.get("schema") == 1 and record.get("wine") == version
+                and (template.prefix / "system.reg").is_file()):
+            return record
+        self._windows_preparing(job, item_id)
+        template.root.mkdir(mode=0o700, parents=True, exist_ok=True)
+        _remove_tree(template.staging)
+        template.staging.mkdir(mode=0o700)
+        try:
+            self._run_step(job, self._wine_argv(template.staging, [WINE, "wineboot", "--init"]),
+                           "The Windows program's settings folder could not be prepared")
+            dpi = self._display_dpi()
+            self._run_step(job, self._wine_argv(template.staging, [
+                WINE, "reg", "add", "HKCU\\Control Panel\\Desktop", "/v", "LogPixels",
+                "/t", "REG_DWORD", "/d", str(dpi), "/f"], seconds=120),
+                "The Windows program's display density could not be set")
+            # The registry reaches the disk when the runtime's server stops; wait for that.
+            self._run_step(job, self._wine_argv(template.staging, [WINESERVER, "--wait"], seconds=120),
+                           "The Windows program's settings folder did not finish")
+            if not (template.staging / "system.reg").is_file():
+                raise StoreError("The Windows program's settings folder could not be prepared")
+            # The old template stops counting before it goes, then the new one takes its name.
+            template.record.unlink(missing_ok=True)
+            _remove_tree(template.prefix)
+            template.staging.rename(template.prefix)
+            record = {"schema": 1, "wine": version, "dpi": dpi, "created_at": int(time.time())}
+            _write_json(template.record, record)
+        except BaseException:
+            with contextlib.suppress(Exception):
+                self._stop_prefix(None, template.staging)
+            with contextlib.suppress(OSError):
+                _remove_tree(template.staging)
+            raise
+        return record
+
+    def _init_windows_prefix(self, job: Job, paths: WindowsPaths) -> None:
+        """The program's own prefix: a copy of the template, then the template's density stamp.
+
+        `cp -a --reflink=auto` shares the template's extents where the filesystem can (btrfs)
+        and makes a full copy where it cannot. The copy is the program's alone from then on:
+        its registry and settings never reach the template or another program."""
+        record = self._ensure_windows_template(job, paths.base.name)
+        self._windows_preparing(job, paths.base.name)
+        _remove_tree(paths.prefix)
+        self._run_step(job, [CP_TOOL, "-a", "--reflink=auto", "--no-target-directory", "--",
+                             str(windows_template().prefix), str(paths.prefix)],
                        "The Windows program's settings folder could not be prepared")
-        dpi = self._display_dpi()
-        self._run_step(job, self._wine_argv(paths.prefix, [
-            WINE, "reg", "add", "HKCU\\Control Panel\\Desktop", "/v", "LogPixels",
-            "/t", "REG_DWORD", "/d", str(dpi), "/f"], seconds=120),
-            "The Windows program's display density could not be set")
-        # The registry reaches the disk when the runtime's server stops; wait for that.
-        self._run_step(job, self._wine_argv(paths.prefix, [WINESERVER, "--wait"], seconds=120),
-                       "The Windows program's settings folder did not finish")
-        if not (paths.prefix / "system.reg").is_file():
+        if paths.prefix.is_symlink() or not (paths.prefix / "system.reg").is_file():
             raise StoreError("The Windows program's settings folder could not be prepared")
         # moos-run-foreign --app re-applies the density only when it changes.
+        dpi = record.get("dpi")
         paths.state.mkdir(mode=0o700, parents=True, exist_ok=True)
-        (paths.state / "windows-dpi").write_text(f"{dpi}\n", encoding="utf-8")
+        if isinstance(dpi, int) and not isinstance(dpi, bool) and 96 <= dpi <= 192:
+            (paths.state / "windows-dpi").write_text(f"{dpi}\n", encoding="utf-8")
 
-    def _stop_windows_prefix(self, job: Job | None, paths: WindowsPaths) -> None:
-        """End every Windows process of this one program, so its folders can be removed."""
-        if not paths.prefix.is_dir() or paths.prefix.is_symlink() or not Path(WINESERVER).is_file():
+    def _stop_prefix(self, job: Job | None, prefix: Path) -> None:
+        """End every Windows process of one settings folder, so it can be removed."""
+        if not prefix.is_dir() or prefix.is_symlink() or not Path(WINESERVER).is_file():
             return
         result = self.runner.run_cancellable(
-            self._wine_argv(paths.prefix, [WINESERVER, "--kill"], seconds=30),
+            self._wine_argv(prefix, [WINESERVER, "--kill"], seconds=30),
             (lambda: self._cancelled(job)) if job is not None else (lambda: False))
         if result.cancelled:
             raise CancelledError("Cancelled")
         # A non-zero answer here only says that nothing was running.
+
+    def _stop_windows_prefix(self, job: Job | None, paths: WindowsPaths) -> None:
+        """End every Windows process of this one program, so its folders can be removed."""
+        self._stop_prefix(job, paths.prefix)
+
+    @staticmethod
+    def _retire_windows_template_if_unused() -> None:
+        """The template is MoOS's own cache for the programs it installs: once the last one is
+        gone, so is it (on btrfs it then owns its extents alone, a full 0.9 GB)."""
+        template = windows_template()
+        try:
+            names = [entry.name for entry in template.root.iterdir()]
+        except OSError:
+            return
+        if any(not name.startswith(".") for name in names):
+            return
+        for folder in (template.prefix, template.staging):
+            with contextlib.suppress(OSError):
+                _remove_tree(folder)
+        with contextlib.suppress(OSError):
+            template.record.unlink(missing_ok=True)
 
     def _windows_icon(self, program: Path, destination: Path, work_parent: Path) -> bool:
         """The program's own icon as a PNG, read inside the sandbox; False when there is none."""
@@ -2315,7 +2500,7 @@ class Controller:
             raise StoreError(f"Catalog has an invalid window class for {app_id}")
         appdrop = self._appdrop()
         categories = self._menu_categories(app_id, install, appdrop.MAIN_CATEGORIES)
-        if not all(Path(tool).is_file() for tool in (WINE, WINESERVER, TIMEOUT_TOOL, ENV_TOOL)):
+        if not all(Path(tool).is_file() for tool in (WINE, WINESERVER, TIMEOUT_TOOL, ENV_TOOL, CP_TOOL)):
             raise StoreError("This MoOS edition cannot run Windows programs")
         pin = pinned_artifact(app_id, install)
         paths = windows_paths(app_id)
@@ -2419,6 +2604,7 @@ class Controller:
                             paths.launcher.unlink()
                         if fresh_prefix:
                             _remove_tree(paths.state)
+                    self._retire_windows_template_if_unused()
             raise
         finally:
             with contextlib.suppress(FileNotFoundError):
@@ -2454,6 +2640,7 @@ class Controller:
         paths.record.unlink(missing_ok=True)
         _remove_tree(paths.state)
         paths.log.unlink(missing_ok=True)
+        self._retire_windows_template_if_unused()
         self._appdrop().refresh_menu()
         if delete_data:
             job.update_item(app_id, state="done", progress=100, message="Removed with its data",
@@ -2461,6 +2648,190 @@ class Controller:
         else:
             job.update_item(app_id, state="done", progress=100, message="Removed",
                             message_key="removed")
+
+    # ── A publisher's own signed Linux package, run from the home ──────────────────────────────
+    # The logic is usr/lib/moos/moos_vendor_rpm.py: the newest build from the publisher's own
+    # repository, a pinned download, the publisher's signature by the one key the image trusts,
+    # only the app's folder unpacked into ~/Applications/<id>, nothing from the package run, a
+    # launcher MoOS writes (org.moos.vendor.<id>.desktop) and a record. It runs HERE so that it is
+    # a Mo Store job like any other: one lock, one job document, one progress feed for the Island.
+    @staticmethod
+    def _vendor() -> Any:
+        return Controller._library("moos_vendor_rpm")
+
+    def _vendor_progress(self, job: Job, item_id: str) -> Callable[[str, int | None], None]:
+        def stage(percent: int | None, message: str, message_key: str) -> None:
+            job.update_item(item_id, state="running", progress=percent, message=message,
+                            message_key=message_key)
+            job.update(state="running", progress=percent, current_id=item_id, message=message,
+                       message_key=message_key)
+
+        def progress(name: str, percent: int | None) -> None:
+            # Literal keys, so tests/test_store_job_language.py can hold the UI to them.
+            if name == "resolving":
+                stage(None, "Finding the newest version", message_key="vendor_resolving")
+            elif name == "downloading":
+                stage(percent, "Downloading from the publisher", message_key="vendor_downloading")
+            elif name == "verifying":
+                stage(None, "Checking the publisher's signature", message_key="vendor_verifying")
+            elif name == "extracting":
+                # None while the payload is being written out: nothing measures that step.
+                stage(percent, "Unpacking the application", message_key="extracting_file")
+            else:
+                stage(percent, "Adding it to the launcher", message_key="integrating_app")
+
+        return progress
+
+    @staticmethod
+    def _vendor_failure(failure: Any) -> StoreError:
+        """A moos_vendor_rpm refusal in the Store's words: a stable key, the details for a log."""
+        code = getattr(failure, "code", "")
+        if code == "cancelled":
+            return CancelledError("Cancelled")
+        key = VENDOR_FAILURE_KEYS.get(code)
+        words = VENDOR_FAILURE_WORDS.get(key or "", "The app could not be installed")
+        detail = clean_message(getattr(failure, "detail", "") or code, 300)
+        return StoreError(f"{words} ({code}: {detail})", message_key=key)
+
+    def _vendor_spec(self, app_id: str, recipe: dict[str, Any]) -> tuple[Any, Any, str]:
+        """(module, checked catalogue entry, this machine's architecture) for one vendor app."""
+        install = recipe.get("install")
+        if not isinstance(install, dict):
+            raise StoreError(f"Catalog has no publisher package recipe for {app_id}")
+        self._review_note(recipe)
+        if install.get("external") is not True:
+            raise StoreError(f"External download metadata is missing for {app_id}")
+        # It is a program downloaded from its publisher and run unsandboxed: the label says so.
+        if install.get("risk") != "downloaded-executable":
+            raise StoreError("Curated recipe is missing required review metadata")
+        vendor = self._vendor()
+        try:
+            vendor.check_id(app_id)
+            return vendor, vendor.parse_entry(install), vendor.check_arch(vendor.machine_arch())
+        except vendor.VendorError as failure:
+            raise self._vendor_failure(failure) from failure
+
+    def _install_vendor(self, job: Job, app_id: str, recipe: dict[str, Any]) -> bool:
+        """Install or update one vendor app; False when what is here is already the newest build.
+
+        The module swaps an update in only once the new version is complete and integrated, and
+        brings the version that worked back after any failure. An install that is no longer
+        whole (its launcher or folder gone) is installed again, which repairs it."""
+        vendor, entry, arch = self._vendor_spec(app_id, recipe)
+        progress = self._vendor_progress(job, app_id)
+        try:
+            progress("resolving", None)
+            info = self._vendor_resolve(vendor, entry, arch, job=job)
+            if vendor.intact(app_id) and not vendor.update_available(app_id, info):
+                return False
+            vendor.install(app_id, entry, arch=arch, info=info,
+                           display_name=display_text(recipe.get("en"), 80) or app_id,
+                           progress=progress, cancelled=lambda: self._cancelled(job),
+                           opener=self.opener, **self.vendor_options)
+        except vendor.VendorError as failure:
+            raise self._vendor_failure(failure) from failure
+        return True
+
+    def _install_vendor_app(self, job: Job, app_id: str, recipe: dict[str, Any]) -> None:
+        if self._install_vendor(job, app_id, recipe):
+            job.update_item(app_id, state="done", progress=100,
+                            message=f"Installed ({self._review_note(recipe)})", message_key="installed")
+        else:
+            job.update_item(app_id, state="skipped", progress=100,
+                            message="Already installed for this user", message_key="already_installed_user")
+
+    def _vendor_record(self, app_id: str) -> dict[str, Any]:
+        """What a vendor app's record says, or {} when there is none (or the id cannot be one)."""
+        if not validate_curated_id(app_id):
+            return {}
+        vendor = self._vendor()
+        try:
+            return vendor.installed(app_id) or {}
+        except vendor.VendorError:
+            return {}
+
+    def _vendor_intact(self, app_id: str) -> bool:
+        vendor = self._vendor()
+        try:
+            return bool(vendor.intact(app_id))
+        except vendor.VendorError:
+            return False
+
+    def _remove_vendor(self, job: Job, app_id: str, delete_data: bool) -> None:
+        """Only what MoOS wrote: the unpacked folder, its launcher and its record.
+
+        The program keeps its own settings and sign-in wherever it chose in the home folder;
+        they are the person's, never MoOS's to delete, and the result says so honestly."""
+        vendor = self._vendor()
+        job.update_item(app_id, state="running", progress=None,
+                        message="Removing application", message_key=None)
+        job.update(state="running", progress=None, current_id=app_id,
+                   message="Removing application", message_key=None)
+        try:
+            removed = vendor.remove(app_id)
+        except vendor.VendorError as failure:
+            raise self._vendor_failure(failure) from failure
+        if not removed:
+            job.update_item(app_id, state="skipped", progress=100, message="App is not installed",
+                            message_key="not_installed")
+            return
+        self._removed_untracked(job, app_id, delete_data)
+
+    def _remove_vendor_record(self, app_id: str, delete_data: bool) -> tuple[int, dict[str, Any]]:
+        """A vendor app the catalogue no longer offers stays removable by its id."""
+        try:
+            lock, job = self._begin("remove", [app_id])
+        except BusyError:
+            return self._refuse_busy("remove", [app_id])
+        with lock:
+            try:
+                self._remove_vendor(job, app_id, delete_data)
+                job.finish_from_items("App removed", "app_removed")
+            except CancelledError:
+                job.cancelled()
+            except Exception as error:
+                job.fail(error, [app_id])
+            return exit_code(job.document["state"]), job.snapshot()
+
+    def _vendor_resolve(self, vendor: Any, entry: Any, arch: str, *, job: Job | None = None,
+                        seconds: float | None = None) -> dict[str, Any]:
+        """moos_vendor_rpm.resolve() in a worker thread.
+
+        Inside a job the wait keeps the job's heartbeat and its cancel button (the module allows
+        each metadata document up to two minutes, the window calls a silent job stale after
+        120 s); for an update check it simply stops waiting after `seconds`. A worker left
+        behind is a daemon that only reads; it ends with its own network timeouts."""
+        answer: dict[str, Any] = {}
+
+        def ask() -> None:
+            try:
+                answer["info"] = vendor.resolve(entry, arch, opener=self.opener)
+            except BaseException as error:              # noqa: BLE001 - handed to the caller
+                answer["error"] = error
+
+        worker = threading.Thread(target=ask, name="vendor-resolve", daemon=True)
+        worker.start()
+        deadline = None if seconds is None else time.monotonic() + seconds
+        while worker.is_alive():
+            worker.join(0.25)
+            if worker.is_alive() and job is not None and self._cancelled(job):
+                raise CancelledError("Cancelled")
+            if worker.is_alive() and deadline is not None and time.monotonic() > deadline:
+                raise vendor.VendorError("network_error", "the publisher did not answer in time")
+        if "error" in answer:
+            raise answer["error"]
+        return answer["info"]
+
+    def _vendor_newest(self, app_id: str, recipe: dict[str, Any]) -> dict[str, Any] | None:
+        """The publisher's newest build for an update check, or None when it cannot be asked.
+
+        Offline, refused or slower than VENDOR_CHECK_SECONDS is "no answer": no update row and
+        no failure — an update check never waits on one publisher's server for long."""
+        try:
+            vendor, entry, arch = self._vendor_spec(app_id, recipe)
+            return self._vendor_resolve(vendor, entry, arch, seconds=VENDOR_CHECK_SECONDS)
+        except Exception:                                # noqa: BLE001 - advisory, never a failure
+            return None
 
     # ── Android ─────────────────────────────────────────────────────────────────────────────────
     def _android_packages(self) -> set[str] | None:
@@ -2593,6 +2964,8 @@ class Controller:
                             self._install_appdrop(job, app_id, recipe)
                         elif kind == "windows-portable":
                             self._install_windows_portable(job, app_id, recipe)
+                        elif kind == "vendor-rpm":
+                            self._install_vendor_app(job, app_id, recipe)
                         elif kind == "android":
                             self._install_pinned_android(job, app_id, recipe)
                         else:
@@ -2681,8 +3054,9 @@ class Controller:
         --prefix ~/.local` is removed with the symmetric uninstall, a pinned
         App Drop app through App Drop, a web app's launcher (and with
         --delete-data its sign-in and storage) through its policy, a Windows
-        program with its own prefix, and a `web` entry only ever opened a vendor
-        page — there is nothing of ours to remove. Without this, `moos-storectl
+        program with its own prefix, a publisher's signed package through
+        moos_vendor_rpm (only what MoOS wrote), and a `web` entry only ever
+        opened a vendor page — there is nothing of ours to remove. Without this, `moos-storectl
         remove claude-code` hit the Flatpak-ID validator and failed, so the tool
         showed as installed for ever with no way back."""
         install = recipe.get("install") or {}
@@ -2705,6 +3079,8 @@ class Controller:
                     self._remove_appdrop(job, app_id, delete_data)
                 elif kind == "windows-portable":
                     self._remove_windows(job, app_id, delete_data)
+                elif kind == "vendor-rpm":
+                    self._remove_vendor(job, app_id, delete_data)
                 elif kind == "web":
                     job.update_item(
                         app_id,
@@ -2934,6 +3310,9 @@ class Controller:
         # An app installed from a file is removable from the Store too, by the id App Drop gave it.
         if validate_curated_id(app_id) and self._appdrop().read_record(app_id):
             return self._remove_dropped(app_id, delete_data)
+        # So is a publisher's app the catalogue stopped offering: MoOS's record still names it.
+        if self._vendor_record(app_id):
+            return self._remove_vendor_record(app_id, delete_data)
         if self._dropped_android(app_id):
             return self._remove_android_record(app_id, delete_data)
         if not validate_flatpak_id(app_id):
@@ -3139,6 +3518,10 @@ class Controller:
             paths = windows_paths(app_id)
             if paths.record.is_file() and self._windows_launcher_is_ours(paths, app_id):
                 return paths.launcher.name
+        elif kind == "vendor":
+            # org.moos.vendor.<id>.desktop, and only while its folder and record are whole.
+            if self._vendor_intact(app_id):
+                return self._vendor().launcher_name(app_id)
         else:
             entry = self._appdrop().launcher_path(app_id)
             if entry is not None:
@@ -3146,7 +3529,8 @@ class Controller:
         raise StoreError("App is not installed", message_key="not_installed")
 
     def _run_installed(self, app_id: str, kind: str) -> tuple[int, dict[str, Any]]:
-        """Open a web app, an App Drop app or a Windows program the way its launcher would."""
+        """Open a web app, an App Drop app, a Windows program or a publisher's own app the way
+        its launcher would."""
         try:
             lock, job = self._begin("run", [app_id])
         except BusyError:
@@ -3191,9 +3575,13 @@ class Controller:
                 return self._run_installed(app_id, "appdrop")
             if kind == "windows-portable":
                 return self._run_installed(app_id, "windows")
+            if kind == "vendor-rpm":
+                return self._run_installed(app_id, "vendor")
             raise StoreError(f"Mo Store cannot open {app_id}", message_key="unsupported_kind")
         if validate_curated_id(app_id) and self._appdrop().read_record(app_id):
             return self._run_installed(app_id, "appdrop")
+        if self._vendor_record(app_id):
+            return self._run_installed(app_id, "vendor")
         if self._dropped_android(app_id):
             return self._run_android(app_id, None)
         if not validate_flatpak_id(app_id):
@@ -3243,16 +3631,42 @@ class Controller:
             record = _read_json(android_record_path(app_id))
             data = data_home() / "waydroid" / "data" / "data" / app_id
             return record if record and data.exists() else {}
+        if kind == "vendor-rpm":
+            return self._vendor_record(app_id)
         return {}
+
+    def _vendor_update_row(self, app_id: str, recipe: dict[str, Any],
+                           record: dict[str, Any]) -> dict[str, Any] | None:
+        """A vendor app pins no bytes: its publisher's repository names the newest build, asked
+        over the network. Offline, refused or slow is no row, never a failed check."""
+        info = self._vendor_newest(app_id, recipe)
+        if info is None:
+            return None
+        vendor = self._vendor()
+        try:
+            if not vendor.update_available(app_id, info):
+                return None
+        except vendor.VendorError:
+            return None
+        def readable(build: dict[str, Any]) -> str:
+            # version-release, as the index shows an installed build; the epoch is not for people.
+            version, release = str(build.get("version") or ""), str(build.get("release") or "")
+            return f"{version}-{release}" if release else version
+
+        return {"id": app_id, "kind": "pin", "name": display_text(recipe.get("en"), 80) or app_id,
+                "version": readable(info), "installed_version": readable(record)}
 
     def _pin_update_row(self, app_id: str, recipe: dict[str, Any]) -> dict[str, Any] | None:
         """An update row when the installed bytes differ from what the catalogue now pins."""
         install = recipe.get("install")
-        if not isinstance(install, dict) or install.get("kind") not in ("appdrop", "windows-portable", "android"):
+        if not isinstance(install, dict) or install.get("kind") not in (
+                "appdrop", "windows-portable", "android", "vendor-rpm"):
             return None
         record = self._pinned_record(app_id, recipe)
         if not record:
             return None
+        if install.get("kind") == "vendor-rpm":
+            return self._vendor_update_row(app_id, recipe, record)
         try:
             pin = pinned_artifact(app_id, install, size_required=install.get("kind") != "android")
         except StoreError:
@@ -3291,6 +3705,12 @@ class Controller:
             self._install_windows_portable(job, app_id, recipe)
         elif kind == "android":
             self._install_pinned_android(job, app_id, recipe)
+        elif kind == "vendor-rpm":
+            # Resolved again inside the job: the publisher may have moved on since the check.
+            if not self._install_vendor(job, app_id, recipe):
+                job.update_item(app_id, state="skipped", progress=100,
+                                message="This app is up to date", message_key="app_up_to_date")
+                return
         else:
             raise StoreError(f"Mo Store cannot update {app_id}", message_key="unsupported_kind")
         job.update_item(app_id, state="done", progress=100, message="Updated", message_key="updated")
@@ -3415,12 +3835,17 @@ class Controller:
         curated = (recipe is not None and recipe.get("source") == "moos"
                    and self._curated_id_is_valid(app_id, recipe))
         kind = (recipe.get("install") or {}).get("kind") if curated else None
-        if curated and kind not in ("appdrop", "windows-portable", "android", "webapp", "npm"):
+        if curated and kind not in ("appdrop", "windows-portable", "android", "webapp", "npm",
+                                    "vendor-rpm"):
             raise StoreError(f"Mo Store cannot update {app_id}", message_key="unsupported_kind")
         if not curated:
             if validate_curated_id(app_id) and self._appdrop().read_record(app_id):
                 raise StoreError("This app was installed from a file; install a newer file of it to update it",
                                  message_key="update_by_file")
+            if self._vendor_record(app_id):
+                # Without its catalogue entry there is no reviewed repository to ask.
+                raise StoreError("Mo Store no longer offers this app, so it cannot update it; it can be removed",
+                                 message_key="unsupported_kind")
             if not validate_flatpak_id(app_id):
                 raise StoreError(f"Invalid app ID: {app_id}", message_key="invalid_id")
         try:
@@ -3463,6 +3888,10 @@ class Controller:
             return
         if not self._pinned_record(app_id, recipe):
             raise StoreError("App is not installed", message_key="not_installed")
+        if kind == "vendor-rpm":
+            # One resolve inside the job decides; the module swaps the new build in atomically.
+            self._reinstall_pin(job, app_id, recipe)
+            return
         if self._pin_update_row(app_id, recipe) is None:
             job.update_item(app_id, state="skipped", progress=100, message="This app is up to date",
                             message_key="app_up_to_date")
@@ -3608,6 +4037,8 @@ class Controller:
                     else "unsandboxed"), recipe
         if validate_curated_id(app_id) and self._appdrop().read_record(app_id):
             return "unsandboxed", None
+        if self._vendor_record(app_id):
+            return "unsandboxed", None
         if validate_flatpak_id(app_id):
             return "flatpak", recipe
         if _ANDROID_PACKAGE_RE.fullmatch(app_id) and android_record_path(app_id).is_file():
@@ -3657,7 +4088,8 @@ class Controller:
             # Each Android app's permissions live in its own Android settings, inside the container.
             document.update(sandboxed=True, rows=[], note_key="android_managed")
             return document
-        # App Drop, Windows programs, npm tools and publisher downloads run as the person, honestly.
+        # App Drop, Windows programs, publishers' own packages, npm tools and publisher downloads
+        # run as the person, honestly.
         document.update(sandboxed=False, rows=[], note_key="full_access")
         return document
 

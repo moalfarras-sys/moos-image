@@ -348,6 +348,10 @@ check:
     # refusals; and a portable Windows program's own prefix, created without a window.
     python3 tests/test_mo_store_backend_kinds.py
     python3 tests/test_mo_store_backend_windows.py
+    # A publisher's own signed package through the Store's verbs, and Windows programs copied
+    # from one template settings folder.
+    python3 tests/test_mo_store_backend2_vendor.py
+    python3 tests/test_mo_store_backend2_windows_template.py
     # One globally importable MoUI module must own identity metrics and shared
     # controls; an app-local copy cannot silently grow back.
     python3 tests/test_moos_design_core.py

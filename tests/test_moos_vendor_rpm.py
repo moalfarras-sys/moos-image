@@ -1123,6 +1123,26 @@ class Records(Home):
         (self.records() / "app.json").write_text("{not json")
         self.assertIsNone(vendor.installed("app"))
 
+    def test_intact_needs_the_record_the_launcher_and_the_marked_folder(self):
+        self.assertFalse(vendor.intact("app"))
+        self.install_files()
+        self.assertTrue(vendor.intact("app"))
+        launcher = self.home / ".local/share/applications/org.moos.vendor.app.desktop"
+        saved = launcher.read_bytes()
+        launcher.write_text("[Desktop Entry]\nName=Not ours\n")
+        self.assertFalse(vendor.intact("app"), "a launcher MoOS did not write counted")
+        launcher.write_bytes(saved)
+        marker = self.apps() / "app/.moos-vendor"
+        marker.unlink()
+        (self.outside / "marker").write_text("app\n")
+        marker.symlink_to(self.outside / "marker")
+        self.assertFalse(vendor.intact("app"), "a marker reached through a link counted")
+        marker.unlink()
+        marker.write_text("app\n")
+        self.assertTrue(vendor.intact("app"))
+        (self.records() / "app.json").unlink()
+        self.assertFalse(vendor.intact("app"))
+
     def test_remove_takes_only_what_carries_the_marker(self):
         self.install_files()
         applications = self.home / ".local/share/applications"
@@ -1174,10 +1194,15 @@ class Install(Home):
     def install(self, version: str, payload: bytes, *, tools: Tools | None = None, **kwargs):
         opener, _ = self.serve(version, payload)
         stages = []
+        self.reports = []
         tools = tools or Tools(header=("app", "0", version, "1", "x86_64", "cpio"))
+
+        def progress(stage, percent):
+            stages.append(stage)
+            self.reports.append((stage, percent))
+
         record = vendor.install("app", ENTRY, arch="x86_64", opener=opener, run=tools, convert=self.convert,
-                                refresh_menu=False, proc_sys=self.proc_sys(),
-                                progress=lambda stage, percent: stages.append(stage), **kwargs)
+                                refresh_menu=False, proc_sys=self.proc_sys(), progress=progress, **kwargs)
         return record, stages, opener
 
     def apps(self) -> Path:
@@ -1199,6 +1224,9 @@ class Install(Home):
     def test_install_then_update(self):
         record, stages, opener = self.install("2.0", app_payload(b"v2"))
         self.assertEqual(list(dict.fromkeys(stages)), list(vendor.STAGES))
+        # Nothing measures rpm2cpio writing the payload out: unpacking starts indeterminate.
+        self.assertEqual(next(report for report in self.reports if report[0] == "extracting"),
+                         ("extracting", None))
         app = self.apps() / "app"
         self.assertTrue((app / "App").read_bytes().endswith(b"v2"))
         self.assertEqual((app / ".moos-icon.png").read_bytes(), PNG)

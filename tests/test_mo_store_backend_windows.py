@@ -83,14 +83,16 @@ class Opener:
 
 
 class Runtime:
-    """Records the runtime's argv. `wineboot` makes the prefix files a real one would leave."""
+    """Records the runtime's argv. `wineboot` makes the prefix files a real one would leave; the
+    template's copy is made by the real `cp`, exactly as the backend asked for it."""
 
-    def __init__(self, dpi: str = "240"):
+    def __init__(self, dpi: str = "240", version: str = "wine-11.0 (Staging)"):
         self.commands: list[list[str]] = []
         self.probes: list[list[str]] = []
         self.spawned: list[list[str]] = []
         self.cancel_on: str | None = None
         self.dpi = dpi
+        self.version = version
 
     @staticmethod
     def environment(argv: list[str]) -> dict[str, str]:
@@ -108,9 +110,14 @@ class Runtime:
         self.commands.append(argv)
         if self.cancel_on and self.cancel_on in argv:
             return MODULE.CommandResult(143, "cancelled", True)
+        if argv[0] == MODULE.CP_TOOL:
+            done = subprocess.run(argv, capture_output=True, text=True, timeout=60)
+            return MODULE.CommandResult(done.returncode, done.stderr.strip())
         if "wineboot" in argv:
             prefix = Path(self.environment(argv)["WINEPREFIX"])
             (prefix / "drive_c/users/me").mkdir(parents=True, exist_ok=True)
+            (prefix / "drive_c/windows/system32").mkdir(parents=True, exist_ok=True)
+            (prefix / "drive_c/windows/system32/kernel32.dll").write_bytes(b"MZ" + b"\0" * 4094)
             for name in ("system.reg", "user.reg", "userdef.reg"):
                 (prefix / name).write_text("WINE REGISTRY Version 2\n", encoding="utf-8")
         return MODULE.CommandResult(0)
@@ -119,6 +126,8 @@ class Runtime:
         self.probes.append(list(argv))
         if argv[0] == MODULE.XRDB:
             return MODULE.CommandResult(0, "", False, f"Xft.dpi:\t{self.dpi}\n")
+        if argv[-2:] == [MODULE.WINE, "--version"]:
+            return MODULE.CommandResult(0, "", False, f"{self.version}\n")
         return MODULE.CommandResult(0, "", False, "")
 
     def spawn(self, argv):
@@ -215,14 +224,24 @@ class WindowsPortable(Isolated):
         self.assertEqual([argv[argv.index(MODULE.ENV_TOOL) + 2 + len(Runtime.environment(argv)):][:2]
                           for argv in runtime_calls],
                          [[MODULE.WINE, "wineboot"], [MODULE.WINE, "reg"], [MODULE.WINESERVER, "--wait"]])
-        for argv in runtime_calls:
+        # The settings folder is made ONCE, as the template, in a staging folder; the program's own
+        # folder is a copy of it that can share its extents.
+        version_probe = next(argv for argv in self.runtime.probes if argv[-1:] == ["--version"])
+        self.assertEqual(version_probe[3:5], [MODULE.ENV_TOOL, "-i"])
+        self.assertIn([MODULE.CP_TOOL, "-a", "--reflink=auto", "--no-target-directory", "--",
+                       str(self.windows / ".template"), str(base / "prefix")], self.runtime.commands)
+        self.assertEqual(json.loads((self.windows / ".template.json").read_text())["wine"],
+                         "wine-11.0 (Staging)")
+        for argv in runtime_calls + [version_probe]:
             self.assertEqual(argv[:4], [MODULE.TIMEOUT_TOOL, "--kill-after=10", argv[2], MODULE.ENV_TOOL])
             self.assertEqual(argv[4], "-i", "the runtime inherited the session's environment")
             environment = Runtime.environment(argv)
             for leaked in ("DISPLAY", "WAYLAND_DISPLAY", "XDG_RUNTIME_DIR"):
                 self.assertNotIn(leaked, environment, f"{leaked} reached the runtime's setup")
             self.assertEqual(environment["DBUS_SESSION_BUS_ADDRESS"], "unix:path=/nonexistent")
-            self.assertEqual(environment["WINEPREFIX"], str(base / "prefix"))
+        for argv in runtime_calls:
+            environment = Runtime.environment(argv)
+            self.assertEqual(environment["WINEPREFIX"], str(self.windows / ".template.new"))
             self.assertEqual(environment["HOME"], str(self.home))
             self.assertIn("winemenubuilder.exe=d", environment["WINEDLLOVERRIDES"])
             self.assertIn("mscoree,mshtml=", environment["WINEDLLOVERRIDES"])
@@ -335,6 +354,8 @@ class WindowsPortable(Isolated):
         self.assertEqual((code, result["state"]), (130, "cancelled"), result)
         self.assertFalse((self.windows / APP).exists())
         self.assertFalse((self.home / f".local/share/applications/org.moos.windows.{APP}.desktop").exists())
+        self.assertEqual(sorted(path.name for path in self.windows.iterdir()), [],
+                         "a half-made template or its record was left behind")
 
     def test_only_a_64bit_pc_installs_windows_programs(self):
         recipe = self.recipe(pe(), exe="tinyterm.exe")
