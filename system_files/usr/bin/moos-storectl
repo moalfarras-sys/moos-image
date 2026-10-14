@@ -3601,10 +3601,36 @@ class Controller:
             if self._vendor_intact(app_id):
                 return self._vendor().launcher_name(app_id)
         else:
-            entry = self._appdrop().launcher_path(slug or app_id)
+            entry = self._appdrop_launcher(slug or app_id)
             if entry is not None:
                 return entry.name
         raise StoreError("App is not installed", message_key="not_installed")
+
+    def _appdrop_launcher(self, slug: str) -> Path | None:
+        """App Drop's launcher for `slug`, while what it opens is still there.
+
+        The record and the marked launcher are not enough. Deleting ~/Applications/<slug> in the
+        file manager is a natural way to remove an app, and the menu's loader (GIO, which
+        gtk-launch uses) then refuses the launcher because its TryExec program is gone, while the
+        detached gtk-launch was reported as "opened". As for a publisher's app (_vendor_intact),
+        the app's folder and the launcher's program must both still be there.
+        """
+        appdrop = self._appdrop()
+        entry = appdrop.launcher_path(slug)
+        folder = appdrop.applications_dir() / slug
+        if entry is None or folder.is_symlink() or not folder.is_dir():
+            return None
+        try:
+            with entry.open("rb") as handle:
+                text = handle.read(65536).decode("utf-8", "replace")
+        except OSError:
+            return None
+        program = parse_keyfile(text).get("Desktop Entry", {}).get("TryExec", "")
+        if program:
+            found = program if os.path.isabs(program) else shutil.which(program)
+            if not found or not os.path.isfile(found) or not os.access(found, os.X_OK):
+                return None
+        return entry
 
     def _run_installed(self, app_id: str, kind: str, slug: str | None = None) -> tuple[int, dict[str, Any]]:
         """Open a web app, an App Drop app, a Windows program or a publisher's own app the way

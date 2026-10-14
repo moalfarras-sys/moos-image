@@ -12,6 +12,8 @@ Each class holds one promise of moos-storectl, run for real against a private HO
                         it its job.json or its cancel request;
   AndroidFromALink      `run --no-android-start` (what a moos: link asks for) never starts Android
                         app support; the person's own request still may;
+  OpenWhatIsThere       an App Drop app whose folder or program is gone is not installed, not
+                        "opened";
   CommandLineTools      an installed command-line tool has no window, which is not "not installed";
   RoutesWithTheRealBackend
                         moos-control's open and moos-open's apps/run route, driven against the real
@@ -453,6 +455,34 @@ class AndroidFromALink(Backend):
         self.controller(apps).install(["whatsapp"])
         code, document = self.cli(apps, "run", "--no-android-start", "whatsapp")
         self.assertEqual((code, document["state"]), (0, "success"), document)
+
+
+class OpenWhatIsThere(Backend):
+    def test_a_dropped_app_whose_folder_was_deleted_is_not_installed(self):
+        self.drop("noteforge-2.1.tar.gz")
+        (self.home / "Applications/noteforge").rename(self.home / "Trash-noteforge")
+        code, document = self.cli([], "run", "noteforge")
+        self.assertEqual((code, document["state"], document["message_key"]),
+                         (1, "failed", "not_installed"), document)
+        self.assertEqual(self.runner.spawned, [], "a launcher with no program was started")
+
+    def test_a_dropped_app_whose_program_was_deleted_is_not_installed(self):
+        record = self.drop("noteforge-2.1.tar.gz")
+        Path(record["exec"]).unlink()
+        code, document = self.cli([], "run", "noteforge")
+        self.assertEqual((code, document["message_key"]), (1, "not_installed"), document)
+        self.assertEqual(self.runner.spawned, [])
+
+    def test_a_catalogue_app_drop_install_answers_the_same(self):
+        apps = [self.appdrop_recipe()]
+        self.assertEqual(self.controller(apps).install(["noteforge"])[1]["state"], "success")
+        code, document = self.cli(apps, "run", "noteforge")
+        self.assertEqual((code, document["state"]), (0, "success"), document)
+        self.runner.spawned.clear()
+        shutil.rmtree(self.home / "Applications/noteforge")
+        code, document = self.cli(apps, "run", "noteforge")
+        self.assertEqual((code, document["message_key"]), (1, "not_installed"), document)
+        self.assertEqual(self.runner.spawned, [])
 
 
 class CommandLineTools(Backend):
