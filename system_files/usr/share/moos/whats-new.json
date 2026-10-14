@@ -3,6 +3,19 @@
   "_": "What a person can SEE or DO after an update, newest first. One entry per user-visible change, written for the owner of the machine, not for a developer: what it is, where it is, and (when MoOS has a route to it) a way to try it now. 'merged' is when the change reached main (a little later is fine, earlier is not: an entry dated before a machine's previous system is never marked new there); a machine marks an entry new when the system it ran BEFORE the update was built earlier than that. tests/test_whats_new.py reads every entry the way MoOS Settings will.",
   "entries": [
     {
+      "id": "mo-store-library",
+      "merged": "2026-10-14T22:00:00Z",
+      "glyph": "install",
+      "title": {
+        "ar": "متجر MoOS: كل تطبيقاتك في مكان واحد",
+        "en": "Mo Store: every app in one place"
+      },
+      "body": {
+        "ar": "أكثر من 170 تطبيقًا مختارًا: تطبيقات لينكس، وChatGPT وClaude وWord كتطبيقات بنوافذها، وPhotoCraft وAntigravity، وبرامج ويندوز وتطبيقات أندرويد. لكل تطبيق صفحة بصوره وحجمه وأذوناته وتوافقه مع جهازك، والتحديث والإزالة من مكتبة واحدة.",
+        "en": "More than 170 hand-picked apps: Linux apps, ChatGPT, Claude and Word as apps in their own windows, PhotoCraft and Antigravity, Windows programs and Android apps. Each app has a page with pictures, size, permissions and fit for this PC; update or remove anything from one library."
+      }
+    },
+    {
       "id": "moplayer-direct-file-controls",
       "merged": "2026-10-12T22:14:56Z",
       "glyph": "ui",
