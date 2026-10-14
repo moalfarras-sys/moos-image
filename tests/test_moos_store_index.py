@@ -311,7 +311,22 @@ class StoreIndexTests(unittest.TestCase):
             self.assertEqual(
                 writer["categories"], ["Office", "WordProcessor", "Utility"]
             )
-            self.assertEqual(writer["screenshot"], "https://cdn.example.org/full.png")
+            # The card shows the screenshot AppStream marks type="default" (here
+            # the second one), not merely whichever comes first.
+            self.assertEqual(writer["screenshot"], "https://cdn.example.org/not-first.png")
+            self.assertEqual(writer["details"], "details/org.example.Writer.json")
+            details = json.loads(
+                (output.parent / writer["details"]).read_text(encoding="utf-8")
+            )
+            self.assertEqual(
+                [(shot["thumb"], shot["full"]) for shot in details["screenshots"]],
+                [
+                    ("https://cdn.example.org/not-first.png",
+                     "https://cdn.example.org/not-first.png"),
+                    ("https://cdn.example.org/thumb.png",
+                     "https://cdn.example.org/full.png"),
+                ],
+            )
             self.assertTrue(writer["icon"].startswith("file://"))
             self.assertTrue(writer["verified"])
             self.assertTrue(writer["installed"])

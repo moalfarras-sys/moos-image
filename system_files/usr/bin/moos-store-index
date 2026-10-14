@@ -10,9 +10,12 @@ usable while the machine is offline and straightforward to test.
 from __future__ import annotations
 
 import argparse
+import collections
 import configparser
 import contextlib
 import datetime as dt
+import fcntl
+import functools
 import glob
 import gzip
 import hashlib
@@ -484,14 +487,19 @@ def first_child(element: ET.Element, name: str) -> ET.Element | None:
     return next(direct_children(element, name), None)
 
 
+# Exactly the characters of Unicode categories Cc (C0, DEL, C1) and Cs (surrogates).
+# One compiled substitution instead of a unicodedata.category() call per character:
+# the per-character form was 27 million calls and the larger half of a cold build
+# once screenshots, release notes and links were read too.
+CONTROL_CHARACTERS = re.compile("[\x00-\x1f\x7f-\x9f\ud800-\udfff]")
+
+
 def clean_text(value: str | None, limit: int) -> str:
     if not value:
         return ""
     value = unicodedata.normalize("NFKC", value)
     value = " ".join(value.split())
-    value = "".join(
-        char for char in value if unicodedata.category(char) not in {"Cc", "Cs"}
-    )
+    value = CONTROL_CHARACTERS.sub("", value)
     if len(value) <= limit:
         return value
     return value[: max(1, limit - 1)].rstrip() + "…"
@@ -666,6 +674,18 @@ def parse_flatpak_ref(value: str | None) -> tuple[str, str, str, str] | None:
 def safe_https_url(value: str | None) -> str:
     """Return a safe public HTTPS URL, or an empty string."""
 
+    return safe_web_url(value, links=False)
+
+
+def safe_link_url(value: str | None) -> str:
+    """A page a person may open in their browser from an app's details: a public
+    http(s) address (many project homepages are still plain http), never a file,
+    a script or a private network address."""
+
+    return safe_web_url(value, links=True)
+
+
+def safe_web_url(value: str | None, *, links: bool) -> str:
     value = clean_text(value, 2048)
     if not value or "\\" in value:
         return ""
@@ -674,47 +694,52 @@ def safe_https_url(value: str | None) -> str:
         port = parsed.port
     except ValueError:
         return ""
+    scheme = parsed.scheme.casefold()
     if (
-        parsed.scheme.casefold() != "https"
+        scheme not in ({"https", "http"} if links else {"https"})
         or not parsed.netloc
         or parsed.username is not None
         or parsed.password is not None
-        or parsed.fragment
-        or port not in (None, 443)
+        or (parsed.fragment and not links)
+        or port not in (None, 443, 80 if links else 443)
     ):
         return ""
 
     hostname = parsed.hostname
-    if not hostname:
+    if not hostname or not public_host(hostname):
         return ""
+
+    decoded = unquote(parsed.path + parsed.query + parsed.fragment)
+    if URL_CONTROL_CHARACTERS.search(decoded):
+        return ""
+    return value
+
+
+URL_CONTROL_CHARACTERS = re.compile("[\x00-\x1f\x7f]")
+
+
+@functools.lru_cache(maxsize=4096)
+def public_host(hostname: str) -> bool:
+    """A global IP address or a well-formed DNS name. Thousands of screenshot URLs
+    share a handful of hosts, so the answer is remembered per host."""
+
     try:
         address = ipaddress.ip_address(hostname.strip("[]"))
     except ValueError:
         try:
             ascii_host = hostname.encode("idna").decode("ascii")
         except UnicodeError:
-            return ""
+            return False
         labels = ascii_host.rstrip(".").split(".")
-        if (
-            len(labels) < 2
-            or any(
-                not label
-                or len(label) > 63
-                or label.startswith("-")
-                or label.endswith("-")
-                or not re.fullmatch(r"[A-Za-z0-9-]+", label)
-                for label in labels
-            )
-        ):
-            return ""
-    else:
-        if not address.is_global:
-            return ""
-
-    decoded = unquote(parsed.path + parsed.query)
-    if any(ord(char) < 32 or ord(char) == 127 for char in decoded):
-        return ""
-    return value
+        return len(labels) >= 2 and not any(
+            not label
+            or len(label) > 63
+            or label.startswith("-")
+            or label.endswith("-")
+            or not re.fullmatch(r"[A-Za-z0-9-]+", label)
+            for label in labels
+        )
+    return address.is_global
 
 
 def is_within(path: Path, parent: Path) -> bool:
@@ -781,24 +806,6 @@ def remote_icon_uri(component: ET.Element) -> str:
         score = 10_000 - abs(128 - min(width, height)) if width and height else 0
         candidates.append((score, url))
     return max(candidates, default=(0, ""), key=lambda item: item[0])[1]
-
-
-def first_screenshot_uri(component: ET.Element) -> str:
-    screenshots = first_child(component, "screenshots")
-    if screenshots is None:
-        return ""
-    screenshot = first_child(screenshots, "screenshot")
-    if screenshot is None:
-        return ""
-    images: list[tuple[int, str]] = []
-    for image in direct_children(screenshot, "image"):
-        url = safe_https_url(element_text(image, 2048))
-        if not url:
-            continue
-        image_type = image.attrib.get("type", "").casefold()
-        score = 2 if image_type == "source" else 1
-        images.append((score, url))
-    return max(images, default=(0, ""), key=lambda item: item[0])[1]
 
 
 def developer_name(component: ET.Element, preferences: list[str]) -> str:
@@ -1019,6 +1026,183 @@ def component_needs(component: ET.Element) -> dict:
     return needs
 
 
+# ── Per-app details (details/<id>.json) ──────────────────────────────────────
+# docs/MO_STORE.md "Documents": the index stays a light list; everything an app's
+# own page shows lives in one small document per app, written with the index
+# generation and published as one directory (see DetailsBuilder).
+
+DETAILS_SCHEMA = 1
+MAX_SCREENSHOTS = 8
+MAX_RELEASES = 3
+RELEASE_NOTES_LIMIT = 1000
+CARD_THUMB_WIDTH = 752       # the Store's cards and gallery: 250-300 px at 2.5x
+FULL_THUMB_WIDTH = 1248      # a full-window view, before falling back to the source
+URL_KINDS = {"homepage": "homepage", "help": "help", "bugtracker": "bugtracker",
+             "donation": "donation", "vcs-browser": "source"}
+DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}")
+
+
+def image_dimension(image: ET.Element, name: str) -> int:
+    try:
+        value = int(image.attrib.get(name, "0"))
+    except ValueError:
+        return 0
+    return value if 0 < value <= 100_000 else 0
+
+
+def first_safe_image(candidates: list[dict]) -> tuple[dict | None, str]:
+    for image in candidates:
+        url = safe_https_url(image["raw"])
+        if url:
+            return image, url
+    return None, ""
+
+
+def screenshot_details(component: ET.Element, preferences: list[str]) -> list[dict]:
+    """Up to eight screenshots, the default one first: a ~752 px thumbnail, a full
+    image (the 1248 px thumbnail or the source) and a caption in the session's
+    language when one exists. Video-only screenshots are skipped."""
+
+    container = first_child(component, "screenshots")
+    if container is None:
+        return []
+    shots = list(direct_children(container, "screenshot"))
+    shots.sort(key=lambda shot: shot.attrib.get("type", "").casefold() != "default")
+    result: list[dict] = []
+    for shot in shots:
+        images = []
+        for image in direct_children(shot, "image"):
+            raw = (image.text or "").strip()
+            if raw:
+                images.append({
+                    "type": image.attrib.get("type", "").casefold() or "source",
+                    "width": image_dimension(image, "width"),
+                    "height": image_dimension(image, "height"),
+                    "raw": raw,
+                })
+        thumbs = [image for image in images if image["type"] == "thumbnail"]
+        sources = [image for image in images if image["type"] == "source"]
+        sized = [image for image in thumbs if image["width"]]
+        # Choose first, validate only what is chosen (a catalogue holds ~45,000
+        # images; most are never published), falling back to the next candidate.
+        thumb, thumb_url = first_safe_image(
+            sorted(sized, key=lambda image: (abs(image["width"] - CARD_THUMB_WIDTH),
+                                             -image["width"]))
+            + [image for image in thumbs if not image["width"]] + sources + images)
+        if thumb is None:
+            continue
+        full, full_url = first_safe_image(
+            [image for image in sized if image["width"] == FULL_THUMB_WIDTH] + sources
+            + sorted(sized, key=lambda image: -image["width"]) + [thumb])
+        entry: dict = {"thumb": thumb_url, "full": full_url}
+        caption = pick_localized(localized_values(shot, "caption", 200), preferences)
+        if caption:
+            entry["caption"] = caption
+        dimensions = full if full["width"] and full["height"] else thumb
+        if dimensions["width"] and dimensions["height"]:
+            entry["width"] = dimensions["width"]
+            entry["height"] = dimensions["height"]
+        result.append(entry)
+        if len(result) >= MAX_SCREENSHOTS:
+            break
+    return result
+
+
+def release_date(release: ET.Element) -> str | None:
+    timestamp = release.attrib.get("timestamp", "")
+    if timestamp.isdigit():
+        try:
+            return dt.datetime.fromtimestamp(int(timestamp), tz=dt.timezone.utc).date().isoformat()
+        except (OverflowError, OSError, ValueError):
+            pass
+    date = release.attrib.get("date", "")
+    return date[:10] if DATE_RE.match(date) else None
+
+
+def release_details(component: ET.Element, preferences: list[str]) -> list[dict]:
+    """The newest three stable releases: version, ISO date, plain localized notes."""
+
+    result: list[dict] = []
+    for releases in direct_children(component, "releases"):
+        if releases.attrib.get("type", "").casefold() == "external":
+            continue
+        for release in direct_children(releases, "release"):
+            if release.attrib.get("type", "stable").casefold() in {"development", "snapshot"}:
+                continue
+            version = clean_text(release.attrib.get("version"), 120)
+            if not version:
+                continue
+            notes = pick_localized(
+                appstream_description_values(release, RELEASE_NOTES_LIMIT), preferences)
+            result.append({"version": version, "date": release_date(release),
+                           "notes": notes})
+            if len(result) >= MAX_RELEASES:
+                return result
+    return result
+
+
+def component_urls(component: ET.Element) -> dict:
+    urls: dict[str, str] = {}
+    for url in direct_children(component, "url"):
+        key = URL_KINDS.get(url.attrib.get("type", "").casefold())
+        if key and key not in urls:
+            value = safe_link_url(element_text(url, 2048))
+            if value:
+                urls[key] = value
+    return urls
+
+
+def component_languages(component: ET.Element) -> dict:
+    """{ar: percent translated} when the app says it speaks Arabic."""
+
+    for languages in direct_children(component, "languages"):
+        for language in direct_children(languages, "lang"):
+            if normalized_locale(element_text(language, 16)).split("-", 1)[0] != "ar":
+                continue
+            try:
+                percent = int(language.attrib.get("percentage", "100"))
+            except ValueError:
+                continue
+            return {"ar": max(0, min(100, percent))}
+    return {}
+
+
+def verification_details(component: ET.Element) -> dict:
+    result: dict[str, str] = {}
+    custom = first_child(component, "custom")
+    if custom is None:
+        return result
+    for value in direct_children(custom, "value"):
+        key = value.attrib.get("key", "")
+        if key == "flathub::verification::method":
+            method = element_text(value, 40).casefold()
+            if re.fullmatch(r"[a-z0-9_-]{1,40}", method):
+                result.setdefault("method", method)
+        elif key == "flathub::verification::website":
+            website = element_text(value, 253).casefold()
+            if re.fullmatch(r"[a-z0-9.-]{1,253}", website) and "." in website:
+                result.setdefault("website", website)
+    return result
+
+
+def component_details(component: ET.Element, app_id: str, preferences: list[str],
+                      screenshots: list[dict]) -> dict:
+    return {
+        "schema": DETAILS_SCHEMA,
+        "id": app_id,
+        "screenshots": screenshots,
+        "releases": release_details(component, preferences),
+        "urls": component_urls(component),
+        "keywords": appstream_keywords(component, preferences),
+        "languages": component_languages(component),
+        "requires": component_relations(component, "requires"),
+        "recommends": component_relations(component, "recommends"),
+        "verification": verification_details(component),
+        "license": element_text(first_child(component, "project_license"), 160),
+        "developer": developer_name(component, preferences),
+    }
+
+
 def parse_component(
     component: ET.Element,
     index_path: Path,
@@ -1043,6 +1227,7 @@ def parse_component(
     license_value = element_text(first_child(component, "project_license"), 160)
     icon = cached_icon_uri(component, index_path) or remote_icon_uri(component)
     fallback_name = app_id.rsplit(".", 1)[-1]
+    screenshots = screenshot_details(component, preferences)
 
     return {
         "id": app_id,
@@ -1067,7 +1252,10 @@ def parse_component(
         "category": normalized_category(categories),
         "categories": categories,
         "icon": icon or None,
-        "screenshot": first_screenshot_uri(component) or None,
+        # The card picture: the DEFAULT screenshot's ~752 px thumbnail. It used to be
+        # the full-size original of whichever screenshot came first, downloaded for
+        # a 250 px slot.
+        "screenshot": screenshots[0]["thumb"] if screenshots else None,
         "verified": component_verified(component),
         "installed": False,
         "version": latest_version(component),
@@ -1075,6 +1263,9 @@ def parse_component(
         "branding": branding_colors(component),
         "content_rating": content_rating(component),
         "needs": component_needs(component),
+        "details": None,
+        # Build-time only: written to details/<id>.json by the build, then removed.
+        "_details": component_details(component, app_id, preferences, screenshots),
         # Build-time only: removed by finish_app() once `search` is written.
         "_search_terms": [arabic_value(names), *appstream_keywords(component, preferences)],
         "origins": [
@@ -3548,6 +3739,8 @@ def catalog_fallback_app(
         "name_en": entry.get("en") or name,
         "branding": None,
         "content_rating": None,
+        # No AppStream data, so no details document.
+        "details": None,
         "summary": description,
         "description": description,
         "developer": "",
@@ -3661,6 +3854,7 @@ def build_index(
     lifecycle: dict | None = None,
     machine: dict | None = None,
     facts: dict | None = None,
+    details: DetailsBuilder | None = None,
 ) -> dict:
     preferences = locale_preferences(requested_locale)
     catalog = catalog_data if catalog_data is not None else load_catalog(catalog_path)
@@ -3693,18 +3887,29 @@ def build_index(
     metadata_indexes_parsed = 0
     metadata_indexes_reused = 0
 
-    def add_app(app: dict) -> None:
+    def add_app(app: dict, document: dict | None = None) -> None:
         nonlocal duplicate_count
         refs = installed.get(app["id"], [])
         if app["id"] in apps_by_id:
             duplicate_count += 1
-            apps_by_id[app["id"]] = merge_duplicate(
-                apps_by_id[app["id"]], app, refs
-            )
+            winner = merge_duplicate(apps_by_id[app["id"]], app, refs)
+            apps_by_id[app["id"]] = winner
         else:
-            apps_by_id[app["id"]] = app
+            winner = apps_by_id[app["id"]] = app
+        # The details document follows the entry that won: one per id, written
+        # once per parsed revision (a reused revision's documents are identical).
+        if details is not None and document is not None and winner is app:
+            details.write(app["id"], document)
 
     parsed_sources, superseded_sources = supersede_older_sources(discovered_sources)
+    # A parsed revision is kept for reuse only when another source carries it too;
+    # otherwise the copy of every entry would only cost memory.
+    shared_revisions = {
+        key for key, count in collections.Counter(
+            (source["origin"], source["arch"], source.get("revision"))
+            for source in parsed_sources if source.get("revision")
+        ).items() if count > 1
+    }
     for source in parsed_sources:
         source_components = 0
         source_accepted = 0
@@ -3757,12 +3962,14 @@ def build_index(
                     source_accepted += 1
                     # Keep an unmerged template for another installation that
                     # exposes this exact content-addressed metadata revision.
-                    parsed_apps.append(clone_app_for_source(app, source))
-                    add_app(app)
+                    document = app.pop("_details", None)
+                    if metadata_key in shared_revisions:
+                        parsed_apps.append(clone_app_for_source(app, source))
+                    add_app(app, document)
             except (OSError, EOFError, ET.ParseError, IndexErrorBase) as error:
                 source_error_count += 1
                 source_error = clean_text(str(error), 240) or type(error).__name__
-            if metadata_key is not None and source_error is None:
+            if metadata_key in shared_revisions and source_error is None:
                 metadata_cache[metadata_key] = {
                     "path": str(path),
                     "components": source_components,
@@ -3830,11 +4037,14 @@ def build_index(
         else:
             overlay_catalog(current, entry, preferences)
 
-    for app in apps_by_id.values():
+    written = details.written if details is not None else set()
+    for app_id, app in apps_by_id.items():
+        app.pop("_details", None)
+        app["details"] = f"{DETAILS_LINK}/{app_id}.json" if app_id in written else None
         finish_app(app)
     # Discover's groups name only listed apps, so they are settled before the
     # lifecycle pass adds what is installed but not offered.
-    collections, featured = editorial_groups(catalog, apps_by_id)
+    discover_rows, hero_cards = editorial_groups(catalog, apps_by_id)
     apps = apply_lifecycle(
         list(apps_by_id.values()), installed=installed, snapshot=lifecycle,
         catalog=catalog, preferences=preferences, machine=machine, facts=facts,
@@ -3902,12 +4112,184 @@ def build_index(
                     else sorted(catalog["engines_ready"])),
         "categories": catalog["categories"],
         "bundles": catalog["bundles"],
-        "collections": collections,
-        "featured": featured,
+        "collections": discover_rows,
+        "featured": hero_cards,
         "apps": apps,
     }
     payload["generation"]["id"] = content_generation_id(payload)
     return payload
+
+
+# ── Publishing a generation: details/ and index.json ──────────────────────────
+# `details` next to the index is a symlink to one complete generation directory,
+# details-<metadata token prefix>-<random>/. A build writes every document into a
+# private .details-…tmp directory, marks it complete, renames it into place and
+# then swaps the symlink with one rename(2): a reader resolving details/<id>.json
+# sees the old complete set or the new complete set, never a half-written one.
+# The swap, the index write and the clean-up of older generations happen under
+# one lock, so two indexers (the launcher's and refresh-index) cannot delete each
+# other's directory. Documents are not fsynced one by one (3,400 fsyncs measured
+# 10 s on the station's btrfs); a crash can only leave a stale or damaged set,
+# which details_ready() detects from a sample and the next run rebuilds.
+
+DETAILS_LINK = "details"
+DETAILS_MARKER = ".complete"
+DETAILS_DIR_RE = re.compile(r"^details-[0-9a-f]{16}-[0-9a-f]{8}$")
+DETAILS_SAMPLE = 32
+STALE_BUILD_SECONDS = 3600
+
+
+class DetailsBuilder:
+    """One generation of details documents, built privately next to the index."""
+
+    def __init__(self, cache_dir: Path, metadata_token: str):
+        self.cache_dir = cache_dir
+        self.token = metadata_token
+        cache_dir.mkdir(parents=True, exist_ok=True)
+        self.directory = Path(tempfile.mkdtemp(
+            prefix=f".details-{metadata_token[:12]}-", suffix=".tmp", dir=cache_dir))
+        self.written: set[str] = set()
+        self.final: Path | None = None
+
+    def write(self, app_id: str, document: dict) -> None:
+        data = (json.dumps(document, ensure_ascii=False, separators=(",", ":"))
+                + "\n").encode("utf-8")
+        flags = os.O_WRONLY | os.O_CREAT | os.O_TRUNC | getattr(os, "O_NOFOLLOW", 0) \
+            | getattr(os, "O_CLOEXEC", 0)
+        descriptor = os.open(self.directory / f"{app_id}.json", flags, 0o600)
+        with os.fdopen(descriptor, "wb") as handle:
+            handle.write(data)
+        self.written.add(app_id)
+
+    def finish(self) -> Path:
+        ordered = sorted(self.written)
+        step = max(1, len(ordered) // DETAILS_SAMPLE)
+        marker = {"schema": DETAILS_SCHEMA, "metadata_token": self.token,
+                  "files": len(ordered), "sample": ordered[::step][:DETAILS_SAMPLE]}
+        (self.directory / DETAILS_MARKER).write_text(
+            json.dumps(marker, ensure_ascii=False) + "\n", encoding="utf-8")
+        final = self.cache_dir / f"details-{self.token[:16]}-{os.urandom(4).hex()}"
+        os.rename(self.directory, final)
+        self.final = final
+        return final
+
+    def discard(self) -> None:
+        for path in (self.directory, self.final):
+            if path is not None and path.is_dir() and not path.is_symlink():
+                shutil.rmtree(path, ignore_errors=True)
+
+
+def details_target(cache_dir: Path) -> Path | None:
+    link = cache_dir / DETAILS_LINK
+    try:
+        target = os.readlink(link)
+    except OSError:
+        return None
+    if not DETAILS_DIR_RE.fullmatch(target):
+        return None
+    directory = cache_dir / target
+    return directory if directory.is_dir() and not directory.is_symlink() else None
+
+
+def details_ready(cache_dir: Path, metadata_token: str) -> bool:
+    """Is the published details set complete, of this metadata, and readable?"""
+
+    directory = details_target(cache_dir)
+    if directory is None:
+        return False
+    marker = read_record(directory / DETAILS_MARKER)
+    if not marker or marker.get("metadata_token") != metadata_token:
+        return False
+    sample = marker.get("sample")
+    if not isinstance(sample, list):
+        return False
+    for app_id in sample:
+        if not isinstance(app_id, str) or not valid_generic_id(app_id):
+            return False
+        path = directory / f"{app_id}.json"
+        try:
+            size = path.stat().st_size
+            with path.open("rb") as handle:
+                handle.seek(max(0, size - 2))
+                tail = handle.read(2)
+        except OSError:
+            return False
+        if size < 16 or tail != b"}\n":
+            return False
+    return True
+
+
+@contextlib.contextmanager
+def publish_lock(cache_dir: Path):
+    cache_dir.mkdir(parents=True, exist_ok=True)
+    descriptor = os.open(cache_dir / ".publish.lock",
+                         os.O_RDWR | os.O_CREAT | getattr(os, "O_CLOEXEC", 0), 0o600)
+    try:
+        fcntl.flock(descriptor, fcntl.LOCK_EX)
+        yield
+    finally:
+        os.close(descriptor)
+
+
+def fsync_directory(directory: Path) -> None:
+    try:
+        descriptor = os.open(directory, os.O_RDONLY | getattr(os, "O_DIRECTORY", 0))
+    except OSError:
+        return
+    try:
+        os.fsync(descriptor)
+    finally:
+        os.close(descriptor)
+
+
+def publish_details(cache_dir: Path, directory: Path) -> None:
+    """Point `details` at a finished generation with one atomic rename."""
+
+    link = cache_dir / DETAILS_LINK
+    temporary = cache_dir / f".details-link-{os.urandom(4).hex()}"
+    os.symlink(directory.name, temporary)
+    try:
+        try:
+            os.replace(temporary, link)
+        except OSError:
+            if not (link.is_dir() and not link.is_symlink()):
+                raise
+            # A real directory in the way (made by hand, or by an older tool):
+            # move it aside once; the clean-up below removes it.
+            os.rename(link, cache_dir / f"details-legacy-{os.urandom(4).hex()}")
+            os.replace(temporary, link)
+    finally:
+        try:
+            temporary.unlink()
+        except FileNotFoundError:
+            pass
+    fsync_directory(cache_dir)
+
+
+def clean_details(cache_dir: Path, keep: Path | None) -> None:
+    """Remove generations nobody points at and builds abandoned over an hour ago."""
+
+    try:
+        entries = list(os.scandir(cache_dir))
+    except OSError:
+        return
+    now = dt.datetime.now().timestamp()
+    for entry in entries:
+        path = Path(entry.path)
+        try:
+            if entry.is_symlink():
+                if entry.name.startswith(".details-link-"):
+                    path.unlink()
+                continue
+            if not entry.is_dir():
+                continue
+            if entry.name.startswith("details-") and (keep is None or path != keep):
+                shutil.rmtree(path, ignore_errors=True)
+            elif (entry.name.startswith(".details-") and entry.name.endswith(".tmp")
+                  and now - entry.stat().st_mtime > STALE_BUILD_SECONDS):
+                shutil.rmtree(path, ignore_errors=True)
+        except OSError:
+            continue
 
 
 def atomic_write_json(path: Path, payload: dict) -> None:
@@ -4411,16 +4793,18 @@ def main(argv: list[str] | None = None) -> int:
         tokens = input_tokens(
             args.catalog, catalog, sources, installed, preferences, lifecycle, context
         )
+        cache_dir = args.output.parent
         existing_tokens = existing_output_tokens(args.output)
-        if (
-            existing_tokens is not None
-            and existing_tokens["input"] == tokens["input"]
-        ):
-            return 0
-        if (
+        # Both cached paths reuse the published details set, so it has to be the
+        # complete set of this very AppStream generation; otherwise build anew.
+        details_current = (
             existing_tokens is not None
             and existing_tokens["metadata"] == tokens["metadata"]
-        ):
+            and details_ready(cache_dir, tokens["metadata"])
+        )
+        if details_current and existing_tokens["input"] == tokens["input"]:
+            return 0
+        if details_current:
             payload = load_refreshable_output(
                 args.output, tokens["metadata"]
             )
@@ -4437,22 +4821,36 @@ def main(argv: list[str] | None = None) -> int:
                     }
                 )
                 payload["generation"]["id"] = content_generation_id(payload)
-                atomic_write_json(args.output, payload)
+                with publish_lock(cache_dir):
+                    atomic_write_json(args.output, payload)
                 return 0
-        payload = build_index(
-            args.catalog,
-            appstream_roots,
-            installation_roots,
-            args.locale,
-            catalog_data=catalog,
-            installed_data=installed,
-            source_data=sources,
-            cache_tokens=tokens,
-            lifecycle=lifecycle,
-            machine=machine,
-            facts=facts,
-        )
-        atomic_write_json(args.output, payload)
+        details = DetailsBuilder(cache_dir, tokens["metadata"])
+        try:
+            payload = build_index(
+                args.catalog,
+                appstream_roots,
+                installation_roots,
+                args.locale,
+                catalog_data=catalog,
+                installed_data=installed,
+                source_data=sources,
+                cache_tokens=tokens,
+                lifecycle=lifecycle,
+                machine=machine,
+                facts=facts,
+                details=details,
+            )
+            payload["stats"]["details_documents"] = len(details.written)
+            generation = details.finish()
+            # Documents first, then the index that names them, then the old sets.
+            with publish_lock(cache_dir):
+                publish_details(cache_dir, generation)
+                atomic_write_json(args.output, payload)
+                clean_details(cache_dir, keep=generation)
+        except BaseException:
+            if details_target(cache_dir) != details.final:
+                details.discard()
+            raise
     except (CatalogError, OSError) as error:
         print(f"moos-store-index: {error}", file=sys.stderr)
         return 2
