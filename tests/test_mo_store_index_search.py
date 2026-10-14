@@ -263,6 +263,15 @@ class StoreCategories(unittest.TestCase):
             (["Settings"], "util"),
             (["Network", "FileTransfer", "P2P"], "util"),
             ([], "util"),
+            # Emulator belongs with System or Game (freedesktop): a game only when nothing
+            # else places it. Flathub's RARS, Iaito and virt-manager were in Games.
+            (["ComputerScience", "Development", "Education", "Emulator", "IDE", "Utility"], "dev"),
+            (["Development", "Debugger", "Viewer", "Emulator", "Security"], "dev"),
+            (["System", "Emulator"], "util"),
+            (["Utility", "Emulator"], "util"),
+            (["Game", "Emulator"], "fun"),
+            (["AudioVideo", "Player", "Graphics", "Emulator", "Game"], "fun"),
+            (["Emulator"], "fun"),
         ):
             with self.subTest(categories=categories):
                 self.assertEqual(index.store_category_from_freedesktop(categories), expected)

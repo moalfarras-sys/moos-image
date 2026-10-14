@@ -364,9 +364,14 @@ CURATED_CATEGORY_FALLBACK = {
 # catalogue's own `cat`; any other Flathub app is placed by its freedesktop
 # categories, first matching rule wins. A game is a game even when it also says
 # Network or AudioVideo, and an IDE is development even when it also says
-# Utility, so the specific rules come first. `ai` is editorial only: no metadata
-# rule leads there. Nothing lands in a catch-all: an app no rule places is a
-# utility, and Android and Windows apps are always `droid` and `win`.
+# Utility, so the specific rules come first. Emulator is not one of them: the
+# freedesktop spec relates it to System or Game, so a console emulator says Game
+# and lands in games, a CPU simulator that says Development;IDE is development and
+# a virtual machine manager that says System is a utility (Flathub's RARS, Iaito
+# and virt-manager were in Games); an emulator nothing else places is a game.
+# `ai` is editorial only: no metadata rule leads there. Nothing lands in a
+# catch-all: an app no rule places is a utility, and Android and Windows apps are
+# always `droid` and `win`.
 STORE_CATEGORIES = (
     "ess", "comm", "work", "art", "media", "fun", "dev", "ai", "edu", "util", "droid", "win",
 )
@@ -374,7 +379,7 @@ STORE_CATEGORY_RULES = (
     ("fun", frozenset({
         "game", "actiongame", "adventuregame", "arcadegame", "blocksgame", "boardgame",
         "cardgame", "kidsgame", "logicgame", "roleplaying", "shooter", "sportsgame",
-        "strategygame", "emulator",
+        "strategygame",
     })),
     ("dev", frozenset({"development", "ide"})),
     ("comm", frozenset({
@@ -386,6 +391,7 @@ STORE_CATEGORY_RULES = (
     ("media", frozenset({"audiovideo", "audio", "video", "player"})),
     ("edu", frozenset({"education", "science"})),
     ("util", frozenset({"system", "utility", "security", "settings"})),
+    ("fun", frozenset({"emulator"})),
 )
 DEFAULT_STORE_CATEGORY = "util"
 
