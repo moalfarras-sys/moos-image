@@ -1,8 +1,6 @@
 # MoOS current state — updated 2026-10-14
 
-Oracle A1 and the physical NVIDIA workstation develop one MoOS product.
-Source, promoted artifacts and staged/booted systems are separate evidence.
-The only backlog is [DEVELOPMENT_PLAN.md](docs/DEVELOPMENT_PLAN.md).
+Oracle A1 and the physical NVIDIA workstation develop one MoOS product. Source, promoted artifacts and installed systems are separate evidence; the only backlog is [DEVELOPMENT_PLAN.md](docs/DEVELOPMENT_PLAN.md).
 Native audit: [AUDIT_20261012_AR.md](docs/AUDIT_20261012_AR.md).
 
 ## Current engineering batch
@@ -39,7 +37,8 @@ helper hashes. The /run override disappeared on reboot. Its exact temporary
 copied bundle retired after replacement/no-holder proof. Administrator
 opt-in, PIN, private TLS, upstream PAM and default-disabled access are preserved.
 Native .1044 post-login receipt passes 55/55 with 18 payload hashes. Exact
-unused copied bundle retirement completed; .1046 is staged, not boot-accepted.
+unused copied bundle retirement completed. Native .1046 now passes 54
+selfchecks/2 notes and 55 post-update checks; all 19 hashes/player match.
 
 Existing-account free cloud JSON/SSE and isolated Hermes replies pass on both
 stations in the earlier runtime audit. Direct reported cost=0; absent Hermes
@@ -59,25 +58,24 @@ pickers pass; wider user journeys remain in the single development plan.
 
 ARM proves native first-party linkage, two healthy boots and clean poweroff.
 CI greeter pixels show MoOS identity; English login buttons remain a locale gap.
-The public ISO remains independently qualified .1026: 5,827,133,440 bytes,
-SHA-256 `288fcb001aabc990103653cd622d11734a5472cf7942715429eb1934dd3cb57b`.
-Its actual anonymous HTTP 200/206 availability was refreshed with the maintained
-verification user agent. Generic urllib requests can be rejected by Cloudflare
-1010; that is not proof of outage. No WAF rule was changed.
-Full-transfer receipt: [public download proof](docs/releases/2026-10-11-public-download-proof.json).
-Exact current .1046 ISO is locally archived: 5,830,410,240 bytes, SHA-256
-`37053a88ae313f994875794055035d53134206a88eb44fb160b39fef3bb04821`,
-detached signature and checksum verified. Exact unused .1044 ISO/signature/
-checksum retired after both signatures, hashes, ancestry and no holders:
-5,830,410,419 logical bytes; native /var net gain 5,829,640,192 bytes.
-[Archive/retirement proof](docs/releases/2026-10-14-current-archive-proof.json).
-New anonymous full-transfer/sidecar/site qualification remains incomplete.
-Public .1018/.1022 retirement completed after grace periods. Static Assets/R2
-host the public site with scoped CDN redirects; no billing plan was changed.
-Website PR57 merged at `a0bce332`; the identical reviewed tree is deployed on
-the existing Cloudflare Worker. Eight local/eight public AR/EN browser views,
-mobile guidance, exact inert scripts and routes pass. Qualified ISO stays .1026.
-Vercel preview restrictions are separate; no authentication or billing changed.
+Public .1046 is independently qualified and published: 5,830,410,240 bytes,
+SHA-256 `37053a88ae313f994875794055035d53134206a88eb44fb160b39fef3bb04821`.
+Full anonymous HTTP 200, resumed 206 ranges, signature and exact sidecars pass
+at Oct14 17:58:53 UTC. [Delivery proof](docs/releases/2026-10-14-public-download-proof.json).
+Eight local/eight public native Chromium AR/EN views, exact paired metadata,
+three actual redirects and inert installer bytes pass. [Site proof](docs/releases/2026-10-14-public-site-1046-proof.json).
+Site version `1bbe00dc-c579-4015-ae82-af7a58c9fc93`; download version
+`b322760e-4302-44d1-940d-3eb2f49913d1`. The site deployment printed success,
+then its enclosing exec ended 143 before an exit receipt; exact active bytes
+and public views independently qualify it. Its termination cause is unproven.
+The .1046 marker is published only after that acceptance. Previous .1026 stays
+resumable through Oct16 12:00 UTC; no old immutable URL redirects to new bytes.
+.1018/.1022 retirement is complete. Current local .1046 and signed rollback stay;
+exact .1044 retirement has [its proof](docs/releases/2026-10-14-current-archive-proof.json).
+Web/admin checks and 99 tests pass; dashboard's missing declared dependency is
+installed only in the private test worktree and its build passes. The broader
+Android check returns 127 on Linux's unavailable Windows `gradlew.bat`.
+No other product, API, DNS, WAF, authentication or billing setting changed.
 
 ## Oracle A1 development station
 
@@ -100,26 +98,21 @@ Installed /usr/lib/moplayer (no source override) opens encoded Arabic file URI,
 plays actual MPEG4 frames, reports 20 s/CanSeek and paused +5 s seek. Rendered
 finite controls/timecodes pass; owned unit closed. RSS=578.4 MiB with Remote
 active; one small silent sample is not a codec/server/GPU/endurance matrix.
-Native graphical acceptance of .756 passed 51 selfchecks/55 post-update checks,
-31 Remote hashes, actual oomd monitoring, no failed units; boot=14.064 s.
-Seven KCMs load in isolated Arabic homes without QML errors; seven Remote
-.NET projects and test executables pass. Current theme/GTK/decorations agree.
-Four owner service containers are healthy. Files/photos/DB/SMB/IDE/Remote and
-ingress remain intact; pre-login stays explicitly off. Existing autologin is
-not ordinary PAM acceptance. Private Remote/public Community TLS pass.
+Earlier signed boots also proved native KCM/Remote .NET components and
+GTK/decorations agreement within their recorded scope. Private Remote/public
+Community TLS pass; pre-login stays explicitly off.
 Gateway is live with an owner-selected paid policy; no paid inference or key
 read was performed. A prior free synthetic reply on NVIDIA was a separate proof.
 
 Seven exact unused audit images retired only after container/ancestry/replacement
 checks: total physical free-space gain 33,544,560,640 bytes (~31.2 GiB).
-Exact unused local .1042 ISO/signature/checksum retired after both signatures,
-hashes, ancestry and no holders: 5,827,985,587 logical bytes; concurrent native
-/var net gain 5,827,317,760 bytes. Proof is retained; .1044 archive/public .1026
-and signed OS rollback are intact. Current .1046 archival and exact .1044
-retirement completed; writable /var now measures 29 GiB free. One exact unused
+Earlier exact local .1042/.1044 archive retirement preserves proofs, public
+.1026, current .1046 and signed rollback; writable /var currently measures 26 GiB free. One exact unused
 local greeter audit image was untagged with no parent prune; its shared layers
 produced no measured free-space gain. Current image/SDK/owner containers stay. Composefs /
-100% is not writable disk exhaustion. SDK/owner containers/data/rollback stay.
+100% is not writable disk exhaustion. One unused Oct8 generated audit ISO
+retired after signatures/ancestry/no-holder checks: 5,808,128,179 logical bytes;
+concurrent immediate free-space delta=0. [Receipt](docs/releases/2026-10-14-old-audit-iso-retirement.json).
 Obsolete completed retirement units are archived. Mo Store updated available
 user apps. Core/journal bounds and weekly cleanup are active.
 A 30 s editor/services sample has 7.17–7.28 GiB available; KWin uses 5.59%
@@ -136,7 +129,7 @@ with usage absent. Remote capture and input are separate helpers; the input
 helper shares the personal service cgroup and must not be counted twice.
 These are bounded active-workload samples, not idle/phone/endurance acceptance.
 Both stations pass native QML/.NET/C++/Go/Rust/Java/Flutter/MCP component checks
-pass within [the workstation audit](docs/WORKSTATION_20261014_AR.md). Flutter
+within [the workstation audit](docs/WORKSTATION_20261014_AR.md). Flutter
 3.47.4 is now available in user space; host KVM and optional buildah remain absent.
 Original dirty checkout/index and old APK/PE worktrees are untouched;
 `archive/owner-pre-reboot-20261011` preserves the owner snapshot. Isolated
@@ -144,26 +137,24 @@ worktrees hold tested changes; the local main ref follows integrated ancestry.
 
 ## Physical NVIDIA workstation
 
-Booted signed .1044 (`df557bb0…`), with signed .1042 rollback,
-boot ID `5cf457a9-75d6-4ed6-9376-fe392244145d`. Greeter Remote reports native EIS
-input ready and both immutable helper hashes match PR235. The owner reports
-ordinary password login and desktop appearance. Native .1044 passes 55/55,
-18 hashes and exact player bytes. Tailscale owner authentication completed;
-temporary unused greeter bundle retired after replacement/no-holder proof.
-Current .1046 is officially staged; its 19 hashes/player pass, not yet booted.
-Prior .1042 native evidence: 55 selfchecks/55 post-update/0 failures,
-16 payload hashes and exact signed compiled player bytes, THEME_REV=103,
-one Settings entry, ordinary plasmalogin compositor and 36.174 s boot.
-The following resource/video figures belong to that measured .1042 baseline.
+Booted signed .1046 (`0235cad7…`) with signed .1044 rollback,
+boot ID `d8a6ce1d-ca57-4680-9e5f-ef8118623b61`. Native ordinary plasmalogin
+owns one KDE Wayland session. Graphical-owner checks pass 54 selfchecks/2 notes
+and 55 post-update checks/0 failures; all 19 payload hashes, exact player and
+THEME_REV=104 agree. No system/user failed units. Boot=32.381 s;
+graphical.target=6.892 s userspace. [Native receipt](docs/releases/2026-10-14-nvidia-1046-native-proof.json).
+The two notes concern active Remote and retaining its only-display path; they
+are not decoded-frame, idle-cost, phone or hardware endurance acceptance.
+Earlier .1044 ordinary password-login evidence and exact unused greeter bundle
+retirement remain valid within their scope; opt-in/PIN/private TLS/PAM stay.
+Prior .1042's 55/55 checks, 16 hashes and following video/resource measurements
+remain historical evidence; they do not qualify new .1046 workloads.
 Installed Arabic-file-URI MPEG4 passes 20 s/CanSeek, time advance and paused
 +5 s seek. RSS=765.9 MiB; full GPU table shows player=593 MiB, absent after Quit.
 This is transport/resource evidence, not native moving-pixel/HDR/endurance proof.
 New direct/SSE cloud calls pass 1.02/1.11 s first content with reported cost=0;
 isolated Hermes passes 4.30 s, usage absent. No provider or private-context change.
 Old .1032's 54/1 diagnostic abort remains historical; fresh .1042 passes 55/0.
-New 30 s sample: KWin/plasmashell 1.43/1.31% of one core, 263/483 MiB;
-gateway .01%/21 MiB. Baloo's 1.75 GiB is file cache, anonymous=25 MiB;
-Lumen 6.08% with owner lights. CPU/RAM PSI avg10=0, sampled swap=0. Not endurance.
 Kernel 7.2.9, Plasma 6.7.5, Qt 6.11.2, NVIDIA 615.78.08; RTX 2080 SUPER,
 Arabic 3840×2160@60, logical 1536×864 at 250%, UI2 Arena. Writable disk has
 179 GiB free/61% used; about 10 GiB RAM available in the recorded baseline.
@@ -180,6 +171,13 @@ acceptance remain. Earlier .1026's 54/55 native acceptance is historical evidenc
 
 ## Integrated features and evidence still owed
 
+Current M1 source adds one coalesced delayed directory notification for Mira's
+confirmed task presence. A real Qt consumer with its first delivery discarded
+fails old source and recovers fixed; [62 control tests pass](docs/releases/2026-10-14-mira-job-presence-proof.json). Token end state/age
+and a retired session directory remain intact, with no idle poll. This measures
+missed-delivery recovery, not the unproven cause of the prior intermittent Qt
+startup timeout. Signed delivery of this additional source is separate.
+
 Mira mute/disconnect/late-recognition and recovery unreadable-state controls
 pass. Community beta has real native/Oracle TLS flow, isolation and bounded
 AR/EN renders, but branded DNS/recovery/moderation/retention/endurance remain.
@@ -190,7 +188,7 @@ real hardware/private-TLS enrollment/phone/WAN endurance remain P2.17.
 Old unmerged APK/PE work has 82 isolated tests; not ten real application journeys.
 Oracle's installed Linux engine does not imply Windows/Android engines exist.
 
-Canary 38099434894 passes reviewed Plasma 6.7.91/12 seams; stable 6.8.0/Qt
+[Latest canary 38248425611](docs/releases/2026-10-14-plasma-canary-readback.json) passes Plasma 6.7.91/12 seams and real greeter; stable 6.8.0/Qt
 6.12 are unreviewed and refused. Do not widen pins or layer them on the host.
 Hardware boot visuals/suspend/hotplug/multi-monitor/laptop/touch, deliberate
 failed-update/rollback, full AR/EN accessibility/contrast/scale/motion, clean

@@ -1056,6 +1056,39 @@ class IslandJobTokenTests(unittest.TestCase):
             main = source[source.index('if __name__ == "__main__":'):]
             self.assertIn("_clear_job_tokens()", main)
 
+    def test_delayed_resignal_preserves_the_latest_end_and_its_age(self):
+        with tempfile.TemporaryDirectory() as home, tempfile.TemporaryDirectory() as runtime:
+            control = load_control(home)
+            publish = control["_publish_job_token"]
+            scope = publish.__globals__
+            folder = Path(runtime) / "moai-jobs"
+            running = publish("0123abcd", "update_apps", "running", folder=folder)
+            pending = scope["_job_feed_resignals"][folder]
+            ended = publish("0123abcd", "update_apps", "failed", running, folder=folder)
+            self.assertIs(scope["_job_feed_resignals"][folder], pending,
+                          "a burst scheduled a second wake for the same directory")
+            stamp = (folder / ended).stat().st_mtime_ns
+            pending.join(timeout=5)
+            self.assertFalse(pending.is_alive(), "directory notification did not finish")
+            self.assertEqual([p.name for p in folder.iterdir()], [ended],
+                             "notification left a marker or resurrected the old running state")
+            self.assertEqual((folder / ended).stat().st_mtime_ns, stamp,
+                             "notification extended the ended token's age")
+            self.assertNotIn(folder, scope["_job_feed_resignals"],
+                             "a finished notification left an idle timer scheduled")
+
+    def test_delayed_resignal_does_not_recreate_a_retired_runtime_folder(self):
+        with tempfile.TemporaryDirectory() as home, tempfile.TemporaryDirectory() as runtime:
+            publish = load_control(home)["_publish_job_token"]
+            folder = Path(runtime) / "moai-jobs"
+            name = publish("0123abcd", "update_apps", "running", folder=folder)
+            pending = publish.__globals__["_job_feed_resignals"][folder]
+            (folder / name).unlink()
+            folder.rmdir()
+            pending.join(timeout=5)
+            self.assertFalse(pending.is_alive())
+            self.assertFalse(folder.exists(), "a late notification recreated a departed session")
+
 
 
 @unittest.skipUnless(island_probe.QML_RUNTIME,
@@ -1106,6 +1139,51 @@ class TheRealProducerReachesARealIsland(island_probe.RealIslandProbe, unittest.T
         self.assertTrue(output.wait_for("probe-state done:0e0e0e0e", 30),
                         "a job that ran for a minute ended, and the Island's chip vanished "
                         "instead of announcing it\n" + "\n".join(output.seen[-20:]))
+
+    def test_a_lost_first_notification_recovers_without_idle_polling(self):
+        """Discard the first consumer delivery and demand a new real directory event.
+
+        This measures recovery, not the cause of the earlier intermittent
+        FolderListModel startup failure. Ending the blind interval does not
+        call sync(): the producer must wake the real model again.
+        """
+        self.PROBE = self.PROBE.replace(
+            'property var watched: []',
+            'property var watched: []\n'
+            '    property bool deliverEvents: false\n'
+            '    property bool firstRunningEvent: false\n'
+            '    property bool initialReady: false\n'
+            '    Timer { id: blind; interval: 350; onTriggered: {\n'
+            '        deliverEvents = true; console.warn("probe-unblocked"); } }')
+        self.PROBE = self.PROBE.replace(
+            'onStatusChanged: if (status === FolderListModel.Ready) { sync() }',
+            'onStatusChanged: if (status === FolderListModel.Ready) {\n'
+            '    if (!initialReady) { initialReady = true; console.warn("probe-model-ready"); }\n'
+            '    sync(); }')
+        self.PROBE = self.PROBE.replace(
+            'function sync() {',
+            'function sync() {\n'
+            '    if (!deliverEvents) {\n'
+            '        for (let i = 0; i < jobs.count; ++i) {\n'
+            '            if (!firstRunningEvent && String(jobs.get(i, "fileName")).includes("-running-")) {\n'
+            '                firstRunningEvent = true; blind.start();\n'
+            '            }\n'
+            '        }\n'
+            '        return;\n'
+            '    }')
+        jobs, output = self.run_session(prepare=self.login)
+        self.assertTrue(output.wait_for("probe-model-ready", 30), "model did not become ready")
+        with tempfile.TemporaryDirectory() as home:
+            publish = load_control(home)["_publish_job_token"]
+        running = publish("0f0f0f0f", "update_apps", "running", folder=jobs.directory)
+        self.assertTrue(output.wait_for("probe-unblocked", 10), "first notification was not exercised")
+        self.assertFalse(any("probe-state running:" in line for line in output.seen))
+        self.assertTrue(output.wait_for("probe-state running:0f0f0f0f", 4),
+                        "a missed first notification left running work invisible; "
+                        "no later producer event arrived\n" + "\n".join(output.seen[-20:]))
+        publish("0f0f0f0f", "update_apps", "done", running, folder=jobs.directory)
+        self.assertTrue(output.wait_for("probe-state done:0f0f0f0f", 10),
+                        "the recovered job did not announce its actual end")
 
 class BootedVersionTests(unittest.TestCase):
     """The version Mo AI quotes is the booted image's, not the base's os-release stamp."""

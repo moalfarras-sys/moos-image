@@ -329,6 +329,15 @@ woken. Restore the agreed quality/width/FPS/codec before the renewed helper
 encodes; H.264 never polls the JPEG settings path. Use a private child/socket
 recorder for this proof, never the owner’s portal or input socket. A new helper or a dropped H.264 backlog is also a new reference history even when its codec and SPS match. Carry that boundary to the viewer in socket order before the new IDR; never send that history if its reset marker failed. The source's error budget does not belong to its replacement.
 
+**A lost first presence delivery can leave an idle consumer idle forever.** Mira's
+running-job reread starts only after the Island sees running work. Preserve the
+coalesced delayed producer directory notification: it carries no state, leaves
+ended-token timestamps untouched and never recreates a departed session's
+runtime directory. Prove recovery with a real FolderListModel whose first
+consumer delivery is discarded; expiry of that blind interval must not itself
+call sync. This measures recovery, not the cause of an earlier intermittent Qt
+startup timeout. No perpetual idle polling or finished-task resurrection.
+
 **A hidden tab still has width, and fallback coordinates still need a real desktop.**
 Plasma TabBar counts invisible children in its default equal-width formula. Five declared
 Island tabs left two active Arabic labels a letter-wide column. Render the real Qt controls:

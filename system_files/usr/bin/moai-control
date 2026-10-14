@@ -1958,6 +1958,44 @@ def _for_model(executor: str, output: str) -> str:
 JOB_TOKEN_TOOL = re.compile(r"[a-z_]{1,40}")
 JOB_TOKEN_LINGER = 20.0
 JOB_TOKEN_ENDED = re.compile(r"job-[0-9a-f]{8}-(?:done|failed)-[a-z_]{1,40}")
+_job_feed_lock = threading.Lock()
+_job_feed_resignals: dict[_PolicyPath, threading.Timer] = {}
+
+
+def _schedule_job_feed_resignal(folder: _PolicyPath) -> None:
+    """Ring the directory once more after a change, coalescing an active burst.
+
+    A missed first delivery leaves the Island idle, so its running-job reread
+    timer never starts. A delayed directory event recovers that case without
+    polling an idle shell. It carries no job state and never changes token
+    timestamps or recreates a running token after the job ended.
+    """
+    def notify() -> None:
+        # A publication arriving while this notification is delivered deserves
+        # its own later event; do not absorb it into a scan already in progress.
+        with _job_feed_lock:
+            _job_feed_resignals.pop(folder, None)
+        marker = None
+        try:
+            fd, marker = tempfile.mkstemp(prefix=".moai-feed-", dir=folder)
+            os.close(fd)
+        except OSError:
+            pass                         # presence must never fail the real job
+        finally:
+            if marker is not None:
+                with contextlib.suppress(OSError):
+                    os.unlink(marker)
+
+    with _job_feed_lock:
+        if folder in _job_feed_resignals:
+            return
+        timer = threading.Timer(1.0, notify)
+        timer.daemon = True
+        _job_feed_resignals[folder] = timer
+        try:
+            timer.start()
+        except RuntimeError:
+            _job_feed_resignals.pop(folder, None)
 
 
 def _jobs_dir() -> _PolicyPath | None:
@@ -2013,6 +2051,7 @@ def _publish_job_token(job_id: str, tool: str, state: str, previous: str | None 
     except OSError:
         return None
     _sweep_ended_job_tokens(folder, keep=name)
+    _schedule_job_feed_resignal(folder)
     return name
 
 
@@ -2021,6 +2060,7 @@ def _retire_job_token(name: str, folder: _PolicyPath | None = None) -> None:
     if folder is not None:
         with contextlib.suppress(OSError):
             (folder / name).unlink()
+            _schedule_job_feed_resignal(folder)
 
 
 def _clear_job_tokens() -> None:
