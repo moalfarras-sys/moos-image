@@ -12,8 +12,11 @@ Every run uses a private HOME and private XDG directories.
 
 from __future__ import annotations
 
+import contextlib
+import errno
 import importlib.machinery
 import importlib.util
+import io
 import json
 import os
 from pathlib import Path
@@ -24,6 +27,7 @@ import sys
 import tempfile
 import time
 import unittest
+from unittest import mock
 
 ROOT = Path(__file__).resolve().parents[1]
 INDEXER = Path(os.environ.get("MOOS_STORE_INDEX_UNDER_TEST")
@@ -285,6 +289,92 @@ class OneGenerationAtATime(unittest.TestCase):
             names = sorted(path.name for path in fixture.cache.iterdir()
                            if path.name.startswith("details"))
             self.assertEqual(len(names), 2)       # the link and its one generation
+
+
+class AFailedBuild(unittest.TestCase):
+    """A build that fails on a full disk fails as a whole: it publishes nothing, leaves no
+    private .details-…tmp directory, and the last good index and set stay.
+
+    Until 2026-10-15 a FIRST build that failed before its set was complete kept the directory:
+    with no `details` link yet, "the published set" and "this build's set" were both None, so
+    the clean-up decided the failed set was the published one. Up to 3,321 files (~14 MB)
+    stayed for an hour, one more set per failed launch. And a document that could not be
+    written was taken for an unreadable AppStream file: the parse stopped there and the apps
+    read so far were published as the whole catalogue, kept by every later launch until
+    Flathub's metadata changed.
+    """
+
+    def run_failing(self, fixture: Fixture, where: str) -> int:
+        calls = []
+        full = OSError(errno.ENOSPC, "No space left on device")
+        if where == "document":
+            original = index.DetailsBuilder.write
+
+            def failing(builder, app_id, document):
+                calls.append(app_id)
+                if len(calls) > 1:
+                    raise full
+                original(builder, app_id, document)
+            method = "write"
+        else:
+            def failing(builder):
+                calls.append("finish")
+                raise full
+            method = "finish"
+
+        environment = {"HOME": str(fixture.home),
+                       "XDG_DATA_HOME": str(fixture.home / ".local/share"),
+                       "XDG_CACHE_HOME": str(fixture.home / ".cache"),
+                       "XDG_STATE_HOME": str(fixture.home / ".local/state"),
+                       "XDG_CONFIG_HOME": str(fixture.home / ".config"),
+                       "DBUS_SESSION_BUS_ADDRESS": "unix:path=/nonexistent"}
+        machine = fixture.base / "machine.json"
+        machine.write_text(json.dumps({"arch": "x86_64", "free_bytes": {"apps": 10 ** 12}}),
+                           encoding="utf-8")
+        with mock.patch.dict(os.environ, environment), \
+                mock.patch.object(index.DetailsBuilder, method, failing), \
+                contextlib.redirect_stderr(io.StringIO()):
+            code = index.main([
+                "--output", str(fixture.output), "--catalog", str(fixture.catalog),
+                "--appstream-root", str(fixture.base / "flatpak/appstream"),
+                "--installation-root", str(fixture.base / "flatpak"), "--locale", "en",
+                "--engines", "all", "--machine", str(machine)])
+        self.assertGreater(len(calls), 1 if where == "document" else 0,
+                           "the injected failure never happened")
+        return code
+
+    @staticmethod
+    def leftovers(fixture: Fixture) -> list[str]:
+        if not fixture.cache.is_dir():
+            return []
+        return sorted(path.name for path in fixture.cache.iterdir()
+                      if path.name.startswith(".details-"))
+
+    def test_a_failed_first_build_leaves_nothing_behind(self):
+        for where in ("finish", "document"):
+            with self.subTest(failure=where), tempfile.TemporaryDirectory() as raw:
+                fixture = Fixture(Path(raw))
+                for _attempt in range(2):       # each failed launch used to add one more
+                    self.assertEqual(self.run_failing(fixture, where), 2)
+                    self.assertEqual(self.leftovers(fixture), [])
+                self.assertFalse((fixture.cache / "details").exists())
+                self.assertFalse(fixture.output.exists(), "a failed build published an index")
+
+    def test_a_failed_rebuild_keeps_the_last_good_index_and_set(self):
+        for where in ("finish", "document"):
+            with self.subTest(failure=where), tempfile.TemporaryDirectory() as raw:
+                fixture = Fixture(Path(raw))
+                good = fixture.run()
+                published = fixture.target()
+                fixture.xml.write_text(RICH.replace("Faster saving.", "Even faster."),
+                                       encoding="utf-8")
+                self.assertEqual(self.run_failing(fixture, where), 2)
+                self.assertEqual(fixture.target(), published)
+                self.assertTrue((published / ".complete").is_file())
+                self.assertEqual(self.leftovers(fixture), [])
+                kept = json.loads(fixture.output.read_text(encoding="utf-8"))
+                self.assertEqual(kept["generation"], good["generation"])
+                self.assertEqual(len(kept["apps"]), len(good["apps"]))
 
 
 class BuilderUnits(unittest.TestCase):

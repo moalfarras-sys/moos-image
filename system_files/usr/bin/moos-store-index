@@ -489,6 +489,14 @@ class XmlLimitError(IndexErrorBase):
     """A decompressed AppStream file exceeded its safety limit."""
 
 
+class DetailsWriteError(Exception):
+    """A details document could not be written (a full disk): the build fails as a whole.
+
+    Deliberately not an OSError: the AppStream loop takes those for an unreadable source and
+    goes on, and until 2026-10-15 it published the apps read so far as the whole catalogue,
+    which every later launch then reused (measured: 3 of 10 apps, exit 0)."""
+
+
 class LimitedReader:
     """Small read proxy that caps decompressed XML, including gzip streams."""
 
@@ -4235,7 +4243,13 @@ def build_index(
         # The details document follows the entry that won: one per id, written
         # once per parsed revision (a reused revision's documents are identical).
         if details is not None and document is not None and winner is app:
-            details.write(app["id"], document)
+            try:
+                details.write(app["id"], document)
+            except OSError as error:
+                # Writing failed, not reading: the source loop around this must not
+                # take it for an unreadable AppStream file and publish what it has.
+                raise DetailsWriteError(
+                    f"cannot write the details of {app['id']}: {error}") from error
 
     parsed_sources, superseded_sources = supersede_older_sources(discovered_sources)
     # A parsed revision is kept for reuse only when another source carries it too;
@@ -5235,10 +5249,14 @@ def main(argv: list[str] | None = None) -> int:
                 atomic_write_json(args.output, payload)
                 clean_details(cache_dir, keep=generation)
         except BaseException:
-            if details_target(cache_dir) != details.final:
+            # Keep this build's set only when `details` already names it (the index write
+            # after it failed). Before finish() there is no set of its own to keep, and on a
+            # first run there is no link either: both were None, and the failed build's
+            # private directory was kept as if it had been published.
+            if details.final is None or details_target(cache_dir) != details.final:
                 details.discard()
             raise
-    except (CatalogError, OSError) as error:
+    except (CatalogError, OSError, DetailsWriteError) as error:
         print(f"moos-store-index: {error}", file=sys.stderr)
         return 2
     return 0
