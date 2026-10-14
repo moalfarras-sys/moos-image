@@ -29,6 +29,7 @@ import importlib.util
 import io
 import json
 import os
+import signal
 import stat
 import subprocess
 import sys
@@ -669,6 +670,70 @@ class AppImages(Home):
         with self.assertRaises(appdrop.DropError) as refused:
             appdrop.install(plan)
         self.assertEqual(refused.exception.code, "no_sandbox")
+
+
+class ExtractionStaysAlive(unittest.TestCase):
+    """A big AppImage's squashfs takes minutes to unpack. The extractor must be polled during that
+    time so the Store job's heartbeat keeps running and Cancel is honoured — not left blind in one
+    600 s `subprocess.run` whose only cancel check ran after it returned."""
+
+    class FakeChild:
+        def __init__(self, pid: int):
+            self.pid = pid
+            self.returncode = None
+            self.waits = 0
+
+        def wait(self, timeout=None):
+            self.waits += 1
+            raise subprocess.TimeoutExpired("extractor", timeout)   # never finishes on its own
+
+    def test_a_long_extraction_polls_cancel_and_kills_the_session(self):
+        from unittest import mock
+        beats: list[int] = []
+
+        def cancelled() -> bool:
+            beats.append(1)
+            return len(beats) >= 3          # Cancel arrives on the third poll
+
+        budget = appdrop._Budget(1, cancelled, lambda _done: None)
+        child = self.FakeChild(424242)
+        killed: list[tuple] = []
+        with mock.patch.object(appdrop.subprocess, "Popen", return_value=child) as popen, \
+                mock.patch.object(appdrop.os, "killpg", side_effect=lambda *a: killed.append(a)):
+            with self.assertRaises(appdrop.DropError) as refused:
+                appdrop._run_extractor(["/usr/bin/bwrap", "--appimage-extract"], budget)
+        self.assertEqual(refused.exception.code, "cancelled")
+        self.assertGreaterEqual(len(beats), 3, "cancel/heartbeat was never polled during extraction")
+        self.assertTrue(child.waits >= 3, "the extractor was not polled")
+        self.assertTrue(killed and killed[0][0] == 424242, "the extractor's process group was not killed")
+        self.assertIs(killed[0][1], signal.SIGKILL)
+        self.assertTrue(popen.call_args.kwargs.get("start_new_session"),
+                        "the extractor must be its own session so the whole sandbox can be killed")
+
+    def test_a_stalled_extraction_times_out_and_is_killed(self):
+        from unittest import mock
+        clock = [0.0]
+
+        def monotonic() -> float:
+            return clock[0]
+
+        child = self.FakeChild(999)
+
+        def wait(timeout=None):
+            clock[0] += 1000.0              # each poll jumps the clock past EXTRACT_TIMEOUT
+            child.waits += 1
+            raise subprocess.TimeoutExpired("extractor", timeout)
+
+        child.wait = wait
+        budget = appdrop._Budget(1, lambda: False, lambda _done: None)
+        killed: list[tuple] = []
+        with mock.patch.object(appdrop.subprocess, "Popen", return_value=child), \
+                mock.patch.object(appdrop.time, "monotonic", side_effect=monotonic), \
+                mock.patch.object(appdrop.os, "killpg", side_effect=lambda *a: killed.append(a)):
+            with self.assertRaises(appdrop.DropError) as refused:
+                appdrop._run_extractor(["/usr/bin/bwrap"], budget)
+        self.assertEqual(refused.exception.code, "extract_timeout")
+        self.assertTrue(killed, "a timed-out extractor was not killed")
 
 
 @unittest.skipUnless(sys.platform.startswith("linux"), "moos-storectl needs fcntl")

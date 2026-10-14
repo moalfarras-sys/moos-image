@@ -38,6 +38,7 @@ pinned path must lie inside the extracted tree, exactly as the guesses must.
 
 from __future__ import annotations
 
+import contextlib
 import dataclasses
 import hashlib
 import json
@@ -45,9 +46,11 @@ import os
 from pathlib import Path, PurePosixPath
 import re
 import shutil
+import signal
 import stat
 import subprocess
 import tarfile
+import tempfile
 import time
 from typing import Any, Callable
 import zipfile
@@ -471,6 +474,44 @@ def tool_sandbox_argv(inputs: dict[str, Path], out: Path, command: list[str]) ->
     return argv + _sandbox_tail(out) + list(command)
 
 
+def _terminate_group(child: "subprocess.Popen[Any]") -> None:
+    """Kill the extractor and everything in its session — bwrap and the tool it launched."""
+    with contextlib.suppress(OSError):
+        os.killpg(child.pid, signal.SIGKILL)
+    with contextlib.suppress(OSError, subprocess.SubprocessError):
+        child.wait(timeout=5)
+
+
+def _run_extractor(argv: list[str], budget: _Budget) -> subprocess.CompletedProcess:
+    """Run the sandboxed extractor while staying observably alive.
+
+    The squashfs of a 1 GB AppImage can take minutes, so instead of one blind `subprocess.run`
+    this polls the budget's cancel about four times a second — which also beats the Store job's
+    heartbeat, so the window never decides a live unpack has stopped — and kills the whole sandbox
+    session on cancel or timeout. It returns the same CompletedProcess shape `subprocess.run` did.
+    """
+    deadline = time.monotonic() + EXTRACT_TIMEOUT
+    with tempfile.TemporaryFile() as errors:
+        child = subprocess.Popen(argv, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
+                                 stderr=errors, start_new_session=True)
+        try:
+            while True:
+                try:
+                    child.wait(timeout=0.25)
+                    break
+                except subprocess.TimeoutExpired:
+                    if budget.cancelled():
+                        raise DropError("cancelled")
+                    if time.monotonic() > deadline:
+                        raise DropError("extract_timeout")
+        except BaseException:
+            _terminate_group(child)
+            raise
+        errors.seek(0)
+        tail = errors.read()[-300:]
+    return subprocess.CompletedProcess(argv, child.returncode, b"", tail)
+
+
 def extract_appimage(appimage: Path, root: Path, budget: _Budget,
                      run: Callable[..., Any] = subprocess.run) -> None:
     if not Path(BWRAP).is_file() and run is subprocess.run:
@@ -483,11 +524,18 @@ def extract_appimage(appimage: Path, root: Path, budget: _Budget,
         staged.chmod(0o500)
         out = stage / "out"
         out.mkdir()
-        try:
-            done = run(sandbox_argv(staged, out), stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
-                       stderr=subprocess.PIPE, timeout=EXTRACT_TIMEOUT, check=False)
-        except subprocess.TimeoutExpired as error:
-            raise DropError("extract_timeout") from error
+        argv = sandbox_argv(staged, out)
+        if run is subprocess.run:
+            # The real path polls for cancel and keeps the heartbeat; a timeout or cancel is a
+            # DropError straight from the poller. A test injects its own `run` and takes the
+            # blocking call below.
+            done = _run_extractor(argv, budget)
+        else:
+            try:
+                done = run(argv, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
+                           stderr=subprocess.PIPE, timeout=EXTRACT_TIMEOUT, check=False)
+            except subprocess.TimeoutExpired as error:
+                raise DropError("extract_timeout") from error
         tree = out / "squashfs-root"
         if getattr(done, "returncode", 1) != 0 or not tree.is_dir():
             detail = (getattr(done, "stderr", b"") or b"")[-300:].decode("utf-8", "replace")
