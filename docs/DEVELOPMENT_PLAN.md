@@ -26,7 +26,7 @@ native Qt component samples pass across AR/EN, light/dark, two/five contexts,
 100/150/250% and normal/reduced; completed original-source 250% controls fail.
 New M1 source recovers a lost first Mira task delivery with one coalesced delayed
 real directory event, without idle polling or token resurrection. Old/fixed
-native Qt controls and 62 control tests pass; this does not establish the prior
+native Qt controls and [62 control tests pass](releases/2026-10-14-mira-job-presence-proof.json); this does not establish the prior
 intermittent Qt startup failure's cause. Signed delivery is pending separately.
 Next acceptance is native installed shell input/focus and screen-reader behavior.
 
@@ -63,18 +63,20 @@ URI/source gates remain delivered within their recorded scope. Broader
 cancellation/stall/quota/voice/clean-account and hardware/application journeys
 remain open in their rows. See [runtime evidence](AUDIT_20261013_RUNTIME_AR.md).
 
-P0.12 public ISO remains fully qualified .1026. Exact .1046 local archive
-signature/hash/checksum pass; unused .1044 archive retired with replacement,
-ancestry and no-holder proof. .1046 installs offline and reboots, but new anonymous full-transfer,
-sidecars/ranges and website qualification remain. Retire only exact unused
-superseded local archives after replacement/signature/ancestry/holder proof.
-The website audit also found unsafe mutable-tag conversion commands and
-scripts allowing skipped signature checks. Website PR57 merged at a0bce332 and the reviewed identical tree is deployed
-on its existing independent Worker. Maintained web/admin/static checks, 99
-tests, old/fixed executable controls, eight local/eight public native browser
-views, mobile guide and exact route/script readbacks pass. The qualified generic
-ISO remains .1026; NVIDIA/Cloud first migration remains explicitly unavailable
-through the inert retired scripts pending a separately qualified journey.
+P0.12 public .1046 now passes complete anonymous download/signature/hash,
+resumed ranges, exact sidecars, paired public metadata and eight local/eight
+public AR/EN native browser views. Publication uses the existing independent
+Static Assets/R2 host. [Delivery](releases/2026-10-14-public-download-proof.json)
+and [site receipt](releases/2026-10-14-public-site-1046-proof.json) record the
+exact source, successful boot/install/promotion runs and deployed versions.
+Previous .1026 retains original bytes through Oct16 12:00 UTC; only a qualified
+replacement permits expiry. Current .1046/local archive and signed rollback stay.
+The site deployment's enclosing exec ended 143 after printing success; actual
+public paired bytes/redirects/views independently pass. Cause remains unproven.
+Website PR57's inert unsafe conversion scripts remain inert. Web/admin checks,
+99 tests, dashboard build and 21 download boundaries pass; Android command
+returns 127 because the repository invokes Windows gradlew.bat on Linux.
+NVIDIA/Cloud first migration still needs its separately qualified journey.
 
 The cadence of release cycles is the security cadence: nightly image-only
 builds cannot deliver a base fix. P6.3 stays open until bounded, boot-proven
@@ -346,7 +348,7 @@ itself and an unreviewed MoOS would ship kscreenlocker's emergency locker.
 | P0.9 | Run image-only gates before the merge | Stable mechanism/artifact evidence recorded. Native audit adds the omitted moplayer/** x86 PR trigger; the new input gate fails against the old workflow and passes fixed. ARM already watches the in-tree player. No publishing permission added; final x86/ARM image CI and signed cycle pass | PR generic image gates block real image failures; no signing/publishing from PR. |
 | P0.10 | Gate NVIDIA persistence on a bound GPU | Stable mechanism/artifact evidence recorded; preserve required gates | Bound NVIDIA hardware and exact-kernel persistence/initramfs proof. |
 | P0.11 | Give first-boot Flatpak setup a realistic finite timeout | Stable mechanism/artifact evidence recorded; preserve required gates | Finite realistic first-boot app setup timeout and actual ARM reboot. |
-| P0.12 | Deliver the exact signed, installed-system-proven ISO through a stable anonymous download | Delivered .1026: full anonymous transfer/signature/hash/resumed ranges/exact sidecars at Oct11 21:24:17 UTC; paired frontend/eight local/eight public views pass. .1018 retired; .1022 three public objects actually retired Oct12 12:05:06 UTC (5,827,068,083 bytes), receipt inspected and completed local retirement timers archived. Fresh explicit-UA readbacks return 410; .989 local archive retired after hash/ancestry/no-holder checks | Repeat stable anonymous full signed ISO, exact size/hash and resumed ranges, sidecars and site readback for each release. |
+| P0.12 | Deliver the exact signed, installed-system-proven ISO through a stable anonymous download | Delivered .1046: full anonymous transfer/signature/hash/resumed ranges/exact sidecars at Oct14 17:58:53 UTC; paired public metadata, eight local/eight public native views and actual three redirects pass. .1026 retains immutable bytes through Oct16 12:00 UTC; .1018/.1022 retirement complete. Exact current local archive and signed rollback remain separate. Enclosing site-deploy exec 143 is preserved with independent exact active-byte acceptance | Repeat stable anonymous full signed ISO, exact size/hash and resumed ranges, sidecars and site readback for each release. |
 
 ## P1 — Reliability and first run
 
@@ -371,7 +373,7 @@ itself and an unreviewed MoOS would ship kscreenlocker's emergency locker.
 | P2.5 | Visual, contrast, scale and reduced-motion matrix | Native audit reproduces a lost blur/clarity file update with the real producer. Atomic generation publication and unchanged finite event readback pass 480 native transitions, invalid/ambiguous/absent and broken-reader controls; THEME_REV/fingerprint=103 in source. Signed .1034/.763 delivery passes; Oracle native boot/bytes pass; full visual/scale/motion matrix remains open | 1080p–4K, 100–250%, Arabic RTL/English LTR, light/dark, reduced motion and measured readable contrast. |
 | P2.6 | Asset reachability and removal of retired UI | Open: archived translucent-dialog prototype retained, but current-theme blur-off qualification/integration remains | Generator/runtime/test consumers proven; retain negative fixtures and required upstream notices; never restore obsolete generated assets over today's theme. |
 | P2.7 | Horizon feedback, clock input and system sound | Open / acceptance not complete | Finite stable-hit feedback, reversal/hidden/reduced-motion proof, clock keys and actual event sound. |
-| P2.8 | MoOS Bar, Search and Island as one shell | Island visible-context arrows, Return/Enter and retired-domain correction pass native isolated Qt and signed .1046/.775 qualification; installed full-shell/accessibility acceptance remains | Native accessible Search/Island/Bar, keyboard escape, multi-context tabs and truthful lifecycle tokens. |
+| P2.8 | MoOS Bar, Search and Island as one shell | Island visible-context arrows, Return/Enter and retired-domain correction pass native isolated Qt and signed .1046/.775 qualification; [Actual installed inventories](releases/2026-10-14-running-shell-components.json) show one active Bar per station with one Brand/Island/clock and native KDE task/tray integration; keyboard/render/Orca acceptance remains | Native accessible Search/Island/Bar, keyboard escape, multi-context tabs and truthful lifecycle tokens. |
 | P2.9 | User-visible MoOS identity on every surface | Implemented/delivered within recorded scope; wider acceptance remains | Unchanged identity gates plus actual login/boot/desktop/app surfaces; legal attribution preserved. |
 | P2.10 | Readable text and glyph contrast on every palette | Open / acceptance not complete | All schemes meet role-specific contrast; actual glyph/card/pointer frames instead of token names. |
 | P2.11 | Visible, bilingual update changes | Implemented/delivered within recorded scope; wider acceptance remains | Readable current entries and working routes, delivered update/notification readback. |
@@ -432,7 +434,7 @@ itself and an unreviewed MoOS would ship kscreenlocker's emergency locker.
 | P6.4 | Add staged rollout and release health | Open / acceptance not complete | Staged rings, halt/rollback criteria and actual field release health. |
 | P6.5 | URL, Remote, AI and diagnostic security boundaries | Implemented/delivered within recorded scope; wider acceptance remains; the integrated audit cycle is signed/promoted | Auth/UID/URL/PIN/upload/secret boundaries and failure controls; native dependency advisories refuse release. |
 | P6.6 | Establish support lifecycle and migration policy | Open / acceptance not complete | Published support/upgrade/rollback/EOL policy plus clear licences, attribution and official identity. |
-| P6.7 | Reviewed Plasma seams before upstream transitions | Reliability PR224 merged. Canary 38099434894 passes exact signed COPR 6.7.91 SRPM (ea530281…), unchanged prepared worker SHA (76ed150d…), preserved vendor flags/patches, 38 package controls and inactive-store input/boot-policy equality (1,274 modules)/nine refusal controls. Actual canary packages, 12 reviewed seams, native logout RPM/greeter and final image gates pass; signed reliability cycle 38128732396/38136731168 is qualified/promoted; it does not deliver unreviewed stable 6.8.0. Final 6.8.0 NVR stays unreviewed/refused | Actual next-Plasma canary, registered reviewed seams and old/broken/native controls; review the final stable NVR separately rather than widening an allowed range. |
+| P6.7 | Reviewed Plasma seams before upstream transitions | [Latest Oct12 canary 38248425611](releases/2026-10-14-plasma-canary-readback.json) passes Plasma workspace/desktop/KWin/libplasma 6.7.91-1 and locker 6.7.91-2 with Qt 6.11.2-3, 12 seams, actual greeter and native logout RPM. Reliability PR224 merged; earlier canary 38099434894 passes exact signed COPR 6.7.91 SRPM (ea530281…), unchanged prepared worker SHA (76ed150d…), preserved vendor flags/patches, 38 package controls and inactive-store input/boot-policy equality (1,274 modules)/nine refusal controls. Actual canary packages, 12 reviewed seams, native logout RPM/greeter and final image gates pass; signed reliability cycle 38128732396/38136731168 is qualified/promoted; it does not deliver unreviewed stable 6.8.0. Final 6.8.0 NVR stays unreviewed/refused | Actual next-Plasma canary, registered reviewed seams and old/broken/native controls; review the final stable NVR separately rather than widening an allowed range. |
 | P6.8 | Separate reviewed next-base transition lane | Open / acceptance not complete | Reviewed next-base packages, all native seams/boot/apps/identity gates and migration/support qualification. |
 | P6.9 | Native user/developer participation | Beta integrated/promoted in .1022/.749; native launch/shutdown and ARM D-Bus controls pass, plus 34 API/11 native and actual Wayland/Oracle TLS flow. Both hosts boot delivered client bytes; actual .1022 native capture/shutdown passes and Oracle public health is ready. Capture retains Qt/portal-registration warnings; the recovered QApplication picker correction passes source native Arabic/English cancellation and physical Wayland readback; its signed installed selection/upload flow still needs acceptance. Branded DNS/onboarding/recovery/full moderation UI/preferences/endurance remain open | Real authenticated service/client, private image attachments, account isolation and bounded uploads, admin moderation, retry/offline and promoted-release notifications; no secrets or automatic screenshots. |
 

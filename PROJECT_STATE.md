@@ -58,25 +58,24 @@ pickers pass; wider user journeys remain in the single development plan.
 
 ARM proves native first-party linkage, two healthy boots and clean poweroff.
 CI greeter pixels show MoOS identity; English login buttons remain a locale gap.
-The public ISO remains independently qualified .1026: 5,827,133,440 bytes,
-SHA-256 `288fcb001aabc990103653cd622d11734a5472cf7942715429eb1934dd3cb57b`.
-Its actual anonymous HTTP 200/206 availability was refreshed with the maintained
-verification user agent. Generic urllib requests can be rejected by Cloudflare
-1010; that is not proof of outage. No WAF rule was changed.
-Full-transfer receipt: [public download proof](docs/releases/2026-10-11-public-download-proof.json).
-Exact current .1046 ISO is locally archived: 5,830,410,240 bytes, SHA-256
-`37053a88ae313f994875794055035d53134206a88eb44fb160b39fef3bb04821`,
-detached signature and checksum verified. Exact unused .1044 ISO/signature/
-checksum retired after both signatures, hashes, ancestry and no holders:
-5,830,410,419 logical bytes; native /var net gain 5,829,640,192 bytes.
-[Archive/retirement proof](docs/releases/2026-10-14-current-archive-proof.json).
-New anonymous full-transfer/sidecar/site qualification remains incomplete.
-Public .1018/.1022 retirement completed after grace periods. Static Assets/R2
-host the public site with scoped CDN redirects; no billing plan was changed.
-Website PR57 merged at `a0bce332`; the identical reviewed tree is deployed on
-the existing Cloudflare Worker. Eight local/eight public AR/EN browser views,
-mobile guidance, exact inert scripts and routes pass. Qualified ISO stays .1026.
-Vercel preview restrictions are separate; no authentication or billing changed.
+Public .1046 is independently qualified and published: 5,830,410,240 bytes,
+SHA-256 `37053a88ae313f994875794055035d53134206a88eb44fb160b39fef3bb04821`.
+Full anonymous HTTP 200, resumed 206 ranges, signature and exact sidecars pass
+at Oct14 17:58:53 UTC. [Delivery proof](docs/releases/2026-10-14-public-download-proof.json).
+Eight local/eight public native Chromium AR/EN views, exact paired metadata,
+three actual redirects and inert installer bytes pass. [Site proof](docs/releases/2026-10-14-public-site-1046-proof.json).
+Site version `1bbe00dc-c579-4015-ae82-af7a58c9fc93`; download version
+`b322760e-4302-44d1-940d-3eb2f49913d1`. The site deployment printed success,
+then its enclosing exec ended 143 before an exit receipt; exact active bytes
+and public views independently qualify it. Its termination cause is unproven.
+The .1046 marker is published only after that acceptance. Previous .1026 stays
+resumable through Oct16 12:00 UTC; no old immutable URL redirects to new bytes.
+.1018/.1022 retirement is complete. Current local .1046 and signed rollback stay;
+exact .1044 retirement has [its proof](docs/releases/2026-10-14-current-archive-proof.json).
+Web/admin checks and 99 tests pass; dashboard's missing declared dependency is
+installed only in the private test worktree and its build passes. The broader
+Android check returns 127 on Linux's unavailable Windows `gradlew.bat`.
+No other product, API, DNS, WAF, authentication or billing setting changed.
 
 ## Oracle A1 development station
 
@@ -107,14 +106,13 @@ read was performed. A prior free synthetic reply on NVIDIA was a separate proof.
 
 Seven exact unused audit images retired only after container/ancestry/replacement
 checks: total physical free-space gain 33,544,560,640 bytes (~31.2 GiB).
-Exact unused local .1042 ISO/signature/checksum retired after both signatures,
-hashes, ancestry and no holders: 5,827,985,587 logical bytes; concurrent native
-/var net gain 5,827,317,760 bytes. Proof is retained; .1044 archive/public .1026
-and signed OS rollback are intact. Current .1046 archival and exact .1044
-retirement completed; writable /var currently measures 26 GiB free. One exact unused
+Earlier exact local .1042/.1044 archive retirement preserves proofs, public
+.1026, current .1046 and signed rollback; writable /var currently measures 26 GiB free. One exact unused
 local greeter audit image was untagged with no parent prune; its shared layers
 produced no measured free-space gain. Current image/SDK/owner containers stay. Composefs /
-100% is not writable disk exhaustion. SDK/owner containers/data/rollback stay.
+100% is not writable disk exhaustion. One unused Oct8 generated audit ISO
+retired after signatures/ancestry/no-holder checks: 5,808,128,179 logical bytes;
+concurrent immediate free-space delta=0. [Receipt](docs/releases/2026-10-14-old-audit-iso-retirement.json).
 Obsolete completed retirement units are archived. Mo Store updated available
 user apps. Core/journal bounds and weekly cleanup are active.
 A 30 s editor/services sample has 7.17–7.28 GiB available; KWin uses 5.59%
@@ -175,7 +173,7 @@ acceptance remain. Earlier .1026's 54/55 native acceptance is historical evidenc
 
 Current M1 source adds one coalesced delayed directory notification for Mira's
 confirmed task presence. A real Qt consumer with its first delivery discarded
-fails old source and recovers fixed; 62 control tests pass. Token end state/age
+fails old source and recovers fixed; [62 control tests pass](docs/releases/2026-10-14-mira-job-presence-proof.json). Token end state/age
 and a retired session directory remain intact, with no idle poll. This measures
 missed-delivery recovery, not the unproven cause of the prior intermittent Qt
 startup timeout. Signed delivery of this additional source is separate.
@@ -190,7 +188,7 @@ real hardware/private-TLS enrollment/phone/WAN endurance remain P2.17.
 Old unmerged APK/PE work has 82 isolated tests; not ten real application journeys.
 Oracle's installed Linux engine does not imply Windows/Android engines exist.
 
-Canary 38099434894 passes reviewed Plasma 6.7.91/12 seams; stable 6.8.0/Qt
+[Latest canary 38248425611](docs/releases/2026-10-14-plasma-canary-readback.json) passes Plasma 6.7.91/12 seams and real greeter; stable 6.8.0/Qt
 6.12 are unreviewed and refused. Do not widen pins or layer them on the host.
 Hardware boot visuals/suspend/hotplug/multi-monitor/laptop/touch, deliberate
 failed-update/rollback, full AR/EN accessibility/contrast/scale/motion, clean

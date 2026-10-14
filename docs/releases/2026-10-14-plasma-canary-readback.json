@@ -1,0 +1,27 @@
+{
+  "schema": 1,
+  "checkedAt": "2026-10-14T17:33:35.304958+00:00",
+  "run": 38248425611,
+  "sourceRevision": "d44cecfd68e0ab6a1cfcdc171ee657351ce0107f",
+  "conclusion": "success",
+  "packages": [
+    "plasma-workspace-6.7.91-1.fc44.x86_64",
+    "plasma-desktop-6.7.91-1.fc44.x86_64",
+    "kscreenlocker-6.7.91-2.fc44.x86_64",
+    "kwin-6.7.91-1.fc44.x86_64",
+    "libplasma-6.7.91-1.fc44.x86_64",
+    "qt6-qtbase-6.11.2-3.fc44.x86_64",
+    "plasma-workspace: base has 6.7.91, kde-beta offers 6.7.91"
+  ],
+  "seams": 12,
+  "realGreeterLoads": true,
+  "nativeLogoutPackageAndFinalBytesPass": true,
+  "artifactLogSha256": {
+    "versions.txt": "ac9c4d3dbb927639815ffc46df5ee481cf108513b351b669a5c8348b38c2e743",
+    "seams.txt": "bf61991bc2fb65fb9328f497033c1bdc6ae8ee8045ee1bb730305c7366e7d082",
+    "removed.txt": "40ffd45a53f42e942f6026509264ccb514b34d927e20940563c22d383dd77461",
+    "compose.log": "95f5e05802cc04bff12fd66a31c8056589c6769424e61ddd0dbe806844a02ee3",
+    "build.log": "00effc24f5b88587e391b5b2be88f103d3892cfe4b32aa1bae7ca5c96f8a2008"
+  },
+  "scope": "Actual x86 next-Plasma canary artifacts; stable 6.8.0 and Qt 6.12 remain unreviewed/refused, not host delivery or ARM proof"
+}

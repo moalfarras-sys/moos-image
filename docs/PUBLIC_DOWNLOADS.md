@@ -105,23 +105,27 @@ delivery results in `test-results/readiness-20261005/` (local, ignored).
 
 ## Current public release
 
-Exact .1026 ISO run 38133979283 and promotion 38136731168 passed. Anonymous
-full transfer, detached signature, size/SHA-256 and resumed ranges pass in
-[the public receipt](releases/2026-10-11-public-download-proof.json); both
-verification sidecars match. Current download:
-https://moos-downloads.moalfarras-moos.workers.dev/releases/44.20261011.1026/x86_64/moos-offline.iso .
-The paired manifest/proof and AR/EN page are independently published at
-https://moos-site.moalfarras-moos.workers.dev/ar/ . Eight public browser views
-and actual Worker/installer responses pass. Website PR56 holds this publication;
-its handoff records the exact Worker versions without mixing OS and site source.
-PR56 is merged at `11cb5052`; web/admin/dashboard source CI all pass. Existing
-Vercel previews retain the separate account-block error. Frontend version:
-`7fc92c0a-3f66-4114-8a74-dda39cf1681f`; download Worker:
-`72141578-1b4c-4a48-8e2c-e3e70295bb05`.
-Fourteen fresh public entrypoint/paired metadata/exact installer/query/resumed-range
-checks pass at 21:56:52 UTC, including the >4 GiB resume and an unrelated
-MoPlayer page remaining on its original host. Initial redirects still count as
-small Vercel CDN requests; subsequent MoOS assets/downloads execute on Cloudflare.
+Exact .1046 ISO run 38499638470 and promotion 38503482331 passed on
+source `1b947c21e6b3846f8eeaa73e2b75a6221dd172ac`. Full anonymous download,
+detached signature, 5,830,410,240 bytes, SHA-256
+`37053a88ae313f994875794055035d53134206a88eb44fb160b39fef3bb04821`,
+resumed ranges and exact sidecars pass at Oct14 17:58:53 UTC in
+[the delivery receipt](releases/2026-10-14-public-download-proof.json).
+[Download the exact ISO](https://moos-downloads.moalfarras-moos.workers.dev/releases/44.20261014.1046/x86_64/moos-offline.iso).
+
+The [Arabic/English public site](https://moos-site.moalfarras-moos.workers.dev/ar/)
+has exact paired metadata, eight local/eight public native Chromium views and
+three matching actual Worker redirects. [Site receipt](releases/2026-10-14-public-site-1046-proof.json)
+records frontend `1bbe00dc-c579-4015-ae82-af7a58c9fc93` and download Worker
+`b322760e-4302-44d1-940d-3eb2f49913d1`. The site's enclosing exec ended 143
+after the CLI printed success and before a shell exit receipt; exact active
+public bytes/views independently qualify the publication. Cause is unproven.
+The .1046 retirement marker was published only after this acceptance.
+Previous .1026 keeps its original ISO/signature/checksum resumable through
+**2026-10-16 12:00 UTC (14:00 Berlin)**. Its expiry requires the replacement
+marker; an upload/deploy failure must never expire the only qualified release.
+Its three objects have not been deleted early. Installed rollback is separate.
+The earlier .1026 qualification remains in its dated receipt and Git history.
 
 Superseded .1011 keys are deleted and return explicit 410. .1018 preserved its
 original immutable bytes through 2026-10-11 15:00 UTC; guarded retirement

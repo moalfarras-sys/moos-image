@@ -1,0 +1,28 @@
+{
+  "schema": 1,
+  "checkedAt": "2026-10-14T17:41:03.542542+00:00",
+  "scope": "Exact unused generated Oct8 audit ISO/signature/checksum only; owner CloudFiles, public .1026, current .1046 and signed deployments preserved",
+  "oldIsoRun": 37916929153,
+  "oldSourceRevision": "144b1a6ad04f0b7fa442183110ad6d969f636add",
+  "replacementSourceRevision": "1b947c21e6b3846f8eeaa73e2b75a6221dd172ac",
+  "sourceAncestor": true,
+  "noHolders": true,
+  "signaturesAndChecksums": {
+    "old": {
+      "sha256": "612a175308a76436549590cfb3d0ff7771ffe075a89a3fd77ab7ca47e675055a",
+      "sizeBytes": 5808128000,
+      "signatureVerified": true
+    },
+    "replacement": {
+      "sha256": "37053a88ae313f994875794055035d53134206a88eb44fb160b39fef3bb04821",
+      "sizeBytes": 5830410240,
+      "signatureVerified": true
+    }
+  },
+  "logicalBytesRetired": 5808128179,
+  "writableFreeBefore": 22079561728,
+  "writableFreeAfter": 22079561728,
+  "concurrentNetFreeChange": 0,
+  "physicalGainScope": "Net readback during concurrent image build; not independent attribution",
+  "passed": true
+}

@@ -1,0 +1,33 @@
+{
+  "schema": 1,
+  "checkedAt": "2026-10-14T18:14:35.121712+00:00",
+  "version": "44.20261014.1046",
+  "qualifiedSourceRevision": "1b947c21e6b3846f8eeaa73e2b75a6221dd172ac",
+  "websiteBaseRevision": "92fe3d7ecf38e201a8b0f263276874cf046815d9",
+  "siteDeployment": "1bbe00dc-c579-4015-ae82-af7a58c9fc93",
+  "downloadDeployment": "b322760e-4302-44d1-940d-3eb2f49913d1",
+  "siteDeployExecSessionExit": 143,
+  "siteDeployExecExitFilePresent": false,
+  "siteDeployScope": "CLI printed completed deployment; containing exec session ended before shell exit receipt. Exact active paired metadata and all three actual redirects independently match .1046; cause of session termination unproven. No duplicate site deployment.",
+  "downloadDeployExit": 0,
+  "publicationMarker": "44.20261014.1046",
+  "publicPairedBytesMatch": true,
+  "actualThreeRedirectsMatch": true,
+  "localViews": 8,
+  "publicViews": 8,
+  "webTests": {
+    "passed": 99,
+    "files": 14
+  },
+  "webAndAdminTypecheckLintBuild": "passed",
+  "dashboardBuildExit": 0,
+  "androidCheckExit": 127,
+  "androidBoundary": "Repository invokes Windows gradlew.bat on Linux; no Android build or release implied.",
+  "previousVersion": "44.20261011.1026",
+  "previousGraceUntil": "2026-10-16T12:00:00Z",
+  "reviewReceiptSha256": {
+    "browser-local-1046": "8baa19f07dba8719ba0f373d32f5f367f244e7e79298edf5efe20e7715858174",
+    "browser-public-1046": "1b680e7662da3a0daa6d494b7a5b8fd47a2ca756e690f19a9fd7fde68fffefa2"
+  },
+  "scope": "Existing MoOS independent Static Assets/R2 publication only; no other app, API, DNS, billing or signed OS update"
+}
