@@ -84,17 +84,32 @@ class Home(unittest.TestCase):
         return buffer.getvalue()
 
     def zip_bytes(self, members: list[tuple]) -> bytes:
-        """A .zip from (name, data) file members, or (name, target, "link") symlink members."""
+        """A .zip from (name, data) file members, (name, data, "exe") programs, or
+        (name, target, "link") symlink members."""
         buffer = io.BytesIO()
         with zipfile.ZipFile(buffer, "w") as bundle:
             for item in members:
-                if len(item) == 3 and item[2] == "link":
+                if len(item) == 3:
                     info = zipfile.ZipInfo(item[0])
-                    info.external_attr = (stat.S_IFLNK | 0o777) << 16
+                    mode = {"link": stat.S_IFLNK | 0o777, "exe": stat.S_IFREG | 0o755}[item[2]]
+                    info.external_attr = mode << 16
                     bundle.writestr(info, item[1])
                 else:
                     bundle.writestr(item[0], item[1])
         return buffer.getvalue()
+
+    @staticmethod
+    def links_leaving(folder: Path) -> list[str]:
+        """Every symlink under `folder` whose fully resolved target is outside it."""
+        found: list[str] = []
+        real = folder.resolve()
+        for current, folders, files in os.walk(folder):        # os.walk never follows a link
+            for name in folders + files:
+                path = Path(current) / name
+                target = Path(os.path.realpath(path))
+                if path.is_symlink() and not target.is_relative_to(real):
+                    found.append(f"{path.relative_to(folder)} -> {target}")
+        return found
 
     @staticmethod
     def member(name: str, data: bytes = b"", mode: int = 0o644) -> tuple[tarfile.TarInfo, bytes]:
@@ -313,6 +328,46 @@ class PortableArchives(Home):
         self.assertEqual(refused.exception.code, "unsafe_archive")
         self.assertFalse((self.home / ".config/autostart/pwn.desktop").exists())
         self.nothing_escaped()
+
+    def test_in_tree_links_install_when_the_home_is_reached_through_a_link(self):
+        # MoOS is an Atomic system: /home is itself a link to var/home, so a HOME of /home/<name>
+        # — or an ~/Applications moved to a bigger disk and linked back — reaches the extraction
+        # folder THROUGH a link. The zip path once built a link's target from that unresolved
+        # path and judged it against the RESOLVED folder, so there every legitimate in-tree link
+        # (a library's soname, AppRun -> bin/tool, lib -> lib64) was refused as "leaves the
+        # archive" while the same app as a .tar installed.
+        app = self.zip_bytes([("tool/bin/tool", ELF, "exe"), ("tool/AppRun", "bin/tool", "link"),
+                              ("tool/lib64/libfoo.so.1", ELF, "exe"),
+                              ("tool/lib64/libfoo.so", "libfoo.so.1", "link"), ("tool/lib", "lib64", "link")])
+        top = Path(self.tmp.name)
+        (top / "atomic/var/home/alice").mkdir(parents=True)
+        (top / "atomic/home").symlink_to("var/home")                      # MoOS's /home -> var/home
+        (top / "bigdisk/Applications").mkdir(parents=True)
+        (top / "bob").mkdir()
+        (top / "bob/Applications").symlink_to(top / "bigdisk/Applications")
+        for label, home in (("HOME is /home/<name>", top / "atomic/home/alice"),
+                            ("~/Applications is a link", top / "bob")):
+            with self.subTest(label):
+                os.environ["HOME"] = str(home)
+                download = home / "Downloads/tool-1.0.zip"
+                download.parent.mkdir(parents=True)
+                download.write_bytes(app)
+                manifest = appdrop.install(appdrop.inspect(download))
+                tree = Path(manifest["directory"])
+                self.assertEqual(os.readlink(tree / "lib64/libfoo.so"), "libfoo.so.1")
+                self.assertEqual(os.readlink(tree / "lib"), "lib64")
+                self.assertEqual(manifest["exec"], str((tree / "bin/tool").resolve()))
+                self.assertEqual(self.links_leaving(tree), [])
+        # The Windows-program shape: extract_zip itself, under an XDG data home reached by a link.
+        (top / "data").mkdir()
+        (top / "data-link").symlink_to(top / "data")
+        root = top / "data-link/moos/windows-apps/tool/.app.installing"
+        root.mkdir(parents=True)
+        archive = self.download("tool.zip", app)
+        appdrop.extract_zip(archive, root, appdrop._Budget(archive.stat().st_size, lambda: False,
+                                                           lambda _done: None))
+        self.assertEqual(os.readlink(root / "tool/lib64/libfoo.so"), "libfoo.so.1")
+        self.assertEqual(os.readlink(root / "tool/AppRun"), "bin/tool")
 
     def test_a_library_soname_link_inside_the_tree_is_kept(self):
         # Legitimate Linux app layout: a library's soname is a relative in-tree link. The hardened

@@ -399,13 +399,18 @@ def _extract_zip_links(root: Path, links: list[tuple[PurePosixPath, str]], budge
     """Create the archive's symlink members now that every file and folder is in place, so no
     file was ever written through one. A link is refused if it is absolute or lexically leaves the
     tree; then, with the whole set created, each link's fully resolved target is checked once more
-    — a chain of links can only be judged after all of its hops exist."""
+    — a chain of links can only be judged after all of its hops exist.
+
+    The lexical target is built on the resolved root it is judged against. The folders above each
+    link are real ones `_descend` made, but the root's own path may hold a link (/home -> var/home
+    on MoOS, an ~/Applications on another disk); built on that path, every in-tree soname link
+    looked like it left the tree."""
     resolved_root = root.resolve()
     for rel, link in links:
         destination = _descend(root, rel) / rel.parts[-1]
         if os.path.lexists(destination):
             raise DropError("unsafe_archive", f"{'/'.join(rel.parts)!r} appears twice")
-        target = Path(os.path.normpath(destination.parent / link))
+        target = Path(os.path.normpath(resolved_root.joinpath(*rel.parts[:-1], link)))
         if os.path.isabs(link) or not _inside(resolved_root, target):
             raise DropError("unsafe_archive", f"link leaves the archive: {'/'.join(rel.parts)!r}")
         destination.symlink_to(link)
