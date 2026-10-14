@@ -20,10 +20,15 @@ Keys this indexer adds beyond the contract's list, for the window and tests:
               (an App Drop install, a Flatpak AppStream no longer offers);
   slug        a dropped app's App Drop id (what `remove-file` takes);
   needs       the inputs of the compatibility verdict: {memory (MiB),
-              display {px, compare, side}, internet, size (bytes)}, omitted when
-              empty;
+              display {px, compare, side}, internet, size (bytes: the free space
+              an install needs at its peak, not its download), copy (bytes: one
+              more copy of a pinned download, counted where copies are not
+              shared)}, omitted when empty;
   cat         the Store category (catalogue ids); `category` keeps the older
               14 values the current window groups by.
+`generation.free_range` is [low, high|null]: the free bytes for which every
+low_disk verdict holds (null when free space is unknown); a cached index is
+reused only inside it.
 machine.json's `windows` adds `reflink` (can a program's settings folder share
 the template's extents here: true, false, or null when unknown) and `template`
 (moos-storectl's template settings folder is complete); low_disk reads both.
@@ -43,7 +48,6 @@ import gzip
 import hashlib
 import ipaddress
 import json
-import math
 import os
 import platform
 from pathlib import Path
@@ -3698,6 +3702,18 @@ MIB = 1024 * 1024
 # twice (DUP): about 1.3 MiB, counted as 2 MiB.
 WINDOWS_SETTINGS_BYTES = 900 * 1000 ** 2
 WINDOWS_SHARED_SETTINGS_BYTES = 2 * MIB
+# A pinned install needs far more than its download: the download stays until the job ends,
+# the app is unpacked beside it, and an AppImage (App Drop's staging copy) or an Android package
+# (the container's copy) is copied once more first. Measured on the station on 2026-10-15:
+# allocated bytes of the unpacked tree per downloaded byte, btrfs, for every pinned x86_64 file
+# that unpacks (archives with App Drop's own extractors, AppImages with unsquashfs):
+#   AppImage  PhotoCraft 2.10, LM Studio 2.33, Cursor 3.46
+#   tar.gz    Antigravity 2.87, Antigravity IDE 3.33
+#   zip       SumatraPDF 2.02, HeidiSQL 2.78, Notepad3 3.24, Notepad++ 3.35, WinMerge 3.38
+# The tree counts as four times the download, 16% above the largest. An Android package was
+# not measured (that needs a running container): the container keeps the package, its
+# libraries and its compiled code, counted the same way.
+UNPACKED_PER_DOWNLOAD = 4
 
 
 def windows_settings_bytes(machine: dict) -> int:
@@ -3708,6 +3724,61 @@ def windows_settings_bytes(machine: dict) -> int:
     windows = machine.get("windows") if isinstance(machine.get("windows"), dict) else {}
     own = WINDOWS_SHARED_SETTINGS_BYTES if windows.get("reflink") is True else WINDOWS_SETTINGS_BYTES
     return own + (0 if windows.get("template") is True else WINDOWS_SETTINGS_BYTES)
+
+
+def copies_are_shared(machine: dict) -> bool:
+    """Does a whole copy of a download cost no space here? Yes where the home's filesystem
+    shares extents: the image's Python (3.14) copies with copy_file_range(), which btrfs
+    answers with a clone. machine.json `windows.reflink` says so, read where Windows programs
+    live, in the same home as the downloads folder, ~/Applications and the Android container.
+    Unknown counts the copy."""
+
+    windows = machine.get("windows") if isinstance(machine.get("windows"), dict) else {}
+    return windows.get("reflink") is True
+
+
+def free_bytes(machine: dict) -> int | None:
+    """Free bytes where apps install (machine.json free_bytes.apps), or None when unknown."""
+
+    value = (machine.get("free_bytes") or {}).get("apps") if isinstance(
+        machine.get("free_bytes"), dict) else None
+    return value if isinstance(value, int) and not isinstance(value, bool) else None
+
+
+def install_need(app: dict, machine: dict) -> int | None:
+    """The free bytes installing `app` needs here at its peak, or None when nothing says:
+    needs.size, its extra copy unless copies are shared, and a Windows program's own settings
+    folder (see pinned_install_needs)."""
+
+    needs = app.get("needs") if isinstance(app.get("needs"), dict) else {}
+    size, copy = needs.get("size"), needs.get("copy")
+    size = size if isinstance(size, int) and not isinstance(size, bool) else None
+    if size is not None and isinstance(copy, int) and not isinstance(copy, bool) \
+            and not copies_are_shared(machine):
+        size += copy
+    if app.get("kind") == "windows":
+        size = (size or 0) + windows_settings_bytes(machine)
+    return size
+
+
+def pinned_install_needs(install: dict, arch: str | None) -> dict:
+    """{size, copy?} of a pinned recipe, for the index entry's `needs`: `size` is the download
+    and its unpacked tree, `copy` one more whole copy of the download that costs space only
+    where copies are not shared. {} when nothing is pinned for this machine.
+
+    The window shows the download size from the recipe itself (install.downloads[arch].size,
+    install.size), never from here.
+    """
+
+    pinned = (install.get("downloads") or {}).get(arch or "") or {}
+    download = pinned.get("size") or install.get("size")
+    if isinstance(download, bool) or not isinstance(download, int) or download <= 0:
+        return {}
+    needs = {"size": download * (1 + UNPACKED_PER_DOWNLOAD)}
+    kind = install.get("kind")
+    if kind == "android" or (kind == "appdrop" and install.get("artifact") == "appimage"):
+        needs["copy"] = download
+    return needs
 
 
 def read_facts(path: Path | None) -> dict | None:
@@ -3793,12 +3864,9 @@ def compat_verdict(app: dict, machine: dict | None, facts: dict | None) -> dict:
         if android.get("graphics") == "software":
             reasons.add("android_software_graphics")
     needs = app.get("needs") if isinstance(app.get("needs"), dict) else {}
-    free = (machine.get("free_bytes") or {}).get("apps") if isinstance(
-        machine.get("free_bytes"), dict) else None
-    size = needs.get("size")
-    if kind == "windows" and not installed:
-        size = (size if isinstance(size, int) else 0) + windows_settings_bytes(machine)
-    if not installed and isinstance(size, int) and isinstance(free, int) and size > free:
+    free = free_bytes(machine)
+    need = None if installed else install_need(app, machine)
+    if need is not None and free is not None and need > free:
         reasons.add("low_disk")
     memory = machine.get("memory_bytes")
     if isinstance(needs.get("memory"), int) and isinstance(memory, int) \
@@ -3835,17 +3903,11 @@ def compat_verdict(app: dict, machine: dict | None, facts: dict | None) -> dict:
 def context_state(machine: dict | None, facts: dict | None) -> dict:
     """What compat_verdict() reads beyond the index, for the context token.
 
-    Free space enters as a power-of-two bucket of GiB, so the index is rewritten
-    when the disk crosses 1, 2, 4, 8… GiB free rather than at every byte.
+    Free space enters only as known or not: the exact bytes change at every write, and the
+    index records instead the range in which its low_disk verdicts hold (free_space_range).
     """
 
     machine = machine if isinstance(machine, dict) else {}
-    free = (machine.get("free_bytes") or {}).get("apps") if isinstance(
-        machine.get("free_bytes"), dict) else None
-    bucket = None
-    if isinstance(free, int):
-        gib = free / 1024 ** 3
-        bucket = 0 if gib < 1 else int(math.log2(gib)) + 1
     memory = machine.get("memory_bytes")
     return {
         "arch": machine.get("arch"),
@@ -3855,9 +3917,47 @@ def context_state(machine: dict | None, facts: dict | None) -> dict:
         "session": machine.get("session"),
         "android": machine.get("android"),
         "windows": machine.get("windows"),
-        "free_bucket": bucket,
+        "free_known": free_bytes(machine) is not None,
         "facts": facts,
     }
+
+
+def free_space_range(apps: list[dict], machine: dict | None) -> list | None:
+    """[low, high): the free bytes for which every low_disk verdict in `apps` stays what it
+    is (high None: no limit), or None when free space is unknown and no verdict reads it.
+
+    Written into the index's generation and checked before a cached index is reused, so free
+    space that crosses an app's need refreshes the verdicts and free space that crosses none
+    costs nothing. The context token used to carry free space as a power-of-two bucket of GiB
+    instead: every pinned need lies inside one, so a person who freed space for a blocked app
+    kept seeing it blocked (and one who filled the disk kept an "ok") until something else
+    changed.
+    """
+
+    machine = machine if isinstance(machine, dict) else {}
+    free = free_bytes(machine)
+    if free is None:
+        return None
+    low, high = 0, None
+    for app in apps:
+        need = None if app.get("installed") else install_need(app, machine)
+        if need is None:
+            continue
+        if need <= free:
+            low = max(low, need)
+        elif high is None or need < high:
+            high = need
+    return [low, high]
+
+
+def free_range_holds(free_range: list | None, machine: dict | None) -> bool:
+    """Would every low_disk verdict of an index written for `free_range` read the same now?"""
+
+    free = free_bytes(machine if isinstance(machine, dict) else {})
+    if free_range is None or free is None:
+        return free_range is None and free is None
+    low, high = free_range
+    return low <= free and (high is None or free < high)
 
 
 def sha256_file(path: Path) -> str:
@@ -3989,8 +4089,9 @@ def input_token(
     )["input"]
 
 
-def existing_output_tokens(path: Path) -> dict[str, str] | None:
-    """Read generation tokens without materializing the multi-megabyte app list."""
+def existing_output_tokens(path: Path) -> dict | None:
+    """Read generation tokens (and the free-space range its verdicts hold for) without
+    materializing the multi-megabyte app list."""
 
     try:
         size = path.stat().st_size
@@ -4007,7 +4108,7 @@ def existing_output_tokens(path: Path) -> dict[str, str] | None:
         or tail != b"}\n"
     ):
         return None
-    tokens: dict[str, str] = {}
+    tokens: dict = {}
     for output_key, json_key in (
         ("input", "input_token"),
         ("metadata", "metadata_token"),
@@ -4021,7 +4122,15 @@ def existing_output_tokens(path: Path) -> dict[str, str] | None:
         if match is None:
             return None
         tokens[output_key] = match.group(1).decode("ascii")
+    match = FREE_RANGE_RE.search(head)
+    if match is None:
+        return None
+    tokens["free_range"] = None if match.group(1) == b"null" else [
+        int(match.group(2)), None if match.group(3) == b"null" else int(match.group(3))]
     return tokens
+
+
+FREE_RANGE_RE = re.compile(rb'"free_range":(null|\[([0-9]{1,20}),([0-9]{1,20}|null)\])')
 
 
 def existing_output_matches(path: Path, token: str) -> bool:
@@ -4074,6 +4183,7 @@ def refresh_installed_flags(
         preferences=preferences, machine=machine, facts=facts,
     )
     payload["stats"].update(lifecycle_stats(payload["apps"]))
+    payload["generation"]["free_range"] = free_space_range(payload["apps"], machine)
     return True
 
 
@@ -4175,11 +4285,11 @@ def catalog_fallback_app(
     }
     app.update(entry)
     app["source"] = "flatpak" if flatpak else entry["source"]
-    # A pinned download states its exact size: the least free space the job needs.
-    pinned = (install.get("downloads") or {}).get(arch or "") or {}
-    size = pinned.get("size") or install.get("size")
-    if isinstance(size, int) and not isinstance(size, bool) and size > 0:
-        app["needs"] = {"size": size}
+    # What the pinned install needs on disk at its peak, not just its download (the job
+    # keeps the download while it unpacks: Antigravity's 181 MB needed 700 MB).
+    needs = pinned_install_needs(install, arch)
+    if needs:
+        app["needs"] = needs
     return app
 
 
@@ -4508,6 +4618,8 @@ def build_index(
             "generated_at": generation_time(),
             "locale": preferences[0] if preferences else "en",
             "offline": True,
+            # The free space this index's low_disk verdicts hold for (main() checks it).
+            "free_range": free_space_range(apps, machine),
         },
         "sources": sources_output,
         "stats": stats,
@@ -5261,7 +5373,10 @@ def main(argv: list[str] | None = None) -> int:
             and existing_tokens["metadata"] == tokens["metadata"]
             and details_ready(cache_dir, tokens["metadata"])
         )
-        if details_current and existing_tokens["input"] == tokens["input"]:
+        # Unchanged inputs, and free space still inside the range the index's low_disk
+        # verdicts hold for: reuse it as it is (a header read, no app list parsed).
+        if details_current and existing_tokens["input"] == tokens["input"] \
+                and free_range_holds(existing_tokens["free_range"], machine):
             return 0
         if details_current:
             payload = load_refreshable_output(

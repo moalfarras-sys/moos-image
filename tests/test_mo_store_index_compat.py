@@ -295,7 +295,9 @@ class IndexCarriesVerdicts(unittest.TestCase):
                              {"display": {"px": 1200, "compare": "ge", "side": "shortest"}})
             self.assertTrue(apps["org.example.Old"]["eol"])
             self.assertEqual(apps["org.example.Old"]["compat"]["verdict"], "blocked")
-            self.assertEqual(apps["org.example.droid"]["needs"], {"size": 5000})
+            # The 5,000-byte package's peak on disk, not its download: the package and what
+            # the container unpacks from it (4x), plus the container's own copy of it.
+            self.assertEqual(apps["org.example.droid"]["needs"], {"size": 25000, "copy": 5000})
             self.assertEqual(first["stats"]["compat_blocked"], 1)
             self.assertEqual(first["stats"]["eol_apps"], 1)
 
