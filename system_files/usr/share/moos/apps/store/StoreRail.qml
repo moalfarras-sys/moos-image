@@ -78,7 +78,7 @@ Item {
                     Layout.fillWidth: true
                     spacing: 0
                     Text {
-                        text: "Mo Store"
+                        text: rail.win.local("متجر MoOS", "Mo Store")
                         color: rail.win.txt
                         font.family: rail.win.uiFont
                         font.pixelSize: rail.win.typePx(17)

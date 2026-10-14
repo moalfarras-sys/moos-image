@@ -77,7 +77,7 @@ Popup {
                     Layout.fillWidth: true
                     text: review.win.onlyWebPicks()
                         ? (review.win.rtl
-                            ? "سيفتح متجر Mo صفحة الناشر الرسمية؛ وأنت تُكمل أي تنزيل من هناك."
+                            ? "سيفتح متجر MoOS صفحة الناشر الرسمية؛ وأنت تُكمل أي تنزيل من هناك."
                             : "Mo Store opens the publisher's official page; you complete any download there.")
                         : review.win.pickedWebCount() > 0
                             ? (review.win.rtl

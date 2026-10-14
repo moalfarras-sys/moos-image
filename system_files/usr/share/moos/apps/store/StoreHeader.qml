@@ -135,7 +135,7 @@ Item {
                     font.family: header.win.uiFont
                     font.pixelSize: header.win.typePx(14)
                     selectByMouse: true
-                    Accessible.name: header.win.local("ابحث في متجر Mo", "Search Mo Store")
+                    Accessible.name: header.win.local("ابحث في متجر MoOS", "Search Mo Store")
                     onTextChanged: header.win.setQuery(text)
                     Keys.onEscapePressed: {
                         if (searchField.text !== "") searchField.clear()

@@ -46,7 +46,7 @@ ApplicationWindow {
     height: Math.min(900, Screen.desktopAvailableHeight * 0.94)
     minimumWidth: Math.min(960, Screen.desktopAvailableWidth * 0.94)
     minimumHeight: Math.min(620, Screen.desktopAvailableHeight * 0.94)
-    title: qsTr("Mo Store")
+    title: win.local("متجر MoOS", "Mo Store")
     color: win.canvas
 
     // TYPE SCALES WITH THE USER'S FONT SIZE.
@@ -734,7 +734,7 @@ ApplicationWindow {
             return win.local("يعمل في عزله، لكنه يطلب الوصول إلى أشياء خارجه.",
                              "It runs in its own sandbox, but asks to reach things outside it.")
         if (level === "page")
-            return win.local("لا يُثبَّت شيء: يفتح متجر Mo صفحة الناشر الرسمية فقط.",
+            return win.local("لا يُثبَّت شيء: يفتح متجر MoOS صفحة الناشر الرسمية فقط.",
                              "Nothing is installed: Mo Store only opens the publisher's official page.")
         if (win.appKind(app) === "webapp")
             return win.local("يعمل في نافذة منفصلة عن متصفحك، ويسألك قبل الكاميرا والميكروفون.",
@@ -1560,7 +1560,7 @@ ApplicationWindow {
                     // and show what IS running.
                     win.waitingForJob = false
                     win.flash(win.jobText({ "message_key": "busy" },
-                                          win.local("متجر Mo مشغول بعملية أخرى", "Mo Store is busy")))
+                                          win.local("متجر MoOS مشغول بعملية أخرى", "Mo Store is busy")))
                     win.job = document
                     return true
                 }
@@ -1736,11 +1736,11 @@ ApplicationWindow {
         "downloading_file":         ["يجري تنزيل ملف موثّق", "Downloading a verified file"],
         "downloading_android":      ["يجري تنزيل تطبيق أندرويد موثّق", "Downloading verified app"],
         "preparing_windows":        ["تجري تهيئة برنامج ويندوز", "Preparing the Windows program"],
-        "windows_legacy_program":   ["هذا برنامج ويندوز قديم بإصدار 32-بت؛ يثبّت متجر Mo برامج ويندوز 64-بت فقط", "This is an older 32-bit Windows program; Mo Store installs 64-bit Windows programs only"],
+        "windows_legacy_program":   ["هذا برنامج ويندوز قديم بإصدار 32-بت؛ يثبّت متجر MoOS برامج ويندوز 64-بت فقط", "This is an older 32-bit Windows program; Mo Store installs 64-bit Windows programs only"],
         "vendor_resolving":         ["يجري البحث عن أحدث إصدار", "Finding the newest version"],
         "vendor_downloading":       ["يجري التنزيل من الناشر", "Downloading from the publisher"],
         "vendor_verifying":         ["يجري التحقق من توقيع الناشر", "Checking the publisher's signature"],
-        "vendor_bad_entry":         ["لا يمكن استخدام بيانات هذا التطبيق في متجر Mo؛ لم يُثبَّت شيء", "Mo Store's entry for this app cannot be used; nothing was installed"],
+        "vendor_bad_entry":         ["لا يمكن استخدام بيانات هذا التطبيق في متجر MoOS؛ لم يُثبَّت شيء", "Mo Store's entry for this app cannot be used; nothing was installed"],
         "vendor_network":           ["تعذّر الوصول إلى الناشر؛ تحقّق من الاتصال بالإنترنت وحاول مجددًا", "Could not reach the publisher; check the internet connection and try again"],
         "vendor_insecure_source":   ["لم يأتِ التنزيل من عنوان الناشر الآمن نفسه؛ لم يُثبَّت شيء", "The download did not come from the publisher's own secure address; nothing was installed"],
         "vendor_metadata_invalid":  ["تعذّرت قراءة قائمة إصدارات الناشر بأمان؛ لم يُثبَّت شيء", "The publisher's list of versions could not be read safely; nothing was installed"],
@@ -1752,9 +1752,9 @@ ApplicationWindow {
         "vendor_signature_failed":  ["تعذّر التحقق من توقيع الناشر؛ حُذف التنزيل ولم يُثبَّت شيء", "The publisher's signature could not be verified; the download was deleted and nothing was installed"],
         "vendor_unpack_failed":     ["تعذّر فكّ حزمة الناشر؛ لم يُثبَّت شيء", "The publisher's package could not be unpacked; nothing was installed"],
         "vendor_unsafe_package":    ["تحتوي حزمة الناشر على ملفات لا يسمح بها MoOS؛ لم يُثبَّت شيء", "The publisher's package contains files MoOS does not allow; nothing was installed"],
-        "vendor_nothing_to_open":   ["لا تحتوي الحزمة على التطبيق الذي توقّعه متجر Mo؛ لم يُثبَّت شيء", "The package does not contain the app Mo Store expected; nothing was installed"],
+        "vendor_nothing_to_open":   ["لا تحتوي الحزمة على التطبيق الذي توقّعه متجر MoOS؛ لم يُثبَّت شيء", "The package does not contain the app Mo Store expected; nothing was installed"],
         "vendor_sandbox_unavailable": ["لا يستطيع هذا التطبيق تشغيل حمايته الخاصة على هذا الجهاز، لذلك لم يُثبَّت", "This app cannot turn on its own protection on this computer, so it was not installed"],
-        "vendor_name_taken":        ["يوجد في مجلد المنزل تطبيق أو مجلد آخر بهذا الاسم؛ تركه متجر Mo كما هو", "Another app or folder with this name is already in your home folder; Mo Store left it as it is"],
+        "vendor_name_taken":        ["يوجد في مجلد المنزل تطبيق أو مجلد آخر بهذا الاسم؛ تركه متجر MoOS كما هو", "Another app or folder with this name is already in your home folder; Mo Store left it as it is"],
         "vendor_unsafe_path":       ["لا يمكن كتابة موقع مجلد المنزل في مُشغِّل هذا التطبيق بأمان", "Your home folder's location cannot be written into this app's launcher safely"],
         "unsupported_arch":         ["هذا التطبيق غير متوفّر لهذا النوع من الأجهزة", "This app is not available for this kind of computer"],
         "publisher_page_opened":    ["فُتحت صفحة الناشر", "Opened the publisher's page"],
@@ -1766,15 +1766,15 @@ ApplicationWindow {
         "permissions_reset":        ["أُعيدت الأذونات إلى وضعها الأصلي", "Permissions reset"],
         "invalid_id":               ["معرّف التطبيق غير صالح", "This app ID is not valid"],
         "invalid_permission":       ["لا يمكن تغيير هذا الإذن هنا", "This permission cannot be changed here"],
-        "unsupported_kind":         ["لا يستطيع متجر Mo تنفيذ هذا لهذا التطبيق", "Mo Store cannot do this for this app"],
-        "busy":                     ["متجر Mo مشغول بعملية أخرى — حاول بعد قليل", "Mo Store is busy with another operation — try again shortly"],
+        "unsupported_kind":         ["لا يستطيع متجر MoOS تنفيذ هذا لهذا التطبيق", "Mo Store cannot do this for this app"],
+        "busy":                     ["متجر MoOS مشغول بعملية أخرى — حاول بعد قليل", "Mo Store is busy with another operation — try again shortly"],
         "inspecting_file":          ["تجري قراءة الملف", "Reading the file"],
         "extracting_file":          ["يجري فكّ التطبيق", "Unpacking the application"],
         "integrating_app":          ["تجري إضافته إلى قائمة التطبيقات", "Adding it to the launcher"],
         "already_installed_user":   ["مثبّت مسبقًا لهذا المستخدم", "Already installed for this user"],
         "already_installed_system": ["مثبّت مسبقًا على مستوى النظام", "Already installed system-wide"],
         "not_installed":            ["التطبيق غير مثبّت", "App is not installed"],
-        "nothing_to_remove":        ["لا شيء لإزالته — هذا التطبيق يُنزَّل من موقعه الرسمي خارج متجر Mo", "Nothing to remove — this app is downloaded from its official website, outside Mo Store"],
+        "nothing_to_remove":        ["لا شيء لإزالته — هذا التطبيق يُنزَّل من موقعه الرسمي خارج متجر MoOS", "Nothing to remove — this app is downloaded from its official website, outside Mo Store"],
         "installed":                ["تم التثبيت", "Installed"],
         "removed":                  ["تمت الإزالة", "Removed"],
         "updated":                  ["تم التحديث", "Updated"],

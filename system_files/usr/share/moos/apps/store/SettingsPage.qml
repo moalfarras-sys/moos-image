@@ -353,7 +353,7 @@ Item {
                         }
                         Text {
                             Layout.fillWidth: true
-                            text: settingsPage.win.local("واجهة ثانية لكتالوج تطبيقات لينكس، بحسابات ومفضلة. تبقى خارج قائمة التطبيقات كي يظل متجر Mo المتجر الوحيد، وأول فتح لها يثبّتها.",
+                            text: settingsPage.win.local("واجهة ثانية لكتالوج تطبيقات لينكس، بحسابات ومفضلة. تبقى خارج قائمة التطبيقات كي يظل متجر MoOS المتجر الوحيد، وأول فتح لها يثبّتها.",
                                                          "A second view of the Linux app catalogue, with accounts and favourites. It stays out of the app menu so Mo Store remains the one store, and opening it the first time installs it.")
                             color: settingsPage.win.txt2
                             font.family: settingsPage.win.uiFont
