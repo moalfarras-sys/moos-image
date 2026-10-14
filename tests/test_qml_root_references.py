@@ -107,10 +107,15 @@ def audit(path: Path, inherited: set[str] = INHERITED) -> list[str]:
 STORE = APPS / "store"
 
 
+def ids(code: str) -> set[str]:
+    """Every `id:` in a file, including one written inline (`ReviewSheet { id: review; … }`)."""
+    return set(re.findall(r"(?<![\w.])id\s*:\s*(\w+)", code))
+
+
 def audit_store_components(window: Path = STORE / "main.qml") -> list[str]:
     window_code = strip_noise(window.read_text(encoding="utf-8"))
     members = declarations(window_code, INHERITED) | INHERITED
-    window_names = (set(re.findall(r"(?m)^\s*id:\s*(\w+)", window_code))
+    window_names = (ids(window_code)
                     | set(re.findall(r"(?m)^\s*(?:default\s+|required\s+|readonly\s+)*property"
                                      r"\s+[\w.<>]+\s+(\w+)", window_code))
                     | set(re.findall(r"(?m)^\s*function\s+(\w+)\s*\(", window_code)))
@@ -137,7 +142,7 @@ def audit_store_components(window: Path = STORE / "main.qml") -> list[str]:
             problems.append(f"{rel}: `win.{name}` is read on line(s) {', '.join(map(str, at[:6]))} "
                             f"but main.qml's root never declares `{name}` — it evaluates to "
                             "undefined at runtime and the view silently paints Qt's default")
-        local = (set(re.findall(r"(?m)^\s*id:\s*(\w+)", code))
+        local = (ids(code)
                  | declarations(code, set())
                  | set(re.findall(r"\b(?:var|let|const)\s+(\w+)", code))
                  | {name.strip() for params in re.findall(r"function\s*\w*\s*\(([^)]*)\)", code)
