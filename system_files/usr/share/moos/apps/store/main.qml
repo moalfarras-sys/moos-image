@@ -1185,6 +1185,52 @@ ApplicationWindow {
     onActiveCategoryChanged: recompute()
     onQueryChanged: recompute()
 
+    // ── Opening one app's page from outside ─────────────────────────────────
+    //
+    // `moos-store --app=<id>`, an appstream:// link and Plasma's "Uninstall or Manage
+    // Add-ons…" reach this window as one `--open-app=<id>` argument: in its own arguments at
+    // launch, and through activateRequested() when the Store is already open (moos-qml-shell
+    // forwards the second launch's argv). The launcher validated the id; it is validated again
+    // here, where the window owns the boundary. A link only ever SHOWS an app: what happens
+    // next is the person's choice on its page.
+    property string pendingOpenApp: ""
+
+    function requestedAppId(argv) {
+        var id = ""
+        for (var i = 0; i < argv.length; ++i) {
+            var arg = "" + argv[i]
+            if (arg.indexOf("--open-app=") !== 0) continue
+            var candidate = arg.substring("--open-app=".length)
+            if (/^[A-Za-z0-9][A-Za-z0-9._-]{1,254}$/.test(candidate) && candidate.indexOf("..") < 0)
+                id = candidate
+        }
+        return id
+    }
+
+    // The page opens once the index can answer: at once when the loaded index (or, with no index
+    // at all, the catalogue) knows the id. While the launch-time poll still waits for a rebuilt
+    // index, an id the old one does not know waits with it rather than being called missing.
+    function openRequestedApp() {
+        if (win.pendingOpenApp === "") return
+        var app = win.indexReady ? win.appById(win.pendingOpenApp) : null
+        if (!app && win.indexPolling) return
+        var id = win.pendingOpenApp
+        win.pendingOpenApp = ""
+        if (!app) app = win.appById(id)
+        if (app) win.openDetails(app)
+        else win.flash(win.local("لم يُعثر على هذا التطبيق في Mo Store", "This app was not found in Mo Store"))
+    }
+
+    function activateRequested(arguments) {
+        var id = win.requestedAppId(arguments)
+        if (id === "") return
+        win.pendingOpenApp = id
+        win.openRequestedApp()
+    }
+
+    onIndexReadyChanged: win.openRequestedApp()
+    onIndexPollingChanged: win.openRequestedApp()
+
     Component.onCompleted: {
         win.loadMachine()
         win.loadCurated()
@@ -1194,6 +1240,7 @@ ApplicationWindow {
         if (win.jobIsActive()) jobPoll.start()
         Qt.callLater(function() { win.maybeRefreshCatalog(false) })
         indexPoll.start()
+        win.activateRequested(Qt.application.arguments)
     }
 
     // Whether the launch-time poll is still waiting for the rebuilt index. The rail's status

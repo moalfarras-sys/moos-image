@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
-"""Load the actual Store in isolated Qt and exercise the file-review boundary, every page and
-both sheets: any binding error in the window or its view files fails the run."""
+"""Load the actual Store in isolated Qt and exercise the file-review boundary, every page, both
+sheets and an app's page opened from a link: any binding error in the window or its view files
+fails the run."""
 import importlib.util
 import os
 from pathlib import Path
@@ -78,10 +79,33 @@ Item {
             else if (step === pages.length) app.openDetails(reviewed)
             else if (step === pages.length + 1) app.openDetails(plain)
             else if (step === pages.length + 2) app.installOne(plain)
-            else {
-                stop()
+            else if (step === pages.length + 3) {
                 if (!app.selectedApp || app.selectedApp.id !== plain.id || app.pickCount !== 1) {
                     console.error("STORE DROP: the app page and the review never opened"); Qt.exit(8); return
+                }
+                // A link reaches a window that is already open as activateRequested(argv), the
+                // way moos-qml-shell forwards a second launch. An id that breaks the launcher's
+                // own rule (a leading dot, a "..") opens nothing.
+                if (typeof app.activateRequested !== "function") {
+                    console.error("STORE DROP: the open window cannot take a link"); Qt.exit(11); return
+                }
+                if (app.requestedAppId(["moos-qml-shell", "--open-app=../" + reviewed.id]) !== ""
+                        || app.requestedAppId(["moos-qml-shell", "--open-app=" + reviewed.id + ".."]) !== ""
+                        || app.requestedAppId(["moos-qml-shell", "--open-app=" + reviewed.id]) !== reviewed.id) {
+                    console.error("STORE DROP: a malformed --open-app id was accepted"); Qt.exit(9); return
+                }
+                app.activateRequested(["moos-qml-shell", "--", "--open-app=../" + reviewed.id,
+                                       "--open-app=" + reviewed.id + ".."])
+                if (app.pendingOpenApp !== "" || app.selectedApp.id !== plain.id) {
+                    console.error("STORE DROP: a malformed --open-app id was accepted"); Qt.exit(9); return
+                }
+                app.activateRequested(["moos-qml-shell", "--", "--open-app=" + reviewed.id])
+            } else if (app.pendingOpenApp !== "") {
+                return          // the request waits for the launch-time index poll to finish
+            } else {
+                stop()
+                if (!app.selectedApp || app.selectedApp.id !== reviewed.id) {
+                    console.error("STORE DROP: --open-app did not open the app's page"); Qt.exit(10); return
                 }
                 console.warn("STORE DROP: pages and sheets exercised")
                 capture.start()

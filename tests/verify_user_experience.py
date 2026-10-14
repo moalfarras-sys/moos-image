@@ -5380,12 +5380,27 @@ require("QMetaObject::invokeMethod" in shell_src
         "a second launch must forward its argv into the running QML object; raising the "
         "window alone leaves Mo AI panels on stale state")
 # MoOS's settings are System Settings modules; a second `systemsettings <module>` is handed to
-# the running window by systemsettings itself, so only Mo AI consumes argv here.
-for _qml_app in ("moai",):
+# the running window by systemsettings itself, so Mo AI (its panels) and Mo Store (an app's page)
+# are the apps that consume argv here.
+for _qml_app in ("moai", "store"):
     _qml_activation = code(read(
         f"system_files/usr/share/moos/apps/{_qml_app}/main.qml"), "slash")
     require("function activateRequested(" in _qml_activation,
             f"{_qml_app} cannot consume navigation from a second unique-instance launch")
+# Mo Store's links — `moos-store --app=<id>`, appstream://<id>, Plasma's "Uninstall or Manage
+# Add-ons…" — arrive as one `--open-app=<id>`, at launch and through activateRequested(). The id
+# comes from outside, so the window checks it again with the launcher's own rule, and the only
+# thing it does with one is open that app's page.
+_store_open_launcher = code(read("system_files/usr/bin/moos-store"), "hash")
+require('OPEN_APP=("--open-app=$candidate")' in _store_open_launcher
+        and "win.activateRequested(Qt.application.arguments)" in store_qml_code
+        and 'arg.indexOf("--open-app=") !== 0' in store_qml_code
+        and "/^[A-Za-z0-9][A-Za-z0-9._-]{1,254}$/.test(candidate)" in store_qml_code
+        and 'candidate.indexOf("..") < 0' in store_qml_code
+        and re.search(r"function openRequestedApp\(\)[^}]*?win\.openDetails\(app\)", store_qml_code,
+                      re.DOTALL) is not None,
+        "Mo Store must turn the launcher's --open-app=<id> into that app's page, at launch and from "
+        "a second launch, after validating the id with the launcher's own rule")
 require("-lKF6DBusAddons" in shell_build_script and "libKF6DBusAddons" in build_code,
         "the qml-shell build script must LINK the guard and build.sh must verify the link on the "
         "shipped binary — a silently unlinked binary still runs, still shows the app, and still "
