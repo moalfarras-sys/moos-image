@@ -26,6 +26,7 @@ import dataclasses
 import datetime as dt
 import fcntl
 import hashlib
+import http.client
 import json
 import os
 import platform
@@ -193,7 +194,7 @@ def display_text(value: object, limit: int) -> str:
     """One line of catalogue text for a launcher or a record: no control characters, bounded."""
     if not isinstance(value, str):
         return ""
-    text = "".join(ch for ch in value if ch >= " " and ch != "\x7f" and ch not in "  ")
+    text = "".join(ch for ch in value if ch >= " " and ch != "\x7f" and ch not in "\u2028\u2029")
     return " ".join(text.split())[:limit]
 
 
@@ -1993,8 +1994,9 @@ class Controller:
                     os.fsync(output.fileno())
             except (StoreError, CancelledError):
                 raise
-            except (OSError, ValueError) as error:
-                # URLError, HTTPError, timeouts and TLS failures are all OSErrors here.
+            except (OSError, ValueError, http.client.HTTPException) as error:
+                # URLError, HTTPError, timeouts and TLS failures are OSErrors; a connection that
+                # ends early is an IncompleteRead.
                 raise StoreError(f"Download failed: {clean_message(error, 300)}") from error
             if pin.size is not None and downloaded != pin.size:
                 raise StoreError(
@@ -2896,6 +2898,20 @@ class Controller:
                 job.fail(error, [package])
             return exit_code(job.document["state"]), job.snapshot()
 
+    def _dropped_android(self, app_id: str) -> bool:
+        """An Android app installed from a file: MoOS wrote a record naming its package.
+
+        When a Flatpak with the same reverse-DNS id is installed, that id keeps meaning the
+        Flatpak, as it always did; the Android copy is then reached only from Android's own menu.
+        """
+        return bool(
+            _ANDROID_PACKAGE_RE.fullmatch(app_id)
+            and android_record_path(app_id).is_file()
+            and not (validate_flatpak_id(app_id)
+                     and (self.adapter.is_user_installed(app_id)
+                          or self.adapter.is_system_installed(app_id)))
+        )
+
     def _delete_flatpak_data(self, job: Job, app_id: str) -> None:
         """What `flatpak uninstall --delete-data` removes, plus the person's changed permissions."""
         if not validate_flatpak_id(app_id):
@@ -2918,13 +2934,7 @@ class Controller:
         # An app installed from a file is removable from the Store too, by the id App Drop gave it.
         if validate_curated_id(app_id) and self._appdrop().read_record(app_id):
             return self._remove_dropped(app_id, delete_data)
-        if (
-            _ANDROID_PACKAGE_RE.fullmatch(app_id)
-            and android_record_path(app_id).is_file()
-            and not (validate_flatpak_id(app_id)
-                     and (self.adapter.is_user_installed(app_id)
-                          or self.adapter.is_system_installed(app_id)))
-        ):
+        if self._dropped_android(app_id):
             return self._remove_android_record(app_id, delete_data)
         if not validate_flatpak_id(app_id):
             raise StoreError(f"Invalid app ID: {app_id}", message_key="invalid_id")
@@ -3080,9 +3090,12 @@ class Controller:
             return exit_code(job.document["state"]), job.snapshot()
 
     def _run_android(
-        self, app_id: str, recipe: dict[str, Any]
+        self, app_id: str, recipe: dict[str, Any] | None
     ) -> tuple[int, dict[str, Any]]:
-        package = self._android_package(app_id, recipe)
+        # A catalogue entry names its package; a dropped APK's record was written for it.
+        package = self._android_package(app_id, recipe) if recipe is not None else app_id
+        if not _ANDROID_PACKAGE_RE.fullmatch(package):
+            raise StoreError(f"Invalid app ID: {app_id}", message_key="invalid_id")
         try:
             lock, job = self._begin("run", [app_id])
         except BusyError:
@@ -3181,6 +3194,8 @@ class Controller:
             raise StoreError(f"Mo Store cannot open {app_id}", message_key="unsupported_kind")
         if validate_curated_id(app_id) and self._appdrop().read_record(app_id):
             return self._run_installed(app_id, "appdrop")
+        if self._dropped_android(app_id):
+            return self._run_android(app_id, None)
         if not validate_flatpak_id(app_id):
             raise StoreError(f"Invalid app ID: {app_id}", message_key="invalid_id")
         try:

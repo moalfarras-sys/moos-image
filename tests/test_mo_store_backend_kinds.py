@@ -669,10 +669,26 @@ class AndroidRecords(Kinds):
         record = json.loads((self.home / f".local/share/moos/android/{self.PACKAGE}.json").read_text())
         self.assertEqual((record["source"], record["file"]), ("file", "notes.apk"))
 
+        code, result = self.controller([]).run(self.PACKAGE)
+        self.assertEqual(result["state"], "success", result)
+        self.assertIn([MODULE.WAYDROID, "app", "launch", self.PACKAGE], self.runner.commands)
+
         code, result = self.controller([]).remove(self.PACKAGE)
         self.assertEqual(result["state"], "success", result)
         self.assertIn([MODULE.WAYDROID, "app", "remove", self.PACKAGE], self.runner.commands)
         self.assertFalse((self.home / f".local/share/moos/android/{self.PACKAGE}.json").exists())
+
+    def test_a_flatpak_with_the_same_id_keeps_its_meaning(self):
+        record = self.home / f".local/share/moos/android/{self.PACKAGE}.json"
+        record.parent.mkdir(parents=True)
+        record.write_text(json.dumps({"schema": 1, "id": self.PACKAGE, "package": self.PACKAGE}),
+                          encoding="utf-8")
+        self.adapter.user = {self.PACKAGE}
+        code, result = self.controller([]).remove(self.PACKAGE)
+        self.assertEqual(result["state"], "success", result)
+        self.assertEqual(self.adapter.removes, [self.PACKAGE])
+        self.assertFalse([argv for argv in self.runner.commands if argv[1:3] == ["app", "remove"]])
+        self.assertTrue(record.exists(), "the Android copy's record was touched by a Flatpak removal")
 
     def test_an_error_on_stderr_is_a_failure_even_with_exit_zero(self):
         apk = self.home / "Downloads/bad.apk"
