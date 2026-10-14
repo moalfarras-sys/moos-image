@@ -5,6 +5,24 @@ The indexer deliberately reads files only: it never contacts a service and it
 never invokes flatpak (or any other command).  Flatpak AppStream indexes and
 deployed refs are both already present on disk, which also makes this helper
 usable while the machine is offline and straightforward to test.
+
+What it writes, next to --output (docs/MO_STORE.md is the contract):
+  index.json         every app: Flathub AppStream (newest revision per remote),
+                     the signed catalogue, and what is installed (both Flatpak
+                     scopes, web apps, App Drop, Windows, Android, npm);
+  details/<id>.json  one document per AppStream app, published as one generation;
+and, with --print-machine, machine.json on stdout. It reads facts.json (from
+`moos-storectl facts`) beside the index when present.
+
+Keys this indexer adds beyond the contract's list, for the window and tests:
+  listed      false for entries that exist only because something is installed
+              (an App Drop install, a Flatpak AppStream no longer offers);
+  slug        a dropped app's App Drop id (what `remove-file` takes);
+  needs       the inputs of the compatibility verdict: {memory (MiB),
+              display {px, compare, side}, internet, size (bytes)}, omitted when
+              empty;
+  cat         the Store category (catalogue ids); `category` keeps the older
+              14 values the current window groups by.
 """
 
 from __future__ import annotations
