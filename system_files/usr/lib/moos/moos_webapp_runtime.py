@@ -12,8 +12,9 @@ Kept small on purpose. What a web app can do here:
   * notify through the desktop's notification server, filed under the app's own launcher;
   * download into the person's Downloads folder;
   * go full screen, zoom (remembered), and remember where its window was.
-What it cannot do: open file:, data: or moos: addresses, read the clipboard without a granted
-permission, reach a developer console, or run a plugin.
+What it cannot do: open file:, data: or moos: addresses as its page, or file:, moos: and other
+programs' addresses from any frame inside it; read the clipboard without a granted permission;
+reach a developer console; or run a plugin.
 """
 
 from __future__ import annotations
@@ -125,9 +126,16 @@ class Page(QWebEnginePage):
         self.windowCloseRequested.connect(self.on_close_requested)
 
     def acceptNavigationRequest(self, url: QUrl, kind, main_frame: bool) -> bool:  # noqa: N802
-        if not main_frame:
-            return True
         address = url.toString()
+        if not main_frame:
+            # A frame inside the page loads web pages and the browser's own frame documents. A
+            # link to another program clicked inside one (an advert's moos: link) reaches the
+            # desktop only when the policy says so, never because a frame asked: returning True
+            # here is what lets the engine hand the address to the desktop's handler.
+            verdict = policy.frame_navigation(address, self.shell.app)
+            if verdict == "external":
+                QDesktopServices.openUrl(url)
+            return verdict == "inside"
         verdict = policy.navigation(address, self.shell.app)
         if verdict == "inside":
             # A popup is shown once it reaches a real page of its own (sign-in, share sheet);

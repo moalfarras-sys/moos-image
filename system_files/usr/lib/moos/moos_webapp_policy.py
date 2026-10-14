@@ -11,7 +11,8 @@ This module is the half without Qt, so every rule here is testable anywhere:
     defines one. `moos-webapp` takes a catalogue id and nothing else: no address ever comes from
     argv, from a launcher, from a moos: link or from a web page;
   * where an app may go — its own HTTPS hosts and the sign-in pages of the identity providers its
-    entry names stay inside the window; every other address opens in the person's browser;
+    entry names stay inside the window; every other address opens in the person's browser. A
+    frame inside a page may load any web page, never another program's address (moos:, file:);
   * what it may ask for — only the permissions its entry lists, each answered once by the person
     and changeable from Mo Store, which reads and writes the same small file;
   * the launcher Mo Store writes — `org.moos.webapp.<id>.desktop`, whose name IS the window's
@@ -256,6 +257,36 @@ def navigation(url: str, app: WebApp) -> str:
         return "external"
     # file:, data:, javascript:, blob: at the top level, moos:, and anything unknown.
     return "block"
+
+
+# The browser's own documents that real apps build frames from: WhatsApp, Gmail, Teams and Office
+# all draw parts of themselves in blob: and data: frames (and in about:blank and about:srcdoc,
+# matched by name below).
+FRAME_DOCUMENT_SCHEMES = ("blob", "data")
+
+
+def frame_navigation(url: str, app: WebApp) -> str:
+    """Where an address opened inside one of the page's frames (an iframe) goes: 'inside',
+    'external' or 'block', as navigation() answers for the window.
+
+    A frame belongs to the page around it (an advert, a map, an embedded video, a sign-in
+    button), so it may load any web page, another host's included, and the browser's own frame
+    documents. Any other address is not a page but a door out of it — moos:, file:, appstream:,
+    ssh:, a protocol the desktop would hand to another program — and a frame gets exactly the
+    window's answer for it: mail and phone links open in their apps, everything else nowhere.
+    """
+    try:
+        parts = urlsplit(url)
+    except ValueError:
+        return "block"
+    scheme = (parts.scheme or "").lower()
+    if scheme in ("http", "https"):
+        return "inside" if parts.hostname else "block"
+    if scheme in FRAME_DOCUMENT_SCHEMES:
+        return "inside"
+    if scheme == "about" and parts.path in ("blank", "srcdoc"):
+        return "inside"
+    return navigation(url, app)
 
 
 def origin_allowed(origin: str, app: WebApp) -> bool:
