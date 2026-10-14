@@ -13,6 +13,7 @@ itself is what proves the real backend.
 """
 
 import copy
+import hashlib
 import importlib.machinery
 import importlib.util
 import json
@@ -23,6 +24,7 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 ROOT = Path(__file__).resolve().parents[1]
 GATE_PATH = ROOT / "build_files/verify_store_catalog.py"
@@ -115,6 +117,61 @@ class TheShippedCatalogue(unittest.TestCase):
         self.assertEqual(gate.pgp_v4_fingerprint(key), "3BFA0E4AE8B8CC16A2D9BA684A3B4A566C4660E4")
         self.assertEqual(app(SHIPPED, "chatgpt")["install"]["key_fingerprint"],
                          gate.pgp_v4_fingerprint(key))
+
+
+class ThePublicSuffixList(unittest.TestCase):
+    """The list the gate vendors and the algorithm it runs on it (https://publicsuffix.org/list/)."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.suffixes = gate.load_public_suffixes(gate.PUBLIC_SUFFIX_LIST)
+
+    def test_the_vendored_list_is_the_published_one_its_readme_names(self):
+        raw = gate.PUBLIC_SUFFIX_LIST.read_bytes()
+        text = raw.decode("utf-8")
+        self.assertTrue(text.startswith("// This Source Code Form is subject to the terms of the "
+                                        "Mozilla Public\n// License, v. 2.0."), "MPL-2.0 header")
+        self.assertIn("// ===END PRIVATE DOMAINS===", text, "the list is cut short")
+        version = re.search(r"(?m)^// VERSION: (\S+)$", text).group(1)
+        readme = (gate.PUBLIC_SUFFIX_LIST.parent / "README.md").read_text(encoding="utf-8")
+        self.assertIn(f"VERSION: {version}", readme, "README.md describes another version")
+        self.assertIn(hashlib.sha256(raw).hexdigest(), readme,
+                      "README.md records another file: refresh its table with the list")
+
+    def test_the_algorithm(self):
+        for name in ("com", "co.uk", "github.io", "notion.site", "microsoft",
+                     "foo.ck",            # *.ck: every name under ck is a suffix …
+                     "x.kawasaki.jp",     # … and every name under kawasaki.jp
+                     "xn--55qx5d.cn"):    # 公司.cn, compared as its A-label
+            with self.subTest(name=name):
+                self.assertTrue(self.suffixes.is_public_suffix(name))
+        for name in ("secure-login.notion.site", "bbc.co.uk", "cloud.microsoft", "claude.ai",
+                     "www.ck",            # !www.ck: the exception to *.ck
+                     "city.kawasaki.jp",  # !city.kawasaki.jp
+                     "compute.amazonaws.com", "site.example"):
+            with self.subTest(name=name):
+                self.assertFalse(self.suffixes.is_public_suffix(name))
+        self.assertEqual(self.suffixes.public_suffix("a.b.foo.ck"), "foo.ck")
+        self.assertEqual(self.suffixes.public_suffix("a.www.ck"), "ck")
+        self.assertEqual(self.suffixes.public_suffix("site.example"), "example")
+        self.assertIn("*.compute.amazonaws.com", self.suffixes.rules_under("compute.amazonaws.com"))
+        self.assertEqual(self.suffixes.rules_under("notion.so"), [])
+
+    def test_without_its_list_the_gate_fails(self):
+        with tempfile.TemporaryDirectory() as raw:
+            planted = Path(raw) / "public_suffix_list.dat"
+            with mock.patch.object(gate, "PUBLIC_SUFFIX_LIST", planted):
+                errors = errors_for(lambda c: None)
+            self.assertTrue(any("cannot read the Public Suffix List" in e for e in errors), errors)
+            planted.write_text("// a list cut short\ncom\nnotion.site\n", encoding="utf-8")
+            with mock.patch.object(gate, "PUBLIC_SUFFIX_LIST", planted):
+                errors = errors_for(lambda c: None)
+            self.assertTrue(any("the list is truncated" in e for e in errors), errors)
+
+    def test_a_rule_the_gate_would_misread_is_refused(self):
+        text = gate.PUBLIC_SUFFIX_LIST.read_text(encoding="utf-8") + "\nfoo.*.example\n"
+        with self.assertRaises(ValueError):
+            gate.PublicSuffixes(text)
 
 
 class EveryNewCatalogueRuleBites(unittest.TestCase):
@@ -430,6 +487,26 @@ class EveryNewCatalogueRuleBites(unittest.TestCase):
                      "is refused by moos_webapp_policy")
         self.refused(lambda c: app(c, "claude")["install"].update(permissions=["root"]),
                      "is refused by moos_webapp_policy")
+
+    def test_a_web_app_never_claims_other_peoples_sites(self):
+        # Every Notion user's published page, every GitHub Pages site, every .co.uk company.
+        self.refused(lambda c: app(c, "notion")["install"]["hosts"].append("*.notion.site"),
+                     "'*.notion.site' covers every site under the public suffix 'notion.site'")
+        self.refused(lambda c: app(c, "photopea")["install"]["hosts"].append("*.github.io"),
+                     "'*.github.io' covers every site under the public suffix 'github.io'")
+        self.refused(lambda c: app(c, "photopea")["install"]["hosts"].append("*.co.uk"),
+                     "the public suffix 'co.uk'")
+        self.refused(lambda c: app(c, "notion")["install"]["hosts"].append("github.io"),
+                     "'github.io' is a public suffix")
+        # Not a suffix itself, but the list hands out names inside it: every compute host is
+        # another customer's.
+        self.refused(lambda c: app(c, "photopea")["install"]["hosts"].append(
+            "*.compute.amazonaws.com"), "spans sites of different owners")
+
+    def test_one_owners_site_under_a_public_suffix_is_its_own(self):
+        """Positive control: the planted value, not the wildcard syntax, is what is refused."""
+        self.assertEqual(errors_for(lambda c: app(c, "notion")["install"]["hosts"].extend(
+            ["*.notion.so", "moos.github.io"])), [])
 
     # ── collections, featured, bundles ────────────────────────────────────────────────────
     def test_collections(self):

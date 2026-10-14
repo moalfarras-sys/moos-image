@@ -1256,7 +1256,7 @@
       "install": {
         "kind": "webapp",
         "url": "https://app.notion.com/",
-        "hosts": ["app.notion.com", "www.notion.so", "notion.so", "www.notion.com", "*.notion.site"],
+        "hosts": ["app.notion.com", "www.notion.so", "notion.so", "www.notion.com"],
         "identity": ["google", "apple", "microsoft"],
         "permissions": ["notifications", "clipboard"],
         "accent": "#191919",

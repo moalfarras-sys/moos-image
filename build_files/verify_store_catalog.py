@@ -18,6 +18,11 @@ Rules that matter more than they look:
 * A vendor RPM is accepted only from an allowlisted repository, for an allowlisted package,
   signed by a key this image already trusts. The gate computes that key's fingerprint itself
   and proves build.sh (and build-arm.sh for an aarch64 entry) imports it.
+* A web app's hosts are its own sites. The window has no address bar, so a host that is a
+  public suffix — or a `*.` wildcard whose base is one, or that spans one — would keep strangers'
+  pages inside it under the app's trusted name: `*.notion.site` is every Notion user's published
+  page. The Public Suffix List decides; it is vendored beside this gate (publicsuffix/) so the
+  answer is the same on every machine that runs it.
 * Glyphs must be SymbolCatalog names. Both QML surfaces fall back to `spark` for anything else,
   so an unknown glyph is not a crash, it is a silently wrong picture; the gate's glyph pattern
   is a subset of the indexer's SLUG_RE, and the indexer's own sanitiser runs on the catalogue
@@ -34,6 +39,7 @@ from __future__ import annotations
 
 import base64
 import copy
+import functools
 import hashlib
 import importlib.machinery
 import importlib.util
@@ -60,6 +66,9 @@ VENDOR_RPM_HELPER = "/usr/lib/moos/moos_vendor_rpm.py"
 
 IMAGE_ROOT = Path(os.environ.get("MOOS_TEST_ROOT", "/"))
 BUILD_DIR = Path(__file__).resolve().parent
+# publicsuffix.org's list, as fetched (publicsuffix/README.md: source, version, licence). Read
+# from beside this file, never from the machine: a gate must answer the same everywhere.
+PUBLIC_SUFFIX_LIST = BUILD_DIR / "publicsuffix" / "public_suffix_list.dat"
 
 SLUG_RE = re.compile(r"(?=.{1,64}\Z)[a-z][a-z0-9]*(?:-[a-z0-9]+)*\Z")
 _DOMAIN_LABEL = r"[a-z0-9_](?:[a-z0-9_-]{0,61}[a-z0-9_])?"
@@ -349,6 +358,78 @@ def pgp_v4_fingerprint(armored: str) -> str:
     return digest.hexdigest().upper()
 
 
+class PublicSuffixes:
+    """The Public Suffix List's rules, matched by the algorithm https://publicsuffix.org/list/
+    specifies: the longest matching rule prevails, an exception rule beats it and gives up its
+    leftmost label, and with no match the last label alone is the suffix (the rule "*")."""
+
+    def __init__(self, text: str) -> None:
+        self.rules: set[str] = set()
+        self.exceptions: set[str] = set()
+        for line in text.splitlines():
+            words = line.split()   # a rule is read up to its first whitespace
+            if not words or words[0].startswith("//"):
+                continue
+            rule = words[0]
+            labels = [self.ascii_label(label) for label in rule.lstrip("!").split(".")]
+            # Every rule today is a name or a leftmost "*."; any other shape is a list this code
+            # would misread, so it is refused rather than half understood.
+            if "" in labels or "*" in labels[1:]:
+                raise ValueError(f"unexpected rule shape {rule!r}")
+            (self.exceptions if rule.startswith("!") else self.rules).add(".".join(labels))
+        if len(self.rules) < 5000 or not {"com", "co.uk", "github.io"} <= self.rules:
+            raise ValueError(f"only {len(self.rules)} rules, or not ones every copy has: the "
+                             "list is truncated or not the Public Suffix List")
+
+    @staticmethod
+    def ascii_label(label: str) -> str:
+        """Hosts in the catalogue are ASCII, so an internationalised rule is compared as the
+        A-label its domain is registered under (xn--…)."""
+        label = label.lower()
+        return label if label.isascii() else "xn--" + label.encode("punycode").decode("ascii")
+
+    def public_suffix(self, name: str) -> str:
+        labels = name.lower().rstrip(".").split(".")
+        for start in range(len(labels)):
+            if ".".join(labels[start:]) in self.exceptions:
+                return ".".join(labels[start + 1:])
+        for start in range(len(labels)):
+            candidate = ".".join(labels[start:])
+            wildcard = ".".join(["*", *labels[start + 1:]])
+            if candidate in self.rules or (start + 1 < len(labels) and wildcard in self.rules):
+                return candidate
+        return labels[-1]
+
+    def is_public_suffix(self, name: str) -> bool:
+        return self.public_suffix(name) == name.lower().rstrip(".")
+
+    def rules_under(self, name: str) -> list[str]:
+        """Rules strictly inside `name`: below each, sites belong to different owners again."""
+        tail = "." + name.lower().rstrip(".")
+        return sorted(rule for rule in self.rules if rule.endswith(tail))
+
+
+@functools.lru_cache(maxsize=4)
+def load_public_suffixes(path: Path) -> PublicSuffixes:
+    return PublicSuffixes(Path(path).read_text(encoding="utf-8"))
+
+
+def public_suffix_problem(pattern: str, suffixes: PublicSuffixes) -> str | None:
+    """Why a web app host pattern would keep other people's sites inside the app's window."""
+    wildcard = pattern.startswith("*.")
+    base = pattern[2:] if wildcard else pattern
+    if suffixes.is_public_suffix(base):
+        if wildcard:
+            return (f"{pattern!r} covers every site under the public suffix {base!r}; each of "
+                    "them is someone else's")
+        return f"{pattern!r} is a public suffix, the name other people's sites live under"
+    under = suffixes.rules_under(base) if wildcard else []
+    if under:
+        return (f"{pattern!r} spans sites of different owners: the Public Suffix List's rule "
+                f"{under[0]!r} lies inside it")
+    return None
+
+
 # ── the catalogue ─────────────────────────────────────────────────────────────────────────────
 def check_catalog(catalog, root: Path = IMAGE_ROOT, build_dir: Path = BUILD_DIR,
                   catalog_path: Path | None = None) -> tuple[Report, dict]:
@@ -524,6 +605,7 @@ def check_catalog(catalog, root: Path = IMAGE_ROOT, build_dir: Path = BUILD_DIR,
     names_ar: dict[str, str] = {}
     by_id: dict[str, dict] = {}
     policy = None
+    suffixes = None
     for index, app in enumerate(apps):
         label = f"app[{index}]"
         require(isinstance(app, dict), f"{label} must be an object")
@@ -740,6 +822,23 @@ def check_catalog(catalog, root: Path = IMAGE_ROOT, build_dir: Path = BUILD_DIR,
                     policy.parse_entry(app)
                 except policy.WebAppError as error:
                     require(False, f"{label} is refused by moos_webapp_policy: {error}")
+            # The policy keeps every address on these hosts inside a window with no address bar
+            # and answers their permission requests with the person's decisions for this app.
+            if suffixes is None:
+                try:
+                    suffixes = load_public_suffixes(PUBLIC_SUFFIX_LIST)
+                except (OSError, UnicodeError, ValueError) as error:
+                    suffixes = False
+                    require(False, f"cannot read the Public Suffix List {PUBLIC_SUFFIX_LIST}: "
+                                   f"{error}; no web app host can be checked without it")
+            hosts = inst.get("hosts")
+            if suffixes and isinstance(hosts, list):
+                for host in hosts:
+                    problem = public_suffix_problem(host.lower(), suffixes) \
+                        if isinstance(host, str) else None
+                    require(problem is None, f"{label}.install.hosts {problem}: the app window "
+                                             "would keep their pages inside it, with no address "
+                                             "bar and this app's permissions")
 
         elif kind in {"appdrop", "windows-portable"}:
             version = required_text(inst, "version", f"{label}.install", VERSION_RE)
