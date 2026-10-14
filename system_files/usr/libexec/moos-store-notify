@@ -3,8 +3,8 @@
 
 WHY THIS EXISTS
 
-Apps update by themselves (flatpak-user-update.timer → moos-flatpak-update --user), and that is
-how it should be: quietly. But when an update fails, nothing told the person — the result sat in
+Apps update by themselves (the scheduled background app update), and that is how it should
+be: quietly. But when an update fails, nothing told the person — the result sat in
 ~/.local/state/moos/app-updates.json, read only by MoOS Settings' Update page. An app that keeps
 failing to update keeps its old bugs and its old security holes, and its owner never knew.
 
