@@ -669,6 +669,20 @@ never relax global ownership checks or file permissions to hide it.
 
 ## Things that are easy to get wrong here
 
+**An empty timer assignment clears every trigger, not just the one it names.** The user app
+updater's drop-in wrote `OnBootSec=` then `OnBootSec=25min` to move the first run past login;
+per systemd.timer(5) the empty assignment also cleared `OnCalendar=`, so the daily 04:00 run its
+own comment promised did not exist from July to October 2026 (`TimersCalendar` was empty on the
+station). Restate every trigger after a reset, and read `systemctl show -p TimersMonotonic
+-p TimersCalendar` back. The same audit found the system-scope updater disabled and masked "to
+save boot time": that cured the boot (the vendor timer's `Persistent=true` caught up AT boot) and
+left every app installed for all users without an update, ever. Fix the cause, not the feature.
+
+**A file name is one line break away from a launcher key.** App Drop wrote the program's and
+icon's PATHS into the launcher verbatim, and an archive member may contain `\n`: a tar member
+became `Icon=…`, `MimeType=x-scheme-handler/moos;` and `X-Injected=yes`. Every path that enters a
+`.desktop` file MoOS writes is refused if it holds a control character (`tests/test_app_drop.py`).
+
 **A new package does not replace a daemon selected by `/etc`.** On the A1,
 Tailscale 1.102.5 was installed while a custom system unit kept running the 1.102.3
 standalone binary. Read the resolved unit, its ExecStart and the actual process
