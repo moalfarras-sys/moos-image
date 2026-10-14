@@ -82,6 +82,19 @@ class Home(unittest.TestCase):
                 bundle.addfile(info, io.BytesIO(data) if data is not None else None)
         return buffer.getvalue()
 
+    def zip_bytes(self, members: list[tuple]) -> bytes:
+        """A .zip from (name, data) file members, or (name, target, "link") symlink members."""
+        buffer = io.BytesIO()
+        with zipfile.ZipFile(buffer, "w") as bundle:
+            for item in members:
+                if len(item) == 3 and item[2] == "link":
+                    info = zipfile.ZipInfo(item[0])
+                    info.external_attr = (stat.S_IFLNK | 0o777) << 16
+                    bundle.writestr(info, item[1])
+                else:
+                    bundle.writestr(item[0], item[1])
+        return buffer.getvalue()
+
     @staticmethod
     def member(name: str, data: bytes = b"", mode: int = 0o644) -> tuple[tarfile.TarInfo, bytes]:
         info = tarfile.TarInfo(name)
@@ -262,6 +275,69 @@ class PortableArchives(Home):
             appdrop.install(plan)
         self.assertEqual(refused.exception.code, "unsafe_archive")
         self.nothing_escaped()
+
+    def test_a_symlink_chain_cannot_write_through_itself_out_of_the_tree(self):
+        # Reproduced 2026-10-15 (CVE-class): three in-tree links — esc -> x/.., x -> y/.., y -> .
+        # — each resolve inside the staging folder on their own, but together `esc` points two
+        # levels above it. The old zip path validated each link once at write time, then wrote a
+        # later regular member THROUGH the completed chain into ~/.config/autostart, surviving a
+        # "failed" install and running at the next login. The install tree is ~/Applications/
+        # .<slug>.installing, so ~/.config is exactly two levels up.
+        poison = (b"[Desktop Entry]\nType=Application\nExec=/bin/sh -c 'touch "
+                  + str(self.outside).encode() + b"'\n")
+        members = [("esc", "x/..", "link"), ("x", "y/..", "link"), ("y", ".", "link"),
+                   ("AppRun", ELF),
+                   ("esc/.config/autostart/pwn.desktop", poison)]
+        plan = appdrop.inspect(self.download("chain.zip", self.zip_bytes(members)))
+        with self.assertRaises(appdrop.DropError) as refused:
+            appdrop.install(plan)
+        self.assertEqual(refused.exception.code, "unsafe_archive")
+        self.nothing_escaped()
+        self.assertFalse((self.home / ".config/autostart/pwn.desktop").exists(),
+                         "a symlink chain wrote a file into ~/.config/autostart")
+        self.assertFalse((self.home / "Applications/chain").exists())
+        self.assertEqual(appdrop.installed(), [])
+
+    def test_the_symlink_chain_is_refused_at_extraction_and_leaves_nothing_outside(self):
+        # The tight proof against extract_zip itself: the reviewer's exact three-link chain plus a
+        # regular member under the first link. Nothing is written above the extraction root.
+        root = self.home / "Applications/.probe.installing"
+        root.mkdir(parents=True)
+        members = [("esc", "x/..", "link"), ("x", "y/..", "link"), ("y", ".", "link"),
+                   ("esc/.config/autostart/pwn.desktop", b"pwned")]
+        archive = self.download("chain2.zip", self.zip_bytes(members))
+        budget = appdrop._Budget(archive.stat().st_size, lambda: False, lambda _done: None)
+        with self.assertRaises(appdrop.DropError) as refused:
+            appdrop.extract_zip(archive, root, budget)
+        self.assertEqual(refused.exception.code, "unsafe_archive")
+        self.assertFalse((self.home / ".config/autostart/pwn.desktop").exists())
+        self.nothing_escaped()
+
+    def test_a_library_soname_link_inside_the_tree_is_kept(self):
+        # Legitimate Linux app layout: a library's soname is a relative in-tree link. The hardened
+        # path must still create it (and point it where it says), never refuse it as an escape.
+        root = self.home / "Applications/.lib.installing"
+        root.mkdir(parents=True)
+        members = [("app/lib/libfoo.so.1", ELF),
+                   ("app/lib/libfoo.so", "libfoo.so.1", "link"),
+                   ("app/run", ELF)]
+        archive = self.download("lib.zip", self.zip_bytes(members))
+        budget = appdrop._Budget(archive.stat().st_size, lambda: False, lambda _done: None)
+        appdrop.extract_zip(archive, root, budget)
+        link = root / "app/lib/libfoo.so"
+        self.assertTrue(link.is_symlink(), "the in-tree library link was not created")
+        self.assertEqual(os.readlink(link), "libfoo.so.1")
+        self.assertEqual(link.resolve(), (root / "app/lib/libfoo.so.1").resolve())
+        self.assertTrue(link.resolve().is_relative_to(root.resolve()))
+
+    def test_a_zip_member_that_is_both_a_folder_and_a_file_is_refused(self):
+        root = self.home / "Applications/.dup.installing"
+        root.mkdir(parents=True)
+        archive = self.download("dup.zip", self.zip_bytes([("x/", b""), ("x", ELF)]))
+        budget = appdrop._Budget(archive.stat().st_size, lambda: False, lambda _done: None)
+        with self.assertRaises(appdrop.DropError) as refused:
+            appdrop.extract_zip(archive, root, budget)
+        self.assertEqual(refused.exception.code, "unsafe_archive")
 
     def test_a_bomb_is_refused(self):
         buffer = io.BytesIO()
