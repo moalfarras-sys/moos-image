@@ -179,6 +179,42 @@ moai_do_detached() {
     ) </dev/null >/dev/null 2>&1 &
 }
 
+# Open an app Mo Store installed (a web app, a publisher's app, a Windows program, an Android
+# app) and say what Mo Store answered: its exit code and the job document on its last line, read
+# as moai-do's launch_app reads them. Every failure used to be "app is not installed", said of an
+# installed web app while the scheduled updater held the Store's lock. A link never starts
+# Android app support (--no-android-start): any web page can hand this router a URL, and the
+# whole container is not "an app the user already owns". The id is the validated one.
+store_run() {
+    local id="$1" out code verdict key
+    if out="$(moos-storectl run --no-android-start "$id" 2>/dev/null)"; then code=0; else code=$?; fi
+    # The last line is the job document; only its state and message key are read.
+    verdict="$(printf '%s\n' "$out" | tail -n 1 | python3 -c 'import json, sys
+try:
+    document = json.loads(sys.stdin.read())
+except ValueError:
+    document = {}
+if not isinstance(document, dict):
+    document = {}
+print(str(document.get("state") or "") + "|" + str(document.get("message_key") or ""))' 2>/dev/null)"
+    if [ "$code" -eq 0 ] && [ "${verdict%%|*}" = success ]; then
+        return 0
+    fi
+    key="${verdict#*|}"
+    if [ "$code" -eq 75 ] || [ "$key" = busy ]; then
+        notify "متجر MoOS مشغول بعملية أخرى — حاول بعد قليل | Mo Store is busy with another operation — try again shortly"
+    elif [ "$key" = not_installed ] || [ "$key" = invalid_id ]; then
+        notify "التطبيق غير مثبّت | app is not installed: $id"
+    elif [ "$key" = android_not_running ]; then
+        notify "دعم تطبيقات أندرويد غير مشغّل الآن؛ افتح هذا التطبيق من متجر MoOS | Android app support is not running right now; open this app from Mo Store"
+    elif [ "$key" = unsupported_kind ]; then
+        notify "لا نافذة لهذا التطبيق يفتحها متجر MoOS؛ أدوات سطر الأوامر تعمل في الطرفية | Mo Store has no window to open for this app; command-line tools run in a terminal"
+    else
+        notify "تعذّر فتح هذا التطبيق | This app could not be opened: $id"
+    fi
+    return 1
+}
+
 # Fast Remote is the user's own look profile (moos-fast-remote): no privilege,
 # no terminal, never restarts the desktop, and `off` restores exactly what `on`
 # saved. The argument is a literal from the case arm, never URL text.
@@ -533,7 +569,8 @@ PY
     # exactly what clicking its icon does — no confirmation and no terminal. The
     # id is still free-form (any web page can hand this scheme a URL), so validate
     # the reverse-DNS shape, pass NO arguments to the app, and refuse anything not
-    # installed: the worst a drive-by page can do is start an app the user owns.
+    # installed: the worst a drive-by page can do is start an app the user owns —
+    # never Android app support itself (store_run's --no-android-start).
     apps/run/*)
         id="${tgt#run/}"
         if ! printf '%s' "$id" | grep -Eq '^[A-Za-z0-9][A-Za-z0-9._-]{2,254}$'; then
@@ -552,9 +589,8 @@ PY
             gui gtk-launch "$id"
         # Web apps, publisher downloads, Windows programs and Android apps: Mo Store knows each
         # one's launcher and opens only what is installed (the Store's own Open button).
-        elif command -v moos-storectl >/dev/null 2>&1 \
-          && moos-storectl run "$id" >/dev/null 2>&1; then
-            :
+        elif command -v moos-storectl >/dev/null 2>&1; then
+            store_run "$id" || exit 2
         else
             notify "التطبيق غير مثبّت | app is not installed: $id"
             exit 2

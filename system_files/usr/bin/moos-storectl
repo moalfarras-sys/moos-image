@@ -630,6 +630,22 @@ class JobStore:
             return False
 
 
+class BesideJobStore(JobStore):
+    """job.json for a job that runs while another process holds the lock. Only opening an app
+    does: opening changes nothing, so another job holding the lock is no reason to refuse it.
+
+    The window still waits for its document, and gets it whenever job.json holds no other live job
+    (the scheduled updater holds the lock and writes none). It never writes over another live job
+    (publish_refusal's rule), so the job that holds the lock keeps its document and its window.
+    """
+
+    def write(self, document: dict[str, Any]) -> None:
+        current = self.read()
+        if current and current.get("job_id") != document.get("job_id") and reports_live_job(current):
+            return
+        super().write(document)
+
+
 class GlobalLock:
     def __init__(self, store: JobStore):
         self.store = store
@@ -1797,6 +1813,21 @@ class Controller:
             lock.release()
             raise
 
+    def _begin_beside(self, action: str, item_ids: Sequence[str]) -> tuple[Any, Job]:
+        """A job beside the one that holds the lock (only `run`): no lock, no sweep, the holder's
+        cancel request left alone, and job.json written only while it holds no other live job."""
+        return contextlib.nullcontext(), Job(BesideJobStore(self.store.directory), action, item_ids)
+
+    def _begin_run(self, app_id: str) -> tuple[Any, Job]:
+        """Opening an app is a job like any other while the lock is free. Held — by another Store
+        job, or by the scheduled updater for a whole `flatpak update` — the app still opens, beside
+        it. Refusing answered the person's Open with "Mo Store is busy", which moos-control and
+        moos:// links then reported as "not installed"."""
+        try:
+            return self._begin("run", [app_id])
+        except BusyError:
+            return self._begin_beside("run", [app_id])
+
     @staticmethod
     def _busy_document(action: str, item_ids: Sequence[str]) -> dict[str, Any]:
         now = utc_now()
@@ -1944,13 +1975,23 @@ class Controller:
     def _android_running(result: CommandResult) -> bool:
         return bool(re.search(r"(?im)^Session:\s*RUNNING\s*$", result.output))
 
-    def _ensure_android_session(self, job: Job) -> None:
+    def _android_session_up(self) -> bool:
+        return self._android_running(self.runner.capture([WAYDROID, "status"]))
+
+    @staticmethod
+    def _android_not_running() -> StoreError:
+        return StoreError("Android app support is not running right now; open this app from Mo Store",
+                          message_key="android_not_running")
+
+    def _ensure_android_session(self, job: Job, *, start: bool = True) -> None:
         """Make the already-configured user runtime ready for one explicit job.
 
         Opening, installing or removing an app is the person's intent to use
         the runtime, so starting its user session here needs no second dialog.
         The system image is never downloaded here; one-time setup remains the
-        separately confirmed `moai-do setup-waydroid` action.
+        separately confirmed `moai-do setup-waydroid` action. With `start`
+        false (a moos: link, or an open beside another job) a session that is
+        not running is refused, never started.
         """
         status = self.runner.capture([WAYDROID, "status"])
         words = f"{status.output}\n{status.reason}".lower()
@@ -1960,6 +2001,8 @@ class Controller:
             raise StoreError("Android apps need the one-time MoOS setup first")
         if self._android_running(status):
             return
+        if not start:
+            raise self._android_not_running()
         self.runner.spawn([WAYDROID, "session", "start"])
         for _ in range(20):
             if self._cancelled(job):
@@ -3471,16 +3514,26 @@ class Controller:
             return exit_code(job.document["state"]), job.snapshot()
 
     def _run_android(
-        self, app_id: str, recipe: dict[str, Any] | None
+        self, app_id: str, recipe: dict[str, Any] | None, *, start_android: bool = True
     ) -> tuple[int, dict[str, Any]]:
         # A catalogue entry names its package; a dropped APK's record was written for it.
         package = self._android_package(app_id, recipe) if recipe is not None else app_id
         if not _ANDROID_PACKAGE_RE.fullmatch(package):
             raise StoreError(f"Invalid app ID: {app_id}", message_key="invalid_id")
+        # A moos: link (any web page can hand the router one) opens an Android app only into
+        # support that is already running: starting the whole container is for the person to ask,
+        # in Mo Store or of Mo AI. Refused before anything else is asked of the machine.
+        if not start_android and not self._android_session_up():
+            raise self._android_not_running()
         try:
             lock, job = self._begin("run", [app_id])
         except BusyError:
-            return self._refuse_busy("run", [app_id])
+            # Beside another job, only into a session that is already up: starting one is that
+            # job's business (it may be starting it right now), never a race to run beside it.
+            if not self._android_session_up():
+                return self._refuse_busy("run", [app_id])
+            lock, job = self._begin_beside("run", [app_id])
+            start_android = False
         with lock:
             try:
                 job.update_item(
@@ -3492,7 +3545,7 @@ class Controller:
                     message="Preparing GPU headroom", message_key="preparing_gpu",
                 )
                 self.runner.gpu_guard()
-                self._ensure_android_session(job)
+                self._ensure_android_session(job, start=start_android)
                 result = self.runner.run_cancellable(
                     [WAYDROID, "app", "launch", package],
                     lambda: self._cancelled(job),
@@ -3533,10 +3586,7 @@ class Controller:
     def _run_installed(self, app_id: str, kind: str) -> tuple[int, dict[str, Any]]:
         """Open a web app, an App Drop app, a Windows program or a publisher's own app the way
         its launcher would."""
-        try:
-            lock, job = self._begin("run", [app_id])
-        except BusyError:
-            return self._refuse_busy("run", [app_id])
+        lock, job = self._begin_run(app_id)
         with lock:
             try:
                 if kind == "webapp":
@@ -3560,7 +3610,9 @@ class Controller:
                 job.fail(error, [app_id])
             return exit_code(job.document["state"]), job.snapshot()
 
-    def run(self, app_id: str) -> tuple[int, dict[str, Any]]:
+    def run(self, app_id: str, start_android: bool = True) -> tuple[int, dict[str, Any]]:
+        """Open an installed app of any kind. `start_android` false (`--no-android-start`, what a
+        moos: link asks for) opens an Android app only into Android app support already running."""
         recipe = self._catalog().get(app_id)
         if (
             recipe is not None
@@ -3570,7 +3622,7 @@ class Controller:
         ):
             kind = recipe["install"].get("kind")
             if kind == "android":
-                return self._run_android(app_id, recipe)
+                return self._run_android(app_id, recipe, start_android=start_android)
             if kind == "webapp":
                 return self._run_installed(app_id, "webapp")
             if kind == "appdrop":
@@ -3579,26 +3631,33 @@ class Controller:
                 return self._run_installed(app_id, "windows")
             if kind == "vendor-rpm":
                 return self._run_installed(app_id, "vendor")
+            if kind == "npm":
+                # A command-line tool has no window. Installed, it is said to be one; missing, it is
+                # not installed: "not installed" for a tool that is there was the false answer.
+                binary = recipe["install"].get("bin")
+                if not isinstance(binary, str) or not _BIN_RE.fullmatch(binary):
+                    raise StoreError(f"Catalog has an invalid npm executable for {app_id}")
+                if not (Path.home() / ".local" / "bin" / binary).exists():
+                    raise StoreError("App is not installed", message_key="not_installed")
+                raise StoreError(f"{app_id} is a command-line tool: it has no window to open; run it "
+                                 "in a terminal", message_key="unsupported_kind")
             raise StoreError(f"Mo Store cannot open {app_id}", message_key="unsupported_kind")
         if validate_curated_id(app_id) and self._appdrop().read_record(app_id):
             return self._run_installed(app_id, "appdrop")
         if self._vendor_record(app_id):
             return self._run_installed(app_id, "vendor")
         if self._dropped_android(app_id):
-            return self._run_android(app_id, None)
+            return self._run_android(app_id, None, start_android=start_android)
         if not validate_flatpak_id(app_id):
             raise StoreError(f"Invalid app ID: {app_id}", message_key="invalid_id")
-        try:
-            lock, job = self._begin("run", [app_id])
-        except BusyError:
-            return self._refuse_busy("run", [app_id])
+        lock, job = self._begin_run(app_id)
         with lock:
             try:
                 if not (
                     self.adapter.is_user_installed(app_id)
                     or self.adapter.is_system_installed(app_id)
                 ):
-                    raise StoreError("App is not installed as a Flatpak")
+                    raise StoreError("App is not installed as a Flatpak", message_key="not_installed")
                 job.update_item(
                     app_id, state="running", progress=None, message="Opening app",
                     message_key="opening"
@@ -4227,19 +4286,25 @@ def _parse_time(value: object) -> float | None:
         return None
 
 
+def reports_live_job(document: dict[str, Any] | None) -> bool:
+    """A job another process is still reporting in: starting or running, and written within the
+    window's own 120 s staleness rule."""
+    if not document or document.get("state") not in {"starting", "running"}:
+        return False
+    updated = _parse_time(document.get("updated_at"))
+    return updated is not None and time.time() - updated < 120
+
+
 def publish_refusal(store: JobStore, document: dict[str, Any]) -> bool:
     """Publish a job that never started as a terminal job document, so the window can say why.
 
     The window starts moos-storectl detached and cannot read its output; until this existed an
     invalid id or a busy refusal reached the person as "the operation did not start". It is
-    never written over a live job another process is still reporting in (fresh within the
-    window's own 120 s staleness rule): that job's window keeps its document.
+    never written over a live job another process is still reporting in (reports_live_job):
+    that job's window keeps its document.
     """
-    current = store.read()
-    if current and current.get("state") in {"starting", "running"}:
-        updated = _parse_time(current.get("updated_at"))
-        if updated is not None and time.time() - updated < 120:
-            return False
+    if reports_live_job(store.read()):
+        return False
     try:
         store.prepare()
         store.write(document)
@@ -4329,6 +4394,10 @@ def parser() -> argparse.ArgumentParser:
         help="also delete the app's own data and the permissions changed for it")
     remove.add_argument("id")
     run = commands.add_parser("run", help="run an installed app")
+    run.add_argument(
+        "--no-android-start", action="store_true",
+        help="open an Android app only into Android app support that is already running "
+             "(a moos: link may not start it)")
     run.add_argument("id")
     update = commands.add_parser(
         "update", help="update user Flatpaks and catalogue apps, or one app by id")
@@ -4388,7 +4457,7 @@ def main(
         elif options.command == "remove":
             code, document = controller.remove(options.id, options.delete_data)
         elif options.command == "run":
-            code, document = controller.run(options.id)
+            code, document = controller.run(options.id, start_android=not options.no_android_start)
         elif options.command == "update":
             code, document = controller.update(options.id)
         elif options.command == "permissions":
