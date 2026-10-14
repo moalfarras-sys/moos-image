@@ -327,6 +327,8 @@ python3 tests/test_mo_store_index_lifecycle.py
 python3 tests/test_mo_store_index_machine.py
 python3 tests/test_mo_store_index_compat.py
 python3 tests/test_mo_store_index_details.py
+# Catalogue v2's gate rules each have a negative control; a rule that cannot fail protects nothing.
+python3 tests/test_mo_store_catalog_gate.py
 python3 tests/test_moos_storectl.py
 python3 tests/test_store_job_language.py
 python3 tests/test_mo_store_backend_kinds.py
