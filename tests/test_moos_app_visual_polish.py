@@ -24,6 +24,57 @@ def qml_code(source: str) -> str:
     return re.sub(r"/\*.*?\*/|//[^\n]*", "", source, flags=re.S)
 
 
+STORE = APPS / "store"
+
+
+def store_qml_files() -> dict[str, str]:
+    """Mo Store's QML/JS by file: main.qml first, then the views it was split into, by name.
+
+    Each component file reads as the inline component it replaced (its root `Rectangle {` reads
+    `component AppCard: Rectangle {`), so the contracts below, written while the Store was one
+    file, keep their meaning when a view moves to a file of its own.
+    """
+    files = sorted((p for p in STORE.rglob("*") if p.is_file() and p.suffix in (".qml", ".js")),
+                   key=lambda p: (p != STORE / "main.qml", p.relative_to(STORE).as_posix()))
+    out = {}
+    for path in files:
+        text = path.read_text(encoding="utf-8")
+        if path.suffix == ".qml" and path != STORE / "main.qml":
+            text = re.sub(r"(?m)^(?=[A-Z][\w.]*\s*\{[ \t]*$)", f"component {path.stem}: ",
+                          text, count=1)
+        out[path.relative_to(STORE).as_posix()] = text
+    return out
+
+
+def app_source(app: str) -> str:
+    """An app's QML as these contracts read it: Mo Store's whole folder, any other main.qml."""
+    if app == "store":
+        return "\n".join(store_qml_files().values())
+    return (APPS / app / "main.qml").read_text(encoding="utf-8")
+
+
+def app_code(app: str) -> str:
+    """app_source() without comments, stripped file by file so no `/*` spans two files."""
+    if app == "store":
+        return "\n".join(qml_code(text) for text in store_qml_files().values())
+    return qml_code(app_source(app))
+
+
+def app_section(app: str, start: str, end: str | None = None) -> str:
+    """From `start` to `end` inside the one file that holds `start`, or to that file's end.
+
+    A slice that used to stop at the next view's comment in main.qml stops where the view's own
+    file does once the view has one.
+    """
+    texts = list(store_qml_files().values()) if app == "store" else [app_source(app)]
+    for text in texts:
+        if start in text:
+            at = text.index(start)
+            stop = text.find(end, at) if end else -1
+            return text[at:stop if stop >= 0 else len(text)]
+    raise AssertionError(f"{app}: {start!r} is in none of its QML files")
+
+
 class MoAIVisualPolishTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
@@ -207,8 +258,7 @@ class FirstPartyAppMotionTests(unittest.TestCase):
     def test_every_fixed_app_transition_obeys_the_motion_setting(self) -> None:
         """Finite hover/sheet transitions must stop too, not only endless loops."""
         for app in ("welcome", "installer", "store"):
-            path = ROOT / f"system_files/usr/share/moos/apps/{app}/main.qml"
-            code = qml_code(path.read_text(encoding="utf-8"))
+            code = app_code(app)
             durations = re.findall(r"duration\s*:[^\n;}]+", code)
             with self.subTest(app=app):
                 self.assertGreater(
@@ -287,7 +337,7 @@ class FirstPartyKeyboardViewportTests(unittest.TestCase):
             "installer": ("diskFlick", "accountFlick", "zoneList"),
         }
         for app, panes in expected_panes.items():
-            source = (APPS / app / "main.qml").read_text(encoding="utf-8")
+            source = app_source(app)
             with self.subTest(app=app):
                 self.assertIn(
                     "import org.moos.ui as MoUI",
@@ -309,9 +359,7 @@ class FirstPartyKeyboardViewportTests(unittest.TestCase):
                     )
 
     def test_store_details_render_full_description_as_plain_scrolling_text(self) -> None:
-        source = (APPS / "store/main.qml").read_text(encoding="utf-8")
-        start = source.index("id: detailFlick")
-        details = source[start:source.index("GridLayout {", start)]
+        details = app_section("store", "id: detailFlick", "GridLayout {")
         description = details[
             details.index("text: win.localDescription(win.selectedApp)"):
         ]
@@ -323,10 +371,9 @@ class FirstPartyKeyboardViewportTests(unittest.TestCase):
         self.assertNotIn("elide: Text.Elide", description)
 
     def test_virtual_store_grid_is_one_arrow_navigated_tab_stop(self) -> None:
-        source = (APPS / "store/main.qml").read_text(encoding="utf-8")
-        card = source[source.index("component AppCard:"):source.index("// Layered background")]
-        grid_start = source.index("id: appGrid")
-        grid = source[grid_start:source.index("// Category overview", grid_start)]
+        source = app_source("store")
+        card = app_section("store", "component AppCard:", "// Layered background")
+        grid = app_section("store", "id: appGrid", "// Category overview")
         for token in (
             "property bool compositeFocus: false",
             "property bool compositeCurrent: false",
@@ -398,7 +445,7 @@ class SharedQmlDesignSystemTests(unittest.TestCase):
                 )
 
         for app in ("welcome", "installer", "store", "moai"):
-            source = (APPS / app / "main.qml").read_text(encoding="utf-8")
+            source = app_source(app)
             with self.subTest(app=app):
                 self.assertIn("import org.moos.ui as MoUI", source)
                 self.assertIn("readonly property var design: MoUI.Tokens", source)
@@ -409,8 +456,7 @@ class SharedQmlDesignSystemTests(unittest.TestCase):
 
     def test_all_functional_type_uses_the_role_ramp(self) -> None:
         for app in ("welcome", "installer", "store", "moai"):
-            source = (APPS / app / "main.qml").read_text(encoding="utf-8")
-            code = qml_code(source)
+            code = app_code(app)
             declarations = re.findall(r"font\.pixelSize\s*:[^\n]+", code)
             with self.subTest(app=app):
                 self.assertGreater(len(declarations), 40)
@@ -469,11 +515,11 @@ class SharedQmlDesignSystemTests(unittest.TestCase):
             ("moai", "MoButton: MoUI.Button"),
         ):
             with self.subTest(app=app):
-                source = (APPS / app / "main.qml").read_text(encoding="utf-8")
+                source = app_source(app)
                 self.assertIn(component, source)
-                self.assertIn("surfaceColor:", source[source.index(component):])
+                self.assertIn("surfaceColor:", app_section(app, component))
                 if app in ("store", "moai"):
-                    self.assertIn("dangerColor:", source[source.index(component):])
+                    self.assertIn("dangerColor:", app_section(app, component))
 
     def test_negative_ink_contrast_on_every_app_surface(self) -> None:
         """Outlined destructive controls retain WCAG AA in every MoOS palette."""

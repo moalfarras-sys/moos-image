@@ -43,6 +43,10 @@ REPO = Path(__file__).resolve().parents[1]
 MODULE = REPO / "system_files/usr/lib64/qt6/qml/org/moos/ui"
 SURFACES = sorted(
     list((REPO / "system_files/usr/share/moos/apps").glob("*/main.qml"))
+    # Mo Store's views are files beside its main.qml, each its own surface: one that read the
+    # direction itself, or used MoUI.Locale without importing it, would break on its own.
+    + [p for p in (REPO / "system_files/usr/share/moos/apps/store").rglob("*.qml")
+       if p.name != "main.qml"]
     + list((REPO / "system_files/usr/share/plasma/plasmoids").glob("*/contents/ui/main.qml"))
     # MoOS's own pages inside System Settings: the settings surface lives here now, and it
     # must answer "is this session Arabic" the same way as every other MoOS surface.

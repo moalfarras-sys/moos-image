@@ -260,6 +260,13 @@ class TheFirstFrameIsFilteredToo(unittest.TestCase):
     QML = ROOT / "system_files/usr/share/moos/apps/store/main.qml"
     LAUNCHER = ROOT / "system_files/usr/bin/moos-store"
 
+    def store_qml(self) -> str:
+        """main.qml first, then the Store's view files by name: the window and what it draws."""
+        folder = self.QML.parent
+        files = sorted((p for p in folder.rglob("*") if p.is_file() and p.suffix in (".qml", ".js")),
+                       key=lambda p: (p != self.QML, p.relative_to(folder).as_posix()))
+        return "\n".join(path.read_text(encoding="utf-8") for path in files)
+
     def test_the_launcher_writes_the_machine_profile_before_the_window(self):
         launcher = self.LAUNCHER.read_text(encoding="utf-8")
         self.assertIn("--print-machine", launcher)
@@ -270,14 +277,14 @@ class TheFirstFrameIsFilteredToo(unittest.TestCase):
                         "the profile must exist before the first frame is painted")
 
     def test_the_curated_path_filters_and_reads_the_profile_first(self):
-        qml = self.QML.read_text(encoding="utf-8")
+        qml = self.store_qml()
         self.assertIn("win.curatedRunsHere(apps[i])", qml)
         self.assertLess(qml.index("win.loadMachine()"), qml.index("win.loadCurated()"),
                         "the profile has to be read before the catalogue is painted")
 
     def test_the_capability_strip_lists_only_engines_with_a_runtime(self):
         """It advertised Windows programs and Android apps on a machine with neither."""
-        qml = self.QML.read_text(encoding="utf-8")
+        qml = self.store_qml()
         self.assertIn("ready.indexOf(\"\" + engine.id) < 0", qml)
 
 

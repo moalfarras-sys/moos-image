@@ -103,6 +103,19 @@ def text(path):
     return (IMAGE_ROOT / str(path).lstrip("/")).read_text(encoding="utf-8")
 
 
+def store_text():
+    """Mo Store's QML as one text: main.qml first, then the view files beside it by name.
+
+    The Store window is main.qml; its rail, pages, sheets and cards are component files in the
+    same folder. A promise this gate requires of the Store (or forbids it) holds for all of them.
+    """
+    main = IMAGE_ROOT / STORE_QML.lstrip("/")
+    folder = main.parent
+    files = sorted((p for p in folder.rglob("*") if p.is_file() and p.suffix in (".qml", ".js")),
+                   key=lambda p: (p != main, p.relative_to(folder).as_posix()))
+    return "\n".join(p.read_text(encoding="utf-8") for p in files)
+
+
 def build_text(name):
     """Read a build-context sibling both locally and from the image build."""
     path = Path(__file__).resolve().parent / name
@@ -471,7 +484,7 @@ for index, bundle in enumerate(bundles):
         )
 
 # ── RELATIONSHIP: both QML surfaces safely tolerate new catalog glyphs ─────────
-store_qml = text(STORE_QML)
+store_qml = store_text()
 welcome_qml = text(WELCOME_QML)
 symbol_catalog = code(text(SYMBOL_CATALOG), "//")
 require(
