@@ -1663,14 +1663,19 @@ def appstream_sources(
                             and is_within(active_candidate.resolve(), root_resolved)
                         ):
                             candidates.append(active_candidate)
-                    for candidate in arch_dir.rglob("*"):
-                        if (
-                            candidate.is_file()
-                            and candidate.name in {"appstream.xml", "appstream.xml.gz"}
-                        ):
-                            resolved = candidate.resolve()
-                            if is_within(resolved, root_resolved):
-                                candidates.append(candidate)
+                    # Revisions are the arch directory's own children
+                    # (<remote>/<arch>/<checksum>/appstream.xml). Walking the
+                    # whole tree also visited every cached icon: 13,000 stat
+                    # calls on each Store start once both scopes were trusted.
+                    for revision_dir in arch_dir.iterdir():
+                        if revision_dir.is_symlink() or not revision_dir.is_dir():
+                            continue
+                        for filename in ("appstream.xml", "appstream.xml.gz"):
+                            candidate = revision_dir / filename
+                            if candidate.is_file():
+                                resolved = candidate.resolve()
+                                if is_within(resolved, root_resolved):
+                                    candidates.append(candidate)
                 except OSError:
                     continue
                 if not candidates:
