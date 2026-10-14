@@ -818,10 +818,15 @@ ApplicationWindow {
             if (app.install.pkg) detail += " · " + app.install.pkg
             if (app.install.risk)
                 detail += " · " + (win.rtl ? "يشغّل سكربتات الحزمة" : "runs package scripts")
-        } else if (kind === "appdrop" || kind === "windows" || kind === "vendor") {
+        } else if (kind === "appdrop" || kind === "windows") {
             detail += " · " + (win.rtl ? "ملف موثّق" : "Verified file")
             if (app.install && app.install.version) detail += " " + app.install.version
             detail += " · SHA-256 · " + (win.rtl ? "خارج العزل" : "outside the sandbox")
+        } else if (kind === "vendor") {
+            // The newest build from the publisher's own repository, accepted only when the key MoOS
+            // trusts for that publisher signed it.
+            detail += " · " + (win.rtl ? "موقّع بمفتاح ناشره" : "signed with its publisher's key")
+                    + " · " + (win.rtl ? "خارج العزل" : "outside the sandbox")
         } else if (kind === "webapp") {
             detail += " · " + (win.rtl ? "في نافذته الخاصة" : "in a window of its own")
         } else if (kind === "android") {

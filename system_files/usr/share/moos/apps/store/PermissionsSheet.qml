@@ -107,7 +107,7 @@ Popup {
             Layout.fillWidth: true
             Layout.preferredHeight: Math.max(permissionsSheet.win.fs(120),
                                              Math.min(permissionColumn.implicitHeight,
-                                                      permissionsSheet.win.height - permissionsSheet.win.fs(320)))
+                                                      permissionsSheet.win.height - permissionsSheet.win.fs(296)))
             visible: permissionsSheet.rows.length > 0
             contentWidth: width
             contentHeight: permissionColumn.implicitHeight

@@ -87,10 +87,12 @@ Item {
             }
         }
 
-        // Nothing typed yet, or nothing found: words that find something.
+        // Nothing typed yet, or nothing found: words that find something. Its rows cap their own
+        // width, which caps the column's, so the column is centred rather than left at the start.
         ColumnLayout {
             Layout.fillWidth: true
             Layout.fillHeight: true
+            Layout.alignment: Qt.AlignHCenter
             visible: !searchPage.typed || searchPage.win.searchResults.length === 0
             spacing: searchPage.design.space3
             Item { Layout.preferredHeight: searchPage.design.space6 }

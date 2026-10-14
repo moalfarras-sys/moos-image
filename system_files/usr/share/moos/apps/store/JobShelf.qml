@@ -128,6 +128,12 @@ Item {
                     radius: height / 2
                     color: jobShelf.win.tint(jobShelf.win.txt, jobShelf.win.lightScheme ? 0.10 : 0.12)
                     clip: true
+                    // Progress runs the way the window reads. Inside, the fill and the sweep are laid
+                    // out left to right; in Arabic the whole track is drawn mirrored, so both run
+                    // from the right.
+                    LayoutMirroring.enabled: false
+                    LayoutMirroring.childrenInherit: true
+                    transform: Scale { origin.x: jobProgressTrack.width / 2; xScale: jobShelf.win.rtl ? -1 : 1 }
                     Rectangle {
                         visible: jobShelf.win.job.progress !== null && jobShelf.win.job.progress !== undefined
                         height: parent.height

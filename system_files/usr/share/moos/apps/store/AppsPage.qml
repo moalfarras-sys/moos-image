@@ -141,6 +141,7 @@ Item {
             EdgeFades { parent: chipFlick; anchors.fill: parent; win: appsPage.win; flick: chipFlick }
             RowLayout {
                 id: categoryRow
+                x: appsPage.win.rtl ? Math.max(0, chipFlick.width - categoryRow.implicitWidth) : 0
                 height: parent.height
                 spacing: appsPage.design.space2
                 Repeater {
@@ -183,6 +184,8 @@ Item {
                 EdgeFades { parent: kindFlick; anchors.fill: parent; win: appsPage.win; flick: kindFlick }
                 RowLayout {
                     id: kindRow
+                    // A short strip starts where reading starts: on the right in Arabic.
+                    x: appsPage.win.rtl ? Math.max(0, kindFlick.width - kindRow.implicitWidth) : 0
                     height: parent.height
                     spacing: appsPage.design.space2
                     Repeater {
