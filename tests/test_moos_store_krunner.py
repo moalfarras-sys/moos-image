@@ -60,7 +60,8 @@ class Runner(unittest.TestCase):
         self.path = Path(self.folder.name) / "index.json"
         self.path.write_text(json.dumps({"apps": APPS}), encoding="utf-8")
         self.runner = load()
-        self.index = self.runner["Index"](self.path)
+        self.index = self.runner["Index"](self.path, catalog=Path(self.folder.name) / "none.json",
+                                          builtin={"org.kde.dolphin"})
 
     def tearDown(self):
         self.folder.cleanup()
@@ -90,19 +91,26 @@ class Runner(unittest.TestCase):
         with mock.patch.dict(os.environ, {"LANG": "en_US.UTF-8", "LC_ALL": ""}):
             first = self.runner["match"](self.index, "whatsapp")[0]
         self.assertEqual(first[1], "Get WhatsApp from Mo Store")
-        self.assertEqual(first[3], 100)
+        # Low category relevance: an app the person already has must always come first.
+        self.assertEqual(first[3], 30)
+        self.assertLess(max(row[3] for row in self.runner["match"](self.index, "office")), 31)
 
     def test_a_result_opens_only_the_store_page_of_a_known_app(self):
-        calls = []
+        calls, envs = [], []
         self.runner["open_page"].__globals__["subprocess"] = mock.Mock(
-            Popen=lambda argv, **_: calls.append(argv), DEVNULL=-3)
-        self.assertTrue(self.runner["run"](self.index, "app:org.gimp.GIMP"))
+            Popen=lambda argv, env=None, **_: (calls.append(argv), envs.append(env)), DEVNULL=-3)
+        self.assertTrue(self.runner["run"](self.index, "app:org.gimp.GIMP", "token-123"))
         self.assertEqual(calls, [["/usr/bin/moos-store", "--app=org.gimp.GIMP"]])
+        # KRunner's activation token travels on, so an open Store comes to the front.
+        self.assertEqual(envs[0]["XDG_ACTIVATION_TOKEN"], "token-123")
+        self.assertTrue(self.runner["run"](self.index, "app:org.gimp.GIMP", "bad token;rm"))
+        self.assertNotIn("XDG_ACTIVATION_TOKEN", envs[1])
+        calls.clear()
         for forged in ("app:com.unknown.App", "app:../../etc", "app:x;rm -rf ~", "route:x",
                        "org.gimp.GIMP", "app:", 42):
             with self.subTest(forged=forged):
                 self.assertFalse(self.runner["run"](self.index, forged))
-        self.assertEqual(len(calls), 1)
+        self.assertEqual(calls, [])
 
     def test_the_index_is_reread_when_it_changes(self):
         self.assertEqual(self.ids("krita"), [])
@@ -111,6 +119,47 @@ class Runner(unittest.TestCase):
         self.path.write_text(json.dumps({"apps": apps}), encoding="utf-8")
         os.utime(self.path, ns=(1, 2))
         self.assertEqual(self.ids("krita"), ["app:org.kde.krita"])
+
+    def test_apps_the_image_ships_are_never_offered(self):
+        apps = APPS + [{"id": "org.kde.dolphin", "name": "Dolphin", "installable": True,
+                        "installed": False}]
+        self.path.write_text(json.dumps({"apps": apps}), encoding="utf-8")
+        os.utime(self.path, ns=(3, 4))
+        self.assertEqual(self.ids("dolphin"), [])
+
+    def test_keywords_and_the_arabic_article(self):
+        apps = APPS + [{"id": "org.example.Browser", "en": "Example", "ar": "مثال",
+                        "keywords_ar": ["متصفح"], "keywords_en": ["browser"],
+                        "installable": True, "installed": False, "curated": True}]
+        self.path.write_text(json.dumps({"apps": apps}), encoding="utf-8")
+        os.utime(self.path, ns=(5, 6))
+        self.assertIn("app:org.example.Browser", self.ids("المتصفح"))
+        self.assertIn("app:org.example.Browser", self.ids("browser"))
+
+    def test_before_the_first_index_the_catalogue_answers(self):
+        catalog = Path(self.folder.name) / "catalog.json"
+        catalog.write_text(json.dumps({"apps": [{"id": "chatgpt", "en": "ChatGPT", "ar": "تشات جي بي تي",
+                                                  "desc_en": "Assistant", "desc_ar": "مساعد"}]}),
+                           encoding="utf-8")
+        index = self.runner["Index"](Path(self.folder.name) / "missing.json", catalog=catalog,
+                                     builtin=set())
+        self.assertEqual([row[0] for row in self.runner["match"](index, "chatgpt")], ["app:chatgpt"])
+
+    def test_the_apps_own_icon_is_sent_as_pixels(self):
+        import struct, zlib
+        width = height = 2
+        rows = b"".join(b"\x00" + bytes([255, 0, 0, 255]) * width for _ in range(height))
+        def chunk(kind, body):
+            return struct.pack(">I", len(body)) + kind + body + struct.pack(">I", zlib.crc32(kind + body))
+        png = (b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", struct.pack(">IIBBBBB", width, height, 8, 6, 0, 0, 0))
+               + chunk(b"IDAT", zlib.compress(rows)) + chunk(b"IEND", b""))
+        icon = Path(self.folder.name) / "icons/128x128/app.png"
+        icon.parent.mkdir(parents=True)
+        icon.write_bytes(png)
+        data = self.runner["icon_data"]("file://" + str(icon))
+        self.assertEqual(data[:6], (2, 2, 8, True, 8, 4))
+        self.assertEqual(data[6], bytes([255, 0, 0, 255]) * 4)
+        self.assertIsNone(self.runner["icon_data"]("https://example.com/x.png"))
 
     def test_no_network_and_no_shell(self):
         source = RUNNER.read_text(encoding="utf-8")
