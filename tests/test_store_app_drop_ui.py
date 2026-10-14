@@ -72,7 +72,7 @@ Item {
     property var plain
     property var reviewed
     property int step: 0
-    readonly property var pages: ["apps", "categories", "installed", "updates", "sources", "discover"]
+    readonly property var pages: ["apps", "games", "library", "updates", "settings", "search", "discover"]
     Timer { id: steps; interval: 120; repeat: true
         onTriggered: {
             if (step < pages.length) app.page = pages[step]

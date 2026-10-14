@@ -1,0 +1,11 @@
+{
+ "schema": 1,
+ "action": "check-updates",
+ "state": "success",
+ "checked_at": "@NOW@",
+ "count": 0,
+ "app_count": 0,
+ "auto_updates": false,
+ "message": "Apps are up to date",
+ "items": []
+}

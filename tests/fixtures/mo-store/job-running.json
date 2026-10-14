@@ -1,0 +1,19 @@
+{
+ "schema": 1,
+ "job_id": "fixture-running",
+ "action": "install",
+ "state": "running",
+ "progress": 42,
+ "current_id": "org.example.Office",
+ "message": "Downloading",
+ "message_key": "downloading_file",
+ "started_at": "@NOW@",
+ "updated_at": "@NOW@",
+ "items": [
+  {
+   "id": "org.example.Office",
+   "state": "running",
+   "progress": 42
+  }
+ ]
+}

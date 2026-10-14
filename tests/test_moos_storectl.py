@@ -266,7 +266,25 @@ class ValidationTests(StoreTestCase):
         self.assertIn("function hasRunnableLifecycle(app)", source)
         self.assertIn("if (!win.hasRunnableLifecycle(app)) return", source)
         self.assertNotIn("if (!win.hasFlatpakLifecycle(app)) return", source)
-        self.assertGreaterEqual(source.count("win.hasRunnableLifecycle("), 8)
+        # Mo Store 2 decides an app's one button in ONE place, where the old window counted eight
+        # scattered calls: primaryAction() offers Open only for what hasRunnableLifecycle() can
+        # run (Android included), every Get/Open/Update button is a ProgressButton that asks
+        # primaryAction() and presses performPrimary(), and Open goes through runSelected()'s
+        # guard above. A surface with its own Flatpak-only Open would have to leave that chain.
+
+        def body(signature):
+            start = source.index(signature)
+            return source[start:source.index("\n    }\n", start)]
+
+        self.assertIn("win.hasAndroidLifecycle(app)", body("function hasRunnableLifecycle(app)"))
+        self.assertIn('return win.hasRunnableLifecycle(app) ? "open"', body("function primaryAction(app)"))
+        self.assertIn('if (action === "open") win.runSelected(app)', body("function performPrimary(app)"))
+        button = (STORE_QML.parent / "ProgressButton.qml").read_text(encoding="utf-8")
+        self.assertIn("win.primaryAction(button.app)", button)
+        self.assertIn("win.performPrimary(button.app)", button)
+        for view in ("AppCard.qml", "AppPage.qml", "HeroCarousel.qml", "LibraryPage.qml"):
+            self.assertIn("ProgressButton {", (STORE_QML.parent / view).read_text(encoding="utf-8"),
+                          f"{view} must offer its app's one button through ProgressButton")
 
     def test_transaction_continues_only_for_nonfatal_operation_errors(self):
         self.assertFalse(

@@ -466,6 +466,11 @@ check:
     python3 tests/test_app_drop_dialog_runtime.py
     python3 tests/test_store_app_drop_bridge.py
     python3 tests/test_store_app_drop_ui.py
+    # Mo Store's pages after Discover load the first time they are shown, so a broken binding on
+    # one waits for a person to open it. This walks every page, sheet and shelf of the real window
+    # offscreen on fixture data (and the bare catalogue), fails on any QML warning, and proves on
+    # a planted copy that it reaches every view file. Skips where the Qt runtime is absent.
+    python3 tests/test_mo_store_ui_pages.py
     # The Device page told an Oracle A1 owner their CPU was a "MoOS device".
     # Real hardware identity, or an honest Unknown -- never an invented name.
     python3 tests/test_settings_hardware_identity.py

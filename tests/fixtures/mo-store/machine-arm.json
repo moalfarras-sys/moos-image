@@ -1,0 +1,21 @@
+{
+ "arch": "aarch64",
+ "engines": [
+  "linux"
+ ],
+ "memory_bytes": 25000000000,
+ "swap_bytes": 0,
+ "cpu_cores": 4,
+ "gpu": {
+  "vendor": null,
+  "name": null,
+  "discrete": false
+ },
+ "session": "wayland",
+ "free_bytes": {
+  "apps": 40000000000
+ },
+ "android": null,
+ "windows": null,
+ "screen": null
+}

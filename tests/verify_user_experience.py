@@ -598,10 +598,24 @@ require('function removeSelected(app) {\n        if (win.jobIsActive())' in stor
         ),
         "Mo Store must disable removal while another transaction owns the backend; "
         "a busy result cannot replace the active job document")
-require("win.openSourceEngine(updateCard.modelData.action)" in store_qml_code
-        and "MoosStore.openEngine(updateCard.modelData.action)" not in store_qml_code,
-        "every Updates-page engine button must use the correlated job helper, "
-        "not fire a detached backend job with no visible result")
+# Mo Store 2's Updates page starts no engine at all: what the Store does not update itself goes to
+# its own signed path — MoOS to the MoOS updater, device firmware to MoOS Settings → Update (which
+# reads fwupd), never to another store. The engine buttons that remain (Settings: refresh the
+# catalogue, the advanced Linux catalogue engine) still go through the correlated job helper, so a
+# detached backend job with no visible result cannot come back.
+store_updates_page = code((STORE_DIR / "UpdatesPage.qml").read_text(encoding="utf-8"), "slash")
+require("openSourceEngine(" not in store_updates_page
+        and "MoosStore." not in store_updates_page
+        and "updatesPage.win.openSystemUpdater()" in store_updates_page
+        and 'updatesPage.win.openSystemRoute("firmware")' in store_updates_page
+        and '"firmware": "moos://settings/update"' in store_qml_code
+        and store_qml_code.count("MoosStore.openEngine(") == 1
+        and re.search(r"function openSourceEngine\(action\) \{.*?"
+                      r"win\.expectJob\(\"open-engine\", \[action\]\).*?"
+                      r"MoosStore\.openEngine\(action\)", store_qml_code, re.DOTALL) is not None,
+        "the Updates page must send MoOS and firmware updates to their own signed paths and start "
+        "no engine job; every remaining engine button must use the correlated job helper, not fire "
+        "a detached backend job with no visible result")
 require('"Shared components have updates."' in store_qml_code
         and "win.updateComponentCount() > 0" in store_qml_code,
         "the Updates page must not say everything is current while Flatpak "
@@ -841,14 +855,23 @@ require("component Card: Rectangle" in moai_palette_code
         and "color: root.surface1" in moai_palette_code,
         "Mo AI's shared Card must consume the palette-backed card token")
 # The store's app cards carry no per-card accent (the old `cardItem.modelData.c`);
-# each card fills with the palette surface token and borders on the palette accent
-# (when selected) or the palette outline (otherwise). The relationship is
-# unchanged — cards follow the KDE scheme, never a fixed Nova colour — so gate the
-# bindings, still card-specific (`card.selected` exists only on the store's app
-# card), so a hard-coded card colour still goes red.
-require("Qt.rgba(win.surface.r" in store_palette_code
-        and "border.color: card.selected ? win.accent" in store_palette_code
-        and ": win.outline" in store_palette_code,
+# each card fills with the Store's card material and borders on the palette accent
+# (when selected) or the palette outline (otherwise). Mo Store 2 derives that material
+# ONCE, as `cardColor`, from the scheme's own canvas and surface roles (a frosted pane
+# on a light scheme, the surface lifted toward the ink on a dark one), and every card
+# consumes it. The relationship is unchanged — cards follow the KDE scheme, never a
+# fixed Nova colour — so gate the material's derivation and the card's bindings (AppCard
+# is the store's app card), so a hard-coded card colour still goes red.
+store_card_material = re.search(r"readonly property color cardColor:(.*?)\n\s*readonly property",
+                                store_palette_code, re.DOTALL)
+store_app_card = code((STORE_DIR / "AppCard.qml").read_text(encoding="utf-8"), "slash")
+require(store_card_material is not None
+        and "win.surface" in store_card_material.group(1)
+        and "win.canvas" in store_card_material.group(1)
+        and re.search(r"#[0-9A-Fa-f]{3,8}\b", store_card_material.group(1)) is None
+        and re.search(r"(?m)^    color: win\.cardColor$", store_app_card) is not None
+        and "border.color: card.selected ? win.accent" in store_app_card
+        and ": win.outline" in store_app_card,
         "Mo Store cards must consume the palette-backed surface and outline tokens")
 # The Welcome's pick cards (look/direction/app) follow the same contract with
 # their own delegate ids — the `.selected ? win.accent` shape is the pin.

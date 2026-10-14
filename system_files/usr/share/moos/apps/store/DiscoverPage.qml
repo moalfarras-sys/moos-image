@@ -5,209 +5,316 @@ import QtQuick.Controls
 import QtQuick.Layouts
 import org.moos.ui as MoUI
 
-// Mo Store — Discover: the hero with what MoOS can run, MoOS picks, the first
-// categories and the smart collections.
+// Mo Store — Discover: the hero, where apps come from (Linux apps, web apps, Windows programs,
+// Android apps), the catalogue's collections as rows, ready-made sets that set up a PC in one
+// step, the twelve categories, and a quiet line about the catalogue itself.
 //
 // Drawn from main.qml's state: `win` is the Store window, which owns the data, the actions
 // and the palette. This file only presents them.
-Flickable {
-    id: discoverFlick
+Item {
+    id: discover
     required property var win
     readonly property var design: win.design
+    readonly property real padding: discover.width > win.fs(1000) ? design.space6 : design.space5
+
     anchors.fill: parent
     visible: win.page === "discover"
-    contentWidth: width
-    contentHeight: discoverBody.implicitHeight + 48
-    clip: true
-    boundsBehavior: Flickable.StopAtBounds
-    Keys.onPressed: (event) => MoUI.KeyboardViewport.pageScrollKeys(discoverFlick, event)
-    ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
-    ColumnLayout {
-        id: discoverBody
-        x: 24
-        width: discoverFlick.width - 48
-        spacing: 22
+    transform: pageEnter.shift
+    PageEnter { id: pageEnter; win: discover.win; target: discover }
 
-        Item { Layout.preferredHeight: win.fs(2) }
+    // A kind's tint is one of the scheme's own roles, so the four read as one family.
+    function kindTone(id) {
+        if (id === "web") return discover.win.cyan
+        if (id === "windows") return discover.win.violet
+        if (id === "android") return discover.win.positiveInk
+        return discover.win.accent
+    }
 
-        Rectangle {
-            Layout.fillWidth: true
-            Layout.preferredHeight: win.fs(224)
-            radius: win.fs(28)
-            gradient: Gradient {
-                orientation: Gradient.Horizontal
-                GradientStop { position: 0; color: Qt.rgba(win.accent.r, win.accent.g, win.accent.b, 0.22) }
-                GradientStop { position: 0.58; color: Qt.rgba(win.blue.r, win.blue.g, win.blue.b, 0.1) }
-                GradientStop { position: 1; color: Qt.rgba(win.surface.r, win.surface.g, win.surface.b, 0.9) }
+    Flickable {
+        id: discoverFlick
+        objectName: "discoverFlick"
+        anchors.fill: parent
+        contentWidth: width
+        contentHeight: discoverBody.implicitHeight + discover.design.space6 * 2 + discover.win.footClearance
+        clip: true
+        boundsBehavior: Flickable.StopAtBounds
+        Keys.onPressed: (event) => MoUI.KeyboardViewport.pageScrollKeys(discoverFlick, event)
+        ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
+
+        ColumnLayout {
+            id: discoverBody
+            x: discover.padding
+            y: discover.design.space2
+            width: discoverFlick.width - discover.padding * 2
+            spacing: discover.design.space6
+
+            HeroCarousel {
+                win: discover.win
+                Layout.fillWidth: true
+                visible: discover.win.featured.length > 0
             }
-            border.width: 1
-            border.color: Qt.rgba(win.accent.r, win.accent.g, win.accent.b, 0.38)
-            clip: true
-            RowLayout {
-                z: 1
-                anchors.fill: parent
-                anchors.margins: 28
-                spacing: design.space5
-                ColumnLayout {
+
+            // ── Where apps come from ──
+            ColumnLayout {
+                Layout.fillWidth: true
+                spacing: discover.design.space4
+                SectionHeader {
+                    win: discover.win
                     Layout.fillWidth: true
-                    spacing: design.space2
-                    Text {
-                        text: win.rtl ? "MO STORE · جيل جديد" : "MO STORE · REIMAGINED"
-                        color: win.accent
-                        font.family: win.uiFont
-                        font.pixelSize: win.typePx(10)
-                        font.bold: true
-                        font.letterSpacing: 1.5
-                    }
-                    Text {
-                        text: win.rtl ? "كل تطبيقاتك. متجر واحد." : "Every app. One beautiful home."
-                        color: win.txt
-                        font.family: win.uiFont
-                        font.pixelSize: Math.min(win.typePx(32),
-                                                 Math.max(win.typePx(24),
-                                                          win.width * 0.029))
-                        font.bold: true
-                    }
-                    Text {
-                        Layout.fillWidth: true
-                        Layout.maximumWidth: 660
-                        text: win.rtl
-                            ? "اكتشف تطبيقاتك هنا، أو أضف ملفًا نزّلته. مكان واحد للتثبيت والتحديث، مع توضيح التوافق قبل المتابعة."
-                            : "Discover apps here, or add a file you downloaded. One place to install and update, with compatibility explained before you continue."
-                        color: win.txt2
-                        font.family: win.uiFont
-                        font.pixelSize: win.typePx(13)
-                        wrapMode: Text.WordWrap
-                    }
-                    Flow {
-                        Layout.fillWidth: true
-                        Layout.maximumWidth: 660
-                        spacing: 8
-                        visible: win.engineCapabilities.length > 0
-                        Repeater {
-                            model: win.engineCapabilities
-                            delegate: Rectangle {
-                                required property var modelData
-                                // 40 px is the contract's minimum interactive
-                                // target; this is a real button, not a label.
-                                implicitHeight: Math.max(40, win.fs(40))
-                                implicitWidth: capabilityLabel.implicitWidth + 28
-                                radius: design.radiusControl
-                                color: capabilityTouch.containsMouse
-                                    ? Qt.rgba(win.accent.r, win.accent.g, win.accent.b, 0.18)
-                                    : Qt.rgba(win.surface.r, win.surface.g, win.surface.b, 0.82)
-                                border.width: 1
-                                border.color: Qt.rgba(win.accent.r, win.accent.g, win.accent.b, 0.35)
-                                Text {
-                                    id: capabilityLabel
-                                    anchors.centerIn: parent
-                                    text: parent.modelData.label
-                                    color: win.txt
-                                    font.family: win.uiFont
-                                    font.pixelSize: win.typePx(13)
-                                }
-                                MouseArea {
-                                    id: capabilityTouch
-                                    anchors.fill: parent
-                                    hoverEnabled: true
-                                    cursorShape: Qt.PointingHandCursor
-                                    onClicked: win.openPickerFor(parent.modelData)
-                                }
-                                Accessible.role: Accessible.Button
-                                Accessible.name: modelData.label
-                                Accessible.description: win.local(
-                                    "اختر ملفًا من هذا النوع لإضافته",
-                                    "Choose a file of this kind to add")
-                                Accessible.onPressAction: win.openPickerFor(modelData)
-                            }
-                        }
-                    }
-                    RowLayout {
-                        spacing: 9
-                        ActionButton {
-                            win: discoverFlick.win
-                            label: win.rtl ? "استكشف كل التطبيقات" : "Explore all apps"
-                            glyphName: "grid"
-                            primary: true
-                            triggered: function() { win.navigate("apps") }
-                        }
-                        ActionButton {
-                            win: discoverFlick.win
-                            label: win.rtl ? "جهّز حزمة ذكية" : "Build a smart set"
-                            glyphName: "spark"
-                            triggered: function() {
-                                if (win.bundles.length > 0)
-                                    win.addMany(win.bundles[0].apps || [])
-                            }
-                        }
-                    }
+                    title: discover.win.local("من أين تأتي التطبيقات", "Where apps come from")
+                    subtitle: discover.win.local("متجر واحد لأربعة عوالم، وكل تطبيق يقول بصدق كيف يعمل هنا",
+                                                 "One store for four worlds, and every app says honestly how it runs here")
+                    glyph: "orbit"
                 }
-                ColumnLayout {
-                    Layout.preferredWidth: win.fs(250)
-                    Layout.fillHeight: true
-                    spacing: 10
+                GridLayout {
+                    Layout.fillWidth: true
+                    columns: discoverBody.width > discover.win.fs(900) ? 4 : 2
+                    columnSpacing: discover.design.space4
+                    rowSpacing: discover.design.space4
                     Repeater {
-                        model: [
-                            { value: win.allApps.length, label: win.rtl ? "تطبيق متاح" : "apps available", glyph: "grid" },
-                            { value: win.verifiedCount(), label: win.rtl ? "ناشر موثّق" : "verified publishers", glyph: "shield" },
-                            { value: win.installedCount(), label: win.rtl ? "مثبّت لديك" : "installed", glyph: "check" }
-                        ]
+                        model: discover.win.kindDefs
                         delegate: Rectangle {
+                            id: source
                             required property var modelData
+                            readonly property color tone: discover.kindTone(source.modelData.id)
+                            readonly property int count: discover.win.kindCountIn(source.modelData.id)
                             Layout.fillWidth: true
-                            Layout.fillHeight: true
-                            radius: design.radiusCard
-                            color: Qt.rgba(win.surface.r, win.surface.g, win.surface.b, 0.72)
+                            Layout.preferredHeight: discover.win.fs(148)
+                            radius: discover.design.radiusCard + 2
+                            color: discover.win.cardColor
                             border.width: 1
-                            border.color: win.outline
-                            // The three stat cards share the hero's height, and an
-                            // Arabic-capable UI font's natural line boxes are taller
-                            // than its glyphs: measured at 4K/225%, each caption sat
-                            // on its card's border. Fixed line heights keep value and
-                            // caption inside the card, the minimum height grows the
-                            // hero instead of clipping, and a filling column stops
-                            // each card centring its text at a different offset.
-                            Layout.minimumHeight: statRow.implicitHeight + 16
-                            RowLayout {
-                                id: statRow
+                            border.color: sourceHover.hovered ? discover.win.tint(source.tone, 0.6) : discover.win.cardBorder
+                            scale: sourceFeedback.value
+                            activeFocusOnTab: true
+                            Accessible.role: Accessible.Button
+                            Accessible.name: discover.win.localName(source.modelData) + ", "
+                                             + discover.win.appsCountText(source.count)
+                            Accessible.description: discover.win.rtl ? source.modelData.ar2 : source.modelData.en2
+                            Accessible.onPressAction: discover.win.openKind(source.modelData.id)
+                            Keys.onReturnPressed: discover.win.openKind(source.modelData.id)
+                            Keys.onSpacePressed: discover.win.openKind(source.modelData.id)
+                            FocusRing { win: discover.win }
+                            HoverHandler { id: sourceHover; cursorShape: Qt.PointingHandCursor }
+                            TapHandler { onTapped: discover.win.openKind(source.modelData.id) }
+                            MoUI.SpringFeedback {
+                                id: sourceFeedback
+                                active: source.visible
+                                motionEnabled: discover.win.motionEnabled
+                                targetScale: sourceHover.hovered ? discover.design.hoverScale : 1
+                            }
+                            SoftShadow { win: discover.win; radius: source.radius; strength: sourceHover.hovered ? 1.8 : 1 }
+                            // A wash of the kind's tone from the leading corner.
+                            Rectangle {
                                 anchors.fill: parent
-                                anchors.leftMargin: 14
-                                anchors.rightMargin: 14
-                                anchors.topMargin: 8
-                                anchors.bottomMargin: 8
-                                spacing: 12
-                                Glyph {
-                                    win: discoverFlick.win
-                                    name: modelData.glyph
-                                    tint: win.accent
-                                    Layout.preferredWidth: win.fs(19)
-                                    Layout.preferredHeight: win.fs(19)
-                                    Layout.alignment: Qt.AlignVCenter
+                                anchors.margins: 1
+                                radius: source.radius - 1
+                                gradient: Gradient {
+                                    orientation: Gradient.Horizontal
+                                    GradientStop { position: 0; color: discover.win.tint(source.tone, discover.win.rtl ? 0 : (discover.win.lightScheme ? 0.10 : 0.14)) }
+                                    GradientStop { position: 1; color: discover.win.tint(source.tone, discover.win.rtl ? (discover.win.lightScheme ? 0.10 : 0.14) : 0) }
                                 }
-                                ColumnLayout {
+                            }
+                            ColumnLayout {
+                                anchors.fill: parent
+                                anchors.margins: discover.design.space4
+                                spacing: discover.design.space1
+                                RowLayout {
                                     Layout.fillWidth: true
-                                    Layout.alignment: Qt.AlignVCenter
-                                    spacing: 0
-                                    Text {
-                                        Layout.fillWidth: true
-                                        text: modelData.value
-                                        color: win.txt
-                                        font.family: win.uiFont
-                                        font.pixelSize: win.typePx(18)
-                                        font.bold: true
-                                        lineHeightMode: Text.FixedHeight
-                                        lineHeight: Math.ceil(win.typePx(18) * 1.15)
-                                        elide: Text.ElideRight
+                                    spacing: discover.design.space3
+                                    Rectangle {
+                                        Layout.preferredWidth: discover.win.fs(44)
+                                        Layout.preferredHeight: discover.win.fs(44)
+                                        radius: width / 2
+                                        color: discover.win.tint(source.tone, discover.win.lightScheme ? 0.18 : 0.22)
+                                        Glyph {
+                                            win: discover.win
+                                            anchors.centerIn: parent
+                                            width: discover.win.fs(22)
+                                            height: width
+                                            name: source.modelData.glyph
+                                            tint: discover.win.lightScheme ? Qt.darker(source.tone, 1.1) : source.tone
+                                        }
                                     }
+                                    Item { Layout.fillWidth: true }
                                     Text {
+                                        text: discover.win.countText(source.count)
+                                        color: discover.win.txt
+                                        font.family: discover.win.uiFont
+                                        font.pixelSize: discover.win.typePx(20)
+                                        font.weight: Font.Bold
+                                    }
+                                }
+                                Item { Layout.fillHeight: true }
+                                Text {
+                                    horizontalAlignment: Text.AlignLeft
+                                    Layout.fillWidth: true
+                                    text: discover.win.localName(source.modelData)
+                                    color: discover.win.txt
+                                    font.family: discover.win.uiFont
+                                    font.pixelSize: discover.win.typePx(15)
+                                    font.weight: Font.DemiBold
+                                    elide: Text.ElideRight
+                                }
+                                Text {
+                                    horizontalAlignment: Text.AlignLeft
+                                    Layout.fillWidth: true
+                                    text: discover.win.rtl ? source.modelData.ar2 : source.modelData.en2
+                                    color: discover.win.txt2
+                                    font.family: discover.win.uiFont
+                                    font.pixelSize: discover.win.typePx(12)
+                                    wrapMode: Text.WordWrap
+                                    maximumLineCount: 2
+                                    elide: Text.ElideRight
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // ── The catalogue's collections ──
+            Repeater {
+                model: discover.win.collections
+                delegate: CollectionRow {
+                    required property var modelData
+                    win: discover.win
+                    collection: modelData
+                    bleed: discover.padding
+                    Layout.fillWidth: true
+                }
+            }
+
+            // ── Ready-made sets ──
+            ColumnLayout {
+                Layout.fillWidth: true
+                spacing: discover.design.space4
+                visible: discover.win.bundles.length > 0
+                SectionHeader {
+                    win: discover.win
+                    Layout.fillWidth: true
+                    title: discover.win.local("جهّز هذا الجهاز بخطوة واحدة", "Set up this PC in one step")
+                    subtitle: discover.win.local("مجموعات جاهزة تراجعها مرة واحدة ثم تُثبَّت معًا",
+                                                 "Ready-made sets: review once, install together")
+                    glyph: "boxes"
+                }
+                GridLayout {
+                    Layout.fillWidth: true
+                    columns: discoverBody.width > discover.win.fs(1100) ? 3 : 2
+                    columnSpacing: discover.design.space4
+                    rowSpacing: discover.design.space4
+                    Repeater {
+                        model: discover.win.bundles
+                        delegate: Rectangle {
+                            id: bundleCard
+                            required property var modelData
+                            readonly property var members: discover.win.appsByIds(bundleCard.modelData.apps || [])
+                            readonly property color tone: discover.win.idColour("bundle-" + bundleCard.modelData.id)
+                            Layout.fillWidth: true
+                            Layout.preferredHeight: discover.win.fs(176)
+                            radius: discover.design.radiusCard + 2
+                            color: discover.win.cardColor
+                            border.width: 1
+                            border.color: bundleHover.hovered ? discover.win.tint(discover.win.accent, 0.5) : discover.win.cardBorder
+                            HoverHandler { id: bundleHover }
+                            SoftShadow { win: discover.win; radius: bundleCard.radius }
+                            ColumnLayout {
+                                anchors.fill: parent
+                                anchors.margins: discover.design.space4
+                                spacing: discover.design.space2
+                                RowLayout {
+                                    Layout.fillWidth: true
+                                    spacing: discover.design.space3
+                                    Rectangle {
+                                        Layout.preferredWidth: discover.win.fs(40)
+                                        Layout.preferredHeight: discover.win.fs(40)
+                                        radius: discover.design.radiusControl
+                                        gradient: Gradient {
+                                            GradientStop { position: 0; color: Qt.lighter(bundleCard.tone, 1.25) }
+                                            GradientStop { position: 1; color: bundleCard.tone }
+                                        }
+                                        Glyph {
+                                            win: discover.win
+                                            anchors.centerIn: parent
+                                            width: discover.win.fs(20)
+                                            height: width
+                                            name: bundleCard.modelData.glyph || "boxes"
+                                            tint: discover.win.inkOn(bundleCard.tone)
+                                        }
+                                    }
+                                    ColumnLayout {
                                         Layout.fillWidth: true
-                                        text: modelData.label
-                                        color: win.txt2
-                                        font.family: win.uiFont
-                                        font.pixelSize: win.typePx(9)
-                                        lineHeightMode: Text.FixedHeight
-                                        lineHeight: Math.ceil(win.typePx(9) * 1.35)
-                                        elide: Text.ElideRight
+                                        spacing: 0
+                                        Text {
+                                            horizontalAlignment: Text.AlignLeft
+                                            Layout.fillWidth: true
+                                            text: discover.win.localName(bundleCard.modelData)
+                                            color: discover.win.txt
+                                            font.family: discover.win.uiFont
+                                            font.pixelSize: discover.win.typePx(15)
+                                            font.weight: Font.DemiBold
+                                            elide: Text.ElideRight
+                                        }
+                                        Text {
+                                            Layout.fillWidth: true
+                                            text: discover.win.appsCountText(bundleCard.members.length)
+                                            color: discover.win.txt2
+                                            font.family: discover.win.uiFont
+                                            font.pixelSize: discover.win.typePx(12)
+                                        }
+                                    }
+                                }
+                                Text {
+                                    horizontalAlignment: Text.AlignLeft
+                                    Layout.fillWidth: true
+                                    text: discover.win.rtl ? (bundleCard.modelData.desc_ar || "") : (bundleCard.modelData.desc_en || "")
+                                    color: discover.win.txt2
+                                    font.family: discover.win.uiFont
+                                    font.pixelSize: discover.win.typePx(13)
+                                    wrapMode: Text.WordWrap
+                                    maximumLineCount: 2
+                                    elide: Text.ElideRight
+                                }
+                                Item { Layout.fillHeight: true }
+                                RowLayout {
+                                    Layout.fillWidth: true
+                                    spacing: discover.design.space3
+                                    // The set's members, overlapping like a hand of cards.
+                                    Item {
+                                        Layout.preferredHeight: discover.win.fs(32)
+                                        Layout.preferredWidth: discover.win.fs(32) + Math.max(0, Math.min(5, bundleCard.members.length) - 1) * discover.win.fs(22)
+                                        Repeater {
+                                            model: bundleCard.members.slice(0, 5)
+                                            delegate: Rectangle {
+                                                id: memberFrame
+                                                required property var modelData
+                                                required property int index
+                                                width: discover.win.fs(32)
+                                                height: width
+                                                radius: discover.win.fs(10)
+                                                x: discover.win.rtl ? (parent ? parent.width : 0) - width - memberFrame.index * discover.win.fs(22)
+                                                                    : memberFrame.index * discover.win.fs(22)
+                                                z: 10 - memberFrame.index
+                                                color: discover.win.cardColor
+                                                AppIcon {
+                                                    win: discover.win
+                                                    anchors.centerIn: parent
+                                                    app: memberFrame.modelData
+                                                    size: discover.win.fs(28)
+                                                }
+                                            }
+                                        }
+                                    }
+                                    Item { Layout.fillWidth: true }
+                                    ActionButton {
+                                        win: discover.win
+                                        pill: true
+                                        compact: true
+                                        label: discover.win.local("أضف المجموعة", "Add the set")
+                                        glyphName: "download"
+                                        enabled: !discover.win.jobIsActive()
+                                        Accessible.name: discover.win.local("أضف المجموعة: ", "Add the set: ")
+                                                         + discover.win.localName(bundleCard.modelData)
+                                        triggered: function() { discover.win.addMany(bundleCard.modelData.apps || []) }
                                     }
                                 }
                             }
@@ -215,215 +322,133 @@ Flickable {
                     }
                 }
             }
-        }
 
-        RowLayout {
-            Layout.fillWidth: true
-            Text {
-                text: win.rtl ? "اختيارات MoOS" : "MoOS picks"
-                color: win.txt
-                font.family: win.uiFont
-                font.pixelSize: win.typePx(17)
-                font.bold: true
-            }
-            Text {
-                text: win.rtl ? "· تطبيقات موثوقة للبدء" : "· trusted ways to get started"
-                color: win.txt2
-                font.family: win.uiFont
-                font.pixelSize: win.typePx(11)
-            }
-            Item { Layout.fillWidth: true }
-            ActionButton {
-                win: discoverFlick.win
-                label: win.rtl ? "عرض الكل" : "See all"
-                glyphName: "external"
-                triggered: function() { win.navigate("apps") }
-            }
-        }
-
-        GridLayout {
-            Layout.fillWidth: true
-            columns: win.width > 1220 ? 4 : 3
-            columnSpacing: 12
-            rowSpacing: 12
-            Repeater {
-                model: win.curatedFeatured(win.width > 1220 ? 8 : 6)
-                delegate: AppCard {
-                    required property var modelData
-                    win: discoverFlick.win
-                    app: modelData
+            // ── Categories ──
+            ColumnLayout {
+                Layout.fillWidth: true
+                spacing: discover.design.space4
+                SectionHeader {
+                    win: discover.win
                     Layout.fillWidth: true
-                    Layout.preferredHeight: win.fs(178)
+                    title: discover.win.local("تصفّح حسب الفئة", "Browse by category")
+                    subtitle: discover.win.local("من العمل إلى اللعب، ومن الصور إلى البرمجة",
+                                                 "From work to play, from photos to code")
+                    glyph: "grid"
                 }
-            }
-        }
-
-        RowLayout {
-            Layout.fillWidth: true
-            Layout.topMargin: 2
-            Text {
-                text: win.rtl ? "فئات لكل استخدام" : "Made for every kind of day"
-                color: win.txt
-                font.family: win.uiFont
-                font.pixelSize: win.typePx(17)
-                font.bold: true
-            }
-            Item { Layout.fillWidth: true }
-            Text {
-                text: win.rtl ? "من العمل إلى اللعب، ومن التصميم إلى الذكاء الاصطناعي" : "Work, play, create, learn and build"
-                color: win.txt2
-                font.family: win.uiFont
-                font.pixelSize: win.typePx(11)
-            }
-        }
-
-        GridLayout {
-            Layout.fillWidth: true
-            columns: win.width > 1180 ? 4 : 3
-            columnSpacing: 12
-            rowSpacing: 12
-            Repeater {
-                model: win.categoryDefs.slice(0, 8)
-                delegate: Rectangle {
-                    id: homeCategory
-                    required property var modelData
+                GridLayout {
                     Layout.fillWidth: true
-                    Layout.preferredHeight: win.fs(82)
-                    radius: design.radiusCard
-                    color: homeCategoryHover.hovered
-                        ? Qt.rgba(win.raised.r, win.raised.g, win.raised.b, 0.94)
-                        : Qt.rgba(win.surface.r, win.surface.g, win.surface.b, 0.72)
-                    border.width: 1
-                    border.color: homeCategoryHover.hovered ? win.accent : win.outline
-                    activeFocusOnTab: true
-                    Accessible.role: Accessible.Button
-                    Accessible.name: win.rtl ? homeCategory.modelData.ar : homeCategory.modelData.en
-                    FocusRing { win: discoverFlick.win }
-                    HoverHandler { id: homeCategoryHover }
-                    TapHandler { onTapped: win.openCategory(homeCategory.modelData.id) }
-                    Keys.onReturnPressed: win.openCategory(homeCategory.modelData.id)
-                    RowLayout {
-                        anchors.fill: parent
-                        anchors.margins: 14
-                        spacing: design.space3
-                        Rectangle {
-                            Layout.preferredWidth: win.fs(44)
-                            Layout.preferredHeight: win.fs(44)
-                            radius: design.radiusControl
-                            color: Qt.rgba(win.accent.r, win.accent.g, win.accent.b, 0.13)
-                            Glyph { win: discoverFlick.win; anchors.centerIn: parent; width: 22; height: 22; name: homeCategory.modelData.glyph; tint: win.accent }
-                        }
-                        ColumnLayout {
+                    columns: discoverBody.width > discover.win.fs(1100) ? 6
+                           : discoverBody.width > discover.win.fs(760) ? 4 : 3
+                    columnSpacing: discover.design.space3
+                    rowSpacing: discover.design.space3
+                    Repeater {
+                        model: discover.win.storeCategories
+                        delegate: Rectangle {
+                            id: categoryTile
+                            required property var modelData
+                            readonly property color tone: discover.win.idColour("category-" + categoryTile.modelData.id)
                             Layout.fillWidth: true
-                            spacing: 0
-                            Text {
-                                text: win.rtl ? homeCategory.modelData.ar : homeCategory.modelData.en
-                                color: win.txt
-                                font.family: win.uiFont
-                                font.pixelSize: win.typePx(13)
-                                font.bold: true
+                            Layout.preferredHeight: discover.win.fs(112)
+                            radius: discover.design.radiusCard
+                            color: discover.win.cardColor
+                            border.width: 1
+                            border.color: categoryHover.hovered ? discover.win.tint(categoryTile.tone, 0.7) : discover.win.cardBorder
+                            scale: categoryFeedback.value
+                            activeFocusOnTab: true
+                            Accessible.role: Accessible.Button
+                            Accessible.name: discover.win.localName(categoryTile.modelData) + ", "
+                                             + discover.win.appsCountText(discover.win.categoryCount(categoryTile.modelData.id))
+                            Accessible.onPressAction: discover.win.openCategory(categoryTile.modelData.id)
+                            Keys.onReturnPressed: discover.win.openCategory(categoryTile.modelData.id)
+                            Keys.onSpacePressed: discover.win.openCategory(categoryTile.modelData.id)
+                            FocusRing { win: discover.win }
+                            HoverHandler { id: categoryHover; cursorShape: Qt.PointingHandCursor }
+                            TapHandler { onTapped: discover.win.openCategory(categoryTile.modelData.id) }
+                            MoUI.SpringFeedback {
+                                id: categoryFeedback
+                                active: categoryTile.visible
+                                motionEnabled: discover.win.motionEnabled
+                                targetScale: categoryHover.hovered ? discover.design.hoverScale : 1
                             }
-                            Text {
-                                text: win.categoryCount(homeCategory.modelData.id) + (win.rtl ? " تطبيق" : " apps")
-                                color: win.txt2
-                                font.family: win.uiFont
-                                font.pixelSize: win.typePx(10)
+                            SoftShadow { win: discover.win; radius: categoryTile.radius; strength: categoryHover.hovered ? 1.6 : 0.8 }
+                            ColumnLayout {
+                                anchors.fill: parent
+                                anchors.margins: discover.design.space3 + 2
+                                spacing: discover.design.space1
+                                Rectangle {
+                                    Layout.preferredWidth: discover.win.fs(40)
+                                    Layout.preferredHeight: discover.win.fs(40)
+                                    radius: discover.design.radiusControl
+                                    gradient: Gradient {
+                                        GradientStop { position: 0; color: Qt.lighter(categoryTile.tone, 1.25) }
+                                        GradientStop { position: 1; color: categoryTile.tone }
+                                    }
+                                    Glyph {
+                                        win: discover.win
+                                        anchors.centerIn: parent
+                                        width: discover.win.fs(20)
+                                        height: width
+                                        name: categoryTile.modelData.glyph
+                                        tint: discover.win.inkOn(categoryTile.tone)
+                                    }
+                                }
+                                Item { Layout.fillHeight: true }
+                                Text {
+                                    horizontalAlignment: Text.AlignLeft
+                                    Layout.fillWidth: true
+                                    text: discover.win.localName(categoryTile.modelData)
+                                    color: discover.win.txt
+                                    font.family: discover.win.uiFont
+                                    font.pixelSize: discover.win.typePx(14)
+                                    font.weight: Font.DemiBold
+                                    elide: Text.ElideRight
+                                }
+                                Text {
+                                    horizontalAlignment: Text.AlignLeft
+                                    Layout.fillWidth: true
+                                    text: discover.win.appsCountText(discover.win.categoryCount(categoryTile.modelData.id))
+                                    color: discover.win.txt2
+                                    font.family: discover.win.uiFont
+                                    font.pixelSize: discover.win.typePx(12)
+                                    elide: Text.ElideRight
+                                }
                             }
-                        }
-                        Glyph { win: discoverFlick.win; name: "external"; tint: win.txt2; Layout.preferredWidth: win.fs(14); Layout.preferredHeight: win.fs(14) }
-                    }
-                }
-            }
-        }
-
-        RowLayout {
-            Layout.fillWidth: true
-            Layout.topMargin: 2
-            Text {
-                text: win.rtl ? "حزم ذكية" : "Smart collections"
-                color: win.txt
-                font.family: win.uiFont
-                font.pixelSize: win.typePx(17)
-                font.bold: true
-            }
-            Text {
-                text: win.rtl ? "· ثبّت مجموعة كاملة بمراجعة واحدة" : "· one review, a complete setup"
-                color: win.txt2
-                font.family: win.uiFont
-                font.pixelSize: win.typePx(11)
-            }
-            Item { Layout.fillWidth: true }
-        }
-
-        GridLayout {
-            Layout.fillWidth: true
-            columns: win.width > 1180 ? 3 : 2
-            columnSpacing: 12
-            rowSpacing: 12
-            Repeater {
-                model: win.bundles
-                delegate: Rectangle {
-                    id: bundleCard
-                    required property var modelData
-                    Layout.fillWidth: true
-                    Layout.preferredHeight: win.fs(132)
-                    radius: design.radiusCard
-                    color: bundleHover.hovered
-                        ? Qt.rgba(win.raised.r, win.raised.g, win.raised.b, 0.96)
-                        : Qt.rgba(win.surface.r, win.surface.g, win.surface.b, 0.76)
-                    border.width: 1
-                    border.color: bundleHover.hovered ? win.accent : win.outline
-                    HoverHandler { id: bundleHover }
-                    ColumnLayout {
-                        anchors.fill: parent
-                        anchors.margins: 14
-                        spacing: 7
-                        RowLayout {
-                            Layout.fillWidth: true
-                            Glyph {
-                                win: discoverFlick.win
-                                name: bundleCard.modelData.glyph || "boxes"
-                                tint: win.accent
-                                Layout.preferredWidth: win.fs(21)
-                                Layout.preferredHeight: win.fs(21)
-                            }
-                            Text {
-                                Layout.fillWidth: true
-                                text: win.rtl ? bundleCard.modelData.ar : bundleCard.modelData.en
-                                color: win.txt
-                                font.family: win.uiFont
-                                font.pixelSize: win.typePx(14)
-                                font.bold: true
-                            }
-                            Text {
-                                text: (bundleCard.modelData.apps || []).length
-                                color: win.accent
-                                font.family: win.uiFont
-                                font.pixelSize: win.typePx(12)
-                                font.bold: true
-                            }
-                        }
-                        Text {
-                            Layout.fillWidth: true
-                            text: win.rtl ? bundleCard.modelData.desc_ar : bundleCard.modelData.desc_en
-                            color: win.txt2
-                            font.family: win.uiFont
-                            font.pixelSize: win.typePx(10)
-                            wrapMode: Text.WordWrap
-                            maximumLineCount: 2
-                            elide: Text.ElideRight
-                        }
-                        Item { Layout.fillHeight: true }
-                        ActionButton {
-                            win: discoverFlick.win
-                            label: win.rtl ? "أضف الحزمة" : "Add collection"
-                            glyphName: "download"
-                            triggered: function() { win.addMany(bundleCard.modelData.apps || []) }
                         }
                     }
                 }
             }
+
+            // ── The catalogue itself, quietly ──
+            RowLayout {
+                Layout.fillWidth: true
+                Layout.topMargin: discover.design.space2
+                spacing: discover.design.space2
+                Item { Layout.fillWidth: true }
+                Glyph {
+                    win: discover.win
+                    name: discover.win.indexReady ? "check" : "refresh"
+                    tint: discover.win.txt2
+                    Layout.preferredWidth: discover.win.fs(14)
+                    Layout.preferredHeight: discover.win.fs(14)
+                }
+                Text {
+                    text: {
+                        var parts = []
+                        parts.push(discover.win.indexReady
+                            ? discover.win.local("الكتالوج جاهز", "Catalogue ready")
+                            : discover.win.indexPolling ? discover.win.local("يُجهَّز الكتالوج…", "Preparing the catalogue…")
+                            : discover.win.local("الكتالوج الأساسي", "Essential catalogue"))
+                        parts.push(discover.win.appsCountText(discover.win.browseOrder.length))
+                        var when = discover.win.agoText(discover.win.indexGeneratedAt)
+                        if (when !== "") parts.push(discover.win.local("حُدِّث ", "updated ") + when)
+                        return parts.join("  ·  ")
+                    }
+                    color: discover.win.txt2
+                    font.family: discover.win.uiFont
+                    font.pixelSize: discover.win.typePx(12)
+                }
+                Item { Layout.fillWidth: true }
+            }
         }
-        Item { Layout.preferredHeight: win.fs(12) }
     }
 }

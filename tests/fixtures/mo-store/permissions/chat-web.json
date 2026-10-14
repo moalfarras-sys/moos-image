@@ -1,0 +1,28 @@
+{
+ "schema": 1,
+ "id": "chat-web",
+ "kind": "webapp",
+ "generated_at": "@NOW@",
+ "sandboxed": true,
+ "installed": true,
+ "rows": [
+  {
+   "key": "notifications",
+   "state": "allow",
+   "changeable": true,
+   "ask": false
+  },
+  {
+   "key": "microphone",
+   "state": "deny",
+   "changeable": true,
+   "ask": true
+  },
+  {
+   "key": "camera",
+   "state": "deny",
+   "changeable": true,
+   "ask": false
+  }
+ ]
+}
