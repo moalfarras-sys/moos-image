@@ -660,7 +660,32 @@ case "${2:-}" in
 esac
 ''',
     "logger": "",
+    # The login-screen Remote helper and pkexec, as remote off sees them: enrollment is kept in
+    # a file, and the privileged disable clears it unless the test says it stays stuck.
+    "mo-remote-greeter": '''case "$1" in
+  status) cat "$STUB_ROOT/greeter" 2>/dev/null || echo '{"enabled": false}';;
+  disable) [ -n "$STUB_GREETER_STUCK" ] || echo '{"enabled": false}' > "$STUB_ROOT/greeter";;
+  *) exit 2;;
+esac
+''',
+    "pkexec": 'exec "$@"\n',
 }
+
+# moos-control names the login-screen Remote helper by absolute path, so a PATH of stubs alone
+# never reached it: on a station with login-screen Remote enrolled, `remote off` ran the real
+# helper and the real pkexec, and the owner got an authentication dialog. The verb under test
+# runs from its real file (its __file__ and every other line unchanged) with that one constant
+# pointed at the stub.
+CONTROL_UNDER_TEST = r'''import sys
+real, helper = sys.argv[1], sys.argv[2]
+constant = 'GREETER_HELPER = "/usr/libexec/mo-remote-greeter"'
+source = open(real, encoding="utf-8").read()
+if source.count(constant) != 1:
+    sys.exit("moos-control no longer names its login-screen helper as this test expects")
+code = compile(source.replace(constant, "GREETER_HELPER = %r" % helper), real, "exec")
+sys.argv = [real, *sys.argv[3:]]
+exec(code, {"__name__": "__main__", "__file__": real})
+'''
 
 
 class TestRemoteVerbs(unittest.TestCase):
@@ -676,9 +701,13 @@ class TestRemoteVerbs(unittest.TestCase):
         for name, body in REMOTE_STUBS.items():
             (self.bin / name).write_text(RECORDER + body, encoding="utf-8")
             (self.bin / name).chmod(0o755)
-        # The one real program the stubs use: PATH is the stub folder alone, so nothing else
-        # on this machine can be reached by a verb under test.
+        # The one real program the stubs use: PATH is the stub folder alone, and the helper
+        # moos-control names by absolute path is the stub too, so nothing else on this machine
+        # can be reached by a verb under test.
         (self.bin / "sleep").symlink_to(shutil.which("sleep"))
+        (self.bin / "cat").symlink_to(shutil.which("cat"))
+        self.wrapper = self.root / "moos-control-under-test.py"
+        self.wrapper.write_text(CONTROL_UNDER_TEST, encoding="utf-8")
 
     def tearDown(self):
         self.dir.cleanup()
@@ -686,8 +715,10 @@ class TestRemoteVerbs(unittest.TestCase):
     def control(self, *args, **extra):
         env = {"PATH": str(self.bin), "HOME": str(self.root), "STUB_LOG": str(self.log),
                "STUB_ROOT": str(self.root), "LANG": "C.UTF-8", **extra}
-        return subprocess.run([sys.executable, str(ROOT / "system_files/usr/bin/moos-control"),
-                               *args], env=env, capture_output=True, text=True, timeout=60)
+        return subprocess.run([sys.executable, str(self.wrapper),
+                               str(ROOT / "system_files/usr/bin/moos-control"),
+                               str(self.bin / "mo-remote-greeter"), *args],
+                              env=env, capture_output=True, text=True, timeout=60)
 
     def calls(self):
         return [line.split("\t") for line in self.log.read_text(encoding="utf-8").splitlines()]
@@ -728,6 +759,22 @@ class TestRemoteVerbs(unittest.TestCase):
         still = self.control("remote", "off", STUB_REMOTE_STOPS_AS="active")
         self.assertEqual(still.returncode, 69)
         self.assertIn("still running", still.stderr)
+
+    def test_remote_off_revokes_an_enrolled_login_screen_first(self):
+        (self.root / "greeter").write_text('{"enabled": true}\n', encoding="utf-8")
+        (self.root / "remote").write_text("active\n", encoding="utf-8")
+        done = self.control("remote", "off")
+        self.assertEqual(done.returncode, 0, done.stderr)
+        calls = self.calls()
+        revoke = ["pkexec", str(self.bin / "mo-remote-greeter"), "disable"]
+        account = ["systemctl", "--user", "disable", "--now", "mo-remote-personal.service"]
+        self.assertIn(revoke, calls)
+        self.assertLess(calls.index(revoke), calls.index(account),
+                        "the login screen is revoked before the account service stops")
+        (self.root / "greeter").write_text('{"enabled": true}\n', encoding="utf-8")
+        stuck = self.control("remote", "off", STUB_GREETER_STUCK="1")
+        self.assertEqual(stuck.returncode, 69)
+        self.assertIn("not confirmed disabled", stuck.stderr)
 
     def test_restart_reconnects_only_a_remote_that_is_on(self):
         done = self.control("remote", "restart")

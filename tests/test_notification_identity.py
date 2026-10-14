@@ -164,6 +164,10 @@ class TheSendersExecuted(unittest.TestCase):
                              '*passivepopup*) printf "%s\\n" "$*" >> "$POPUPS";; esac\n')
         self.stub("systemctl", "exit 0\n")
         self.stub("moai-do", 'echo "Done"\n')
+        # moos://remote/stop goes through moos-control, which revokes an enrolled login-screen
+        # Remote with pkexec: unstubbed, every run on such a station raised a real
+        # authentication dialog on the owner's screen.
+        self.stub("moos-control", 'printf "%s\\n" "$*" >> "$CONTROL"\n')
         self.stub("logger", "exit 0\n")
         (self.root / "run").mkdir(mode=0o700)
 
@@ -179,6 +183,7 @@ class TheSendersExecuted(unittest.TestCase):
         return {"PATH": f"{self.bin}:/usr/bin:/bin", "HOME": str(self.root),
                 "XDG_RUNTIME_DIR": str(self.root / "run"), "LANG": "C.UTF-8",
                 "SENT": str(self.sent), "POPUPS": str(self.popups),
+                "CONTROL": str(self.root / "control.log"),
                 "DBUS_SESSION_BUS_ADDRESS": f"unix:path={self.root}/no-bus", **extra}
 
     def wait_for(self, path, seconds=5):
@@ -194,6 +199,8 @@ class TheSendersExecuted(unittest.TestCase):
 
     def test_moos_open_files_settings_results_under_moos_settings(self):
         self.open("moos://remote/stop")
+        self.assertEqual((self.root / "control.log").read_text(encoding="utf-8"), "remote off\n",
+                         "the stop must reach the stub, never the installed moos-control")
         sent = self.wait_for(self.sent)
         self.assertEqual(len(sent), 1, sent)
         self.assertIn("--hint=string:desktop-entry:systemsettings", sent[0].split("\t"))
