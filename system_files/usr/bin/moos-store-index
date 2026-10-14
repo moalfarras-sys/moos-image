@@ -18,6 +18,7 @@ import gzip
 import hashlib
 import ipaddress
 import json
+import math
 import os
 import platform
 from pathlib import Path
@@ -951,6 +952,73 @@ def appstream_keywords(component: ET.Element, preferences: list[str], limit: int
     return words
 
 
+# <requires>/<recommends> (AppStream "relations"). display_length is in logical
+# pixels against the screen's shortest side unless side="longest"; the older named
+# sizes map to their documented minimums.
+DISPLAY_LENGTH_NAMES = {"xsmall": 360, "small": 420, "medium": 760, "large": 900,
+                        "xlarge": 1200}
+DISPLAY_COMPARES = {"ge", "gt", "le", "lt", "eq", "ne"}
+INTERNET_NEEDS = {"always", "offline-only", "first-run"}
+CONTROL_KINDS = {"pointing", "keyboard", "console", "tablet", "touch", "gamepad",
+                 "tv-remote", "voice", "vision"}
+
+
+def component_relations(component: ET.Element, relation: str) -> dict:
+    """{memory (MiB), display_length {px, compare, side}, internet, controls[]}."""
+
+    result: dict = {}
+    controls: list[str] = []
+    for element in direct_children(component, relation):
+        for child in element:
+            name = local_name(child.tag)
+            text = element_text(child, 64).casefold()
+            if name == "memory" and text.isdigit() and "memory" not in result:
+                result["memory"] = min(int(text), 1 << 30)
+            elif name == "display_length" and "display_length" not in result:
+                compare = child.attrib.get("compare", "ge").strip().casefold() or "ge"
+                side = child.attrib.get("side", "shortest").strip().casefold() or "shortest"
+                pixels = DISPLAY_LENGTH_NAMES.get(text) or (int(text) if text.isdigit() else 0)
+                if 0 < pixels < 100_000 and compare in DISPLAY_COMPARES and side in {
+                        "shortest", "longest"}:
+                    result["display_length"] = {"px": pixels, "compare": compare,
+                                                "side": side}
+            elif name == "internet" and text in INTERNET_NEEDS and "internet" not in result:
+                result["internet"] = text
+            elif name == "control" and text in CONTROL_KINDS and text not in controls:
+                controls.append(text)
+    result["controls"] = controls
+    return result
+
+
+def component_size(component: ET.Element) -> int | None:
+    """Download plus installed bytes when AppStream states them (Flathub does not)."""
+
+    total = 0
+    for size in direct_children(component, "size"):
+        kind = size.attrib.get("type", "").casefold()
+        text = element_text(size, 32)
+        if kind in {"download", "installed"} and text.isdigit():
+            total += int(text)
+    return total or None
+
+
+def component_needs(component: ET.Element) -> dict:
+    """What the compatibility verdict reads, kept in the index entry (see compat_verdict)."""
+
+    requires = component_relations(component, "requires")
+    needs: dict = {}
+    if "memory" in requires:
+        needs["memory"] = requires["memory"]
+    if "display_length" in requires:
+        needs["display"] = requires["display_length"]
+    if requires.get("internet") in {"always", "first-run"}:
+        needs["internet"] = requires["internet"]
+    size = component_size(component)
+    if size:
+        needs["size"] = size
+    return needs
+
+
 def parse_component(
     component: ET.Element,
     index_path: Path,
@@ -1006,6 +1074,7 @@ def parse_component(
         "curated": False,
         "branding": branding_colors(component),
         "content_rating": content_rating(component),
+        "needs": component_needs(component),
         # Build-time only: removed by finish_app() once `search` is written.
         "_search_terms": [arabic_value(names), *appstream_keywords(component, preferences)],
         "origins": [
@@ -1169,6 +1238,7 @@ def merge_duplicate(current: dict, candidate: dict, installed_refs: list[dict]) 
         "version",
         "branding",
         "content_rating",
+        "needs",
     ):
         if not primary.get(field) and secondary.get(field):
             primary[field] = secondary[field]
@@ -2907,13 +2977,15 @@ LIFECYCLE_KEYS = ("installed_origin", "installed_scope", "installed_scopes")
 
 
 def apply_lifecycle(apps: list[dict], *, installed: dict[str, list[dict]],
-                    snapshot: dict, catalog: dict, preferences: list[str]) -> list[dict]:
+                    snapshot: dict, catalog: dict, preferences: list[str],
+                    machine: dict | None = None, facts: dict | None = None) -> list[dict]:
     """Write what is installed into a list of index entries; return the new list.
 
     The ONE place installed state is decided, for a fresh build and for a cached
     index whose AppStream is unchanged alike, so the two can never disagree.
     Entries from an earlier pass that exist only because something was installed
-    (listed=false) are rebuilt from scratch.
+    (listed=false) are rebuilt from scratch. End of life and the compatibility
+    verdict are written here too, because both depend on what is installed.
     """
 
     listed = [app for app in apps if app.get("listed", True)]
@@ -2984,8 +3056,14 @@ def apply_lifecycle(apps: list[dict], *, installed: dict[str, list[dict]],
         entry["eol"] = False
         extra.append(finish_app(entry))
         taken.add(app_id)
-    return sorted(listed + extra,
-                  key=lambda app: (app["name"].casefold(), app["id"].casefold()))
+    result = sorted(listed + extra,
+                    key=lambda app: (app["name"].casefold(), app["id"].casefold()))
+    for app in result:
+        if app.get("kind") == "flatpak" and (facts or {}).get(app["id"], {}).get("eol"):
+            # Flathub's summary marks it end-of-life (moos-storectl facts).
+            app["eol"] = True
+        app["compat"] = compat_verdict(app, machine, facts)
+    return result
 
 
 def lifecycle_stats(apps: list[dict]) -> dict:
@@ -3002,6 +3080,188 @@ def lifecycle_stats(apps: list[dict]) -> dict:
         ),
         "dropped_apps": sum(app.get("kind") == "dropped" for app in apps),
         "updates_known": sum(bool(app.get("update_available")) for app in apps),
+        "eol_apps": sum(bool(app.get("eol")) for app in apps),
+        "compat_blocked": sum((app.get("compat") or {}).get("verdict") == "blocked"
+                              for app in apps),
+        "compat_warn": sum((app.get("compat") or {}).get("verdict") == "warn"
+                           for app in apps),
+    }
+
+
+# ── Compatibility: can this app work well on THIS machine? ────────────────────
+# A pure function of (index entry, machine.json, facts.json) — docs/MO_STORE.md
+# "Compatibility reason keys". `blocked` stops an install that cannot work: no
+# build for this architecture, the engine is missing, the pinned download does not
+# fit, the app reached its end of life. `warn` is something to know before
+# installing. An installed app is never "blocked" (it is already here); its
+# blocking reasons are reported as warnings. The window owns every word.
+
+COMPAT_ORDER = (
+    "arch",
+    "engine_missing",
+    "android_setup",
+    "android_software_graphics",
+    "low_disk",
+    "low_memory",
+    "small_screen",
+    "needs_internet",
+    "x11_only_scaled",
+    "eol",
+    "broad_permissions",
+    "vendor_download",
+    "not_verified",
+)
+BLOCKING_REASONS = frozenset({"arch", "engine_missing", "low_disk", "eol"})
+BROAD_PERMISSIONS = frozenset({"files-all", "devices"})
+FACTS_LIMIT = 64 * 1024 * 1024
+MIB = 1024 * 1024
+
+
+def read_facts(path: Path | None) -> dict | None:
+    """facts.json (moos-storectl facts) reduced to what a verdict reads, or None.
+
+    {<id>: {eol, x11_only, extra_data, broad}} — `broad` when the app may see every
+    file or every device. A missing or unreadable document is None: no verdict
+    then claims anything the facts would have said.
+    """
+
+    if path is None:
+        return None
+    try:
+        if path.stat().st_size > FACTS_LIMIT:
+            return None
+        document = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeError, ValueError):
+        return None
+    apps = document.get("apps") if isinstance(document, dict) else None
+    if not isinstance(apps, dict):
+        return None
+    result: dict[str, dict] = {}
+    for app_id, value in apps.items():
+        if not valid_flatpak_id(app_id) or not isinstance(value, dict):
+            continue
+        permissions = value.get("permissions")
+        permissions = {item for item in permissions if isinstance(item, str)} \
+            if isinstance(permissions, list) else set()
+        result[app_id] = {
+            "eol": bool(value.get("eol")),
+            "x11_only": value.get("x11_only") is True,
+            "extra_data": bool(value.get("extra_data")),
+            "broad": bool(permissions & BROAD_PERMISSIONS),
+        }
+    return result
+
+
+def app_engine(app: dict) -> str:
+    declared = app.get("engine")
+    if isinstance(declared, str) and declared:
+        return declared
+    return {"android": "android", "windows": "windows"}.get(app.get("kind"), "")
+
+
+def screen_too_small(display: dict, screen: dict) -> bool:
+    try:
+        scale = float(screen["scale"]) or 1.0
+        width, height = float(screen["width"]) / scale, float(screen["height"]) / scale
+        pixels = int(display["px"])
+    except (KeyError, TypeError, ValueError, ZeroDivisionError):
+        return False
+    side = max(width, height) if display.get("side") == "longest" else min(width, height)
+    compare = display.get("compare", "ge")
+    if compare == "ge":
+        return side < pixels
+    if compare == "gt":
+        return side <= pixels
+    return False                        # an upper bound is not "too small"
+
+
+def compat_verdict(app: dict, machine: dict | None, facts: dict | None) -> dict:
+    """{verdict: ok|warn|blocked, reasons: [keys in COMPAT_ORDER order]}."""
+
+    machine = machine if isinstance(machine, dict) else {}
+    reasons: set[str] = set()
+    installed = bool(app.get("installed"))
+    kind = app.get("kind")
+    machine_arch = machine.get("arch")
+    declared = app.get("arch")
+    if isinstance(machine_arch, str) and machine_arch:
+        if isinstance(declared, list) and declared and machine_arch not in declared:
+            reasons.add("arch")
+        elif isinstance(declared, str) and kind == "flatpak" and declared != machine_arch:
+            reasons.add("arch")
+    engine = app_engine(app)
+    engines = machine.get("engines")
+    if engine and isinstance(engines, list) and engine not in engines:
+        reasons.add("engine_missing")
+    android = machine.get("android") if isinstance(machine.get("android"), dict) else {}
+    if engine == "android" and "engine_missing" not in reasons:
+        if android.get("ready") is not False and android.get("initialized") is False:
+            reasons.add("android_setup")
+        if android.get("graphics") == "software":
+            reasons.add("android_software_graphics")
+    needs = app.get("needs") if isinstance(app.get("needs"), dict) else {}
+    free = (machine.get("free_bytes") or {}).get("apps") if isinstance(
+        machine.get("free_bytes"), dict) else None
+    size = needs.get("size")
+    if not installed and isinstance(size, int) and isinstance(free, int) and size > free:
+        reasons.add("low_disk")
+    memory = machine.get("memory_bytes")
+    if isinstance(needs.get("memory"), int) and isinstance(memory, int) \
+            and needs["memory"] * MIB > memory:
+        reasons.add("low_memory")
+    screen = machine.get("screen") if isinstance(machine.get("screen"), dict) else None
+    if isinstance(needs.get("display"), dict) and screen and screen_too_small(
+            needs["display"], screen):
+        reasons.add("small_screen")
+    if needs.get("internet") in {"always", "first-run"} or kind == "webapp":
+        reasons.add("needs_internet")
+    fact = (facts or {}).get(app.get("id")) if kind == "flatpak" else None
+    if fact:
+        scale = screen.get("scale") if screen else None
+        fractional = isinstance(scale, (int, float)) and abs(scale - round(scale)) > 0.01
+        if fact.get("x11_only") and fractional and machine.get("session") in (None, "wayland"):
+            reasons.add("x11_only_scaled")
+        if fact.get("broad"):
+            reasons.add("broad_permissions")
+        if fact.get("extra_data"):
+            reasons.add("vendor_download")
+    if app.get("eol"):
+        reasons.add("eol")
+    if kind == "flatpak" and not app.get("verified"):
+        reasons.add("not_verified")
+    ordered = [reason for reason in COMPAT_ORDER if reason in reasons]
+    if not installed and reasons & BLOCKING_REASONS:
+        verdict = "blocked"
+    else:
+        verdict = "warn" if ordered else "ok"
+    return {"verdict": verdict, "reasons": ordered}
+
+
+def context_state(machine: dict | None, facts: dict | None) -> dict:
+    """What compat_verdict() reads beyond the index, for the context token.
+
+    Free space enters as a power-of-two bucket of GiB, so the index is rewritten
+    when the disk crosses 1, 2, 4, 8… GiB free rather than at every byte.
+    """
+
+    machine = machine if isinstance(machine, dict) else {}
+    free = (machine.get("free_bytes") or {}).get("apps") if isinstance(
+        machine.get("free_bytes"), dict) else None
+    bucket = None
+    if isinstance(free, int):
+        gib = free / 1024 ** 3
+        bucket = 0 if gib < 1 else int(math.log2(gib)) + 1
+    memory = machine.get("memory_bytes")
+    return {
+        "arch": machine.get("arch"),
+        "engines": machine.get("engines"),
+        "memory": memory // (64 * MIB) if isinstance(memory, int) else None,
+        "screen": machine.get("screen"),
+        "session": machine.get("session"),
+        "android": machine.get("android"),
+        "windows": machine.get("windows"),
+        "free_bucket": bucket,
+        "facts": facts,
     }
 
 
@@ -3031,8 +3291,13 @@ def input_tokens(
     installed: dict[str, list[dict]],
     preferences: list[str],
     snapshot: dict | None = None,
+    context: dict | None = None,
 ) -> dict[str, str]:
     """Fingerprint every input that can change the generated application state.
+
+    `context` is context_state(): the machine facts and facts.json the
+    compatibility verdicts read; a change to it refreshes the cached index
+    without parsing AppStream.
 
     `metadata` covers what needs AppStream parsed again (the generator, the
     catalogue and the machine it is filtered for, the locale, every AppStream
@@ -3103,11 +3368,14 @@ def input_tokens(
     }
     metadata_digest = digest_json(metadata_state)
     installed_digest = digest_json(installed_state)
+    context_digest = digest_json(context)
     return {
         "metadata": metadata_digest,
         "installed": installed_digest,
+        "context": context_digest,
         "input": digest_json(
-            {"metadata": metadata_digest, "installed": installed_digest}
+            {"metadata": metadata_digest, "installed": installed_digest,
+             "context": context_digest}
         ),
     }
 
@@ -3149,6 +3417,7 @@ def existing_output_tokens(path: Path) -> dict[str, str] | None:
         ("input", "input_token"),
         ("metadata", "metadata_token"),
         ("installed", "installed_token"),
+        ("context", "context_token"),
     ):
         match = re.search(
             rb'"' + json_key.encode("ascii") + rb'":"([0-9a-f]{64})"',
@@ -3193,6 +3462,8 @@ def refresh_installed_flags(
     catalog: dict,
     snapshot: dict | None = None,
     preferences: list[str] | None = None,
+    machine: dict | None = None,
+    facts: dict | None = None,
 ) -> bool:
     """Refresh lifecycle state in a cached metadata index without reparsing XML."""
 
@@ -3205,7 +3476,7 @@ def refresh_installed_flags(
         preferences = locale_preferences(payload["generation"].get("locale"))
     payload["apps"] = apply_lifecycle(
         payload["apps"], installed=installed, snapshot=snapshot, catalog=catalog,
-        preferences=preferences,
+        preferences=preferences, machine=machine, facts=facts,
     )
     payload["stats"].update(lifecycle_stats(payload["apps"]))
     return True
@@ -3307,6 +3578,11 @@ def catalog_fallback_app(
     }
     app.update(entry)
     app["source"] = "flatpak" if flatpak else entry["source"]
+    # A pinned download states its exact size: the least free space the job needs.
+    pinned = (install.get("downloads") or {}).get(arch or "") or {}
+    size = pinned.get("size") or install.get("size")
+    if isinstance(size, int) and not isinstance(size, bool) and size > 0:
+        app["needs"] = {"size": size}
     return app
 
 
@@ -3357,6 +3633,9 @@ def finish_app(app: dict) -> dict:
     terms = app.pop("_search_terms", [])
     app["cat"] = store_category(app)
     app["search"] = app_search_string(app, terms)
+    if not app.get("needs"):
+        # Most apps state no requirement; an absent key keeps the index small.
+        app.pop("needs", None)
     return app
 
 
@@ -3380,6 +3659,8 @@ def build_index(
     source_data: list[dict] | None = None,
     cache_tokens: dict[str, str] | None = None,
     lifecycle: dict | None = None,
+    machine: dict | None = None,
+    facts: dict | None = None,
 ) -> dict:
     preferences = locale_preferences(requested_locale)
     catalog = catalog_data if catalog_data is not None else load_catalog(catalog_path)
@@ -3395,7 +3676,8 @@ def build_index(
         lifecycle = lifecycle_snapshot(catalog)
     if cache_tokens is None:
         cache_tokens = input_tokens(
-            catalog_path, catalog, discovered_sources, installed, preferences, lifecycle
+            catalog_path, catalog, discovered_sources, installed, preferences, lifecycle,
+            context_state(machine, facts),
         )
 
     apps_by_id: dict[str, dict] = {}
@@ -3555,7 +3837,7 @@ def build_index(
     collections, featured = editorial_groups(catalog, apps_by_id)
     apps = apply_lifecycle(
         list(apps_by_id.values()), installed=installed, snapshot=lifecycle,
-        catalog=catalog, preferences=preferences,
+        catalog=catalog, preferences=preferences, machine=machine, facts=facts,
     )
     catalog_skipped = catalog.get("skipped", [])
     catalog_invalid_apps = [item for item in catalog_skipped if item["section"] == "apps"]
@@ -3602,6 +3884,7 @@ def build_index(
             "input_token": cache_tokens["input"],
             "metadata_token": cache_tokens["metadata"],
             "installed_token": cache_tokens["installed"],
+            "context_token": cache_tokens["context"],
             "generated_at": generation_time(),
             "locale": preferences[0] if preferences else "en",
             "offline": True,
@@ -3704,6 +3987,20 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument(
         "--locale",
         help="preferred AppStream locale (for example ar or en_US)",
+    )
+    parser.add_argument(
+        "--machine",
+        type=Path,
+        default=None,
+        help="judge compatibility against this machine document (the --print-machine "
+             "shape) instead of this machine",
+    )
+    parser.add_argument(
+        "--facts",
+        type=Path,
+        default=None,
+        help="Flathub facts document (moos-storectl facts); default: facts.json next "
+             "to --output",
     )
     return parser.parse_args(argv)
 
@@ -4066,6 +4363,15 @@ def machine_document(engines: set[str] | None = None, *, probe: bool = True,
     return {"arch": running_arch(), "engines": listed, **machine_facts(listed, root)}
 
 
+def load_machine_file(path: Path) -> dict | None:
+    """A machine document given with --machine (another machine, or a test)."""
+
+    document = read_record(path) if path else None
+    if document is None:
+        log(f"machine document {path} is unreadable; compatibility facts are unknown")
+    return document
+
+
 def main(argv: list[str] | None = None) -> int:
     args = parse_args(argv)
     if args.print_machine:
@@ -4093,8 +4399,17 @@ def main(argv: list[str] | None = None) -> int:
             official_only=args.appstream_root is None,
         )
         lifecycle = lifecycle_snapshot(catalog)
+        # What the compatibility verdicts read: this machine (or --machine), and
+        # the Flathub facts moos-storectl keeps next to the index.
+        if args.machine is not None:
+            machine = load_machine_file(args.machine)
+        else:
+            machine = machine_document(engines, probe=False, root=machine_root())
+        facts = read_facts(args.facts if args.facts is not None
+                           else args.output.parent / "facts.json")
+        context = context_state(machine, facts)
         tokens = input_tokens(
-            args.catalog, catalog, sources, installed, preferences, lifecycle
+            args.catalog, catalog, sources, installed, preferences, lifecycle, context
         )
         existing_tokens = existing_output_tokens(args.output)
         if (
@@ -4110,17 +4425,18 @@ def main(argv: list[str] | None = None) -> int:
                 args.output, tokens["metadata"]
             )
             if payload is not None and refresh_installed_flags(
-                payload, installed, catalog, lifecycle, preferences
+                payload, installed, catalog, lifecycle, preferences, machine, facts
             ):
                 payload["generation"].update(
                     {
-                        "id": content_generation_id(payload),
                         "input_token": tokens["input"],
                         "metadata_token": tokens["metadata"],
                         "installed_token": tokens["installed"],
+                        "context_token": tokens["context"],
                         "generated_at": generation_time(),
                     }
                 )
+                payload["generation"]["id"] = content_generation_id(payload)
                 atomic_write_json(args.output, payload)
                 return 0
         payload = build_index(
@@ -4133,6 +4449,8 @@ def main(argv: list[str] | None = None) -> int:
             source_data=sources,
             cache_tokens=tokens,
             lifecycle=lifecycle,
+            machine=machine,
+            facts=facts,
         )
         atomic_write_json(args.output, payload)
     except (CatalogError, OSError) as error:

@@ -329,6 +329,8 @@ check:
     python3 tests/test_mo_store_index_lifecycle.py
     # machine.json: hardware facts from files only, unknown is null, free space never on `/`.
     python3 tests/test_mo_store_index_machine.py
+    # Compatibility verdicts on fixture machines: blocked/warn reasons, facts, refresh on change.
+    python3 tests/test_mo_store_index_compat.py
     # The Store may not offer an app this machine cannot install. The browse
     # index is built from the RUNNING arch's AppStream, but a curated entry with
     # no match was MANUFACTURED into the index -- so eleven x86-only apps, two of

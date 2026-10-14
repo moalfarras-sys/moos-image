@@ -318,6 +318,7 @@ python3 tests/test_mo_store_index_catalogue.py
 python3 tests/test_mo_store_index_search.py
 python3 tests/test_mo_store_index_lifecycle.py
 python3 tests/test_mo_store_index_machine.py
+python3 tests/test_mo_store_index_compat.py
 python3 tests/test_moos_storectl.py
 python3 tests/test_store_job_language.py
 # One globally importable MoUI module must own identity metrics and shared
