@@ -454,6 +454,80 @@ class FramesInsideAPage(unittest.TestCase):
         self.assertEqual(self.opened, ["mailto:someone@example.com"])
 
 
+class WebNotification:
+    """What a QWebEngineNotification is to the runtime: the site's words and where they came from."""
+
+    def __init__(self, title: str, message: str, origin: str) -> None:
+        self._title, self._message, self._origin = title, message, origin
+
+    def title(self) -> str:
+        return self._title
+
+    def message(self) -> str:
+        return self._message
+
+    def origin(self) -> Address:
+        return Address(self._origin)
+
+    def click(self) -> None:
+        pass
+
+
+class NotificationsArePlainText(unittest.TestCase):
+    """What the runtime hands notify-send: the site's words, as text the person reads.
+
+    Measured on the station's Plasma 6.7.5 (its libnotificationmanager, called directly, and the
+    notifications applet's QML): the summary is kept as it arrives and drawn with
+    Text.PlainText; the body is read as markup — `<a href="moos://…">` survives — and drawn as rich
+    text whose links open through Qt.openUrlExternally. So the body must arrive escaped, and the
+    summary must not be (an escaped summary shows `&lt;` to the person).
+    """
+
+    def setUp(self):
+        self.home = tempfile.TemporaryDirectory()
+        environment = mock.patch.dict(os.environ, {"HOME": self.home.name, "XDG_DATA_HOME": ""})
+        environment.start()
+        self.addCleanup(environment.stop)
+        self.addCleanup(self.home.cleanup)
+        self.runtime, self.started, self.opened = load_runtime()
+        self.app = policy.parse_entry(entry())
+
+    def sent(self) -> tuple[str, str]:
+        self.assertEqual(len(self.started), 1, self.started)
+        argv = self.started[0]
+        self.assertEqual(argv[0], "notify-send")
+        self.assertIn(f"--hint=string:desktop-entry:{self.app.desktop_id}", argv)
+        summary, body = argv[argv.index("--") + 1:]
+        return summary, body
+
+    def test_a_link_in_a_web_notification_arrives_as_text(self):
+        shell = types.SimpleNamespace(
+            app=self.app, pending=[], raise_window=lambda: None,
+            permissions=types.SimpleNamespace(decision=lambda name: "allow"))
+        message = '<a href="moos://control/screenshot">Your invoice is ready</a> & <b>URGENT</b>'
+        self.runtime.Shell.present_notification(
+            shell, WebNotification("Alice <3", message, "https://chatgpt.com"))
+        summary, body = self.sent()
+        self.assertEqual(summary, "Alice <3")
+        self.assertEqual(body, '&lt;a href="moos://control/screenshot"&gt;Your invoice is '
+                               'ready&lt;/a&gt; &amp; &lt;b&gt;URGENT&lt;/b&gt;')
+
+    def test_a_downloaded_files_name_arrives_as_text(self):
+        name = '<a href="file:///etc/">invoice</a>.pdf'
+        self.runtime.notify(self.app, Path("/icon.png"), "ChatGPT",
+                            self.runtime.words("downloaded", name=name))
+        _summary, body = self.sent()
+        self.assertNotIn("<", body)
+        self.assertTrue(body.endswith("&lt;a href=\"file:///etc/\"&gt;invoice&lt;/a&gt;.pdf"), body)
+
+    def test_the_text_is_cut_before_it_is_escaped(self):
+        """A cut never splits an entity, so the person never sees half of one."""
+        self.runtime.notify(self.app, Path("/icon.png"), "s" * 300, "&" * 600)
+        summary, body = self.sent()
+        self.assertEqual(summary, "s" * 200)
+        self.assertEqual(body, "&amp;" * 500)
+
+
 class ShippedCatalogue(unittest.TestCase):
     def test_every_store_category_files_a_web_app_in_a_real_menu_folder(self):
         catalog = json.loads(CATALOG.read_text(encoding="utf-8"))

@@ -9,7 +9,8 @@ Kept small on purpose. What a web app can do here:
     other link opens in the person's browser;
   * ask for a permission its catalogue entry offers; the person answers once and Mo Store can
     change the answer later (both read the same permissions.json);
-  * notify through the desktop's notification server, filed under the app's own launcher;
+  * notify through the desktop's notification server, filed under the app's own launcher, in
+    plain text (never a link);
   * download into the person's Downloads folder;
   * go full screen, zoom (remembered), and remember where its window was.
 What it cannot do: open file:, data: or moos: addresses as its page, or file:, moos: and other
@@ -20,6 +21,7 @@ reach a developer console; or run a plugin.
 from __future__ import annotations
 
 import base64
+import html
 import json
 import os
 from pathlib import Path
@@ -94,14 +96,20 @@ _LIVE: set = set()   # notification processes still waiting for an answer
 
 def notify(app: policy.WebApp, icon: Path, summary: str, body: str,
            on_click=None) -> None:
-    """A desktop notification filed under THIS web app's launcher (its own entry in Settings)."""
+    """A desktop notification filed under THIS web app's launcher (its own entry in Settings).
+
+    Both texts are plain text: the site's (a message, an email subject, a file name), never
+    markup. Plasma draws the summary as plain text but reads the body as markup it renders with
+    live links, so an unescaped body is a link — moos:, file:, anything — the person can click
+    under this app's trusted name. The body is escaped; the summary is not, or `&lt;` would show.
+    """
     argv = ["notify-send", "--app-name", app_name(app), "--icon", str(icon),
             f"--hint=string:desktop-entry:{app.desktop_id}"]
     if on_click is not None:
         argv += ["--action", f"default={words('open')}", "--wait"]
     process = QProcess()
     process.setProgram(argv[0])
-    process.setArguments(argv[1:] + ["--", summary[:200], body[:500]])
+    process.setArguments(argv[1:] + ["--", summary[:200], html.escape(body[:500], quote=False)])
 
     def finished(*_):
         _LIVE.discard(process)
