@@ -307,6 +307,198 @@ class PortableArchives(Home):
         self.assertEqual([a["id"] for a in appdrop.installed()], ["noteforge"])
 
 
+class CatalogueInstalls(Home):
+    """Mo Store's `appdrop` kind: the catalogue names the app, and the launcher can carry its id."""
+
+    def setUp(self):
+        super().setUp()
+        self.saved_dirs = os.environ.get("XDG_DATA_DIRS")
+        # The machine's own /usr/share/applications must not decide what these tests see.
+        self.system_share = Path(self.tmp.name) / "system-share"
+        (self.system_share / "applications").mkdir(parents=True)
+        os.environ["XDG_DATA_DIRS"] = str(self.system_share)
+        self.launchers = self.home / ".local/share/applications"
+
+    def tearDown(self):
+        if self.saved_dirs is None:
+            os.environ.pop("XDG_DATA_DIRS", None)
+        else:
+            os.environ["XDG_DATA_DIRS"] = self.saved_dirs
+        super().tearDown()
+
+    def photo_app(self, version: str = "0.7") -> bytes:
+        desktop = ("[Desktop Entry]\nType=Application\nName=PhotoCraft\nExec=photocraft %U\n"
+                   "Icon=photocraft\nStartupWMClass=photocraft\nCategories=Graphics;\n")
+        return self.tar_bytes([
+            self.member(f"photocraft-{version}/bin/photocraft", ELF + version.encode(), 0o755),
+            self.member(f"photocraft-{version}/bin/helper", ELF, 0o755),
+            self.member(f"photocraft-{version}/ai.storyteller.photocraft.desktop", desktop.encode()),
+            self.member(f"photocraft-{version}/share/icons/photocraft.png", b"\x89PNG\r\n\x1a\n" + b"1" * 64),
+            self.member(f"photocraft-{version}/share/icons/brand.svg", b"<svg/>"),
+        ])
+
+    def test_the_catalogue_names_the_app_not_the_file_name(self):
+        download = self.download("download-1234.tar.gz", self.photo_app())
+        plan = appdrop.plan_for(download, "PhotoCraft", "photocraft")
+        self.assertEqual((plan.kind, plan.slug, plan.name), ("archive", "photocraft", "PhotoCraft"))
+        self.assertEqual(plan.target, self.home / "Applications/photocraft")
+        for bad in ("", "a", "Photo", "../x", "x/y", "photo craft", "-x"):
+            with self.subTest(slug=bad), self.assertRaises(appdrop.DropError) as refused:
+                appdrop.plan_for(download, "X", bad)
+            self.assertEqual(refused.exception.code, "bad_id")
+        mine = self.home / "Applications/mine"
+        mine.mkdir(parents=True)
+        with self.assertRaises(appdrop.DropError) as refused:
+            appdrop.plan_for(download, "Mine", "mine")
+        self.assertEqual(refused.exception.code, "name_taken")
+
+    def test_the_launcher_takes_the_apps_own_id_and_the_catalogues_words(self):
+        plan = appdrop.plan_for(self.download("p.tar.gz", self.photo_app()), "PhotoCraft", "photocraft")
+        manifest = appdrop.install(plan, pinned={"name": "PhotoCraft", "name_ar": "فوتوكرافت"},
+                                   record_extra={"catalog_id": "photocraft", "version": "0.7.0",
+                                                 "url": "https://example.test/p.tar.gz"})
+        entry = self.launchers / "ai.storyteller.photocraft.desktop"
+        self.assertTrue(entry.is_file(), sorted(p.name for p in self.launchers.iterdir()))
+        self.assertFalse((self.launchers / "appdrop-photocraft.desktop").exists())
+        text = entry.read_text(encoding="utf-8")
+        self.assertIn("X-MoOS-AppDrop=photocraft", text.splitlines())
+        self.assertIn("Name=PhotoCraft", text.splitlines())
+        self.assertIn("Name[ar]=فوتوكرافت", text.splitlines())
+        self.assertEqual((manifest["desktop_id"], manifest["launcher"]),
+                         ("ai.storyteller.photocraft", "ai.storyteller.photocraft.desktop"))
+        self.assertEqual((manifest["catalog_id"], manifest["version"]), ("photocraft", "0.7.0"))
+        self.assertEqual(manifest["sha256"], __import__("hashlib").sha256(plan.path.read_bytes()).hexdigest())
+        self.assertTrue(appdrop.remove("photocraft"))
+        self.assertFalse(entry.exists())
+
+    def test_a_launcher_id_someone_else_has_is_never_taken(self):
+        theirs = self.system_share / "applications/ai.storyteller.photocraft.desktop"
+        theirs.write_text("[Desktop Entry]\nName=Theirs\n", encoding="utf-8")
+        plan = appdrop.plan_for(self.download("p.tar.gz", self.photo_app()), "PhotoCraft", "photocraft")
+        manifest = appdrop.install(plan)
+        self.assertEqual((manifest["launcher"], manifest["desktop_id"]), ("appdrop-photocraft.desktop", ""))
+        self.assertEqual(theirs.read_text(encoding="utf-8"), "[Desktop Entry]\nName=Theirs\n")
+
+        # The person's own launcher in their folder is never overwritten either; once the id is
+        # free again an update moves to it and leaves exactly one entry behind.
+        theirs.unlink()
+        own = self.launchers / "ai.storyteller.photocraft.desktop"
+        own.write_text("[Desktop Entry]\nName=Mine\n", encoding="utf-8")
+        manifest = appdrop.install(appdrop.plan_for(self.download("p2.tar.gz", self.photo_app("0.8")),
+                                                    "PhotoCraft", "photocraft"))
+        self.assertEqual(manifest["launcher"], "appdrop-photocraft.desktop")
+        self.assertEqual(own.read_text(encoding="utf-8"), "[Desktop Entry]\nName=Mine\n")
+        own.unlink()
+        manifest = appdrop.install(appdrop.plan_for(self.download("p3.tar.gz", self.photo_app("0.9")),
+                                                    "PhotoCraft", "photocraft"))
+        self.assertEqual(manifest["launcher"], "ai.storyteller.photocraft.desktop")
+        self.assertEqual(sorted(p.name for p in self.launchers.glob("*.desktop")),
+                         ["ai.storyteller.photocraft.desktop"])
+
+    def test_remove_leaves_a_same_named_launcher_without_the_marker(self):
+        manifest = appdrop.install(appdrop.plan_for(self.download("p.tar.gz", self.photo_app()),
+                                                    "PhotoCraft", "photocraft"))
+        entry = self.launchers / manifest["launcher"]
+        entry.write_text("[Desktop Entry]\nName=Replaced by the person\n", encoding="utf-8")
+        self.assertTrue(appdrop.remove("photocraft"))
+        self.assertTrue(entry.exists(), "a launcher App Drop no longer owns was deleted")
+
+    def test_pinned_fields_outrank_the_guesses_and_stay_inside_the_tree(self):
+        plan = appdrop.plan_for(self.download("p.tar.gz", self.photo_app()), "PhotoCraft", "photocraft")
+        manifest = appdrop.install(plan, pinned={"exec": "bin/helper", "icon": "share/icons/brand.svg",
+                                                 "wm_class": "PhotoCraft", "categories": ["Graphics", "Evil"],
+                                                 "desktop_id": "org.example.Pinned"})
+        app_dir = (self.home / "Applications/photocraft").resolve()
+        self.assertEqual(manifest["exec"], str(app_dir / "bin/helper"))
+        text = (self.launchers / "org.example.Pinned.desktop").read_text(encoding="utf-8").splitlines()
+        self.assertIn(f"Icon={app_dir / 'share/icons/brand.svg'}", text)
+        self.assertIn("StartupWMClass=PhotoCraft", text)
+        self.assertIn("Categories=Graphics;", text)
+        for exec_path in ("../../../usr/bin/sh", "/usr/bin/sh", "bin/missing", "share/icons/brand.svg"):
+            with self.subTest(exec=exec_path), self.assertRaises(appdrop.DropError) as refused:
+                appdrop.install(appdrop.plan_for(self.download("again.tar.gz", self.photo_app("1.0")),
+                                                 "PhotoCraft", "photocraft"), pinned={"exec": exec_path})
+            self.assertIn(refused.exception.code, ("nothing_to_launch", "unsafe_archive"))
+            # The working version and its launcher survive every refused update.
+            self.assertTrue((app_dir / "bin/helper").is_file())
+            self.assertTrue((self.launchers / "org.example.Pinned.desktop").is_file())
+
+    def test_a_pinned_program_that_links_out_of_the_tree_is_refused(self):
+        # An AppImage's tree is written by its own extractor, so a link in it can point anywhere.
+        outside = self.home / "Documents/not-a-program"
+        outside.parent.mkdir(parents=True)
+        outside.write_bytes(ELF)
+        outside.chmod(0o755)
+
+        def extractor(argv, **_kwargs):
+            tree = Path(argv[argv.index("--bind") + 1]) / "squashfs-root"
+            tree.mkdir(parents=True)
+            (tree / "AppRun").write_bytes(ELF)
+            (tree / "AppRun").chmod(0o755)
+            (tree / "escape").symlink_to(outside)
+            return subprocess.CompletedProcess(argv, 0, b"", b"")
+
+        plan = appdrop.plan_for(self.download("Tool.AppImage", APPIMAGE + b"x"), "Tool", "tool")
+        with self.assertRaises(appdrop.DropError) as refused:
+            appdrop.install(plan, run=extractor, pinned={"exec": "escape"})
+        self.assertEqual(refused.exception.code, "nothing_to_launch")
+        self.assertFalse((self.home / "Applications/tool").exists())
+        self.assertEqual(list(self.launchers.glob("*.desktop")) if self.launchers.exists() else [], [])
+
+    def test_a_metainfo_launchable_names_the_launcher_when_no_entry_does(self):
+        metainfo = ('<?xml version="1.0"?><component type="desktop-application">'
+                    '<id>org.example.Notes</id>'
+                    '<launchable type="desktop-id">org.example.Notes.desktop</launchable></component>')
+        data = self.tar_bytes([self.member("notes/notes", ELF, 0o755),
+                               self.member("notes/usr/share/metainfo/org.example.Notes.metainfo.xml",
+                                           metainfo.encode())])
+        manifest = appdrop.install(appdrop.plan_for(self.download("n.tar.gz", data), "Notes", "notes"))
+        self.assertEqual(manifest["launcher"], "org.example.Notes.desktop")
+
+    def test_a_failure_after_the_swap_restores_the_working_version_and_its_launcher(self):
+        first = appdrop.install(appdrop.plan_for(self.download("p.tar.gz", self.photo_app()),
+                                                 "PhotoCraft", "photocraft"))
+        entry = self.launchers / first["launcher"]
+        before = entry.read_text(encoding="utf-8")
+        program = self.home / "Applications/photocraft/bin/photocraft"
+        working = program.read_bytes()
+        from unittest import mock
+        original = appdrop._write_atomic
+
+        def fail_on_record(path, text, mode):
+            if path.suffix == ".json":
+                raise OSError("disk full")
+            return original(path, text, mode)
+
+        with mock.patch.object(appdrop, "_write_atomic", side_effect=fail_on_record), \
+                self.assertRaises(OSError):
+            appdrop.install(appdrop.plan_for(self.download("p2.tar.gz", self.photo_app("0.8")),
+                                             "PhotoCraft", "photocraft"))
+        self.assertEqual(program.read_bytes(), working)
+        self.assertEqual(entry.read_text(encoding="utf-8"), before)
+        self.assertEqual(appdrop.read_record("photocraft")["sha256"], first["sha256"])
+        leftovers = [p.name for p in (self.home / "Applications").iterdir() if p.name.startswith(".")]
+        self.assertEqual(leftovers, [])
+
+    def test_the_tool_sandbox_is_the_extractors_sandbox(self):
+        out = Path(self.tmp.name) / "out"
+        argv = appdrop.tool_sandbox_argv({"app.exe": self.home / "Downloads/x.exe"}, out,
+                                         ["/usr/bin/wrestool", "-x", "/in/app.exe"])
+        extractor = appdrop.sandbox_argv(self.home / "Downloads/x.AppImage", out)
+        shared = len(appdrop._sandbox_base())
+        self.assertEqual(argv[:shared], extractor[:shared], "the two sandboxes drifted apart")
+        for promise in ("--unshare-all", "--die-with-parent", "--new-session", "--clearenv"):
+            self.assertIn(promise, argv)
+        self.assertEqual(argv[argv.index("--cap-drop") + 1], "ALL")
+        self.assertEqual(argv[-3:], ["/usr/bin/wrestool", "-x", "/in/app.exe"])
+        # The one file under home is the input, bound read-only; nothing else of home is reachable.
+        under_home = [part for part in argv if part.startswith(str(self.home))]
+        self.assertEqual(under_home, [str(self.home / "Downloads/x.exe")])
+        self.assertEqual(argv[argv.index(under_home[0]) - 1], "--ro-bind")
+        with self.assertRaises(appdrop.DropError):
+            appdrop.tool_sandbox_argv({"../escape": self.home}, out, ["/usr/bin/true"])
+
+
 class AppImages(Home):
     def fake_extractor(self, *, succeed: bool = True):
         calls: list[list[str]] = []
