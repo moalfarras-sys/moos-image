@@ -147,3 +147,44 @@ through fixed lists in C++ and again in `moos-storectl`):
 - MoOS Search: `/usr/libexec/moos-store-krunner` (D-Bus runner `org.moos.StoreRunner`) offers
   apps that are not installed yet and opens their page; it never installs.
 - `moos-webapp <id>` draws a web app (`usr/lib/moos/moos_webapp_policy.py` holds every rule).
+
+## As built (2026-10-14) — additions to the contracts above
+
+These are measured facts from the implementation, recorded so the next change starts from what
+exists rather than from the plan.
+
+- **Records.** App Drop: `~/.local/share/moos/appdrop/<slug>.json` (`catalog_id`, `version`,
+  `url`, `sha256`, `desktop_id`, `launcher`; no `catalog_id` = kind `dropped`, removed by its
+  `slug`). Windows: `~/.local/share/moos/windows-apps/<id>.json` with the program under
+  `<id>/app` and its own prefix under `<id>/prefix`. Android: `~/.local/share/moos/android/<package>.json`.
+  Vendor: `~/.local/share/moos/vendor/<id>.json`. Web apps: the launcher's `X-MoOS-WebApp=<id>`.
+  An update is available when a record's SHA-256 differs from the pin for the running arch.
+- **Downloads** are named by their magic bytes, not the URL, and land in
+  `~/.cache/moos-store/downloads/` only when that lies inside HOME (else `~/.cache/…`).
+- **Windows programs** run headless while being prepared (`timeout … env -i`, no display, no
+  bus, both graphics drivers disabled); 32-bit programs are refused (`windows_legacy_program`).
+  A plain `remove` already deletes the prefix; `--delete-data` only changes the message.
+  `wm_class` defaults to the lowercase exe file name until measured per program.
+- **Permission documents** add `generated_at` and `installed`; web-app rows add `ask`
+  (an unanswered permission reads `state:"deny", ask:true`); note keys are `full_access`,
+  `android_managed` (Android apps are sandboxed in their container) and `not_installed`.
+- **facts.json** adds top-level `state`/`message` and per-app `eol_rebase`; its permission
+  words include `host-commands`.
+- **updates.json** adds top-level `auto_updates`; pin rows count in `count` and `app_count`.
+  `auto-updates on|off` is not a job (no lock, no job.json): read the state back with
+  `check-updates`.
+- **Refusals** before a job starts are written to job.json with a message key, but never over
+  another request's live job (starting/running, updated in the last 120 s); `busy` carries
+  `message_key:"busy"`.
+- **index.json** adds `listed` (false for installed apps no listing covers — hide them from
+  browse pages, keep them in My apps), `slug`/`catalog_id` on dropped apps, `needs`
+  (compatibility inputs), `cat` (one of the 12 Store categories; the old `category` keeps its 14
+  values), stats counters and the `--machine`/`--facts` options. `details` is a symlink to the
+  current generation directory `details-<token>-<rand>`; a generation is complete only with its
+  `.complete` marker. machine.json adds `swap_bytes`; `screen` falls back to the compositor's
+  saved output configuration.
+- **The window** keeps its state, data loading, timers, bridge calls, palette and job phrases in
+  `main.qml`; every view is a file beside it that takes the window only as
+  `required property var win` and reaches it as `win.<member>` (a cross-file id becomes a root
+  member). `X { win: win }` written inside a view file is silently undefined.
+  `activateRequested(arguments)` handles `--open-app`/`--open-page`.
