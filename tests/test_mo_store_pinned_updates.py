@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""Mo Store offers a catalogue pin only to what it installed itself.
+"""Mo Store offers a catalogue pin only to what it installed itself, and one app that cannot
+install here fails alone.
 
 moos-storectl's check-updates and update and moos-store-index's update_available answer "is
 there an update?" by one rule (docs/MO_STORE.md). Each class holds one part of it, run for real
@@ -11,7 +12,11 @@ against a private HOME:
   LegacyAndroid   an Android app an earlier Mo Store installed has its data directory but no
                   record: it is installed with unknown bytes, so its pin is offered and
                   installing the pin writes the record; a record without the data directory is
-                  no installed app.
+                  no installed app;
+  FlatpakBatch    one picked app with no build for this computer fails alone (in the window's
+                  words when the catalogue names other computers only) and the rest of the batch
+                  still installs in one transaction. This runs the real install() and the real
+                  FlatpakAdapter; only libflatpak, GLib and Gio are stand-ins.
 
 Nothing here reaches the network, a display, the session bus, the Android runtime or the
 person's real home.
@@ -29,6 +34,7 @@ from pathlib import Path
 import sys
 import tarfile
 import tempfile
+from typing import Any
 import unittest
 from unittest import mock
 import urllib.error
@@ -360,6 +366,287 @@ class LegacyAndroid(Backend):
         self.assertEqual((result["items"][0]["state"], result["items"][0]["message_key"]),
                          ("skipped", "app_up_to_date"))
         self.assertEqual(self.installs(), [])
+
+
+# ── Flatpak: the real install() and FlatpakAdapter over a stand-in libflatpak ─────────────────
+class GLibError(Exception):
+    def __init__(self, domain: str, code: str):
+        super().__init__(f"{domain}: {code}")
+        self.domain, self.code = domain, code
+
+    def matches(self, domain, code) -> bool:
+        return (self.domain, self.code) == (domain, code)
+
+
+class GLib:
+    Error = GLibError
+
+
+class Cancellable:
+    def __init__(self):
+        self.cancelled = False
+
+    def cancel(self):
+        self.cancelled = True
+
+    def is_cancelled(self):
+        return self.cancelled
+
+
+class Gio:
+    Cancellable = Cancellable
+
+
+class Ref:
+    """One app ref of the remote's listing for one architecture."""
+
+    def __init__(self, name: str, arch: str):
+        self.name, self.arch = name, arch
+
+    def get_name(self):
+        return self.name
+
+    def get_kind(self):
+        return "app"
+
+    def get_arch(self):
+        return self.arch
+
+    def get_branch(self):
+        return "stable"
+
+    def format_ref(self):
+        return f"app/{self.name}/{self.arch}/stable"
+
+
+class Remote:
+    """The verified Flathub remote, as libflatpak describes it."""
+
+    def get_name(self):
+        return "flathub"
+
+    def get_url(self):
+        return MODULE.FLATHUB_REPO_BASE
+
+    def get_gpg_verify(self):
+        return True
+
+    def get_disabled(self):
+        return False
+
+    def get_nodeps(self):
+        return False
+
+
+class Progress:
+    def set_update_frequency(self, _milliseconds):
+        pass
+
+    def get_status(self):
+        return "Installing"
+
+    def get_is_estimating(self):
+        return False
+
+    def get_progress(self):
+        return 100
+
+    def connect(self, _signal, _callback):
+        pass
+
+
+class Operation:
+    def __init__(self, ref: str):
+        self.ref = ref
+
+    def get_ref(self):
+        return self.ref
+
+
+class Transaction:
+    """Runs what was queued: ready, then each operation starts and completes."""
+
+    def __init__(self, libflatpak: "Libflatpak", installation: "Installation"):
+        self.libflatpak, self.installation = libflatpak, installation
+        self.queued: list[str] = []
+        self.handlers: dict[str, Any] = {}
+
+    def set_no_interaction(self, _value):
+        pass
+
+    def add_install(self, remote, ref, _subpaths):
+        self.queued.append(ref)
+        return True
+
+    def connect(self, signal, callback):
+        self.handlers[signal] = callback
+
+    def get_operations(self):
+        return [Operation(ref) for ref in self.queued]
+
+    def run(self, _cancellable):
+        self.libflatpak.transactions.append(list(self.queued))
+        if not self.handlers["ready"](self):
+            return False
+        for operation in self.get_operations():
+            self.handlers["new-operation"](self, operation, Progress())
+            self.installation.installed.add(operation.get_ref().split("/")[1])
+            self.handlers["operation-done"](self, operation, "commit", None)
+        return True
+
+
+class Libflatpak:
+    """The `Flatpak` namespace FlatpakAdapter calls, for one machine and one remote listing."""
+
+    class RefKind:
+        APP = "app"
+
+    class Error:
+        NOT_INSTALLED = "not-installed"
+
+    class TransactionErrorDetails:
+        FATAL = 1
+
+    def __init__(self, arch: str, refs: list[Ref]):
+        self.arch, self.refs = arch, refs
+        self.transactions: list[list[str]] = []
+        outer = self
+
+        class TransactionFactory:
+            @staticmethod
+            def new_for_installation(installation, _cancellable):
+                return Transaction(outer, installation)
+
+        self.Transaction = TransactionFactory
+
+    def get_default_arch(self):
+        return self.arch
+
+    @staticmethod
+    def error_quark():
+        return "flatpak-error-quark"
+
+
+class Installation:
+    def __init__(self, libflatpak: Libflatpak, remotes=()):
+        self.libflatpak = libflatpak
+        self.remotes = list(remotes)
+        self.installed: set[str] = set()
+
+    def list_remotes(self, _cancellable):
+        return list(self.remotes)
+
+    def list_remote_refs_sync(self, _remote, _cancellable):
+        return list(self.libflatpak.refs)
+
+    def get_current_installed_app(self, app_id, _cancellable):
+        if app_id not in self.installed:
+            raise GLibError(Libflatpak.error_quark(), Libflatpak.Error.NOT_INSTALLED)
+        return object()
+
+
+# Welcome's first run with the Office direction: the two preselected apps, then the bundle.
+WELCOME_OFFICE = ["org.gnome.Snapshot", "org.kde.krecorder", "org.libreoffice.LibreOffice",
+                  "org.onlyoffice.desktopeditors", "org.mozilla.thunderbird",
+                  "com.github.jeromerobert.pdfarranger", "us.zoom.Zoom", "com.slack.Slack"]
+# As the shipped catalogue has them: Flathub publishes these three for x86_64 only.
+X86_ONLY = {"org.mozilla.thunderbird", "us.zoom.Zoom", "com.slack.Slack"}
+
+
+class FlatpakBatch(Backend):
+    def catalog_apps(self) -> list[dict]:
+        apps = []
+        for app_id in WELCOME_OFFICE:
+            app = {"id": app_id, "source": "flathub", "en": app_id.rsplit(".", 1)[-1]}
+            if app_id in X86_ONLY:
+                app["arch"] = ["x86_64"]
+            apps.append(app)
+        return apps
+
+    def machine(self, arch: str, refs: list[Ref]) -> Libflatpak:
+        """This computer's libflatpak and remote; the controller gets the REAL adapter over it."""
+        libflatpak = Libflatpak(arch, refs)
+        adapter = object.__new__(MODULE.FlatpakAdapter)
+        adapter.Flatpak, adapter.Gio, adapter.GLib = libflatpak, Gio, GLib
+        adapter.user = Installation(libflatpak, remotes=[Remote()])
+        adapter.system = Installation(libflatpak)
+        self.launched: list[str] = []
+        adapter.launch = self.launched.append      # never a real launch from a test
+        self.adapter = adapter
+        arch_patch = mock.patch.object(MODULE, "running_arch", lambda: arch)
+        arch_patch.start()
+        self.addCleanup(arch_patch.stop)
+        return libflatpak
+
+    @staticmethod
+    def flathub(arch: str, names) -> list[Ref]:
+        return [Ref(name, arch) for name in names]
+
+    def test_on_arm_the_apps_with_a_build_install_and_the_others_fail_alone(self):
+        here = [name for name in WELCOME_OFFICE if name not in X86_ONLY]
+        libflatpak = self.machine("aarch64", self.flathub("x86_64", WELCOME_OFFICE)
+                                  + self.flathub("aarch64", here))
+        code, result = self.controller(self.catalog_apps()).install(WELCOME_OFFICE)
+        items = {item["id"]: item for item in result["items"]}
+        self.assertEqual(libflatpak.transactions, [[f"app/{name}/aarch64/stable" for name in here]],
+                         "the apps that exist for this computer were not installed in one transaction")
+        for name in here:
+            self.assertEqual(items[name]["state"], "done", items[name])
+        for name in X86_ONLY:
+            self.assertEqual((items[name]["state"], items[name].get("message_key")),
+                             ("failed", "unsupported_arch"), items[name])
+            others = [other for other in WELCOME_OFFICE if other != name]
+            self.assertFalse([other for other in others if other in items[name]["message"]],
+                             f"{name}'s reason names another app: {items[name]['message']}")
+        self.assertEqual((code, result["state"]), (1, "partial"), result)
+        self.assertEqual(self.adapter.user.installed, set(here))
+
+    def test_an_id_flathub_has_only_for_other_computers_fails_alone_in_honest_words(self):
+        # Not a catalogue entry: an id Mo AI or a person typed. Flathub lists it for x86_64 only.
+        libflatpak = self.machine("aarch64", self.flathub("aarch64", ["org.gnome.Snapshot"])
+                                  + self.flathub("x86_64", ["org.example.Elsewhere"]))
+        code, result = self.controller(self.catalog_apps()).install(
+            ["org.example.Elsewhere", "org.gnome.Snapshot"])
+        items = {item["id"]: item for item in result["items"]}
+        self.assertEqual(libflatpak.transactions, [["app/org.gnome.Snapshot/aarch64/stable"]])
+        self.assertEqual(items["org.gnome.Snapshot"]["state"], "done", items)
+        # A failure without a key reaches the window in its own words (tests/test_store_job_language).
+        failed = items["org.example.Elsewhere"]
+        self.assertEqual((failed["state"], failed.get("message_key")), ("failed", None), failed)
+        self.assertIn("org.example.Elsewhere", failed["message"])
+        self.assertIn("Flathub", failed["message"])
+        self.assertNotIn("flatpak", failed["message"].lower(), "the engine said its name")
+        self.assertEqual(result["state"], "partial", result)
+
+    def test_when_nothing_has_a_build_here_no_transaction_runs_and_each_says_why(self):
+        libflatpak = self.machine("aarch64", self.flathub("x86_64", sorted(X86_ONLY)))
+        code, result = self.controller(self.catalog_apps()).install(
+            ["org.example.Elsewhere", "com.slack.Slack"])
+        self.assertEqual(libflatpak.transactions, [])
+        self.assertEqual((code, result["state"]), (1, "failed"), result)
+        items = {item["id"]: item for item in result["items"]}
+        self.assertEqual(items["com.slack.Slack"].get("message_key"), "unsupported_arch")
+        self.assertIn("org.example.Elsewhere", items["org.example.Elsewhere"]["message"])
+        self.assertNotIn("com.slack.Slack", items["org.example.Elsewhere"]["message"])
+
+    def test_the_optional_engine_still_fails_when_it_has_no_build_here(self):
+        # open-engine asks install_many for one app and then opens it: an id it cannot install
+        # must still stop it, never open an app that is not there.
+        libflatpak = self.machine("aarch64", self.flathub("x86_64", [MODULE.BAZAAR_ID]))
+        code, result = self.controller([]).open_engine("bazaar")
+        self.assertEqual(result["state"], "failed", result)
+        self.assertIn(MODULE.BAZAAR_ID, result["items"][0]["message"])
+        self.assertEqual(libflatpak.transactions, [])
+        self.assertEqual(self.launched, [])
+        self.assertEqual(self.runner.commands, [], "the engine's launcher was prepared anyway")
+
+    def test_on_a_pc_the_same_picks_install_together(self):
+        libflatpak = self.machine("x86_64", self.flathub("x86_64", WELCOME_OFFICE)
+                                  + self.flathub("aarch64", WELCOME_OFFICE))
+        code, result = self.controller(self.catalog_apps()).install(WELCOME_OFFICE)
+        self.assertEqual((code, result["state"]), (0, "success"), result)
+        self.assertEqual(libflatpak.transactions,
+                         [[f"app/{name}/x86_64/stable" for name in WELCOME_OFFICE]])
 
 
 if __name__ == "__main__":

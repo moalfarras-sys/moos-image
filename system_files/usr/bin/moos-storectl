@@ -1520,12 +1520,16 @@ class FlatpakAdapter:
                 continue
 
         resolved: list[tuple[str, str]] = []
+        unavailable: list[str] = []
         for app_id in app_ids:
             candidates = choices[app_id]
             if not candidates:
-                raise StoreError(
-                    f"{app_id} is not available from the verified Flatpak remote"
-                )
+                # One app with no build for this computer fails alone (a bare id is its own ref
+                # to TransactionEvents); the rest of the batch still installs.
+                reason = f"{app_id} is not available from Flathub for this computer"
+                unavailable.append(reason)
+                events.error(app_id, reason)
+                continue
             candidates.sort(
                 key=lambda ref: (
                     ref.get_branch() != "stable",
@@ -1534,6 +1538,9 @@ class FlatpakAdapter:
                 )
             )
             resolved.append((app_id, candidates[0].format_ref()))
+        if unavailable and not resolved:
+            # Nothing to install fails the call: open-engine asks for one app, then opens it.
+            raise StoreError("; ".join(unavailable))
 
         def configure(transaction: Any) -> None:
             for app_id, full_ref in resolved:
@@ -2906,6 +2913,28 @@ class Controller:
             with contextlib.suppress(FileNotFoundError):
                 download.unlink()
 
+    def _offered_elsewhere(self, app_ids: Sequence[str],
+                           here: dict[str, dict[str, Any]]) -> set[str]:
+        """The requested ids the catalogue offers on other kinds of computer only.
+
+        `_catalog()` leaves those entries out, so nothing installs them here. Named, each one
+        is refused alone in words the window can say, instead of reaching Flathub as an unknown
+        id (or failing as an invalid one) and taking the rest of the batch down with it.
+        """
+        wanted = {app_id for app_id in app_ids if app_id not in here}
+        if not wanted:
+            return set()
+        try:
+            apps = json.loads(self.catalog_path.read_text(encoding="utf-8"))["apps"]
+        except (OSError, UnicodeError, json.JSONDecodeError, KeyError, TypeError):
+            return set()
+        if not isinstance(apps, list):
+            return set()
+        machine = running_arch()
+        return {app["id"] for app in apps if isinstance(app, dict)
+                and isinstance(app.get("id"), str) and app["id"] in wanted
+                and isinstance(app.get("arch"), list) and app["arch"] and machine not in app["arch"]}
+
     def install(self, raw_ids: Sequence[str]) -> tuple[int, dict[str, Any]]:
         if not raw_ids or len(raw_ids) > MAX_BATCH:
             raise StoreError(f"install accepts between 1 and {MAX_BATCH} app IDs")
@@ -2925,13 +2954,22 @@ class Controller:
         with lock:
             try:
                 catalog = self._catalog()
+                elsewhere = self._offered_elsewhere(app_ids, catalog)
                 flatpak_ids: list[str] = []
                 curated: list[tuple[str, dict[str, Any]]] = []
                 invalid: list[str] = []
                 for app_id in app_ids:
                     recipe = catalog.get(app_id)
                     if recipe is None:
-                        if validate_flatpak_id(app_id):
+                        if app_id in elsewhere:
+                            job.update_item(
+                                app_id,
+                                state="failed",
+                                progress=None,
+                                message=f"{app_id} is not available for this kind of computer",
+                                message_key="unsupported_arch",
+                            )
+                        elif validate_flatpak_id(app_id):
                             flatpak_ids.append(app_id)
                         else:
                             invalid.append(app_id)
