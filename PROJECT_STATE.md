@@ -1,8 +1,6 @@
 # MoOS current state — updated 2026-10-14
 
-Oracle A1 and the physical NVIDIA workstation develop one MoOS product.
-Source, promoted artifacts and staged/booted systems are separate evidence.
-The only backlog is [DEVELOPMENT_PLAN.md](docs/DEVELOPMENT_PLAN.md).
+Oracle A1 and the physical NVIDIA workstation develop one MoOS product. Source, promoted artifacts and installed systems are separate evidence; the only backlog is [DEVELOPMENT_PLAN.md](docs/DEVELOPMENT_PLAN.md).
 Native audit: [AUDIT_20261012_AR.md](docs/AUDIT_20261012_AR.md).
 
 ## Current engineering batch
@@ -39,7 +37,8 @@ helper hashes. The /run override disappeared on reboot. Its exact temporary
 copied bundle retired after replacement/no-holder proof. Administrator
 opt-in, PIN, private TLS, upstream PAM and default-disabled access are preserved.
 Native .1044 post-login receipt passes 55/55 with 18 payload hashes. Exact
-unused copied bundle retirement completed; .1046 is staged, not boot-accepted.
+unused copied bundle retirement completed. Native .1046 now passes 54
+selfchecks/2 notes and 55 post-update checks; all 19 hashes/player match.
 
 Existing-account free cloud JSON/SSE and isolated Hermes replies pass on both
 stations in the earlier runtime audit. Direct reported cost=0; absent Hermes
@@ -100,13 +99,9 @@ Installed /usr/lib/moplayer (no source override) opens encoded Arabic file URI,
 plays actual MPEG4 frames, reports 20 s/CanSeek and paused +5 s seek. Rendered
 finite controls/timecodes pass; owned unit closed. RSS=578.4 MiB with Remote
 active; one small silent sample is not a codec/server/GPU/endurance matrix.
-Native graphical acceptance of .756 passed 51 selfchecks/55 post-update checks,
-31 Remote hashes, actual oomd monitoring, no failed units; boot=14.064 s.
-Seven KCMs load in isolated Arabic homes without QML errors; seven Remote
-.NET projects and test executables pass. Current theme/GTK/decorations agree.
-Four owner service containers are healthy. Files/photos/DB/SMB/IDE/Remote and
-ingress remain intact; pre-login stays explicitly off. Existing autologin is
-not ordinary PAM acceptance. Private Remote/public Community TLS pass.
+Earlier signed boots also proved native KCM/Remote .NET components and
+GTK/decorations agreement within their recorded scope. Private Remote/public
+Community TLS pass; pre-login stays explicitly off.
 Gateway is live with an owner-selected paid policy; no paid inference or key
 read was performed. A prior free synthetic reply on NVIDIA was a separate proof.
 
@@ -116,7 +111,7 @@ Exact unused local .1042 ISO/signature/checksum retired after both signatures,
 hashes, ancestry and no holders: 5,827,985,587 logical bytes; concurrent native
 /var net gain 5,827,317,760 bytes. Proof is retained; .1044 archive/public .1026
 and signed OS rollback are intact. Current .1046 archival and exact .1044
-retirement completed; writable /var now measures 29 GiB free. One exact unused
+retirement completed; writable /var currently measures 26 GiB free. One exact unused
 local greeter audit image was untagged with no parent prune; its shared layers
 produced no measured free-space gain. Current image/SDK/owner containers stay. Composefs /
 100% is not writable disk exhaustion. SDK/owner containers/data/rollback stay.
@@ -136,7 +131,7 @@ with usage absent. Remote capture and input are separate helpers; the input
 helper shares the personal service cgroup and must not be counted twice.
 These are bounded active-workload samples, not idle/phone/endurance acceptance.
 Both stations pass native QML/.NET/C++/Go/Rust/Java/Flutter/MCP component checks
-pass within [the workstation audit](docs/WORKSTATION_20261014_AR.md). Flutter
+within [the workstation audit](docs/WORKSTATION_20261014_AR.md). Flutter
 3.47.4 is now available in user space; host KVM and optional buildah remain absent.
 Original dirty checkout/index and old APK/PE worktrees are untouched;
 `archive/owner-pre-reboot-20261011` preserves the owner snapshot. Isolated
@@ -144,26 +139,24 @@ worktrees hold tested changes; the local main ref follows integrated ancestry.
 
 ## Physical NVIDIA workstation
 
-Booted signed .1044 (`df557bb0…`), with signed .1042 rollback,
-boot ID `5cf457a9-75d6-4ed6-9376-fe392244145d`. Greeter Remote reports native EIS
-input ready and both immutable helper hashes match PR235. The owner reports
-ordinary password login and desktop appearance. Native .1044 passes 55/55,
-18 hashes and exact player bytes. Tailscale owner authentication completed;
-temporary unused greeter bundle retired after replacement/no-holder proof.
-Current .1046 is officially staged; its 19 hashes/player pass, not yet booted.
-Prior .1042 native evidence: 55 selfchecks/55 post-update/0 failures,
-16 payload hashes and exact signed compiled player bytes, THEME_REV=103,
-one Settings entry, ordinary plasmalogin compositor and 36.174 s boot.
-The following resource/video figures belong to that measured .1042 baseline.
+Booted signed .1046 (`0235cad7…`) with signed .1044 rollback,
+boot ID `d8a6ce1d-ca57-4680-9e5f-ef8118623b61`. Native ordinary plasmalogin
+owns one KDE Wayland session. Graphical-owner checks pass 54 selfchecks/2 notes
+and 55 post-update checks/0 failures; all 19 payload hashes, exact player and
+THEME_REV=104 agree. No system/user failed units. Boot=32.381 s;
+graphical.target=6.892 s userspace. [Native receipt](docs/releases/2026-10-14-nvidia-1046-native-proof.json).
+The two notes concern active Remote and retaining its only-display path; they
+are not decoded-frame, idle-cost, phone or hardware endurance acceptance.
+Earlier .1044 ordinary password-login evidence and exact unused greeter bundle
+retirement remain valid within their scope; opt-in/PIN/private TLS/PAM stay.
+Prior .1042's 55/55 checks, 16 hashes and following video/resource measurements
+remain historical evidence; they do not qualify new .1046 workloads.
 Installed Arabic-file-URI MPEG4 passes 20 s/CanSeek, time advance and paused
 +5 s seek. RSS=765.9 MiB; full GPU table shows player=593 MiB, absent after Quit.
 This is transport/resource evidence, not native moving-pixel/HDR/endurance proof.
 New direct/SSE cloud calls pass 1.02/1.11 s first content with reported cost=0;
 isolated Hermes passes 4.30 s, usage absent. No provider or private-context change.
 Old .1032's 54/1 diagnostic abort remains historical; fresh .1042 passes 55/0.
-New 30 s sample: KWin/plasmashell 1.43/1.31% of one core, 263/483 MiB;
-gateway .01%/21 MiB. Baloo's 1.75 GiB is file cache, anonymous=25 MiB;
-Lumen 6.08% with owner lights. CPU/RAM PSI avg10=0, sampled swap=0. Not endurance.
 Kernel 7.2.9, Plasma 6.7.5, Qt 6.11.2, NVIDIA 615.78.08; RTX 2080 SUPER,
 Arabic 3840×2160@60, logical 1536×864 at 250%, UI2 Arena. Writable disk has
 179 GiB free/61% used; about 10 GiB RAM available in the recorded baseline.
@@ -179,6 +172,13 @@ USB-C UCSI -110 remains at boot; cold boot/suspend/hotplug, video/GPU endurance 
 acceptance remain. Earlier .1026's 54/55 native acceptance is historical evidence.
 
 ## Integrated features and evidence still owed
+
+Current M1 source adds one coalesced delayed directory notification for Mira's
+confirmed task presence. A real Qt consumer with its first delivery discarded
+fails old source and recovers fixed; 62 control tests pass. Token end state/age
+and a retired session directory remain intact, with no idle poll. This measures
+missed-delivery recovery, not the unproven cause of the prior intermittent Qt
+startup timeout. Signed delivery of this additional source is separate.
 
 Mira mute/disconnect/late-recognition and recovery unreadable-state controls
 pass. Community beta has real native/Oracle TLS flow, isolation and bounded
