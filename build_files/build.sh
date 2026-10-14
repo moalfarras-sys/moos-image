@@ -2708,15 +2708,29 @@ test -f /usr/lib/systemd/system/fedora-atomic-desktop-appstream-cache-refresh.se
 }
 systemctl disable fedora-atomic-desktop-appstream-cache-refresh.service
 
-# ── Flatpak auto-update must not block boot ───────────────────────────────────
+# ── Flatpak auto-update must not block boot — and must still happen ──────────
 # The base enables flatpak-system-update.timer, which fires flatpak-system-update.service
 # on network-online.target and runs `flatpak update` + `repair` synchronously. Measured cost
-# on the owner's machine: ~24.5s added to every cold boot, inside the critical path. Flatpak
-# updates are NOT boot-critical; MoOS updates the whole system via `moai-do update`, and a
-# user can still `flatpak update` on demand. Disable the timer and mask the service so it
-# never runs during boot. (The appstream cache refresh is a separate, fast unit — left alone.)
-systemctl disable flatpak-system-update.timer 2>/dev/null || true
-systemctl mask flatpak-system-update.service 2>/dev/null || true
+# on the owner's machine: ~24.5s added to every cold boot, inside the critical path — the
+# vendor timer is Persistent=true, so a 04:00 run the machine slept through fired AT BOOT.
+# MoOS used to disable the timer and mask the service. That cured the boot and left every
+# app installed for all users (Discover's default scope, and any system-wide install) without
+# a single update, ever, while the comments elsewhere said "the system timer owns that
+# installation" (audit 2026-10-14). The timer now stays enabled with MoOS's schedule
+# (flatpak-system-update.timer.d/moos-later.conf: 30 minutes after boot, 04:00 daily, never a
+# catch-up at boot) and the service runs at idle priority (moos-idle.conf) through the same
+# resilient helper as the user scope (20-moos-resilient.conf). It cannot reach the boot path.
+systemctl unmask flatpak-system-update.service 2>/dev/null || true
+systemctl enable flatpak-system-update.timer
+[ -L /etc/systemd/system/timers.target.wants/flatpak-system-update.timer ] \
+    || { echo "GATE FAIL: flatpak-system-update.timer is not enabled — apps installed for all users would never update"; exit 1; }
+[ ! -L /etc/systemd/system/flatpak-system-update.service ] \
+    || { echo "GATE FAIL: flatpak-system-update.service is still masked"; exit 1; }
+_fsu_timer="$(cat /usr/lib/systemd/system/flatpak-system-update.timer.d/moos-later.conf)"
+case "$_fsu_timer" in
+    *"Persistent=false"*"OnBootSec=30min"*) ;;
+    *) echo "GATE FAIL: the system app-update timer could catch up at boot again"; exit 1 ;;
+esac
 
 # ── The base's own units must not wear another OS's name ─────────────────────
 # MoOS is not a skin over Fedora Kinoite — it IS the system, and a system whose
