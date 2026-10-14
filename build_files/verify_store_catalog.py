@@ -1148,6 +1148,10 @@ KIND_HANDLER = {
     "webapp": ("_install_webapp", "parse_entry("),
     "appdrop": ("_install_appdrop", "pinned_artifact(", "appdrop.plan_for("),
     "windows-portable": ("_install_windows_portable", "pe_architecture(", "_wine_argv("),
+    # A call, not a name: the method can outlive every caller of it. Then the pinned download,
+    # the container's own install and the record that makes the app the Store's.
+    "android": ("self._install_pinned_android(", "pinned_artifact(",
+                '[WAYDROID, "app", "install"', "_write_android_record("),
     # The publisher's own signed package: storectl never reimplements the module's checks.
     "vendor-rpm": ("_install_vendor_app", "vendor.parse_entry(install)",
                    "vendor.install(app_id, entry", "VENDOR_FAILURE_KEYS.get(code)"),

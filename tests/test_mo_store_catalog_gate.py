@@ -630,6 +630,45 @@ class TheChainNamesTheNewKinds(unittest.TestCase):
         self.assertTrue(any("never runs `rpmkeys --checksig`" in e for e in errors), errors)
 
 
+class TheChainNamesTheAndroidPath(unittest.TestCase):
+    """21 Android recipes, and once nothing checked the backend could still install one.
+
+    The mutation that went unseen (review, 2026-10-15): both calls of the Android installer in
+    moos-storectl replaced by a refusal. The method itself stayed, so a gate that looked for its
+    NAME would have passed; the gate looks for a CALL.
+    """
+
+    storectl = (SYSTEM / "usr/bin/moos-storectl").read_text(encoding="utf-8")
+
+    def chain_errors(self, storectl: str) -> list[str]:
+        facts = gate.check_catalog(copy.deepcopy(SHIPPED), SYSTEM, BUILD)[1]
+        self.assertIn("android", facts["used_kinds"])
+        with tempfile.TemporaryDirectory() as raw:
+            root = mirror_root(Path(raw), {gate.MOOS_STORECTL: storectl})
+            return gate.check_chain(facts, root, BUILD).errors
+
+    def test_a_backend_that_can_no_longer_install_an_android_app_fails(self):
+        cut, calls = re.subn(r"self\._install_pinned_android\([^)]*\)",
+                             'raise StoreError("no Android install")', self.storectl)
+        self.assertGreaterEqual(calls, 1, "the backend calls its Android installer by another name")
+        self.assertIn("def _install_pinned_android(", cut)
+        errors = self.chain_errors(cut)
+        self.assertTrue(any("install kind 'android'" in e and "'self._install_pinned_android('" in e
+                            for e in errors), errors)
+
+    def test_each_android_token_is_required(self):
+        self.assertIn("self._install_pinned_android(", gate.KIND_HANDLER["android"])
+        for token in gate.KIND_HANDLER["android"]:
+            with self.subTest(token=token):
+                errors = self.chain_errors(self.storectl.replace(token, "_unrelated("))
+                self.assertTrue(any(f"lacks required handler token {token!r}" in e for e in errors),
+                                errors)
+
+    def test_the_backend_as_shipped_satisfies_the_android_path(self):
+        """Positive control: the real moos-storectl, unchanged, raises nothing for the kind."""
+        self.assertEqual([e for e in self.chain_errors(self.storectl) if "'android'" in e], [])
+
+
 class TheScriptFailsTheBuild(unittest.TestCase):
     """End to end: the gate script, its exit status and its message, on a planted mirror."""
 
