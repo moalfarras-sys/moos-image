@@ -1,0 +1,308 @@
+{
+  "schema": 1,
+  "scope": "Native graphical-login checks and runtime bytes; no ordinary PAM, video, phone or hardware endurance proof",
+  "checkedAt": "2026-10-14T10:57:12.570297+00:00",
+  "passed": true,
+  "bootId": "c5df8872-c80a-4265-8b30-5db89f7aca5f",
+  "reviewedPayloadSource": "fafa408a911a309380f00b439f8c69caeca4b73d",
+  "promotedSource": "1b947c21e6b3846f8eeaa73e2b75a6221dd172ac",
+  "deployments": [
+    {
+      "version": "44.20261014.775",
+      "booted": true,
+      "staged": false,
+      "container-image-reference": "ostree-image-signed:docker://ghcr.io/moalfarras-sys/moos-arm@sha256:fb0ba6379b8cff1c11d9aad46ed34b2aa0d3cc1bdd2291b6e71c3eff63be78cc",
+      "container-image-reference-digest": "sha256:fb0ba6379b8cff1c11d9aad46ed34b2aa0d3cc1bdd2291b6e71c3eff63be78cc"
+    },
+    {
+      "version": "44.20261013.763",
+      "booted": false,
+      "staged": false,
+      "container-image-reference": "ostree-image-signed:docker://ghcr.io/moalfarras-sys/moos-arm@sha256:a2ee6a1c5d10b16cae027f98797dd01ca3d5a5dfafd6e78470ab4f287f71d3b4",
+      "container-image-reference-digest": "sha256:a2ee6a1c5d10b16cae027f98797dd01ca3d5a5dfafd6e78470ab4f287f71d3b4"
+    }
+  ],
+  "themeRevision": 104,
+  "payloadSha256": {
+    "/usr/bin/moai-gateway": "bb4ae9a734d479ebf5ba272177d3a32e73db68327b9a1123bfc55dcb5817ee7b",
+    "/usr/bin/moos-apply-theme": "7f33498a5f006cfb44edab541d25edd8abc85e6a2a0456fdd9bcf50265aba89f",
+    "/usr/bin/moos-selfcheck": "e6ae1309dba602048fefff40315bec6e2469b4a29912a4340d8c69d4b8a8cea1",
+    "/usr/lib/mo-remote/mo-remote-portal.py": "e441588880577be128b8eb6e8f0609364e34f1ae8a842a9b18ca8de942000e14",
+    "/usr/lib/moai/moai_cloud_policy.py": "39f7a1fab74b053208d1e8b6cf9b0af3db5acb64ffdc597af11852b2dc0db7f2",
+    "/usr/lib/moai/moai_local_peer.py": "1815c2161e147e0b98399a6b221ec32d01877baa015c73e715216957cdc9931a",
+    "/usr/lib/moos-community/community/client.py": "3b780d588054817ffc9b4ff595c79fd095200557eb33f4ecc154098f51a9e6c7",
+    "/usr/lib/moos/moos_settings_launcher.py": "60d8817f07e409d3fd9de6154ed787bf54cf14374894696fd86d7e0325610d7f",
+    "/usr/lib/systemd/user/moai-gateway.service": "7f8698f166c0bd58b01306803e1dab34394c2619d323fb81ffd28440e5a51e75",
+    "/usr/lib/systemd/user/moai-hermes.service": "dd3488f24bf15669a19a539e6deed66553c33b03ac7dedf072535e0538d768f2",
+    "/usr/lib/systemd/user/moos-theme-drift.timer": "dd62178ba70517023a6ec5c46508b4ac0a9d676f0070d71ce22054f5b637e3b3",
+    "/usr/lib/systemd/user/moos-theme-sync.path": "069349e668240654b1e7586070712c5fd0a2ec1066e5b38288f736e9fc307d22",
+    "/usr/lib/systemd/user/moos-theme-sync.service": "fbf4f14e305c94aed034413e333f03d936d21d984cefb895e82e0943392b5ffe",
+    "/usr/lib64/qt6/qml/org/moos/ui/Tokens.qml": "58917731df830d67203a2adc9f3007df3064e723c6340433aaa812206af88890",
+    "/usr/libexec/mo-remote-greeter": "aafaeabb47ae315c9db43dfb5e72d7ccfa1aa8f9d8a1324d5c0c8de88957f31e",
+    "/usr/libexec/moai-hermes": "cc2dccbcbc7ffb721b95c7319af3b8acba903a729f242943d940bf117ba61bdc",
+    "/usr/libexec/moos-material-state": "3ca57545deea900c374041924a9786dfb626800661ef43d724ab7e44fb06570b",
+    "/usr/share/moos/whats-new.json": "a713fdf07e4301bf02587a72eed067db8f53f2db965da829c379cbb728c4e899",
+    "/usr/share/plasma/plasmoids/org.moos.island/contents/ui/main.qml": "9287449facc20e2482bb7ed5bd60906a362a42bcc2fb5299f3e08b8ab9e3a9df"
+  },
+  "compiledMoPlayerSha256": "65b5a7fe283aae20c42b5985e6aed687f356b94ba9830cb7a77976d916503205",
+  "checks": {
+    "selfcheck": {
+      "exit": 0,
+      "passed": 51,
+      "notes": 4
+    },
+    "postUpdate": {
+      "exit": 0,
+      "passed": 55,
+      "failed": 0
+    }
+  },
+  "currentReadback": {
+    "bootSeconds": 14.301,
+    "graphicalUserspaceSeconds": 9.325,
+    "kwinCount": 1,
+    "plasmashellCount": 1,
+    "session": [
+      "Service=plasmalogin-autologin",
+      "Desktop=KDE",
+      "Type=wayland"
+    ],
+    "failedSystem": [],
+    "failedUser": [],
+    "healthyOwnerContainerCount": 4,
+    "checkedAtEpoch": 1791976483.3774822
+  },
+  "preservedAttempts": [
+    {
+      "name": "oracle-runtime-postboot",
+      "passed": false,
+      "checks": {
+        "selfcheck": 1,
+        "post_update": 0
+      },
+      "files": {
+        "receipt.json": "92bf0c19456cae9a05e96611dbaaea1b426b58e042d29837846de46cc9a03497",
+        "selfcheck.log": "6ef57e376d84288fe21ea5075a3a22d5a6e744b209bf910df8c44ee0eb883e53",
+        "post_update.log": "b0465aa1971508e56d7ea065a839e46fa7f29827a9fcfd301f43e549a367745e"
+      },
+      "failure": "Three transient container-prefixed user units, selfcheck 51 passed/1 broken/2 notes; post-update exit 0. Exact cause unproven; no owner health policy changed."
+    },
+    {
+      "name": "oracle-runtime-quiescent",
+      "passed": false,
+      "checks": {
+        "selfcheck": 1,
+        "post_update": 1
+      },
+      "files": {
+        "receipt.json": "89392e1c0e37cce025eab0468d07e37ffbb5082337c14b44eab9f928e0f4e3f2",
+        "selfcheck.log": "b2587b16603b1ed88e97f80697354790b9a3cec58746dc552d5b278d57e6cea3",
+        "post_update.log": "a34f0808f055f307540df1fac28c5e77c06927d26d7828a8cb24158890211602"
+      },
+      "failure": "Only the initial owned autostart probe failed flag; 50 passed/1 broken/4 notes and post-update 54/1. Both earlier records retained; only owned flag reset before the third attempt."
+    },
+    {
+      "name": "oracle-runtime-after-owned-probe-retirement",
+      "passed": true,
+      "checks": {
+        "selfcheck": 0,
+        "post_update": 0
+      },
+      "files": {
+        "receipt.json": "4aea070c1e9c65d78be7be3c81ec1b2f6a442f10c365dccb041f0f53a1b9e146",
+        "selfcheck.log": "fe0cd074703474efbe67835eb79ddbc7e50c7bfe5f4a6c9c45b486182061535a",
+        "post_update.log": "b0465aa1971508e56d7ea065a839e46fa7f29827a9fcfd301f43e549a367745e"
+      }
+    }
+  ],
+  "resources": {
+    "scope": "Native Oracle booted signed .775; 20-second cgroup sample including children. Editor, owner services and Remote remain; no idle or endurance claim. Capture helper is separately measured only if found at its immutable argv path.",
+    "boot_id": "c5df8872-c80a-4265-8b30-5db89f7aca5f",
+    "sample_epoch": 1791976419.5958476,
+    "elapsed_seconds": 20.000086181999905,
+    "units": {
+      "plasma-kwin_wayland.service": {
+        "known": true,
+        "active": "active",
+        "cpu_usec": 340362001,
+        "memory_bytes": 601825280,
+        "swap_bytes": 0,
+        "anonymous_bytes": 273625088,
+        "file_bytes": 315072512,
+        "cpu_percent_one_core": 4.138777165595335
+      },
+      "plasma-plasmashell.service": {
+        "known": true,
+        "active": "active",
+        "cpu_usec": 16172472,
+        "memory_bytes": 255479808,
+        "swap_bytes": 0,
+        "anonymous_bytes": 206979072,
+        "file_bytes": 40947712,
+        "cpu_percent_one_core": 0.2606888766655628
+      },
+      "moai-gateway.service": {
+        "known": true,
+        "active": "active",
+        "cpu_usec": 667221,
+        "memory_bytes": 22761472,
+        "swap_bytes": 0,
+        "anonymous_bytes": 22392832,
+        "file_bytes": 118784,
+        "cpu_percent_one_core": 0.006539971818607467
+      },
+      "moos-privacy-monitor.service": {
+        "known": true,
+        "active": "active",
+        "cpu_usec": 3058697,
+        "memory_bytes": 27340800,
+        "swap_bytes": 0,
+        "anonymous_bytes": 26783744,
+        "file_bytes": 180224,
+        "cpu_percent_one_core": 0.0
+      },
+      "mo-remote-personal.service": {
+        "known": true,
+        "active": "active",
+        "cpu_usec": 13494308,
+        "memory_bytes": 215556096,
+        "swap_bytes": 0,
+        "anonymous_bytes": 100581376,
+        "file_bytes": 110968832,
+        "cpu_percent_one_core": 0.03376985448232021
+      },
+      "pipewire.service": {
+        "known": true,
+        "active": "active",
+        "cpu_usec": 285135,
+        "memory_bytes": 15265792,
+        "swap_bytes": 0,
+        "anonymous_bytes": 12570624,
+        "file_bytes": 2269184,
+        "cpu_percent_one_core": 0.0
+      },
+      "remote-capture-helper-2857": {
+        "known": true,
+        "active": "process-present",
+        "cpu_usec": 115893278,
+        "memory_bytes": 77721600,
+        "swap_bytes": 0,
+        "anonymous_bytes": 48717824,
+        "file_bytes": 27865088,
+        "cpu_percent_one_core": 0.004364981190859571
+      },
+      "remote-capture-helper-2859": {
+        "known": true,
+        "active": "process-present",
+        "cpu_usec": 13494308,
+        "memory_bytes": 215556096,
+        "swap_bytes": 0,
+        "anonymous_bytes": 100581376,
+        "file_bytes": 110968832,
+        "cpu_percent_one_core": 0.03376985448232021
+      }
+    },
+    "memory_available_kib": 6330564,
+    "swap_used_kib": 0,
+    "psi": {
+      "cpu": "some avg10=3.42 avg60=4.81 avg300=6.26 total=291391430\nfull avg10=0.00 avg60=0.00 avg300=0.00 total=0\n",
+      "memory": "some avg10=0.00 avg60=0.00 avg300=0.00 total=1999\nfull avg10=0.00 avg60=0.00 avg300=0.00 total=1937\n",
+      "io": "some avg10=0.23 avg60=1.44 avg300=0.72 total=40136252\nfull avg10=0.05 avg60=0.48 avg300=0.25 total=13209729\n"
+    },
+    "writable_var": {
+      "total_bytes": 213148217344,
+      "available_bytes": 30454075392
+    }
+  },
+  "cloud": {
+    "direct": {
+      "http": 200,
+      "elapsedSeconds": 0.9022769379998863,
+      "route": "cloud",
+      "agent": "direct",
+      "modelHeader": "nvidia/nemotron-3-super-120b-a12b:free",
+      "model": "nvidia/nemotron-3-super-120b-a12b:free",
+      "usage": {
+        "prompt_tokens": 34,
+        "completion_tokens": 53,
+        "total_tokens": 87,
+        "cost": 0,
+        "is_byok": false,
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "cache_write_tokens": 0,
+          "audio_tokens": 0,
+          "video_tokens": 0
+        },
+        "cost_details": {
+          "upstream_inference_cost": 0,
+          "upstream_inference_prompt_cost": 0,
+          "upstream_inference_completions_cost": 0
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 44,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      },
+      "content": "MOOS_CLOUD_OK",
+      "scope": "Synthetic direct cloud reply through configured free router, no saved changes, private context or actions",
+      "passed": true
+    },
+    "connected": {
+      "scope": "Synthetic free cloud streaming and isolated agent session; no private context, actions or settings changes",
+      "stream": {
+        "agentRequested": false,
+        "http": 200,
+        "agent": "direct",
+        "modelHeader": "nvidia/nemotron-3-super-120b-a12b:free",
+        "content": "MOOS_CONNECTED_OK",
+        "events": 16,
+        "done": true,
+        "firstContentSeconds": 2.078565155000433,
+        "usage": {
+          "prompt_tokens": 34,
+          "completion_tokens": 43,
+          "total_tokens": 77,
+          "cost": 0,
+          "is_byok": false,
+          "prompt_tokens_details": {
+            "cached_tokens": 0,
+            "cache_write_tokens": 0,
+            "audio_tokens": 0,
+            "video_tokens": 0
+          },
+          "cost_details": {
+            "upstream_inference_cost": 0,
+            "upstream_inference_prompt_cost": 0,
+            "upstream_inference_completions_cost": 0
+          },
+          "completion_tokens_details": {
+            "reasoning_tokens": 34,
+            "image_tokens": 0,
+            "audio_tokens": 0
+          }
+        },
+        "elapsedSeconds": 2.1206083810002383,
+        "passed": true
+      },
+      "agent": {
+        "agentRequested": true,
+        "http": 200,
+        "agent": "hermes",
+        "modelHeader": null,
+        "content": "MOOS_CONNECTED_OK",
+        "usage": null,
+        "elapsedSeconds": 8.717675480999787,
+        "passed": true
+      }
+    }
+  },
+  "limits": [
+    "Existing autologin is not ordinary password authentication proof.",
+    "Initial transient container-prefixed unit exits remain unexplained; later healthy containers do not erase this failure.",
+    "Installed whole-shell keyboard, Orca, phone, video/GPU, ordinary PAM and endurance acceptance remain open.",
+    "Bounded cgroup sample is not idle acceptance; capture-only and input-only helpers are separate. Input helper shares personal-service cgroup, so those entries must not be summed.",
+    "Cloud prompts were synthetic and used the existing configured free router, no saved policy or private context changes. Missing Hermes usage is not zero measured cost."
+  ]
+}

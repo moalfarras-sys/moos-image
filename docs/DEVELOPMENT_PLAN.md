@@ -29,16 +29,26 @@ Next acceptance is native installed shell input/focus and screen-reader behavior
 P2.17 greeter desktop facts/actual matching EIS groups are signed in .1044/.773
 and retained in the current images. Its full cycle completed. An HTTP 500 while
 reading an already-dispatched proof was recovered by adopting exact existing
-runs, never duplicate dispatch or rerun. Improve bounded metadata-read recovery
-without retrying mutations or weakening artifact/source checks.
+runs, never duplicate dispatch or rerun. Follow-up source now bounds metadata
+GET recovery (three attempts, 30 s plus 5 s kill deadlines, 2/4 s backoff),
+records created run IDs and refuses duplicate dispatch on unreadable build lists.
+Fourteen executable controls, including restored-old failures, pass; mutations,
+source/digest/attempt checks and promotion requirements remain unchanged.
 Physical NVIDIA booted .1044 with its corrected immutable helper hashes and
 signed .1042 rollback; its /run override disappeared naturally. The owner
 reports the desktop opened. Post-login readback and exact copied-bundle
 retirement await renewed Tailscale management authentication. Preserve opt-in,
 PIN/private TLS/upstream PAM/default-off and the owner’s password flow.
-Oracle still boots .763; the official authority staged current .775. Exact
-19-file staged payload/compiled player equality and THEME_REV=104 pass. Complete actual reboot/native owner acceptance before changing
-its installed-state claim. Preserve signed rollback and the owner’s monitor.
+Oracle now boots signed .775 with .763 rollback. Native graphical checks pass
+51 selfchecks/4 notes and 55 post-update/0 failures, all 19 payload hashes,
+exact player and THEME_REV=104; one KDE Wayland compositor, boot=14.301 s.
+The initial transient-container selfcheck failure and the subsequent owned
+probe flag failure remain preserved; only the owned failed flag was retired.
+Current failed units are empty and all four owner containers are healthy;
+the initial failure's precise cause is unproven. Existing autologin is not PAM
+acceptance. [Native receipt](releases/2026-10-14-oracle-775-native-proof.json).
+New .775 direct/SSE and isolated Hermes synthetic replies pass; direct reported
+cost=0, Hermes usage absent. Preserve signed rollback and the owner’s monitor.
 
 Existing-account cloud JSON/SSE/free replies and isolated Hermes journeys pass
 on both stations. Reported direct cost=0; missing Hermes usage is not zero cost.
@@ -320,7 +330,7 @@ itself and an unreviewed MoOS would ship kscreenlocker's emergency locker.
 | ID | Outcome | Current boundary | Required acceptance |
 | --- | --- | --- | --- |
 | P0.1 | Integrate the reviewed first-install repairs and create one candidate revision | Stable mechanism/artifact evidence recorded; preserve required gates | Exact candidate source, all integrated fixes and no local override counted as release. |
-| P0.2 | Run generic, NVIDIA and cloud QCOW2 proofs plus offline ISO install/second boot | Exact .1042 three QCOW2/offline installed ISO proofs and ARM .771 two boots pass; physical NVIDIA .1042 native acceptance passes, Oracle .771 remains staged | Three exact-digest x86 QCOW2 journeys, offline installed ISO and separate ARM two-boot proof. |
+| P0.2 | Run generic, NVIDIA and cloud QCOW2 proofs plus offline ISO install/second boot | Exact .1046 three QCOW2/offline installed ISO and ARM .775 two-boot proofs pass. Native Oracle .775 boot/19 payload hashes/51 selfchecks and 55 post-update checks pass with earlier failed attempts preserved. Physical NVIDIA .1044 post-login receipt remains pending; .1046 hardware acceptance is open | Three exact-digest x86 QCOW2 journeys, offline installed ISO and separate ARM two-boot proof. |
 | P0.3 | Finish physical NVIDIA qualification | Open: signed .1042 native 55/0 + 55/0, 16 hashes and exact signed player bytes pass; one URI/finite seek/resource journey passes. Kernel -201 NVIDIA vermagic matches. USB-C UCSI -110 remains; broader physical acceptance is open. Offline ESP dirty-bit-only clone/live proof passes, 16 boot-file hashes preserved and both shared vfat mounts restored; the prior unmount mistake failed before fsck and has a private old/fixed topology control. Next cold-boot warning readback, suspend/hotplug and recovery remain | Actual NVIDIA GPU, initramfs module, displays, suspend and clean recovery on qualified hardware. |
 | P0.4 | Prove failed-update recovery | Open / acceptance not complete | Deliberate bad update, automatic/manual rollback and forward return without owner data loss. |
 | P0.5 | Configure and accept free Mo AI on a clean account | Open / acceptance not complete | Clean-account provider setup, free route, reboot, cancellation and network/quota/key failures. |
