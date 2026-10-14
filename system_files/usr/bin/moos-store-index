@@ -303,13 +303,139 @@ CATEGORY_GROUPS = (
     ),
 )
 
+# The old 14-value `category` key the current Store window groups by, for a curated
+# entry with no AppStream data. droid and win have no counterpart there and stay
+# "other"; the Store category below is what places them.
 CURATED_CATEGORY_FALLBACK = {
     "ess": "utilities",
     "fun": "games",
     "dev": "development",
     "work": "office",
     "ai": "ai",
+    "comm": "communication",
+    "art": "graphics",
+    "media": "audio-video",
+    "edu": "education",
+    "util": "utilities",
 }
+
+# ── The Store category, `cat` ────────────────────────────────────────────────
+# Every app in the index carries one of the catalogue's twelve category ids as
+# `cat` (docs/MO_STORE.md, catalogue `categories[]`). A curated app keeps the
+# catalogue's own `cat`; any other Flathub app is placed by its freedesktop
+# categories, first matching rule wins. A game is a game even when it also says
+# Network or AudioVideo, and an IDE is development even when it also says
+# Utility, so the specific rules come first. `ai` is editorial only: no metadata
+# rule leads there. Nothing lands in a catch-all: an app no rule places is a
+# utility, and Android and Windows apps are always `droid` and `win`.
+STORE_CATEGORIES = (
+    "ess", "comm", "work", "art", "media", "fun", "dev", "ai", "edu", "util", "droid", "win",
+)
+STORE_CATEGORY_RULES = (
+    ("fun", frozenset({
+        "game", "actiongame", "adventuregame", "arcadegame", "blocksgame", "boardgame",
+        "cardgame", "kidsgame", "logicgame", "roleplaying", "shooter", "sportsgame",
+        "strategygame", "emulator",
+    })),
+    ("dev", frozenset({"development", "ide"})),
+    ("comm", frozenset({
+        "instantmessaging", "chat", "email", "videoconference", "ircclient", "telephony",
+    })),
+    ("ess", frozenset({"webbrowser"})),
+    ("work", frozenset({"office"})),
+    ("art", frozenset({"graphics", "photography"})),
+    ("media", frozenset({"audiovideo", "audio", "video", "player"})),
+    ("edu", frozenset({"education", "science"})),
+    ("util", frozenset({"system", "utility", "security", "settings"})),
+)
+DEFAULT_STORE_CATEGORY = "util"
+
+
+def store_category_from_freedesktop(categories: list[str]) -> str:
+    folded = {category.casefold() for category in categories}
+    for store_category, names in STORE_CATEGORY_RULES:
+        if folded & names:
+            return store_category
+    return DEFAULT_STORE_CATEGORY
+
+
+def store_category(app: dict) -> str:
+    """The Store category of a finished index entry (see STORE_CATEGORY_RULES)."""
+
+    declared = app.get("cat")
+    if app.get("curated") and declared in STORE_CATEGORIES:
+        return declared
+    install = app.get("install") if isinstance(app.get("install"), dict) else {}
+    kind = app.get("kind")
+    if kind == "android" or app.get("engine") == "android" or install.get("kind") == "android":
+        return "droid"
+    if kind == "windows" or app.get("engine") == "windows":
+        return "win"
+    if declared in STORE_CATEGORIES:
+        return declared
+    return store_category_from_freedesktop(app.get("categories") or [])
+
+
+# ── Search ───────────────────────────────────────────────────────────────────
+# `search` is ONE folded string per app. The Store window and MoOS Search fold
+# what a person types with the same rules and match against it:
+#   1. lowercase (String.prototype.toLowerCase / str.lower);
+#   2. remove Arabic marks U+0610-061A, U+064B-065F, U+0670, U+06D6-06ED, the
+#      tatweel U+0640, zero-width and bidi marks U+200B-200F, U+202A-202E,
+#      U+2066-2069, U+061C and U+FEFF;
+#   3. أ إ آ ٱ -> ا, ى ئ -> ي, ؤ -> و, ة -> ه, Arabic-Indic and Persian digits -> 0-9;
+#   4. runs of whitespace and  _ . - + / ( ) | ·  become one space; trim.
+# The same rules as usr/libexec/moos-store-krunner's fold().
+SEARCH_MARKS = re.compile(
+    "[ؐ-ًؚ-ٰٟۖ-ۭـ"
+    "​-‏‪-‮⁦-⁩؜﻿]"
+)
+SEARCH_FOLD = str.maketrans(
+    {
+        "أ": "ا", "إ": "ا", "آ": "ا", "ٱ": "ا", "ى": "ي", "ئ": "ي", "ؤ": "و", "ة": "ه",
+        **{chr(0x0660 + digit): str(digit) for digit in range(10)},
+        **{chr(0x06F0 + digit): str(digit) for digit in range(10)},
+    }
+)
+SEARCH_SPACE = re.compile(r"[\s_.\-+/()|·]+")
+SEARCH_LIMIT = 600
+
+
+def fold_search_text(value: object) -> str:
+    if not isinstance(value, str):
+        return ""
+    text = SEARCH_MARKS.sub("", value.lower()).translate(SEARCH_FOLD)
+    return SEARCH_SPACE.sub(" ", text).strip()
+
+
+def search_string(terms: list) -> str:
+    """Fold every term, keep each once, join with spaces, bounded at a word."""
+
+    seen: list[str] = []
+    for term in terms:
+        folded = fold_search_text(term)
+        if folded and folded not in seen:
+            seen.append(folded)
+    text = " ".join(seen)
+    if len(text) > SEARCH_LIMIT:
+        text = text[:SEARCH_LIMIT].rsplit(" ", 1)[0]
+    return text
+
+
+def id_tail(app_id: str) -> str:
+    """What an id is called by people: org.gimp.GIMP -> GIMP, notepad-plus-plus as is."""
+
+    return app_id.rsplit(".", 1)[-1] if "." in app_id and not app_id.startswith(".") else app_id
+
+
+def app_search_string(app: dict, extra_terms: list | None = None) -> str:
+    terms: list = [app.get("name"), app.get("name_en"), app.get("en"), app.get("ar")]
+    terms.extend(extra_terms or [])
+    terms.extend(app.get("keywords_en") or [])
+    terms.extend(app.get("keywords_ar") or [])
+    terms.append(app.get("developer"))
+    terms.append(id_tail(app.get("id", "")))
+    return search_string(terms)
 
 
 class IndexErrorBase(Exception):
@@ -729,6 +855,101 @@ def component_verified(component: ET.Element) -> bool:
     return False
 
 
+def untranslated_value(values: dict[str, str]) -> str:
+    """The metadata's own (English) text: no xml:lang, else en, else en-*."""
+
+    if values.get(""):
+        return values[""]
+    if values.get("en"):
+        return values["en"]
+    return next((value for language, value in values.items()
+                 if language.startswith("en-") and value), "")
+
+
+def arabic_value(values: dict[str, str]) -> str:
+    if values.get("ar"):
+        return values["ar"]
+    return next((value for language, value in values.items()
+                 if language.startswith("ar-") and value), "")
+
+
+HEX_COLOR_RE = re.compile(r"^#(?:[0-9a-fA-F]{6}|[0-9a-fA-F]{3})$")
+
+
+def normalized_hex(value: str) -> str:
+    value = value.strip()
+    if not HEX_COLOR_RE.fullmatch(value):
+        return ""
+    if len(value) == 4:
+        value = "#" + "".join(char * 2 for char in value[1:])
+    return value.lower()
+
+
+def branding_colors(component: ET.Element) -> dict | None:
+    """{light, dark} from <branding><color type="primary" scheme_preference=…>.
+
+    A colour with no scheme preference serves both schemes; a scheme with no
+    colour of its own is null rather than borrowing the other scheme's (a pale
+    light-scheme accent is unreadable as a dark-scheme surface).
+    """
+
+    branding = first_child(component, "branding")
+    if branding is None:
+        return None
+    found: dict[str, str] = {}
+    for color in direct_children(branding, "color"):
+        if color.attrib.get("type", "primary").casefold() != "primary":
+            continue
+        value = normalized_hex(element_text(color, 16))
+        if not value:
+            continue
+        scheme = color.attrib.get("scheme_preference", "").casefold()
+        key = scheme if scheme in {"light", "dark"} else "any"
+        found.setdefault(key, value)
+    light = found.get("light") or found.get("any")
+    dark = found.get("dark") or found.get("any")
+    if not light and not dark:
+        return None
+    return {"light": light, "dark": dark}
+
+
+def content_rating(component: ET.Element) -> str | None:
+    """OARS: any `intense` -> mature, any `moderate` -> teen, otherwise all.
+
+    None when the component carries no rating at all: "unrated" is not "all ages".
+    """
+
+    rating = None
+    for element in direct_children(component, "content_rating"):
+        rating = rating or "all"
+        for attribute in direct_children(element, "content_attribute"):
+            value = element_text(attribute, 16).casefold()
+            if value == "intense":
+                return "mature"
+            if value == "moderate":
+                rating = "teen"
+    return rating
+
+
+def appstream_keywords(component: ET.Element, preferences: list[str], limit: int = 24) -> list[str]:
+    """Search words: the untranslated ones, the session language's, and Arabic."""
+
+    wanted = {"", "en", "ar", *preferences}
+    words: list[str] = []
+    for keywords in direct_children(component, "keywords"):
+        container_lang = normalized_locale(keywords.attrib.get(XML_LANG))
+        for keyword in direct_children(keywords, "keyword"):
+            language = normalized_locale(keyword.attrib.get(XML_LANG)) or container_lang
+            if language not in wanted and language.split("-", 1)[0] not in wanted:
+                continue
+            word = element_text(keyword, 40)
+            if word and word not in words:
+                words.append(word)
+            if len(words) >= limit:
+                return words
+    return words
+
+
 def parse_component(
     component: ET.Element,
     index_path: Path,
@@ -741,7 +962,8 @@ def parse_component(
         return None
 
     app_id, arch, branch, canonical_ref = flatpak_ref
-    name = pick_localized(localized_values(component, "name", 160), preferences)
+    names = localized_values(component, "name", 160)
+    name = pick_localized(names, preferences)
     summary = pick_localized(
         localized_values(component, "summary", 240), preferences
     )
@@ -751,6 +973,7 @@ def parse_component(
     categories = component_categories(component)
     license_value = element_text(first_child(component, "project_license"), 160)
     icon = cached_icon_uri(component, index_path) or remote_icon_uri(component)
+    fallback_name = app_id.rsplit(".", 1)[-1]
 
     return {
         "id": app_id,
@@ -759,10 +982,15 @@ def parse_component(
         "origin": origin,
         "scope": scope,
         "installable": True,
+        "listed": True,
         "flatpak_ref": canonical_ref,
         "arch": arch,
         "branch": branch,
-        "name": name or app_id.rsplit(".", 1)[-1],
+        "name": name or fallback_name,
+        # The English name whatever the index locale: an Arabic index must still
+        # find "VS Code", and an English window over an Arabic index must not
+        # show Arabic names.
+        "name_en": untranslated_value(names) or name or fallback_name,
         "summary": summary,
         "description": description or summary,
         "developer": developer_name(component, preferences),
@@ -775,6 +1003,10 @@ def parse_component(
         "installed": False,
         "version": latest_version(component),
         "curated": False,
+        "branding": branding_colors(component),
+        "content_rating": content_rating(component),
+        # Build-time only: removed by finish_app() once `search` is written.
+        "_search_terms": [arabic_value(names), *appstream_keywords(component, preferences)],
         "origins": [
             {
                 "origin": origin,
@@ -934,12 +1166,17 @@ def merge_duplicate(current: dict, candidate: dict, installed_refs: list[dict]) 
         "icon",
         "screenshot",
         "version",
+        "branding",
+        "content_rating",
     ):
         if not primary.get(field) and secondary.get(field):
             primary[field] = secondary[field]
 
     primary["categories"] = list(
         dict.fromkeys(primary["categories"] + secondary["categories"])
+    )
+    primary["_search_terms"] = list(
+        dict.fromkeys(primary.get("_search_terms", []) + secondary.get("_search_terms", []))
     )
     if primary["category"] == "other":
         primary["category"] = normalized_category(primary["categories"])
@@ -2397,12 +2634,16 @@ def catalog_fallback_app(
         "scope": "user" if flatpak or install.get("kind") != "web"
         else "external",
         "installable": catalog_installable(entry, arch),
+        "listed": True,
         # A curated fallback has a validated app id but no AppStream bundle,
         # so inventing an arch/branch ref here would violate the ref contract.
         "flatpak_ref": None,
         "arch": None,
         "branch": None,
         "name": name,
+        "name_en": entry.get("en") or name,
+        "branding": None,
+        "content_rating": None,
         "summary": description,
         "description": description,
         "developer": "",
@@ -2442,6 +2683,8 @@ def overlay_catalog(app: dict, entry: dict, preferences: list[str]) -> None:
     curated_description = catalog_localized(entry, preferences, "desc_")
     if curated_name:
         app["name"] = curated_name
+    if entry.get("en"):
+        app["name_en"] = entry["en"]
     if curated_description:
         previous_summary = app.get("summary", "")
         previous_description = app.get("description", "")
@@ -2472,6 +2715,15 @@ def overlay_catalog(app: dict, entry: dict, preferences: list[str]) -> None:
             app[key] = entry[key]
     if entry.get("cat") == "ai":
         app["category"] = "ai"
+
+
+def finish_app(app: dict) -> dict:
+    """Write the keys derived from a finished entry; drop build-time helpers."""
+
+    terms = app.pop("_search_terms", [])
+    app["cat"] = store_category(app)
+    app["search"] = app_search_string(app, terms)
+    return app
 
 
 def generation_time() -> str:
@@ -2685,6 +2937,8 @@ def build_index(
         else:
             overlay_catalog(current, entry, preferences)
 
+    for app in apps_by_id.values():
+        finish_app(app)
     apps = sorted(
         apps_by_id.values(),
         key=lambda app: (app["name"].casefold(), app["id"].casefold()),
