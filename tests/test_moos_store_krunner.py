@@ -267,7 +267,6 @@ class OnlyWhatThisComputerCanGet(unittest.TestCase):
         launcher.parent.mkdir(parents=True)
         launcher.write_text("[Desktop Entry]\nName=WhatsApp\nX-MoOS-WebApp=whatsapp\n",
                             encoding="utf-8")
-        self.runner = load()
         after = self.offered("x86_64", set(), "gimp", "whatsapp")
         self.assertNotIn("app:org.gimp.GIMP", after["gimp"])
         self.assertNotIn("app:whatsapp", after["whatsapp"])
