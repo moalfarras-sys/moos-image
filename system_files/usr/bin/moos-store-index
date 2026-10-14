@@ -690,13 +690,7 @@ def parse_component(
     scope: str,
     preferences: list[str],
 ) -> dict | None:
-    flatpak_ref = None
-    for bundle in direct_children(component, "bundle"):
-        if bundle.attrib.get("type", "").casefold() != "flatpak":
-            continue
-        flatpak_ref = parse_flatpak_ref(element_text(bundle, 512))
-        if flatpak_ref:
-            break
+    flatpak_ref = component_bundle_ref(component)
     if flatpak_ref is None:
         return None
 
@@ -744,6 +738,68 @@ def parse_component(
             }
         ],
     }
+
+
+# AppStream component types that describe something other than an application a
+# person opens. They can still carry an `app/` bundle (Flathub ships 63 console
+# tools, the Nautilus previewer add-on and five PySide BaseApps that way), and
+# the Store used to list them as apps: "Wine" under More, "PySide6 BaseApp", a
+# file-manager plugin. Offering one is a dead end at best.
+NOT_APP_TYPES = frozenset(
+    {
+        "runtime",
+        "addon",
+        "console-application",
+        "localization",
+        "font",
+        "codec",
+        "inputmethod",
+        "input-method",
+        "firmware",
+        "driver",
+        "icon-theme",
+        "operating-system",
+        "repository",
+        "service",
+    }
+)
+# Types that may be an app or not; such a component counts as an app only when it
+# declares a desktop launcher (Flathub's `generic` egui picross does, the
+# MasterPassword CLI does not).
+AMBIGUOUS_APP_TYPES = frozenset({"", "generic"})
+# Ids that are machinery even though their metadata says otherwise. Wine on
+# Flathub is a BaseApp other apps build on, published as a console application
+# in nine branches; MoOS runs Windows programs through its own engine registry.
+NOT_APP_IDS = frozenset({"org.winehq.Wine"})
+
+
+def component_bundle_ref(component: ET.Element) -> tuple[str, str, str, str] | None:
+    for bundle in direct_children(component, "bundle"):
+        if bundle.attrib.get("type", "").casefold() != "flatpak":
+            continue
+        parsed = parse_flatpak_ref(element_text(bundle, 512))
+        if parsed:
+            return parsed
+    return None
+
+
+def not_an_app_reason(component: ET.Element, app_id: str) -> str:
+    """Why a component with an app bundle is still not an app to offer, or ""."""
+
+    kind = component.attrib.get("type", "").strip().casefold()
+    if app_id.endswith(".BaseApp"):
+        return "base-app"
+    if app_id in NOT_APP_IDS:
+        return "runtime-tool"
+    if kind in NOT_APP_TYPES:
+        return kind
+    if kind in AMBIGUOUS_APP_TYPES and not any(
+        launchable.attrib.get("type", "").casefold() == "desktop-id"
+        and element_text(launchable, 255)
+        for launchable in direct_children(component, "launchable")
+    ):
+        return "no-launcher"
+    return ""
 
 
 def rejected_component_is_invalid(component: ET.Element) -> bool:
@@ -809,7 +865,12 @@ def source_rank(app: dict, installed_refs: list[dict]) -> tuple:
             "version",
         )
     )
-    return installed_match, scope_rank, bool(app["verified"]), completeness
+    # An app published in several branches (QGIS: `lts` and `stable`) is one
+    # entry. The installed branch wins so Open and Remove act on what is there;
+    # otherwise the stable branch is the one offered, which is also the branch
+    # moos-storectl installs.
+    stable = app.get("branch") == "stable"
+    return installed_match, stable, scope_rank, bool(app["verified"]), completeness
 
 
 def merge_duplicate(current: dict, candidate: dict, installed_refs: list[dict]) -> dict:
@@ -2034,6 +2095,7 @@ def build_index(
     component_count = 0
     accepted_count = 0
     skipped_count = 0
+    excluded_count = 0
     metadata_indexes_parsed = 0
     metadata_indexes_reused = 0
 
@@ -2054,6 +2116,7 @@ def build_index(
         source_accepted = 0
         source_invalid = 0
         source_skipped = 0
+        source_excluded = 0
         source_error = None
         metadata_reused = False
         reused_from = None
@@ -2071,6 +2134,7 @@ def build_index(
             source_accepted = cached["accepted"]
             source_invalid = cached["invalid"]
             source_skipped = cached["skipped"]
+            source_excluded = cached["excluded"]
             for template in cached["apps"]:
                 add_app(clone_app_for_source(template, source))
         else:
@@ -2079,6 +2143,10 @@ def build_index(
             try:
                 for component in iter_components(path):
                     source_components += 1
+                    bundle = component_bundle_ref(component)
+                    if bundle is not None and not_an_app_reason(component, bundle[0]):
+                        source_excluded += 1
+                        continue
                     app = parse_component(
                         component,
                         path,
@@ -2107,6 +2175,7 @@ def build_index(
                     "accepted": source_accepted,
                     "invalid": source_invalid,
                     "skipped": source_skipped,
+                    "excluded": source_excluded,
                     "apps": parsed_apps,
                 }
 
@@ -2114,6 +2183,7 @@ def build_index(
         accepted_count += source_accepted
         invalid_count += source_invalid
         skipped_count += source_skipped
+        excluded_count += source_excluded
 
         sources_output.append(
             {
@@ -2126,6 +2196,7 @@ def build_index(
                 "components": source_components,
                 "accepted": source_accepted,
                 "skipped": source_skipped,
+                "excluded": source_excluded,
                 "invalid": source_invalid,
                 "error": source_error,
                 "metadata_reused": metadata_reused,
@@ -2146,6 +2217,7 @@ def build_index(
                 "components": 0,
                 "accepted": 0,
                 "skipped": 0,
+                "excluded": 0,
                 "invalid": 0,
                 "error": None,
                 "metadata_reused": False,
@@ -2205,6 +2277,7 @@ def build_index(
             "components": len(catalog["apps"]),
             "accepted": len(catalog["apps"]),
             "skipped": 0,
+            "excluded": 0,
             "invalid": 0,
             "error": None,
             "metadata_reused": False,
@@ -2225,6 +2298,7 @@ def build_index(
         "appstream_entries": accepted_count,
         "duplicates_merged": duplicate_count,
         "skipped_components": skipped_count,
+        "excluded_components": excluded_count,
         "invalid_components": invalid_count,
         "source_errors": source_error_count,
         "catalog_fallback_apps": catalog_fallbacks,

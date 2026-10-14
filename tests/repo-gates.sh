@@ -313,6 +313,7 @@ python3 tests/test_desktop_sound_reachable.py
 python3 tests/test_remote_audio_is_authenticated.py
 python3 tests/test_moos_store_index.py
 python3 tests/test_mo_store_index_sources.py
+python3 tests/test_mo_store_index_not_apps.py
 python3 tests/test_moos_storectl.py
 python3 tests/test_store_job_language.py
 # One globally importable MoUI module must own identity metrics and shared

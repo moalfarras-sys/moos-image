@@ -319,6 +319,8 @@ check:
     python3 tests/test_moos_store_index.py
     # Which AppStream the Store indexes: the user's own Flathub remote, and one revision per URL.
     python3 tests/test_mo_store_index_sources.py
+    # Runtimes, add-ons, console tools and BaseApps are not apps; several branches offer stable.
+    python3 tests/test_mo_store_index_not_apps.py
     # The Store may not offer an app this machine cannot install. The browse
     # index is built from the RUNNING arch's AppStream, but a curated entry with
     # no match was MANUFACTURED into the index -- so eleven x86-only apps, two of
