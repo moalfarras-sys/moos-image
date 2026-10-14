@@ -1,0 +1,459 @@
+--- a/system_files/usr/bin/moos-store-index
++++ b/system_files/usr/bin/moos-store-index
+@@ -2795,6 +2795,45 @@
+     return longer_is_candidate if isinstance(first_extra, int) else not longer_is_candidate
+ 
+ 
++def android_record(package: str) -> dict | None:
++    """The receipt Store wrote for this package, never a supplied path or command."""
++
++    if not isinstance(package, str) or len(package) > 255 \
++            or not ANDROID_PACKAGE_RE.fullmatch(package):
++        return None
++    path = data_home() / "moos/android" / f"{package}.json"
++    if path.is_symlink():
++        return None
++    record = read_record(path)
++    if not record or type(record.get("schema")) is not int or record["schema"] != 1 \
++            or record.get("id") != package or record.get("package") != package:
++        return None
++    digest = record.get("sha256")
++    if not isinstance(digest, str) or not SHA256_RE.fullmatch(digest):
++        return None
++    source, catalog_id = record.get("source"), record.get("catalog_id")
++    if source == "catalog":
++        if catalog_id != package:
++            return None
++    elif source == "file":
++        if catalog_id != "":
++            return None
++    else:
++        return None
++    version = record.get("version")
++    if not isinstance(version, str) or (version and not VERSION_RE.fullmatch(version)):
++        return None
++    return {"id": package, "source": source, "catalog_id": catalog_id,
++            "version": version or None, "sha256": digest.lower()}
++
++
++def android_package_installed(package: str) -> bool:
++    """The same committed package data the Store's pin-update adapter reads."""
++
++    directory = data_home() / "waydroid/data/data" / package
++    return directory.is_dir() and not directory.is_symlink()
++
++
+ def catalog_install_state(entry: dict, arch: str | None = None) -> dict:
+     """{installed, version, update, icon, adopted} of one catalogue entry, from files."""
+ 
+@@ -2850,9 +2889,16 @@
+         # Reading this local state keeps the indexer offline and avoids calling
+         # (or exposing) the compatibility runtime for every Store refresh.
+         if isinstance(package, str) and ANDROID_PACKAGE_RE.fullmatch(package):
+-            state["installed"] = (
+-                home_dir() / ".local/share/waydroid/data/data" / package
+-            ).is_dir()
++            state["installed"] = android_package_installed(package)
++            record = android_record(package) if state["installed"] else None
++            if record is not None:
++                state["version"] = record["version"]
++                state["adopted"] = record["source"] == "file"
++                digest = install.get("sha256")
++                if isinstance(digest, str) and SHA256_RE.fullmatch(digest):
++                    # The executor compares the pinned bytes, including a
++                    # changed pin with the same publisher version label.
++                    state["update"] = record["sha256"] != digest.lower()
+     elif kind == "npm":
+         binary = install.get("bin")
+         if isinstance(binary, str) and binary:
+@@ -2864,7 +2910,8 @@
+             if manifest is not None:
+                 state["version"] = record_text(manifest, "version", 64) or None
+     pinned_version = install.get("version")
+-    if state["installed"] and state["version"] and isinstance(pinned_version, str):
++    if kind != "android" and state["installed"] and state["version"] \
++            and isinstance(pinned_version, str):
+         state["update"] = version_newer(pinned_version, state["version"])
+     return state
+ 
+@@ -2912,6 +2959,32 @@
+     return found
+ 
+ 
++def installed_android_records(claimed: set[str]) -> list[dict]:
++    """Recorded APK installs not covered by a current Android catalogue entry."""
++
++    found = []
++    for path in sorted((data_home() / "moos/android").glob("*.json")):
++        package = path.stem
++        if package in claimed:
++            continue
++        record = android_record(package)
++        if record is None or not android_package_installed(package):
++            continue
++        launcher = data_home() / "applications" / f"waydroid.{package}.desktop"
++        try:
++            safe_launcher = is_within(launcher.resolve(strict=True),
++                                      (data_home() / "applications").resolve())
++        except (OSError, RuntimeError):
++            safe_launcher = False
++        fields = desktop_entry_fields(read_small_text(launcher)) if safe_launcher else {}
++        names = {"": clean_text(fields.get("Name", ""), 160),
++                 "ar": clean_text(fields.get("Name[ar]", ""), 160),
++                 "en": clean_text(fields.get("Name[en]", ""), 160)}
++        found.append(dict(record, names={key: value for key, value in names.items() if value},
++                          icon=home_file_icon(fields.get("Icon", ""))))
++    return found
++
++
+ def lifecycle_snapshot(catalog: dict) -> dict:
+     """Every installed-state fact about non-Flatpak apps, read once per run.
+ 
+@@ -2922,6 +2995,7 @@
+     arch = catalog.get("arch")
+     states: dict[str, dict] = {}
+     claimed: set[str] = set()
++    android_claimed: set[str] = set()
+     for entry in catalog["apps"]:
+         if entry["source"] in {"flathub", "flatpak"}:
+             continue
+@@ -2929,7 +3003,10 @@
+         states[entry["id"]] = state
+         if state["installed"] and catalog_kind(entry) == "appdrop":
+             claimed.add(entry["id"])
+-    return {"catalog": states, "dropped": dropped_records(claimed)}
++        if catalog_kind(entry) == "android":
++            android_claimed.add(entry["id"])
++    return {"catalog": states, "dropped": dropped_records(claimed),
++            "android": installed_android_records(android_claimed)}
+ 
+ 
+ # ── flatpak's deploy data ────────────────────────────────────────────────────
+@@ -3187,6 +3264,24 @@
+     }
+ 
+ 
++def installed_android_entry(record: dict, preferences: list[str]) -> dict:
++    """A local package identity accepted by Store run/remove, without a download recipe."""
++
++    name = pick_localized(record["names"], preferences) or record["id"]
++    name_en = untranslated_value(record["names"]) or name
++    return {
++        "id": record["id"], "source": "local", "kind": "android", "engine": "android",
++        "origin": "local", "scope": "user", "installable": False, "listed": False,
++        "flatpak_ref": None, "arch": None, "branch": None,
++        "name": name, "name_en": name_en, "summary": "", "description": "",
++        "developer": "", "license": "", "category": "other", "categories": [],
++        "icon": record["icon"], "screenshot": None, "verified": False, "installed": True,
++        "version": record["version"] or "", "installed_version": record["version"],
++        "update_available": False, "eol": False, "curated": False,
++        "branding": None, "content_rating": None, "details": None, "origins": [],
++    }
++
++
+ LIFECYCLE_KEYS = ("installed_origin", "installed_scope", "installed_scopes")
+ 
+ 
+@@ -3270,6 +3365,13 @@
+         entry["eol"] = False
+         extra.append(finish_app(entry))
+         taken.add(app_id)
++    for record in snapshot.get("android", []):
++        # The backend gives an installed Flatpak the same-id precedence. Never
++        # manufacture an alias its fixed run/remove API does not understand.
++        if record["id"] in taken:
++            continue
++        extra.append(finish_app(installed_android_entry(record, preferences)))
++        taken.add(record["id"])
+     result = sorted(listed + extra,
+                     key=lambda app: (app["name"].casefold(), app["id"].casefold()))
+     for app in result:
+--- /dev/null
++++ b/tests/test_mo_store_index_android_records.py
+@@ -0,0 +1,251 @@
++#!/usr/bin/env python3
++"""Read the real Store APK receipts through both cold and cached index paths.
++
++Every record is first produced by Controller._write_android_record. No Android
++runtime, live desktop, network request or owner state is used by these controls.
++"""
++
++from __future__ import annotations
++
++import importlib.machinery
++import importlib.util
++import json
++import os
++from pathlib import Path
++import sys
++import tempfile
++import unittest
++from unittest import mock
++
++
++ROOT = Path(__file__).resolve().parents[1]
++INDEXER = Path(os.environ.get("MOOS_STORE_INDEX_UNDER_TEST")
++               or ROOT / "system_files/usr/bin/moos-store-index")
++
++
++def load(name: str, path: Path):
++    loader = importlib.machinery.SourceFileLoader(name, str(path))
++    spec = importlib.util.spec_from_loader(loader.name, loader)
++    module = importlib.util.module_from_spec(spec)
++    sys.modules[loader.name] = module
++    loader.exec_module(module)
++    return module
++
++
++index = load("index_android_receipts_under_test", INDEXER)
++backend = load("backend_android_receipt_producer", ROOT / "system_files/usr/bin/moos-storectl")
++PACKAGE = "org.example.notes"
++OLD = "a" * 64
++PIN = "b" * 64
++
++
++class AndroidReceiptIntegration(unittest.TestCase):
++    def setUp(self):
++        self.temporary = tempfile.TemporaryDirectory(prefix="moos-android-index-")
++        self.addCleanup(self.temporary.cleanup)
++        self.base = Path(self.temporary.name)
++        self.home = self.base / "home"
++        self.home.mkdir()
++        # Deliberately use a configured data directory, not the default HOME path.
++        self.data = self.base / "user-data"
++        self.environment = mock.patch.dict(os.environ, {
++            "HOME": str(self.home), "XDG_DATA_HOME": str(self.data),
++            "XDG_CACHE_HOME": str(self.base / "cache"),
++            "XDG_CONFIG_HOME": str(self.base / "config"),
++            "XDG_STATE_HOME": str(self.base / "state"),
++            "DBUS_SESSION_BUS_ADDRESS": "unix:path=/nonexistent",
++            "DISPLAY": "", "WAYLAND_DISPLAY": "",
++            "FLATPAK_USER_DIR": str(self.base / "flatpak"),
++            "FLATPAK_SYSTEM_DIR": str(self.base / "system-flatpak"),
++        })
++        self.environment.start()
++        self.addCleanup(self.environment.stop)
++        self.arch = index.running_arch()
++        self.appstream = self.base / "appstream"
++        revision = self.appstream / "flathub" / self.arch / ("e" * 64)
++        revision.mkdir(parents=True)
++        (revision / "appstream.xml").write_text(
++            '<components><component type="desktop-application">'
++            '<id>org.example.Listed</id><name>Listed</name>'
++            f'<bundle type="flatpak">app/org.example.Listed/{self.arch}/stable</bundle>'
++            '</component></components>', encoding="utf-8")
++        self.installation = self.base / "flatpak"
++        self.installation.mkdir()
++        self.catalog_path = self.base / "catalog.json"
++        self.output = self.base / "cache/index.json"
++
++    def recipe(self, *, version="2.0", digest=PIN):
++        return {"id": PACKAGE, "source": "moos", "en": "Notes", "ar": "ملاحظات",
++                "engine": "android", "cat": "droid", "glyph": "grid",
++                "install": {"kind": "android", "package": PACKAGE,
++                            "version": version, "sha256": digest,
++                            "url": "https://example.org/notes.apk"}}
++
++    def record(self, *, source="catalog", version="1.0", digest=OLD):
++        backend.Controller._write_android_record(
++            PACKAGE, source=source, catalog_id=PACKAGE if source == "catalog" else "",
++            version=version, sha256=digest, file_name="notes.apk" if source == "file" else "")
++        return backend.android_record_path(PACKAGE)
++
++    def package_data(self):
++        directory = self.data / "waydroid/data/data" / PACKAGE
++        directory.mkdir(parents=True, exist_ok=True)
++        return directory
++
++    def run_index(self, apps):
++        self.catalog_path.write_text(json.dumps({"apps": apps}), encoding="utf-8")
++        code = index.main([
++            "--output", str(self.output), "--catalog", str(self.catalog_path),
++            "--appstream-root", str(self.appstream),
++            "--installation-root", str(self.installation),
++            "--locale", "ar", "--engines", "all",
++        ])
++        self.assertEqual(code, 0)
++        return json.loads(self.output.read_text(encoding="utf-8"))
++
++    def by_id(self, payload):
++        return {app["id"]: app for app in payload["apps"]}
++
++    def test_catalogue_version_and_pin_update_agree_with_the_executor(self):
++        self.record()
++        self.package_data()
++        recipe = self.recipe()
++        app = self.by_id(self.run_index([recipe]))[PACKAGE]
++        controller = object.__new__(backend.Controller)
++        row = controller._pin_update_row(PACKAGE, recipe)
++        self.assertIsNotNone(row)
++        self.assertEqual(app["installed_version"], row["installed_version"])
++        self.assertEqual(app["installed_version"], "1.0")
++        self.assertTrue(app["update_available"])
++
++    def test_a_changed_pin_with_the_same_version_label_is_an_update(self):
++        self.record(version="2.0")
++        self.package_data()
++        app = self.by_id(self.run_index([self.recipe()]))[PACKAGE]
++        self.assertTrue(app["update_available"])
++
++    def test_matching_bytes_do_not_offer_an_update_from_a_version_label(self):
++        self.record(version="1.0", digest=PIN)
++        self.package_data()
++        recipe = self.recipe(version="2.0")
++        app = self.by_id(self.run_index([recipe]))[PACKAGE]
++        self.assertFalse(app["update_available"])
++        self.assertIsNone(object.__new__(backend.Controller)._pin_update_row(PACKAGE, recipe))
++
++    def test_an_older_install_without_a_receipt_does_not_invent_a_version(self):
++        self.package_data()
++        app = self.by_id(self.run_index([self.recipe()]))[PACKAGE]
++        self.assertTrue(app["installed"])
++        self.assertIsNone(app["installed_version"])
++        self.assertFalse(app["update_available"])
++
++    def test_a_receipt_without_a_committed_package_does_not_claim_an_install(self):
++        self.record()
++        app = self.by_id(self.run_index([self.recipe()]))[PACKAGE]
++        self.assertFalse(app["installed"])
++        self.assertNotIn(PACKAGE, self.by_id(self.run_index([])))
++
++    def test_a_file_apk_is_findable_by_its_backend_package_identity(self):
++        self.record(source="file", version="")
++        self.package_data()
++        launcher = self.data / "applications" / f"waydroid.{PACKAGE}.desktop"
++        launcher.parent.mkdir(parents=True)
++        launcher.write_text('[Desktop Entry]\nName=Notes\nName[ar]=ملاحظات محلية\n'
++                            'Exec=an-untrusted-field\n', encoding="utf-8")
++        app = self.by_id(self.run_index([]))[PACKAGE]
++        self.assertEqual((app["kind"], app["installed"], app["listed"], app["installable"]),
++                         ("android", True, False, False))
++        self.assertEqual(app["name"], "ملاحظات محلية")
++        self.assertEqual(app["name_en"], "Notes")
++        self.assertIsNone(app["installed_version"])
++        self.assertNotIn("install", app)
++        self.assertNotIn("exec", app)
++
++    def test_a_retired_catalogue_apk_remains_findable(self):
++        self.record()
++        self.package_data()
++        self.run_index([self.recipe()])
++        app = self.by_id(self.run_index([]))[PACKAGE]
++        self.assertEqual((app["kind"], app["installed_version"], app["listed"]),
++                         ("android", "1.0", False))
++
++    def test_cached_add_and_remove_do_not_reparse_metadata(self):
++        first = self.run_index([])
++        self.record(source="file", version="")
++        self.package_data()
++        with mock.patch.object(index, "build_index", side_effect=AssertionError("cold rebuild")):
++            second = self.run_index([])
++            backend.android_record_path(PACKAGE).unlink()
++            third = self.run_index([])
++        self.assertIn(PACKAGE, self.by_id(second))
++        self.assertNotIn(PACKAGE, self.by_id(third))
++        for newer in (second, third):
++            self.assertEqual(first["generation"]["metadata_token"],
++                             newer["generation"]["metadata_token"])
++        self.assertNotEqual(first["generation"]["installed_token"],
++                            second["generation"]["installed_token"])
++
++    def test_cached_receipt_replacement_refreshes_version_and_update(self):
++        self.record()
++        self.package_data()
++        first = self.run_index([self.recipe()])
++        self.record(version="2.0", digest=PIN)
++        with mock.patch.object(index, "build_index", side_effect=AssertionError("cold rebuild")):
++            second = self.run_index([self.recipe()])
++        app = self.by_id(second)[PACKAGE]
++        self.assertEqual(app["installed_version"], "2.0")
++        self.assertFalse(app["update_available"])
++        self.assertEqual(first["generation"]["metadata_token"],
++                         second["generation"]["metadata_token"])
++
++    def test_malformed_receipts_do_not_create_apps_or_claim_versions(self):
++        self.package_data()
++        changes = [
++            {"schema": True}, {"schema": 2}, {"id": "org.example.other"},
++            {"package": "org.example.other"}, {"source": "unknown"},
++            {"catalog_id": "org.example.other"}, {"version": "1.0\nInjected=yes"},
++            {"sha256": "a" * 63},
++        ]
++        for change in changes:
++            with self.subTest(change=change):
++                path = self.record()
++                receipt = json.loads(path.read_text(encoding="utf-8"))
++                receipt.update(change)
++                path.write_text(json.dumps(receipt), encoding="utf-8")
++                self.assertNotIn(PACKAGE, self.by_id(self.run_index([])))
++                app = self.by_id(self.run_index([self.recipe()]))[PACKAGE]
++                self.assertIsNone(app["installed_version"])
++                self.assertFalse(app["update_available"])
++
++    def test_a_linked_receipt_is_not_an_install(self):
++        self.package_data()
++        path = self.record(source="file", version="")
++        elsewhere = self.base / "copied-record.json"
++        path.rename(elsewhere)
++        path.symlink_to(elsewhere)
++        self.assertNotIn(PACKAGE, self.by_id(self.run_index([])))
++
++    def test_a_launcher_link_outside_applications_does_not_supply_display_text(self):
++        self.record(source="file", version="")
++        self.package_data()
++        elsewhere = self.base / "unrelated.desktop"
++        elsewhere.write_text('[Desktop Entry]\nName=Unrelated\n', encoding="utf-8")
++        launcher = self.data / "applications" / f"waydroid.{PACKAGE}.desktop"
++        launcher.parent.mkdir(parents=True)
++        launcher.symlink_to(elsewhere)
++        self.assertEqual(self.by_id(self.run_index([]))[PACKAGE]["name"], PACKAGE)
++
++    def test_an_installed_flatpak_with_the_same_id_keeps_its_identity(self):
++        self.record(source="file", version="")
++        self.package_data()
++        deployed = self.installation / "app" / PACKAGE / self.arch / "stable" / ("c" * 64)
++        deployed.mkdir(parents=True)
++        (deployed.parent / "active").symlink_to(deployed.name)
++        (deployed / "deploy").write_bytes(b"flathub\0")
++        apps = [app for app in self.run_index([])["apps"] if app["id"] == PACKAGE]
++        self.assertEqual(len(apps), 1)
++        self.assertEqual((apps[0]["kind"], apps[0]["installed_scope"]), ("flatpak", "user"))
++
++
++if __name__ == "__main__":
++    unittest.main()
+--- a/tests/test_mo_store_index_catalogue.py
++++ b/tests/test_mo_store_index_catalogue.py
+@@ -458,12 +458,18 @@
+         with tempfile.TemporaryDirectory() as raw:
+             data, _log = run_index(Path(raw), document)
+         apps = {app["id"]: app for app in data["apps"]}
+-        self.assertEqual({app_id: app["kind"] for app_id, app in apps.items()}, {
++        expected = {
+             "org.example.Editor": "flatpak", "chat-example": "webapp",
+             "photo-tool": "appdrop", "notepad-plus-plus": "windows",
+-            "org.example.droid": "android", "codex": "npm", "publisher-page": "web"})
++            "org.example.droid": "android", "codex": "npm", "publisher-page": "web"}
++        # The CLI filters for the actual machine, even with all engines
++        # explicitly admitted. A Windows-only fixture must remain absent on ARM.
++        if index.running_arch() != "x86_64":
++            expected.pop("notepad-plus-plus")
++        self.assertEqual({app_id: app["kind"] for app_id, app in apps.items()}, expected)
+         self.assertEqual(apps["photo-tool"]["version"], "0.7.0")
+-        self.assertEqual(apps["notepad-plus-plus"]["version"], "8.7.1")
++        if "notepad-plus-plus" in expected:
++            self.assertEqual(apps["notepad-plus-plus"]["version"], "8.7.1")
+         self.assertEqual(apps["org.example.droid"]["version"], "1.2.3")
+         self.assertEqual(apps["chat-example"]["install"]["hosts"],
+                          ["chat.example.com", "*.example-cdn.com"])
+--- a/tests/test_mo_store_index_lifecycle.py
++++ b/tests/test_mo_store_index_lifecycle.py
+@@ -172,7 +172,7 @@
+         recipe = {"kind": kind, **install}
+         return {"id": app_id, "source": "moos", "cat": "util", "glyph": "spark",
+                 "en": app_id.title(), "ar": "تطبيق", "install": recipe}
+-    downloads = {"x86_64": {"url": "https://example.org/a.AppImage", "sha256": PIN,
++    downloads = {index.running_arch(): {"url": "https://example.org/a.AppImage", "sha256": PIN,
+                             "size": 1000}}
+     return {"apps": [
+         entry("chat", "webapp", url="https://chat.example.com/", hosts=["chat.example.com"]),

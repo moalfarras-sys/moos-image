@@ -974,6 +974,14 @@ Offline fsck and restored mounts do not prove the next firmware cold boot.
 
 ## Before you push
 
+**A Remove flag is a promise about files, not a label.** Oracle's private Store
+review found that Windows Remove accepted `delete_data=false` and still removed
+the prefix containing a saved document. Test both choices with a real fixture
+file, prove unmarked directories are not adopted, and retry an interrupted
+update with the network unavailable. The working version must remain at its
+launch path. Private old/fixed controls are review evidence, never signed
+delivery; preserve active file ownership before integrating their patches.
+
 Run `just check` for repository changes and the affected component checks.
 Visual changes require rendered/live review. A complete local image build is
 required for Tier 1 changes (Containerfiles, `build.sh`, packages, initramfs,

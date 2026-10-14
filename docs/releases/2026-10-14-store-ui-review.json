@@ -1,0 +1,130 @@
+{
+  "recorded_at": "2026-10-14T20:54:08.247022+00:00",
+  "scope": "source snapshot reviewed on native aarch64 Qt; private HOME/XDG/session bus, offscreen software renderer; disabled MoosStore bridge, no installation or owner GUI/input/config access",
+  "imported_topic": "93a9019e3a6d4268a725f89030c0685992c00a25",
+  "reviewed_snapshot": {
+    "remote_branch": "store/ui-split",
+    "head": "e0ca45b17196ccd093d4d6839ecf2eb3e9d38cf1",
+    "pending": [
+      "main.qml"
+    ],
+    "sha256_manifest": "source-qml-hashes.json"
+  },
+  "contract_probe": {
+    "exit": 0,
+    "observed": {
+      "lifecycle": [
+        {
+          "kind": "flatpak",
+          "run": true,
+          "remove": true
+        },
+        {
+          "kind": "windows",
+          "run": false,
+          "remove": false
+        },
+        {
+          "kind": "vendor",
+          "run": false,
+          "remove": false
+        },
+        {
+          "kind": "dropped",
+          "run": false,
+          "remove": false
+        },
+        {
+          "kind": "webapp",
+          "run": false,
+          "remove": false
+        },
+        {
+          "kind": "appdrop",
+          "run": false,
+          "remove": false
+        },
+        {
+          "kind": "npm",
+          "run": false,
+          "remove": true
+        },
+        {
+          "kind": "android",
+          "run": true,
+          "remove": true
+        }
+      ],
+      "unverifiedLabel": "موثّق",
+      "keywordSearchCount": 0,
+      "requestedUpdatesPage": "discover",
+      "pinnedAppUpdates": 0,
+      "componentsCount": 1
+    },
+    "log": "render/contract-review.log",
+    "harness": "contract-review.qml"
+  },
+  "frames": [
+    "store-split-ar.png",
+    "ar-discover-900-10pt.png",
+    "en-discover-900-10pt.png",
+    "ar-apps-900-20pt.png",
+    "en-apps-900-20pt.png"
+  ],
+  "render_matrix": "render-matrix.json",
+  "findings": [
+    {
+      "priority": "high",
+      "issue": "five installed index kinds cannot Open/Remove through current UI; npm lacks Open",
+      "files": [
+        "main.qml:332",
+        "main.qml:357"
+      ]
+    },
+    {
+      "priority": "high",
+      "issue": "unverified ordinary default-source app is labelled Verified",
+      "files": [
+        "main.qml:264",
+        "SourceBadge.qml"
+      ]
+    },
+    {
+      "priority": "medium",
+      "issue": "folded bilingual keyword index.search is ignored, synonym query gets no results",
+      "files": [
+        "main.qml:960"
+      ]
+    },
+    {
+      "priority": "medium",
+      "issue": "launcher --open-page argument ignored; updates and library desktop shortcuts remain Discover",
+      "files": [
+        "main.qml:1190"
+      ]
+    },
+    {
+      "priority": "medium",
+      "issue": "catalogue-pin app update classified as shared component",
+      "files": [
+        "main.qml:786",
+        "UpdatesPage.qml"
+      ]
+    },
+    {
+      "priority": "high",
+      "issue": "font20pt minimum-size app grid cards overlap following row and compact rail contents exceed fixedwidth82; defaultfont minimum-size hero clipsbottom",
+      "files": [
+        "CatalogPage.qml:123",
+        "StoreRail.qml:24",
+        "DiscoverPage.qml:36"
+      ]
+    }
+  ],
+  "limitations": [
+    "Active owner worker may subsequently revise source; captured hashes identify reviewed bytes",
+    "No real install/remove/update or physical NVIDIA rendering measured",
+    "Offscreen software symbolic-mask colours do not qualify normal compositor rendering",
+    "The public signed current Store is a separate older source"
+  ]
+}

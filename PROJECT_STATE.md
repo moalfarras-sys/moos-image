@@ -5,16 +5,14 @@ Native audit: [AUDIT_20261012_AR.md](docs/AUDIT_20261012_AR.md).
 
 ## Current engineering batch
 
-PR232–236 are integrated. Current payload source is `1b947c21` (PR236,
-reviewed topic `fafa408a`): THEME_REV=104, exact 19-file local ARM image readback,
-all image/source/PR gates and the complete signed release cycle pass.
-Build 38494227738, disks 38499628341/38499631679/38499635277,
-ISO 38499638470, ARM 38493744772 and promotion 38503482331 all succeeded
-on attempt 1 at the same source. Registry readback matches every candidate.
-Eight distinct CI boot IDs have exact signed origins, graphical active and
-zero failed units. The final ISO installs offline and opens/closes/reopens ten
-apps. NVIDIA VM proof does not qualify the physical GPU.
-Receipt: [qualified release proof](docs/releases/2026-10-14-qualified-release-proof.json).
+Current payload source is `5745edd1` (PR241): THEME_REV=104, full local ARM
+image and exact 20-file readback pass after the preserved ENOSPC failure.
+Build 38621311347, disks 38631573998/38631579047/38631585290,
+ISO 38631591001, ARM 38621121074 and promotion 38638466690 all succeeded
+on attempt 1 at the same source. Independent registry/signature readback matches.
+Eight distinct CI boots have exact signed origins and graphical active; the
+final ISO installs offline and opens/closes/reopens ten apps. NVIDIA VM proof
+does not qualify the physical GPU. [Qualified cycle](docs/releases/2026-10-14-m1-qualified-cycle-proof.json).
 
 The Island correction resolves hidden-tab arrow selection, selection/content
 agreement, Return/keypad Enter, held Enter and retired-context blank pages.
@@ -51,13 +49,14 @@ pickers pass; wider user journeys remain in the single development plan.
 
 | Edition | Version | Proven signed digest (sha256) |
 | --- | --- | --- |
-| Desktop | 44.20261014.1046 | d10ceea0353908ac1aecbea3c847ed02e1de3e69b05901733bc3d4a6d411fdab |
-| NVIDIA | 44.20261014.1046 | 0235cad7d5da41af9df25355f7b7beb395893db66e56f9bc5b5b514365579739 |
-| Cloud x86 | 44.20261014.1046 | df39c6e5dca53be9a5d3d6eea1dc0775d9cf1f8e535f25df64cc057e8cc26c1f |
-| ARM | 44.20261014.775 | fb0ba6379b8cff1c11d9aad46ed34b2aa0d3cc1bdd2291b6e71c3eff63be78cc |
+| Desktop | 44.20261014.1053 | 7fe46304f3fba63aa37bc7cdf78368f2c2d184142bfd03b79c6a39ca639bc667 |
+| NVIDIA | 44.20261014.1053 | 0f43d2f950d88d01ba20a53a7272e588ffeb1dce9d7eb0b6541506278fd705f1 |
+| Cloud x86 | 44.20261014.1053 | 5ea45415c6a4b1c0496aca7e9789cdfb8e5d115a9cf7d66310e86b458ec59593 |
+| ARM | 44.20261014.778 | 70f6dfe38c185a7b33c7231130f56705c6cf4b591f5126490e916aff67f6f7f3 |
 
 ARM proves native first-party linkage, two healthy boots and clean poweroff.
 CI greeter pixels show MoOS identity; English login buttons remain a locale gap.
+New final ISO is CI-only; installed NVIDIA .1046/Oracle .775 and public .1046 remain separate evidence.
 Public .1046 is independently qualified and published: 5,830,410,240 bytes,
 SHA-256 `37053a88ae313f994875794055035d53134206a88eb44fb160b39fef3bb04821`.
 Full anonymous HTTP 200, resumed 206 ranges, signature and exact sidecars pass
@@ -107,7 +106,7 @@ read was performed. A prior free synthetic reply on NVIDIA was a separate proof.
 Seven exact unused audit images retired only after container/ancestry/replacement
 checks: total physical free-space gain 33,544,560,640 bytes (~31.2 GiB).
 Earlier exact local .1042/.1044 archive retirement preserves proofs, public
-.1026, current .1046 and signed rollback; writable /var currently measures 26 GiB free. One exact unused
+.1026, current .1046 and signed rollback; writable /var measures 23 GiB free after the local build. One exact unused
 local greeter audit image was untagged with no parent prune; its shared layers
 produced no measured free-space gain. Current image/SDK/owner containers stay. Composefs /
 100% is not writable disk exhaustion. One unused Oct8 generated audit ISO
@@ -157,7 +156,7 @@ isolated Hermes passes 4.30 s, usage absent. No provider or private-context chan
 Old .1032's 54/1 diagnostic abort remains historical; fresh .1042 passes 55/0.
 Kernel 7.2.9, Plasma 6.7.5, Qt 6.11.2, NVIDIA 615.78.08; RTX 2080 SUPER,
 Arabic 3840×2160@60, logical 1536×864 at 250%, UI2 Arena. Writable disk has
-179 GiB free/61% used; about 10 GiB RAM available in the recorded baseline.
+136 GiB free/71% used at the Store review; earlier RAM figures below are scoped baseline samples.
 Thirty-second active-workload cgroup sampling has zero RAM PSI. Large Code's
 4.77 GiB includes 3.85 GiB file cache and .86 GiB anonymous memory. KWin and
 plasmashell use 9.06/9.65% of one of 16 logical CPUs; this is not an idle proof.
@@ -176,7 +175,9 @@ confirmed task presence. A real Qt consumer with its first delivery discarded
 fails old source and recovers fixed; [62 control tests pass](docs/releases/2026-10-14-mira-job-presence-proof.json). Token end state/age
 and a retired session directory remain intact, with no idle poll. This measures
 missed-delivery recovery, not the unproven cause of the prior intermittent Qt
-startup timeout. Signed delivery of this additional source is separate.
+startup timeout. Full local ARM image `c49ccd53` and actual 20-file readback
+pass; the first final-commit ENOSPC failure is preserved. Signed .1053/.778
+are promoted; installed presence acceptance and [active Store work](docs/reviews/STORE_20261014_AR.md) stay separate.
 
 Mira mute/disconnect/late-recognition and recovery unreadable-state controls
 pass. Community beta has real native/Oracle TLS flow, isolation and bounded

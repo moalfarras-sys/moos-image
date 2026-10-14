@@ -1,0 +1,62 @@
+{
+  "schema": 1,
+  "checkedAt": "2026-10-14T20:51:20.357245+00:00",
+  "scope": "Full native ARM OCI build and actual container payload readback; not installed, signed or a boot proof",
+  "source": "38896597f490ab0ed07aa9952e871e46b5349dd9",
+  "imageId": "c49ccd5325649c1e82c558323dd8f19ea9d086103345a648e5ad3313f9d0ffcd",
+  "buildExit": 0,
+  "actual": {
+    "sha256": {
+      "/usr/bin/moai-gateway": "bb4ae9a734d479ebf5ba272177d3a32e73db68327b9a1123bfc55dcb5817ee7b",
+      "/usr/bin/moos-apply-theme": "7f33498a5f006cfb44edab541d25edd8abc85e6a2a0456fdd9bcf50265aba89f",
+      "/usr/bin/moos-selfcheck": "e6ae1309dba602048fefff40315bec6e2469b4a29912a4340d8c69d4b8a8cea1",
+      "/usr/lib/mo-remote/mo-remote-portal.py": "e441588880577be128b8eb6e8f0609364e34f1ae8a842a9b18ca8de942000e14",
+      "/usr/lib/moai/moai_cloud_policy.py": "39f7a1fab74b053208d1e8b6cf9b0af3db5acb64ffdc597af11852b2dc0db7f2",
+      "/usr/lib/moai/moai_local_peer.py": "1815c2161e147e0b98399a6b221ec32d01877baa015c73e715216957cdc9931a",
+      "/usr/lib/moos-community/community/client.py": "3b780d588054817ffc9b4ff595c79fd095200557eb33f4ecc154098f51a9e6c7",
+      "/usr/lib/moos/moos_settings_launcher.py": "60d8817f07e409d3fd9de6154ed787bf54cf14374894696fd86d7e0325610d7f",
+      "/usr/lib/systemd/user/moai-gateway.service": "7f8698f166c0bd58b01306803e1dab34394c2619d323fb81ffd28440e5a51e75",
+      "/usr/lib/systemd/user/moai-hermes.service": "dd3488f24bf15669a19a539e6deed66553c33b03ac7dedf072535e0538d768f2",
+      "/usr/lib/systemd/user/moos-theme-drift.timer": "dd62178ba70517023a6ec5c46508b4ac0a9d676f0070d71ce22054f5b637e3b3",
+      "/usr/lib/systemd/user/moos-theme-sync.path": "069349e668240654b1e7586070712c5fd0a2ec1066e5b38288f736e9fc307d22",
+      "/usr/lib/systemd/user/moos-theme-sync.service": "fbf4f14e305c94aed034413e333f03d936d21d984cefb895e82e0943392b5ffe",
+      "/usr/lib64/qt6/qml/org/moos/ui/Tokens.qml": "58917731df830d67203a2adc9f3007df3064e723c6340433aaa812206af88890",
+      "/usr/libexec/mo-remote-greeter": "aafaeabb47ae315c9db43dfb5e72d7ccfa1aa8f9d8a1324d5c0c8de88957f31e",
+      "/usr/libexec/moai-hermes": "cc2dccbcbc7ffb721b95c7319af3b8acba903a729f242943d940bf117ba61bdc",
+      "/usr/libexec/moos-material-state": "3ca57545deea900c374041924a9786dfb626800661ef43d724ab7e44fb06570b",
+      "/usr/share/moos/whats-new.json": "b57355b4ff8039edeedb17007ffceba61744c260f8dd1d477c81166d390f92dd",
+      "/usr/share/plasma/plasmoids/org.moos.island/contents/ui/main.qml": "9287449facc20e2482bb7ed5bd60906a362a42bcc2fb5299f3e08b8ab9e3a9df",
+      "/usr/bin/moai-control": "0d889bca1e8da0850d2bd0a25ca1746f759fed9eee78589de5f8e7ab50105001"
+    },
+    "playerSha256": "fdf8400ed3515c895f77b184212900aebdcdf0d0cbc818c8f86ebd5dda9b157a",
+    "packages": [
+      "plasma-workspace-6.7.5-1.1.moos1.fc44.aarch64",
+      "kwin-6.7.5-1.fc44.aarch64",
+      "qt6-qtbase-6.11.2-3.fc44.aarch64"
+    ]
+  },
+  "expectedOverlaySha256": {
+    "/usr/bin/moai-gateway": "bb4ae9a734d479ebf5ba272177d3a32e73db68327b9a1123bfc55dcb5817ee7b",
+    "/usr/bin/moos-apply-theme": "7f33498a5f006cfb44edab541d25edd8abc85e6a2a0456fdd9bcf50265aba89f",
+    "/usr/bin/moos-selfcheck": "e6ae1309dba602048fefff40315bec6e2469b4a29912a4340d8c69d4b8a8cea1",
+    "/usr/lib/mo-remote/mo-remote-portal.py": "e441588880577be128b8eb6e8f0609364e34f1ae8a842a9b18ca8de942000e14",
+    "/usr/lib/moai/moai_cloud_policy.py": "39f7a1fab74b053208d1e8b6cf9b0af3db5acb64ffdc597af11852b2dc0db7f2",
+    "/usr/lib/moai/moai_local_peer.py": "1815c2161e147e0b98399a6b221ec32d01877baa015c73e715216957cdc9931a",
+    "/usr/lib/moos-community/community/client.py": "3b780d588054817ffc9b4ff595c79fd095200557eb33f4ecc154098f51a9e6c7",
+    "/usr/lib/moos/moos_settings_launcher.py": "60d8817f07e409d3fd9de6154ed787bf54cf14374894696fd86d7e0325610d7f",
+    "/usr/lib/systemd/user/moai-gateway.service": "7f8698f166c0bd58b01306803e1dab34394c2619d323fb81ffd28440e5a51e75",
+    "/usr/lib/systemd/user/moai-hermes.service": "dd3488f24bf15669a19a539e6deed66553c33b03ac7dedf072535e0538d768f2",
+    "/usr/lib/systemd/user/moos-theme-drift.timer": "dd62178ba70517023a6ec5c46508b4ac0a9d676f0070d71ce22054f5b637e3b3",
+    "/usr/lib/systemd/user/moos-theme-sync.path": "069349e668240654b1e7586070712c5fd0a2ec1066e5b38288f736e9fc307d22",
+    "/usr/lib/systemd/user/moos-theme-sync.service": "fbf4f14e305c94aed034413e333f03d936d21d984cefb895e82e0943392b5ffe",
+    "/usr/lib64/qt6/qml/org/moos/ui/Tokens.qml": "58917731df830d67203a2adc9f3007df3064e723c6340433aaa812206af88890",
+    "/usr/libexec/mo-remote-greeter": "aafaeabb47ae315c9db43dfb5e72d7ccfa1aa8f9d8a1324d5c0c8de88957f31e",
+    "/usr/libexec/moai-hermes": "cc2dccbcbc7ffb721b95c7319af3b8acba903a729f242943d940bf117ba61bdc",
+    "/usr/libexec/moos-material-state": "3ca57545deea900c374041924a9786dfb626800661ef43d724ab7e44fb06570b",
+    "/usr/share/moos/whats-new.json": "b57355b4ff8039edeedb17007ffceba61744c260f8dd1d477c81166d390f92dd",
+    "/usr/share/plasma/plasmoids/org.moos.island/contents/ui/main.qml": "9287449facc20e2482bb7ed5bd60906a362a42bcc2fb5299f3e08b8ab9e3a9df",
+    "/usr/bin/moai-control": "0d889bca1e8da0850d2bd0a25ca1746f759fed9eee78589de5f8e7ab50105001"
+  },
+  "differences": [],
+  "passed": true
+}

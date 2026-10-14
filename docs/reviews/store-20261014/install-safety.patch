@@ -1,0 +1,192 @@
+--- a/system_files/usr/lib/moos/moos_vendor_rpm.py
++++ b/system_files/usr/lib/moos/moos_vendor_rpm.py
+@@ -2077,6 +2077,12 @@
+     launcher = _claim_launcher(app_id)
+     if _present(final) and not _marked_tree(final, app_id):
+         raise VendorError("name_taken", str(final))
++    # A process can stop between final.rename(previous) and staging.rename(final).
++    # Recover the working version before cleanup, cancellation or a network read.
++    if not _present(final) and _present(previous):
++        if not _marked_tree(previous, app_id):
++            raise VendorError("name_taken", str(previous))
++        previous.rename(final)
+     for leftover in (staging, previous):
+         if _present(leftover) and not _remove_tree(leftover, app_id):
+             raise VendorError("name_taken", str(leftover))
+--- a/system_files/usr/bin/moos-storectl
++++ b/system_files/usr/bin/moos-storectl
+@@ -2325,11 +2325,16 @@
+         had_record = paths.record.is_file()
+         fresh_prefix = not (paths.prefix / "system.reg").is_file()
+         created_base = not paths.base.exists()
++        staging = paths.base / ".app.installing"
++        previous = paths.base / ".app.previous"
++        # Recover the last working program before a download can fail or cancel.
++        if had_record and not paths.app.exists() and previous.exists():
++            if previous.is_symlink():
++                raise StoreError("The previous application folder is a link")
++            previous.rename(paths.app)
+         download = self._download_pinned(job, app_id, pin, kind="windows",
+                                          message="Downloading a verified file",
+                                          message_key="downloading_file")
+-        staging = paths.base / ".app.installing"
+-        previous = paths.base / ".app.previous"
+         swapped = committed = False
+         try:
+             paths.base.mkdir(mode=0o700, parents=True, exist_ok=True)
+@@ -2404,8 +2409,11 @@
+                 if swapped:
+                     with contextlib.suppress(OSError):
+                         _remove_tree(paths.app)
+-                        if previous.exists():
+-                            previous.rename(paths.app)
++                # The second rename can fail after the old program was moved but
++                # before swapped becomes true. Restore it in that case as well.
++                if previous.exists() and not paths.app.exists():
++                    with contextlib.suppress(OSError):
++                        previous.rename(paths.app)
+                 if not had_record:
+                     # A first install that did not finish leaves nothing of itself behind.
+                     with contextlib.suppress(Exception):
+@@ -2438,7 +2446,12 @@
+ 
+     def _remove_windows(self, job: Job, app_id: str, delete_data: bool) -> None:
+         paths = windows_paths(app_id)
+-        if not (paths.record.is_file() or paths.base.exists() or self._windows_launcher_is_ours(paths, app_id)):
++        record = (_read_json(paths.record)
++                  if paths.record.is_file() and not paths.record.is_symlink() else {})
++        owned_record = (record.get("schema") == 1 and record.get("id") == app_id
++                        and record.get("launcher") == paths.launcher.name
++                        and _relative_inside(record.get("exe")) is not None)
++        if not (owned_record or self._windows_launcher_is_ours(paths, app_id)):
+             job.update_item(app_id, state="skipped", progress=100, message="App is not installed",
+                             message_key="not_installed")
+             return
+@@ -2447,8 +2460,13 @@
+         job.update(state="running", progress=None, current_id=app_id,
+                    message="Removing application", message_key=None)
+         self._stop_windows_prefix(job, paths)
+-        # The program, its prefix (its settings and registry) and MoOS's own traces of it.
+-        _remove_tree(paths.base)
++        # The prefix contains the person's settings, registry and saved documents.
++        # Keep it for a reinstall unless deleting data was an explicit choice.
++        if delete_data:
++            _remove_tree(paths.base)
++        else:
++            _remove_tree(paths.app)
++            paths.icon.unlink(missing_ok=True)
+         if self._windows_launcher_is_ours(paths, app_id):
+             paths.launcher.unlink()
+         paths.record.unlink(missing_ok=True)
+--- a/tests/test_moos_vendor_rpm.py
++++ b/tests/test_moos_vendor_rpm.py
+@@ -49,6 +49,7 @@
+ import sys
+ import tempfile
+ import unittest
++from unittest import mock
+ import urllib.error
+ import urllib.request
+ 
+@@ -1226,6 +1227,19 @@
+         self.assertEqual(newer["version"], "2.1")
+         self.assertClean()
+ 
++    def test_an_interrupted_swap_is_recovered_before_a_failed_retry(self):
++        self.install("2.0", app_payload(b"working-v2"))
++        before_record = (self.records() / "app.json").read_bytes()
++        final, previous = vendor.app_dir("app"), vendor.previous_dir("app")
++        before = (final / "App").read_bytes()
++        final.rename(previous)  # the process died between its two rename calls
++        with mock.patch.object(vendor, "resolve", side_effect=vendor.VendorError("network_error")):
++            self.assertCode("network_error", vendor.install, "app", ENTRY,
++                            arch="x86_64", refresh_menu=False)
++        self.assertEqual((final / "App").read_bytes(), before)
++        self.assertFalse(previous.exists())
++        self.assertEqual((self.records() / "app.json").read_bytes(), before_record)
++
+     def test_a_failed_update_keeps_the_version_that_worked(self):
+         self.install("2.0", app_payload(b"v2"))
+         before_launcher = self.launcher().read_bytes()
+--- a/tests/test_mo_store_backend_windows.py
++++ b/tests/test_mo_store_backend_windows.py
+@@ -318,8 +318,8 @@
+         (self.windows / APP / "prefix/dosdevices").mkdir()
+         (self.windows / APP / "prefix/dosdevices/z:").symlink_to("/")
+         self.runtime.commands.clear()
+-        code, result = self.controller(self.recipe(pe(), exe="tinyterm.exe")).remove(APP)
+-        self.assertEqual((result["state"], result["items"][0]["message_key"]), ("success", "removed"), result)
++        code, result = self.controller(self.recipe(pe(), exe="tinyterm.exe")).remove(APP, delete_data=True)
++        self.assertEqual((result["state"], result["items"][0]["message_key"]), ("success", "removed_with_data"), result)
+         kill = self.runtime.commands[0]
+         self.assertEqual(kill[-2:], [MODULE.WINESERVER, "--kill"])
+         self.assertEqual(Runtime.environment(kill)["WINEPREFIX"], str(self.windows / APP / "prefix"))
+@@ -328,6 +328,68 @@
+         self.assertFalse((self.windows / f"{APP}.json").exists())
+         self.assertFalse((self.home / f".local/share/applications/org.moos.windows.{APP}.desktop").exists())
+         self.assertFalse((self.home / f".local/state/moos-foreign/{APP}").exists())
++
++    def test_remove_keeps_prefix_documents_until_deleting_data_is_chosen(self):
++        recipe = self.recipe(pe(), exe="tinyterm.exe")
++        controller = self.controller(recipe)
++        code, result = controller.install([APP])
++        self.assertEqual((code, result["state"]), (0, "success"), result)
++        saved = self.windows / APP / "prefix/drive_c/users/me/saved-document.txt"
++        saved.write_text("the person's document", encoding="utf-8")
++        code, result = controller.remove(APP)
++        self.assertEqual((code, result["state"]), (0, "success"), result)
++        self.assertEqual(saved.read_text(encoding="utf-8"), "the person's document")
++        self.assertFalse((self.windows / APP / "app").exists())
++        self.assertFalse((self.windows / f"{APP}.json").exists())
++        self.runtime.commands.clear()
++        code, result = controller.install([APP])
++        self.assertEqual((code, result["state"]), (0, "success"), result)
++        self.assertEqual(saved.read_text(encoding="utf-8"), "the person's document")
++        self.assertFalse(any("wineboot" in argv for argv in self.runtime.commands))
++        code, result = controller.remove(APP, delete_data=True)
++        self.assertEqual((code, result["state"]), (0, "success"), result)
++        self.assertFalse(saved.exists())
++
++    def test_remove_does_not_adopt_an_unmarked_application_directory(self):
++        manual = self.windows / APP
++        manual.mkdir(parents=True)
++        canary = manual / "owner-handmade-file.txt"
++        canary.write_text("not written by Mo Store", encoding="utf-8")
++        code, result = self.controller(self.recipe(pe(), exe="tinyterm.exe")).remove(APP)
++        self.assertEqual((code, result["items"][0]["message_key"]), (0, "not_installed"), result)
++        self.assertEqual(canary.read_text(encoding="utf-8"), "not written by Mo Store")
++        self.assertEqual(self.runtime.commands, [])
++
++    def test_a_failed_second_rename_restores_the_working_program(self):
++        first = self.recipe(pe(tail=b"working-v1"), exe="tinyterm.exe")
++        self.controller(first).install([APP])
++        app = self.windows / APP / "app"
++        before = (app / "tinyterm.exe").read_bytes()
++        second = self.recipe(pe(tail=b"new-v2"), exe="tinyterm.exe", version="2.0")
++        original = Path.rename
++        def fail_staging(path, target):
++            if path.name == ".app.installing":
++                raise OSError("private injected second rename failure")
++            return original(path, target)
++        with mock.patch.object(Path, "rename", fail_staging):
++            code, result = self.controller(second).install([APP])
++        self.assertEqual((code, result["state"]), (1, "failed"), result)
++        self.assertEqual((app / "tinyterm.exe").read_bytes(), before)
++        self.assertFalse((self.windows / APP / ".app.previous").exists())
++
++    def test_an_interrupted_swap_is_recovered_before_a_failed_download(self):
++        recipe = self.recipe(pe(tail=b"working-v1"), exe="tinyterm.exe")
++        controller = self.controller(recipe)
++        controller.install([APP])
++        app = self.windows / APP / "app"
++        previous = self.windows / APP / ".app.previous"
++        before = (app / "tinyterm.exe").read_bytes()
++        app.rename(previous)
++        with mock.patch.object(controller, "_download_pinned", side_effect=MODULE.StoreError("offline")):
++            code, result = controller.install([APP])
++        self.assertEqual((code, result["state"]), (1, "failed"), result)
++        self.assertEqual((app / "tinyterm.exe").read_bytes(), before)
++        self.assertFalse(previous.exists())
+ 
+     def test_a_cancelled_first_setup_leaves_nothing_behind(self):
+         self.runtime.cancel_on = "wineboot"
