@@ -39,7 +39,15 @@ emitted = set(re.findall(r'message_key="([a-z_]+)"', ctl_code))
 # Terminal success lines carry their key as finish_from_items' second argument,
 # not as message_key=. Miss that form and a typo there goes unnoticed.
 emitted |= set(re.findall(r'finish_from_items\([^)]*,\s*"([a-z_]+)"\)', ctl_code))
+# A document built as a literal (the busy refusal) spells the key as a dict entry.
+emitted |= set(re.findall(r'"message_key":\s*"([a-z_]+)"', ctl_code))
 assert emitted, "no message keys are emitted at all"
+# Every key must be one the patterns above can see whole: a digit or a capital in a key would
+# make it invisible to this gate, and the UI phrase beside it would look like an orphan.
+spelled = re.findall(r'message_key="([^"]*)"', ctl_code)
+spelled += re.findall(r'"message_key":\s*"([^"]*)"', ctl_code)
+unseen = sorted({key for key in spelled if not re.fullmatch(r"[a-z_]+", key)})
+assert not unseen, f"message keys this gate cannot hold to a phrase: {unseen}"
 
 # ------------------------------------------------------------------- UI phrases
 block = re.search(r"readonly property var jobPhrases: \(\{(.*?)\n    \}\)", qml_code, re.S)

@@ -806,6 +806,22 @@ def install(plan: Plan, *, progress: Callable[[str, int | None], None] = lambda 
         raise
 
 
+def refresh_menu() -> None:
+    """Tell the menu about launchers Mo Store wrote; best effort, like App Drop's own."""
+    _refresh_menu()
+
+
+def launcher_path(slug: str) -> Path | None:
+    """The launcher App Drop wrote for `slug`, when it is still there and still carries the marker."""
+    record = read_record(slug)
+    if not record:
+        return None
+    candidates = _launcher_candidates(slug, record)
+    named = record.get("launcher")
+    candidates.sort(key=lambda entry: entry.name != named)      # the one the record names first
+    return next((entry for entry in candidates if _ours(entry, slug)), None)
+
+
 def _launcher_candidates(slug: str, record: dict[str, Any]) -> list[Path]:
     """Where App Drop may have written `slug`'s launcher, recomputed — never a stored path."""
     candidates = [desktop_dir() / f"appdrop-{slug}.desktop"]
