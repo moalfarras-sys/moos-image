@@ -328,10 +328,12 @@ class FirstPartyKeyboardViewportTests(unittest.TestCase):
             self.assertIn(token, helper)
 
     def test_store_welcome_and_installer_share_one_focus_reveal_contract(self) -> None:
+        # Mo Store 2: every page that scrolls — Discover, the Apps/Games grid, an app's page,
+        # My apps, Updates, Settings and Search (Categories and Sources became Apps and Settings).
         expected_panes = {
             "store": (
-                "discoverFlick", "appGrid", "categoriesFlick", "updatesFlick",
-                "sourcesFlick", "detailFlick",
+                "discoverFlick", "appGrid", "detailFlick", "libraryList", "updatesFlick",
+                "settingsFlick", "searchList",
             ),
             "welcome": ("appsFlick", "installFlick"),
             "installer": ("diskFlick", "accountFlick", "zoneList"),

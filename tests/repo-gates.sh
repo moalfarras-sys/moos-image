@@ -475,6 +475,7 @@ python3 tests/test_material_state_qml.py
 python3 tests/test_design_studio_reference.py
 python3 tests/test_store_app_drop_bridge.py
 python3 tests/test_store_app_drop_ui.py
+python3 tests/test_mo_store_ui_pages.py
 python3 tests/test_selfcheck_document_portal.py
 
 # The gate that keeps `npm audit` honest. A retiring registry endpoint failed

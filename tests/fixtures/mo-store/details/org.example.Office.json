@@ -1,0 +1,65 @@
+{
+ "schema": 1,
+ "id": "org.example.Office",
+ "screenshots": [
+  {
+   "thumb": "file://@FIXTURES@/media/shot-1.png",
+   "full": "file://@FIXTURES@/media/shot-1.png",
+   "caption": "Writer with a long document",
+   "width": 1280,
+   "height": 720
+  },
+  {
+   "thumb": "file://@FIXTURES@/media/shot-2.png",
+   "full": "file://@FIXTURES@/media/shot-2.png",
+   "caption": "Spreadsheets",
+   "width": 1280,
+   "height": 800
+  },
+  {
+   "thumb": "file://@FIXTURES@/media/shot-3.png",
+   "full": "file://@FIXTURES@/media/shot-3.png",
+   "width": 960,
+   "height": 720
+  }
+ ],
+ "releases": [
+  {
+   "version": "26.8",
+   "date": "2026-09-24",
+   "notes": "Faster start.\n\n• Better Arabic shaping in tables\n• New templates"
+  },
+  {
+   "version": "26.2",
+   "date": "2026-03-02",
+   "notes": ""
+  },
+  {
+   "version": "25.8",
+   "date": "2025-08-20",
+   "notes": ""
+  }
+ ],
+ "urls": {
+  "homepage": "https://office.example.org/",
+  "help": "http://office.example.org/help",
+  "donation": "https://office.example.org/donate",
+  "bugtracker": "https://bugs.example.org/"
+ },
+ "keywords": [
+  "office",
+  "مكتب"
+ ],
+ "languages": {
+  "ar": 92
+ },
+ "requires": {
+  "controls": []
+ },
+ "verification": {
+  "method": "website",
+  "website": "example.org"
+ },
+ "license": "MPL-2.0",
+ "developer": "Example Foundation"
+}

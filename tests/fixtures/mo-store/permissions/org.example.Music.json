@@ -1,0 +1,10 @@
+{
+ "schema": 1,
+ "id": "org.example.Music",
+ "kind": "flatpak",
+ "generated_at": "@NOW@",
+ "sandboxed": true,
+ "installed": false,
+ "rows": [],
+ "note_key": "not_installed"
+}

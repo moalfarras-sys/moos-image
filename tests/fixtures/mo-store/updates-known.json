@@ -1,0 +1,34 @@
+{
+ "schema": 1,
+ "action": "check-updates",
+ "state": "success",
+ "checked_at": "@NOW@",
+ "count": 3,
+ "app_count": 2,
+ "auto_updates": true,
+ "message": "",
+ "items": [
+  {
+   "id": "org.example.Paint",
+   "ref": "app/org.example.Paint/x86_64/stable",
+   "kind": "app",
+   "name": "Paint Studio",
+   "version": "4.1",
+   "origin": "flathub"
+  },
+  {
+   "id": "photo-tool",
+   "kind": "pin",
+   "name": "Photo Tool",
+   "version": "2.4.0",
+   "installed_version": "2.3.1"
+  },
+  {
+   "id": "org.freedesktop.Platform",
+   "ref": "runtime/org.freedesktop.Platform/x86_64/25.08",
+   "kind": "runtime",
+   "name": "Platform",
+   "version": "25.08.3"
+  }
+ ]
+}

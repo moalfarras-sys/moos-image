@@ -1,0 +1,34 @@
+{
+ "arch": "x86_64",
+ "engines": [
+  "android",
+  "linux",
+  "windows"
+ ],
+ "memory_bytes": 16576327680,
+ "swap_bytes": 8589930496,
+ "cpu_cores": 16,
+ "gpu": {
+  "vendor": "nvidia",
+  "name": "Example GPU",
+  "discrete": true
+ },
+ "session": "wayland",
+ "free_bytes": {
+  "apps": 145545641984
+ },
+ "android": {
+  "ready": true,
+  "initialized": true,
+  "graphics": "software"
+ },
+ "windows": {
+  "ready": true,
+  "x86_32": false
+ },
+ "screen": {
+  "width": 3840,
+  "height": 2160,
+  "scale": 2.5
+ }
+}
