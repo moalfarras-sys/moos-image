@@ -299,6 +299,14 @@ class Runtime(unittest.TestCase):
 
 
 class ShippedCatalogue(unittest.TestCase):
+    def test_every_store_category_files_a_web_app_in_a_real_menu_folder(self):
+        catalog = json.loads(CATALOG.read_text(encoding="utf-8"))
+        for category in catalog["categories"]:
+            with self.subTest(category=category["id"]):
+                if category["id"] in ("droid", "win"):
+                    continue   # never a web app's category
+                self.assertIn(category["id"], policy.MENU_CATEGORIES)
+
     def test_every_shipped_web_app_parses(self):
         catalog = json.loads(CATALOG.read_text(encoding="utf-8"))
         kinds = [item for item in catalog["apps"]

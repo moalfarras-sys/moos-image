@@ -62,6 +62,7 @@ MENU_CATEGORIES = {
     "comm": "Network;InstantMessaging;",
     "internet": "Network;WebBrowser;",
     "graphics": "Graphics;",
+    "art": "Graphics;",
     "media": "AudioVideo;",
     "dev": "Development;",
     "edu": "Education;",
