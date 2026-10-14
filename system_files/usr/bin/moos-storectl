@@ -360,6 +360,39 @@ def downloads_dir() -> Path:
         return home / ".cache" / "moos-store" / "downloads"
 
 
+def sweep_downloads() -> None:
+    """Delete what an interrupted job left in the downloads folders: partial downloads
+    (`.<id>.<random>.part`) and moos_vendor_rpm's work folders (`vendor-<id>-<random>`).
+
+    Every job removes its own on the way out, but a reboot or a logout ends it with no exception to
+    clean up after, and each attempt picks a new random name: they stayed for good, up to a whole
+    download each. Only a job that holds the lock calls this, so no job can be writing there. A
+    link is never followed, and nothing named otherwise is touched. The module keeps its work
+    folders under the cache directory itself, which differs from downloads_dir() only when that
+    lies outside HOME.
+    """
+    folders: list[Path] = []
+    for folder in (downloads_dir(), cache_dir() / "downloads"):
+        if folder not in folders:
+            folders.append(folder)
+    for folder in folders:
+        try:
+            if folder.is_symlink() or not folder.is_dir():
+                continue
+            entries = list(os.scandir(folder))
+        except OSError:
+            continue
+        for entry in entries:
+            try:
+                if (entry.name.startswith(".") and entry.name.endswith(".part")
+                        and entry.is_file(follow_symlinks=False)):
+                    os.unlink(entry.path)
+                elif entry.name.startswith("vendor-") and entry.is_dir(follow_symlinks=False):
+                    shutil.rmtree(entry.path)
+            except OSError:
+                pass
+
+
 def store_settings_path() -> Path:
     return config_home() / "moos" / "store.json"
 
@@ -1808,7 +1841,11 @@ class Controller:
         lock = GlobalLock(self.store).acquire()
         try:
             self.store.clear_cancel()
-            return lock, Job(self.store, action, item_ids)
+            job = Job(self.store, action, item_ids)
+            # Holding the lock, no job can be writing a download: what an interrupted one left
+            # goes now, or nothing would ever remove it.
+            sweep_downloads()
+            return lock, job
         except Exception:
             lock.release()
             raise

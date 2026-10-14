@@ -15,6 +15,8 @@ Each class holds one promise of moos-storectl, run for real against a private HO
   OpenWhatIsThere       an App Drop app whose folder or program is gone is not installed, not
                         "opened";
   CommandLineTools      an installed command-line tool has no window, which is not "not installed";
+  InterruptedDownloads  what an interrupted job left in the downloads folder is swept by the next
+                        job, with the lock held, and never by an open beside another job;
   RoutesWithTheRealBackend
                         moos-control's open and moos-open's apps/run route, driven against the real
                         backend while the scheduled updater holds the lock: the app opens, and every
@@ -499,6 +501,67 @@ class CommandLineTools(Backend):
         self.assertEqual((code, document["message_key"]), (2, "unsupported_kind"), document)
         self.assertIn("command-line tool", document["message"])
         self.assertEqual(self.runner.spawned, [])
+
+
+class InterruptedDownloads(Backend):
+    """A reboot or a logout mid-download skips every cleanup handler: the next job sweeps."""
+
+    def leftovers(self) -> list[Path]:
+        mine = MODULE.downloads_dir()
+        vendor = self.cache / "downloads"              # moos_vendor_rpm's own downloads_dir()
+        work = vendor / "vendor-chatgpt-k2x9q1"
+        work.mkdir(parents=True)
+        (work / ".payload-abc.cpio").write_bytes(b"0" * 64)
+        (work / ".chatgpt-26.1-1.x86_64.rpm.part").write_bytes(b"0" * 64)
+        mine.mkdir(parents=True, exist_ok=True)
+        partial = mine / ".lmstudio.q1w2e3r4.part"
+        partial.write_bytes(b"0" * 64)
+        return [work, partial]
+
+    def test_the_next_job_sweeps_what_an_interrupted_one_left(self):
+        left = self.leftovers()
+        keep = MODULE.downloads_dir() / "README.txt"   # not a name any job writes
+        keep.write_text("not the Store's\n")
+        code, document = self.controller([]).update()
+        self.assertEqual(document["state"], "success", document)
+        self.assertEqual([path for path in left if path.exists()], [])
+        self.assertTrue(keep.exists())
+
+    def test_with_the_cache_outside_home_both_folders_are_swept(self):
+        # downloads_dir() stays inside HOME; moos_vendor_rpm keeps its work folders under the
+        # cache directory itself.
+        os.environ["XDG_CACHE_HOME"] = str(self.base / "cache")
+        mine, vendor = MODULE.downloads_dir(), self.base / "cache/moos-store/downloads"
+        self.assertNotEqual(mine, vendor)
+        mine.mkdir(parents=True)
+        (mine / ".noteforge.a1b2c3.part").write_bytes(b"0")
+        (vendor / "vendor-chatgpt-z9y8x7").mkdir(parents=True)
+        controller = MODULE.Controller(MODULE.JobStore(self.base / "cache/moos-store"),
+                                       adapter_factory=lambda: self.adapter, runner=self.runner,
+                                       catalog_path=self.catalog([]))
+        self.assertEqual(controller.update()[1]["state"], "success")
+        self.assertEqual(list(mine.iterdir()) + list(vendor.iterdir()), [])
+
+    def test_an_open_beside_another_job_sweeps_nothing(self):
+        apps = [self.webapp("whatsapp")]
+        self.controller(apps).install(["whatsapp"])     # a job: sweeps an empty folder
+        left = self.leftovers()
+        self.hold_lock()                                # that job may be writing them right now
+        code, document = self.cli(apps, "run", "whatsapp")
+        self.assertEqual(document["state"], "success", document)
+        self.assertEqual([path for path in left if not path.exists()], [])
+
+    def test_a_linked_downloads_folder_is_never_followed(self):
+        elsewhere = self.base / "elsewhere"
+        elsewhere.mkdir()
+        (elsewhere / ".kept.part").write_bytes(b"0")
+        (elsewhere / "vendor-kept-1").mkdir()
+        target = MODULE.downloads_dir()
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.symlink_to(elsewhere, target_is_directory=True)
+        self.controller([]).update()
+        self.assertTrue((elsewhere / ".kept.part").exists())
+        self.assertTrue((elsewhere / "vendor-kept-1").is_dir())
 
 
 # ── moos-control and moos-open against the real backend ─────────────────────────────────────────
