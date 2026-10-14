@@ -2726,11 +2726,13 @@ systemctl enable flatpak-system-update.timer
     || { echo "GATE FAIL: flatpak-system-update.timer is not enabled — apps installed for all users would never update"; exit 1; }
 [ ! -L /etc/systemd/system/flatpak-system-update.service ] \
     || { echo "GATE FAIL: flatpak-system-update.service is still masked"; exit 1; }
-_fsu_timer="$(cat /usr/lib/systemd/system/flatpak-system-update.timer.d/moos-later.conf)"
-case "$_fsu_timer" in
-    *"Persistent=false"*"OnBootSec=30min"*) ;;
-    *) echo "GATE FAIL: the system app-update timer could catch up at boot again"; exit 1 ;;
-esac
+# Exact setting lines only: the drop-in's comments quote these values too, and a glob over the
+# whole file would pass on a comment (and is order-sensitive besides).
+_fsu_timer=$'\n'"$(grep -v '^[[:space:]]*#' /usr/lib/systemd/system/flatpak-system-update.timer.d/moos-later.conf)"$'\n'
+for _fsu_line in "Persistent=false" "OnBootSec=" "OnBootSec=30min" "OnCalendar=*-*-* 4:00:00"; do
+    [[ "$_fsu_timer" == *$'\n'"${_fsu_line}"$'\n'* ]] \
+        || { echo "GATE FAIL: the system app-update timer lost '${_fsu_line}' — it could catch up at boot again"; exit 1; }
+done
 
 # ── The base's own units must not wear another OS's name ─────────────────────
 # MoOS is not a skin over Fedora Kinoite — it IS the system, and a system whose
