@@ -117,7 +117,7 @@ launch_detached() {
 }
 
 # launch_app <id> — open an installed app, detached, as the user.
-# A Flatpak is run by its id, a native app by its desktop file. The optional
+# A Flatpak is run by its id, every other Mo Store app by Mo Store's own run verb. The optional
 # GPU-headroom step never fails the caller, but a rejected launcher DOES. It takes
 # no arguments beyond the id, so it can do no more than start an
 # app the user already has. This is what makes `install` also RUN:
@@ -132,17 +132,43 @@ launch_detached() {
 # indistinguishable from "MoOS installed something broken". The guard unloads only OUR OWN
 # brain (moai-gateway reloads it on the next message), never the user's programs, and it is
 # silent and non-fatal — see moos-gpu-headroom.
+#
+# Every other kind Mo Store installs — a web app, an App Drop app, a Windows program, a
+# publisher's own app, an Android app — has no desktop file named after its id (a web app's is
+# org.moos.webapp.<id>, a Windows program's org.moos.windows.<id>), so `gtk-launch <id>` failed
+# for all of them right after a successful install. `moos-storectl run <id>` opens each kind the
+# way its own launcher does, and asks for GPU headroom itself. An app with no window (a
+# command-line tool, a publisher's download page the install already opened) is ready, not a
+# failure: Mo Store answers `unsupported_kind` for it, and that is said in one line.
 launch_app() {
     local id="${1:-}"
     [ -n "$id" ] || return 1
-    command -v moos-gpu-headroom >/dev/null 2>&1 && moos-gpu-headroom 2>/dev/null || true
     if flatpak info "$id" >/dev/null 2>&1; then
+        command -v moos-gpu-headroom >/dev/null 2>&1 && moos-gpu-headroom 2>/dev/null || true
         launch_detached flatpak run "$id"
-    elif command -v gtk-launch >/dev/null 2>&1; then
-        launch_detached gtk-launch "$id"
-    else
-        return 1
+        return
     fi
+    command -v moos-storectl >/dev/null 2>&1 || return 1
+    local out code verdict
+    if out="$(moos-storectl run "$id" 2>/dev/null)"; then code=0; else code=$?; fi
+    # The last line is the job document; only its state and message key are read.
+    verdict="$(printf '%s\n' "$out" | tail -n 1 | python3 -c 'import json, sys
+try:
+    document = json.loads(sys.stdin.read())
+except ValueError:
+    document = {}
+if not isinstance(document, dict):
+    document = {}
+print(str(document.get("state") or "") + "|" + str(document.get("message_key") or ""))' 2>/dev/null)"
+    if [ "$code" -eq 0 ] && [ "${verdict%%|*}" = success ]; then
+        return 0
+    fi
+    if [ "${verdict#*|}" = unsupported_kind ]; then
+        echo "${D}لا نافذة لهذا التطبيق لتُفتح؛ إنه جاهز للاستخدام.${N}"
+        echo "${D}This app has no window to open; it is ready to use.${N}"
+        return 0
+    fi
+    return 1
 }
 
 # -----------------------------------------------------------------------------

@@ -180,14 +180,20 @@ _MOAI_DO_TOOLS: list[dict[str, Any]] = [
     ),
 
     # --- User-space actions (confirmation card, no pkexec) ---
+    # The id is a Mo Store app id, whatever kind of app it names: Mo Store's backend installs
+    # Flathub apps, web apps, Windows programs, publishers' own packages and Android apps by it.
     _schema(
         "install_app",
-        "Install a Flatpak application from the store — يثبّت تطبيق Flatpak من المتجر",
+        "Install an app from Mo Store, then open it. app_id is a Mo Store app id: a Flathub id "
+        "such as org.mozilla.firefox, or a Mo Store catalogue id such as chatgpt, claude or "
+        "photocraft — يثبّت تطبيقاً من متجر Mo ثم يفتحه؛ المعرّف هو معرّف التطبيق في متجر Mo",
         category=USER_CONFIRM, executor="moai-do", command="install",
         parameters={
             "app_id": {
                 "type": "string",
-                "description": "Flatpak application ID (e.g. org.mozilla.firefox) — معرّف التطبيق",
+                "description": "Mo Store app id: a Flathub id (e.g. org.mozilla.firefox) or a Mo "
+                               "Store catalogue id (e.g. chatgpt, claude, photocraft) — "
+                               "معرّف التطبيق في متجر Mo",
             },
         },
         required=["app_id"],
@@ -197,12 +203,16 @@ _MOAI_DO_TOOLS: list[dict[str, Any]] = [
     ),
     _schema(
         "uninstall_app",
-        "Remove a Flatpak application — يزيل تطبيق Flatpak",
+        "Remove an app that was installed through Mo Store. app_id is a Mo Store app id: a "
+        "Flathub id such as org.mozilla.firefox, or a Mo Store catalogue id such as chatgpt, "
+        "claude or photocraft — يزيل تطبيقاً ثُبّت عبر متجر Mo؛ المعرّف هو معرّف التطبيق في متجر Mo",
         category=USER_CONFIRM, executor="moai-do", command="uninstall",
         parameters={
             "app_id": {
                 "type": "string",
-                "description": "Flatpak application ID to remove — معرّف التطبيق المراد إزالته",
+                "description": "Mo Store app id to remove: a Flathub id (e.g. org.mozilla.firefox) "
+                               "or a Mo Store catalogue id (e.g. chatgpt, claude, photocraft) — "
+                               "معرّف التطبيق المراد إزالته في متجر Mo",
             },
         },
         required=["app_id"],
