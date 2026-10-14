@@ -3217,10 +3217,11 @@ class Controller:
             message_key="removed",
         )
 
-    def _remove_appdrop(self, job: Job, app_id: str, delete_data: bool) -> None:
+    def _remove_appdrop(self, job: Job, app_id: str, delete_data: bool, slug: str | None = None) -> None:
+        """`slug` is App Drop's name for the app when the Store's id differs (`appdrop-<slug>`)."""
         appdrop = self._appdrop()
         try:
-            removed = appdrop.remove(app_id)
+            removed = appdrop.remove(slug or app_id)
         except appdrop.DropError as failure:
             raise StoreError(f"{failure.code}: {failure.detail or failure.code}") from failure
         if not removed:
@@ -3287,15 +3288,16 @@ class Controller:
                 message_key="removed",
             )
 
-    def _remove_dropped(self, app_id: str, delete_data: bool) -> tuple[int, dict[str, Any]]:
-        """An app installed from a file the person dropped: App Drop's own record, no recipe."""
+    def _remove_dropped(self, app_id: str, delete_data: bool, slug: str) -> tuple[int, dict[str, Any]]:
+        """An app installed from a file the person dropped: App Drop's own record, no recipe. The
+        job names it by the id the window sent, which may be `appdrop-<slug>`."""
         try:
             lock, job = self._begin("remove", [app_id])
         except BusyError:
             return self._refuse_busy("remove", [app_id])
         with lock:
             try:
-                self._remove_appdrop(job, app_id, delete_data)
+                self._remove_appdrop(job, app_id, delete_data, slug)
                 job.finish_from_items("App removed", "app_removed")
             except CancelledError:
                 job.cancelled()
@@ -3318,6 +3320,26 @@ class Controller:
             except Exception as error:
                 job.fail(error, [package])
             return exit_code(job.document["state"]), job.snapshot()
+
+    def _dropped_slug(self, app_id: str) -> str | None:
+        """App Drop's slug for an app installed from a file, by the id the index lists it under.
+
+        That is the slug itself, or `appdrop-<slug>` when a catalogue app of another kind already
+        has the slug as its id (moos-store-index's apply_lifecycle): a dropped
+        `figma-linux_0.11.5_linux_x86_64.AppImage` is `figma`, and so is the catalogue's Figma web
+        app. Only a record the person dropped (no `catalog_id`) answers to the second name, and
+        only by a slug App Drop itself would accept; a catalogue install keeps its catalogue id.
+        """
+        appdrop = self._appdrop()
+        if validate_curated_id(app_id) and appdrop.read_record(app_id):
+            return app_id
+        prefix = "appdrop-"
+        slug = app_id[len(prefix):] if app_id.startswith(prefix) else ""
+        if appdrop.SLUG.fullmatch(slug):
+            record = appdrop.read_record(slug)
+            if record and not record.get("catalog_id"):
+                return slug
+        return None
 
     def _dropped_android(self, app_id: str) -> bool:
         """An Android app installed from a file: MoOS wrote a record naming its package.
@@ -3352,9 +3374,10 @@ class Controller:
             and self._curated_id_is_valid(app_id, recipe)
         ):
             return self._remove_curated(app_id, recipe, delete_data)
-        # An app installed from a file is removable from the Store too, by the id App Drop gave it.
-        if validate_curated_id(app_id) and self._appdrop().read_record(app_id):
-            return self._remove_dropped(app_id, delete_data)
+        # An app installed from a file is removable from the Store too, by the id the index gives it.
+        slug = self._dropped_slug(app_id)
+        if slug is not None:
+            return self._remove_dropped(app_id, delete_data, slug)
         # So is a publisher's app the catalogue stopped offering: MoOS's record still names it.
         if self._vendor_record(app_id):
             return self._remove_vendor_record(app_id, delete_data)
@@ -3567,7 +3590,7 @@ class Controller:
                 job.fail(error, [app_id])
             return exit_code(job.document["state"]), job.snapshot()
 
-    def _launcher_for(self, app_id: str, kind: str) -> str:
+    def _launcher_for(self, app_id: str, kind: str, slug: str | None = None) -> str:
         """The MoOS-written launcher that opens this app, by file name; refused when it is gone."""
         if kind == "windows":
             paths = windows_paths(app_id)
@@ -3578,12 +3601,12 @@ class Controller:
             if self._vendor_intact(app_id):
                 return self._vendor().launcher_name(app_id)
         else:
-            entry = self._appdrop().launcher_path(app_id)
+            entry = self._appdrop().launcher_path(slug or app_id)
             if entry is not None:
                 return entry.name
         raise StoreError("App is not installed", message_key="not_installed")
 
-    def _run_installed(self, app_id: str, kind: str) -> tuple[int, dict[str, Any]]:
+    def _run_installed(self, app_id: str, kind: str, slug: str | None = None) -> tuple[int, dict[str, Any]]:
         """Open a web app, an App Drop app, a Windows program or a publisher's own app the way
         its launcher would."""
         lock, job = self._begin_run(app_id)
@@ -3594,7 +3617,7 @@ class Controller:
                         raise StoreError("App is not installed", message_key="not_installed")
                     argv = [WEBAPP_RUNTIME, app_id]
                 else:
-                    argv = [GTK_LAUNCH, self._launcher_for(app_id, kind)]
+                    argv = [GTK_LAUNCH, self._launcher_for(app_id, kind, slug)]
                 job.update_item(app_id, state="running", progress=None, message="Opening app",
                                 message_key="opening")
                 job.update(state="running", current_id=app_id, progress=None,
@@ -3642,8 +3665,9 @@ class Controller:
                 raise StoreError(f"{app_id} is a command-line tool: it has no window to open; run it "
                                  "in a terminal", message_key="unsupported_kind")
             raise StoreError(f"Mo Store cannot open {app_id}", message_key="unsupported_kind")
-        if validate_curated_id(app_id) and self._appdrop().read_record(app_id):
-            return self._run_installed(app_id, "appdrop")
+        slug = self._dropped_slug(app_id)
+        if slug is not None:
+            return self._run_installed(app_id, "appdrop", slug)
         if self._vendor_record(app_id):
             return self._run_installed(app_id, "vendor")
         if self._dropped_android(app_id):
@@ -3900,7 +3924,7 @@ class Controller:
                                     "vendor-rpm"):
             raise StoreError(f"Mo Store cannot update {app_id}", message_key="unsupported_kind")
         if not curated:
-            if validate_curated_id(app_id) and self._appdrop().read_record(app_id):
+            if self._dropped_slug(app_id) is not None:
                 raise StoreError("This app was installed from a file; install a newer file of it to update it",
                                  message_key="update_by_file")
             if self._vendor_record(app_id):
@@ -4096,7 +4120,7 @@ class Controller:
             kind = (recipe.get("install") or {}).get("kind")
             return ("webapp" if kind == "webapp" else "android" if kind == "android"
                     else "unsandboxed"), recipe
-        if validate_curated_id(app_id) and self._appdrop().read_record(app_id):
+        if self._dropped_slug(app_id) is not None:
             return "unsandboxed", None
         if self._vendor_record(app_id):
             return "unsandboxed", None

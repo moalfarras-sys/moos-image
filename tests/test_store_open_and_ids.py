@@ -3,6 +3,10 @@
 
 Each class holds one promise of moos-storectl, run for real against a private HOME:
 
+  DroppedIds            a file the person dropped whose name a catalogue app of another kind
+                        already uses is listed as appdrop-<slug> (moos-store-index); that id removes,
+                        opens, updates and describes it, and only a record the person dropped
+                        answers to it;
   OpenBesideAJob        opening an app changes nothing, so another job or the scheduled updater
                         holding job.lock does not make Open fail, and never costs the job that holds
                         it its job.json or its cancel request;
@@ -268,6 +272,74 @@ class Backend(unittest.TestCase):
         download.parent.mkdir(exist_ok=True)
         download.write_bytes(note_app("0.11.5"))
         return appdrop.install(appdrop.inspect(download))
+
+
+class DroppedIds(Backend):
+    """moos-store-index lists a dropped `figma` beside the catalogue's web app `figma` as
+    `appdrop-figma` (apply_lifecycle); the window sends that id back to every verb."""
+
+    def setUp(self):
+        super().setUp()
+        self.record = self.drop("figma-linux_0.11.5_linux_x86_64.tar.gz")
+        self.apps = [self.webapp("figma")]
+
+    def test_the_drop_really_takes_the_catalogue_apps_name(self):
+        self.assertEqual(self.record["id"], "figma")
+        self.assertNotIn("catalog_id", self.record)
+
+    def test_appdrop_id_opens_the_dropped_app(self):
+        code, result = self.controller(self.apps).run("appdrop-figma")
+        self.assertEqual((code, result["state"]), (0, "success"), result)
+        self.assertEqual([item["id"] for item in result["items"]], ["appdrop-figma"],
+                         "the window waits for the id it sent")
+        self.assertEqual(self.runner.spawned, [[MODULE.GTK_LAUNCH, "org.example.NoteForge.desktop"]])
+
+    def test_appdrop_id_removes_the_dropped_app_and_nothing_else(self):
+        controller = self.controller(self.apps)
+        controller.install(["figma"])                    # the catalogue's web app, installed too
+        code, result = controller.remove("appdrop-figma")
+        self.assertEqual((code, result["state"]), (0, "success"), result)
+        self.assertEqual([(item["id"], item["message_key"]) for item in result["items"]],
+                         [("appdrop-figma", "removed")])
+        self.assertEqual(appdrop.installed(), [])
+        self.assertFalse((self.home / "Applications/figma").exists())
+        self.assertTrue(self.webapp_installed("figma"), "removing the drop removed the web app")
+
+    def test_appdrop_id_with_data_says_what_it_kept(self):
+        code, result = self.controller(self.apps).remove("appdrop-figma", delete_data=True)
+        self.assertEqual(result["items"][0]["message_key"], "removed_data_untracked", result)
+
+    def test_appdrop_id_is_updated_by_a_newer_file(self):
+        code, document = self.cli(self.apps, "update", "appdrop-figma")
+        self.assertEqual(code, 2)
+        self.assertEqual((document["message_key"], self.job_document()["message_key"]),
+                         ("update_by_file", "update_by_file"))
+
+    def test_appdrop_id_describes_the_dropped_apps_permissions(self):
+        code, document = self.controller(self.apps).permissions("appdrop-figma")
+        self.assertEqual((code, document["kind"], document["sandboxed"], document["note_key"]),
+                         (0, "unsandboxed", False, "full_access"))
+        written = json.loads((self.cache / "permissions/appdrop-figma.json").read_text(encoding="utf-8"))
+        self.assertEqual(written["id"], "appdrop-figma")
+
+    def test_only_a_dropped_record_answers_to_the_second_name(self):
+        controller = self.controller([*self.apps, self.appdrop_recipe()])
+        self.assertEqual(controller.install(["noteforge"])[1]["state"], "success")
+        self.assertEqual(appdrop.read_record("noteforge")["catalog_id"], "noteforge")
+        for app_id in ("appdrop-noteforge",          # the catalogue's own App Drop install
+                       "appdrop-nothing",            # no record at all
+                       "appdrop-a",                  # not an App Drop slug
+                       "appdrop-Figma", "appdrop-", "appdrop-../figma"):
+            with self.subTest(app_id=app_id):
+                for verb in ("run", "remove", "update", "permissions"):
+                    code, document = self.cli([*self.apps, self.appdrop_recipe()], verb, app_id)
+                    self.assertEqual((code, document["message_key"]), (2, "invalid_id"), (verb, document))
+        self.assertTrue((self.home / "Applications/noteforge").is_dir())
+        self.assertTrue((self.home / "Applications/figma").is_dir())
+
+    def webapp_installed(self, app_id: str) -> bool:
+        launcher = self.home / f".local/share/applications/org.moos.webapp.{app_id}.desktop"
+        return launcher.is_file() and f"\nX-MoOS-WebApp={app_id}\n" in launcher.read_text(encoding="utf-8")
 
 
 class OpenBesideAJob(Backend):
