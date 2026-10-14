@@ -970,22 +970,76 @@ def branding_colors(component: ET.Element) -> dict | None:
     return {"light": light, "dark": dark}
 
 
-def content_rating(component: ET.Element) -> str | None:
-    """OARS: any `intense` -> mature, any `moderate` -> teen, otherwise all.
+# OARS attribute -> the minimum age of each intensity (none, mild, moderate, intense):
+# libappstream 1.1.3's as_content_rating_attribute_to_csm_age() (src/as-content-rating.c,
+# oars_to_csm_mappings), the ages KDE Discover and GNOME Software show. Copied on 2026-10-15
+# from the station's library through GObject introspection; the indexer needs no library, and
+# tests/test_mo_store_index_content_rating.py checks the copy wherever libappstream is installed.
+# Intensities are not comparable across attributes: `intense` is 6 for cartoon violence, 13
+# for unmoderated chat and 18 for bloodshed.
+OARS_INTENSITIES = ("none", "mild", "moderate", "intense")
+OARS_KINDS = frozenset({"oars-1.0", "oars-1.1"})
+OARS_CSM_AGES = {
+    "violence-cartoon": (0, 3, 4, 6),
+    "violence-fantasy": (0, 3, 7, 8),
+    "violence-realistic": (0, 4, 9, 14),
+    "violence-bloodshed": (0, 9, 11, 18),
+    "violence-sexual": (0, 18, 18, 18),
+    "drugs-alcohol": (0, 11, 13, 16),
+    "drugs-narcotics": (0, 12, 14, 17),
+    "drugs-tobacco": (0, 10, 13, 13),
+    "sex-nudity": (0, 12, 14, 14),
+    "sex-themes": (0, 13, 14, 15),
+    "language-profanity": (0, 8, 11, 14),
+    "language-humor": (0, 3, 8, 14),
+    "language-discrimination": (0, 9, 10, 11),
+    "money-advertising": (0, 7, 8, 10),
+    "money-gambling": (0, 7, 10, 18),
+    "money-purchasing": (0, 12, 14, 15),
+    "social-chat": (0, 4, 10, 13),
+    "social-audio": (0, 15, 15, 15),
+    "social-contacts": (0, 12, 12, 12),
+    "social-info": (0, 0, 13, 13),
+    "social-location": (0, 13, 13, 13),
+    "sex-homosexuality": (0, 13, 14, 15),
+    "sex-prostitution": (0, 12, 14, 18),
+    "sex-adultery": (0, 8, 10, 18),
+    "sex-appearance": (0, 10, 10, 15),
+    "violence-worship": (0, 13, 15, 18),
+    "violence-desecration": (0, 13, 15, 18),
+    "violence-slavery": (0, 13, 15, 18),
+}
 
-    None when the component carries no rating at all: "unrated" is not "all ages".
+
+def content_age_band(age: int) -> str:
+    """The index's label for an age: under 13 "all", 13-17 "teen", 18 "mature"."""
+
+    return "mature" if age >= 18 else "teen" if age >= 13 else "all"
+
+
+def content_rating(component: ET.Element) -> str | None:
+    """The age band of the component's OARS rating.
+
+    Its age is libappstream's: the highest minimum age of its attributes (OARS_CSM_AGES).
+    Reading the intensity word alone made any `intense` "mature", so SuperTuxKart (unmoderated
+    chat, 13) and Signal (15) were adults-only, and `sex-themes: mild` (13) was for everyone.
+    An attribute or an intensity OARS does not define adds nothing. None when the component
+    carries no OARS rating (libappstream gives a rating of another or no type no age either):
+    "unrated" is not "all ages".
     """
 
-    rating = None
+    age = None
     for element in direct_children(component, "content_rating"):
-        rating = rating or "all"
+        if element.attrib.get("type", "").strip().casefold() not in OARS_KINDS:
+            continue
+        if age is None:
+            age = 0
         for attribute in direct_children(element, "content_attribute"):
+            ages = OARS_CSM_AGES.get(attribute.attrib.get("id", "").strip())
             value = element_text(attribute, 16).casefold()
-            if value == "intense":
-                return "mature"
-            if value == "moderate":
-                rating = "teen"
-    return rating
+            if ages and value in OARS_INTENSITIES:
+                age = max(age, ages[OARS_INTENSITIES.index(value)])
+    return None if age is None else content_age_band(age)
 
 
 def appstream_keywords(component: ET.Element, preferences: list[str], limit: int = 24) -> list[str]:

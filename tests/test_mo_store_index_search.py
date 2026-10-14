@@ -88,6 +88,23 @@ FIXTURE = """<components>
     <bundle type="flatpak">app/org.example.Plain/x86_64/stable</bundle>
   </component>
   <component type="desktop-application">
+    <id>org.example.Kart</id>
+    <name>Kart</name>
+    <content_rating type="oars-1.1">
+      <content_attribute id="violence-cartoon">mild</content_attribute>
+      <content_attribute id="social-chat">intense</content_attribute>
+    </content_rating>
+    <bundle type="flatpak">app/org.example.Kart/x86_64/stable</bundle>
+  </component>
+  <component type="desktop-application">
+    <id>org.example.Gory</id>
+    <name>Gory</name>
+    <content_rating type="oars-1.0">
+      <content_attribute id="violence-bloodshed">intense</content_attribute>
+    </content_rating>
+    <bundle type="flatpak">app/org.example.Gory/x86_64/stable</bundle>
+  </component>
+  <component type="desktop-application">
     <id>org.example.Thinker</id>
     <name>Thinker</name>
     <categories><category>ArtificialIntelligence</category><category>Science</category>
@@ -294,8 +311,12 @@ class BrandingAndRating(unittest.TestCase):
         self.assertIsNone(self.apps["org.example.Plain"]["branding"])
 
     def test_content_rating_from_oars(self):
-        self.assertEqual(self.apps["org.example.Shooter"]["content_rating"], "mature")
-        self.assertEqual(self.apps["org.example.Chat"]["content_rating"], "teen")
+        # The OARS age (libappstream's table), not the intensity word: realistic violence
+        # `intense` is 14 and chat `moderate` is 10 (tests/test_mo_store_index_content_rating.py).
+        self.assertEqual(self.apps["org.example.Shooter"]["content_rating"], "teen")
+        self.assertEqual(self.apps["org.example.Chat"]["content_rating"], "all")
+        self.assertEqual(self.apps["org.example.Kart"]["content_rating"], "teen")
+        self.assertEqual(self.apps["org.example.Gory"]["content_rating"], "mature")
         self.assertEqual(self.apps["com.visualstudio.code"]["content_rating"], "all")
         self.assertEqual(self.apps["org.example.Plain"]["content_rating"], "all")
         self.assertIsNone(self.apps["org.example.Thinker"]["content_rating"])
