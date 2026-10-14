@@ -20,9 +20,13 @@ import sys
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 CTL = ROOT / "system_files/usr/bin/moos-storectl"
 QML = ROOT / "system_files/usr/share/moos/apps/store/main.qml"
+# main.qml owns jobPhrases; the views beside it (the job shelf among them) are read with it, so
+# no file of the Store can branch on backend prose.
+QML_FILES = sorted((p for p in QML.parent.rglob("*") if p.is_file() and p.suffix in (".qml", ".js")),
+                   key=lambda p: (p != QML, p.relative_to(QML.parent).as_posix()))
 
 ctl = CTL.read_text(encoding="utf-8")
-qml = QML.read_text(encoding="utf-8")
+qml = "\n".join(path.read_text(encoding="utf-8") for path in QML_FILES)
 
 # Strip full-line comments so no assertion below can be satisfied by prose that
 # merely talks about the contract.

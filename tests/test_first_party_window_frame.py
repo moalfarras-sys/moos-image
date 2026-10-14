@@ -47,7 +47,14 @@ def qml_code(text: str) -> str:
 
 def windows():
     for main in sorted(APPS.glob("*/main.qml")):
-        yield main.parent.name, qml_code(main.read_text(encoding="utf-8"))
+        files = [main]
+        # Mo Store's views are files beside its main.qml; a frame flag in any of them would
+        # take the title bar from the same window.
+        if main.parent.name == "store":
+            files += sorted(p for p in main.parent.rglob("*")
+                            if p.is_file() and p.suffix in (".qml", ".js") and p != main)
+        yield main.parent.name, "\n".join(qml_code(path.read_text(encoding="utf-8"))
+                                          for path in files)
 
 
 class FirstPartyWindowsKeepTheSystemFrame(unittest.TestCase):

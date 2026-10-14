@@ -251,7 +251,12 @@ class ValidationTests(StoreTestCase):
         self.assertNotIn("shell" + "=True", source)
 
     def test_store_ui_treats_android_as_a_normal_runnable_app(self):
-        source = STORE_QML.read_text(encoding="utf-8")
+        # main.qml first, then the Store's view files (the cards and the app page call the
+        # lifecycle helpers too).
+        files = sorted((p for p in STORE_QML.parent.rglob("*")
+                        if p.is_file() and p.suffix in (".qml", ".js")),
+                       key=lambda p: (p != STORE_QML, p.relative_to(STORE_QML.parent).as_posix()))
+        source = "\n".join(path.read_text(encoding="utf-8") for path in files)
         self.assertIn("function hasAndroidLifecycle(app)", source)
         self.assertIn("function hasRunnableLifecycle(app)", source)
         self.assertIn("if (!win.hasRunnableLifecycle(app)) return", source)

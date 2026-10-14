@@ -684,6 +684,13 @@ class StoreEditorialPicksTests(unittest.TestCase):
     CATALOG = ROOT / "system_files/usr/share/moos/store/catalog.json"
     STORE = ROOT / "system_files/usr/share/moos/apps/store/main.qml"
 
+    def store_qml(self):
+        """main.qml first, then the Store's view files by name: the window and what it draws."""
+        folder = self.STORE.parent
+        files = sorted((p for p in folder.rglob("*") if p.is_file() and p.suffix in (".qml", ".js")),
+                       key=lambda p: (p != self.STORE, p.relative_to(folder).as_posix()))
+        return "\n".join(path.read_text(encoding="utf-8") for path in files)
+
     def ranked(self, limit):
         apps = json.loads(self.CATALOG.read_text(encoding="utf-8"))["apps"]
         order = sorted(range(len(apps)),
@@ -716,7 +723,7 @@ class StoreEditorialPicksTests(unittest.TestCase):
 
     def test_the_store_still_says_what_moos_can_run(self):
         """Removing the runtime from the first row may not remove the promise."""
-        source = self.STORE.read_text(encoding="utf-8")
+        source = self.store_qml()
         self.assertIn("app-engines.json", source,
                       "the Store must read the engine registry, so the capability it "
                       "advertises is the one the system actually has")
@@ -726,7 +733,7 @@ class StoreEditorialPicksTests(unittest.TestCase):
                       "the dead button rule")
 
     def test_store_ranks_by_popular_flag_and_catalogue_order(self):
-        source = self.STORE.read_text(encoding="utf-8")
+        source = self.store_qml()
         start = source.index("function curatedFeatured(limit)")
         body = source[start:source.index("\n    function ", start + 1)]
         self.assertIn("win.curatedApps", body, "picks must follow catalog.json's own order")

@@ -57,6 +57,17 @@ def strip_noise(text: str) -> str:
     return text
 
 
+def declarations(code: str, inherited: set[str]) -> set[str]:
+    """What a file's objects declare (properties, functions, signals), plus the change signals."""
+    declared = set(re.findall(
+        r"(?m)^\s*(?:default\s+|required\s+|readonly\s+)*property\s+[\w.<>]+\s+(\w+)", code))
+    declared |= {f"{name}Changed" for name in set(declared)}
+    declared |= set(re.findall(r"(?m)^\s*function\s+(\w+)\s*\(", code))
+    declared |= set(re.findall(r"(?m)^\s*signal\s+(\w+)", code))
+    declared |= {f"{name}Changed" for name in inherited}
+    return declared
+
+
 def audit(path: Path, inherited: set[str] = INHERITED) -> list[str]:
     code = strip_noise(path.read_text(encoding="utf-8"))
     first_id = re.search(r"(?m)^\s*id:\s*(\w+)", code)
@@ -64,12 +75,7 @@ def audit(path: Path, inherited: set[str] = INHERITED) -> list[str]:
         return [f"{path.relative_to(ROOT).as_posix()}: no root `id:` found — this gate cannot "
                 "tell what the root is called; give the root an id"]
     root_id = first_id.group(1)
-    declared = set(re.findall(
-        r"(?m)^\s*(?:default\s+|required\s+|readonly\s+)*property\s+[\w.<>]+\s+(\w+)", code))
-    declared |= {f"{name}Changed" for name in set(declared)}
-    declared |= set(re.findall(r"(?m)^\s*function\s+(\w+)\s*\(", code))
-    declared |= set(re.findall(r"(?m)^\s*signal\s+(\w+)", code))
-    declared |= {f"{name}Changed" for name in inherited}
+    declared = declarations(code, inherited)
 
     problems: list[str] = []
     seen: dict[str, list[int]] = {}
@@ -86,6 +92,67 @@ def audit(path: Path, inherited: set[str] = INHERITED) -> list[str]:
     return problems
 
 
+# ── Mo Store's views are files beside its window ──────────────────────────────
+#
+# apps/store/main.qml is the window and keeps all of the Store's state; the rail, the pages, the
+# sheets and the cards are component files next to it, and each declares
+# `required property var win` — the window. A component file cannot see main.qml's ids, yet QML
+# resolves many of them anyway: an instance falls back to the scope of the file that created it,
+# so a view that says `review.open()` or a bare `design.radiusCard` WORKS by accident of where it
+# was instantiated, and nothing reports it. (Measured on Qt 6.11: a component read main.qml's ids
+# and root properties that way, and `Child { win: win }` written inside a component file bound
+# `win` to itself and came out undefined, without a warning.) So a view reaches the window only as
+# `win.<member>`, every member it reads must be one main.qml's root declares, and nothing hands
+# `win` on as `win: win` outside main.qml.
+STORE = APPS / "store"
+
+
+def audit_store_components(window: Path = STORE / "main.qml") -> list[str]:
+    window_code = strip_noise(window.read_text(encoding="utf-8"))
+    members = declarations(window_code, INHERITED) | INHERITED
+    window_names = (set(re.findall(r"(?m)^\s*id:\s*(\w+)", window_code))
+                    | set(re.findall(r"(?m)^\s*(?:default\s+|required\s+|readonly\s+)*property"
+                                     r"\s+[\w.<>]+\s+(\w+)", window_code))
+                    | set(re.findall(r"(?m)^\s*function\s+(\w+)\s*\(", window_code)))
+    problems: list[str] = []
+    for path in sorted(STORE.rglob("*.qml")):
+        if path == window:
+            continue
+        rel = path.relative_to(ROOT).as_posix()
+        code = strip_noise(path.read_text(encoding="utf-8"))
+        lines = code.splitlines()
+        if not re.search(r"(?m)^\s*required\s+property\s+var\s+win\b", code):
+            problems.append(f"{rel}: declares no `required property var win` — a Store view takes "
+                            "the window from whoever creates it, never from QML's scope")
+        if re.search(r"\bwin\s*:\s*win\s*[;}\n]", code):
+            problems.append(f"{rel}: binds `win: win` — inside a component file that binds the "
+                            "property to itself (undefined, without a warning); hand on "
+                            "`<rootId>.win`")
+        unknown: dict[str, list[int]] = {}
+        for number, line in enumerate(lines, 1):
+            for name in re.findall(r"\bwin\.(\w+)", line):
+                if name not in members:
+                    unknown.setdefault(name, []).append(number)
+        for name, at in sorted(unknown.items()):
+            problems.append(f"{rel}: `win.{name}` is read on line(s) {', '.join(map(str, at[:6]))} "
+                            f"but main.qml's root never declares `{name}` — it evaluates to "
+                            "undefined at runtime and the view silently paints Qt's default")
+        local = (set(re.findall(r"(?m)^\s*id:\s*(\w+)", code))
+                 | declarations(code, set())
+                 | set(re.findall(r"\b(?:var|let|const)\s+(\w+)", code))
+                 | {name.strip() for params in re.findall(r"function\s*\w*\s*\(([^)]*)\)", code)
+                    for name in params.split(",") if name.strip()}
+                 | set(re.findall(r"\((\w+)\)\s*=>", code)))
+        for name in sorted(window_names - local - {"win"}):
+            bare = re.compile(rf"(?<![\w.]){re.escape(name)}\b(?!\s*:)")
+            at = [number for number, line in enumerate(lines, 1) if bare.search(line)]
+            if at:
+                problems.append(f"{rel}: names main.qml's `{name}` on line(s) "
+                                f"{', '.join(map(str, at[:6]))} without `win.` — that resolves only "
+                                f"through its creator's scope; read `win.{name}` or declare it here")
+    return problems
+
+
 def main() -> int:
     files = sorted(APPS.glob("*/main.qml"))
     settings = sorted(KCM.rglob("*.qml"))
@@ -99,6 +166,8 @@ def main() -> int:
         errors += audit(path)
     for path in settings:
         errors += audit(path, INHERITED | INHERITED_CONTROL)
+    errors += audit_store_components()
+    views = [path for path in sorted(STORE.rglob("*.qml")) if path != STORE / "main.qml"]
     files += settings
     if errors:
         print("GATE FAIL: tests/test_qml_root_references.py")
@@ -106,7 +175,8 @@ def main() -> int:
             print(f" - {error}")
         return 1
     print(f"QML root-reference gate passed ({len(files)} first-party QML files: every "
-          "`<root>.<name>` is declared by the root or inherited from its type)")
+          "`<root>.<name>` is declared by the root or inherited from its type; "
+          f"{len(views)} Mo Store view files reach the window only through a declared `win.`)")
     return 0
 
 

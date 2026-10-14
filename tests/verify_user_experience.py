@@ -48,6 +48,48 @@ def code(text: str, style: str = "hash") -> str:
     )
 
 
+# ── Mo Store is one window in several files ───────────────────────────────────
+#
+# apps/store/main.qml is the window; the views it draws (the rail, each page, the sheets, the
+# cards) are component files beside it. Every Store gate below was written while all of that was
+# one file, so they read the folder as one text: main.qml first, then every other .qml/.js file by
+# name, each component file introduced as the inline component it replaced (its root
+# `Rectangle {` reads `component AppCard: Rectangle {`). A token, a count or a slice keeps the
+# meaning it had in one file, and a view that moves to a file of its own stays in every gate.
+STORE_DIR = ROOT / "system_files/usr/share/moos/apps/store"
+
+
+def store_qml_files() -> list[tuple[Path, str]]:
+    files = sorted(
+        (p for p in STORE_DIR.rglob("*") if p.is_file() and p.suffix in (".qml", ".js")),
+        key=lambda p: (p != STORE_DIR / "main.qml", p.relative_to(STORE_DIR).as_posix()))
+    out = []
+    for path in files:
+        text = path.read_text(encoding="utf-8")
+        if path.suffix == ".qml" and path != STORE_DIR / "main.qml":
+            text = re.sub(r"(?m)^(?=[A-Z][\w.]*\s*\{[ \t]*$)", f"component {path.stem}: ",
+                          text, count=1)
+        out.append((path, text))
+    return out
+
+
+def store_qml_source() -> str:
+    return "\n".join(text for _, text in store_qml_files())
+
+
+def store_search(pattern: str, flags: int = 0) -> bool:
+    """A Store regex must match inside ONE file: `.*?` may not stitch two files together."""
+    return any(re.search(pattern, code(text, "slash"), flags) is not None
+               for _, text in store_qml_files())
+
+
+def app_qml_source(main_qml: Path) -> str:
+    """What a per-app gate reads: Mo Store's whole folder, any other app's main.qml alone."""
+    if main_qml.resolve() == (STORE_DIR / "main.qml").resolve():
+        return store_qml_source()
+    return main_qml.read_text(encoding="utf-8")
+
+
 def kconfig_value(text: str, section: str, key: str) -> str:
     """Read one exact KConfig key without leaking into a later section."""
     section_match = re.search(
@@ -446,7 +488,7 @@ moai_qml = read("system_files/usr/share/moos/apps/moai/main.qml")
 moai_palette_code = code(moai_qml, "slash")
 welcome_qml = read("system_files/usr/share/moos/apps/welcome/main.qml")
 welcome_palette_code = code(welcome_qml, "slash")
-store_qml = read("system_files/usr/share/moos/apps/store/main.qml")
+store_qml = store_qml_source()
 store_palette_code = code(store_qml, "slash")
 
 # MoOS already reads the machine, but nothing surfaced it on the one screen a
@@ -496,7 +538,9 @@ require("function sourceLabel(app)" in store_qml
         and 'install.kind === "web"' in store_qml
         and '"Verified"' in store_qml
         and 'app.origin !== "flathub"' in store_qml
-        and "SourceBadge { app: card.app }" in store_qml,
+        # The card's badge shows the card's own app. In its own file the card also hands the
+        # badge `win`, so the pin allows other bindings in the same braces.
+        and re.search(r"\bSourceBadge\s*\{[^{}]*\bapp:\s*card\.app\s*[;}]", store_qml) is not None,
         "Mo Store cards must show each app's resolved source")
 _badge_fn = store_qml.split("function sourceLabel(app)", 1)[-1].split("\n    }", 1)[0]
 require('"Flathub"' not in _badge_fn,
@@ -544,13 +588,14 @@ require("win.updatesState = \"unknown\"" in store_qml
         "installing, removing or updating must invalidate the pending-update "
         "answer — a stale list outlives the transaction that changed it")
 store_qml_code = code(store_qml, "slash")
+# The multi-line regexes below are matched inside each Store file (store_search): in the joined
+# text a lazy `.*?` could otherwise start in one view and finish in another.
 require('function removeSelected(app) {\n        if (win.jobIsActive())' in store_qml_code
-        and re.search(
+        and store_search(
             r"visible:\s*win\.canRemove\(win\.selectedApp\).*?"
             r"enabled:\s*!win\.jobIsActive\(\)",
-            store_qml_code,
             re.DOTALL,
-        ) is not None,
+        ),
         "Mo Store must disable removal while another transaction owns the backend; "
         "a busy result cannot replace the active job document")
 require("win.openSourceEngine(updateCard.modelData.action)" in store_qml_code
@@ -561,22 +606,20 @@ require('"Shared components have updates."' in store_qml_code
         and "win.updateComponentCount() > 0" in store_qml_code,
         "the Updates page must not say everything is current while Flatpak "
         "runtimes or shared components still have pending updates")
-require(re.search(
+require(store_search(
             r"id:\s*jobProgressIndeterminate\b.*?"
             r"SequentialAnimation\s+on\s+x\s*\{\s*"
             r"running:\s*jobProgressIndeterminate\.visible\b.*?"
             r"to:\s*jobProgressTrack\.width\b",
-            store_qml_code,
             re.DOTALL,
-        ) is not None,
+        ),
         "Mo Store's indeterminate job bar must use explicit item IDs; `parent` "
         "inside SequentialAnimation is undefined and breaks the live QML scene")
 require("visible: win.selectedApp !== null && !!win.selectedApp.license" in store_qml_code
-        and re.search(
+        and store_search(
             r"visible:\s*win\.selectedApp\s*!==\s*null\s*&&\s*"
             r"\(win\.selectedApp\.requires_review",
-            store_qml_code,
-        ) is not None,
+        ),
         "Mo Store detail visibility must always evaluate to a boolean; null/string "
         "bindings produce live QML type-assignment errors")
 require("function pickedWebCount()" in store_qml_code
@@ -595,36 +638,33 @@ require('"io.github.kolunmi.Bazaar"' in store_qml_code
         and '"Install & open engine"' in store_qml_code,
         "the optional Bazaar engine button must disclose that its first use "
         "installs software before opening it")
-require(re.search(
+require(store_search(
             r"visible:\s*win\.jobIsActive\(\).*?"
             r"enabled:\s*!win\.waitingForJob.*?"
             r"label:\s*win\.rtl\s*\?\s*\"إلغاء\"\s*:\s*\"Cancel\"",
-            store_qml_code,
             re.DOTALL,
-        ) is not None,
+        ),
         "Mo Store must not let a Starting-state Cancel click target the stale "
         "job document from the preceding transaction")
-require(re.search(
+require(store_search(
             r'win\.jobItemIs\(\s*item,\s*"already_installed_system",\s*'
             r'"Already installed system-wide"\s*\)\s*\)\s*\{.*?'
             r'nextScopes\[item\.id\]\s*=\s*\["system"\]',
-            store_qml_code,
             re.DOTALL,
-        ) is not None,
+        ),
         "an already-installed system Flatpak must retain its system scope in "
         "live store state so the UI does not offer a non-functional Remove action. "
         "This branch keys off the backend's stable message_key and keeps the old "
         "English prose only as the fallback for a job document written before "
         "keys existed -- it must never go back to comparing prose, because "
         "translating the backend would then silently break scope detection")
-require(re.search(
+require(store_search(
             r"function\s+canRemove\(app\)\s*\{.*?"
             r"installedScopeOverrides\[app\.id\]\s*!==\s*undefined\)\s*"
             r"return\s+win\.installedScopeOverrides\[app\.id\]"
             r"\.indexOf\(\"user\"\)\s*>=\s*0",
-            store_qml_code,
             re.DOTALL,
-        ) is not None,
+        ),
         "a live scope override must decide canRemove before legacy catalogue "
         "fallbacks; ['system'] must never expose a Remove button")
 storectl_text = read("system_files/usr/bin/moos-storectl")
@@ -4624,8 +4664,11 @@ for cursor_name in ui2_cursors.values():
 # they could not be derived safely — a theme card that shows a colour swatch and no word (named
 # from the model's en/ar fields), and two labels split across lines by a ternary. A wrong name is
 # worse than none, so nothing here is a guess.
+#
+# These per-app rules read each main.qml through app_qml_source(): Mo Store's views are files
+# beside its main.qml, and a tab stop or a size in one of them is still the Store's.
 for qml_app in sorted((ROOT / "system_files/usr/share/moos").glob("**/main.qml")):
-    qml_src = code(read(str(qml_app.relative_to(ROOT))), style="slash")
+    qml_src = code(app_qml_source(qml_app), style="slash")
     app_label = qml_app.parent.name
     tab_stops = len(re.findall(r"activeFocusOnTab\s*:\s*true", qml_src))
     if not tab_stops:
@@ -4651,7 +4694,7 @@ for qml_app in sorted((ROOT / "system_files/usr/share/moos").glob("**/main.qml")
 # progress dots) and at 22pt the same button measures 197px instead of 116px with the label
 # comfortably inside.
 for qml_app in sorted((ROOT / "system_files/usr/share/moos").glob("**/main.qml")):
-    qml_src = code(read(str(qml_app.relative_to(ROOT))), style="slash")
+    qml_src = code(app_qml_source(qml_app), style="slash")
     app_label = qml_app.parent.name
     raw_boxes = re.findall(
         r"\b(?:Layout\.preferredHeight|Layout\.preferredWidth|implicitHeight|implicitWidth)\s*:\s*(\d+)\b",
@@ -4677,7 +4720,7 @@ for qml_app in sorted((ROOT / "system_files/usr/share/moos").glob("**/main.qml")
 # with a regex: if a file declares N tab stops it must contain at least N focus indicators, where
 # an indicator is either a FocusRing instance or a visual property bound to activeFocus.
 for qml_app in sorted((ROOT / "system_files/usr/share/moos").glob("**/main.qml")):
-    qml_src = code(read(str(qml_app.relative_to(ROOT))), style="slash")
+    qml_src = code(app_qml_source(qml_app), style="slash")
     app_label = qml_app.parent.name
     tab_stops = len(re.findall(r"activeFocusOnTab\s*:\s*true", qml_src))
     if not tab_stops:
@@ -4714,7 +4757,7 @@ for qml_app in sorted((ROOT / "system_files/usr/share/moos").glob("**/main.qml")
 # progress dots. Under an isolated XDG_CONFIG_HOME at 15pt and again at 22pt (2.2x), the type
 # scales, the subtitle reflows, and nothing clips or overlaps.
 for qml_app in sorted((ROOT / "system_files/usr/share/moos").glob("**/main.qml")):
-    qml_src = code(read(str(qml_app.relative_to(ROOT))), style="slash")
+    qml_src = code(app_qml_source(qml_app), style="slash")
     app_label = qml_app.parent.name
     raw_sizes = re.findall(r"font\.pixelSize\s*:\s*(\d+)\b", qml_src)
     require(not raw_sizes,
@@ -4746,7 +4789,7 @@ for qml_app in sorted((ROOT / "system_files/usr/share/moos").glob("**/main.qml")
     # style="slash": QML comments are //, and the default here strips # instead. Without
     # this the comment ABOVE explaining the literal satisfies the search for the literal,
     # and the gate fails on files that are correct.
-    qml_src = code(read(str(qml_app.relative_to(ROOT))), style="slash")
+    qml_src = code(app_qml_source(qml_app), style="slash")
     app_label = qml_app.parent.name
     for bad_family in re.findall(r'font\.family:\s*"([^"]+)"', qml_src):
         require("mono" in bad_family.lower(),
@@ -6811,7 +6854,9 @@ for _glyph_qml in (
     "system_files/usr/share/moos/apps/store/main.qml",
     "system_files/usr/share/moos/apps/welcome/main.qml",
 ):
-    _glyph_text = code(read(_glyph_qml), "slash")
+    # Mo Store's Glyph is its own file now; app_qml_source() reads it as the inline
+    # component it was.
+    _glyph_text = code(app_qml_source(ROOT / _glyph_qml), "slash")
     require("TextEncoder" not in _glyph_text,
             f"{_glyph_qml} must not use browser-only TextEncoder in QML")
     require("Qt.btoa" not in _glyph_text and "data:image/svg+xml" not in _glyph_text,

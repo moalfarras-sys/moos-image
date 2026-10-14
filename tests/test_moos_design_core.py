@@ -92,7 +92,14 @@ class DesignCoreTests(unittest.TestCase):
         )
 
         for app in ("welcome", "installer", "store", "moai"):
-            source = (APPS / app / "main.qml").read_text(encoding="utf-8")
+            # Mo Store is main.qml plus the view files beside it: none of them may bring the
+            # app-local copy back either.
+            paths = [APPS / app / "main.qml"]
+            if app == "store":
+                paths += sorted(p for p in (APPS / app).rglob("*")
+                                if p.is_file() and p.suffix in (".qml", ".js")
+                                and p != APPS / app / "main.qml")
+            source = "\n".join(path.read_text(encoding="utf-8") for path in paths)
             with self.subTest(app=app):
                 self.assertIn("import org.moos.ui as MoUI", source)
                 self.assertIn("readonly property var design: MoUI.Tokens", source)

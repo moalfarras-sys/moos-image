@@ -61,6 +61,31 @@ if family_spec is None or family_spec.loader is None:
 family_generator = importlib.util.module_from_spec(family_spec)
 family_spec.loader.exec_module(family_generator)
 
+APPS = ROOT / "system_files/usr/share/moos/apps"
+
+
+def app_qml_source(app: str) -> str:
+    """An app's QML as the glyph contract reads it.
+
+    Mo Store's views are files beside its main.qml (its Glyph among them). They are read with it,
+    main.qml first and the rest by name, each component file as the inline component it replaced
+    (`component Glyph: MoUI.SymbolIcon {`), so "exactly one Glyph" still means exactly one.
+    """
+    main = APPS / app / "main.qml"
+    if app != "store":
+        return main.read_text(encoding="utf-8")
+    folder = main.parent
+    files = sorted((p for p in folder.rglob("*") if p.is_file() and p.suffix in (".qml", ".js")),
+                   key=lambda p: (p != main, p.relative_to(folder).as_posix()))
+    texts = []
+    for path in files:
+        text = path.read_text(encoding="utf-8")
+        if path.suffix == ".qml" and path != main:
+            text = re.sub(r"(?m)^(?=[A-Z][\w.]*\s*\{[ \t]*$)", f"component {path.stem}: ",
+                          text, count=1)
+        texts.append(text)
+    return "\n".join(texts)
+
 
 def _enclosed_area(d: str) -> float:
     """Shoelace area of a path made of M/L/A/Z, with each arc flattened.
@@ -654,8 +679,7 @@ class MoOSSymbolicIconTests(unittest.TestCase):
         unresolved: list[str] = []
 
         for app in ("welcome", "installer", "store"):
-            path = ROOT / f"system_files/usr/share/moos/apps/{app}/main.qml"
-            source = path.read_text(encoding="utf-8")
+            source = app_qml_source(app)
             with self.subTest(app=app):
                 self.assertNotIn("glyphURL", source)
                 self.assertNotIn("data:image/svg+xml", source)
