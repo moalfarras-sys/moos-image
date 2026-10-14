@@ -213,10 +213,10 @@ Popup {
             Rectangle {
                 Layout.fillWidth: true
                 Layout.preferredHeight: win.fs(58)
-                visible: win.selectedApp !== null && (win.selectedApp.requires_review === true
-                                                      || (win.selectedApp.install
-                                                          && win.selectedApp.install.requires_review === true)
-                                                      || (win.selectedApp.install && win.selectedApp.install.kind === "npm"))
+                visible: win.selectedApp !== null && !!(win.selectedApp.requires_review === true
+                                                        || (win.selectedApp.install
+                                                            && win.selectedApp.install.requires_review === true)
+                                                        || (win.selectedApp.install && win.selectedApp.install.kind === "npm"))
                 radius: design.radiusCard
                 color: Qt.rgba(win.violet.r, win.violet.g, win.violet.b, 0.1)
                 border.width: 1

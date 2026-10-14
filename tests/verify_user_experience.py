@@ -615,10 +615,13 @@ require(store_search(
         ),
         "Mo Store's indeterminate job bar must use explicit item IDs; `parent` "
         "inside SequentialAnimation is undefined and breaks the live QML scene")
+# The advanced-source warning's OR-chain is `undefined` for an app with no install recipe — every
+# Flathub app — and this pin used to accept it bare: the live log said "Unable to assign
+# [undefined] to bool" on every such app page, and the warning kept whatever it showed before.
 require("visible: win.selectedApp !== null && !!win.selectedApp.license" in store_qml_code
         and store_search(
             r"visible:\s*win\.selectedApp\s*!==\s*null\s*&&\s*"
-            r"\(win\.selectedApp\.requires_review",
+            r"!!\(win\.selectedApp\.requires_review",
         ),
         "Mo Store detail visibility must always evaluate to a boolean; null/string "
         "bindings produce live QML type-assignment errors")
