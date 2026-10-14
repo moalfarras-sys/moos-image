@@ -794,10 +794,11 @@ with tempfile.TemporaryDirectory() as tmp:
         return popups.read_text(encoding="utf-8").strip() if popups.exists() else ""
 
     arabic = re.compile(r"[\u0600-\u06ff]")
+    # The Store's Arabic name is its launcher's Name[ar], «متجر MoOS», never a Latin «Mo Store».
     for url, rc, english, arabic_words in (
             ("moos://do/update-apps", "1", "Mo Store: did not finish — firmware said boom",
-             "Mo Store: لم يكتمل"),
-            ("moos://do/update-apps", "0", "Mo Store ✓ — firmware said boom", "Mo Store ✓")):
+             "متجر MoOS: لم يكتمل"),
+            ("moos://do/update-apps", "0", "Mo Store ✓ — firmware said boom", "متجر MoOS ✓")):
         shown = popup(url, "C.UTF-8", rc)
         check(shown == english, f"{url} (exit {rc}) in English showed {shown!r}")
         shown = popup(url, "ar_SA.UTF-8", rc)

@@ -21,6 +21,7 @@ Each class holds one promise of moos-storectl, run for real against a private HO
                         moos-control's open and moos-open's apps/run route, driven against the real
                         backend while the scheduled updater holds the lock: the app opens, and every
                         other answer is said as what it is.
+  Words                 the backend's fallback words for the keys this change corrects.
 
 Nothing here reaches the network, a display, the session bus, Android or the person's real
 home: every program the backend would start is recorded, never run.
@@ -562,6 +563,50 @@ class InterruptedDownloads(Backend):
         self.controller([]).update()
         self.assertTrue((elsewhere / ".kept.part").exists())
         self.assertTrue((elsewhere / "vendor-kept-1").is_dir())
+
+
+class Words(Backend):
+    def test_no_space_says_what_is_needed_without_a_false_multiple(self):
+        words = MODULE.VENDOR_FAILURE_WORDS["vendor_no_space"]
+        self.assertEqual(words, "Not enough free space in your home folder to download, unpack and "
+                                "install this app at the same time; free some space and try again")
+
+    def test_remove_with_data_names_the_sign_in_it_kept(self):
+        self.drop("noteforge-2.1.tar.gz")
+        code, document = self.controller([]).remove("noteforge", delete_data=True)
+        self.assertEqual(document["items"][0]["message"],
+                         "Removed. What the app saved elsewhere in your home folder, including its "
+                         "settings and any sign-in, was kept")
+
+    def test_a_download_is_not_called_verified_before_it_is(self):
+        seen: list[tuple[str, str]] = []
+        original = MODULE.JobStore.write
+
+        def write(store, document):
+            for item in document.get("items") or []:
+                if item.get("message_key") in ("downloading_file", "downloading_android"):
+                    seen.append((item["message_key"], item["message"]))
+            original(store, document)
+        with mock.patch.object(MODULE.JobStore, "write", write):
+            self.controller([self.appdrop_recipe()]).install(["noteforge"])
+        self.assertIn(("downloading_file", "Downloading from the publisher"), seen)
+        self.assertNotIn("verified", " ".join(message for _key, message in seen).lower())
+        source = SCRIPT.read_text(encoding="utf-8")
+        self.assertIn('message="Downloading the Android app"', source)
+        self.assertNotIn("Downloading verified", source)
+        self.assertNotIn("Downloading a verified", source)
+
+    def test_every_arabic_string_names_the_store_as_its_launcher_does(self):
+        """The launcher's Name[ar] is «متجر MoOS»; «متجر Mo» and a Latin «Mo Store» inside an
+        Arabic sentence are two more names for the same app."""
+        for path in (SCRIPT, CONTROL, OPEN):
+            for number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
+                if not re.search(r"[ء-ي]", line):
+                    continue
+                arabic = line.split(" | ")[0]
+                with self.subTest(file=path.name, line=number):
+                    self.assertIsNone(re.search(r"متجر Mo(?!OS)", line), line)
+                    self.assertNotIn("Mo Store", arabic, line)
 
 
 # ── moos-control and moos-open against the real backend ─────────────────────────────────────────

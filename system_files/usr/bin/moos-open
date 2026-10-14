@@ -717,8 +717,8 @@ PY
     # moai-do runs confirmed and audited in the background, and a notification says how
     # it ended; the Store job shows in the Island while it runs.
     do/update-apps)
-        confirm "تحديث كل التطبيقات عبر Mo Store الآن؟ | Update all apps through Mo Store now?" \
-            && moai_do_detached update-apps "Mo Store" store ;;
+        confirm "تحديث كل التطبيقات عبر متجر MoOS الآن؟ | Update all apps through Mo Store now?" \
+            && moai_do_detached update-apps "متجر MoOS | Mo Store" store ;;
     # Firmware is different: flashing cannot be rolled back, so the person must see WHICH
     # devices and versions are offered before saying yes. moai-do lists them
     # (fwupdmgr get-updates) and then asks its own y/N, in a window that stays open. A

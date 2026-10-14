@@ -152,8 +152,11 @@ VENDOR_FAILURE_WORDS: dict[str, str] = {
     "vendor_package_not_found": "The publisher does not offer this app for this computer right now",
     "vendor_download_mismatch": ("The download was incomplete or not what the publisher announced; "
                                  "it was deleted and nothing was installed"),
-    "vendor_no_space": ("Not enough free space in your home folder: installing this app briefly needs "
-                        "about three times its download size"),
+    # moos_vendor_rpm needs the package, its unpacked payload and the installed tree on disk at
+    # once (measured for ChatGPT: 4.17 GB for a 0.56 GB download, 1.67 GB of it kept for good):
+    # no multiple of the download is true for every app, so none is named.
+    "vendor_no_space": ("Not enough free space in your home folder to download, unpack and install "
+                        "this app at the same time; free some space and try again"),
     "cancelled": "Cancelled",
     "vendor_tool_missing": "This MoOS edition lacks a tool needed to check this app; nothing was installed",
     "vendor_key_missing": "This version of MoOS does not hold the publisher's key yet; update MoOS and try again",
@@ -2136,7 +2139,9 @@ class Controller:
         Refused: a Content-Length or a body larger than the pinned size, a body of any other
         size, a digest that differs, and any redirect hop that is not HTTPS. Checked for
         cancellation between blocks, which also keeps the job's heartbeat. The caller deletes
-        the file once it has been handed on.
+        the file once it has been handed on. Its progress `message` never says "verified": the
+        size and digest are compared only after the last byte, and "Verified" is the word the
+        window keeps for Flathub's own flag (docs/MO_STORE.md).
         """
         directory = downloads_dir()
         directory.mkdir(mode=0o700, parents=True, exist_ok=True)
@@ -2291,7 +2296,7 @@ class Controller:
         pin = pinned_artifact(app_id, install)
         pinned = self._appdrop_pins(app_id, recipe)
         download = self._download_pinned(job, app_id, pin, kind=artifact,
-                                         message="Downloading a verified file",
+                                         message="Downloading from the publisher",
                                          message_key="downloading_file")
         try:
             try:
@@ -2593,7 +2598,7 @@ class Controller:
         fresh_prefix = not (paths.prefix / "system.reg").is_file()
         created_base = not paths.base.exists()
         download = self._download_pinned(job, app_id, pin, kind="windows",
-                                         message="Downloading a verified file",
+                                         message="Downloading from the publisher",
                                          message_key="downloading_file")
         staging = paths.base / ".app.installing"
         previous = paths.base / ".app.previous"
@@ -2959,7 +2964,7 @@ class Controller:
         version = self._recipe_version(app_id, install, required=False)
         self._ensure_android_session(job)
         download = self._download_pinned(job, app_id, pin, kind="android",
-                                         message="Downloading verified app",
+                                         message="Downloading the Android app",
                                          message_key="downloading_android")
         try:
             job.update_item(
@@ -3186,11 +3191,15 @@ class Controller:
 
     @staticmethod
     def _removed_untracked(job: Job, app_id: str, delete_data: bool) -> None:
-        """App Drop and npm apps keep their own settings wherever they chose; say so, honestly."""
+        """App Drop, npm and publishers' own apps keep their settings and their sign-in wherever
+        they chose (ChatGPT's in its config folder, Claude Code's in ~/.claude); say so, honestly.
+        Someone removing an app with its data to sign out of it must not be told only settings
+        stayed."""
         if delete_data:
             job.update_item(
                 app_id, state="done", progress=100,
-                message="Removed. Settings the app saved elsewhere in your home folder were kept",
+                message=("Removed. What the app saved elsewhere in your home folder, including its "
+                         "settings and any sign-in, was kept"),
                 message_key="removed_data_untracked",
             )
         else:
