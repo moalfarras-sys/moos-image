@@ -250,6 +250,7 @@ class VendorInstalled(unittest.TestCase):
         chatgpt = self.apps["chatgpt"]
         self.assertEqual((chatgpt["installed"], chatgpt["installed_version"], chatgpt["update_available"]),
                          (True, "26.1007.71326-1", False))
+        self.assertIsNotNone(chatgpt["icon"], "the icon inside the app's own folder was not found")
         self.assertTrue(chatgpt["icon"].startswith("file://"))
         self.assertTrue(chatgpt["icon"].endswith("/Applications/chatgpt/.moos-icon.png"),
                         "the icon must come from the app's own folder, never the record's 'directory'")
@@ -259,6 +260,7 @@ class VendorInstalled(unittest.TestCase):
         self.assertIsNone(self.apps["escape"]["icon"], "an icon path that leaves the folder was published")
 
     def test_an_app_the_catalogue_stopped_offering_stays_listed_as_installed(self):
+        self.assertIn("retired", self.apps, "an installed app the catalogue dropped vanished from the index")
         retired = self.apps["retired"]
         self.assertEqual((retired["kind"], retired["installed"], retired["listed"], retired["installable"]),
                          ("vendor", True, False, False))
