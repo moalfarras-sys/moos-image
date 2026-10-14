@@ -1,0 +1,57 @@
+#!/usr/bin/python3
+"""moos-webapp — open a MoOS web app: a website Mo Store installed as an application.
+
+    moos-webapp <id>          open the web app (raise it when it is already open)
+    moos-webapp --check <id>  validate the catalogue entry; print it as JSON; no window
+    moos-webapp --list        every web app the catalogue offers, and whether it is installed
+
+<id> is a catalogue id (for example `chatgpt`). The address, the hosts the app may stay on and
+the permissions it may ask for all come from the signed catalogue; nothing on this command line
+can name an address. The rules live in /usr/lib/moos/moos_webapp_policy.py.
+"""
+
+from __future__ import annotations
+
+import json
+from pathlib import Path
+import sys
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "lib/moos"))
+import moos_webapp_policy as policy  # noqa: E402
+
+USAGE = "usage: moos-webapp <id> | --check <id> | --list"
+
+
+def main(argv: list[str]) -> int:
+    if len(argv) == 2 and argv[1] == "--list":
+        catalog = policy.load_catalog()
+        installed = set(policy.installed_ids())
+        rows = [{"id": app.id, "name": app.name_en, "url": app.url, "installed": app.id in installed}
+                for app in policy.webapps(catalog).values()]
+        print(json.dumps(rows, ensure_ascii=False, indent=1))
+        return 0
+    if len(argv) == 3 and argv[1] == "--check":
+        try:
+            app = policy.lookup(argv[2])
+        except policy.WebAppError as error:
+            print(f"moos-webapp: {error.code}", file=sys.stderr)
+            return 2
+        print(json.dumps({"id": app.id, "url": app.url, "hosts": list(app.hosts),
+                          "identity": list(app.identity), "permissions": list(app.permissions),
+                          "desktop_id": app.desktop_id}, ensure_ascii=False))
+        return 0
+    if len(argv) != 2 or argv[1].startswith("-"):
+        print(USAGE, file=sys.stderr)
+        return 2
+    try:
+        app = policy.lookup(argv[1])
+    except policy.WebAppError as error:
+        print(f"moos-webapp: {error.code}", file=sys.stderr)
+        return 2
+    import moos_webapp_runtime as runtime  # Qt only once there is a window to draw
+
+    return runtime.run(app, argv)
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv))
