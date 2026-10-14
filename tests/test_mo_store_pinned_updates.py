@@ -7,9 +7,14 @@ against a private HOME:
 
   AdoptedAppDrop  a file the person dropped into a catalogue app's slot (App Drop's record has
                   no catalog_id) is theirs: never a pin row, never replaced by Update all, and
-                  `update <id>` says to install a newer file instead of putting the pin back.
+                  `update <id>` says to install a newer file instead of putting the pin back;
+  LegacyAndroid   an Android app an earlier Mo Store installed has its data directory but no
+                  record: it is installed with unknown bytes, so its pin is offered and
+                  installing the pin writes the record; a record without the data directory is
+                  no installed app.
 
-Nothing here reaches the network, a display, the session bus or the person's real home.
+Nothing here reaches the network, a display, the session bus, the Android runtime or the
+person's real home.
 """
 from __future__ import annotations
 
@@ -265,6 +270,96 @@ class AdoptedAppDrop(Backend):
         self.assertNotEqual(self.cli([self.recipe("2.2")], "update", "noteforge"), 0)
         self.assertEqual(self.job_document()["items"][0]["message_key"], "update_by_file")
         self.assertTrue(self.program().endswith(b"2.3"))
+
+
+# ── Android: installed is the per-package data directory; the record names the bytes ──────────
+class LegacyAndroid(Backend):
+    PACKAGE = "org.example.maps"
+
+    def recipe(self, body: bytes, version: str) -> dict:
+        url = f"https://f-droid.example/{self.PACKAGE}_{version}.apk"
+        self.opener.files[url] = body
+        return {"id": self.PACKAGE, "source": "moos", "en": "Maps",
+                "install": {"kind": "android", "package": self.PACKAGE, "version": version,
+                            "url": url, "sha256": hashlib.sha256(body).hexdigest(),
+                            "risk": "external-download", "requires_review": True,
+                            "external": True}}
+
+    def data(self) -> Path:
+        return self.home / ".local/share/waydroid/data/data" / self.PACKAGE
+
+    def record(self) -> Path:
+        return self.home / ".local/share/moos/android" / f"{self.PACKAGE}.json"
+
+    def installs(self) -> list[list[str]]:
+        return [argv for argv in self.runner.commands if argv[1:3] == ["app", "install"]]
+
+    def test_an_app_an_earlier_store_installed_is_offered_its_pin(self):
+        # What the station has: Android's data directory, and no record (none was written then).
+        self.data().mkdir(parents=True)
+        recipe = self.recipe(b"PK\x03\x04maps 26092932", "26092932")
+        document = self.controller([recipe]).check_updates()[1]
+        self.assertEqual(document["items"], [{"id": self.PACKAGE, "kind": "pin", "name": "Maps",
+                                              "version": "26092932", "installed_version": None}])
+        self.assertEqual((document["count"], document["app_count"]), (1, 1))
+        self.assertFalse(self.record().exists(), "checking for updates wrote a record")
+
+    def test_updating_it_installs_the_pin_in_place_and_writes_the_record(self):
+        self.data().mkdir(parents=True)
+        body = b"PK\x03\x04maps 26092932"
+        controller = self.controller([self.recipe(body, "26092932")])
+        code, result = controller.update(self.PACKAGE)
+        self.assertEqual((code, result["state"]), (0, "success"), result)
+        self.assertEqual((result["items"][0]["state"], result["items"][0]["message_key"]),
+                         ("done", "updated"))
+        self.assertEqual(len(self.installs()), 1)
+        self.assertFalse([argv for argv in self.runner.commands if argv[1:3] == ["app", "remove"]],
+                         "an update removed the app, and Android would have deleted its data")
+        record = json.loads(self.record().read_text(encoding="utf-8"))
+        self.assertEqual((record["sha256"], record["catalog_id"], record["version"]),
+                         (hashlib.sha256(body).hexdigest(), self.PACKAGE, "26092932"))
+        self.assertEqual(controller.check_updates()[1]["items"], [])
+        code, result = controller.update(self.PACKAGE)
+        self.assertEqual((result["items"][0]["state"], result["items"][0]["message_key"]),
+                         ("skipped", "app_up_to_date"))
+        self.assertEqual(len(self.installs()), 1)
+
+    def test_update_all_includes_it(self):
+        self.data().mkdir(parents=True)
+        body = b"PK\x03\x04maps 26092932"
+        code, result = self.controller([self.recipe(body, "26092932")]).update()
+        self.assertEqual((code, result["state"]), (0, "success"), result)
+        self.assertEqual([(item["id"], item["state"]) for item in result["items"]],
+                         [(self.PACKAGE, "done")])
+        self.assertEqual(json.loads(self.record().read_text(encoding="utf-8"))["sha256"],
+                         hashlib.sha256(body).hexdigest())
+
+    def test_a_record_without_the_data_directory_is_no_installed_app(self):
+        self.record().parent.mkdir(parents=True)
+        self.record().write_text(json.dumps({"schema": 1, "id": self.PACKAGE,
+                                             "package": self.PACKAGE, "sha256": "0" * 64}),
+                                 encoding="utf-8")
+        controller = self.controller([self.recipe(b"PK\x03\x04maps 2", "2")])
+        self.assertEqual(controller.check_updates()[1]["items"], [])
+        code, result = controller.update(self.PACKAGE)
+        self.assertEqual((result["state"], result["items"][0]["message_key"]),
+                         ("failed", "not_installed"), result)
+        self.assertEqual(self.installs(), [])
+
+    def test_a_recorded_app_on_its_pin_is_up_to_date(self):
+        self.data().mkdir(parents=True)
+        body = b"PK\x03\x04maps 3"
+        self.record().parent.mkdir(parents=True)
+        self.record().write_text(json.dumps({"schema": 1, "id": self.PACKAGE, "package": self.PACKAGE,
+                                             "catalog_id": self.PACKAGE, "version": "3",
+                                             "sha256": hashlib.sha256(body).hexdigest()}),
+                                 encoding="utf-8")
+        controller = self.controller([self.recipe(body, "3")])
+        self.assertEqual(controller.check_updates()[1]["items"], [])
+        code, result = controller.update(self.PACKAGE)
+        self.assertEqual((result["items"][0]["state"], result["items"][0]["message_key"]),
+                         ("skipped", "app_up_to_date"))
+        self.assertEqual(self.installs(), [])
 
 
 if __name__ == "__main__":

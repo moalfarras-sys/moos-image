@@ -3630,6 +3630,9 @@ class Controller:
                    person dropped into the app's slot has no catalog_id (the index calls it
                    adopted); it is theirs, and the pin, which may be older, never replaces it.
           windows  the record, while the program's folder is there.
+          android  installed while Android keeps the package's data directory. An app an
+                   earlier Mo Store installed has no record (it wrote none): its bytes are
+                   unknown, so its pin is offered, and installing the pin writes the record.
         """
         kind = (recipe.get("install") or {}).get("kind")
         if kind == "appdrop":
@@ -3639,9 +3642,9 @@ class Controller:
             paths = windows_paths(app_id)
             return _read_json(paths.record) if paths.app.is_dir() else {}
         if kind == "android":
-            record = _read_json(android_record_path(app_id))
-            data = data_home() / "waydroid" / "data" / "data" / app_id
-            return record if record and data.exists() else {}
+            if not (data_home() / "waydroid" / "data" / "data" / app_id).is_dir():
+                return {}
+            return _read_json(android_record_path(app_id)) or {"id": app_id, "package": app_id}
         if kind == "vendor-rpm":
             return self._vendor_record(app_id)
         return {}
