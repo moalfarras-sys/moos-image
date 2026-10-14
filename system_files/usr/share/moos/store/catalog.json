@@ -925,7 +925,7 @@
       "keywords_ar": ["بريد", "ايميل", "جي ميل"],
       "install": {
         "kind": "webapp",
-        "url": "https://mail.google.com/",
+        "url": "https://mail.google.com/mail/u/0/",
         "hosts": ["mail.google.com"],
         "identity": ["google"],
         "permissions": ["notifications", "clipboard"],
@@ -949,7 +949,7 @@
       "keywords_ar": ["بريد", "هوتميل", "تقويم"],
       "install": {
         "kind": "webapp",
-        "url": "https://outlook.live.com/mail/",
+        "url": "https://outlook.cloud.microsoft/mail/",
         "hosts": [
           "outlook.live.com",
           "outlook.cloud.microsoft",
@@ -1231,7 +1231,7 @@
       "keywords_ar": ["درايف", "سحابة", "ملفات"],
       "install": {
         "kind": "webapp",
-        "url": "https://drive.google.com/",
+        "url": "https://drive.google.com/drive/my-drive",
         "hosts": ["drive.google.com", "docs.google.com"],
         "identity": ["google"],
         "permissions": ["clipboard"],
