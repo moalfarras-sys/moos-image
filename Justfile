@@ -354,6 +354,8 @@ check:
     python3 tests/test_mo_store_backend2_windows_template.py
     # The index's vendor kind, and what a Windows program's settings folder costs on this disk.
     python3 tests/test_mo_store_backend2_index.py
+    # The Windows runtime's own menu builder never writes launchers or file associations.
+    python3 tests/test_mo_store_backend2_run_foreign.py
     # One globally importable MoUI module must own identity metrics and shared
     # controls; an app-local copy cannot silently grow back.
     python3 tests/test_moos_design_core.py

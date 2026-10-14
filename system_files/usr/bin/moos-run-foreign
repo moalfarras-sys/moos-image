@@ -37,6 +37,15 @@ set -uo pipefail
 
 OFFICE_ID="org.libreoffice.LibreOffice"
 
+# Every Windows-runtime start below carries the same overrides,
+#     WINEDLLOVERRIDES="mscoree,mshtml=;winemenubuilder.exe=d"
+# no .NET/HTML runtime prompts, and no menu entries or file associations of the runtime's own.
+# Its menu builder runs whenever a settings folder is created or updated, and it once left
+# wine-extension-*.desktop launchers behind that made .vbs and .crt files open with the
+# Windows runtime. A program the person runs is not an app MoOS installed; Mo Store writes the
+# launchers for the programs it installs. The value is spelled out at each start, not kept in
+# a variable: gates run single functions of this script on their own, under `set -u`.
+
 # WHICH engine runs a file, whether it is ready, and what to CALL it in front of
 # a person: one resolver over /usr/share/moos/app-engines.json, shared with Mo
 # Store and App Drop. This script used to decide alone and got it wrong in a way
@@ -118,7 +127,7 @@ wine_prepare_display() {
     if [ -f "$prefix/user.reg" ] && [ "$(cat "$stamp" 2>/dev/null || true)" = "$dpi" ]; then
         return 0
     fi
-    if env WINEPREFIX="$prefix" WINEDLLOVERRIDES="mscoree,mshtml=" \
+    if env WINEPREFIX="$prefix" WINEDLLOVERRIDES="mscoree,mshtml=;winemenubuilder.exe=d" \
             wine reg add 'HKCU\Control Panel\Desktop' /v LogPixels \
             /t REG_DWORD /d "$dpi" /f >/dev/null 2>&1; then
         printf '%s\n' "$dpi" >"$stamp"
@@ -154,7 +163,7 @@ wine_run() {
     log="$state_dir/windows-last.log"
     mkdir -p "$prefix" "$state_dir" 2>/dev/null || return 1
     wine_prepare_display "$prefix" "$state_dir"
-    env WINEPREFIX="$prefix" WINEDLLOVERRIDES="mscoree,mshtml=" \
+    env WINEPREFIX="$prefix" WINEDLLOVERRIDES="mscoree,mshtml=;winemenubuilder.exe=d" \
         wine "$target" >"$log" 2>&1
     code=$?
     if [ "$code" -ne 0 ]; then
@@ -272,7 +281,7 @@ print(next((d.get("checksum", "") for d in deployments if d.get("booted")), ""))
     [ -n "$probe" ] || { printf '%s\n' blocked >"$status"; return 1; }
 
     timeout 30 env WINEPREFIX="$prefix" WINEARCH=wow64 \
-        WINEDLLOVERRIDES="mscoree,mshtml=" wine "$probe" /c exit \
+        WINEDLLOVERRIDES="mscoree,mshtml=;winemenubuilder.exe=d" wine "$probe" /c exit \
         >"$log" 2>&1
     result=$?
     if [ "$result" -eq 0 ]; then
