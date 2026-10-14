@@ -37,6 +37,7 @@ still open; `PROJECT_STATE.md` owns what is measured.
 | `appdrop` | `appdrop` (artifact `appimage` or `archive`) | `~/Applications/<id>/` + a MoOS-written launcher + record `~/.local/share/moos/appdrop/<id>.json` | the launcher | App Drop `remove` |
 | `windows` | `windows-portable` | `~/.local/share/moos/windows-apps/<id>/` (own prefix) + launcher + record | `/usr/bin/moos-run-foreign --app <id>` | prefix, launcher, record |
 | `android` | `android` | the Android container | `waydroid app launch` (via storectl `run`) | `waydroid app remove` |
+| `vendor` | `vendor-rpm` | `~/Applications/<id>/` (the payload of a publisher-signed RPM, never layered, no scriptlets) + `org.moos.vendor.<id>.desktop` + record `~/.local/share/moos/vendor/<id>.json` | the launcher | files MoOS wrote |
 | `npm` | `npm` | `~/.local` | its command | `npm uninstall` |
 | `web` | `web` | nothing (opens the publisher page) | — | — |
 | `dropped` | — | an App Drop install that is not in the catalogue | its launcher | App Drop `remove` |
@@ -53,7 +54,9 @@ Top level: `_comment`, `categories[]`, `collections[]`, `featured[]`, `bundles[]
   `{app, title_en, title_ar, tagline_en, tagline_ar, accent?: "#rrggbb"}`.
 - `bundles[]`: unchanged (Welcome's four directions must stay).
 - Per app, new optional keys: `developer` (≤80), `keywords_en[]`, `keywords_ar[]` (≤12 short
-  search words each, e.g. PhotoCraft: `photoshop`, `psd`; `فوتوشوب`), `accent` ("#rrggbb").
+  search words each, e.g. PhotoCraft: `photoshop`, `psd`; `فوتوشوب`), `accent` ("#rrggbb"),
+  `icon_url` (https, allowlisted publisher hosts only — the index uses it when there is no local
+  icon; the window loads it only when the person allows app pictures from the internet).
 - `install` for `source:"moos"`:
   - `webapp`: `{kind, url (https), hosts[≤24, "*." prefix allowed], identity ⊆ {google,
     microsoft, apple, github}, permissions ⊆ {notifications, microphone, camera, location,
@@ -69,7 +72,16 @@ Top level: `_comment`, `categories[]`, `collections[]`, `featured[]`, `bundles[]
     wm_class?, risk:"downloaded-executable", requires_review:true, external:true}`; top-level
     `engine:"windows"`, `arch:["x86_64"]`, `cat:"win"`. `exe` is the program's path inside the
     zip, or the file name of a single `.exe` download. 64-bit (PE32+) programs only.
-  - `android`: unchanged (`url`, `sha256`, `package` = id) plus optional `version`, `size`.
+  - `android`: unchanged (`url`, `sha256`, `package` = id) plus optional `version`, `size` and
+    `signer` (SHA-256 of the APK's signing certificate; Android refuses an update from another
+    signer, so the pin records it).
+  - `vendor-rpm`: `{kind, repo ("https://…/$basearch", exact allowlist), package, key_fingerprint
+    (40 hex; the key must already be trusted by the image), install_root, exec, desktop, icon?,
+    wm_class, risk:"downloaded-executable", requires_review:true, external:true}`. The newest
+    build is resolved from the publisher's repository metadata, its SHA-256 and size come from
+    that metadata, `rpmkeys --checksig` must prove the trusted key signed it, and only the files
+    under `install_root` are unpacked into the person's home. Today: the official ChatGPT desktop
+    app (OpenAI key `3BFA0E4AE8B8CC16A2D9BA684A3B4A566C4660E4`).
   - `npm`, `web`: unchanged. The old `appimage` kind (a bare file in `~/.local/bin`) is retired.
 
 ## Documents in `~/.cache/moos-store/`
