@@ -278,6 +278,15 @@ class WindowsPortable(Isolated):
         self.assertIn("StartupWMClass=TinyTerm", (self.home / f".local/share/applications/"
                       f"org.moos.windows.{APP}.desktop").read_text(encoding="utf-8").splitlines())
 
+    def test_an_exe_name_with_plus_signs_is_its_window_class(self):
+        # Found live on 2026-10-14: Notepad++'s default window class, "notepad++.exe", was
+        # refused as invalid, so the catalogue's Notepad++ could not be installed at all.
+        recipe = self.recipe(pe(), exe="notepad++.exe")
+        code, result = self.controller(recipe).install([APP])
+        self.assertEqual(result["state"], "success", result)
+        self.assertIn("StartupWMClass=notepad++.exe", (self.home / f".local/share/applications/"
+                      f"org.moos.windows.{APP}.desktop").read_text(encoding="utf-8").splitlines())
+
     def test_a_32bit_program_is_refused_by_name_and_leaves_nothing(self):
         recipe = self.recipe(zipped({"TinyTerm/tinyterm.exe": pe(0x14c, 0x10b)}))
         code, result = self.controller(recipe).install([APP])

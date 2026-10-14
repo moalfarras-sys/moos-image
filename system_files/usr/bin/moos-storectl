@@ -221,7 +221,9 @@ _ANDROID_PACKAGE_RE = re.compile(
 _SHA256_RE = re.compile(r"^[0-9a-fA-F]{64}$")
 _ANSI_RE = re.compile(r"\x1b\[[0-?]*[ -/]*[@-~]")
 _VERSION_RE = re.compile(r"^[0-9A-Za-z][0-9A-Za-z.+_~-]{0,63}$")
-_WM_CLASS_RE = re.compile(r"^[A-Za-z0-9._ -]{1,80}$")
+# A Windows program's window class is its exe name ("notepad++.exe"), so + and () are
+# legitimate; nothing here can break a desktop-file line (control characters never pass).
+_WM_CLASS_RE = re.compile(r"^[A-Za-z0-9._+() -]{1,80}$")
 _REVIEW_RISKS = {
     "developer-tool",  # accepted during upgrades from the first catalog draft
     "downloaded-executable",
