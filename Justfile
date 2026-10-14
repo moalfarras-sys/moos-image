@@ -322,6 +322,9 @@ check:
     # no match was MANUFACTURED into the index -- so eleven x86-only apps, two of
     # them "popular" (Steam, Spotify), were dead buttons on the A1.
     python3 tests/test_store_arch_honesty.py
+    # Catalogue v2: the shipped catalogue passes, and every rule the gate added for it
+    # (pins, signers, vendor keys, glyphs, copy) is proven to bite on a planted copy.
+    python3 tests/test_mo_store_catalog_gate.py
     python3 tests/test_moos_storectl.py
     # Mo Store's backend reports progress and the UI owns the words: the
     # job document carries a stable message_key beside its human message,

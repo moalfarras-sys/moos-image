@@ -51,18 +51,39 @@ def load(name: str, path: Path):
 
 index = load("moos_store_index", INDEX_TOOL)
 
-# Measured against `flatpak --system remote-ls flathub --arch=aarch64` (2923 apps)
-# on 2026-09-21. These are the catalogue entries with no ARM build at all.
+# Measured against `flatpak remote-ls --cached --system flathub --arch=aarch64 --app`
+# (3058 apps; x86_64 lists 3499) on the station on 2026-10-14, for the catalogue v2
+# picks. These Flathub entries have no ARM build at all. (The first measurement, on
+# 2026-09-21 against 2923 apps, found eleven; Thunderbird ESR has since been replaced by
+# Thunderbird, which is just as x86_64-only.)
 # load_catalog is pure: it filters only what the caller describes. Tests that are
 # about the ARCH filter pass every engine, so the two rules stay separable.
 ALL_ENGINES = {"windows", "android", "linux"}
 
 NO_ARM_BUILD = {
-    "org.mozilla.thunderbird_esr", "com.obsproject.Studio", "com.valvesoftware.Steam",
-    "com.usebottles.bottles", "net.lutris.Lutris", "com.heroicgameslauncher.hgl",
-    "com.spotify.Client", "com.discordapp.Discord", "us.zoom.Zoom", "com.slack.Slack",
-    "com.google.AndroidStudio",
+    "ai.jan.Jan", "cc.arduino.IDE2", "com.discordapp.Discord", "com.dropbox.Client",
+    "com.google.AndroidStudio", "com.heroicgameslauncher.hgl", "com.microsoft.Edge",
+    "com.obsproject.Studio", "com.opera.Opera", "com.slack.Slack", "com.spotify.Client",
+    "com.usebottles.bottles", "com.usebruno.Bruno", "com.valvesoftware.Steam",
+    "fr.handbrake.ghb", "io.anytype.anytype", "io.appflowy.AppFlowy", "io.ente.auth",
+    "net.lutris.Lutris", "org.altaqwaa.Altaqwaa", "org.blender.Blender",
+    "org.geogebra.GeoGebra", "org.mozilla.thunderbird", "org.torproject.torbrowser-launcher",
+    "org.upscayl.Upscayl", "us.zoom.Zoom",
 }
+
+# Pinned downloads that exist for x86_64 only: every Windows program (64-bit PE32+ builds;
+# 32-bit Windows programs cannot start here) and the three Android APKs whose only native
+# code is x86_64 (the signed index lists `nativecode: ["x86_64"]` for these exact files; the
+# ARM edition would need a different versionCode).
+X86_ONLY_DOWNLOADS = {
+    "notepad-plus-plus", "notepad3", "putty", "sumatrapdf", "winmerge", "heidisql",
+    "org.videolan.vlc", "io.element.android.x", "com.github.meypod.al_quran",
+}
+X86_ONLY = NO_ARM_BUILD | X86_ONLY_DOWNLOADS
+
+
+def declared_arch(app):
+    return app.get("arch")
 
 
 class TheCatalogueSaysWhereItsAppsExist(unittest.TestCase):
@@ -72,14 +93,42 @@ class TheCatalogueSaysWhereItsAppsExist(unittest.TestCase):
     def test_every_app_with_no_arm_build_is_marked_x86_only(self):
         """The data half. Without it the filter below has nothing to act on."""
         by_id = {app["id"]: app for app in self.raw["apps"]}
-        for app_id in sorted(NO_ARM_BUILD):
+        for app_id in sorted(X86_ONLY):
             with self.subTest(app=app_id):
                 self.assertIn(app_id, by_id, "measured x86-only app left the catalogue; "
                                              "drop it from NO_ARM_BUILD too")
                 self.assertEqual(
                     by_id[app_id].get("arch"), ["x86_64"],
-                    f"{app_id} has no aarch64 build on Flathub, so the ARM Store would "
-                    f"offer an install that can only answer \"Can't find ref\"")
+                    f"{app_id} has no aarch64 build, so the ARM Store would offer an "
+                    f"install that can only answer \"Can't find ref\"")
+
+    def test_the_measured_set_is_exactly_the_marked_set(self):
+        """Both directions: a newly marked app is a measurement nobody recorded here."""
+        marked = {app["id"] for app in self.raw["apps"] if app.get("arch") == ["x86_64"]}
+        self.assertEqual(marked - X86_ONLY, set(),
+                         "these are marked x86_64-only but were never measured here")
+        self.assertEqual(X86_ONLY - marked, set())
+
+    def test_a_flathub_app_with_an_arm_build_stays_unmarked(self):
+        for app in self.raw["apps"]:
+            if app["source"] == "flathub" and app["id"] not in NO_ARM_BUILD:
+                with self.subTest(app=app["id"]):
+                    self.assertNotIn("arch", app, "absent `arch` means every machine")
+
+    def test_a_two_architecture_pin_names_exactly_what_it_downloads(self):
+        """App Drop recipes pin one file per architecture; `arch` is that list, sorted."""
+        found = 0
+        for app in self.raw["apps"]:
+            install = app.get("install") or {}
+            if install.get("kind") == "appdrop":
+                found += 1
+                with self.subTest(app=app["id"]):
+                    self.assertEqual(app.get("arch"), sorted(install["downloads"]))
+            if install.get("kind") == "vendor-rpm":
+                with self.subTest(app=app["id"]):
+                    self.assertEqual(sorted(app.get("arch") or []), ["aarch64", "x86_64"],
+                                     "the publisher's repository serves both architectures")
+        self.assertGreater(found, 0, "no pinned App Drop recipe was checked")
 
     def test_an_app_that_runs_everywhere_stays_unmarked(self):
         """`arch` is an exception, not boilerplate: absent must keep meaning 'all'."""
@@ -99,10 +148,10 @@ class TheIndexOffersOnlyWhatRunsHere(unittest.TestCase):
         # Every engine, so this measures the ARCH rule alone.
         here = index.load_catalog(CATALOG, "aarch64", ALL_ENGINES)
         offered = {app["id"] for app in here["apps"]}
-        self.assertEqual(offered & NO_ARM_BUILD, set(),
+        self.assertEqual(offered & X86_ONLY, set(),
                          "these cannot be installed on aarch64 and must not be offered")
         self.assertEqual(len(here["apps"]),
-                         len(index.load_catalog(CATALOG, "x86_64", ALL_ENGINES)["apps"]) - len(NO_ARM_BUILD))
+                         len(index.load_catalog(CATALOG, "x86_64", ALL_ENGINES)["apps"]) - len(X86_ONLY))
 
     def test_a_bundle_never_lists_an_app_the_machine_cannot_install(self):
         for arch in ("x86_64", "aarch64"):
@@ -128,11 +177,17 @@ class TheIndexOffersOnlyWhatRunsHere(unittest.TestCase):
             index.catalog_app_runs_here({"id": "a", "arch": ["x86_64", "aarch64"]}, "aarch64"))
 
     def test_an_unknown_machine_is_offered_everything_rather_than_nothing(self):
-        """An empty store is a worse failure than an install that reports honestly."""
+        """An empty store is a worse failure than an install that reports honestly.
+
+        Everything that does not name its architectures is offered; what does name them
+        (an x86_64-only app, or a download pinned for x86_64 and aarch64) is not, because
+        no file exists for this machine.
+        """
+        raw_apps = json.loads(CATALOG.read_text(encoding="utf-8"))["apps"]
         data = index.load_catalog(CATALOG, "riscv64", ALL_ENGINES)
-        self.assertEqual(len(data["apps"]),
-                         len(json.loads(CATALOG.read_text(encoding="utf-8"))["apps"])
-                         - len(NO_ARM_BUILD))
+        unmarked = [app for app in raw_apps if declared_arch(app) is None]
+        self.assertGreater(len(unmarked), len(raw_apps) // 2)
+        self.assertEqual(len(data["apps"]), len(unmarked))
 
     def test_a_malformed_arch_is_rejected_rather_than_ignored(self):
         for bad in ("x86_64", [], ["not a ref!"], [7]):
@@ -243,8 +298,10 @@ class TheEngineAnAppNeedsMustBePresent(unittest.TestCase):
                     self.assertIn(engine, known)
 
     def test_the_machine_profile_is_shaped_for_the_surfaces_that_read_it(self):
+        """The two keys the first frame filters on; docs/MO_STORE.md adds more (memory, GPU,
+        screen…) for the compatibility verdict, so this pins the floor, not the ceiling."""
         profile = index.machine_profile()
-        self.assertEqual(sorted(profile), ["arch", "engines"])
+        self.assertLessEqual({"arch", "engines"}, set(profile))
         self.assertIsInstance(profile["arch"], str)
         self.assertTrue(profile["engines"] is None or isinstance(profile["engines"], list))
 
