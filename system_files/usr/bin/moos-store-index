@@ -54,6 +54,47 @@ ANDROID_PACKAGE_RE = re.compile(
     r"^[A-Za-z][A-Za-z0-9_]*(?:\.[A-Za-z][A-Za-z0-9_]*){1,}$"
 )
 
+# ── Catalogue v2 (docs/MO_STORE.md "catalog.json (v2)") ──────────────────────
+# catalogue install.kind -> the index's `kind`. Every kind the Store can act on;
+# anything else is not offered (an entry nobody can install is a dead button).
+INSTALL_KIND_INDEX = {
+    "webapp": "webapp",
+    "appdrop": "appdrop",
+    "windows-portable": "windows",
+    "android": "android",
+    "npm": "npm",
+    "web": "web",
+}
+# The old `appimage` recipe wrote a bare file into ~/.local/bin with no launcher,
+# icon or sandbox; catalogue downloads go through App Drop (`appdrop`) now.
+RETIRED_INSTALL_KINDS = frozenset({"appimage"})
+CATALOG_SOURCES = frozenset({"flathub", "flatpak", "moos"})
+# A web app's id is its launcher's file name and its window's app id
+# (usr/lib/moos/moos_webapp_policy.py holds the same rules and is the authority).
+WEBAPP_ID_RE = re.compile(r"^[a-z0-9][a-z0-9-]{1,62}$")
+WEBAPP_HOST_RE = re.compile(
+    r"^(\*\.)?([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$"
+)
+WEBAPP_IDENTITY = ("google", "microsoft", "apple", "github")
+WEBAPP_PERMISSIONS = (
+    "notifications",
+    "microphone",
+    "camera",
+    "location",
+    "clipboard",
+    "screen",
+)
+ACCENT_RE = re.compile(r"^#[0-9a-fA-F]{6}$")
+VERSION_RE = re.compile(r"^[0-9A-Za-z][0-9A-Za-z._+~-]{0,63}$")
+SHA256_RE = re.compile(r"^[0-9a-fA-F]{64}$")
+# A window class becomes a launcher's StartupWMClass= line: one line, no `=`/`;`
+# games. A Windows program's class is its file name (notepad++.exe).
+WM_CLASS_RE = re.compile(r"^[A-Za-z0-9._+() -]{1,80}$")
+DESKTOP_CATEGORY_RE = re.compile(r"^[A-Za-z][A-Za-z0-9-]{0,63}$")
+APPDROP_ARTIFACTS = frozenset({"appimage", "archive"})
+MAX_PINNED_DOWNLOAD = 16 * 1024 ** 3
+MAX_KEYWORDS = 12
+
 PRIMARY_CATEGORIES = {
     "internet",
     "communication",
@@ -714,6 +755,7 @@ def parse_component(
     return {
         "id": app_id,
         "source": "flatpak",
+        "kind": "flatpak",
         "origin": origin,
         "scope": scope,
         "installable": True,
@@ -1355,6 +1397,179 @@ def safe_catalog_text(entry: dict, key: str, limit: int) -> str:
     return clean_text(value, limit)
 
 
+def catalog_string(raw: dict, key: str, limit: int, app_id: object, pattern=None) -> str:
+    """One bounded text field; a wrong type or a pattern mismatch rejects the entry."""
+
+    value = safe_catalog_text(raw, key, limit)
+    if value and pattern is not None and not pattern.fullmatch(value):
+        raise CatalogError(f"catalog {key} for {app_id!r} is invalid")
+    return value
+
+
+def catalog_text_list(raw: dict, key: str, app_id: object, *, limit: int,
+                      count: int, pattern=None) -> list[str]:
+    value = raw.get(key)
+    if value is None:
+        return []
+    if not isinstance(value, list) or not all(isinstance(item, str) for item in value):
+        raise CatalogError(f"catalog {key} for {app_id!r} must be a list of text")
+    result: list[str] = []
+    for item in value:
+        clean = clean_text(item, limit)
+        if not clean:
+            continue
+        if pattern is not None and not pattern.fullmatch(clean):
+            raise CatalogError(f"catalog {key} entry {clean!r} for {app_id!r} is invalid")
+        if clean not in result:
+            result.append(clean)
+    return result[:count]
+
+
+def safe_relative_path(value: object, field: str, app_id: object) -> str:
+    """A path inside an unpacked download: relative, no `..`, nothing a shell or a
+    launcher could misread. The backend joins it to a directory it created itself."""
+
+    if not isinstance(value, str) or not value or len(value) > 255 or value != value.strip():
+        raise CatalogError(f"catalog {field} for {app_id!r} is invalid")
+    if any(unicodedata.category(char) in {"Cc", "Cf", "Cs", "Zl", "Zp"} for char in value):
+        raise CatalogError(f"catalog {field} for {app_id!r} is invalid")
+    if value.startswith("/") or any(char in value for char in '\\:*?"<>|'):
+        raise CatalogError(f"catalog {field} for {app_id!r} is invalid")
+    if any(part in {"", ".", ".."} for part in value.split("/")):
+        raise CatalogError(f"catalog {field} for {app_id!r} is invalid")
+    return value
+
+
+def sanitize_downloads(raw: dict, app_id: object, *, only: set[str] | None = None) -> dict:
+    """{arch: {url, sha256, size}}: the publisher's own HTTPS file, pinned."""
+
+    value = raw.get("downloads")
+    if not isinstance(value, dict) or not value:
+        raise CatalogError(f"catalog downloads for {app_id!r} must be a non-empty object")
+    result: dict[str, dict] = {}
+    for arch, item in value.items():
+        if not isinstance(arch, str) or not REF_PART_RE.fullmatch(arch):
+            raise CatalogError(f"catalog download architecture for {app_id!r} is invalid")
+        if only is not None and arch not in only:
+            raise CatalogError(f"catalog download architecture {arch!r} for {app_id!r} "
+                               "is not supported")
+        if not isinstance(item, dict):
+            raise CatalogError(f"catalog download for {app_id!r} must be an object")
+        url = safe_https_url(safe_catalog_text(item, "url", 2048))
+        if not url:
+            raise CatalogError(f"catalog URL for {app_id!r} is not safe HTTPS")
+        digest = safe_catalog_text(item, "sha256", 64)
+        if not SHA256_RE.fullmatch(digest):
+            raise CatalogError(f"catalog SHA-256 for {app_id!r} is invalid")
+        size = item.get("size")
+        if (isinstance(size, bool) or not isinstance(size, int)
+                or not 0 < size <= MAX_PINNED_DOWNLOAD):
+            raise CatalogError(f"catalog download size for {app_id!r} is invalid")
+        result[arch] = {"url": url, "sha256": digest.lower(), "size": size}
+    return dict(sorted(result.items()))
+
+
+def webapp_host_matches(host: str, patterns: list[str]) -> bool:
+    """`*.example.com` matches every subdomain of example.com, not example.com itself."""
+
+    host = host.lower().rstrip(".")
+    for pattern in patterns:
+        if pattern.startswith("*."):
+            suffix = pattern[1:]
+            if host.endswith(suffix) and len(host) > len(suffix):
+                return True
+        elif host == pattern:
+            return True
+    return False
+
+
+def webapp_url_ok(url: object) -> bool:
+    """moos_webapp_policy.parse_entry's address rule: HTTPS, a host, no credentials,
+    port 443 at most, no backslash, no whitespace or control character."""
+
+    if not isinstance(url, str) or len(url) > 2048:
+        return False
+    try:
+        parts = urlsplit(url)
+        port = parts.port
+    except ValueError:
+        return False
+    return (parts.scheme == "https" and bool(parts.hostname) and not parts.username
+            and not parts.password and port in (None, 443) and "\\" not in url
+            and not any(char <= " " or char == "\x7f" for char in url))
+
+
+def sanitize_webapp_install(raw: dict, app_id: object, url: str) -> dict:
+    """The fields of a web app, by the rules of usr/lib/moos/moos_webapp_policy.py."""
+
+    if not url:
+        raise CatalogError(f"catalog web app {app_id!r} has no HTTPS address")
+    hosts = catalog_text_list(raw, "hosts", app_id, limit=253, count=1000)
+    if not hosts or len(hosts) > 24:
+        raise CatalogError(f"catalog hosts for {app_id!r} must list 1 to 24 hosts")
+    hosts = [host.lower() for host in hosts]
+    if not all(WEBAPP_HOST_RE.fullmatch(host) for host in hosts):
+        raise CatalogError(f"catalog hosts for {app_id!r} are invalid")
+    start_host = urlsplit(url).hostname or ""
+    if not webapp_host_matches(start_host, hosts):
+        raise CatalogError(f"catalog web app {app_id!r} starts outside its hosts")
+    identity = catalog_text_list(raw, "identity", app_id, limit=16, count=8)
+    if any(item not in WEBAPP_IDENTITY for item in identity):
+        raise CatalogError(f"catalog identity for {app_id!r} is invalid")
+    raw_permissions = raw.get("permissions", [])
+    if isinstance(raw_permissions, list) and len(set(map(str, raw_permissions))) != len(
+        raw_permissions
+    ):
+        raise CatalogError(f"catalog permissions for {app_id!r} repeat")
+    permissions = catalog_text_list(raw, "permissions", app_id, limit=16, count=8)
+    if any(item not in WEBAPP_PERMISSIONS for item in permissions):
+        raise CatalogError(f"catalog permissions for {app_id!r} are invalid")
+    result: dict = {"hosts": hosts, "identity": identity, "permissions": permissions}
+    accent = catalog_string(raw, "accent", 7, app_id, ACCENT_RE)
+    if accent:
+        result["accent"] = accent.lower()
+    return result
+
+
+def sanitize_appdrop_install(raw: dict, app_id: object) -> dict:
+    artifact = catalog_string(raw, "artifact", 16, app_id)
+    if artifact not in APPDROP_ARTIFACTS:
+        raise CatalogError(f"catalog artifact for {app_id!r} must be appimage or archive")
+    result: dict = {"artifact": artifact, "downloads": sanitize_downloads(raw, app_id)}
+    desktop_id = catalog_string(raw, "desktop_id", 255, app_id)
+    if desktop_id:
+        if not valid_flatpak_id(desktop_id):
+            raise CatalogError(f"catalog desktop_id for {app_id!r} is invalid")
+        result["desktop_id"] = desktop_id
+    wm_class = catalog_string(raw, "wm_class", 80, app_id, WM_CLASS_RE)
+    if wm_class:
+        result["wm_class"] = wm_class
+    for field in ("exec", "icon"):
+        if raw.get(field) is not None:
+            result[field] = safe_relative_path(raw.get(field), field, app_id)
+    categories = raw.get("categories")
+    if isinstance(categories, str):
+        categories = [item for item in categories.split(";") if item.strip()]
+        raw = dict(raw, categories=categories)
+    names = catalog_text_list(raw, "categories", app_id, limit=64, count=8,
+                              pattern=DESKTOP_CATEGORY_RE)
+    if names:
+        result["categories"] = names
+    return result
+
+
+def sanitize_windows_install(raw: dict, app_id: object) -> dict:
+    result: dict = {"downloads": sanitize_downloads(raw, app_id, only={"x86_64"})}
+    exe = safe_relative_path(raw.get("exe"), "exe", app_id)
+    if not exe.casefold().endswith(".exe"):
+        raise CatalogError(f"catalog exe for {app_id!r} must name a .exe program")
+    result["exe"] = exe
+    wm_class = catalog_string(raw, "wm_class", 80, app_id, WM_CLASS_RE)
+    if wm_class:
+        result["wm_class"] = wm_class
+    return result
+
+
 def sanitize_install(entry: dict, app_id: str) -> dict:
     raw = entry.get("install")
     if raw is None:
@@ -1364,14 +1579,27 @@ def sanitize_install(entry: dict, app_id: str) -> dict:
     kind = safe_catalog_text(raw, "kind", 32)
     if not SLUG_RE.fullmatch(kind):
         raise CatalogError(f"catalog install kind for {app_id!r} is invalid")
+    if kind in RETIRED_INSTALL_KINDS:
+        raise CatalogError(f"catalog install kind {kind!r} for {app_id!r} is retired")
+    if kind not in INSTALL_KIND_INDEX:
+        raise CatalogError(f"catalog install kind {kind!r} for {app_id!r} is not supported")
 
     result = {"kind": kind}
-    url_value = safe_catalog_text(raw, "url", 2048)
-    if url_value:
-        safe_url = safe_https_url(url_value)
-        if not safe_url:
+    if kind == "webapp":
+        # A web app's start address is checked by moos_webapp_policy.parse_entry's
+        # own rules, byte for byte as the catalogue holds it (a `#/route` start is
+        # legitimate there), and must lie inside the app's hosts (below).
+        url_value = raw.get("url")
+        if not webapp_url_ok(url_value):
             raise CatalogError(f"catalog URL for {app_id!r} is not safe HTTPS")
-        result["url"] = safe_url
+        result["url"] = url_value
+    else:
+        url_value = safe_catalog_text(raw, "url", 2048)
+        if url_value:
+            safe_url = safe_https_url(url_value)
+            if not safe_url:
+                raise CatalogError(f"catalog URL for {app_id!r} is not safe HTTPS")
+            result["url"] = safe_url
 
     package = safe_catalog_text(raw, "pkg", 180)
     if package:
@@ -1398,10 +1626,14 @@ def sanitize_install(entry: dict, app_id: str) -> dict:
         result["name"] = name
     version = safe_catalog_text(raw, "version", 80)
     if version:
+        if kind in {"appdrop", "windows-portable", "android"} and not VERSION_RE.fullmatch(
+            version
+        ):
+            raise CatalogError(f"catalog version for {app_id!r} is invalid")
         result["version"] = version
     digest = safe_catalog_text(raw, "sha256", 64)
     if digest:
-        if not re.fullmatch(r"[0-9a-fA-F]{64}", digest):
+        if not SHA256_RE.fullmatch(digest):
             raise CatalogError(f"catalog SHA-256 for {app_id!r} is invalid")
         result["sha256"] = digest.lower()
     risk = safe_catalog_text(raw, "risk", 64)
@@ -1416,6 +1648,19 @@ def sanitize_install(entry: dict, app_id: str) -> dict:
                     f"catalog install field {key!r} for {app_id!r} is invalid"
                 )
             result[key] = raw[key]
+
+    if kind == "webapp":
+        result.update(sanitize_webapp_install(raw, app_id, result.get("url", "")))
+    elif kind == "appdrop":
+        result.update(sanitize_appdrop_install(raw, app_id))
+    elif kind == "windows-portable":
+        result.update(sanitize_windows_install(raw, app_id))
+    elif kind == "android" and raw.get("size") is not None:
+        size = raw.get("size")
+        if (isinstance(size, bool) or not isinstance(size, int)
+                or not 0 < size <= MAX_PINNED_DOWNLOAD):
+            raise CatalogError(f"catalog size for {app_id!r} is invalid")
+        result["size"] = size
     return result
 
 
@@ -1426,6 +1671,8 @@ def sanitize_catalog_app(entry: object) -> dict:
     source = safe_catalog_text(entry, "source", 32)
     if not SLUG_RE.fullmatch(source):
         raise CatalogError(f"catalog source for {app_id!r} is invalid")
+    if source not in CATALOG_SOURCES:
+        raise CatalogError(f"catalog source {source!r} for {app_id!r} is not supported")
     if source in {"flathub", "flatpak"}:
         if not valid_flatpak_id(app_id):
             raise CatalogError(f"catalog Flatpak id {app_id!r} is invalid")
@@ -1456,6 +1703,7 @@ def sanitize_catalog_app(entry: object) -> dict:
         ("desc_en", 420),
         ("desc_ar", 420),
         ("reviews", 64),
+        ("developer", 80),
     ):
         value = safe_catalog_text(entry, key, limit)
         if value:
@@ -1464,6 +1712,15 @@ def sanitize_catalog_app(entry: object) -> dict:
             if key == "glyph" and not GLYPH_RE.fullmatch(value):
                 raise CatalogError(f"catalog glyph for {app_id!r} is invalid")
             result[key] = value
+    # Short search words a person types for this app (PhotoCraft: photoshop, psd,
+    # فوتوشوب); they feed the index's folded `search` string.
+    for key in ("keywords_en", "keywords_ar"):
+        words = catalog_text_list(entry, key, app_id, limit=40, count=MAX_KEYWORDS)
+        if words:
+            result[key] = words
+    accent = catalog_string(entry, "accent", 7, app_id, ACCENT_RE)
+    if accent:
+        result["accent"] = accent.lower()
 
     rating = entry.get("rating")
     if rating is not None:
@@ -1481,6 +1738,14 @@ def sanitize_catalog_app(entry: object) -> dict:
             result[key] = entry[key]
 
     install = sanitize_install(entry, app_id)
+    if source == "moos":
+        if not install:
+            raise CatalogError(f"catalog app {app_id!r} has no install recipe")
+        if install["kind"] == "webapp":
+            if not WEBAPP_ID_RE.fullmatch(app_id):
+                raise CatalogError(f"catalog web app id {app_id!r} is invalid")
+            if not result.get("en"):
+                raise CatalogError(f"catalog web app {app_id!r} has no English name")
     if install:
         result["install"] = install
     return result
@@ -1505,13 +1770,39 @@ def sanitize_catalog_group(entry: object, kind: str) -> dict:
             if key == "glyph" and not GLYPH_RE.fullmatch(value):
                 raise CatalogError(f"catalog glyph for {group_id!r} is invalid")
             result[key] = value
-    if kind == "bundle":
+    if kind in {"bundle", "collection"}:
         raw_apps = entry.get("apps", [])
         if not isinstance(raw_apps, list) or not all(
             valid_generic_id(item) for item in raw_apps
         ):
-            raise CatalogError(f"catalog bundle apps for {group_id!r} are invalid")
+            raise CatalogError(f"catalog {kind} apps for {group_id!r} are invalid")
         result["apps"] = list(dict.fromkeys(raw_apps))
+    if kind == "collection":
+        if not result.get("en") or not result.get("ar"):
+            raise CatalogError(f"catalog collection {group_id!r} needs both names")
+        result["apps"] = result["apps"][:24]
+    return result
+
+
+def sanitize_featured(entry: object) -> dict:
+    """One hero card: {app, title_en, title_ar, tagline_en, tagline_ar, accent?}."""
+
+    if not isinstance(entry, dict):
+        raise CatalogError("every featured entry must be an object")
+    app_id = entry.get("app")
+    if not valid_generic_id(app_id):
+        raise CatalogError(f"featured app {app_id!r} is invalid")
+    result: dict = {"app": app_id}
+    for key, limit in (("title_en", 120), ("title_ar", 120), ("tagline_en", 240),
+                       ("tagline_ar", 240)):
+        value = safe_catalog_text(entry, key, limit)
+        if value:
+            result[key] = value
+    if not result.get("title_en") or not result.get("title_ar"):
+        raise CatalogError(f"featured entry for {app_id!r} needs both titles")
+    accent = catalog_string(entry, "accent", 7, app_id, ACCENT_RE)
+    if accent:
+        result["accent"] = accent.lower()
     return result
 
 
@@ -1591,9 +1882,22 @@ def catalog_app_engine(entry: dict) -> str:
     if isinstance(declared, str) and declared:
         return declared
     install = entry.get("install")
-    if isinstance(install, dict) and install.get("kind") == "android":
+    kind = install.get("kind") if isinstance(install, dict) else None
+    if kind == "android":
         return "android"
+    if kind == "windows-portable":
+        return "windows"
     return ""
+
+
+def catalog_kind(entry: dict) -> str:
+    """The index `kind` of a catalogue entry (docs/MO_STORE.md, "Kinds of app")."""
+
+    if entry.get("source") in {"flathub", "flatpak"}:
+        return "flatpak"
+    install = entry.get("install")
+    kind = install.get("kind") if isinstance(install, dict) else None
+    return INSTALL_KIND_INDEX.get(kind, "") if isinstance(kind, str) else ""
 
 
 def catalog_app_runs_here(entry: dict, arch: str) -> bool:
@@ -1740,8 +2044,16 @@ def load_catalog(path: Path, arch: str | None = None,
         bundle for bundle in bundles
         if not isinstance(bundle.get("apps"), list) or len(bundle["apps"]) >= 2
     ]
+    # Discover's editorial rows and hero cards. They may name any app, including
+    # Flathub apps the catalogue does not curate, so membership is settled by
+    # build_index() against the finished index, not here.
+    collections = sanitize_catalog_section(
+        raw, "collections", lambda item: sanitize_catalog_group(item, "collection"), skipped
+    )
+    featured = sanitize_catalog_section(raw, "featured", sanitize_featured, skipped)
     return {"apps": apps, "categories": categories, "bundles": bundles,
-            "engines_ready": engines, "skipped": skipped}
+            "collections": collections, "featured": featured,
+            "engines_ready": engines, "arch": arch, "skipped": skipped}
 
 
 def catalog_localized(entry: dict, preferences: list[str], prefix: str = "") -> str:
@@ -1754,15 +2066,15 @@ def catalog_localized(entry: dict, preferences: list[str], prefix: str = "") -> 
     return pick_localized(values, preferences)
 
 
-def catalog_installable(entry: dict) -> bool:
+def catalog_installable(entry: dict, arch: str | None = None) -> bool:
+    """Can the backend carry out this entry's recipe here? `arch` None: anywhere."""
+
     if entry["source"] in {"flathub", "flatpak"}:
         return True
     install = entry.get("install", {})
     kind = install.get("kind")
     if kind == "npm":
         return bool(install.get("pkg") and install.get("bin"))
-    if kind == "appimage":
-        return bool(install.get("url") and install.get("bin"))
     if kind == "web":
         return bool(install.get("url"))
     if kind == "android":
@@ -1771,6 +2083,15 @@ def catalog_installable(entry: dict) -> bool:
             and install.get("sha256")
             and install.get("package") == entry.get("id")
         )
+    if kind == "webapp":
+        return bool(install.get("url") and install.get("hosts"))
+    if kind in {"appdrop", "windows-portable"}:
+        downloads = install.get("downloads") or {}
+        if kind == "windows-portable" and not install.get("exe"):
+            return False
+        if kind == "appdrop" and install.get("artifact") not in APPDROP_ARTIFACTS:
+            return False
+        return bool(downloads) and (arch is None or arch in downloads)
     return False
 
 
@@ -2025,25 +2346,57 @@ def content_generation_id(payload: dict) -> str:
         {
             "categories": payload["categories"],
             "bundles": payload["bundles"],
+            "collections": payload.get("collections", []),
+            "featured": payload.get("featured", []),
             "apps": payload["apps"],
         }
     )[:20]
 
 
-def catalog_fallback_app(entry: dict, preferences: list[str]) -> dict:
+def editorial_groups(catalog: dict, apps_by_id: dict[str, dict]) -> tuple[list, list]:
+    """Discover's collections and hero cards, as far as this machine can offer them.
+
+    A collection keeps the apps the finished index lists here and is dropped when
+    fewer than three are left (a "row" of one or two is not the row that was
+    curated). A hero card is dropped when its app is not installable here; at most
+    eight are kept, in catalogue order.
+    """
+
+    collections = []
+    for collection in catalog.get("collections", []):
+        members = [
+            app_id for app_id in collection.get("apps", [])
+            if app_id in apps_by_id and apps_by_id[app_id].get("listed", True)
+        ]
+        if len(members) < 3:
+            continue
+        collections.append(dict(collection, apps=members))
+    featured = [
+        card for card in catalog.get("featured", [])
+        if card["app"] in apps_by_id and apps_by_id[card["app"]].get("installable")
+        and apps_by_id[card["app"]].get("listed", True)
+    ][:8]
+    return collections, featured
+
+
+def catalog_fallback_app(
+    entry: dict, preferences: list[str], arch: str | None = None
+) -> dict:
     flatpak = entry["source"] in {"flathub", "flatpak"}
     name = catalog_localized(entry, preferences) or entry["id"]
     description = catalog_localized(entry, preferences, "desc_")
     category = CURATED_CATEGORY_FALLBACK.get(entry.get("cat", ""), "other")
     if category not in PRIMARY_CATEGORIES:
         category = "other"
+    install = entry.get("install") or {}
     app = {
         "id": entry["id"],
         "source": "flatpak" if flatpak else entry["source"],
+        "kind": catalog_kind(entry),
         "origin": "flathub" if entry["source"] == "flathub" else entry["source"],
-        "scope": "user" if flatpak or entry.get("install", {}).get("kind") != "web"
+        "scope": "user" if flatpak or install.get("kind") != "web"
         else "external",
-        "installable": catalog_installable(entry),
+        "installable": catalog_installable(entry, arch),
         # A curated fallback has a validated app id but no AppStream bundle,
         # so inventing an arch/branch ref here would violate the ref contract.
         "flatpak_ref": None,
@@ -2060,7 +2413,8 @@ def catalog_fallback_app(entry: dict, preferences: list[str]) -> dict:
         "screenshot": None,
         "verified": False,
         "installed": False if flatpak else nonflatpak_installed(entry),
-        "version": "",
+        # The version a pinned recipe installs (App Drop, Windows, Android).
+        "version": install.get("version", "") if not flatpak else "",
         "curated": True,
         "origins": (
             [
@@ -2108,6 +2462,11 @@ def overlay_catalog(app: dict, entry: dict, preferences: list[str]) -> None:
         "reviews",
         "popular",
         "preselect",
+        # A reviewed publisher name outranks the metadata's own spelling.
+        "developer",
+        "keywords_en",
+        "keywords_ar",
+        "accent",
     ):
         if key in entry:
             app[key] = entry[key]
@@ -2313,7 +2672,7 @@ def build_index(
     for entry in catalog["apps"]:
         current = apps_by_id.get(entry["id"])
         if current is None:
-            current = catalog_fallback_app(entry, preferences)
+            current = catalog_fallback_app(entry, preferences, catalog.get("arch"))
             if current["source"] == "flatpak" and entry["id"] in installed:
                 current["installed"] = True
                 refs = installed[entry["id"]]
@@ -2374,17 +2733,11 @@ def build_index(
         "metadata_indexes_superseded": len(superseded_sources),
     }
 
-    content_for_id = {
-        "categories": catalog["categories"],
-        "bundles": catalog["bundles"],
-        "apps": apps,
-    }
-    generation_id = digest_json(content_for_id)[:20]
-
-    return {
+    collections, featured = editorial_groups(catalog, apps_by_id)
+    payload = {
         "schema_version": SCHEMA_VERSION,
         "generation": {
-            "id": generation_id,
+            "id": "",
             "input_token": cache_tokens["input"],
             "metadata_token": cache_tokens["metadata"],
             "installed_token": cache_tokens["installed"],
@@ -2405,8 +2758,12 @@ def build_index(
                     else sorted(catalog["engines_ready"])),
         "categories": catalog["categories"],
         "bundles": catalog["bundles"],
+        "collections": collections,
+        "featured": featured,
         "apps": apps,
     }
+    payload["generation"]["id"] = content_generation_id(payload)
+    return payload
 
 
 def atomic_write_json(path: Path, payload: dict) -> None:

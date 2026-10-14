@@ -120,7 +120,25 @@ DUPLICATE_XML = """<?xml version="1.0" encoding="UTF-8"?>
 
 
 def write_catalog(path: Path, unsafe_url: str | None = None) -> None:
-    install_url = unsafe_url or "https://downloads.example.org/tool.AppImage"
+    # The retired `appimage` recipe is no longer a kind the index offers, so the
+    # fixture's developer tool is an npm recipe; `unsafe_url` turns it into a
+    # publisher-page entry whose address must never reach the index.
+    codex_install = {
+        "kind": "npm",
+        "pkg": "@openai/codex",
+        "bin": "codex",
+        "name": "Codex",
+        "risk": "runs-package-scripts",
+        "requires_review": True,
+    }
+    if unsafe_url:
+        codex_install = {
+            "kind": "web",
+            "url": unsafe_url,
+            "risk": "external-download",
+            "requires_review": True,
+            "external": True,
+        }
     catalog = {
         "categories": [
             {"id": "dev", "en": "Development", "ar": "التطوير", "glyph": "code"}
@@ -165,15 +183,7 @@ def write_catalog(path: Path, unsafe_url: str | None = None) -> None:
                 "ar": "كودكس",
                 "desc_en": "A local coding agent.",
                 "desc_ar": "وكيل برمجة محلي.",
-                "install": {
-                    "kind": "appimage",
-                    "url": install_url,
-                    "bin": "codex",
-                    "name": "Codex",
-                    "risk": "external-download",
-                    "requires_review": True,
-                    "external": True,
-                },
+                "install": codex_install,
             },
         ],
     }
@@ -329,10 +339,12 @@ class StoreIndexTests(unittest.TestCase):
             self.assertEqual(codex["category"], "ai")
             self.assertTrue(codex["installable"])
             self.assertFalse(codex["installed"])
-            self.assertEqual(codex["install"]["risk"], "external-download")
+            self.assertEqual(codex["kind"], "npm")
+            self.assertEqual(codex["install"]["risk"], "runs-package-scripts")
             self.assertTrue(codex["install"]["requires_review"])
-            self.assertTrue(codex["install"]["external"])
             self.assertEqual(codex["description"], codex["summary"])
+            self.assertEqual(writer["kind"], "flatpak")
+            self.assertEqual(fallback["kind"], "flatpak")
 
             self.assertEqual(data["schema_version"], 1)
             self.assertTrue(data["generation"]["offline"])
