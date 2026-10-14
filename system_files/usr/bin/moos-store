@@ -69,6 +69,10 @@ if [ -x /usr/bin/moos-store-index ]; then
     : >"$READY"
     (
         flock -n 9 || exit 0
+        # Sizes, permissions and end-of-life first (the cached catalogue summary, no network,
+        # ~0.35 s): the indexer's compatibility verdicts read facts.json, and facts that arrive
+        # after the index would only be seen on the next launch.
+        { [ -x /usr/bin/moos-storectl ] && /usr/bin/moos-storectl facts >/dev/null 2>&1; } || true
         if /usr/bin/moos-store-index \
             --catalog /usr/share/moos/store/catalog.json \
             --output "$INDEX" >"${CACHEDIR}/index.log" 2>&1; then
@@ -99,10 +103,6 @@ for arg in "$@"; do
         OPEN_APP=("--open-app=$candidate")
     fi
 done
-
-if [ -x /usr/bin/moos-storectl ]; then
-    ( /usr/bin/moos-storectl facts >/dev/null 2>&1 || true ) &
-fi
 
 # moos-qml-shell, not the bare runtime: qml-qt6 names every window it hosts
 # org.qt-project.qml-qt6, so Plasma cannot match this window to
