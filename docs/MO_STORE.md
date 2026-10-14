@@ -188,3 +188,18 @@ exists rather than from the plan.
   `required property var win` and reaches it as `win.<member>` (a cross-file id becomes a root
   member). `X { win: win }` written inside a view file is silently undefined.
   `activateRequested(arguments)` handles `--open-app`/`--open-page`.
+- **Windows template.** One template prefix, `~/.local/share/moos/windows-apps/.template`
+  (record `.template.json`: schema, wine version, density, created_at), is built headless once
+  and rebuilt when `wine --version` changes; each program's prefix is a
+  `cp -a --reflink=auto` copy with its own registry. Measured on the station's btrfs: 917.6 MB
+  and 12.4 s once, then ~0.17 s and ~1.3 MiB of metadata per program (a full copy elsewhere:
+  0.9 GB). Removing the last program removes the template. machine.json `windows` adds
+  `reflink` and `template`, and the index's low-disk estimate follows them. The Windows
+  runtime never writes menu entries or file associations (`winemenubuilder.exe=d` on every start).
+- **Vendor kind.** Installed means record + MoOS-marked folder + MoOS's launcher; versions read
+  `version-release`; `check-updates` asks the publisher (at most 45 s, no row when offline);
+  an app the catalogue later drops stays openable and removable by id. Every module failure
+  maps to a message key through `VENDOR_FAILURE_KEYS` (two-way gated with the window's phrases).
+- **Opening by id.** `moos-storectl run <id>` opens any kind the Store installed; Mo AI's
+  `open_app`, `moai-do install`'s launch and the `moos://apps/run/<id>` route fall back to it for
+  every id that is not a Flatpak.
