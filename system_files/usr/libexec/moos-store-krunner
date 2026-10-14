@@ -13,16 +13,20 @@ before anything starts, and Mo Store is started with one argv element, never a s
 
 Manners: an app the person already has always outranks a suggestion (results use KRunner's low
 category relevance, as Plasma's own software runner does), apps the image already ships are never
-offered, and the activation token KRunner hands over is passed on, so an open Store comes to the
-front instead of flashing in the dock.
+offered, only an app this computer can get is suggested, and the activation token KRunner hands
+over is passed on, so an open Store comes to the front instead of flashing in the dock.
 
 Cost: started on demand by D-Bus activation, it reads the local index once (re-read only when the
-file changes), falls back to the signed catalogue before the Store has ever built an index, never
-touches the network, and exits a few minutes after the last search ends.
+file changes), falls back to the signed catalogue — read through the Store's own indexer — before
+the Store has ever built an index, never touches the network, and exits a few minutes after the
+last search ends.
 """
 
 from __future__ import annotations
 
+import functools
+import importlib.machinery
+import importlib.util
 import json
 import os
 from pathlib import Path
@@ -38,6 +42,8 @@ PATH = "/runner"
 ICON = "moos-store"
 STORE = "/usr/bin/moos-store"
 CATALOG = Path("/usr/share/moos/store/catalog.json")
+# The Store's own indexer, /usr/bin/moos-store-index (the same file beside a source tree).
+INDEXER = Path(__file__).resolve().parent.parent / "bin/moos-store-index"
 SYSTEM_APPLICATIONS = (Path("/usr/share/applications"), Path("/usr/local/share/applications"))
 IDLE_SECONDS = 300
 LIMIT = 5
@@ -66,8 +72,13 @@ INTERFACE = """<node>
 </node>"""
 
 # Arabic is matched the way people type it: no diacritics or tatweel, every alef the same,
-# ta marbuta like ha, alef maqsura like ya, and either kind of digit.
-_MARKS = re.compile("[ؐ-ًؚ-ٰٟۖ-ۭـ​-‏⁦-⁩]")
+# ta marbuta like ha, alef maqsura like ya, and either kind of digit. These are the index's own
+# rules (moos-store-index, fold_search_text), mark for mark: a query is folded here and matched
+# against what the index folded, so a character the two fold differently is a query that finds
+# nothing. Text pasted with an RTL embedding (U+202B), U+061C or a byte-order mark did exactly
+# that until this class carried the index's whole set.
+_MARKS = re.compile("[\u0610-\u061a\u064b-\u065f\u0670\u06d6-\u06ed\u0640"
+                    "\u200b-\u200f\u202a-\u202e\u2066-\u2069\u061c\ufeff]")
 _FOLD = str.maketrans({"أ": "ا", "إ": "ا", "آ": "ا", "ٱ": "ا", "ى": "ي", "ئ": "ي", "ؤ": "و",
                        "ة": "ه", "٠": "0", "١": "1", "٢": "2", "٣": "3", "٤": "4", "٥": "5",
                        "٦": "6", "٧": "7", "٨": "8", "٩": "9", "۰": "0", "۱": "1", "۲": "2",
@@ -113,6 +124,10 @@ def _row(app: dict, builtin: set[str]) -> dict | None:
         return None
     if app.get("installed") or app.get("installable") is False or app_id in builtin:
         return None
+    # The Store will not install it here (another processor, no engine, no room, end of life).
+    compat = app.get("compat")
+    if isinstance(compat, dict) and compat.get("verdict") == "blocked":
+        return None
     english = app.get("name_en") or app.get("en") or (app.get("name") if not app.get("ar") else "") \
         or app_id
     arabic = app.get("ar") or ""
@@ -141,6 +156,47 @@ def _row(app: dict, builtin: set[str]) -> dict | None:
     }
 
 
+@functools.lru_cache(maxsize=1)
+def indexer():
+    """moos-store-index itself, loaded on first need (before the Store's first index only); None
+    when it will not load."""
+    try:
+        loader = importlib.machinery.SourceFileLoader("moos_store_index", str(INDEXER))
+        module = importlib.util.module_from_spec(importlib.util.spec_from_loader(loader.name, loader))
+        sys.modules[loader.name] = module          # its dataclasses look their module up
+        loader.exec_module(module)
+    except Exception:  # noqa: BLE001 - an image without the indexer offers no fallback
+        sys.modules.pop("moos_store_index", None)
+        return None
+    return module
+
+
+def offered_here(catalog: Path) -> list[dict]:
+    """The catalogue apps this computer can get and does not have yet, by the Store's own rules.
+
+    The catalogue names apps for every MoOS computer. Read raw, it offered a fresh account on the
+    Oracle A1 (aarch64, no Windows or Android runtime) Notepad++, Steam and F-Droid, which that
+    Store does not have, and offered an installed app again. So it goes through the indexer the
+    Store builds its index with: load_catalog() keeps this processor's apps and those with a
+    ready engine, the installed scan and each kind's own files say what is here already, and
+    catalog_installable() says whether the backend can carry the recipe out. No indexer, or a
+    catalogue it refuses, offers nothing: a suggestion the Store cannot keep is worse than none.
+    """
+    store = indexer()
+    if store is None:
+        return []
+    try:
+        arch = store.running_arch()
+        apps = store.load_catalog(catalog, arch, store.available_engines())["apps"]
+        flatpaks = store.scan_installed(store.discover_roots(None, None)[1])
+        return [entry for entry in apps
+                if not (entry["id"] in flatpaks if store.catalog_kind(entry) == "flatpak"
+                        else store.catalog_install_state(entry, arch)["installed"])
+                and store.catalog_installable(entry, arch)]
+    except Exception:  # noqa: BLE001 - see above: nothing rather than a wrong suggestion
+        return []
+
+
 class Index:
     """A compact search table built from Mo Store's index; reloaded when the file changes."""
 
@@ -167,7 +223,7 @@ class Index:
             info = source.stat()
         except OSError:
             # A fresh account: the Store has never built its index. The signed catalogue still
-            # knows the apps MoOS recommends.
+            # knows the apps MoOS recommends; offered_here() keeps the ones this computer can get.
             source = self.catalog
             try:
                 info = source.stat()
@@ -177,7 +233,7 @@ class Index:
         stamp = (str(source), info.st_mtime_ns, info.st_size)
         if stamp == self.stamp:
             return
-        apps = self._load(source)
+        apps = self._load(source) if source == self.path else offered_here(source)
         if apps is None:
             return
         rows = [row for row in (_row(app, self.builtin) for app in apps) if row]
@@ -288,7 +344,8 @@ def match(index: Index, query: str) -> list[tuple]:
     for relevance, row in scored[:LIMIT]:
         name = (row["ar"] or row["en"]) if arabic else row["en"]
         summary = (row["summary_ar"] or row["summary_en"]) if arabic else row["summary_en"]
-        label = f"ثبّت «{name}» من متجر MoOS" if arabic else f"Get {name} from Mo Store"
+        # Choosing a result opens the app's page (run() below); installing stays in the Store.
+        label = f"اعرض «{name}» في متجر MoOS" if arabic else f"View {name} in Mo Store"
         subtext = summary or ("متجر MoOS" if arabic else "Mo Store")
         category = LOW if relevance >= 0.86 else LOWEST
         results.append(("app:" + row["id"], label, ICON, category, min(relevance, 1.0), subtext,
