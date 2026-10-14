@@ -223,6 +223,35 @@ class PortableArchives(Home):
                                  "a refused archive must leave no half-installed app behind")
                 self.assertEqual(appdrop.installed(), [])
 
+    def test_a_name_cannot_write_keys_into_the_launcher(self):
+        # Reproduced 2026-10-14: a member whose name carried line breaks became the Icon path,
+        # and the launcher MoOS wrote then held MimeType= and X-Injected= lines of its own.
+        hostile = "noteforge-2.1/share/icons/a\nMimeType=x-scheme-handler/moos;\nX-Injected=yes\nb.png"
+        members = [self.member("noteforge-2.1/noteforge", ELF, 0o755),
+                   self.member(hostile, b"\x89PNG\r\n\x1a\n" + b"0" * 64)]
+        plan = appdrop.inspect(self.download("noteforge-2.1.tar.gz", self.tar_bytes(members)))
+        with self.assertRaises(appdrop.DropError) as refused:
+            appdrop.install(plan)
+        self.assertEqual(refused.exception.code, "unsafe_archive")
+        self.assertFalse((self.home / "Applications/noteforge").exists())
+        launchers = self.home / ".local/share/applications"
+        self.assertEqual(list(launchers.glob("*.desktop")) if launchers.exists() else [], [])
+
+        buffer = io.BytesIO()
+        with zipfile.ZipFile(buffer, "w") as bundle:
+            bundle.writestr("app/run", ELF)
+            bundle.writestr("app/icon\rX-Injected=yes.png", b"x")
+        plan = appdrop.inspect(self.download("evilname.zip", buffer.getvalue()))
+        with self.assertRaises(appdrop.DropError) as refused:
+            appdrop.install(plan)
+        self.assertEqual(refused.exception.code, "unsafe_archive")
+
+        launcher = {"exec": "/home/x/Applications/a/run", "name": "A", "comment": "",
+                    "icon": "/home/x/Applications/a/i\nX-Injected=yes", "categories": "Utility;",
+                    "wm_class": "", "terminal": "false"}
+        with self.assertRaises(appdrop.DropError):
+            appdrop.desktop_entry(launcher, "a")
+
     def test_a_hostile_zip_is_refused_too(self):
         buffer = io.BytesIO()
         with zipfile.ZipFile(buffer, "w") as bundle:

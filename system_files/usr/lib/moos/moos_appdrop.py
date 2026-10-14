@@ -248,7 +248,20 @@ def _inside(root: Path, candidate: Path) -> bool:
         return False
 
 
+# A line break or any other control character in a file name is never a real application's
+# name, and it is how a package would write keys of its own into the launcher MoOS writes: the
+# launcher names the program's path and its icon's path, one per line. Refused everywhere a path
+# enters App Drop — archive members, AppImage trees and the launcher itself.
+_CONTROL = re.compile("[\x00-\x1f\x7f-\x9f\u2028\u2029]")
+
+
+def _refuse_control(name: str) -> None:
+    if _CONTROL.search(name):
+        raise DropError("unsafe_archive", f"control character in a name: {name!r}")
+
+
 def _safe_member_path(root: Path, name: str) -> Path:
+    _refuse_control(name)
     pure = PurePosixPath(name.replace("\\", "/"))
     if pure.is_absolute() or ".." in pure.parts or not pure.parts:
         raise DropError("unsafe_archive", f"path leaves the archive: {name!r}")
@@ -360,6 +373,7 @@ def extract_appimage(appimage: Path, root: Path, budget: _Budget,
             detail = (getattr(done, "stderr", b"") or b"")[-300:].decode("utf-8", "replace")
             raise DropError("appimage_unreadable", detail)
         for path in tree.rglob("*"):
+            _refuse_control(path.name)
             if path.is_symlink():
                 continue
             if path.is_file():
@@ -469,6 +483,8 @@ def _quote_exec(path: str) -> str:
 
 
 def desktop_entry(launcher: dict[str, str], slug: str) -> str:
+    for value in launcher.values():
+        _refuse_control(value)
     lines = ["[Desktop Entry]", "Type=Application", f"Name={launcher['name']}"]
     if launcher["comment"]:
         lines.append(f"Comment={launcher['comment']}")
