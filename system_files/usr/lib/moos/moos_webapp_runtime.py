@@ -54,7 +54,7 @@ WORDS = {
     "open_browser": ("افتح في المتصفّح", "Open in browser"),
     "reload": ("إعادة التحميل", "Reload"),
     "ask_title": ("طلب إذن", "Permission request"),
-    "ask_body": ("يطلب «{app}» {what}.\nيمكنك تغيير هذا لاحقاً من Mo Store.",
+    "ask_body": ("يطلب «{app}» {what}.\nيمكنك تغيير هذا لاحقاً من متجر MoOS.",
                  "{app} wants {what}.\nYou can change this later in Mo Store."),
     "notifications": ("إظهار الإشعارات", "to show notifications"),
     "microphone": ("استخدام الميكروفون", "to use your microphone"),

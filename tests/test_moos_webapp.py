@@ -25,6 +25,7 @@ import importlib.util
 import json
 import os
 from pathlib import Path
+import re
 import stat
 import subprocess
 import sys
@@ -553,6 +554,22 @@ class NotificationsArePlainText(unittest.TestCase):
         summary, body = self.sent()
         self.assertEqual(summary, "s" * 200)
         self.assertEqual(body, "&amp;" * 500)
+
+
+class TheStoreHasOneName(unittest.TestCase):
+    """The menu says "متجر MoOS"; a web app's permission prompt names the Store the same way."""
+
+    def test_the_prompt_names_the_store_as_its_launcher_does(self):
+        runtime, _started, _opened = load_runtime()
+        launcher = (ROOT / "system_files/usr/share/applications/org.moos.store.desktop").read_text(
+            encoding="utf-8").split("\n[Desktop Action", 1)[0]
+        names = dict(re.findall(r"(?m)^(Name|Name\[ar\])=(.+)$", launcher))
+        arabic, english = runtime.WORDS["ask_body"]
+        self.assertIn(names["Name[ar]"], arabic)
+        self.assertIn(names["Name"], english)
+        for key, (arabic, _english) in runtime.WORDS.items():
+            with self.subTest(key=key):
+                self.assertNotIn(names["Name"], arabic, "the Latin name inside an Arabic sentence")
 
 
 class ShippedCatalogue(unittest.TestCase):
