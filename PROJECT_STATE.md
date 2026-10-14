@@ -31,7 +31,10 @@ also completed: build 38481320383, disks
 38488652939/38488984542/38488987448, ISO 38488990935,
 ARM 38481265631, promotion 38493025295. One coordinator metadata read failed
 with GitHub HTTP 500 after generic dispatch; existing exact runs were adopted,
-not rerun or duplicated. Native NVIDIA booted .1044 with both corrected /usr
+not rerun or duplicated. The follow-up bounds metadata GET retries, records
+created run IDs and refuses dispatch when a build listing cannot be read;
+14 executable controls include restored-old failures. No workflow POST retry.
+Native NVIDIA booted .1044 with both corrected /usr
 helper hashes. The /run override disappeared on reboot. Its exact temporary
 copied bundle remains until no-holder retirement completes. Administrator
 opt-in, PIN, private TLS, upstream PAM and default-disabled access are preserved.
@@ -80,18 +83,19 @@ Vercel preview restrictions are separate; no authentication or billing changed.
 
 Native aarch64, 2 vCPU/11.6 GiB, no GPU; Wayland Arabic UI2 Nova,
 virtual 1280×720 at 100%. Kernel 7.2.9, Plasma 6.7.5, Qt 6.11.2.
-Current .775 (`fb0ba637…`) is officially staged and all 19 payload files plus
-the compiled player match reviewed source; THEME_REV=104. A one-attempt native
-owner-graphical-login probe is armed. Booted acceptance remains the earlier
-signed ARM .763 (`a2ee6a1c…`), boot ID
-`e569e39e-3dc0-4e8f-85be-32d360dae4d3`; signed .756 is the actual rollback.
-Owner-timed native restart applied the official staged update. Native owner
-UID 1000 acceptance at October 13 09:58:44 Berlin passes 51 selfchecks/4 notes,
-55 post-update checks/0 failures, THEME_REV=103, all 9 payload hashes and the
-exact compiled MoPlayer bytes. Notes count Remote connections and owner
-mpris/obex masks; TCP counts alone do not prove viewers or capture cost.
-No failed system/user units; boot=15.055 s. The private one-attempt graphical
-probe retired its own launcher. Existing autologin is not ordinary PAM proof.
+Booted signed .775 (`fb0ba637…`), boot ID
+`c5df8872-c80a-4265-8b30-5db89f7aca5f`; signed .763 is the actual rollback.
+Native UID 1000 graphical checks pass 51 selfchecks/4 notes and 55 post-update
+checks/0 failures. All 19 payload files, exact compiled player and THEME_REV=104
+match reviewed source. One KWin/one plasmashell own the KDE Wayland session;
+boot=14.301 s. [Native receipt](docs/releases/2026-10-14-oracle-775-native-proof.json).
+Initial selfcheck failed on three transient container-prefixed units; its
+subsequent post-update check passed. The exact cause is unproven. A second
+probe found the first probe's own failed autostart unit. Both failures remain
+preserved; only that owned failed flag was retired before the passing readback.
+No current failed units; four owner containers are healthy. Existing autologin
+is not ordinary PAM proof, and this is not whole-shell keyboard/endurance proof.
+The following installed small-video journey belongs to the earlier .763 boot.
 Installed /usr/lib/moplayer (no source override) opens encoded Arabic file URI,
 plays actual MPEG4 frames, reports 20 s/CanSeek and paused +5 s seek. Rendered
 finite controls/timecodes pass; owned unit closed. RSS=578.4 MiB with Remote
@@ -124,7 +128,14 @@ idle/phone/load-pressure qualification. A later native 20 s sample after owned
 build/browser fixtures finished has 6.09 GiB available, RAM PSI avg10=0,
 KWin/plasmashell 2.40/.21% of one core and gateway .007%/15 MiB. The configured
 Remote service name was inactive/unmeasured; this is not its capture-cost proof.
-3.93 GiB swap usage alone does not measure swap activity. Development toolchains execute in
+3.93 GiB swap usage alone does not measure swap activity. After the .775 reboot,
+a native 20 s sample has 6.04 GiB available, zero swap/RAM PSI avg10,
+KWin/plasmashell 4.14/.26% of one core. Gateway direct/SSE replies pass
+.90/2.08 s first content with reported cost=0; isolated Hermes passes 8.72 s
+with usage absent. Remote capture and input are separate helpers; the input
+helper shares the personal service cgroup and must not be counted twice.
+These are bounded active-workload samples, not idle/phone/endurance acceptance.
+Development toolchains execute in
 native SDK containers; host KVM/Flutter and optional buildah remain absent.
 Original dirty checkout/index and old APK/PE worktrees are untouched;
 `archive/owner-pre-reboot-20261011` preserves the owner snapshot. Isolated

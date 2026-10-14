@@ -26,7 +26,7 @@ if [ "$promote" -eq 1 ] && [ "$ref" != "main" ]; then
     echo "release-candidate: --promote is only valid for main" >&2
     exit 2
 fi
-for tool in gh git; do
+for tool in gh git timeout; do
     command -v "$tool" >/dev/null || { echo "release-candidate: $tool is required" >&2; exit 2; }
 done
 
@@ -35,6 +35,39 @@ revision="$(git rev-parse "origin/$ref")"
 echo "candidate revision: $revision ($ref)"
 work="$(mktemp -d "${TMPDIR:-/var/tmp}/moos-release-candidate.XXXXXX")"
 trap 'rm -rf -- "$work"' EXIT
+
+# Metadata reads may fail after a workflow was already dispatched. Retry only
+# these read commands, with a finite per-attempt deadline. A failed listing is
+# never evidence that no build exists; callers must fail closed rather than
+# dispatching another candidate. Mutation commands stay outside this helper.
+gh_read() {
+    case "${1:-}:${2:-}" in
+        run:view|run:list) ;;
+        *) echo "release-candidate: refusing non-metadata retry" >&2; return 2 ;;
+    esac
+    local read_dir attempt status=1 delay=2
+    read_dir="$(mktemp -d "$work/read.XXXXXX")" || return 1
+    for attempt in 1 2 3; do
+        if timeout --kill-after=5s 30s gh "$@" > "$read_dir/out" 2> "$read_dir/err"; then
+            cat "$read_dir/err" >&2
+            cat "$read_dir/out"
+            rm -rf -- "$read_dir"
+            return 0
+        else
+            status=$?
+        fi
+        cat "$read_dir/err" >&2
+        if [ "$attempt" -eq 3 ] || { [ "$status" -ne 124 ] && [ "$status" -ne 137 ] &&
+            ! grep -Eiq 'HTTP (408|429|5[0-9]{2})|TLS handshake timeout|i/o timeout|connection (reset|refused)|unexpected EOF|temporary failure|no such host|network is unreachable' "$read_dir/err"; }; then
+            break
+        fi
+        echo "release-candidate: metadata read failed; retry $((attempt + 1))/3 in ${delay}s" >&2
+        sleep "$delay"
+        delay=$((delay * 2))
+    done
+    rm -rf -- "$read_dir"
+    return "$status"
+}
 
 dispatch() {
     local workflow="$1"; shift
@@ -46,8 +79,10 @@ dispatch() {
     url="$(grep -Eo 'https://github\.com/[^ ]+/actions/runs/[0-9]+' <<<"$output" | tail -n1)"
     [ -n "$url" ] || { echo "release-candidate: $workflow returned no run URL: $output" >&2; return 1; }
     id="${url##*/}"
+    # Keep the already-created run visible even if its subsequent GET fails.
+    echo "release-candidate: dispatched $workflow run $id: $url" >&2
     # A run for another revision would make every later proof meaningless.
-    [ "$(gh run view "$id" --json headSha --jq .headSha)" = "$revision" ] || {
+    [ "$(gh_read run view "$id" --json headSha --jq .headSha)" = "$revision" ] || {
         echo "release-candidate: run $id of $workflow is not on $revision" >&2
         return 1
     }
@@ -68,7 +103,7 @@ wait_run() {
     # verdict is therefore the run's own recorded status, re-read until the API
     # answers and the run is complete — never the watcher's exit code.
     for try in $(seq 1 120); do
-        state="$(gh run view "$id" --json status,conclusion,attempt \
+        state="$(gh_read run view "$id" --json status,conclusion,attempt \
             --jq '.status + " " + (.conclusion // "") + " " + (.attempt|tostring)' 2>/dev/null)" || state=""
         case "$state" in
             "completed "*) break ;;
@@ -91,13 +126,13 @@ wait_run() {
     # else — a real failure, a cancel with no successful sibling — still fails.
     if [ "$adopt" = adopt ] && [ "${state#completed }" = "cancelled 1" ]; then
         local workflow="" replacement=""
-        workflow="$(gh run view "$id" --json workflowName --jq .workflowName 2>/dev/null)" || workflow=""
+        workflow="$(gh_read run view "$id" --json workflowName --jq .workflowName 2>/dev/null)" || workflow=""
         if [ -n "$workflow" ]; then
             # Same rule as the reuse above: a superseding run that promotion will refuse
             # is not a replacement. If the nightly cancelled our dispatch and only the
             # nightly finished, this finds nothing and the cycle fails here — which is
             # an hour of proofs saved, and the fix is to run the cycle again.
-            replacement="$(gh run list --workflow "$workflow" --json databaseId,headSha,status,conclusion,attempt,event \
+            replacement="$(gh_read run list --workflow "$workflow" --json databaseId,headSha,status,conclusion,attempt,event \
                 --jq "[.[] | select(.headSha == \"$revision\" and .status == \"completed\"
                        and .conclusion == \"success\" and .attempt == 1
                        and .event == \"workflow_dispatch\")][0].databaseId" 2>/dev/null)" || replacement=""
@@ -126,10 +161,13 @@ wait_run() {
 # nightly's or a push's build here bought 25 minutes and then threw away the hour of
 # proofs that followed, with a message that reads like tampering. Only a dispatched
 # build of this revision can be reused, which is exactly the bar promotion applies.
-build_id="$(gh run list --workflow build.yml --json databaseId,headSha,status,conclusion,attempt,event \
+build_id="$(gh_read run list --workflow build.yml --json databaseId,headSha,status,conclusion,attempt,event \
     --jq "[.[] | select(.headSha == \"$revision\" and .status == \"completed\"
            and .conclusion == \"success\" and .attempt == 1
-           and .event == \"workflow_dispatch\")][0].databaseId" 2>/dev/null)" || build_id=""
+           and .event == \"workflow_dispatch\")][0].databaseId")" || {
+    echo "release-candidate: signed build listing is unreadable; refusing duplicate dispatch" >&2
+    exit 1
+}
 if [ -n "$build_id" ] && [ "$build_id" != "null" ]; then
     echo "signed build: reusing run $build_id (already built $revision)"
 else
@@ -168,7 +206,7 @@ iso_id="$(dispatch build-iso.yml -f "image_ref=${ref_of[moos]}")"
 # that complete pipeline (never a scheduled run or a PR with skipped proof jobs).
 # Read workflow-scoped API metadata again before adopting; a re-run must not
 # become acceptable merely because the list response was captured earlier.
-arm_id="$(gh run list --workflow build-arm.yml --branch "$ref" --limit 100 \
+arm_id="$(gh_read run list --workflow build-arm.yml --branch "$ref" --limit 100 \
     --json databaseId,headSha,headBranch,status,conclusion,attempt,event \
     --jq "[.[] | select(.headSha == \"$revision\" and .headBranch == \"$ref\"
            and .attempt == 1
@@ -176,7 +214,7 @@ arm_id="$(gh run list --workflow build-arm.yml --branch "$ref" --limit 100 \
            and ((.status == \"completed\" and .conclusion == \"success\")
                 or .status == \"queued\" or .status == \"in_progress\" or .status == \"waiting\"))][0].databaseId")" || exit 1
 if [ -n "$arm_id" ] && [ "$arm_id" != null ]; then
-    arm_state="$(gh run view "$arm_id" --json headSha,headBranch,event,attempt,status,conclusion \
+    arm_state="$(gh_read run view "$arm_id" --json headSha,headBranch,event,attempt,status,conclusion \
         --jq ' [.headSha,.headBranch,.event,(.attempt|tostring),.status,(.conclusion // "pending")] | join(" ")')" || exit 1
     read -r arm_sha arm_branch arm_event arm_attempt arm_status arm_conclusion <<<"$arm_state"
     [ "$arm_sha" = "$revision" ] && [ "$arm_branch" = "$ref" ] && [ "$arm_attempt" = 1 ] || exit 1

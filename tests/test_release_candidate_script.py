@@ -12,9 +12,11 @@ the wrong image — or none — while still printing a promotion command.
 """
 
 from pathlib import Path
+import os
 import re
 import subprocess
 import sys
+import tempfile
 import unittest
 
 
@@ -58,7 +60,7 @@ class ReleaseCandidateScript(unittest.TestCase):
         self.assertIn('-n "moos-candidate-proof-$edition"', self.text)
         self.assertIn('= "$revision" ]', self.text)
         self.assertIn("= verified ]", self.text)
-        self.assertIn('[ "$(gh run view "$id" --json headSha --jq .headSha)" = "$revision" ]', self.text)
+        self.assertIn('[ "$(gh_read run view "$id" --json headSha --jq .headSha)" = "$revision" ]', self.text)
 
     def test_promotion_contract_is_kept(self):
         self.assertIn("--exit-status", self.text)
@@ -82,11 +84,11 @@ class ReleaseCandidateScript(unittest.TestCase):
             self.assertIn(condition, promote, f"promote-x86.yml lost its {condition} check")
         # Both places that can hand a build run to promotion: the reuse of an existing
         # build, and the adoption of one that superseded a cancelled dispatch.
-        selections = [block for block in self.text.split("gh run list --workflow")[1:]
+        selections = [block for block in self.text.split("gh_read run list --workflow")[1:]
                       if "databaseId" in block.split("\n")[0] and "build-arm.yml" not in block.split("\n")[0]]
         self.assertGreaterEqual(len(selections), 2, "the run-selection queries moved")
         for block in selections:
-            query = block[:block.index("2>/dev/null")]
+            query = block[:block.index('][0].databaseId"')]
             for condition in ('.status == \\"completed\\"', '.conclusion == \\"success\\"',
                               ".attempt == 1", '.event == \\"workflow_dispatch\\"'):
                 self.assertIn(condition, query,
@@ -138,19 +140,122 @@ class ReleaseCandidateScript(unittest.TestCase):
                 stub = ('revision=abc; ref=main\n'
                         'gh() { if [ "$2" = list ]; then echo 71; '
                         'else printf "%s\\n" "$MOOS_ARM_TEST_METADATA"; fi; }\n'
+                        'gh_read() { gh "$@"; }\n'
                         'dispatch() { echo "unexpected dispatch" >&2; return 99; }\n')
-                import os
                 result = subprocess.run(["bash", "-eu", "-c", stub + block],
                                         env={**os.environ, "MOOS_ARM_TEST_METADATA": metadata},
                                         capture_output=True, text=True)
                 self.assertEqual(result.returncode == 0, accepted, result.stderr)
         fallback = ('revision=abc; ref=main\n'
                     'gh() { echo null; }\n'
+                    'gh_read() { gh "$@"; }\n'
                     'dispatch() { [ "$1" = build-arm.yml ] || return 99; echo 72; }\n')
         result = subprocess.run(["bash", "-eu", "-c", fallback + block + '\necho "$arm_id"'],
                                 capture_output=True, text=True)
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(result.stdout.strip(), "72")
+
+    def metadata_fixture(self, command, failures=1, error="gh: HTTP 500", status=1):
+        """Run real retry/dispatch functions; no network, Actions mutation or host changes."""
+        helper = self.text[self.text.index('gh_read() {'):self.text.index('\n# wait_run')]
+        with tempfile.TemporaryDirectory(prefix="moos-release-read-test-") as work:
+            env = {**os.environ, "MOOS_READ_TEST_WORK": work,
+                   "MOOS_READ_TEST_FAILURES": str(failures), "MOOS_READ_TEST_ERROR": error,
+                   "MOOS_READ_TEST_STATUS": str(status)}
+            stub = r'''
+set -euo pipefail
+work="$MOOS_READ_TEST_WORK"; revision=abc; ref=main
+gh() {
+    printf '%s %s\n' "$1" "$2" >> "$work/calls"
+    if [ "$1:$2" = workflow:run ]; then
+        echo https://github.com/example/moos/actions/runs/71
+        return 0
+    fi
+    local count=0
+    [ ! -f "$work/count" ] || count="$(cat "$work/count")"
+    count=$((count + 1)); echo "$count" > "$work/count"
+    if [ "$count" -le "$MOOS_READ_TEST_FAILURES" ]; then
+        echo discarded-partial-output
+        printf '%s\n' "$MOOS_READ_TEST_ERROR" >&2
+        return "$MOOS_READ_TEST_STATUS"
+    fi
+    echo abc
+}
+timeout() {
+    [ "$1" = --kill-after=5s ] || return 99
+    shift
+    [ "$1" = 30s ] || return 99
+    shift; "$@"
+}
+sleep() { printf 'sleep %s\n' "$1" >> "$work/calls"; }
+'''
+            result = subprocess.run(["bash", "-c", stub + helper + '\n' + command],
+                                    env=env, capture_output=True, text=True, timeout=10)
+            calls = Path(work, 'calls').read_text().splitlines() if Path(work, 'calls').exists() else []
+            leftovers = list(Path(work).glob('read.*'))
+            self.assertEqual(leftovers, [], "private retry scratch must be retired")
+            return result, calls
+
+    def test_dispatch_recovers_metadata_read_without_another_post(self):
+        result, calls = self.metadata_fixture('dispatch build.yml', failures=2)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout.strip(), "71")
+        self.assertEqual(calls, ['workflow run', 'run view', 'sleep 2',
+                                'run view', 'sleep 4', 'run view'])
+        self.assertIn('dispatched build.yml run 71:', result.stderr)
+        # The previous single GET loses the already-created run on the first 500.
+        old = self.text[self.text.index('dispatch() {'):self.text.index('\n# wait_run')]
+        old = old.replace('gh_read run view', 'gh run view')
+        result, calls = self.metadata_fixture(old + '\ndispatch build.yml', failures=2)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertEqual(calls, ['workflow run', 'run view'])
+
+    def test_read_retries_are_bounded_and_discard_failed_stdout(self):
+        for error, status in [('gh: HTTP 503', 1), ('gh: HTTP 429', 1),
+                              ('dial tcp: i/o timeout', 1), ('', 124), ('', 137)]:
+            with self.subTest(error=error, status=status):
+                result, calls = self.metadata_fixture('gh_read run view 71', 9, error, status)
+                self.assertEqual(result.returncode, status)
+                self.assertEqual(result.stdout, '')
+                self.assertEqual(calls, ['run view', 'sleep 2', 'run view', 'sleep 4', 'run view'])
+        result, calls = self.metadata_fixture('gh_read run view 71', 1)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout.strip(), 'abc')
+        self.assertEqual(calls, ['run view', 'sleep 2', 'run view'])
+
+    def test_authentication_errors_and_mutations_are_never_retried(self):
+        result, calls = self.metadata_fixture('gh_read run view 71', 9, 'gh: HTTP 403')
+        self.assertEqual(result.returncode, 1)
+        self.assertEqual(calls, ['run view'])
+        result, calls = self.metadata_fixture('gh_read workflow run build.yml')
+        self.assertEqual(result.returncode, 2)
+        self.assertEqual(calls, [])
+
+    def test_a_successful_read_of_the_wrong_revision_still_refuses_the_run(self):
+        result, calls = self.metadata_fixture('revision=other; dispatch build.yml', failures=0)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertEqual(calls, ['workflow run', 'run view'])
+        self.assertIn('is not on other', result.stderr)
+
+    def test_failed_private_directory_creation_stops_before_any_api_call(self):
+        result, calls = self.metadata_fixture('mktemp() { return 1; }; gh_read run view 71')
+        self.assertEqual(result.returncode, 1)
+        self.assertEqual(calls, [])
+
+    def test_unreadable_build_listing_cannot_create_a_duplicate_build(self):
+        begin = self.text.index('build_id="$(gh_read run list --workflow build.yml')
+        end = self.text.index('\n# If the dispatched build was superseded', begin)
+        block = self.text[begin:end]
+        result, calls = self.metadata_fixture(block, failures=9)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertNotIn('workflow run', calls)
+        self.assertIn('refusing duplicate dispatch', result.stderr)
+        # Restore the former failure-to-empty fallback: it mutates despite no
+        # readable evidence that a signed build is absent.
+        old = block.replace('gh_read run list', 'gh run list')
+        old = old.replace('|| {\n    echo "release-candidate: signed build listing is unreadable; refusing duplicate dispatch" >&2\n    exit 1\n}', '|| build_id=""')
+        result, calls = self.metadata_fixture('wait_run() { return 0; }\n' + old, failures=9)
+        self.assertIn('workflow run', calls, 'the restored old fallback must expose duplicate dispatch')
 
 
 if __name__ == "__main__":

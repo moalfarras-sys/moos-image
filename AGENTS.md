@@ -167,6 +167,13 @@ recommend stopping the Oracle owner's only monitor as a diagnostic repair.
 
 Everything in this section shipped while every gate passed.
 
+**An unreadable build listing does not prove that no build exists.**
+The release coordinator encountered HTTP 500 after a successful workflow
+dispatch. Record that run ID before reading metadata, and retry only bounded
+read commands. A failed listing must stop the cycle, never become an empty
+result that dispatches another candidate. Keep the executable old/fixed controls,
+the wrong-revision refusal and the prohibition on retrying workflow mutations.
+
 **The identity gate ran before `set -e` and its failure was ignored.** It was the second line of
 `build.sh`; `set -euxo pipefail` is the tenth. A build in this repo printed
 `MoOS image-experience gate failed` and went on to `Successfully tagged`. It also ran before
