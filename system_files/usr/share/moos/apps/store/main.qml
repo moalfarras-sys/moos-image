@@ -11,6 +11,15 @@
 // Welcome).  It starts /usr/bin/moos-storectl with an argv list; the backend
 // validates ids again, owns the real FlatpakTransaction and atomically publishes
 // job.json.  A web page can open Mo Store, but it cannot install an app.
+//
+// This file is the window: all state, the data loading, the timers, the bridge
+// calls and the palette live here. What it draws lives in the files beside it:
+// StoreRail and StoreHeader, one file per page (DiscoverPage, CatalogPage,
+// CategoriesPage, UpdatesPage, SourcesPage), the shelves and sheets, and the cards
+// and controls they are built from. Each takes this window as
+// `required property var win` and reaches it only as `win.<member>`
+// (tests/test_qml_root_references.py holds that line); an id one of them needs from
+// here is a root member instead (focusSearch(), openReview(), indexPolling, …).
 pragma ComponentBehavior: Bound
 
 import QtQuick
