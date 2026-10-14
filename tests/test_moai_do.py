@@ -525,7 +525,11 @@ with tempfile.TemporaryDirectory() as tmp:
         for path in (store_log, launches):
             path.unlink(missing_ok=True)
         env = os.environ.copy()
-        env.update(PATH=f"{bindir}{os.pathsep}{env.get('PATH', '')}", MOOS_TEST_STORE_LOG=str(store_log),
+        (bindir / "home").mkdir(exist_ok=True)       # never the person's own home
+        env.update(HOME=str(bindir / "home"), XDG_CONFIG_HOME=str(bindir / "home/.config"),
+                   XDG_DATA_HOME=str(bindir / "home/.local/share"),
+                   XDG_STATE_HOME=str(bindir / "home/.local/state"),
+                   PATH=f"{bindir}{os.pathsep}{env.get('PATH', '')}", MOOS_TEST_STORE_LOG=str(store_log),
                    MOOS_TEST_LAUNCH_LOG=str(launches), MOOS_TEST_FLATPAK_INFO="0" if flatpak else "1",
                    MOOS_TEST_RUN_DOC=run_doc, MOOS_TEST_RUN_CODE=str(run_code))
         completed = subprocess.run([BASH, str(MOAI_DO), "install", app_id], input="y\n",
