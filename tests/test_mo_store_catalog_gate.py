@@ -681,11 +681,12 @@ class TheChainNamesTheNewKinds(unittest.TestCase):
 
 
 class TheChainNamesTheAndroidPath(unittest.TestCase):
-    """21 Android recipes, and once nothing checked the backend could still install one.
+    """The catalogue holds 21 Android recipes; nothing checked the backend could install one.
 
     The mutation that went unseen (review, 2026-10-15): both calls of the Android installer in
     moos-storectl replaced by a refusal. The method itself stayed, so a gate that looked for its
-    NAME would have passed; the gate looks for a CALL.
+    NAME would have passed; the gate looks for a CALL. This half reads the real backend, so a
+    rename there fails here by name rather than silently.
     """
 
     storectl = (SYSTEM / "usr/bin/moos-storectl").read_text(encoding="utf-8")
