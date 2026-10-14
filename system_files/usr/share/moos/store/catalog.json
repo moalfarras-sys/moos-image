@@ -304,8 +304,7 @@
         "org.torproject.torbrowser-launcher",
         "org.signal.Signal",
         "com.brave.Browser",
-        "org.gnome.World.PikaBackup",
-        "com.github.tchx84.Flatseal"
+        "org.gnome.World.PikaBackup"
       ]
     },
     {
@@ -345,8 +344,8 @@
       "app": "photocraft",
       "title_en": "PhotoCraft",
       "title_ar": "فوتوكرافت",
-      "tagline_en": "Edit photos and layered PSD files, free and fast.",
-      "tagline_ar": "حرّر الصور وملفات PSD بطبقاتها، مجاناً وبسرعة.",
+      "tagline_en": "Edit photos and layered PSD files for free; the app is still in early development.",
+      "tagline_ar": "حرّر الصور وملفات PSD بطبقاتها مجاناً؛ وما زال التطبيق في مرحلة مبكرة.",
       "accent": "#4f35c2"
     },
     {
@@ -529,7 +528,7 @@
       "cat": "ai",
       "glyph": "ai",
       "en": "ChatGPT",
-      "ar": "تشات جي بي تي",
+      "ar": "ChatGPT على سطح المكتب",
       "desc_en": "OpenAI's own desktop app, still a preview: chat, work with files and write code with Codex.",
       "desc_ar": "تطبيق OpenAI الرسمي لسطح المكتب، وما زال تجريبياً: محادثة وعمل على الملفات وبرمجة مع Codex.",
       "developer": "OpenAI",
@@ -537,7 +536,7 @@
       "arch": ["x86_64", "aarch64"],
       "popular": true,
       "keywords_en": ["chatgpt", "openai", "gpt", "chat gpt", "assistant", "codex"],
-      "keywords_ar": ["شات جي بي تي", "تشات", "ذكاء اصطناعي", "مساعد"],
+      "keywords_ar": ["تشات جي بي تي", "شات جي بي تي", "تشات", "ذكاء اصطناعي", "مساعد"],
       "install": {
         "kind": "vendor-rpm",
         "repo": "https://persistent.oaistatic.com/codex-app-prod/linux/rpm/$basearch",
@@ -623,8 +622,8 @@
       "glyph": "image",
       "en": "PhotoCraft",
       "ar": "فوتوكرافت",
-      "desc_en": "A modern photo editor with layers that opens and saves Photoshop PSD files.",
-      "desc_ar": "محرّر صور حديث بطبقات يفتح ملفات فوتوشوب PSD ويحفظها.",
+      "desc_en": "A photo editor with layers that opens and saves Photoshop PSD files; still an early version.",
+      "desc_ar": "محرّر صور بطبقات يفتح ملفات فوتوشوب PSD ويحفظها؛ وما زال في مرحلة تجريبية مبكرة.",
       "developer": "PhotoCraft project",
       "accent": "#5b3fd9",
       "arch": ["aarch64", "x86_64"],
@@ -1011,8 +1010,8 @@
       "glyph": "video",
       "en": "Jitsi Meet",
       "ar": "جيتسي ميت",
-      "desc_en": "Free, encrypted video meetings that need no account.",
-      "desc_ar": "اجتماعات فيديو مجانية ومشفّرة لا تحتاج إلى حساب.",
+      "desc_en": "Free, encrypted video meetings; guests join without an account.",
+      "desc_ar": "اجتماعات فيديو مجانية ومشفّرة؛ ينضم الضيوف دون حساب.",
       "developer": "Jitsi team",
       "keywords_en": ["meetings", "video call", "free"],
       "keywords_ar": ["اجتماعات", "مكالمة فيديو"]
@@ -2624,9 +2623,9 @@
       "glyph": "network",
       "en": "Proton VPN",
       "ar": "بروتون في بي إن",
-      "desc_en": "A VPN with a free plan and no ads that hides your traffic and location.",
-      "desc_ar": "شبكة VPN بخطة مجانية بلا إعلانات تخفي اتصالك وموقعك.",
-      "developer": "Proton AG",
+      "desc_en": "A VPN with a free plan and no ads that hides your traffic and location; an unofficial build its makers do not support.",
+      "desc_ar": "شبكة VPN بخطة مجانية بلا إعلانات تخفي اتصالك وموقعك؛ وهذه نسخة غير رسمية لا يدعمها صانعوها.",
+      "developer": "Community packagers, not Proton AG",
       "keywords_en": ["vpn", "privacy"],
       "keywords_ar": ["في بي ان", "خصوصية"]
     },
@@ -2691,8 +2690,8 @@
       "glyph": "lock",
       "en": "Flatseal",
       "ar": "فلاتسيل",
-      "desc_en": "Review and change what each installed app is allowed to reach.",
-      "desc_ar": "راجع ما يُسمح لكل تطبيق مثبّت بالوصول إليه وغيّره.",
+      "desc_en": "Review and change what your sandboxed Linux apps are allowed to reach.",
+      "desc_ar": "راجع ما يُسمح لتطبيقات لينكس المعزولة لديك بالوصول إليه وغيّره.",
       "developer": "Martin Abente Lahaye",
       "keywords_en": ["permissions", "privacy"],
       "keywords_ar": ["صلاحيات", "أذونات"]
@@ -2957,7 +2956,7 @@
       "en": "Al-Quran",
       "ar": "القرآن",
       "desc_en": "A simple Quran reader that works offline and asks for no permissions.",
-      "desc_ar": "قارئ بسيط للقرآن الكريم يعمل دون إنترنت ولا يطلب أي صلاحيات.",
+      "desc_ar": "قارئ بسيط للقرآن الكريم يعمل دون إنترنت ولا يطلب أي أذونات.",
       "developer": "Meypod",
       "accent": "#2e7d32",
       "engine": "android",
