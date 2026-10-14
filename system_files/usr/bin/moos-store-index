@@ -4864,9 +4864,11 @@ def main(argv: list[str] | None = None) -> int:
                 details=details,
             )
             payload["stats"]["details_documents"] = len(details.written)
-            generation = details.finish()
             # Documents first, then the index that names them, then the old sets.
+            # The set becomes a details-* generation only under the lock, so a
+            # second indexer's clean-up can never remove it before it is linked.
             with publish_lock(cache_dir):
+                generation = details.finish()
                 publish_details(cache_dir, generation)
                 atomic_write_json(args.output, payload)
                 clean_details(cache_dir, keep=generation)
