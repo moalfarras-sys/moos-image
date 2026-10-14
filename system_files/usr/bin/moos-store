@@ -73,6 +73,26 @@ if [ -x /usr/bin/moos-store-index ]; then
     ) 9>"${CACHEDIR}/index.lock" &
 fi
 
+# Which app to open. Plasma's "Uninstall or Manage Add-ons…" action and every appstream://
+# link hand the Store one component id (this launcher is the x-scheme-handler/appstream
+# handler); a MoOS Search result passes --app=<id>. The id is validated here and again in QML,
+# and anything else is ignored: the Store then simply opens. When the Store is already running,
+# moos-qml-shell forwards these arguments to that window (activateRequested in main.qml).
+OPEN_APP=()
+for arg in "$@"; do
+    case "$arg" in
+        --app=*) candidate="${arg#--app=}" ;;
+        appstream://*) candidate="${arg#appstream://}" ;;
+        appstream:*) candidate="${arg#appstream:}" ;;
+        *) continue ;;
+    esac
+    candidate="${candidate%%[/?#]*}"
+    candidate="${candidate%.desktop}"
+    if [[ "$candidate" =~ ^[A-Za-z0-9][A-Za-z0-9._-]{1,254}$ ]] && [[ "$candidate" != *..* ]]; then
+        OPEN_APP=("--open-app=$candidate")
+    fi
+done
+
 # moos-qml-shell, not the bare runtime: qml-qt6 names every window it hosts
 # org.qt-project.qml-qt6, so Plasma cannot match this window to
 # org.moos.store.desktop and shows the generic green Qt icon. The shell sets the
@@ -81,14 +101,14 @@ if [ -x /usr/bin/moos-qml-shell ]; then
     exec /usr/bin/moos-qml-shell \
         --app-id org.moos.store --icon moos-store --qml "$QML" \
         -- --cache="$CACHEDIR" --index="$INDEX" --job="$JOB" --ready="$READY" \
-           --updates="$UPDATES" --machine="$MACHINE"
+           --updates="$UPDATES" --machine="$MACHINE" "${OPEN_APP[@]}"
 fi
 
 # Fallback: wrong icon beats no window.
 for runner in qml-qt6 /usr/lib64/qt6/bin/qml qml6 qml; do
     if command -v "$runner" >/dev/null 2>&1 || [ -x "$runner" ]; then
         exec "$runner" "$QML" -- --cache="$CACHEDIR" --index="$INDEX" \
-            --job="$JOB" --ready="$READY" --updates="$UPDATES"
+            --job="$JOB" --ready="$READY" --updates="$UPDATES" "${OPEN_APP[@]}"
     fi
 done
 echo "Mo Store: no Qt6 QML runtime found (install qt6-qtdeclarative-devel). | لا يوجد محرّك QML." >&2
