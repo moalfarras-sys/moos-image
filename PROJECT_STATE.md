@@ -62,15 +62,19 @@ Its actual anonymous HTTP 200/206 availability was refreshed with the maintained
 verification user agent. Generic urllib requests can be rejected by Cloudflare
 1010; that is not proof of outage. No WAF rule was changed.
 Full-transfer receipt: [public download proof](docs/releases/2026-10-11-public-download-proof.json).
-Exact .1044 ISO is locally archived: 5,830,410,240 bytes, SHA-256
-`457fb3c85e3a82d2b134dacdff80d82b913b4c604faa1a2ce7b9f05343155b2f`,
-detached signature verified. The current .1046 CI ISO hash is
-`37053a88ae313f994875794055035d53134206a88eb44fb160b39fef3bb04821`;
-new public delivery/sidecar/site qualification is not complete.
+Exact current .1046 ISO is locally archived: 5,830,410,240 bytes, SHA-256
+`37053a88ae313f994875794055035d53134206a88eb44fb160b39fef3bb04821`,
+detached signature and checksum verified. Exact unused .1044 ISO/signature/
+checksum retired after both signatures, hashes, ancestry and no holders:
+5,830,410,419 logical bytes; native /var net gain 5,829,640,192 bytes.
+[Archive/retirement proof](docs/releases/2026-10-14-current-archive-proof.json).
+New anonymous full-transfer/sidecar/site qualification remains incomplete.
 Public .1018/.1022 retirement completed after grace periods. Static Assets/R2
 host the public site with scoped CDN redirects; no billing plan was changed.
-A separate website fix withdraws unqualified tag-based conversion commands;
-its source/check/deployment state is separate from the signed OS payload.
+Website PR57 merged at `a0bce332`; the identical reviewed tree is deployed on
+the existing Cloudflare Worker. Eight local/eight public AR/EN browser views,
+mobile guidance, exact inert scripts and routes pass. Qualified ISO stays .1026.
+Vercel preview restrictions are separate; no authentication or billing changed.
 
 ## Oracle A1 development station
 
@@ -107,14 +111,20 @@ checks: total physical free-space gain 33,544,560,640 bytes (~31.2 GiB).
 Exact unused local .1042 ISO/signature/checksum retired after both signatures,
 hashes, ancestry and no holders: 5,827,985,587 logical bytes; concurrent native
 /var net gain 5,827,317,760 bytes. Proof is retained; .1044 archive/public .1026
-and signed OS rollback are intact. Writable /var measured 28 GiB free before
-current .1046 archival; build/download activity changes instantaneous headroom. Composefs /
+and signed OS rollback are intact. Current .1046 archival and exact .1044
+retirement completed; writable /var now measures 29 GiB free. One exact unused
+local greeter audit image was untagged with no parent prune; its shared layers
+produced no measured free-space gain. Current image/SDK/owner containers stay. Composefs /
 100% is not writable disk exhaustion. SDK/owner containers/data/rollback stay.
 Obsolete completed retirement units are archived. Mo Store updated available
 user apps. Core/journal bounds and weekly cleanup are active.
 A 30 s editor/services sample has 7.17–7.28 GiB available; KWin uses 5.59%
 of one core, plasmashell .14%, idle Remote .04%, Baloo <.001%. This is not
-idle/phone/load-pressure qualification. Development toolchains execute in
+idle/phone/load-pressure qualification. A later native 20 s sample after owned
+build/browser fixtures finished has 6.09 GiB available, RAM PSI avg10=0,
+KWin/plasmashell 2.40/.21% of one core and gateway .007%/15 MiB. The configured
+Remote service name was inactive/unmeasured; this is not its capture-cost proof.
+3.93 GiB swap usage alone does not measure swap activity. Development toolchains execute in
 native SDK containers; host KVM/Flutter and optional buildah remain absent.
 Original dirty checkout/index and old APK/PE worktrees are untouched;
 `archive/owner-pre-reboot-20261011` preserves the owner snapshot. Isolated

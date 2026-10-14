@@ -47,16 +47,18 @@ URI/source gates remain delivered within their recorded scope. Broader
 cancellation/stall/quota/voice/clean-account and hardware/application journeys
 remain open in their rows. See [runtime evidence](AUDIT_20261013_RUNTIME_AR.md).
 
-P0.12 public ISO remains fully qualified .1026. .1044 local archive signature/hash
-pass; .1046 CI ISO installs offline and reboots, but new anonymous full-transfer,
+P0.12 public ISO remains fully qualified .1026. Exact .1046 local archive
+signature/hash/checksum pass; unused .1044 archive retired with replacement,
+ancestry and no-holder proof. .1046 installs offline and reboots, but new anonymous full-transfer,
 sidecars/ranges and website qualification remain. Retire only exact unused
 superseded local archives after replacement/signature/ancestry/holder proof.
 The website audit also found unsafe mutable-tag conversion commands and
-scripts allowing skipped signature checks. A separate website branch withdraws
-those paths, retains the qualified generic ISO and gives edition-specific,
-bilingual installation/update guidance. Require maintained web/admin/static
-checks, old/fixed executable controls and actual browser/production readback.
-Source edits alone do not correct the public website.
+scripts allowing skipped signature checks. Website PR57 merged at a0bce332 and the reviewed identical tree is deployed
+on its existing independent Worker. Maintained web/admin/static checks, 99
+tests, old/fixed executable controls, eight local/eight public native browser
+views, mobile guide and exact route/script readbacks pass. The qualified generic
+ISO remains .1026; NVIDIA/Cloud first migration remains explicitly unavailable
+through the inert retired scripts pending a separately qualified journey.
 
 The cadence of release cycles is the security cadence: nightly image-only
 builds cannot deliver a base fix. P6.3 stays open until bounded, boot-proven
