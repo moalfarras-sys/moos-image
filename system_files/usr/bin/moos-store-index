@@ -41,6 +41,11 @@ GENERIC_ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,254}$")
 REMOTE_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$")
 REF_PART_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$")
 SLUG_RE = re.compile(r"^[a-z0-9][a-z0-9-]{0,63}$")
+# Symbol names. The catalogue gate admits `_`, the shared MoUI symbol set uses `-`
+# (android-apps, arrow-back, safe-update): both are names, and neither may make a
+# valid catalogue unreadable here. Until 2026-10-14 this used SLUG_RE, so a glyph
+# the gate accepted raised CatalogError and there was no index at all.
+GLYPH_RE = re.compile(r"^[a-z0-9][a-z0-9_-]{0,63}$")
 ICON_NAME_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._+@-]{0,255}$")
 NPM_PACKAGE_RE = re.compile(
     r"^(?:@[a-z0-9][a-z0-9._-]*/)?[a-z0-9][a-z0-9._-]*$"
@@ -1454,8 +1459,10 @@ def sanitize_catalog_app(entry: object) -> dict:
     ):
         value = safe_catalog_text(entry, key, limit)
         if value:
-            if key in {"cat", "engine", "glyph"} and not SLUG_RE.fullmatch(value):
+            if key in {"cat", "engine"} and not SLUG_RE.fullmatch(value):
                 raise CatalogError(f"catalog field {key!r} for {app_id!r} is invalid")
+            if key == "glyph" and not GLYPH_RE.fullmatch(value):
+                raise CatalogError(f"catalog glyph for {app_id!r} is invalid")
             result[key] = value
 
     rating = entry.get("rating")
@@ -1495,7 +1502,7 @@ def sanitize_catalog_group(entry: object, kind: str) -> dict:
     ):
         value = safe_catalog_text(entry, key, limit)
         if value:
-            if key == "glyph" and not SLUG_RE.fullmatch(value):
+            if key == "glyph" and not GLYPH_RE.fullmatch(value):
                 raise CatalogError(f"catalog glyph for {group_id!r} is invalid")
             result[key] = value
     if kind == "bundle":
@@ -1597,6 +1604,62 @@ def catalog_app_runs_here(entry: dict, arch: str) -> bool:
     return arch in declared
 
 
+def log(message: str) -> None:
+    """One line on stderr; the launcher keeps it in ~/.cache/moos-store/index.log."""
+
+    print(f"moos-store-index: {message}", file=sys.stderr)
+
+
+def catalog_entry_label(item: object, position: int) -> str:
+    if isinstance(item, dict):
+        for key in ("id", "app"):
+            value = item.get(key)
+            if isinstance(value, str) and value:
+                return clean_text(value, 80)
+    return f"#{position}"
+
+
+def sanitize_catalog_section(
+    raw: dict, section: str, sanitize, skipped: list[dict]
+) -> list[dict]:
+    """Sanitise every entry of one catalogue list, skipping a bad one with a reason.
+
+    One malformed or unsafe entry used to raise CatalogError out of the whole
+    load, so a single typo in a signed catalogue update meant no index at all:
+    every Flathub app vanished with it. An entry that fails its checks is now
+    left out, the reason is logged, and everything else is offered. The build
+    gate (build_files/verify_store_catalog.py) still refuses such a catalogue
+    before it ships; this is the runtime's defence in depth, never a substitute.
+    """
+
+    items = raw.get(section, [])
+    if items is None:
+        return []
+    if not isinstance(items, list):
+        log(f"catalogue {section} is not a list; ignored")
+        skipped.append({"section": section, "id": "", "reason": "not a list"})
+        return []
+    result: list[dict] = []
+    seen: set[str] = set()
+    for position, item in enumerate(items):
+        label = catalog_entry_label(item, position)
+        try:
+            clean = sanitize(item)
+        except CatalogError as error:
+            reason = clean_text(str(error), 240)
+            log(f"skipped catalogue {section} entry {label}: {reason}")
+            skipped.append({"section": section, "id": label, "reason": reason})
+            continue
+        key = clean.get("id") or clean.get("app") or ""
+        if key in seen:
+            log(f"skipped catalogue {section} entry {label}: duplicate id")
+            skipped.append({"section": section, "id": label, "reason": "duplicate id"})
+            continue
+        seen.add(key)
+        result.append(clean)
+    return result
+
+
 def load_catalog(path: Path, arch: str | None = None,
                  engines: set[str] | None = None) -> dict:
     """Read the curated catalogue, keeping only what a machine can actually use.
@@ -1612,6 +1675,10 @@ def load_catalog(path: Path, arch: str | None = None,
     library function whose result depends on the developer's own machine cannot
     be tested, and CI would only have agreed with it by luck -- the x86 runners
     happen to have both engines.
+
+    Only a catalogue that cannot be read at all (missing, not JSON, not an
+    object, no apps list) raises CatalogError. A bad ENTRY is skipped and listed
+    in the result's `skipped` (see sanitize_catalog_section).
     """
     try:
         with path.open(encoding="utf-8") as handle:
@@ -1624,10 +1691,8 @@ def load_catalog(path: Path, arch: str | None = None,
     if not isinstance(raw_apps, list):
         raise CatalogError("catalog apps must be a list")
 
-    apps = [sanitize_catalog_app(item) for item in raw_apps]
-    ids = [item["id"] for item in apps]
-    if len(ids) != len(set(ids)):
-        raise CatalogError("catalog contains duplicate app ids")
+    skipped: list[dict] = []
+    apps = sanitize_catalog_section(raw, "apps", sanitize_catalog_app, skipped)
     # Drop what this machine cannot install, ONCE, so every later pass over
     # catalog["apps"] agrees: the fallback that invents an index entry, the
     # overlay that decorates a real one, and the non-Flatpak lifecycle scan.
@@ -1655,13 +1720,12 @@ def load_catalog(path: Path, arch: str | None = None,
         apps = [item for item in apps
                 if catalog_app_engine(item) in ("", *engines)]
     offered = {item["id"] for item in apps}
-    categories = [
-        sanitize_catalog_group(item, "category")
-        for item in raw.get("categories", [])
-    ]
-    bundles = [
-        sanitize_catalog_group(item, "bundle") for item in raw.get("bundles", [])
-    ]
+    categories = sanitize_catalog_section(
+        raw, "categories", lambda item: sanitize_catalog_group(item, "category"), skipped
+    )
+    bundles = sanitize_catalog_section(
+        raw, "bundles", lambda item: sanitize_catalog_group(item, "bundle"), skipped
+    )
     # A bundle is a curated SET, so it has to be re-checked against what survived.
     # On aarch64 "Gaming Starter" lost five of its six apps (Steam, Bottles,
     # Lutris, Heroic, Discord), which would have left a gaming bundle offering
@@ -1677,7 +1741,7 @@ def load_catalog(path: Path, arch: str | None = None,
         if not isinstance(bundle.get("apps"), list) or len(bundle["apps"]) >= 2
     ]
     return {"apps": apps, "categories": categories, "bundles": bundles,
-            "engines_ready": engines}
+            "engines_ready": engines, "skipped": skipped}
 
 
 def catalog_localized(entry: dict, preferences: list[str], prefix: str = "") -> str:
@@ -2266,6 +2330,8 @@ def build_index(
         apps_by_id.values(),
         key=lambda app: (app["name"].casefold(), app["id"].casefold()),
     )
+    catalog_skipped = catalog.get("skipped", [])
+    catalog_invalid_apps = [item for item in catalog_skipped if item["section"] == "apps"]
     sources_output.append(
         {
             "kind": "curated-catalog",
@@ -2274,11 +2340,11 @@ def build_index(
             "arch": None,
             "revision": None,
             "path": str(catalog_path),
-            "components": len(catalog["apps"]),
+            "components": len(catalog["apps"]) + len(catalog_invalid_apps),
             "accepted": len(catalog["apps"]),
             "skipped": 0,
             "excluded": 0,
-            "invalid": 0,
+            "invalid": len(catalog_invalid_apps),
             "error": None,
             "metadata_reused": False,
             "metadata_reused_from": None,
@@ -2302,6 +2368,7 @@ def build_index(
         "invalid_components": invalid_count,
         "source_errors": source_error_count,
         "catalog_fallback_apps": catalog_fallbacks,
+        "catalog_skipped_entries": len(catalog_skipped),
         "metadata_indexes_parsed": metadata_indexes_parsed,
         "metadata_indexes_reused": metadata_indexes_reused,
         "metadata_indexes_superseded": len(superseded_sources),

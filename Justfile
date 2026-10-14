@@ -321,6 +321,8 @@ check:
     python3 tests/test_mo_store_index_sources.py
     # Runtimes, add-ons, console tools and BaseApps are not apps; several branches offer stable.
     python3 tests/test_mo_store_index_not_apps.py
+    # One bad catalogue entry is skipped with a reason; the index never fails for it.
+    python3 tests/test_mo_store_index_catalogue.py
     # The Store may not offer an app this machine cannot install. The browse
     # index is built from the RUNNING arch's AppStream, but a curated entry with
     # no match was MANUFACTURED into the index -- so eleven x86-only apps, two of

@@ -15,7 +15,36 @@ from urllib.parse import unquote, urlsplit
 
 
 ROOT = Path(__file__).resolve().parents[1]
-INDEXER = ROOT / "system_files/usr/bin/moos-store-index"
+# A negative control runs these tests against a deliberately broken copy.
+INDEXER = Path(os.environ.get("MOOS_STORE_INDEX_UNDER_TEST")
+               or ROOT / "system_files/usr/bin/moos-store-index")
+
+
+def isolate(environment: dict[str, str] | None, fallback_home: Path) -> dict[str, str]:
+    """A private HOME, private XDG directories and no session bus for every run.
+
+    The indexer reads the person's App Drop records, web-app launchers and machine
+    facts under HOME and the XDG directories. Inherited from a developer's shell (or
+    the editor's sandbox, which shares the real home), a run would index the
+    developer's own machine instead of the fixture.
+    """
+
+    source = dict(os.environ if environment is None else environment)
+    home = Path(source["HOME"]) if environment is not None and "HOME" in source \
+        else fallback_home
+    result = {key: value for key, value in source.items() if not key.startswith("XDG_")}
+    result.update({
+        "HOME": str(home),
+        "XDG_DATA_HOME": str(home / ".local/share"),
+        "XDG_CACHE_HOME": str(home / ".cache"),
+        "XDG_STATE_HOME": str(home / ".local/state"),
+        "XDG_CONFIG_HOME": str(home / ".config"),
+        "DBUS_SESSION_BUS_ADDRESS": "unix:path=/nonexistent",
+    })
+    for key in ("XDG_CONFIG_DIRS",):
+        if environment is not None and key in environment:
+            result[key] = environment[key]
+    return result
 
 
 PRIMARY_XML = """<?xml version="1.0" encoding="UTF-8"?>
@@ -201,7 +230,7 @@ class StoreIndexTests(unittest.TestCase):
             text=True,
             capture_output=True,
             check=False,
-            env=env,
+            env=isolate(env, output.parent / "private-home"),
         )
 
     def test_unified_index_uses_bundle_locales_and_merges_duplicates(self) -> None:
@@ -511,7 +540,7 @@ class StoreIndexTests(unittest.TestCase):
                 text=True,
                 capture_output=True,
                 check=False,
-                env=environment,
+                env=isolate(environment, base / "home"),
             )
             self.assertEqual(result.returncode, 0, result.stderr)
             data = json.loads(output.read_text(encoding="utf-8"))
@@ -538,7 +567,13 @@ class StoreIndexTests(unittest.TestCase):
             self.assertEqual(writer["installed_scope"], "user")
             self.assertEqual(writer["installed_scopes"], ["user", "system"])
 
-    def test_unsafe_catalog_url_fails_without_replacing_output(self) -> None:
+    def test_unsafe_catalog_entry_is_skipped_with_a_reason_and_never_indexed(self) -> None:
+        """One bad entry is left out and logged; it may never take the index down.
+
+        Until 2026-10-14 an unsafe URL raised out of the whole catalogue load, so a
+        single bad entry meant no index at all. The safety property is that the
+        unsafe recipe never reaches the index, and that still holds.
+        """
         with tempfile.TemporaryDirectory() as temporary:
             base = Path(temporary)
             appstream = base / "appstream"
@@ -553,12 +588,44 @@ class StoreIndexTests(unittest.TestCase):
             result = self.run_indexer(
                 output, catalog, appstream, installation, locale="en"
             )
-            self.assertEqual(result.returncode, 2)
+            self.assertEqual(result.returncode, 0, result.stderr)
             self.assertIn("not safe HTTPS", result.stderr)
-            self.assertEqual(
-                json.loads(output.read_text(encoding="utf-8")), {"sentinel": True}
-            )
+            self.assertIn("codex", result.stderr)
+            text = output.read_text(encoding="utf-8")
+            self.assertNotIn("localhost/unsafe", text)
+            data = json.loads(text)
+            ids = {app["id"] for app in data["apps"]}
+            self.assertNotIn("codex", ids)
+            self.assertIn("org.example.Writer", ids)
+            self.assertEqual(data["stats"]["catalog_skipped_entries"], 1)
+            curated = next(s for s in data["sources"] if s["kind"] == "curated-catalog")
+            self.assertEqual(curated["invalid"], 1)
             self.assertEqual(list(base.glob(f".{output.name}.*.tmp")), [])
+
+    def test_an_unreadable_catalog_still_fails_without_replacing_output(self) -> None:
+        for label, content in (
+            ("not json", "{not json"),
+            ("not an object", "[]"),
+            ("apps not a list", '{"apps": {}}'),
+        ):
+            with self.subTest(case=label), tempfile.TemporaryDirectory() as temporary:
+                base = Path(temporary)
+                appstream = base / "appstream"
+                installation = base / "flatpak"
+                appstream.mkdir()
+                installation.mkdir()
+                catalog = base / "catalog.json"
+                catalog.write_text(content, encoding="utf-8")
+                output = base / "index.json"
+                output.write_text('{"sentinel":true}\n', encoding="utf-8")
+                result = self.run_indexer(
+                    output, catalog, appstream, installation, locale="en"
+                )
+                self.assertEqual(result.returncode, 2)
+                self.assertEqual(
+                    json.loads(output.read_text(encoding="utf-8")), {"sentinel": True}
+                )
+                self.assertEqual(list(base.glob(f".{output.name}.*.tmp")), [])
 
     def test_auto_discovery_ignores_orphan_and_untrusted_remotes(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
@@ -605,7 +672,7 @@ class StoreIndexTests(unittest.TestCase):
                 text=True,
                 capture_output=True,
                 check=False,
-                env=environment,
+                env=isolate(environment, base / "home"),
             )
             self.assertEqual(result.returncode, 0, result.stderr)
             data = json.loads(output.read_text(encoding="utf-8"))
