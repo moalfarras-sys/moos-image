@@ -203,3 +203,39 @@ exists rather than from the plan.
 - **Opening by id.** `moos-storectl run <id>` opens any kind the Store installed; Mo AI's
   `open_app`, `moai-do install`'s launch and the `moos://apps/run/<id>` route fall back to it for
   every id that is not a Flatpak.
+
+## The window (Mo Store 2, 2026-10-15)
+
+`main.qml` owns state, data loading, timers, bridge calls, the palette and the job phrases; 41
+view files beside it draw. Pages, by the names `moos-store --page=<name>` passes as
+`--open-page=<name>`:
+
+| Page | What it is | Bridge calls |
+|---|---|---|
+| `discover` | Editorial hero carousel (featured), "where apps come from" (counts per family), collection rows, one-step sets, the 12 categories | `installApps` (hero Get, sets) |
+| `apps` / `games` | One virtualised grid; category and kind strips; sort; `listed:false` apps hidden | `installApps`, `runApp` |
+| `library` (My apps) | Every installed app of every kind, files added by hand included; version change, end of life | `runApp`, `updateApp`, `appPermissions`, `removeApp`, `removeAppData` |
+| `updates` | Status card, Update all, Check now, per-app rows (catalogue pins too), the automatic switch, the MoOS updater and firmware cards | `checkUpdates`, `updateApps`, `updateApp`, `setAutoUpdates`, `openSystemUpdater` |
+| `settings` | Automatic updates, internet pictures, Windows/Android readiness and setup, sources | `setAutoUpdates`, `openEngine`, `refreshIndex` |
+
+An app's page (`--open-app=<id>`, `appstream://<id>`) replaces the old details popup: colour
+band, one primary action whose progress fills it, fact tiles (compatibility, size, version,
+age, licence, Arabic share, source), screenshots with a full-screen viewer, permissions and
+safety, compatibility reasons in words, links (https only), more from the developer and
+similar apps. Three sheets act on it: Review (what is installed, from where, and whether it is
+outside the sandbox), Remove (keep data, or remove with data when the shell has
+`removeAppData`) and Permissions (Linux switches, web-app Allow / Ask each time / Don't allow,
+honest notes for full-access and Android apps).
+
+- **Pictures from the internet** default to on and are a window preference (QtCore
+  `Settings`, `remotePictures`): screenshots and catalogue `icon_url` icons load from their
+  publishers' sites, and Settings says so; off keeps every page to words and local icons.
+- **Curated data** (`icon_url`, `accent`, `developer`, keywords, `popular`) is merged from
+  `catalog.json` into each index entry by `normalizeApp`, so the index need not repeat it.
+- **Search** folds the query exactly as `moos-store-index` folds `search` and ranks name, prefix,
+  word prefix, keyword, then summary.
+- **Tests.** `tests/test_mo_store_ui_pages.py` walks every page, sheet and shelf in four windows
+  (Arabic dark at 2.5×, a fresh English light install, a bare machine with a live job and a
+  building catalogue, the signed catalogue alone) on `tests/fixtures/mo-store/` and fails on
+  any QML warning; a planted copy proves it finds a fault in each view file at its own line.
+  `make_fixtures.py` regenerates the fixtures byte for byte.
