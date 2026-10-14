@@ -975,9 +975,9 @@ def branding_colors(component: ET.Element) -> dict | None:
 
 
 # OARS attribute -> the minimum age of each intensity (none, mild, moderate, intense):
-# libappstream 1.1.3's as_content_rating_attribute_to_csm_age() (src/as-content-rating.c,
-# oars_to_csm_mappings), the ages KDE Discover and GNOME Software show. Copied on 2026-10-15
-# from the station's library through GObject introspection; the indexer needs no library, and
+# libappstream 1.1.3's as_content_rating_attribute_to_csm_age(), the ages KDE Discover and
+# GNOME Software show. Copied on 2026-10-15 from the station's library through GObject
+# introspection (all 28 ids of get_all_rating_ids()); the indexer needs no library, and
 # tests/test_mo_store_index_content_rating.py checks the copy wherever libappstream is installed.
 # Intensities are not comparable across attributes: `intense` is 6 for cartoon violence, 13
 # for unmoderated chat and 18 for bloodshed.
@@ -3729,9 +3729,10 @@ def windows_settings_bytes(machine: dict) -> int:
 def copies_are_shared(machine: dict) -> bool:
     """Does a whole copy of a download cost no space here? Yes where the home's filesystem
     shares extents: the image's Python (3.14) copies with copy_file_range(), which btrfs
-    answers with a clone. machine.json `windows.reflink` says so, read where Windows programs
-    live, in the same home as the downloads folder, ~/Applications and the Android container.
-    Unknown counts the copy."""
+    answers with a clone (measured on the station: copying the 1.02 GB LM Studio AppImage cost
+    36 KiB; Python 3.13 cost the full 1.02 GB). machine.json `windows.reflink` says so, read
+    where Windows programs live, in the same home as the downloads folder, ~/Applications and
+    the Android container. Unknown counts the copy."""
 
     windows = machine.get("windows") if isinstance(machine.get("windows"), dict) else {}
     return windows.get("reflink") is True
