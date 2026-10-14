@@ -36,10 +36,10 @@ created run IDs and refuses dispatch when a build listing cannot be read;
 14 executable controls include restored-old failures. No workflow POST retry.
 Native NVIDIA booted .1044 with both corrected /usr
 helper hashes. The /run override disappeared on reboot. Its exact temporary
-copied bundle remains until no-holder retirement completes. Administrator
+copied bundle retired after replacement/no-holder proof. Administrator
 opt-in, PIN, private TLS, upstream PAM and default-disabled access are preserved.
-The owner reports the desktop opened; native post-login receipt is pending
-renewed Tailscale management authentication. This is not .1046 acceptance.
+Native .1044 post-login receipt passes 55/55 with 18 payload hashes. Exact
+unused copied bundle retirement completed; .1046 is staged, not boot-accepted.
 
 Existing-account free cloud JSON/SSE and isolated Hermes replies pass on both
 stations in the earlier runtime audit. Direct reported cost=0; absent Hermes
@@ -135,8 +135,9 @@ KWin/plasmashell 4.14/.26% of one core. Gateway direct/SSE replies pass
 with usage absent. Remote capture and input are separate helpers; the input
 helper shares the personal service cgroup and must not be counted twice.
 These are bounded active-workload samples, not idle/phone/endurance acceptance.
-Development toolchains execute in
-native SDK containers; host KVM/Flutter and optional buildah remain absent.
+Both stations pass native QML/.NET/C++/Go/Rust/Java/Flutter/MCP component checks
+pass within [the workstation audit](docs/WORKSTATION_20261014_AR.md). Flutter
+3.47.4 is now available in user space; host KVM and optional buildah remain absent.
 Original dirty checkout/index and old APK/PE worktrees are untouched;
 `archive/owner-pre-reboot-20261011` preserves the owner snapshot. Isolated
 worktrees hold tested changes; the local main ref follows integrated ancestry.
@@ -144,12 +145,12 @@ worktrees hold tested changes; the local main ref follows integrated ancestry.
 ## Physical NVIDIA workstation
 
 Booted signed .1044 (`df557bb0…`), with signed .1042 rollback,
-boot ID `8d4713c3-a61a-40e7-8ee1-2016a81d6b8d`. Greeter Remote reports native EIS
+boot ID `5cf457a9-75d6-4ed6-9376-fe392244145d`. Greeter Remote reports native EIS
 input ready and both immutable helper hashes match PR235. The owner reports
-ordinary password login and desktop appearance. Native post-login validation
-awaits the service-required Tailscale management check; no authentication
-policy, password or autologin was changed. Current .1046 is promoted, not yet
-proved booted on this machine.
+ordinary password login and desktop appearance. Native .1044 passes 55/55,
+18 hashes and exact player bytes. Tailscale owner authentication completed;
+temporary unused greeter bundle retired after replacement/no-holder proof.
+Current .1046 is officially staged; its 19 hashes/player pass, not yet booted.
 Prior .1042 native evidence: 55 selfchecks/55 post-update/0 failures,
 16 payload hashes and exact signed compiled player bytes, THEME_REV=103,
 one Settings entry, ordinary plasmalogin compositor and 36.174 s boot.
