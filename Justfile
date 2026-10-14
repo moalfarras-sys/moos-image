@@ -327,6 +327,11 @@ check:
     # job document carries a stable message_key beside its human message,
     # and the UI must branch on the key, never on backend prose.
     python3 tests/test_store_job_language.py
+    # Every kind of app through one backend verb set: pinned downloads against a real
+    # local TLS server, App Drop and web apps, Android records, updates, permissions,
+    # refusals; and a portable Windows program's own prefix, created without a window.
+    python3 tests/test_mo_store_backend_kinds.py
+    python3 tests/test_mo_store_backend_windows.py
     # One globally importable MoUI module must own identity metrics and shared
     # controls; an app-local copy cannot silently grow back.
     python3 tests/test_moos_design_core.py
