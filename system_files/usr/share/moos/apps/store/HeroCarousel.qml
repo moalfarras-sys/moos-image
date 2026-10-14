@@ -176,14 +176,6 @@ Item {
                     }
                     border.width: 1
                     border.color: hero.win.tint(hero.inkOnDarkAlways, hero.inkIsLight ? 0.34 : 0.6)
-                    Rectangle {
-                        anchors.top: parent.top
-                        anchors.topMargin: 1
-                        anchors.horizontalCenter: parent.horizontalCenter
-                        width: parent.width - plinth.radius * 1.6
-                        height: 1
-                        color: hero.win.tint(hero.inkOnDarkAlways, 0.55)
-                    }
                     AppIcon {
                         win: hero.win
                         anchors.centerIn: parent
