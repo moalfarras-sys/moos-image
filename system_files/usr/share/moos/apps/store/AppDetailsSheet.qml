@@ -80,7 +80,7 @@ Popup {
                             Text {
                                 id: licenseText
                                 anchors.centerIn: parent
-                                text: win.selectedApp ? win.selectedApp.license : ""
+                                text: win.selectedApp ? (win.selectedApp.license || "") : ""
                                 color: win.txt2
                                 font.family: win.uiFont
                                 font.pixelSize: win.typePx(9)
