@@ -494,7 +494,9 @@ def check_catalog(catalog, root: Path = IMAGE_ROOT, build_dir: Path = BUILD_DIR,
                 f"{label} must not contain URL credentials")
         require(port is None, f"{label} must not contain an explicit port")
         require(parts.netloc == host, f"{label} hostname must use canonical lowercase form")
-        require(not parts.query and not parts.fragment,
+        # Not even an empty one ("…/?"): moos_webapp_policy holds a web app's start page to the
+        # same character rule, so the gate and the window can never disagree about one.
+        require("?" not in value and "#" not in value,
                 f"{label} must not carry a query or fragment")
         return parts
 

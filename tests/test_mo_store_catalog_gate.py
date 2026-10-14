@@ -325,6 +325,14 @@ class EveryNewCatalogueRuleBites(unittest.TestCase):
             entry["id"], entry["en"], entry["ar"] = "kitty-ssh", "KiTTY", "كيتي"
         self.refused(unknown_app, "has no exact download rule")
 
+    def test_a_catalogue_url_never_carries_a_query_or_fragment(self):
+        for suffix in ("?raw=1", "#top", "?", "#"):
+            with self.subTest(suffix=suffix):
+                def plant(c, s=suffix):
+                    item = app(c, "putty")["install"]["downloads"]["x86_64"]
+                    item["url"] += s
+                self.refused(plant, "url must not carry a query or fragment")
+
     def test_a_download_carries_a_canonical_digest_and_a_real_size(self):
         for size in (True, 0, -1, 5 * 1024 ** 3, "1706136"):
             with self.subTest(size=size):
@@ -550,6 +558,48 @@ class EveryNewCatalogueRuleBites(unittest.TestCase):
                      "bundles hold sandboxed apps only")
         self.refused(lambda c: c["bundles"][0].update(desc_en="Editors and databases"),
                      "must end with a full stop")
+
+
+class TheGateAndTheWebAppPolicyAgree(unittest.TestCase):
+    """One rule for a web app's id and for a query or fragment on its start page.
+
+    The gate once refused `1password` and `https://web.whatsapp.com/#/` while
+    moos_webapp_policy (and the contract) accepted both. Each case plants a second WhatsApp entry
+    and asks both: the gate's whole report (the shipped catalogue has none) and parse_entry.
+    """
+
+    policy = gate.load_source_module("moos_webapp_policy_under_test",
+                                     SYSTEM / gate.WEBAPP_POLICY.lstrip("/"))
+
+    def verdicts(self, app_id: str, url: str) -> tuple[bool, bool]:
+        planted = copy.deepcopy(app(SHIPPED, "whatsapp"))
+        planted.update(id=app_id, en="WhatsApp Two", ar="واتساب الثاني")
+        planted["install"]["url"] = url
+        errors = errors_for(lambda c: c["apps"].append(planted))
+        try:
+            self.policy.parse_entry(planted)
+            policy_refuses = False
+        except self.policy.WebAppError:
+            policy_refuses = True
+        return bool(errors), policy_refuses
+
+    def test_on_the_id(self):
+        for app_id, refused in (("whatsapp-two", False), ("x" * 63, False), ("1password", True),
+                                ("a", True), ("x" * 64, True), ("whatsapp--two", True),
+                                ("whatsapp-", True)):
+            with self.subTest(app_id=app_id):
+                self.assertEqual(self.verdicts(app_id, "https://web.whatsapp.com/"),
+                                 (refused, refused))
+
+    def test_on_a_query_or_fragment(self):
+        for url, refused in (("https://web.whatsapp.com/", False),
+                             ("https://web.whatsapp.com/send", False),
+                             ("https://web.whatsapp.com/#/", True),
+                             ("https://web.whatsapp.com/?lang=ar", True),
+                             ("https://web.whatsapp.com/?", True),
+                             ("https://web.whatsapp.com/#", True)):
+            with self.subTest(url=url):
+                self.assertEqual(self.verdicts("whatsapp-two", url), (refused, refused))
 
 
 def without_vendor_rpm(catalog):

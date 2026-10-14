@@ -2,9 +2,10 @@
 """MoOS web apps: the catalogue is the only authority, and an app stays where it belongs.
 
 What this proves, without Qt (the policy module) and through the real command line:
-  * only a valid catalogue entry of kind "webapp" is a web app — an http address, credentials in
-    the address, a start page outside the app's own hosts, an unknown identity provider or an
-    unknown permission are each refused;
+  * only a valid catalogue entry of kind "webapp" is a web app — an id that is not the Store's
+    slug, an http address, credentials in the address, a query or fragment on the start page, a
+    start page outside the app's own hosts, an unknown identity provider or an unknown
+    permission are each refused (the catalogue gate holds the same id and address rules);
   * host matching cannot be fooled by look-alike or suffixed domains;
   * an app's own hosts and its sign-in providers stay inside the window, every other address goes
     to the browser, and file:, data:, javascript:, blob: and moos: addresses go nowhere;
@@ -187,8 +188,34 @@ class EntryValidation(unittest.TestCase):
 
     def test_invalid_entries_are_skipped_not_trusted(self):
         catalog = {"apps": [entry(), entry(id="broken", install_url="http://x.example/"),
+                            entry(id="bad-port", install_url="https://chatgpt.com:abc/"),
                             {"id": "firefox", "source": "flathub"}]}
         self.assertEqual(sorted(policy.webapps(catalog)), ["chatgpt"])
+
+    def test_an_id_is_the_stores_slug(self):
+        """The gate's rule (docs/MO_STORE.md): a letter first, single hyphens, 2 to 63."""
+        for app_id in ("ab", "chatgpt", "chatgpt-web", "le-chat", "office365", "x" * 63):
+            with self.subTest(app_id=app_id):
+                self.assertEqual(policy.parse_entry(entry(id=app_id)).id, app_id)
+        for app_id in ("1password", "a", "x" * 64, "chat--gpt", "chat-", "-chat", "Chat",
+                       "chat_gpt", "chat.gpt"):
+            with self.subTest(app_id=app_id):
+                with self.assertRaises(policy.WebAppError) as caught:
+                    policy.parse_entry(entry(id=app_id))
+                self.assertEqual(caught.exception.code, "bad_id")
+                with self.assertRaises(policy.WebAppError):
+                    policy.paths(app_id)
+
+    def test_a_start_page_is_a_plain_address(self):
+        """No query and no fragment, not even an empty one; a malformed one is refused, not a crash."""
+        for url in ("https://chatgpt.com/#/", "https://chatgpt.com/?lang=ar", "https://chatgpt.com/?",
+                    "https://chatgpt.com/#", "https://chatgpt.com:abc/", "https://[::1/"):
+            with self.subTest(url=url):
+                with self.assertRaises(policy.WebAppError) as caught:
+                    policy.parse_entry(entry(install_url=url))
+                self.assertEqual(caught.exception.code, "bad_url")
+        self.assertEqual(policy.parse_entry(entry(install_url="https://chatgpt.com/c")).url,
+                         "https://chatgpt.com/c")
 
 
 class Navigation(unittest.TestCase):

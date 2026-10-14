@@ -35,7 +35,10 @@ from urllib.parse import urlsplit
 CATALOG = Path(os.environ.get("MOOS_STORE_CATALOG", "/usr/share/moos/store/catalog.json"))
 RUNTIME = "/usr/bin/moos-webapp"
 DESKTOP_PREFIX = "org.moos.webapp."
-ID_PATTERN = re.compile(r"^[a-z0-9][a-z0-9-]{1,62}$")
+# An id is a launcher's file name, a window's app id and a folder name: a slug by the Store gate's
+# own rule (SLUG_RE in build_files/verify_store_catalog.py: a lowercase letter first, single
+# hyphens between letters and digits), 2 to 63 characters long.
+ID_PATTERN = re.compile(r"^(?=.{2,63}$)[a-z][a-z0-9]*(?:-[a-z0-9]+)*$")
 HOST_PATTERN = re.compile(r"^(\*\.)?([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$")
 ACCENT_PATTERN = re.compile(r"^#[0-9a-fA-F]{6}$")
 
@@ -146,9 +149,16 @@ def parse_entry(entry: dict) -> WebApp:
     url = install.get("url")
     if not isinstance(url, str):
         raise WebAppError("bad_url", app_id)
-    parts = urlsplit(url)
+    try:
+        parts = urlsplit(url)
+        port = parts.port
+    except ValueError as error:   # a malformed port or IPv6 address
+        raise WebAppError("bad_url", url) from error
+    # The start page is a plain address, by the rule the Store gate holds every catalogue URL to:
+    # no query and no fragment, not even an empty one.
     if (parts.scheme != "https" or not parts.hostname or parts.username or parts.password
-            or parts.port not in (None, 443) or "\\" in url or any(ch <= " " for ch in url)):
+            or port not in (None, 443) or "\\" in url or any(ch <= " " for ch in url)
+            or "?" in url or "#" in url):
         raise WebAppError("bad_url", url)
     hosts = install.get("hosts")
     if not isinstance(hosts, list) or not hosts or len(hosts) > 24:
