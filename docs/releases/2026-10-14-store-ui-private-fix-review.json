@@ -1,0 +1,143 @@
+{
+  "recorded_at": "2026-10-14T21:12:44.601734+00:00",
+  "scope": "private patch only; native aarch64 Qt6 real component logic and isolated offscreen software pixels; source snapshot evidence, no installation/release/NVIDIA compositor/owner GUI/input/config changes",
+  "snapshot": {
+    "branch": "store/ui-split",
+    "head": "e0ca45b17196ccd093d4d6839ecf2eb3e9d38cf1",
+    "pending_qml": [
+      "main.qml"
+    ],
+    "files": 20,
+    "baseline_hashes": "source-qml-hashes.json"
+  },
+  "patch": {
+    "path": "/var/home/moos/.cache/moos-store-ui-audit-20261014/store-ui-private-fixes.patch",
+    "sha256": "25cac247a5c842aa54b8d161acdf6ea2eba4a3068a1e74ec15af2f7786d635d6",
+    "files": 6,
+    "check_exit": 0,
+    "apply_exit": 0,
+    "applied_20_qml_file_bytes_match": true,
+    "fixed_hashes": "fixed-source-qml-hashes.json"
+  },
+  "controls": {
+    "receipt": "old-fixed-controls-final.json",
+    "old": [
+      {
+        "language": "ar",
+        "exit": 1,
+        "total": 36,
+        "failures": 31
+      },
+      {
+        "language": "en",
+        "exit": 1,
+        "total": 36,
+        "failures": 31
+      }
+    ],
+    "fixed": [
+      {
+        "language": "ar",
+        "exit": 0,
+        "total": 36,
+        "failures": 0
+      },
+      {
+        "language": "en",
+        "exit": 0,
+        "total": 36,
+        "failures": 0
+      }
+    ]
+  },
+  "geometry": {
+    "receipt": "geometry-controls-final.json",
+    "old": [
+      {
+        "page": "discover",
+        "font_pt": 10,
+        "exit": 1,
+        "failures": 2
+      },
+      {
+        "page": "apps",
+        "font_pt": 20,
+        "exit": 1,
+        "failures": 28
+      }
+    ],
+    "fixed_samples": 8,
+    "fixed_total_checks": 116,
+    "fixed_all_exit0": true
+  },
+  "render": {
+    "receipt": "fixed-render-matrix-final.json",
+    "samples": 8,
+    "logical_size": "900x620",
+    "language": [
+      "ar",
+      "en"
+    ],
+    "font_pt": [
+      10,
+      20
+    ],
+    "pages": [
+      "discover",
+      "apps"
+    ],
+    "all_exit0": true,
+    "reviewed_large_font_apps_frames": [
+      "final-fixed-ar-apps-900-20pt.png",
+      "final-fixed-en-apps-900-20pt.png"
+    ]
+  },
+  "fixed": [
+    "grid card content fits and uses fewer columns for larger text",
+    "hero height follows actual content and stacks at narrow widths",
+    "rail fits scaled brand, scrolls to final navigation entry",
+    "long header text bounded with elision",
+    "Verified requires explicit verified=true",
+    "query folds documented Arabic/English vectors and reads index.search",
+    "safe initial/repeated page links map library/updates/games/settings into existing pages",
+    "pinned catalogue app updates count as apps",
+    "existing run/remove bridge reaches backend-confirmed catalog Windows/webapp/appdrop and installed local Android kind"
+  ],
+  "remaining": [
+    "uncatalogued AppDrop row alias/slug needs explicit backend correlation, not routed by this patch",
+    "vendor backend run/remove integration absent at snapshot; not invented",
+    "npm tools remain CLI-only without GUI Open",
+    "details/facts/compat/permission/settings UI beyond bounded helper patch remains",
+    "larger type makes Discover exceed viewport; Flickable scroll is expected; not a full app accessibility/keyboard proof",
+    "offscreen software symbolic-mask colours are not proof of actual compositor rendering",
+    "owner source can change after snapshot; rebase/review overlaps before applying, no claimed repository edited",
+    "repository just check/signing/installed acceptance not run for this private cache patch",
+    "SourceBadge/main source-label comments carry old channel-certification wording; refresh comments while integrating with the owner final revision; label logic itself uses verified=true"
+  ],
+  "supersedes": {
+    "patch_sha256": "328c558cfe8db535b42d799f9e0ae2bf88c4bdaac69c8f068a2598a1453595b8",
+    "reason": "delegate/currentItem-derived cellheight varied with navigation; uniform shaped-fontmetrics supersedes it; prior private draft never applied to owner repository"
+  },
+  "grid_height_stability": {
+    "receipt": "grid-height-stability-proof.json",
+    "intermediate_negative_exit": 1,
+    "intermediate_height_range": [
+      256,
+      289
+    ],
+    "fixed_exit": 0,
+    "fixed_height_range": [
+      293,
+      293
+    ],
+    "samples_each": 24,
+    "actions_contained": 48,
+    "fixed_content_overflow_px": 0,
+    "uniform_height_source": "FontMetrics + hidden mixed-script Text line metrics; no delegate measurement dependency"
+  },
+  "required_integration_checks": [
+    "Compare captured QML hashes and active owner changes; rebase/select fixes only after worker ownership settles",
+    "Bump THEME_REV for shipped QML changes and corresponding reviewed fingerprint through maintained tooling",
+    "Run repository just check plus actual render/input and image/release gates for the integrated final revision; this private patch is not signed delivery"
+  ]
+}

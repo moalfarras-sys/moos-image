@@ -11,13 +11,13 @@ new private feedback/optional public suggestions product is P6.9 below.
 
 ## Active delivery and acceptance batch
 
-PR232–236 are integrated. Latest source `1b947c21` ships THEME_REV=104 and
-passes full source/image/PR gates, exact 19-file local ARM readback and the
-complete first-attempt signed cycle: build 38494227738, disks
-38499628341/38499631679/38499635277, ISO 38499638470,
-ARM 38493744772 and promotion 38503482331. The four registry tags now resolve
-to x86 .1046 / ARM .775. Exact digests, eight healthy CI boot IDs and ten ISO
-app journeys are in [the qualified receipt](releases/2026-10-14-qualified-release-proof.json).
+Latest source `5745edd1` ships THEME_REV=104 and passes full source/image/PR
+gates, exact 20-file local ARM readback and the complete first-attempt signed
+cycle: build 38621311347, disks 38631573998/38631579047/38631585290,
+ISO 38631591001, ARM 38621121074 and promotion 38638466690. Independent
+registry/signature readback resolves to x86 .1053 / ARM .778. Exact digests,
+eight distinct healthy CI boots and ten offline ISO app journeys are in
+[the qualified receipt](releases/2026-10-14-m1-qualified-cycle-proof.json).
 These are promoted artifacts, not installed hardware or full product acceptance.
 
 M1/P2.4/P2.8 Island keys now avoid hidden tabs, synchronize selection/content,
@@ -29,8 +29,8 @@ real directory event, without idle polling or token resurrection. Old/fixed
 native Qt controls and [62 control tests pass](releases/2026-10-14-mira-job-presence-proof.json); this does not establish the prior
 intermittent Qt startup failure's cause. Full local ARM image and actual 20-file
 readback now pass after an ENOSPC final-commit failure and exact obsolete-cache
-retirement. Signed cycle is fixed at `5745edd1`; independent Store review and
-the station's active Store development continue without changing that revision.
+retirement. Signed .1053/.778 promotion completed at `5745edd1`; independent
+Store review and the station's active Store development are a separate batch.
 Next acceptance is native installed shell input/focus and screen-reader behavior.
 
 P2.17 greeter desktop facts/actual matching EIS groups are signed in .1044/.773
@@ -318,14 +318,21 @@ For every task:
 
 ## Ordered execution
 
+The owner's Oct14 priority is the in-progress M3 Store batch on the NVIDIA
+station. Independent Oracle review supplies executable old/fixed controls and
+review patches without editing its reserved files. M1's current signed cycle
+is complete; its remaining installed shell/accessibility acceptance stays open.
+See [the bounded Store review](reviews/STORE_20261014_AR.md); it is evidence for
+the existing A3/P4 tasks, not another backlog or a shipped Store claim.
+
 ### Milestone map
 
 | Milestone | Coherent outcome | Work-stream rows | Boundary proof |
 | --- | --- | --- | --- |
 | M0 | One honest source/release/workstation state | P0.1–P0.2, P0.6, release harness defects | signed build + 3×QCOW2 + ISO + ARM; exact installed readback |
-| **M1 active** | Daily shell feels like one MoOS product: Bar, Search, Island, clock, sound, keyboard and desktop hub | P2.3–P2.5, P2.7–P2.8, P5.4 baseline | native keyboard/render review, matrix samples, then the M0 artifact set |
+| M1 acceptance | Daily shell feels like one MoOS product: Bar, Search, Island, clock, sound, keyboard and desktop hub | P2.3–P2.5, P2.7–P2.8, P5.4 baseline | native keyboard/render review, matrix samples, then the M0 artifact set |
 | M2 | Workspace, Intro, login/lock/boot and first-run form one journey | P1.6, P2.1–P2.2, P2.5, P5.8 | clean and upgraded profiles; offline/online; Wayland restart and scale/hotplug |
-| M3 | Settings, Store and Mo AI complete real jobs with one authority | P1.7, P3.1–P3.7, P4.1–P4.2 | schema/failure fixtures plus install/update/remove and confirmed AI-action readback |
+| **M3 active: owner Store priority** | Settings, Store and Mo AI complete real jobs with one authority | P1.7, P3.1–P3.7, P4.1–P4.2 | schema/failure fixtures plus install/update/remove and confirmed AI-action readback |
 | M4 | Hardware and compatibility breadth | P0.3–P0.5, P4.3–P4.5, P5.1–P5.8 | device records, suspend/rollback and published compatibility evidence |
 | M5 | Sustainable releases and support | P6.1–P6.6 | reproducible inputs, attestations, staged rollout and support policy |
 
@@ -341,7 +348,7 @@ itself and an unreviewed MoOS would ship kscreenlocker's emergency locker.
 | ID | Outcome | Current boundary | Required acceptance |
 | --- | --- | --- | --- |
 | P0.1 | Integrate the reviewed first-install repairs and create one candidate revision | Stable mechanism/artifact evidence recorded; preserve required gates | Exact candidate source, all integrated fixes and no local override counted as release. |
-| P0.2 | Run generic, NVIDIA and cloud QCOW2 proofs plus offline ISO install/second boot | Exact .1046 three QCOW2/offline installed ISO and ARM .775 two-boot proofs pass. Native Oracle .775 boot/19 payload hashes/51 selfchecks and 55 post-update checks pass with earlier failed attempts preserved. Physical NVIDIA .1046 boot passes 54 selfchecks/2 notes, 55 post-update/0 failures and 19 hashes/player; wider hardware acceptance remains open | Three exact-digest x86 QCOW2 journeys, offline installed ISO and separate ARM two-boot proof. |
+| P0.2 | Run generic, NVIDIA and cloud QCOW2 proofs plus offline ISO install/second boot | Exact .1053 three QCOW2/offline installed ISO and ARM .778 two-boot proofs pass. Native Oracle .775 boot/19 payload hashes/51 selfchecks and 55 post-update checks pass with earlier failed attempts preserved. Physical NVIDIA .1046 boot passes 54 selfchecks/2 notes, 55 post-update/0 failures and 19 hashes/player; new installed/hardware acceptance remains open | Three exact-digest x86 QCOW2 journeys, offline installed ISO and separate ARM two-boot proof. |
 | P0.3 | Finish physical NVIDIA qualification | Open: signed .1042 native 55/0 + 55/0, 16 hashes and exact signed player bytes pass; one URI/finite seek/resource journey passes. Kernel -201 NVIDIA vermagic matches. USB-C UCSI -110 remains; broader physical acceptance is open. Offline ESP dirty-bit-only clone/live proof passes, 16 boot-file hashes preserved and both shared vfat mounts restored; the prior unmount mistake failed before fsck and has a private old/fixed topology control. Next cold-boot warning readback, suspend/hotplug and recovery remain | Actual NVIDIA GPU, initramfs module, displays, suspend and clean recovery on qualified hardware. |
 | P0.4 | Prove failed-update recovery | Open / acceptance not complete | Deliberate bad update, automatic/manual rollback and forward return without owner data loss. |
 | P0.5 | Configure and accept free Mo AI on a clean account | Open / acceptance not complete | Clean-account provider setup, free route, reboot, cancellation and network/quota/key failures. |
