@@ -329,6 +329,40 @@ class PortableArchives(Home):
         self.assertFalse((self.home / ".config/autostart/pwn.desktop").exists())
         self.nothing_escaped()
 
+    CHAIN_ONLY = [("esc", "x/..", "link"), ("x", "y/..", "link"), ("y", ".", "link"), ("AppRun", ELF, "exe")]
+
+    def test_a_chain_of_links_alone_is_judged_once_every_hop_exists(self):
+        # The same chain with NOTHING written under it. No member forces `esc` to be a real
+        # folder, so all three links are made and each, read alone, stays inside; only the last
+        # check — every link's fully resolved target, once the whole chain exists — sees that
+        # `esc` now points two levels up, at the home folder. Without that check this "app"
+        # installed with ~/Applications/chain-only/esc -> ~.
+        plan = appdrop.inspect(self.download("chain-only.zip", self.zip_bytes(self.CHAIN_ONLY)))
+        with self.assertRaises(appdrop.DropError) as refused:
+            appdrop.install(plan)
+        self.assertEqual(refused.exception.code, "unsafe_archive")
+        self.assertEqual(appdrop.installed(), [])
+        self.assertFalse((self.home / "Applications/chain-only").exists())
+        self.assertEqual(self.links_leaving(self.home / "Applications"), [])
+
+    def test_a_refused_archive_leaves_no_link_out_of_the_tree(self):
+        # Mo Store's Windows programs call extract_zip directly, so the function keeps its own
+        # promise: a refused archive takes the links it made with it, whether the chain is caught
+        # by the last check or a later link is refused on sight — never a link to the home
+        # folder left in the tree for some later step to follow.
+        cases = {"the chain alone": self.CHAIN_ONLY,
+                 "a refused link after the chain": self.CHAIN_ONLY + [("etc", "/etc", "link")]}
+        for number, (label, members) in enumerate(cases.items()):
+            with self.subTest(label):
+                root = self.home / f"Applications/.chain{number}.installing"
+                root.mkdir(parents=True)
+                archive = self.download(f"chain{number}.zip", self.zip_bytes(members))
+                budget = appdrop._Budget(archive.stat().st_size, lambda: False, lambda _done: None)
+                with self.assertRaises(appdrop.DropError) as refused:
+                    appdrop.extract_zip(archive, root, budget)
+                self.assertEqual(refused.exception.code, "unsafe_archive")
+                self.assertEqual(self.links_leaving(root), [])
+
     def test_in_tree_links_install_when_the_home_is_reached_through_a_link(self):
         # MoOS is an Atomic system: /home is itself a link to var/home, so a HOME of /home/<name>
         # — or an ~/Applications moved to a bigger disk and linked back — reaches the extraction
