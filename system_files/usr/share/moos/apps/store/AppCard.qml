@@ -2,10 +2,16 @@ pragma ComponentBehavior: Bound
 
 import QtQuick
 import QtQuick.Layouts
+import org.moos.ui as MoUI
 
-// Mo Store — one app as a card: artwork, name, publisher, summary, source badge and
-// its one action. Discover lays cards out in a grid; the catalogue's virtual
-// GridView makes the whole grid one keyboard stop (compositeFocus) and marks its
+// Mo Store — one app as a card, in three shapes: "grid" (the Apps and Games grid), "tile" (a
+// Discover row) and "row" (search results). Its picture, its name and maker, a line about it, where
+// it comes from, whether it works here when it does not simply work, and its one button. The whole
+// card opens the app's page; hovering lifts it.
+//
+// A virtual GridView is one keyboard composite: making each instantiated delegate a Tab stop
+// strands keyboard users on only the visible cache window. Discover cards keep their normal
+// independent stops; the app grid opts into arrow-key navigation (compositeFocus) and marks its
 // current card (compositeCurrent).
 //
 // Drawn from main.qml's state: `win` is the Store window, which owns the data, the actions
@@ -15,78 +21,167 @@ Rectangle {
     required property var win
     readonly property var design: win.design
     required property var app
-    // A virtual GridView is one keyboard composite: making each instantiated delegate a
-    // Tab stop strands keyboard users on only the visible cache window. Discover cards keep
-    // their normal independent stops; the catalogue grid opts into arrow-key navigation.
+    property string variant: "grid"
     property bool compositeFocus: false
     property bool compositeCurrent: false
     property bool selected: win.isPicked(app.id)
     property bool installed: win.isInstalled(app)
-    radius: design.radiusCard
-    color: cardHover.hovered
-         ? Qt.rgba(win.raised.r, win.raised.g, win.raised.b, 0.98)
-         : Qt.rgba(win.surface.r, win.surface.g, win.surface.b, 0.82)
-    border.width: selected ? 2 : 1
+    readonly property bool hovered: cardHover.hovered
+    readonly property var compat: win.compatOf(card.app)
+
+    radius: card.variant === "row" ? design.radiusCard : design.radiusCard + 2
+    color: win.cardColor
+    border.width: card.selected ? 2 : 1
     border.color: card.selected ? win.accent
-                 : cardHover.hovered ? Qt.rgba(win.accent.r, win.accent.g, win.accent.b, 0.56)
+                 : cardHover.hovered ? win.tint(win.accent, 0.5)
                                      : win.outline
-    scale: cardHover.hovered ? 1.012 : 1
+    scale: feedback.value
     activeFocusOnTab: !card.compositeFocus
-    Accessible.role: Accessible.ListItem
-    FocusRing { win: card.win; visible: card.activeFocus || card.compositeCurrent }
+    Accessible.role: Accessible.Button
     Accessible.name: win.localName(app) + ", " + win.sourceLabel(app)
-    HoverHandler { id: cardHover }
-    TapHandler { onTapped: win.openDetails(card.app) }
+    Accessible.description: win.localSummary(app)
+    Accessible.onPressAction: win.openDetails(card.app)
+    FocusRing { win: card.win; visible: card.activeFocus || card.compositeCurrent }
+    HoverHandler { id: cardHover; cursorShape: Qt.PointingHandCursor }
+    TapHandler { onTapped: card.win.openDetails(card.app) }
     Keys.onReturnPressed: win.openDetails(card.app)
     Keys.onSpacePressed: win.openDetails(card.app)
-    Behavior on color { ColorAnimation { duration: win.motionEnabled ? design.motionPress : 0 } }
-    Behavior on border.color { ColorAnimation { duration: win.motionEnabled ? design.motionPress : 0 } }
-    Behavior on scale { NumberAnimation { duration: win.motionEnabled ? design.motionPress : 0; easing.type: Easing.OutQuad } }
+    Behavior on border.color { ColorAnimation { duration: card.win.motionEnabled ? card.design.motionPress : 0 } }
 
+    MoUI.SpringFeedback {
+        id: feedback
+        active: card.visible
+        motionEnabled: card.win.motionEnabled
+        targetScale: cardHover.hovered && card.variant !== "row" ? card.design.hoverScale : 1
+    }
+    SoftShadow {
+        win: card.win
+        radius: card.radius
+        strength: cardHover.hovered ? 1.8 : 1
+        visible: card.variant !== "row"
+    }
+
+    // The glass edge: one bright hairline along the top.
+    Rectangle {
+        anchors.top: parent.top
+        anchors.topMargin: 1
+        anchors.horizontalCenter: parent.horizontalCenter
+        width: parent.width - card.radius * 2
+        height: 1
+        color: card.win.design.glassSpecular(card.win.cardColor, card.win.design.glassLevelScene)
+        opacity: card.win.lightScheme ? 1 : 0.5
+    }
+
+    // ── grid ──
     ColumnLayout {
+        visible: card.variant === "grid"
         anchors.fill: parent
-        anchors.margins: 14
-        spacing: 9
+        anchors.margins: card.design.space4
+        spacing: card.design.space2
         RowLayout {
             Layout.fillWidth: true
-            spacing: 11
-            AppArtwork { win: card.win; app: card.app; size: 48 }
+            spacing: card.design.space3
+            AppIcon { win: card.win; app: card.app; size: card.win.fs(56); showKind: true }
             ColumnLayout {
                 Layout.fillWidth: true
                 spacing: 2
                 Text {
+                    horizontalAlignment: Text.AlignLeft
                     Layout.fillWidth: true
-                    text: win.localName(card.app)
-                    color: win.txt
-                    font.family: win.uiFont
-                    font.pixelSize: win.typePx(15)
-                    font.bold: true
+                    text: card.win.localName(card.app)
+                    color: card.win.txt
+                    font.family: card.win.uiFont
+                    font.pixelSize: card.win.typePx(15)
+                    font.weight: Font.DemiBold
                     elide: Text.ElideRight
                 }
                 Text {
+                    horizontalAlignment: Text.AlignLeft
                     Layout.fillWidth: true
-                    text: card.app.developer || card.app.id
-                    color: win.txt2
-                    font.family: win.uiFont
-                    font.pixelSize: win.typePx(10)
+                    text: card.win.publisherLine(card.app)
+                    color: card.win.txt2
+                    font.family: card.win.uiFont
+                    font.pixelSize: card.win.typePx(12)
                     elide: Text.ElideRight
                 }
             }
-            Rectangle {
-                visible: card.installed
-                Layout.preferredWidth: win.fs(24)
-                Layout.preferredHeight: win.fs(24)
-                radius: height / 2
-                color: Qt.rgba(win.accent.r, win.accent.g, win.accent.b, 0.15)
-                Glyph { win: card.win; anchors.centerIn: parent; width: 13; height: 13; name: "check"; tint: win.accent }
-            }
         }
         Text {
+            horizontalAlignment: Text.AlignLeft
             Layout.fillWidth: true
-            text: win.localSummary(card.app)
-            color: win.txt2
-            font.family: win.uiFont
-            font.pixelSize: win.typePx(11)
+            text: card.win.localSummary(card.app)
+            color: card.win.txt2
+            font.family: card.win.uiFont
+            font.pixelSize: card.win.typePx(13)
+            wrapMode: Text.WordWrap
+            maximumLineCount: 2
+            elide: Text.ElideRight
+        }
+        Item { Layout.fillHeight: true }
+        // The foot: where it comes from, a limit on this PC when there is one (its words are on
+        // the app's page), and the one button. The badge gives way before the button does.
+        RowLayout {
+            Layout.fillWidth: true
+            spacing: card.design.space2
+            SourceBadge { win: card.win; app: card.app; maxWidth: card.width * 0.46 }
+            Glyph {
+                win: card.win
+                visible: card.compat.known && card.compat.verdict !== "ok"
+                name: card.compat.verdict === "blocked" ? "danger" : "warning"
+                tint: card.compat.verdict === "blocked" ? card.win.dangerInk : card.win.warningInk
+                Layout.preferredWidth: card.win.fs(16)
+                Layout.preferredHeight: card.win.fs(16)
+            }
+            Item { Layout.fillWidth: true }
+            ProgressButton {
+                win: card.win
+                app: card.app
+                tabStop: !card.compositeFocus
+                visible: card.variant === "grid"
+            }
+        }
+    }
+
+    // ── tile ──
+    ColumnLayout {
+        visible: card.variant === "tile"
+        anchors.fill: parent
+        anchors.margins: card.design.space4
+        spacing: card.design.space1
+        AppIcon {
+            win: card.win
+            app: card.app
+            size: card.win.fs(64)
+            showKind: true
+            Layout.bottomMargin: card.design.space2
+        }
+        Text {
+            horizontalAlignment: Text.AlignLeft
+            Layout.fillWidth: true
+            text: card.win.localName(card.app)
+            color: card.win.txt
+            font.family: card.win.uiFont
+            font.pixelSize: card.win.typePx(15)
+            font.weight: Font.DemiBold
+            elide: Text.ElideRight
+        }
+        Text {
+            horizontalAlignment: Text.AlignLeft
+            Layout.fillWidth: true
+            text: card.win.publisherLine(card.app)
+            color: card.win.txt2
+            font.family: card.win.uiFont
+            font.pixelSize: card.win.typePx(12)
+            elide: Text.ElideRight
+        }
+        Text {
+            horizontalAlignment: Text.AlignLeft
+            Layout.fillWidth: true
+            Layout.topMargin: card.design.space1
+            text: card.win.localSummary(card.app)
+            color: card.win.txt2
+            font.family: card.win.uiFont
+            font.pixelSize: card.win.typePx(13)
             wrapMode: Text.WordWrap
             maximumLineCount: 2
             elide: Text.ElideRight
@@ -94,31 +189,74 @@ Rectangle {
         Item { Layout.fillHeight: true }
         RowLayout {
             Layout.fillWidth: true
-            spacing: 7
-            SourceBadge { win: card.win; app: card.app }
-            Item { Layout.fillWidth: true }
-            ActionButton {
+            spacing: card.design.space2
+            ProgressButton {
                 win: card.win
-                activeFocusOnTab: !card.compositeFocus
-                enabled: !card.installed || win.hasRunnableLifecycle(card.app)
-                label: card.installed
-                    ? win.hasRunnableLifecycle(card.app)
-                        ? (win.rtl ? "افتح" : "Open")
-                        : (win.rtl ? "جاهز" : "Ready")
-                    : card.selected ? (win.rtl ? "مُضاف" : "Added")
-                    : win.isWeb(card.app) ? (win.rtl ? "الموقع" : "Website")
-                    : (win.rtl ? "تثبيت" : "Install")
-                glyphName: card.installed
-                    ? win.hasRunnableLifecycle(card.app) ? "external" : "check"
-                    : card.selected ? "check" : "download"
-                primary: card.selected
-                triggered: function() {
-                    if (card.installed && win.hasRunnableLifecycle(card.app))
-                        win.runSelected(card.app)
-                    else if (card.selected) win.setPicked(card.app.id, false)
-                    else win.installOne(card.app)
-                }
+                app: card.app
+                tabStop: !card.compositeFocus
+                visible: card.variant === "tile"
             }
+            Item { Layout.fillWidth: true }
+            Glyph {
+                win: card.win
+                visible: card.compat.known && card.compat.verdict !== "ok"
+                name: card.compat.verdict === "blocked" ? "danger" : "warning"
+                tint: card.compat.verdict === "blocked" ? card.win.dangerInk : card.win.warningInk
+                Layout.preferredWidth: card.win.fs(16)
+                Layout.preferredHeight: card.win.fs(16)
+            }
+        }
+    }
+
+    // ── row ──
+    RowLayout {
+        visible: card.variant === "row"
+        anchors.fill: parent
+        anchors.leftMargin: card.design.space4
+        anchors.rightMargin: card.design.space4
+        spacing: card.design.space4
+        AppIcon { win: card.win; app: card.app; size: card.win.fs(52); showKind: true }
+        ColumnLayout {
+            Layout.fillWidth: true
+            spacing: 2
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: card.design.space2
+                Text {
+                    horizontalAlignment: Text.AlignLeft
+                    Layout.fillWidth: false
+                    Layout.maximumWidth: card.width * 0.42
+                    text: card.win.localName(card.app)
+                    color: card.win.txt
+                    font.family: card.win.uiFont
+                    font.pixelSize: card.win.typePx(15)
+                    font.weight: Font.DemiBold
+                    elide: Text.ElideRight
+                }
+                SourceBadge { win: card.win; app: card.app; maxWidth: card.width * 0.3 }
+                Item { Layout.fillWidth: true }
+            }
+            Text {
+                horizontalAlignment: Text.AlignLeft
+                Layout.fillWidth: true
+                text: card.win.localSummary(card.app) || card.win.publisherLine(card.app)
+                color: card.win.txt2
+                font.family: card.win.uiFont
+                font.pixelSize: card.win.typePx(13)
+                elide: Text.ElideRight
+            }
+        }
+        CompatBadge {
+            win: card.win
+            app: card.app
+            compact: true
+            visible: card.compat.known && card.compat.verdict !== "ok"
+        }
+        ProgressButton {
+            win: card.win
+            app: card.app
+            tabStop: !card.compositeFocus
+            visible: card.variant === "row"
         }
     }
 }
