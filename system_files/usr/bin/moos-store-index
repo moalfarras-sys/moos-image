@@ -13,6 +13,7 @@ import argparse
 import configparser
 import contextlib
 import datetime as dt
+import glob
 import gzip
 import hashlib
 import ipaddress
@@ -3716,10 +3717,353 @@ def machine_profile() -> dict:
     first frame on an ARM desktop showed eleven apps with no ARM build and
     fifteen more whose engine is not in the image. `engines: null` means "could
     not tell", and every surface then filters nothing.
+
+    These two keys are what the catalogue is FILTERED by; machine_document()
+    adds the hardware facts the compatibility verdicts read.
     """
     ready = available_engines()
     return {"arch": running_arch(),
             "engines": None if ready is None else sorted(ready)}
+
+
+# ── machine.json: the facts a compatibility verdict needs ─────────────────────
+# docs/MO_STORE.md "machine.json". File reads only, each fact on its own: one that
+# cannot be read is null and never fails the document (the launcher writes it
+# synchronously before the first frame; budget 0.15 s, measured ~0.06 s). Free
+# space is measured where apps install, under ~/.local/share, never on `/`: on
+# MoOS `/` is a read-only composefs that always reads 100% full.
+
+GPU_VENDOR_IDS = {
+    "0x10de": "nvidia",
+    "0x1002": "amd",
+    "0x1022": "amd",
+    "0x8086": "intel",
+    "0x5143": "qualcomm",
+    "0x13b5": "arm",
+    "0x1af4": "virtual",
+    "0x15ad": "virtual",
+    "0x1234": "virtual",
+    "0x1b36": "virtual",
+    "0x80ee": "virtual",
+    "0x1013": "virtual",
+}
+GPU_DRIVER_VENDORS = {
+    "nvidia": "nvidia",
+    "nouveau": "nvidia",
+    "amdgpu": "amd",
+    "radeon": "amd",
+    "i915": "intel",
+    "xe": "intel",
+    "msm": "qualcomm",
+    "panfrost": "arm",
+    "panthor": "arm",
+    "lima": "arm",
+    "virtio_gpu": "virtual",
+    "virtio-pci": "virtual",
+    "vmwgfx": "virtual",
+    "qxl": "virtual",
+    "bochs": "virtual",
+    "bochs-drm": "virtual",
+    "cirrus": "virtual",
+}
+SESSION_RE = re.compile(r"^[a-z0-9-]{1,32}$")
+WINDOWS_PROBE_RE = re.compile(r"^windows-x86-[A-Za-z0-9._-]{1,200}\.status$")
+
+
+def under_root(root: Path, path: str) -> Path:
+    return root / path.lstrip("/")
+
+
+def fact(reader, *args):
+    """One machine fact; anything unexpected is "unknown", never an error."""
+
+    try:
+        return reader(*args)
+    except Exception:  # noqa: BLE001 - a fact must never fail machine.json
+        return None
+
+
+def state_home() -> Path:
+    configured = os.environ.get("MOOS_TIER_STATE_HOME") or os.environ.get("XDG_STATE_HOME")
+    return Path(configured) if configured else home_dir() / ".local/state"
+
+
+def config_home() -> Path:
+    configured = os.environ.get("XDG_CONFIG_HOME", "")
+    return Path(configured) if configured and Path(configured).is_absolute() \
+        else home_dir() / ".config"
+
+
+def cache_home() -> Path:
+    configured = os.environ.get("XDG_CACHE_HOME", "")
+    return Path(configured) if configured and Path(configured).is_absolute() \
+        else home_dir() / ".cache"
+
+
+def memory_facts(root: Path) -> dict:
+    values: dict[str, int] = {}
+    for line in under_root(root, "/proc/meminfo").read_text(encoding="ascii").splitlines():
+        key, _, rest = line.partition(":")
+        parts = rest.split()
+        if key in {"MemTotal", "SwapTotal"} and parts and parts[0].isdigit():
+            factor = 1024 if len(parts) > 1 and parts[1].lower() == "kb" else 1
+            values[key] = int(parts[0]) * factor
+    return values
+
+
+def visual_tier_facts() -> dict:
+    """The facts moos-visual-tier recorded, when its state file carries them."""
+
+    document = read_record(state_home() / "moos-visual-tier.json") or {}
+    facts = document.get("facts")
+    return facts if isinstance(facts, dict) else {}
+
+
+def drm_cards(root: Path) -> list[dict]:
+    cards = []
+    for card in sorted(glob.glob(str(under_root(root, "/sys/class/drm/card[0-9]*")))):
+        card_path = Path(card)
+        if "-" in card_path.name:
+            continue                    # card1-HDMI-A-1 is a connector, not a device
+        device = card_path / "device"
+        vendor_id = read_small_text(device / "vendor", 64).strip().lower()
+        try:
+            driver = os.path.basename(os.readlink(device / "driver"))
+        except OSError:
+            driver = ""
+        vram = read_small_text(device / "mem_info_vram_total", 64).strip()
+        try:
+            bus = os.path.basename(os.path.realpath(device))
+        except OSError:
+            bus = ""
+        vendor = GPU_DRIVER_VENDORS.get(driver) or GPU_VENDOR_IDS.get(vendor_id)
+        cards.append({
+            "vendor": vendor,
+            "driver": driver,
+            "vram": int(vram) if vram.isdigit() else 0,
+            "boot_vga": read_small_text(device / "boot_vga", 8).strip() == "1",
+            "bus": bus,
+        })
+    return cards
+
+
+def nvidia_models(root: Path) -> dict[str, str]:
+    models = {}
+    for information in glob.glob(str(under_root(root, "/proc/driver/nvidia/gpus/*/information"))):
+        for line in read_small_text(Path(information), 16384).splitlines():
+            key, _, value = line.partition(":")
+            if key.strip() == "Model" and value.strip():
+                models[Path(information).parent.name.lower()] = clean_text(value, 120)
+                break
+    return models
+
+
+def gpu_facts(root: Path) -> tuple[dict | None, list[str]]:
+    """({vendor, name, discrete}, every GPU vendor present) — the discrete GPU first."""
+
+    cards = [card for card in drm_cards(root) if card["vendor"]]
+    models = nvidia_models(root)
+    for card in cards:
+        card["name"] = models.get(card["bus"].lower()) if card["vendor"] == "nvidia" else None
+        # The same rule as moos-visual-tier: NVIDIA publishes no VRAM figure, and
+        # its driver is what proves the card discrete; AMD with 3 GiB of its own
+        # memory is a card, below that an APU.
+        card["discrete"] = card["vendor"] == "nvidia" or (
+            card["vendor"] == "amd" and card["vram"] >= 3 * 1024 ** 3)
+    if not cards and models:
+        cards = [{"vendor": "nvidia", "name": next(iter(models.values())), "discrete": True,
+                  "boot_vga": True}]
+    vendors = sorted({card["vendor"] for card in cards})
+    tier = visual_tier_facts()
+    if not cards:
+        drivers = tier.get("gpu_drivers")
+        if isinstance(drivers, list):
+            vendors = sorted({GPU_DRIVER_VENDORS[name] for name in drivers
+                              if isinstance(name, str) and name in GPU_DRIVER_VENDORS})
+        if not vendors:
+            return None, []
+        cards = [{"vendor": vendors[0], "name": None,
+                  "discrete": tier.get("gpu_class") == "discrete", "boot_vga": True}]
+    primary = sorted(cards, key=lambda card: (not card["discrete"], not card["boot_vga"]))[0]
+    discrete = primary["discrete"]
+    if tier.get("gpu_class") in {"discrete", "integrated", "virtual", "software"}:
+        discrete = tier["gpu_class"] == "discrete"
+    return {"vendor": primary["vendor"], "name": primary.get("name"),
+            "discrete": discrete}, vendors
+
+
+def nearest_existing(path: Path) -> Path | None:
+    for candidate in (path, *path.parents):
+        if candidate.exists():
+            return candidate
+    return None
+
+
+def free_space_for_apps() -> int | None:
+    """Free bytes where apps install: the filesystem holding ~/.local/share."""
+
+    where = nearest_existing(data_home())
+    if where is None or where.resolve() == Path("/"):
+        return None
+    stats = os.statvfs(where)
+    return stats.f_bavail * stats.f_frsize
+
+
+def android_initialized(root: Path) -> bool:
+    data = home_dir() / ".local/share/waydroid/data"
+    try:
+        if data.is_dir() and next(os.scandir(data), None) is not None:
+            return True
+    except OSError:
+        pass
+    config = under_root(root, "/var/lib/waydroid/waydroid.cfg")
+    return config.is_file() and os.access(config, os.R_OK)
+
+
+def windows_x86_32() -> bool:
+    """moos-run-foreign probes 32-bit Windows programs once per image and caches the
+    answer per image; the newest answer counts. No probe yet means False."""
+
+    folder = cache_home() / "moos-foreign"
+    try:
+        probes = [entry for entry in os.scandir(folder)
+                  if entry.is_file() and WINDOWS_PROBE_RE.fullmatch(entry.name)]
+    except OSError:
+        return False
+    if not probes:
+        return False
+    newest = max(probes, key=lambda entry: entry.stat().st_mtime_ns)
+    return read_small_text(Path(newest.path), 64).strip() == "available"
+
+
+def edid_identity(blob: bytes) -> str:
+    """KWin's edidIdentifier prefix: maker, product code, serial, week, year."""
+
+    if len(blob) < 128 or blob[:8] != b"\x00\xff\xff\xff\xff\xff\xff\x00":
+        return ""
+    packed = int.from_bytes(blob[8:10], "big")
+    maker = "".join(chr(((packed >> shift) & 0x1F) + 64) for shift in (10, 5, 0))
+    product = int.from_bytes(blob[10:12], "little")
+    serial = int.from_bytes(blob[12:16], "little")
+    return f"{maker} {product} {serial} {blob[16]} {blob[17] + 1990}"
+
+
+def screen_facts(root: Path) -> dict | None:
+    """{width, height, scale} of the primary screen, from the session's own records.
+
+    moos-visual-tier's facts when they carry a screen; otherwise the compositor's
+    saved output configuration (~/.config/kwinoutputconfig.json) for the outputs
+    that are connected now (sysfs), matched by EDID when it can be read. Any
+    ambiguity left is "unknown".
+    """
+
+    tier = visual_tier_facts().get("screen")
+    if isinstance(tier, dict):
+        width, height, scale = tier.get("width"), tier.get("height"), tier.get("scale")
+        if all(isinstance(value, (int, float)) and not isinstance(value, bool) and value > 0
+               for value in (width, height, scale)):
+            return {"width": int(width), "height": int(height), "scale": float(scale)}
+    document = json.loads(read_small_text(config_home() / "kwinoutputconfig.json") or "[]")
+    sections = {item.get("name"): item.get("data") for item in document
+                if isinstance(item, dict)}
+    outputs = sections.get("outputs") or []
+    setups = sections.get("setups") or []
+    connected: dict[str, str] = {}
+    for status in glob.glob(str(under_root(root, "/sys/class/drm/card*-*/status"))):
+        connector = Path(status).parent
+        if read_small_text(Path(status), 32).strip() != "connected":
+            continue
+        name = connector.name.split("-", 1)[1]
+        try:
+            edid = (connector / "edid").read_bytes()[:256]
+        except OSError:
+            edid = b""
+        connected[name] = edid_identity(edid)
+    priorities: dict[int, int] = {}
+    for setup in setups if isinstance(setups, list) else []:
+        for item in setup.get("outputs", []) if isinstance(setup, dict) else []:
+            if isinstance(item, dict) and item.get("enabled") and isinstance(
+                    item.get("outputIndex"), int):
+                index_number = item["outputIndex"]
+                priority = item.get("priority") if isinstance(item.get("priority"), int) else 99
+                priorities[index_number] = min(priorities.get(index_number, 99), priority)
+    candidates = []
+    for number, output in enumerate(outputs if isinstance(outputs, list) else []):
+        if not isinstance(output, dict) or output.get("connectorName") not in connected:
+            continue
+        identity = connected[output["connectorName"]]
+        recorded = output.get("edidIdentifier") or ""
+        if identity and isinstance(recorded, str) and recorded and \
+                not recorded.startswith(identity):
+            continue
+        mode = output.get("mode") or {}
+        width, height, scale = mode.get("width"), mode.get("height"), output.get("scale")
+        if not all(isinstance(value, (int, float)) and not isinstance(value, bool) and value > 0
+                   for value in (width, height, scale)):
+            continue
+        candidates.append((priorities.get(number, 99), int(width), int(height), float(scale)))
+    if not candidates:
+        return None
+    best = min(candidate[0] for candidate in candidates)
+    shapes = {candidate[1:] for candidate in candidates if candidate[0] == best}
+    if len(shapes) != 1:
+        return None
+    width, height, scale = shapes.pop()
+    return {"width": width, "height": height, "scale": scale}
+
+
+def machine_facts(engines: list[str] | None, root: Path = Path("/")) -> dict:
+    memory = fact(memory_facts, root) or {}
+    gpu_result = fact(gpu_facts, root) or (None, [])
+    gpu, vendors = gpu_result
+    session = os.environ.get("XDG_SESSION_TYPE", "").strip().lower()
+    try:
+        cores = len(os.sched_getaffinity(0))
+    except (AttributeError, OSError):
+        cores = os.cpu_count()
+    ready = None if engines is None else set(engines)
+    graphics = None
+    if vendors:
+        graphics = "software" if vendors == ["nvidia"] else "hardware"
+    return {
+        "memory_bytes": memory.get("MemTotal"),
+        "swap_bytes": memory.get("SwapTotal"),
+        "cpu_cores": cores or None,
+        "gpu": gpu,
+        "session": session if SESSION_RE.fullmatch(session) else None,
+        "free_bytes": {"apps": fact(free_space_for_apps)},
+        "android": {
+            "ready": None if ready is None else "android" in ready,
+            "initialized": fact(android_initialized, root),
+            # The Android container renders with the host's GPU through Mesa;
+            # NVIDIA's own driver has none, so a machine whose only GPU is NVIDIA
+            # draws Android apps in software.
+            "graphics": graphics,
+        },
+        "windows": {
+            "ready": None if ready is None else "windows" in ready,
+            "x86_32": bool(fact(windows_x86_32)),
+        },
+        "screen": fact(screen_facts, root),
+    }
+
+
+def machine_root() -> Path:
+    """Where /proc, /sys and /var/lib are read from: `/`, or a fixture tree named by
+    MOOS_STORE_MACHINE_ROOT (the same seam as moos-visual-tier's MOOS_TIER_ROOT)."""
+
+    configured = os.environ.get("MOOS_STORE_MACHINE_ROOT", "")
+    return Path(configured) if configured and Path(configured).is_absolute() else Path("/")
+
+
+def machine_document(engines: set[str] | None = None, *, probe: bool = True,
+                     root: Path = Path("/")) -> dict:
+    """machine.json: machine_profile() plus machine_facts()."""
+
+    if probe:
+        engines = available_engines()
+    listed = None if engines is None else sorted(engines)
+    return {"arch": running_arch(), "engines": listed, **machine_facts(listed, root)}
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -3727,7 +4071,7 @@ def main(argv: list[str] | None = None) -> int:
     if args.print_machine:
         # Read-only and fast: no AppStream parse, no catalogue, no output file.
         # The launcher runs this synchronously before the first frame.
-        print(json.dumps(machine_profile(), ensure_ascii=False))
+        print(json.dumps(machine_document(root=machine_root()), ensure_ascii=False))
         return 0
     try:
         if args.output.resolve() == args.catalog.resolve():

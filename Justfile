@@ -327,6 +327,8 @@ check:
     python3 tests/test_mo_store_index_search.py
     # What is installed for every kind, App Drop installs outside the catalogue, retired Flatpaks.
     python3 tests/test_mo_store_index_lifecycle.py
+    # machine.json: hardware facts from files only, unknown is null, free space never on `/`.
+    python3 tests/test_mo_store_index_machine.py
     # The Store may not offer an app this machine cannot install. The browse
     # index is built from the RUNNING arch's AppStream, but a curated entry with
     # no match was MANUFACTURED into the index -- so eleven x86-only apps, two of
