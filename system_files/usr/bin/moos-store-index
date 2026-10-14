@@ -1597,8 +1597,9 @@ def scan_installed(roots: list[tuple[Path, str]]) -> dict[str, list[dict]]:
                         continue
                     active = branch_dir / "active"
                     try:
+                        resolved_active = active.resolve()
                         is_deployed = active.exists() and is_within(
-                            active.resolve(), branch_dir.resolve()
+                            resolved_active, branch_dir.resolve()
                         )
                     except OSError:
                         is_deployed = False
@@ -1610,6 +1611,10 @@ def scan_installed(roots: list[tuple[Path, str]]) -> dict[str, list[dict]]:
                             "scope": scope,
                             "arch": arch_dir.name,
                             "branch": branch_dir.name,
+                            # The deployed commit: what is installed changes with
+                            # it (an update), and everything under it is immutable.
+                            "commit": resolved_active.name,
+                            "path": str(active),
                         }
                     )
     return installed
@@ -2332,27 +2337,671 @@ def catalog_installable(entry: dict, arch: str | None = None) -> bool:
     return False
 
 
-def nonflatpak_installed(entry: dict) -> bool:
-    install = entry.get("install", {})
-    if install.get("kind") == "android":
-        package = install.get("package")
-        if not isinstance(package, str) or not ANDROID_PACKAGE_RE.fullmatch(package):
+# ── What is installed, for every kind ────────────────────────────────────────
+# All of it is read from files the installers write, never by running anything:
+#   flatpak   deployments under <installation>/app (both scopes) and flatpak's own
+#             deploy data (installed version, end of life) beside each one;
+#   webapp    ~/.local/share/applications/org.moos.webapp.<id>.desktop holding
+#             X-MoOS-WebApp=<id> (usr/lib/moos/moos_webapp_policy.is_installed);
+#   appdrop   the App Drop record ~/.local/share/moos/appdrop/<id>.json, which a
+#             catalogue install marks with catalog_id=<id>;
+#   windows   the record ~/.local/share/moos/windows-apps/<id>.json;
+#   android   the per-package data directory the Android runtime creates;
+#   npm       the command in ~/.local/bin;
+#   web       never installed: it opens the publisher's page.
+# An App Drop record with no catalogue id is an app of its own, kind "dropped";
+# a Flatpak that no listed entry covers (AppStream dropped it, or it is not an
+# app the Store offers) is listed as installed so it can still be found and
+# removed. Both carry listed=false and installable=false.
+
+RECORD_LIMIT = 64 * 1024
+TEXT_FILE_LIMIT = 256 * 1024
+DROP_SLUG_RE = re.compile(r"^[a-z0-9][a-z0-9-]{1,63}$")
+ICON_SUFFIXES = (".png", ".svg", ".svgz", ".jpg", ".jpeg", ".webp", ".xpm")
+EXPORTED_ICON_SIZES = ("128x128", "256x256", "scalable", "512x512", "96x96", "64x64",
+                       "48x48")
+
+
+def home_dir() -> Path:
+    return Path(os.environ.get("HOME") or Path.home())
+
+
+def data_home() -> Path:
+    """$XDG_DATA_HOME when absolute, else ~/.local/share: where App Drop and the web
+    app runtime write (usr/lib/moos/moos_appdrop.py, moos_webapp_policy.py)."""
+
+    configured = os.environ.get("XDG_DATA_HOME", "")
+    return Path(configured) if configured and Path(configured).is_absolute() \
+        else home_dir() / ".local/share"
+
+
+def read_small_text(path: Path, limit: int = TEXT_FILE_LIMIT) -> str:
+    try:
+        with path.open("rb") as handle:
+            data = handle.read(limit + 1)
+    except OSError:
+        return ""
+    if len(data) > limit:
+        return ""
+    return data.decode("utf-8", errors="replace")
+
+
+def read_record(path: Path) -> dict | None:
+    text = read_small_text(path, RECORD_LIMIT)
+    if not text:
+        return None
+    try:
+        value = json.loads(text)
+    except ValueError:
+        return None
+    return value if isinstance(value, dict) else None
+
+
+def record_text(record: dict, key: str, limit: int) -> str:
+    value = record.get(key)
+    return clean_text(value, limit) if isinstance(value, str) else ""
+
+
+def desktop_entry_fields(text: str) -> dict[str, str]:
+    """The [Desktop Entry] keys of a launcher (first value wins), unescaped."""
+
+    fields: dict[str, str] = {}
+    section = ""
+    for line in text.splitlines()[:2000]:
+        line = line.strip()
+        if not line or line.startswith("#"):
+            continue
+        if line.startswith("["):
+            section = line
+            continue
+        if section != "[Desktop Entry]" or "=" not in line:
+            continue
+        key, _, value = line.partition("=")
+        key = key.strip()
+        if key and key not in fields:
+            fields[key] = (value.strip().replace("\\s", " ").replace("\\n", " ")
+                           .replace("\\t", " ").replace("\\r", " ").replace("\\\\", "\\"))
+    return fields
+
+
+def desktop_localized(fields: dict[str, str], key: str, preferences: list[str],
+                      limit: int) -> tuple[str, str]:
+    """(localized value, untranslated value) of a launcher key such as Name."""
+
+    values: dict[str, str] = {}
+    for field, value in fields.items():
+        if field == key:
+            language = ""
+        elif field.startswith(key + "[") and field.endswith("]"):
+            language = normalized_locale(field[len(key) + 1:-1])
+            if not language:
+                continue
+        else:
+            continue
+        clean = clean_text(value, limit)
+        if clean and language not in values:
+            values[language] = clean
+    return pick_localized(values, preferences), values.get("", "")
+
+
+def home_file_icon(value: str) -> str | None:
+    """A launcher's Icon= that is an image file under the person's home, as file://."""
+
+    if not value or not value.startswith("/") or "\n" in value:
+        return None
+    try:
+        resolved = Path(value).resolve(strict=True)
+        home = home_dir().resolve()
+    except (OSError, RuntimeError):
+        return None
+    if (not is_within(resolved, home) or not resolved.is_file()
+            or resolved.suffix.casefold() not in ICON_SUFFIXES):
+        return None
+    return Path(value).as_uri()
+
+
+def launcher_for_record(record: dict, slug: str) -> Path | None:
+    """The launcher App Drop wrote for a record, inside the person's applications."""
+
+    applications = data_home() / "applications"
+    candidates = []
+    stored = record.get("desktop")
+    if isinstance(stored, str) and stored.endswith(".desktop"):
+        candidates.append(Path(stored))
+    candidates.append(applications / f"appdrop-{slug}.desktop")
+    try:
+        base = applications.resolve()
+    except (OSError, RuntimeError):
+        return None
+    for candidate in candidates:
+        try:
+            resolved = candidate.resolve(strict=True)
+        except (OSError, RuntimeError):
+            continue
+        if is_within(resolved, base) and resolved.is_file():
+            return candidate
+    return None
+
+
+def version_parts(value: str) -> list:
+    return [int(part) if part.isdigit() else part.casefold()
+            for part in re.findall(r"\d+|[A-Za-z]+", value)]
+
+
+def version_newer(candidate: str, installed: str) -> bool:
+    """Is `candidate` a later version than `installed`? 1.10 > 1.9; 1.0 > 1.0-beta."""
+
+    left, right = version_parts(candidate), version_parts(installed)
+    for a, b in zip(left, right):
+        if a == b:
+            continue
+        if isinstance(a, int) and isinstance(b, int):
+            return a > b
+        if isinstance(a, int):
+            return True
+        if isinstance(b, int):
             return False
+        return a > b
+    if len(left) == len(right):
+        return False
+    longer_is_candidate = len(left) > len(right)
+    first_extra = (left if longer_is_candidate else right)[min(len(left), len(right))]
+    # 1.0.1 is after 1.0, but 1.0-beta is before 1.0.
+    return longer_is_candidate if isinstance(first_extra, int) else not longer_is_candidate
+
+
+def catalog_install_state(entry: dict, arch: str | None = None) -> dict:
+    """{installed, version, update, icon, adopted} of one catalogue entry, from files."""
+
+    kind = catalog_kind(entry)
+    install = entry.get("install") or {}
+    app_id = entry["id"]
+    state = {"installed": False, "version": None, "update": False, "icon": None,
+             "adopted": False}
+    if kind == "webapp":
+        launcher = data_home() / "applications" / f"org.moos.webapp.{app_id}.desktop"
+        if f"\nX-MoOS-WebApp={app_id}\n" in read_small_text(launcher):
+            state["installed"] = True
+            folder = data_home() / "moos/webapps" / app_id
+            for name in ("icon.png", "icon.svg"):
+                icon = home_file_icon(str(folder / name))
+                if icon:
+                    state["icon"] = icon
+                    break
+    elif kind == "appdrop":
+        record = read_record(data_home() / "moos/appdrop" / f"{app_id}.json")
+        if record is not None and record.get("id") == app_id:
+            catalog_id = record.get("catalog_id")
+            pinned = (install.get("downloads") or {}).get(arch or "", {})
+            if catalog_id == app_id:
+                state["installed"] = True
+                state["version"] = record_text(record, "version", 64) or None
+            elif not catalog_id:
+                # Dropped by hand into the slot this catalogue app installs to
+                # (~/Applications/<id>): the same app. The pinned digest names the
+                # exact version when the file matches it byte for byte.
+                state["installed"] = True
+                state["adopted"] = True
+                if pinned and record.get("sha256") == pinned.get("sha256"):
+                    state["version"] = install.get("version")
+            if state["installed"]:
+                launcher = launcher_for_record(record, app_id)
+                if launcher is not None:
+                    fields = desktop_entry_fields(read_small_text(launcher))
+                    state["icon"] = home_file_icon(fields.get("Icon", ""))
+    elif kind == "windows":
+        record = read_record(data_home() / "moos/windows-apps" / f"{app_id}.json")
+        if record is not None and record.get("id", app_id) == app_id \
+                and record.get("catalog_id", app_id) == app_id:
+            state["installed"] = True
+            state["version"] = record_text(record, "version", 64) or None
+            icon = record.get("icon")
+            if isinstance(icon, str):
+                state["icon"] = home_file_icon(icon)
+    elif kind == "android":
+        package = install.get("package")
         # The runtime creates this per-package data directory only after the
         # package manager commits an installation, and removes it on uninstall.
         # Reading this local state keeps the indexer offline and avoids calling
         # (or exposing) the compatibility runtime for every Store refresh.
-        return (
-            Path.home() / ".local/share/waydroid/data/data" / package
-        ).is_dir()
-    binary = install.get("bin")
-    if not binary:
-        return False
-    local_bin = Path.home() / ".local/bin"
-    candidates = [local_bin / binary]
-    if install.get("kind") == "appimage":
-        candidates.append(local_bin / f"{binary}.AppImage")
-    return any(path.is_file() for path in candidates)
+        if isinstance(package, str) and ANDROID_PACKAGE_RE.fullmatch(package):
+            state["installed"] = (
+                home_dir() / ".local/share/waydroid/data/data" / package
+            ).is_dir()
+    elif kind == "npm":
+        binary = install.get("bin")
+        if isinstance(binary, str) and binary:
+            state["installed"] = (home_dir() / ".local/bin" / binary).is_file()
+        package = install.get("pkg")
+        if state["installed"] and isinstance(package, str) and NPM_PACKAGE_RE.fullmatch(package):
+            manifest = read_record(home_dir() / ".local/lib/node_modules" / package
+                                   / "package.json")
+            if manifest is not None:
+                state["version"] = record_text(manifest, "version", 64) or None
+    pinned_version = install.get("version")
+    if state["installed"] and state["version"] and isinstance(pinned_version, str):
+        state["update"] = version_newer(pinned_version, state["version"])
+    return state
+
+
+def nonflatpak_installed(entry: dict) -> bool:
+    return catalog_install_state(entry)["installed"]
+
+
+def dropped_records(claimed: set[str]) -> list[dict]:
+    """App Drop installs that no listed catalogue entry accounts for.
+
+    `claimed` holds the ids of the catalogue entries in this index that own their
+    App Drop record. A record whose catalogue entry is not offered here any more
+    (dropped from the catalogue, or not for this machine) is still listed, so the
+    app stays findable and removable.
+    """
+
+    folder = data_home() / "moos/appdrop"
+    try:
+        paths = sorted(folder.glob("*.json"))
+    except OSError:
+        return []
+    found = []
+    for path in paths:
+        slug = path.stem
+        if not DROP_SLUG_RE.fullmatch(slug) or slug in claimed:
+            continue
+        record = read_record(path)
+        if record is None or record.get("id") != slug:
+            continue
+        launcher = launcher_for_record(record, slug)
+        fields = desktop_entry_fields(read_small_text(launcher)) if launcher else {}
+        categories = [item for item in fields.get("Categories", "").split(";")
+                      if item and re.fullmatch(r"[A-Za-z0-9+_.-]{1,80}", item)]
+        found.append({
+            "slug": slug,
+            "name": record_text(record, "name", 80) or clean_text(fields.get("Name", ""), 80)
+            or slug,
+            "comment": clean_text(fields.get("Comment", ""), 240),
+            "icon": home_file_icon(fields.get("Icon", "")),
+            "categories": categories[:8],
+            "version": record_text(record, "version", 64) or None,
+            "catalog_id": record_text(record, "catalog_id", 255) or None,
+        })
+    return found
+
+
+def lifecycle_snapshot(catalog: dict) -> dict:
+    """Every installed-state fact about non-Flatpak apps, read once per run.
+
+    It is digested into the index's installed_token, so a change to any of it is
+    noticed on the next run without parsing AppStream again.
+    """
+
+    arch = catalog.get("arch")
+    states: dict[str, dict] = {}
+    claimed: set[str] = set()
+    for entry in catalog["apps"]:
+        if entry["source"] in {"flathub", "flatpak"}:
+            continue
+        state = catalog_install_state(entry, arch)
+        states[entry["id"]] = state
+        if state["installed"] and catalog_kind(entry) == "appdrop":
+            claimed.add(entry["id"])
+    return {"catalog": states, "dropped": dropped_records(claimed)}
+
+
+# ── flatpak's deploy data ────────────────────────────────────────────────────
+# <deployment>/deploy is the GVariant (ssasta{sv}) flatpak writes when it deploys
+# a commit: origin, commit, subpaths, installed size (big-endian by flatpak's own
+# convention) and a metadata dictionary whose string values include appdata-name,
+# appdata-summary, appdata-version, appdata-license and, for a retired app, eol or
+# eolr. Read with a bounded, defensive reader: any surprise yields {}.
+
+DEPLOY_DATA_LIMIT = 256 * 1024
+
+
+def gvariant_offset_size(size: int) -> int:
+    if size > 0xFFFFFFFF:
+        return 8
+    if size > 0xFFFF:
+        return 4
+    if size > 0xFF:
+        return 2
+    return 1 if size > 0 else 0
+
+
+def gvariant_offset(data: bytes, position: int, size: int) -> int:
+    if position < 0 or position + size > len(data):
+        raise ValueError("GVariant offset outside its container")
+    return int.from_bytes(data[position:position + size], "little")
+
+
+def gvariant_align(position: int, alignment: int) -> int:
+    return (position + alignment - 1) // alignment * alignment
+
+
+def gvariant_string(data: bytes) -> str:
+    if not data or data[-1] != 0 or 0 in data[:-1]:
+        raise ValueError("GVariant string is not NUL-terminated")
+    return data[:-1].decode("utf-8")
+
+
+def gvariant_variable_array(data: bytes, alignment: int) -> list[bytes]:
+    if not data:
+        return []
+    size = gvariant_offset_size(len(data))
+    end_of_items = gvariant_offset(data, len(data) - size, size)
+    if end_of_items > len(data) or (len(data) - end_of_items) % size:
+        raise ValueError("GVariant array framing is invalid")
+    count = (len(data) - end_of_items) // size
+    items = []
+    start = 0
+    for number in range(count):
+        end = gvariant_offset(data, end_of_items + number * size, size)
+        start = gvariant_align(start, alignment)
+        if not start <= end <= end_of_items:
+            raise ValueError("GVariant array item is out of order")
+        items.append(data[start:end])
+        start = end
+    return items
+
+
+def parse_deploy_data(data: bytes) -> dict:
+    size = len(data)
+    framing = gvariant_offset_size(size)
+    if framing == 0 or size < 3 * framing + 8:
+        raise ValueError("deploy data is too short")
+    origin_end = gvariant_offset(data, size - framing, framing)
+    commit_end = gvariant_offset(data, size - 2 * framing, framing)
+    subpaths_end = gvariant_offset(data, size - 3 * framing, framing)
+    body_end = size - 3 * framing
+    if not 0 < origin_end <= commit_end <= subpaths_end <= body_end:
+        raise ValueError("deploy data framing is invalid")
+    result: dict = {
+        "origin": gvariant_string(data[:origin_end]),
+        "commit": gvariant_string(data[origin_end:commit_end]),
+    }
+    size_at = gvariant_align(subpaths_end, 8)
+    if size_at + 8 > body_end:
+        raise ValueError("deploy data has no installed size")
+    result["installed_size"] = int.from_bytes(data[size_at:size_at + 8], "big")
+    metadata: dict[str, str] = {}
+    for entry in gvariant_variable_array(data[gvariant_align(size_at + 8, 8):body_end], 8):
+        entry_framing = gvariant_offset_size(len(entry))
+        key_end = gvariant_offset(entry, len(entry) - entry_framing, entry_framing)
+        if not 0 < key_end <= len(entry) - entry_framing:
+            raise ValueError("deploy data entry is invalid")
+        key = gvariant_string(entry[:key_end])
+        variant = entry[gvariant_align(key_end, 8):len(entry) - entry_framing]
+        separator = variant.rfind(b"\0")
+        if separator < 0:
+            raise ValueError("deploy data value has no type")
+        if variant[separator + 1:] == b"s":
+            metadata[key] = gvariant_string(variant[:separator])
+    result["metadata"] = metadata
+    return result
+
+
+def read_deploy_data(active: Path) -> dict:
+    """Parsed deploy data of one deployment, or {} when it cannot be read."""
+
+    try:
+        deploy = active / "deploy"
+        if deploy.stat().st_size > DEPLOY_DATA_LIMIT:
+            return {}
+        return parse_deploy_data(deploy.read_bytes())
+    except (OSError, ValueError, UnicodeDecodeError):
+        return {}
+
+
+def deploy_text(deploy: dict, key: str, limit: int) -> str:
+    value = (deploy.get("metadata") or {}).get(key, "")
+    return clean_text(value, limit) if isinstance(value, str) else ""
+
+
+def deploy_localized(deploy: dict, key: str, preferences: list[str],
+                     limit: int) -> tuple[str, str]:
+    """(localized, untranslated) of appdata-name / appdata-summary; flatpak keeps
+    every translation as `<key>@<lang>`."""
+
+    values: dict[str, str] = {}
+    for field, value in (deploy.get("metadata") or {}).items():
+        if not isinstance(value, str):
+            continue
+        if field == key:
+            language = ""
+        elif field.startswith(key + "@"):
+            language = normalized_locale(field[len(key) + 1:])
+            if not language:
+                continue
+        else:
+            continue
+        clean = clean_text(value, limit)
+        if clean and language not in values:
+            values[language] = clean
+    return pick_localized(values, preferences), values.get("", "")
+
+
+def deploy_end_of_life(deploy: dict) -> bool:
+    metadata = deploy.get("metadata") or {}
+    return bool(metadata.get("eol") or metadata.get("eolr"))
+
+
+def preferred_ref(refs: list[dict]) -> dict:
+    return sorted(refs, key=lambda item: (item.get("scope") != "user",
+                                          item.get("branch") != "stable",
+                                          item.get("branch", "")))[0]
+
+
+def exported_icon(active: Path, names: list[str]) -> str | None:
+    """The deployment's own exported icon (hicolor), as a file:// URI through `active`."""
+
+    base = active / "export/share/icons/hicolor"
+    try:
+        resolved_active = active.resolve()
+    except (OSError, RuntimeError):
+        return None
+    for size in EXPORTED_ICON_SIZES:
+        for name in names:
+            if not name or not ICON_NAME_RE.fullmatch(name):
+                continue
+            for suffix in (".png", ".svg"):
+                candidate = base / size / "apps" / f"{name}{suffix}"
+                try:
+                    resolved = candidate.resolve(strict=True)
+                except (OSError, RuntimeError):
+                    continue
+                if is_within(resolved, resolved_active) and resolved.is_file():
+                    return candidate.absolute().as_uri()
+    return None
+
+
+def installed_flatpak_entry(app_id: str, refs: list[dict], preferences: list[str]) -> dict:
+    """An installed Flatpak no listed entry covers, from its own deployment."""
+
+    ref = preferred_ref(refs)
+    active = Path(ref.get("path", ""))
+    deploy = read_deploy_data(active) if ref.get("path") else {}
+    fields = desktop_entry_fields(
+        read_small_text(active / "export/share/applications" / f"{app_id}.desktop")
+    ) if ref.get("path") else {}
+    # The deployment's own metadata first (AppStream's words, every language),
+    # then its launcher, then the id.
+    appdata_name, appdata_name_en = deploy_localized(deploy, "appdata-name", preferences, 160)
+    appdata_summary, _ = deploy_localized(deploy, "appdata-summary", preferences, 240)
+    desktop_name, desktop_name_en = desktop_localized(fields, "Name", preferences, 160)
+    comment, _ = desktop_localized(fields, "Comment", preferences, 240)
+    tail = app_id.rsplit(".", 1)[-1]
+    categories = [item for item in fields.get("Categories", "").split(";")
+                  if item and re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9+_.-]{0,79}", item)][:16]
+    version = deploy_text(deploy, "appdata-version", 120)
+    icon_name = fields.get("Icon", "").strip()
+    summary = appdata_summary or comment
+    return {
+        "id": app_id,
+        "source": "flatpak",
+        "kind": "flatpak",
+        "origin": ref.get("origin") or "",
+        "scope": ref.get("scope", "user"),
+        "installable": False,
+        "listed": False,
+        "flatpak_ref": f"app/{app_id}/{ref['arch']}/{ref['branch']}",
+        "arch": ref["arch"],
+        "branch": ref["branch"],
+        "name": appdata_name or desktop_name or tail,
+        "name_en": appdata_name_en or desktop_name_en or appdata_name or desktop_name or tail,
+        "summary": summary,
+        "description": summary,
+        "developer": "",
+        "license": deploy_text(deploy, "appdata-license", 160),
+        "category": normalized_category(categories),
+        "categories": categories,
+        "icon": exported_icon(active, [icon_name, app_id]) if ref.get("path") else None,
+        "screenshot": None,
+        "verified": False,
+        "installed": True,
+        "version": version,
+        "curated": False,
+        "branding": None,
+        "content_rating": None,
+        "details": None,
+        "origins": [],
+    }
+
+
+def dropped_entry(record: dict, app_id: str) -> dict:
+    categories = record["categories"]
+    return {
+        "id": app_id,
+        "slug": record["slug"],
+        "source": "local",
+        "kind": "dropped",
+        "origin": "local",
+        "scope": "user",
+        "installable": False,
+        "listed": False,
+        "flatpak_ref": None,
+        "arch": None,
+        "branch": None,
+        "name": record["name"],
+        "name_en": record["name"],
+        "summary": record["comment"],
+        "description": record["comment"],
+        "developer": "",
+        "license": "",
+        "category": normalized_category(categories),
+        "categories": categories,
+        "icon": record["icon"],
+        "screenshot": None,
+        "verified": False,
+        "installed": True,
+        "version": record["version"] or "",
+        "curated": False,
+        "branding": None,
+        "content_rating": None,
+        "details": None,
+        "origins": [],
+        "catalog_id": record["catalog_id"],
+    }
+
+
+LIFECYCLE_KEYS = ("installed_origin", "installed_scope", "installed_scopes")
+
+
+def apply_lifecycle(apps: list[dict], *, installed: dict[str, list[dict]],
+                    snapshot: dict, catalog: dict, preferences: list[str]) -> list[dict]:
+    """Write what is installed into a list of index entries; return the new list.
+
+    The ONE place installed state is decided, for a fresh build and for a cached
+    index whose AppStream is unchanged alike, so the two can never disagree.
+    Entries from an earlier pass that exist only because something was installed
+    (listed=false) are rebuilt from scratch.
+    """
+
+    listed = [app for app in apps if app.get("listed", True)]
+    by_id = {app["id"]: app for app in listed}
+    catalog_by_id = {entry["id"]: entry for entry in catalog["apps"]}
+    states = snapshot.get("catalog", {})
+    for app in listed:
+        for key in LIFECYCLE_KEYS:
+            app.pop(key, None)
+        app["update_available"] = False
+        app["installed_version"] = None
+        if app.get("kind") == "flatpak" or app.get("source") == "flatpak":
+            refs = installed.get(app["id"], [])
+            app["installed"] = bool(refs)
+            app["eol"] = False
+            if not refs:
+                continue
+            app["installed_scopes"] = installed_scopes_for_refs(refs)
+            matching = next(
+                (item for item in refs
+                 if item["origin"] == app.get("origin") and item["arch"] == app.get("arch")
+                 and item["branch"] == app.get("branch")),
+                None,
+            ) or next((item for item in refs if item["origin"] == app.get("origin")),
+                      refs[0])
+            app["installed_origin"] = matching["origin"] or app.get("origin", "")
+            app["installed_scope"] = matching["scope"]
+            deploy = read_deploy_data(Path(matching["path"])) if matching.get("path") else {}
+            app["installed_version"] = deploy_text(deploy, "appdata-version", 120) or None
+            app["eol"] = deploy_end_of_life(deploy)
+        else:
+            state = states.get(app["id"])
+            entry = catalog_by_id.get(app["id"])
+            if state is None and entry is not None:
+                state = catalog_install_state(entry, catalog.get("arch"))
+            state = state or {}
+            app["installed"] = bool(state.get("installed"))
+            app["installed_version"] = state.get("version") if app["installed"] else None
+            app["update_available"] = bool(state.get("update")) and app["installed"]
+            app["icon"] = state.get("icon") if app["installed"] else None
+            app["eol"] = False
+    extra: list[dict] = []
+    for app_id, refs in sorted(installed.items()):
+        if app_id in by_id or not refs:
+            continue
+        entry = installed_flatpak_entry(app_id, refs, preferences)
+        entry["installed_scopes"] = installed_scopes_for_refs(refs)
+        ref = preferred_ref(refs)
+        entry["installed_origin"] = ref.get("origin") or ""
+        entry["installed_scope"] = ref.get("scope", "user")
+        deploy = read_deploy_data(Path(ref["path"])) if ref.get("path") else {}
+        entry["installed_version"] = entry["version"] or None
+        entry["update_available"] = False
+        entry["eol"] = deploy_end_of_life(deploy)
+        extra.append(finish_app(entry))
+    taken = set(by_id) | {app["id"] for app in extra}
+    for record in snapshot.get("dropped", []):
+        app_id = record["slug"]
+        if app_id in taken:
+            # A catalogue app with this id is something else (a web app, say):
+            # the drop stays visible under a name of its own.
+            app_id = f"appdrop-{record['slug']}"
+            if app_id in taken:
+                continue
+        entry = dropped_entry(record, app_id)
+        entry["installed_version"] = entry["version"] or None
+        entry["update_available"] = False
+        entry["eol"] = False
+        extra.append(finish_app(entry))
+        taken.add(app_id)
+    return sorted(listed + extra,
+                  key=lambda app: (app["name"].casefold(), app["id"].casefold()))
+
+
+def lifecycle_stats(apps: list[dict]) -> dict:
+    return {
+        "total_apps": len(apps),
+        "flatpak_apps": sum(app["source"] == "flatpak" for app in apps),
+        "non_flatpak_apps": sum(app["source"] != "flatpak" for app in apps),
+        "curated_apps": sum(bool(app.get("curated")) for app in apps),
+        "installed_apps": sum(bool(app.get("installed")) for app in apps),
+        "verified_apps": sum(bool(app.get("verified")) for app in apps),
+        "installable_apps": sum(bool(app.get("installable")) for app in apps),
+        "unlisted_installed_apps": sum(
+            not app.get("listed", True) and app.get("kind") != "dropped" for app in apps
+        ),
+        "dropped_apps": sum(app.get("kind") == "dropped" for app in apps),
+        "updates_known": sum(bool(app.get("update_available")) for app in apps),
+    }
 
 
 def sha256_file(path: Path) -> str:
@@ -2380,9 +3029,18 @@ def input_tokens(
     sources: list[dict],
     installed: dict[str, list[dict]],
     preferences: list[str],
+    snapshot: dict | None = None,
 ) -> dict[str, str]:
-    """Fingerprint every input that can change the generated application state."""
+    """Fingerprint every input that can change the generated application state.
 
+    `metadata` covers what needs AppStream parsed again (the generator, the
+    catalogue and the machine it is filtered for, the locale, every AppStream
+    source); `installed` covers what apply_lifecycle() reads (deployed refs with
+    their commits, and the non-Flatpak `snapshot`).
+    """
+
+    if snapshot is None:
+        snapshot = lifecycle_snapshot(catalog)
     source_state = []
     for source in sources:
         path = source["path"]
@@ -2402,6 +3060,7 @@ def input_tokens(
                 # and catch an unexpectedly rewritten revision on a damaged host.
                 "size": size,
                 "mtime_ns": modified,
+                "revision_mtime_ns": source.get("revision_mtime_ns"),
             }
         )
 
@@ -2412,20 +3071,21 @@ def input_tokens(
             item["scope"],
             item["arch"],
             item["branch"],
+            item.get("commit", ""),
         )
         for app_id, refs in installed.items()
         for item in refs
     )
-    nonflatpak_state = sorted(
-        (entry["id"], nonflatpak_installed(entry))
-        for entry in catalog["apps"]
-        if entry["source"] not in {"flathub", "flatpak"}
-    )
+    engines = catalog.get("engines_ready")
     metadata_state = {
         "schema_version": SCHEMA_VERSION,
         "generator": sha256_file(Path(__file__)),
         "catalog": sha256_file(catalog_path),
         "locale_preferences": preferences,
+        # What the catalogue was filtered for: the same file offers a different
+        # set of apps to a machine that gained or lost an engine.
+        "arch": catalog.get("arch"),
+        "engines": None if engines is None else sorted(engines),
         "sources": sorted(
             source_state,
             key=lambda item: (
@@ -2438,7 +3098,7 @@ def input_tokens(
     }
     installed_state = {
         "installed": installed_refs_state,
-        "nonflatpak_installed": nonflatpak_state,
+        "lifecycle": snapshot,
     }
     metadata_digest = digest_json(metadata_state)
     installed_digest = digest_json(installed_state)
@@ -2530,51 +3190,23 @@ def refresh_installed_flags(
     payload: dict,
     installed: dict[str, list[dict]],
     catalog: dict,
+    snapshot: dict | None = None,
+    preferences: list[str] | None = None,
 ) -> bool:
     """Refresh lifecycle state in a cached metadata index without reparsing XML."""
 
-    catalog_by_id = {entry["id"]: entry for entry in catalog["apps"]}
-    for app in payload["apps"]:
-        if not isinstance(app, dict) or not valid_generic_id(app.get("id")):
-            return False
-        app.pop("installed_origin", None)
-        app.pop("installed_scope", None)
-        app.pop("installed_scopes", None)
-        if app.get("source") == "flatpak":
-            refs = installed.get(app["id"], [])
-            app["installed"] = bool(refs)
-            if not refs:
-                continue
-            app["installed_scopes"] = installed_scopes_for_refs(refs)
-            matching = next(
-                (
-                    item
-                    for item in refs
-                    if item["origin"] == app.get("origin")
-                    and item["arch"] == app.get("arch")
-                    and item["branch"] == app.get("branch")
-                ),
-                None,
-            )
-            if matching is None:
-                matching = next(
-                    (
-                        item
-                        for item in refs
-                        if item["origin"] == app.get("origin")
-                    ),
-                    refs[0],
-                )
-            app["installed_origin"] = matching["origin"] or app.get("origin", "")
-            app["installed_scope"] = matching["scope"]
-        else:
-            entry = catalog_by_id.get(app["id"])
-            app["installed"] = (
-                nonflatpak_installed(entry) if entry is not None else False
-            )
-    payload["stats"]["installed_apps"] = sum(
-        bool(app.get("installed")) for app in payload["apps"]
+    if not all(isinstance(app, dict) and valid_generic_id(app.get("id"))
+               and isinstance(app.get("name"), str) for app in payload["apps"]):
+        return False
+    if snapshot is None:
+        snapshot = lifecycle_snapshot(catalog)
+    if preferences is None:
+        preferences = locale_preferences(payload["generation"].get("locale"))
+    payload["apps"] = apply_lifecycle(
+        payload["apps"], installed=installed, snapshot=snapshot, catalog=catalog,
+        preferences=preferences,
     )
+    payload["stats"].update(lifecycle_stats(payload["apps"]))
     return True
 
 
@@ -2653,7 +3285,8 @@ def catalog_fallback_app(
         "icon": None,
         "screenshot": None,
         "verified": False,
-        "installed": False if flatpak else nonflatpak_installed(entry),
+        # Decided by apply_lifecycle(), like every other entry's.
+        "installed": False,
         # The version a pinned recipe installs (App Drop, Windows, Android).
         "version": install.get("version", "") if not flatpak else "",
         "curated": True,
@@ -2745,6 +3378,7 @@ def build_index(
     installed_data: dict[str, list[dict]] | None = None,
     source_data: list[dict] | None = None,
     cache_tokens: dict[str, str] | None = None,
+    lifecycle: dict | None = None,
 ) -> dict:
     preferences = locale_preferences(requested_locale)
     catalog = catalog_data if catalog_data is not None else load_catalog(catalog_path)
@@ -2756,9 +3390,11 @@ def build_index(
     discovered_sources = (
         source_data if source_data is not None else appstream_sources(appstream_roots)
     )
+    if lifecycle is None:
+        lifecycle = lifecycle_snapshot(catalog)
     if cache_tokens is None:
         cache_tokens = input_tokens(
-            catalog_path, catalog, discovered_sources, installed, preferences
+            catalog_path, catalog, discovered_sources, installed, preferences, lifecycle
         )
 
     apps_by_id: dict[str, dict] = {}
@@ -2901,37 +3537,11 @@ def build_index(
             }
         )
 
-    for app_id, app in apps_by_id.items():
-        refs = installed.get(app_id, [])
-        if not refs:
-            continue
-        app["installed"] = True
-        app["installed_scopes"] = installed_scopes_for_refs(refs)
-        matching = next(
-            (
-                item
-                for item in refs
-                if item["origin"] == app["origin"]
-                and item["arch"] == app["arch"]
-                and item["branch"] == app["branch"]
-            ),
-            refs[0],
-        )
-        app["installed_origin"] = matching["origin"] or app["origin"]
-        app["installed_scope"] = matching["scope"]
-
     catalog_fallbacks = 0
     for entry in catalog["apps"]:
         current = apps_by_id.get(entry["id"])
         if current is None:
             current = catalog_fallback_app(entry, preferences, catalog.get("arch"))
-            if current["source"] == "flatpak" and entry["id"] in installed:
-                current["installed"] = True
-                refs = installed[entry["id"]]
-                current["installed_scopes"] = installed_scopes_for_refs(refs)
-                ref = refs[0]
-                current["installed_origin"] = ref["origin"] or current["origin"]
-                current["installed_scope"] = ref["scope"]
             apps_by_id[entry["id"]] = current
             catalog_fallbacks += 1
         else:
@@ -2939,9 +3549,12 @@ def build_index(
 
     for app in apps_by_id.values():
         finish_app(app)
-    apps = sorted(
-        apps_by_id.values(),
-        key=lambda app: (app["name"].casefold(), app["id"].casefold()),
+    # Discover's groups name only listed apps, so they are settled before the
+    # lifecycle pass adds what is installed but not offered.
+    collections, featured = editorial_groups(catalog, apps_by_id)
+    apps = apply_lifecycle(
+        list(apps_by_id.values()), installed=installed, snapshot=lifecycle,
+        catalog=catalog, preferences=preferences,
     )
     catalog_skipped = catalog.get("skipped", [])
     catalog_invalid_apps = [item for item in catalog_skipped if item["section"] == "apps"]
@@ -2966,13 +3579,7 @@ def build_index(
     )
 
     stats = {
-        "total_apps": len(apps),
-        "flatpak_apps": sum(app["source"] == "flatpak" for app in apps),
-        "non_flatpak_apps": sum(app["source"] != "flatpak" for app in apps),
-        "curated_apps": sum(bool(app["curated"]) for app in apps),
-        "installed_apps": sum(bool(app["installed"]) for app in apps),
-        "verified_apps": sum(bool(app["verified"]) for app in apps),
-        "installable_apps": sum(bool(app["installable"]) for app in apps),
+        **lifecycle_stats(apps),
         "appstream_components": component_count,
         "appstream_entries": accepted_count,
         "duplicates_merged": duplicate_count,
@@ -2987,7 +3594,6 @@ def build_index(
         "metadata_indexes_superseded": len(superseded_sources),
     }
 
-    collections, featured = editorial_groups(catalog, apps_by_id)
     payload = {
         "schema_version": SCHEMA_VERSION,
         "generation": {
@@ -3142,8 +3748,9 @@ def main(argv: list[str] | None = None) -> int:
             appstream_roots,
             official_only=args.appstream_root is None,
         )
+        lifecycle = lifecycle_snapshot(catalog)
         tokens = input_tokens(
-            args.catalog, catalog, sources, installed, preferences
+            args.catalog, catalog, sources, installed, preferences, lifecycle
         )
         existing_tokens = existing_output_tokens(args.output)
         if (
@@ -3159,7 +3766,7 @@ def main(argv: list[str] | None = None) -> int:
                 args.output, tokens["metadata"]
             )
             if payload is not None and refresh_installed_flags(
-                payload, installed, catalog
+                payload, installed, catalog, lifecycle, preferences
             ):
                 payload["generation"].update(
                     {
@@ -3181,6 +3788,7 @@ def main(argv: list[str] | None = None) -> int:
             installed_data=installed,
             source_data=sources,
             cache_tokens=tokens,
+            lifecycle=lifecycle,
         )
         atomic_write_json(args.output, payload)
     except (CatalogError, OSError) as error:
