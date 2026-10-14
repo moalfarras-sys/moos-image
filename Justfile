@@ -317,6 +317,22 @@ check:
     python3 tests/test_remote_linux_network_boundary.py
     python3 tests/test_remote_trusted_devices.py
     python3 tests/test_moos_store_index.py
+    # Which AppStream the Store indexes: the user's own Flathub remote, and one revision per URL.
+    python3 tests/test_mo_store_index_sources.py
+    # Runtimes, add-ons, console tools and BaseApps are not apps; several branches offer stable.
+    python3 tests/test_mo_store_index_not_apps.py
+    # One bad catalogue entry is skipped with a reason; the index never fails for it.
+    python3 tests/test_mo_store_index_catalogue.py
+    # Folded search keys, English names, Store categories, branding and content rating.
+    python3 tests/test_mo_store_index_search.py
+    # What is installed for every kind, App Drop installs outside the catalogue, retired Flatpaks.
+    python3 tests/test_mo_store_index_lifecycle.py
+    # machine.json: hardware facts from files only, unknown is null, free space never on `/`.
+    python3 tests/test_mo_store_index_machine.py
+    # Compatibility verdicts on fixture machines: blocked/warn reasons, facts, refresh on change.
+    python3 tests/test_mo_store_index_compat.py
+    # details/<id>.json: the per-app documents, published as one generation by one rename.
+    python3 tests/test_mo_store_index_details.py
     # The Store may not offer an app this machine cannot install. The browse
     # index is built from the RUNNING arch's AppStream, but a curated entry with
     # no match was MANUFACTURED into the index -- so eleven x86-only apps, two of
