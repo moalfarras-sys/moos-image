@@ -176,7 +176,9 @@ confirmed task presence. A real Qt consumer with its first delivery discarded
 fails old source and recovers fixed; [62 control tests pass](docs/releases/2026-10-14-mira-job-presence-proof.json). Token end state/age
 and a retired session directory remain intact, with no idle poll. This measures
 missed-delivery recovery, not the unproven cause of the prior intermittent Qt
-startup timeout. Signed delivery of this additional source is separate.
+startup timeout. Full local ARM image `c49ccd53` and actual 20-file readback
+pass; the first final-commit ENOSPC failure is preserved. Its signed cycle at
+`5745edd1` stays separate from [active Store source review](docs/reviews/STORE_20261014_AR.md).
 
 Mira mute/disconnect/late-recognition and recovery unreadable-state controls
 pass. Community beta has real native/Oracle TLS flow, isolation and bounded

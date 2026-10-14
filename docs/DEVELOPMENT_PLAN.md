@@ -27,7 +27,10 @@ native Qt component samples pass across AR/EN, light/dark, two/five contexts,
 New M1 source recovers a lost first Mira task delivery with one coalesced delayed
 real directory event, without idle polling or token resurrection. Old/fixed
 native Qt controls and [62 control tests pass](releases/2026-10-14-mira-job-presence-proof.json); this does not establish the prior
-intermittent Qt startup failure's cause. Signed delivery is pending separately.
+intermittent Qt startup failure's cause. Full local ARM image and actual 20-file
+readback now pass after an ENOSPC final-commit failure and exact obsolete-cache
+retirement. Signed cycle is fixed at `5745edd1`; independent Store review and
+the station's active Store development continue without changing that revision.
 Next acceptance is native installed shell input/focus and screen-reader behavior.
 
 P2.17 greeter desktop facts/actual matching EIS groups are signed in .1044/.773

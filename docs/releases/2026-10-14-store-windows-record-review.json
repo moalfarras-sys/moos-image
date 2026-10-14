@@ -1,0 +1,19 @@
+{
+  "schema": 1,
+  "sourceRevision": "93a9019e",
+  "scope": "Private files only; no Windows runtime/command executed",
+  "indexState": {
+    "installed": true,
+    "version": "1.0",
+    "update": true,
+    "icon": null,
+    "adopted": false
+  },
+  "actualPayloadDirectoryExists": false,
+  "backendPinRecord": {},
+  "backendLauncherLookup": "App is not installed",
+  "orphanSnapshot": {
+    "catalog": {},
+    "dropped": []
+  }
+}

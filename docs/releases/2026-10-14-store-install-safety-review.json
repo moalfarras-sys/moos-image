@@ -1,0 +1,66 @@
+{
+  "schema": 1,
+  "frozen_source": "93a9019e3a6d4268a725f89030c0685992c00a25",
+  "scope": "private patch only; shared source, host applications and signed image unchanged",
+  "publisher_application_executed": false,
+  "notes": [
+    "vendor entry is not in catalogue and vendor-rpm authority dispatch is absent",
+    "retains Windows prefix data; unknown settings beside portable executables are not qualified",
+    "real Windows runtime opt-in remains skipped"
+  ],
+  "controls": [
+    {
+      "case": "vendor-interrupted-swap",
+      "old_exit": 1,
+      "old_log_sha256": "ca6dcd9e2bdd3a596b57a230f6d76d30cd334d9cd70625053867506a46910f5b",
+      "fixed_exit": 0,
+      "fixed_log_sha256": "a41e08b8782ccff561fc04da1c4aa92b79d00989913c15ae6639e0c2e9b7e03c",
+      "negative_control_bites": true
+    },
+    {
+      "case": "windows-preserve-prefix-documents",
+      "old_exit": 1,
+      "old_log_sha256": "861bd7e5abf9fcb2e33b5d204632141d373ade70e441356bc7c39476ae5a9fee",
+      "fixed_exit": 0,
+      "fixed_log_sha256": "9ecaa1f1b97ca0cf19924cdd1e417ed494b6cd34297bab77bbff782238f5478b",
+      "negative_control_bites": true
+    },
+    {
+      "case": "windows-refuse-unowned-directory",
+      "old_exit": 1,
+      "old_log_sha256": "9d2f6a041f5d3ceb3fd4c1ed3eb4e6833b9bbb3696df3321d76f5302301cf35d",
+      "fixed_exit": 0,
+      "fixed_log_sha256": "35aeb06eab0faa8ba5430dae2046683beced6e99d66f024bb7aa2f276bc90744",
+      "negative_control_bites": true
+    },
+    {
+      "case": "windows-recover-second-rename",
+      "old_exit": 1,
+      "old_log_sha256": "d550e30292312818f4d999eac2ce70cfbb8cb8fcbaf1d5e27442aafedc0884d0",
+      "fixed_exit": 0,
+      "fixed_log_sha256": "ed7b06f96c0746153762832863146768bbd16545398ffd4598d0451ed9a24a81",
+      "negative_control_bites": true
+    },
+    {
+      "case": "windows-recover-before-failed-download",
+      "old_exit": 1,
+      "old_log_sha256": "179c4ff073a58da2b1d932393f41c5433e037c0484e939bc3a3cd863ce4960d9",
+      "fixed_exit": 0,
+      "fixed_log_sha256": "fb2d523b107d5a7ba26d4df6abf87cae8f44c4f2391d5c76bf54bdd2366afe48",
+      "negative_control_bites": true
+    }
+  ],
+  "fixed_suites": [
+    {
+      "test": "test_moos_vendor_rpm.py",
+      "exit": 0,
+      "log_sha256": "04c95d3d788fbf597c3a5998af284e7940d04dbd6cbd7dce86a2e5b5b43af155"
+    },
+    {
+      "test": "test_mo_store_backend_windows.py",
+      "exit": 0,
+      "log_sha256": "b9e108fce4b7dfeef142eb12661919000a9fb7481ff87244268349c5efc918ac"
+    }
+  ],
+  "patch_sha256": "2d525b2faf2086adbab1ad865b47ad6bd3cdd0be1065a6004033cac4aef20390"
+}
