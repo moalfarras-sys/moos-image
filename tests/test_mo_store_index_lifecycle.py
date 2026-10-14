@@ -287,6 +287,8 @@ def populate(machine: Machine) -> None:
     machine.write(".local/share/moos/windows-apps/notepad.json",
                   json.dumps({"id": "notepad", "version": "8.7.1", "sha256": SHA}))
     (machine.home / ".local/share/moos/windows-apps/notepad/app").mkdir(parents=True)
+    # The program's own icon, which moos-storectl extracts beside its folder (not a record key).
+    machine.icon(".local/share/moos/windows-apps/notepad/icon.png")
     # Android package data directory; npm command and package manifest.
     (machine.home / ".local/share/waydroid/data/data/org.example.droid").mkdir(parents=True)
     machine.write(".local/bin/codex", "#!/bin/sh\n")
@@ -347,6 +349,7 @@ class EveryKindIsSeen(unittest.TestCase):
         self.assertTrue(apps["notepad"]["installed"])
         self.assertEqual(apps["notepad"]["installed_version"], "8.7.1")
         self.assertFalse(apps["notepad"]["update_available"])
+        self.assertTrue((apps["notepad"]["icon"] or "").endswith("/windows-apps/notepad/icon.png"))
         self.assertTrue(apps["org.example.droid"]["installed"])
         self.assertIsNone(apps["org.example.droid"]["installed_version"])
         # Installed before moos-storectl kept a record: the pin is offered over it.

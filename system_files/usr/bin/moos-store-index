@@ -3138,9 +3138,9 @@ def catalog_install_state(entry: dict, arch: str | None = None) -> dict:
             state["installed"] = True
             state["version"] = record_text(record, "version", 64) or None
             state["update"] = pin is not None and not record_has_pin(record, pin)
-            icon = record.get("icon")
-            if isinstance(icon, str):
-                state["icon"] = home_file_icon(icon)
+            # The program's own icon, which moos-storectl extracts to <id>/icon.png; the
+            # record names none (reading a record "icon" key found nothing, ever).
+            state["icon"] = home_file_icon(str(folder / app_id / "icon.png"))
     elif kind == "vendor":
         # The newest build lives in the publisher's repository: updates.json (moos-storectl
         # check-updates, over the network) owns update_available, as it does for Flatpaks.
