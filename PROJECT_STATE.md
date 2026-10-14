@@ -1,4 +1,4 @@
-# MoOS current state — updated 2026-10-13
+# MoOS current state — updated 2026-10-14
 
 Oracle A1 and the physical NVIDIA workstation develop one MoOS product.
 Source, promoted artifacts and staged/booted systems are separate evidence.
@@ -29,6 +29,8 @@ EIS group counts. Administrator opt-in/PIN/private TLS/PAM remain unchanged.
 The live correction is an explicitly documented temporary greeter-only copied
 bundle via the existing MO_REMOTE_AGENT override in /run. It is not a signed
 release; native owner .1042 acceptance below still checks immutable image bytes.
+PR235 is integrated at `bfb158dd`; final local ARM/18 hashes and PR gates pass.
+Signed build 38481320383/full ARM 38481265631 are running; main stays fixed.
 Deliver the correction through the full release path, then retire the exact
 owned override/bundle after signature/source and no-holder checks.
 
@@ -45,6 +47,14 @@ scoping and atomic material generations (THEME_REV=103), plus finite MoPlayer
 controls and encoded Arabic file URIs. 480 native material transitions and old
 controls, 258 Flutter tests, native ARM build/frames/seek and signed .1034/.763
 acceptance pass in their recorded scope. Current .1042/.771 retain those fixes.
+
+Independent M1 source follow-up repairs Island arrows into hidden tabs, stale
+selected content, Return/keypad Enter and a blank page after a context finishes.
+THEME_REV=104 is topic source only. Native ARM Qt/Plasma component review passes
+48 AR/EN, two/five-context, light/dark, 100/150/250% normal/reduced samples;
+completed original-source 250% controls fail, including 28 measured arrow
+mismatches. This is isolated offscreen/software evidence, not installed shell,
+Orca or signed delivery. Full source gates and integration remain separate.
 
 ## Promoted release and public delivery
 

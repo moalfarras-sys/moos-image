@@ -1,0 +1,77 @@
+{
+  "scope": "Native ARM Qt 6.11.2/Plasma component, isolated bus with no service activation, private home, offscreen/software; no installed shell/Wayland/Orca/endurance claim",
+  "matrix": [
+    {
+      "scale": 1.0,
+      "motion": "normal",
+      "samples": 8,
+      "exit": 0,
+      "passed": true
+    },
+    {
+      "scale": 1.0,
+      "motion": "reduced",
+      "samples": 8,
+      "exit": 0,
+      "passed": true
+    },
+    {
+      "scale": 1.5,
+      "motion": "normal",
+      "samples": 8,
+      "exit": 0,
+      "passed": true
+    },
+    {
+      "scale": 1.5,
+      "motion": "reduced",
+      "samples": 8,
+      "exit": 0,
+      "passed": true
+    },
+    {
+      "scale": 2.5,
+      "motion": "normal",
+      "samples": 8,
+      "exit": 0,
+      "passed": true
+    },
+    {
+      "scale": 2.5,
+      "motion": "reduced",
+      "samples": 8,
+      "exit": 0,
+      "passed": true
+    }
+  ],
+  "old_negative_control_failed": true,
+  "old_negative_exit": 1,
+  "source_sha256": {
+    "scripts/review/island-tabs.py": "dd72ea65e0bcc1652baec4cd8b4c7bb7365fd976f68212ad785b8c00f6849c8e",
+    "system_files/usr/share/plasma/plasmoids/org.moos.island/contents/ui/main.qml": "9287449facc20e2482bb7ed5bd60906a362a42bcc2fb5299f3e08b8ab9e3a9df"
+  },
+  "passed": true,
+  "old_negative_scale": 2.5,
+  "old_negative_samples": 8,
+  "old_negative_data_sha256": "da11bfa415fbc27968a2555b839d3be33d7d7ce639a39f6e87c309e525edb4c1",
+  "old_negative_scope": "Actual completed native Qt assertions on original bfb158dd Island; prior initialization timeout is retained separately and is not this negative proof",
+  "schema": 1,
+  "base_revision": "bfb158ddc6f7db0fd947162dddf35cb62b7c1c79",
+  "date": "2026-10-14",
+  "theme_rev_source": 104,
+  "installed_theme_rev": 103,
+  "installed_delivery": false,
+  "routing_test_cases": 320,
+  "fallback_test_cases": 224,
+  "wider_acceptance": [
+    "installed full Plasma shell",
+    "Wayland input and scale/hotplug",
+    "Orca Arabic/English",
+    "all palettes and first-party app flows",
+    "signed candidate boot/promotion/native readback"
+  ],
+  "production_payload_sha256": {
+    "system_files/usr/share/plasma/plasmoids/org.moos.island/contents/ui/main.qml": "9287449facc20e2482bb7ed5bd60906a362a42bcc2fb5299f3e08b8ab9e3a9df",
+    "system_files/usr/bin/moos-apply-theme": "7f33498a5f006cfb44edab541d25edd8abc85e6a2a0456fdd9bcf50265aba89f"
+  }
+}
