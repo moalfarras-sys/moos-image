@@ -2738,11 +2738,13 @@ def vendor_entry_installable(install: dict, arch: str | None) -> bool:
 #             X-MoOS-WebApp=<id> (usr/lib/moos/moos_webapp_policy.is_installed);
 #   appdrop   the App Drop record ~/.local/share/moos/appdrop/<id>.json, which a
 #             catalogue install marks with catalog_id=<id>;
-#   windows   the record ~/.local/share/moos/windows-apps/<id>.json;
+#   windows   the record ~/.local/share/moos/windows-apps/<id>.json and the program's
+#             folder <id>/app beside it;
 #   vendor    the record ~/.local/share/moos/vendor/<id>.json, the marked folder
 #             ~/Applications/<id> and MoOS's launcher org.moos.vendor.<id>.desktop, all
 #             three (moos_vendor_rpm.intact(), by file reads);
-#   android   the per-package data directory the Android runtime creates;
+#   android   the per-package data directory the Android runtime creates, with
+#             moos-storectl's record ~/.local/share/moos/android/<package>.json;
 #   npm       the command in ~/.local/bin;
 #   web       never installed: it opens the publisher's page.
 # An App Drop record with no catalogue id is an app of its own, kind "dropped";
@@ -2985,14 +2987,39 @@ def vendor_orphans(claimed: set[str]) -> list[dict]:
     return found
 
 
+def pinned_sha256(install: dict, arch: str | None) -> str | None:
+    """The digest the catalogue pins for this machine, as moos-storectl's pinned_artifact()
+    reads it: `downloads[<arch>]`, or the top of the recipe for the older Android shape."""
+
+    downloads = install.get("downloads")
+    if downloads is None:
+        pin = install
+    else:
+        pin = downloads.get(arch or "") if isinstance(downloads, dict) else None
+    digest = pin.get("sha256") if isinstance(pin, dict) else None
+    return digest.lower() if isinstance(digest, str) and SHA256_RE.fullmatch(digest) else None
+
+
+def record_has_pin(record: dict, pin: str) -> bool:
+    digest = record.get("sha256")
+    return isinstance(digest, str) and digest.lower() == pin
+
+
 def catalog_install_state(entry: dict, arch: str | None = None) -> dict:
-    """{installed, version, update, icon, adopted} of one catalogue entry, from files."""
+    """{installed, version, update, icon, adopted} of one catalogue entry, from files.
+
+    A pinned kind (App Drop, Windows, Android) has an update when the record's SHA-256 is not
+    the pin's for this machine: moos-storectl's check-updates, Update all and `update <id>`
+    decide the same way, so index.json and updates.json give one answer. A version string
+    cannot say it: a re-pinned build keeps its version, and "0.9" is "0.9.0".
+    """
 
     kind = catalog_kind(entry)
     install = entry.get("install") or {}
     app_id = entry["id"]
     state = {"installed": False, "version": None, "update": False, "icon": None,
              "adopted": False}
+    pin = pinned_sha256(install, arch)
     if kind == "webapp":
         launcher = data_home() / "applications" / f"org.moos.webapp.{app_id}.desktop"
         if f"\nX-MoOS-WebApp={app_id}\n" in read_small_text(launcher):
@@ -3007,17 +3034,20 @@ def catalog_install_state(entry: dict, arch: str | None = None) -> dict:
         record = read_record(data_home() / "moos/appdrop" / f"{app_id}.json")
         if record is not None and record.get("id") == app_id:
             catalog_id = record.get("catalog_id")
-            pinned = (install.get("downloads") or {}).get(arch or "", {})
             if catalog_id == app_id:
+                # The Store's own install of this pin.
                 state["installed"] = True
                 state["version"] = record_text(record, "version", 64) or None
+                state["update"] = pin is not None and not record_has_pin(record, pin)
             elif not catalog_id:
                 # Dropped by hand into the slot this catalogue app installs to
-                # (~/Applications/<id>): the same app. The pinned digest names the
-                # exact version when the file matches it byte for byte.
+                # (~/Applications/<id>): the same app, but the person's own file. The pin
+                # is never offered over it (Update all leaves it, `update <id>` says to
+                # install a newer file); the pinned digest names the exact version when
+                # the file matches it byte for byte.
                 state["installed"] = True
                 state["adopted"] = True
-                if pinned and record.get("sha256") == pinned.get("sha256"):
+                if pin is not None and record_has_pin(record, pin):
                     state["version"] = install.get("version")
             if state["installed"]:
                 launcher = launcher_for_record(record, app_id)
@@ -3025,11 +3055,17 @@ def catalog_install_state(entry: dict, arch: str | None = None) -> dict:
                     fields = desktop_entry_fields(read_small_text(launcher))
                     state["icon"] = home_file_icon(fields.get("Icon", ""))
     elif kind == "windows":
-        record = read_record(data_home() / "moos/windows-apps" / f"{app_id}.json")
-        if record is not None and record.get("id", app_id) == app_id \
-                and record.get("catalog_id", app_id) == app_id:
+        # moos-storectl's windows_paths(): the record beside the program's folder <id>/app.
+        # A record whose program folder is gone is not installed (Install repairs it), and
+        # moos-storectl reads it the same way before it offers or runs an update.
+        folder = data_home() / "moos/windows-apps"
+        record = read_record(folder / f"{app_id}.json")
+        if record and record.get("id", app_id) == app_id \
+                and record.get("catalog_id", app_id) == app_id \
+                and (folder / app_id / "app").is_dir():
             state["installed"] = True
             state["version"] = record_text(record, "version", 64) or None
+            state["update"] = pin is not None and not record_has_pin(record, pin)
             icon = record.get("icon")
             if isinstance(icon, str):
                 state["icon"] = home_file_icon(icon)
@@ -3046,11 +3082,20 @@ def catalog_install_state(entry: dict, arch: str | None = None) -> dict:
         # The runtime creates this per-package data directory only after the
         # package manager commits an installation, and removes it on uninstall.
         # Reading this local state keeps the indexer offline and avoids calling
-        # (or exposing) the compatibility runtime for every Store refresh.
-        if isinstance(package, str) and ANDROID_PACKAGE_RE.fullmatch(package):
-            state["installed"] = (
-                home_dir() / ".local/share/waydroid/data/data" / package
-            ).is_dir()
+        # (or exposing) the compatibility runtime for every Store refresh. It lives
+        # under $XDG_DATA_HOME/waydroid, where the container and moos-storectl look.
+        if isinstance(package, str) and ANDROID_PACKAGE_RE.fullmatch(package) \
+                and (data_home() / "waydroid/data/data" / package).is_dir():
+            state["installed"] = True
+            # moos-storectl's record of what it installed: which bytes, which version.
+            record = read_record(data_home() / "moos/android" / f"{package}.json")
+            if record:
+                state["version"] = record_text(record, "version", 64) or None
+                state["update"] = pin is not None and not record_has_pin(record, pin)
+            else:
+                # Installed by the older Store, which wrote no record: which bytes are
+                # there is unknown, so the pin is offered; updating writes the record.
+                state["update"] = pin is not None
     elif kind == "npm":
         binary = install.get("bin")
         if isinstance(binary, str) and binary:
@@ -3062,7 +3107,8 @@ def catalog_install_state(entry: dict, arch: str | None = None) -> dict:
             if manifest is not None:
                 state["version"] = record_text(manifest, "version", 64) or None
     pinned_version = install.get("version")
-    if state["installed"] and state["version"] and isinstance(pinned_version, str):
+    if kind not in {"appdrop", "windows", "android", "vendor"} and state["installed"] \
+            and state["version"] and isinstance(pinned_version, str):
         state["update"] = version_newer(pinned_version, state["version"])
     return state
 

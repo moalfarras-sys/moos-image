@@ -282,9 +282,11 @@ def populate(machine: Machine) -> None:
                                             "X-MoOS-AppDrop=photo\n"))
     # Dropped by hand into a catalogue app's slot, byte-identical to the pin.
     machine.record("adopted", name="Adopted", sha256=PIN)
-    # Windows program record.
+    # Windows program: its record and its program folder, as moos-storectl leaves them, the
+    # pinned bytes installed.
     machine.write(".local/share/moos/windows-apps/notepad.json",
-                  json.dumps({"id": "notepad", "version": "8.7.1"}))
+                  json.dumps({"id": "notepad", "version": "8.7.1", "sha256": SHA}))
+    (machine.home / ".local/share/moos/windows-apps/notepad/app").mkdir(parents=True)
     # Android package data directory; npm command and package manifest.
     (machine.home / ".local/share/waydroid/data/data/org.example.droid").mkdir(parents=True)
     machine.write(".local/bin/codex", "#!/bin/sh\n")
@@ -347,6 +349,8 @@ class EveryKindIsSeen(unittest.TestCase):
         self.assertFalse(apps["notepad"]["update_available"])
         self.assertTrue(apps["org.example.droid"]["installed"])
         self.assertIsNone(apps["org.example.droid"]["installed_version"])
+        # Installed before moos-storectl kept a record: the pin is offered over it.
+        self.assertTrue(apps["org.example.droid"]["update_available"])
         self.assertTrue(apps["codex"]["installed"])
         self.assertEqual(apps["codex"]["installed_version"], "0.46.0")
         self.assertFalse(apps["page"]["installed"])
