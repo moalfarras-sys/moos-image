@@ -163,7 +163,10 @@ class MachineFacts(unittest.TestCase):
         self.assertIsInstance(facts["free_bytes"]["apps"], int)
         self.assertEqual(facts["android"], {"ready": True, "initialized": True,
                                             "graphics": "hardware"})
-        self.assertEqual(facts["windows"], {"ready": True, "x86_32": True})
+        # No mountinfo in this fixture: whether copies can share extents is unknown; no
+        # template settings folder exists yet.
+        self.assertEqual(facts["windows"], {"ready": True, "x86_32": True, "reflink": None,
+                                            "template": False})
         # The connected monitor is the 4K one (its EDID), not the other HDMI-A-1 screen.
         self.assertEqual(facts["screen"], {"width": 3840, "height": 2160, "scale": 2.5})
 
@@ -252,7 +255,7 @@ class PrintMachine(unittest.TestCase):
             document = json.loads(result.stdout)
             self.assertEqual(sorted(document), KEYS)
             self.assertEqual(sorted(document["android"]), ["graphics", "initialized", "ready"])
-            self.assertEqual(sorted(document["windows"]), ["ready", "x86_32"])
+            self.assertEqual(sorted(document["windows"]), ["ready", "reflink", "template", "x86_32"])
             self.assertEqual(sorted(document["free_bytes"]), ["apps"])
             self.assertEqual(document["screen"], {"width": 3840, "height": 2160, "scale": 2.5})
             # The work itself, without interpreter start-up, inside the 0.15 s budget.

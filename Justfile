@@ -352,6 +352,8 @@ check:
     # from one template settings folder.
     python3 tests/test_mo_store_backend2_vendor.py
     python3 tests/test_mo_store_backend2_windows_template.py
+    # The index's vendor kind, and what a Windows program's settings folder costs on this disk.
+    python3 tests/test_mo_store_backend2_index.py
     # One globally importable MoUI module must own identity metrics and shared
     # controls; an app-local copy cannot silently grow back.
     python3 tests/test_moos_design_core.py
