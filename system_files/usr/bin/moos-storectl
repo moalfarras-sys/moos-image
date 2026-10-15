@@ -3669,10 +3669,11 @@ class Controller:
                    person dropped into the app's slot has no catalog_id (the index calls it
                    adopted); it is theirs, and the pin, which may be older, never replaces it.
           windows  the record, while the program's folder is there.
-          android  installed while Android keeps the package's data directory. An app an
-                   earlier Mo Store installed has no record (it wrote none) and is returned
-                   without one; moos_android_apk.pin_is_update() then decides from the APK
-                   Android keeps (_pin_update_row).
+          android  installed while Android keeps the package's data directory. An APK the person
+                   installed from a file has a record without catalog_id: adopted, like a dropped
+                   file. An app an earlier Mo Store installed has no record (it wrote none) and
+                   is returned without one; moos_android_apk.pin_is_update() then decides from
+                   the APK Android keeps (_pin_update_row).
         """
         kind = (recipe.get("install") or {}).get("kind")
         if kind == "appdrop":
@@ -3684,10 +3685,26 @@ class Controller:
         if kind == "android":
             if not (data_home() / "waydroid" / "data" / "data" / app_id).is_dir():
                 return {}
-            return _read_json(android_record_path(app_id)) or {"id": app_id, "package": app_id}
+            record = _read_json(android_record_path(app_id))
+            if record and record.get("catalog_id") != app_id:
+                return {}
+            return record or {"id": app_id, "package": app_id}
         if kind == "vendor-rpm":
             return self._vendor_record(app_id)
         return {}
+
+    def _adopted(self, app_id: str, recipe: dict[str, Any]) -> bool:
+        """An app the person installed from a file into this catalogue app's place: App Drop's
+        record, or the record install-file wrote for an APK, with no catalog_id. It is theirs: a
+        newer file updates it, and the pin never replaces it."""
+        kind = (recipe.get("install") or {}).get("kind")
+        if kind == "appdrop":
+            record = self._appdrop().read_record(app_id)
+        elif kind == "android" and (data_home() / "waydroid" / "data" / "data" / app_id).is_dir():
+            record = _read_json(android_record_path(app_id))
+        else:
+            return False
+        return bool(record) and not record.get("catalog_id")
 
     @staticmethod
     def _android_apk() -> Any:
@@ -3970,9 +3987,8 @@ class Controller:
                             message_key="updated")
             return
         if not self._pinned_record(app_id, recipe):
-            dropped = self._appdrop().read_record(app_id) if kind == "appdrop" else {}
-            if dropped and not dropped.get("catalog_id"):
-                # The person's own file in this app's slot: a newer file updates it, never the pin.
+            if self._adopted(app_id, recipe):
+                # The person's own file in this app's place: a newer file updates it, never the pin.
                 raise StoreError("This app was installed from a file; install a newer file of it to update it",
                                  message_key="update_by_file")
             raise StoreError("App is not installed", message_key="not_installed")

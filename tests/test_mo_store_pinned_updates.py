@@ -19,6 +19,8 @@ one part of it, run for real against a private HOME:
   StoreRecord     the Store's own record names what it installed, but what Android keeps comes
                   first: a build the app's own library moved past the pin is never offered the
                   older pin; only when Android cannot be read does the record decide;
+  DroppedApk      an APK the person dropped is theirs, like a dropped file: no row, Update all
+                  leaves it, `update <package>` says to install a newer file;
   FlatpakBatch    one picked app with no build for this computer fails alone (in the window's
                   words when the catalogue names other computers only) and the rest of the batch
                   still installs in one transaction. This runs the real install() and the real
@@ -610,6 +612,47 @@ class StoreRecord(Android):
         self.assertEqual(controller.update()[1]["message_key"], "up_to_date")
         self.assertEqual((self.opener.requests, self.installs()), ([], []))
         self.assertEqual(self.kept_code(), self.NEW)
+
+
+class DroppedApk(Android):
+    """An APK the person dropped (App Drop -> install-file) is theirs, as a dropped file is."""
+
+    def drop(self, body: bytes) -> None:
+        download = self.home / "Downloads/Maps-26.10.apk"
+        download.parent.mkdir(parents=True, exist_ok=True)
+        download.write_bytes(body)
+        code, result = self.controller([]).install_file(str(download))
+        self.assertEqual(result["state"], "success", result)
+        record = json.loads(self.record_path().read_text(encoding="utf-8"))
+        self.assertEqual((record["source"], record["catalog_id"]), ("file", ""))
+
+    def test_an_apk_the_person_installed_is_never_offered_the_pin(self):
+        self.drop(self.build(self.NEW))
+        before = self.record_path().read_bytes()
+        controller = self.controller([self.recipe(self.build(self.PIN))])
+        self.assertEqual(self.rows(controller), [], "the catalogue's older pin was offered")
+        asked, installs = len(self.opener.requests), len(self.installs())
+        code, result = controller.update()
+        self.assertEqual((code, result["state"], result["message_key"]), (0, "success", "up_to_date"),
+                         result)
+        self.assertEqual((len(self.opener.requests), len(self.installs())), (asked, installs),
+                         "Update all put the pin over the person's own APK")
+        self.assertEqual(self.record_path().read_bytes(), before)
+        self.assertEqual(self.kept_code(), self.NEW)
+
+    def test_updating_it_by_id_says_to_install_a_newer_file(self):
+        self.drop(self.build(self.OLD))           # older than the pin: still theirs
+        before = self.record_path().read_bytes()
+        apps = [self.recipe(self.build(self.PIN))]
+        self.assertEqual(self.rows(self.controller(apps)), [])
+        code, result = self.controller(apps).update(self.PACKAGE)
+        self.assertEqual((result["state"], result["items"][0]["message_key"]),
+                         ("failed", "update_by_file"), result)
+        # As the window's bridge and moai-do run it.
+        self.assertNotEqual(self.cli(apps, "update", self.PACKAGE), 0)
+        self.assertEqual(self.job_document()["items"][0]["message_key"], "update_by_file")
+        self.assertEqual((self.record_path().read_bytes(), self.kept_code()), (before, self.OLD))
+        self.assertEqual(len(self.installs()), 1, "only the drop itself was installed")
 
 
 # ── Flatpak: the real install() and FlatpakAdapter over a stand-in libflatpak ─────────────────
