@@ -642,6 +642,14 @@ class WhatThePublishersSay(unittest.TestCase):
         for text in (photocraft["desc_ar"], hero["tagline_ar"]):
             self.assertIn("مرحلة", text)
             self.assertIn("مبكرة", text)
+        # The hero draws its tagline in two lines and cuts the rest (HeroCarousel.qml:
+        # maximumLineCount 2, ElideRight). Its text column is about 440 px in the Store's smallest
+        # window, and about 320 px on a screen 800 px wide, where a line holds some 35 to 40
+        # characters at 16 px and fewer with a larger font. The notice comes first, inside the
+        # first 30 characters, so no window size or font scale can cut it off.
+        for text, word in ((hero["tagline_en"], "early"), (hero["tagline_ar"], "مبكرة")):
+            self.assertLessEqual(text.index(word) + len(word), 30,
+                                 f"the early-version notice must open the hero tagline: {text}")
 
     def test_flatseal_claims_only_the_apps_it_manages_and_is_not_a_privacy_pick(self):
         flatseal = app(SHIPPED, "com.github.tchx84.Flatseal")
