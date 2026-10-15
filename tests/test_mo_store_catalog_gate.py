@@ -6,12 +6,13 @@ that cannot fail protects nothing (AGENTS.md: "Prove a new gate bites by breakin
 guards"), so each rule added for catalogue v2 has a negative control here: one bad value is
 planted in a deep copy of the shipped catalogue and the exact refusal is asserted.
 
-The chain half of the gate names install paths another component owns (moos-storectl's
-handlers, the vendor-package helper). Those checks are exercised against stub copies of the
-backend, so this suite proves the RULE whichever backend revision is in the tree; the gate
-itself is what proves the real backend.
+The chain half of the gate reads install paths another component owns (moos-storectl's
+dispatch and handlers, the vendor-package helper). Its negative controls break one path in a
+copy of the backend in the tree; its positive controls are that backend unchanged, so a backend
+refactor fails here by name rather than silently.
 """
 
+import ast
 import copy
 import hashlib
 import importlib.machinery
@@ -635,17 +636,34 @@ class TheIndexAndTheGateAgree(unittest.TestCase):
 
 NEW_KIND_TOKENS = ("_install_webapp", "_install_appdrop", "_install_windows_portable",
                    "_install_vendor_app")
+STORECTL = (SYSTEM / "usr/bin/moos-storectl").read_text(encoding="utf-8")
 
 
 def storectl_with(tokens: bool) -> str:
-    text = (SYSTEM / "usr/bin/moos-storectl").read_text(encoding="utf-8")
+    """The backend in the tree; without `tokens`, the same file minus the v2 install paths and
+    the web-app review risk. (A name merely mentioned somewhere no longer counts: the gate
+    follows install()'s dispatch to each path.)"""
+    if tokens:
+        return STORECTL
+    text = STORECTL
     for token in NEW_KIND_TOKENS:
         text = text.replace(token, "_install_unrelated")
-    text = text.replace('"web-app"', '"unrelated-risk"')
-    if tokens:
-        text += ("\n_V2_INSTALL_PATHS = (" + ", ".join(NEW_KIND_TOKENS) + ")\n"
-                 '_V2_RISKS = {"web-app"}\n')
-    return text
+    return text.replace('"web-app"', '"unrelated-risk"')
+
+
+def in_method(source: str, method: str, pattern: str, replacement: str) -> str:
+    """`source` with the one match of `pattern` inside moos-storectl's Controller.<method>
+    replaced: the same text elsewhere in the file (another method's call) stays."""
+    backend = next(node for node in ast.parse(source).body
+                   if isinstance(node, ast.ClassDef) and node.name == "Controller")
+    found = next(item for item in backend.body
+                 if isinstance(item, ast.FunctionDef) and item.name == method)
+    lines = source.splitlines(keepends=True)
+    start, end = found.lineno - 1, found.end_lineno
+    body, count = re.subn(pattern, replacement, "".join(lines[start:end]))
+    if count != 1:
+        raise AssertionError(f"{pattern!r} matches {count} times in {method}()")
+    return "".join(lines[:start]) + body + "".join(lines[end:])
 
 
 class TheChainNamesTheNewKinds(unittest.TestCase):
@@ -680,54 +698,143 @@ class TheChainNamesTheNewKinds(unittest.TestCase):
         self.assertTrue(any("never runs `rpmkeys --checksig`" in e for e in errors), errors)
 
 
+FACTS = gate.check_catalog(copy.deepcopy(SHIPPED), SYSTEM, BUILD)[1]
+
+
+def chain_errors(storectl: str) -> list[str]:
+    """The chain half of the gate, run on a mirror whose moos-storectl is `storectl`."""
+    with tempfile.TemporaryDirectory() as raw:
+        root = mirror_root(Path(raw), {gate.MOOS_STORECTL: storectl})
+        return gate.check_chain(FACTS, root, BUILD).errors
+
+
+def refusal(kind: str, method: str = "install") -> str:
+    """The gate's words when Controller.<method> no longer hands `kind` to its installer."""
+    purpose = "install" if method == "install" else "update"
+    handler = (gate.KIND_HANDLER[kind][0] if method == "install" else gate.UPDATE_HANDLER[kind])
+    return (f"the catalog uses install kind {kind!r} but moos-storectl's Controller.{method} does "
+            f"not hand it to self.{handler}(), so those apps would never {purpose}")
+
+
+ANDROID_CALL = r"self\._install_pinned_android\(job, app_id, recipe\)"
+
+
 class TheChainNamesTheAndroidPath(unittest.TestCase):
     """The catalogue holds 21 Android recipes; nothing checked the backend could install one.
 
-    The mutation that went unseen (review, 2026-10-15): both calls of the Android installer in
-    moos-storectl replaced by a refusal. The method itself stayed, so a gate that looked for its
-    NAME would have passed; the gate looks for a CALL. This half reads the real backend, so a
-    rename there fails here by name rather than silently.
+    Two mutations went unseen. Review, 2026-10-15: both calls of the Android installer replaced
+    by a refusal, while the method itself stayed, so its NAME was still in the file. Verification
+    of that fix: only install()'s call replaced, while the update path's call kept the CALL in the
+    file; the gate printed "chain consistent" for an image whose Store refused every Android app.
+    The gate now follows install()'s and _reinstall_pin()'s own branch for the kind.
     """
 
-    storectl = (SYSTEM / "usr/bin/moos-storectl").read_text(encoding="utf-8")
+    def test_only_the_install_branch_refusing_fails(self):
+        cut = in_method(STORECTL, "install", ANDROID_CALL, 'raise StoreError("no Android install")')
+        self.assertEqual(len(re.findall(ANDROID_CALL, cut)), 1,
+                         "the update path's call must survive, as in the mutation that went unseen")
+        self.assertEqual(chain_errors(cut), [refusal("android")])
 
-    def chain_errors(self, storectl: str) -> list[str]:
-        facts = gate.check_catalog(copy.deepcopy(SHIPPED), SYSTEM, BUILD)[1]
-        self.assertIn("android", facts["used_kinds"])
-        with tempfile.TemporaryDirectory() as raw:
-            root = mirror_root(Path(raw), {gate.MOOS_STORECTL: storectl})
-            return gate.check_chain(facts, root, BUILD).errors
+    def test_an_install_without_an_android_branch_fails(self):
+        cut = in_method(STORECTL, "install",
+                        r'\n[ \t]*elif kind == "android":\n[ \t]*' + ANDROID_CALL + r"\n", "\n")
+        self.assertEqual(chain_errors(cut), [
+            "the catalog uses install kind 'android' but moos-storectl's Controller.install has "
+            "no branch for it, so those apps would never install"])
 
-    def test_a_backend_that_can_no_longer_install_an_android_app_fails(self):
-        cut, calls = re.subn(r"self\._install_pinned_android\([^)]*\)",
-                             'raise StoreError("no Android install")', self.storectl)
-        self.assertGreaterEqual(calls, 1, "the backend calls its Android installer by another name")
-        self.assertIn("def _install_pinned_android(", cut)
-        errors = self.chain_errors(cut)
-        self.assertTrue(any("install kind 'android'" in e and "'self._install_pinned_android('" in e
-                            for e in errors), errors)
+    def test_only_the_update_branch_refusing_fails(self):
+        cut = in_method(STORECTL, "_reinstall_pin", ANDROID_CALL,
+                        'raise StoreError("no Android update")')
+        self.assertEqual(chain_errors(cut), [refusal("android", "_reinstall_pin")])
+
+    def test_every_call_refusing_fails(self):
+        """The review's own mutation."""
+        cut, calls = re.subn(ANDROID_CALL, 'raise StoreError("no Android install")', STORECTL)
+        self.assertEqual(calls, 2)
+        self.assertEqual(chain_errors(cut),
+                         [refusal("android"), refusal("android", "_reinstall_pin")])
 
     def test_each_android_token_is_required(self):
-        self.assertIn("self._install_pinned_android(", gate.KIND_HANDLER["android"])
+        self.assertEqual(gate.KIND_HANDLER["android"][0], "_install_pinned_android")
         for token in gate.KIND_HANDLER["android"]:
             with self.subTest(token=token):
-                errors = self.chain_errors(self.storectl.replace(token, "_unrelated("))
+                errors = chain_errors(STORECTL.replace(token, "_unrelated("))
                 self.assertTrue(any(f"lacks required handler token {token!r}" in e for e in errors),
                                 errors)
 
     def test_the_backend_as_shipped_satisfies_the_android_path(self):
         """Positive control: the real moos-storectl, unchanged, raises nothing for the kind."""
-        self.assertEqual([e for e in self.chain_errors(self.storectl) if "'android'" in e], [])
+        self.assertIn("android", FACTS["used_kinds"])
+        self.assertEqual([e for e in chain_errors(STORECTL) if "'android'" in e], [])
+
+
+class EveryKindReachesItsInstaller(unittest.TestCase):
+    """Every kind the catalogue uses, broken in its own branch of the real backend, one at a time:
+    install() for all of them and _reinstall_pin() for the pinned ones."""
+
+    def test_each_kind_needs_its_install_branch(self):
+        kinds = sorted(FACTS["used_kinds"] & gate.KIND_HANDLER.keys())
+        self.assertLessEqual({"android", "appdrop", "npm", "vendor-rpm", "webapp",
+                              "windows-portable"}, set(kinds))
+        for kind in kinds:
+            with self.subTest(kind=kind):
+                call = rf"self\.{gate.KIND_HANDLER[kind][0]}\(job, app_id, recipe\)"
+                cut = in_method(STORECTL, "install", call, 'raise StoreError("refused")')
+                self.assertEqual(chain_errors(cut), [refusal(kind)])
+
+    def test_each_pinned_kind_needs_its_update_branch(self):
+        kinds = sorted(FACTS["used_kinds"] & gate.UPDATE_HANDLER.keys())
+        self.assertLessEqual({"android", "appdrop", "vendor-rpm", "windows-portable"}, set(kinds))
+        for kind in kinds:
+            with self.subTest(kind=kind):
+                call = rf"self\.{gate.UPDATE_HANDLER[kind]}\(job, app_id, recipe\)"
+                # `None`, not a raise: the vendor branch calls its installer inside a condition.
+                cut = in_method(STORECTL, "_reinstall_pin", call, "None")
+                self.assertEqual(chain_errors(cut), [refusal(kind, "_reinstall_pin")])
+
+    def test_a_call_in_a_comment_or_a_string_does_not_count(self):
+        for label, replacement in (
+                ("comment", "pass  # self._install_webapp(job, app_id, recipe)"),
+                ("string", '"self._install_webapp(job, app_id, recipe)"')):
+            with self.subTest(form=label):
+                cut = in_method(STORECTL, "install", r"self\._install_webapp\(job, app_id, recipe\)",
+                                replacement)
+                self.assertEqual(chain_errors(cut), [refusal("webapp")])
+
+    def test_the_installer_must_be_a_method_of_the_backend(self):
+        cut = STORECTL.replace("def _install_pinned_android(", "def _install_pinned_android_v1(")
+        self.assertNotEqual(cut, STORECTL)
+        self.assertEqual(chain_errors(cut), [
+            "the catalog uses install kind 'android' but moos-storectl's Controller has no "
+            "method '_install_pinned_android' to install it",
+            "the catalog uses install kind 'android' but moos-storectl's Controller has no "
+            "method '_install_pinned_android' to update it"])
+
+    def test_a_backend_the_parser_cannot_read_fails_once(self):
+        errors = chain_errors(STORECTL + "\ndef broken(:\n")
+        self.assertEqual(errors, ["moos-storectl has no Controller class the parser can read, so "
+                                  "nothing shows where the catalog's kinds are installed"])
+
+    def test_a_backend_without_an_update_path_fails_once(self):
+        cut = STORECTL.replace("def _reinstall_pin(", "def _reinstall_pin_retired(")
+        pinned = ", ".join(sorted(FACTS["used_kinds"] & gate.UPDATE_HANDLER.keys()))
+        self.assertEqual(chain_errors(cut), [
+            f"the catalog uses install kinds {pinned} but moos-storectl's "
+            "Controller._reinstall_pin is missing, so none of them can update"])
+
+    def test_the_backend_as_shipped_reaches_every_installer(self):
+        """Positive control: the real moos-storectl, unchanged, satisfies the whole chain."""
+        self.assertEqual(chain_errors(STORECTL), [])
 
 
 class TheScriptFailsTheBuild(unittest.TestCase):
     """End to end: the gate script, its exit status and its message, on a planted mirror."""
 
-    def run_gate(self, catalog: dict) -> subprocess.CompletedProcess:
+    def run_gate(self, catalog: dict, storectl: str = STORECTL) -> subprocess.CompletedProcess:
         with tempfile.TemporaryDirectory() as raw:
             root = mirror_root(Path(raw), {
                 gate.CATALOG: json.dumps(catalog, ensure_ascii=False, indent=1),
-                gate.MOOS_STORECTL: storectl_with(True),
+                gate.MOOS_STORECTL: storectl,
                 gate.VENDOR_RPM_HELPER: "subprocess.run(['rpmkeys', '--checksig', p])\n"})
             env = dict(os.environ, MOOS_TEST_ROOT=str(root), PYTHONDONTWRITEBYTECODE="1")
             return subprocess.run([sys.executable, str(GATE_PATH)], env=env, text=True,
@@ -743,6 +850,17 @@ class TheScriptFailsTheBuild(unittest.TestCase):
         self.assertIn("GATE FAIL", bad.stdout)
         self.assertIn("is not the publisher's x86_64 download for version 0.85", bad.stdout)
         self.assertNotIn("is not the publisher's x86_64 download", baseline.stdout)
+
+    def test_a_store_that_refuses_every_android_install_stops_the_build(self):
+        """The verification's mutation, end to end: install()'s Android call alone refuses."""
+        cut = in_method(STORECTL, "install", ANDROID_CALL, 'raise StoreError("no Android install")')
+        baseline = self.run_gate(copy.deepcopy(SHIPPED))
+        bad = self.run_gate(copy.deepcopy(SHIPPED), cut)
+        self.assertEqual(baseline.returncode, 0, baseline.stdout + baseline.stderr)
+        self.assertIn("chain consistent", baseline.stdout)
+        self.assertEqual(bad.returncode, 1, bad.stdout + bad.stderr)
+        self.assertIn("GATE FAIL: the MoOS Store chain is inconsistent", bad.stdout)
+        self.assertIn(refusal("android"), bad.stdout)
 
 
 if __name__ == "__main__":

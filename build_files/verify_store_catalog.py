@@ -29,6 +29,9 @@ Rules that matter more than they look:
   here, so the two can never disagree about what a valid entry is.
 * MoOS's voice never names machinery (an engine, a packaging format, a store channel) or
   another operating system, in descriptions, taglines or search words.
+* Every kind the catalogue uses reaches its installer, and a pinned kind its update: the gate
+  reads moos-storectl's dispatch from the parsed code (Controller.install and
+  Controller._reinstall_pin), because a method's name elsewhere in the file proves neither.
 
 Full-line comments are stripped before any source search, so a gate can never be satisfied by
 the prose that documents it. Run locally with MOOS_TEST_ROOT=system_files; tests that plant bad
@@ -37,6 +40,7 @@ entries import this module and call check_catalog() on a modified copy.
 
 from __future__ import annotations
 
+import ast
 import base64
 import copy
 import functools
@@ -1143,6 +1147,8 @@ def check_catalog(catalog, root: Path = IMAGE_ROOT, build_dir: Path = BUILD_DIR,
 
 # ── the chain that executes the catalogue ─────────────────────────────────────────────────────
 SOURCE_HANDLER = {"flathub": ("FlatpakAdapter", "install_many")}
+# Per kind: first the method Controller.install hands it to (check_chain reads that dispatch from
+# the parsed code), then tokens that show what the path does.
 KIND_HANDLER = {
     "npm": ("_install_npm", 'install.get("pkg")', '"--prefix"'),
     "web": ("_install_web", "urlsplit", "XDG_OPEN"),
@@ -1150,14 +1156,62 @@ KIND_HANDLER = {
     "webapp": ("_install_webapp", "parse_entry("),
     "appdrop": ("_install_appdrop", "pinned_artifact(", "appdrop.plan_for("),
     "windows-portable": ("_install_windows_portable", "pe_architecture(", "_wine_argv("),
-    # A call, not a name: the method can outlive every caller of it. Then the pinned download,
-    # the container's own install and the record that makes the app the Store's.
-    "android": ("self._install_pinned_android(", "pinned_artifact(",
+    # The pinned download, the container's own install and the record that makes the app the
+    # Store's.
+    "android": ("_install_pinned_android", "pinned_artifact(",
                 '[WAYDROID, "app", "install"', "_write_android_record("),
     # The publisher's own signed package: storectl never reimplements the module's checks.
     "vendor-rpm": ("_install_vendor_app", "vendor.parse_entry(install)",
                    "vendor.install(app_id, entry", "VENDOR_FAILURE_KEYS.get(code)"),
 }
+# A pinned kind is updated by installing its new pin: the method Controller._reinstall_pin hands
+# each one to.
+UPDATE_HANDLER = {
+    "appdrop": "_install_appdrop",
+    "windows-portable": "_install_windows_portable",
+    "android": "_install_pinned_android",
+    "vendor-rpm": "_install_vendor",
+}
+# The class whose install() and _reinstall_pin() moos-storectl's commands run.
+STORECTL_BACKEND = "Controller"
+
+
+def backend_methods(source: str, owner: str = STORECTL_BACKEND) -> dict | None:
+    """The methods of moos-storectl's backend class by name, as the parser reads them; None when
+    the file does not parse or has no such class."""
+    try:
+        tree = ast.parse(source)
+    except SyntaxError:
+        return None
+    for node in tree.body:
+        if isinstance(node, ast.ClassDef) and node.name == owner:
+            return {item.name: item for item in node.body if isinstance(item, ast.FunctionDef)}
+    return None
+
+
+def kind_branches(method: ast.FunctionDef) -> dict[str, list[set[str]]]:
+    """Every branch of `method` that tests `kind == "<kind>"`, by kind: what each calls on self.
+
+    Parsed, not searched: a comment, a string or prose never counts, and a call made in another
+    method (the update path's, say) never stands in for this branch's.
+    """
+    branches: dict[str, list[set[str]]] = {}
+    for node in ast.walk(method):
+        if not (isinstance(node, ast.If) and isinstance(node.test, ast.Compare)
+                and len(node.test.ops) == 1 and isinstance(node.test.ops[0], ast.Eq)):
+            continue
+        sides = (node.test.left, node.test.comparators[0])
+        if not any(isinstance(side, ast.Name) and side.id == "kind" for side in sides):
+            continue
+        kinds = [side.value for side in sides
+                 if isinstance(side, ast.Constant) and isinstance(side.value, str)]
+        if len(kinds) != 1:
+            continue
+        calls = {call.func.attr for statement in node.body for call in ast.walk(statement)
+                 if isinstance(call, ast.Call) and isinstance(call.func, ast.Attribute)
+                 and isinstance(call.func.value, ast.Name) and call.func.value.id == "self"}
+        branches.setdefault(kinds[0], []).append(calls)
+    return branches
 
 
 def check_chain(facts: dict, root: Path = IMAGE_ROOT, build_dir: Path = BUILD_DIR) -> Report:
@@ -1220,6 +1274,39 @@ def check_chain(facts: dict, root: Path = IMAGE_ROOT, build_dir: Path = BUILD_DI
             require(handler_token in storectl_code,
                     f"the catalog uses install kind {kind!r} but moos-storectl lacks "
                     f"required handler token {handler_token!r}")
+    # Each kind must reach its installer, and a pinned kind its update. A token found anywhere in
+    # the file cannot show that: with only install()'s Android branch turned into a refusal, the
+    # update path's call kept "self._install_pinned_android(" in the file, and an image whose
+    # Store refused all 21 Android apps passed. So the gate reads the dispatch itself.
+    methods = backend_methods(text(MOOS_STORECTL))
+    if facts["used_kinds"]:
+        require(methods is not None,
+                f"moos-storectl has no {STORECTL_BACKEND} class the parser can read, so nothing "
+                "shows where the catalog's kinds are installed")
+    for dispatcher, handlers, purpose in (
+        ("install", {kind: names[0] for kind, names in KIND_HANDLER.items()}, "install"),
+        ("_reinstall_pin", UPDATE_HANDLER, "update"),
+    ):
+        kinds = sorted(facts["used_kinds"] & handlers.keys())
+        if methods is None or not kinds:
+            continue
+        where = f"moos-storectl's {STORECTL_BACKEND}.{dispatcher}"
+        if dispatcher not in methods:
+            require(False, f"the catalog uses install kinds {', '.join(kinds)} but {where} is "
+                           f"missing, so none of them can {purpose}")
+            continue
+        branches = kind_branches(methods[dispatcher])
+        for kind in kinds:
+            handler = handlers[kind]
+            require(handler in methods,
+                    f"the catalog uses install kind {kind!r} but moos-storectl's "
+                    f"{STORECTL_BACKEND} has no method {handler!r} to {purpose} it")
+            require(kind in branches,
+                    f"the catalog uses install kind {kind!r} but {where} has no branch for it, "
+                    f"so those apps would never {purpose}")
+            require(all(handler in calls for calls in branches.get(kind, ())),
+                    f"the catalog uses install kind {kind!r} but {where} does not hand it to "
+                    f"self.{handler}(), so those apps would never {purpose}")
     for risk in sorted(facts["risks"]):
         require(f'"{risk}"' in storectl_code,
                 f"the catalog labels recipes {risk!r} but moos-storectl never names that "
