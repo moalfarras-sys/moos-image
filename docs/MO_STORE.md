@@ -248,3 +248,39 @@ honest notes for full-access and Android apps).
   building catalogue, the signed catalogue alone) on `tests/fixtures/mo-store/` and fails on
   any QML warning; a planted copy proves it finds a fault in each view file at its own line.
   `make_fixtures.py` regenerates the fixtures byte for byte.
+
+## Craft catalogue extension (2026-10-15)
+
+The catalogue now includes all 13 published Craft Linux desktop apps: PhotoCraft,
+VectorCraft, FilmCraft, LightCraft, PdfCraft, EffectCraft, DesignCraft, FigCraft,
+WordCraft, SoundCraft, DeckCraft, CADCraft and GridCraft. Twelve new entries use
+publisher AppImages for x86_64 and aarch64, with exact size and SHA-256 and an
+individual reviewed download/icon rule. All 24 cached files were rehashed during
+integration. These are early development releases, as each description explains;
+checksum verification and catalogue acceptance are not evidence of complete Adobe
+feature parity or of runtime acceptance for all 13 apps. Collections distinguish
+the Craft suite and Adobe alternatives. ArtCraft's AI studio has no Linux build
+and is not represented as a native install. Total curated entries: 184.
+
+### Useful apps and native games — 2026-10-15
+
+The curated catalogue now contains 200 entries. Sixteen additions use the existing
+trusted Linux lifecycle (install, launch, permissions, update and removal), including
+Chess, OpenRA, Warzone 2100, Wesnoth, OpenTTD, FreeCol, SuperTux, KPatience,
+KMahjongg, PeaZip, FileZilla, GnuCash, Scribus, LMMS, Ardour and Chromium.
+Their IDs were checked against the station's current trusted remote. Availability
+is not a completed gameplay or audio-hardware acceptance test.
+
+OpenRA downloads original game assets at first use; it is not Generals. Valve lists
+Counter-Strike 2 with native Linux requirements; EA's Generals listing requires
+Windows. Steam manages those game downloads; neither is presented as a qualified
+direct Mo Store installation. Sources: https://www.openra.net/download/ ,
+https://store.steampowered.com/app/730/CounterStrike_2/ and
+https://store.steampowered.com/app/2229870/Command__Conquer_Generals/ .
+Popular-app discovery used https://flathub.org/en/apps/collection/popular/1 on
+2026-10-15; most leading entries were already curated. No global search-volume
+ranking is claimed.
+
+Store Settings links to the existing MoOS theme and animation authorities. These
+open system configuration; they do not install unreviewed theme scripts or change
+upstream authentication components.

@@ -122,6 +122,12 @@ privacy. It does not mean universal compatibility or an absence of all defects.
 
 ## Every app, one verb — the app-engine contract (P4.x)
 
+2026-10-15 Craft source extension: 12 additional pinned publisher apps (24 rehashed
+architecture artifacts), 184 curated entries and 14 collections. Catalogue/gate
+coverage is separate from per-app launch and signed delivery acceptance; see
+`docs/MO_STORE.md`.
+
+
 **The owner's requirement, in their words:** MoOS should run apps from Android,
 Windows and any Linux distribution; the person presses install or drops a file, it
 installs and runs, and they never see Wayland, KWin or Bottles. One store for every
@@ -540,3 +546,9 @@ only a small canonical fixture belongs in Git when a test consumes it.
 12. David Edmundson, [EX-11: Prepping for Plasma's last X11-supported release](https://blog.davidedmundson.co.uk/blog/596/), and Phoronix, [KDE Plasma 6.8 will go Wayland-exclusive](https://www.phoronix.com/news/KDE-Plasma-68-Wayland-Exclusive), accessed 2026-09-24.
 13. Fedora Magazine, [Announcing Fedora Linux 45 Beta](https://fedoramagazine.org/announcing-fedora-linux-45-beta/) (final target 2026-10-20, Plasma 6.7), accessed 2026-09-24.
 14. Plymouth, [`ply-boot-splash.c` on `main`](https://gitlab.freedesktop.org/plymouth/plymouth/-/blob/main/src/libply-splash-core/ply-boot-splash.c) (`ply_boot_splash_free()` still leaves `on_new_frame` armed), read 2026-09-24.
+
+Mo Store Oct15 follow-up: 200 curated apps, including 16 additional native games
+and everyday tools. Existing supported theme/motion configuration is reachable
+from Store Settings. Full game/hardware acceptance, Steam-managed game inventory
+and general third-party theme installation remain separate work; no blanket
+compatibility claim. Release and workstation acceptance remain governed by RELEASE.md.
