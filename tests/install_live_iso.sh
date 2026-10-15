@@ -1100,7 +1100,19 @@ for attempt in range(1, 4):
                 label=f"wake-{attempt}")
     (evidence / f"hmp-wake-attempt{attempt}.txt").write_text(wake, encoding="utf-8")
     time.sleep(2)
-    capture(evidence / f"installed-login-attempt{attempt}.ppm")
+    login_frame = evidence / f"installed-login-attempt{attempt}.ppm"
+    capture(login_frame)
+    if attempt == 1:
+        # Keep the exact first pre-authentication picture under the historical
+        # name too. After PAM accepts the password, logind can publish a session
+        # while the desktop is still painting; that is a different surface.
+        (evidence / "installed-login.ppm").write_bytes(login_frame.read_bytes())
+        for suffix in ("-capture.log", "-windows.txt"):
+            (evidence / f"installed-login{suffix}").write_bytes(
+                (evidence / f"{login_frame.stem}{suffix}").read_bytes())
+        (evidence / "installed-login-source.txt").write_text(
+            f"alias-of={login_frame.name}\nphase=pre-authentication\n",
+            encoding="utf-8")
     # Empty the field before typing. Run 34650456175 sent the correct
     # 20-character password on all three attempts and PAM rejected it every
     # time. When PLM is already on its password page there is no idle clock to
@@ -1122,9 +1134,6 @@ for attempt in range(1, 4):
     print(f"login: no session for uid 1000 after attempt {attempt}; retrying",
           file=sys.stderr)
 
-# Keep the historical filename so existing tooling and the gate's own
-# expectations still find the pre-interaction shot.
-capture(evidence / "installed-login.ppm")
 if not logged_in:
     print("login: no session for uid 1000 after 3 attempts -- the desktop gate "
           "below will now say what the guest looks like", file=sys.stderr)

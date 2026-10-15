@@ -83,9 +83,10 @@ NVIDIA/Cloud first migration still needs its separately qualified journey.
 
 The cadence of release cycles is the security cadence: nightly image-only
 builds cannot deliver a base fix. P6.3 stays open until bounded, boot-proven
-cycles keep every supported edition current. Reviewed Plasma 6.7.91 canary
-evidence does not qualify stable 6.8.0; unknown vendor NVRs and seams remain
-refused pending separate review. Never widen pins to update the desktop.
+cycles keep every supported edition current. Oct15's separate native source
+review qualifies exact x86 Plasma 6.8.0 packages/seams and retains the full
+positive/negative greeter/logout controls. Native ARM 6.8 source rebuilding and
+installed hardware acceptance remain P6.7 work; unknown inputs stay refused.
 
 ## Product acceptance
 
@@ -324,13 +325,17 @@ For every task:
 
 ## Ordered execution
 
-The Oct15 owner integration gathers every fetched branch tip on
-`codex/owner-integration-20261015`, preserving original worktrees and backed-up
-Android edits. The later committed APK/parser and index corrections are also integrated.
-Four previously orphaned Store suites now execute in both gate
-entry points; the web-app policy/readback and window-word integration failures
-are corrected. Full source/image/boot/signature and installed acceptance are
-still required before this batch can replace the staged signed .1053 release.
+PR245 merges the Oct15 owner integration at `b115c191`, preserving station and
+Oracle ancestry, dirty-file checkpoints and the later reviewed APK/index/data
+corrections. Fresh Oracle inspection covers 148 local/remote refs, all ancestors.
+The complete native ARM repository gate exits 0; image/compiled-app gates and
+independent signatures pass for the three x86 `.1060` candidates. Their exact
+QCOW2 proofs pass; ISO 38807911559 fails the final visual gate because its
+historical pre-login filename was recaptured after authentication during session
+handoff. Offline install, ordinary login, ten apps and second boot are separately
+preserved successes, not a passed ISO verdict. Fix the capture phase, retain
+the thresholds and qualify a fresh source cycle. ARM `.791` already passes its full
+first-attempt native build/two-boot/promotion run 38788880828 and is staged.
 
 The owner's Oct14 priority is the in-progress M3 Store batch on the NVIDIA
 station. Independent Oracle review supplies executable old/fixed controls and
@@ -341,9 +346,10 @@ the existing A3/P4 tasks, not another backlog or a shipped Store claim.
 The [Oct15 exact-head review](reviews/STORE_20261015_AR.md) found unintegrated
 data-preservation/recovery fixes, Android update-policy disagreement, missing
 publisher-app UI actions and a pre-read archive-link budget defect at `382f5935`.
-The owner then requested immediate complete integration: the reviewed five-patch set
-is applied in isolated `integrate/owner-unified-20261015`, retaining original worktrees.
-These remain M3/A3/P4.1 delivery blockers until final gates/image/signed and installed readback.
+The reviewed five-patch set is now merged through PR245, retaining original
+worktrees. Source correction is complete within those controls; M3/A3/P4.1
+delivery acceptance still requires the exact final boot/promotion and native
+installed readback. Do not keep reporting these already-integrated fixes as missing source.
 
 ### Milestone map
 
@@ -464,7 +470,7 @@ itself and an unreviewed MoOS would ship kscreenlocker's emergency locker.
 | P6.4 | Add staged rollout and release health | Open / acceptance not complete | Staged rings, halt/rollback criteria and actual field release health. |
 | P6.5 | URL, Remote, AI and diagnostic security boundaries | Implemented/delivered within recorded scope; wider acceptance remains; the integrated audit cycle is signed/promoted | Auth/UID/URL/PIN/upload/secret boundaries and failure controls; native dependency advisories refuse release. |
 | P6.6 | Establish support lifecycle and migration policy | Open / acceptance not complete | Published support/upgrade/rollback/EOL policy plus clear licences, attribution and official identity. |
-| P6.7 | Reviewed Plasma seams before upstream transitions | [Latest Oct12 canary 38248425611](releases/2026-10-14-plasma-canary-readback.json) passes Plasma workspace/desktop/KWin/libplasma 6.7.91-1 and locker 6.7.91-2 with Qt 6.11.2-3, 12 seams, actual greeter and native logout RPM. Reliability PR224 merged; earlier canary 38099434894 passes exact signed COPR 6.7.91 SRPM (ea530281…), unchanged prepared worker SHA (76ed150d…), preserved vendor flags/patches, 38 package controls and inactive-store input/boot-policy equality (1,274 modules)/nine refusal controls. Actual canary packages, 12 reviewed seams, native logout RPM/greeter and final image gates pass; signed reliability cycle 38128732396/38136731168 is qualified/promoted; it does not deliver unreviewed stable 6.8.0. Final 6.8.0 NVR stays unreviewed/refused | Actual next-Plasma canary, registered reviewed seams and old/broken/native controls; review the final stable NVR separately rather than widening an allowed range. |
+| P6.7 | Reviewed Plasma seams before upstream transitions | [Oct15 stable qualification](releases/2026-10-15-plasma-stable-source-proof.json): native x86 Plasma 6.8.0, exact signed inputs,12 seams, real greeter positive/broken/restored and rebuilt vendor logout old/fixed/rejected/cancelled controls pass. PR245's `.1060` image candidates pass all three QCOW2 proofs; ISO final visual validation fails on a post-authentication handoff capture mislabeled pre-login. Correct the fixture and prove a fresh source cycle; installed acceptance remains open. ARM retains qualified 6.7.5 because the publisher has no ARM binaries; the native stable source rebuild remains open. Qt 6.12 stays unqualified. Prior beta canary evidence remains historical. | Actual matching stack, registered seams and native controls, final signed boot and installed acceptance for each architecture; never widen pins or substitute cross-architecture packages. |
 | P6.8 | Separate reviewed next-base transition lane | Open / acceptance not complete | Reviewed next-base packages, all native seams/boot/apps/identity gates and migration/support qualification. |
 | P6.9 | Native user/developer participation | Beta integrated/promoted in .1022/.749; native launch/shutdown and ARM D-Bus controls pass, plus 34 API/11 native and actual Wayland/Oracle TLS flow. Both hosts boot delivered client bytes; actual .1022 native capture/shutdown passes and Oracle public health is ready. Capture retains Qt/portal-registration warnings; the recovered QApplication picker correction passes source native Arabic/English cancellation and physical Wayland readback; its signed installed selection/upload flow still needs acceptance. Branded DNS/onboarding/recovery/full moderation UI/preferences/endurance remain open | Real authenticated service/client, private image attachments, account isolation and bounded uploads, admin moderation, retry/offline and promoted-release notifications; no secrets or automatic screenshots. |
 

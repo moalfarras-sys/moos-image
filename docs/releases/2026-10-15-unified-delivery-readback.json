@@ -1,0 +1,173 @@
+{
+  "schema": 1,
+  "time_utc": "2026-10-15T21:54:45.364774+00:00",
+  "source": "b115c1913df868b7ad7ed3ad48f47f08e3100801",
+  "scope": "Merged source, exact signed candidates, successful x86 QCOW2 proofs, failed ISO visual gate, staged ARM and bounded native pre-update evidence; no new x86 promotion or installed new-release acceptance",
+  "branches": {
+    "refs": 148,
+    "all_ancestors": true,
+    "original_dirty_checkpoints_preserved": true
+  },
+  "source_gate": {
+    "started_utc": "2026-10-15T21:17:35.801448+00:00",
+    "source": "b115c1913df868b7ad7ed3ad48f47f08e3100801",
+    "tree": "ad85ef468251b80c767a7c56163ad81f85ab7feb",
+    "scope": "Full maintained just check on native Oracle ARM; private unit and durable exit receipt",
+    "exit": 0,
+    "elapsed_seconds": 579.4752339179977,
+    "source_unchanged": true,
+    "log_sha256": "25f2815d66509d8b92ea777cb4076b42f7ec6e5e13f00559cf4496a959ad2df0",
+    "ended_utc": "2026-10-15T21:27:15.586011+00:00"
+  },
+  "earlier_gate_bridge": {
+    "exit": 143,
+    "verdict": "not counted as a successful process; cause unproven, original log preserved"
+  },
+  "candidates": {
+    "moos": {
+      "digest": "sha256:7dfd62279b9c1916f8a010b9718324c3c8f4bdc9cf50c817b017f164e27b8c19",
+      "version": "44.20261015.1060",
+      "signature_verified": true
+    },
+    "moos-nvidia": {
+      "digest": "sha256:b7cde1173eba17296fc3a86e7277f5c683eeabbd455a3e519424e38b0e0eb6b6",
+      "version": "44.20261015.1060",
+      "signature_verified": true
+    },
+    "moos-cloud": {
+      "digest": "sha256:c768cc53a50bb2bede8499a0d15e4ebb2f8895a81390a387952ffbe9e013eba0",
+      "version": "44.20261015.1060",
+      "signature_verified": true
+    }
+  },
+  "arm": {
+    "version": "44.20261015.791",
+    "digest": "sha256:2dcf09fbcc4634350edd7fc97b149dba4d8d28ff2c28d592893523767f685603",
+    "source": "b115c1913df868b7ad7ed3ad48f47f08e3100801",
+    "full_first_attempt_run": 38788880828,
+    "promotion": "success",
+    "staging": "exact signed target confirmed",
+    "rollback_signature_verified": true,
+    "installed_acceptance": "pending reboot"
+  },
+  "x86_proofs": {
+    "build": 38788893120,
+    "desktop_disk": 38807890334,
+    "nvidia_disk": 38807898170,
+    "cloud_disk": 38807904891,
+    "offline_iso": 38807911559,
+    "state": "Three disks succeed on attempt1; ISO fails final visual frame validation; promotion blocked",
+    "disk_conclusions": {
+      "desktop": "success",
+      "nvidia": "success",
+      "cloud": "success"
+    },
+    "iso_failure": {
+      "run": 38807911559,
+      "job": 116673455653,
+      "attempt": 1,
+      "rejected_frame": "installed-login.ppm",
+      "luminance_stddev": 0.007177,
+      "phase": "Captured after typed Return and successful logind session detection, before desktop readiness",
+      "earlier_real_pre_auth_frame": "installed-login-attempt1.png",
+      "independently_preserved_successes": [
+        "offline install of exact signed digest",
+        "healthy first boot",
+        "ordinary password login on attempt1",
+        "ten apps open/close/reopen with rendered frames",
+        "healthy second boot and poweroff"
+      ],
+      "visual_thresholds_unchanged": true,
+      "new_source_cycle_required": true,
+      "frame_sha256": {
+        "installed-login.ppm": "061e3ae925e8e7e1be6da4aff031d29c99bf3b253c9045aa008a560c34692b0c",
+        "installed-login-attempt1.png": "7de86c9fb4d746c722252186c4c6c2333d6e3d9723b3c9d7f9fcaa7132fbb5a2",
+        "installed-app-mo-store.png": "4aa2fd9f0c3e2ad6150c0e6d351bb04b56f8a0d57eaa96a46446c02370248477"
+      },
+      "capture_repair": {
+        "scope": "Source correction; fresh signed runtime proof still required",
+        "behavior": "Historical login name aliases exact attempt1 bytes and capture provenance before password submission; later attempts retained",
+        "executable_sequence_tests": 11,
+        "visual_gate_sha256": "88d97f19e88eec67550547503c56ec920fe85e8b8da4d6357ad40609fb70be46",
+        "gate_unchanged_from_failed_source": true
+      }
+    }
+  },
+  "local_image_cli": {
+    "source": "789f73b9fe0bcdbeb9f46942cd017a4fda4414c4",
+    "tree_matches_merged_source": true,
+    "scope": "read-only private container/tmpfs HOME, no network, owner data, display or GPU",
+    "passed_cases": [
+      "install with exact ownership receipt",
+      "native ELF executes",
+      "replacement updates exact payload",
+      "remove owned app and launcher",
+      "preserve manual unowned folder"
+    ],
+    "initial_fixture_refusal": "Archive outside the private HOME was correctly refused; corrected fixture passed without weakening policy"
+  },
+  "nvidia_cache": {
+    "retired_anonymous_pre_oct15_images": 124,
+    "preserved_images": 280,
+    "preserved_containers_including_external_buildah": 17,
+    "physical_free_delta_bytes": 22041432064,
+    "physical_free_bytes": 59104075776,
+    "rollback_and_owner_data_untouched": true,
+    "postcheck_correction": "Failed because CLI IDs include sha256 prefix; independent normalized readback proves all280 protected images present. No additional deletion performed."
+  },
+  "native_historical_crashes": {
+    "count": 192,
+    "attribution": "two isolated review-container cgroups; desktop compositor and PipeWire survived",
+    "retired_completed_processor_failed_flags": 7,
+    "host_crash_suppression_changed": false
+  },
+  "nvidia_existing_free_cloud": {
+    "scope": "Native NVIDIA installed free cloud gateway synthetic JSON/SSE replies; no owner content, tools or paid route",
+    "time_utc": "2026-10-15T21:13:46.464015+00:00",
+    "health": {
+      "ok": true,
+      "service": "moai-gateway",
+      "port": 8080,
+      "default_mode": "cloud",
+      "policy": "cloud-only",
+      "cost_policy": "free"
+    },
+    "calls": [
+      {
+        "stream": false,
+        "passed": true,
+        "http": 200,
+        "model": "nvidia/nemotron-3-super-120b-a12b:free",
+        "reported_cost": 0,
+        "content_nonempty": true,
+        "elapsed_seconds": 1.175
+      },
+      {
+        "stream": true,
+        "passed": true,
+        "http": 200,
+        "first_content_seconds": 2.399,
+        "content_nonempty": true,
+        "done": true,
+        "elapsed_seconds": 2.399
+      }
+    ]
+  },
+  "postboot": {
+    "oracle_owner_session_receipt_armed": true,
+    "nvidia_readback_mirror_armed": true,
+    "existing_key_authenticated_development_channel_tested": true,
+    "new_listeners_or_authentication_policy_changes": false,
+    "old_boot_negative_control": {
+      "accepted": false,
+      "installed_version": "44.20261014.1046",
+      "payload_mismatches": 56
+    }
+  },
+  "remaining": [
+    "Correct ISO capture phase and qualify a fresh exact-source four-edition cycle; x86 promotion, native signed staging/reboot/acceptance remain pending",
+    "Native ARM Plasma6.8 source rebuild; current qualified ARM provider remains6.7.5",
+    "Broader per-app, hardware, phone, accessibility and endurance acceptance in DEVELOPMENT_PLAN.md",
+    "Offline machines are not updated by reachable two-host checks"
+  ]
+}
