@@ -1520,12 +1520,16 @@ class FlatpakAdapter:
                 continue
 
         resolved: list[tuple[str, str]] = []
+        unavailable: list[str] = []
         for app_id in app_ids:
             candidates = choices[app_id]
             if not candidates:
-                raise StoreError(
-                    f"{app_id} is not available from the verified Flatpak remote"
-                )
+                # One app with no build for this computer fails alone (a bare id is its own ref
+                # to TransactionEvents); the rest of the batch still installs.
+                reason = f"{app_id} is not available from Flathub for this computer"
+                unavailable.append(reason)
+                events.error(app_id, reason)
+                continue
             candidates.sort(
                 key=lambda ref: (
                     ref.get_branch() != "stable",
@@ -1534,6 +1538,9 @@ class FlatpakAdapter:
                 )
             )
             resolved.append((app_id, candidates[0].format_ref()))
+        if unavailable and not resolved:
+            # Nothing to install fails the call: open-engine asks for one app, then opens it.
+            raise StoreError("; ".join(unavailable))
 
         def configure(transaction: Any) -> None:
             for app_id, full_ref in resolved:
@@ -2906,6 +2913,28 @@ class Controller:
             with contextlib.suppress(FileNotFoundError):
                 download.unlink()
 
+    def _offered_elsewhere(self, app_ids: Sequence[str],
+                           here: dict[str, dict[str, Any]]) -> set[str]:
+        """The requested ids the catalogue offers on other kinds of computer only.
+
+        `_catalog()` leaves those entries out, so nothing installs them here. Named, each one
+        is refused alone in words the window can say, instead of reaching Flathub as an unknown
+        id (or failing as an invalid one) and taking the rest of the batch down with it.
+        """
+        wanted = {app_id for app_id in app_ids if app_id not in here}
+        if not wanted:
+            return set()
+        try:
+            apps = json.loads(self.catalog_path.read_text(encoding="utf-8"))["apps"]
+        except (OSError, UnicodeError, json.JSONDecodeError, KeyError, TypeError):
+            return set()
+        if not isinstance(apps, list):
+            return set()
+        machine = running_arch()
+        return {app["id"] for app in apps if isinstance(app, dict)
+                and isinstance(app.get("id"), str) and app["id"] in wanted
+                and isinstance(app.get("arch"), list) and app["arch"] and machine not in app["arch"]}
+
     def install(self, raw_ids: Sequence[str]) -> tuple[int, dict[str, Any]]:
         if not raw_ids or len(raw_ids) > MAX_BATCH:
             raise StoreError(f"install accepts between 1 and {MAX_BATCH} app IDs")
@@ -2925,13 +2954,22 @@ class Controller:
         with lock:
             try:
                 catalog = self._catalog()
+                elsewhere = self._offered_elsewhere(app_ids, catalog)
                 flatpak_ids: list[str] = []
                 curated: list[tuple[str, dict[str, Any]]] = []
                 invalid: list[str] = []
                 for app_id in app_ids:
                     recipe = catalog.get(app_id)
                     if recipe is None:
-                        if validate_flatpak_id(app_id):
+                        if app_id in elsewhere:
+                            job.update_item(
+                                app_id,
+                                state="failed",
+                                progress=None,
+                                message=f"{app_id} is not available for this kind of computer",
+                                message_key="unsupported_arch",
+                            )
+                        elif validate_flatpak_id(app_id):
                             flatpak_ids.append(app_id)
                         else:
                             invalid.append(app_id)
@@ -3622,20 +3660,77 @@ class Controller:
 
     # ── Updates: Flatpaks and catalogue pins together ──────────────────────────────────────────
     def _pinned_record(self, app_id: str, recipe: dict[str, Any]) -> dict[str, Any]:
-        """What is installed of a pinned catalogue app, as its record says; {} when nothing."""
+        """What the Store installed of a pinned catalogue app, as its record says; {} when nothing.
+
+        check-updates, Update all and `update <id>` share this rule, and moos-store-index's
+        update_available has to give the same answer, or the app page and the Updates page
+        disagree (docs/MO_STORE.md):
+          appdrop  only a record naming this catalogue id is the Store's own install. A file the
+                   person dropped into the app's slot has no catalog_id (the index calls it
+                   adopted); it is theirs, and the pin, which may be older, never replaces it.
+          windows  the record, while the program's folder is there.
+          android  installed while Android keeps the package's data directory. An app an
+                   earlier Mo Store installed has no record (it wrote none); the APK Android
+                   keeps then names its bytes (_android_apk_is_pin), and only when that cannot
+                   be read are they unknown and the pin offered. Installing the pin writes the
+                   record.
+        """
         kind = (recipe.get("install") or {}).get("kind")
         if kind == "appdrop":
-            return self._appdrop().read_record(app_id)
+            record = self._appdrop().read_record(app_id)
+            return record if record.get("catalog_id") == app_id else {}
         if kind == "windows-portable":
             paths = windows_paths(app_id)
             return _read_json(paths.record) if paths.app.is_dir() else {}
         if kind == "android":
-            record = _read_json(android_record_path(app_id))
-            data = data_home() / "waydroid" / "data" / "data" / app_id
-            return record if record and data.exists() else {}
+            if not (data_home() / "waydroid" / "data" / "data" / app_id).is_dir():
+                return {}
+            return _read_json(android_record_path(app_id)) or {"id": app_id, "package": app_id}
         if kind == "vendor-rpm":
             return self._vendor_record(app_id)
         return {}
+
+    @staticmethod
+    def _android_apk_is_pin(package: str, pin: PinnedArtifact) -> bool:
+        """Whether the APK Android keeps for `package` is, byte for byte, the pinned one.
+
+        Android keeps an installed app at /data/app/~~<random>/<package>-<random>/base.apk
+        (Android 11 and later; /data/app/<package>-<suffix>/base.apk before), and the container's
+        /data is ~/.local/share/waydroid/data. Only exactly one such file is read, a regular file
+        reached through no link, of the pin's size. Two copies while Android replaces the app, a
+        /data that another account owns, or anything unreadable answers no: the bytes are
+        unknown, and the pin stays offered.
+        """
+        prefix = f"{package}-"
+        found: list[str] = []
+        try:
+            with os.scandir(data_home() / "waydroid" / "data" / "app") as entries:
+                for entry in entries:
+                    if not entry.is_dir(follow_symlinks=False):
+                        continue
+                    if entry.name.startswith(prefix):
+                        found.append(entry.path)
+                        continue
+                    with os.scandir(entry.path) as inner:
+                        found += [item.path for item in inner if item.name.startswith(prefix)
+                                  and item.is_dir(follow_symlinks=False)]
+            if len(found) != 1:
+                return False
+            apk = Path(found[0]) / "base.apk"
+            if apk.is_symlink() or not apk.is_file():
+                return False
+            fd = os.open(apk, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK | os.O_CLOEXEC)
+            with os.fdopen(fd, "rb") as handle:
+                size = os.fstat(handle.fileno()).st_size
+                limit = pin.size if pin.size is not None else UNSIZED_DOWNLOAD_CAP
+                if size > limit or (pin.size is not None and size != pin.size):
+                    return False
+                digest = hashlib.sha256()
+                for block in iter(lambda: handle.read(DOWNLOAD_BLOCK), b""):
+                    digest.update(block)
+                return digest.hexdigest() == pin.sha256
+        except OSError:
+            return False
 
     def _vendor_update_row(self, app_id: str, recipe: dict[str, Any],
                            record: dict[str, Any]) -> dict[str, Any] | None:
@@ -3674,6 +3769,10 @@ class Controller:
         except StoreError:
             return None
         if str(record.get("sha256", "")).lower() == pin.sha256:
+            return None
+        if install.get("kind") == "android" and self._android_apk_is_pin(app_id, pin):
+            # Android already keeps the pin (installed by an earlier Mo Store, which wrote no
+            # record, or brought up to it outside the Store): the same bytes again are no update.
             return None
         version = install.get("version") if isinstance(install.get("version"), str) else None
         installed = record.get("version") if isinstance(record.get("version"), str) else None
@@ -3889,6 +3988,11 @@ class Controller:
                             message_key="updated")
             return
         if not self._pinned_record(app_id, recipe):
+            dropped = self._appdrop().read_record(app_id) if kind == "appdrop" else {}
+            if dropped and not dropped.get("catalog_id"):
+                # The person's own file in this app's slot: a newer file updates it, never the pin.
+                raise StoreError("This app was installed from a file; install a newer file of it to update it",
+                                 message_key="update_by_file")
             raise StoreError("App is not installed", message_key="not_installed")
         if kind == "vendor-rpm":
             # One resolve inside the job decides; the module swaps the new build in atomically.
