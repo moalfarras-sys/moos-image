@@ -97,6 +97,11 @@ WINE_OVERRIDES = "mscoree,mshtml=;winemenubuilder.exe=d"
 # A publisher's own signed Linux package (usr/lib/moos/moos_vendor_rpm.py) answers a few network
 # questions while Mo Store only checks for updates; past this the answer is "no row", not a wait.
 VENDOR_CHECK_SECONDS = 45
+# An Android update is read back from the APK Android keeps before it is called Updated; the
+# install's answer can come before Android has the new APK in place, so it is asked again this
+# often, for at most this long.
+ANDROID_READBACK_SECONDS = 5.0
+ANDROID_READBACK_STEP = 0.25
 
 # moos_vendor_rpm's stable failure codes, each with the key the window says it in (jobPhrases holds
 # the Arabic and English words). tests/test_store_job_language.py holds this table to the module's
@@ -3902,11 +3907,11 @@ class Controller:
                    person dropped into the app's slot has no catalog_id (the index calls it
                    adopted); it is theirs, and the pin, which may be older, never replaces it.
           windows  the record, while the program's folder is there.
-          android  installed while Android keeps the package's data directory. An app an
-                   earlier Mo Store installed has no record (it wrote none); the APK Android
-                   keeps then names its bytes (_android_apk_is_pin), and only when that cannot
-                   be read are they unknown and the pin offered. Installing the pin writes the
-                   record.
+          android  installed while Android keeps the package's data directory. An APK the person
+                   installed from a file has a record without catalog_id: adopted, like a dropped
+                   file. An app an earlier Mo Store installed has no record (it wrote none) and
+                   is returned without one; moos_android_apk.pin_is_update() then decides from
+                   the APK Android keeps (_pin_update_row).
         """
         kind = (recipe.get("install") or {}).get("kind")
         if kind == "appdrop":
@@ -3918,52 +3923,85 @@ class Controller:
         if kind == "android":
             if not (data_home() / "waydroid" / "data" / "data" / app_id).is_dir():
                 return {}
-            return _read_json(android_record_path(app_id)) or {"id": app_id, "package": app_id}
+            record = _read_json(android_record_path(app_id))
+            if record and record.get("catalog_id") != app_id:
+                return {}
+            return record or {"id": app_id, "package": app_id}
         if kind == "vendor-rpm":
             return self._vendor_record(app_id)
         return {}
 
-    @staticmethod
-    def _android_apk_is_pin(package: str, pin: PinnedArtifact) -> bool:
-        """Whether the APK Android keeps for `package` is, byte for byte, the pinned one.
-
-        Android keeps an installed app at /data/app/~~<random>/<package>-<random>/base.apk
-        (Android 11 and later; /data/app/<package>-<suffix>/base.apk before), and the container's
-        /data is ~/.local/share/waydroid/data. Only exactly one such file is read, a regular file
-        reached through no link, of the pin's size. Two copies while Android replaces the app, a
-        /data that another account owns, or anything unreadable answers no: the bytes are
-        unknown, and the pin stays offered.
-        """
-        prefix = f"{package}-"
-        found: list[str] = []
-        try:
-            with os.scandir(data_home() / "waydroid" / "data" / "app") as entries:
-                for entry in entries:
-                    if not entry.is_dir(follow_symlinks=False):
-                        continue
-                    if entry.name.startswith(prefix):
-                        found.append(entry.path)
-                        continue
-                    with os.scandir(entry.path) as inner:
-                        found += [item.path for item in inner if item.name.startswith(prefix)
-                                  and item.is_dir(follow_symlinks=False)]
-            if len(found) != 1:
-                return False
-            apk = Path(found[0]) / "base.apk"
-            if apk.is_symlink() or not apk.is_file():
-                return False
-            fd = os.open(apk, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK | os.O_CLOEXEC)
-            with os.fdopen(fd, "rb") as handle:
-                size = os.fstat(handle.fileno()).st_size
-                limit = pin.size if pin.size is not None else UNSIZED_DOWNLOAD_CAP
-                if size > limit or (pin.size is not None and size != pin.size):
-                    return False
-                digest = hashlib.sha256()
-                for block in iter(lambda: handle.read(DOWNLOAD_BLOCK), b""):
-                    digest.update(block)
-                return digest.hexdigest() == pin.sha256
-        except OSError:
+    def _adopted(self, app_id: str, recipe: dict[str, Any]) -> bool:
+        """An app the person installed from a file into this catalogue app's place: App Drop's
+        record, or the record install-file wrote for an APK, with no catalog_id. It is theirs: a
+        newer file updates it, and the pin never replaces it."""
+        kind = (recipe.get("install") or {}).get("kind")
+        if kind == "appdrop":
+            record = self._appdrop().read_record(app_id)
+        elif kind == "android" and (data_home() / "waydroid" / "data" / "data" / app_id).is_dir():
+            record = _read_json(android_record_path(app_id))
+        else:
             return False
+        return bool(record) and not record.get("catalog_id")
+
+    @staticmethod
+    def _android_apk() -> Any:
+        """usr/lib/moos/moos_android_apk.py: what the APK Android keeps says, and the one update
+        rule moos-store-index shares."""
+        return Controller._library("moos_android_apk")
+
+    def _android_kept(self, package: str, pin: PinnedArtifact) -> Any:
+        """The one APK Android keeps for `package` (moos_android_apk.ApkFacts), read through no
+        link, its digest only at the pin's size; None when that cannot be read."""
+        return self._android_apk().kept(data_home() / "waydroid" / "data", package, pin.size,
+                                        unsized_limit=UNSIZED_DOWNLOAD_CAP)
+
+    def _android_keeps_pin(self, package: str, pin: PinnedArtifact) -> bool | None:
+        """True when the one APK Android keeps for `package` is the pin byte for byte; False for
+        another build, two copies or none; None when Android's app folder cannot be read."""
+        apk = self._android_apk()
+        folders = apk.kept_apk_dirs(data_home() / "waydroid" / "data", package)
+        if folders is None:
+            return None
+        if len(folders) != 1:
+            return False
+        facts = apk.read_apk(folders[0] / "base.apk", pin.size, unsized_limit=UNSIZED_DOWNLOAD_CAP)
+        return facts is not None and facts.sha256 == pin.sha256
+
+    def _android_update_landed(self, job: Job, app_id: str, recipe: dict[str, Any],
+                               before: bytes | None) -> None:
+        """Hold an Android update to what Android keeps after it.
+
+        waydroid's `app install` exits 0 when Android refuses the APK (signed by another key,
+        made for a newer Android, older than the build it keeps): its install() drops the
+        container's answer. _install_pinned_android then records the pin and says Installed. So an
+        update reads back the APK Android keeps: the pin is an update done; anything else puts the
+        record back as it was (`before`, None when there was none) and fails in words the window
+        can say. When Android's app folder cannot be read (another account owns it), waydroid's
+        exit status is all there is to go by, as before.
+        """
+        package = self._android_package(app_id, recipe)
+        pin = pinned_artifact(app_id, recipe.get("install") or {}, size_required=False)
+        kept = self._android_keeps_pin(package, pin)
+        if kept is False:
+            # Not yet, or not at all: the item is not done while Android is asked again.
+            job.update_item(app_id, state="running", progress=None,
+                            message="Installing application", message_key="integrating_app")
+            deadline = time.monotonic() + ANDROID_READBACK_SECONDS
+            while kept is False and time.monotonic() < deadline:
+                time.sleep(ANDROID_READBACK_STEP)
+                kept = self._android_keeps_pin(package, pin)
+        if kept is not False:
+            return
+        record = android_record_path(package)
+        if before is None:
+            record.unlink(missing_ok=True)
+        else:
+            _atomic_bytes(record, before)
+        reason = "Android did not accept this update; the app was left as it was"
+        job.update_item(app_id, state="failed", progress=None, message=reason,
+                        message_key="android_update_refused")
+        raise StoreError(reason, message_key="android_update_refused")
 
     def _vendor_update_row(self, app_id: str, recipe: dict[str, Any],
                            record: dict[str, Any]) -> dict[str, Any] | None:
@@ -3987,7 +4025,13 @@ class Controller:
                 "version": readable(info), "installed_version": readable(record)}
 
     def _pin_update_row(self, app_id: str, recipe: dict[str, Any]) -> dict[str, Any] | None:
-        """An update row when the installed bytes differ from what the catalogue now pins."""
+        """An update row when the installed bytes differ from what the catalogue now pins.
+
+        For Android, "differ" is what Android itself would take as an update of the APK it keeps
+        (moos_android_apk.pin_is_update()): never an older build than that one, never one signed
+        by another key, and nothing for an app without a record of the Store's whose APK cannot
+        be read.
+        """
         install = recipe.get("install")
         if not isinstance(install, dict) or install.get("kind") not in (
                 "appdrop", "windows-portable", "android", "vendor-rpm"):
@@ -4001,14 +4045,21 @@ class Controller:
             pin = pinned_artifact(app_id, install, size_required=install.get("kind") != "android")
         except StoreError:
             return None
-        if str(record.get("sha256", "")).lower() == pin.sha256:
-            return None
-        if install.get("kind") == "android" and self._android_apk_is_pin(app_id, pin):
-            # Android already keeps the pin (installed by an earlier Mo Store, which wrote no
-            # record, or brought up to it outside the Store): the same bytes again are no update.
+        installed = record.get("version") if isinstance(record.get("version"), str) else None
+        if install.get("kind") == "android":
+            apk = self._android_apk()
+            kept = self._android_kept(app_id, pin)
+            if not apk.pin_is_update(pin_sha256=pin.sha256,
+                                     pin_code=apk.pin_version_code(pin.url, app_id),
+                                     pin_signer=install.get("signer"), kept=kept,
+                                     recorded_sha256=record.get("sha256")):
+                return None
+            # What Android keeps is the version installed, whoever put it there.
+            installed = (display_text(kept.version_name, 64) if kept is not None else "") \
+                or installed
+        elif str(record.get("sha256", "")).lower() == pin.sha256:
             return None
         version = install.get("version") if isinstance(install.get("version"), str) else None
-        installed = record.get("version") if isinstance(record.get("version"), str) else None
         return {"id": app_id, "kind": "pin", "name": display_text(recipe.get("en"), 80) or app_id,
                 "version": version, "installed_version": installed or None}
 
@@ -4038,7 +4089,14 @@ class Controller:
         elif kind == "windows-portable":
             self._install_windows_portable(job, app_id, recipe)
         elif kind == "android":
+            # In place: Android keeps the app's data. Its answer is read back before Updated.
+            record = android_record_path(self._android_package(app_id, recipe))
+            try:
+                before = record.read_bytes()
+            except FileNotFoundError:
+                before = None
             self._install_pinned_android(job, app_id, recipe)
+            self._android_update_landed(job, app_id, recipe, before)
         elif kind == "vendor-rpm":
             # Resolved again inside the job: the publisher may have moved on since the check.
             if not self._install_vendor(job, app_id, recipe):
@@ -4221,9 +4279,8 @@ class Controller:
                             message_key="updated")
             return
         if not self._pinned_record(app_id, recipe):
-            dropped = self._appdrop().read_record(app_id) if kind == "appdrop" else {}
-            if dropped and not dropped.get("catalog_id"):
-                # The person's own file in this app's slot: a newer file updates it, never the pin.
+            if self._adopted(app_id, recipe):
+                # The person's own file in this app's place: a newer file updates it, never the pin.
                 raise StoreError("This app was installed from a file; install a newer file of it to update it",
                                  message_key="update_by_file")
             raise StoreError("App is not installed", message_key="not_installed")
