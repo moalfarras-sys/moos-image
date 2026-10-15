@@ -1,0 +1,13 @@
+{
+  "scope": "source and isolated native fixture evidence only",
+  "recovered": [
+    "Strict UTF-8 index receipt decoding agrees with executor; old source fails six lifecycle assertions and fixed source passes24 tests",
+    "Android origin does not claim verified without reading a verified flag; old source fails and fixed source passes",
+    "Additional policy/gate id and URL cases pass73 tests",
+    "APK cache writeback already integrated in cbdf64c6"
+  ],
+  "unfinished": "Open/id draft adds helper scaffolding and names unimplemented cases; preserved verbatim for later work, never counted as new coverage",
+  "all_committed_refs": 151,
+  "ancestry": "All151 station/origin/Oracle refs are ancestors of5da5efa6; original dirty trees remain untouched",
+  "drafts": "Five station code/test draft patches preserved with hashes in docs/reviews/store-20261015/preserved-agent-drafts"
+}

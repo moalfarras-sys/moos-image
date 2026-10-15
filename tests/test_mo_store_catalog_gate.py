@@ -569,6 +569,8 @@ class TheGateAndTheWebAppPolicyAgree(unittest.TestCase):
     The gate once refused `1password` and `https://web.whatsapp.com/#/` while
     moos_webapp_policy (and the contract) accepted both. Each case plants a second WhatsApp entry
     and asks both: the gate's whole report (the shipped catalogue has none) and parse_entry.
+    moos-store-index answers to the same policy in tests/test_mo_store_index_catalogue.py
+    (CatalogueV2Kinds), so the Store never lists an app whose window would refuse to open.
     """
 
     policy = gate.load_source_module("moos_webapp_policy_under_test",
@@ -587,9 +589,11 @@ class TheGateAndTheWebAppPolicyAgree(unittest.TestCase):
         return bool(errors), policy_refuses
 
     def test_on_the_id(self):
-        for app_id, refused in (("whatsapp-two", False), ("x" * 63, False), ("1password", True),
-                                ("a", True), ("x" * 64, True), ("whatsapp--two", True),
-                                ("whatsapp-", True)):
+        for app_id, refused in (("whatsapp-two", False), ("ab", False), ("office365", False),
+                                ("x" * 63, False), ("1password", True), ("a", True),
+                                ("x" * 64, True), ("whatsapp--two", True), ("whatsapp-", True),
+                                ("-whatsapp", True), ("WhatsApp", True), ("whatsapp_two", True),
+                                ("whatsapp.two", True)):
             with self.subTest(app_id=app_id):
                 self.assertEqual(self.verdicts(app_id, "https://web.whatsapp.com/"),
                                  (refused, refused))
@@ -600,7 +604,8 @@ class TheGateAndTheWebAppPolicyAgree(unittest.TestCase):
                              ("https://web.whatsapp.com/#/", True),
                              ("https://web.whatsapp.com/?lang=ar", True),
                              ("https://web.whatsapp.com/?", True),
-                             ("https://web.whatsapp.com/#", True)):
+                             ("https://web.whatsapp.com/#", True),
+                             ("https://web.whatsapp.com/send?b#c", True)):
             with self.subTest(url=url):
                 self.assertEqual(self.verdicts("whatsapp-two", url), (refused, refused))
 

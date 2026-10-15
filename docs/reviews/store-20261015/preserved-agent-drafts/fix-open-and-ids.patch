@@ -1,0 +1,97 @@
+diff --git a/tests/test_store_open_and_ids.py b/tests/test_store_open_and_ids.py
+index d3f1042f..6e019c33 100644
+--- a/tests/test_store_open_and_ids.py
++++ b/tests/test_store_open_and_ids.py
+@@ -5,8 +5,11 @@ Each class holds one promise of moos-storectl, run for real against a private HO
+ 
+   DroppedIds            a file the person dropped whose name a catalogue app of another kind
+                         already uses is listed as appdrop-<slug> (moos-store-index); that id removes,
+-                        opens, updates and describes it, and only a record the person dropped
+-                        answers to it;
++                        opens, updates and describes it, and so it does for a catalogue install
++                        whose id the catalogue has since given to another kind; a record the
++                        catalogue's own App Drop entry still owns keeps its catalogue id;
++  TheIndexsIds          every App Drop app the real moos-store-index lists answers, by the id it is
++                        listed under, to Open and to its permissions;
+   OpenBesideAJob        opening an app changes nothing, so the scheduled updater holding job.lock
+                         does not make Open fail, and never costs anyone their cancel request;
+   WhatTheWindowIsTold   the window learns how an Open ended only from a run document in job.json,
+@@ -28,6 +31,10 @@ Each class holds one promise of moos-storectl, run for real against a private HO
+                         the apps/run route never hands gtk-launch a launcher that would start
+                         Android app support: an Android app's own opens only into a running
+                         session, the container's own never;
++  LaunchersThatDoNotOpen
++                        moos-control and moos-open hand gtk-launch only a launcher GIO (its own
++                        library) would load: App Drop's, once the app's folder is gone, is not
++                        installed by either of its names, never "Opening";
+   Words                 the backend's fallback words for the keys this change corrects.
+ 
+ Nothing here reaches the network, a display, the session bus, Android or the person's real
+@@ -59,6 +66,7 @@ ROOT = Path(__file__).resolve().parents[1]
+ SCRIPT = ROOT / "system_files/usr/bin/moos-storectl"
+ CONTROL = ROOT / "system_files/usr/bin/moos-control"
+ OPEN = ROOT / "system_files/usr/bin/moos-open"
++INDEXER = ROOT / "system_files/usr/bin/moos-store-index"
+ LOADER = importlib.machinery.SourceFileLoader("moos_storectl_open_and_ids", str(SCRIPT))
+ SPEC = importlib.util.spec_from_loader(LOADER.name, LOADER)
+ MODULE = importlib.util.module_from_spec(SPEC)
+@@ -72,16 +80,21 @@ STOPPED = "Session:\tSTOPPED\n"
+ RUNNING = "Session:\tRUNNING\n"
+ 
+ 
+-def note_app(version: str) -> bytes:
+-    desktop = ("[Desktop Entry]\nType=Application\nName=Note Forge\nExec=noteforge\n"
+-               "Icon=noteforge\nCategories=Office;\n")
++def note_app(version: str, desktop: bool = True) -> bytes:
++    """An app archive. Its own launcher names it org.example.NoteForge; without one (`desktop`
++    false) App Drop names the launcher it writes appdrop-<slug>, as it does for most archives."""
++    entry = ("[Desktop Entry]\nType=Application\nName=Note Forge\nExec=noteforge\n"
++             "Icon=noteforge\nCategories=Office;\n")
++    files = {
++        f"noteforge-{version}/noteforge": (ELF + version.encode(), 0o755),
++        f"noteforge-{version}/org.example.NoteForge.desktop": (entry.encode(), 0o644),
++        f"noteforge-{version}/noteforge.png": (b"\x89PNG\r\n\x1a\n" + b"0" * 64, 0o644),
++    }
++    if not desktop:
++        del files[f"noteforge-{version}/org.example.NoteForge.desktop"]
+     buffer = io.BytesIO()
+     with tarfile.open(fileobj=buffer, mode="w:gz") as bundle:
+-        for name, (data, mode) in {
+-            f"noteforge-{version}/noteforge": (ELF + version.encode(), 0o755),
+-            f"noteforge-{version}/org.example.NoteForge.desktop": (desktop.encode(), 0o644),
+-            f"noteforge-{version}/noteforge.png": (b"\x89PNG\r\n\x1a\n" + b"0" * 64, 0o644),
+-        }.items():
++        for name, (data, mode) in files.items():
+             info = tarfile.TarInfo(name)
+             info.size = len(data)
+             info.mode = mode
+@@ -279,13 +292,27 @@ class Backend(unittest.TestCase):
+                             "risk": "downloaded-executable", "requires_review": True,
+                             "external": True}}
+ 
+-    def drop(self, file_name: str) -> dict:
++    def drop(self, file_name: str, desktop: bool = True) -> dict:
+         """A file the person dropped, installed by App Drop the way moos-app-drop installs it."""
+         download = self.home / "Downloads" / file_name
+         download.parent.mkdir(exist_ok=True)
+-        download.write_bytes(note_app("0.11.5"))
++        download.write_bytes(note_app("0.11.5", desktop))
+         return appdrop.install(appdrop.inspect(download))
+ 
++    def published(self, apps) -> dict[str, dict]:
++        """What moos-store-index lists for this catalogue and this home, built for real (no
++        AppStream, every engine): the ids the window and Mo AI send back to the backend."""
++        empty = self.base / "no-appstream"
++        empty.mkdir(exist_ok=True)
++        output = self.base / "index/index.json"
++        done = subprocess.run(
++            [sys.executable, str(INDEXER), "--output", str(output), "--catalog",
++             str(self.catalog(apps)), "--appstream-root", str(empty), "--installation-root",
++             str(empty), "--engines", "all", "--locale", "en"],
++            env=dict(os.environ), capture_output=True, text=True, timeout=120)
++        self.assertEqual(done.returncode, 0, done.stderr)
++        return {app["id"]: app for app in json.loads(output.read_text(encoding="utf-8"))["apps"]}
++
+ 
+ class DroppedIds(Backend):
+     """moos-store-index lists a dropped `figma` beside the catalogue's web app `figma` as

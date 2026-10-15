@@ -2873,12 +2873,15 @@ def read_small_text(path: Path, limit: int = TEXT_FILE_LIMIT) -> str:
 
 
 def read_record(path: Path) -> dict | None:
-    text = read_small_text(path, RECORD_LIMIT)
-    if not text:
-        return None
+    # Receipts are machine state: replacing invalid bytes can invent ownership
+    # or an update the executor, which reads strict UTF-8, will refuse.
     try:
-        value = json.loads(text)
-    except ValueError:
+        with path.open("rb") as handle:
+            data = handle.read(RECORD_LIMIT + 1)
+        if len(data) > RECORD_LIMIT:
+            return None
+        value = json.loads(data.decode("utf-8"))
+    except (OSError, ValueError):
         return None
     return value if isinstance(value, dict) else None
 

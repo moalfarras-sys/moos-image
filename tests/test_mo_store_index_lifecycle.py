@@ -536,10 +536,11 @@ KEPT = ("org.example.kept", "org.example.caughtup", "org.example.other", "org.ex
 
 PINNED_APPS = [
     *(pinned_appdrop(app_id) for app_id in ("repinned", "current", "renamed", "adopted",
-                                            "adopted-same")),
-    *(pinned_windows(app_id) for app_id in ("notepad", "sumatra", "folderless")),
+                                            "adopted-same", "garbled")),
+    *(pinned_windows(app_id) for app_id in ("notepad", "sumatra", "folderless", "scrambled")),
     *(pinned_android(package) for package in ("org.example.repin", "org.example.current",
-                                              "org.example.legacy", "org.example.gone")),
+                                              "org.example.legacy", "org.example.gone",
+                                              "org.example.garbled")),
     *(pinned_android(package, APK_SHA256, len(APK)) for package in KEPT),
 ]
 
@@ -568,6 +569,10 @@ EXPECTED = {
     "org.example.other": (True, None, False),        # another build of the pin's size
     "org.example.twice": (True, None, False),        # two copies: Android is replacing it
     "org.example.linked": (True, None, False),       # a link, never followed
+    # An invalid UTF-8 receipt is unreadable by the executor too.
+    "garbled": (False, None, False),
+    "scrambled": (False, None, False),
+    "org.example.garbled": (True, None, False),
 }
 if ARCH != "x86_64":
     # Windows programs are pinned for x86_64 only: there is no pin for this machine to offer.
@@ -706,6 +711,24 @@ class Home:
         self.kept_apk("org.example.twice", APK)
         self.kept_apk("org.example.twice", APK, layout="older")
         self.kept_apk("org.example.linked", APK, link=True)
+        self.appdrop_record("garbled", EARLIER, "0.9.0", catalogued=True)
+        self.windows_record("scrambled", EARLIER, folder=True)
+        self.android_state("org.example.garbled", sha256=EARLIER, version="0.28.0")
+        with self.environ():
+            for record in (moos_appdrop.manifest_dir() / "garbled.json",
+                           storectl.windows_paths("scrambled").record,
+                           storectl.android_record_path("org.example.garbled")):
+                self.garble(record)
+
+    @staticmethod
+    def garble(record: Path) -> None:
+        """One byte that is not UTF-8 in the record's version, as a damaged disk or a hand
+        edit leaves it."""
+
+        data = record.read_bytes()
+        garbled = data.replace(b'"version": "', b'"version": "\xff', 1)
+        assert garbled != data, record
+        record.write_bytes(garbled)
 
     def run_index(self) -> dict:
         environment = {key: value for key, value in os.environ.items()

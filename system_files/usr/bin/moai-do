@@ -480,7 +480,7 @@ do_install() {
         webapp)
             echo "${D}المصدر | From : تطبيق ويب في نافذة خاصة به — لا يُنزَّل أي برنامج | a web app in its own window — no program is downloaded${N}" ;;
         android)
-            echo "${D}المصدر | From : تطبيق أندرويد موثّق عبر متجر MoOS — معزول، وأذوناته في إعدادات أندرويد | a verified Android app through Mo Store — sandboxed; its permissions are in Android's own settings${N}" ;;
+            echo "${D}المصدر | From : تطبيق أندرويد عبر متجر MoOS — معزول، وأذوناته في إعدادات أندرويد | an Android app through Mo Store — sandboxed; its permissions are in Android's own settings${N}" ;;
         web)
             echo "${D}المصدر | From : صفحة الناشر الرسمية تُفتح فقط — لا يُثبَّت شيء | only the publisher's official page opens — nothing is installed${N}" ;;
         *)
