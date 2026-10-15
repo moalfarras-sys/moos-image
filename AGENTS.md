@@ -986,6 +986,14 @@ Never repair a mounted ESP: a dirty-bit-only clone proof must reject all other
 byte changes, match the actual offline result and retire only its owned scratch.
 Offline fsck and restored mounts do not prove the next firmware cold boot.
 
+**A merged review artifact is not an applied correction.** The Oct15 independent
+readback found the prior Windows data-preservation/recovery patch still present
+only as review data while product source deleted the prefix even with
+`delete_data=false`. Full branch ancestry and image gates were green. Compare
+the final product bytes and execute the failing-old/passing-fixed controls.
+When a shared update policy changes, check both the app index's button and the
+backend's actual decision, including adopted apps and unchanged-index refresh.
+
 ## Before you push
 
 **A Remove flag is a promise about files, not a label.** Oracle's private Store

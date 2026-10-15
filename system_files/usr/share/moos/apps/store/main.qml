@@ -877,7 +877,7 @@ ApplicationWindow {
         if (!app) return false
         if (win.hasFlatpakLifecycle(app) || win.hasAndroidLifecycle(app)) return true
         var kind = win.appKind(app)
-        return kind === "webapp" || kind === "appdrop" || kind === "windows" || kind === "dropped"
+        return kind === "webapp" || kind === "appdrop" || kind === "windows" || kind === "vendor" || kind === "dropped"
     }
 
     function hasInstalledScope(app, scope) {
@@ -896,7 +896,7 @@ ApplicationWindow {
     function hasCuratedLifecycle(app) {
         var kind = win.appKind(app)
         return app && (kind === "npm" || kind === "appdrop" || kind === "android"
-                       || kind === "webapp" || kind === "windows" || kind === "dropped")
+                       || kind === "webapp" || kind === "windows" || kind === "vendor" || kind === "dropped")
     }
 
     function canRemove(app) {

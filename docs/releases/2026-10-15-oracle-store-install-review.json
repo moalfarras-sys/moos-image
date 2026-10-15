@@ -1,0 +1,55 @@
+{
+  "schema": 1,
+  "frozen_source": "382f593578b0a046290e86120faa17f4f04016af",
+  "scope": "private patch only; shared source, host applications and signed image unchanged",
+  "publisher_application_executed": false,
+  "notes": [
+    "vendor-rpm is now routed by the authority; these recovery fixes are required before delivery",
+    "retains Windows prefix data; unknown settings beside portable executables are not qualified",
+    "no real Windows app/runtime or publisher executable was started; focused private fixtures only"
+  ],
+  "controls": [
+    {
+      "case": "vendor-interrupted-swap",
+      "old_exit": 1,
+      "old_log_sha256": "6391493df89cae0c3c86c24122a852facf2f203e11ce5c3213019860225126a8",
+      "fixed_exit": 0,
+      "fixed_log_sha256": "a41e08b8782ccff561fc04da1c4aa92b79d00989913c15ae6639e0c2e9b7e03c",
+      "negative_control_bites": true
+    },
+    {
+      "case": "windows-preserve-prefix-documents",
+      "old_exit": 1,
+      "old_log_sha256": "36c7f844e58ee92d76ba25fdd11a1bd6ee3e31f706b488b0baca5ac0783c36bc",
+      "fixed_exit": 0,
+      "fixed_log_sha256": "9837aa30f0bb1ac615c14e80bb12ff2d5a249574083b3126c7fb3a27e6f2fc5d",
+      "negative_control_bites": true
+    },
+    {
+      "case": "windows-refuse-unowned-directory",
+      "old_exit": 1,
+      "old_log_sha256": "45c04e91e7f5ca2fcc816407c217daddc1e56b08adbb4a4845375412e7c9e475",
+      "fixed_exit": 0,
+      "fixed_log_sha256": "5defb64c15b53197b1d7e72348a2ed6ff298b5eae3d2a7483815f8e9824315d1",
+      "negative_control_bites": true
+    },
+    {
+      "case": "windows-recover-second-rename",
+      "old_exit": 1,
+      "old_log_sha256": "26f514fba84c15c6701166af8aeac10cf297bc9f12c35a882af77dca734f1fa4",
+      "fixed_exit": 0,
+      "fixed_log_sha256": "e57d0cd196dc6c5bde04d4dc7ed17168a8fc99c19e4ea466b47142d54234b663",
+      "negative_control_bites": true
+    },
+    {
+      "case": "windows-recover-before-failed-download",
+      "old_exit": 1,
+      "old_log_sha256": "64a97a752d11f9d72635c77439cd0faa0f80fbafd0954f814beba93d6ab8a5bf",
+      "fixed_exit": 0,
+      "fixed_log_sha256": "5cafc7fc5602da64f69855a4670006ceb6fd2d2fbd8faf9353790482a744eaa9",
+      "negative_control_bites": true
+    }
+  ],
+  "fixed_suites": [],
+  "patch_sha256": "392469789d8e529f9ee2b9afb9e8c2f9a4e61e8b1dad2da8cde33ea4aee6a427"
+}

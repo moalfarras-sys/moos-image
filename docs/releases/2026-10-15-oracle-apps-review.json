@@ -1,0 +1,73 @@
+{
+  "schema": 1,
+  "scope": "Oracle live application update and20s active-workload sample; no OSstage or reboot bythisreview",
+  "systemBootId": "c5df8872-c80a-4265-8b30-5db89f7aca5f",
+  "storeJob": {
+    "job_id": "27ab670478ea92d4b31abb2ff526a485",
+    "action": "update",
+    "state": "success",
+    "message_key": "apps_updated",
+    "started_at": "2026-10-15T09:37:01.727Z",
+    "updated_at": "2026-10-15T09:38:14.987Z"
+  },
+  "updatedItems": [
+    {
+      "id": "com.google.Chrome",
+      "state": "done",
+      "message_key": "completed"
+    },
+    {
+      "id": "org.freedesktop.Platform.GL.default",
+      "state": "done",
+      "message_key": "completed"
+    },
+    {
+      "id": "org.freedesktop.Platform.Locale",
+      "state": "done",
+      "message_key": "completed"
+    },
+    {
+      "id": "org.freedesktop.Platform.codecs-extra",
+      "state": "done",
+      "message_key": "completed"
+    },
+    {
+      "id": "org.freedesktop.Platform",
+      "state": "done",
+      "message_key": "completed"
+    },
+    {
+      "id": "org.gnome.Platform.Locale",
+      "state": "done",
+      "message_key": "completed"
+    },
+    {
+      "id": "org.gnome.Platform",
+      "state": "done",
+      "message_key": "completed"
+    }
+  ],
+  "remainingUpdatesReadback": {
+    "checkedAt": "2026-10-15T09:40:42.869Z",
+    "state": "success",
+    "count": 0
+  },
+  "diagnosticWarningsPreserved": [
+    "g_value_get_flags assertion in transaction.run",
+    "bsdtar failed to set default locale"
+  ],
+  "sample": {
+    "seconds": 20.087527057999978,
+    "availableGiB": 6.9240264892578125,
+    "cpuPercentOneCore": {
+      "plasma-kwin_wayland.service": 5.601540681195389,
+      "plasma-plasmashell.service": 0.31092926381461045,
+      "moai-gateway.service": 0.007098932565878421
+    },
+    "swapInPages": 0,
+    "swapOutPages": 0,
+    "memoryPressure": "some avg10=0.00 avg60=0.00 avg300=0.14 total=77894176\nfull avg10=0.00 avg60=0.00 avg300=0.11 total=58230422",
+    "remoteCaptureMeasured": false
+  },
+  "nativeNvidiaAccess": "Tailscale owner confirmation pending; no auth bypass or host update"
+}

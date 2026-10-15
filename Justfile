@@ -327,6 +327,7 @@ check:
     python3 tests/test_mo_store_index_search.py
     # What is installed for every kind, App Drop installs outside the catalogue, retired Flatpaks.
     python3 tests/test_mo_store_index_lifecycle.py
+    python3 tests/test_mo_store_index_android_policy.py
     # machine.json: hardware facts from files only, unknown is null, free space never on `/`.
     python3 tests/test_mo_store_index_machine.py
     # Compatibility verdicts on fixture machines: blocked/warn reasons, facts, refresh on change.

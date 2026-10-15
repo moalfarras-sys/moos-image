@@ -1,0 +1,348 @@
+{
+  "schema": 1,
+  "checkedAt": "2026-10-15T09:37:03.041343+00:00",
+  "scope": "Independent Oracle fetched/local branch review; not native NVIDIA initial111-ref inventory or delivery proof",
+  "reviewedHead": "382f593578b0a046290e86120faa17f4f04016af",
+  "references": [
+    {
+      "ref": "refs/heads/archive/owner-pre-reboot-20261011",
+      "head": "b3b886b6ea1e52cde275a20b54fecb2d600b7773",
+      "ancestorOfReviewedHead": false
+    },
+    {
+      "ref": "refs/heads/audit/cloud-runtime-budget-20261013",
+      "head": "8c37bfda6c157268758f46621606b02fe864861a",
+      "ancestorOfReviewedHead": true
+    },
+    {
+      "ref": "refs/heads/audit/public-readiness-20261007",
+      "head": "46b46e87e282a3f817f1f8aaf099a25a59d083fc",
+      "ancestorOfReviewedHead": true
+    },
+    {
+      "ref": "refs/heads/audit/station-readiness-20261012",
+      "head": "30ca99319140e569a6a3a68cec4bea84fc6b7bfa",
+      "ancestorOfReviewedHead": true
+    },
+    {
+      "ref": "refs/heads/docs/archive-and-workstation-readback-20261014",
+      "head": "6d9acf2fae8eed814ade141f242094e1c85ace03",
+      "ancestorOfReviewedHead": true
+    },
+    {
+      "ref": "refs/heads/docs/audit-delivery-20261009",
+      "head": "46b46e87e282a3f817f1f8aaf099a25a59d083fc",
+      "ancestorOfReviewedHead": true
+    },
+    {
+      "ref": "refs/heads/docs/audit-qualified-1046-20261014",
+      "head": "fcc8db7a2a8d870a79cba91d12b4bf698965802b",
+      "ancestorOfReviewedHead": true
+    },
+    {
+      "ref": "refs/heads/docs/oracle-763-acceptance-20261013",
+      "head": "a03df8168765ff720615bf28cdcef7106e64fafe",
+      "ancestorOfReviewedHead": true
+    },
+    {
+      "ref": "refs/heads/docs/oracle-photo-workstation-20261006",
+      "head": "46b46e87e282a3f817f1f8aaf099a25a59d083fc",
+      "ancestorOfReviewedHead": true
+    },
+    {
+      "ref": "refs/heads/docs/oracle-store-review-20261014",
+      "head": "be7a0b6d86ab2ffde76bb9ceb7d528c78bebfe4d",
+      "ancestorOfReviewedHead": true
+    },
+    {
+      "ref": "refs/heads/docs/public-iso-delivery-20261008",
+      "head": "384505f717ff50b7f7f2643a0d956867d55d6b8e",
+      "ancestorOfReviewedHead": true
+    },
+    {
+      "ref": "refs/heads/docs/runtime-delivery-20261013",
+      "head": "c5f2451ba16594ade98ac59172db69de060b79e6",
+      "ancestorOfReviewedHead": true
+    },
+    {
+      "ref": "refs/heads/docs/station-audit-delivery-20261013",
+      "head": "e671a57fc99a06cf86fb8f265e0d4e162562982c",
+      "ancestorOfReviewedHead": true
+    },
+    {
+      "ref": "refs/heads/feat/remote-glass-console-20261006",
+      "head": "3b4c6d5377e07aa0fe1db9268b70056eab82a3cc",
+      "ancestorOfReviewedHead": true
+    },
+    {
+      "ref": "refs/heads/feat/remote-oracle-experience-20260912",
+      "head": "b8f49afcd9ef13fba5deb5d596b90a0bbbc834bb",
+      "ancestorOfReviewedHead": true
+    },
+    {
+      "ref": "refs/heads/fix/a1-live-review-20260918",
+      "head": "bd552a9ad506d49b28da9913079ac66851bfc0a8",
+      "ancestorOfReviewedHead": true
+    },
+    {
+      "ref": "refs/heads/fix/app-engine-admission-20261009",
+      "head": "46b46e87e282a3f817f1f8aaf099a25a59d083fc",
+      "ancestorOfReviewedHead": true
+    },
+    {
+      "ref": "refs/heads/fix/community-native-picker-20261013",
+      "head": "582f552555ebdc9e86b975b843f217176feef0d5",
+      "ancestorOfReviewedHead": true
+    },
+    {
+      "ref": "refs/heads/fix/greeter-portal-environment-20261013",
+      "head": "5f0f2c65d2583f6c128ca3ea4577334333f7083d",
+      "ancestorOfReviewedHead": true
+    },
+    {
+      "ref": "refs/heads/fix/island-visible-keyboard-20261014",
+      "head": "fafa408a911a309380f00b439f8c69caeca4b73d",
+      "ancestorOfReviewedHead": true
+    },
+    {
+      "ref": "refs/heads/fix/iso-efi-install-20261009",
+      "head": "144b1a6ad04f0b7fa442183110ad6d969f636add",
+      "ancestorOfReviewedHead": true
+    },
+    {
+      "ref": "refs/heads/fix/m1-acceptance-stability-20261014",
+      "head": "38896597f490ab0ed07aa9952e871e46b5349dd9",
+      "ancestorOfReviewedHead": true
+    },
+    {
+      "ref": "refs/heads/fix/moplayer-direct-files-20261012",
+      "head": "9d1717fe2b934a289557e6686b6bd702e8864d44",
+      "ancestorOfReviewedHead": true
+    },
+    {
+      "ref": "refs/heads/fix/plymouth-srpm-extraction-20261013",
+      "head": "40e1f09f03143db79c37366f922ddabfe2f58919",
+      "ancestorOfReviewedHead": true
+    },
+    {
+      "ref": "refs/heads/fix/release-metadata-and-oracle-775-20261014",
+      "head": "45e6eb702f55cfe76274d02e014924da93cc05bc",
+      "ancestorOfReviewedHead": true
+    },
+    {
+      "ref": "refs/heads/fix/workstation-sdk-mcp-20261014",
+      "head": "4bb51ecc8501d511c63e265378666203700381de",
+      "ancestorOfReviewedHead": true
+    },
+    {
+      "ref": "refs/heads/integrate/all-owner-20261006",
+      "head": "46b46e87e282a3f817f1f8aaf099a25a59d083fc",
+      "ancestorOfReviewedHead": true
+    },
+    {
+      "ref": "refs/heads/main",
+      "head": "60a2034a20424e03b4bb3f8f0c3f88d3747636cf",
+      "ancestorOfReviewedHead": true
+    },
+    {
+      "ref": "refs/heads/oracle/stability-performance-20260907",
+      "head": "b14695ac901ca2b04936523893c93a9489e308be",
+      "ancestorOfReviewedHead": true
+    },
+    {
+      "ref": "refs/heads/review/store-integration-20261014",
+      "head": "93a9019e3a6d4268a725f89030c0685992c00a25",
+      "ancestorOfReviewedHead": true
+    },
+    {
+      "ref": "refs/remotes/origin/HEAD",
+      "head": "60a2034a20424e03b4bb3f8f0c3f88d3747636cf",
+      "ancestorOfReviewedHead": true
+    },
+    {
+      "ref": "refs/remotes/origin/audit/cloud-runtime-budget-20261013",
+      "head": "8c37bfda6c157268758f46621606b02fe864861a",
+      "ancestorOfReviewedHead": true
+    },
+    {
+      "ref": "refs/remotes/origin/audit/nvidia-store-snapshot-20261014",
+      "head": "93a9019e3a6d4268a725f89030c0685992c00a25",
+      "ancestorOfReviewedHead": true
+    },
+    {
+      "ref": "refs/remotes/origin/audit/owner-readback-20261009",
+      "head": "49d088a55266280cd37f6c92da8334384f3ee818",
+      "ancestorOfReviewedHead": true
+    },
+    {
+      "ref": "refs/remotes/origin/audit/station-readiness-20261012",
+      "head": "30ca99319140e569a6a3a68cec4bea84fc6b7bfa",
+      "ancestorOfReviewedHead": true
+    },
+    {
+      "ref": "refs/remotes/origin/codex/owner-integration-20261015",
+      "head": "382f593578b0a046290e86120faa17f4f04016af",
+      "ancestorOfReviewedHead": true
+    },
+    {
+      "ref": "refs/remotes/origin/docs/archive-and-workstation-readback-20261014",
+      "head": "6d9acf2fae8eed814ade141f242094e1c85ace03",
+      "ancestorOfReviewedHead": true
+    },
+    {
+      "ref": "refs/remotes/origin/docs/audit-qualified-1046-20261014",
+      "head": "fcc8db7a2a8d870a79cba91d12b4bf698965802b",
+      "ancestorOfReviewedHead": true
+    },
+    {
+      "ref": "refs/remotes/origin/docs/oracle-763-acceptance-20261013",
+      "head": "a03df8168765ff720615bf28cdcef7106e64fafe",
+      "ancestorOfReviewedHead": true
+    },
+    {
+      "ref": "refs/remotes/origin/docs/oracle-store-review-20261014",
+      "head": "be7a0b6d86ab2ffde76bb9ceb7d528c78bebfe4d",
+      "ancestorOfReviewedHead": true
+    },
+    {
+      "ref": "refs/remotes/origin/docs/owner-delivery-state-20261010",
+      "head": "10d98f4580653fb42824da3ec04b8efeead997eb",
+      "ancestorOfReviewedHead": true
+    },
+    {
+      "ref": "refs/remotes/origin/docs/remote-release-handoff-20261011",
+      "head": "753b82b9a0418408caf70e0f328a4049e1da5b73",
+      "ancestorOfReviewedHead": true
+    },
+    {
+      "ref": "refs/remotes/origin/docs/station-audit-delivery-20261013",
+      "head": "e671a57fc99a06cf86fb8f265e0d4e162562982c",
+      "ancestorOfReviewedHead": true
+    },
+    {
+      "ref": "refs/remotes/origin/feat/mo-store-library-20261014",
+      "head": "920481369d6d578bc95a6cd2215c681dbf1fb5b3",
+      "ancestorOfReviewedHead": true
+    },
+    {
+      "ref": "refs/remotes/origin/feat/owner-milestones-20261009",
+      "head": "4f52232d92104f128efb9c402cf67b5ea3ac085a",
+      "ancestorOfReviewedHead": true
+    },
+    {
+      "ref": "refs/remotes/origin/feat/owner-reliability-20261011",
+      "head": "ba59f99bfa1a8f0cb2b7583138c4d77105069091",
+      "ancestorOfReviewedHead": true
+    },
+    {
+      "ref": "refs/remotes/origin/feat/remote-prelogin-20261011",
+      "head": "cd1d673470f65ae0cd4ebe00a4f042422a3a787c",
+      "ancestorOfReviewedHead": true
+    },
+    {
+      "ref": "refs/remotes/origin/fix/community-native-picker-20261013",
+      "head": "582f552555ebdc9e86b975b843f217176feef0d5",
+      "ancestorOfReviewedHead": true
+    },
+    {
+      "ref": "refs/remotes/origin/fix/greeter-portal-environment-20261013",
+      "head": "5f0f2c65d2583f6c128ca3ea4577334333f7083d",
+      "ancestorOfReviewedHead": true
+    },
+    {
+      "ref": "refs/remotes/origin/fix/greeter-theme-maintenance-20261011",
+      "head": "1e151ba8ebd78d6a1d64ba7c9eeac4ecfb6bff39",
+      "ancestorOfReviewedHead": true
+    },
+    {
+      "ref": "refs/remotes/origin/fix/island-visible-keyboard-20261014",
+      "head": "fafa408a911a309380f00b439f8c69caeca4b73d",
+      "ancestorOfReviewedHead": true
+    },
+    {
+      "ref": "refs/remotes/origin/fix/iso-efi-install-20261009",
+      "head": "144b1a6ad04f0b7fa442183110ad6d969f636add",
+      "ancestorOfReviewedHead": true
+    },
+    {
+      "ref": "refs/remotes/origin/fix/m1-acceptance-stability-20261014",
+      "head": "38896597f490ab0ed07aa9952e871e46b5349dd9",
+      "ancestorOfReviewedHead": true
+    },
+    {
+      "ref": "refs/remotes/origin/fix/moplayer-direct-files-20261012",
+      "head": "9d1717fe2b934a289557e6686b6bd702e8864d44",
+      "ancestorOfReviewedHead": true
+    },
+    {
+      "ref": "refs/remotes/origin/fix/plymouth-srpm-extraction-20261013",
+      "head": "40e1f09f03143db79c37366f922ddabfe2f58919",
+      "ancestorOfReviewedHead": true
+    },
+    {
+      "ref": "refs/remotes/origin/fix/release-metadata-and-oracle-775-20261014",
+      "head": "45e6eb702f55cfe76274d02e014924da93cc05bc",
+      "ancestorOfReviewedHead": true
+    },
+    {
+      "ref": "refs/remotes/origin/fix/workstation-sdk-mcp-20261014",
+      "head": "4bb51ecc8501d511c63e265378666203700381de",
+      "ancestorOfReviewedHead": true
+    },
+    {
+      "ref": "refs/remotes/origin/main",
+      "head": "60a2034a20424e03b4bb3f8f0c3f88d3747636cf",
+      "ancestorOfReviewedHead": true
+    },
+    {
+      "ref": "refs/remotes/origin/store/fix-appdrop-archive",
+      "head": "7413e11fc54dd0ea6e667a43eb36c74b8fad5cce",
+      "ancestorOfReviewedHead": true
+    },
+    {
+      "ref": "refs/remotes/origin/store/fix-honest-copy",
+      "head": "c75357e365c7e9f1224f63f82a2555baa4475ebf",
+      "ancestorOfReviewedHead": true
+    },
+    {
+      "ref": "refs/remotes/origin/store/fix-index",
+      "head": "59d12260f3e107a91680e7e3661a602e4e446a60",
+      "ancestorOfReviewedHead": true
+    },
+    {
+      "ref": "refs/remotes/origin/store/fix-open-and-ids",
+      "head": "a5bce099ba39df3daab1251dc8e6265640064199",
+      "ancestorOfReviewedHead": true
+    },
+    {
+      "ref": "refs/remotes/origin/store/fix-pinned-updates",
+      "head": "43f72d3295ee657ae632b1c9b98fcb27d99234aa",
+      "ancestorOfReviewedHead": true
+    },
+    {
+      "ref": "refs/remotes/origin/store/fix-webapp-and-gate",
+      "head": "4af294ac3bcd86d9503a326ead4c212f225b873b",
+      "ancestorOfReviewedHead": true
+    }
+  ],
+  "referenceCount": 64,
+  "outsideReviewedHead": [
+    "refs/heads/archive/owner-pre-reboot-20261011"
+  ],
+  "archive": {
+    "ref": "refs/heads/archive/owner-pre-reboot-20261011",
+    "head": "b3b886b6ea1e52cde275a20b54fecb2d600b7773",
+    "files": "six historical documentation files; no product code",
+    "historyPreservationMerge": "cb485853902950caae938c71ec7dcd0da508812a",
+    "currentTruthAndProductRetained": true,
+    "missingHistoricalDeliveryReceiptRestored": true
+  },
+  "originalOracleOwnerCheckpoint": {
+    "files": 6,
+    "workingTreeAndIndexUnchanged": true,
+    "privateOnly": true
+  },
+  "publicReview": "docs/reviews/STORE_20261015_AR.md",
+  "sourceChangesByThisReview": false,
+  "signedCycleStartedByThisReview": false
+}

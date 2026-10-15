@@ -1,7 +1,9 @@
 pragma ComponentBehavior: Bound
 
 import QtQuick
+import QtQuick.Controls
 import QtQuick.Layouts
+import org.moos.ui as MoUI
 
 // Mo Store — the navigation rail: a glass pane floating beside the content with the Store's mark,
 // its six places (Discover · Apps · Games · My apps with its count · Updates with what is pending ·
@@ -46,10 +48,23 @@ Item {
             color: rail.win.design.glassSpecular(rail.win.canvas, rail.win.design.glassLevelPanel)
         }
 
-        ColumnLayout {
+        Flickable {
+            id: railViewport
+            objectName: "storeRailViewport"
             anchors.fill: parent
             anchors.margins: rail.design.space3
-            spacing: rail.design.space1
+            contentWidth: width
+            contentHeight: Math.max(height, railBody.implicitHeight)
+            clip: true
+            boundsBehavior: Flickable.StopAtBounds
+            Keys.onPressed: (event) => MoUI.KeyboardViewport.pageScrollKeys(railViewport, event)
+            ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
+
+            ColumnLayout {
+                id: railBody
+                width: railViewport.width
+                height: Math.max(railViewport.height, implicitHeight)
+                spacing: rail.design.space1
 
             // The mark.
             RowLayout {
@@ -261,6 +276,7 @@ Item {
                     font.pixelSize: rail.win.typePx(11)
                     elide: Text.ElideRight
                 }
+            }
             }
         }
     }

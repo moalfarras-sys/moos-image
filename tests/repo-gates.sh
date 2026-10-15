@@ -324,6 +324,7 @@ python3 tests/test_mo_store_index_not_apps.py
 python3 tests/test_mo_store_index_catalogue.py
 python3 tests/test_mo_store_index_search.py
 python3 tests/test_mo_store_index_lifecycle.py
+python3 tests/test_mo_store_index_android_policy.py
 python3 tests/test_mo_store_index_machine.py
 python3 tests/test_mo_store_index_compat.py
 python3 tests/test_mo_store_index_details.py

@@ -332,6 +332,12 @@ review patches without editing its reserved files. M1's current signed cycle
 is complete; its remaining installed shell/accessibility acceptance stays open.
 See [the bounded Store review](reviews/STORE_20261014_AR.md); it is evidence for
 the existing A3/P4 tasks, not another backlog or a shipped Store claim.
+The [Oct15 exact-head review](reviews/STORE_20261015_AR.md) found unintegrated
+data-preservation/recovery fixes, Android update-policy disagreement, missing
+publisher-app UI actions and a pre-read archive-link budget defect at `382f5935`.
+The owner then requested immediate complete integration: the reviewed five-patch set
+is applied in isolated `integrate/owner-unified-20261015`, retaining original worktrees.
+These remain M3/A3/P4.1 delivery blockers until final gates/image/signed and installed readback.
 
 ### Milestone map
 

@@ -1,0 +1,250 @@
+--- a/system_files/usr/share/moos/apps/store/main.qml
++++ b/system_files/usr/share/moos/apps/store/main.qml
+@@ -877,7 +877,7 @@
+         if (!app) return false
+         if (win.hasFlatpakLifecycle(app) || win.hasAndroidLifecycle(app)) return true
+         var kind = win.appKind(app)
+-        return kind === "webapp" || kind === "appdrop" || kind === "windows" || kind === "dropped"
++        return kind === "webapp" || kind === "appdrop" || kind === "windows" || kind === "vendor" || kind === "dropped"
+     }
+ 
+     function hasInstalledScope(app, scope) {
+@@ -896,7 +896,7 @@
+     function hasCuratedLifecycle(app) {
+         var kind = win.appKind(app)
+         return app && (kind === "npm" || kind === "appdrop" || kind === "android"
+-                       || kind === "webapp" || kind === "windows" || kind === "dropped")
++                       || kind === "webapp" || kind === "windows" || kind === "vendor" || kind === "dropped")
+     }
+ 
+     function canRemove(app) {
+--- a/system_files/usr/share/moos/apps/store/RemoveSheet.qml
++++ b/system_files/usr/share/moos/apps/store/RemoveSheet.qml
+@@ -5,8 +5,8 @@
+ import QtQuick.Layouts
+ 
+ // Mo Store — removing an app. Keep my data is the default; "Remove the app and its data" says
+-// exactly what goes for this kind of app before anything is touched. A Windows program's own space
+-// goes with it either way, and the sheet says so instead of offering a choice it cannot keep.
++// exactly what goes for this kind of app before anything is touched. Windows removal keeps its
++// saved environment by default; files inside the program folder itself are still removed.
+ //
+ // Drawn from main.qml's state: `win` is the Store window, which owns the data, the actions
+ // and the palette. This file only presents them.
+@@ -17,7 +17,7 @@
+     property var app: null
+     property bool withData: false
+     readonly property string kind: win.appKind(removeSheet.app)
+-    readonly property bool keepPossible: removeSheet.kind !== "windows"
++    readonly property bool keepPossible: true
+     readonly property bool dataSupported: win.bridgeHas("removeAppData")
+     anchors.centerIn: Overlay.overlay
+     width: Math.min(win.fs(560), win.width - win.fs(80))
+@@ -40,6 +40,9 @@
+ 
+     function dataLine() {
+         switch (removeSheet.kind) {
++        case "windows":
++            return removeSheet.win.local("تُحذف مساحته الخاصة وإعداداته والملفات المحفوظة فيها. الملفات التي حفظها في مكان آخر تبقى.",
++                                         "Its own space, settings and files saved there are deleted. Files saved elsewhere stay.")
+         case "webapp":
+             return removeSheet.win.local("تُحذف تسجيلات دخوله وملفات تعريف الارتباط وبيانات الموقع المحفوظة.",
+                                          "Its sign-ins, cookies and saved site data are deleted.")
+@@ -156,7 +159,9 @@
+                         Text {
+                             id: optionTitle
+                             Layout.fillWidth: true
+-                            text: !option.modelData ? removeSheet.win.local("أزله واحتفظ ببياناتي", "Remove it, keep my data")
++                            text: !option.modelData ? removeSheet.kind === "windows"
++                                    ? removeSheet.win.local("أزل البرنامج واحتفظ بإعداداته المحفوظة", "Remove program, keep saved settings")
++                                    : removeSheet.win.local("أزله واحتفظ ببياناتي", "Remove it, keep my data")
+                                 : removeSheet.keepPossible ? removeSheet.win.local("أزل التطبيق وبياناته", "Remove the app and its data")
+                                 : removeSheet.win.local("أزل البرنامج ومساحته", "Remove the program and its space")
+                             color: removeSheet.win.txt
+@@ -168,8 +173,11 @@
+                         Text {
+                             Layout.fillWidth: true
+                             text: !option.modelData
+-                                ? removeSheet.win.local("تبقى إعداداته وملفاته على هذا الجهاز، فإن ثبّته مجددًا عاد كما كان.",
+-                                                        "Its settings and files stay on this computer, so installing it again brings it back as it was.")
++                                ? removeSheet.kind === "windows"
++                                    ? removeSheet.win.local("تبقى إعداداته والمستندات المحفوظة في مساحة بياناته. الملفات داخل مجلد البرنامج نفسه تُزال؛ وما حفظه في أماكن أخرى يبقى.",
++                                                            "Settings and documents saved in its data space stay. Files inside the program folder are removed; files saved elsewhere stay.")
++                                    : removeSheet.win.local("تبقى إعداداته وملفاته على هذا الجهاز، فإن ثبّته مجددًا عاد كما كان.",
++                                                            "Its settings and files stay on this computer, so installing it again brings it back as it was.")
+                                 : !removeSheet.keepPossible
+                                   ? removeSheet.win.local("لكل برنامج ويندوز مساحته الخاصة، وتُحذف معه بكل ما حُفظ فيها.",
+                                                           "Each Windows program has a space of its own, and it is deleted with everything saved in it.")
+--- a/system_files/usr/share/moos/apps/store/StoreRail.qml
++++ b/system_files/usr/share/moos/apps/store/StoreRail.qml
+@@ -1,7 +1,9 @@
+ pragma ComponentBehavior: Bound
+ 
+ import QtQuick
++import QtQuick.Controls
+ import QtQuick.Layouts
++import org.moos.ui as MoUI
+ 
+ // Mo Store — the navigation rail: a glass pane floating beside the content with the Store's mark,
+ // its six places (Discover · Apps · Games · My apps with its count · Updates with what is pending ·
+@@ -46,10 +48,23 @@
+             color: rail.win.design.glassSpecular(rail.win.canvas, rail.win.design.glassLevelPanel)
+         }
+ 
+-        ColumnLayout {
++        Flickable {
++            id: railViewport
++            objectName: "storeRailViewport"
+             anchors.fill: parent
+             anchors.margins: rail.design.space3
+-            spacing: rail.design.space1
++            contentWidth: width
++            contentHeight: Math.max(height, railBody.implicitHeight)
++            clip: true
++            boundsBehavior: Flickable.StopAtBounds
++            Keys.onPressed: (event) => MoUI.KeyboardViewport.pageScrollKeys(railViewport, event)
++            ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
++
++            ColumnLayout {
++                id: railBody
++                width: railViewport.width
++                height: Math.max(railViewport.height, implicitHeight)
++                spacing: rail.design.space1
+ 
+             // The mark.
+             RowLayout {
+@@ -262,6 +277,7 @@
+                     elide: Text.ElideRight
+                 }
+             }
++            }
+         }
+     }
+ }
+--- a/tests/test_mo_store_ui_pages.py
++++ b/tests/test_mo_store_ui_pages.py
+@@ -103,6 +103,50 @@
+         flick.contentY = Math.max(0, flick.contentHeight - flick.height)
+     }
+ 
++    // A real RemoveSheet with a private recorder in place of its executor. No MoosStore
++    // bridge is enabled: only the UI's default/explicit delete-data routing is exercised.
++    property var recordedRemoveSheet
++    property var recordedRemoveCalls: []
++    function matchingItems(item, predicate) {
++        var found = []
++        for (var child of Array.from(item.children || [])) {
++            if (predicate(child)) found.push(child)
++            found = found.concat(matchingItems(child, predicate))
++        }
++        return found
++    }
++    function openRecordedWindowsRemoval() {
++        var recorder = {}
++        for (var key of Object.keys(app)) recorder[key] = app[key]
++        recorder.bridgeHas = function(name) { return name === "removeAppData" }
++        recorder.jobIsActive = function() { return false }
++        recorder.removeSelected = function(item) { recordedRemoveCalls.push({ id: item.id, delete_data: false }) }
++        recorder.removeSelectedWithData = function(item) { recordedRemoveCalls.push({ id: item.id, delete_data: true }) }
++        var component = Qt.createComponent(arg("src").replace(/main\.qml$/, "RemoveSheet.qml"))
++        if (component.status !== Component.Ready) throw new Error(component.errorString())
++        recordedRemoveCalls = []
++        recordedRemoveSheet = component.createObject(app.contentItem, {
++            win: recorder, app: { id: "windows-removal-probe", name: "Removal probe", kind: "windows", installed: true }
++        })
++        if (!recordedRemoveSheet) throw new Error("the recorded RemoveSheet was not created")
++        recordedRemoveSheet.open()
++    }
++    function removeChoiceCount() {
++        return matchingItems(recordedRemoveSheet.contentItem,
++                             item => item.modelData === true || item.modelData === false).length
++    }
++    function pressRecordedRemoval(withData) {
++        var buttons = matchingItems(recordedRemoveSheet.contentItem,
++            item => String(item).indexOf("ActionButton_") >= 0 && item.destructive === true)
++        if (buttons.length !== 1) throw new Error("the RemoveSheet must have exactly one Remove button")
++        recordedRemoveSheet.withData = withData
++        buttons[0].triggered()
++    }
++    function closeRecordedRemoval() {
++        recordedRemoveSheet.close()
++        recordedRemoveSheet.destroy()
++    }
++
+     Component.onCompleted: {
+         var component = Qt.createComponent(arg("src"))
+         if (component.status !== Component.Ready) {
+@@ -471,7 +515,7 @@
+         path.write_text(text.replace("@FIXTURES@", str(target)).replace("@NOW@", now), encoding="utf-8")
+ 
+ 
+-def run_walk(variant: dict, store: Path, work: Path) -> subprocess.CompletedProcess:
++def run_walk(variant: dict, store: Path, work: Path, steps: list[dict] | None = None) -> subprocess.CompletedProcess:
+     work.mkdir(parents=True)
+     config = work / "config"
+     config.mkdir()
+@@ -481,7 +525,8 @@
+     data = work / "store-cache"
+     copy_fixtures(data)
+     walk_file = work / "walk.json"
+-    walk_file.write_text(json.dumps(walk(variant), ensure_ascii=False), encoding="utf-8")
++    walk_file.write_text(json.dumps(walk(variant) if steps is None else steps,
++                                    ensure_ascii=False), encoding="utf-8")
+     probe = work / "walk.qml"
+     probe.write_text(PROBE, encoding="utf-8")
+     width, height = variant["size"]
+@@ -517,6 +562,54 @@
+         return subprocess.CompletedProcess(expired.cmd, -9, "", f"STORE WALK FAILED: timed out\n{expired.stderr or ''}")
+ 
+ 
++def lifecycle_contract_walk() -> list[dict]:
++    """Exercise the missing installed kinds and the real removal choice, not just their pages.
++
++    The catalogue fixture's vendor app is deliberately uninstalled. Installed, legacy-kind and
++    no-longer-listed copies must still Open/Remove through the existing backend authority.
++    """
++    steps = [{"label": "the lifecycle index is read", "until": "app.indexReady", "settle": 200, "timeout": 15000}]
++    for label, extra in (("catalogue vendor", {"installed": True, "update_available": False}),
++                         ("legacy vendor kind", {"installed": True, "kind": "", "update_available": False}),
++                         ("retired vendor", {"installed": True, "kind": "vendor", "listed": False,
++                                             "installable": False, "install": None, "update_available": False})):
++        probe = "Object.assign({}, app.appById('desktop-vendor'), " + js(extra) + ")"
++        steps.append({"label": label + " can open and remove", "until":
++                      "(function(item) { return app.appKind(item) === 'vendor'"
++                      " && app.hasRunnableLifecycle(item) && app.canRemove(item)"
++                      " && app.primaryAction(item) === 'open' })((" + probe + "))",
++                      "settle": 100, "timeout": 1500})
++    steps.extend([
++        {"label": "the Windows removal sheet opens", "do": "harness.openRecordedWindowsRemoval()",
++         "until": "harness.recordedRemoveSheet.visible", "settle": 250, "timeout": 3000},
++        {"label": "Windows has both choices and defaults to keep",
++         "until": "harness.removeChoiceCount() === 2 && harness.recordedRemoveSheet.keepPossible"
++                  " && harness.recordedRemoveSheet.withData === false", "settle": 100, "timeout": 1500},
++        {"label": "default removal sends keep-data", "do": "harness.pressRecordedRemoval(false)",
++         "until": "harness.recordedRemoveCalls.length === 1"
++                  " && harness.recordedRemoveCalls[0].delete_data === false", "settle": 100, "timeout": 1500},
++        {"label": "explicit data removal sends delete-data", "do": "harness.pressRecordedRemoval(true)",
++         "until": "harness.recordedRemoveCalls.length === 2"
++                  " && harness.recordedRemoveCalls[1].delete_data === true", "settle": 100, "timeout": 1500},
++        {"label": "the recorded sheet closes", "do": "harness.closeRecordedRemoval()",
++         "settle": 100, "timeout": 1500},
++    ])
++    return steps
++
++
++@unittest.skipUnless(RUNTIME, "requires the native MoOS Qt runtime (moos-qml-shell)")
++class StoreLifecycleContract(unittest.TestCase):
++    def test_installed_vendor_actions_and_actual_windows_removal_choices(self):
++        steps = lifecycle_contract_walk()
++        with tempfile.TemporaryDirectory(prefix="mo-store-lifecycle-") as directory:
++            for variant in VARIANTS[:2]:
++                with self.subTest(window=variant["name"]):
++                    result = run_walk(variant, STORE, Path(directory) / variant["name"], steps=steps)
++                    self.assertEqual(result.returncode, 0, result.stderr[-6000:])
++                    self.assertIn(f"STORE WALK DONE {len(steps)}", result.stderr)
++                    self.assertEqual(problems(result.stderr), [], result.stderr[-6000:])
++
++
+ # One planted fault per view file: a binding that throws only while that view is on screen, so it
+ # reaches the log only if the walk shows the view. `visible` is every root's own property, except
+ # for the page-arrival helper, which is never drawn and acts while its page is `shown`.

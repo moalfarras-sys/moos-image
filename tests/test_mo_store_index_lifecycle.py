@@ -33,14 +33,11 @@ The rule, per kind, with the records where moos-storectl and App Drop write them
             update is a digest that is not the pin's. A record with no catalog_id is the
             person's own file in that slot (adopted): the pin is never offered over it;
   windows   record and program folder (<id>/app): an update when the digest is not the pin's;
-  android   record and the per-package data directory: an update when the digest is not the
-            pin's, unless the APK Android keeps (exactly one base.apk, reached through no link,
-            of the pin's size) is the pin byte for byte, which also names the version. With no
-            record (the older Store wrote none) and no such APK the bytes are unknown: installed,
-            version unknown, offered the pin once moos-storectl can install it over such an app
-            (PIN_OFFERED_WITHOUT_RECORD; until then `update <package>` says "App is not
-            installed"). A record whose data directory is gone is not installed. An APK read is
-            remembered by file identity (AnApkIsReadOnce).
+  android   the executor's shared APK rule: no downgrade or different signer, no replacement of
+            a file the owner installed. Unknown APK bytes without a Store receipt do not offer
+            an update. A readable older APK can be updated without a receipt; the real binary
+            manifest/signing cases are in test_mo_store_index_android_policy.py. A record whose
+            data directory is gone is not installed. APK facts are remembered by file identity.
 
 Every update index.json offers is one `moos-storectl update <id>` performs: the window's Update
 button runs it, so any other answer is a button that does nothing (PinnedUpdates).
@@ -217,7 +214,7 @@ def catalogue() -> dict:
         recipe = {"kind": kind, **install}
         return {"id": app_id, "source": "moos", "cat": "util", "glyph": "spark",
                 "en": app_id.title(), "ar": "تطبيق", "install": recipe}
-    downloads = {"x86_64": {"url": "https://example.org/a.AppImage", "sha256": PIN,
+    downloads = {index.running_arch(): {"url": "https://example.org/a.AppImage", "sha256": PIN,
                             "size": 1000}}
     return {"apps": [
         entry("chat", "webapp", url="https://chat.example.com/", hosts=["chat.example.com"]),
@@ -260,7 +257,7 @@ class Machine:
 
     def record(self, slug: str, **fields) -> None:
         self.write(f".local/share/moos/appdrop/{slug}.json",
-                   json.dumps({"schema": 1, "id": slug, **fields}))
+                   json.dumps({"schema": 1, "id": slug, "kind": "appimage", **fields}))
 
     def launcher(self, name: str, icon: str, extra: str = "") -> str:
         path = self.write(f".local/share/applications/{name}",
@@ -397,9 +394,8 @@ class EveryKindIsSeen(unittest.TestCase):
         self.assertTrue((apps["notepad"]["icon"] or "").endswith("/windows-apps/notepad/icon.png"))
         self.assertTrue(apps["org.example.droid"]["installed"])
         self.assertIsNone(apps["org.example.droid"]["installed_version"])
-        # Installed before moos-storectl kept a record: the pin is offered over it once
-        # moos-storectl can install it there (PinnedUpdates).
-        self.assertEqual(apps["org.example.droid"]["update_available"], OFFERED)
+        # No receipt or readable APK: there is no acceptable update to advertise.
+        self.assertFalse(apps["org.example.droid"]["update_available"])
         self.assertTrue(apps["codex"]["installed"])
         self.assertEqual(apps["codex"]["installed_version"], "0.46.0")
         self.assertFalse(apps["page"]["installed"])
@@ -547,10 +543,8 @@ PINNED_APPS = [
     *(pinned_android(package, APK_SHA256, len(APK)) for package in KEPT),
 ]
 
-# An Android app with no record (the older Store wrote none) whose bytes nothing names is
-# offered the pin only while moos-storectl can install it over such an app. An indexer without
-# that switch offers it, as the rule does once the two agree.
-OFFERED = getattr(index, "PIN_OFFERED_WITHOUT_RECORD", True)
+# These fixtures have no compiled manifest to compare. Unknown bytes without a Store receipt
+# do not identify an acceptable update, exactly as the executor's shared rule says.
 RECORDLESS = ("org.example.legacy", "org.example.other", "org.example.twice",
               "org.example.linked")
 
@@ -566,14 +560,14 @@ EXPECTED = {
     "folderless": (False, None, False),         # the program folder is gone
     "org.example.repin": (True, "0.28.0", True),
     "org.example.current": (True, "1.7.0", False),
-    "org.example.legacy": (True, None, OFFERED),    # no record and no APK: bytes unknown
+    "org.example.legacy": (True, None, False),    # no record and no APK: bytes unknown
     "org.example.gone": (False, None, False),   # the container no longer has it
     # The APK Android keeps names the bytes when no record of the pin does.
     "org.example.kept": (True, "0.29.1", False),       # no record: the older Store's install
     "org.example.caughtup": (True, "0.29.1", False),   # a record of an earlier pin
-    "org.example.other": (True, None, OFFERED),        # another build of the pin's size
-    "org.example.twice": (True, None, OFFERED),        # two copies: Android is replacing it
-    "org.example.linked": (True, None, OFFERED),       # a link, never followed
+    "org.example.other": (True, None, False),        # another build of the pin's size
+    "org.example.twice": (True, None, False),        # two copies: Android is replacing it
+    "org.example.linked": (True, None, False),       # a link, never followed
 }
 if ARCH != "x86_64":
     # Windows programs are pinned for x86_64 only: there is no pin for this machine to offer.
@@ -807,30 +801,17 @@ class PinnedUpdates(unittest.TestCase):
                                  "an update the index offers and check-updates does not list "
                                  "is an Update button that does nothing: nothing may excuse it")
 
-    def test_the_pin_waits_for_a_record_exactly_while_moos_storectl_needs_one(self):
-        installs = "org.example.legacy" in self.rows
-        self.assertFalse(installs and not OFFERED,
-                         "moos-storectl now installs the pin over an Android app an earlier "
-                         "Mo Store installed (no record): set PIN_OFFERED_WITHOUT_RECORD = True "
-                         "in moos-store-index, so its page offers what Update all does")
-        self.assertFalse(OFFERED and not installs,
-                         "the index offers the pin to an Android app with no record, and "
-                         "moos-storectl's `update <package>` answers \"App is not installed\"")
+    def test_unknown_apk_bytes_without_a_receipt_are_not_offered_as_an_update(self):
+        self.assertNotIn("org.example.legacy", self.rows)
+        self.assertFalse(self.apps["org.example.legacy"]["update_available"])
 
-    def test_switched_on_the_pin_is_offered_wherever_the_bytes_are_unknown(self):
-        """The rule once moos-storectl installs the pin over an app with no record: what the
-        APK names stays up to date, and every app whose bytes are unknown is offered the pin.
-        (create=True: once the switch is gone, the indexer always offers it.)"""
-
-        with tempfile.TemporaryDirectory() as raw, \
-                mock.patch.object(index, "PIN_OFFERED_WITHOUT_RECORD", True, create=True):
-            apps = {app["id"]: app for app in
-                    self.home.index_here(Path(raw) / "index.json")["apps"]}
+    def test_unparseable_missing_ambiguous_and_linked_apks_match_the_executor(self):
         for app_id in RECORDLESS:
             with self.subTest(app=app_id):
-                self.assertEqual(lifecycle(apps[app_id]), (True, None, True))
-        self.assertEqual(lifecycle(apps["org.example.kept"]), (True, "0.29.1", False))
-        self.assertEqual(lifecycle(apps["org.example.caughtup"]), (True, "0.29.1", False))
+                self.assertEqual(lifecycle(self.apps[app_id]), (True, None, False))
+                self.assertNotIn(app_id, self.rows)
+        self.assertEqual(lifecycle(self.apps["org.example.kept"]), (True, "0.29.1", False))
+        self.assertEqual(lifecycle(self.apps["org.example.caughtup"]), (True, "0.29.1", False))
 
     def test_every_kind_follows_the_digest_rule(self):
         for app_id, expected in EXPECTED.items():
@@ -926,9 +907,76 @@ class AnApkIsReadOnce(unittest.TestCase):
             newer = home.kept_apk("org.example.kept", OTHER_APK, layout="older")
             second = {app["id"]: app for app in home.run_index()["apps"]}
             self.assertIsNone(second["org.example.kept"]["installed_version"])
-            self.assertEqual(second["org.example.kept"]["update_available"], OFFERED)
+            self.assertEqual(second["org.example.kept"]["update_available"], False)
             remembered = json.loads(memo.read_text(encoding="utf-8"))["apks"]
             self.assertEqual(list(remembered), [str(newer)])
+
+
+class AppDropReceiptOwnership(unittest.TestCase):
+    """The index and executor accept the same receipt; the positive comes from install()."""
+
+    def setUp(self):
+        import zipfile
+
+        self.temporary = tempfile.TemporaryDirectory(prefix="appdrop-index-receipt-")
+        self.addCleanup(self.temporary.cleanup)
+        self.base = Path(self.temporary.name)
+        self.home = self.base / "home"
+        self.home.mkdir()
+        self.environment = unittest.mock.patch.dict(os.environ, {
+            "HOME": str(self.home), "XDG_DATA_HOME": str(self.base / "data"),
+            "XDG_CACHE_HOME": str(self.base / "cache"),
+            "XDG_CONFIG_HOME": str(self.base / "config"),
+            "XDG_STATE_HOME": str(self.base / "state"),
+            "DBUS_SESSION_BUS_ADDRESS": "unix:path=/nonexistent",
+            "DISPLAY": "", "WAYLAND_DISPLAY": "",
+        })
+        self.environment.start()
+        self.addCleanup(self.environment.stop)
+        archive = self.home / "notes.zip"
+        with zipfile.ZipFile(archive, "w") as output:
+            binary = zipfile.ZipInfo("notes")
+            binary.external_attr = 0o100755 << 16
+            output.writestr(binary, "#!/bin/sh\nexit 0\n")
+            output.writestr("notes.desktop", "[Desktop Entry]\nType=Application\nName=Notes\n"
+                            "Exec=notes\nCategories=Office;\n")
+        plan = moos_appdrop.inspect(archive)
+        with mock.patch.object(moos_appdrop, "_refresh_menu", lambda: None):
+            self.receipt = moos_appdrop.install(plan)
+        self.slug = self.receipt["id"]
+        self.path = moos_appdrop.manifest_dir() / f"{self.slug}.json"
+        self.recipe = {"id": self.slug, "source": "moos", "install": {
+            "kind": "appdrop", "artifact": "archive", "version": "1.0",
+            "downloads": {index.running_arch(): {"url": "https://example.org/notes.zip",
+                                                 "size": archive.stat().st_size,
+                                                 "sha256": self.receipt["sha256"]}}}}
+
+    def assert_readers_agree(self, accepted):
+        self.assertEqual(bool(moos_appdrop.read_record(self.slug)), accepted)
+        state = index.catalog_install_state(self.recipe, index.running_arch())
+        inventory = {record["slug"] for record in index.dropped_records(set())}
+        self.assertEqual((state["installed"], self.slug in inventory), (accepted, accepted))
+
+    def test_the_real_archive_installs_receipt_remains_manageable(self):
+        self.assertEqual((self.receipt["schema"], self.receipt["kind"]), (1, "archive"))
+        self.assert_readers_agree(True)
+
+    def test_partial_or_wrong_kind_receipts_are_not_installed_apps(self):
+        for changes, absent in (({"schema": 2}, None), ({}, "schema"),
+                                ({"kind": "webapp"}, None), ({}, "kind"),
+                                ({"kind": ["archive"]}, None)):
+            with self.subTest(changes=changes, absent=absent):
+                receipt = self.receipt | changes
+                if absent:
+                    receipt.pop(absent)
+                self.path.write_text(json.dumps(receipt), encoding="utf-8")
+                self.assert_readers_agree(False)
+
+    def test_a_linked_receipt_is_not_an_installed_app(self):
+        elsewhere = self.base / "copied-receipt.json"
+        self.path.rename(elsewhere)
+        self.path.symlink_to(elsewhere)
+        self.assert_readers_agree(False)
 
 
 if __name__ == "__main__":

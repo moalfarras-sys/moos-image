@@ -103,6 +103,50 @@ Item {
         flick.contentY = Math.max(0, flick.contentHeight - flick.height)
     }
 
+    // A real RemoveSheet with a private recorder in place of its executor. No MoosStore
+    // bridge is enabled: only the UI's default/explicit delete-data routing is exercised.
+    property var recordedRemoveSheet
+    property var recordedRemoveCalls: []
+    function matchingItems(item, predicate) {
+        var found = []
+        for (var child of Array.from(item.children || [])) {
+            if (predicate(child)) found.push(child)
+            found = found.concat(matchingItems(child, predicate))
+        }
+        return found
+    }
+    function openRecordedWindowsRemoval() {
+        var recorder = {}
+        for (var key of Object.keys(app)) recorder[key] = app[key]
+        recorder.bridgeHas = function(name) { return name === "removeAppData" }
+        recorder.jobIsActive = function() { return false }
+        recorder.removeSelected = function(item) { recordedRemoveCalls.push({ id: item.id, delete_data: false }) }
+        recorder.removeSelectedWithData = function(item) { recordedRemoveCalls.push({ id: item.id, delete_data: true }) }
+        var component = Qt.createComponent(arg("src").replace(/main\.qml$/, "RemoveSheet.qml"))
+        if (component.status !== Component.Ready) throw new Error(component.errorString())
+        recordedRemoveCalls = []
+        recordedRemoveSheet = component.createObject(app.contentItem, {
+            win: recorder, app: { id: "windows-removal-probe", name: "Removal probe", kind: "windows", installed: true }
+        })
+        if (!recordedRemoveSheet) throw new Error("the recorded RemoveSheet was not created")
+        recordedRemoveSheet.open()
+    }
+    function removeChoiceCount() {
+        return matchingItems(recordedRemoveSheet.contentItem,
+                             item => item.modelData === true || item.modelData === false).length
+    }
+    function pressRecordedRemoval(withData) {
+        var buttons = matchingItems(recordedRemoveSheet.contentItem,
+            item => String(item).indexOf("ActionButton_") >= 0 && item.destructive === true)
+        if (buttons.length !== 1) throw new Error("the RemoveSheet must have exactly one Remove button")
+        recordedRemoveSheet.withData = withData
+        buttons[0].triggered()
+    }
+    function closeRecordedRemoval() {
+        recordedRemoveSheet.close()
+        recordedRemoveSheet.destroy()
+    }
+
     Component.onCompleted: {
         var component = Qt.createComponent(arg("src"))
         if (component.status !== Component.Ready) {
@@ -471,7 +515,7 @@ def copy_fixtures(target: Path) -> None:
         path.write_text(text.replace("@FIXTURES@", str(target)).replace("@NOW@", now), encoding="utf-8")
 
 
-def run_walk(variant: dict, store: Path, work: Path) -> subprocess.CompletedProcess:
+def run_walk(variant: dict, store: Path, work: Path, steps: list[dict] | None = None) -> subprocess.CompletedProcess:
     work.mkdir(parents=True)
     config = work / "config"
     config.mkdir()
@@ -481,7 +525,8 @@ def run_walk(variant: dict, store: Path, work: Path) -> subprocess.CompletedProc
     data = work / "store-cache"
     copy_fixtures(data)
     walk_file = work / "walk.json"
-    walk_file.write_text(json.dumps(walk(variant), ensure_ascii=False), encoding="utf-8")
+    walk_file.write_text(json.dumps(walk(variant) if steps is None else steps,
+                                    ensure_ascii=False), encoding="utf-8")
     probe = work / "walk.qml"
     probe.write_text(PROBE, encoding="utf-8")
     width, height = variant["size"]
@@ -515,6 +560,54 @@ def run_walk(variant: dict, store: Path, work: Path) -> subprocess.CompletedProc
                               env=env, capture_output=True, text=True, timeout=240)
     except subprocess.TimeoutExpired as expired:
         return subprocess.CompletedProcess(expired.cmd, -9, "", f"STORE WALK FAILED: timed out\n{expired.stderr or ''}")
+
+
+def lifecycle_contract_walk() -> list[dict]:
+    """Exercise the missing installed kinds and the real removal choice, not just their pages.
+
+    The catalogue fixture's vendor app is deliberately uninstalled. Installed, legacy-kind and
+    no-longer-listed copies must still Open/Remove through the existing backend authority.
+    """
+    steps = [{"label": "the lifecycle index is read", "until": "app.indexReady", "settle": 200, "timeout": 15000}]
+    for label, extra in (("catalogue vendor", {"installed": True, "update_available": False}),
+                         ("legacy vendor kind", {"installed": True, "kind": "", "update_available": False}),
+                         ("retired vendor", {"installed": True, "kind": "vendor", "listed": False,
+                                             "installable": False, "install": None, "update_available": False})):
+        probe = "Object.assign({}, app.appById('desktop-vendor'), " + js(extra) + ")"
+        steps.append({"label": label + " can open and remove", "until":
+                      "(function(item) { return app.appKind(item) === 'vendor'"
+                      " && app.hasRunnableLifecycle(item) && app.canRemove(item)"
+                      " && app.primaryAction(item) === 'open' })((" + probe + "))",
+                      "settle": 100, "timeout": 1500})
+    steps.extend([
+        {"label": "the Windows removal sheet opens", "do": "harness.openRecordedWindowsRemoval()",
+         "until": "harness.recordedRemoveSheet.visible", "settle": 250, "timeout": 3000},
+        {"label": "Windows has both choices and defaults to keep",
+         "until": "harness.removeChoiceCount() === 2 && harness.recordedRemoveSheet.keepPossible"
+                  " && harness.recordedRemoveSheet.withData === false", "settle": 100, "timeout": 1500},
+        {"label": "default removal sends keep-data", "do": "harness.pressRecordedRemoval(false)",
+         "until": "harness.recordedRemoveCalls.length === 1"
+                  " && harness.recordedRemoveCalls[0].delete_data === false", "settle": 100, "timeout": 1500},
+        {"label": "explicit data removal sends delete-data", "do": "harness.pressRecordedRemoval(true)",
+         "until": "harness.recordedRemoveCalls.length === 2"
+                  " && harness.recordedRemoveCalls[1].delete_data === true", "settle": 100, "timeout": 1500},
+        {"label": "the recorded sheet closes", "do": "harness.closeRecordedRemoval()",
+         "settle": 100, "timeout": 1500},
+    ])
+    return steps
+
+
+@unittest.skipUnless(RUNTIME, "requires the native MoOS Qt runtime (moos-qml-shell)")
+class StoreLifecycleContract(unittest.TestCase):
+    def test_installed_vendor_actions_and_actual_windows_removal_choices(self):
+        steps = lifecycle_contract_walk()
+        with tempfile.TemporaryDirectory(prefix="mo-store-lifecycle-") as directory:
+            for variant in VARIANTS[:2]:
+                with self.subTest(window=variant["name"]):
+                    result = run_walk(variant, STORE, Path(directory) / variant["name"], steps=steps)
+                    self.assertEqual(result.returncode, 0, result.stderr[-6000:])
+                    self.assertIn(f"STORE WALK DONE {len(steps)}", result.stderr)
+                    self.assertEqual(problems(result.stderr), [], result.stderr[-6000:])
 
 
 # One planted fault per view file: a binding that throws only while that view is on screen, so it

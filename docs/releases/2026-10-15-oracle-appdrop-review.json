@@ -1,0 +1,200 @@
+{
+  "schema": 1,
+  "source": "382f593578b0a046290e86120faa17f4f04016af",
+  "scope": "private source only; private HOME and file canaries; no application or extractor executable started",
+  "full_tests_repeated": false,
+  "maximum_budget_regression_payload_bytes": 65536,
+  "controls": [
+    {
+      "case": "PortableArchives.test_a_compressed_symlink_is_bounded_before_its_body_is_read",
+      "kind": "regression",
+      "old_exit": 1,
+      "old_log_sha256": "f0c1eda2ac0bc77eecf5ab119cd328afc88f3ed96e3dd57421a2f5275474924e",
+      "fixed_exit": 0,
+      "fixed_log_sha256": "718edcfc92a72e81298d75c75f3b7dc8e23057426b3f63c3f56e2277ca27c85a",
+      "pass": true
+    },
+    {
+      "case": "PortableArchives.test_a_symlink_charges_its_utf8_bytes_and_one_entry",
+      "kind": "regression",
+      "old_exit": 1,
+      "old_log_sha256": "8ada913e2050391ce2b86fd0a8f481f0afc6f061b55b34b4a2879f9863e6401b",
+      "fixed_exit": 0,
+      "fixed_log_sha256": "32127cda1dcb5900599481fb0d3c5f6e61d2f9e5a6a9e7f739e98f9966176151",
+      "pass": true
+    },
+    {
+      "case": "PortableArchives.test_a_symlink_over_the_byte_budget_is_refused_before_read",
+      "kind": "regression",
+      "old_exit": 1,
+      "old_log_sha256": "69b887d2458dc3aeb59bbf61018a58b8b33118157f7b77ed3ebb017a4a6ff31b",
+      "fixed_exit": 0,
+      "fixed_log_sha256": "8e2bc5d9dd62d591cd28a2f326e9942de0c807e412d985799e961de091a26e00",
+      "pass": true
+    },
+    {
+      "case": "PortableArchives.test_a_symlink_over_the_entry_budget_is_refused_before_read",
+      "kind": "regression",
+      "old_exit": 1,
+      "old_log_sha256": "e9cd57efb8956bfb27b8a29e2a4890af0f6b49a6e608e2fc120df25cc461f196",
+      "fixed_exit": 0,
+      "fixed_log_sha256": "4542d6f6a4f54d1578f4ea136c59d25b36be247503d2529129501e5878244ecd",
+      "pass": true
+    },
+    {
+      "case": "AppDropOwnership.test_remove_requires_a_receipt_of_this_app_and_kind",
+      "kind": "regression",
+      "old_exit": 1,
+      "old_log_sha256": "39d8af9fe3bc7426385858c549ce939ecd288e699e12d136f4b26d2b23e0daee",
+      "fixed_exit": 0,
+      "fixed_log_sha256": "a34e59fa4c0ee5a48bd42a9704ca168bb91804c38457bce5a4a415db2b5f99b9",
+      "pass": true
+    },
+    {
+      "case": "AppDropOwnership.test_an_invalid_receipt_never_adopts_a_manual_directory",
+      "kind": "regression",
+      "old_exit": 1,
+      "old_log_sha256": "cc0310ab922ca175e80183774b7a16b0f6a5e2a48c20341d6433f3ea2ad55da9",
+      "fixed_exit": 0,
+      "fixed_log_sha256": "a2091ed7c419baaa6600fedcaaae0c19beccc0511ee23d8ca1fb9f95dfcbd21b",
+      "pass": true
+    },
+    {
+      "case": "AppDropOwnership.test_a_linked_receipt_never_owns_a_manual_directory",
+      "kind": "regression",
+      "old_exit": 1,
+      "old_log_sha256": "39471c172131b2cfea0c1f63eea375a4f06ffa2cb84fabdf63a44c4783cb66da",
+      "fixed_exit": 0,
+      "fixed_log_sha256": "b17f3b003fdb86a595ed448c450dad54b54de603d191617276c59bfcbe788c59",
+      "pass": true
+    },
+    {
+      "case": "AppDropOwnership.test_a_linked_app_directory_is_never_adopted",
+      "kind": "regression",
+      "old_exit": 1,
+      "old_log_sha256": "bbeed300641371e187c383888f5715ffc5a454c2d50d026c24dc170245c56e73",
+      "fixed_exit": 0,
+      "fixed_log_sha256": "d4c2910479598c6e9ba0ebb7987250e0a546b1b210a54f58de3156e2a6eb13e1",
+      "pass": true
+    },
+    {
+      "case": "AppDropOwnership.test_a_real_file_install_keeps_its_adopted_ownership",
+      "kind": "preserved-invariant",
+      "old_exit": 0,
+      "old_log_sha256": "4da5a6719ef1e0bdc2e31355865d2412cfe5814b4b69e96d139306e3d93071fb",
+      "fixed_exit": 0,
+      "fixed_log_sha256": "0feb67ac61137588dd678cc21c39d0be46cc2fdea61a3230d74d768306a8e1a0",
+      "pass": true
+    },
+    {
+      "case": "PortableArchives.test_a_portable_app_becomes_an_app",
+      "kind": "preserved-invariant",
+      "old_exit": 0,
+      "old_log_sha256": "d383916a0e9fea941501a9f332ad93db56bda163cb58f712c349f1b7fae6053a",
+      "fixed_exit": 0,
+      "fixed_log_sha256": "9ee25b2afa8711d59d55b00eb33bf5c4153b9e2a751c384fcf13b7ee9ae0025f",
+      "pass": true
+    },
+    {
+      "case": "PortableArchives.test_a_symlink_chain_cannot_write_through_itself_out_of_the_tree",
+      "kind": "preserved-invariant",
+      "old_exit": 0,
+      "old_log_sha256": "9b5923001681e06ed0be8ac5c14cb759fe1c45fc62962ef7a316cfa7a156c70c",
+      "fixed_exit": 0,
+      "fixed_log_sha256": "9b5923001681e06ed0be8ac5c14cb759fe1c45fc62962ef7a316cfa7a156c70c",
+      "pass": true
+    },
+    {
+      "case": "PortableArchives.test_the_symlink_chain_is_refused_at_extraction_and_leaves_nothing_outside",
+      "kind": "preserved-invariant",
+      "old_exit": 0,
+      "old_log_sha256": "af65a658fccc30851505e3003399737973ad1b7256d78e78a3f854b1c9436975",
+      "fixed_exit": 0,
+      "fixed_log_sha256": "af65a658fccc30851505e3003399737973ad1b7256d78e78a3f854b1c9436975",
+      "pass": true
+    },
+    {
+      "case": "PortableArchives.test_a_chain_of_links_alone_is_judged_once_every_hop_exists",
+      "kind": "preserved-invariant",
+      "old_exit": 0,
+      "old_log_sha256": "8df5082b84485069b1280fb7303500d2b1bc86f89f04a48af10f69502704ff68",
+      "fixed_exit": 0,
+      "fixed_log_sha256": "c7c01211e1b6a40f0a78ab9af8a50d4dddf14ed1810530e537c14586a60fe2ba",
+      "pass": true
+    },
+    {
+      "case": "PortableArchives.test_a_refused_archive_leaves_no_link_out_of_the_tree",
+      "kind": "preserved-invariant",
+      "old_exit": 0,
+      "old_log_sha256": "2a8d009717d0f181b36cef48b4ef73514d0246130fb0b6e00b8167a9fdfa32e2",
+      "fixed_exit": 0,
+      "fixed_log_sha256": "7b75be499dbd16b2ac619c4288f001dc97c119cbe0b861beab297d3248f08102",
+      "pass": true
+    },
+    {
+      "case": "PortableArchives.test_in_tree_links_install_when_the_home_is_reached_through_a_link",
+      "kind": "preserved-invariant",
+      "old_exit": 0,
+      "old_log_sha256": "0defec3100d2b3e874f35b4874511cad4a2e6c3aea585eaa1f3b4a2616de55b6",
+      "fixed_exit": 0,
+      "fixed_log_sha256": "181fce683c29395fa620cb5dc61f80f96c457ebd3023052354680cb22b495357",
+      "pass": true
+    },
+    {
+      "case": "PortableArchives.test_a_library_soname_link_inside_the_tree_is_kept",
+      "kind": "preserved-invariant",
+      "old_exit": 0,
+      "old_log_sha256": "4d19b895acd79679e4728ae0e2ea75acd4d4024ac8e2b3a22e21976139d53ac7",
+      "fixed_exit": 0,
+      "fixed_log_sha256": "c6750421c2153ba73822e59d1b64b24ec40ede3ea3095baa36b5875f0a32f167",
+      "pass": true
+    },
+    {
+      "case": "PortableArchives.test_a_zip_member_that_is_both_a_folder_and_a_file_is_refused",
+      "kind": "preserved-invariant",
+      "old_exit": 0,
+      "old_log_sha256": "9b90bf8391596e2a5cee92c70301723f682d756e4f85402e17ef100269a25cc6",
+      "fixed_exit": 0,
+      "fixed_log_sha256": "9b90bf8391596e2a5cee92c70301723f682d756e4f85402e17ef100269a25cc6",
+      "pass": true
+    },
+    {
+      "case": "CatalogueInstalls.test_the_launcher_takes_the_apps_own_id_and_the_catalogues_words",
+      "kind": "preserved-invariant",
+      "old_exit": 0,
+      "old_log_sha256": "81188038264608ae61fb35f6a67e7994fed17daf99ab36437eb6e7484f3e9ac1",
+      "fixed_exit": 0,
+      "fixed_log_sha256": "41004ed220809c049780aad09cd9ee98e7f8405d0a446e428fe94c0b664f823f",
+      "pass": true
+    },
+    {
+      "case": "CatalogueInstalls.test_a_launcher_id_someone_else_has_is_never_taken",
+      "kind": "preserved-invariant",
+      "old_exit": 0,
+      "old_log_sha256": "ac40a10f9a4ba04daef0b3b2684e94a17aff20476a9daf20e79c57cccf7fa6e1",
+      "fixed_exit": 0,
+      "fixed_log_sha256": "1de946d4930a39c67e3decdcd9cc257eb97e83544a790a2ca5fc09bad41326eb",
+      "pass": true
+    },
+    {
+      "case": "CatalogueInstalls.test_remove_leaves_a_same_named_launcher_without_the_marker",
+      "kind": "preserved-invariant",
+      "old_exit": 0,
+      "old_log_sha256": "784529728a97828ac0b3646fecf75e9daa8c3534802c0978d41ac4ac78e832e4",
+      "fixed_exit": 0,
+      "fixed_log_sha256": "784529728a97828ac0b3646fecf75e9daa8c3534802c0978d41ac4ac78e832e4",
+      "pass": true
+    },
+    {
+      "case": "CatalogueInstalls.test_a_failure_after_the_swap_restores_the_working_version_and_its_launcher",
+      "kind": "preserved-invariant",
+      "old_exit": 0,
+      "old_log_sha256": "8a0b06a7795f81252612456a05ad55c063def27b5eb2ad0b840783ef4fc5f84b",
+      "fixed_exit": 0,
+      "fixed_log_sha256": "f349be29d7f715223044e811ae3228608d93421fccefb3f9a0d44e0cb1cbb2d0",
+      "pass": true
+    }
+  ],
+  "patch_sha256": "7e3ec22efced3a759d08235738c14363fdb22f4edc6bb04f94595270dd129a05",
+  "supersedes": "appdrop-symlink-budget-private.patch; apply this combined AppDrop patch once"
+}

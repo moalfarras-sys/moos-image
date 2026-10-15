@@ -1,0 +1,85 @@
+{
+  "schema": 1,
+  "sourceRevision": "382f593578b0a046290e86120faa17f4f04016af",
+  "generatedAt": "2026-10-15T09:45:26.100214+00:00",
+  "architecture": "aarch64",
+  "scope": "Private source copies only; no tracked files, owner worktrees, installed system, runtime, network or release modified. No full just check run.",
+  "patch": "android-index-shared-policy.patch",
+  "patchSha256": "823626b00699345c9c7d91a81e05d0064a419a879f7ad6f16e5c9e1de6175fb7",
+  "patchApplyCheckExit": 0,
+  "gateShellSyntaxExit": 0,
+  "fixedCasesPassed": 81,
+  "results": [
+    {
+      "name": "old-android-policy",
+      "exit": 1,
+      "testCases": 17,
+      "summary": "FAILED (failures=15, errors=3)",
+      "logSha256": "17e7ba70b2ea609f9640f3769b06ef45f947b6fbab8e5765744a803254525fd6"
+    },
+    {
+      "name": "fixed-android-policy",
+      "exit": 0,
+      "testCases": 17,
+      "summary": "OK",
+      "logSha256": "6129439b7072309fa701cf46f9dc2d6633a33b8dc56047e910fc01f9942d6507"
+    },
+    {
+      "name": "fixed-lifecycle",
+      "exit": 0,
+      "testCases": 21,
+      "summary": "OK",
+      "logSha256": "c407c713dcd076105f5d1cbad8d55eb5db21a65a238f9793f2d40f86f68c06a3"
+    },
+    {
+      "name": "fixed-apk-parser",
+      "exit": 0,
+      "testCases": 22,
+      "summary": "OK",
+      "logSha256": "246de32d37df1bc3a6799de73f4c03453ddf2449b7fd536e7ee064042aa5a3b7"
+    },
+    {
+      "name": "fixed-compat",
+      "exit": 0,
+      "testCases": 21,
+      "summary": "OK",
+      "logSha256": "8bfcc9a9a3b168ca27a80362dbcbd50b8393e1f39acbac58a1a154836291edf3"
+    }
+  ],
+  "baseFileSha256": {
+    "system_files/usr/bin/moos-store-index": "fdcd8eee84e9560c5c69e669be8bf318b08d5a36971a16fac31cdcc37c775e7c",
+    "tests/test_mo_store_index_lifecycle.py": "eecc48df7fe1ac79f1feefeb0b71bc447078937ff5533fd93732a8a8a02c0384",
+    "Justfile": "e4f2f9d1f01bab0ebf817f548e1eb25edb6f5838eb76803cae94dd95c0ce18fe",
+    "tests/repo-gates.sh": "fea767d09ab85664656c8f1f5c07eba555a7524d84fd2058760e54f65c57c90f"
+  },
+  "fixedFileSha256": {
+    "system_files/usr/bin/moos-store-index": "8e16f5c5bf75ada0aea662209fdfac58dd44582c2a8a5f03842d416c085bb6b4",
+    "tests/test_mo_store_index_lifecycle.py": "6de2f6ae87dec5a7358b12e13dd0d9fbb2b5aca8308e791150057e57e09804c2",
+    "tests/test_mo_store_index_android_policy.py": "24bc3be7edbd30370086b10c8713e29a795cf633d7e0f7ee6d4c9426c3d76409",
+    "Justfile": "874664579643a5d2fa58b3ab1be597f3314115bac928b15c7c5ba5b16cd12c98",
+    "tests/repo-gates.sh": "df88ab6ba5dfd99423ac7b495930a0ae64852dc4ebca494609069ef64497d9f8"
+  },
+  "controls": [
+    "Actual backend writes relocated-XDG schema1 receipts; actual shared APK parser reads private binary AndroidManifest.xml and signing block",
+    "Actual backend _pin_update_row and index state agree on older/newer/equal APK codes, signer mismatch, file adoption, receipt-free older app and unknown APK",
+    "sanitized catalog retains exact signer, malformed or symlinked receipts cannot supply version/update metadata",
+    "Changing installed APK changes lifecycle token and cached index while build_index is trapped",
+    "Unchanged launch reuses full APK facts, no manifest/signature reread or memo/index write",
+    "A changed reader digest or old digest-only memo reparses APK facts once",
+    "No transitional offer flag or waiting exclusions added; old unknown-byte fixture assertions replaced by shared-policy expectations; real readable older receipt-free app remains positive"
+  ],
+  "registration": {
+    "Justfile": "python3 tests/test_mo_store_index_android_policy.py",
+    "tests/repo-gates.sh": "python3 tests/test_mo_store_index_android_policy.py"
+  },
+  "preservedFailures": [
+    "old-android-policy.log: 17 cases reported, 15 failing assertions/subtests and 3 errors",
+    "existing-lifecycle-before-test-migration.log: obsolete waiting flag/unknown APK expectations and generic x86-only AppDrop fixture on ARM; retained before fixture migration"
+  ],
+  "limitations": [
+    "The 382f5935 snapshot remains unchanged; actual PR holder must re-review and apply after coordination clears",
+    "No hardware Android install/update or signed delivery is proved",
+    "Uncatalogued APK inventory is still absent in this head; this patch is limited to shared update eligibility",
+    "Full repository/image/release gates remain integration work"
+  ]
+}

@@ -59,6 +59,7 @@ BWRAP = "/usr/bin/bwrap"
 MAX_SOURCE_BYTES = 6 * 1024 ** 3        # a downloaded installer, not a disk image
 MAX_TREE_BYTES = 16 * 1024 ** 3
 MAX_TREE_FILES = 250_000
+MAX_LINK_BYTES = 4095                  # a Linux symlink target, bounded before decompression
 MAX_RATIO = 200                          # uncompressed / compressed: a bomb, not an app
 EXTRACT_TIMEOUT = 600
 
@@ -262,8 +263,8 @@ def _plan(path: Path, kind: str, name: str, slug: str) -> Plan:
         plan.name = plan.flatpak_id.rsplit(".", 1)[-1]
     elif kind in ("appimage", "archive"):
         plan.target = applications_dir() / plan.slug
-        plan.replaces = (manifest_dir() / f"{plan.slug}.json").is_file()
-        if plan.target.exists() and not plan.replaces:
+        plan.replaces = bool(read_record(plan.slug))
+        if plan.target.is_symlink() or (plan.target.exists() and not plan.replaces):
             # A folder the person made themselves is never overwritten or adopted.
             raise DropError("name_taken", str(plan.target))
     elif not plan.handoff:
@@ -374,6 +375,11 @@ def extract_zip(archive: Path, root: Path, budget: _Budget) -> None:
             mode = (info.external_attr >> 16) & 0o177777
             kind = stat.S_IFMT(mode)
             if stat.S_ISLNK(mode):
+                # A link's body is compressed data too. Reject impossible targets and
+                # charge its exact bytes/entry before allocating or retaining the body.
+                if not 0 < info.file_size <= MAX_LINK_BYTES:
+                    raise DropError("unsafe_archive", f"a link of {info.file_size} bytes: {info.filename!r}")
+                budget.add(info.file_size)
                 links.append((rel, bundle.read(info).decode("utf-8", "replace")))
                 continue
             if info.is_dir() or kind == stat.S_IFDIR:
@@ -392,10 +398,10 @@ def extract_zip(archive: Path, root: Path, budget: _Budget) -> None:
                 shutil.copyfileobj(source, sink, 1024 * 1024)
                 # Keep the executable bit and nothing else: never setuid, never world-writable.
                 os.fchmod(sink.fileno(), 0o755 if mode & 0o111 else 0o644)
-        _extract_zip_links(root, links, budget)
+        _extract_zip_links(root, links)
 
 
-def _extract_zip_links(root: Path, links: list[tuple[PurePosixPath, str]], budget: _Budget) -> None:
+def _extract_zip_links(root: Path, links: list[tuple[PurePosixPath, str]]) -> None:
     """Create the archive's symlink members now that every file and folder is in place, so no
     file was ever written through one. A link is refused if it is absolute or lexically leaves the
     tree; then, with the whole set created, each link's fully resolved target is checked once more
@@ -418,7 +424,6 @@ def _extract_zip_links(root: Path, links: list[tuple[PurePosixPath, str]], budge
                 raise DropError("unsafe_archive", f"link leaves the archive: {'/'.join(rel.parts)!r}")
             destination.symlink_to(link)
             made.append(destination)
-            budget.add(0)
         for rel, _link in links:
             final = Path(os.path.realpath(root.joinpath(*rel.parts)))
             if not _inside(resolved_root, final):
@@ -810,11 +815,15 @@ def read_record(slug: str) -> dict[str, Any]:
     """The record App Drop wrote for `slug`, or {} — data to compare, never paths to trust."""
     if not SLUG.fullmatch(slug or ""):
         return {}
+    record = manifest_dir() / f"{slug}.json"
+    if record.is_symlink() or not record.is_file():
+        return {}
     try:
-        data = json.loads((manifest_dir() / f"{slug}.json").read_text(encoding="utf-8"))
+        data = json.loads(record.read_text(encoding="utf-8"))
     except (OSError, ValueError):
         return {}
-    return data if isinstance(data, dict) and data.get("id") == slug else {}
+    return (data if isinstance(data, dict) and data.get("schema") == 1
+            and data.get("id") == slug and data.get("kind") in ("appimage", "archive") else {})
 
 
 def _write_atomic(path: Path, text: str, mode: int) -> None:
@@ -978,7 +987,8 @@ def remove(slug: str) -> bool:
     if not SLUG.fullmatch(slug or ""):
         raise DropError("bad_id", slug)
     record = manifest_dir() / f"{slug}.json"
-    if not record.is_file():
+    owned_record = read_record(slug)
+    if not owned_record:
         return False
     # Never trust the paths stored in the manifest: recompute them from the id. The launcher may
     # carry the app's own id as its name, so it goes only when it carries App Drop's marker for
@@ -986,7 +996,7 @@ def remove(slug: str) -> bool:
     directory = applications_dir() / slug
     if directory.is_dir() and not directory.is_symlink():
         shutil.rmtree(directory)
-    for entry in _launcher_candidates(slug, read_record(slug)):
+    for entry in _launcher_candidates(slug, owned_record):
         if _ours(entry, slug):
             entry.unlink(missing_ok=True)
     record.unlink()

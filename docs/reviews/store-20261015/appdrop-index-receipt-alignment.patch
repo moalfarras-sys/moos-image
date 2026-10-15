@@ -1,0 +1,124 @@
+--- a/system_files/usr/bin/moos-store-index
++++ b/system_files/usr/bin/moos-store-index
+@@ -2888,6 +2888,19 @@
+     return clean_text(value, limit) if isinstance(value, str) else ""
+ 
+ 
++def appdrop_record(slug: str) -> dict | None:
++    """The same schema/id/kind receipt App Drop accepts, never a linked receipt."""
++
++    if not DROP_SLUG_RE.fullmatch(slug):
++        return None
++    path = data_home() / "moos/appdrop" / f"{slug}.json"
++    if path.is_symlink() or not path.is_file():
++        return None
++    record = read_record(path)
++    return (record if record and record.get("schema") == 1 and record.get("id") == slug
++            and record.get("kind") in ("appimage", "archive") else None)
++
++
+ def desktop_entry_fields(text: str) -> dict[str, str]:
+     """The [Desktop Entry] keys of a launcher (first value wins), unescaped."""
+ 
+@@ -3311,7 +3324,7 @@
+                     state["icon"] = icon
+                     break
+     elif kind == "appdrop":
+-        record = read_record(data_home() / "moos/appdrop" / f"{app_id}.json")
++        record = appdrop_record(app_id)
+         if record is not None and record.get("id") == app_id:
+             catalog_id = record.get("catalog_id")
+             if catalog_id == app_id:
+@@ -3426,7 +3439,7 @@
+         slug = path.stem
+         if not DROP_SLUG_RE.fullmatch(slug) or slug in claimed:
+             continue
+-        record = read_record(path)
++        record = appdrop_record(slug)
+         if record is None or record.get("id") != slug:
+             continue
+         launcher = launcher_for_record(record, slug)
+--- a/tests/test_mo_store_index_lifecycle.py
++++ b/tests/test_mo_store_index_lifecycle.py
+@@ -257,7 +257,7 @@
+ 
+     def record(self, slug: str, **fields) -> None:
+         self.write(f".local/share/moos/appdrop/{slug}.json",
+-                   json.dumps({"schema": 1, "id": slug, **fields}))
++                   json.dumps({"schema": 1, "id": slug, "kind": "appimage", **fields}))
+ 
+     def launcher(self, name: str, icon: str, extra: str = "") -> str:
+         path = self.write(f".local/share/applications/{name}",
+@@ -912,5 +912,72 @@
+             self.assertEqual(list(remembered), [str(newer)])
+ 
+ 
++class AppDropReceiptOwnership(unittest.TestCase):
++    """The index and executor accept the same receipt; the positive comes from install()."""
++
++    def setUp(self):
++        import zipfile
++
++        self.temporary = tempfile.TemporaryDirectory(prefix="appdrop-index-receipt-")
++        self.addCleanup(self.temporary.cleanup)
++        self.base = Path(self.temporary.name)
++        self.home = self.base / "home"
++        self.home.mkdir()
++        self.environment = unittest.mock.patch.dict(os.environ, {
++            "HOME": str(self.home), "XDG_DATA_HOME": str(self.base / "data"),
++            "XDG_CACHE_HOME": str(self.base / "cache"),
++            "XDG_CONFIG_HOME": str(self.base / "config"),
++            "XDG_STATE_HOME": str(self.base / "state"),
++            "DBUS_SESSION_BUS_ADDRESS": "unix:path=/nonexistent",
++            "DISPLAY": "", "WAYLAND_DISPLAY": "",
++        })
++        self.environment.start()
++        self.addCleanup(self.environment.stop)
++        archive = self.home / "notes.zip"
++        with zipfile.ZipFile(archive, "w") as output:
++            binary = zipfile.ZipInfo("notes")
++            binary.external_attr = 0o100755 << 16
++            output.writestr(binary, "#!/bin/sh\nexit 0\n")
++            output.writestr("notes.desktop", "[Desktop Entry]\nType=Application\nName=Notes\n"
++                            "Exec=notes\nCategories=Office;\n")
++        plan = moos_appdrop.inspect(archive)
++        with mock.patch.object(moos_appdrop, "_refresh_menu", lambda: None):
++            self.receipt = moos_appdrop.install(plan)
++        self.slug = self.receipt["id"]
++        self.path = moos_appdrop.manifest_dir() / f"{self.slug}.json"
++        self.recipe = {"id": self.slug, "source": "moos", "install": {
++            "kind": "appdrop", "artifact": "archive", "version": "1.0",
++            "downloads": {index.running_arch(): {"url": "https://example.org/notes.zip",
++                                                 "size": archive.stat().st_size,
++                                                 "sha256": self.receipt["sha256"]}}}}
++
++    def assert_readers_agree(self, accepted):
++        self.assertEqual(bool(moos_appdrop.read_record(self.slug)), accepted)
++        state = index.catalog_install_state(self.recipe, index.running_arch())
++        inventory = {record["slug"] for record in index.dropped_records(set())}
++        self.assertEqual((state["installed"], self.slug in inventory), (accepted, accepted))
++
++    def test_the_real_archive_installs_receipt_remains_manageable(self):
++        self.assertEqual((self.receipt["schema"], self.receipt["kind"]), (1, "archive"))
++        self.assert_readers_agree(True)
++
++    def test_partial_or_wrong_kind_receipts_are_not_installed_apps(self):
++        for changes, absent in (({"schema": 2}, None), ({}, "schema"),
++                                ({"kind": "webapp"}, None), ({}, "kind"),
++                                ({"kind": ["archive"]}, None)):
++            with self.subTest(changes=changes, absent=absent):
++                receipt = self.receipt | changes
++                if absent:
++                    receipt.pop(absent)
++                self.path.write_text(json.dumps(receipt), encoding="utf-8")
++                self.assert_readers_agree(False)
++
++    def test_a_linked_receipt_is_not_an_installed_app(self):
++        elsewhere = self.base / "copied-receipt.json"
++        self.path.rename(elsewhere)
++        self.path.symlink_to(elsewhere)
++        self.assert_readers_agree(False)
++
++
+ if __name__ == "__main__":
+     unittest.main()

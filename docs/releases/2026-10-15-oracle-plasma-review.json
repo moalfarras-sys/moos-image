@@ -1,0 +1,27 @@
+{
+  "schema": 1,
+  "runId": 38702318981,
+  "attempt": 1,
+  "status": "success",
+  "revision": "60a2034a20424e03b4bb3f8f0c3f88d3747636cf",
+  "scope": "Canary image only, not Plasma6.8.0 and not an installed upgrade",
+  "versions": [
+    "plasma-workspace-6.7.91-1.fc44.x86_64",
+    "plasma-desktop-6.7.91-1.fc44.x86_64",
+    "kscreenlocker-6.7.91-2.fc44.x86_64",
+    "kwin-6.7.91-1.fc44.x86_64",
+    "libplasma-6.7.91-1.fc44.x86_64",
+    "qt6-qtbase-6.11.2-3.fc44.x86_64",
+    "plasma-workspace: base has 6.7.91, kde-beta offers 6.7.91"
+  ],
+  "reviewedSeams": 12,
+  "realLockScreenGreeterPassed": true,
+  "imageBuildPassed": true,
+  "artifacts": {
+    "versions.txt": "ac9c4d3dbb927639815ffc46df5ee481cf108513b351b669a5c8348b38c2e743",
+    "removed.txt": "3e97b9e51b841cc2dddd593d1267d38a0fbfd036ef720ff7eda3942671ee53ca",
+    "seams.txt": "8a882fb9a3a80abc8a146c1d7a3ce10184255aadc4c8a90b0146c6f4e759d096",
+    "compose.log": "ac778a4676fc8ea660396d98bccdffb8d7d2511626712633f7b64d40f27faf63",
+    "build.log": "3b77696071e3f68211b910c68b16cf4ce5f1b1fe323df5d718b6048aac986745"
+  }
+}
