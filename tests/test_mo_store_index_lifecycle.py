@@ -62,7 +62,8 @@ from unittest import mock
 ROOT = Path(__file__).resolve().parents[1]
 INDEXER = Path(os.environ.get("MOOS_STORE_INDEX_UNDER_TEST")
                or ROOT / "system_files/usr/bin/moos-store-index")
-STORECTL = ROOT / "system_files/usr/bin/moos-storectl"
+STORECTL = Path(os.environ.get("MOOS_STORECTL_UNDER_TEST")
+                or ROOT / "system_files/usr/bin/moos-storectl")
 
 
 def load(name: str, path: Path):
@@ -546,9 +547,14 @@ EXPECTED = {
 if ARCH != "x86_64":
     # Windows programs are pinned for x86_64 only: there is no pin for this machine to offer.
     EXPECTED.update({"notepad": (True, "8.7.1", False)})
-# Where the base moos-storectl already applies the rule: check-updates must agree exactly.
-# ("adopted" and "org.example.legacy" are the two cases the rule adds on that side too.)
-SHARED = sorted(set(EXPECTED) - {"adopted", "org.example.legacy"})
+# check-updates must give every answer above. moos-storectl here still answers these the older
+# way: it offers the pin over the person's own file, and finds no Android app the older Store
+# installed (no record), so `update <package>` says "not installed" while the index offers the
+# pin. moos-storectl's own fixes for both (on their way from the Store's pinned-update work)
+# give the rule's answers. Until they land these must still disagree: the day moos-storectl
+# agrees about one, this gate fails until its name is taken off here, so the comparison widens
+# by itself instead of an exclusion nobody remembers.
+AWAITING_STORECTL = frozenset({"adopted", "org.example.legacy"})
 
 
 class Home:
@@ -665,6 +671,7 @@ class PinnedUpdates(unittest.TestCase):
         cls.home.populate()
         cls.data = cls.home.run_index()
         cls.apps = {app["id"]: app for app in cls.data["apps"]}
+        cls.rows = cls.home.check_updates()
 
     @classmethod
     def tearDownClass(cls):
@@ -689,10 +696,17 @@ class PinnedUpdates(unittest.TestCase):
                          sum(expected[2] for expected in EXPECTED.values()))
 
     def test_check_updates_lists_the_same_pins(self):
-        rows = self.home.check_updates()
-        flags = {app_id for app_id in SHARED if self.apps[app_id]["update_available"]}
-        self.assertEqual(rows & set(SHARED), flags,
+        compared = set(EXPECTED) - AWAITING_STORECTL
+        flags = {app_id for app_id in compared if self.apps[app_id]["update_available"]}
+        self.assertEqual(self.rows & compared, flags,
                          "index.json and updates.json disagree about the same apps")
+
+    def test_no_case_waits_for_a_rule_moos_storectl_already_applies(self):
+        agreeing = sorted(app_id for app_id in AWAITING_STORECTL
+                          if (app_id in self.rows) == self.apps[app_id]["update_available"])
+        self.assertEqual(agreeing, [], "moos-storectl now gives the index's answer for these: "
+                         "take them off AWAITING_STORECTL, so check-updates is compared for "
+                         "them too")
 
 
 class RecordsLiveWhereTheBackendWritesThem(unittest.TestCase):
