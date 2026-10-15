@@ -1771,6 +1771,7 @@ ApplicationWindow {
         "removed_with_data":        ["أُزيل مع بياناته", "Removed with its data"],
         "removed_data_untracked":   ["تمت الإزالة. بقيت الإعدادات وبيانات تسجيل دخول التي حفظها التطبيق في أماكن أخرى من مجلد المنزل", "Removed. Settings and sign-in data the app saved elsewhere in your home folder were kept"],
         "android_not_running":      ["دعم تطبيقات أندرويد غير مشغّل. افتحه أولاً لتشغيل هذا التطبيق", "Android app support is not running. Open it first to run this app"],
+        "android_update_refused":    ["لم يُطبّق أندرويد التحديث. ما زالت النسخة السابقة مثبتة", "Android did not apply the update. The previous version is still installed"],
         "permission_changed":       ["تم تغيير الإذن", "Permission changed"],
         "permissions_reset":        ["أُعيدت الأذونات إلى وضعها الأصلي", "Permissions reset"],
         "invalid_id":               ["معرّف التطبيق غير صالح", "This app ID is not valid"],

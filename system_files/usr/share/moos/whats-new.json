@@ -11,8 +11,8 @@
         "en": "Mo Store: every app in one place"
       },
       "body": {
-        "ar": "تطبيقات مختارة في مكان واحد: تطبيقات لينكس، وChatGPT وClaude وWord في نوافذ خاصة بها، وPhotoCraft وAntigravity، إضافةً إلى برامج ويندوز وتطبيقات أندرويد على الأجهزة التي تستطيع تشغيلها. لكل تطبيق صفحة بصوره وحجمه وأذوناته ومدى ملاءمته لجهازك، وتحدّث أي تطبيق أو تزيله من مكتبة واحدة.",
-        "en": "Hand-picked apps in one place: Linux apps, ChatGPT, Claude and Word in their own windows, PhotoCraft and Antigravity, plus Windows programs and Android apps on PCs that can run them. Each app has a page with pictures, size, permissions and how well it fits this PC; update or remove anything from one library."
+        "ar": "تطبيقات مختارة في مكان واحد: تطبيقات لينكس، وChatGPT وClaude وWord في نوافذ خاصة بها، وPhotoCraft وAntigravity، إضافةً إلى برامج ويندوز وتطبيقات أندرويد على الأجهزة التي تستطيع تشغيلها. لكل تطبيق صفحة بصوره وحجمه وأذوناته ومدى ملاءمته لجهازك، وتحدّث أي تطبيق أو تزيله من مكتبة واحدة. تراعي تحديثات أندرويد الإصدار المثبت وتتحقق من تطبيق التحديث قبل إعلان نجاحه.",
+        "en": "Hand-picked apps in one place: Linux apps, ChatGPT, Claude and Word in their own windows, PhotoCraft and Antigravity, plus Windows programs and Android apps on PCs that can run them. Each app has a page with pictures, size, permissions and how well it fits this PC; update or remove anything from one library. Android updates respect the installed build and confirm that an update was applied before reporting success."
       }
     },
     {

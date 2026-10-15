@@ -319,8 +319,9 @@ For every task:
 ## Ordered execution
 
 The Oct15 owner integration gathers every fetched branch tip on
-`codex/owner-integration-20261015`, preserving original worktrees and unfinished
-Android edits. Four previously orphaned Store suites now execute in both gate
+`codex/owner-integration-20261015`, preserving original worktrees and backed-up
+Android edits. The later committed APK/parser and index corrections are also integrated.
+Four previously orphaned Store suites now execute in both gate
 entry points; the web-app policy/readback and window-word integration failures
 are corrected. Full source/image/boot/signature and installed acceptance are
 still required before this batch can replace the staged signed .1053 release.

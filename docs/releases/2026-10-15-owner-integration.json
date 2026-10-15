@@ -13,7 +13,7 @@
     "originalWorktreesRetained": true
   },
   "unfinishedAndroidWorktree": "store/fix-pinned-updates",
-  "unfinishedAndroidEditsIntegrated": false,
+  "unfinishedAndroidEditsIntegrated": true,
   "historicalIntegrations": {
     "M1AggregateDiffEqualsPR241": true,
     "OracleAggregateDiffEqualsPR242": true,
@@ -24,14 +24,15 @@
     "Match web-app index IDs/start URLs to existing runtime policy",
     "Keep downloading, disk-space, retained-sign-in and Android availability words accurate",
     "Remove all six transitional index/backend fixture exclusions after their branches integrate",
-    "Replace a stale test assertion for a false fixed disk multiplier while retaining pre-download refusal and no-install checks"
+    "Replace a stale test assertion for a false fixed disk multiplier while retaining pre-download refusal and no-install checks",
+    "Register the newly committed APK parser suite and translate actual Android update refusal"
   ],
   "verification": {
     "firstGateRun": "failed: four orphaned Store suites",
     "secondGateRun": "failed: current-state summary exceeded its 200 nonempty-line limit; evidence moved here",
-    "fullGates": "in progress",
+    "fullGates": "37310598 full just check passed: 274 Python test scripts, 2428 reported cases / 12 optional skips. New APK/index batch awaiting final full run.",
     "localImage": "in progress",
-    "sourceRenders": "Arabic native fixture walk completed with seven frames and no QML warnings; English in progress",
+    "sourceRenders": "Arabic and English native fixture walks completed with 14 frames and no QML warnings; additional focused frame passed.",
     "nextPlasmaCanary": 38702318981,
     "signedCycle": "not started",
     "continuation": "Maintained just check recipe resumed verbatim to expose late integration failures; not a substitute for a full passing run"
@@ -44,5 +45,10 @@
     "appUpdateResult": "success",
     "remainingFlatpakUpdates": [],
     "rebootedByThisRun": false
-  }
+  },
+  "lateIntegratedBranches": {
+    "store/fix-pinned-updates": "8a39cfa6",
+    "store/fix-index": "96e32006"
+  },
+  "androidIntegration": "Original unfinished files became three commits during verification; integrated after completion with the index correction. Shared APK parser, adopted-file protection and installed-APK readback have executable controls."
 }
