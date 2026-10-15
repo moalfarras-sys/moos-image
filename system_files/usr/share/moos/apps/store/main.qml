@@ -1741,8 +1741,8 @@ ApplicationWindow {
     readonly property var jobPhrases: ({
         "refreshing_index":         ["يُعاد بناء فهرس التطبيقات الموحّد", "Rebuilding the unified app index"],
         "index_refreshed":          ["تم تحديث الفهرس", "Index refreshed"],
-        "downloading_file":         ["يجري تنزيل ملف موثّق", "Downloading a verified file"],
-        "downloading_android":      ["يجري تنزيل تطبيق أندرويد موثّق", "Downloading verified app"],
+        "downloading_file":         ["يجري تنزيل ملف التطبيق", "Downloading the app file"],
+        "downloading_android":      ["يجري تنزيل تطبيق أندرويد", "Downloading the Android app"],
         "preparing_windows":        ["تجري تهيئة برنامج ويندوز", "Preparing the Windows program"],
         "windows_legacy_program":   ["هذا برنامج ويندوز قديم بإصدار 32-بت؛ يثبّت متجر MoOS برامج ويندوز 64-بت فقط", "This is an older 32-bit Windows program; Mo Store installs 64-bit Windows programs only"],
         "vendor_resolving":         ["يجري البحث عن أحدث إصدار", "Finding the newest version"],
@@ -1754,7 +1754,7 @@ ApplicationWindow {
         "vendor_metadata_invalid":  ["تعذّرت قراءة قائمة إصدارات الناشر بأمان؛ لم يُثبَّت شيء", "The publisher's list of versions could not be read safely; nothing was installed"],
         "vendor_package_not_found": ["لا يوفّر الناشر هذا التطبيق لهذا الجهاز حاليًا", "The publisher does not offer this app for this computer right now"],
         "vendor_download_mismatch": ["كان التنزيل ناقصًا أو لا يطابق ما أعلنه الناشر؛ حُذف ولم يُثبَّت شيء", "The download was incomplete or not what the publisher announced; it was deleted and nothing was installed"],
-        "vendor_no_space":          ["لا توجد مساحة كافية في مجلد المنزل: يحتاج تثبيت هذا التطبيق مؤقتًا إلى نحو ثلاثة أضعاف حجم تنزيله", "Not enough free space in your home folder: installing this app briefly needs about three times its download size"],
+        "vendor_no_space":          ["لا توجد مساحة كافية في مجلد المنزل لتنزيل التطبيق وفك ملفاته وتثبيته", "Not enough free space in your home folder to download, unpack and install this app"],
         "vendor_tool_missing":      ["ينقص إصدارَ MoOS هذا أداةٌ لازمة للتحقق من هذا التطبيق؛ لم يُثبَّت شيء", "This MoOS edition lacks a tool needed to check this app; nothing was installed"],
         "vendor_key_missing":       ["لا يحمل هذا الإصدار من MoOS مفتاح الناشر بعد؛ حدّث MoOS وحاول مجددًا", "This version of MoOS does not hold the publisher's key yet; update MoOS and try again"],
         "vendor_signature_failed":  ["تعذّر التحقق من توقيع الناشر؛ حُذف التنزيل ولم يُثبَّت شيء", "The publisher's signature could not be verified; the download was deleted and nothing was installed"],
@@ -1769,7 +1769,8 @@ ApplicationWindow {
         "app_up_to_date":           ["هذا التطبيق محدَّث", "This app is up to date"],
         "update_by_file":           ["ثُبّت هذا التطبيق من ملف؛ ثبّت ملفًا أحدث منه لتحديثه", "This app was installed from a file; install a newer file of it to update it"],
         "removed_with_data":        ["أُزيل مع بياناته", "Removed with its data"],
-        "removed_data_untracked":   ["تمت الإزالة. بقيت الإعدادات التي حفظها التطبيق في مجلد المنزل كما هي", "Removed. Settings the app saved elsewhere in your home folder were kept"],
+        "removed_data_untracked":   ["تمت الإزالة. بقيت الإعدادات وبيانات تسجيل دخول التي حفظها التطبيق في أماكن أخرى من مجلد المنزل", "Removed. Settings and sign-in data the app saved elsewhere in your home folder were kept"],
+        "android_not_running":      ["دعم تطبيقات أندرويد غير مشغّل. افتحه أولاً لتشغيل هذا التطبيق", "Android app support is not running. Open it first to run this app"],
         "permission_changed":       ["تم تغيير الإذن", "Permission changed"],
         "permissions_reset":        ["أُعيدت الأذونات إلى وضعها الأصلي", "Permissions reset"],
         "invalid_id":               ["معرّف التطبيق غير صالح", "This app ID is not valid"],
@@ -2482,7 +2483,7 @@ ApplicationWindow {
         win.pendingOpenApp = ""
         if (!app) app = win.appById(id)
         if (app) win.openDetails(app)
-        else win.flash(win.local("لم يُعثر على هذا التطبيق في Mo Store", "This app was not found in Mo Store"))
+        else win.flash(win.local("لم يُعثر على هذا التطبيق في متجر MoOS", "This app was not found in Mo Store"))
     }
 
     function activateRequested(arguments) {

@@ -3,6 +3,24 @@
 Oracle A1 and the physical NVIDIA workstation develop one MoOS product. Source, promoted artifacts and installed systems are separate evidence; the only backlog is [DEVELOPMENT_PLAN.md](docs/DEVELOPMENT_PLAN.md).
 Native audit: [AUDIT_20261012_AR.md](docs/AUDIT_20261012_AR.md).
 
+## Owner integration, 2026-10-15
+
+`codex/owner-integration-20261015` integrates every fetched local/remote branch
+tip, including the Store library and six Store correction branches. Already
+squashed release branches retain their ancestry without replaying stale state;
+the complete M1/Oracle review diffs match PR241/PR242 byte for byte. A verified
+Git bundle and a copy of unfinished Android working files preserve the original
+46 worktrees. Those unfinished files are not accepted source.
+
+The first local gate run refused four unregistered Store suites. Their actual
+execution exposed inconsistent web-app IDs/start URLs and stale window words;
+the integrated index and bilingual window now follow the existing policy and
+backend. Gates, the final local image and signed delivery remain in progress.
+The NVIDIA host still boots signed .1046, with .1053 staged and signed rollback
+retained. The official Store app-update job succeeded; both Flatpak scopes then
+reported no pending updates. Next-Plasma canary run 38702318981 is independent
+and does not qualify a production Plasma transition.
+
 ## Current engineering batch
 
 Current payload source is `5745edd1` (PR241): THEME_REV=104, full local ARM

@@ -318,6 +318,13 @@ For every task:
 
 ## Ordered execution
 
+The Oct15 owner integration gathers every fetched branch tip on
+`codex/owner-integration-20261015`, preserving original worktrees and unfinished
+Android edits. Four previously orphaned Store suites now execute in both gate
+entry points; the web-app policy/readback and window-word integration failures
+are corrected. Full source/image/boot/signature and installed acceptance are
+still required before this batch can replace the staged signed .1053 release.
+
 The owner's Oct14 priority is the in-progress M3 Store batch on the NVIDIA
 station. Independent Oracle review supplies executable old/fixed controls and
 review patches without editing its reserved files. M1's current signed cycle

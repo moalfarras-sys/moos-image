@@ -337,6 +337,11 @@ python3 tests/test_mo_store_backend2_vendor.py
 python3 tests/test_mo_store_backend2_windows_template.py
 python3 tests/test_mo_store_backend2_index.py
 python3 tests/test_mo_store_backend2_run_foreign.py
+# Exercise the integrated update, web policy, routing and owner-facing words.
+python3 tests/test_mo_store_pinned_updates.py
+python3 tests/test_mo_store_webapp_one_rule.py
+python3 tests/test_store_open_and_ids.py
+python3 tests/test_store_window_words.py
 # One globally importable MoUI module must own identity metrics and shared
 # controls; an app-local copy cannot silently grow back.
 python3 tests/test_moos_design_core.py

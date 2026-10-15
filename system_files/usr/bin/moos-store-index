@@ -107,7 +107,7 @@ RETIRED_INSTALL_KINDS = frozenset({"appimage"})
 CATALOG_SOURCES = frozenset({"flathub", "flatpak", "moos"})
 # A web app's id is its launcher's file name and its window's app id
 # (usr/lib/moos/moos_webapp_policy.py holds the same rules and is the authority).
-WEBAPP_ID_RE = re.compile(r"^[a-z0-9][a-z0-9-]{1,62}$")
+WEBAPP_ID_RE = re.compile(r"^(?=.{2,63}$)[a-z][a-z0-9]*(?:-[a-z0-9]+)*$")
 WEBAPP_HOST_RE = re.compile(
     r"^(\*\.)?([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$"
 )
@@ -2108,7 +2108,7 @@ def webapp_host_matches(host: str, patterns: list[str]) -> bool:
 
 def webapp_url_ok(url: object) -> bool:
     """moos_webapp_policy.parse_entry's address rule: HTTPS, a host, no credentials,
-    port 443 at most, no backslash, no whitespace or control character."""
+    port 443 at most, no query or fragment, no backslash, no whitespace or control character."""
 
     if not isinstance(url, str) or len(url) > 2048:
         return False
@@ -2119,6 +2119,7 @@ def webapp_url_ok(url: object) -> bool:
         return False
     return (parts.scheme == "https" and bool(parts.hostname) and not parts.username
             and not parts.password and port in (None, 443) and "\\" not in url
+            and "?" not in url and "#" not in url
             and not any(char <= " " or char == "\x7f" for char in url))
 
 

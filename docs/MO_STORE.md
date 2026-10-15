@@ -61,7 +61,10 @@ Top level: `_comment`, `categories[]`, `collections[]`, `featured[]`, `bundles[]
   - `webapp`: `{kind, url (https), hosts[≤24, "*." prefix allowed], identity ⊆ {google,
     microsoft, apple, github}, permissions ⊆ {notifications, microphone, camera, location,
     clipboard, screen}, accent, risk:"web-app", requires_review:true}`; app id a slug
-    `^[a-z0-9][a-z0-9-]{1,62}$`; must parse with `moos_webapp_policy.parse_entry`.
+    `^(?=.{2,63}$)[a-z][a-z0-9]*(?:-[a-z0-9]+)*$`; must parse with
+    `moos_webapp_policy.parse_entry`. The start page has no query or fragment, including
+    empty delimiters. Wildcard hosts may not cover a public suffix; the catalogue gate
+    uses the pinned list in `build_files/publicsuffix/`.
   - `appdrop`: `{kind, artifact:"appimage"|"archive", version, downloads:{<arch>:{url, sha256,
     size}}, desktop_id?, wm_class?, exec?, icon?, categories?, risk:"downloaded-executable",
     requires_review:true, external:true}`; top-level `arch` = sorted `downloads` keys.
