@@ -135,6 +135,40 @@ Item {
                 }
             }
 
+            // Supported appearance routes keep the system theme authority in charge.
+            SettingsGroup {
+                win: settingsPage.win
+                Layout.fillWidth: true
+                title: settingsPage.win.local("الثيمات والحركة", "Themes and motion")
+                Text {
+                    Layout.fillWidth: true
+                    text: settingsPage.win.local("خصّص ألوان MoOS والخلفية والحركة من إعدادات النظام.",
+                                                 "Personalise MoOS colours, wallpaper and motion in system settings.")
+                    color: settingsPage.win.txt2
+                    font.family: settingsPage.win.uiFont
+                    font.pixelSize: settingsPage.win.typePx(13)
+                    wrapMode: Text.WordWrap
+                }
+                Flow {
+                    Layout.fillWidth: true
+                    spacing: settingsPage.design.space2
+                    ActionButton {
+                        win: settingsPage.win
+                        pill: true
+                        label: settingsPage.win.local("استكشف ثيمات MoOS", "Explore MoOS themes")
+                        glyphName: "grid"
+                        triggered: function() { Qt.openUrlExternally("moos://settings/themes") }
+                    }
+                    ActionButton {
+                        win: settingsPage.win
+                        pill: true
+                        label: settingsPage.win.local("الحركة والمؤثرات", "Motion and effects")
+                        glyphName: "star"
+                        triggered: function() { Qt.openUrlExternally("moos://settings/animations") }
+                    }
+                }
+            }
+
             // ── this computer ──
             SettingsGroup {
                 win: settingsPage.win

@@ -235,7 +235,16 @@
         "org.luanti.luanti",
         "com.moonlight_stream.Moonlight",
         "com.shatteredpixel.shatteredpixeldungeon",
-        "com.discordapp.Discord"
+        "com.discordapp.Discord",
+        "net.openra.OpenRA",
+        "net.wz2100.wz2100",
+        "org.wesnoth.Wesnoth",
+        "org.gnome.Chess",
+        "org.openttd.OpenTTD",
+        "org.freecol.FreeCol",
+        "org.supertuxproject.SuperTux",
+        "org.kde.kpat",
+        "org.kde.kmahjongg"
       ]
     },
     {
@@ -4392,6 +4401,278 @@
         "requires_review": true,
         "external": true
       }
+    },
+    {
+      "id": "net.openra.OpenRA",
+      "source": "flathub",
+      "cat": "fun",
+      "glyph": "gaming",
+      "en": "OpenRA",
+      "ar": "أوبن آر إيه",
+      "desc_en": "Reimagined classic strategy games; downloads original game assets on first play.",
+      "desc_ar": "ألعاب استراتيجية كلاسيكية مجددة؛ تنزّل ملفات اللعبة الأصلية عند أول تشغيل.",
+      "developer": "OpenRA developers",
+      "keywords_en": [
+        "OpenRA"
+      ],
+      "keywords_ar": [
+        "أوبن آر إيه"
+      ]
+    },
+    {
+      "id": "net.wz2100.wz2100",
+      "source": "flathub",
+      "cat": "fun",
+      "glyph": "gaming",
+      "en": "Warzone 2100",
+      "ar": "وارزون 2100",
+      "desc_en": "Build a base, research technology and command your army in campaigns or multiplayer.",
+      "desc_ar": "ابنِ قاعدة وطوّر التقنيات وقُد جيشك في حملات أو مباريات جماعية.",
+      "developer": "Warzone 2100 Project",
+      "keywords_en": [
+        "Warzone 2100"
+      ],
+      "keywords_ar": [
+        "وارزون 2100"
+      ]
+    },
+    {
+      "id": "org.wesnoth.Wesnoth",
+      "source": "flathub",
+      "cat": "fun",
+      "glyph": "gaming",
+      "en": "Battle for Wesnoth",
+      "ar": "المعركة من أجل ويسنوث",
+      "desc_en": "Turn-based fantasy strategy with campaigns and online multiplayer.",
+      "desc_ar": "استراتيجية خيالية بالأدوار مع حملات ولعب جماعي عبر الإنترنت.",
+      "developer": "The Battle for Wesnoth Project",
+      "keywords_en": [
+        "Battle for Wesnoth"
+      ],
+      "keywords_ar": [
+        "المعركة من أجل ويسنوث"
+      ]
+    },
+    {
+      "id": "org.gnome.Chess",
+      "source": "flathub",
+      "cat": "fun",
+      "glyph": "gaming",
+      "en": "Chess",
+      "ar": "الشطرنج",
+      "desc_en": "Play chess locally or against the computer.",
+      "desc_ar": "العب الشطرنج محليًا أو ضد الكمبيوتر.",
+      "developer": "Chess developers",
+      "keywords_en": [
+        "Chess"
+      ],
+      "keywords_ar": [
+        "الشطرنج"
+      ]
+    },
+    {
+      "id": "org.openttd.OpenTTD",
+      "source": "flathub",
+      "cat": "fun",
+      "glyph": "gaming",
+      "en": "OpenTTD",
+      "ar": "أوبن تي تي دي",
+      "desc_en": "Build railways, roads and airports in an open-source transport simulation.",
+      "desc_ar": "ابنِ السكك والطرق والمطارات في محاكاة نقل مفتوحة المصدر.",
+      "developer": "OpenTTD team",
+      "keywords_en": [
+        "OpenTTD"
+      ],
+      "keywords_ar": [
+        "أوبن تي تي دي"
+      ]
+    },
+    {
+      "id": "org.freecol.FreeCol",
+      "source": "flathub",
+      "cat": "fun",
+      "glyph": "gaming",
+      "en": "FreeCol",
+      "ar": "فري كول",
+      "desc_en": "Explore and build settlements in a turn-based strategy game.",
+      "desc_ar": "استكشف وأنشئ المستوطنات في لعبة استراتيجية بالأدوار.",
+      "developer": "FreeCol team",
+      "keywords_en": [
+        "FreeCol"
+      ],
+      "keywords_ar": [
+        "فري كول"
+      ]
+    },
+    {
+      "id": "org.supertuxproject.SuperTux",
+      "source": "flathub",
+      "cat": "fun",
+      "glyph": "gaming",
+      "en": "SuperTux",
+      "ar": "سوبر تكس",
+      "desc_en": "A colourful platform adventure with local levels and community worlds.",
+      "desc_ar": "مغامرة منصات ملونة مع مراحل محلية وعوالم يصنعها المجتمع.",
+      "developer": "SuperTux team",
+      "keywords_en": [
+        "SuperTux"
+      ],
+      "keywords_ar": [
+        "سوبر تكس"
+      ]
+    },
+    {
+      "id": "org.kde.kpat",
+      "source": "flathub",
+      "cat": "fun",
+      "glyph": "gaming",
+      "en": "KPatience",
+      "ar": "ألعاب الصبر",
+      "desc_en": "A collection of solitaire card games for relaxed offline play.",
+      "desc_ar": "مجموعة ألعاب ورق فردية للعب الهادئ دون إنترنت.",
+      "developer": "KPatience developers",
+      "keywords_en": [
+        "KPatience"
+      ],
+      "keywords_ar": [
+        "ألعاب الصبر"
+      ]
+    },
+    {
+      "id": "org.kde.kmahjongg",
+      "source": "flathub",
+      "cat": "fun",
+      "glyph": "gaming",
+      "en": "KMahjongg",
+      "ar": "ماجونغ",
+      "desc_en": "Match tile pairs in a relaxing solitaire puzzle.",
+      "desc_ar": "طابق أزواج القطع في أحجية فردية هادئة.",
+      "developer": "KMahjongg developers",
+      "keywords_en": [
+        "KMahjongg"
+      ],
+      "keywords_ar": [
+        "ماجونغ"
+      ]
+    },
+    {
+      "id": "io.github.peazip.PeaZip",
+      "source": "flathub",
+      "cat": "util",
+      "glyph": "grid",
+      "en": "PeaZip",
+      "ar": "بي زيب",
+      "desc_en": "Create, open and encrypt archives in many formats.",
+      "desc_ar": "أنشئ الملفات المضغوطة وافتحها وشفّرها بصيغ متعددة.",
+      "developer": "Giorgio Tani",
+      "keywords_en": [
+        "PeaZip"
+      ],
+      "keywords_ar": [
+        "بي زيب"
+      ]
+    },
+    {
+      "id": "org.filezillaproject.Filezilla",
+      "source": "flathub",
+      "cat": "util",
+      "glyph": "grid",
+      "en": "FileZilla",
+      "ar": "فايل زيلا",
+      "desc_en": "Transfer files to servers using FTP and SFTP.",
+      "desc_ar": "انقل الملفات إلى الخوادم عبر FTP وSFTP.",
+      "developer": "FileZilla Project",
+      "keywords_en": [
+        "FileZilla"
+      ],
+      "keywords_ar": [
+        "فايل زيلا"
+      ]
+    },
+    {
+      "id": "org.gnucash.GnuCash",
+      "source": "flathub",
+      "cat": "work",
+      "glyph": "grid",
+      "en": "GnuCash",
+      "ar": "جنو كاش",
+      "desc_en": "Track personal and small-business accounts with double-entry bookkeeping.",
+      "desc_ar": "تابع حساباتك الشخصية وأعمالك الصغيرة بنظام القيد المزدوج.",
+      "developer": "GnuCash developers",
+      "keywords_en": [
+        "GnuCash"
+      ],
+      "keywords_ar": [
+        "جنو كاش"
+      ]
+    },
+    {
+      "id": "net.scribus.Scribus",
+      "source": "flathub",
+      "cat": "art",
+      "glyph": "grid",
+      "en": "Scribus",
+      "ar": "سكريبوس",
+      "desc_en": "Design print layouts, brochures and press-ready PDF documents.",
+      "desc_ar": "صمّم المطبوعات والكتيبات وملفات PDF الجاهزة للطباعة.",
+      "developer": "Scribus Team",
+      "keywords_en": [
+        "Scribus"
+      ],
+      "keywords_ar": [
+        "سكريبوس"
+      ]
+    },
+    {
+      "id": "io.lmms.LMMS",
+      "source": "flathub",
+      "cat": "media",
+      "glyph": "grid",
+      "en": "LMMS",
+      "ar": "إل إم إم إس",
+      "desc_en": "Compose melodies, sequence beats and produce music.",
+      "desc_ar": "ألّف الألحان والإيقاعات وأنتج الموسيقى.",
+      "developer": "LMMS developers",
+      "keywords_en": [
+        "LMMS"
+      ],
+      "keywords_ar": [
+        "إل إم إم إس"
+      ]
+    },
+    {
+      "id": "org.ardour.Ardour",
+      "source": "flathub",
+      "cat": "media",
+      "glyph": "grid",
+      "en": "Ardour",
+      "ar": "أردور",
+      "desc_en": "Record, edit and mix multitrack audio and MIDI.",
+      "desc_ar": "سجّل الصوت وMIDI وحرّرهما وامزجهما بمسارات متعددة.",
+      "developer": "Ardour developers",
+      "keywords_en": [
+        "Ardour"
+      ],
+      "keywords_ar": [
+        "أردور"
+      ]
+    },
+    {
+      "id": "org.chromium.Chromium",
+      "source": "flathub",
+      "cat": "ess",
+      "glyph": "grid",
+      "en": "Chromium",
+      "ar": "كروميوم",
+      "desc_en": "An open-source browser for everyday web use.",
+      "desc_ar": "متصفح مفتوح المصدر للاستخدام اليومي للويب.",
+      "developer": "The Chromium Authors",
+      "keywords_en": [
+        "browser"
+      ],
+      "keywords_ar": [
+        "كروميوم"
+      ]
     }
   ]
 }
