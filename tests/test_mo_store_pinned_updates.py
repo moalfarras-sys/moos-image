@@ -21,6 +21,9 @@ one part of it, run for real against a private HOME:
                   older pin; only when Android cannot be read does the record decide;
   DroppedApk      an APK the person dropped is theirs, like a dropped file: no row, Update all
                   leaves it, `update <package>` says to install a newer file;
+  UpdateReadBack  waydroid's `app install` exits 0 even when Android refuses the APK: an update
+                  is read back from what Android keeps (a short, bounded wait), and a refused
+                  one fails in the window's words with the record as it was;
   FlatpakBatch    one picked app with no build for this computer fails alone (in the window's
                   words when the catalogue names other computers only) and the rest of the batch
                   still installs in one transaction. This runs the real install() and the real
@@ -653,6 +656,93 @@ class DroppedApk(Android):
         self.assertEqual(self.job_document()["items"][0]["message_key"], "update_by_file")
         self.assertEqual((self.record_path().read_bytes(), self.kept_code()), (before, self.OLD))
         self.assertEqual(len(self.installs()), 1, "only the drop itself was installed")
+
+
+class UpdateReadBack(Android):
+    """waydroid's `app install` exits 0 whatever Android answers: an update is what Android keeps."""
+
+    def setUp(self):
+        super().setUp()
+        # The read-back's pauses advance a private clock instead of the test's: a refusal is
+        # asked about for ANDROID_READBACK_SECONDS, and no test waits that long.
+        self.clock = [0.0]
+
+        def pause(seconds):
+            self.clock[0] += seconds
+        patch = mock.patch.multiple(MODULE.time, sleep=pause, monotonic=lambda: self.clock[0])
+        patch.start()
+        self.addCleanup(patch.stop)
+
+    def test_an_update_android_refuses_fails_and_keeps_the_record(self):
+        old = self.build(self.OLD)
+        self.android.keep(old)
+        before = self.write_record(old, f"v{self.OLD}")
+        self.android.refuses.add(self.PACKAGE)      # e.g. an app made for a newer Android
+        apps = [self.recipe(self.build(self.PIN))]
+        code, result = self.controller(apps).update()
+        item = result["items"][0]
+        self.assertEqual((item["id"], item["state"], item["message_key"]),
+                         (self.PACKAGE, "failed", "android_update_refused"), result)
+        self.assertNotIn("waydroid", item["message"].lower())
+        self.assertEqual((code, result["state"]), (1, "failed"), result)
+        self.assertEqual(self.record_path().read_bytes(), before, "the record claims the pin")
+        self.assertEqual(self.kept_code(), self.OLD)
+        # It is still an update that has not happened, and `update <id>` says so in the same words.
+        self.assertEqual([row[0] for row in self.rows(self.controller(apps))], [self.PACKAGE])
+        self.assertNotEqual(self.cli(apps, "update", self.PACKAGE), 0)
+        document = self.job_document()
+        self.assertEqual((document["state"], document["message_key"],
+                          document["items"][0]["state"], document["items"][0]["message_key"]),
+                         ("failed", "android_update_refused", "failed", "android_update_refused"))
+        self.assertEqual(self.record_path().read_bytes(), before)
+
+    def test_without_a_record_a_refused_update_leaves_none(self):
+        self.android.keep(self.build(self.OLD))
+        self.android.refuses.add(self.PACKAGE)
+        code, result = self.controller([self.recipe(self.build(self.PIN))]).update(self.PACKAGE)
+        self.assertEqual((result["state"], result["items"][0]["message_key"]),
+                         ("failed", "android_update_refused"), result)
+        self.assertFalse(self.record_path().exists(), "a record now claims the pin")
+
+    def test_an_apk_android_moves_into_place_a_moment_later_is_an_update(self):
+        self.android.keep(self.build(self.OLD))
+        self.android.defer = True
+        pauses = []
+
+        def pause(seconds):
+            pauses.append(seconds)
+            self.clock[0] += seconds
+            if len(pauses) == 3:
+                self.android.land()
+        with mock.patch.object(MODULE.time, "sleep", pause):
+            code, result = self.controller([self.recipe(self.build(self.PIN))]).update(self.PACKAGE)
+        self.assertEqual((code, result["items"][0]["state"], result["items"][0]["message_key"]),
+                         (0, "done", "updated"), result)
+        self.assertEqual(len(pauses), 3)
+        self.assertEqual(self.kept_code(), self.PIN)
+
+    def test_the_read_back_is_bounded(self):
+        self.android.keep(self.build(self.OLD))
+        self.android.defer = True                   # never lands
+        code, result = self.controller([self.recipe(self.build(self.PIN))]).update(self.PACKAGE)
+        self.assertEqual(result["items"][0]["message_key"], "android_update_refused", result)
+        self.assertGreaterEqual(self.clock[0], MODULE.ANDROID_READBACK_SECONDS)
+        self.assertLess(self.clock[0], MODULE.ANDROID_READBACK_SECONDS + 1)
+
+    @unittest.skipIf(os.geteuid() == 0, "root reads every account's files")
+    def test_when_android_cannot_be_read_waydroids_answer_stands_as_before(self):
+        # Another account's Android data: the record decides what is offered, and nothing can be
+        # read back, so the install's exit status is all there is.
+        old = self.build(self.OLD)
+        self.android.keep(old)
+        self.write_record(old, f"v{self.OLD}")
+        self.android.defer = True
+        apps = self.home / ".local/share/waydroid/data/app"
+        apps.chmod(0o111)
+        self.addCleanup(apps.chmod, 0o755)
+        code, result = self.controller([self.recipe(self.build(self.PIN))]).update()
+        self.assertEqual([(item["id"], item["state"], item["message_key"]) for item in result["items"]],
+                         [(self.PACKAGE, "done", "updated")], result)
 
 
 # ── Flatpak: the real install() and FlatpakAdapter over a stand-in libflatpak ─────────────────

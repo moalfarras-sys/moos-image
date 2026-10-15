@@ -97,6 +97,11 @@ WINE_OVERRIDES = "mscoree,mshtml=;winemenubuilder.exe=d"
 # A publisher's own signed Linux package (usr/lib/moos/moos_vendor_rpm.py) answers a few network
 # questions while Mo Store only checks for updates; past this the answer is "no row", not a wait.
 VENDOR_CHECK_SECONDS = 45
+# An Android update is read back from the APK Android keeps before it is called Updated; the
+# install's answer can come before Android has the new APK in place, so it is asked again this
+# often, for at most this long.
+ANDROID_READBACK_SECONDS = 5.0
+ANDROID_READBACK_STEP = 0.25
 
 # moos_vendor_rpm's stable failure codes, each with the key the window says it in (jobPhrases holds
 # the Arabic and English words). tests/test_store_job_language.py holds this table to the module's
@@ -3718,6 +3723,53 @@ class Controller:
         return self._android_apk().kept(data_home() / "waydroid" / "data", package, pin.size,
                                         unsized_limit=UNSIZED_DOWNLOAD_CAP)
 
+    def _android_keeps_pin(self, package: str, pin: PinnedArtifact) -> bool | None:
+        """True when the one APK Android keeps for `package` is the pin byte for byte; False for
+        another build, two copies or none; None when Android's app folder cannot be read."""
+        apk = self._android_apk()
+        folders = apk.kept_apk_dirs(data_home() / "waydroid" / "data", package)
+        if folders is None:
+            return None
+        if len(folders) != 1:
+            return False
+        facts = apk.read_apk(folders[0] / "base.apk", pin.size, unsized_limit=UNSIZED_DOWNLOAD_CAP)
+        return facts is not None and facts.sha256 == pin.sha256
+
+    def _android_update_landed(self, job: Job, app_id: str, recipe: dict[str, Any],
+                               before: bytes | None) -> None:
+        """Hold an Android update to what Android keeps after it.
+
+        waydroid's `app install` exits 0 when Android refuses the APK (signed by another key,
+        made for a newer Android, older than the build it keeps): its install() drops the
+        container's answer. _install_pinned_android then records the pin and says Installed. So an
+        update reads back the APK Android keeps: the pin is an update done; anything else puts the
+        record back as it was (`before`, None when there was none) and fails in words the window
+        can say. When Android's app folder cannot be read (another account owns it), waydroid's
+        exit status is all there is to go by, as before.
+        """
+        package = self._android_package(app_id, recipe)
+        pin = pinned_artifact(app_id, recipe.get("install") or {}, size_required=False)
+        kept = self._android_keeps_pin(package, pin)
+        if kept is False:
+            # Not yet, or not at all: the item is not done while Android is asked again.
+            job.update_item(app_id, state="running", progress=None,
+                            message="Installing application", message_key="integrating_app")
+            deadline = time.monotonic() + ANDROID_READBACK_SECONDS
+            while kept is False and time.monotonic() < deadline:
+                time.sleep(ANDROID_READBACK_STEP)
+                kept = self._android_keeps_pin(package, pin)
+        if kept is not False:
+            return
+        record = android_record_path(package)
+        if before is None:
+            record.unlink(missing_ok=True)
+        else:
+            _atomic_bytes(record, before)
+        reason = "Android did not accept this update; the app was left as it was"
+        job.update_item(app_id, state="failed", progress=None, message=reason,
+                        message_key="android_update_refused")
+        raise StoreError(reason, message_key="android_update_refused")
+
     def _vendor_update_row(self, app_id: str, recipe: dict[str, Any],
                            record: dict[str, Any]) -> dict[str, Any] | None:
         """A vendor app pins no bytes: its publisher's repository names the newest build, asked
@@ -3804,7 +3856,14 @@ class Controller:
         elif kind == "windows-portable":
             self._install_windows_portable(job, app_id, recipe)
         elif kind == "android":
+            # In place: Android keeps the app's data. Its answer is read back before Updated.
+            record = android_record_path(self._android_package(app_id, recipe))
+            try:
+                before = record.read_bytes()
+            except FileNotFoundError:
+                before = None
             self._install_pinned_android(job, app_id, recipe)
+            self._android_update_landed(job, app_id, recipe, before)
         elif kind == "vendor-rpm":
             # Resolved again inside the job: the publisher may have moved on since the check.
             if not self._install_vendor(job, app_id, recipe):
