@@ -6,13 +6,15 @@ that cannot fail protects nothing (AGENTS.md: "Prove a new gate bites by breakin
 guards"), so each rule added for catalogue v2 has a negative control here: one bad value is
 planted in a deep copy of the shipped catalogue and the exact refusal is asserted.
 
-The chain half of the gate names install paths another component owns (moos-storectl's
-handlers, the vendor-package helper). Those checks are exercised against stub copies of the
-backend, so this suite proves the RULE whichever backend revision is in the tree; the gate
-itself is what proves the real backend.
+The chain half of the gate reads install paths another component owns (moos-storectl's
+dispatch and handlers, the vendor-package helper). Its negative controls break one path in a
+copy of the backend in the tree; its positive controls are that backend unchanged, so a backend
+refactor fails here by name rather than silently.
 """
 
+import ast
 import copy
+import hashlib
 import importlib.machinery
 import importlib.util
 import json
@@ -23,6 +25,7 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 ROOT = Path(__file__).resolve().parents[1]
 GATE_PATH = ROOT / "build_files/verify_store_catalog.py"
@@ -115,6 +118,61 @@ class TheShippedCatalogue(unittest.TestCase):
         self.assertEqual(gate.pgp_v4_fingerprint(key), "3BFA0E4AE8B8CC16A2D9BA684A3B4A566C4660E4")
         self.assertEqual(app(SHIPPED, "chatgpt")["install"]["key_fingerprint"],
                          gate.pgp_v4_fingerprint(key))
+
+
+class ThePublicSuffixList(unittest.TestCase):
+    """The list the gate vendors and the algorithm it runs on it (https://publicsuffix.org/list/)."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.suffixes = gate.load_public_suffixes(gate.PUBLIC_SUFFIX_LIST)
+
+    def test_the_vendored_list_is_the_published_one_its_readme_names(self):
+        raw = gate.PUBLIC_SUFFIX_LIST.read_bytes()
+        text = raw.decode("utf-8")
+        self.assertTrue(text.startswith("// This Source Code Form is subject to the terms of the "
+                                        "Mozilla Public\n// License, v. 2.0."), "MPL-2.0 header")
+        self.assertIn("// ===END PRIVATE DOMAINS===", text, "the list is cut short")
+        version = re.search(r"(?m)^// VERSION: (\S+)$", text).group(1)
+        readme = (gate.PUBLIC_SUFFIX_LIST.parent / "README.md").read_text(encoding="utf-8")
+        self.assertIn(f"VERSION: {version}", readme, "README.md describes another version")
+        self.assertIn(hashlib.sha256(raw).hexdigest(), readme,
+                      "README.md records another file: refresh its table with the list")
+
+    def test_the_algorithm(self):
+        for name in ("com", "co.uk", "github.io", "notion.site", "microsoft",
+                     "foo.ck",            # *.ck: every name under ck is a suffix …
+                     "x.kawasaki.jp",     # … and every name under kawasaki.jp
+                     "xn--55qx5d.cn"):    # 公司.cn, compared as its A-label
+            with self.subTest(name=name):
+                self.assertTrue(self.suffixes.is_public_suffix(name))
+        for name in ("secure-login.notion.site", "bbc.co.uk", "cloud.microsoft", "claude.ai",
+                     "www.ck",            # !www.ck: the exception to *.ck
+                     "city.kawasaki.jp",  # !city.kawasaki.jp
+                     "compute.amazonaws.com", "site.example"):
+            with self.subTest(name=name):
+                self.assertFalse(self.suffixes.is_public_suffix(name))
+        self.assertEqual(self.suffixes.public_suffix("a.b.foo.ck"), "foo.ck")
+        self.assertEqual(self.suffixes.public_suffix("a.www.ck"), "ck")
+        self.assertEqual(self.suffixes.public_suffix("site.example"), "example")
+        self.assertIn("*.compute.amazonaws.com", self.suffixes.rules_under("compute.amazonaws.com"))
+        self.assertEqual(self.suffixes.rules_under("notion.so"), [])
+
+    def test_without_its_list_the_gate_fails(self):
+        with tempfile.TemporaryDirectory() as raw:
+            planted = Path(raw) / "public_suffix_list.dat"
+            with mock.patch.object(gate, "PUBLIC_SUFFIX_LIST", planted):
+                errors = errors_for(lambda c: None)
+            self.assertTrue(any("cannot read the Public Suffix List" in e for e in errors), errors)
+            planted.write_text("// a list cut short\ncom\nnotion.site\n", encoding="utf-8")
+            with mock.patch.object(gate, "PUBLIC_SUFFIX_LIST", planted):
+                errors = errors_for(lambda c: None)
+            self.assertTrue(any("the list is truncated" in e for e in errors), errors)
+
+    def test_a_rule_the_gate_would_misread_is_refused(self):
+        text = gate.PUBLIC_SUFFIX_LIST.read_text(encoding="utf-8") + "\nfoo.*.example\n"
+        with self.assertRaises(ValueError):
+            gate.PublicSuffixes(text)
 
 
 class EveryNewCatalogueRuleBites(unittest.TestCase):
@@ -267,6 +325,14 @@ class EveryNewCatalogueRuleBites(unittest.TestCase):
             entry = app(c, "putty")
             entry["id"], entry["en"], entry["ar"] = "kitty-ssh", "KiTTY", "كيتي"
         self.refused(unknown_app, "has no exact download rule")
+
+    def test_a_catalogue_url_never_carries_a_query_or_fragment(self):
+        for suffix in ("?raw=1", "#top", "?", "#"):
+            with self.subTest(suffix=suffix):
+                def plant(c, s=suffix):
+                    item = app(c, "putty")["install"]["downloads"]["x86_64"]
+                    item["url"] += s
+                self.refused(plant, "url must not carry a query or fragment")
 
     def test_a_download_carries_a_canonical_digest_and_a_real_size(self):
         for size in (True, 0, -1, 5 * 1024 ** 3, "1706136"):
@@ -431,6 +497,26 @@ class EveryNewCatalogueRuleBites(unittest.TestCase):
         self.refused(lambda c: app(c, "claude")["install"].update(permissions=["root"]),
                      "is refused by moos_webapp_policy")
 
+    def test_a_web_app_never_claims_other_peoples_sites(self):
+        # Every Notion user's published page, every GitHub Pages site, every .co.uk company.
+        self.refused(lambda c: app(c, "notion")["install"]["hosts"].append("*.notion.site"),
+                     "'*.notion.site' covers every site under the public suffix 'notion.site'")
+        self.refused(lambda c: app(c, "photopea")["install"]["hosts"].append("*.github.io"),
+                     "'*.github.io' covers every site under the public suffix 'github.io'")
+        self.refused(lambda c: app(c, "photopea")["install"]["hosts"].append("*.co.uk"),
+                     "the public suffix 'co.uk'")
+        self.refused(lambda c: app(c, "notion")["install"]["hosts"].append("github.io"),
+                     "'github.io' is a public suffix")
+        # Not a suffix itself, but the list hands out names inside it: every compute host is
+        # another customer's.
+        self.refused(lambda c: app(c, "photopea")["install"]["hosts"].append(
+            "*.compute.amazonaws.com"), "spans sites of different owners")
+
+    def test_one_owners_site_under_a_public_suffix_is_its_own(self):
+        """Positive control: the planted value, not the wildcard syntax, is what is refused."""
+        self.assertEqual(errors_for(lambda c: app(c, "notion")["install"]["hosts"].extend(
+            ["*.notion.so", "moos.github.io"])), [])
+
     # ── collections, featured, bundles ────────────────────────────────────────────────────
     def test_collections(self):
         self.refused(lambda c: c["collections"][0].update(apps=c["collections"][0]["apps"][:3]),
@@ -475,6 +561,48 @@ class EveryNewCatalogueRuleBites(unittest.TestCase):
                      "must end with a full stop")
 
 
+class TheGateAndTheWebAppPolicyAgree(unittest.TestCase):
+    """One rule for a web app's id and for a query or fragment on its start page.
+
+    The gate once refused `1password` and `https://web.whatsapp.com/#/` while
+    moos_webapp_policy (and the contract) accepted both. Each case plants a second WhatsApp entry
+    and asks both: the gate's whole report (the shipped catalogue has none) and parse_entry.
+    """
+
+    policy = gate.load_source_module("moos_webapp_policy_under_test",
+                                     SYSTEM / gate.WEBAPP_POLICY.lstrip("/"))
+
+    def verdicts(self, app_id: str, url: str) -> tuple[bool, bool]:
+        planted = copy.deepcopy(app(SHIPPED, "whatsapp"))
+        planted.update(id=app_id, en="WhatsApp Two", ar="واتساب الثاني")
+        planted["install"]["url"] = url
+        errors = errors_for(lambda c: c["apps"].append(planted))
+        try:
+            self.policy.parse_entry(planted)
+            policy_refuses = False
+        except self.policy.WebAppError:
+            policy_refuses = True
+        return bool(errors), policy_refuses
+
+    def test_on_the_id(self):
+        for app_id, refused in (("whatsapp-two", False), ("x" * 63, False), ("1password", True),
+                                ("a", True), ("x" * 64, True), ("whatsapp--two", True),
+                                ("whatsapp-", True)):
+            with self.subTest(app_id=app_id):
+                self.assertEqual(self.verdicts(app_id, "https://web.whatsapp.com/"),
+                                 (refused, refused))
+
+    def test_on_a_query_or_fragment(self):
+        for url, refused in (("https://web.whatsapp.com/", False),
+                             ("https://web.whatsapp.com/send", False),
+                             ("https://web.whatsapp.com/#/", True),
+                             ("https://web.whatsapp.com/?lang=ar", True),
+                             ("https://web.whatsapp.com/?", True),
+                             ("https://web.whatsapp.com/#", True)):
+            with self.subTest(url=url):
+                self.assertEqual(self.verdicts("whatsapp-two", url), (refused, refused))
+
+
 def without_vendor_rpm(catalog):
     """The catalogue minus its vendor-rpm entry, so an indexer that predates that kind can
     still be asked about everything else (the gate itself still checks the full file)."""
@@ -508,17 +636,34 @@ class TheIndexAndTheGateAgree(unittest.TestCase):
 
 NEW_KIND_TOKENS = ("_install_webapp", "_install_appdrop", "_install_windows_portable",
                    "_install_vendor_app")
+STORECTL = (SYSTEM / "usr/bin/moos-storectl").read_text(encoding="utf-8")
 
 
 def storectl_with(tokens: bool) -> str:
-    text = (SYSTEM / "usr/bin/moos-storectl").read_text(encoding="utf-8")
+    """The backend in the tree; without `tokens`, the same file minus the v2 install paths and
+    the web-app review risk. (A name merely mentioned somewhere no longer counts: the gate
+    follows install()'s dispatch to each path.)"""
+    if tokens:
+        return STORECTL
+    text = STORECTL
     for token in NEW_KIND_TOKENS:
         text = text.replace(token, "_install_unrelated")
-    text = text.replace('"web-app"', '"unrelated-risk"')
-    if tokens:
-        text += ("\n_V2_INSTALL_PATHS = (" + ", ".join(NEW_KIND_TOKENS) + ")\n"
-                 '_V2_RISKS = {"web-app"}\n')
-    return text
+    return text.replace('"web-app"', '"unrelated-risk"')
+
+
+def in_method(source: str, method: str, pattern: str, replacement: str) -> str:
+    """`source` with the one match of `pattern` inside moos-storectl's Controller.<method>
+    replaced: the same text elsewhere in the file (another method's call) stays."""
+    backend = next(node for node in ast.parse(source).body
+                   if isinstance(node, ast.ClassDef) and node.name == "Controller")
+    found = next(item for item in backend.body
+                 if isinstance(item, ast.FunctionDef) and item.name == method)
+    lines = source.splitlines(keepends=True)
+    start, end = found.lineno - 1, found.end_lineno
+    body, count = re.subn(pattern, replacement, "".join(lines[start:end]))
+    if count != 1:
+        raise AssertionError(f"{pattern!r} matches {count} times in {method}()")
+    return "".join(lines[:start]) + body + "".join(lines[end:])
 
 
 class TheChainNamesTheNewKinds(unittest.TestCase):
@@ -553,14 +698,143 @@ class TheChainNamesTheNewKinds(unittest.TestCase):
         self.assertTrue(any("never runs `rpmkeys --checksig`" in e for e in errors), errors)
 
 
+FACTS = gate.check_catalog(copy.deepcopy(SHIPPED), SYSTEM, BUILD)[1]
+
+
+def chain_errors(storectl: str) -> list[str]:
+    """The chain half of the gate, run on a mirror whose moos-storectl is `storectl`."""
+    with tempfile.TemporaryDirectory() as raw:
+        root = mirror_root(Path(raw), {gate.MOOS_STORECTL: storectl})
+        return gate.check_chain(FACTS, root, BUILD).errors
+
+
+def refusal(kind: str, method: str = "install") -> str:
+    """The gate's words when Controller.<method> no longer hands `kind` to its installer."""
+    purpose = "install" if method == "install" else "update"
+    handler = (gate.KIND_HANDLER[kind][0] if method == "install" else gate.UPDATE_HANDLER[kind])
+    return (f"the catalog uses install kind {kind!r} but moos-storectl's Controller.{method} does "
+            f"not hand it to self.{handler}(), so those apps would never {purpose}")
+
+
+ANDROID_CALL = r"self\._install_pinned_android\(job, app_id, recipe\)"
+
+
+class TheChainNamesTheAndroidPath(unittest.TestCase):
+    """The catalogue holds 21 Android recipes; nothing checked the backend could install one.
+
+    Two mutations went unseen. Review, 2026-10-15: both calls of the Android installer replaced
+    by a refusal, while the method itself stayed, so its NAME was still in the file. Verification
+    of that fix: only install()'s call replaced, while the update path's call kept the CALL in the
+    file; the gate printed "chain consistent" for an image whose Store refused every Android app.
+    The gate now follows install()'s and _reinstall_pin()'s own branch for the kind.
+    """
+
+    def test_only_the_install_branch_refusing_fails(self):
+        cut = in_method(STORECTL, "install", ANDROID_CALL, 'raise StoreError("no Android install")')
+        self.assertEqual(len(re.findall(ANDROID_CALL, cut)), 1,
+                         "the update path's call must survive, as in the mutation that went unseen")
+        self.assertEqual(chain_errors(cut), [refusal("android")])
+
+    def test_an_install_without_an_android_branch_fails(self):
+        cut = in_method(STORECTL, "install",
+                        r'\n[ \t]*elif kind == "android":\n[ \t]*' + ANDROID_CALL + r"\n", "\n")
+        self.assertEqual(chain_errors(cut), [
+            "the catalog uses install kind 'android' but moos-storectl's Controller.install has "
+            "no branch for it, so those apps would never install"])
+
+    def test_only_the_update_branch_refusing_fails(self):
+        cut = in_method(STORECTL, "_reinstall_pin", ANDROID_CALL,
+                        'raise StoreError("no Android update")')
+        self.assertEqual(chain_errors(cut), [refusal("android", "_reinstall_pin")])
+
+    def test_every_call_refusing_fails(self):
+        """The review's own mutation."""
+        cut, calls = re.subn(ANDROID_CALL, 'raise StoreError("no Android install")', STORECTL)
+        self.assertEqual(calls, 2)
+        self.assertEqual(chain_errors(cut),
+                         [refusal("android"), refusal("android", "_reinstall_pin")])
+
+    def test_each_android_token_is_required(self):
+        self.assertEqual(gate.KIND_HANDLER["android"][0], "_install_pinned_android")
+        for token in gate.KIND_HANDLER["android"]:
+            with self.subTest(token=token):
+                errors = chain_errors(STORECTL.replace(token, "_unrelated("))
+                self.assertTrue(any(f"lacks required handler token {token!r}" in e for e in errors),
+                                errors)
+
+    def test_the_backend_as_shipped_satisfies_the_android_path(self):
+        """Positive control: the real moos-storectl, unchanged, raises nothing for the kind."""
+        self.assertIn("android", FACTS["used_kinds"])
+        self.assertEqual([e for e in chain_errors(STORECTL) if "'android'" in e], [])
+
+
+class EveryKindReachesItsInstaller(unittest.TestCase):
+    """Every kind the catalogue uses, broken in its own branch of the real backend, one at a time:
+    install() for all of them and _reinstall_pin() for the pinned ones."""
+
+    def test_each_kind_needs_its_install_branch(self):
+        kinds = sorted(FACTS["used_kinds"] & gate.KIND_HANDLER.keys())
+        self.assertLessEqual({"android", "appdrop", "npm", "vendor-rpm", "webapp",
+                              "windows-portable"}, set(kinds))
+        for kind in kinds:
+            with self.subTest(kind=kind):
+                call = rf"self\.{gate.KIND_HANDLER[kind][0]}\(job, app_id, recipe\)"
+                cut = in_method(STORECTL, "install", call, 'raise StoreError("refused")')
+                self.assertEqual(chain_errors(cut), [refusal(kind)])
+
+    def test_each_pinned_kind_needs_its_update_branch(self):
+        kinds = sorted(FACTS["used_kinds"] & gate.UPDATE_HANDLER.keys())
+        self.assertLessEqual({"android", "appdrop", "vendor-rpm", "windows-portable"}, set(kinds))
+        for kind in kinds:
+            with self.subTest(kind=kind):
+                call = rf"self\.{gate.UPDATE_HANDLER[kind]}\(job, app_id, recipe\)"
+                # `None`, not a raise: the vendor branch calls its installer inside a condition.
+                cut = in_method(STORECTL, "_reinstall_pin", call, "None")
+                self.assertEqual(chain_errors(cut), [refusal(kind, "_reinstall_pin")])
+
+    def test_a_call_in_a_comment_or_a_string_does_not_count(self):
+        for label, replacement in (
+                ("comment", "pass  # self._install_webapp(job, app_id, recipe)"),
+                ("string", '"self._install_webapp(job, app_id, recipe)"')):
+            with self.subTest(form=label):
+                cut = in_method(STORECTL, "install", r"self\._install_webapp\(job, app_id, recipe\)",
+                                replacement)
+                self.assertEqual(chain_errors(cut), [refusal("webapp")])
+
+    def test_the_installer_must_be_a_method_of_the_backend(self):
+        cut = STORECTL.replace("def _install_pinned_android(", "def _install_pinned_android_v1(")
+        self.assertNotEqual(cut, STORECTL)
+        self.assertEqual(chain_errors(cut), [
+            "the catalog uses install kind 'android' but moos-storectl's Controller has no "
+            "method '_install_pinned_android' to install it",
+            "the catalog uses install kind 'android' but moos-storectl's Controller has no "
+            "method '_install_pinned_android' to update it"])
+
+    def test_a_backend_the_parser_cannot_read_fails_once(self):
+        errors = chain_errors(STORECTL + "\ndef broken(:\n")
+        self.assertEqual(errors, ["moos-storectl has no Controller class the parser can read, so "
+                                  "nothing shows where the catalog's kinds are installed"])
+
+    def test_a_backend_without_an_update_path_fails_once(self):
+        cut = STORECTL.replace("def _reinstall_pin(", "def _reinstall_pin_retired(")
+        pinned = ", ".join(sorted(FACTS["used_kinds"] & gate.UPDATE_HANDLER.keys()))
+        self.assertEqual(chain_errors(cut), [
+            f"the catalog uses install kinds {pinned} but moos-storectl's "
+            "Controller._reinstall_pin is missing, so none of them can update"])
+
+    def test_the_backend_as_shipped_reaches_every_installer(self):
+        """Positive control: the real moos-storectl, unchanged, satisfies the whole chain."""
+        self.assertEqual(chain_errors(STORECTL), [])
+
+
 class TheScriptFailsTheBuild(unittest.TestCase):
     """End to end: the gate script, its exit status and its message, on a planted mirror."""
 
-    def run_gate(self, catalog: dict) -> subprocess.CompletedProcess:
+    def run_gate(self, catalog: dict, storectl: str = STORECTL) -> subprocess.CompletedProcess:
         with tempfile.TemporaryDirectory() as raw:
             root = mirror_root(Path(raw), {
                 gate.CATALOG: json.dumps(catalog, ensure_ascii=False, indent=1),
-                gate.MOOS_STORECTL: storectl_with(True),
+                gate.MOOS_STORECTL: storectl,
                 gate.VENDOR_RPM_HELPER: "subprocess.run(['rpmkeys', '--checksig', p])\n"})
             env = dict(os.environ, MOOS_TEST_ROOT=str(root), PYTHONDONTWRITEBYTECODE="1")
             return subprocess.run([sys.executable, str(GATE_PATH)], env=env, text=True,
@@ -576,6 +850,17 @@ class TheScriptFailsTheBuild(unittest.TestCase):
         self.assertIn("GATE FAIL", bad.stdout)
         self.assertIn("is not the publisher's x86_64 download for version 0.85", bad.stdout)
         self.assertNotIn("is not the publisher's x86_64 download", baseline.stdout)
+
+    def test_a_store_that_refuses_every_android_install_stops_the_build(self):
+        """The verification's mutation, end to end: install()'s Android call alone refuses."""
+        cut = in_method(STORECTL, "install", ANDROID_CALL, 'raise StoreError("no Android install")')
+        baseline = self.run_gate(copy.deepcopy(SHIPPED))
+        bad = self.run_gate(copy.deepcopy(SHIPPED), cut)
+        self.assertEqual(baseline.returncode, 0, baseline.stdout + baseline.stderr)
+        self.assertIn("chain consistent", baseline.stdout)
+        self.assertEqual(bad.returncode, 1, bad.stdout + bad.stderr)
+        self.assertIn("GATE FAIL: the MoOS Store chain is inconsistent", bad.stdout)
+        self.assertIn(refusal("android"), bad.stdout)
 
 
 if __name__ == "__main__":

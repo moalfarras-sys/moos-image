@@ -2,12 +2,15 @@
 """MoOS web apps: the catalogue is the only authority, and an app stays where it belongs.
 
 What this proves, without Qt (the policy module) and through the real command line:
-  * only a valid catalogue entry of kind "webapp" is a web app — an http address, credentials in
-    the address, a start page outside the app's own hosts, an unknown identity provider or an
-    unknown permission are each refused;
+  * only a valid catalogue entry of kind "webapp" is a web app — an id that is not the Store's
+    slug, an http address, credentials in the address, a query or fragment on the start page, a
+    start page outside the app's own hosts, an unknown identity provider or an unknown
+    permission are each refused (the catalogue gate holds the same id and address rules);
   * host matching cannot be fooled by look-alike or suffixed domains;
   * an app's own hosts and its sign-in providers stay inside the window, every other address goes
     to the browser, and file:, data:, javascript:, blob: and moos: addresses go nowhere;
+  * a frame inside a page loads web pages and the browser's own frame documents, and a link to
+    another program clicked inside one (moos:, file:, ssh:) is refused by the runtime itself;
   * a permission the entry does not offer is refused without asking, answers are remembered in a
     private file, and a damaged file means "ask again", never "allowed";
   * the launcher Mo Store writes names only `moos-webapp <id>`, its name is the window's app id,
@@ -18,14 +21,18 @@ What this proves, without Qt (the policy module) and through the real command li
 
 from __future__ import annotations
 
+import importlib.util
 import json
 import os
 from pathlib import Path
+import re
 import stat
 import subprocess
 import sys
 import tempfile
+import types
 import unittest
+from unittest import mock
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "system_files/usr/lib/moos"))
@@ -34,6 +41,91 @@ import moos_webapp_policy as policy  # noqa: E402
 CLI = ROOT / "system_files/usr/bin/moos-webapp"
 RUNTIME = ROOT / "system_files/usr/lib/moos/moos_webapp_runtime.py"
 CATALOG = ROOT / "system_files/usr/share/moos/store/catalog.json"
+QT_MODULES = ("PySide6", "PySide6.QtCore", "PySide6.QtGui", "PySide6.QtNetwork",
+              "PySide6.QtWebEngineCore", "PySide6.QtWebEngineWidgets", "PySide6.QtWidgets")
+
+
+class _QtName(type):
+    """A Qt class nothing here draws: any attribute is another such class, any call an object."""
+
+    def __getattr__(cls, name):
+        if name.startswith("__"):
+            raise AttributeError(name)
+        return _QtName(name, (_QtObject,), {})
+
+
+class _QtObject(metaclass=_QtName):
+    def __init__(self, *args, **kwargs):
+        pass
+
+    def __getattr__(self, name):
+        if name.startswith("__"):
+            raise AttributeError(name)
+        return _QtObject()
+
+    def __call__(self, *args, **kwargs):
+        return _QtObject()
+
+
+def _qt_module(name: str) -> types.ModuleType:
+    module = types.ModuleType(name)
+
+    def anything(attribute: str):
+        if attribute.startswith("__"):
+            raise AttributeError(attribute)
+        return _QtName(attribute, (_QtObject,), {})
+
+    module.__getattr__ = anything
+    return module
+
+
+class Address:
+    """What a QUrl is to the runtime: an address that can say itself."""
+
+    def __init__(self, text: str) -> None:
+        self.text = text
+
+    def toString(self) -> str:  # noqa: N802
+        return self.text
+
+
+def load_runtime():
+    """moos_webapp_runtime itself, with Qt replaced by recorders: no window, no process, no desktop.
+
+    Returns the module, the argv of every process it started and every address it handed to the
+    desktop. The Qt names live only inside this module object; sys.modules is restored.
+    """
+    started: list[list[str]] = []
+    opened: list[str] = []
+
+    class Process:
+        def __init__(self) -> None:
+            self.program, self.arguments = "", []
+            self.finished = types.SimpleNamespace(connect=lambda slot: None)
+
+        def setProgram(self, program: str) -> None:  # noqa: N802
+            self.program = program
+
+        def setArguments(self, arguments) -> None:  # noqa: N802
+            self.arguments = list(arguments)
+
+        def start(self) -> None:
+            started.append([self.program, *self.arguments])
+
+    class DesktopServices:
+        @staticmethod
+        def openUrl(url) -> bool:  # noqa: N802
+            opened.append(url.toString())
+            return True
+
+    modules = {name: _qt_module(name) for name in QT_MODULES}
+    modules["PySide6.QtCore"].QProcess = Process
+    modules["PySide6.QtGui"].QDesktopServices = DesktopServices
+    with mock.patch.dict(sys.modules, modules):
+        spec = importlib.util.spec_from_file_location("moos_webapp_runtime_recorded", RUNTIME)
+        runtime = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(runtime)
+    return runtime, started, opened
 
 
 def entry(**changes) -> dict:
@@ -97,8 +189,35 @@ class EntryValidation(unittest.TestCase):
 
     def test_invalid_entries_are_skipped_not_trusted(self):
         catalog = {"apps": [entry(), entry(id="broken", install_url="http://x.example/"),
+                            entry(id="bad-port", install_url="https://chatgpt.com:abc/"),
                             {"id": "firefox", "source": "flathub"}]}
         self.assertEqual(sorted(policy.webapps(catalog)), ["chatgpt"])
+
+    def test_an_id_is_the_stores_slug(self):
+        """The Store gate's slug (SLUG_RE in build_files/verify_store_catalog.py): a letter
+        first, single hyphens, 2 to 63."""
+        for app_id in ("ab", "chatgpt", "chatgpt-web", "le-chat", "office365", "x" * 63):
+            with self.subTest(app_id=app_id):
+                self.assertEqual(policy.parse_entry(entry(id=app_id)).id, app_id)
+        for app_id in ("1password", "a", "x" * 64, "chat--gpt", "chat-", "-chat", "Chat",
+                       "chat_gpt", "chat.gpt"):
+            with self.subTest(app_id=app_id):
+                with self.assertRaises(policy.WebAppError) as caught:
+                    policy.parse_entry(entry(id=app_id))
+                self.assertEqual(caught.exception.code, "bad_id")
+                with self.assertRaises(policy.WebAppError):
+                    policy.paths(app_id)
+
+    def test_a_start_page_is_a_plain_address(self):
+        """No query and no fragment, not even an empty one; a malformed one is refused, not a crash."""
+        for url in ("https://chatgpt.com/#/", "https://chatgpt.com/?lang=ar", "https://chatgpt.com/?",
+                    "https://chatgpt.com/#", "https://chatgpt.com:abc/", "https://[::1/"):
+            with self.subTest(url=url):
+                with self.assertRaises(policy.WebAppError) as caught:
+                    policy.parse_entry(entry(install_url=url))
+                self.assertEqual(caught.exception.code, "bad_url")
+        self.assertEqual(policy.parse_entry(entry(install_url="https://chatgpt.com/c")).url,
+                         "https://chatgpt.com/c")
 
 
 class Navigation(unittest.TestCase):
@@ -150,6 +269,35 @@ class Navigation(unittest.TestCase):
         self.assertFalse(policy.origin_allowed("https://accounts.google.com", self.app))
         self.assertFalse(policy.origin_allowed("http://chatgpt.com", self.app))
         self.assertFalse(policy.origin_allowed("https://evil.example", self.app))
+
+    def test_a_frame_loads_pages_never_another_programs_address(self):
+        expected = {
+            # what pages are made of, any host's: adverts, maps, videos, sign-in buttons
+            "https://www.youtube.com/embed/x": "inside",
+            "https://ads.evil.example/frame": "inside",
+            "http://example.org/": "inside",
+            # the browser's own frame documents (WhatsApp, Gmail, Teams and Office use them)
+            "about:blank": "inside",
+            "about:blank#frame": "inside",
+            "about:srcdoc": "inside",
+            "blob:https://web.whatsapp.com/5d3c": "inside",
+            "data:text/html,<p>x</p>": "inside",
+            # exactly the window's answer for everything else
+            "mailto:someone@example.com": "external",
+            "tel:+491234": "external",
+            "moos://control/mic/mute": "block",
+            "moos://remote/stop": "block",
+            "file:///etc/passwd": "block",
+            "appstream://org.gimp.GIMP": "block",
+            "ssh://example.org": "block",
+            "zoommtg://zoom.us/join": "block",
+            "javascript:alert(1)": "block",
+            "about:config": "block",
+            "https://": "block",
+        }
+        for url, verdict in expected.items():
+            with self.subTest(url=url):
+                self.assertEqual(policy.frame_navigation(url, self.app), verdict)
 
 
 class Permissions(unittest.TestCase):
@@ -296,6 +444,133 @@ class Runtime(unittest.TestCase):
 
     def test_notifications_are_filed_under_the_apps_own_launcher(self):
         self.assertIn('f"--hint=string:desktop-entry:{app.desktop_id}"', self.source)
+
+
+class FramesInsideAPage(unittest.TestCase):
+    """The runtime's own acceptNavigationRequest, for a frame inside the page (main_frame False).
+
+    Returning True for an address the engine cannot load itself is what makes QtWebEngine hand it
+    to the desktop's handler: measured with the real engine on 2026-10-15, a click on a moos: link
+    inside a cross-origin frame reached QDesktopServices::openUrl until frames asked the policy.
+    """
+
+    def setUp(self):
+        self.runtime, self.started, self.opened = load_runtime()
+        app = policy.parse_entry(entry())
+        self.page = types.SimpleNamespace(shell=types.SimpleNamespace(app=app), popup=False)
+
+    def frame(self, address: str) -> bool:
+        return self.runtime.Page.acceptNavigationRequest(self.page, Address(address), None, False)
+
+    def test_another_programs_address_never_opens_from_a_frame(self):
+        for address in ("moos://control/mic/mute", "moos://remote/stop", "file:///etc/passwd",
+                        "appstream://org.gimp.GIMP", "ssh://example.org", "zoommtg://zoom.us/join",
+                        "javascript:alert(1)", "about:config"):
+            with self.subTest(address=address):
+                self.assertFalse(self.frame(address))
+        self.assertEqual(self.opened, [])
+
+    def test_a_frame_still_loads_what_pages_are_made_of(self):
+        for address in ("https://www.youtube.com/embed/x", "https://ads.evil.example/frame",
+                        "about:blank", "about:srcdoc", "blob:https://web.whatsapp.com/5d3c",
+                        "data:text/html,<p>x</p>"):
+            with self.subTest(address=address):
+                self.assertTrue(self.frame(address))
+        self.assertEqual(self.opened, [])
+
+    def test_a_mail_link_in_a_frame_opens_in_the_mail_app_as_on_the_page(self):
+        self.assertFalse(self.frame("mailto:someone@example.com"))
+        self.assertEqual(self.opened, ["mailto:someone@example.com"])
+
+
+class WebNotification:
+    """What a QWebEngineNotification is to the runtime: the site's words and where they came from."""
+
+    def __init__(self, title: str, message: str, origin: str) -> None:
+        self._title, self._message, self._origin = title, message, origin
+
+    def title(self) -> str:
+        return self._title
+
+    def message(self) -> str:
+        return self._message
+
+    def origin(self) -> Address:
+        return Address(self._origin)
+
+    def click(self) -> None:
+        pass
+
+
+class NotificationsArePlainText(unittest.TestCase):
+    """What the runtime hands notify-send: the site's words, as text the person reads.
+
+    Measured on the station's Plasma 6.7.5 (its libnotificationmanager, called directly, and the
+    notifications applet's QML): the summary is kept as it arrives and drawn with
+    Text.PlainText; the body is read as markup — `<a href="moos://…">` survives — and drawn as rich
+    text whose links open through Qt.openUrlExternally. So the body must arrive escaped, and the
+    summary must not be (an escaped summary shows `&lt;` to the person).
+    """
+
+    def setUp(self):
+        self.home = tempfile.TemporaryDirectory()
+        environment = mock.patch.dict(os.environ, {"HOME": self.home.name, "XDG_DATA_HOME": ""})
+        environment.start()
+        self.addCleanup(environment.stop)
+        self.addCleanup(self.home.cleanup)
+        self.runtime, self.started, self.opened = load_runtime()
+        self.app = policy.parse_entry(entry())
+
+    def sent(self) -> tuple[str, str]:
+        self.assertEqual(len(self.started), 1, self.started)
+        argv = self.started[0]
+        self.assertEqual(argv[0], "notify-send")
+        self.assertIn(f"--hint=string:desktop-entry:{self.app.desktop_id}", argv)
+        summary, body = argv[argv.index("--") + 1:]
+        return summary, body
+
+    def test_a_link_in_a_web_notification_arrives_as_text(self):
+        shell = types.SimpleNamespace(
+            app=self.app, pending=[], raise_window=lambda: None,
+            permissions=types.SimpleNamespace(decision=lambda name: "allow"))
+        message = '<a href="moos://control/screenshot">Your invoice is ready</a> & <b>URGENT</b>'
+        self.runtime.Shell.present_notification(
+            shell, WebNotification("Alice <3", message, "https://chatgpt.com"))
+        summary, body = self.sent()
+        self.assertEqual(summary, "Alice <3")
+        self.assertEqual(body, '&lt;a href="moos://control/screenshot"&gt;Your invoice is '
+                               'ready&lt;/a&gt; &amp; &lt;b&gt;URGENT&lt;/b&gt;')
+
+    def test_a_downloaded_files_name_arrives_as_text(self):
+        name = '<a href="file:///etc/">invoice</a>.pdf'
+        self.runtime.notify(self.app, Path("/icon.png"), "ChatGPT",
+                            self.runtime.words("downloaded", name=name))
+        _summary, body = self.sent()
+        self.assertNotIn("<", body)
+        self.assertTrue(body.endswith("&lt;a href=\"file:///etc/\"&gt;invoice&lt;/a&gt;.pdf"), body)
+
+    def test_the_text_is_cut_before_it_is_escaped(self):
+        """A cut never splits an entity, so the person never sees half of one."""
+        self.runtime.notify(self.app, Path("/icon.png"), "s" * 300, "&" * 600)
+        summary, body = self.sent()
+        self.assertEqual(summary, "s" * 200)
+        self.assertEqual(body, "&amp;" * 500)
+
+
+class TheStoreHasOneName(unittest.TestCase):
+    """The menu says "متجر MoOS"; a web app's permission prompt names the Store the same way."""
+
+    def test_the_prompt_names_the_store_as_its_launcher_does(self):
+        runtime, _started, _opened = load_runtime()
+        launcher = (ROOT / "system_files/usr/share/applications/org.moos.store.desktop").read_text(
+            encoding="utf-8").split("\n[Desktop Action", 1)[0]
+        names = dict(re.findall(r"(?m)^(Name|Name\[ar\])=(.+)$", launcher))
+        arabic, english = runtime.WORDS["ask_body"]
+        self.assertIn(names["Name[ar]"], arabic)
+        self.assertIn(names["Name"], english)
+        for key, (arabic, _english) in runtime.WORDS.items():
+            with self.subTest(key=key):
+                self.assertNotIn(names["Name"], arabic, "the Latin name inside an Arabic sentence")
 
 
 class ShippedCatalogue(unittest.TestCase):

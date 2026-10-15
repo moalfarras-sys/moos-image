@@ -9,16 +9,19 @@ Kept small on purpose. What a web app can do here:
     other link opens in the person's browser;
   * ask for a permission its catalogue entry offers; the person answers once and Mo Store can
     change the answer later (both read the same permissions.json);
-  * notify through the desktop's notification server, filed under the app's own launcher;
+  * notify through the desktop's notification server, filed under the app's own launcher, in
+    plain text (never a link);
   * download into the person's Downloads folder;
   * go full screen, zoom (remembered), and remember where its window was.
-What it cannot do: open file:, data: or moos: addresses, read the clipboard without a granted
-permission, reach a developer console, or run a plugin.
+What it cannot do: open file:, data: or moos: addresses as its page, or file:, moos: and other
+programs' addresses from any frame inside it; read the clipboard without a granted permission;
+reach a developer console; or run a plugin.
 """
 
 from __future__ import annotations
 
 import base64
+import html
 import json
 import os
 from pathlib import Path
@@ -51,7 +54,7 @@ WORDS = {
     "open_browser": ("افتح في المتصفّح", "Open in browser"),
     "reload": ("إعادة التحميل", "Reload"),
     "ask_title": ("طلب إذن", "Permission request"),
-    "ask_body": ("يطلب «{app}» {what}.\nيمكنك تغيير هذا لاحقاً من Mo Store.",
+    "ask_body": ("يطلب «{app}» {what}.\nيمكنك تغيير هذا لاحقاً من متجر MoOS.",
                  "{app} wants {what}.\nYou can change this later in Mo Store."),
     "notifications": ("إظهار الإشعارات", "to show notifications"),
     "microphone": ("استخدام الميكروفون", "to use your microphone"),
@@ -93,14 +96,20 @@ _LIVE: set = set()   # notification processes still waiting for an answer
 
 def notify(app: policy.WebApp, icon: Path, summary: str, body: str,
            on_click=None) -> None:
-    """A desktop notification filed under THIS web app's launcher (its own entry in Settings)."""
+    """A desktop notification filed under THIS web app's launcher (its own entry in Settings).
+
+    Both texts are plain text: the site's (a message, an email subject, a file name), never
+    markup. Plasma draws the summary as plain text but reads the body as markup it renders with
+    live links, so an unescaped body is a link — moos:, file:, anything — the person can click
+    under this app's trusted name. The body is escaped; the summary is not, or `&lt;` would show.
+    """
     argv = ["notify-send", "--app-name", app_name(app), "--icon", str(icon),
             f"--hint=string:desktop-entry:{app.desktop_id}"]
     if on_click is not None:
         argv += ["--action", f"default={words('open')}", "--wait"]
     process = QProcess()
     process.setProgram(argv[0])
-    process.setArguments(argv[1:] + ["--", summary[:200], body[:500]])
+    process.setArguments(argv[1:] + ["--", summary[:200], html.escape(body[:500], quote=False)])
 
     def finished(*_):
         _LIVE.discard(process)
@@ -125,9 +134,16 @@ class Page(QWebEnginePage):
         self.windowCloseRequested.connect(self.on_close_requested)
 
     def acceptNavigationRequest(self, url: QUrl, kind, main_frame: bool) -> bool:  # noqa: N802
-        if not main_frame:
-            return True
         address = url.toString()
+        if not main_frame:
+            # A frame inside the page loads web pages and the browser's own frame documents. A
+            # link to another program clicked inside one (an advert's moos: link) reaches the
+            # desktop only when the policy says so, never because a frame asked: returning True
+            # here is what lets the engine hand the address to the desktop's handler.
+            verdict = policy.frame_navigation(address, self.shell.app)
+            if verdict == "external":
+                QDesktopServices.openUrl(url)
+            return verdict == "inside"
         verdict = policy.navigation(address, self.shell.app)
         if verdict == "inside":
             # A popup is shown once it reaches a real page of its own (sign-in, share sheet);
