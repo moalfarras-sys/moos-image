@@ -463,6 +463,7 @@ check:
     # running it — 2.3 GB downloaded, container up, a real APK installed and the
     # app opened.
     python3 tests/test_android_setup_channels.py
+    python3 tests/test_android_runtime_state.py
     # A retiring npm endpoint failed three signed builds on 2026-09-19 by
     # returning 400, which reads exactly like a vulnerability. The gate tells
     # "npm answered and it is clean" apart from "npm could not answer", retries

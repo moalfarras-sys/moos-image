@@ -2094,12 +2094,13 @@ class Controller:
             raise StoreError(f"Catalog has an invalid Android package for {app_id}")
         return package
 
-    @staticmethod
-    def _android_running(result: CommandResult) -> bool:
-        return bool(re.search(r"(?im)^Session:\s*RUNNING\s*$", result.output))
+    @classmethod
+    def _android_running(cls, result: CommandResult) -> bool:
+        return cls._library("moos_android_runtime").status_state(
+            result.returncode, result.output, result.reason) == "RUNNING"
 
     def _android_session_up(self) -> bool:
-        return self._android_running(self.runner.capture([WAYDROID, "status"]))
+        return self._android_running(self.runner.capture([WAYDROID, "status"], timeout=2))
 
     @staticmethod
     def _android_not_running() -> StoreError:
@@ -2116,24 +2117,28 @@ class Controller:
         false (a moos: link, or an open beside another job) a session that is
         not running is refused, never started.
         """
-        status = self.runner.capture([WAYDROID, "status"])
-        words = f"{status.output}\n{status.reason}".lower()
-        if status.returncode == 127:
+        status = self.runner.capture([WAYDROID, "status"], timeout=2)
+        runtime = self._library("moos_android_runtime")
+        state = runtime.status_state(status.returncode, status.output, status.reason)
+        if state == "unknown":
             raise StoreError(status.reason or "Could not inspect Android app support")
-        if "not initialized" in words:
+        if state == "uninitialized":
             raise StoreError("Android apps need the one-time MoOS setup first")
         if self._android_running(status):
             return
         if not start:
             raise self._android_not_running()
         self.runner.spawn([WAYDROID, "session", "start"])
-        for _ in range(20):
+        deadline = time.monotonic() + 20
+        while time.monotonic() < deadline:
             if self._cancelled(job):
                 raise CancelledError("Cancelled")
             time.sleep(1)
-            status = self.runner.capture([WAYDROID, "status"])
+            status = self.runner.capture([WAYDROID, "status"], timeout=2)
             if self._android_running(status):
                 return
+            if runtime.status_state(status.returncode, status.output, status.reason) == "unknown":
+                raise StoreError("Could not inspect Android app support")
         raise StoreError("Android app support did not become ready")
 
     def _install_npm(self, job: Job, app_id: str, recipe: dict[str, Any]) -> None:

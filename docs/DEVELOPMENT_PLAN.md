@@ -552,3 +552,10 @@ and everyday tools. Existing supported theme/motion configuration is reachable
 from Store Settings. Full game/hardware acceptance, Steam-managed game inventory
 and general third-party theme installation remain separate work; no blanket
 compatibility claim. Release and workstation acceptance remain governed by RELEASE.md.
+
+Oct15 coherent integration follow-up: recovered the still-relevant engine admission
+checks from the preserved Oracle worktree. Windows processor combinations are
+checked before runtime selection; Android setup, admission and Store share strict
+read-only status parsing and bounded session readiness. Original APK metadata and
+update verification remain with the newer reviewed implementation. See
+releases/2026-10-15-engine-admission-recovery.json for source/fixture evidence.

@@ -1,0 +1,25 @@
+{
+  "source_base": "25506378",
+  "purpose": "Recover still-relevant uncommitted Oracle engine admission work without replacing the newer verified APK update lifecycle",
+  "behavior": [
+    "Reject Windows processor/runtime combinations that are not qualified before selecting a runtime",
+    "Use one read-only Android status parser across file admission, setup and Store commands",
+    "Failed, contradictory or explicit-error status never proves readiness or starts a session",
+    "Two-second status probes and a bounded session-start deadline"
+  ],
+  "preserved": [
+    "Original dirty trees remain intact and checkpointed",
+    "APK identity, signer and update verification remain in moos_android_apk",
+    "Existing confirmation and privilege boundaries unchanged"
+  ],
+  "validation": {
+    "android_runtime_state": "4 pass, including actual shell setup refusal with private mutation traps",
+    "app_engines": "31 pass, includes both Windows runtime paths and simulated host processors",
+    "storectl": "36 pass",
+    "backend_kinds": "39 pass",
+    "run_foreign": "10 pass, one opt-in runtime proof skipped",
+    "setup_channels": "4 pass",
+    "negative_controls": "Restored old runtime/setup code and processor gate both fail the new controls"
+  },
+  "limits": "Fixture and source evidence; no installed OS or new physical gameplay claim"
+}

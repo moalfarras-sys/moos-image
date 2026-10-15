@@ -496,3 +496,4 @@ python3 tests/test_selfcheck_document_portal.py
 python3 tests/test_npm_audit_gate.py
 python3 tests/test_app_drop_dialog_runtime.py
 python3 tests/test_android_setup_channels.py
+python3 tests/test_android_runtime_state.py

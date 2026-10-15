@@ -1,9 +1,9 @@
 # MoOS current state — updated 2026-10-15
-
 Oracle A1 and the physical NVIDIA workstation develop one MoOS product. Source, promoted artifacts and installed systems are separate evidence; the only backlog is [DEVELOPMENT_PLAN.md](docs/DEVELOPMENT_PLAN.md).
 Native audit: [AUDIT_20261012_AR.md](docs/AUDIT_20261012_AR.md). [Oct15 branch integration: source, gates and delivery boundaries](docs/releases/2026-10-15-owner-integration.json). [Independent exact-head Store review: delivery blockers remain](docs/reviews/STORE_20261015_AR.md).
 
 ## Current engineering batch
+Engine admission recovery is source-tested on the unified Store branch; shared Android runtime readiness and Windows processor refusals preserve the newer verified APK lifecycle. Signed/installed delivery remains pending.
 Mo Store PR243 is merged; follow-up source offers all 13 Craft apps and 200 curated entries, plus supported theme/motion settings. Git bundles preserve original branches. Local image/Craft extraction proofs are separate from pending signed delivery and physical reboot acceptance.
 
 Current payload source is `5745edd1` (PR241): THEME_REV=104, full local ARM
