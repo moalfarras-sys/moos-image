@@ -4788,9 +4788,11 @@ def build_index(
 # sees the old complete set or the new complete set, never a half-written one.
 # The swap, the index write and the clean-up of older generations happen under
 # one lock, so two indexers (the launcher's and refresh-index) cannot delete each
-# other's directory. Documents are not fsynced one by one (3,400 fsyncs measured
-# 10 s on the station's btrfs); a crash can only leave a stale or damaged set,
-# which details_ready() detects from a sample and the next run rebuilds.
+# other's directory; when the index cannot be written the swap is undone, so the
+# published index keeps its own set. Documents are not fsynced one by one (3,400
+# fsyncs measured 10 s on the station's btrfs); a crash can only leave a stale or
+# damaged set, which details_ready() detects from a sample and the next run
+# rebuilds.
 
 DETAILS_LINK = "details"
 DETAILS_MARKER = ".complete"
@@ -4937,6 +4939,23 @@ def publish_details(cache_dir: Path, directory: Path) -> None:
         except FileNotFoundError:
             pass
     fsync_directory(cache_dir)
+
+
+def unpublish_details(cache_dir: Path, directory: Path, previous: Path | None) -> None:
+    """Point `details` back at `previous`, or remove it when there was none (a first build),
+    if it names `directory`: the index naming that set was not written, so index.json is still
+    the one `previous` was published with. Best effort: when this fails too, `details` keeps
+    naming `directory`, which main() then keeps, so the link never names a removed set."""
+
+    if details_target(cache_dir) != directory:
+        return
+    try:
+        if previous is not None and previous.is_dir():
+            publish_details(cache_dir, previous)
+        else:
+            (cache_dir / DETAILS_LINK).unlink()
+    except OSError:
+        pass
 
 
 def clean_details(cache_dir: Path, keep: Path | None) -> None:
@@ -5573,12 +5592,22 @@ def main(argv: list[str] | None = None) -> int:
             # second indexer's clean-up can never remove it before it is linked.
             with publish_lock(cache_dir):
                 generation = details.finish()
-                publish_details(cache_dir, generation)
-                atomic_write_json(args.output, payload)
+                previous = details_target(cache_dir)
+                try:
+                    publish_details(cache_dir, generation)
+                    atomic_write_json(args.output, payload)
+                except BaseException:
+                    # No index names this set (it did not fit where the documents did, or the
+                    # link was not committed): `details` goes back to the set the published
+                    # index names. Until 2026-10-15 it stayed on this build's set: a rebuild
+                    # left the old index with another generation's documents, and each failed
+                    # first build one more set holding the space the next launch needed.
+                    unpublish_details(cache_dir, generation, previous)
+                    raise
                 clean_details(cache_dir, keep=generation)
         except BaseException:
-            # Keep this build's set only when `details` already names it (the index write
-            # after it failed). Before finish() there is no set of its own to keep, and on a
+            # This build's set stays only while `details` still names it (putting the link
+            # back failed too). Before finish() there is no set of its own to keep, and on a
             # first run there is no link either: both were None, and the failed build's
             # private directory was kept as if it had been published.
             if details.final is None or details_target(cache_dir) != details.final:
