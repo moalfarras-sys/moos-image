@@ -475,8 +475,9 @@ def store_open(value):
     if done.returncode == 0 and document.get("state") == "success":
         return f"🚀 فتح {value} | Opening {value}"
     if done.returncode == 75 or key == "busy":
-        # Opening waits for no Store job; Android app support that would have to be started beside
-        # one is the one case left.
+        # An app opens beside the scheduled updater. Busy is left for another request's job that
+        # is still running (it keeps the one document the Store window reads), and for Android app
+        # support that would have to be started beside whatever holds the lock.
         raise Unavailable("متجر MoOS مشغول بعملية أخرى — حاول بعد قليل | "
                           "Mo Store is busy with another operation — try again shortly")
     if key in ("not_installed", "invalid_id"):

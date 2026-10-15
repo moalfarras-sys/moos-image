@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Mo Store opens and removes apps by the ids it publishes, and opening never waits on a job.
+"""Mo Store opens and removes apps by the ids it publishes, and opening never waits for an update.
 
 Each class holds one promise of moos-storectl, run for real against a private HOME:
 
@@ -7,9 +7,11 @@ Each class holds one promise of moos-storectl, run for real against a private HO
                         already uses is listed as appdrop-<slug> (moos-store-index); that id removes,
                         opens, updates and describes it, and only a record the person dropped
                         answers to it;
-  OpenBesideAJob        opening an app changes nothing, so another job or the scheduled updater
-                        holding job.lock does not make Open fail, and never costs the job that holds
-                        it its job.json or its cancel request;
+  OpenBesideAJob        opening an app changes nothing, so the scheduled updater holding job.lock
+                        does not make Open fail, and never costs anyone their cancel request;
+  WhatTheWindowIsTold   the window learns how an Open ended only from a run document in job.json,
+                        so an app opens exactly when that document can be written: beside the
+                        updater, never beside another request's live job (that is "busy");
   AndroidFromALink      `run --no-android-start` (what a moos: link asks for) never starts Android
                         app support; the person's own request still may;
   OpenWhatIsThere       an App Drop app whose folder or program is gone is not installed, not
@@ -43,6 +45,7 @@ import subprocess
 import sys
 import tarfile
 import tempfile
+import time
 import unittest
 from unittest import mock
 import urllib.error
@@ -366,18 +369,6 @@ class OpenBesideAJob(Backend):
                          ("run", "success", document["job_id"]))
         self.assertEqual([item["id"] for item in published["items"]], ["whatsapp"])
 
-    def test_a_live_job_keeps_its_document_and_its_cancel_request(self):
-        before = self.live_job()
-        cancel = (self.cache / "cancel").read_bytes()
-        self.hold_lock()
-        code, document = self.cli(self.apps, "run", "whatsapp")
-        self.assertEqual((code, document["state"]), (0, "success"), document)
-        self.assertEqual(self.runner.spawned, [[MODULE.WEBAPP_RUNTIME, "whatsapp"]])
-        self.assertEqual((self.cache / "job.json").read_bytes(), before,
-                         "opening an app overwrote the running job's document")
-        self.assertEqual((self.cache / "cancel").read_bytes(), cancel,
-                         "opening an app cleared the running job's cancel request")
-
     def test_an_app_that_is_not_installed_is_still_said_to_be_so(self):
         self.hold_lock()
         code, document = self.cli(self.apps + [self.webapp("gmail")], "run", "gmail")
@@ -412,6 +403,85 @@ class OpenBesideAJob(Backend):
         code, document = self.cli(self.apps, "run", "whatsapp")
         self.assertEqual((code, document["state"]), (0, "success"), document)
         self.assertEqual(self.job_document()["job_id"], document["job_id"])
+
+
+class WhatTheWindowIsTold(Backend):
+    """The window starts `run <id>` detached and learns how it ended only from job.json: from a run
+    document naming its id, started after it asked (matchesExpectedJob, in the old window and in Mo
+    Store 2). An Open beside another request's live job can write no such document (that job keeps
+    its own), and Mo Store 2 reads that live job as "our request was refused" and says Mo Store is
+    busy; the old window waits, then says the operation did not start. Either is true only if
+    nothing was started: an app opens exactly when the window will see that it did."""
+
+    def setUp(self):
+        super().setUp()
+        self.apps = [self.webapp("whatsapp")]
+        self.assertEqual(self.controller(self.apps).install(["whatsapp"])[1]["state"], "success")
+        self.runner.spawned.clear()
+
+    def window_sees_its_run(self, asked_at: float) -> bool:
+        """main.qml's matchesExpectedJob for `run whatsapp`, asked at `asked_at`."""
+        path = self.cache / "job.json"
+        if not path.exists():
+            return False
+        document = json.loads(path.read_text(encoding="utf-8"))
+        started = MODULE._parse_time(document.get("started_at"))
+        return (document.get("action") == "run" and started is not None and started + 1 >= asked_at
+                and [item.get("id") for item in document.get("items") or []] == ["whatsapp"])
+
+    def open_as_the_window_does(self) -> tuple[int, dict]:
+        asked = time.time()
+        code, document = self.cli(self.apps, "run", "whatsapp")
+        opened = bool(self.runner.spawned)
+        self.assertEqual(opened, self.window_sees_its_run(asked),
+                         "the app opened and the window was never told, or the reverse")
+        return code, document
+
+    def test_with_the_lock_free(self):
+        code, document = self.open_as_the_window_does()
+        self.assertEqual((code, document["state"]), (0, "success"), document)
+
+    def test_beside_the_scheduled_updater_after_a_finished_job(self):
+        self.finished_job()
+        self.hold_lock()
+        code, document = self.open_as_the_window_does()
+        self.assertEqual((code, document["state"]), (0, "success"), document)
+
+    def test_beside_the_scheduled_updater_before_any_job(self):
+        self.hold_lock()
+        code, document = self.open_as_the_window_does()
+        self.assertEqual((code, document["state"]), (0, "success"), document)
+
+    def test_beside_a_job_that_stopped_reporting(self):
+        # The window's own 120 s rule calls such a document stopped; so does the backend.
+        self.live_job()
+        document = self.job_document()
+        document["updated_at"] = "2026-01-01T00:00:00.000Z"
+        (self.cache / "job.json").write_text(json.dumps(document), encoding="utf-8")
+        self.hold_lock()
+        code, document = self.open_as_the_window_does()
+        self.assertEqual((code, document["state"]), (0, "success"), document)
+
+    def test_beside_another_requests_live_job_it_is_busy(self):
+        # Mo AI's `moai-do install lmstudio` while the window sits idle, for example.
+        before = self.live_job()
+        cancel = (self.cache / "cancel").read_bytes()
+        self.hold_lock()
+        code, document = self.open_as_the_window_does()
+        self.assertEqual((code, document["state"], document["message_key"]), (75, "busy", "busy"))
+        self.assertEqual(self.runner.spawned, [])
+        self.assertEqual((self.cache / "job.json").read_bytes(), before,
+                         "opening an app overwrote the running job's document")
+        self.assertEqual((self.cache / "cancel").read_bytes(), cancel,
+                         "opening an app cleared the running job's cancel request")
+
+    def test_android_beside_another_requests_live_job_is_busy_too(self):
+        apps = [self.android()]
+        self.live_job()
+        self.hold_lock()
+        code, document = self.cli(apps, "run", "org.example.notes")
+        self.assertEqual((code, document["state"]), (75, "busy"), document)
+        self.assertEqual(self.runner.commands, [], "an Android app was opened beside a live job")
 
 
 class AndroidFromALink(Backend):
@@ -770,6 +840,21 @@ class RoutesWithTheRealBackend(Backend):
         self.assertEqual(done.returncode, 0, done.stderr)
         self.assertIn(["spawn", [MODULE.WAYDROID, "session", "start"]], self.starts())
         self.assertIn(["run", [MODULE.WAYDROID, "app", "launch", "org.example.notes"]], self.starts())
+
+    def test_beside_another_requests_live_job_both_say_busy(self):
+        # That job keeps job.json, so an Open beside it could tell the window nothing: nothing
+        # opens, and Mo AI and the link say why.
+        self.live_job()
+        self.hold_lock()
+        busy = "Mo Store is busy with another operation — try again shortly"
+        done = self.control("open", "whatsapp")
+        self.assertEqual(done.returncode, 69)
+        self.assertIn(busy, done.stderr)
+        _done, notices = self.route("moos://apps/run/whatsapp")
+        self.assertEqual(len(notices), 1, notices)
+        self.assertIn(busy, notices[0])
+        self.assertIn("متجر MoOS مشغول بعملية أخرى — حاول بعد قليل", notices[0])
+        self.assertEqual(self.starts(), [])
 
 
 if __name__ == "__main__":

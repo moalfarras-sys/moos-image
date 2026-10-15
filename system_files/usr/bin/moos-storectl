@@ -668,11 +668,11 @@ class JobStore:
 
 class BesideJobStore(JobStore):
     """job.json for a job that runs while another process holds the lock. Only opening an app
-    does: opening changes nothing, so another job holding the lock is no reason to refuse it.
+    does, and only while job.json reports no other live job (Controller._begin_run): the
+    scheduled updater holds the lock and writes none, so the window still gets its document.
 
-    The window still waits for its document, and gets it whenever job.json holds no other live job
-    (the scheduled updater holds the lock and writes none). It never writes over another live job
-    (publish_refusal's rule), so the job that holds the lock keeps its document and its window.
+    It never writes over another live job (publish_refusal's rule): a job that starts while the
+    app is opening keeps its document and its window.
     """
 
     def write(self, document: dict[str, Any]) -> None:
@@ -1858,14 +1858,28 @@ class Controller:
         cancel request left alone, and job.json written only while it holds no other live job."""
         return contextlib.nullcontext(), Job(BesideJobStore(self.store.directory), action, item_ids)
 
+    def _may_open_beside(self) -> bool:
+        """Whether an app may open while another process holds the lock: only while job.json
+        reports no other live job (reports_live_job).
+
+        The window learns how its Open ended only from a run document in job.json, and a live job
+        keeps that file. Mo Store 2 then reads the live job as "our request was refused" and says
+        Mo Store is busy; the old window says the operation did not start. Opened anyway, the app
+        appeared while the window said it had not.
+        """
+        return not reports_live_job(self.store.read())
+
     def _begin_run(self, app_id: str) -> tuple[Any, Job]:
-        """Opening an app is a job like any other while the lock is free. Held — by another Store
-        job, or by the scheduled updater for a whole `flatpak update` — the app still opens, beside
-        it. Refusing answered the person's Open with "Mo Store is busy", which moos-control and
-        moos:// links then reported as "not installed"."""
+        """Opening an app is a job like any other while the lock is free. Held by the scheduled
+        updater for a whole `flatpak update` (it writes no job.json), or by a job that stopped
+        reporting, the app still opens, beside it: refusing answered the person's Open with
+        "Mo Store is busy" for the whole update, and moos-control and moos:// links called it
+        "not installed". Held by another request's live job, BusyError: busy is then the truth."""
         try:
             return self._begin("run", [app_id])
         except BusyError:
+            if not self._may_open_beside():
+                raise
             return self._begin_beside("run", [app_id])
 
     @staticmethod
@@ -3597,9 +3611,10 @@ class Controller:
         try:
             lock, job = self._begin("run", [app_id])
         except BusyError:
-            # Beside another job, only into a session that is already up: starting one is that
-            # job's business (it may be starting it right now), never a race to run beside it.
-            if not self._android_session_up():
+            # Beside the lock's holder as any app opens (_may_open_beside), and only into a session
+            # that is already up: starting one is that job's business (it may be starting it right
+            # now), never a race to run beside it.
+            if not self._may_open_beside() or not self._android_session_up():
                 return self._refuse_busy("run", [app_id])
             lock, job = self._begin_beside("run", [app_id])
             start_android = False
@@ -3681,7 +3696,10 @@ class Controller:
     def _run_installed(self, app_id: str, kind: str, slug: str | None = None) -> tuple[int, dict[str, Any]]:
         """Open a web app, an App Drop app, a Windows program or a publisher's own app the way
         its launcher would."""
-        lock, job = self._begin_run(app_id)
+        try:
+            lock, job = self._begin_run(app_id)
+        except BusyError:
+            return self._refuse_busy("run", [app_id])
         with lock:
             try:
                 if kind == "webapp":
@@ -3746,7 +3764,10 @@ class Controller:
             return self._run_android(app_id, None, start_android=start_android)
         if not validate_flatpak_id(app_id):
             raise StoreError(f"Invalid app ID: {app_id}", message_key="invalid_id")
-        lock, job = self._begin_run(app_id)
+        try:
+            lock, job = self._begin_run(app_id)
+        except BusyError:
+            return self._refuse_busy("run", [app_id])
         with lock:
             try:
                 if not (
