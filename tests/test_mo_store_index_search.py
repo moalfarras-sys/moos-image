@@ -375,6 +375,18 @@ REAL = {
 }
 
 
+# Ratings written loosely, and the band of the age libappstream 1.1.3 parses from each.
+EDGES = {
+    oars(("violence-bloodshed", "intense"), kind="OARS-1.1"): None,
+    oars(("violence-bloodshed", "intense"), kind=" oars-1.1 "): None,
+    oars(("violence-bloodshed", "Intense")): "all",
+    oars((" violence-bloodshed ", "intense")): "all",
+    oars(("Violence-Bloodshed", "intense")): "all",
+    oars(("violence-bloodshed", "\n  intense\n")): "mature",
+    '<content_rating type="esrb"/>' + oars(("violence-bloodshed", "intense")): "mature",
+}
+
+
 class TheBands(unittest.TestCase):
     def test_real_ratings_get_their_age_band(self):
         for label, (attributes, _age, band) in REAL.items():
@@ -403,6 +415,10 @@ class TheBands(unittest.TestCase):
         self.assertIsNone(index.content_rating(component(
             '<content_rating><content_attribute id="violence-bloodshed">intense'
             "</content_attribute></content_rating>")))
+        # The words as libappstream reads them: the type and the id exactly, the word trimmed.
+        for xml, band in EDGES.items():
+            with self.subTest(rating=xml):
+                self.assertEqual(index.content_rating(component(xml)), band)
 
     def test_every_attribute_and_intensity_is_known(self):
         self.assertEqual(len(index.OARS_CSM_AGES), 28)
@@ -428,6 +444,21 @@ class TheCopyIsLibappstreams(unittest.TestCase):
                     self.assertEqual(
                         ages[("none", "mild", "moderate", "intense").index(intensity)],
                         library.ContentRating.attribute_to_csm_age(attribute, value))
+
+    def test_loose_words_are_read_as_the_library_reads_them(self):
+        library = appstream()
+        for xml, band in EDGES.items():
+            with self.subTest(rating=xml):
+                metadata = library.Metadata()
+                metadata.set_format_style(library.FormatStyle.METAINFO)
+                metadata.parse_data(
+                    '<?xml version="1.0"?><component type="desktop-application">'
+                    f"<id>org.example.App</id><name>App</name><summary>An app</summary>{xml}"
+                    "</component>", -1, library.FormatKind.XML)
+                ages = [rating.get_minimum_age()
+                        for rating in metadata.get_component().get_content_ratings()]
+                ages = [age for age in ages if age != 0xFFFFFFFF]       # no OARS age
+                self.assertEqual(index.content_age_band(max(ages)) if ages else None, band)
 
     def test_the_real_ratings_have_the_librarys_age(self):
         library = appstream()

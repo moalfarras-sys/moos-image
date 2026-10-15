@@ -1035,18 +1035,20 @@ def content_rating(component: ET.Element) -> str | None:
     chat, 13) and Signal (15) were adults-only, and `sex-themes: mild` (13) was for everyone.
     An attribute or an intensity OARS does not define adds nothing. None when the component
     carries no OARS rating (libappstream gives a rating of another or no type no age either):
-    "unrated" is not "all ages".
+    "unrated" is not "all ages". Words are read as libappstream reads them: the type and an
+    attribute's id exactly as written, the intensity with the space around it trimmed (so
+    "OARS-1.1" is no OARS rating and "Intense" no intensity, as Discover shows them).
     """
 
     age = None
     for element in direct_children(component, "content_rating"):
-        if element.attrib.get("type", "").strip().casefold() not in OARS_KINDS:
+        if element.attrib.get("type", "") not in OARS_KINDS:
             continue
         if age is None:
             age = 0
         for attribute in direct_children(element, "content_attribute"):
-            ages = OARS_CSM_AGES.get(attribute.attrib.get("id", "").strip())
-            value = element_text(attribute, 16).casefold()
+            ages = OARS_CSM_AGES.get(attribute.attrib.get("id", ""))
+            value = element_text(attribute, 16)
             if ages and value in OARS_INTENSITIES:
                 age = max(age, ages[OARS_INTENSITIES.index(value)])
     return None if age is None else content_age_band(age)
