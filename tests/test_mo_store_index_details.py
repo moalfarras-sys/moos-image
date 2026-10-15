@@ -12,18 +12,23 @@ Every run uses a private HOME and private XDG directories.
 
 from __future__ import annotations
 
+import contextlib
+import errno
 import importlib.machinery
 import importlib.util
+import io
 import json
 import os
 from pathlib import Path
 import re
+import resource
 import stat
 import subprocess
 import sys
 import tempfile
 import time
 import unittest
+from unittest import mock
 
 ROOT = Path(__file__).resolve().parents[1]
 INDEXER = Path(os.environ.get("MOOS_STORE_INDEX_UNDER_TEST")
@@ -287,6 +292,253 @@ class OneGenerationAtATime(unittest.TestCase):
             self.assertEqual(len(names), 2)       # the link and its one generation
 
 
+class AFailedBuild(unittest.TestCase):
+    """A build that fails on a full disk fails as a whole: it publishes nothing, leaves no
+    private .details-…tmp directory, and the last good index and set stay.
+
+    Until 2026-10-15 a FIRST build that failed before its set was complete kept the directory:
+    with no `details` link yet, "the published set" and "this build's set" were both None, so
+    the clean-up decided the failed set was the published one. Up to 3,321 files (~14 MB)
+    stayed for an hour, one more set per failed launch. And a document that could not be
+    written was taken for an unreadable AppStream file: the parse stopped there and the apps
+    read so far were published as the whole catalogue, kept by every later launch until
+    Flathub's metadata changed.
+
+    The set is published before the index that names it is written. Until 2026-10-15 a build
+    whose index then failed (the details fit, the index did not: 6.8 MB and 6.0 MB on live
+    Flathub data) kept its set published: a first build left one more details-* set per failed
+    launch, each holding the space the next launch needed, and a rebuild moved `details` off
+    the last good set onto one whose index was never written, while index.json stayed the old
+    generation.
+    """
+
+    def run_failing(self, fixture: Fixture, where: str) -> int:
+        calls = []
+        full = OSError(errno.ENOSPC, "No space left on device")
+        owner = index.DetailsBuilder
+        if where == "document":
+            original = index.DetailsBuilder.write
+
+            def failing(builder, app_id, document):
+                calls.append(app_id)
+                if len(calls) > 1:
+                    raise full
+                original(builder, app_id, document)
+            method = "write"
+        elif where == "finish":
+            def failing(builder):
+                calls.append("finish")
+                raise full
+            method = "finish"
+        elif where == "index":
+            # The set is complete and published; the index that names it does not fit.
+            original_write = index.atomic_write_json
+
+            def failing(path, payload):
+                if path == fixture.output:
+                    calls.append("index")
+                    raise full
+                original_write(path, payload)
+            owner, method = index, "atomic_write_json"
+        else:
+            # The link is swapped, and the disk fails to commit it.
+            def failing(directory):
+                if not calls:
+                    calls.append("link")
+                    raise OSError(errno.EIO, "Input/output error")
+            owner, method = index, "fsync_directory"
+
+        environment = {"HOME": str(fixture.home),
+                       "XDG_DATA_HOME": str(fixture.home / ".local/share"),
+                       "XDG_CACHE_HOME": str(fixture.home / ".cache"),
+                       "XDG_STATE_HOME": str(fixture.home / ".local/state"),
+                       "XDG_CONFIG_HOME": str(fixture.home / ".config"),
+                       "DBUS_SESSION_BUS_ADDRESS": "unix:path=/nonexistent"}
+        machine = fixture.base / "machine.json"
+        machine.write_text(json.dumps({"arch": "x86_64", "free_bytes": {"apps": 10 ** 12}}),
+                           encoding="utf-8")
+        with mock.patch.dict(os.environ, environment), \
+                mock.patch.object(owner, method, failing), \
+                contextlib.redirect_stderr(io.StringIO()):
+            code = index.main([
+                "--output", str(fixture.output), "--catalog", str(fixture.catalog),
+                "--appstream-root", str(fixture.base / "flatpak/appstream"),
+                "--installation-root", str(fixture.base / "flatpak"), "--locale", "en",
+                "--engines", "all", "--machine", str(machine)])
+        self.assertGreater(len(calls), 1 if where == "document" else 0,
+                           "the injected failure never happened")
+        return code
+
+    @staticmethod
+    def leftovers(fixture: Fixture) -> list[str]:
+        if not fixture.cache.is_dir():
+            return []
+        return sorted(path.name for path in fixture.cache.iterdir()
+                      if path.name.startswith(".details-"))
+
+    @staticmethod
+    def sets(fixture: Fixture) -> list[str]:
+        if not fixture.cache.is_dir():
+            return []
+        return sorted(path.name for path in fixture.cache.iterdir()
+                      if path.name.startswith("details-"))
+
+    def test_a_failed_first_build_leaves_nothing_behind(self):
+        for where in ("finish", "document", "index", "link"):
+            with self.subTest(failure=where), tempfile.TemporaryDirectory() as raw:
+                fixture = Fixture(Path(raw))
+                for _attempt in range(2):       # each failed launch used to add one more
+                    self.assertEqual(self.run_failing(fixture, where), 2)
+                    self.assertEqual(self.leftovers(fixture), [])
+                    self.assertEqual(self.sets(fixture), [])
+                self.assertFalse(os.path.lexists(fixture.cache / "details"),
+                                 "a failed build left `details` naming its set")
+                self.assertFalse(fixture.output.exists(), "a failed build published an index")
+
+    def test_a_failed_rebuild_keeps_the_last_good_index_and_set(self):
+        for where in ("finish", "document", "index", "link"):
+            with self.subTest(failure=where), tempfile.TemporaryDirectory() as raw:
+                fixture = Fixture(Path(raw))
+                good = fixture.run()
+                published = fixture.target()
+                fixture.xml.write_text(RICH.replace("Faster saving.", "Even faster."),
+                                       encoding="utf-8")
+                self.assertEqual(self.run_failing(fixture, where), 2)
+                self.assertEqual(fixture.target(), published,
+                                 "`details` left the set the published index names")
+                self.assertTrue((published / ".complete").is_file())
+                self.assertEqual(self.leftovers(fixture), [])
+                self.assertEqual(self.sets(fixture), [published.name])
+                kept = json.loads(fixture.output.read_text(encoding="utf-8"))
+                self.assertEqual(kept["generation"], good["generation"])
+                self.assertEqual(len(kept["apps"]), len(good["apps"]))
+                # The next launch that can write builds this generation as usual.
+                rebuilt = fixture.run()
+                self.assertNotEqual(rebuilt["generation"]["metadata_token"],
+                                    good["generation"]["metadata_token"])
+                self.assertEqual(self.sets(fixture), [fixture.target().name])
+
+    def test_an_index_the_disk_refuses_publishes_nothing(self):
+        """No mocks: the kernel refuses the index's bytes (EFBIG under RLIMIT_FSIZE) after
+        every details document and the set's marker were written."""
+
+        limit = 4096
+        with tempfile.TemporaryDirectory() as raw:
+            fixture = Fixture(Path(raw))
+
+            def components(note: str) -> str:
+                return "<components>\n" + "".join(
+                    listed(f"org.example.Small{number}", f"Small {number}{note}")
+                    for number in range(8)) + "</components>\n"
+
+            def run(bounded: bool) -> subprocess.CompletedProcess:
+                def apply() -> None:
+                    resource.setrlimit(resource.RLIMIT_CORE, (0, 0))
+                    if bounded:
+                        resource.setrlimit(resource.RLIMIT_FSIZE, (limit, limit))
+                environment = {key: value for key, value in os.environ.items()
+                               if not key.startswith(("XDG_", "FLATPAK_"))}
+                environment.update({"HOME": str(fixture.home),
+                                    "XDG_DATA_HOME": str(fixture.home / ".local/share"),
+                                    "XDG_CACHE_HOME": str(fixture.home / ".cache"),
+                                    "XDG_STATE_HOME": str(fixture.home / ".local/state"),
+                                    "XDG_CONFIG_HOME": str(fixture.home / ".config"),
+                                    "DBUS_SESSION_BUS_ADDRESS": "unix:path=/nonexistent"})
+                machine = fixture.base / "machine.json"
+                machine.write_text(json.dumps({"arch": "x86_64",
+                                               "free_bytes": {"apps": 10 ** 12}}),
+                                   encoding="utf-8")
+                return subprocess.run(
+                    [sys.executable, str(INDEXER), "--output", str(fixture.output),
+                     "--catalog", str(fixture.catalog), "--appstream-root",
+                     str(fixture.base / "flatpak/appstream"), "--installation-root",
+                     str(fixture.base / "flatpak"), "--locale", "en", "--engines", "all",
+                     "--machine", str(machine)],
+                    env=environment, capture_output=True, text=True, check=False,
+                    preexec_fn=apply)
+
+            fixture.xml.write_text(components(""), encoding="utf-8")
+            for _attempt in range(2):
+                refused = run(bounded=True)
+                self.assertEqual(refused.returncode, 2, refused.stderr)
+                self.assertIn("File too large", refused.stderr)
+                self.assertEqual((self.sets(fixture), self.leftovers(fixture)), ([], []))
+                self.assertFalse(os.path.lexists(fixture.cache / "details"))
+                self.assertFalse(fixture.output.exists())
+            good = run(bounded=False)
+            self.assertEqual(good.returncode, 0, good.stderr)
+            published = fixture.target()
+            self.assertTrue(all(path.stat().st_size < limit for path in published.iterdir()),
+                            "a details document is too big for this check")
+            self.assertGreater(fixture.output.stat().st_size, limit)
+            generation = json.loads(fixture.output.read_text(encoding="utf-8"))["generation"]
+            fixture.xml.write_text(components(" again"), encoding="utf-8")
+            refused = run(bounded=True)
+            self.assertEqual(refused.returncode, 2, refused.stderr)
+            self.assertEqual(fixture.target(), published)
+            self.assertEqual(self.sets(fixture), [published.name])
+            self.assertEqual(self.leftovers(fixture), [])
+            self.assertEqual(json.loads(fixture.output.read_text(encoding="utf-8"))["generation"],
+                             generation)
+
+
+# A valid Flatpak id may have 255 characters; `<id>.json` must fit in a 255-byte file name.
+LONG_ID = "org.example." + "a" * 240
+
+
+def listed(app_id: str, name: str) -> str:
+    return (f'  <component type="desktop-application"><id>{app_id}</id><name>{name}</name>'
+            f"<summary>An app</summary><bundle type=\"flatpak\">app/{app_id}/x86_64/stable"
+            "</bundle></component>\n")
+
+
+class ADocumentThatCannotBeAFile(unittest.TestCase):
+    """One app whose details cannot be a file loses its own details, not the catalogue.
+
+    A full disk fails the build as a whole (AFailedBuild), but a name too long for a file fails
+    for that one app on every build. Until 2026-10-15 it failed them all the same way: exit 2
+    and no index at all, on every launch; before that, the parse stopped at the app and the
+    apps read so far were published as the whole catalogue (2 of 7).
+    """
+
+    def test_the_app_is_listed_without_details_and_every_other_one_is_whole(self):
+        self.assertEqual(len(LONG_ID), 252)
+        self.assertTrue(index.valid_flatpak_id(LONG_ID))
+        after = [f"org.example.After{number}" for number in range(5)]
+        with tempfile.TemporaryDirectory() as raw:
+            fixture = Fixture(Path(raw))
+            fixture.xml.write_text(
+                "<components>\n" + listed("org.example.First", "First")
+                + listed(LONG_ID, "Long") + "".join(listed(app_id, app_id) for app_id in after)
+                + "</components>\n", encoding="utf-8")
+            built = fixture.run()
+            apps = {app["id"]: app for app in built["apps"]}
+            self.assertIsNone(apps[LONG_ID]["details"])
+            for app_id in ["org.example.First", *after]:
+                with self.subTest(app=app_id):
+                    self.assertEqual(apps[app_id]["details"], f"details/{app_id}.json")
+                    self.assertEqual(fixture.document(app_id)["id"], app_id)
+            self.assertEqual({source["error"] for source in built["sources"]}, {None})
+            self.assertEqual(built["stats"]["details_documents"], 6)
+            self.assertTrue(index.details_ready(fixture.cache,
+                                                built["generation"]["metadata_token"]))
+            # The next launch reuses it as it is.
+            self.assertEqual(fixture.run()["generation"], built["generation"])
+
+    def test_the_writer_skips_only_that_name(self):
+        with tempfile.TemporaryDirectory() as raw:
+            builder = index.DetailsBuilder(Path(raw), "f" * 64)
+            self.assertFalse(builder.write(LONG_ID, {"schema": 1}))
+            self.assertTrue(builder.write("org.example.Short", {"schema": 1}))
+            self.assertEqual(builder.written, {"org.example.Short"})
+            self.assertEqual(sorted(path.name for path in builder.directory.iterdir()),
+                             ["org.example.Short.json"])
+            # Anything else is the disk's or the directory's: it still fails the build.
+            builder.discard()
+            with self.assertRaises(OSError):
+                builder.write("org.example.Gone", {"schema": 1})
+
+
 class BuilderUnits(unittest.TestCase):
     def test_an_abandoned_build_leaves_nothing_and_old_temporaries_are_swept(self):
         with tempfile.TemporaryDirectory() as raw:
@@ -302,6 +554,29 @@ class BuilderUnits(unittest.TestCase):
             index.clean_details(cache, keep=None)
             self.assertTrue(fresh.directory.is_dir())
             self.assertFalse(old.directory.exists())
+
+    def test_the_link_goes_back_or_stays_on_a_set_that_exists(self):
+        with tempfile.TemporaryDirectory() as raw:
+            cache = Path(raw)
+            sets = []
+            for token in ("a" * 64, "b" * 64):
+                builder = index.DetailsBuilder(cache, token)
+                builder.write("org.example.One", {"schema": 1})
+                sets.append(builder.finish())
+            older, newer = sets
+            index.publish_details(cache, newer)
+            index.unpublish_details(cache, older, None)     # names another set: left alone
+            self.assertEqual(index.details_target(cache), newer)
+            with mock.patch.object(index, "publish_details",
+                                   side_effect=OSError(errno.ENOSPC, "No space left")):
+                index.unpublish_details(cache, newer, older)
+            self.assertEqual(index.details_target(cache), newer,
+                             "a link that could not go back must keep naming a set")
+            index.unpublish_details(cache, newer, older)
+            self.assertEqual(index.details_target(cache), older)
+            index.publish_details(cache, newer)
+            index.unpublish_details(cache, newer, None)     # a first build: no link at all
+            self.assertFalse(os.path.lexists(cache / index.DETAILS_LINK))
 
     def test_a_sample_check_needs_a_marker_of_this_generation(self):
         with tempfile.TemporaryDirectory() as raw:

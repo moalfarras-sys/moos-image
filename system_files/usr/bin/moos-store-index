@@ -12,6 +12,9 @@ What it writes, next to --output (docs/MO_STORE.md is the contract):
                      scopes, web apps, App Drop, Windows, publishers' own
                      packages, Android, npm);
   details/<id>.json  one document per AppStream app, published as one generation;
+  android-apks.json  the SHA-256 of each APK Android keeps that was read to tell an
+                     installed app's bytes (no record of its pin), by file identity,
+                     so an unchanged APK is not read again on the next launch;
 and, with --print-machine, machine.json on stdout. It reads facts.json (from
 `moos-storectl facts`) beside the index when present.
 
@@ -20,10 +23,15 @@ Keys this indexer adds beyond the contract's list, for the window and tests:
               (an App Drop install, a Flatpak AppStream no longer offers);
   slug        a dropped app's App Drop id (what `remove-file` takes);
   needs       the inputs of the compatibility verdict: {memory (MiB),
-              display {px, compare, side}, internet, size (bytes)}, omitted when
-              empty;
+              display {px, compare, side}, internet, size (bytes: the free space
+              an install needs at its peak, not its download), copy (bytes: one
+              more copy of a pinned download, counted where copies are not
+              shared)}, omitted when empty;
   cat         the Store category (catalogue ids); `category` keeps the older
               14 values the current window groups by.
+`generation.free_range` is [low, high|null]: the free bytes for which every
+low_disk verdict holds (null when free space is unknown); a cached index is
+reused only inside it.
 machine.json's `windows` adds `reflink` (can a program's settings folder share
 the template's extents here: true, false, or null when unknown) and `template`
 (moos-storectl's template settings folder is complete); low_disk reads both.
@@ -36,6 +44,7 @@ import collections
 import configparser
 import contextlib
 import datetime as dt
+import errno
 import fcntl
 import functools
 import glob
@@ -43,7 +52,6 @@ import gzip
 import hashlib
 import ipaddress
 import json
-import math
 import os
 import platform
 from pathlib import Path
@@ -364,9 +372,14 @@ CURATED_CATEGORY_FALLBACK = {
 # catalogue's own `cat`; any other Flathub app is placed by its freedesktop
 # categories, first matching rule wins. A game is a game even when it also says
 # Network or AudioVideo, and an IDE is development even when it also says
-# Utility, so the specific rules come first. `ai` is editorial only: no metadata
-# rule leads there. Nothing lands in a catch-all: an app no rule places is a
-# utility, and Android and Windows apps are always `droid` and `win`.
+# Utility, so the specific rules come first. Emulator is not one of them: the
+# freedesktop spec relates it to System or Game, so a console emulator says Game
+# and lands in games, a CPU simulator that says Development;IDE is development and
+# a virtual machine manager that says System is a utility (Flathub's RARS, Iaito
+# and virt-manager were in Games); an emulator nothing else places is a game.
+# `ai` is editorial only: no metadata rule leads there. Nothing lands in a
+# catch-all: an app no rule places is a utility, and Android and Windows apps are
+# always `droid` and `win`.
 STORE_CATEGORIES = (
     "ess", "comm", "work", "art", "media", "fun", "dev", "ai", "edu", "util", "droid", "win",
 )
@@ -374,7 +387,7 @@ STORE_CATEGORY_RULES = (
     ("fun", frozenset({
         "game", "actiongame", "adventuregame", "arcadegame", "blocksgame", "boardgame",
         "cardgame", "kidsgame", "logicgame", "roleplaying", "shooter", "sportsgame",
-        "strategygame", "emulator",
+        "strategygame",
     })),
     ("dev", frozenset({"development", "ide"})),
     ("comm", frozenset({
@@ -386,6 +399,7 @@ STORE_CATEGORY_RULES = (
     ("media", frozenset({"audiovideo", "audio", "video", "player"})),
     ("edu", frozenset({"education", "science"})),
     ("util", frozenset({"system", "utility", "security", "settings"})),
+    ("fun", frozenset({"emulator"})),
 )
 DEFAULT_STORE_CATEGORY = "util"
 
@@ -487,6 +501,16 @@ class CatalogError(IndexErrorBase):
 
 class XmlLimitError(IndexErrorBase):
     """A decompressed AppStream file exceeded its safety limit."""
+
+
+class DetailsWriteError(Exception):
+    """Writing the details documents failed (a full disk, a read-only or failing filesystem,
+    this build's own directory gone): the build fails as a whole and the last good index stays.
+
+    Deliberately not an OSError: the AppStream loop takes those for an unreadable source and
+    goes on, and until 2026-10-15 it published the apps read so far as the whole catalogue,
+    which every later launch then reused (measured: 3 of 10 apps, exit 0). One document whose
+    name cannot be a file is not this: DetailsBuilder.write() skips it."""
 
 
 class LimitedReader:
@@ -956,22 +980,78 @@ def branding_colors(component: ET.Element) -> dict | None:
     return {"light": light, "dark": dark}
 
 
-def content_rating(component: ET.Element) -> str | None:
-    """OARS: any `intense` -> mature, any `moderate` -> teen, otherwise all.
+# OARS attribute -> the minimum age of each intensity (none, mild, moderate, intense):
+# libappstream 1.1.3's as_content_rating_attribute_to_csm_age(), the ages KDE Discover and
+# GNOME Software show. Copied on 2026-10-15 from the station's library through GObject
+# introspection (all 28 ids of get_all_rating_ids()); the indexer needs no library, and
+# tests/test_mo_store_index_search.py checks the copy wherever libappstream is installed.
+# Intensities are not comparable across attributes: `intense` is 6 for cartoon violence, 13
+# for unmoderated chat and 18 for bloodshed.
+OARS_INTENSITIES = ("none", "mild", "moderate", "intense")
+OARS_KINDS = frozenset({"oars-1.0", "oars-1.1"})
+OARS_CSM_AGES = {
+    "violence-cartoon": (0, 3, 4, 6),
+    "violence-fantasy": (0, 3, 7, 8),
+    "violence-realistic": (0, 4, 9, 14),
+    "violence-bloodshed": (0, 9, 11, 18),
+    "violence-sexual": (0, 18, 18, 18),
+    "drugs-alcohol": (0, 11, 13, 16),
+    "drugs-narcotics": (0, 12, 14, 17),
+    "drugs-tobacco": (0, 10, 13, 13),
+    "sex-nudity": (0, 12, 14, 14),
+    "sex-themes": (0, 13, 14, 15),
+    "language-profanity": (0, 8, 11, 14),
+    "language-humor": (0, 3, 8, 14),
+    "language-discrimination": (0, 9, 10, 11),
+    "money-advertising": (0, 7, 8, 10),
+    "money-gambling": (0, 7, 10, 18),
+    "money-purchasing": (0, 12, 14, 15),
+    "social-chat": (0, 4, 10, 13),
+    "social-audio": (0, 15, 15, 15),
+    "social-contacts": (0, 12, 12, 12),
+    "social-info": (0, 0, 13, 13),
+    "social-location": (0, 13, 13, 13),
+    "sex-homosexuality": (0, 13, 14, 15),
+    "sex-prostitution": (0, 12, 14, 18),
+    "sex-adultery": (0, 8, 10, 18),
+    "sex-appearance": (0, 10, 10, 15),
+    "violence-worship": (0, 13, 15, 18),
+    "violence-desecration": (0, 13, 15, 18),
+    "violence-slavery": (0, 13, 15, 18),
+}
 
-    None when the component carries no rating at all: "unrated" is not "all ages".
+
+def content_age_band(age: int) -> str:
+    """The index's label for an age: under 13 "all", 13-17 "teen", 18 "mature"."""
+
+    return "mature" if age >= 18 else "teen" if age >= 13 else "all"
+
+
+def content_rating(component: ET.Element) -> str | None:
+    """The age band of the component's OARS rating.
+
+    Its age is libappstream's: the highest minimum age of its attributes (OARS_CSM_AGES).
+    Reading the intensity word alone made any `intense` "mature", so SuperTuxKart (unmoderated
+    chat, 13) and Signal (15) were adults-only, and `sex-themes: mild` (13) was for everyone.
+    An attribute or an intensity OARS does not define adds nothing. None when the component
+    carries no OARS rating (libappstream gives a rating of another or no type no age either):
+    "unrated" is not "all ages". Words are read as libappstream reads them: the type and an
+    attribute's id exactly as written, the intensity with the space around it trimmed (so
+    "OARS-1.1" is no OARS rating and "Intense" no intensity, as Discover shows them).
     """
 
-    rating = None
+    age = None
     for element in direct_children(component, "content_rating"):
-        rating = rating or "all"
+        if element.attrib.get("type", "") not in OARS_KINDS:
+            continue
+        if age is None:
+            age = 0
         for attribute in direct_children(element, "content_attribute"):
-            value = element_text(attribute, 16).casefold()
-            if value == "intense":
-                return "mature"
-            if value == "moderate":
-                rating = "teen"
-    return rating
+            ages = OARS_CSM_AGES.get(attribute.attrib.get("id", ""))
+            value = element_text(attribute, 16)
+            if ages and value in OARS_INTENSITIES:
+                age = max(age, ages[OARS_INTENSITIES.index(value)])
+    return None if age is None else content_age_band(age)
 
 
 def appstream_keywords(component: ET.Element, preferences: list[str], limit: int = 24) -> list[str]:
@@ -2738,11 +2818,14 @@ def vendor_entry_installable(install: dict, arch: str | None) -> bool:
 #             X-MoOS-WebApp=<id> (usr/lib/moos/moos_webapp_policy.is_installed);
 #   appdrop   the App Drop record ~/.local/share/moos/appdrop/<id>.json, which a
 #             catalogue install marks with catalog_id=<id>;
-#   windows   the record ~/.local/share/moos/windows-apps/<id>.json;
+#   windows   the record ~/.local/share/moos/windows-apps/<id>.json and the program's
+#             folder <id>/app beside it;
 #   vendor    the record ~/.local/share/moos/vendor/<id>.json, the marked folder
 #             ~/Applications/<id> and MoOS's launcher org.moos.vendor.<id>.desktop, all
 #             three (moos_vendor_rpm.intact(), by file reads);
-#   android   the per-package data directory the Android runtime creates;
+#   android   the per-package data directory the Android runtime creates, with
+#             moos-storectl's record ~/.local/share/moos/android/<package>.json and,
+#             when that names no pin, the APK Android keeps (waydroid/data/app);
 #   npm       the command in ~/.local/bin;
 #   web       never installed: it opens the publisher's page.
 # An App Drop record with no catalogue id is an app of its own, kind "dropped";
@@ -2985,14 +3068,158 @@ def vendor_orphans(claimed: set[str]) -> list[dict]:
     return found
 
 
-def catalog_install_state(entry: dict, arch: str | None = None) -> dict:
-    """{installed, version, update, icon, adopted} of one catalogue entry, from files."""
+def pinned_download(install: dict, arch: str | None) -> dict:
+    """What the catalogue pins for this machine, as moos-storectl's pinned_artifact() reads it:
+    `downloads[<arch>]`, or the top of the recipe for the older Android shape; {} when none."""
+
+    downloads = install.get("downloads")
+    if downloads is None:
+        return install
+    pin = downloads.get(arch or "") if isinstance(downloads, dict) else None
+    return pin if isinstance(pin, dict) else {}
+
+
+def pinned_sha256(install: dict, arch: str | None) -> str | None:
+    digest = pinned_download(install, arch).get("sha256")
+    return digest.lower() if isinstance(digest, str) and SHA256_RE.fullmatch(digest) else None
+
+
+def pinned_size(install: dict, arch: str | None) -> int | None:
+    size = pinned_download(install, arch).get("size")
+    return size if isinstance(size, int) and not isinstance(size, bool) and size > 0 else None
+
+
+def record_has_pin(record: dict, pin: str) -> bool:
+    digest = record.get("sha256")
+    return isinstance(digest, str) and digest.lower() == pin
+
+
+# The APK Android keeps names an installed app's bytes when no record of the pin does (the
+# older Store wrote none, or the app was brought up to the pin outside the Store). Read by
+# moos-storectl's _android_apk_is_pin() rule: blocks of 1 MiB, and an APK whose pin names no
+# size only up to the cap of a download without one.
+APK_BLOCK = 1024 * 1024
+UNSIZED_APK_LIMIT = 2 * 1024 ** 3
+APK_DIGESTS_NAME = "android-apks.json"
+
+
+def android_apk(package: str) -> Path | None:
+    """The one base.apk Android keeps for `package`, or None when there is not exactly one.
+
+    Android 11 and later keep an app at /data/app/~~<random>/<package>-<random>/base.apk,
+    older ones at /data/app/<package>-<suffix>/base.apk, and the container's /data is
+    $XDG_DATA_HOME/waydroid/data. Two copies (Android is replacing the app), a link, or a
+    folder this account cannot read leave the bytes unknown, as for moos-storectl.
+    """
+
+    prefix = f"{package}-"
+    found: list[str] = []
+    try:
+        with os.scandir(data_home() / "waydroid/data/app") as entries:
+            for entry in entries:
+                if not entry.is_dir(follow_symlinks=False):
+                    continue
+                if entry.name.startswith(prefix):
+                    found.append(entry.path)
+                    continue
+                with os.scandir(entry.path) as inner:
+                    found += [item.path for item in inner if item.name.startswith(prefix)
+                              and item.is_dir(follow_symlinks=False)]
+    except OSError:
+        return None
+    if len(found) != 1:
+        return None
+    apk = Path(found[0]) / "base.apk"
+    return None if apk.is_symlink() or not apk.is_file() else apk
+
+
+class ApkDigests:
+    """The SHA-256 of each APK read, remembered next to the index by file identity.
+
+    What is installed is read on every launch (lifecycle_snapshot()), and an app with no record
+    of its pin is hashed. VLC and F-Droid on the station are 62 MB together: hashing them made
+    a launch's unchanged-index check 145 ms instead of 91 (measured 2026-10-15, warm cache,
+    median of 15); remembered, it is 95. A file whose device, inode, size and times are those
+    it had keeps the digest it had; nothing is written when nothing changed.
+    """
+
+    def __init__(self, path: Path | None = None):
+        self.path = path
+        self.known: dict[str, list] = {}
+        self.read: dict[str, list] = {}
+        stored = read_record(path) if path is not None else None
+        apks = stored.get("apks") if stored and stored.get("schema") == 1 else None
+        for name, value in (apks.items() if isinstance(apks, dict) else ()):
+            if (isinstance(value, list) and len(value) == 6
+                    and all(isinstance(part, int) and not isinstance(part, bool)
+                            for part in value[:5])
+                    and isinstance(value[5], str) and SHA256_RE.fullmatch(value[5])):
+                self.known[name] = value
+
+    def sha256(self, apk: Path, size: int | None) -> str | None:
+        """The digest of `apk` when it is a file of the pin's size (or, with no size pinned, at
+        most UNSIZED_APK_LIMIT bytes), opened through no link; None otherwise."""
+
+        try:
+            descriptor = os.open(apk, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK
+                                 | getattr(os, "O_CLOEXEC", 0))
+            with os.fdopen(descriptor, "rb") as handle:
+                status = os.fstat(handle.fileno())
+                if status.st_size > (size if size is not None else UNSIZED_APK_LIMIT) \
+                        or (size is not None and status.st_size != size):
+                    return None
+                identity = [status.st_dev, status.st_ino, status.st_size,
+                            status.st_mtime_ns, status.st_ctime_ns]
+                remembered = self.read.get(str(apk)) or self.known.get(str(apk))
+                if remembered is not None and remembered[:5] == identity:
+                    digest = remembered[5]
+                else:
+                    hasher = hashlib.sha256()
+                    for block in iter(lambda: handle.read(APK_BLOCK), b""):
+                        hasher.update(block)
+                    digest = hasher.hexdigest()
+        except OSError:
+            return None
+        self.read[str(apk)] = identity + [digest]
+        return digest
+
+    def save(self) -> None:
+        """Keep what this run read (and only that) for the next run; best effort."""
+
+        if self.path is None or self.read == self.known:
+            return
+        try:
+            atomic_write_json(self.path, {"schema": 1, "apks": self.read})
+        except OSError:
+            pass
+
+
+def android_apk_is_pin(package: str, pin: str, size: int | None,
+                       digests: ApkDigests) -> bool:
+    """Is the APK Android keeps for `package`, byte for byte, the pinned one?"""
+
+    apk = android_apk(package)
+    return apk is not None and digests.sha256(apk, size) == pin
+
+
+def catalog_install_state(entry: dict, arch: str | None = None,
+                          apk_digests: ApkDigests | None = None) -> dict:
+    """{installed, version, update, icon, adopted} of one catalogue entry, from files.
+
+    A pinned kind (App Drop, Windows, Android) has an update when the record's SHA-256 is not
+    the pin's for this machine: moos-storectl's check-updates, Update all and `update <id>`
+    decide the same way, so index.json and updates.json give one answer. A version string
+    cannot say it: a re-pinned build keeps its version, and "0.9" is "0.9.0". For Android the
+    APK Android keeps answers when no record of the pin does (`apk_digests` remembers what was
+    hashed).
+    """
 
     kind = catalog_kind(entry)
     install = entry.get("install") or {}
     app_id = entry["id"]
     state = {"installed": False, "version": None, "update": False, "icon": None,
              "adopted": False}
+    pin = pinned_sha256(install, arch)
     if kind == "webapp":
         launcher = data_home() / "applications" / f"org.moos.webapp.{app_id}.desktop"
         if f"\nX-MoOS-WebApp={app_id}\n" in read_small_text(launcher):
@@ -3007,17 +3234,20 @@ def catalog_install_state(entry: dict, arch: str | None = None) -> dict:
         record = read_record(data_home() / "moos/appdrop" / f"{app_id}.json")
         if record is not None and record.get("id") == app_id:
             catalog_id = record.get("catalog_id")
-            pinned = (install.get("downloads") or {}).get(arch or "", {})
             if catalog_id == app_id:
+                # The Store's own install of this pin.
                 state["installed"] = True
                 state["version"] = record_text(record, "version", 64) or None
+                state["update"] = pin is not None and not record_has_pin(record, pin)
             elif not catalog_id:
                 # Dropped by hand into the slot this catalogue app installs to
-                # (~/Applications/<id>): the same app. The pinned digest names the
-                # exact version when the file matches it byte for byte.
+                # (~/Applications/<id>): the same app, but the person's own file. The pin
+                # is never offered over it (Update all leaves it, `update <id>` says to
+                # install a newer file); the pinned digest names the exact version when
+                # the file matches it byte for byte.
                 state["installed"] = True
                 state["adopted"] = True
-                if pinned and record.get("sha256") == pinned.get("sha256"):
+                if pin is not None and record_has_pin(record, pin):
                     state["version"] = install.get("version")
             if state["installed"]:
                 launcher = launcher_for_record(record, app_id)
@@ -3025,14 +3255,20 @@ def catalog_install_state(entry: dict, arch: str | None = None) -> dict:
                     fields = desktop_entry_fields(read_small_text(launcher))
                     state["icon"] = home_file_icon(fields.get("Icon", ""))
     elif kind == "windows":
-        record = read_record(data_home() / "moos/windows-apps" / f"{app_id}.json")
-        if record is not None and record.get("id", app_id) == app_id \
-                and record.get("catalog_id", app_id) == app_id:
+        # moos-storectl's windows_paths(): the record beside the program's folder <id>/app.
+        # A record whose program folder is gone is not installed (Install repairs it), and
+        # moos-storectl reads it the same way before it offers or runs an update.
+        folder = data_home() / "moos/windows-apps"
+        record = read_record(folder / f"{app_id}.json")
+        if record and record.get("id", app_id) == app_id \
+                and record.get("catalog_id", app_id) == app_id \
+                and (folder / app_id / "app").is_dir():
             state["installed"] = True
             state["version"] = record_text(record, "version", 64) or None
-            icon = record.get("icon")
-            if isinstance(icon, str):
-                state["icon"] = home_file_icon(icon)
+            state["update"] = pin is not None and not record_has_pin(record, pin)
+            # The program's own icon, which moos-storectl extracts to <id>/icon.png; the
+            # record names none (reading a record "icon" key found nothing, ever).
+            state["icon"] = home_file_icon(str(folder / app_id / "icon.png"))
     elif kind == "vendor":
         # The newest build lives in the publisher's repository: updates.json (moos-storectl
         # check-updates, over the network) owns update_available, as it does for Flatpaks.
@@ -3046,11 +3282,27 @@ def catalog_install_state(entry: dict, arch: str | None = None) -> dict:
         # The runtime creates this per-package data directory only after the
         # package manager commits an installation, and removes it on uninstall.
         # Reading this local state keeps the indexer offline and avoids calling
-        # (or exposing) the compatibility runtime for every Store refresh.
-        if isinstance(package, str) and ANDROID_PACKAGE_RE.fullmatch(package):
-            state["installed"] = (
-                home_dir() / ".local/share/waydroid/data/data" / package
-            ).is_dir()
+        # (or exposing) the compatibility runtime for every Store refresh. It lives
+        # under $XDG_DATA_HOME/waydroid, where the container and moos-storectl look.
+        if isinstance(package, str) and ANDROID_PACKAGE_RE.fullmatch(package) \
+                and (data_home() / "waydroid/data/data" / package).is_dir():
+            state["installed"] = True
+            # moos-storectl's record of what it installed: which bytes, which version.
+            record = read_record(data_home() / "moos/android" / f"{package}.json")
+            if record:
+                state["version"] = record_text(record, "version", 64) or None
+            current = bool(record) and pin is not None and record_has_pin(record, pin)
+            if pin is not None and not current and android_apk_is_pin(
+                    package, pin, pinned_size(install, arch),
+                    apk_digests if apk_digests is not None else ApkDigests()):
+                # No record (the older Store wrote none) or one of an earlier pin, but the
+                # APK Android keeps is the pin's own bytes: up to date, at the pin's version.
+                current = True
+                pinned_version = install.get("version")
+                state["version"] = pinned_version if isinstance(pinned_version, str) else None
+            # Otherwise which bytes are there is unknown or not the pin's: the pin is offered,
+            # and installing it writes the record.
+            state["update"] = pin is not None and not current
     elif kind == "npm":
         binary = install.get("bin")
         if isinstance(binary, str) and binary:
@@ -3062,7 +3314,8 @@ def catalog_install_state(entry: dict, arch: str | None = None) -> dict:
             if manifest is not None:
                 state["version"] = record_text(manifest, "version", 64) or None
     pinned_version = install.get("version")
-    if state["installed"] and state["version"] and isinstance(pinned_version, str):
+    if kind not in {"appdrop", "windows", "android", "vendor"} and state["installed"] \
+            and state["version"] and isinstance(pinned_version, str):
         state["update"] = version_newer(pinned_version, state["version"])
     return state
 
@@ -3110,7 +3363,7 @@ def dropped_records(claimed: set[str]) -> list[dict]:
     return found
 
 
-def lifecycle_snapshot(catalog: dict) -> dict:
+def lifecycle_snapshot(catalog: dict, apk_digests: ApkDigests | None = None) -> dict:
     """Every installed-state fact about non-Flatpak apps, read once per run.
 
     It is digested into the index's installed_token, so a change to any of it is
@@ -3118,13 +3371,14 @@ def lifecycle_snapshot(catalog: dict) -> dict:
     """
 
     arch = catalog.get("arch")
+    apk_digests = apk_digests if apk_digests is not None else ApkDigests()
     states: dict[str, dict] = {}
     claimed: set[str] = set()
     vendors: set[str] = set()
     for entry in catalog["apps"]:
         if entry["source"] in {"flathub", "flatpak"}:
             continue
-        state = catalog_install_state(entry, arch)
+        state = catalog_install_state(entry, arch, apk_digests)
         states[entry["id"]] = state
         if state["installed"] and catalog_kind(entry) == "appdrop":
             claimed.add(entry["id"])
@@ -3584,6 +3838,18 @@ MIB = 1024 * 1024
 # twice (DUP): about 1.3 MiB, counted as 2 MiB.
 WINDOWS_SETTINGS_BYTES = 900 * 1000 ** 2
 WINDOWS_SHARED_SETTINGS_BYTES = 2 * MIB
+# A pinned install needs far more than its download: the download stays until the job ends,
+# the app is unpacked beside it, and an AppImage (App Drop's staging copy) or an Android package
+# (the container's copy) is copied once more first. Measured on the station on 2026-10-15:
+# allocated bytes of the unpacked tree per downloaded byte, btrfs, for every pinned x86_64 file
+# that unpacks (archives with App Drop's own extractors, AppImages with unsquashfs):
+#   AppImage  PhotoCraft 2.10, LM Studio 2.33, Cursor 3.46
+#   tar.gz    Antigravity 2.87, Antigravity IDE 3.33
+#   zip       SumatraPDF 2.02, HeidiSQL 2.78, Notepad3 3.24, Notepad++ 3.35, WinMerge 3.38
+# The tree counts as four times the download, 16% above the largest. An Android package was
+# not measured (that needs a running container): the container keeps the package, its
+# libraries and its compiled code, counted the same way.
+UNPACKED_PER_DOWNLOAD = 4
 
 
 def windows_settings_bytes(machine: dict) -> int:
@@ -3594,6 +3860,62 @@ def windows_settings_bytes(machine: dict) -> int:
     windows = machine.get("windows") if isinstance(machine.get("windows"), dict) else {}
     own = WINDOWS_SHARED_SETTINGS_BYTES if windows.get("reflink") is True else WINDOWS_SETTINGS_BYTES
     return own + (0 if windows.get("template") is True else WINDOWS_SETTINGS_BYTES)
+
+
+def copies_are_shared(machine: dict) -> bool:
+    """Does a whole copy of a download cost no space here? Yes where the home's filesystem
+    shares extents: the image's Python (3.14) copies with copy_file_range(), which btrfs
+    answers with a clone (measured on the station: copying the 1.02 GB LM Studio AppImage cost
+    36 KiB; Python 3.13 cost the full 1.02 GB). machine.json `windows.reflink` says so, read
+    where Windows programs live, in the same home as the downloads folder, ~/Applications and
+    the Android container. Unknown counts the copy."""
+
+    windows = machine.get("windows") if isinstance(machine.get("windows"), dict) else {}
+    return windows.get("reflink") is True
+
+
+def free_bytes(machine: dict) -> int | None:
+    """Free bytes where apps install (machine.json free_bytes.apps), or None when unknown."""
+
+    value = (machine.get("free_bytes") or {}).get("apps") if isinstance(
+        machine.get("free_bytes"), dict) else None
+    return value if isinstance(value, int) and not isinstance(value, bool) else None
+
+
+def install_need(app: dict, machine: dict) -> int | None:
+    """The free bytes installing `app` needs here at its peak, or None when nothing says:
+    needs.size, its extra copy unless copies are shared, and a Windows program's own settings
+    folder (see pinned_install_needs)."""
+
+    needs = app.get("needs") if isinstance(app.get("needs"), dict) else {}
+    size, copy = needs.get("size"), needs.get("copy")
+    size = size if isinstance(size, int) and not isinstance(size, bool) else None
+    if size is not None and isinstance(copy, int) and not isinstance(copy, bool) \
+            and not copies_are_shared(machine):
+        size += copy
+    if app.get("kind") == "windows":
+        size = (size or 0) + windows_settings_bytes(machine)
+    return size
+
+
+def pinned_install_needs(install: dict, arch: str | None) -> dict:
+    """{size, copy?} of a pinned recipe, for the index entry's `needs`: `size` is the download
+    and its unpacked tree, `copy` one more whole copy of the download that costs space only
+    where copies are not shared. {} when nothing is pinned for this machine.
+
+    The window shows the download size from the recipe itself (install.downloads[arch].size,
+    install.size), never from here.
+    """
+
+    pinned = (install.get("downloads") or {}).get(arch or "") or {}
+    download = pinned.get("size") or install.get("size")
+    if isinstance(download, bool) or not isinstance(download, int) or download <= 0:
+        return {}
+    needs = {"size": download * (1 + UNPACKED_PER_DOWNLOAD)}
+    kind = install.get("kind")
+    if kind == "android" or (kind == "appdrop" and install.get("artifact") == "appimage"):
+        needs["copy"] = download
+    return needs
 
 
 def read_facts(path: Path | None) -> dict | None:
@@ -3679,12 +4001,9 @@ def compat_verdict(app: dict, machine: dict | None, facts: dict | None) -> dict:
         if android.get("graphics") == "software":
             reasons.add("android_software_graphics")
     needs = app.get("needs") if isinstance(app.get("needs"), dict) else {}
-    free = (machine.get("free_bytes") or {}).get("apps") if isinstance(
-        machine.get("free_bytes"), dict) else None
-    size = needs.get("size")
-    if kind == "windows" and not installed:
-        size = (size if isinstance(size, int) else 0) + windows_settings_bytes(machine)
-    if not installed and isinstance(size, int) and isinstance(free, int) and size > free:
+    free = free_bytes(machine)
+    need = None if installed else install_need(app, machine)
+    if need is not None and free is not None and need > free:
         reasons.add("low_disk")
     memory = machine.get("memory_bytes")
     if isinstance(needs.get("memory"), int) and isinstance(memory, int) \
@@ -3721,17 +4040,11 @@ def compat_verdict(app: dict, machine: dict | None, facts: dict | None) -> dict:
 def context_state(machine: dict | None, facts: dict | None) -> dict:
     """What compat_verdict() reads beyond the index, for the context token.
 
-    Free space enters as a power-of-two bucket of GiB, so the index is rewritten
-    when the disk crosses 1, 2, 4, 8… GiB free rather than at every byte.
+    Free space enters only as known or not: the exact bytes change at every write, and the
+    index records instead the range in which its low_disk verdicts hold (free_space_range).
     """
 
     machine = machine if isinstance(machine, dict) else {}
-    free = (machine.get("free_bytes") or {}).get("apps") if isinstance(
-        machine.get("free_bytes"), dict) else None
-    bucket = None
-    if isinstance(free, int):
-        gib = free / 1024 ** 3
-        bucket = 0 if gib < 1 else int(math.log2(gib)) + 1
     memory = machine.get("memory_bytes")
     return {
         "arch": machine.get("arch"),
@@ -3741,9 +4054,47 @@ def context_state(machine: dict | None, facts: dict | None) -> dict:
         "session": machine.get("session"),
         "android": machine.get("android"),
         "windows": machine.get("windows"),
-        "free_bucket": bucket,
+        "free_known": free_bytes(machine) is not None,
         "facts": facts,
     }
+
+
+def free_space_range(apps: list[dict], machine: dict | None) -> list | None:
+    """[low, high): the free bytes for which every low_disk verdict in `apps` stays what it
+    is (high None: no limit), or None when free space is unknown and no verdict reads it.
+
+    Written into the index's generation and checked before a cached index is reused, so free
+    space that crosses an app's need refreshes the verdicts and free space that crosses none
+    costs nothing. The context token used to carry free space as a power-of-two bucket of GiB
+    instead: every pinned need lies inside one, so a person who freed space for a blocked app
+    kept seeing it blocked (and one who filled the disk kept an "ok") until something else
+    changed.
+    """
+
+    machine = machine if isinstance(machine, dict) else {}
+    free = free_bytes(machine)
+    if free is None:
+        return None
+    low, high = 0, None
+    for app in apps:
+        need = None if app.get("installed") else install_need(app, machine)
+        if need is None:
+            continue
+        if need <= free:
+            low = max(low, need)
+        elif high is None or need < high:
+            high = need
+    return [low, high]
+
+
+def free_range_holds(free_range: list | None, machine: dict | None) -> bool:
+    """Would every low_disk verdict of an index written for `free_range` read the same now?"""
+
+    free = free_bytes(machine if isinstance(machine, dict) else {})
+    if free_range is None or free is None:
+        return free_range is None and free is None
+    low, high = free_range
+    return low <= free and (high is None or free < high)
 
 
 def sha256_file(path: Path) -> str:
@@ -3875,8 +4226,9 @@ def input_token(
     )["input"]
 
 
-def existing_output_tokens(path: Path) -> dict[str, str] | None:
-    """Read generation tokens without materializing the multi-megabyte app list."""
+def existing_output_tokens(path: Path) -> dict | None:
+    """Read generation tokens (and the free-space range its verdicts hold for) without
+    materializing the multi-megabyte app list."""
 
     try:
         size = path.stat().st_size
@@ -3893,7 +4245,7 @@ def existing_output_tokens(path: Path) -> dict[str, str] | None:
         or tail != b"}\n"
     ):
         return None
-    tokens: dict[str, str] = {}
+    tokens: dict = {}
     for output_key, json_key in (
         ("input", "input_token"),
         ("metadata", "metadata_token"),
@@ -3907,7 +4259,15 @@ def existing_output_tokens(path: Path) -> dict[str, str] | None:
         if match is None:
             return None
         tokens[output_key] = match.group(1).decode("ascii")
+    match = FREE_RANGE_RE.search(head)
+    if match is None:
+        return None
+    tokens["free_range"] = None if match.group(1) == b"null" else [
+        int(match.group(2)), None if match.group(3) == b"null" else int(match.group(3))]
     return tokens
+
+
+FREE_RANGE_RE = re.compile(rb'"free_range":(null|\[([0-9]{1,20}),([0-9]{1,20}|null)\])')
 
 
 def existing_output_matches(path: Path, token: str) -> bool:
@@ -3960,6 +4320,7 @@ def refresh_installed_flags(
         preferences=preferences, machine=machine, facts=facts,
     )
     payload["stats"].update(lifecycle_stats(payload["apps"]))
+    payload["generation"]["free_range"] = free_space_range(payload["apps"], machine)
     return True
 
 
@@ -4061,11 +4422,11 @@ def catalog_fallback_app(
     }
     app.update(entry)
     app["source"] = "flatpak" if flatpak else entry["source"]
-    # A pinned download states its exact size: the least free space the job needs.
-    pinned = (install.get("downloads") or {}).get(arch or "") or {}
-    size = pinned.get("size") or install.get("size")
-    if isinstance(size, int) and not isinstance(size, bool) and size > 0:
-        app["needs"] = {"size": size}
+    # What the pinned install needs on disk at its peak, not just its download (the job
+    # keeps the download while it unpacks: Antigravity's 181 MB needed 700 MB).
+    needs = pinned_install_needs(install, arch)
+    if needs:
+        app["needs"] = needs
     return app
 
 
@@ -4189,7 +4550,14 @@ def build_index(
         # The details document follows the entry that won: one per id, written
         # once per parsed revision (a reused revision's documents are identical).
         if details is not None and document is not None and winner is app:
-            details.write(app["id"], document)
+            try:
+                details.write(app["id"], document)
+            except OSError as error:
+                # Writing failed, not reading, and not for this one name (write() skips
+                # that): the source loop around this must not take it for an unreadable
+                # AppStream file and publish what it has.
+                raise DetailsWriteError(
+                    f"cannot write the details of {app['id']}: {error}") from error
 
     parsed_sources, superseded_sources = supersede_older_sources(discovered_sources)
     # A parsed revision is kept for reuse only when another source carries it too;
@@ -4388,6 +4756,8 @@ def build_index(
             "generated_at": generation_time(),
             "locale": preferences[0] if preferences else "en",
             "offline": True,
+            # The free space this index's low_disk verdicts hold for (main() checks it).
+            "free_range": free_space_range(apps, machine),
         },
         "sources": sources_output,
         "stats": stats,
@@ -4418,9 +4788,11 @@ def build_index(
 # sees the old complete set or the new complete set, never a half-written one.
 # The swap, the index write and the clean-up of older generations happen under
 # one lock, so two indexers (the launcher's and refresh-index) cannot delete each
-# other's directory. Documents are not fsynced one by one (3,400 fsyncs measured
-# 10 s on the station's btrfs); a crash can only leave a stale or damaged set,
-# which details_ready() detects from a sample and the next run rebuilds.
+# other's directory; when the index cannot be written the swap is undone, so the
+# published index keeps its own set. Documents are not fsynced one by one (3,400
+# fsyncs measured 10 s on the station's btrfs); a crash can only leave a stale or
+# damaged set, which details_ready() detects from a sample and the next run
+# rebuilds.
 
 DETAILS_LINK = "details"
 DETAILS_MARKER = ".complete"
@@ -4441,15 +4813,28 @@ class DetailsBuilder:
         self.written: set[str] = set()
         self.final: Path | None = None
 
-    def write(self, app_id: str, document: dict) -> None:
+    def write(self, app_id: str, document: dict) -> bool:
+        """Write one app's document; False, writing nothing, when `<id>.json` cannot be a file
+        name here. A Flatpak id may have 255 characters and a file name 255 bytes, so such an
+        app is listed without its details (`details` null) and the build goes on: until
+        2026-10-15 that one document failed every build, and no index was published at all.
+        Every other failure is the disk's or this directory's and raises, since each document
+        after it would fail the same way."""
+
         data = (json.dumps(document, ensure_ascii=False, separators=(",", ":"))
                 + "\n").encode("utf-8")
         flags = os.O_WRONLY | os.O_CREAT | os.O_TRUNC | getattr(os, "O_NOFOLLOW", 0) \
             | getattr(os, "O_CLOEXEC", 0)
-        descriptor = os.open(self.directory / f"{app_id}.json", flags, 0o600)
+        try:
+            descriptor = os.open(self.directory / f"{app_id}.json", flags, 0o600)
+        except OSError as error:
+            if error.errno == errno.ENAMETOOLONG:
+                return False
+            raise
         with os.fdopen(descriptor, "wb") as handle:
             handle.write(data)
         self.written.add(app_id)
+        return True
 
     def finish(self) -> Path:
         ordered = sorted(self.written)
@@ -4554,6 +4939,23 @@ def publish_details(cache_dir: Path, directory: Path) -> None:
         except FileNotFoundError:
             pass
     fsync_directory(cache_dir)
+
+
+def unpublish_details(cache_dir: Path, directory: Path, previous: Path | None) -> None:
+    """Point `details` back at `previous`, or remove it when there was none (a first build),
+    if it names `directory`: the index naming that set was not written, so index.json is still
+    the one `previous` was published with. Best effort: when this fails too, `details` keeps
+    naming `directory`, which main() then keeps, so the link never names a removed set."""
+
+    if details_target(cache_dir) != directory:
+        return
+    try:
+        if previous is not None and previous.is_dir():
+            publish_details(cache_dir, previous)
+        else:
+            (cache_dir / DETAILS_LINK).unlink()
+    except OSError:
+        pass
 
 
 def clean_details(cache_dir: Path, keep: Path | None) -> None:
@@ -5119,7 +5521,9 @@ def main(argv: list[str] | None = None) -> int:
             appstream_roots,
             official_only=args.appstream_root is None,
         )
-        lifecycle = lifecycle_snapshot(catalog)
+        apk_digests = ApkDigests(args.output.parent / APK_DIGESTS_NAME)
+        lifecycle = lifecycle_snapshot(catalog, apk_digests)
+        apk_digests.save()
         # What the compatibility verdicts read: this machine (or --machine), and
         # the Flathub facts moos-storectl keeps next to the index.
         if args.machine is not None:
@@ -5141,7 +5545,10 @@ def main(argv: list[str] | None = None) -> int:
             and existing_tokens["metadata"] == tokens["metadata"]
             and details_ready(cache_dir, tokens["metadata"])
         )
-        if details_current and existing_tokens["input"] == tokens["input"]:
+        # Unchanged inputs, and free space still inside the range the index's low_disk
+        # verdicts hold for: reuse it as it is (a header read, no app list parsed).
+        if details_current and existing_tokens["input"] == tokens["input"] \
+                and free_range_holds(existing_tokens["free_range"], machine):
             return 0
         if details_current:
             payload = load_refreshable_output(
@@ -5185,14 +5592,28 @@ def main(argv: list[str] | None = None) -> int:
             # second indexer's clean-up can never remove it before it is linked.
             with publish_lock(cache_dir):
                 generation = details.finish()
-                publish_details(cache_dir, generation)
-                atomic_write_json(args.output, payload)
+                previous = details_target(cache_dir)
+                try:
+                    publish_details(cache_dir, generation)
+                    atomic_write_json(args.output, payload)
+                except BaseException:
+                    # No index names this set (it did not fit where the documents did, or the
+                    # link was not committed): `details` goes back to the set the published
+                    # index names. Until 2026-10-15 it stayed on this build's set: a rebuild
+                    # left the old index with another generation's documents, and each failed
+                    # first build one more set holding the space the next launch needed.
+                    unpublish_details(cache_dir, generation, previous)
+                    raise
                 clean_details(cache_dir, keep=generation)
         except BaseException:
-            if details_target(cache_dir) != details.final:
+            # This build's set stays only while `details` still names it (putting the link
+            # back failed too). Before finish() there is no set of its own to keep, and on a
+            # first run there is no link either: both were None, and the failed build's
+            # private directory was kept as if it had been published.
+            if details.final is None or details_target(cache_dir) != details.final:
                 details.discard()
             raise
-    except (CatalogError, OSError) as error:
+    except (CatalogError, OSError, DetailsWriteError) as error:
         print(f"moos-store-index: {error}", file=sys.stderr)
         return 2
     return 0
