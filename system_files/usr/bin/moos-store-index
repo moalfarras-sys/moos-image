@@ -3102,6 +3102,14 @@ APK_BLOCK = 1024 * 1024
 UNSIZED_APK_LIMIT = 2 * 1024 ** 3
 APK_DIGESTS_NAME = "android-apks.json"
 
+# Whether an Android app with no record (an earlier Mo Store wrote none) whose bytes nothing
+# names is offered the pin. The window's Update button runs `moos-storectl update <package>`,
+# which does not find such an app until moos-storectl installs the pin over one (its own
+# pinned-update work): it answers "App is not installed", so offering the pin here would be a
+# button that does nothing. True once moos-storectl does (or the switch goes):
+# tests/test_mo_store_index_lifecycle.py fails until the two agree.
+PIN_OFFERED_WITHOUT_RECORD = False
+
 
 def android_apk(package: str) -> Path | None:
     """The one base.apk Android keeps for `package`, or None when there is not exactly one.
@@ -3211,7 +3219,8 @@ def catalog_install_state(entry: dict, arch: str | None = None,
     decide the same way, so index.json and updates.json give one answer. A version string
     cannot say it: a re-pinned build keeps its version, and "0.9" is "0.9.0". For Android the
     APK Android keeps answers when no record of the pin does (`apk_digests` remembers what was
-    hashed).
+    hashed); an app with no record at all is offered the pin only once `update <id>` can
+    install it there (PIN_OFFERED_WITHOUT_RECORD).
     """
 
     kind = catalog_kind(entry)
@@ -3301,8 +3310,10 @@ def catalog_install_state(entry: dict, arch: str | None = None,
                 pinned_version = install.get("version")
                 state["version"] = pinned_version if isinstance(pinned_version, str) else None
             # Otherwise which bytes are there is unknown or not the pin's: the pin is offered,
-            # and installing it writes the record.
-            state["update"] = pin is not None and not current
+            # and installing it writes the record; with no record at all, only once
+            # moos-storectl can install it there (PIN_OFFERED_WITHOUT_RECORD).
+            state["update"] = pin is not None and not current \
+                and (bool(record) or PIN_OFFERED_WITHOUT_RECORD)
     elif kind == "npm":
         binary = install.get("bin")
         if isinstance(binary, str) and binary:
