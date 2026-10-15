@@ -17,8 +17,9 @@ Each class holds one promise of moos-storectl, run for real against a private HO
   OpenWhatIsThere       an App Drop app whose folder or program is gone is not installed, not
                         "opened";
   CommandLineTools      an installed command-line tool has no window, which is not "not installed";
-  InterruptedDownloads  what an interrupted job left in the downloads folder is swept by the next
-                        job, with the lock held, and never by an open beside another job;
+  InterruptedDownloads  what an interrupted job left (a partial or a whole download, a vendor work
+                        folder, App Drop's staging folder) is swept by the next job, with the lock
+                        held, and never by an open beside another job;
   RoutesWithTheRealBackend
                         moos-control's open and moos-open's apps/run route, driven against the real
                         backend while the scheduled updater holds the lock: the app opens, and every
@@ -575,7 +576,11 @@ class CommandLineTools(Backend):
 
 
 class InterruptedDownloads(Backend):
-    """A reboot or a logout mid-download skips every cleanup handler: the next job sweeps."""
+    """A reboot or a logout mid-job skips every cleanup handler: the next job sweeps."""
+
+    # The heads file_suffix() tells apart, one for every name a finished download is saved under.
+    HEADS = (b"\x7fELF\x02\x01\x01\x00AI\x02", b"PK\x03\x04", b"MZ\x90\x00", b"\x1f\x8b\x08",
+             b"\xfd7zXZ\x00", b"BZh9", b"\x28\xb5\x2f\xfd", b"\x00" * 257 + b"ustar", b"text")
 
     def leftovers(self) -> list[Path]:
         mine = MODULE.downloads_dir()
@@ -587,7 +592,14 @@ class InterruptedDownloads(Backend):
         mine.mkdir(parents=True, exist_ok=True)
         partial = mine / ".lmstudio.q1w2e3r4.part"
         partial.write_bytes(b"0" * 64)
-        return [work, partial]
+        # Killed after the last byte, while unpacking or installing: the verified file itself,
+        # and the folder App Drop was unpacking it into.
+        finished = mine / "noteforge.tar.gz"
+        finished.write_bytes(b"0" * 64)
+        staging = self.home / "Applications/.noteforge.installing"
+        (staging / "noteforge-2.1").mkdir(parents=True)
+        (staging / "noteforge-2.1/noteforge").write_bytes(ELF)
+        return [work, partial, finished, staging]
 
     def test_the_next_job_sweeps_what_an_interrupted_one_left(self):
         left = self.leftovers()
@@ -597,6 +609,62 @@ class InterruptedDownloads(Backend):
         self.assertEqual(document["state"], "success", document)
         self.assertEqual([path for path in left if path.exists()], [])
         self.assertTrue(keep.exists())
+
+    def test_every_name_a_finished_download_is_saved_under_is_swept(self):
+        """Each installer deletes its download in `finally`; a job ended by a reboot after the
+        last byte never got there, and the whole file stayed (1.29 GB for LM Studio)."""
+        suffixes = {MODULE.file_suffix(head, "appdrop") for head in self.HEADS}
+        suffixes.add(MODULE.file_suffix(b"", "android"))
+        self.assertEqual(len(suffixes), len(self.HEADS) + 1, sorted(suffixes))
+        mine = MODULE.downloads_dir()
+        mine.mkdir(parents=True)
+        left = [mine / f"noteforge{suffix}" for suffix in sorted(suffixes)]
+        left.append(mine / "org.fdroid.fdroid.apk")    # an Android app's, by its package
+        for path in left:
+            path.write_bytes(b"0" * 64)
+        elsewhere = self.base / "elsewhere.zip"
+        elsewhere.write_bytes(b"not the Store's")
+        (mine / "linked.zip").symlink_to(elsewhere)    # a link is never followed nor removed
+        (mine / "folder.zip").mkdir()                  # only files are downloads
+        kept = [mine / name for name in ("README.txt", "Notes.tar.gz", "noteforge.tar.gz.sig",
+                                         "noteforge.iso", "linked.zip", "folder.zip")]
+        for path in kept:
+            if not path.exists() and not path.is_symlink():
+                path.write_bytes(b"not a name any job writes")
+        self.assertEqual(self.controller([]).update()[1]["state"], "success")
+        self.assertEqual([path.name for path in left if path.exists()], [])
+        self.assertEqual([path.name for path in kept if not (path.exists() or path.is_symlink())], [])
+        self.assertEqual(elsewhere.read_bytes(), b"not the Store's")
+
+    def test_only_app_drops_staging_folders_are_swept_from_applications(self):
+        """App Drop unpacks into ~/Applications/.<slug>.installing (and .<slug>.inner); the old
+        version waits in .<slug>.previous during the swap and may be the only copy left, so it
+        stays, like everything else in the person's own folder."""
+        apps = self.home / "Applications"
+        left = [apps / ".noteforge.installing", apps / ".noteforge.inner"]
+        kept = [apps / ".noteforge.previous", apps / ".noteforge.failed", apps / "noteforge",
+                apps / ".My Notes.installing", apps / ".Noteforge.installing"]
+        for folder in left + kept:
+            folder.mkdir(parents=True)
+            (folder / "file").write_bytes(b"0")
+        (apps / ".plain.installing.txt").write_bytes(b"a file, not a folder")
+        outside = self.base / "outside"
+        outside.mkdir()
+        (outside / "keep").write_bytes(b"0")
+        (apps / ".linked.installing").symlink_to(outside, target_is_directory=True)
+        self.assertEqual(self.controller([]).update()[1]["state"], "success")
+        self.assertEqual([folder.name for folder in left if folder.exists()], [])
+        self.assertEqual([folder.name for folder in kept if not (folder / "file").exists()], [])
+        self.assertTrue((apps / ".plain.installing.txt").exists())
+        self.assertTrue((apps / ".linked.installing").is_symlink())
+        self.assertTrue((outside / "keep").exists())
+
+    def test_a_linked_applications_folder_is_never_followed(self):
+        elsewhere = self.base / "other-disk"
+        (elsewhere / ".noteforge.installing").mkdir(parents=True)
+        (self.home / "Applications").symlink_to(elsewhere, target_is_directory=True)
+        self.controller([]).update()
+        self.assertTrue((elsewhere / ".noteforge.installing").is_dir())
 
     def test_with_the_cache_outside_home_both_folders_are_swept(self):
         # downloads_dir() stays inside HOME; moos_vendor_rpm keeps its work folders under the
@@ -627,12 +695,14 @@ class InterruptedDownloads(Backend):
         elsewhere.mkdir()
         (elsewhere / ".kept.part").write_bytes(b"0")
         (elsewhere / "vendor-kept-1").mkdir()
+        (elsewhere / "kept.zip").write_bytes(b"0")
         target = MODULE.downloads_dir()
         target.parent.mkdir(parents=True, exist_ok=True)
         target.symlink_to(elsewhere, target_is_directory=True)
         self.controller([]).update()
         self.assertTrue((elsewhere / ".kept.part").exists())
         self.assertTrue((elsewhere / "vendor-kept-1").is_dir())
+        self.assertTrue((elsewhere / "kept.zip").exists())
 
 
 class Words(Backend):
