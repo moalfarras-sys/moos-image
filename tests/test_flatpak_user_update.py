@@ -33,7 +33,8 @@ assert "ExecStart=/usr/libexec/moos-flatpak-update --user" in user_dropin
 assert "ExecStart=/usr/libexec/moos-flatpak-update --system" in system_dropin
 
 
-def run_case(mode: str, scope: str = "--user", hold_store_lock: bool = False):
+def run_case(mode: str, scope: str = "--user", hold_store_lock: bool = False,
+             store_settings: str | None = None):
     """Returns (result, calls, record or None, lock file mode or None)."""
     with tempfile.TemporaryDirectory(prefix="moos-flatpak-update-") as tmp:
         tmp_path = Path(tmp)
@@ -77,6 +78,11 @@ esac
             "MOOS_TEST_LOG": str(log),
             "MOOS_TEST_MODE": mode,
         }
+        if store_settings is not None:
+            settings = tmp_path / "config/moos/store.json"
+            settings.parent.mkdir(parents=True)
+            settings.write_text(store_settings, encoding="utf-8")
+        env["XDG_CONFIG_HOME"] = str(tmp_path / "config")
         lock_path = tmp_path / "cache/moos-store/job.lock"
         holder = None
         if hold_store_lock:
@@ -143,6 +149,17 @@ assert busy.returncode == 0, busy.stderr
 assert busy_calls == [], f"the updater raced a Mo Store job: {busy_calls}"
 assert busy_record is None, "a skipped run must not claim a result"
 assert "Mo Store is running a job" in busy.stderr
+
+# The person turned automatic updates off in Mo Store: the scheduled run does nothing at all.
+off, off_calls, off_record, _ = run_case("normal", store_settings='{"auto_updates": false}')
+assert off.returncode == 0, off.stderr
+assert off_calls == [] and off_record is None, f"automatic updates ran while off: {off_calls}"
+assert "automatic app updates are off" in off.stderr
+# Anything but an explicit false keeps the default: on.
+for text in ('{"auto_updates": true}', "{broken", '{"auto_updates": "no"}', "[]"):
+    on, on_calls, on_record, _ = run_case("normal", store_settings=text)
+    assert on.returncode == 0 and any(" update " in f" {call} " for call in on_calls), text
+    assert on_record["state"] == "ok", text
 
 invalid = subprocess.run([str(HELPER), "--all"], text=True, capture_output=True, check=False)
 assert invalid.returncode == 2, "an unbounded Flatpak scope must be rejected"

@@ -1,0 +1,451 @@
+#!/usr/bin/env python3
+"""What is installed, for every kind of app Mo Store knows, read from files only.
+
+Measured on the station on 2026-10-14: the index said 8 apps were installed, the real number
+was 10. PhotoCraft (an App Drop install) and cn.navclub.ldbfx (a system Flatpak that Flathub
+retired) were missing from the Store's Installed page, so neither could be found or removed.
+
+Kinds and the file each one is read from (docs/MO_STORE.md, "Kinds of app"):
+  webapp    ~/.local/share/applications/org.moos.webapp.<id>.desktop with X-MoOS-WebApp=<id>
+  appdrop   ~/.local/share/moos/appdrop/<id>.json carrying catalog_id=<id>
+  windows   ~/.local/share/moos/windows-apps/<id>.json
+  android   the Android runtime's per-package data directory
+  npm       ~/.local/bin/<command> (+ the package's own package.json for its version)
+  web       never installed
+  dropped   an App Drop record with no catalogue id
+  flatpak   deployments in both scopes; flatpak's own deploy data gives the version and EOL
+
+Every run uses a private HOME, private XDG directories and fixture installations.
+"""
+
+from __future__ import annotations
+
+import base64
+import importlib.machinery
+import importlib.util
+import json
+import os
+from pathlib import Path
+import random
+import subprocess
+import sys
+import tempfile
+import unittest
+
+ROOT = Path(__file__).resolve().parents[1]
+INDEXER = Path(os.environ.get("MOOS_STORE_INDEX_UNDER_TEST")
+               or ROOT / "system_files/usr/bin/moos-store-index")
+
+
+def load_indexer():
+    loader = importlib.machinery.SourceFileLoader("moos_store_index_lifecycle", str(INDEXER))
+    spec = importlib.util.spec_from_loader(loader.name, loader)
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[loader.name] = module
+    loader.exec_module(module)
+    return module
+
+
+index = load_indexer()
+
+# /var/lib/flatpak/app/cn.navclub.ldbfx/x86_64/stable/active/deploy on the station, 2026-10-14:
+# a real retired Flathub app (public metadata only), 488 bytes with 2-byte framing offsets.
+REAL_EOL_DEPLOY = base64.b64decode(
+    "ZmxhdGh1YgA4ZTQ1N2JhNmY0MjJlYWJkNzc2NTlkNTU4MDIwN2ZmNzU4M2Y3NzlmYWU1ZWRlMTUyZTdjZWU2"
+    "MTlkNmMxYjg0AAAAAAAAAAAAAAAAAIasAHByZXZpb3VzLWlkcwAAAAAAYXMNAAAAAGVvbAAAAAAAVGhpcyBh"
+    "cHBsaWNhdGlvbiBpcyBubyBsb25nZXIgbWFpbnRhaW5lZC4AAHMEAAAAYXBwZGF0YS1zdW1tYXJ5AFZpc3Vh"
+    "bCBkYXRhYmFzZSBtYW5hZ2VtZW50IHRvb2wAAHMQAAAAAABhcHBkYXRhLW5hbWUAAAAAbGRiZngAAHMNAAAA"
+    "AAAAAGFwcGRhdGEtdmVyc2lvbgAxLjAuMAAAcxAAAAAAAAAAcnVudGltZQBvcmcuZ25vbWUuU2RrL3g4Nl82"
+    "NC80MgAAcwgAAAAAAGFwcGRhdGEtY29udGVudC1yYXRpbmcAAG9hcnMtMS4xAAkAKHNhe3NzfSkXAAAAAHRp"
+    "bWVzdGFtcAAAAAAAAADx2ZRiAAAAAAB0CgAAAAAAZGVwbG95LXZlcnNpb24AAAQAAAAAaQ8AYXBwZGF0YS1s"
+    "aWNlbnNlAEFwYWNoZS0yLjAAAHMQFABNAIMAoQDBAOsAHAE7AVcBdgFJAEkACAA="
+)
+
+
+def _offset_size(body: int, offsets: int) -> int:
+    for size, limit in ((1, 0xFF), (2, 0xFFFF), (4, 0xFFFFFFFF)):
+        if body + size * offsets <= limit:
+            return size
+    return 8
+
+
+def _pad(data: bytes, alignment: int) -> bytes:
+    return data + b"\0" * (-len(data) % alignment)
+
+
+def encode_deploy(origin: str, commit: str, size: int, metadata: dict[str, str]) -> bytes:
+    """A GVariant (ssasta{sv}) with string metadata, serialised like GLib does."""
+
+    body = origin.encode() + b"\0"
+    origin_end = len(body)
+    body += commit.encode() + b"\0"
+    commit_end = subpaths_end = len(body)
+    body = _pad(_pad(body, 8) + size.to_bytes(8, "big"), 8)
+    array, ends = b"", []
+    for key, value in metadata.items():
+        entry = key.encode() + b"\0"
+        key_end = len(entry)
+        entry = _pad(entry, 8) + value.encode() + b"\0" + b"\0s"
+        entry += key_end.to_bytes(_offset_size(len(entry), 1), "little")
+        array = _pad(array, 8) + entry
+        ends.append(len(array))
+    if ends:
+        width = _offset_size(len(array), len(ends))
+        array += b"".join(end.to_bytes(width, "little") for end in ends)
+    body += array
+    width = _offset_size(len(body), 3)
+    return body + b"".join(value.to_bytes(width, "little")
+                           for value in (subpaths_end, commit_end, origin_end))
+
+
+class DeployData(unittest.TestCase):
+    def test_a_real_retired_deployment_reads_back_exactly(self):
+        data = index.parse_deploy_data(REAL_EOL_DEPLOY)
+        self.assertEqual(data["origin"], "flathub")
+        self.assertEqual(data["commit"],
+                         "8e457ba6f422eabd77659d5580207ff7583f779fae5ede152e7cee619d6c1b84")
+        self.assertEqual(data["installed_size"], 8825856)
+        metadata = data["metadata"]
+        self.assertEqual(metadata["eol"], "This application is no longer maintained.")
+        self.assertEqual(metadata["appdata-name"], "ldbfx")
+        self.assertEqual(metadata["appdata-version"], "1.0.0")
+        self.assertEqual(metadata["appdata-license"], "Apache-2.0")
+        self.assertNotIn("timestamp", metadata)        # not a string: ignored
+        self.assertTrue(index.deploy_end_of_life(data))
+
+    def test_every_framing_width_is_read(self):
+        for label, metadata in (
+            ("1-byte offsets", {"appdata-version": "2.0"}),
+            ("2-byte offsets", {"appdata-name": "N" * 300, "appdata-version": "2.1"}),
+            ("4-byte offsets", {"appdata-summary": "S" * 70000, "appdata-version": "2.2",
+                                "eolr": "app/org.example.New/x86_64/stable"}),
+        ):
+            with self.subTest(width=label):
+                blob = encode_deploy("flathub", "c" * 64, 123, metadata)
+                data = index.parse_deploy_data(blob)
+                self.assertEqual(data["metadata"], metadata)
+                self.assertEqual(data["installed_size"], 123)
+        self.assertTrue(index.deploy_end_of_life(index.parse_deploy_data(
+            encode_deploy("flathub", "c" * 64, 1, {"eolr": "app/x/y/z"}))))
+
+    def test_damaged_data_never_raises_out_of_the_reader(self):
+        generator = random.Random(20261014)
+        with tempfile.TemporaryDirectory() as raw:
+            active = Path(raw)
+            for case in range(400):
+                blob = bytearray(REAL_EOL_DEPLOY)
+                if case < 200:
+                    blob = blob[:generator.randrange(len(blob))]
+                else:
+                    for _ in range(generator.randrange(1, 8)):
+                        blob[generator.randrange(len(blob))] = generator.randrange(256)
+                (active / "deploy").write_bytes(bytes(blob))
+                result = index.read_deploy_data(active)
+                self.assertIsInstance(result, dict)
+            (active / "deploy").write_bytes(b"\0" * (index.DEPLOY_DATA_LIMIT + 1))
+            self.assertEqual(index.read_deploy_data(active), {})
+
+
+class Versions(unittest.TestCase):
+    def test_version_order(self):
+        for newer, older in (("1.10", "1.9"), ("2.0", "1.99.9"), ("1.0.1", "1.0"),
+                             ("1.0", "1.0-beta"), ("0.8.0", "0.7.0"), ("v2", "v1")):
+            with self.subTest(newer=newer, older=older):
+                self.assertTrue(index.version_newer(newer, older))
+                self.assertFalse(index.version_newer(older, newer))
+        self.assertFalse(index.version_newer("1.2.3", "1.2.3"))
+
+
+SHA = "a" * 64
+PIN = "b" * 64
+
+APPSTREAM = """<components>
+  <component type="desktop-application"><id>org.example.Listed</id><name>Listed</name>
+    <bundle type="flatpak">app/org.example.Listed/x86_64/stable</bundle></component>
+  <component type="console-application"><id>org.example.Tool</id><name>Tool</name>
+    <bundle type="flatpak">app/org.example.Tool/x86_64/stable</bundle></component>
+</components>"""
+
+
+def catalogue() -> dict:
+    def entry(app_id, kind, **install):
+        recipe = {"kind": kind, **install}
+        return {"id": app_id, "source": "moos", "cat": "util", "glyph": "spark",
+                "en": app_id.title(), "ar": "تطبيق", "install": recipe}
+    downloads = {"x86_64": {"url": "https://example.org/a.AppImage", "sha256": PIN,
+                            "size": 1000}}
+    return {"apps": [
+        entry("chat", "webapp", url="https://chat.example.com/", hosts=["chat.example.com"]),
+        entry("chat-later", "webapp", url="https://later.example.com/",
+              hosts=["later.example.com"]),
+        entry("photo", "appdrop", artifact="appimage", version="0.8.0", downloads=downloads),
+        entry("adopted", "appdrop", artifact="appimage", version="2.0", downloads=downloads),
+        dict(entry("notepad", "windows-portable", version="8.7.1", exe="npp/notepad++.exe",
+                   downloads={"x86_64": {"url": "https://example.org/n.zip", "sha256": SHA,
+                                         "size": 10}}), engine="windows"),
+        dict(entry("org.example.droid", "android", url="https://example.org/d.apk",
+                   sha256=SHA, package="org.example.droid"), engine="android"),
+        entry("codex", "npm", pkg="@openai/codex", bin="codex"),
+        entry("page", "web", url="https://example.org/page"),
+    ]}
+
+
+class Machine:
+    """One fixture machine: a private home, a user Flatpak installation, AppStream."""
+
+    def __init__(self, base: Path):
+        self.base = base
+        self.home = base / "home"
+        self.data = self.home / ".local/share"
+        self.installation = base / "flatpak"
+        self.appstream = self.installation / "appstream"
+        revision = self.appstream / "flathub/x86_64" / ("e" * 64)
+        revision.mkdir(parents=True)
+        self.xml = revision / "appstream.xml"
+        self.xml.write_text(APPSTREAM, encoding="utf-8")
+        self.catalog = base / "catalog.json"
+        self.catalog.write_text(json.dumps(catalogue()), encoding="utf-8")
+        self.output = base / "cache/index.json"
+
+    def write(self, relative: str, text: str) -> Path:
+        path = self.home / relative
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(text, encoding="utf-8")
+        return path
+
+    def record(self, slug: str, **fields) -> None:
+        self.write(f".local/share/moos/appdrop/{slug}.json",
+                   json.dumps({"schema": 1, "id": slug, **fields}))
+
+    def launcher(self, name: str, icon: str, extra: str = "") -> str:
+        path = self.write(f".local/share/applications/{name}",
+                          f"[Desktop Entry]\nType=Application\nName=X\nIcon={icon}\n{extra}")
+        return str(path)
+
+    def icon(self, relative: str) -> str:
+        path = self.home / relative
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(b"\x89PNG\r\n\x1a\nfixture")
+        return str(path)
+
+    def deploy(self, app_id: str, metadata: dict[str, str], *, desktop: str = "",
+               scope_root: Path | None = None) -> Path:
+        root = scope_root or self.installation
+        commit = (app_id.encode().hex() + "0" * 64)[:64]
+        deployment = root / f"app/{app_id}/x86_64/stable" / commit
+        deployment.mkdir(parents=True)
+        (deployment.parent / "active").symlink_to(commit, target_is_directory=True)
+        (deployment / "deploy").write_bytes(encode_deploy("flathub", commit, 1, metadata))
+        if desktop:
+            applications = deployment / "export/share/applications"
+            applications.mkdir(parents=True)
+            (applications / f"{app_id}.desktop").write_text(desktop, encoding="utf-8")
+            icon = deployment / f"export/share/icons/hicolor/128x128/apps/{app_id}.png"
+            icon.parent.mkdir(parents=True)
+            icon.write_bytes(b"\x89PNG\r\n\x1a\nicon")
+        return deployment
+
+    def run(self) -> dict:
+        environment = {key: value for key, value in os.environ.items()
+                       if not key.startswith(("XDG_", "FLATPAK_"))}
+        environment.update({
+            "HOME": str(self.home), "XDG_DATA_HOME": str(self.data),
+            "XDG_CACHE_HOME": str(self.home / ".cache"),
+            "XDG_STATE_HOME": str(self.home / ".local/state"),
+            "XDG_CONFIG_HOME": str(self.home / ".config"),
+            "DBUS_SESSION_BUS_ADDRESS": "unix:path=/nonexistent",
+            "FLATPAK_USER_DIR": str(self.installation),
+            "FLATPAK_SYSTEM_DIR": str(self.base / "system-flatpak"),
+        })
+        result = subprocess.run(
+            [sys.executable, str(INDEXER), "--output", str(self.output), "--catalog",
+             str(self.catalog), "--appstream-root", str(self.appstream),
+             "--installation-root", str(self.installation), "--locale", "ar",
+             "--engines", "all"],
+            text=True, capture_output=True, check=False, env=environment)
+        if result.returncode != 0:
+            raise AssertionError(result.stderr)
+        return json.loads(self.output.read_text(encoding="utf-8"))
+
+
+def populate(machine: Machine) -> None:
+    # Web app: installed by its launcher; its own icon under the home.
+    machine.launcher("org.moos.webapp.chat.desktop", "/x",
+                     "X-MoOS-WebApp=chat\n")
+    machine.icon(".local/share/moos/webapps/chat/icon.png")
+    # A launcher with the right name but no marker line is somebody else's file.
+    machine.launcher("org.moos.webapp.chat-later.desktop", "/x", "X-MoOS-WebApp=other\n")
+    # App Drop from the catalogue, one version behind the pin.
+    photo_icon = machine.icon("Applications/photo/photo.png")
+    machine.record("photo", catalog_id="photo", version="0.7.0", name="Photo",
+                   desktop=machine.launcher("appdrop-photo.desktop", photo_icon,
+                                            "X-MoOS-AppDrop=photo\n"))
+    # Dropped by hand into a catalogue app's slot, byte-identical to the pin.
+    machine.record("adopted", name="Adopted", sha256=PIN)
+    # Windows program record.
+    machine.write(".local/share/moos/windows-apps/notepad.json",
+                  json.dumps({"id": "notepad", "version": "8.7.1"}))
+    # Android package data directory; npm command and package manifest.
+    (machine.home / ".local/share/waydroid/data/data/org.example.droid").mkdir(parents=True)
+    machine.write(".local/bin/codex", "#!/bin/sh\n")
+    machine.write(".local/lib/node_modules/@openai/codex/package.json",
+                  json.dumps({"name": "@openai/codex", "version": "0.46.0"}))
+    # Dropped apps: PhotoCraft-like, one whose icon is outside the home, one whose
+    # catalogue app is not offered any more, one that collides with a web app id,
+    # and two records that are not App Drop installs at all.
+    craft_icon = machine.icon("Applications/photocraft/craft.png")
+    machine.record("photocraft", name="PhotoCraft", kind="appimage",
+                   desktop=machine.launcher("appdrop-photocraft.desktop", craft_icon,
+                                            "Comment=Edit photos\nCategories=Graphics;\n"))
+    machine.record("outside", name="Outside",
+                   desktop=machine.launcher("appdrop-outside.desktop", "/etc/passwd"))
+    machine.record("retired-pick", name="Retired Pick", catalog_id="no-longer-offered",
+                   version="1.0")
+    machine.record("chat", name="Chat (hand-installed)")
+    machine.record("mismatch", id_override=True)
+    machine.write(".local/share/moos/appdrop/mismatch.json", json.dumps({"id": "other"}))
+    machine.write(".local/share/moos/appdrop/declined.json", "[]")
+    # Flatpaks: one listed, one retired and gone from AppStream, one console tool.
+    machine.deploy("org.example.Listed", {"appdata-version": "3.1"})
+    machine.deploy("cn.example.Retired",
+                   {"appdata-name": "Retired", "appdata-name@ar": "متقاعد",
+                    "appdata-version": "1.0.0", "appdata-summary": "Old tool",
+                    "eol": "This application is no longer maintained."},
+                   desktop="[Desktop Entry]\nName=Retired\nIcon=cn.example.Retired\n"
+                           "Categories=Development;\n")
+    machine.deploy("org.example.Tool", {"appdata-name": "Tool", "appdata-version": "9"})
+
+
+class EveryKindIsSeen(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.temporary = tempfile.TemporaryDirectory()
+        cls.machine = Machine(Path(cls.temporary.name))
+        populate(cls.machine)
+        cls.data = cls.machine.run()
+        cls.apps = {app["id"]: app for app in cls.data["apps"]}
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.temporary.cleanup()
+
+    def test_catalogue_kinds_report_their_real_state(self):
+        apps = self.apps
+        self.assertTrue(apps["chat"]["installed"])
+        self.assertTrue(apps["chat"]["icon"].endswith("/moos/webapps/chat/icon.png"))
+        self.assertFalse(apps["chat-later"]["installed"])
+        self.assertIsNone(apps["chat-later"]["icon"])
+        self.assertTrue(apps["photo"]["installed"])
+        self.assertEqual(apps["photo"]["installed_version"], "0.7.0")
+        self.assertTrue(apps["photo"]["update_available"])
+        self.assertTrue(apps["photo"]["icon"].endswith("/Applications/photo/photo.png"))
+        self.assertTrue(apps["adopted"]["installed"])
+        self.assertEqual(apps["adopted"]["installed_version"], "2.0")
+        self.assertFalse(apps["adopted"]["update_available"])
+        self.assertTrue(apps["notepad"]["installed"])
+        self.assertEqual(apps["notepad"]["installed_version"], "8.7.1")
+        self.assertFalse(apps["notepad"]["update_available"])
+        self.assertTrue(apps["org.example.droid"]["installed"])
+        self.assertIsNone(apps["org.example.droid"]["installed_version"])
+        self.assertTrue(apps["codex"]["installed"])
+        self.assertEqual(apps["codex"]["installed_version"], "0.46.0")
+        self.assertFalse(apps["page"]["installed"])
+
+    def test_an_app_drop_install_outside_the_catalogue_is_its_own_app(self):
+        craft = self.apps["photocraft"]
+        self.assertEqual((craft["kind"], craft["source"]), ("dropped", "local"))
+        self.assertEqual((craft["installed"], craft["installable"], craft["listed"]),
+                         (True, False, False))
+        self.assertEqual(craft["name"], "PhotoCraft")
+        self.assertEqual(craft["slug"], "photocraft")
+        self.assertEqual(craft["summary"], "Edit photos")
+        self.assertTrue(craft["icon"].startswith("file://"))
+        self.assertTrue(craft["icon"].endswith("/Applications/photocraft/craft.png"))
+        self.assertEqual(craft["cat"], "art")
+        self.assertIn("photocraft", craft["search"])
+        self.assertIsNone(craft["details"])
+        # An icon that is not a file under the person's home is never published.
+        self.assertIsNone(self.apps["outside"]["icon"])
+        # A record whose catalogue app is not offered here stays findable.
+        self.assertEqual(self.apps["retired-pick"]["kind"], "dropped")
+        self.assertEqual(self.apps["retired-pick"]["installed_version"], "1.0")
+        # A hand install whose slug is a catalogue web app's id keeps a name of its own.
+        self.assertEqual(self.apps["appdrop-chat"]["slug"], "chat")
+        self.assertEqual(self.apps["chat"]["kind"], "webapp")
+        # Records the catalogue owns are not listed twice; broken ones not at all.
+        for app_id in ("photo", "adopted"):
+            self.assertEqual(self.apps[app_id]["kind"], "appdrop")
+        self.assertNotIn("mismatch", self.apps)
+        self.assertNotIn("declined", self.apps)
+
+    def test_installed_flatpaks_appstream_does_not_list_are_still_there(self):
+        retired = self.apps["cn.example.Retired"]
+        self.assertEqual((retired["installed"], retired["installable"], retired["listed"]),
+                         (True, False, False))
+        self.assertTrue(retired["eol"])
+        self.assertEqual(retired["name"], "متقاعد")
+        self.assertEqual(retired["name_en"], "Retired")
+        self.assertEqual(retired["installed_version"], "1.0.0")
+        self.assertEqual(retired["installed_scope"], "user")
+        self.assertTrue(retired["icon"].endswith(
+            "/active/export/share/icons/hicolor/128x128/apps/cn.example.Retired.png"))
+        self.assertEqual(retired["cat"], "dev")
+        # A console tool is not offered, but an installed one can still be removed.
+        tool = self.apps["org.example.Tool"]
+        self.assertEqual((tool["installed"], tool["listed"]), (True, False))
+        listed = self.apps["org.example.Listed"]
+        self.assertEqual((listed["installed"], listed["listed"]), (True, True))
+        self.assertEqual(listed["installed_version"], "3.1")
+        self.assertFalse(listed["update_available"])
+        self.assertFalse(listed["eol"])
+
+    def test_every_entry_has_the_lifecycle_keys(self):
+        for app_id, app in self.apps.items():
+            with self.subTest(app=app_id):
+                for key in ("installed", "installed_version", "update_available", "eol",
+                            "listed", "kind", "cat", "search"):
+                    self.assertIn(key, app)
+        stats = self.data["stats"]
+        self.assertEqual(stats["dropped_apps"], 4)
+        self.assertEqual(stats["unlisted_installed_apps"], 2)
+        self.assertEqual(stats["installed_apps"],
+                         sum(bool(app["installed"]) for app in self.data["apps"]))
+
+
+class TheRefreshPathAgrees(unittest.TestCase):
+    def test_an_install_and_a_removal_are_seen_without_parsing_appstream(self):
+        with tempfile.TemporaryDirectory() as raw:
+            machine = Machine(Path(raw))
+            populate(machine)
+            first = machine.run()
+            unchanged = machine.output.stat().st_mtime_ns
+            self.assertEqual(machine.run()["generation"], first["generation"])
+            self.assertEqual(machine.output.stat().st_mtime_ns, unchanged)
+            # From here on AppStream cannot be read: only the refresh path can succeed.
+            machine.xml.chmod(0)
+            try:
+                machine.launcher("org.moos.webapp.chat-later.desktop", "/x",
+                                 "X-MoOS-WebApp=chat-later\n")
+                (machine.home / ".local/share/moos/appdrop/photocraft.json").unlink()
+                machine.deploy("org.example.Fresh", {"appdata-name": "Fresh",
+                                                     "appdata-version": "0.1"})
+                second = machine.run()
+            finally:
+                machine.xml.chmod(0o644)
+            apps = {app["id"]: app for app in second["apps"]}
+            self.assertEqual(second["generation"]["metadata_token"],
+                             first["generation"]["metadata_token"])
+            self.assertNotEqual(second["generation"]["installed_token"],
+                                first["generation"]["installed_token"])
+            # AppStream's entry survived: a full build could not have read it.
+            self.assertTrue(apps["org.example.Listed"]["listed"])
+            self.assertEqual(apps["org.example.Listed"]["installed_version"], "3.1")
+            self.assertTrue(apps["chat-later"]["installed"])
+            self.assertNotIn("photocraft", apps)
+            self.assertEqual(apps["org.example.Fresh"]["name"], "Fresh")
+            self.assertFalse(apps["org.example.Fresh"]["listed"])
+            self.assertEqual(second["stats"]["dropped_apps"], 3)
+
+
+if __name__ == "__main__":
+    unittest.main()

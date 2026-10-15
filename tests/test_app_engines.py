@@ -72,6 +72,15 @@ RUNTIME_BRANDS = tuple(brand for brand in ENGINE_BRANDS
 
 DOCUMENT = json.loads(REGISTRY.read_text(encoding="utf-8"))
 
+# Mo Store is main.qml plus the view components beside it; every one of them is Store voice.
+STORE = ROOT / "system_files/usr/share/moos/apps/store"
+
+
+def store_qml_files() -> list[Path]:
+    """main.qml first, then every other .qml/.js file of the Store by name."""
+    return sorted((p for p in STORE.rglob("*") if p.is_file() and p.suffix in (".qml", ".js")),
+                  key=lambda p: (p != STORE / "main.qml", p.relative_to(STORE).as_posix()))
+
 
 class WindowsFilePreflight(unittest.TestCase):
     @classmethod
@@ -249,7 +258,7 @@ class UnifiedProductVoice(unittest.TestCase):
             # MoOS's settings are the System Settings modules plus the helper that labels them.
             "Settings": [*sorted((ROOT / "moos-settings-kcm").rglob("*.qml")),
                          ROOT / "system_files/usr/libexec/moos-settings-status"],
-            "Store": ROOT / "system_files/usr/share/moos/apps/store/main.qml",
+            "Store": store_qml_files(),
             "first run": ROOT / "system_files/usr/bin/moos-firstrun",
             "app setup": ROOT / "system_files/usr/bin/moos-setup",
         }
@@ -398,10 +407,9 @@ class TheEngineNeverSaysItsName(unittest.TestCase):
     def test_the_store_and_app_drop_speak_the_same_way(self):
         """Two more surfaces the rule always covered and the gate could not see."""
         surfaces = {
-            "store/main.qml": (
-                ROOT / "system_files/usr/share/moos/apps/store/main.qml",
-                # Arabic and English literals the Store renders.
-                r'"([^"\\]{4,}?)"'),
+            # Arabic and English literals the Store renders, in main.qml and every view file.
+            **{f"store/{path.relative_to(STORE).as_posix()}": (path, r'"([^"\\]{4,}?)"')
+               for path in store_qml_files()},
             "moos-app-drop": (
                 ROOT / "system_files/usr/bin/moos-app-drop",
                 r'"([^"\\]{4,}?)"'),
@@ -452,7 +460,7 @@ class TheEngineNeverSaysItsName(unittest.TestCase):
         """
         PACKAGING = ("flatpak", "flatpaks", "appimage")
         surfaces = {
-            "store/main.qml": ROOT / "system_files/usr/share/moos/apps/store/main.qml",
+            **{f"store/{path.relative_to(STORE).as_posix()}": path for path in store_qml_files()},
             "welcome/main.qml": ROOT / "system_files/usr/share/moos/apps/welcome/main.qml",
             "moai/main.qml": ROOT / "system_files/usr/share/moos/apps/moai/main.qml",
         }

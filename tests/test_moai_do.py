@@ -466,9 +466,11 @@ with tempfile.TemporaryDirectory() as tmp:
         logged = store_log.read_text(encoding="utf-8") if store_log.exists() else ""
         return completed, logged
 
+    # `flatpak info` fails here, so the installed app is opened through Mo Store's own run verb.
     for args, expected in ((["uninstall", "org.example.App"], "remove\norg.example.App\n"),
                            (["update-apps"], "update\n"),
-                           (["install", "org.example.App"], "install\norg.example.App\n")):
+                           (["install", "org.example.App"],
+                            "install\norg.example.App\nrun\norg.example.App\n")):
         label = " ".join(args)
         completed, logged = store_run(args, "y\n")
         check(logged == expected,
@@ -486,6 +488,80 @@ with tempfile.TemporaryDirectory() as tmp:
     completed, _ = store_run(["uninstall", "org.example.App"], "y\n")
     check(completed.returncode != 0 and "system-wide" in completed.stdout,
           "a failed Store job must fail the action and show the backend's own reason")
+
+# ── 3b. After an install the app OPENS, whatever kind Mo Store installed ─────
+# launch_app used to try `flatpak run <id>` and then `gtk-launch <id>`. A web app's launcher is
+# org.moos.webapp.<id>, a Windows program's org.moos.windows.<id>, a publisher's app's
+# org.moos.vendor.<id>, and App Drop and Android apps have their own: no desktop file is named
+# after a Mo Store id, so every one of those installs ended "could not be opened". A Flatpak still
+# runs as itself; everything else goes through `moos-storectl run <id>`, which opens each kind
+# the way its launcher does. An app with no window (a command-line tool, a publisher page) is
+# ready, not a failure.
+with tempfile.TemporaryDirectory() as tmp:
+    bindir = Path(tmp)
+    store_log = bindir / "storectl.log"
+    launches = bindir / "launches.log"
+    doubles = {
+        "moos-storectl": ('#!/bin/sh\nprintf "%s\\n" "$@" >> "$MOOS_TEST_STORE_LOG"\n'
+                          'if [ "$1" = run ]; then\n'
+                          '    printf "%s\\n" "$MOOS_TEST_RUN_DOC"\n'
+                          '    exit "${MOOS_TEST_RUN_CODE:-0}"\n'
+                          'fi\n'
+                          "printf '%s\\n' '{\"schema\":1,\"state\":\"success\",\"message\":\"Done\"}'\n"),
+        "flatpak": ('#!/bin/sh\nif [ "$1" = info ]; then exit "${MOOS_TEST_FLATPAK_INFO:-1}"; fi\n'
+                    'printf "flatpak %s\\n" "$*" >> "$MOOS_TEST_LAUNCH_LOG"\nexit 0\n'),
+        "gtk-launch": '#!/bin/sh\nprintf "gtk-launch %s\\n" "$*" >> "$MOOS_TEST_LAUNCH_LOG"\nexit 0\n',
+        "moos-gpu-headroom": "#!/bin/sh\nexit 0\n",
+    }
+    for name, body in doubles.items():
+        (bindir / name).write_text(body, encoding="utf-8")
+        (bindir / name).chmod(0o755)
+    opened = '{"schema":1,"state":"success","message":"App opened","message_key":"app_opened"}'
+    windowless = ('{"schema":1,"state":"failed","message":"Mo Store cannot open claude-code",'
+                  '"message_key":"unsupported_kind"}')
+    missing = '{"schema":1,"state":"failed","message":"App is not installed","message_key":"not_installed"}'
+
+    def install_and_open(app_id, *, flatpak, run_doc, run_code):
+        for path in (store_log, launches):
+            path.unlink(missing_ok=True)
+        env = os.environ.copy()
+        (bindir / "home").mkdir(exist_ok=True)       # never the person's own home
+        env.update(HOME=str(bindir / "home"), XDG_CONFIG_HOME=str(bindir / "home/.config"),
+                   XDG_DATA_HOME=str(bindir / "home/.local/share"),
+                   XDG_STATE_HOME=str(bindir / "home/.local/state"),
+                   PATH=f"{bindir}{os.pathsep}{env.get('PATH', '')}", MOOS_TEST_STORE_LOG=str(store_log),
+                   MOOS_TEST_LAUNCH_LOG=str(launches), MOOS_TEST_FLATPAK_INFO="0" if flatpak else "1",
+                   MOOS_TEST_RUN_DOC=run_doc, MOOS_TEST_RUN_CODE=str(run_code))
+        completed = subprocess.run([BASH, str(MOAI_DO), "install", app_id], input="y\n",
+                                   capture_output=True, text=True, encoding="utf-8",
+                                   errors="replace", timeout=60, env=env)
+        time.sleep(0.3)                      # a detached launcher writes its line after we return
+        stored = store_log.read_text(encoding="utf-8") if store_log.exists() else ""
+        started = launches.read_text(encoding="utf-8") if launches.exists() else ""
+        return completed, stored, started
+
+    completed, stored, started = install_and_open("org.example.App", flatpak=True, run_doc=opened,
+                                                  run_code=0)
+    check(completed.returncode == 0 and stored == "install\norg.example.App\n"
+          and started == "flatpak run org.example.App\n",
+          f"an installed Flatpak must open as itself: {stored!r} {started!r} {completed.stderr}")
+    for app_id in ("chatgpt", "photocraft", "putty-win"):
+        completed, stored, started = install_and_open(app_id, flatpak=False, run_doc=opened, run_code=0)
+        check(completed.returncode == 0 and stored == f"install\n{app_id}\nrun\n{app_id}\n",
+              f"a Mo Store app that is not a Flatpak ({app_id}) must open through `moos-storectl run`: "
+              f"{stored!r} {completed.stdout} {completed.stderr}")
+        check("gtk-launch" not in started and "flatpak" not in started,
+              f"{app_id} must not be guessed at by desktop file or Flatpak id: {started!r}")
+    completed, stored, started = install_and_open("claude-code", flatpak=False, run_doc=windowless,
+                                                  run_code=2)
+    check(completed.returncode == 0 and "no window to open" in completed.stdout,
+          "an app with no window is installed and ready, never 'could not be opened': "
+          f"{completed.returncode} {completed.stdout} {completed.stderr}")
+    completed, stored, started = install_and_open("chatgpt", flatpak=False, run_doc=missing, run_code=1)
+    check(completed.returncode == 1 and "could not be opened" in completed.stderr,
+          "an app that would not open must say so and fail the action: "
+          f"{completed.returncode} {completed.stdout} {completed.stderr}")
+    check("gtk-launch" not in started, f"no desktop-file guess after a refused open: {started!r}")
 
 # ── 4. A dismissed administrator prompt is a failure, never a success line ────
 # `main` runs inside `if main "$@"; then`, which suspends `set -e` for every do_* function. An

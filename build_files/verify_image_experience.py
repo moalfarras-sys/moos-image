@@ -1225,7 +1225,14 @@ if store_backend_path.is_file():
             "has to stay answerable while a transaction is running")
 
 if store_qml_path.is_file():
-    _store_qml = source(text(str(store_qml_path)))
+    # The Store window is main.qml; its rail, pages, sheets and cards are component files
+    # beside it. Every token below is required of — and every forbidden one refused in — all of
+    # them, read as one text with main.qml first, each file's comments stripped on its own.
+    _store_files = sorted(
+        (p for p in store_qml_path.parent.rglob("*")
+         if p.is_file() and p.suffix in (".qml", ".js")),
+        key=lambda p: (p != store_qml_path, p.relative_to(store_qml_path.parent).as_posix()))
+    _store_qml = "\n".join(source(text(str(p))) for p in _store_files)
     require("MoosStore.installApps(ids)" in _store_qml
             and "MoosStore.removeApp(app.id)" in _store_qml
             and "MoosStore.updateApps()" in _store_qml,

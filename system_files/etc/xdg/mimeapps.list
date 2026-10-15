@@ -16,6 +16,10 @@
 
 [Default Applications]
 x-scheme-handler/moos=org.moos.urlhandler.desktop
+# Every "Uninstall or Manage Add-ons…" in the launcher and every appstream:// link opens the
+# app's page in Mo Store. Discover's url handler claims the same type and is hidden (build.sh
+# section c3b): without this line the action would open a store the owner never sees.
+x-scheme-handler/appstream=org.moos.store.desktop
 
 # Double-click a Windows .exe or an Android .apk and it RUNS (moos-run-foreign).
 #

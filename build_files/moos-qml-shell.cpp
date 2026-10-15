@@ -180,9 +180,55 @@ public:
             && start({QStringLiteral("run"), id});
     }
 
+    Q_INVOKABLE bool removeAppData(const QString &id)
+    {
+        // Removal together with the app's own data: still one fixed backend verb, whose id
+        // the backend validates again before it deletes anything.
+        return m_enabled && validId(id)
+            && start({QStringLiteral("remove"), QStringLiteral("--delete-data"), id});
+    }
+
     Q_INVOKABLE bool updateApps()
     {
         return m_enabled && start({QStringLiteral("update")});
+    }
+
+    Q_INVOKABLE bool updateApp(const QString &id)
+    {
+        return m_enabled && validId(id)
+            && start({QStringLiteral("update"), id});
+    }
+
+    Q_INVOKABLE bool appPermissions(const QString &id)
+    {
+        // Read-only: the backend writes permissions/<id>.json for the app's page.
+        return m_enabled && validId(id)
+            && start({QStringLiteral("permissions"), id});
+    }
+
+    Q_INVOKABLE bool setPermission(const QString &id, const QString &key, const QString &value)
+    {
+        // A closed vocabulary on both sides of the process boundary: QML can only name one of
+        // these words, and moos-storectl maps each to one fixed command of its own.
+        static const QStringList keys{
+            QStringLiteral("network"), QStringLiteral("files-home"), QStringLiteral("files-all"),
+            QStringLiteral("downloads"), QStringLiteral("devices"), QStringLiteral("sound"),
+            QStringLiteral("bluetooth"), QStringLiteral("background"),
+            QStringLiteral("notifications"), QStringLiteral("microphone"), QStringLiteral("camera"),
+            QStringLiteral("location"), QStringLiteral("clipboard"), QStringLiteral("screen")
+        };
+        static const QStringList values{
+            QStringLiteral("allow"), QStringLiteral("deny"), QStringLiteral("reset")
+        };
+        return m_enabled && validId(id) && keys.contains(key) && values.contains(value)
+            && start({QStringLiteral("set-permission"), id, key, value});
+    }
+
+    Q_INVOKABLE bool setAutoUpdates(bool on)
+    {
+        return m_enabled
+            && start({QStringLiteral("auto-updates"),
+                      on ? QStringLiteral("on") : QStringLiteral("off")});
     }
 
     Q_INVOKABLE bool checkUpdates()

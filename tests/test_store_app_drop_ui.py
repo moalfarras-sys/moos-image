@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
-"""Load the actual Store in isolated Qt and exercise the file-review boundary."""
+"""Load the actual Store in isolated Qt and exercise the file-review boundary, every page, both
+sheets and an app's page opened from a link: any binding error in the window or its view files
+fails the run."""
 import importlib.util
 import os
 from pathlib import Path
@@ -54,7 +56,62 @@ Item {
         frame = Qt.createQmlObject('import QtQuick; Rectangle { anchors.fill: parent }', app.contentItem)
         frame.color = app.color
         for (let child of children) child.parent = frame
-        capture.start()
+        // Every page and both sheets, one event-loop turn apart, so a binding error anywhere in
+        // the window (its views are separate files) reaches the log this test reads. Updates is
+        // marked known first: with the real bridge, an unknown answer would start a real check.
+        // The app page opens on a reviewed recipe and then on an app with no recipe at all, the
+        // order in which its advanced-source warning once kept the previous app's answer.
+        plain = app.allApps.find(a => !a.install)
+        reviewed = app.allApps.find(a => a.install && a.install.requires_review === true)
+        if (!plain || !reviewed) {
+            console.error("STORE DROP: the catalogue offered no app to open"); Qt.exit(7); return
+        }
+        app.updatesState = "known"
+        steps.start()
+    }
+    property var plain
+    property var reviewed
+    property int step: 0
+    readonly property var pages: ["apps", "games", "library", "updates", "settings", "search", "discover"]
+    Timer { id: steps; interval: 120; repeat: true
+        onTriggered: {
+            if (step < pages.length) app.page = pages[step]
+            else if (step === pages.length) app.openDetails(reviewed)
+            else if (step === pages.length + 1) app.openDetails(plain)
+            else if (step === pages.length + 2) app.installOne(plain)
+            else if (step === pages.length + 3) {
+                if (!app.selectedApp || app.selectedApp.id !== plain.id || app.pickCount !== 1) {
+                    console.error("STORE DROP: the app page and the review never opened"); Qt.exit(8); return
+                }
+                // A link reaches a window that is already open as activateRequested(argv), the
+                // way moos-qml-shell forwards a second launch. An id that breaks the launcher's
+                // own rule (a leading dot, a "..") opens nothing.
+                if (typeof app.activateRequested !== "function") {
+                    console.error("STORE DROP: the open window cannot take a link"); Qt.exit(11); return
+                }
+                if (app.requestedAppId(["moos-qml-shell", "--open-app=../" + reviewed.id]) !== ""
+                        || app.requestedAppId(["moos-qml-shell", "--open-app=" + reviewed.id + ".."]) !== ""
+                        || app.requestedAppId(["moos-qml-shell", "--open-app=" + reviewed.id]) !== reviewed.id) {
+                    console.error("STORE DROP: a malformed --open-app id was accepted"); Qt.exit(9); return
+                }
+                app.activateRequested(["moos-qml-shell", "--", "--open-app=../" + reviewed.id,
+                                       "--open-app=" + reviewed.id + ".."])
+                if (app.pendingOpenApp !== "" || app.selectedApp.id !== plain.id) {
+                    console.error("STORE DROP: a malformed --open-app id was accepted"); Qt.exit(9); return
+                }
+                app.activateRequested(["moos-qml-shell", "--", "--open-app=" + reviewed.id])
+            } else if (app.pendingOpenApp !== "") {
+                return          // the request waits for the launch-time index poll to finish
+            } else {
+                stop()
+                if (!app.selectedApp || app.selectedApp.id !== reviewed.id) {
+                    console.error("STORE DROP: --open-app did not open the app's page"); Qt.exit(10); return
+                }
+                console.warn("STORE DROP: pages and sheets exercised")
+                capture.start()
+            }
+            step++
+        }
     }
     Timer { id: capture; interval: 1500
         onTriggered: frame.grabToImage(function(result) {
@@ -75,6 +132,7 @@ Item {
                 result = subprocess.run([RUNTIME, "--app-id", "org.moos.store", "--qml", str(qml)],
                                         env=env, capture_output=True, text=True, timeout=35)
                 self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertIn("STORE DROP: pages and sheets exercised", result.stderr)
                 self.assertNotRegex(result.stderr, r"TypeError|ReferenceError|Cannot assign|Unable to assign")
                 self.assertGreater(frame.stat().st_size, 10000)
 

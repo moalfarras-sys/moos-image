@@ -37,6 +37,7 @@ ROOT = Path(__file__).resolve().parents[1]
 SYSTEM = ROOT / "system_files"
 APPLICATIONS = SYSTEM / "usr/share/applications"
 OWNERS = {"systemsettings", "org.moos.moai", "org.moos.store"}
+WEBAPP_OWNER = "org.moos.webapp.<id>"
 # Who each sender speaks for. A new sender joins this table or the gate fails.
 EXPECTED = {
     "usr/bin/moos-open": {"systemsettings", "org.moos.store"},
@@ -46,6 +47,11 @@ EXPECTED = {
     "usr/bin/moos-installer": {"systemsettings"},
     "usr/libexec/moos-update-ready": {"systemsettings"},
     "usr/libexec/moos-whats-new-notify": {"systemsettings"},
+    "usr/libexec/moos-store-notify": {"org.moos.store"},
+    # A web app's own notifications (a ChatGPT reply, a WhatsApp message) belong to THAT app,
+    # exactly as a browser web app's do: they are filed under the launcher Mo Store wrote for it,
+    # org.moos.webapp.<id>, so Settings › Notifications lists and mutes each app by its name.
+    "usr/lib/moos/moos_webapp_runtime.py": {WEBAPP_OWNER},
 }
 HINT = re.compile(r"desktop-entry:(?:\$\{owner\}|([A-Za-z0-9_.-]+))")
 
@@ -99,6 +105,13 @@ class EverySenderIsFiled(unittest.TestCase):
                     self.assertRegex(call, r"""--hint=["']?string:desktop-entry:""",
                                      "a MoOS notification with no owner is anonymous in "
                                      "System Settings › Notifications")
+            if EXPECTED.get(relative) == {WEBAPP_OWNER}:
+                for call in calls:
+                    self.assertIn('desktop-entry:{app.desktop_id}', call, relative)
+                policy = (SYSTEM / "usr/lib/moos/moos_webapp_policy.py").read_text(encoding="utf-8")
+                self.assertIn('DESKTOP_PREFIX = "org.moos.webapp."', policy)
+                self.assertIn('return DESKTOP_PREFIX + self.id', policy)
+                continue
             named = {name for call in calls for name in HINT.findall(call) if name}
             dynamic = any("${owner}" in call for call in calls)
             if dynamic:
@@ -151,6 +164,10 @@ class TheSendersExecuted(unittest.TestCase):
                              '*passivepopup*) printf "%s\\n" "$*" >> "$POPUPS";; esac\n')
         self.stub("systemctl", "exit 0\n")
         self.stub("moai-do", 'echo "Done"\n')
+        # moos://remote/stop goes through moos-control, which revokes an enrolled login-screen
+        # Remote with pkexec: unstubbed, every run on such a station raised a real
+        # authentication dialog on the owner's screen.
+        self.stub("moos-control", 'printf "%s\\n" "$*" >> "$CONTROL"\n')
         self.stub("logger", "exit 0\n")
         (self.root / "run").mkdir(mode=0o700)
 
@@ -166,6 +183,7 @@ class TheSendersExecuted(unittest.TestCase):
         return {"PATH": f"{self.bin}:/usr/bin:/bin", "HOME": str(self.root),
                 "XDG_RUNTIME_DIR": str(self.root / "run"), "LANG": "C.UTF-8",
                 "SENT": str(self.sent), "POPUPS": str(self.popups),
+                "CONTROL": str(self.root / "control.log"),
                 "DBUS_SESSION_BUS_ADDRESS": f"unix:path={self.root}/no-bus", **extra}
 
     def wait_for(self, path, seconds=5):
@@ -181,6 +199,8 @@ class TheSendersExecuted(unittest.TestCase):
 
     def test_moos_open_files_settings_results_under_moos_settings(self):
         self.open("moos://remote/stop")
+        self.assertEqual((self.root / "control.log").read_text(encoding="utf-8"), "remote off\n",
+                         "the stop must reach the stub, never the installed moos-control")
         sent = self.wait_for(self.sent)
         self.assertEqual(len(sent), 1, sent)
         self.assertIn("--hint=string:desktop-entry:systemsettings", sent[0].split("\t"))

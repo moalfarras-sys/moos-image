@@ -307,7 +307,7 @@ for unit in \
     moos-theme-sync.path moos-theme-drift.timer moos-health.timer \
     moos-cloud-audio.service moos-update-ready.timer moos-reclaim-disk.timer \
     moos-index-policy.service moos-privacy-monitor.service moos-material-state.service moos-app-drop.path \
-    mo-remote-watchdog.timer mira-lumen.service; do
+    moos-store-notify.path mo-remote-watchdog.timer mira-lumen.service; do
     test -f "/usr/lib/systemd/user/${unit}" || {
         echo "FATAL: shared user authority is missing: ${unit}"
         exit 1
@@ -330,7 +330,7 @@ systemctl --global enable \
     moos-theme-sync.path moos-theme-drift.timer moos-health.timer \
     moos-cloud-audio.service moos-update-ready.timer moos-reclaim-disk.timer \
     moos-index-policy.service moos-privacy-monitor.service moos-material-state.service moos-app-drop.path \
-    mo-remote-watchdog.timer mira-lumen.service
+    moos-store-notify.path mo-remote-watchdog.timer mira-lumen.service
 
 systemctl enable NetworkManager.service sshd.service firewalld.service tailscaled.service
 systemctl enable moos-auto-update.timer

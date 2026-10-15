@@ -2708,15 +2708,31 @@ test -f /usr/lib/systemd/system/fedora-atomic-desktop-appstream-cache-refresh.se
 }
 systemctl disable fedora-atomic-desktop-appstream-cache-refresh.service
 
-# ── Flatpak auto-update must not block boot ───────────────────────────────────
+# ── Flatpak auto-update must not block boot — and must still happen ──────────
 # The base enables flatpak-system-update.timer, which fires flatpak-system-update.service
 # on network-online.target and runs `flatpak update` + `repair` synchronously. Measured cost
-# on the owner's machine: ~24.5s added to every cold boot, inside the critical path. Flatpak
-# updates are NOT boot-critical; MoOS updates the whole system via `moai-do update`, and a
-# user can still `flatpak update` on demand. Disable the timer and mask the service so it
-# never runs during boot. (The appstream cache refresh is a separate, fast unit — left alone.)
-systemctl disable flatpak-system-update.timer 2>/dev/null || true
-systemctl mask flatpak-system-update.service 2>/dev/null || true
+# on the owner's machine: ~24.5s added to every cold boot, inside the critical path — the
+# vendor timer is Persistent=true, so a 04:00 run the machine slept through fired AT BOOT.
+# MoOS used to disable the timer and mask the service. That cured the boot and left every
+# app installed for all users (Discover's default scope, and any system-wide install) without
+# a single update, ever, while the comments elsewhere said "the system timer owns that
+# installation" (audit 2026-10-14). The timer now stays enabled with MoOS's schedule
+# (flatpak-system-update.timer.d/moos-later.conf: 30 minutes after boot, 04:00 daily, never a
+# catch-up at boot) and the service runs at idle priority (moos-idle.conf) through the same
+# resilient helper as the user scope (20-moos-resilient.conf). It cannot reach the boot path.
+systemctl unmask flatpak-system-update.service 2>/dev/null || true
+systemctl enable flatpak-system-update.timer
+[ -L /etc/systemd/system/timers.target.wants/flatpak-system-update.timer ] \
+    || { echo "GATE FAIL: flatpak-system-update.timer is not enabled — apps installed for all users would never update"; exit 1; }
+[ ! -L /etc/systemd/system/flatpak-system-update.service ] \
+    || { echo "GATE FAIL: flatpak-system-update.service is still masked"; exit 1; }
+# Exact setting lines only: the drop-in's comments quote these values too, and a glob over the
+# whole file would pass on a comment (and is order-sensitive besides).
+_fsu_timer=$'\n'"$(grep -v '^[[:space:]]*#' /usr/lib/systemd/system/flatpak-system-update.timer.d/moos-later.conf)"$'\n'
+for _fsu_line in "Persistent=false" "OnBootSec=" "OnBootSec=30min" "OnCalendar=*-*-* 4:00:00"; do
+    [[ "$_fsu_timer" == *$'\n'"${_fsu_line}"$'\n'* ]] \
+        || { echo "GATE FAIL: the system app-update timer lost '${_fsu_line}' — it could catch up at boot again"; exit 1; }
+done
 
 # ── The base's own units must not wear another OS's name ─────────────────────
 # MoOS is not a skin over Fedora Kinoite — it IS the system, and a system whose
@@ -2908,6 +2924,8 @@ systemd-analyze verify \
     /usr/lib/systemd/user/moai-agent-api.service \
     /usr/lib/systemd/user/moos-app-drop.path \
     /usr/lib/systemd/user/moos-app-drop.service \
+    /usr/lib/systemd/user/moos-store-notify.path \
+    /usr/lib/systemd/user/moos-store-notify.service \
     /usr/lib/systemd/user/mira.service \
     /usr/lib/systemd/user/mira-lumen.service
 # mira.service (Mira's login start) is verified but never enabled here: it is the person's own
@@ -3002,6 +3020,11 @@ systemctl --global enable moos-material-state.service
 # what is enabled; its service only ever runs `moos-app-drop --scan`, which installs nothing
 # without a dialog whose default is No.
 systemctl --global enable moos-app-drop.path
+# Mo Store says once, by name, when automatic app updates could not finish (success stays
+# silent). The path unit is what is enabled; the service reads two files and exits.
+systemctl --global enable moos-store-notify.path
+[ -L /etc/systemd/user/plasma-workspace.target.wants/moos-store-notify.path ] \
+    || { echo "GATE FAIL: moos-store-notify.path did not wire into the session"; exit 1; }
 
 # An installed bootc system uses an OSTree/composefs overlay for /. Anaconda's
 # generated physical-root fstab entry makes systemd-remount-fs attempt an

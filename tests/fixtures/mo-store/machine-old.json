@@ -1,0 +1,8 @@
+{
+ "arch": "x86_64",
+ "engines": [
+  "android",
+  "linux",
+  "windows"
+ ]
+}

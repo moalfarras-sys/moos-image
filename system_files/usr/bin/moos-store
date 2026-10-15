@@ -43,6 +43,10 @@ READY="${CACHEDIR}/index.ready"
 # Pending updates are their own document: a read-only check must never look
 # like a transaction to the UI, which correlates job.json to its own request.
 UPDATES="${CACHEDIR}/updates.json"
+# Sizes, permissions and end-of-life of every app in the trusted catalogue, read by the backend
+# from the cached catalogue summary (no network); and the person's own Store choices.
+FACTS="${CACHEDIR}/facts.json"
+SETTINGS="${XDG_CONFIG_HOME:-$HOME/.config}/moos/store.json"
 
 # What this machine is, written BEFORE the first frame. The Store paints the
 # curated catalogue immediately (Component.onCompleted -> loadCurated()) and only
@@ -65,6 +69,10 @@ if [ -x /usr/bin/moos-store-index ]; then
     : >"$READY"
     (
         flock -n 9 || exit 0
+        # Sizes, permissions and end-of-life first (the cached catalogue summary, no network,
+        # ~0.35 s): the indexer's compatibility verdicts read facts.json, and facts that arrive
+        # after the index would only be seen on the next launch.
+        { [ -x /usr/bin/moos-storectl ] && /usr/bin/moos-storectl facts >/dev/null 2>&1; } || true
         if /usr/bin/moos-store-index \
             --catalog /usr/share/moos/store/catalog.json \
             --output "$INDEX" >"${CACHEDIR}/index.log" 2>&1; then
@@ -72,6 +80,29 @@ if [ -x /usr/bin/moos-store-index ]; then
         fi
     ) 9>"${CACHEDIR}/index.lock" &
 fi
+
+# Which app to open. Plasma's "Uninstall or Manage Add-ons…" action and every appstream://
+# link hand the Store one component id (this launcher is the x-scheme-handler/appstream
+# handler); a MoOS Search result passes --app=<id>. The id is validated here and again in QML,
+# and anything else is ignored: the Store then simply opens. When the Store is already running,
+# moos-qml-shell forwards these arguments to that window (activateRequested in main.qml).
+OPEN_APP=()
+for arg in "$@"; do
+    case "$arg" in
+        # The launcher's jump list ("Updates", "My apps") opens one page by name.
+        --page=discover|--page=apps|--page=games|--page=library|--page=updates|--page=settings)
+            OPEN_APP=("--open-page=${arg#--page=}"); continue ;;
+        --app=*) candidate="${arg#--app=}" ;;
+        appstream://*) candidate="${arg#appstream://}" ;;
+        appstream:*) candidate="${arg#appstream:}" ;;
+        *) continue ;;
+    esac
+    candidate="${candidate%%[/?#]*}"
+    candidate="${candidate%.desktop}"
+    if [[ "$candidate" =~ ^[A-Za-z0-9][A-Za-z0-9._-]{1,254}$ ]] && [[ "$candidate" != *..* ]]; then
+        OPEN_APP=("--open-app=$candidate")
+    fi
+done
 
 # moos-qml-shell, not the bare runtime: qml-qt6 names every window it hosts
 # org.qt-project.qml-qt6, so Plasma cannot match this window to
@@ -81,14 +112,15 @@ if [ -x /usr/bin/moos-qml-shell ]; then
     exec /usr/bin/moos-qml-shell \
         --app-id org.moos.store --icon moos-store --qml "$QML" \
         -- --cache="$CACHEDIR" --index="$INDEX" --job="$JOB" --ready="$READY" \
-           --updates="$UPDATES" --machine="$MACHINE"
+           --updates="$UPDATES" --machine="$MACHINE" --facts="$FACTS" --settings="$SETTINGS" \
+           "${OPEN_APP[@]}"
 fi
 
 # Fallback: wrong icon beats no window.
 for runner in qml-qt6 /usr/lib64/qt6/bin/qml qml6 qml; do
     if command -v "$runner" >/dev/null 2>&1 || [ -x "$runner" ]; then
         exec "$runner" "$QML" -- --cache="$CACHEDIR" --index="$INDEX" \
-            --job="$JOB" --ready="$READY" --updates="$UPDATES"
+            --job="$JOB" --ready="$READY" --updates="$UPDATES" "${OPEN_APP[@]}"
     fi
 done
 echo "Mo Store: no Qt6 QML runtime found (install qt6-qtdeclarative-devel). | لا يوجد محرّك QML." >&2

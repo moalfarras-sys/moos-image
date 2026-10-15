@@ -1,0 +1,50 @@
+{
+ "schema": 1,
+ "id": "org.example.Paint",
+ "kind": "flatpak",
+ "generated_at": "@NOW@",
+ "sandboxed": true,
+ "installed": true,
+ "rows": [
+  {
+   "key": "network",
+   "state": "allow",
+   "changeable": true
+  },
+  {
+   "key": "files-home",
+   "state": "allow",
+   "changeable": true
+  },
+  {
+   "key": "files-all",
+   "state": "deny",
+   "changeable": true
+  },
+  {
+   "key": "downloads",
+   "state": "allow",
+   "changeable": false
+  },
+  {
+   "key": "devices",
+   "state": "deny",
+   "changeable": true
+  },
+  {
+   "key": "sound",
+   "state": "allow",
+   "changeable": true
+  },
+  {
+   "key": "bluetooth",
+   "state": "deny",
+   "changeable": true
+  },
+  {
+   "key": "background",
+   "state": "allow",
+   "changeable": true
+  }
+ ]
+}

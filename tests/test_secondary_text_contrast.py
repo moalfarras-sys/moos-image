@@ -53,12 +53,21 @@ DISABLED_INK_DELEGATES = ("FormTextDelegate", "FormButtonDelegate", "FormSwitchD
                           "FormSectionText")
 
 
-def surfaces() -> list[tuple[str, Path, str]]:
-    """(label, file, token): the apps' named tokens, and every settings file's secondaryInk."""
-    found = [(app, APPS / app / "main.qml", token) for app, token in TOKENS.items()]
+def app_files(app: str) -> list[Path]:
+    """An app's QML. Mo Store's views are files beside its main.qml: a view that declared its own
+    secondary ink would paint every label it draws with it, so every one of them is read."""
+    main = APPS / app / "main.qml"
+    if app != "store":
+        return [main]
+    return [main] + sorted(p for p in (APPS / app).rglob("*.qml") if p != main)
+
+
+def surfaces() -> list[tuple[str, list[Path], str]]:
+    """(label, files, token): the apps' named tokens, and every settings file's secondaryInk."""
+    found = [(app, app_files(app), token) for app, token in TOKENS.items()]
     for path in sorted(KCM.rglob("*.qml")):
         if re.search(r"property\s+color\s+secondaryInk\b", path.read_text(encoding="utf-8")):
-            found.append((path.relative_to(KCM).as_posix(), path, "secondaryInk"))
+            found.append((path.relative_to(KCM).as_posix(), [path], "secondaryInk"))
     return found
 
 
@@ -100,17 +109,24 @@ def over(foreground, background, alpha: float):
     return tuple(foreground[i] * alpha + background[i] * (1 - alpha) for i in range(3))
 
 
-def token_alpha(path: Path, token: str) -> tuple[float | None, str]:
-    text = path.read_text(encoding="utf-8")
-    code = "\n".join(line for line in text.splitlines() if not line.lstrip().startswith("//"))
-    match = re.search(rf"readonly\s+property\s+color\s+{token}\s*:\s*([^\n]+(?:\n\s{{20,}}[^\n]+)*)", code)
-    if not match:
-        return None, "missing"
-    binding = " ".join(match.group(1).split())
-    if "disabledTextColor" in binding:
-        return None, binding
-    alpha = re.search(r"Qt\.rgba\(\s*(?:Kirigami\.Theme\.)?textColor\.r\s*,[^)]*?,\s*([0-9.]+)\s*\)", binding)
-    return (float(alpha.group(1)) if alpha else None), binding
+def token_alphas(paths: list[Path], token: str) -> list[tuple[float | None, str]]:
+    """Every declaration of `token` in these files, each with its alpha (None: not an alpha of
+    the text colour). A surface with no declaration at all reports one `missing`."""
+    found: list[tuple[float | None, str]] = []
+    for path in paths:
+        text = path.read_text(encoding="utf-8")
+        code = "\n".join(line for line in text.splitlines() if not line.lstrip().startswith("//"))
+        for match in re.finditer(
+                rf"(?:readonly\s+)?property\s+color\s+{token}\s*:\s*([^\n]+(?:\n\s{{20,}}[^\n]+)*)",
+                code):
+            binding = " ".join(match.group(1).split())
+            if "disabledTextColor" in binding:
+                found.append((None, binding))
+                continue
+            alpha = re.search(r"Qt\.rgba\(\s*(?:Kirigami\.Theme\.)?textColor\.r\s*,[^)]*?,\s*([0-9.]+)\s*\)",
+                              binding)
+            found.append(((float(alpha.group(1)) if alpha else None), binding))
+    return found or [(None, "missing")]
 
 
 def main() -> int:
@@ -123,8 +139,10 @@ def main() -> int:
     worst = (99.0, "", "")
     checked = surfaces()
     errors += settings_ink_problems()
-    for app, path, token in checked:
-        alpha, binding = token_alpha(path, token)
+    declared = [(app, token, alpha, binding)
+                for app, paths, token in checked
+                for alpha, binding in token_alphas(paths, token)]
+    for app, token, alpha, binding in declared:
         if alpha is None:
             errors.append(f"{app}: `{token}` must be the theme's text colour at an alpha "
                           f"(Qt.rgba(Kirigami.Theme.textColor.r, …, a)); it is `{binding}`. The "

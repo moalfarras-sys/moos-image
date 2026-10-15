@@ -317,16 +317,48 @@ check:
     python3 tests/test_remote_linux_network_boundary.py
     python3 tests/test_remote_trusted_devices.py
     python3 tests/test_moos_store_index.py
+    # Which AppStream the Store indexes: the user's own Flathub remote, and one revision per URL.
+    python3 tests/test_mo_store_index_sources.py
+    # Runtimes, add-ons, console tools and BaseApps are not apps; several branches offer stable.
+    python3 tests/test_mo_store_index_not_apps.py
+    # One bad catalogue entry is skipped with a reason; the index never fails for it.
+    python3 tests/test_mo_store_index_catalogue.py
+    # Folded search keys, English names, Store categories, branding and content rating.
+    python3 tests/test_mo_store_index_search.py
+    # What is installed for every kind, App Drop installs outside the catalogue, retired Flatpaks.
+    python3 tests/test_mo_store_index_lifecycle.py
+    # machine.json: hardware facts from files only, unknown is null, free space never on `/`.
+    python3 tests/test_mo_store_index_machine.py
+    # Compatibility verdicts on fixture machines: blocked/warn reasons, facts, refresh on change.
+    python3 tests/test_mo_store_index_compat.py
+    # details/<id>.json: the per-app documents, published as one generation by one rename.
+    python3 tests/test_mo_store_index_details.py
     # The Store may not offer an app this machine cannot install. The browse
     # index is built from the RUNNING arch's AppStream, but a curated entry with
     # no match was MANUFACTURED into the index -- so eleven x86-only apps, two of
     # them "popular" (Steam, Spotify), were dead buttons on the A1.
     python3 tests/test_store_arch_honesty.py
+    # Catalogue v2: the shipped catalogue passes, and every rule the gate added for it
+    # (pins, signers, vendor keys, glyphs, copy) is proven to bite on a planted copy.
+    python3 tests/test_mo_store_catalog_gate.py
     python3 tests/test_moos_storectl.py
     # Mo Store's backend reports progress and the UI owns the words: the
     # job document carries a stable message_key beside its human message,
     # and the UI must branch on the key, never on backend prose.
     python3 tests/test_store_job_language.py
+    # Every kind of app through one backend verb set: pinned downloads against a real
+    # local TLS server, App Drop and web apps, Android records, updates, permissions,
+    # refusals; and a portable Windows program's own prefix, created without a window.
+    python3 tests/test_mo_store_backend_kinds.py
+    python3 tests/test_mo_store_backend_windows.py
+    # A publisher's own signed package through the Store's verbs, and Windows programs copied
+    # from one template settings folder.
+    python3 tests/test_mo_store_backend2_vendor.py
+    python3 tests/test_mo_store_backend2_windows_template.py
+    # The index's vendor kind, and what a Windows program's settings folder costs on this disk.
+    python3 tests/test_mo_store_backend2_index.py
+    # The Windows runtime's own menu builder never writes launchers or file associations.
+    python3 tests/test_mo_store_backend2_run_foreign.py
     # One globally importable MoUI module must own identity metrics and shared
     # controls; an app-local copy cannot silently grow back.
     python3 tests/test_moos_design_core.py
@@ -434,6 +466,11 @@ check:
     python3 tests/test_app_drop_dialog_runtime.py
     python3 tests/test_store_app_drop_bridge.py
     python3 tests/test_store_app_drop_ui.py
+    # Mo Store's pages after Discover load the first time they are shown, so a broken binding on
+    # one waits for a person to open it. This walks every page, sheet and shelf of the real window
+    # offscreen on fixture data (and the bare catalogue), fails on any QML warning, and proves on
+    # a planted copy that it reaches every view file. Skips where the Qt runtime is absent.
+    python3 tests/test_mo_store_ui_pages.py
     # The Device page told an Oracle A1 owner their CPU was a "MoOS device".
     # Real hardware identity, or an honest Unknown -- never an invented name.
     python3 tests/test_settings_hardware_identity.py
@@ -517,6 +554,13 @@ check:
     python3 tests/test_moos_shortcuts.py
     # App Drop: install from a file, with real hostile archives and the real sandbox.
     python3 tests/test_app_drop.py
+    # Mo Store's web apps, its search runner and its update notifier (docs/MO_STORE.md).
+    python3 tests/test_moos_webapp.py
+    python3 tests/test_moos_store_krunner.py
+    python3 tests/test_moos_store_notify.py
+    # A publisher's own signed package unpacked into the home: rpm's version order, pinned
+    # downloads, the catalogue's key only, hostile payloads, MoOS's own launcher, atomic update.
+    python3 tests/test_moos_vendor_rpm.py
     # The administrator question for a local package, and what a dismissed one prints.
     python3 tests/test_moos_local_rpm_authentication.py
     # The station's pointer tool must keep asking KWin where the pointer is.

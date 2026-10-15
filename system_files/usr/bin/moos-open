@@ -550,6 +550,11 @@ PY
         elif [ -f "$HOME/.local/share/applications/$id.desktop" ] \
           || [ -f "/usr/share/applications/$id.desktop" ]; then
             gui gtk-launch "$id"
+        # Web apps, publisher downloads, Windows programs and Android apps: Mo Store knows each
+        # one's launcher and opens only what is installed (the Store's own Open button).
+        elif command -v moos-storectl >/dev/null 2>&1 \
+          && moos-storectl run "$id" >/dev/null 2>&1; then
+            :
         else
             notify "التطبيق غير مثبّت | app is not installed: $id"
             exit 2

@@ -456,6 +456,19 @@ def open_app(value):
         command = ["flatpak", "run", value]
     elif any((base / "applications" / f"{value}.desktop").is_file() for base in data_dirs()):
         command = ["gtk-launch", value]
+    elif shutil.which("moos-storectl"):
+        # Web apps, publisher downloads, Windows programs, Android apps and the publisher's own
+        # packages are opened by Mo Store, which knows each one's launcher (and refuses an id
+        # that is not installed); the same path its Open button takes.
+        require_display()
+        try:
+            done = subprocess.run(["moos-storectl", "run", value], capture_output=True,
+                                  timeout=60, stdin=subprocess.DEVNULL)
+        except (OSError, subprocess.SubprocessError) as exc:
+            raise Unavailable(f"app is not installed: {value}") from exc
+        if done.returncode != 0:
+            raise Unavailable(f"app is not installed: {value}")
+        return f"🚀 فتح {value} | Opening {value}"
     else:
         raise Unavailable(f"app is not installed: {value}")
     require_display()

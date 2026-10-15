@@ -1,0 +1,17 @@
+[Desktop Entry]
+Name=Mo Store
+Name[ar]=متجر MoOS
+Comment=Find apps to install from the search bar
+Comment[ar]=ابحث عن تطبيقات لتثبيتها من شريط البحث
+X-KDE-ServiceTypes=Plasma/Runner
+Type=Service
+Icon=moos-store
+X-KDE-PluginInfo-Name=org.moos.store
+X-KDE-PluginInfo-Version=1.0
+X-KDE-PluginInfo-License=GPL-3.0-or-later
+X-KDE-PluginInfo-EnabledByDefault=true
+X-Plasma-API=DBus
+X-Plasma-DBusRunner-Service=org.moos.StoreRunner
+X-Plasma-DBusRunner-Path=/runner
+X-Plasma-Request-Actions-Once=true
+X-Plasma-Runner-Min-Letter-Count=2

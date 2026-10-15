@@ -92,6 +92,23 @@ run_logged() {
 }
 
 if [ "$scope" = --user ]; then
+    # The person's own choice in Mo Store → Settings: "Update apps automatically". The file is
+    # written by `moos-storectl auto-updates on|off`; a missing or unreadable file means on.
+    config_root="${XDG_CONFIG_HOME:-}"
+    case "$config_root" in /*) ;; *) config_root="$HOME/.config" ;; esac
+    if python3 - "$config_root/moos/store.json" <<'PY'
+import json, sys
+try:
+    with open(sys.argv[1], encoding="utf-8") as handle:
+        choice = json.load(handle).get("auto_updates", True)
+except (OSError, ValueError, AttributeError):
+    choice = True
+sys.exit(0 if choice is False else 1)
+PY
+    then
+        echo "MoOS: automatic app updates are off in Mo Store; nothing was updated." >&2
+        exit 0
+    fi
     cache_root="${XDG_CACHE_HOME:-}"
     case "$cache_root" in /*) ;; *) cache_root="$HOME/.cache" ;; esac
     state_root="${XDG_STATE_HOME:-}"

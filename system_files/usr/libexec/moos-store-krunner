@@ -1,0 +1,381 @@
+#!/usr/bin/python3
+"""moos-store-krunner — Mo Store in Plasma's search bar (KRunner D-Bus runner).
+
+WHY: typing "gimp", "libreoffice" or "واتساب" into MoOS Search used to find nothing unless the app
+was already installed. Discover's own AppStream runner is switched off on purpose (it opened a
+second, hidden store; see /etc/xdg/krunnerrc). This runner answers from Mo Store's own local
+index instead — Linux apps, web apps, Windows programs and Android apps alike — and a chosen
+result opens that app's page in Mo Store.
+
+Safety: this runner only SUGGESTS and only OPENS A PAGE. Nothing is installed from the search bar:
+the install button, its review and its consent stay in Mo Store. A chosen id is looked up again
+before anything starts, and Mo Store is started with one argv element, never a shell.
+
+Manners: an app the person already has always outranks a suggestion (results use KRunner's low
+category relevance, as Plasma's own software runner does), apps the image already ships are never
+offered, and the activation token KRunner hands over is passed on, so an open Store comes to the
+front instead of flashing in the dock.
+
+Cost: started on demand by D-Bus activation, it reads the local index once (re-read only when the
+file changes), falls back to the signed catalogue before the Store has ever built an index, never
+touches the network, and exits a few minutes after the last search ends.
+"""
+
+from __future__ import annotations
+
+import json
+import os
+from pathlib import Path
+import re
+import struct
+import subprocess
+import sys
+import time
+import zlib
+
+SERVICE = "org.moos.StoreRunner"
+PATH = "/runner"
+ICON = "moos-store"
+STORE = "/usr/bin/moos-store"
+CATALOG = Path("/usr/share/moos/store/catalog.json")
+SYSTEM_APPLICATIONS = (Path("/usr/share/applications"), Path("/usr/local/share/applications"))
+IDLE_SECONDS = 300
+LIMIT = 5
+ID_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{1,254}$")
+# KRunner's category relevance (KRunner::QueryMatch::CategoryRelevance): Lowest 0, Low 30.
+# An installed app found by the applications runner must always come first.
+LOWEST, LOW = 0, 30
+
+INTERFACE = """<node>
+  <interface name="org.kde.krunner1">
+    <method name="Actions"><arg type="a(sss)" direction="out"/></method>
+    <method name="Match">
+      <arg name="query" type="s" direction="in"/>
+      <arg type="a(sssida{sv})" direction="out"/>
+    </method>
+    <method name="Run">
+      <arg name="matchId" type="s" direction="in"/>
+      <arg name="actionId" type="s" direction="in"/>
+    </method>
+    <method name="SetActivationToken">
+      <arg name="token" type="s" direction="in"/>
+    </method>
+    <method name="Config"><arg type="a{sv}" direction="out"/></method>
+    <method name="Teardown"/>
+  </interface>
+</node>"""
+
+# Arabic is matched the way people type it: no diacritics or tatweel, every alef the same,
+# ta marbuta like ha, alef maqsura like ya, and either kind of digit.
+_MARKS = re.compile("[ؐ-ًؚ-ٰٟۖ-ۭـ​-‏⁦-⁩]")
+_FOLD = str.maketrans({"أ": "ا", "إ": "ا", "آ": "ا", "ٱ": "ا", "ى": "ي", "ئ": "ي", "ؤ": "و",
+                       "ة": "ه", "٠": "0", "١": "1", "٢": "2", "٣": "3", "٤": "4", "٥": "5",
+                       "٦": "6", "٧": "7", "٨": "8", "٩": "9", "۰": "0", "۱": "1", "۲": "2",
+                       "۳": "3", "۴": "4", "۵": "5", "۶": "6", "۷": "7", "۸": "8", "۹": "9"})
+_SPACE = re.compile(r"[\s _.\-+/()|·]+")
+
+
+def fold(text: object) -> str:
+    if not isinstance(text, str):
+        return ""
+    text = _MARKS.sub("", text.lower()).translate(_FOLD)
+    return _SPACE.sub(" ", text).strip()
+
+
+def arabic_session() -> bool:
+    for name in ("LC_ALL", "LC_MESSAGES", "LANG", "LANGUAGE"):
+        value = os.environ.get(name, "")
+        if value:
+            return value.startswith("ar")
+    return False
+
+
+def index_path() -> Path:
+    cache = os.environ.get("XDG_CACHE_HOME") or str(Path.home() / ".cache")
+    return Path(cache) / "moos-store" / "index.json"
+
+
+def system_desktop_ids(folders=SYSTEM_APPLICATIONS) -> set[str]:
+    """Apps the image itself ships: never offered as something to get."""
+    found: set[str] = set()
+    for folder in folders:
+        try:
+            names = os.listdir(folder)
+        except OSError:
+            continue
+        found.update(name[:-len(".desktop")] for name in names if name.endswith(".desktop"))
+    return found
+
+
+def _row(app: dict, builtin: set[str]) -> dict | None:
+    app_id = app.get("id")
+    if not isinstance(app_id, str) or not ID_PATTERN.fullmatch(app_id):
+        return None
+    if app.get("installed") or app.get("installable") is False or app_id in builtin:
+        return None
+    english = app.get("name_en") or app.get("en") or (app.get("name") if not app.get("ar") else "") \
+        or app_id
+    arabic = app.get("ar") or ""
+    summary_en = app.get("desc_en") or (app.get("summary") if not app.get("desc_ar") else "")
+    summary_ar = app.get("desc_ar") or ""
+    keywords = " ".join(str(word) for key in ("keywords_en", "keywords_ar")
+                        for word in (app.get(key) or []) if isinstance(word, str))
+    names = {fold(english), fold(arabic), fold(app.get("name")),
+             # A reverse-DNS id ends in the name people use: org.gimp.GIMP, com.valvesoftware.Steam.
+             fold(app_id.rsplit(".", 1)[-1]) if "." in app_id else fold(app_id)}
+    search = app.get("search") if isinstance(app.get("search"), str) else ""
+    return {
+        "id": app_id,
+        "en": str(english)[:80],
+        "ar": str(arabic)[:80],
+        "summary_en": str(summary_en or "")[:140],
+        "summary_ar": str(summary_ar or "")[:140],
+        "names": [name for name in names if name],
+        "keywords": fold(keywords),
+        "about": (fold(search) if search else
+                  fold(" ".join(str(part) for part in (summary_en, summary_ar, keywords,
+                                                        app.get("developer") or ""))))[:600],
+        "icon": app.get("icon") if isinstance(app.get("icon"), str) else "",
+        "curated": bool(app.get("curated")),
+        "verified": bool(app.get("verified")),
+    }
+
+
+class Index:
+    """A compact search table built from Mo Store's index; reloaded when the file changes."""
+
+    def __init__(self, path: Path, catalog: Path = CATALOG, builtin: set[str] | None = None) -> None:
+        self.path = path
+        self.catalog = catalog
+        self.builtin = system_desktop_ids() if builtin is None else builtin
+        self.stamp: tuple | None = None
+        self.rows: list[dict] = []
+        self.by_id: dict[str, dict] = {}
+
+    def _load(self, path: Path) -> list[dict] | None:
+        try:
+            with path.open(encoding="utf-8") as handle:
+                document = json.load(handle)
+        except (OSError, ValueError):
+            return None
+        apps = document.get("apps") if isinstance(document, dict) else None
+        return [app for app in apps if isinstance(app, dict)] if isinstance(apps, list) else None
+
+    def refresh(self) -> None:
+        source = self.path
+        try:
+            info = source.stat()
+        except OSError:
+            # A fresh account: the Store has never built its index. The signed catalogue still
+            # knows the apps MoOS recommends.
+            source = self.catalog
+            try:
+                info = source.stat()
+            except OSError:
+                self.stamp, self.rows, self.by_id = None, [], {}
+                return
+        stamp = (str(source), info.st_mtime_ns, info.st_size)
+        if stamp == self.stamp:
+            return
+        apps = self._load(source)
+        if apps is None:
+            return
+        rows = [row for row in (_row(app, self.builtin) for app in apps) if row]
+        self.rows = rows
+        self.by_id = {row["id"]: row for row in rows}
+        self.stamp = stamp
+
+
+def score(row: dict, query: str) -> float:
+    best = 0.0
+    for name in row["names"]:
+        if name == query:
+            best = max(best, 1.0)
+        elif name.startswith(query):
+            best = max(best, 0.86)
+        elif any(word.startswith(query) for word in name.split()):
+            best = max(best, 0.74)
+        elif query in name:
+            best = max(best, 0.6)
+    if best == 0.0 and row["keywords"]:
+        words = row["keywords"].split()
+        if query in words or any(word.startswith(query) for word in words if len(query) >= 3):
+            best = 0.55
+    if best == 0.0 and len(query) >= 4 and query in row["about"]:
+        best = 0.32
+    if best:
+        best += 0.04 * row["curated"] + 0.02 * row["verified"]
+    return best
+
+
+# ── icons: the app's own picture, decoded here (8-bit PNG, the AppStream cache format) ──────
+def _png_rgba(data: bytes, limit: int = 256) -> tuple[int, int, bytes] | None:
+    if not data.startswith(b"\x89PNG\r\n\x1a\n"):
+        return None
+    position, width, height, depth, colour, interlace, chunks = 8, 0, 0, 0, 0, 0, []
+    while position + 8 <= len(data):
+        length, kind = struct.unpack(">I4s", data[position:position + 8])
+        body = data[position + 8:position + 8 + length]
+        position += 12 + length
+        if kind == b"IHDR":
+            width, height, depth, colour, _c, _f, interlace = struct.unpack(">IIBBBBB", body)
+        elif kind == b"IDAT":
+            chunks.append(body)
+        elif kind == b"IEND":
+            break
+    channels = {6: 4, 2: 3}.get(colour)
+    if not channels or depth != 8 or interlace or not 0 < width <= limit or not 0 < height <= limit:
+        return None
+    raw = zlib.decompress(b"".join(chunks))
+    stride = width * channels
+    rows, previous = [], bytearray(stride)
+    for y in range(height):
+        start = y * (stride + 1)
+        kind, line = raw[start], bytearray(raw[start + 1:start + 1 + stride])
+        for x in range(stride):
+            a = line[x - channels] if x >= channels else 0
+            b = previous[x]
+            c = previous[x - channels] if x >= channels else 0
+            if kind == 1:
+                line[x] = (line[x] + a) & 255
+            elif kind == 2:
+                line[x] = (line[x] + b) & 255
+            elif kind == 3:
+                line[x] = (line[x] + ((a + b) >> 1)) & 255
+            elif kind == 4:
+                p = a + b - c
+                pa, pb, pc = abs(p - a), abs(p - b), abs(p - c)
+                line[x] = (line[x] + (a if pa <= pb and pa <= pc else b if pb <= pc else c)) & 255
+        rows.append(bytes(line))
+        previous = line
+    pixels = b"".join(rows)
+    if channels == 3:
+        pixels = b"".join(pixels[i:i + 3] + b"\xff" for i in range(0, len(pixels), 3))
+    return width, height, pixels
+
+
+def icon_data(icon: str):
+    """KRunner's icon-data tuple (iiibiiay) for a cached app icon, or None."""
+    if not icon.startswith("file:///"):
+        return None
+    path = Path(icon[len("file://"):])
+    smaller = Path(str(path).replace("/128x128/", "/64x64/"))
+    for candidate in (smaller, path):
+        try:
+            if candidate.stat().st_size > 512 * 1024:
+                continue
+            decoded = _png_rgba(candidate.read_bytes())
+        except (OSError, ValueError, zlib.error, struct.error):
+            continue
+        if decoded:
+            width, height, pixels = decoded
+            return (width, height, width * 4, True, 8, 4, pixels)
+    return None
+
+
+def match(index: Index, query: str) -> list[tuple]:
+    text = fold(query)
+    if len(text) < 2 or len(text) > 120:
+        return []
+    index.refresh()
+    # «المتصفح» is «متصفح» with the article: try the word without it as well.
+    variants = [text] + ([text[2:]] if text.startswith("ال") and len(text) > 4 else [])
+    scored = [(max(score(row, variant) for variant in variants), row) for row in index.rows]
+    scored = [item for item in scored if item[0] > 0]
+    scored.sort(key=lambda item: (-item[0], item[1]["en"].lower()))
+    arabic = arabic_session()
+    results = []
+    for relevance, row in scored[:LIMIT]:
+        name = (row["ar"] or row["en"]) if arabic else row["en"]
+        summary = (row["summary_ar"] or row["summary_en"]) if arabic else row["summary_en"]
+        label = f"ثبّت «{name}» من متجر MoOS" if arabic else f"Get {name} from Mo Store"
+        subtext = summary or ("متجر MoOS" if arabic else "Mo Store")
+        category = LOW if relevance >= 0.86 else LOWEST
+        results.append(("app:" + row["id"], label, ICON, category, min(relevance, 1.0), subtext,
+                        row["icon"]))
+    return results
+
+
+def open_page(app_id: str, token: str = "") -> None:
+    environment = dict(os.environ)
+    environment.pop("XDG_ACTIVATION_TOKEN", None)
+    if token and re.fullmatch(r"[A-Za-z0-9_.:/+=-]{1,512}", token):
+        environment["XDG_ACTIVATION_TOKEN"] = token
+    subprocess.Popen([STORE, f"--app={app_id}"], stdin=subprocess.DEVNULL, env=environment,
+                     stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True)
+
+
+def run(index: Index, match_id: str, token: str = "") -> bool:
+    """Open the chosen app's page. KRunner hands the id back as a string: check it again."""
+    if not isinstance(match_id, str) or not match_id.startswith("app:"):
+        return False
+    app_id = match_id[len("app:"):]
+    if not ID_PATTERN.fullmatch(app_id):
+        return False
+    index.refresh()
+    if app_id not in index.by_id:
+        return False
+    open_page(app_id, token)
+    return True
+
+
+def main() -> int:
+    import gi
+    gi.require_version("Gio", "2.0")
+    from gi.repository import Gio, GLib
+
+    index = Index(index_path())
+    node = Gio.DBusNodeInfo.new_for_xml(INTERFACE)
+    loop = GLib.MainLoop()
+    state = {"last": time.monotonic(), "token": ""}
+
+    def properties(subtext, icon):
+        found = {"subtext": GLib.Variant("s", subtext)}
+        data = icon_data(icon) if icon else None
+        if data:
+            found["icon-data"] = GLib.Variant("(iiibiiay)", data)
+        return found
+
+    def on_call(_connection, _sender, _path, _interface, method, parameters, invocation):
+        state["last"] = time.monotonic()
+        if method == "Match":
+            rows = [(mid, label, icon, kind, relevance, properties(subtext, picture))
+                    for mid, label, icon, kind, relevance, subtext, picture
+                    in match(index, parameters.unpack()[0])]
+            invocation.return_value(GLib.Variant("(a(sssida{sv}))", (rows,)))
+        elif method == "Run":
+            run(index, parameters.unpack()[0], state["token"])
+            state["token"] = ""
+            invocation.return_value(None)
+        elif method == "SetActivationToken":
+            state["token"] = parameters.unpack()[0]
+            invocation.return_value(None)
+        elif method == "Actions":
+            invocation.return_value(GLib.Variant("(a(sss))", ([],)))
+        elif method == "Config":
+            invocation.return_value(GLib.Variant("(a{sv})", ({},)))
+        else:
+            invocation.return_value(None)
+
+    def on_bus(connection, _name):
+        register = getattr(connection, "register_object_with_closures2", None)
+        if register is not None:
+            register(PATH, node.interfaces[0], on_call, None, None)
+        else:
+            connection.register_object(PATH, node.interfaces[0], on_call, None, None)
+
+    def idle_check():
+        if time.monotonic() - state["last"] > IDLE_SECONDS:
+            loop.quit()
+            return False
+        return True
+
+    Gio.bus_own_name(Gio.BusType.SESSION, SERVICE, Gio.BusNameOwnerFlags.NONE,
+                     on_bus, None, lambda *_args: loop.quit())
+    GLib.timeout_add_seconds(60, idle_check)
+    loop.run()
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
