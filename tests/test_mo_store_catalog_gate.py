@@ -863,5 +863,105 @@ class TheScriptFailsTheBuild(unittest.TestCase):
         self.assertIn(refusal("android"), bad.stdout)
 
 
+class WhatThePublishersSay(unittest.TestCase):
+    """What the shipped catalogue says about an app is what the app's own makers say.
+
+    The gate holds the catalogue to its schema, its pins and the words MoOS never says; it cannot
+    know whether a description is TRUE. A review of the Store library (2026-10-15) checked these
+    five entries against their publishers and found each one telling a person something the
+    publisher does not:
+
+      Jitsi Meet   "video meetings that need no account": the app opens meet.jit.si by default
+                   (jitsi-meet-electron app/features/config: defaultServerURL), and since
+                   24 August 2023 meet.jit.si needs a Google, GitHub or Facebook sign-in to START
+                   a meeting (jitsi.org/blog/authentication-on-meet-jit-si); guests still join
+                   without one.
+      Proton VPN   the card's publisher line said "Proton AG". Flathub's own description says "it
+                   is not an official Proton app. It is not affiliated with or supported by
+                   Proton AG", the listing is unverified, and Proton's Linux guide says the
+                   Flatpak is "developed and maintained by third-parties".
+      ChatGPT      its card was «تشات جي بي تي» while its hero card, its web entry, What's new
+                   and the menu entry its own package installs all write ChatGPT: one product, two
+                   names in one Discover row. The transliteration stays a search word.
+      PhotoCraft   the first hero card, found by «فوتوشوب»: its README badges it "Status: early
+                   alpha", "not yet a Photoshop replacement for daily professional work".
+      Flatseal     "what each installed app is allowed to reach", in the Privacy row: it manages
+                   the sandboxed apps from Flathub only, not web apps, Windows programs, Android
+                   apps or a publisher's own download; Mo Store's own permission pages cover
+                   every kind.
+
+    Each check names the fact it holds. When a publisher changes, the fact changes here too.
+    """
+
+    def featured(self, app_id: str) -> dict:
+        return next(card for card in SHIPPED["featured"] if card["app"] == app_id)
+
+    def test_jitsi_promises_no_account_only_to_guests(self):
+        jitsi = app(SHIPPED, "org.jitsi.jitsi-meet")
+        self.assertNotIn("need no account", jitsi["desc_en"])
+        self.assertNotIn("لا تحتاج إلى حساب", jitsi["desc_ar"])
+        self.assertIn("guests join without an account", jitsi["desc_en"])
+        self.assertIn("ينضم الضيوف دون حساب", jitsi["desc_ar"])
+
+    def test_the_proton_vpn_build_is_not_presented_as_protons(self):
+        vpn = app(SHIPPED, "com.protonvpn.www")
+        self.assertNotEqual(vpn["developer"], "Proton AG")
+        self.assertIn("not Proton", vpn["developer"])
+        self.assertIn("unofficial build", vpn["desc_en"])
+        self.assertIn("نسخة غير رسمية", vpn["desc_ar"])
+
+    def test_chatgpt_has_one_name_in_arabic(self):
+        chatgpt = app(SHIPPED, "chatgpt")
+        self.assertIn("ChatGPT", self.featured("chatgpt")["title_ar"])
+        self.assertIn("ChatGPT", app(SHIPPED, "chatgpt-web")["ar"])
+        self.assertIn("ChatGPT", chatgpt["ar"], "the card, the hero card, the web entry and the "
+                                               "menu must name one product one way")
+        self.assertNotIn("تشات جي بي تي", chatgpt["ar"])
+        self.assertIn("تشات جي بي تي", chatgpt["keywords_ar"], "typed in Arabic, it is still found")
+
+    def test_photocraft_says_it_is_an_early_version(self):
+        photocraft = app(SHIPPED, "photocraft")
+        hero = self.featured("photocraft")
+        for text in (photocraft["desc_en"], hero["tagline_en"]):
+            self.assertIn("early", text)
+        for text in (photocraft["desc_ar"], hero["tagline_ar"]):
+            self.assertIn("مرحلة", text)
+            self.assertIn("مبكرة", text)
+        # The hero draws its tagline in two lines and cuts the rest (HeroCarousel.qml:
+        # maximumLineCount 2, ElideRight). Its text column is about 440 px in the Store's smallest
+        # window, and about 320 px on a screen 800 px wide, where a line holds some 35 to 40
+        # characters at 16 px and fewer with a larger font. The notice comes first, inside the
+        # first 30 characters, so no window size or font scale can cut it off.
+        for text, word in ((hero["tagline_en"], "early"), (hero["tagline_ar"], "مبكرة")):
+            self.assertLessEqual(text.index(word) + len(word), 30,
+                                 f"the early-version notice must open the hero tagline: {text}")
+
+    def test_flatseal_claims_only_the_apps_it_manages_and_is_not_a_privacy_pick(self):
+        flatseal = app(SHIPPED, "com.github.tchx84.Flatseal")
+        self.assertNotIn("each installed app", flatseal["desc_en"])
+        self.assertNotIn("لكل تطبيق مثبّت", flatseal["desc_ar"])
+        self.assertIn("sandboxed Linux apps", flatseal["desc_en"])
+        self.assertIn("تطبيقات لينكس المعزولة", flatseal["desc_ar"])
+        privacy = next(row for row in SHIPPED["collections"] if row["id"] == "privacy")
+        self.assertNotIn("com.github.tchx84.Flatseal", privacy["apps"])
+
+
+class OneWordForPermissions(unittest.TestCase):
+    """The Store's permission controls, messages and What's new say «أذونات»/«إذن»; Al-Quran's
+    description on the same page said «صلاحيات». Search words may keep it: people type both."""
+
+    def test_no_arabic_copy_says_salahiyat(self):
+        shown = []
+        for entry in SHIPPED["apps"]:
+            shown += [(entry["id"], key, entry.get(key, "")) for key in ("ar", "desc_ar")]
+        for row in SHIPPED["collections"]:
+            shown += [(row["id"], key, row.get(key, "")) for key in ("ar", "desc_ar")]
+        for card in SHIPPED["featured"]:
+            shown += [(card["app"], key, card.get(key, "")) for key in ("title_ar", "tagline_ar")]
+        for bundle in SHIPPED["bundles"]:
+            shown += [(bundle["id"], key, bundle.get(key, "")) for key in ("ar", "desc_ar")]
+        self.assertEqual([(where, key) for where, key, text in shown if "صلاحي" in text], [])
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=1)

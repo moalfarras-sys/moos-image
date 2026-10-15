@@ -377,7 +377,7 @@ print(" ".join(str(document.get("message") or "").split()))' 2>/dev/null)"
     fi
     case "$code" in
         75)
-            echo "${Y}Mo Store مشغول بعملية أخرى — جرّب بعد انتهائها.${N}"
+            echo "${Y}متجر MoOS مشغول بعملية أخرى — جرّب بعد انتهائها.${N}"
             echo "${Y}Mo Store is busy with another job — try again when it finishes.${N}"
             ;;
         130)
@@ -396,9 +396,62 @@ valid_app_id() {
     printf '%s' "${1:-}" | grep -Eq '^[A-Za-z0-9][A-Za-z0-9._-]*$'
 }
 
+# install_origin <id> — where `moos-storectl install <id>` would take this app from, decided the
+# way the backend decides it, from the signed catalogue it installs from (the one shipped beside
+# this script: /usr/share/moos/store/catalog.json). An entry built for another processor does
+# not exist here; a Flathub entry, or any other reverse-DNS id, comes from Flathub; a MoOS entry
+# by its kind. Prints flathub, publisher, windows, webapp, android or web, and NOTHING when the
+# backend would refuse the id. The y/N below it is the only consent a moos://apps/install link
+# gets, and it used to call every one of these a sandboxed Flathub app. Reads one file; runs and
+# changes nothing.
+install_origin() {
+    python3 -I - "${1:-}" "$(uname -m)" \
+        "$(dirname "${BASH_SOURCE[0]}")/../share/moos/store/catalog.json" <<'PY' 2>/dev/null
+import json
+import re
+import sys
+
+app_id, machine, path = sys.argv[1:4]
+# moos-storectl's own grammars: validate_flatpak_id, validate_curated_id, _ANDROID_PACKAGE_RE.
+FLATPAK = re.compile(r"[A-Za-z_][A-Za-z0-9_-]*(?:\.[A-Za-z_][A-Za-z0-9_-]*)+")
+CURATED = re.compile(r"[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?")
+ANDROID = re.compile(r"[A-Za-z][A-Za-z0-9_]*(?:\.[A-Za-z][A-Za-z0-9_]*)+")
+KINDS = {"npm": "publisher", "appdrop": "publisher", "vendor-rpm": "publisher",
+         "windows-portable": "windows", "webapp": "webapp", "android": "android", "web": "web"}
+machine = {"armv7l": "arm", "armv8l": "arm", "i686": "i386"}.get(machine, machine)
+try:
+    with open(path, encoding="utf-8") as handle:
+        apps = json.load(handle)["apps"]
+except (OSError, UnicodeError, ValueError, KeyError, TypeError):
+    raise SystemExit(0)                 # the backend cannot read it either, and installs nothing
+if not isinstance(apps, list):
+    raise SystemExit(0)
+here = {}                               # Controller._catalog(), entry by entry
+for app in apps:
+    if not isinstance(app, dict) or not isinstance(app.get("id"), str) or app["id"] in here:
+        raise SystemExit(0)
+    declared = app.get("arch")
+    if isinstance(declared, list) and declared and machine not in declared:
+        continue
+    here[app["id"]] = app
+recipe = here.get(app_id)
+if recipe is None or recipe.get("source") == "flathub":
+    flathub = 3 <= len(app_id) <= 255 and len(app_id.split(".")) >= 3 and FLATPAK.fullmatch(app_id)
+    print("flathub" if flathub else "")
+elif recipe.get("source") == "moos":
+    install = recipe.get("install") if isinstance(recipe.get("install"), dict) else {}
+    kind = install.get("kind")
+    if kind == "android":
+        valid = install.get("package") == app_id and ANDROID.fullmatch(app_id)
+    else:
+        valid = CURATED.fullmatch(app_id)
+    print(KINDS.get(kind, "") if valid else "")
+PY
+}
+
 do_install() {
     local id="${1:-}"
-    hdr "تثبيت تطبيق عبر Mo Store" "Install an app through Mo Store"
+    hdr "تثبيت تطبيق عبر متجر MoOS" "Install an app through Mo Store"
     if [ -z "$id" ]; then
         echo "${Y}حدّد معرّف التطبيق | provide an app id${N}"
         echo "${D}مثال | e.g.:  moai-do install org.mozilla.firefox${N}"
@@ -410,8 +463,33 @@ do_install() {
         return 2
     fi
     need moos-storectl || return 1
+    local origin
+    origin="$(install_origin "$id")" || origin=""
     echo "${C}التطبيق | App :${N} ${id}"
-    echo "${D}المصدر | From : Mo Store (Flathub) — لهذا المستخدم | for this user${N}"
+    # What the person agrees to is where the app comes from and what it may touch: an app
+    # that is not sandboxed says it can see their files (docs/MO_STORE.md, "Honest labels").
+    case "$origin" in
+        flathub)
+            echo "${D}المصدر | From : Flathub عبر متجر MoOS — معزول، لهذا المستخدم | Flathub through Mo Store — sandboxed, for this user${N}" ;;
+        publisher)
+            echo "${D}المصدر | From : تنزيل الناشر نفسه عبر متجر MoOS، لهذا المستخدم | the publisher's own download through Mo Store, for this user${N}"
+            echo "${Y}⚠ غير معزول: يستطيع رؤية ملفاتك وتغييرها | not sandboxed: it can see and change your files${N}" ;;
+        windows)
+            echo "${D}المصدر | From : برنامج ويندوز من ناشره عبر متجر MoOS، لهذا المستخدم | a Windows program from its publisher through Mo Store, for this user${N}"
+            echo "${Y}⚠ غير معزول: يستطيع رؤية ملفاتك وتغييرها | not sandboxed: it can see and change your files${N}" ;;
+        webapp)
+            echo "${D}المصدر | From : تطبيق ويب في نافذة خاصة به — لا يُنزَّل أي برنامج | a web app in its own window — no program is downloaded${N}" ;;
+        android)
+            echo "${D}المصدر | From : تطبيق أندرويد موثّق عبر متجر MoOS — معزول، وأذوناته في إعدادات أندرويد | a verified Android app through Mo Store — sandboxed; its permissions are in Android's own settings${N}" ;;
+        web)
+            echo "${D}المصدر | From : صفحة الناشر الرسمية تُفتح فقط — لا يُثبَّت شيء | only the publisher's official page opens — nothing is installed${N}" ;;
+        *)
+            # The backend would refuse it (not in the catalogue for this processor, not a Flathub
+            # id, or a catalogue it cannot read): say so before asking, not after a y.
+            echo "${R}لا يعرض متجر MoOS هذا التطبيق على هذا الجهاز؛ لم يتغيّر شيء.${N}"
+            echo "${R}Mo Store does not offer this app on this computer; nothing was changed.${N}"
+            return 2 ;;
+    esac
     confirm || return 0
     if store_job install "$id"; then
         echo "${C}يفتح التطبيق الآن… | opening it now…${N}"
@@ -421,7 +499,7 @@ do_install() {
             return 1
         fi
     else
-        echo "${Y}لم يكتمل التثبيت (تحقّق من المعرّف في Mo Store).${N}"
+        echo "${Y}لم يكتمل التثبيت (تحقّق من المعرّف في متجر MoOS).${N}"
         echo "${Y}Install did not complete (check the id in Mo Store).${N}"
         return 1
     fi
@@ -525,7 +603,7 @@ do_install_rpm() {
 
 do_uninstall() {
     local id="${1:-}"
-    hdr "حذف تطبيق عبر Mo Store" "Remove an app through Mo Store"
+    hdr "حذف تطبيق عبر متجر MoOS" "Remove an app through Mo Store"
     if [ -z "$id" ]; then
         echo "${Y}حدّد معرّف التطبيق | provide an app id${N}"
         echo "${D}مثال | e.g.:  moai-do uninstall com.spotify.Client${N}"
@@ -537,14 +615,14 @@ do_uninstall() {
     fi
     need moos-storectl || return 1
     echo "${C}التطبيق | App :${N} ${id}"
-    echo "${D}يُحذف التطبيق لهذا المستخدم عبر Mo Store، ويمكن إعادة تثبيته في أي وقت.${N}"
+    echo "${D}يُحذف التطبيق لهذا المستخدم عبر متجر MoOS، ويمكن إعادة تثبيته في أي وقت.${N}"
     echo "${D}Removes the app for this user through Mo Store; you can reinstall it any time.${N}"
     confirm || return 0
     store_job remove "$id"
 }
 
 do_update_apps() {
-    hdr "تحديث كل التطبيقات عبر Mo Store" "Update all apps through Mo Store"
+    hdr "تحديث كل التطبيقات عبر متجر MoOS" "Update all apps through Mo Store"
     echo "${D}يحدّث تطبيقات هذا المستخدم. النظام نفسه يتحدّث بـ moai-do update.${N}"
     echo "${D}Updates this user's apps. The system itself updates with moai-do update.${N}"
     need moos-storectl || return 1
@@ -879,7 +957,7 @@ do_setup_gaming() {
 # straight from the URL router.
 do_smart_setup() {
     hdr "الإعداد الذكي للتطبيقات" "Smart app setup"
-    echo "${D}يثبّت عبر Mo Store التطبيقات الأساسية التي تنقص هذا الجهاز حسب عتاده. بلا صلاحيات مسؤول.${N}"
+    echo "${D}يثبّت عبر متجر MoOS التطبيقات الأساسية التي تنقص هذا الجهاز حسب عتاده. بلا صلاحيات مسؤول.${N}"
     echo "${D}Installs, through Mo Store, the essential apps this machine's hardware plan says are missing. No admin rights.${N}"
     echo
     if ! command -v moos-setup >/dev/null 2>&1; then
@@ -1347,7 +1425,7 @@ do_restart() {
             echo "${Y}A Mo AI action is still running (${detail}) — restart after it finishes. Nothing changed.${N}" >&2
             return 1 ;;
         busy:store)
-            echo "${Y}Mo Store ما زال يثبّت أو يحدّث — أعد التشغيل بعد انتهائه. لم يتغيّر شيء.${N}" >&2
+            echo "${Y}متجر MoOS ما زال يثبّت أو يحدّث — أعد التشغيل بعد انتهائه. لم يتغيّر شيء.${N}" >&2
             echo "${Y}Mo Store is still installing or updating — restart after it finishes. Nothing changed.${N}" >&2
             return 1 ;;
         busy:image)
@@ -2113,13 +2191,13 @@ ${V}الاستعمال | Usage:${N}  moai-do <command> [args]
                     Is a newer MoOS published or staged? (read-only)
   ${C}restart${N}           إعادة تشغيل الكمبيوتر (تُرفض أثناء تثبيت أو تحديث)
                     Restart the computer (refused while an install or update runs)
-  ${C}install <id>${N}      تثبيت تطبيق عبر Mo Store (لهذا المستخدم) ثم فتحه
+  ${C}install <id>${N}      تثبيت تطبيق عبر متجر MoOS (لهذا المستخدم) ثم فتحه
                     Install an app through Mo Store (for this user), then open it
   ${C}install-rpm <file>${N} تثبيت RPM محلي موقّع كتحديث ذري (يتطلب إعادة تشغيل)
                     Install a signed local RPM atomically (restart required)
-  ${C}uninstall <id>${N}    حذف تطبيق عبر Mo Store
+  ${C}uninstall <id>${N}    حذف تطبيق عبر متجر MoOS
                     Remove an app through Mo Store
-  ${C}update-apps${N}       تحديث كل التطبيقات عبر Mo Store
+  ${C}update-apps${N}       تحديث كل التطبيقات عبر متجر MoOS
                     Update all apps through Mo Store
   ${C}fix-audio${N}         إعادة تشغيل خدمات الصوت (PipeWire)
                     Restart audio services (PipeWire)

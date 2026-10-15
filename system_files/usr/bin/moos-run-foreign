@@ -155,6 +155,12 @@ term() { setsid konsole --hold -e "$@" >/dev/null 2>&1 & }
 # returned. The old path detached Wine with stderr in /dev/null, so a runtime
 # mapping failure looked exactly like a successful double-click. Keep one
 # user-owned diagnostic and say plainly when the program exits with an error.
+#
+# Say only what is known. A non-zero exit is the program's own: it may never have
+# opened, or it opened and closed with an error, and an installer may have written
+# files before it stopped. Nor does the notice send the person to Mo AI: no Mo AI
+# tool reads ~/.local/state/moos-foreign (moos-inspect's named logs are moai, theme,
+# store and remote), so the inspection it once promised could not happen.
 wine_run() {
     local target="$1" prefix state_dir log code
     [ -f "$target" ] || return 2
@@ -167,7 +173,7 @@ wine_run() {
         wine "$target" >"$log" 2>&1
     code=$?
     if [ "$code" -ne 0 ]; then
-        notify "تعذّر فتح برنامج Windows. لم يُثبّت شيء. يمكن لـ Mo AI فحص المشكلة. | This Windows program could not be opened. Nothing was installed. Mo AI can inspect the problem."
+        notify "تعذّر فتح برنامج Windows أو أُغلق بخطأ. | This Windows program could not be opened, or it closed with an error."
     fi
     return "$code"
 }
@@ -189,7 +195,7 @@ windows_app_run() {
     record="$data/moos/windows-apps/$id.json"
     if [ -L "$base" ] || [ -L "$app" ] || [ -L "$prefix" ] || [ ! -d "$app" ] \
             || [ ! -f "$prefix/system.reg" ] || [ ! -f "$record" ]; then
-        notify "هذا البرنامج غير مثبّت. ثبّته من متجر Mo. | This program is not installed. Install it from Mo Store."
+        notify "هذا البرنامج غير مثبّت. ثبّته من متجر MoOS. | This program is not installed. Install it from Mo Store."
         return 2
     fi
     exe="$(python3 -I - "$record" <<'PY' 2>/dev/null
@@ -216,7 +222,7 @@ PY
         *) real="" ;;
     esac
     if [ -z "$real" ] || [ ! -f "$real" ]; then
-        notify "ملفات هذا البرنامج ناقصة. أعد تثبيته من متجر Mo. | This program's files are incomplete. Reinstall it from Mo Store."
+        notify "ملفات هذا البرنامج ناقصة. أعد تثبيته من متجر MoOS. | This program's files are incomplete. Reinstall it from Mo Store."
         return 2
     fi
     foreign="${XDG_STATE_HOME:-$HOME/.local/state}/moos-foreign"
@@ -229,8 +235,9 @@ PY
     env WINEPREFIX="$prefix" WINEDLLOVERRIDES="mscoree,mshtml=;winemenubuilder.exe=d" \
         WINEDEBUG=-all wine "$real" >"$log" 2>&1
     code=$?
+    # The same truth as wine_run's: the exit is the program's own, and its log is this file's.
     if [ "$code" -ne 0 ]; then
-        notify "تعذّر فتح البرنامج. يمكن لـ Mo AI فحص المشكلة. | This program could not be opened. Mo AI can inspect the problem."
+        notify "تعذّر فتح البرنامج أو أُغلق بخطأ. | This program could not be opened, or it closed with an error."
     fi
     return "$code"
 }
