@@ -248,3 +248,16 @@ honest notes for full-access and Android apps).
   building catalogue, the signed catalogue alone) on `tests/fixtures/mo-store/` and fails on
   any QML warning; a planted copy proves it finds a fault in each view file at its own line.
   `make_fixtures.py` regenerates the fixtures byte for byte.
+
+## Craft catalogue extension (2026-10-15)
+
+The catalogue now includes all 13 published Craft Linux desktop apps: PhotoCraft,
+VectorCraft, FilmCraft, LightCraft, PdfCraft, EffectCraft, DesignCraft, FigCraft,
+WordCraft, SoundCraft, DeckCraft, CADCraft and GridCraft. Twelve new entries use
+publisher AppImages for x86_64 and aarch64, with exact size and SHA-256 and an
+individual reviewed download/icon rule. All 24 cached files were rehashed during
+integration. These are early development releases, as each description explains;
+checksum verification and catalogue acceptance are not evidence of complete Adobe
+feature parity or of runtime acceptance for all 13 apps. Collections distinguish
+the Craft suite and Adobe alternatives. ArtCraft's AI studio has no Linux build
+and is not represented as a native install. Total curated entries: 184.

@@ -122,6 +122,12 @@ privacy. It does not mean universal compatibility or an absence of all defects.
 
 ## Every app, one verb — the app-engine contract (P4.x)
 
+2026-10-15 Craft source extension: 12 additional pinned publisher apps (24 rehashed
+architecture artifacts), 184 curated entries and 14 collections. Catalogue/gate
+coverage is separate from per-app launch and signed delivery acceptance; see
+`docs/MO_STORE.md`.
+
+
 **The owner's requirement, in their words:** MoOS should run apps from Android,
 Windows and any Linux distribution; the person presses install or drops a file, it
 installs and runs, and they never see Wayland, KWin or Bottles. One store for every
