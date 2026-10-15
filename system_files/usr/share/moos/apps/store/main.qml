@@ -1659,12 +1659,21 @@ ApplicationWindow {
             win.updates = document
             win.updatesState = document.state === "success" ? "known" : "failed"
             win.updatesChecking = false
-            if (document.auto_updates === true || document.auto_updates === false)
-                win.autoUpdates = document.auto_updates
+            win.adoptAutoUpdates(document)
             return true
         } catch (error) {
             return false
         }
+    }
+
+    // The automatic-update switch shows the person's choice from the settings file the switch
+    // writes. updates.json repeats it as the backend read it when that check STARTED, which can be
+    // older than the switch: turning it off and on again while a check ran left the switch Off
+    // with the setting On. The check's copy only answers when the window has no settings file.
+    function adoptAutoUpdates(document) {
+        if (win.settingsPath) win.loadStoreSettings()
+        else if (document.auto_updates === true || document.auto_updates === false)
+            win.autoUpdates = document.auto_updates
     }
 
     function adoptRecentUpdates() {
@@ -1682,8 +1691,7 @@ ApplicationWindow {
             win.updatesCheckedAt = document.checked_at || ""
             win.updates = document
             win.updatesState = "known"
-            if (document.auto_updates === true || document.auto_updates === false)
-                win.autoUpdates = document.auto_updates
+            win.adoptAutoUpdates(document)
             return true
         } catch (error) {
             return false

@@ -411,6 +411,14 @@ def walk(variant: dict) -> list[dict]:
     bridgeless("an update, without the bridge", "app.updateOne(app.appById('org.example.Paint'))")
     bridgeless("update all, without the bridge", "app.updateAll()",
                words="app.local('تعذّر بدء التحديث', 'Could not start updates')")
+    # The switch follows the settings file, never an older check's copy of it (updates.json
+    # records what the backend read when that check started).
+    stale = "updates-none.json" if variant["settings"] == "settings.json" else "updates-known.json"
+    if variant["settings"]:
+        step("the switch keeps the person's choice over a check's older copy",
+             f"app.adoptAutoUpdates(harness.fixture({js(stale)}))",
+             "app.autoUpdates === " + ("true" if variant["settings"] == "settings.json" else "false"),
+             settle=200)
     step("the automatic switch, without the bridge",
          "harness.clearToast(); app.setAutoUpdates(!app.autoUpdates)",
          "harness.toastText() === app.needsUpdateText"
