@@ -85,8 +85,21 @@ esac
     "logger": "",
     "moos-theme": "",
     "gtk-launch": "",
-    # Mo Store opens what it installed (web apps, Windows programs…) and refuses the rest.
-    "moos-storectl": 'case "$1 $2" in "run chatgpt") exit 0;; run*) exit 1;; esac\n',
+    # Mo Store opens what it installed (web apps, Windows programs…) and refuses the rest, with its
+    # job document on the last line as the real backend prints it. STUB_RUN_DOC and STUB_RUN_CODE
+    # stand in for any other answer.
+    "moos-storectl": 'if [ -n "${STUB_RUN_DOC:-}" ]; then\n'
+                     '    printf "%s\\n" "$STUB_RUN_DOC"; exit "${STUB_RUN_CODE:-1}"\n'
+                     'fi\n'
+                     'for id in "$@"; do :; done\n'
+                     'case "$1 $id" in\n'
+                     '  "run chatgpt") echo \'{"schema":1,"action":"run","state":"success",'
+                     '"message_key":"app_opened"}\'; exit 0;;\n'
+                     '  run*) echo \'{"schema":1,"action":"run","state":"failed",'
+                     '"message_key":"invalid_id"}\'; exit 2;;\n'
+                     'esac\n',
+    # The apps/run route asks for GPU headroom first; the real one unloads the owner's local model.
+    "moos-gpu-headroom": "",
     "flatpak": 'case "$1 $2" in "info org.mozilla.firefox") exit 0;; info*) exit 1;; esac\n'
                'case "$1" in run) exit "${STUB_APP_EXIT:-0}";; esac\n',
     # The pages' own hosts, as the settings registry names them. STUB_PAGE_EXIT makes the
@@ -242,6 +255,45 @@ class MoosControlTests(unittest.TestCase):
         self.assertEqual(web.returncode, 0, web.stderr)
         self.assertIn(["moos-storectl", "run", "chatgpt"], self.machine.calls(settle=0.5))
         self.assertEqual(self.control("open", "not-installed", WAYLAND_DISPLAY=DISPLAY_NAME).returncode, 69)
+
+    # What Mo Store answers, and what moos-control must say for it. Every failure used to be "app is
+    # not installed": said of an installed web app while the scheduled updater held the Store's
+    # lock, and of an installed command-line tool, and Mo AI repeated it to the owner.
+    STORE_ANSWERS = (
+        ("75", {"state": "busy", "message_key": "busy"},
+         "متجر MoOS مشغول بعملية أخرى — حاول بعد قليل | "
+         "Mo Store is busy with another operation — try again shortly"),
+        ("1", {"state": "failed", "message_key": "not_installed"},
+         "التطبيق غير مثبّت | app is not installed: whatsapp"),
+        ("2", {"state": "failed", "message_key": "invalid_id"},
+         "التطبيق غير مثبّت | app is not installed: whatsapp"),
+        ("2", {"state": "failed", "message_key": "unsupported_kind"},
+         "لا نافذة لهذا التطبيق يفتحها متجر MoOS؛ أدوات سطر الأوامر تعمل في الطرفية | "
+         "Mo Store has no window to open for this app; command-line tools run in a terminal"),
+        ("1", {"state": "failed", "message": "Could not open the application"},
+         "تعذّر فتح هذا التطبيق | This app could not be opened: whatsapp"),
+        ("0", {"state": "failed"},
+         "تعذّر فتح هذا التطبيق | This app could not be opened: whatsapp"),
+        ("0", "not a document",
+         "تعذّر فتح هذا التطبيق | This app could not be opened: whatsapp"),
+    )
+
+    def test_open_says_what_mo_store_answered(self):
+        for code, document, said in self.STORE_ANSWERS:
+            with self.subTest(code=code, document=document):
+                self.machine.log.write_text("")
+                answer = document if isinstance(document, str) else json.dumps(
+                    {"schema": 1, "action": "run", **document})
+                done = self.control("open", "whatsapp", WAYLAND_DISPLAY=DISPLAY_NAME,
+                                    STUB_RUN_DOC=answer, STUB_RUN_CODE=code)
+                self.assertEqual(done.returncode, 69, done.stdout)
+                self.assertEqual(done.stderr, f"moos-control: {said}\n")
+                self.assertEqual(done.stdout, "", "a refusal must not also claim success")
+        # The owner's own request may start Android app support: no --no-android-start here.
+        self.assertIn(["moos-storectl", "run", "whatsapp"], self.machine.calls())
+        opened = self.control("open", "whatsapp", WAYLAND_DISPLAY=DISPLAY_NAME, STUB_RUN_CODE="0",
+                              STUB_RUN_DOC='{"schema":1,"action":"run","state":"success"}')
+        self.assertEqual((opened.returncode, opened.stdout), (0, "🚀 فتح whatsapp | Opening whatsapp\n"))
 
     def test_settings_opens_only_the_pages_mo_ai_offers(self):
         """Each page opens with the registry's own command — the one moos-open's arm runs."""
@@ -593,6 +645,31 @@ class MoosOpenControlRouteTests(unittest.TestCase):
                 self.assertEqual(self.control_calls(), [], f"{url} ran without confirmation")
                 self.open(url, KDIALOG_ANSWER="0")
                 self.assertEqual(self.control_calls(), [argv])
+
+    def notices(self):
+        return [call[-1] for call in self.machine.calls() if call[0] == "notify-send"]
+
+    def test_apps_run_says_what_mo_store_answered(self):
+        """A link opens what Mo Store installed and says what Mo Store answered; it said "not
+        installed" for a busy Store and for an installed command-line tool."""
+        answers = (*MoosControlTests.STORE_ANSWERS,
+                   ("2", {"state": "failed", "message_key": "android_not_running"},
+                    "دعم تطبيقات أندرويد غير مشغّل الآن؛ افتح هذا التطبيق من متجر MoOS | "
+                    "Android app support is not running right now; open this app from Mo Store"))
+        for code, document, said in answers:
+            with self.subTest(code=code, document=document):
+                self.machine.log.write_text("")
+                answer = document if isinstance(document, str) else json.dumps(
+                    {"schema": 1, "action": "run", **document})
+                done = self.open("moos://apps/run/whatsapp", STUB_RUN_DOC=answer, STUB_RUN_CODE=code)
+                self.assertEqual(done.returncode, 2)
+                self.assertEqual(self.notices(), [said])
+                # Any web page can hand the router this URL: it never starts Android app support.
+                self.assertIn(["moos-storectl", "run", "--no-android-start", "whatsapp"],
+                              self.machine.calls())
+        self.machine.log.write_text("")
+        opened = self.open("moos://apps/run/chatgpt")
+        self.assertEqual((opened.returncode, self.notices()), (0, []))
 
     def test_disruptive_values_fail_closed_without_a_dialog_tool(self):
         (self.machine.bin / "kdialog").unlink()
