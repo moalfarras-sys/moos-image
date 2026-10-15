@@ -1770,6 +1770,7 @@ ApplicationWindow {
         "update_by_file":           ["ثُبّت هذا التطبيق من ملف؛ ثبّت ملفًا أحدث منه لتحديثه", "This app was installed from a file; install a newer file of it to update it"],
         "removed_with_data":        ["أُزيل مع بياناته", "Removed with its data"],
         "removed_data_untracked":   ["تمت الإزالة. بقيت الإعدادات وبيانات تسجيل دخول التي حفظها التطبيق في أماكن أخرى من مجلد المنزل", "Removed. Settings and sign-in data the app saved elsewhere in your home folder were kept"],
+        "android_status_unknown":   ["تعذّر التحقق من جاهزية تطبيقات أندرويد", "Could not verify Android app support"],
         "android_not_running":      ["دعم تطبيقات أندرويد غير مشغّل. افتحه أولاً لتشغيل هذا التطبيق", "Android app support is not running. Open it first to run this app"],
         "android_update_refused":    ["لم يُطبّق أندرويد التحديث. ما زالت النسخة السابقة مثبتة", "Android did not apply the update. The previous version is still installed"],
         "permission_changed":       ["تم تغيير الإذن", "Permission changed"],

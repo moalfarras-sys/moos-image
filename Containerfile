@@ -48,6 +48,17 @@ ARG AKMODS_IMAGE=ghcr.io/ublue-os/akmods-nvidia-open:main-44-x86_64
 
 FROM ghcr.io/ublue-os/kinoite-main:44 AS base
 
+# Reviewed native stable Plasma for the three x86 editions. The source/key/NVR
+# checks and later seam/logout/identity gates refuse drift; ARM keeps its own
+# native package lane until a complete stable source build is qualified.
+COPY build_files/plasma_stable/ /moos-plasma-compose/
+COPY build_files/finalize_canary_base.py build_files/finalize_image_state.py /moos-plasma-compose/
+RUN python3 /moos-plasma-compose/compose.py \
+    && if [ -d /var/lib/rpm-state ]; then find /var/lib/rpm-state -mindepth 1 -maxdepth 1 -print -exec rm -rf {} +; fi \
+    && ostree container commit \
+    && python3 /moos-plasma-compose/finalize_canary_base.py \
+    && rm -rf /moos-plasma-compose
+
 # -----------------------------------------------------------------------------
 # Stage "ctx": build scripts live here and are bind-mounted (NOT copied) into
 # the final image at /ctx during the RUN below — the image-template convention.

@@ -42,7 +42,10 @@ class StatusReadback(unittest.TestCase):
                          STORE.CommandResult(0,output='Session: RUNNING\nSession: STOPPED\n')]:
             controller=object.__new__(STORE.Controller);controller.runner=mock.Mock()
             controller.runner.capture.return_value=response
-            with self.assertRaises(STORE.StoreError): controller._ensure_android_session(object())
+            with self.assertRaises(STORE.StoreError) as refused:
+                controller._ensure_android_session(object())
+            self.assertEqual(refused.exception.message_key, "android_status_unknown")
+            self.assertNotIn("ERROR:", str(refused.exception))
             controller.runner.spawn.assert_not_called()
             controller.runner.capture.assert_called_once_with([STORE.WAYDROID,'status'],timeout=2)
 

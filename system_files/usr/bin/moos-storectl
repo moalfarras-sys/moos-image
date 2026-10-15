@@ -2121,7 +2121,7 @@ class Controller:
         runtime = self._library("moos_android_runtime")
         state = runtime.status_state(status.returncode, status.output, status.reason)
         if state == "unknown":
-            raise StoreError(status.reason or "Could not inspect Android app support")
+            raise StoreError("Could not verify Android app support", message_key="android_status_unknown")
         if state == "uninitialized":
             raise StoreError("Android apps need the one-time MoOS setup first")
         if self._android_running(status):
@@ -2138,7 +2138,7 @@ class Controller:
             if self._android_running(status):
                 return
             if runtime.status_state(status.returncode, status.output, status.reason) == "unknown":
-                raise StoreError("Could not inspect Android app support")
+                raise StoreError("Could not verify Android app support", message_key="android_status_unknown")
         raise StoreError("Android app support did not become ready")
 
     def _install_npm(self, job: Job, app_id: str, recipe: dict[str, Any]) -> None:

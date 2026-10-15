@@ -11,6 +11,7 @@ Commands run in order against $DISPLAY:
     type TEXT    tap each character of an ASCII string
     focus        give X input focus to the topmost mapped top-level window
                  (there is no window manager under Xvfb, so nothing else will)
+    fit W H      move that window to 0,0 and size it to logical W,H
     sleep S      wait S seconds
 """
 import ctypes
@@ -31,6 +32,8 @@ x11.XKeysymToKeycode.argtypes = [ctypes.c_void_p, ctypes.c_ulong]
 x11.XFlush.argtypes = [ctypes.c_void_p]
 x11.XSync.argtypes = [ctypes.c_void_p, ctypes.c_int]
 x11.XSetInputFocus.argtypes = [ctypes.c_void_p, ctypes.c_ulong, ctypes.c_int, ctypes.c_ulong]
+x11.XMoveResizeWindow.argtypes = [ctypes.c_void_p, ctypes.c_ulong, ctypes.c_int, ctypes.c_int,
+                                ctypes.c_uint, ctypes.c_uint]
 x11.XQueryTree.argtypes = [
     ctypes.c_void_p, ctypes.c_ulong,
     ctypes.POINTER(ctypes.c_ulong), ctypes.POINTER(ctypes.c_ulong),
@@ -92,7 +95,7 @@ def main(argv: list[str]) -> int:
         x11.XSync(display, 0)
         time.sleep(0.03)
 
-    def focus_topmost() -> None:
+    def topmost() -> int:
         root_ret, parent_ret = ctypes.c_ulong(), ctypes.c_ulong()
         children = ctypes.POINTER(ctypes.c_ulong)()
         count = ctypes.c_uint()
@@ -112,9 +115,9 @@ def main(argv: list[str]) -> int:
                 target = children[index]
         if children:
             x11.XFree(children)
-        if target:
-            x11.XSetInputFocus(display, target, REVERT_TO_POINTER_ROOT, 0)
-            x11.XSync(display, 0)
+        if not target:
+            raise SystemExit("xinput: no mapped surface window")
+        return target
 
     args = list(argv)
     factor = 1.0
@@ -145,7 +148,16 @@ def main(argv: list[str]) -> int:
                 else:
                     tap(char)
         elif command == "focus":
-            focus_topmost()
+            x11.XSetInputFocus(display, topmost(), REVERT_TO_POINTER_ROOT, 0)
+            x11.XSync(display, 0)
+        elif command == "fit":
+            width = round(float(args.pop(0)) * factor)
+            height = round(float(args.pop(0)) * factor)
+            if width <= 0 or height <= 0:
+                raise SystemExit("xinput: fit requires positive dimensions")
+            x11.XMoveResizeWindow(display, topmost(), 0, 0, width, height)
+            x11.XSync(display, 0)
+            time.sleep(0.2)
         elif command == "sleep":
             time.sleep(float(args.pop(0)))
         else:

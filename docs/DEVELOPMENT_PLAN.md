@@ -559,3 +559,15 @@ checked before runtime selection; Android setup, admission and Store share stric
 read-only status parsing and bounded session readiness. Original APK metadata and
 update verification remain with the newer reviewed implementation. See
 releases/2026-10-15-engine-admission-recovery.json for source/fixture evidence.
+
+Stable Plasma Oct15 qualification: the x86 image composes the signed KDE SIG
+6.8.0 stack with a pinned publisher key and exact core NVR checks, preserving
+the base kernel. Stable seams retain upstream authentication and use the
+reviewed virtual-keyboard Panel correction. Native greeter positive/broken/
+restored and rebuilt logout old/fixed/rejected/cancelled controls pass. Cache
+fingerprinting now includes version-specific seam QML (THEME_REV106). The ARM
+image retains its separately qualified native provider: the final upstream
+repository has no ARM binaries, and a full native stable source rebuild remains
+P6.7 acceptance work. No cross-architecture packages or beta relabeling.
+Source/image/boot/promoted/installed evidence remain separate; one replacement
+release cycle only after the combined source passes.

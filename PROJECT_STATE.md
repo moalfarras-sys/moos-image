@@ -3,10 +3,10 @@ Oracle A1 and the physical NVIDIA workstation develop one MoOS product. Source, 
 Native audit: [AUDIT_20261012_AR.md](docs/AUDIT_20261012_AR.md). [Oct15 branch integration: source, gates and delivery boundaries](docs/releases/2026-10-15-owner-integration.json). [Independent exact-head Store review: delivery blockers remain](docs/reviews/STORE_20261015_AR.md).
 
 ## Current engineering batch
-Engine admission recovery is source-tested on the unified Store branch; shared Android runtime readiness and Windows processor refusals preserve the newer verified APK lifecycle. Signed/installed delivery remains pending.
-Mo Store PR243 is merged; follow-up source offers all 13 Craft apps and 200 curated entries, plus supported theme/motion settings. Git bundles preserve original branches. Local image/Craft extraction proofs are separate from pending signed delivery and physical reboot acceptance.
+Unified source preserves all fetched station/Oracle ancestry and dirty-tree checkpoints; 200 curated apps, recovered engine admission and Store data-preservation corrections are source-tested.
+Stable Plasma 6.8 x86 input composition, real greeter positive/broken/restored controls and native rebuilt logout old/fixed/rejected/cancelled controls pass. THEME_REV=106 covers versioned seam caches. Native full just check passes; six session fixtures reviewed. Full image/boot and installed acceptance remain pending; ARM retains its qualified native 6.7.5 provider.
 
-Current payload source is `5745edd1` (PR241): THEME_REV=104, full local ARM
+Last promoted payload before this batch is `5745edd1` (PR241): THEME_REV=104, full local ARM
 image and exact 20-file readback pass after the preserved ENOSPC failure.
 Build 38621311347, disks 38631573998/38631579047/38631585290,
 ISO 38631591001, ARM 38621121074 and promotion 38638466690 all succeeded

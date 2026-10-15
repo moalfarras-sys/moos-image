@@ -434,6 +434,7 @@ check:
     # registry, its version-keyed sets and the real-greeter probe the image build runs; the
     # runtime half loads the lock screen only where kscreenlocker exists, isolated.
     python3 tests/test_plasma_seams.py
+    python3 tests/test_plasma_stable_compose.py
     # The weekly Plasma-next canary builds MoOS on KDE's beta packages and can publish nothing.
     python3 tests/test_plasma_next_canary_workflow.py
     # What MoOS can run, and what it calls those things in front of a person.

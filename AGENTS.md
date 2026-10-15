@@ -147,6 +147,14 @@ These are not conventions, they are gates. The image build fails if you break th
 
 ## A green build proves nothing about what the user sees
 
+**A PNG can be the empty X server after its greeter exited.** Stable Plasma 6.8
+removed the logout greeter's theme/mode switches; the review harness still
+reported a black screenshot as rendered. Read the actual binary's help, refuse
+unsupported modes, require the surface process to survive every capture, and
+size its testing window before scaled input. Keep the dead-surface negative
+(nonzero, no PNG). An isolated login test lacks PAM/power backends and is never
+ordinary login, Wayland compositing or installed acceptance evidence.
+
 **A valid archive can close its consumer before its producer is finished.**
 The pinned Plymouth SRPM has 8,836 zero bytes after its newc trailer. Native
 ARM extraction reproduced rpm2cpio SIGPIPE (-13) with cpio succeeding and all

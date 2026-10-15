@@ -1,0 +1,63 @@
+{
+  "scope": "Native x86 source and private-container qualification, not an installed or boot-proven release",
+  "plasma": "6.8.0",
+  "core_nvrs": {
+    "plasma-workspace": "6.8.0-1.fc44",
+    "plasma-desktop": "6.8.0-2.fc44",
+    "kwin": "6.8.0-1.fc44",
+    "libplasma": "6.8.0-1.fc44",
+    "kscreenlocker": "6.8.0-2.fc44",
+    "plasma-login-manager": "6.8.0-1.fc44"
+  },
+  "key_fingerprint": "96BDF4E8710B8F9FFB11D83DDB51F4CB6C33BDBB",
+  "key_sha256": "b6ce6671a21c947928b08595514d09991975b2f300a8bb6e661fe34cfc54aa29",
+  "kernel_readback": "7.2.10-200.fc44.x86_64",
+  "qt_readback": "6.11.2-3.fc44.x86_64",
+  "greeter": {
+    "positive": 0,
+    "missing_type_negative": 1,
+    "restored_positive": 0,
+    "authentication_files": "identical to vendor package bytes"
+  },
+  "logout_worker": {
+    "native_source_rebuild": "complete with original vendor build flags and reviewed MoOS patch",
+    "old": "PASS mode=fail resets=0",
+    "fixed": "PASS mode=replace resets=0",
+    "rejected": "PASS mode=replace resets=1",
+    "cancelled": "PASS mode= resets=1"
+  },
+  "seams": "12 exact upstream digests compared; separate 6.8.0 set; beta2 range narrowed; no authentication fork",
+  "panel": "13 maintained tests pass, including 48-case native Qt transition matrix and old/fixed negative",
+  "cache": "THEME_REV106; added seam-variant QML to fingerprint; modified stable Panel fails unchanged-revision control then restored source passes",
+  "preservation": "50 station trees and23 Oracle trees checkpointed without capture errors; original trees untouched; combined committed ancestry backed up on GitHub",
+  "craft": "13/13 latest official stable versions match on final readback",
+  "arm": "Native ARM runtime remains separately qualified6.7.5; no x86 repo is added to ARM; stable native rebuild not claimed",
+  "remaining": [
+    "Full final image verification",
+    "Signed candidate plus exact boot/install proofs and promotion",
+    "Native workstation signed staging, reboot and desktop acceptance"
+  ],
+  "repository_gate": "Full native maintained just check completed with exit0 on the combined source; subsequent review-harness-only repairs passed syntax and dead-process control",
+  "rendered_review": {
+    "surfaces": 6,
+    "languages": [
+      "ar",
+      "en"
+    ],
+    "logical_sizes": [
+      "1536x864 @2.5",
+      "1280x800 @1"
+    ],
+    "result": "All six images inspected; lock controls fit the full viewport after testing-window resize; login test has no real login backend; power test has only fixture-available capabilities",
+    "fixture_warning": "Vendor login --test reports GreeterState LoginState undefined without the real login backend; no ordinary PAM/Wayland acceptance is inferred",
+    "dead_surface_negative": "exit1 and no PNG when the actual fixture launches /bin/false; old harness accepted an empty screen",
+    "sha256": {
+      "stable-lock-ar.png": "b6be86c2c6f84b1bf401c92b25f68ff8b7c7fb9caa760957f7d18aeb9472a7ad",
+      "stable-login-ar.png": "356d0e1902d60a59a3d40882482dfe8d786625ae85f036aa9a87bc6da8267992",
+      "stable-power-ar.png": "3a4c6a5a5c29fc2632b905117eedddb76b39b6557313a325876f21d98c98239c",
+      "stable-lock-en.png": "e6448b1ce9f956519f07cd75fbe9f100b12211243ee4a5491c37f1f952e72bd3",
+      "stable-login-en.png": "3220f554c6de3a2ceedfb8d75cab7b1268de4beac8a20cd25b7f1bfb816341e5",
+      "stable-power-en.png": "e433ede1b06b3cc5c2c7930b06c7e180da151c3bf1c2e3bbd0962a557f9aae50"
+    }
+  }
+}

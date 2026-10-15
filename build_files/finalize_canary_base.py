@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Retire proven inactive package state in the experimental Plasma base only.
+"""Retire proven inactive package state in the composed, unbooted Plasma base only.
 
 The Atomic base configures its real SELinux module store under /etc. A distro-
 sync can also seed a vendor-only /var store, which must not enter an immutable
