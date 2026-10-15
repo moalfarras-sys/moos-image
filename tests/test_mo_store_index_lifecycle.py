@@ -37,11 +37,17 @@ The rule, per kind, with the records where moos-storectl and App Drop write them
             pin's, unless the APK Android keeps (exactly one base.apk, reached through no link,
             of the pin's size) is the pin byte for byte, which also names the version. With no
             record (the older Store wrote none) and no such APK the bytes are unknown: installed,
-            version unknown, offered the pin. A record whose data directory is gone is not
-            installed. An APK read is remembered by file identity (AnApkIsReadOnce).
+            version unknown, offered the pin once moos-storectl can install it over such an app
+            (PIN_OFFERED_WITHOUT_RECORD; until then `update <package>` says "App is not
+            installed"). A record whose data directory is gone is not installed. An APK read is
+            remembered by file identity (AnApkIsReadOnce).
 
-Every run uses a private HOME, private XDG directories and fixture installations;
-nothing is installed or downloaded.
+Every update index.json offers is one `moos-storectl update <id>` performs: the window's Update
+button runs it, so any other answer is a button that does nothing (PinnedUpdates).
+
+Every run uses a private HOME, private XDG directories (the runtime directory too, where a
+Store job announces itself to the Island) and fixture installations; nothing is installed or
+downloaded, and moos-storectl may run no command.
 """
 
 from __future__ import annotations
@@ -391,8 +397,9 @@ class EveryKindIsSeen(unittest.TestCase):
         self.assertTrue((apps["notepad"]["icon"] or "").endswith("/windows-apps/notepad/icon.png"))
         self.assertTrue(apps["org.example.droid"]["installed"])
         self.assertIsNone(apps["org.example.droid"]["installed_version"])
-        # Installed before moos-storectl kept a record: the pin is offered over it.
-        self.assertTrue(apps["org.example.droid"]["update_available"])
+        # Installed before moos-storectl kept a record: the pin is offered over it once
+        # moos-storectl can install it there (PinnedUpdates).
+        self.assertEqual(apps["org.example.droid"]["update_available"], OFFERED)
         self.assertTrue(apps["codex"]["installed"])
         self.assertEqual(apps["codex"]["installed_version"], "0.46.0")
         self.assertFalse(apps["page"]["installed"])
@@ -540,6 +547,13 @@ PINNED_APPS = [
     *(pinned_android(package, APK_SHA256, len(APK)) for package in KEPT),
 ]
 
+# An Android app with no record (the older Store wrote none) whose bytes nothing names is
+# offered the pin only while moos-storectl can install it over such an app. An indexer without
+# that switch offers it, as the rule does once the two agree.
+OFFERED = getattr(index, "PIN_OFFERED_WITHOUT_RECORD", True)
+RECORDLESS = ("org.example.legacy", "org.example.other", "org.example.twice",
+              "org.example.linked")
+
 # The rule's answer for every fixture: (installed, installed_version, update_available).
 EXPECTED = {
     "repinned": (True, "0.9.0", True),          # same version, other bytes: re-pinned
@@ -552,14 +566,14 @@ EXPECTED = {
     "folderless": (False, None, False),         # the program folder is gone
     "org.example.repin": (True, "0.28.0", True),
     "org.example.current": (True, "1.7.0", False),
-    "org.example.legacy": (True, None, True),   # no record and no APK: the pin is offered
+    "org.example.legacy": (True, None, OFFERED),    # no record and no APK: bytes unknown
     "org.example.gone": (False, None, False),   # the container no longer has it
     # The APK Android keeps names the bytes when no record of the pin does.
     "org.example.kept": (True, "0.29.1", False),       # no record: the older Store's install
     "org.example.caughtup": (True, "0.29.1", False),   # a record of an earlier pin
-    "org.example.other": (True, None, True),           # another build of the pin's size
-    "org.example.twice": (True, None, True),           # two copies: Android is replacing it
-    "org.example.linked": (True, None, True),          # a link, never followed
+    "org.example.other": (True, None, OFFERED),        # another build of the pin's size
+    "org.example.twice": (True, None, OFFERED),        # two copies: Android is replacing it
+    "org.example.linked": (True, None, OFFERED),       # a link, never followed
 }
 if ARCH != "x86_64":
     # Windows programs are pinned for x86_64 only: there is no pin for this machine to offer.
@@ -567,6 +581,31 @@ if ARCH != "x86_64":
 # The pinned-update and index branches are integrated. Compare every fixture against the
 # real backend now; none may retain the temporary exclusion used during independent work.
 AWAITING_STORECTL = frozenset()
+
+
+def lifecycle(app: dict) -> tuple:
+    return app["installed"], app["installed_version"], app["update_available"]
+
+
+class NoFlatpakUpdates:
+    def update_candidates(self):
+        return []
+
+
+class NoCommands(storectl.CommandRunner):
+    """moos-storectl's command boundary, refusing: nothing here may reach the host."""
+
+    def spawn(self, argv):
+        raise AssertionError(f"moos-storectl tried to start {list(argv)}")
+
+    def gpu_guard(self):
+        raise AssertionError("moos-storectl tried to run its GPU guard")
+
+    def capture(self, argv, timeout=30):
+        raise AssertionError(f"moos-storectl tried to run {list(argv)}")
+
+    def run_cancellable(self, argv, should_cancel):
+        raise AssertionError(f"moos-storectl tried to run {list(argv)}")
 
 
 class Home:
@@ -581,6 +620,9 @@ class Home:
             "XDG_CACHE_HOME": str(self.home / ".cache"),
             "XDG_STATE_HOME": str(self.home / ".local/state"),
             "XDG_CONFIG_HOME": str(self.home / ".config"),
+            # A Store job names itself to the Island in $XDG_RUNTIME_DIR/moos-store (and
+            # removes every other token there): never the person's own.
+            "XDG_RUNTIME_DIR": str(base / "run"),
             "DBUS_SESSION_BUS_ADDRESS": "unix:path=/nonexistent",
         }
         self.catalog = base / "catalog.json"
@@ -685,21 +727,46 @@ class Home:
             raise AssertionError(result.stderr)
         return json.loads(self.output.read_text(encoding="utf-8"))
 
+    def index_here(self, output: Path) -> dict:
+        """run_index() in this process, where a test can switch one of the indexer's rules."""
+
+        environment = {key: value for key, value in os.environ.items()
+                       if not key.startswith(("XDG_", "FLATPAK_"))}
+        environment.update(self.environment)
+        with mock.patch.dict(os.environ, environment, clear=True), \
+                contextlib.redirect_stderr(io.StringIO()) as errors:
+            code = index.main(["--output", str(output), "--catalog", str(self.catalog),
+                               "--appstream-root", str(self.base / "flatpak/appstream"),
+                               "--installation-root", str(self.base / "flatpak"),
+                               "--locale", "en", "--engines", "all"])
+        if code != 0:
+            raise AssertionError(errors.getvalue())
+        return json.loads(output.read_text(encoding="utf-8"))
+
+    def controller(self):
+        return storectl.Controller(storectl.JobStore(self.base / "store-cache"),
+                                   adapter_factory=NoFlatpakUpdates, runner=NoCommands(),
+                                   catalog_path=self.catalog)
+
     def check_updates(self) -> set[str]:
         """The pin rows moos-storectl's own check-updates lists for this home."""
 
-        class NoFlatpakUpdates:
-            def update_candidates(self):
-                return []
-
         with self.environ(), contextlib.redirect_stdout(io.StringIO()):
-            controller = storectl.Controller(storectl.JobStore(self.base / "store-cache"),
-                                             adapter_factory=NoFlatpakUpdates,
-                                             catalog_path=self.catalog)
-            code, document = controller.check_updates()
+            code, document = self.controller().check_updates()
         if code != 0:
             raise AssertionError(document)
         return {item["id"] for item in document["items"] if item.get("kind") == "pin"}
+
+    def update(self, app_id: str) -> tuple[list[str], dict]:
+        """What moos-storectl's `update <app_id>` does here, the window's Update button: the
+        pins it puts in place (recorded, not downloaded) and its job."""
+
+        performed: list[str] = []
+        with self.environ(), contextlib.redirect_stdout(io.StringIO()):
+            controller = self.controller()
+            controller._reinstall_pin = lambda _job, pin_id, _recipe: performed.append(pin_id)
+            _code, document = controller.update(app_id)
+        return performed, document
 
 
 class PinnedUpdates(unittest.TestCase):
@@ -717,8 +784,53 @@ class PinnedUpdates(unittest.TestCase):
         cls.temporary.cleanup()
 
     def state(self, app_id: str) -> tuple:
-        app = self.apps[app_id]
-        return app["installed"], app["installed_version"], app["update_available"]
+        return lifecycle(self.apps[app_id])
+
+    def test_every_update_the_index_offers_is_one_moos_storectl_performs(self):
+        """The window's Update button runs `moos-storectl update <id>`. An update offered here
+        that it refuses ("App is not installed") or finds up to date is a button that does
+        nothing, and no entry of AWAITING_STORECTL excuses it. Until 2026-10-15 the index
+        offered the pin to Android apps an earlier Store installed, which this moos-storectl
+        does not find."""
+
+        offered = sorted(app_id for app_id in EXPECTED if self.apps[app_id]["update_available"])
+        self.assertTrue(offered, "no fixture offers an update: this would check nothing")
+        for app_id in offered:
+            with self.subTest(app=app_id):
+                performed, job = self.home.update(app_id)
+                self.assertEqual(performed, [app_id], job.get("items"))
+
+    def test_nothing_waiting_for_moos_storectl_is_an_update_the_index_offers(self):
+        for app_id in sorted(AWAITING_STORECTL):
+            with self.subTest(app=app_id):
+                self.assertFalse(EXPECTED[app_id][2],
+                                 "an update the index offers and check-updates does not list "
+                                 "is an Update button that does nothing: nothing may excuse it")
+
+    def test_the_pin_waits_for_a_record_exactly_while_moos_storectl_needs_one(self):
+        installs = "org.example.legacy" in self.rows
+        self.assertFalse(installs and not OFFERED,
+                         "moos-storectl now installs the pin over an Android app an earlier "
+                         "Mo Store installed (no record): set PIN_OFFERED_WITHOUT_RECORD = True "
+                         "in moos-store-index, so its page offers what Update all does")
+        self.assertFalse(OFFERED and not installs,
+                         "the index offers the pin to an Android app with no record, and "
+                         "moos-storectl's `update <package>` answers \"App is not installed\"")
+
+    def test_switched_on_the_pin_is_offered_wherever_the_bytes_are_unknown(self):
+        """The rule once moos-storectl installs the pin over an app with no record: what the
+        APK names stays up to date, and every app whose bytes are unknown is offered the pin.
+        (create=True: once the switch is gone, the indexer always offers it.)"""
+
+        with tempfile.TemporaryDirectory() as raw, \
+                mock.patch.object(index, "PIN_OFFERED_WITHOUT_RECORD", True, create=True):
+            apps = {app["id"]: app for app in
+                    self.home.index_here(Path(raw) / "index.json")["apps"]}
+        for app_id in RECORDLESS:
+            with self.subTest(app=app_id):
+                self.assertEqual(lifecycle(apps[app_id]), (True, None, True))
+        self.assertEqual(lifecycle(apps["org.example.kept"]), (True, "0.29.1", False))
+        self.assertEqual(lifecycle(apps["org.example.caughtup"]), (True, "0.29.1", False))
 
     def test_every_kind_follows_the_digest_rule(self):
         for app_id, expected in EXPECTED.items():
@@ -814,7 +926,7 @@ class AnApkIsReadOnce(unittest.TestCase):
             newer = home.kept_apk("org.example.kept", OTHER_APK, layout="older")
             second = {app["id"]: app for app in home.run_index()["apps"]}
             self.assertIsNone(second["org.example.kept"]["installed_version"])
-            self.assertTrue(second["org.example.kept"]["update_available"])
+            self.assertEqual(second["org.example.kept"]["update_available"], OFFERED)
             remembered = json.loads(memo.read_text(encoding="utf-8"))["apks"]
             self.assertEqual(list(remembered), [str(newer)])
 
