@@ -194,7 +194,8 @@ class EntryValidation(unittest.TestCase):
         self.assertEqual(sorted(policy.webapps(catalog)), ["chatgpt"])
 
     def test_an_id_is_the_stores_slug(self):
-        """The gate's rule (docs/MO_STORE.md): a letter first, single hyphens, 2 to 63."""
+        """The Store gate's slug (SLUG_RE in build_files/verify_store_catalog.py): a letter
+        first, single hyphens, 2 to 63."""
         for app_id in ("ab", "chatgpt", "chatgpt-web", "le-chat", "office365", "x" * 63):
             with self.subTest(app_id=app_id):
                 self.assertEqual(policy.parse_entry(entry(id=app_id)).id, app_id)
