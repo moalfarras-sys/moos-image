@@ -4,7 +4,7 @@ Native audit: [AUDIT_20261012_AR.md](docs/AUDIT_20261012_AR.md). [Oct15 live del
 
 ## Current engineering batch
 PR245 at `b115c191` integrates the 200-app Store, recovered engine admission and reviewed data-preservation/index/UI corrections. Fresh Oracle ancestry checks cover 148 local/remote refs, all ancestors; clean main and NVIDIA owner checkouts now agree. Original dirty files remain checkpointed.
-Stable Plasma 6.8 x86 composition, real greeter positive/broken/restored and native rebuilt logout old/fixed/rejected/cancelled controls pass. THEME_REV=106 covers versioned seams. Native ARM `just check` exits 0 at Oct15 21:27 UTC; the earlier editor exec143 is preserved and not counted as success. All three signed x86 `.1060` candidates pass independent signature/revision readback; exact disks/ISO and installed acceptance remain pending. ARM `.791` is boot-proven/promoted and staged; its native Plasma remains 6.7.5.
+Stable Plasma 6.8 x86 composition, real greeter positive/broken/restored and native rebuilt logout old/fixed/rejected/cancelled controls pass. THEME_REV=106 covers versioned seams. Native ARM `just check` exits 0 at Oct15 21:27 UTC; the earlier editor exec143 is preserved and not counted as success. All three signed x86 `.1060` candidates pass signatures and exact QCOW2 proofs. ISO 38807911559 installs offline, logs in, exercises ten apps and reboots, but fails its final visual gate: the supposed pre-login frame was captured after authentication, during session handoff. Promotion correctly stops; installed acceptance remains pending. ARM `.791` is boot-proven/promoted and staged; its native Plasma remains 6.7.5.
 
 The previous complete four-edition batch is `5745edd1` (PR241): THEME_REV=104, full local ARM
 image and exact 20-file readback pass after the preserved ENOSPC failure.
@@ -57,7 +57,7 @@ pickers pass; wider user journeys remain in the single development plan.
 
 ARM `.791` at `b115c191` proves native linkage, two healthy boots and clean poweroff in run 38788880828.
 CI greeter pixels show MoOS identity; English login buttons remain a locale gap.
-The `.1060` candidate disks/ISO are still being qualified; installed NVIDIA .1046/Oracle .775 and public .1046 remain separate evidence.
+The `.1060` ISO proof failed; x86 remains `.1053`. The source correction preserves the actual first pre-authentication frame and provenance; 11 executable ISO fixture tests pass. A fresh exact-source cycle remains required. Installed NVIDIA .1046/Oracle .775 and public .1046 remain separate evidence.
 Public .1046 is independently qualified and published: 5,830,410,240 bytes,
 SHA-256 `37053a88ae313f994875794055035d53134206a88eb44fb160b39fef3bb04821`.
 Full anonymous HTTP 200, resumed 206 ranges, signature and exact sidecars pass

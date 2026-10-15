@@ -349,5 +349,105 @@ class SettingsPageProofTests(unittest.TestCase):
                         "after the module proved itself on both opens")
 
 
+
+class LoginFrameIdentityTests(unittest.TestCase):
+    """Execute the real wake/type/session loop without QEMU, SSH or owner input."""
+
+    @staticmethod
+    def frames():
+        header = b"P6\n64 48\n255\n"
+        first = header + (b"\x0e\x15\x24" * 32 + b"\xa0\xc0\xe0" * 32) * 48
+        second = header + (b"\x15\x24\x35" * 32 + b"\xe0\xb0\x80" * 32) * 48
+        handoff = header + b"\x0e\x15\x24" * (64 * 48)
+        return first, second, handoff
+
+    def run_login(self, accepted_attempt=1, frames=None):
+        first, second, handoff = frames or self.frames()
+        start = next(i for i, node in enumerate(installed_tree.body)
+                     if isinstance(node, ast.Assign)
+                     and any(isinstance(target, ast.Name) and target.id == "logged_in"
+                             for target in node.targets))
+        stop = next(i for i, node in enumerate(installed_tree.body)
+                    if i > start and isinstance(node, ast.Assign)
+                    and any(isinstance(target, ast.Name) and target.id == "desktop"
+                            for target in node.targets))
+        sequence = ast.Module(body=installed_tree.body[start:stop], type_ignores=[])
+        with tempfile.TemporaryDirectory(prefix="moos-iso-frame-") as directory:
+            evidence = Path(directory)
+            state = {"phase": "greeter"}
+            before_type = []
+            captures = []
+            namespace = {
+                "evidence": evidence, "password": "ci-fixture",
+                "time": SimpleNamespace(sleep=lambda _seconds: None),
+                "sys": SimpleNamespace(stderr=None),
+                "print": lambda *_args, **_kwargs: None,
+            }
+
+            def hmp(commands, label):
+                if "sendkey ret" in commands:
+                    historical = evidence / "installed-login.ppm"
+                    before_type.append(historical.read_bytes() if historical.exists() else None)
+                    state["phase"] = "handoff"
+                elif label.startswith("wake-"):
+                    state["phase"] = "greeter"
+                return "fixture input delivered"
+
+            def capture(path):
+                pixels = ((first if namespace["attempt"] == 1 else second)
+                          if state["phase"] == "greeter" else handoff)
+                path.write_bytes(pixels)
+                for suffix in ("-capture.log", "-windows.txt"):
+                    (evidence / f"{path.stem}{suffix}").write_text(
+                        f"{path.name}: {state['phase']}", encoding="utf-8")
+                captures.append((path.name, state["phase"]))
+
+            namespace.update(hmp=hmp, capture=capture,
+                             session_for_uid=lambda: namespace["attempt"] >= accepted_attempt)
+            exec(compile(sequence, str(script_path), "exec"), namespace)
+            return ({path.name: path.read_bytes() for path in evidence.iterdir() if path.is_file()},
+                    before_type, captures)
+
+    def visual_check(self, pixels):
+        with tempfile.TemporaryDirectory(prefix="moos-iso-visual-") as directory:
+            frame = Path(directory) / "frame.ppm"
+            frame.write_bytes(pixels)
+            return subprocess.run(
+                ["python3", str(root / "tests/assert_visual_frame.py"), str(frame)],
+                capture_output=True, text=True, timeout=5, check=False,
+            )
+
+    def test_historical_login_is_the_exact_first_pre_authentication_frame(self):
+        first, _second, _handoff = self.frames()
+        files, before_type, captures = self.run_login()
+        self.assertEqual(files["installed-login.ppm"], first)
+        self.assertEqual(files["installed-login-attempt1.ppm"], first)
+        self.assertEqual(before_type, [first], "the login picture was not saved before Return")
+        for suffix in ("-capture.log", "-windows.txt"):
+            self.assertEqual(files[f"installed-login{suffix}"],
+                             files[f"installed-login-attempt1{suffix}"])
+        self.assertEqual(files["installed-login-source.txt"],
+                         b"alias-of=installed-login-attempt1.ppm\nphase=pre-authentication\n")
+        self.assertEqual(captures, [("installed-login-attempt1.ppm", "greeter")])
+        checked = self.visual_check(files["installed-login.ppm"])
+        self.assertEqual(checked.returncode, 0, checked.stderr)
+
+    def test_retry_preserves_first_picture_and_every_attempt(self):
+        first, second, _handoff = self.frames()
+        files, before_type, captures = self.run_login(accepted_attempt=2)
+        self.assertEqual(files["installed-login.ppm"], first)
+        self.assertEqual(files["installed-login-attempt1.ppm"], first)
+        self.assertEqual(files["installed-login-attempt2.ppm"], second)
+        self.assertEqual(before_type, [first, first])
+        self.assertEqual(captures, [("installed-login-attempt1.ppm", "greeter"),
+                                    ("installed-login-attempt2.ppm", "greeter")])
+
+    def test_visual_gate_still_rejects_flat_post_authentication_handoff(self):
+        checked = self.visual_check(self.frames()[2])
+        self.assertNotEqual(checked.returncode, 0)
+        self.assertIn("is black/flat", checked.stderr)
+        self.assertIn("stddev=0.000000", checked.stderr)
+
+
 if __name__ == "__main__":
     unittest.main()

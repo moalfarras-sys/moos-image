@@ -152,6 +152,13 @@ after the final catalogue gate printed success. Its termination cause remains
 unproven. Preserve that result; a native parent must save the command's exit,
 source/tree and log hash independently before calling the full gate green.
 
+**A screenshot's filename does not establish its phase.** ISO 38807911559
+saved `installed-login.ppm` only after PAM accepted the password and logind
+opened the session. It caught the empty handoff background and correctly failed
+the visual gate, although the earlier password-card frame, ten apps and second
+boot were healthy. Preserve the actual pre-authentication attempt frame before
+typing; never recapture that alias after login or lower the visual thresholds.
+
 **A PNG can be the empty X server after its greeter exited.** Stable Plasma 6.8
 removed the logout greeter's theme/mode switches; the review harness still
 reported a black screenshot as rendered. Read the actual binary's help, refuse

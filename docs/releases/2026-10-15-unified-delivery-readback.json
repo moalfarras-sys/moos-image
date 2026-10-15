@@ -1,8 +1,8 @@
 {
   "schema": 1,
-  "time_utc": "2026-10-15T21:37:24.293716+00:00",
+  "time_utc": "2026-10-15T21:54:45.364774+00:00",
   "source": "b115c1913df868b7ad7ed3ad48f47f08e3100801",
-  "scope": "Merged source, exact signed candidates, staged ARM and bounded native pre-update evidence; not completed x86 promotion or installed new-release acceptance",
+  "scope": "Merged source, exact signed candidates, successful x86 QCOW2 proofs, failed ISO visual gate, staged ARM and bounded native pre-update evidence; no new x86 promotion or installed new-release acceptance",
   "branches": {
     "refs": 148,
     "all_ancestors": true,
@@ -56,7 +56,42 @@
     "nvidia_disk": 38807898170,
     "cloud_disk": 38807904891,
     "offline_iso": 38807911559,
-    "state": "running; promotion and native reboot not yet qualified"
+    "state": "Three disks succeed on attempt1; ISO fails final visual frame validation; promotion blocked",
+    "disk_conclusions": {
+      "desktop": "success",
+      "nvidia": "success",
+      "cloud": "success"
+    },
+    "iso_failure": {
+      "run": 38807911559,
+      "job": 116673455653,
+      "attempt": 1,
+      "rejected_frame": "installed-login.ppm",
+      "luminance_stddev": 0.007177,
+      "phase": "Captured after typed Return and successful logind session detection, before desktop readiness",
+      "earlier_real_pre_auth_frame": "installed-login-attempt1.png",
+      "independently_preserved_successes": [
+        "offline install of exact signed digest",
+        "healthy first boot",
+        "ordinary password login on attempt1",
+        "ten apps open/close/reopen with rendered frames",
+        "healthy second boot and poweroff"
+      ],
+      "visual_thresholds_unchanged": true,
+      "new_source_cycle_required": true,
+      "frame_sha256": {
+        "installed-login.ppm": "061e3ae925e8e7e1be6da4aff031d29c99bf3b253c9045aa008a560c34692b0c",
+        "installed-login-attempt1.png": "7de86c9fb4d746c722252186c4c6c2333d6e3d9723b3c9d7f9fcaa7132fbb5a2",
+        "installed-app-mo-store.png": "4aa2fd9f0c3e2ad6150c0e6d351bb04b56f8a0d57eaa96a46446c02370248477"
+      },
+      "capture_repair": {
+        "scope": "Source correction; fresh signed runtime proof still required",
+        "behavior": "Historical login name aliases exact attempt1 bytes and capture provenance before password submission; later attempts retained",
+        "executable_sequence_tests": 11,
+        "visual_gate_sha256": "88d97f19e88eec67550547503c56ec920fe85e8b8da4d6357ad40609fb70be46",
+        "gate_unchanged_from_failed_source": true
+      }
+    }
   },
   "local_image_cli": {
     "source": "789f73b9fe0bcdbeb9f46942cd017a4fda4414c4",
@@ -130,7 +165,7 @@
     }
   },
   "remaining": [
-    "Exact x86 disk/ISO proofs, promotion, native signed staging/reboot/acceptance",
+    "Correct ISO capture phase and qualify a fresh exact-source four-edition cycle; x86 promotion, native signed staging/reboot/acceptance remain pending",
     "Native ARM Plasma6.8 source rebuild; current qualified ARM provider remains6.7.5",
     "Broader per-app, hardware, phone, accessibility and endurance acceptance in DEVELOPMENT_PLAN.md",
     "Offline machines are not updated by reachable two-host checks"
