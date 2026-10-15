@@ -4,6 +4,7 @@ Oracle A1 and the physical NVIDIA workstation develop one MoOS product. Source, 
 Native audit: [AUDIT_20261012_AR.md](docs/AUDIT_20261012_AR.md). [Oct15 branch integration: source, gates and delivery boundaries](docs/releases/2026-10-15-owner-integration.json).
 
 ## Current engineering batch
+Mo Store PR243 is merged; follow-up source offers all 13 Craft apps and 200 curated entries, plus supported theme/motion settings. Git bundles preserve original branches. Local image/Craft extraction proofs are separate from pending signed delivery and physical reboot acceptance.
 
 Current payload source is `5745edd1` (PR241): THEME_REV=104, full local ARM
 image and exact 20-file readback pass after the preserved ENOSPC failure.

@@ -235,7 +235,16 @@
         "org.luanti.luanti",
         "com.moonlight_stream.Moonlight",
         "com.shatteredpixel.shatteredpixeldungeon",
-        "com.discordapp.Discord"
+        "com.discordapp.Discord",
+        "net.openra.OpenRA",
+        "net.wz2100.wz2100",
+        "org.wesnoth.Wesnoth",
+        "org.gnome.Chess",
+        "org.openttd.OpenTTD",
+        "org.freecol.FreeCol",
+        "org.supertuxproject.SuperTux",
+        "org.kde.kpat",
+        "org.kde.kmahjongg"
       ]
     },
     {
@@ -336,6 +345,53 @@
         "org.fdroid.fdroid",
         "io.element.android.x",
         "org.fossify.gallery"
+      ]
+    },
+    {
+      "id": "instead-of-adobe",
+      "en": "Free instead of Adobe",
+      "ar": "بدائل مجانية لبرامج أدوبي",
+      "glyph": "pen",
+      "desc_en": "Edit photos, draw, cut video and lay out pages without a subscription.",
+      "desc_ar": "حرّر الصور وارسم وركّب الفيديو ونسّق الصفحات بلا اشتراك.",
+      "apps": [
+        "photocraft",
+        "vectorcraft",
+        "filmcraft",
+        "lightcraft",
+        "pdfcraft",
+        "effectcraft",
+        "designcraft",
+        "org.gimp.GIMP",
+        "org.inkscape.Inkscape",
+        "org.kde.krita",
+        "org.darktable.Darktable",
+        "org.kde.kdenlive",
+        "photopea",
+        "com.github.jeromerobert.pdfarranger"
+      ]
+    },
+    {
+      "id": "craft-family",
+      "en": "The Craft apps",
+      "ar": "تطبيقات كرافت",
+      "glyph": "gem",
+      "desc_en": "Thirteen free, open-source apps from one team for images, video, sound, documents and drawings.",
+      "desc_ar": "ثلاثة عشر تطبيقاً مجانياً ومفتوح المصدر من فريق واحد للصور والفيديو والصوت والمستندات والرسوم.",
+      "apps": [
+        "photocraft",
+        "vectorcraft",
+        "filmcraft",
+        "lightcraft",
+        "pdfcraft",
+        "effectcraft",
+        "designcraft",
+        "figcraft",
+        "wordcraft",
+        "soundcraft",
+        "deckcraft",
+        "cadcraft",
+        "gridcraft"
       ]
     }
   ],
@@ -3667,6 +3723,956 @@
         "requires_review": true,
         "external": true
       }
+    },
+    {
+      "id": "vectorcraft",
+      "source": "moos",
+      "cat": "art",
+      "glyph": "pen",
+      "en": "VectorCraft",
+      "ar": "فيكتوركرافت",
+      "desc_en": "Vector illustration with the pen, shapes and live effects, much like Illustrator; still an early version.",
+      "desc_ar": "رسم متجهي بالقلم والأشكال والتأثيرات الحية على طريقة إليستريتور، وما زال إصداراً مبكراً.",
+      "developer": "VectorCraft project",
+      "accent": "#ca4c37",
+      "arch": [
+        "aarch64",
+        "x86_64"
+      ],
+      "icon_url": "https://raw.githubusercontent.com/storytold/vectorcraft/v0.11.0/assets/app-icon/hicolor/256x256/apps/ai.storyteller.vectorcraft.png",
+      "keywords_en": [
+        "illustrator",
+        "adobe",
+        "vector",
+        "svg",
+        "logo",
+        "illustration"
+      ],
+      "keywords_ar": [
+        "اليستريتور",
+        "أدوبي",
+        "رسم متجهي",
+        "شعار",
+        "رسم"
+      ],
+      "install": {
+        "kind": "appdrop",
+        "artifact": "appimage",
+        "version": "0.11.0",
+        "downloads": {
+          "aarch64": {
+            "url": "https://github.com/storytold/vectorcraft/releases/download/v0.11.0/vectorcraft-0.11.0-linux-aarch64.AppImage",
+            "sha256": "9d4577e61d6cc6728c1874ffa0f797b7311a9694134bad23282cdfd9dfbc889b",
+            "size": 109361672
+          },
+          "x86_64": {
+            "url": "https://github.com/storytold/vectorcraft/releases/download/v0.11.0/vectorcraft-0.11.0-linux-x86_64.AppImage",
+            "sha256": "0ab5126f9b2f9591bc27a10e20ea1b2f239384b1a16fec88288ed3de6dbf831c",
+            "size": 113854968
+          }
+        },
+        "desktop_id": "ai.storyteller.vectorcraft",
+        "wm_class": "ai.storyteller.vectorcraft",
+        "categories": [
+          "Graphics"
+        ],
+        "risk": "downloaded-executable",
+        "requires_review": true,
+        "external": true
+      }
+    },
+    {
+      "id": "filmcraft",
+      "source": "moos",
+      "cat": "media",
+      "glyph": "video",
+      "en": "FilmCraft",
+      "ar": "فيلمكرافت",
+      "desc_en": "A video editor with a real timeline, trimming and colour grading, much like Premiere Pro; still an early version.",
+      "desc_ar": "محرّر فيديو بخط زمني حقيقي وقصّ دقيق وتصحيح ألوان على طريقة بريمير، وما زال إصداراً مبكراً.",
+      "developer": "FilmCraft project",
+      "accent": "#8558ec",
+      "arch": [
+        "aarch64",
+        "x86_64"
+      ],
+      "icon_url": "https://raw.githubusercontent.com/storytold/filmcraft/v0.8.0/assets/app-icon/hicolor/256x256/apps/ai.storyteller.filmcraft.png",
+      "keywords_en": [
+        "premiere",
+        "premiere pro",
+        "adobe",
+        "video editor",
+        "montage",
+        "timeline"
+      ],
+      "keywords_ar": [
+        "بريمير",
+        "أدوبي",
+        "مونتاج",
+        "تحرير فيديو"
+      ],
+      "install": {
+        "kind": "appdrop",
+        "artifact": "appimage",
+        "version": "0.8.0",
+        "downloads": {
+          "aarch64": {
+            "url": "https://github.com/storytold/filmcraft/releases/download/v0.8.0/filmcraft-0.8.0-linux-aarch64.AppImage",
+            "sha256": "ded956efbb5c0cb22d7492ff83238c1cff42a88adc4c8d8bfdfa384dc02f179a",
+            "size": 63355400
+          },
+          "x86_64": {
+            "url": "https://github.com/storytold/filmcraft/releases/download/v0.8.0/filmcraft-0.8.0-linux-x86_64.AppImage",
+            "sha256": "41955e97c8932435f2b6bb8245783c668786b33d2b7df962bd097641da68211e",
+            "size": 65948152
+          }
+        },
+        "desktop_id": "ai.storyteller.filmcraft",
+        "wm_class": "ai.storyteller.filmcraft",
+        "categories": [
+          "AudioVideo",
+          "Video"
+        ],
+        "risk": "downloaded-executable",
+        "requires_review": true,
+        "external": true
+      }
+    },
+    {
+      "id": "lightcraft",
+      "source": "moos",
+      "cat": "art",
+      "glyph": "camera",
+      "en": "LightCraft",
+      "ar": "لايتكرافت",
+      "desc_en": "A photo library and raw developer that never touches your originals, much like Lightroom; still an early version.",
+      "desc_ar": "مكتبة صور ومعالج للصور الخام لا يمسّ ملفاتك الأصلية، على طريقة لايت روم، وما زال إصداراً مبكراً.",
+      "developer": "LightCraft project",
+      "accent": "#9d6b0e",
+      "arch": [
+        "aarch64",
+        "x86_64"
+      ],
+      "icon_url": "https://raw.githubusercontent.com/storytold/lightcraft/v0.8.0/assets/app-icon/hicolor/256x256/apps/ai.storyteller.lightcraft.png",
+      "keywords_en": [
+        "lightroom",
+        "adobe",
+        "raw",
+        "photo library",
+        "photography",
+        "presets"
+      ],
+      "keywords_ar": [
+        "لايت روم",
+        "أدوبي",
+        "صور خام",
+        "مكتبة صور",
+        "تصوير"
+      ],
+      "install": {
+        "kind": "appdrop",
+        "artifact": "appimage",
+        "version": "0.8.0",
+        "downloads": {
+          "aarch64": {
+            "url": "https://github.com/storytold/lightcraft/releases/download/v0.8.0/lightcraft-0.8.0-linux-aarch64.AppImage",
+            "sha256": "e2f982cd7b2ba1850f756ba2ee8997f611f0ad519b51e6b04434c3c512a1a05a",
+            "size": 95095304
+          },
+          "x86_64": {
+            "url": "https://github.com/storytold/lightcraft/releases/download/v0.8.0/lightcraft-0.8.0-linux-x86_64.AppImage",
+            "sha256": "81d54b09e60b448c05517f1dea3422bea5998692a8a1a84060466385b9dfd9c3",
+            "size": 99027448
+          }
+        },
+        "desktop_id": "ai.storyteller.lightcraft",
+        "wm_class": "ai.storyteller.lightcraft",
+        "categories": [
+          "Graphics"
+        ],
+        "risk": "downloaded-executable",
+        "requires_review": true,
+        "external": true
+      }
+    },
+    {
+      "id": "pdfcraft",
+      "source": "moos",
+      "cat": "work",
+      "glyph": "document",
+      "en": "PdfCraft",
+      "ar": "بي دي إف كرافت",
+      "desc_en": "Read, organize, combine, split and protect PDF files, much like Acrobat; still an early version.",
+      "desc_ar": "اقرأ ملفات PDF ونظّمها وادمجها وقسّمها واحمِها على طريقة أكروبات، وما زال إصداراً مبكراً.",
+      "developer": "PdfCraft project",
+      "accent": "#0f8670",
+      "arch": [
+        "aarch64",
+        "x86_64"
+      ],
+      "icon_url": "https://raw.githubusercontent.com/storytold/pdfcraft/v0.8.0/assets/app-icon/hicolor/256x256/apps/ai.storyteller.pdfcraft.png",
+      "keywords_en": [
+        "acrobat",
+        "adobe",
+        "pdf",
+        "pdf editor",
+        "merge pdf",
+        "split pdf"
+      ],
+      "keywords_ar": [
+        "أكروبات",
+        "أدوبي",
+        "بي دي اف",
+        "دمج pdf",
+        "تقسيم pdf"
+      ],
+      "install": {
+        "kind": "appdrop",
+        "artifact": "appimage",
+        "version": "0.8.0",
+        "downloads": {
+          "aarch64": {
+            "url": "https://github.com/storytold/pdfcraft/releases/download/v0.8.0/pdfcraft-0.8.0-linux-aarch64.AppImage",
+            "sha256": "97dfb26265c10d0dd2dd66827f77a8ebcd421daf11106b2d672b16efb86eb0c8",
+            "size": 77572616
+          },
+          "x86_64": {
+            "url": "https://github.com/storytold/pdfcraft/releases/download/v0.8.0/pdfcraft-0.8.0-linux-x86_64.AppImage",
+            "sha256": "6b89397ec10ad505e732f18982b6ad171aab085d938ca0c3034a00d4199e38f7",
+            "size": 80984568
+          }
+        },
+        "desktop_id": "ai.storyteller.pdfcraft",
+        "wm_class": "ai.storyteller.pdfcraft",
+        "categories": [
+          "Office"
+        ],
+        "risk": "downloaded-executable",
+        "requires_review": true,
+        "external": true
+      }
+    },
+    {
+      "id": "effectcraft",
+      "source": "moos",
+      "cat": "media",
+      "glyph": "orbit",
+      "en": "EffectCraft",
+      "ar": "إفكتكرافت",
+      "desc_en": "Motion graphics and visual effects with layers, keyframes and 3D, much like After Effects; still an early version.",
+      "desc_ar": "رسوم متحركة ومؤثرات بصرية بالطبقات والإطارات المفتاحية والأبعاد الثلاثية على طريقة أفتر إفكتس، وما زال إصداراً مبكراً.",
+      "developer": "EffectCraft project",
+      "accent": "#d53388",
+      "arch": [
+        "aarch64",
+        "x86_64"
+      ],
+      "icon_url": "https://raw.githubusercontent.com/storytold/effectcraft/v0.10.0/assets/app-icon/hicolor/256x256/apps/ai.storyteller.effectcraft.png",
+      "keywords_en": [
+        "after effects",
+        "adobe",
+        "motion graphics",
+        "vfx",
+        "animation",
+        "compositing"
+      ],
+      "keywords_ar": [
+        "أفتر إفكتس",
+        "أدوبي",
+        "موشن جرافيك",
+        "مؤثرات بصرية",
+        "تحريك"
+      ],
+      "install": {
+        "kind": "appdrop",
+        "artifact": "appimage",
+        "version": "0.10.0",
+        "downloads": {
+          "aarch64": {
+            "url": "https://github.com/storytold/effectcraft/releases/download/v0.10.0/effectcraft-0.10.0-linux-aarch64.AppImage",
+            "sha256": "6bc2c14e15a6a4b69b32e852b7e6ab73ab6b8c9f47a034fd6a946b23a6af725d",
+            "size": 54815240
+          },
+          "x86_64": {
+            "url": "https://github.com/storytold/effectcraft/releases/download/v0.10.0/effectcraft-0.10.0-linux-x86_64.AppImage",
+            "sha256": "d0e4016f6e5915bf847465fcfa4053a1607e0afa16b35fed156a78c75e88b650",
+            "size": 58694136
+          }
+        },
+        "desktop_id": "ai.storyteller.effectcraft",
+        "wm_class": "ai.storyteller.effectcraft",
+        "categories": [
+          "AudioVideo",
+          "Video",
+          "Graphics"
+        ],
+        "risk": "downloaded-executable",
+        "requires_review": true,
+        "external": true
+      }
+    },
+    {
+      "id": "designcraft",
+      "source": "moos",
+      "cat": "art",
+      "glyph": "document",
+      "en": "DesignCraft",
+      "ar": "ديزاينكرافت",
+      "desc_en": "Page layout for magazines, books and print with threaded text and styles, much like InDesign; still a very early version.",
+      "desc_ar": "تنسيق صفحات المجلات والكتب والمطبوعات بنصوص متصلة وأنماط على طريقة إن ديزاين، وما زال إصداراً مبكراً جداً.",
+      "developer": "DesignCraft project",
+      "accent": "#598214",
+      "arch": [
+        "aarch64",
+        "x86_64"
+      ],
+      "icon_url": "https://raw.githubusercontent.com/storytold/designcraft/v0.8.0/assets/app-icon/hicolor/256x256/apps/ai.storyteller.designcraft.png",
+      "keywords_en": [
+        "indesign",
+        "adobe",
+        "page layout",
+        "publishing",
+        "magazine",
+        "print"
+      ],
+      "keywords_ar": [
+        "إن ديزاين",
+        "أدوبي",
+        "تنسيق صفحات",
+        "نشر",
+        "مجلة",
+        "طباعة"
+      ],
+      "install": {
+        "kind": "appdrop",
+        "artifact": "appimage",
+        "version": "0.8.0",
+        "downloads": {
+          "aarch64": {
+            "url": "https://github.com/storytold/designcraft/releases/download/v0.8.0/designcraft-0.8.0-linux-aarch64.AppImage",
+            "sha256": "6ffff5e6dfad31459e7f3c97be110ed21c069cb60203870de7a52746d4e70a6d",
+            "size": 64592392
+          },
+          "x86_64": {
+            "url": "https://github.com/storytold/designcraft/releases/download/v0.8.0/designcraft-0.8.0-linux-x86_64.AppImage",
+            "sha256": "88d57710f56c9fb7d8e33e046061eff839117971b402a4103c4b332b5ca3b5df",
+            "size": 67566072
+          }
+        },
+        "desktop_id": "ai.storyteller.designcraft",
+        "wm_class": "ai.storyteller.designcraft",
+        "categories": [
+          "Graphics"
+        ],
+        "risk": "downloaded-executable",
+        "requires_review": true,
+        "external": true
+      }
+    },
+    {
+      "id": "figcraft",
+      "source": "moos",
+      "cat": "art",
+      "glyph": "ui",
+      "en": "FigCraft",
+      "ar": "فيغكرافت",
+      "desc_en": "Interface design and prototyping with auto layout and components, much like Figma; still an early version.",
+      "desc_ar": "تصميم الواجهات ونماذجها التفاعلية بالتخطيط التلقائي والمكوّنات على طريقة فيغما، وما زال إصداراً مبكراً.",
+      "developer": "FigCraft project",
+      "accent": "#01875d",
+      "arch": [
+        "aarch64",
+        "x86_64"
+      ],
+      "icon_url": "https://raw.githubusercontent.com/storytold/figcraft/v0.6.0/assets/app-icon/hicolor/256x256/apps/ai.storyteller.figcraft.png",
+      "keywords_en": [
+        "figma",
+        "adobe xd",
+        "ui design",
+        "prototype",
+        "wireframe"
+      ],
+      "keywords_ar": [
+        "فيغما",
+        "فيجما",
+        "تصميم واجهات",
+        "نموذج أولي"
+      ],
+      "install": {
+        "kind": "appdrop",
+        "artifact": "appimage",
+        "version": "0.6.0",
+        "downloads": {
+          "aarch64": {
+            "url": "https://github.com/storytold/figcraft/releases/download/v0.6.0/figcraft-0.6.0-linux-aarch64.AppImage",
+            "sha256": "8d4f6c2fccb128cee7d85c3ee85b0cfad3d6cf12c681e44cbd73ffd8cd50be28",
+            "size": 78780936
+          },
+          "x86_64": {
+            "url": "https://github.com/storytold/figcraft/releases/download/v0.6.0/figcraft-0.6.0-linux-x86_64.AppImage",
+            "sha256": "600f115ddc6d9e75f0720c0d9c5449c15b33fde276e080f013bb449ed1da4553",
+            "size": 81480184
+          }
+        },
+        "desktop_id": "ai.storyteller.figcraft",
+        "wm_class": "figcraft",
+        "categories": [
+          "Graphics"
+        ],
+        "risk": "downloaded-executable",
+        "requires_review": true,
+        "external": true
+      }
+    },
+    {
+      "id": "wordcraft",
+      "source": "moos",
+      "cat": "work",
+      "glyph": "document",
+      "en": "WordCraft",
+      "ar": "ووردكرافت",
+      "desc_en": "A word processor with the ribbon, styles and track changes that opens and saves Word files; still an early version.",
+      "desc_ar": "معالج نصوص بالشريط والأنماط وتتبّع التغييرات يفتح ملفات وورد ويحفظها، وما زال إصداراً مبكراً.",
+      "developer": "WordCraft project",
+      "accent": "#3b5bdb",
+      "arch": [
+        "aarch64",
+        "x86_64"
+      ],
+      "icon_url": "https://raw.githubusercontent.com/storytold/wordcraft/v0.7.0/assets/app-icon/hicolor/256x256/apps/ai.storyteller.wordcraft.png",
+      "keywords_en": [
+        "word",
+        "microsoft word",
+        "docx",
+        "word processor",
+        "documents"
+      ],
+      "keywords_ar": [
+        "وورد",
+        "مستندات",
+        "معالج نصوص",
+        "كتابة"
+      ],
+      "install": {
+        "kind": "appdrop",
+        "artifact": "appimage",
+        "version": "0.7.0",
+        "downloads": {
+          "aarch64": {
+            "url": "https://github.com/storytold/wordcraft/releases/download/v0.7.0/wordcraft-0.7.0-linux-aarch64.AppImage",
+            "sha256": "872c8fc671c60c5d86eb5ff36ea91cf61ec8ce0f0adca344b13d1f10c145ff0c",
+            "size": 90278408
+          },
+          "x86_64": {
+            "url": "https://github.com/storytold/wordcraft/releases/download/v0.7.0/wordcraft-0.7.0-linux-x86_64.AppImage",
+            "sha256": "7dc86ff3025f185be39bf19822af24f2c504ddead3f52ed99c3d6960bce58d4d",
+            "size": 92838392
+          }
+        },
+        "desktop_id": "ai.storyteller.wordcraft",
+        "wm_class": "ai.storyteller.wordcraft",
+        "categories": [
+          "Office"
+        ],
+        "risk": "downloaded-executable",
+        "requires_review": true,
+        "external": true
+      }
+    },
+    {
+      "id": "soundcraft",
+      "source": "moos",
+      "cat": "media",
+      "glyph": "audio",
+      "en": "SoundCraft",
+      "ar": "ساوندكرافت",
+      "desc_en": "Record, edit and mix audio and MIDI across many tracks, much like Pro Tools; still a very early version.",
+      "desc_ar": "سجّل الصوت والميدي وحرّره واخلطه على مسارات كثيرة على طريقة برو تولز، وما زال إصداراً مبكراً جداً.",
+      "developer": "SoundCraft project",
+      "accent": "#0f8297",
+      "arch": [
+        "aarch64",
+        "x86_64"
+      ],
+      "icon_url": "https://raw.githubusercontent.com/storytold/soundcraft/v0.7.0/assets/app-icon/hicolor/256x256/apps/ai.storyteller.soundcraft.png",
+      "keywords_en": [
+        "pro tools",
+        "audition",
+        "daw",
+        "recording",
+        "mixing",
+        "midi"
+      ],
+      "keywords_ar": [
+        "برو تولز",
+        "تسجيل صوت",
+        "مكساج",
+        "هندسة صوت",
+        "ميدي"
+      ],
+      "install": {
+        "kind": "appdrop",
+        "artifact": "appimage",
+        "version": "0.7.0",
+        "downloads": {
+          "aarch64": {
+            "url": "https://github.com/storytold/soundcraft/releases/download/v0.7.0/soundcraft-0.7.0-linux-aarch64.AppImage",
+            "sha256": "49ea38572f8269cf5527d8fa7bc03cb8ba1e3d36c7a282bd626fc48f371b3646",
+            "size": 14547464
+          },
+          "x86_64": {
+            "url": "https://github.com/storytold/soundcraft/releases/download/v0.7.0/soundcraft-0.7.0-linux-x86_64.AppImage",
+            "sha256": "80f2fecd132b9a9c3ac2391664b0a0214169c8cc0e27be917a3704553a914d81",
+            "size": 15833592
+          }
+        },
+        "desktop_id": "ai.storyteller.soundcraft",
+        "wm_class": "ai.storyteller.soundcraft",
+        "categories": [
+          "AudioVideo",
+          "Audio"
+        ],
+        "risk": "downloaded-executable",
+        "requires_review": true,
+        "external": true
+      }
+    },
+    {
+      "id": "deckcraft",
+      "source": "moos",
+      "cat": "work",
+      "glyph": "ui",
+      "en": "DeckCraft",
+      "ar": "ديككرافت",
+      "desc_en": "Slide shows with themes, animations and a presenter view that open and save PowerPoint files; still an early version.",
+      "desc_ar": "عروض تقديمية بالقوالب والحركات وعرض المقدّم تفتح ملفات باوربوينت وتحفظها، وما زال إصداراً مبكراً.",
+      "developer": "DeckCraft project",
+      "accent": "#c25617",
+      "arch": [
+        "aarch64",
+        "x86_64"
+      ],
+      "icon_url": "https://raw.githubusercontent.com/storytold/deckcraft/v0.7.0/assets/app-icon/hicolor/256x256/apps/ai.storyteller.deckcraft.png",
+      "keywords_en": [
+        "powerpoint",
+        "pptx",
+        "slides",
+        "presentation",
+        "keynote"
+      ],
+      "keywords_ar": [
+        "باوربوينت",
+        "عروض تقديمية",
+        "شرائح"
+      ],
+      "install": {
+        "kind": "appdrop",
+        "artifact": "appimage",
+        "version": "0.7.0",
+        "downloads": {
+          "aarch64": {
+            "url": "https://github.com/storytold/deckcraft/releases/download/v0.7.0/deckcraft-0.7.0-linux-aarch64.AppImage",
+            "sha256": "6e9086067c3372f5361c9eafb2735dd24ebcdaebb4159cfdd7151ff2509e4354",
+            "size": 70089224
+          },
+          "x86_64": {
+            "url": "https://github.com/storytold/deckcraft/releases/download/v0.7.0/deckcraft-0.7.0-linux-x86_64.AppImage",
+            "sha256": "535afd1e7f6d389ecfe78f4a702b5a36719217c4cec556ae5d7f0fd775ae5584",
+            "size": 72165880
+          }
+        },
+        "desktop_id": "ai.storyteller.deckcraft",
+        "wm_class": "ai.storyteller.deckcraft",
+        "categories": [
+          "Office"
+        ],
+        "risk": "downloaded-executable",
+        "requires_review": true,
+        "external": true
+      }
+    },
+    {
+      "id": "cadcraft",
+      "source": "moos",
+      "cat": "art",
+      "glyph": "cube",
+      "en": "CADCraft",
+      "ar": "كادكرافت",
+      "desc_en": "2D drafting with commands, snaps, layers and dimensions that opens DWG and DXF drawings; still an early version.",
+      "desc_ar": "رسم هندسي ثنائي الأبعاد بالأوامر والالتقاط والطبقات والأبعاد يفتح رسومات DWG و DXF، وما زال إصداراً مبكراً.",
+      "developer": "CADCraft project",
+      "accent": "#10819d",
+      "arch": [
+        "aarch64",
+        "x86_64"
+      ],
+      "icon_url": "https://raw.githubusercontent.com/storytold/cadcraft/v0.7.0/assets/app-icon/hicolor/256x256/apps/ai.storyteller.cadcraft.png",
+      "keywords_en": [
+        "autocad",
+        "cad",
+        "dwg",
+        "dxf",
+        "drafting",
+        "engineering"
+      ],
+      "keywords_ar": [
+        "أوتوكاد",
+        "رسم هندسي",
+        "هندسة",
+        "مخططات"
+      ],
+      "install": {
+        "kind": "appdrop",
+        "artifact": "appimage",
+        "version": "0.7.0",
+        "downloads": {
+          "aarch64": {
+            "url": "https://github.com/storytold/cadcraft/releases/download/v0.7.0/cadcraft-0.7.0-linux-aarch64.AppImage",
+            "sha256": "8c745bff42ac94f784d228f03a8f1d733f029b09f2771d69073690532d08485e",
+            "size": 55630344
+          },
+          "x86_64": {
+            "url": "https://github.com/storytold/cadcraft/releases/download/v0.7.0/cadcraft-0.7.0-linux-x86_64.AppImage",
+            "sha256": "b2aa2807c886e1bae7b0064f47688a62ed6fe1fa05f05b352e362cdc698f0b77",
+            "size": 57784824
+          }
+        },
+        "desktop_id": "ai.storyteller.cadcraft",
+        "wm_class": "ai.storyteller.cadcraft",
+        "categories": [
+          "Graphics"
+        ],
+        "risk": "downloaded-executable",
+        "requires_review": true,
+        "external": true
+      }
+    },
+    {
+      "id": "gridcraft",
+      "source": "moos",
+      "cat": "work",
+      "glyph": "grid",
+      "en": "GridCraft",
+      "ar": "غريدكرافت",
+      "desc_en": "Spreadsheets with formulas, charts and PivotTables that open and save Excel files; still an early version.",
+      "desc_ar": "جداول بيانات بالصيغ والمخططات والجداول المحورية تفتح ملفات إكسل وتحفظها، وما زال إصداراً مبكراً.",
+      "developer": "GridCraft project",
+      "accent": "#1b8749",
+      "arch": [
+        "aarch64",
+        "x86_64"
+      ],
+      "icon_url": "https://raw.githubusercontent.com/storytold/gridcraft/v0.7.0/assets/app-icon/hicolor/256x256/apps/ai.storyteller.gridcraft.png",
+      "keywords_en": [
+        "excel",
+        "xlsx",
+        "spreadsheet",
+        "formulas",
+        "charts"
+      ],
+      "keywords_ar": [
+        "اكسل",
+        "جداول",
+        "جدول بيانات",
+        "صيغ"
+      ],
+      "install": {
+        "kind": "appdrop",
+        "artifact": "appimage",
+        "version": "0.7.0",
+        "downloads": {
+          "aarch64": {
+            "url": "https://github.com/storytold/gridcraft/releases/download/v0.7.0/gridcraft-0.7.0-linux-aarch64.AppImage",
+            "sha256": "97c6923e127c846c65fa08050e5840b2bd46f244dda3d2ec42ec198c14d94287",
+            "size": 17586696
+          },
+          "x86_64": {
+            "url": "https://github.com/storytold/gridcraft/releases/download/v0.7.0/gridcraft-0.7.0-linux-x86_64.AppImage",
+            "sha256": "2daace8be3719afee727d2e353aa4bd0ac22798c312c92c2c6d5e42f27f70812",
+            "size": 19007992
+          }
+        },
+        "desktop_id": "ai.storyteller.gridcraft",
+        "wm_class": "ai.storyteller.gridcraft",
+        "categories": [
+          "Office"
+        ],
+        "risk": "downloaded-executable",
+        "requires_review": true,
+        "external": true
+      }
+    },
+    {
+      "id": "net.openra.OpenRA",
+      "source": "flathub",
+      "cat": "fun",
+      "glyph": "gaming",
+      "en": "OpenRA",
+      "ar": "أوبن آر إيه",
+      "desc_en": "Reimagined classic strategy games; downloads original game assets on first play.",
+      "desc_ar": "ألعاب استراتيجية كلاسيكية مجددة؛ تنزّل ملفات اللعبة الأصلية عند أول تشغيل.",
+      "developer": "OpenRA developers",
+      "keywords_en": [
+        "OpenRA"
+      ],
+      "keywords_ar": [
+        "أوبن آر إيه"
+      ]
+    },
+    {
+      "id": "net.wz2100.wz2100",
+      "source": "flathub",
+      "cat": "fun",
+      "glyph": "gaming",
+      "en": "Warzone 2100",
+      "ar": "وارزون 2100",
+      "desc_en": "Build a base, research technology and command your army in campaigns or multiplayer.",
+      "desc_ar": "ابنِ قاعدة وطوّر التقنيات وقُد جيشك في حملات أو مباريات جماعية.",
+      "developer": "Warzone 2100 Project",
+      "keywords_en": [
+        "Warzone 2100"
+      ],
+      "keywords_ar": [
+        "وارزون 2100"
+      ]
+    },
+    {
+      "id": "org.wesnoth.Wesnoth",
+      "source": "flathub",
+      "cat": "fun",
+      "glyph": "gaming",
+      "en": "Battle for Wesnoth",
+      "ar": "المعركة من أجل ويسنوث",
+      "desc_en": "Turn-based fantasy strategy with campaigns and online multiplayer.",
+      "desc_ar": "استراتيجية خيالية بالأدوار مع حملات ولعب جماعي عبر الإنترنت.",
+      "developer": "The Battle for Wesnoth Project",
+      "keywords_en": [
+        "Battle for Wesnoth"
+      ],
+      "keywords_ar": [
+        "المعركة من أجل ويسنوث"
+      ]
+    },
+    {
+      "id": "org.gnome.Chess",
+      "source": "flathub",
+      "cat": "fun",
+      "glyph": "gaming",
+      "en": "Chess",
+      "ar": "الشطرنج",
+      "desc_en": "Play chess locally or against the computer.",
+      "desc_ar": "العب الشطرنج محليًا أو ضد الكمبيوتر.",
+      "developer": "Chess developers",
+      "keywords_en": [
+        "Chess"
+      ],
+      "keywords_ar": [
+        "الشطرنج"
+      ]
+    },
+    {
+      "id": "org.openttd.OpenTTD",
+      "source": "flathub",
+      "cat": "fun",
+      "glyph": "gaming",
+      "en": "OpenTTD",
+      "ar": "أوبن تي تي دي",
+      "desc_en": "Build railways, roads and airports in an open-source transport simulation.",
+      "desc_ar": "ابنِ السكك والطرق والمطارات في محاكاة نقل مفتوحة المصدر.",
+      "developer": "OpenTTD team",
+      "keywords_en": [
+        "OpenTTD"
+      ],
+      "keywords_ar": [
+        "أوبن تي تي دي"
+      ]
+    },
+    {
+      "id": "org.freecol.FreeCol",
+      "source": "flathub",
+      "cat": "fun",
+      "glyph": "gaming",
+      "en": "FreeCol",
+      "ar": "فري كول",
+      "desc_en": "Explore and build settlements in a turn-based strategy game.",
+      "desc_ar": "استكشف وأنشئ المستوطنات في لعبة استراتيجية بالأدوار.",
+      "developer": "FreeCol team",
+      "keywords_en": [
+        "FreeCol"
+      ],
+      "keywords_ar": [
+        "فري كول"
+      ]
+    },
+    {
+      "id": "org.supertuxproject.SuperTux",
+      "source": "flathub",
+      "cat": "fun",
+      "glyph": "gaming",
+      "en": "SuperTux",
+      "ar": "سوبر تكس",
+      "desc_en": "A colourful platform adventure with local levels and community worlds.",
+      "desc_ar": "مغامرة منصات ملونة مع مراحل محلية وعوالم يصنعها المجتمع.",
+      "developer": "SuperTux team",
+      "keywords_en": [
+        "SuperTux"
+      ],
+      "keywords_ar": [
+        "سوبر تكس"
+      ]
+    },
+    {
+      "id": "org.kde.kpat",
+      "source": "flathub",
+      "cat": "fun",
+      "glyph": "gaming",
+      "en": "KPatience",
+      "ar": "ألعاب الصبر",
+      "desc_en": "A collection of solitaire card games for relaxed offline play.",
+      "desc_ar": "مجموعة ألعاب ورق فردية للعب الهادئ دون إنترنت.",
+      "developer": "KPatience developers",
+      "keywords_en": [
+        "KPatience"
+      ],
+      "keywords_ar": [
+        "ألعاب الصبر"
+      ]
+    },
+    {
+      "id": "org.kde.kmahjongg",
+      "source": "flathub",
+      "cat": "fun",
+      "glyph": "gaming",
+      "en": "KMahjongg",
+      "ar": "ماجونغ",
+      "desc_en": "Match tile pairs in a relaxing solitaire puzzle.",
+      "desc_ar": "طابق أزواج القطع في أحجية فردية هادئة.",
+      "developer": "KMahjongg developers",
+      "keywords_en": [
+        "KMahjongg"
+      ],
+      "keywords_ar": [
+        "ماجونغ"
+      ]
+    },
+    {
+      "id": "io.github.peazip.PeaZip",
+      "source": "flathub",
+      "cat": "util",
+      "glyph": "grid",
+      "en": "PeaZip",
+      "ar": "بي زيب",
+      "desc_en": "Create, open and encrypt archives in many formats.",
+      "desc_ar": "أنشئ الملفات المضغوطة وافتحها وشفّرها بصيغ متعددة.",
+      "developer": "Giorgio Tani",
+      "keywords_en": [
+        "PeaZip"
+      ],
+      "keywords_ar": [
+        "بي زيب"
+      ]
+    },
+    {
+      "id": "org.filezillaproject.Filezilla",
+      "source": "flathub",
+      "cat": "util",
+      "glyph": "grid",
+      "en": "FileZilla",
+      "ar": "فايل زيلا",
+      "desc_en": "Transfer files to servers using FTP and SFTP.",
+      "desc_ar": "انقل الملفات إلى الخوادم عبر FTP وSFTP.",
+      "developer": "FileZilla Project",
+      "keywords_en": [
+        "FileZilla"
+      ],
+      "keywords_ar": [
+        "فايل زيلا"
+      ]
+    },
+    {
+      "id": "org.gnucash.GnuCash",
+      "source": "flathub",
+      "cat": "work",
+      "glyph": "grid",
+      "en": "GnuCash",
+      "ar": "جنو كاش",
+      "desc_en": "Track personal and small-business accounts with double-entry bookkeeping.",
+      "desc_ar": "تابع حساباتك الشخصية وأعمالك الصغيرة بنظام القيد المزدوج.",
+      "developer": "GnuCash developers",
+      "keywords_en": [
+        "GnuCash"
+      ],
+      "keywords_ar": [
+        "جنو كاش"
+      ]
+    },
+    {
+      "id": "net.scribus.Scribus",
+      "source": "flathub",
+      "cat": "art",
+      "glyph": "grid",
+      "en": "Scribus",
+      "ar": "سكريبوس",
+      "desc_en": "Design print layouts, brochures and press-ready PDF documents.",
+      "desc_ar": "صمّم المطبوعات والكتيبات وملفات PDF الجاهزة للطباعة.",
+      "developer": "Scribus Team",
+      "keywords_en": [
+        "Scribus"
+      ],
+      "keywords_ar": [
+        "سكريبوس"
+      ]
+    },
+    {
+      "id": "io.lmms.LMMS",
+      "source": "flathub",
+      "cat": "media",
+      "glyph": "grid",
+      "en": "LMMS",
+      "ar": "إل إم إم إس",
+      "desc_en": "Compose melodies, sequence beats and produce music.",
+      "desc_ar": "ألّف الألحان والإيقاعات وأنتج الموسيقى.",
+      "developer": "LMMS developers",
+      "keywords_en": [
+        "LMMS"
+      ],
+      "keywords_ar": [
+        "إل إم إم إس"
+      ]
+    },
+    {
+      "id": "org.ardour.Ardour",
+      "source": "flathub",
+      "cat": "media",
+      "glyph": "grid",
+      "en": "Ardour",
+      "ar": "أردور",
+      "desc_en": "Record, edit and mix multitrack audio and MIDI.",
+      "desc_ar": "سجّل الصوت وMIDI وحرّرهما وامزجهما بمسارات متعددة.",
+      "developer": "Ardour developers",
+      "keywords_en": [
+        "Ardour"
+      ],
+      "keywords_ar": [
+        "أردور"
+      ]
+    },
+    {
+      "id": "org.chromium.Chromium",
+      "source": "flathub",
+      "cat": "ess",
+      "glyph": "grid",
+      "en": "Chromium",
+      "ar": "كروميوم",
+      "desc_en": "An open-source browser for everyday web use.",
+      "desc_ar": "متصفح مفتوح المصدر للاستخدام اليومي للويب.",
+      "developer": "The Chromium Authors",
+      "keywords_en": [
+        "browser"
+      ],
+      "keywords_ar": [
+        "كروميوم"
+      ]
     }
   ]
 }
