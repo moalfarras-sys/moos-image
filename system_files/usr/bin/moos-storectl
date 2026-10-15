@@ -3670,10 +3670,9 @@ class Controller:
                    adopted); it is theirs, and the pin, which may be older, never replaces it.
           windows  the record, while the program's folder is there.
           android  installed while Android keeps the package's data directory. An app an
-                   earlier Mo Store installed has no record (it wrote none); the APK Android
-                   keeps then names its bytes (_android_apk_is_pin), and only when that cannot
-                   be read are they unknown and the pin offered. Installing the pin writes the
-                   record.
+                   earlier Mo Store installed has no record (it wrote none) and is returned
+                   without one; moos_android_apk.pin_is_update() then decides from the APK
+                   Android keeps (_pin_update_row).
         """
         kind = (recipe.get("install") or {}).get("kind")
         if kind == "appdrop":
@@ -3691,46 +3690,16 @@ class Controller:
         return {}
 
     @staticmethod
-    def _android_apk_is_pin(package: str, pin: PinnedArtifact) -> bool:
-        """Whether the APK Android keeps for `package` is, byte for byte, the pinned one.
+    def _android_apk() -> Any:
+        """usr/lib/moos/moos_android_apk.py: what the APK Android keeps says, and the one update
+        rule moos-store-index shares."""
+        return Controller._library("moos_android_apk")
 
-        Android keeps an installed app at /data/app/~~<random>/<package>-<random>/base.apk
-        (Android 11 and later; /data/app/<package>-<suffix>/base.apk before), and the container's
-        /data is ~/.local/share/waydroid/data. Only exactly one such file is read, a regular file
-        reached through no link, of the pin's size. Two copies while Android replaces the app, a
-        /data that another account owns, or anything unreadable answers no: the bytes are
-        unknown, and the pin stays offered.
-        """
-        prefix = f"{package}-"
-        found: list[str] = []
-        try:
-            with os.scandir(data_home() / "waydroid" / "data" / "app") as entries:
-                for entry in entries:
-                    if not entry.is_dir(follow_symlinks=False):
-                        continue
-                    if entry.name.startswith(prefix):
-                        found.append(entry.path)
-                        continue
-                    with os.scandir(entry.path) as inner:
-                        found += [item.path for item in inner if item.name.startswith(prefix)
-                                  and item.is_dir(follow_symlinks=False)]
-            if len(found) != 1:
-                return False
-            apk = Path(found[0]) / "base.apk"
-            if apk.is_symlink() or not apk.is_file():
-                return False
-            fd = os.open(apk, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK | os.O_CLOEXEC)
-            with os.fdopen(fd, "rb") as handle:
-                size = os.fstat(handle.fileno()).st_size
-                limit = pin.size if pin.size is not None else UNSIZED_DOWNLOAD_CAP
-                if size > limit or (pin.size is not None and size != pin.size):
-                    return False
-                digest = hashlib.sha256()
-                for block in iter(lambda: handle.read(DOWNLOAD_BLOCK), b""):
-                    digest.update(block)
-                return digest.hexdigest() == pin.sha256
-        except OSError:
-            return False
+    def _android_kept(self, package: str, pin: PinnedArtifact) -> Any:
+        """The one APK Android keeps for `package` (moos_android_apk.ApkFacts), read through no
+        link, its digest only at the pin's size; None when that cannot be read."""
+        return self._android_apk().kept(data_home() / "waydroid" / "data", package, pin.size,
+                                        unsized_limit=UNSIZED_DOWNLOAD_CAP)
 
     def _vendor_update_row(self, app_id: str, recipe: dict[str, Any],
                            record: dict[str, Any]) -> dict[str, Any] | None:
@@ -3754,7 +3723,13 @@ class Controller:
                 "version": readable(info), "installed_version": readable(record)}
 
     def _pin_update_row(self, app_id: str, recipe: dict[str, Any]) -> dict[str, Any] | None:
-        """An update row when the installed bytes differ from what the catalogue now pins."""
+        """An update row when the installed bytes differ from what the catalogue now pins.
+
+        For Android, "differ" is what Android itself would take as an update of the APK it keeps
+        (moos_android_apk.pin_is_update()): never an older build than that one, never one signed
+        by another key, and nothing for an app without a record of the Store's whose APK cannot
+        be read.
+        """
         install = recipe.get("install")
         if not isinstance(install, dict) or install.get("kind") not in (
                 "appdrop", "windows-portable", "android", "vendor-rpm"):
@@ -3768,14 +3743,21 @@ class Controller:
             pin = pinned_artifact(app_id, install, size_required=install.get("kind") != "android")
         except StoreError:
             return None
-        if str(record.get("sha256", "")).lower() == pin.sha256:
-            return None
-        if install.get("kind") == "android" and self._android_apk_is_pin(app_id, pin):
-            # Android already keeps the pin (installed by an earlier Mo Store, which wrote no
-            # record, or brought up to it outside the Store): the same bytes again are no update.
+        installed = record.get("version") if isinstance(record.get("version"), str) else None
+        if install.get("kind") == "android":
+            apk = self._android_apk()
+            kept = self._android_kept(app_id, pin)
+            if not apk.pin_is_update(pin_sha256=pin.sha256,
+                                     pin_code=apk.pin_version_code(pin.url, app_id),
+                                     pin_signer=install.get("signer"), kept=kept,
+                                     recorded_sha256=record.get("sha256")):
+                return None
+            # What Android keeps is the version installed, whoever put it there.
+            installed = (display_text(kept.version_name, 64) if kept is not None else "") \
+                or installed
+        elif str(record.get("sha256", "")).lower() == pin.sha256:
             return None
         version = install.get("version") if isinstance(install.get("version"), str) else None
-        installed = record.get("version") if isinstance(record.get("version"), str) else None
         return {"id": app_id, "kind": "pin", "name": display_text(recipe.get("en"), 80) or app_id,
                 "version": version, "installed_version": installed or None}
 
