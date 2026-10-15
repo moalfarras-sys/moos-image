@@ -377,7 +377,7 @@ print(" ".join(str(document.get("message") or "").split()))' 2>/dev/null)"
     fi
     case "$code" in
         75)
-            echo "${Y}Mo Store مشغول بعملية أخرى — جرّب بعد انتهائها.${N}"
+            echo "${Y}متجر MoOS مشغول بعملية أخرى — جرّب بعد انتهائها.${N}"
             echo "${Y}Mo Store is busy with another job — try again when it finishes.${N}"
             ;;
         130)
@@ -451,7 +451,7 @@ PY
 
 do_install() {
     local id="${1:-}"
-    hdr "تثبيت تطبيق عبر Mo Store" "Install an app through Mo Store"
+    hdr "تثبيت تطبيق عبر متجر MoOS" "Install an app through Mo Store"
     if [ -z "$id" ]; then
         echo "${Y}حدّد معرّف التطبيق | provide an app id${N}"
         echo "${D}مثال | e.g.:  moai-do install org.mozilla.firefox${N}"
@@ -499,7 +499,7 @@ do_install() {
             return 1
         fi
     else
-        echo "${Y}لم يكتمل التثبيت (تحقّق من المعرّف في Mo Store).${N}"
+        echo "${Y}لم يكتمل التثبيت (تحقّق من المعرّف في متجر MoOS).${N}"
         echo "${Y}Install did not complete (check the id in Mo Store).${N}"
         return 1
     fi
@@ -603,7 +603,7 @@ do_install_rpm() {
 
 do_uninstall() {
     local id="${1:-}"
-    hdr "حذف تطبيق عبر Mo Store" "Remove an app through Mo Store"
+    hdr "حذف تطبيق عبر متجر MoOS" "Remove an app through Mo Store"
     if [ -z "$id" ]; then
         echo "${Y}حدّد معرّف التطبيق | provide an app id${N}"
         echo "${D}مثال | e.g.:  moai-do uninstall com.spotify.Client${N}"
@@ -615,14 +615,14 @@ do_uninstall() {
     fi
     need moos-storectl || return 1
     echo "${C}التطبيق | App :${N} ${id}"
-    echo "${D}يُحذف التطبيق لهذا المستخدم عبر Mo Store، ويمكن إعادة تثبيته في أي وقت.${N}"
+    echo "${D}يُحذف التطبيق لهذا المستخدم عبر متجر MoOS، ويمكن إعادة تثبيته في أي وقت.${N}"
     echo "${D}Removes the app for this user through Mo Store; you can reinstall it any time.${N}"
     confirm || return 0
     store_job remove "$id"
 }
 
 do_update_apps() {
-    hdr "تحديث كل التطبيقات عبر Mo Store" "Update all apps through Mo Store"
+    hdr "تحديث كل التطبيقات عبر متجر MoOS" "Update all apps through Mo Store"
     echo "${D}يحدّث تطبيقات هذا المستخدم. النظام نفسه يتحدّث بـ moai-do update.${N}"
     echo "${D}Updates this user's apps. The system itself updates with moai-do update.${N}"
     need moos-storectl || return 1
@@ -957,7 +957,7 @@ do_setup_gaming() {
 # straight from the URL router.
 do_smart_setup() {
     hdr "الإعداد الذكي للتطبيقات" "Smart app setup"
-    echo "${D}يثبّت عبر Mo Store التطبيقات الأساسية التي تنقص هذا الجهاز حسب عتاده. بلا صلاحيات مسؤول.${N}"
+    echo "${D}يثبّت عبر متجر MoOS التطبيقات الأساسية التي تنقص هذا الجهاز حسب عتاده. بلا صلاحيات مسؤول.${N}"
     echo "${D}Installs, through Mo Store, the essential apps this machine's hardware plan says are missing. No admin rights.${N}"
     echo
     if ! command -v moos-setup >/dev/null 2>&1; then
@@ -1425,7 +1425,7 @@ do_restart() {
             echo "${Y}A Mo AI action is still running (${detail}) — restart after it finishes. Nothing changed.${N}" >&2
             return 1 ;;
         busy:store)
-            echo "${Y}Mo Store ما زال يثبّت أو يحدّث — أعد التشغيل بعد انتهائه. لم يتغيّر شيء.${N}" >&2
+            echo "${Y}متجر MoOS ما زال يثبّت أو يحدّث — أعد التشغيل بعد انتهائه. لم يتغيّر شيء.${N}" >&2
             echo "${Y}Mo Store is still installing or updating — restart after it finishes. Nothing changed.${N}" >&2
             return 1 ;;
         busy:image)
@@ -2191,13 +2191,13 @@ ${V}الاستعمال | Usage:${N}  moai-do <command> [args]
                     Is a newer MoOS published or staged? (read-only)
   ${C}restart${N}           إعادة تشغيل الكمبيوتر (تُرفض أثناء تثبيت أو تحديث)
                     Restart the computer (refused while an install or update runs)
-  ${C}install <id>${N}      تثبيت تطبيق عبر Mo Store (لهذا المستخدم) ثم فتحه
+  ${C}install <id>${N}      تثبيت تطبيق عبر متجر MoOS (لهذا المستخدم) ثم فتحه
                     Install an app through Mo Store (for this user), then open it
   ${C}install-rpm <file>${N} تثبيت RPM محلي موقّع كتحديث ذري (يتطلب إعادة تشغيل)
                     Install a signed local RPM atomically (restart required)
-  ${C}uninstall <id>${N}    حذف تطبيق عبر Mo Store
+  ${C}uninstall <id>${N}    حذف تطبيق عبر متجر MoOS
                     Remove an app through Mo Store
-  ${C}update-apps${N}       تحديث كل التطبيقات عبر Mo Store
+  ${C}update-apps${N}       تحديث كل التطبيقات عبر متجر MoOS
                     Update all apps through Mo Store
   ${C}fix-audio${N}         إعادة تشغيل خدمات الصوت (PipeWire)
                     Restart audio services (PipeWire)

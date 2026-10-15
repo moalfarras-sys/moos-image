@@ -768,6 +768,88 @@ with tempfile.TemporaryDirectory() as tmp:
         fixture.write_text(broken, encoding="utf-8")
         check_refused(copy, "org.example.Listed", "x86_64", f"an unreadable catalogue {broken[:20]!r}")
 
+# ── 3d. In Arabic the Store is «متجر MoOS» on every screen moai-do prints ─────
+# The Store's launcher (its Name[ar]), MoOS Search, its notifications, What's new and Mo AI's
+# cards call it «متجر MoOS»; English says "Mo Store". moai-do's own screens kept the Latin
+# "Mo Store" inside Arabic sentences: the install and removal headers, a failed install, the busy
+# line, updates, smart setup, the restart refusal and the help. Once the From line above said
+# «عبر متجر MoOS», one consent screen named the Store two ways in one language. Each screen is
+# read as printed, one language half at a time; then the whole file is read, for the line no run
+# here reaches (the restart refusal waits for a Store job that holds its lock). Every answer is
+# No or a failed backend: nothing is installed, removed, updated or opened.
+ARABIC_LETTER = re.compile(r"[ء-ي]")
+OTHER_STORE_NAMES = re.compile(r"Mo Store|متجر Mo(?!OS)")
+
+
+def arabic_halves(text):
+    """The Arabic halves of a bilingual line ("عربي | English"), as a person reads them."""
+    return [part for part in text.split(" | ") if ARABIC_LETTER.search(part)]
+
+
+def store_screen(args, answer, storectl):
+    """What `moai-do <args>` prints answered `answer`, beside a backend that runs `storectl`."""
+    with tempfile.TemporaryDirectory() as raw:
+        base = Path(raw)
+        bindir = base / "bin"
+        bindir.mkdir()
+        reached = base / "reached.log"
+        doubles = {
+            "moos-storectl": storectl,
+            "flatpak": "#!/bin/sh\nexit 1\n",
+            "moos-gpu-headroom": "#!/bin/sh\nexit 0\n",
+            "moos-setup": f'#!/bin/sh\necho "moos-setup $*" >> "{reached}"\n',
+            "gtk-launch": f'#!/bin/sh\necho "gtk-launch $*" >> "{reached}"\n',
+            "uname": '#!/bin/sh\n[ "$1" = -m ] && { echo x86_64; exit 0; }\nexec /usr/bin/uname "$@"\n',
+        }
+        for name, body in doubles.items():
+            (bindir / name).write_text(body, encoding="utf-8")
+            (bindir / name).chmod(0o755)
+        env = os.environ.copy()
+        env.pop("DBUS_SESSION_BUS_ADDRESS", None)
+        env.pop("MOAI_DO_CONFIRMED", None)
+        env.update(HOME=str(base / "home"), XDG_CONFIG_HOME=str(base / "home/.config"),
+                   XDG_DATA_HOME=str(base / "home/.local/share"),
+                   XDG_STATE_HOME=str(base / "home/.local/state"),
+                   XDG_CACHE_HOME=str(base / "home/.cache"),
+                   PATH=f"{bindir}{os.pathsep}{env.get('PATH', '')}")
+        done = subprocess.run([BASH, str(MOAI_DO), *args], input=answer, capture_output=True,
+                              text=True, encoding="utf-8", errors="replace", timeout=60, env=env)
+        ran = reached.read_text(encoding="utf-8") if reached.exists() else ""
+    return done, ran
+
+
+FAILED_JOB = ("#!/bin/sh\nprintf '%s\\n' '{\"schema\":1,\"state\":\"failed\","
+              "\"message\":\"Download failed\"}'\nexit 1\n")
+BUSY_JOB = "#!/bin/sh\nexit 75\n"
+for label, (done, ran) in {
+        "install chatgpt, answered yes, failing": store_screen(["install", "chatgpt"], "y\n", FAILED_JOB),
+        "install while the Store is busy": store_screen(["install", "org.example.App"], "y\n", BUSY_JOB),
+        "uninstall": store_screen(["uninstall", "org.example.App"], "n\n", FAILED_JOB),
+        "update-apps": store_screen(["update-apps"], "n\n", FAILED_JOB),
+        "smart-setup": store_screen(["smart-setup"], "n\n", FAILED_JOB),
+        "help": store_screen(["help"], "", FAILED_JOB)}.items():
+    shown = done.stdout.splitlines() + done.stderr.splitlines()
+    arabic = [half for line in shown for half in arabic_halves(line)]
+    english = [part for line in shown for part in line.split(" | ")
+               if not ARABIC_LETTER.search(part)]
+    check(ran == "", f"moai-do {label} must start nothing: {ran!r}")
+    check([half for half in arabic if OTHER_STORE_NAMES.search(half)] == [],
+          f"moai-do {label} names the Store another way in Arabic; it is «متجر MoOS»: "
+          f"{[half.strip() for half in arabic if OTHER_STORE_NAMES.search(half)]}")
+    # The rule must not pass by dropping the name: each of these screens is about the Store.
+    check(any("متجر MoOS" in half for half in arabic),
+          f"moai-do {label} must name the Store «متجر MoOS» in Arabic: {arabic}")
+    check(any("Mo Store" in part for part in english),
+          f"moai-do {label} must still name it Mo Store in English: {english}")
+for number, line in enumerate(do_text.splitlines(), 1):
+    if line.lstrip().startswith("#"):
+        continue
+    for piece in line.split('"'):
+        for half in arabic_halves(piece):
+            check(not OTHER_STORE_NAMES.search(half),
+                  f"moai-do:{number} names the Store another way in Arabic; it is «متجر MoOS»: "
+                  f"{half.strip()!r}")
+
 # ── 4. A dismissed administrator prompt is a failure, never a success line ────
 # `main` runs inside `if main "$@"; then`, which suspends `set -e` for every do_* function. An
 # unchecked `run_priv …` is therefore followed by its own "✓" whatever happened. Until
