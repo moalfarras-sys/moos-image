@@ -9,5 +9,18 @@
   "unfinished": "Open/id draft adds helper scaffolding and names unimplemented cases; preserved verbatim for later work, never counted as new coverage",
   "all_committed_refs": 151,
   "ancestry": "All151 station/origin/Oracle refs are ancestors of5da5efa6; original dirty trees remain untouched",
-  "drafts": "Five station code/test draft patches preserved with hashes in docs/reviews/store-20261015/preserved-agent-drafts"
+  "drafts": "Five station code/test draft patches preserved with hashes in docs/reviews/store-20261015/preserved-agent-drafts",
+  "preservation_readback": {
+    "published_refs": 82,
+    "remote_heads": 115,
+    "mismatches": [],
+    "operation": "77 missing historical branch names created and5 existing refs advanced without force; direct readback matches",
+    "private_checkpoints": "Six station and18 Oracle uncommitted source/test/document files copied between both hosts and SHA256 verified"
+  },
+  "session_fixture_isolation": {
+    "cause": "Real coredump journal identifies the disposable session-review libpod scope activating desktop portals after its test display ended",
+    "repair": "Use a private session bus with no service directories or systemd activation, retain ordinary IPC",
+    "replay": "Six real stable AR/EN captures completed; subsequent host coredump journal readback has0 new events",
+    "limits": "Login --test still lacks real backend; no PAM/login or installed acceptance inferred"
+  }
 }

@@ -151,7 +151,9 @@ These are not conventions, they are gates. The image build fails if you break th
 removed the logout greeter's theme/mode switches; the review harness still
 reported a black screenshot as rendered. Read the actual binary's help, refuse
 unsupported modes, require the surface process to survive every capture, and
-size its testing window before scaled input. Keep the dead-surface negative
+size its testing window before scaled input. A private review bus must omit
+service directories/systemd activation: otherwise desktop portal crashes outlive
+the test display and enter the host coredump journal. Keep the dead-surface negative
 (nonzero, no PNG). An isolated login test lacks PAM/power backends and is never
 ordinary login, Wayland compositing or installed acceptance evidence.
 

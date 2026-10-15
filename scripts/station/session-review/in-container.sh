@@ -195,7 +195,7 @@ EOF
         LIBGL_ALWAYS_SOFTWARE=1 QT_QPA_PLATFORM=xcb QML_DISABLE_DISK_CACHE=1 \
         LOGIN_WALLPAPER="${LOGIN_WALLPAPER:-0}" \
         QT_SCALE_FACTOR="$scale" QT_FORCE_STDERR_LOGGING=1 \
-        timeout $((90 + frames * 2)) dbus-run-session -- \
+        timeout $((90 + frames * 2)) dbus-run-session --config-file="$HERE/private-bus.conf" -- \
         xvfb-run -a -s "-screen 0 ${pw}x${ph}x24 -nolisten tcp" "$work/session.sh" \
         >"$work/session.out" 2>&1 || {
             cat "$work/session.out" >&2
