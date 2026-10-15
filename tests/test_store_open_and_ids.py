@@ -23,7 +23,11 @@ Each class holds one promise of moos-storectl, run for real against a private HO
   RoutesWithTheRealBackend
                         moos-control's open and moos-open's apps/run route, driven against the real
                         backend while the scheduled updater holds the lock: the app opens, and every
-                        other answer is said as what it is.
+                        other answer is said as what it is;
+  AndroidLaunchersFromALink
+                        the apps/run route never hands gtk-launch a launcher that would start
+                        Android app support: an Android app's own opens only into a running
+                        session, the container's own never;
   Words                 the backend's fallback words for the keys this change corrects.
 
 Nothing here reaches the network, a display, the session bus, Android or the person's real
@@ -805,7 +809,9 @@ printf '%s\n' "$line" >> "$MOOS_TEST_CALLS"
 '''
 
 
-class RoutesWithTheRealBackend(Backend):
+class Routes(Backend):
+    """moos-control and moos-open, run as programs against the real backend; no tests of its own."""
+
     def setUp(self):
         super().setUp()
         self.bin = self.base / "bin"
@@ -817,10 +823,12 @@ class RoutesWithTheRealBackend(Backend):
         backend = self.bin / "moos-storectl"
         backend.write_text(REAL_BACKEND, encoding="utf-8")
         backend.chmod(0o755)
-        # flatpak knows no such app; every other program a route could start is a recorder.
+        # flatpak knows no such app; `waydroid status` reads the same session file the backend
+        # does; every other program a route could start is a recorder.
         for name, body in (("flatpak", 'case "$1" in info) exit 1;; esac\n'), ("gtk-launch", ""),
                            ("notify-send", ""), ("kdialog", "exit 1\n"), ("logger", ""),
-                           ("moos-gpu-headroom", ""), ("waydroid", "")):
+                           ("moos-gpu-headroom", ""),
+                           ("waydroid", 'case "$1" in status) cat "$MOOS_TEST_SESSION";; esac\n')):
             stub = self.bin / name
             stub.write_text(RECORDER + body, encoding="utf-8")
             stub.chmod(0o755)
@@ -852,17 +860,21 @@ class RoutesWithTheRealBackend(Backend):
                               text=True, timeout=120)
         return done, self.notices()
 
-    def notices(self) -> list[str]:
+    def recorded(self) -> list[list[str]]:
         if not self.calls.exists():
             return []
-        lines = [line.split("\t") for line in self.calls.read_text(encoding="utf-8").splitlines()]
-        return [line[-1] for line in lines if line[0] == "notify-send"]
+        return [line.split("\t") for line in self.calls.read_text(encoding="utf-8").splitlines()]
+
+    def notices(self) -> list[str]:
+        return [line[-1] for line in self.recorded() if line[0] == "notify-send"]
 
     def starts(self) -> list[list]:
         if not self.started.exists():
             return []
         return [json.loads(line) for line in self.started.read_text(encoding="utf-8").splitlines()]
 
+
+class RoutesWithTheRealBackend(Routes):
     def test_opening_while_the_scheduled_updater_holds_the_lock(self):
         self.hold_lock()
         done = self.control("open", "whatsapp")
@@ -925,6 +937,135 @@ class RoutesWithTheRealBackend(Backend):
         self.assertIn(busy, notices[0])
         self.assertIn("متجر MoOS مشغول بعملية أخرى — حاول بعد قليل", notices[0])
         self.assertEqual(self.starts(), [])
+
+
+# Android app support's own launchers, as the image and Waydroid write them (read on the station:
+# /usr/share/applications after build.sh hides the first, and ~/.local/share/applications).
+CONTAINER_LAUNCHERS = {
+    "Waydroid": ("[Desktop Entry]\nNoDisplay=true\nType=Application\nName=Waydroid\n"
+                 "GenericName=Android Container\nExec=waydroid\n"
+                 "Comment=Run Android apps in a containerized environment.\nIcon=waydroid\n"
+                 "Categories=X-WayDroid-App;Utility;\nActions=stop;initialize;\n"
+                 "X-Purism-FormFactor=Workstation;Mobile;\n\n"
+                 "[Desktop Action stop]\nName=Stop Waydroid\nExec=waydroid session stop\n"
+                 "Icon=waydroid\n\n[Desktop Action initialize]\nName=Initialize Waydroid\n"
+                 "Exec=waydroid init --client\n"),
+    "waydroid.market": ("[Desktop Entry]\nName=Waydroid Market\n"
+                        "Comment=Android Market Protocol Handler\n"
+                        "Exec=waydroid app intent android.intent.action.VIEW %u\nIcon=waydroid\n"
+                        "Type=Application\nEncoding=UTF-8\nTerminal=false\nNoDisplay=true\n"
+                        "Categories=Utility;\nMimeType=x-scheme-handler/market;\n"
+                        "X-KDE-Protocols=market;\n"),
+    "waydroid.app.install": ("[Desktop Entry]\nType=Application\nName=Install in Waydroid\n"
+                             "NoDisplay=true\nMimeType=application/vnd.android.package-archive\n"
+                             "Exec=waydroid app install %f\nIcon=waydroid\n"),
+}
+APP_LAUNCHER = ("[Desktop Entry]\nType=Application\nName=Organic Maps\n"
+                "Exec=waydroid app launch app.organicmaps\n"
+                "Icon=/nonexistent/waydroid/data/icons/app.organicmaps.png\n"
+                "Categories=X-WayDroid-App;\nX-Purism-FormFactor=Workstation;Mobile;\n"
+                "Actions=app_settings;\n\n[Desktop Action app_settings]\nName=App Settings\n"
+                "Exec=waydroid app intent android.settings.APPLICATION_DETAILS_SETTINGS "
+                "package:app.organicmaps\n")
+
+
+class AndroidLaunchersFromALink(Routes):
+    """moos://apps/run/<id> hands gtk-launch any launcher of that name, and Android app support's
+    own start its session when it is not running: the image's Waydroid.desktop runs the bare
+    command (Android's whole screen), and the launcher written for every Android app runs `waydroid
+    app launch <package>`; both start the session first. Any web page can hand the router a link:
+    an Android app's launcher opens only into a session already running, the container's never."""
+
+    NOT_RUNNING = "Android app support is not running right now, and a link does not start it"
+    NOT_FROM_A_LINK = "A link does not open Android app support itself"
+
+    def launcher(self, name: str, text: str, folder: Path | None = None):
+        folder = folder or self.home / ".local/share/applications"
+        folder.mkdir(parents=True, exist_ok=True)
+        (folder / f"{name}.desktop").write_text(text, encoding="utf-8")
+
+    def programs(self, name: str, *, settle: float = 0.5) -> list[list[str]]:
+        """What `name` was asked to do. The route starts an app in the background (`gui`), so this
+        waits up to `settle` for it: an absence is only believed after that long."""
+        deadline = time.monotonic() + settle
+        while True:
+            found = [line for line in self.recorded() if line[0] == name]
+            if found or time.monotonic() >= deadline:
+                return found
+            time.sleep(0.05)
+
+    def test_the_containers_own_launchers_never_open_from_a_link(self):
+        for name, text in CONTAINER_LAUNCHERS.items():
+            self.launcher(name, text)
+        for session in (STOPPED, RUNNING):
+            for name in CONTAINER_LAUNCHERS:
+                with self.subTest(name=name, session=session.strip()):
+                    self.session.write_text(session, encoding="utf-8")
+                    self.calls.unlink(missing_ok=True)
+                    done, notices = self.route(f"moos://apps/run/{name}")
+                    self.assertEqual(done.returncode, 2)
+                    self.assertEqual(self.programs("gtk-launch"), [])
+                    self.assertEqual(len(notices), 1, notices)
+                    self.assertIn(self.NOT_FROM_A_LINK, notices[0])
+                    self.assertIn("متجر MoOS", notices[0])
+                    self.assertEqual(self.programs("moos-gpu-headroom", settle=0), [],
+                                     "the GPU was cleared for an app that never opened")
+        self.assertEqual(self.starts(), [])
+
+    def test_an_android_apps_launcher_opens_only_into_a_running_session(self):
+        self.launcher("waydroid.app.organicmaps", APP_LAUNCHER)
+        done, notices = self.route("moos://apps/run/waydroid.app.organicmaps")
+        self.assertEqual(done.returncode, 2)
+        self.assertEqual(self.programs("gtk-launch"), [])
+        self.assertEqual(self.programs("waydroid", settle=0), [["waydroid", "status"]],
+                         "Android app support was only ever asked how it is")
+        self.assertEqual(len(notices), 1, notices)
+        self.assertIn(self.NOT_RUNNING, notices[0])
+        self.assertEqual(self.starts(), [])
+        self.session.write_text(RUNNING, encoding="utf-8")
+        self.calls.unlink()
+        done, notices = self.route("moos://apps/run/waydroid.app.organicmaps")
+        self.assertEqual((done.returncode, notices), (0, []))
+        self.assertEqual(self.programs("gtk-launch"), [["gtk-launch", "waydroid.app.organicmaps"]])
+
+    def test_a_launcher_is_judged_by_what_it_runs_not_by_its_name(self):
+        self.launcher("maps", APP_LAUNCHER.replace("Exec=waydroid", "Exec=/usr/bin/waydroid", 1))
+        self.launcher("org.example.Container", "[Desktop Entry]\nType=Application\nName=A\n"
+                                               "Exec=sh -c 'waydroid show-full-ui'\n")
+        self.launcher("org.example.Tagged", "[Desktop Entry]\nType=Application\nName=B\n"
+                                            "Exec=true\nCategories=X-WayDroid-App;\n")
+        for name, said in (("maps", self.NOT_RUNNING),
+                           ("org.example.Container", self.NOT_FROM_A_LINK),
+                           ("org.example.Tagged", self.NOT_FROM_A_LINK)):
+            with self.subTest(name=name):
+                self.calls.unlink(missing_ok=True)
+                done, notices = self.route(f"moos://apps/run/{name}")
+                self.assertEqual(done.returncode, 2)
+                self.assertEqual(self.programs("gtk-launch"), [])
+                self.assertEqual(len(notices), 1, notices)
+                self.assertIn(said, notices[0])
+
+    def test_every_data_folder_gtk_launch_reads_is_looked_at(self):
+        # XDG_DATA_DIRS stands in for /usr/share, where the image keeps Waydroid.desktop.
+        self.launcher("Waydroid", CONTAINER_LAUNCHERS["Waydroid"], self.base / "system-share/applications")
+        done, notices = self.route("moos://apps/run/Waydroid")
+        self.assertEqual(done.returncode, 2)
+        self.assertEqual(self.programs("gtk-launch"), [])
+        self.assertIn(self.NOT_FROM_A_LINK, " ".join(notices))
+
+    def test_other_launchers_still_open(self):
+        self.launcher("org.example.Editor", "[Desktop Entry]\nType=Application\nName=Editor\n"
+                                            "Exec=editor %U\nCategories=Utility;\n")
+        # A helper whose own name begins with the container's is not the container.
+        self.launcher("org.example.Helper", "[Desktop Entry]\nType=Application\nName=Helper\n"
+                                            "Exec=waydroid-helper\n")
+        for name in ("org.example.Editor", "org.example.Helper"):
+            with self.subTest(name=name):
+                self.calls.unlink(missing_ok=True)
+                done, notices = self.route(f"moos://apps/run/{name}")
+                self.assertEqual((done.returncode, notices), (0, []))
+                self.assertEqual(self.programs("gtk-launch"), [["gtk-launch", name]])
+                self.assertEqual(self.programs("waydroid", settle=0), [])
 
 
 if __name__ == "__main__":
