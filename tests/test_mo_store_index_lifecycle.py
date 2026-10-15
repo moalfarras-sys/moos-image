@@ -564,16 +564,9 @@ EXPECTED = {
 if ARCH != "x86_64":
     # Windows programs are pinned for x86_64 only: there is no pin for this machine to offer.
     EXPECTED.update({"notepad": (True, "8.7.1", False)})
-# check-updates must give every answer above. moos-storectl here still answers these the older
-# way: it offers the pin over the person's own file, finds no Android app the older Store
-# installed (no record), so `update <package>` says "not installed" while the index offers the
-# pin, and never reads the APK Android keeps. moos-storectl's own fixes for these (on their way
-# from the Store's pinned-update work) give the rule's answers. Until they land these must
-# still disagree: the day moos-storectl agrees about one, this gate fails until its name is
-# taken off here, so the comparison widens by itself instead of an exclusion nobody remembers.
-AWAITING_STORECTL = frozenset({"adopted", "org.example.legacy", "org.example.caughtup",
-                               "org.example.other", "org.example.twice",
-                               "org.example.linked"})
+# The pinned-update and index branches are integrated. Compare every fixture against the
+# real backend now; none may retain the temporary exclusion used during independent work.
+AWAITING_STORECTL = frozenset()
 
 
 class Home:

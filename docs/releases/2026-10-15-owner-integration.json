@@ -1,0 +1,48 @@
+{
+  "schema": 1,
+  "checkedAt": "2026-10-15",
+  "scope": "Owner-authorized integration; source is not promoted or installed acceptance",
+  "upstreamMain": "60a2034a20424e03b4bb3f8f0c3f88d3747636cf",
+  "integrationBranch": "codex/owner-integration-20261015",
+  "initialBranchRefs": 111,
+  "originalWorktrees": 46,
+  "allFetchedTipsAreAncestors": true,
+  "backup": {
+    "verifiedGitBundle": true,
+    "dirtyFilesCopied": true,
+    "originalWorktreesRetained": true
+  },
+  "unfinishedAndroidWorktree": "store/fix-pinned-updates",
+  "unfinishedAndroidEditsIntegrated": false,
+  "historicalIntegrations": {
+    "M1AggregateDiffEqualsPR241": true,
+    "OracleAggregateDiffEqualsPR242": true,
+    "maintenanceRuntime": "Current client already uses QApplication; historical merge differs only in comment and superseded evidence"
+  },
+  "sourceCorrections": [
+    "Register four previously orphaned Store suites in both gate entry points",
+    "Match web-app index IDs/start URLs to existing runtime policy",
+    "Keep downloading, disk-space, retained-sign-in and Android availability words accurate",
+    "Remove all six transitional index/backend fixture exclusions after their branches integrate",
+    "Replace a stale test assertion for a false fixed disk multiplier while retaining pre-download refusal and no-install checks"
+  ],
+  "verification": {
+    "firstGateRun": "failed: four orphaned Store suites",
+    "secondGateRun": "failed: current-state summary exceeded its 200 nonempty-line limit; evidence moved here",
+    "fullGates": "in progress",
+    "localImage": "in progress",
+    "sourceRenders": "Arabic native fixture walk completed with seven frames and no QML warnings; English in progress",
+    "nextPlasmaCanary": 38702318981,
+    "signedCycle": "not started",
+    "continuation": "Maintained just check recipe resumed verbatim to expose late integration failures; not a substitute for a full passing run"
+  },
+  "host": {
+    "booted": "44.20261014.1046",
+    "staged": "44.20261014.1053",
+    "signedOriginsRetained": true,
+    "appUpdateJob": "fa2e6271e963f6e998363d2c24457e5c",
+    "appUpdateResult": "success",
+    "remainingFlatpakUpdates": [],
+    "rebootedByThisRun": false
+  }
+}

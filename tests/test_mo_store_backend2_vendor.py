@@ -364,7 +364,9 @@ class Refusals(Vendor):
         vendor.SPACE_MARGIN = 2 ** 62
         code, document = self.controller().install([APP])
         self.assertEqual(self.failed_key(document), "vendor_no_space")
-        self.assertIn("three times", PHRASES["vendor_no_space"][1])
+        for operation in ("download", "unpack", "install"):
+            self.assertIn(operation, PHRASES["vendor_no_space"][1])
+        self.assertNotIn("three times", PHRASES["vendor_no_space"][1])
         self.assertFalse([url for url in self.opener.requests if url.endswith(".rpm")])
         self.assertNothingInstalled()
 
