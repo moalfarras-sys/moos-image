@@ -1,0 +1,605 @@
+--- a/system_files/usr/bin/moos-store-index
++++ b/system_files/usr/bin/moos-store-index
+@@ -2315,6 +2315,11 @@
+         if not SHA256_RE.fullmatch(digest):
+             raise CatalogError(f"catalog SHA-256 for {app_id!r} is invalid")
+         result["sha256"] = digest.lower()
++    if kind == "android" and "signer" in raw:
++        signer = raw["signer"]
++        if not isinstance(signer, str) or not SHA256_RE.fullmatch(signer):
++            raise CatalogError(f"catalog Android signer for {app_id!r} is invalid")
++        result["signer"] = signer.lower()
+     risk = safe_catalog_text(raw, "risk", 64)
+     if risk:
+         if not SLUG_RE.fullmatch(risk):
+@@ -3103,13 +3108,19 @@
+ UNSIZED_APK_LIMIT = 2 * 1024 ** 3
+ APK_DIGESTS_NAME = "android-apks.json"
+ 
+-# Whether an Android app with no record (an earlier Mo Store wrote none) whose bytes nothing
+-# names is offered the pin. The window's Update button runs `moos-storectl update <package>`,
+-# which does not find such an app until moos-storectl installs the pin over one (its own
+-# pinned-update work): it answers "App is not installed", so offering the pin here would be a
+-# button that does nothing. True once moos-storectl does (or the switch goes):
+-# tests/test_mo_store_index_lifecycle.py fails until the two agree.
+-PIN_OFFERED_WITHOUT_RECORD = False
++@functools.lru_cache(maxsize=1)
++def android_apk_module():
++    """The executor's bounded APK reader and update rule; no runtime is started."""
++
++    import importlib
++
++    library = str(Path(__file__).resolve().parent.parent / "lib/moos")
++    if library not in sys.path:
++        sys.path.insert(0, library)
++    try:
++        return importlib.import_module("moos_android_apk")
++    except ImportError:
++        return None
+ 
+ 
+ def android_apk(package: str) -> Path | None:
+@@ -3145,19 +3156,24 @@
+ class ApkDigests:
+     """The SHA-256 of each APK read, remembered next to the index by file identity.
+ 
+-    What is installed is read on every launch (lifecycle_snapshot()), and an app with no record
+-    of its pin is hashed. VLC and F-Droid on the station are 62 MB together: hashing them made
+-    a launch's unchanged-index check 145 ms instead of 91 (measured 2026-10-15, warm cache,
+-    median of 15); remembered, it is 95. A file whose device, inode, size and times are those
+-    it had keeps the digest it had; nothing is written when nothing changed.
++    What is installed is read on every launch (lifecycle_snapshot()). A file whose device,
++    inode, size and times are unchanged keeps its digest and complete APK facts; a changed
++    reader invalidates parsed facts. Nothing is written when nothing changed.
+     """
+ 
+     def __init__(self, path: Path | None = None):
+         self.path = path
+         self.known: dict[str, list] = {}
+         self.read: dict[str, list] = {}
++        self.facts_known: dict[str, dict] = {}
++        self.facts_read: dict[str, dict] = {}
++        self.facts_reader: str | None = None
+         stored = read_record(path) if path is not None else None
++        self.stored_reader = stored.get("facts_reader") if stored else None
+         apks = stored.get("apks") if stored and stored.get("schema") == 1 else None
++        facts = stored.get("facts") if stored and stored.get("schema") == 1 else None
++        if isinstance(facts, dict):
++            self.facts_known = facts
+         for name, value in (apks.items() if isinstance(apks, dict) else ()):
+             if (isinstance(value, list) and len(value) == 6
+                     and all(isinstance(part, int) and not isinstance(part, bool)
+@@ -3192,13 +3208,44 @@
+         self.read[str(apk)] = identity + [digest]
+         return digest
+ 
++    def kept(self, package: str, size: int | None):
++        """Version, signer and digest from the shared reader, memoized by actual file identity.
++
++        Digest-only entries from an earlier image cannot stand in for parsed manifest/signing
++        facts: they are read once on migration, then reused without reopening APK contents.
++        """
++
++        module = android_apk_module()
++        path = android_apk(package)
++        if module is None or path is None:
++            return None
++        if self.facts_reader is None:
++            self.facts_reader = sha256_file(Path(module.__file__))
++            if self.facts_reader != self.stored_reader:
++                self.facts_known = {}
++        remembered = {}
++        for name, value in (self.facts_known | self.facts_read).items():
++            facts = module.ApkFacts.from_json(value)
++            if facts is not None:
++                remembered[name] = facts
++        facts = module.read_apk(path, size, unsized_limit=UNSIZED_APK_LIMIT,
++                                remembered=remembered)
++        if facts is None or (facts.package is not None and facts.package != package):
++            return None
++        self.facts_read[str(path)] = facts.to_json()
++        if facts.sha256 is not None:
++            self.read[str(path)] = list(facts.identity) + [facts.sha256]
++        return facts
++
+     def save(self) -> None:
+         """Keep what this run read (and only that) for the next run; best effort."""
+ 
+-        if self.path is None or self.read == self.known:
++        if self.path is None or (self.read == self.known and self.facts_read == self.facts_known):
+             return
+         try:
+-            atomic_write_json(self.path, {"schema": 1, "apks": self.read})
++            atomic_write_json(self.path, {"schema": 1, "apks": self.read,
++                                          "facts": self.facts_read,
++                                          "facts_reader": self.facts_reader})
+         except OSError:
+             pass
+ 
+@@ -3209,6 +3256,29 @@
+ 
+     apk = android_apk(package)
+     return apk is not None and digests.sha256(apk, size) == pin
++
++
++def android_store_record(package: str) -> tuple[dict | None, bool]:
++    """(receipt, invalid) for the exact schema Store writes, under the configured data home."""
++
++    path = data_home() / "moos/android" / f"{package}.json"
++    if path.is_symlink():
++        return None, True
++    record = read_record(path)
++    if not record:
++        return None, False
++    if (type(record.get("schema")) is not int or record["schema"] != 1
++            or record.get("id") != package or record.get("package") != package):
++        return None, True
++    digest, version = record.get("sha256"), record.get("version")
++    if (not isinstance(digest, str) or not SHA256_RE.fullmatch(digest)
++            or not isinstance(version, str) or (version and not VERSION_RE.fullmatch(version))):
++        return None, True
++    source, catalog_id = record.get("source"), record.get("catalog_id")
++    if not ((source == "catalog" and catalog_id == package)
++            or (source == "file" and catalog_id == "")):
++        return None, True
++    return record, False
+ 
+ 
+ def catalog_install_state(entry: dict, arch: str | None = None,
+@@ -3219,9 +3289,9 @@
+     the pin's for this machine: moos-storectl's check-updates, Update all and `update <id>`
+     decide the same way, so index.json and updates.json give one answer. A version string
+     cannot say it: a re-pinned build keeps its version, and "0.9" is "0.9.0". For Android the
+-    APK Android keeps answers when no record of the pin does (`apk_digests` remembers what was
+-    hashed); an app with no record at all is offered the pin only once `update <id>` can
+-    install it there (PIN_OFFERED_WITHOUT_RECORD).
++    APK Android keeps and the executor's shared pin_is_update() rule decide Android updates;
++    file-adopted apps are never replaced by a catalogue pin. apk_digests memoizes the complete
++    APK facts so an unchanged launch does not reparse or rehash its contents.
+     """
+ 
+     kind = catalog_kind(entry)
+@@ -3297,24 +3367,25 @@
+         if isinstance(package, str) and ANDROID_PACKAGE_RE.fullmatch(package) \
+                 and (data_home() / "waydroid/data/data" / package).is_dir():
+             state["installed"] = True
+-            # moos-storectl's record of what it installed: which bytes, which version.
+-            record = read_record(data_home() / "moos/android" / f"{package}.json")
++            record, invalid = android_store_record(package)
++            if invalid:
++                return state
+             if record:
+                 state["version"] = record_text(record, "version", 64) or None
+-            current = bool(record) and pin is not None and record_has_pin(record, pin)
+-            if pin is not None and not current and android_apk_is_pin(
+-                    package, pin, pinned_size(install, arch),
+-                    apk_digests if apk_digests is not None else ApkDigests()):
+-                # No record (the older Store wrote none) or one of an earlier pin, but the
+-                # APK Android keeps is the pin's own bytes: up to date, at the pin's version.
+-                current = True
+-                pinned_version = install.get("version")
+-                state["version"] = pinned_version if isinstance(pinned_version, str) else None
+-            # Otherwise which bytes are there is unknown or not the pin's: the pin is offered,
+-            # and installing it writes the record; with no record at all, only once
+-            # moos-storectl can install it there (PIN_OFFERED_WITHOUT_RECORD).
+-            state["update"] = pin is not None and not current \
+-                and (bool(record) or PIN_OFFERED_WITHOUT_RECORD)
++                state["adopted"] = record["source"] == "file"
++            module = android_apk_module()
++            if pin is not None and module is not None:
++                memo = apk_digests if apk_digests is not None else ApkDigests()
++                kept = memo.kept(package, pinned_size(install, arch))
++                if kept is not None and kept.version_name:
++                    state["version"] = clean_text(kept.version_name, 64) or state["version"]
++                elif kept is not None and kept.sha256 == pin:
++                    state["version"] = install.get("version") or state["version"]
++                if not state["adopted"]:
++                    state["update"] = module.pin_is_update(
++                        pin_sha256=pin, pin_code=module.pin_version_code(install.get("url"), package),
++                        pin_signer=install.get("signer"), kept=kept,
++                        recorded_sha256=record.get("sha256") if record else None)
+     elif kind == "npm":
+         binary = install.get("bin")
+         if isinstance(binary, str) and binary:
+--- a/tests/test_mo_store_index_lifecycle.py
++++ b/tests/test_mo_store_index_lifecycle.py
+@@ -33,14 +33,11 @@
+             update is a digest that is not the pin's. A record with no catalog_id is the
+             person's own file in that slot (adopted): the pin is never offered over it;
+   windows   record and program folder (<id>/app): an update when the digest is not the pin's;
+-  android   record and the per-package data directory: an update when the digest is not the
+-            pin's, unless the APK Android keeps (exactly one base.apk, reached through no link,
+-            of the pin's size) is the pin byte for byte, which also names the version. With no
+-            record (the older Store wrote none) and no such APK the bytes are unknown: installed,
+-            version unknown, offered the pin once moos-storectl can install it over such an app
+-            (PIN_OFFERED_WITHOUT_RECORD; until then `update <package>` says "App is not
+-            installed"). A record whose data directory is gone is not installed. An APK read is
+-            remembered by file identity (AnApkIsReadOnce).
++  android   the executor's shared APK rule: no downgrade or different signer, no replacement of
++            a file the owner installed. Unknown APK bytes without a Store receipt do not offer
++            an update. A readable older APK can be updated without a receipt; the real binary
++            manifest/signing cases are in test_mo_store_index_android_policy.py. A record whose
++            data directory is gone is not installed. APK facts are remembered by file identity.
+ 
+ Every update index.json offers is one `moos-storectl update <id>` performs: the window's Update
+ button runs it, so any other answer is a button that does nothing (PinnedUpdates).
+@@ -217,7 +214,7 @@
+         recipe = {"kind": kind, **install}
+         return {"id": app_id, "source": "moos", "cat": "util", "glyph": "spark",
+                 "en": app_id.title(), "ar": "تطبيق", "install": recipe}
+-    downloads = {"x86_64": {"url": "https://example.org/a.AppImage", "sha256": PIN,
++    downloads = {index.running_arch(): {"url": "https://example.org/a.AppImage", "sha256": PIN,
+                             "size": 1000}}
+     return {"apps": [
+         entry("chat", "webapp", url="https://chat.example.com/", hosts=["chat.example.com"]),
+@@ -397,9 +394,8 @@
+         self.assertTrue((apps["notepad"]["icon"] or "").endswith("/windows-apps/notepad/icon.png"))
+         self.assertTrue(apps["org.example.droid"]["installed"])
+         self.assertIsNone(apps["org.example.droid"]["installed_version"])
+-        # Installed before moos-storectl kept a record: the pin is offered over it once
+-        # moos-storectl can install it there (PinnedUpdates).
+-        self.assertEqual(apps["org.example.droid"]["update_available"], OFFERED)
++        # No receipt or readable APK: there is no acceptable update to advertise.
++        self.assertFalse(apps["org.example.droid"]["update_available"])
+         self.assertTrue(apps["codex"]["installed"])
+         self.assertEqual(apps["codex"]["installed_version"], "0.46.0")
+         self.assertFalse(apps["page"]["installed"])
+@@ -547,10 +543,8 @@
+     *(pinned_android(package, APK_SHA256, len(APK)) for package in KEPT),
+ ]
+ 
+-# An Android app with no record (the older Store wrote none) whose bytes nothing names is
+-# offered the pin only while moos-storectl can install it over such an app. An indexer without
+-# that switch offers it, as the rule does once the two agree.
+-OFFERED = getattr(index, "PIN_OFFERED_WITHOUT_RECORD", True)
++# These fixtures have no compiled manifest to compare. Unknown bytes without a Store receipt
++# do not identify an acceptable update, exactly as the executor's shared rule says.
+ RECORDLESS = ("org.example.legacy", "org.example.other", "org.example.twice",
+               "org.example.linked")
+ 
+@@ -566,14 +560,14 @@
+     "folderless": (False, None, False),         # the program folder is gone
+     "org.example.repin": (True, "0.28.0", True),
+     "org.example.current": (True, "1.7.0", False),
+-    "org.example.legacy": (True, None, OFFERED),    # no record and no APK: bytes unknown
++    "org.example.legacy": (True, None, False),    # no record and no APK: bytes unknown
+     "org.example.gone": (False, None, False),   # the container no longer has it
+     # The APK Android keeps names the bytes when no record of the pin does.
+     "org.example.kept": (True, "0.29.1", False),       # no record: the older Store's install
+     "org.example.caughtup": (True, "0.29.1", False),   # a record of an earlier pin
+-    "org.example.other": (True, None, OFFERED),        # another build of the pin's size
+-    "org.example.twice": (True, None, OFFERED),        # two copies: Android is replacing it
+-    "org.example.linked": (True, None, OFFERED),       # a link, never followed
++    "org.example.other": (True, None, False),        # another build of the pin's size
++    "org.example.twice": (True, None, False),        # two copies: Android is replacing it
++    "org.example.linked": (True, None, False),       # a link, never followed
+ }
+ if ARCH != "x86_64":
+     # Windows programs are pinned for x86_64 only: there is no pin for this machine to offer.
+@@ -807,30 +801,17 @@
+                                  "an update the index offers and check-updates does not list "
+                                  "is an Update button that does nothing: nothing may excuse it")
+ 
+-    def test_the_pin_waits_for_a_record_exactly_while_moos_storectl_needs_one(self):
+-        installs = "org.example.legacy" in self.rows
+-        self.assertFalse(installs and not OFFERED,
+-                         "moos-storectl now installs the pin over an Android app an earlier "
+-                         "Mo Store installed (no record): set PIN_OFFERED_WITHOUT_RECORD = True "
+-                         "in moos-store-index, so its page offers what Update all does")
+-        self.assertFalse(OFFERED and not installs,
+-                         "the index offers the pin to an Android app with no record, and "
+-                         "moos-storectl's `update <package>` answers \"App is not installed\"")
+-
+-    def test_switched_on_the_pin_is_offered_wherever_the_bytes_are_unknown(self):
+-        """The rule once moos-storectl installs the pin over an app with no record: what the
+-        APK names stays up to date, and every app whose bytes are unknown is offered the pin.
+-        (create=True: once the switch is gone, the indexer always offers it.)"""
+-
+-        with tempfile.TemporaryDirectory() as raw, \
+-                mock.patch.object(index, "PIN_OFFERED_WITHOUT_RECORD", True, create=True):
+-            apps = {app["id"]: app for app in
+-                    self.home.index_here(Path(raw) / "index.json")["apps"]}
++    def test_unknown_apk_bytes_without_a_receipt_are_not_offered_as_an_update(self):
++        self.assertNotIn("org.example.legacy", self.rows)
++        self.assertFalse(self.apps["org.example.legacy"]["update_available"])
++
++    def test_unparseable_missing_ambiguous_and_linked_apks_match_the_executor(self):
+         for app_id in RECORDLESS:
+             with self.subTest(app=app_id):
+-                self.assertEqual(lifecycle(apps[app_id]), (True, None, True))
+-        self.assertEqual(lifecycle(apps["org.example.kept"]), (True, "0.29.1", False))
+-        self.assertEqual(lifecycle(apps["org.example.caughtup"]), (True, "0.29.1", False))
++                self.assertEqual(lifecycle(self.apps[app_id]), (True, None, False))
++                self.assertNotIn(app_id, self.rows)
++        self.assertEqual(lifecycle(self.apps["org.example.kept"]), (True, "0.29.1", False))
++        self.assertEqual(lifecycle(self.apps["org.example.caughtup"]), (True, "0.29.1", False))
+ 
+     def test_every_kind_follows_the_digest_rule(self):
+         for app_id, expected in EXPECTED.items():
+@@ -926,7 +907,7 @@
+             newer = home.kept_apk("org.example.kept", OTHER_APK, layout="older")
+             second = {app["id"]: app for app in home.run_index()["apps"]}
+             self.assertIsNone(second["org.example.kept"]["installed_version"])
+-            self.assertEqual(second["org.example.kept"]["update_available"], OFFERED)
++            self.assertEqual(second["org.example.kept"]["update_available"], False)
+             remembered = json.loads(memo.read_text(encoding="utf-8"))["apks"]
+             self.assertEqual(list(remembered), [str(newer)])
+ 
+--- /dev/null
++++ b/tests/test_mo_store_index_android_policy.py
+@@ -0,0 +1,255 @@
++#!/usr/bin/env python3
++"""The app page and executor agree about real private APK version/signer facts.
++
++No runtime, network, bus or owner home is used. APKs come from the maintained
++binary-manifest/signing-block fixture; receipts come from the actual writer.
++"""
++from __future__ import annotations
++
++import hashlib
++import importlib.machinery
++import importlib.util
++import json
++import os
++from pathlib import Path
++import sys
++import tempfile
++import unittest
++from unittest import mock
++
++ROOT = Path(__file__).resolve().parents[1]
++INDEXER = Path(os.environ.get("MOOS_STORE_INDEX_UNDER_TEST")
++               or ROOT / "system_files/usr/bin/moos-store-index")
++
++
++def load(name, path):
++    loader = importlib.machinery.SourceFileLoader(name, str(path))
++    spec = importlib.util.spec_from_loader(name, loader)
++    module = importlib.util.module_from_spec(spec)
++    sys.modules[name] = module
++    loader.exec_module(module)
++    return module
++
++
++index = load("index_android_policy_under_test", INDEXER)
++backend = load("backend_android_policy_executor", ROOT / "system_files/usr/bin/moos-storectl")
++fixture = load("apk_binary_policy_fixtures", ROOT / "tests/test_moos_android_apk.py")
++apk_module = fixture.apkfacts
++PACKAGE = "org.example.notes"
++PUBLISHER = b"publisher certificate"
++OTHER_PUBLISHER = b"another publisher certificate"
++SIGNER = hashlib.sha256(PUBLISHER).hexdigest()
++
++
++class AndroidUpdatePolicy(unittest.TestCase):
++    def setUp(self):
++        self.temporary = tempfile.TemporaryDirectory(prefix="android-policy-")
++        self.addCleanup(self.temporary.cleanup)
++        self.base = Path(self.temporary.name)
++        self.home = self.base / "home"
++        self.home.mkdir()
++        self.data = self.base / "relocated-data"
++        self.environment = mock.patch.dict(os.environ, {
++            "HOME": str(self.home), "XDG_DATA_HOME": str(self.data),
++            "XDG_CACHE_HOME": str(self.base / "cache"),
++            "XDG_CONFIG_HOME": str(self.base / "config"),
++            "XDG_STATE_HOME": str(self.base / "state"),
++            "FLATPAK_USER_DIR": str(self.base / "flatpak"),
++            "FLATPAK_SYSTEM_DIR": str(self.base / "system-flatpak"),
++            "DBUS_SESSION_BUS_ADDRESS": "unix:path=/nonexistent", "DISPLAY": "",
++            "WAYLAND_DISPLAY": "",
++        })
++        self.environment.start()
++        self.addCleanup(self.environment.stop)
++        self.pin = fixture.apk(PACKAGE, 100, "1.0", signer=PUBLISHER, payload=b"the pin")
++        self.recipe = {
++            "id": PACKAGE, "source": "moos", "engine": "android", "glyph": "grid",
++            "cat": "droid", "en": "Notes", "ar": "ملاحظات",
++            "install": {"kind": "android", "package": PACKAGE, "version": "1.0",
++                        "url": f"https://f-droid.org/repo/{PACKAGE}_100.apk",
++                        "size": len(self.pin), "sha256": hashlib.sha256(self.pin).hexdigest(),
++                        "signer": SIGNER},
++        }
++        (self.data / "waydroid/data/data" / PACKAGE).mkdir(parents=True)
++        self.kept_path = self.data / "waydroid/data/app" / f"{PACKAGE}-fixture/base.apk"
++        self.kept_path.parent.mkdir(parents=True)
++        self.controller = object.__new__(backend.Controller)
++        self.catalog = self.base / "catalog.json"
++        self.catalog.write_text(json.dumps({"apps": [self.recipe]}), encoding="utf-8")
++        self.machine = self.base / "machine.json"
++        self.machine.write_text(json.dumps({"arch": index.running_arch(), "engines": ["android"]}),
++                                encoding="utf-8")
++        self.appstream = self.base / "appstream"
++        self.appstream.mkdir()
++        self.flatpak = self.base / "flatpak"
++        self.flatpak.mkdir()
++        self.output = self.base / "cache/index.json"
++
++    def put(self, code, name=None, *, signer=PUBLISHER):
++        body = fixture.apk(PACKAGE, code, name or str(code), signer=signer, payload=b"other")
++        self.kept_path.write_bytes(body)
++
++    def receipt(self, *, source="catalog"):
++        backend.Controller._write_android_record(
++            PACKAGE, sha256="a" * 64, source=source,
++            catalog_id=PACKAGE if source == "catalog" else "", version="0.9")
++        return backend.android_record_path(PACKAGE)
++
++    def agreed(self, expected, *, version=None):
++        state = index.catalog_install_state(self.recipe, index.running_arch())
++        row = self.controller._pin_update_row(PACKAGE, self.recipe)
++        self.assertEqual(state["update"], row is not None,
++                         "app page and executor disagree about the same installed APK")
++        self.assertEqual(state["update"], expected)
++        if version is not None:
++            self.assertEqual(state["version"], version)
++        return state
++
++    def test_an_older_store_build_is_offered_the_pin(self):
++        self.receipt()
++        self.put(99, "0.9")
++        self.agreed(True, version="0.9")
++
++    def test_a_newer_build_is_not_offered_a_downgrade(self):
++        self.receipt()
++        self.put(200, "2.0")
++        self.agreed(False, version="2.0")
++
++    def test_equal_version_codes_with_other_bytes_are_not_an_update(self):
++        self.receipt()
++        self.put(100, "1.0")
++        self.agreed(False, version="1.0")
++
++    def test_a_different_signer_is_not_an_update(self):
++        self.receipt()
++        self.put(99, "0.9", signer=OTHER_PUBLISHER)
++        self.agreed(False)
++
++    def test_a_file_the_owner_installed_is_never_replaced_by_the_pin(self):
++        self.receipt(source="file")
++        self.put(99, "0.9")
++        state = self.agreed(False)
++        self.assertTrue(state["adopted"])
++
++    def test_an_older_build_without_a_receipt_is_an_update(self):
++        self.put(99, "0.9")
++        self.agreed(True, version="0.9")
++
++    def test_a_newer_build_without_a_receipt_is_left_alone(self):
++        self.put(200, "2.0")
++        self.agreed(False, version="2.0")
++
++    def test_unknown_bytes_without_a_receipt_are_not_an_update(self):
++        self.agreed(False)
++
++    def test_an_unreadable_apk_still_uses_the_stores_own_receipt(self):
++        self.receipt()
++        self.agreed(True, version="0.9")
++
++    def test_the_pins_exact_apk_replaces_a_stale_display_version(self):
++        self.receipt()
++        self.kept_path.write_bytes(self.pin)
++        self.agreed(False, version="1.0")
++
++    def test_the_catalogue_keeps_a_valid_signer_and_rejects_a_malformed_one(self):
++        install = dict(self.recipe["install"], signer=SIGNER.upper())
++        self.assertEqual(index.sanitize_install({"install": install}, PACKAGE).get("signer"), SIGNER)
++        for invalid in (SIGNER + "a", "x" * 64, True, None):
++            with self.subTest(signer=invalid), self.assertRaises(index.CatalogError):
++                index.sanitize_install({"install": dict(install, signer=invalid)}, PACKAGE)
++
++    def test_a_malformed_receipt_cannot_supply_version_or_update_metadata(self):
++        path = self.receipt()
++        original = json.loads(path.read_text(encoding="utf-8"))
++        for changes in ({"schema": True}, {"id": "org.example.other"},
++                        {"package": "org.example.other"}, {"version": "1.0\nInjected=yes"},
++                        {"source": "file", "catalog_id": PACKAGE}, {"sha256": "x" * 64}):
++            with self.subTest(changes=changes):
++                path.write_text(json.dumps(original | changes), encoding="utf-8")
++                state = index.catalog_install_state(self.recipe, index.running_arch())
++                self.assertTrue(state["installed"])
++                self.assertIsNone(state["version"])
++                self.assertFalse(state["update"])
++
++    def run_index(self):
++        code = index.main([
++            "--catalog", str(self.catalog), "--output", str(self.output),
++            "--appstream-root", str(self.appstream), "--installation-root", str(self.flatpak),
++            "--machine", str(self.machine), "--engines", "all", "--locale", "en",
++        ])
++        self.assertEqual(code, 0)
++        return json.loads(self.output.read_text(encoding="utf-8"))
++
++    def app(self, payload):
++        return next(app for app in payload["apps"] if app["id"] == PACKAGE)
++
++    def test_cached_lifecycle_refresh_uses_the_same_eligibility(self):
++        self.receipt()
++        self.put(200, "2.0")
++        first = self.run_index()
++        self.assertFalse(self.app(first)["update_available"])
++        self.put(99, "0.9")
++        with mock.patch.object(index, "build_index", side_effect=AssertionError("metadata rebuilt")):
++            second = self.run_index()
++            self.assertTrue(self.app(second)["update_available"])
++            self.assertEqual(self.app(second)["installed_version"], "0.9")
++            self.put(100, "1.0")
++            third = self.run_index()
++        self.assertFalse(self.app(third)["update_available"])
++        self.assertEqual(self.app(third)["installed_version"], "1.0")
++        self.assertEqual(first["generation"]["metadata_token"],
++                         second["generation"]["metadata_token"])
++        self.assertNotEqual(first["generation"]["installed_token"],
++                            second["generation"]["installed_token"])
++
++    def test_an_unchanged_launch_reuses_complete_apk_facts_and_writes_nothing(self):
++        self.receipt()
++        self.put(99, "0.9")
++        first = self.run_index()
++        memo = self.output.parent / index.APK_DIGESTS_NAME
++        output_time, memo_time = self.output.stat().st_mtime_ns, memo.stat().st_mtime_ns
++        with mock.patch.object(apk_module, "_manifest", side_effect=AssertionError("manifest reread")), \
++                mock.patch.object(apk_module, "_signer", side_effect=AssertionError("signer reread")), \
++                mock.patch.object(index, "build_index", side_effect=AssertionError("metadata rebuilt")):
++            second = self.run_index()
++        self.assertEqual(first, second)
++        self.assertEqual(self.output.stat().st_mtime_ns, output_time)
++        self.assertEqual(memo.stat().st_mtime_ns, memo_time)
++
++    def test_a_changed_shared_reader_invalidates_its_parsed_facts(self):
++        self.receipt()
++        self.put(99, "0.9")
++        self.run_index()
++        memo = self.output.parent / index.APK_DIGESTS_NAME
++        document = json.loads(memo.read_text(encoding="utf-8"))
++        document["facts_reader"] = "0" * 64
++        memo.write_text(json.dumps(document), encoding="utf-8")
++        with mock.patch.object(apk_module, "_manifest", wraps=apk_module._manifest) as parse:
++            self.run_index()
++        self.assertEqual(parse.call_count, 1)
++
++    def test_old_digest_only_memos_do_not_supply_unparsed_version_or_signer(self):
++        self.receipt()
++        self.put(99, "0.9")
++        self.run_index()
++        memo = self.output.parent / index.APK_DIGESTS_NAME
++        document = json.loads(memo.read_text(encoding="utf-8"))
++        document.pop("facts", None)
++        document.pop("facts_reader", None)
++        memo.write_text(json.dumps(document), encoding="utf-8")
++        with mock.patch.object(apk_module, "_manifest", wraps=apk_module._manifest) as parse:
++            self.run_index()
++        self.assertEqual(parse.call_count, 1)
++
++    def test_a_linked_receipt_does_not_supply_metadata(self):
++        path = self.receipt()
++        elsewhere = self.base / "copied-receipt.json"
++        path.rename(elsewhere)
++        path.symlink_to(elsewhere)
++        state = index.catalog_install_state(self.recipe, index.running_arch())
++        self.assertIsNone(state["version"])
++        self.assertFalse(state["update"])
++
++
++if __name__ == "__main__":
++    unittest.main()
+--- a/Justfile
++++ b/Justfile
+@@ -327,6 +327,7 @@
+     python3 tests/test_mo_store_index_search.py
+     # What is installed for every kind, App Drop installs outside the catalogue, retired Flatpaks.
+     python3 tests/test_mo_store_index_lifecycle.py
++    python3 tests/test_mo_store_index_android_policy.py
+     # machine.json: hardware facts from files only, unknown is null, free space never on `/`.
+     python3 tests/test_mo_store_index_machine.py
+     # Compatibility verdicts on fixture machines: blocked/warn reasons, facts, refresh on change.
+--- a/tests/repo-gates.sh
++++ b/tests/repo-gates.sh
+@@ -324,6 +324,7 @@
+ python3 tests/test_mo_store_index_catalogue.py
+ python3 tests/test_mo_store_index_search.py
+ python3 tests/test_mo_store_index_lifecycle.py
++python3 tests/test_mo_store_index_android_policy.py
+ python3 tests/test_mo_store_index_machine.py
+ python3 tests/test_mo_store_index_compat.py
+ python3 tests/test_mo_store_index_details.py

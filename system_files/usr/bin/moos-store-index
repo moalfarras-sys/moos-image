@@ -2315,6 +2315,11 @@ def sanitize_install(entry: dict, app_id: str) -> dict:
         if not SHA256_RE.fullmatch(digest):
             raise CatalogError(f"catalog SHA-256 for {app_id!r} is invalid")
         result["sha256"] = digest.lower()
+    if kind == "android" and "signer" in raw:
+        signer = raw["signer"]
+        if not isinstance(signer, str) or not SHA256_RE.fullmatch(signer):
+            raise CatalogError(f"catalog Android signer for {app_id!r} is invalid")
+        result["signer"] = signer.lower()
     risk = safe_catalog_text(raw, "risk", 64)
     if risk:
         if not SLUG_RE.fullmatch(risk):
@@ -2868,12 +2873,15 @@ def read_small_text(path: Path, limit: int = TEXT_FILE_LIMIT) -> str:
 
 
 def read_record(path: Path) -> dict | None:
-    text = read_small_text(path, RECORD_LIMIT)
-    if not text:
-        return None
+    # Receipts are machine state: replacing invalid bytes can invent ownership
+    # or an update the executor, which reads strict UTF-8, will refuse.
     try:
-        value = json.loads(text)
-    except ValueError:
+        with path.open("rb") as handle:
+            data = handle.read(RECORD_LIMIT + 1)
+        if len(data) > RECORD_LIMIT:
+            return None
+        value = json.loads(data.decode("utf-8"))
+    except (OSError, ValueError):
         return None
     return value if isinstance(value, dict) else None
 
@@ -2881,6 +2889,19 @@ def read_record(path: Path) -> dict | None:
 def record_text(record: dict, key: str, limit: int) -> str:
     value = record.get(key)
     return clean_text(value, limit) if isinstance(value, str) else ""
+
+
+def appdrop_record(slug: str) -> dict | None:
+    """The same schema/id/kind receipt App Drop accepts, never a linked receipt."""
+
+    if not DROP_SLUG_RE.fullmatch(slug):
+        return None
+    path = data_home() / "moos/appdrop" / f"{slug}.json"
+    if path.is_symlink() or not path.is_file():
+        return None
+    record = read_record(path)
+    return (record if record and record.get("schema") == 1 and record.get("id") == slug
+            and record.get("kind") in ("appimage", "archive") else None)
 
 
 def desktop_entry_fields(text: str) -> dict[str, str]:
@@ -3103,13 +3124,19 @@ APK_BLOCK = 1024 * 1024
 UNSIZED_APK_LIMIT = 2 * 1024 ** 3
 APK_DIGESTS_NAME = "android-apks.json"
 
-# Whether an Android app with no record (an earlier Mo Store wrote none) whose bytes nothing
-# names is offered the pin. The window's Update button runs `moos-storectl update <package>`,
-# which does not find such an app until moos-storectl installs the pin over one (its own
-# pinned-update work): it answers "App is not installed", so offering the pin here would be a
-# button that does nothing. True once moos-storectl does (or the switch goes):
-# tests/test_mo_store_index_lifecycle.py fails until the two agree.
-PIN_OFFERED_WITHOUT_RECORD = False
+@functools.lru_cache(maxsize=1)
+def android_apk_module():
+    """The executor's bounded APK reader and update rule; no runtime is started."""
+
+    import importlib
+
+    library = str(Path(__file__).resolve().parent.parent / "lib/moos")
+    if library not in sys.path:
+        sys.path.insert(0, library)
+    try:
+        return importlib.import_module("moos_android_apk")
+    except ImportError:
+        return None
 
 
 def android_apk(package: str) -> Path | None:
@@ -3145,19 +3172,24 @@ def android_apk(package: str) -> Path | None:
 class ApkDigests:
     """The SHA-256 of each APK read, remembered next to the index by file identity.
 
-    What is installed is read on every launch (lifecycle_snapshot()), and an app with no record
-    of its pin is hashed. VLC and F-Droid on the station are 62 MB together: hashing them made
-    a launch's unchanged-index check 145 ms instead of 91 (measured 2026-10-15, warm cache,
-    median of 15); remembered, it is 95. A file whose device, inode, size and times are those
-    it had keeps the digest it had; nothing is written when nothing changed.
+    What is installed is read on every launch (lifecycle_snapshot()). A file whose device,
+    inode, size and times are unchanged keeps its digest and complete APK facts; a changed
+    reader invalidates parsed facts. Nothing is written when nothing changed.
     """
 
     def __init__(self, path: Path | None = None):
         self.path = path
         self.known: dict[str, list] = {}
         self.read: dict[str, list] = {}
+        self.facts_known: dict[str, dict] = {}
+        self.facts_read: dict[str, dict] = {}
+        self.facts_reader: str | None = None
         stored = read_record(path) if path is not None else None
+        self.stored_reader = stored.get("facts_reader") if stored else None
         apks = stored.get("apks") if stored and stored.get("schema") == 1 else None
+        facts = stored.get("facts") if stored and stored.get("schema") == 1 else None
+        if isinstance(facts, dict):
+            self.facts_known = facts
         for name, value in (apks.items() if isinstance(apks, dict) else ()):
             if (isinstance(value, list) and len(value) == 6
                     and all(isinstance(part, int) and not isinstance(part, bool)
@@ -3192,13 +3224,44 @@ class ApkDigests:
         self.read[str(apk)] = identity + [digest]
         return digest
 
+    def kept(self, package: str, size: int | None):
+        """Version, signer and digest from the shared reader, memoized by actual file identity.
+
+        Digest-only entries from an earlier image cannot stand in for parsed manifest/signing
+        facts: they are read once on migration, then reused without reopening APK contents.
+        """
+
+        module = android_apk_module()
+        path = android_apk(package)
+        if module is None or path is None:
+            return None
+        if self.facts_reader is None:
+            self.facts_reader = sha256_file(Path(module.__file__))
+            if self.facts_reader != self.stored_reader:
+                self.facts_known = {}
+        remembered = {}
+        for name, value in (self.facts_known | self.facts_read).items():
+            facts = module.ApkFacts.from_json(value)
+            if facts is not None:
+                remembered[name] = facts
+        facts = module.read_apk(path, size, unsized_limit=UNSIZED_APK_LIMIT,
+                                remembered=remembered)
+        if facts is None or (facts.package is not None and facts.package != package):
+            return None
+        self.facts_read[str(path)] = facts.to_json()
+        if facts.sha256 is not None:
+            self.read[str(path)] = list(facts.identity) + [facts.sha256]
+        return facts
+
     def save(self) -> None:
         """Keep what this run read (and only that) for the next run; best effort."""
 
-        if self.path is None or self.read == self.known:
+        if self.path is None or (self.read == self.known and self.facts_read == self.facts_known):
             return
         try:
-            atomic_write_json(self.path, {"schema": 1, "apks": self.read})
+            atomic_write_json(self.path, {"schema": 1, "apks": self.read,
+                                          "facts": self.facts_read,
+                                          "facts_reader": self.facts_reader})
         except OSError:
             pass
 
@@ -3211,6 +3274,29 @@ def android_apk_is_pin(package: str, pin: str, size: int | None,
     return apk is not None and digests.sha256(apk, size) == pin
 
 
+def android_store_record(package: str) -> tuple[dict | None, bool]:
+    """(receipt, invalid) for the exact schema Store writes, under the configured data home."""
+
+    path = data_home() / "moos/android" / f"{package}.json"
+    if path.is_symlink():
+        return None, True
+    record = read_record(path)
+    if not record:
+        return None, False
+    if (type(record.get("schema")) is not int or record["schema"] != 1
+            or record.get("id") != package or record.get("package") != package):
+        return None, True
+    digest, version = record.get("sha256"), record.get("version")
+    if (not isinstance(digest, str) or not SHA256_RE.fullmatch(digest)
+            or not isinstance(version, str) or (version and not VERSION_RE.fullmatch(version))):
+        return None, True
+    source, catalog_id = record.get("source"), record.get("catalog_id")
+    if not ((source == "catalog" and catalog_id == package)
+            or (source == "file" and catalog_id == "")):
+        return None, True
+    return record, False
+
+
 def catalog_install_state(entry: dict, arch: str | None = None,
                           apk_digests: ApkDigests | None = None) -> dict:
     """{installed, version, update, icon, adopted} of one catalogue entry, from files.
@@ -3219,9 +3305,9 @@ def catalog_install_state(entry: dict, arch: str | None = None,
     the pin's for this machine: moos-storectl's check-updates, Update all and `update <id>`
     decide the same way, so index.json and updates.json give one answer. A version string
     cannot say it: a re-pinned build keeps its version, and "0.9" is "0.9.0". For Android the
-    APK Android keeps answers when no record of the pin does (`apk_digests` remembers what was
-    hashed); an app with no record at all is offered the pin only once `update <id>` can
-    install it there (PIN_OFFERED_WITHOUT_RECORD).
+    APK Android keeps and the executor's shared pin_is_update() rule decide Android updates;
+    file-adopted apps are never replaced by a catalogue pin. apk_digests memoizes the complete
+    APK facts so an unchanged launch does not reparse or rehash its contents.
     """
 
     kind = catalog_kind(entry)
@@ -3241,7 +3327,7 @@ def catalog_install_state(entry: dict, arch: str | None = None,
                     state["icon"] = icon
                     break
     elif kind == "appdrop":
-        record = read_record(data_home() / "moos/appdrop" / f"{app_id}.json")
+        record = appdrop_record(app_id)
         if record is not None and record.get("id") == app_id:
             catalog_id = record.get("catalog_id")
             if catalog_id == app_id:
@@ -3297,24 +3383,25 @@ def catalog_install_state(entry: dict, arch: str | None = None,
         if isinstance(package, str) and ANDROID_PACKAGE_RE.fullmatch(package) \
                 and (data_home() / "waydroid/data/data" / package).is_dir():
             state["installed"] = True
-            # moos-storectl's record of what it installed: which bytes, which version.
-            record = read_record(data_home() / "moos/android" / f"{package}.json")
+            record, invalid = android_store_record(package)
+            if invalid:
+                return state
             if record:
                 state["version"] = record_text(record, "version", 64) or None
-            current = bool(record) and pin is not None and record_has_pin(record, pin)
-            if pin is not None and not current and android_apk_is_pin(
-                    package, pin, pinned_size(install, arch),
-                    apk_digests if apk_digests is not None else ApkDigests()):
-                # No record (the older Store wrote none) or one of an earlier pin, but the
-                # APK Android keeps is the pin's own bytes: up to date, at the pin's version.
-                current = True
-                pinned_version = install.get("version")
-                state["version"] = pinned_version if isinstance(pinned_version, str) else None
-            # Otherwise which bytes are there is unknown or not the pin's: the pin is offered,
-            # and installing it writes the record; with no record at all, only once
-            # moos-storectl can install it there (PIN_OFFERED_WITHOUT_RECORD).
-            state["update"] = pin is not None and not current \
-                and (bool(record) or PIN_OFFERED_WITHOUT_RECORD)
+                state["adopted"] = record["source"] == "file"
+            module = android_apk_module()
+            if pin is not None and module is not None:
+                memo = apk_digests if apk_digests is not None else ApkDigests()
+                kept = memo.kept(package, pinned_size(install, arch))
+                if kept is not None and kept.version_name:
+                    state["version"] = clean_text(kept.version_name, 64) or state["version"]
+                elif kept is not None and kept.sha256 == pin:
+                    state["version"] = install.get("version") or state["version"]
+                if not state["adopted"]:
+                    state["update"] = module.pin_is_update(
+                        pin_sha256=pin, pin_code=module.pin_version_code(install.get("url"), package),
+                        pin_signer=install.get("signer"), kept=kept,
+                        recorded_sha256=record.get("sha256") if record else None)
     elif kind == "npm":
         binary = install.get("bin")
         if isinstance(binary, str) and binary:
@@ -3355,7 +3442,7 @@ def dropped_records(claimed: set[str]) -> list[dict]:
         slug = path.stem
         if not DROP_SLUG_RE.fullmatch(slug) or slug in claimed:
             continue
-        record = read_record(path)
+        record = appdrop_record(slug)
         if record is None or record.get("id") != slug:
             continue
         launcher = launcher_for_record(record, slug)

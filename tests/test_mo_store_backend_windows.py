@@ -346,8 +346,8 @@ class WindowsPortable(Isolated):
         (self.windows / APP / "prefix/dosdevices").mkdir()
         (self.windows / APP / "prefix/dosdevices/z:").symlink_to("/")
         self.runtime.commands.clear()
-        code, result = self.controller(self.recipe(pe(), exe="tinyterm.exe")).remove(APP)
-        self.assertEqual((result["state"], result["items"][0]["message_key"]), ("success", "removed"), result)
+        code, result = self.controller(self.recipe(pe(), exe="tinyterm.exe")).remove(APP, delete_data=True)
+        self.assertEqual((result["state"], result["items"][0]["message_key"]), ("success", "removed_with_data"), result)
         kill = self.runtime.commands[0]
         self.assertEqual(kill[-2:], [MODULE.WINESERVER, "--kill"])
         self.assertEqual(Runtime.environment(kill)["WINEPREFIX"], str(self.windows / APP / "prefix"))
@@ -356,6 +356,68 @@ class WindowsPortable(Isolated):
         self.assertFalse((self.windows / f"{APP}.json").exists())
         self.assertFalse((self.home / f".local/share/applications/org.moos.windows.{APP}.desktop").exists())
         self.assertFalse((self.home / f".local/state/moos-foreign/{APP}").exists())
+
+    def test_remove_keeps_prefix_documents_until_deleting_data_is_chosen(self):
+        recipe = self.recipe(pe(), exe="tinyterm.exe")
+        controller = self.controller(recipe)
+        code, result = controller.install([APP])
+        self.assertEqual((code, result["state"]), (0, "success"), result)
+        saved = self.windows / APP / "prefix/drive_c/users/me/saved-document.txt"
+        saved.write_text("the person's document", encoding="utf-8")
+        code, result = controller.remove(APP)
+        self.assertEqual((code, result["state"]), (0, "success"), result)
+        self.assertEqual(saved.read_text(encoding="utf-8"), "the person's document")
+        self.assertFalse((self.windows / APP / "app").exists())
+        self.assertFalse((self.windows / f"{APP}.json").exists())
+        self.runtime.commands.clear()
+        code, result = controller.install([APP])
+        self.assertEqual((code, result["state"]), (0, "success"), result)
+        self.assertEqual(saved.read_text(encoding="utf-8"), "the person's document")
+        self.assertFalse(any("wineboot" in argv for argv in self.runtime.commands))
+        code, result = controller.remove(APP, delete_data=True)
+        self.assertEqual((code, result["state"]), (0, "success"), result)
+        self.assertFalse(saved.exists())
+
+    def test_remove_does_not_adopt_an_unmarked_application_directory(self):
+        manual = self.windows / APP
+        manual.mkdir(parents=True)
+        canary = manual / "owner-handmade-file.txt"
+        canary.write_text("not written by Mo Store", encoding="utf-8")
+        code, result = self.controller(self.recipe(pe(), exe="tinyterm.exe")).remove(APP)
+        self.assertEqual((code, result["items"][0]["message_key"]), (0, "not_installed"), result)
+        self.assertEqual(canary.read_text(encoding="utf-8"), "not written by Mo Store")
+        self.assertEqual(self.runtime.commands, [])
+
+    def test_a_failed_second_rename_restores_the_working_program(self):
+        first = self.recipe(pe(tail=b"working-v1"), exe="tinyterm.exe")
+        self.controller(first).install([APP])
+        app = self.windows / APP / "app"
+        before = (app / "tinyterm.exe").read_bytes()
+        second = self.recipe(pe(tail=b"new-v2"), exe="tinyterm.exe", version="2.0")
+        original = Path.rename
+        def fail_staging(path, target):
+            if path.name == ".app.installing":
+                raise OSError("private injected second rename failure")
+            return original(path, target)
+        with mock.patch.object(Path, "rename", fail_staging):
+            code, result = self.controller(second).install([APP])
+        self.assertEqual((code, result["state"]), (1, "failed"), result)
+        self.assertEqual((app / "tinyterm.exe").read_bytes(), before)
+        self.assertFalse((self.windows / APP / ".app.previous").exists())
+
+    def test_an_interrupted_swap_is_recovered_before_a_failed_download(self):
+        recipe = self.recipe(pe(tail=b"working-v1"), exe="tinyterm.exe")
+        controller = self.controller(recipe)
+        controller.install([APP])
+        app = self.windows / APP / "app"
+        previous = self.windows / APP / ".app.previous"
+        before = (app / "tinyterm.exe").read_bytes()
+        app.rename(previous)
+        with mock.patch.object(controller, "_download_pinned", side_effect=MODULE.StoreError("offline")):
+            code, result = controller.install([APP])
+        self.assertEqual((code, result["state"]), (1, "failed"), result)
+        self.assertEqual((app / "tinyterm.exe").read_bytes(), before)
+        self.assertFalse(previous.exists())
 
     def test_a_cancelled_first_setup_leaves_nothing_behind(self):
         self.runtime.cancel_on = "wineboot"

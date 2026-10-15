@@ -5,8 +5,8 @@ import QtQuick.Controls
 import QtQuick.Layouts
 
 // Mo Store — removing an app. Keep my data is the default; "Remove the app and its data" says
-// exactly what goes for this kind of app before anything is touched. A Windows program's own space
-// goes with it either way, and the sheet says so instead of offering a choice it cannot keep.
+// exactly what goes for this kind of app before anything is touched. Windows removal keeps its
+// saved environment by default; files inside the program folder itself are still removed.
 //
 // Drawn from main.qml's state: `win` is the Store window, which owns the data, the actions
 // and the palette. This file only presents them.
@@ -17,7 +17,7 @@ Popup {
     property var app: null
     property bool withData: false
     readonly property string kind: win.appKind(removeSheet.app)
-    readonly property bool keepPossible: removeSheet.kind !== "windows"
+    readonly property bool keepPossible: true
     readonly property bool dataSupported: win.bridgeHas("removeAppData")
     anchors.centerIn: Overlay.overlay
     width: Math.min(win.fs(560), win.width - win.fs(80))
@@ -40,6 +40,9 @@ Popup {
 
     function dataLine() {
         switch (removeSheet.kind) {
+        case "windows":
+            return removeSheet.win.local("تُحذف مساحته الخاصة وإعداداته والملفات المحفوظة فيها. الملفات التي حفظها في مكان آخر تبقى.",
+                                         "Its own space, settings and files saved there are deleted. Files saved elsewhere stay.")
         case "webapp":
             return removeSheet.win.local("تُحذف تسجيلات دخوله وملفات تعريف الارتباط وبيانات الموقع المحفوظة.",
                                          "Its sign-ins, cookies and saved site data are deleted.")
@@ -156,7 +159,9 @@ Popup {
                         Text {
                             id: optionTitle
                             Layout.fillWidth: true
-                            text: !option.modelData ? removeSheet.win.local("أزله واحتفظ ببياناتي", "Remove it, keep my data")
+                            text: !option.modelData ? removeSheet.kind === "windows"
+                                    ? removeSheet.win.local("أزل البرنامج واحتفظ بإعداداته المحفوظة", "Remove program, keep saved settings")
+                                    : removeSheet.win.local("أزله واحتفظ ببياناتي", "Remove it, keep my data")
                                 : removeSheet.keepPossible ? removeSheet.win.local("أزل التطبيق وبياناته", "Remove the app and its data")
                                 : removeSheet.win.local("أزل البرنامج ومساحته", "Remove the program and its space")
                             color: removeSheet.win.txt
@@ -168,8 +173,11 @@ Popup {
                         Text {
                             Layout.fillWidth: true
                             text: !option.modelData
-                                ? removeSheet.win.local("تبقى إعداداته وملفاته على هذا الجهاز، فإن ثبّته مجددًا عاد كما كان.",
-                                                        "Its settings and files stay on this computer, so installing it again brings it back as it was.")
+                                ? removeSheet.kind === "windows"
+                                    ? removeSheet.win.local("تبقى إعداداته والمستندات المحفوظة في مساحة بياناته. الملفات داخل مجلد البرنامج نفسه تُزال؛ وما حفظه في أماكن أخرى يبقى.",
+                                                            "Settings and documents saved in its data space stay. Files inside the program folder are removed; files saved elsewhere stay.")
+                                    : removeSheet.win.local("تبقى إعداداته وملفاته على هذا الجهاز، فإن ثبّته مجددًا عاد كما كان.",
+                                                            "Its settings and files stay on this computer, so installing it again brings it back as it was.")
                                 : !removeSheet.keepPossible
                                   ? removeSheet.win.local("لكل برنامج ويندوز مساحته الخاصة، وتُحذف معه بكل ما حُفظ فيها.",
                                                           "Each Windows program has a space of its own, and it is deleted with everything saved in it.")

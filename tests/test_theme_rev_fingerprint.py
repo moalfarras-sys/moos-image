@@ -52,6 +52,8 @@ RECORD = ROOT / "tests/theme-rev-fingerprint.json"
 # (tree, path components below it that name one package). A package is the unit the failure
 # message reports, so a reviewer reads "org.moos.island changed", not one opaque digest.
 COVERED: tuple[tuple[str, int], ...] = (
+    # Version-specific seam overlays also become cached /usr QML.
+    ("build_files/plasma-seams", 1),
     ("system_files/usr/share/plasma/plasmoids", 1),
     ("system_files/usr/share/plasma/wallpapers", 1),
     ("system_files/usr/share/plasma/look-and-feel", 1),

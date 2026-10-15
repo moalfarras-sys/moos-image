@@ -59,7 +59,7 @@
         "from": "6.7.0",
         "before": "6.7.90"
       },
-      "reviewed_on": "plasma-desktop/plasma-workspace 6.7.5-1.fc44, x86_64 and aarch64 (identical digests), 2026-09-24. Panel.qml reviewed against package bytes on 2026-09-26; upstream geometry preserved; MoOS owns frame density and keeps configured floating panels floating beside maximized windows (soft-corner design review, 2026-09-27). 2026-10-05: LockScreenUi.qml and MainBlock.qml are no longer seams — the lock screen runs upstream's own. SessionManagementScreen.qml, WallpaperFader.qml and UserList.qml became seams in their place, reviewed against the 6.7.5-1.fc44 package bytes (identical to the v6.7.5 tag); upstream's public API, both anchor lines and the action-row rule kept verbatim. Real kscreenlocker_greet, plasma-login-greeter --test and ksmserver-logout-greeter rendered from this tree under Xvfb at 640x480 through 3840x2160@2.5 (scripts/station/session-review).",
+      "reviewed_on": "plasma-desktop/plasma-workspace 6.7.5-1.fc44, x86_64 and aarch64 (identical digests), 2026-09-24. Panel.qml reviewed against package bytes on 2026-09-26; upstream geometry preserved; MoOS owns frame density and keeps configured floating panels floating beside maximized windows (soft-corner design review, 2026-09-27). 2026-10-05: LockScreenUi.qml and MainBlock.qml are no longer seams \u2014 the lock screen runs upstream's own. SessionManagementScreen.qml, WallpaperFader.qml and UserList.qml became seams in their place, reviewed against the 6.7.5-1.fc44 package bytes (identical to the v6.7.5 tag); upstream's public API, both anchor lines and the action-row rule kept verbatim. Real kscreenlocker_greet, plasma-login-greeter --test and ksmserver-logout-greeter rendered from this tree under Xvfb at 640x480 through 3840x2160@2.5 (scripts/station/session-review).",
       "sources": {},
       "reviewed": {
         "/usr/share/plasma/shells/org.kde.plasma.desktop/contents/lockscreen/MediaControls.qml": [
@@ -104,9 +104,9 @@
       "id": "6.8-beta2",
       "plasma": {
         "from": "6.7.91",
-        "before": "6.8.90"
+        "before": "6.8.0"
       },
-      "reviewed_on": "plasma-desktop/plasma-workspace 6.7.91-1.fc44 (6.8 beta 2), 2026-09-26, the nine files that were seams then. 2026-10-05: LockScreenUi.qml and MainBlock.qml are no longer seams — the lock screen runs upstream's own, which retires both hand-derived variants. SessionManagementScreen.qml, WallpaperFader.qml and UserList.qml became seams: the first two are each MoOS's 6.7 file plus upstream's own 6.7.5 -> 6.7.90 hunks by three-way merge (the authenticationTypeItem property and row; the footer PropertyChanges form), and both files are byte-identical upstream between 6.7.90 and 6.7.91; UserList.qml is byte-identical upstream from 6.7.5 through 6.7.91, so MoOS's one copy serves every set. Proven on a real 6.7.91-1.fc44 stack (stock base moved to the kde-beta COPR, as the canary does): plasma_seams.py probe-lockscreen loaded the real greeter, and failed as it must when SessionManagementScreen was made to instantiate a type that does not exist; lock, login and power screens rendered there. The beta-1-only set (6.7.90) was removed rather than extended: no 6.7.90 stack exists any more to load the greeter on, and a digest here is a claim that someone watched it load.",
+      "reviewed_on": "plasma-desktop/plasma-workspace 6.7.91-1.fc44 (6.8 beta 2), 2026-09-26, the nine files that were seams then. 2026-10-05: LockScreenUi.qml and MainBlock.qml are no longer seams \u2014 the lock screen runs upstream's own, which retires both hand-derived variants. SessionManagementScreen.qml, WallpaperFader.qml and UserList.qml became seams: the first two are each MoOS's 6.7 file plus upstream's own 6.7.5 -> 6.7.90 hunks by three-way merge (the authenticationTypeItem property and row; the footer PropertyChanges form), and both files are byte-identical upstream between 6.7.90 and 6.7.91; UserList.qml is byte-identical upstream from 6.7.5 through 6.7.91, so MoOS's one copy serves every set. Proven on a real 6.7.91-1.fc44 stack (stock base moved to the kde-beta COPR, as the canary does): plasma_seams.py probe-lockscreen loaded the real greeter, and failed as it must when SessionManagementScreen was made to instantiate a type that does not exist; lock, login and power screens rendered there. The beta-1-only set (6.7.90) was removed rather than extended: no 6.7.90 stack exists any more to load the greeter on, and a digest here is a claim that someone watched it load.",
       "sources": {
         "/usr/share/plasma/shells/org.kde.plasma.desktop/contents/views/Panel.qml": "6.8/usr/share/plasma/shells/org.kde.plasma.desktop/contents/views/Panel.qml",
         "/usr/lib64/qt6/qml/org/kde/breeze/components/SessionManagementScreen.qml": "6.8/usr/lib64/qt6/qml/org/kde/breeze/components/SessionManagementScreen.qml",
@@ -148,6 +148,57 @@
         ],
         "/usr/share/plasma/shells/org.kde.plasma.desktop/contents/views/Panel.qml": [
           "22ea7117172633c7d90c7f679247bd24aa2ca5ad4a531a75673cf21d2f5001be"
+        ]
+      }
+    },
+    {
+      "id": "6.8.0",
+      "plasma": {
+        "from": "6.8.0",
+        "before": "6.8.1"
+      },
+      "reviewed_on": "Stable plasma-desktop 6.8.0-2.fc44 and plasma-workspace 6.8.0-1.fc44, x86_64, 2026-10-15. All 12 upstream seam bytes compared with signed KDE source and publisher RPMs. Eleven unchanged paths reuse reviewed MoOS variants. Panel adds the upstream virtual-keyboard de-floating behavior; its 48-case real Qt transition test passes with an old-source negative. Actual stable kscreenlocker_greet positive, deliberately missing-type negative, and restored positive pass in the private native x86 stack. Upstream LockScreenUi.qml/MainBlock.qml remain byte-identical to vendor RPM digests. Full image/boot and installed acceptance are separate release evidence.",
+      "sources": {
+        "/usr/share/plasma/shells/org.kde.plasma.desktop/contents/views/Panel.qml": "6.8.0/usr/share/plasma/shells/org.kde.plasma.desktop/contents/views/Panel.qml",
+        "/usr/lib64/qt6/qml/org/kde/breeze/components/SessionManagementScreen.qml": "6.8/usr/lib64/qt6/qml/org/kde/breeze/components/SessionManagementScreen.qml",
+        "/usr/lib64/qt6/qml/org/kde/breeze/components/WallpaperFader.qml": "6.8/usr/lib64/qt6/qml/org/kde/breeze/components/WallpaperFader.qml"
+      },
+      "reviewed": {
+        "/usr/share/plasma/shells/org.kde.plasma.desktop/contents/lockscreen/MediaControls.qml": [
+          "fc2de879d76e7d2f37292fb8c79283b5b7dae894de44539270a53dbd4c9927b0"
+        ],
+        "/usr/share/plasma/shells/org.kde.plasma.desktop/contents/explorer/WidgetExplorer.qml": [
+          "27208dd43471f61fe0c06ef78299590cdaf25c65fdb9f4676f61d3b70d3e7a02"
+        ],
+        "/usr/share/plasma/shells/org.kde.plasma.desktop/contents/views/DesktopEditMode.qml": [
+          "ef4848bcd4efb75da1d15e39d8c2ea8d5d2af0cb38116dc62f33769c82edbaf5"
+        ],
+        "/usr/share/plasma/shells/org.kde.plasma.desktop/contents/defaults": [
+          "07abd8f0e42594c2822c54084e38a810747025d111f1fe1e7c8e0cec1f2684f0"
+        ],
+        "/usr/share/plasma/layout-templates/org.kde.plasma.desktop.defaultPanel/contents/layout.js": [
+          "7ccabbcbb8fccb7f32c239b562d4ebe67e915f15f8066bc7ca994a6deb767d59"
+        ],
+        "/usr/lib64/qt6/qml/org/kde/breeze/components/ActionButton.qml": [
+          "f0d5a0326ea8715b378d1c757341921ecdf6a703e5a632409633158fca29d7e5"
+        ],
+        "/usr/lib64/qt6/qml/org/kde/breeze/components/Clock.qml": [
+          "bed93a670a8fcb1d90798c59350285439e4b4cbbcfd5b289e4839deab4e3ba9c"
+        ],
+        "/usr/lib64/qt6/qml/org/kde/breeze/components/UserDelegate.qml": [
+          "5d0487cbb475811affcff5b0a75e29e859596fb954c38c8bcce3c0ef3fd39ebf"
+        ],
+        "/usr/lib64/qt6/qml/org/kde/breeze/components/UserList.qml": [
+          "0c621434c2b65c68076db5eb614aa9e4ed9db58c732cf6416481bf3ddbda7231"
+        ],
+        "/usr/lib64/qt6/qml/org/kde/breeze/components/SessionManagementScreen.qml": [
+          "33f642ac7117b0cb3af5d04cab4a304207fb2572f1550fcf6c78457b57f895da"
+        ],
+        "/usr/lib64/qt6/qml/org/kde/breeze/components/WallpaperFader.qml": [
+          "bda98772f1bed55a5cd464d4fe59e645fe814e1e271d778e6762a6ae24e0c195"
+        ],
+        "/usr/share/plasma/shells/org.kde.plasma.desktop/contents/views/Panel.qml": [
+          "353ed54bb277ad50ee769b85a346a05959aa4cb79fb6f27b2286dcd5e9acbc48"
         ]
       }
     }

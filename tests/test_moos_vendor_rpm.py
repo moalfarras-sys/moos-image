@@ -49,6 +49,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from unittest import mock
 import urllib.error
 import urllib.request
 
@@ -1253,6 +1254,19 @@ class Install(Home):
         self.assertTrue((app / "App").read_bytes().endswith(b"v21"))
         self.assertEqual(newer["version"], "2.1")
         self.assertClean()
+
+    def test_an_interrupted_swap_is_recovered_before_a_failed_retry(self):
+        self.install("2.0", app_payload(b"working-v2"))
+        before_record = (self.records() / "app.json").read_bytes()
+        final, previous = vendor.app_dir("app"), vendor.previous_dir("app")
+        before = (final / "App").read_bytes()
+        final.rename(previous)  # the process died between its two rename calls
+        with mock.patch.object(vendor, "resolve", side_effect=vendor.VendorError("network_error")):
+            self.assertCode("network_error", vendor.install, "app", ENTRY,
+                            arch="x86_64", refresh_menu=False)
+        self.assertEqual((final / "App").read_bytes(), before)
+        self.assertFalse(previous.exists())
+        self.assertEqual((self.records() / "app.json").read_bytes(), before_record)
 
     def test_a_failed_update_keeps_the_version_that_worked(self):
         self.install("2.0", app_payload(b"v2"))

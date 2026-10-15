@@ -1,0 +1,77 @@
+diff --git a/system_files/usr/lib/moos/moos_android_apk.py b/system_files/usr/lib/moos/moos_android_apk.py
+index 52447f91..ae599f34 100644
+--- a/system_files/usr/lib/moos/moos_android_apk.py
++++ b/system_files/usr/lib/moos/moos_android_apk.py
+@@ -47,7 +47,9 @@ API:
+       exactly one readable APK of that package (two while Android replaces the app)
+   read_apk(path, pin_size=None, *, unsized_limit=..., remembered=None) -> ApkFacts | None
+       `remembered` {path: ApkFacts}: facts read earlier are reused while the file's identity
+-      (device, inode, size, times) is unchanged; ApkFacts.to_json()/from_json() keep them
++      (device, inode, size, times) is unchanged, and what is returned is stored back into it
++      when it takes items (a dict, or moos-store-index's cache beside the index);
++      ApkFacts.to_json()/from_json() keep them on disk
+   manifest_facts(data) -> (package, version_code, version_name) of a compiled manifest
+   pin_version_code(url, package) -> int | None
+   pin_is_update(*, pin_sha256, pin_code, pin_signer, kept, recorded_sha256) -> bool
+@@ -192,19 +194,23 @@ def read_apk(path: Path, pin_size: int | None = None, *, unsized_limit: int = UN
+             earlier = remembered.get(str(path)) if remembered is not None else None
+             if earlier is not None and earlier.identity == identity \
+                     and (earlier.sha256 is not None or not digest_wanted):
+-                return earlier
+-            package, version_code, version_name = _manifest(handle)
+-            signer = _signer(handle, size)
+-            digest = None
+-            if digest_wanted:
+-                handle.seek(0)
+-                hasher = hashlib.sha256()
+-                for block in iter(lambda: handle.read(BLOCK), b""):
+-                    hasher.update(block)
+-                digest = hasher.hexdigest()
++                facts = earlier
++            else:
++                package, version_code, version_name = _manifest(handle)
++                signer = _signer(handle, size)
++                digest = None
++                if digest_wanted:
++                    handle.seek(0)
++                    hasher = hashlib.sha256()
++                    for block in iter(lambda: handle.read(BLOCK), b""):
++                        hasher.update(block)
++                    digest = hasher.hexdigest()
++                facts = ApkFacts(identity, package, version_code, version_name, signer, digest)
+     except OSError:
+         return None
+-    return ApkFacts(identity, package, version_code, version_name, signer, digest)
++    if callable(getattr(remembered, "__setitem__", None)):
++        remembered[str(path)] = facts           # what this read used, for the caller to keep
++    return facts
+ 
+ 
+ def _manifest(handle: Any) -> tuple[str | None, int | None, str | None]:
+diff --git a/tests/test_moos_android_apk.py b/tests/test_moos_android_apk.py
+index e79d7e8c..1e1378e3 100644
+--- a/tests/test_moos_android_apk.py
++++ b/tests/test_moos_android_apk.py
+@@ -31,6 +31,7 @@ import shutil
+ import struct
+ import sys
+ import tempfile
++import types
+ import unittest
+ import zipfile
+ 
+@@ -279,6 +280,14 @@ class OneApk(Folder):
+         first = apkfacts.read_apk(self.path, len(self.body))
+         self.assertIs(apkfacts.read_apk(self.path, len(self.body),
+                                         remembered={str(self.path): first}), first)
++        # A cache that takes items keeps what each read used, under the file's path.
++        cache: dict = {}
++        facts = apkfacts.kept(self.data, "org.example.app", len(self.body), remembered=cache)
++        self.assertEqual(cache, {str(self.path): facts})
++        self.assertIs(apkfacts.kept(self.data, "org.example.app", len(self.body), remembered=cache),
++                      facts)
++        frozen = types.MappingProxyType({str(self.path): first})
++        self.assertIs(apkfacts.read_apk(self.path, len(self.body), remembered=frozen), first)
+         # Without its digest, remembered facts do not answer for a pin of this size.
+         thin = apkfacts.read_apk(self.path, len(self.body) + 1)
+         again = apkfacts.read_apk(self.path, len(self.body), remembered={str(self.path): thin})

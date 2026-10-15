@@ -136,11 +136,18 @@ EOF
     case "$surface" in
         lock) command="/usr/libexec/kscreenlocker_greet --testing" ;;
         logout)
-            command="/usr/libexec/ksmserver-logout-greeter --windowed --lookandfeel $lnf"
+            # 6.8 reads kdeglobals and removed the theme/mode command-line switches.
+            # Ask this binary, rather than accepting an image of its error message.
+            local help
+            help="$(QT_QPA_PLATFORM=offscreen /usr/libexec/ksmserver-logout-greeter --help)" || return 2
+            command="/usr/libexec/ksmserver-logout-greeter --windowed"
+            if [[ "$help" == *--lookandfeel* ]]; then command="$command --lookandfeel $lnf"; fi
             case "$mode" in
-                shutdown) command="$command --shutdown" ;;
-                reboot) command="$command --reboot" ;;
-                logout) command="$command --logout" ;;
+                shutdown|reboot|logout)
+                    [[ "$help" == *"--$mode"* ]] || { echo "unsupported logout mode on this binary: $mode" >&2; return 2; }
+                    command="$command --$mode" ;;
+                all) ;;
+                *) echo "unknown logout mode: $mode" >&2; return 2 ;;
             esac ;;
         login) command="$HERE/login-greeter.sh $wallpaper" ;;
         # The login SCENE alone: the wallpaper process that a compositor stacks under the
@@ -151,17 +158,30 @@ EOF
 
     cat > "$work/session.sh" <<EOF
 #!/usr/bin/env bash
+set -euo pipefail
 $command >"$work/surface.log" 2>&1 &
+surface_pid=\$!
+trap 'kill "\$surface_pid" 2>/dev/null || true' EXIT
+require_surface() {
+    if ! kill -0 "\$surface_pid" 2>/dev/null; then
+        cat "$work/surface.log" >&2
+        echo "surface exited before capture: $name" >&2
+        return 1
+    fi
+}
 sleep "$wait"
-python3 "$HERE/xinput.py" scale "$scale" $actions $xi 2>>"$work/input.log"
+require_surface
+python3 "$HERE/xinput.py" scale "$scale" fit "$w" "$h" $actions $xi 2>>"$work/input.log"
 if [ "$frames" -gt 1 ]; then
     for i in \$(seq -w 1 "$frames"); do
+        require_surface
         import -silent -window root "$OUT/$name-\$i.png" 2>>"$work/shot.log"
         sleep "$every"
     done
     cp "$OUT/$name-\$(printf '%0*d' \${#frames} "$frames").png" "$OUT/$name.png"
 else
     sleep "$after"
+    require_surface
     import -silent -window root "$OUT/$name.png" 2>>"$work/shot.log"
 fi
 EOF
@@ -175,13 +195,18 @@ EOF
         LIBGL_ALWAYS_SOFTWARE=1 QT_QPA_PLATFORM=xcb QML_DISABLE_DISK_CACHE=1 \
         LOGIN_WALLPAPER="${LOGIN_WALLPAPER:-0}" \
         QT_SCALE_FACTOR="$scale" QT_FORCE_STDERR_LOGGING=1 \
-        timeout $((90 + frames * 2)) dbus-run-session -- \
+        timeout $((90 + frames * 2)) dbus-run-session --config-file="$HERE/private-bus.conf" -- \
         xvfb-run -a -s "-screen 0 ${pw}x${ph}x24 -nolisten tcp" "$work/session.sh" \
-        >"$work/session.out" 2>&1
+        >"$work/session.out" 2>&1 || {
+            cat "$work/session.out" >&2
+            cp "$work/surface.log" "$OUT/$name.log" 2>/dev/null || true
+            return 1
+        }
     if [ -s "$OUT/$name.png" ]; then
         echo "rendered $name.png (${pw}x${ph} device, scale $scale) at ${SECONDS}s"
     else
         echo "NO FRAME for $name"; tail -n 5 "$work/session.out" "$work/shot.log" 2>/dev/null
+        return 1
     fi
     # The QML engine's own verdict, minus the noise every offscreen Plasma process prints.
     grep -E "qml|QML|Error|error|ReferenceError|TypeError|Unable to assign|is not a type|not installed|Cannot" \
@@ -217,7 +242,7 @@ if [ "${1:-}" = "--shots" ]; then
     while IFS= read -r line || [ -n "$line" ]; do
         case "$line" in ''|'#'*|probe\ *) continue ;; esac
         eval "set -- $line"
-        shot "$@"
+        shot "$@" || exit "$?"
     done < /work/shots.txt
     exit 0
 fi

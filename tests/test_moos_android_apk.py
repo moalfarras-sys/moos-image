@@ -31,6 +31,7 @@ import shutil
 import struct
 import sys
 import tempfile
+import types
 import unittest
 import zipfile
 
@@ -279,6 +280,14 @@ class OneApk(Folder):
         first = apkfacts.read_apk(self.path, len(self.body))
         self.assertIs(apkfacts.read_apk(self.path, len(self.body),
                                         remembered={str(self.path): first}), first)
+        # A cache that takes items keeps what each read used, under the file's path.
+        cache: dict = {}
+        facts = apkfacts.kept(self.data, "org.example.app", len(self.body), remembered=cache)
+        self.assertEqual(cache, {str(self.path): facts})
+        self.assertIs(apkfacts.kept(self.data, "org.example.app", len(self.body), remembered=cache),
+                      facts)
+        frozen = types.MappingProxyType({str(self.path): first})
+        self.assertIs(apkfacts.read_apk(self.path, len(self.body), remembered=frozen), first)
         # Without its digest, remembered facts do not answer for a pin of this size.
         thin = apkfacts.read_apk(self.path, len(self.body) + 1)
         again = apkfacts.read_apk(self.path, len(self.body), remembered={str(self.path): thin})

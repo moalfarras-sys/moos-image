@@ -47,7 +47,9 @@ API:
       exactly one readable APK of that package (two while Android replaces the app)
   read_apk(path, pin_size=None, *, unsized_limit=..., remembered=None) -> ApkFacts | None
       `remembered` {path: ApkFacts}: facts read earlier are reused while the file's identity
-      (device, inode, size, times) is unchanged; ApkFacts.to_json()/from_json() keep them
+      (device, inode, size, times) is unchanged, and what is returned is stored back into it
+      when it takes items (a dict, or moos-store-index's cache beside the index);
+      ApkFacts.to_json()/from_json() keep them on disk
   manifest_facts(data) -> (package, version_code, version_name) of a compiled manifest
   pin_version_code(url, package) -> int | None
   pin_is_update(*, pin_sha256, pin_code, pin_signer, kept, recorded_sha256) -> bool
@@ -192,19 +194,23 @@ def read_apk(path: Path, pin_size: int | None = None, *, unsized_limit: int = UN
             earlier = remembered.get(str(path)) if remembered is not None else None
             if earlier is not None and earlier.identity == identity \
                     and (earlier.sha256 is not None or not digest_wanted):
-                return earlier
-            package, version_code, version_name = _manifest(handle)
-            signer = _signer(handle, size)
-            digest = None
-            if digest_wanted:
-                handle.seek(0)
-                hasher = hashlib.sha256()
-                for block in iter(lambda: handle.read(BLOCK), b""):
-                    hasher.update(block)
-                digest = hasher.hexdigest()
+                facts = earlier
+            else:
+                package, version_code, version_name = _manifest(handle)
+                signer = _signer(handle, size)
+                digest = None
+                if digest_wanted:
+                    handle.seek(0)
+                    hasher = hashlib.sha256()
+                    for block in iter(lambda: handle.read(BLOCK), b""):
+                        hasher.update(block)
+                    digest = hasher.hexdigest()
+                facts = ApkFacts(identity, package, version_code, version_name, signer, digest)
     except OSError:
         return None
-    return ApkFacts(identity, package, version_code, version_name, signer, digest)
+    if callable(getattr(remembered, "__setitem__", None)):
+        remembered[str(path)] = facts           # what this read used, for the caller to keep
+    return facts
 
 
 def _manifest(handle: Any) -> tuple[str | None, int | None, str | None]:

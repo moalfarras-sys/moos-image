@@ -131,6 +131,14 @@ jobs:
             -f ./Containerfile \
             -t localhost/moos-plasma-next:canary . 2>&1 | tee "$RUNNER_TEMP/plasma-next/build.log"
 
+      - name: Record the tested image versions after stable composition
+        run: |
+          set -euo pipefail
+          ctr="$(buildah from localhost/moos-plasma-next:canary)"
+          buildah run "$ctr" -- rpm -q plasma-workspace plasma-desktop kscreenlocker kwin libplasma qt6-qtbase \
+            | tee "$RUNNER_TEMP/plasma-next/tested-versions.txt"
+          buildah rm "$ctr"
+
       - name: Keep the Plasma versions and the seam gate's verdict
         if: always()
         run: |
@@ -144,6 +152,8 @@ jobs:
             echo
             echo '```'
             cat "$out/versions.txt" 2>/dev/null || echo "(the base did not compose)"
+            echo "Actual tested image (after reviewed stable composition):"
+            cat "$out/tested-versions.txt" 2>/dev/null || echo "(the final image did not build)"
             echo '```'
             echo
             echo '```'
@@ -163,6 +173,7 @@ jobs:
           name: plasma-next-canary-${{ github.run_id }}
           path: |
             ${{ runner.temp }}/plasma-next/versions.txt
+            ${{ runner.temp }}/plasma-next/tested-versions.txt
             ${{ runner.temp }}/plasma-next/seams.txt
             ${{ runner.temp }}/plasma-next/removed.txt
             ${{ runner.temp }}/plasma-next/compose.log

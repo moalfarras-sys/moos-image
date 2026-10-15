@@ -589,14 +589,20 @@ ORIGIN_SAYS = {
                 "a Windows program from its publisher through Mo Store, for this user"),
     "webapp": ("تطبيق ويب في نافذة خاصة به — لا يُنزَّل أي برنامج",
                "a web app in its own window — no program is downloaded"),
-    "android": ("تطبيق أندرويد موثّق عبر متجر MoOS — معزول، وأذوناته في إعدادات أندرويد",
-                "a verified Android app through Mo Store — sandboxed; its permissions are in "
+    "android": ("تطبيق أندرويد عبر متجر MoOS — معزول، وأذوناته في إعدادات أندرويد",
+                "an Android app through Mo Store — sandboxed; its permissions are in "
                 "Android's own settings"),
     "web": ("صفحة الناشر الرسمية تُفتح فقط — لا يُثبَّت شيء",
             "only the publisher's official page opens — nothing is installed"),
 }
 NOT_SANDBOXED = ("غير معزول: يستطيع رؤية ملفاتك وتغييرها",
                  "not sandboxed: it can see and change your files")
+# "Verified" means Flathub's verified flag, nothing else (docs/MO_STORE.md, "Honest labels"), and
+# the y/N reads no such flag: nothing it says before the question calls an app verified or
+# trusted, in either language. Its Android line once called every F-Droid download «موثّق» /
+# "verified", while the app's own Store page, which does read the flag, showed no such badge.
+CALLED_VERIFIED = re.compile(r"(?i)\bverified\b|موثق|موثوق")
+ARABIC_MARKS = re.compile("[ً-ْٰ]")     # «موثّق» is «موثق» with a shadda
 # What each catalogue `install.kind` is to the person, and what moos-storectl's own permission
 # document calls the same app (`_permission_subject`): the two must never disagree.
 KIND_SAYS = {"npm": "publisher", "appdrop": "publisher", "vendor-rpm": "publisher",
@@ -655,6 +661,9 @@ def check_origin(script, app_id, machine, said):
           f"such an app does ({said}): {lines}")
     check(said == "flathub" or "Flathub" not in done.stdout,
           f"{where} is not a Flathub app and must not be announced as one: {done.stdout}")
+    asked = done.stdout.split("Continue?")[0]
+    check(not CALLED_VERIFIED.search(ARABIC_MARKS.sub("", asked)),
+          f"{where} reads no verified flag, so it must not call the app verified: {asked}")
 
 
 def check_refused(script, app_id, machine, why):

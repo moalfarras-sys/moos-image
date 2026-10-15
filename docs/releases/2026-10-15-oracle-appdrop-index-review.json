@@ -1,0 +1,52 @@
+{
+  "schema": 1,
+  "generatedAt": "2026-10-15T09:50:55.420354+00:00",
+  "baseRevision": "382f593578b0a046290e86120faa17f4f04016af + frozen android-index-shared-policy.patch",
+  "prerequisiteAndroidPatchSha256": "823626b00699345c9c7d91a81e05d0064a419a879f7ad6f16e5c9e1de6175fb7",
+  "patchSha256": "5f5eec7d7a12d63bcf950905ecf312740bf4fb25eeb0a90a0da6956452a4c348",
+  "applyCheckExit": 0,
+  "scope": "Separate private index + existing maintained lifecycle suite only; source/owner worktrees and frozen Android patch unchanged",
+  "changes": [
+    "Index catalog and dropped inventory both require same schema1/id/kind(appimage|archive)/nonlinked regular receipt as tightened AppDrop backend",
+    "Lifecycle fixture generic records include the kind actual install writes",
+    "Three focused controls include real private archive installation producer, five malformed variants and linked receipt; menu refresh is stubbed, archive is never run"
+  ],
+  "results": [
+    {
+      "name": "old-appdrop-receipts",
+      "exit": 1,
+      "testCases": 3,
+      "summary": "FAILED (failures=6)",
+      "logSha256": "405ad70e45920826ccc3ead203ce89eb6f7819c329979e78761029524e9e44af"
+    },
+    {
+      "name": "fixed-appdrop-receipts",
+      "exit": 0,
+      "testCases": 3,
+      "summary": "OK",
+      "logSha256": "b77b3eecbb8b58408bbf2c56825f5a7e1c3ea451dc9b20633ade6ed8a8a1e8e9"
+    },
+    {
+      "name": "fixed-appdrop-lifecycle",
+      "exit": 0,
+      "testCases": 24,
+      "summary": "OK",
+      "logSha256": "d572342dcb93542d2fb2384b80fff352023d130ba111235543df6555ec379da3"
+    }
+  ],
+  "actualPrivateAppDropModuleSha256": "dfbb06a6ff0e0d8fa827619100a7e6c592825ca5a56363191799a07291e766bb",
+  "baseFiles": {
+    "system_files/usr/bin/moos-store-index": "8e16f5c5bf75ada0aea662209fdfac58dd44582c2a8a5f03842d416c085bb6b4",
+    "tests/test_mo_store_index_lifecycle.py": "6de2f6ae87dec5a7358b12e13dd0d9fbb2b5aca8308e791150057e57e09804c2"
+  },
+  "fixedFiles": {
+    "system_files/usr/bin/moos-store-index": "5c5487aced4e5df2f1ce0f160f11bce32c0108b87a64096dd10ce7e88bd6cc5a",
+    "tests/test_mo_store_index_lifecycle.py": "848ee01db6b85737f1d370b2b8fdd2f763ca07769b1f2faf588c80658618c975"
+  },
+  "registration": "Controls appended to existing tests/test_mo_store_index_lifecycle.py already registered in both maintained gate entry points",
+  "preservedHarnessFailure": "first-harness-outside-home-* logs: synthetic archive was initially outside private HOME and correctly refused; moved fixture input inside private HOME without changing guard",
+  "limitations": [
+    "Apply after frozen Android patch and together with tightened AppDrop reader; root aggregate/release gates remain separate",
+    "No real owner app, desktop, network or signed image changed"
+  ]
+}

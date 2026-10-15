@@ -1,0 +1,51 @@
+{
+  "url": "https://moos-downloads.moalfarras-moos.workers.dev/releases/44.20261009.1018/x86_64/moos-offline.iso",
+  "sizeBytes": 5808128000,
+  "sha256": "612a175308a76436549590cfb3d0ff7771ffe075a89a3fd77ab7ca47e675055a",
+  "http": 200,
+  "rangeHttp": 206,
+  "anonymous": true,
+  "fullHashVerified": true,
+  "schema": 1,
+  "checkedAt": "2026-10-09T17:57:07.299740+00:00",
+  "signatureVerified": true,
+  "scope": "Delivery only; match the ISO's successful boot/install and promotion proofs before publication.",
+  "sourceRevision": "144b1a6ad04f0b7fa442183110ad6d969f636add",
+  "imageDigest": "sha256:3055eb28ac032492a053da1efb9493c9780e7bfa20a01c7c3300961693bfee92",
+  "version": "44.20261009.1018",
+  "buildRun": 37910223752,
+  "diskRuns": [
+    37916917245,
+    37916921267,
+    37916925157
+  ],
+  "isoRun": 37916929153,
+  "promotionRun": 37946594645,
+  "sidecarsVerified": true,
+  "canonicalReadback": {
+    "checkedAt": "2026-10-09T18:56:46.210881+00:00",
+    "canonicalUrl": "https://moalfarras.space/api/os/download?type=iso",
+    "fullVerifiedObjectUrl": "https://moos-downloads.moalfarras-moos.workers.dev/releases/44.20261009.1018/x86_64/moos-offline.iso",
+    "scope": "Complete anonymous transfer verified at immutable Worker URL; canonical redirects, resume bytes and sidecars independently read back.",
+    "isoRedirect": {
+      "http": 307,
+      "location": "https://moos-downloads.moalfarras-moos.workers.dev/releases/44.20261009.1018/x86_64/moos-offline.iso"
+    },
+    "signatureRedirect": {
+      "http": 307,
+      "location": "https://moos-downloads.moalfarras-moos.workers.dev/releases/44.20261009.1018/x86_64/moos-offline.iso.sig"
+    },
+    "checksumRedirect": {
+      "http": 307,
+      "location": "https://moos-downloads.moalfarras-moos.workers.dev/releases/44.20261009.1018/x86_64/moos-offline.iso.sha256"
+    },
+    "canonicalByteRangesMatchQualifiedIso": true,
+    "productionManifestVersion": "44.20261009.1018",
+    "productionArmVersion": "44.20261009.733",
+    "sidecarsMatchCi": true,
+    "requiredPublicRoutesHttp200": true,
+    "adminDomainHttp200": true
+  },
+  "websiteRevision": "49a0dd9f3b5fcd25cf6759bb04a687d2d17bd9f3",
+  "websiteDeployment": "dpl_F5hB7VASCsn2xYZ1SqJcgv4qyuxF"
+}

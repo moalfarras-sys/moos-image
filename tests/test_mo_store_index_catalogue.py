@@ -458,12 +458,18 @@ class EveryKindReachesTheIndex(unittest.TestCase):
         with tempfile.TemporaryDirectory() as raw:
             data, _log = run_index(Path(raw), document)
         apps = {app["id"]: app for app in data["apps"]}
-        self.assertEqual({app_id: app["kind"] for app_id, app in apps.items()}, {
+        expected = {
             "org.example.Editor": "flatpak", "chat-example": "webapp",
             "photo-tool": "appdrop", "notepad-plus-plus": "windows",
-            "org.example.droid": "android", "codex": "npm", "publisher-page": "web"})
+            "org.example.droid": "android", "codex": "npm", "publisher-page": "web"}
+        # The CLI filters for the actual machine, even with all engines
+        # explicitly admitted. A Windows-only fixture must remain absent on ARM.
+        if index.running_arch() != "x86_64":
+            expected.pop("notepad-plus-plus")
+        self.assertEqual({app_id: app["kind"] for app_id, app in apps.items()}, expected)
         self.assertEqual(apps["photo-tool"]["version"], "0.7.0")
-        self.assertEqual(apps["notepad-plus-plus"]["version"], "8.7.1")
+        if "notepad-plus-plus" in expected:
+            self.assertEqual(apps["notepad-plus-plus"]["version"], "8.7.1")
         self.assertEqual(apps["org.example.droid"]["version"], "1.2.3")
         self.assertEqual(apps["chat-example"]["install"]["hosts"],
                          ["chat.example.com", "*.example-cdn.com"])

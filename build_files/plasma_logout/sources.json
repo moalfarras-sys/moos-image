@@ -14,6 +14,13 @@
       "source_url": "https://download.copr.fedorainfracloud.org/results/@kdesig/kde-beta/fedora-44-x86_64/Packages/p/plasma-workspace-6.7.91-1.fc44.src.rpm",
       "source_sha256": "ea53028165eea647897ddd5424a062e5f33f0401ccbb9a2bc323fffbfabbd7a9",
       "prepared_shutdown_sha256": "76ed150d4931b20295c53cd3100298056db4814d5b750ba9ad86659bbbf04ae8"
+    },
+    {
+      "base": "6.8.0-1.fc44",
+      "fixed": "6.8.0-1.1.moos1.fc44",
+      "source_url": "https://download.copr.fedorainfracloud.org/results/@kdesig/kde-final/fedora-44-x86_64/Packages/p/plasma-workspace-6.8.0-1.fc44.src.rpm",
+      "source_sha256": "a2b76733bf771d9eac9425badd7e51770acd33c1fdc0842c3ddb85a2f5fa82ba",
+      "prepared_shutdown_sha256": "6bf75cee4bfad0e6d059e6b34723ddc7795f2cc2c1f295e1a83cad42c8c6140a"
     }
   ]
 }

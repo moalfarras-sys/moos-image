@@ -16,6 +16,8 @@ String-matching cannot check any of that: the question is what a real QML engine
 computes for `fillOpacity` given a real config file. So this runs one.
 """
 from pathlib import Path
+import json
+import re
 import shutil
 import subprocess
 import tempfile
@@ -137,12 +139,121 @@ def measure(blur, system_blur=None, clarity=None) -> dict:
         return values
 
 
+def measure_panel_states() -> dict:
+    """Execute the shipped Panel state handler with an isolated keyboard module.
+
+    The compositor and panel geometry remain outside this focused state proof;
+    the actual handler must preserve KDE's keyboard exception as well as MoOS's
+    floating capsule beside windows. No owner session or keyboard is contacted.
+    """
+    relative = "usr/share/plasma/shells/org.kde.plasma.desktop/contents/views/Panel.qml"
+    text = (ROOT / "build_files/plasma-seams/6.8.0" / relative).read_text()
+    start = text.index("    onStateTriggersChanged: {")
+    end = text.index("{", start) + 1
+    depth = 1
+    while depth:
+        depth += (text[end] == "{") - (text[end] == "}")
+        end += 1
+    properties = "\n".join(line for line in text.splitlines() if re.match(
+        r"    (?:readonly )?property (?:bool|var) "
+        r"(?:touchingWindowOrKeyboard|isOpaque|isTransparent|isAdaptive|floating|stateTriggers):",
+        line))
+    cases = [dict(floating=f, bottom=b, touching=w, keyboard=k, mode=m)
+             for f in (False, True) for b in (False, True)
+             for w in (False, True) for k in (False, True) for m in range(3)]
+    with tempfile.TemporaryDirectory() as raw:
+        work = Path(raw)
+        module = work / "imports/org/kde/plasma/workspace/keyboardlayout"
+        module.mkdir(parents=True)
+        (module / "qmldir").write_text(
+            "module org.kde.plasma.workspace.keyboardlayout\n"
+            "singleton KWinVirtualKeyboard 1.0 KWinVirtualKeyboard.qml\n")
+        (module / "KWinVirtualKeyboard.qml").write_text(
+            "pragma Singleton\nimport QtQml\nQtObject { property bool visible: false }\n")
+        (work / "Panel.qml").write_text(
+            "import QtQml\nQtObject { enum OpacityMode { Opaque, Translucent, Adaptive } }\n")
+        out = work / "probe.ini"
+        probe = work / "probe.qml"
+        probe.write_text("""
+import QtQuick
+import Qt.labs.settings
+import org.kde.plasma.workspace.keyboardlayout as Keyboards
+QtObject {
+    id: root
+    property bool bottomEdge: false
+    property bool touchingWindow: false
+    property var containment: null
+    property real floatingnessTarget: -1
+    property real panelOpacity: -1
+    property var panel: QtObject {
+        property bool floating: false
+        property int opacityMode: 0
+        property bool floatingApplets: false
+    }
+    property var sink: Settings {
+        fileName: "%s"; category: "Probe"; property string result: ""
+    }
+    %s
+    %s
+    property var cases: %s
+    property int index: 0
+    property var failures: []
+    function next() {
+        if (index >= cases.length) {
+            sink.result = JSON.stringify({count: cases.length, failures: failures})
+            Qt.callLater(function () { Qt.exit(0) })
+            return
+        }
+        const c = cases[index]
+        panel.floating = c.floating
+        bottomEdge = c.bottom
+        touchingWindow = c.touching
+        Keyboards.KWinVirtualKeyboard.visible = c.keyboard
+        panel.opacityMode = c.mode
+        Qt.callLater(function () {
+            root.stateTriggersChanged()
+            const expected = c.floating && !(c.bottom && c.keyboard) ? 1 : 0
+            if (floatingnessTarget !== expected)
+                failures.push({state: c, expected: expected, actual: floatingnessTarget})
+            index++
+            Qt.callLater(next)
+        })
+    }
+    Component.onCompleted: Qt.callLater(next)
+}
+""" % (out, properties, text[start:end], json.dumps(cases)))
+        runtime = work / "runtime"
+        runtime.mkdir(mode=0o700)
+        environment = {
+            "HOME": str(work), "XDG_CONFIG_HOME": str(work / "config"),
+            "XDG_CACHE_HOME": str(work / "cache"), "XDG_RUNTIME_DIR": str(runtime),
+            "DBUS_SESSION_BUS_ADDRESS": "unix:path=/nonexistent",
+            "QT_QUICK_BACKEND": "software", "QT_QPA_PLATFORM": "offscreen",
+            "QML_IMPORT_PATH": str(work / "imports"),
+            "QML2_IMPORT_PATH": str(work / "imports"), "PATH": "/usr/bin:/bin",
+        }
+        command = ([RUNTIME, "--app-id", "org.moos.panel.compat.gate", "--qml", str(probe)]
+                   if RUNTIME == "moos-qml-shell" else [RUNTIME, str(probe)])
+        result = subprocess.run(command, env=environment, capture_output=True, timeout=30)
+        if result.returncode or not out.exists():
+            raise AssertionError(f"Panel state probe failed: {result.stderr.decode(errors='replace')}")
+        encoded = next(line.partition("=")[2] for line in out.read_text().splitlines()
+                       if line.startswith("result="))
+        return json.loads(json.loads(encoded))
+
+
 @unittest.skipIf(RUNTIME is None, "no QML runtime on this machine (CI)")
 class ClarityWithoutBlur(unittest.TestCase):
+    def test_bottom_virtual_keyboard_keeps_upstream_panel_state(self):
+        result = measure_panel_states()
+        self.assertEqual(result["count"], 48)
+        self.assertEqual(result["failures"], [])
+
     def test_dock_material_is_not_overridden_by_window_touching_state(self):
         relative = "usr/share/plasma/shells/org.kde.plasma.desktop/contents/views/Panel.qml"
         for path in (ROOT / "system_files" / relative,
-                     ROOT / "build_files/plasma-seams/6.8" / relative):
+                     ROOT / "build_files/plasma-seams/6.8" / relative,
+                     ROOT / "build_files/plasma-seams/6.8.0" / relative):
             text = path.read_text()
             self.assertIn("readonly property real materialOpacity: MoUI.Tokens.glassClarity", text)
             self.assertIn("opacity: root.materialOpacity", text)

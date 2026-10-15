@@ -105,12 +105,12 @@ class TheRegistryIsTheTree(unittest.TestCase):
         for (lo, hi, sid), (lo2, _hi2, sid2) in zip(spans, spans[1:]):
             self.assertLess(lo, hi, sid)
             self.assertLessEqual(hi, lo2, f"sets {sid} and {sid2} overlap")
-        cases = {"6.7.0": "6.7", "6.7.5": "6.7", "6.7.91": "6.8-beta2", "6.8.0": "6.8-beta2", "6.8.6": "6.8-beta2"}
+        cases = {"6.7.0": "6.7", "6.7.5": "6.7", "6.7.91": "6.8-beta2", "6.8.0": "6.8.0"}
         for version, expected in cases.items():
             self.assertEqual(plasma_seams.select_set(REGISTRY, version)["id"], expected, version)
         # 6.7.90 (6.8 beta 1) had a set until 2026-10-05. Its lock-screen variants went with the
         # fork, and no beta-1 stack exists to load the greeter on, so it is unreviewed again.
-        for version in ("6.6.5", "6.7.90", "6.8.90", "6.9.0", "7.0.0"):
+        for version in ("6.6.5", "6.7.90", "6.8.1", "6.8.6", "6.8.90", "6.9.0", "7.0.0"):
             with self.assertRaises(plasma_seams.SeamError, msg=version):
                 plasma_seams.select_set(REGISTRY, version)
 

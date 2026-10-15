@@ -28,7 +28,8 @@ def source_review(base):
             assert re.fullmatch(r'[a-f0-9]{64}', entry[key])
         assert entry['source_url'].startswith((
             'https://kojipkgs.fedoraproject.org/packages/plasma-workspace/',
-            'https://download.copr.fedorainfracloud.org/results/@kdesig/kde-beta/'))
+            'https://download.copr.fedorainfracloud.org/results/@kdesig/kde-beta/',
+            'https://download.copr.fedorainfracloud.org/results/@kdesig/kde-final/'))
         assert entry['source_url'].endswith(f'/plasma-workspace-{entry["base"]}.src.rpm')
     matches = [entry for entry in reviews if entry['base'] == base]
     assert len(matches) == 1, f'unreviewed Plasma source NVR: {base}'

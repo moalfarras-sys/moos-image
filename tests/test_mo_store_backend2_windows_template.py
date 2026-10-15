@@ -157,15 +157,29 @@ class Template(winfix.Isolated):
         self.assertEqual(self.boots(), [])
         self.assertFalse((self.windows / "alpha").exists())
 
-    def test_removing_the_last_program_retires_the_template(self):
+    def test_removing_the_last_program_and_data_retires_the_template(self):
         self.install("alpha")
         self.install("beta")
-        code, document = self.controller().remove("alpha")
+        code, document = self.controller().remove("alpha", delete_data=True)
         self.assertEqual(document["state"], "success", document)
         self.assertTrue((self.template / "system.reg").is_file(), "beta still needs the template")
-        code, document = self.controller().remove("beta")
+        code, document = self.controller().remove("beta", delete_data=True)
         self.assertEqual(document["state"], "success", document)
         self.assertEqual(sorted(path.name for path in self.windows.iterdir()), [])
+
+    def test_default_removal_keeps_saved_prefixes_and_reinstall_reuses_them(self):
+        self.install("alpha")
+        settings = self.prefix("alpha") / "user.reg"
+        settings.write_text("alpha's saved settings\n", encoding="utf-8")
+        boots = len(self.boots())
+        code, document = self.controller().remove("alpha")
+        self.assertEqual(document["state"], "success", document)
+        self.assertEqual(settings.read_text(encoding="utf-8"), "alpha's saved settings\n")
+        self.assertFalse((self.windows / "alpha/app").exists())
+        self.assertFalse((self.windows / "alpha.json").exists())
+        self.install("alpha")
+        self.assertEqual(settings.read_text(encoding="utf-8"), "alpha's saved settings\n")
+        self.assertEqual(len(self.boots()), boots)
 
     def test_a_copy_that_fails_leaves_no_half_prefix(self):
         real = self.runtime.run_cancellable

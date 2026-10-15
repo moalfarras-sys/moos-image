@@ -24,6 +24,7 @@ from __future__ import annotations
 
 import json
 import os
+import platform
 import re
 import shutil
 import stat
@@ -31,6 +32,9 @@ import struct
 import subprocess
 import sys
 from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "lib/moos"))
+from moos_android_runtime import status_state
 
 REGISTRY = Path(os.environ.get("MOOS_APP_ENGINES",
                                "/usr/share/moos/app-engines.json"))
@@ -68,13 +72,11 @@ def waydroid_initialized() -> bool:
     """
     try:
         result = subprocess.run(["waydroid", "status"], capture_output=True,
-                                text=True, timeout=20)
+                                text=True, timeout=2)
     except (OSError, subprocess.SubprocessError):
         return False
-    status = result.stdout + result.stderr
-    return (result.returncode == 0 and "not initialized" not in status.lower()
-            and re.search(r"^Session:\s*(?:STOPPED|RUNNING|FROZEN)\s*$",
-                          result.stdout, re.MULTILINE) is not None)
+    return status_state(result.returncode, result.stdout, result.stderr) in (
+        "STOPPED", "RUNNING", "FROZEN")
 
 
 READY_CHECKS = {"initialized": waydroid_initialized}
@@ -107,8 +109,11 @@ def pe_architecture(target: str | Path) -> str:
             if optional_size < 2 or offset + 24 + optional_size > info.st_size:
                 return "unknown"
             magic = struct.unpack_from("<H", header, 24)[0]
-            return {(0x14c, 0x10b): "x86", (0x8664, 0x20b): "x86_64",
-                    (0xaa64, 0x20b): "arm64"}.get((machine, magic), "unknown")
+            architectures = {(0x14c, 0x10b): "x86", (0x8664, 0x20b): "x86_64",
+                             (0xaa64, 0x20b): "arm64"}
+            if magic in (0x10b, 0x20b) and machine not in (0x14c, 0x8664, 0xaa64):
+                return "unsupported"
+            return architectures.get((machine, magic), "unknown")
     except (OSError, ValueError):
         return "unknown"
 
@@ -143,6 +148,15 @@ def wine_x86_payload() -> str:
 def file_preflight(target: str, chosen: dict | None) -> dict:
     architecture = pe_architecture(target)
     answer = {"architecture": architecture, "status": "unknown"}
+    # An executable on PATH is not processor translation or a qualified ARM runtime.
+    if chosen and chosen["id"] in ("wine", "com.usebottles.bottles") and (
+            platform.machine().lower() not in ("x86_64", "amd64")
+            or architecture in ("arm64", "unsupported")):
+        answer.update(status="blocked", code="unsupported-windows-architecture", reason={
+            "en": "This Windows program and this computer do not have a supported processor combination. Nothing was launched. Look for a supported Linux or web version of the app.",
+            "ar": "لا توجد تركيبة معالجات مدعومة بين برنامج ويندوز هذا والجهاز. لم يُشغّل أي شيء. ابحث عن نسخة لينكس مدعومة أو نسخة ويب للتطبيق.",
+        })
+        return answer
     if architecture != "x86" or not chosen or chosen["id"] != "wine":
         return answer
     payload = wine_x86_payload()

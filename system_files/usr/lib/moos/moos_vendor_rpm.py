@@ -2085,6 +2085,12 @@ def install(app_id: str, entry: Mapping[str, Any] | Entry, *, arch: str | None =
     launcher = _claim_launcher(app_id)
     if _present(final) and not _marked_tree(final, app_id):
         raise VendorError("name_taken", str(final))
+    # A process can stop between final.rename(previous) and staging.rename(final).
+    # Recover the working version before cleanup, cancellation or a network read.
+    if not _present(final) and _present(previous):
+        if not _marked_tree(previous, app_id):
+            raise VendorError("name_taken", str(previous))
+        previous.rename(final)
     for leftover in (staging, previous):
         if _present(leftover) and not _remove_tree(leftover, app_id):
             raise VendorError("name_taken", str(leftover))

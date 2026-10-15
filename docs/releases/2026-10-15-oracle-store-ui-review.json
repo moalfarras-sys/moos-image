@@ -1,0 +1,181 @@
+{
+  "schema": 1,
+  "recorded_at": "2026-10-15T09:49:44.515938+00:00",
+  "source_commit": "382f593578b0a046290e86120faa17f4f04016af",
+  "scope": "PRIVATE source-only native ARM Qt review; no tracked repository edit, owner display/input/service mutation, full suite, build, merge, installation or signed delivery",
+  "patch": {
+    "path": "/var/home/moos/.cache/moos-store-final-review-20261015/ui/ui-final-bounded-fixes.patch",
+    "sha256": "e750b657553e8c93b61437ed8b62e726b7721490605c38b5c0a35b94cfbeb195",
+    "files": [
+      "system_files/usr/share/moos/apps/store/main.qml",
+      "system_files/usr/share/moos/apps/store/RemoveSheet.qml",
+      "system_files/usr/share/moos/apps/store/StoreRail.qml",
+      "tests/test_mo_store_ui_pages.py"
+    ],
+    "git_apply_check_exit": 0,
+    "private_apply_exit": 0,
+    "all_changed_bytes_match_fixed_copy": true,
+    "source_hashes": "source-hashes.json",
+    "fixed_hashes": "fixed-hashes.json"
+  },
+  "backend_prerequisite": {
+    "path": "../install-safety/store-install-safety-private.patch",
+    "required": "Apply together with backend Windows keep-data correction; old382f5935 unconditionally removes the prefix",
+    "honest_limit": "Keeps saved settings/documents in per-app environment; files saved inside program payload folder are removed; files elsewhere stay"
+  },
+  "functional_controls": {
+    "old": [
+      {
+        "variant": "source-ar-10-lifecycle-controls",
+        "exit": 1,
+        "total": 27,
+        "failures": 13
+      },
+      {
+        "variant": "source-en-10-lifecycle-controls",
+        "exit": 1,
+        "total": 27,
+        "failures": 13
+      }
+    ],
+    "final_fixed": [
+      {
+        "variant": "final-2-fixed-ar-10-lifecycle-controls",
+        "exit": 0,
+        "total": 27,
+        "failures": 0
+      },
+      {
+        "variant": "final-3-fixed-en-10-lifecycle-controls",
+        "exit": 0,
+        "total": 27,
+        "failures": 0
+      }
+    ],
+    "actual_sheet_callbacks": "Recorder-only: default remove(delete_data=false), explicit data option remove(delete_data=true); real MoosStore bridge remains absent",
+    "receipt": "final-runtime-controls.json",
+    "old_receipt": "runtime-controls.json",
+    "harness": "lifecycle-controls.qml"
+  },
+  "large_font": {
+    "logical_window": [
+      960,
+      620
+    ],
+    "font_pt": 20,
+    "language": "ar",
+    "old": {
+      "before": {
+        "width": 960,
+        "height": 620,
+        "fontScale": 2,
+        "grid": {
+          "width": 752,
+          "height": 284,
+          "cellWidth": 376,
+          "cellHeight": 416
+        },
+        "cardOverflow": [],
+        "settingsNav": {
+          "x": 796,
+          "y": 580,
+          "width": 140,
+          "height": 88,
+          "withinWindow": false
+        }
+      },
+      "after": {
+        "x": 796,
+        "y": 580,
+        "width": 140,
+        "height": 88,
+        "reachable": false,
+        "activeFocus": true,
+        "scrollY": null
+      }
+    },
+    "old_exit": 1,
+    "fixed": {
+      "before": {
+        "width": 960,
+        "height": 620,
+        "fontScale": 2,
+        "grid": {
+          "width": 752,
+          "height": 284,
+          "cellWidth": 376,
+          "cellHeight": 416
+        },
+        "cardOverflow": [],
+        "settingsNav": {
+          "x": 796,
+          "y": 628,
+          "width": 140,
+          "height": 88,
+          "withinWindow": false
+        }
+      },
+      "after": {
+        "x": 796,
+        "y": 496,
+        "width": 140,
+        "height": 88,
+        "reachable": true,
+        "activeFocus": true,
+        "scrollY": 132
+      }
+    },
+    "fixed_exit": 0,
+    "frame": "/var/home/moos/.cache/moos-store-final-review-20261015/ui/final-1-fixed-ar-20-rail-reachability.png",
+    "receipt": "final-runtime-controls.json",
+    "harness": "rail-reachability.qml",
+    "visible_controls_only": true,
+    "card_overflow_observed": false,
+    "note": "Cell416px exceeding viewport284px is not treated as overflow; card contents have no measured overflow and the grid can scroll"
+  },
+  "preserved_capture_failures": [
+    {
+      "timeout_s": 25,
+      "cause": "first capture helper timed out before result write; no product timeout claim"
+    },
+    {
+      "timeout_s": 15,
+      "log": "runs/large-font-retry/output.log",
+      "identified_harness_error": "QQuickRootItem grabToImage: item has no QML engine",
+      "correction": "Capture a QML-created frame wrapper; completed afterward"
+    }
+  ],
+  "existing_contract_source_review": {
+    "normalized_search": "main.qml:500,533,1943; Arabic/English names and index.search consumed; ranked/debounced",
+    "verified_flag": "main.qml:798-804; verified===true required",
+    "page_links": "main.qml:2464-2512; exact whitelist, initial and repeated activation",
+    "pinned_app_updates": "main.qml:1626-1661; app/pin counted separately from runtimes, unknown/known/failed retained",
+    "scope_guards": "main.qml:902; user/system Flatpak removal preserved",
+    "layout": "AppsPage.qml:243-245 uniform fs208 height has no selected-delegate dependency; large-font/rail clipping newly measured"
+  },
+  "coverage_limits": [
+    "Original current source walker variants1280x800/1536x864 at defaultfont; QT_SCALE_FACTOR2.5 is not a20pt font change",
+    "Current fixture desktop-vendor is uninstalled; walker removable list omits it, so earlier all-kind warning-free renders missed this eligibility defect",
+    "Prior Oracle patch25cac247 and116checks tested20-file predecessor; they do not qualify this42-file redesign",
+    "Only one new large-font Arabic window reviewed; no full accessibility/reduced-motion/keyboard/GPU/endurance qualification",
+    "Native owner14+1frames and69builtimagehashes were reported separately; not independently rerun here",
+    "Integrated source needs normal justcheck/THEME_REV/fingerprint/image and signed release gates after actual edits"
+  ],
+  "persistent_regression": {
+    "existing_registered_suite": "tests/test_mo_store_ui_pages.py",
+    "new_class": "StoreLifecycleContract",
+    "targeted_command": "python3 tests/test_mo_store_ui_pages.py StoreLifecycleContract",
+    "targeted_exit": 0,
+    "targeted_unittest_cases": 1,
+    "language_subtests": [
+      "ar-station",
+      "en-fresh"
+    ],
+    "log": "persistent-targeted-test.log",
+    "negative_controls": "persistent-negative-controls.json",
+    "old_vendor_failed_at_intended_step": true,
+    "restored_old_windows_sheet_failed_at_intended_step": true,
+    "no_new_orphan_test_script": true,
+    "scope": "Real Qt kind/primary action evaluation plus actual RemoveSheet callbacks to private recorder; source MoosStore bridge absent. Full suite not rerun."
+  }
+}

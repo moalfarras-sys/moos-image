@@ -200,6 +200,82 @@ class WhatAFileIs(Home):
         self.assertEqual((deb.supported, deb.handoff, deb.refusal), (False, "", "deb_not_native"))
 
 
+class AppDropOwnership(Home):
+    def manual(self, slug, receipt):
+        target = self.home / "Applications" / slug
+        target.mkdir(parents=True)
+        canary = target / "owner-document.txt"
+        canary.write_text("the person's file, not App Drop's", encoding="utf-8")
+        record = appdrop.manifest_dir() / f"{slug}.json"
+        record.parent.mkdir(parents=True, exist_ok=True)
+        record.write_text(json.dumps(receipt), encoding="utf-8")
+        return target, canary, record
+
+    def test_remove_requires_a_receipt_of_this_app_and_kind(self):
+        receipts = [{}, {"schema": 1, "id": "another", "kind": "archive"},
+                    {"schema": 99, "id": "manual-2", "kind": "archive"},
+                    {"schema": 1, "id": "manual-3", "kind": "other"}]
+        for number, receipt in enumerate(receipts):
+            slug = f"manual-{number}"
+            with self.subTest(receipt=receipt):
+                target, canary, record = self.manual(slug, receipt)
+                self.assertFalse(appdrop.remove(slug))
+                self.assertEqual(canary.read_text(encoding="utf-8"), "the person's file, not App Drop's")
+                self.assertTrue(record.exists(), "an unowned receipt was deleted")
+
+    def test_an_invalid_receipt_never_adopts_a_manual_directory(self):
+        target, canary, record = self.manual("manual-app", {})
+        download = self.download("manual-app.zip", self.zip_bytes([("run", ELF, "exe")]))
+        with self.assertRaises(appdrop.DropError) as refused:
+            appdrop.plan_for(download, "Manual App", "manual-app")
+        self.assertEqual(refused.exception.code, "name_taken")
+        self.assertEqual(canary.read_text(encoding="utf-8"), "the person's file, not App Drop's")
+
+    def test_a_linked_receipt_never_owns_a_manual_directory(self):
+        slug = "manual-app"
+        target, canary, record = self.manual(slug, {})
+        outside = Path(self.tmp.name) / "external-receipt.json"
+        outside.write_text(json.dumps({"schema": 1, "id": slug, "kind": "archive"}))
+        record.unlink()
+        record.symlink_to(outside)
+        self.assertEqual(appdrop.read_record(slug), {})
+        self.assertFalse(appdrop.remove(slug))
+        self.assertTrue(record.is_symlink())
+        self.assertTrue(outside.exists())
+        self.assertTrue(canary.exists())
+
+    def test_a_linked_app_directory_is_never_adopted(self):
+        slug = "manual-app"
+        target, canary, record = self.manual(slug, {"schema": 1, "id": slug, "kind": "archive"})
+        outside = Path(self.tmp.name) / "external-app"
+        target.rename(outside)
+        target.symlink_to(outside, target_is_directory=True)
+        download = self.download("manual-app.zip", self.zip_bytes([("run", ELF, "exe")]))
+        with self.assertRaises(appdrop.DropError) as refused:
+            appdrop.plan_for(download, "Manual App", slug)
+        self.assertEqual(refused.exception.code, "name_taken")
+        self.assertTrue((outside / canary.name).exists())
+        self.assertTrue(target.is_symlink())
+
+    def test_a_real_file_install_keeps_its_adopted_ownership(self):
+        download = self.download("noteforge-2.1.tar.gz", self.portable_app())
+        manifest = appdrop.install(appdrop.inspect(download))
+        self.assertEqual(appdrop.read_record("noteforge"), manifest)
+        loader = importlib.machinery.SourceFileLoader("appdrop_adoption_fixture", str(STORECTL))
+        spec = importlib.util.spec_from_loader(loader.name, loader)
+        module = importlib.util.module_from_spec(spec)
+        sys.modules[loader.name] = module
+        loader.exec_module(module)
+        controller = object.__new__(module.Controller)
+        self.assertTrue(controller._adopted("noteforge", {"install": {"kind": "appdrop"}}))
+        plan = appdrop.plan_for(download, "Note Forge", "noteforge")
+        self.assertTrue(plan.replaces)
+        appdrop.install(plan)
+        self.assertTrue(controller._adopted("noteforge", {"install": {"kind": "appdrop"}}))
+        self.assertTrue(appdrop.remove("noteforge"))
+        self.assertFalse((self.home / "Applications/noteforge").exists())
+
+
 class PortableArchives(Home):
     def test_a_portable_app_becomes_an_app(self):
         plan = appdrop.inspect(self.download("noteforge-2.1-linux-x86_64.tar.gz", self.portable_app()))
@@ -428,6 +504,66 @@ class PortableArchives(Home):
         with self.assertRaises(appdrop.DropError) as refused:
             appdrop.extract_zip(archive, root, budget)
         self.assertEqual(refused.exception.code, "unsafe_archive")
+
+    def test_a_compressed_symlink_is_bounded_before_its_body_is_read(self):
+        from unittest import mock
+        root = self.home / "Applications/.large-link.installing"
+        root.mkdir(parents=True)
+        stream = io.BytesIO()
+        with zipfile.ZipFile(stream, "w", compression=zipfile.ZIP_DEFLATED) as bundle:
+            link = zipfile.ZipInfo("app/link")
+            link.external_attr = (stat.S_IFLNK | 0o777) << 16
+            link.compress_type = zipfile.ZIP_DEFLATED
+            bundle.writestr(link, b"x" * 65536)
+        archive = self.download("large-link.zip", stream.getvalue())
+        budget = appdrop._Budget(archive.stat().st_size, lambda: False, lambda _done: None)
+        with mock.patch.object(zipfile.ZipFile, "read", side_effect=AssertionError("oversized body was read")):
+            with self.assertRaises(appdrop.DropError) as refused:
+                appdrop.extract_zip(archive, root, budget)
+        self.assertEqual(refused.exception.code, "unsafe_archive")
+
+    def test_a_symlink_charges_its_utf8_bytes_and_one_entry(self):
+        root = self.home / "Applications/.link-count.installing"
+        root.mkdir(parents=True)
+        name = "ملف"
+        archive = self.download("link-count.zip", self.zip_bytes([(name, ELF), ("alias", name, "link")]))
+        budget = appdrop._Budget(archive.stat().st_size, lambda: False, lambda _done: None)
+        appdrop.extract_zip(archive, root, budget)
+        self.assertEqual((budget.bytes, budget.files), (len(ELF) + len(name.encode("utf-8")), 2))
+        self.assertEqual((root / "alias").read_bytes(), ELF)
+
+    def test_a_symlink_over_the_byte_budget_is_refused_before_read(self):
+        from unittest import mock
+        root = self.home / "Applications/.link-bytes.installing"
+        root.mkdir(parents=True)
+        archive = self.download("link-bytes.zip", self.zip_bytes([("alias", "inside", "link")]))
+        budget = appdrop._Budget(archive.stat().st_size, lambda: False, lambda _done: None)
+        with mock.patch.object(appdrop, "MAX_TREE_BYTES", 5), \
+                mock.patch.object(zipfile.ZipFile, "read", side_effect=AssertionError("over-budget body was read")):
+            with self.assertRaises(appdrop.DropError) as refused:
+                appdrop.extract_zip(archive, root, budget)
+        self.assertEqual(refused.exception.code, "archive_bomb")
+        self.assertEqual(list(root.iterdir()), [])
+
+    def test_a_symlink_over_the_entry_budget_is_refused_before_read(self):
+        from unittest import mock
+        root = self.home / "Applications/.link-entries.installing"
+        root.mkdir(parents=True)
+        archive = self.download("link-entries.zip", self.zip_bytes([
+            ("one", "inside", "link"), ("two", "inside", "link")]))
+        budget = appdrop._Budget(archive.stat().st_size, lambda: False, lambda _done: None)
+        read = zipfile.ZipFile.read
+        seen = []
+        def count(bundle, info, *args, **kwargs):
+            seen.append(info.filename)
+            return read(bundle, info, *args, **kwargs)
+        with mock.patch.object(appdrop, "MAX_TREE_FILES", 1), \
+                mock.patch.object(zipfile.ZipFile, "read", count):
+            with self.assertRaises(appdrop.DropError) as refused:
+                appdrop.extract_zip(archive, root, budget)
+        self.assertEqual(refused.exception.code, "archive_bomb")
+        self.assertEqual(seen, ["one"])
+        self.assertEqual(list(root.iterdir()), [])
 
     def test_a_bomb_is_refused(self):
         buffer = io.BytesIO()

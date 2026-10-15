@@ -338,6 +338,12 @@ review patches without editing its reserved files. M1's current signed cycle
 is complete; its remaining installed shell/accessibility acceptance stays open.
 See [the bounded Store review](reviews/STORE_20261014_AR.md); it is evidence for
 the existing A3/P4 tasks, not another backlog or a shipped Store claim.
+The [Oct15 exact-head review](reviews/STORE_20261015_AR.md) found unintegrated
+data-preservation/recovery fixes, Android update-policy disagreement, missing
+publisher-app UI actions and a pre-read archive-link budget defect at `382f5935`.
+The owner then requested immediate complete integration: the reviewed five-patch set
+is applied in isolated `integrate/owner-unified-20261015`, retaining original worktrees.
+These remain M3/A3/P4.1 delivery blockers until final gates/image/signed and installed readback.
 
 ### Milestone map
 
@@ -546,3 +552,22 @@ and everyday tools. Existing supported theme/motion configuration is reachable
 from Store Settings. Full game/hardware acceptance, Steam-managed game inventory
 and general third-party theme installation remain separate work; no blanket
 compatibility claim. Release and workstation acceptance remain governed by RELEASE.md.
+
+Oct15 coherent integration follow-up: recovered the still-relevant engine admission
+checks from the preserved Oracle worktree. Windows processor combinations are
+checked before runtime selection; Android setup, admission and Store share strict
+read-only status parsing and bounded session readiness. Original APK metadata and
+update verification remain with the newer reviewed implementation. See
+releases/2026-10-15-engine-admission-recovery.json for source/fixture evidence.
+
+Stable Plasma Oct15 qualification: the x86 image composes the signed KDE SIG
+6.8.0 stack with a pinned publisher key and exact core NVR checks, preserving
+the base kernel. Stable seams retain upstream authentication and use the
+reviewed virtual-keyboard Panel correction. Native greeter positive/broken/
+restored and rebuilt logout old/fixed/rejected/cancelled controls pass. Cache
+fingerprinting now includes version-specific seam QML (THEME_REV106). The ARM
+image retains its separately qualified native provider: the final upstream
+repository has no ARM binaries, and a full native stable source rebuild remains
+P6.7 acceptance work. No cross-architecture packages or beta relabeling.
+Source/image/boot/promoted/installed evidence remain separate; one replacement
+release cycle only after the combined source passes.

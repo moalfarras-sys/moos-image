@@ -327,6 +327,7 @@ check:
     python3 tests/test_mo_store_index_search.py
     # What is installed for every kind, App Drop installs outside the catalogue, retired Flatpaks.
     python3 tests/test_mo_store_index_lifecycle.py
+    python3 tests/test_mo_store_index_android_policy.py
     # machine.json: hardware facts from files only, unknown is null, free space never on `/`.
     python3 tests/test_mo_store_index_machine.py
     # Compatibility verdicts on fixture machines: blocked/warn reasons, facts, refresh on change.
@@ -433,6 +434,7 @@ check:
     # registry, its version-keyed sets and the real-greeter probe the image build runs; the
     # runtime half loads the lock screen only where kscreenlocker exists, isolated.
     python3 tests/test_plasma_seams.py
+    python3 tests/test_plasma_stable_compose.py
     # The weekly Plasma-next canary builds MoOS on KDE's beta packages and can publish nothing.
     python3 tests/test_plasma_next_canary_workflow.py
     # What MoOS can run, and what it calls those things in front of a person.
@@ -462,6 +464,7 @@ check:
     # running it — 2.3 GB downloaded, container up, a real APK installed and the
     # app opened.
     python3 tests/test_android_setup_channels.py
+    python3 tests/test_android_runtime_state.py
     # A retiring npm endpoint failed three signed builds on 2026-09-19 by
     # returning 400, which reads exactly like a vulnerability. The gate tells
     # "npm answered and it is clean" apart from "npm could not answer", retries

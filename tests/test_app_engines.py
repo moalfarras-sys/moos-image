@@ -94,6 +94,9 @@ class WindowsFilePreflight(unittest.TestCase):
         self.tmp = tempfile.TemporaryDirectory()
         self.addCleanup(self.tmp.cleanup)
         self.root = Path(self.tmp.name)
+        cpu = mock.patch.object(self.engine.platform, "machine", return_value="x86_64")
+        cpu.start()
+        self.addCleanup(cpu.stop)
 
     def test_android_readiness_requires_a_successful_known_status(self):
         for code, stdout, stderr, ready in (
@@ -103,6 +106,8 @@ class WindowsFilePreflight(unittest.TestCase):
             (1, 'Session:\tSTOPPED\n', '', False),
             (0, '', '', False),
             (0, 'unknown response', '', False),
+            (0, 'Session: RUNNING\n', 'ERROR: failed connection', False),
+            (0, 'Session: RUNNING\nSession: STOPPED\n', '', False),
             (0, '', 'WayDroid is not initialized', False),
         ):
             with self.subTest(code=code, stdout=stdout, stderr=stderr), mock.patch.object(
@@ -129,6 +134,22 @@ class WindowsFilePreflight(unittest.TestCase):
                                          (0x14c, 0x20b, "unknown")]:
             self.assertEqual(self.engine.pe_architecture(
                 self.pe("misleading.txt", machine, magic)), expected)
+
+    def test_processor_mismatch_is_refused_before_selecting_a_runtime(self):
+        definition = next(e for e in DOCUMENT["engines"] if e["id"] == "windows")
+        for runtime in ("wine", "com.usebottles.bottles"):
+            def state(item):
+                return {"id": item["id"], "ready": item["id"] == runtime, "needs_setup": False}
+            for host, machine, magic in [("aarch64",0x8664,0x20b),("x86_64",0xaa64,0x20b),
+                                         ("x86_64",0x166,0x10b)]:
+                with self.subTest(runtime=runtime,host=host,machine=machine), \
+                     mock.patch.object(self.engine.platform,"machine",return_value=host), \
+                     mock.patch.object(self.engine,"runtime_state",side_effect=state):
+                    result = self.engine.describe(definition,str(self.pe(machine=machine,magic=magic)))
+                self.assertFalse(result["ready"])
+                self.assertIsNone(result["chosen"])
+                self.assertFalse(result["needs_setup"])
+                self.assertEqual(result["preflight"]["code"],"unsupported-windows-architecture")
 
     def test_malformed_and_unavailable_inputs_are_unknown(self):
         path = self.pe()

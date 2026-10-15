@@ -324,6 +324,7 @@ python3 tests/test_mo_store_index_not_apps.py
 python3 tests/test_mo_store_index_catalogue.py
 python3 tests/test_mo_store_index_search.py
 python3 tests/test_mo_store_index_lifecycle.py
+python3 tests/test_mo_store_index_android_policy.py
 python3 tests/test_mo_store_index_machine.py
 python3 tests/test_mo_store_index_compat.py
 python3 tests/test_mo_store_index_details.py
@@ -479,6 +480,7 @@ MOOS_TEST_ROOT=system_files python3 build_files/verify_store_catalog.py
 python3 tests/test_app_engines.py
 python3 tests/test_plasma_shell_overlay.py
 python3 tests/test_plasma_seams.py
+python3 tests/test_plasma_stable_compose.py
 python3 tests/test_desktop_parity.py
 python3 tests/test_moai_doodle_software.py
 python3 tests/test_plasma_next_canary_workflow.py
@@ -495,3 +497,4 @@ python3 tests/test_selfcheck_document_portal.py
 python3 tests/test_npm_audit_gate.py
 python3 tests/test_app_drop_dialog_runtime.py
 python3 tests/test_android_setup_channels.py
+python3 tests/test_android_runtime_state.py

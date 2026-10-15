@@ -2094,12 +2094,13 @@ class Controller:
             raise StoreError(f"Catalog has an invalid Android package for {app_id}")
         return package
 
-    @staticmethod
-    def _android_running(result: CommandResult) -> bool:
-        return bool(re.search(r"(?im)^Session:\s*RUNNING\s*$", result.output))
+    @classmethod
+    def _android_running(cls, result: CommandResult) -> bool:
+        return cls._library("moos_android_runtime").status_state(
+            result.returncode, result.output, result.reason) == "RUNNING"
 
     def _android_session_up(self) -> bool:
-        return self._android_running(self.runner.capture([WAYDROID, "status"]))
+        return self._android_running(self.runner.capture([WAYDROID, "status"], timeout=2))
 
     @staticmethod
     def _android_not_running() -> StoreError:
@@ -2116,24 +2117,28 @@ class Controller:
         false (a moos: link, or an open beside another job) a session that is
         not running is refused, never started.
         """
-        status = self.runner.capture([WAYDROID, "status"])
-        words = f"{status.output}\n{status.reason}".lower()
-        if status.returncode == 127:
-            raise StoreError(status.reason or "Could not inspect Android app support")
-        if "not initialized" in words:
+        status = self.runner.capture([WAYDROID, "status"], timeout=2)
+        runtime = self._library("moos_android_runtime")
+        state = runtime.status_state(status.returncode, status.output, status.reason)
+        if state == "unknown":
+            raise StoreError("Could not verify Android app support", message_key="android_status_unknown")
+        if state == "uninitialized":
             raise StoreError("Android apps need the one-time MoOS setup first")
         if self._android_running(status):
             return
         if not start:
             raise self._android_not_running()
         self.runner.spawn([WAYDROID, "session", "start"])
-        for _ in range(20):
+        deadline = time.monotonic() + 20
+        while time.monotonic() < deadline:
             if self._cancelled(job):
                 raise CancelledError("Cancelled")
             time.sleep(1)
-            status = self.runner.capture([WAYDROID, "status"])
+            status = self.runner.capture([WAYDROID, "status"], timeout=2)
             if self._android_running(status):
                 return
+            if runtime.status_state(status.returncode, status.output, status.reason) == "unknown":
+                raise StoreError("Could not verify Android app support", message_key="android_status_unknown")
         raise StoreError("Android app support did not become ready")
 
     def _install_npm(self, job: Job, app_id: str, recipe: dict[str, Any]) -> None:
@@ -2680,11 +2685,16 @@ class Controller:
         had_record = paths.record.is_file()
         fresh_prefix = not (paths.prefix / "system.reg").is_file()
         created_base = not paths.base.exists()
+        staging = paths.base / ".app.installing"
+        previous = paths.base / ".app.previous"
+        # Recover the last working program before a download can fail or cancel.
+        if had_record and not paths.app.exists() and previous.exists():
+            if previous.is_symlink():
+                raise StoreError("The previous application folder is a link")
+            previous.rename(paths.app)
         download = self._download_pinned(job, app_id, pin, kind="windows",
                                          message="Downloading from the publisher",
                                          message_key="downloading_file")
-        staging = paths.base / ".app.installing"
-        previous = paths.base / ".app.previous"
         swapped = committed = False
         try:
             paths.base.mkdir(mode=0o700, parents=True, exist_ok=True)
@@ -2759,8 +2769,11 @@ class Controller:
                 if swapped:
                     with contextlib.suppress(OSError):
                         _remove_tree(paths.app)
-                        if previous.exists():
-                            previous.rename(paths.app)
+                # The second rename can fail after the old program was moved but
+                # before swapped becomes true. Restore it in that case as well.
+                if previous.exists() and not paths.app.exists():
+                    with contextlib.suppress(OSError):
+                        previous.rename(paths.app)
                 if not had_record:
                     # A first install that did not finish leaves nothing of itself behind.
                     with contextlib.suppress(Exception):
@@ -2794,7 +2807,12 @@ class Controller:
 
     def _remove_windows(self, job: Job, app_id: str, delete_data: bool) -> None:
         paths = windows_paths(app_id)
-        if not (paths.record.is_file() or paths.base.exists() or self._windows_launcher_is_ours(paths, app_id)):
+        record = (_read_json(paths.record)
+                  if paths.record.is_file() and not paths.record.is_symlink() else {})
+        owned_record = (record.get("schema") == 1 and record.get("id") == app_id
+                        and record.get("launcher") == paths.launcher.name
+                        and _relative_inside(record.get("exe")) is not None)
+        if not (owned_record or self._windows_launcher_is_ours(paths, app_id)):
             job.update_item(app_id, state="skipped", progress=100, message="App is not installed",
                             message_key="not_installed")
             return
@@ -2803,8 +2821,13 @@ class Controller:
         job.update(state="running", progress=None, current_id=app_id,
                    message="Removing application", message_key=None)
         self._stop_windows_prefix(job, paths)
-        # The program, its prefix (its settings and registry) and MoOS's own traces of it.
-        _remove_tree(paths.base)
+        # The prefix contains the person's settings, registry and saved documents.
+        # Keep it for a reinstall unless deleting data was an explicit choice.
+        if delete_data:
+            _remove_tree(paths.base)
+        else:
+            _remove_tree(paths.app)
+            paths.icon.unlink(missing_ok=True)
         if self._windows_launcher_is_ours(paths, app_id):
             paths.launcher.unlink()
         paths.record.unlink(missing_ok=True)

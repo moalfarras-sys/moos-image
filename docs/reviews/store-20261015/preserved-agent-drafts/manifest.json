@@ -1,0 +1,43 @@
+[
+  {
+    "name": "fix-pinned-updates",
+    "sha256": "f537e31e5a0da0510913c82d8eeacf553d90d53b05105aae1110fc0b17732545",
+    "base": "8a39cfa65c464e06f6b32f96611533019ebc92bf",
+    "files": [
+      "tests/test_moos_android_apk.py",
+      "system_files/usr/lib/moos/moos_android_apk.py"
+    ]
+  },
+  {
+    "name": "fix-open-and-ids",
+    "sha256": "1963c12cc4bf7e44801002c295d192a91ad876c73d36674d3e4e5b643bfe47e6",
+    "base": "a5bce099ba39df3daab1251dc8e6265640064199",
+    "files": [
+      "tests/test_store_open_and_ids.py"
+    ]
+  },
+  {
+    "name": "fix-index",
+    "sha256": "ec65faec764c0e476b78bcd2fbb236d5472c19b9a6cb243a493ef3b60aa92067",
+    "base": "96e32006741028b8b8921a4d21df7b0ef1bc4622",
+    "files": [
+      "tests/test_mo_store_index_lifecycle.py"
+    ]
+  },
+  {
+    "name": "fix-webapp-and-gate",
+    "sha256": "5040e940ec98fa4d9c109ba82c6479a534f62b16c3c92c8f460f021a9df72914",
+    "base": "4af294ac3bcd86d9503a326ead4c212f225b873b",
+    "files": [
+      "tests/test_mo_store_catalog_gate.py"
+    ]
+  },
+  {
+    "name": "fix-honest-copy",
+    "sha256": "7fcba218ae9b3bb74db3af1ffa42c0b6f49188869623d8d882737816eca6e12b",
+    "base": "c75357e365c7e9f1224f63f82a2555baa4475ebf",
+    "files": [
+      "tests/test_moai_do.py"
+    ]
+  }
+]

@@ -480,7 +480,7 @@ do_install() {
         webapp)
             echo "${D}المصدر | From : تطبيق ويب في نافذة خاصة به — لا يُنزَّل أي برنامج | a web app in its own window — no program is downloaded${N}" ;;
         android)
-            echo "${D}المصدر | From : تطبيق أندرويد موثّق عبر متجر MoOS — معزول، وأذوناته في إعدادات أندرويد | a verified Android app through Mo Store — sandboxed; its permissions are in Android's own settings${N}" ;;
+            echo "${D}المصدر | From : تطبيق أندرويد عبر متجر MoOS — معزول، وأذوناته في إعدادات أندرويد | an Android app through Mo Store — sandboxed; its permissions are in Android's own settings${N}" ;;
         web)
             echo "${D}المصدر | From : صفحة الناشر الرسمية تُفتح فقط — لا يُثبَّت شيء | only the publisher's official page opens — nothing is installed${N}" ;;
         *)
@@ -829,8 +829,17 @@ do_setup_waydroid() {
 
     # Idempotent: `waydroid init` re-downloads the multi-GB system image. Skip it if the
     # image is already there — `waydroid status` says "not initialized" only when it isn't.
-    local inited=1
-    if waydroid status 2>&1 | grep -qi 'not initialized'; then inited=0; fi
+    local status_helper="$(dirname "${BASH_SOURCE[0]}")/../lib/moos/moos_android_runtime.py"
+    local inited state
+    state="$(python3 "$status_helper" status)"
+    case "$state" in
+        uninitialized) inited=0 ;;
+        STOPPED|RUNNING|FROZEN) inited=1 ;;
+        *)
+            echo "${R}تعذّر التحقق من حالة تطبيقات Android. لم يتغيّر شيء.${N}" >&2
+            echo "${R}Could not verify Android app support. Nothing changed.${N}" >&2
+            return 1 ;;
+    esac
 
     if [ "$inited" = "0" ]; then
         echo "${D}ينزّل صورة Android الحرة (~1GB، أول مرة تأخذ دقائق) ويشغّل الحاوية. بلا Google Play.${N}"
@@ -890,11 +899,11 @@ do_setup_waydroid() {
     # of an 8GB card, eglMakeCurrent aborts instead of degrading; best-effort.
     command -v moos-gpu-headroom >/dev/null 2>&1 && moos-gpu-headroom 2>/dev/null || true
     waydroid session start >/dev/null 2>&1 &
-    local session_pid=$! session_ready=0 attempt
+    local session_pid=$! session_ready=0 deadline=$((SECONDS + 20))
     # The session becomes ready asynchronously. Bound the wait so a broken compositor/container
     # never leaves the terminal hanging, and verify the state instead of sleeping then claiming it.
-    for attempt in $(seq 1 20); do
-        if waydroid status 2>/dev/null | grep -Eq 'Session:[[:space:]]+RUNNING'; then
+    while [ "$SECONDS" -lt "$deadline" ]; do
+        if [ "$(python3 "$status_helper" status)" = "RUNNING" ]; then
             session_ready=1
             break
         fi
