@@ -1,0 +1,36 @@
+{
+  "schema": 1,
+  "checkedAt": "2026-10-14T17:30:17.817067+00:00",
+  "baselineRevision": "1b3bbb9ae65a127e4e294c3298172dd09e8bf4de",
+  "scope": "Long-lived Mo AI confirmed-job directory notifications; private native Qt FolderListModel recovery, not installed shell or the cause of the earlier intermittent Qt startup timeout",
+  "checks": {
+    "lost-first-notification-old": {
+      "exit": 1,
+      "logSha256": "6f6509e2d7a1ccbeb6e8e29396b109bfc936529bac985751a44c939209e41885"
+    },
+    "lost-first-notification-fixed": {
+      "exit": 0,
+      "logSha256": "4ce14d161b3c44dff888cf417a6b6021a4bdb5a73c2a7056a512dd8f99056749"
+    },
+    "moai-control-full": {
+      "exit": 0,
+      "logSha256": "15b6f6763a27ac09e66588396bcec202af130d5ecaae77595f215ee47af81483"
+    },
+    "just-check": {
+      "exit": 0,
+      "logSha256": "675fcc098e67635b83f7ede2dd373ad0059a7f502c46dd79b37402e52a1f4793"
+    }
+  },
+  "controlTestCount": 62,
+  "invariants": [
+    "one coalesced notification after each active burst",
+    "no perpetual idle poll",
+    "actual end preserved with unchanged timestamp",
+    "departed runtime directory never recreated"
+  ],
+  "sourceSha256": {
+    "system_files/usr/bin/moai-control": "0d889bca1e8da0850d2bd0a25ca1746f759fed9eee78589de5f8e7ab50105001",
+    "tests/test_moai_control.py": "906199bc2797b3ab95fa10ddd9b33baa5b224bed7e3dd15788b1fbdaee402781"
+  },
+  "signedDelivery": false
+}

@@ -16,6 +16,19 @@
       }
     },
     {
+      "id": "mira-job-presence-recovery",
+      "merged": "2026-10-14T17:16:49Z",
+      "glyph": "ui",
+      "title": {
+        "ar": "متابعة أوضح لمهام ميرا",
+        "en": "More reliable Mira task feedback"
+      },
+      "body": {
+        "ar": "تتعافى الجزيرة إذا فاتتها أول إشارة لبدء مهمة مؤكدة في ميرا، ثم تعرض النتيجة الفعلية. لا تعيد الإشارة مهمة انتهت ولا تضيف فحصًا مستمرًا عند الخمول.",
+        "en": "The Island recovers when it misses the first signal of a confirmed Mira task and then shows its actual result. Recovery does not revive finished work or continuously poll an idle desktop."
+      }
+    },
+    {
       "id": "moplayer-direct-file-controls",
       "merged": "2026-10-12T22:14:56Z",
       "glyph": "ui",
@@ -873,20 +886,6 @@
         "ar": "بطاقات MoOS وأزراره تتبع الآن إعداد سرعة الحركة نفسه الذي يتبعه سطح المكتب، فلا يبقى جزء بطيئًا وآخر سريعًا.",
         "en": "MoOS cards and buttons now follow the same animation-speed setting the desktop does, so one part is never slow while another is fast."
       }
-    },
-    {
-      "id": "about",
-      "merged": "2026-09-17T20:42:58Z",
-      "glyph": "about",
-      "title": {
-        "ar": "حول هذا الجهاز",
-        "en": "About this device"
-      },
-      "body": {
-        "ar": "صفحة من MoOS نفسه: الإصدار والإصدارة وتاريخ البناء وتوقيع الصورة ومواصفات جهازك، مع زر ينسخ التفاصيل لمحادثة دعم.",
-        "en": "A page of MoOS's own: version, edition, build date, image signature and your hardware, with a button that copies the details for a support conversation."
-      },
-      "route": "moos://settings/about"
     }
   ]
 }

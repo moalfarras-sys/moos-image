@@ -1,0 +1,81 @@
+{
+  "scope": "Native NVIDIA .1046 owner graphical context, exact installed bytes and maintained check suites; no suspend, voice, codec or endurance qualification",
+  "bootId": "d8a6ce1d-ca57-4680-9e5f-ef8118623b61",
+  "checkedAtEpoch": 1791996615.395366,
+  "uid": 1000,
+  "passed": true,
+  "deployments": [
+    {
+      "version": "44.20261014.1046",
+      "booted": true,
+      "staged": false,
+      "container-image-reference": "ostree-image-signed:docker://ghcr.io/moalfarras-sys/moos-nvidia@sha256:0235cad7d5da41af9df25355f7b7beb395893db66e56f9bc5b5b514365579739",
+      "container-image-reference-digest": "sha256:0235cad7d5da41af9df25355f7b7beb395893db66e56f9bc5b5b514365579739"
+    },
+    {
+      "version": "44.20261013.1044",
+      "booted": false,
+      "staged": false,
+      "container-image-reference": "ostree-image-signed:docker://ghcr.io/moalfarras-sys/moos-nvidia@sha256:df557bb0bcb81d2e2c1729a96d8805a43368f6b15275a55562c4fdba2acf4e43",
+      "container-image-reference-digest": "sha256:df557bb0bcb81d2e2c1729a96d8805a43368f6b15275a55562c4fdba2acf4e43"
+    }
+  ],
+  "payloadSha256": {
+    "/usr/bin/moai-gateway": "bb4ae9a734d479ebf5ba272177d3a32e73db68327b9a1123bfc55dcb5817ee7b",
+    "/usr/bin/moos-apply-theme": "7f33498a5f006cfb44edab541d25edd8abc85e6a2a0456fdd9bcf50265aba89f",
+    "/usr/bin/moos-selfcheck": "e6ae1309dba602048fefff40315bec6e2469b4a29912a4340d8c69d4b8a8cea1",
+    "/usr/lib/mo-remote/mo-remote-portal.py": "e441588880577be128b8eb6e8f0609364e34f1ae8a842a9b18ca8de942000e14",
+    "/usr/lib/moai/moai_cloud_policy.py": "39f7a1fab74b053208d1e8b6cf9b0af3db5acb64ffdc597af11852b2dc0db7f2",
+    "/usr/lib/moai/moai_local_peer.py": "1815c2161e147e0b98399a6b221ec32d01877baa015c73e715216957cdc9931a",
+    "/usr/lib/moos-community/community/client.py": "3b780d588054817ffc9b4ff595c79fd095200557eb33f4ecc154098f51a9e6c7",
+    "/usr/lib/moos/moos_settings_launcher.py": "60d8817f07e409d3fd9de6154ed787bf54cf14374894696fd86d7e0325610d7f",
+    "/usr/lib/systemd/user/moai-gateway.service": "7f8698f166c0bd58b01306803e1dab34394c2619d323fb81ffd28440e5a51e75",
+    "/usr/lib/systemd/user/moai-hermes.service": "dd3488f24bf15669a19a539e6deed66553c33b03ac7dedf072535e0538d768f2",
+    "/usr/lib/systemd/user/moos-theme-drift.timer": "dd62178ba70517023a6ec5c46508b4ac0a9d676f0070d71ce22054f5b637e3b3",
+    "/usr/lib/systemd/user/moos-theme-sync.path": "069349e668240654b1e7586070712c5fd0a2ec1066e5b38288f736e9fc307d22",
+    "/usr/lib/systemd/user/moos-theme-sync.service": "fbf4f14e305c94aed034413e333f03d936d21d984cefb895e82e0943392b5ffe",
+    "/usr/lib64/qt6/qml/org/moos/ui/Tokens.qml": "58917731df830d67203a2adc9f3007df3064e723c6340433aaa812206af88890",
+    "/usr/libexec/mo-remote-greeter": "aafaeabb47ae315c9db43dfb5e72d7ccfa1aa8f9d8a1324d5c0c8de88957f31e",
+    "/usr/libexec/moai-hermes": "cc2dccbcbc7ffb721b95c7319af3b8acba903a729f242943d940bf117ba61bdc",
+    "/usr/libexec/moos-material-state": "3ca57545deea900c374041924a9786dfb626800661ef43d724ab7e44fb06570b",
+    "/usr/share/moos/whats-new.json": "a713fdf07e4301bf02587a72eed067db8f53f2db965da829c379cbb728c4e899",
+    "/usr/share/plasma/plasmoids/org.moos.island/contents/ui/main.qml": "9287449facc20e2482bb7ed5bd60906a362a42bcc2fb5299f3e08b8ab9e3a9df"
+  },
+  "payloadMatches": true,
+  "compiledMoPlayerSha256": "013b9da059004acd4b42543b0bea22d0c8297b00ecf3316e377b76caf568ceca",
+  "compiledMoPlayerMatches": true,
+  "theme104Applied": true,
+  "graphicalConfigDirs": "/var/home/moos/.config/kdedefaults:/etc/xdg:/usr/share/kde-settings/kde-profile/default/xdg",
+  "checks": {
+    "selfcheck": 0,
+    "post_update": 0
+  },
+  "logSha256": {
+    "selfcheck": "2da3eda60543649549706a19fae55cfe0391e1eda53bf318e61c12e0bba7dd0a",
+    "post_update": "d85d166c2cd502050ea0b88cc10d526d321216d5b1f5df088edaa3c3b0d24150"
+  },
+  "boot_time": {
+    "exit": 0,
+    "empty": false
+  },
+  "failed_system": {
+    "exit": 0,
+    "empty": true
+  },
+  "failed_user": {
+    "exit": 0,
+    "empty": true
+  },
+  "counts": {
+    "selfcheck": {
+      "passed": 54,
+      "notes": 2
+    },
+    "postUpdate": {
+      "passed": 55,
+      "failed": 0
+    }
+  },
+  "bootSeconds": 32.381,
+  "graphicalUserspaceSeconds": 6.892
+}

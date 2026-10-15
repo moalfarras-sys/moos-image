@@ -1,0 +1,124 @@
+{
+  "schema": 1,
+  "generatedAt": "2026-10-14T21:00:33.608539+00:00",
+  "sourceRevision": "93a9019e3a6d4268a725f89030c0685992c00a25",
+  "nativeArchitecture": "aarch64",
+  "scope": "Private standard-library/maintained-component execution only; no repository or installed-image modification, no Android runtime or app install",
+  "fixedTestsPassed": 111,
+  "sourceFiles": {
+    "system_files/usr/bin/moos-store-index": "69fad352ee19b1c79d075e04e9c9c3b6a607e70d102ac2d5ce16c55fc142775e",
+    "tests/test_mo_store_index_catalogue.py": "05bb65be70b13a33107268ea0eec6d5f5031776e705bc8d81e78145a1b6e23fc",
+    "tests/test_mo_store_index_lifecycle.py": "8a83ae4da0887b304cd3721a58da3ccfd7152d3d48b211e3a27deb2c6f16697d"
+  },
+  "privateFixedFiles": {
+    "system_files/usr/bin/moos-store-index": "26cdbfb7d1f19856f05ef4131a0c3e2ed8b270c4b378c80ab1f30e78d96960fa",
+    "tests/test_mo_store_index_android_records.py": "59f2763523e3cd122a9ee9f55c5993969327acd9c6c377a8695d5ff9d117a92f",
+    "tests/test_mo_store_index_catalogue.py": "0fa758e24ea33a518b7e23c3bcee7df4bdad66a8fbcf3b12f307899412d1aed2",
+    "tests/test_mo_store_index_lifecycle.py": "71a987385d3db710d3184830041902946e8422e1fddcdaccb25ecbaab640c7ca"
+  },
+  "patches": {
+    "android-records.patch": "0b37da20ef49b889b302f0c0e01fd2594412870e64d2a0ba2b28ae49eb23fb1d",
+    "arm-index-fixtures.patch": "251fff39a994675754e21099915283865bebcaca7d1684557c5e0bbaa73b8ec8",
+    "android-records-and-arm-fixtures.patch": "da4bfc77f075e5d7211670fc9085a44a99f33ac8a72b091eacd126558bc8417b"
+  },
+  "results": [
+    {
+      "test": "old-android-records",
+      "exit": 1,
+      "tests": 13,
+      "logSha256": "c8be4b20a932ae1791086d3aa568c19a35c53c6b189fb9b786fd54ec6503ed71"
+    },
+    {
+      "test": "fixed-android-records",
+      "exit": 0,
+      "tests": 13,
+      "logSha256": "1d768dab89bd48b0b924fa0076d08be523c192c2f02de14532becdd91f6f5617"
+    },
+    {
+      "test": "old-catalogue",
+      "exit": 1,
+      "tests": 18,
+      "logSha256": "b4fbe7674544349359be24aedbb8a16b76d8a5b0ac6e35f98c0e3a75ca894729"
+    },
+    {
+      "test": "fixed-catalogue",
+      "exit": 0,
+      "tests": 18,
+      "logSha256": "904645a581404a11da4af4fe5d30d9c0fb6057fe98d6ff9a6097a6fab91790a3"
+    },
+    {
+      "test": "old-lifecycle",
+      "exit": 1,
+      "tests": 9,
+      "logSha256": "1aa1228e9740ef6e4631ad5dc64b639415cbbe9dc0f943067f74ae29d77f19a4"
+    },
+    {
+      "test": "fixed-lifecycle",
+      "exit": 0,
+      "tests": 9,
+      "logSha256": "8231ffa577a6a8c794310d7a0332fe2885310e27a791ce369d13a149a3680fc2"
+    },
+    {
+      "test": "fixed-test_mo_store_index_compat.py",
+      "exit": 0,
+      "tests": 15,
+      "logSha256": "21c2bcb2ed7ebb1bfa4c84d6a5ba53bac84d284721248f58f461cd5f72b997b1"
+    },
+    {
+      "test": "fixed-test_mo_store_index_details.py",
+      "exit": 0,
+      "tests": 10,
+      "logSha256": "47ae0fd6e80b614dd08892f4524416cd5745b4382fa2ce68ea8cc5a58e98e13d"
+    },
+    {
+      "test": "fixed-test_mo_store_index_machine.py",
+      "exit": 0,
+      "tests": 9,
+      "logSha256": "9a64a727af89ef69b569f8ea34b49db0d4dca921765a7df6de6405440c08985e"
+    },
+    {
+      "test": "fixed-test_mo_store_index_not_apps.py",
+      "exit": 0,
+      "tests": 4,
+      "logSha256": "cd7a126ff2cbf7a815787a5a807868ce8f1c4bee651c667ec26d25016438a201"
+    },
+    {
+      "test": "fixed-test_mo_store_index_search.py",
+      "exit": 0,
+      "tests": 13,
+      "logSha256": "0f629af8f269adfb8c5c6459a36eecf15151e06a7089d8dc6ca32f7d00aabd2e"
+    },
+    {
+      "test": "fixed-test_mo_store_index_sources.py",
+      "exit": 0,
+      "tests": 9,
+      "logSha256": "beabd4a2464aaf76e4188289dd35b92fd3c66e7ed2dc8495aa894389d8d08d05"
+    },
+    {
+      "test": "fixed-test_moos_store_index.py",
+      "exit": 0,
+      "tests": 11,
+      "logSha256": "4f09288133574e581a7fd12be843de8ca47ddba0a15126bd5e3b07b432f9417c"
+    }
+  ],
+  "limitations": [
+    "The active station index owner must review/apply after coordination clears",
+    "New test needs registration in maintained repo-gates.sh (and optional Justfile component recipe)",
+    "Current backend has installed-Flatpak ID precedence; Android aliases are not invented",
+    "A same-ID catalog Flatpak row also suppresses an Android receipt; ambiguous simultaneous product identities need a backend namespace contract",
+    "Orphan Windows receipts remain unrepresented and cannot safely gain UI actions until backend run/remove accepts its own Windows records",
+    "No native Android/NVIDIA hardware application journey or signed delivery proved"
+  ],
+  "preservedHarnessFailure": "private-harness-missing-catalog.log/exit1; unchanged catalog fixtures were copied into private harness before fixed rerun",
+  "runtimePathReadback": {
+    "station": "NVIDIA signed .1046 immutable package source (read only)",
+    "files": [
+      "/usr/lib/waydroid/tools/config/__init__.py:63",
+      "/usr/lib/waydroid/tools/config/__init__.py:71",
+      "/usr/lib/waydroid/tools/services/user_manager.py:99",
+      "/usr/lib/waydroid/tools/services/user_manager.py:118",
+      "/usr/lib/waydroid/tools/services/user_manager.py:120"
+    ],
+    "meaning": "Configured XDG_DATA_HOME owns Waydroid userdata, launcher is waydroid.<package>.desktop and Icon is a local absolute path. No Waydroid runtime or private configuration executed/read."
+  }
+}

@@ -1,0 +1,106 @@
+{
+  "schema": 1,
+  "scope": "Read-only actual installed component inventory; one active Bar on both stations with one Brand/Island/clock and native KDE task/tray integration. Does not prove keyboard, rendered appearance, sound or Orca. NVIDIA screen=-1 containment is inactive saved layout, not a second active panel.",
+  "devices": {
+    "oracle": {
+      "checkedAt": "2026-10-14T17:54:13.595786+00:00",
+      "scope": "Read-only plugin IDs from installed running Plasma; no settings writes, keyboard action, screenshot or accessibility proof",
+      "bootId": "c5df8872-c80a-4265-8b30-5db89f7aca5f",
+      "shell": {
+        "panels": [
+          {
+            "id": 44,
+            "screen": 0,
+            "location": "bottom",
+            "widgets": [
+              {
+                "id": 45,
+                "type": "org.moos.brand"
+              },
+              {
+                "id": 46,
+                "type": "org.moos.island"
+              },
+              {
+                "id": 47,
+                "type": "org.kde.plasma.icontasks"
+              },
+              {
+                "id": 48,
+                "type": "org.kde.plasma.marginsseparator"
+              },
+              {
+                "id": 49,
+                "type": "org.kde.plasma.systemtray"
+              },
+              {
+                "id": 60,
+                "type": "org.moos.nova.clock"
+              }
+            ]
+          }
+        ],
+        "desktops": [
+          {
+            "id": 43,
+            "screen": 0,
+            "widgets": []
+          }
+        ]
+      }
+    },
+    "nvidia": {
+      "checkedAt": "2026-10-14T17:54:14.415027+00:00",
+      "scope": "Read-only plugin IDs from installed running Plasma; no settings writes, keyboard action, screenshot or accessibility proof",
+      "bootId": "d8a6ce1d-ca57-4680-9e5f-ef8118623b61",
+      "shell": {
+        "panels": [
+          {
+            "id": 180,
+            "screen": 0,
+            "location": "bottom",
+            "widgets": [
+              {
+                "id": 181,
+                "type": "org.moos.brand"
+              },
+              {
+                "id": 182,
+                "type": "org.moos.island"
+              },
+              {
+                "id": 183,
+                "type": "org.kde.plasma.icontasks"
+              },
+              {
+                "id": 184,
+                "type": "org.kde.plasma.marginsseparator"
+              },
+              {
+                "id": 185,
+                "type": "org.kde.plasma.systemtray"
+              },
+              {
+                "id": 213,
+                "type": "org.moos.nova.clock"
+              }
+            ]
+          }
+        ],
+        "desktops": [
+          {
+            "id": 179,
+            "screen": 0,
+            "widgets": []
+          },
+          {
+            "id": 217,
+            "screen": -1,
+            "widgets": []
+          }
+        ]
+      }
+    }
+  },
+  "passed": true
+}
