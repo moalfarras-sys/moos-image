@@ -11,8 +11,8 @@
         "en": "Mo Store: every app in one place"
       },
       "body": {
-        "ar": "متجر واحد لتطبيقات لينكس والويب وويندوز وأندرويد بحسب إمكانات جهازك. تصفّح صفحات التطبيقات وصورها وأذوناتها، وافتح تطبيقاتك وحدّثها أو أزلها من مكتبة واحدة. تراعي تحديثات أندرويد الإصدار المثبت وتؤكد تطبيق التحديث قبل إعلان نجاحه.",
-        "en": "One library for Linux, web, Windows and Android apps that fit your PC. Browse app details, pictures and permissions; open, update or remove your apps in one place. Android updates respect the installed build and confirm the update was applied before reporting success."
+        "ar": "متجر واحد لتطبيقات لينكس وChatGPT وClaude، وبرامج ويندوز وتطبيقات أندرويد على الأجهزة التي تستطيع تشغيلها. صفحات بالصور والتوافق والأذونات، ومكتبة للفتح والتحديث والإزالة. تؤكد تحديثات أندرويد تطبيق الإصدار الجديد قبل إعلان النجاح.",
+        "en": "One library for Linux apps, ChatGPT and Claude, plus Windows programs and Android apps on PCs that can run them. Browse pictures, compatibility and permissions; open, update or remove your apps. Android updates respect the installed build and confirm it changed before reporting success."
       }
     },
     {

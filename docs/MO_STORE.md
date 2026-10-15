@@ -161,12 +161,18 @@ exists rather than from the plan.
   `slug`). Windows: `~/.local/share/moos/windows-apps/<id>.json` with the program under
   `<id>/app` and its own prefix under `<id>/prefix`. Android: `~/.local/share/moos/android/<package>.json`.
   Vendor: `~/.local/share/moos/vendor/<id>.json`. Web apps: the launcher's `X-MoOS-WebApp=<id>`.
-  An update is available when a record's SHA-256 differs from the pin for the running arch.
+  Store-owned pins are compared with the installed bytes for the running arch; a file adopted
+  from another installer is never replaced by a catalogue pin. Android's shared
+  `moos_android_apk` reader uses the APK Android keeps: a known version code must increase and
+  a known signer must match. When those facts are unreadable, only the Store's own record can
+  identify different pinned bytes; an unknown external installation is left alone. After
+  installation, a readable APK must confirm the new pin before the Store records success.
 - **Downloads** are named by their magic bytes, not the URL, and land in
   `~/.cache/moos-store/downloads/` only when that lies inside HOME (else `~/.cache/…`).
 - **Windows programs** run headless while being prepared (`timeout … env -i`, no display, no
   bus, both graphics drivers disabled); 32-bit programs are refused (`windows_legacy_program`).
-  A plain `remove` already deletes the prefix; `--delete-data` only changes the message.
+  Plain `remove` keeps the app's settings prefix; `--delete-data` also removes that owned
+  prefix. Settings or sign-in data saved elsewhere in HOME remain outside that removal.
   `wm_class` defaults to the lowercase exe file name until measured per program.
 - **Permission documents** add `generated_at` and `installed`; web-app rows add `ask`
   (an unanswered permission reads `state:"deny", ask:true`); note keys are `full_access`,
