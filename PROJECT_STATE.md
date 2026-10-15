@@ -1,12 +1,12 @@
 # MoOS current state — updated 2026-10-15
 Oracle A1 and the physical NVIDIA workstation develop one MoOS product. Source, promoted artifacts and installed systems are separate evidence; the only backlog is [DEVELOPMENT_PLAN.md](docs/DEVELOPMENT_PLAN.md).
-Native audit: [AUDIT_20261012_AR.md](docs/AUDIT_20261012_AR.md). [Oct15 branch integration: source, gates and delivery boundaries](docs/releases/2026-10-15-owner-integration.json). [Independent exact-head Store review: delivery blockers remain](docs/reviews/STORE_20261015_AR.md).
+Native audit: [AUDIT_20261012_AR.md](docs/AUDIT_20261012_AR.md). [Oct15 live delivery readback](docs/releases/2026-10-15-unified-delivery-readback.json). [Oct15 branch integration](docs/releases/2026-10-15-owner-integration.json). [Historical Store defects and their integrated corrections](docs/reviews/STORE_20261015_AR.md).
 
 ## Current engineering batch
-Unified source preserves all fetched station/Oracle ancestry and dirty-tree checkpoints; 200 curated apps, recovered engine admission and Store data-preservation corrections are source-tested.
-Stable Plasma 6.8 x86 input composition, real greeter positive/broken/restored controls and native rebuilt logout old/fixed/rejected/cancelled controls pass. THEME_REV=106 covers versioned seam caches. Native full just check passes; six session fixtures reviewed. Full image/boot and installed acceptance remain pending; ARM retains its qualified native 6.7.5 provider.
+PR245 at `b115c191` integrates the 200-app Store, recovered engine admission and reviewed data-preservation/index/UI corrections. Fresh Oracle ancestry checks cover 148 local/remote refs, all ancestors; clean main and NVIDIA owner checkouts now agree. Original dirty files remain checkpointed.
+Stable Plasma 6.8 x86 composition, real greeter positive/broken/restored and native rebuilt logout old/fixed/rejected/cancelled controls pass. THEME_REV=106 covers versioned seams. Native ARM `just check` exits 0 at Oct15 21:27 UTC; the earlier editor exec143 is preserved and not counted as success. All three signed x86 `.1060` candidates pass independent signature/revision readback; exact disks/ISO and installed acceptance remain pending. ARM `.791` is boot-proven/promoted and staged; its native Plasma remains 6.7.5.
 
-Last promoted payload before this batch is `5745edd1` (PR241): THEME_REV=104, full local ARM
+The previous complete four-edition batch is `5745edd1` (PR241): THEME_REV=104, full local ARM
 image and exact 20-file readback pass after the preserved ENOSPC failure.
 Build 38621311347, disks 38631573998/38631579047/38631585290,
 ISO 38631591001, ARM 38621121074 and promotion 38638466690 all succeeded
@@ -53,11 +53,11 @@ pickers pass; wider user journeys remain in the single development plan.
 | Desktop | 44.20261014.1053 | 7fe46304f3fba63aa37bc7cdf78368f2c2d184142bfd03b79c6a39ca639bc667 |
 | NVIDIA | 44.20261014.1053 | 0f43d2f950d88d01ba20a53a7272e588ffeb1dce9d7eb0b6541506278fd705f1 |
 | Cloud x86 | 44.20261014.1053 | 5ea45415c6a4b1c0496aca7e9789cdfb8e5d115a9cf7d66310e86b458ec59593 |
-| ARM | 44.20261014.778 | 70f6dfe38c185a7b33c7231130f56705c6cf4b591f5126490e916aff67f6f7f3 |
+| ARM | 44.20261015.791 | 2dcf09fbcc4634350edd7fc97b149dba4d8d28ff2c28d592893523767f685603 |
 
-ARM proves native first-party linkage, two healthy boots and clean poweroff.
+ARM `.791` at `b115c191` proves native linkage, two healthy boots and clean poweroff in run 38788880828.
 CI greeter pixels show MoOS identity; English login buttons remain a locale gap.
-New final ISO is CI-only; installed NVIDIA .1046/Oracle .775 and public .1046 remain separate evidence.
+The `.1060` candidate disks/ISO are still being qualified; installed NVIDIA .1046/Oracle .775 and public .1046 remain separate evidence.
 Public .1046 is independently qualified and published: 5,830,410,240 bytes,
 SHA-256 `37053a88ae313f994875794055035d53134206a88eb44fb160b39fef3bb04821`.
 Full anonymous HTTP 200, resumed 206 ranges, signature and exact sidecars pass
@@ -82,7 +82,7 @@ No other product, API, DNS, WAF, authentication or billing setting changed.
 Native aarch64, 2 vCPU/11.6 GiB, no GPU; Wayland Arabic UI2 Nova,
 virtual 1280×720 at 100%. Kernel 7.2.9, Plasma 6.7.5, Qt 6.11.2.
 Booted signed .775 (`fb0ba637…`), boot ID
-`c5df8872-c80a-4265-8b30-5db89f7aca5f`; signed .763 is the actual rollback.
+`c5df8872-c80a-4265-8b30-5db89f7aca5f`; signed .763 is the actual rollback. Official authority replaced staged .778 with exact signed `.791`; both target and rollback signatures were independently verified. Postboot owner-session checks are armed; reboot is last so the development connection survives NVIDIA acceptance.
 Native UID 1000 graphical checks pass 51 selfchecks/4 notes and 55 post-update
 checks/0 failures. All 19 payload files, exact compiled player and THEME_REV=104
 match reviewed source. One KWin/one plasmashell own the KDE Wayland session;
@@ -157,7 +157,7 @@ isolated Hermes passes 4.30 s, usage absent. No provider or private-context chan
 Old .1032's 54/1 diagnostic abort remains historical; fresh .1042 passes 55/0.
 Kernel 7.2.9, Plasma 6.7.5, Qt 6.11.2, NVIDIA 615.78.08; RTX 2080 SUPER,
 Arabic 3840×2160@60, logical 1536×864 at 250%, UI2 Arena. Writable disk has
-136 GiB free/71% used at the Store review; earlier RAM figures below are scoped baseline samples.
+55 GiB free after 124 exact anonymous pre-Oct15 cache images retired (measured +20.5 GiB); all 280 protected images and 17 containers remain. Earlier RAM figures below are scoped baseline samples.
 Thirty-second active-workload cgroup sampling has zero RAM PSI. Large Code's
 4.77 GiB includes 3.85 GiB file cache and .86 GiB anonymous memory. KWin and
 plasmashell use 9.06/9.65% of one of 16 logical CPUs; this is not an idle proof.
@@ -190,8 +190,7 @@ real hardware/private-TLS enrollment/phone/WAN endurance remain P2.17.
 Old unmerged APK/PE work has 82 isolated tests; not ten real application journeys.
 Oracle's installed Linux engine does not imply Windows/Android engines exist.
 
-[Latest canary 38248425611](docs/releases/2026-10-14-plasma-canary-readback.json) passes Plasma 6.7.91/12 seams and real greeter; stable 6.8.0/Qt
-6.12 are unreviewed and refused. Do not widen pins or layer them on the host.
+[Oct15 stable source qualification](docs/releases/2026-10-15-plasma-stable-source-proof.json) accepts exact native x86 Plasma 6.8.0 inputs and 12 seams, with real positive/negative greeter/logout controls. Native ARM 6.8 and Qt 6.12 remain unqualified; ARM keeps its reviewed 6.7.5 provider. Do not widen pins or layer desktop packages on a host.
 Hardware boot visuals/suspend/hotplug/multi-monitor/laptop/touch, deliberate
 failed-update/rollback, full AR/EN accessibility/contrast/scale/motion, clean
 free-provider setup/cancel/quota/failover/owner voice, ten Windows/Android apps,

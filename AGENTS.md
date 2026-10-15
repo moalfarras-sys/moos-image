@@ -147,6 +147,11 @@ These are not conventions, they are gates. The image build fails if you break th
 
 ## A green build proves nothing about what the user sees
 
+**The last success line is not the process exit.** An editor exec ended143
+after the final catalogue gate printed success. Its termination cause remains
+unproven. Preserve that result; a native parent must save the command's exit,
+source/tree and log hash independently before calling the full gate green.
+
 **A PNG can be the empty X server after its greeter exited.** Stable Plasma 6.8
 removed the logout greeter's theme/mode switches; the review harness still
 reported a black screenshot as rendered. Read the actual binary's help, refuse
