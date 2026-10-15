@@ -12,6 +12,9 @@ What it writes, next to --output (docs/MO_STORE.md is the contract):
                      scopes, web apps, App Drop, Windows, publishers' own
                      packages, Android, npm);
   details/<id>.json  one document per AppStream app, published as one generation;
+  android-apks.json  the SHA-256 of each APK Android keeps that was read to tell an
+                     installed app's bytes (no record of its pin), by file identity,
+                     so an unchanged APK is not read again on the next launch;
 and, with --print-machine, machine.json on stdout. It reads facts.json (from
 `moos-storectl facts`) beside the index when present.
 
@@ -2819,7 +2822,8 @@ def vendor_entry_installable(install: dict, arch: str | None) -> bool:
 #             ~/Applications/<id> and MoOS's launcher org.moos.vendor.<id>.desktop, all
 #             three (moos_vendor_rpm.intact(), by file reads);
 #   android   the per-package data directory the Android runtime creates, with
-#             moos-storectl's record ~/.local/share/moos/android/<package>.json;
+#             moos-storectl's record ~/.local/share/moos/android/<package>.json and,
+#             when that names no pin, the APK Android keeps (waydroid/data/app);
 #   npm       the command in ~/.local/bin;
 #   web       never installed: it opens the publisher's page.
 # An App Drop record with no catalogue id is an app of its own, kind "dropped";
@@ -3062,17 +3066,25 @@ def vendor_orphans(claimed: set[str]) -> list[dict]:
     return found
 
 
-def pinned_sha256(install: dict, arch: str | None) -> str | None:
-    """The digest the catalogue pins for this machine, as moos-storectl's pinned_artifact()
-    reads it: `downloads[<arch>]`, or the top of the recipe for the older Android shape."""
+def pinned_download(install: dict, arch: str | None) -> dict:
+    """What the catalogue pins for this machine, as moos-storectl's pinned_artifact() reads it:
+    `downloads[<arch>]`, or the top of the recipe for the older Android shape; {} when none."""
 
     downloads = install.get("downloads")
     if downloads is None:
-        pin = install
-    else:
-        pin = downloads.get(arch or "") if isinstance(downloads, dict) else None
-    digest = pin.get("sha256") if isinstance(pin, dict) else None
+        return install
+    pin = downloads.get(arch or "") if isinstance(downloads, dict) else None
+    return pin if isinstance(pin, dict) else {}
+
+
+def pinned_sha256(install: dict, arch: str | None) -> str | None:
+    digest = pinned_download(install, arch).get("sha256")
     return digest.lower() if isinstance(digest, str) and SHA256_RE.fullmatch(digest) else None
+
+
+def pinned_size(install: dict, arch: str | None) -> int | None:
+    size = pinned_download(install, arch).get("size")
+    return size if isinstance(size, int) and not isinstance(size, bool) and size > 0 else None
 
 
 def record_has_pin(record: dict, pin: str) -> bool:
@@ -3080,13 +3092,124 @@ def record_has_pin(record: dict, pin: str) -> bool:
     return isinstance(digest, str) and digest.lower() == pin
 
 
-def catalog_install_state(entry: dict, arch: str | None = None) -> dict:
+# The APK Android keeps names an installed app's bytes when no record of the pin does (the
+# older Store wrote none, or the app was brought up to the pin outside the Store). Read by
+# moos-storectl's _android_apk_is_pin() rule: blocks of 1 MiB, and an APK whose pin names no
+# size only up to the cap of a download without one.
+APK_BLOCK = 1024 * 1024
+UNSIZED_APK_LIMIT = 2 * 1024 ** 3
+APK_DIGESTS_NAME = "android-apks.json"
+
+
+def android_apk(package: str) -> Path | None:
+    """The one base.apk Android keeps for `package`, or None when there is not exactly one.
+
+    Android 11 and later keep an app at /data/app/~~<random>/<package>-<random>/base.apk,
+    older ones at /data/app/<package>-<suffix>/base.apk, and the container's /data is
+    $XDG_DATA_HOME/waydroid/data. Two copies (Android is replacing the app), a link, or a
+    folder this account cannot read leave the bytes unknown, as for moos-storectl.
+    """
+
+    prefix = f"{package}-"
+    found: list[str] = []
+    try:
+        with os.scandir(data_home() / "waydroid/data/app") as entries:
+            for entry in entries:
+                if not entry.is_dir(follow_symlinks=False):
+                    continue
+                if entry.name.startswith(prefix):
+                    found.append(entry.path)
+                    continue
+                with os.scandir(entry.path) as inner:
+                    found += [item.path for item in inner if item.name.startswith(prefix)
+                              and item.is_dir(follow_symlinks=False)]
+    except OSError:
+        return None
+    if len(found) != 1:
+        return None
+    apk = Path(found[0]) / "base.apk"
+    return None if apk.is_symlink() or not apk.is_file() else apk
+
+
+class ApkDigests:
+    """The SHA-256 of each APK read, remembered next to the index by file identity.
+
+    What is installed is read on every launch (lifecycle_snapshot()), and an app with no record
+    of its pin is hashed. VLC and F-Droid on the station are 62 MB together: hashing them made
+    a launch's unchanged-index check 145 ms instead of 91 (measured 2026-10-15, warm cache,
+    median of 15); remembered, it is 95. A file whose device, inode, size and times are those
+    it had keeps the digest it had; nothing is written when nothing changed.
+    """
+
+    def __init__(self, path: Path | None = None):
+        self.path = path
+        self.known: dict[str, list] = {}
+        self.read: dict[str, list] = {}
+        stored = read_record(path) if path is not None else None
+        apks = stored.get("apks") if stored and stored.get("schema") == 1 else None
+        for name, value in (apks.items() if isinstance(apks, dict) else ()):
+            if (isinstance(value, list) and len(value) == 6
+                    and all(isinstance(part, int) and not isinstance(part, bool)
+                            for part in value[:5])
+                    and isinstance(value[5], str) and SHA256_RE.fullmatch(value[5])):
+                self.known[name] = value
+
+    def sha256(self, apk: Path, size: int | None) -> str | None:
+        """The digest of `apk` when it is a file of the pin's size (or, with no size pinned, at
+        most UNSIZED_APK_LIMIT bytes), opened through no link; None otherwise."""
+
+        try:
+            descriptor = os.open(apk, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK
+                                 | getattr(os, "O_CLOEXEC", 0))
+            with os.fdopen(descriptor, "rb") as handle:
+                status = os.fstat(handle.fileno())
+                if status.st_size > (size if size is not None else UNSIZED_APK_LIMIT) \
+                        or (size is not None and status.st_size != size):
+                    return None
+                identity = [status.st_dev, status.st_ino, status.st_size,
+                            status.st_mtime_ns, status.st_ctime_ns]
+                remembered = self.read.get(str(apk)) or self.known.get(str(apk))
+                if remembered is not None and remembered[:5] == identity:
+                    digest = remembered[5]
+                else:
+                    hasher = hashlib.sha256()
+                    for block in iter(lambda: handle.read(APK_BLOCK), b""):
+                        hasher.update(block)
+                    digest = hasher.hexdigest()
+        except OSError:
+            return None
+        self.read[str(apk)] = identity + [digest]
+        return digest
+
+    def save(self) -> None:
+        """Keep what this run read (and only that) for the next run; best effort."""
+
+        if self.path is None or self.read == self.known:
+            return
+        try:
+            atomic_write_json(self.path, {"schema": 1, "apks": self.read})
+        except OSError:
+            pass
+
+
+def android_apk_is_pin(package: str, pin: str, size: int | None,
+                       digests: ApkDigests) -> bool:
+    """Is the APK Android keeps for `package`, byte for byte, the pinned one?"""
+
+    apk = android_apk(package)
+    return apk is not None and digests.sha256(apk, size) == pin
+
+
+def catalog_install_state(entry: dict, arch: str | None = None,
+                          apk_digests: ApkDigests | None = None) -> dict:
     """{installed, version, update, icon, adopted} of one catalogue entry, from files.
 
     A pinned kind (App Drop, Windows, Android) has an update when the record's SHA-256 is not
     the pin's for this machine: moos-storectl's check-updates, Update all and `update <id>`
     decide the same way, so index.json and updates.json give one answer. A version string
-    cannot say it: a re-pinned build keeps its version, and "0.9" is "0.9.0".
+    cannot say it: a re-pinned build keeps its version, and "0.9" is "0.9.0". For Android the
+    APK Android keeps answers when no record of the pin does (`apk_digests` remembers what was
+    hashed).
     """
 
     kind = catalog_kind(entry)
@@ -3166,11 +3289,18 @@ def catalog_install_state(entry: dict, arch: str | None = None) -> dict:
             record = read_record(data_home() / "moos/android" / f"{package}.json")
             if record:
                 state["version"] = record_text(record, "version", 64) or None
-                state["update"] = pin is not None and not record_has_pin(record, pin)
-            else:
-                # Installed by the older Store, which wrote no record: which bytes are
-                # there is unknown, so the pin is offered; updating writes the record.
-                state["update"] = pin is not None
+            current = bool(record) and pin is not None and record_has_pin(record, pin)
+            if pin is not None and not current and android_apk_is_pin(
+                    package, pin, pinned_size(install, arch),
+                    apk_digests if apk_digests is not None else ApkDigests()):
+                # No record (the older Store wrote none) or one of an earlier pin, but the
+                # APK Android keeps is the pin's own bytes: up to date, at the pin's version.
+                current = True
+                pinned_version = install.get("version")
+                state["version"] = pinned_version if isinstance(pinned_version, str) else None
+            # Otherwise which bytes are there is unknown or not the pin's: the pin is offered,
+            # and installing it writes the record.
+            state["update"] = pin is not None and not current
     elif kind == "npm":
         binary = install.get("bin")
         if isinstance(binary, str) and binary:
@@ -3231,7 +3361,7 @@ def dropped_records(claimed: set[str]) -> list[dict]:
     return found
 
 
-def lifecycle_snapshot(catalog: dict) -> dict:
+def lifecycle_snapshot(catalog: dict, apk_digests: ApkDigests | None = None) -> dict:
     """Every installed-state fact about non-Flatpak apps, read once per run.
 
     It is digested into the index's installed_token, so a change to any of it is
@@ -3239,13 +3369,14 @@ def lifecycle_snapshot(catalog: dict) -> dict:
     """
 
     arch = catalog.get("arch")
+    apk_digests = apk_digests if apk_digests is not None else ApkDigests()
     states: dict[str, dict] = {}
     claimed: set[str] = set()
     vendors: set[str] = set()
     for entry in catalog["apps"]:
         if entry["source"] in {"flathub", "flatpak"}:
             continue
-        state = catalog_install_state(entry, arch)
+        state = catalog_install_state(entry, arch, apk_digests)
         states[entry["id"]] = state
         if state["installed"] and catalog_kind(entry) == "appdrop":
             claimed.add(entry["id"])
@@ -5369,7 +5500,9 @@ def main(argv: list[str] | None = None) -> int:
             appstream_roots,
             official_only=args.appstream_root is None,
         )
-        lifecycle = lifecycle_snapshot(catalog)
+        apk_digests = ApkDigests(args.output.parent / APK_DIGESTS_NAME)
+        lifecycle = lifecycle_snapshot(catalog, apk_digests)
+        apk_digests.save()
         # What the compatibility verdicts read: this machine (or --machine), and
         # the Flathub facts moos-storectl keeps next to the index.
         if args.machine is not None:

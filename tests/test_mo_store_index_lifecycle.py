@@ -34,9 +34,11 @@ The rule, per kind, with the records where moos-storectl and App Drop write them
             person's own file in that slot (adopted): the pin is never offered over it;
   windows   record and program folder (<id>/app): an update when the digest is not the pin's;
   android   record and the per-package data directory: an update when the digest is not the
-            pin's. The data directory with no record (the older Store wrote none) is installed,
-            version unknown, and offered the pin; a record whose data directory is gone is not
-            installed.
+            pin's, unless the APK Android keeps (exactly one base.apk, reached through no link,
+            of the pin's size) is the pin byte for byte, which also names the version. With no
+            record (the older Store wrote none) and no such APK the bytes are unknown: installed,
+            version unknown, offered the pin. A record whose data directory is gone is not
+            installed. An APK read is remembered by file identity (AnApkIsReadOnce).
 
 Every run uses a private HOME, private XDG directories and fixture installations;
 nothing is installed or downloaded.
@@ -46,6 +48,7 @@ from __future__ import annotations
 
 import base64
 import contextlib
+import hashlib
 import importlib.machinery
 import importlib.util
 import io
@@ -513,13 +516,20 @@ def pinned_windows(app_id: str) -> dict:
                                                  "sha256": PINNED, "size": 1000}}, **REVIEW}}
 
 
-def pinned_android(package: str) -> dict:
+def pinned_android(package: str, sha256: str = PINNED, size: int = 1000) -> dict:
     return {"id": package, "source": "moos", "cat": "droid", "glyph": "grid", "en": "Droid",
             "ar": "درويد", "engine": "android",
             "install": {"kind": "android", "url": f"https://example.org/{package}.apk",
-                        "sha256": PINNED, "package": package, "version": "0.29.1", "size": 1000,
+                        "sha256": sha256, "package": package, "version": "0.29.1", "size": size,
                         **REVIEW}}
 
+
+# An APK whose bytes the catalogue pins, and another build of the same size.
+APK = b"PK\x03\x04" + bytes(range(256)) * 4
+OTHER_APK = b"PK\x03\x04" + bytes(reversed(range(256))) * 4
+APK_SHA256 = hashlib.sha256(APK).hexdigest()
+KEPT = ("org.example.kept", "org.example.caughtup", "org.example.other", "org.example.twice",
+        "org.example.linked")
 
 PINNED_APPS = [
     *(pinned_appdrop(app_id) for app_id in ("repinned", "current", "renamed", "adopted",
@@ -527,6 +537,7 @@ PINNED_APPS = [
     *(pinned_windows(app_id) for app_id in ("notepad", "sumatra", "folderless")),
     *(pinned_android(package) for package in ("org.example.repin", "org.example.current",
                                               "org.example.legacy", "org.example.gone")),
+    *(pinned_android(package, APK_SHA256, len(APK)) for package in KEPT),
 ]
 
 # The rule's answer for every fixture: (installed, installed_version, update_available).
@@ -541,20 +552,28 @@ EXPECTED = {
     "folderless": (False, None, False),         # the program folder is gone
     "org.example.repin": (True, "0.28.0", True),
     "org.example.current": (True, "1.7.0", False),
-    "org.example.legacy": (True, None, True),   # no record yet: the pin is offered
+    "org.example.legacy": (True, None, True),   # no record and no APK: the pin is offered
     "org.example.gone": (False, None, False),   # the container no longer has it
+    # The APK Android keeps names the bytes when no record of the pin does.
+    "org.example.kept": (True, "0.29.1", False),       # no record: the older Store's install
+    "org.example.caughtup": (True, "0.29.1", False),   # a record of an earlier pin
+    "org.example.other": (True, None, True),           # another build of the pin's size
+    "org.example.twice": (True, None, True),           # two copies: Android is replacing it
+    "org.example.linked": (True, None, True),          # a link, never followed
 }
 if ARCH != "x86_64":
     # Windows programs are pinned for x86_64 only: there is no pin for this machine to offer.
     EXPECTED.update({"notepad": (True, "8.7.1", False)})
 # check-updates must give every answer above. moos-storectl here still answers these the older
-# way: it offers the pin over the person's own file, and finds no Android app the older Store
+# way: it offers the pin over the person's own file, finds no Android app the older Store
 # installed (no record), so `update <package>` says "not installed" while the index offers the
-# pin. moos-storectl's own fixes for both (on their way from the Store's pinned-update work)
-# give the rule's answers. Until they land these must still disagree: the day moos-storectl
-# agrees about one, this gate fails until its name is taken off here, so the comparison widens
-# by itself instead of an exclusion nobody remembers.
-AWAITING_STORECTL = frozenset({"adopted", "org.example.legacy"})
+# pin, and never reads the APK Android keeps. moos-storectl's own fixes for these (on their way
+# from the Store's pinned-update work) give the rule's answers. Until they land these must
+# still disagree: the day moos-storectl agrees about one, this gate fails until its name is
+# taken off here, so the comparison widens by itself instead of an exclusion nobody remembers.
+AWAITING_STORECTL = frozenset({"adopted", "org.example.legacy", "org.example.caughtup",
+                               "org.example.other", "org.example.twice",
+                               "org.example.linked"})
 
 
 class Home:
@@ -618,6 +637,23 @@ class Home:
                 # Where the container keeps an installed package: $XDG_DATA_HOME/waydroid.
                 (storectl.data_home() / "waydroid/data/data" / package).mkdir(parents=True)
 
+    def kept_apk(self, package: str, data: bytes, *, layout: str = "current",
+                 link: bool = False) -> Path:
+        """The APK Android keeps for an installed package: /data/app/~~<random>/<package>-<random>
+        since Android 11, /data/app/<package>-<n> before."""
+        with self.environ():
+            app = storectl.data_home() / "waydroid/data/app"
+        folder = (app / "~~bWVkaWE=" / f"{package}-c3RvcmU=" if layout == "current"
+                  else app / f"{package}-1")
+        folder.mkdir(parents=True, exist_ok=True)
+        apk = folder / "base.apk"
+        if link:
+            (folder / "real.apk").write_bytes(data)
+            apk.symlink_to(folder / "real.apk")
+        else:
+            apk.write_bytes(data)
+        return apk
+
     def populate(self) -> None:
         self.appdrop_record("repinned", EARLIER, "0.9.0", catalogued=True)
         self.appdrop_record("current", PINNED, "0.9.0", catalogued=True)
@@ -631,6 +667,16 @@ class Home:
         self.android_state("org.example.current", sha256=PINNED, version="1.7.0")
         self.android_state("org.example.legacy", sha256=None)
         self.android_state("org.example.gone", sha256=EARLIER, version="0.28.0", data=False)
+        for package in KEPT:
+            record = {"sha256": EARLIER, "version": "0.28.0"} \
+                if package == "org.example.caughtup" else {"sha256": None}
+            self.android_state(package, **record)
+        self.kept_apk("org.example.kept", APK)
+        self.kept_apk("org.example.caughtup", APK, layout="older")
+        self.kept_apk("org.example.other", OTHER_APK)
+        self.kept_apk("org.example.twice", APK)
+        self.kept_apk("org.example.twice", APK, layout="older")
+        self.kept_apk("org.example.linked", APK, link=True)
 
     def run_index(self) -> dict:
         environment = {key: value for key, value in os.environ.items()
@@ -723,6 +769,61 @@ class RecordsLiveWhereTheBackendWritesThem(unittest.TestCase):
             self.assertTrue(apps["notepad"]["installed"])
             self.assertEqual(apps["org.example.repin"]["installed_version"], "0.28.0")
             self.assertTrue(apps["org.example.repin"]["update_available"])
+
+
+class AnApkIsReadOnce(unittest.TestCase):
+    """Every launch reads what is installed; an APK is hashed again only when it changed."""
+
+    def test_the_digest_is_kept_while_the_file_is_the_same_one(self):
+        other = hashlib.sha256(OTHER_APK).hexdigest()
+        with tempfile.TemporaryDirectory() as raw:
+            apk = Path(raw) / "base.apk"
+            apk.write_bytes(APK)
+            memo = Path(raw) / "android-apks.json"
+            with mock.patch.object(index.hashlib, "sha256", wraps=hashlib.sha256) as hashing:
+                first = index.ApkDigests(memo)
+                self.assertEqual(first.sha256(apk, len(APK)), APK_SHA256)
+                first.save()
+                again = index.ApkDigests(memo)
+                self.assertEqual(again.sha256(apk, len(APK)), APK_SHA256)
+                self.assertEqual(hashing.call_count, 1, "an unchanged APK was read again")
+                written = memo.stat().st_mtime_ns
+                again.save()
+                self.assertEqual(memo.stat().st_mtime_ns, written,
+                                 "nothing changed, and the memo was written again")
+                # Rewritten in place, the same size: its times are not the ones remembered.
+                apk.write_bytes(OTHER_APK)
+                later = apk.stat().st_mtime_ns + 10 ** 9
+                os.utime(apk, ns=(later, later))
+                self.assertEqual(index.ApkDigests(memo).sha256(apk, len(APK)), other)
+                self.assertEqual(hashing.call_count, 2)
+            # Only a file of the pin's size is read at all.
+            self.assertIsNone(index.ApkDigests().sha256(apk, len(APK) + 1))
+
+    def test_a_launch_follows_android_replacing_the_app(self):
+        with tempfile.TemporaryDirectory() as raw:
+            home = Home(Path(raw))
+            home.android_state("org.example.kept", sha256=None)
+            kept = home.kept_apk("org.example.kept", APK)
+            memo = home.output.parent / "android-apks.json"
+            first = {app["id"]: app for app in home.run_index()["apps"]}
+            self.assertEqual(first["org.example.kept"]["installed_version"], "0.29.1")
+            self.assertFalse(first["org.example.kept"]["update_available"])
+            remembered = json.loads(memo.read_text(encoding="utf-8"))["apks"]
+            self.assertEqual({name: value[5] for name, value in remembered.items()},
+                             {str(kept): APK_SHA256})
+            written = memo.stat().st_mtime_ns
+            home.run_index()
+            self.assertEqual(memo.stat().st_mtime_ns, written)
+            # Android installs another build in a folder of its own and drops the old one.
+            kept.unlink()
+            kept.parent.rmdir()
+            newer = home.kept_apk("org.example.kept", OTHER_APK, layout="older")
+            second = {app["id"]: app for app in home.run_index()["apps"]}
+            self.assertIsNone(second["org.example.kept"]["installed_version"])
+            self.assertTrue(second["org.example.kept"]["update_available"])
+            remembered = json.loads(memo.read_text(encoding="utf-8"))["apks"]
+            self.assertEqual(list(remembered), [str(newer)])
 
 
 if __name__ == "__main__":
