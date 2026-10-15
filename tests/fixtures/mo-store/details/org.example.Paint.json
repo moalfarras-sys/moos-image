@@ -1,0 +1,33 @@
+{
+ "schema": 1,
+ "id": "org.example.Paint",
+ "screenshots": [
+  {
+   "thumb": "file://@FIXTURES@/media/shot-2.png",
+   "full": "file://@FIXTURES@/media/shot-2.png",
+   "caption": "Layers and brushes",
+   "width": 1280,
+   "height": 800
+  }
+ ],
+ "releases": [
+  {
+   "version": "4.2",
+   "date": "2026-10-01",
+   "notes": ""
+  }
+ ],
+ "urls": {
+  "homepage": "https://paint.example.org/"
+ },
+ "keywords": [],
+ "languages": {
+  "ar": 30
+ },
+ "requires": {
+  "controls": []
+ },
+ "verification": {},
+ "license": "LicenseRef-proprietary",
+ "developer": "Example Arts"
+}

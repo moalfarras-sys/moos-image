@@ -1,0 +1,9 @@
+{
+ "schema": 1,
+ "id": "notes-win",
+ "kind": "unsandboxed",
+ "generated_at": "@NOW@",
+ "sandboxed": false,
+ "rows": [],
+ "note_key": "full_access"
+}

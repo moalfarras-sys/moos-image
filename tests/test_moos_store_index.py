@@ -15,7 +15,36 @@ from urllib.parse import unquote, urlsplit
 
 
 ROOT = Path(__file__).resolve().parents[1]
-INDEXER = ROOT / "system_files/usr/bin/moos-store-index"
+# A negative control runs these tests against a deliberately broken copy.
+INDEXER = Path(os.environ.get("MOOS_STORE_INDEX_UNDER_TEST")
+               or ROOT / "system_files/usr/bin/moos-store-index")
+
+
+def isolate(environment: dict[str, str] | None, fallback_home: Path) -> dict[str, str]:
+    """A private HOME, private XDG directories and no session bus for every run.
+
+    The indexer reads the person's App Drop records, web-app launchers and machine
+    facts under HOME and the XDG directories. Inherited from a developer's shell (or
+    the editor's sandbox, which shares the real home), a run would index the
+    developer's own machine instead of the fixture.
+    """
+
+    source = dict(os.environ if environment is None else environment)
+    home = Path(source["HOME"]) if environment is not None and "HOME" in source \
+        else fallback_home
+    result = {key: value for key, value in source.items() if not key.startswith("XDG_")}
+    result.update({
+        "HOME": str(home),
+        "XDG_DATA_HOME": str(home / ".local/share"),
+        "XDG_CACHE_HOME": str(home / ".cache"),
+        "XDG_STATE_HOME": str(home / ".local/state"),
+        "XDG_CONFIG_HOME": str(home / ".config"),
+        "DBUS_SESSION_BUS_ADDRESS": "unix:path=/nonexistent",
+    })
+    for key in ("XDG_CONFIG_DIRS",):
+        if environment is not None and key in environment:
+            result[key] = environment[key]
+    return result
 
 
 PRIMARY_XML = """<?xml version="1.0" encoding="UTF-8"?>
@@ -91,7 +120,25 @@ DUPLICATE_XML = """<?xml version="1.0" encoding="UTF-8"?>
 
 
 def write_catalog(path: Path, unsafe_url: str | None = None) -> None:
-    install_url = unsafe_url or "https://downloads.example.org/tool.AppImage"
+    # The retired `appimage` recipe is no longer a kind the index offers, so the
+    # fixture's developer tool is an npm recipe; `unsafe_url` turns it into a
+    # publisher-page entry whose address must never reach the index.
+    codex_install = {
+        "kind": "npm",
+        "pkg": "@openai/codex",
+        "bin": "codex",
+        "name": "Codex",
+        "risk": "runs-package-scripts",
+        "requires_review": True,
+    }
+    if unsafe_url:
+        codex_install = {
+            "kind": "web",
+            "url": unsafe_url,
+            "risk": "external-download",
+            "requires_review": True,
+            "external": True,
+        }
     catalog = {
         "categories": [
             {"id": "dev", "en": "Development", "ar": "التطوير", "glyph": "code"}
@@ -136,15 +183,7 @@ def write_catalog(path: Path, unsafe_url: str | None = None) -> None:
                 "ar": "كودكس",
                 "desc_en": "A local coding agent.",
                 "desc_ar": "وكيل برمجة محلي.",
-                "install": {
-                    "kind": "appimage",
-                    "url": install_url,
-                    "bin": "codex",
-                    "name": "Codex",
-                    "risk": "external-download",
-                    "requires_review": True,
-                    "external": True,
-                },
+                "install": codex_install,
             },
         ],
     }
@@ -201,7 +240,7 @@ class StoreIndexTests(unittest.TestCase):
             text=True,
             capture_output=True,
             check=False,
-            env=env,
+            env=isolate(env, output.parent / "private-home"),
         )
 
     def test_unified_index_uses_bundle_locales_and_merges_duplicates(self) -> None:
@@ -272,7 +311,22 @@ class StoreIndexTests(unittest.TestCase):
             self.assertEqual(
                 writer["categories"], ["Office", "WordProcessor", "Utility"]
             )
-            self.assertEqual(writer["screenshot"], "https://cdn.example.org/full.png")
+            # The card shows the screenshot AppStream marks type="default" (here
+            # the second one), not merely whichever comes first.
+            self.assertEqual(writer["screenshot"], "https://cdn.example.org/not-first.png")
+            self.assertEqual(writer["details"], "details/org.example.Writer.json")
+            details = json.loads(
+                (output.parent / writer["details"]).read_text(encoding="utf-8")
+            )
+            self.assertEqual(
+                [(shot["thumb"], shot["full"]) for shot in details["screenshots"]],
+                [
+                    ("https://cdn.example.org/not-first.png",
+                     "https://cdn.example.org/not-first.png"),
+                    ("https://cdn.example.org/thumb.png",
+                     "https://cdn.example.org/full.png"),
+                ],
+            )
             self.assertTrue(writer["icon"].startswith("file://"))
             self.assertTrue(writer["verified"])
             self.assertTrue(writer["installed"])
@@ -300,10 +354,12 @@ class StoreIndexTests(unittest.TestCase):
             self.assertEqual(codex["category"], "ai")
             self.assertTrue(codex["installable"])
             self.assertFalse(codex["installed"])
-            self.assertEqual(codex["install"]["risk"], "external-download")
+            self.assertEqual(codex["kind"], "npm")
+            self.assertEqual(codex["install"]["risk"], "runs-package-scripts")
             self.assertTrue(codex["install"]["requires_review"])
-            self.assertTrue(codex["install"]["external"])
             self.assertEqual(codex["description"], codex["summary"])
+            self.assertEqual(writer["kind"], "flatpak")
+            self.assertEqual(fallback["kind"], "flatpak")
 
             self.assertEqual(data["schema_version"], 1)
             self.assertTrue(data["generation"]["offline"])
@@ -511,7 +567,7 @@ class StoreIndexTests(unittest.TestCase):
                 text=True,
                 capture_output=True,
                 check=False,
-                env=environment,
+                env=isolate(environment, base / "home"),
             )
             self.assertEqual(result.returncode, 0, result.stderr)
             data = json.loads(output.read_text(encoding="utf-8"))
@@ -538,7 +594,13 @@ class StoreIndexTests(unittest.TestCase):
             self.assertEqual(writer["installed_scope"], "user")
             self.assertEqual(writer["installed_scopes"], ["user", "system"])
 
-    def test_unsafe_catalog_url_fails_without_replacing_output(self) -> None:
+    def test_unsafe_catalog_entry_is_skipped_with_a_reason_and_never_indexed(self) -> None:
+        """One bad entry is left out and logged; it may never take the index down.
+
+        Until 2026-10-14 an unsafe URL raised out of the whole catalogue load, so a
+        single bad entry meant no index at all. The safety property is that the
+        unsafe recipe never reaches the index, and that still holds.
+        """
         with tempfile.TemporaryDirectory() as temporary:
             base = Path(temporary)
             appstream = base / "appstream"
@@ -553,12 +615,44 @@ class StoreIndexTests(unittest.TestCase):
             result = self.run_indexer(
                 output, catalog, appstream, installation, locale="en"
             )
-            self.assertEqual(result.returncode, 2)
+            self.assertEqual(result.returncode, 0, result.stderr)
             self.assertIn("not safe HTTPS", result.stderr)
-            self.assertEqual(
-                json.loads(output.read_text(encoding="utf-8")), {"sentinel": True}
-            )
+            self.assertIn("codex", result.stderr)
+            text = output.read_text(encoding="utf-8")
+            self.assertNotIn("localhost/unsafe", text)
+            data = json.loads(text)
+            ids = {app["id"] for app in data["apps"]}
+            self.assertNotIn("codex", ids)
+            self.assertIn("org.example.Writer", ids)
+            self.assertEqual(data["stats"]["catalog_skipped_entries"], 1)
+            curated = next(s for s in data["sources"] if s["kind"] == "curated-catalog")
+            self.assertEqual(curated["invalid"], 1)
             self.assertEqual(list(base.glob(f".{output.name}.*.tmp")), [])
+
+    def test_an_unreadable_catalog_still_fails_without_replacing_output(self) -> None:
+        for label, content in (
+            ("not json", "{not json"),
+            ("not an object", "[]"),
+            ("apps not a list", '{"apps": {}}'),
+        ):
+            with self.subTest(case=label), tempfile.TemporaryDirectory() as temporary:
+                base = Path(temporary)
+                appstream = base / "appstream"
+                installation = base / "flatpak"
+                appstream.mkdir()
+                installation.mkdir()
+                catalog = base / "catalog.json"
+                catalog.write_text(content, encoding="utf-8")
+                output = base / "index.json"
+                output.write_text('{"sentinel":true}\n', encoding="utf-8")
+                result = self.run_indexer(
+                    output, catalog, appstream, installation, locale="en"
+                )
+                self.assertEqual(result.returncode, 2)
+                self.assertEqual(
+                    json.loads(output.read_text(encoding="utf-8")), {"sentinel": True}
+                )
+                self.assertEqual(list(base.glob(f".{output.name}.*.tmp")), [])
 
     def test_auto_discovery_ignores_orphan_and_untrusted_remotes(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
@@ -605,7 +699,7 @@ class StoreIndexTests(unittest.TestCase):
                 text=True,
                 capture_output=True,
                 check=False,
-                env=environment,
+                env=isolate(environment, base / "home"),
             )
             self.assertEqual(result.returncode, 0, result.stderr)
             data = json.loads(output.read_text(encoding="utf-8"))
@@ -684,6 +778,13 @@ class StoreEditorialPicksTests(unittest.TestCase):
     CATALOG = ROOT / "system_files/usr/share/moos/store/catalog.json"
     STORE = ROOT / "system_files/usr/share/moos/apps/store/main.qml"
 
+    def store_qml(self):
+        """main.qml first, then the Store's view files by name: the window and what it draws."""
+        folder = self.STORE.parent
+        files = sorted((p for p in folder.rglob("*") if p.is_file() and p.suffix in (".qml", ".js")),
+                       key=lambda p: (p != self.STORE, p.relative_to(folder).as_posix()))
+        return "\n".join(path.read_text(encoding="utf-8") for path in files)
+
     def ranked(self, limit):
         apps = json.loads(self.CATALOG.read_text(encoding="utf-8"))["apps"]
         order = sorted(range(len(apps)),
@@ -716,7 +817,7 @@ class StoreEditorialPicksTests(unittest.TestCase):
 
     def test_the_store_still_says_what_moos_can_run(self):
         """Removing the runtime from the first row may not remove the promise."""
-        source = self.STORE.read_text(encoding="utf-8")
+        source = self.store_qml()
         self.assertIn("app-engines.json", source,
                       "the Store must read the engine registry, so the capability it "
                       "advertises is the one the system actually has")
@@ -726,7 +827,7 @@ class StoreEditorialPicksTests(unittest.TestCase):
                       "the dead button rule")
 
     def test_store_ranks_by_popular_flag_and_catalogue_order(self):
-        source = self.STORE.read_text(encoding="utf-8")
+        source = self.store_qml()
         start = source.index("function curatedFeatured(limit)")
         body = source[start:source.index("\n    function ", start + 1)]
         self.assertIn("win.curatedApps", body, "picks must follow catalog.json's own order")

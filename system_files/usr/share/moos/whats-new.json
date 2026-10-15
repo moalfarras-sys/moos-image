@@ -3,6 +3,19 @@
   "_": "What a person can SEE or DO after an update, newest first. One entry per user-visible change, written for the owner of the machine, not for a developer: what it is, where it is, and (when MoOS has a route to it) a way to try it now. 'merged' is when the change reached main (a little later is fine, earlier is not: an entry dated before a machine's previous system is never marked new there); a machine marks an entry new when the system it ran BEFORE the update was built earlier than that. tests/test_whats_new.py reads every entry the way MoOS Settings will.",
   "entries": [
     {
+      "id": "mo-store-library",
+      "merged": "2026-10-14T22:00:00Z",
+      "glyph": "install",
+      "title": {
+        "ar": "متجر MoOS: كل تطبيقاتك في مكان واحد",
+        "en": "Mo Store: every app in one place"
+      },
+      "body": {
+        "ar": "متجر واحد لتطبيقات لينكس وChatGPT وClaude، وبرامج ويندوز وتطبيقات أندرويد على الأجهزة التي تستطيع تشغيلها. صفحات بالصور والتوافق والأذونات، ومكتبة للفتح والتحديث والإزالة. تؤكد تحديثات أندرويد تطبيق الإصدار الجديد قبل إعلان النجاح.",
+        "en": "One library for Linux apps, ChatGPT and Claude, plus Windows programs and Android apps on PCs that can run them. Browse pictures, compatibility and permissions; open, update or remove your apps. Android updates respect the installed build and confirm it changed before reporting success."
+      }
+    },
+    {
       "id": "mira-job-presence-recovery",
       "merged": "2026-10-14T17:16:49Z",
       "glyph": "ui",
@@ -873,20 +886,6 @@
         "ar": "بطاقات MoOS وأزراره تتبع الآن إعداد سرعة الحركة نفسه الذي يتبعه سطح المكتب، فلا يبقى جزء بطيئًا وآخر سريعًا.",
         "en": "MoOS cards and buttons now follow the same animation-speed setting the desktop does, so one part is never slow while another is fast."
       }
-    },
-    {
-      "id": "about",
-      "merged": "2026-09-17T20:42:58Z",
-      "glyph": "about",
-      "title": {
-        "ar": "حول هذا الجهاز",
-        "en": "About this device"
-      },
-      "body": {
-        "ar": "صفحة من MoOS نفسه: الإصدار والإصدارة وتاريخ البناء وتوقيع الصورة ومواصفات جهازك، مع زر ينسخ التفاصيل لمحادثة دعم.",
-        "en": "A page of MoOS's own: version, edition, build date, image signature and your hardware, with a button that copies the details for a support conversation."
-      },
-      "route": "moos://settings/about"
     }
   ]
 }

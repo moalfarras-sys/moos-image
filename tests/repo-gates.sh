@@ -253,6 +253,13 @@ python3 tests/test_mira_kde_integration.py
 # saying Exec=sh -c, a file merely CALLED .AppImage, a ref naming a foreign remote. The
 # AppImage sandbox is run under the real bwrap where it exists.
 python3 tests/test_app_drop.py
+python3 tests/test_moos_webapp.py
+python3 tests/test_moos_store_krunner.py
+python3 tests/test_moos_store_notify.py
+# Mo Store's vendor packages (the official ChatGPT app ships only as a signed RPM): rpm's own
+# version order, https-only pinned downloads, a signature by the catalogue's key judged on the
+# real rpm 6 outputs, hostile payloads built for real, and remove() touching only marked files.
+python3 tests/test_moos_vendor_rpm.py
 # The owner reads the administrator prompt in their own language, and cancelling it prints
 # MoOS's line instead of pkexec's "This incident has been reported." (station, 2026-09-18).
 python3 tests/test_moos_local_rpm_authentication.py
@@ -312,8 +319,30 @@ python3 tests/test_remote_resolution_ceiling.py
 python3 tests/test_desktop_sound_reachable.py
 python3 tests/test_remote_audio_is_authenticated.py
 python3 tests/test_moos_store_index.py
+python3 tests/test_mo_store_index_sources.py
+python3 tests/test_mo_store_index_not_apps.py
+python3 tests/test_mo_store_index_catalogue.py
+python3 tests/test_mo_store_index_search.py
+python3 tests/test_mo_store_index_lifecycle.py
+python3 tests/test_mo_store_index_machine.py
+python3 tests/test_mo_store_index_compat.py
+python3 tests/test_mo_store_index_details.py
+# Catalogue v2's gate rules each have a negative control; a rule that cannot fail protects nothing.
+python3 tests/test_mo_store_catalog_gate.py
 python3 tests/test_moos_storectl.py
 python3 tests/test_store_job_language.py
+python3 tests/test_mo_store_backend_kinds.py
+python3 tests/test_mo_store_backend_windows.py
+python3 tests/test_mo_store_backend2_vendor.py
+python3 tests/test_mo_store_backend2_windows_template.py
+python3 tests/test_mo_store_backend2_index.py
+python3 tests/test_mo_store_backend2_run_foreign.py
+# Exercise the integrated update, web policy, routing and owner-facing words.
+python3 tests/test_mo_store_pinned_updates.py
+python3 tests/test_moos_android_apk.py
+python3 tests/test_mo_store_webapp_one_rule.py
+python3 tests/test_store_open_and_ids.py
+python3 tests/test_store_window_words.py
 # One globally importable MoUI module must own identity metrics and shared
 # controls; an app-local copy cannot silently grow back.
 python3 tests/test_moos_design_core.py
@@ -458,6 +487,7 @@ python3 tests/test_material_state_qml.py
 python3 tests/test_design_studio_reference.py
 python3 tests/test_store_app_drop_bridge.py
 python3 tests/test_store_app_drop_ui.py
+python3 tests/test_mo_store_ui_pages.py
 python3 tests/test_selfcheck_document_portal.py
 
 # The gate that keeps `npm audit` honest. A retiring registry endpoint failed

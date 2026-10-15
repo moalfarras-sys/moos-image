@@ -1,0 +1,59 @@
+{
+ "schema": 1,
+ "generated_at": "2026-10-12T09:30:00Z",
+ "state": "success",
+ "apps": {
+  "org.example.Paint": {
+   "download": 128000000,
+   "installed": 402000000,
+   "eol": null,
+   "eol_rebase": null,
+   "permissions": [
+    "network",
+    "files-home",
+    "sound"
+   ],
+   "x11_only": false,
+   "extra_data": false
+  },
+  "org.example.Office": {
+   "download": 288000000,
+   "installed": 812000000,
+   "eol": null,
+   "eol_rebase": null,
+   "permissions": [
+    "network",
+    "downloads",
+    "sound"
+   ],
+   "x11_only": false,
+   "extra_data": false
+  },
+  "org.example.Files": {
+   "download": 12000000,
+   "installed": 40000000,
+   "eol": null,
+   "eol_rebase": null,
+   "permissions": [
+    "files-all",
+    "host-commands",
+    "devices"
+   ],
+   "x11_only": true,
+   "extra_data": false
+  },
+  "org.example.Big": {
+   "download": 18000000000,
+   "installed": 42000000000,
+   "eol": null,
+   "eol_rebase": null,
+   "permissions": [
+    "network",
+    "sound",
+    "devices"
+   ],
+   "x11_only": false,
+   "extra_data": true
+  }
+ }
+}

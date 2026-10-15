@@ -448,6 +448,50 @@ def data_dirs():
     return [home, *(Path(item) for item in shared.split(":") if item)]
 
 
+def store_answer(output):
+    """The job document Mo Store printed on its last line; {} when there is none."""
+    lines = [line for line in (output or "").splitlines() if line.strip()]
+    try:
+        document = json.loads(lines[-1]) if lines else {}
+    except ValueError:
+        return {}
+    return document if isinstance(document, dict) else {}
+
+
+def store_open(value):
+    """Open an app Mo Store installed, and say what Mo Store answered.
+
+    Its exit code and its job document are read, as moai-do's launch_app reads them. Every
+    failure used to be "app is not installed": said of an installed web app while the scheduled
+    updater held the Store's lock, and of an installed command-line tool, and Mo AI repeated it.
+    """
+    try:
+        done = subprocess.run(["moos-storectl", "run", value], capture_output=True,
+                              timeout=60, stdin=subprocess.DEVNULL)
+    except (OSError, subprocess.SubprocessError) as exc:
+        raise Unavailable(f"تعذّر فتح هذا التطبيق | This app could not be opened: {value}") from exc
+    document = store_answer(done.stdout.decode("utf-8", "ignore"))
+    key = document.get("message_key")
+    if done.returncode == 0 and document.get("state") == "success":
+        return f"🚀 فتح {value} | Opening {value}"
+    if done.returncode == 75 or key == "busy":
+        # An app opens beside the scheduled updater. Busy is left for another request's job that
+        # is still running (it keeps the one document the Store window reads), and for Android app
+        # support that would have to be started beside whatever holds the lock.
+        raise Unavailable("متجر MoOS مشغول بعملية أخرى — حاول بعد قليل | "
+                          "Mo Store is busy with another operation — try again shortly")
+    if key in ("not_installed", "invalid_id"):
+        # invalid_id: no app of any kind Mo Store knows has this id.
+        raise Unavailable(f"التطبيق غير مثبّت | app is not installed: {value}")
+    if key == "unsupported_kind":
+        # An app Mo Store has no window for: an installed command-line tool (a missing one is
+        # not_installed), or one only ever downloaded from its publisher's page.
+        raise Unavailable("لا نافذة لهذا التطبيق يفتحها متجر MoOS؛ أدوات سطر الأوامر تعمل في الطرفية | "
+                          "Mo Store has no window to open for this app; command-line tools run in a "
+                          "terminal")
+    raise Unavailable(f"تعذّر فتح هذا التطبيق | This app could not be opened: {value}")
+
+
 def open_app(value):
     if not APP_ID.fullmatch(value or ""):
         raise Invalid("invalid app id")
@@ -456,8 +500,15 @@ def open_app(value):
         command = ["flatpak", "run", value]
     elif any((base / "applications" / f"{value}.desktop").is_file() for base in data_dirs()):
         command = ["gtk-launch", value]
+    elif shutil.which("moos-storectl"):
+        # Web apps, publisher downloads, Windows programs, Android apps and the publisher's own
+        # packages are opened by Mo Store, which knows each one's launcher (and refuses an id
+        # that is not installed); the same path its Open button takes. The person asked: Android
+        # app support may be started for it, unlike from a moos: link.
+        require_display()
+        return store_open(value)
     else:
-        raise Unavailable(f"app is not installed: {value}")
+        raise Unavailable(f"التطبيق غير مثبّت | app is not installed: {value}")
     require_display()
     spawn(command)
     return f"🚀 فتح {value} | Opening {value}"

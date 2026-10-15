@@ -21,6 +21,8 @@ script, not by reading it:
 Nothing here installs, removes, or escalates anything: the only arguments given to moai-do
 are ones it must refuse before it reaches a confirmation prompt or pkexec.
 """
+import importlib.machinery
+import importlib.util
 import os
 import json
 import re
@@ -466,9 +468,11 @@ with tempfile.TemporaryDirectory() as tmp:
         logged = store_log.read_text(encoding="utf-8") if store_log.exists() else ""
         return completed, logged
 
+    # `flatpak info` fails here, so the installed app is opened through Mo Store's own run verb.
     for args, expected in ((["uninstall", "org.example.App"], "remove\norg.example.App\n"),
                            (["update-apps"], "update\n"),
-                           (["install", "org.example.App"], "install\norg.example.App\n")):
+                           (["install", "org.example.App"],
+                            "install\norg.example.App\nrun\norg.example.App\n")):
         label = " ".join(args)
         completed, logged = store_run(args, "y\n")
         check(logged == expected,
@@ -486,6 +490,365 @@ with tempfile.TemporaryDirectory() as tmp:
     completed, _ = store_run(["uninstall", "org.example.App"], "y\n")
     check(completed.returncode != 0 and "system-wide" in completed.stdout,
           "a failed Store job must fail the action and show the backend's own reason")
+
+# ── 3b. After an install the app OPENS, whatever kind Mo Store installed ─────
+# launch_app used to try `flatpak run <id>` and then `gtk-launch <id>`. A web app's launcher is
+# org.moos.webapp.<id>, a Windows program's org.moos.windows.<id>, a publisher's app's
+# org.moos.vendor.<id>, and App Drop and Android apps have their own: no desktop file is named
+# after a Mo Store id, so every one of those installs ended "could not be opened". A Flatpak still
+# runs as itself; everything else goes through `moos-storectl run <id>`, which opens each kind
+# the way its launcher does. An app with no window (a command-line tool, a publisher page) is
+# ready, not a failure.
+with tempfile.TemporaryDirectory() as tmp:
+    bindir = Path(tmp)
+    store_log = bindir / "storectl.log"
+    launches = bindir / "launches.log"
+    doubles = {
+        "moos-storectl": ('#!/bin/sh\nprintf "%s\\n" "$@" >> "$MOOS_TEST_STORE_LOG"\n'
+                          'if [ "$1" = run ]; then\n'
+                          '    printf "%s\\n" "$MOOS_TEST_RUN_DOC"\n'
+                          '    exit "${MOOS_TEST_RUN_CODE:-0}"\n'
+                          'fi\n'
+                          "printf '%s\\n' '{\"schema\":1,\"state\":\"success\",\"message\":\"Done\"}'\n"),
+        "flatpak": ('#!/bin/sh\nif [ "$1" = info ]; then exit "${MOOS_TEST_FLATPAK_INFO:-1}"; fi\n'
+                    'printf "flatpak %s\\n" "$*" >> "$MOOS_TEST_LAUNCH_LOG"\nexit 0\n'),
+        "gtk-launch": '#!/bin/sh\nprintf "gtk-launch %s\\n" "$*" >> "$MOOS_TEST_LAUNCH_LOG"\nexit 0\n',
+        "moos-gpu-headroom": "#!/bin/sh\nexit 0\n",
+        # The catalogue offers its Windows programs on x86 PCs only, and moai-do now reads it
+        # before asking: pin the processor so the same apps are installed on an ARM host too.
+        "uname": '#!/bin/sh\n[ "$1" = -m ] && { echo x86_64; exit 0; }\nexec /usr/bin/uname "$@"\n',
+    }
+    for name, body in doubles.items():
+        (bindir / name).write_text(body, encoding="utf-8")
+        (bindir / name).chmod(0o755)
+    opened = '{"schema":1,"state":"success","message":"App opened","message_key":"app_opened"}'
+    windowless = ('{"schema":1,"state":"failed","message":"Mo Store cannot open claude-code",'
+                  '"message_key":"unsupported_kind"}')
+    missing = '{"schema":1,"state":"failed","message":"App is not installed","message_key":"not_installed"}'
+
+    def install_and_open(app_id, *, flatpak, run_doc, run_code):
+        for path in (store_log, launches):
+            path.unlink(missing_ok=True)
+        env = os.environ.copy()
+        (bindir / "home").mkdir(exist_ok=True)       # never the person's own home
+        env.update(HOME=str(bindir / "home"), XDG_CONFIG_HOME=str(bindir / "home/.config"),
+                   XDG_DATA_HOME=str(bindir / "home/.local/share"),
+                   XDG_STATE_HOME=str(bindir / "home/.local/state"),
+                   PATH=f"{bindir}{os.pathsep}{env.get('PATH', '')}", MOOS_TEST_STORE_LOG=str(store_log),
+                   MOOS_TEST_LAUNCH_LOG=str(launches), MOOS_TEST_FLATPAK_INFO="0" if flatpak else "1",
+                   MOOS_TEST_RUN_DOC=run_doc, MOOS_TEST_RUN_CODE=str(run_code))
+        completed = subprocess.run([BASH, str(MOAI_DO), "install", app_id], input="y\n",
+                                   capture_output=True, text=True, encoding="utf-8",
+                                   errors="replace", timeout=60, env=env)
+        time.sleep(0.3)                      # a detached launcher writes its line after we return
+        stored = store_log.read_text(encoding="utf-8") if store_log.exists() else ""
+        started = launches.read_text(encoding="utf-8") if launches.exists() else ""
+        return completed, stored, started
+
+    completed, stored, started = install_and_open("org.example.App", flatpak=True, run_doc=opened,
+                                                  run_code=0)
+    check(completed.returncode == 0 and stored == "install\norg.example.App\n"
+          and started == "flatpak run org.example.App\n",
+          f"an installed Flatpak must open as itself: {stored!r} {started!r} {completed.stderr}")
+    # A publisher's own package, an App Drop app and a Windows program ("putty"; this list once
+    # said "putty-win", an id no catalogue holds, which only a recorder in the backend's place
+    # would ever have installed).
+    for app_id in ("chatgpt", "photocraft", "putty"):
+        completed, stored, started = install_and_open(app_id, flatpak=False, run_doc=opened, run_code=0)
+        check(completed.returncode == 0 and stored == f"install\n{app_id}\nrun\n{app_id}\n",
+              f"a Mo Store app that is not a Flatpak ({app_id}) must open through `moos-storectl run`: "
+              f"{stored!r} {completed.stdout} {completed.stderr}")
+        check("gtk-launch" not in started and "flatpak" not in started,
+              f"{app_id} must not be guessed at by desktop file or Flatpak id: {started!r}")
+    completed, stored, started = install_and_open("claude-code", flatpak=False, run_doc=windowless,
+                                                  run_code=2)
+    check(completed.returncode == 0 and "no window to open" in completed.stdout,
+          "an app with no window is installed and ready, never 'could not be opened': "
+          f"{completed.returncode} {completed.stdout} {completed.stderr}")
+    completed, stored, started = install_and_open("chatgpt", flatpak=False, run_doc=missing, run_code=1)
+    check(completed.returncode == 1 and "could not be opened" in completed.stderr,
+          "an app that would not open must say so and fail the action: "
+          f"{completed.returncode} {completed.stdout} {completed.stderr}")
+    check("gtk-launch" not in started, f"no desktop-file guess after a refused open: {started!r}")
+
+# ── 3c. The y/N names where the app really comes from ────────────────────────
+# do_install printed "From : Mo Store (Flathub) — for this user" before its y/N for EVERY id, and
+# that y/N is the whole consent `moos://apps/install/<id>` asks for: ChatGPT (the publisher's own
+# download), PhotoCraft (an AppImage from GitHub), the Windows programs and the web apps were all
+# announced as a sandboxed Flathub app, and none said it could see the person's files
+# (docs/MO_STORE.md, "Honest labels"). The line is now decided by the signed catalogue the backend
+# installs from, with the backend's own rules; an id the backend would refuse is refused before the
+# question. Every install here is declined or refused and the backend is a recorder: nothing is
+# installed, and nothing may reach the backend at all.
+ORIGIN_SAYS = {
+    "flathub": ("Flathub عبر متجر MoOS — معزول، لهذا المستخدم",
+                "Flathub through Mo Store — sandboxed, for this user"),
+    "publisher": ("تنزيل الناشر نفسه عبر متجر MoOS، لهذا المستخدم",
+                  "the publisher's own download through Mo Store, for this user"),
+    "windows": ("برنامج ويندوز من ناشره عبر متجر MoOS، لهذا المستخدم",
+                "a Windows program from its publisher through Mo Store, for this user"),
+    "webapp": ("تطبيق ويب في نافذة خاصة به — لا يُنزَّل أي برنامج",
+               "a web app in its own window — no program is downloaded"),
+    "android": ("تطبيق أندرويد موثّق عبر متجر MoOS — معزول، وأذوناته في إعدادات أندرويد",
+                "a verified Android app through Mo Store — sandboxed; its permissions are in "
+                "Android's own settings"),
+    "web": ("صفحة الناشر الرسمية تُفتح فقط — لا يُثبَّت شيء",
+            "only the publisher's official page opens — nothing is installed"),
+}
+NOT_SANDBOXED = ("غير معزول: يستطيع رؤية ملفاتك وتغييرها",
+                 "not sandboxed: it can see and change your files")
+# What each catalogue `install.kind` is to the person, and what moos-storectl's own permission
+# document calls the same app (`_permission_subject`): the two must never disagree.
+KIND_SAYS = {"npm": "publisher", "appdrop": "publisher", "vendor-rpm": "publisher",
+             "windows-portable": "windows", "webapp": "webapp", "android": "android", "web": "web"}
+BACKEND_CALLS = {"flathub": "flatpak", "publisher": "unsandboxed", "windows": "unsandboxed",
+                 "webapp": "webapp", "android": "android"}
+SOURCE_CATALOG = ROOT / "system_files/usr/share/moos/store/catalog.json"
+
+
+def install_answered(script, app_id, answer, machine):
+    """moai-do install <app_id> answered with `answer`, on a pinned processor, in a private home."""
+    with tempfile.TemporaryDirectory() as raw:
+        base = Path(raw)
+        bindir = base / "bin"
+        bindir.mkdir()
+        log = base / "storectl.log"
+        doubles = {
+            "moos-storectl": (f'#!/bin/sh\nprintf "%s\\n" "$@" >> "{log}"\n'
+                              "printf '%s\\n' '{\"schema\":1,\"state\":\"success\"}'\n"),
+            "flatpak": "#!/bin/sh\nexit 1\n",
+            "moos-gpu-headroom": "#!/bin/sh\nexit 0\n",
+            "uname": f'#!/bin/sh\n[ "$1" = -m ] && {{ echo {machine}; exit 0; }}\n'
+                     'exec /usr/bin/uname "$@"\n',
+        }
+        for name, body in doubles.items():
+            (bindir / name).write_text(body, encoding="utf-8")
+            (bindir / name).chmod(0o755)
+        env = os.environ.copy()
+        env.pop("DBUS_SESSION_BUS_ADDRESS", None)
+        env.update(HOME=str(base / "home"), XDG_CONFIG_HOME=str(base / "home/.config"),
+                   XDG_DATA_HOME=str(base / "home/.local/share"),
+                   XDG_STATE_HOME=str(base / "home/.local/state"),
+                   XDG_CACHE_HOME=str(base / "home/.cache"),
+                   PATH=f"{bindir}{os.pathsep}{env.get('PATH', '')}")
+        done = subprocess.run([BASH, str(script), "install", app_id], input=answer,
+                              capture_output=True, text=True, encoding="utf-8", errors="replace",
+                              timeout=60, env=env)
+        reached = log.read_text(encoding="utf-8") if log.exists() else ""
+    return done, reached
+
+
+def check_origin(script, app_id, machine, said):
+    """Declined: the From line is `said`'s, in both languages; nothing reaches the backend."""
+    done, reached = install_answered(script, app_id, "n\n", machine)
+    where = f"moai-do install {app_id} on {machine}"
+    lines = done.stdout.splitlines()
+    source = [line for line in lines if line.startswith("المصدر | From : ")]
+    check(done.returncode == 0 and "Continue?" in done.stdout and reached == "",
+          f"{where} must ask, take No for an answer and reach nothing: {done.returncode} "
+          f"{reached!r} {done.stdout} {done.stderr}")
+    check(len(source) == 1 and source[0] == "المصدر | From : " + " | ".join(ORIGIN_SAYS[said]),
+          f"{where} must name its real origin ({said}): {source}")
+    warned = any(" | ".join(NOT_SANDBOXED) in line for line in lines)
+    check(warned == (said in ("publisher", "windows")),
+          f"{where}: an app that is not sandboxed says it can see the person's files, and only "
+          f"such an app does ({said}): {lines}")
+    check(said == "flathub" or "Flathub" not in done.stdout,
+          f"{where} is not a Flathub app and must not be announced as one: {done.stdout}")
+
+
+def check_refused(script, app_id, machine, why):
+    done, reached = install_answered(script, app_id, "y\n", machine)
+    check(done.returncode == 2 and "Continue?" not in done.stdout and reached == ""
+          and "Mo Store does not offer this app on this computer" in done.stdout
+          and "لا يعرض متجر MoOS هذا التطبيق على هذا الجهاز" in done.stdout,
+          f"moai-do install {app_id} on {machine} ({why}) must be refused before the question, "
+          f"as the backend would refuse it: {done.returncode} {reached!r} {done.stdout}")
+
+
+# The shipped catalogue: one app of every kind each processor is offered, and the apps named in
+# the review. A kind this list cannot describe fails here before it reaches anybody's screen.
+shipped = json.loads(SOURCE_CATALOG.read_text(encoding="utf-8"))["apps"]
+examples = {}
+for machine in ("x86_64", "aarch64"):
+    for app in shipped:
+        if app.get("arch") and machine not in app["arch"]:
+            continue
+        kind = "flathub" if app.get("source") == "flathub" else (app.get("install") or {}).get("kind")
+        said = "flathub" if kind == "flathub" else KIND_SAYS.get(kind)
+        check(said is not None, f"moai-do install cannot say where a {kind!r} app comes from")
+        if said is not None:
+            examples.setdefault((machine, said), app["id"])
+check({said for machine, said in examples} >= set(BACKEND_CALLS),
+      f"the catalogue no longer offers every kind this test reads: {sorted(examples)}")
+for (machine, said), app_id in sorted(examples.items()):
+    check_origin(MOAI_DO, app_id, machine, said)
+for app_id, said in (("chatgpt", "publisher"), ("photocraft", "publisher"), ("claude", "webapp"),
+                     ("claude-code", "publisher"), ("notepad-plus-plus", "windows"),
+                     ("org.schabi.newpipe", "android"), ("org.mozilla.firefox", "flathub")):
+    check_origin(MOAI_DO, app_id, "x86_64", said)
+# Built for x86 PCs only, so on ARM the backend has no such app: refused, never a Windows label.
+check_refused(MOAI_DO, "notepad-plus-plus", "aarch64", "an x86-only Windows program")
+
+# The backend calls each of those apps what the y/N called it. Read-only: the permission subject
+# reads the catalogue and the person's (here private) records, and runs nothing.
+backend_loader = importlib.machinery.SourceFileLoader(
+    "moos_storectl_for_moai_do", str(ROOT / "system_files/usr/bin/moos-storectl"))
+backend = importlib.util.module_from_spec(
+    importlib.util.spec_from_loader(backend_loader.name, backend_loader))
+sys.modules[backend_loader.name] = backend          # its dataclasses look their module up
+backend_loader.exec_module(backend)
+saved_environment = dict(os.environ)
+try:
+    with tempfile.TemporaryDirectory() as tmp:
+        os.environ.update(HOME=tmp, XDG_DATA_HOME=f"{tmp}/.local/share",
+                          XDG_STATE_HOME=f"{tmp}/.local/state", XDG_CACHE_HOME=f"{tmp}/.cache")
+        controller = backend.Controller(backend.JobStore(Path(tmp) / ".cache/moos-store"),
+                                        catalog_path=SOURCE_CATALOG)
+        for (machine, said), app_id in sorted(examples.items()):
+            if said not in BACKEND_CALLS:
+                continue
+            backend.running_arch = lambda machine=machine: machine
+            subject = controller._permission_subject(app_id)[0]
+            check(subject == BACKEND_CALLS[said],
+                  f"on {machine} the y/N calls {app_id} '{said}', but Mo Store's own permission "
+                  f"page calls it {subject!r}")
+finally:
+    os.environ.clear()
+    os.environ.update(saved_environment)
+
+# Every rule of the backend's, on a catalogue written for the purpose: the program is copied
+# beside it (moai-do reads the catalogue shipped next to itself, /usr/share/moos/store/ in the image).
+with tempfile.TemporaryDirectory() as tmp:
+    tree = Path(tmp)
+    (tree / "usr/bin").mkdir(parents=True)
+    shutil.copy2(MOAI_DO, tree / "usr/bin/moai-do")
+    fixture = tree / "usr/share/moos/store/catalog.json"
+    fixture.parent.mkdir(parents=True)
+    copy = tree / "usr/bin/moai-do"
+    fixture.write_text(json.dumps({"apps": [
+        {"id": "org.example.Listed", "source": "flathub"},
+        {"id": "org.example.Elsewhere", "source": "flathub", "arch": ["aarch64"]},
+        {"id": "tool-one", "source": "moos", "install": {"kind": "npm"}},
+        {"id": "drop-one", "source": "moos", "install": {"kind": "appdrop"}},
+        {"id": "vendor-one", "source": "moos", "install": {"kind": "vendor-rpm"}},
+        {"id": "prog-here", "source": "moos", "arch": ["x86_64"],
+         "install": {"kind": "windows-portable"}},
+        {"id": "prog-there", "source": "moos", "arch": ["aarch64"],
+         "install": {"kind": "windows-portable"}},
+        {"id": "site-one", "source": "moos", "install": {"kind": "webapp"}},
+        {"id": "page-one", "source": "moos", "install": {"kind": "web"}},
+        {"id": "org.example.droid", "source": "moos",
+         "install": {"kind": "android", "package": "org.example.droid"}},
+        {"id": "org.example.mismatch", "source": "moos",
+         "install": {"kind": "android", "package": "org.example.other"}},
+        {"id": "odd-one", "source": "moos", "install": {"kind": "teleport"}},
+        {"id": "Upper-Slug", "source": "moos", "install": {"kind": "npm"}},
+        {"id": "nowhere-one", "source": "elsewhere", "install": {"kind": "npm"}},
+    ]}), encoding="utf-8")
+    for app_id, said in (("org.example.Listed", "flathub"), ("tool-one", "publisher"),
+                         ("drop-one", "publisher"), ("vendor-one", "publisher"),
+                         ("prog-here", "windows"), ("site-one", "webapp"), ("page-one", "web"),
+                         ("org.example.droid", "android"),
+                         # Not offered here, or not in the catalogue: the backend tries Flathub.
+                         ("org.example.Elsewhere", "flathub"), ("org.example.Unlisted", "flathub")):
+        check_origin(copy, app_id, "x86_64", said)
+    for app_id, why in (("prog-there", "built for another processor"),
+                        ("org.example.mismatch", "an Android id that is not its package"),
+                        ("odd-one", "a kind the backend cannot install"),
+                        ("Upper-Slug", "not a Mo Store id"),
+                        ("nowhere-one", "a source the backend does not install from"),
+                        ("no-such-app", "in no catalogue and not a Flathub id"),
+                        ("org.example", "two parts are not a Flathub id")):
+        check_refused(copy, app_id, "x86_64", why)
+    # A catalogue the backend cannot read installs nothing, Flathub ids included.
+    for broken in ("{", json.dumps({"apps": {"id": "x"}}),
+                   json.dumps({"apps": [{"id": "org.example.Listed", "source": "flathub"},
+                                        {"id": "org.example.Listed", "source": "flathub"}]})):
+        fixture.write_text(broken, encoding="utf-8")
+        check_refused(copy, "org.example.Listed", "x86_64", f"an unreadable catalogue {broken[:20]!r}")
+
+# ── 3d. In Arabic the Store is «متجر MoOS» on every screen moai-do prints ─────
+# The Store's launcher (its Name[ar]), MoOS Search, its notifications, What's new and Mo AI's
+# cards call it «متجر MoOS»; English says "Mo Store". moai-do's own screens kept the Latin
+# "Mo Store" inside Arabic sentences: the install and removal headers, a failed install, the busy
+# line, updates, smart setup, the restart refusal and the help. Once the From line above said
+# «عبر متجر MoOS», one consent screen named the Store two ways in one language. Each screen is
+# read as printed, one language half at a time; then the whole file is read, for the line no run
+# here reaches (the restart refusal waits for a Store job that holds its lock). Every answer is
+# No or a failed backend: nothing is installed, removed, updated or opened.
+ARABIC_LETTER = re.compile(r"[ء-ي]")
+OTHER_STORE_NAMES = re.compile(r"Mo Store|متجر Mo(?!OS)")
+
+
+def arabic_halves(text):
+    """The Arabic halves of a bilingual line ("عربي | English"), as a person reads them."""
+    return [part for part in text.split(" | ") if ARABIC_LETTER.search(part)]
+
+
+def store_screen(args, answer, storectl):
+    """What `moai-do <args>` prints answered `answer`, beside a backend that runs `storectl`."""
+    with tempfile.TemporaryDirectory() as raw:
+        base = Path(raw)
+        bindir = base / "bin"
+        bindir.mkdir()
+        reached = base / "reached.log"
+        doubles = {
+            "moos-storectl": storectl,
+            "flatpak": "#!/bin/sh\nexit 1\n",
+            "moos-gpu-headroom": "#!/bin/sh\nexit 0\n",
+            "moos-setup": f'#!/bin/sh\necho "moos-setup $*" >> "{reached}"\n',
+            "gtk-launch": f'#!/bin/sh\necho "gtk-launch $*" >> "{reached}"\n',
+            "uname": '#!/bin/sh\n[ "$1" = -m ] && { echo x86_64; exit 0; }\nexec /usr/bin/uname "$@"\n',
+        }
+        for name, body in doubles.items():
+            (bindir / name).write_text(body, encoding="utf-8")
+            (bindir / name).chmod(0o755)
+        env = os.environ.copy()
+        env.pop("DBUS_SESSION_BUS_ADDRESS", None)
+        env.pop("MOAI_DO_CONFIRMED", None)
+        env.update(HOME=str(base / "home"), XDG_CONFIG_HOME=str(base / "home/.config"),
+                   XDG_DATA_HOME=str(base / "home/.local/share"),
+                   XDG_STATE_HOME=str(base / "home/.local/state"),
+                   XDG_CACHE_HOME=str(base / "home/.cache"),
+                   PATH=f"{bindir}{os.pathsep}{env.get('PATH', '')}")
+        done = subprocess.run([BASH, str(MOAI_DO), *args], input=answer, capture_output=True,
+                              text=True, encoding="utf-8", errors="replace", timeout=60, env=env)
+        ran = reached.read_text(encoding="utf-8") if reached.exists() else ""
+    return done, ran
+
+
+FAILED_JOB = ("#!/bin/sh\nprintf '%s\\n' '{\"schema\":1,\"state\":\"failed\","
+              "\"message\":\"Download failed\"}'\nexit 1\n")
+BUSY_JOB = "#!/bin/sh\nexit 75\n"
+for label, (done, ran) in {
+        "install chatgpt, answered yes, failing": store_screen(["install", "chatgpt"], "y\n", FAILED_JOB),
+        "install while the Store is busy": store_screen(["install", "org.example.App"], "y\n", BUSY_JOB),
+        "uninstall": store_screen(["uninstall", "org.example.App"], "n\n", FAILED_JOB),
+        "update-apps": store_screen(["update-apps"], "n\n", FAILED_JOB),
+        "smart-setup": store_screen(["smart-setup"], "n\n", FAILED_JOB),
+        "help": store_screen(["help"], "", FAILED_JOB)}.items():
+    shown = done.stdout.splitlines() + done.stderr.splitlines()
+    arabic = [half for line in shown for half in arabic_halves(line)]
+    english = [part for line in shown for part in line.split(" | ")
+               if not ARABIC_LETTER.search(part)]
+    check(ran == "", f"moai-do {label} must start nothing: {ran!r}")
+    check([half for half in arabic if OTHER_STORE_NAMES.search(half)] == [],
+          f"moai-do {label} names the Store another way in Arabic; it is «متجر MoOS»: "
+          f"{[half.strip() for half in arabic if OTHER_STORE_NAMES.search(half)]}")
+    # The rule must not pass by dropping the name: each of these screens is about the Store.
+    check(any("متجر MoOS" in half for half in arabic),
+          f"moai-do {label} must name the Store «متجر MoOS» in Arabic: {arabic}")
+    check(any("Mo Store" in part for part in english),
+          f"moai-do {label} must still name it Mo Store in English: {english}")
+for number, line in enumerate(do_text.splitlines(), 1):
+    if line.lstrip().startswith("#"):
+        continue
+    for piece in line.split('"'):
+        for half in arabic_halves(piece):
+            check(not OTHER_STORE_NAMES.search(half),
+                  f"moai-do:{number} names the Store another way in Arabic; it is «متجر MoOS»: "
+                  f"{half.strip()!r}")
 
 # ── 4. A dismissed administrator prompt is a failure, never a success line ────
 # `main` runs inside `if main "$@"; then`, which suspends `set -e` for every do_* function. An
@@ -718,10 +1081,11 @@ with tempfile.TemporaryDirectory() as tmp:
         return popups.read_text(encoding="utf-8").strip() if popups.exists() else ""
 
     arabic = re.compile(r"[\u0600-\u06ff]")
+    # The Store's Arabic name is its launcher's Name[ar], «متجر MoOS», never a Latin «Mo Store».
     for url, rc, english, arabic_words in (
             ("moos://do/update-apps", "1", "Mo Store: did not finish — firmware said boom",
-             "Mo Store: لم يكتمل"),
-            ("moos://do/update-apps", "0", "Mo Store ✓ — firmware said boom", "Mo Store ✓")):
+             "متجر MoOS: لم يكتمل"),
+            ("moos://do/update-apps", "0", "Mo Store ✓ — firmware said boom", "متجر MoOS ✓")):
         shown = popup(url, "C.UTF-8", rc)
         check(shown == english, f"{url} (exit {rc}) in English showed {shown!r}")
         shown = popup(url, "ar_SA.UTF-8", rc)

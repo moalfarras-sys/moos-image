@@ -1,7 +1,7 @@
-# MoOS current state — updated 2026-10-14
+# MoOS current state — updated 2026-10-15
 
 Oracle A1 and the physical NVIDIA workstation develop one MoOS product. Source, promoted artifacts and installed systems are separate evidence; the only backlog is [DEVELOPMENT_PLAN.md](docs/DEVELOPMENT_PLAN.md).
-Native audit: [AUDIT_20261012_AR.md](docs/AUDIT_20261012_AR.md).
+Native audit: [AUDIT_20261012_AR.md](docs/AUDIT_20261012_AR.md). [Oct15 branch integration: source, gates and delivery boundaries](docs/releases/2026-10-15-owner-integration.json).
 
 ## Current engineering batch
 

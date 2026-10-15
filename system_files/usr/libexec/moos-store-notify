@@ -1,0 +1,148 @@
+#!/usr/bin/python3
+"""moos-store-notify — say, once, when automatic app updates could not finish.
+
+WHY THIS EXISTS
+
+Apps update by themselves (the scheduled background app update), and that is how it should
+be: quietly. But when an update fails, nothing told the person — the result sat in
+~/.local/state/moos/app-updates.json, read only by MoOS Settings' Update page. An app that keeps
+failing to update keeps its old bugs and its old security holes, and its owner never knew.
+
+So: one notification per failed run, filed under Mo Store (the place that can retry), naming
+the apps, with one button that opens Mo Store's Updates page. Success stays silent, a run that is
+still going says nothing, and the same failed run is never announced twice.
+
+Started by moos-store-notify.path whenever the updater rewrites its record; it reads two files
+and exits.
+"""
+
+from __future__ import annotations
+
+import json
+import os
+from pathlib import Path
+import subprocess
+import sys
+
+ACTION_WINDOW_SECONDS = 15 * 60
+ID_PATTERN = r"^[A-Za-z0-9][A-Za-z0-9._-]{1,254}$"
+
+
+def state_home(env=os.environ) -> Path:
+    value = env.get("XDG_STATE_HOME", "")
+    return Path(value) if value.startswith("/") else Path(env.get("HOME", "~")).expanduser() / ".local/state"
+
+
+def cache_home(env=os.environ) -> Path:
+    value = env.get("XDG_CACHE_HOME", "")
+    return Path(value) if value.startswith("/") else Path(env.get("HOME", "~")).expanduser() / ".cache"
+
+
+def session_language(env=os.environ) -> str:
+    """Same rule as moos_ui2.session_language(): LC_ALL, then LC_MESSAGES, then LANG."""
+    raw = env.get("LC_ALL") or env.get("LC_MESSAGES") or env.get("LANG") or "en"
+    return raw.split(".", 1)[0].split("@", 1)[0].replace("-", "_").split("_", 1)[0].lower()
+
+
+def read_json(path: Path):
+    try:
+        with path.open(encoding="utf-8") as handle:
+            return json.load(handle)
+    except (OSError, ValueError):
+        return None
+
+
+def app_names(ids: list[str], index: Path, arabic: bool) -> list[str]:
+    """The names Mo Store shows, from its own index; the id's last part when it is not there."""
+    document = read_json(index)
+    known = {}
+    if isinstance(document, dict) and isinstance(document.get("apps"), list):
+        for app in document["apps"]:
+            if isinstance(app, dict) and app.get("id") in ids:
+                name = (app.get("ar") if arabic else app.get("name_en") or app.get("en")) \
+                    or app.get("name")
+                if isinstance(name, str) and name.strip():
+                    known[app["id"]] = " ".join(name.split())[:60]
+    return [known.get(app_id) or app_id.rsplit(".", 1)[-1] for app_id in ids]
+
+
+def message(names: list[str], language: str) -> tuple[str, str, str]:
+    shown = names[:3]
+    if language in ("ar", "fa", "he", "ur"):
+        listed = "، ".join(shown) + (f" و{len(names) - 3} غيرها" if len(names) > 3 else "")
+        return ("تعذّر تحديث بعض التطبيقات",
+                f"{listed}. افتح متجر MoOS لتجربة التحديث مرّة أخرى.",
+                "افتح التحديثات")
+    listed = ", ".join(shown) + (f" and {len(names) - 3} more" if len(names) > 3 else "")
+    return ("Some apps could not be updated", f"{listed}. Open Mo Store to try again.",
+            "Open updates")
+
+
+def main(env=os.environ) -> int:
+    import re
+
+    record = read_json(state_home(env) / "moos/app-updates.json")
+    if not isinstance(record, dict) or record.get("state") != "failed":
+        return 0
+    updated = record.get("updated")
+    if not isinstance(updated, int) or isinstance(updated, bool):
+        return 0
+    failures = record.get("failures")
+    ids = []
+    for failure in failures if isinstance(failures, list) else []:
+        app = failure.get("app") if isinstance(failure, dict) else None
+        if isinstance(app, str) and re.fullmatch(ID_PATTERN, app) and app not in ids:
+            ids.append(app)
+    if not ids:
+        return 0
+    seen_path = state_home(env) / "moos/store-notify.json"
+    seen = read_json(seen_path)
+    if isinstance(seen, dict) and seen.get("failed_at") == updated:
+        return 0
+
+    language = session_language(env)
+    names = app_names(ids, cache_home(env) / "moos-store/index.json", language == "ar")
+    title, body, action = message(names, language)
+    try:
+        sender = subprocess.Popen(
+            # Filed under Mo Store, whose Updates page the button opens: System Settings ›
+            # Notifications lists it by that name and the person can mute it there.
+            ["notify-send", "--app-name=Mo Store", "--icon=moos-store", "--urgency=normal",
+             "--hint=string:desktop-entry:org.moos.store",
+             f"--action=open={action}", "--wait", title, body],
+            stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True)
+    except OSError:
+        return 0
+
+    def remember() -> None:
+        seen_path.parent.mkdir(parents=True, exist_ok=True)
+        temporary = seen_path.with_suffix(".json.new")
+        temporary.write_text(json.dumps({"failed_at": updated}) + "\n", encoding="utf-8")
+        os.replace(temporary, seen_path)
+
+    # A sender that dies at once never reached anyone: leave the run unrecorded so the next
+    # rewrite of the record tries again. One that is still waiting has put the message up.
+    try:
+        answer, _ = sender.communicate(timeout=2)
+        if sender.returncode != 0:
+            return 0
+        remember()
+    except subprocess.TimeoutExpired:
+        remember()
+        try:
+            answer, _ = sender.communicate(timeout=ACTION_WINDOW_SECONDS)
+        except subprocess.TimeoutExpired:
+            sender.kill()
+            return 0
+    if (answer or "").strip() == "open":
+        try:
+            subprocess.Popen(["moos-store", "--page=updates"], stdin=subprocess.DEVNULL,
+                             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                             start_new_session=True)
+        except OSError:
+            pass
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

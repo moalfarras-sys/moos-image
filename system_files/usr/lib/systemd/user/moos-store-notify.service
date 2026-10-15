@@ -1,0 +1,10 @@
+[Unit]
+Description=Tell the person when automatic app updates could not finish
+PartOf=plasma-workspace.target
+
+[Service]
+# Exits at once unless a new failed run needs announcing; then it waits (at most 15 minutes)
+# for the notification's one button, which opens Mo Store's Updates page.
+Type=exec
+ExecStart=/usr/libexec/moos-store-notify
+Nice=10

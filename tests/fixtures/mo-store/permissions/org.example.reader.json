@@ -1,0 +1,9 @@
+{
+ "schema": 1,
+ "id": "org.example.reader",
+ "kind": "android",
+ "generated_at": "@NOW@",
+ "sandboxed": true,
+ "rows": [],
+ "note_key": "android_managed"
+}

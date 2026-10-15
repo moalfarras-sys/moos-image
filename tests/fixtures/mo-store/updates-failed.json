@@ -1,0 +1,10 @@
+{
+ "schema": 1,
+ "action": "check-updates",
+ "state": "failed",
+ "checked_at": "@NOW@",
+ "count": 0,
+ "app_count": 0,
+ "message": "Could not resolve updates",
+ "items": []
+}

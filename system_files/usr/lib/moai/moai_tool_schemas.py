@@ -180,33 +180,44 @@ _MOAI_DO_TOOLS: list[dict[str, Any]] = [
     ),
 
     # --- User-space actions (confirmation card, no pkexec) ---
+    # The id is a Mo Store app id, whatever kind of app it names: Mo Store's backend installs
+    # Flathub apps, web apps, Windows programs, publishers' own packages and Android apps by it.
     _schema(
         "install_app",
-        "Install a Flatpak application from the store — يثبّت تطبيق Flatpak من المتجر",
+        "Install an app from Mo Store, then open it. app_id is a Mo Store app id: a Flathub id "
+        "such as org.mozilla.firefox, or a Mo Store catalogue id such as chatgpt, claude or "
+        "photocraft — يثبّت تطبيقاً من متجر MoOS ثم يفتحه؛ المعرّف هو معرّف التطبيق في متجر MoOS",
         category=USER_CONFIRM, executor="moai-do", command="install",
         parameters={
             "app_id": {
                 "type": "string",
-                "description": "Flatpak application ID (e.g. org.mozilla.firefox) — معرّف التطبيق",
+                "description": "Mo Store app id: a Flathub id (e.g. org.mozilla.firefox) or a Mo "
+                               "Store catalogue id (e.g. chatgpt, claude, photocraft) — "
+                               "معرّف التطبيق في متجر MoOS",
             },
         },
         required=["app_id"],
-        consequence=("يُثبَّت التطبيق لحسابك عبر Mo Store ثم يُفتح. يمكنك إزالته في أي وقت.",
+        consequence=("يُثبَّت التطبيق لحسابك عبر متجر MoOS ثم يُفتح. يمكنك إزالته في أي وقت.",
                      "Installs the app for your account through Mo Store, then opens it. "
                      "You can remove it any time."),
     ),
     _schema(
         "uninstall_app",
-        "Remove a Flatpak application — يزيل تطبيق Flatpak",
+        "Remove an app that was installed through Mo Store. app_id is a Mo Store app id: a "
+        "Flathub id such as org.mozilla.firefox, or a Mo Store catalogue id such as chatgpt, "
+        "claude or photocraft — يزيل تطبيقاً ثُبّت عبر متجر MoOS؛ المعرّف هو معرّف التطبيق في "
+        "متجر MoOS",
         category=USER_CONFIRM, executor="moai-do", command="uninstall",
         parameters={
             "app_id": {
                 "type": "string",
-                "description": "Flatpak application ID to remove — معرّف التطبيق المراد إزالته",
+                "description": "Mo Store app id to remove: a Flathub id (e.g. org.mozilla.firefox) "
+                               "or a Mo Store catalogue id (e.g. chatgpt, claude, photocraft) — "
+                               "معرّف التطبيق المراد إزالته في متجر MoOS",
             },
         },
         required=["app_id"],
-        consequence=("يُحذف التطبيق من حسابك عبر Mo Store، ويمكنك تثبيته من جديد في أي وقت.",
+        consequence=("يُحذف التطبيق من حسابك عبر متجر MoOS، ويمكنك تثبيته من جديد في أي وقت.",
                      "Removes the app from your account through Mo Store. "
                      "You can install it again any time."),
     ),
@@ -214,7 +225,7 @@ _MOAI_DO_TOOLS: list[dict[str, Any]] = [
         "update_apps",
         "Update all installed Flatpak applications — يحدّث جميع تطبيقات Flatpak المثبّتة",
         category=USER_CONFIRM, executor="moai-do", command="update-apps",
-        consequence=("تُحدَّث تطبيقاتك عبر Mo Store. قد يحتاج تطبيق مفتوح إلى إغلاقه وفتحه من جديد.",
+        consequence=("تُحدَّث تطبيقاتك عبر متجر MoOS. قد يحتاج تطبيق مفتوح إلى إغلاقه وفتحه من جديد.",
                      "Updates your apps through Mo Store. An app that is open may need "
                      "to be closed and opened again."),
     ),
@@ -241,7 +252,7 @@ _MOAI_DO_TOOLS: list[dict[str, Any]] = [
         "setup_gaming",
         "Install Steam, Bottles, Lutris and ProtonUp for gaming — يثبّت أدوات الألعاب: Steam, Bottles, Lutris, ProtonUp",
         category=USER_CONFIRM, executor="moai-do", command="setup-gaming",
-        consequence=("يثبّت عبر Mo Store ما ينقص فقط من أدوات الألعاب. قد يكون التنزيل كبيراً.",
+        consequence=("يثبّت عبر متجر MoOS ما ينقص فقط من أدوات الألعاب. قد يكون التنزيل كبيراً.",
                      "Installs only the missing gaming tools through Mo Store. "
                      "The download can be large."),
     ),
@@ -249,16 +260,17 @@ _MOAI_DO_TOOLS: list[dict[str, Any]] = [
         "setup_windows",
         "Install Bottles for Windows application compatibility — يثبّت Bottles لتشغيل تطبيقات Windows",
         category=USER_CONFIRM, executor="moai-do", command="setup-windows",
-        consequence=("يثبّت عبر Mo Store بيئة معزولة لتشغيل برامج ‎.exe، مرة واحدة فقط.",
+        consequence=("يثبّت عبر متجر MoOS بيئة معزولة لتشغيل برامج ‎.exe، مرة واحدة فقط.",
                      "Installs, through Mo Store, an isolated environment for Windows .exe "
                      "programs. It is installed only once."),
     ),
     _schema(
         "smart_setup",
         "Install, through Mo Store, the essential apps this computer's hardware plan says are "
-        "missing — يثبّت عبر Mo Store التطبيقات الأساسية الناقصة حسب عتاد هذا الجهاز",
+        "missing — يثبّت عبر متجر MoOS التطبيقات الأساسية الناقصة حسب عتاد هذا الجهاز",
         category=USER_CONFIRM, executor="moai-do", command="smart-setup",
-        consequence=("يثبّت عبر Mo Store التطبيقات الأساسية التي تنقص هذا الجهاز فقط. لا يحتاج كلمة مرور.",
+        consequence=("يثبّت عبر متجر MoOS التطبيقات الأساسية التي تنقص هذا الجهاز فقط. لا يحتاج كلمة "
+                     "مرور.",
                      "Installs through Mo Store only the essential apps this computer is "
                      "missing. No password needed."),
     ),

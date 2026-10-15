@@ -1,0 +1,19 @@
+{
+ "schema": 1,
+ "job_id": "fixture-failed",
+ "action": "install",
+ "state": "failed",
+ "progress": null,
+ "current_id": null,
+ "message": "The download did not match its fingerprint",
+ "message_key": null,
+ "started_at": "@NOW@",
+ "updated_at": "@NOW@",
+ "items": [
+  {
+   "id": "editor-x",
+   "state": "failed",
+   "progress": null
+  }
+ ]
+}

@@ -1,57 +1,64 @@
-// Mo Store — the single, trusted application centre for MoOS.
+// Mo Store — MoOS's one place to find, install, open, update, remove and permission apps: Linux
+// apps, web apps, Windows programs and Android apps, with what this computer can run said honestly
+// before anything happens.
 //
-// The signed catalogue remains the offline fallback and the source of MoOS
-// recommendations.  /usr/bin/moos-store-index expands it at launch with every
-// desktop application in the local Flatpak/AppStream indexes.  The index is
-// local-first: browsing, search, installed state and icons keep working when
-// Flathub's web API or the network is unavailable.
+// The signed catalogue (/usr/share/moos/store/catalog.json) paints the first frame and carries
+// MoOS's own recommendations. /usr/bin/moos-store-index expands it at launch into index.json:
+// every app this machine can be offered, with its kind, its Store category, a folded search key, a
+// compatibility verdict and a pointer to its details document (docs/MO_STORE.md). The window reads
+// the index ONCE per generation, derives its maps, counts and orders from it in place, and never
+// re-sorts it on a job tick: a finished job changes only the installed flags of its own items.
 //
-// State-changing work never travels through the public `moos:` URL scheme.
-// MoosStore is a narrow C++ bridge exposed only to this read-only QML (and the
-// Welcome).  It starts /usr/bin/moos-storectl with an argv list; the backend
-// validates ids again, owns the real FlatpakTransaction and atomically publishes
-// job.json.  A web page can open Mo Store, but it cannot install an app.
+// State-changing work never travels through the public `moos:` URL scheme. MoosStore is a narrow
+// C++ bridge exposed only to this read-only QML (and the Welcome). It starts /usr/bin/moos-storectl
+// with an argv list; the backend validates ids again, owns the real transactions and atomically
+// publishes job.json. A web page can open Mo Store or an app's page, but it cannot install an app.
+// Bridge methods newer than the installed shell are called only through a `typeof` guard, and a
+// missing one says that it needs the next MoOS update instead of failing silently.
+//
+// This file is the window: all state, the data loading, the timers, the bridge calls and the
+// palette live here. What it draws lives in the files beside it: StoreRail and StoreHeader, one
+// file per page (DiscoverPage, AppsPage, LibraryPage, UpdatesPage, SettingsPage, SearchPage and
+// AppPage), the sheets and shelves, and the cards and controls they are built from. Each takes
+// this window as `required property var win` and reaches it only as `win.<member>`
+// (tests/test_qml_root_references.py holds that line); an id one of them needs from here is a root
+// member instead (focusSearch(), openReview(), openRemove(), indexPolling, …).
 pragma ComponentBehavior: Bound
 
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import QtQuick.Dialogs as NativeDialogs
+import QtCore
 import org.kde.kirigami as Kirigami
 import org.moos.ui as MoUI
 
 ApplicationWindow {
     id: win
 
-    // Motion gate: the "loading catalogue" shimmer and the indeterminate job
-    // spinner below AND their `running:` with this so "disable animations"
-    // stops them. Kirigami floors longDuration at 1 when motion is off, so
+    // Motion gate: the hero's auto-advance, the catalogue working light and the indeterminate job
+    // bar AND their `running:` with this, and every duration collapses to 0 with it, so "disable
+    // animations" stops all of them. Kirigami floors longDuration at 1 when motion is off, so
     // `> 1` is the honest off-switch.
     readonly property bool motionEnabled: Kirigami.Units.longDuration > 1
     visible: true
-    width: Math.min(1320, Screen.desktopAvailableWidth * 0.94)
-    height: Math.min(820, Screen.desktopAvailableHeight * 0.94)
-    minimumWidth: Math.min(900, Screen.desktopAvailableWidth * 0.94)
+    width: Math.min(1440, Screen.desktopAvailableWidth * 0.94)
+    height: Math.min(900, Screen.desktopAvailableHeight * 0.94)
+    minimumWidth: Math.min(960, Screen.desktopAvailableWidth * 0.94)
     minimumHeight: Math.min(620, Screen.desktopAvailableHeight * 0.94)
-    title: qsTr("Mo Store")
+    title: win.local("متجر MoOS", "Mo Store")
     color: win.canvas
 
-    // Semantic colours are owned by the active MoOS/KDE colour scheme.
-    // TYPE SCALES WITH THE USER'S FONT SIZE, and until now it did not.
+    // TYPE SCALES WITH THE USER'S FONT SIZE.
     //
-    // 294 text items across the MoOS apps carried a hardcoded `font.pixelSize`, so the size
+    // 294 text items across the MoOS apps once carried a hardcoded `font.pixelSize`, so the size
     // slider in System Settings > Fonts moved every application on the machine except this
-    // operating system's own. That is an accessibility defect, not a style one: it is the
-    // control someone with low vision reaches for first.
+    // operating system's own. The reference is POINT size, not pixels: MoOS ships
+    // `IBM Plex Sans,10` in /etc/xdg/kdeglobals, so dividing by the shipped 10pt gives exactly 1.0
+    // on every screen at the default and scales only when the USER changes the setting.
     //
-    // The reference is POINT size, not pixels. MoOS ships `IBM Plex Sans,10` in
-    // /etc/xdg/kdeglobals, and Qt reports pointSize 10 / pixelSize 13 on this 4K display —
-    // pixels move with DPI and points do not, so dividing by the shipped 10pt gives exactly
-    // 1.0 on every screen at the default and scales only when the USER changes the setting.
-    //
-    // fs() remains for geometry that grows with the user's font setting. Text goes
-    // through typePx(), which snaps the old ad-hoc values to the reviewed
-    // 11/13/14/15/20/24/32 role ramp and keeps 11 px as the functional minimum.
+    // fs() is for geometry that grows with the user's font setting. Text goes through typePx(),
+    // which snaps to the reviewed 11/13/14/15/20/24/32/48 role ramp.
     readonly property real fontScale: Qt.application.font.pointSize > 0
                                       ? Qt.application.font.pointSize / 10 : 1
     function fs(px) { return Math.round(px * win.fontScale) }
@@ -59,38 +66,15 @@ ApplicationWindow {
     function local(ar, en) { return win.rtl ? ar : en }
     readonly property var design: MoUI.Tokens
 
-    // The UI face is the SYSTEM face, not a string repeated in this file.
-    //
-    // This was `font.family: "IBM Plex Sans"` written out at every text item — 194 times across
-    // Welcome, Mo Store and the Installer. Measured, the system font on MoOS already IS
-    // IBM Plex Sans 13px (kdeglobals General font), and fontconfig maps sans-serif to it as well
-    // (61-moos-brand.conf). So the literal added nothing to how MoOS looks and did exactly one
-    // thing: it OVERRODE the user's own font choice, in the four apps MoOS ships, and nowhere
-    // else. Someone who sets a larger or more legible face in System Settings watched every
-    // application obey except this operating system's own.
-    //
-    // The proof that the literal is unnecessary is already in the tree: the theme picker sets no
-    // font.family at all and renders in the brand face regardless, because the brand face is the
-    // system face.
+    // The UI face is the SYSTEM face: on MoOS that already is IBM Plex Sans (Arabic), and naming it
+    // here would only override a face the person chose for themselves.
     readonly property string uiFont: Qt.application.font.family
 
     // ── semantic palette ───────────────────────────────────────────────────────
     //
-    // READ FROM Kirigami.Theme, NOT FROM `palette`. Measured on one session, one scheme
-    // (MoOSUI2Light, whose selection is #006D67):
-    //
-    //   an app using Kirigami.Theme  ->  surface #DFEFEA, accent #006D67   (MoOS teal)
-    //   an app using palette.*       ->  surface #FFFFFF, accent #45A7D7   (stock Breeze blue)
-    //
-    // A bare `palette` in a QQuickWindow does not resolve the KDE colour scheme; it falls back
-    // to Qt's built-in defaults, and QT_QPA_PLATFORMTHEME=kde does not change that (tested).
-    // That is why MoOS's own windows wore a blue that appears nowhere in any MoOS palette,
-    // inside a mint MoOS frame. Kirigami.Theme resolves it, so every surface now follows the
-    // theme the user actually picked.
-    //
-    // The window paints on the VIEW set: rendered side by side the family gives four value
-    // steps (Button #B8D8D2, Window #C9E2DD, View #D8EBE7, alternate #E1F0EC), and content
-    // needs the airier end or the page collapses into one flat wash.
+    // READ FROM Kirigami.Theme, NOT FROM `palette`: a bare `palette` in a QQuickWindow does not
+    // resolve the KDE colour scheme and falls back to Qt's stock blue. The window paints on the
+    // VIEW set; content needs its airier end or the page collapses into one flat wash.
     Kirigami.Theme.inherit: false
     Kirigami.Theme.colorSet: Kirigami.Theme.View
 
@@ -99,10 +83,9 @@ ApplicationWindow {
     readonly property color raised:   Kirigami.Theme.backgroundColor
     readonly property color chrome:   Kirigami.Theme.backgroundColor
 
-    // Outline is the FOREGROUND at low alpha, NOT Kirigami.Theme.separatorColor — that
-    // renders #FFFFFF in all five colour sets of this scheme, so binding to it deletes every
-    // hairline on a light page. A tint of the text colour is dark on light and light on dark,
-    // in every palette member, with no per-theme special case.
+    // Outline is the FOREGROUND at low alpha, NOT Kirigami.Theme.separatorColor — that renders
+    // #FFFFFF in all five colour sets of these schemes, so binding to it deletes every hairline on a
+    // light page. A tint of the text colour is dark on light and light on dark, in every family.
     readonly property color outline:  Qt.rgba(Kirigami.Theme.textColor.r,
                                               Kirigami.Theme.textColor.g,
                                               Kirigami.Theme.textColor.b, 0.14)
@@ -110,21 +93,85 @@ ApplicationWindow {
     readonly property color cyan:     Kirigami.Theme.linkColor
     readonly property color violet:   Kirigami.Theme.visitedLinkColor
     readonly property color dangerInk: Kirigami.Theme.negativeTextColor
+    readonly property color positiveInk: Kirigami.Theme.positiveTextColor
+    readonly property color warningInk: Kirigami.Theme.neutralTextColor
     readonly property color txt:      Kirigami.Theme.textColor
     // Secondary text is text a person READS — a description, a label, a hint — so it is the
-    // primary ink at 72%, exactly as MoOS Settings' mutedColor. It used to be
-    // Kirigami.Theme.disabledTextColor, the DISABLED role: KColorScheme fades that 65% toward
-    // the background and tints it, which measures 1.6:1 on the light schemes and 2.4:1 on the
-    // dark ones. 72% measures 4.8-5.1:1 (light) and 8.4-9.9:1 (dark).
+    // primary ink at 72%, exactly as MoOS Settings' mutedColor. The DISABLED role measures 1.6:1 on
+    // the light schemes; 72% measures 4.8-5.1:1 (light) and 8.4-9.9:1 (dark).
     // tests/test_secondary_text_contrast.py computes it for every shipped scheme.
     readonly property color txt2:     Qt.rgba(Kirigami.Theme.textColor.r, Kirigami.Theme.textColor.g,
                                               Kirigami.Theme.textColor.b, 0.72)
     readonly property color accentText: Kirigami.Theme.highlightedTextColor
-    readonly property color accent:   Kirigami.Theme.highlightColor  // ONE accent for the OS: the theme's highlight,
-                                      // the same teal the selection ring and the window
-                                      // decoration already draw. `link` means links again.
+    readonly property color accent:   Kirigami.Theme.highlightColor  // ONE accent for the OS: the theme's highlight.
+    readonly property bool lightScheme: design.isLight(Kirigami.Theme.backgroundColor)
     readonly property bool rtl: MoUI.Locale.rtl
-    readonly property bool compactRail: win.width < 1080
+    readonly property bool compactRail: win.width < 1100
+    // Room every page leaves at its foot while a shelf floats there (a selection, a job), so its
+    // last row can always scroll clear of the shelf.
+    readonly property real footClearance: win.pickCount > 0 || win.jobIsActive() || win.jobIsTerminal()
+                                          ? win.fs(112) : 0
+
+    // A colour at an alpha, so a view never spells out four channels to fade one role.
+    function tint(color, alpha) { return Qt.rgba(color.r, color.g, color.b, alpha) }
+
+    // The Store's card material, from the scheme: on a light scheme a frosted, paler pane of the
+    // canvas; on a dark one the alternate background lifted a breath toward the ink. Opaque, so a
+    // soft shadow can sit under it and the material holds with compositing and blur off.
+    readonly property color cardColor: win.lightScheme
+        ? Qt.tint(win.canvas, Qt.rgba(1, 1, 1, 0.55))
+        : Qt.tint(win.surface, win.tint(win.txt, 0.035))
+    readonly property color cardBorder: win.tint(win.txt, win.lightScheme ? 0.11 : 0.12)
+    // The rail and the header's search: a little denser than the canvas they float on.
+    readonly property color glassColor: win.lightScheme
+        ? Qt.tint(win.canvas, Qt.rgba(1, 1, 1, 0.38))
+        : Qt.tint(win.canvas, win.tint(win.surface, 0.82))
+
+    // The ink for a surface painted in an APP's colour (a hero, a monogram, an app page's band).
+    // The scheme cannot supply it: the surface is the app's, not the theme's. So the ink is near
+    // white or near black, whichever reads better, and readableBase() moves the surface until that
+    // ink reaches WCAG AA 4.5:1 — measured, never assumed.
+    readonly property color inkOnDark: Qt.rgba(1, 1, 1, 1)
+    readonly property color inkOnLight: Qt.rgba(0.055, 0.067, 0.086, 1)
+    function luminanceOf(c) {
+        function channel(v) { return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4) }
+        return 0.2126 * channel(c.r) + 0.7152 * channel(c.g) + 0.0722 * channel(c.b)
+    }
+    function contrastOf(a, b) {
+        var la = win.luminanceOf(a)
+        var lb = win.luminanceOf(b)
+        return (Math.max(la, lb) + 0.05) / (Math.min(la, lb) + 0.05)
+    }
+    function inkOn(c) {
+        return win.contrastOf(c, win.inkOnDark) >= win.contrastOf(c, win.inkOnLight)
+            ? win.inkOnDark : win.inkOnLight
+    }
+    function readableBase(c, ink) {
+        var base = c
+        var darken = win.luminanceOf(ink) > 0.5
+        for (var i = 0; i < 16 && win.contrastOf(base, ink) < 4.6; ++i)
+            base = darken ? Qt.darker(base, 1.1) : Qt.lighter(base, 1.06)
+        return base
+    }
+
+    // The plate an app's colour paints (the hero, an app page's band): light ink when the colour can
+    // carry it after a modest deepening — an editorial plate — and otherwise, on a light scheme, a
+    // pastel of the colour (a third of the canvas mixed in) under dark ink, so a pale brand colour
+    // never shouts across a light page.
+    function plateColour(c) {
+        var deep = c
+        for (var i = 0; i < 5 && win.contrastOf(deep, win.inkOnDark) < 4.6; ++i)
+            deep = Qt.darker(deep, 1.1)
+        if (win.contrastOf(deep, win.inkOnDark) >= 4.6) return deep
+        var pale = win.lightScheme ? Qt.tint(c, win.tint(win.canvas, 0.34)) : c
+        return win.readableBase(pale, win.inkOnLight)
+    }
+
+    // The ink for LARGE type on an app's colour (a monogram's letter): light whenever it reaches
+    // the 3:1 WCAG asks of large text, as brand tiles do.
+    function inkOnLarge(c) {
+        return win.contrastOf(c, win.inkOnDark) >= 3 ? win.inkOnDark : win.inkOnLight
+    }
 
     // Paths are passed by /usr/bin/moos-store.  Pure QML intentionally has no
     // environment or process access.
@@ -134,21 +181,45 @@ ApplicationWindow {
     readonly property string jobPath: win.argValue("--job=")
     readonly property string readyPath: win.argValue("--ready=")
     readonly property string updatesPath: win.argValue("--updates=")
+    readonly property string factsPath: win.argValue("--facts=")
+    readonly property string settingsPath: win.argValue("--settings=")
 
     // Catalogue and navigation state.
     property var curatedApps: []
+    property var curatedMap: ({})
     property var allApps: []
+    property var appMap: ({})
+    property var browseOrder: []
     property var visibleApps: []
     property var bundles: []
+    property var collections: []
+    property var featured: []
+    property var storeCategories: []
+    property var kindCounts: ({})
+    property var viewKindCounts: ({})
+    property var catCounts: ({})
     property var indexSources: []
     property var indexStats: ({})
+    property string indexGeneratedAt: ""
     property string indexToken: ""
     property bool indexReady: false
     property string loadError: ""
     property string page: "discover"
+    property var history: []
     property string activeCategory: "all"
+    property string activeKind: "all"
+    property string activeCollection: ""
+    property string sortMode: "recommended"
+    property bool canSortByDate: false
+    property string libraryKind: "all"
+    property var installedApps: []
+    property var libraryApps: []
     property string query: ""
+    property var searchResults: []
     property var selectedApp: null
+    property var selectedDetails: null
+    property string detailsState: "none"
+    property var detailsCache: ({})
 
     // Selection and real transaction state.
     property var picks: ({})
@@ -173,31 +244,68 @@ ApplicationWindow {
     property bool updatesChecking: false
     property string updatesCheckedAt: ""
 
-    readonly property var categoryDefs: [
-        { id: "internet",      ar: "الإنترنت",         en: "Internet",       glyph: "globe" },
-        { id: "communication", ar: "التواصل",          en: "Communication",  glyph: "chat" },
-        { id: "office",        ar: "العمل والمكتب",     en: "Work & Office",  glyph: "briefcase" },
-        { id: "development",   ar: "التطوير",           en: "Development",    glyph: "code" },
-        { id: "graphics",      ar: "التصميم والصور",    en: "Graphics",       glyph: "camera" },
-        { id: "audio-video",   ar: "الصوت والفيديو",    en: "Audio & Video",  glyph: "video" },
-        { id: "games",         ar: "الألعاب",           en: "Games",          glyph: "gamepad" },
-        { id: "education",     ar: "التعليم",           en: "Education",      glyph: "bulb" },
-        { id: "science",       ar: "العلوم",            en: "Science",        glyph: "flask" },
-        { id: "utilities",     ar: "الأدوات",           en: "Utilities",      glyph: "gear" },
-        { id: "system",        ar: "النظام",            en: "System",         glyph: "monitor" },
-        { id: "finance",       ar: "المال والأعمال",    en: "Finance",        glyph: "database" },
-        { id: "ai",            ar: "الذكاء الاصطناعي",  en: "AI",             glyph: "brain" },
-        { id: "other",         ar: "المزيد",            en: "More",           glyph: "grid" }
+    // The owner's automatic-update choice, as the backend persisted it (absent means on).
+    property bool autoUpdates: true
+    property bool autoUpdatesPending: false
+    property bool autoUpdatesWanted: true
+
+    // What this computer is (machine.json), the cached catalogue facts (sizes, permission words,
+    // end of life) and the installed app's permission document for the page that is open.
+    property var machine: ({})
+    property var facts: ({})
+    property string factsState: "none"
+    property var permissionDoc: null
+    property string permissionState: "none"
+    property string permissionAppId: ""
+    property double permissionRequestedAt: 0
+
+    // ── what the window shows ───────────────────────────────────────────────────
+    readonly property var navItems: [
+        { id: "discover", ar: "اكتشف",     en: "Discover", glyph: "compass" },
+        { id: "apps",     ar: "التطبيقات", en: "Apps",     glyph: "grid" },
+        { id: "games",    ar: "الألعاب",   en: "Games",    glyph: "gaming" },
+        { id: "library",  ar: "تطبيقاتي",  en: "My apps",  glyph: "boxes" },
+        { id: "updates",  ar: "التحديثات", en: "Updates",  glyph: "safe-update" },
+        { id: "settings", ar: "الإعدادات", en: "Settings", glyph: "settings" }
     ]
 
-    readonly property var navItems: [
-        { id: "discover",   ar: "استكشف",       en: "Discover",   glyph: "spark" },
-        { id: "apps",       ar: "كل التطبيقات", en: "All apps",   glyph: "grid" },
-        { id: "categories", ar: "الفئات",       en: "Categories", glyph: "boxes" },
-        { id: "installed",  ar: "المثبتة",      en: "Installed",  glyph: "check" },
-        { id: "updates",    ar: "التحديثات",    en: "Updates",    glyph: "refresh" },
-        { id: "sources",    ar: "المصادر",      en: "Sources",    glyph: "orbit" }
+    // The Store's twelve categories (catalogue `categories[]`). The index names them; these are the
+    // words used before it arrives and for any id it does not name. Android and Windows wear MoOS's
+    // own glyphs, never another system's mark.
+    readonly property var storeCategoryDefs: [
+        { id: "ess",   ar: "الأساسيات",        en: "Essentials",           glyph: "compass" },
+        { id: "comm",  ar: "التواصل",          en: "Communication",        glyph: "chat" },
+        { id: "work",  ar: "المكتب والدراسة",   en: "Office & study",       glyph: "briefcase" },
+        { id: "art",   ar: "التصميم والصور",    en: "Graphics & photo",     glyph: "pen" },
+        { id: "media", ar: "شاهد واستمع",       en: "Watch & listen",       glyph: "play" },
+        { id: "fun",   ar: "الألعاب",          en: "Games",                glyph: "gaming" },
+        { id: "dev",   ar: "البرمجة",          en: "Development",          glyph: "code" },
+        { id: "ai",    ar: "الذكاء الاصطناعي",  en: "AI",                   glyph: "ai" },
+        { id: "edu",   ar: "التعليم",          en: "Education",            glyph: "bulb" },
+        { id: "util",  ar: "الأدوات والأمان",   en: "Utilities & security", glyph: "shield" },
+        { id: "droid", ar: "تطبيقات أندرويد",   en: "Android apps",         glyph: "phone" },
+        { id: "win",   ar: "برامج ويندوز",      en: "Windows programs",     glyph: "system" }
     ]
+
+    // Where an app comes from, in the four words a person uses (docs/MO_STORE.md "Kinds of app").
+    readonly property var kindDefs: [
+        { id: "linux",   ar: "تطبيقات لينكس",  en: "Linux apps",       glyph: "cube",
+          ar2: "معزولة، من الكتالوج المفتوح",          en2: "Sandboxed, from the open catalogue" },
+        { id: "web",     ar: "تطبيقات الويب",  en: "Web apps",         glyph: "globe",
+          ar2: "كل تطبيق في نافذته الخاصة",           en2: "Each in a window of its own" },
+        { id: "windows", ar: "برامج ويندوز",   en: "Windows programs", glyph: "system",
+          ar2: "من الناشر، ومطابقة لبصمة راجعناها",      en2: "From the publisher, checked by fingerprint" },
+        { id: "android", ar: "تطبيقات أندرويد", en: "Android apps",     glyph: "phone",
+          ar2: "تعمل بجانب برامجك الأخرى",             en2: "Running beside your other programs" }
+    ]
+
+    // The index's old 14-value `category`, for an index written before `cat` existed.
+    readonly property var legacyCategory: ({
+        "internet": "ess", "communication": "comm", "office": "work", "development": "dev",
+        "graphics": "art", "audio-video": "media", "games": "fun", "education": "edu",
+        "science": "edu", "utilities": "util", "system": "util", "finance": "work",
+        "ai": "ai", "other": "util"
+    })
 
     function argValue(prefix) {
         var args = Qt.application.arguments
@@ -207,49 +315,473 @@ ApplicationWindow {
         return ""
     }
 
+    // ── words ───────────────────────────────────────────────────────────────────
     function localName(obj) {
         if (!obj) return ""
-        if (obj.name) return obj.name
-        return win.rtl ? (obj.ar || obj.en || obj.id)
-                       : (obj.en || obj.ar || obj.id)
+        if (win.rtl) return obj.ar || obj.name || obj.name_en || obj.en || obj.id || ""
+        return obj.en || obj.name_en || obj.name || obj.ar || obj.id || ""
     }
 
     function localSummary(obj) {
         if (!obj) return ""
-        if (obj.summary) return obj.summary
-        return win.rtl ? (obj.desc_ar || obj.desc_en || "")
-                       : (obj.desc_en || obj.desc_ar || "")
+        if (win.rtl) return obj.desc_ar || obj.summary || obj.desc_en || ""
+        return obj.desc_en || obj.summary || obj.desc_ar || ""
     }
 
     function localDescription(obj) {
         if (!obj) return ""
+        // A curated entry's description IS its summary in the index's language; the window's
+        // language decides which of the catalogue's two it shows.
+        if (obj.desc_en || obj.desc_ar) return win.localSummary(obj)
         if (obj.description) return obj.description
         return win.localSummary(obj)
     }
 
-    function categoryName(id) {
-        if (id === "all") return win.rtl ? "كل التطبيقات" : "All apps"
-        for (var i = 0; i < win.categoryDefs.length; ++i) {
-            var item = win.categoryDefs[i]
-            if (item.id === id) return win.rtl ? item.ar : item.en
+    // A left-to-right island for a version, a size or an address inside right-to-left text.
+    function ltr(text) { return "⁦" + text + "⁩" }
+
+    function countText(n) {
+        return String(Math.round(n || 0)).replace(/\B(?=(\d{3})+(?!\d))/g, ",")
+    }
+
+    // Arabic counts by the language's own rules: one and two have their own words, 3–10 the
+    // plural, 11–99 the singular accusative, and a hundred and up the singular again.
+    function arabicCount(n, one, two, few, many, other) {
+        if (n === 1) return one
+        if (n === 2) return two
+        var tail = n % 100
+        if (tail >= 3 && tail <= 10) return win.countText(n) + " " + few
+        if (tail >= 11 && tail <= 99) return win.countText(n) + " " + many
+        return win.countText(n) + " " + other
+    }
+
+    function appsCountText(n) {
+        if (!win.rtl) return n === 1 ? "1 app" : win.countText(n) + " apps"
+        if (n === 0) return "لا تطبيقات"
+        return win.arabicCount(n, "تطبيق واحد", "تطبيقان", "تطبيقات", "تطبيقًا", "تطبيق")
+    }
+
+    function componentsCountText(n) {
+        if (!win.rtl) return n === 1 ? "1 shared component" : win.countText(n) + " shared components"
+        return win.arabicCount(n, "مكوّن مشترك واحد", "مكوّنان مشتركان", "مكوّنات مشتركة", "مكوّنًا مشتركًا", "مكوّن مشترك")
+    }
+
+    function updatesCountText(n) {
+        if (!win.rtl) return n === 1 ? "1 update" : win.countText(n) + " updates"
+        return win.arabicCount(n, "تحديث واحد", "تحديثان", "تحديثات", "تحديثًا", "تحديث")
+    }
+
+    readonly property var monthsAr: ["يناير", "فبراير", "مارس", "أبريل", "مايو", "يونيو", "يوليو",
+                                     "أغسطس", "سبتمبر", "أكتوبر", "نوفمبر", "ديسمبر"]
+    readonly property var monthsEn: ["January", "February", "March", "April", "May", "June", "July",
+                                     "August", "September", "October", "November", "December"]
+    function dateText(value) {
+        var m = /^(\d{4})-(\d{2})-(\d{2})/.exec("" + (value || ""))
+        if (!m) return ""
+        var month = parseInt(m[2], 10) - 1
+        if (month < 0 || month > 11) return ""
+        var day = parseInt(m[3], 10)
+        return win.rtl ? day + " " + win.monthsAr[month] + " " + m[1]
+                       : day + " " + win.monthsEn[month] + " " + m[1]
+    }
+
+    function agoText(value) {
+        var at = Date.parse(value || "")
+        if (!isFinite(at)) return ""
+        var seconds = Math.max(0, (Date.now() - at) / 1000)
+        if (seconds < 60) return win.local("الآن", "just now")
+        var minutes = Math.floor(seconds / 60)
+        if (minutes < 60)
+            return win.rtl ? "منذ " + win.arabicCount(minutes, "دقيقة", "دقيقتين", "دقائق", "دقيقة", "دقيقة")
+                           : minutes + (minutes === 1 ? " minute ago" : " minutes ago")
+        var hours = Math.floor(minutes / 60)
+        if (hours < 24)
+            return win.rtl ? "منذ " + win.arabicCount(hours, "ساعة", "ساعتين", "ساعات", "ساعة", "ساعة")
+                           : hours + (hours === 1 ? " hour ago" : " hours ago")
+        var days = Math.floor(hours / 24)
+        return win.rtl ? "منذ " + win.arabicCount(days, "يوم", "يومين", "أيام", "يومًا", "يوم")
+                       : days + (days === 1 ? " day ago" : " days ago")
+    }
+
+    function sizeText(bytes) {
+        var n = Number(bytes || 0)
+        if (!(n > 0)) return ""
+        var units = win.rtl ? ["بايت", "كيلوبايت", "ميغابايت", "غيغابايت"] : ["B", "KB", "MB", "GB"]
+        var step = 0
+        while (n >= 1000 && step < units.length - 1) { n /= 1000; ++step }
+        var shown = n >= 10 || step === 0 ? Math.round(n) : Math.round(n * 10) / 10
+        return shown + " " + units[step]
+    }
+
+    // ── kinds, categories and names ─────────────────────────────────────────────
+    function appKind(app) {
+        if (!app) return ""
+        var kind = app.kind ? "" + app.kind : (app.install && app.install.kind ? "" + app.install.kind : "")
+        if (kind === "windows-portable") return "windows"
+        if (kind === "vendor-rpm") return "vendor"
+        if (kind === "appimage") return "appdrop"
+        if (kind !== "") return kind
+        return app.source === "local" ? "dropped" : "flatpak"
+    }
+
+    // The four places an app comes from, as the person sees them.
+    function kindFamily(kind) {
+        if (kind === "webapp" || kind === "web") return "web"
+        if (kind === "windows") return "windows"
+        if (kind === "android") return "android"
+        return "linux"
+    }
+
+    function kindDef(id) {
+        for (var i = 0; i < win.kindDefs.length; ++i)
+            if (win.kindDefs[i].id === id) return win.kindDefs[i]
+        return null
+    }
+
+    function kindLabel(kind) {
+        switch (kind) {
+        case "webapp":  return win.local("تطبيق ويب", "Web app")
+        case "web":     return win.local("موقع الناشر", "Publisher's website")
+        case "windows": return win.local("برنامج ويندوز", "Windows program")
+        case "android": return win.local("تطبيق أندرويد", "Android app")
+        case "appdrop":
+        case "vendor":  return win.local("من موقع الناشر", "From the publisher's website")
+        case "npm":     return win.local("أداة مطوّر", "Developer tool")
+        case "dropped": return win.local("أُضيف من ملف", "Added from a file")
+        default:        return win.local("تطبيق لينكس", "Linux app")
         }
-        return id
+    }
+
+    function kindGlyph(kind) {
+        switch (kind) {
+        case "webapp":
+        case "web":     return "globe"
+        case "windows": return "system"
+        case "android": return "phone"
+        case "appdrop":
+        case "vendor":  return "download"
+        case "npm":     return "terminal"
+        case "dropped": return "folder"
+        default:        return "cube"
+        }
+    }
+
+    function catDef(id) {
+        for (var i = 0; i < win.storeCategories.length; ++i)
+            if (win.storeCategories[i].id === id) return win.storeCategories[i]
+        for (var j = 0; j < win.storeCategoryDefs.length; ++j)
+            if (win.storeCategoryDefs[j].id === id) return win.storeCategoryDefs[j]
+        return null
+    }
+
+    function storeCat(app) {
+        var family = win.kindFamily(win.appKind(app))
+        if (family === "android") return "droid"
+        if (family === "windows") return "win"
+        for (var j = 0; j < win.storeCategoryDefs.length; ++j)
+            if (win.storeCategoryDefs[j].id === app.cat) return app.cat
+        return win.legacyCategory[app.category] || "util"
+    }
+
+    function categoryName(id) {
+        if (id === "all") return win.local("الكل", "All")
+        var def = win.catDef(id)
+        return def ? win.localName(def) : id
     }
 
     function categoryGlyph(id) {
-        for (var i = 0; i < win.categoryDefs.length; ++i)
-            if (win.categoryDefs[i].id === id) return win.categoryDefs[i].glyph
-        return "grid"
+        var def = win.catDef(id)
+        return def ? def.glyph : "grid"
     }
 
-    function normalizedCategory(app) {
-        if (app.category) return app.category
-        if (app.cat === "dev") return "development"
-        if (app.cat === "fun") return "games"
-        if (app.cat === "work") return "office"
-        if (app.cat === "ai") return "ai"
-        if (app.cat === "ess") return "utilities"
-        return "other"
+    // The search key, folded exactly as moos-store-index folds `search`: lowercase; Arabic marks,
+    // the tatweel and the invisible direction marks removed; the alef forms, ى/ئ, ؤ and ة
+    // unified; Arabic and Persian digits made ASCII; separators made one space.
+    function foldSearch(value) {
+        var text = ("" + (value || "")).toLowerCase()
+        text = text.replace(/[ؐ-ًؚ-ٰٟۖ-ۭـ​-‏‪-‮⁦-⁩؜﻿]/g, "")
+        text = text.replace(/[أإآٱ]/g, "ا").replace(/[ىئ]/g, "ي").replace(/ؤ/g, "و").replace(/ة/g, "ه")
+        text = text.replace(/[٠-٩]/g, function(c) { return String(c.charCodeAt(0) - 0x0660) })
+        text = text.replace(/[۰-۹]/g, function(c) { return String(c.charCodeAt(0) - 0x06F0) })
+        return text.replace(/[\s_.\-+/()|·]+/g, " ").trim()
+    }
+
+    function idTail(id) {
+        var text = "" + (id || "")
+        var dot = text.lastIndexOf(".")
+        return dot > 0 ? text.substring(dot + 1) : text
+    }
+
+    // One index entry, made whole for the window: its kind and family, its Store category, an
+    // English name and a search key even when an older index did not write them, and the
+    // catalogue's own picture and colour for a curated app the index carried without them.
+    function normalizeApp(app) {
+        app.kind = win.appKind(app)
+        app.family = win.kindFamily(app.kind)
+        app.cat = win.storeCat(app)
+        if (!app.name_en) app.name_en = app.en || app.name || app.id
+        if (app.listed === undefined) app.listed = true
+        var curated = win.curatedMap[app.id]
+        if (curated && curated !== app) {
+            if (!app.icon_url && curated.icon_url) app.icon_url = curated.icon_url
+            if (!app.accent && curated.accent) app.accent = curated.accent
+            if (!app.developer && curated.developer) app.developer = curated.developer
+            if (!app.keywords_en && curated.keywords_en) app.keywords_en = curated.keywords_en
+            if (!app.keywords_ar && curated.keywords_ar) app.keywords_ar = curated.keywords_ar
+            if (app.popular === undefined && curated.popular !== undefined) app.popular = curated.popular
+        }
+        if (typeof app.search !== "string") {
+            app.search = win.foldSearch([app.name, app.name_en, app.en, app.ar, app.developer,
+                                         win.idTail(app.id)].concat(app.keywords_en || [])
+                                        .concat(app.keywords_ar || []).join(" "))
+        }
+        return app
+    }
+
+    // ── colour of an app ────────────────────────────────────────────────────────
+    function parseColour(value) {
+        return typeof value === "string" && /^#[0-9a-fA-F]{6}$/.test(value)
+            ? Qt.lighter(value, 1) : null
+    }
+
+    function hashOf(text) {
+        var h = 2166136261
+        var s = "" + (text || "")
+        for (var i = 0; i < s.length; ++i) {
+            h ^= s.charCodeAt(i)
+            h = (h * 16777619) >>> 0
+        }
+        return h
+    }
+
+    // A stable colour from the id, for an app that names none: every hue is possible, at the
+    // saturation and lightness the scheme's own accent sits at, so a wall of monograms reads as
+    // one family rather than confetti.
+    function idColour(id) {
+        var hue = (win.hashOf(id) % 360) / 360
+        return Qt.hsla(hue, 0.52, win.lightScheme ? 0.40 : 0.46, 1)
+    }
+
+    // The app's own colour for the active scheme: its branding, then the catalogue's accent, then
+    // a stable hue from its id.
+    function appColour(app) {
+        if (!app) return win.accent
+        var branding = app.branding
+        var colour = branding ? win.parseColour(win.lightScheme ? branding.light : branding.dark) : null
+        if (!colour && branding) colour = win.parseColour(win.lightScheme ? branding.dark : branding.light)
+        if (!colour) colour = win.parseColour(app.accent || (app.install && app.install.accent))
+        return colour || win.idColour(app.id)
+    }
+
+    // One letter (or a number) for a monogram: the first of the app's English name, which is
+    // the name its own mark uses.
+    function initialOf(app) {
+        var name = "" + ((app && (app.name_en || app.en || app.name)) || (app && app.id) || "?")
+        // QML's engine has no \p{L}: skip spaces and punctuation, keep the first letter or digit.
+        var match = /[^\s\-_.:;,'"()\[\]{}+&|!?@#$%^*=<>\/\\~`«»“”]/.exec(name)
+        return match ? match[0].toUpperCase() : "?"
+    }
+
+    // ── compatibility, in this window's own words ───────────────────────────────
+    //
+    // `not_verified` is about WHO published an app, not whether it runs here, so it is said in the
+    // safety words and never turns "Works on this PC" into "Works with limits".
+    //
+    // Three reasons are facts about an app rather than limits of this computer: a web app needs the
+    // internet, a publisher may be unverified, a download may come from its publisher. They are
+    // said on the app's page as notes, and never paint a warning on its card.
+    readonly property var informationalReasons: ["not_verified", "needs_internet", "vendor_download"]
+
+    function compatOf(app) {
+        var c = app && app.compat ? app.compat : null
+        if (!c) return { known: false, verdict: "ok", reasons: [], notes: [] }
+        var limits = []
+        var notes = []
+        var reasons = c.reasons || []
+        for (var i = 0; i < reasons.length; ++i) {
+            if (win.informationalReasons.indexOf(reasons[i]) >= 0) {
+                if (reasons[i] !== "not_verified") notes.push(reasons[i])
+            } else {
+                limits.push(reasons[i])
+            }
+        }
+        var verdict = c.verdict === "blocked" ? "blocked" : limits.length > 0 ? "warn" : "ok"
+        return { known: true, verdict: verdict, reasons: limits, notes: notes }
+    }
+
+    function compatTitle(verdict) {
+        if (verdict === "blocked") return win.local("غير متاح هنا", "Not available here")
+        if (verdict === "warn") return win.local("يعمل مع بعض القيود", "Works with limits")
+        return win.local("يعمل على هذا الجهاز", "Works on this PC")
+    }
+
+    readonly property var compatPhrases: ({
+        "arch":                      ["لم يُصنع لهذا النوع من الحواسيب", "Not made for this kind of computer"],
+        "engine_missing":            ["يحتاج جزءًا لا يتضمنه هذا الإصدار من MoOS", "Needs a part this edition of MoOS does not include"],
+        "android_setup":             ["تحتاج تطبيقات أندرويد إلى إعداد لمرة واحدة أولًا", "Android apps need a one-time setup first"],
+        "android_software_graphics": ["تعمل تطبيقات أندرويد هنا دون تسريع رسومي، فقد تبطؤ الألعاب", "Android apps draw without graphics acceleration here, so games may be slow"],
+        "low_disk":                  ["قد لا تكفي المساحة الفارغة", "There may not be enough free space"],
+        "low_memory":                ["قد يبطؤ مع ذاكرة هذا الجهاز", "May be slow with this computer's memory"],
+        "small_screen":              ["مصمم لشاشة أكبر", "Designed for a larger screen"],
+        "needs_internet":            ["يحتاج اتصالًا بالإنترنت", "Needs an internet connection"],
+        "x11_only_scaled":           ["قد يبدو غير حاد على هذه الشاشة عالية الدقة", "May look soft on this high-resolution screen"],
+        "eol":                       ["توقف مطوّره عن تحديثه", "Its developer no longer updates it"],
+        "broad_permissions":         ["يطلب وصولًا واسعًا إلى ملفاتك أو أجهزتك", "Asks for wide access to your files or devices"],
+        "vendor_download":           ["يُنزَّل من الناشر ويعمل خارج العزل", "Downloaded from the publisher; runs outside the sandbox"],
+        "not_verified":              ["ناشره غير موثّق", "Its publisher is not verified"]
+    })
+
+    function compatReasonText(key) {
+        var phrase = win.compatPhrases[key]
+        return phrase ? (win.rtl ? phrase[0] : phrase[1]) : ""
+    }
+
+    // ── safety and permissions ──────────────────────────────────────────────────
+    readonly property var permissionPhrases: ({
+        "network":       ["الإنترنت", "Internet", "يتصل بالإنترنت", "Connects to the internet", "network"],
+        "files-home":    ["مجلد المنزل", "Home folder", "يقرأ ملفات مجلد المنزل ويكتبها", "Reads and writes the files in your home folder", "home"],
+        "files-all":     ["كل الملفات", "All files", "يصل إلى كل ملفاتك وإلى ملفات النظام", "Reaches all your files and the system's", "folder"],
+        "downloads":     ["التنزيلات", "Downloads", "يصل إلى مجلد التنزيلات", "Reaches your Downloads folder", "download"],
+        "devices":       ["الأجهزة", "Devices", "يستخدم الكاميرات وUSB والأجهزة الأخرى", "Uses cameras, USB and other devices", "usb"],
+        "sound":         ["الصوت والميكروفون", "Sound and microphone", "يشغّل الصوت ويستطيع استخدام الميكروفون", "Plays sound and can use the microphone", "audio"],
+        "bluetooth":     ["البلوتوث", "Bluetooth", "يتحدث إلى أجهزة البلوتوث", "Talks to Bluetooth devices", "bluetooth"],
+        "background":    ["العمل في الخلفية", "Background", "يواصل العمل بعد إغلاق نافذته", "Keeps working after its window closes", "moon"],
+        "host-commands": ["أوامر خارج العزل", "Commands outside", "يستطيع تشغيل أوامر خارج عزله", "Can run commands outside its sandbox", "terminal"],
+        "notifications": ["الإشعارات", "Notifications", "يعرض إشعارات على سطح المكتب", "Shows notifications on your desktop", "notification"],
+        "microphone":    ["الميكروفون", "Microphone", "يسمع عبر الميكروفون", "Listens through the microphone", "microphone"],
+        "camera":        ["الكاميرا", "Camera", "يرى عبر الكاميرا", "Sees through the camera", "camera"],
+        "location":      ["الموقع", "Location", "يعرف موقعك التقريبي", "Knows your approximate location", "pin"],
+        "clipboard":     ["الحافظة", "Clipboard", "يقرأ ما تنسخه ويكتب فيه", "Reads and writes what you copy", "copy"],
+        "screen":        ["الشاشة", "Screen", "يشارك شاشتك عندما تسمح", "Shares your screen when you allow it", "cast"]
+    })
+
+    function permissionTitle(key) {
+        var p = win.permissionPhrases[key]
+        return p ? (win.rtl ? p[0] : p[1]) : key
+    }
+
+    function permissionLine(key) {
+        var p = win.permissionPhrases[key]
+        return p ? (win.rtl ? p[2] : p[3]) : ""
+    }
+
+    function permissionGlyph(key) {
+        var p = win.permissionPhrases[key]
+        return p ? p[4] : "lock"
+    }
+
+    // What an app may do, as words a person reads: the installed app's own document when it is
+    // open, the catalogue facts before it is installed. Each row: {key, allowed, changeable, ask}.
+    function permissionRowsFor(app) {
+        if (!app) return []
+        var doc = win.permissionDoc
+        if (doc && doc.id === app.id && doc.rows && doc.rows.length) {
+            var rows = []
+            for (var i = 0; i < doc.rows.length; ++i)
+                rows.push({ key: doc.rows[i].key, allowed: doc.rows[i].state === "allow",
+                            changeable: doc.rows[i].changeable === true, ask: doc.rows[i].ask === true })
+            return rows
+        }
+        var kind = win.appKind(app)
+        if (kind === "webapp") {
+            var asked = (app.install && app.install.permissions) || []
+            var webRows = []
+            for (var w = 0; w < asked.length; ++w)
+                webRows.push({ key: asked[w], allowed: false, changeable: false, ask: true })
+            return webRows
+        }
+        var fact = win.facts[app.id]
+        if (kind === "flatpak" && fact && fact.permissions) {
+            var factRows = []
+            for (var f = 0; f < fact.permissions.length; ++f)
+                factRows.push({ key: fact.permissions[f], allowed: false, changeable: false, ask: false, requested: true })
+            return factRows
+        }
+        return []
+    }
+
+    // One word for how far an app reaches: "sandboxed", "more" (a sandboxed app that asks for wide
+    // access) or "full" (it runs as the person and sees every file), said plainly.
+    function safetyLevel(app) {
+        var kind = win.appKind(app)
+        if (kind === "appdrop" || kind === "windows" || kind === "npm" || kind === "vendor"
+                || kind === "dropped") return "full"
+        if (kind === "web") return "page"
+        if (kind === "webapp" || kind === "android") return "sandboxed"
+        var rows = win.permissionRowsFor(app)
+        for (var i = 0; i < rows.length; ++i)
+            if (rows[i].allowed && ["files-all", "files-home", "devices", "host-commands"].indexOf(rows[i].key) >= 0)
+                return "more"
+        return "sandboxed"
+    }
+
+    function safetyTitle(app) {
+        var level = win.safetyLevel(app)
+        if (level === "full") return win.local("وصول كامل", "Full access")
+        if (level === "more") return win.local("يطلب صلاحيات أوسع", "Asks for more")
+        if (level === "page") return win.local("يفتح صفحة الناشر", "Opens the publisher's page")
+        if (win.appKind(app) === "webapp") return win.local("معزول في نافذته الخاصة", "Sandboxed in its own window")
+        if (win.appKind(app) === "android") return win.local("معزول في مساحة أندرويد", "Sandboxed in the Android space")
+        return win.local("معزول", "Sandboxed")
+    }
+
+    function safetyLine(app) {
+        var level = win.safetyLevel(app)
+        if (level === "full")
+            return win.local("يعمل باسمك ويستطيع رؤية كل ملفاتك، فثبّته فقط إن كنت تثق بناشره.",
+                             "It runs as you and can see all your files, so install it only if you trust its publisher.")
+        if (level === "more")
+            return win.local("يعمل في عزله، لكنه يطلب الوصول إلى أشياء خارجه.",
+                             "It runs in its own sandbox, but asks to reach things outside it.")
+        if (level === "page")
+            return win.local("لا يُثبَّت شيء: يفتح متجر MoOS صفحة الناشر الرسمية فقط.",
+                             "Nothing is installed: Mo Store only opens the publisher's official page.")
+        if (win.appKind(app) === "webapp")
+            return win.local("يعمل في نافذة منفصلة عن متصفحك، ويسألك قبل الكاميرا والميكروفون.",
+                             "It runs in a window apart from your browser and asks before the camera or microphone.")
+        if (win.appKind(app) === "android")
+            return win.local("يدير أندرويد أذوناته داخل مساحته الخاصة.",
+                             "Android manages its permissions inside its own space.")
+        return win.local("يعمل في عزله الخاص ولا يرى إلا ما سُمح له به.",
+                         "It runs in its own sandbox and sees only what it is allowed to.")
+    }
+
+    // The page's words for a permissions document's note.
+    function permissionNoteText(key) {
+        if (key === "full_access")
+            return win.local("هذا التطبيق يعمل باسمك دون عزل، فلا توجد مفاتيح لتغييرها: يستطيع رؤية كل ملفاتك.",
+                             "This app runs as you without a sandbox, so there are no switches to change: it can see all your files.")
+        if (key === "android_managed")
+            return win.local("أذونات تطبيقات أندرويد تُدار من إعدادات أندرويد داخل مساحته.",
+                             "An Android app's permissions are managed in Android's own settings, inside its space.")
+        if (key === "not_installed")
+            return win.local("ثبّت التطبيق أولًا لتغيير أذوناته.", "Install the app first to change its permissions.")
+        return ""
+    }
+
+    // Free when the licence names one, proprietary when it says so, unknown otherwise.
+    function licenceKind(app) {
+        var text = "" + ((app && app.license) || (win.selectedDetails && win.selectedDetails.license) || "")
+        if (text === "") return "unknown"
+        if (/proprietary|licenseref/i.test(text)) return "proprietary"
+        return "free"
+    }
+
+    function contentRatingText(rating) {
+        if (rating === "all") return win.local("للجميع", "Everyone")
+        if (rating === "teen") return win.local("للمراهقين فما فوق", "Teens and up")
+        if (rating === "mature") return win.local("للبالغين", "Adults only")
+        return win.local("غير مصنّف", "Not rated")
+    }
+
+    // Who made an app, in the line under its name.
+    function publisherLine(app) {
+        if (!app) return ""
+        var kind = win.appKind(app)
+        if (kind === "dropped") return win.kindLabel(kind)
+        var who = app.developer ? "" + app.developer : ""
+        if (kind === "flatpak") return who !== "" ? who : win.kindLabel(kind)
+        return who !== "" ? who + " · " + win.kindLabel(kind) : win.kindLabel(kind)
     }
 
     // The badge on every card. It used to print the CHANNEL an app arrives
@@ -259,42 +791,51 @@ ApplicationWindow {
     //
     // What the badge is FOR is not lost, because the thing a person actually
     // needs before installing is WHO MADE IT, and the card already prints that
-    // on its own line: Valve Corporation, Mozilla, The Document Foundation. So
-    // the default trusted channel goes unnamed and the badge says only that the
-    // app is verified -- and an app arriving from anywhere ELSE still names its
-    // origin, because an unusual source is exactly the thing worth reading.
+    // on its own line. So the default trusted channel goes unnamed and the badge
+    // says that the app is verified ONLY when it is -- and an app arriving from
+    // anywhere ELSE names where it comes from, because an unusual source is
+    // exactly the thing worth reading.
     function sourceLabel(app) {
         if (!app) return ""
-        if (app.source === "flathub" || app.source === "flatpak" || app.flatpak_ref) {
-            if (app.origin && app.origin !== "" && app.origin !== "flathub")
+        var kind = win.appKind(app)
+        if (kind === "flatpak") {
+            if (app.origin && app.origin !== "" && app.origin !== "flathub" && app.origin !== "flatpak")
                 return app.origin
-            return win.rtl ? "موثّق" : "Verified"
+            return app.verified === true ? (win.rtl ? "موثّق" : "Verified") : win.kindLabel(kind)
         }
         if (app.install && app.install.kind === "npm")
             return win.rtl ? "أداة مطوّر" : "Developer tool"
         if (app.install && app.install.kind === "web")
-            return win.rtl ? "الموقع الرسمي" : "Official website"
-        return app.source === "moos" ? "MoOS"
-            : (app.source || (win.rtl ? "كتالوج MoOS" : "MoOS catalogue"))
+            return win.rtl ? "موقع الناشر" : "Publisher's website"
+        return win.kindLabel(kind)
     }
 
     function reviewDetail(app) {
         if (!app) return ""
+        var kind = win.appKind(app)
         var detail = win.sourceLabel(app)
         if (app.install && app.install.kind === "npm") {
             if (app.install.pkg) detail += " · " + app.install.pkg
             if (app.install.risk)
                 detail += " · " + (win.rtl ? "يشغّل سكربتات الحزمة" : "runs package scripts")
-        } else if (app.install && app.install.kind === "appimage") {
+        } else if (kind === "appdrop" || kind === "windows") {
             detail += " · " + (win.rtl ? "ملف موثّق" : "Verified file")
-            if (app.install.version) detail += " " + app.install.version
-            detail += " · SHA-256"
-        } else if (app.install && app.install.risk) {
-            detail += " · " + app.install.risk
+            if (app.install && app.install.version) detail += " " + app.install.version
+            detail += " · SHA-256 · " + (win.rtl ? "خارج العزل" : "outside the sandbox")
+        } else if (kind === "vendor") {
+            // The newest build from the publisher's own repository, accepted only when the key MoOS
+            // trusts for that publisher signed it.
+            detail += " · " + (win.rtl ? "موقّع بمفتاح ناشره" : "signed with its publisher's key")
+                    + " · " + (win.rtl ? "خارج العزل" : "outside the sandbox")
+        } else if (kind === "webapp") {
+            detail += " · " + (win.rtl ? "في نافذته الخاصة" : "in a window of its own")
+        } else if (kind === "android") {
+            detail += " · " + (win.rtl ? "ملف موثّق" : "Verified file")
         }
         return detail
     }
 
+    // ── state of one app ────────────────────────────────────────────────────────
     function isInstalled(app) {
         if (!app) return false
         if (win.installedOverrides[app.id] !== undefined)
@@ -325,12 +866,18 @@ ApplicationWindow {
     }
 
     function hasAndroidLifecycle(app) {
-        return app && app.source === "moos" && app.install
-            && app.install.kind === "android"
+        return app && app.install && app.install.kind === "android"
+            || app && app.kind === "android"
     }
 
+    // What moos-storectl can open by id (`run`): Flatpaks, Android apps, web apps, App Drop apps
+    // (catalogue and dropped) and Windows programs. npm tools run from a terminal, and a
+    // publisher's page has nothing to open.
     function hasRunnableLifecycle(app) {
-        return win.hasFlatpakLifecycle(app) || win.hasAndroidLifecycle(app)
+        if (!app) return false
+        if (win.hasFlatpakLifecycle(app) || win.hasAndroidLifecycle(app)) return true
+        var kind = win.appKind(app)
+        return kind === "webapp" || kind === "appdrop" || kind === "windows" || kind === "dropped"
     }
 
     function hasInstalledScope(app, scope) {
@@ -342,16 +889,14 @@ ApplicationWindow {
         return app.installed_scope === scope
     }
 
-    // Curated npm tools and pinned AppImages install into ~/.local; Android
-    // applications live behind MoOS's managed compatibility service. All are
-    // removed by `moos-storectl remove <id>` (npm uninstall / delete the
-    // AppImage / remove the package). They have no Flatpak lifecycle, so they
-    // must be named here explicitly. A `web` entry only opened a vendor page;
-    // nothing of ours is on disk and it is deliberately excluded.
+    // Everything moos-storectl installs into the person's home that is not a Flatpak — npm tools,
+    // App Drop and Windows programs, web apps, Android apps and a file the person dropped — is
+    // removed by `moos-storectl remove <id>`. A `web` entry only opened a publisher's page:
+    // nothing of ours is on disk, and it is deliberately excluded.
     function hasCuratedLifecycle(app) {
-        return app && app.source === "moos" && app.install
-            && (app.install.kind === "npm" || app.install.kind === "appimage"
-                || app.install.kind === "android")
+        var kind = win.appKind(app)
+        return app && (kind === "npm" || kind === "appdrop" || kind === "android"
+                       || kind === "webapp" || kind === "windows" || kind === "dropped")
     }
 
     function canRemove(app) {
@@ -379,6 +924,13 @@ ApplicationWindow {
             && !win.hasInstalledScope(app, "user")
     }
 
+    // Permissions the Store can change: a Flatpak's and a web app's, once installed.
+    function canChangePermissions(app) {
+        var kind = win.appKind(app)
+        return win.isInstalled(app) && (kind === "flatpak" || kind === "webapp")
+    }
+
+    // ── the selection (one review installs a whole set) ─────────────────────────
     function isPicked(id) {
         return win.picks[id] === true
     }
@@ -405,7 +957,8 @@ ApplicationWindow {
         var selected = Object.keys(next).length
         for (var i = 0; i < ids.length && selected < 64; ++i) {
             var app = win.appById(ids[i])
-            if (app && !win.isInstalled(app) && !next[ids[i]]) {
+            if (app && !win.isInstalled(app) && !next[ids[i]]
+                    && win.compatOf(app).verdict !== "blocked") {
                 next[ids[i]] = true
                 ++added
                 ++selected
@@ -413,7 +966,9 @@ ApplicationWindow {
         }
         win.picks = next
         win.pickCount = Object.keys(next).length
-        win.flash((win.rtl ? "أُضيف إلى قائمة التثبيت: " : "Added to install list: ") + added)
+        win.flash(added > 0
+            ? (win.rtl ? "أُضيف إلى قائمة التثبيت: " : "Added to the install list: ") + added
+            : win.local("كل تطبيقات هذه المجموعة مثبّتة أو مضافة", "Every app in this set is already installed or added"))
     }
 
     function clearPicks() {
@@ -422,27 +977,28 @@ ApplicationWindow {
     }
 
     function appById(id) {
-        for (var i = 0; i < win.allApps.length; ++i)
-            if (win.allApps[i].id === id) return win.allApps[i]
-        return null
+        return win.appMap[id] || null
+    }
+
+    function appsByIds(ids) {
+        var out = []
+        for (var i = 0; i < (ids || []).length; ++i) {
+            var app = win.appById(ids[i])
+            if (app) out.push(app)
+        }
+        return out
     }
 
     function categoryCount(id) {
-        var count = 0
-        for (var i = 0; i < win.allApps.length; ++i)
-            if (win.normalizedCategory(win.allApps[i]) === id) ++count
-        return count
+        return win.catCounts[id] || 0
     }
 
     function installedCount() {
-        var count = 0
-        for (var i = 0; i < win.allApps.length; ++i)
-            if (win.isInstalled(win.allApps[i])) ++count
-        return count
+        return win.installedApps.length
     }
 
     function verifiedCount() {
-        if (win.indexStats.verified !== undefined) return win.indexStats.verified
+        if (win.indexStats.verified_apps !== undefined) return win.indexStats.verified_apps
         var count = 0
         for (var i = 0; i < win.allApps.length; ++i)
             if (win.allApps[i].verified === true) ++count
@@ -483,12 +1039,11 @@ ApplicationWindow {
     // (captured on the daily driver, plan M1.4). Live index entries are preferred
     // so installed state and icons stay current.
     function curatedFeatured(limit) {
-        var live = {}
-        for (var i = 0; i < win.allApps.length; ++i)
-            live[win.allApps[i].id] = win.allApps[i]
+        var live = win.appMap
         var ranked = []
         for (var j = 0; j < win.curatedApps.length; ++j) {
             var entry = live[win.curatedApps[j].id] || win.curatedApps[j]
+            if (entry.listed === false) continue
             var popular = entry.popular === true || win.curatedApps[j].popular === true
             ranked.push({ app: entry, rank: popular ? 0 : 1, order: j })
         }
@@ -520,10 +1075,29 @@ ApplicationWindow {
             || win.job.state === "busy"
     }
 
+    // Where one app stands in the running job, for the button on its card and its page:
+    // "" (not in it), "waiting", "running" (with a real percentage or none) or "starting".
+    function appJobState(app) {
+        if (!app) return ""
+        if (win.waitingForJob && win.expectedIds.indexOf(app.id) >= 0) return "starting"
+        if (!(win.job.state === "starting" || win.job.state === "running")) return ""
+        var item = win.jobItem(app.id)
+        if (!item) return ""
+        if (item.state === "queued") return "waiting"
+        if (item.state === "running" || item.state === "starting") return "running"
+        return ""
+    }
+
+    function appJobProgress(app) {
+        var item = app ? win.jobItem(app.id) : null
+        if (item && item.progress !== null && item.progress !== undefined) return item.progress
+        if (win.job.current_id === (app && app.id) && win.job.progress !== null
+                && win.job.progress !== undefined) return win.job.progress
+        return -1
+    }
+
     function flash(message) {
-        toastLabel.text = message
-        toast.open()
-        toastTimer.restart()
+        toast.show(message)
     }
 
     function readJson(path) {
@@ -535,15 +1109,28 @@ ApplicationWindow {
         return JSON.parse(request.responseText)
     }
 
+    // The same read, off the first frame: big documents (facts, an app's details) are parsed when
+    // they arrive, and `done` receives the parsed document or null.
+    function readJsonLater(path, done) {
+        if (!path || path === "") { done(null); return }
+        var request = new XMLHttpRequest()
+        request.onreadystatechange = function() {
+            if (request.readyState !== XMLHttpRequest.DONE) return
+            var parsed = null
+            try { parsed = request.responseText ? JSON.parse(request.responseText) : null }
+            catch (error) { parsed = null }
+            done(parsed)
+        }
+        request.open("GET", "file://" + path + "?v=" + Date.now())
+        request.send()
+    }
+
     // ── What MoOS can run ────────────────────────────────────────────────────
     //
-    // Mo Store used to answer "does MoOS run Windows programs?" by putting the
-    // Windows RUNTIME in its first row as if it were an app somebody chooses.
-    // That names the engine, and a person who wants to run a program they
-    // downloaded has no reason to learn what it is called. The promise still has
-    // to be visible, so it is stated as a capability, in the registry's own
-    // bilingual words, and tapping one opens the file picker for exactly the
-    // files that capability accepts.
+    // A person who wants to run a program they downloaded has no reason to learn
+    // what the engine behind it is called. The promise is stated as a capability,
+    // in the registry's own bilingual words, and choosing one opens the file picker
+    // for exactly the files that capability accepts.
     //
     // The registry is the single source (system_files/usr/share/moos/app-engines.json).
     // Nothing here can name a runtime, because nothing here invents a string.
@@ -561,6 +1148,7 @@ ApplicationWindow {
             if (!win.machinePath) return
             var document = win.readJson(win.machinePath)
             if (!document) return
+            win.machine = document
             win.machineArch = "" + (document.arch || "")
             win.indexEngines = (document.engines === null
                                 || document.engines === undefined)
@@ -596,10 +1184,10 @@ ApplicationWindow {
             // which ones THIS machine has a runtime for. The index probes that
             // (app-engines.json's own `probe` field) and writes the answer as
             // `engines`. Without this filter an ARM desktop -- which ships
-            // neither wine nor waydroid -- told the owner it runs Windows
-            // programs and Android apps, and the picker it opened could only
-            // ever fail. A missing or null list means "could not tell", and the
-            // strip then shows everything exactly as it did before.
+            // neither runtime -- told the owner it runs Windows programs and
+            // Android apps, and the picker it opened could only ever fail. A
+            // missing or null list means "could not tell", and the list then
+            // shows everything exactly as it did before.
             var ready = win.indexEngines
             var list = []
             for (var i = 0; i < document.engines.length; ++i) {
@@ -617,7 +1205,7 @@ ApplicationWindow {
             win.engineCapabilities = list
         } catch (error) {
             // A store that cannot read the registry simply does not show the
-            // strip. It must never invent a capability it cannot name.
+            // list. It must never invent a capability it cannot name.
             win.engineCapabilities = []
         }
     }
@@ -629,6 +1217,12 @@ ApplicationWindow {
         applicationFile.nameFilters = patterns.length > 0
             ? [capability.label + " (" + patterns.join(" ") + ")"]
             : []
+        applicationFile.open()
+    }
+
+    // The header's and Settings' "Add an app from a file" open the same picker.
+    function openApplicationPicker() {
+        applicationFile.nameFilters = []
         applicationFile.open()
     }
 
@@ -657,27 +1251,156 @@ ApplicationWindow {
                 bundle.apps = kept
                 if (kept.length >= 2) keptBundles.push(bundle)
             }
-            win.bundles = keptBundles
             var normalized = []
+            var map = {}
             for (var i = 0; i < apps.length; ++i) {
                 if (!win.curatedRunsHere(apps[i])) continue
                 var source = Object.assign({}, apps[i])
-                source.name = win.localName(source)
                 source.summary = win.localSummary(source)
                 source.description = source.summary
-                source.category = win.normalizedCategory(source)
                 source.curated = true
                 source.installable = true
                 source.installed = false
                 normalized.push(source)
+                map[source.id] = source
             }
+            win.curatedMap = map
             win.curatedApps = normalized
-            win.allApps = normalized
             win.loadEngines()
-            win.recompute()
+            win.adoptCatalogue(normalized, {
+                bundles: keptBundles,
+                categories: document.categories || [],
+                collections: document.collections || [],
+                featured: document.featured || []
+            })
         } catch (error) {
             win.loadError = "" + error
         }
+    }
+
+    // Everything the pages read, derived ONCE from one generation of apps: a map by id, the
+    // counts by kind and category, the recommended browsing order, the collections and the hero.
+    function adoptCatalogue(apps, document) {
+        var map = {}
+        var kinds = { "linux": 0, "web": 0, "windows": 0, "android": 0 }
+        var cats = {}
+        var listed = []
+        var dated = false
+        for (var i = 0; i < apps.length; ++i) {
+            var app = win.normalizeApp(apps[i])
+            map[app.id] = app
+            if (app.released) dated = true
+            if (app.listed === false) continue
+            kinds[app.family] = (kinds[app.family] || 0) + 1
+            cats[app.cat] = (cats[app.cat] || 0) + 1
+            listed.push(app)
+        }
+        listed.sort(function(a, b) {
+            return win.recommendScore(a) - win.recommendScore(b)
+                || win.localName(a).toLowerCase().localeCompare(win.localName(b).toLowerCase())
+        })
+        for (var r = 0; r < listed.length; ++r) listed[r]._rank = r
+        win.appMap = map
+        win.allApps = apps
+        win.kindCounts = kinds
+        win.catCounts = cats
+        win.browseOrder = listed
+        win.canSortByDate = dated
+        if (!dated && win.sortMode === "updated") win.sortMode = "recommended"
+        win.bundles = (document.bundles && document.bundles.length) ? document.bundles : win.bundles
+        win.storeCategories = win.resolveCategories(document.categories || [])
+        win.collections = win.resolveCollections(document.collections || [])
+        win.featured = win.resolveFeatured(document.featured || [])
+        win.recompute()
+        win.recomputeLibrary()
+        if (win.query !== "") win.runSearch()
+        if (win.selectedApp) win.selectedApp = win.appById(win.selectedApp.id) || win.selectedApp
+    }
+
+    // Curated first (popular, then in the catalogue's order), then verified apps that follow the
+    // publishers' quality guide (they name brand colours), then verified, then the rest.
+    function recommendScore(app) {
+        if (app.curated === true) {
+            var order = win.curatedApps.indexOf(win.curatedMap[app.id])
+            return (app.popular === true ? 0 : 1000) + Math.max(0, order)
+        }
+        if (app.verified === true && app.branding) return 10000
+        if (app.verified === true) return 20000
+        return 30000
+    }
+
+    function resolveCategories(named) {
+        var out = []
+        for (var i = 0; i < win.storeCategoryDefs.length; ++i) {
+            var def = win.storeCategoryDefs[i]
+            var entry = { id: def.id, ar: def.ar, en: def.en, glyph: def.glyph }
+            for (var j = 0; j < named.length; ++j) {
+                if (named[j].id !== def.id) continue
+                if (named[j].ar) entry.ar = named[j].ar
+                if (named[j].en) entry.en = named[j].en
+                if (named[j].glyph && def.id !== "droid" && def.id !== "win") entry.glyph = named[j].glyph
+            }
+            out.push(entry)
+        }
+        return out
+    }
+
+    // The catalogue's editorial rows. An index written before collections existed still gets a
+    // Discover worth opening: MoOS's picks, then a row for each category the catalogue fills.
+    function resolveCollections(named) {
+        var out = []
+        for (var i = 0; i < named.length; ++i) {
+            var members = []
+            var ids = named[i].apps || []
+            for (var k = 0; k < ids.length; ++k) {
+                var member = win.appById(ids[k])
+                if (member && member.listed !== false) members.push(member)
+            }
+            if (members.length < 3) continue
+            out.push({ id: "" + named[i].id, ar: named[i].ar || named[i].en || "", en: named[i].en || named[i].ar || "",
+                       desc_ar: named[i].desc_ar || "", desc_en: named[i].desc_en || "",
+                       glyph: named[i].glyph || "spark", apps: members })
+        }
+        if (out.length > 0) return out
+        var picks = win.curatedFeatured(16)
+        if (picks.length >= 3)
+            out.push({ id: "moos-picks", ar: "اختيارات MoOS", en: "MoOS picks",
+                       desc_ar: "تطبيقات موثوقة للبدء", desc_en: "Trusted ways to get started",
+                       glyph: "star", apps: picks })
+        for (var c = 0; c < win.storeCategoryDefs.length; ++c) {
+            var def = win.storeCategoryDefs[c]
+            var row = []
+            for (var a = 0; a < win.browseOrder.length && row.length < 16; ++a)
+                if (win.browseOrder[a].cat === def.id) row.push(win.browseOrder[a])
+            if (row.length >= 4)
+                out.push({ id: "cat-" + def.id, ar: def.ar, en: def.en, desc_ar: "", desc_en: "",
+                           glyph: def.glyph, apps: row, category: def.id })
+            if (out.length >= 7) break
+        }
+        return out
+    }
+
+    function collectionById(id) {
+        for (var i = 0; i < win.collections.length; ++i)
+            if (win.collections[i].id === id) return win.collections[i]
+        return null
+    }
+
+    // The hero: the catalogue's featured cards, or MoOS's popular picks when it names none.
+    function resolveFeatured(named) {
+        var out = []
+        for (var i = 0; i < named.length && out.length < 8; ++i) {
+            var app = win.appById(named[i].app)
+            if (!app || app.listed === false || win.compatOf(app).verdict === "blocked") continue
+            out.push({ app: app, title_ar: named[i].title_ar || "", title_en: named[i].title_en || "",
+                       tagline_ar: named[i].tagline_ar || "", tagline_en: named[i].tagline_en || "",
+                       accent: named[i].accent || "" })
+        }
+        if (out.length > 0) return out
+        var picks = win.curatedFeatured(5)
+        for (var p = 0; p < picks.length; ++p)
+            out.push({ app: picks[p], title_ar: "", title_en: "", tagline_ar: "", tagline_en: "", accent: "" })
+        return out
     }
 
     function loadIndex() {
@@ -687,12 +1410,12 @@ ApplicationWindow {
             var token = JSON.stringify(document.generation || {})
             if (token === win.indexToken) return true
             win.indexToken = token
-            win.allApps = document.apps
-            win.bundles = document.bundles || win.bundles
             win.indexSources = document.sources || []
             win.indexStats = document.stats || ({})
+            win.indexGeneratedAt = (document.generation && document.generation.generated_at) || ""
+            win.adoptCatalogue(document.apps, document)
             win.indexReady = true
-            win.recompute()
+            win.loadFacts()
             Qt.callLater(function() { win.maybeRefreshCatalog(false) })
             return true
         } catch (error) {
@@ -709,6 +1432,95 @@ ApplicationWindow {
             return (request.responseText || "").trim() !== ""
         } catch (error) {
             return false
+        }
+    }
+
+    // Sizes, permission words and end of life of the catalogue's Linux apps, written by
+    // `moos-storectl facts` before the index. Read off the first frame.
+    function loadFacts() {
+        if (!win.factsPath) return
+        win.readJsonLater(win.factsPath, function(document) {
+            win.facts = document && document.apps ? document.apps : ({})
+            win.factsState = document && document.state === "success" ? "ready"
+                           : document ? "failed" : "missing"
+        })
+    }
+
+    function factOf(app) {
+        return app ? (win.facts[app.id] || null) : null
+    }
+
+    // An app's details document: screenshots, releases, links, languages, licence. Read when its
+    // page opens; `details` is relative to the cache directory (the current generation).
+    function loadDetails(app) {
+        win.selectedDetails = null
+        if (!app || !app.details) { win.detailsState = "none"; return }
+        var path = "" + app.details
+        if (!/^details\/[A-Za-z0-9._-]+\.json$/.test(path) || path.indexOf("..") >= 0 || !win.cacheDir) {
+            win.detailsState = "none"
+            return
+        }
+        var cached = win.detailsCache[app.id]
+        if (cached) { win.selectedDetails = cached; win.detailsState = "ready"; return }
+        win.detailsState = "loading"
+        var id = app.id
+        win.readJsonLater(win.cacheDir + "/" + path, function(document) {
+            if (!win.selectedApp || win.selectedApp.id !== id) return
+            if (document && document.id === id) {
+                var next = Object.assign({}, win.detailsCache)
+                next[id] = document
+                win.detailsCache = next
+                win.selectedDetails = document
+                win.detailsState = "ready"
+            } else {
+                win.detailsState = "missing"
+            }
+        })
+    }
+
+    // What an installed app may do, from the backend (`moos-storectl permissions <id>`, which writes
+    // permissions/<id>.json). An app that is not installed is described from the catalogue facts.
+    function loadPermissions(app) {
+        permissionPoll.stop()
+        win.permissionDoc = null
+        if (!app) { win.permissionState = "none"; return }
+        var kind = win.appKind(app)
+        if (kind === "web") { win.permissionState = "none"; return }
+        if (!win.isInstalled(app)) { win.permissionState = "facts"; return }
+        if (typeof MoosStore === "undefined" || typeof MoosStore.appPermissions !== "function") {
+            win.permissionState = "unsupported"
+            return
+        }
+        win.permissionAppId = app.id
+        win.permissionRequestedAt = Date.now()
+        if (!MoosStore.appPermissions(app.id)) { win.permissionState = "failed"; return }
+        win.permissionState = "loading"
+        permissionPoll.restart()
+    }
+
+    function readPermissions() {
+        if (!win.cacheDir || win.permissionAppId === "") return false
+        try {
+            var document = win.readJson(win.cacheDir + "/permissions/" + win.permissionAppId + ".json")
+            if (!document || document.id !== win.permissionAppId) return false
+            var at = Date.parse(document.generated_at || "")
+            if (!isFinite(at) || at + 2000 < win.permissionRequestedAt) return false
+            win.permissionDoc = document
+            win.permissionState = "ready"
+            return true
+        } catch (error) {
+            return false
+        }
+    }
+
+    // The person's Store choices (~/.config/moos/store.json): absent or unreadable means
+    // automatic updates are on, the backend's own default.
+    function loadStoreSettings() {
+        try {
+            var document = win.settingsPath ? win.readJson(win.settingsPath) : null
+            win.autoUpdates = !(document && document.auto_updates === false)
+        } catch (error) {
+            win.autoUpdates = true
         }
     }
 
@@ -740,8 +1552,18 @@ ApplicationWindow {
             if (!win.waitingForJob && !win.job.job_id && terminal) return false
             if (win.waitingForJob) {
                 if (document.job_id === win.previousJobId
-                        || !win.matchesExpectedJob(document))
-                    return false
+                        || !win.matchesExpectedJob(document)) {
+                    if (!active) return false
+                    // A fresh, live job that is not ours holds the backend: our request was
+                    // refused, and a refusal is never written over another request's live job,
+                    // so no document of ours will come. Say "busy" now instead of timing out,
+                    // and show what IS running.
+                    win.waitingForJob = false
+                    win.flash(win.jobText({ "message_key": "busy" },
+                                          win.local("متجر MoOS مشغول بعملية أخرى", "Mo Store is busy")))
+                    win.job = document
+                    return true
+                }
                 win.waitingForJob = false
             }
             win.job = document
@@ -753,11 +1575,11 @@ ApplicationWindow {
                     win.loadIndex()
                 if (document.state === "success") {
                     win.clearPicks()
-                    win.flash(win.rtl ? "اكتملت العملية بنجاح" : "All done")
+                    win.flash(win.jobText(document, win.rtl ? "اكتملت العملية بنجاح" : "All done"))
                 } else if (document.state === "partial") {
                     win.flash(win.rtl ? "اكتمل بعض العناصر — راجع التفاصيل" : "Some items need attention")
                 } else if (document.state !== "cancelled") {
-                    win.flash(document.message || (win.rtl ? "تعذّر إكمال العملية" : "The operation did not complete"))
+                    win.flash(win.jobText(document, win.rtl ? "تعذّر إكمال العملية" : "The operation did not complete"))
                 }
                 if (document.action !== "refresh-index")
                     Qt.callLater(function() { win.maybeRefreshCatalog(false) })
@@ -769,28 +1591,62 @@ ApplicationWindow {
                     win.updatesState = "unknown"
                     win.updates = ({})
                     win.updatesCheckedAt = ""
-                    if (win.page === "updates")
+                    if (win.page === "updates" || win.page === "library")
                         Qt.callLater(function() { win.checkUpdates() })
                 }
+                win.afterJob(document)
             }
-            win.recompute()
             return true
         } catch (error) {
             return false
         }
     }
 
+    // What a finished job changes in the window: only the installed flags of its own items (the
+    // library and the open page follow them), and a permissions document it rewrote.
+    function afterJob(document) {
+        if (document.action === "install" || document.action === "remove")
+            win.recomputeLibrary()
+        if (document.action === "set-permission" && win.selectedApp
+                && win.permissionAppId === win.selectedApp.id) {
+            var started = Date.parse(document.started_at || "")
+            win.permissionRequestedAt = isFinite(started) ? started : Date.now()
+            if (!win.readPermissions()) win.loadPermissions(win.selectedApp)
+        }
+        if (document.action === "remove" && win.selectedApp
+                && !win.isInstalled(win.selectedApp)) {
+            win.loadPermissions(win.selectedApp)
+        }
+        if (document.action === "install" && win.selectedApp && win.isInstalled(win.selectedApp))
+            win.loadPermissions(win.selectedApp)
+    }
+
+    // Pending updates the person can act on: apps, and catalogue pins newer than what is
+    // installed (`kind: "pin"`). Runtimes and other shared parts ride along and are counted apart.
     function updateItems() {
         var items = win.updates.items || []
         var apps = []
         for (var i = 0; i < items.length; ++i)
-            if (items[i].kind === "app") apps.push(items[i])
+            if (items[i].kind === "app" || items[i].kind === "pin") apps.push(items[i])
         return apps
     }
 
     function updateComponentCount() {
         var items = win.updates.items || []
         return Math.max(0, items.length - win.updateItems().length)
+    }
+
+    function updateFor(app) {
+        if (!app || win.updatesState !== "known") return null
+        var items = win.updateItems()
+        for (var i = 0; i < items.length; ++i)
+            if (items[i].id === app.id) return items[i]
+        return null
+    }
+
+    function hasUpdate(app) {
+        if (!app || !win.isInstalled(app)) return false
+        return win.updateFor(app) !== null || app.update_available === true
     }
 
     function loadUpdates() {
@@ -803,10 +1659,21 @@ ApplicationWindow {
             win.updates = document
             win.updatesState = document.state === "success" ? "known" : "failed"
             win.updatesChecking = false
+            win.adoptAutoUpdates(document)
             return true
         } catch (error) {
             return false
         }
+    }
+
+    // The automatic-update switch shows the person's choice from the settings file the switch
+    // writes. updates.json repeats it as the backend read it when that check STARTED, which can be
+    // older than the switch: turning it off and on again while a check ran left the switch Off
+    // with the setting On. The check's copy only answers when the window has no settings file.
+    function adoptAutoUpdates(document) {
+        if (win.settingsPath) win.loadStoreSettings()
+        else if (document.auto_updates === true || document.auto_updates === false)
+            win.autoUpdates = document.auto_updates
     }
 
     function adoptRecentUpdates() {
@@ -824,6 +1691,7 @@ ApplicationWindow {
             win.updatesCheckedAt = document.checked_at || ""
             win.updates = document
             win.updatesState = "known"
+            win.adoptAutoUpdates(document)
             return true
         } catch (error) {
             return false
@@ -873,15 +1741,50 @@ ApplicationWindow {
     readonly property var jobPhrases: ({
         "refreshing_index":         ["يُعاد بناء فهرس التطبيقات الموحّد", "Rebuilding the unified app index"],
         "index_refreshed":          ["تم تحديث الفهرس", "Index refreshed"],
-        "downloading_appimage":     ["يجري تنزيل ملف موثّق", "Downloading a verified file"],
-        "downloading_android":      ["يجري تنزيل تطبيق أندرويد موثّق", "Downloading verified app"],
+        "downloading_file":         ["يجري تنزيل ملف التطبيق", "Downloading the app file"],
+        "downloading_android":      ["يجري تنزيل تطبيق أندرويد", "Downloading the Android app"],
+        "preparing_windows":        ["تجري تهيئة برنامج ويندوز", "Preparing the Windows program"],
+        "windows_legacy_program":   ["هذا برنامج ويندوز قديم بإصدار 32-بت؛ يثبّت متجر MoOS برامج ويندوز 64-بت فقط", "This is an older 32-bit Windows program; Mo Store installs 64-bit Windows programs only"],
+        "vendor_resolving":         ["يجري البحث عن أحدث إصدار", "Finding the newest version"],
+        "vendor_downloading":       ["يجري التنزيل من الناشر", "Downloading from the publisher"],
+        "vendor_verifying":         ["يجري التحقق من توقيع الناشر", "Checking the publisher's signature"],
+        "vendor_bad_entry":         ["لا يمكن استخدام بيانات هذا التطبيق في متجر MoOS؛ لم يُثبَّت شيء", "Mo Store's entry for this app cannot be used; nothing was installed"],
+        "vendor_network":           ["تعذّر الوصول إلى الناشر؛ تحقّق من الاتصال بالإنترنت وحاول مجددًا", "Could not reach the publisher; check the internet connection and try again"],
+        "vendor_insecure_source":   ["لم يأتِ التنزيل من عنوان الناشر الآمن نفسه؛ لم يُثبَّت شيء", "The download did not come from the publisher's own secure address; nothing was installed"],
+        "vendor_metadata_invalid":  ["تعذّرت قراءة قائمة إصدارات الناشر بأمان؛ لم يُثبَّت شيء", "The publisher's list of versions could not be read safely; nothing was installed"],
+        "vendor_package_not_found": ["لا يوفّر الناشر هذا التطبيق لهذا الجهاز حاليًا", "The publisher does not offer this app for this computer right now"],
+        "vendor_download_mismatch": ["كان التنزيل ناقصًا أو لا يطابق ما أعلنه الناشر؛ حُذف ولم يُثبَّت شيء", "The download was incomplete or not what the publisher announced; it was deleted and nothing was installed"],
+        "vendor_no_space":          ["لا توجد مساحة كافية في مجلد المنزل لتنزيل التطبيق وفك ملفاته وتثبيته", "Not enough free space in your home folder to download, unpack and install this app"],
+        "vendor_tool_missing":      ["ينقص إصدارَ MoOS هذا أداةٌ لازمة للتحقق من هذا التطبيق؛ لم يُثبَّت شيء", "This MoOS edition lacks a tool needed to check this app; nothing was installed"],
+        "vendor_key_missing":       ["لا يحمل هذا الإصدار من MoOS مفتاح الناشر بعد؛ حدّث MoOS وحاول مجددًا", "This version of MoOS does not hold the publisher's key yet; update MoOS and try again"],
+        "vendor_signature_failed":  ["تعذّر التحقق من توقيع الناشر؛ حُذف التنزيل ولم يُثبَّت شيء", "The publisher's signature could not be verified; the download was deleted and nothing was installed"],
+        "vendor_unpack_failed":     ["تعذّر فكّ حزمة الناشر؛ لم يُثبَّت شيء", "The publisher's package could not be unpacked; nothing was installed"],
+        "vendor_unsafe_package":    ["تحتوي حزمة الناشر على ملفات لا يسمح بها MoOS؛ لم يُثبَّت شيء", "The publisher's package contains files MoOS does not allow; nothing was installed"],
+        "vendor_nothing_to_open":   ["لا تحتوي الحزمة على التطبيق الذي توقّعه متجر MoOS؛ لم يُثبَّت شيء", "The package does not contain the app Mo Store expected; nothing was installed"],
+        "vendor_sandbox_unavailable": ["لا يستطيع هذا التطبيق تشغيل حمايته الخاصة على هذا الجهاز، لذلك لم يُثبَّت", "This app cannot turn on its own protection on this computer, so it was not installed"],
+        "vendor_name_taken":        ["يوجد في مجلد المنزل تطبيق أو مجلد آخر بهذا الاسم؛ تركه متجر MoOS كما هو", "Another app or folder with this name is already in your home folder; Mo Store left it as it is"],
+        "vendor_unsafe_path":       ["لا يمكن كتابة موقع مجلد المنزل في مُشغِّل هذا التطبيق بأمان", "Your home folder's location cannot be written into this app's launcher safely"],
+        "unsupported_arch":         ["هذا التطبيق غير متوفّر لهذا النوع من الأجهزة", "This app is not available for this kind of computer"],
+        "publisher_page_opened":    ["فُتحت صفحة الناشر", "Opened the publisher's page"],
+        "app_up_to_date":           ["هذا التطبيق محدَّث", "This app is up to date"],
+        "update_by_file":           ["ثُبّت هذا التطبيق من ملف؛ ثبّت ملفًا أحدث منه لتحديثه", "This app was installed from a file; install a newer file of it to update it"],
+        "removed_with_data":        ["أُزيل مع بياناته", "Removed with its data"],
+        "removed_data_untracked":   ["تمت الإزالة. بقيت الإعدادات وبيانات تسجيل دخول التي حفظها التطبيق في أماكن أخرى من مجلد المنزل", "Removed. Settings and sign-in data the app saved elsewhere in your home folder were kept"],
+        "android_not_running":      ["دعم تطبيقات أندرويد غير مشغّل. افتحه أولاً لتشغيل هذا التطبيق", "Android app support is not running. Open it first to run this app"],
+        "android_update_refused":    ["لم يُطبّق أندرويد التحديث. ما زالت النسخة السابقة مثبتة", "Android did not apply the update. The previous version is still installed"],
+        "permission_changed":       ["تم تغيير الإذن", "Permission changed"],
+        "permissions_reset":        ["أُعيدت الأذونات إلى وضعها الأصلي", "Permissions reset"],
+        "invalid_id":               ["معرّف التطبيق غير صالح", "This app ID is not valid"],
+        "invalid_permission":       ["لا يمكن تغيير هذا الإذن هنا", "This permission cannot be changed here"],
+        "unsupported_kind":         ["لا يستطيع متجر MoOS تنفيذ هذا لهذا التطبيق", "Mo Store cannot do this for this app"],
+        "busy":                     ["متجر MoOS مشغول بعملية أخرى — حاول بعد قليل", "Mo Store is busy with another operation — try again shortly"],
         "inspecting_file":          ["تجري قراءة الملف", "Reading the file"],
         "extracting_file":          ["يجري فكّ التطبيق", "Unpacking the application"],
         "integrating_app":          ["تجري إضافته إلى قائمة التطبيقات", "Adding it to the launcher"],
         "already_installed_user":   ["مثبّت مسبقًا لهذا المستخدم", "Already installed for this user"],
         "already_installed_system": ["مثبّت مسبقًا على مستوى النظام", "Already installed system-wide"],
         "not_installed":            ["التطبيق غير مثبّت", "App is not installed"],
-        "nothing_to_remove":        ["لا شيء لإزالته — هذا التطبيق يُنزَّل من موقعه الرسمي خارج متجر Mo", "Nothing to remove — this app is downloaded from its official website, outside Mo Store"],
+        "nothing_to_remove":        ["لا شيء لإزالته — هذا التطبيق يُنزَّل من موقعه الرسمي خارج متجر MoOS", "Nothing to remove — this app is downloaded from its official website, outside Mo Store"],
         "installed":                ["تم التثبيت", "Installed"],
         "removed":                  ["تمت الإزالة", "Removed"],
         "updated":                  ["تم التحديث", "Updated"],
@@ -955,64 +1858,276 @@ ApplicationWindow {
         win.installedScopeOverrides = nextScopes
     }
 
+    // ── the Apps and Games pages ────────────────────────────────────────────────
+    //
+    // Filters a list that is already in recommended order: a category or a collection, then one
+    // of the four kinds, then the order the person asked for. Runs when a filter changes or a new
+    // index generation arrives, never on a job tick.
     function recompute() {
-        var q = win.query.trim().toLowerCase()
         var out = []
-        for (var i = 0; i < win.allApps.length; ++i) {
-            var app = win.allApps[i]
-            if (win.page === "installed" && !win.isInstalled(app)) continue
-            if ((win.page === "apps" || win.page === "categories"
-                    || win.page === "installed")
-                    && win.activeCategory !== "all"
-                    && win.normalizedCategory(app) !== win.activeCategory) continue
-            if (q !== "") {
-                var haystack = (win.localName(app) + " " + win.localSummary(app)
-                    + " " + (app.id || "") + " " + (app.developer || "")
-                    + " " + (app.categories || []).join(" ")).toLowerCase()
-                if (haystack.indexOf(q) < 0) continue
-            }
+        var counts = { "all": 0, "linux": 0, "web": 0, "windows": 0, "android": 0 }
+        var games = win.page === "games"
+        var collection = !games && win.activeCollection !== "" ? win.collectionById(win.activeCollection) : null
+        var source = collection ? collection.apps : win.browseOrder
+        for (var i = 0; i < source.length; ++i) {
+            var app = source[i]
+            if (games && app.cat !== "fun") continue
+            if (!games && !collection && win.activeCategory !== "all" && app.cat !== win.activeCategory) continue
+            ++counts.all
+            counts[app.family] = (counts[app.family] || 0) + 1
+            if (win.activeKind !== "all" && app.family !== win.activeKind) continue
             out.push(app)
         }
-        out.sort(function(a, b) {
-            if (win.page === "installed") {
-                var an = win.localName(a).toLowerCase()
-                var bn = win.localName(b).toLowerCase()
-                return an < bn ? -1 : (an > bn ? 1 : 0)
-            }
-            var ac = a.curated === true ? 1 : 0
-            var bc = b.curated === true ? 1 : 0
-            if (ac !== bc) return bc - ac
-            var av = a.verified === true ? 1 : 0
-            var bv = b.verified === true ? 1 : 0
-            if (av !== bv) return bv - av
-            var aname = win.localName(a).toLowerCase()
-            var bname = win.localName(b).toLowerCase()
-            return aname < bname ? -1 : (aname > bname ? 1 : 0)
-        })
+        win.viewKindCounts = counts
+        if (win.sortMode === "name") {
+            out.sort(function(a, b) {
+                return win.localName(a).toLowerCase().localeCompare(win.localName(b).toLowerCase())
+            })
+        } else if (win.sortMode === "updated" && win.canSortByDate) {
+            out.sort(function(a, b) { return ("" + (b.released || "")).localeCompare("" + (a.released || "")) })
+        }
         win.visibleApps = out
     }
 
+    function kindCountIn(family) {
+        if (family === "all") return win.browseOrder.length
+        return win.kindCounts[family] || 0
+    }
+
+    // ── My apps ─────────────────────────────────────────────────────────────────
+    function recomputeLibrary() {
+        var out = []
+        for (var i = 0; i < win.allApps.length; ++i)
+            if (win.isInstalled(win.allApps[i])) out.push(win.allApps[i])
+        out.sort(function(a, b) {
+            return win.localName(a).toLowerCase().localeCompare(win.localName(b).toLowerCase())
+        })
+        win.installedApps = out
+        win.filterLibrary()
+    }
+
+    function filterLibrary() {
+        if (win.libraryKind === "all") { win.libraryApps = win.installedApps; return }
+        var out = []
+        for (var i = 0; i < win.installedApps.length; ++i)
+            if (win.installedApps[i].family === win.libraryKind) out.push(win.installedApps[i])
+        win.libraryApps = out
+    }
+
+    function libraryCount(family) {
+        if (family === "all") return win.installedApps.length
+        var count = 0
+        for (var i = 0; i < win.installedApps.length; ++i)
+            if (win.installedApps[i].family === family) ++count
+        return count
+    }
+
+    // ── search ──────────────────────────────────────────────────────────────────
+    //
+    // The query is folded exactly as the index folded `search`, then ranked: an exact name, a name
+    // that starts with it, a word of the name that starts with it, the keywords (and the
+    // developer), and last the summary. Every word typed must match.
+    function wordsStart(text, tokens) {
+        var padded = " " + text
+        for (var i = 0; i < tokens.length; ++i)
+            if (padded.indexOf(" " + tokens[i]) < 0) return false
+        return true
+    }
+
+    function allIn(text, tokens) {
+        for (var i = 0; i < tokens.length; ++i)
+            if (text.indexOf(tokens[i]) < 0) return false
+        return true
+    }
+
+    function runSearch() {
+        var q = win.foldSearch(win.query)
+        if (q === "") { win.searchResults = []; return }
+        var tokens = q.split(" ")
+        var scored = []
+        for (var i = 0; i < win.allApps.length; ++i) {
+            var app = win.allApps[i]
+            if (app.listed === false && !win.isInstalled(app)) continue
+            if (app._fn === undefined) {
+                app._fn = win.foldSearch(win.localName(app))
+                app._fe = win.foldSearch(app.name_en || "")
+            }
+            var tier = -1
+            if (app._fn === q || app._fe === q) tier = 0
+            else if (app._fn.indexOf(q) === 0 || app._fe.indexOf(q) === 0) tier = 1
+            else if (win.wordsStart(app._fn + " " + app._fe, tokens)) tier = 2
+            else if (win.allIn(app.search || "", tokens)) tier = 3
+            else {
+                if (app._fs === undefined) app._fs = win.foldSearch(win.localSummary(app))
+                if (win.allIn(app._fs, tokens)) tier = 4
+            }
+            if (tier >= 0) scored.push({ app: app, tier: tier, rank: app._rank === undefined ? 1e9 : app._rank })
+        }
+        scored.sort(function(a, b) { return a.tier - b.tier || a.rank - b.rank })
+        var out = []
+        for (var k = 0; k < scored.length && k < 400; ++k) out.push(scored[k].app)
+        win.searchResults = out
+    }
+
+    // The header's field types here. A first character takes the window to the search page; the
+    // results follow ~120 ms after the last key, so typing never waits on 3,000 apps.
+    function setQuery(text) {
+        win.query = text
+        if (text.trim() !== "" && win.page !== "search") {
+            win.pushHistory()
+            win.page = "search"
+        }
+        searchDebounce.restart()
+    }
+
+    function searchFor(text) {
+        storeHeader.setSearchText(text)
+    }
+
+    // ── navigation ──────────────────────────────────────────────────────────────
+    //
+    // The rail's pages start fresh. An app's page, a collection, a category or a search remembers
+    // where it was opened from, and Back (Escape, Backspace, Alt+Left, or the header's arrow)
+    // returns there with its filters as they were.
     function navigate(target) {
+        win.history = []
+        win.activeCategory = "all"
+        win.activeKind = "all"
+        win.activeCollection = ""
+        if (win.query !== "") storeHeader.clearSearch()
         win.page = target
-        if (target !== "apps" && target !== "categories") win.activeCategory = "all"
+        win.recompute()
+    }
+
+    function pushHistory() {
+        var entry = { page: win.page, appId: win.page === "app" && win.selectedApp ? win.selectedApp.id : "",
+                      category: win.activeCategory, kind: win.activeKind, collection: win.activeCollection }
+        win.history = win.history.concat([entry])
+    }
+
+    readonly property bool canGoBack: win.history.length > 0
+
+    function goBack() {
+        var stack = win.history.slice(0)
+        var last = stack.pop()
+        win.history = stack
+        if (!last) {
+            if (win.page !== "discover") win.navigate("discover")
+            return
+        }
+        if (last.page !== "search" && win.query !== "") storeHeader.clearSearch()
+        win.activeCategory = last.category
+        win.activeKind = last.kind
+        win.activeCollection = last.collection
+        if (last.page === "app") {
+            var app = win.appById(last.appId)
+            if (app) { win.showApp(app); return }
+        }
+        win.page = last.page
         win.recompute()
     }
 
     function openCategory(category) {
+        if (category === "fun") { win.navigate("games"); return }
+        win.pushHistory()
+        win.activeKind = "all"
+        win.activeCollection = ""
         win.activeCategory = category
         win.page = "apps"
         win.recompute()
     }
 
-    function openDetails(app) {
-        win.selectedApp = app
-        details.open()
+    function openKind(family) {
+        win.pushHistory()
+        win.activeCategory = "all"
+        win.activeCollection = ""
+        win.activeKind = family
+        win.page = "apps"
+        win.recompute()
     }
 
+    function openCollection(id) {
+        var collection = win.collectionById(id)
+        if (!collection) return
+        if (collection.category) { win.openCategory(collection.category); return }
+        win.pushHistory()
+        win.activeCategory = "all"
+        win.activeKind = "all"
+        win.activeCollection = id
+        win.page = "apps"
+        win.recompute()
+    }
+
+    // An app's page replaces the window's content (it is no longer a popup): the rail stays, the
+    // header carries Back, and the page reads the app's details document when it opens.
+    function openDetails(app) {
+        if (!app) return
+        win.pushHistory()
+        win.showApp(app)
+    }
+
+    function showApp(app) {
+        win.selectedApp = app
+        win.page = "app"
+        win.loadDetails(app)
+        win.loadPermissions(app)
+    }
+
+    // ── what the buttons do ─────────────────────────────────────────────────────
     function installOne(app) {
         win.clearPicks()
         win.setPicked(app.id, true)
         review.open()
+    }
+
+    // The selection shelf (SelectionShelf.qml) opens the review and steps aside while it is on
+    // screen, from the first frame of its entrance.
+    readonly property bool reviewOpened: review.visible
+    function openReview() {
+        review.open()
+    }
+
+    // The one button an app shows first, by what is true of it now.
+    function primaryAction(app) {
+        if (!app) return "none"
+        if (win.appJobState(app) !== "") return "progress"
+        if (win.isInstalled(app)) {
+            if (win.hasUpdate(app)) return "update"
+            return win.hasRunnableLifecycle(app) ? "open" : "installed"
+        }
+        if (win.compatOf(app).verdict === "blocked" || app.installable === false) return "blocked"
+        if (win.isPicked(app.id)) return "added"
+        return win.isWeb(app) ? "website" : "get"
+    }
+
+    function primaryLabel(action) {
+        switch (action) {
+        case "open":      return win.local("فتح", "Open")
+        case "update":    return win.local("تحديث", "Update")
+        case "installed": return win.local("مثبّت", "Installed")
+        case "blocked":   return win.local("غير متاح", "Unavailable")
+        case "website":   return win.local("زيارة", "Visit")
+        case "added":     return win.local("مُضاف", "Added")
+        case "progress":  return win.local("جارٍ…", "Working…")
+        default:          return win.local("تثبيت", "Get")
+        }
+    }
+
+    function performPrimary(app) {
+        var action = win.primaryAction(app)
+        if (action === "open") win.runSelected(app)
+        else if (action === "update") win.updateOne(app)
+        else if (action === "added") win.setPicked(app.id, false)
+        else if (action === "get" || action === "website") win.installOne(app)
+    }
+
+    readonly property string needsUpdateText: win.local("يحتاج هذا تحديث MoOS القادم", "This needs the next MoOS update")
+
+    // Whether the installed shell's bridge offers a method this window would call (a newer
+    // window can run on an older shell until the next MoOS update).
+    // The shell clears the bridge to null while the window closes, and views still bind to this.
+    function bridgeHas(name) {
+        return typeof MoosStore !== "undefined" && MoosStore !== null && typeof MoosStore[name] === "function"
     }
 
     // Returns whether MoOS took the file. The caller needs the answer: telling the
@@ -1031,13 +2146,10 @@ ApplicationWindow {
         }
         // What is true at this instant, and nothing more: the file has been handed
         // to MoOS to look at. It has not been inspected yet, it may turn out to be
-        // unsupported, and the question that decides it has not been asked. Saying
-        // "confirm before installation" here would promise an install for a file
-        // MoOS is about to refuse.
+        // unsupported, and the question that decides it has not been asked.
         win.flash(win.local("يفحص MoOS الملف ويسألك قبل أي إجراء.",
                             "MoOS is checking the file and will ask before doing anything."))
         // An install started from this window must be visible IN this window.
-        // Every other MoosStore action restarts the poll for exactly this reason.
         jobPoll.restart()
         return true
     }
@@ -1057,40 +2169,6 @@ ApplicationWindow {
             if (!drop.hasUrls || drop.urls.length !== 1) return
             if (win.reviewDroppedFile(drop.urls[0]))
                 drop.acceptProposedAction()
-        }
-    }
-
-    Rectangle {
-        anchors.fill: parent
-        anchors.margins: MoUI.Tokens.space4
-        z: 100
-        visible: appDropTarget.containsDrag
-        radius: MoUI.Tokens.radiusDialog
-        color: win.canvas
-        border.color: win.accent
-        border.width: 2
-        ColumnLayout {
-            anchors.centerIn: parent
-            width: Math.min(parent.width - 48, 560)
-            spacing: MoUI.Tokens.space4
-            Text {
-                Layout.fillWidth: true
-                text: win.local("أضف تطبيقك إلى MoOS", "Bring your app to MoOS")
-                font.pixelSize: win.typePx(32)
-                font.bold: true
-                color: win.txt
-                wrapMode: Text.Wrap
-                horizontalAlignment: Text.AlignHCenter
-            }
-            Text {
-                Layout.fillWidth: true
-                text: win.local("أفلت ملفًا واحدًا. نفحص نوعه ونطلب موافقتك قبل التثبيت.",
-                                "Drop one file. We inspect its format and ask before installing.")
-                font.pixelSize: win.typePx(15)
-                color: win.txt2
-                wrapMode: Text.Wrap
-                horizontalAlignment: Text.AlignHCenter
-            }
         }
     }
 
@@ -1143,7 +2221,33 @@ ApplicationWindow {
             win.flash(win.rtl ? "تعذّر بدء الإزالة" : "Could not start removal")
             return
         }
-        details.close()
+        removeSheet.close()
+        jobPoll.restart()
+    }
+
+    // Removal together with the app's own data (moos-storectl remove --delete-data <id>).
+    function removeSelectedWithData(app) {
+        if (win.jobIsActive()) {
+            win.flash(win.rtl ? "انتظر اكتمال العملية الحالية" : "Wait for the current operation")
+            return
+        }
+        if (!win.canRemove(app)) {
+            win.flash(win.rtl
+                ? "هذا التطبيق مُدار مع النظام ولا يُزال من متجر المستخدم"
+                : "This app is system-managed and cannot be removed from the user store")
+            return
+        }
+        if (typeof MoosStore === "undefined" || typeof MoosStore.removeAppData !== "function") {
+            win.flash(win.needsUpdateText)
+            return
+        }
+        win.expectJob("remove", [app.id])
+        if (!MoosStore.removeAppData(app.id)) {
+            win.waitingForJob = false
+            win.flash(win.rtl ? "تعذّر بدء الإزالة" : "Could not start removal")
+            return
+        }
+        removeSheet.close()
         jobPoll.restart()
     }
 
@@ -1158,20 +2262,60 @@ ApplicationWindow {
         jobPoll.restart()
     }
 
+    // One app, of any kind (moos-storectl update <id>).
+    function updateOne(app) {
+        if (!app || win.jobIsActive()) return
+        if (typeof MoosStore === "undefined" || typeof MoosStore.updateApp !== "function") {
+            win.flash(win.needsUpdateText)
+            return
+        }
+        win.expectJob("update", [app.id])
+        if (!MoosStore.updateApp(app.id)) {
+            win.waitingForJob = false
+            win.flash(win.rtl ? "تعذّر بدء التحديث" : "Could not start the update")
+            return
+        }
+        jobPoll.restart()
+    }
+
+    // One permission of an installed app: allow, deny, or reset to what the app asked for.
+    function setPermission(app, key, value) {
+        if (!app || win.jobIsActive()) return
+        if (typeof MoosStore === "undefined" || typeof MoosStore.setPermission !== "function") {
+            win.flash(win.needsUpdateText)
+            return
+        }
+        win.permissionAppId = app.id
+        win.expectJob("set-permission", [app.id])
+        if (!MoosStore.setPermission(app.id, key, value)) {
+            win.waitingForJob = false
+            win.flash(win.local("تعذّر تغيير الإذن", "Could not change the permission"))
+            return
+        }
+        jobPoll.restart()
+    }
+
+    // The scheduled app updater's switch. It is a setting, not a job: the backend writes it at
+    // once, the window reads the file back until it says what was asked, and then asks for the
+    // pending-update document, which carries the same answer.
+    function setAutoUpdates(on) {
+        if (win.autoUpdatesPending || on === win.autoUpdates) return
+        if (typeof MoosStore === "undefined" || typeof MoosStore.setAutoUpdates !== "function") {
+            win.flash(win.needsUpdateText)
+            return
+        }
+        win.autoUpdatesWanted = on
+        if (!MoosStore.setAutoUpdates(on)) {
+            win.flash(win.local("تعذّر تغيير التحديث التلقائي", "Could not change automatic updates"))
+            return
+        }
+        win.autoUpdatesPending = true
+        settingsPoll.restart()
+    }
+
     function openSourceEngine(action) {
         if (action === "refresh") {
             win.maybeRefreshCatalog(true)
-            return
-        }
-        if (action === "permissions") {
-            var flatseal = win.appById("com.github.tchx84.Flatseal")
-            if (!flatseal) {
-                win.flash(win.rtl ? "أداة الصلاحيات غير موجودة في الفهرس" : "The permissions tool is not in the index")
-            } else if (win.isInstalled(flatseal)) {
-                win.runSelected(flatseal)
-            } else {
-                win.installOne(flatseal)
-            }
             return
         }
         if (win.jobIsActive()) {
@@ -1187,32 +2331,190 @@ ApplicationWindow {
         jobPoll.restart()
     }
 
+    // The job shelf's Cancel (JobShelf.qml): every bridge call stays in this file.
+    function cancelJob() {
+        if (typeof MoosStore !== "undefined") MoosStore.cancelJob()
+    }
+
     function openSystemUpdater() {
         if (typeof MoosStore === "undefined" || !MoosStore.openSystemUpdater())
             win.flash(win.rtl ? "تعذّر فتح محدّث MoOS" : "Could not open MoOS Updater")
     }
 
+    // Places outside the Store it may send a person to: fixed MoOS routes that navigate or ask
+    // before they act (firmware lives in MoOS Settings → Update; the one-time Windows and Android
+    // setups are moai-do's, with its confirmation). Nothing here installs.
+    readonly property var systemRoutes: ({
+        "firmware": "moos://settings/update",
+        "setup-windows": "moos://do/setup-windows",
+        "setup-android": "moos://do/setup-waydroid"
+    })
+
+    function openSystemRoute(name) {
+        var url = win.systemRoutes[name]
+        if (!url || !Qt.openUrlExternally(url))
+            win.flash(win.local("تعذّر فتح هذه الصفحة", "Could not open that page"))
+    }
+
+    // A publisher's link (website, help, donate, report a problem): https only.
+    function isSafeLink(url) {
+        return typeof url === "string" && /^https:\/\/[^\s/?#]+[^\s]*$/i.test(url)
+    }
+
+    function openLink(url) {
+        if (!win.isSafeLink(url) || !Qt.openUrlExternally(url))
+            win.flash(win.local("تعذّر فتح الرابط", "Could not open the link"))
+    }
+
+    // A picture the window may load: a local file always, an internet address only while the
+    // person allows app pictures from the internet (Settings).
+    function pictureSource(url) {
+        var text = "" + (url || "")
+        if (text.indexOf("file:///") === 0) return text
+        if (text.indexOf("https://") === 0 && win.remotePictures) return text
+        return ""
+    }
+
+    function iconSource(app) {
+        if (!app) return ""
+        return win.pictureSource(app.icon) || win.pictureSource(app.icon_url)
+    }
+
+    // ── sheets ──────────────────────────────────────────────────────────────────
+    function openRemove(app) {
+        if (!app) return
+        removeSheet.app = app
+        removeSheet.open()
+    }
+
+    function openPermissions(app) {
+        if (!app) return
+        if (!win.permissionDoc || win.permissionDoc.id !== app.id) win.loadPermissions(app)
+        permissionsSheet.app = app
+        permissionsSheet.open()
+    }
+
+    function openScreenshots(shots, index) {
+        if (!shots || shots.length === 0) return
+        screenshotViewer.shots = shots
+        screenshotViewer.index = Math.max(0, Math.min(shots.length - 1, index))
+        screenshotViewer.open()
+    }
+
+    // Escape closes the sheet on screen first. A sheet still arriving (`opened` turns true only
+    // when its entrance ends) counts as on screen: Escape pressed at once must not go Back.
+    function escapeAction() {
+        if (screenshotViewer.visible) screenshotViewer.close()
+        else if (removeSheet.visible) removeSheet.close()
+        else if (permissionsSheet.visible) permissionsSheet.close()
+        else if (review.visible) review.close()
+        else if (win.page === "search" || win.canGoBack) win.goBack()
+    }
+
+    // ── the person's own window preference ──────────────────────────────────────
+    Settings {
+        id: windowPrefs
+        location: StandardPaths.writableLocation(StandardPaths.GenericConfigLocation) + "/moos/store-window.conf"
+        category: "window"
+        property bool remotePictures: true
+    }
+    readonly property bool remotePictures: windowPrefs.remotePictures
+    function setRemotePictures(on) {
+        windowPrefs.remotePictures = on
+    }
+
     onPageChanged: {
-        recompute()
-        // Ask only when the user is actually looking at the page, and only when
+        if (win.page === "apps" || win.page === "games") win.recompute()
+        // Ask only when the person is actually looking at the page, and only when
         // the answer is not already in hand — the check costs a process and can
         // touch the network.
-        if (win.page === "updates" && win.updatesState === "unknown")
+        if ((win.page === "updates" || win.page === "library") && win.updatesState === "unknown")
             Qt.callLater(function() { win.checkUpdates() })
     }
     onActiveCategoryChanged: recompute()
-    onQueryChanged: recompute()
+    onActiveKindChanged: recompute()
+    onActiveCollectionChanged: recompute()
+    onSortModeChanged: recompute()
+    onLibraryKindChanged: filterLibrary()
+    onInstalledOverridesChanged: recomputeLibrary()
+
+    // ── Opening one app's page from outside ─────────────────────────────────
+    //
+    // `moos-store --app=<id>`, an appstream:// link and Plasma's "Uninstall or Manage
+    // Add-ons…" reach this window as one `--open-app=<id>` argument: in its own arguments at
+    // launch, and through activateRequested() when the Store is already open (moos-qml-shell
+    // forwards the second launch's argv). The launcher validated the id; it is validated again
+    // here, where the window owns the boundary. A link only ever SHOWS an app: what happens
+    // next is the person's choice on its page. The launcher's jump list names a page the same
+    // way (`--open-page=updates`), from a fixed list.
+    property string pendingOpenApp: ""
+
+    function requestedAppId(argv) {
+        var id = ""
+        for (var i = 0; i < argv.length; ++i) {
+            var arg = "" + argv[i]
+            if (arg.indexOf("--open-app=") !== 0) continue
+            var candidate = arg.substring("--open-app=".length)
+            if (/^[A-Za-z0-9][A-Za-z0-9._-]{1,254}$/.test(candidate) && candidate.indexOf("..") < 0)
+                id = candidate
+        }
+        return id
+    }
+
+    function requestedPage(argv) {
+        var target = ""
+        for (var i = 0; i < argv.length; ++i) {
+            var arg = "" + argv[i]
+            if (arg.indexOf("--open-page=") !== 0) continue
+            var candidate = arg.substring("--open-page=".length)
+            if (["discover", "apps", "games", "library", "updates", "settings"].indexOf(candidate) >= 0)
+                target = candidate
+        }
+        return target
+    }
+
+    // The page opens once the index can answer: at once when the loaded index (or, with no index
+    // at all, the catalogue) knows the id. While the launch-time poll still waits for a rebuilt
+    // index, an id the old one does not know waits with it rather than being called missing.
+    function openRequestedApp() {
+        if (win.pendingOpenApp === "") return
+        var app = win.indexReady ? win.appById(win.pendingOpenApp) : null
+        if (!app && win.indexPolling) return
+        var id = win.pendingOpenApp
+        win.pendingOpenApp = ""
+        if (!app) app = win.appById(id)
+        if (app) win.openDetails(app)
+        else win.flash(win.local("لم يُعثر على هذا التطبيق في متجر MoOS", "This app was not found in Mo Store"))
+    }
+
+    function activateRequested(arguments) {
+        var target = win.requestedPage(arguments)
+        if (target !== "") win.navigate(target)
+        var id = win.requestedAppId(arguments)
+        if (id === "") return
+        win.pendingOpenApp = id
+        win.openRequestedApp()
+    }
+
+    onIndexReadyChanged: win.openRequestedApp()
+    onIndexPollingChanged: win.openRequestedApp()
 
     Component.onCompleted: {
         win.loadMachine()
         win.loadCurated()
+        win.loadStoreSettings()
         win.loadIndex()
         win.adoptRecentUpdates()
         win.loadJob()
         if (win.jobIsActive()) jobPoll.start()
         Qt.callLater(function() { win.maybeRefreshCatalog(false) })
         indexPoll.start()
+        win.activateRequested(Qt.application.arguments)
     }
+
+    // Whether the launch-time poll is still waiting for the rebuilt index. The rail's status
+    // card (StoreRail.qml) says "Building catalogue…" and pulses only while it is.
+    readonly property bool indexPolling: indexPoll.running
 
     Timer {
         id: indexPoll
@@ -1265,295 +2567,129 @@ ApplicationWindow {
         }
     }
 
+    // `moos-storectl permissions <id>` runs detached and writes its document; bounded like the rest.
+    Timer {
+        id: permissionPoll
+        interval: 250
+        repeat: true
+        property int ticks: 0
+        onTriggered: {
+            ++ticks
+            if (win.readPermissions()) { stop(); return }
+            if (ticks > 40) { stop(); win.permissionState = "failed" }
+        }
+        onRunningChanged: if (running) ticks = 0
+    }
+
+    // The automatic-update switch, read back from the file the backend writes.
+    Timer {
+        id: settingsPoll
+        interval: 200
+        repeat: true
+        property int ticks: 0
+        onTriggered: {
+            ++ticks
+            var document = null
+            try { document = win.settingsPath ? win.readJson(win.settingsPath) : null } catch (error) { document = null }
+            var stored = !(document && document.auto_updates === false)
+            if (document && stored === win.autoUpdatesWanted) {
+                stop()
+                win.autoUpdates = stored
+                win.autoUpdatesPending = false
+                win.checkUpdates()
+                return
+            }
+            if (ticks > 25) {
+                stop()
+                win.autoUpdatesPending = false
+                win.flash(win.local("لم يُحفظ اختيار التحديث التلقائي", "The automatic-update choice was not saved"))
+            }
+        }
+        onRunningChanged: if (running) ticks = 0
+    }
+
+    Timer {
+        id: searchDebounce
+        interval: 120
+        onTriggered: win.runSearch()
+    }
+
+    // The search field lives in the header (StoreHeader.qml).
+    function focusSearch() {
+        storeHeader.focusSearch()
+    }
+
     Shortcut {
-        sequences: ["Ctrl+K", "Ctrl+F"]
-        onActivated: searchField.forceActiveFocus()
+        sequences: ["Ctrl+K", "Ctrl+F", "/"]
+        onActivated: win.focusSearch()
     }
 
     Shortcut {
         sequence: "Escape"
-        onActivated: {
-            if (details.opened) details.close()
-            else if (review.opened) review.close()
-            else if (searchField.text !== "") searchField.clear()
-        }
+        onActivated: win.escapeAction()
+    }
+
+    Shortcut {
+        sequence: "Alt+Left"
+        onActivated: win.goBack()
+    }
+
+    Shortcut {
+        sequence: "Backspace"
+        enabled: win.canGoBack && !(win.activeFocusItem && win.activeFocusItem.cursorPosition !== undefined)
+        onActivated: win.goBack()
     }
 
     // Shared palette-aware symbolic vocabulary; application artwork remains
     // AppStream-provided, while every control glyph comes from the MoOS layer.
+    // Glyph.qml draws them; the alias table stays here, beside the window's palette.
     readonly property var glyphAliases: ({
         "android": "android-apps", "brain": "ai", "doc": "document",
         "gamepad": "gaming", "gear": "settings", "mic": "microphone",
         "monitor": "system", "note": "music", "warn": "warning",
-        "download": "install", "disk": "storage"
+        "download": "install", "disk": "storage",
+        "media": "play", "archive": "boxes"
     })
     function glyphIcon(name) {
         return MoUI.SymbolCatalog.resolve(win.glyphAliases[name] || name || "spark")
     }
-    component Glyph: MoUI.SymbolIcon {
-        property string name: "spark"
-        property color tint: win.txt
-        symbol: win.glyphIcon(name)
-        foreground: tint
-    }
 
-    // A control that has keyboard focus must SHOW it. WCAG 2.4.7, and plain courtesy.
-    //
-    // Mo Store is the one MoOS app that supports Tab at all — five component types declare
-    // activeFocusOnTab. Measured, exactly ONE of them drew anything when focused: the search
-    // field, whose border thickens at main.qml:1585. The other four moved an invisible cursor,
-    // so a keyboard user could tab through the whole storefront with no idea where they were.
-    //
-    // This is a component rather than five copies of a Rectangle because the next focusable
-    // thing anyone adds should be one line away from being correct.
-    //
-    // It is NOT a QtQuick.Controls style. There is no MoOS style module to put it in — Mo Store,
-    // Welcome and the Installer all run QT_QUICK_CONTROLS_STYLE=Basic — and a Controls style
-    // could not reach these anyway: every focusable here is a bare Rectangle with hand-rolled
-    // TapHandler/Keys handlers, which no Controls style ever touches.
-    //
-    // Drawn OUTSIDE the shape (negative margins) so it never covers content or fights the
-    // control's own border, and it follows the parent's own radius so a pill stays a pill and a
-    // card stays a card. No animation: a focus ring must appear the instant focus lands, and
-    // Liquid Glass surfaces already gate their motion on `motionEnabled`.
-    component FocusRing: MoUI.FocusRing {
-        accentColor: win.accent
-    }
-
-    // A focus ring nobody can see is no focus ring. Every focusable here is a bare
-    // Rectangle inside a clipped Flickable, so Tab could park focus outside the viewport
-    // and PageDown moved nothing. Enforced at the window, not per delegate — one wired by
-    // hand is one somebody forgets:
+    // A focus ring nobody can see is no focus ring. Enforced at the window, not per delegate:
     //   1. whatever HOLDS focus is scrolled into view, in both axes, in whichever
-    //      Flickable ancestors clip it (the app grid, the chip row, the detail sheet);
+    //      Flickable ancestors clip it (the grids, the rows, the app page);
     //   2. PageDown/PageUp move each content pane via pageScrollKeys(), reached by key
     //      bubbling from any focused item inside the pane.
     onActiveFocusItemChanged: MoUI.KeyboardViewport.revealFocus(win.activeFocusItem)
 
-    component ActionButton: MoUI.Button {
-        id: action
-        property string glyphName: ""
-        property var triggered
-        implicitHeight: win.fs(40)
-        cornerRadius: design.radiusControl
-        iconName: action.glyphName === "" ? "" : win.glyphIcon(action.glyphName)
-        iconPixelSize: win.typePx(14)
-        fontPixelSize: win.typePx(13)
-        motionEnabled: win.motionEnabled
-        surfaceColor: Qt.rgba(win.raised.r, win.raised.g, win.raised.b, 0.74)
-        accentColor: win.accent
-        dangerColor: win.dangerInk
-        textColor: win.txt
-        mutedTextColor: win.txt2
-        accentForegroundColor: win.accentText
-        outlineColor: win.outline
-        onClicked: if (action.triggered) action.triggered()
+    // Tab out of the app grid (AppsPage.qml) lands on the rail's first entry.
+    function focusFirstNavItem(reason) {
+        rail.focusFirstNavItem(reason)
     }
 
-    component AppArtwork: Rectangle {
-        id: artwork
-        property var app: null
-        property int size: 52
-        implicitWidth: size
-        implicitHeight: size
-        radius: Math.round(size * 0.28)
-        color: Qt.rgba(win.accent.r, win.accent.g, win.accent.b, 0.12)
-        border.width: 1
-        border.color: Qt.rgba(win.accent.r, win.accent.g, win.accent.b, 0.22)
-        Image {
-            id: realIcon
-            anchors.centerIn: parent
-            width: artwork.size * 0.72
-            height: width
-            source: artwork.app && artwork.app.icon ? artwork.app.icon : ""
-            sourceSize.width: Math.max(64, width)
-            sourceSize.height: Math.max(64, height)
-            fillMode: Image.PreserveAspectFit
-            smooth: true
-            asynchronous: true
-            visible: status === Image.Ready
-        }
-        Glyph {
-            anchors.centerIn: parent
-            width: artwork.size * 0.52
-            height: width
-            name: artwork.app && artwork.app.glyph
-                  ? artwork.app.glyph : win.categoryGlyph(win.normalizedCategory(artwork.app || ({})))
-            tint: win.accent
-            visible: !realIcon.visible
-        }
-    }
-
-    component SourceBadge: Rectangle {
-        id: badge
-        property var app: null
-        implicitHeight: win.fs(22)
-        implicitWidth: badgeRow.implicitWidth + 15
-        radius: height / 2
-        color: Qt.rgba(win.txt2.r, win.txt2.g, win.txt2.b, 0.12)
-        RowLayout {
-            id: badgeRow
-            anchors.centerIn: parent
-            spacing: design.space1
-            Glyph {
-                name: badge.app && badge.app.verified === true ? "check"
-                                                              : badge.app && badge.app.flatpak_ref ? "shield" : "external"
-                tint: badge.app && badge.app.verified === true ? win.accent : win.txt2
-                Layout.preferredWidth: win.fs(11)
-                Layout.preferredHeight: win.fs(11)
-            }
-            Text {
-                text: win.sourceLabel(badge.app)
-                color: badge.app && badge.app.verified === true ? win.accent : win.txt2
-                font.family: win.uiFont
-                font.pixelSize: win.typePx(10)
-                font.bold: true
-            }
-        }
-    }
-
-    component AppCard: Rectangle {
-        id: card
-        required property var app
-        // A virtual GridView is one keyboard composite: making each instantiated delegate a
-        // Tab stop strands keyboard users on only the visible cache window. Discover cards keep
-        // their normal independent stops; the catalogue grid opts into arrow-key navigation.
-        property bool compositeFocus: false
-        property bool compositeCurrent: false
-        property bool selected: win.isPicked(app.id)
-        property bool installed: win.isInstalled(app)
-        radius: design.radiusCard
-        color: cardHover.hovered
-             ? Qt.rgba(win.raised.r, win.raised.g, win.raised.b, 0.98)
-             : Qt.rgba(win.surface.r, win.surface.g, win.surface.b, 0.82)
-        border.width: selected ? 2 : 1
-        border.color: card.selected ? win.accent
-                     : cardHover.hovered ? Qt.rgba(win.accent.r, win.accent.g, win.accent.b, 0.56)
-                                         : win.outline
-        scale: cardHover.hovered ? 1.012 : 1
-        activeFocusOnTab: !card.compositeFocus
-        Accessible.role: Accessible.ListItem
-        FocusRing { visible: card.activeFocus || card.compositeCurrent }
-        Accessible.name: win.localName(app) + ", " + win.sourceLabel(app)
-        HoverHandler { id: cardHover }
-        TapHandler { onTapped: win.openDetails(card.app) }
-        Keys.onReturnPressed: win.openDetails(card.app)
-        Keys.onSpacePressed: win.openDetails(card.app)
-        Behavior on color { ColorAnimation { duration: win.motionEnabled ? design.motionPress : 0 } }
-        Behavior on border.color { ColorAnimation { duration: win.motionEnabled ? design.motionPress : 0 } }
-        Behavior on scale { NumberAnimation { duration: win.motionEnabled ? design.motionPress : 0; easing.type: Easing.OutQuad } }
-
-        ColumnLayout {
-            anchors.fill: parent
-            anchors.margins: 14
-            spacing: 9
-            RowLayout {
-                Layout.fillWidth: true
-                spacing: 11
-                AppArtwork { app: card.app; size: 48 }
-                ColumnLayout {
-                    Layout.fillWidth: true
-                    spacing: 2
-                    Text {
-                        Layout.fillWidth: true
-                        text: win.localName(card.app)
-                        color: win.txt
-                        font.family: win.uiFont
-                        font.pixelSize: win.typePx(15)
-                        font.bold: true
-                        elide: Text.ElideRight
-                    }
-                    Text {
-                        Layout.fillWidth: true
-                        text: card.app.developer || card.app.id
-                        color: win.txt2
-                        font.family: win.uiFont
-                        font.pixelSize: win.typePx(10)
-                        elide: Text.ElideRight
-                    }
-                }
-                Rectangle {
-                    visible: card.installed
-                    Layout.preferredWidth: win.fs(24)
-                    Layout.preferredHeight: win.fs(24)
-                    radius: height / 2
-                    color: Qt.rgba(win.accent.r, win.accent.g, win.accent.b, 0.15)
-                    Glyph { anchors.centerIn: parent; width: 13; height: 13; name: "check"; tint: win.accent }
-                }
-            }
-            Text {
-                Layout.fillWidth: true
-                text: win.localSummary(card.app)
-                color: win.txt2
-                font.family: win.uiFont
-                font.pixelSize: win.typePx(11)
-                wrapMode: Text.WordWrap
-                maximumLineCount: 2
-                elide: Text.ElideRight
-            }
-            Item { Layout.fillHeight: true }
-            RowLayout {
-                Layout.fillWidth: true
-                spacing: 7
-                SourceBadge { app: card.app }
-                Item { Layout.fillWidth: true }
-                ActionButton {
-                    activeFocusOnTab: !card.compositeFocus
-                    enabled: !card.installed || win.hasRunnableLifecycle(card.app)
-                    label: card.installed
-                        ? win.hasRunnableLifecycle(card.app)
-                            ? (win.rtl ? "افتح" : "Open")
-                            : (win.rtl ? "جاهز" : "Ready")
-                        : card.selected ? (win.rtl ? "مُضاف" : "Added")
-                        : win.isWeb(card.app) ? (win.rtl ? "الموقع" : "Website")
-                        : (win.rtl ? "تثبيت" : "Install")
-                    glyphName: card.installed
-                        ? win.hasRunnableLifecycle(card.app) ? "external" : "check"
-                        : card.selected ? "check" : "download"
-                    primary: card.selected
-                    triggered: function() {
-                        if (card.installed && win.hasRunnableLifecycle(card.app))
-                            win.runSelected(card.app)
-                        else if (card.selected) win.setPicked(card.app.id, false)
-                        else win.installOne(card.app)
-                    }
-                }
-            }
-        }
-    }
-
-    // Layered background: palette-driven, restrained, and alive without making
-    // text compete with a wallpaper.
+    // Layered background: the scheme's canvas, one broad, still light from the leading top
+    // corner and a quiet horizon low on the window. Nothing here moves.
     Rectangle {
         anchors.fill: parent
         gradient: Gradient {
-            orientation: Gradient.Horizontal
-            GradientStop { position: 0; color: Qt.darker(win.canvas, 1.04) }
-            GradientStop { position: 0.58; color: win.canvas }
-            GradientStop { position: 1; color: win.chrome }
+            GradientStop { position: 0; color: win.canvas }
+            GradientStop { position: 1; color: Qt.darker(win.canvas, win.lightScheme ? 1.03 : 1.12) }
         }
     }
     Rectangle {
-        width: 620
-        height: 620
-        radius: height / 2
-        anchors.top: parent.top
-        anchors.right: parent.right
-        anchors.topMargin: -390
-        anchors.rightMargin: -190
-        color: win.accent
-        opacity: 0.1
+        width: win.fs(760)
+        height: win.fs(760)
+        radius: width / 2
+        x: win.rtl ? win.width - width * 0.62 : -width * 0.38
+        y: -height * 0.62
+        color: win.tint(win.accent, win.lightScheme ? 0.10 : 0.08)
     }
     Rectangle {
-        width: 480
-        height: 480
-        radius: height / 2
-        anchors.bottom: parent.bottom
-        anchors.left: parent.left
-        anchors.bottomMargin: -300
-        anchors.leftMargin: -250
-        color: win.blue
-        opacity: 0.07
+        width: win.fs(620)
+        height: win.fs(620)
+        radius: width / 2
+        x: win.rtl ? -width * 0.35 : win.width - width * 0.65
+        y: win.height - height * 0.4
+        color: win.tint(win.cyan, win.lightScheme ? 0.07 : 0.05)
     }
 
     RowLayout {
@@ -1563,239 +2699,7 @@ ApplicationWindow {
         LayoutMirroring.childrenInherit: true
 
         // Navigation rail.
-        Rectangle {
-            Layout.fillHeight: true
-            Layout.preferredWidth: win.compactRail ? 82 : 222
-            color: Qt.rgba(win.chrome.r, win.chrome.g, win.chrome.b, 0.82)
-            border.width: 0
-            Behavior on Layout.preferredWidth { NumberAnimation { duration: win.motionEnabled ? design.motionPress : 0; easing.type: Easing.OutCubic } }
-
-            ColumnLayout {
-                anchors.fill: parent
-                anchors.margins: 14
-                spacing: design.space2
-
-                RowLayout {
-                    Layout.fillWidth: true
-                    Layout.preferredHeight: win.fs(62)
-                    spacing: 11
-                    Rectangle {
-                        Layout.preferredWidth: win.fs(46)
-                        Layout.preferredHeight: win.fs(46)
-                        radius: design.radiusCard
-                        color: Qt.rgba(win.accent.r, win.accent.g, win.accent.b, 0.12)
-                        border.width: 1
-                        border.color: Qt.rgba(win.accent.r, win.accent.g, win.accent.b, 0.26)
-                        Image {
-                            anchors.centerIn: parent
-                            width: 36
-                            height: 36
-                            source: "file:///usr/share/moos/moos-logo.png"
-                            sourceSize.width: 48
-                            sourceSize.height: 48
-                        }
-                    }
-                    ColumnLayout {
-                        visible: !win.compactRail
-                        Layout.fillWidth: true
-                        spacing: -1
-                        Text {
-                            text: "MO STORE"
-                            color: win.txt
-                            font.family: win.uiFont
-                            font.pixelSize: win.typePx(16)
-                            font.bold: true
-                            font.letterSpacing: 1.5
-                        }
-                        Text {
-                            text: win.rtl ? "مركز تطبيقات MoOS" : "MoOS app centre"
-                            color: win.txt2
-                            font.family: win.uiFont
-                            font.pixelSize: win.typePx(10)
-                        }
-                    }
-                }
-
-                Rectangle { Layout.fillWidth: true; Layout.preferredHeight: win.fs(1); color: win.outline; opacity: 0.55 }
-                Item { Layout.preferredHeight: win.fs(2) }
-
-                Repeater {
-                    id: navRepeater
-                    model: win.navItems
-                    delegate: Rectangle {
-                        id: nav
-                        required property var modelData
-                        readonly property bool active: win.page === nav.modelData.id
-                        Layout.fillWidth: true
-                        Layout.preferredHeight: win.fs(46)
-                        radius: design.radiusControl
-                        color: active ? Qt.rgba(win.accent.r, win.accent.g, win.accent.b, 0.16)
-                                      : navHover.hovered ? Qt.rgba(win.raised.r, win.raised.g, win.raised.b, 0.72)
-                                                         : "transparent"
-                        border.width: active ? 1 : 0
-                        border.color: Qt.rgba(win.accent.r, win.accent.g, win.accent.b, 0.34)
-                        activeFocusOnTab: true
-                        Accessible.role: Accessible.Button
-                        Accessible.name: win.rtl ? nav.modelData.ar : nav.modelData.en
-                        FocusRing { }
-                        HoverHandler { id: navHover }
-                        TapHandler { onTapped: win.navigate(nav.modelData.id) }
-                        Keys.onReturnPressed: win.navigate(nav.modelData.id)
-                        Behavior on color { ColorAnimation { duration: win.motionEnabled ? design.motionFast : 0 } }
-                        RowLayout {
-                            anchors.fill: parent
-                            anchors.leftMargin: win.compactRail ? 15 : 14
-                            anchors.rightMargin: 12
-                            spacing: design.space3
-                            Glyph {
-                                name: nav.modelData.glyph
-                                tint: nav.active ? win.accent : win.txt2
-                                Layout.preferredWidth: win.fs(19)
-                                Layout.preferredHeight: win.fs(19)
-                            }
-                            Text {
-                                visible: !win.compactRail
-                                Layout.fillWidth: true
-                                text: win.rtl ? nav.modelData.ar : nav.modelData.en
-                                color: nav.active ? win.txt : win.txt2
-                                font.family: win.uiFont
-                                font.pixelSize: win.typePx(13)
-                                font.bold: nav.active
-                            }
-                            Rectangle {
-                                visible: !win.compactRail && nav.modelData.id === "installed" && win.installedCount() > 0
-                                implicitWidth: installedBadge.implicitWidth + 12
-                                implicitHeight: win.fs(22)
-                                radius: height / 2
-                                color: Qt.rgba(win.accent.r, win.accent.g, win.accent.b, 0.14)
-                                Text {
-                                    id: installedBadge
-                                    anchors.centerIn: parent
-                                    text: win.installedCount()
-                                    color: win.accent
-                                    font.family: win.uiFont
-                                    font.pixelSize: win.typePx(10)
-                                    font.bold: true
-                                }
-                            }
-                            // Only once the count is genuinely known — an
-                            // un-checked page must not imply "nothing pending".
-                            Rectangle {
-                                visible: !win.compactRail && nav.modelData.id === "updates"
-                                    && win.updatesState === "known" && win.updateItems().length > 0
-                                implicitWidth: updatesBadge.implicitWidth + 12
-                                implicitHeight: win.fs(22)
-                                radius: height / 2
-                                color: Qt.rgba(win.accent.r, win.accent.g, win.accent.b, 0.14)
-                                Text {
-                                    id: updatesBadge
-                                    anchors.centerIn: parent
-                                    text: win.updateItems().length
-                                    color: win.accent
-                                    font.family: win.uiFont
-                                    font.pixelSize: win.typePx(10)
-                                    font.bold: true
-                                }
-                            }
-                        }
-                    }
-                }
-
-                Item { Layout.fillHeight: true }
-
-                Rectangle {
-                    Layout.fillWidth: true
-                    Layout.preferredHeight: win.compactRail ? 50 : 72
-                    radius: design.radiusCard
-                    color: Qt.rgba(win.surface.r, win.surface.g, win.surface.b, 0.7)
-                    border.width: 1
-                    border.color: win.outline
-                    RowLayout {
-                        anchors.fill: parent
-                        anchors.margins: 12
-                        spacing: 9
-                        Rectangle {
-                            Layout.preferredWidth: win.fs(28)
-                            Layout.preferredHeight: win.fs(28)
-                            radius: height / 2
-                            color: Qt.rgba(win.accent.r, win.accent.g, win.accent.b, 0.14)
-                            // The rail's working light. It belongs to the line beside
-                            // it — "Building catalogue…" — so it pulses while the index
-                            // is actually being built and goes solid the moment it is
-                            // ready.
-                            //
-                            // It used to pulse forever, with no `running:` guard at all.
-                            // One 8 px dot animating without end keeps the QML render
-                            // loop at full frame rate, and repainting a 4K window for it
-                            // measured ~11% of a CPU core on an idle desktop — paid by
-                            // every session that merely had the Store window restored
-                            // behind other windows. Every other infinite animation MoOS
-                            // ships was already guarded; this was the one that was not.
-                            Rectangle {
-                                id: railWorkingDot
-                                anchors.centerIn: parent
-                                width: 8
-                                height: 8
-                                radius: height / 2
-                                color: win.hasFlatpakCatalog() ? win.accent : win.violet
-                                property real pulse: 1
-                                opacity: railWorkingPulse.running ? railWorkingDot.pulse : 1
-                                SequentialAnimation {
-                                    id: railWorkingPulse
-                                    // indexPoll.running bounds the pulse: the poll
-                                    // gives up after 36 ticks, and without this term
-                                    // a catalogue that never lands left the dot
-                                    // pulsing at frame rate forever — measured ~12%
-                                    // of a core, flat, for the life of the window.
-                                    running: !win.indexReady && indexPoll.running && win.motionEnabled
-                                    loops: Animation.Infinite
-                                    NumberAnimation {
-                                        target: railWorkingDot; property: "pulse"
-                                        from: 0.35; to: 1; duration: win.motionEnabled ? 850 : 0
-                                    }
-                                    NumberAnimation {
-                                        target: railWorkingDot; property: "pulse"
-                                        from: 1; to: 0.35; duration: win.motionEnabled ? 850 : 0
-                                    }
-                                }
-                            }
-                        }
-                        ColumnLayout {
-                            visible: !win.compactRail
-                            Layout.fillWidth: true
-                            spacing: 0
-                            Text {
-                                text: !win.indexReady
-                                    ? (indexPoll.running
-                                        ? (win.rtl ? "يُجهّز الفهرس…" : "Building catalogue…")
-                                        : (win.rtl ? "تعذّر تجهيز الفهرس" : "Catalogue build failed"))
-                                    : win.hasFlatpakCatalog()
-                                        ? (win.rtl ? "الفهرس الكامل جاهز" : "Full catalogue ready")
-                                        : (win.rtl ? "الفهرس المحدود · يحتاج اتصالًا" : "Limited catalogue · connection needed")
-                                color: win.txt
-                                font.family: win.uiFont
-                                font.pixelSize: win.typePx(11)
-                                font.bold: true
-                            }
-                            Text {
-                                text: win.allApps.length + (win.rtl ? " تطبيق" : " apps")
-                                color: win.txt2
-                                font.family: win.uiFont
-                                font.pixelSize: win.typePx(10)
-                            }
-                        }
-                    }
-                }
-            }
-            Rectangle {
-                anchors.right: win.rtl ? undefined : parent.right
-                anchors.left: win.rtl ? parent.left : undefined
-                width: 1
-                height: parent.height
-                color: win.outline
-                opacity: 0.62
-            }
-        }
+        StoreRail { id: rail; win: win }
 
         // Main surface.
         ColumnLayout {
@@ -1803,1961 +2707,66 @@ ApplicationWindow {
             Layout.fillHeight: true
             spacing: 0
 
-            Rectangle {
-                Layout.fillWidth: true
-                Layout.preferredHeight: win.fs(82)
-                color: Qt.rgba(win.chrome.r, win.chrome.g, win.chrome.b, 0.55)
-                RowLayout {
-                    anchors.fill: parent
-                    anchors.leftMargin: 26
-                    anchors.rightMargin: 26
-                    spacing: design.space4
-                    ColumnLayout {
-                        Layout.fillWidth: true
-                        spacing: 0
-                        Text {
-                            text: {
-                                for (var i = 0; i < win.navItems.length; ++i)
-                                    if (win.navItems[i].id === win.page)
-                                        return win.rtl ? win.navItems[i].ar : win.navItems[i].en
-                                return "Mo Store"
-                            }
-                            color: win.txt
-                            font.family: win.uiFont
-                            font.pixelSize: win.typePx(22)
-                            font.bold: true
-                        }
-                        Text {
-                            text: win.page === "discover"
-                                ? (win.rtl ? "تطبيقات آمنة، مرتبة لك، وكل المصادر في مكان واحد"
-                                           : "Trusted apps, smart discovery, every source in one place")
-                                : win.visibleApps.length + (win.rtl ? " نتيجة" : " results")
-                            color: win.txt2
-                            font.family: win.uiFont
-                            font.pixelSize: win.typePx(11)
-                        }
-                    }
-
-                    MoUI.Button {
-                        label: win.local("إضافة تطبيق", "Add app")
-                        enabled: !win.jobIsActive()
-                        onClicked: applicationFile.open()
-                        Accessible.description: win.local("اختر ملف تطبيق للمراجعة والتثبيت", "Choose an application file to review and install")
-                    }
-                    Rectangle {
-                        Layout.preferredWidth: Math.min(350, win.width * 0.28)
-                        Layout.preferredHeight: win.fs(46)
-                        radius: design.radiusCard
-                        color: Qt.rgba(win.surface.r, win.surface.g, win.surface.b, 0.82)
-                        border.width: searchField.activeFocus ? 1.5 : 1
-                        border.color: searchField.activeFocus ? win.accent : win.outline
-                        RowLayout {
-                            anchors.fill: parent
-                            anchors.leftMargin: 13
-                            anchors.rightMargin: 11
-                            spacing: design.space2
-                            Glyph {
-                                name: "search"
-                                tint: searchField.activeFocus ? win.accent : win.txt2
-                                Layout.preferredWidth: win.fs(17)
-                                Layout.preferredHeight: win.fs(17)
-                            }
-                            TextField {
-                                id: searchField
-                                Layout.fillWidth: true
-                                background: null
-                                color: win.txt
-                                placeholderText: win.rtl ? "ابحث في كل التطبيقات…" : "Search every app…"
-                                placeholderTextColor: win.txt2
-                                font.family: win.uiFont
-                                font.pixelSize: win.typePx(13)
-                                selectByMouse: true
-                                onTextChanged: {
-                                    win.query = text
-                                    if (text.trim() !== "" && win.page === "discover")
-                                        win.page = "apps"
-                                }
-                                Keys.onEscapePressed: clear()
-                            }
-                            Text {
-                                visible: searchField.text === ""
-                                text: "Ctrl K"
-                                color: win.txt2
-                                font.family: win.uiFont
-                                font.pixelSize: win.typePx(9)
-                            }
-                        }
-                    }
-                }
-                Rectangle { anchors.bottom: parent.bottom; width: parent.width; height: 1; color: win.outline; opacity: 0.45 }
-            }
+            StoreHeader { id: storeHeader; win: win }
 
             Item {
+                id: pageHost
                 Layout.fillWidth: true
                 Layout.fillHeight: true
+                clip: true
 
-                // Discover page.
-                Flickable {
-                    id: discoverFlick
+                DiscoverPage { win: win }
+
+                // Apps and Games: one filtered, virtualised grid.
+                AppsPage { win: win }
+
+                // An app's page.
+                AppPage { win: win }
+
+                // The pages behind the rail load the first time they are shown and then stay,
+                // keeping their scroll position.
+                Loader {
                     anchors.fill: parent
-                    visible: win.page === "discover"
-                    contentWidth: width
-                    contentHeight: discoverBody.implicitHeight + 48
-                    clip: true
-                    boundsBehavior: Flickable.StopAtBounds
-                    Keys.onPressed: (event) => MoUI.KeyboardViewport.pageScrollKeys(discoverFlick, event)
-                    ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
-                    ColumnLayout {
-                        id: discoverBody
-                        x: 24
-                        width: discoverFlick.width - 48
-                        spacing: 22
-
-                        Item { Layout.preferredHeight: win.fs(2) }
-
-                        Rectangle {
-                            Layout.fillWidth: true
-                            Layout.preferredHeight: win.fs(224)
-                            radius: win.fs(28)
-                            gradient: Gradient {
-                                orientation: Gradient.Horizontal
-                                GradientStop { position: 0; color: Qt.rgba(win.accent.r, win.accent.g, win.accent.b, 0.22) }
-                                GradientStop { position: 0.58; color: Qt.rgba(win.blue.r, win.blue.g, win.blue.b, 0.1) }
-                                GradientStop { position: 1; color: Qt.rgba(win.surface.r, win.surface.g, win.surface.b, 0.9) }
-                            }
-                            border.width: 1
-                            border.color: Qt.rgba(win.accent.r, win.accent.g, win.accent.b, 0.38)
-                            clip: true
-                            RowLayout {
-                                z: 1
-                                anchors.fill: parent
-                                anchors.margins: 28
-                                spacing: design.space5
-                                ColumnLayout {
-                                    Layout.fillWidth: true
-                                    spacing: design.space2
-                                    Text {
-                                        text: win.rtl ? "MO STORE · جيل جديد" : "MO STORE · REIMAGINED"
-                                        color: win.accent
-                                        font.family: win.uiFont
-                                        font.pixelSize: win.typePx(10)
-                                        font.bold: true
-                                        font.letterSpacing: 1.5
-                                    }
-                                    Text {
-                                        text: win.rtl ? "كل تطبيقاتك. متجر واحد." : "Every app. One beautiful home."
-                                        color: win.txt
-                                        font.family: win.uiFont
-                                        font.pixelSize: Math.min(win.typePx(32),
-                                                                 Math.max(win.typePx(24),
-                                                                          win.width * 0.029))
-                                        font.bold: true
-                                    }
-                                    Text {
-                                        Layout.fillWidth: true
-                                        Layout.maximumWidth: 660
-                                        text: win.rtl
-                                            ? "اكتشف تطبيقاتك هنا، أو أضف ملفًا نزّلته. مكان واحد للتثبيت والتحديث، مع توضيح التوافق قبل المتابعة."
-                                            : "Discover apps here, or add a file you downloaded. One place to install and update, with compatibility explained before you continue."
-                                        color: win.txt2
-                                        font.family: win.uiFont
-                                        font.pixelSize: win.typePx(13)
-                                        wrapMode: Text.WordWrap
-                                    }
-                                    Flow {
-                                        Layout.fillWidth: true
-                                        Layout.maximumWidth: 660
-                                        spacing: 8
-                                        visible: win.engineCapabilities.length > 0
-                                        Repeater {
-                                            model: win.engineCapabilities
-                                            delegate: Rectangle {
-                                                required property var modelData
-                                                // 40 px is the contract's minimum interactive
-                                                // target; this is a real button, not a label.
-                                                implicitHeight: Math.max(40, win.fs(40))
-                                                implicitWidth: capabilityLabel.implicitWidth + 28
-                                                radius: design.radiusControl
-                                                color: capabilityTouch.containsMouse
-                                                    ? Qt.rgba(win.accent.r, win.accent.g, win.accent.b, 0.18)
-                                                    : Qt.rgba(win.surface.r, win.surface.g, win.surface.b, 0.82)
-                                                border.width: 1
-                                                border.color: Qt.rgba(win.accent.r, win.accent.g, win.accent.b, 0.35)
-                                                Text {
-                                                    id: capabilityLabel
-                                                    anchors.centerIn: parent
-                                                    text: parent.modelData.label
-                                                    color: win.txt
-                                                    font.family: win.uiFont
-                                                    font.pixelSize: win.typePx(13)
-                                                }
-                                                MouseArea {
-                                                    id: capabilityTouch
-                                                    anchors.fill: parent
-                                                    hoverEnabled: true
-                                                    cursorShape: Qt.PointingHandCursor
-                                                    onClicked: win.openPickerFor(parent.modelData)
-                                                }
-                                                Accessible.role: Accessible.Button
-                                                Accessible.name: modelData.label
-                                                Accessible.description: win.local(
-                                                    "اختر ملفًا من هذا النوع لإضافته",
-                                                    "Choose a file of this kind to add")
-                                                Accessible.onPressAction: win.openPickerFor(modelData)
-                                            }
-                                        }
-                                    }
-                                    RowLayout {
-                                        spacing: 9
-                                        ActionButton {
-                                            label: win.rtl ? "استكشف كل التطبيقات" : "Explore all apps"
-                                            glyphName: "grid"
-                                            primary: true
-                                            triggered: function() { win.navigate("apps") }
-                                        }
-                                        ActionButton {
-                                            label: win.rtl ? "جهّز حزمة ذكية" : "Build a smart set"
-                                            glyphName: "spark"
-                                            triggered: function() {
-                                                if (win.bundles.length > 0)
-                                                    win.addMany(win.bundles[0].apps || [])
-                                            }
-                                        }
-                                    }
-                                }
-                                ColumnLayout {
-                                    Layout.preferredWidth: win.fs(250)
-                                    Layout.fillHeight: true
-                                    spacing: 10
-                                    Repeater {
-                                        model: [
-                                            { value: win.allApps.length, label: win.rtl ? "تطبيق متاح" : "apps available", glyph: "grid" },
-                                            { value: win.verifiedCount(), label: win.rtl ? "ناشر موثّق" : "verified publishers", glyph: "shield" },
-                                            { value: win.installedCount(), label: win.rtl ? "مثبّت لديك" : "installed", glyph: "check" }
-                                        ]
-                                        delegate: Rectangle {
-                                            required property var modelData
-                                            Layout.fillWidth: true
-                                            Layout.fillHeight: true
-                                            radius: design.radiusCard
-                                            color: Qt.rgba(win.surface.r, win.surface.g, win.surface.b, 0.72)
-                                            border.width: 1
-                                            border.color: win.outline
-                                            // The three stat cards share the hero's height, and an
-                                            // Arabic-capable UI font's natural line boxes are taller
-                                            // than its glyphs: measured at 4K/225%, each caption sat
-                                            // on its card's border. Fixed line heights keep value and
-                                            // caption inside the card, the minimum height grows the
-                                            // hero instead of clipping, and a filling column stops
-                                            // each card centring its text at a different offset.
-                                            Layout.minimumHeight: statRow.implicitHeight + 16
-                                            RowLayout {
-                                                id: statRow
-                                                anchors.fill: parent
-                                                anchors.leftMargin: 14
-                                                anchors.rightMargin: 14
-                                                anchors.topMargin: 8
-                                                anchors.bottomMargin: 8
-                                                spacing: 12
-                                                Glyph {
-                                                    name: modelData.glyph
-                                                    tint: win.accent
-                                                    Layout.preferredWidth: win.fs(19)
-                                                    Layout.preferredHeight: win.fs(19)
-                                                    Layout.alignment: Qt.AlignVCenter
-                                                }
-                                                ColumnLayout {
-                                                    Layout.fillWidth: true
-                                                    Layout.alignment: Qt.AlignVCenter
-                                                    spacing: 0
-                                                    Text {
-                                                        Layout.fillWidth: true
-                                                        text: modelData.value
-                                                        color: win.txt
-                                                        font.family: win.uiFont
-                                                        font.pixelSize: win.typePx(18)
-                                                        font.bold: true
-                                                        lineHeightMode: Text.FixedHeight
-                                                        lineHeight: Math.ceil(win.typePx(18) * 1.15)
-                                                        elide: Text.ElideRight
-                                                    }
-                                                    Text {
-                                                        Layout.fillWidth: true
-                                                        text: modelData.label
-                                                        color: win.txt2
-                                                        font.family: win.uiFont
-                                                        font.pixelSize: win.typePx(9)
-                                                        lineHeightMode: Text.FixedHeight
-                                                        lineHeight: Math.ceil(win.typePx(9) * 1.35)
-                                                        elide: Text.ElideRight
-                                                    }
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-
-                        RowLayout {
-                            Layout.fillWidth: true
-                            Text {
-                                text: win.rtl ? "اختيارات MoOS" : "MoOS picks"
-                                color: win.txt
-                                font.family: win.uiFont
-                                font.pixelSize: win.typePx(17)
-                                font.bold: true
-                            }
-                            Text {
-                                text: win.rtl ? "· تطبيقات موثوقة للبدء" : "· trusted ways to get started"
-                                color: win.txt2
-                                font.family: win.uiFont
-                                font.pixelSize: win.typePx(11)
-                            }
-                            Item { Layout.fillWidth: true }
-                            ActionButton {
-                                label: win.rtl ? "عرض الكل" : "See all"
-                                glyphName: "external"
-                                triggered: function() { win.navigate("apps") }
-                            }
-                        }
-
-                        GridLayout {
-                            Layout.fillWidth: true
-                            columns: win.width > 1220 ? 4 : 3
-                            columnSpacing: 12
-                            rowSpacing: 12
-                            Repeater {
-                                model: win.curatedFeatured(win.width > 1220 ? 8 : 6)
-                                delegate: AppCard {
-                                    required property var modelData
-                                    app: modelData
-                                    Layout.fillWidth: true
-                                    Layout.preferredHeight: win.fs(178)
-                                }
-                            }
-                        }
-
-                        RowLayout {
-                            Layout.fillWidth: true
-                            Layout.topMargin: 2
-                            Text {
-                                text: win.rtl ? "فئات لكل استخدام" : "Made for every kind of day"
-                                color: win.txt
-                                font.family: win.uiFont
-                                font.pixelSize: win.typePx(17)
-                                font.bold: true
-                            }
-                            Item { Layout.fillWidth: true }
-                            Text {
-                                text: win.rtl ? "من العمل إلى اللعب، ومن التصميم إلى الذكاء الاصطناعي" : "Work, play, create, learn and build"
-                                color: win.txt2
-                                font.family: win.uiFont
-                                font.pixelSize: win.typePx(11)
-                            }
-                        }
-
-                        GridLayout {
-                            Layout.fillWidth: true
-                            columns: win.width > 1180 ? 4 : 3
-                            columnSpacing: 12
-                            rowSpacing: 12
-                            Repeater {
-                                model: win.categoryDefs.slice(0, 8)
-                                delegate: Rectangle {
-                                    id: homeCategory
-                                    required property var modelData
-                                    Layout.fillWidth: true
-                                    Layout.preferredHeight: win.fs(82)
-                                    radius: design.radiusCard
-                                    color: homeCategoryHover.hovered
-                                        ? Qt.rgba(win.raised.r, win.raised.g, win.raised.b, 0.94)
-                                        : Qt.rgba(win.surface.r, win.surface.g, win.surface.b, 0.72)
-                                    border.width: 1
-                                    border.color: homeCategoryHover.hovered ? win.accent : win.outline
-                                    activeFocusOnTab: true
-                                    Accessible.role: Accessible.Button
-                                    Accessible.name: win.rtl ? homeCategory.modelData.ar : homeCategory.modelData.en
-                                    FocusRing { }
-                                    HoverHandler { id: homeCategoryHover }
-                                    TapHandler { onTapped: win.openCategory(homeCategory.modelData.id) }
-                                    Keys.onReturnPressed: win.openCategory(homeCategory.modelData.id)
-                                    RowLayout {
-                                        anchors.fill: parent
-                                        anchors.margins: 14
-                                        spacing: design.space3
-                                        Rectangle {
-                                            Layout.preferredWidth: win.fs(44)
-                                            Layout.preferredHeight: win.fs(44)
-                                            radius: design.radiusControl
-                                            color: Qt.rgba(win.accent.r, win.accent.g, win.accent.b, 0.13)
-                                            Glyph { anchors.centerIn: parent; width: 22; height: 22; name: homeCategory.modelData.glyph; tint: win.accent }
-                                        }
-                                        ColumnLayout {
-                                            Layout.fillWidth: true
-                                            spacing: 0
-                                            Text {
-                                                text: win.rtl ? homeCategory.modelData.ar : homeCategory.modelData.en
-                                                color: win.txt
-                                                font.family: win.uiFont
-                                                font.pixelSize: win.typePx(13)
-                                                font.bold: true
-                                            }
-                                            Text {
-                                                text: win.categoryCount(homeCategory.modelData.id) + (win.rtl ? " تطبيق" : " apps")
-                                                color: win.txt2
-                                                font.family: win.uiFont
-                                                font.pixelSize: win.typePx(10)
-                                            }
-                                        }
-                                        Glyph { name: "external"; tint: win.txt2; Layout.preferredWidth: win.fs(14); Layout.preferredHeight: win.fs(14) }
-                                    }
-                                }
-                            }
-                        }
-
-                        RowLayout {
-                            Layout.fillWidth: true
-                            Layout.topMargin: 2
-                            Text {
-                                text: win.rtl ? "حزم ذكية" : "Smart collections"
-                                color: win.txt
-                                font.family: win.uiFont
-                                font.pixelSize: win.typePx(17)
-                                font.bold: true
-                            }
-                            Text {
-                                text: win.rtl ? "· ثبّت مجموعة كاملة بمراجعة واحدة" : "· one review, a complete setup"
-                                color: win.txt2
-                                font.family: win.uiFont
-                                font.pixelSize: win.typePx(11)
-                            }
-                            Item { Layout.fillWidth: true }
-                        }
-
-                        GridLayout {
-                            Layout.fillWidth: true
-                            columns: win.width > 1180 ? 3 : 2
-                            columnSpacing: 12
-                            rowSpacing: 12
-                            Repeater {
-                                model: win.bundles
-                                delegate: Rectangle {
-                                    id: bundleCard
-                                    required property var modelData
-                                    Layout.fillWidth: true
-                                    Layout.preferredHeight: win.fs(132)
-                                    radius: design.radiusCard
-                                    color: bundleHover.hovered
-                                        ? Qt.rgba(win.raised.r, win.raised.g, win.raised.b, 0.96)
-                                        : Qt.rgba(win.surface.r, win.surface.g, win.surface.b, 0.76)
-                                    border.width: 1
-                                    border.color: bundleHover.hovered ? win.accent : win.outline
-                                    HoverHandler { id: bundleHover }
-                                    ColumnLayout {
-                                        anchors.fill: parent
-                                        anchors.margins: 14
-                                        spacing: 7
-                                        RowLayout {
-                                            Layout.fillWidth: true
-                                            Glyph {
-                                                name: bundleCard.modelData.glyph || "boxes"
-                                                tint: win.accent
-                                                Layout.preferredWidth: win.fs(21)
-                                                Layout.preferredHeight: win.fs(21)
-                                            }
-                                            Text {
-                                                Layout.fillWidth: true
-                                                text: win.rtl ? bundleCard.modelData.ar : bundleCard.modelData.en
-                                                color: win.txt
-                                                font.family: win.uiFont
-                                                font.pixelSize: win.typePx(14)
-                                                font.bold: true
-                                            }
-                                            Text {
-                                                text: (bundleCard.modelData.apps || []).length
-                                                color: win.accent
-                                                font.family: win.uiFont
-                                                font.pixelSize: win.typePx(12)
-                                                font.bold: true
-                                            }
-                                        }
-                                        Text {
-                                            Layout.fillWidth: true
-                                            text: win.rtl ? bundleCard.modelData.desc_ar : bundleCard.modelData.desc_en
-                                            color: win.txt2
-                                            font.family: win.uiFont
-                                            font.pixelSize: win.typePx(10)
-                                            wrapMode: Text.WordWrap
-                                            maximumLineCount: 2
-                                            elide: Text.ElideRight
-                                        }
-                                        Item { Layout.fillHeight: true }
-                                        ActionButton {
-                                            label: win.rtl ? "أضف الحزمة" : "Add collection"
-                                            glyphName: "download"
-                                            triggered: function() { win.addMany(bundleCard.modelData.apps || []) }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                        Item { Layout.preferredHeight: win.fs(12) }
-                    }
+                    active: win.page === "library" || status === Loader.Ready
+                    sourceComponent: Component { LibraryPage { win: win } }
                 }
-
-                // Virtualized catalogue / installed page.
-                ColumnLayout {
+                Loader {
                     anchors.fill: parent
-                    anchors.margins: 22
-                    visible: win.page === "apps" || win.page === "installed"
-                    spacing: design.space3
-
-                    RowLayout {
-                        Layout.fillWidth: true
-                        spacing: design.space2
-                        Flickable {
-                            id: chipFlick
-                            Layout.fillWidth: true
-                            Layout.preferredHeight: win.fs(40)
-                            contentWidth: categoryRow.implicitWidth
-                            contentHeight: height
-                            clip: true
-                            boundsBehavior: Flickable.StopAtBounds
-                            // In RTL the mirrored row puts the reading start — the active
-                            // "الكل" chip — at the RIGHT end of the content, and a fresh
-                            // Flickable shows the LEFT end. Snap to the reading start when
-                            // the row's width settles. A guarded reset, not a binding: a
-                            // binding on contentX would fight the user's own drag.
-                            function snapToReadingStart() {
-                                if (win.rtl && !chipFlick.moving && !chipFlick.dragging)
-                                    chipFlick.contentX = Math.max(0, chipFlick.contentWidth - chipFlick.width)
-                            }
-                            onContentWidthChanged: chipFlick.snapToReadingStart()
-                            Component.onCompleted: chipFlick.snapToReadingStart()
-                            RowLayout {
-                                id: categoryRow
-                                height: parent.height
-                                spacing: 7
-                                Repeater {
-                                    id: categoryRepeater
-                                    model: [{ id: "all", ar: "الكل", en: "All", glyph: "grid" }].concat(win.categoryDefs)
-                                    delegate: Rectangle {
-                                        id: categoryPill
-                                        required property var modelData
-                                        readonly property bool active: win.activeCategory === modelData.id
-                                        implicitWidth: pillRow.implicitWidth + 22
-                                        Layout.preferredHeight: win.fs(36)
-                                        radius: design.radiusControl
-                                        color: active ? win.accent
-                                                      : pillHover.hovered ? win.raised : Qt.rgba(win.surface.r, win.surface.g, win.surface.b, 0.7)
-                                        border.width: active ? 0 : 1
-                                        border.color: win.outline
-                                        activeFocusOnTab: true
-                                        Accessible.role: Accessible.Button
-                                        Accessible.name: win.rtl ? categoryPill.modelData.ar : categoryPill.modelData.en
-                                        FocusRing { }
-                                        HoverHandler { id: pillHover }
-                                        TapHandler { onTapped: win.activeCategory = categoryPill.modelData.id }
-                                        Keys.onReturnPressed: win.activeCategory = categoryPill.modelData.id
-                                        Keys.onSpacePressed: win.activeCategory = categoryPill.modelData.id
-                                        RowLayout {
-                                            id: pillRow
-                                            anchors.centerIn: parent
-                                            spacing: 6
-                                            Glyph {
-                                                name: categoryPill.modelData.glyph
-                                                tint: categoryPill.active ? win.accentText : win.txt2
-                                                Layout.preferredWidth: win.fs(14)
-                                                Layout.preferredHeight: win.fs(14)
-                                            }
-                                            Text {
-                                                text: win.rtl ? categoryPill.modelData.ar : categoryPill.modelData.en
-                                                color: categoryPill.active ? win.accentText : win.txt
-                                                font.family: win.uiFont
-                                                font.pixelSize: win.typePx(11)
-                                                font.bold: categoryPill.active
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                        Text {
-                            text: win.visibleApps.length + (win.rtl ? " تطبيق" : " apps")
-                            color: win.txt2
-                            font.family: win.uiFont
-                            font.pixelSize: win.typePx(11)
-                        }
-                        ActionButton {
-                            id: bulkAdd
-                            visible: win.page === "apps" && win.visibleApps.length > 0
-                            // Demoted from the default Tab chain: document order made this
-                            // bulk action the pane's FIRST stop, so a keyboard user's first
-                            // Return queued a whole section. The virtual grid now hands focus
-                            // here explicitly after its arrow-navigated composite; Tab out
-                            // continues at the rail and Backtab returns to the grid.
-                            activeFocusOnTab: false
-                            Keys.onTabPressed: {
-                                var first = navRepeater.itemAt(0)
-                                if (first) first.forceActiveFocus(Qt.TabFocusReason)
-                            }
-                            Keys.onBacktabPressed: appGrid.forceActiveFocus(Qt.BacktabFocusReason)
-                            label: win.rtl ? "أضف كل القسم" : "Add this section"
-                            glyphName: "download"
-                            triggered: function() {
-                                var ids = []
-                                for (var i = 0; i < win.visibleApps.length; ++i)
-                                    ids.push(win.visibleApps[i].id)
-                                win.addMany(ids)
-                            }
-                        }
-                    }
-
-                    GridView {
-                        id: appGrid
-                        Layout.fillWidth: true
-                        Layout.fillHeight: true
-                        clip: true
-                        model: win.visibleApps
-                        readonly property int columnCount: width > 1020 ? 4 : width > 720 ? 3 : 2
-                        cellWidth: width / columnCount
-                        cellHeight: 192
-                        boundsBehavior: Flickable.StopAtBounds
-                        activeFocusOnTab: visible && count > 0
-                        keyNavigationEnabled: true
-                        Accessible.role: Accessible.List
-                        Accessible.name: win.rtl ? "شبكة التطبيقات" : "Application grid"
-                        Accessible.focusable: true
-                        Accessible.focused: activeFocus
-                        Accessible.description: currentItem
-                            ? win.localName(currentItem.modelData) + ", "
-                              + (currentIndex + 1) + " / " + count
-                            : ""
-                        Accessible.onPressAction: {
-                            if (currentIndex >= 0 && currentIndex < win.visibleApps.length)
-                                win.openDetails(win.visibleApps[currentIndex])
-                        }
-                        onActiveFocusChanged: {
-                            if (activeFocus && count > 0) {
-                                if (currentIndex < 0 || currentIndex >= count) currentIndex = 0
-                                positionViewAtIndex(currentIndex, GridView.Contain)
-                            }
-                        }
-                        onCountChanged: {
-                            if (count === 0) currentIndex = -1
-                            else if (currentIndex < 0 || currentIndex >= count)
-                                currentIndex = 0
-                        }
-                        Keys.onReturnPressed: {
-                            if (currentIndex >= 0 && currentIndex < win.visibleApps.length)
-                                win.openDetails(win.visibleApps[currentIndex])
-                        }
-                        Keys.onSpacePressed: {
-                            if (currentIndex >= 0 && currentIndex < win.visibleApps.length)
-                                win.openDetails(win.visibleApps[currentIndex])
-                        }
-                        Keys.onTabPressed: (event) => {
-                            if (bulkAdd.visible) {
-                                bulkAdd.forceActiveFocus(Qt.TabFocusReason)
-                            } else {
-                                var first = navRepeater.itemAt(0)
-                                if (first) first.forceActiveFocus(Qt.TabFocusReason)
-                            }
-                            event.accepted = true
-                        }
-                        Keys.onBacktabPressed: {
-                            var last = categoryRepeater.itemAt(categoryRepeater.count - 1)
-                            if (last) last.forceActiveFocus(Qt.BacktabFocusReason)
-                        }
-                        Keys.onPressed: (event) => MoUI.KeyboardViewport.pageScrollKeys(appGrid, event)
-                        ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
-                        delegate: Item {
-                            id: gridCell
-                            required property var modelData
-                            required property int index
-                            width: appGrid.cellWidth
-                            height: appGrid.cellHeight
-                            AppCard {
-                                anchors.fill: parent
-                                anchors.margins: 6
-                                app: gridCell.modelData
-                                compositeFocus: true
-                                compositeCurrent: appGrid.activeFocus
-                                                  && gridCell.index === appGrid.currentIndex
-                            }
-                        }
-                    }
-
-                    ColumnLayout {
-                        Layout.fillWidth: true
-                        Layout.fillHeight: true
-                        visible: win.visibleApps.length === 0
-                        spacing: design.space2
-                        Item { Layout.fillHeight: true }
-                        Glyph {
-                            Layout.alignment: Qt.AlignHCenter
-                            Layout.preferredWidth: win.fs(42)
-                            Layout.preferredHeight: win.fs(42)
-                            name: win.page === "installed" ? "download" : "search"
-                            tint: win.txt2
-                        }
-                        Text {
-                            Layout.alignment: Qt.AlignHCenter
-                            text: win.page === "installed"
-                                ? (win.rtl ? "لا توجد تطبيقات مثبتة في هذا القسم" : "No installed apps in this view")
-                                : (win.rtl ? "لا توجد نتائج" : "No results")
-                            color: win.txt
-                            font.family: win.uiFont
-                            font.pixelSize: win.typePx(16)
-                            font.bold: true
-                        }
-                        Text {
-                            Layout.alignment: Qt.AlignHCenter
-                            text: win.rtl ? "جرّب كلمة بحث أو فئة مختلفة." : "Try another search or category."
-                            color: win.txt2
-                            font.family: win.uiFont
-                            font.pixelSize: win.typePx(11)
-                        }
-                        Item { Layout.fillHeight: true }
-                    }
+                    active: win.page === "updates" || status === Loader.Ready
+                    sourceComponent: Component { UpdatesPage { win: win } }
                 }
-
-                // Category overview.
-                Flickable {
-                    id: categoriesFlick
+                Loader {
                     anchors.fill: parent
-                    visible: win.page === "categories"
-                    contentWidth: width
-                    contentHeight: categoryBody.implicitHeight + 44
-                    clip: true
-                    Keys.onPressed: (event) => MoUI.KeyboardViewport.pageScrollKeys(categoriesFlick, event)
-                    ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
-                    ColumnLayout {
-                        id: categoryBody
-                        x: 24
-                        width: parent.width - 48
-                        spacing: 18
-                        Item { Layout.preferredHeight: win.fs(4) }
-                        Rectangle {
-                            Layout.fillWidth: true
-                            Layout.preferredHeight: win.fs(122)
-                            radius: design.radiusPanel
-                            color: Qt.rgba(win.accent.r, win.accent.g, win.accent.b, 0.12)
-                            border.width: 1
-                            border.color: Qt.rgba(win.accent.r, win.accent.g, win.accent.b, 0.3)
-                            RowLayout {
-                                anchors.fill: parent
-                                anchors.margins: 24
-                                spacing: 17
-                                Rectangle {
-                                    Layout.preferredWidth: win.fs(66)
-                                    Layout.preferredHeight: win.fs(66)
-                                    radius: win.fs(21)
-                                    color: Qt.rgba(win.accent.r, win.accent.g, win.accent.b, 0.16)
-                                    Glyph { anchors.centerIn: parent; width: 32; height: 32; name: "boxes"; tint: win.accent }
-                                }
-                                ColumnLayout {
-                                    Layout.fillWidth: true
-                                    spacing: 3
-                                    Text {
-                                        text: win.rtl ? "اختر حسب ما تريد إنجازه" : "Start with what you want to do"
-                                        color: win.txt
-                                        font.family: win.uiFont
-                                        font.pixelSize: win.typePx(22)
-                                        font.bold: true
-                                    }
-                                    Text {
-                                        text: win.rtl ? "فئات عملية بدل قوائم تقنية طويلة." : "Human categories instead of package-manager jargon."
-                                        color: win.txt2
-                                        font.family: win.uiFont
-                                        font.pixelSize: win.typePx(12)
-                                    }
-                                }
-                            }
-                        }
-                        GridLayout {
-                            Layout.fillWidth: true
-                            columns: win.width > 1160 ? 4 : 3
-                            columnSpacing: 13
-                            rowSpacing: 13
-                            Repeater {
-                                model: win.categoryDefs
-                                delegate: Rectangle {
-                                    id: categoryTile
-                                    required property var modelData
-                                    Layout.fillWidth: true
-                                    Layout.preferredHeight: win.fs(132)
-                                    radius: win.fs(21)
-                                    color: categoryHover.hovered
-                                        ? Qt.rgba(win.raised.r, win.raised.g, win.raised.b, 0.97)
-                                        : Qt.rgba(win.surface.r, win.surface.g, win.surface.b, 0.78)
-                                    border.width: 1
-                                    border.color: categoryHover.hovered ? win.accent : win.outline
-                                    activeFocusOnTab: true
-                                    Accessible.role: Accessible.Button
-                                    Accessible.name: win.rtl ? categoryTile.modelData.ar : categoryTile.modelData.en
-                                    FocusRing { }
-                                    HoverHandler { id: categoryHover }
-                                    TapHandler { onTapped: win.openCategory(categoryTile.modelData.id) }
-                                    Keys.onReturnPressed: win.openCategory(categoryTile.modelData.id)
-                                    ColumnLayout {
-                                        anchors.fill: parent
-                                        anchors.margins: 16
-                                        spacing: design.space2
-                                        RowLayout {
-                                            Layout.fillWidth: true
-                                            Rectangle {
-                                                Layout.preferredWidth: win.fs(46)
-                                                Layout.preferredHeight: win.fs(46)
-                                                radius: design.radiusCard
-                                                color: Qt.rgba(win.accent.r, win.accent.g, win.accent.b, 0.13)
-                                                Glyph { anchors.centerIn: parent; width: 24; height: 24; name: categoryTile.modelData.glyph; tint: win.accent }
-                                            }
-                                            Item { Layout.fillWidth: true }
-                                            Text {
-                                                text: win.categoryCount(categoryTile.modelData.id)
-                                                color: win.accent
-                                                font.family: win.uiFont
-                                                font.pixelSize: win.typePx(15)
-                                                font.bold: true
-                                            }
-                                        }
-                                        Text {
-                                            text: win.rtl ? categoryTile.modelData.ar : categoryTile.modelData.en
-                                            color: win.txt
-                                            font.family: win.uiFont
-                                            font.pixelSize: win.typePx(14)
-                                            font.bold: true
-                                        }
-                                        Text {
-                                            text: win.rtl ? "استكشف التطبيقات" : "Explore apps"
-                                            color: win.txt2
-                                            font.family: win.uiFont
-                                            font.pixelSize: win.typePx(10)
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
+                    active: win.page === "settings" || status === Loader.Ready
+                    sourceComponent: Component { SettingsPage { win: win } }
                 }
-
-                // Updates.
-                Flickable {
-                    id: updatesFlick
+                Loader {
                     anchors.fill: parent
-                    visible: win.page === "updates"
-                    contentWidth: width
-                    contentHeight: updateBody.implicitHeight + 50
-                    clip: true
-                    Keys.onPressed: (event) => MoUI.KeyboardViewport.pageScrollKeys(updatesFlick, event)
-                    ColumnLayout {
-                        id: updateBody
-                        x: 26
-                        width: parent.width - 52
-                        spacing: design.space4
-                        Item { Layout.preferredHeight: win.fs(4) }
-                        Rectangle {
-                            Layout.fillWidth: true
-                            Layout.preferredHeight: win.fs(210)
-                            radius: win.fs(27)
-                            gradient: Gradient {
-                                orientation: Gradient.Horizontal
-                                GradientStop { position: 0; color: Qt.rgba(win.accent.r, win.accent.g, win.accent.b, 0.2) }
-                                GradientStop { position: 1; color: Qt.rgba(win.surface.r, win.surface.g, win.surface.b, 0.88) }
-                            }
-                            border.width: 1
-                            border.color: Qt.rgba(win.accent.r, win.accent.g, win.accent.b, 0.36)
-                            RowLayout {
-                                anchors.fill: parent
-                                anchors.margins: 28
-                                spacing: design.space5
-                                Rectangle {
-                                    Layout.preferredWidth: win.fs(92)
-                                    Layout.preferredHeight: win.fs(92)
-                                    radius: win.fs(30)
-                                    color: Qt.rgba(win.accent.r, win.accent.g, win.accent.b, 0.14)
-                                    Glyph { anchors.centerIn: parent; width: 46; height: 46; name: "refresh"; tint: win.accent }
-                                }
-                                ColumnLayout {
-                                    Layout.fillWidth: true
-                                    spacing: 7
-                                    Text {
-                                        // Say what is true, and say "not checked yet" when
-                                        // that is what is true. Never show 0 before looking.
-                                        text: {
-                                            if (win.updatesChecking)
-                                                return win.rtl ? "نفحص التحديثات…" : "Checking for updates…"
-                                            if (win.updatesState === "failed")
-                                                return win.rtl ? "تعذّر فحص التحديثات" : "Could not check for updates"
-                                            if (win.updatesState === "unknown")
-                                                return win.rtl ? "تطبيقاتك، وتحديثاتها." : "Your apps, and their updates."
-                                            var n = win.updateItems().length
-                                            if (n === 0 && win.updateComponentCount() > 0)
-                                                return win.rtl
-                                                    ? "توجد تحديثات لمكوّنات مشتركة."
-                                                    : "Shared components have updates."
-                                            if (n === 0)
-                                                return win.rtl ? "كل تطبيقاتك محدّثة." : "Everything is up to date."
-                                            return win.rtl
-                                                ? (n === 1 ? "تطبيق واحد ينتظر التحديث." : n + " تطبيقات تنتظر التحديث.")
-                                                : (n === 1 ? "1 app has an update." : n + " apps have updates.")
-                                        }
-                                        color: win.txt
-                                        font.family: win.uiFont
-                                        font.pixelSize: win.typePx(24)
-                                        font.bold: true
-                                    }
-                                    Text {
-                                        Layout.fillWidth: true
-                                        text: {
-                                            if (win.updatesState === "failed")
-                                                return win.rtl
-                                                    ? "تحقّق من اتصالك ثم أعد الفحص. تحديث صورة MoOS والبرامج الثابتة تبقى في مسارات النظام الموقّعة."
-                                                    : "Check your connection and try again. MoOS image and firmware updates stay on their signed system paths."
-                                            var extra = win.updateComponentCount()
-                                            if (win.updatesState === "known" && extra > 0)
-                                                return win.rtl
-                                                    ? "بالإضافة إلى " + extra + " مكوّن مشترك يُحدَّث معها. تحديث صورة MoOS والبرامج الثابتة تبقى في مسارات النظام الموقّعة."
-                                                    : "Plus " + extra + " shared component(s) that update with them. MoOS image and firmware updates stay on their signed system paths."
-                                            return win.rtl
-                                                ? "حدّث تطبيقاتك هنا. تحديث صورة MoOS والبرامج الثابتة يبقيان في مسارات النظام الموقّعة."
-                                                : "Update your apps here. MoOS image and firmware updates stay on their signed system paths."
-                                        }
-                                        color: win.txt2
-                                        font.family: win.uiFont
-                                        font.pixelSize: win.typePx(12)
-                                        wrapMode: Text.WordWrap
-                                    }
-                                    RowLayout {
-                                        spacing: design.space2
-                                        ActionButton {
-                                            label: win.updateItems().length === 0
-                                                   && win.updateComponentCount() > 0
-                                                ? (win.rtl ? "تحديث المكوّنات الآن" : "Update components now")
-                                                : (win.rtl ? "تحديث التطبيقات الآن" : "Update apps now")
-                                            glyphName: "refresh"
-                                            primary: true
-                                            // Nothing pending is a reason not to offer the
-                                            // button, once we actually know that.
-                                            enabled: !win.jobIsActive() && !win.updatesChecking
-                                                && !(win.updatesState === "known" && win.updates.count === 0)
-                                            triggered: function() { win.updateAll() }
-                                        }
-                                        ActionButton {
-                                            label: win.rtl ? "إعادة الفحص" : "Check again"
-                                            glyphName: "search"
-                                            enabled: !win.updatesChecking
-                                            triggered: function() {
-                                                win.updatesState = "unknown"
-                                                win.updatesCheckedAt = ""
-                                                win.checkUpdates()
-                                            }
-                                        }
-                                        ActionButton {
-                                            label: win.rtl ? "تحديث MoOS" : "Update MoOS"
-                                            glyphName: "shield"
-                                            triggered: function() { win.openSystemUpdater() }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                        // The list the page was missing: what actually has an
-                        // update, named, with the version currently installed.
-                        ColumnLayout {
-                            Layout.fillWidth: true
-                            spacing: 9
-                            visible: win.updatesState === "known" && win.updateItems().length > 0
-                            Text {
-                                text: win.rtl ? "بانتظار التحديث" : "Waiting to update"
-                                color: win.txt2
-                                font.family: win.uiFont
-                                font.pixelSize: win.typePx(12)
-                                font.bold: true
-                            }
-                            Repeater {
-                                model: win.updatesState === "known" ? win.updateItems() : []
-                                delegate: Rectangle {
-                                    id: pendingRow
-                                    required property var modelData
-                                    Layout.fillWidth: true
-                                    Layout.preferredHeight: win.fs(62)
-                                    radius: design.radiusCard
-                                    color: Qt.rgba(win.surface.r, win.surface.g, win.surface.b, 0.72)
-                                    border.width: 1
-                                    border.color: win.outline
-                                    RowLayout {
-                                        anchors.fill: parent
-                                        anchors.leftMargin: 16
-                                        anchors.rightMargin: 16
-                                        spacing: 13
-                                        Rectangle {
-                                            Layout.preferredWidth: win.fs(36)
-                                            Layout.preferredHeight: win.fs(36)
-                                            radius: design.radiusControl
-                                            color: Qt.rgba(win.accent.r, win.accent.g, win.accent.b, 0.14)
-                                            Glyph {
-                                                anchors.centerIn: parent
-                                                width: 19; height: 19
-                                                name: "download"; tint: win.accent
-                                            }
-                                        }
-                                        ColumnLayout {
-                                            Layout.fillWidth: true
-                                            spacing: 1
-                                            Text {
-                                                Layout.fillWidth: true
-                                                text: pendingRow.modelData.name || pendingRow.modelData.id
-                                                color: win.txt
-                                                font.family: win.uiFont
-                                                font.pixelSize: win.typePx(14)
-                                                font.bold: true
-                                                elide: Text.ElideRight
-                                            }
-                                            Text {
-                                                Layout.fillWidth: true
-                                                text: pendingRow.modelData.id
-                                                    + (pendingRow.modelData.version
-                                                        ? " · " + pendingRow.modelData.version : "")
-                                                color: win.txt2
-                                                font.family: win.uiFont
-                                                font.pixelSize: win.typePx(11)
-                                                elide: Text.ElideRight
-                                            }
-                                        }
-                                        Text {
-                                            text: pendingRow.modelData.origin || ""
-                                            color: win.txt2
-                                            font.family: win.uiFont
-                                            font.pixelSize: win.typePx(11)
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                        GridLayout {
-                            Layout.fillWidth: true
-                            columns: 3
-                            columnSpacing: 13
-                            Repeater {
-                                model: [
-                                    { glyph: "grid", ar: "تحديثات التطبيقات", en: "App updates", ar2: "تحديث آمن بصلاحيات المستخدم", en2: "Safe per-user transactions", action: "update" },
-                                    { glyph: "shield", ar: "صورة MoOS", en: "MoOS image", ar2: "تحديث موقّع يُطبق بعد إعادة التشغيل", en2: "Signed, applied after reboot", action: "system-update" },
-                                    { glyph: "gear", ar: "البرامج الثابتة", en: "Device firmware", ar2: "تحديثات العتاد من المصدر الموثوق", en2: "Trusted hardware updates", action: "firmware" }
-                                ]
-                                delegate: Rectangle {
-                                    id: updateCard
-                                    required property var modelData
-                                    Layout.fillWidth: true
-                                    Layout.preferredHeight: win.fs(156)
-                                    radius: win.fs(21)
-                                    color: Qt.rgba(win.surface.r, win.surface.g, win.surface.b, 0.78)
-                                    border.width: 1
-                                    border.color: win.outline
-                                    ColumnLayout {
-                                        anchors.fill: parent
-                                        anchors.margins: 16
-                                        spacing: design.space2
-                                        Glyph {
-                                            name: updateCard.modelData.glyph
-                                            tint: win.accent
-                                            Layout.preferredWidth: win.fs(27)
-                                            Layout.preferredHeight: win.fs(27)
-                                        }
-                                        Text {
-                                            text: win.rtl ? updateCard.modelData.ar : updateCard.modelData.en
-                                            color: win.txt
-                                            font.family: win.uiFont
-                                            font.pixelSize: win.typePx(14)
-                                            font.bold: true
-                                        }
-                                        Text {
-                                            Layout.fillWidth: true
-                                            text: win.rtl ? updateCard.modelData.ar2 : updateCard.modelData.en2
-                                            color: win.txt2
-                                            font.family: win.uiFont
-                                            font.pixelSize: win.typePx(10)
-                                            wrapMode: Text.WordWrap
-                                        }
-                                        Item { Layout.fillHeight: true }
-                                        ActionButton {
-                                            label: updateCard.modelData.action === "update"
-                                                ? win.updateItems().length === 0
-                                                    && win.updateComponentCount() > 0
-                                                    ? (win.rtl ? "حدّث المكوّنات الآن" : "Update components now")
-                                                    : (win.rtl ? "حدّث التطبيقات الآن" : "Update apps now")
-                                                : updateCard.modelData.action === "system-update"
-                                                    ? (win.rtl ? "افتح محدّث MoOS" : "Open MoOS Updater")
-                                                    : (win.rtl ? "افتح تحديثات البرامج الثابتة" : "Open firmware updates")
-                                            glyphName: updateCard.modelData.action === "update"
-                                                ? "refresh" : "external"
-                                            enabled: updateCard.modelData.action !== "update"
-                                                || (!win.jobIsActive()
-                                                    && !win.updatesChecking
-                                                    && !(win.updatesState === "known"
-                                                         && win.updates.count === 0))
-                                            triggered: function() {
-                                                if (updateCard.modelData.action === "update") win.updateAll()
-                                                else if (updateCard.modelData.action === "system-update")
-                                                    win.openSystemUpdater()
-                                                else win.openSourceEngine(updateCard.modelData.action)
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-
-                // Sources: engines are capabilities behind Mo Store, never extra
-                // launchers competing in the application menu.
-                Flickable {
-                    id: sourcesFlick
-                    anchors.fill: parent
-                    visible: win.page === "sources"
-                    contentWidth: width
-                    contentHeight: sourceBody.implicitHeight + 50
-                    clip: true
-                    Keys.onPressed: (event) => MoUI.KeyboardViewport.pageScrollKeys(sourcesFlick, event)
-                    ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
-                    ColumnLayout {
-                        id: sourceBody
-                        x: 26
-                        width: parent.width - 52
-                        spacing: 17
-                        Item { Layout.preferredHeight: win.fs(4) }
-                        Rectangle {
-                            Layout.fillWidth: true
-                            Layout.preferredHeight: win.fs(142)
-                            radius: win.fs(25)
-                            color: Qt.rgba(win.accent.r, win.accent.g, win.accent.b, 0.11)
-                            border.width: 1
-                            border.color: Qt.rgba(win.accent.r, win.accent.g, win.accent.b, 0.3)
-                            RowLayout {
-                                anchors.fill: parent
-                                anchors.margins: 24
-                                spacing: 17
-                                Rectangle {
-                                    Layout.preferredWidth: win.fs(70)
-                                    Layout.preferredHeight: win.fs(70)
-                                    radius: win.fs(23)
-                                    color: Qt.rgba(win.accent.r, win.accent.g, win.accent.b, 0.16)
-                                    Glyph { anchors.centerIn: parent; width: 34; height: 34; name: "orbit"; tint: win.accent }
-                                }
-                                ColumnLayout {
-                                    Layout.fillWidth: true
-                                    spacing: design.space1
-                                    Text {
-                                        text: win.rtl ? "مصادر متعددة، تجربة واحدة." : "Many sources. One coherent store."
-                                        color: win.txt
-                                        font.family: win.uiFont
-                                        font.pixelSize: win.typePx(23)
-                                        font.bold: true
-                                    }
-                                    Text {
-                                        Layout.fillWidth: true
-                                        text: win.rtl
-                                            ? "Mo Store يوحّد البيانات والإدارة، ويُبقي المحركات المتخصصة متاحة عند الحاجة من دون تكرار المتاجر في القائمة."
-                                            : "Mo Store unifies discovery and management while keeping specialist engines available without duplicate storefronts."
-                                        color: win.txt2
-                                        font.family: win.uiFont
-                                        font.pixelSize: win.typePx(11)
-                                        wrapMode: Text.WordWrap
-                                    }
-                                }
-                            }
-                        }
-                        GridLayout {
-                            Layout.fillWidth: true
-                            columns: win.width > 1120 ? 2 : 1
-                            columnSpacing: 13
-                            rowSpacing: 13
-                            Repeater {
-                                model: [
-                                    {
-                                        id: "flathub", glyph: "shield",
-                                        ar: "Flathub · المصدر الأساسي", en: "Flathub · Primary source",
-                                        ar2: win.hasFlatpakCatalog()
-                                            ? "آلاف التطبيقات المعزولة، فهرس محلي، وأيقونات وبيانات AppStream حقيقية."
-                                            : "الكتالوج الأساسي فقط متاح الآن؛ اتصل بالإنترنت لتحديث فهرس التطبيقات الكامل.",
-                                        en2: win.hasFlatpakCatalog()
-                                            ? "Thousands of sandboxed apps with a local AppStream catalogue and real metadata."
-                                            : "Only the essential catalogue is available; connect to refresh the full app index.",
-                                        stateAr: win.hasFlatpakCatalog() ? "مدمج" : "يحتاج تحديثًا",
-                                        stateEn: win.hasFlatpakCatalog() ? "Integrated" : "Refresh needed",
-                                        action: win.hasFlatpakCatalog() ? "" : "refresh"
-                                    },
-                                    {
-                                        id: "bazaar", glyph: "grid",
-                                        ar: "Bazaar · كتالوج تطبيقات إضافي", en: "Bazaar · Additional app catalogue",
-                                        ar2: "واجهة متقدمة للكتالوج والحسابات والمفضلة. تبقى مخفية من قائمة النظام كي يظل Mo Store المتجر الوحيد.",
-                                        en2: "An advanced catalogue, account and favourites engine, kept out of the menu so Mo Store stays the one storefront.",
-                                        stateAr: "اختياري", stateEn: "Optional", action: "bazaar"
-                                    },
-                                    {
-                                        id: "discover", glyph: "monitor",
-                                        ar: "محرّك تحديثات النظام", en: "System update engine",
-                                        ar2: "للتحديثات والبرامج الثابتة وإضافات سطح المكتب. لا يفتح تثبيت حزم نظام عشوائية.",
-                                        en2: "For updates, firmware and desktop add-ons — never arbitrary host packages.",
-                                        stateAr: "متاح", stateEn: "Available", action: "discover"
-                                    },
-                                    {
-                                        id: "appimage", glyph: "external",
-                                        ar: "تنزيلات الناشر · مصادر خارجية", en: "Publisher downloads · External sources",
-                                        ar2: "يُسمح فقط بروابط الناشر الرسمية والوصفات المراجعة. لا تثبيت صامت لملفات غير موقّعة.",
-                                        en2: "Only reviewed recipes and official publisher links — never silent unverified executables.",
-                                        stateAr: "مقيّد بأمان", stateEn: "Safety restricted", action: ""
-                                    },
-                                    {
-                                        id: "permissions", glyph: "lock",
-                                        ar: "Flatseal · إدارة الصلاحيات", en: "Flatseal · Permissions",
-                                        ar2: "راجع وصول التطبيقات للملفات والكاميرا والميكروفون والشبكة.",
-                                        en2: "Review app access to files, camera, microphone and the network.",
-                                        stateAr: "أداة موصى بها", stateEn: "Recommended tool", action: "permissions"
-                                    },
-                                    {
-                                        id: "developer", glyph: "code",
-                                        ar: "أدوات المطور", en: "Developer tools",
-                                        ar2: "أدوات npm المراجعة تظهر بوضوح كمصدر متقدم؛ لا taps ولا أوامر shell حرة.",
-                                        en2: "Reviewed npm tools are clearly marked as advanced; their package scripts run only after explicit approval.",
-                                        stateAr: "مراجعة مطلوبة", stateEn: "Review required", action: ""
-                                    }
-                                ]
-                                delegate: Rectangle {
-                                    id: sourceCard
-                                    required property var modelData
-                                    Layout.fillWidth: true
-                                    Layout.preferredHeight: win.fs(168)
-                                    radius: win.fs(22)
-                                    color: sourceHover.hovered
-                                        ? Qt.rgba(win.raised.r, win.raised.g, win.raised.b, 0.96)
-                                        : Qt.rgba(win.surface.r, win.surface.g, win.surface.b, 0.77)
-                                    border.width: 1
-                                    border.color: sourceHover.hovered ? win.accent : win.outline
-                                    HoverHandler { id: sourceHover }
-                                    ColumnLayout {
-                                        anchors.fill: parent
-                                        anchors.margins: 16
-                                        spacing: design.space2
-                                        RowLayout {
-                                            Layout.fillWidth: true
-                                            Rectangle {
-                                                Layout.preferredWidth: win.fs(46)
-                                                Layout.preferredHeight: win.fs(46)
-                                                radius: design.radiusCard
-                                                color: Qt.rgba(win.accent.r, win.accent.g, win.accent.b, 0.13)
-                                                Glyph { anchors.centerIn: parent; width: 24; height: 24; name: sourceCard.modelData.glyph; tint: win.accent }
-                                            }
-                                            ColumnLayout {
-                                                Layout.fillWidth: true
-                                                spacing: 1
-                                                Text {
-                                                    text: win.rtl ? sourceCard.modelData.ar : sourceCard.modelData.en
-                                                    color: win.txt
-                                                    font.family: win.uiFont
-                                                    font.pixelSize: win.typePx(14)
-                                                    font.bold: true
-                                                }
-                                                Text {
-                                                    text: win.rtl ? sourceCard.modelData.stateAr : sourceCard.modelData.stateEn
-                                                    color: win.accent
-                                                    font.family: win.uiFont
-                                                    font.pixelSize: win.typePx(10)
-                                                    font.bold: true
-                                                }
-                                            }
-                                        }
-                                        Text {
-                                            Layout.fillWidth: true
-                                            text: win.rtl ? sourceCard.modelData.ar2 : sourceCard.modelData.en2
-                                            color: win.txt2
-                                            font.family: win.uiFont
-                                            font.pixelSize: win.typePx(10)
-                                            wrapMode: Text.WordWrap
-                                            maximumLineCount: 3
-                                            elide: Text.ElideRight
-                                        }
-                                        Item { Layout.fillHeight: true }
-                                        ActionButton {
-                                            visible: sourceCard.modelData.action !== ""
-                                            enabled: !win.jobIsActive()
-                                            label: sourceCard.modelData.action === "permissions"
-                                                ? win.isInstalled(win.appById("com.github.tchx84.Flatseal"))
-                                                    ? (win.rtl ? "افتح الأداة" : "Open tool")
-                                                    : (win.rtl ? "ثبّت الأداة" : "Install tool")
-                                                : sourceCard.modelData.action === "refresh"
-                                                    ? (win.rtl ? "حدّث الفهرس" : "Refresh catalogue")
-                                                : sourceCard.modelData.action === "bazaar"
-                                                    && !win.isInstalled(win.appById("io.github.kolunmi.Bazaar"))
-                                                    ? (win.rtl ? "ثبّت المحرك وافتحه" : "Install & open engine")
-                                                : (win.rtl ? "فتح المحرك" : "Open engine")
-                                            glyphName: sourceCard.modelData.action === "permissions"
-                                                && !win.isInstalled(win.appById("com.github.tchx84.Flatseal"))
-                                                || sourceCard.modelData.action === "bazaar"
-                                                    && !win.isInstalled(win.appById("io.github.kolunmi.Bazaar"))
-                                                ? "download" : "external"
-                                            triggered: function() {
-                                                win.openSourceEngine(sourceCard.modelData.action)
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
+                    active: win.page === "search" || status === Loader.Ready
+                    sourceComponent: Component { SearchPage { win: win } }
                 }
             }
         }
     }
 
     // Selection shelf.  It never preselects software on launch.
-    Rectangle {
-        id: selectionShelf
-        anchors.horizontalCenter: parent.horizontalCenter
-        anchors.bottom: parent.bottom
-        anchors.bottomMargin: win.pickCount > 0
-                              && !review.opened
-                              && !win.jobIsActive()
-                              && !win.jobIsTerminal() ? 20 : -84
-        width: Math.min(610, win.width - 56)
-        height: 58
-        radius: design.radiusCard
-        visible: anchors.bottomMargin > -84
-        color: Qt.rgba(win.raised.r, win.raised.g, win.raised.b, 0.98)
-        border.width: 1
-        border.color: Qt.rgba(win.accent.r, win.accent.g, win.accent.b, 0.48)
-        Behavior on anchors.bottomMargin { NumberAnimation { duration: win.motionEnabled ? design.motionGeometry : 0; easing.type: Easing.OutBack } }
-        RowLayout {
-            anchors.fill: parent
-            anchors.leftMargin: 13
-            anchors.rightMargin: 9
-            spacing: 10
-            Rectangle {
-                Layout.preferredWidth: win.fs(34)
-                Layout.preferredHeight: win.fs(34)
-                radius: design.radiusControl
-                color: win.accent
-                Text {
-                    anchors.centerIn: parent
-                    text: win.pickCount
-                    color: win.accentText
-                    font.family: win.uiFont
-                    font.pixelSize: win.typePx(13)
-                    font.bold: true
-                }
-            }
-            ColumnLayout {
-                Layout.fillWidth: true
-                spacing: -1
-                Text {
-                    text: win.rtl ? "قائمة التثبيت جاهزة" : "Install list ready"
-                    color: win.txt
-                    font.family: win.uiFont
-                    font.pixelSize: win.typePx(12)
-                    font.bold: true
-                }
-                Text {
-                    text: win.rtl ? "راجع المصدر قبل البدء" : "Review sources before starting"
-                    color: win.txt2
-                    font.family: win.uiFont
-                    font.pixelSize: win.typePx(9)
-                }
-            }
-            ActionButton {
-                label: win.rtl ? "مسح" : "Clear"
-                glyphName: "trash"
-                triggered: function() { win.clearPicks() }
-            }
-            ActionButton {
-                label: win.rtl ? "مراجعة وتثبيت" : "Review & install"
-                glyphName: "download"
-                primary: true
-                triggered: function() { review.open() }
-            }
-        }
-    }
+    SelectionShelf { win: win }
 
     // Real transaction status shelf.  Null progress is shown as indeterminate,
     // never replaced with a made-up percentage.
-    Rectangle {
-        id: jobShelf
-        anchors.horizontalCenter: parent.horizontalCenter
-        anchors.bottom: parent.bottom
-        anchors.bottomMargin: win.jobIsActive() || win.jobIsTerminal() ? 20 : -100
-        width: Math.min(690, win.width - 56)
-        height: 76
-        radius: win.fs(22)
-        visible: anchors.bottomMargin > -100
-        color: Qt.rgba(win.raised.r, win.raised.g, win.raised.b, 0.98)
-        border.width: 1
-        border.color: win.job.state === "failed" ? win.violet
-                      : Qt.rgba(win.accent.r, win.accent.g, win.accent.b, 0.48)
-        Behavior on anchors.bottomMargin { NumberAnimation { duration: win.motionEnabled ? design.motionGeometry : 0; easing.type: Easing.OutBack } }
-        RowLayout {
-            anchors.fill: parent
-            anchors.margins: 13
-            spacing: design.space3
-            Rectangle {
-                Layout.preferredWidth: win.fs(44)
-                Layout.preferredHeight: win.fs(44)
-                radius: design.radiusCard
-                color: Qt.rgba(win.accent.r, win.accent.g, win.accent.b, 0.14)
-                Glyph {
-                    anchors.centerIn: parent
-                    width: 23
-                    height: 23
-                    name: win.jobIsTerminal() ? (win.job.state === "success" ? "check" : "shield") : "download"
-                    tint: win.job.state === "failed" ? win.violet : win.accent
-                }
-            }
-            ColumnLayout {
-                Layout.fillWidth: true
-                spacing: 6
-                RowLayout {
-                    Layout.fillWidth: true
-                    Text {
-                        Layout.fillWidth: true
-                        text: win.waitingForJob
-                            ? (win.rtl ? "يبدأ العمل…" : "Starting…")
-                            : win.jobText(win.job, win.rtl ? "جارٍ تنفيذ العملية" : "Working")
-                        color: win.txt
-                        font.family: win.uiFont
-                        font.pixelSize: win.typePx(12)
-                        font.bold: true
-                        elide: Text.ElideRight
-                    }
-                    Text {
-                        visible: win.job.progress !== null && win.job.progress !== undefined
-                        text: Math.round(win.job.progress || 0) + "%"
-                        color: win.accent
-                        font.family: win.uiFont
-                        font.pixelSize: win.typePx(11)
-                        font.bold: true
-                    }
-                }
-                Rectangle {
-                    id: jobProgressTrack
-                    Layout.fillWidth: true
-                    Layout.preferredHeight: win.fs(6)
-                    radius: height / 2
-                    color: Qt.rgba(win.outline.r, win.outline.g, win.outline.b, 0.5)
-                    clip: true
-                    Rectangle {
-                        visible: win.job.progress !== null && win.job.progress !== undefined
-                        height: parent.height
-                        radius: height / 2
-                        width: parent.width * Math.max(0, Math.min(100, win.job.progress || 0)) / 100
-                        color: win.accent
-                        Behavior on width { NumberAnimation { duration: win.motionEnabled ? design.motionGeometry : 0; easing.type: Easing.OutCubic } }
-                    }
-                    Rectangle {
-                        id: jobProgressIndeterminate
-                        visible: win.job.progress === null || win.job.progress === undefined
-                        width: jobProgressTrack.width * 0.28
-                        height: jobProgressTrack.height
-                        radius: win.fs(3)
-                        color: win.accent
-                        SequentialAnimation on x {
-                            running: jobProgressIndeterminate.visible && win.motionEnabled
-                            loops: Animation.Infinite
-                            NumberAnimation {
-                                from: -jobProgressIndeterminate.width
-                                to: jobProgressTrack.width
-                                duration: win.motionEnabled ? 1200 : 0
-                                easing.type: Easing.InOutQuad
-                            }
-                        }
-                    }
-                }
-            }
-            ActionButton {
-                visible: win.jobIsActive()
-                enabled: !win.waitingForJob
-                label: win.rtl ? "إلغاء" : "Cancel"
-                glyphName: "trash"
-                destructive: true
-                triggered: function() {
-                    if (typeof MoosStore !== "undefined") MoosStore.cancelJob()
-                }
-            }
-            ActionButton {
-                visible: win.jobIsTerminal()
-                label: win.rtl ? "إخفاء" : "Dismiss"
-                glyphName: "check"
-                triggered: function() { win.job = ({}) }
-            }
-        }
-    }
-
-    // App details.
-    Popup {
-        id: details
-        anchors.centerIn: Overlay.overlay
-        width: Math.min(760, win.width - 70)
-        height: Math.min(670, win.height - 56)
-        modal: true
-        padding: 0
-        closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
-        background: Rectangle {
-            radius: win.fs(26)
-            color: win.surface
-            border.width: 1
-            border.color: Qt.rgba(win.accent.r, win.accent.g, win.accent.b, 0.38)
-        }
-        Overlay.modal: Rectangle { color: Qt.rgba(0, 0, 0, 0.54) }
-        enter: Transition {
-            NumberAnimation { property: "scale"; from: 0.96; to: 1; duration: win.motionEnabled ? design.motionPress : 0; easing.type: Easing.OutBack }
-            NumberAnimation { property: "opacity"; from: 0; to: 1; duration: win.motionEnabled ? design.motionPress : 0 }
-        }
-        Flickable {
-            id: detailFlick
-            anchors.fill: parent
-            anchors.margins: 22
-            contentWidth: width
-            contentHeight: detailBody.implicitHeight
-            clip: true
-            Keys.onPressed: (event) => MoUI.KeyboardViewport.pageScrollKeys(detailFlick, event)
-            ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
-            ColumnLayout {
-                id: detailBody
-                width: parent.width
-                spacing: 15
-                RowLayout {
-                    Layout.fillWidth: true
-                    spacing: 15
-                    AppArtwork { app: win.selectedApp; size: 78 }
-                    ColumnLayout {
-                        Layout.fillWidth: true
-                        spacing: 3
-                        Text {
-                            Layout.fillWidth: true
-                            text: win.localName(win.selectedApp)
-                            color: win.txt
-                            font.family: win.uiFont
-                            font.pixelSize: win.typePx(24)
-                            font.bold: true
-                            elide: Text.ElideRight
-                        }
-                        Text {
-                            Layout.fillWidth: true
-                            text: win.selectedApp ? (win.selectedApp.developer || win.selectedApp.id) : ""
-                            color: win.txt2
-                            font.family: win.uiFont
-                            font.pixelSize: win.typePx(11)
-                            elide: Text.ElideRight
-                        }
-                        RowLayout {
-                            SourceBadge { app: win.selectedApp }
-                            Rectangle {
-                                visible: win.selectedApp !== null && !!win.selectedApp.license
-                                implicitHeight: win.fs(22)
-                                implicitWidth: licenseText.implicitWidth + 14
-                                radius: height / 2
-                                color: Qt.rgba(win.txt2.r, win.txt2.g, win.txt2.b, 0.12)
-                                Text {
-                                    id: licenseText
-                                    anchors.centerIn: parent
-                                    text: win.selectedApp ? win.selectedApp.license : ""
-                                    color: win.txt2
-                                    font.family: win.uiFont
-                                    font.pixelSize: win.typePx(9)
-                                }
-                            }
-                        }
-                    }
-                    ActionButton {
-                        label: win.rtl ? "إغلاق" : "Close"
-                        glyphName: "close"
-                        triggered: function() { details.close() }
-                    }
-                }
-
-                Rectangle {
-                    Layout.fillWidth: true
-                    Layout.preferredHeight: win.selectedApp && win.selectedApp.screenshot ? 250 : 0
-                    visible: height > 0
-                    radius: design.radiusCard
-                    color: win.canvas
-                    clip: true
-                    Image {
-                        anchors.fill: parent
-                        source: win.selectedApp && win.selectedApp.screenshot ? win.selectedApp.screenshot : ""
-                        fillMode: Image.PreserveAspectCrop
-                        asynchronous: true
-                        smooth: true
-                    }
-                    Rectangle {
-                        anchors.fill: parent
-                        gradient: Gradient {
-                            GradientStop { position: 0.6; color: "transparent" }
-                            GradientStop { position: 1; color: Qt.rgba(win.canvas.r, win.canvas.g, win.canvas.b, 0.74) }
-                        }
-                    }
-                }
-
-                Text {
-                    Layout.fillWidth: true
-                    text: win.localSummary(win.selectedApp)
-                    textFormat: Text.PlainText
-                    color: win.txt
-                    font.family: win.uiFont
-                    font.pixelSize: win.typePx(15)
-                    font.bold: true
-                    wrapMode: Text.WordWrap
-                }
-                Text {
-                    Layout.fillWidth: true
-                    // Most catalogue entries have no long description, so localDescription
-                    // falls back to the summary — and the sheet showed the same sentence
-                    // twice. Only a description that ADDS something earns the row.
-                    visible: win.localDescription(win.selectedApp) !== win.localSummary(win.selectedApp)
-                    text: win.localDescription(win.selectedApp)
-                    textFormat: Text.PlainText
-                    color: win.txt2
-                    font.family: win.uiFont
-                    font.pixelSize: win.typePx(11)
-                    wrapMode: Text.WordWrap
-                    lineHeight: 1.35
-                }
-
-                GridLayout {
-                    Layout.fillWidth: true
-                    columns: 3
-                    columnSpacing: 10
-                    Repeater {
-                        model: [
-                            {
-                                label: win.rtl ? "المصدر" : "Source",
-                                value: win.sourceLabel(win.selectedApp),
-                                glyph: "orbit"
-                            },
-                            {
-                                label: win.rtl ? "الفئة" : "Category",
-                                value: win.categoryName(win.normalizedCategory(win.selectedApp || ({}))),
-                                glyph: win.categoryGlyph(win.normalizedCategory(win.selectedApp || ({})))
-                            },
-                            {
-                                label: win.rtl ? "الإصدار" : "Version",
-                                value: win.selectedApp && win.selectedApp.version ? win.selectedApp.version : (win.rtl ? "يتبع المصدر" : "From source"),
-                                glyph: "refresh"
-                            }
-                        ]
-                        delegate: Rectangle {
-                            required property var modelData
-                            Layout.fillWidth: true
-                            Layout.preferredHeight: win.fs(78)
-                            radius: design.radiusCard
-                            color: Qt.rgba(win.canvas.r, win.canvas.g, win.canvas.b, 0.5)
-                            border.width: 1
-                            border.color: win.outline
-                            RowLayout {
-                                anchors.fill: parent
-                                anchors.margins: 12
-                                spacing: 9
-                                Glyph { name: modelData.glyph; tint: win.accent; Layout.preferredWidth: win.fs(19); Layout.preferredHeight: win.fs(19) }
-                                ColumnLayout {
-                                    Layout.fillWidth: true
-                                    spacing: 0
-                                    // Explicit alignment on BOTH lines: Text defaults to its
-                                    // content's direction, so in RTL an Arabic label and a
-                                    // Latin value ("Flathub", "1.2.3") sat on opposite edges
-                                    // of the same chip.
-                                    Text {
-                                        Layout.fillWidth: true
-                                        horizontalAlignment: win.rtl ? Text.AlignRight : Text.AlignLeft
-                                        text: modelData.label
-                                        color: win.txt2
-                                        font.family: win.uiFont
-                                        font.pixelSize: win.typePx(9)
-                                    }
-                                    Text {
-                                        Layout.fillWidth: true
-                                        horizontalAlignment: win.rtl ? Text.AlignRight : Text.AlignLeft
-                                        text: modelData.value
-                                        color: win.txt
-                                        font.family: win.uiFont
-                                        font.pixelSize: win.typePx(11)
-                                        font.bold: true
-                                        elide: Text.ElideRight
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-
-                Rectangle {
-                    Layout.fillWidth: true
-                    Layout.preferredHeight: win.fs(58)
-                    visible: win.selectedApp !== null && (win.selectedApp.requires_review === true
-                                                          || (win.selectedApp.install
-                                                              && win.selectedApp.install.requires_review === true)
-                                                          || (win.selectedApp.install && win.selectedApp.install.kind === "npm"))
-                    radius: design.radiusCard
-                    color: Qt.rgba(win.violet.r, win.violet.g, win.violet.b, 0.1)
-                    border.width: 1
-                    border.color: Qt.rgba(win.violet.r, win.violet.g, win.violet.b, 0.34)
-                    RowLayout {
-                        anchors.fill: parent
-                        anchors.margins: 12
-                        spacing: 10
-                        Glyph { name: "shield"; tint: win.violet; Layout.preferredWidth: win.fs(20); Layout.preferredHeight: win.fs(20) }
-                        Text {
-                            Layout.fillWidth: true
-                            text: win.rtl
-                                ? "مصدر متقدم: راجع اسم الحزمة وطريقة التثبيت قبل المتابعة."
-                                : "Advanced source: review the package and install method before continuing."
-                            color: win.txt
-                            font.family: win.uiFont
-                            font.pixelSize: win.typePx(10)
-                            wrapMode: Text.WordWrap
-                        }
-                    }
-                }
-
-                RowLayout {
-                    Layout.fillWidth: true
-                    Text {
-                        visible: win.systemManagedOnly(win.selectedApp)
-                        text: win.rtl ? "مُدار مع النظام" : "System managed"
-                        color: win.txt2
-                        font.family: win.uiFont
-                        font.pixelSize: win.typePx(10)
-                        font.bold: true
-                    }
-                    Item { Layout.fillWidth: true }
-                    ActionButton {
-                        visible: win.canRemove(win.selectedApp)
-                        enabled: !win.jobIsActive()
-                        label: win.rtl ? "إزالة" : "Remove"
-                        glyphName: "trash"
-                        destructive: true
-                        triggered: function() { win.removeSelected(win.selectedApp) }
-                    }
-                    ActionButton {
-                        enabled: !win.isInstalled(win.selectedApp)
-                                 || win.hasRunnableLifecycle(win.selectedApp)
-                        label: win.isInstalled(win.selectedApp)
-                            ? win.hasRunnableLifecycle(win.selectedApp)
-                                ? (win.rtl ? "افتح التطبيق" : "Open app")
-                                : (win.rtl ? "مثبّت وجاهز" : "Installed and ready")
-                            : win.isWeb(win.selectedApp)
-                                ? (win.rtl ? "افتح الموقع الرسمي" : "Open official website")
-                                : (win.rtl ? "مراجعة وتثبيت" : "Review & install")
-                        glyphName: win.isInstalled(win.selectedApp)
-                            ? win.hasRunnableLifecycle(win.selectedApp) ? "external" : "check"
-                            : "download"
-                        primary: true
-                        triggered: function() {
-                            if (win.isInstalled(win.selectedApp)
-                                    && win.hasRunnableLifecycle(win.selectedApp))
-                                win.runSelected(win.selectedApp)
-                            else {
-                                details.close()
-                                win.installOne(win.selectedApp)
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
+    JobShelf { win: win }
 
     // One explicit review for a single app or a whole collection.
-    Popup {
-        id: review
-        anchors.centerIn: Overlay.overlay
-        width: Math.min(600, win.width - 70)
-        height: Math.min(610, win.height - 70)
-        modal: true
-        padding: 0
-        closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
-        background: Rectangle {
-            radius: design.radiusPanel
-            color: win.surface
-            border.width: 1
-            border.color: Qt.rgba(win.accent.r, win.accent.g, win.accent.b, 0.4)
-        }
-        Overlay.modal: Rectangle { color: Qt.rgba(0, 0, 0, 0.54) }
-        ColumnLayout {
-            anchors.fill: parent
-            anchors.margins: 20
-            spacing: 13
-            RowLayout {
-                Layout.fillWidth: true
-                Rectangle {
-                    Layout.preferredWidth: win.fs(48)
-                    Layout.preferredHeight: win.fs(48)
-                    radius: design.radiusCard
-                    color: Qt.rgba(win.accent.r, win.accent.g, win.accent.b, 0.14)
-                    Glyph { anchors.centerIn: parent; width: 25; height: 25; name: "shield"; tint: win.accent }
-                }
-                ColumnLayout {
-                    Layout.fillWidth: true
-                    spacing: 1
-                    Text {
-                        text: win.onlyWebPicks()
-                            ? win.pickCount === 1
-                                ? (win.rtl ? "راجع الموقع الخارجي" : "Review external website")
-                                : (win.rtl ? "راجع المواقع الخارجية" : "Review external websites")
-                            : win.pickedWebCount() > 0
-                                ? (win.rtl ? "راجع قبل المتابعة" : "Review before continuing")
-                                : (win.rtl ? "راجع قبل التثبيت" : "Review before installing")
-                        color: win.txt
-                        font.family: win.uiFont
-                        font.pixelSize: win.typePx(18)
-                        font.bold: true
-                    }
-                    Text {
-                        text: win.onlyWebPicks()
-                            ? (win.rtl
-                                ? "سيفتح Mo Store صفحة الناشر الرسمية عبر HTTPS؛ وأنت تُكمل أي تنزيل من هناك."
-                                : "Mo Store opens the publisher's official HTTPS page; you complete any download there.")
-                            : win.pickedWebCount() > 0
-                                ? (win.rtl
-                                    ? "تُثبت التطبيقات لحسابك وحده، وتفتح العناصر الخارجية صفحات ناشريها الرسمية."
-                                    : "Apps install for your account only; external items open their publishers' official pages.")
-                                : (win.rtl
-                                    ? "سيجري التثبيت لحسابك وحده. المصادر المتقدمة موضحة أدناه."
-                                    : "Apps install for your account only. Advanced sources are clearly marked below.")
-                        color: win.txt2
-                        font.family: win.uiFont
-                        font.pixelSize: win.typePx(10)
-                    }
-                }
-            }
-            Rectangle { Layout.fillWidth: true; Layout.preferredHeight: win.fs(1); color: win.outline; opacity: 0.6 }
-            ListView {
-                Layout.fillWidth: true
-                Layout.fillHeight: true
-                clip: true
-                spacing: design.space2
-                model: Object.keys(win.picks)
-                ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
-                delegate: Rectangle {
-                    id: reviewItem
-                    required property var modelData
-                    readonly property var app: win.appById(modelData)
-                    width: ListView.view.width
-                    height: 68
-                    radius: design.radiusCard
-                    color: Qt.rgba(win.canvas.r, win.canvas.g, win.canvas.b, 0.5)
-                    border.width: 1
-                    border.color: win.outline
-                    RowLayout {
-                        anchors.fill: parent
-                        anchors.margins: 10
-                        spacing: 10
-                        AppArtwork { app: reviewItem.app; size: 44 }
-                        ColumnLayout {
-                            Layout.fillWidth: true
-                            spacing: 1
-                            Text {
-                                Layout.fillWidth: true
-                                text: win.localName(reviewItem.app)
-                                color: win.txt
-                                font.family: win.uiFont
-                                font.pixelSize: win.typePx(12)
-                                font.bold: true
-                                elide: Text.ElideRight
-                            }
-                            Text {
-                                Layout.fillWidth: true
-                                text: win.reviewDetail(reviewItem.app)
-                                color: reviewItem.app
-                                       && (reviewItem.app.requires_review
-                                           || (reviewItem.app.install
-                                               && reviewItem.app.install.requires_review))
-                                       ? win.violet : win.txt2
-                                font.family: win.uiFont
-                                font.pixelSize: win.typePx(9)
-                                elide: Text.ElideRight
-                            }
-                        }
-                        ActionButton {
-                            label: win.rtl ? "إزالة" : "Remove"
-                            glyphName: "trash"
-                            triggered: function() { win.setPicked(reviewItem.modelData, false) }
-                        }
-                    }
-                }
-            }
-            Rectangle {
-                Layout.fillWidth: true
-                Layout.preferredHeight: win.fs(58)
-                radius: design.radiusCard
-                color: Qt.rgba(win.accent.r, win.accent.g, win.accent.b, 0.1)
-                RowLayout {
-                    anchors.fill: parent
-                    anchors.margins: 12
-                    spacing: 9
-                    Glyph { name: "lock"; tint: win.accent; Layout.preferredWidth: win.fs(20); Layout.preferredHeight: win.fs(20) }
-                    Text {
-                        Layout.fillWidth: true
-                        text: win.rtl
-                            ? "لا صلاحية مسؤول، والمواقع الخارجية لا تثبّت تلقائياً؛ أدوات npm المعلّمة قد تشغّل سكربتات الحزمة بعد موافقتك."
-                            : "No administrator access, and external websites never install automatically. Marked npm tools may run package scripts after your approval."
-                        color: win.txt
-                        font.family: win.uiFont
-                        font.pixelSize: win.typePx(10)
-                        wrapMode: Text.WordWrap
-                    }
-                }
-            }
-            RowLayout {
-                Layout.fillWidth: true
-                ActionButton {
-                    label: win.rtl ? "رجوع" : "Back"
-                    glyphName: "external"
-                    triggered: function() { review.close() }
-                }
-                Item { Layout.fillWidth: true }
-                ActionButton {
-                    label: win.onlyWebPicks()
-                        ? win.pickCount === 1
-                            ? (win.rtl ? "افتح الموقع الرسمي" : "Open official website")
-                            : (win.rtl ? "افتح المواقع الرسمية" : "Open official websites")
-                        : win.pickedWebCount() > 0
-                            ? (win.rtl ? "تابع مع " : "Continue with ") + win.pickCount
-                            : (win.rtl ? "ثبّت " : "Install ") + win.pickCount
-                    glyphName: win.onlyWebPicks() ? "external" : "download"
-                    primary: true
-                    enabled: win.pickCount > 0 && !win.jobIsActive()
-                    triggered: function() { win.beginInstall() }
-                }
-            }
-        }
-    }
+    ReviewSheet { id: review; win: win }
 
-    Popup {
-        id: toast
-        x: (win.width - width) / 2
-        y: win.height - 112
-        width: Math.min(toastLabel.implicitWidth + 38, win.width - 60)
-        height: 44
-        padding: 0
-        modal: false
-        closePolicy: Popup.NoAutoClose
-        background: Rectangle {
-            radius: design.radiusCard
-            color: win.raised
-            border.width: 1
-            border.color: win.accent
-        }
-        Text {
-            id: toastLabel
-            anchors.centerIn: parent
-            width: parent.width - 22
-            horizontalAlignment: Text.AlignHCenter
-            text: "Mo Store"
-            color: win.txt
-            font.family: win.uiFont
-            font.pixelSize: win.typePx(11)
-            elide: Text.ElideRight
-        }
-        Timer { id: toastTimer; interval: 2500; onTriggered: toast.close() }
-    }
+    // Remove (keep data, or remove it too) and an installed app's permissions.
+    RemoveSheet { id: removeSheet; win: win }
+    PermissionsSheet { id: permissionsSheet; win: win }
+
+    // A screenshot, whole, over the window.
+    ScreenshotViewer { id: screenshotViewer; win: win }
+
+    StoreToast { id: toast; win: win }
+
+    DropOverlay { win: win; visible: appDropTarget.containsDrag }
 }

@@ -1,0 +1,24 @@
+{
+ "schema": 1,
+ "job_id": "fixture-indeterminate",
+ "action": "install",
+ "state": "running",
+ "progress": null,
+ "current_id": "chat-web",
+ "message": "Preparing",
+ "message_key": "integrating_app",
+ "started_at": "@NOW@",
+ "updated_at": "@NOW@",
+ "items": [
+  {
+   "id": "chat-web",
+   "state": "running",
+   "progress": null
+  },
+  {
+   "id": "org.example.Mail",
+   "state": "queued",
+   "progress": null
+  }
+ ]
+}

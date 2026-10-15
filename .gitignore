@@ -59,6 +59,8 @@ memory/
 # Voice notes and images the Telegram assistant staged locally. Private user
 # content that has nothing to do with the image — never commit it.
 media/
+# ...except the Store window's test fixtures, whose pictures make_fixtures.py generates.
+!tests/fixtures/mo-store/media/
 
 # Local test evidence: screenshots and live-run logs. Useful locally, not source.
 test-results/
