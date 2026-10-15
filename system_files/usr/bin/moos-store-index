@@ -981,7 +981,7 @@ def branding_colors(component: ET.Element) -> dict | None:
 # libappstream 1.1.3's as_content_rating_attribute_to_csm_age(), the ages KDE Discover and
 # GNOME Software show. Copied on 2026-10-15 from the station's library through GObject
 # introspection (all 28 ids of get_all_rating_ids()); the indexer needs no library, and
-# tests/test_mo_store_index_content_rating.py checks the copy wherever libappstream is installed.
+# tests/test_mo_store_index_search.py checks the copy wherever libappstream is installed.
 # Intensities are not comparable across attributes: `intense` is 6 for cartoon violence, 13
 # for unmoderated chat and 18 for bloodshed.
 OARS_INTENSITIES = ("none", "mild", "moderate", "intense")
