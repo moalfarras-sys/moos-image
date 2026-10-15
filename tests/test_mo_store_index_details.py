@@ -377,6 +377,63 @@ class AFailedBuild(unittest.TestCase):
                 self.assertEqual(len(kept["apps"]), len(good["apps"]))
 
 
+# A valid Flatpak id may have 255 characters; `<id>.json` must fit in a 255-byte file name.
+LONG_ID = "org.example." + "a" * 240
+
+
+def listed(app_id: str, name: str) -> str:
+    return (f'  <component type="desktop-application"><id>{app_id}</id><name>{name}</name>'
+            f"<summary>An app</summary><bundle type=\"flatpak\">app/{app_id}/x86_64/stable"
+            "</bundle></component>\n")
+
+
+class ADocumentThatCannotBeAFile(unittest.TestCase):
+    """One app whose details cannot be a file loses its own details, not the catalogue.
+
+    A full disk fails the build as a whole (AFailedBuild), but a name too long for a file fails
+    for that one app on every build. Until 2026-10-15 it failed them all the same way: exit 2
+    and no index at all, on every launch; before that, the parse stopped at the app and the
+    apps read so far were published as the whole catalogue (2 of 7).
+    """
+
+    def test_the_app_is_listed_without_details_and_every_other_one_is_whole(self):
+        self.assertEqual(len(LONG_ID), 252)
+        self.assertTrue(index.valid_flatpak_id(LONG_ID))
+        after = [f"org.example.After{number}" for number in range(5)]
+        with tempfile.TemporaryDirectory() as raw:
+            fixture = Fixture(Path(raw))
+            fixture.xml.write_text(
+                "<components>\n" + listed("org.example.First", "First")
+                + listed(LONG_ID, "Long") + "".join(listed(app_id, app_id) for app_id in after)
+                + "</components>\n", encoding="utf-8")
+            built = fixture.run()
+            apps = {app["id"]: app for app in built["apps"]}
+            self.assertIsNone(apps[LONG_ID]["details"])
+            for app_id in ["org.example.First", *after]:
+                with self.subTest(app=app_id):
+                    self.assertEqual(apps[app_id]["details"], f"details/{app_id}.json")
+                    self.assertEqual(fixture.document(app_id)["id"], app_id)
+            self.assertEqual({source["error"] for source in built["sources"]}, {None})
+            self.assertEqual(built["stats"]["details_documents"], 6)
+            self.assertTrue(index.details_ready(fixture.cache,
+                                                built["generation"]["metadata_token"]))
+            # The next launch reuses it as it is.
+            self.assertEqual(fixture.run()["generation"], built["generation"])
+
+    def test_the_writer_skips_only_that_name(self):
+        with tempfile.TemporaryDirectory() as raw:
+            builder = index.DetailsBuilder(Path(raw), "f" * 64)
+            self.assertFalse(builder.write(LONG_ID, {"schema": 1}))
+            self.assertTrue(builder.write("org.example.Short", {"schema": 1}))
+            self.assertEqual(builder.written, {"org.example.Short"})
+            self.assertEqual(sorted(path.name for path in builder.directory.iterdir()),
+                             ["org.example.Short.json"])
+            # Anything else is the disk's or the directory's: it still fails the build.
+            builder.discard()
+            with self.assertRaises(OSError):
+                builder.write("org.example.Gone", {"schema": 1})
+
+
 class BuilderUnits(unittest.TestCase):
     def test_an_abandoned_build_leaves_nothing_and_old_temporaries_are_swept(self):
         with tempfile.TemporaryDirectory() as raw:
