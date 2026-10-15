@@ -866,9 +866,48 @@ class TestRemoteVerbs(unittest.TestCase):
         self.assertIn("moos-fast-remote", done.stderr)
 
 
+class TestTheStoreHasOneArabicName(unittest.TestCase):
+    """In Arabic, Mo Store is «متجر MoOS» in what Mo AI's tools say about it.
+
+    The Store's launcher (Name[ar]), its search-bar entry, its update notifications and What's
+    new call it «متجر MoOS». The Store library work added Arabic tool texts that called it
+    «متجر Mo» (install_app and uninstall_app), beside older Arabic card texts that kept the Latin
+    "Mo Store" inside an Arabic sentence ("يُثبَّت التطبيق لحسابك عبر Mo Store ثم يُفتح."): an
+    Arabic speaker met three names for one app, the card Mira shows before an install among them.
+    English keeps "Mo Store". Every tool is read the way the model and the confirmation card read
+    it: each Arabic consequence, and the Arabic half of every description and argument description.
+    """
+
+    ARABIC = re.compile(r"[ء-ي]")
+    OTHER_NAMES = re.compile(r"Mo Store|متجر Mo(?!OS)")
+
+    def arabic_halves(self, text: str) -> list[str]:
+        """The Arabic parts of a bilingual "English — Arabic" text."""
+        return [part for part in text.split(" — ") if self.ARABIC.search(part)]
+
+    def test_every_arabic_tool_text_names_the_store_one_way(self):
+        found = []
+        for tool in ALL_TOOLS:
+            function = tool["function"]
+            name = function["name"]
+            texts = [("consequence", consequence(name, "ar"))]
+            texts += [("description", part) for part in self.arabic_halves(function["description"])]
+            for argument, spec in (function.get("parameters") or {}).get("properties", {}).items():
+                texts += [(argument, part) for part in self.arabic_halves(spec.get("description", ""))]
+            found += [(name, where, text) for where, text in texts if self.OTHER_NAMES.search(text)]
+        self.assertEqual(found, [], "the Store is «متجر MoOS» in Arabic")
+
+    def test_the_cards_that_name_the_store_still_name_it(self):
+        """The rule must not pass by dropping the name: these cards are about the Store."""
+        for name in ("install_app", "uninstall_app", "update_apps"):
+            with self.subTest(tool=name):
+                self.assertIn("متجر MoOS", consequence(name, "ar"))
+                self.assertIn("Mo Store", consequence(name, "en"))
+
+
 if __name__ == "__main__":
     suite = unittest.TestSuite()
-    for case in (TestToolSchemaIntegrity, TestRemoteVerbs):
+    for case in (TestToolSchemaIntegrity, TestRemoteVerbs, TestTheStoreHasOneArabicName):
         suite.addTests(unittest.defaultTestLoader.loadTestsFromTestCase(case))
     result = unittest.TextTestRunner(verbosity=2).run(suite)
     raise SystemExit(0 if result.wasSuccessful() else 1)
