@@ -38,6 +38,7 @@ pinned path must lie inside the extracted tree, exactly as the guesses must.
 
 from __future__ import annotations
 
+import contextlib
 import dataclasses
 import hashlib
 import json
@@ -45,9 +46,11 @@ import os
 from pathlib import Path, PurePosixPath
 import re
 import shutil
+import signal
 import stat
 import subprocess
 import tarfile
+import tempfile
 import time
 from typing import Any, Callable
 import zipfile
@@ -289,12 +292,45 @@ def _refuse_control(name: str) -> None:
         raise DropError("unsafe_archive", f"control character in a name: {name!r}")
 
 
-def _safe_member_path(root: Path, name: str) -> Path:
+def _member_rel(name: str) -> PurePosixPath:
+    """An archive member's path, relative to the tree root: no control characters, no absolute
+    name, no `..`, never empty. The one place a member's name is turned into path components."""
     _refuse_control(name)
     pure = PurePosixPath(name.replace("\\", "/"))
     if pure.is_absolute() or ".." in pure.parts or not pure.parts:
         raise DropError("unsafe_archive", f"path leaves the archive: {name!r}")
-    return root.joinpath(*pure.parts)
+    return pure
+
+
+def _safe_member_path(root: Path, name: str) -> Path:
+    return root.joinpath(*_member_rel(name).parts)
+
+
+def _descend(root: Path, rel: PurePosixPath) -> Path:
+    """Create the folders above `rel` one component at a time, refusing any component that already
+    exists as a link or a non-directory, and return that parent. The tree is only ever built from
+    real directories this function made, so nothing is created or opened THROUGH a symlink a
+    member planted — the defence moos_vendor_rpm._Reader makes the same way."""
+    current = root
+    for part in rel.parts[:-1]:
+        current = current / part
+        try:
+            info = os.lstat(current)
+        except FileNotFoundError:
+            os.mkdir(current, 0o755)
+            continue
+        if not stat.S_ISDIR(info.st_mode):
+            raise DropError("unsafe_archive", f"{'/'.join(rel.parts)!r} passes through a link or a file")
+    return current
+
+
+def _make_dir(root: Path, rel: PurePosixPath) -> None:
+    path = _descend(root, rel) / rel.parts[-1]
+    try:
+        os.mkdir(path, 0o755)
+    except FileExistsError:
+        if not stat.S_ISDIR(os.lstat(path).st_mode):
+            raise DropError("unsafe_archive", f"{'/'.join(rel.parts)!r} is both a folder and something else") from None
 
 
 class _Budget:
@@ -322,28 +358,76 @@ class _Budget:
 
 
 def extract_zip(archive: Path, root: Path, budget: _Budget) -> None:
+    """Unpack a .zip under `root`, writing only inside it and never through a link.
+
+    Files and folders are written first, each built one component at a time (`_descend`) and
+    opened with O_EXCL|O_NOFOLLOW, so a member can never mkdir or open through a symlink another
+    member planted — a chain of in-tree links that each resolve inside the tree yet together
+    leave it (reproduced 2026-10-15). Symlink members are created last, once every real file and
+    folder exists; each is refused unless its fully resolved target still lands inside the tree,
+    while a legitimate in-tree link (a library's `libfoo.so -> libfoo.so.1`) keeps working.
+    """
+    links: list[tuple[PurePosixPath, str]] = []     # created last, when no file can follow them
     with zipfile.ZipFile(archive) as bundle:
         for info in bundle.infolist():
-            target = _safe_member_path(root, info.filename)
+            rel = _member_rel(info.filename)
             mode = (info.external_attr >> 16) & 0o177777
+            kind = stat.S_IFMT(mode)
             if stat.S_ISLNK(mode):
-                link = bundle.read(info).decode("utf-8", "replace")
-                resolved = (target.parent / link).resolve() if not os.path.isabs(link) else Path(link)
-                if os.path.isabs(link) or not _inside(root.resolve(), resolved):
-                    raise DropError("unsafe_archive", f"link leaves the archive: {info.filename!r}")
-                target.parent.mkdir(parents=True, exist_ok=True)
-                target.symlink_to(link)
-                budget.add(0)
+                links.append((rel, bundle.read(info).decode("utf-8", "replace")))
                 continue
-            if info.is_dir():
-                target.mkdir(parents=True, exist_ok=True)
+            if info.is_dir() or kind == stat.S_IFDIR:
+                _make_dir(root, rel)
                 continue
-            target.parent.mkdir(parents=True, exist_ok=True)
+            if kind and kind != stat.S_IFREG:
+                raise DropError("unsafe_archive", f"device, pipe or socket: {info.filename!r}")
+            parent = _descend(root, rel)
             budget.add(info.file_size)
-            with bundle.open(info) as source, target.open("wb") as sink:
+            try:
+                descriptor = os.open(parent / rel.parts[-1],
+                                     os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW | os.O_CLOEXEC, 0o600)
+            except FileExistsError:
+                raise DropError("unsafe_archive", f"{info.filename!r} appears twice") from None
+            with open(descriptor, "wb") as sink, bundle.open(info) as source:
                 shutil.copyfileobj(source, sink, 1024 * 1024)
-            # Keep the executable bit and nothing else: never setuid, never world-writable.
-            target.chmod(0o755 if mode & 0o111 else 0o644)
+                # Keep the executable bit and nothing else: never setuid, never world-writable.
+                os.fchmod(sink.fileno(), 0o755 if mode & 0o111 else 0o644)
+        _extract_zip_links(root, links, budget)
+
+
+def _extract_zip_links(root: Path, links: list[tuple[PurePosixPath, str]], budget: _Budget) -> None:
+    """Create the archive's symlink members now that every file and folder is in place, so no
+    file was ever written through one. A link is refused if it is absolute or lexically leaves the
+    tree; then, with the whole set created, each link's fully resolved target is checked once more
+    — a chain of links can only be judged after all of its hops exist. A refusal removes the links
+    made here, so a refused archive never leaves one pointing out of the tree.
+
+    The lexical target is built on the resolved root it is judged against. The folders above each
+    link are real ones `_descend` made, but the root's own path may hold a link (/home -> var/home
+    on MoOS, an ~/Applications on another disk); built on that path, every in-tree soname link
+    looked like it left the tree."""
+    resolved_root = root.resolve()
+    made: list[Path] = []
+    try:
+        for rel, link in links:
+            destination = _descend(root, rel) / rel.parts[-1]
+            if os.path.lexists(destination):
+                raise DropError("unsafe_archive", f"{'/'.join(rel.parts)!r} appears twice")
+            target = Path(os.path.normpath(resolved_root.joinpath(*rel.parts[:-1], link)))
+            if os.path.isabs(link) or not _inside(resolved_root, target):
+                raise DropError("unsafe_archive", f"link leaves the archive: {'/'.join(rel.parts)!r}")
+            destination.symlink_to(link)
+            made.append(destination)
+            budget.add(0)
+        for rel, _link in links:
+            final = Path(os.path.realpath(root.joinpath(*rel.parts)))
+            if not _inside(resolved_root, final):
+                raise DropError("unsafe_archive", f"link leaves the archive: {'/'.join(rel.parts)!r}")
+    except BaseException:
+        for destination in made:
+            with contextlib.suppress(OSError):
+                os.unlink(destination)
+        raise
 
 
 def extract_tar(archive: Path, root: Path, budget: _Budget) -> None:
@@ -404,6 +488,44 @@ def tool_sandbox_argv(inputs: dict[str, Path], out: Path, command: list[str]) ->
     return argv + _sandbox_tail(out) + list(command)
 
 
+def _terminate_group(child: "subprocess.Popen[Any]") -> None:
+    """Kill the extractor and everything in its session — bwrap and the tool it launched."""
+    with contextlib.suppress(OSError):
+        os.killpg(child.pid, signal.SIGKILL)
+    with contextlib.suppress(OSError, subprocess.SubprocessError):
+        child.wait(timeout=5)
+
+
+def _run_extractor(argv: list[str], budget: _Budget) -> subprocess.CompletedProcess:
+    """Run the sandboxed extractor while staying observably alive.
+
+    The squashfs of a 1 GB AppImage can take minutes, so instead of one blind `subprocess.run`
+    this polls the budget's cancel about four times a second — which also beats the Store job's
+    heartbeat, so the window never decides a live unpack has stopped — and kills the whole sandbox
+    session on cancel or timeout. It returns the same CompletedProcess shape `subprocess.run` did.
+    """
+    deadline = time.monotonic() + EXTRACT_TIMEOUT
+    with tempfile.TemporaryFile() as errors:
+        child = subprocess.Popen(argv, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
+                                 stderr=errors, start_new_session=True)
+        try:
+            while True:
+                try:
+                    child.wait(timeout=0.25)
+                    break
+                except subprocess.TimeoutExpired:
+                    if budget.cancelled():
+                        raise DropError("cancelled")
+                    if time.monotonic() > deadline:
+                        raise DropError("extract_timeout")
+        except BaseException:
+            _terminate_group(child)
+            raise
+        errors.seek(0)
+        tail = errors.read()[-300:]
+    return subprocess.CompletedProcess(argv, child.returncode, b"", tail)
+
+
 def extract_appimage(appimage: Path, root: Path, budget: _Budget,
                      run: Callable[..., Any] = subprocess.run) -> None:
     if not Path(BWRAP).is_file() and run is subprocess.run:
@@ -416,11 +538,18 @@ def extract_appimage(appimage: Path, root: Path, budget: _Budget,
         staged.chmod(0o500)
         out = stage / "out"
         out.mkdir()
-        try:
-            done = run(sandbox_argv(staged, out), stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
-                       stderr=subprocess.PIPE, timeout=EXTRACT_TIMEOUT, check=False)
-        except subprocess.TimeoutExpired as error:
-            raise DropError("extract_timeout") from error
+        argv = sandbox_argv(staged, out)
+        if run is subprocess.run:
+            # The real path polls for cancel and keeps the heartbeat; a timeout or cancel is a
+            # DropError straight from the poller. A test injects its own `run` and takes the
+            # blocking call below.
+            done = _run_extractor(argv, budget)
+        else:
+            try:
+                done = run(argv, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
+                           stderr=subprocess.PIPE, timeout=EXTRACT_TIMEOUT, check=False)
+            except subprocess.TimeoutExpired as error:
+                raise DropError("extract_timeout") from error
         tree = out / "squashfs-root"
         if getattr(done, "returncode", 1) != 0 or not tree.is_dir():
             detail = (getattr(done, "stderr", b"") or b"")[-300:].decode("utf-8", "replace")
