@@ -1422,7 +1422,8 @@
     "old_native_unit": "moai-open-557156-15605.service",
     "followup": "cairo and gl both kept the native window alive; final reinstall launched on Wayland with the software GL policy",
     "source_policy": "ARM existing software-rendering environment now selects GSK_RENDERER=gl",
-    "temporary_native_change": "systemctl --user set-environment GSK_RENDERER=gl; no host RPM layering or immutable file replacement"
+    "temporary_native_change": "systemctl --user set-environment GSK_RENDERER=gl; no host RPM layering or immutable file replacement",
+    "libflatpak_note": "native successful transactions emitted a g_value_get_flags introspection warning; operation and package/data readbacks passed, warning cause unproven"
   },
   "qml_host": {
     "exit": 0,
@@ -1502,5 +1503,24 @@
     "one signed four-edition candidate/boot-proof/promotion cycle",
     "Oracle signed update/reboot/readback",
     "NVIDIA actual engine/app/remote input acceptance and update when back online"
-  ]
+  ],
+  "first_final_gate_failure": {
+    "revision": "1e997e47515bbeaaf0b4743d5ea4bea8915802f9",
+    "tree": "69c2c091baa11397dc1a6ab1954249067ec9ed9a",
+    "started_at": "2026-10-16T19:19:53.182798+00:00",
+    "seconds": 7.91,
+    "exit": 1,
+    "log_sha256": "10e3ec5e9e257eb84309d7fa6c590c477733a27401d52e28cee4397200f44e7c",
+    "source_unchanged": true,
+    "cause": "two exact theme revision assertions still required106; updated both to107 without removing cache/identity guards"
+  },
+  "aborted_native_build": {
+    "scope": "owned native build stopped after fast-gate failure, during base pull, before image composition; no image proof claimed",
+    "observed_utc": "2026-10-16T19:20:56.450572+00:00",
+    "revision": "1e997e47515bbeaaf0b4743d5ea4bea8915802f9",
+    "reason": "stale exact THEME_REV=106 assertion after required source bump to107",
+    "unit": "moos-store-native-arm-20261016.service",
+    "log_sha256": "40ae5aac3e603bf5e4f48763467e798647bd4a9376624a82cd34ec6b6993959a",
+    "owner_containers_preserved": true
+  }
 }
