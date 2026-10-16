@@ -104,7 +104,7 @@ class TheShippedCatalogue(unittest.TestCase):
 
     def test_every_android_pin_records_its_signer_and_every_download_its_size(self):
         android = [a for a in SHIPPED["apps"] if (a.get("install") or {}).get("kind") == "android"]
-        self.assertEqual(len(android), 21)
+        self.assertEqual(len(android), 48)
         for entry in android:
             with self.subTest(app=entry["id"]):
                 self.assertRegex(entry["install"]["signer"], r"^[0-9a-f]{64}$")
@@ -727,7 +727,7 @@ ANDROID_CALL = r"self\._install_pinned_android\(job, app_id, recipe\)"
 
 
 class TheChainNamesTheAndroidPath(unittest.TestCase):
-    """The catalogue holds 21 Android recipes; nothing checked the backend could install one.
+    """The catalogue holds 48 Android recipes; nothing checked the backend could install one.
 
     Two mutations went unseen. Review, 2026-10-15: both calls of the Android installer replaced
     by a refusal, while the method itself stayed, so its NAME was still in the file. Verification

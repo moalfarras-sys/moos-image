@@ -6420,9 +6420,14 @@ for _label in ("remote/start)", "installer/reboot)", "installer/poweroff)",
 
 # #18 do_setup_waydroid must free VRAM before starting the Android (EGL) UI.
 _moaido = code(read("system_files/usr/bin/moai-do"), "hash")
-_ws = _moaido.find("waydroid session start")
+_ws = _moaido.find("systemctl --user start moos-android-session.service")
 require(_ws > 0 and "moos-gpu-headroom" in _moaido[max(0, _ws - 400):_ws],
-        "do_setup_waydroid must call moos-gpu-headroom before 'waydroid session start'")
+        "do_setup_waydroid must free GPU headroom before starting the Android session unit")
+_android_unit = code(read("system_files/usr/lib/systemd/user/moos-android-session.service"), "hash")
+require("ExecStart=/usr/bin/waydroid session start" in _android_unit
+        and "PartOf=graphical-session.target" in _android_unit
+        and "[Install]" not in _android_unit,
+        "Android must run in its on-demand user unit, tied to graphical logout, with no idle autostart")
 
 # #16 moos-firstboot must not stamp completion when the account was not created.
 _fb = code(read("system_files/usr/libexec/moos-firstboot"), "hash")

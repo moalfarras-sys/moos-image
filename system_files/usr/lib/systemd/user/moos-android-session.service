@@ -1,0 +1,15 @@
+[Unit]
+Description=MoOS Android application session
+PartOf=graphical-session.target
+After=graphical-session.target
+ConditionFileIsExecutable=/usr/bin/waydroid
+ConditionEnvironment=WAYLAND_DISPLAY
+
+[Service]
+Type=exec
+ExecStart=/usr/bin/waydroid session start
+ExecStop=/usr/bin/waydroid session stop
+TimeoutStopSec=20
+Restart=no
+# On demand only: installing an app must not make Android an idle autostart.
+# The user manager owns this cgroup, independently of the Store job's lifetime.

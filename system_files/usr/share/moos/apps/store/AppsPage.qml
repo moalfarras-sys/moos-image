@@ -192,6 +192,7 @@ Item {
                         model: [{ id: "all", ar: "الكل", en: "All", glyph: "" }].concat(appsPage.win.kindDefs)
                         delegate: KindChip {
                             id: kindChip
+                        objectName: "appsKind-" + kindChip.modelData.id
                             required property var modelData
                             win: appsPage.win
                             label: kindChip.modelData.id === "all" ? appsPage.win.local("كل الأنواع", "Every kind")
@@ -463,7 +464,12 @@ Item {
                                 Keys.onReturnPressed: appsPage.win.openDetails(launcher.modelData)
                                 FocusRing { win: appsPage.win }
                                 HoverHandler { id: launcherHover; cursorShape: Qt.PointingHandCursor }
-                                TapHandler { onTapped: appsPage.win.openDetails(launcher.modelData) }
+                                TapHandler {
+                                    onTapped: (eventPoint) => {
+                                        if (!launcherPrimary.contains(launcherPrimary.mapFromItem(launcher, eventPoint.position)))
+                                            appsPage.win.openDetails(launcher.modelData)
+                                    }
+                                }
                                 ColumnLayout {
                                     anchors.centerIn: parent
                                     width: parent.width - appsPage.design.space4
@@ -485,6 +491,7 @@ Item {
                                         elide: Text.ElideRight
                                     }
                                     ProgressButton {
+                                        id: launcherPrimary
                                         win: appsPage.win
                                         Layout.alignment: Qt.AlignHCenter
                                         app: launcher.modelData

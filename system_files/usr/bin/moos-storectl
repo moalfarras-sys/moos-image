@@ -37,6 +37,7 @@ import re
 import secrets
 import shutil
 import signal
+import stat
 import subprocess
 import sys
 import tempfile
@@ -69,6 +70,7 @@ GPU_GUARD = "/usr/bin/moos-gpu-headroom"
 NPM = "/usr/bin/npm"
 XDG_OPEN = "/usr/bin/xdg-open"
 WAYDROID = "/usr/bin/waydroid"
+ANDROID_SESSION_START = ["/usr/bin/systemctl", "--user", "start", "moos-android-session.service"]
 STORE_INDEX = "/usr/bin/moos-store-index"
 ONE_STORE = "/usr/bin/moos-one-store"
 BAZAAR_ID = "io.github.kolunmi.Bazaar"
@@ -2128,7 +2130,9 @@ class Controller:
             return
         if not start:
             raise self._android_not_running()
-        self.runner.spawn([WAYDROID, "session", "start"])
+        # setsid does not escape the job's systemd cgroup. Let the user manager
+        # own the long-lived runtime after this install/open job has exited.
+        self.runner.spawn(ANDROID_SESSION_START)
         deadline = time.monotonic() + 20
         while time.monotonic() < deadline:
             if self._cancelled(job):
@@ -2137,8 +2141,8 @@ class Controller:
             status = self.runner.capture([WAYDROID, "status"], timeout=2)
             if self._android_running(status):
                 return
-            if runtime.status_state(status.returncode, status.output, status.reason) == "unknown":
-                raise StoreError("Could not verify Android app support", message_key="android_status_unknown")
+            # Startup can briefly return an incomplete status. Nothing may be
+            # installed/launched until a successful, unambiguous RUNNING reply.
         raise StoreError("Android app support did not become ready")
 
     def _install_npm(self, job: Job, app_id: str, recipe: dict[str, Any]) -> None:
@@ -3087,6 +3091,10 @@ class Controller:
                 r"\b(?:error|failed)\b", result.reason, re.IGNORECASE
             ):
                 raise StoreError(result.reason or "Android installation failed")
+            kept = self._wait_android_pin(job, app_id, package, pin)
+            if kept is False or (kept is None and package not in (self._android_packages() or set())):
+                raise StoreError("Android did not confirm installation; the existing record was kept",
+                                 message_key="android_install_unconfirmed")
             self._write_android_record(package, sha256=pin.sha256, source="catalog",
                                        catalog_id=app_id, version=version)
             job.update_item(
@@ -3488,20 +3496,21 @@ class Controller:
                 job.fail(error, [app_id])
             return exit_code(job.document["state"]), job.snapshot()
 
-    def _remove_android_record(self, package: str, delete_data: bool) -> tuple[int, dict[str, Any]]:
+    def _remove_android_record(self, package: str, delete_data: bool, *, app_id: str | None = None) -> tuple[int, dict[str, Any]]:
         """An Android app installed from a file: the record MoOS wrote names its package."""
+        app_id = app_id or package
         try:
-            lock, job = self._begin("remove", [package])
+            lock, job = self._begin("remove", [app_id])
         except BusyError:
-            return self._refuse_busy("remove", [package])
+            return self._refuse_busy("remove", [app_id])
         with lock:
             try:
-                self._remove_android_package(job, package, package, delete_data)
+                self._remove_android_package(job, app_id, package, delete_data)
                 job.finish_from_items("App removed", "app_removed")
             except CancelledError:
                 job.cancelled()
             except Exception as error:
-                job.fail(error, [package])
+                job.fail(error, [app_id])
             return exit_code(job.document["state"]), job.snapshot()
 
     def _dropped_slug(self, app_id: str) -> str | None:
@@ -3524,19 +3533,26 @@ class Controller:
                 return slug
         return None
 
-    def _dropped_android(self, app_id: str) -> bool:
-        """An Android app installed from a file: MoOS wrote a record naming its package.
+    def _dropped_android_package(self, app_id: str) -> str | None:
+        """A separate ID lets a local APK coexist with the matching Linux app."""
+        inventory = self._library("moos_android_inventory")
+        if app_id.startswith(inventory.PREFIX):
+            package = inventory.package_for_id(data_home(), app_id)
+            if package is None:
+                raise StoreError("Invalid Android receipt", message_key="invalid_id")
+            return package
+        if not _ANDROID_PACKAGE_RE.fullmatch(app_id):
+            return None
+        record, invalid = inventory.read_record(data_home(), app_id)
+        if not record or invalid:
+            return None
+        if validate_flatpak_id(app_id) and (self.adapter.is_user_installed(app_id)
+                                           or self.adapter.is_system_installed(app_id)):
+            return None
+        return app_id
 
-        When a Flatpak with the same reverse-DNS id is installed, that id keeps meaning the
-        Flatpak, as it always did; the Android copy is then reached only from Android's own menu.
-        """
-        return bool(
-            _ANDROID_PACKAGE_RE.fullmatch(app_id)
-            and android_record_path(app_id).is_file()
-            and not (validate_flatpak_id(app_id)
-                     and (self.adapter.is_user_installed(app_id)
-                          or self.adapter.is_system_installed(app_id)))
-        )
+    def _dropped_android(self, app_id: str) -> bool:
+        return self._dropped_android_package(app_id) is not None
 
     def _delete_flatpak_data(self, job: Job, app_id: str) -> None:
         """What `flatpak uninstall --delete-data` removes, plus the person's changed permissions."""
@@ -3564,8 +3580,9 @@ class Controller:
         # So is a publisher's app the catalogue stopped offering: MoOS's record still names it.
         if self._vendor_record(app_id):
             return self._remove_vendor_record(app_id, delete_data)
-        if self._dropped_android(app_id):
-            return self._remove_android_record(app_id, delete_data)
+        package = self._dropped_android_package(app_id)
+        if package:
+            return self._remove_android_record(package, delete_data, app_id=app_id)
         if not validate_flatpak_id(app_id):
             raise StoreError(f"Invalid app ID: {app_id}", message_key="invalid_id")
         try:
@@ -3652,31 +3669,7 @@ class Controller:
             try:
                 progress = self._appdrop_progress(job, plan.slug)
                 if plan.kind == "android":
-                    # The same container readiness and the same honest result as a catalogue
-                    # install; mutation, locking, cancellation and publication belong here.
-                    self._ensure_android_session(job)
-                    before = self._android_packages()
-                    progress("integrating_app", None)
-                    result = self.runner.run_cancellable(
-                        ["/usr/bin/waydroid", "app", "install", str(plan.path)],
-                        lambda: self._cancelled(job))
-                    if result.cancelled:
-                        raise appdrop.DropError("cancelled")
-                    if result.returncode or re.search(
-                        r"\b(?:error|failed)\b", result.reason, re.IGNORECASE
-                    ):
-                        raise appdrop.DropError("failed", result.reason or "Android installation failed")
-                    after = self._android_packages()
-                    # The package a file adds is named only inside the file; the container's own
-                    # list before and after says which one it was. Anything less certain writes
-                    # no record rather than a wrong one.
-                    if before is not None and after is not None and len(after - before) == 1:
-                        digest = hashlib.sha256()
-                        with plan.path.open("rb") as handle:
-                            for block in iter(lambda: handle.read(4 * 1024 * 1024), b""):
-                                digest.update(block)
-                        self._write_android_record((after - before).pop(), sha256=digest.hexdigest(),
-                                                   source="file", file_name=plan.path.name[:255])
+                    self._install_android_file(job, plan, progress)
                 else:
                     appdrop.install(plan, progress=progress, cancelled=lambda: self._cancelled(job))
                 job.update_item(plan.slug, state="done", progress=100, message="Installed",
@@ -3697,6 +3690,65 @@ class Controller:
             if code:
                 document["code"] = code                  # a stable key: the dialog owns the words
             return exit_code(job.document["state"]), document
+
+    def _install_android_file(self, job: Job, plan: Any, progress: Any) -> None:
+        """Install and receipt the same private APK snapshot, including file updates.
+
+        Package-list differences cannot identify an update, and Waydroid can return
+        zero after PackageManager refuses it. Read the manifest first and confirm
+        its package and, where readable, the actual kept bytes before recording it.
+        """
+        appdrop = self._appdrop()
+        directory = downloads_dir()
+        directory.mkdir(mode=0o700, parents=True, exist_ok=True)
+        descriptor, name = tempfile.mkstemp(prefix="android-file-", suffix=".apk", dir=directory)
+        snapshot = Path(name)
+        try:
+            with os.fdopen(descriptor, "wb") as target:
+                source_fd = os.open(plan.path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
+                with os.fdopen(source_fd, "rb") as source:
+                    before = os.fstat(source.fileno())
+                    if (not stat.S_ISREG(before.st_mode) or before.st_uid != os.getuid()
+                            or not 0 < before.st_size <= appdrop.MAX_SOURCE_BYTES):
+                        raise appdrop.DropError("not_a_plain_file")
+                    total = 0
+                    for block in iter(lambda: source.read(1024 * 1024), b""):
+                        if self._cancelled(job):
+                            raise appdrop.DropError("cancelled")
+                        total += len(block)
+                        if total > before.st_size:
+                            raise appdrop.DropError("failed", "The APK changed while it was copied")
+                        target.write(block)
+                    after = os.fstat(source.fileno())
+                    if (total != before.st_size or before.st_mtime_ns != after.st_mtime_ns
+                            or before.st_ctime_ns != after.st_ctime_ns):
+                        raise appdrop.DropError("failed", "The APK changed while it was copied")
+            facts = self._android_apk().read_apk(snapshot, unsized_limit=appdrop.MAX_SOURCE_BYTES)
+            if (facts is None or not facts.package or not _ANDROID_PACKAGE_RE.fullmatch(facts.package)
+                    or facts.version_code is None or not facts.sha256):
+                raise appdrop.DropError("failed", "The file has no readable Android package manifest")
+            self._ensure_android_session(job)
+            progress("integrating_app", None)
+            result = self.runner.run_cancellable(
+                [WAYDROID, "app", "install", str(snapshot)], lambda: self._cancelled(job))
+            if result.cancelled:
+                raise appdrop.DropError("cancelled")
+            if result.returncode or re.search(r"\b(?:error|failed)\b", result.reason, re.IGNORECASE):
+                raise appdrop.DropError("failed", result.reason or "Android installation failed")
+            installed = self._android_packages()
+            if installed is None or facts.package not in installed:
+                raise appdrop.DropError("failed", "Could not confirm the Android package was installed")
+            pin = PinnedArtifact("", facts.sha256, snapshot.stat().st_size)
+            kept = self._wait_android_pin(job, plan.slug, facts.package, pin)
+            if kept is False:
+                raise appdrop.DropError("failed", "Android did not accept this APK; its existing record was kept")
+            version = facts.version_name or ""
+            if version and not re.fullmatch(r"[0-9A-Za-z][0-9A-Za-z.+_~+-]{0,63}", version):
+                version = ""
+            self._write_android_record(facts.package, sha256=facts.sha256, source="file",
+                                       version=version, file_name=plan.path.name[:255])
+        finally:
+            snapshot.unlink(missing_ok=True)
 
     def remove_file(self, slug: str) -> tuple[int, dict[str, Any]]:
         appdrop = self._appdrop()
@@ -3720,10 +3772,11 @@ class Controller:
             return exit_code(job.document["state"]), job.snapshot()
 
     def _run_android(
-        self, app_id: str, recipe: dict[str, Any] | None, *, start_android: bool = True
+        self, app_id: str, recipe: dict[str, Any] | None, *, start_android: bool = True,
+        package: str | None = None
     ) -> tuple[int, dict[str, Any]]:
         # A catalogue entry names its package; a dropped APK's record was written for it.
-        package = self._android_package(app_id, recipe) if recipe is not None else app_id
+        package = package or (self._android_package(app_id, recipe) if recipe is not None else app_id)
         if not _ANDROID_PACKAGE_RE.fullmatch(package):
             raise StoreError(f"Invalid app ID: {app_id}", message_key="invalid_id")
         # A moos: link (any web page can hand the router one) opens an Android app only into
@@ -3883,8 +3936,9 @@ class Controller:
             return self._run_installed(app_id, "appdrop", slug)
         if self._vendor_record(app_id):
             return self._run_installed(app_id, "vendor")
-        if self._dropped_android(app_id):
-            return self._run_android(app_id, None, start_android=start_android)
+        package = self._dropped_android_package(app_id)
+        if package:
+            return self._run_android(app_id, None, start_android=start_android, package=package)
         if not validate_flatpak_id(app_id):
             raise StoreError(f"Invalid app ID: {app_id}", message_key="invalid_id")
         try:
@@ -3991,6 +4045,20 @@ class Controller:
         facts = apk.read_apk(folders[0] / "base.apk", pin.size, unsized_limit=UNSIZED_DOWNLOAD_CAP)
         return facts is not None and facts.sha256 == pin.sha256
 
+    def _wait_android_pin(self, job: Job, app_id: str, package: str,
+                          pin: PinnedArtifact) -> bool | None:
+        """Allow a bounded PackageManager handoff, preserving unreadable-data compatibility."""
+        kept = self._android_keeps_pin(package, pin)
+        if kept is False:
+            # Not yet, or not at all: the item is not done while Android is asked again.
+            job.update_item(app_id, state="running", progress=None,
+                            message="Installing application", message_key="integrating_app")
+            deadline = time.monotonic() + ANDROID_READBACK_SECONDS
+            while kept is False and time.monotonic() < deadline:
+                time.sleep(ANDROID_READBACK_STEP)
+                kept = self._android_keeps_pin(package, pin)
+        return kept
+
     def _android_update_landed(self, job: Job, app_id: str, recipe: dict[str, Any],
                                before: bytes | None) -> None:
         """Hold an Android update to what Android keeps after it.
@@ -4005,15 +4073,7 @@ class Controller:
         """
         package = self._android_package(app_id, recipe)
         pin = pinned_artifact(app_id, recipe.get("install") or {}, size_required=False)
-        kept = self._android_keeps_pin(package, pin)
-        if kept is False:
-            # Not yet, or not at all: the item is not done while Android is asked again.
-            job.update_item(app_id, state="running", progress=None,
-                            message="Installing application", message_key="integrating_app")
-            deadline = time.monotonic() + ANDROID_READBACK_SECONDS
-            while kept is False and time.monotonic() < deadline:
-                time.sleep(ANDROID_READBACK_STEP)
-                kept = self._android_keeps_pin(package, pin)
+        kept = self._wait_android_pin(job, app_id, package, pin)
         if kept is not False:
             return
         record = android_record_path(package)
@@ -4254,6 +4314,9 @@ class Controller:
                                     "vendor-rpm"):
             raise StoreError(f"Mo Store cannot update {app_id}", message_key="unsupported_kind")
         if not curated:
+            if self._dropped_android_package(app_id):
+                raise StoreError("This app was installed from a file; install a newer file of it to update it",
+                                 message_key="update_by_file")
             if self._dropped_slug(app_id) is not None:
                 raise StoreError("This app was installed from a file; install a newer file of it to update it",
                                  message_key="update_by_file")
@@ -4458,10 +4521,10 @@ class Controller:
             return "unsandboxed", None
         if self._vendor_record(app_id):
             return "unsandboxed", None
+        if self._dropped_android_package(app_id):
+            return "android", None
         if validate_flatpak_id(app_id):
             return "flatpak", recipe
-        if _ANDROID_PACKAGE_RE.fullmatch(app_id) and android_record_path(app_id).is_file():
-            return "android", None
         raise StoreError(f"Invalid app ID: {app_id}", message_key="invalid_id")
 
     def _flatpak_scope(self, app_id: str) -> list[str] | None:

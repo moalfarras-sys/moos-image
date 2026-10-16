@@ -58,7 +58,8 @@ passed, passed_log = run(container_ok=True)
 assert passed.returncode == 0, passed.stderr
 assert "systemctl enable --now waydroid-container.service" in passed_log
 assert "systemctl is-active --quiet waydroid-container.service" in passed_log
-assert "waydroid session start" in passed_log
+assert "systemctl --user start moos-android-session.service" in passed_log
+assert "waydroid session start" not in passed_log
 assert "waydroid show-full-ui" in passed_log
 assert "Android جاهز" in passed.stdout
 

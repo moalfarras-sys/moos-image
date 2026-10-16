@@ -147,6 +147,27 @@ These are not conventions, they are gates. The image build fails if you break th
 
 ## A green build proves nothing about what the user sees
 
+**A detached process is still in its parent's cgroup.** Android sessions started
+with `setsid` inside a Store job die when that job's unit ends. Keep one on-demand
+user unit, with no idle autostart, and tie it to graphical logout. The private
+native old/fixed lifetime probe must observe both survival after the job and
+termination after its fake graphical target stops; never stop the owner's
+actual session to test this. A transient startup reply is not readiness.
+
+**Basic controls can disconnect an app from Plasma's motion policy.** Kirigami
+selects a platform plugin using the controls style; Basic fell back to generic
+200ms Units even with animations disabled. The shared QML host selects the KDE
+platform plugin before loading. Both image builds execute the actual binary
+with private Basic-style probes at factors0/.5; require1/100ms and a marker,
+not an empty successful process. Keep the old-host negative control.
+
+**A file update need not add a package.** APK before/after package-set differences
+miss already-installed updates. Install an owned, validated disk snapshot,
+verify that package and readable installed bytes, then publish its receipt.
+Silent refusal must leave the prior receipt unchanged; preserve the source-file
+replacement and malformed/symlink negative controls.
+
+
 **The last success line is not the process exit.** An editor exec ended143
 after the final catalogue gate printed success. Its termination cause remains
 unproven. Preserve that result; a native parent must save the command's exit,

@@ -3274,27 +3274,18 @@ def android_apk_is_pin(package: str, pin: str, size: int | None,
     return apk is not None and digests.sha256(apk, size) == pin
 
 
-def android_store_record(package: str) -> tuple[dict | None, bool]:
-    """(receipt, invalid) for the exact schema Store writes, under the configured data home."""
+@functools.lru_cache(maxsize=1)
+def android_inventory_module():
+    import importlib
+    library = str(Path(__file__).resolve().parent.parent / "lib/moos")
+    if library not in sys.path:
+        sys.path.insert(0, library)
+    return importlib.import_module("moos_android_inventory")
 
-    path = data_home() / "moos/android" / f"{package}.json"
-    if path.is_symlink():
-        return None, True
-    record = read_record(path)
-    if not record:
-        return None, False
-    if (type(record.get("schema")) is not int or record["schema"] != 1
-            or record.get("id") != package or record.get("package") != package):
-        return None, True
-    digest, version = record.get("sha256"), record.get("version")
-    if (not isinstance(digest, str) or not SHA256_RE.fullmatch(digest)
-            or not isinstance(version, str) or (version and not VERSION_RE.fullmatch(version))):
-        return None, True
-    source, catalog_id = record.get("source"), record.get("catalog_id")
-    if not ((source == "catalog" and catalog_id == package)
-            or (source == "file" and catalog_id == "")):
-        return None, True
-    return record, False
+
+def android_store_record(package: str) -> tuple[dict | None, bool]:
+    """Share the executor's strict, bounded receipt reader."""
+    return android_inventory_module().read_record(data_home(), package)
 
 
 def catalog_install_state(entry: dict, arch: str | None = None,
@@ -3474,6 +3465,7 @@ def lifecycle_snapshot(catalog: dict, apk_digests: ApkDigests | None = None) -> 
     states: dict[str, dict] = {}
     claimed: set[str] = set()
     vendors: set[str] = set()
+    android: set[str] = set()
     for entry in catalog["apps"]:
         if entry["source"] in {"flathub", "flatpak"}:
             continue
@@ -3481,11 +3473,14 @@ def lifecycle_snapshot(catalog: dict, apk_digests: ApkDigests | None = None) -> 
         states[entry["id"]] = state
         if state["installed"] and catalog_kind(entry) == "appdrop":
             claimed.add(entry["id"])
+        if catalog_kind(entry) == "android":
+            android.add((entry.get("install") or {}).get("package", entry["id"]))
         if catalog_kind(entry) == "vendor":
             # Offered here: its own entry shows its record, intact or not.
             vendors.add(entry["id"])
     return {"catalog": states, "dropped": dropped_records(claimed),
-            "vendor": vendor_orphans(vendors)}
+            "vendor": vendor_orphans(vendors),
+            "android": android_inventory_module().unlisted(data_home(), android)}
 
 
 # ── flatpak's deploy data ────────────────────────────────────────────────────
@@ -3871,6 +3866,28 @@ def apply_lifecycle(apps: list[dict], *, installed: dict[str, list[dict]],
         entry["eol"] = False
         extra.append(finish_app(entry))
         taken.add(record["id"])
+    for record in snapshot.get("android", []):
+        package = record["package"]
+        app_id = android_inventory_module().record_id(package)
+        if app_id in taken:
+            continue
+        name = clean_text(record.get("file", ""), 160)
+        if name.lower().endswith(".apk"):
+            name = name[:-4]
+        name = name or package.rsplit(".", 1)[-1]
+        entry = {
+            "id": app_id, "package": package, "source": "local", "kind": "android",
+            "origin": "local", "scope": "user", "engine": "android", "arch": None,
+            "installable": False, "listed": False, "flatpak_ref": None, "branch": None,
+            "name": name, "name_en": name, "summary": "", "description": "",
+            "developer": "", "license": "", "category": "other", "categories": [],
+            "icon": None, "screenshot": None, "verified": False, "installed": True,
+            "version": record.get("version") or None, "installed_version": record.get("version") or None,
+            "update_available": False, "eol": False, "curated": False, "branding": None,
+            "content_rating": None, "details": None, "origins": [],
+        }
+        extra.append(finish_app(entry))
+        taken.add(app_id)
     result = sorted(listed + extra,
                     key=lambda app: (app["name"].casefold(), app["id"].casefold()))
     for app in result:

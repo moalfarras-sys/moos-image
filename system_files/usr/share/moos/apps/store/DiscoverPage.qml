@@ -5,8 +5,7 @@ import QtQuick.Controls
 import QtQuick.Layouts
 import org.moos.ui as MoUI
 
-// Mo Store — Discover: the hero, where apps come from (Linux apps, web apps, Windows programs,
-// Android apps), the catalogue's collections as rows, ready-made sets that set up a PC in one
+// Mo Store — Discover: the four app platforms, the hero, the catalogue's collections as rows, ready-made sets that set up a PC in one
 // step, the twelve categories, and a quiet line about the catalogue itself.
 //
 // Drawn from main.qml's state: `win` is the Store window, which owns the data, the actions
@@ -48,12 +47,6 @@ Item {
             width: discoverFlick.width - discover.padding * 2
             spacing: discover.design.space6
 
-            HeroCarousel {
-                win: discover.win
-                Layout.fillWidth: true
-                visible: discover.win.featured.length > 0
-            }
-
             // ── Where apps come from ──
             ColumnLayout {
                 Layout.fillWidth: true
@@ -61,9 +54,9 @@ Item {
                 SectionHeader {
                     win: discover.win
                     Layout.fillWidth: true
-                    title: discover.win.local("من أين تأتي التطبيقات", "Where apps come from")
-                    subtitle: discover.win.local("متجر واحد لأربعة عوالم، وكل تطبيق يقول بصدق كيف يعمل هنا",
-                                                 "One store for four worlds, and every app says honestly how it runs here")
+                    title: discover.win.local("اختر نوع التطبيقات", "Browse by platform")
+                    subtitle: discover.win.local("حزم لينكس، وبرامج ويندوز، وتطبيقات أندرويد، ومواقع الويب — مع توضيح التوافق",
+                                                 "Linux packages, Windows programs, Android apps and web apps — with compatibility shown")
                     glyph: "orbit"
                 }
                 GridLayout {
@@ -75,6 +68,7 @@ Item {
                         model: discover.win.kindDefs
                         delegate: Rectangle {
                             id: source
+                            objectName: "platform-" + source.modelData.id
                             required property var modelData
                             readonly property color tone: discover.kindTone(source.modelData.id)
                             readonly property int count: discover.win.kindCountIn(source.modelData.id)
@@ -170,6 +164,12 @@ Item {
                         }
                     }
                 }
+            }
+
+            HeroCarousel {
+                win: discover.win
+                Layout.fillWidth: true
+                visible: discover.win.featured.length > 0
             }
 
             // ── The catalogue's collections ──

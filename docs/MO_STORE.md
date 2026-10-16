@@ -42,6 +42,32 @@ still open; `PROJECT_STATE.md` owns what is measured.
 | `web` | `web` | nothing (opens the publisher page) | — | — |
 | `dropped` | — | an App Drop install that is not in the catalogue | its launcher | App Drop `remove` |
 
+## Runtime lifetime and application management
+
+Android starts only on an explicit Store operation or confirmed one-time setup.
+The long-lived session belongs to `moos-android-session.service`, an on-demand
+user unit with no enable/autostart wiring, `PartOf=graphical-session.target` and
+normal owner Wayland environment. Store jobs wait for an unambiguous successful
+RUNNING response; a setup/download error never becomes readiness. APK file
+handling delegates to this same authority. A running session is reused.
+
+A file APK is copied to a private disk snapshot, inspected and installed from
+those exact bytes. Its package must appear before the install is reported as
+complete; readable installed bytes are checked against the snapshot. Updating
+an already present package updates its receipt, while a silent refusal keeps
+the previous receipt. Android verifies package signatures at installation;
+manifest/receipt inspection is not a substitute for that verification.
+
+Owned receipts for APKs absent from the catalogue appear as unlisted installed
+apps when the runtime package is actually present. Their public IDs use
+`android-<package>` (a bounded hash for long names), so an identically named
+Linux app cannot be accidentally removed. Source-file apps update from a new
+file, not an invented catalogue pin. Malformed/unsafe receipts fail closed.
+
+The Library opens the existing native application's Task Manager page through
+the fixed `moos://app/task-manager` route. The stock launcher remains upstream's;
+MoOS adds no duplicate desktop entry or background process monitor.
+
 ## catalog.json (v2)
 
 Top level: `_comment`, `categories[]`, `collections[]`, `featured[]`, `bundles[]`, `apps[]`.

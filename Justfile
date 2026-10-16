@@ -251,6 +251,8 @@ check:
     python3 tests/test_remote_pipewire_fd.py
     python3 tests/test_remote_screen_target.py
     python3 tests/test_greeter_crash_recovery.py
+    python3 tests/test_task_manager_integration.py
+    python3 tests/test_qml_host_platform.py
     # The frame rate a viewer asks for is the one sent: videorate max-rate does not limit a ScreenCast.
     python3 tests/test_remote_frame_pacer.py
     python3 tests/test_remote_connection_lifecycle.py
@@ -467,6 +469,7 @@ check:
     # app opened.
     python3 tests/test_android_setup_channels.py
     python3 tests/test_android_runtime_state.py
+    python3 tests/test_android_session_service.py
     # A retiring npm endpoint failed three signed builds on 2026-09-19 by
     # returning 400, which reads exactly like a vulnerability. The gate tells
     # "npm answered and it is clean" apart from "npm could not answer", retries

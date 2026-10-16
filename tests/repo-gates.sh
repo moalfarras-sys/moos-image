@@ -299,6 +299,8 @@ python3 tests/test_remote_rebuild_debounce.py
 python3 tests/test_remote_pipewire_fd.py
 python3 tests/test_remote_screen_target.py
 python3 tests/test_greeter_crash_recovery.py
+python3 tests/test_task_manager_integration.py
+python3 tests/test_qml_host_platform.py
 # `videorate max-rate=N` passes every frame of a variable-rate ScreenCast: asked for 30, the A1
 # encoded 35.6 a second. The pacer waits instead of dropping, so the newest frame is never lost.
 python3 tests/test_remote_frame_pacer.py
@@ -501,3 +503,4 @@ python3 tests/test_npm_audit_gate.py
 python3 tests/test_app_drop_dialog_runtime.py
 python3 tests/test_android_setup_channels.py
 python3 tests/test_android_runtime_state.py
+python3 tests/test_android_session_service.py

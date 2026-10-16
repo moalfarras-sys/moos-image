@@ -290,13 +290,13 @@ ApplicationWindow {
     // Where an app comes from, in the four words a person uses (docs/MO_STORE.md "Kinds of app").
     readonly property var kindDefs: [
         { id: "linux",   ar: "تطبيقات لينكس",  en: "Linux apps",       glyph: "cube",
-          ar2: "معزولة، من الكتالوج المفتوح",          en2: "Sandboxed, from the open catalogue" },
-        { id: "web",     ar: "تطبيقات الويب",  en: "Web apps",         glyph: "globe",
-          ar2: "كل تطبيق في نافذته الخاصة",           en2: "Each in a window of its own" },
+          ar2: "حزم لينكس وتطبيقات سطح المكتب",        en2: "Linux packages and desktop apps" },
         { id: "windows", ar: "برامج ويندوز",   en: "Windows programs", glyph: "system",
-          ar2: "من الناشر، ومطابقة لبصمة راجعناها",      en2: "From the publisher, checked by fingerprint" },
+          ar2: "برامج محمولة، مع التحقق من التوافق",    en2: "Portable programs; compatibility checked" },
         { id: "android", ar: "تطبيقات أندرويد", en: "Android apps",     glyph: "phone",
-          ar2: "تعمل بجانب برامجك الأخرى",             en2: "Running beside your other programs" }
+          ar2: "حزم APK، حسب توافق هذا الجهاز",         en2: "APK packages, matched to this device" },
+        { id: "web",     ar: "تطبيقات الويب",  en: "Web apps",         glyph: "globe",
+          ar2: "مواقع الويب في نوافذ مستقلة",           en2: "Websites in their own windows" }
     ]
 
     // The index's old 14-value `category`, for an index written before `cat` existed.
@@ -780,8 +780,9 @@ ApplicationWindow {
         var kind = win.appKind(app)
         if (kind === "dropped") return win.kindLabel(kind)
         var who = app.developer ? "" + app.developer : ""
-        if (kind === "flatpak") return who !== "" ? who : win.kindLabel(kind)
-        return who !== "" ? who + " · " + win.kindLabel(kind) : win.kindLabel(kind)
+        // Keep the package/web distinction visible even when a long publisher
+        // name is elided on a card. Every platform still uses its real lifecycle.
+        return win.kindLabel(kind) + (who !== "" ? " · " + who : "")
     }
 
     // The badge on every card. It used to print the CHANNEL an app arrives
@@ -1772,6 +1773,7 @@ ApplicationWindow {
         "removed_data_untracked":   ["تمت الإزالة. بقيت الإعدادات وبيانات تسجيل دخول التي حفظها التطبيق في أماكن أخرى من مجلد المنزل", "Removed. Settings and sign-in data the app saved elsewhere in your home folder were kept"],
         "android_status_unknown":   ["تعذّر التحقق من جاهزية تطبيقات أندرويد", "Could not verify Android app support"],
         "android_not_running":      ["دعم تطبيقات أندرويد غير مشغّل. افتحه أولاً لتشغيل هذا التطبيق", "Android app support is not running. Open it first to run this app"],
+        "android_install_unconfirmed": ["لم يؤكد أندرويد تثبيت التطبيق. احتُفظ بسجل النسخة السابقة", "Android did not confirm installation. The previous record was kept"],
         "android_update_refused":    ["لم يُطبّق أندرويد التحديث. ما زالت النسخة السابقة مثبتة", "Android did not apply the update. The previous version is still installed"],
         "permission_changed":       ["تم تغيير الإذن", "Permission changed"],
         "permissions_reset":        ["أُعيدت الأذونات إلى وضعها الأصلي", "Permissions reset"],
@@ -2347,6 +2349,7 @@ ApplicationWindow {
     // setups are moai-do's, with its confirmation). Nothing here installs.
     readonly property var systemRoutes: ({
         "firmware": "moos://settings/update",
+        "task-manager": "moos://app/task-manager",
         "setup-windows": "moos://do/setup-windows",
         "setup-android": "moos://do/setup-waydroid"
     })
