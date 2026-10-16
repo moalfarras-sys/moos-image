@@ -639,6 +639,9 @@ login screen. Keep each identifier in its correct property, require
 Preserve the v5 node-ID path and descriptor lifetime guards. A connected socket,
 healthy encoder and logical desktop size do not identify the pixels: decode a
 picture. Private incidental camera bytes are discarded, never published as fixtures.
+The old user-experience gate required that wrong serial/path pairing. Its replacement
+executes both protocol selectors and the pipeline prefix; retain wrong-property,
+default-fallback and unused-selector negative controls.
 
 **A crashed greeter can stop its whole target.** A physical output disappearance
 crashed Qt's ListView destructor while removing the login screen. Its BindsTo

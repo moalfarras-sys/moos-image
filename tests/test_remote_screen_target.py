@@ -7,12 +7,15 @@ also inspect the AST-backed pipeline so a correct unused helper cannot pass.
 Native isolated PipeWire evidence is a separate opt-in review artifact.
 """
 import ast
+import sys
 from pathlib import Path
 import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
 SOURCE = ROOT / "moremote/agent-linux/mo-remote-portal.py"
 TREE = ast.parse(SOURCE.read_text())
+sys.path.insert(0, str(ROOT / "build_files"))
+from remote_screen_target_contract import validate_screen_target
 NS = {}
 SELECTOR = next(node for node in TREE.body if isinstance(node, ast.FunctionDef)
                 and node.name == "screen_target")
@@ -20,6 +23,21 @@ exec(compile(ast.Module(body=[SELECTOR], type_ignores=[]), str(SOURCE), "exec"),
 
 
 class ScreenTarget(unittest.TestCase):
+    def test_actual_pipeline_contract(self):
+        self.assertTrue(validate_screen_target(SOURCE.read_text()))
+
+    def test_wrong_serial_property_is_refused(self):
+        self.assertFalse(validate_screen_target(SOURCE.read_text().replace(
+            'return "target-object", serial', 'return "path", serial')))
+
+    def test_default_video_fallback_is_refused(self):
+        self.assertFalse(validate_screen_target(SOURCE.read_text().replace(
+            'node.dont-fallback=(boolean)true', 'node.dont-fallback=(boolean)false')))
+
+    def test_unused_correct_selector_cannot_qualify_a_wrong_pipeline(self):
+        self.assertFalse(validate_screen_target(SOURCE.read_text().replace(
+            'screen_target(node_id, node_props)', '("path", node_id)')))
+
     def test_v6_serial_never_becomes_a_node_id(self):
         self.assertEqual(NS["screen_target"](78, {"pipewire-serial": 1466, "source_type": 1}),
                          ("target-object", 1466))

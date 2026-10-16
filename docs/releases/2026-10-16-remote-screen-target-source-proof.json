@@ -49,10 +49,10 @@
     "old_error": "path= was given object.serial, although it accepts node ID; default video fallback remained allowed",
     "fixed": "v6 serial uses target-object; v5 ID stays path; node.dont-fallback=true; malformed/non-monitor targets refuse",
     "tests": {
-      "target_selector": 4,
       "existing_fd_lifetime": "pass",
       "existing_video_health": "pass",
-      "native_gstreamer_property_parse": "pass; never played"
+      "native_gstreamer_property_parse": "pass; never played",
+      "target_selector_and_contract": 8
     }
   },
   "greeter_recovery": {
@@ -311,5 +311,12 @@
     "retire exact runtime bundle after signed replacement/no-holder proof",
     "phone decoded picture/input/long-running hotplug acceptance",
     "ARM v5 targeting/endurance remains separate"
-  ]
+  ],
+  "preserved_full_gate_failure": {
+    "revision": "e9eab061a1eeaec5482e29ff0c525fc520111209",
+    "exit": 1,
+    "seconds": 7.832,
+    "log_sha256": "33a53c86f437650b6000e1b70bc115a4a2a07052c8ee7d8b72e9a7cf5205a7f6",
+    "cause": "existing user-experience literal gate required the incorrect serial/path pairing; replaced by executable selector/pipeline contract with negative controls"
+  }
 }

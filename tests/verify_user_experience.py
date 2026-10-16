@@ -2379,10 +2379,14 @@ require("CaptureFallback" in capture,
 # The portal helper is what actually produces frames and injects input.
 portal = read("moremote/agent-linux/mo-remote-portal.py")
 require("pipewiresrc" in portal, "Remote capture must run on PipeWire")
-require('node_props.get("pipewire-serial", node_id)' in portal
-        and "path={pipewire_target}" in portal,
-        "PipeWire capture must target the portal's stable object serial when available; "
-        "a node id can be reused after suspend, hot-plug or a mode switch and leave a black stream")
+# The former literal assertion required the serial in path=, precisely the
+# wrong identifier/property pairing. Execute the selector and the actual
+# pipeline prefix in both protocol versions, with camera fallback forbidden.
+sys.path.insert(0, str(ROOT / "build_files"))
+from remote_screen_target_contract import validate_screen_target
+require(validate_screen_target(portal),
+        "PipeWire capture must bind the portal serial/node ID in its correct property "
+        "and forbid default-camera fallback")
 require("NotifyPointerMotionAbsolute" in portal,
         "The pointer must be positioned absolutely, so a tap lands where it was tapped")
 require("CURSOR_HIDDEN" in portal,
