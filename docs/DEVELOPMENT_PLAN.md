@@ -11,6 +11,14 @@ new private feedback/optional public suggestions product is P6.9 below.
 
 ## Active delivery and acceptance batch
 
+Oct16's active slice repairs the owner's installed `.1062` Store/Remote experience:
+responsive cards/viewport loading, one product with explicit variants, native app
+inventory, Android service readiness and independent lifetime, raw capture geometry
+and Baloo's nonvisual startup. [Specification and bounded evidence](reviews/store-20261016/EXPERIENCE.md).
+NVIDIA actually boots `.1062`/Plasma6.8 with `.1046` rollback; its failed Android
+update and14 extractor display errors remain preserved. Source controls and one
+real native F-Droid launch do not qualify a new release or complete phone/app matrix.
+
 Current qualified source `e1ffacfa` (PR243–246) ships the 200-app Store, all
 13 Craft apps, reviewed lifecycle/data/index/UI fixes, stable x86 Plasma6.8.0
 and THEME_REV=106. Native repository gates and the complete local image with

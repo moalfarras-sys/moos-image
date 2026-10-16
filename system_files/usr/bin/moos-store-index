@@ -3871,6 +3871,10 @@ def apply_lifecycle(apps: list[dict], *, installed: dict[str, list[dict]],
         entry["eol"] = False
         extra.append(finish_app(entry))
         taken.add(record["id"])
+    for native in snapshot.get("native", []):
+        if native["id"] not in taken and native.get("provided_id") not in taken:
+            extra.append(finish_app(dict(native)))
+            taken.add(native["id"])
     result = sorted(listed + extra,
                     key=lambda app: (app["name"].casefold(), app["id"].casefold()))
     for app in result:
@@ -5130,6 +5134,8 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Build Mo Store's local, unified application index"
     )
+    parser.add_argument("--desktop-apps", action="store_true",
+                        help="include effective native desktop launchers in My apps")
     parser.add_argument("--output", type=Path, default=default_output)
     parser.add_argument("--print-machine", action="store_true",
                         help="write the machine profile as JSON and exit (read-only)")
@@ -5622,6 +5628,12 @@ def main(argv: list[str] | None = None) -> int:
         )
         apk_digests = ApkDigests(args.output.parent / APK_DIGESTS_NAME)
         lifecycle = lifecycle_snapshot(catalog, apk_digests)
+        if args.desktop_apps:
+            import importlib
+            library = str(Path(__file__).resolve().parent.parent / "lib/moos")
+            if library not in sys.path:
+                sys.path.insert(0, library)
+            lifecycle["native"] = importlib.import_module("moos_store_desktop").inventory(language=args.locale)
         apk_digests.save()
         # What the compatibility verdicts read: this machine (or --machine), and
         # the Flathub facts moos-storectl keeps next to the index.

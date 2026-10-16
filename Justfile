@@ -277,6 +277,7 @@ check:
     python3 tests/test_remote_resolution_ceiling.py
     python3 tests/test_remote_h264_fallback.py
     python3 tests/test_remote_video_health.py
+    python3 tests/test_remote_source_geometry.py
     python3 tests/test_remote_display_geometry.py
     python3 tests/test_remote_weak_link.py
     python3 tests/test_remote_h264_single_slice.py
@@ -480,6 +481,9 @@ check:
     # offscreen on fixture data (and the bare catalogue), fails on any QML warning, and proves on
     # a planted copy that it reaches every view file. Skips where the Qt runtime is absent.
     python3 tests/test_mo_store_ui_pages.py
+    python3 tests/test_store_native_desktop.py
+    python3 tests/test_store_product_identity.py
+    python3 tests/test_store_experience_ui.py
     # The Device page told an Oracle A1 owner their CPU was a "MoOS device".
     # Real hardware identity, or an honest Unknown -- never an invented name.
     python3 tests/test_settings_hardware_identity.py

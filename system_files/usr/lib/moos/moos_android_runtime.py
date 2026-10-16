@@ -9,7 +9,7 @@ import sys
 
 _PREFIX = r"^\s*(?:\(\d+\)\s*)?(?:\[\d{2}:\d{2}:\d{2}\]\s*)?"
 _FAILURE = re.compile(_PREFIX + r"(?:ERROR\s*:|Failure\s*\[|INSTALL_FAILED_[A-Z_]+\b|"
-                      r"Failed to access IPlatform service\b|WayDroid session is stopped\b|"
+                      r"Failed to access IPlatform service\b|Failed to get service waydroidplatform\b|WayDroid session is stopped\b|"
                       r"WayDroid is not initialized\b)", re.IGNORECASE | re.MULTILINE)
 
 def status_state(code, stdout, stderr=""):
@@ -24,6 +24,11 @@ def status_state(code, stdout, stderr=""):
     if absent:
         return "uninitialized" if not states else "unknown"
     return states[0] if len(states) == 1 else "unknown"
+
+def platform_ready(code, stdout, stderr=""):
+    """A session process can run before Android's application service is usable."""
+    return code == 0 and len(stdout) + len(stderr) <= 65536 and not any(
+        _FAILURE.search(s) for s in (stdout, stderr))
 
 def main():
     if sys.argv[1:] != ["status"]:

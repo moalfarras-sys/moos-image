@@ -1,0 +1,13 @@
+[Unit]
+Description=MoOS Android apps
+After=graphical-session.target
+PartOf=graphical-session.target
+ConditionPathExists=/usr/bin/waydroid
+StartLimitIntervalSec=5min
+StartLimitBurst=3
+
+[Service]
+Type=exec
+ExecStart=/usr/bin/env /usr/bin/waydroid session start
+Restart=on-failure
+RestartSec=3s

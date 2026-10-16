@@ -2108,38 +2108,38 @@ class Controller:
                           message_key="android_not_running")
 
     def _ensure_android_session(self, job: Job, *, start: bool = True) -> None:
-        """Make the already-configured user runtime ready for one explicit job.
+        """Wait for the application service, not just its session process.
 
-        Opening, installing or removing an app is the person's intent to use
-        the runtime, so starting its user session here needs no second dialog.
-        The system image is never downloaded here; one-time setup remains the
-        separately confirmed `moai-do setup-waydroid` action. With `start`
-        false (a moos: link, or an open beside another job) a session that is
-        not running is refused, never started.
+        Only an explicit Store job starts an already-configured session. A public
+        open route never starts one. No install/update command runs until the
+        application list can actually be read without platform-service errors.
         """
-        status = self.runner.capture([WAYDROID, "status"], timeout=2)
         runtime = self._library("moos_android_runtime")
+        status = self.runner.capture([WAYDROID, "status"], timeout=2)
         state = runtime.status_state(status.returncode, status.output, status.reason)
         if state == "unknown":
             raise StoreError("Could not verify Android app support", message_key="android_status_unknown")
         if state == "uninitialized":
             raise StoreError("Android apps need the one-time MoOS setup first")
-        if self._android_running(status):
-            return
-        if not start:
-            raise self._android_not_running()
-        self.runner.spawn([WAYDROID, "session", "start"])
-        deadline = time.monotonic() + 20
+        if state != "RUNNING":
+            if not start:
+                raise self._android_not_running()
+            self.runner.spawn(["/usr/bin/systemctl", "--user", "start", "moos-android-session.service"])
+        job.update(message="Starting Android app support", message_key="android_starting", progress=None)
+        deadline = time.monotonic() + 90
         while time.monotonic() < deadline:
             if self._cancelled(job):
                 raise CancelledError("Cancelled")
+            if state == "RUNNING":
+                apps = self.runner.capture([WAYDROID, "app", "list"], timeout=4)
+                if runtime.platform_ready(apps.returncode, apps.output, apps.reason):
+                    return
             time.sleep(1)
             status = self.runner.capture([WAYDROID, "status"], timeout=2)
-            if self._android_running(status):
-                return
-            if runtime.status_state(status.returncode, status.output, status.reason) == "unknown":
+            state = runtime.status_state(status.returncode, status.output, status.reason)
+            if state == "unknown":
                 raise StoreError("Could not verify Android app support", message_key="android_status_unknown")
-        raise StoreError("Android app support did not become ready")
+        raise StoreError("Android app support did not become ready", message_key="android_not_ready")
 
     def _install_npm(self, job: Job, app_id: str, recipe: dict[str, Any]) -> None:
         install = recipe.get("install")
@@ -3849,6 +3849,28 @@ class Controller:
     def run(self, app_id: str, start_android: bool = True) -> tuple[int, dict[str, Any]]:
         """Open an installed app of any kind. `start_android` false (`--no-android-start`, what a
         moos: link asks for) opens an Android app only into Android app support already running."""
+        if app_id.startswith("native."):
+            entry = self._library("moos_store_desktop").find(app_id)
+            if entry is None:
+                raise StoreError("App is not installed", message_key="not_installed")
+            try:
+                lock, job = self._begin_run(app_id)
+            except BusyError:
+                return self._refuse_busy("run", [app_id])
+            with lock:
+                try:
+                    result = self.runner.run_cancellable(
+                        [GTK_LAUNCH, entry["desktop_id"]], lambda: self._cancelled(job))
+                    if result.cancelled:
+                        raise CancelledError("Cancelled")
+                    if result.returncode:
+                        raise StoreError(result.reason or "Could not open the application")
+                    job.update_item(app_id, state="done", progress=100,
+                                    message="Opened", message_key="opened")
+                    job.finish_from_items("App opened", "app_opened")
+                except Exception as error:
+                    job.fail(error, [app_id])
+                return exit_code(job.document["state"]), job.snapshot()
         recipe = self._catalog().get(app_id)
         if (
             recipe is not None
@@ -4360,6 +4382,7 @@ class Controller:
                 result = self.runner.run_cancellable(
                     [
                         STORE_INDEX,
+                        "--desktop-apps",
                         "--catalog",
                         str(self.catalog_path),
                         "--output",

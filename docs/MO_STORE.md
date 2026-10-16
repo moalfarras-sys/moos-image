@@ -284,3 +284,21 @@ ranking is claimed.
 Store Settings links to the existing MoOS theme and animation authorities. These
 open system configuration; they do not install unreviewed theme scripts or change
 upstream authentication components.
+
+## Installed experience repair (Oct16 source, not yet signed delivery)
+
+`moos-store-index --desktop-apps` adds the effective native desktop inventory to
+My apps, including OS-owned and external apps. The launcher and explicit refresh
+use this option. Desktop precedence/hidden overrides and managed export markers
+prevent double counting; native entries remain unlisted and non-installable.
+`native.<desktop-id>` opens only an effective launcher re-read by the executor.
+OS and untracked external programs are never treated as Store-owned uninstall paths.
+
+Product grouping uses `StoreProducts.js`'s reviewed identity pairs and matching
+canonical native desktop IDs. Every variant keeps its backend ID and actions;
+kind-specific browsing remains available. Generic names never establish identity.
+
+Android startup has its own on-demand user service and a90s cancellable
+application-service readiness check. A running process alone cannot authorize
+install/update. The first native F-Droid source run passes; wider native app
+qualification and signed release remain separate.

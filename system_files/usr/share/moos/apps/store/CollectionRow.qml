@@ -19,6 +19,8 @@ ColumnLayout {
     property real bleed: design.space6
     // A row made on the spot (more from a developer, similar apps) has no page to see in full.
     property bool canSeeAll: true
+    property bool populated: true
+    readonly property var shownApps: row.collection.previewApps || row.collection.apps
     readonly property real cardWidth: win.fs(212)
     readonly property real cardHeight: win.fs(256)
 
@@ -60,7 +62,7 @@ ColumnLayout {
         orientation: ListView.Horizontal
         spacing: row.design.space4
         clip: true
-        model: row.collection.apps
+        model: row.visible && row.populated ? row.shownApps : []
         boundsBehavior: Flickable.StopAtBounds
         highlightFollowsCurrentItem: false
         keyNavigationEnabled: true
@@ -69,8 +71,8 @@ ColumnLayout {
         activeFocusOnTab: count > 0
         Accessible.role: Accessible.List
         Accessible.name: row.win.localName(row.collection)
-        Keys.onReturnPressed: if (currentIndex >= 0) row.win.openDetails(row.collection.apps[currentIndex])
-        Keys.onEnterPressed: if (currentIndex >= 0) row.win.openDetails(row.collection.apps[currentIndex])
+        Keys.onReturnPressed: if (currentIndex >= 0) row.win.openDetails(row.shownApps[currentIndex])
+        Keys.onEnterPressed: if (currentIndex >= 0) row.win.openDetails(row.shownApps[currentIndex])
         onActiveFocusChanged: if (activeFocus && count > 0 && currentIndex < 0) currentIndex = 0
         onCurrentIndexChanged: if (activeFocus) positionViewAtIndex(currentIndex, ListView.Contain)
         WheelHandler {

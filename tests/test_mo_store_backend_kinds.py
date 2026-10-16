@@ -651,8 +651,10 @@ class AndroidRecords(Kinds):
         apk = self.home / "Downloads/notes.apk"
         apk.parent.mkdir()
         apk.write_bytes(b"PK\x03\x04dropped")
-        listing = iter(["packageName: com.other\n",
-                        f"packageName: com.other\npackageName: {self.PACKAGE}\n"])
+        # Readiness reads before the install's before/after diff, and before run/remove.
+        before = "packageName: com.other\n"
+        after = f"packageName: com.other\npackageName: {self.PACKAGE}\n"
+        listing = iter([before, before, after, after, after])
         self.runner.answers = {(MODULE.WAYDROID, "status"): (0, "Session:\tRUNNING\n")}
         original = self.runner.capture
 

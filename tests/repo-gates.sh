@@ -283,6 +283,7 @@ python3 tests/test_remote_h264_fallback.py
 # Only encoder failure may negotiate down. A dead PipeWire source needs a fresh portal
 # session, and both helper and agent must detect silence after frames have started.
 python3 tests/test_remote_video_health.py
+python3 tests/test_remote_source_geometry.py
 python3 tests/test_remote_display_geometry.py
 python3 tests/test_remote_weak_link.py
 # Mo PC Remote's feel over cellular is decided by three lines of kernel tuning, and both
@@ -490,6 +491,9 @@ python3 tests/test_design_studio_reference.py
 python3 tests/test_store_app_drop_bridge.py
 python3 tests/test_store_app_drop_ui.py
 python3 tests/test_mo_store_ui_pages.py
+python3 tests/test_store_native_desktop.py
+python3 tests/test_store_product_identity.py
+python3 tests/test_store_experience_ui.py
 python3 tests/test_selfcheck_document_portal.py
 
 # The gate that keeps `npm audit` honest. A retiring registry endpoint failed

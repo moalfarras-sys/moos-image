@@ -2926,6 +2926,8 @@ systemd-analyze verify \
     /usr/lib/systemd/user/moos-app-drop.service \
     /usr/lib/systemd/user/moos-store-notify.path \
     /usr/lib/systemd/user/moos-store-notify.service \
+    /usr/lib/systemd/user/moos-android-session.service \
+    /usr/lib/systemd/user/kde-baloo.service \
     /usr/lib/systemd/user/mira.service \
     /usr/lib/systemd/user/mira-lumen.service
 # mira.service (Mira's login start) is verified but never enabled here: it is the person's own

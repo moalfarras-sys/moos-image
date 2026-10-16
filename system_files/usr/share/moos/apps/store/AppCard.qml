@@ -73,8 +73,11 @@ Rectangle {
     }
 
     // ── grid ──
+    Loader {
+        anchors.fill: parent
+        active: card.variant === "grid"
+        sourceComponent: Component {
     ColumnLayout {
-        visible: card.variant === "grid"
         anchors.fill: parent
         anchors.margins: card.design.space4
         spacing: card.design.space2
@@ -150,10 +153,15 @@ Rectangle {
             }
         }
     }
+        }
+    }
 
     // ── tile ──
+    Loader {
+        anchors.fill: parent
+        active: card.variant === "tile"
+        sourceComponent: Component {
     ColumnLayout {
-        visible: card.variant === "tile"
         anchors.fill: parent
         anchors.margins: card.design.space4
         spacing: card.design.space1
@@ -216,10 +224,15 @@ Rectangle {
             }
         }
     }
+        }
+    }
 
     // ── row ──
+    Loader {
+        anchors.fill: parent
+        active: card.variant === "row"
+        sourceComponent: Component {
     RowLayout {
-        visible: card.variant === "row"
         anchors.fill: parent
         anchors.leftMargin: card.design.space4
         anchors.rightMargin: card.design.space4
@@ -266,6 +279,8 @@ Rectangle {
             app: card.app
             tabStop: !card.compositeFocus
             visible: card.variant === "row"
+        }
+    }
         }
     }
 }
