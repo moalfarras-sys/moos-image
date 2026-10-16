@@ -1,0 +1,206 @@
+{
+  "checked_at": "2026-10-16T01:16:12.773149+00:00",
+  "qualified_revision": "e1ffacfa8e2a5ca329c2647dd1ac0a7c33582876",
+  "x86_promotion_run": 38829865381,
+  "arm_full_pipeline": 38824591685,
+  "editions": [
+    {
+      "edition": "moos",
+      "digest": "sha256:f587c9c1d9066efccc06cf5d69e13d4bcca25a8f08d0c7c21a6f77308e782a93",
+      "revision": "e1ffacfa8e2a5ca329c2647dd1ac0a7c33582876",
+      "version": "44.20261015.1062",
+      "architecture": "amd64",
+      "signature_verified": true,
+      "latest_matches_proven_candidate": true
+    },
+    {
+      "edition": "moos-nvidia",
+      "digest": "sha256:708223c7ed8a366c41f051ef7f15bb00510c7a2b4acbe3d0ce9c083db9c8aac4",
+      "revision": "e1ffacfa8e2a5ca329c2647dd1ac0a7c33582876",
+      "version": "44.20261015.1062",
+      "architecture": "amd64",
+      "signature_verified": true,
+      "latest_matches_proven_candidate": true
+    },
+    {
+      "edition": "moos-cloud",
+      "digest": "sha256:dc06b0a2450adc44034525289ebffb00aedac8e1070b1e05b1de2aba39ff1062",
+      "revision": "e1ffacfa8e2a5ca329c2647dd1ac0a7c33582876",
+      "version": "44.20261015.1062",
+      "architecture": "amd64",
+      "signature_verified": true,
+      "latest_matches_proven_candidate": true
+    },
+    {
+      "edition": "moos-arm",
+      "digest": "sha256:05d9bbac44fb20cd0f1b5cb6e5f64b0d2a8a59930c920101a381abbe4421e040",
+      "revision": "e1ffacfa8e2a5ca329c2647dd1ac0a7c33582876",
+      "version": "44.20261015.792",
+      "architecture": "arm64",
+      "signature_verified": true,
+      "latest_matches_proven_candidate": true
+    }
+  ],
+  "scope": "Live production registry and public-key signature readback, separate from installed hardware acceptance",
+  "source_tree": "02be5531364b430fc3fbd42bb6e7e3dfbf7b07d6",
+  "merged_prs": [
+    243,
+    244,
+    245,
+    246
+  ],
+  "build_run": 38816837919,
+  "workflow_attempt": 1,
+  "local_image": "620e1e9108f0f3f3d67e4cdac6e4283711195b859317db82142b4ca7f8ccbc82",
+  "local_payload_files": 63,
+  "curated_apps": 200,
+  "craft_apps": 13,
+  "theme_revision": 106,
+  "x86_plasma": "6.8.0",
+  "arm_plasma": "6.7.5",
+  "disk_proofs": [
+    {
+      "edition": "moos",
+      "run_id": 38824574093,
+      "reference": "ghcr.io/moalfarras-sys/moos@sha256:f587c9c1d9066efccc06cf5d69e13d4bcca25a8f08d0c7c21a6f77308e782a93",
+      "first_boot_id": "3bc4f787-9221-4097-8ad1-93b7e883585e",
+      "second_boot_id": "b75fd3f4-9f3d-4e77-9ee4-41e750a8de6b",
+      "shutdown": "clean",
+      "sealed_qcow2_sha256": "87545c150ab8b6ff2aa32a53ae4a16c70a89d7f879f0c2e6864a500cf244404c",
+      "visuals": {
+        "graphical-first-boot": "graphical-first-boot.ppm: mean=0.137153 stddev=0.122801 visible-pixels=1.000000",
+        "graphical-second-boot": "graphical-second-boot.ppm: mean=0.158881 stddev=0.083207 visible-pixels=1.000000"
+      }
+    },
+    {
+      "edition": "moos-nvidia",
+      "run_id": 38824577430,
+      "reference": "ghcr.io/moalfarras-sys/moos-nvidia@sha256:708223c7ed8a366c41f051ef7f15bb00510c7a2b4acbe3d0ce9c083db9c8aac4",
+      "first_boot_id": "3afc0a99-9754-41f1-a7e1-af538ab00834",
+      "second_boot_id": "32ed5ce7-d9b6-4d07-95ed-5f0aa3b9af6b",
+      "shutdown": "clean",
+      "sealed_qcow2_sha256": "6805dbf4d7ae17ed39a905ff3cd75f3aaccced4bedbb525c80efd1d84b40b1f2",
+      "visuals": {
+        "graphical-first-boot": "graphical-first-boot.ppm: mean=0.148157 stddev=0.093686 visible-pixels=1.000000",
+        "graphical-second-boot": "graphical-second-boot.ppm: mean=0.159315 stddev=0.083606 visible-pixels=1.000000"
+      }
+    },
+    {
+      "edition": "moos-cloud",
+      "run_id": 38824580671,
+      "reference": "ghcr.io/moalfarras-sys/moos-cloud@sha256:dc06b0a2450adc44034525289ebffb00aedac8e1070b1e05b1de2aba39ff1062",
+      "first_boot_id": "0cc13b11-1108-4456-a5c5-05f94d27ba8a",
+      "second_boot_id": "647bd5db-73e0-4646-abd6-dddcb643fe75",
+      "shutdown": "clean",
+      "sealed_qcow2_sha256": "bbf4ec191f34ea70e0e309e21c22bb777bcb760fb1fff709c5d716fda3e56679",
+      "visuals": {
+        "graphical-first-boot": "graphical-first-boot.ppm: mean=0.156899 stddev=0.079761 visible-pixels=1.000000",
+        "graphical-second-boot": "graphical-second-boot.ppm: mean=0.156991 stddev=0.079982 visible-pixels=1.000000"
+      }
+    }
+  ],
+  "iso_proof": {
+    "time_utc": "2026-10-16T00:42:02.983401+00:00",
+    "source": "e1ffacfa8e2a5ca329c2647dd1ac0a7c33582876",
+    "iso_run": 38824584100,
+    "reference": "ghcr.io/moalfarras-sys/moos@sha256:f587c9c1d9066efccc06cf5d69e13d4bcca25a8f08d0c7c21a6f77308e782a93",
+    "iso_sha256": "62a16ebb1d3f8dc4107c44fdc588b5c2dccd906b42a86b1aa5ee559deb4255db",
+    "offline_install": "passed",
+    "ordinary_password_login": "passed",
+    "ten_apps": "opened-closed-reopened",
+    "second_boot": "healthy",
+    "shutdown": "clean",
+    "preauth_alias_pixels_equal": true,
+    "visual_gate": "frame.ppm: mean=0.160872 stddev=0.089490 visible-pixels=1.000000",
+    "scope": "Exact final ISO CI VM proof; not physical NVIDIA acceptance"
+  },
+  "iso_archive": {
+    "sha256": "62a16ebb1d3f8dc4107c44fdc588b5c2dccd906b42a86b1aa5ee559deb4255db",
+    "sizeBytes": 6020923392,
+    "signatureVerified": true,
+    "source": "e1ffacfa8e2a5ca329c2647dd1ac0a7c33582876",
+    "version": "44.20261015.1062",
+    "architecture": "x86_64",
+    "edition": "moos",
+    "build_run": 38816837919,
+    "disk_runs": [
+      38824574093,
+      38824577430,
+      38824580671
+    ],
+    "iso_run": 38824584100,
+    "promotion_run": 38829865381,
+    "checked_at": "2026-10-16T00:59:43.057558+00:00",
+    "scope": "Preserved exact proven ISO and detached signature; this is local retention, not public endpoint qualification"
+  },
+  "preservation": {
+    "refs_audited": 231,
+    "all_audited_tips_ancestors_of_qualified_revision": true,
+    "remote_heads_verified": 115,
+    "remote_heads_published_without_force": 82,
+    "original_station_worktrees": 57,
+    "original_station_dirty_worktrees": 5,
+    "original_oracle_worktrees": 23,
+    "original_oracle_dirty_worktrees": 4,
+    "dirty_files_cross_copied_and_sha256_verified": 24,
+    "full_git_bundle_verified": true,
+    "original_dirty_worktrees_untouched": true,
+    "note": "A separate clean documentation worktree was added after this checkpoint; original drafts and all candidate ancestry remain preserved."
+  },
+  "native_readback": {
+    "checked_at": "2026-10-16T06:33:07.304261+00:00",
+    "nvidia": {
+      "booted_version": "44.20261014.1046",
+      "boot_id": "d8a6ce1d-ca57-4680-9e5f-ef8118623b61",
+      "staged_version": "44.20261015.1062",
+      "staged_digest": "sha256:708223c7ed8a366c41f051ef7f15bb00510c7a2b4acbe3d0ce9c083db9c8aac4",
+      "signed_rollback_version": "44.20261013.1044",
+      "transaction": null,
+      "scope": "Exact signed stage exists; new boot, GPU and native desktop/application acceptance remain pending. The earlier two-hour wrapper timeout is preserved and did not undo the actual stage."
+    },
+    "arm": {
+      "checked_at": "2026-10-16T06:33:07.304261+00:00",
+      "source": "e1ffacfa8e2a5ca329c2647dd1ac0a7c33582876",
+      "edition": "moos-arm",
+      "version": "44.20261015.792",
+      "digest": "sha256:05d9bbac44fb20cd0f1b5cb6e5f64b0d2a8a59930c920101a381abbe4421e040",
+      "before_boot_id": "ab975b93-f72b-47ce-a327-b84f3f68a371",
+      "after_boot_id": "17e46ccf-f6d3-4416-b2c5-550be96077ca",
+      "signed_rollback_version": "44.20261015.791",
+      "payload_files": 63,
+      "payload_mismatches": [],
+      "plasma_versions": [
+        "plasma-workspace 6.7.5-1.1.moos1.fc44",
+        "kwin 6.7.5-1.fc44",
+        "kscreenlocker 6.7.5-1.fc44",
+        "plasma-login-manager 6.7.5-1.fc44"
+      ],
+      "kernel": "kernel-core-7.2.10-200.fc44.aarch64",
+      "failed_units": {
+        "system": "",
+        "user": ""
+      },
+      "native_wayland": true,
+      "selfcheck": {
+        "passed": 51,
+        "notes": 4
+      },
+      "post_update": {
+        "passed": 55,
+        "failed": 0
+      },
+      "apps_update_exit": 0,
+      "store_native_window": true,
+      "boot_time": "14.625s",
+      "scope": "Actual native ARM signed reboot and bounded desktop/app acceptance; not ordinary PAM, ARM Plasma6.8, phone/endurance or every application journey."
+    }
+  },
+  "boundaries": [
+    "All four registry/signature and artifact proofs passed; physical NVIDIA GPU and new-boot acceptance are separate.",
+    "ARM retains qualified native Plasma6.7.5; native6.8 package/source closure remains open.",
+    "The complete signed1062 ISO is locally retained; public website/anonymous endpoint qualification still belongs to1046.",
+    "Craft applications are early alpha; catalogue pins and bounded install/run proofs do not establish full Adobe feature parity.",
+    "Ten Windows/Android connected app journeys, proprietary game assets and broad hardware/phone/endurance acceptance remain open.",
+    "Owned postboot units had an actual graphical-session/workspace ordering cycle; their original files and logs are retained, only ordering was repaired, all checks retained."
+  ]
+}
