@@ -455,6 +455,7 @@ python3 artwork/verify_visuals.py
 # that appears broken; and the deny list is the only thing standing between an
 # automated session and a force-push over main. Pure stdlib, reads two files.
 python3 tests/test_mcp_config.py
+python3 tests/test_workflow_security.py
 # The UTM bundle must carry a NoCloud seed (the ARM image has no other
 # user-provisioning path) and generate a per-bundle one-time password —
 # never a shared static one inside the image.

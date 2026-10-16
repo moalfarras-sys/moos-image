@@ -12,6 +12,8 @@ on:
 
 jobs:
   claude-review:
+    # Public forks do not enter this secret-bearing advisory job.
+    if: ${{ github.actor == github.repository_owner && github.event.pull_request.head.repo.full_name == github.repository }}
     # Optional: Filter by PR author
     # if: |
     #   github.event.pull_request.user.login == 'external-contributor' ||
@@ -27,8 +29,9 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
+          persist-credentials: false
           fetch-depth: 1
 
       - name: Run Claude Code Review
@@ -36,7 +39,7 @@ jobs:
         # Non-blocking: this is an advisory review, not a release gate. The
         # OAuth token expires periodically; a dead token must not fail PRs.
         continue-on-error: true
-        uses: anthropics/claude-code-action@v1
+        uses: anthropics/claude-code-action@374f254f5efaf968abfe15d399fd90972e8138b9 # v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           plugin_marketplaces: 'https://github.com/anthropics/claude-code.git'
