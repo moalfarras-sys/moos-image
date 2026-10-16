@@ -312,11 +312,20 @@
     "phone decoded picture/input/long-running hotplug acceptance",
     "ARM v5 targeting/endurance remains separate"
   ],
-  "preserved_full_gate_failure": {
-    "revision": "e9eab061a1eeaec5482e29ff0c525fc520111209",
-    "exit": 1,
-    "seconds": 7.832,
-    "log_sha256": "33a53c86f437650b6000e1b70bc115a4a2a07052c8ee7d8b72e9a7cf5205a7f6",
-    "cause": "existing user-experience literal gate required the incorrect serial/path pairing; replaced by executable selector/pipeline contract with negative controls"
-  }
+  "preserved_full_gate_failures": [
+    {
+      "revision": "e9eab061a1eeaec5482e29ff0c525fc520111209",
+      "exit": 1,
+      "seconds": 7.832,
+      "log_sha256": "33a53c86f437650b6000e1b70bc115a4a2a07052c8ee7d8b72e9a7cf5205a7f6",
+      "cause": "existing user-experience literal gate required the incorrect serial/path pairing; replaced by executable selector/pipeline contract with negative controls"
+    },
+    {
+      "revision": "8d1e0ea77f70f71b1ccd9ed91ecddb00f9d8074e",
+      "exit": 1,
+      "seconds": 205.587,
+      "log_sha256": "05d6d77734006afc0b36f9f30656305a24d3759e36262f3f793c055070198349",
+      "cause": "release safety test counted the retired mutable @v3 action; now requires one full-SHA publisher action; all build/disk/ISO/signature/tree/attempt proof checks remain"
+    }
+  ]
 }
