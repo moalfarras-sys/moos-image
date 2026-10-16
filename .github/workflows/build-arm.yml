@@ -117,7 +117,9 @@ jobs:
       digest: ${{ steps.push.outputs.digest }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
 
       # test_boot_splash_polish.py opens the shipped PNG masters with Pillow.
       # Keep this explicit, as on the x86 workflow: hosted ARM runners do not
@@ -168,7 +170,7 @@ jobs:
       # the same ~14 GB of free space. A Plasma image plus a build cache does
       # not fit in that, and dnf5 fails late and confusingly when it runs out.
       - name: Free disk space
-        uses: jlumbroso/free-disk-space@v1.3.1
+        uses: jlumbroso/free-disk-space@54081f138730dfa15788a46383842cd2f914a1be # v1.3.1
         with:
           tool-cache: true
           android: true
@@ -324,7 +326,7 @@ jobs:
 
       - name: Log in to GHCR
         if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
-        uses: redhat-actions/podman-login@v2
+        uses: redhat-actions/podman-login@50c2d9a331bb67c8fdab99b86455fad05e2e3252 # v2
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
@@ -346,7 +348,7 @@ jobs:
 
       - name: Install cosign
         if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
-        uses: sigstore/cosign-installer@v3
+        uses: sigstore/cosign-installer@398d4b0eeef1380460a10c8013a76f728fb906ac # v3
 
       - name: Sign the ARM image by digest
         if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
@@ -382,10 +384,12 @@ jobs:
       packages: read
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
 
       - name: Free disk space
-        uses: jlumbroso/free-disk-space@v1.3.1
+        uses: jlumbroso/free-disk-space@54081f138730dfa15788a46383842cd2f914a1be # v1.3.1
         with:
           tool-cache: true
           android: true
@@ -415,10 +419,10 @@ jobs:
             openssh-client socat imagemagick xvfb x11-utils
 
       - name: Install cosign
-        uses: sigstore/cosign-installer@v3
+        uses: sigstore/cosign-installer@398d4b0eeef1380460a10c8013a76f728fb906ac # v3
 
       - name: Log in to GHCR
-        uses: redhat-actions/podman-login@v2
+        uses: redhat-actions/podman-login@50c2d9a331bb67c8fdab99b86455fad05e2e3252 # v2
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
@@ -526,7 +530,7 @@ jobs:
           du -h release/utm/MoOS-UTM-Installer.utm.zip
 
       - name: Upload UTM Net Installer
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: MoOS-UTM-Installer
           path: release/utm/MoOS-UTM-Installer.utm.zip
@@ -593,7 +597,7 @@ jobs:
 
       - name: Upload ARM boot proof
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: moos-arm-boot-proof
           path: arm-boot-proof/
@@ -742,14 +746,14 @@ jobs:
           echo "UTM: $(du -h release/utm/MoOS-ARM.utm.zip | cut -f1)"
 
       - name: Upload boot-proven ARM QCOW2
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: moos-arm-qcow2
           path: release/qcow2/
           retention-days: 14
 
       - name: Upload ready-to-import UTM bundle
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: moos-arm-utm
           path: release/utm/
@@ -804,7 +808,9 @@ jobs:
       packages: write
     steps:
       - name: Checkout the installed verification key
-        uses: actions/checkout@v5
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
 
       - name: Install promotion tools
         run: |
@@ -812,10 +818,10 @@ jobs:
           sudo apt-get install -y -qq skopeo
 
       - name: Install cosign
-        uses: sigstore/cosign-installer@v3
+        uses: sigstore/cosign-installer@398d4b0eeef1380460a10c8013a76f728fb906ac # v3
 
       - name: Log in to GHCR
-        uses: redhat-actions/podman-login@v2
+        uses: redhat-actions/podman-login@50c2d9a331bb67c8fdab99b86455fad05e2e3252 # v2
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}

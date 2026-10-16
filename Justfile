@@ -598,6 +598,7 @@ check:
     # pasted API key, an unapproved server, or a quietly deleted deny rule all reach
     # the next agent — and the first of those reaches the public internet.
     python3 tests/test_mcp_config.py
+    python3 tests/test_workflow_security.py
     # Same gate build.sh runs against the finished image, pointed at the tree that
     # is about to become it. Keeping it here means a drifted catalogue recipe or a
     # dead store route fails in seconds instead of at the end of an image build.
