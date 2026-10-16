@@ -1633,5 +1633,20 @@
       "pinned-updates-final.log": "1572480b2aeaf8e3eca27172ec348ef14e4c4ca322d8479f4dac3757141b94be",
       "backend-final-v2.log": "9623b2888ecbf2e0f96fb769fd4853eee30c641a3f05703c52564e4ffa265284"
     }
+  },
+  "fifth_final_gate_failure": {
+    "revision": "b3cf27dee9bfaada8ec053a5b729e5c25b5c09db",
+    "tree": "c31731cda110e7d04f7595ec6e91aeeaf5a8f355",
+    "started_at": "2026-10-16T19:48:20.072702+00:00",
+    "seconds": 317.912,
+    "exit": 1,
+    "log_sha256": "9cd08712f87808568578252bd30544fc9e2f64b998993bb875baa24936d8afb7",
+    "source_unchanged": true,
+    "cause": "negative-control call matchers only recognized three positional arguments; both match the exact explicit update keywords as well, retaining install/update severance controls"
+  },
+  "catalog_path_controls_after_api_change": {
+    "tests": 73,
+    "exit": 0,
+    "log_sha256": "660feb416dec236baed6888adcf1b07d5fc2d59a76abe5115dfc8254ae9f4897"
   }
 }

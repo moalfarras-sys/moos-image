@@ -723,7 +723,9 @@ def refusal(kind: str, method: str = "install") -> str:
             f"not hand it to self.{handler}(), so those apps would never {purpose}")
 
 
-ANDROID_CALL = r"self\._install_pinned_android\(job, app_id, recipe\)"
+# Both fixed calls reach the same installer; update carries the prior receipt
+# so confirmation precedes publication. Preserve all two-direction mutations.
+ANDROID_CALL = r"self\._install_pinned_android\(job, app_id, recipe(?:, updating=True, prior_record=before)?\)"
 
 
 class TheChainNamesTheAndroidPath(unittest.TestCase):
@@ -794,7 +796,8 @@ class EveryKindReachesItsInstaller(unittest.TestCase):
         self.assertLessEqual({"android", "appdrop", "vendor-rpm", "windows-portable"}, set(kinds))
         for kind in kinds:
             with self.subTest(kind=kind):
-                call = rf"self\.{gate.UPDATE_HANDLER[kind]}\(job, app_id, recipe\)"
+                call = (ANDROID_CALL if kind == "android" else
+                        rf"self\.{gate.UPDATE_HANDLER[kind]}\(job, app_id, recipe\)")
                 # `None`, not a raise: the vendor branch calls its installer inside a condition.
                 cut = in_method(STORECTL, "_reinstall_pin", call, "None")
                 self.assertEqual(chain_errors(cut), [refusal(kind, "_reinstall_pin")])
