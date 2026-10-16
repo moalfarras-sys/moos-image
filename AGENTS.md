@@ -631,6 +631,28 @@ gate read the pipeline STRING; none ran a build and a teardown and asked what wa
 a comment says who closes something, prove it: `tests/test_remote_pipewire_fd.py` asks the far end
 of each socket whether it was hung up.
 
+**A PipeWire serial is not a GStreamer path.** `pipewiresrc path=` takes a node ID;
+`target-object=` takes `object.serial`. Passing the portal's v6 serial as a path
+and permitting default fallback sent actual camera pictures instead of the NVIDIA
+login screen. Keep each identifier in its correct property, require
+`node.dont-fallback=true`, and refuse malformed/non-monitor portal replies.
+Preserve the v5 node-ID path and descriptor lifetime guards. A connected socket,
+healthy encoder and logical desktop size do not identify the pixels: decode a
+picture. Private incidental camera bytes are discarded, never published as fixtures.
+The old user-experience gate required that wrong serial/path pairing. Its replacement
+executes both protocol selectors and the pipeline prefix; retain wrong-property,
+default-fallback and unused-selector negative controls.
+
+**A crashed greeter can stop its whole target.** A physical output disappearance
+crashed Qt's ListView destructor while removing the login screen. Its BindsTo
+target then stopped Remote too. A bounded `Restart=on-failure` with
+`RestartMode=direct` recovers without replacing authentication; ordinary exit and
+explicit stop must stay stopped, and repeated failure must exhaust the limit.
+`tests/greeter_recovery_probe.py` proves those dependency transactions with random
+private units, never the owner's compositor. Recovery is not a fix for the
+underlying Qt/DRM hotplug fault. Runtime copied bundles expire on reboot and need
+exact signed replacement/no-holder retirement.
+
 **A delegate's height while it is being made is not its height.** A Mira chat entry reported
 1208 px, then 452, during creation. Bound into a ListView that follows its newest entry, that
 remade the entries above it for ever: one core, 30 MiB a second, 8.9 GiB at the OOM kill. The review

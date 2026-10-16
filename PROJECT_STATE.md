@@ -3,6 +3,9 @@ Oracle A1 and the physical NVIDIA workstation develop one MoOS product. Source, 
 Native audit: [AUDIT_20261012_AR.md](docs/AUDIT_20261012_AR.md). [Oct15 live delivery readback](docs/releases/2026-10-15-unified-delivery-readback.json). [Oct15 branch integration](docs/releases/2026-10-15-owner-integration.json). [Historical Store defects and their integrated corrections](docs/reviews/STORE_20261015_AR.md).
 
 ## Current engineering batch
+
+Urgent Oct16 source correction: the physical greeter's v6 PipeWire serial was passed as a node ID; decoded output was a real camera image. The corrected exact target disables default-video fallback. A scoped copied bundle now serves the native account; its log reports NVENC from the 3840×2160 desktop. Ordinary owner login and the existing signed .1062 acceptance pass63 hashes/54 selfchecks (2 notes)/55 post-update checks, with no failed system/owner units at acceptance. Phone picture acceptance and fresh signed delivery of this correction remain separate. The Qt screen-removal crash has bounded recovery, not a claimed upstream/hardware cure. [Source/runtime evidence](docs/releases/2026-10-16-remote-screen-target-source-proof.json).
+Repository security now enables vulnerability alerts, automated security fixes and private reporting; existing secret scanning/push protection and strict main checks remain. Source pins64 top-level action uses/18 nonpersisting checkouts and restricts credential-bearing AI jobs to the owner; transitive action pinning and public-source copying are separate boundaries. [Readback](docs/releases/2026-10-16-repository-security-readback.json).
 PR243–246 at `e1ffacfa` integrate the 200-app Store, all 13 Craft apps, reviewed engine/data/index/UI fixes and the actual pre-authentication ISO capture. All 231 audited refs and 57 original station worktree heads are ancestors; 82 remote heads were published without force. Five station/four Oracle dirty trees and 24 cross-verified dirty files remain preserved with a verified full Git bundle; originals are untouched.
 Stable x86 Plasma 6.8.0, 12 reviewed seams, greeter/logout old/fixed controls and THEME_REV=106 pass. Native ARM `just check` and the complete local image pass; 63 immutable payload files and 200 curated apps match. First-attempt build 38816837919, disks 38824574093/38824577430/38824580671, ISO 38824584100, ARM 38824591685 and x86 promotion 38829865381 all succeed at this exact source. Independently verified production is x86 `.1062` / ARM `.792`. [Qualified receipt](docs/releases/2026-10-16-store-qualified-cycle-proof.json).
 The previous `.1060` ISO failed on a post-authentication handoff mislabeled pre-login; the failed verdict and old-source negatives remain preserved. The corrected cycle passes the unchanged visual threshold and ordinary offline install/login/ten-app/second-boot proofs. These are CI artifact proofs; physical NVIDIA acceptance remains separate. ARM retains qualified native Plasma 6.7.5.
@@ -79,7 +82,7 @@ No other product, API, DNS, WAF, authentication or billing setting changed.
 ## Oracle A1 development station
 
 Native aarch64, 2 vCPU/11.6 GiB, no GPU; Wayland Arabic UI2 Nova,
-virtual 1280×720 at 100%. Kernel 7.2.10, Plasma 6.7.5, Qt 6.11.2.
+virtual 1280×800 at 100%. Kernel 7.2.10, Plasma 6.7.5, Qt 6.11.2.
 Booted signed `.792` (`05d9bbac…`), boot ID `17e46ccf-f6d3-4416-b2c5-550be96077ca`, changed from `.791`'s `ab975b93-f72b-47ce-a327-b84f3f68a371`; signed `.791` is the actual rollback. The full coordinated cycle completed before the official native update/restart. Its postboot unit encountered an ordering cycle; the owned unit ordering is repaired and originals/logs retained. Actual native graphical acceptance now passes: 63/63 payload hashes, 51 selfchecks/4 notes, 55 post-update checks/0 failures, no failed units, user-app updates and a real Mo Store window; boot=14.625 s. Existing autologin is not ordinary PAM or broad hardware/endurance proof.
 Earlier `.775` evidence follows; it does not qualify `.792`:
 Native UID 1000 graphical checks pass 51 selfchecks/4 notes and 55 post-update
@@ -136,7 +139,7 @@ worktrees hold tested changes; the local main ref follows integrated ancestry.
 
 ## Physical NVIDIA workstation
 
-Booted signed .1046 (`0235cad7…`) with signed .1044 rollback; exact signed `.1062` (`708223c7…`) is staged and no image transaction remains. The two-hour ordinary wrapper timeout is retained; real deployment readback proves the stage. Owner-authorized restart and new native 63-file/Plasma6.8/GPU/app acceptance remain pending. The owned postboot unit ordering is repaired without removing checks. Earlier `.1046` evidence follows,
+Booted exact signed `.1062` (`708223c7…`) with signed `.1046` rollback; current boot ID `b0fa1b9c-e012-47bc-924b-335973e841bb`. Ordinary owner login now passes63 payload hashes,54 selfchecks/2 notes,55 post-update checks/0 failures, stable Plasma6.8.0, NVIDIA615.78.08, app updates/PhotoCraft0.9.0 and a Store window. This base acceptance does not qualify the later copied Remote fix as a signed release. The two-hour staging timeout and greeter failure are preserved. Earlier `.1046` evidence follows,
 boot ID `d8a6ce1d-ca57-4680-9e5f-ef8118623b61`. Native ordinary plasmalogin
 owns one KDE Wayland session. Graphical-owner checks pass 54 selfchecks/2 notes
 and 55 post-update checks/0 failures; all 19 payload hashes, exact player and
