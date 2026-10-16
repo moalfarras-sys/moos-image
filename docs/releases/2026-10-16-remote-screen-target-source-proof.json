@@ -326,6 +326,21 @@
       "seconds": 205.587,
       "log_sha256": "05d6d77734006afc0b36f9f30656305a24d3759e36262f3f793c055070198349",
       "cause": "release safety test counted the retired mutable @v3 action; now requires one full-SHA publisher action; all build/disk/ISO/signature/tree/attempt proof checks remain"
+    },
+    {
+      "revision": "002f5f48101b135360d83397529150d21d949285",
+      "exit": 1,
+      "seconds": 308.836,
+      "log_sha256": "18f6b035be414aaf3038937cb4c8131cca63cd3c39676cc84b21338529abb336",
+      "cause": "PROJECT_STATE reached201 total lines; condensed historical material into its existing proof link; 200-line gate unchanged"
     }
-  ]
+  ],
+  "dotnet_sdk_qualification": {
+    "revision": "002f5f48101b135360d83397529150d21d949285",
+    "sdk_image": "0bdfe12bf151cad447d0d8e9b16a11ec9e9d687ee6f3addcea275326fc106b62",
+    "seconds": 172.42,
+    "exit": 0,
+    "log_sha256": "038e869aa564633a54d51e1883992c366440437799cb1a56972f7dceb109858d",
+    "scope": "isolated native ARM SDK; every project compiles, four test executables run; no real desktop input or Windows host power actions"
+  }
 }
