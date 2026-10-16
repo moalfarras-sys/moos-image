@@ -1,6 +1,6 @@
 # MoOS development plan — current execution backlog
 
-Updated 2026-10-14. This is the single execution backlog, not an incident diary.
+Updated 2026-10-16. This is the single execution backlog, not an incident diary.
 Current measurements live in PROJECT_STATE.md; detailed audit evidence and
 remaining boundaries are in [AUDIT_20261012_AR.md](AUDIT_20261012_AR.md). Git preserves prior waves.
 
@@ -11,14 +11,22 @@ new private feedback/optional public suggestions product is P6.9 below.
 
 ## Active delivery and acceptance batch
 
-Latest source `5745edd1` ships THEME_REV=104 and passes full source/image/PR
-gates, exact 20-file local ARM readback and the complete first-attempt signed
-cycle: build 38621311347, disks 38631573998/38631579047/38631585290,
-ISO 38631591001, ARM 38621121074 and promotion 38638466690. Independent
-registry/signature readback resolves to x86 .1053 / ARM .778. Exact digests,
-eight distinct healthy CI boots and ten offline ISO app journeys are in
-[the qualified receipt](releases/2026-10-14-m1-qualified-cycle-proof.json).
-These are promoted artifacts, not installed hardware or full product acceptance.
+Current qualified source `e1ffacfa` (PR243–246) ships the 200-app Store, all
+13 Craft apps, reviewed lifecycle/data/index/UI fixes, stable x86 Plasma6.8.0
+and THEME_REV=106. Native repository gates and the complete local image with
+63 immutable payload hashes pass. The complete first-attempt signed cycle
+passes: build38816837919, disks38824574093/38824577430/38824580671,
+ISO38824584100, ARM38824591685 and x86 promotion38829865381. Independent
+registry/cosign readback matches x86 `.1062` / ARM `.792`.
+[Qualified cycle and boundaries](releases/2026-10-16-store-qualified-cycle-proof.json).
+Native NVIDIA still boots `.1046` with exact signed `.1062` staged and no
+transaction; authorized restart/new native acceptance remain separate. Oracle
+has rebooted to exact signed `.792` with `.791` rollback and changed boot ID;
+native graphical acceptance passes63 hashes,51 selfchecks/4 notes,55 post-update
+checks/0 failures, no failed units, user-app update and a real Store window. The
+owned postboot ordering-cycle failure and repair remain preserved. ARM keeps
+qualified native Plasma6.7.5; native6.8 and Qt6.12 remain open. All audited refs,
+original worktrees/dirty drafts and a verified full Git bundle are preserved.
 
 M1/P2.4/P2.8 Island keys now avoid hidden tabs, synchronize selection/content,
 activate Return/keypad Enter once and resolve disappearing domains. Forty-eight
@@ -30,7 +38,7 @@ native Qt controls and [62 control tests pass](releases/2026-10-14-mira-job-pres
 intermittent Qt startup failure's cause. Full local ARM image and actual 20-file
 readback now pass after an ENOSPC final-commit failure and exact obsolete-cache
 retirement. Signed .1053/.778 promotion completed at `5745edd1`; independent
-Store review and the station's active Store development are a separate batch.
+the historical Store review is now integrated in the qualified `.1062`/`.792` batch.
 Next acceptance is native installed shell input/focus and screen-reader behavior.
 
 P2.17 greeter desktop facts/actual matching EIS groups are signed in .1044/.773
@@ -41,14 +49,14 @@ GET recovery (three attempts, 30 s plus 5 s kill deadlines, 2/4 s backoff),
 records created run IDs and refuses duplicate dispatch on unreadable build lists.
 Fourteen executable controls, including restored-old failures, pass; mutations,
 source/digest/attempt checks and promotion requirements remain unchanged.
-Physical NVIDIA now boots signed .1046 with .1044 rollback, boot ID
+Historical `.1046` NVIDIA readback: signed .1046 with .1044 rollback, boot ID
 `d8a6ce1d-ca57-4680-9e5f-ef8118623b61`. Native graphical-owner checks pass
 54 selfchecks/2 notes and 55 post-update/0 failures, all 19 hashes/player,
 THEME_REV=104 and no failed units. Boot=32.381 s. The prior ordinary password
 login and exact unused copied-bundle retirement remain scoped evidence.
 [Native receipt](releases/2026-10-14-nvidia-1046-native-proof.json).
 Preserve opt-in/PIN/private TLS/upstream PAM/default-off and the owner's flow.
-Oracle now boots signed .775 with .763 rollback. Native graphical checks pass
+Historical `.775` Oracle readback: signed .775 with .763 rollback. Native graphical checks pass
 51 selfchecks/4 notes and 55 post-update/0 failures, all 19 payload hashes,
 exact player and THEME_REV=104; one KDE Wayland compositor, boot=14.301 s.
 The initial transient-container selfcheck failure and the subsequent owned
@@ -123,9 +131,10 @@ privacy. It does not mean universal compatibility or an absence of all defects.
 
 ## Every app, one verb — the app-engine contract (P4.x)
 
-2026-10-15 Craft source extension: 12 additional pinned publisher apps (24 rehashed
-architecture artifacts), 184 curated entries and 14 collections. Catalogue/gate
-coverage is separate from per-app launch and signed delivery acceptance; see
+The qualified `.1062`/`.792` catalogue contains 200 curated entries and all13
+Craft apps, with architecture-pinned publisher downloads and reviewed lifecycle
+authority. Catalogue/gate coverage is separate from connected per-app and
+hardware acceptance; see
 `docs/MO_STORE.md`.
 
 
@@ -325,31 +334,23 @@ For every task:
 
 ## Ordered execution
 
-PR245 merges the Oct15 owner integration at `b115c191`, preserving station and
-Oracle ancestry, dirty-file checkpoints and the later reviewed APK/index/data
-corrections. Fresh Oracle inspection covers 148 local/remote refs, all ancestors.
-The complete native ARM repository gate exits 0; image/compiled-app gates and
-independent signatures pass for the three x86 `.1060` candidates. Their exact
-QCOW2 proofs pass; ISO 38807911559 fails the final visual gate because its
-historical pre-login filename was recaptured after authentication during session
-handoff. Offline install, ordinary login, ten apps and second boot are separately
-preserved successes, not a passed ISO verdict. Fix the capture phase, retain
-the thresholds and qualify a fresh source cycle. ARM `.791` already passes its full
-first-attempt native build/two-boot/promotion run 38788880828 and is staged.
-
-The owner's Oct14 priority is the in-progress M3 Store batch on the NVIDIA
-station. Independent Oracle review supplies executable old/fixed controls and
-review patches without editing its reserved files. M1's current signed cycle
-is complete; its remaining installed shell/accessibility acceptance stays open.
-See [the bounded Store review](reviews/STORE_20261014_AR.md); it is evidence for
-the existing A3/P4 tasks, not another backlog or a shipped Store claim.
-The [Oct15 exact-head review](reviews/STORE_20261015_AR.md) found unintegrated
-data-preservation/recovery fixes, Android update-policy disagreement, missing
-publisher-app UI actions and a pre-read archive-link budget defect at `382f5935`.
-The reviewed five-patch set is now merged through PR245, retaining original
-worktrees. Source correction is complete within those controls; M3/A3/P4.1
-delivery acceptance still requires the exact final boot/promotion and native
-installed readback. Do not keep reporting these already-integrated fixes as missing source.
+PR243–246 integrate the complete reviewed Store/Plasma batch at `e1ffacfa`.
+All231 audited refs and the original57 station worktree heads are ancestors;
+82 missing/behind remote heads were published without force. Original dirty
+station/Oracle drafts are backed up, cross-verified and untouched.
+The previous `.1060` ISO failed a real final visual gate on a session-handoff
+frame mislabeled pre-login. Its failure and old-source negative controls remain;
+PR246 captures the actual pre-authentication frame without changing thresholds.
+The fresh exact-source `.1062`/`.792` cycle passes all three disks, offline ISO,
+ARM build/two-boots and promotion. Native NVIDIA has the exact signed stage;
+Oracle `.792` passes native63 hashes/51 selfchecks/55 post-update checks. Source,
+promoted artifacts and native application/GPU
+acceptance remain distinct in the [current receipt](releases/2026-10-16-store-qualified-cycle-proof.json).
+The historical [Oct14](reviews/STORE_20261014_AR.md) and
+[Oct15](reviews/STORE_20261015_AR.md) review fixes are integrated; do not report
+them as missing source. M3/A3/P4.1 artifact delivery is complete within its
+recorded scope; connected user journeys, accessibility and physical/endurance
+acceptance remain in the existing rows below.
 
 ### Milestone map
 
@@ -374,11 +375,11 @@ itself and an unreviewed MoOS would ship kscreenlocker's emergency locker.
 | ID | Outcome | Current boundary | Required acceptance |
 | --- | --- | --- | --- |
 | P0.1 | Integrate the reviewed first-install repairs and create one candidate revision | Stable mechanism/artifact evidence recorded; preserve required gates | Exact candidate source, all integrated fixes and no local override counted as release. |
-| P0.2 | Run generic, NVIDIA and cloud QCOW2 proofs plus offline ISO install/second boot | Exact .1053 three QCOW2/offline installed ISO and ARM .778 two-boot proofs pass. Native Oracle .775 boot/19 payload hashes/51 selfchecks and 55 post-update checks pass with earlier failed attempts preserved. Physical NVIDIA .1046 boot passes 54 selfchecks/2 notes, 55 post-update/0 failures and 19 hashes/player; new installed/hardware acceptance remains open | Three exact-digest x86 QCOW2 journeys, offline installed ISO and separate ARM two-boot proof. |
+| P0.2 | Run generic, NVIDIA and cloud QCOW2 proofs plus offline ISO install/second boot | Exact `.1062` three QCOW2/offline installed ISO and ARM `.792` two-boot proofs pass at `e1ffacfa`; first attempts and unchanged visual gates verified. NVIDIA `.1062` staged; Oracle `.792` booted with changed ID. New native app/GPU and wider hardware acceptance remain separate | Three exact-digest x86 QCOW2 journeys, offline installed ISO and separate ARM two-boot proof. |
 | P0.3 | Finish physical NVIDIA qualification | Open: signed .1042 native 55/0 + 55/0, 16 hashes and exact signed player bytes pass; one URI/finite seek/resource journey passes. Kernel -201 NVIDIA vermagic matches. USB-C UCSI -110 remains; broader physical acceptance is open. Offline ESP dirty-bit-only clone/live proof passes, 16 boot-file hashes preserved and both shared vfat mounts restored; the prior unmount mistake failed before fsck and has a private old/fixed topology control. Next cold-boot warning readback, suspend/hotplug and recovery remain | Actual NVIDIA GPU, initramfs module, displays, suspend and clean recovery on qualified hardware. |
 | P0.4 | Prove failed-update recovery | Open / acceptance not complete | Deliberate bad update, automatic/manual rollback and forward return without owner data loss. |
 | P0.5 | Configure and accept free Mo AI on a clean account | Open / acceptance not complete | Clean-account provider setup, free route, reboot, cancellation and network/quota/key failures. |
-| P0.6 | Promote only proven digests and update the physical PC | Stable mechanism/artifact evidence recorded; preserve required gates | Promote only exact proven signed digests; separately verify installed stage/reboot/rollback. |
+| P0.6 | Promote only proven digests and update the physical PC | All4 exact signed digests promoted at `e1ffacfa`; NVIDIA `.1062` staged, Oracle `.792` native63 hashes/51 selfchecks/55 post-update checks pass. NVIDIA native postboot acceptance is separate | Promote only exact proven signed digests; separately verify installed stage/reboot/rollback. |
 | P0.7 | Remove the intermittent `plymouthd` crash (ARM second boot; x86 first boot) | Implemented/delivered within recorded scope; wider acceptance remains | Pinned vendor Plymouth fix, old/fixed negative, exact final initramfs and actual boot visuals. |
 | P0.8 | Make the ISO installed-reboot proof deterministic | Integrated at 1a73a4e0; .1022 exact offline ISO 38051456847 passes. CLDR/native AR/EN row clicks and mismatch negatives pass. Earlier .1018 private two password logins/cold boot pass 51/0 twice; offline serialization strict mismatch remains visible. Host batch reboot is separate | Repeated installed-ISO reboot with DHCP/SSH-channel evidence and console failures visible. |
 | P0.9 | Run image-only gates before the merge | Stable mechanism/artifact evidence recorded. Native audit adds the omitted moplayer/** x86 PR trigger; the new input gate fails against the old workflow and passes fixed. ARM already watches the in-tree player. No publishing permission added; final x86/ARM image CI and signed cycle pass | PR generic image gates block real image failures; no signing/publishing from PR. |
@@ -439,10 +440,10 @@ itself and an unreviewed MoOS would ship kscreenlocker's emergency locker.
 
 | ID | Outcome | Current boundary | Required acceptance |
 | --- | --- | --- | --- |
-| P4.1 | Unify every install/update/remove request behind Mo Store | Open / acceptance not complete | Store authority for every engine; shared job IDs, cancel/retry/remove and final readback. |
+| P4.1 | Unify every install/update/remove request behind Mo Store | Shared native backend/bridge/UI and200-app catalogue are signed/promoted in `.1062`/`.792`; actual Linux/web/Windows installs/runs and13 Craft artifact lifecycles pass within their recorded scope. Native full-account/error/cancel/update/remove journeys remain | Store authority for every engine; shared job IDs, cancel/retry/remove and final readback. |
 | P4.2 | Audit desktop-app permissions and prefer portals | Open / acceptance not complete | Permission inventory and actual file/camera/screen/print portals without broad grants. |
 | P4.3 | Turn Windows compatibility into a per-app runner product | Open / acceptance not complete | Ten Windows apps with isolated prefixes and install/launch/reopen/update/remove evidence. |
-| P4.4 | Turn Android compatibility into a per-app product | Open / acceptance not complete | Ten Android apps, on-demand container, files/clipboard/audio and NVIDIA fallback. |
+| P4.4 | Turn Android compatibility into a per-app product | Signed catalogue/backend includes21 Android apps, signer checks and readable installed-APK update policy. Ten real connected Android journeys and hardware fallback remain | Ten Android apps, on-demand container, files/clipboard/audio and NVIDIA fallback. |
 | P4.5 | Publish a generated compatibility matrix | Open / acceptance not complete | Generated version/edition/architecture/GPU compatibility matrix, including unsupported cases. |
 | P4.6 | Consent-based App Drop for files | Implemented/delivered within recorded scope; wider acceptance remains | Real magic, sandbox extraction, default-No consent, safe launchers and all entry paths. |
 | P4.7 | Native Store picker/drop through App Drop | Implemented/delivered within recorded scope; wider acceptance remains | Actual QML picker/drop delegates to App Drop, valid local files, refusal/cancel and Store job. |
@@ -470,7 +471,7 @@ itself and an unreviewed MoOS would ship kscreenlocker's emergency locker.
 | P6.4 | Add staged rollout and release health | Open / acceptance not complete | Staged rings, halt/rollback criteria and actual field release health. |
 | P6.5 | URL, Remote, AI and diagnostic security boundaries | Implemented/delivered within recorded scope; wider acceptance remains; the integrated audit cycle is signed/promoted | Auth/UID/URL/PIN/upload/secret boundaries and failure controls; native dependency advisories refuse release. |
 | P6.6 | Establish support lifecycle and migration policy | Open / acceptance not complete | Published support/upgrade/rollback/EOL policy plus clear licences, attribution and official identity. |
-| P6.7 | Reviewed Plasma seams before upstream transitions | [Oct15 stable qualification](releases/2026-10-15-plasma-stable-source-proof.json): native x86 Plasma 6.8.0, exact signed inputs,12 seams, real greeter positive/broken/restored and rebuilt vendor logout old/fixed/rejected/cancelled controls pass. PR245's `.1060` image candidates pass all three QCOW2 proofs; ISO final visual validation fails on a post-authentication handoff capture mislabeled pre-login. Correct the fixture and prove a fresh source cycle; installed acceptance remains open. ARM retains qualified 6.7.5 because the publisher has no ARM binaries; the native stable source rebuild remains open. Qt 6.12 stays unqualified. Prior beta canary evidence remains historical. | Actual matching stack, registered seams and native controls, final signed boot and installed acceptance for each architecture; never widen pins or substitute cross-architecture packages. |
+| P6.7 | Reviewed Plasma seams before upstream transitions | [Oct15 stable qualification](releases/2026-10-15-plasma-stable-source-proof.json): native x86 Plasma 6.8.0, exact signed inputs,12 seams, real greeter positive/broken/restored and rebuilt vendor logout old/fixed/rejected/cancelled controls pass. PR246's corrected `.1062`/`.792` signed cycle passes all exact QCOW2/offline ISO/two-boot proofs and promotion with unchanged gates. Physical x866.8 acceptance remains pending the staged restart. ARM retains qualified 6.7.5 because the publisher has no ARM binaries; the native stable source rebuild remains open. Qt 6.12 stays unqualified. Prior beta canary evidence remains historical. | Actual matching stack, registered seams and native controls, final signed boot and installed acceptance for each architecture; never widen pins or substitute cross-architecture packages. |
 | P6.8 | Separate reviewed next-base transition lane | Open / acceptance not complete | Reviewed next-base packages, all native seams/boot/apps/identity gates and migration/support qualification. |
 | P6.9 | Native user/developer participation | Beta integrated/promoted in .1022/.749; native launch/shutdown and ARM D-Bus controls pass, plus 34 API/11 native and actual Wayland/Oracle TLS flow. Both hosts boot delivered client bytes; actual .1022 native capture/shutdown passes and Oracle public health is ready. Capture retains Qt/portal-registration warnings; the recovered QApplication picker correction passes source native Arabic/English cancellation and physical Wayland readback; its signed installed selection/upload flow still needs acceptance. Branded DNS/onboarding/recovery/full moderation UI/preferences/endurance remain open | Real authenticated service/client, private image attachments, account isolation and bounded uploads, admin moderation, retry/offline and promoted-release notifications; no secrets or automatic screenshots. |
 
