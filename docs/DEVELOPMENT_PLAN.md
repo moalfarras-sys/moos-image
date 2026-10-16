@@ -616,3 +616,12 @@ burst from one worker; it leaves no idle polling, token or timer, preserves
 end timestamps and does not recreate a retired runtime directory.64 native
 controls pass; old scheduler controls must remain red. This is part of the
 same not-yet-delivered Store/Remote milestone, not a second candidate cycle.
+
+Oct16 APK follow-up keeps one bounded update confirmation before publishing a
+new receipt, preserving the existing `android_update_refused` and unreadable
+legacy-data policy.29 update controls,36 Store controller controls and47 backend
+kind controls pass. The dropped-file fixture now contains a real compiled
+manifest and checks the private snapshot/source-file lifecycle. The generated
+cache fingerprint records107; its refusal of same-revision changes is unchanged.
+The109-command adaptive remainder diagnostic retains its three failures and
+their subsequent targeted corrections; it is not the official full-check proof.

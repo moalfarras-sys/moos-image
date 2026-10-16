@@ -580,6 +580,11 @@ class InstallTests(StoreTestCase):
         import importlib
         sys.path.insert(0, str(ROOT / "system_files/usr/lib/moos"))
         appdrop = importlib.import_module("moos_appdrop")
+        fixture_spec = importlib.util.spec_from_file_location(
+            "storectl_apk_fixture", ROOT / "tests/test_moos_android_apk.py")
+        fixture = importlib.util.module_from_spec(fixture_spec)
+        sys.modules[fixture_spec.name] = fixture
+        fixture_spec.loader.exec_module(fixture)
         for result, expected in ((MODULE.CommandResult(0), "success"),
                                  (MODULE.CommandResult(1, "rejected"), "failed"),
                                  (MODULE.CommandResult(143, "interrupted", True), "cancelled")):
@@ -588,11 +593,25 @@ class InstallTests(StoreTestCase):
                 controller, _ = self.controller([], runner=runner)
                 plan = types.SimpleNamespace(kind="android", supported=False,
                     path=self.base / "download with spaces.apk", slug="android-test")
+                plan.path.write_bytes(fixture.apk("org.example.test", 1, "1.0"))
+                capture = runner.capture
+                def installed_package(argv, timeout=30):
+                    if list(argv[1:]) == ["app", "list"]:
+                        return MODULE.CommandResult(0, output="packageName: org.example.test\n")
+                    return capture(argv, timeout)
+                runner.capture = installed_package
                 with mock.patch.object(appdrop, "inspect", return_value=plan):
                     code, document = controller.install_file(str(plan.path))
                 self.assertEqual(document["state"], expected, document)
                 self.assertEqual(document["action"], "install")
-                self.assertEqual(runner.commands, [["/usr/bin/waydroid", "app", "install", str(plan.path)]])
+                self.assertEqual(len(runner.commands), 1)
+                argv = runner.commands[0]
+                self.assertEqual(argv[:3], ["/usr/bin/waydroid", "app", "install"])
+                snapshot = Path(argv[3])
+                self.assertNotEqual(snapshot, plan.path)
+                self.assertTrue(snapshot.name.startswith("android-file-"))
+                self.assertFalse(snapshot.exists(), "the owned snapshot was not retired")
+                self.assertTrue(plan.path.is_file(), "the source file belongs to the person")
                 self.assertEqual(code == 0, expected == "success")
                 self.assertEqual(runner.spawned, [], "installation must not launch a second desktop")
 

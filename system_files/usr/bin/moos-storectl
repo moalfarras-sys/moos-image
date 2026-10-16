@@ -3050,7 +3050,8 @@ class Controller:
         })
 
     def _install_pinned_android(
-        self, job: Job, app_id: str, recipe: dict[str, Any]
+        self, job: Job, app_id: str, recipe: dict[str, Any], *,
+        updating: bool = False, prior_record: bytes | None = None
     ) -> None:
         """An Android app from the catalogue: pinned URL, verified digest, one job.
 
@@ -3091,10 +3092,15 @@ class Controller:
                 r"\b(?:error|failed)\b", result.reason, re.IGNORECASE
             ):
                 raise StoreError(result.reason or "Android installation failed")
-            kept = self._wait_android_pin(job, app_id, package, pin)
-            if kept is False or (kept is None and package not in (self._android_packages() or set())):
-                raise StoreError("Android did not confirm installation; the existing record was kept",
-                                 message_key="android_install_unconfirmed")
+            if updating:
+                # One bounded update readback, with its established refusal and
+                # old-record policy, before publishing any new receipt.
+                self._android_update_landed(job, app_id, recipe, prior_record)
+            else:
+                kept = self._wait_android_pin(job, app_id, package, pin)
+                if kept is False or (kept is None and package not in (self._android_packages() or set())):
+                    raise StoreError("Android did not confirm installation; the existing record was kept",
+                                     message_key="android_install_unconfirmed")
             self._write_android_record(package, sha256=pin.sha256, source="catalog",
                                        catalog_id=app_id, version=version)
             job.update_item(
@@ -4065,8 +4071,8 @@ class Controller:
 
         waydroid's `app install` exits 0 when Android refuses the APK (signed by another key,
         made for a newer Android, older than the build it keeps): its install() drops the
-        container's answer. _install_pinned_android then records the pin and says Installed. So an
-        update reads back the APK Android keeps: the pin is an update done; anything else puts the
+        container's answer. Read back the APK before _install_pinned_android records a new pin:
+        the pin is an update done; anything else preserves the
         record back as it was (`before`, None when there was none) and fails in words the window
         can say. When Android's app folder cannot be read (another account owns it), waydroid's
         exit status is all there is to go by, as before.
@@ -4178,8 +4184,7 @@ class Controller:
                 before = record.read_bytes()
             except FileNotFoundError:
                 before = None
-            self._install_pinned_android(job, app_id, recipe)
-            self._android_update_landed(job, app_id, recipe, before)
+            self._install_pinned_android(job, app_id, recipe, updating=True, prior_record=before)
         elif kind == "vendor-rpm":
             # Resolved again inside the job: the publisher may have moved on since the check.
             if not self._install_vendor(job, app_id, recipe):

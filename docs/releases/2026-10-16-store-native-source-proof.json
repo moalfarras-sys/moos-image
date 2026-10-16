@@ -1598,5 +1598,40 @@
     "log_sha256": "662b26c651da5b23d181feff9448defc2c8f1580afeadb54bd778a02297a1071",
     "source_unchanged": true,
     "cause": "14 newly measured PE32+ Windows downloads missing from the explicit architecture fixture; recorded all14 without changing strict bidirectional architecture assertions"
+  },
+  "remaining_gate_diagnostic": {
+    "scope": "adaptive diagnostic of the remaining unchanged maintained Justfile commands; collects every failure, does not qualify the official full check",
+    "revision": "b8001c10ef2290bf0364f0ee5e77bdd7d270a956",
+    "commands": 109,
+    "failed": [
+      {
+        "command": "python3 tests/test_moos_storectl.py",
+        "exit": 1,
+        "seconds": 0.567
+      },
+      {
+        "command": "python3 tests/test_mo_store_pinned_updates.py",
+        "exit": 1,
+        "seconds": 0.618
+      },
+      {
+        "command": "python3 tests/test_theme_rev_fingerprint.py",
+        "exit": 1,
+        "seconds": 0.164
+      }
+    ],
+    "log_sha256": "f5875325a18ee452cc4d9311eddff144ec3916c22e37f0a501fd510c6ec865ae",
+    "corrections": "real compiled-manifest APK fixture and private-snapshot assertions; one bounded Android update confirmation before publishing a receipt, preserving existing refusal/legacy-unreadable behavior; generated theme fingerprint107"
+  },
+  "final_android_update_checks": {
+    "update_contract_cases": 29,
+    "storectl_cases": 36,
+    "backend_kinds_cases": 47,
+    "update_policy": "one bounded installed-APK readback before new receipt; established android_update_refused preserved; initial installs keep independent package confirmation",
+    "logs": {
+      "storectl-final.log": "406b12effd24aaee25312b2d34ccc7889c5afaf9a8ddb7b3f5396707485f3b14",
+      "pinned-updates-final.log": "1572480b2aeaf8e3eca27172ec348ef14e4c4ca322d8479f4dac3757141b94be",
+      "backend-final-v2.log": "9623b2888ecbf2e0f96fb769fd4853eee30c641a3f05703c52564e4ffa265284"
+    }
   }
 }
