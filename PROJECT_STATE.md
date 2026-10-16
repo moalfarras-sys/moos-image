@@ -10,14 +10,7 @@ PR243–246 at `e1ffacfa` integrate the 200-app Store, all 13 Craft apps, review
 Stable x86 Plasma 6.8.0, 12 reviewed seams, greeter/logout old/fixed controls and THEME_REV=106 pass. Native ARM `just check` and the complete local image pass; 63 immutable payload files and 200 curated apps match. First-attempt build 38816837919, disks 38824574093/38824577430/38824580671, ISO 38824584100, ARM 38824591685 and x86 promotion 38829865381 all succeed at this exact source. Independently verified production is x86 `.1062` / ARM `.792`. [Qualified receipt](docs/releases/2026-10-16-store-qualified-cycle-proof.json).
 The previous `.1060` ISO failed on a post-authentication handoff mislabeled pre-login; the failed verdict and old-source negatives remain preserved. The corrected cycle passes the unchanged visual threshold and ordinary offline install/login/ten-app/second-boot proofs. These are CI artifact proofs; physical NVIDIA acceptance remains separate. ARM retains qualified native Plasma 6.7.5.
 
-The previous complete four-edition batch is `5745edd1` (PR241): THEME_REV=104, full local ARM
-image and exact 20-file readback pass after the preserved ENOSPC failure.
-Build 38621311347, disks 38631573998/38631579047/38631585290,
-ISO 38631591001, ARM 38621121074 and promotion 38638466690 all succeeded
-on attempt 1 at the same source. Independent registry/signature readback matches.
-Eight distinct CI boots have exact signed origins and graphical active; the
-final ISO installs offline and opens/closes/reopens ten apps. NVIDIA VM proof
-does not qualify the physical GPU. [Qualified cycle](docs/releases/2026-10-14-m1-qualified-cycle-proof.json).
+Previous full batch `5745edd1` (PR241), THEME_REV=104, passed the native local image/20-file readback, signed four-edition cycle and unchanged gates after a preserved ENOSPC failure. Its eight CI boots and offline installed ISO/ten-app journey remain historical evidence, with physical GPU qualification separate. [Qualified cycle](docs/releases/2026-10-14-m1-qualified-cycle-proof.json).
 
 The Island correction resolves hidden-tab arrow selection, selection/content
 agreement, Return/keypad Enter, held Enter and retired-context blank pages.
