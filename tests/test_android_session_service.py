@@ -51,8 +51,9 @@ class AndroidSession(unittest.TestCase):
                                STORE.CommandResult(0, output="Session: RUNNING\nSession: STOPPED\n")])
         with mock.patch.object(STORE.time, "sleep"), \
                 mock.patch.object(STORE.time, "monotonic", side_effect=[0, 1, 21]):
-            with self.assertRaisesRegex(STORE.StoreError, "did not become ready"):
+            with self.assertRaisesRegex(STORE.StoreError, "did not become ready") as refused:
                 ctl._ensure_android_session(object())
+        self.assertEqual(refused.exception.message_key, "android_start_timeout")
         ctl.runner.run_cancellable.assert_not_called()
 
     def test_running_android_does_not_start_another_session(self):

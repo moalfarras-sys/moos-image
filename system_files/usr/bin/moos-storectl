@@ -2125,7 +2125,7 @@ class Controller:
         if state == "unknown":
             raise StoreError("Could not verify Android app support", message_key="android_status_unknown")
         if state == "uninitialized":
-            raise StoreError("Android apps need the one-time MoOS setup first")
+            raise StoreError("Android apps need the one-time MoOS setup first", message_key="android_setup_needed")
         if self._android_running(status):
             return
         if not start:
@@ -2143,7 +2143,7 @@ class Controller:
                 return
             # Startup can briefly return an incomplete status. Nothing may be
             # installed/launched until a successful, unambiguous RUNNING reply.
-        raise StoreError("Android app support did not become ready")
+        raise StoreError("Android app support did not become ready", message_key="android_start_timeout")
 
     def _install_npm(self, job: Job, app_id: str, recipe: dict[str, Any]) -> None:
         install = recipe.get("install")
@@ -3730,7 +3730,7 @@ class Controller:
             self._ensure_android_session(job)
             progress("integrating_app", None)
             result = self.runner.run_cancellable(
-                [WAYDROID, "app", "install", str(snapshot)], lambda: self._cancelled(job))
+                ["/usr/bin/waydroid", "app", "install", str(snapshot)], lambda: self._cancelled(job))
             if result.cancelled:
                 raise appdrop.DropError("cancelled")
             if result.returncode or re.search(r"\b(?:error|failed)\b", result.reason, re.IGNORECASE):

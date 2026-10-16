@@ -1522,5 +1522,15 @@
     "unit": "moos-store-native-arm-20261016.service",
     "log_sha256": "40ae5aac3e603bf5e4f48763467e798647bd4a9376624a82cd34ec6b6993959a",
     "owner_containers_preserved": true
+  },
+  "second_final_gate_failure": {
+    "revision": "90baca89c7b278a8d2608026d223a048371b3a2a",
+    "tree": "b8cf03ad5f6bd65c40def735454741d23441e41f",
+    "started_at": "2026-10-16T19:21:02.714529+00:00",
+    "seconds": 216.207,
+    "exit": 1,
+    "log_sha256": "0e9791052391d9edd0149c3f6be0f199ae028031fd0b5c9a11babbf605dbe435",
+    "source_unchanged": true,
+    "cause": "the authority scanner needs an executable literal; the actual owned-snapshot mutation uses fixed /usr/bin/waydroid argv, preserving the scanner unchanged"
   }
 }
