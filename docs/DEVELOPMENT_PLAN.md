@@ -606,3 +606,13 @@ Primary sources reviewed2026-10-16: [Waydroid desktop-window properties](https:/
 Native x86 desktop images ship Wine/Waydroid; ARM and cloud engine availability
 is separately advertised by measured admission. This batch does not claim
 x86 Windows execution on the current ARM machine or universal Android hardware support.
+
+Oct16 gate follow-up: the journal-isolation run caught a lost Mira job-presence
+notification. Stopping the owned diagnostic scan and running quietly passed,
+so that rerun did not qualify the original behavior. A new deterministic real
+Qt control delayed the first consumer delivery1.1s and reproduced the same
+old one-shot failure. The producer now emits a finite three-event coalesced
+burst from one worker; it leaves no idle polling, token or timer, preserves
+end timestamps and does not recreate a retired runtime directory.64 native
+controls pass; old scheduler controls must remain red. This is part of the
+same not-yet-delivered Store/Remote milestone, not a second candidate cycle.

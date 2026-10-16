@@ -1056,6 +1056,30 @@ class IslandJobTokenTests(unittest.TestCase):
             main = source[source.index('if __name__ == "__main__":'):]
             self.assertIn("_clear_job_tokens()", main)
 
+    def test_recovery_is_a_finite_coalesced_burst(self):
+        with tempfile.TemporaryDirectory() as home, tempfile.TemporaryDirectory() as runtime:
+            control = load_control(home)
+            publish = control["_publish_job_token"]
+            scope = publish.__globals__
+            folder = Path(runtime) / "moai-jobs"
+            real_mkstemp = tempfile.mkstemp
+            with mock.patch.object(control["threading"], "Timer") as timer_factory:
+                running = publish("0123abcd", "update_apps", "running", folder=folder)
+                pending = scope["_job_feed_resignals"][folder]
+                publish("0123abcd", "update_apps", "done", running, folder=folder)
+                self.assertIs(scope["_job_feed_resignals"][folder], pending)
+                timer_factory.assert_called_once()
+                delay, notify = timer_factory.call_args.args
+                self.assertEqual(delay, 1.0)
+                with mock.patch.object(control["time"], "sleep") as wait, \
+                        mock.patch.object(tempfile, "mkstemp", wraps=real_mkstemp) as signals:
+                    notify()
+                self.assertEqual(signals.call_count, 3)
+                self.assertEqual(wait.call_args_list, [mock.call(1.0), mock.call(1.0)])
+                self.assertNotIn(folder, scope["_job_feed_resignals"])
+                self.assertEqual([p.name for p in folder.iterdir()],
+                                 ["job-0123abcd-done-update_apps"])
+
     def test_delayed_resignal_preserves_the_latest_end_and_its_age(self):
         with tempfile.TemporaryDirectory() as home, tempfile.TemporaryDirectory() as runtime:
             control = load_control(home)
@@ -1141,6 +1165,14 @@ class TheRealProducerReachesARealIsland(island_probe.RealIslandProbe, unittest.T
                         "instead of announcing it\n" + "\n".join(output.seen[-20:]))
 
     def test_a_lost_first_notification_recovers_without_idle_polling(self):
+        self._lost_first_notification()
+
+    def test_a_late_first_delivery_cannot_consume_all_recovery_events(self):
+        # Both the initial delivery and the first producer retry can queue
+        # while the real Qt thread is busy. Old one-shot recovery loses both.
+        self._lost_first_notification(delay_ms=1100)
+
+    def _lost_first_notification(self, delay_ms=0):
         """Discard the first consumer delivery and demand a new real directory event.
 
         This measures recovery, not the cause of the earlier intermittent
@@ -1171,6 +1203,11 @@ class TheRealProducerReachesARealIsland(island_probe.RealIslandProbe, unittest.T
             '        }\n'
             '        return;\n'
             '    }')
+        if delay_ms:
+            self.PROBE = self.PROBE.replace(
+                "firstRunningEvent = true; blind.start();",
+                "firstRunningEvent = true; const until=Date.now()+" + str(delay_ms)
+                + "; while(Date.now()<until) {} blind.start();")
         jobs, output = self.run_session(prepare=self.login)
         self.assertTrue(output.wait_for("probe-model-ready", 30), "model did not become ready")
         with tempfile.TemporaryDirectory() as home:

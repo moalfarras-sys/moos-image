@@ -1532,5 +1532,61 @@
     "log_sha256": "0e9791052391d9edd0149c3f6be0f199ae028031fd0b5c9a11babbf605dbe435",
     "source_unchanged": true,
     "cause": "the authority scanner needs an executable literal; the actual owned-snapshot mutation uses fixed /usr/bin/waydroid argv, preserving the scanner unchanged"
+  },
+  "third_final_gate_failure": {
+    "revision": "2c37d94ecc787363e5e064e62f90483e9d4bc40d",
+    "tree": "f865aae67acb02823dfe357063b224bf6706414a",
+    "started_at": "2026-10-16T19:26:06.511306+00:00",
+    "seconds": 144.866,
+    "exit": 1,
+    "log_sha256": "718eb3007fafc2483b229553cf3f43b9a122514aed904049ea2b0b2c3ce8f20c",
+    "source_unchanged": true,
+    "cause": "journal-isolation run found lost job presence; exact original cause unproven, quiet rerun passed, deterministic late-consumer negative then proved the old one-retry timing class"
+  },
+  "job_presence_recovery": {
+    "source": "system_files/usr/bin/moai-control",
+    "policy": "one coalesced worker per directory; three delayed events; no idle polling or state/mtime rewrite",
+    "native_positive_tests": 64,
+    "seconds": 13.051,
+    "positive_log_sha256": "3903283e7e4446b2f3cf705f805ab70ec384c4838f523a1c5c8afdc6cad7a200",
+    "native_old_negative_initial_log_sha256": "85e442bfa537bae9b1ca10671d726206f1c4df7ac3a7e0cfec2f5be15159b795",
+    "old_source_sha256": "0d889bca1e8da0850d2bd0a25ca1746f759fed9eee78589de5f8e7ab50105001",
+    "late_consumer_delay_ms": 1100,
+    "scope": "private native Qt FolderListModel and actual producer; broader GUI startup/hardware causes remain unproven",
+    "restored_old_scheduler_controls": {
+      "scope": "two current regression tests with only the previous scheduler restored, private HOME/runtime/native Qt consumer",
+      "old_source_sha256": "0d889bca1e8da0850d2bd0a25ca1746f759fed9eee78589de5f8e7ab50105001",
+      "run": 2,
+      "failures": 2,
+      "errors": 0,
+      "both_negative_controls_failed": true
+    }
+  },
+  "all_catalog_pages": {
+    "scope": "final-source 264-entry catalog in a private native offscreen real-QML-host walk; only the copied fixture catalog URL differs, no owner profile/Store bridge",
+    "revision": "90baca89c7b278a8d2608026d223a048371b3a2a",
+    "catalog_sha256": "6b55ee4a4144d820facf818df503c87a3a76514c71f0a26f0c911981f6773fed",
+    "cases": [
+      {
+        "language": "ar",
+        "exit": 0,
+        "steps": 293,
+        "completed": true,
+        "warnings": [],
+        "seconds": 69.673,
+        "log_sha256": "c787de10c4df6f6f9d2d6cc110e6883e2696d00d7bbf77f0d6f5273b60e9efdb"
+      },
+      {
+        "language": "en",
+        "exit": 0,
+        "steps": 293,
+        "completed": true,
+        "warnings": [],
+        "seconds": 67.759,
+        "log_sha256": "c787de10c4df6f6f9d2d6cc110e6883e2696d00d7bbf77f0d6f5273b60e9efdb"
+      }
+    ],
+    "started_utc": "2026-10-16T19:24:27.130187+00:00",
+    "completed_utc": "2026-10-16T19:26:44.562668+00:00"
   }
 }

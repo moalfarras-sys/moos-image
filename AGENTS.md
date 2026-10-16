@@ -147,6 +147,14 @@ These are not conventions, they are gates. The image build fails if you break th
 
 ## A green build proves nothing about what the user sees
 
+**A retry can arrive before the first delivery is consumed.** A one-second
+job-presence resignal was consumed inside the same delayed/blind interval as
+the original event. Quiet reruns passed; a real Qt consumer deliberately delayed
+1.1s proved the old loss. Use one finite three-event recovery worker per directory,
+not an idle poll; preserve end ages, coalescing, retired directories and the
+late-consumer old-source negative. This proves the measured timing class, not
+that every earlier intermittent startup failure had the same cause.
+
 **A detached process is still in its parent's cgroup.** Android sessions started
 with `setsid` inside a Store job die when that job's unit ends. Keep one on-demand
 user unit, with no idle autostart, and tie it to graphical logout. The private

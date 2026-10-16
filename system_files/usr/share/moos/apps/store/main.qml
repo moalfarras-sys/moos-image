@@ -1771,7 +1771,7 @@ ApplicationWindow {
         "update_by_file":           ["ثُبّت هذا التطبيق من ملف؛ ثبّت ملفًا أحدث منه لتحديثه", "This app was installed from a file; install a newer file of it to update it"],
         "removed_with_data":        ["أُزيل مع بياناته", "Removed with its data"],
         "removed_data_untracked":   ["تمت الإزالة. بقيت الإعدادات وبيانات تسجيل دخول التي حفظها التطبيق في أماكن أخرى من مجلد المنزل", "Removed. Settings and sign-in data the app saved elsewhere in your home folder were kept"],
-        "android_setup_needed":     ["جهّز دعم تطبيقات أندرويد من إعدادات MoOS أولًا", "Set up Android app support in MoOS settings first"],
+        "android_setup_needed":     ["جهّز دعم تطبيقات أندرويد أولًا", "Set up Android app support first"],
         "android_start_timeout":    ["لم تصبح تطبيقات أندرويد جاهزة خلال المهلة. حاول مجددًا من متجر MoOS", "Android app support did not become ready in time. Try again from Mo Store"],
         "android_status_unknown":   ["تعذّر التحقق من جاهزية تطبيقات أندرويد", "Could not verify Android app support"],
         "android_not_running":      ["دعم تطبيقات أندرويد غير مشغّل. افتحه أولاً لتشغيل هذا التطبيق", "Android app support is not running. Open it first to run this app"],
