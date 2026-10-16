@@ -1588,5 +1588,15 @@
     ],
     "started_utc": "2026-10-16T19:24:27.130187+00:00",
     "completed_utc": "2026-10-16T19:26:44.562668+00:00"
+  },
+  "fourth_final_gate_failure": {
+    "revision": "f486df2d60767624674c37c59dce02faf1ae2ac3",
+    "tree": "d627976ee10ab760552b226e75c4f9d436a2639b",
+    "started_at": "2026-10-16T19:34:09.154069+00:00",
+    "seconds": 291.014,
+    "exit": 1,
+    "log_sha256": "662b26c651da5b23d181feff9448defc2c8f1580afeadb54bd778a02297a1071",
+    "source_unchanged": true,
+    "cause": "14 newly measured PE32+ Windows downloads missing from the explicit architecture fixture; recorded all14 without changing strict bidirectional architecture assertions"
   }
 }
