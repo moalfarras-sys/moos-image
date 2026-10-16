@@ -1,0 +1,315 @@
+{
+  "schema": 1,
+  "recorded_at": "2026-10-16T14:20:34.576159+00:00",
+  "scope": "source and scoped native runtime correction; fresh signed delivery and owner phone endurance remain separate",
+  "installed_nvidia": {
+    "version": "44.20261015.1062",
+    "digest": "sha256:708223c7ed8a366c41f051ef7f15bb00510c7a2b4acbe3d0ce9c083db9c8aac4",
+    "boot_id": "b0fa1b9c-e012-47bc-924b-335973e841bb",
+    "ordinary_owner_session": "15",
+    "payload_hashes": 63,
+    "selfcheck": {
+      "passed": 54,
+      "notes": 2
+    },
+    "post_update": {
+      "passed": 55,
+      "failed": 0
+    },
+    "plasma": "6.8.0",
+    "nvidia_driver": "615.78.08",
+    "failed_system_and_owner_units_at_acceptance": []
+  },
+  "original_stream": {
+    "authenticated_read_only_probe_seconds": 1.12,
+    "h264_binary_packets": 25,
+    "decoded_size": [
+      640,
+      480
+    ],
+    "observed_content": "wrong physical camera instead of login screen",
+    "private_media_discarded": {
+      "reason": "incidental wrong-source camera footage discarded after diagnosis; metadata only retained",
+      "files": {
+        "capture.h264": {
+          "sha256": "b1d280f374146be0a7bae286ac715ad6b7fd40454856bf4e5c32f788a601909d",
+          "bytes": 55963
+        },
+        "decoded.png": {
+          "sha256": "5c386e7d1887c1356f103ab21ec5cd6aa5aa48b2fbf59ca56694001c52ab64e4",
+          "bytes": 166496
+        }
+      }
+    }
+  },
+  "cause_and_correction": {
+    "upstream_pipewiresrc_source": "https://github.com/PipeWire/pipewire/blob/1.6.9/src/gst/gstpipewiresrc.c",
+    "portal_spec": "https://flatpak.github.io/xdg-desktop-portal/docs/doc-org.freedesktop.portal.ScreenCast.html",
+    "policy_spec": "https://pipewire.pages.freedesktop.org/wireplumber/policies/linking.html",
+    "old_error": "path= was given object.serial, although it accepts node ID; default video fallback remained allowed",
+    "fixed": "v6 serial uses target-object; v5 ID stays path; node.dont-fallback=true; malformed/non-monitor targets refuse",
+    "tests": {
+      "target_selector": 4,
+      "existing_fd_lifetime": "pass",
+      "existing_video_health": "pass",
+      "native_gstreamer_property_parse": "pass; never played"
+    }
+  },
+  "greeter_recovery": {
+    "observed_crash": "Qt6 QQuickItemView destructor on screenRemoved; greeter target and Remote stopped",
+    "scope": "bounded recovery only; underlying Qt/hardware hotplug defect is not claimed repaired",
+    "native_systemd_fixture": {
+      "schema": 1,
+      "scope": "private native systemd dependency fixtures; no real login/input/display",
+      "systemd": "systemd 259 (259.9-1.fc44)",
+      "results": [
+        {
+          "mode": "once",
+          "dropin": false,
+          "expected": "stopped",
+          "starts": 1,
+          "before": {
+            "target": {
+              "ActiveState": "active"
+            },
+            "main": {
+              "ActiveState": "active",
+              "MainPID": "410435",
+              "NRestarts": "0"
+            },
+            "remote": {
+              "ActiveState": "active",
+              "MainPID": "410436",
+              "NRestarts": "0"
+            },
+            "kwin": {
+              "ActiveState": "active",
+              "MainPID": "410434",
+              "NRestarts": "0"
+            }
+          },
+          "after": {
+            "target": {
+              "ActiveState": "inactive"
+            },
+            "main": {
+              "ActiveState": "failed",
+              "MainPID": "0",
+              "NRestarts": "0"
+            },
+            "remote": {
+              "ActiveState": "inactive",
+              "MainPID": "0",
+              "NRestarts": "0"
+            },
+            "kwin": {
+              "ActiveState": "active",
+              "MainPID": "410434",
+              "NRestarts": "0"
+            }
+          }
+        },
+        {
+          "mode": "once",
+          "dropin": true,
+          "expected": "stopped",
+          "starts": 1,
+          "before": {
+            "target": {
+              "ActiveState": "active"
+            },
+            "main": {
+              "ActiveState": "active",
+              "MainPID": "410498",
+              "NRestarts": "0"
+            },
+            "remote": {
+              "ActiveState": "active",
+              "MainPID": "410499",
+              "NRestarts": "0"
+            },
+            "kwin": {
+              "ActiveState": "active",
+              "MainPID": "410497",
+              "NRestarts": "0"
+            }
+          },
+          "after": {
+            "target": {
+              "ActiveState": "inactive"
+            },
+            "main": {
+              "ActiveState": "activating",
+              "MainPID": "0",
+              "NRestarts": "0"
+            },
+            "remote": {
+              "ActiveState": "inactive",
+              "MainPID": "0",
+              "NRestarts": "0"
+            },
+            "kwin": {
+              "ActiveState": "active",
+              "MainPID": "410497",
+              "NRestarts": "0"
+            }
+          }
+        },
+        {
+          "mode": "once",
+          "dropin": true,
+          "expected": "recovered",
+          "starts": 2,
+          "before": {
+            "target": {
+              "ActiveState": "active"
+            },
+            "main": {
+              "ActiveState": "active",
+              "MainPID": "410557",
+              "NRestarts": "0"
+            },
+            "remote": {
+              "ActiveState": "active",
+              "MainPID": "410558",
+              "NRestarts": "0"
+            },
+            "kwin": {
+              "ActiveState": "active",
+              "MainPID": "410556",
+              "NRestarts": "0"
+            }
+          },
+          "after": {
+            "target": {
+              "ActiveState": "active"
+            },
+            "main": {
+              "ActiveState": "active",
+              "MainPID": "410570",
+              "NRestarts": "1"
+            },
+            "remote": {
+              "ActiveState": "active",
+              "MainPID": "410558",
+              "NRestarts": "0"
+            },
+            "kwin": {
+              "ActiveState": "active",
+              "MainPID": "410556",
+              "NRestarts": "0"
+            }
+          }
+        },
+        {
+          "mode": "always",
+          "dropin": true,
+          "expected": "stopped",
+          "starts": 3,
+          "before": {
+            "target": {
+              "ActiveState": "active"
+            },
+            "main": {
+              "ActiveState": "active",
+              "MainPID": "410623",
+              "NRestarts": "0"
+            },
+            "remote": {
+              "ActiveState": "active",
+              "MainPID": "410624",
+              "NRestarts": "0"
+            },
+            "kwin": {
+              "ActiveState": "active",
+              "MainPID": "410622",
+              "NRestarts": "0"
+            }
+          },
+          "after": {
+            "target": {
+              "ActiveState": "inactive"
+            },
+            "main": {
+              "ActiveState": "failed",
+              "MainPID": "0",
+              "NRestarts": "3"
+            },
+            "remote": {
+              "ActiveState": "inactive",
+              "MainPID": "0",
+              "NRestarts": "0"
+            },
+            "kwin": {
+              "ActiveState": "active",
+              "MainPID": "410622",
+              "NRestarts": "0"
+            }
+          }
+        },
+        {
+          "mode": "success",
+          "dropin": true,
+          "expected": "stopped",
+          "starts": 1,
+          "before": {
+            "target": {
+              "ActiveState": "active"
+            },
+            "main": {
+              "ActiveState": "active",
+              "MainPID": "410748",
+              "NRestarts": "0"
+            },
+            "remote": {
+              "ActiveState": "active",
+              "MainPID": "410749",
+              "NRestarts": "0"
+            },
+            "kwin": {
+              "ActiveState": "active",
+              "MainPID": "410747",
+              "NRestarts": "0"
+            }
+          },
+          "after": {
+            "target": {
+              "ActiveState": "inactive"
+            },
+            "main": {
+              "ActiveState": "inactive",
+              "MainPID": "0",
+              "NRestarts": "0"
+            },
+            "remote": {
+              "ActiveState": "inactive",
+              "MainPID": "0",
+              "NRestarts": "0"
+            },
+            "kwin": {
+              "ActiveState": "active",
+              "MainPID": "410747",
+              "NRestarts": "0"
+            }
+          }
+        }
+      ]
+    }
+  },
+  "temporary_runtime": {
+    "only_modified_copied_bundle_file": "mo-remote-portal.py",
+    "helper_sha256": "8afc4834d0e0e188764a32bc0a0cff751df703b358c1bb858a06cdb5dbf43da2",
+    "bundle": "/var/lib/moos-remote-screen-target-20261016/agent",
+    "overrides": "root-owned /run/systemd/user drop-ins; expire on reboot",
+    "signed_usr_original_unchanged": true,
+    "owner_after_fix": "ordinary moos login observed; current stream log reports NVENC 1024x576 from 3840x2160",
+    "owner_phone_picture_acceptance": "pending",
+    "account_password_or_provider_secret_read": false
+  },
+  "remaining": [
+    "fresh full local image and four-edition signed candidate/promotion",
+    "retire exact runtime bundle after signed replacement/no-holder proof",
+    "phone decoded picture/input/long-running hotplug acceptance",
+    "ARM v5 targeting/endurance remains separate"
+  ]
+}

@@ -159,7 +159,7 @@ class World:
                       "out": (0, 0), "codec": "jpeg"},
             "pipeline": None, "enc": None, "rate": None,
             "pipeline_bus": None, "pipeline_bus_handler": None,
-            "pipewire_target": 58, "node_id": 58, "logical_w": 1920, "logical_h": 1080,
+            "pipewire_target": ("path", 58), "node_id": 58, "logical_w": 1920, "logical_h": 1080,
             "FRAME_KEEPALIVE_MS": 1000, "EXIT_LOST": 4,
         }
         for node in tree.body:

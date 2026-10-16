@@ -11,6 +11,8 @@ new private feedback/optional public suggestions product is P6.9 below.
 
 ## Active delivery and acceptance batch
 
+Immediate P0/P2.17 correction: native NVIDIA login is restored with a scoped copied Remote bundle after actual decoded camera output exposed incorrect v6 serial targeting and permitted video fallback. Source now chooses the correct ID/serial property, forbids fallback and bounds greeter crash recovery while preserving upstream authentication. Five native old/fixed/stop/success/exhaustion dependency controls and four target controls pass. Fresh local image/signed cycle, exact override retirement and phone/hotplug endurance remain required; no local override counts as delivery. [Evidence](releases/2026-10-16-remote-screen-target-source-proof.json). Store real-app additions/touch/lifecycle/task management continue independently on `feat/store-real-apps-touch-20261016`.
+
 Current qualified source `e1ffacfa` (PR243–246) ships the 200-app Store, all
 13 Craft apps, reviewed lifecycle/data/index/UI fixes, stable x86 Plasma6.8.0
 and THEME_REV=106. Native repository gates and the complete local image with
@@ -19,8 +21,7 @@ passes: build38816837919, disks38824574093/38824577430/38824580671,
 ISO38824584100, ARM38824591685 and x86 promotion38829865381. Independent
 registry/cosign readback matches x86 `.1062` / ARM `.792`.
 [Qualified cycle and boundaries](releases/2026-10-16-store-qualified-cycle-proof.json).
-Native NVIDIA still boots `.1046` with exact signed `.1062` staged and no
-transaction; authorized restart/new native acceptance remain separate. Oracle
+Native NVIDIA now boots exact signed `.1062` with `.1046` rollback: ordinary owner login,63 hashes,54 selfchecks/2 notes,55 post-update/0 failures, Plasma6.8/GPU/app acceptance pass. Its later temporary Remote correction still needs signed delivery and phone acceptance. Oracle
 has rebooted to exact signed `.792` with `.791` rollback and changed boot ID;
 native graphical acceptance passes63 hashes,51 selfchecks/4 notes,55 post-update
 checks/0 failures, no failed units, user-app update and a real Store window. The

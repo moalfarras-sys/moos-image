@@ -250,6 +250,26 @@ def watch_display_geometry():
 
 # Input belongs to the session, not to the output grant. HDMI hotplug and
 # permission renewal must not retire a held mouse/keyboard device.
+def screen_target(node, properties):
+    """Bind an exact portal target; a missing screen must never select a camera.
+
+    GStreamer's deprecated path= is a NODE ID, not object.serial. Passing a
+    serial there can name a different object or let policy select the default
+    camera. target-object= is the serial property. Older portals only return
+    a node ID, so keep that ID in its own property, with fallback forbidden.
+    """
+    if (isinstance(node, bool) or not isinstance(node, int) or not 0 < node < 2**32
+            or not isinstance(properties, dict)
+            or properties.get("source_type", 1) != 1):
+        raise ValueError("portal did not return a monitor target")
+    if "pipewire-serial" in properties:
+        serial = properties["pipewire-serial"]
+        if isinstance(serial, bool) or not isinstance(serial, int) or not 0 < serial < 2**64:
+            raise ValueError("portal returned an invalid monitor serial")
+        return "target-object", serial
+    return "path", node
+
+
 if input_only:
     from mo_remote_eis import EisInput
     try:
@@ -321,15 +341,10 @@ else:
     node_id, node_props = streams[0]
     node_id = int(node_id)
 
-    # ScreenCast v6 gives us a stable PipeWire object serial in addition to the
-    # transient node id. A node id may be reused after suspend/resume, a monitor
-    # hot-plug or a mode switch; reconnecting pipewiresrc to that stale number can
-    # therefore produce a healthy-looking pipeline whose frames belong to nothing
-    # (the controller sees a black/frozen desktop). `pipewiresrc path=` maps to
-    # PW_KEY_TARGET_OBJECT, which the portal specification says must use the serial
-    # when it is available. Old portal backends do not publish the property, so the
-    # node id remains the compatibility fallback.
-    pipewire_target = int(node_props.get("pipewire-serial", node_id))
+    try:
+        pipewire_target = screen_target(node_id, node_props)
+    except ValueError as error:
+        die(EXIT_LOST, str(error))
 
     # The portal validates absolute pointer coordinates against the *logical* desktop size it
     # advertises here (e.g. 1396x785 on a 3840x2160 screen at 2.75x scale) — NOT against the
@@ -1760,7 +1775,8 @@ def build(w, h):
     # then shrinking costs more than the encode itself.
     caps = f"! video/x-raw,width={w},height={h} " if w else ""
     head = (
-        f"pipewiresrc fd={pipeline_fd} path={pipewire_target} do-timestamp=true "
+        f"pipewiresrc fd={pipeline_fd} {pipewire_target[0]}={pipewire_target[1]} "
+        'stream-properties="props,node.dont-fallback=(boolean)true" do-timestamp=true '
         f"keepalive-time={FRAME_KEEPALIVE_MS} "
         # THE QUEUE IS NOT DECORATION — IT IS WHAT KEEPS A SLOW ENCODER OFF THE COMPOSITOR'S THREAD.
         #
@@ -1948,7 +1964,7 @@ def build(w, h):
         emit(type="video", codec=codec, encoder=(elem or "jpegenc"),
              width=w, height=h, source_width=state["sw"], source_height=state["sh"],
              logical_width=logical_w, logical_height=logical_h, node=node_id,
-             pipewire_serial=pipewire_target)
+             pipewire_serial=pipewire_target[1] if pipewire_target[0] == "target-object" else None)
     return False  # one-shot idle
 
 
