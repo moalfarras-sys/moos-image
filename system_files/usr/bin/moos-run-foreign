@@ -396,17 +396,8 @@ apk_install() {
     echo "  $apk"
     echo
 
-    # The container has to be up before it can be handed a package. `session start` is a
-    # user-level call and is a no-op when a session is already running.
-    if ! waydroid status 2>/dev/null | grep -qi 'session:[[:space:]]*running'; then
-        echo "يشغّل حاوية Android… | starting the Android container…"
-        setsid waydroid session start >/dev/null 2>&1 &
-        for _ in $(seq 1 30); do
-            waydroid status 2>/dev/null | grep -qi 'session:[[:space:]]*running' && break
-            sleep 1
-        done
-    fi
-
+    # One authority verifies readiness and starts the persistent user session:
+    # the same Store controller used by catalogue installs and dropped files.
     if /usr/bin/moos-storectl install-file "$apk"; then
         echo
         echo "✓ اكتمل التثبيت — افتح التطبيق من قائمة التطبيقات | installation completed — open the app from the launcher"

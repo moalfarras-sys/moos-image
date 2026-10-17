@@ -46,7 +46,9 @@ jobs:
     timeout-minutes: 90
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
 
       - name: Release-disk source gates
         run: |
@@ -58,7 +60,7 @@ jobs:
           python3 tests/test_seal_arm_deployment.py
 
       - name: Free disk space
-        uses: jlumbroso/free-disk-space@v1.3.1
+        uses: jlumbroso/free-disk-space@54081f138730dfa15788a46383842cd2f914a1be # v1.3.1
         with:
           tool-cache: true
           docker-images: true
@@ -79,7 +81,7 @@ jobs:
       # BEFORE the expensive pull, so a moved or overwritten :latest tag fails the
       # build here instead of being baked into a shipped disk.
       - name: Install cosign
-        uses: sigstore/cosign-installer@v3
+        uses: sigstore/cosign-installer@398d4b0eeef1380460a10c8013a76f728fb906ac # v3
 
       - name: Verify and pin the exact image digest
         id: pin
@@ -223,7 +225,7 @@ jobs:
 
       - name: Upload x86 QCOW2 boot evidence
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: moos-x86-qcow2-boot-proof
           path: ${{ runner.temp }}/x86-qcow2-boot-proof
@@ -240,7 +242,7 @@ jobs:
           [ "$actual" = "$expected" ] || { echo "FATAL: qcow2 changed before upload"; exit 1; }
 
       - name: Publish the pristine qcow2
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: moos-ci-verified-disk-qcow2
           path: output/**/*.qcow2

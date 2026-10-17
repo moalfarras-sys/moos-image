@@ -377,6 +377,11 @@ int main(int argc, char *argv[])
     QGuiApplication::setWindowIcon(QIcon::fromTheme(iconName));
 
     QQmlApplicationEngine engine;
+    // The apps draw custom Basic controls, but their theme and motion still
+    // belong to Plasma. Kirigami otherwise searches for a "Basic" platform
+    // plugin, finds none and keeps a fixed 200 ms even when animations are off.
+    // Select KDE's platform integration independently of the controls style.
+    engine.setProperty("_kirigamiTheme", QStringLiteral("org.kde.desktop"));
     // The installer's secure answers channel (see InstallerBridge). Harmless for
     // the other MoOS apps that never call it.
     InstallerBridge installerBridge;

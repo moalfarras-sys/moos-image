@@ -36,7 +36,9 @@ jobs:
     name: Repo gates
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
       # verify_visuals.py and test_moos_ui2.py open the shipped PNG/JPG masters with Pillow, and
       # the stock runner has no PIL. build.yml installs this before its own gate step; a job that
       # runs the same list needs the same dependency, and the first run of this workflow proved it

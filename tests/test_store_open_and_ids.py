@@ -401,7 +401,7 @@ class OpenBesideAJob(Backend):
         self.runner.commands.clear()
         code, document = self.cli(apps, "run", "org.example.notes")
         self.assertEqual((code, document["state"], document["message_key"]), (75, "busy", "busy"))
-        self.assertNotIn([MODULE.WAYDROID, "session", "start"], self.runner.spawned)
+        self.assertNotIn(MODULE.ANDROID_SESSION_START, self.runner.spawned)
         self.assertEqual(self.runner.commands, [])
 
     def test_with_the_lock_free_an_open_is_a_job_like_any_other(self):
@@ -498,7 +498,7 @@ class AndroidFromALink(Backend):
         self.assertEqual((code, document["state"]), (2, "failed"), document)
         self.assertEqual(document["message_key"], "android_not_running")
         self.assertEqual(self.job_document()["message_key"], "android_not_running")
-        self.assertNotIn([MODULE.WAYDROID, "session", "start"], self.runner.spawned)
+        self.assertNotIn(MODULE.ANDROID_SESSION_START, self.runner.spawned)
         self.assertEqual(self.runner.commands, [], "an app was launched into no session")
         self.assertEqual(self.runner.guard_calls, 0, "the GPU was cleared for an app that never opened")
 
@@ -506,14 +506,14 @@ class AndroidFromALink(Backend):
         code, document = self.cli(self.APPS, "run", "--no-android-start", "org.example.notes")
         self.assertEqual((code, document["state"]), (0, "success"), document)
         self.assertEqual(self.runner.commands, [[MODULE.WAYDROID, "app", "launch", "org.example.notes"]])
-        self.assertNotIn([MODULE.WAYDROID, "session", "start"], self.runner.spawned)
+        self.assertNotIn(MODULE.ANDROID_SESSION_START, self.runner.spawned)
 
     def test_a_link_beside_a_job_says_the_same(self):
         self.runner.session = STOPPED
         self.hold_lock()
         code, document = self.cli(self.APPS, "run", "--no-android-start", "org.example.notes")
         self.assertEqual((code, document["message_key"]), (2, "android_not_running"), document)
-        self.assertNotIn([MODULE.WAYDROID, "session", "start"], self.runner.spawned)
+        self.assertNotIn(MODULE.ANDROID_SESSION_START, self.runner.spawned)
 
     def test_the_persons_own_request_still_starts_it(self):
         self.runner.session = STOPPED
@@ -526,7 +526,7 @@ class AndroidFromALink(Backend):
         with mock.patch.object(MODULE.time, "sleep", lambda _seconds: None):
             code, document = self.cli(self.APPS, "run", "org.example.notes")
         self.assertEqual((code, document["state"]), (0, "success"), document)
-        self.assertIn([MODULE.WAYDROID, "session", "start"], started)
+        self.assertIn(MODULE.ANDROID_SESSION_START, started)
 
     def test_the_flag_changes_nothing_for_other_kinds(self):
         apps = [self.webapp("whatsapp")]
@@ -774,7 +774,7 @@ def note(kind, argv):
 class Runner(module.CommandRunner):
     def spawn(self, argv):
         note("spawn", argv)
-        if list(argv[1:]) == ["session", "start"]:
+        if list(argv) == module.ANDROID_SESSION_START:
             with open(SESSION, "w", encoding="utf-8") as status:
                 status.write("Session:\tRUNNING\n")
 
@@ -916,11 +916,11 @@ class RoutesWithTheRealBackend(Routes):
         _done, notices = self.route("moos://apps/run/org.example.notes")
         self.assertEqual(len(notices), 1, notices)
         self.assertIn("Android app support is not running", notices[0])
-        self.assertNotIn(["spawn", [MODULE.WAYDROID, "session", "start"]], self.starts())
+        self.assertNotIn(["spawn", MODULE.ANDROID_SESSION_START], self.starts())
         self.assertEqual([start for start in self.starts() if start[0] == "run"], [])
         done = self.control("open", "org.example.notes")
         self.assertEqual(done.returncode, 0, done.stderr)
-        self.assertIn(["spawn", [MODULE.WAYDROID, "session", "start"]], self.starts())
+        self.assertIn(["spawn", MODULE.ANDROID_SESSION_START], self.starts())
         self.assertIn(["run", [MODULE.WAYDROID, "app", "launch", "org.example.notes"]], self.starts())
 
     def test_beside_another_requests_live_job_both_say_busy(self):

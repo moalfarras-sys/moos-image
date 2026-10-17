@@ -49,6 +49,14 @@ Item {
                 elide: Text.ElideRight
             }
             ActionButton {
+                objectName: "openTaskManager"
+                win: library.win
+                pill: true
+                label: library.win.local("مدير المهام", "Task manager")
+                glyphName: "pulse"
+                triggered: function() { library.win.openSystemRoute("task-manager") }
+            }
+            ActionButton {
                 win: library.win
                 visible: library.win.updatesState === "known" && library.win.updateItems().length > 0
                 pill: true
@@ -60,25 +68,47 @@ Item {
             }
         }
 
-        RowLayout {
+        Flickable {
+            id: kindFlick
+            objectName: "libraryKindFlick"
             Layout.fillWidth: true
-            spacing: library.design.space2
-            Repeater {
-                model: [{ id: "all", ar: "الكل", en: "All", glyph: "" }].concat(library.win.kindDefs)
-                delegate: KindChip {
-                    id: libraryChip
-                    required property var modelData
-                    win: library.win
-                    label: libraryChip.modelData.id === "all" ? library.win.local("الكل", "All")
-                                                              : library.win.localName(libraryChip.modelData)
-                    glyph: libraryChip.modelData.glyph
-                    count: library.win.libraryCount(libraryChip.modelData.id)
-                    checked: library.win.libraryKind === libraryChip.modelData.id
-                    visible: libraryChip.modelData.id === "all" || library.win.libraryCount(libraryChip.modelData.id) > 0
-                    onActivated: library.win.libraryKind = libraryChip.modelData.id
+            Layout.preferredHeight: libraryKinds.implicitHeight
+            contentWidth: libraryKinds.implicitWidth
+            contentHeight: height
+            clip: true
+            interactive: contentWidth > width
+            flickableDirection: Flickable.HorizontalFlick
+            boundsBehavior: Flickable.StopAtBounds
+            function snapToReadingStart() {
+                if (library.win.rtl && !moving && !dragging)
+                    contentX = Math.max(0, contentWidth - width)
+            }
+            onContentWidthChanged: snapToReadingStart()
+            onWidthChanged: snapToReadingStart()
+            Component.onCompleted: snapToReadingStart()
+            EdgeFades { anchors.fill: parent; win: library.win; flick: kindFlick }
+            RowLayout {
+                id: libraryKinds
+                height: parent.height
+                x: library.win.rtl ? Math.max(0, kindFlick.width - implicitWidth) : 0
+                spacing: library.design.space2
+                Repeater {
+                    model: [{ id: "all", ar: "الكل", en: "All", glyph: "" }].concat(library.win.kindDefs)
+                    delegate: KindChip {
+                        id: libraryChip
+                        objectName: "libraryKind-" + libraryChip.modelData.id
+                        required property var modelData
+                        win: library.win
+                        label: libraryChip.modelData.id === "all" ? library.win.local("الكل", "All")
+                                                                  : library.win.localName(libraryChip.modelData)
+                        glyph: libraryChip.modelData.glyph
+                        count: library.win.libraryCount(libraryChip.modelData.id)
+                        checked: library.win.libraryKind === libraryChip.modelData.id
+                        visible: libraryChip.modelData.id === "all" || library.win.libraryCount(libraryChip.modelData.id) > 0
+                        onActivated: library.win.libraryKind = libraryChip.modelData.id
+                    }
                 }
             }
-            Item { Layout.fillWidth: true }
         }
 
         ListView {
@@ -120,7 +150,13 @@ Item {
                 border.color: libraryList.activeFocus && libraryList.currentIndex === entry.index ? library.win.accent
                              : entryHover.hovered ? library.win.tint(library.win.accent, 0.45) : library.win.cardBorder
                 HoverHandler { id: entryHover; cursorShape: Qt.PointingHandCursor }
-                TapHandler { onTapped: library.win.openDetails(entry.app) }
+                TapHandler {
+                    onTapped: (eventPoint) => {
+                        var actionHit = [entryPrimary, entryPermissions, entryRemove].some(
+                            action => action.visible && action.contains(action.mapFromItem(entry, eventPoint.position)))
+                        if (!actionHit) library.win.openDetails(entry.app)
+                    }
+                }
                 RowLayout {
                     anchors.fill: parent
                     anchors.leftMargin: library.design.space4
@@ -145,7 +181,11 @@ Item {
                             horizontalAlignment: Text.AlignLeft
                             Layout.fillWidth: true
                             text: {
-                                var parts = [library.win.kindLabel(library.win.appKind(entry.app))]
+                                var parts = [entry.app.kind === "native"
+                                    ? entry.app.management === "os"
+                                      ? library.win.local("جزء من MoOS · يتحدّث مع النظام", "Part of MoOS · updated with the system")
+                                      : library.win.local("مثبّت خارج المتجر · تُدار ملفاته من مصدره", "Installed outside the Store · managed at its source")
+                                    : library.win.kindLabel(library.win.appKind(entry.app))]
                                 var version = entry.app.installed_version || entry.app.version || ""
                                 if (version !== "" && entry.updateTarget !== "" && entry.updateTarget !== version)
                                     parts.push(library.win.ltr(version + "  →  " + entry.updateTarget))
@@ -177,11 +217,13 @@ Item {
                         }
                     }
                     ProgressButton {
+                        id: entryPrimary
                         win: library.win
                         app: entry.app
                         tabStop: false
                     }
                     CircleButton {
+                        id: entryPermissions
                         win: library.win
                         visible: library.win.canChangePermissions(entry.app)
                         glyph: "lock"
@@ -189,6 +231,7 @@ Item {
                         onActivated: library.win.openPermissions(entry.app)
                     }
                     CircleButton {
+                        id: entryRemove
                         win: library.win
                         visible: library.win.canRemove(entry.app)
                         enabled: !library.win.jobIsActive()

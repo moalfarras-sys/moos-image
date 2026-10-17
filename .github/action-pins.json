@@ -1,0 +1,98 @@
+{
+  "schema": 1,
+  "resolved_at_utc": "2026-10-16 06:47:17 UTC",
+  "scope": "Exact commits resolved from each existing upstream repository ref; commit verification metadata is recorded, not an assertion that every upstream commit is signed.",
+  "actions": [
+    {
+      "repository": "actions/checkout",
+      "reviewed_ref": "v5",
+      "sha": "fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09",
+      "commit_url": "https://github.com/actions/checkout/commit/fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09",
+      "commit_signature_verified": true
+    },
+    {
+      "repository": "actions/setup-dotnet",
+      "reviewed_ref": "v5",
+      "sha": "26b0ec14cb23fa6904739307f278c14f94c95bf1",
+      "commit_url": "https://github.com/actions/setup-dotnet/commit/26b0ec14cb23fa6904739307f278c14f94c95bf1",
+      "commit_signature_verified": true
+    },
+    {
+      "repository": "actions/setup-node",
+      "reviewed_ref": "v4",
+      "sha": "49933ea5288caeca8642d1e84afbd3f7d6820020",
+      "commit_url": "https://github.com/actions/setup-node/commit/49933ea5288caeca8642d1e84afbd3f7d6820020",
+      "commit_signature_verified": true
+    },
+    {
+      "repository": "actions/setup-node",
+      "reviewed_ref": "v5",
+      "sha": "a0853c24544627f65ddf259abe73b1d18a591444",
+      "commit_url": "https://github.com/actions/setup-node/commit/a0853c24544627f65ddf259abe73b1d18a591444",
+      "commit_signature_verified": true
+    },
+    {
+      "repository": "actions/setup-python",
+      "reviewed_ref": "v6",
+      "sha": "ece7cb06caefa5fff74198d8649806c4678c61a1",
+      "commit_url": "https://github.com/actions/setup-python/commit/ece7cb06caefa5fff74198d8649806c4678c61a1",
+      "commit_signature_verified": true
+    },
+    {
+      "repository": "actions/upload-artifact",
+      "reviewed_ref": "v4",
+      "sha": "ea165f8d65b6e75b540449e92b4886f43607fa02",
+      "commit_url": "https://github.com/actions/upload-artifact/commit/ea165f8d65b6e75b540449e92b4886f43607fa02",
+      "commit_signature_verified": true
+    },
+    {
+      "repository": "anthropics/claude-code-action",
+      "reviewed_ref": "v1",
+      "sha": "374f254f5efaf968abfe15d399fd90972e8138b9",
+      "commit_url": "https://github.com/anthropics/claude-code-action/commit/374f254f5efaf968abfe15d399fd90972e8138b9",
+      "commit_signature_verified": false
+    },
+    {
+      "repository": "jlumbroso/free-disk-space",
+      "reviewed_ref": "v1.3.1",
+      "sha": "54081f138730dfa15788a46383842cd2f914a1be",
+      "commit_url": "https://github.com/jlumbroso/free-disk-space/commit/54081f138730dfa15788a46383842cd2f914a1be",
+      "commit_signature_verified": true
+    },
+    {
+      "repository": "redhat-actions/buildah-build",
+      "reviewed_ref": "v3",
+      "sha": "719e3c40d8af9790c23eca13f7daa339f2867034",
+      "commit_url": "https://github.com/redhat-actions/buildah-build/commit/719e3c40d8af9790c23eca13f7daa339f2867034",
+      "commit_signature_verified": true
+    },
+    {
+      "repository": "redhat-actions/podman-login",
+      "reviewed_ref": "v2",
+      "sha": "50c2d9a331bb67c8fdab99b86455fad05e2e3252",
+      "commit_url": "https://github.com/redhat-actions/podman-login/commit/50c2d9a331bb67c8fdab99b86455fad05e2e3252",
+      "commit_signature_verified": true
+    },
+    {
+      "repository": "redhat-actions/push-to-registry",
+      "reviewed_ref": "v3",
+      "sha": "94ade333c38ecc0e60e94785125d9a52ca423b37",
+      "commit_url": "https://github.com/redhat-actions/push-to-registry/commit/94ade333c38ecc0e60e94785125d9a52ca423b37",
+      "commit_signature_verified": true
+    },
+    {
+      "repository": "sigstore/cosign-installer",
+      "reviewed_ref": "v3",
+      "sha": "398d4b0eeef1380460a10c8013a76f728fb906ac",
+      "commit_url": "https://github.com/sigstore/cosign-installer/commit/398d4b0eeef1380460a10c8013a76f728fb906ac",
+      "commit_signature_verified": true
+    },
+    {
+      "repository": "ublue-os/titanoboa",
+      "reviewed_ref": "5c457c3d0518bd17e754be0fd98a60d29d26abb4",
+      "sha": "5c457c3d0518bd17e754be0fd98a60d29d26abb4",
+      "commit_url": "https://github.com/ublue-os/titanoboa/commit/5c457c3d0518bd17e754be0fd98a60d29d26abb4",
+      "commit_signature_verified": true
+    }
+  ]
+}

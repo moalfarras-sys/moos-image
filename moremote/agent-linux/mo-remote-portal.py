@@ -250,6 +250,26 @@ def watch_display_geometry():
 
 # Input belongs to the session, not to the output grant. HDMI hotplug and
 # permission renewal must not retire a held mouse/keyboard device.
+def screen_target(node, properties):
+    """Bind an exact portal target; a missing screen must never select a camera.
+
+    GStreamer's deprecated path= is a NODE ID, not object.serial. Passing a
+    serial there can name a different object or let policy select the default
+    camera. target-object= is the serial property. Older portals only return
+    a node ID, so keep that ID in its own property, with fallback forbidden.
+    """
+    if (isinstance(node, bool) or not isinstance(node, int) or not 0 < node < 2**32
+            or not isinstance(properties, dict)
+            or properties.get("source_type", 1) != 1):
+        raise ValueError("portal did not return a monitor target")
+    if "pipewire-serial" in properties:
+        serial = properties["pipewire-serial"]
+        if isinstance(serial, bool) or not isinstance(serial, int) or not 0 < serial < 2**64:
+            raise ValueError("portal returned an invalid monitor serial")
+        return "target-object", serial
+    return "path", node
+
+
 if input_only:
     from mo_remote_eis import EisInput
     try:
@@ -321,15 +341,10 @@ else:
     node_id, node_props = streams[0]
     node_id = int(node_id)
 
-    # ScreenCast v6 gives us a stable PipeWire object serial in addition to the
-    # transient node id. A node id may be reused after suspend/resume, a monitor
-    # hot-plug or a mode switch; reconnecting pipewiresrc to that stale number can
-    # therefore produce a healthy-looking pipeline whose frames belong to nothing
-    # (the controller sees a black/frozen desktop). `pipewiresrc path=` maps to
-    # PW_KEY_TARGET_OBJECT, which the portal specification says must use the serial
-    # when it is available. Old portal backends do not publish the property, so the
-    # node id remains the compatibility fallback.
-    pipewire_target = int(node_props.get("pipewire-serial", node_id))
+    try:
+        pipewire_target = screen_target(node_id, node_props)
+    except ValueError as error:
+        die(EXIT_LOST, str(error))
 
     # The portal validates absolute pointer coordinates against the *logical* desktop size it
     # advertises here (e.g. 1396x785 on a 3840x2160 screen at 2.75x scale) — NOT against the
@@ -1570,17 +1585,37 @@ def target_size():
     return (w, h)
 
 
-def on_sample(sink):
+def source_size(source):
+    """Read capture pixels before scaling/encoding; encoded caps are output size."""
+    try:
+        pad = source.get_static_pad("src") if source is not None else None
+        caps = pad.get_current_caps() if pad is not None else None
+        if caps is None or caps.is_empty():
+            return None
+        structure = caps.get_structure(0)
+        width, height = structure.get_value("width"), structure.get_value("height")
+        if type(width) is int and type(height) is int and 0 < width <= 32768 and 0 < height <= 32768:
+            return width, height
+    except (AttributeError, TypeError, ValueError):
+        pass
+    return None
+
+
+def on_sample(sink, source=None):
     sample = sink.emit("pull-sample")
     if sample is None:
         return Gst.FlowReturn.OK
     if not state["sw"]:
-        # Source geometry is only known once buffers flow; learn it, then rebuild at the right size.
-        caps = sample.get_caps()
-        if caps:
-            s = caps.get_structure(0)
-            state["sw"], state["sh"] = s.get_value("width"), s.get_value("height")
-            GLib.idle_add(rebuild)
+        # The sink's caps describe the encoded image. A 640x480 startup encode
+        # must never become the claimed size of a 4K source. Bind this callback
+        # to its own pipeline's source, rather than a changing global pipeline.
+        size = source_size(source)
+        if size is None:
+            # Unknown source geometry is not a healthy picture; the existing
+            # first-frame deadline will renew the grant if negotiation stalls.
+            return Gst.FlowReturn.OK
+        state["sw"], state["sh"] = size
+        GLib.idle_add(rebuild)
     buf = sample.get_buffer()
     ok, info = buf.map(Gst.MapFlags.READ)
     if ok:
@@ -1760,7 +1795,8 @@ def build(w, h):
     # then shrinking costs more than the encode itself.
     caps = f"! video/x-raw,width={w},height={h} " if w else ""
     head = (
-        f"pipewiresrc fd={pipeline_fd} path={pipewire_target} do-timestamp=true "
+        f"pipewiresrc fd={pipeline_fd} {pipewire_target[0]}={pipewire_target[1]} "
+        'stream-properties="props,node.dont-fallback=(boolean)true" name=source do-timestamp=true '
         f"keepalive-time={FRAME_KEEPALIVE_MS} "
         # THE QUEUE IS NOT DECORATION — IT IS WHAT KEEPS A SLOW ENCODER OFF THE COMPOSITOR'S THREAD.
         #
@@ -1886,7 +1922,7 @@ def build(w, h):
     rate.get_static_pad("sink").add_probe(Gst.PadProbeType.BUFFER, pace_frame)
     if codec == "h264":
         tune_for_latency(enc, _bps, state["fps"])
-    pipeline.get_by_name("sink").connect("new-sample", on_sample)
+    pipeline.get_by_name("sink").connect("new-sample", on_sample, pipeline.get_by_name("source"))
     pipeline_bus = pipeline.get_bus()
     pipeline_bus.add_signal_watch()
     pipeline_bus_handler = pipeline_bus.connect("message", on_bus)
@@ -1948,7 +1984,7 @@ def build(w, h):
         emit(type="video", codec=codec, encoder=(elem or "jpegenc"),
              width=w, height=h, source_width=state["sw"], source_height=state["sh"],
              logical_width=logical_w, logical_height=logical_h, node=node_id,
-             pipewire_serial=pipewire_target)
+             pipewire_serial=pipewire_target[1] if pipewire_target[0] == "target-object" else None)
     return False  # one-shot idle
 
 

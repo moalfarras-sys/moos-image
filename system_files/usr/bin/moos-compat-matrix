@@ -1,0 +1,147 @@
+#!/usr/bin/env python3
+"""Report catalogue availability using the Store's policy, not inferred app testing."""
+from __future__ import annotations
+
+import argparse
+import hashlib
+import importlib.machinery
+import importlib.util
+import json
+import os
+from pathlib import Path
+import sys
+
+PROFILES = {
+    'moos': {'arch': 'x86_64', 'engines': ['linux', 'windows', 'android']},
+    'moos-nvidia': {'arch': 'x86_64', 'engines': ['linux', 'windows', 'android']},
+    'moos-cloud': {'arch': 'x86_64', 'engines': ['linux']},
+    'moos-arm': {'arch': 'aarch64', 'engines': ['linux']},
+}
+SCOPE = {
+    'ar': 'إتاحة وصفات المتجر حسب النسخة والمعمارية. لا تثبت تشغيل كل تطبيق أو توافق الأجهزة أو أحدث إصدار عند الناشر.',
+    'en': 'Catalogue recipe availability by edition and architecture. This does not establish application testing, hardware compatibility or the latest publisher version.',
+}
+NVIDIA_NOTE = {
+    'ar': 'عند توفر بطاقة NVIDIA فقط، تستخدم تطبيقات أندرويد الرسم البرمجي وقد يكون أداؤها محدودًا.',
+    'en': 'On NVIDIA-only graphics, Android uses software rendering and performance may be limited.',
+}
+
+
+def store_policy():
+    path = Path(__file__).resolve().with_name('moos-store-index')
+    loader = importlib.machinery.SourceFileLoader('moos_compat_store_policy', str(path))
+    spec = importlib.util.spec_from_loader(loader.name, loader)
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[loader.name] = module
+    loader.exec_module(module)
+    return module
+
+
+def default_root():
+    if 'MOOS_TEST_ROOT' in os.environ:
+        return Path(os.environ['MOOS_TEST_ROOT'])
+    # /usr/bin has only three parents. Installed execution must not index a
+    # fourth parent or accidentally find a developer's different catalogue.
+    here = Path(__file__).resolve()
+    if len(here.parents) > 3:
+        source = here.parents[3] / 'system_files'
+        if (source / 'usr/share/moos/store/catalog.json').is_file():
+            return source
+    return Path('/')
+
+
+def summarize(apps):
+    return {'total_apps': len(apps), 'by_edition': {
+        edition: sum(a['availability'][edition]['catalog_available'] for a in apps)
+        for edition in PROFILES}}
+
+
+def generate_matrix(catalog_path=None, engines_path=None):
+    root = default_root()
+    cat = Path(catalog_path) if catalog_path else root / 'usr/share/moos/store/catalog.json'
+    eng = Path(engines_path) if engines_path else root / 'usr/share/moos/app-engines.json'
+    registry = json.loads(eng.read_text(encoding='utf-8'))
+    known_engines = {e['id'] for e in registry['engines']}
+    policy = store_policy()
+    catalogue = policy.load_catalog(cat)
+    if catalogue['skipped']:
+        raise ValueError('Catalogue has rejected entries; refusing an incomplete report')
+    offered = {}
+    for edition, profile in PROFILES.items():
+        selection = policy.load_catalog(cat, profile['arch'],
+                                        set(profile['engines']) & known_engines)
+        offered[edition] = {a['id'] for a in selection['apps']
+                            if policy.catalog_installable(a, profile['arch'])}
+    apps = []
+    for entry in catalogue['apps']:
+        engine = policy.catalog_app_engine(entry)
+        availability = {}
+        for edition, profile in PROFILES.items():
+            eligible = entry['id'] in offered[edition]
+            software = engine == 'android' and edition == 'moos-nvidia'
+            availability[edition] = {
+                'catalog_available': eligible,
+                'graphics': 'software-on-nvidia-only' if software else 'not-assessed',
+                'note': NVIDIA_NOTE if software else None,
+            }
+        apps.append({
+            'id': entry['id'], 'name': {'ar': entry['ar'], 'en': entry['en']},
+            'catalog_version': entry.get('install', {}).get('version'),
+            'declared_architectures': entry.get('arch'),
+            'application_test': 'not-assessed', 'availability': availability,
+        })
+    return {
+        'schema': 1, 'generator': 'moos-compat-matrix', 'scope': SCOPE,
+        'catalog_sha256': hashlib.sha256(cat.read_bytes()).hexdigest(),
+        'engines_sha256': hashlib.sha256(eng.read_bytes()).hexdigest(),
+        'profiles': PROFILES, 'summary': summarize(apps), 'apps': apps,
+        'unsupported': [{key: item[key] for key in ('id', 'name', 'reason')}
+                        for item in registry['unsupported']],
+    }
+
+
+def format_human(matrix, language='ar'):
+    ar = language == 'ar'
+    lines = [('MoOS · إتاحة التطبيقات' if ar else 'MoOS · Application availability'),
+             matrix['scope'][language], '',
+             ('التطبيق | إصدار الوصفة | moos | NVIDIA | Cloud | ARM' if ar else
+              'App | Recipe version | moos | NVIDIA | Cloud | ARM')]
+    for app in matrix['apps']:
+        cells = [('متاح' if ar else 'available') if app['availability'][edition]['catalog_available']
+                 else ('غير متاح' if ar else 'unavailable') for edition in PROFILES]
+        version = app['catalog_version'] or ('يُحل عند التثبيت' if ar else 'resolved at install')
+        lines.append(' | '.join([app['name'][language], version, *cells]))
+        note = app['availability']['moos-nvidia']['note']
+        if note:
+            lines.append('  ' + note[language])
+    lines.append('')
+    for unsupported in matrix['unsupported']:
+        lines.append(unsupported['reason'][language])
+    lines.append(('عدد التطبيقات: ' if ar else 'Apps: ') + str(matrix['summary']['total_apps']))
+    return '\n'.join(lines)
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--catalog', type=Path)
+    parser.add_argument('--engines', type=Path)
+    parser.add_argument('--format', choices=['json', 'human'], default='json')
+    parser.add_argument('--language', choices=['ar', 'en'], default='ar')
+    parser.add_argument('--app')
+    args = parser.parse_args()
+    try:
+        matrix = generate_matrix(args.catalog, args.engines)
+        if args.app:
+            matrix['apps'] = [a for a in matrix['apps'] if a['id'] == args.app]
+            if not matrix['apps']:
+                parser.error('Unknown catalogue application')
+            matrix['summary'] = summarize(matrix['apps'])
+    except (OSError, ValueError, KeyError, TypeError) as error:
+        parser.exit(1, f'Could not read the MoOS catalogue: {error}\n')
+    print(format_human(matrix, args.language) if args.format == 'human'
+          else json.dumps(matrix, ensure_ascii=False, indent=2))
+    return 0
+
+
+if __name__ == '__main__':
+    sys.exit(main())

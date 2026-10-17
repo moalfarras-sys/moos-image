@@ -2926,6 +2926,8 @@ systemd-analyze verify \
     /usr/lib/systemd/user/moos-app-drop.service \
     /usr/lib/systemd/user/moos-store-notify.path \
     /usr/lib/systemd/user/moos-store-notify.service \
+    /usr/lib/systemd/user/moos-android-session.service \
+    /usr/lib/systemd/user/kde-baloo.service \
     /usr/lib/systemd/user/mira.service \
     /usr/lib/systemd/user/mira-lumen.service
 # mira.service (Mira's login start) is verified but never enabled here: it is the person's own
@@ -4062,6 +4064,7 @@ python3 /ctx/verify_mime_handlers.py --root /
 # Both editions must ship what MoOS's desktop depends on, whoever supplied it.
 python3 /ctx/verify_desktop_parity.py --root /
 python3 /ctx/verify_sound_theme.py
+python3 /ctx/verify_qml_host_platform.py
 python3 /ctx/verify_moos_motion.py --qml /ctx/motion-review.qml
 
 # ── The MoOS Store must be internally consistent end-to-end ───────────────────

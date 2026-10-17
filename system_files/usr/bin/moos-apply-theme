@@ -362,7 +362,9 @@ set -uo pipefail
 # 104: Island arrow keys traverse only visible contexts and activate the same
 #      domain as pointer/Space input; purge epoch-mtime QML caches after delivery.
 # v106: deliver reviewed stable Plasma 6.8 seams and invalidate every cached variant.
-THEME_REV=106
+# 107: Store platform browsing, native touch/wheel management and localized
+#      Android lifecycle errors; purge frozen source QML in existing profiles.
+THEME_REV=107
 state_dir="${XDG_STATE_HOME:-$HOME/.local/state}"
 mkdir -p "$state_dir" 2>/dev/null || true
 marker="${state_dir}/moos-ui2-theme-applied.v${THEME_REV}"

@@ -1,20 +1,32 @@
-# MoOS current state — updated 2026-10-16
+# MoOS current state — updated 2026-10-17
 Oracle A1 and the physical NVIDIA workstation develop one MoOS product. Source, promoted artifacts and installed systems are separate evidence; the only backlog is [DEVELOPMENT_PLAN.md](docs/DEVELOPMENT_PLAN.md).
 Native audit: [AUDIT_20261012_AR.md](docs/AUDIT_20261012_AR.md). [Oct15 live delivery readback](docs/releases/2026-10-15-unified-delivery-readback.json). [Oct15 branch integration](docs/releases/2026-10-15-owner-integration.json). [Historical Store defects and their integrated corrections](docs/reviews/STORE_20261015_AR.md).
 
 ## Current engineering batch
+
+Oct17 owner completion combines PR248, the preserved native-inventory/Store-experience branch and the local compatibility work on `audit/owner-completion-20261017`. The 242-ref/62-worktree inventory, five dirty-tree archives and verified609244906-byte Git bundle preserve originals. Source retains264 reviewed recipes (150 repository Linux,46 Android), native application ownership/inventory, one product with explicit variants, deferred card creation and both exact-target/raw-geometry Remote corrections. The native launch path uses the canonical detached launcher. Android waits for the actual application service without losing the later APK parser/property/receipt guards. Catalogue availability reuses Store policy and explicitly leaves application testing unassessed; eleven original-generator negatives fail. Six unqualified local recipes stay in Git history. Actual catalogue/index reconciliation also found Finamp and Shattered Pixel Dungeon sharing Linux/Android IDs: prefer their confirmed native Linux builds on x86/ARM, preserve existing Android receipts as namespaced unlisted apps, and require the backend action to stay on the selected platform.
+
+New native `.1062` audit: boot ID `0bb023f0-4e85-4423-b484-d278e0509197`, signed `.1046` rollback, Plasma6.8.0/Qt6.11.2/kernel7.2.10/NVIDIA615.78.08. App updates pass, about42GiB writable headroom. The unchanged postcheck fails54/1 on52 historical display-start aborts. Baloo inherited neither display variable; restarting only its unit with the actual manager environment restores content search in1.049s, and118 visible owned-file retries reduce the failed-list counter to22, while each remaining file now reports completed content indexing; the stale-list discrepancy is unproven. No index purge or display restart. Source orders the indexer after plasma-core.target; isolated native systemd fixed/cycle-negative controls pass. The earlier offscreen proposal remains historical and is not installed. Two Android crash-processor timeout flags and UCSI-110 remain visible; a new signed cold boot and full hardware acceptance remain owed. [Owner audit](docs/AUDIT_20261017_AR.md).
+
+
+Final combined native `just check` passes at `8b3d5ac3`, clean tree `9bc95ea0`, exit0 in518.921s (2639 reported unittest cases,13 skips). Native Store input controls cover AR/EN,100/250%, font10/20 and reduced motion, retaining all three failing-implementation controls. Six isolated real-index QML captures pass. Local image qualification and signed delivery remain separate; see the owner audit.
+
+Oct17 Android setup follow-up fixes a source-verified first-use defect: desktop-window properties were written before the platform started, and the upstream command could log refusal with exit0. Confirmed setup now waits for actual Android boot, applies/reads the two properties, restarts once only if changed and verifies the new session; it no longer opens a separate phone desktop. Existing configured sessions need no writes/restart; the existing-session notice precedes consent. Nine native isolated setup controls, five runtime controls and four OTA-channel controls pass; two restored-old controls fail. Real APK/windows/GPU acceptance remains separate. [Source evidence](docs/releases/2026-10-17-android-desktop-setup-source-proof.json).
+
+Oct17 qualification: after preserved fixture-input/reserve failures, exact `7c37862e` passes native full check (764.570s), the complete ARM image (1035.036s, immutable ID `3d66eafa`) and all19 changed payload hashes; PR x86/ARM/Plasma-next/repository/Remote checks succeed. This qualifies that checkpoint, not the later lifetime fix. Exact cache/old-artifact retirement preserves current images, SDKs, containers and signed rollback; Oracle now has26.6GiB free, NVIDIA42.2GiB. Backup saves snapshot39ea83ab. OCI instance-principal authentication and tenancy read succeed; compute detail access is denied and billing is unverified. No new signed image was promoted or installed. [Earlier failures](docs/releases/2026-10-17-store-qualification-followup.json). [New checkpoint/native evidence](docs/releases/2026-10-17-managed-app-native-proof.json).
+
+Native NVIDIA exposed a Store lifetime defect: Notepad4 closed when its short caller exited. The shared canonical launcher now gives each app cgroup lifetime and graphical-session stop ownership, refusing manager failures. Seven portable controls pass; actual private native old-Popen/no-cgroup negatives die, fixed child survives then stops with only its private target. Exact staged source opens real Notepad4 in a separate unit and its actual MoOS-framed pixels are reviewed. This is source/runtime evidence, not signed installed payload. Final combined qualification and the one four-edition cycle remain open.
+
+Oct16 Store source batch adds64 real app recipes (23 Linux/27 Android/14 Windows):264 curated entries, with all200 baseline app objects and27 existing webapps preserved. Platform browsing, touch/wheel and management actions have native Qt positive/old-source negative controls. Actual Basic-style QML hosts now use KDE motion policy; THEME_REV107 invalidates changed QML. [Measured source evidence](docs/releases/2026-10-16-store-native-source-proof.json).
+Oracle real Curtail install/function/permissions/update/keep-data/remove-data/reinstall and forced-Wayland launch pass. First launch crashed in sandbox Mesa Vulkan; ARM's GL policy works on the same artifact, with a temporary owner-manager setting until delivery. Android updates confirm kept APK bytes before publishing a receipt. Native NVIDIA is reachable through existing authorized root/owner SSH: Markor installs with exact publisher bytes/version and gets a real KWin window after cold Android recovery. Initial WCG/display abort and a later launch failure remain preserved; renderer choice was measured irrelevant and restored. Owned document-intent/permission controls restore their baseline; editing/saving pixels and durable startup/endurance remain unproven. Fourteen added Windows apps have private Wine renders; five rejected candidates stay excluded. Mira's delayed-delivery old negative and64 bounded-burst controls pass with no idle poll. Coherent signed delivery and installed-image acceptance remain pending.
+
+Urgent Oct16 source correction: the physical greeter's v6 PipeWire serial was passed as a node ID; decoded output was a real camera image. The corrected exact target disables default-video fallback. A scoped copied bundle now serves the native account; its log reports NVENC from the 3840×2160 desktop. Ordinary owner login and the existing signed .1062 acceptance pass63 hashes/54 selfchecks (2 notes)/55 post-update checks, with no failed system/owner units at acceptance. The owner subsequently confirmed the real desktop picture; fresh signed delivery and phone endurance remain separate. The Qt screen-removal crash has bounded recovery, not a claimed upstream/hardware cure. [Source/runtime evidence](docs/releases/2026-10-16-remote-screen-target-source-proof.json).
+Repository security now enables vulnerability alerts, automated security fixes and private reporting; existing secret scanning/push protection and strict main checks remain. Source pins64 top-level action uses/18 nonpersisting checkouts and restricts credential-bearing AI jobs to the owner; transitive action pinning and public-source copying are separate boundaries. [Readback](docs/releases/2026-10-16-repository-security-readback.json).
 PR243–246 at `e1ffacfa` integrate the 200-app Store, all 13 Craft apps, reviewed engine/data/index/UI fixes and the actual pre-authentication ISO capture. All 231 audited refs and 57 original station worktree heads are ancestors; 82 remote heads were published without force. Five station/four Oracle dirty trees and 24 cross-verified dirty files remain preserved with a verified full Git bundle; originals are untouched.
 Stable x86 Plasma 6.8.0, 12 reviewed seams, greeter/logout old/fixed controls and THEME_REV=106 pass. Native ARM `just check` and the complete local image pass; 63 immutable payload files and 200 curated apps match. First-attempt build 38816837919, disks 38824574093/38824577430/38824580671, ISO 38824584100, ARM 38824591685 and x86 promotion 38829865381 all succeed at this exact source. Independently verified production is x86 `.1062` / ARM `.792`. [Qualified receipt](docs/releases/2026-10-16-store-qualified-cycle-proof.json).
 The previous `.1060` ISO failed on a post-authentication handoff mislabeled pre-login; the failed verdict and old-source negatives remain preserved. The corrected cycle passes the unchanged visual threshold and ordinary offline install/login/ten-app/second-boot proofs. These are CI artifact proofs; physical NVIDIA acceptance remains separate. ARM retains qualified native Plasma 6.7.5.
 
-The previous complete four-edition batch is `5745edd1` (PR241): THEME_REV=104, full local ARM
-image and exact 20-file readback pass after the preserved ENOSPC failure.
-Build 38621311347, disks 38631573998/38631579047/38631585290,
-ISO 38631591001, ARM 38621121074 and promotion 38638466690 all succeeded
-on attempt 1 at the same source. Independent registry/signature readback matches.
-Eight distinct CI boots have exact signed origins and graphical active; the
-final ISO installs offline and opens/closes/reopens ten apps. NVIDIA VM proof
-does not qualify the physical GPU. [Qualified cycle](docs/releases/2026-10-14-m1-qualified-cycle-proof.json).
+Previous full batch `5745edd1` (PR241), THEME_REV=104, passed the native local image/20-file readback, signed four-edition cycle and unchanged gates after a preserved ENOSPC failure. Its eight CI boots and offline installed ISO/ten-app journey remain historical evidence, with physical GPU qualification separate. [Qualified cycle](docs/releases/2026-10-14-m1-qualified-cycle-proof.json).
 
 The Island correction resolves hidden-tab arrow selection, selection/content
 agreement, Return/keypad Enter, held Enter and retired-context blank pages.
@@ -56,7 +68,7 @@ pickers pass; wider user journeys remain in the single development plan.
 | Cloud x86 | 44.20261015.1062 | dc06b0a2450adc44034525289ebffb00aedac8e1070b1e05b1de2aba39ff1062 |
 | ARM | 44.20261015.792 | 05d9bbac44fb20cd0f1b5cb6e5f64b0d2a8a59930c920101a381abbe4421e040 |
 
-The four-edition cycle is signed, boot-proven and promoted at `e1ffacfa`; each production digest matches its proven candidate. The complete signed `.1062` ISO is privately retained: 6,020,923,392 bytes, SHA-256 `62a16ebb1d3f8dc4107c44fdc588b5c2dccd906b42a86b1aa5ee559deb4255db`. Local retention is not public endpoint qualification. Native NVIDIA has the exact `.1062` signed stage with no transaction; ARM has booted exact `.792`. New native acceptance is recorded separately below.
+The four-edition cycle is signed, boot-proven and promoted at `e1ffacfa`; each production digest matches its proven candidate. The complete signed `.1062` ISO is privately retained: 6,020,923,392 bytes, SHA-256 `62a16ebb1d3f8dc4107c44fdc588b5c2dccd906b42a86b1aa5ee559deb4255db`. Local retention is not public endpoint qualification. Native NVIDIA boots exact `.1062` with signed `.1046` rollback and no transaction; the current audit above supersedes older staging descriptions. ARM acceptance below was recorded on `.792` and has not been remeasured by this audit. New native acceptance is recorded separately below.
 Public .1046 is independently qualified and published: 5,830,410,240 bytes,
 SHA-256 `37053a88ae313f994875794055035d53134206a88eb44fb160b39fef3bb04821`.
 Full anonymous HTTP 200, resumed 206 ranges, signature and exact sidecars pass
@@ -79,19 +91,10 @@ No other product, API, DNS, WAF, authentication or billing setting changed.
 ## Oracle A1 development station
 
 Native aarch64, 2 vCPU/11.6 GiB, no GPU; Wayland Arabic UI2 Nova,
-virtual 1280×720 at 100%. Kernel 7.2.10, Plasma 6.7.5, Qt 6.11.2.
+virtual 1280×800 at 100%. Kernel 7.2.10, Plasma 6.7.5, Qt 6.11.2.
 Booted signed `.792` (`05d9bbac…`), boot ID `17e46ccf-f6d3-4416-b2c5-550be96077ca`, changed from `.791`'s `ab975b93-f72b-47ce-a327-b84f3f68a371`; signed `.791` is the actual rollback. The full coordinated cycle completed before the official native update/restart. Its postboot unit encountered an ordering cycle; the owned unit ordering is repaired and originals/logs retained. Actual native graphical acceptance now passes: 63/63 payload hashes, 51 selfchecks/4 notes, 55 post-update checks/0 failures, no failed units, user-app updates and a real Mo Store window; boot=14.625 s. Existing autologin is not ordinary PAM or broad hardware/endurance proof.
-Earlier `.775` evidence follows; it does not qualify `.792`:
-Native UID 1000 graphical checks pass 51 selfchecks/4 notes and 55 post-update
-checks/0 failures. All 19 payload files, exact compiled player and THEME_REV=104
-match reviewed source. One KWin/one plasmashell own the KDE Wayland session;
-boot=14.301 s. [Native receipt](docs/releases/2026-10-14-oracle-775-native-proof.json).
-Initial selfcheck failed on three transient container-prefixed units; its
-subsequent post-update check passed. The exact cause is unproven. A second
-probe found the first probe's own failed autostart unit. Both failures remain
-preserved; only that owned failed flag was retired before the passing readback.
-No current failed units; four owner containers are healthy. Existing autologin
-is not ordinary PAM proof, and this is not whole-shell keyboard/endurance proof.
+Earlier `.775` measurements and its preserved transient-unit/probe failures belong
+to [their receipt](docs/releases/2026-10-14-oracle-775-native-proof.json), not `.792` acceptance.
 The following installed small-video journey belongs to the earlier .763 boot.
 Installed /usr/lib/moplayer (no source override) opens encoded Arabic file URI,
 plays actual MPEG4 frames, reports 20 s/CanSeek and paused +5 s seek. Rendered
@@ -136,7 +139,7 @@ worktrees hold tested changes; the local main ref follows integrated ancestry.
 
 ## Physical NVIDIA workstation
 
-Booted signed .1046 (`0235cad7…`) with signed .1044 rollback; exact signed `.1062` (`708223c7…`) is staged and no image transaction remains. The two-hour ordinary wrapper timeout is retained; real deployment readback proves the stage. Owner-authorized restart and new native 63-file/Plasma6.8/GPU/app acceptance remain pending. The owned postboot unit ordering is repaired without removing checks. Earlier `.1046` evidence follows,
+Booted exact signed `.1062` (`708223c7…`) with signed `.1046` rollback; current boot ID `b0fa1b9c-e012-47bc-924b-335973e841bb`. Ordinary owner login now passes63 payload hashes,54 selfchecks/2 notes,55 post-update checks/0 failures, stable Plasma6.8.0, NVIDIA615.78.08, app updates/PhotoCraft0.9.0 and a Store window. This base acceptance does not qualify the later copied Remote fix as a signed release. The two-hour staging timeout and greeter failure are preserved. Earlier `.1046` evidence follows,
 boot ID `d8a6ce1d-ca57-4680-9e5f-ef8118623b61`. Native ordinary plasmalogin
 owns one KDE Wayland session. Graphical-owner checks pass 54 selfchecks/2 notes
 and 55 post-update checks/0 failures; all 19 payload hashes, exact player and
@@ -170,14 +173,12 @@ acceptance remain. Earlier .1026's 54/55 native acceptance is historical evidenc
 
 ## Integrated features and evidence still owed
 
-Current M1 source adds one coalesced delayed directory notification for Mira's
-confirmed task presence. A real Qt consumer with its first delivery discarded
-fails old source and recovers fixed; [62 control tests pass](docs/releases/2026-10-14-mira-job-presence-proof.json). Token end state/age
-and a retired session directory remain intact, with no idle poll. This measures
-missed-delivery recovery, not the unproven cause of the prior intermittent Qt
-startup timeout. Full local ARM image `c49ccd53` and actual 20-file readback
-pass; the first final-commit ENOSPC failure is preserved. Signed .1053/.778
-are historical promotions; the new Store cycle is promoted in `.1062`/`.792`, while installed presence acceptance stays separate.
+Mira's current source uses the bounded three-event burst documented above;
+the earlier [62-control single-retry proof](docs/releases/2026-10-14-mira-job-presence-proof.json)
+did not cover the newly reproduced 1.1s delivery delay. Token age/end state and
+retired directories remain protected, with no idle poll. The old local ARM
+image `c49ccd53` was retired after the qualified `3d66eafa` replacement; its20-file readback and signed .1053/.778 are historical evidence;
+they do not qualify the current source or its installed presence behavior.
 
 Mira mute/disconnect/late-recognition and recovery unreadable-state controls
 pass. Community beta has real native/Oracle TLS flow, isolation and bounded

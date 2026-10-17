@@ -26,6 +26,7 @@
 pragma ComponentBehavior: Bound
 
 import QtQuick
+import "StoreProducts.js" as Products
 import QtQuick.Controls
 import QtQuick.Layouts
 import QtQuick.Dialogs as NativeDialogs
@@ -213,6 +214,7 @@ ApplicationWindow {
     property bool canSortByDate: false
     property string libraryKind: "all"
     property var installedApps: []
+    property var installedVariants: []
     property var libraryApps: []
     property string query: ""
     property var searchResults: []
@@ -290,13 +292,13 @@ ApplicationWindow {
     // Where an app comes from, in the four words a person uses (docs/MO_STORE.md "Kinds of app").
     readonly property var kindDefs: [
         { id: "linux",   ar: "تطبيقات لينكس",  en: "Linux apps",       glyph: "cube",
-          ar2: "معزولة، من الكتالوج المفتوح",          en2: "Sandboxed, from the open catalogue" },
-        { id: "web",     ar: "تطبيقات الويب",  en: "Web apps",         glyph: "globe",
-          ar2: "كل تطبيق في نافذته الخاصة",           en2: "Each in a window of its own" },
+          ar2: "حزم لينكس وتطبيقات سطح المكتب",        en2: "Linux packages and desktop apps" },
         { id: "windows", ar: "برامج ويندوز",   en: "Windows programs", glyph: "system",
-          ar2: "من الناشر، ومطابقة لبصمة راجعناها",      en2: "From the publisher, checked by fingerprint" },
+          ar2: "برامج محمولة، مع التحقق من التوافق",    en2: "Portable programs; compatibility checked" },
         { id: "android", ar: "تطبيقات أندرويد", en: "Android apps",     glyph: "phone",
-          ar2: "تعمل بجانب برامجك الأخرى",             en2: "Running beside your other programs" }
+          ar2: "حزم APK، حسب توافق هذا الجهاز",         en2: "APK packages, matched to this device" },
+        { id: "web",     ar: "تطبيقات الويب",  en: "Web apps",         glyph: "globe",
+          ar2: "مواقع الويب في نوافذ مستقلة",           en2: "Websites in their own windows" }
     ]
 
     // The index's old 14-value `category`, for an index written before `cat` existed.
@@ -446,6 +448,7 @@ ApplicationWindow {
         case "android": return win.local("تطبيق أندرويد", "Android app")
         case "appdrop":
         case "vendor":  return win.local("من موقع الناشر", "From the publisher's website")
+        case "native":  return win.local("على هذا الجهاز", "On this computer")
         case "npm":     return win.local("أداة مطوّر", "Developer tool")
         case "dropped": return win.local("أُضيف من ملف", "Added from a file")
         default:        return win.local("تطبيق لينكس", "Linux app")
@@ -780,8 +783,9 @@ ApplicationWindow {
         var kind = win.appKind(app)
         if (kind === "dropped") return win.kindLabel(kind)
         var who = app.developer ? "" + app.developer : ""
-        if (kind === "flatpak") return who !== "" ? who : win.kindLabel(kind)
-        return who !== "" ? who + " · " + win.kindLabel(kind) : win.kindLabel(kind)
+        // Keep the package/web distinction visible even when a long publisher
+        // name is elided on a card. Every platform still uses its real lifecycle.
+        return win.kindLabel(kind) + (who !== "" ? " · " + who : "")
     }
 
     // The badge on every card. It used to print the CHANNEL an app arrives
@@ -835,6 +839,18 @@ ApplicationWindow {
         return detail
     }
 
+    function uniqueProducts(apps, family) {
+        var candidates = apps.slice(0), requested = {}
+        for (var i = 0; i < apps.length; ++i) requested[Products.key(apps[i])] = true
+        for (var j = 0; j < win.allApps.length; ++j) {
+            var native = win.allApps[j]
+            if (native.kind === "native" && win.isInstalled(native) && requested[Products.key(native)]
+                    && (!family || family === "all" || native.family === family)) candidates.push(native)
+        }
+        return Products.unique(candidates, function(a) { return win.isInstalled(a) })
+    }
+    function variantsOf(app) { return Products.variants(app, win.allApps) }
+
     // ── state of one app ────────────────────────────────────────────────────────
     function isInstalled(app) {
         if (!app) return false
@@ -877,7 +893,7 @@ ApplicationWindow {
         if (!app) return false
         if (win.hasFlatpakLifecycle(app) || win.hasAndroidLifecycle(app)) return true
         var kind = win.appKind(app)
-        return kind === "webapp" || kind === "appdrop" || kind === "windows" || kind === "vendor" || kind === "dropped"
+        return kind === "native" || kind === "webapp" || kind === "appdrop" || kind === "windows" || kind === "vendor" || kind === "dropped"
     }
 
     function hasInstalledScope(app, scope) {
@@ -918,10 +934,9 @@ ApplicationWindow {
     }
 
     function systemManagedOnly(app) {
-        return win.isInstalled(app)
-            && win.hasFlatpakLifecycle(app)
+        return win.isInstalled(app) && (app.management === "os" || (win.hasFlatpakLifecycle(app)
             && win.hasInstalledScope(app, "system")
-            && !win.hasInstalledScope(app, "user")
+            && !win.hasInstalledScope(app, "user")))
     }
 
     // Permissions the Store can change: a Flatpak's and a web app's, once installed.
@@ -1283,6 +1298,7 @@ ApplicationWindow {
     function adoptCatalogue(apps, document) {
         var map = {}
         var kinds = { "linux": 0, "web": 0, "windows": 0, "android": 0 }
+        var kindSeen = {}, catSeen = {}
         var cats = {}
         var listed = []
         var dated = false
@@ -1291,8 +1307,15 @@ ApplicationWindow {
             map[app.id] = app
             if (app.released) dated = true
             if (app.listed === false) continue
-            kinds[app.family] = (kinds[app.family] || 0) + 1
-            cats[app.cat] = (cats[app.cat] || 0) + 1
+            var product = Products.key(app)
+            if (!kindSeen[app.family + "|" + product]) {
+                kinds[app.family] = (kinds[app.family] || 0) + 1
+                kindSeen[app.family + "|" + product] = true
+            }
+            if (!catSeen[app.cat + "|" + product]) {
+                cats[app.cat] = (cats[app.cat] || 0) + 1
+                catSeen[app.cat + "|" + product] = true
+            }
             listed.push(app)
         }
         listed.sort(function(a, b) {
@@ -1349,6 +1372,7 @@ ApplicationWindow {
     // Discover worth opening: MoOS's picks, then a row for each category the catalogue fills.
     function resolveCollections(named) {
         var out = []
+        var previewed = {}
         for (var i = 0; i < named.length; ++i) {
             var members = []
             var ids = named[i].apps || []
@@ -1356,10 +1380,17 @@ ApplicationWindow {
                 var member = win.appById(ids[k])
                 if (member && member.listed !== false) members.push(member)
             }
+            members = win.uniqueProducts(members)
             if (members.length < 3) continue
+            var preview = []
+            for (var p = 0; p < members.length && preview.length < 8; ++p) {
+                if (previewed[Products.key(members[p])]) continue
+                previewed[Products.key(members[p])] = true
+                preview.push(members[p])
+            }
             out.push({ id: "" + named[i].id, ar: named[i].ar || named[i].en || "", en: named[i].en || named[i].ar || "",
                        desc_ar: named[i].desc_ar || "", desc_en: named[i].desc_en || "",
-                       glyph: named[i].glyph || "spark", apps: members })
+                       glyph: named[i].glyph || "spark", apps: members, previewApps: preview })
         }
         if (out.length > 0) return out
         var picks = win.curatedFeatured(16)
@@ -1770,8 +1801,12 @@ ApplicationWindow {
         "update_by_file":           ["ثُبّت هذا التطبيق من ملف؛ ثبّت ملفًا أحدث منه لتحديثه", "This app was installed from a file; install a newer file of it to update it"],
         "removed_with_data":        ["أُزيل مع بياناته", "Removed with its data"],
         "removed_data_untracked":   ["تمت الإزالة. بقيت الإعدادات وبيانات تسجيل دخول التي حفظها التطبيق في أماكن أخرى من مجلد المنزل", "Removed. Settings and sign-in data the app saved elsewhere in your home folder were kept"],
+        "android_setup_needed":     ["جهّز دعم تطبيقات أندرويد أولًا", "Set up Android app support first"],
+        "android_start_timeout":    ["لم تصبح تطبيقات أندرويد جاهزة خلال المهلة. حاول مجددًا من متجر MoOS", "Android app support did not become ready in time. Try again from Mo Store"],
+        "android_starting":         ["جارٍ تجهيز تطبيقات أندرويد…", "Getting Android apps ready…"],
         "android_status_unknown":   ["تعذّر التحقق من جاهزية تطبيقات أندرويد", "Could not verify Android app support"],
         "android_not_running":      ["دعم تطبيقات أندرويد غير مشغّل. افتحه أولاً لتشغيل هذا التطبيق", "Android app support is not running. Open it first to run this app"],
+        "android_install_unconfirmed": ["لم يؤكد أندرويد تثبيت التطبيق. احتُفظ بسجل النسخة السابقة", "Android did not confirm installation. The previous record was kept"],
         "android_update_refused":    ["لم يُطبّق أندرويد التحديث. ما زالت النسخة السابقة مثبتة", "Android did not apply the update. The previous version is still installed"],
         "permission_changed":       ["تم تغيير الإذن", "Permission changed"],
         "permissions_reset":        ["أُعيدت الأذونات إلى وضعها الأصلي", "Permissions reset"],
@@ -1867,6 +1902,7 @@ ApplicationWindow {
     function recompute() {
         var out = []
         var counts = { "all": 0, "linux": 0, "web": 0, "windows": 0, "android": 0 }
+        var counted = {}, familyCounted = {}
         var games = win.page === "games"
         var collection = !games && win.activeCollection !== "" ? win.collectionById(win.activeCollection) : null
         var source = collection ? collection.apps : win.browseOrder
@@ -1874,8 +1910,12 @@ ApplicationWindow {
             var app = source[i]
             if (games && app.cat !== "fun") continue
             if (!games && !collection && win.activeCategory !== "all" && app.cat !== win.activeCategory) continue
-            ++counts.all
-            counts[app.family] = (counts[app.family] || 0) + 1
+            var product = Products.key(app)
+            if (!counted[product]) { ++counts.all; counted[product] = true }
+            if (!familyCounted[app.family + "|" + product]) {
+                counts[app.family] = (counts[app.family] || 0) + 1
+                familyCounted[app.family + "|" + product] = true
+            }
             if (win.activeKind !== "all" && app.family !== win.activeKind) continue
             out.push(app)
         }
@@ -1887,11 +1927,11 @@ ApplicationWindow {
         } else if (win.sortMode === "updated" && win.canSortByDate) {
             out.sort(function(a, b) { return ("" + (b.released || "")).localeCompare("" + (a.released || "")) })
         }
-        win.visibleApps = out
+        win.visibleApps = win.uniqueProducts(out, win.activeKind)
     }
 
     function kindCountIn(family) {
-        if (family === "all") return win.browseOrder.length
+        if (family === "all") return win.uniqueProducts(win.browseOrder).length
         return win.kindCounts[family] || 0
     }
 
@@ -1903,24 +1943,25 @@ ApplicationWindow {
         out.sort(function(a, b) {
             return win.localName(a).toLowerCase().localeCompare(win.localName(b).toLowerCase())
         })
-        win.installedApps = out
+        win.installedVariants = out
+        win.installedApps = win.uniqueProducts(out)
         win.filterLibrary()
     }
 
     function filterLibrary() {
         if (win.libraryKind === "all") { win.libraryApps = win.installedApps; return }
         var out = []
-        for (var i = 0; i < win.installedApps.length; ++i)
-            if (win.installedApps[i].family === win.libraryKind) out.push(win.installedApps[i])
-        win.libraryApps = out
+        for (var i = 0; i < win.installedVariants.length; ++i)
+            if (win.installedVariants[i].family === win.libraryKind) out.push(win.installedVariants[i])
+        win.libraryApps = win.uniqueProducts(out, win.libraryKind)
     }
 
     function libraryCount(family) {
         if (family === "all") return win.installedApps.length
-        var count = 0
-        for (var i = 0; i < win.installedApps.length; ++i)
-            if (win.installedApps[i].family === family) ++count
-        return count
+        var out = []
+        for (var i = 0; i < win.installedVariants.length; ++i)
+            if (win.installedVariants[i].family === family) out.push(win.installedVariants[i])
+        return win.uniqueProducts(out, family).length
     }
 
     // ── search ──────────────────────────────────────────────────────────────────
@@ -1967,7 +2008,7 @@ ApplicationWindow {
         scored.sort(function(a, b) { return a.tier - b.tier || a.rank - b.rank })
         var out = []
         for (var k = 0; k < scored.length && k < 400; ++k) out.push(scored[k].app)
-        win.searchResults = out
+        win.searchResults = win.uniqueProducts(out)
     }
 
     // The header's field types here. A first character takes the window to the search page; the
@@ -2347,6 +2388,7 @@ ApplicationWindow {
     // setups are moai-do's, with its confirmation). Nothing here installs.
     readonly property var systemRoutes: ({
         "firmware": "moos://settings/update",
+        "task-manager": "moos://app/task-manager",
         "setup-windows": "moos://do/setup-windows",
         "setup-android": "moos://do/setup-waydroid"
     })

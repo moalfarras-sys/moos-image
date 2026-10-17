@@ -2379,10 +2379,14 @@ require("CaptureFallback" in capture,
 # The portal helper is what actually produces frames and injects input.
 portal = read("moremote/agent-linux/mo-remote-portal.py")
 require("pipewiresrc" in portal, "Remote capture must run on PipeWire")
-require('node_props.get("pipewire-serial", node_id)' in portal
-        and "path={pipewire_target}" in portal,
-        "PipeWire capture must target the portal's stable object serial when available; "
-        "a node id can be reused after suspend, hot-plug or a mode switch and leave a black stream")
+# The former literal assertion required the serial in path=, precisely the
+# wrong identifier/property pairing. Execute the selector and the actual
+# pipeline prefix in both protocol versions, with camera fallback forbidden.
+sys.path.insert(0, str(ROOT / "build_files"))
+from remote_screen_target_contract import validate_screen_target
+require(validate_screen_target(portal),
+        "PipeWire capture must bind the portal serial/node ID in its correct property "
+        "and forbid default-camera fallback")
 require("NotifyPointerMotionAbsolute" in portal,
         "The pointer must be positioned absolutely, so a tap lands where it was tapped")
 require("CURSOR_HIDDEN" in portal,
@@ -3135,7 +3139,7 @@ require("http://127.0.0.1:11434/api/tags" in moai_do_code
 # The versioned migration is what makes the redesign visible to existing users.
 apply_theme = read("system_files/usr/bin/moos-apply-theme")
 apply_theme_code = code(apply_theme)
-require("THEME_REV=106" in apply_theme_code,
+require("THEME_REV=107" in apply_theme_code,
         "MoOS visual schema must purge the cached compile of the retired lock-screen fork (it "
         "asks for a MoOSClock that no longer ships) and of the stock session screen, and "
         "migrate existing users to the Island that hosts Search itself "
@@ -6416,9 +6420,14 @@ for _label in ("remote/start)", "installer/reboot)", "installer/poweroff)",
 
 # #18 do_setup_waydroid must free VRAM before starting the Android (EGL) UI.
 _moaido = code(read("system_files/usr/bin/moai-do"), "hash")
-_ws = _moaido.find("waydroid session start")
+_ws = _moaido.find("systemctl --user start moos-android-session.service")
 require(_ws > 0 and "moos-gpu-headroom" in _moaido[max(0, _ws - 400):_ws],
-        "do_setup_waydroid must call moos-gpu-headroom before 'waydroid session start'")
+        "do_setup_waydroid must free GPU headroom before starting the Android session unit")
+_android_unit = code(read("system_files/usr/lib/systemd/user/moos-android-session.service"), "hash")
+require("ExecStart=/usr/bin/waydroid session start" in _android_unit
+        and "PartOf=graphical-session.target" in _android_unit
+        and "[Install]" not in _android_unit,
+        "Android must run in its on-demand user unit, tied to graphical logout, with no idle autostart")
 
 # #16 moos-firstboot must not stamp completion when the account was not created.
 _fb = code(read("system_files/usr/libexec/moos-firstboot"), "hash")

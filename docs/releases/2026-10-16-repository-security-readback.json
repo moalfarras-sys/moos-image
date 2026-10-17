@@ -1,0 +1,67 @@
+{
+  "collaborators": [
+    {
+      "login": "moalfarras-sys",
+      "role_name": "admin"
+    }
+  ],
+  "webhook_count": 0,
+  "main_protection": {
+    "deletion": false,
+    "enforce_administrators": true,
+    "force_pushes": false,
+    "required_checks": [
+      "Repo gates"
+    ],
+    "strict_status_checks": true
+  },
+  "security_features": {
+    "dependabot_security_updates": {
+      "status": "enabled"
+    },
+    "secret_scanning": {
+      "status": "enabled"
+    },
+    "secret_scanning_non_provider_patterns": {
+      "status": "disabled"
+    },
+    "secret_scanning_push_protection": {
+      "status": "enabled"
+    },
+    "secret_scanning_validity_checks": {
+      "status": "disabled"
+    }
+  },
+  "automated_security_fixes": {
+    "enabled": true,
+    "paused": false
+  },
+  "private_vulnerability_reporting": {
+    "enabled": true
+  },
+  "open_secret_alert_count": 0,
+  "actions_policy": {
+    "allowed_actions": "all",
+    "enabled": true,
+    "sha_pinning_required": false
+  },
+  "token_defaults": {
+    "can_approve_pull_request_reviews": false,
+    "default_workflow_permissions": "read"
+  },
+  "schema": 1,
+  "checked_at_utc": "2026-10-16T07:00:05.988806+00:00",
+  "repository": "moalfarras-sys/moos-image",
+  "visibility": "public",
+  "scope": "Live repository settings and reviewed topic-branch workflow source; not a guarantee against copying public code or a complete transitive supply-chain audit",
+  "workflow_source": {
+    "branch": "feat/store-real-apps-touch-20261016",
+    "not_yet_merged": true,
+    "reviewed_upstream_commit_pins": 13,
+    "converted_moving_tag_references": 63,
+    "checkout_steps_without_persisted_credentials": 18,
+    "isolated_security_tests": 9,
+    "yaml_workflows_parsed": 13,
+    "scope": "Top-level uses and exact owner boundaries; no claim of auditing every internal download"
+  }
+}

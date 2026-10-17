@@ -74,7 +74,7 @@ if [ -x /usr/bin/moos-store-index ]; then
         # after the index would only be seen on the next launch.
         { [ -x /usr/bin/moos-storectl ] && /usr/bin/moos-storectl facts >/dev/null 2>&1; } || true
         if /usr/bin/moos-store-index \
-            --catalog /usr/share/moos/store/catalog.json \
+            --desktop-apps --catalog /usr/share/moos/store/catalog.json \
             --output "$INDEX" >"${CACHEDIR}/index.log" 2>&1; then
             printf '%s-%s\n' "$$" "$(date +%s 2>/dev/null || true)" >"$READY"
         fi

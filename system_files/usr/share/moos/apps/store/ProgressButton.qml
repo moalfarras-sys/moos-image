@@ -13,6 +13,7 @@ import org.moos.ui as MoUI
 // and the palette. This file only presents them.
 Rectangle {
     id: button
+    objectName: "app-action-" + (button.app ? button.app.id : "none")
     required property var win
     readonly property var design: win.design
     property var app: null
@@ -87,7 +88,15 @@ Rectangle {
         targetScale: buttonTap.pressed && !button.inert ? button.design.pressScale : 1
     }
     HoverHandler { id: buttonHover; enabled: !button.inert; cursorShape: Qt.PointingHandCursor }
-    TapHandler { id: buttonTap; enabled: !button.inert; onTapped: button.press() }
+    TapHandler {
+        id: buttonTap
+        // A native button grab lets enclosing Flickables negotiate a drag even
+        // when this pill sits inside a horizontal shelf. Leaving the pill
+        // cancels its tap; page and shelf drags keep their native momentum.
+        gesturePolicy: TapHandler.WithinBounds
+        enabled: !button.inert
+        onTapped: button.press()
+    }
     FocusRing { win: button.win }
 
     // The job's progress, inside the pill.

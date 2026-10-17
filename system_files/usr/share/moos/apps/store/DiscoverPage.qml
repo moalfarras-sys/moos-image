@@ -5,8 +5,7 @@ import QtQuick.Controls
 import QtQuick.Layouts
 import org.moos.ui as MoUI
 
-// Mo Store — Discover: the hero, where apps come from (Linux apps, web apps, Windows programs,
-// Android apps), the catalogue's collections as rows, ready-made sets that set up a PC in one
+// Mo Store — Discover: the four app platforms, the hero, the catalogue's collections as rows, ready-made sets that set up a PC in one
 // step, the twelve categories, and a quiet line about the catalogue itself.
 //
 // Drawn from main.qml's state: `win` is the Store window, which owns the data, the actions
@@ -48,11 +47,46 @@ Item {
             width: discoverFlick.width - discover.padding * 2
             spacing: discover.design.space6
 
-            HeroCarousel {
-                win: discover.win
+            RowLayout {
                 Layout.fillWidth: true
-                visible: discover.win.featured.length > 0
+                spacing: discover.design.space3
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    spacing: discover.design.space1
+                    Text {
+                        text: discover.win.local("مكتبة جهازك، في مكان واحد", "Your app library, in one place")
+                        color: discover.win.txt
+                        font.family: discover.win.uiFont
+                        font.pixelSize: discover.win.typePx(24)
+                        font.weight: Font.Bold
+                        Layout.fillWidth: true
+                        elide: Text.ElideRight
+                    }
+                    Text {
+                        text: discover.win.appsCountText(discover.win.kindCountIn("all"))
+                              + discover.win.local(" · ابحث، ثبّت، وتابع تطبيقاتك", " · Find, install and manage your apps")
+                        color: discover.win.txt2
+                        font.family: discover.win.uiFont
+                        font.pixelSize: discover.win.typePx(13)
+                        Layout.fillWidth: true
+                        elide: Text.ElideRight
+                    }
+                }
+                ActionButton {
+                    win: discover.win
+                    primary: true
+                    pill: true
+                    glyphName: "grid"
+                    label: discover.win.local("تصفّح كل التطبيقات", "Browse all apps")
+                    triggered: function() {
+                        discover.win.activeCategory = "all"
+                        discover.win.activeKind = "all"
+                        discover.win.activeCollection = ""
+                        discover.win.navigate("apps")
+                    }
+                }
             }
+
 
             // ── Where apps come from ──
             ColumnLayout {
@@ -61,9 +95,9 @@ Item {
                 SectionHeader {
                     win: discover.win
                     Layout.fillWidth: true
-                    title: discover.win.local("من أين تأتي التطبيقات", "Where apps come from")
-                    subtitle: discover.win.local("متجر واحد لأربعة عوالم، وكل تطبيق يقول بصدق كيف يعمل هنا",
-                                                 "One store for four worlds, and every app says honestly how it runs here")
+                    title: discover.win.local("اختر نوع التطبيقات", "Browse by platform")
+                    subtitle: discover.win.local("حزم لينكس، وبرامج ويندوز، وتطبيقات أندرويد، ومواقع الويب — مع توضيح التوافق",
+                                                 "Linux packages, Windows programs, Android apps and web apps — with compatibility shown")
                     glyph: "orbit"
                 }
                 GridLayout {
@@ -75,6 +109,7 @@ Item {
                         model: discover.win.kindDefs
                         delegate: Rectangle {
                             id: source
+                            objectName: "platform-" + source.modelData.id
                             required property var modelData
                             readonly property color tone: discover.kindTone(source.modelData.id)
                             readonly property int count: discover.win.kindCountIn(source.modelData.id)
@@ -172,11 +207,21 @@ Item {
                 }
             }
 
+            HeroCarousel {
+                win: discover.win
+                Layout.fillWidth: true
+                visible: discover.win.featured.length > 0
+            }
+
             // ── The catalogue's collections ──
             Repeater {
-                model: discover.win.collections
+                model: discover.win.collections.filter(function(c) { return !c.previewApps || c.previewApps.length > 0 })
                 delegate: CollectionRow {
+                    id: collectionPreview
                     required property var modelData
+                    populated: discover.visible
+                        && collectionPreview.y + discoverBody.y + collectionPreview.height >= discoverFlick.contentY - discoverFlick.height
+                        && collectionPreview.y + discoverBody.y <= discoverFlick.contentY + discoverFlick.height * 2
                     win: discover.win
                     collection: modelData
                     bleed: discover.padding

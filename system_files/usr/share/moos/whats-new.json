@@ -4,15 +4,15 @@
   "entries": [
     {
       "id": "mo-store-library",
-      "merged": "2026-10-14T22:00:00Z",
+      "merged": "2026-10-17T10:50:00Z",
       "glyph": "install",
       "title": {
         "ar": "متجر MoOS: كل تطبيقاتك في مكان واحد",
         "en": "Mo Store: every app in one place"
       },
       "body": {
-        "ar": "متجر واحد لتطبيقات لينكس وChatGPT وClaude، وبرامج ويندوز وتطبيقات أندرويد على الأجهزة التي تستطيع تشغيلها. صفحات بالصور والتوافق والأذونات، ومكتبة للفتح والتحديث والإزالة. تؤكد تحديثات أندرويد تطبيق الإصدار الجديد قبل إعلان النجاح.",
-        "en": "One library for Linux apps, ChatGPT and Claude, plus Windows programs and Android apps on PCs that can run them. Browse pictures, compatibility and permissions; open, update or remove your apps. Android updates respect the installed build and confirm it changed before reporting success."
+        "ar": "64 وصفة إضافية من لينكس وويندوز وأندرويد حسب جهازك، مع ChatGPT وClaude. تصفح أسهل وأخف، ونسخ البرنامج معًا في صفحة واحدة. تعرض المكتبة التطبيقات الأصلية والمثبّتة، وتبقى التطبيقات مفتوحة بعد تشغيلها. تؤكَّد تحديثات أندرويد فعليًا، ويبدأ بحث الملفات بعد جاهزية سطح المكتب.",
+        "en": "64 more Linux, Windows and Android recipes for compatible PCs, plus ChatGPT and Claude. Lighter browsing groups product variants on one page. The library includes native installed apps. Apps outlive their launch request; Android updates confirm installed bytes. File search waits for the desktop."
       }
     },
     {

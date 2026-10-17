@@ -1,0 +1,1652 @@
+{
+  "schema": 1,
+  "observed_utc": "2026-10-16T19:16:16.860259+00:00",
+  "scope": "development-source catalog, native isolated UI/runtime controls and Oracle real Linux app lifecycle; not a built, signed, boot-proven or installed OS update",
+  "source_parent": "9b717e35508714515647d584cecaa81e1d07d2a1",
+  "included_remote_fix": "31bb0b70ca1bfb867a0f14bcbe3bc275f6d164d3",
+  "catalog": {
+    "sha256": "6b55ee4a4144d820facf818df503c87a3a76514c71f0a26f0c911981f6773fed",
+    "total": 264,
+    "counts": {
+      "flathub": 148,
+      "vendor-rpm": 1,
+      "webapp": 27,
+      "appdrop": 17,
+      "npm": 3,
+      "android": 48,
+      "windows-portable": 20
+    },
+    "preserved_baseline_app_objects": 200,
+    "added": 64,
+    "collections": 14,
+    "featured": 7,
+    "webapp_count_unchanged": true,
+    "linux_native_index_apps_observed": 2887,
+    "linux_native_index_all_entries_observed": 2935,
+    "fresh_x86_refs": 3498
+  },
+  "linux_additions": [
+    {
+      "id": "org.kde.kgeography",
+      "name": "KGeography",
+      "native_arm_ref": "app/org.kde.kgeography/aarch64/stable",
+      "x86_ref_present": true,
+      "observed_version": "26.04.3",
+      "scope": "trusted publisher metadata/architecture availability; actual app lifecycle measured separately"
+    },
+    {
+      "id": "org.kde.kalgebra",
+      "name": "KAlgebra",
+      "native_arm_ref": "app/org.kde.kalgebra/aarch64/stable",
+      "x86_ref_present": true,
+      "observed_version": "26.04.3",
+      "scope": "trusted publisher metadata/architecture availability; actual app lifecycle measured separately"
+    },
+    {
+      "id": "org.kde.kturtle",
+      "name": "KTurtle",
+      "native_arm_ref": "app/org.kde.kturtle/aarch64/stable",
+      "x86_ref_present": true,
+      "observed_version": "26.04.3",
+      "scope": "trusted publisher metadata/architecture availability; actual app lifecycle measured separately"
+    },
+    {
+      "id": "org.kde.khangman",
+      "name": "KHangMan",
+      "native_arm_ref": "app/org.kde.khangman/aarch64/stable",
+      "x86_ref_present": true,
+      "observed_version": "26.08.1",
+      "scope": "trusted publisher metadata/architecture availability; actual app lifecycle measured separately"
+    },
+    {
+      "id": "org.kde.kalzium",
+      "name": "Kalzium",
+      "native_arm_ref": "app/org.kde.kalzium/aarch64/stable",
+      "x86_ref_present": true,
+      "observed_version": "26.04.3",
+      "scope": "trusted publisher metadata/architecture availability; actual app lifecycle measured separately"
+    },
+    {
+      "id": "org.kde.kstars",
+      "name": "KStars",
+      "native_arm_ref": "app/org.kde.kstars/aarch64/stable",
+      "x86_ref_present": true,
+      "observed_version": "3.8.5",
+      "scope": "trusted publisher metadata/architecture availability; actual app lifecycle measured separately"
+    },
+    {
+      "id": "org.kde.marble",
+      "name": "Marble",
+      "native_arm_ref": "app/org.kde.marble/aarch64/stable",
+      "x86_ref_present": true,
+      "observed_version": "26.04.3",
+      "scope": "trusted publisher metadata/architecture availability; actual app lifecycle measured separately"
+    },
+    {
+      "id": "org.kde.kasts",
+      "name": "Kasts",
+      "native_arm_ref": "app/org.kde.kasts/aarch64/stable",
+      "x86_ref_present": true,
+      "observed_version": "26.08.1",
+      "scope": "trusted publisher metadata/architecture availability; actual app lifecycle measured separately"
+    },
+    {
+      "id": "org.kde.kdevelop",
+      "name": "KDevelop",
+      "native_arm_ref": "app/org.kde.kdevelop/aarch64/stable",
+      "x86_ref_present": true,
+      "observed_version": "6.5.260403",
+      "scope": "trusted publisher metadata/architecture availability; actual app lifecycle measured separately"
+    },
+    {
+      "id": "org.kde.kolourpaint",
+      "name": "KolourPaint",
+      "native_arm_ref": "app/org.kde.kolourpaint/aarch64/stable",
+      "x86_ref_present": true,
+      "observed_version": "26.04.3",
+      "scope": "trusted publisher metadata/architecture availability; actual app lifecycle measured separately"
+    },
+    {
+      "id": "org.gnome.gitg",
+      "name": "gitg",
+      "native_arm_ref": "app/org.gnome.gitg/aarch64/stable",
+      "x86_ref_present": true,
+      "observed_version": "50",
+      "scope": "trusted publisher metadata/architecture availability; actual app lifecycle measured separately"
+    },
+    {
+      "id": "org.gnome.Builder",
+      "name": "Builder",
+      "native_arm_ref": "app/org.gnome.Builder/aarch64/stable",
+      "x86_ref_present": true,
+      "observed_version": "50.0",
+      "scope": "trusted publisher metadata/architecture availability; actual app lifecycle measured separately"
+    },
+    {
+      "id": "org.gnome.Solanum",
+      "name": "Solanum",
+      "native_arm_ref": "app/org.gnome.Solanum/aarch64/stable",
+      "x86_ref_present": true,
+      "observed_version": "6.0.0",
+      "scope": "trusted publisher metadata/architecture availability; actual app lifecycle measured separately"
+    },
+    {
+      "id": "com.rafaelmardojai.Blanket",
+      "name": "Blanket",
+      "native_arm_ref": "app/com.rafaelmardojai.Blanket/aarch64/stable",
+      "x86_ref_present": true,
+      "observed_version": "0.8.0",
+      "scope": "trusted publisher metadata/architecture availability; actual app lifecycle measured separately"
+    },
+    {
+      "id": "com.github.johnfactotum.Foliate",
+      "name": "Foliate",
+      "native_arm_ref": "app/com.github.johnfactotum.Foliate/aarch64/stable",
+      "x86_ref_present": true,
+      "observed_version": "3.3.0",
+      "scope": "trusted publisher metadata/architecture availability; actual app lifecycle measured separately"
+    },
+    {
+      "id": "com.github.huluti.Curtail",
+      "name": "Curtail",
+      "native_arm_ref": "app/com.github.huluti.Curtail/aarch64/stable",
+      "x86_ref_present": true,
+      "observed_version": "1.17.0",
+      "scope": "trusted publisher metadata/architecture availability; actual app lifecycle measured separately"
+    },
+    {
+      "id": "org.kicad.KiCad",
+      "name": "KiCad",
+      "native_arm_ref": "app/org.kicad.KiCad/aarch64/stable",
+      "x86_ref_present": true,
+      "observed_version": "10.0.6",
+      "scope": "trusted publisher metadata/architecture availability; actual app lifecycle measured separately"
+    },
+    {
+      "id": "org.qgis.qgis",
+      "name": "QGIS Desktop",
+      "native_arm_ref": "app/org.qgis.qgis/aarch64/stable",
+      "x86_ref_present": true,
+      "observed_version": "4.2.2",
+      "scope": "trusted publisher metadata/architecture availability; actual app lifecycle measured separately"
+    },
+    {
+      "id": "org.scummvm.ScummVM",
+      "name": "ScummVM",
+      "native_arm_ref": "app/org.scummvm.ScummVM/aarch64/stable",
+      "x86_ref_present": true,
+      "observed_version": "2026.3.0",
+      "scope": "trusted publisher metadata/architecture availability; actual app lifecycle measured separately"
+    },
+    {
+      "id": "org.gnome.meld",
+      "name": "Meld",
+      "native_arm_ref": "app/org.gnome.meld/aarch64/stable",
+      "x86_ref_present": true,
+      "observed_version": "3.24.0",
+      "scope": "trusted publisher metadata/architecture availability; actual app lifecycle measured separately"
+    },
+    {
+      "id": "org.gnome.GHex",
+      "name": "GHex",
+      "native_arm_ref": "app/org.gnome.GHex/aarch64/stable",
+      "x86_ref_present": true,
+      "observed_version": "50.3",
+      "scope": "trusted publisher metadata/architecture availability; actual app lifecycle measured separately"
+    },
+    {
+      "id": "org.gnome.design.Contrast",
+      "name": "Contrast",
+      "native_arm_ref": "app/org.gnome.design.Contrast/aarch64/stable",
+      "x86_ref_present": true,
+      "observed_version": "0.0.11",
+      "scope": "trusted publisher metadata/architecture availability; actual app lifecycle measured separately"
+    },
+    {
+      "id": "org.kde.labplot",
+      "name": "LabPlot",
+      "native_arm_ref": "app/org.kde.labplot/aarch64/stable",
+      "x86_ref_present": true,
+      "observed_version": "2.12.1",
+      "scope": "trusted publisher metadata/architecture availability; actual app lifecycle measured separately"
+    }
+  ],
+  "android_additions": [
+    {
+      "id": "at.bitfire.davdroid",
+      "url": "https://f-droid.org/repo/at.bitfire.davdroid_405200005.apk",
+      "version": "4.5.20-ose",
+      "version_code": 405200005,
+      "size": 17860303,
+      "sha256": "df387d8b3ddc3730d88d2bfea939aadb8906cc6cff7de46385a7751d1b536462",
+      "signer": "8b48e676a6864967791783c1d8d0fc0dd6d2ce33e1fb36787793ecd086d44707",
+      "abis": [
+        "arm64-v8a",
+        "armeabi-v7a",
+        "x86",
+        "x86_64"
+      ],
+      "minimum_android_sdk": 24,
+      "publisher_page": "https://f-droid.org/packages/at.bitfire.davdroid/",
+      "seconds": 3.12,
+      "scope": "download and APK identity against cryptographically verified repository index; native app launch separate"
+    },
+    {
+      "id": "com.amaze.filemanager",
+      "url": "https://f-droid.org/repo/com.amaze.filemanager_125.apk",
+      "version": "3.11.3",
+      "version_code": 125,
+      "size": 12329238,
+      "sha256": "35e0338dac1bf026f22d91e1b096c1c6eff1424ad7d6be52a7f8d3fe50987530",
+      "signer": "4d86ad78c71d7d9ac2c64b93b548b8a6fa7fdf683ced023731782d8dcfa7d6bc",
+      "abis": [
+        "arm64-v8a",
+        "armeabi-v7a",
+        "x86",
+        "x86_64"
+      ],
+      "minimum_android_sdk": 21,
+      "publisher_page": "https://f-droid.org/packages/com.amaze.filemanager/",
+      "seconds": 5.01,
+      "scope": "download and APK identity against cryptographically verified repository index; native app launch separate"
+    },
+    {
+      "id": "com.foobnix.pro.pdf.reader",
+      "url": "https://f-droid.org/repo/com.foobnix.pro.pdf.reader_7398.apk",
+      "version": "9.6.39-fdroid",
+      "version_code": 7398,
+      "size": 108461451,
+      "sha256": "ada07b2d61bfeadaedadb58a8a29f246c35421fec2ba2ed548baa420cb59d7d6",
+      "signer": "ea0d90df4dde7b9a9e8eaebe2e8aa47ed13f4df9d77aa64bc99c7ed309d2a84d",
+      "abis": [
+        "arm64-v8a",
+        "armeabi-v7a",
+        "x86",
+        "x86_64"
+      ],
+      "minimum_android_sdk": 24,
+      "publisher_page": "https://f-droid.org/packages/com.foobnix.pro.pdf.reader/",
+      "seconds": 19.06,
+      "scope": "download and APK identity against cryptographically verified repository index; native app launch separate"
+    },
+    {
+      "id": "com.ichi2.anki",
+      "url": "https://f-droid.org/repo/com.ichi2.anki_22502300.apk",
+      "version": "2.25.2",
+      "version_code": 22502300,
+      "size": 111923795,
+      "sha256": "3fa58d26deb530341899dbbd31ba61a4cea41845de7f441692a57637b78b57bc",
+      "signer": "24a3d4756c62dd69c86df69aa7fa327b2a6bf55f55c4a1749f99bd1da75906bb",
+      "abis": [
+        "arm64-v8a",
+        "armeabi-v7a",
+        "x86",
+        "x86_64"
+      ],
+      "minimum_android_sdk": 24,
+      "publisher_page": "https://f-droid.org/packages/com.ichi2.anki/",
+      "seconds": 19.82,
+      "scope": "download and APK identity against cryptographically verified repository index; native app launch separate"
+    },
+    {
+      "id": "com.nextcloud.client",
+      "url": "https://f-droid.org/repo/com.nextcloud.client_350000190.apk",
+      "version": "35.0.1",
+      "version_code": 350000190,
+      "size": 96757432,
+      "sha256": "8fd4d86de9497d3afecc0bad201b177c8f413c0e2e3e152cbc80f48d6e9b481f",
+      "signer": "5709576f9d6c6a7687dd5d56b269d1fa5e379702b91bc83f39fd7b7c597c1b83",
+      "abis": [
+        "arm64-v8a",
+        "x86_64"
+      ],
+      "minimum_android_sdk": 28,
+      "publisher_page": "https://f-droid.org/packages/com.nextcloud.client/",
+      "seconds": 17.36,
+      "scope": "download and APK identity against cryptographically verified repository index; native app launch separate"
+    },
+    {
+      "id": "com.nononsenseapps.feeder",
+      "url": "https://f-droid.org/repo/com.nononsenseapps.feeder_4158.apk",
+      "version": "2.24.0",
+      "version_code": 4158,
+      "size": 61140352,
+      "sha256": "4ca2efad9f0b2b275c215fab16cb9a94dd5d88e059e45ed244d4b429c845350e",
+      "signer": "a80df8170d6c891ec9a055211df640a855d451052307bf29cdce3fef9afa94fd",
+      "abis": [
+        "arm64-v8a",
+        "armeabi-v7a",
+        "x86",
+        "x86_64"
+      ],
+      "minimum_android_sdk": 29,
+      "publisher_page": "https://f-droid.org/packages/com.nononsenseapps.feeder/",
+      "seconds": 313.61,
+      "scope": "download and APK identity against cryptographically verified repository index; native app launch separate"
+    },
+    {
+      "id": "com.standardnotes",
+      "url": "https://f-droid.org/repo/com.standardnotes_3005234.apk",
+      "version": "3.202.9",
+      "version_code": 3005234,
+      "size": 89670293,
+      "sha256": "7621c2a05f08cd30fe02cb139da4e5157bce2799c2907db5a7975f53d8addd8d",
+      "signer": "f5dee5e6538121146a4050bd4f4cf6ee2ddc4d690addb94544e9a3b20c4cb5a7",
+      "abis": [
+        "arm64-v8a",
+        "armeabi-v7a",
+        "x86",
+        "x86_64"
+      ],
+      "minimum_android_sdk": 28,
+      "publisher_page": "https://f-droid.org/packages/com.standardnotes/",
+      "seconds": 19.1,
+      "scope": "download and APK identity against cryptographically verified repository index; native app launch separate"
+    },
+    {
+      "id": "com.unicornsonlsd.finamp",
+      "url": "https://f-droid.org/repo/com.unicornsonlsd.finamp_52.apk",
+      "version": "0.6.27",
+      "version_code": 52,
+      "size": 39216811,
+      "sha256": "0da71f5d5531ca7a6d0094eefb27b5cc897c3b2c27de3b75c835481b0cfa41ae",
+      "signer": "73127dcbad76927ae0e11abb3bfad089a895f301c033c75fd798b9955f337759",
+      "abis": [
+        "arm64-v8a",
+        "armeabi-v7a",
+        "x86_64"
+      ],
+      "minimum_android_sdk": 21,
+      "publisher_page": "https://f-droid.org/packages/com.unicornsonlsd.finamp/",
+      "seconds": 179.48,
+      "scope": "download and APK identity against cryptographically verified repository index; native app launch separate"
+    },
+    {
+      "id": "de.markusfisch.android.binaryeye",
+      "url": "https://f-droid.org/repo/de.markusfisch.android.binaryeye_180.apk",
+      "version": "1.75.5",
+      "version_code": 180,
+      "size": 8676688,
+      "sha256": "568cec6598dbf42fbde9071af8747071ffea798473016a3d77b6ddb3bff944f1",
+      "signer": "9ecdbf0677dd50609c76c2ba05dbe362232327b10a1c37cd58722993d9fe5d57",
+      "abis": [
+        "arm64-v8a",
+        "armeabi-v7a",
+        "x86",
+        "x86_64"
+      ],
+      "minimum_android_sdk": 21,
+      "publisher_page": "https://f-droid.org/packages/de.markusfisch.android.binaryeye/",
+      "seconds": 52.73,
+      "scope": "download and APK identity against cryptographically verified repository index; native app launch separate"
+    },
+    {
+      "id": "de.monocles.chat",
+      "url": "https://f-droid.org/repo/de.monocles.chat_20503.apk",
+      "version": "2.2.2",
+      "version_code": 20503,
+      "size": 40680216,
+      "sha256": "195e119222cdca6d4c0f6d4122c8ebd3a14387a9ac6383c079e31a0a013ae5e1",
+      "signer": "16bdc1612b0bc6873f759308b7b6ea1eedc17d3302592a192ceecac0ead923c2",
+      "abis": [
+        "x86_64"
+      ],
+      "minimum_android_sdk": 23,
+      "publisher_page": "https://f-droid.org/packages/de.monocles.chat/",
+      "seconds": 6.82,
+      "scope": "download and APK identity against cryptographically verified repository index; native app launch separate"
+    },
+    {
+      "id": "eu.faircode.email",
+      "url": "https://f-droid.org/repo/eu.faircode.email_2338.apk",
+      "version": "1.2338",
+      "version_code": 2338,
+      "size": 29423212,
+      "sha256": "a9be897603ebba8b188d8a80ef61f0fc54162d45045ec3a2834a648426c0ad90",
+      "signer": "b9d041582af46ee39bba0f2f1829d948ae21ecf7ffa6ba120385d245ebb788ae",
+      "abis": [
+        "arm64-v8a",
+        "armeabi-v7a",
+        "x86",
+        "x86_64"
+      ],
+      "minimum_android_sdk": 23,
+      "publisher_page": "https://f-droid.org/packages/eu.faircode.email/",
+      "seconds": 9.2,
+      "scope": "download and APK identity against cryptographically verified repository index; native app launch separate"
+    },
+    {
+      "id": "eu.siacs.conversations",
+      "url": "https://f-droid.org/repo/eu.siacs.conversations_4218103.apk",
+      "version": "2.20.4+free",
+      "version_code": 4218103,
+      "size": 32717860,
+      "sha256": "65dc99df538c9c8f66adacfcebf17a16575e35d627aec2d62bd9de50ec0371eb",
+      "signer": "9c2e57c85c279e5e1a427f6e87927fc1e2278f62d61d7fcefde9346e568ccf86",
+      "abis": [
+        "x86_64"
+      ],
+      "minimum_android_sdk": 23,
+      "publisher_page": "https://f-droid.org/packages/eu.siacs.conversations/",
+      "seconds": 11.6,
+      "scope": "download and APK identity against cryptographically verified repository index; native app launch separate"
+    },
+    {
+      "id": "it.niedermann.owncloud.notes",
+      "url": "https://f-droid.org/repo/it.niedermann.owncloud.notes_350000090.apk",
+      "version": "35.0.0",
+      "version_code": 350000090,
+      "size": 61493606,
+      "sha256": "8eddfbcb64c57616b09269f2369381ebf60324afb37af5429a62b23cd633573d",
+      "signer": "3e80f32df2c89e4cdd3a32f1002178d8d4f21b9da89f8add6abae29fd3c95c0b",
+      "abis": [
+        "arm64-v8a",
+        "armeabi-v7a",
+        "x86",
+        "x86_64"
+      ],
+      "minimum_android_sdk": 28,
+      "publisher_page": "https://f-droid.org/packages/it.niedermann.owncloud.notes/",
+      "seconds": 312.01,
+      "scope": "download and APK identity against cryptographically verified repository index; native app launch separate"
+    },
+    {
+      "id": "me.ash.reader",
+      "url": "https://f-droid.org/repo/me.ash.reader_47.apk",
+      "version": "0.16.2",
+      "version_code": 47,
+      "size": 11209694,
+      "sha256": "78b1b8b9b6f6d18baaba31427895f1f10e9ca6cc1e01b3ceeb96df26e8fca075",
+      "signer": "cef338a474523bdfcf3fb82cbee2d45f6fd9610e95902ba78c8c79a45e102ae9",
+      "abis": [
+        "arm64-v8a",
+        "armeabi-v7a",
+        "x86",
+        "x86_64"
+      ],
+      "minimum_android_sdk": 26,
+      "publisher_page": "https://f-droid.org/packages/me.ash.reader/",
+      "seconds": 1.58,
+      "scope": "download and APK identity against cryptographically verified repository index; native app launch separate"
+    },
+    {
+      "id": "me.zhanghai.android.files",
+      "url": "https://f-droid.org/repo/me.zhanghai.android.files_40.apk",
+      "version": "1.7.5",
+      "version_code": 40,
+      "size": 10944578,
+      "sha256": "2fe900bf43d725b655008d438f5ca46d0da0f301e3784403b5b96c3fc2df6e8a",
+      "signer": "9c22a742fa200c85bafbc9924a02ddc8f3a0b975d4d7b5a8da21d7cf34ce2b20",
+      "abis": [
+        "arm64-v8a",
+        "armeabi-v7a",
+        "x86",
+        "x86_64"
+      ],
+      "minimum_android_sdk": 23,
+      "publisher_page": "https://f-droid.org/packages/me.zhanghai.android.files/",
+      "seconds": 65.65,
+      "scope": "download and APK identity against cryptographically verified repository index; native app launch separate"
+    },
+    {
+      "id": "net.cozic.joplin",
+      "url": "https://f-droid.org/repo/net.cozic.joplin_2097817.apk",
+      "version": "3.7.8",
+      "version_code": 2097817,
+      "size": 154987817,
+      "sha256": "79acd24866ef5c3f8779fcdf926dd6e0d6e242ccffda8581c556f2a80f4b2782",
+      "signer": "48a1cf9201b9079a6e0d5b33693e496db3c5cbec64a85afccd75e16d7a6cd54d",
+      "abis": [
+        "arm64-v8a",
+        "armeabi-v7a",
+        "x86",
+        "x86_64"
+      ],
+      "minimum_android_sdk": 24,
+      "publisher_page": "https://f-droid.org/packages/net.cozic.joplin/",
+      "seconds": 746.79,
+      "scope": "download and APK identity against cryptographically verified repository index; native app launch separate"
+    },
+    {
+      "id": "net.gsantner.markor",
+      "url": "https://f-droid.org/repo/net.gsantner.markor_163.apk",
+      "version": "2.16.1",
+      "version_code": 163,
+      "size": 12054040,
+      "sha256": "3f9f260dc3e32a1281cb8803eea6f926eef897579f68a5d35f922523974b84b9",
+      "signer": "9c70033237dc46fe5052e420c665708de8b3105b89842843818981826b7eec9c",
+      "abis": [],
+      "minimum_android_sdk": 18,
+      "publisher_page": "https://f-droid.org/packages/net.gsantner.markor/",
+      "seconds": 6.72,
+      "scope": "download and APK identity against cryptographically verified repository index; native app launch separate"
+    },
+    {
+      "id": "net.osmand.plus",
+      "url": "https://f-droid.org/repo/net.osmand.plus_541002.apk",
+      "version": "5.4.10",
+      "version_code": 541002,
+      "size": 184244824,
+      "sha256": "d33ba6f7f73f82adf3cc08fa7114fb771e714dc8deab2d11b90e87050e17633a",
+      "signer": "38294eaac95c3bb5a994692cd7758f8bcdbffb40819af6e806eb7fe482324dcd",
+      "abis": [
+        "x86",
+        "x86_64"
+      ],
+      "minimum_android_sdk": 24,
+      "publisher_page": "https://f-droid.org/packages/net.osmand.plus/",
+      "seconds": 970.91,
+      "scope": "download and APK identity against cryptographically verified repository index; native app launch separate"
+    },
+    {
+      "id": "org.fossify.contacts",
+      "url": "https://f-droid.org/repo/org.fossify.contacts_13.apk",
+      "version": "1.6.0",
+      "version_code": 13,
+      "size": 8602985,
+      "sha256": "6a89be96b5ec39f5e2b11bd61dc7031f4b88261b324ab13af5743fbc62f0cddb",
+      "signer": "affdb124d3f4720c2f98dbca9eacba0514fba4306e20a2786c861c3c0d6ff292",
+      "abis": [
+        "arm64-v8a",
+        "armeabi-v7a",
+        "x86",
+        "x86_64"
+      ],
+      "minimum_android_sdk": 26,
+      "publisher_page": "https://f-droid.org/packages/org.fossify.contacts/",
+      "seconds": 43.39,
+      "scope": "download and APK identity against cryptographically verified repository index; native app launch separate"
+    },
+    {
+      "id": "org.fossify.math",
+      "url": "https://f-droid.org/repo/org.fossify.math_10.apk",
+      "version": "1.4.0",
+      "version_code": 10,
+      "size": 7047681,
+      "sha256": "7c5443c22d6d62c67dfe80df33ea9161ff0fa440f92590bcb45d7008b57613ed",
+      "signer": "affdb124d3f4720c2f98dbca9eacba0514fba4306e20a2786c861c3c0d6ff292",
+      "abis": [
+        "arm64-v8a",
+        "armeabi-v7a",
+        "x86",
+        "x86_64"
+      ],
+      "minimum_android_sdk": 26,
+      "publisher_page": "https://f-droid.org/packages/org.fossify.math/",
+      "seconds": 0.76,
+      "scope": "download and APK identity against cryptographically verified repository index; native app launch separate"
+    },
+    {
+      "id": "org.fossify.paint",
+      "url": "https://f-droid.org/repo/org.fossify.paint_7.apk",
+      "version": "1.4.0",
+      "version_code": 7,
+      "size": 7608967,
+      "sha256": "b949ad0a1eafce616e9e6c6f5fa5b265e4b8ad426303a245be921a6e0c0def5e",
+      "signer": "affdb124d3f4720c2f98dbca9eacba0514fba4306e20a2786c861c3c0d6ff292",
+      "abis": [
+        "arm64-v8a",
+        "armeabi-v7a",
+        "x86",
+        "x86_64"
+      ],
+      "minimum_android_sdk": 26,
+      "publisher_page": "https://f-droid.org/packages/org.fossify.paint/",
+      "seconds": 1.36,
+      "scope": "download and APK identity against cryptographically verified repository index; native app launch separate"
+    },
+    {
+      "id": "org.isoron.uhabits",
+      "url": "https://f-droid.org/repo/org.isoron.uhabits_20301.apk",
+      "version": "2.3.1",
+      "version_code": 20301,
+      "size": 10753773,
+      "sha256": "3903d3be3db0f1622ad61cf5bb267515c95a4069e8dd46f73249721b1bb8173e",
+      "signer": "9f338a863b0152c881e04954d07ae67f62afd11e064fb3ac99a8bd1d2842a395",
+      "abis": [],
+      "minimum_android_sdk": 28,
+      "publisher_page": "https://f-droid.org/packages/org.isoron.uhabits/",
+      "seconds": 5.26,
+      "scope": "download and APK identity against cryptographically verified repository index; native app launch separate"
+    },
+    {
+      "id": "org.jellyfin.mobile",
+      "url": "https://f-droid.org/repo/org.jellyfin.mobile_2070399.apk",
+      "version": "2.7.3",
+      "version_code": 2070399,
+      "size": 8964986,
+      "sha256": "f9f4b3ab46cc9434df811194c2d4351417f4db83a4c1a0facd0a662d69533f7f",
+      "signer": "d881796ed2a67ff6ef9f676828723c6b1fa18e09388962cba4abc4a594a69131",
+      "abis": [
+        "arm64-v8a",
+        "armeabi-v7a",
+        "x86",
+        "x86_64"
+      ],
+      "minimum_android_sdk": 21,
+      "publisher_page": "https://f-droid.org/packages/org.jellyfin.mobile/",
+      "seconds": 1.07,
+      "scope": "download and APK identity against cryptographically verified repository index; native app launch separate"
+    },
+    {
+      "id": "org.mozilla.fennec_fdroid",
+      "url": "https://f-droid.org/repo/org.mozilla.fennec_fdroid_1580010.apk",
+      "version": "158.0.0",
+      "version_code": 1580010,
+      "size": 135689763,
+      "sha256": "1b062902dcb0c1c634fe804efa5eb87fc5c9065dd66abe80c165d540974fdf75",
+      "signer": "06665358efd8ba05be236a47a12cb0958d7d75dd939d77c2b31f5398537ebdc5",
+      "abis": [
+        "x86_64"
+      ],
+      "minimum_android_sdk": 26,
+      "publisher_page": "https://f-droid.org/packages/org.mozilla.fennec_fdroid/",
+      "seconds": 27.44,
+      "scope": "download and APK identity against cryptographically verified repository index; native app launch separate"
+    },
+    {
+      "id": "org.sufficientlysecure.keychain",
+      "url": "https://f-droid.org/repo/org.sufficientlysecure.keychain_60400.apk",
+      "version": "6.0.4",
+      "version_code": 60400,
+      "size": 12043256,
+      "sha256": "f88374b9113aa9ddba865258bd989eb3ac2ca1577d92e59d6e84228e080674ce",
+      "signer": "2805a6f465acb923103a2ab3a145e1a97a74c44acf751250b588ebc3f88a0cc9",
+      "abis": [],
+      "minimum_android_sdk": 15,
+      "publisher_page": "https://f-droid.org/packages/org.sufficientlysecure.keychain/",
+      "seconds": 1.97,
+      "scope": "download and APK identity against cryptographically verified repository index; native app launch separate"
+    },
+    {
+      "id": "org.tasks",
+      "url": "https://f-droid.org/repo/org.tasks_151202.apk",
+      "version": "15.12",
+      "version_code": 151202,
+      "size": 28580639,
+      "sha256": "ed972cc1cec3456a11992435a3fcf132d1311f1e8dfd27758265122fbc206ce0",
+      "signer": "a038a055bf43b2659cbaf862808afd5e447d4d0e2749a10391910009cbd8dcfa",
+      "abis": [
+        "arm64-v8a",
+        "armeabi-v7a",
+        "x86",
+        "x86_64"
+      ],
+      "minimum_android_sdk": 26,
+      "publisher_page": "https://f-droid.org/packages/org.tasks/",
+      "seconds": 15.13,
+      "scope": "download and APK identity against cryptographically verified repository index; native app launch separate"
+    },
+    {
+      "id": "ws.xsoh.etar",
+      "url": "https://f-droid.org/repo/ws.xsoh.etar_57.apk",
+      "version": "1.0.57",
+      "version_code": 57,
+      "size": 9226697,
+      "sha256": "dae01d93c8920aa63845868db2190bcc4aa6ff8410b1289de1ce27b1bb89c599",
+      "signer": "3f3176c3ce189c98054ff9e1d32daecf00a41572f4c7bd2b2f80607252ddb06e",
+      "abis": [],
+      "minimum_android_sdk": 23,
+      "publisher_page": "https://f-droid.org/packages/ws.xsoh.etar/",
+      "seconds": 3.15,
+      "scope": "download and APK identity against cryptographically verified repository index; native app launch separate"
+    }
+  ],
+  "android_repository_authentication": {
+    "certificate_sha256": "43238d512c1e5eb2d6569f4a3afbf5523418b82e0a3ed1552770abb9a9c9ccab",
+    "jar_sha256": "8725e04225fad6839288eb1d33e117e3210656086aa89d3ece7f79831c79cbae",
+    "cryptographic_signature": "CMS Verification successful",
+    "trusted_certificate_source": "https://f-droid.org/docs/Release_Channels_and_Signing_Keys/",
+    "entry": {
+      "timestamp": 1792087301235,
+      "version": 30000,
+      "maxAge": 14,
+      "index": {
+        "name": "/index-v2.json",
+        "sha256": "110fd0a7fd3df6278886a82733c2ae6c8199801fb075d9bf2e3c37a840ffb9e7",
+        "size": 65702469,
+        "numPackages": 4702
+      },
+      "diffs": {
+        "1790718180755": {
+          "name": "/diff/1790718180755.json",
+          "sha256": "f4ee78ad7864b0739711949c7dcc315a7b715e53d173d6628b12fea592562897",
+          "size": 8883912,
+          "numPackages": 996
+        },
+        "1790847956531": {
+          "name": "/diff/1790847956531.json",
+          "sha256": "cf91cab180852d2ca4c6841fc72cb4befb33de367ea3826b9d8c6a8aa1c0ea40",
+          "size": 8498365,
+          "numPackages": 963
+        },
+        "1790966170353": {
+          "name": "/diff/1790966170353.json",
+          "sha256": "32a85ab0af405e1afd8977832101374e779fd6b4f6e9b4a581771e8ee96c3109",
+          "size": 8072336,
+          "numPackages": 899
+        },
+        "1791060793421": {
+          "name": "/diff/1791060793421.json",
+          "sha256": "443d376d3e6bd2a0a2323c469bba6cf9f70d53ead060f784a2c5bdb1a0633657",
+          "size": 7345645,
+          "numPackages": 860
+        },
+        "1791156025517": {
+          "name": "/diff/1791156025517.json",
+          "sha256": "6e66cec723bc1ee3c65022aaae7b59c5aaa93667fc21b76d56b21e5efdb26b89",
+          "size": 6918548,
+          "numPackages": 818
+        },
+        "1791238104703": {
+          "name": "/diff/1791238104703.json",
+          "sha256": "ba11ac6885d233e98330a6f452555dd1a5818c1f3fa6297f66fe123d7be10131",
+          "size": 6562850,
+          "numPackages": 789
+        },
+        "1791328771653": {
+          "name": "/diff/1791328771653.json",
+          "sha256": "0a900830ba814869b7cd205fcdc046f48c8a9186fde744727d8dc7e4a691afdb",
+          "size": 6179759,
+          "numPackages": 740
+        },
+        "1791616497948": {
+          "name": "/diff/1791616497948.json",
+          "sha256": "0f277076aedbf18c74911cacc825c33cee34ca4cd678a62652cda14a6b4c9622",
+          "size": 5245310,
+          "numPackages": 666
+        },
+        "1791818227459": {
+          "name": "/diff/1791818227459.json",
+          "sha256": "2a4d315d1dc9463404d21d0981e8691ba8aa951cc7134c26942dde55e1aa8564",
+          "size": 3112433,
+          "numPackages": 437
+        },
+        "1791949126460": {
+          "name": "/diff/1791949126460.json",
+          "sha256": "9c873cb1ac3ce46d4a8c445ab67d5d9d4057f7639219fa9ed33a842edbb2fdd2",
+          "size": 1359441,
+          "numPackages": 230
+        }
+      }
+    }
+  },
+  "windows_additions": [
+    {
+      "id": "doublecommander-windows",
+      "version": "1.2.9",
+      "url": "https://github.com/doublecmd/doublecmd/releases/download/v1.2.9/doublecmd-1.2.9.x86_64-win64.zip",
+      "sha256": "e8472c0105dbde55db4ffbdbd190eab65e9da0375596454995fae4a1fc128dee",
+      "size": 16635996,
+      "exe": "doublecmd/doublecmd.exe",
+      "wineboot_exit": 0,
+      "rendered_windows": [
+        {
+          "id": 12582919,
+          "title": "Double Commander 1.2.9~395",
+          "width": 800,
+          "height": 499,
+          "x": 0,
+          "y": 26
+        }
+      ],
+      "picture": {
+        "sha256": "49d4fbcc13601074531679157d79495ee29129542b1ecc5c7c373ae81adadd5b",
+        "nonblack_pixels": 391101
+      },
+      "scope": "private native x86 Wine 11 software X11 launch and rendered window; not physical GPU or full application workflow"
+    },
+    {
+      "id": "bowpad-windows",
+      "version": "2.9.6",
+      "url": "https://github.com/stefankueng/BowPad/releases/download/2.9.6/BowPad64-2.9.6-portable.zip",
+      "sha256": "69705615176366cfdb6df45c75733b9c69abde67b7f44c40e12c274cb3db9465",
+      "size": 2451477,
+      "exe": "BowPad.exe",
+      "wineboot_exit": 0,
+      "rendered_windows": [
+        {
+          "id": 12582916,
+          "title": "New 1 - BowPad",
+          "width": 952,
+          "height": 566,
+          "x": 4,
+          "y": 30
+        }
+      ],
+      "picture": {
+        "sha256": "631b494653dac4ad6809992c4d50a7349c0b20b13bc76535de851ed5e8ad4f6f",
+        "nonblack_pixels": 537482
+      },
+      "scope": "private native x86 Wine 11 software X11 launch and rendered window; not physical GPU or full application workflow"
+    },
+    {
+      "id": "grepwin-windows",
+      "version": "2.1.12",
+      "url": "https://github.com/stefankueng/grepWin/releases/download/2.1.12/grepWin-x64-2.1.12_portable.zip",
+      "sha256": "55f0352144d67ae03c6f24db642d080c895833593b25b900339bc92a5b4d7234",
+      "size": 691960,
+      "exe": "grepWin-x64-2.1.12_portable.exe",
+      "wineboot_exit": 0,
+      "rendered_windows": [
+        {
+          "id": 12582913,
+          "title": "grepWin : ",
+          "width": 1015,
+          "height": 569,
+          "x": 132,
+          "y": 128
+        }
+      ],
+      "picture": {
+        "sha256": "43a0725de4d33132935159514d989b1120a8109e2ef74b0f3f2ff7fc08d24e52",
+        "nonblack_pixels": 571518
+      },
+      "scope": "private native x86 Wine 11 software X11 launch and rendered window; not physical GPU or full application workflow"
+    },
+    {
+      "id": "imhex-windows",
+      "version": "1.38.1",
+      "url": "https://github.com/WerWolv/ImHex/releases/download/v1.38.1/imhex-1.38.1-Windows-Portable-NoGPU-x86_64.zip",
+      "sha256": "f440deb64901d21a64a68ee19562716b6079f7034f7525162bce4c650465eb2e",
+      "size": 81465452,
+      "exe": "imhex-gui.exe",
+      "wineboot_exit": 0,
+      "rendered_windows": [
+        {
+          "id": 12582917,
+          "title": "ImHex",
+          "width": 1230,
+          "height": 700,
+          "x": 25,
+          "y": 40
+        }
+      ],
+      "picture": {
+        "sha256": "8a4d4fdbe26c0cd2ef86b985d0a396612c3766f75519688329070c401143cbf2",
+        "nonblack_pixels": 860830
+      },
+      "scope": "private native x86 Wine 11 software X11 launch and rendered window; not physical GPU or full application workflow"
+    },
+    {
+      "id": "keepassxc-windows",
+      "version": "2.7.12",
+      "url": "https://github.com/keepassxreboot/keepassxc/releases/download/2.7.12/KeePassXC-2.7.12-Win64.zip",
+      "sha256": "958234b0669d757b53eacf42bdd5de0fa1cc1ab7527709ddf4f7e29c06a8305f",
+      "size": 35395629,
+      "exe": "KeePassXC-2.7.12-Win64/KeePassXC.exe",
+      "wineboot_exit": 0,
+      "rendered_windows": [
+        {
+          "id": 12582916,
+          "title": "KeePassXC",
+          "width": 800,
+          "height": 600,
+          "x": 240,
+          "y": 100
+        }
+      ],
+      "picture": {
+        "sha256": "75a396d201a4496f8ffd9aae2a2a7d401bfd67d5d1115dec96e1cb8dfee26426",
+        "nonblack_pixels": 480000
+      },
+      "scope": "private native x86 Wine 11 software X11 launch and rendered window; not physical GPU or full application workflow"
+    },
+    {
+      "id": "jpegview-windows",
+      "version": "1.3.46",
+      "url": "https://github.com/sylikc/jpegview/releases/download/v1.3.46/JPEGView_1.3.46.zip",
+      "sha256": "ba71d5983b6c9e2dc55abbec0da53be54e67cf3251d6e9d2d8be82fe7d85bbe5",
+      "size": 8999867,
+      "exe": "JPEGView64/JPEGView.exe",
+      "wineboot_exit": 0,
+      "rendered_windows": [
+        {
+          "id": 12582913,
+          "title": "JPEGView",
+          "width": 640,
+          "height": 400,
+          "x": 320,
+          "y": 213
+        },
+        {
+          "id": 12582916,
+          "title": "Open",
+          "width": 1144,
+          "height": 686,
+          "x": 68,
+          "y": 70
+        }
+      ],
+      "picture": {
+        "sha256": "f0b18b78f9061271b1adfaf0c5981a12724b5ec0e7cae5958a03c7401403e9e6",
+        "nonblack_pixels": 781773
+      },
+      "scope": "private native x86 Wine 11 software X11 launch and rendered window; not physical GPU or full application workflow"
+    },
+    {
+      "id": "lazpaint-windows",
+      "version": "7.3",
+      "url": "https://github.com/bgrabitmap/lazpaint/releases/download/v7.3/lazpaint7.3_win64_no_install.zip",
+      "sha256": "3d79ac4c822437c327be44417968d2e027f072c42211691b40198cbd78a24b51",
+      "size": 10528323,
+      "exe": "lazpaint64/lazpaint.exe",
+      "wineboot_exit": 0,
+      "rendered_windows": [
+        {
+          "id": 12582915,
+          "title": "640x480 - LazPaint 7.3 (64-bit)",
+          "width": 739,
+          "height": 616,
+          "x": 4,
+          "y": 30
+        },
+        {
+          "id": 12582918,
+          "title": "Layers",
+          "width": 336,
+          "height": 286,
+          "x": 554,
+          "y": 164
+        }
+      ],
+      "picture": {
+        "sha256": "f67304f7aea9e697574ffeacbb9ad8c3f816f4e32d1c79282a4533559d828ccc",
+        "nonblack_pixels": 451656
+      },
+      "scope": "private native x86 Wine 11 software X11 launch and rendered window; not physical GPU or full application workflow"
+    },
+    {
+      "id": "openscad-windows",
+      "version": "2021.01",
+      "url": "https://github.com/openscad/openscad/releases/download/openscad-2021.01/OpenSCAD-2021.01-x86-64.zip",
+      "sha256": "fb0caabf5bbc89f8f2f80c10b79ae64d697aaff6efd58b2756f5d6270edb7ba7",
+      "size": 21884613,
+      "exe": "openscad-2021.01/openscad.exe",
+      "wineboot_exit": 0,
+      "rendered_windows": [
+        {
+          "id": 12582916,
+          "title": "Welcome to OpenSCAD",
+          "width": 620,
+          "height": 418,
+          "x": 317,
+          "y": 181
+        }
+      ],
+      "picture": {
+        "sha256": "f54ab659334c42a9955210f2f6f41d563667ea2c314653a0c687a60ea991392d",
+        "nonblack_pixels": 256872
+      },
+      "scope": "private native x86 Wine 11 software X11 launch and rendered window; not physical GPU or full application workflow"
+    },
+    {
+      "id": "qalculate-windows",
+      "version": "5.13.1b",
+      "url": "https://github.com/Qalculate/qalculate-qt/releases/download/v5.13.0/qalculate-5.13.1b-x64.zip",
+      "sha256": "b3ddb431f6242165bedca33694403809fcc69cab45371d90dcf0e8bb5a187b96",
+      "size": 70792677,
+      "exe": "qalculate/qalculate-qt.exe",
+      "wineboot_exit": 0,
+      "rendered_windows": [
+        {
+          "id": 12582917,
+          "title": "Qalculate!",
+          "width": 550,
+          "height": 600,
+          "x": 365,
+          "y": 100
+        }
+      ],
+      "picture": {
+        "sha256": "0b8e06f03d05dd7130324b2224b38a8950a50e51195d47cdaa6a95a8d79aa584",
+        "nonblack_pixels": 327848
+      },
+      "scope": "private native x86 Wine 11 software X11 launch and rendered window; not physical GPU or full application workflow"
+    },
+    {
+      "id": "peazip-windows",
+      "version": "11.3.0",
+      "url": "https://github.com/peazip/PeaZip/releases/download/11.3.0/peazip_portable-11.3.0.WIN64.zip",
+      "sha256": "3fb15b9852c94ba5ee8d1af5568fad0cad0999854225b4432b9c98b315a4f768",
+      "size": 16349567,
+      "exe": "peazip_portable-11.3.0.WIN64/peazip.exe",
+      "wineboot_exit": 0,
+      "rendered_windows": [
+        {
+          "id": 12582916,
+          "title": "PeaLauncher",
+          "width": 800,
+          "height": 400,
+          "x": 34,
+          "y": 208
+        },
+        {
+          "id": 12582918,
+          "title": "Formdragdropfilesdll",
+          "width": 320,
+          "height": 240,
+          "x": 82,
+          "y": 195
+        },
+        {
+          "id": 12582919,
+          "title": "Computer's root",
+          "width": 1024,
+          "height": 619,
+          "x": 68,
+          "y": 94
+        }
+      ],
+      "picture": {
+        "sha256": "62b559179a54ae80226c12179d039fcea85ec65b606e302628bed42daaafed46",
+        "nonblack_pixels": 629810
+      },
+      "scope": "private native x86 Wine 11 software X11 launch and rendered window; not physical GPU or full application workflow"
+    },
+    {
+      "id": "explorerplusplus-windows",
+      "version": "1.4.0",
+      "url": "https://github.com/derceg/explorerplusplus/releases/download/version-1.4.0/explorerpp_x64.zip",
+      "sha256": "81ec54586dfef888b886d409afa22e31f22d4f6ba35d52d93074b4ee64b79b0c",
+      "size": 2392706,
+      "exe": "Explorer++.exe",
+      "wineboot_exit": 0,
+      "rendered_windows": [
+        {
+          "id": 12582913,
+          "title": "My Computer - Explorer++",
+          "width": 1220,
+          "height": 622,
+          "x": 29,
+          "y": 70
+        }
+      ],
+      "picture": {
+        "sha256": "87c7617a45e003186340d86aa2a0b563c19fa76dfb6cf66a0b29ff32c9b4a4e1",
+        "nonblack_pixels": 648113
+      },
+      "scope": "private native x86 Wine 11 software X11 launch and rendered window; not physical GPU or full application workflow"
+    },
+    {
+      "id": "nomacs-windows",
+      "version": "3.22.4",
+      "url": "https://github.com/nomacs/nomacs/releases/download/3.22.4/nomacs-portable-win.zip",
+      "sha256": "2be8a8b3b58491771a2e5ae2afb1698078f71bc4a81c75e2b2233ab7dd49b07a",
+      "size": 48233879,
+      "exe": "nomacs-3.22.4/nomacs.exe",
+      "wineboot_exit": 0,
+      "rendered_windows": [
+        {
+          "id": 12582916,
+          "title": "nomacs | Image Lounge",
+          "width": 994,
+          "height": 720,
+          "x": 143,
+          "y": 27
+        },
+        {
+          "id": 12582918,
+          "title": "Welcome",
+          "width": 464,
+          "height": 161,
+          "x": 398,
+          "y": 310
+        }
+      ],
+      "picture": {
+        "sha256": "3a3048d7185bda55146dbd7349c80d37361454d8591b696d13a68ec9180106d9",
+        "nonblack_pixels": 715641
+      },
+      "scope": "private native x86 Wine 11 software X11 launch and rendered window; not physical GPU or full application workflow"
+    },
+    {
+      "id": "xournalpp-windows",
+      "version": "1.3.8",
+      "url": "https://github.com/xournalpp/xournalpp/releases/download/v1.3.8/xournalpp-1.3.8-windows-portable-AMD64.zip",
+      "sha256": "ed85dc5765c2cea8b3f3d224bbda1dd454f197c4c938ecd939f3d922daae488d",
+      "size": 98214281,
+      "exe": "xournalpp-1.3.8-windows-portable-AMD64/bin/xournalpp.exe",
+      "wineboot_exit": 0,
+      "rendered_windows": [
+        {
+          "id": 16777217,
+          "title": "C:\\windows\\system32\\cmd.exe",
+          "width": 657,
+          "height": 400,
+          "x": 4,
+          "y": 30
+        },
+        {
+          "id": 18874374,
+          "title": "Unsaved Document - Xournal++",
+          "width": 800,
+          "height": 600,
+          "x": 4,
+          "y": 30
+        }
+      ],
+      "picture": {
+        "sha256": "84933207f5100a4884340f6ca7d0cb123426fb13e2aad0eba828821181d05bd4",
+        "nonblack_pixels": 480000
+      },
+      "scope": "private native x86 Wine 11 software X11 launch and rendered window; not physical GPU or full application workflow"
+    },
+    {
+      "id": "notepad4-windows",
+      "version": "26.08r6282",
+      "url": "https://github.com/zufuliu/notepad4/releases/download/v26.08r6282/Notepad4_i18n_x64_v26.08r6282.zip",
+      "sha256": "fe202ddbbb6a295d6a771ecce918b8b63874287f0e33e43a50aa910afe270573",
+      "size": 1638259,
+      "exe": "Notepad4.exe",
+      "wineboot_exit": 0,
+      "rendered_windows": [
+        {
+          "id": 12582913,
+          "title": "Untitled - Notepad4",
+          "width": 760,
+          "height": 734,
+          "x": 500,
+          "y": 46
+        }
+      ],
+      "picture": {
+        "sha256": "610c57c44aab0e5499f67ec70302d9c499dc8eed51ddd4e0dff0e2498e8d5aa8",
+        "nonblack_pixels": 556313
+      },
+      "scope": "private native x86 Wine 11 software X11 launch and rendered window; not physical GPU or full application workflow"
+    }
+  ],
+  "windows_runtime": {
+    "machine": "native x86 NVIDIA workstation, private container with no network/owner display/GPU and a new prefix per app",
+    "wine": "11.0-3.fc44",
+    "image_id": "690d8149f49f0f5019e7a79e1cd9fa3c287ec738e99051da30fd97f381823273",
+    "all_tested_publishers": 19,
+    "admitted_after_render_review": 14,
+    "excluded": {
+      "CopyQ": "Wine debugger/program error",
+      "Money Manager Ex": "UserProfile registry warning before usable main window",
+      "PDFarranger": "corrupted GTK text/render",
+      "DB Browser for SQLite": "unimplemented EnableNonClientDpiScaling modal; high-scale behavior unqualified",
+      "TeXstudio": "missing TeX distribution; full compile not configured"
+    },
+    "limitations": "window launch/render is not full functionality, Store install/open/remove, GPU acceleration or arbitrary Windows compatibility"
+  },
+  "android_native_failure": {
+    "id": "net.gsantner.markor",
+    "installed": false,
+    "message_key": "android_status_unknown",
+    "followup": "four direct and four same-user-manager probes each returned STOPPED successfully; initial failure cause unproven",
+    "hardware_currently_online": false,
+    "not_claimed": "ten real Android app journeys or a hardware-validated fix"
+  },
+  "android_session_lifetime": {
+    "scope": "native user-systemd lifetime fixture; private fake runtime/graphical target, no Waydroid or owner session started/stopped",
+    "source_unit_sha256": "6ced0c26c99dd3f2402c5e3ac401c6caee974ceacf4576f4df6622ef642d4634",
+    "started_utc": "2026-10-16T19:10:29.084515+00:00",
+    "units": [
+      "moos-android-lifetime-proof-7e9ce454b0cc.target",
+      "moos-android-lifetime-proof-7e9ce454b0cc-session.service"
+    ],
+    "old": {
+      "job_exit": 0,
+      "runtime_pid": 556933,
+      "alive_after_job_exit": false
+    },
+    "fixed": {
+      "job_exit": 0,
+      "runtime_pid": 556951,
+      "alive_after_job_exit": true,
+      "alive_after_second_sample": true,
+      "alive_after_graphical_stop": false
+    },
+    "passed": true,
+    "completed_utc": "2026-10-16T19:10:34.984013+00:00"
+  },
+  "linux_real_lifecycle": {
+    "scope": "native development-source Store lifecycle on a new test app only",
+    "id": "com.github.huluti.Curtail",
+    "started_utc": "2026-10-16T19:14:43.268624+00:00",
+    "steps": [
+      {
+        "label": "permissions",
+        "exit": 0,
+        "result": {
+          "schema": 1,
+          "id": "com.github.huluti.Curtail",
+          "kind": "flatpak",
+          "generated_at": "2026-10-16T19:14:43.582Z",
+          "sandboxed": true,
+          "installed": true,
+          "rows": [
+            {
+              "key": "network",
+              "state": "deny",
+              "changeable": true
+            },
+            {
+              "key": "files-home",
+              "state": "allow",
+              "changeable": true
+            },
+            {
+              "key": "files-all",
+              "state": "deny",
+              "changeable": true
+            },
+            {
+              "key": "downloads",
+              "state": "allow",
+              "changeable": false
+            },
+            {
+              "key": "devices",
+              "state": "deny",
+              "changeable": true
+            },
+            {
+              "key": "sound",
+              "state": "deny",
+              "changeable": true
+            },
+            {
+              "key": "bluetooth",
+              "state": "deny",
+              "changeable": true
+            },
+            {
+              "key": "background",
+              "state": "allow",
+              "changeable": true
+            }
+          ]
+        }
+      },
+      {
+        "label": "update",
+        "exit": 0,
+        "result": {
+          "schema": 1,
+          "job_id": "c6c35bb89f4c26c154992b07dc6b1170",
+          "action": "update",
+          "state": "success",
+          "progress": 100,
+          "current_id": null,
+          "message": "Apps updated",
+          "items": [
+            {
+              "id": "com.github.huluti.Curtail",
+              "state": "skipped",
+              "progress": 100,
+              "message": "This app is up to date",
+              "message_key": "app_up_to_date"
+            }
+          ],
+          "started_at": "2026-10-16T19:14:44.027Z",
+          "updated_at": "2026-10-16T19:14:44.347Z",
+          "message_key": "apps_updated"
+        }
+      },
+      {
+        "label": "remove-keep-data",
+        "exit": 0,
+        "result": {
+          "schema": 1,
+          "job_id": "00a2d32eb5bd40a87052794863e06cce",
+          "action": "remove",
+          "state": "success",
+          "progress": 100,
+          "current_id": null,
+          "message": "App removed",
+          "items": [
+            {
+              "id": "com.github.huluti.Curtail",
+              "state": "done",
+              "progress": 100,
+              "message": "Removed",
+              "message_key": "removed"
+            }
+          ],
+          "started_at": "2026-10-16T19:14:44.575Z",
+          "updated_at": "2026-10-16T19:14:46.550Z",
+          "message_key": "app_removed"
+        }
+      },
+      {
+        "label": "reinstall-after-keep",
+        "exit": 0,
+        "result": {
+          "schema": 1,
+          "job_id": "09087088228943a65f3d8fa53082b6bd",
+          "action": "install",
+          "state": "success",
+          "progress": 100,
+          "current_id": null,
+          "message": "All requested apps are ready",
+          "items": [
+            {
+              "id": "com.github.huluti.Curtail",
+              "state": "done",
+              "progress": 100,
+              "message": "Completed",
+              "message_key": "completed"
+            }
+          ],
+          "started_at": "2026-10-16T19:14:46.772Z",
+          "updated_at": "2026-10-16T19:14:49.099Z",
+          "message_key": "all_ready"
+        }
+      },
+      {
+        "label": "remove-delete-data",
+        "exit": 0,
+        "result": {
+          "schema": 1,
+          "job_id": "2c918a1cc8213d6fb773a8c9153d5e8d",
+          "action": "remove",
+          "state": "success",
+          "progress": 100,
+          "current_id": null,
+          "message": "App removed",
+          "items": [
+            {
+              "id": "com.github.huluti.Curtail",
+              "state": "done",
+              "progress": 100,
+              "message": "Removed with its data",
+              "message_key": "removed_with_data"
+            }
+          ],
+          "started_at": "2026-10-16T19:14:49.368Z",
+          "updated_at": "2026-10-16T19:14:50.614Z",
+          "message_key": "app_removed"
+        }
+      },
+      {
+        "label": "final-install",
+        "exit": 0,
+        "result": {
+          "schema": 1,
+          "job_id": "9958c83b7371cf2350220984b70ead44",
+          "action": "install",
+          "state": "success",
+          "progress": 100,
+          "current_id": null,
+          "message": "All requested apps are ready",
+          "items": [
+            {
+              "id": "com.github.huluti.Curtail",
+              "state": "done",
+              "progress": 100,
+              "message": "Completed",
+              "message_key": "completed"
+            }
+          ],
+          "started_at": "2026-10-16T19:14:50.821Z",
+          "updated_at": "2026-10-16T19:14:52.808Z",
+          "message_key": "all_ready"
+        }
+      }
+    ],
+    "keep_data_preserved": true,
+    "delete_data_removed": true,
+    "final_launch": "opened (detached unit moai-open-558858-14042): flatpak run --env=GDK_BACKEND=wayland com.github.huluti.Curtail",
+    "final_app_running": true,
+    "completed_utc": "2026-10-16T19:14:55.986859+00:00"
+  },
+  "linux_real_function": {
+    "before_bytes": 922218,
+    "files_after_open": [
+      {
+        "name": "curtail-functional.png",
+        "bytes": 922218
+      },
+      {
+        "name": "curtail-functional-min.png",
+        "bytes": 133
+      }
+    ],
+    "source_file_sha256": "2444152a1610cad88116eaa730db036344698eb509e99c6e2639bf61162ef925",
+    "after_sha256": "2444152a1610cad88116eaa730db036344698eb509e99c6e2639bf61162ef925",
+    "compressed_in_place": false,
+    "launch": "opened (detached unit moai-open-558202-5388): flatpak run com.github.huluti.Curtail /var/home/moos/.cache/moos-store-linux-lifecycle-20261016/curtail-functional.png",
+    "compressed_copy_bytes": 133,
+    "lossless_pixels_match": true,
+    "pixel_sha256": "a4e45fbe28eb3445b9b5d7239794861f9489a4a6b05283c0c68a62427f3760c8"
+  },
+  "linux_first_launch_failure": {
+    "app": "com.github.huluti.Curtail",
+    "runtime": "org.gnome.Platform/aarch64/51",
+    "signal": "SIGSEGV",
+    "first_stack_module": "libVkLayer_MESA_device_select.so",
+    "old_native_unit": "moai-open-557156-15605.service",
+    "followup": "cairo and gl both kept the native window alive; final reinstall launched on Wayland with the software GL policy",
+    "source_policy": "ARM existing software-rendering environment now selects GSK_RENDERER=gl",
+    "temporary_native_change": "systemctl --user set-environment GSK_RENDERER=gl; no host RPM layering or immutable file replacement",
+    "libflatpak_note": "native successful transactions emitted a g_value_get_flags introspection warning; operation and package/data readbacks passed, warning cause unproven"
+  },
+  "qml_host": {
+    "exit": 0,
+    "seconds": 23.56,
+    "source_sha256": "58f94ed324620de02d25de0a4bc71e8bff5ea88fa79a8b930eb56b0053faf07f",
+    "log_sha256": "fcc8f31c26911905c3049d181130c5b3e2aa0272cd31b1a0e0ef3f577bb24eee",
+    "binary_sha256": "8ac4af948a4bac24240920cb400db72450aba5aa68c93dbd97906ab340a00f91"
+  },
+  "qml_platform_controls": {
+    "old": "Basic controls selected generic Kirigami Units, 200ms even when Plasma animations disabled",
+    "new": "KDE platform plugin selected independently of Basic controls; actual compiled native host reports 1ms at factor0,100ms at factor0.5",
+    "old_negative_failed": true,
+    "source_image_gates": "both desktop and ARM execute verify_qml_host_platform.py"
+  },
+  "native_qt_input": {
+    "languages": [
+      "ar",
+      "en"
+    ],
+    "font_sizes": [
+      10,
+      20
+    ],
+    "scales": [
+      1,
+      2.5
+    ],
+    "reduced_motion": true,
+    "checks_per_variant": [
+      46,
+      47
+    ],
+    "test_cases": 2,
+    "seconds": 101.018,
+    "negative_controls": [
+      "old wheel swallowing vertical scroll",
+      "passive action pill preventing vertical drag",
+      "management remove tap opening details"
+    ],
+    "limitations": "private native Qt event/window fixtures, not phone/touchscreen or installed whole-shell acceptance"
+  },
+  "evidence": [
+    {
+      "local_artifact": "/var/home/moos/.cache/moos-store-touch-review-20261016/final-native-touch-suite-v3.log",
+      "sha256": "dac7a5b1d95e61e85943446fe99864e3cd3e07d07e1dd1eb14374b6b8dfd0dee"
+    },
+    {
+      "local_artifact": "/var/home/moos/.cache/moos-store-motion-20261016/native-pages.log",
+      "sha256": "78cbff080a20629b4669ec70cf25041a63b6bac99f616af7ed1cb64b6d3093d3"
+    },
+    {
+      "local_artifact": "/var/home/moos/.cache/moos-store-motion-20261016/old-negative-v2.log",
+      "sha256": "9e7ce23d1a67e169b45e85b6b0b62876d13a2a37b6b014d00ade075d445976cf"
+    },
+    {
+      "local_artifact": "/var/home/moos/.cache/moos-greeter-recovery-20261016/android-file-fix-tests-v3.log",
+      "sha256": "325fe50738745cf4630c4474f13ec2e6c93b649a83dd5fd9dc9c419f24b7d0f0"
+    },
+    {
+      "local_artifact": "/var/home/moos/.cache/moos-greeter-recovery-20261016/android-producer-old-negative.json",
+      "sha256": "8b57604418b5a33e05e3827bb58946b504aa536ef674dae14b0384ecc0d67480"
+    },
+    {
+      "local_artifact": "/var/home/moos/.cache/moos-store-catalog-expansion-20261016/final-catalog-gate-v2.log",
+      "sha256": "c29b955d0cb78e7d3225593d49f0752f031349ac9641ab0263d0b966a04ae4cb"
+    },
+    {
+      "local_artifact": "/var/home/moos/.cache/moos-store-touch-review-20261016/final-render/ar20/touch-discover.png",
+      "sha256": "cfbec92ff7b19e58d49a09a5ad3666b9a2f0ceaef7dbf80eb8f1d26b0e244687",
+      "scope": "final-source native Qt Arabic large-font Discover frame, visually inspected; private fixture apps, no privileged bridge"
+    }
+  ],
+  "delivery_pending": [
+    "frozen final-source just check",
+    "complete native local ARM image plus exact payload readback",
+    "required PR CI at final source",
+    "one signed four-edition candidate/boot-proof/promotion cycle",
+    "Oracle signed update/reboot/readback",
+    "NVIDIA actual engine/app/remote input acceptance and update when back online"
+  ],
+  "first_final_gate_failure": {
+    "revision": "1e997e47515bbeaaf0b4743d5ea4bea8915802f9",
+    "tree": "69c2c091baa11397dc1a6ab1954249067ec9ed9a",
+    "started_at": "2026-10-16T19:19:53.182798+00:00",
+    "seconds": 7.91,
+    "exit": 1,
+    "log_sha256": "10e3ec5e9e257eb84309d7fa6c590c477733a27401d52e28cee4397200f44e7c",
+    "source_unchanged": true,
+    "cause": "two exact theme revision assertions still required106; updated both to107 without removing cache/identity guards"
+  },
+  "aborted_native_build": {
+    "scope": "owned native build stopped after fast-gate failure, during base pull, before image composition; no image proof claimed",
+    "observed_utc": "2026-10-16T19:20:56.450572+00:00",
+    "revision": "1e997e47515bbeaaf0b4743d5ea4bea8915802f9",
+    "reason": "stale exact THEME_REV=106 assertion after required source bump to107",
+    "unit": "moos-store-native-arm-20261016.service",
+    "log_sha256": "40ae5aac3e603bf5e4f48763467e798647bd4a9376624a82cd34ec6b6993959a",
+    "owner_containers_preserved": true
+  },
+  "second_final_gate_failure": {
+    "revision": "90baca89c7b278a8d2608026d223a048371b3a2a",
+    "tree": "b8cf03ad5f6bd65c40def735454741d23441e41f",
+    "started_at": "2026-10-16T19:21:02.714529+00:00",
+    "seconds": 216.207,
+    "exit": 1,
+    "log_sha256": "0e9791052391d9edd0149c3f6be0f199ae028031fd0b5c9a11babbf605dbe435",
+    "source_unchanged": true,
+    "cause": "the authority scanner needs an executable literal; the actual owned-snapshot mutation uses fixed /usr/bin/waydroid argv, preserving the scanner unchanged"
+  },
+  "third_final_gate_failure": {
+    "revision": "2c37d94ecc787363e5e064e62f90483e9d4bc40d",
+    "tree": "f865aae67acb02823dfe357063b224bf6706414a",
+    "started_at": "2026-10-16T19:26:06.511306+00:00",
+    "seconds": 144.866,
+    "exit": 1,
+    "log_sha256": "718eb3007fafc2483b229553cf3f43b9a122514aed904049ea2b0b2c3ce8f20c",
+    "source_unchanged": true,
+    "cause": "journal-isolation run found lost job presence; exact original cause unproven, quiet rerun passed, deterministic late-consumer negative then proved the old one-retry timing class"
+  },
+  "job_presence_recovery": {
+    "source": "system_files/usr/bin/moai-control",
+    "policy": "one coalesced worker per directory; three delayed events; no idle polling or state/mtime rewrite",
+    "native_positive_tests": 64,
+    "seconds": 13.051,
+    "positive_log_sha256": "3903283e7e4446b2f3cf705f805ab70ec384c4838f523a1c5c8afdc6cad7a200",
+    "native_old_negative_initial_log_sha256": "85e442bfa537bae9b1ca10671d726206f1c4df7ac3a7e0cfec2f5be15159b795",
+    "old_source_sha256": "0d889bca1e8da0850d2bd0a25ca1746f759fed9eee78589de5f8e7ab50105001",
+    "late_consumer_delay_ms": 1100,
+    "scope": "private native Qt FolderListModel and actual producer; broader GUI startup/hardware causes remain unproven",
+    "restored_old_scheduler_controls": {
+      "scope": "two current regression tests with only the previous scheduler restored, private HOME/runtime/native Qt consumer",
+      "old_source_sha256": "0d889bca1e8da0850d2bd0a25ca1746f759fed9eee78589de5f8e7ab50105001",
+      "run": 2,
+      "failures": 2,
+      "errors": 0,
+      "both_negative_controls_failed": true
+    }
+  },
+  "all_catalog_pages": {
+    "scope": "final-source 264-entry catalog in a private native offscreen real-QML-host walk; only the copied fixture catalog URL differs, no owner profile/Store bridge",
+    "revision": "90baca89c7b278a8d2608026d223a048371b3a2a",
+    "catalog_sha256": "6b55ee4a4144d820facf818df503c87a3a76514c71f0a26f0c911981f6773fed",
+    "cases": [
+      {
+        "language": "ar",
+        "exit": 0,
+        "steps": 293,
+        "completed": true,
+        "warnings": [],
+        "seconds": 69.673,
+        "log_sha256": "c787de10c4df6f6f9d2d6cc110e6883e2696d00d7bbf77f0d6f5273b60e9efdb"
+      },
+      {
+        "language": "en",
+        "exit": 0,
+        "steps": 293,
+        "completed": true,
+        "warnings": [],
+        "seconds": 67.759,
+        "log_sha256": "c787de10c4df6f6f9d2d6cc110e6883e2696d00d7bbf77f0d6f5273b60e9efdb"
+      }
+    ],
+    "started_utc": "2026-10-16T19:24:27.130187+00:00",
+    "completed_utc": "2026-10-16T19:26:44.562668+00:00"
+  },
+  "fourth_final_gate_failure": {
+    "revision": "f486df2d60767624674c37c59dce02faf1ae2ac3",
+    "tree": "d627976ee10ab760552b226e75c4f9d436a2639b",
+    "started_at": "2026-10-16T19:34:09.154069+00:00",
+    "seconds": 291.014,
+    "exit": 1,
+    "log_sha256": "662b26c651da5b23d181feff9448defc2c8f1580afeadb54bd778a02297a1071",
+    "source_unchanged": true,
+    "cause": "14 newly measured PE32+ Windows downloads missing from the explicit architecture fixture; recorded all14 without changing strict bidirectional architecture assertions"
+  },
+  "remaining_gate_diagnostic": {
+    "scope": "adaptive diagnostic of the remaining unchanged maintained Justfile commands; collects every failure, does not qualify the official full check",
+    "revision": "b8001c10ef2290bf0364f0ee5e77bdd7d270a956",
+    "commands": 109,
+    "failed": [
+      {
+        "command": "python3 tests/test_moos_storectl.py",
+        "exit": 1,
+        "seconds": 0.567
+      },
+      {
+        "command": "python3 tests/test_mo_store_pinned_updates.py",
+        "exit": 1,
+        "seconds": 0.618
+      },
+      {
+        "command": "python3 tests/test_theme_rev_fingerprint.py",
+        "exit": 1,
+        "seconds": 0.164
+      }
+    ],
+    "log_sha256": "f5875325a18ee452cc4d9311eddff144ec3916c22e37f0a501fd510c6ec865ae",
+    "corrections": "real compiled-manifest APK fixture and private-snapshot assertions; one bounded Android update confirmation before publishing a receipt, preserving existing refusal/legacy-unreadable behavior; generated theme fingerprint107"
+  },
+  "final_android_update_checks": {
+    "update_contract_cases": 29,
+    "storectl_cases": 36,
+    "backend_kinds_cases": 47,
+    "update_policy": "one bounded installed-APK readback before new receipt; established android_update_refused preserved; initial installs keep independent package confirmation",
+    "logs": {
+      "storectl-final.log": "406b12effd24aaee25312b2d34ccc7889c5afaf9a8ddb7b3f5396707485f3b14",
+      "pinned-updates-final.log": "1572480b2aeaf8e3eca27172ec348ef14e4c4ca322d8479f4dac3757141b94be",
+      "backend-final-v2.log": "9623b2888ecbf2e0f96fb769fd4853eee30c641a3f05703c52564e4ffa265284"
+    }
+  },
+  "fifth_final_gate_failure": {
+    "revision": "b3cf27dee9bfaada8ec053a5b729e5c25b5c09db",
+    "tree": "c31731cda110e7d04f7595ec6e91aeeaf5a8f355",
+    "started_at": "2026-10-16T19:48:20.072702+00:00",
+    "seconds": 317.912,
+    "exit": 1,
+    "log_sha256": "9cd08712f87808568578252bd30544fc9e2f64b998993bb875baa24936d8afb7",
+    "source_unchanged": true,
+    "cause": "negative-control call matchers only recognized three positional arguments; both match the exact explicit update keywords as well, retaining install/update severance controls"
+  },
+  "catalog_path_controls_after_api_change": {
+    "tests": 73,
+    "exit": 0,
+    "log_sha256": "660feb416dec236baed6888adcf1b07d5fc2d59a76abe5115dfc8254ae9f4897"
+  }
+}

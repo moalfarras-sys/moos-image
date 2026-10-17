@@ -348,6 +348,9 @@ case "${cat}/${tgt}" in
     app/recovery)  gui moos-rollback ;;
     app/store)     gui moos-store ;;
     app/settings)  gui moos-settings ;;
+    # Native process/resource management, shared with the system launcher.
+    # Opening it grants no authority to terminate another user's processes.
+    app/task-manager) gui plasma-systemmonitor --page-id applications.page ;;
     # STAGE C2 (docs/MOAI_CLOUD_ONLY_PLAN.md) turned "start the brain" into "set
     # up the cloud brain". That setup now lives in ONE place — the Mo AI page of
     # System Settings (SPEC D1/D5) — so this route and do/setup-brain open that
