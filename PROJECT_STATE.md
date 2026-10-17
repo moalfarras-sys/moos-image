@@ -84,17 +84,8 @@ No other product, API, DNS, WAF, authentication or billing setting changed.
 Native aarch64, 2 vCPU/11.6 GiB, no GPU; Wayland Arabic UI2 Nova,
 virtual 1280×800 at 100%. Kernel 7.2.10, Plasma 6.7.5, Qt 6.11.2.
 Booted signed `.792` (`05d9bbac…`), boot ID `17e46ccf-f6d3-4416-b2c5-550be96077ca`, changed from `.791`'s `ab975b93-f72b-47ce-a327-b84f3f68a371`; signed `.791` is the actual rollback. The full coordinated cycle completed before the official native update/restart. Its postboot unit encountered an ordering cycle; the owned unit ordering is repaired and originals/logs retained. Actual native graphical acceptance now passes: 63/63 payload hashes, 51 selfchecks/4 notes, 55 post-update checks/0 failures, no failed units, user-app updates and a real Mo Store window; boot=14.625 s. Existing autologin is not ordinary PAM or broad hardware/endurance proof.
-Earlier `.775` evidence follows; it does not qualify `.792`:
-Native UID 1000 graphical checks pass 51 selfchecks/4 notes and 55 post-update
-checks/0 failures. All 19 payload files, exact compiled player and THEME_REV=104
-match reviewed source. One KWin/one plasmashell own the KDE Wayland session;
-boot=14.301 s. [Native receipt](docs/releases/2026-10-14-oracle-775-native-proof.json).
-Initial selfcheck failed on three transient container-prefixed units; its
-subsequent post-update check passed. The exact cause is unproven. A second
-probe found the first probe's own failed autostart unit. Both failures remain
-preserved; only that owned failed flag was retired before the passing readback.
-No current failed units; four owner containers are healthy. Existing autologin
-is not ordinary PAM proof, and this is not whole-shell keyboard/endurance proof.
+Earlier `.775` measurements and its preserved transient-unit/probe failures belong
+to [their receipt](docs/releases/2026-10-14-oracle-775-native-proof.json), not `.792` acceptance.
 The following installed small-video journey belongs to the earlier .763 boot.
 Installed /usr/lib/moplayer (no source override) opens encoded Arabic file URI,
 plays actual MPEG4 frames, reports 20 s/CanSeek and paused +5 s seek. Rendered
@@ -173,14 +164,12 @@ acceptance remain. Earlier .1026's 54/55 native acceptance is historical evidenc
 
 ## Integrated features and evidence still owed
 
-Current M1 source adds one coalesced delayed directory notification for Mira's
-confirmed task presence. A real Qt consumer with its first delivery discarded
-fails old source and recovers fixed; [62 control tests pass](docs/releases/2026-10-14-mira-job-presence-proof.json). Token end state/age
-and a retired session directory remain intact, with no idle poll. This measures
-missed-delivery recovery, not the unproven cause of the prior intermittent Qt
-startup timeout. Full local ARM image `c49ccd53` and actual 20-file readback
-pass; the first final-commit ENOSPC failure is preserved. Signed .1053/.778
-are historical promotions; the new Store cycle is promoted in `.1062`/`.792`, while installed presence acceptance stays separate.
+Mira's current source uses the bounded three-event burst documented above;
+the earlier [62-control single-retry proof](docs/releases/2026-10-14-mira-job-presence-proof.json)
+did not cover the newly reproduced 1.1s delivery delay. Token age/end state and
+retired directories remain protected, with no idle poll. The retained local ARM
+image `c49ccd53`/20-file readback and signed .1053/.778 are historical evidence;
+they do not qualify the current source or its installed presence behavior.
 
 Mira mute/disconnect/late-recognition and recovery unreadable-state controls
 pass. Community beta has real native/Oracle TLS flow, isolation and bounded
