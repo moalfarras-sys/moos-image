@@ -642,3 +642,15 @@ Primary source refresh2026-10-17: [Flatpak architecture/remote/app lifecycle](ht
 and [unsupported-GPU software rendering](https://docs.waydro.id/faq/get-waydroid-to-work-through-a-vm).
 These support the existing verified-source adapters; they do not replace real
 per-application installed-image or physical GPU acceptance.
+
+Oct17 first-use Android integration: source review against the current upstream
+property command and desktop instructions confirms that a stopped session can
+refuse both property writes with exit0. Confirmed setup now waits for the real
+boot property, verifies both desktop values, restarts once only when changed,
+and verifies them again. Correct sessions keep running; existing-app restart
+notice is before consent. No separate phone desktop opens. Nine native isolated
+setup controls pass, including silent refusal, failed readback/restart and an
+unbooted platform; two restored-old controls fail. Five shared-runtime and four
+channel controls pass. These controls do not qualify actual Android windows or
+apps on hardware; that acceptance and the final combined signed cycle remain
+open. [Evidence](releases/2026-10-17-android-desktop-setup-source-proof.json).

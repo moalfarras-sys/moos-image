@@ -823,9 +823,22 @@ do_install_nvidia() {
 WAYDROID_SYSTEM_CHANNEL="${WAYDROID_SYSTEM_CHANNEL:-https://ota.waydro.id/system}"
 WAYDROID_VENDOR_CHANNEL="${WAYDROID_VENDOR_CHANNEL:-https://ota.waydro.id/vendor}"
 
+waydroid_wait_ready() {
+    local helper="$1" deadline=$((SECONDS + 20))
+    while [ "$SECONDS" -lt "$deadline" ]; do
+        if [ "$(python3 "$helper" status)" = "RUNNING" ] \
+                && python3 "$helper" boot-ready; then
+            return 0
+        fi
+        sleep 1
+    done
+    return 1
+}
+
 do_setup_waydroid() {
     hdr "تجهيز تطبيقات Android" "Set up Android apps"
     need waydroid || return 1
+    need timeout || return 1
 
     # Idempotent: `waydroid init` re-downloads the multi-GB system image. Skip it if the
     # image is already there — `waydroid status` says "not initialized" only when it isn't.
@@ -846,6 +859,10 @@ do_setup_waydroid() {
         echo "${D}Downloads the free Android image (~1GB, first run takes minutes) and starts its container. No Google Play.${N}"
     else
         echo "${G}✓ Android مُهيّأ مسبقاً — سأشغّله فقط | already initialized — just starting it${N}"
+    fi
+    if [ "$state" = "RUNNING" ] || [ "$state" = "FROZEN" ]; then
+        echo "${D}إذا احتاج دمج النوافذ إلى تعديل، ستُعاد جلسة Android وتُغلق تطبيقاتها المفتوحة؛ احفظ عملك فيها أولاً.${N}"
+        echo "${D}If window integration needs changing, Android will restart and close its open apps; save their work first.${N}"
     fi
     # Starting an already-initialized container is still a state change. This action is reachable
     # through the public moos: URL scheme, so confirmation must not exist only on first install.
@@ -884,11 +901,6 @@ do_setup_waydroid() {
     # cursor_on_subsurface stops the pointer being drawn twice — Android renders its
     # own cursor into the surface, and without this the owner sees two.
     #
-    # Set BEFORE the session starts: these are read at session start, and a property
-    # set afterwards needs another restart to take effect.
-    waydroid prop set persist.waydroid.multi_windows true >/dev/null 2>&1 || true
-    waydroid prop set persist.waydroid.cursor_on_subsurface true >/dev/null 2>&1 || true
-
     if ! run_priv systemctl enable --now waydroid-container.service \
             || ! systemctl is-active --quiet waydroid-container.service; then
         echo "${R}تعذّر تشغيل حاوية Android | Android container failed to start${N}" >&2
@@ -902,22 +914,32 @@ do_setup_waydroid() {
         echo "${R}تعذّر تشغيل جلسة Android | Android session failed to start${N}" >&2
         return 1
     fi
-    local session_ready=0 deadline=$((SECONDS + 20))
-    # The session becomes ready asynchronously. Bound the wait so a broken compositor/container
-    # never leaves the terminal hanging, and verify the state instead of sleeping then claiming it.
-    while [ "$SECONDS" -lt "$deadline" ]; do
-        if [ "$(python3 "$status_helper" status)" = "RUNNING" ]; then
-            session_ready=1
-            break
-        fi
-        sleep 1
-    done
-    if [ "$session_ready" -ne 1 ]; then
+    # RUNNING is the container state, not proof the Android platform can answer.
+    if ! waydroid_wait_ready "$status_helper"; then
         echo "${R}بدأت الحاوية لكن جلسة Android لم تصبح جاهزة خلال 20 ثانية.${N}" >&2
         echo "${R}The container started, but the Android session was not ready within 20 seconds.${N}" >&2
         return 1
     fi
-    waydroid show-full-ui >/dev/null 2>&1 &
+    # Properties cannot be set in a stopped session. The upstream CLI may log
+    # that failure and still exit zero, so read both actual values back. Apply
+    # them in the running platform, then restart once as upstream requires.
+    # Correct existing sessions need neither writes nor a restart.
+    if ! python3 "$status_helper" desktop-ready; then
+        if ! timeout 2 waydroid prop set persist.waydroid.multi_windows true >/dev/null 2>&1 \
+                || ! timeout 2 waydroid prop set persist.waydroid.cursor_on_subsurface true >/dev/null 2>&1 \
+                || ! python3 "$status_helper" desktop-ready; then
+            echo "${R}تعذّر تأكيد دمج نوافذ Android | Could not confirm Android window integration${N}" >&2
+            return 1
+        fi
+        if ! timeout 10 waydroid session stop \
+                || ! systemctl --user stop moos-android-session.service \
+                || ! systemctl --user start moos-android-session.service \
+                || ! waydroid_wait_ready "$status_helper" \
+                || ! python3 "$status_helper" desktop-ready; then
+            echo "${R}لم يكتمل تطبيق دمج Android | Android window integration did not finish applying${N}" >&2
+            return 1
+        fi
+    fi
     echo "${G}✓ Android جاهز | ready${N}"
     echo "${D}ثبّت ملف APK بالنقر المزدوج أو بإفلاته في متجر MoOS.${N}"
     echo "${D}Install an APK by double-clicking it or dropping it into Mo Store.${N}"

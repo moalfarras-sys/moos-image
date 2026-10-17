@@ -25,13 +25,34 @@ def status_state(code, stdout, stderr=""):
         return "uninitialized" if not states else "unknown"
     return states[0] if len(states) == 1 else "unknown"
 
+
+def property_matches(code, stdout, stderr, expected):
+    """The CLI logs some failures but exits zero; require its actual value too."""
+    return (code == 0 and len(stdout) + len(stderr) <= 65536
+            and not any(_FAILURE.search(s) for s in (stdout, stderr))
+            and stdout.strip() == expected)
+
+
+def _property_ready(name, expected):
+    result = subprocess.run(["waydroid", "prop", "get", name], capture_output=True,
+                            text=True, timeout=2)
+    return property_matches(result.returncode, result.stdout, result.stderr, expected)
+
 def main():
-    if sys.argv[1:] != ["status"]:
+    action = sys.argv[1:]
+    if action not in (["status"], ["boot-ready"], ["desktop-ready"]):
         return 2
     try:
+        if action == ["boot-ready"]:
+            return 0 if _property_ready("sys.boot_completed", "1") else 1
+        if action == ["desktop-ready"]:
+            return 0 if all(_property_ready(name, "true") for name in (
+                "persist.waydroid.multi_windows", "persist.waydroid.cursor_on_subsurface")) else 1
         r = subprocess.run(["waydroid", "status"], capture_output=True, text=True, timeout=2)
         print(status_state(r.returncode, r.stdout, r.stderr))
     except (OSError, subprocess.SubprocessError):
+        if action != ["status"]:
+            return 1
         print("unknown")
     return 0
 

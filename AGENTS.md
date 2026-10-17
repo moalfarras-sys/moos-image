@@ -183,6 +183,15 @@ verify that package and readable installed bytes, then publish its receipt.
 Silent refusal must leave the prior receipt unchanged; preserve the source-file
 replacement and malformed/symlink negative controls.
 
+**An Android property cannot be set before Android is ready.** The old setup
+set desktop-window properties while the session was stopped; upstream logged
+the refusal and returned success, then MoOS printed ready and opened a separate
+phone desktop. Wait for the actual boot property, apply and read both desktop
+properties, restart once only when changed, and read them back after that boot.
+Keep confirmation and the existing-session restart notice. Correct sessions
+need no writes/restart; silent setters, failed readbacks and restarts must never
+print ready. Isolated stateful controls are not physical Android acceptance.
+
 
 **The last success line is not the process exit.** An editor exec ended143
 after the final catalogue gate printed success. Its termination cause remains

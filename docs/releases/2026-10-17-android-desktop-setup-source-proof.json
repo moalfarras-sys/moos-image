@@ -1,0 +1,29 @@
+{
+  "scope": "isolated native Bash setup against a private stateful platform; no owner bus, Android data or root daemon; no actual APK/GUI/GPU acceptance",
+  "baseline_source": "b3c8a28e39e000c2169cca92fd04798f7ee57c73",
+  "old_tests": 2,
+  "old_failures": 2,
+  "old_errors": 0,
+  "fixed_tests": 2,
+  "fixed_failures": 0,
+  "fixed_errors": 0,
+  "sources": [
+    "https://docs.waydro.id/usage/install-on-desktops",
+    "https://raw.githubusercontent.com/waydroid/waydroid/main/tools/actions/prop.py",
+    "https://raw.githubusercontent.com/waydroid/waydroid/main/tools/helpers/props.py"
+  ],
+  "sha256": {
+    "system_files/usr/bin/moai-do": "99d38577c276ce8f143a33d51eed766abf104def00ff877ee47e824d86dbf2d3",
+    "system_files/usr/lib/moos/moos_android_runtime.py": "ab555ee43ba02654658046503e4a9b82a9bec547a3fdd4c4f343f3c86e733797",
+    "tests/test_moai_waydroid.py": "fdd937b89ac1f515d8f00edd080a1bc0dea7fbc3d2aee71e42b8305ac4f33b37",
+    "tests/test_android_runtime_state.py": "95a51ef005592810c2b6ec4876d653f37c83127fba6203822b2c727ea77705d5"
+  },
+  "observed_utc": "2026-10-17T09:28:43.143763+00:00",
+  "native_setup_controls": 9,
+  "native_runtime_controls": 5,
+  "ota_channel_controls": 4,
+  "user_experience_gate_exit": 0,
+  "final_targeted_controls": 3,
+  "full_combined_source_check": "pending after integration",
+  "local_image_and_signed_delivery": "pending; previous b3 local image stopped for disk reserve after internal gates passed"
+}
