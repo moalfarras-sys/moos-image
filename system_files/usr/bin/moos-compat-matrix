@@ -1,0 +1,528 @@
+#!/usr/bin/env python3
+"""Generate the MoOS application compatibility matrix (P4.5).
+
+Produces an edition-, architecture-, and platform-level compatibility assessment
+for applications in the MoOS catalog and third-party application engines.
+
+Truth across editions:
+  * moos: x86_64 desktop edition; ships runtimes for Windows programs, Android apps, Linux apps, Web apps.
+  * moos-nvidia: x86_64 desktop edition with NVIDIA drivers; same as moos, but Android apps
+    use software rendering.
+  * moos-cloud: x86_64 headless/cloud edition; supports Linux and Web apps. No Windows or Android runtimes.
+  * moos-arm: aarch64 edition; supports ARM-capable Linux and Web apps. No Windows or Android runtimes.
+
+Brand honesty rule:
+  No engine brand names (wine, bottles, waydroid, proton, lutris, flatpak) are ever
+  exposed in user-facing output.
+"""
+
+from __future__ import annotations
+
+import argparse
+import json
+import os
+import sys
+from pathlib import Path
+from typing import Any
+
+# Default paths in installed image
+DEFAULT_CATALOG = Path("/usr/share/moos/store/catalog.json")
+DEFAULT_ENGINES = Path("/usr/share/moos/app-engines.json")
+
+# Fallback local paths when running within repository checkout
+REPO_ROOT = Path(__file__).resolve().parents[3]
+LOCAL_CATALOG = REPO_ROOT / "system_files/usr/share/moos/store/catalog.json"
+LOCAL_ENGINES = REPO_ROOT / "system_files/usr/share/moos/app-engines.json"
+
+EDITIONS = ("moos", "moos-nvidia", "moos-cloud", "moos-arm")
+ARCHITECTURES = ("x86_64", "aarch64")
+
+EDITION_ARCH = {
+    "moos": "x86_64",
+    "moos-nvidia": "x86_64",
+    "moos-cloud": "x86_64",
+    "moos-arm": "aarch64",
+}
+
+# User-facing bilingual types (strictly without engine brand names)
+TYPE_NAMES = {
+    "windows": {"en": "Windows programs", "ar": "برامج ويندوز"},
+    "android": {"en": "Android apps", "ar": "تطبيقات أندرويد"},
+    "linux": {"en": "Linux apps", "ar": "تطبيقات لينكس"},
+    "web": {"en": "Web apps", "ar": "تطبيقات الويب"},
+    "macos": {"en": "macOS apps", "ar": "تطبيقات ماك"},
+}
+
+ANDROID_NVIDIA_SEAM = "Android on NVIDIA: software rendering"
+
+
+def resolve_paths(
+    catalog_path: Path | str | None = None,
+    engines_path: Path | str | None = None,
+) -> tuple[Path, Path]:
+    """Resolve catalog and engines JSON paths with fallback to local repo checkout."""
+    test_root = os.environ.get("MOOS_TEST_ROOT")
+    if catalog_path:
+        cat = Path(catalog_path)
+    elif test_root and (Path(test_root) / "usr/share/moos/store/catalog.json").is_file():
+        cat = Path(test_root) / "usr/share/moos/store/catalog.json"
+    elif LOCAL_CATALOG.is_file():
+        cat = LOCAL_CATALOG
+    elif DEFAULT_CATALOG.is_file():
+        cat = DEFAULT_CATALOG
+    else:
+        cat = DEFAULT_CATALOG
+
+    if engines_path:
+        eng = Path(engines_path)
+    elif test_root and (Path(test_root) / "usr/share/moos/app-engines.json").is_file():
+        eng = Path(test_root) / "usr/share/moos/app-engines.json"
+    elif LOCAL_ENGINES.is_file():
+        eng = LOCAL_ENGINES
+    elif DEFAULT_ENGINES.is_file():
+        eng = DEFAULT_ENGINES
+    else:
+        eng = DEFAULT_ENGINES
+
+    return cat, eng
+
+
+def classify_app(app: dict[str, Any]) -> tuple[str, dict[str, str]]:
+    """Classify app into engine type and return (engine_type, bilingual_name)."""
+    engine = app.get("engine")
+    if engine == "windows":
+        return "windows", TYPE_NAMES["windows"]
+    if engine == "android":
+        return "android", TYPE_NAMES["android"]
+    if engine == "macos":
+        return "macos", TYPE_NAMES["macos"]
+
+    install = app.get("install") or {}
+    kind = install.get("kind") if isinstance(install, dict) else None
+
+    if kind == "windows-portable":
+        return "windows", TYPE_NAMES["windows"]
+    if kind == "android":
+        return "android", TYPE_NAMES["android"]
+    if kind in ("webapp", "web"):
+        return "web", TYPE_NAMES["web"]
+    if kind == "appdrop":
+        return "appdrop", TYPE_NAMES["linux"]
+    if kind in ("vendor-rpm", "npm"):
+        return "linux", TYPE_NAMES["linux"]
+
+    source = app.get("source")
+    if source in ("flathub", "flatpak"):
+        return "linux", TYPE_NAMES["linux"]
+
+    return "linux", TYPE_NAMES["linux"]
+
+
+def evaluate_app_compatibility(app: dict[str, Any]) -> dict[str, Any]:
+    """Evaluate compatibility for a single app across all MoOS editions and architectures."""
+    app_id = app.get("id", "")
+    name = {
+        "en": app.get("en", app_id),
+        "ar": app.get("ar", app.get("en", app_id)),
+    }
+    engine_type, type_name = classify_app(app)
+
+    # Determine declared architecture constraints if any
+    declared_arch = app.get("arch")
+    if declared_arch is not None and not isinstance(declared_arch, list):
+        declared_arch = [str(declared_arch)]
+
+    # GPU requirements if specified in app metadata
+    gpu_req = (
+        app.get("gpu")
+        or app.get("gpu_requirement")
+        or (app.get("install") or {}).get("gpu")
+        or "none"
+    )
+
+    seams: list[str] = []
+    compatibility: dict[str, dict[str, Any]] = {}
+    supported_editions: list[str] = []
+    unsupported_editions: list[str] = []
+    supported_architectures: list[str] = []
+
+    if engine_type == "windows":
+        # Windows apps -> only x86_64 desktop editions (moos, moos-nvidia), NOT cloud, NOT arm
+        supported_architectures = ["x86_64"]
+        for edition in EDITIONS:
+            if edition in ("moos", "moos-nvidia"):
+                compatibility[edition] = {
+                    "supported": True,
+                    "compatible": True,
+                    "seams": [],
+                    "reason": None,
+                }
+                supported_editions.append(edition)
+            elif edition == "moos-cloud":
+                compatibility[edition] = {
+                    "supported": False,
+                    "compatible": False,
+                    "seams": [],
+                    "reason": "Windows programs are not supported on cloud edition",
+                }
+                unsupported_editions.append(edition)
+            elif edition == "moos-arm":
+                compatibility[edition] = {
+                    "supported": False,
+                    "compatible": False,
+                    "seams": [],
+                    "reason": "Windows programs are not supported on ARM architecture",
+                }
+                unsupported_editions.append(edition)
+
+    elif engine_type == "android":
+        # Android apps -> only desktop editions (moos, moos-nvidia), NOT cloud, NOT arm.
+        # NVIDIA uses software rendering.
+        supported_architectures = ["x86_64"]
+        seams.append(ANDROID_NVIDIA_SEAM)
+        for edition in EDITIONS:
+            if edition == "moos":
+                compatibility[edition] = {
+                    "supported": True,
+                    "compatible": True,
+                    "seams": [],
+                    "reason": None,
+                }
+                supported_editions.append(edition)
+            elif edition == "moos-nvidia":
+                compatibility[edition] = {
+                    "supported": True,
+                    "compatible": True,
+                    "seams": [ANDROID_NVIDIA_SEAM],
+                    "reason": None,
+                }
+                supported_editions.append(edition)
+            elif edition == "moos-cloud":
+                compatibility[edition] = {
+                    "supported": False,
+                    "compatible": False,
+                    "seams": [],
+                    "reason": "Android apps are not supported on cloud edition",
+                }
+                unsupported_editions.append(edition)
+            elif edition == "moos-arm":
+                compatibility[edition] = {
+                    "supported": False,
+                    "compatible": False,
+                    "seams": [],
+                    "reason": "Android apps are not supported on ARM architecture",
+                }
+                unsupported_editions.append(edition)
+
+    elif engine_type == "web":
+        # Web apps -> all editions and architectures
+        supported_architectures = ["x86_64", "aarch64"]
+        for edition in EDITIONS:
+            compatibility[edition] = {
+                "supported": True,
+                "compatible": True,
+                "seams": [],
+                "reason": None,
+            }
+            supported_editions.append(edition)
+
+    elif engine_type == "macos":
+        # macOS -> unsupported everywhere
+        supported_architectures = []
+        for edition in EDITIONS:
+            compatibility[edition] = {
+                "supported": False,
+                "compatible": False,
+                "seams": [],
+                "reason": "macOS apps are not currently supported in MoOS",
+            }
+            unsupported_editions.append(edition)
+
+    elif engine_type == "appdrop":
+        # AppDrop apps -> check their arch field
+        if declared_arch:
+            supported_architectures = [a for a in ARCHITECTURES if a in declared_arch]
+        else:
+            # Fallback to downloads keys if present
+            downloads = (app.get("install") or {}).get("downloads", {})
+            if isinstance(downloads, dict) and downloads:
+                supported_architectures = [a for a in ARCHITECTURES if a in downloads]
+            else:
+                supported_architectures = list(ARCHITECTURES)
+
+        for edition in EDITIONS:
+            ed_arch = EDITION_ARCH[edition]
+            if ed_arch in supported_architectures:
+                compatibility[edition] = {
+                    "supported": True,
+                    "compatible": True,
+                    "seams": [],
+                    "reason": None,
+                }
+                supported_editions.append(edition)
+            else:
+                compatibility[edition] = {
+                    "supported": False,
+                    "compatible": False,
+                    "seams": [],
+                    "reason": f"Requires {', '.join(supported_architectures)} architecture; not available on {edition} ({ed_arch})",
+                }
+                unsupported_editions.append(edition)
+
+    else:
+        # Linux/Flatpak/vendor-rpm/npm apps -> all editions unless arch constraints exist
+        if declared_arch:
+            supported_architectures = [a for a in ARCHITECTURES if a in declared_arch]
+        else:
+            supported_architectures = list(ARCHITECTURES)
+
+        for edition in EDITIONS:
+            ed_arch = EDITION_ARCH[edition]
+            if ed_arch in supported_architectures:
+                compatibility[edition] = {
+                    "supported": True,
+                    "compatible": True,
+                    "seams": [],
+                    "reason": None,
+                }
+                supported_editions.append(edition)
+            else:
+                compatibility[edition] = {
+                    "supported": False,
+                    "compatible": False,
+                    "seams": [],
+                    "reason": f"Requires {', '.join(supported_architectures)} architecture; not available on {edition} ({ed_arch})",
+                }
+                unsupported_editions.append(edition)
+
+    return {
+        "id": app_id,
+        "name": name,
+        "type": type_name,
+        "engine": engine_type,
+        "architectures": supported_architectures,
+        "supported_architectures": supported_architectures,
+        "editions": supported_editions,
+        "supported_editions": supported_editions,
+        "unsupported_editions": unsupported_editions,
+        "compatibility": compatibility,
+        "gpu_requirements": gpu_req,
+        "seams": seams,
+        "limitations": seams,
+    }
+
+
+def generate_matrix(
+    catalog_path: Path | str | None = None,
+    engines_path: Path | str | None = None,
+) -> dict[str, Any]:
+    """Generate the full MoOS compatibility matrix from catalog and engine configurations."""
+    cat_path, eng_path = resolve_paths(catalog_path, engines_path)
+
+    if not cat_path.is_file():
+        raise FileNotFoundError(f"Catalog file not found: {cat_path}")
+    if not eng_path.is_file():
+        raise FileNotFoundError(f"Engines file not found: {eng_path}")
+
+    with cat_path.open("r", encoding="utf-8") as f:
+        catalog_data = json.load(f)
+    with eng_path.open("r", encoding="utf-8") as f:
+        engines_data = json.load(f)
+
+    # Process all apps from the catalog
+    apps_raw = catalog_data.get("apps", [])
+    apps_matrix = [evaluate_app_compatibility(app) for app in apps_raw]
+
+    # Process unsupported platforms from app-engines.json (e.g. macOS)
+    unsupported_platforms: list[dict[str, Any]] = []
+    for item in engines_data.get("unsupported", []):
+        plat_id = item.get("id", "macos")
+        unsupported_platforms.append({
+            "id": plat_id,
+            "name": item.get("name", TYPE_NAMES.get(plat_id, {"en": "macOS apps", "ar": "تطبيقات ماك"})),
+            "supported": False,
+            "compatible": False,
+            "editions": [],
+            "supported_editions": [],
+            "architectures": [],
+            "supported_architectures": [],
+            "reason": item.get("reason", {
+                "en": "macOS apps are not currently supported in MoOS.",
+                "ar": "تطبيقات ماك غير مدعومة في MoOS حاليًا.",
+            }),
+        })
+
+    if not unsupported_platforms:
+        unsupported_platforms.append({
+            "id": "macos",
+            "name": TYPE_NAMES["macos"],
+            "supported": False,
+            "compatible": False,
+            "editions": [],
+            "supported_editions": [],
+            "architectures": [],
+            "supported_architectures": [],
+            "reason": {
+                "en": "macOS apps are not currently supported in MoOS.",
+                "ar": "تطبيقات ماك غير مدعومة في MoOS حاليًا.",
+            },
+        })
+
+    summary = {
+        "total_apps": len(apps_matrix),
+        "by_edition": {
+            ed: sum(1 for a in apps_matrix if a["compatibility"][ed]["supported"])
+            for ed in EDITIONS
+        },
+    }
+
+    return {
+        "schema": 1,
+        "generator": "moos-compat-matrix",
+        "editions": list(EDITIONS),
+        "architectures": list(ARCHITECTURES),
+        "summary": summary,
+        "apps": apps_matrix,
+        "by_id": {a["id"]: a for a in apps_matrix},
+        "unsupported": unsupported_platforms,
+        "unsupported_platforms": unsupported_platforms,
+    }
+
+
+def format_human(matrix: dict[str, Any], app_filter: str | None = None) -> str:
+    """Format the compatibility matrix into a human-readable table."""
+    apps = matrix.get("apps", [])
+    if app_filter:
+        apps = [a for a in apps if a["id"] == app_filter]
+
+    lines: list[str] = []
+    sep = "=" * 135
+    subsep = "-" * 135
+
+    lines.append(sep)
+    lines.append("MoOS Application Compatibility Matrix")
+    lines.append(f"Supported Editions: {', '.join(matrix.get('editions', []))}")
+    lines.append(sep)
+
+    header = (
+        f"{'App ID':<26} | {'Name (EN / AR)':<32} | {'Type':<18} | "
+        f"{'moos':<4} | {'nv':<4} | {'cld':<4} | {'arm':<4} | "
+        f"{'Architectures':<18} | Notes / Seams"
+    )
+    lines.append(header)
+    lines.append(subsep)
+
+    for app in apps:
+        app_id = app["id"]
+        if len(app_id) > 25:
+            app_id = app_id[:22] + "..."
+
+        en_name = app.get("name", {}).get("en", "")
+        ar_name = app.get("name", {}).get("ar", "")
+        bilingual = f"{en_name} ({ar_name})" if ar_name and ar_name != en_name else en_name
+        if len(bilingual) > 30:
+            bilingual = bilingual[:27] + "..."
+
+        type_str = app.get("type", {}).get("en", "")
+        c = app.get("compatibility", {})
+
+        m_ok = "✓" if c.get("moos", {}).get("supported") else "-"
+        nv_ok = "✓" if c.get("moos-nvidia", {}).get("supported") else "-"
+        cld_ok = "✓" if c.get("moos-cloud", {}).get("supported") else "-"
+        arm_ok = "✓" if c.get("moos-arm", {}).get("supported") else "-"
+
+        arch_str = ", ".join(app.get("architectures", []))
+        seams = list(app.get("seams", []))
+        notes_str = "; ".join(seams) if seams else "-"
+
+        row = (
+            f"{app_id:<26} | {bilingual:<32} | {type_str:<18} | "
+            f"{m_ok:<4} | {nv_ok:<4} | {cld_ok:<4} | {arm_ok:<4} | "
+            f"{arch_str:<18} | {notes_str}"
+        )
+        lines.append(row)
+
+    lines.append(subsep)
+
+    # Unsupported platforms section
+    lines.append("Unsupported Platforms:")
+    for un in matrix.get("unsupported", []):
+        name_en = un.get("name", {}).get("en", un.get("id"))
+        name_ar = un.get("name", {}).get("ar", "")
+        bilingual = f"{name_en} ({name_ar})" if name_ar else name_en
+        reason_en = (
+            un.get("reason", {}).get("en", "Unsupported")
+            if isinstance(un.get("reason"), dict)
+            else str(un.get("reason"))
+        )
+        lines.append(f"  * {bilingual}: Unsupported everywhere. {reason_en}")
+
+    # Summary section
+    summary = matrix.get("summary", {})
+    by_ed = summary.get("by_edition", {})
+    lines.append(subsep)
+    lines.append(
+        f"Summary: {summary.get('total_apps', len(apps))} apps total | "
+        f"moos: {by_ed.get('moos', 0)} | "
+        f"moos-nvidia: {by_ed.get('moos-nvidia', 0)} | "
+        f"moos-cloud: {by_ed.get('moos-cloud', 0)} | "
+        f"moos-arm: {by_ed.get('moos-arm', 0)}"
+    )
+    lines.append(sep)
+
+    return "\n".join(lines)
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(
+        description="Generate MoOS application compatibility matrix"
+    )
+    parser.add_argument(
+        "--catalog",
+        type=Path,
+        default=None,
+        help="Path to catalog.json (default: /usr/share/moos/store/catalog.json)",
+    )
+    parser.add_argument(
+        "--engines",
+        type=Path,
+        default=None,
+        help="Path to app-engines.json (default: /usr/share/moos/app-engines.json)",
+    )
+    parser.add_argument(
+        "--format",
+        choices=["json", "human"],
+        default="json",
+        help="Output format: json (default) or human",
+    )
+    parser.add_argument(
+        "--app",
+        type=str,
+        default=None,
+        help="Filter matrix by specific app ID",
+    )
+
+    args = parser.parse_args(argv)
+
+    try:
+        matrix = generate_matrix(args.catalog, args.engines)
+    except Exception as exc:
+        sys.stderr.write(f"Error generating compatibility matrix: {exc}\n")
+        return 1
+
+    if args.app:
+        filtered_apps = [a for a in matrix.get("apps", []) if a["id"] == args.app]
+        matrix["apps"] = filtered_apps
+        matrix["by_id"] = {a["id"]: a for a in filtered_apps}
+        matrix["summary"]["total_apps"] = len(filtered_apps)
+
+    if args.format == "human":
+        print(format_human(matrix, args.app))
+    else:
+        print(json.dumps(matrix, indent=2, ensure_ascii=False))
+
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

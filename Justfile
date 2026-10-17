@@ -602,6 +602,8 @@ check:
     # is about to become it. Keeping it here means a drifted catalogue recipe or a
     # dead store route fails in seconds instead of at the end of an image build.
     MOOS_TEST_ROOT=system_files python3 build_files/verify_store_catalog.py
+    # MoOS compatibility matrix gate (P4.5): cross-edition, cross-arch, and GPU honesty.
+    python3 tests/test_compat_matrix.py
 
 # Build the main MoOS image. The base is pinned in the Containerfile on purpose — both
 # editions must share it (see the comment there); it is not a build-arg any more.

@@ -77,6 +77,7 @@ NO_ARM_BUILD = {
 # ARM edition would need a different versionCode).
 X86_ONLY_DOWNLOADS = {
     "notepad-plus-plus", "notepad3", "putty", "sumatrapdf", "winmerge", "heidisql",
+    "sharex", "screentogif", "rufus", "systeminformer", "dnspy", "mpvnet",
     "org.videolan.vlc", "io.element.android.x", "com.github.meypod.al_quran",
 }
 X86_ONLY = NO_ARM_BUILD | X86_ONLY_DOWNLOADS

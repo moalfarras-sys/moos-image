@@ -323,7 +323,7 @@
       "glyph": "grid",
       "desc_en": "Well-known Windows tools, downloaded from their publishers.",
       "desc_ar": "أدوات ويندوز معروفة، تُنزَّل من ناشريها مباشرة.",
-      "apps": ["notepad-plus-plus", "notepad3", "putty", "sumatrapdf", "winmerge", "heidisql"]
+      "apps": ["notepad-plus-plus", "notepad3", "putty", "sumatrapdf", "winmerge", "heidisql", "sharex", "screentogif", "rufus", "systeminformer", "dnspy", "mpvnet"]
     },
     {
       "id": "android-picks",
@@ -3719,6 +3719,192 @@
           }
         },
         "exe": "heidisql.exe",
+        "risk": "downloaded-executable",
+        "requires_review": true,
+        "external": true
+      }
+    },
+    {
+      "id": "sharex",
+      "source": "moos",
+      "cat": "win",
+      "glyph": "camera",
+      "en": "ShareX",
+      "ar": "شير إكس",
+      "desc_en": "Capture screen regions, annotate images and share files quickly.",
+      "desc_ar": "التقط أجزاء من الشاشة واكتب على الصور وشارك الملفات بسرعة.",
+      "developer": "ShareX Team",
+      "accent": "#1565c0",
+      "engine": "windows",
+      "arch": ["x86_64"],
+      "keywords_en": ["screenshot", "screen capture", "recorder", "sharex"],
+      "keywords_ar": ["لقطة شاشة", "تصوير الشاشة", "مشاركة"],
+      "install": {
+        "kind": "windows-portable",
+        "version": "21.0.0",
+        "downloads": {
+          "x86_64": {
+            "url": "https://github.com/ShareX/ShareX/releases/download/v21.0.0/ShareX-21.0.0-portable-x64.zip",
+            "sha256": "8124938fa718d702bb08ef29292f0140052bdad03d23b3041b5015054ff1c230",
+            "size": 208850419
+          }
+        },
+        "exe": "ShareX.exe",
+        "risk": "downloaded-executable",
+        "requires_review": true,
+        "external": true
+      }
+    },
+    {
+      "id": "screentogif",
+      "source": "moos",
+      "cat": "win",
+      "glyph": "video",
+      "en": "ScreenToGif",
+      "ar": "سكرين تو جيف",
+      "desc_en": "Record your screen, edit frames and export to animated GIF or video.",
+      "desc_ar": "سجّل شاشتك وحرّر الإطارات وصدرها كصورة متحركة GIF أو فيديو.",
+      "developer": "Nicke Manarin",
+      "accent": "#1b5e20",
+      "engine": "windows",
+      "arch": ["x86_64"],
+      "keywords_en": ["screen recorder", "gif", "animation", "capture"],
+      "keywords_ar": ["تسجيل الشاشة", "صورة متحركة", "جيف"],
+      "install": {
+        "kind": "windows-portable",
+        "version": "2.43.2",
+        "downloads": {
+          "x86_64": {
+            "url": "https://github.com/NickeManarin/ScreenToGif/releases/download/2.43.2/ScreenToGif.2.43.2.Portable.x64.zip",
+            "sha256": "42a0b53d67ecae22698b4881ffb2c9c7a9049663f5fbdd2edb779e1971000664",
+            "size": 73035883
+          }
+        },
+        "exe": "ScreenToGif.exe",
+        "risk": "downloaded-executable",
+        "requires_review": true,
+        "external": true
+      }
+    },
+    {
+      "id": "rufus",
+      "source": "moos",
+      "cat": "win",
+      "glyph": "usb",
+      "en": "Rufus",
+      "ar": "روفوس",
+      "desc_en": "Format and create bootable USB drives from disk images.",
+      "desc_ar": "قم بتهيئة وإنشاء وحدات تخزين USB قابلة للإقلاع من صور الأقراص.",
+      "developer": "Pete Batard",
+      "accent": "#b03a2e",
+      "engine": "windows",
+      "arch": ["x86_64"],
+      "keywords_en": ["usb", "bootable", "iso", "flash drive"],
+      "keywords_ar": ["فلاشة", "إقلاع", "يو اس بي", "تهيئة"],
+      "install": {
+        "kind": "windows-portable",
+        "version": "4.15",
+        "downloads": {
+          "x86_64": {
+            "url": "https://github.com/pbatard/rufus/releases/download/v4.15/rufus-4.15p.exe",
+            "sha256": "84c8a437f8af89257524478489e5c85f1edf25f761d299e2bcde46ac0afbe106",
+            "size": 1989992
+          }
+        },
+        "exe": "rufus-4.15p.exe",
+        "risk": "downloaded-executable",
+        "requires_review": true,
+        "external": true
+      }
+    },
+    {
+      "id": "systeminformer",
+      "source": "moos",
+      "cat": "win",
+      "glyph": "pulse",
+      "en": "System Informer",
+      "ar": "سيستم إنفورمر",
+      "desc_en": "Monitor system performance, inspect processes and manage services.",
+      "desc_ar": "راقب أداء النظام وتفحص العمليات النشطة وأدر الخدمات.",
+      "developer": "System Informer Team",
+      "accent": "#1e5f8a",
+      "engine": "windows",
+      "arch": ["x86_64"],
+      "keywords_en": ["task manager", "process hacker", "system monitor"],
+      "keywords_ar": ["إدارة المهام", "مراقبة النظام", "عمليات"],
+      "install": {
+        "kind": "windows-portable",
+        "version": "4.0.26241.138",
+        "downloads": {
+          "x86_64": {
+            "url": "https://github.com/winsiderss/systeminformer/releases/download/v4.0.26241.138/systeminformer-4.0.26241.138-bin.zip",
+            "sha256": "3e12cc4f1ffa1cc34ab9202a9dfe410724cb8b68aaf2efa43c01d3705b27219e",
+            "size": 22089103
+          }
+        },
+        "exe": "amd64/SystemInformer.exe",
+        "risk": "downloaded-executable",
+        "requires_review": true,
+        "external": true
+      }
+    },
+    {
+      "id": "dnspy",
+      "source": "moos",
+      "cat": "win",
+      "glyph": "code",
+      "en": "dnSpy",
+      "ar": "دي إن سباي",
+      "desc_en": "Inspect, edit and debug compiled .NET programs and libraries.",
+      "desc_ar": "افحص وحرّر واستكشف أخطاء برامج ومكتبات دوت نت المجمّعة.",
+      "developer": "0xd4d",
+      "accent": "#5c2d91",
+      "engine": "windows",
+      "arch": ["x86_64"],
+      "keywords_en": ["debugger", "decompiler", "dotnet", "reverse engineering"],
+      "keywords_ar": ["هندسة عكسية", "تفكيك", "دوت نت", "مصحح"],
+      "install": {
+        "kind": "windows-portable",
+        "version": "6.1.8",
+        "downloads": {
+          "x86_64": {
+            "url": "https://github.com/dnSpy/dnSpy/releases/download/v6.1.8/dnSpy-net-win64.zip",
+            "sha256": "78d855aef02d87195ddde4f4a89f16f03708e66ec8282cf8eb9ecc89dd469f6c",
+            "size": 85810042
+          }
+        },
+        "exe": "dnSpy.exe",
+        "risk": "downloaded-executable",
+        "requires_review": true,
+        "external": true
+      }
+    },
+    {
+      "id": "mpvnet",
+      "source": "moos",
+      "cat": "win",
+      "glyph": "play",
+      "en": "mpv.net",
+      "ar": "إم بي في نت",
+      "desc_en": "A modern video player with a graphical interface and extensive format support.",
+      "desc_ar": "مشغل فيديو حديث بواجهة رسومية ودعم واسع لمختلف صيغ الوسائط.",
+      "developer": "mpv.net Team",
+      "accent": "#512da8",
+      "engine": "windows",
+      "arch": ["x86_64"],
+      "keywords_en": ["media player", "video player", "audio", "mpv"],
+      "keywords_ar": ["مشغل فيديو", "مشغل وسائط", "صوتيات"],
+      "install": {
+        "kind": "windows-portable",
+        "version": "7.1.2.0",
+        "downloads": {
+          "x86_64": {
+            "url": "https://github.com/mpvnet-player/mpv.net/releases/download/v7.1.2.0/mpv.net-v7.1.2.0-portable-x64.zip",
+            "sha256": "33cba35bc6a8ebbb441a68cb9f3d26c366a2457f6a969ce50b95b0e7dd163431",
+            "size": 114173733
+          }
+        },
+        "exe": "mpvnet.exe",
         "risk": "downloaded-executable",
         "requires_review": true,
         "external": true
