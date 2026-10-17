@@ -1,0 +1,155 @@
+{
+  "schema": 1,
+  "scope": "local image qualification and native workstation recovery; not signed release, boot or installed payload acceptance",
+  "merged_revision": "8add4ac28efa8d6ffe56326ca5f5d40f77578d99",
+  "merged_tree": "84f74523c909d89b640aae83ed7ea0c6a9f40618",
+  "image_id": "6fd0a6f59d2e22ad2b70092bce2546079523723fc4032843ca79d0cfe59451cf",
+  "local_tag": "localhost/moos-owner-completion:20261017",
+  "theme_revision": 107,
+  "receipts": {
+    "local-image": {
+      "source": "51c375c9bad693b1ffe4c308b9c91514efb64701",
+      "tree": "11996484e282eaa2b017f229fef38a3ac68d69c5",
+      "dirty_paths": [],
+      "exit": 1,
+      "seconds": 3369.04,
+      "log_sha256": "a2ab407c81d783cbdc38c406dbf4eeb1e4ed09affd2d8f28e08e81d246b62a16"
+    },
+    "local-image2": {
+      "source": "c3608bd21d8325c6fc99aa3be3bb19b9d6d82876",
+      "tree": "84f74523c909d89b640aae83ed7ea0c6a9f40618",
+      "dirty_paths": [],
+      "exit": 125,
+      "seconds": 1.039,
+      "log_sha256": "2d37b5d96d3338f6e555c8eff8a679053872cd8603581827d4dc4f08ea570e10"
+    },
+    "local-image3": {
+      "source": "c3608bd21d8325c6fc99aa3be3bb19b9d6d82876",
+      "tree": "84f74523c909d89b640aae83ed7ea0c6a9f40618",
+      "dirty_paths": [],
+      "exit": 0,
+      "seconds": 878.913,
+      "log_sha256": "2a0a5c0c174afdd6a15be7b730f248b940bca3cf4750fc05d4cf42a30588188c"
+    },
+    "image-readback": {
+      "source": "c3608bd21d8325c6fc99aa3be3bb19b9d6d82876",
+      "tree": "84f74523c909d89b640aae83ed7ea0c6a9f40618",
+      "dirty_paths": [],
+      "exit": 1,
+      "seconds": 304.493,
+      "log_sha256": "377c4c673523cdd6560eb011082c7a67e633c8063a0e4f7130b6136531590ea2"
+    },
+    "image-readback2": {
+      "source": "c3608bd21d8325c6fc99aa3be3bb19b9d6d82876",
+      "tree": "84f74523c909d89b640aae83ed7ea0c6a9f40618",
+      "dirty_paths": [],
+      "exit": 0,
+      "seconds": 0.522,
+      "log_sha256": "050ede4bbbd3290bd790ac1f4a5e1b166a0ba70c579637f713cd98b64977f1ca"
+    },
+    "recovery-health": {
+      "source": "c3608bd21d8325c6fc99aa3be3bb19b9d6d82876",
+      "tree": "84f74523c909d89b640aae83ed7ea0c6a9f40618",
+      "dirty_paths": [],
+      "exit": 0,
+      "seconds": 5.727,
+      "log_sha256": "228b366700668c668bf4a8423b34e94ed7267dc003dc355f777f99a0ba6b41b0"
+    }
+  },
+  "readback": {
+    "files": 28,
+    "mismatches": [],
+    "source": "8b3d5ac35bb2f5e4693f511c86b0aaca147d3f02",
+    "payload_equivalence": "Later test fixture and documentation commits do not change image inputs; c3608bd2 tree equals merged8add4ac2 tree.",
+    "first_refusal": "Portal helper bytes matched, but expected executable=False was wrong. build_files/build.sh explicitly installs it0755. Corrected only the mode expectation, preserving the failed receipt.",
+    "installed_path_matrix": "com.unicornsonlsd.finamp available from the installed /usr path; application testing remains not-assessed",
+    "compiled_hashes": {
+      "/usr/bin/moos-qml-shell": "aa93a5c32eef14f54f29acca8361c461a8211deb6e126c80203b11f5d21b2d51",
+      "/usr/bin/moai-open": "9e1965cd67fe6c3228239ad48959f6f8e8215d0d1ce06da890a53920ecf933a5"
+    }
+  },
+  "bootc_lint": {
+    "passed": 11,
+    "skipped": 1,
+    "warning_count": 3,
+    "warnings": [
+      "nonempty /boot directories efi and grub2",
+      "var-log: /var/log/dnf5.log",
+      "var-tmpfiles: /var/log/dnf5.log"
+    ]
+  },
+  "incident": {
+    "first_build": "passed build.sh checks, then local image commit exhausted writable /var; actual final exit1 retained",
+    "lowest_observed_free_bytes": 8925184,
+    "application_impact": {
+      "chatgpt": "SIGBUS/core-dump at 16:06:35 CEST; crashpad reports ENOSPC",
+      "chrome": "exit135 at 16:06:32 CEST"
+    },
+    "recovery": {
+      "same_original_app_units": "both active/running/result=success after restart, no profiles removed",
+      "selfcheck_exit": 0,
+      "unsaved_state_verified": false
+    },
+    "cleanup": {
+      "new_failed_build_containers": 79,
+      "container_measured_gain_bytes": 14017806336,
+      "obsolete_named_image_roots": 6,
+      "reviewed_anonymous_image_parents": 76,
+      "image_measured_gain_bytes": 34741616640,
+      "preserved_older_runtime_containers": 17,
+      "force_used": false,
+      "preserved": [
+        "owner data and profiles",
+        "all original source and dirty worktrees",
+        "verified full Git bundle",
+        "named SDK bases and other proof images",
+        "qualified replacement620e1e9108f0",
+        "signed booted1062 and rollback1046 deployments"
+      ],
+      "btrfs": "initial scratch free-space sample preceded delayed reference cleanup; later sync sample preserved separately, no summed scratch gain"
+    }
+  },
+  "guarded_retry": {
+    "private_session_tool_not_shipped": true,
+    "fresh_build_estimate_gib": 60,
+    "cached_retry_preflight_gib": 40,
+    "continuous_reserve_gib": 8,
+    "memory_gib": 4,
+    "cpu_count": 4,
+    "minimum_observed_free_bytes": 42686636032,
+    "stopped": null,
+    "stop_control": {
+      "scope": "only private sleep child; actual native statvfs and TERM path; no disk filling",
+      "exit": -15,
+      "stopped": {
+        "reason": "disk reserve",
+        "free_bytes": 58009874432,
+        "floor_bytes": 59083616256,
+        "pid": 375984
+      }
+    },
+    "intermediate_invocation": "unsupported --cpus option refused exit125 before build; replaced by supported CPU period/quota flags"
+  },
+  "bundle_reverification": {
+    "bytes": 609244906,
+    "sha256": "ed0fd084b27ffbab87937628c70088244cfc4aa8ab29561fc7ef8db73704fd47",
+    "verify_exit": 0
+  },
+  "pr_validation": {
+    "pr": 249,
+    "head": "c3608bd21d8325c6fc99aa3be3bb19b9d6d82876",
+    "required_checks": "passed with normal protection; merged without bypass",
+    "image_runs": {
+      "x86": 39037176829,
+      "arm_build_only": 39037176910,
+      "plasma_next": 39037176746
+    },
+    "advisory_review": "workflow validation skipped actual review; green advisory is not independent review evidence"
+  },
+  "remaining": [
+    "fixed-revision signed candidate boot proofs and promotion",
+    "physical signed cold boot and unchanged postchecks",
+    "Windows/Android application lifecycle and hardware/accessibility endurance",
+    "three preserved bootc lint warnings and durable product low-space protection"
+  ]
+}

@@ -1158,6 +1158,24 @@ negatives must stay fatal. Never install an unsupported engine or hide the
 command behind a wrapper merely to pass verification. A passing generic PR
 image does not qualify Cloud composition.
 
+**A final image layer can exhaust the workstation after every build gate passed.**
+An Oct17 local commit consumed the initial42GiB headroom, reached8.5MiB free,
+and Chrome/ChatGPT crashed. Preserve that nonzero parent exit and application
+impact; a success line is not image qualification. Budget at least60GiB on the
+native writable `/var` for a fresh image/VM lane, including copied rootfs,
+temporary archive and retained layers; measure/cache-aware estimates are not a
+universal guarantee. Monitor headroom continuously and stop only the owned local
+builder with an8GiB reserve. The reviewed cached retry used4GiB/four CPUs and
+kept39.75GiB free; its private session helper is not shipped low-space protection.
+Inventory `podman ps --all --external`: Buildah containers can pin unnamed cache
+layers invisible to an ordinary libpod listing. Wait for the exact owned builder
+to stop, check holders, then retire only its recorded scratch/working containers
+and exact unused obsolete images after replacement/ancestry checks, without
+force. Sync Btrfs before measuring reclaimed space; do not double-count delayed
+samples. Retain owner containers/SDKs/backups and signed rollback. None of this
+authorizes cancelling a root OS update: its real rpm-ostree transaction can
+outlive the user wrapper and must be read independently.
+
 **`setsid` is not a cgroup boundary, and a launcher PID is not its app.** A native
 Notepad4 Store job reported Opened and then killed its real window on job exit.
 Use the canonical `moai-open --app` user-manager boundary; keep `Type=exec`,
