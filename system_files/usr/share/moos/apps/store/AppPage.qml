@@ -189,6 +189,30 @@ Item {
             width: detailFlick.width - appPage.padding * 2
             spacing: appPage.design.space5
 
+            RowLayout {
+                Layout.fillWidth: true
+                visible: appPage.win.variantsOf(appPage.app).length > 1
+                spacing: appPage.design.space2
+                Text {
+                    text: appPage.win.local("نسخة التطبيق", "App version")
+                    color: appPage.win.txt2
+                    font.family: appPage.win.uiFont
+                    font.pixelSize: appPage.win.typePx(13)
+                }
+                Repeater {
+                    model: appPage.win.variantsOf(appPage.app)
+                    delegate: KindChip {
+                        required property var modelData
+                        win: appPage.win
+                        label: appPage.win.kindLabel(appPage.win.appKind(modelData))
+                            + (appPage.win.isInstalled(modelData) ? appPage.win.local(" · مثبّتة", " · Installed") : "")
+                        checked: appPage.app && appPage.app.id === modelData.id
+                        onActivated: appPage.win.showApp(modelData)
+                    }
+                }
+                Item { Layout.fillWidth: true }
+            }
+
             // ── the band ──
             Item {
                 Layout.fillWidth: true

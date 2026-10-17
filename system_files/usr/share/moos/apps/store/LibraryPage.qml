@@ -181,7 +181,11 @@ Item {
                             horizontalAlignment: Text.AlignLeft
                             Layout.fillWidth: true
                             text: {
-                                var parts = [library.win.kindLabel(library.win.appKind(entry.app))]
+                                var parts = [entry.app.kind === "native"
+                                    ? entry.app.management === "os"
+                                      ? library.win.local("جزء من MoOS · يتحدّث مع النظام", "Part of MoOS · updated with the system")
+                                      : library.win.local("مثبّت خارج المتجر · تُدار ملفاته من مصدره", "Installed outside the Store · managed at its source")
+                                    : library.win.kindLabel(library.win.appKind(entry.app))]
                                 var version = entry.app.installed_version || entry.app.version || ""
                                 if (version !== "" && entry.updateTarget !== "" && entry.updateTarget !== version)
                                     parts.push(library.win.ltr(version + "  →  " + entry.updateTarget))

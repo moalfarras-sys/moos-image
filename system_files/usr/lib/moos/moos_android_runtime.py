@@ -9,7 +9,7 @@ import sys
 
 _PREFIX = r"^\s*(?:\(\d+\)\s*)?(?:\[\d{2}:\d{2}:\d{2}\]\s*)?"
 _FAILURE = re.compile(_PREFIX + r"(?:ERROR\s*:|Failure\s*\[|INSTALL_FAILED_[A-Z_]+\b|"
-                      r"Failed to access IPlatform service\b|WayDroid session is stopped\b|"
+                      r"Failed to access IPlatform service\b|Failed to get service waydroidplatform\b|WayDroid session is stopped\b|"
                       r"WayDroid is not initialized\b)", re.IGNORECASE | re.MULTILINE)
 
 def status_state(code, stdout, stderr=""):
@@ -37,6 +37,11 @@ def _property_ready(name, expected):
     result = subprocess.run(["waydroid", "prop", "get", name], capture_output=True,
                             text=True, timeout=2)
     return property_matches(result.returncode, result.stdout, result.stderr, expected)
+
+def platform_ready(code, stdout, stderr=""):
+    """A session process can run before Android's application service is usable."""
+    return code == 0 and len(stdout) + len(stderr) <= 65536 and not any(
+        _FAILURE.search(s) for s in (stdout, stderr))
 
 def main():
     action = sys.argv[1:]

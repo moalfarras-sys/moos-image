@@ -1084,6 +1084,22 @@ the final product bytes and execute the failing-old/passing-fixed controls.
 When a shared update policy changes, check both the app index's button and the
 backend's actual decision, including adopted apps and unchanged-index refresh.
 
+**A shared startup target does not order its children.** On the native `.1062` boot,
+Baloo started before the graphical environment was published and every extractor
+inherited no display. Restarting only the indexer with the real manager environment
+restored actual content search without purging the database. Order it after
+`plasma-core.target`, never its own `plasma-workspace.target` parent (which would
+cycle), and retain the native idle backend. An offscreen bootstrap control is
+not a cold-boot ordering proof. Historical startup failures must keep the unchanged
+post-update check red until a fresh boot is actually accepted.
+
+**Grouping a product must not erase its installed platform alternatives.** Keep
+all installed variants before deduplication. Filter the requested platform first,
+then group that selection and count it. Otherwise an installed Linux VLC wins the
+all-apps row and makes the installed Android VLC disappear from its own filter.
+The real native AR/EN Store walk checks the selected ID and platform counts;
+Node grouping tests alone do not prove that window behavior.
+
 ## Before you push
 
 **A Remove flag is a promise about files, not a label.** Oracle's private Store

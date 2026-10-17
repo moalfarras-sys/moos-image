@@ -827,7 +827,7 @@ class LifecycleTests(StoreTestCase):
         self.assertEqual(runner.guard_calls, 1)
         self.assertEqual(
             runner.probes,
-            [["/usr/bin/waydroid", "status"]],
+            [["/usr/bin/waydroid", "status"], ["/usr/bin/waydroid", "app", "list"]],
         )
         self.assertEqual(
             runner.commands,
@@ -872,6 +872,7 @@ class LifecycleTests(StoreTestCase):
             [
                 [
                     "/usr/bin/moos-store-index",
+                    "--desktop-apps",
                     "--catalog",
                     str(controller.catalog_path),
                     "--output",

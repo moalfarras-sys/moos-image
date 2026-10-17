@@ -1585,17 +1585,37 @@ def target_size():
     return (w, h)
 
 
-def on_sample(sink):
+def source_size(source):
+    """Read capture pixels before scaling/encoding; encoded caps are output size."""
+    try:
+        pad = source.get_static_pad("src") if source is not None else None
+        caps = pad.get_current_caps() if pad is not None else None
+        if caps is None or caps.is_empty():
+            return None
+        structure = caps.get_structure(0)
+        width, height = structure.get_value("width"), structure.get_value("height")
+        if type(width) is int and type(height) is int and 0 < width <= 32768 and 0 < height <= 32768:
+            return width, height
+    except (AttributeError, TypeError, ValueError):
+        pass
+    return None
+
+
+def on_sample(sink, source=None):
     sample = sink.emit("pull-sample")
     if sample is None:
         return Gst.FlowReturn.OK
     if not state["sw"]:
-        # Source geometry is only known once buffers flow; learn it, then rebuild at the right size.
-        caps = sample.get_caps()
-        if caps:
-            s = caps.get_structure(0)
-            state["sw"], state["sh"] = s.get_value("width"), s.get_value("height")
-            GLib.idle_add(rebuild)
+        # The sink's caps describe the encoded image. A 640x480 startup encode
+        # must never become the claimed size of a 4K source. Bind this callback
+        # to its own pipeline's source, rather than a changing global pipeline.
+        size = source_size(source)
+        if size is None:
+            # Unknown source geometry is not a healthy picture; the existing
+            # first-frame deadline will renew the grant if negotiation stalls.
+            return Gst.FlowReturn.OK
+        state["sw"], state["sh"] = size
+        GLib.idle_add(rebuild)
     buf = sample.get_buffer()
     ok, info = buf.map(Gst.MapFlags.READ)
     if ok:
@@ -1776,7 +1796,7 @@ def build(w, h):
     caps = f"! video/x-raw,width={w},height={h} " if w else ""
     head = (
         f"pipewiresrc fd={pipeline_fd} {pipewire_target[0]}={pipewire_target[1]} "
-        'stream-properties="props,node.dont-fallback=(boolean)true" do-timestamp=true '
+        'stream-properties="props,node.dont-fallback=(boolean)true" name=source do-timestamp=true '
         f"keepalive-time={FRAME_KEEPALIVE_MS} "
         # THE QUEUE IS NOT DECORATION — IT IS WHAT KEEPS A SLOW ENCODER OFF THE COMPOSITOR'S THREAD.
         #
@@ -1902,7 +1922,7 @@ def build(w, h):
     rate.get_static_pad("sink").add_probe(Gst.PadProbeType.BUFFER, pace_frame)
     if codec == "h264":
         tune_for_latency(enc, _bps, state["fps"])
-    pipeline.get_by_name("sink").connect("new-sample", on_sample)
+    pipeline.get_by_name("sink").connect("new-sample", on_sample, pipeline.get_by_name("source"))
     pipeline_bus = pipeline.get_bus()
     pipeline_bus.add_signal_watch()
     pipeline_bus_handler = pipeline_bus.connect("message", on_bus)

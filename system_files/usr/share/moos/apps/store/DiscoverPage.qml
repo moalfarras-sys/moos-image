@@ -47,6 +47,47 @@ Item {
             width: discoverFlick.width - discover.padding * 2
             spacing: discover.design.space6
 
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: discover.design.space3
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    spacing: discover.design.space1
+                    Text {
+                        text: discover.win.local("مكتبة جهازك، في مكان واحد", "Your app library, in one place")
+                        color: discover.win.txt
+                        font.family: discover.win.uiFont
+                        font.pixelSize: discover.win.typePx(24)
+                        font.weight: Font.Bold
+                        Layout.fillWidth: true
+                        elide: Text.ElideRight
+                    }
+                    Text {
+                        text: discover.win.appsCountText(discover.win.kindCountIn("all"))
+                              + discover.win.local(" · ابحث، ثبّت، وتابع تطبيقاتك", " · Find, install and manage your apps")
+                        color: discover.win.txt2
+                        font.family: discover.win.uiFont
+                        font.pixelSize: discover.win.typePx(13)
+                        Layout.fillWidth: true
+                        elide: Text.ElideRight
+                    }
+                }
+                ActionButton {
+                    win: discover.win
+                    primary: true
+                    pill: true
+                    glyphName: "grid"
+                    label: discover.win.local("تصفّح كل التطبيقات", "Browse all apps")
+                    triggered: function() {
+                        discover.win.activeCategory = "all"
+                        discover.win.activeKind = "all"
+                        discover.win.activeCollection = ""
+                        discover.win.navigate("apps")
+                    }
+                }
+            }
+
+
             // ── Where apps come from ──
             ColumnLayout {
                 Layout.fillWidth: true
@@ -174,9 +215,13 @@ Item {
 
             // ── The catalogue's collections ──
             Repeater {
-                model: discover.win.collections
+                model: discover.win.collections.filter(function(c) { return !c.previewApps || c.previewApps.length > 0 })
                 delegate: CollectionRow {
+                    id: collectionPreview
                     required property var modelData
+                    populated: discover.visible
+                        && collectionPreview.y + discoverBody.y + collectionPreview.height >= discoverFlick.contentY - discoverFlick.height
+                        && collectionPreview.y + discoverBody.y <= discoverFlick.contentY + discoverFlick.height * 2
                     win: discover.win
                     collection: modelData
                     bleed: discover.padding

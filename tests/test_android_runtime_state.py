@@ -15,7 +15,7 @@ def load(name,path):
     spec=importlib.util.spec_from_loader(name,loader);module=importlib.util.module_from_spec(spec)
     sys.modules[name]=module;loader.exec_module(module);return module
 RUNTIME=load('runtime_state_review',ROOT/'system_files/usr/lib/moos/moos_android_runtime.py')
-STORE=load('runtime_store_review',ROOT/'system_files/usr/bin/moos-storectl')
+STORE=load('runtime_store_review',Path(os.environ.get('MOOS_STORECTL_UNDER_TEST',ROOT/'system_files/usr/bin/moos-storectl')))
 
 class StatusReadback(unittest.TestCase):
     def test_platform_properties_need_exact_successful_values_without_logged_errors(self):
@@ -73,5 +73,58 @@ class StatusReadback(unittest.TestCase):
             self.assertNotEqual(r.returncode,0,r.stdout+r.stderr)
             self.assertIn('Could not verify Android app support',r.stderr)
             self.assertFalse(marker.exists(),'setup must not mutate on an unsuccessful status response')
+
+class ApplicationReadiness(unittest.TestCase):
+    def controller(self, responses):
+        controller=object.__new__(STORE.Controller)
+        controller.runner=mock.Mock()
+        controller.runner.capture.side_effect=responses
+        controller._cancelled=mock.Mock(return_value=False)
+        return controller
+
+    def test_running_process_waits_until_the_application_service_answers(self):
+        running=STORE.CommandResult(0, output='Session: RUNNING\n')
+        busy=STORE.CommandResult(0, '[10:13:47] Failed to get service waydroidplatform, trying again...')
+        ready=STORE.CommandResult(0, output='Name: Example\npackageName: org.example.App\n')
+        controller=self.controller([running,busy,running,ready])
+        with mock.patch.object(STORE.time,'sleep'):
+            controller._ensure_android_session(mock.Mock())
+        self.assertEqual(controller.runner.capture.call_count,4)
+        controller.runner.spawn.assert_not_called()
+        self.assertEqual(controller.runner.capture.call_args.args[0],[STORE.WAYDROID,'app','list'])
+
+    def test_never_ready_service_is_a_localized_failure_not_permission_to_install(self):
+        controller=self.controller([STORE.CommandResult(0,output='Session: RUNNING\n')])
+        with mock.patch.object(STORE.time,'monotonic',side_effect=[0,100]):
+            with self.assertRaises(STORE.StoreError) as refused:
+                controller._ensure_android_session(mock.Mock())
+        self.assertEqual(refused.exception.message_key,'android_start_timeout')
+        controller.runner.spawn.assert_not_called()
+        controller.runner.run_cancellable.assert_not_called()
+
+    def test_cancelling_startup_stops_before_any_application_mutation(self):
+        controller=self.controller([STORE.CommandResult(0,output='Session: RUNNING\n')])
+        controller._cancelled.return_value=True
+        with self.assertRaises(STORE.CancelledError):controller._ensure_android_session(mock.Mock())
+        controller.runner.run_cancellable.assert_not_called()
+
+    def test_stopped_runtime_starts_in_its_own_user_unit_and_waits_for_service(self):
+        controller=self.controller([STORE.CommandResult(0,output='Session: STOPPED\n'),
+                                    STORE.CommandResult(0,output='Session: RUNNING\n'),
+                                    STORE.CommandResult(0,output='packageName: org.example.App\n')])
+        with mock.patch.object(STORE.time,'sleep'):
+            controller._ensure_android_session(mock.Mock())
+        controller.runner.spawn.assert_called_once_with(['/usr/bin/systemctl','--user','start','moos-android-session.service'])
+        unit=(ROOT/'system_files/usr/lib/systemd/user/moos-android-session.service').read_text()
+        self.assertIn('PartOf=graphical-session.target',unit)
+        self.assertIn('ExecStart=/usr/bin/waydroid session start',unit)
+        self.assertNotIn('WantedBy=',unit,'Android session stays explicitly on demand')
+
+    def test_readiness_does_not_accept_errors_hidden_in_success_exit_codes(self):
+        for error in ['[10:13:47] Failed to get service waydroidplatform, trying again...',
+                      'Failed to access IPlatform service','ERROR: refused']:
+            self.assertFalse(RUNTIME.platform_ready(0,'',error))
+        self.assertTrue(RUNTIME.platform_ready(0,''))
+        self.assertFalse(RUNTIME.platform_ready(1,''))
 
 if __name__=='__main__': unittest.main(verbosity=2)

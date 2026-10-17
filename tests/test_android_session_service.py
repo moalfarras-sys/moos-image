@@ -38,10 +38,11 @@ class AndroidSession(unittest.TestCase):
     def test_startup_transient_is_bounded_but_never_treated_as_ready(self):
         ctl = self.controller([STORE.CommandResult(0, output="Session: STOPPED\n"),
                                STORE.CommandResult(1, reason="starting"),
-                               STORE.CommandResult(0, output="Session: RUNNING\n")])
+                               STORE.CommandResult(0, output="Session: RUNNING\n"),
+                               STORE.CommandResult(0, output="packageName: org.example.App\n")])
         with mock.patch.object(STORE.time, "sleep"):
-            ctl._ensure_android_session(object())
-        self.assertEqual(ctl.runner.capture.call_count, 3)
+            ctl._ensure_android_session(mock.Mock())
+        self.assertEqual(ctl.runner.capture.call_count, 4)
         ctl.runner.spawn.assert_called_once_with(
             ["/usr/bin/systemctl", "--user", "start", "moos-android-session.service"])
         ctl.runner.run_cancellable.assert_not_called()
@@ -50,15 +51,16 @@ class AndroidSession(unittest.TestCase):
         ctl = self.controller([STORE.CommandResult(0, output="Session: STOPPED\n"),
                                STORE.CommandResult(0, output="Session: RUNNING\nSession: STOPPED\n")])
         with mock.patch.object(STORE.time, "sleep"), \
-                mock.patch.object(STORE.time, "monotonic", side_effect=[0, 1, 21]):
+                mock.patch.object(STORE.time, "monotonic", side_effect=[0, 1, 100]):
             with self.assertRaisesRegex(STORE.StoreError, "did not become ready") as refused:
-                ctl._ensure_android_session(object())
+                ctl._ensure_android_session(mock.Mock())
         self.assertEqual(refused.exception.message_key, "android_start_timeout")
         ctl.runner.run_cancellable.assert_not_called()
 
     def test_running_android_does_not_start_another_session(self):
-        ctl = self.controller([STORE.CommandResult(0, output="Session: RUNNING\n")])
-        ctl._ensure_android_session(object())
+        ctl = self.controller([STORE.CommandResult(0, output="Session: RUNNING\n"),
+                               STORE.CommandResult(0, output="packageName: org.example.App\n")])
+        ctl._ensure_android_session(mock.Mock())
         ctl.runner.spawn.assert_not_called()
 
     def test_file_installs_share_the_store_authority(self):
