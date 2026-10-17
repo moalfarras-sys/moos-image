@@ -1,0 +1,87 @@
+{
+  "schema": 1,
+  "scope": "source qualification and isolated native controls, not signed delivery or installed acceptance",
+  "payload_source": "51c375c9bad693b1ffe4c308b9c91514efb64701",
+  "final_test_source": "8b3d5ac35bb2f5e4693f511c86b0aaca147d3f02",
+  "payload_equivalence": "The later commit changes only tests/store_touch_probe.py; docs and this receipt do not enter the overlay. Full source gates cover the final fixture.",
+  "catalog": {
+    "total": 264,
+    "flathub": 150,
+    "appdrop": 17,
+    "npm": 3,
+    "vendor": 1,
+    "android": 46,
+    "windows": 20,
+    "web": 27,
+    "application_testing": "not implied by recipe availability"
+  },
+  "backup": {
+    "refs_before": 242,
+    "worktrees_before": 62,
+    "dirty_trees_preserved": 5,
+    "bundle_bytes": 609244906,
+    "bundle_sha256": "ed0fd084b27ffbab87937628c70088244cfc4aa8ab29561fc7ef8db73704fd47"
+  },
+  "full_check_counts": {
+    "reported_unittest_cases": 2639,
+    "unittest_runs": 197,
+    "reported_skips": 13,
+    "python_script_invocations": 295
+  },
+  "receipts": {
+    "final-check5": {
+      "source": "8b3d5ac35bb2f5e4693f511c86b0aaca147d3f02",
+      "tree": "9bc95ea0c7ef139fc11b145ee7cb3d8c75e89156",
+      "exit": 0,
+      "seconds": 518.921,
+      "log_sha256": "fb5b89400d05b49ff911b790150d10cbf6c86ec8e82795aa18d8d0d9d0dbb9bd",
+      "dirty_paths": []
+    },
+    "touch-final": {
+      "source": "8b3d5ac35bb2f5e4693f511c86b0aaca147d3f02",
+      "tree": "9bc95ea0c7ef139fc11b145ee7cb3d8c75e89156",
+      "exit": 0,
+      "seconds": 84.893,
+      "log_sha256": "6929bb5bce87bac331d8a53436fb8a3bfa3e9e6fcf08f9950185bdb2fbc93621",
+      "dirty_paths": []
+    },
+    "store-captures5": {
+      "source": "51c375c9bad693b1ffe4c308b9c91514efb64701",
+      "tree": "11996484e282eaa2b017f229fef38a3ac68d69c5",
+      "exit": 0,
+      "seconds": 17.548,
+      "log_sha256": "b9965bc46c9bf06086cd558ba80abdb2a0a7d18d674d8063d2d015238930e9bf",
+      "dirty_paths": []
+    },
+    "source-update-list": {
+      "source": "51c375c9bad693b1ffe4c308b9c91514efb64701",
+      "tree": "11996484e282eaa2b017f229fef38a3ac68d69c5",
+      "exit": 0,
+      "seconds": 0.9,
+      "log_sha256": "2013558eee0a17e9f848ebd4e3aac6a6208b04a123e792888ab12efe201e46ef",
+      "dirty_paths": []
+    },
+    "variant-negative": {
+      "source": "923ad52a84e17f96fa644a6a7b78f67695898863",
+      "tree": "03aa6cca3fccdce589f3c0d9228800249bdb7139",
+      "exit": 1,
+      "seconds": 33.695,
+      "log_sha256": "a68d9cf1791b0f7e4fb36459c99e2fdb1c0161e9740c13e5795de6717e276e9a",
+      "dirty_paths": []
+    }
+  },
+  "controls": {
+    "platform_identity": "Both real-index collision cases fail on the old backend/catalogue and pass fixed; retained in the full gate.",
+    "matrix": "Eleven controls reject the original generator and pass the replacement.",
+    "variant": "Completed old-source native Qt AR/EN control fails both cases; the full final gate passes. The earlier standalone positive preceded its commit and is not clean-tree evidence.",
+    "input": "Actual native Qt interactions, four AR/EN-scale-font configurations and all three failing-implementation controls retained.",
+    "baloo": "Native no-display SIGABRT control; corrected private unit ordering passes and deliberately cyclic ordering fails. No index purge."
+  },
+  "remaining": [
+    "signed four-edition candidate and final artifact boot proofs",
+    "new physical signed boot and unchanged postchecks",
+    "real Windows/Android complete application journeys",
+    "GPU, audio, Bluetooth, display hotplug and suspend endurance",
+    "full shell accessibility and input acceptance"
+  ]
+}
