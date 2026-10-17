@@ -1147,6 +1147,17 @@ gh auth refresh -h github.com -s workflow
 
 ## What is NOT done — do not claim otherwise
 
+**An optional unit's condition does not make its missing executable verifiable.**
+Cloud's Oct17 build correctly refused the shared Android unit: its provider is
+deliberately absent there, and `ConditionFileIsExecutable` does not suppress
+`systemd-analyze verify`'s executable check. Compose the unit only with the
+qualified desktop/NVIDIA provider; Cloud/ARM retain their existing unsupported
+engine policy and no dormant dead unit. Both builders check the finished tree;
+desktop missing-provider, unsupported reintroduction, global-start and wrapper
+negatives must stay fatal. Never install an unsupported engine or hide the
+command behind a wrapper merely to pass verification. A passing generic PR
+image does not qualify Cloud composition.
+
 **`setsid` is not a cgroup boundary, and a launcher PID is not its app.** A native
 Notepad4 Store job reported Opened and then killed its real window on job exit.
 Use the canonical `moai-open --app` user-manager boundary; keep `Type=exec`,
