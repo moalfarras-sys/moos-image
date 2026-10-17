@@ -1,0 +1,21 @@
+{
+  "checked_at": "2026-10-17T18:33:41.231401+00:00",
+  "source": "public publisher repository metadata, not host package changes",
+  "results": [
+    {
+      "arch": "x86_64",
+      "url": "https://download.copr.fedorainfracloud.org/results/@kdesig/kde-final/fedora-44-x86_64/repodata/repomd.xml",
+      "read_error": "URLError"
+    },
+    {
+      "arch": "aarch64",
+      "url": "https://download.copr.fedorainfracloud.org/results/@kdesig/kde-final/fedora-44-aarch64/repodata/repomd.xml",
+      "http_status": 404
+    }
+  ],
+  "boundaries": [
+    "The aarch64 metadata endpoint for this specific publisher/chroot returned404 at this check; this is not a claim that upstream Plasma lacks ARM source or that every other provider was searched.",
+    "The x86 metadata read failed with URLError; this does not replace the independently qualified signed x86 package/seam/image evidence.",
+    "The public project page returned an Anubis access refusal to the browser tool; no access control was changed or bypassed."
+  ]
+}

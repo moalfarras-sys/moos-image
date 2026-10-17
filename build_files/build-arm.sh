@@ -289,6 +289,7 @@ test -d /moos-overlay/usr/share || {
     exit 1
 }
 cp -a /moos-overlay/. /
+python3 /ctx/android_session_policy.py compose --edition "$MOOS_EDITION"
 
 # system_files is architecture-independent, but its broad icon themes, pointer
 # binaries and plasma-login account palette are generated at image build time.
@@ -1648,6 +1649,7 @@ python3 /ctx/verify_no_foreign_identity.py
 python3 /ctx/verify_mime_handlers.py --root /
 python3 /ctx/verify_desktop_parity.py --root /
 python3 /ctx/verify_memory_policy.py --root /
+python3 /ctx/android_session_policy.py verify --edition "$MOOS_EDITION"
 
 
 echo "=== MoOS ARM build complete: ${MOOS_EDITION} (aarch64) ==="
