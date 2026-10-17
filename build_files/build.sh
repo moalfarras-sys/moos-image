@@ -2913,6 +2913,11 @@ systemctl --global mask moos-secret-service.service \
 # does not carry Konsole, GTK or the wallpaper reliably, so watch the effective
 # kdeglobals selection and reconcile those supplements after each transition.
 # The service never writes kdeglobals, which keeps the path activation acyclic.
+python3 /ctx/android_session_policy.py compose --edition "$MOOS_EDITION"
+_android_session_units=()
+if is_desktop; then
+    _android_session_units+=(/usr/lib/systemd/user/moos-android-session.service)
+fi
 systemd-analyze verify \
     /usr/lib/systemd/user/moos-input-migrate.service \
     /usr/lib/systemd/user/moos-theme-sync.path \
@@ -2926,7 +2931,7 @@ systemd-analyze verify \
     /usr/lib/systemd/user/moos-app-drop.service \
     /usr/lib/systemd/user/moos-store-notify.path \
     /usr/lib/systemd/user/moos-store-notify.service \
-    /usr/lib/systemd/user/moos-android-session.service \
+    "${_android_session_units[@]}" \
     /usr/lib/systemd/user/kde-baloo.service \
     /usr/lib/systemd/user/mira.service \
     /usr/lib/systemd/user/mira-lumen.service
@@ -4923,6 +4928,7 @@ bash /ctx/verify_settings_modules.sh || exit 1
 
 python3 /ctx/plasma_logout/rpms.py verify
 python3 /ctx/verify_memory_policy.py --root /
+python3 /ctx/android_session_policy.py verify --edition "$MOOS_EDITION"
 python3 /ctx/finalize_image_state.py --root /
 python3 /ctx/verify_no_foreign_identity.py
 
