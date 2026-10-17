@@ -9,11 +9,21 @@ import tempfile
 
 def verify(qml: Path, imports: Path | None = None) -> int:
     with tempfile.TemporaryDirectory(prefix="moos-motion-") as temporary:
+        config = Path(temporary) / "config"
+        config.mkdir()
+        # A fresh HOME still reads /etc/xdg: desktop images choose factor 0.5
+        # and cloud images choose 0. The fixture measures the unscaled roles at
+        # factor 1. Select that input explicitly, without changing real defaults
+        # or disconnecting the host from KDE's platform integration.
+        (config / "kdeglobals").write_text("[KDE]\nAnimationDurationFactor=1\n", encoding="utf-8")
+        runtime = Path(temporary) / "run"
+        runtime.mkdir(mode=0o700)
         env = dict(os.environ)
         env.update({
             "HOME": temporary, "XDG_CONFIG_HOME": temporary + "/config",
             "XDG_DATA_HOME": temporary + "/data", "XDG_CACHE_HOME": temporary + "/cache",
-            "XDG_CONFIG_DIRS": "/etc/xdg", "XDG_DATA_DIRS": "/usr/share",
+            "XDG_CONFIG_DIRS": str(config), "XDG_DATA_DIRS": "/usr/share",
+            "XDG_RUNTIME_DIR": str(runtime), "QT_QPA_PLATFORMTHEME": "kde",
             "DBUS_SESSION_BUS_ADDRESS": "unix:path=" + temporary + "/absent-bus",
             "DISPLAY": "", "WAYLAND_DISPLAY": "", "QT_QPA_PLATFORM": "offscreen",
             "QT_QUICK_BACKEND": "software", "QT_FORCE_STDERR_LOGGING": "1",

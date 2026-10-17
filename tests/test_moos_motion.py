@@ -1,14 +1,37 @@
 #!/usr/bin/env python3
 """Keep motion bounded and make runtime proof mandatory in both image builds."""
 import json
+import importlib.util
+import os
 import subprocess
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[1]
+spec = importlib.util.spec_from_file_location("motion_gate", ROOT / "build_files/verify_moos_motion.py")
+gate = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(gate)
 
 
 class MotionContract(unittest.TestCase):
+    def test_review_selects_full_speed_without_inheriting_desktop_or_cloud_defaults(self):
+        def run(argv, **kwargs):
+            env = kwargs["env"]
+            config = Path(env["XDG_CONFIG_HOME"])
+            self.assertEqual((config / "kdeglobals").read_text(), "[KDE]\nAnimationDurationFactor=1\n")
+            self.assertEqual(env["XDG_CONFIG_DIRS"], str(config))
+            self.assertEqual(env["QT_QPA_PLATFORMTHEME"], "kde")
+            self.assertEqual(Path(env["XDG_RUNTIME_DIR"]).stat().st_mode & 0o777, 0o700)
+            self.assertNotEqual(env["HOME"], os.path.expanduser("~"))
+            self.assertEqual(env["QT_QPA_PLATFORM"], "offscreen")
+            self.assertTrue(env["DBUS_SESSION_BUS_ADDRESS"].endswith("/absent-bus"))
+            self.assertNotIn("QT_PLUGIN_PATH", env)
+            return subprocess.CompletedProcess(argv, 0, "MOOS_MOTION_PASSED: actual interaction\n", "")
+
+        with patch.object(gate.subprocess, "run", side_effect=run):
+            self.assertEqual(gate.verify(ROOT / "tests/qml/motion-review.qml"), 0)
+
     def test_physics_is_bounded_and_shared(self):
         tokens = json.loads((ROOT / "artwork/moos-design/tokens.json").read_text())["material"]
         self.assertGreater(tokens["springStiffness"], 0)

@@ -169,6 +169,14 @@ platform plugin before loading. Both image builds execute the actual binary
 with private Basic-style probes at factors0/.5; require1/100ms and a marker,
 not an empty successful process. Keep the old-host negative control.
 
+**A fresh HOME still inherits the image's defaults.** With the actual KDE
+platform restored, the full motion fixture read the image's factor0.5 and
+correctly got100ms; its unscaled200ms assertion failed on both architectures.
+The fixture's private config must explicitly select factor1 and isolate
+XDG_CONFIG_DIRS. Never change the shipped speed or bypass KDE to make that
+fixture pass. Preserve the real old-harness100ms failure, full interaction
+positive and a broken reduced-motion negative.
+
 **A file update need not add a package.** APK before/after package-set differences
 miss already-installed updates. Install an owned, validated disk snapshot,
 verify that package and readable installed bytes, then publish its receipt.

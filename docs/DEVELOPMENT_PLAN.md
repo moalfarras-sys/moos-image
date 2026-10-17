@@ -625,3 +625,20 @@ manifest and checks the private snapshot/source-file lifecycle. The generated
 cache fingerprint records107; its refusal of same-revision changes is unchanged.
 The109-command adaptive remainder diagnostic retains its three failures and
 their subsequent targeted corrections; it is not the official full-check proof.
+Exact `c16a7a70` subsequently passed the official284-command native `just check`
+in652.471s. Its PR x86/ARM/canary image gates then exposed a fixture-input
+error: the corrected host inherited the shipped factor0.5 (measured100ms),
+while the full motion test assumed200ms. Oct17's private explicit factor1
+passes real native interaction/Hub tests; broken reduced-motion scaling still
+fails. Shipped defaults and assertions are unchanged. The separate local image
+stopped at its3GiB disk reserve and remains a failed build, not qualification.
+The rebuilt image, final source check, signed cycle and installed readback stay
+open. [Follow-up evidence](releases/2026-10-17-store-qualification-followup.json).
+
+Primary source refresh2026-10-17: [Flatpak architecture/remote/app lifecycle](https://docs.flatpak.org/en/latest/using-flatpak.html),
+[F-Droid signed indexes rather than display APIs](https://f-droid.org/docs/All_our_APIs/),
+[F-Droid index/APK signing](https://f-droid.org/en/docs/Signing_Process/),
+[Waydroid desktop windows and idle suspend](https://docs.waydro.id/usage/waydroid-prop-options),
+and [unsupported-GPU software rendering](https://docs.waydro.id/faq/get-waydroid-to-work-through-a-vm).
+These support the existing verified-source adapters; they do not replace real
+per-application installed-image or physical GPU acceptance.
