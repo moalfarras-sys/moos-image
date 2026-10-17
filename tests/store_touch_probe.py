@@ -158,8 +158,10 @@ if argument("reduced-motion") == "1":
 
 # A long real-fixture shelf exercises both axes even on a wide window. Its
 # members remain existing catalogue rows, not invented apps or transactions.
+# CollectionRow now displays previewApps when present; update that same list
+# as well, or the intended twelve-app rig silently keeps a short preview.
 evaluate("var c=collections.slice(); c[0]=Object.assign({},c[0],"
-         "{apps:browseOrder.slice(0,12)}); collections=c")
+         "{apps:browseOrder.slice(0,12),previewApps:browseOrder.slice(0,12)}); collections=c")
 QTest.qWait(150)
 flick = named("discoverFlick")
 shelves = [item for item in descendants(flick)
