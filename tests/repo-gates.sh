@@ -511,4 +511,5 @@ python3 tests/test_android_session_service.py
 
 # Cross-edition catalogue availability is not measured application compatibility.
 python3 tests/test_compat_matrix.py
+python3 tests/test_platform_identity.py
 python3 tests/test_baloo_startup.py

@@ -616,6 +616,7 @@ check:
     MOOS_TEST_ROOT=system_files python3 build_files/verify_store_catalog.py
     # MoOS compatibility matrix gate (P4.5): cross-edition, cross-arch, and GPU honesty.
     python3 tests/test_compat_matrix.py
+    python3 tests/test_platform_identity.py
     python3 tests/test_baloo_startup.py
 
 # Build the main MoOS image. The base is pinned in the Containerfile on purpose — both

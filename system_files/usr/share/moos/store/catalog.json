@@ -600,8 +600,16 @@
       "desc_ar": "متصفّح ويب مفتوح المصدر يحترم خصوصيتك.",
       "developer": "Mozilla",
       "popular": true,
-      "keywords_en": ["browser", "web", "internet"],
-      "keywords_ar": ["متصفح", "انترنت", "موزيلا"]
+      "keywords_en": [
+        "browser",
+        "web",
+        "internet"
+      ],
+      "keywords_ar": [
+        "متصفح",
+        "انترنت",
+        "موزيلا"
+      ]
     },
     {
       "id": "com.google.Chrome",
@@ -614,8 +622,16 @@
       "desc_ar": "متصفّح جوجل، مع إشاراتك المرجعية وكلمات مرورك من حساب جوجل.",
       "developer": "Google",
       "popular": true,
-      "keywords_en": ["browser", "chrome", "web"],
-      "keywords_ar": ["متصفح", "كروم", "غوغل"]
+      "keywords_en": [
+        "browser",
+        "chrome",
+        "web"
+      ],
+      "keywords_ar": [
+        "متصفح",
+        "كروم",
+        "غوغل"
+      ]
     },
     {
       "id": "com.valvesoftware.Steam",
@@ -627,10 +643,21 @@
       "desc_en": "The biggest game store, and many Windows games run here too.",
       "desc_ar": "أكبر متجر للألعاب، وكثير من ألعاب ويندوز تعمل فيه أيضاً.",
       "developer": "Valve",
-      "arch": ["x86_64"],
+      "arch": [
+        "x86_64"
+      ],
       "popular": true,
-      "keywords_en": ["games", "gaming", "valve", "store"],
-      "keywords_ar": ["ألعاب", "العاب", "متجر ألعاب"]
+      "keywords_en": [
+        "games",
+        "gaming",
+        "valve",
+        "store"
+      ],
+      "keywords_ar": [
+        "ألعاب",
+        "العاب",
+        "متجر ألعاب"
+      ]
     },
     {
       "id": "chatgpt",
@@ -643,10 +670,26 @@
       "desc_ar": "تطبيق OpenAI الرسمي لسطح المكتب، وما زال تجريبياً: محادثة وعمل على الملفات وبرمجة مع Codex.",
       "developer": "OpenAI",
       "accent": "#0d8a6a",
-      "arch": ["x86_64", "aarch64"],
+      "arch": [
+        "x86_64",
+        "aarch64"
+      ],
       "popular": true,
-      "keywords_en": ["chatgpt", "openai", "gpt", "chat gpt", "assistant", "codex"],
-      "keywords_ar": ["تشات جي بي تي", "شات جي بي تي", "تشات", "ذكاء اصطناعي", "مساعد"],
+      "keywords_en": [
+        "chatgpt",
+        "openai",
+        "gpt",
+        "chat gpt",
+        "assistant",
+        "codex"
+      ],
+      "keywords_ar": [
+        "تشات جي بي تي",
+        "شات جي بي تي",
+        "تشات",
+        "ذكاء اصطناعي",
+        "مساعد"
+      ],
       "install": {
         "kind": "vendor-rpm",
         "repo": "https://persistent.oaistatic.com/codex-app-prod/linux/rpm/$basearch",
@@ -673,14 +716,30 @@
       "developer": "Meta",
       "accent": "#128c7e",
       "popular": true,
-      "keywords_en": ["whatsapp", "messages", "chat"],
-      "keywords_ar": ["واتس", "واتس اب", "رسائل", "دردشة"],
+      "keywords_en": [
+        "whatsapp",
+        "messages",
+        "chat"
+      ],
+      "keywords_ar": [
+        "واتس",
+        "واتس اب",
+        "رسائل",
+        "دردشة"
+      ],
       "install": {
         "kind": "webapp",
         "url": "https://web.whatsapp.com/",
-        "hosts": ["web.whatsapp.com"],
+        "hosts": [
+          "web.whatsapp.com"
+        ],
         "identity": [],
-        "permissions": ["notifications", "microphone", "camera", "clipboard"],
+        "permissions": [
+          "notifications",
+          "microphone",
+          "camera",
+          "clipboard"
+        ],
         "accent": "#128c7e",
         "risk": "web-app",
         "requires_review": true
@@ -697,8 +756,20 @@
       "desc_ar": "حزمة مكتبية كاملة للمستندات والجداول والعروض، بدعم كامل للعربية.",
       "developer": "The Document Foundation",
       "popular": true,
-      "keywords_en": ["office", "word", "excel", "powerpoint", "docx"],
-      "keywords_ar": ["أوفيس", "اوفيس", "وورد", "اكسل", "مستندات"]
+      "keywords_en": [
+        "office",
+        "word",
+        "excel",
+        "powerpoint",
+        "docx"
+      ],
+      "keywords_ar": [
+        "أوفيس",
+        "اوفيس",
+        "وورد",
+        "اكسل",
+        "مستندات"
+      ]
     },
     {
       "id": "claude",
@@ -712,14 +783,31 @@
       "developer": "Anthropic",
       "accent": "#c15f3c",
       "popular": true,
-      "keywords_en": ["anthropic", "assistant", "ai chat"],
-      "keywords_ar": ["ذكاء اصطناعي", "مساعد", "انثروبيك"],
+      "keywords_en": [
+        "anthropic",
+        "assistant",
+        "ai chat"
+      ],
+      "keywords_ar": [
+        "ذكاء اصطناعي",
+        "مساعد",
+        "انثروبيك"
+      ],
       "install": {
         "kind": "webapp",
         "url": "https://claude.ai/",
-        "hosts": ["claude.ai", "*.claude.ai"],
-        "identity": ["google"],
-        "permissions": ["notifications", "microphone", "clipboard"],
+        "hosts": [
+          "claude.ai",
+          "*.claude.ai"
+        ],
+        "identity": [
+          "google"
+        ],
+        "permissions": [
+          "notifications",
+          "microphone",
+          "clipboard"
+        ],
         "accent": "#c15f3c",
         "risk": "web-app",
         "requires_review": true
@@ -736,11 +824,27 @@
       "desc_ar": "محرّر صور بطبقات يفتح ملفات فوتوشوب PSD ويحفظها؛ وما زال في مرحلة تجريبية مبكرة.",
       "developer": "PhotoCraft project",
       "accent": "#5b3fd9",
-      "arch": ["aarch64", "x86_64"],
+      "arch": [
+        "aarch64",
+        "x86_64"
+      ],
       "popular": true,
       "icon_url": "https://raw.githubusercontent.com/storytold/photocraft/v0.9.0/assets/app-icon/hicolor/256x256/apps/ai.storyteller.photocraft.png",
-      "keywords_en": ["photoshop", "psd", "photo editor", "image editor", "layers", "retouch"],
-      "keywords_ar": ["فوتوشوب", "فوتو شوب", "تعديل الصور", "محرر صور", "طبقات"],
+      "keywords_en": [
+        "photoshop",
+        "psd",
+        "photo editor",
+        "image editor",
+        "layers",
+        "retouch"
+      ],
+      "keywords_ar": [
+        "فوتوشوب",
+        "فوتو شوب",
+        "تعديل الصور",
+        "محرر صور",
+        "طبقات"
+      ],
       "install": {
         "kind": "appdrop",
         "artifact": "appimage",
@@ -759,7 +863,9 @@
         },
         "desktop_id": "ai.storyteller.photocraft",
         "wm_class": "ai.storyteller.photocraft",
-        "categories": ["Graphics"],
+        "categories": [
+          "Graphics"
+        ],
         "risk": "downloaded-executable",
         "requires_review": true,
         "external": true
@@ -776,8 +882,17 @@
       "desc_ar": "مراسلة سريعة بمحادثات وقنوات ومجموعات، بواجهة عربية كاملة.",
       "developer": "Telegram",
       "popular": true,
-      "keywords_en": ["messages", "chat", "channels"],
-      "keywords_ar": ["تلغرام", "تليجرام", "رسائل", "قنوات"]
+      "keywords_en": [
+        "messages",
+        "chat",
+        "channels"
+      ],
+      "keywords_ar": [
+        "تلغرام",
+        "تليجرام",
+        "رسائل",
+        "قنوات"
+      ]
     },
     {
       "id": "org.videolan.VLC",
@@ -790,8 +905,16 @@
       "desc_ar": "يشغّل كل ملفات الفيديو والصوت والبث تقريباً.",
       "developer": "VideoLAN",
       "popular": true,
-      "keywords_en": ["video player", "media player", "movies"],
-      "keywords_ar": ["مشغل فيديو", "افلام", "ميديا"]
+      "keywords_en": [
+        "video player",
+        "media player",
+        "movies"
+      ],
+      "keywords_ar": [
+        "مشغل فيديو",
+        "افلام",
+        "ميديا"
+      ]
     },
     {
       "id": "com.spotify.Client",
@@ -803,10 +926,20 @@
       "desc_en": "Stream millions of songs and podcasts.",
       "desc_ar": "استمع إلى ملايين الأغاني والبودكاست.",
       "developer": "Spotify",
-      "arch": ["x86_64"],
+      "arch": [
+        "x86_64"
+      ],
       "popular": true,
-      "keywords_en": ["music", "songs", "podcasts"],
-      "keywords_ar": ["موسيقى", "أغاني", "بودكاست"]
+      "keywords_en": [
+        "music",
+        "songs",
+        "podcasts"
+      ],
+      "keywords_ar": [
+        "موسيقى",
+        "أغاني",
+        "بودكاست"
+      ]
     },
     {
       "id": "com.visualstudio.code",
@@ -819,8 +952,16 @@
       "desc_ar": "محرّر الشيفرة الأشهر، مع إضافات لكل لغة.",
       "developer": "Microsoft",
       "popular": true,
-      "keywords_en": ["vscode", "visual studio code", "editor", "ide"],
-      "keywords_ar": ["محرر أكواد", "برمجة"]
+      "keywords_en": [
+        "vscode",
+        "visual studio code",
+        "editor",
+        "ide"
+      ],
+      "keywords_ar": [
+        "محرر أكواد",
+        "برمجة"
+      ]
     },
     {
       "id": "gemini",
@@ -834,14 +975,31 @@
       "developer": "Google",
       "accent": "#1a73e8",
       "popular": true,
-      "keywords_en": ["google ai", "bard", "assistant"],
-      "keywords_ar": ["جوجل", "ذكاء اصطناعي", "مساعد", "جيمناي"],
+      "keywords_en": [
+        "google ai",
+        "bard",
+        "assistant"
+      ],
+      "keywords_ar": [
+        "جوجل",
+        "ذكاء اصطناعي",
+        "مساعد",
+        "جيمناي"
+      ],
       "install": {
         "kind": "webapp",
         "url": "https://gemini.google.com/",
-        "hosts": ["gemini.google.com"],
-        "identity": ["google"],
-        "permissions": ["notifications", "microphone", "clipboard"],
+        "hosts": [
+          "gemini.google.com"
+        ],
+        "identity": [
+          "google"
+        ],
+        "permissions": [
+          "notifications",
+          "microphone",
+          "clipboard"
+        ],
         "accent": "#1a73e8",
         "risk": "web-app",
         "requires_review": true
@@ -857,10 +1015,20 @@
       "desc_en": "Voice, video and text chat for friends, gamers and communities.",
       "desc_ar": "دردشة صوتية ومرئية ونصية للأصدقاء واللاعبين والمجتمعات.",
       "developer": "Discord",
-      "arch": ["x86_64"],
+      "arch": [
+        "x86_64"
+      ],
       "popular": true,
-      "keywords_en": ["voice chat", "gaming", "community"],
-      "keywords_ar": ["دردشة", "ألعاب", "مجتمعات"]
+      "keywords_en": [
+        "voice chat",
+        "gaming",
+        "community"
+      ],
+      "keywords_ar": [
+        "دردشة",
+        "ألعاب",
+        "مجتمعات"
+      ]
     },
     {
       "id": "com.brave.Browser",
@@ -872,8 +1040,15 @@
       "desc_en": "A fast browser that blocks ads and trackers by default.",
       "desc_ar": "متصفّح سريع يحجب الإعلانات والتتبّع افتراضياً.",
       "developer": "Brave Software",
-      "keywords_en": ["browser", "adblock", "privacy"],
-      "keywords_ar": ["متصفح", "حجب الإعلانات"]
+      "keywords_en": [
+        "browser",
+        "adblock",
+        "privacy"
+      ],
+      "keywords_ar": [
+        "متصفح",
+        "حجب الإعلانات"
+      ]
     },
     {
       "id": "com.microsoft.Edge",
@@ -885,9 +1060,18 @@
       "desc_en": "Microsoft's web browser, a good fit for Microsoft 365 and Teams.",
       "desc_ar": "متصفّح مايكروسوفت، مناسب لخدمات Microsoft 365 وتيمز.",
       "developer": "Microsoft",
-      "arch": ["x86_64"],
-      "keywords_en": ["browser", "edge", "microsoft"],
-      "keywords_ar": ["متصفح", "ايدج"]
+      "arch": [
+        "x86_64"
+      ],
+      "keywords_en": [
+        "browser",
+        "edge",
+        "microsoft"
+      ],
+      "keywords_ar": [
+        "متصفح",
+        "ايدج"
+      ]
     },
     {
       "id": "com.opera.Opera",
@@ -899,9 +1083,17 @@
       "desc_en": "A browser with a free built-in VPN and a sidebar for messengers.",
       "desc_ar": "متصفّح فيه VPN مجاني مدمج وشريط جانبي لتطبيقات المراسلة.",
       "developer": "Opera",
-      "arch": ["x86_64"],
-      "keywords_en": ["browser", "vpn"],
-      "keywords_ar": ["متصفح", "اوبرا"]
+      "arch": [
+        "x86_64"
+      ],
+      "keywords_en": [
+        "browser",
+        "vpn"
+      ],
+      "keywords_ar": [
+        "متصفح",
+        "اوبرا"
+      ]
     },
     {
       "id": "app.zen_browser.zen",
@@ -913,8 +1105,14 @@
       "desc_en": "A calm browser based on Firefox, with vertical tabs and workspaces.",
       "desc_ar": "متصفّح هادئ مبني على فايرفوكس، بألسنة عمودية ومساحات عمل.",
       "developer": "Zen Team",
-      "keywords_en": ["browser", "firefox", "tabs"],
-      "keywords_ar": ["متصفح"]
+      "keywords_en": [
+        "browser",
+        "firefox",
+        "tabs"
+      ],
+      "keywords_ar": [
+        "متصفح"
+      ]
     },
     {
       "id": "org.gnome.Snapshot",
@@ -927,8 +1125,16 @@
       "desc_ar": "التقط الصور والفيديو بكاميرا الويب.",
       "developer": "Snapshot team",
       "preselect": true,
-      "keywords_en": ["webcam", "photo", "selfie"],
-      "keywords_ar": ["كاميرا", "تصوير", "سيلفي"]
+      "keywords_en": [
+        "webcam",
+        "photo",
+        "selfie"
+      ],
+      "keywords_ar": [
+        "كاميرا",
+        "تصوير",
+        "سيلفي"
+      ]
     },
     {
       "id": "org.kde.krecorder",
@@ -941,8 +1147,15 @@
       "desc_ar": "سجّل الملاحظات الصوتية والصوت بنقرة واحدة.",
       "developer": "KRecorder team",
       "preselect": true,
-      "keywords_en": ["voice recorder", "audio", "microphone"],
-      "keywords_ar": ["تسجيل صوت", "ملاحظة صوتية"]
+      "keywords_en": [
+        "voice recorder",
+        "audio",
+        "microphone"
+      ],
+      "keywords_ar": [
+        "تسجيل صوت",
+        "ملاحظة صوتية"
+      ]
     },
     {
       "id": "org.signal.Signal",
@@ -954,8 +1167,15 @@
       "desc_en": "Private messaging and calls with end-to-end encryption; link it to Signal on your phone.",
       "desc_ar": "رسائل ومكالمات خاصة بتشفير تام بين الطرفين؛ اربطه بتطبيق سيغنال على هاتفك.",
       "developer": "Signal Foundation",
-      "keywords_en": ["private chat", "encrypted", "messages"],
-      "keywords_ar": ["سيجنال", "رسائل مشفرة"]
+      "keywords_en": [
+        "private chat",
+        "encrypted",
+        "messages"
+      ],
+      "keywords_ar": [
+        "سيجنال",
+        "رسائل مشفرة"
+      ]
     },
     {
       "id": "teams",
@@ -968,14 +1188,35 @@
       "desc_ar": "اجتماعات ودردشة ومكالمات للعمل أو الدراسة أو المنزل، بحساب مايكروسوفت.",
       "developer": "Microsoft",
       "accent": "#5b5fc7",
-      "keywords_en": ["teams", "meetings", "microsoft 365", "video call"],
-      "keywords_ar": ["تيمز", "اجتماعات", "مكالمات فيديو"],
+      "keywords_en": [
+        "teams",
+        "meetings",
+        "microsoft 365",
+        "video call"
+      ],
+      "keywords_ar": [
+        "تيمز",
+        "اجتماعات",
+        "مكالمات فيديو"
+      ],
       "install": {
         "kind": "webapp",
         "url": "https://teams.cloud.microsoft/",
-        "hosts": ["teams.cloud.microsoft", "teams.microsoft.com", "teams.live.com"],
-        "identity": ["microsoft"],
-        "permissions": ["notifications", "microphone", "camera", "screen", "clipboard"],
+        "hosts": [
+          "teams.cloud.microsoft",
+          "teams.microsoft.com",
+          "teams.live.com"
+        ],
+        "identity": [
+          "microsoft"
+        ],
+        "permissions": [
+          "notifications",
+          "microphone",
+          "camera",
+          "screen",
+          "clipboard"
+        ],
         "accent": "#5b5fc7",
         "risk": "web-app",
         "requires_review": true
@@ -991,9 +1232,18 @@
       "desc_en": "Video meetings and webinars.",
       "desc_ar": "اجتماعات فيديو وندوات عبر الإنترنت.",
       "developer": "Zoom Communications",
-      "arch": ["x86_64"],
-      "keywords_en": ["meetings", "video call", "webinar"],
-      "keywords_ar": ["اجتماعات", "مكالمة فيديو"]
+      "arch": [
+        "x86_64"
+      ],
+      "keywords_en": [
+        "meetings",
+        "video call",
+        "webinar"
+      ],
+      "keywords_ar": [
+        "اجتماعات",
+        "مكالمة فيديو"
+      ]
     },
     {
       "id": "google-meet",
@@ -1006,14 +1256,32 @@
       "desc_ar": "اجتماعات فيديو بحساب جوجل، في نافذة خاصة بها.",
       "developer": "Google",
       "accent": "#00796b",
-      "keywords_en": ["meet", "meetings", "video call", "google"],
-      "keywords_ar": ["اجتماعات", "مكالمة فيديو", "ميت"],
+      "keywords_en": [
+        "meet",
+        "meetings",
+        "video call",
+        "google"
+      ],
+      "keywords_ar": [
+        "اجتماعات",
+        "مكالمة فيديو",
+        "ميت"
+      ],
       "install": {
         "kind": "webapp",
         "url": "https://meet.google.com/landing",
-        "hosts": ["meet.google.com"],
-        "identity": ["google"],
-        "permissions": ["notifications", "microphone", "camera", "screen"],
+        "hosts": [
+          "meet.google.com"
+        ],
+        "identity": [
+          "google"
+        ],
+        "permissions": [
+          "notifications",
+          "microphone",
+          "camera",
+          "screen"
+        ],
         "accent": "#00796b",
         "risk": "web-app",
         "requires_review": true
@@ -1030,14 +1298,29 @@
       "desc_ar": "بريدك في جيميل في نافذة خاصة به، مع إشعارات بالرسائل الجديدة.",
       "developer": "Google",
       "accent": "#c5221f",
-      "keywords_en": ["email", "mail", "google"],
-      "keywords_ar": ["بريد", "ايميل", "جي ميل"],
+      "keywords_en": [
+        "email",
+        "mail",
+        "google"
+      ],
+      "keywords_ar": [
+        "بريد",
+        "ايميل",
+        "جي ميل"
+      ],
       "install": {
         "kind": "webapp",
         "url": "https://mail.google.com/mail/u/0/",
-        "hosts": ["mail.google.com"],
-        "identity": ["google"],
-        "permissions": ["notifications", "clipboard"],
+        "hosts": [
+          "mail.google.com"
+        ],
+        "identity": [
+          "google"
+        ],
+        "permissions": [
+          "notifications",
+          "clipboard"
+        ],
         "accent": "#c5221f",
         "risk": "web-app",
         "requires_review": true
@@ -1054,8 +1337,17 @@
       "desc_ar": "بريد مايكروسوفت وتقويمها للحسابات الشخصية، في نافذة خاصة بهما.",
       "developer": "Microsoft",
       "accent": "#0f6cbd",
-      "keywords_en": ["email", "mail", "hotmail", "calendar"],
-      "keywords_ar": ["بريد", "هوتميل", "تقويم"],
+      "keywords_en": [
+        "email",
+        "mail",
+        "hotmail",
+        "calendar"
+      ],
+      "keywords_ar": [
+        "بريد",
+        "هوتميل",
+        "تقويم"
+      ],
       "install": {
         "kind": "webapp",
         "url": "https://outlook.cloud.microsoft/mail/",
@@ -1065,8 +1357,13 @@
           "outlook.office.com",
           "outlook.office365.com"
         ],
-        "identity": ["microsoft"],
-        "permissions": ["notifications", "clipboard"],
+        "identity": [
+          "microsoft"
+        ],
+        "permissions": [
+          "notifications",
+          "clipboard"
+        ],
         "accent": "#0f6cbd",
         "risk": "web-app",
         "requires_review": true
@@ -1082,9 +1379,19 @@
       "desc_en": "Email, calendar and contacts for all your accounts in one app.",
       "desc_ar": "البريد والتقويم وجهات الاتصال لكل حساباتك في تطبيق واحد.",
       "developer": "MZLA Technologies (Mozilla)",
-      "arch": ["x86_64"],
-      "keywords_en": ["email", "mail", "calendar"],
-      "keywords_ar": ["بريد", "ايميل", "تقويم"]
+      "arch": [
+        "x86_64"
+      ],
+      "keywords_en": [
+        "email",
+        "mail",
+        "calendar"
+      ],
+      "keywords_ar": [
+        "بريد",
+        "ايميل",
+        "تقويم"
+      ]
     },
     {
       "id": "im.riot.Riot",
@@ -1096,8 +1403,14 @@
       "desc_en": "Secure chat and calls on the open Matrix network.",
       "desc_ar": "دردشة ومكالمات آمنة على شبكة Matrix المفتوحة.",
       "developer": "Element",
-      "keywords_en": ["matrix", "secure chat"],
-      "keywords_ar": ["ماتريكس", "دردشة آمنة"]
+      "keywords_en": [
+        "matrix",
+        "secure chat"
+      ],
+      "keywords_ar": [
+        "ماتريكس",
+        "دردشة آمنة"
+      ]
     },
     {
       "id": "com.slack.Slack",
@@ -1109,9 +1422,17 @@
       "desc_en": "Team chat and channels for work.",
       "desc_ar": "دردشة وقنوات لفرق العمل.",
       "developer": "Slack Technologies",
-      "arch": ["x86_64"],
-      "keywords_en": ["work chat", "team"],
-      "keywords_ar": ["فريق العمل", "دردشة"]
+      "arch": [
+        "x86_64"
+      ],
+      "keywords_en": [
+        "work chat",
+        "team"
+      ],
+      "keywords_ar": [
+        "فريق العمل",
+        "دردشة"
+      ]
     },
     {
       "id": "org.jitsi.jitsi-meet",
@@ -1123,8 +1444,15 @@
       "desc_en": "Free, encrypted video meetings; guests join without an account.",
       "desc_ar": "اجتماعات فيديو مجانية ومشفّرة؛ ينضم الضيوف دون حساب.",
       "developer": "Jitsi team",
-      "keywords_en": ["meetings", "video call", "free"],
-      "keywords_ar": ["اجتماعات", "مكالمة فيديو"]
+      "keywords_en": [
+        "meetings",
+        "video call",
+        "free"
+      ],
+      "keywords_ar": [
+        "اجتماعات",
+        "مكالمة فيديو"
+      ]
     },
     {
       "id": "org.onlyoffice.desktopeditors",
@@ -1136,8 +1464,20 @@
       "desc_en": "Office editors that keep Word, Excel and PowerPoint files looking exactly right.",
       "desc_ar": "محررات مكتبية تحافظ على شكل ملفات وورد وإكسل وباوربوينت كما هي.",
       "developer": "ONLYOFFICE",
-      "keywords_en": ["office", "word", "excel", "powerpoint", "docx", "xlsx"],
-      "keywords_ar": ["أوفيس", "وورد", "اكسل", "باوربوينت"]
+      "keywords_en": [
+        "office",
+        "word",
+        "excel",
+        "powerpoint",
+        "docx",
+        "xlsx"
+      ],
+      "keywords_ar": [
+        "أوفيس",
+        "وورد",
+        "اكسل",
+        "باوربوينت"
+      ]
     },
     {
       "id": "word",
@@ -1150,8 +1490,18 @@
       "desc_ar": "مايكروسوفت وورد على الويب في نافذة خاصة به؛ مجاني بحساب مايكروسوفت.",
       "developer": "Microsoft",
       "accent": "#185abd",
-      "keywords_en": ["word", "docx", "documents", "microsoft 365", "office"],
-      "keywords_ar": ["وورد", "مستندات", "أوفيس"],
+      "keywords_en": [
+        "word",
+        "docx",
+        "documents",
+        "microsoft 365",
+        "office"
+      ],
+      "keywords_ar": [
+        "وورد",
+        "مستندات",
+        "أوفيس"
+      ],
       "install": {
         "kind": "webapp",
         "url": "https://word.cloud.microsoft/",
@@ -1162,8 +1512,12 @@
           "*.sharepoint.com",
           "*.officeapps.live.com"
         ],
-        "identity": ["microsoft"],
-        "permissions": ["clipboard"],
+        "identity": [
+          "microsoft"
+        ],
+        "permissions": [
+          "clipboard"
+        ],
         "accent": "#185abd",
         "risk": "web-app",
         "requires_review": true
@@ -1180,8 +1534,18 @@
       "desc_ar": "مايكروسوفت إكسل على الويب في نافذة خاصة به؛ مجاني بحساب مايكروسوفت.",
       "developer": "Microsoft",
       "accent": "#107c41",
-      "keywords_en": ["excel", "xlsx", "spreadsheet", "microsoft 365", "office"],
-      "keywords_ar": ["اكسل", "جداول", "أوفيس"],
+      "keywords_en": [
+        "excel",
+        "xlsx",
+        "spreadsheet",
+        "microsoft 365",
+        "office"
+      ],
+      "keywords_ar": [
+        "اكسل",
+        "جداول",
+        "أوفيس"
+      ],
       "install": {
         "kind": "webapp",
         "url": "https://excel.cloud.microsoft/",
@@ -1192,8 +1556,12 @@
           "*.sharepoint.com",
           "*.officeapps.live.com"
         ],
-        "identity": ["microsoft"],
-        "permissions": ["clipboard"],
+        "identity": [
+          "microsoft"
+        ],
+        "permissions": [
+          "clipboard"
+        ],
         "accent": "#107c41",
         "risk": "web-app",
         "requires_review": true
@@ -1210,8 +1578,18 @@
       "desc_ar": "مايكروسوفت باوربوينت على الويب في نافذة خاصة به؛ مجاني بحساب مايكروسوفت.",
       "developer": "Microsoft",
       "accent": "#c43e1c",
-      "keywords_en": ["powerpoint", "pptx", "slides", "presentation", "office"],
-      "keywords_ar": ["باوربوينت", "عروض تقديمية", "أوفيس"],
+      "keywords_en": [
+        "powerpoint",
+        "pptx",
+        "slides",
+        "presentation",
+        "office"
+      ],
+      "keywords_ar": [
+        "باوربوينت",
+        "عروض تقديمية",
+        "أوفيس"
+      ],
       "install": {
         "kind": "webapp",
         "url": "https://powerpoint.cloud.microsoft/",
@@ -1222,8 +1600,12 @@
           "*.sharepoint.com",
           "*.officeapps.live.com"
         ],
-        "identity": ["microsoft"],
-        "permissions": ["clipboard"],
+        "identity": [
+          "microsoft"
+        ],
+        "permissions": [
+          "clipboard"
+        ],
         "accent": "#c43e1c",
         "risk": "web-app",
         "requires_review": true
@@ -1240,14 +1622,31 @@
       "desc_ar": "ملفاتك في سحابة مايكروسوفت في نافذة خاصة بها.",
       "developer": "Microsoft",
       "accent": "#0364b8",
-      "keywords_en": ["onedrive", "cloud", "files", "microsoft 365"],
-      "keywords_ar": ["سحابة", "ملفات", "تخزين سحابي"],
+      "keywords_en": [
+        "onedrive",
+        "cloud",
+        "files",
+        "microsoft 365"
+      ],
+      "keywords_ar": [
+        "سحابة",
+        "ملفات",
+        "تخزين سحابي"
+      ],
       "install": {
         "kind": "webapp",
         "url": "https://onedrive.live.com/login/",
-        "hosts": ["onedrive.live.com", "*.sharepoint.com", "*.cloud.microsoft"],
-        "identity": ["microsoft"],
-        "permissions": ["clipboard"],
+        "hosts": [
+          "onedrive.live.com",
+          "*.sharepoint.com",
+          "*.cloud.microsoft"
+        ],
+        "identity": [
+          "microsoft"
+        ],
+        "permissions": [
+          "clipboard"
+        ],
         "accent": "#0364b8",
         "risk": "web-app",
         "requires_review": true
@@ -1264,14 +1663,30 @@
       "desc_ar": "اكتب المستندات وشاركها بحساب جوجل، في نافذة خاصة بها.",
       "developer": "Google",
       "accent": "#1a73e8",
-      "keywords_en": ["docs", "documents", "google", "word"],
-      "keywords_ar": ["مستندات", "جوجل دوكس", "كتابة"],
+      "keywords_en": [
+        "docs",
+        "documents",
+        "google",
+        "word"
+      ],
+      "keywords_ar": [
+        "مستندات",
+        "جوجل دوكس",
+        "كتابة"
+      ],
       "install": {
         "kind": "webapp",
         "url": "https://docs.google.com/document/",
-        "hosts": ["docs.google.com", "drive.google.com"],
-        "identity": ["google"],
-        "permissions": ["clipboard"],
+        "hosts": [
+          "docs.google.com",
+          "drive.google.com"
+        ],
+        "identity": [
+          "google"
+        ],
+        "permissions": [
+          "clipboard"
+        ],
         "accent": "#1a73e8",
         "risk": "web-app",
         "requires_review": true
@@ -1288,14 +1703,30 @@
       "desc_ar": "جداول بيانات تشاركها وتحررها مع غيرك، في نافذة خاصة بها.",
       "developer": "Google",
       "accent": "#188038",
-      "keywords_en": ["sheets", "spreadsheet", "excel", "google"],
-      "keywords_ar": ["جداول", "اكسل", "جوجل شيت"],
+      "keywords_en": [
+        "sheets",
+        "spreadsheet",
+        "excel",
+        "google"
+      ],
+      "keywords_ar": [
+        "جداول",
+        "اكسل",
+        "جوجل شيت"
+      ],
       "install": {
         "kind": "webapp",
         "url": "https://docs.google.com/spreadsheets/",
-        "hosts": ["docs.google.com", "drive.google.com"],
-        "identity": ["google"],
-        "permissions": ["clipboard"],
+        "hosts": [
+          "docs.google.com",
+          "drive.google.com"
+        ],
+        "identity": [
+          "google"
+        ],
+        "permissions": [
+          "clipboard"
+        ],
         "accent": "#188038",
         "risk": "web-app",
         "requires_review": true
@@ -1312,14 +1743,30 @@
       "desc_ar": "عروض تقديمية تصممها وتقدمها مع غيرك، في نافذة خاصة بها.",
       "developer": "Google",
       "accent": "#b06000",
-      "keywords_en": ["slides", "presentation", "powerpoint", "google"],
-      "keywords_ar": ["عروض تقديمية", "باوربوينت", "شرائح"],
+      "keywords_en": [
+        "slides",
+        "presentation",
+        "powerpoint",
+        "google"
+      ],
+      "keywords_ar": [
+        "عروض تقديمية",
+        "باوربوينت",
+        "شرائح"
+      ],
       "install": {
         "kind": "webapp",
         "url": "https://docs.google.com/presentation/",
-        "hosts": ["docs.google.com", "drive.google.com"],
-        "identity": ["google"],
-        "permissions": ["clipboard"],
+        "hosts": [
+          "docs.google.com",
+          "drive.google.com"
+        ],
+        "identity": [
+          "google"
+        ],
+        "permissions": [
+          "clipboard"
+        ],
         "accent": "#b06000",
         "risk": "web-app",
         "requires_review": true
@@ -1336,14 +1783,30 @@
       "desc_ar": "ملفاتك في جوجل درايف في نافذة خاصة بها.",
       "developer": "Google",
       "accent": "#1967d2",
-      "keywords_en": ["drive", "cloud", "files", "google"],
-      "keywords_ar": ["درايف", "سحابة", "ملفات"],
+      "keywords_en": [
+        "drive",
+        "cloud",
+        "files",
+        "google"
+      ],
+      "keywords_ar": [
+        "درايف",
+        "سحابة",
+        "ملفات"
+      ],
       "install": {
         "kind": "webapp",
         "url": "https://drive.google.com/drive/my-drive",
-        "hosts": ["drive.google.com", "docs.google.com"],
-        "identity": ["google"],
-        "permissions": ["clipboard"],
+        "hosts": [
+          "drive.google.com",
+          "docs.google.com"
+        ],
+        "identity": [
+          "google"
+        ],
+        "permissions": [
+          "clipboard"
+        ],
         "accent": "#1967d2",
         "risk": "web-app",
         "requires_review": true
@@ -1360,14 +1823,34 @@
       "desc_ar": "ملاحظات ومستندات وموسوعات للفريق في مساحة عمل واحدة، في نافذة خاصة بها.",
       "developer": "Notion Labs",
       "accent": "#191919",
-      "keywords_en": ["notion", "notes", "wiki", "workspace"],
-      "keywords_ar": ["ملاحظات", "مساحة عمل"],
+      "keywords_en": [
+        "notion",
+        "notes",
+        "wiki",
+        "workspace"
+      ],
+      "keywords_ar": [
+        "ملاحظات",
+        "مساحة عمل"
+      ],
       "install": {
         "kind": "webapp",
         "url": "https://app.notion.com/",
-        "hosts": ["app.notion.com", "www.notion.so", "notion.so", "www.notion.com"],
-        "identity": ["google", "apple", "microsoft"],
-        "permissions": ["notifications", "clipboard"],
+        "hosts": [
+          "app.notion.com",
+          "www.notion.so",
+          "notion.so",
+          "www.notion.com"
+        ],
+        "identity": [
+          "google",
+          "apple",
+          "microsoft"
+        ],
+        "permissions": [
+          "notifications",
+          "clipboard"
+        ],
         "accent": "#191919",
         "risk": "web-app",
         "requires_review": true
@@ -1383,8 +1866,16 @@
       "desc_en": "Merge, split, rotate and reorder the pages of PDF files.",
       "desc_ar": "ادمج ملفات PDF وقسّمها ودوّر صفحاتها ورتّبها.",
       "developer": "PDF Arranger team",
-      "keywords_en": ["pdf", "merge pdf", "split pdf"],
-      "keywords_ar": ["دمج pdf", "تقسيم pdf", "بي دي اف"]
+      "keywords_en": [
+        "pdf",
+        "merge pdf",
+        "split pdf"
+      ],
+      "keywords_ar": [
+        "دمج pdf",
+        "تقسيم pdf",
+        "بي دي اف"
+      ]
     },
     {
       "id": "org.kde.skanpage",
@@ -1396,8 +1887,16 @@
       "desc_en": "Scan multi-page documents and photos and save them as PDF.",
       "desc_ar": "امسح المستندات متعددة الصفحات والصور واحفظها بصيغة PDF.",
       "developer": "Skanpage team",
-      "keywords_en": ["scanner", "scan", "pdf"],
-      "keywords_ar": ["ماسح ضوئي", "سكانر", "مسح"]
+      "keywords_en": [
+        "scanner",
+        "scan",
+        "pdf"
+      ],
+      "keywords_ar": [
+        "ماسح ضوئي",
+        "سكانر",
+        "مسح"
+      ]
     },
     {
       "id": "com.github.xournalpp.xournalpp",
@@ -1409,8 +1908,17 @@
       "desc_en": "Handwritten notes and PDF annotation, made for pens and tablets.",
       "desc_ar": "ملاحظات بخط اليد وتعليق على ملفات PDF، مصمم للأقلام والألواح.",
       "developer": "Xournal++ team",
-      "keywords_en": ["handwriting", "notes", "pdf", "stylus"],
-      "keywords_ar": ["كتابة بخط اليد", "ملاحظات", "قلم"]
+      "keywords_en": [
+        "handwriting",
+        "notes",
+        "pdf",
+        "stylus"
+      ],
+      "keywords_ar": [
+        "كتابة بخط اليد",
+        "ملاحظات",
+        "قلم"
+      ]
     },
     {
       "id": "md.obsidian.Obsidian",
@@ -1422,8 +1930,15 @@
       "desc_en": "A private knowledge base of linked notes, stored as plain files on your computer.",
       "desc_ar": "قاعدة معرفة خاصة من ملاحظات مترابطة، محفوظة كملفات عادية على جهازك.",
       "developer": "Obsidian",
-      "keywords_en": ["notes", "markdown", "knowledge"],
-      "keywords_ar": ["ملاحظات", "تدوين"]
+      "keywords_en": [
+        "notes",
+        "markdown",
+        "knowledge"
+      ],
+      "keywords_ar": [
+        "ملاحظات",
+        "تدوين"
+      ]
     },
     {
       "id": "net.cozic.joplin_desktop",
@@ -1435,8 +1950,15 @@
       "desc_en": "Open-source notes and to-dos with encrypted sync between your devices.",
       "desc_ar": "ملاحظات ومهام مفتوحة المصدر مع مزامنة مشفّرة بين أجهزتك.",
       "developer": "Laurent Cozic",
-      "keywords_en": ["notes", "todo", "sync"],
-      "keywords_ar": ["ملاحظات", "مهام"]
+      "keywords_en": [
+        "notes",
+        "todo",
+        "sync"
+      ],
+      "keywords_ar": [
+        "ملاحظات",
+        "مهام"
+      ]
     },
     {
       "id": "com.logseq.Logseq",
@@ -1448,8 +1970,15 @@
       "desc_en": "An outliner for connected notes and daily journals, kept on your computer.",
       "desc_ar": "مخطط لملاحظات مترابطة ويوميات، محفوظ على جهازك.",
       "developer": "Logseq",
-      "keywords_en": ["notes", "outliner", "journal"],
-      "keywords_ar": ["ملاحظات", "يوميات"]
+      "keywords_en": [
+        "notes",
+        "outliner",
+        "journal"
+      ],
+      "keywords_ar": [
+        "ملاحظات",
+        "يوميات"
+      ]
     },
     {
       "id": "io.appflowy.AppFlowy",
@@ -1461,9 +1990,19 @@
       "desc_en": "Open-source docs, wikis and project boards, an alternative to Notion.",
       "desc_ar": "مستندات وموسوعات ولوحات مشاريع مفتوحة المصدر، بديل لنوشن.",
       "developer": "AppFlowy",
-      "arch": ["x86_64"],
-      "keywords_en": ["notion", "wiki", "tasks"],
-      "keywords_ar": ["نوشن", "مهام", "مشاريع"]
+      "arch": [
+        "x86_64"
+      ],
+      "keywords_en": [
+        "notion",
+        "wiki",
+        "tasks"
+      ],
+      "keywords_ar": [
+        "نوشن",
+        "مهام",
+        "مشاريع"
+      ]
     },
     {
       "id": "io.anytype.anytype",
@@ -1475,9 +2014,18 @@
       "desc_en": "An encrypted, local-first space for notes, tasks and wikis.",
       "desc_ar": "مساحة مشفّرة تعمل محلياً أولاً للملاحظات والمهام والموسوعات.",
       "developer": "Any Association",
-      "arch": ["x86_64"],
-      "keywords_en": ["notes", "notion", "tasks"],
-      "keywords_ar": ["ملاحظات", "مهام"]
+      "arch": [
+        "x86_64"
+      ],
+      "keywords_en": [
+        "notes",
+        "notion",
+        "tasks"
+      ],
+      "keywords_ar": [
+        "ملاحظات",
+        "مهام"
+      ]
     },
     {
       "id": "com.github.flxzt.rnote",
@@ -1489,8 +2037,16 @@
       "desc_en": "Sketch and take handwritten notes with a pen or your finger.",
       "desc_ar": "ارسم ودوّن ملاحظات بخط اليد بالقلم أو بإصبعك.",
       "developer": "Felix Zwettler",
-      "keywords_en": ["sketch", "handwriting", "whiteboard"],
-      "keywords_ar": ["رسم", "كتابة بخط اليد", "سبورة"]
+      "keywords_en": [
+        "sketch",
+        "handwriting",
+        "whiteboard"
+      ],
+      "keywords_ar": [
+        "رسم",
+        "كتابة بخط اليد",
+        "سبورة"
+      ]
     },
     {
       "id": "com.calibre_ebook.calibre",
@@ -1502,8 +2058,17 @@
       "desc_en": "Organize your e-book library, convert between formats and read.",
       "desc_ar": "نظّم مكتبة كتبك الإلكترونية وحوّل بين صيغها واقرأها.",
       "developer": "Kovid Goyal",
-      "keywords_en": ["ebook", "epub", "kindle", "library"],
-      "keywords_ar": ["كتب إلكترونية", "مكتبة", "قراءة"]
+      "keywords_en": [
+        "ebook",
+        "epub",
+        "kindle",
+        "library"
+      ],
+      "keywords_ar": [
+        "كتب إلكترونية",
+        "مكتبة",
+        "قراءة"
+      ]
     },
     {
       "id": "org.zotero.Zotero",
@@ -1515,8 +2080,17 @@
       "desc_en": "Collect, organize and cite your research sources.",
       "desc_ar": "اجمع مصادر بحثك ونظّمها واستشهد بها.",
       "developer": "Corporation for Digital Scholarship",
-      "keywords_en": ["citations", "references", "research", "thesis"],
-      "keywords_ar": ["مراجع", "بحث علمي", "رسالة"]
+      "keywords_en": [
+        "citations",
+        "references",
+        "research",
+        "thesis"
+      ],
+      "keywords_ar": [
+        "مراجع",
+        "بحث علمي",
+        "رسالة"
+      ]
     },
     {
       "id": "org.gimp.GIMP",
@@ -1528,8 +2102,16 @@
       "desc_en": "Professional photo editing and retouching, free and open source.",
       "desc_ar": "تحرير الصور وتنقيحها باحترافية، مجاني ومفتوح المصدر.",
       "developer": "The GIMP team",
-      "keywords_en": ["photoshop", "photo editor", "image editor"],
-      "keywords_ar": ["فوتوشوب", "تعديل الصور", "جمب"]
+      "keywords_en": [
+        "photoshop",
+        "photo editor",
+        "image editor"
+      ],
+      "keywords_ar": [
+        "فوتوشوب",
+        "تعديل الصور",
+        "جمب"
+      ]
     },
     {
       "id": "org.kde.krita",
@@ -1541,8 +2123,17 @@
       "desc_en": "Digital painting and illustration with brushes made for artists.",
       "desc_ar": "رسم رقمي ورسوم توضيحية بفُرش مصممة للفنانين.",
       "developer": "Krita Foundation",
-      "keywords_en": ["painting", "drawing", "illustration", "photoshop"],
-      "keywords_ar": ["رسم", "رسم رقمي", "فوتوشوب"]
+      "keywords_en": [
+        "painting",
+        "drawing",
+        "illustration",
+        "photoshop"
+      ],
+      "keywords_ar": [
+        "رسم",
+        "رسم رقمي",
+        "فوتوشوب"
+      ]
     },
     {
       "id": "org.inkscape.Inkscape",
@@ -1554,8 +2145,17 @@
       "desc_en": "Vector drawing for logos, icons and print, an alternative to Illustrator.",
       "desc_ar": "رسم متجهي للشعارات والأيقونات والطباعة، بديل لإليستريتور.",
       "developer": "Inkscape project",
-      "keywords_en": ["illustrator", "vector", "svg", "logo"],
-      "keywords_ar": ["اليستريتور", "رسم متجهي", "شعار"]
+      "keywords_en": [
+        "illustrator",
+        "vector",
+        "svg",
+        "logo"
+      ],
+      "keywords_ar": [
+        "اليستريتور",
+        "رسم متجهي",
+        "شعار"
+      ]
     },
     {
       "id": "canva",
@@ -1568,14 +2168,32 @@
       "desc_ar": "صمّم المنشورات والملصقات والعروض من قوالب جاهزة، في نافذة خاصة به.",
       "developer": "Canva",
       "accent": "#7d2ae8",
-      "keywords_en": ["design", "templates", "poster", "social media"],
-      "keywords_ar": ["تصميم", "قوالب", "بوستر"],
+      "keywords_en": [
+        "design",
+        "templates",
+        "poster",
+        "social media"
+      ],
+      "keywords_ar": [
+        "تصميم",
+        "قوالب",
+        "بوستر"
+      ],
       "install": {
         "kind": "webapp",
         "url": "https://www.canva.com/",
-        "hosts": ["www.canva.com", "*.canva.com"],
-        "identity": ["google", "microsoft", "apple"],
-        "permissions": ["clipboard"],
+        "hosts": [
+          "www.canva.com",
+          "*.canva.com"
+        ],
+        "identity": [
+          "google",
+          "microsoft",
+          "apple"
+        ],
+        "permissions": [
+          "clipboard"
+        ],
         "accent": "#7d2ae8",
         "risk": "web-app",
         "requires_review": true
@@ -1592,14 +2210,28 @@
       "desc_ar": "صمّم الواجهات والنماذج الأولية مع فريقك؛ يحتاج بطاقة رسوميات تدعم WebGL.",
       "developer": "Figma",
       "accent": "#2c2c2c",
-      "keywords_en": ["ui design", "prototype", "design"],
-      "keywords_ar": ["تصميم واجهات", "تصميم"],
+      "keywords_en": [
+        "ui design",
+        "prototype",
+        "design"
+      ],
+      "keywords_ar": [
+        "تصميم واجهات",
+        "تصميم"
+      ],
       "install": {
         "kind": "webapp",
         "url": "https://www.figma.com/",
-        "hosts": ["www.figma.com", "figma.com"],
-        "identity": ["google"],
-        "permissions": ["clipboard"],
+        "hosts": [
+          "www.figma.com",
+          "figma.com"
+        ],
+        "identity": [
+          "google"
+        ],
+        "permissions": [
+          "clipboard"
+        ],
         "accent": "#2c2c2c",
         "risk": "web-app",
         "requires_review": true
@@ -1616,14 +2248,25 @@
       "desc_ar": "محرّر صور مجاني يشبه فوتوشوب ولا يحتاج إلى حساب؛ فيه إعلانات.",
       "developer": "Photopea (Ivan Kutskir)",
       "accent": "#1f8a70",
-      "keywords_en": ["photoshop", "psd", "photo editor"],
-      "keywords_ar": ["فوتوشوب", "تعديل الصور"],
+      "keywords_en": [
+        "photoshop",
+        "psd",
+        "photo editor"
+      ],
+      "keywords_ar": [
+        "فوتوشوب",
+        "تعديل الصور"
+      ],
       "install": {
         "kind": "webapp",
         "url": "https://www.photopea.com/",
-        "hosts": ["www.photopea.com"],
+        "hosts": [
+          "www.photopea.com"
+        ],
         "identity": [],
-        "permissions": ["clipboard"],
+        "permissions": [
+          "clipboard"
+        ],
         "accent": "#1f8a70",
         "risk": "web-app",
         "requires_review": true
@@ -1639,8 +2282,16 @@
       "desc_en": "Develop and organize RAW photos from your camera.",
       "desc_ar": "حمّض صور RAW من كاميرتك ونظّمها.",
       "developer": "darktable developers",
-      "keywords_en": ["raw", "lightroom", "photography"],
-      "keywords_ar": ["لايت روم", "تصوير", "صور خام"]
+      "keywords_en": [
+        "raw",
+        "lightroom",
+        "photography"
+      ],
+      "keywords_ar": [
+        "لايت روم",
+        "تصوير",
+        "صور خام"
+      ]
     },
     {
       "id": "com.github.PintaProject.Pinta",
@@ -1652,8 +2303,15 @@
       "desc_en": "A simple image editor in the spirit of Paint.NET.",
       "desc_ar": "محرّر صور بسيط على طريقة Paint.NET.",
       "developer": "Pinta project",
-      "keywords_en": ["paint", "paint.net", "image editor"],
-      "keywords_ar": ["رسام", "تعديل الصور"]
+      "keywords_en": [
+        "paint",
+        "paint.net",
+        "image editor"
+      ],
+      "keywords_ar": [
+        "رسام",
+        "تعديل الصور"
+      ]
     },
     {
       "id": "org.kde.digikam",
@@ -1665,8 +2323,15 @@
       "desc_en": "Manage, tag and find photos in a large library.",
       "desc_ar": "أدر الصور ووسّمها وابحث عنها في مكتبة كبيرة.",
       "developer": "digiKam team",
-      "keywords_en": ["photo library", "photos", "tags"],
-      "keywords_ar": ["مكتبة صور", "ألبوم"]
+      "keywords_en": [
+        "photo library",
+        "photos",
+        "tags"
+      ],
+      "keywords_ar": [
+        "مكتبة صور",
+        "ألبوم"
+      ]
     },
     {
       "id": "org.blender.Blender",
@@ -1678,9 +2343,19 @@
       "desc_en": "3D modelling, animation, rendering and video editing.",
       "desc_ar": "نمذجة ثلاثية الأبعاد وتحريك وتصيير وتحرير فيديو.",
       "developer": "Blender Foundation",
-      "arch": ["x86_64"],
-      "keywords_en": ["3d", "animation", "modeling"],
-      "keywords_ar": ["ثلاثي الأبعاد", "تحريك", "مونتاج"]
+      "arch": [
+        "x86_64"
+      ],
+      "keywords_en": [
+        "3d",
+        "animation",
+        "modeling"
+      ],
+      "keywords_ar": [
+        "ثلاثي الأبعاد",
+        "تحريك",
+        "مونتاج"
+      ]
     },
     {
       "id": "org.freecad.FreeCAD",
@@ -1692,8 +2367,17 @@
       "desc_en": "Parametric 3D design for engineering and 3D printing.",
       "desc_ar": "تصميم ثلاثي الأبعاد بالمعاملات للهندسة والطباعة ثلاثية الأبعاد.",
       "developer": "FreeCAD project",
-      "keywords_en": ["cad", "autocad", "3d printing", "engineering"],
-      "keywords_ar": ["أوتوكاد", "هندسة", "طباعة ثلاثية"]
+      "keywords_en": [
+        "cad",
+        "autocad",
+        "3d printing",
+        "engineering"
+      ],
+      "keywords_ar": [
+        "أوتوكاد",
+        "هندسة",
+        "طباعة ثلاثية"
+      ]
     },
     {
       "id": "youtube",
@@ -1706,14 +2390,27 @@
       "desc_ar": "يوتيوب في نافذة خاصة به، وبحساب جوجل إن أردت.",
       "developer": "Google",
       "accent": "#cc0000",
-      "keywords_en": ["videos", "youtube"],
-      "keywords_ar": ["فيديو", "يوتيوب"],
+      "keywords_en": [
+        "videos",
+        "youtube"
+      ],
+      "keywords_ar": [
+        "فيديو",
+        "يوتيوب"
+      ],
       "install": {
         "kind": "webapp",
         "url": "https://www.youtube.com/",
-        "hosts": ["www.youtube.com", "m.youtube.com"],
-        "identity": ["google"],
-        "permissions": ["clipboard"],
+        "hosts": [
+          "www.youtube.com",
+          "m.youtube.com"
+        ],
+        "identity": [
+          "google"
+        ],
+        "permissions": [
+          "clipboard"
+        ],
         "accent": "#cc0000",
         "risk": "web-app",
         "requires_review": true
@@ -1729,8 +2426,15 @@
       "desc_en": "A full video editor with multiple tracks, effects and titles.",
       "desc_ar": "محرّر فيديو متكامل بمسارات متعددة ومؤثرات وعناوين.",
       "developer": "Kdenlive team",
-      "keywords_en": ["video editor", "montage", "premiere"],
-      "keywords_ar": ["مونتاج", "تحرير فيديو"]
+      "keywords_en": [
+        "video editor",
+        "montage",
+        "premiere"
+      ],
+      "keywords_ar": [
+        "مونتاج",
+        "تحرير فيديو"
+      ]
     },
     {
       "id": "org.shotcut.Shotcut",
@@ -1742,8 +2446,14 @@
       "desc_en": "A straightforward video editor that handles most formats.",
       "desc_ar": "محرّر فيديو سهل يتعامل مع معظم الصيغ.",
       "developer": "Meltytech",
-      "keywords_en": ["video editor", "montage"],
-      "keywords_ar": ["مونتاج", "تحرير فيديو"]
+      "keywords_en": [
+        "video editor",
+        "montage"
+      ],
+      "keywords_ar": [
+        "مونتاج",
+        "تحرير فيديو"
+      ]
     },
     {
       "id": "com.obsproject.Studio",
@@ -1755,9 +2465,18 @@
       "desc_en": "Record your screen and stream live, studio-grade.",
       "desc_ar": "سجّل شاشتك وابثّ مباشرة باحترافية.",
       "developer": "OBS Project",
-      "arch": ["x86_64"],
-      "keywords_en": ["screen recorder", "streaming", "obs"],
-      "keywords_ar": ["تسجيل الشاشة", "بث مباشر"]
+      "arch": [
+        "x86_64"
+      ],
+      "keywords_en": [
+        "screen recorder",
+        "streaming",
+        "obs"
+      ],
+      "keywords_ar": [
+        "تسجيل الشاشة",
+        "بث مباشر"
+      ]
     },
     {
       "id": "org.audacityteam.Audacity",
@@ -1769,8 +2488,15 @@
       "desc_en": "Record and edit audio, from voice notes to podcasts.",
       "desc_ar": "سجّل الصوت وحرّره، من الملاحظات الصوتية إلى البودكاست.",
       "developer": "Muse Group",
-      "keywords_en": ["audio editor", "recording", "podcast"],
-      "keywords_ar": ["تحرير الصوت", "تسجيل صوت"]
+      "keywords_en": [
+        "audio editor",
+        "recording",
+        "podcast"
+      ],
+      "keywords_ar": [
+        "تحرير الصوت",
+        "تسجيل صوت"
+      ]
     },
     {
       "id": "fr.handbrake.ghb",
@@ -1782,9 +2508,18 @@
       "desc_en": "Convert and shrink videos for phones, the web and storage.",
       "desc_ar": "حوّل الفيديو وقلّل حجمه للهواتف والويب والتخزين.",
       "developer": "HandBrake team",
-      "arch": ["x86_64"],
-      "keywords_en": ["video converter", "compress video", "mp4"],
-      "keywords_ar": ["تحويل الفيديو", "ضغط الفيديو"]
+      "arch": [
+        "x86_64"
+      ],
+      "keywords_en": [
+        "video converter",
+        "compress video",
+        "mp4"
+      ],
+      "keywords_ar": [
+        "تحويل الفيديو",
+        "ضغط الفيديو"
+      ]
     },
     {
       "id": "org.kde.elisa",
@@ -1796,8 +2531,16 @@
       "desc_en": "A tidy music player for your own song collection and online radio.",
       "desc_ar": "مشغّل موسيقى أنيق لمجموعة أغانيك والإذاعات على الإنترنت.",
       "developer": "Elisa team",
-      "keywords_en": ["music player", "mp3", "radio"],
-      "keywords_ar": ["مشغل موسيقى", "أغاني", "راديو"]
+      "keywords_en": [
+        "music player",
+        "mp3",
+        "radio"
+      ],
+      "keywords_ar": [
+        "مشغل موسيقى",
+        "أغاني",
+        "راديو"
+      ]
     },
     {
       "id": "tv.kodi.Kodi",
@@ -1809,8 +2552,16 @@
       "desc_en": "A media centre for films, shows and music on a big screen.",
       "desc_ar": "مركز وسائط للأفلام والمسلسلات والموسيقى على الشاشة الكبيرة.",
       "developer": "Team Kodi",
-      "keywords_en": ["media center", "tv", "movies"],
-      "keywords_ar": ["مركز وسائط", "تلفاز", "أفلام"]
+      "keywords_en": [
+        "media center",
+        "tv",
+        "movies"
+      ],
+      "keywords_ar": [
+        "مركز وسائط",
+        "تلفاز",
+        "أفلام"
+      ]
     },
     {
       "id": "org.jellyfin.JellyfinDesktop",
@@ -1822,8 +2573,15 @@
       "desc_en": "Watch the films and shows on your own Jellyfin media server.",
       "desc_ar": "شاهد الأفلام والمسلسلات من خادم Jellyfin الخاص بك.",
       "developer": "Jellyfin project",
-      "keywords_en": ["media server", "movies", "streaming"],
-      "keywords_ar": ["خادم وسائط", "أفلام"]
+      "keywords_en": [
+        "media server",
+        "movies",
+        "streaming"
+      ],
+      "keywords_ar": [
+        "خادم وسائط",
+        "أفلام"
+      ]
     },
     {
       "id": "org.nickvision.tubeconverter",
@@ -1835,8 +2593,15 @@
       "desc_en": "Download video and audio from the web, from sites you are allowed to save from.",
       "desc_ar": "نزّل الفيديو والصوت من الويب، من المواقع التي يُسمح بالحفظ منها.",
       "developer": "Nickvision",
-      "keywords_en": ["video downloader", "youtube downloader", "mp3"],
-      "keywords_ar": ["تنزيل فيديو", "تحميل"]
+      "keywords_en": [
+        "video downloader",
+        "youtube downloader",
+        "mp3"
+      ],
+      "keywords_ar": [
+        "تنزيل فيديو",
+        "تحميل"
+      ]
     },
     {
       "id": "com.github.wwmm.easyeffects",
@@ -1848,8 +2613,15 @@
       "desc_en": "An equalizer and effects for your speakers, plus noise reduction for your microphone.",
       "desc_ar": "معادل صوت ومؤثرات للسماعات، مع إزالة الضجيج من الميكروفون.",
       "developer": "Wellington Wallace",
-      "keywords_en": ["equalizer", "noise reduction", "audio effects"],
-      "keywords_ar": ["معادل صوت", "إزالة الضجيج"]
+      "keywords_en": [
+        "equalizer",
+        "noise reduction",
+        "audio effects"
+      ],
+      "keywords_ar": [
+        "معادل صوت",
+        "إزالة الضجيج"
+      ]
     },
     {
       "id": "com.heroicgameslauncher.hgl",
@@ -1861,9 +2633,18 @@
       "desc_en": "Plays your Epic Games, GOG and Amazon games.",
       "desc_ar": "يشغّل ألعابك من Epic Games وGOG وأمازون.",
       "developer": "Heroic Games Launcher team",
-      "arch": ["x86_64"],
-      "keywords_en": ["epic games", "gog", "launcher"],
-      "keywords_ar": ["ألعاب", "إيبك"]
+      "arch": [
+        "x86_64"
+      ],
+      "keywords_en": [
+        "epic games",
+        "gog",
+        "launcher"
+      ],
+      "keywords_ar": [
+        "ألعاب",
+        "إيبك"
+      ]
     },
     {
       "id": "org.prismlauncher.PrismLauncher",
@@ -1875,8 +2656,14 @@
       "desc_en": "Install and play Minecraft Java Edition, with mods and several versions side by side.",
       "desc_ar": "ثبّت ماينكرافت جافا والعبها، مع الإضافات وعدة إصدارات جنباً إلى جنب.",
       "developer": "Prism Launcher contributors",
-      "keywords_en": ["minecraft", "mods"],
-      "keywords_ar": ["ماينكرافت", "ماين كرافت"]
+      "keywords_en": [
+        "minecraft",
+        "mods"
+      ],
+      "keywords_ar": [
+        "ماينكرافت",
+        "ماين كرافت"
+      ]
     },
     {
       "id": "org.libretro.RetroArch",
@@ -1888,8 +2675,15 @@
       "desc_en": "Play classic console games you own, through one front end.",
       "desc_ar": "العب ألعاب الأجهزة الكلاسيكية التي تملكها من واجهة واحدة.",
       "developer": "libretro",
-      "keywords_en": ["retro", "emulator", "console"],
-      "keywords_ar": ["ألعاب قديمة", "محاكي"]
+      "keywords_en": [
+        "retro",
+        "emulator",
+        "console"
+      ],
+      "keywords_ar": [
+        "ألعاب قديمة",
+        "محاكي"
+      ]
     },
     {
       "id": "net.supertuxkart.SuperTuxKart",
@@ -1901,8 +2695,16 @@
       "desc_en": "A fun, free kart racer to play alone or with friends.",
       "desc_ar": "سباق كارت ممتع ومجاني تلعبه وحدك أو مع أصدقائك.",
       "developer": "SuperTuxKart team",
-      "keywords_en": ["racing", "kart", "kids"],
-      "keywords_ar": ["سباق", "سيارات", "أطفال"]
+      "keywords_en": [
+        "racing",
+        "kart",
+        "kids"
+      ],
+      "keywords_ar": [
+        "سباق",
+        "سيارات",
+        "أطفال"
+      ]
     },
     {
       "id": "com.play0ad.zeroad",
@@ -1914,8 +2716,15 @@
       "desc_en": "A free real-time strategy game of ancient civilisations.",
       "desc_ar": "لعبة استراتيجية مجانية في الوقت الحقيقي عن الحضارات القديمة.",
       "developer": "Wildfire Games",
-      "keywords_en": ["strategy", "rts", "age of empires"],
-      "keywords_ar": ["استراتيجية", "حضارات"]
+      "keywords_en": [
+        "strategy",
+        "rts",
+        "age of empires"
+      ],
+      "keywords_ar": [
+        "استراتيجية",
+        "حضارات"
+      ]
     },
     {
       "id": "org.luanti.luanti",
@@ -1927,8 +2736,15 @@
       "desc_en": "A free block-building game platform with many worlds to explore.",
       "desc_ar": "منصة مجانية لألعاب البناء بالمكعبات مع عوالم كثيرة.",
       "developer": "Luanti team",
-      "keywords_en": ["minetest", "minecraft", "blocks"],
-      "keywords_ar": ["ماينكرافت", "بناء"]
+      "keywords_en": [
+        "minetest",
+        "minecraft",
+        "blocks"
+      ],
+      "keywords_ar": [
+        "ماينكرافت",
+        "بناء"
+      ]
     },
     {
       "id": "com.moonlight_stream.Moonlight",
@@ -1940,8 +2756,13 @@
       "desc_en": "Stream games from your gaming PC to this one.",
       "desc_ar": "ابثّ الألعاب من جهاز الألعاب لديك إلى هذا الجهاز.",
       "developer": "Moonlight Game Streaming project",
-      "keywords_en": ["game streaming", "remote play"],
-      "keywords_ar": ["بث الألعاب"]
+      "keywords_en": [
+        "game streaming",
+        "remote play"
+      ],
+      "keywords_ar": [
+        "بث الألعاب"
+      ]
     },
     {
       "id": "net.lutris.Lutris",
@@ -1953,9 +2774,16 @@
       "desc_en": "Brings games from many stores and sources into one library.",
       "desc_ar": "يجمع ألعابك من متاجر ومصادر كثيرة في مكتبة واحدة.",
       "developer": "Lutris team",
-      "arch": ["x86_64"],
-      "keywords_en": ["game library", "launcher"],
-      "keywords_ar": ["مكتبة ألعاب"]
+      "arch": [
+        "x86_64"
+      ],
+      "keywords_en": [
+        "game library",
+        "launcher"
+      ],
+      "keywords_ar": [
+        "مكتبة ألعاب"
+      ]
     },
     {
       "id": "com.usebottles.bottles",
@@ -1967,10 +2795,17 @@
       "desc_en": "Advanced management of Windows environments, for people who tune them by hand.",
       "desc_ar": "إدارة متقدّمة لبيئات ويندوز، لمن يريد ضبطها بنفسه.",
       "developer": "Bottles contributors",
-      "arch": ["x86_64"],
+      "arch": [
+        "x86_64"
+      ],
       "popular": false,
-      "keywords_en": ["windows apps", "exe"],
-      "keywords_ar": ["برامج ويندوز"]
+      "keywords_en": [
+        "windows apps",
+        "exe"
+      ],
+      "keywords_ar": [
+        "برامج ويندوز"
+      ]
     },
     {
       "id": "net.davidotek.pupgui2",
@@ -1982,8 +2817,13 @@
       "desc_en": "Adds extra game compatibility tools and lets you choose their versions.",
       "desc_ar": "يضيف أدوات توافق إضافية للألعاب ويتيح لك اختيار إصداراتها.",
       "developer": "DavidoTek",
-      "keywords_en": ["compatibility tools", "steam"],
-      "keywords_ar": ["أدوات توافق"]
+      "keywords_en": [
+        "compatibility tools",
+        "steam"
+      ],
+      "keywords_ar": [
+        "أدوات توافق"
+      ]
     },
     {
       "id": "cursor",
@@ -1996,9 +2836,20 @@
       "desc_ar": "محرّر شيفرة يقوم على الذكاء الاصطناعي ومبني على VS Code.",
       "developer": "Anysphere",
       "accent": "#1e1e1e",
-      "arch": ["aarch64", "x86_64"],
-      "keywords_en": ["ai editor", "vscode", "ide"],
-      "keywords_ar": ["محرر أكواد", "ذكاء اصطناعي", "برمجة"],
+      "arch": [
+        "aarch64",
+        "x86_64"
+      ],
+      "keywords_en": [
+        "ai editor",
+        "vscode",
+        "ide"
+      ],
+      "keywords_ar": [
+        "محرر أكواد",
+        "ذكاء اصطناعي",
+        "برمجة"
+      ],
       "install": {
         "kind": "appdrop",
         "artifact": "appimage",
@@ -2016,7 +2867,9 @@
           }
         },
         "wm_class": "Cursor",
-        "categories": ["Development"],
+        "categories": [
+          "Development"
+        ],
         "risk": "downloaded-executable",
         "requires_review": true,
         "external": true
@@ -2033,9 +2886,21 @@
       "desc_ar": "تطبيق الوكلاء من جوجل: وكلاء ذكيون يخططون للبرامج ويكتبونها ويختبرونها وأنت تراجع عملهم.",
       "developer": "Google",
       "accent": "#3b5bdb",
-      "arch": ["aarch64", "x86_64"],
-      "keywords_en": ["antigravity", "agents", "ai coding", "google"],
-      "keywords_ar": ["أنتي جرافيتي", "وكلاء", "برمجة"],
+      "arch": [
+        "aarch64",
+        "x86_64"
+      ],
+      "keywords_en": [
+        "antigravity",
+        "agents",
+        "ai coding",
+        "google"
+      ],
+      "keywords_ar": [
+        "أنتي جرافيتي",
+        "وكلاء",
+        "برمجة"
+      ],
       "install": {
         "kind": "appdrop",
         "artifact": "archive",
@@ -2054,7 +2919,9 @@
         },
         "exec": "antigravity",
         "wm_class": "Antigravity",
-        "categories": ["Development"],
+        "categories": [
+          "Development"
+        ],
         "risk": "downloaded-executable",
         "requires_review": true,
         "external": true
@@ -2071,9 +2938,21 @@
       "desc_ar": "محرّر الشيفرة من جوجل مع وكلاء ذكاء اصطناعي مدمجين، ومبني على VS Code.",
       "developer": "Google",
       "accent": "#2b4acb",
-      "arch": ["aarch64", "x86_64"],
-      "keywords_en": ["antigravity", "ide", "ai editor", "google"],
-      "keywords_ar": ["أنتي جرافيتي", "محرر أكواد", "برمجة"],
+      "arch": [
+        "aarch64",
+        "x86_64"
+      ],
+      "keywords_en": [
+        "antigravity",
+        "ide",
+        "ai editor",
+        "google"
+      ],
+      "keywords_ar": [
+        "أنتي جرافيتي",
+        "محرر أكواد",
+        "برمجة"
+      ],
       "install": {
         "kind": "appdrop",
         "artifact": "archive",
@@ -2093,7 +2972,9 @@
         "exec": "antigravity-ide",
         "icon": "resources/app/resources/linux/code.png",
         "wm_class": "Antigravity IDE",
-        "categories": ["Development"],
+        "categories": [
+          "Development"
+        ],
         "risk": "downloaded-executable",
         "requires_review": true,
         "external": true
@@ -2109,8 +2990,15 @@
       "desc_en": "The VS Code editor built from its open source, without Microsoft's telemetry.",
       "desc_ar": "محرّر VS Code مبنياً من مصدره المفتوح، دون قياس الاستخدام من مايكروسوفت.",
       "developer": "VSCodium project",
-      "keywords_en": ["vscode", "editor", "ide"],
-      "keywords_ar": ["محرر أكواد", "برمجة"]
+      "keywords_en": [
+        "vscode",
+        "editor",
+        "ide"
+      ],
+      "keywords_ar": [
+        "محرر أكواد",
+        "برمجة"
+      ]
     },
     {
       "id": "dev.zed.Zed",
@@ -2122,8 +3010,15 @@
       "desc_en": "A very fast code editor with built-in AI and live collaboration.",
       "desc_ar": "محرّر شيفرة سريع جداً مع ذكاء اصطناعي مدمج وتعاون مباشر.",
       "developer": "Zed Industries",
-      "keywords_en": ["editor", "ide", "rust"],
-      "keywords_ar": ["محرر أكواد", "برمجة"]
+      "keywords_en": [
+        "editor",
+        "ide",
+        "rust"
+      ],
+      "keywords_ar": [
+        "محرر أكواد",
+        "برمجة"
+      ]
     },
     {
       "id": "com.jetbrains.IntelliJ-IDEA-Community",
@@ -2135,8 +3030,16 @@
       "desc_en": "JetBrains' development environment for Java and Kotlin.",
       "desc_ar": "بيئة تطوير JetBrains للغتي Java وKotlin.",
       "developer": "JetBrains",
-      "keywords_en": ["java", "kotlin", "ide", "jetbrains"],
-      "keywords_ar": ["جافا", "برمجة"]
+      "keywords_en": [
+        "java",
+        "kotlin",
+        "ide",
+        "jetbrains"
+      ],
+      "keywords_ar": [
+        "جافا",
+        "برمجة"
+      ]
     },
     {
       "id": "com.google.AndroidStudio",
@@ -2148,9 +3051,19 @@
       "desc_en": "Build Android apps with Google's official tools.",
       "desc_ar": "طوّر تطبيقات أندرويد بأدوات جوجل الرسمية.",
       "developer": "Google",
-      "arch": ["x86_64"],
-      "keywords_en": ["android", "kotlin", "ide"],
-      "keywords_ar": ["أندرويد", "تطبيقات", "برمجة"]
+      "arch": [
+        "x86_64"
+      ],
+      "keywords_en": [
+        "android",
+        "kotlin",
+        "ide"
+      ],
+      "keywords_ar": [
+        "أندرويد",
+        "تطبيقات",
+        "برمجة"
+      ]
     },
     {
       "id": "com.github.marhkb.Pods",
@@ -2162,8 +3075,15 @@
       "desc_en": "See and manage your containers and images in a window.",
       "desc_ar": "اعرض حاوياتك وصورها وأدرها في نافذة.",
       "developer": "Marcus Behrendt",
-      "keywords_en": ["containers", "podman", "docker"],
-      "keywords_ar": ["حاويات", "دوكر"]
+      "keywords_en": [
+        "containers",
+        "podman",
+        "docker"
+      ],
+      "keywords_ar": [
+        "حاويات",
+        "دوكر"
+      ]
     },
     {
       "id": "io.dbeaver.DBeaverCommunity",
@@ -2175,8 +3095,16 @@
       "desc_en": "A universal database tool for SQL and many database servers.",
       "desc_ar": "أداة شاملة لقواعد البيانات تدعم SQL وخوادم كثيرة.",
       "developer": "DBeaver",
-      "keywords_en": ["sql", "database", "mysql", "postgres"],
-      "keywords_ar": ["قواعد بيانات", "اس كيو ال"]
+      "keywords_en": [
+        "sql",
+        "database",
+        "mysql",
+        "postgres"
+      ],
+      "keywords_ar": [
+        "قواعد بيانات",
+        "اس كيو ال"
+      ]
     },
     {
       "id": "com.usebruno.Bruno",
@@ -2188,9 +3116,19 @@
       "desc_en": "A fast API client that keeps your requests as plain files beside your code.",
       "desc_ar": "عميل API سريع يحفظ طلباتك كملفات عادية بجانب شيفرتك.",
       "developer": "Bruno",
-      "arch": ["x86_64"],
-      "keywords_en": ["api", "postman", "rest", "http"],
-      "keywords_ar": ["واجهات برمجية", "بوستمان"]
+      "arch": [
+        "x86_64"
+      ],
+      "keywords_en": [
+        "api",
+        "postman",
+        "rest",
+        "http"
+      ],
+      "keywords_ar": [
+        "واجهات برمجية",
+        "بوستمان"
+      ]
     },
     {
       "id": "org.godotengine.Godot",
@@ -2202,8 +3140,15 @@
       "desc_en": "A free engine for making 2D and 3D games.",
       "desc_ar": "محرّك مجاني لصنع ألعاب ثنائية وثلاثية الأبعاد.",
       "developer": "Godot Engine contributors",
-      "keywords_en": ["game engine", "game development", "unity"],
-      "keywords_ar": ["تطوير ألعاب", "محرك ألعاب"]
+      "keywords_en": [
+        "game engine",
+        "game development",
+        "unity"
+      ],
+      "keywords_ar": [
+        "تطوير ألعاب",
+        "محرك ألعاب"
+      ]
     },
     {
       "id": "cc.arduino.IDE2",
@@ -2215,9 +3160,18 @@
       "desc_en": "Write and upload programs to Arduino boards.",
       "desc_ar": "اكتب البرامج وارفعها إلى لوحات أردوينو.",
       "developer": "Arduino",
-      "arch": ["x86_64"],
-      "keywords_en": ["arduino", "electronics", "microcontroller"],
-      "keywords_ar": ["إلكترونيات", "متحكم"]
+      "arch": [
+        "x86_64"
+      ],
+      "keywords_en": [
+        "arduino",
+        "electronics",
+        "microcontroller"
+      ],
+      "keywords_ar": [
+        "إلكترونيات",
+        "متحكم"
+      ]
     },
     {
       "id": "org.gnome.Boxes",
@@ -2229,8 +3183,15 @@
       "desc_en": "Run other operating systems in simple virtual machines.",
       "desc_ar": "شغّل أنظمة تشغيل أخرى في أجهزة افتراضية بسيطة.",
       "developer": "Boxes team",
-      "keywords_en": ["virtual machine", "vm", "virtualbox"],
-      "keywords_ar": ["جهاز افتراضي", "أنظمة"]
+      "keywords_en": [
+        "virtual machine",
+        "vm",
+        "virtualbox"
+      ],
+      "keywords_ar": [
+        "جهاز افتراضي",
+        "أنظمة"
+      ]
     },
     {
       "id": "chatgpt-web",
@@ -2243,14 +3204,35 @@
       "desc_ar": "موقع ChatGPT كتطبيق مستقل، لمن لا يريد تطبيق سطح المكتب.",
       "developer": "OpenAI",
       "accent": "#0f7b5f",
-      "keywords_en": ["chatgpt", "openai", "gpt", "chat gpt"],
-      "keywords_ar": ["شات جي بي تي", "تشات", "ذكاء اصطناعي"],
+      "keywords_en": [
+        "chatgpt",
+        "openai",
+        "gpt",
+        "chat gpt"
+      ],
+      "keywords_ar": [
+        "شات جي بي تي",
+        "تشات",
+        "ذكاء اصطناعي"
+      ],
       "install": {
         "kind": "webapp",
         "url": "https://chatgpt.com/",
-        "hosts": ["chatgpt.com", "*.chatgpt.com", "*.openai.com"],
-        "identity": ["google", "microsoft", "apple"],
-        "permissions": ["notifications", "microphone", "clipboard"],
+        "hosts": [
+          "chatgpt.com",
+          "*.chatgpt.com",
+          "*.openai.com"
+        ],
+        "identity": [
+          "google",
+          "microsoft",
+          "apple"
+        ],
+        "permissions": [
+          "notifications",
+          "microphone",
+          "clipboard"
+        ],
         "accent": "#0f7b5f",
         "risk": "web-app",
         "requires_review": true
@@ -2267,14 +3249,31 @@
       "desc_ar": "مساعد مايكروسوفت الذكي؛ يعمل دون حساب ويحفظ محادثاتك عند تسجيل الدخول.",
       "developer": "Microsoft",
       "accent": "#0f6cbd",
-      "keywords_en": ["copilot", "microsoft ai", "bing chat"],
-      "keywords_ar": ["كوبايلوت", "مايكروسوفت", "ذكاء اصطناعي"],
+      "keywords_en": [
+        "copilot",
+        "microsoft ai",
+        "bing chat"
+      ],
+      "keywords_ar": [
+        "كوبايلوت",
+        "مايكروسوفت",
+        "ذكاء اصطناعي"
+      ],
       "install": {
         "kind": "webapp",
         "url": "https://copilot.microsoft.com/",
-        "hosts": ["copilot.microsoft.com", "copilot.com", "*.copilot.com"],
-        "identity": ["microsoft"],
-        "permissions": ["microphone", "clipboard"],
+        "hosts": [
+          "copilot.microsoft.com",
+          "copilot.com",
+          "*.copilot.com"
+        ],
+        "identity": [
+          "microsoft"
+        ],
+        "permissions": [
+          "microphone",
+          "clipboard"
+        ],
         "accent": "#0f6cbd",
         "risk": "web-app",
         "requires_review": true
@@ -2291,14 +3290,31 @@
       "desc_ar": "يبحث في الويب نيابةً عنك ويجيب مع المصادر التي اعتمد عليها.",
       "developer": "Perplexity AI",
       "accent": "#1b6f7a",
-      "keywords_en": ["search", "answers", "research"],
-      "keywords_ar": ["بحث", "ذكاء اصطناعي", "إجابات"],
+      "keywords_en": [
+        "search",
+        "answers",
+        "research"
+      ],
+      "keywords_ar": [
+        "بحث",
+        "ذكاء اصطناعي",
+        "إجابات"
+      ],
       "install": {
         "kind": "webapp",
         "url": "https://www.perplexity.ai/",
-        "hosts": ["www.perplexity.ai", "perplexity.ai"],
-        "identity": ["google", "apple"],
-        "permissions": ["microphone", "clipboard"],
+        "hosts": [
+          "www.perplexity.ai",
+          "perplexity.ai"
+        ],
+        "identity": [
+          "google",
+          "apple"
+        ],
+        "permissions": [
+          "microphone",
+          "clipboard"
+        ],
         "accent": "#1b6f7a",
         "risk": "web-app",
         "requires_review": true
@@ -2315,14 +3331,31 @@
       "desc_ar": "مساعد Mistral الذكي، مصنوع ومستضاف في أوروبا.",
       "developer": "Mistral AI",
       "accent": "#c2410c",
-      "keywords_en": ["mistral", "assistant", "le chat"],
-      "keywords_ar": ["ميسترال", "ذكاء اصطناعي", "مساعد"],
+      "keywords_en": [
+        "mistral",
+        "assistant",
+        "le chat"
+      ],
+      "keywords_ar": [
+        "ميسترال",
+        "ذكاء اصطناعي",
+        "مساعد"
+      ],
       "install": {
         "kind": "webapp",
         "url": "https://chat.mistral.ai/chat",
-        "hosts": ["chat.mistral.ai", "*.mistral.ai"],
-        "identity": ["google", "microsoft", "apple"],
-        "permissions": ["clipboard"],
+        "hosts": [
+          "chat.mistral.ai",
+          "*.mistral.ai"
+        ],
+        "identity": [
+          "google",
+          "microsoft",
+          "apple"
+        ],
+        "permissions": [
+          "clipboard"
+        ],
         "accent": "#c2410c",
         "risk": "web-app",
         "requires_review": true
@@ -2339,14 +3372,27 @@
       "desc_ar": "محادثة DeepSeek الذكية في نافذة خاصة بها؛ تُحفظ محادثاتك على خوادم في الصين.",
       "developer": "DeepSeek",
       "accent": "#4d6bfe",
-      "keywords_en": ["deepseek", "assistant", "ai chat"],
-      "keywords_ar": ["ديب سيك", "ذكاء اصطناعي"],
+      "keywords_en": [
+        "deepseek",
+        "assistant",
+        "ai chat"
+      ],
+      "keywords_ar": [
+        "ديب سيك",
+        "ذكاء اصطناعي"
+      ],
       "install": {
         "kind": "webapp",
         "url": "https://chat.deepseek.com/",
-        "hosts": ["chat.deepseek.com"],
-        "identity": ["google"],
-        "permissions": ["clipboard"],
+        "hosts": [
+          "chat.deepseek.com"
+        ],
+        "identity": [
+          "google"
+        ],
+        "permissions": [
+          "clipboard"
+        ],
         "accent": "#4d6bfe",
         "risk": "web-app",
         "requires_review": true
@@ -2363,14 +3409,31 @@
       "desc_ar": "يحوّل ملاحظاتك وملفاتك وروابطك إلى إجابات وملخصات وشروحات مسموعة.",
       "developer": "Google",
       "accent": "#202124",
-      "keywords_en": ["notebook", "research", "summary", "google"],
-      "keywords_ar": ["ملاحظات", "تلخيص", "بحث", "جوجل"],
+      "keywords_en": [
+        "notebook",
+        "research",
+        "summary",
+        "google"
+      ],
+      "keywords_ar": [
+        "ملاحظات",
+        "تلخيص",
+        "بحث",
+        "جوجل"
+      ],
       "install": {
         "kind": "webapp",
         "url": "https://notebooklm.google.com/",
-        "hosts": ["notebooklm.google.com", "notebook.google.com"],
-        "identity": ["google"],
-        "permissions": ["clipboard"],
+        "hosts": [
+          "notebooklm.google.com",
+          "notebook.google.com"
+        ],
+        "identity": [
+          "google"
+        ],
+        "permissions": [
+          "clipboard"
+        ],
         "accent": "#202124",
         "risk": "web-app",
         "requires_review": true
@@ -2387,8 +3450,17 @@
       "desc_ar": "وكيل البرمجة من Anthropic في الطرفية: يقرأ مشروعك ويكتب الشيفرة ويصلحها.",
       "developer": "Anthropic",
       "accent": "#c15f3c",
-      "keywords_en": ["claude", "coding agent", "cli", "terminal"],
-      "keywords_ar": ["كلود", "برمجة", "طرفية"],
+      "keywords_en": [
+        "claude",
+        "coding agent",
+        "cli",
+        "terminal"
+      ],
+      "keywords_ar": [
+        "كلود",
+        "برمجة",
+        "طرفية"
+      ],
       "install": {
         "kind": "npm",
         "pkg": "@anthropic-ai/claude-code",
@@ -2408,8 +3480,17 @@
       "desc_ar": "وكيل البرمجة من OpenAI في الطرفية.",
       "developer": "OpenAI",
       "accent": "#1f1f1f",
-      "keywords_en": ["openai", "coding agent", "cli", "terminal"],
-      "keywords_ar": ["برمجة", "طرفية", "اوبن ايه اي"],
+      "keywords_en": [
+        "openai",
+        "coding agent",
+        "cli",
+        "terminal"
+      ],
+      "keywords_ar": [
+        "برمجة",
+        "طرفية",
+        "اوبن ايه اي"
+      ],
       "install": {
         "kind": "npm",
         "pkg": "@openai/codex",
@@ -2429,8 +3510,17 @@
       "desc_ar": "وكيل البرمجة Gemini من جوجل في الطرفية؛ تدخل بحساب جوجل أو بمفتاح.",
       "developer": "Google",
       "accent": "#3b5bdb",
-      "keywords_en": ["gemini", "coding agent", "cli", "terminal"],
-      "keywords_ar": ["جيميني", "برمجة", "طرفية"],
+      "keywords_en": [
+        "gemini",
+        "coding agent",
+        "cli",
+        "terminal"
+      ],
+      "keywords_ar": [
+        "جيميني",
+        "برمجة",
+        "طرفية"
+      ],
       "install": {
         "kind": "npm",
         "pkg": "@google/gemini-cli",
@@ -2450,9 +3540,21 @@
       "desc_ar": "نزّل نماذج الذكاء الاصطناعي وشغّلها على جهازك؛ النماذج كبيرة وتحتاج ذاكرة كثيرة.",
       "developer": "Element Labs",
       "accent": "#4f46e5",
-      "arch": ["aarch64", "x86_64"],
-      "keywords_en": ["local ai", "llm", "offline ai", "models"],
-      "keywords_ar": ["ذكاء اصطناعي محلي", "نماذج", "بدون انترنت"],
+      "arch": [
+        "aarch64",
+        "x86_64"
+      ],
+      "keywords_en": [
+        "local ai",
+        "llm",
+        "offline ai",
+        "models"
+      ],
+      "keywords_ar": [
+        "ذكاء اصطناعي محلي",
+        "نماذج",
+        "بدون انترنت"
+      ],
       "install": {
         "kind": "appdrop",
         "artifact": "appimage",
@@ -2471,7 +3573,9 @@
         },
         "desktop_id": "ai.elementlabs.lmstudio",
         "wm_class": "ai.elementlabs.lmstudio",
-        "categories": ["Development"],
+        "categories": [
+          "Development"
+        ],
         "risk": "downloaded-executable",
         "requires_review": true,
         "external": true
@@ -2487,9 +3591,18 @@
       "desc_en": "A private AI assistant that can run models offline on your computer.",
       "desc_ar": "مساعد ذكي خاص يشغّل النماذج على جهازك دون إنترنت.",
       "developer": "Menlo Research",
-      "arch": ["x86_64"],
-      "keywords_en": ["local ai", "offline ai", "llm"],
-      "keywords_ar": ["ذكاء اصطناعي محلي", "بدون انترنت"]
+      "arch": [
+        "x86_64"
+      ],
+      "keywords_en": [
+        "local ai",
+        "offline ai",
+        "llm"
+      ],
+      "keywords_ar": [
+        "ذكاء اصطناعي محلي",
+        "بدون انترنت"
+      ]
     },
     {
       "id": "com.jeffser.Alpaca",
@@ -2501,8 +3614,15 @@
       "desc_en": "Chat with local AI models privately, or connect to online ones.",
       "desc_ar": "حادث نماذج الذكاء الاصطناعي المحلية بخصوصية، أو اتصل بنماذج على الإنترنت.",
       "developer": "Jeffry Samuel",
-      "keywords_en": ["ollama", "local ai", "llm"],
-      "keywords_ar": ["ذكاء اصطناعي محلي", "اولاما"]
+      "keywords_en": [
+        "ollama",
+        "local ai",
+        "llm"
+      ],
+      "keywords_ar": [
+        "ذكاء اصطناعي محلي",
+        "اولاما"
+      ]
     },
     {
       "id": "io.github.qwersyk.Newelle",
@@ -2514,8 +3634,15 @@
       "desc_en": "An AI chat assistant that works with many online services or with models on your computer.",
       "desc_ar": "مساعد محادثة ذكي يعمل مع خدمات كثيرة على الإنترنت أو مع نماذج على جهازك.",
       "developer": "Qwersyk",
-      "keywords_en": ["assistant", "ai chat", "llm"],
-      "keywords_ar": ["مساعد", "ذكاء اصطناعي"]
+      "keywords_en": [
+        "assistant",
+        "ai chat",
+        "llm"
+      ],
+      "keywords_ar": [
+        "مساعد",
+        "ذكاء اصطناعي"
+      ]
     },
     {
       "id": "net.mkiol.SpeechNote",
@@ -2527,8 +3654,18 @@
       "desc_en": "Speech to text, text to speech and translation, all offline and including Arabic.",
       "desc_ar": "تحويل الكلام إلى نص والنص إلى كلام والترجمة، كلها دون إنترنت ومنها العربية.",
       "developer": "Michal Kosciesza",
-      "keywords_en": ["dictation", "speech to text", "whisper", "translate"],
-      "keywords_ar": ["إملاء", "تحويل الصوت إلى نص", "ترجمة", "قراءة النص"]
+      "keywords_en": [
+        "dictation",
+        "speech to text",
+        "whisper",
+        "translate"
+      ],
+      "keywords_ar": [
+        "إملاء",
+        "تحويل الصوت إلى نص",
+        "ترجمة",
+        "قراءة النص"
+      ]
     },
     {
       "id": "org.upscayl.Upscayl",
@@ -2540,9 +3677,19 @@
       "desc_en": "Enlarges and sharpens photos with AI, using your graphics card.",
       "desc_ar": "يكبّر الصور ويحسّن وضوحها بالذكاء الاصطناعي مستعيناً ببطاقة الرسوميات.",
       "developer": "Upscayl team",
-      "arch": ["x86_64"],
-      "keywords_en": ["upscale", "enhance photo", "ai image"],
-      "keywords_ar": ["تكبير الصور", "تحسين الصور", "دقة"]
+      "arch": [
+        "x86_64"
+      ],
+      "keywords_en": [
+        "upscale",
+        "enhance photo",
+        "ai image"
+      ],
+      "keywords_ar": [
+        "تكبير الصور",
+        "تحسين الصور",
+        "دقة"
+      ]
     },
     {
       "id": "khan-academy",
@@ -2555,13 +3702,27 @@
       "desc_ar": "دروس وتمارين مجانية باللغة العربية، من الرياضيات إلى العلوم.",
       "developer": "Khan Academy",
       "accent": "#1865f2",
-      "keywords_en": ["lessons", "math", "school"],
-      "keywords_ar": ["دروس", "رياضيات", "مدرسة", "تعليم"],
+      "keywords_en": [
+        "lessons",
+        "math",
+        "school"
+      ],
+      "keywords_ar": [
+        "دروس",
+        "رياضيات",
+        "مدرسة",
+        "تعليم"
+      ],
       "install": {
         "kind": "webapp",
         "url": "https://ar.khanacademy.org/",
-        "hosts": ["ar.khanacademy.org", "www.khanacademy.org"],
-        "identity": ["google"],
+        "hosts": [
+          "ar.khanacademy.org",
+          "www.khanacademy.org"
+        ],
+        "identity": [
+          "google"
+        ],
         "permissions": [],
         "accent": "#1865f2",
         "risk": "web-app",
@@ -2578,8 +3739,16 @@
       "desc_en": "Smart flashcards that help you remember what you study.",
       "desc_ar": "بطاقات مراجعة ذكية تساعدك على تذكّر ما تدرسه.",
       "developer": "Damien Elmes",
-      "keywords_en": ["flashcards", "study", "memorize"],
-      "keywords_ar": ["بطاقات", "مراجعة", "حفظ"]
+      "keywords_en": [
+        "flashcards",
+        "study",
+        "memorize"
+      ],
+      "keywords_ar": [
+        "بطاقات",
+        "مراجعة",
+        "حفظ"
+      ]
     },
     {
       "id": "org.kde.gcompris",
@@ -2591,8 +3760,15 @@
       "desc_en": "More than a hundred learning games for children aged 2 to 10.",
       "desc_ar": "أكثر من مئة لعبة تعليمية للأطفال من عمر سنتين إلى عشر سنوات.",
       "developer": "GCompris team",
-      "keywords_en": ["kids", "children", "learning games"],
-      "keywords_ar": ["أطفال", "ألعاب تعليمية"]
+      "keywords_en": [
+        "kids",
+        "children",
+        "learning games"
+      ],
+      "keywords_ar": [
+        "أطفال",
+        "ألعاب تعليمية"
+      ]
     },
     {
       "id": "org.stellarium.Stellarium",
@@ -2604,8 +3780,16 @@
       "desc_en": "A planetarium that shows the real sky above you.",
       "desc_ar": "قبة سماوية تعرض السماء الحقيقية فوقك.",
       "developer": "Stellarium team",
-      "keywords_en": ["astronomy", "stars", "planets"],
-      "keywords_ar": ["فلك", "نجوم", "كواكب"]
+      "keywords_en": [
+        "astronomy",
+        "stars",
+        "planets"
+      ],
+      "keywords_ar": [
+        "فلك",
+        "نجوم",
+        "كواكب"
+      ]
     },
     {
       "id": "org.geogebra.GeoGebra",
@@ -2617,9 +3801,19 @@
       "desc_en": "Interactive maths for geometry, algebra and graphs.",
       "desc_ar": "رياضيات تفاعلية للهندسة والجبر والرسوم البيانية.",
       "developer": "GeoGebra",
-      "arch": ["x86_64"],
-      "keywords_en": ["math", "geometry", "graphing"],
-      "keywords_ar": ["رياضيات", "هندسة", "جبر"]
+      "arch": [
+        "x86_64"
+      ],
+      "keywords_en": [
+        "math",
+        "geometry",
+        "graphing"
+      ],
+      "keywords_ar": [
+        "رياضيات",
+        "هندسة",
+        "جبر"
+      ]
     },
     {
       "id": "org.kde.ktouch",
@@ -2631,8 +3825,16 @@
       "desc_en": "Learn to type with all ten fingers, step by step.",
       "desc_ar": "تعلّم الكتابة بأصابعك العشرة خطوة بخطوة.",
       "developer": "KTouch team",
-      "keywords_en": ["typing", "keyboard", "touch typing"],
-      "keywords_ar": ["طباعة", "لوحة المفاتيح", "كتابة سريعة"]
+      "keywords_en": [
+        "typing",
+        "keyboard",
+        "touch typing"
+      ],
+      "keywords_ar": [
+        "طباعة",
+        "لوحة المفاتيح",
+        "كتابة سريعة"
+      ]
     },
     {
       "id": "org.tuxpaint.Tuxpaint",
@@ -2644,8 +3846,16 @@
       "desc_en": "A cheerful drawing program for children.",
       "desc_ar": "برنامج رسم مرح للأطفال.",
       "developer": "Tux Paint contributors",
-      "keywords_en": ["kids", "drawing", "paint"],
-      "keywords_ar": ["أطفال", "رسم", "تلوين"]
+      "keywords_en": [
+        "kids",
+        "drawing",
+        "paint"
+      ],
+      "keywords_ar": [
+        "أطفال",
+        "رسم",
+        "تلوين"
+      ]
     },
     {
       "id": "org.kiwix.desktop",
@@ -2657,8 +3867,16 @@
       "desc_en": "Read Wikipedia and other references offline, including in Arabic.",
       "desc_ar": "اقرأ ويكيبيديا ومراجع أخرى دون إنترنت، ومنها العربية.",
       "developer": "Kiwix Foundation",
-      "keywords_en": ["wikipedia", "offline", "encyclopedia"],
-      "keywords_ar": ["ويكيبيديا", "موسوعة", "بدون انترنت"]
+      "keywords_en": [
+        "wikipedia",
+        "offline",
+        "encyclopedia"
+      ],
+      "keywords_ar": [
+        "ويكيبيديا",
+        "موسوعة",
+        "بدون انترنت"
+      ]
     },
     {
       "id": "io.github._0xzer0x.qurancompanion",
@@ -2670,8 +3888,17 @@
       "desc_en": "Read and listen to the Quran with recitations and translations.",
       "desc_ar": "اقرأ القرآن الكريم واستمع إليه بتلاوات وترجمات.",
       "developer": "Youssef Fathy",
-      "keywords_en": ["quran", "islam", "recitation"],
-      "keywords_ar": ["قرآن", "مصحف", "تلاوة", "تفسير"]
+      "keywords_en": [
+        "quran",
+        "islam",
+        "recitation"
+      ],
+      "keywords_ar": [
+        "قرآن",
+        "مصحف",
+        "تلاوة",
+        "تفسير"
+      ]
     },
     {
       "id": "org.altaqwaa.Altaqwaa",
@@ -2683,9 +3910,20 @@
       "desc_en": "The Quran, adhkar and prayer times in one app.",
       "desc_ar": "القرآن الكريم والأذكار ومواقيت الصلاة في تطبيق واحد.",
       "developer": "Ryan Almalki",
-      "arch": ["x86_64"],
-      "keywords_en": ["quran", "prayer times", "adhkar"],
-      "keywords_ar": ["قرآن", "أذكار", "مواقيت الصلاة", "أذان"]
+      "arch": [
+        "x86_64"
+      ],
+      "keywords_en": [
+        "quran",
+        "prayer times",
+        "adhkar"
+      ],
+      "keywords_ar": [
+        "قرآن",
+        "أذكار",
+        "مواقيت الصلاة",
+        "أذان"
+      ]
     },
     {
       "id": "org.keepassxc.KeePassXC",
@@ -2697,8 +3935,15 @@
       "desc_en": "Keeps all your passwords in one encrypted file that stays on your computer.",
       "desc_ar": "يحفظ كل كلمات مرورك في ملف واحد مشفّر يبقى على جهازك.",
       "developer": "KeePassXC team",
-      "keywords_en": ["passwords", "password manager", "keepass"],
-      "keywords_ar": ["كلمات المرور", "مدير كلمات المرور"]
+      "keywords_en": [
+        "passwords",
+        "password manager",
+        "keepass"
+      ],
+      "keywords_ar": [
+        "كلمات المرور",
+        "مدير كلمات المرور"
+      ]
     },
     {
       "id": "com.bitwarden.desktop",
@@ -2710,8 +3955,14 @@
       "desc_en": "A password manager that syncs your passwords between all your devices.",
       "desc_ar": "مدير كلمات مرور يزامن كلمات مرورك بين جميع أجهزتك.",
       "developer": "Bitwarden",
-      "keywords_en": ["passwords", "password manager"],
-      "keywords_ar": ["كلمات المرور", "مدير كلمات المرور"]
+      "keywords_en": [
+        "passwords",
+        "password manager"
+      ],
+      "keywords_ar": [
+        "كلمات المرور",
+        "مدير كلمات المرور"
+      ]
     },
     {
       "id": "me.proton.Pass",
@@ -2723,8 +3974,13 @@
       "desc_en": "An end-to-end encrypted password manager with passkeys and email aliases.",
       "desc_ar": "مدير كلمات مرور بتشفير تام بين الطرفين، مع مفاتيح المرور وأسماء بريد مستعارة.",
       "developer": "Proton AG",
-      "keywords_en": ["passwords", "passkeys"],
-      "keywords_ar": ["كلمات المرور"]
+      "keywords_en": [
+        "passwords",
+        "passkeys"
+      ],
+      "keywords_ar": [
+        "كلمات المرور"
+      ]
     },
     {
       "id": "com.protonvpn.www",
@@ -2736,8 +3992,14 @@
       "desc_en": "A VPN with a free plan and no ads that hides your traffic and location; an unofficial build its makers do not support.",
       "desc_ar": "شبكة VPN بخطة مجانية بلا إعلانات تخفي اتصالك وموقعك؛ وهذه نسخة غير رسمية لا يدعمها صانعوها.",
       "developer": "Community packagers, not Proton AG",
-      "keywords_en": ["vpn", "privacy"],
-      "keywords_ar": ["في بي ان", "خصوصية"]
+      "keywords_en": [
+        "vpn",
+        "privacy"
+      ],
+      "keywords_ar": [
+        "في بي ان",
+        "خصوصية"
+      ]
     },
     {
       "id": "com.belmoussaoui.Authenticator",
@@ -2749,8 +4011,15 @@
       "desc_en": "Generates two-factor sign-in codes on your computer.",
       "desc_ar": "يولّد رموز التحقق بخطوتين على جهازك.",
       "developer": "Bilal Elmoussaoui",
-      "keywords_en": ["2fa", "totp", "two factor"],
-      "keywords_ar": ["تحقق بخطوتين", "رمز"]
+      "keywords_en": [
+        "2fa",
+        "totp",
+        "two factor"
+      ],
+      "keywords_ar": [
+        "تحقق بخطوتين",
+        "رمز"
+      ]
     },
     {
       "id": "io.ente.auth",
@@ -2762,9 +4031,17 @@
       "desc_en": "Two-factor codes with encrypted backup and sync between devices.",
       "desc_ar": "رموز التحقق بخطوتين مع نسخ احتياطي مشفّر ومزامنة بين الأجهزة.",
       "developer": "Ente",
-      "arch": ["x86_64"],
-      "keywords_en": ["2fa", "totp", "authenticator"],
-      "keywords_ar": ["تحقق بخطوتين"]
+      "arch": [
+        "x86_64"
+      ],
+      "keywords_en": [
+        "2fa",
+        "totp",
+        "authenticator"
+      ],
+      "keywords_ar": [
+        "تحقق بخطوتين"
+      ]
     },
     {
       "id": "org.cryptomator.Cryptomator",
@@ -2776,8 +4053,15 @@
       "desc_en": "Encrypts the folders you keep in any cloud.",
       "desc_ar": "يشفّر المجلدات التي تحفظها في أي سحابة.",
       "developer": "Skymatic",
-      "keywords_en": ["encryption", "cloud", "vault"],
-      "keywords_ar": ["تشفير", "سحابة"]
+      "keywords_en": [
+        "encryption",
+        "cloud",
+        "vault"
+      ],
+      "keywords_ar": [
+        "تشفير",
+        "سحابة"
+      ]
     },
     {
       "id": "org.torproject.torbrowser-launcher",
@@ -2789,9 +4073,19 @@
       "desc_en": "Browse anonymously through the Tor network; it downloads the browser and checks its signature.",
       "desc_ar": "تصفّح بهوية مخفية عبر شبكة تور؛ ينزّل المتصفح ويتحقق من توقيعه أولاً.",
       "developer": "The Tor Project",
-      "arch": ["x86_64"],
-      "keywords_en": ["tor", "anonymous", "privacy"],
-      "keywords_ar": ["تور", "خصوصية", "تصفح خفي"]
+      "arch": [
+        "x86_64"
+      ],
+      "keywords_en": [
+        "tor",
+        "anonymous",
+        "privacy"
+      ],
+      "keywords_ar": [
+        "تور",
+        "خصوصية",
+        "تصفح خفي"
+      ]
     },
     {
       "id": "com.github.tchx84.Flatseal",
@@ -2803,8 +4097,14 @@
       "desc_en": "Review and change what your sandboxed Linux apps are allowed to reach.",
       "desc_ar": "راجع ما يُسمح لتطبيقات لينكس المعزولة لديك بالوصول إليه وغيّره.",
       "developer": "Martin Abente Lahaye",
-      "keywords_en": ["permissions", "privacy"],
-      "keywords_ar": ["صلاحيات", "أذونات"]
+      "keywords_en": [
+        "permissions",
+        "privacy"
+      ],
+      "keywords_ar": [
+        "صلاحيات",
+        "أذونات"
+      ]
     },
     {
       "id": "io.missioncenter.MissionCenter",
@@ -2816,8 +4116,15 @@
       "desc_en": "Watch how your processor, memory, disks and graphics card are used.",
       "desc_ar": "راقب استخدام المعالج والذاكرة والأقراص وبطاقة الرسوميات.",
       "developer": "Mission Center developers",
-      "keywords_en": ["task manager", "system monitor", "cpu"],
-      "keywords_ar": ["مدير المهام", "مراقب النظام"]
+      "keywords_en": [
+        "task manager",
+        "system monitor",
+        "cpu"
+      ],
+      "keywords_ar": [
+        "مدير المهام",
+        "مراقب النظام"
+      ]
     },
     {
       "id": "io.github.cboxdoerfer.FSearch",
@@ -2829,8 +4136,15 @@
       "desc_en": "Finds any file on your disks by name, instantly.",
       "desc_ar": "يجد أي ملف على أقراصك باسمه فوراً.",
       "developer": "Christian Boxdörfer",
-      "keywords_en": ["file search", "everything", "find files"],
-      "keywords_ar": ["بحث عن ملفات", "بحث"]
+      "keywords_en": [
+        "file search",
+        "everything",
+        "find files"
+      ],
+      "keywords_ar": [
+        "بحث عن ملفات",
+        "بحث"
+      ]
     },
     {
       "id": "com.github.qarmin.czkawka",
@@ -2842,8 +4156,16 @@
       "desc_en": "Finds duplicate files, similar photos and empty folders to free space.",
       "desc_ar": "يجد الملفات المكررة والصور المتشابهة والمجلدات الفارغة لتوفير المساحة.",
       "developer": "Rafał Mikrut",
-      "keywords_en": ["duplicates", "cleanup", "disk space"],
-      "keywords_ar": ["ملفات مكررة", "تنظيف", "مساحة"]
+      "keywords_en": [
+        "duplicates",
+        "cleanup",
+        "disk space"
+      ],
+      "keywords_ar": [
+        "ملفات مكررة",
+        "تنظيف",
+        "مساحة"
+      ]
     },
     {
       "id": "org.gnome.World.PikaBackup",
@@ -2855,8 +4177,14 @@
       "desc_en": "Simple, deduplicated backups of your files to a disk or server.",
       "desc_ar": "نسخ احتياطي بسيط وموفّر للمساحة لملفاتك على قرص أو خادم.",
       "developer": "Small Mammal Collective",
-      "keywords_en": ["backup", "borg"],
-      "keywords_ar": ["نسخ احتياطي", "حفظ الملفات"]
+      "keywords_en": [
+        "backup",
+        "borg"
+      ],
+      "keywords_ar": [
+        "نسخ احتياطي",
+        "حفظ الملفات"
+      ]
     },
     {
       "id": "org.kde.isoimagewriter",
@@ -2868,8 +4196,17 @@
       "desc_en": "Writes an ISO image to a USB stick to make it bootable.",
       "desc_ar": "يكتب صورة ISO على ذاكرة USB لتصبح قابلة للإقلاع.",
       "developer": "ISO Image Writer team",
-      "keywords_en": ["usb", "bootable", "iso", "rufus"],
-      "keywords_ar": ["فلاشة", "اقلاع", "يو اس بي"]
+      "keywords_en": [
+        "usb",
+        "bootable",
+        "iso",
+        "rufus"
+      ],
+      "keywords_ar": [
+        "فلاشة",
+        "اقلاع",
+        "يو اس بي"
+      ]
     },
     {
       "id": "org.localsend.localsend_app",
@@ -2881,8 +4218,15 @@
       "desc_en": "Share files with nearby phones and computers on the same network.",
       "desc_ar": "شارك الملفات مع الهواتف والحواسيب القريبة على الشبكة نفسها.",
       "developer": "Tien Do Nam",
-      "keywords_en": ["share files", "airdrop", "transfer"],
-      "keywords_ar": ["مشاركة الملفات", "نقل الملفات"]
+      "keywords_en": [
+        "share files",
+        "airdrop",
+        "transfer"
+      ],
+      "keywords_ar": [
+        "مشاركة الملفات",
+        "نقل الملفات"
+      ]
     },
     {
       "id": "io.github.nozwock.Packet",
@@ -2894,8 +4238,15 @@
       "desc_en": "Swap files with Android phones through Quick Share.",
       "desc_ar": "تبادل الملفات مع هواتف أندرويد عبر المشاركة السريعة.",
       "developer": "nozwock",
-      "keywords_en": ["quick share", "nearby share", "android"],
-      "keywords_ar": ["مشاركة سريعة", "أندرويد"]
+      "keywords_en": [
+        "quick share",
+        "nearby share",
+        "android"
+      ],
+      "keywords_ar": [
+        "مشاركة سريعة",
+        "أندرويد"
+      ]
     },
     {
       "id": "com.nextcloud.desktopclient.nextcloud",
@@ -2907,8 +4258,15 @@
       "desc_en": "Keeps your files in sync with your Nextcloud server.",
       "desc_ar": "يزامن ملفاتك مع خادم Nextcloud الخاص بك.",
       "developer": "Nextcloud",
-      "keywords_en": ["sync", "cloud", "files"],
-      "keywords_ar": ["مزامنة", "سحابة"]
+      "keywords_en": [
+        "sync",
+        "cloud",
+        "files"
+      ],
+      "keywords_ar": [
+        "مزامنة",
+        "سحابة"
+      ]
     },
     {
       "id": "com.dropbox.Client",
@@ -2920,9 +4278,18 @@
       "desc_en": "Keeps a Dropbox folder in sync on your computer.",
       "desc_ar": "يزامن مجلد Dropbox على جهازك.",
       "developer": "Dropbox",
-      "arch": ["x86_64"],
-      "keywords_en": ["sync", "cloud", "files"],
-      "keywords_ar": ["مزامنة", "سحابة"]
+      "arch": [
+        "x86_64"
+      ],
+      "keywords_en": [
+        "sync",
+        "cloud",
+        "files"
+      ],
+      "keywords_ar": [
+        "مزامنة",
+        "سحابة"
+      ]
     },
     {
       "id": "io.github.martchus.syncthingtray",
@@ -2934,8 +4301,13 @@
       "desc_en": "Syncs folders directly between your devices, with no cloud in between.",
       "desc_ar": "يزامن المجلدات مباشرة بين أجهزتك دون سحابة في المنتصف.",
       "developer": "Martchus",
-      "keywords_en": ["sync", "syncthing"],
-      "keywords_ar": ["مزامنة"]
+      "keywords_en": [
+        "sync",
+        "syncthing"
+      ],
+      "keywords_ar": [
+        "مزامنة"
+      ]
     },
     {
       "id": "org.qbittorrent.qBittorrent",
@@ -2947,8 +4319,14 @@
       "desc_en": "A clean torrent downloader without ads.",
       "desc_ar": "برنامج تورنت نظيف بلا إعلانات.",
       "developer": "qBittorrent project",
-      "keywords_en": ["torrent", "download"],
-      "keywords_ar": ["تورنت", "تحميل"]
+      "keywords_en": [
+        "torrent",
+        "download"
+      ],
+      "keywords_ar": [
+        "تورنت",
+        "تحميل"
+      ]
     },
     {
       "id": "com.rustdesk.RustDesk",
@@ -2960,8 +4338,15 @@
       "desc_en": "Open-source remote desktop to help someone or reach your own computers.",
       "desc_ar": "سطح مكتب بعيد مفتوح المصدر لمساعدة غيرك أو الوصول إلى أجهزتك.",
       "developer": "RustDesk",
-      "keywords_en": ["remote desktop", "teamviewer", "support"],
-      "keywords_ar": ["تحكم عن بعد", "تيم فيور"]
+      "keywords_en": [
+        "remote desktop",
+        "teamviewer",
+        "support"
+      ],
+      "keywords_ar": [
+        "تحكم عن بعد",
+        "تيم فيور"
+      ]
     },
     {
       "id": "com.anydesk.Anydesk",
@@ -2973,8 +4358,13 @@
       "desc_en": "Reach other computers remotely; being controlled from elsewhere is limited here.",
       "desc_ar": "تحكّم بأجهزة أخرى عن بعد؛ أما التحكم بهذا الجهاز من الخارج فمحدود.",
       "developer": "AnyDesk Software",
-      "keywords_en": ["remote desktop", "support"],
-      "keywords_ar": ["تحكم عن بعد"]
+      "keywords_en": [
+        "remote desktop",
+        "support"
+      ],
+      "keywords_ar": [
+        "تحكم عن بعد"
+      ]
     },
     {
       "id": "org.remmina.Remmina",
@@ -2986,8 +4376,15 @@
       "desc_en": "Connect to other computers over RDP, VNC or SSH.",
       "desc_ar": "اتصل بحواسيب أخرى عبر RDP أو VNC أو SSH.",
       "developer": "Remmina team",
-      "keywords_en": ["rdp", "vnc", "ssh", "remote desktop"],
-      "keywords_ar": ["سطح مكتب بعيد"]
+      "keywords_en": [
+        "rdp",
+        "vnc",
+        "ssh",
+        "remote desktop"
+      ],
+      "keywords_ar": [
+        "سطح مكتب بعيد"
+      ]
     },
     {
       "id": "org.kde.krdc",
@@ -2999,8 +4396,14 @@
       "desc_en": "A simple client for remote desktops over RDP and VNC.",
       "desc_ar": "عميل بسيط لأسطح المكتب البعيدة عبر RDP وVNC.",
       "developer": "KRDC team",
-      "keywords_en": ["rdp", "vnc", "remote desktop"],
-      "keywords_ar": ["سطح مكتب بعيد"]
+      "keywords_en": [
+        "rdp",
+        "vnc",
+        "remote desktop"
+      ],
+      "keywords_ar": [
+        "سطح مكتب بعيد"
+      ]
     },
     {
       "id": "org.schabi.newpipe",
@@ -3015,8 +4418,16 @@
       "accent": "#cd201f",
       "engine": "android",
       "icon_url": "https://f-droid.org/repo/org.schabi.newpipe/en-US/icon_OHy4y1W-fJCNhHHOBCM9V_cxZNJJgbcNkB-x7UDTY9Q=.png",
-      "keywords_en": ["youtube", "videos", "no ads"],
-      "keywords_ar": ["يوتيوب", "فيديو", "بلا إعلانات"],
+      "keywords_en": [
+        "youtube",
+        "videos",
+        "no ads"
+      ],
+      "keywords_ar": [
+        "يوتيوب",
+        "فيديو",
+        "بلا إعلانات"
+      ],
       "install": {
         "kind": "android",
         "url": "https://f-droid.org/repo/org.schabi.newpipe_1015_cb84069.apk",
@@ -3043,8 +4454,17 @@
       "accent": "#2e7d32",
       "engine": "android",
       "icon_url": "https://f-droid.org/repo/app.organicmaps/en-US/icon_dE7f4P95-uKZwu7cI89Q0xSi_-gvU4DD-XnLoDG9RLg=.png",
-      "keywords_en": ["maps", "offline maps", "navigation", "gps"],
-      "keywords_ar": ["خرائط", "ملاحة", "بدون انترنت"],
+      "keywords_en": [
+        "maps",
+        "offline maps",
+        "navigation",
+        "gps"
+      ],
+      "keywords_ar": [
+        "خرائط",
+        "ملاحة",
+        "بدون انترنت"
+      ],
       "install": {
         "kind": "android",
         "url": "https://f-droid.org/repo/app.organicmaps_26092932.apk",
@@ -3070,10 +4490,20 @@
       "developer": "Meypod",
       "accent": "#2e7d32",
       "engine": "android",
-      "arch": ["x86_64"],
+      "arch": [
+        "x86_64"
+      ],
       "icon_url": "https://f-droid.org/repo/com.github.meypod.al_quran/en-US/icon_gvbJ7wNF6o_lLoku5gdsCcxofoVPrgOY_Slc-jGr070=.png",
-      "keywords_en": ["quran", "islam", "mushaf"],
-      "keywords_ar": ["قرآن", "مصحف", "إسلام"],
+      "keywords_en": [
+        "quran",
+        "islam",
+        "mushaf"
+      ],
+      "keywords_ar": [
+        "قرآن",
+        "مصحف",
+        "إسلام"
+      ],
       "install": {
         "kind": "android",
         "url": "https://f-droid.org/repo/com.github.meypod.al_quran_43.apk",
@@ -3100,8 +4530,16 @@
       "accent": "#00695c",
       "engine": "android",
       "icon_url": "https://f-droid.org/repo/com.github.meypod.al_azan/en-US/icon_2xmGI8kq3HziUMYir0DjZR_e7D9AK5Nhha34SeXA1j8=.png",
-      "keywords_en": ["prayer times", "adhan", "salah"],
-      "keywords_ar": ["أذان", "مواقيت الصلاة", "صلاة"],
+      "keywords_en": [
+        "prayer times",
+        "adhan",
+        "salah"
+      ],
+      "keywords_ar": [
+        "أذان",
+        "مواقيت الصلاة",
+        "صلاة"
+      ],
       "install": {
         "kind": "android",
         "url": "https://f-droid.org/repo/com.github.meypod.al_azan_96000.apk",
@@ -3128,8 +4566,14 @@
       "accent": "#333333",
       "engine": "android",
       "icon_url": "https://f-droid.org/repo/org.wikipedia/en-US/icon_Z9wprwa6ZGVuIVGDvXIrqKTMPNP-9xliVcQ9RN9eOvs=.png",
-      "keywords_en": ["encyclopedia", "wiki"],
-      "keywords_ar": ["موسوعة", "ويكي"],
+      "keywords_en": [
+        "encyclopedia",
+        "wiki"
+      ],
+      "keywords_ar": [
+        "موسوعة",
+        "ويكي"
+      ],
       "install": {
         "kind": "android",
         "url": "https://f-droid.org/repo/org.wikipedia_50610.apk",
@@ -3155,8 +4599,14 @@
       "accent": "#1976d2",
       "engine": "android",
       "icon_url": "https://f-droid.org/repo/de.danoeh.antennapod/en-US/icon_w44b41PyuNt3pI7Gh8zYHJrWgu__3HT7YSWZtttfenk=.png",
-      "keywords_en": ["podcasts", "audio"],
-      "keywords_ar": ["بودكاست", "صوتيات"],
+      "keywords_en": [
+        "podcasts",
+        "audio"
+      ],
+      "keywords_ar": [
+        "بودكاست",
+        "صوتيات"
+      ],
       "install": {
         "kind": "android",
         "url": "https://f-droid.org/repo/de.danoeh.antennapod_3120295.apk",
@@ -3183,8 +4633,13 @@
       "accent": "#2f6f4e",
       "engine": "android",
       "icon_url": "https://f-droid.org/repo/com.kunzisoft.keepass.libre/en-US/icon_eLwXEQD9l2URrUS3t8esDXnsKGBaH02E-ddEYhV_i7Q=.png",
-      "keywords_en": ["passwords", "keepass"],
-      "keywords_ar": ["كلمات المرور"],
+      "keywords_en": [
+        "passwords",
+        "keepass"
+      ],
+      "keywords_ar": [
+        "كلمات المرور"
+      ],
       "install": {
         "kind": "android",
         "url": "https://f-droid.org/repo/com.kunzisoft.keepass.libre_45500.apk",
@@ -3211,8 +4666,14 @@
       "accent": "#3949ab",
       "engine": "android",
       "icon_url": "https://f-droid.org/repo/com.beemdevelopment.aegis/en-US/icon_C951ZFTL5UuK5VK6KaIOnVy5NNb0Wqe8asl4v1fSXLI=.png",
-      "keywords_en": ["2fa", "totp", "authenticator"],
-      "keywords_ar": ["تحقق بخطوتين"],
+      "keywords_en": [
+        "2fa",
+        "totp",
+        "authenticator"
+      ],
+      "keywords_ar": [
+        "تحقق بخطوتين"
+      ],
       "install": {
         "kind": "android",
         "url": "https://f-droid.org/repo/com.beemdevelopment.aegis_82.apk",
@@ -3228,8 +4689,8 @@
     },
     {
       "id": "com.shatteredpixel.shatteredpixeldungeon",
-      "source": "moos",
-      "cat": "droid",
+      "source": "flathub",
+      "cat": "fun",
       "glyph": "gaming",
       "en": "Shattered Pixel Dungeon",
       "ar": "شاترد بكسل دنجن",
@@ -3237,22 +4698,16 @@
       "desc_ar": "مغامرة في الأقبية برسوم البكسل، وكل جولة فيها مختلفة.",
       "developer": "Evan Debenham",
       "accent": "#5d4037",
-      "engine": "android",
       "icon_url": "https://f-droid.org/repo/com.shatteredpixel.shatteredpixeldungeon/en-US/icon_sGrA1aakL86yLytAeV0fds7P_nAq5FZvoABR78V9p0Y=.png",
-      "keywords_en": ["roguelike", "rpg", "pixel"],
-      "keywords_ar": ["لعبة", "مغامرة"],
-      "install": {
-        "kind": "android",
-        "url": "https://f-droid.org/repo/com.shatteredpixel.shatteredpixeldungeon_922.apk",
-        "sha256": "ceef4cdd4beddcb3d85379ac004cb4ab5d918b89dc7366b4ce9c4a3585a5e78e",
-        "size": 30275058,
-        "package": "com.shatteredpixel.shatteredpixeldungeon",
-        "version": "4.0.2",
-        "signer": "d45f760b89608b4b253a3b160dc2707f1ff4e8dd8ca4d2e8e1b81c2c72d81753",
-        "external": true,
-        "risk": "external-download",
-        "requires_review": true
-      }
+      "keywords_en": [
+        "roguelike",
+        "rpg",
+        "pixel"
+      ],
+      "keywords_ar": [
+        "لعبة",
+        "مغامرة"
+      ]
     },
     {
       "id": "org.fdroid.fdroid",
@@ -3267,8 +4722,14 @@
       "accent": "#1976d2",
       "engine": "android",
       "icon_url": "https://f-droid.org/repo/org.fdroid.fdroid/en-US/icon_0slNR8J9edqDZDoyWABFZrqQONU9EyiNVwM6B3Jui_Q=.png",
-      "keywords_en": ["android apps", "app store"],
-      "keywords_ar": ["تطبيقات أندرويد", "متجر"],
+      "keywords_en": [
+        "android apps",
+        "app store"
+      ],
+      "keywords_ar": [
+        "تطبيقات أندرويد",
+        "متجر"
+      ],
       "install": {
         "kind": "android",
         "url": "https://f-droid.org/repo/org.fdroid.fdroid_1023052.apk",
@@ -3294,10 +4755,18 @@
       "developer": "Element",
       "accent": "#0a8b66",
       "engine": "android",
-      "arch": ["x86_64"],
+      "arch": [
+        "x86_64"
+      ],
       "icon_url": "https://f-droid.org/repo/io.element.android.x/en-US/icon_YBz4_OnMHd7E2Bd_oEza9ImLSlHTpL_C-ovHcKljeFA=.png",
-      "keywords_en": ["matrix", "chat"],
-      "keywords_ar": ["ماتريكس", "دردشة"],
+      "keywords_en": [
+        "matrix",
+        "chat"
+      ],
+      "keywords_ar": [
+        "ماتريكس",
+        "دردشة"
+      ],
       "install": {
         "kind": "android",
         "url": "https://f-droid.org/repo/io.element.android.x_202609014.apk",
@@ -3323,10 +4792,17 @@
       "developer": "VideoLAN",
       "accent": "#c2410c",
       "engine": "android",
-      "arch": ["x86_64"],
+      "arch": [
+        "x86_64"
+      ],
       "icon_url": "https://f-droid.org/repo/org.videolan.vlc/en-US/icon_yAfSvPRJukZzMMfUzvbYqwaD1XmHXNtiPBtuPVHW-6s=.png",
-      "keywords_en": ["video player", "vlc"],
-      "keywords_ar": ["مشغل فيديو"],
+      "keywords_en": [
+        "video player",
+        "vlc"
+      ],
+      "keywords_ar": [
+        "مشغل فيديو"
+      ],
       "install": {
         "kind": "android",
         "url": "https://f-droid.org/repo/org.videolan.vlc_13070108.apk",
@@ -3353,8 +4829,14 @@
       "accent": "#b85c00",
       "engine": "android",
       "icon_url": "https://f-droid.org/repo/org.fossify.gallery/en-US/icon_PacTnoui8YxLsg0xPUkfzomGKFZemSHSr4p2qqrTn1Q=.png",
-      "keywords_en": ["gallery", "photos"],
-      "keywords_ar": ["معرض", "صور"],
+      "keywords_en": [
+        "gallery",
+        "photos"
+      ],
+      "keywords_ar": [
+        "معرض",
+        "صور"
+      ],
       "install": {
         "kind": "android",
         "url": "https://f-droid.org/repo/org.fossify.gallery_29.apk",
@@ -3381,8 +4863,14 @@
       "accent": "#b85c00",
       "engine": "android",
       "icon_url": "https://f-droid.org/repo/org.fossify.musicplayer/en-US/icon_zzf2uvu5LZyKQfhABXa1teA7OM6nT8AP73RNxobt6xs=.png",
-      "keywords_en": ["music player", "mp3"],
-      "keywords_ar": ["موسيقى", "مشغل"],
+      "keywords_en": [
+        "music player",
+        "mp3"
+      ],
+      "keywords_ar": [
+        "موسيقى",
+        "مشغل"
+      ],
       "install": {
         "kind": "android",
         "url": "https://f-droid.org/repo/org.fossify.musicplayer_17.apk",
@@ -3409,8 +4897,14 @@
       "accent": "#b85c00",
       "engine": "android",
       "icon_url": "https://f-droid.org/repo/org.fossify.calendar/en-US/icon_BAhUc7CcTB0Q-Lko-Vlp3ywXIZoeMf7r2gkDB8fIyRM=.png",
-      "keywords_en": ["calendar", "events"],
-      "keywords_ar": ["تقويم", "مواعيد"],
+      "keywords_en": [
+        "calendar",
+        "events"
+      ],
+      "keywords_ar": [
+        "تقويم",
+        "مواعيد"
+      ],
       "install": {
         "kind": "android",
         "url": "https://f-droid.org/repo/org.fossify.calendar_22.apk",
@@ -3437,8 +4931,14 @@
       "accent": "#b85c00",
       "engine": "android",
       "icon_url": "https://f-droid.org/repo/org.fossify.notes/en-US/icon_kEEs7KNI8HGTavwTVK1l2bC02mkgB5LAdWTi54Z6Psc=.png",
-      "keywords_en": ["notes", "checklist"],
-      "keywords_ar": ["ملاحظات", "قائمة مهام"],
+      "keywords_en": [
+        "notes",
+        "checklist"
+      ],
+      "keywords_ar": [
+        "ملاحظات",
+        "قائمة مهام"
+      ],
       "install": {
         "kind": "android",
         "url": "https://f-droid.org/repo/org.fossify.notes_13.apk",
@@ -3465,8 +4965,14 @@
       "accent": "#b85c00",
       "engine": "android",
       "icon_url": "https://f-droid.org/repo/org.fossify.filemanager/en-US/icon_IjcgJgPCk3zYIJ99OnzDV7ERXk0Ghdq5aBNEeeZwrEU=.png",
-      "keywords_en": ["files", "file manager"],
-      "keywords_ar": ["ملفات", "مدير ملفات"],
+      "keywords_en": [
+        "files",
+        "file manager"
+      ],
+      "keywords_ar": [
+        "ملفات",
+        "مدير ملفات"
+      ],
       "install": {
         "kind": "android",
         "url": "https://f-droid.org/repo/org.fossify.filemanager_14.apk",
@@ -3493,8 +4999,16 @@
       "accent": "#b85c00",
       "engine": "android",
       "icon_url": "https://f-droid.org/repo/org.fossify.clock/en-US/icon_I2dYnnRKTH1elfKmd3Ukz-xmCT0kbq2RCMU-ttaQvrg=.png",
-      "keywords_en": ["alarm", "timer", "stopwatch"],
-      "keywords_ar": ["منبه", "مؤقت", "ساعة"],
+      "keywords_en": [
+        "alarm",
+        "timer",
+        "stopwatch"
+      ],
+      "keywords_ar": [
+        "منبه",
+        "مؤقت",
+        "ساعة"
+      ],
       "install": {
         "kind": "android",
         "url": "https://f-droid.org/repo/org.fossify.clock_10.apk",
@@ -3521,8 +5035,15 @@
       "accent": "#2b6fb3",
       "engine": "android",
       "icon_url": "https://f-droid.org/repo/com.keylesspalace.tusky/en-US/icon_Q5w_2GJZP6EeCLURH-mnuVkqLo5AUPDrUNAY2PFm220=.png",
-      "keywords_en": ["mastodon", "fediverse", "social"],
-      "keywords_ar": ["ماستودون", "تواصل اجتماعي"],
+      "keywords_en": [
+        "mastodon",
+        "fediverse",
+        "social"
+      ],
+      "keywords_ar": [
+        "ماستودون",
+        "تواصل اجتماعي"
+      ],
       "install": {
         "kind": "android",
         "url": "https://f-droid.org/repo/com.keylesspalace.tusky_145.apk",
@@ -3549,8 +5070,14 @@
       "accent": "#0060df",
       "engine": "android",
       "icon_url": "https://f-droid.org/repo/net.thunderbird.android/en-US/icon_llBuXRxsJFITCCuDze-ENOPa1J_HFZLudN5K3gU-xiU=.png",
-      "keywords_en": ["email", "k-9 mail"],
-      "keywords_ar": ["بريد", "ايميل"],
+      "keywords_en": [
+        "email",
+        "k-9 mail"
+      ],
+      "keywords_ar": [
+        "بريد",
+        "ايميل"
+      ],
       "install": {
         "kind": "android",
         "url": "https://f-droid.org/repo/net.thunderbird.android_33.apk",
@@ -3577,8 +5104,14 @@
       "accent": "#1f1f1f",
       "engine": "android",
       "icon_url": "https://f-droid.org/repo/com.termux/en-US/icon_7jMZ7XD80oeucmGEaTwktIRZexLtGWvJfKdVD6Wu2SI=.png",
-      "keywords_en": ["terminal", "shell"],
-      "keywords_ar": ["طرفية", "سطر الأوامر"],
+      "keywords_en": [
+        "terminal",
+        "shell"
+      ],
+      "keywords_ar": [
+        "طرفية",
+        "سطر الأوامر"
+      ],
       "install": {
         "kind": "android",
         "url": "https://f-droid.org/repo/com.termux_1002.apk",
@@ -3604,9 +5137,18 @@
       "developer": "Don Ho",
       "accent": "#2e7d32",
       "engine": "windows",
-      "arch": ["x86_64"],
-      "keywords_en": ["notepad", "text editor", "code editor"],
-      "keywords_ar": ["محرر نصوص", "نوتباد"],
+      "arch": [
+        "x86_64"
+      ],
+      "keywords_en": [
+        "notepad",
+        "text editor",
+        "code editor"
+      ],
+      "keywords_ar": [
+        "محرر نصوص",
+        "نوتباد"
+      ],
       "install": {
         "kind": "windows-portable",
         "version": "8.9.8.1",
@@ -3635,9 +5177,17 @@
       "developer": "Rizonesoft",
       "accent": "#1e6fb8",
       "engine": "windows",
-      "arch": ["x86_64"],
-      "keywords_en": ["notepad", "text editor"],
-      "keywords_ar": ["محرر نصوص", "المفكرة"],
+      "arch": [
+        "x86_64"
+      ],
+      "keywords_en": [
+        "notepad",
+        "text editor"
+      ],
+      "keywords_ar": [
+        "محرر نصوص",
+        "المفكرة"
+      ],
       "install": {
         "kind": "windows-portable",
         "version": "7.26.602.1",
@@ -3666,9 +5216,19 @@
       "developer": "Simon Tatham",
       "accent": "#2b5797",
       "engine": "windows",
-      "arch": ["x86_64"],
-      "keywords_en": ["ssh", "telnet", "serial", "terminal"],
-      "keywords_ar": ["اتصال بالخوادم", "طرفية"],
+      "arch": [
+        "x86_64"
+      ],
+      "keywords_en": [
+        "ssh",
+        "telnet",
+        "serial",
+        "terminal"
+      ],
+      "keywords_ar": [
+        "اتصال بالخوادم",
+        "طرفية"
+      ],
       "install": {
         "kind": "windows-portable",
         "version": "0.85",
@@ -3697,9 +5257,18 @@
       "developer": "Krzysztof Kowalczyk",
       "accent": "#a66a00",
       "engine": "windows",
-      "arch": ["x86_64"],
-      "keywords_en": ["pdf reader", "epub", "comics"],
-      "keywords_ar": ["قارئ pdf", "كتب"],
+      "arch": [
+        "x86_64"
+      ],
+      "keywords_en": [
+        "pdf reader",
+        "epub",
+        "comics"
+      ],
+      "keywords_ar": [
+        "قارئ pdf",
+        "كتب"
+      ],
       "install": {
         "kind": "windows-portable",
         "version": "3.6.1",
@@ -3728,9 +5297,18 @@
       "developer": "WinMerge team",
       "accent": "#3a6ea5",
       "engine": "windows",
-      "arch": ["x86_64"],
-      "keywords_en": ["diff", "compare files", "merge"],
-      "keywords_ar": ["مقارنة الملفات", "دمج"],
+      "arch": [
+        "x86_64"
+      ],
+      "keywords_en": [
+        "diff",
+        "compare files",
+        "merge"
+      ],
+      "keywords_ar": [
+        "مقارنة الملفات",
+        "دمج"
+      ],
       "install": {
         "kind": "windows-portable",
         "version": "2.16.58.2",
@@ -3759,9 +5337,18 @@
       "developer": "Ansgar Becker",
       "accent": "#2f5d8a",
       "engine": "windows",
-      "arch": ["x86_64"],
-      "keywords_en": ["mysql", "sql", "database"],
-      "keywords_ar": ["قواعد بيانات", "اس كيو ال"],
+      "arch": [
+        "x86_64"
+      ],
+      "keywords_en": [
+        "mysql",
+        "sql",
+        "database"
+      ],
+      "keywords_ar": [
+        "قواعد بيانات",
+        "اس كيو ال"
+      ],
       "install": {
         "kind": "windows-portable",
         "version": "12.21",
@@ -4981,8 +6568,8 @@
     },
     {
       "id": "com.unicornsonlsd.finamp",
-      "source": "moos",
-      "cat": "droid",
+      "source": "flathub",
+      "cat": "media",
       "glyph": "music",
       "en": "Finamp",
       "ar": "فينامب",
@@ -4990,7 +6577,6 @@
       "desc_ar": "استمع إلى الموسيقى واحفظ المقاطع من خادم Jellyfin الخاص بك.",
       "developer": "James Harvey",
       "accent": "#176b63",
-      "engine": "android",
       "keywords_en": [
         "jellyfin",
         "music",
@@ -5000,19 +6586,7 @@
         "موسيقى",
         "صوت",
         "خادم"
-      ],
-      "install": {
-        "kind": "android",
-        "url": "https://f-droid.org/repo/com.unicornsonlsd.finamp_52.apk",
-        "sha256": "0da71f5d5531ca7a6d0094eefb27b5cc897c3b2c27de3b75c835481b0cfa41ae",
-        "size": 39216811,
-        "package": "com.unicornsonlsd.finamp",
-        "version": "0.6.27",
-        "signer": "73127dcbad76927ae0e11abb3bfad089a895f301c033c75fd798b9955f337759",
-        "external": true,
-        "risk": "external-download",
-        "requires_review": true
-      }
+      ]
     },
     {
       "id": "de.markusfisch.android.binaryeye",

@@ -1804,7 +1804,6 @@ ApplicationWindow {
         "android_setup_needed":     ["جهّز دعم تطبيقات أندرويد أولًا", "Set up Android app support first"],
         "android_start_timeout":    ["لم تصبح تطبيقات أندرويد جاهزة خلال المهلة. حاول مجددًا من متجر MoOS", "Android app support did not become ready in time. Try again from Mo Store"],
         "android_starting":         ["جارٍ تجهيز تطبيقات أندرويد…", "Getting Android apps ready…"],
-        "android_not_ready":        ["لم يكتمل تشغيل دعم أندرويد. لم يتغيّر التطبيق؛ حاول مجددًا أو افحص دعم أندرويد في الإعدادات", "Android app support did not become ready. The app is unchanged; retry or check Android support in Settings"],
         "android_status_unknown":   ["تعذّر التحقق من جاهزية تطبيقات أندرويد", "Could not verify Android app support"],
         "android_not_running":      ["دعم تطبيقات أندرويد غير مشغّل. افتحه أولاً لتشغيل هذا التطبيق", "Android app support is not running. Open it first to run this app"],
         "android_install_unconfirmed": ["لم يؤكد أندرويد تثبيت التطبيق. احتُفظ بسجل النسخة السابقة", "Android did not confirm installation. The previous record was kept"],
