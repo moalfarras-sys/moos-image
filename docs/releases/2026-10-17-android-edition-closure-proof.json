@@ -1,0 +1,127 @@
+{
+  "schema": 1,
+  "scope": "corrective source and local Cloud image qualification; not signed replacement delivery or installed acceptance",
+  "source": "f789fff1cef34e22d46dca2c9e5a6ee159a2a55b",
+  "source_tree": "9a9501184aec8d9fddc5977b5e0bf4d11e20d4fd",
+  "refused_cycle": {
+    "revision": "8add4ac28efa8d6ffe56326ca5f5d40f77578d99",
+    "build_run": 39056633234,
+    "attempt": 1,
+    "conclusion": "failure",
+    "failed_job": 117465843676,
+    "failed_step": "Build image (buildah)",
+    "reason": "systemd-analyze verify refused the shared Android session unit whose direct /usr/bin/waydroid command is deliberately absent on Cloud",
+    "generic_image": "success",
+    "nvidia_image": "success",
+    "cloud_image": "failure",
+    "coordinator": {
+      "source": "8add4ac28efa8d6ffe56326ca5f5d40f77578d99",
+      "tree": "84f74523c909d89b640aae83ed7ea0c6a9f40618",
+      "dirty_paths": [],
+      "exit": 1,
+      "seconds": 4345.774,
+      "log_sha256": "8be9e32eb4fedacc77f0078981545bf88be2b0bba03c5f5ee91f7b070f24175a"
+    },
+    "cloud_log": {
+      "job": 117465843676,
+      "run": 39056633234,
+      "read_exit": 0,
+      "raw_log_sha256": "e7c830fe4beed798c78e2363f3168e76ce7272e7ed986ca068d90fe9e58c7333",
+      "raw_bytes": 13241316
+    },
+    "x86_promotion": "not dispatched"
+  },
+  "correction": {
+    "unit_editions": [
+      "moos",
+      "moos-nvidia"
+    ],
+    "unsupported_unit_and_provider_absent": [
+      "moos-cloud",
+      "moos-arm"
+    ],
+    "direct_commands_preserved": true,
+    "global_startup_refused": true,
+    "no_wrapper_to_hide_missing_binary": true,
+    "composition_and_final_tree_check_in_both_builders": true,
+    "targeted_tests": 16,
+    "new_edition_tests": 11,
+    "identity_boot_signing_gates": "unchanged"
+  },
+  "full_check": {
+    "source": "f789fff1cef34e22d46dca2c9e5a6ee159a2a55b",
+    "tree": "9a9501184aec8d9fddc5977b5e0bf4d11e20d4fd",
+    "dirty_paths": [],
+    "exit": 0,
+    "seconds": 562.458,
+    "log_sha256": "2b6e51fdcf419f78f05c45a4165f8029d676833d1d0d984914915d7ea5f7d746"
+  },
+  "reported_counts": {
+    "unittest_cases": 2661,
+    "unittest_executions": 197,
+    "skips": 13,
+    "scope": "reported executions, not unique tests; the existing Justfile invokes the Android suite twice"
+  },
+  "local_cloud": {
+    "build": {
+      "source": "f789fff1cef34e22d46dca2c9e5a6ee159a2a55b",
+      "tree": "9a9501184aec8d9fddc5977b5e0bf4d11e20d4fd",
+      "dirty_paths": [],
+      "exit": 0,
+      "seconds": 562.755,
+      "log_sha256": "8171bb4217d02df7f3643bc325cf91218bc88d183e6cf84f0e455c1e32fa3bf1"
+    },
+    "image_id": "d63cf91aa6deae8be5319e03b617bea8b332fb12ede7e02c07a21341328c9128",
+    "readback_first": {
+      "source": "f789fff1cef34e22d46dca2c9e5a6ee159a2a55b",
+      "tree": "9a9501184aec8d9fddc5977b5e0bf4d11e20d4fd",
+      "dirty_paths": [],
+      "exit": 1,
+      "seconds": 0.558,
+      "log_sha256": "46f5e2b42fedbba7c35928f2b5deee767634ec804f63f748f948221b2f3f0515"
+    },
+    "readback_fixed": {
+      "source": "f789fff1cef34e22d46dca2c9e5a6ee159a2a55b",
+      "tree": "9a9501184aec8d9fddc5977b5e0bf4d11e20d4fd",
+      "dirty_paths": [],
+      "exit": 0,
+      "seconds": 0.709,
+      "log_sha256": "ebbf608ee9fe37e04e291a5056bcf92d374a0f1a0970d0a0bd6c38ab610fffc9"
+    },
+    "readback_fixture_correction": "SELinux refused the unlabeled bind inputs. Exact private copies were hash-checked and mounted read-only with Z labeling; original files, source, host policy and image bytes stayed unchanged.",
+    "checked_unchanged_source_files": 27,
+    "mismatches": [],
+    "intentional_unit_absence_verified": true,
+    "provider_absence_verified": true,
+    "installed_path_matrix_passed": true,
+    "minimum_observed_free_bytes": 47620841472,
+    "reserve_stop": null,
+    "bootc_lint": {
+      "passed": 11,
+      "skipped": 1,
+      "warnings": 3,
+      "preserved_warnings": [
+        "nonempty /boot/efi and /boot/grub2",
+        "var-log: /var/log/dnf5.log",
+        "var-tmpfiles: /var/log/dnf5.log"
+      ]
+    }
+  },
+  "arm_previous_candidate": {
+    "checked_at": "2026-10-17T18:49:27.732380+00:00",
+    "reference": "ghcr.io/moalfarras-sys/moos-arm@sha256:7e7770502e058bb2bbd8d732db1daec92a8d6b47663f34261b696a66a7d9bcec",
+    "tag": "ghcr.io/moalfarras-sys/moos-arm:candidate-39056574870-8add4ac28efa",
+    "architecture": "arm64",
+    "revision": "8add4ac28efa8d6ffe56326ca5f5d40f77578d99",
+    "version": "44.20261017.802",
+    "cosign_exit": 0,
+    "signature_log_sha256": "54e73e75fbc700f641994dca0378fdc7d7d4151fd3a7b684acb1b13258dc8935",
+    "scope": "signed ARM candidate only; disk boot, promotion and installed acceptance are still separate"
+  },
+  "remaining": [
+    "PR250 generic and ARM image completion",
+    "replacement fixed-revision signed build, all artifact boot proofs and promotion",
+    "physical signed update/reboot/native acceptance",
+    "Windows/Android full lifecycles and hardware/accessibility endurance"
+  ]
+}
