@@ -147,6 +147,52 @@ These are not conventions, they are gates. The image build fails if you break th
 
 ## A green build proves nothing about what the user sees
 
+**A retry can arrive before the first delivery is consumed.** A one-second
+job-presence resignal was consumed inside the same delayed/blind interval as
+the original event. Quiet reruns passed; a real Qt consumer deliberately delayed
+1.1s proved the old loss. Use one finite three-event recovery worker per directory,
+not an idle poll; preserve end ages, coalescing, retired directories and the
+late-consumer old-source negative. This proves the measured timing class, not
+that every earlier intermittent startup failure had the same cause.
+
+**A detached process is still in its parent's cgroup.** Android sessions started
+with `setsid` inside a Store job die when that job's unit ends. Keep one on-demand
+user unit, with no idle autostart, and tie it to graphical logout. The private
+native old/fixed lifetime probe must observe both survival after the job and
+termination after its fake graphical target stops; never stop the owner's
+actual session to test this. A transient startup reply is not readiness.
+
+**Basic controls can disconnect an app from Plasma's motion policy.** Kirigami
+selects a platform plugin using the controls style; Basic fell back to generic
+200ms Units even with animations disabled. The shared QML host selects the KDE
+platform plugin before loading. Both image builds execute the actual binary
+with private Basic-style probes at factors0/.5; require1/100ms and a marker,
+not an empty successful process. Keep the old-host negative control.
+
+**A fresh HOME still inherits the image's defaults.** With the actual KDE
+platform restored, the full motion fixture read the image's factor0.5 and
+correctly got100ms; its unscaled200ms assertion failed on both architectures.
+The fixture's private config must explicitly select factor1 and isolate
+XDG_CONFIG_DIRS. Never change the shipped speed or bypass KDE to make that
+fixture pass. Preserve the real old-harness100ms failure, full interaction
+positive and a broken reduced-motion negative.
+
+**A file update need not add a package.** APK before/after package-set differences
+miss already-installed updates. Install an owned, validated disk snapshot,
+verify that package and readable installed bytes, then publish its receipt.
+Silent refusal must leave the prior receipt unchanged; preserve the source-file
+replacement and malformed/symlink negative controls.
+
+**An Android property cannot be set before Android is ready.** The old setup
+set desktop-window properties while the session was stopped; upstream logged
+the refusal and returned success, then MoOS printed ready and opened a separate
+phone desktop. Wait for the actual boot property, apply and read both desktop
+properties, restart once only when changed, and read them back after that boot.
+Keep confirmation and the existing-session restart notice. Correct sessions
+need no writes/restart; silent setters, failed readbacks and restarts must never
+print ready. Isolated stateful controls are not physical Android acceptance.
+
+
 **The last success line is not the process exit.** An editor exec ended143
 after the final catalogue gate printed success. Its termination cause remains
 unproven. Preserve that result; a native parent must save the command's exit,
@@ -631,6 +677,28 @@ gate read the pipeline STRING; none ran a build and a teardown and asked what wa
 a comment says who closes something, prove it: `tests/test_remote_pipewire_fd.py` asks the far end
 of each socket whether it was hung up.
 
+**A PipeWire serial is not a GStreamer path.** `pipewiresrc path=` takes a node ID;
+`target-object=` takes `object.serial`. Passing the portal's v6 serial as a path
+and permitting default fallback sent actual camera pictures instead of the NVIDIA
+login screen. Keep each identifier in its correct property, require
+`node.dont-fallback=true`, and refuse malformed/non-monitor portal replies.
+Preserve the v5 node-ID path and descriptor lifetime guards. A connected socket,
+healthy encoder and logical desktop size do not identify the pixels: decode a
+picture. Private incidental camera bytes are discarded, never published as fixtures.
+The old user-experience gate required that wrong serial/path pairing. Its replacement
+executes both protocol selectors and the pipeline prefix; retain wrong-property,
+default-fallback and unused-selector negative controls.
+
+**A crashed greeter can stop its whole target.** A physical output disappearance
+crashed Qt's ListView destructor while removing the login screen. Its BindsTo
+target then stopped Remote too. A bounded `Restart=on-failure` with
+`RestartMode=direct` recovers without replacing authentication; ordinary exit and
+explicit stop must stay stopped, and repeated failure must exhaust the limit.
+`tests/greeter_recovery_probe.py` proves those dependency transactions with random
+private units, never the owner's compositor. Recovery is not a fix for the
+underlying Qt/DRM hotplug fault. Runtime copied bundles expire on reboot and need
+exact signed replacement/no-holder retirement.
+
 **A delegate's height while it is being made is not its height.** A Mira chat entry reported
 1208 px, then 452, during creation. Bound into a ListView that follows its newest entry, that
 remade the entries above it for ever: one core, 30 MiB a second, 8.9 GiB at the OOM kill. The review
@@ -1062,6 +1130,14 @@ gh auth refresh -h github.com -s workflow
 ```
 
 ## What is NOT done — do not claim otherwise
+
+**`setsid` is not a cgroup boundary, and a launcher PID is not its app.** A native
+Notepad4 Store job reported Opened and then killed its real window on job exit.
+Use the canonical `moai-open --app` user-manager boundary; keep `Type=exec`,
+`ExitType=cgroup` and graphical-session stop ownership. The private native
+fork/socket control must fail for both old Popen and a helper without cgroup
+lifetime, then pass after the caller exits and stop with only its private target.
+Manager refusal must never become Opened. A mocked argv is not this lifetime proof.
 
 - **Remote v56 is delivered in the signed `.1011` / ARM `.724` scope.** Source/native input and browser recovery proofs do not close owner phone/WAN endurance. The installed A1 runs immutable Remote without the earlier review override. Unattended capture consent belongs only to `org.moos.remote`, never the empty host app ID. Preserve PIN/device authentication and held-input ownership. New audit corrections still need their own signed delivery; see `PROJECT_STATE.md` and `moremote/ONE_REMOTE.md`.
 

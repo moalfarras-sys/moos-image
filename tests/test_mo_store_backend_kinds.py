@@ -54,6 +54,11 @@ LOADER.exec_module(MODULE)
 sys.path.insert(0, str(ROOT / "system_files/usr/lib/moos"))
 import moos_appdrop as appdrop  # noqa: E402
 
+APK_SPEC = importlib.util.spec_from_file_location("store_file_apk_fixtures", ROOT / "tests/test_moos_android_apk.py")
+APK_FIXTURES = importlib.util.module_from_spec(APK_SPEC)
+sys.modules[APK_SPEC.name] = APK_FIXTURES
+APK_SPEC.loader.exec_module(APK_FIXTURES)
+
 ELF = b"\x7fELF\x02\x01\x01\x00" + b"\x00" * 56
 
 
@@ -617,6 +622,54 @@ class WebAppKind(Kinds):
 class AndroidRecords(Kinds):
     PACKAGE = "org.example.notes"
 
+    def setUp(self):
+        super().setUp()
+        self.runner.answers[(MODULE.WAYDROID, "app", "list")] = (0, f"packageName: {self.PACKAGE}\n")
+
+    def local_record(self):
+        MODULE.Controller._write_android_record(self.PACKAGE, sha256="a" * 64,
+                                               source="file", file_name="notes.apk")
+        return MODULE.android_record_path(self.PACKAGE)
+
+    def test_namespaced_file_app_opens_and_removes_android_beside_its_flatpak(self):
+        record = self.local_record()
+        self.adapter.user = {self.PACKAGE}
+        app_id = "android-" + self.PACKAGE
+        controller = self.controller([])
+        code, result = controller.run(app_id)
+        self.assertEqual((code, result["state"]), (0, "success"), result)
+        self.assertEqual(result["items"][0]["id"], app_id)
+        self.assertIn([MODULE.WAYDROID, "app", "launch", self.PACKAGE], self.runner.commands)
+        self.assertEqual(controller.permissions(app_id)[1]["note_key"], "android_managed")
+        code, result = controller.remove(app_id)
+        self.assertEqual((code, result["state"]), (0, "success"), result)
+        self.assertEqual(result["items"][0]["id"], app_id)
+        self.assertIn([MODULE.WAYDROID, "app", "remove", self.PACKAGE], self.runner.commands)
+        self.assertFalse(record.exists())
+        self.assertEqual(self.adapter.removes, [], "an APK action removed the matching Flatpak")
+
+    def test_damaged_receipts_cannot_authorize_an_android_action(self):
+        for mode in ("schema", "symlink", "hardlink", "package"):
+            with self.subTest(mode=mode):
+                record = self.local_record()
+                saved = record.with_suffix(".saved")
+                if mode == "symlink":
+                    record.rename(saved)
+                    record.symlink_to(saved)
+                elif mode == "hardlink":
+                    os.link(record, saved)
+                else:
+                    data = json.loads(record.read_text())
+                    data.update({"schema": 2} if mode == "schema" else {"package": "org.other"})
+                    record.write_text(json.dumps(data))
+                controller = self.controller([])
+                for verb in (controller.run, controller.remove, controller.permissions):
+                    with self.assertRaises(MODULE.StoreError):
+                        verb("android-" + self.PACKAGE)
+                self.assertFalse(self.runner.commands)
+                record.unlink()
+                saved.unlink(missing_ok=True)
+
     def recipe(self, body: bytes) -> dict:
         return {"id": self.PACKAGE, "source": "moos", "en": "Notes",
                 "install": {"kind": "android", "package": self.PACKAGE, "version": "1.0",
@@ -647,12 +700,20 @@ class AndroidRecords(Kinds):
         self.assertEqual(pending, [{"id": self.PACKAGE, "kind": "pin", "name": "Notes", "version": "1.1",
                                     "installed_version": "1.0"}])
 
+    def test_silent_catalogue_refusal_cannot_write_an_installed_receipt(self):
+        controller = self.controller([self.recipe(b"PK\x03\x04publisher APK")])
+        self.opener.files[f"https://f-droid.example/{self.PACKAGE}.apk"] = b"PK\x03\x04publisher APK"
+        with mock.patch.object(controller, "_android_keeps_pin", return_value=False), \
+                mock.patch.object(MODULE, "ANDROID_READBACK_SECONDS", 0):
+            code, result = controller.install([self.PACKAGE])
+        self.assertEqual((code, result["state"]), (1, "failed"), result)
+        self.assertFalse(MODULE.android_record_path(self.PACKAGE).exists())
+
     def test_a_dropped_apk_gets_the_same_checks_and_a_record(self):
         apk = self.home / "Downloads/notes.apk"
         apk.parent.mkdir()
-        apk.write_bytes(b"PK\x03\x04dropped")
-        listing = iter(["packageName: com.other\n",
-                        f"packageName: com.other\npackageName: {self.PACKAGE}\n"])
+        apk.write_bytes(APK_FIXTURES.apk(self.PACKAGE, 12, "1.2"))
+        listing = iter([f"packageName: com.other\npackageName: {self.PACKAGE}\n"])
         self.runner.answers = {(MODULE.WAYDROID, "status"): (0, "Session:\tRUNNING\n")}
         original = self.runner.capture
 
@@ -690,10 +751,80 @@ class AndroidRecords(Kinds):
         self.assertFalse([argv for argv in self.runner.commands if argv[1:3] == ["app", "remove"]])
         self.assertTrue(record.exists(), "the Android copy's record was touched by a Flatpak removal")
 
+    def file_update_fixture(self):
+        path = self.home / "Downloads/notes.apk"
+        path.parent.mkdir()
+        path.write_bytes(APK_FIXTURES.apk(self.PACKAGE, 22, "2.2"))
+        self.runner.answers = {
+            (MODULE.WAYDROID, "status"): (0, "Session:\tRUNNING\n"),
+            (MODULE.WAYDROID, "app", "list"): (0, f"packageName: {self.PACKAGE}\n"),
+        }
+        return path, self.controller([])
+
+    def test_file_update_refreshes_existing_package_receipt_without_a_new_package(self):
+        path, controller = self.file_update_fixture()
+        record = self.local_record()
+        code, result = controller.install_file(str(path))
+        self.assertEqual((code, result["state"]), (0, "success"), result)
+        value = json.loads(record.read_text())
+        self.assertEqual((value["version"], value["sha256"]), ("2.2", hashlib.sha256(path.read_bytes()).hexdigest()))
+
+    def test_silent_file_update_refusal_preserves_exact_existing_receipt(self):
+        path, controller = self.file_update_fixture()
+        record = self.local_record()
+        before = record.read_bytes()
+        with mock.patch.object(controller, "_android_keeps_pin", return_value=False), \
+                mock.patch.object(MODULE, "ANDROID_READBACK_SECONDS", 0):
+            code, result = controller.install_file(str(path))
+        self.assertEqual((code, result["state"]), (1, "failed"), result)
+        self.assertEqual(record.read_bytes(), before)
+
+    def test_replacing_original_file_during_install_cannot_change_receipt_bytes(self):
+        path, controller = self.file_update_fixture()
+        original = path.read_bytes()
+        install = self.runner.run_cancellable
+        snapshots = []
+        def replacing(argv, cancelled):
+            if list(argv[:3]) == [MODULE.WAYDROID, "app", "install"]:
+                snapshot = Path(argv[3]);snapshots.append(snapshot)
+                self.assertNotEqual(snapshot, path)
+                self.assertEqual(snapshot.read_bytes(), original)
+                path.write_bytes(APK_FIXTURES.apk("org.other.app", 99, "9.9"))
+            return install(argv, cancelled)
+        self.runner.run_cancellable = replacing
+        code, result = controller.install_file(str(path))
+        self.assertEqual((code, result["state"]), (0, "success"), result)
+        value = json.loads(MODULE.android_record_path(self.PACKAGE).read_text())
+        self.assertEqual(value["sha256"], hashlib.sha256(original).hexdigest())
+        self.assertTrue(snapshots and all(not p.exists() for p in snapshots))
+
+    def test_source_changed_to_a_link_after_inspection_is_not_followed(self):
+        path, controller = self.file_update_fixture()
+        other = path.with_name("other.apk")
+        other.write_bytes(path.read_bytes())
+        inspect = appdrop.inspect
+        def racing_inspect(raw):
+            plan = inspect(raw)
+            path.unlink()
+            path.symlink_to(other)
+            return plan
+        with mock.patch.object(appdrop, "inspect", side_effect=racing_inspect):
+            code, result = controller.install_file(str(path))
+        self.assertEqual((code, result["state"]), (1, "failed"), result)
+        self.assertEqual(self.runner.commands, [])
+        self.assertTrue(other.is_file())
+
+    def test_malformed_apk_cannot_be_reported_installed(self):
+        path, controller = self.file_update_fixture()
+        path.write_bytes(b"PK\x03\x04not-an-apk")
+        code, result = controller.install_file(str(path))
+        self.assertEqual((code, result["state"]), (1, "failed"), result)
+        self.assertEqual(self.runner.commands, [])
+
     def test_an_error_on_stderr_is_a_failure_even_with_exit_zero(self):
         apk = self.home / "Downloads/bad.apk"
         apk.parent.mkdir()
-        apk.write_bytes(b"PK\x03\x04bad")
+        apk.write_bytes(APK_FIXTURES.apk(self.PACKAGE, 12, "1.2"))
         self.runner.results[(MODULE.WAYDROID, "app", "install")] = MODULE.CommandResult(
             0, "ERROR: Failed to install the package")
         code, result = self.controller([]).install_file(str(apk))

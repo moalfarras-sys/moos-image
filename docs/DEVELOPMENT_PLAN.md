@@ -11,6 +11,10 @@ new private feedback/optional public suggestions product is P6.9 below.
 
 ## Active delivery and acceptance batch
 
+Oct17 owner completion combines PR248 with the preserved local compatibility work. A 242-ref/62-worktree inventory, five dirty-tree backups and verified Git bundle precede integration. Native NVIDIA currently boots exact signed .1062 with .1046 rollback, Plasma6.8.0/Qt6.11.2/kernel7.2.10 and no pending transaction. App updates pass. The current boot retains52 display-start failures; Baloo inherited no graphical environment, and118 visible owned file retries after a properly scoped restart reduce the failed list to22. Actual private content search succeeds. Source now orders Baloo after plasma-core.target, preserving its index and native idle backend; private systemd fixed/cycle-negative controls pass. A new signed cold boot, the22 remaining indexing failures and wider acceptance remain open. See [owner audit](AUDIT_20261017_AR.md).
+
+Immediate P0/P2.17 correction: native NVIDIA login is restored with a scoped copied Remote bundle after actual decoded camera output exposed incorrect v6 serial targeting and permitted video fallback. Source now chooses the correct ID/serial property, forbids fallback and bounds greeter crash recovery while preserving upstream authentication. Five native old/fixed/stop/success/exhaustion dependency controls and eight target/contract controls pass. Fresh local image/signed cycle, exact override retirement and phone/hotplug endurance remain required; no local override counts as delivery. [Evidence](releases/2026-10-16-remote-screen-target-source-proof.json). Store real-app additions/touch/lifecycle/task management continue independently on `feat/store-real-apps-touch-20261016`.
+
 Current qualified source `e1ffacfa` (PR243–246) ships the 200-app Store, all
 13 Craft apps, reviewed lifecycle/data/index/UI fixes, stable x86 Plasma6.8.0
 and THEME_REV=106. Native repository gates and the complete local image with
@@ -19,8 +23,7 @@ passes: build38816837919, disks38824574093/38824577430/38824580671,
 ISO38824584100, ARM38824591685 and x86 promotion38829865381. Independent
 registry/cosign readback matches x86 `.1062` / ARM `.792`.
 [Qualified cycle and boundaries](releases/2026-10-16-store-qualified-cycle-proof.json).
-Native NVIDIA still boots `.1046` with exact signed `.1062` staged and no
-transaction; authorized restart/new native acceptance remain separate. Oracle
+Native NVIDIA now boots exact signed `.1062` with `.1046` rollback: ordinary owner login,63 hashes,54 selfchecks/2 notes,55 post-update/0 failures, Plasma6.8/GPU/app acceptance pass. Its later temporary Remote correction still needs signed delivery and phone acceptance. Oracle
 has rebooted to exact signed `.792` with `.791` rollback and changed boot ID;
 native graphical acceptance passes63 hashes,51 selfchecks/4 notes,55 post-update
 checks/0 failures, no failed units, user-app update and a real Store window. The
@@ -273,8 +276,8 @@ remove lifecycle, and the full P4.1 cancel/retry/readback contract across every 
 | Order | What the owner gets | The work | Acceptance |
 | --- | --- | --- | --- |
 | A1 | **DONE — all three engines, on the installed image, 2026-09-20** | **Windows:** two PE32+ GUI programs launched through `moos-run-foreign`, the double-click path, and appeared on the 4K Arabic desktop — Notepad (`غير معنون - المفكرة`) and Minesweeper (`الألغام`) — both wearing **MoOS's own Aurorae decoration** and both listed in the **MoOS Bar** beside native apps. Resolver: `برامج ويندوز, ready=true, chosen=wine, needs_setup=false`, no download. **Linux:** `moos-storectl install com.github.tchx84.Flatseal` → real job `state=success`, launcher entry `فلاتسيل`, ran in Arabic RTL, then `moos-storectl remove` → gone cleanly. Install, launch and remove all through Mo Store, never `flatpak` directly, which is what P4.1 claimed on paper. **Android — and it had NEVER worked.** `moai-do setup-waydroid` called `waydroid init -s VANILLA` with no OTA channels. waydroid composes its URL as `<channel>/<rom>/waydroid_<arch>/<type>.json` and falls back to a channels config that neither MoOS nor Fedora's package ships, so it stopped every time with "You must provide 'System OTA' and 'Vendor OTA' URLs" — before downloading a byte. Every existing gate read the source, where each half was correct. Passing the channels explicitly fixed it: **2.3 GB downloaded** (system.img 1.7 G, vendor.img 536 M), container `RUNNING` on 192.168.240.112, a real 11.9 MB APK installed through `moos-storectl install-file` (`state=success`), and **F-Droid opened on the MoOS desktop** with its own icon in the MoOS Bar. `tests/test_android_setup_channels.py` holds it and is proven to fail when the channels are removed. Frames in `test-results/a1-live/`. | Met. What remains is not A1: a second machine; PE32 (32-bit Windows), which SELinux blocks with an `execmod` denial mapping the i386 DLL from composefs; and **the Android caption**, re-measured on the station 2026-09-20 (`test-results/android-caption-seam.png`). A Windows program wears MoOS's Aurorae frame, but an Android app does not: in `multi_windows` mode the LineageOS freeform caption — back chevron, minimize, maximize, close — is drawn by SystemUI INSIDE the Android surface, so it arrives as client-side decoration and KWin never gets to frame it. No host-side property turns it off; `persist.waydroid.multi_windows` is the only `persist.waydroid.*` key the shipped tooling knows. Forcing a server-side frame would give the window two title bars, which is worse than one honest seam, so nothing was forced. The real fix is a patched Android image with the caption suppressed, which is a ROM build and belongs in its own cycle — written down here rather than quietly carried. |
-| A2 | Installed foreign apps appear in the launcher like any other app | **Android half works:** the container exports a launcher with the app's real name/icon, and removal takes it away; VLC and Organic Maps are present on the station. **Windows half remains:** App Drop runs the selected file but does not yet create a per-app environment, launcher/icon or uninstall record. Build that product instead of exporting the runtime's generic tools. | Install, log out, log in, launch from the menu. Remove takes the entry with it. No entry names a runtime |
-| A3 | Mo Store carries Android and Windows apps beside Linux ones | **Android catalogue adapter is source-complete and live-proven:** pinned publisher URL + SHA-256, one Store job/lock, session readiness, install/run/remove/reinstall, and ordinary Store buttons. Seven Android apps are catalogued. The Windows row currently contains five verified publisher destinations; it is discovery, not a managed install adapter. Next: per-app Windows environments with stable IDs and symmetric remove/retry; keep downloads explicit until that exists. | Android: cancel mid-download plus installed-image remove/reinstall proof. Windows: managed install/run/remove for a published test app. The Island shows one job and names the app, never the engine |
+| A2 | Installed foreign apps appear in the launcher like any other app | Android exports named launchers; the managed Windows adapter now has an individual prefix, stable ID, launcher/icon, receipt and symmetric removal in the integrated .1062 source. The Oct16 batch adds strict ownership of unlisted APK receipts and isolates Android runtime lifetime from short Store jobs. | Signed installed-image install → ordinary logout/login → menu launch → remove/reinstall, for every adapter; names/icons stay application-specific. Private Wine windows and mock lifecycle tests do not fulfill this row. |
+| A3 | Mo Store carries Android and Windows apps beside Linux ones | Production .1062 has200 curated entries. Oct16 source has264:148 Flathub,48 pinned Android APKs,20 managed portable Windows apps,17 App Drop recipes,27 preserved webapps,3 CLI tools and1 vendor package. All64 additions are real apps; seven featured cards are packaged apps. Fresh publisher/architecture metadata and exact APK/PE provenance are recorded.14 new Windows apps render under private native Wine;5 rejected candidates are excluded. Oracle's real Curtail journey passes. Native Markor installs exact APK bytes and reaches KWin after cold Android recovery; initial display/HWUI crash remains unresolved. Real Notepad4 exposed and proves the shared launch-lifetime fix. | Final combined source gates/local image and one signed milestone cycle, then native installed-image Store UI install/open/update/cancel/remove/reinstall.10 Android and10 Windows full app journeys, durable Android startup, actual touch hardware and physical GPU qualification remain open. |
 | A4 | Drop anything into MoOS and it installs | App Drop resolves through the same registry instead of its own list, so a dropped `.exe`, `.apk`, AppImage or archive takes the identical path as a catalogue install — consent, one job, a menu entry at the end | Drop one of each. Refused types still say why. A cancelled consent leaves nothing behind |
 | A5 | A MoOS API third parties can build against | The resolver is the first piece and it is a private CLI. Promote the app surface to a documented, versioned D-Bus interface — `org.moos.Apps1` over the registry and `moos-storectl`'s existing job model — so "what can this machine run, and install this for me" is answerable without shelling out to private commands. See the stack-depth audit: this is the single largest thing standing between MoOS and being an operating system rather than a very good desktop | An interface XML in `/usr/share/dbus-1/interfaces/`, introspectable, with a version; one first-party caller migrated onto it; the CLI kept as a thin client of the same interface |
 
@@ -442,9 +445,9 @@ itself and an unreviewed MoOS would ship kscreenlocker's emergency locker.
 | --- | --- | --- | --- |
 | P4.1 | Unify every install/update/remove request behind Mo Store | Shared native backend/bridge/UI and200-app catalogue are signed/promoted in `.1062`/`.792`; actual Linux/web/Windows installs/runs and13 Craft artifact lifecycles pass within their recorded scope. Native full-account/error/cancel/update/remove journeys remain | Store authority for every engine; shared job IDs, cancel/retry/remove and final readback. |
 | P4.2 | Audit desktop-app permissions and prefer portals | Open / acceptance not complete | Permission inventory and actual file/camera/screen/print portals without broad grants. |
-| P4.3 | Turn Windows compatibility into a per-app runner product | Catalogue expanded to 12 verified 64-bit Windows portable applications with SHA-256 and byte-size pins, strict DOWNLOAD_RULES regex, x86_64 PE validation (rejecting 32-bit PE to prevent composefs execmod denials), and 19 per-app prefix tests passing (test_mo_store_backend_windows.py, test_app_engines.py). | Ten Windows apps with isolated prefixes and install/launch/reopen/update/remove evidence. |
-| P4.4 | Turn Android compatibility into a per-app product | Signed catalogue/backend includes 21 Android apps, signer checks and readable installed-APK update policy. Ten real connected Android journeys and hardware fallback remain | Ten Android apps, on-demand container, files/clipboard/audio and NVIDIA fallback. |
-| P4.5 | Publish a generated compatibility matrix | Implemented generator at system_files/usr/bin/moos-compat-matrix with JSON and human-readable tabular output, documenting all 206 catalog apps, NVIDIA software rendering seam for Android, unsupported macOS/ARM/cloud boundaries, bilingual en/ar labels, and zero engine brand leaks. Verified with 10 unit tests in test_compat_matrix.py. | Generated version/edition/architecture/GPU compatibility matrix, including unsupported cases. |
+| P4.3 | Turn Windows compatibility into a per-app runner product | Combined source retains 20 reviewed publisher-pinned Windows recipes and their existing private render evidence. The six unqualified local additions are preserved in Git history, not offered as proven apps. Ten full native lifecycle journeys remain open. | Ten Windows apps with isolated prefixes and install/launch/reopen/update/remove evidence. |
+| P4.4 | Turn Android compatibility into a per-app product | Signed .1062 catalogue has 21 Android apps; combined source has 48, actual boot/property readback and independent session lifetime. Native Markor launch/document display passes within its recorded scope; editing/saving, cold-start endurance and ten complete journeys remain | Ten Android apps, on-demand container, files/clipboard/audio and NVIDIA fallback. |
+| P4.5 | Publish a generated compatibility matrix | Source generator uses the Store sanitization, architecture, engine and installability rules for all 264 entries. JSON and AR/EN text distinguish recipe availability from unassessed application testing, include pinned recipe versions and NVIDIA-only software graphics. Eleven controls pass; old generator fails all eleven. Signed delivery and published per-app lifecycle evidence remain separate. | Generated version/edition/architecture/GPU compatibility matrix, including unsupported cases. |
 | P4.6 | Consent-based App Drop for files | Implemented/delivered within recorded scope; wider acceptance remains | Real magic, sandbox extraction, default-No consent, safe launchers and all entry paths. |
 | P4.7 | Native Store picker/drop through App Drop | Implemented/delivered within recorded scope; wider acceptance remains | Actual QML picker/drop delegates to App Drop, valid local files, refusal/cancel and Store job. |
 
@@ -578,3 +581,99 @@ repository has no ARM binaries, and a full native stable source rebuild remains
 P6.7 acceptance work. No cross-architecture packages or beta relabeling.
 Source/image/boot/promoted/installed evidence remain separate; one replacement
 release cycle only after the combined source passes.
+
+Oct16 unified application batch (source; delivery pending): one on-demand user
+Android session survives Store task completion and stops with graphical logout;
+no idle autostart, unsigned image download or ambiguous readiness is accepted.
+Dropped APK updates install an owned disk snapshot, verify the actual package,
+and retain the old receipt on silent refusal. Unlisted APKs stay manageable
+without colliding with identically named Linux apps. Native Task Manager is
+reachable from the Library through its existing launcher; no duplicate manager
+or polling daemon is added. Basic-style QML apps select KDE's platform plugin
+so Plasma's disabled motion applies. Native Qt touch/wheel/keyboard and old-source
+negative controls pass. See [source/runtime receipt](releases/2026-10-16-store-native-source-proof.json).
+The real Oracle Curtail journey found a Mesa Vulkan crash; ARM's existing
+software-rendering environment now selects GL, with positive native Wayland
+readback on the same app/runtime. The local user-manager setting is a temporary
+runtime correction, not a signed release. Freeze the coherent Store + Remote
+source and complete one local native ARM image/required CI/signed four-edition
+cycle before official Oracle update/reboot. NVIDIA became available Oct17;
+its bounded native evidence below does not qualify every application.
+
+Primary sources reviewed2026-10-16: [Waydroid desktop-window properties](https://docs.waydro.id/usage/waydroid-prop-options),
+[Waydroid unsupported-GPU software path](https://docs.waydro.id/faq/get-waydroid-to-work-through-a-vm),
+[actual session-manager lifetime](https://github.com/waydroid/waydroid/blob/main/tools/actions/session_manager.py),
+[GTK renderer selection](https://docs.gtk.org/gtk4/running.html),
+[KDE platform-plugin selection](https://github.com/KDE/kirigami/blob/master/src/platform/platformpluginfactory.cpp).
+Native x86 desktop images ship Wine/Waydroid; ARM and cloud engine availability
+is separately advertised by measured admission. This batch does not claim
+x86 Windows execution on the current ARM machine or universal Android hardware support.
+
+Oct16 gate follow-up: the journal-isolation run caught a lost Mira job-presence
+notification. Stopping the owned diagnostic scan and running quietly passed,
+so that rerun did not qualify the original behavior. A new deterministic real
+Qt control delayed the first consumer delivery1.1s and reproduced the same
+old one-shot failure. The producer now emits a finite three-event coalesced
+burst from one worker; it leaves no idle polling, token or timer, preserves
+end timestamps and does not recreate a retired runtime directory.64 native
+controls pass; old scheduler controls must remain red. This is part of the
+same not-yet-delivered Store/Remote milestone, not a second candidate cycle.
+
+Oct16 APK follow-up keeps one bounded update confirmation before publishing a
+new receipt, preserving the existing `android_update_refused` and unreadable
+legacy-data policy.29 update controls,36 Store controller controls and47 backend
+kind controls pass. The dropped-file fixture now contains a real compiled
+manifest and checks the private snapshot/source-file lifecycle. The generated
+cache fingerprint records107; its refusal of same-revision changes is unchanged.
+The109-command adaptive remainder diagnostic retains its three failures and
+their subsequent targeted corrections; it is not the official full-check proof.
+Exact `c16a7a70` subsequently passed the official284-command native `just check`
+in652.471s. Its PR x86/ARM/canary image gates then exposed a fixture-input
+error: the corrected host inherited the shipped factor0.5 (measured100ms),
+while the full motion test assumed200ms. Oct17's private explicit factor1
+passes real native interaction/Hub tests; broken reduced-motion scaling still
+fails. Shipped defaults and assertions are unchanged. The separate local image
+stopped at its3GiB disk reserve and remains a failed build, not qualification.
+The rebuilt image, final source check, signed cycle and installed readback stay
+open. [Follow-up evidence](releases/2026-10-17-store-qualification-followup.json).
+
+Primary source refresh2026-10-17: [Flatpak architecture/remote/app lifecycle](https://docs.flatpak.org/en/latest/using-flatpak.html),
+[F-Droid signed indexes rather than display APIs](https://f-droid.org/docs/All_our_APIs/),
+[F-Droid index/APK signing](https://f-droid.org/en/docs/Signing_Process/),
+[Waydroid desktop windows and idle suspend](https://docs.waydro.id/usage/waydroid-prop-options),
+and [unsupported-GPU software rendering](https://docs.waydro.id/faq/get-waydroid-to-work-through-a-vm).
+These support the existing verified-source adapters; they do not replace real
+per-application installed-image or physical GPU acceptance.
+
+Oct17 first-use Android integration: source review against the current upstream
+property command and desktop instructions confirms that a stopped session can
+refuse both property writes with exit0. Confirmed setup now waits for the real
+boot property, verifies both desktop values, restarts once only when changed,
+and verifies them again. Correct sessions keep running; existing-app restart
+notice is before consent. No separate phone desktop opens. Nine native isolated
+setup controls pass, including silent refusal, failed readback/restart and an
+unbooted platform; two restored-old controls fail. Five shared-runtime and four
+channel controls pass. These controls do not qualify actual Android windows or
+apps on hardware; that acceptance and the final combined signed cycle remain
+open. [Evidence](releases/2026-10-17-android-desktop-setup-source-proof.json).
+
+Oct17 native follow-up: exact `7c37862e` passes the full native repository check,
+complete ARM image/19-file immutable readback and every PR image/repository/Remote
+check. Preserve earlier failures; this checkpoint does not qualify later edits.
+Real Notepad4 installed but closed with the Store caller. Shared launches now
+use the canonical user-manager boundary with cgroup lifetime and desktop stop
+ownership, refusing manager errors. Two actual private old/broken lifetime
+controls fail; fixed child survives its caller and stops with its private target.
+Seven portable controls and real NVIDIA Notepad4 window/pixels pass. Existing
+five Android runtime controls now join the maintained `just check` recipe.
+Native Markor exact APK/version installs and a KWin window appears after cold
+Android recovery; WCG/SurfaceFlinger failure is not permanently repaired. Both
+default HWUI and Vulkan cold controls pass, so renderer selection was restored
+and is not claimed as a cure. Scoped document permission returns to default;
+document-intent success is not editing/saving proof. Final combined qualification,
+one signed cycle and installed-image acceptance remain open. Oracle API tenancy
+read/instance-principal auth and the recovered backup succeed; compute detail
+access and billing standing are not established. [Evidence](releases/2026-10-17-managed-app-native-proof.json).
+
+Primary lifetime source reviewed2026-10-17: [systemd service lifetime](https://github.com/systemd/systemd/blob/main/man/systemd.service.xml)
+and [transient services](https://github.com/systemd/systemd/blob/main/man/systemd-run.xml).

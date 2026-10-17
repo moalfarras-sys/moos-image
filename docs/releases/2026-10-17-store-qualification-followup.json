@@ -1,0 +1,183 @@
+{
+  "observed_utc": "2026-10-17T08:22:58.418376+00:00",
+  "scope": "Store/Remote milestone source qualification follow-up; no new signed release or installed acceptance",
+  "prior_revision": "c16a7a70856f59e4f2ecd9a52898a21bb061402e",
+  "official_source_check": {
+    "revision": "c16a7a70856f59e4f2ecd9a52898a21bb061402e",
+    "tree": "b98a984d0e40f4d2252083dfe2b1cc4bb5300563",
+    "started_at": "2026-10-16T19:57:53.009662+00:00",
+    "seconds": 652.471,
+    "exit": 0,
+    "log_sha256": "3dc122d87ba539b6329309b56214464cb861e8b5a8a749790530082fce442be9",
+    "source_unchanged": true,
+    "maintained_just_check_commands": 284
+  },
+  "failed_pr_images": [
+    {
+      "run": 38959466126,
+      "url": "https://github.com/moalfarras-sys/moos-image/actions/runs/38959466126",
+      "conclusion": "failure",
+      "cause": "full motion fixture inherited image factor0.5 but asserted unscaled200ms",
+      "log": {
+        "local_file": "/var/home/moos/.cache/moos-store-native-cycle-20261016/38959466126-failed.log",
+        "sha256": "08ac380a30cebe26166fda8d0bda0f401ce4dd98d36aed02b6b155254271b5f6"
+      }
+    },
+    {
+      "run": 38959466166,
+      "url": "https://github.com/moalfarras-sys/moos-image/actions/runs/38959466166",
+      "conclusion": "failure",
+      "cause": "full motion fixture inherited image factor0.5 but asserted unscaled200ms",
+      "log": {
+        "local_file": "/var/home/moos/.cache/moos-store-native-cycle-20261016/38959466166-failed.log",
+        "sha256": "969454fbbc540e48daa8fa7f2239e8cb79939b0b199e08988807c8f94919e1d8"
+      }
+    },
+    {
+      "run": 38959466205,
+      "url": "https://github.com/moalfarras-sys/moos-image/actions/runs/38959466205",
+      "conclusion": "failure",
+      "cause": "full motion fixture inherited image factor0.5 but asserted unscaled200ms",
+      "log": {
+        "local_file": "/var/home/moos/.cache/moos-store-native-cycle-20261016/38959466205-failed.log",
+        "sha256": "2d53e37e1d8080be63a3121c16d0cb747929f5edd8fc82d06fdce8211fd36f59"
+      }
+    }
+  ],
+  "local_image_failure": {
+    "revision": "c16a7a70856f59e4f2ecd9a52898a21bb061402e",
+    "tree": "b98a984d0e40f4d2252083dfe2b1cc4bb5300563",
+    "scope": "complete native Oracle aarch64 local image; all in-image gates, not a signed release/boot proof",
+    "started_utc": "2026-10-16T20:08:53.319221+00:00",
+    "image": "localhost/moos-store-unified-native:20261016",
+    "free_before": 18457554944,
+    "command": [
+      "podman",
+      "build",
+      "-f",
+      "Containerfile.arm",
+      "--pull=always",
+      "--label",
+      "org.opencontainers.image.revision=c16a7a70856f59e4f2ecd9a52898a21bb061402e",
+      "-t",
+      "localhost/moos-store-unified-native:20261016",
+      "."
+    ],
+    "stopped_for_disk_reserve": 3207548928,
+    "exit": 1,
+    "seconds": 5251.274,
+    "free_after": 3207548928,
+    "source_unchanged": true,
+    "log_sha256": "36e55533957e5ee9b41fe710249f34f6889380ee2d74094317a1f1ab0a805ed4"
+  },
+  "motion_native_controls": {
+    "new_host_old_harness_exit": 1,
+    "old_harness_actual_duration_ms": 100,
+    "explicit_factor_one_new_harness_motion_and_hub_exit": [
+      0,
+      0
+    ],
+    "broken_off_floor_rejected": true,
+    "scope": "real native SDK-compiled current host; isolated configs/imports; no host config mutation",
+    "fixed": [
+      {
+        "fixture": "motion-review.qml",
+        "exit": 0
+      },
+      {
+        "fixture": "hub-motion-review.qml",
+        "exit": 0
+      }
+    ],
+    "fixtures_unchanged_assertions": true,
+    "shipped_speed_unchanged": true,
+    "logs": [
+      {
+        "local_file": "/var/home/moos/.cache/moos-store-native-cycle-20261016/motion-image-default-regression/old-native.log",
+        "sha256": "cd4f8788288d29e9ea62359961d38443dea952304e78d1663c27e197161acd46"
+      },
+      {
+        "local_file": "/var/home/moos/.cache/moos-store-native-cycle-20261016/motion-image-default-regression/old-input.log",
+        "sha256": "9a1b431fac981e620fdddb72ccf4013517841e3b9081ba271ee42044eed5b606"
+      },
+      {
+        "local_file": "/var/home/moos/.cache/moos-store-native-cycle-20261016/motion-image-default-regression/motion-review-fixed.log",
+        "sha256": "50e0a2ae6d3e10be1a701dd951bfb53376d82929f86ccf1a705a6cc47d57e943"
+      },
+      {
+        "local_file": "/var/home/moos/.cache/moos-store-native-cycle-20261016/motion-image-default-regression/hub-motion-review-fixed.log",
+        "sha256": "c396a5c71328d7a63582305a04f90e3eba3bceafb6cd4c2b74590b8c89414270"
+      },
+      {
+        "local_file": "/var/home/moos/.cache/moos-store-native-cycle-20261016/motion-image-default-regression/broken-reduced-motion.log",
+        "sha256": "1ae6abf1a6bb0bd48a8dfd3866b022dce614b98fca33d584191ffb678d60c65c"
+      }
+    ]
+  },
+  "task_manager_native": {
+    "observed_utc": "2026-10-16T20:31:34.939079+00:00",
+    "scope": "native signed Oracle stock Task Manager, fixed target applications.page, actual accessible visible window; new Store route remains source until signed update",
+    "unit": "moai-open-707728-29063.service",
+    "pid": 707734,
+    "state": {
+      "ActiveState": "active",
+      "MainPID": "707734",
+      "ExecMainStatus": "0"
+    },
+    "frames": [
+      {
+        "name": "التّطبيقات",
+        "showing": true
+      }
+    ],
+    "navigation": [
+      {
+        "name": "العمليات",
+        "role": "list item",
+        "selected": false,
+        "checked": false,
+        "showing": true
+      },
+      {
+        "name": "العمليات",
+        "role": "label",
+        "selected": false,
+        "checked": false,
+        "showing": true
+      },
+      {
+        "name": "العمليات",
+        "role": "heading",
+        "selected": false,
+        "checked": false,
+        "showing": false
+      }
+    ],
+    "bounded_nodes_visited": 125,
+    "accessibility_probe": "QT_LINUX_ACCESSIBILITY_ALWAYS_ON=1 scoped to this owned test app; ordinary first launch had no accessible registration",
+    "applications_page_title_confirmed": true,
+    "owned_window_closed_after_test": true
+  },
+  "application_source_refresh": {
+    "reviewed_utc_date": "2026-10-17",
+    "urls": [
+      "https://docs.flatpak.org/en/latest/using-flatpak.html",
+      "https://f-droid.org/docs/All_our_APIs/",
+      "https://f-droid.org/en/docs/Signing_Process/",
+      "https://docs.waydro.id/usage/waydroid-prop-options",
+      "https://docs.waydro.id/faq/get-waydroid-to-work-through-a-vm"
+    ],
+    "catalogue_additions_already_in_prior_revision": 64,
+    "new_webapps": 0,
+    "limits": "native Android journeys and NVIDIA hardware acceptance remain open; verified APK/PE provenance is not application functionality"
+  },
+  "pending": [
+    "complete final source check at new revision",
+    "complete local native image and exact payload readback",
+    "pass final PR image gates",
+    "one coherent signed four-edition boot-proof promotion",
+    "official Oracle signed update and new-boot readback",
+    "physical NVIDIA when available"
+  ],
+  "signing_identity_boot_and_plasma_seam_gates_unchanged": true
+}

@@ -461,6 +461,93 @@ class EveryKindIsSeen(unittest.TestCase):
                          sum(bool(app["installed"]) for app in self.data["apps"]))
 
 
+class UnlistedAndroidApps(unittest.TestCase):
+    PACKAGE = "org.example.local"
+
+    def receipt(self, machine, package=None, source="file", **changes):
+        package = package or self.PACKAGE
+        with mock.patch.dict(os.environ, HOME=str(machine.home), XDG_DATA_HOME=str(machine.data)):
+            storectl.Controller._write_android_record(
+                package, sha256=SHA, source=source,
+                catalog_id=package if source == "catalog" else "", version="2.1",
+                file_name="Local Notes.apk" if source == "file" else "")
+        path = machine.data / f"moos/android/{package}.json"
+        if changes:
+            record = json.loads(path.read_text())
+            record.update(changes)
+            path.write_text(json.dumps(record))
+        (machine.data / f"waydroid/data/data/{package}").mkdir(parents=True, exist_ok=True)
+        return path
+
+    def test_file_installed_and_retired_catalogue_apks_remain_manageable(self):
+        with tempfile.TemporaryDirectory() as raw:
+            machine = Machine(Path(raw))
+            self.receipt(machine)
+            self.receipt(machine, "org.example.retired", source="catalog")
+            apps = {app["id"]: app for app in machine.run()["apps"]}
+            for package in (self.PACKAGE, "org.example.retired"):
+                app = apps["android-" + package]
+                self.assertEqual((app["kind"], app["package"]), ("android", package))
+                self.assertEqual((app["installed"], app["listed"], app["installable"]),
+                                 (True, False, False))
+                self.assertEqual(app["installed_version"], "2.1")
+                self.assertFalse(app["update_available"], "an unlisted receipt is not an update recipe")
+
+    def test_a_flatpak_with_the_same_id_and_a_catalogued_apk_are_not_lost_or_duplicated(self):
+        with tempfile.TemporaryDirectory() as raw:
+            machine = Machine(Path(raw))
+            self.receipt(machine, "org.example.Listed")
+            self.receipt(machine, "org.example.droid", source="catalog")
+            machine.deploy("org.example.Listed", {"appdata-version": "3.0"})
+            apps = {app["id"]: app for app in machine.run()["apps"]}
+            self.assertEqual(apps["org.example.Listed"]["kind"], "flatpak")
+            self.assertTrue(apps["org.example.Listed"]["installed"])
+            self.assertEqual(apps["android-org.example.Listed"]["kind"], "android")
+            self.assertTrue(apps["org.example.droid"]["installed"])
+            self.assertNotIn("android-org.example.droid", apps)
+
+    def test_malformed_linked_or_absent_runtime_receipts_are_not_inventory(self):
+        for change in ({"schema": 2}, {"schema": True}, {"id": "org.other"},
+                       {"package": "org.other"}, {"sha256": "bad"},
+                       {"source": "other"}, {"catalog_id": "unexpected"}):
+            with self.subTest(change=change), tempfile.TemporaryDirectory() as raw:
+                machine = Machine(Path(raw))
+                self.receipt(machine, **change)
+                self.assertNotIn("android-" + self.PACKAGE,
+                                 {app["id"] for app in machine.run()["apps"]})
+        for mode in ("symlink", "hardlink", "no-runtime"):
+            with self.subTest(mode=mode), tempfile.TemporaryDirectory() as raw:
+                machine = Machine(Path(raw))
+                receipt = self.receipt(machine)
+                if mode == "symlink":
+                    saved = receipt.with_suffix(".saved")
+                    receipt.rename(saved)
+                    receipt.symlink_to(saved)
+                elif mode == "hardlink":
+                    os.link(receipt, receipt.with_suffix(".saved"))
+                else:
+                    (machine.data / f"waydroid/data/data/{self.PACKAGE}").rmdir()
+                self.assertNotIn("android-" + self.PACKAGE,
+                                 {app["id"] for app in machine.run()["apps"]})
+
+    def test_cached_index_notices_android_install_and_removal_without_appstream(self):
+        with tempfile.TemporaryDirectory() as raw:
+            machine = Machine(Path(raw))
+            first = machine.run()
+            machine.xml.chmod(0)
+            try:
+                self.receipt(machine)
+                second = machine.run()
+                self.assertEqual(second["generation"]["metadata_token"], first["generation"]["metadata_token"])
+                self.assertNotEqual(second["generation"]["installed_token"], first["generation"]["installed_token"])
+                self.assertIn("android-" + self.PACKAGE, {app["id"] for app in second["apps"]})
+                (machine.data / f"waydroid/data/data/{self.PACKAGE}").rmdir()
+                third = machine.run()
+                self.assertNotIn("android-" + self.PACKAGE, {app["id"] for app in third["apps"]})
+            finally:
+                machine.xml.chmod(0o644)
+
+
 class TheRefreshPathAgrees(unittest.TestCase):
     def test_an_install_and_a_removal_are_seen_without_parsing_appstream(self):
         with tempfile.TemporaryDirectory() as raw:

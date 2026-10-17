@@ -84,8 +84,8 @@ Window {
                 // Kirigami.Units.longDuration / 200, and 200 is not a guess: it
                 // is this runtime's unscaled longDuration, asserted here so the
                 // constant is proven rather than remembered. The harness runs
-                // with an isolated HOME and no AnimationDurationFactor, so the
-                // engine is at factor 1.
+                // with an isolated HOME and an explicit factor 1, independent
+                // of the installed edition's /etc/xdg motion default.
                 driver.compare(Kirigami.Units.longDuration, 200)
                 driver.compare(MoUI.Tokens.scaled(200, MoUI.Tokens.motionGeometry),
                                MoUI.Tokens.motionGeometry)

@@ -25,6 +25,7 @@ words. Nothing leaves the private HOME, and nothing is shown on a screen (offscr
 import concurrent.futures
 import datetime
 import json
+import importlib.util
 from pathlib import Path
 import re
 import shutil
@@ -515,11 +516,16 @@ def copy_fixtures(target: Path) -> None:
         path.write_text(text.replace("@FIXTURES@", str(target)).replace("@NOW@", now), encoding="utf-8")
 
 
-def run_walk(variant: dict, store: Path, work: Path, steps: list[dict] | None = None) -> subprocess.CompletedProcess:
+def run_walk(variant: dict, store: Path, work: Path, steps: list[dict] | None = None,
+             *, runner: list[str] | None = None) -> subprocess.CompletedProcess:
     work.mkdir(parents=True)
     config = work / "config"
     config.mkdir()
     palette(config, variant["scheme"])
+    if variant.get("reduced_motion"):
+        globals_path = config / "kdeglobals"
+        globals_path.write_text(re.sub(r"(?m)^AnimationDurationFactor=.*$", "AnimationDurationFactor=0",
+                                       globals_path.read_text(encoding="utf-8")), encoding="utf-8")
     runtime = work / "run"
     runtime.mkdir(mode=0o700)
     data = work / "store-cache"
@@ -537,6 +543,8 @@ def run_walk(variant: dict, store: Path, work: Path, steps: list[dict] | None = 
     arguments = [f"--src={(store / 'main.qml').as_uri()}", f"--walk={walk_file}", f"--fixtures={data}",
                  f"--w={width}", f"--h={height}", f"--cache={data}", f"--index={index}",
                  f"--machine={data / variant['machine']}", f"--ready={ready}"]
+    arguments.append(f"--font={variant.get('font', 10)}")
+    arguments.append("--reduced-motion=" + ("1" if variant.get("reduced_motion") else "0"))
     arguments.append(f"--updates={data / variant['updates']}" if variant["updates"] else "--updates=")
     arguments.append(f"--facts={data / 'facts.json'}" if variant["facts"] else "--facts=")
     arguments.append(f"--settings={data / variant['settings']}" if variant["settings"] else "--settings=")
@@ -555,8 +563,9 @@ def run_walk(variant: dict, store: Path, work: Path, steps: list[dict] | None = 
         "LANG": locale, "LC_ALL": locale, "LANGUAGE": variant["language"],
     }
     try:
-        return subprocess.run([RUNTIME, "--app-id", "org.moos.store.review", "--icon", "moos-store",
-                               "--qml", str(probe), "--", *arguments],
+        command = runner or [RUNTIME, "--app-id", "org.moos.store.review", "--icon", "moos-store",
+                             "--qml", str(probe)]
+        return subprocess.run([*command, "--", *arguments],
                               env=env, capture_output=True, text=True, timeout=240)
     except subprocess.TimeoutExpired as expired:
         return subprocess.CompletedProcess(expired.cmd, -9, "", f"STORE WALK FAILED: timed out\n{expired.stderr or ''}")
@@ -683,6 +692,65 @@ class StorePagesWalk(unittest.TestCase):
         self.assertTrue(any("Binding loop" in text and "walkPlantedLoop" in text for text in found),
                         "the reader no longer sees a binding loop")
         self.assertIn("STORE WALK DONE", result.stderr, "the planted walk did not finish")
+
+
+
+@unittest.skipUnless(RUNTIME and importlib.util.find_spec("PySide6"),
+                     "requires native MoOS Qt runtime and PySide6 for isolated input injection")
+class StoreTouchNavigation(unittest.TestCase):
+    def test_native_wheel_touch_and_real_platform_navigation(self):
+        variants = []
+        for language, font, scale in (("en", 10, "1"), ("ar", 10, "2.5"),
+                                       ("en", 20, "1"), ("ar", 20, "2.5")):
+            variant = dict(VARIANTS[0], name=f"touch-{language}-{font}", language=language,
+                           font=font, scale=scale, reduced_motion=(language == "ar" and font == 20))
+            variants.append(variant)
+        with tempfile.TemporaryDirectory(prefix="mo-store-touch-") as temporary:
+            for variant in variants:
+                with self.subTest(language=variant["language"], font=variant["font"], scale=variant["scale"]):
+                    result = run_walk(variant, STORE, Path(temporary) / variant["name"], [],
+                                      runner=["python3", str(ROOT / "tests/store_touch_probe.py")])
+                    log = result.stdout + result.stderr
+                    self.assertEqual(result.returncode, 0, log[-14000:])
+                    self.assertIn("STORE INPUT DONE", log)
+                    self.assertFalse(problems(log), "\n".join(problems(log)))
+
+
+    def test_touch_probe_rejects_old_wheel_pill_and_management_behaviour(self):
+        faults = {
+            "old-wheel": ("CollectionRow.qml", "vertical angle wheel crosses the horizontal shelf"),
+            "passive-pill": ("ProgressButton.qml", "drag starting on an action pill scrolls without activating"),
+            "management": ("LibraryPage.qml", "installed app trash tap opens only its management sheet"),
+        }
+        import json
+        with tempfile.TemporaryDirectory(prefix="mo-store-input-negative-") as temporary:
+            for name, (file_name, expected) in faults.items():
+                with self.subTest(fault=name):
+                    work = Path(temporary) / name
+                    store = work / "source"
+                    shutil.copytree(STORE, store)
+                    path = store / file_name
+                    text = path.read_text(encoding="utf-8")
+                    if name == "old-wheel":
+                        text = text.replace("acceptedModifiers: Qt.ShiftModifier", "acceptedModifiers: Qt.KeyboardModifierMask")
+                        text = text.replace("onWheel: (event) => {", "onWheel: (event) => {\n"
+                                            "                if (!event.angleDelta.x && !(event.modifiers & Qt.ShiftModifier)) { event.accepted = false; return } ")
+                    elif name == "passive-pill":
+                        text = text.replace("gesturePolicy: TapHandler.WithinBounds", "gesturePolicy: TapHandler.DragThreshold")
+                    else:
+                        start = text.index("                TapHandler {")
+                        end = text.index("                RowLayout {", start)
+                        text = text[:start] + "                TapHandler { onTapped: library.win.openDetails(entry.app) }\n" + text[end:]
+                    self.assertNotEqual(text, path.read_text(encoding="utf-8"))
+                    path.write_text(text, encoding="utf-8")
+                    variant = dict(VARIANTS[0], language="en", font=10, scale="1")
+                    result = run_walk(variant, store, work / "run", [],
+                                      runner=["python3", str(ROOT / "tests/store_touch_probe.py")])
+                    events = [json.loads(line[len("STORE INPUT "):]) for line in result.stdout.splitlines()
+                              if line.startswith("STORE INPUT {")]
+                    failed = [event["label"] for event in events if not event["passed"]]
+                    self.assertNotEqual(result.returncode, 0, "fault was not detected: " + name)
+                    self.assertEqual(failed, [expected], (result.stdout + result.stderr)[-7000:])
 
 
 if __name__ == "__main__":

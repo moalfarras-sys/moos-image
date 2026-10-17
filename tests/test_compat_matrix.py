@@ -1,311 +1,138 @@
 #!/usr/bin/env python3
-"""Gate: MoOS application compatibility matrix (P4.5).
-
-Verifies the generator at system_files/usr/bin/moos-compat-matrix:
-  * Generates valid JSON with schema, editions, architectures, and app assessments.
-  * Windows programs are NOT compatible with ARM or cloud editions.
-  * Android apps are NOT compatible with cloud or ARM editions.
-  * Android apps document the software rendering seam on NVIDIA.
-  * macOS is documented as unsupported everywhere.
-  * Output preserves bilingual names (en/ar) and avoids exposing internal engine brands.
-"""
-
-from __future__ import annotations
-
+"""Catalogue availability agrees with the Store and never invents app testing."""
+import copy
 import importlib.machinery
 import importlib.util
 import json
-import re
+import os
+from pathlib import Path
 import subprocess
 import sys
+import tempfile
 import unittest
-from pathlib import Path
+import unicodedata
 
 ROOT = Path(__file__).resolve().parents[1]
-SCRIPT_PATH = ROOT / "system_files/usr/bin/moos-compat-matrix"
-CATALOG_PATH = ROOT / "system_files/usr/share/moos/store/catalog.json"
-ENGINES_PATH = ROOT / "system_files/usr/share/moos/app-engines.json"
-
-# Load the generator script as a module for direct unit testing
-loader = importlib.machinery.SourceFileLoader("moos_compat_matrix", str(SCRIPT_PATH))
-spec = importlib.util.spec_from_loader(loader.name, loader)
-generator = importlib.util.module_from_spec(spec)
-sys.modules[loader.name] = generator
-loader.exec_module(generator)
+TOOL = ROOT / 'system_files/usr/bin/moos-compat-matrix'
+CATALOG = ROOT / 'system_files/usr/share/moos/store/catalog.json'
+ENGINES = ROOT / 'system_files/usr/share/moos/app-engines.json'
 
 
-class TestMoOSCompatibilityMatrix(unittest.TestCase):
-    @classmethod
-    def setUpClass(cls):
-        cls.raw_catalog = json.loads(CATALOG_PATH.read_text(encoding="utf-8"))
-        cls.raw_engines = json.loads(ENGINES_PATH.read_text(encoding="utf-8"))
-
-        # Generate matrix directly using actual repo files
-        cls.matrix = generator.generate_matrix(CATALOG_PATH, ENGINES_PATH)
-        cls.by_id = cls.matrix["by_id"]
-
-    def test_script_is_executable_and_has_shebang(self):
-        """The script must start with #!/usr/bin/env python3 and have executable permissions."""
-        content = SCRIPT_PATH.read_text(encoding="utf-8")
-        self.assertTrue(
-            content.startswith("#!/usr/bin/env python3"),
-            "Header must be #!/usr/bin/env python3",
-        )
-        self.assertTrue(
-            SCRIPT_PATH.stat().st_mode & 0o111 != 0,
-            "Script must be executable (chmod +x)",
-        )
-
-    def test_cli_produces_valid_json(self):
-        """The CLI invocation must output valid JSON matching the matrix contract."""
-        proc = subprocess.run(
-            [
-                sys.executable,
-                str(SCRIPT_PATH),
-                "--catalog",
-                str(CATALOG_PATH),
-                "--engines",
-                str(ENGINES_PATH),
-                "--format",
-                "json",
-            ],
-            capture_output=True,
-            text=True,
-            check=True,
-        )
-        self.assertEqual(proc.returncode, 0)
-        data = json.loads(proc.stdout)
-
-        self.assertEqual(data["schema"], 1)
-        self.assertEqual(data["generator"], "moos-compat-matrix")
-        self.assertEqual(
-            data["editions"], ["moos", "moos-nvidia", "moos-cloud", "moos-arm"]
-        )
-        self.assertEqual(data["architectures"], ["x86_64", "aarch64"])
-        self.assertIn("summary", data)
-        self.assertIn("apps", data)
-        self.assertIn("unsupported", data)
-        self.assertEqual(len(data["apps"]), len(self.raw_catalog["apps"]))
-
-    def test_windows_apps_not_compatible_with_arm_or_cloud(self):
-        """Windows apps must only be compatible with x86_64 desktop editions, not cloud and not arm."""
-        windows_apps = [
-            a
-            for a in self.raw_catalog["apps"]
-            if a.get("engine") == "windows"
-            or (a.get("install") or {}).get("kind") == "windows-portable"
-        ]
-        self.assertGreaterEqual(len(windows_apps), 6, "Expected at least 6 Windows apps in catalog")
-
-        for app_raw in windows_apps:
-            app_id = app_raw["id"]
-            with self.subTest(app=app_id):
-                item = self.by_id[app_id]
-
-                # Desktop editions are supported
-                self.assertIn("moos", item["editions"])
-                self.assertIn("moos-nvidia", item["editions"])
-                self.assertTrue(item["compatibility"]["moos"]["supported"])
-                self.assertTrue(item["compatibility"]["moos-nvidia"]["supported"])
-
-                # Cloud is NOT supported
-                self.assertNotIn("moos-cloud", item["editions"])
-                self.assertFalse(item["compatibility"]["moos-cloud"]["supported"])
-                self.assertIn("moos-cloud", item["unsupported_editions"])
-                self.assertTrue(
-                    "not supported on cloud" in item["compatibility"]["moos-cloud"]["reason"].lower()
-                )
-
-                # ARM is NOT supported
-                self.assertNotIn("moos-arm", item["editions"])
-                self.assertFalse(item["compatibility"]["moos-arm"]["supported"])
-                self.assertIn("moos-arm", item["unsupported_editions"])
-                self.assertTrue(
-                    "not supported on arm" in item["compatibility"]["moos-arm"]["reason"].lower()
-                )
-
-                # Architecture must be x86_64 only
-                self.assertEqual(item["architectures"], ["x86_64"])
-                self.assertNotIn("aarch64", item["architectures"])
-
-    def test_android_apps_not_compatible_with_cloud(self):
-        """Android apps must only be compatible with desktop editions, NOT cloud."""
-        android_apps = [
-            a
-            for a in self.raw_catalog["apps"]
-            if a.get("engine") == "android"
-            or (a.get("install") or {}).get("kind") == "android"
-        ]
-        self.assertGreaterEqual(len(android_apps), 20, "Expected at least 20 Android apps in catalog")
-
-        for app_raw in android_apps:
-            app_id = app_raw["id"]
-            with self.subTest(app=app_id):
-                item = self.by_id[app_id]
-
-                # Desktop editions are supported
-                self.assertIn("moos", item["editions"])
-                self.assertIn("moos-nvidia", item["editions"])
-                self.assertTrue(item["compatibility"]["moos"]["supported"])
-                self.assertTrue(item["compatibility"]["moos-nvidia"]["supported"])
-
-                # Cloud is NOT supported
-                self.assertNotIn("moos-cloud", item["editions"])
-                self.assertFalse(item["compatibility"]["moos-cloud"]["supported"])
-                self.assertIn("moos-cloud", item["unsupported_editions"])
-                self.assertTrue(
-                    "not supported on cloud" in item["compatibility"]["moos-cloud"]["reason"].lower()
-                )
-
-                # ARM is NOT supported
-                self.assertNotIn("moos-arm", item["editions"])
-                self.assertFalse(item["compatibility"]["moos-arm"]["supported"])
-                self.assertIn("moos-arm", item["unsupported_editions"])
-                self.assertTrue(
-                    "not supported on arm" in item["compatibility"]["moos-arm"]["reason"].lower()
-                )
-
-                # Architecture must be x86_64 only
-                self.assertEqual(item["architectures"], ["x86_64"])
-                self.assertNotIn("aarch64", item["architectures"])
-
-    def test_nvidia_software_rendering_seam_documented_for_android(self):
-        """The NVIDIA software-rendering seam must be documented for every Android app."""
-        android_apps = [
-            a
-            for a in self.raw_catalog["apps"]
-            if a.get("engine") == "android"
-            or (a.get("install") or {}).get("kind") == "android"
-        ]
-
-        expected_seam = "Android on NVIDIA: software rendering"
-
-        for app_raw in android_apps:
-            app_id = app_raw["id"]
-            with self.subTest(app=app_id):
-                item = self.by_id[app_id]
-
-                # Check top-level seams and limitations
-                self.assertIn(expected_seam, item["seams"])
-                self.assertIn(expected_seam, item["limitations"])
-
-                # Check moos-nvidia edition seams
-                nvidia_compat = item["compatibility"]["moos-nvidia"]
-                self.assertIn(expected_seam, nvidia_compat.get("seams", []))
-
-                # moos (standard) must NOT have this seam
-                moos_compat = item["compatibility"]["moos"]
-                self.assertEqual(moos_compat.get("seams", []), [])
-
-    def test_macos_shows_as_unsupported(self):
-        """macOS must show as unsupported everywhere in the matrix."""
-        unsupported = self.matrix.get("unsupported", [])
-        macos_entries = [u for u in unsupported if u.get("id") == "macos"]
-        self.assertEqual(len(macos_entries), 1, "macOS must be present in unsupported platforms")
-
-        macos = macos_entries[0]
-        self.assertFalse(macos["supported"])
-        self.assertFalse(macos["compatible"])
-        self.assertEqual(macos["editions"], [])
-        self.assertEqual(macos["architectures"], [])
-        self.assertIn("macOS apps", macos["name"]["en"])
-        self.assertIn("تطبيقات ماك", macos["name"]["ar"])
-        self.assertIn("not currently supported", macos["reason"]["en"])
-
-        # Also test that a hypothetical app with engine: macos is rejected everywhere
-        dummy_mac_app = {
-            "id": "org.example.MacApp",
-            "en": "Mac App",
-            "ar": "تطبيق ماك",
-            "engine": "macos",
-        }
-        eval_result = generator.evaluate_app_compatibility(dummy_mac_app)
-        self.assertEqual(eval_result["editions"], [])
-        self.assertEqual(eval_result["architectures"], [])
-        for ed in generator.EDITIONS:
-            self.assertFalse(eval_result["compatibility"][ed]["supported"])
-
-    def test_bilingual_names_preserved(self):
-        """Every app in the matrix must have bilingual (en/ar) names matching the catalog."""
-        for app_raw in self.raw_catalog["apps"]:
-            app_id = app_raw["id"]
-            item = self.by_id[app_id]
-            self.assertEqual(item["name"]["en"], app_raw.get("en", app_id))
-            self.assertEqual(item["name"]["ar"], app_raw.get("ar", app_raw.get("en", app_id)))
-
-    def test_brand_honesty_in_generated_labels(self):
-        """Prohibited engine brands (wine, bottles, waydroid, flatpak, proton, lutris) must never appear in generated text."""
-        forbidden = re.compile(r"\b(wine|bottles|waydroid|proton|lutris|flatpak)\b", re.I)
-
-        for item in self.matrix["apps"]:
-            # Check generated type names
-            self.assertIsNone(forbidden.search(item["type"]["en"]))
-            self.assertIsNone(forbidden.search(item["type"]["ar"]))
-
-            # Check generated seams
-            for seam in item.get("seams", []):
-                self.assertIsNone(forbidden.search(seam))
-
-            # Check reasons in compatibility map
-            for ed, comp in item["compatibility"].items():
-                reason = comp.get("reason")
-                if reason:
-                    self.assertIsNone(
-                        forbidden.search(reason),
-                        f"{item['id']} ({ed}): reason exposes engine brand: {reason!r}",
-                    )
-
-    def test_human_format_output(self):
-        """The human format must produce a formatted table with table headers and summary."""
-        proc = subprocess.run(
-            [
-                sys.executable,
-                str(SCRIPT_PATH),
-                "--catalog",
-                str(CATALOG_PATH),
-                "--engines",
-                str(ENGINES_PATH),
-                "--format",
-                "human",
-            ],
-            capture_output=True,
-            text=True,
-            check=True,
-        )
-        output = proc.stdout
-        self.assertIn("MoOS Application Compatibility Matrix", output)
-        self.assertIn("App ID", output)
-        self.assertIn("Architectures", output)
-        self.assertIn("Windows programs", output)
-        self.assertIn("Android apps", output)
-        self.assertIn("Linux apps", output)
-        self.assertIn("Unsupported Platforms:", output)
-        self.assertIn("macOS apps", output)
-        self.assertIn("Summary:", output)
-
-    def test_app_filter_cli_argument(self):
-        """The --app argument must filter output to a single app."""
-        proc = subprocess.run(
-            [
-                sys.executable,
-                str(SCRIPT_PATH),
-                "--catalog",
-                str(CATALOG_PATH),
-                "--engines",
-                str(ENGINES_PATH),
-                "--app",
-                "notepad-plus-plus",
-                "--format",
-                "json",
-            ],
-            capture_output=True,
-            text=True,
-            check=True,
-        )
-        data = json.loads(proc.stdout)
-        self.assertEqual(len(data["apps"]), 1)
-        self.assertEqual(data["apps"][0]["id"], "notepad-plus-plus")
+def load(name, path):
+    loader = importlib.machinery.SourceFileLoader(name, str(path))
+    spec = importlib.util.spec_from_loader(name, loader)
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[name] = module
+    loader.exec_module(module)
+    return module
 
 
-if __name__ == "__main__":
+generator = load('compat_matrix_test', TOOL)
+index = load('compat_index_test', TOOL.with_name('moos-store-index'))
+
+
+class Availability(unittest.TestCase):
+    def setUp(self):
+        self.matrix = generator.generate_matrix(CATALOG, ENGINES)
+        self.raw = json.loads(CATALOG.read_text())
+
+    def cli(self, *args):
+        return subprocess.run([sys.executable, str(TOOL), '--catalog', str(CATALOG),
+                               '--engines', str(ENGINES), *args],
+                              text=True, capture_output=True, timeout=30)
+
+    def test_every_target_agrees_with_the_store_policy(self):
+        for edition, profile in generator.PROFILES.items():
+            offered = index.load_catalog(CATALOG, profile['arch'], set(profile['engines']))
+            expected = {a['id'] for a in offered['apps']
+                        if index.catalog_installable(a, profile['arch'])}
+            actual = {a['id'] for a in self.matrix['apps']
+                      if a['availability'][edition]['catalog_available']}
+            self.assertEqual(actual, expected, edition)
+
+    def test_availability_never_claims_measured_compatibility(self):
+        self.assertIn('availability', self.matrix['scope']['en'].lower())
+        for app in self.matrix['apps']:
+            self.assertEqual(app['application_test'], 'not-assessed')
+            for target in app['availability'].values():
+                self.assertNotIn('compatible', target)
+                self.assertNotIn('supported', target)
+
+    def test_catalogue_versions_and_names(self):
+        actual = {a['id']: a for a in self.matrix['apps']}
+        for app in self.raw['apps']:
+            self.assertEqual(actual[app['id']]['catalog_version'],
+                             app.get('install', {}).get('version'))
+            self.assertEqual(actual[app['id']]['name'], {k: unicodedata.normalize('NFKC', app[k]) for k in ('en', 'ar')})
+
+    def test_foreign_limits_and_nvidia_only_graphics_are_explicit(self):
+        apps = {a['id']: a for a in self.matrix['apps']}
+        for app in self.raw['apps']:
+            if app.get('engine') not in {'android', 'windows'}:
+                continue
+            row = apps[app['id']]['availability']
+            self.assertFalse(row['moos-cloud']['catalog_available'])
+            self.assertFalse(row['moos-arm']['catalog_available'])
+            if app.get('engine') == 'android':
+                self.assertEqual(row['moos-nvidia']['graphics'], 'software-on-nvidia-only')
+                self.assertIn('software', row['moos-nvidia']['note']['en'])
+                self.assertNotEqual(row['moos']['graphics'], 'software-on-nvidia-only')
+
+    def test_missing_artifact_blocks_a_declared_architecture(self):
+        raw = copy.deepcopy(self.raw)
+        app = next(a for a in raw['apps'] if a.get('install', {}).get('kind') == 'appdrop')
+        app['arch'] = ['x86_64', 'aarch64']
+        app['install']['downloads'].pop('aarch64', None)
+        with tempfile.TemporaryDirectory() as td:
+            path = Path(td) / 'catalog.json'
+            path.write_text(json.dumps(raw))
+            result = generator.generate_matrix(path, ENGINES)
+        row = next(a for a in result['apps'] if a['id'] == app['id'])
+        self.assertFalse(row['availability']['moos-arm']['catalog_available'])
+
+    def test_rejected_entries_refuse_an_incomplete_report(self):
+        raw = copy.deepcopy(self.raw)
+        raw['apps'].append({'id': 'broken', 'source': 'unknown'})
+        with tempfile.TemporaryDirectory() as td:
+            path = Path(td) / 'catalog.json'
+            path.write_text(json.dumps(raw))
+            with self.assertRaises(ValueError):
+                generator.generate_matrix(path, ENGINES)
+
+    def test_unknown_app_is_an_error(self):
+        result = self.cli('--app', 'does-not-exist')
+        self.assertEqual(result.returncode, 2)
+        self.assertFalse(result.stdout)
+
+    def test_filtered_summary_matches_the_selected_app(self):
+        result = self.cli('--app', 'notepad-plus-plus')
+        self.assertEqual(result.returncode, 0, result.stderr)
+        matrix = json.loads(result.stdout)
+        self.assertEqual(len(matrix['apps']), 1)
+        self.assertEqual(matrix['summary']['total_apps'], 1)
+        self.assertEqual(matrix['summary']['by_edition']['moos'], 1)
+        self.assertEqual(matrix['summary']['by_edition']['moos-arm'], 0)
+
+    def test_mac_explanation_comes_from_the_registry(self):
+        expected = json.loads(ENGINES.read_text())['unsupported']
+        self.assertEqual(self.matrix['unsupported'], [
+            {'id': p['id'], 'name': p['name'], 'reason': p['reason']} for p in expected])
+
+    def test_bilingual_report_labels_its_boundary(self):
+        for language, expected in (('ar', 'إتاحة'), ('en', 'availability')):
+            result = self.cli('--format', 'human', '--language', language,
+                              '--app', 'notepad-plus-plus')
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertIn(expected, result.stdout.lower())
+
+    def test_explicit_test_root_never_falls_back_to_the_installed_data(self):
+        with tempfile.TemporaryDirectory() as td:
+            result = subprocess.run([sys.executable, str(TOOL)],
+                                    env=dict(os.environ, MOOS_TEST_ROOT=td),
+                                    text=True, capture_output=True, timeout=30)
+            self.assertNotEqual(result.returncode, 0)
+            self.assertFalse(result.stdout)
+
+
+if __name__ == '__main__':
     unittest.main()

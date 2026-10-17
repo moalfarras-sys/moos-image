@@ -86,6 +86,8 @@ check:
     python3 tests/test_theme_wallpaper_owner_choice.py
     python3 tests/test_mokernel.py
     python3 tests/test_moai_waydroid.py
+    python3 tests/test_android_session_service.py
+    python3 tests/test_managed_app_launch.py
     python3 tests/test_moai_app_launch.py
     python3 tests/test_moai_control.py
     python3 tests/test_moai_config.py
@@ -249,6 +251,10 @@ check:
     python3 tests/test_remote_rebuild_debounce.py
     # Every rebuilt pipeline must give its PipeWire remote back: 67 orphaned clients on the A1.
     python3 tests/test_remote_pipewire_fd.py
+    python3 tests/test_remote_screen_target.py
+    python3 tests/test_greeter_crash_recovery.py
+    python3 tests/test_task_manager_integration.py
+    python3 tests/test_qml_host_platform.py
     # The frame rate a viewer asks for is the one sent: videorate max-rate does not limit a ScreenCast.
     python3 tests/test_remote_frame_pacer.py
     python3 tests/test_remote_connection_lifecycle.py
@@ -465,6 +471,7 @@ check:
     # app opened.
     python3 tests/test_android_setup_channels.py
     python3 tests/test_android_runtime_state.py
+    python3 tests/test_android_session_service.py
     # A retiring npm endpoint failed three signed builds on 2026-09-19 by
     # returning 400, which reads exactly like a vulnerability. The gate tells
     # "npm answered and it is clean" apart from "npm could not answer", retries
@@ -598,12 +605,14 @@ check:
     # pasted API key, an unapproved server, or a quietly deleted deny rule all reach
     # the next agent — and the first of those reaches the public internet.
     python3 tests/test_mcp_config.py
+    python3 tests/test_workflow_security.py
     # Same gate build.sh runs against the finished image, pointed at the tree that
     # is about to become it. Keeping it here means a drifted catalogue recipe or a
     # dead store route fails in seconds instead of at the end of an image build.
     MOOS_TEST_ROOT=system_files python3 build_files/verify_store_catalog.py
     # MoOS compatibility matrix gate (P4.5): cross-edition, cross-arch, and GPU honesty.
     python3 tests/test_compat_matrix.py
+    python3 tests/test_baloo_startup.py
 
 # Build the main MoOS image. The base is pinned in the Containerfile on purpose — both
 # editions must share it (see the comment there); it is not a build-arg any more.

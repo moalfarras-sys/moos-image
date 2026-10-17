@@ -102,4 +102,11 @@ assert arm_fallback is not None
 assert "GALLIUM_DRIVER=llvmpipe" in arm_fallback
 assert "MESA_LOADER_DRIVER_OVERRIDE" not in arm_fallback
 
+# ARM already forces software rendering for its cloud/virtual session. GTK's
+# renderer must agree; LIBGL_ALWAYS_SOFTWARE does not constrain Vulkan.
+arm_build = (ROOT / "build_files/build-arm.sh").read_text()
+arm_policy = arm_build.split("/etc/environment.d/60-moos-arm-llvmpipe.conf <<'LLVMPIPE'", 1)[1].split("\nLLVMPIPE", 1)[0]
+assert "LIBGL_ALWAYS_SOFTWARE=1" in arm_policy
+assert "GSK_RENDERER=gl" in arm_policy
+
 print("Visual frame and greeter GPU-selection gates passed")

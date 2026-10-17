@@ -18,6 +18,13 @@ RUNTIME=load('runtime_state_review',ROOT/'system_files/usr/lib/moos/moos_android
 STORE=load('runtime_store_review',ROOT/'system_files/usr/bin/moos-storectl')
 
 class StatusReadback(unittest.TestCase):
+    def test_platform_properties_need_exact_successful_values_without_logged_errors(self):
+        for code,out,err,value,expected in [(0,'1\n','','1',True),(0,'true\n','','true',True),
+                (1,'true\n','','true',False),(0,'true\n','ERROR: failed connection','true',False),
+                (0,'','WayDroid session is stopped','true',False),(0,'true\nfalse\n','','true',False),
+                (0,'true\n','x'*65537,'true',False),(0,'false\n','','true',False)]:
+            self.assertEqual(RUNTIME.property_matches(code,out,err,value),expected)
+
     def test_only_one_successful_known_session_is_ready(self):
         for code,out,err,expected in [(0,'Session: RUNNING\n','','RUNNING'),(0,'Session: STOPPED\n','','STOPPED'),
             (0,'Session: FROZEN\n','','FROZEN'),(1,'Session: RUNNING\n','','unknown'),

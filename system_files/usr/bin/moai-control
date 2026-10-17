@@ -1963,7 +1963,7 @@ _job_feed_resignals: dict[_PolicyPath, threading.Timer] = {}
 
 
 def _schedule_job_feed_resignal(folder: _PolicyPath) -> None:
-    """Ring the directory once more after a change, coalescing an active burst.
+    """Deliver a finite three-event recovery burst after a publication.
 
     A missed first delivery leaves the Island idle, so its running-job reread
     timer never starts. A delayed directory event recovers that case without
@@ -1971,20 +1971,25 @@ def _schedule_job_feed_resignal(folder: _PolicyPath) -> None:
     timestamps or recreates a running token after the job ended.
     """
     def notify() -> None:
-        # A publication arriving while this notification is delivered deserves
-        # its own later event; do not absorb it into a scan already in progress.
-        with _job_feed_lock:
-            _job_feed_resignals.pop(folder, None)
-        marker = None
-        try:
-            fd, marker = tempfile.mkstemp(prefix=".moai-feed-", dir=folder)
-            os.close(fd)
-        except OSError:
-            pass                         # presence must never fail the real job
-        finally:
-            if marker is not None:
-                with contextlib.suppress(OSError):
-                    os.unlink(marker)
+        # A delayed first delivery may coalesce with the first retry. Keep one
+        # worker per directory, with three bounded wakes and no idle polling.
+        for attempt in range(3):
+            if attempt == 2:
+                # New work arriving during the final scan needs its own burst.
+                with _job_feed_lock:
+                    _job_feed_resignals.pop(folder, None)
+            marker = None
+            try:
+                fd, marker = tempfile.mkstemp(prefix=".moai-feed-", dir=folder)
+                os.close(fd)
+            except OSError:
+                pass                     # presence must never fail the real job
+            finally:
+                if marker is not None:
+                    with contextlib.suppress(OSError):
+                        os.unlink(marker)
+            if attempt < 2:
+                time.sleep(1.0)
 
     with _job_feed_lock:
         if folder in _job_feed_resignals:

@@ -77,8 +77,13 @@ NO_ARM_BUILD = {
 # ARM edition would need a different versionCode).
 X86_ONLY_DOWNLOADS = {
     "notepad-plus-plus", "notepad3", "putty", "sumatrapdf", "winmerge", "heidisql",
-    "sharex", "screentogif", "rufus", "systeminformer", "dnspy", "mpvnet",
     "org.videolan.vlc", "io.element.android.x", "com.github.meypod.al_quran",
+    # Native PE32+ publisher-download/render receipts, 2026-10-16:
+    # docs/releases/2026-10-16-store-native-source-proof.json, windows_additions.
+    "doublecommander-windows", "bowpad-windows", "grepwin-windows", "imhex-windows",
+    "keepassxc-windows", "jpegview-windows", "lazpaint-windows", "openscad-windows",
+    "qalculate-windows", "peazip-windows", "explorerplusplus-windows", "nomacs-windows",
+    "xournalpp-windows", "notepad4-windows",
 }
 X86_ONLY = NO_ARM_BUILD | X86_ONLY_DOWNLOADS
 

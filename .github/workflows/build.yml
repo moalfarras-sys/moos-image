@@ -72,13 +72,15 @@ jobs:
       contents: read
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
 
       # WebApi is shared by the Linux and Windows agents, but the image build
       # compiles only MoRemoteLinux. A missing Windows-only bridge method once
       # left every Linux/image gate green while the Windows agent did not build.
       - name: Set up .NET 10
-        uses: actions/setup-dotnet@v5
+        uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1 # v5
         with:
           dotnet-version: "10.0.x"
 
@@ -93,10 +95,12 @@ jobs:
       contents: read
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
 
       - name: Set up .NET 10
-        uses: actions/setup-dotnet@v5
+        uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1 # v5
         with:
           dotnet-version: "10.0.x"
 
@@ -176,7 +180,9 @@ jobs:
       id-token: write     # sigstore/cosign OIDC (kept for future keyless mode)
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
 
       # ubuntu-latest ships only ~14 GB free on /, and the NVIDIA driver + i686
       # multilib + supergfxctl transaction alone needs ~1.1 GB at install time.
@@ -186,7 +192,7 @@ jobs:
       # pre-baked toolchains up front — the same step build-disk.yml and
       # build-iso.yml already run — to give the image build ~23 GB of headroom.
       - name: Free disk space
-        uses: jlumbroso/free-disk-space@v1.3.1
+        uses: jlumbroso/free-disk-space@54081f138730dfa15788a46383842cd2f914a1be # v1.3.1
         with:
           tool-cache: true
           android: true
@@ -215,7 +221,7 @@ jobs:
       # (--experimental-strip-types, 22.6+). They import only node: builtins and the
       # source under test, so no npm install is required.
       - name: Node for the controller tests
-        uses: actions/setup-node@v5
+        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
         with:
           node-version: "22"
 
@@ -311,7 +317,7 @@ jobs:
 
       - name: Build image (buildah)
         id: build
-        uses: redhat-actions/buildah-build@v3
+        uses: redhat-actions/buildah-build@719e3c40d8af9790c23eca13f7daa339f2867034 # v3
         with:
           containerfiles: ./Containerfile
           image: ${{ matrix.image_name }}
@@ -333,7 +339,7 @@ jobs:
           oci: false
 
       - name: Log in to GHCR
-        uses: redhat-actions/podman-login@v2
+        uses: redhat-actions/podman-login@50c2d9a331bb67c8fdab99b86455fad05e2e3252 # v2
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -341,14 +347,14 @@ jobs:
 
       - name: Push to GHCR
         id: push
-        uses: redhat-actions/push-to-registry@v3
+        uses: redhat-actions/push-to-registry@94ade333c38ecc0e60e94785125d9a52ca423b37 # v3
         with:
           image: ${{ steps.build.outputs.image }}
           tags: ${{ steps.build.outputs.tags }}
           registry: ${{ steps.meta.outputs.registry }}
 
       - name: Install cosign
-        uses: sigstore/cosign-installer@v3
+        uses: sigstore/cosign-installer@398d4b0eeef1380460a10c8013a76f728fb906ac # v3
 
       # Sign by digest (not tag) so the signature stays valid even if tags
       # move. Verification (same key for both variants):
@@ -413,7 +419,7 @@ jobs:
           cat "$proof/candidate.txt"
 
       - name: Upload the signed candidate identity
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: moos-candidate-proof-${{ matrix.image_name }}
           path: ${{ runner.temp }}/candidate-proof/candidate.txt

@@ -297,6 +297,10 @@ python3 tests/test_remote_rebuild_debounce.py
 # its PipeWire remote open: 67 orphaned clients and a 570 MiB pipewire after 61 h on the Oracle A1.
 # This one runs build() and teardown() and asks the kernel what is still open.
 python3 tests/test_remote_pipewire_fd.py
+python3 tests/test_remote_screen_target.py
+python3 tests/test_greeter_crash_recovery.py
+python3 tests/test_task_manager_integration.py
+python3 tests/test_qml_host_platform.py
 # `videorate max-rate=N` passes every frame of a variable-rate ScreenCast: asked for 30, the A1
 # encoded 35.6 a second. The pacer waits instead of dropping, so the newest frame is never lost.
 python3 tests/test_remote_frame_pacer.py
@@ -455,6 +459,7 @@ python3 artwork/verify_visuals.py
 # that appears broken; and the deny list is the only thing standing between an
 # automated session and a force-push over main. Pure stdlib, reads two files.
 python3 tests/test_mcp_config.py
+python3 tests/test_workflow_security.py
 # The UTM bundle must carry a NoCloud seed (the ARM image has no other
 # user-provisioning path) and generate a per-bundle one-time password —
 # never a shared static one inside the image.
@@ -498,3 +503,8 @@ python3 tests/test_npm_audit_gate.py
 python3 tests/test_app_drop_dialog_runtime.py
 python3 tests/test_android_setup_channels.py
 python3 tests/test_android_runtime_state.py
+python3 tests/test_android_session_service.py
+
+# Cross-edition catalogue availability is not measured application compatibility.
+python3 tests/test_compat_matrix.py
+python3 tests/test_baloo_startup.py

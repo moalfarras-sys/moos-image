@@ -55,8 +55,9 @@ jobs:
       ISO_RUN_ID: ${{ inputs.iso_run_id }}
     steps:
       - name: Checkout the candidate tree and verification key
-        uses: actions/checkout@v5
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
+          persist-credentials: false
           ref: ${{ inputs.revision }}
           fetch-depth: 0
 
@@ -197,10 +198,10 @@ jobs:
           sudo apt-get install -y -qq skopeo
 
       - name: Install cosign
-        uses: sigstore/cosign-installer@v3
+        uses: sigstore/cosign-installer@398d4b0eeef1380460a10c8013a76f728fb906ac # v3
 
       - name: Log in to GHCR
-        uses: redhat-actions/podman-login@v2
+        uses: redhat-actions/podman-login@50c2d9a331bb67c8fdab99b86455fad05e2e3252 # v2
         with:
           registry: ghcr.io
           username: ${{ github.actor }}

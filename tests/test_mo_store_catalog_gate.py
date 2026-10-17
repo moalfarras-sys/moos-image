@@ -104,7 +104,7 @@ class TheShippedCatalogue(unittest.TestCase):
 
     def test_every_android_pin_records_its_signer_and_every_download_its_size(self):
         android = [a for a in SHIPPED["apps"] if (a.get("install") or {}).get("kind") == "android"]
-        self.assertEqual(len(android), 21)
+        self.assertEqual(len(android), 48)
         for entry in android:
             with self.subTest(app=entry["id"]):
                 self.assertRegex(entry["install"]["signer"], r"^[0-9a-f]{64}$")
@@ -723,11 +723,13 @@ def refusal(kind: str, method: str = "install") -> str:
             f"not hand it to self.{handler}(), so those apps would never {purpose}")
 
 
-ANDROID_CALL = r"self\._install_pinned_android\(job, app_id, recipe\)"
+# Both fixed calls reach the same installer; update carries the prior receipt
+# so confirmation precedes publication. Preserve all two-direction mutations.
+ANDROID_CALL = r"self\._install_pinned_android\(job, app_id, recipe(?:, updating=True, prior_record=before)?\)"
 
 
 class TheChainNamesTheAndroidPath(unittest.TestCase):
-    """The catalogue holds 21 Android recipes; nothing checked the backend could install one.
+    """The catalogue holds 48 Android recipes; nothing checked the backend could install one.
 
     Two mutations went unseen. Review, 2026-10-15: both calls of the Android installer replaced
     by a refusal, while the method itself stayed, so its NAME was still in the file. Verification
@@ -794,7 +796,8 @@ class EveryKindReachesItsInstaller(unittest.TestCase):
         self.assertLessEqual({"android", "appdrop", "vendor-rpm", "windows-portable"}, set(kinds))
         for kind in kinds:
             with self.subTest(kind=kind):
-                call = rf"self\.{gate.UPDATE_HANDLER[kind]}\(job, app_id, recipe\)"
+                call = (ANDROID_CALL if kind == "android" else
+                        rf"self\.{gate.UPDATE_HANDLER[kind]}\(job, app_id, recipe\)")
                 # `None`, not a raise: the vendor branch calls its installer inside a condition.
                 cut = in_method(STORECTL, "_reinstall_pin", call, "None")
                 self.assertEqual(chain_errors(cut), [refusal(kind, "_reinstall_pin")])

@@ -4062,6 +4062,7 @@ python3 /ctx/verify_mime_handlers.py --root /
 # Both editions must ship what MoOS's desktop depends on, whoever supplied it.
 python3 /ctx/verify_desktop_parity.py --root /
 python3 /ctx/verify_sound_theme.py
+python3 /ctx/verify_qml_host_platform.py
 python3 /ctx/verify_moos_motion.py --qml /ctx/motion-review.qml
 
 # ── The MoOS Store must be internally consistent end-to-end ───────────────────

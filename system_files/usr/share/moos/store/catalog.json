@@ -145,7 +145,9 @@
         "notion",
         "com.github.jeromerobert.pdfarranger",
         "org.kde.skanpage",
-        "com.github.xournalpp.xournalpp"
+        "com.github.xournalpp.xournalpp",
+        "org.gnome.Solanum",
+        "org.qgis.qgis"
       ]
     },
     {
@@ -171,7 +173,10 @@
         "org.kde.digikam",
         "org.blender.Blender",
         "org.freecad.FreeCAD",
-        "org.upscayl.Upscayl"
+        "org.upscayl.Upscayl",
+        "org.kde.kolourpaint",
+        "com.github.huluti.Curtail",
+        "org.gnome.design.Contrast"
       ]
     },
     {
@@ -192,7 +197,9 @@
         "org.nickvision.tubeconverter",
         "com.github.wwmm.easyeffects",
         "org.schabi.newpipe",
-        "de.danoeh.antennapod"
+        "de.danoeh.antennapod",
+        "org.kde.kasts",
+        "com.rafaelmardojai.Blanket"
       ]
     },
     {
@@ -244,7 +251,8 @@
         "org.freecol.FreeCol",
         "org.supertuxproject.SuperTux",
         "org.kde.kpat",
-        "org.kde.kmahjongg"
+        "org.kde.kmahjongg",
+        "org.scummvm.ScummVM"
       ]
     },
     {
@@ -266,7 +274,16 @@
         "org.kde.ktouch",
         "org.tuxpaint.Tuxpaint",
         "org.kiwix.desktop",
-        "notebooklm"
+        "notebooklm",
+        "org.kde.kgeography",
+        "org.kde.kalgebra",
+        "org.kde.kturtle",
+        "org.kde.khangman",
+        "org.kde.kalzium",
+        "org.kde.kstars",
+        "org.kde.marble",
+        "org.kde.labplot",
+        "com.github.johnfactotum.Foliate"
       ]
     },
     {
@@ -292,7 +309,13 @@
         "io.dbeaver.DBeaverCommunity",
         "com.usebruno.Bruno",
         "org.godotengine.Godot",
-        "org.gnome.Boxes"
+        "org.gnome.Boxes",
+        "org.kde.kdevelop",
+        "org.gnome.Builder",
+        "org.gnome.gitg",
+        "org.gnome.meld",
+        "org.gnome.GHex",
+        "org.kicad.KiCad"
       ]
     },
     {
@@ -323,7 +346,28 @@
       "glyph": "grid",
       "desc_en": "Well-known Windows tools, downloaded from their publishers.",
       "desc_ar": "أدوات ويندوز معروفة، تُنزَّل من ناشريها مباشرة.",
-      "apps": ["notepad-plus-plus", "notepad3", "putty", "sumatrapdf", "winmerge", "heidisql", "sharex", "screentogif", "rufus", "systeminformer", "dnspy", "mpvnet"]
+      "apps": [
+        "notepad-plus-plus",
+        "notepad3",
+        "putty",
+        "sumatrapdf",
+        "winmerge",
+        "heidisql",
+        "doublecommander-windows",
+        "bowpad-windows",
+        "grepwin-windows",
+        "imhex-windows",
+        "keepassxc-windows",
+        "jpegview-windows",
+        "lazpaint-windows",
+        "openscad-windows",
+        "qalculate-windows",
+        "peazip-windows",
+        "explorerplusplus-windows",
+        "nomacs-windows",
+        "xournalpp-windows",
+        "notepad4-windows"
+      ]
     },
     {
       "id": "android-picks",
@@ -344,7 +388,17 @@
         "com.shatteredpixel.shatteredpixeldungeon",
         "org.fdroid.fdroid",
         "io.element.android.x",
-        "org.fossify.gallery"
+        "org.fossify.gallery",
+        "net.gsantner.markor",
+        "org.tasks",
+        "org.isoron.uhabits",
+        "com.amaze.filemanager",
+        "com.ichi2.anki",
+        "com.foobnix.pro.pdf.reader",
+        "ws.xsoh.etar",
+        "org.fossify.math",
+        "org.fossify.paint",
+        "me.zhanghai.android.files"
       ]
     },
     {
@@ -397,6 +451,30 @@
   ],
   "featured": [
     {
+      "app": "org.kde.krita",
+      "title_en": "Krita",
+      "title_ar": "كريتا",
+      "tagline_en": "Digital painting and illustration with brushes made for artists.",
+      "tagline_ar": "رسم رقمي ورسوم توضيحية بفُرش مصممة للفنانين.",
+      "accent": "#246e93"
+    },
+    {
+      "app": "org.libreoffice.LibreOffice",
+      "title_en": "LibreOffice",
+      "title_ar": "ليبر أوفيس",
+      "tagline_en": "A full office suite for documents, spreadsheets and slides, with complete Arabic support.",
+      "tagline_ar": "حزمة مكتبية كاملة للمستندات والجداول والعروض، بدعم كامل للعربية.",
+      "accent": "#1b6e2e"
+    },
+    {
+      "app": "org.videolan.VLC",
+      "title_en": "VLC",
+      "title_ar": "في إل سي",
+      "tagline_en": "Plays almost any video, music file or stream.",
+      "tagline_ar": "يشغّل كل ملفات الفيديو والصوت والبث تقريباً.",
+      "accent": "#a35214"
+    },
+    {
       "app": "photocraft",
       "title_en": "PhotoCraft",
       "title_ar": "فوتوكرافت",
@@ -413,43 +491,19 @@
       "accent": "#0b6e55"
     },
     {
-      "app": "claude",
-      "title_en": "Claude",
-      "title_ar": "كلود",
-      "tagline_en": "Think, write and analyse with Anthropic's assistant.",
-      "tagline_ar": "فكّر واكتب وحلّل مع مساعد Anthropic.",
-      "accent": "#a8502f"
-    },
-    {
-      "app": "org.libreoffice.LibreOffice",
-      "title_en": "LibreOffice",
-      "title_ar": "ليبر أوفيس",
-      "tagline_en": "Documents, spreadsheets and slides with full Arabic support.",
-      "tagline_ar": "مستندات وجداول وعروض بدعم كامل للعربية.",
-      "accent": "#1b6e2e"
-    },
-    {
-      "app": "whatsapp",
-      "title_en": "WhatsApp",
-      "title_ar": "واتساب",
-      "tagline_en": "Your chats from the phone, in a window of their own.",
-      "tagline_ar": "محادثات هاتفك في نافذة خاصة بها.",
-      "accent": "#075e54"
-    },
-    {
-      "app": "antigravity",
-      "title_en": "Google Antigravity",
-      "title_ar": "جوجل أنتي جرافيتي",
-      "tagline_en": "Let AI agents plan, build and test your software.",
-      "tagline_ar": "دع وكلاء الذكاء الاصطناعي يخطّطون لبرامجك ويبنونها ويختبرونها.",
-      "accent": "#3150c4"
+      "app": "org.kde.gcompris",
+      "title_en": "GCompris",
+      "title_ar": "جي كومبري",
+      "tagline_en": "More than a hundred learning games for children aged 2 to 10.",
+      "tagline_ar": "أكثر من مئة لعبة تعليمية للأطفال من عمر سنتين إلى عشر سنوات.",
+      "accent": "#2b6f3e"
     },
     {
       "app": "com.valvesoftware.Steam",
       "title_en": "Steam",
       "title_ar": "ستيم",
-      "tagline_en": "Thousands of games, many Windows hits among them, ready to play.",
-      "tagline_ar": "آلاف الألعاب، ومنها ألعاب ويندوز شهيرة، جاهزة للعب.",
+      "tagline_en": "The biggest game store, and many Windows games run here too.",
+      "tagline_ar": "أكبر متجر للألعاب، وكثير من ألعاب ويندوز تعمل فيه أيضاً.",
       "accent": "#1b2838"
     }
   ],
@@ -3725,192 +3779,6 @@
       }
     },
     {
-      "id": "sharex",
-      "source": "moos",
-      "cat": "win",
-      "glyph": "camera",
-      "en": "ShareX",
-      "ar": "شير إكس",
-      "desc_en": "Capture screen regions, annotate images and share files quickly.",
-      "desc_ar": "التقط أجزاء من الشاشة واكتب على الصور وشارك الملفات بسرعة.",
-      "developer": "ShareX Team",
-      "accent": "#1565c0",
-      "engine": "windows",
-      "arch": ["x86_64"],
-      "keywords_en": ["screenshot", "screen capture", "recorder", "sharex"],
-      "keywords_ar": ["لقطة شاشة", "تصوير الشاشة", "مشاركة"],
-      "install": {
-        "kind": "windows-portable",
-        "version": "21.0.0",
-        "downloads": {
-          "x86_64": {
-            "url": "https://github.com/ShareX/ShareX/releases/download/v21.0.0/ShareX-21.0.0-portable-x64.zip",
-            "sha256": "8124938fa718d702bb08ef29292f0140052bdad03d23b3041b5015054ff1c230",
-            "size": 208850419
-          }
-        },
-        "exe": "ShareX.exe",
-        "risk": "downloaded-executable",
-        "requires_review": true,
-        "external": true
-      }
-    },
-    {
-      "id": "screentogif",
-      "source": "moos",
-      "cat": "win",
-      "glyph": "video",
-      "en": "ScreenToGif",
-      "ar": "سكرين تو جيف",
-      "desc_en": "Record your screen, edit frames and export to animated GIF or video.",
-      "desc_ar": "سجّل شاشتك وحرّر الإطارات وصدرها كصورة متحركة GIF أو فيديو.",
-      "developer": "Nicke Manarin",
-      "accent": "#1b5e20",
-      "engine": "windows",
-      "arch": ["x86_64"],
-      "keywords_en": ["screen recorder", "gif", "animation", "capture"],
-      "keywords_ar": ["تسجيل الشاشة", "صورة متحركة", "جيف"],
-      "install": {
-        "kind": "windows-portable",
-        "version": "2.43.2",
-        "downloads": {
-          "x86_64": {
-            "url": "https://github.com/NickeManarin/ScreenToGif/releases/download/2.43.2/ScreenToGif.2.43.2.Portable.x64.zip",
-            "sha256": "42a0b53d67ecae22698b4881ffb2c9c7a9049663f5fbdd2edb779e1971000664",
-            "size": 73035883
-          }
-        },
-        "exe": "ScreenToGif.exe",
-        "risk": "downloaded-executable",
-        "requires_review": true,
-        "external": true
-      }
-    },
-    {
-      "id": "rufus",
-      "source": "moos",
-      "cat": "win",
-      "glyph": "usb",
-      "en": "Rufus",
-      "ar": "روفوس",
-      "desc_en": "Format and create bootable USB drives from disk images.",
-      "desc_ar": "قم بتهيئة وإنشاء وحدات تخزين USB قابلة للإقلاع من صور الأقراص.",
-      "developer": "Pete Batard",
-      "accent": "#b03a2e",
-      "engine": "windows",
-      "arch": ["x86_64"],
-      "keywords_en": ["usb", "bootable", "iso", "flash drive"],
-      "keywords_ar": ["فلاشة", "إقلاع", "يو اس بي", "تهيئة"],
-      "install": {
-        "kind": "windows-portable",
-        "version": "4.15",
-        "downloads": {
-          "x86_64": {
-            "url": "https://github.com/pbatard/rufus/releases/download/v4.15/rufus-4.15p.exe",
-            "sha256": "84c8a437f8af89257524478489e5c85f1edf25f761d299e2bcde46ac0afbe106",
-            "size": 1989992
-          }
-        },
-        "exe": "rufus-4.15p.exe",
-        "risk": "downloaded-executable",
-        "requires_review": true,
-        "external": true
-      }
-    },
-    {
-      "id": "systeminformer",
-      "source": "moos",
-      "cat": "win",
-      "glyph": "pulse",
-      "en": "System Informer",
-      "ar": "سيستم إنفورمر",
-      "desc_en": "Monitor system performance, inspect processes and manage services.",
-      "desc_ar": "راقب أداء النظام وتفحص العمليات النشطة وأدر الخدمات.",
-      "developer": "System Informer Team",
-      "accent": "#1e5f8a",
-      "engine": "windows",
-      "arch": ["x86_64"],
-      "keywords_en": ["task manager", "process hacker", "system monitor"],
-      "keywords_ar": ["إدارة المهام", "مراقبة النظام", "عمليات"],
-      "install": {
-        "kind": "windows-portable",
-        "version": "4.0.26241.138",
-        "downloads": {
-          "x86_64": {
-            "url": "https://github.com/winsiderss/systeminformer/releases/download/v4.0.26241.138/systeminformer-4.0.26241.138-bin.zip",
-            "sha256": "3e12cc4f1ffa1cc34ab9202a9dfe410724cb8b68aaf2efa43c01d3705b27219e",
-            "size": 22089103
-          }
-        },
-        "exe": "amd64/SystemInformer.exe",
-        "risk": "downloaded-executable",
-        "requires_review": true,
-        "external": true
-      }
-    },
-    {
-      "id": "dnspy",
-      "source": "moos",
-      "cat": "win",
-      "glyph": "code",
-      "en": "dnSpy",
-      "ar": "دي إن سباي",
-      "desc_en": "Inspect, edit and debug compiled .NET programs and libraries.",
-      "desc_ar": "افحص وحرّر واستكشف أخطاء برامج ومكتبات دوت نت المجمّعة.",
-      "developer": "0xd4d",
-      "accent": "#5c2d91",
-      "engine": "windows",
-      "arch": ["x86_64"],
-      "keywords_en": ["debugger", "decompiler", "dotnet", "reverse engineering"],
-      "keywords_ar": ["هندسة عكسية", "تفكيك", "دوت نت", "مصحح"],
-      "install": {
-        "kind": "windows-portable",
-        "version": "6.1.8",
-        "downloads": {
-          "x86_64": {
-            "url": "https://github.com/dnSpy/dnSpy/releases/download/v6.1.8/dnSpy-net-win64.zip",
-            "sha256": "78d855aef02d87195ddde4f4a89f16f03708e66ec8282cf8eb9ecc89dd469f6c",
-            "size": 85810042
-          }
-        },
-        "exe": "dnSpy.exe",
-        "risk": "downloaded-executable",
-        "requires_review": true,
-        "external": true
-      }
-    },
-    {
-      "id": "mpvnet",
-      "source": "moos",
-      "cat": "win",
-      "glyph": "play",
-      "en": "mpv.net",
-      "ar": "إم بي في نت",
-      "desc_en": "A modern video player with a graphical interface and extensive format support.",
-      "desc_ar": "مشغل فيديو حديث بواجهة رسومية ودعم واسع لمختلف صيغ الوسائط.",
-      "developer": "mpv.net Team",
-      "accent": "#512da8",
-      "engine": "windows",
-      "arch": ["x86_64"],
-      "keywords_en": ["media player", "video player", "audio", "mpv"],
-      "keywords_ar": ["مشغل فيديو", "مشغل وسائط", "صوتيات"],
-      "install": {
-        "kind": "windows-portable",
-        "version": "7.1.2.0",
-        "downloads": {
-          "x86_64": {
-            "url": "https://github.com/mpvnet-player/mpv.net/releases/download/v7.1.2.0/mpv.net-v7.1.2.0-portable-x64.zip",
-            "sha256": "33cba35bc6a8ebbb441a68cb9f3d26c366a2457f6a969ce50b95b0e7dd163431",
-            "size": 114173733
-          }
-        },
-        "exe": "mpvnet.exe",
-        "risk": "downloaded-executable",
-        "requires_review": true,
-        "external": true
-      }
-    },
-    {
       "id": "vectorcraft",
       "source": "moos",
       "cat": "art",
@@ -4858,6 +4726,2034 @@
       ],
       "keywords_ar": [
         "كروميوم"
+      ]
+    },
+    {
+      "id": "at.bitfire.davdroid",
+      "source": "moos",
+      "cat": "droid",
+      "glyph": "refresh",
+      "en": "DAVx⁵",
+      "ar": "داف إكس ٥",
+      "desc_en": "Sync Android calendars and contacts with a CalDAV or CardDAV server.",
+      "desc_ar": "زامن تقاويم وجهات اتصال أندرويد مع خادم CalDAV أو CardDAV.",
+      "developer": "bitfire web engineering",
+      "accent": "#176b63",
+      "engine": "android",
+      "keywords_en": [
+        "caldav",
+        "carddav",
+        "sync"
+      ],
+      "keywords_ar": [
+        "تقويم",
+        "جهات اتصال",
+        "مزامنة"
+      ],
+      "icon_url": "https://f-droid.org/repo/at.bitfire.davdroid/en-US/icon_NexNou7vmaD45rbdc8kjLj0Rv7FW128Mde9OQpHFXPE=.png",
+      "install": {
+        "kind": "android",
+        "url": "https://f-droid.org/repo/at.bitfire.davdroid_405200005.apk",
+        "sha256": "df387d8b3ddc3730d88d2bfea939aadb8906cc6cff7de46385a7751d1b536462",
+        "size": 17860303,
+        "package": "at.bitfire.davdroid",
+        "version": "4.5.20-ose",
+        "signer": "8b48e676a6864967791783c1d8d0fc0dd6d2ce33e1fb36787793ecd086d44707",
+        "external": true,
+        "risk": "external-download",
+        "requires_review": true
+      }
+    },
+    {
+      "id": "com.amaze.filemanager",
+      "source": "moos",
+      "cat": "droid",
+      "glyph": "folder",
+      "en": "Amaze File Manager",
+      "ar": "أمايز لإدارة الملفات",
+      "desc_en": "Browse, copy and organise files inside your Android environment.",
+      "desc_ar": "تصفّح وانسخ ونظّم الملفات داخل بيئة أندرويد.",
+      "developer": "Team Amaze",
+      "accent": "#176b63",
+      "engine": "android",
+      "keywords_en": [
+        "files",
+        "file manager",
+        "storage"
+      ],
+      "keywords_ar": [
+        "ملفات",
+        "مجلدات",
+        "تخزين"
+      ],
+      "icon_url": "https://f-droid.org/repo/com.amaze.filemanager/en-US/icon_i3rTEKkXiH92mYX6P1GxarVBABrjy-ROmWeb5h0XEFQ=.png",
+      "install": {
+        "kind": "android",
+        "url": "https://f-droid.org/repo/com.amaze.filemanager_125.apk",
+        "sha256": "35e0338dac1bf026f22d91e1b096c1c6eff1424ad7d6be52a7f8d3fe50987530",
+        "size": 12329238,
+        "package": "com.amaze.filemanager",
+        "version": "3.11.3",
+        "signer": "4d86ad78c71d7d9ac2c64b93b548b8a6fa7fdf683ced023731782d8dcfa7d6bc",
+        "external": true,
+        "risk": "external-download",
+        "requires_review": true
+      }
+    },
+    {
+      "id": "com.foobnix.pro.pdf.reader",
+      "source": "moos",
+      "cat": "droid",
+      "glyph": "document",
+      "en": "Librera Reader",
+      "ar": "ليبريرا ريدر",
+      "desc_en": "Read local PDF, EPUB and other supported ebook documents.",
+      "desc_ar": "اقرأ ملفات PDF وEPUB والكتب الإلكترونية المدعومة.",
+      "developer": "Ivan Ivanenko",
+      "accent": "#176b63",
+      "engine": "android",
+      "keywords_en": [
+        "pdf",
+        "epub",
+        "ebooks"
+      ],
+      "keywords_ar": [
+        "كتب",
+        "قراءة",
+        "بي دي اف"
+      ],
+      "icon_url": "https://f-droid.org/repo/com.foobnix.pro.pdf.reader/en-US/icon_y15Jxhzp6YrmjLC-wtc27B6XLTcArf7yK-2WlpNaoe0=.png",
+      "install": {
+        "kind": "android",
+        "url": "https://f-droid.org/repo/com.foobnix.pro.pdf.reader_7398.apk",
+        "sha256": "ada07b2d61bfeadaedadb58a8a29f246c35421fec2ba2ed548baa420cb59d7d6",
+        "size": 108461451,
+        "package": "com.foobnix.pro.pdf.reader",
+        "version": "9.6.39-fdroid",
+        "signer": "ea0d90df4dde7b9a9e8eaebe2e8aa47ed13f4df9d77aa64bc99c7ed309d2a84d",
+        "external": true,
+        "risk": "external-download",
+        "requires_review": true
+      }
+    },
+    {
+      "id": "com.ichi2.anki",
+      "source": "moos",
+      "cat": "droid",
+      "glyph": "document",
+      "en": "AnkiDroid: Flashcards",
+      "ar": "أنكي درويد",
+      "desc_en": "Study flashcards with spaced repetition and optional AnkiWeb sync.",
+      "desc_ar": "راجع بطاقات الدراسة بالتكرار المتباعد ومزامنة AnkiWeb الاختيارية.",
+      "developer": "AnkiDroid Open Source Team",
+      "accent": "#176b63",
+      "engine": "android",
+      "keywords_en": [
+        "flashcards",
+        "study",
+        "education"
+      ],
+      "keywords_ar": [
+        "دراسة",
+        "بطاقات",
+        "تعليم"
+      ],
+      "icon_url": "https://f-droid.org/repo/com.ichi2.anki/en-US/icon_VE0ysf8rdK-8bnOG2EmdljR6CgRc0tru3v1tCFCTy0c=.png",
+      "install": {
+        "kind": "android",
+        "url": "https://f-droid.org/repo/com.ichi2.anki_22502300.apk",
+        "sha256": "3fa58d26deb530341899dbbd31ba61a4cea41845de7f441692a57637b78b57bc",
+        "size": 111923795,
+        "package": "com.ichi2.anki",
+        "version": "2.25.2",
+        "signer": "24a3d4756c62dd69c86df69aa7fa327b2a6bf55f55c4a1749f99bd1da75906bb",
+        "external": true,
+        "risk": "external-download",
+        "requires_review": true
+      }
+    },
+    {
+      "id": "com.nextcloud.client",
+      "source": "moos",
+      "cat": "droid",
+      "glyph": "upload",
+      "en": "Nextcloud · Android",
+      "ar": "نكست كلاود · أندرويد",
+      "desc_en": "Access and synchronise files using your Nextcloud server account.",
+      "desc_ar": "افتح وزامن ملفاتك باستخدام حساب خادم Nextcloud الخاص بك.",
+      "developer": "Nextcloud GmbH",
+      "accent": "#176b63",
+      "engine": "android",
+      "keywords_en": [
+        "nextcloud",
+        "files",
+        "cloud"
+      ],
+      "keywords_ar": [
+        "سحابة",
+        "ملفات",
+        "مزامنة"
+      ],
+      "icon_url": "https://f-droid.org/repo/com.nextcloud.client/en-US/icon_uMFXKXpFQnnVroYp_Oxtrb4w_rVoRJ4Zi85v0NPY1ZY=.png",
+      "install": {
+        "kind": "android",
+        "url": "https://f-droid.org/repo/com.nextcloud.client_350000190.apk",
+        "sha256": "8fd4d86de9497d3afecc0bad201b177c8f413c0e2e3e152cbc80f48d6e9b481f",
+        "size": 96757432,
+        "package": "com.nextcloud.client",
+        "version": "35.0.1",
+        "signer": "5709576f9d6c6a7687dd5d56b269d1fa5e379702b91bc83f39fd7b7c597c1b83",
+        "external": true,
+        "risk": "external-download",
+        "requires_review": true
+      }
+    },
+    {
+      "id": "com.nononsenseapps.feeder",
+      "source": "moos",
+      "cat": "droid",
+      "glyph": "document",
+      "en": "Feeder",
+      "ar": "فيدر",
+      "desc_en": "Read RSS and Atom feeds without a central account.",
+      "desc_ar": "اقرأ خلاصات RSS وAtom دون حساب مركزي.",
+      "developer": "Space Cowboy",
+      "accent": "#176b63",
+      "engine": "android",
+      "keywords_en": [
+        "rss",
+        "atom",
+        "news"
+      ],
+      "keywords_ar": [
+        "أخبار",
+        "خلاصات",
+        "قراءة"
+      ],
+      "icon_url": "https://f-droid.org/repo/com.nononsenseapps.feeder/en-US/icon_Ab31f6rFiG70NRqjyOH87znJd2y38yiEg2Tz_lY791w=.png",
+      "install": {
+        "kind": "android",
+        "url": "https://f-droid.org/repo/com.nononsenseapps.feeder_4158.apk",
+        "sha256": "4ca2efad9f0b2b275c215fab16cb9a94dd5d88e059e45ed244d4b429c845350e",
+        "size": 61140352,
+        "package": "com.nononsenseapps.feeder",
+        "version": "2.24.0",
+        "signer": "a80df8170d6c891ec9a055211df640a855d451052307bf29cdce3fef9afa94fd",
+        "external": true,
+        "risk": "external-download",
+        "requires_review": true
+      }
+    },
+    {
+      "id": "com.standardnotes",
+      "source": "moos",
+      "cat": "droid",
+      "glyph": "document",
+      "en": "Standard Notes",
+      "ar": "ستاندرد نوتس",
+      "desc_en": "Write notes locally or sync with a Standard Notes account; paid features are optional.",
+      "desc_ar": "اكتب ملاحظات محليًا أو زامنها بحساب Standard Notes؛ الميزات المدفوعة اختيارية.",
+      "developer": "Standard Notes Ltd.",
+      "accent": "#176b63",
+      "engine": "android",
+      "keywords_en": [
+        "notes",
+        "encrypted",
+        "writing"
+      ],
+      "keywords_ar": [
+        "ملاحظات",
+        "كتابة",
+        "تشفير"
+      ],
+      "install": {
+        "kind": "android",
+        "url": "https://f-droid.org/repo/com.standardnotes_3005234.apk",
+        "sha256": "7621c2a05f08cd30fe02cb139da4e5157bce2799c2907db5a7975f53d8addd8d",
+        "size": 89670293,
+        "package": "com.standardnotes",
+        "version": "3.202.9",
+        "signer": "f5dee5e6538121146a4050bd4f4cf6ee2ddc4d690addb94544e9a3b20c4cb5a7",
+        "external": true,
+        "risk": "external-download",
+        "requires_review": true
+      }
+    },
+    {
+      "id": "com.unicornsonlsd.finamp",
+      "source": "moos",
+      "cat": "droid",
+      "glyph": "music",
+      "en": "Finamp",
+      "ar": "فينامب",
+      "desc_en": "Listen to music and cache tracks from your Jellyfin server.",
+      "desc_ar": "استمع إلى الموسيقى واحفظ المقاطع من خادم Jellyfin الخاص بك.",
+      "developer": "James Harvey",
+      "accent": "#176b63",
+      "engine": "android",
+      "keywords_en": [
+        "jellyfin",
+        "music",
+        "audio"
+      ],
+      "keywords_ar": [
+        "موسيقى",
+        "صوت",
+        "خادم"
+      ],
+      "install": {
+        "kind": "android",
+        "url": "https://f-droid.org/repo/com.unicornsonlsd.finamp_52.apk",
+        "sha256": "0da71f5d5531ca7a6d0094eefb27b5cc897c3b2c27de3b75c835481b0cfa41ae",
+        "size": 39216811,
+        "package": "com.unicornsonlsd.finamp",
+        "version": "0.6.27",
+        "signer": "73127dcbad76927ae0e11abb3bfad089a895f301c033c75fd798b9955f337759",
+        "external": true,
+        "risk": "external-download",
+        "requires_review": true
+      }
+    },
+    {
+      "id": "de.markusfisch.android.binaryeye",
+      "source": "moos",
+      "cat": "droid",
+      "glyph": "search",
+      "en": "Binary Eye",
+      "ar": "باينري آي",
+      "desc_en": "Read QR codes and barcodes from imported pictures, or a camera you explicitly select.",
+      "desc_ar": "اقرأ رموز QR والباركود من صور تستوردها أو كاميرا تختارها صراحةً.",
+      "developer": "Markus Fisch",
+      "accent": "#176b63",
+      "engine": "android",
+      "keywords_en": [
+        "qr",
+        "barcode",
+        "scanner"
+      ],
+      "keywords_ar": [
+        "باركود",
+        "رموز",
+        "صور"
+      ],
+      "icon_url": "https://f-droid.org/repo/de.markusfisch.android.binaryeye/en-US/icon_JCQAH6daJAEg6038ZyKnweYEAYfbht0wrM_VejEpLxg=.png",
+      "install": {
+        "kind": "android",
+        "url": "https://f-droid.org/repo/de.markusfisch.android.binaryeye_180.apk",
+        "sha256": "568cec6598dbf42fbde9071af8747071ffea798473016a3d77b6ddb3bff944f1",
+        "size": 8676688,
+        "package": "de.markusfisch.android.binaryeye",
+        "version": "1.75.5",
+        "signer": "9ecdbf0677dd50609c76c2ba05dbe362232327b10a1c37cd58722993d9fe5d57",
+        "external": true,
+        "risk": "external-download",
+        "requires_review": true
+      }
+    },
+    {
+      "id": "de.monocles.chat",
+      "source": "moos",
+      "cat": "droid",
+      "glyph": "chat",
+      "en": "monocles chat",
+      "ar": "مونوكلز شات",
+      "desc_en": "Chat and exchange files using your XMPP account.",
+      "desc_ar": "تبادل الرسائل والملفات باستخدام حساب XMPP الخاص بك.",
+      "developer": "Arne-Brün Vogelsang",
+      "accent": "#176b63",
+      "engine": "android",
+      "keywords_en": [
+        "xmpp",
+        "chat",
+        "messaging"
+      ],
+      "keywords_ar": [
+        "محادثة",
+        "رسائل",
+        "ملفات"
+      ],
+      "icon_url": "https://f-droid.org/repo/de.monocles.chat/en-US/icon_By_09N3UjlWwjECiMxE_5R5ZRY1t9ApwJ3c82_GRZW8=.png",
+      "install": {
+        "kind": "android",
+        "url": "https://f-droid.org/repo/de.monocles.chat_20503.apk",
+        "sha256": "195e119222cdca6d4c0f6d4122c8ebd3a14387a9ac6383c079e31a0a013ae5e1",
+        "size": 40680216,
+        "package": "de.monocles.chat",
+        "version": "2.2.2",
+        "signer": "16bdc1612b0bc6873f759308b7b6ea1eedc17d3302592a192ceecac0ead923c2",
+        "external": true,
+        "risk": "external-download",
+        "requires_review": true
+      }
+    },
+    {
+      "id": "eu.faircode.email",
+      "source": "moos",
+      "cat": "droid",
+      "glyph": "mail",
+      "en": "FairEmail",
+      "ar": "فير إيميل",
+      "desc_en": "Manage IMAP and POP3 email accounts; some advanced features are paid.",
+      "desc_ar": "أدر حسابات البريد IMAP وPOP3؛ بعض المزايا المتقدمة مدفوعة.",
+      "developer": "Marcel Bokhorst (M66B)",
+      "accent": "#176b63",
+      "engine": "android",
+      "keywords_en": [
+        "email",
+        "imap",
+        "pop3"
+      ],
+      "keywords_ar": [
+        "بريد",
+        "رسائل",
+        "حسابات"
+      ],
+      "icon_url": "https://f-droid.org/repo/eu.faircode.email/en-US/icon_0a2E8tt03J6IsBb7HvvI88FYOaaWLuP1Ea73naLIvxg=.png",
+      "install": {
+        "kind": "android",
+        "url": "https://f-droid.org/repo/eu.faircode.email_2338.apk",
+        "sha256": "a9be897603ebba8b188d8a80ef61f0fc54162d45045ec3a2834a648426c0ad90",
+        "size": 29423212,
+        "package": "eu.faircode.email",
+        "version": "1.2338",
+        "signer": "b9d041582af46ee39bba0f2f1829d948ae21ecf7ffa6ba120385d245ebb788ae",
+        "external": true,
+        "risk": "external-download",
+        "requires_review": true
+      }
+    },
+    {
+      "id": "eu.siacs.conversations",
+      "source": "moos",
+      "cat": "droid",
+      "glyph": "chat",
+      "en": "Conversations",
+      "ar": "كونفرسيشنز",
+      "desc_en": "Message through your XMPP account, with supported encrypted conversations.",
+      "desc_ar": "تواصل عبر حساب XMPP مع دعم المحادثات المشفّرة.",
+      "developer": "Daniel Gultsch",
+      "accent": "#176b63",
+      "engine": "android",
+      "keywords_en": [
+        "xmpp",
+        "jabber",
+        "chat"
+      ],
+      "keywords_ar": [
+        "محادثة",
+        "رسائل",
+        "تشفير"
+      ],
+      "icon_url": "https://f-droid.org/repo/eu.siacs.conversations/en-US/icon_hjL1SjuLrU9_UUIRtKM8JJocd8SF0plDL70VFGPUbGc=.png",
+      "install": {
+        "kind": "android",
+        "url": "https://f-droid.org/repo/eu.siacs.conversations_4218103.apk",
+        "sha256": "65dc99df538c9c8f66adacfcebf17a16575e35d627aec2d62bd9de50ec0371eb",
+        "size": 32717860,
+        "package": "eu.siacs.conversations",
+        "version": "2.20.4+free",
+        "signer": "9c2e57c85c279e5e1a427f6e87927fc1e2278f62d61d7fcefde9346e568ccf86",
+        "external": true,
+        "risk": "external-download",
+        "requires_review": true
+      }
+    },
+    {
+      "id": "it.niedermann.owncloud.notes",
+      "source": "moos",
+      "cat": "droid",
+      "glyph": "document",
+      "en": "Nextcloud Notes",
+      "ar": "ملاحظات نكست كلاود",
+      "desc_en": "Edit and sync notes with a Nextcloud server that has Notes enabled.",
+      "desc_ar": "حرّر وزامن الملاحظات مع خادم Nextcloud المفعّل عليه تطبيق Notes.",
+      "developer": "Nextcloud GmbH",
+      "accent": "#176b63",
+      "engine": "android",
+      "keywords_en": [
+        "nextcloud",
+        "notes",
+        "sync"
+      ],
+      "keywords_ar": [
+        "ملاحظات",
+        "سحابة",
+        "مزامنة"
+      ],
+      "icon_url": "https://f-droid.org/repo/it.niedermann.owncloud.notes/en-US/icon_Okzls893_WT2ukp-g54PfaiQGhN1ynOJqPucXfsiMOI=.png",
+      "install": {
+        "kind": "android",
+        "url": "https://f-droid.org/repo/it.niedermann.owncloud.notes_350000090.apk",
+        "sha256": "8eddfbcb64c57616b09269f2369381ebf60324afb37af5429a62b23cd633573d",
+        "size": 61493606,
+        "package": "it.niedermann.owncloud.notes",
+        "version": "35.0.0",
+        "signer": "3e80f32df2c89e4cdd3a32f1002178d8d4f21b9da89f8add6abae29fd3c95c0b",
+        "external": true,
+        "risk": "external-download",
+        "requires_review": true
+      }
+    },
+    {
+      "id": "me.ash.reader",
+      "source": "moos",
+      "cat": "droid",
+      "glyph": "document",
+      "en": "Read You",
+      "ar": "ريد يو",
+      "desc_en": "Follow RSS feeds in a Material-style reader with offline articles.",
+      "desc_ar": "تابع خلاصات RSS في قارئ بتصميم ماتيريال ومقالات متاحة دون اتصال.",
+      "developer": "Ashinch",
+      "accent": "#176b63",
+      "engine": "android",
+      "keywords_en": [
+        "rss",
+        "feeds",
+        "reader"
+      ],
+      "keywords_ar": [
+        "أخبار",
+        "خلاصات",
+        "مقالات"
+      ],
+      "icon_url": "https://f-droid.org/repo/me.ash.reader/en-US/icon_Bq9nQb_UzmI1DBSluSA8Q-d5tFo9dQWmyIyt69onHfo=.png",
+      "install": {
+        "kind": "android",
+        "url": "https://f-droid.org/repo/me.ash.reader_47.apk",
+        "sha256": "78b1b8b9b6f6d18baaba31427895f1f10e9ca6cc1e01b3ceeb96df26e8fca075",
+        "size": 11209694,
+        "package": "me.ash.reader",
+        "version": "0.16.2",
+        "signer": "cef338a474523bdfcf3fb82cbee2d45f6fd9610e95902ba78c8c79a45e102ae9",
+        "external": true,
+        "risk": "external-download",
+        "requires_review": true
+      }
+    },
+    {
+      "id": "me.zhanghai.android.files",
+      "source": "moos",
+      "cat": "droid",
+      "glyph": "folder",
+      "en": "Material Files",
+      "ar": "ماتيريال فايلز",
+      "desc_en": "Manage Android files with archives, search and network storage support.",
+      "desc_ar": "أدر ملفات أندرويد مع الأرشيفات والبحث والتخزين الشبكي.",
+      "developer": "Hai Zhang",
+      "accent": "#176b63",
+      "engine": "android",
+      "keywords_en": [
+        "files",
+        "archives",
+        "network"
+      ],
+      "keywords_ar": [
+        "ملفات",
+        "أرشيف",
+        "شبكة"
+      ],
+      "icon_url": "https://f-droid.org/repo/me.zhanghai.android.files/en-US/icon_BFY8kIAZkrB0kKwXt1uVDgghMociormUlcOIedEh2mA=.png",
+      "install": {
+        "kind": "android",
+        "url": "https://f-droid.org/repo/me.zhanghai.android.files_40.apk",
+        "sha256": "2fe900bf43d725b655008d438f5ca46d0da0f301e3784403b5b96c3fc2df6e8a",
+        "size": 10944578,
+        "package": "me.zhanghai.android.files",
+        "version": "1.7.5",
+        "signer": "9c22a742fa200c85bafbc9924a02ddc8f3a0b975d4d7b5a8da21d7cf34ce2b20",
+        "external": true,
+        "risk": "external-download",
+        "requires_review": true
+      }
+    },
+    {
+      "id": "net.cozic.joplin",
+      "source": "moos",
+      "cat": "droid",
+      "glyph": "document",
+      "en": "Joplin · Android",
+      "ar": "جوبلين · أندرويد",
+      "desc_en": "Write Markdown notes and notebooks, with optional sync to your chosen service.",
+      "desc_ar": "اكتب ملاحظات ودفاتر ماركداون مع مزامنة اختيارية إلى الخدمة التي تختارها.",
+      "developer": "Joplin",
+      "accent": "#176b63",
+      "engine": "android",
+      "keywords_en": [
+        "notes",
+        "markdown",
+        "notebooks"
+      ],
+      "keywords_ar": [
+        "ملاحظات",
+        "دفاتر",
+        "ماركداون"
+      ],
+      "icon_url": "https://f-droid.org/repo/net.cozic.joplin/en-US/icon_4ZwOYOFQVDhqRaKMUYxpj6hJJLijV8EYZJ7gWBML6ZM=.png",
+      "install": {
+        "kind": "android",
+        "url": "https://f-droid.org/repo/net.cozic.joplin_2097817.apk",
+        "sha256": "79acd24866ef5c3f8779fcdf926dd6e0d6e242ccffda8581c556f2a80f4b2782",
+        "size": 154987817,
+        "package": "net.cozic.joplin",
+        "version": "3.7.8",
+        "signer": "48a1cf9201b9079a6e0d5b33693e496db3c5cbec64a85afccd75e16d7a6cd54d",
+        "external": true,
+        "risk": "external-download",
+        "requires_review": true
+      }
+    },
+    {
+      "id": "net.gsantner.markor",
+      "source": "moos",
+      "cat": "droid",
+      "glyph": "document",
+      "en": "Markor",
+      "ar": "ماركور",
+      "desc_en": "Edit Markdown notes, plain text and todo.txt files.",
+      "desc_ar": "حرّر ملاحظات ماركداون والنصوص وقوائم المهام في ملفاتك.",
+      "developer": "Gregor Santner",
+      "accent": "#176b63",
+      "engine": "android",
+      "keywords_en": [
+        "notes",
+        "markdown",
+        "text editor"
+      ],
+      "keywords_ar": [
+        "ملاحظات",
+        "نصوص",
+        "ماركداون"
+      ],
+      "icon_url": "https://f-droid.org/repo/net.gsantner.markor/en-US/icon_jm7Yt2QTE4iuxQp_T98o-PSJ4m6GPzmawSrx99KYiE8=.png",
+      "install": {
+        "kind": "android",
+        "url": "https://f-droid.org/repo/net.gsantner.markor_163.apk",
+        "sha256": "3f9f260dc3e32a1281cb8803eea6f926eef897579f68a5d35f922523974b84b9",
+        "size": 12054040,
+        "package": "net.gsantner.markor",
+        "version": "2.16.1",
+        "signer": "9c70033237dc46fe5052e420c665708de8b3105b89842843818981826b7eec9c",
+        "external": true,
+        "risk": "external-download",
+        "requires_review": true
+      }
+    },
+    {
+      "id": "net.osmand.plus",
+      "source": "moos",
+      "cat": "droid",
+      "glyph": "compass",
+      "en": "OsmAnd~",
+      "ar": "أوسم أند",
+      "desc_en": "Explore offline OpenStreetMap maps; desktop location may need manual selection.",
+      "desc_ar": "استكشف خرائط OpenStreetMap دون اتصال؛ قد تحتاج إلى تحديد الموقع يدويًا على الكمبيوتر.",
+      "developer": "OsmAnd~",
+      "accent": "#176b63",
+      "engine": "android",
+      "keywords_en": [
+        "maps",
+        "offline",
+        "navigation"
+      ],
+      "keywords_ar": [
+        "خرائط",
+        "ملاحة",
+        "دون اتصال"
+      ],
+      "icon_url": "https://f-droid.org/repo/net.osmand.plus/en-US/icon_R5cswkpVpZLwTsPD855ukLX_czuOczFwZLn7pCxaB-k=.png",
+      "install": {
+        "kind": "android",
+        "url": "https://f-droid.org/repo/net.osmand.plus_541002.apk",
+        "sha256": "d33ba6f7f73f82adf3cc08fa7114fb771e714dc8deab2d11b90e87050e17633a",
+        "size": 184244824,
+        "package": "net.osmand.plus",
+        "version": "5.4.10",
+        "signer": "38294eaac95c3bb5a994692cd7758f8bcdbffb40819af6e806eb7fe482324dcd",
+        "external": true,
+        "risk": "external-download",
+        "requires_review": true
+      }
+    },
+    {
+      "id": "org.fossify.contacts",
+      "source": "moos",
+      "cat": "droid",
+      "glyph": "identity",
+      "en": "Fossify Contacts",
+      "ar": "جهات اتصال فوسيفاي",
+      "desc_en": "Manage Android contacts and import or export vCard files.",
+      "desc_ar": "أدر جهات اتصال أندرويد واستورد وصدّر ملفات vCard.",
+      "developer": "Fossify",
+      "accent": "#176b63",
+      "engine": "android",
+      "keywords_en": [
+        "contacts",
+        "vcard",
+        "address book"
+      ],
+      "keywords_ar": [
+        "جهات اتصال",
+        "عناوين",
+        "أسماء"
+      ],
+      "icon_url": "https://f-droid.org/repo/org.fossify.contacts/en-US/icon_KiGiEsSyQLlycwpDjVYUn0jCqGWzHURP4iJQwrFVLGM=.png",
+      "install": {
+        "kind": "android",
+        "url": "https://f-droid.org/repo/org.fossify.contacts_13.apk",
+        "sha256": "6a89be96b5ec39f5e2b11bd61dc7031f4b88261b324ab13af5743fbc62f0cddb",
+        "size": 8602985,
+        "package": "org.fossify.contacts",
+        "version": "1.6.0",
+        "signer": "affdb124d3f4720c2f98dbca9eacba0514fba4306e20a2786c861c3c0d6ff292",
+        "external": true,
+        "risk": "external-download",
+        "requires_review": true
+      }
+    },
+    {
+      "id": "org.fossify.math",
+      "source": "moos",
+      "cat": "droid",
+      "glyph": "grid",
+      "en": "Fossify Calculator Beta",
+      "ar": "آلة حاسبة فوسيفاي التجريبية",
+      "desc_en": "A simple Android calculator; this publisher release is labelled beta.",
+      "desc_ar": "آلة حاسبة بسيطة لأندرويد؛ هذا الإصدار مصنّف تجريبيًا لدى الناشر.",
+      "developer": "Fossify",
+      "accent": "#176b63",
+      "engine": "android",
+      "keywords_en": [
+        "calculator",
+        "math",
+        "beta"
+      ],
+      "keywords_ar": [
+        "حاسبة",
+        "رياضيات",
+        "حساب"
+      ],
+      "icon_url": "https://f-droid.org/repo/org.fossify.math/en-US/icon_Ck-pz2KmdAej-o4SvEzXLHWxs8jVqBaNJz4-4N4FXxE=.png",
+      "install": {
+        "kind": "android",
+        "url": "https://f-droid.org/repo/org.fossify.math_10.apk",
+        "sha256": "7c5443c22d6d62c67dfe80df33ea9161ff0fa440f92590bcb45d7008b57613ed",
+        "size": 7047681,
+        "package": "org.fossify.math",
+        "version": "1.4.0",
+        "signer": "affdb124d3f4720c2f98dbca9eacba0514fba4306e20a2786c861c3c0d6ff292",
+        "external": true,
+        "risk": "external-download",
+        "requires_review": true
+      }
+    },
+    {
+      "id": "org.fossify.paint",
+      "source": "moos",
+      "cat": "droid",
+      "glyph": "pen",
+      "en": "Fossify Paint Beta",
+      "ar": "رسّام فوسيفاي التجريبي",
+      "desc_en": "Draw and sketch in a simple Android editor; publisher beta release.",
+      "desc_ar": "ارسم لوحات ومخططات بمحرّر أندرويد بسيط؛ إصدار تجريبي من الناشر.",
+      "developer": "Fossify",
+      "accent": "#176b63",
+      "engine": "android",
+      "keywords_en": [
+        "drawing",
+        "paint",
+        "sketch",
+        "beta"
+      ],
+      "keywords_ar": [
+        "رسم",
+        "تلوين",
+        "لوحة"
+      ],
+      "icon_url": "https://f-droid.org/repo/org.fossify.paint/en-US/icon_LckUGzxdMizikCDZXuz63MjOjLaDPVRfrFp6mSCWqdE=.png",
+      "install": {
+        "kind": "android",
+        "url": "https://f-droid.org/repo/org.fossify.paint_7.apk",
+        "sha256": "b949ad0a1eafce616e9e6c6f5fa5b265e4b8ad426303a245be921a6e0c0def5e",
+        "size": 7608967,
+        "package": "org.fossify.paint",
+        "version": "1.4.0",
+        "signer": "affdb124d3f4720c2f98dbca9eacba0514fba4306e20a2786c861c3c0d6ff292",
+        "external": true,
+        "risk": "external-download",
+        "requires_review": true
+      }
+    },
+    {
+      "id": "org.isoron.uhabits",
+      "source": "moos",
+      "cat": "droid",
+      "glyph": "calendar",
+      "en": "Loop Habit Tracker",
+      "ar": "لوب لتتبّع العادات",
+      "desc_en": "Track daily habits and view progress without an account.",
+      "desc_ar": "تابع عاداتك اليومية وشاهد تقدمك دون حساب.",
+      "developer": "Alinson Xavier",
+      "accent": "#176b63",
+      "engine": "android",
+      "keywords_en": [
+        "habits",
+        "tracker",
+        "daily"
+      ],
+      "keywords_ar": [
+        "عادات",
+        "متابعة",
+        "يومي"
+      ],
+      "icon_url": "https://f-droid.org/repo/org.isoron.uhabits/en-US/icon_dhJtIjNYdwt-e9Ky5Xm91xiWo0HtQPSEiEHTCAigQeQ=.png",
+      "install": {
+        "kind": "android",
+        "url": "https://f-droid.org/repo/org.isoron.uhabits_20301.apk",
+        "sha256": "3903d3be3db0f1622ad61cf5bb267515c95a4069e8dd46f73249721b1bb8173e",
+        "size": 10753773,
+        "package": "org.isoron.uhabits",
+        "version": "2.3.1",
+        "signer": "9f338a863b0152c881e04954d07ae67f62afd11e064fb3ac99a8bd1d2842a395",
+        "external": true,
+        "risk": "external-download",
+        "requires_review": true
+      }
+    },
+    {
+      "id": "org.jellyfin.mobile",
+      "source": "moos",
+      "cat": "droid",
+      "glyph": "video",
+      "en": "Jellyfin · Android",
+      "ar": "جيلي فن · أندرويد",
+      "desc_en": "Browse and play media from your own Jellyfin server.",
+      "desc_ar": "تصفّح وشغّل الوسائط من خادم Jellyfin الخاص بك.",
+      "developer": "Jellyfin",
+      "accent": "#176b63",
+      "engine": "android",
+      "keywords_en": [
+        "jellyfin",
+        "media",
+        "streaming"
+      ],
+      "keywords_ar": [
+        "وسائط",
+        "فيديو",
+        "بث"
+      ],
+      "icon_url": "https://f-droid.org/repo/org.jellyfin.mobile/en-US/icon_WNAOP6fEejq3JZi4eaiyummteKMOE_-M95RYCVQtFro=.png",
+      "install": {
+        "kind": "android",
+        "url": "https://f-droid.org/repo/org.jellyfin.mobile_2070399.apk",
+        "sha256": "f9f4b3ab46cc9434df811194c2d4351417f4db83a4c1a0facd0a662d69533f7f",
+        "size": 8964986,
+        "package": "org.jellyfin.mobile",
+        "version": "2.7.3",
+        "signer": "d881796ed2a67ff6ef9f676828723c6b1fa18e09388962cba4abc4a594a69131",
+        "external": true,
+        "risk": "external-download",
+        "requires_review": true
+      }
+    },
+    {
+      "id": "org.mozilla.fennec_fdroid",
+      "source": "moos",
+      "cat": "droid",
+      "glyph": "globe",
+      "en": "Fennec F-Droid",
+      "ar": "فينك",
+      "desc_en": "Browse the web in a Firefox-based Android browser with extension support.",
+      "desc_ar": "تصفّح الويب بمتصفح أندرويد مبني على فايرفوكس ويدعم الإضافات.",
+      "developer": "Fennec F-Droid",
+      "accent": "#176b63",
+      "engine": "android",
+      "keywords_en": [
+        "browser",
+        "firefox",
+        "web"
+      ],
+      "keywords_ar": [
+        "متصفح",
+        "ويب",
+        "فايرفوكس"
+      ],
+      "icon_url": "https://f-droid.org/repo/org.mozilla.fennec_fdroid/en-US/icon_RCxqbONQXgoTeWvoYAQjC0nmDVTlBoCXvzZ1Rx27gRM=.png",
+      "install": {
+        "kind": "android",
+        "url": "https://f-droid.org/repo/org.mozilla.fennec_fdroid_1580010.apk",
+        "sha256": "1b062902dcb0c1c634fe804efa5eb87fc5c9065dd66abe80c165d540974fdf75",
+        "size": 135689763,
+        "package": "org.mozilla.fennec_fdroid",
+        "version": "158.0.0",
+        "signer": "06665358efd8ba05be236a47a12cb0958d7d75dd939d77c2b31f5398537ebdc5",
+        "external": true,
+        "risk": "external-download",
+        "requires_review": true
+      }
+    },
+    {
+      "id": "org.sufficientlysecure.keychain",
+      "source": "moos",
+      "cat": "droid",
+      "glyph": "lock",
+      "en": "OpenKeychain: Easy PGP",
+      "ar": "أوبن كي تشين",
+      "desc_en": "Manage OpenPGP keys and encrypt or decrypt supported messages and files.",
+      "desc_ar": "أدر مفاتيح OpenPGP وشفّر وفك تشفير الرسائل والملفات المدعومة.",
+      "developer": "Dominik Schürmann",
+      "accent": "#176b63",
+      "engine": "android",
+      "keywords_en": [
+        "openpgp",
+        "encryption",
+        "keys"
+      ],
+      "keywords_ar": [
+        "تشفير",
+        "مفاتيح",
+        "خصوصية"
+      ],
+      "icon_url": "https://f-droid.org/repo/org.sufficientlysecure.keychain/en-US/icon_7CVWLf-lztDVEl2HY_TnF0d98nwq__xr05Yu8lLZoV4=.png",
+      "install": {
+        "kind": "android",
+        "url": "https://f-droid.org/repo/org.sufficientlysecure.keychain_60400.apk",
+        "sha256": "f88374b9113aa9ddba865258bd989eb3ac2ca1577d92e59d6e84228e080674ce",
+        "size": 12043256,
+        "package": "org.sufficientlysecure.keychain",
+        "version": "6.0.4",
+        "signer": "2805a6f465acb923103a2ab3a145e1a97a74c44acf751250b588ebc3f88a0cc9",
+        "external": true,
+        "risk": "external-download",
+        "requires_review": true
+      }
+    },
+    {
+      "id": "org.tasks",
+      "source": "moos",
+      "cat": "droid",
+      "glyph": "briefcase",
+      "en": "Tasks.org: Open-source To-Do Lists & Reminders",
+      "ar": "تاسكس",
+      "desc_en": "Organise tasks and reminders, with optional CalDAV synchronisation.",
+      "desc_ar": "نظّم المهام والتذكيرات مع مزامنة CalDAV اختيارية.",
+      "developer": "Alex Baker",
+      "accent": "#176b63",
+      "engine": "android",
+      "keywords_en": [
+        "tasks",
+        "reminders",
+        "caldav"
+      ],
+      "keywords_ar": [
+        "مهام",
+        "تذكيرات",
+        "مزامنة"
+      ],
+      "icon_url": "https://f-droid.org/repo/org.tasks/en-US/icon_hj4Uw7qW4b2sruhcSPVU6kuNoHV4QGWgIXjyUqJ36KA=.png",
+      "install": {
+        "kind": "android",
+        "url": "https://f-droid.org/repo/org.tasks_151202.apk",
+        "sha256": "ed972cc1cec3456a11992435a3fcf132d1311f1e8dfd27758265122fbc206ce0",
+        "size": 28580639,
+        "package": "org.tasks",
+        "version": "15.12",
+        "signer": "a038a055bf43b2659cbaf862808afd5e447d4d0e2749a10391910009cbd8dcfa",
+        "external": true,
+        "risk": "external-download",
+        "requires_review": true
+      }
+    },
+    {
+      "id": "ws.xsoh.etar",
+      "source": "moos",
+      "cat": "droid",
+      "glyph": "calendar",
+      "en": "Etar - OpenSource Calendar",
+      "ar": "إيتار للتقويم",
+      "desc_en": "View and organise Android calendars, events and reminders.",
+      "desc_ar": "اعرض ونظّم تقاويم أندرويد والمواعيد والتذكيرات.",
+      "developer": "Etar - OpenSource Calendar",
+      "accent": "#176b63",
+      "engine": "android",
+      "keywords_en": [
+        "calendar",
+        "events",
+        "agenda"
+      ],
+      "keywords_ar": [
+        "تقويم",
+        "مواعيد",
+        "أحداث"
+      ],
+      "icon_url": "https://f-droid.org/repo/ws.xsoh.etar/en-US/icon_MV5P0hb85YWVJIfobFH46J3yDwLvde2IRXbFLfH133s=.png",
+      "install": {
+        "kind": "android",
+        "url": "https://f-droid.org/repo/ws.xsoh.etar_57.apk",
+        "sha256": "dae01d93c8920aa63845868db2190bcc4aa6ff8410b1289de1ce27b1bb89c599",
+        "size": 9226697,
+        "package": "ws.xsoh.etar",
+        "version": "1.0.57",
+        "signer": "3f3176c3ce189c98054ff9e1d32daecf00a41572f4c7bd2b2f80607252ddb06e",
+        "external": true,
+        "risk": "external-download",
+        "requires_review": true
+      }
+    },
+    {
+      "id": "doublecommander-windows",
+      "source": "moos",
+      "cat": "win",
+      "glyph": "folder",
+      "en": "Double Commander · Windows",
+      "ar": "دبل كوماندر · ويندوز",
+      "desc_en": "Manage files in two panes, with tabs, archives and file comparison.",
+      "desc_ar": "أدر الملفات في لوحتين مع ألسنة وأرشيفات ومقارنة للملفات.",
+      "developer": "doublecmd",
+      "accent": "#23527c",
+      "engine": "windows",
+      "arch": [
+        "x86_64"
+      ],
+      "keywords_en": [
+        "files",
+        "two panes",
+        "archives"
+      ],
+      "keywords_ar": [
+        "ملفات",
+        "مجلدات",
+        "أرشيف"
+      ],
+      "install": {
+        "kind": "windows-portable",
+        "version": "1.2.9",
+        "downloads": {
+          "x86_64": {
+            "url": "https://github.com/doublecmd/doublecmd/releases/download/v1.2.9/doublecmd-1.2.9.x86_64-win64.zip",
+            "sha256": "e8472c0105dbde55db4ffbdbd190eab65e9da0375596454995fae4a1fc128dee",
+            "size": 16635996
+          }
+        },
+        "exe": "doublecmd/doublecmd.exe",
+        "risk": "downloaded-executable",
+        "requires_review": true,
+        "external": true
+      }
+    },
+    {
+      "id": "bowpad-windows",
+      "source": "moos",
+      "cat": "win",
+      "glyph": "document",
+      "en": "BowPad · Windows",
+      "ar": "بو باد · ويندوز",
+      "desc_en": "Edit text and code in a small Windows editor with tabs and syntax colours.",
+      "desc_ar": "حرّر النصوص والشيفرة بمحرّر ويندوز خفيف يدعم الألسنة وتلوين الصيغ.",
+      "developer": "stefankueng",
+      "accent": "#23527c",
+      "engine": "windows",
+      "arch": [
+        "x86_64"
+      ],
+      "keywords_en": [
+        "editor",
+        "code",
+        "text"
+      ],
+      "keywords_ar": [
+        "محرر",
+        "شيفرة",
+        "نصوص"
+      ],
+      "install": {
+        "kind": "windows-portable",
+        "version": "2.9.6",
+        "downloads": {
+          "x86_64": {
+            "url": "https://github.com/stefankueng/BowPad/releases/download/2.9.6/BowPad64-2.9.6-portable.zip",
+            "sha256": "69705615176366cfdb6df45c75733b9c69abde67b7f44c40e12c274cb3db9465",
+            "size": 2451477
+          }
+        },
+        "exe": "BowPad.exe",
+        "risk": "downloaded-executable",
+        "requires_review": true,
+        "external": true
+      }
+    },
+    {
+      "id": "grepwin-windows",
+      "source": "moos",
+      "cat": "win",
+      "glyph": "search",
+      "en": "grepWin · Windows",
+      "ar": "غريب وين · ويندوز",
+      "desc_en": "Search and replace text across files using plain text or regular expressions.",
+      "desc_ar": "ابحث واستبدل النصوص عبر الملفات بنص عادي أو تعابير نمطية.",
+      "developer": "stefankueng",
+      "accent": "#23527c",
+      "engine": "windows",
+      "arch": [
+        "x86_64"
+      ],
+      "keywords_en": [
+        "search",
+        "replace",
+        "regex"
+      ],
+      "keywords_ar": [
+        "بحث",
+        "استبدال",
+        "تعابير نمطية"
+      ],
+      "install": {
+        "kind": "windows-portable",
+        "version": "2.1.12",
+        "downloads": {
+          "x86_64": {
+            "url": "https://github.com/stefankueng/grepWin/releases/download/2.1.12/grepWin-x64-2.1.12_portable.zip",
+            "sha256": "55f0352144d67ae03c6f24db642d080c895833593b25b900339bc92a5b4d7234",
+            "size": 691960
+          }
+        },
+        "exe": "grepWin-x64-2.1.12_portable.exe",
+        "risk": "downloaded-executable",
+        "requires_review": true,
+        "external": true
+      }
+    },
+    {
+      "id": "imhex-windows",
+      "source": "moos",
+      "cat": "win",
+      "glyph": "code",
+      "en": "ImHex · Windows",
+      "ar": "إم هيكس · ويندوز",
+      "desc_en": "Inspect binary files with a hex editor and pattern tools; software-rendered build.",
+      "desc_ar": "افحص الملفات الثنائية بمحرّر ست عشري وأدوات الأنماط؛ نسخة بالرسم البرمجي.",
+      "developer": "WerWolv",
+      "accent": "#23527c",
+      "engine": "windows",
+      "arch": [
+        "x86_64"
+      ],
+      "keywords_en": [
+        "hex",
+        "binary",
+        "reverse engineering"
+      ],
+      "keywords_ar": [
+        "ثنائي",
+        "هيكس",
+        "تحليل"
+      ],
+      "install": {
+        "kind": "windows-portable",
+        "version": "1.38.1",
+        "downloads": {
+          "x86_64": {
+            "url": "https://github.com/WerWolv/ImHex/releases/download/v1.38.1/imhex-1.38.1-Windows-Portable-NoGPU-x86_64.zip",
+            "sha256": "f440deb64901d21a64a68ee19562716b6079f7034f7525162bce4c650465eb2e",
+            "size": 81465452
+          }
+        },
+        "exe": "imhex-gui.exe",
+        "risk": "downloaded-executable",
+        "requires_review": true,
+        "external": true
+      }
+    },
+    {
+      "id": "keepassxc-windows",
+      "source": "moos",
+      "cat": "win",
+      "glyph": "lock",
+      "en": "KeePassXC · Windows",
+      "ar": "كي باس إكس سي · ويندوز",
+      "desc_en": "Keep passwords in a local encrypted database compatible with KDBX files.",
+      "desc_ar": "احفظ كلمات المرور في قاعدة بيانات محلية مشفّرة متوافقة مع KDBX.",
+      "developer": "keepassxreboot",
+      "accent": "#23527c",
+      "engine": "windows",
+      "arch": [
+        "x86_64"
+      ],
+      "keywords_en": [
+        "passwords",
+        "kdbx",
+        "database"
+      ],
+      "keywords_ar": [
+        "كلمات مرور",
+        "تشفير",
+        "قاعدة بيانات"
+      ],
+      "install": {
+        "kind": "windows-portable",
+        "version": "2.7.12",
+        "downloads": {
+          "x86_64": {
+            "url": "https://github.com/keepassxreboot/keepassxc/releases/download/2.7.12/KeePassXC-2.7.12-Win64.zip",
+            "sha256": "958234b0669d757b53eacf42bdd5de0fa1cc1ab7527709ddf4f7e29c06a8305f",
+            "size": 35395629
+          }
+        },
+        "exe": "KeePassXC-2.7.12-Win64/KeePassXC.exe",
+        "risk": "downloaded-executable",
+        "requires_review": true,
+        "external": true
+      }
+    },
+    {
+      "id": "jpegview-windows",
+      "source": "moos",
+      "cat": "win",
+      "glyph": "image",
+      "en": "JPEGView · Windows",
+      "ar": "جيه بي إي جي فيو · ويندوز",
+      "desc_en": "View local pictures and make quick brightness, colour and crop adjustments.",
+      "desc_ar": "اعرض الصور المحلية وعدّل السطوع والألوان والقص بسرعة.",
+      "developer": "sylikc",
+      "accent": "#23527c",
+      "engine": "windows",
+      "arch": [
+        "x86_64"
+      ],
+      "keywords_en": [
+        "photos",
+        "viewer",
+        "images"
+      ],
+      "keywords_ar": [
+        "صور",
+        "عارض",
+        "تعديل"
+      ],
+      "install": {
+        "kind": "windows-portable",
+        "version": "1.3.46",
+        "downloads": {
+          "x86_64": {
+            "url": "https://github.com/sylikc/jpegview/releases/download/v1.3.46/JPEGView_1.3.46.zip",
+            "sha256": "ba71d5983b6c9e2dc55abbec0da53be54e67cf3251d6e9d2d8be82fe7d85bbe5",
+            "size": 8999867
+          }
+        },
+        "exe": "JPEGView64/JPEGView.exe",
+        "risk": "downloaded-executable",
+        "requires_review": true,
+        "external": true
+      }
+    },
+    {
+      "id": "lazpaint-windows",
+      "source": "moos",
+      "cat": "win",
+      "glyph": "pen",
+      "en": "LazPaint · Windows",
+      "ar": "لاز بينت · ويندوز",
+      "desc_en": "Draw and edit images with layers and vector or bitmap tools.",
+      "desc_ar": "ارسم وعدّل الصور بطبقات وأدوات متجهات وصور نقطية.",
+      "developer": "bgrabitmap",
+      "accent": "#23527c",
+      "engine": "windows",
+      "arch": [
+        "x86_64"
+      ],
+      "keywords_en": [
+        "paint",
+        "layers",
+        "drawing"
+      ],
+      "keywords_ar": [
+        "رسم",
+        "طبقات",
+        "صور"
+      ],
+      "install": {
+        "kind": "windows-portable",
+        "version": "7.3",
+        "downloads": {
+          "x86_64": {
+            "url": "https://github.com/bgrabitmap/lazpaint/releases/download/v7.3/lazpaint7.3_win64_no_install.zip",
+            "sha256": "3d79ac4c822437c327be44417968d2e027f072c42211691b40198cbd78a24b51",
+            "size": 10528323
+          }
+        },
+        "exe": "lazpaint64/lazpaint.exe",
+        "risk": "downloaded-executable",
+        "requires_review": true,
+        "external": true
+      }
+    },
+    {
+      "id": "openscad-windows",
+      "source": "moos",
+      "cat": "win",
+      "glyph": "cube",
+      "en": "OpenSCAD · Windows",
+      "ar": "أوبن سكاد · ويندوز",
+      "desc_en": "Design 3D solid models with code in the publisher's stable Windows release.",
+      "desc_ar": "صمّم مجسّمات ثلاثية الأبعاد بالشيفرة في إصدار ويندوز المستقر من الناشر.",
+      "developer": "openscad",
+      "accent": "#23527c",
+      "engine": "windows",
+      "arch": [
+        "x86_64"
+      ],
+      "keywords_en": [
+        "cad",
+        "3d",
+        "models"
+      ],
+      "keywords_ar": [
+        "تصميم",
+        "مجسمات",
+        "ثلاثي الأبعاد"
+      ],
+      "install": {
+        "kind": "windows-portable",
+        "version": "2021.01",
+        "downloads": {
+          "x86_64": {
+            "url": "https://github.com/openscad/openscad/releases/download/openscad-2021.01/OpenSCAD-2021.01-x86-64.zip",
+            "sha256": "fb0caabf5bbc89f8f2f80c10b79ae64d697aaff6efd58b2756f5d6270edb7ba7",
+            "size": 21884613
+          }
+        },
+        "exe": "openscad-2021.01/openscad.exe",
+        "risk": "downloaded-executable",
+        "requires_review": true,
+        "external": true
+      }
+    },
+    {
+      "id": "qalculate-windows",
+      "source": "moos",
+      "cat": "win",
+      "glyph": "grid",
+      "en": "Qalculate! · Windows",
+      "ar": "كالكوليت · ويندوز",
+      "desc_en": "Calculate expressions, units and scientific functions in a desktop calculator.",
+      "desc_ar": "احسب التعابير والوحدات والدوال العلمية بآلة حاسبة لسطح المكتب.",
+      "developer": "Qalculate",
+      "accent": "#23527c",
+      "engine": "windows",
+      "arch": [
+        "x86_64"
+      ],
+      "keywords_en": [
+        "calculator",
+        "math",
+        "units"
+      ],
+      "keywords_ar": [
+        "حاسبة",
+        "رياضيات",
+        "وحدات"
+      ],
+      "install": {
+        "kind": "windows-portable",
+        "version": "5.13.1b",
+        "downloads": {
+          "x86_64": {
+            "url": "https://github.com/Qalculate/qalculate-qt/releases/download/v5.13.0/qalculate-5.13.1b-x64.zip",
+            "sha256": "b3ddb431f6242165bedca33694403809fcc69cab45371d90dcf0e8bb5a187b96",
+            "size": 70792677
+          }
+        },
+        "exe": "qalculate/qalculate-qt.exe",
+        "risk": "downloaded-executable",
+        "requires_review": true,
+        "external": true
+      }
+    },
+    {
+      "id": "peazip-windows",
+      "source": "moos",
+      "cat": "win",
+      "glyph": "boxes",
+      "en": "PeaZip · Windows",
+      "ar": "بيا زيب · ويندوز",
+      "desc_en": "Create, browse and extract supported archive formats.",
+      "desc_ar": "أنشئ وتصفّح وفك ضغط صيغ الأرشيف المدعومة.",
+      "developer": "peazip",
+      "accent": "#23527c",
+      "engine": "windows",
+      "arch": [
+        "x86_64"
+      ],
+      "keywords_en": [
+        "archives",
+        "zip",
+        "compression"
+      ],
+      "keywords_ar": [
+        "أرشيف",
+        "ضغط",
+        "ملفات"
+      ],
+      "install": {
+        "kind": "windows-portable",
+        "version": "11.3.0",
+        "downloads": {
+          "x86_64": {
+            "url": "https://github.com/peazip/PeaZip/releases/download/11.3.0/peazip_portable-11.3.0.WIN64.zip",
+            "sha256": "3fb15b9852c94ba5ee8d1af5568fad0cad0999854225b4432b9c98b315a4f768",
+            "size": 16349567
+          }
+        },
+        "exe": "peazip_portable-11.3.0.WIN64/peazip.exe",
+        "risk": "downloaded-executable",
+        "requires_review": true,
+        "external": true
+      }
+    },
+    {
+      "id": "explorerplusplus-windows",
+      "source": "moos",
+      "cat": "win",
+      "glyph": "folder",
+      "en": "Explorer++ · Windows",
+      "ar": "إكسبلورر بلس بلس · ويندوز",
+      "desc_en": "Browse files in a compact Windows file manager with tabs.",
+      "desc_ar": "تصفّح الملفات بمدير ملفات ويندوز صغير يدعم الألسنة.",
+      "developer": "derceg",
+      "accent": "#23527c",
+      "engine": "windows",
+      "arch": [
+        "x86_64"
+      ],
+      "keywords_en": [
+        "files",
+        "tabs",
+        "folders"
+      ],
+      "keywords_ar": [
+        "ملفات",
+        "ألسنة",
+        "مجلدات"
+      ],
+      "install": {
+        "kind": "windows-portable",
+        "version": "1.4.0",
+        "downloads": {
+          "x86_64": {
+            "url": "https://github.com/derceg/explorerplusplus/releases/download/version-1.4.0/explorerpp_x64.zip",
+            "sha256": "81ec54586dfef888b886d409afa22e31f22d4f6ba35d52d93074b4ee64b79b0c",
+            "size": 2392706
+          }
+        },
+        "exe": "Explorer++.exe",
+        "risk": "downloaded-executable",
+        "requires_review": true,
+        "external": true
+      }
+    },
+    {
+      "id": "nomacs-windows",
+      "source": "moos",
+      "cat": "win",
+      "glyph": "image",
+      "en": "nomacs · Windows",
+      "ar": "نوماكس · ويندوز",
+      "desc_en": "Browse and inspect pictures in a cross-platform image viewer.",
+      "desc_ar": "تصفّح وافحص الصور بعارض صور متعدد المنصات.",
+      "developer": "nomacs",
+      "accent": "#23527c",
+      "engine": "windows",
+      "arch": [
+        "x86_64"
+      ],
+      "keywords_en": [
+        "images",
+        "photos",
+        "viewer"
+      ],
+      "keywords_ar": [
+        "صور",
+        "عارض",
+        "فوتوغرافيا"
+      ],
+      "install": {
+        "kind": "windows-portable",
+        "version": "3.22.4",
+        "downloads": {
+          "x86_64": {
+            "url": "https://github.com/nomacs/nomacs/releases/download/3.22.4/nomacs-portable-win.zip",
+            "sha256": "2be8a8b3b58491771a2e5ae2afb1698078f71bc4a81c75e2b2233ab7dd49b07a",
+            "size": 48233879
+          }
+        },
+        "exe": "nomacs-3.22.4/nomacs.exe",
+        "risk": "downloaded-executable",
+        "requires_review": true,
+        "external": true
+      }
+    },
+    {
+      "id": "xournalpp-windows",
+      "source": "moos",
+      "cat": "win",
+      "glyph": "pen",
+      "en": "Xournal++ · Windows",
+      "ar": "جورنال بلس بلس · ويندوز",
+      "desc_en": "Write handwritten notes and annotate PDF documents.",
+      "desc_ar": "اكتب ملاحظات بخط اليد وأضف تعليقات إلى مستندات PDF.",
+      "developer": "xournalpp",
+      "accent": "#23527c",
+      "engine": "windows",
+      "arch": [
+        "x86_64"
+      ],
+      "keywords_en": [
+        "notes",
+        "pdf",
+        "handwriting"
+      ],
+      "keywords_ar": [
+        "ملاحظات",
+        "خط اليد",
+        "تعليقات"
+      ],
+      "install": {
+        "kind": "windows-portable",
+        "version": "1.3.8",
+        "downloads": {
+          "x86_64": {
+            "url": "https://github.com/xournalpp/xournalpp/releases/download/v1.3.8/xournalpp-1.3.8-windows-portable-AMD64.zip",
+            "sha256": "ed85dc5765c2cea8b3f3d224bbda1dd454f197c4c938ecd939f3d922daae488d",
+            "size": 98214281
+          }
+        },
+        "exe": "xournalpp-1.3.8-windows-portable-AMD64/bin/xournalpp.exe",
+        "risk": "downloaded-executable",
+        "requires_review": true,
+        "external": true
+      }
+    },
+    {
+      "id": "notepad4-windows",
+      "source": "moos",
+      "cat": "win",
+      "glyph": "document",
+      "en": "Notepad4 · Windows",
+      "ar": "نوتباد ٤ · ويندوز",
+      "desc_en": "Edit text and source code with syntax highlighting in a portable editor.",
+      "desc_ar": "حرّر النصوص والشيفرة مع تلوين الصيغ في محرّر محمول.",
+      "developer": "zufuliu",
+      "accent": "#23527c",
+      "engine": "windows",
+      "arch": [
+        "x86_64"
+      ],
+      "keywords_en": [
+        "editor",
+        "notepad",
+        "code"
+      ],
+      "keywords_ar": [
+        "محرر",
+        "نوتباد",
+        "شيفرة"
+      ],
+      "install": {
+        "kind": "windows-portable",
+        "version": "26.08r6282",
+        "downloads": {
+          "x86_64": {
+            "url": "https://github.com/zufuliu/notepad4/releases/download/v26.08r6282/Notepad4_i18n_x64_v26.08r6282.zip",
+            "sha256": "fe202ddbbb6a295d6a771ecce918b8b63874287f0e33e43a50aa910afe270573",
+            "size": 1638259
+          }
+        },
+        "exe": "Notepad4.exe",
+        "risk": "downloaded-executable",
+        "requires_review": true,
+        "external": true
+      }
+    },
+    {
+      "id": "org.kde.kgeography",
+      "source": "flathub",
+      "cat": "edu",
+      "glyph": "globe",
+      "en": "KGeography",
+      "ar": "كي جيوغرافي",
+      "desc_en": "Learn countries, capitals and flags with interactive map quizzes.",
+      "desc_ar": "تعلّم الدول والعواصم والأعلام باختبارات خرائط تفاعلية.",
+      "developer": "KGeography contributors",
+      "keywords_en": [
+        "geography",
+        "maps",
+        "countries"
+      ],
+      "keywords_ar": [
+        "جغرافيا",
+        "خرائط",
+        "دول"
+      ]
+    },
+    {
+      "id": "org.kde.kalgebra",
+      "source": "flathub",
+      "cat": "edu",
+      "glyph": "grid",
+      "en": "KAlgebra",
+      "ar": "كي ألجبرا",
+      "desc_en": "Calculate expressions and plot mathematical functions.",
+      "desc_ar": "احسب التعابير وارسم الدوال الرياضية.",
+      "developer": "KAlgebra contributors",
+      "keywords_en": [
+        "math",
+        "algebra",
+        "graphs"
+      ],
+      "keywords_ar": [
+        "رياضيات",
+        "جبر",
+        "دوال"
+      ]
+    },
+    {
+      "id": "org.kde.kturtle",
+      "source": "flathub",
+      "cat": "edu",
+      "glyph": "code",
+      "en": "KTurtle",
+      "ar": "كي ترتل",
+      "desc_en": "Learn programming by drawing with a simple educational language.",
+      "desc_ar": "تعلّم البرمجة بالرسم باستخدام لغة تعليمية بسيطة.",
+      "developer": "KTurtle contributors",
+      "keywords_en": [
+        "programming",
+        "education",
+        "turtle"
+      ],
+      "keywords_ar": [
+        "برمجة",
+        "تعليم",
+        "رسم"
+      ]
+    },
+    {
+      "id": "org.kde.khangman",
+      "source": "flathub",
+      "cat": "edu",
+      "glyph": "document",
+      "en": "KHangMan",
+      "ar": "كي هانغ مان",
+      "desc_en": "Practise vocabulary with a word-guessing game.",
+      "desc_ar": "تمرّن على المفردات بلعبة تخمين الكلمات.",
+      "developer": "KHangMan contributors",
+      "keywords_en": [
+        "words",
+        "vocabulary",
+        "education"
+      ],
+      "keywords_ar": [
+        "كلمات",
+        "مفردات",
+        "تعليم"
+      ]
+    },
+    {
+      "id": "org.kde.kalzium",
+      "source": "flathub",
+      "cat": "edu",
+      "glyph": "flask",
+      "en": "Kalzium",
+      "ar": "كالزيوم",
+      "desc_en": "Explore chemical elements and the periodic table.",
+      "desc_ar": "استكشف العناصر الكيميائية والجدول الدوري.",
+      "developer": "Kalzium contributors",
+      "keywords_en": [
+        "chemistry",
+        "periodic table",
+        "elements"
+      ],
+      "keywords_ar": [
+        "كيمياء",
+        "عناصر",
+        "جدول دوري"
+      ]
+    },
+    {
+      "id": "org.kde.kstars",
+      "source": "flathub",
+      "cat": "edu",
+      "glyph": "star",
+      "en": "KStars",
+      "ar": "كي ستارز",
+      "desc_en": "Explore the night sky and astronomical objects; telescope control needs compatible hardware.",
+      "desc_ar": "استكشف السماء والأجرام الفلكية؛ التحكم بالتلسكوب يحتاج عتادًا متوافقًا.",
+      "developer": "KStars contributors",
+      "keywords_en": [
+        "astronomy",
+        "stars",
+        "sky"
+      ],
+      "keywords_ar": [
+        "فلك",
+        "نجوم",
+        "سماء"
+      ]
+    },
+    {
+      "id": "org.kde.marble",
+      "source": "flathub",
+      "cat": "edu",
+      "glyph": "globe",
+      "en": "Marble",
+      "ar": "ماربل",
+      "desc_en": "Explore maps and a virtual globe, with online or downloaded map data.",
+      "desc_ar": "استكشف الخرائط والكرة الأرضية الافتراضية ببيانات شبكية أو منزّلة.",
+      "developer": "Marble contributors",
+      "keywords_en": [
+        "maps",
+        "globe",
+        "geography"
+      ],
+      "keywords_ar": [
+        "خرائط",
+        "جغرافيا",
+        "كرة أرضية"
+      ]
+    },
+    {
+      "id": "org.kde.kasts",
+      "source": "flathub",
+      "cat": "media",
+      "glyph": "audio",
+      "en": "Kasts",
+      "ar": "كاستس",
+      "desc_en": "Follow podcasts, download episodes and listen from your desktop.",
+      "desc_ar": "تابع البودكاست ونزّل الحلقات واستمع إليها من سطح المكتب.",
+      "developer": "Kasts contributors",
+      "keywords_en": [
+        "podcasts",
+        "episodes",
+        "audio"
+      ],
+      "keywords_ar": [
+        "بودكاست",
+        "حلقات",
+        "صوت"
+      ]
+    },
+    {
+      "id": "org.kde.kdevelop",
+      "source": "flathub",
+      "cat": "dev",
+      "glyph": "code",
+      "en": "KDevelop",
+      "ar": "كي ديفيلوب",
+      "desc_en": "Develop software with code navigation, project tools and your chosen toolchain.",
+      "desc_ar": "طوّر البرمجيات بأدوات المشاريع وتصفّح الشيفرة وسلسلة الأدوات التي تختارها.",
+      "developer": "KDevelop contributors",
+      "keywords_en": [
+        "ide",
+        "cpp",
+        "development"
+      ],
+      "keywords_ar": [
+        "برمجة",
+        "تطوير",
+        "شيفرة"
+      ]
+    },
+    {
+      "id": "org.kde.kolourpaint",
+      "source": "flathub",
+      "cat": "art",
+      "glyph": "pen",
+      "en": "KolourPaint",
+      "ar": "كولور بينت",
+      "desc_en": "Draw and edit bitmap pictures in a straightforward painting app.",
+      "desc_ar": "ارسم وعدّل الصور النقطية بتطبيق رسم بسيط.",
+      "developer": "KolourPaint contributors",
+      "keywords_en": [
+        "paint",
+        "drawing",
+        "images"
+      ],
+      "keywords_ar": [
+        "رسم",
+        "صور",
+        "تلوين"
+      ]
+    },
+    {
+      "id": "org.gnome.gitg",
+      "source": "flathub",
+      "cat": "dev",
+      "glyph": "code",
+      "en": "gitg",
+      "ar": "غيت جي",
+      "desc_en": "Browse Git history and review commits in a graphical application.",
+      "desc_ar": "تصفّح سجل Git وراجع الإيداعات بتطبيق رسومي.",
+      "developer": "The Gitg Team",
+      "keywords_en": [
+        "git",
+        "commits",
+        "history"
+      ],
+      "keywords_ar": [
+        "جيت",
+        "إيداعات",
+        "سجل"
+      ]
+    },
+    {
+      "id": "org.gnome.Builder",
+      "source": "flathub",
+      "cat": "dev",
+      "glyph": "code",
+      "en": "Builder",
+      "ar": "بيلدر",
+      "desc_en": "Build and debug desktop software with project and SDK integration.",
+      "desc_ar": "ابنِ ونقّح برمجيات سطح المكتب مع تكامل المشاريع وحزم التطوير.",
+      "developer": "Christian Hergert",
+      "keywords_en": [
+        "ide",
+        "builder",
+        "development"
+      ],
+      "keywords_ar": [
+        "برمجة",
+        "تطوير",
+        "مشاريع"
+      ]
+    },
+    {
+      "id": "org.gnome.Solanum",
+      "source": "flathub",
+      "cat": "work",
+      "glyph": "clock",
+      "en": "Solanum",
+      "ar": "سولانوم",
+      "desc_en": "Organise focused work and rest periods with a timer.",
+      "desc_ar": "نظّم فترات التركيز والاستراحة باستخدام مؤقّت.",
+      "developer": "Christopher Davis",
+      "keywords_en": [
+        "pomodoro",
+        "timer",
+        "focus"
+      ],
+      "keywords_ar": [
+        "تركيز",
+        "مؤقت",
+        "استراحة"
+      ]
+    },
+    {
+      "id": "com.rafaelmardojai.Blanket",
+      "source": "flathub",
+      "cat": "media",
+      "glyph": "audio",
+      "en": "Blanket",
+      "ar": "بلانكت",
+      "desc_en": "Mix ambient sounds for concentration or relaxation.",
+      "desc_ar": "امزج أصواتًا محيطية للتركيز أو الاسترخاء.",
+      "developer": "Rafael Mardojai CM",
+      "keywords_en": [
+        "ambient",
+        "sounds",
+        "relaxation"
+      ],
+      "keywords_ar": [
+        "أصوات",
+        "تركيز",
+        "استرخاء"
+      ]
+    },
+    {
+      "id": "com.github.johnfactotum.Foliate",
+      "source": "flathub",
+      "cat": "edu",
+      "glyph": "document",
+      "en": "Foliate",
+      "ar": "فوليات",
+      "desc_en": "Read and organise supported ebooks with bookmarks and reading controls.",
+      "desc_ar": "اقرأ ونظّم الكتب الإلكترونية المدعومة مع العلامات وأدوات القراءة.",
+      "developer": "John Factotum",
+      "keywords_en": [
+        "ebooks",
+        "epub",
+        "reading"
+      ],
+      "keywords_ar": [
+        "كتب",
+        "قراءة",
+        "إي بب"
+      ]
+    },
+    {
+      "id": "com.github.huluti.Curtail",
+      "source": "flathub",
+      "cat": "art",
+      "glyph": "image",
+      "en": "Curtail",
+      "ar": "كورتيل",
+      "desc_en": "Compress supported pictures with lossless or lossy options.",
+      "desc_ar": "اضغط الصور المدعومة مع خيارات للحفاظ على الجودة أو تقليل الحجم.",
+      "developer": "Hugo Posnic",
+      "keywords_en": [
+        "compress",
+        "images",
+        "photos"
+      ],
+      "keywords_ar": [
+        "ضغط",
+        "صور",
+        "حجم"
+      ]
+    },
+    {
+      "id": "org.kicad.KiCad",
+      "source": "flathub",
+      "cat": "dev",
+      "glyph": "cpu",
+      "en": "KiCad",
+      "ar": "كي كاد",
+      "desc_en": "Design electronic schematics and printed circuit boards.",
+      "desc_ar": "صمّم المخططات الإلكترونية ولوحات الدارات المطبوعة.",
+      "developer": "مطوّرو KiCad",
+      "keywords_en": [
+        "electronics",
+        "pcb",
+        "schematics"
+      ],
+      "keywords_ar": [
+        "إلكترونيات",
+        "دوائر",
+        "لوحات"
+      ]
+    },
+    {
+      "id": "org.qgis.qgis",
+      "source": "flathub",
+      "cat": "work",
+      "glyph": "globe",
+      "en": "QGIS Desktop",
+      "ar": "كيو جي آي إس",
+      "desc_en": "View, analyse and edit geographic information and map layers.",
+      "desc_ar": "اعرض وحلّل وحرّر المعلومات الجغرافية وطبقات الخرائط.",
+      "developer": "QGIS Development Team",
+      "keywords_en": [
+        "gis",
+        "maps",
+        "geospatial"
+      ],
+      "keywords_ar": [
+        "خرائط",
+        "جغرافيا",
+        "طبقات"
+      ]
+    },
+    {
+      "id": "org.scummvm.ScummVM",
+      "source": "flathub",
+      "cat": "fun",
+      "glyph": "joystick",
+      "en": "ScummVM",
+      "ar": "سكام في إم",
+      "desc_en": "Run supported classic games using game data you legally provide.",
+      "desc_ar": "شغّل الألعاب الكلاسيكية المدعومة بملفات الألعاب التي تملكها بصورة قانونية.",
+      "developer": "The ScummVM Team",
+      "keywords_en": [
+        "adventure",
+        "classic games",
+        "engine"
+      ],
+      "keywords_ar": [
+        "ألعاب",
+        "كلاسيكية",
+        "مغامرات"
+      ]
+    },
+    {
+      "id": "org.gnome.meld",
+      "source": "flathub",
+      "cat": "dev",
+      "glyph": "code",
+      "en": "Meld",
+      "ar": "ميلد",
+      "desc_en": "Compare and merge files and folders visually.",
+      "desc_ar": "قارن وادمج الملفات والمجلدات بصريًا.",
+      "developer": "Kai Willadsen",
+      "keywords_en": [
+        "diff",
+        "merge",
+        "files"
+      ],
+      "keywords_ar": [
+        "مقارنة",
+        "دمج",
+        "ملفات"
+      ]
+    },
+    {
+      "id": "org.gnome.GHex",
+      "source": "flathub",
+      "cat": "dev",
+      "glyph": "code",
+      "en": "GHex",
+      "ar": "جي هيكس",
+      "desc_en": "Inspect and edit binary files in hexadecimal and ASCII views.",
+      "desc_ar": "افحص وعدّل الملفات الثنائية بعرض ست عشري ونصي.",
+      "developer": "Logan Rathbone",
+      "keywords_en": [
+        "hex",
+        "binary",
+        "editor"
+      ],
+      "keywords_ar": [
+        "هيكس",
+        "ثنائي",
+        "محرر"
+      ]
+    },
+    {
+      "id": "org.gnome.design.Contrast",
+      "source": "flathub",
+      "cat": "art",
+      "glyph": "image",
+      "en": "Contrast",
+      "ar": "كونتراست",
+      "desc_en": "Check contrast between two colours while designing accessible interfaces.",
+      "desc_ar": "افحص التباين بين لونين أثناء تصميم واجهات سهلة القراءة.",
+      "developer": "Bilal Elmoussaoui",
+      "keywords_en": [
+        "contrast",
+        "colours",
+        "accessibility"
+      ],
+      "keywords_ar": [
+        "تباين",
+        "ألوان",
+        "إتاحة"
+      ]
+    },
+    {
+      "id": "org.kde.labplot",
+      "source": "flathub",
+      "cat": "edu",
+      "glyph": "grid",
+      "en": "LabPlot",
+      "ar": "لاب بلوت",
+      "desc_en": "Plot, analyse and visualise scientific data.",
+      "desc_ar": "ارسم وحلّل واعرض البيانات العلمية.",
+      "developer": "LabPlot contributors",
+      "keywords_en": [
+        "science",
+        "plots",
+        "data"
+      ],
+      "keywords_ar": [
+        "علم",
+        "بيانات",
+        "رسوم بيانية"
       ]
     }
   ]

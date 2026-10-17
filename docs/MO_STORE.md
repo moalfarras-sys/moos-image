@@ -42,6 +42,38 @@ still open; `PROJECT_STATE.md` owns what is measured.
 | `web` | `web` | nothing (opens the publisher page) | — | — |
 | `dropped` | — | an App Drop install that is not in the catalogue | its launcher | App Drop `remove` |
 
+## Runtime lifetime and application management
+
+Every graphical Store launch uses the fixed `moai-open --app` boundary. Its
+transient user unit uses `Type=exec` and `ExitType=cgroup`: a short-lived launcher
+may exit while its real application stays open. `PartOf=graphical-session.target`
+ends that group with the desktop. Manager rejection is an error, never an
+Opened result or an unowned `setsid` fallback. This adds no idle launch daemon.
+
+Android starts only on an explicit Store operation or confirmed one-time setup.
+The long-lived session belongs to `moos-android-session.service`, an on-demand
+user unit with no enable/autostart wiring, `PartOf=graphical-session.target` and
+normal owner Wayland environment. Store jobs wait for an unambiguous successful
+RUNNING response; a setup/download error never becomes readiness. APK file
+handling delegates to this same authority. A running session is reused.
+
+A file APK is copied to a private disk snapshot, inspected and installed from
+those exact bytes. Its package must appear before the install is reported as
+complete; readable installed bytes are checked against the snapshot. Updating
+an already present package updates its receipt, while a silent refusal keeps
+the previous receipt. Android verifies package signatures at installation;
+manifest/receipt inspection is not a substitute for that verification.
+
+Owned receipts for APKs absent from the catalogue appear as unlisted installed
+apps when the runtime package is actually present. Their public IDs use
+`android-<package>` (a bounded hash for long names), so an identically named
+Linux app cannot be accidentally removed. Source-file apps update from a new
+file, not an invented catalogue pin. Malformed/unsafe receipts fail closed.
+
+The Library opens the existing native application's Task Manager page through
+the fixed `moos://app/task-manager` route. The stock launcher remains upstream's;
+MoOS adds no duplicate desktop entry or background process monitor.
+
 ## catalog.json (v2)
 
 Top level: `_comment`, `categories[]`, `collections[]`, `featured[]`, `bundles[]`, `apps[]`.
@@ -284,3 +316,7 @@ ranking is claimed.
 Store Settings links to the existing MoOS theme and animation authorities. These
 open system configuration; they do not install unreviewed theme scripts or change
 upstream authentication components.
+
+## Generated catalogue availability
+
+`moos-compat-matrix` reads the same sanitized catalogue and installability policy as Mo Store. Use `--format human --language ar` or `--format json`, and optionally `--app <id>`. Its edition profiles describe shipped engines, not the current machine. Pinned recipe versions are catalogue versions, not a claim of newest upstream releases. Each row explicitly leaves application testing unassessed; an available recipe is not proof of a full install/run/update/remove journey. NVIDIA-only Android software graphics and the registry's unsupported-platform explanation remain visible. Missing inputs, rejected entries and unknown app IDs fail instead of silently publishing a partial or empty report.
