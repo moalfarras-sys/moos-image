@@ -67,6 +67,7 @@ FLATHUB_REPO_FILE = Path("/etc/flatpak/remotes.d/flathub.flatpakrepo")
 FLATHUB_REPO_URL = "https://dl.flathub.org/repo/flathub.flatpakrepo"
 FLATHUB_REPO_BASE = "https://dl.flathub.org/repo/"
 GPU_GUARD = "/usr/bin/moos-gpu-headroom"
+APP_LAUNCHER = "/usr/bin/moai-open"
 NPM = "/usr/bin/npm"
 XDG_OPEN = "/usr/bin/xdg-open"
 WAYDROID = "/usr/bin/waydroid"
@@ -956,14 +957,23 @@ class CommandRunner:
     """Subprocess boundary: every invocation receives a fixed argv list."""
 
     def spawn(self, argv: Sequence[str]) -> None:
-        subprocess.Popen(
-            list(argv),
-            stdin=subprocess.DEVNULL,
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-            close_fds=True,
-            start_new_session=True,
-        )
+        # A detached PID still belongs to the caller's systemd cgroup. The
+        # canonical launcher gives an app its own group, including children of
+        # short-lived launchers such as gtk-launch. Store/agent jobs may finish
+        # without closing the application they just opened.
+        failure = "تعذّر فتح التطبيق. حاول مرة أخرى. | Could not open the app. Try again."
+        try:
+            result = subprocess.run(
+                [APP_LAUNCHER, "--app", *argv], stdin=subprocess.DEVNULL,
+                stdout=subprocess.DEVNULL, stderr=subprocess.PIPE,
+                text=True, timeout=15, check=False,
+            )
+        except (OSError, subprocess.TimeoutExpired) as error:
+            raise StoreError(failure) from error
+        if result.returncode:
+            if result.stderr:
+                print("Mo Store application launch: " + clean_message(result.stderr), file=sys.stderr)
+            raise StoreError(failure)
 
     def gpu_guard(self) -> None:
         if not Path(GPU_GUARD).is_file():

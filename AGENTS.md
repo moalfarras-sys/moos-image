@@ -1131,6 +1131,14 @@ gh auth refresh -h github.com -s workflow
 
 ## What is NOT done — do not claim otherwise
 
+**`setsid` is not a cgroup boundary, and a launcher PID is not its app.** A native
+Notepad4 Store job reported Opened and then killed its real window on job exit.
+Use the canonical `moai-open --app` user-manager boundary; keep `Type=exec`,
+`ExitType=cgroup` and graphical-session stop ownership. The private native
+fork/socket control must fail for both old Popen and a helper without cgroup
+lifetime, then pass after the caller exits and stop with only its private target.
+Manager refusal must never become Opened. A mocked argv is not this lifetime proof.
+
 - **Remote v56 is delivered in the signed `.1011` / ARM `.724` scope.** Source/native input and browser recovery proofs do not close owner phone/WAN endurance. The installed A1 runs immutable Remote without the earlier review override. Unattended capture consent belongs only to `org.moos.remote`, never the empty host app ID. Preserve PIN/device authentication and held-input ownership. New audit corrections still need their own signed delivery; see `PROJECT_STATE.md` and `moremote/ONE_REMOTE.md`.
 
 Being honest about this list is more useful than shrinking it.

@@ -11,12 +11,16 @@
 # the command in its OWN transient unit/cgroup, owned by the user manager, immune
 # to the gateway's lifecycle.
 #
-# Usage: moai-open <command> [args...]     e.g.  moai-open firefox
+# Usage: moai-open [--app] <command> [args...]     e.g.  moai-open firefox
 #        moai-open xdg-open https://…       moai-open kate /etc/hosts
+# --app is the Store's graphical launch path: stop with the desktop and refuse
+# a missing user manager rather than pretending setsid escapes a job cgroup.
 # =============================================================================
 set -uo pipefail
 
-[ $# -ge 1 ] || { echo "usage: moai-open <command> [args...]" >&2; exit 2; }
+open_as_app=0
+if [ "${1:-}" = "--app" ]; then open_as_app=1; shift; fi
+[ $# -ge 1 ] || { echo "usage: moai-open [--app] <command> [args...]" >&2; exit 2; }
 
 uid="$(id -u)"
 export XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-/run/user/${uid}}"
@@ -48,18 +52,30 @@ export XAUTHORITY="${XAUTHORITY:-}"
 export DBUS_SESSION_BUS_ADDRESS="${DBUS_SESSION_BUS_ADDRESS:-unix:path=${XDG_RUNTIME_DIR}/bus}"
 
 unit="moai-open-$$-${RANDOM}"
+launch_properties=(--property=ExitType=cgroup)
+if [ "$open_as_app" -eq 1 ]; then
+    launch_properties+=(--property=PartOf=graphical-session.target)
+fi
+launch_error=""
 
 if command -v systemd-run >/dev/null 2>&1; then
-    if systemd-run --user --collect --quiet --unit="${unit}" \
-            --setenv=WAYLAND_DISPLAY="${WAYLAND_DISPLAY}" \
+    if launch_error="$(systemd-run --user --collect --quiet --service-type=exec --unit="${unit}" \
+            "${launch_properties[@]}" \
+            --setenv=WAYLAND_DISPLAY="${WAYLAND_DISPLAY:-}" \
             --setenv=DISPLAY="${DISPLAY}" \
             --setenv=XAUTHORITY="${XAUTHORITY}" \
             --setenv=XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR}" \
             --setenv=DBUS_SESSION_BUS_ADDRESS="${DBUS_SESSION_BUS_ADDRESS}" \
-            -- "$@" 2>/dev/null; then
+            -- "$@" 2>&1)"; then
         echo "opened (detached unit ${unit}): $*"
         exit 0
     fi
+fi
+
+if [ "$open_as_app" -eq 1 ]; then
+    echo "تعذّر فتح التطبيق في جلسة سطح المكتب. | Could not start the app in the desktop session." >&2
+    [ -z "$launch_error" ] || printf '%s\n' "$launch_error" >&2
+    exit 1
 fi
 
 # Fallback: a brand-new session, fully disconnected from this process tree.

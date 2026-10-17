@@ -1,0 +1,579 @@
+{
+  "observed_utc": "2026-10-17T10:51:58.321120+00:00",
+  "scope": "source/native managed-app lifetime and 7c qualification checkpoint; no new signed promotion or installed-payload acceptance",
+  "parent_revision": "7c37862e2f69bd7880655b2ee3d9c484ddff68de",
+  "payload_sha256": {
+    "moai-open": "9e1965cd67fe6c3228239ad48959f6f8e8215d0d1ce06da890a53920ecf933a5",
+    "moos-storectl": "9ef73697c6da5300fb70cfd528b331de8e7e595c77dda9d06a315b9222ca09d7"
+  },
+  "portable_controls": {
+    "managed_app_launch": 7,
+    "existing_android_session_now_in_maintained_check": 5,
+    "result": "pass"
+  },
+  "actual_private_native_lifetime": {
+    "observed_utc": "2026-10-17T10:49:06.840696+00:00",
+    "scope": "real Oracle user manager; private fork/socket, no owner GUI/input/portal",
+    "controls": [
+      {
+        "name": "old-popen",
+        "caller_exit": 0,
+        "child_started": true,
+        "child": {
+          "pid": 1143488,
+          "cgroup": "0::/user.slice/user-1000.slice/user@1000.service/app.slice/moos-launch-control-old-popen-20261017.service\n"
+        },
+        "alive_after_caller_exit": false,
+        "expected_alive": false
+      },
+      {
+        "name": "new-without-cgroup",
+        "caller_exit": 0,
+        "child_started": true,
+        "child": {
+          "pid": 1143502,
+          "cgroup": "0::/user.slice/user-1000.slice/user@1000.service/app.slice/moai-open-1143495-8936.service\n"
+        },
+        "alive_after_caller_exit": false,
+        "expected_alive": false
+      },
+      {
+        "name": "new-cgroup",
+        "caller_exit": 0,
+        "child_started": true,
+        "child": {
+          "pid": 1143515,
+          "cgroup": "0::/user.slice/user-1000.slice/user@1000.service/app.slice/moai-open-1143508-22821.service\n"
+        },
+        "alive_after_caller_exit": true,
+        "expected_alive": true,
+        "app_unit": "moai-open-1143508-22821.service",
+        "unit_state": "PartOf=moos-launch-control-20261017.target\nActiveState=active\nExitType=cgroup\nMainPID=0\n",
+        "alive_after_private_target_stop": false
+      }
+    ],
+    "source_helper_sha256": "9e1965cd67fe6c3228239ad48959f6f8e8215d0d1ce06da890a53920ecf933a5",
+    "passed": true,
+    "finished_utc": "2026-10-17T10:49:12.060197+00:00"
+  },
+  "notepad4_native": {
+    "install": {
+      "observed_utc": "2026-10-17T10:30:38.968108+00:00",
+      "scope": "real native Windows app installation through exact source backend/catalogue; not signed installed Store acceptance",
+      "exit": 0,
+      "stdout": "{\"schema\":1,\"job_id\":\"bd454ff80b5dcb7164ea0e5db6710d42\",\"action\":\"install\",\"state\":\"success\",\"progress\":100,\"current_id\":null,\"message\":\"All requested apps are ready\",\"items\":[{\"id\":\"notepad4-windows\",\"state\":\"done\",\"progress\":100,\"message\":\"Installed (reviewed risk: downloaded-executable)\",\"message_key\":\"installed\"}],\"started_at\":\"2026-10-17T10:30:36.864Z\",\"updated_at\":\"2026-10-17T10:30:38.922Z\",\"message_key\":\"all_ready\"}\n",
+      "stderr": "Running as unit: moos-store-notepad4-install-20261017.service\n          Finished with result: success\nMain processes terminated with: code=exited, status=0/SUCCESS\n               Service runtime: 2.190s\n             CPU time consumed: 820ms\n                   Memory peak: 44.8M (swap: 0B)\n"
+    },
+    "old_short_caller": {
+      "observed_utc": "2026-10-17T10:32:33.424595+00:00",
+      "scope": "native Windows source Store run through real short-lived user job; window/lifetime readback still required",
+      "exit": 0,
+      "stdout": "{\"schema\":1,\"job_id\":\"0ef68a41d2f826089e2f78122186626b\",\"action\":\"run\",\"state\":\"success\",\"progress\":100,\"current_id\":null,\"message\":\"App opened\",\"items\":[{\"id\":\"notepad4-windows\",\"state\":\"done\",\"progress\":100,\"message\":\"Opened\",\"message_key\":\"opened\"}],\"started_at\":\"2026-10-17T10:32:33.293Z\",\"updated_at\":\"2026-10-17T10:32:33.384Z\",\"message_key\":\"app_opened\"}\n",
+      "stderr": "Running as unit: moos-store-notepad4-open-20261017.service\n          Finished with result: success\nMain processes terminated with: code=exited, status=0/SUCCESS\n               Service runtime: 223ms\n             CPU time consumed: 175ms\n                   Memory peak: 49.8M (swap: 0B)\n"
+    },
+    "old_process_readback": {
+      "notepad4_processes": []
+    },
+    "single_variable_caller_exit_type_control": {
+      "scope": "native source Windows opening with only caller unit ExitType changed; diagnostic control, not a product fix",
+      "start_exit": 0,
+      "start_stderr": "Running as unit: moos-notepad4-cgroup-control-20261017.service; invocation ID: 4caa8933c0094375ab20ad097f41fe80\n",
+      "readback": {
+        "processes": [
+          {
+            "pid": 58491,
+            "comm": "Notepad4.exe",
+            "cgroup": "0::/user.slice/user-1000.slice/user@1000.service/app.slice/moos-notepad4-cgroup-control-20261017.service"
+          }
+        ],
+        "app_log": "MESA-EGL: warning: pci id for fd 55: 10de:1e81, driver (null)\npci id for fd 56: 10de:1e81, driver (null)\npci id for fd 57: 10de:1e81, driver (null)\nMESA-EGL: warning: egl: failed to create dri2 screen\nMESA-EGL: warning: pci id for fd 55: 10de:1e81, driver (null)\npci id for fd 56: 10de:1e81, driver (null)\npci id for fd 57: 10de:1e81, driver (null)\nMESA-EGL: warning: egl: failed to create dri2 screen\nMESA-EGL: warning: pci id for fd 55: 10de:1e81, driver (null)\n",
+        "unit": "ActiveState=active\nSubState=running\nExitType=cgroup\nMainPID=0\nExecMainStatus=0\n"
+      }
+    },
+    "fixed_source_launch": {
+      "observed_utc": "2026-10-17T10:49:40.601667+00:00",
+      "scope": "native NVIDIA real installed Notepad4, exact source Store and staged canonical helper; not installed signed payload",
+      "source_sha256": {
+        "moai-open": "9e1965cd67fe6c3228239ad48959f6f8e8215d0d1ce06da890a53920ecf933a5",
+        "moos-storectl": "9ef73697c6da5300fb70cfd528b331de8e7e595c77dda9d06a315b9222ca09d7"
+      },
+      "preexisting_notepad4_pids": [],
+      "caller": {
+        "exit": 0,
+        "stdout": "",
+        "stderr": "Running as unit: moos-notepad4-fixed-caller-20261017.service\n          Finished with result: success\nMain processes terminated with: code=exited, status=0/SUCCESS\n               Service runtime: 361ms\n             CPU time consumed: 236ms\n                   Memory peak: 53.8M (swap: 0B)\n"
+      },
+      "readback": {
+        "processes": [
+          {
+            "pid": 64478,
+            "cgroup": "0::/user.slice/user-1000.slice/user@1000.service/app.slice/moai-open-64441-14333.service",
+            "unit": "moai-open-64441-14333.service",
+            "unit_state": "PartOf=graphical-session.target\nActiveState=active\nExitType=cgroup\nMainPID=0\n"
+          }
+        ],
+        "source_sha256": {
+          "moai-open": "9e1965cd67fe6c3228239ad48959f6f8e8215d0d1ce06da890a53920ecf933a5",
+          "moos-storectl": "9ef73697c6da5300fb70cfd528b331de8e7e595c77dda9d06a315b9222ca09d7"
+        }
+      },
+      "passed": true
+    },
+    "kwin_window": {
+      "observed_utc": "2026-10-17T10:50:10.060923+00:00",
+      "scope": "read-only native KWin Notepad4 windows with private D-Bus response; no pointer/clipboard/configuration changes",
+      "script_id": "1",
+      "windows": [
+        {
+          "caption": "Untitled - Notepad4",
+          "resourceClass": "notepad4.exe",
+          "resourceName": "notepad4.exe",
+          "desktopFileName": "org.moos.windows.notepad4-windows",
+          "internalId": "{b71349e6-039c-4acf-9166-640141dc87dc}",
+          "minimized": false,
+          "active": true,
+          "width": 801.1999999999999,
+          "height": 810,
+          "x": 730.4,
+          "y": 0
+        }
+      ],
+      "unload_result": "true"
+    },
+    "guarded_active_window_capture": {
+      "exit": 0,
+      "stdout": "{\"before\": [{\"caption\": \"Untitled - Notepad4\", \"resourceClass\": \"notepad4.exe\", \"resourceName\": \"notepad4.exe\", \"desktopFileName\": \"org.moos.windows.notepad4-windows\", \"internalId\": \"{b71349e6-039c-4acf-9166-640141dc87dc}\", \"minimized\": false, \"active\": true, \"width\": 801.1999999999999, \"height\": 810, \"x\": 730.4, \"y\": 0}], \"after\": [{\"caption\": \"Untitled - Notepad4\", \"resourceClass\": \"notepad4.exe\", \"resourceName\": \"notepad4.exe\", \"desktopFileName\": \"org.moos.windows.notepad4-windows\", \"internalId\": \"{b71349e6-039c-4acf-9166-640141dc87dc}\", \"minimized\": false, \"active\": true, \"width\": 801.1999999999999, \"height\": 810, \"x\": 730.4, \"y\": 0}], \"passed\": true, \"bytes\": 88586}\n",
+      "stderr": "Running as unit: moos-notepad4-guarded-visible-proof-20261017.service\n          Finished with result: success\nMain processes terminated with: code=exited, status=0/SUCCESS\n               Service runtime: 595ms\n             CPU time consumed: 596ms\n                   Memory peak: 91.2M (swap: 0B)\n"
+    },
+    "reviewed_png": {
+      "local_file": "/var/home/moos/.cache/moos-store-native-cycle-20261017-final-r2/notepad4-fixed-native.png",
+      "sha256": "23532e2e8ca2b1cc2dee482e1ae7d8db91aef3003466524f57c86db7e6da7da5"
+    },
+    "functional_edit_save": "not tested"
+  },
+  "checkpoint_7c": {
+    "scope": "qualifies exactly 7c, not later lifetime source",
+    "full_check": {
+      "revision": "7c37862e2f69bd7880655b2ee3d9c484ddff68de",
+      "tree": "fb2dd157fc1613fef20d9749258a6e2eadcd0c2c",
+      "started_at": "2026-10-17T09:39:09.500621+00:00",
+      "seconds": 764.57,
+      "exit": 0,
+      "log_sha256": "88fd3e8bd8219aa995e7711e134bd5545325fae26795832bb10a4a97dc73d679",
+      "source_unchanged": true
+    },
+    "complete_local_arm": {
+      "revision": "7c37862e2f69bd7880655b2ee3d9c484ddff68de",
+      "tree": "fb2dd157fc1613fef20d9749258a6e2eadcd0c2c",
+      "scope": "complete native Oracle aarch64 local image; all in-image gates, not a signed release/boot proof",
+      "started_utc": "2026-10-17T09:51:54.214264+00:00",
+      "image": "localhost/moos-store-unified-native:20261017-final-r2",
+      "free_before": 28690137088,
+      "command": [
+        "podman",
+        "build",
+        "-f",
+        "Containerfile.arm",
+        "--pull=always",
+        "--label",
+        "org.opencontainers.image.revision=7c37862e2f69bd7880655b2ee3d9c484ddff68de",
+        "-t",
+        "localhost/moos-store-unified-native:20261017-final-r2",
+        "."
+      ],
+      "exit": 0,
+      "seconds": 1035.036,
+      "free_after": 24804392960,
+      "source_unchanged": true,
+      "log_sha256": "800aefb6a9e912c2e85f1d95025bc8a4610f36f6352c703e2d69f21ff9970615",
+      "image_id": "3d66eafa7ff08ae2c164a3a20329837934608176ff60fcd765c40142f9129f48"
+    },
+    "immutable_readback": {
+      "scope": "actual native ARM local image payload, not a signed/installed image or boot",
+      "file_count": 19,
+      "sha256": {
+        "/usr/bin/moai-control": "2f393160996f42190c82dac7537d43cb37bb6c4417d73612956517fcab1991c3",
+        "/usr/bin/moai-do": "99d38577c276ce8f143a33d51eed766abf104def00ff877ee47e824d86dbf2d3",
+        "/usr/bin/moos-apply-theme": "9fd722a3ed4916f7a7597c0fc0df0380d0774fb8eaf072ee19ad0fd9b0526339",
+        "/usr/bin/moos-open": "8d51f2c89e0652bc514027744ff474912decfd6dc6d30ce77f141f6fa9ec5ec6",
+        "/usr/bin/moos-run-foreign": "1e20caedc148d9072aa77fc053adda7d8fe5b3635af77d727605a73a21c57c5c",
+        "/usr/bin/moos-store-index": "543d5bb14ea156194a357dd6a5e67ea66c13b91ec6076069c3e31c66e7806838",
+        "/usr/bin/moos-storectl": "2330b950a0f035135a15fb320baa008136d61987dc40a79b7e7c3f1ab5d82802",
+        "/usr/lib/moos/moos_android_inventory.py": "1e2eeaf9bf20d5150cffe4b56756a8ff646aca3fb24c2594a642de40860f533a",
+        "/usr/lib/moos/moos_android_runtime.py": "ab555ee43ba02654658046503e4a9b82a9bec547a3fdd4c4f343f3c86e733797",
+        "/usr/lib/systemd/user/moos-android-session.service": "6ced0c26c99dd3f2402c5e3ac401c6caee974ceacf4576f4df6622ef642d4634",
+        "/usr/lib/systemd/user/plasma-login.service.d/20-moos-crash-recovery.conf": "d1cc95e4cdcd51fc065854182cbb658ce10641d9877fedd3c8dcb15d403d7091",
+        "/usr/share/moos/apps/store/AppsPage.qml": "681b40c75d21b8708df40a4f7bc040dd16b97a87af45e1e3dab7ebf002ceabcf",
+        "/usr/share/moos/apps/store/CollectionRow.qml": "4776a18ebf7a1a82543f7935f69c862dd778f3e319257aa2b0438a814d6f79ec",
+        "/usr/share/moos/apps/store/DiscoverPage.qml": "2d7e11235ba142d863866545dabc263030655d80f71df04a0374d22bef986f3f",
+        "/usr/share/moos/apps/store/LibraryPage.qml": "3fc7b5b35ac05a7b4bdde7386d21d004016715625cce79190f3218359a20ae69",
+        "/usr/share/moos/apps/store/ProgressButton.qml": "6312c1d2b937d566bb99d5b5c2596d0fbaa6178b8bbe599cf98e5aef661dca36",
+        "/usr/share/moos/apps/store/main.qml": "64e79a3f1047ca2c3cb22869767b0d4162d252e4a6147441ffc7105a490920e5",
+        "/usr/share/moos/store/catalog.json": "6b55ee4a4144d820facf818df503c87a3a76514c71f0a26f0c911981f6773fed",
+        "/usr/lib/mo-remote/mo-remote-portal.py": "8afc4834d0e0e188764a32bc0a0cff751df703b358c1bb858a06cdb5dbf43da2"
+      },
+      "mismatches": [],
+      "catalog_apps": 264,
+      "qml_host_sha256": "b3243abd1aa2e9c05788f644afc45fdf07b28e92285b214ab932a92deaec069c",
+      "qml_host_elf_machine": 183,
+      "arm_gtk_gl_policy": true,
+      "theme_revision": 107,
+      "android_session_on_demand": true,
+      "revision": "7c37862e2f69bd7880655b2ee3d9c484ddff68de",
+      "image_id": "3d66eafa7ff08ae2c164a3a20329837934608176ff60fcd765c40142f9129f48",
+      "exit": 0,
+      "observed_utc": "2026-10-17T10:09:10.178965+00:00"
+    },
+    "pr_checks": {
+      "arm": 39021976503,
+      "x86": 39021976501,
+      "plasma_next": 39021976611,
+      "repository": 39021976568,
+      "remote": 39021976624,
+      "conclusion": "all applicable checks successful; PR disk/promotion skipped and not boot proof"
+    }
+  },
+  "android_native": {
+    "source_install": {
+      "observed_utc": "2026-10-17T09:57:01.287942+00:00",
+      "source_revision": "7c37862e2f69bd7880655b2ee3d9c484ddff68de",
+      "scope": "real native Android install through the exact source Store backend/catalogue in owner manager context; temporary runtime unit, not signed installed Store",
+      "exit": 0,
+      "stdout": "{\"schema\":1,\"job_id\":\"4b9ec5cb2eacca900febbad0de16dd2c\",\"action\":\"install\",\"state\":\"success\",\"progress\":100,\"current_id\":null,\"message\":\"All requested apps are ready\",\"items\":[{\"id\":\"net.gsantner.markor\",\"state\":\"done\",\"progress\":100,\"message\":\"Installed (reviewed risk: external-download)\",\"message_key\":\"installed\"}],\"started_at\":\"2026-10-17T09:55:18.824Z\",\"updated_at\":\"2026-10-17T09:57:01.240Z\",\"message_key\":\"all_ready\"}\n",
+      "stderr": "Running as unit: moos-store-android-markor-acceptance-20261017.service\n          Finished with result: success\nMain processes terminated with: code=exited, status=0/SUCCESS\n               Service runtime: 1min 42.555s\n             CPU time consumed: 1.261s\n                   Memory peak: 58.9M (swap: 0B)\n"
+    },
+    "exact_installed_artifact": {
+      "observed_utc": "2026-10-17T10:00:06.062142+00:00",
+      "scope": "actual Android-kept Markor APK/version and foreground activity after source Store install; no app data read",
+      "kept_apk_sha256": "3f9f260dc3e32a1281cb8803eea6f926eef897579f68a5d35f922523974b84b9",
+      "package": "package:net.gsantner.markor versionCode:163",
+      "version_fields": [
+        "versionCode=163 minSdk=18 targetSdk=35",
+        "versionName=2.16.1"
+      ],
+      "foreground": [],
+      "passed": false
+    },
+    "initial_failure": "Markor RenderThread abort: Failed to acquire physical displays for WCG support",
+    "cold_renderer_control": {
+      "observed_utc": "2026-10-17T10:12:23.594717+00:00",
+      "scope": "two owned Android cold-session controls with only HWUI renderer varied; existing OS graphics, images/configuration/auth and app data unchanged; initial Android was stopped before our acceptance",
+      "steps": {
+        "original_renderer": {
+          "exit": 0,
+          "seconds": 1.017,
+          "stdout": "\n",
+          "stderr": ""
+        },
+        "moos-cold-0-stop": {
+          "exit": 0,
+          "seconds": 0.888,
+          "stdout": "",
+          "stderr": ""
+        },
+        "moos-cold-0-container": {
+          "exit": 0,
+          "seconds": 0.51,
+          "stdout": "",
+          "stderr": ""
+        },
+        "moos-cold-0-start": {
+          "exit": 0,
+          "seconds": 0.369,
+          "stdout": "",
+          "stderr": ""
+        },
+        "moos-cold-0-ready": {
+          "exit": 0,
+          "seconds": 18.901,
+          "stdout": "BOOT_READY=True\n",
+          "stderr": "Running as unit: moos-cold-0-ready-20261017.service\n          Finished with result: success\nMain processes terminated with: code=exited, status=0/SUCCESS\n               Service runtime: 18.606s\n             CPU time consumed: 2.593s\n                   Memory peak: 39.7M (swap: 0B)\n"
+        },
+        "moos-cold-0-renderer": {
+          "exit": 0,
+          "seconds": 0.559,
+          "stdout": "",
+          "stderr": "Running as unit: moos-cold-0-renderer-20261017.service\n          Finished with result: success\nMain processes terminated with: code=exited, status=0/SUCCESS\n               Service runtime: 218ms\n             CPU time consumed: 180ms\n                   Memory peak: 23.5M (swap: 0B)\n"
+        },
+        "moos-cold-0-readback": {
+          "exit": 0,
+          "seconds": 0.827,
+          "stdout": "\n",
+          "stderr": ""
+        },
+        "moos-cold-0-open": {
+          "exit": 0,
+          "seconds": 1.445,
+          "stdout": "{\"schema\":1,\"job_id\":\"ca8a823aff6957c65f6e28e78615f8ac\",\"action\":\"run\",\"state\":\"success\",\"progress\":100,\"current_id\":null,\"message\":\"App opened\",\"items\":[{\"id\":\"net.gsantner.markor\",\"state\":\"done\",\"progress\":100,\"message\":\"Opened\",\"message_key\":\"opened\"}],\"started_at\":\"2026-10-17T10:12:47.239Z\",\"updated_at\":\"2026-10-17T10:12:48.064Z\",\"message_key\":\"app_opened\"}\n",
+          "stderr": "Running as unit: moos-cold-0-open-20261017.service\n          Finished with result: success\nMain processes terminated with: code=exited, status=0/SUCCESS\n               Service runtime: 1.041s\n             CPU time consumed: 539ms\n                   Memory peak: 65.3M (swap: 0B)\n"
+        },
+        "moos-cold-0-pid-3": {
+          "exit": 0,
+          "seconds": 0.595,
+          "stdout": "1756\n",
+          "stderr": ""
+        },
+        "moos-cold-0-pid-7": {
+          "exit": 0,
+          "seconds": 0.58,
+          "stdout": "1756\n",
+          "stderr": ""
+        },
+        "moos-cold-1-stop": {
+          "exit": 0,
+          "seconds": 0.819,
+          "stdout": "",
+          "stderr": ""
+        },
+        "moos-cold-1-container": {
+          "exit": 0,
+          "seconds": 0.639,
+          "stdout": "",
+          "stderr": ""
+        },
+        "moos-cold-1-start": {
+          "exit": 0,
+          "seconds": 0.33,
+          "stdout": "",
+          "stderr": ""
+        },
+        "moos-cold-1-ready": {
+          "exit": 0,
+          "seconds": 18.273,
+          "stdout": "BOOT_READY=True\n",
+          "stderr": "Running as unit: moos-cold-1-ready-20261017.service\n          Finished with result: success\nMain processes terminated with: code=exited, status=0/SUCCESS\n               Service runtime: 17.984s\n             CPU time consumed: 2.519s\n                   Memory peak: 34M (swap: 0B)\n"
+        },
+        "moos-cold-1-renderer": {
+          "exit": 0,
+          "seconds": 0.469,
+          "stdout": "",
+          "stderr": "Running as unit: moos-cold-1-renderer-20261017.service; invocation ID: de02a0243496444d98beecec99abe6c6\n          Finished with result: success\nMain processes terminated with: code=exited, status=0/SUCCESS\n               Service runtime: 155ms\n             CPU time consumed: 141ms\n                   Memory peak: 22.3M (swap: 0B)\n"
+        },
+        "moos-cold-1-readback": {
+          "exit": 0,
+          "seconds": 0.763,
+          "stdout": "skiavk\n",
+          "stderr": ""
+        },
+        "moos-cold-1-open": {
+          "exit": 0,
+          "seconds": 1.042,
+          "stdout": "{\"schema\":1,\"job_id\":\"94e2200e50c8287dd22d49cba4ccf3e6\",\"action\":\"run\",\"state\":\"success\",\"progress\":100,\"current_id\":null,\"message\":\"App opened\",\"items\":[{\"id\":\"net.gsantner.markor\",\"state\":\"done\",\"progress\":100,\"message\":\"Opened\",\"message_key\":\"opened\"}],\"started_at\":\"2026-10-17T10:13:21.067Z\",\"updated_at\":\"2026-10-17T10:13:21.587Z\",\"message_key\":\"app_opened\"}\n",
+          "stderr": "Running as unit: moos-cold-1-open-20261017.service\n          Finished with result: success\nMain processes terminated with: code=exited, status=0/SUCCESS\n               Service runtime: 688ms\n             CPU time consumed: 508ms\n                   Memory peak: 50.5M (swap: 0B)\n"
+        },
+        "moos-cold-1-pid-3": {
+          "exit": 0,
+          "seconds": 0.571,
+          "stdout": "1723\n",
+          "stderr": ""
+        },
+        "moos-cold-1-pid-7": {
+          "exit": 0,
+          "seconds": 0.6,
+          "stdout": "1723\n",
+          "stderr": ""
+        },
+        "moos-cold-renderer-final-restore": {
+          "exit": 0,
+          "seconds": 0.563,
+          "stdout": "",
+          "stderr": "Running as unit: moos-cold-renderer-final-restore-20261017.service\n          Finished with result: success\nMain processes terminated with: code=exited, status=0/SUCCESS\n               Service runtime: 156ms\n             CPU time consumed: 136ms\n                   Memory peak: 22.4M (swap: 0B)\n"
+        },
+        "final_renderer_readback": {
+          "exit": 0,
+          "seconds": 0.519,
+          "stdout": "\n",
+          "stderr": ""
+        }
+      },
+      "cycles": [
+        {
+          "renderer": "",
+          "process_survived": true
+        },
+        {
+          "renderer": "skiavk",
+          "process_survived": true
+        }
+      ],
+      "restored": true
+    },
+    "restored_default_cold_control": {
+      "observed_utc": "2026-10-17T10:18:40.852581+00:00",
+      "scope": "one owned cold Android session with unchanged default renderer; measured native acceptance; existing OS graphics, images/configuration/auth and app data unchanged; initial Android was stopped before our acceptance",
+      "steps": {
+        "original_renderer": {
+          "exit": 0,
+          "seconds": 0.856,
+          "stdout": "\n",
+          "stderr": ""
+        },
+        "moos-cold-0-stop": {
+          "exit": 0,
+          "seconds": 1.014,
+          "stdout": "",
+          "stderr": ""
+        },
+        "moos-cold-0-container": {
+          "exit": 0,
+          "seconds": 0.672,
+          "stdout": "",
+          "stderr": ""
+        },
+        "moos-cold-0-start": {
+          "exit": 0,
+          "seconds": 0.3,
+          "stdout": "",
+          "stderr": ""
+        },
+        "moos-cold-0-ready": {
+          "exit": 0,
+          "seconds": 18.731,
+          "stdout": "BOOT_READY=True\n",
+          "stderr": "Running as unit: moos-cold-0-ready-20261017.service\n          Finished with result: success\nMain processes terminated with: code=exited, status=0/SUCCESS\n               Service runtime: 18.445s\n             CPU time consumed: 2.644s\n                   Memory peak: 34.3M (swap: 0B)\n"
+        },
+        "moos-cold-0-renderer": {
+          "exit": 0,
+          "seconds": 0.477,
+          "stdout": "",
+          "stderr": "Running as unit: moos-cold-0-renderer-20261017.service\n          Finished with result: success\nMain processes terminated with: code=exited, status=0/SUCCESS\n               Service runtime: 176ms\n             CPU time consumed: 152ms\n                   Memory peak: 23.4M (swap: 0B)\n"
+        },
+        "moos-cold-0-readback": {
+          "exit": 0,
+          "seconds": 0.821,
+          "stdout": "\n",
+          "stderr": ""
+        },
+        "moos-cold-0-open": {
+          "exit": 0,
+          "seconds": 1.132,
+          "stdout": "{\"schema\":1,\"job_id\":\"e0c10650607d6c488235c0efa77abf77\",\"action\":\"run\",\"state\":\"success\",\"progress\":100,\"current_id\":null,\"message\":\"App opened\",\"items\":[{\"id\":\"net.gsantner.markor\",\"state\":\"done\",\"progress\":100,\"message\":\"Opened\",\"message_key\":\"opened\"}],\"started_at\":\"2026-10-17T10:19:04.189Z\",\"updated_at\":\"2026-10-17T10:19:04.817Z\",\"message_key\":\"app_opened\"}\n",
+          "stderr": "Running as unit: moos-cold-0-open-20261017.service\n          Finished with result: success\nMain processes terminated with: code=exited, status=0/SUCCESS\n               Service runtime: 788ms\n             CPU time consumed: 518ms\n                   Memory peak: 51.4M (swap: 0B)\n"
+        },
+        "moos-cold-0-pid-3": {
+          "exit": 0,
+          "seconds": 0.584,
+          "stdout": "1733\n",
+          "stderr": ""
+        },
+        "moos-cold-0-pid-7": {
+          "exit": 0,
+          "seconds": 0.607,
+          "stdout": "1733\n",
+          "stderr": ""
+        },
+        "moos-cold-renderer-final-restore": {
+          "exit": 0,
+          "seconds": 0.643,
+          "stdout": "",
+          "stderr": "Running as unit: moos-cold-renderer-final-restore-20261017.service\n          Finished with result: success\nMain processes terminated with: code=exited, status=0/SUCCESS\n               Service runtime: 153ms\n             CPU time consumed: 140ms\n                   Memory peak: 22.3M (swap: 0B)\n"
+        },
+        "final_renderer_readback": {
+          "exit": 0,
+          "seconds": 0.707,
+          "stdout": "\n",
+          "stderr": ""
+        }
+      },
+      "cycles": [
+        {
+          "renderer": "",
+          "process_survived": true
+        }
+      ],
+      "restored": true
+    },
+    "kwin_markor_window": {
+      "observed_utc": "2026-10-17T10:15:03.784675+00:00",
+      "scope": "read-only native KWin Markor windows with private D-Bus response; no pointer/clipboard/configuration changes",
+      "script_id": "1",
+      "windows": [
+        {
+          "caption": "Markor",
+          "resourceClass": "waydroid.net.gsantner.markor",
+          "resourceName": "",
+          "desktopFileName": "waydroid.net.gsantner.markor",
+          "internalId": "{5fa620c2-8244-469f-a9da-ba81f28f3e0f}",
+          "minimized": false,
+          "width": 1536,
+          "height": 810,
+          "x": 0,
+          "y": 0
+        }
+      ],
+      "unload_result": "true"
+    },
+    "document_control": {
+      "observed_utc": "2026-10-17T10:28:17.493747+00:00",
+      "scope": "temporary Markor Android-virtual-storage permission for its ordinary first-use requirement; only our new test document read; original permission restored",
+      "steps": {
+        "temporary_grant": {
+          "exit": 0,
+          "stdout": "",
+          "stderr": ""
+        },
+        "grant_readback": {
+          "exit": 0,
+          "stdout": "Uid mode: MANAGE_EXTERNAL_STORAGE: allow\nMANAGE_EXTERNAL_STORAGE: default; rejectTime=+4m7s371ms ago\n",
+          "stderr": ""
+        },
+        "open_document": {
+          "exit": 0,
+          "stdout": "Starting: Intent { act=android.intent.action.EDIT dat=content://com.android.externalstorage.documents/... typ=text/markdown flg=0x3 cmp=net.gsantner.markor/.activity.DocumentActivity }\nStatus: ok\nLaunchState: WARM\nActivity: net.gsantner.markor/.activity.DocumentActivity\nTotalTime: 104\nWaitTime: 106\nComplete\n",
+          "stderr": ""
+        },
+        "ui_dump": {
+          "exit": 0,
+          "stdout": "",
+          "stderr": ""
+        },
+        "ui_readback": {
+          "exit": 0,
+          "stdout": "",
+          "stderr": "cat: /data/local/tmp/moos-markor-document-20261017.xml: No such file or directory\n"
+        },
+        "permission_restore": {
+          "exit": 0,
+          "stdout": "",
+          "stderr": ""
+        },
+        "restored_permission_readback": {
+          "exit": 0,
+          "stdout": "MANAGE_EXTERNAL_STORAGE: default; time=+4s424ms ago; rejectTime=+4m12s394ms ago\n",
+          "stderr": ""
+        },
+        "test_document_readback": {
+          "exit": 0,
+          "stdout": "cce8e50cf28472077208a277f0afa7602566470f93634b6879349c1120b5a5f4  /sdcard/Documents/moos-probe-20261017-19240bd4ec/probe.md\n",
+          "stderr": ""
+        }
+      },
+      "permission_restored": true
+    },
+    "remaining": "durable startup fix, actual document editing/saving pixels, endurance and installed signed-payload acceptance"
+  },
+  "oracle_account": {
+    "instance_principal_authenticated": true,
+    "read_only_tenancy_request": "success",
+    "compute_get_instance_explicit_region": "404 NotAuthorizedOrNotFound",
+    "billing_subscription_standing": "unverified",
+    "sdk": "2.188.0",
+    "backup": "snapshot 39ea83ab saved; 15 files/18.111MiB; service result success",
+    "credentials_policy_resources_unchanged": true
+  },
+  "disk": {
+    "scope": "exact unused artifacts/cache only; current qualified images/SDKs/owner containers/signed boot and rollback preserved",
+    "oracle_free_after_last_retirement": 28587855872,
+    "nvidia_free_after_exact_old_1042_1044_pulls": 45332324352,
+    "nvidia_measured_gain": 23538802688,
+    "oracle_exclusive_old_arm_ancestor_gain": 3746603008,
+    "oracle_exact_abandoned_working_container_gain": 16558850048,
+    "prior_old_iso_holder_check": "unsupported fuser -- invocation is explicitly retracted in the private correction receipt; no pre-delete holder proof claimed"
+  },
+  "delivery": {
+    "new_signed_candidate": "not dispatched",
+    "promotion": "not done",
+    "installed_images_unchanged": true,
+    "next": "one coherent combined qualification and signed four-edition milestone cycle"
+  }
+}

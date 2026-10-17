@@ -44,6 +44,12 @@ still open; `PROJECT_STATE.md` owns what is measured.
 
 ## Runtime lifetime and application management
 
+Every graphical Store launch uses the fixed `moai-open --app` boundary. Its
+transient user unit uses `Type=exec` and `ExitType=cgroup`: a short-lived launcher
+may exit while its real application stays open. `PartOf=graphical-session.target`
+ends that group with the desktop. Manager rejection is an error, never an
+Opened result or an unowned `setsid` fallback. This adds no idle launch daemon.
+
 Android starts only on an explicit Store operation or confirmed one-time setup.
 The long-lived session belongs to `moos-android-session.service`, an on-demand
 user unit with no enable/autostart wiring, `PartOf=graphical-session.target` and
