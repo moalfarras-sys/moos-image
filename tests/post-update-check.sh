@@ -719,6 +719,39 @@ if command -v balooctl6 >/dev/null 2>&1; then
     [ "$(LC_ALL=C balooctl6 config list hidden 2>/dev/null | tail -n1)" = "no" ] \
         && ok "hidden config/cache files stay out of results" \
         || bad "Baloo is indexing hidden files into launcher results"
+    # BEGIN BALOO IDENTITY CHECK
+    # A live daemon and a new content hit can coexist with obsolete directory
+    # IDs: native6.31 kept both old/new document IDs after an atomic replacement.
+    # balooshow reports DB/FS disagreement with exit0, so inspect its result too.
+    baloo_identity="$(timeout --kill-after=2s 8s balooshow6 -x "$HOME" 2>/dev/null)"
+    baloo_identity_status=$?
+    if [ "$baloo_identity_status" -eq 0 ] && python3 -c '
+import os, re, struct, sys
+home = os.path.realpath(sys.argv[1])
+text = sys.stdin.read()
+valid = False
+diagnostic = any(line.startswith("The document IDs of the Baloo DB and the filesystem are different:") or re.match(r"^(ID|Inode|DeviceID):.*\(DB\)\s+<->.*\(FS\)", line) for line in text.splitlines())
+if not diagnostic:
+    rows = []
+    for line in text.splitlines():
+        fields = line.split(maxsplit=3)
+        if len(fields) != 4 or not fields[3].startswith("/"):
+            continue
+        try:
+            identifier, device, inode = int(fields[0], 16), int(fields[1]), int(fields[2])
+            packed = struct.pack("=II", device, inode)
+        except (ValueError, struct.error):
+            continue
+        if os.path.realpath(fields[3]) == home and identifier > 0 and inode > 0:
+            rows.append(identifier == int.from_bytes(packed, sys.byteorder))
+    valid = len(rows) == 1 and rows[0]
+sys.exit(0 if valid else 1)
+' "$HOME" <<< "$baloo_identity"; then
+        ok "Baloo indexes HOME with the current filesystem identity"
+    else
+        bad "Baloo HOME identity is stale or unavailable — inspect balooshow6 -x HOME before rebuilding derived search metadata"
+    fi
+    # END BALOO IDENTITY CHECK
 else
     bad "balooctl6 is missing — local launcher search cannot be verified"
 fi
