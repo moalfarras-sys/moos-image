@@ -1,0 +1,45 @@
+{
+  "schema": 1,
+  "recorded_at": "2026-10-18T09:21:15.599120+00:00",
+  "scope": "diagnostic-only; same refused .1069 signed image; no promotion or workstation update",
+  "workflow_run": 39089750710,
+  "workflow_revision": "864825799c43fd3eebdaca286d469272c0ada5c4",
+  "attempt": 1,
+  "conclusion": "failure",
+  "source_image": "ghcr.io/moalfarras-sys/moos@sha256:605934bcd9f3c47112dde55f0190f9366d5a826c1fa70b9eb0523427186e6543",
+  "source_image_revision": "dcd1985bafd04cbb1259f148cb039ab3b972ec90",
+  "failed_assertion": "moos-settings did not close: exit 1",
+  "unit_observation": {
+    "unit": "moai-open-5131-26217",
+    "query_exit": 0,
+    "properties": {
+      "LoadState": "loaded",
+      "ActiveState": "active",
+      "SubState": "running",
+      "ExitType": "cgroup",
+      "MainPID": "0",
+      "Result": "success",
+      "ExecMainStatus": "0",
+      "ControlGroup": "/user.slice/user-1000.slice/user@1000.service/app.slice/moai-open-5131-26217.service",
+      "TasksCurrent": "1"
+    },
+    "stderr": "",
+    "tasks": [
+      {
+        "pid": 5535,
+        "name": "bluetoothctl",
+        "parent": "2444",
+        "state": "S (sleeping)",
+        "executable": "/usr/bin/bluetoothctl"
+      }
+    ]
+  },
+  "diagnosis_file_sha256": "32d3288405a52bdd78d15cdabc645e2472f4acfcdafaeff9e949151c6151c11b",
+  "failed_log_sha256": "e8d62ee8b45b371a4e6762cb759b5e0b9d15e82a414d3d54c2a365d665aab073",
+  "artifact_id": 12123177203,
+  "archive_bytes": 1131677,
+  "finding": "The Settings main process exited successfully; a sleeping bluetoothctl remains in its cgroup. The read-only status helper is killed on page destruction without killing its pending probe.",
+  "prior_themes_failure": "No unit/task observation exists for the first Themes failure; its exact remaining process is unproven.",
+  "correction": "Only the read-only status collector gets its own session/group and bounded cancellation of that verified group. Independent change jobs and application cgroup lifetime stay intact.",
+  "validation": "Initial native Qt6.11.2 compiled process controls pass; complete source/image/ISO qualification of the correction remains pending."
+}

@@ -144,6 +144,16 @@ every field a page binds has its declared JSON type (`StatusShape` in
 `src/moosbackend.cpp`; `tests/test_moos_settings.py` checks the helper against
 that table). A rejected document is dropped whole.
 
+The read-only collector owns a new process session (Qt 6.7 or newer). Closing its
+page cancels that collector and its probes as one group, after verifying the
+leader's PID, process group and session. This prevents a pending `bluetoothctl`
+from becoming an orphan that keeps the closed app's cgroup alive. Standard input
+is closed; cancellation never targets another app or the independent change
+units described above. `moos-settings-query-check` executes the old kill-only
+negative, repeated cancellation, page destruction, startup/failed-start and
+normal-output controls, while a separately owned change remains alive. Both
+image builds run it before copying any module into the image.
+
 Both image builds EXECUTE that contract before the modules enter the image: the
 `kcm-contract` stage of `Containerfile` and `Containerfile.arm` runs
 `tools/check_status_contract.py`, which runs the real helper and requires the
@@ -167,6 +177,7 @@ once and exits.
 cmake -S moos-settings-kcm -B /tmp/b -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr \
       -DMOOS_KCM_CONTRACT_CHECK=ON
 cmake --build /tmp/b -j4
+/tmp/b/bin/moos-settings-query-check
 /tmp/b/bin/moos-settings-contract-check "$XDG_RUNTIME_DIR/moos-settings/status.json"
 # the image builds' executed contract: the real helper, then every broken copy
 python3 moos-settings-kcm/tools/check_status_contract.py /tmp/b/bin/moos-settings-contract-check \
