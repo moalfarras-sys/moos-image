@@ -149,6 +149,18 @@ class AppUpdateUnits(unittest.TestCase):
         self.dropin('user', 'service', '[Service]\nExecCondition=\n')
         self.refused()
 
+    def test_timer_cannot_target_another_service(self):
+        self.dropin('user', 'timer', '[Timer]\nUnit=wrong-updater.service\n')
+        self.refused()
+
+    def test_an_extra_condition_cannot_silently_stop_updates(self):
+        self.dropin('user', 'service', '[Service]\nExecCondition=/bin/false\n')
+        self.refused()
+
+    def test_property_name_in_a_comment_cannot_bypass_network_policy(self):
+        self.dropin('user', 'service', "[Service]\nExecCondition=\nExecCondition=/bin/sh -c 'true # org.freedesktop.NetworkManager Metered'\n")
+        self.refused()
+
     def test_actual_fallback_metered_conditions_fail_closed(self):
         binary = self.root / 'bin/busctl'
         binary.parent.mkdir()

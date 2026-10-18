@@ -9,6 +9,14 @@ from pathlib import Path
 TIMER_KEYS = {'OnActiveSec', 'OnBootSec', 'OnStartupSec', 'OnUnitActiveSec',
               'OnUnitInactiveSec', 'OnCalendar'}
 LIST_KEYS = TIMER_KEYS | {'ExecStart', 'ExecCondition', 'WantedBy'}
+# Exact reviewed condition: a second false condition can stop every update,
+# and a comment containing the property name does not enforce network policy.
+METERED_CONDITION = (
+    '/bin/bash -c \'metered="$(busctl --timeout=5s get-property '
+    'org.freedesktop.NetworkManager /org/freedesktop/NetworkManager '
+    'org.freedesktop.NetworkManager Metered)" && '
+    '[[ "$metered" == "u 2" || "$metered" == "u 4" ]]\''
+)
 
 
 def configuration(root: Path, scope: str, name: str) -> dict[tuple[str, str], list[str]]:
@@ -69,10 +77,11 @@ def verify(root: Path) -> None:
             if service.get(('Service', key)) != [value]:
                 raise RuntimeError(f'{scope} updater lost {key}={value}')
         conditions = service.get(('Service', 'ExecCondition'), [])
-        if not conditions or not any('org.freedesktop.NetworkManager Metered' in x
-                                     for x in conditions):
-            raise RuntimeError(f'{scope} updater lost its metered-network condition')
+        if conditions != [METERED_CONDITION]:
+            raise RuntimeError(f'{scope} updater changed its reviewed metered-network condition')
         timer = configuration(root, scope, name + '.timer')
+        if timer.get(('Timer', 'Unit'), [name + '.service']) != [name + '.service']:
+            raise RuntimeError(f'{scope} timer targets another update service')
         expected_timers = {'OnBootSec': [delay], 'OnCalendar': ['*-*-* 4:00:00']}
         for key in TIMER_KEYS:
             if timer.get(('Timer', key), []) != expected_timers.get(key, []):

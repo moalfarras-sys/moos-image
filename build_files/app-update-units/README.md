@@ -18,5 +18,7 @@ signature-enforcing authority.
 and actual enablement links in both image builds. Portable tests execute real
 private-root `systemctl enable` commands and reject the old missing-unit tree,
 missing/wrong wants, missing providers, lost calendar/idle policy and boot
-catch-up. Native timer firing and installed-machine repair have separate audit
+catch-up. The gate also requires the timer's matching service and exactly the
+reviewed network condition: an extra false condition or a property name in a
+fail-open comment must be refused. Native timer firing and installed-machine repair have separate audit
 receipts; they do not qualify a signed image.
