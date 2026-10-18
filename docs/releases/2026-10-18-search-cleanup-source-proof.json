@@ -1,0 +1,88 @@
+{
+  "schema": 1,
+  "measured_boot": "7b01c656-7e58-4e07-841f-c8e2344c7623",
+  "installed_version": "44.20261015.1062",
+  "old_baseline": "54 pass/1 fail;18 display-start aborts retained in this boot journal",
+  "defect": "Native HOME inode489812 but DBDeviceID1531015437 differs from FS1531017502. Distinct old/new document IDs retained the same URL after atomic save and deletion. All-alphabetic content-only automatic lifecycle reproduced the failure. Underlying historical filesystem-identity change is not established.",
+  "repair": "Stop only kde-baloo behind a temporary runtime activation mask; no database readers; atomically preserve complete old derived index in a0700 owner backup; create fresh index; always remove mask; restart with actual graphical environment. No document deletion, raw LMDB edit, policy change or journal reset.",
+  "rescan": {
+    "indexed": 186300,
+    "pending": 0,
+    "failed": 0,
+    "index_mib": 514.33,
+    "state": "Idle"
+  },
+  "automatic_lifecycle": {
+    "create_seconds": 1.042,
+    "atomic_save_seconds": 1.054,
+    "delete_seconds": 0.525,
+    "forced_index_commands": false,
+    "content_markers": "distinct alphabetic markers absent filenames",
+    "fixture_removed": true
+  },
+  "source_check": {
+    "head": "68708f896574cd0e34b99e528a89ac8d8ae734b9",
+    "tree": "085caf3462fbfb6d535499ead7e3b6f22a0f5701",
+    "exit": 0,
+    "seconds": 655.083,
+    "log_sha256": "836777b7bc55f29fcea2073c2d5e27f1524f3c645230e93631faeea9f54b653f",
+    "counts": {
+      "reported_case_executions": 2672,
+      "unittest_summaries": 197,
+      "skips": 13
+    },
+    "new_gate": "read-only bounded balooshow6 identity check; six tests/eleven private CLI variants; restored always-success negative fails1"
+  },
+  "current_old_boot_enhanced_check": "55 pass/1 fail: new identity check passes;18 historical display-start aborts remain. Cold signed-boot durability is still required.",
+  "cleanup": {
+    "retired_file_payload_bytes": 42670469128,
+    "retired_files": "139 individually enumerated payload files plus pip HTTP/wheel cache entries",
+    "scopes": [
+      "obsolete inspection payloads and pip cache",
+      "byte-identical duplicate installer; original retained",
+      "offline old private VM disk; source/firmware/logs retained",
+      "fully hash/signature-verified superseded local1022 ISO; signed1062 ISO retained"
+    ],
+    "local_image_retirement": "one superseded generic image and2 exclusive parents; observed net3,677,118,464 writable bytes, no force/global prune; qualified87 plus183 protected ancestors/17 containers survive",
+    "removed_apps": [
+      "io.github.kolunmi.Bazaar",
+      "org.gnome.Chess"
+    ],
+    "app_data_preserved": true,
+    "notepad4": "old installed Store rejects new ID with invalid_id; no deletion, retry supported backend after new signed boot",
+    "retained": [
+      "owner source/media/data",
+      "five original dirty worktrees",
+      "full verified Git bundle",
+      "SDKs and databases/volumes",
+      "current signed ISO and deployment rollback",
+      "old search-index backup pending cold-boot validation"
+    ]
+  },
+  "scope": "Live repair and diagnostics only; no claim of new installed image or universal compatibility.",
+  "final_native_source_check": {
+    "source": "e717938155f9d983b96e747dc8f71eec82de025d",
+    "tree": "95bab73982a8c9e8ed052631e75b36dfa39d862f",
+    "exit": 0,
+    "seconds": 684.48,
+    "log_sha256": "c6b2a7fa99891432279f567c9e3f5734898936a00ab0b724f62f0df3820be0b1",
+    "counts": {
+      "reported_case_executions": 2672,
+      "unittest_summaries": 197
+    },
+    "following_changes": "Only documentation/evidence notes; diagnostic/test/runtime bytes remain unchanged. Required repo CI applies to the final head."
+  },
+  "final_preservation": {
+    "initial_refs": 242,
+    "initial_unmerged": [],
+    "current_ref_count": 258,
+    "original_dirty_head_status_unchanged": true,
+    "new_work": "Oracle PR253 at2b12ad2f is a new independent draft under image qualification; preserve, do not count as delivered."
+  },
+  "x86_app_update_schedule": {
+    "scope": "Native old1062, not Oracle or post1072 boot",
+    "system_and_user_service": "loaded; immutable/usr units",
+    "system_and_user_timer": "enabled and active; next calendar firing Oct19",
+    "local_repair_performed": false
+  }
+}

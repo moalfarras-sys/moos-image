@@ -1,0 +1,1168 @@
+{
+  "schema": 1,
+  "recorded_at": "2026-10-18T14:51:56.643678+00:00",
+  "source": "727e7b6cf6df2ba2c47ca4a5264e911c48e81d48",
+  "tree": "22086a7e312991b77f61bfa794efbfca0ceba00d",
+  "coordinator": {
+    "exit": 0,
+    "seconds": 8341.981,
+    "log_sha256": "9966add3b70e107563a25bb6854f8cd1fe62827c52f9cc0c033a3017293cad8c",
+    "source": "727e7b6cf6df2ba2c47ca4a5264e911c48e81d48",
+    "tree": "22086a7e312991b77f61bfa794efbfca0ceba00d"
+  },
+  "runs": {
+    "build": 39120488031,
+    "desktop_disk": 39126559377,
+    "nvidia_disk": 39126562830,
+    "cloud_disk": 39126565706,
+    "iso": 39126568330,
+    "arm_complete_pipeline": 39120345470,
+    "x86_promotion": 39129933686
+  },
+  "artifacts": {
+    "revision": "727e7b6cf6df2ba2c47ca4a5264e911c48e81d48",
+    "checked_at": "2026-10-18T14:48:50.651638+00:00",
+    "artifacts": [
+      {
+        "run": 39120488031,
+        "name": "moos-candidate-proof-moos",
+        "artifact_id": 12136066847,
+        "archive_bytes": 317,
+        "archive_digest": "sha256:9bc50a15670ca3853f50ae6eb17b17ea46566c37c27bd81b7c267c5d261354f3",
+        "directory": "build/moos",
+        "files": [
+          {
+            "path": "candidate.txt",
+            "bytes": 254,
+            "sha256": "d22ac027d35b4bf7445330ceb4ed1fa990e1f4be0bd7cc0d8cb7cd8f0902294c"
+          }
+        ]
+      },
+      {
+        "run": 39120488031,
+        "name": "moos-candidate-proof-moos-nvidia",
+        "artifact_id": 12136600686,
+        "archive_bytes": 323,
+        "archive_digest": "sha256:e43bd6f618a77cc3f7c1cf9923eaa62e92f7acd6347e4fcb03cfa2e45266e0e7",
+        "directory": "build/moos-nvidia",
+        "files": [
+          {
+            "path": "candidate.txt",
+            "bytes": 261,
+            "sha256": "ac969a996dd50d592eeeff6887e266e8600d3db760500826a555b5edb5778cdc"
+          }
+        ]
+      },
+      {
+        "run": 39120488031,
+        "name": "moos-candidate-proof-moos-cloud",
+        "artifact_id": 12135269792,
+        "archive_bytes": 322,
+        "archive_digest": "sha256:dc0112c928551e2461c778da95318091d41014247d2e4bef436cc463d57c35f5",
+        "directory": "build/moos-cloud",
+        "files": [
+          {
+            "path": "candidate.txt",
+            "bytes": 260,
+            "sha256": "b016678348d5b2faccd05a3cacfdcb98d4f672e44b30cae9bbe561c4d9a42a7c"
+          }
+        ]
+      },
+      {
+        "run": 39126559377,
+        "name": "moos-x86-qcow2-boot-proof",
+        "artifact_id": 12137336563,
+        "archive_bytes": 826689,
+        "archive_digest": "sha256:b17bcccbf2545472f7e9276040963eb0ccb74d8f32223dd2ece4d27a61944bf5",
+        "directory": "disk/moos",
+        "files": [
+          {
+            "path": "graphical-first-boot-capture.log",
+            "bytes": 5,
+            "sha256": "93ff7811a209e2a8479230bbb9b6bc19f7f311d3af383ec350c1db2a7e7d5494"
+          },
+          {
+            "path": "graphical-first-boot-windows.txt",
+            "bytes": 524,
+            "sha256": "18fcc061bc0177cd8f093d249376f4bcb2b30b0395e7902fdd93cc6f568617a0"
+          },
+          {
+            "path": "graphical-first-boot.png",
+            "bytes": 198114,
+            "sha256": "b56b82c2887346de172dde4ebb272c2911877e47b7c61049ec0b1d7e2e902c24"
+          },
+          {
+            "path": "graphical-first-boot.ppm",
+            "bytes": 1939217,
+            "sha256": "d5d4edf728bec2db301fa8d2e92888ad85b44afc87cc4c310e1f36c4147b7240"
+          },
+          {
+            "path": "graphical-second-boot-capture.log",
+            "bytes": 5,
+            "sha256": "93ff7811a209e2a8479230bbb9b6bc19f7f311d3af383ec350c1db2a7e7d5494"
+          },
+          {
+            "path": "graphical-second-boot-windows.txt",
+            "bytes": 524,
+            "sha256": "18fcc061bc0177cd8f093d249376f4bcb2b30b0395e7902fdd93cc6f568617a0"
+          },
+          {
+            "path": "graphical-second-boot.png",
+            "bytes": 122697,
+            "sha256": "9849f3321eaebb564b5b4120157577af167bd5ef7765f834ba8eb3b551d7c3ac"
+          },
+          {
+            "path": "graphical-second-boot.ppm",
+            "bytes": 1939217,
+            "sha256": "a047a2606f8a26b334ff1fc8d20d02abc6e39fb7e58a70eeb12b4fc482fbe4de"
+          },
+          {
+            "path": "host-kvm.txt",
+            "bytes": 178,
+            "sha256": "a0c1d9cd4769ad65bf2774b65283bae0bd447a908d8bd6d92daa933712827177"
+          },
+          {
+            "path": "host-opengl.txt",
+            "bytes": 1722,
+            "sha256": "8c343657aea5e43e8413eb6cf3f7ef80667b72fcdb9e3508f9ae09ce25ef59f1"
+          },
+          {
+            "path": "manifest.txt",
+            "bytes": 285,
+            "sha256": "f77ea32655909557ea6147fe8cf502437b5044c2cc799bd63bf3a90eebb13bee"
+          },
+          {
+            "path": "overlay-check.txt",
+            "bytes": 139,
+            "sha256": "0aad35648364c8df99d21127bcd9a923582c5b415d910e7063c32e9bf22a6a60"
+          },
+          {
+            "path": "qcow2-check.txt",
+            "bytes": 144,
+            "sha256": "01f819e762dd86132fc8c41958f159c65611ee506e6bb3d9fb7bbadf55dc6673"
+          },
+          {
+            "path": "qemu.log",
+            "bytes": 192,
+            "sha256": "e2a6be36f9a11fea9c5cda395a75bf7e8fda815445d83646d22c73836cd17082"
+          },
+          {
+            "path": "runtime-first-boot.txt",
+            "bytes": 594,
+            "sha256": "0825b3a204a0071611a99fd8cd6fb2b13a513976790fb176ffc8d403ae214c6a"
+          },
+          {
+            "path": "runtime-second-boot.txt",
+            "bytes": 687,
+            "sha256": "036fd31ef839aca36610acdd6d215605aecccf0470929828866a4073dd06ac48"
+          },
+          {
+            "path": "serial.log",
+            "bytes": 7726,
+            "sha256": "94994a44dcbf85af53a696cc40a7c23e51c427fa19132533fce97b26a94d245a"
+          },
+          {
+            "path": "serial.plain.log",
+            "bytes": 6536,
+            "sha256": "e02ad323935373c524ce9f98fffabd58e139166f4d1a7d228326a15487d63682"
+          },
+          {
+            "path": "xvfb.log",
+            "bytes": 5870,
+            "sha256": "f1242e5fc8252d44613c4f82bc2675f4a52c2024c2edaafdd4d6007da0aa5013"
+          }
+        ]
+      },
+      {
+        "run": 39126562830,
+        "name": "moos-x86-qcow2-boot-proof",
+        "artifact_id": 12136962769,
+        "archive_bytes": 826613,
+        "archive_digest": "sha256:fda6344ad62f313149732500a28ff9f7f52024a3ddaaa7cf944c65e41a66a886",
+        "directory": "disk/moos-nvidia",
+        "files": [
+          {
+            "path": "graphical-first-boot-capture.log",
+            "bytes": 5,
+            "sha256": "93ff7811a209e2a8479230bbb9b6bc19f7f311d3af383ec350c1db2a7e7d5494"
+          },
+          {
+            "path": "graphical-first-boot-windows.txt",
+            "bytes": 524,
+            "sha256": "18fcc061bc0177cd8f093d249376f4bcb2b30b0395e7902fdd93cc6f568617a0"
+          },
+          {
+            "path": "graphical-first-boot.png",
+            "bytes": 198112,
+            "sha256": "e492be1e32dd2ce92cfe107fa0f462285cf3935c9e2d8bf4b762b511f5a1435b"
+          },
+          {
+            "path": "graphical-first-boot.ppm",
+            "bytes": 1939217,
+            "sha256": "9025e7af2d2dffd01350771a8269fa75d7b974e848ffb10b9407857037958cd4"
+          },
+          {
+            "path": "graphical-second-boot-capture.log",
+            "bytes": 5,
+            "sha256": "93ff7811a209e2a8479230bbb9b6bc19f7f311d3af383ec350c1db2a7e7d5494"
+          },
+          {
+            "path": "graphical-second-boot-windows.txt",
+            "bytes": 524,
+            "sha256": "18fcc061bc0177cd8f093d249376f4bcb2b30b0395e7902fdd93cc6f568617a0"
+          },
+          {
+            "path": "graphical-second-boot.png",
+            "bytes": 122557,
+            "sha256": "a22602e7da12b61fd24b130c33853f01748cbd73812c9b04fb4609c9494afd77"
+          },
+          {
+            "path": "graphical-second-boot.ppm",
+            "bytes": 1939217,
+            "sha256": "d2a229641a3b755e2e5bd88f44b3c22c6605565a96416b1edd98eaf1236f0710"
+          },
+          {
+            "path": "host-kvm.txt",
+            "bytes": 178,
+            "sha256": "a0c1d9cd4769ad65bf2774b65283bae0bd447a908d8bd6d92daa933712827177"
+          },
+          {
+            "path": "host-opengl.txt",
+            "bytes": 1735,
+            "sha256": "abf62912669095c56506610dafab82f64985fc5e9b7930ca2fb6b56d5b858536"
+          },
+          {
+            "path": "manifest.txt",
+            "bytes": 292,
+            "sha256": "4a86ce55c033eb66184c03a4fd5db6fbeb9b51fb06d1b44bc4ffc9159b683b43"
+          },
+          {
+            "path": "overlay-check.txt",
+            "bytes": 139,
+            "sha256": "eaa0df67e120841edfb406f86c4c358702d10b8dc3987b961ce5d04b5f47fa04"
+          },
+          {
+            "path": "qcow2-check.txt",
+            "bytes": 144,
+            "sha256": "f3980761eed435bad93807c7c3c3f4f029264f175dccd19fe6637eb92ad6efd7"
+          },
+          {
+            "path": "qemu.log",
+            "bytes": 192,
+            "sha256": "e2a6be36f9a11fea9c5cda395a75bf7e8fda815445d83646d22c73836cd17082"
+          },
+          {
+            "path": "runtime-first-boot.txt",
+            "bytes": 601,
+            "sha256": "b7edfdcb51840b3371cafc8907ce247bd9cd6ced0a9c882a64bea103df877215"
+          },
+          {
+            "path": "runtime-second-boot.txt",
+            "bytes": 694,
+            "sha256": "ac850024c21ef385db51e579f5724afcf5c5bc3988e748d40097908f5d6e491d"
+          },
+          {
+            "path": "serial.log",
+            "bytes": 7726,
+            "sha256": "862d1965029a026d03ee9a2f9149cf6859454a9b08809a6082539cd0e5d7a7a8"
+          },
+          {
+            "path": "serial.plain.log",
+            "bytes": 6536,
+            "sha256": "d0541a7a2973ae7fecb81fb072efbc31dff0914f44ab1092daa5594f1fd5e1a9"
+          },
+          {
+            "path": "xvfb.log",
+            "bytes": 5870,
+            "sha256": "f1242e5fc8252d44613c4f82bc2675f4a52c2024c2edaafdd4d6007da0aa5013"
+          }
+        ]
+      },
+      {
+        "run": 39126565706,
+        "name": "moos-x86-qcow2-boot-proof",
+        "artifact_id": 12137460578,
+        "archive_bytes": 692446,
+        "archive_digest": "sha256:641382811c0e7c4c91f05fd7dd77db4bafef6d1dee6be4a061dee5041637a1a5",
+        "directory": "disk/moos-cloud",
+        "files": [
+          {
+            "path": "graphical-first-boot-capture.log",
+            "bytes": 5,
+            "sha256": "93ff7811a209e2a8479230bbb9b6bc19f7f311d3af383ec350c1db2a7e7d5494"
+          },
+          {
+            "path": "graphical-first-boot-windows.txt",
+            "bytes": 524,
+            "sha256": "18fcc061bc0177cd8f093d249376f4bcb2b30b0395e7902fdd93cc6f568617a0"
+          },
+          {
+            "path": "graphical-first-boot.png",
+            "bytes": 122236,
+            "sha256": "256cf58b5ae2766af1f4c71a2295a911e15081e75a47518286643a70db13a171"
+          },
+          {
+            "path": "graphical-first-boot.ppm",
+            "bytes": 1939217,
+            "sha256": "346c50dd5cc42a785cc7df126f535e5aad11fe14d0a12dc1bc2cff570c42adfc"
+          },
+          {
+            "path": "graphical-second-boot-capture.log",
+            "bytes": 5,
+            "sha256": "93ff7811a209e2a8479230bbb9b6bc19f7f311d3af383ec350c1db2a7e7d5494"
+          },
+          {
+            "path": "graphical-second-boot-windows.txt",
+            "bytes": 524,
+            "sha256": "18fcc061bc0177cd8f093d249376f4bcb2b30b0395e7902fdd93cc6f568617a0"
+          },
+          {
+            "path": "graphical-second-boot.png",
+            "bytes": 122234,
+            "sha256": "8eebd42739f763eaa15e43aacc845f9d7857526e67e356bc8c6a09b4f3e1f5ad"
+          },
+          {
+            "path": "graphical-second-boot.ppm",
+            "bytes": 1939217,
+            "sha256": "217b6f7200715699b4dd0af10e1446a987e7d4308d70a199df643dc1a8fe4db0"
+          },
+          {
+            "path": "host-kvm.txt",
+            "bytes": 178,
+            "sha256": "a0c1d9cd4769ad65bf2774b65283bae0bd447a908d8bd6d92daa933712827177"
+          },
+          {
+            "path": "host-opengl.txt",
+            "bytes": 1737,
+            "sha256": "1de03d24cf8c5fe0d00220cb159e7baeb52d0199250d52e7be5884ddd937b987"
+          },
+          {
+            "path": "manifest.txt",
+            "bytes": 291,
+            "sha256": "013d65f8faec29f9626c187d30f9f03d336d9748682568be93165a5e97864bbf"
+          },
+          {
+            "path": "overlay-check.txt",
+            "bytes": 139,
+            "sha256": "9b25a1ee265f3d8a8ef629bdeb705663112e60f40629877cb1eb68e9563d97cb"
+          },
+          {
+            "path": "qcow2-check.txt",
+            "bytes": 144,
+            "sha256": "64a35d1efea6cd8382c03440c62ca917487fbc4a011b414b52e36163a50992ae"
+          },
+          {
+            "path": "qemu.log",
+            "bytes": 192,
+            "sha256": "e2a6be36f9a11fea9c5cda395a75bf7e8fda815445d83646d22c73836cd17082"
+          },
+          {
+            "path": "runtime-first-boot.txt",
+            "bytes": 600,
+            "sha256": "97d9fd3b11f87f76a198aeabe932fbfbcae099ced76cc21329c5d73c5922bc7d"
+          },
+          {
+            "path": "runtime-second-boot.txt",
+            "bytes": 693,
+            "sha256": "060824c2fa229da469dd4d05b0384a815eb7497764ca03ce18079d5ca2245b3f"
+          },
+          {
+            "path": "serial.log",
+            "bytes": 222112,
+            "sha256": "b2c7c298686de5a0a7c892ce52f7019e25ffa169779342b75c80215c712f9d5c"
+          },
+          {
+            "path": "serial.plain.log",
+            "bytes": 196040,
+            "sha256": "f57519fdc387b8e6a4f48e9c19a6d3361277a213f3082101c019fe16e52b9e48"
+          },
+          {
+            "path": "xvfb.log",
+            "bytes": 5870,
+            "sha256": "f1242e5fc8252d44613c4f82bc2675f4a52c2024c2edaafdd4d6007da0aa5013"
+          }
+        ]
+      },
+      {
+        "run": 39126568330,
+        "name": "moos-live-iso-boot-proof",
+        "artifact_id": 12137156306,
+        "archive_bytes": 87086,
+        "archive_digest": "sha256:3d0dc69d3e97eaa40f5a113a33e54af91f8601e6d1c64a08e031f887c8291b16",
+        "directory": "iso",
+        "files": [
+          {
+            "path": "graphical-capture.log",
+            "bytes": 0,
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          {
+            "path": "graphical-windows.txt",
+            "bytes": 524,
+            "sha256": "18fcc061bc0177cd8f093d249376f4bcb2b30b0395e7902fdd93cc6f568617a0"
+          },
+          {
+            "path": "graphical.png",
+            "bytes": 83472,
+            "sha256": "b95adb4de14b6b73a64269f53e9c6b60ede2ecf213c1e31f38dfa4b8391b6df0"
+          },
+          {
+            "path": "host-kvm.txt",
+            "bytes": 178,
+            "sha256": "a0c1d9cd4769ad65bf2774b65283bae0bd447a908d8bd6d92daa933712827177"
+          },
+          {
+            "path": "host-opengl.txt",
+            "bytes": 1737,
+            "sha256": "3b7edfac6ece52a04214188aaf3adb787aeeb43994b3deaf8b3c9b6eb7884e80"
+          },
+          {
+            "path": "manifest.txt",
+            "bytes": 276,
+            "sha256": "0b0b19418bee1d545799aac00c97ed061d81f4ef1aa7d052ec2072b90a3e5e88"
+          },
+          {
+            "path": "qemu.log",
+            "bytes": 192,
+            "sha256": "e2a6be36f9a11fea9c5cda395a75bf7e8fda815445d83646d22c73836cd17082"
+          },
+          {
+            "path": "runtime.txt",
+            "bytes": 396,
+            "sha256": "0a0a16593754f47591ef4dabc10206b77866c2be536400cfa4a4cb35fd5de249"
+          },
+          {
+            "path": "serial.log",
+            "bytes": 3873,
+            "sha256": "b0dc425819f1f1b73796d8b49f598d3e58c3702b9b764fd277f97ce0a5561139"
+          },
+          {
+            "path": "xvfb.log",
+            "bytes": 5870,
+            "sha256": "f1242e5fc8252d44613c4f82bc2675f4a52c2024c2edaafdd4d6007da0aa5013"
+          }
+        ]
+      },
+      {
+        "run": 39126568330,
+        "name": "moos-iso-install-proof",
+        "artifact_id": 12136933378,
+        "archive_bytes": 1134805,
+        "archive_digest": "sha256:92f7369ccbd4a916f01501d5cce47fff61e5a1287229c04b80dba31baadd2d4f",
+        "directory": "iso-install",
+        "files": [
+          {
+            "path": "accounts-probe.txt",
+            "bytes": 402,
+            "sha256": "c60e07c7728bce6399eaf8eb47b21d468d459307bf8732d20ad6b68fe89e7ca9"
+          },
+          {
+            "path": "app-smoke.txt",
+            "bytes": 355,
+            "sha256": "ce771cf2e0f1970c1522c932d8c1caf908b8e5c08466d214942c967fbfe1e36a"
+          },
+          {
+            "path": "desktop-session.txt",
+            "bytes": 110,
+            "sha256": "e5c6e7b2a9f7521ef6e4b4d7db65f441391c68a9e53b03cbfb01029884631f93"
+          },
+          {
+            "path": "hmp-type-attempt1.txt",
+            "bytes": 5446,
+            "sha256": "690deaa5d129bd4e854e6310667a1f84e16c2c843050d41e92398797dcc5c3a4"
+          },
+          {
+            "path": "hmp-wake-attempt1.txt",
+            "bytes": 2118,
+            "sha256": "12c425d066b4d39a4c8fab7eac9d91b4c228aa7677cc0c3f0daf7e24c0f53f37"
+          },
+          {
+            "path": "host-kvm.txt",
+            "bytes": 178,
+            "sha256": "d1a97dda6c35cdbea293434901f94c45ea285de209458cfc54631087f922d53b"
+          },
+          {
+            "path": "host-opengl.txt",
+            "bytes": 1743,
+            "sha256": "55d84d221d5307d8ae164403dc9fe3f1f8ee9b74e35d29d5c115a7b3d44ff21c"
+          },
+          {
+            "path": "install.status",
+            "bytes": 890,
+            "sha256": "d797a46b0f27692082da7dc188ddbb5ab817e743bdb6dc131545b73fb2b2fb9b"
+          },
+          {
+            "path": "installed-app-dolphin-capture.log",
+            "bytes": 5,
+            "sha256": "93ff7811a209e2a8479230bbb9b6bc19f7f311d3af383ec350c1db2a7e7d5494"
+          },
+          {
+            "path": "installed-app-dolphin-windows.txt",
+            "bytes": 524,
+            "sha256": "18fcc061bc0177cd8f093d249376f4bcb2b30b0395e7902fdd93cc6f568617a0"
+          },
+          {
+            "path": "installed-app-dolphin.png",
+            "bytes": 54633,
+            "sha256": "16fd65bb2431bd6d2d0a7c684e7752520933af84981490cbdb80cec8d001ef11"
+          },
+          {
+            "path": "installed-app-konsole-capture.log",
+            "bytes": 5,
+            "sha256": "93ff7811a209e2a8479230bbb9b6bc19f7f311d3af383ec350c1db2a7e7d5494"
+          },
+          {
+            "path": "installed-app-konsole-windows.txt",
+            "bytes": 524,
+            "sha256": "18fcc061bc0177cd8f093d249376f4bcb2b30b0395e7902fdd93cc6f568617a0"
+          },
+          {
+            "path": "installed-app-konsole.png",
+            "bytes": 40783,
+            "sha256": "e06580e509bc0a6d935c8b3654e669f582bbe1bf0db9c184b3d99959b14eed99"
+          },
+          {
+            "path": "installed-app-mo-ai-capture.log",
+            "bytes": 5,
+            "sha256": "93ff7811a209e2a8479230bbb9b6bc19f7f311d3af383ec350c1db2a7e7d5494"
+          },
+          {
+            "path": "installed-app-mo-ai-windows.txt",
+            "bytes": 524,
+            "sha256": "18fcc061bc0177cd8f093d249376f4bcb2b30b0395e7902fdd93cc6f568617a0"
+          },
+          {
+            "path": "installed-app-mo-ai.png",
+            "bytes": 100310,
+            "sha256": "60f23bce960c28caf17d93e5f584a6dc94ebd36c61175fec610f975fcdf99a71"
+          },
+          {
+            "path": "installed-app-mo-pc-remote-capture.log",
+            "bytes": 5,
+            "sha256": "93ff7811a209e2a8479230bbb9b6bc19f7f311d3af383ec350c1db2a7e7d5494"
+          },
+          {
+            "path": "installed-app-mo-pc-remote-windows.txt",
+            "bytes": 524,
+            "sha256": "18fcc061bc0177cd8f093d249376f4bcb2b30b0395e7902fdd93cc6f568617a0"
+          },
+          {
+            "path": "installed-app-mo-pc-remote.png",
+            "bytes": 61153,
+            "sha256": "14ab088e986d8d5bb757245f579105ccf9e0ad7e3128d3bf5b4ecf4320e23366"
+          },
+          {
+            "path": "installed-app-mo-store-capture.log",
+            "bytes": 5,
+            "sha256": "93ff7811a209e2a8479230bbb9b6bc19f7f311d3af383ec350c1db2a7e7d5494"
+          },
+          {
+            "path": "installed-app-mo-store-windows.txt",
+            "bytes": 524,
+            "sha256": "18fcc061bc0177cd8f093d249376f4bcb2b30b0395e7902fdd93cc6f568617a0"
+          },
+          {
+            "path": "installed-app-mo-store.png",
+            "bytes": 99795,
+            "sha256": "2facf7c7cbe6ba795e529d10208b2301d21482834065115e2eefeaf9fa2272cf"
+          },
+          {
+            "path": "installed-app-moos-settings-capture.log",
+            "bytes": 5,
+            "sha256": "93ff7811a209e2a8479230bbb9b6bc19f7f311d3af383ec350c1db2a7e7d5494"
+          },
+          {
+            "path": "installed-app-moos-settings-windows.txt",
+            "bytes": 524,
+            "sha256": "18fcc061bc0177cd8f093d249376f4bcb2b30b0395e7902fdd93cc6f568617a0"
+          },
+          {
+            "path": "installed-app-moos-settings.png",
+            "bytes": 87221,
+            "sha256": "60b772b5d25229fb99bed34c54d3dcca7c89a0e1583c93055ca753753a1e54f4"
+          },
+          {
+            "path": "installed-app-moplayer-capture.log",
+            "bytes": 5,
+            "sha256": "93ff7811a209e2a8479230bbb9b6bc19f7f311d3af383ec350c1db2a7e7d5494"
+          },
+          {
+            "path": "installed-app-moplayer-windows.txt",
+            "bytes": 524,
+            "sha256": "18fcc061bc0177cd8f093d249376f4bcb2b30b0395e7902fdd93cc6f568617a0"
+          },
+          {
+            "path": "installed-app-moplayer.png",
+            "bytes": 37574,
+            "sha256": "d93dd204c43003b033128064d7b783cb0e313e22ed469f19f988320d72d0c5e0"
+          },
+          {
+            "path": "installed-app-recovery-capture.log",
+            "bytes": 5,
+            "sha256": "93ff7811a209e2a8479230bbb9b6bc19f7f311d3af383ec350c1db2a7e7d5494"
+          },
+          {
+            "path": "installed-app-recovery-windows.txt",
+            "bytes": 524,
+            "sha256": "18fcc061bc0177cd8f093d249376f4bcb2b30b0395e7902fdd93cc6f568617a0"
+          },
+          {
+            "path": "installed-app-recovery.png",
+            "bytes": 58292,
+            "sha256": "0af917ba59e957ada2549edb57865ed19fba7e5ad67ddff0fa169ae56657122c"
+          },
+          {
+            "path": "installed-app-themes-capture.log",
+            "bytes": 5,
+            "sha256": "93ff7811a209e2a8479230bbb9b6bc19f7f311d3af383ec350c1db2a7e7d5494"
+          },
+          {
+            "path": "installed-app-themes-windows.txt",
+            "bytes": 524,
+            "sha256": "18fcc061bc0177cd8f093d249376f4bcb2b30b0395e7902fdd93cc6f568617a0"
+          },
+          {
+            "path": "installed-app-themes.png",
+            "bytes": 113052,
+            "sha256": "60f02b4018e75954590e13a2638efa56604a1d59daa892f69d04fe7c51f607da"
+          },
+          {
+            "path": "installed-app-updater-capture.log",
+            "bytes": 5,
+            "sha256": "93ff7811a209e2a8479230bbb9b6bc19f7f311d3af383ec350c1db2a7e7d5494"
+          },
+          {
+            "path": "installed-app-updater-windows.txt",
+            "bytes": 524,
+            "sha256": "18fcc061bc0177cd8f093d249376f4bcb2b30b0395e7902fdd93cc6f568617a0"
+          },
+          {
+            "path": "installed-app-updater.png",
+            "bytes": 62108,
+            "sha256": "c0100cbee9821af44a6bc4cd3ceb7655ff4d9b2d270b385c47338c16cf9b4106"
+          },
+          {
+            "path": "installed-desktop-apps-capture.log",
+            "bytes": 5,
+            "sha256": "93ff7811a209e2a8479230bbb9b6bc19f7f311d3af383ec350c1db2a7e7d5494"
+          },
+          {
+            "path": "installed-desktop-apps-windows.txt",
+            "bytes": 524,
+            "sha256": "18fcc061bc0177cd8f093d249376f4bcb2b30b0395e7902fdd93cc6f568617a0"
+          },
+          {
+            "path": "installed-desktop-apps.png",
+            "bytes": 61098,
+            "sha256": "858395295c3838134aa56294c92d956b45014716b09197472f20a8af34656e57"
+          },
+          {
+            "path": "installed-first-boot.txt",
+            "bytes": 393,
+            "sha256": "1c9f44de9d73dfef7240c89a49269557af130800563f21b5a6ba1767941e4541"
+          },
+          {
+            "path": "installed-login-attempt1-capture.log",
+            "bytes": 5,
+            "sha256": "93ff7811a209e2a8479230bbb9b6bc19f7f311d3af383ec350c1db2a7e7d5494"
+          },
+          {
+            "path": "installed-login-attempt1-windows.txt",
+            "bytes": 524,
+            "sha256": "18fcc061bc0177cd8f093d249376f4bcb2b30b0395e7902fdd93cc6f568617a0"
+          },
+          {
+            "path": "installed-login-attempt1.png",
+            "bytes": 124318,
+            "sha256": "c9fcf42a6781abfe9889faa2b0193fead8d85dcbe894d55b80e179b786747390"
+          },
+          {
+            "path": "installed-login-capture.log",
+            "bytes": 5,
+            "sha256": "93ff7811a209e2a8479230bbb9b6bc19f7f311d3af383ec350c1db2a7e7d5494"
+          },
+          {
+            "path": "installed-login-source.txt",
+            "bytes": 63,
+            "sha256": "81a91bbfd9d1c7d55876e9f238f001e05e6c4e93fa66980172876b582f0a8c61"
+          },
+          {
+            "path": "installed-login-windows.txt",
+            "bytes": 524,
+            "sha256": "18fcc061bc0177cd8f093d249376f4bcb2b30b0395e7902fdd93cc6f568617a0"
+          },
+          {
+            "path": "installed-login.png",
+            "bytes": 124318,
+            "sha256": "c9fcf42a6781abfe9889faa2b0193fead8d85dcbe894d55b80e179b786747390"
+          },
+          {
+            "path": "installed-qcow2-check.txt",
+            "bytes": 143,
+            "sha256": "c60de48a2e910249e5e0356ebb8a8592cf98f7f7529b0a050da915d41a9d8278"
+          },
+          {
+            "path": "installed-second-boot.txt",
+            "bytes": 536,
+            "sha256": "72270d3f575fc6c37ef6d6660d8ddb8164439e259b197421dc8ddb788cddeb3b"
+          },
+          {
+            "path": "installer-status.raw",
+            "bytes": 2745,
+            "sha256": "2890f12b1380d951aa34bea45aeddff0caec97fc342595903877e5a3089158de"
+          },
+          {
+            "path": "installer.log",
+            "bytes": 10467,
+            "sha256": "6d3d8ad33d9ec2574f5c0cde83eb0a7749c0d1003db78b1320d89949dc839db9"
+          },
+          {
+            "path": "live-poweroff-request.txt",
+            "bytes": 26,
+            "sha256": "b84a2bfa723dac4de3c753304ee4f33125c3d64c7e23cc85604b2d19d8e7023f"
+          },
+          {
+            "path": "manifest.txt",
+            "bytes": 324,
+            "sha256": "20a185e1da330a312f20f92a89eab5977a12f5f3fdd5dc6086b3c9ecd67e7a5e"
+          },
+          {
+            "path": "moos-iso-baseline-dolphin-open-capture.log",
+            "bytes": 5,
+            "sha256": "93ff7811a209e2a8479230bbb9b6bc19f7f311d3af383ec350c1db2a7e7d5494"
+          },
+          {
+            "path": "moos-iso-baseline-dolphin-open-windows.txt",
+            "bytes": 524,
+            "sha256": "18fcc061bc0177cd8f093d249376f4bcb2b30b0395e7902fdd93cc6f568617a0"
+          },
+          {
+            "path": "moos-iso-baseline-dolphin-reopen-capture.log",
+            "bytes": 5,
+            "sha256": "93ff7811a209e2a8479230bbb9b6bc19f7f311d3af383ec350c1db2a7e7d5494"
+          },
+          {
+            "path": "moos-iso-baseline-dolphin-reopen-windows.txt",
+            "bytes": 524,
+            "sha256": "18fcc061bc0177cd8f093d249376f4bcb2b30b0395e7902fdd93cc6f568617a0"
+          },
+          {
+            "path": "moos-iso-baseline-konsole-open-capture.log",
+            "bytes": 5,
+            "sha256": "93ff7811a209e2a8479230bbb9b6bc19f7f311d3af383ec350c1db2a7e7d5494"
+          },
+          {
+            "path": "moos-iso-baseline-konsole-open-windows.txt",
+            "bytes": 524,
+            "sha256": "18fcc061bc0177cd8f093d249376f4bcb2b30b0395e7902fdd93cc6f568617a0"
+          },
+          {
+            "path": "moos-iso-baseline-konsole-reopen-capture.log",
+            "bytes": 5,
+            "sha256": "93ff7811a209e2a8479230bbb9b6bc19f7f311d3af383ec350c1db2a7e7d5494"
+          },
+          {
+            "path": "moos-iso-baseline-konsole-reopen-windows.txt",
+            "bytes": 524,
+            "sha256": "18fcc061bc0177cd8f093d249376f4bcb2b30b0395e7902fdd93cc6f568617a0"
+          },
+          {
+            "path": "moos-iso-baseline-mo-ai-open-capture.log",
+            "bytes": 5,
+            "sha256": "93ff7811a209e2a8479230bbb9b6bc19f7f311d3af383ec350c1db2a7e7d5494"
+          },
+          {
+            "path": "moos-iso-baseline-mo-ai-open-windows.txt",
+            "bytes": 524,
+            "sha256": "18fcc061bc0177cd8f093d249376f4bcb2b30b0395e7902fdd93cc6f568617a0"
+          },
+          {
+            "path": "moos-iso-baseline-mo-ai-reopen-capture.log",
+            "bytes": 5,
+            "sha256": "93ff7811a209e2a8479230bbb9b6bc19f7f311d3af383ec350c1db2a7e7d5494"
+          },
+          {
+            "path": "moos-iso-baseline-mo-ai-reopen-windows.txt",
+            "bytes": 524,
+            "sha256": "18fcc061bc0177cd8f093d249376f4bcb2b30b0395e7902fdd93cc6f568617a0"
+          },
+          {
+            "path": "moos-iso-baseline-mo-pc-remote-open-capture.log",
+            "bytes": 5,
+            "sha256": "93ff7811a209e2a8479230bbb9b6bc19f7f311d3af383ec350c1db2a7e7d5494"
+          },
+          {
+            "path": "moos-iso-baseline-mo-pc-remote-open-windows.txt",
+            "bytes": 524,
+            "sha256": "18fcc061bc0177cd8f093d249376f4bcb2b30b0395e7902fdd93cc6f568617a0"
+          },
+          {
+            "path": "moos-iso-baseline-mo-pc-remote-reopen-capture.log",
+            "bytes": 5,
+            "sha256": "93ff7811a209e2a8479230bbb9b6bc19f7f311d3af383ec350c1db2a7e7d5494"
+          },
+          {
+            "path": "moos-iso-baseline-mo-pc-remote-reopen-windows.txt",
+            "bytes": 524,
+            "sha256": "18fcc061bc0177cd8f093d249376f4bcb2b30b0395e7902fdd93cc6f568617a0"
+          },
+          {
+            "path": "moos-iso-baseline-mo-store-open-capture.log",
+            "bytes": 5,
+            "sha256": "93ff7811a209e2a8479230bbb9b6bc19f7f311d3af383ec350c1db2a7e7d5494"
+          },
+          {
+            "path": "moos-iso-baseline-mo-store-open-windows.txt",
+            "bytes": 524,
+            "sha256": "18fcc061bc0177cd8f093d249376f4bcb2b30b0395e7902fdd93cc6f568617a0"
+          },
+          {
+            "path": "moos-iso-baseline-mo-store-reopen-capture.log",
+            "bytes": 5,
+            "sha256": "93ff7811a209e2a8479230bbb9b6bc19f7f311d3af383ec350c1db2a7e7d5494"
+          },
+          {
+            "path": "moos-iso-baseline-mo-store-reopen-windows.txt",
+            "bytes": 524,
+            "sha256": "18fcc061bc0177cd8f093d249376f4bcb2b30b0395e7902fdd93cc6f568617a0"
+          },
+          {
+            "path": "moos-iso-baseline-moos-settings-open-capture.log",
+            "bytes": 5,
+            "sha256": "93ff7811a209e2a8479230bbb9b6bc19f7f311d3af383ec350c1db2a7e7d5494"
+          },
+          {
+            "path": "moos-iso-baseline-moos-settings-open-windows.txt",
+            "bytes": 524,
+            "sha256": "18fcc061bc0177cd8f093d249376f4bcb2b30b0395e7902fdd93cc6f568617a0"
+          },
+          {
+            "path": "moos-iso-baseline-moos-settings-reopen-capture.log",
+            "bytes": 5,
+            "sha256": "93ff7811a209e2a8479230bbb9b6bc19f7f311d3af383ec350c1db2a7e7d5494"
+          },
+          {
+            "path": "moos-iso-baseline-moos-settings-reopen-windows.txt",
+            "bytes": 524,
+            "sha256": "18fcc061bc0177cd8f093d249376f4bcb2b30b0395e7902fdd93cc6f568617a0"
+          },
+          {
+            "path": "moos-iso-baseline-moplayer-open-capture.log",
+            "bytes": 5,
+            "sha256": "93ff7811a209e2a8479230bbb9b6bc19f7f311d3af383ec350c1db2a7e7d5494"
+          },
+          {
+            "path": "moos-iso-baseline-moplayer-open-windows.txt",
+            "bytes": 524,
+            "sha256": "18fcc061bc0177cd8f093d249376f4bcb2b30b0395e7902fdd93cc6f568617a0"
+          },
+          {
+            "path": "moos-iso-baseline-moplayer-reopen-capture.log",
+            "bytes": 5,
+            "sha256": "93ff7811a209e2a8479230bbb9b6bc19f7f311d3af383ec350c1db2a7e7d5494"
+          },
+          {
+            "path": "moos-iso-baseline-moplayer-reopen-windows.txt",
+            "bytes": 524,
+            "sha256": "18fcc061bc0177cd8f093d249376f4bcb2b30b0395e7902fdd93cc6f568617a0"
+          },
+          {
+            "path": "moos-iso-baseline-recovery-open-capture.log",
+            "bytes": 5,
+            "sha256": "93ff7811a209e2a8479230bbb9b6bc19f7f311d3af383ec350c1db2a7e7d5494"
+          },
+          {
+            "path": "moos-iso-baseline-recovery-open-windows.txt",
+            "bytes": 524,
+            "sha256": "18fcc061bc0177cd8f093d249376f4bcb2b30b0395e7902fdd93cc6f568617a0"
+          },
+          {
+            "path": "moos-iso-baseline-recovery-reopen-capture.log",
+            "bytes": 5,
+            "sha256": "93ff7811a209e2a8479230bbb9b6bc19f7f311d3af383ec350c1db2a7e7d5494"
+          },
+          {
+            "path": "moos-iso-baseline-recovery-reopen-windows.txt",
+            "bytes": 524,
+            "sha256": "18fcc061bc0177cd8f093d249376f4bcb2b30b0395e7902fdd93cc6f568617a0"
+          },
+          {
+            "path": "moos-iso-baseline-themes-open-capture.log",
+            "bytes": 5,
+            "sha256": "93ff7811a209e2a8479230bbb9b6bc19f7f311d3af383ec350c1db2a7e7d5494"
+          },
+          {
+            "path": "moos-iso-baseline-themes-open-windows.txt",
+            "bytes": 524,
+            "sha256": "18fcc061bc0177cd8f093d249376f4bcb2b30b0395e7902fdd93cc6f568617a0"
+          },
+          {
+            "path": "moos-iso-baseline-themes-reopen-capture.log",
+            "bytes": 5,
+            "sha256": "93ff7811a209e2a8479230bbb9b6bc19f7f311d3af383ec350c1db2a7e7d5494"
+          },
+          {
+            "path": "moos-iso-baseline-themes-reopen-windows.txt",
+            "bytes": 524,
+            "sha256": "18fcc061bc0177cd8f093d249376f4bcb2b30b0395e7902fdd93cc6f568617a0"
+          },
+          {
+            "path": "moos-iso-baseline-updater-open-capture.log",
+            "bytes": 5,
+            "sha256": "93ff7811a209e2a8479230bbb9b6bc19f7f311d3af383ec350c1db2a7e7d5494"
+          },
+          {
+            "path": "moos-iso-baseline-updater-open-windows.txt",
+            "bytes": 524,
+            "sha256": "18fcc061bc0177cd8f093d249376f4bcb2b30b0395e7902fdd93cc6f568617a0"
+          },
+          {
+            "path": "moos-iso-baseline-updater-reopen-capture.log",
+            "bytes": 5,
+            "sha256": "93ff7811a209e2a8479230bbb9b6bc19f7f311d3af383ec350c1db2a7e7d5494"
+          },
+          {
+            "path": "moos-iso-baseline-updater-reopen-windows.txt",
+            "bytes": 524,
+            "sha256": "18fcc061bc0177cd8f093d249376f4bcb2b30b0395e7902fdd93cc6f568617a0"
+          },
+          {
+            "path": "qemu-input-state.txt",
+            "bytes": 1205,
+            "sha256": "9b14610ff1523e43c891d657db3d420febff1a79bfcea92e68b4a732e9e1b7d8"
+          },
+          {
+            "path": "qemu-installed.log",
+            "bytes": 192,
+            "sha256": "e2a6be36f9a11fea9c5cda395a75bf7e8fda815445d83646d22c73836cd17082"
+          },
+          {
+            "path": "qemu-live-install.log",
+            "bytes": 192,
+            "sha256": "e2a6be36f9a11fea9c5cda395a75bf7e8fda815445d83646d22c73836cd17082"
+          },
+          {
+            "path": "reboot-channel.txt",
+            "bytes": 71,
+            "sha256": "f84607372facf79c5f601881aebb14552d83ddee9e2e6770bc479f244e791e36"
+          },
+          {
+            "path": "serial-installed.log",
+            "bytes": 147175,
+            "sha256": "491624a6ef5f7e0bcd2939c88a4342bd0f4b3274d0d4265a629e21ce73932a4f"
+          },
+          {
+            "path": "serial-live-install.log",
+            "bytes": 3873,
+            "sha256": "b0dc425819f1f1b73796d8b49f598d3e58c3702b9b764fd277f97ce0a5561139"
+          },
+          {
+            "path": "window-probe-capture.log",
+            "bytes": 5,
+            "sha256": "93ff7811a209e2a8479230bbb9b6bc19f7f311d3af383ec350c1db2a7e7d5494"
+          },
+          {
+            "path": "window-probe-windows.txt",
+            "bytes": 524,
+            "sha256": "18fcc061bc0177cd8f093d249376f4bcb2b30b0395e7902fdd93cc6f568617a0"
+          },
+          {
+            "path": "window-probe.png",
+            "bytes": 61068,
+            "sha256": "a4bdf30b4051313aeea0d63c8315e33dc04e21abc01435750b4169ed6cd76e7d"
+          },
+          {
+            "path": "xvfb.log",
+            "bytes": 7044,
+            "sha256": "02b1c7d3c036eaaf8084c1dbb8e6df24d590235c2d8f84cccb5651067ab21270"
+          }
+        ]
+      },
+      {
+        "run": 39120345470,
+        "name": "moos-arm-boot-proof",
+        "artifact_id": 12135619486,
+        "archive_bytes": 936392,
+        "archive_digest": "sha256:e4dee2142db05f848eeb4764261fc25427e17c862449fb6da2323693969400fa",
+        "directory": "arm",
+        "files": [
+          {
+            "path": "graphical-diagnostics.txt",
+            "bytes": 7097,
+            "sha256": "01175d2442bc1b6b30bff5907a5239829402c964dfa66d27dc67dbc457bebe37"
+          },
+          {
+            "path": "graphical-guest.png",
+            "bytes": 190972,
+            "sha256": "0c6a080ad8461dcf701895419c0c5e0e626c5aa94a39932dbe41aa1562b0ec42"
+          },
+          {
+            "path": "graphical-guest.ppm",
+            "bytes": 921615,
+            "sha256": "4f5c79c93cc429eaf0c61dacc26e2e77226124e6619d1a9dade81944c6df3f4c"
+          },
+          {
+            "path": "graphical-windows.txt",
+            "bytes": 474,
+            "sha256": "bcfca991828b24e747c9010a4bac6717d47605706bd1e5f490343bf379844da1"
+          },
+          {
+            "path": "graphical.png",
+            "bytes": 192606,
+            "sha256": "c7b2f37bd735ade34147bd346ae87bf592a428608ad051e06b3e0ef179bd2259"
+          },
+          {
+            "path": "graphical.ppm",
+            "bytes": 1939217,
+            "sha256": "054d43a87f443f465b69f345df0f8cd63b10b9dc63c4530f4f15b6b950957909"
+          },
+          {
+            "path": "proof-manifest.json",
+            "bytes": 415,
+            "sha256": "3f86a65ed7988d570558f448ec9454edea4bf748daea0fa6bc29fd7502be9dd8"
+          },
+          {
+            "path": "qcow2-check.txt",
+            "bytes": 144,
+            "sha256": "8e1ac4a3c1ad4a34c578964eae776aaa39e4a9e514842ca05e7b88f80ff0270d"
+          },
+          {
+            "path": "qcow2-info.json",
+            "bytes": 1066,
+            "sha256": "ff24690e2549491772ab023c72bf39f9067fc1be2c278551fafc538eb59440dc"
+          },
+          {
+            "path": "qemu.log",
+            "bytes": 0,
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          {
+            "path": "runtime-first-boot.txt",
+            "bytes": 1251,
+            "sha256": "7bc22a3c4c6ecd9db06332fad2473e56d57d519094f4f2912d7211558a818b35"
+          },
+          {
+            "path": "runtime-second-boot.txt",
+            "bytes": 1042,
+            "sha256": "8bc40e79563fd6c0b3e9f85927b03da726fcc02dd91d963c4da857a48b4354a1"
+          },
+          {
+            "path": "serial.log",
+            "bytes": 138999,
+            "sha256": "7e00b78bdf7084cb4970642e42a583cac67a1c1e347a139767ce29d217d7522f"
+          }
+        ]
+      }
+    ],
+    "finished_at": "2026-10-18T14:49:16.392025+00:00",
+    "passed": true
+  },
+  "independent_production_readback": {
+    "checked_at": "2026-10-18T14:49:35.097426+00:00",
+    "qualified_revision": "727e7b6cf6df2ba2c47ca4a5264e911c48e81d48",
+    "scope": "production registry labels/digests and independent native public-key signatures; not installed acceptance",
+    "editions": [
+      {
+        "edition": "moos",
+        "digest": "sha256:05232afbdb5df5be2f71d9e8cb62f7ea73f54f5970b6eb90a251366ef58b60a3",
+        "revision": "727e7b6cf6df2ba2c47ca4a5264e911c48e81d48",
+        "version": "44.20261018.1072",
+        "architecture": "amd64",
+        "signature_verified": true,
+        "latest_matches_proven_candidate": true,
+        "cosign_log_sha256": "ce07da366acbb314695937179ac19a9b81439473f3f9b38b37810345e67a2969"
+      },
+      {
+        "edition": "moos-nvidia",
+        "digest": "sha256:0c76f1eccb43a20c9b1fe5c23f615f7b6621d9c25c6f630a3d334be4857b9111",
+        "revision": "727e7b6cf6df2ba2c47ca4a5264e911c48e81d48",
+        "version": "44.20261018.1072",
+        "architecture": "amd64",
+        "signature_verified": true,
+        "latest_matches_proven_candidate": true,
+        "cosign_log_sha256": "27583db2c05e3ee4e3e811099cde8e72235450df2197238dd9cda6bc5e8dd512"
+      },
+      {
+        "edition": "moos-cloud",
+        "digest": "sha256:d103f05edb66d4b77e4d317630b1c0e8a993072399981ca764f92c15ffa1feed",
+        "revision": "727e7b6cf6df2ba2c47ca4a5264e911c48e81d48",
+        "version": "44.20261018.1072",
+        "architecture": "amd64",
+        "signature_verified": true,
+        "latest_matches_proven_candidate": true,
+        "cosign_log_sha256": "10ca4d10177b0bcf6b15043fbe7b7a7e069c424a34de9d417f2d280b2f460421"
+      },
+      {
+        "edition": "moos-arm",
+        "digest": "sha256:870b59875b0f401348dab7a9c457cb6632529083cfd6bc5ab9069a588a9994ce",
+        "revision": "727e7b6cf6df2ba2c47ca4a5264e911c48e81d48",
+        "version": "44.20261018.807",
+        "architecture": "arm64",
+        "signature_verified": true,
+        "latest_matches_proven_candidate": true,
+        "cosign_log_sha256": "b793264da5d3ced0f1684810b95188ee69d784b07a2f90699c12cbc2fd1a4e28"
+      }
+    ],
+    "finished_at": "2026-10-18T14:50:09.018817+00:00",
+    "passed": true
+  },
+  "iso_install": {
+    "ten_apps": [
+      "dolphin=opened-closed-reopened",
+      "konsole=opened-closed-reopened",
+      "moos-settings=opened-closed-reopened",
+      "mo-ai=opened-closed-reopened",
+      "mo-store=opened-closed-reopened",
+      "updater=opened-closed-reopened",
+      "recovery=opened-closed-reopened",
+      "themes=opened-closed-reopened",
+      "themes-module=kcm_moos_appearance",
+      "moplayer=opened-closed-reopened",
+      "mo-pc-remote=opened-closed-reopened"
+    ],
+    "second_boot": [
+      "boot=installed",
+      "identity=MoOS",
+      "user=moosci",
+      "graphical=active",
+      "display-manager=active",
+      "origin=ghcr.io/moalfarras-sys/moos@sha256:05232afbdb5df5be2f71d9e8cb62f7ea73f54f5970b6eb90a251366ef58b60a3",
+      "failed-units=0",
+      "efi-automount=[ActiveState=inactive SubState=dead ]",
+      "boot-efi=[/boot/efi /dev/vda2 vfat]",
+      "fstab=PARTUUID=2bd527bd-5b05-4224-a620-0165dc63eb5c  /boot/efi  vfat  umask=0077,shortname=winnt  0 0",
+      "reboot=clean",
+      "reboot=clean",
+      "second-boot=healthy",
+      "poweroff=clean",
+      "final-iso-sha256=9ed8da699b704e0450d88cb8487f0fed1f6c8e7696e3b032efc2e28633dc9eca"
+    ],
+    "final_iso_sha256": "9ed8da699b704e0450d88cb8487f0fed1f6c8e7696e3b032efc2e28633dc9eca"
+  },
+  "scope": "Signed artifact and first-attempt CI boot/promotion evidence. Physical NVIDIA stage/boot and Oracle installed acceptance remain separate. Earlier refused cycles are not overwritten.",
+  "source_qualification": {
+    "source": "4751e651b0491f6025bee39e0f2a5d6fc449feef",
+    "tree": "22086a7e312991b77f61bfa794efbfca0ceba00d",
+    "native_controls": "All7 modules compile on Qt6.11.2; actual isolated overview/appearance old modules retain an orphan and fixed modules retire it;10 repeat cancellations plus destruction/startup/failed-start/normal-output/unrelated-process controls; restored kill-only negative refused with1.",
+    "advisory": {
+      "run": 39116252417,
+      "job_conclusion": "success",
+      "actual_action": "failed with result is_error:true, cost0/modelUsage empty, no completed review",
+      "independent_review_claimed": false
+    },
+    "native_full_check": {
+      "exit": 0,
+      "seconds": 742.831,
+      "log_sha256": "6cd14436336999d575b01ba1f936a606b4867bef0983dc9fb8f268435ed766df",
+      "source": "4751e651b0491f6025bee39e0f2a5d6fc449feef",
+      "tree": "22086a7e312991b77f61bfa794efbfca0ceba00d"
+    },
+    "native_local_image": {
+      "id": "87e84381f8c0a49f87e702486927e7cad974fcda11f348dd6765ad8dbb730f5c",
+      "exit": 0,
+      "seconds": 881.033,
+      "log_sha256": "b1b0528f2781a1fd51ac92f907b13ce204456761de1b3c913297d826321120ba",
+      "readback": "28 overlay payloads plus7 compiled modules; THEME_REV107"
+    }
+  }
+}
