@@ -1,0 +1,214 @@
+{
+  "schema": 1,
+  "recorded_at": "2026-10-18T21:59:22.474570+00:00",
+  "scope": "Actual signed NVIDIA1072 stage/restart/graphical readback, not universal hardware/app acceptance. General checks pass but real greeter/Remote startup crashes remain explicitly open.",
+  "installed_source": "727e7b6cf6df2ba2c47ca4a5264e911c48e81d48",
+  "installed_tree": "22086a7e312991b77f61bfa794efbfca0ceba00d",
+  "booted_version": "44.20261018.1072",
+  "origin": "ostree-image-signed:docker://ghcr.io/moalfarras-sys/moos-nvidia@sha256:0c76f1eccb43a20c9b1fe5c23f615f7b6621d9c25c6f630a3d334be4857b9111",
+  "boot_id": "35500d14-a564-46de-9636-5ea133ba44cf",
+  "previous_boot_id": "7b01c656-7e58-4e07-841f-c8e2344c7623",
+  "rollback": [
+    "ostree-image-signed:docker://ghcr.io/moalfarras-sys/moos-nvidia@sha256:708223c7ed8a366c41f051ef7f15bb00510c7a2b4acbe3d0ce9c083db9c8aac4"
+  ],
+  "required_postboot_acceptance_passed": true,
+  "payloads": {
+    "count": 35,
+    "mismatches": [],
+    "source": "727e7b6cf6df2ba2c47ca4a5264e911c48e81d48",
+    "qualified_revision": "727e7b6cf6df2ba2c47ca4a5264e911c48e81d48"
+  },
+  "manifest_sha256": "544665a47958bb358c7dd8decb5020ca392380556a3c53211f0510761d1f4ed5",
+  "checks": {
+    "deployments": {
+      "exit": 0,
+      "seconds": 0.064,
+      "log_sha256": "c70d5d68f44225d5088a10241b3fb3075fa3d2d66f70cfe1822dcf4e32a2d535"
+    },
+    "signature": {
+      "exit": 0,
+      "seconds": 2.425,
+      "log_sha256": "27583db2c05e3ee4e3e811099cde8e72235450df2197238dd9cda6bc5e8dd512"
+    },
+    "rollback-signature": {
+      "exit": 0,
+      "seconds": 1.822,
+      "log_sha256": "c6c0250a20875e250e07d598354a10e866886e4ef8cfeb0d29401b2e3e8a73fa"
+    },
+    "selfcheck": {
+      "exit": 0,
+      "seconds": 5.281,
+      "log_sha256": "1d90146e03c317daf061349c15ba9821f398691745c899cd9d825483a6e831e9"
+    },
+    "post-update-check": {
+      "exit": 0,
+      "seconds": 2.07,
+      "log_sha256": "98f2ffb6b6d1ada2226e2e8adf9f0c7dfef7cf1d9655a8d2fd007cc54fc47d6e"
+    },
+    "nvidia": {
+      "exit": 0,
+      "seconds": 0.033,
+      "log_sha256": "fc8769f6d33f09d61af43e7f0774f5249261803efad09572b023bc720c7eacee"
+    },
+    "system-failed": {
+      "exit": 0,
+      "seconds": 0.064,
+      "log_sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+    },
+    "user-failed": {
+      "exit": 0,
+      "seconds": 0.008,
+      "log_sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+    },
+    "kernel-warnings": {
+      "exit": 0,
+      "seconds": 0.315,
+      "log_sha256": "e418bc06a44aef318c45e1f51ce4b07a591fae675301ae7e4ed2973067e4af92"
+    },
+    "timing": {
+      "exit": 0,
+      "seconds": 0.017,
+      "log_sha256": "a28ede3531d73498ca8ef5b4d6cfd351cf582bc671bfdb05ee1369fd7100d779"
+    },
+    "matrix": {
+      "exit": 0,
+      "seconds": 0.165,
+      "log_sha256": "ee6b54ede09059d0daa7509bb2abce8047a62d5c55674d68b2c4f04740165ca1"
+    },
+    "android-unit": {
+      "exit": 0,
+      "seconds": 0.016,
+      "log_sha256": "bc317323fcd15bcdeabf2938602ed687a840ee3d3580d9c09d7942ab86fb99ed"
+    },
+    "baloo-directory-metadata": {
+      "exit": 0,
+      "seconds": 0.022,
+      "log_sha256": "5df8ec63bc347947102682cb2b27449cff45347e61c4de46b76bed407fd8be93"
+    },
+    "baloo-index-identity": {
+      "exit": 0,
+      "seconds": 0.032,
+      "log_sha256": "d7f1a3ff2ea748351a9b12121ed86561513b187e7d8cb613efd297d05f18986e"
+    }
+  },
+  "counts": {
+    "selfcheck": 54,
+    "post_update_pass": 55,
+    "post_update_fail": 0,
+    "failed_system_units": 0,
+    "failed_user_units": 0,
+    "display_start_aborts_this_boot": 0
+  },
+  "kernel": "7.2.11-200.fc44.x86_64",
+  "gpu": "NVIDIA GeForce RTX2080 SUPER,615.78.08,8192MiB",
+  "boot_time": "30.686s total;6.730s userspace;graphical.target6.547s. One boot, not a benchmark.",
+  "graphical_environment": {
+    "display": ":0",
+    "wayland": "wayland-1",
+    "kdedefaults_precedes_system_xdg": true
+  },
+  "android_session_unit": "immutable/usr unit, direct waydroid start/stop, graphical-session ownership; not proof of Android app readiness/endurance",
+  "cold_search_lifecycle": {
+    "at": "2026-10-18T21:48:25.890907+00:00",
+    "boot": "35500d14-a564-46de-9636-5ea133ba44cf",
+    "origin": "ostree-image-signed:docker://ghcr.io/moalfarras-sys/moos-nvidia@sha256:0c76f1eccb43a20c9b1fe5c23f615f7b6621d9c25c6f630a3d334be4857b9111",
+    "scope": "Automatic content create/atomic-save/delete after actual signed cold boot; alphabetic markers absent filename; no forced index/rebuild; only this exclusively created fixture.",
+    "steps": {
+      "create": {
+        "passed": true,
+        "seconds": 1.072
+      },
+      "atomic_save": {
+        "passed": true,
+        "seconds": 1.091
+      },
+      "delete": {
+        "passed": true,
+        "seconds": 0.024
+      }
+    },
+    "passed": true,
+    "fixture_removed": true,
+    "finished_at": "2026-10-18T21:48:28.081093+00:00"
+  },
+  "cleanup": {
+    "notepad4": {
+      "authority": "installed1072 moos-storectl remove notepad4-windows; no --delete-data",
+      "exit": 0,
+      "app_binary_removed": true,
+      "receipt_removed": true,
+      "prefix_preserved": true,
+      "other_windows_receipts_preserved": true,
+      "log_sha256": "71cf0c08a80c73ec8ec735ee9b24f77b6c9817221529117157c4a120612afd82"
+    },
+    "old_derived_index_retirement": {
+      "logical_bytes": 1913401344,
+      "files": [
+        {
+          "name": "index",
+          "inode": 490707,
+          "bytes": 1913393152,
+          "sha256": "c4f8f7ccbdb01182c39f8d266db6bbb9e8bdee3ddbe2b718fa1efcf4720d1a34"
+        },
+        {
+          "name": "index-lock",
+          "inode": 490706,
+          "bytes": 8192,
+          "sha256": "94f7f9d472cfd870e24749949e585529916b0987d8c7ac19e0fb1e74dddcf8f6"
+        }
+      ],
+      "current_index_retained": true,
+      "personal_documents_deleted": false,
+      "complete": true,
+      "immediate_free_delta": 0
+    },
+    "total_retired_file_payload_bytes": 44583870472,
+    "separately_measured_old_local_image_net_free_bytes": 3677118464,
+    "free_bytes_at_final_readback": 89659240448,
+    "all_original_source_data_sdks_databases_signed_iso_rollback_retained": true,
+    "finished_personal_audit_units_removed": true,
+    "studio_unit_fix": "Corrected optional EnvironmentFile path syntax; parser/property readback passed without provider-file read or live restart. After reboot service active/success. Separate-project generator unreviewed."
+  },
+  "preserved_real_failures": {
+    "greeter": {
+      "local_time": "2026-10-18T19:44:21+02:00",
+      "pid": 1829,
+      "signal": "SIGSEGV",
+      "account": "plasmalogin",
+      "primary_stack": [
+        "__memcpy_avx_unaligned_erms",
+        "QArrayDataPointer<QQuickItemPrivate::ChangeListener>::reallocateAndGrow",
+        "QQuickItemPrivate::removeItemChangeListener",
+        "QQuickItemView::~QQuickItemView",
+        "QQuickView::~QQuickView",
+        "QGuiApplication::screenRemoved",
+        "QtWaylandClient::QWaylandDisplay::registry_global_remove"
+      ],
+      "interpretation": "Native screen-removal teardown failure class; exact Qt/greeter root cause and repair are unproven. Do not bypass PAM or change theme/driver policy to hide it."
+    },
+    "remote": {
+      "local_time": "2026-10-18T19:44:24+02:00",
+      "pid": 3875,
+      "signal": "SIGABRT",
+      "exception": "System.IO.IOException -> AddressInUseException -> SocketException98 on localhost8765",
+      "measured_order": [
+        "19:44:24 owner Remote starts",
+        "19:44:25 old greeter Remote stops; owner first attempt exits1",
+        "19:44:28 one managed owner restart starts successfully"
+      ],
+      "current": "active/success,NRestarts1; current listener is owned child of the current user service",
+      "remaining": "Qualify bounded startup/handoff recovery without an unhandled exception; preserve account isolation and only publish endpoint after actual bind."
+    },
+    "kernel": [
+      "UCSI/i2c -110 remains",
+      "one early EROFS metadata read -4/EINTR recorded; no corruption cause or repair claimed"
+    ]
+  },
+  "boundaries": [
+    "Ordinary password PAM, visual boot, physical audio/Bluetooth/suspend/hotplug and phone/application endurance are separate acceptance.",
+    "Kernel warnings are preserved even if the required checks pass.",
+    "No new ordinary-password/PAM assertion from process liveness.",
+    "Ten Windows/Android complete journeys, decoded Remote picture/phone/WAN endurance and physical audio/Bluetooth/suspend/hotplug remain.",
+    "Oracle807 installed acceptance was not accessed here; independent draftPR253 remains outside1072."
+  ]
+}
