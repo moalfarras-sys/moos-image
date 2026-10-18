@@ -1,0 +1,286 @@
+{
+  "schema": 1,
+  "recorded_at": "2026-10-18T01:28:58.811779+00:00",
+  "scope": "refused second x86 cycle; signed candidates and CI partial success are not promoted x86 or physical acceptance",
+  "revision": "dcd1985bafd04cbb1259f148cb039ab3b972ec90",
+  "tree": "9a9501184aec8d9fddc5977b5e0bf4d11e20d4fd",
+  "coordinator": {
+    "source": "dcd1985bafd04cbb1259f148cb039ab3b972ec90",
+    "tree": "9a9501184aec8d9fddc5977b5e0bf4d11e20d4fd",
+    "dirty_paths": [],
+    "exit": 1,
+    "seconds": 7188.547,
+    "log_sha256": "9016a5dbabc4c0fee6f23e598064b63a394435a37e4ae1c80a9d1f9e7532d4ed"
+  },
+  "runs": [
+    {
+      "run": 39078306013,
+      "revision": "dcd1985bafd04cbb1259f148cb039ab3b972ec90",
+      "attempt": 1,
+      "event": "workflow_dispatch",
+      "conclusion": "success",
+      "jobs": [
+        {
+          "name": "Build Mo PC Remote (Windows)",
+          "conclusion": "success",
+          "failed_steps": []
+        },
+        {
+          "name": "Build, push and sign (moos)",
+          "conclusion": "success",
+          "failed_steps": []
+        },
+        {
+          "name": "Build, push and sign (moos-nvidia)",
+          "conclusion": "success",
+          "failed_steps": []
+        },
+        {
+          "name": "Mo PC Remote .NET connection/input tests",
+          "conclusion": "success",
+          "failed_steps": []
+        },
+        {
+          "name": "Build, push and sign (moos-cloud)",
+          "conclusion": "success",
+          "failed_steps": []
+        }
+      ]
+    },
+    {
+      "run": 39082786675,
+      "revision": "dcd1985bafd04cbb1259f148cb039ab3b972ec90",
+      "attempt": 1,
+      "event": "workflow_dispatch",
+      "conclusion": "success",
+      "jobs": [
+        {
+          "name": "Build qcow2 (bootc-image-builder)",
+          "conclusion": "success",
+          "failed_steps": []
+        }
+      ]
+    },
+    {
+      "run": 39082788332,
+      "revision": "dcd1985bafd04cbb1259f148cb039ab3b972ec90",
+      "attempt": 1,
+      "event": "workflow_dispatch",
+      "conclusion": "success",
+      "jobs": [
+        {
+          "name": "Build qcow2 (bootc-image-builder)",
+          "conclusion": "success",
+          "failed_steps": []
+        }
+      ]
+    },
+    {
+      "run": 39082790274,
+      "revision": "dcd1985bafd04cbb1259f148cb039ab3b972ec90",
+      "attempt": 1,
+      "event": "workflow_dispatch",
+      "conclusion": "success",
+      "jobs": [
+        {
+          "name": "Build qcow2 (bootc-image-builder)",
+          "conclusion": "success",
+          "failed_steps": []
+        }
+      ]
+    },
+    {
+      "run": 39082792111,
+      "revision": "dcd1985bafd04cbb1259f148cb039ab3b972ec90",
+      "attempt": 1,
+      "event": "workflow_dispatch",
+      "conclusion": "failure",
+      "jobs": [
+        {
+          "name": "Build live ISO (Titanoboa)",
+          "conclusion": "failure",
+          "failed_steps": [
+            "Install the exact final ISO offline and boot the target disk"
+          ]
+        }
+      ]
+    },
+    {
+      "run": 39078288996,
+      "revision": "dcd1985bafd04cbb1259f148cb039ab3b972ec90",
+      "attempt": 1,
+      "event": "push",
+      "conclusion": "success",
+      "jobs": [
+        {
+          "name": "Build moos-arm (native aarch64)",
+          "conclusion": "success",
+          "failed_steps": []
+        },
+        {
+          "name": "Build the qcow2 (Oracle / UTM)",
+          "conclusion": "success",
+          "failed_steps": []
+        },
+        {
+          "name": "Promote boot-proven ARM image",
+          "conclusion": "success",
+          "failed_steps": []
+        }
+      ]
+    }
+  ],
+  "independent_x86_candidate_signatures": {
+    "checked_at": "2026-10-18T00:27:45.548958+00:00",
+    "revision": "dcd1985bafd04cbb1259f148cb039ab3b972ec90",
+    "scope": "signed x86 candidates only; boot proof, promotion and installed acceptance remain separate",
+    "editions": [
+      {
+        "edition": "moos",
+        "reference": "ghcr.io/moalfarras-sys/moos@sha256:605934bcd9f3c47112dde55f0190f9366d5a826c1fa70b9eb0523427186e6543",
+        "tag": "ghcr.io/moalfarras-sys/moos:candidate-39078306013-dcd1985bafd0",
+        "architecture": "amd64",
+        "revision": "dcd1985bafd04cbb1259f148cb039ab3b972ec90",
+        "version": "44.20261017.1069",
+        "cosign_exit": 0,
+        "signature_log_sha256": "e4f080a9b506d5c820faf6e953e7794520203d1e0d1e9ee5e0af1a368164468a"
+      },
+      {
+        "edition": "moos-nvidia",
+        "reference": "ghcr.io/moalfarras-sys/moos-nvidia@sha256:96b7ef1ee796b0694325bbb1bc5ac00b14223d09315194665d0f0c019d3722e9",
+        "tag": "ghcr.io/moalfarras-sys/moos-nvidia:candidate-39078306013-dcd1985bafd0",
+        "architecture": "amd64",
+        "revision": "dcd1985bafd04cbb1259f148cb039ab3b972ec90",
+        "version": "44.20261017.1069",
+        "cosign_exit": 0,
+        "signature_log_sha256": "143c5d6b286904ab24a64e0a86d3980c96ce8a5f1982234743dcdb5dc9abe1f6"
+      },
+      {
+        "edition": "moos-cloud",
+        "reference": "ghcr.io/moalfarras-sys/moos-cloud@sha256:845ef2c9bf4542d07d59d872e7d96ce91181c21aef151bed2841565ca9d3e02c",
+        "tag": "ghcr.io/moalfarras-sys/moos-cloud:candidate-39078306013-dcd1985bafd0",
+        "architecture": "amd64",
+        "revision": "dcd1985bafd04cbb1259f148cb039ab3b972ec90",
+        "version": "44.20261017.1069",
+        "cosign_exit": 0,
+        "signature_log_sha256": "9d983830a0835b5f2c6d6cc7f86c6fbc129b7b862cd5c147a1f0f05dfeec3c81"
+      }
+    ],
+    "passed": true
+  },
+  "independent_arm_candidate_signature": {
+    "checked_at": "2026-10-18T00:11:54.445423+00:00",
+    "reference": "ghcr.io/moalfarras-sys/moos-arm@sha256:de71b63bd043a9a1e76133d9d12db55be9da3f1cd177a173050f499a2528a148",
+    "tag": "ghcr.io/moalfarras-sys/moos-arm:candidate-39078288996-dcd1985bafd0",
+    "architecture": "arm64",
+    "revision": "dcd1985bafd04cbb1259f148cb039ab3b972ec90",
+    "version": "44.20261017.804",
+    "cosign_exit": 0,
+    "signature_log_sha256": "2e1983e57011de9495f57fa87ea8c05a92135c6c7d0d2620dba1957ae82c1a46",
+    "scope": "signed ARM candidate only; disk boot, promotion and installed acceptance are still separate"
+  },
+  "refused_iso": {
+    "run": 39082792111,
+    "step": "Install the exact final ISO offline and boot the target disk",
+    "failure": "themes did not close: exit 1",
+    "source_image": "ghcr.io/moalfarras-sys/moos@sha256:605934bcd9f3c47112dde55f0190f9366d5a826c1fa70b9eb0523427186e6543",
+    "iso_sha256": "948daefc0f5e0240239578a61289ac8198828cc7c95f20ce901eafdc4b5c5c0f",
+    "failed_step_log_sha256": "321a75dc72065936cd428566943c8bb8344aae4b07139f73c1d89ffcde7be9da",
+    "install_proof_artifact_id": 12120895733,
+    "install_proof_archive_bytes": 1455016,
+    "artifact_download": {
+      "source": "dcd1985bafd04cbb1259f148cb039ab3b972ec90",
+      "tree": "9a9501184aec8d9fddc5977b5e0bf4d11e20d4fd",
+      "dirty_paths": [],
+      "exit": 0,
+      "seconds": 3.531,
+      "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "desktop_session": {
+      "login": "plasma-login-manager",
+      "desktop": "usable",
+      "kwin": "active",
+      "plasmashell": "active",
+      "user-failed-units": "0"
+    },
+    "first_boot": {
+      "boot": "installed",
+      "identity": "MoOS",
+      "user": "moosci",
+      "graphical": "active",
+      "display-manager": "active",
+      "origin": "ghcr.io/moalfarras-sys/moos@sha256:605934bcd9f3c47112dde55f0190f9366d5a826c1fa70b9eb0523427186e6543",
+      "failed-units": "0",
+      "efi-automount": "[ActiveState=inactive SubState=dead ]",
+      "boot-efi": "[/boot/efi /dev/vda2 vfat]",
+      "fstab": "PARTUUID=6b8ee1c1-4d49-490c-be2d-8fdfb5be6035  /boot/efi  vfat  umask=0077,shortname=winnt  0 0"
+    },
+    "seven_completed_lifecycles": [
+      "dolphin",
+      "konsole",
+      "moos-settings",
+      "mo-ai",
+      "mo-store",
+      "updater",
+      "recovery"
+    ],
+    "themes_window_opened": true,
+    "themes_close_failed": true,
+    "remaining_apps_and_second_boot": "not reached",
+    "cause": "unestablished: original fixture kept no failure-phase window or named cgroup/task readback",
+    "unproven_debug_archive_bytes": 6153568514,
+    "debug_iso_not_downloaded_to_workstation": true
+  },
+  "private_native_probe": {
+    "receipt": {
+      "source": "dcd1985bafd04cbb1259f148cb039ab3b972ec90",
+      "tree": "9a9501184aec8d9fddc5977b5e0bf4d11e20d4fd",
+      "dirty_paths": [],
+      "exit": 0,
+      "seconds": 25.607,
+      "log_sha256": "cf553e1440aa62914f6dbed88af4063971143463c9cc96e33a926ec705122588"
+    },
+    "context": "installed .1062 components, private HOME/XDG, no-activation private bus, offscreen software Qt and owned transient cgroup units; not ordinary Wayland or the failed ISO guest",
+    "overview_and_appearance_ready": true,
+    "both_close_units_inactive_after_4s": true,
+    "same_ci_failure_reproduced": false
+  },
+  "production_readback": {
+    "read_at": "2026-10-18T01:28:05.232239+00:00",
+    "scope": "registry readback after refused x86 ISO; not physical update",
+    "editions": [
+      {
+        "edition": "moos",
+        "digest": "sha256:f587c9c1d9066efccc06cf5d69e13d4bcca25a8f08d0c7c21a6f77308e782a93",
+        "version": "44.20261015.1062",
+        "revision": "e1ffacfa8e2a5ca329c2647dd1ac0a7c33582876",
+        "architecture": "amd64"
+      },
+      {
+        "edition": "moos-nvidia",
+        "digest": "sha256:708223c7ed8a366c41f051ef7f15bb00510c7a2b4acbe3d0ce9c083db9c8aac4",
+        "version": "44.20261015.1062",
+        "revision": "e1ffacfa8e2a5ca329c2647dd1ac0a7c33582876",
+        "architecture": "amd64"
+      },
+      {
+        "edition": "moos-cloud",
+        "digest": "sha256:dc06b0a2450adc44034525289ebffb00aedac8e1070b1e05b1de2aba39ff1062",
+        "version": "44.20261015.1062",
+        "revision": "e1ffacfa8e2a5ca329c2647dd1ac0a7c33582876",
+        "architecture": "amd64"
+      },
+      {
+        "edition": "moos-arm",
+        "digest": "sha256:de71b63bd043a9a1e76133d9d12db55be9da3f1cd177a173050f499a2528a148",
+        "version": "44.20261017.804",
+        "revision": "dcd1985bafd04cbb1259f148cb039ab3b972ec90",
+        "architecture": "arm64"
+      }
+    ]
+  },
+  "x86_promotion": "not dispatched; all three production tags remain .1062",
+  "native_update": "not staged or rebooted",
+  "diagnostic_change": "read-only failure picture and named user-unit tasks/journal after finite input resends stop; both original real close assertions and 75s budgets retained; diagnostic failure cannot replace functional failure",
+  "native_vm_not_started": "about 1.2GiB available RAM and full swap at the sample; four unrelated video bundles occupy about 5.14GiB on tmpfs and remain preserved"
+}

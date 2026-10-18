@@ -2,6 +2,8 @@
 """Contracts and executable SSH identity checks for the final-ISO proof."""
 
 import ast
+import contextlib
+import io
 from pathlib import Path
 import re
 import subprocess
@@ -447,6 +449,85 @@ class LoginFrameIdentityTests(unittest.TestCase):
         self.assertNotEqual(checked.returncode, 0)
         self.assertIn("is black/flat", checked.stderr)
         self.assertIn("stddev=0.000000", checked.stderr)
+
+
+class AppCloseDiagnosticTests(unittest.TestCase):
+    def helpers(self):
+        selected = ast.Module(body=[node for node in installed_tree.body
+                                    if isinstance(node, ast.FunctionDef)
+                                    and node.name in {"observe_app_close", "collect_app_close_diagnostics"}],
+                              type_ignores=[])
+        namespace = {"sys": SimpleNamespace(stderr=io.StringIO()), "subprocess": subprocess,
+                     "contextlib": contextlib}
+        exec(compile(selected, str(script_path), "exec"), namespace)
+        return namespace
+
+    def close_fixture(self, failure=None, diagnostic_error=None):
+        namespace = self.helpers()
+        events = []
+        stop = SimpleNamespace(set=lambda: events.append("input stopped"))
+        thread = SimpleNamespace(join=lambda: events.append("input joined"))
+        gate = Mock(side_effect=failure)
+        def diagnose(*args):
+            events.append("diagnose")
+            if diagnostic_error is not None:
+                raise diagnostic_error
+        namespace.update(threading=SimpleNamespace(Event=lambda: stop),
+                         start_close_resends=Mock(return_value=thread),
+                         gate_until=gate, close_app="existing close predicate",
+                         collect_app_close_diagnostics=Mock(side_effect=diagnose))
+        return namespace, events, gate
+
+    def test_success_keeps_the_same_real_close_predicate_and_deadline(self):
+        namespace, events, gate = self.close_fixture()
+        with namespace["observe_app_close"]("moai-open-12-34", "themes", "open"):
+            gate()
+        gate.assert_called_once_with()
+        calls = [node for node in ast.walk(installed_tree)
+                 if isinstance(node, ast.Call) and isinstance(node.func, ast.Name)
+                 and node.func.id == "gate_until" and node.args
+                 and isinstance(node.args[0], ast.Name) and node.args[0].id == "close_app"]
+        self.assertEqual(len(calls), 2)
+        self.assertTrue(all(isinstance(node.args[2], ast.Constant) and node.args[2].value == 75
+                            for node in calls))
+        self.assertEqual(events, ["input stopped", "input joined"])
+        namespace["collect_app_close_diagnostics"].assert_not_called()
+
+    def test_failure_stops_resends_before_observing_and_keeps_the_original_verdict(self):
+        original = SystemExit("fixture: unit stayed active")
+        namespace, events, gate = self.close_fixture(original)
+        with self.assertRaises(SystemExit) as caught:
+            with namespace["observe_app_close"]("moai-open-12-34", "themes", "reopen"):
+                gate()
+        self.assertIs(caught.exception, original)
+        self.assertEqual(events, ["input stopped", "input joined", "diagnose"])
+
+    def test_broken_diagnostics_cannot_hide_or_replace_the_functional_failure(self):
+        for diagnostic_error in (OSError("fixture unreadable"), SystemExit(47)):
+            original = SystemExit(23)
+            namespace, events, gate = self.close_fixture(original, diagnostic_error)
+            with self.subTest(error=type(diagnostic_error).__name__), self.assertRaises(SystemExit) as caught:
+                with namespace["observe_app_close"]("moai-open-12-34", "themes", "open"):
+                    gate()
+            self.assertIs(caught.exception, original)
+            self.assertEqual(events[-1], "diagnose")
+
+    def test_failed_capture_still_saves_bounded_native_unit_readback(self):
+        namespace = self.helpers()
+        with tempfile.TemporaryDirectory(prefix="moos-close-evidence-") as directory:
+            capture = Mock(side_effect=SystemExit("fixture display ended"))
+            query = Mock(return_value=(1, "fixture retained helper", "fixture journal unreadable"))
+            namespace.update(capture=capture, evidence=Path(directory), ssh_exec=query,
+                             app_close_diagnosis="read-only named-unit diagnostic")
+            namespace["collect_app_close_diagnostics"]("moai-open-12-34", "themes", "open")
+            query.assert_called_once_with("read-only named-unit diagnostic", ["moai-open-12-34"],
+                                          30, desktop_user=True)
+            path = Path(directory) / "installed-app-themes-open-close-failed.txt"
+            text = path.read_text()
+            self.assertIn("diagnosis-exit=1", text)
+            self.assertIn("fixture retained helper", text)
+            self.assertIn("fixture journal unreadable", text)
+            self.assertFalse((Path(directory) / "installed-login.ppm").exists())
 
 
 if __name__ == "__main__":
