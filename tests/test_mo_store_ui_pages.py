@@ -22,7 +22,6 @@ The review app id keeps the privileged bridge absent, so nothing is installed, r
 opened: the actions the walk presses answer with the window's own "needs the next MoOS update"
 words. Nothing leaves the private HOME, and nothing is shown on a screen (offscreen platform).
 """
-import concurrent.futures
 import datetime
 import json
 import importlib.util
@@ -653,15 +652,19 @@ def planted_copy(target: Path) -> dict[str, int]:
 class StorePagesWalk(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        """All four walks at once: the three windows and the planted copy."""
+        """Run every isolated walk sequentially, including the planted faulty copy.
+
+        These windows do not share state. Opening all of them concurrently exhausted
+        a bounded native check on the owner's loaded workstation. Keep every variant,
+        deadline and negative assertion while bounding the number of live windows.
+        """
         cls.scratch = tempfile.TemporaryDirectory(prefix="mo-store-walk-")
         work = Path(cls.scratch.name)
         cls.planted = planted_copy(work / "planted-store")
         jobs = [(variant["name"], variant, STORE) for variant in VARIANTS]
         jobs.append(("planted", VARIANTS[0], work / "planted-store"))
-        with concurrent.futures.ThreadPoolExecutor(max_workers=len(jobs)) as pool:
-            futures = {name: pool.submit(run_walk, variant, store, work / name) for name, variant, store in jobs}
-            cls.results = {name: future.result() for name, future in futures.items()}
+        cls.results = {name: run_walk(variant, store, work / name)
+                       for name, variant, store in jobs}
 
     @classmethod
     def tearDownClass(cls):
