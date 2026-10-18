@@ -1,0 +1,12 @@
+# The shared MoOS drop-in supplies the delayed, nonpersistent system schedule.
+[Unit]
+Description=MoOS application update schedule for all users
+
+[Timer]
+OnBootSec=2min
+OnCalendar=*-*-* 4:00:00
+RandomizedDelaySec=10min
+Persistent=true
+
+[Install]
+WantedBy=timers.target

@@ -3,6 +3,21 @@
   "_": "What a person can SEE or DO after an update, newest first. One entry per user-visible change, written for the owner of the machine, not for a developer: what it is, where it is, and (when MoOS has a route to it) a way to try it now. 'merged' is when the change reached main (a little later is fine, earlier is not: an entry dated before a machine's previous system is never marked new there); a machine marks an entry new when the system it ran BEFORE the update was built earlier than that. tests/test_whats_new.py reads every entry the way MoOS Settings will.",
   "entries": [
     {
+      "id": "arm-scheduled-app-updates",
+      "arch": ["aarch64"],
+      "merged": "2026-10-18T23:59:59Z",
+      "glyph": "install",
+      "route": "moos://settings/update",
+      "title": {
+        "ar": "تحديث التطبيقات تلقائيًا على أجهزة ARM",
+        "en": "Scheduled application updates on ARM"
+      },
+      "body": {
+        "ar": "تعمل جدولة تحديث التطبيقات لحسابك وللتطبيقات المشتركة بأولوية منخفضة، ولا تستدرك التطبيقات المشتركة موعدًا فات عند الإقلاع. يبقى اختيارك لإيقاف التحديث التلقائي محفوظًا، وتتأجل تحديثات الحساب إذا كان المتجر مشغولًا.",
+        "en": "App updates run on a schedule for your account and shared apps at low priority. Shared apps avoid boot catch-up. Your automatic-update choice is preserved, and account updates skip to a later run while the Store is busy."
+      }
+    },
+    {
       "id": "mo-store-library",
       "merged": "2026-10-17T10:50:00Z",
       "glyph": "install",
@@ -873,19 +888,6 @@
         "Alt",
         "2"
       ]
-    },
-    {
-      "id": "motion-speed",
-      "merged": "2026-09-17T22:36:04Z",
-      "glyph": "pulse",
-      "title": {
-        "ar": "سرعة حركة واحدة للنظام كله",
-        "en": "One animation speed for the whole system"
-      },
-      "body": {
-        "ar": "بطاقات MoOS وأزراره تتبع الآن إعداد سرعة الحركة نفسه الذي يتبعه سطح المكتب، فلا يبقى جزء بطيئًا وآخر سريعًا.",
-        "en": "MoOS cards and buttons now follow the same animation-speed setting the desktop does, so one part is never slow while another is fast."
-      }
     }
   ]
 }

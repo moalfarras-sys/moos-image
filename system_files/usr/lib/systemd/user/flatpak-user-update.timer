@@ -1,0 +1,12 @@
+# The shared MoOS drop-in replaces the short vendor-style startup delay.
+[Unit]
+Description=MoOS application update schedule for this account
+
+[Timer]
+OnBootSec=2min
+OnCalendar=*-*-* 4:00:00
+RandomizedDelaySec=10min
+Persistent=true
+
+[Install]
+WantedBy=timers.target

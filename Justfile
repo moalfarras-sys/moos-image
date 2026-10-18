@@ -124,6 +124,7 @@ check:
     python3 tests/test_moos_cloud_audio.py
     python3 tests/test_fwupd_refresh_policy.py
     python3 tests/test_flatpak_user_update.py
+    python3 tests/test_app_update_units.py
     python3 tests/test_boot_path_authorities.py
     python3 tests/test_memory_policy.py
     python3 tests/test_canary_base_state.py

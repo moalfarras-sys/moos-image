@@ -453,6 +453,7 @@ python3 tests/test_moos_app_visual_polish.py
 python3 tests/test_moos_motion_gate.py
 python3 tests/test_fwupd_refresh_policy.py
 python3 tests/test_flatpak_user_update.py
+python3 tests/test_app_update_units.py
 python3 artwork/verify_visuals.py
 # .mcp.json and .claude/settings.json are the agent contract, and they are
 # COMMITTED. A pasted API key in either one is public the moment it is pushed;

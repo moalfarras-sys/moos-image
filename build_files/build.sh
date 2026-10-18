@@ -2722,6 +2722,7 @@ systemctl disable fedora-atomic-desktop-appstream-cache-refresh.service
 # resilient helper as the user scope (20-moos-resilient.conf). It cannot reach the boot path.
 systemctl unmask flatpak-system-update.service 2>/dev/null || true
 systemctl enable flatpak-system-update.timer
+systemctl --global enable flatpak-user-update.timer
 [ -L /etc/systemd/system/timers.target.wants/flatpak-system-update.timer ] \
     || { echo "GATE FAIL: flatpak-system-update.timer is not enabled — apps installed for all users would never update"; exit 1; }
 [ ! -L /etc/systemd/system/flatpak-system-update.service ] \
@@ -4928,6 +4929,7 @@ bash /ctx/verify_settings_modules.sh || exit 1
 
 python3 /ctx/plasma_logout/rpms.py verify
 python3 /ctx/verify_memory_policy.py --root /
+python3 /ctx/verify_app_updates.py --root /
 python3 /ctx/android_session_policy.py verify --edition "$MOOS_EDITION"
 python3 /ctx/finalize_image_state.py --root /
 python3 /ctx/verify_no_foreign_identity.py

@@ -308,7 +308,8 @@ for unit in \
     moos-theme-sync.path moos-theme-drift.timer moos-health.timer \
     moos-cloud-audio.service moos-update-ready.timer moos-reclaim-disk.timer \
     moos-index-policy.service moos-privacy-monitor.service moos-material-state.service moos-app-drop.path \
-    moos-store-notify.path mo-remote-watchdog.timer mira-lumen.service; do
+    moos-store-notify.path mo-remote-watchdog.timer mira-lumen.service \
+    flatpak-user-update.service flatpak-user-update.timer; do
     test -f "/usr/lib/systemd/user/${unit}" || {
         echo "FATAL: shared user authority is missing: ${unit}"
         exit 1
@@ -335,6 +336,15 @@ systemctl --global enable \
 
 systemctl enable NetworkManager.service sshd.service firewalld.service tailscaled.service
 systemctl enable moos-auto-update.timer
+# ARM has no inherited updater units. The shared overlay now owns the same
+# complete service/timer bases on every edition, not just orphaned drop-ins.
+systemd-analyze verify \
+    /usr/lib/systemd/system/flatpak-system-update.service \
+    /usr/lib/systemd/system/flatpak-system-update.timer \
+    /usr/lib/systemd/user/flatpak-user-update.service \
+    /usr/lib/systemd/user/flatpak-user-update.timer
+systemctl enable flatpak-system-update.timer
+systemctl --global enable flatpak-user-update.timer
 # ARM does not inherit Kinoite's AppStream service. The shared delayed timer
 # needs a real backend here too; otherwise enabling the timer alone does nothing.
 install -m0644 /ctx/moos-appstream-refresh.service \
@@ -1649,6 +1659,7 @@ python3 /ctx/verify_no_foreign_identity.py
 python3 /ctx/verify_mime_handlers.py --root /
 python3 /ctx/verify_desktop_parity.py --root /
 python3 /ctx/verify_memory_policy.py --root /
+python3 /ctx/verify_app_updates.py --root /
 python3 /ctx/android_session_policy.py verify --edition "$MOOS_EDITION"
 
 
