@@ -118,7 +118,8 @@ FROM qmlshell-build AS kcm-contract
 COPY system_files/usr/libexec/moos-settings-status /usr/libexec/moos-settings-status
 COPY system_files/usr/lib/moos/ /usr/lib/moos/
 COPY system_files/usr/share/moos/*.json /usr/share/moos/
-RUN python3 /src/moos-settings-kcm/tools/check_status_contract.py \
+RUN /src/moos-settings-kcm-build/bin/moos-settings-query-check \
+    && python3 /src/moos-settings-kcm/tools/check_status_contract.py \
         /src/moos-settings-kcm-build/bin/moos-settings-contract-check \
         /usr/libexec/moos-settings-status /src/moos-settings-kcm/src/moosbackend.cpp
 

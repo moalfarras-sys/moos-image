@@ -25,7 +25,7 @@ include(KDEInstallDirs)
 include(KDECMakeSettings)
 include(KDECompilerSettings NO_POLICY_SCOPE)
 
-find_package(Qt6 6.5 REQUIRED COMPONENTS Core Gui Qml Quick)
+find_package(Qt6 6.7 REQUIRED COMPONENTS Core Gui Qml Quick)
 find_package(KF6 6.0 REQUIRED COMPONENTS CoreAddons KCMUtils)
 
 set(MOOS_KCM_BACKEND_SOURCES
@@ -117,6 +117,10 @@ install(FILES "${CMAKE_CURRENT_BINARY_DIR}/settings-modules.list"
 # A developer tool, never installed: runs the backend's status contract on a file.
 option(MOOS_KCM_CONTRACT_CHECK "Build moos-settings-contract-check" OFF)
 if(MOOS_KCM_CONTRACT_CHECK)
+    add_executable(moos-settings-query-check src/querycheck.cpp)
+    target_link_libraries(moos-settings-query-check PRIVATE Qt6::Core)
+    # The private fixture unwinds PID cleanup guards on a failed assertion.
+    target_compile_options(moos-settings-query-check PRIVATE -fexceptions)
     add_executable(moos-settings-contract-check src/contractcheck.cpp ${MOOS_KCM_BACKEND_SOURCES})
     target_include_directories(moos-settings-contract-check PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src")
     target_link_libraries(moos-settings-contract-check PRIVATE

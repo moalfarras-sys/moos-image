@@ -11,6 +11,7 @@
 #pragma once
 
 #include <KQuickConfigModule>
+#include "statusqueryprocess.h"
 
 #include <QDateTime>
 #include <QFileSystemWatcher>
@@ -158,7 +159,7 @@ private:
     QHash<QString, QDateTime> m_sourceModified;
     QFileSystemWatcher m_watcher;
     QTimer m_sourceSettle;
-    QProcess m_reader;
+    MoOSStatusQuery m_reader;
     QList<QPointer<MoOSJob>> m_jobs;
     QString m_jobDirectory;
     bool m_changesOutlivePage = false;

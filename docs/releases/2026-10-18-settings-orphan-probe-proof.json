@@ -1,0 +1,149 @@
+{
+  "schema": 1,
+  "recorded_at": "2026-10-18T09:21:15.599120+00:00",
+  "scope": "diagnostic-only; same refused .1069 signed image; no promotion or workstation update",
+  "workflow_run": 39089750710,
+  "workflow_revision": "864825799c43fd3eebdaca286d469272c0ada5c4",
+  "attempt": 1,
+  "conclusion": "failure",
+  "source_image": "ghcr.io/moalfarras-sys/moos@sha256:605934bcd9f3c47112dde55f0190f9366d5a826c1fa70b9eb0523427186e6543",
+  "source_image_revision": "dcd1985bafd04cbb1259f148cb039ab3b972ec90",
+  "failed_assertion": "moos-settings did not close: exit 1",
+  "unit_observation": {
+    "unit": "moai-open-5131-26217",
+    "query_exit": 0,
+    "properties": {
+      "LoadState": "loaded",
+      "ActiveState": "active",
+      "SubState": "running",
+      "ExitType": "cgroup",
+      "MainPID": "0",
+      "Result": "success",
+      "ExecMainStatus": "0",
+      "ControlGroup": "/user.slice/user-1000.slice/user@1000.service/app.slice/moai-open-5131-26217.service",
+      "TasksCurrent": "1"
+    },
+    "stderr": "",
+    "tasks": [
+      {
+        "pid": 5535,
+        "name": "bluetoothctl",
+        "parent": "2444",
+        "state": "S (sleeping)",
+        "executable": "/usr/bin/bluetoothctl"
+      }
+    ]
+  },
+  "diagnosis_file_sha256": "32d3288405a52bdd78d15cdabc645e2472f4acfcdafaeff9e949151c6151c11b",
+  "failed_log_sha256": "e8d62ee8b45b371a4e6762cb759b5e0b9d15e82a414d3d54c2a365d665aab073",
+  "artifact_id": 12123177203,
+  "archive_bytes": 1131677,
+  "finding": "The Settings main process exited successfully; a sleeping bluetoothctl remains in its cgroup. The read-only status helper is killed on page destruction without killing its pending probe.",
+  "prior_themes_failure": "No unit/task observation exists for the first Themes failure; its exact remaining process is unproven.",
+  "correction": "Only the read-only status collector gets its own session/group and bounded cancellation of that verified group. Independent change jobs and application cgroup lifetime stay intact.",
+  "validation": "Native SDK passed. CI Repo gates passed at d4ef12ef; x86/ARM images still running there. Full source qualification must run on the final fixture-corrected revision.",
+  "native_sdk": {
+    "command": [
+      "podman",
+      "run",
+      "--rm",
+      "--pull=never",
+      "--network=none",
+      "--ulimit",
+      "core=0:0",
+      "--memory=448m",
+      "--entrypoint",
+      "sh",
+      "-v",
+      "/var/home/moos/.cache/moos-audit-20261017/status-query-native-input:/review:ro,Z",
+      "cb7e8481a9a7",
+      "/review/check-sdk.sh"
+    ],
+    "cwd": "/var/home/moos/moos-wt/iso-app-close-diagnostics-20261018",
+    "source": "d4ef12ef0c0b95454bb0d1bbf1566a8bca93b834",
+    "tree": "e2d10ae837fab60098a8f3fcf5ba7a150ea6c952",
+    "dirty_paths": [],
+    "exit": 0,
+    "seconds": 248.88,
+    "log_sha256": "5bc4d299c1d2b87369a299ad11517d3561ad615fc92b065f22a03a5faee66ea7",
+    "scope": "All seven modules compiled on Qt6.11.2. Actual isolated overview/appearance old modules exit0 but leave a private blocked probe; corrected modules exit0 and retire it. Read-only component controls retain a separately owned process. Restored kill-only reader is refused with exit1. No ordinary Wayland/hardware/ISO acceptance claim."
+  },
+  "initial_sdk_fixture_refusals": [
+    {
+      "command": [
+        "podman",
+        "run",
+        "--rm",
+        "--pull=never",
+        "--network=none",
+        "--memory=448m",
+        "--entrypoint",
+        "sh",
+        "-v",
+        "/var/home/moos/.cache/moos-audit-20261017/status-query-native-input:/review:ro,Z",
+        "cb7e8481a9a7",
+        "/review/check-sdk.sh"
+      ],
+      "cwd": "/var/home/moos/moos-wt/iso-app-close-diagnostics-20261018",
+      "source": "d4ef12ef0c0b95454bb0d1bbf1566a8bca93b834",
+      "tree": "e2d10ae837fab60098a8f3fcf5ba7a150ea6c952",
+      "dirty_paths": [],
+      "exit": 1,
+      "seconds": 32.357,
+      "log_sha256": "557daa27c1fadc78a492200d30d6b208872e9b45282e55b1097730a2f100e42b"
+    },
+    {
+      "command": [
+        "podman",
+        "run",
+        "--rm",
+        "--pull=never",
+        "--network=none",
+        "--memory=448m",
+        "--entrypoint",
+        "sh",
+        "-v",
+        "/var/home/moos/.cache/moos-audit-20261017/status-query-native-input:/review:ro,Z",
+        "cb7e8481a9a7",
+        "/review/check-sdk.sh"
+      ],
+      "cwd": "/var/home/moos/moos-wt/iso-app-close-diagnostics-20261018",
+      "source": "d4ef12ef0c0b95454bb0d1bbf1566a8bca93b834",
+      "tree": "e2d10ae837fab60098a8f3fcf5ba7a150ea6c952",
+      "dirty_paths": [],
+      "exit": 1,
+      "seconds": 32.918,
+      "log_sha256": "df2728a74604dbcebb02eb20769f652496182e7638301fda195a1473b1770825"
+    }
+  ],
+  "fixture_corrections": "Force Qt stderr logging and include the actual image MoOS category metadata in the bare SDK; runtime code unchanged between fixture attempts.",
+  "native_full_check_first_attempt": {
+    "command": [
+      "systemd-run",
+      "--user",
+      "--wait",
+      "--pipe",
+      "--collect",
+      "--unit=moos-query-fullcheck-20261018",
+      "--property=MemoryMax=512M",
+      "--property=CPUQuota=200%",
+      "--property=RuntimeMaxSec=1800",
+      "--working-directory=/var/home/moos/moos-wt/iso-app-close-diagnostics-20261018",
+      "just",
+      "check"
+    ],
+    "cwd": "/var/home/moos/moos-wt/iso-app-close-diagnostics-20261018",
+    "source": "d4ef12ef0c0b95454bb0d1bbf1566a8bca93b834",
+    "tree": "e2d10ae837fab60098a8f3fcf5ba7a150ea6c952",
+    "dirty_paths": [],
+    "exit": 1,
+    "seconds": 389.214,
+    "log_sha256": "84b88c2ea2b55a63eb255fac1610ce71efa635e79b72ddc5abbf37b1e0ec0b6e",
+    "cause": "Owned test unit reached its512MiB cap while the existing Store walker started all independent windows concurrently; result oom-kill, not a green full gate."
+  },
+  "store_fixture_resource_correction": "Execute every existing window/locale/catalogue variant and planted-error negative sequentially. No variant, assertion or per-walk timeout changes; one live review window bounds peak memory.",
+  "failure_frame": {
+    "sha256": "86c672335c56d6cf3a0dcd616ade2b18d0b76ff21984e42b66e2d34d64826d44",
+    "visually_reviewed": "window gone; healthy desktop and dock remain"
+  }
+}

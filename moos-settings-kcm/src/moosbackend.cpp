@@ -331,11 +331,10 @@ MoOSSettingsModule::~MoOSSettingsModule()
             connect(job, &MoOSJob::finished, job, &QObject::deleteLater);
         }
     }
-    // The helper is read-only and publishes atomically; stopping it loses nothing.
-    if (m_reader.state() != QProcess::NotRunning) {
-        m_reader.kill();
-        m_reader.waitForFinished(1000);
-    }
+    // The helper is read-only and publishes atomically. End its owned probe group
+    // too, before a pending bluetoothctl can outlive this page and the app window.
+    m_reader.disconnect(this);
+    m_reader.cancel();
 }
 
 void MoOSSettingsModule::load()

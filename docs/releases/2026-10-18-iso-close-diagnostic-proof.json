@@ -1,0 +1,41 @@
+{
+  "schema": 1,
+  "recorded_at": "2026-10-18T02:17:27.127617+00:00",
+  "scope": "diagnostic-only repeat on the old immutable signed image; no promotion or physical update",
+  "workflow_run": 39086687915,
+  "workflow_revision": "1aa29b62acd331782e0cb7b75834e8393b99ccf1",
+  "attempt": 1,
+  "conclusion": "failure",
+  "source_image": "ghcr.io/moalfarras-sys/moos@sha256:605934bcd9f3c47112dde55f0190f9366d5a826c1fa70b9eb0523427186e6543",
+  "source_image_revision": "dcd1985bafd04cbb1259f148cb039ab3b972ec90",
+  "failed_assertion": "moos-settings did not close: exit 1",
+  "failure_frame": {
+    "phase": "after the real close deadline, with finite input resends stopped",
+    "file": "installed-app-moos-settings-open-close-failed.ppm",
+    "sha256": "5a8e8917a9f3d8293114ee1fa172f9a22f7137073739dbe6353f76042bcad940",
+    "visually_reviewed": "the application window is gone; the desktop is still rendered"
+  },
+  "unit_read": {
+    "unit": "moai-open-5410-31072",
+    "query_exit": 1,
+    "outer_diagnosis_exit": 0,
+    "error": "Failed to connect to user scope bus via local transport: Operation not permitted",
+    "properties": {},
+    "tasks": "unavailable; not a measured empty cgroup",
+    "cause_of_query_failure": "the newly added observer selected the desktop UID but did not replace the inherited SSH runtime/bus environment; existing open/close probes set these explicitly",
+    "journal_retained": true
+  },
+  "root_cause_of_retained_unit": "unestablished; a gone window does not identify the remaining main process or child",
+  "failed_step_log_sha256": "79ecf665271d3c0862d4d69a98e443c2e3d7a0ab8f6c108f2d329787bba3d0d5",
+  "proof_artifact_id": 12121921574,
+  "proof_archive_bytes": 1086986,
+  "metadata_listing": "first read timed out after30s; bounded read-only retry succeeded, without repeating the workflow mutation",
+  "next_observer_correction": {
+    "explicit_authenticated_uid_runtime_and_bus": true,
+    "refused_query_retains_nonzero_status_after_journal_collection": true,
+    "portable_iso_gate_cases_passed": 17,
+    "new_executable_protocol_controls": 2,
+    "existing_close_assertions_and_75s_budgets": "unchanged",
+    "runtime_payload_or_application_lifetime_change": false
+  }
+}

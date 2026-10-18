@@ -229,7 +229,8 @@ class TheFamily(unittest.TestCase):
                 for step in ("COPY system_files/usr/libexec/moos-settings-status /usr/libexec/moos-settings-status",
                              "COPY system_files/usr/lib/moos/ /usr/lib/moos/",
                              "COPY system_files/usr/share/moos/*.json /usr/share/moos/",
-                             "RUN python3 /src/moos-settings-kcm/tools/check_status_contract.py",
+                             "RUN /src/moos-settings-kcm-build/bin/moos-settings-query-check",
+                             "&& python3 /src/moos-settings-kcm/tools/check_status_contract.py",
                              "/src/moos-settings-kcm-build/bin/moos-settings-contract-check",
                              "/usr/libexec/moos-settings-status /src/moos-settings-kcm/src/moosbackend.cpp"):
                     self.assertIn(step, stage)
@@ -286,6 +287,21 @@ class TheFamily(unittest.TestCase):
 
 
 class TheBackend(unittest.TestCase):
+    def test_status_cancellation_owns_only_the_read_only_probe_family(self) -> None:
+        header = HEADER.read_text(encoding="utf-8")
+        backend = BACKEND.read_text(encoding="utf-8")
+        query = (KCM / "src/statusqueryprocess.h").read_text(encoding="utf-8")
+        self.assertIn("MoOSStatusQuery m_reader;", header)
+        self.assertIn("QProcess m_process;", header, "independent jobs retain their existing owner")
+        self.assertIn("m_reader.disconnect(this);", backend)
+        self.assertIn("m_reader.cancel();", backend)
+        self.assertNotIn("m_reader.kill()", backend)
+        for guard in ("CreateNewSession", "pid > 1", "::getpgid(pid) == pid",
+                      "::getsid(pid) == pid", "::kill(-pid, SIGKILL)"):
+            self.assertIn(guard, query)
+        self.assertNotIn("pkill", query)
+        self.assertNotIn("killall", query)
+
     def test_it_is_closed(self) -> None:
         backend = code(BACKEND.read_text(encoding="utf-8"))
         self.assertIn('StatusHelper = "/usr/libexec/moos-settings-status"', backend)

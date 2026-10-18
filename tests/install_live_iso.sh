@@ -558,6 +558,7 @@ start_qemu installed proof-virgl -boot order=c
 python3 - "$qga" "$monitor" "$qemu_pid" "$expected_ref" "$test_password" "$evidence" \
     "$ssh_key" "$ssh_port" "$ssh_port_after_reboot" <<'PY'
 import base64
+import contextlib
 import json
 import os
 from pathlib import Path
@@ -1358,6 +1359,99 @@ def parse_unit(result, label, previous=""):
     return unit
 
 
+app_close_diagnosis = r'''
+set -eu
+unit="$1"
+case "$unit" in moai-open-[0-9]*-[0-9]*) ;; *) exit 2 ;; esac
+uid="$(id -u)"
+export XDG_RUNTIME_DIR="/run/user/${uid}"
+export DBUS_SESSION_BUS_ADDRESS="unix:path=${XDG_RUNTIME_DIR}/bus"
+query_status=0
+python3 - "$unit" <<'INNER_CLOSE' || query_status=$?
+import json, os, pathlib, subprocess, sys
+unit = sys.argv[1]
+query = subprocess.run(
+    ["systemctl", "--user", "show", unit, "-p", "LoadState", "-p", "ActiveState",
+     "-p", "SubState", "-p", "MainPID", "-p", "ControlGroup", "-p", "Result",
+     "-p", "ExecMainStatus", "-p", "ExitType", "-p", "TasksCurrent"],
+    capture_output=True, text=True, timeout=10)
+properties = dict(line.split("=", 1) for line in query.stdout.splitlines() if "=" in line)
+record = {"unit": unit, "query_exit": query.returncode, "properties": properties,
+          "stderr": query.stderr[:4096], "tasks": []}
+group = properties.get("ControlGroup", "")
+prefix = f"/user.slice/user-{os.getuid()}.slice/user@{os.getuid()}.service/"
+if group.startswith(prefix) and ".." not in pathlib.PurePosixPath(group).parts:
+    path = pathlib.Path("/sys/fs/cgroup") / group.lstrip("/") / "cgroup.procs"
+    try:
+        with path.open() as stream:
+            pids = stream.read(16384).split()[:32]
+        for pid in pids:
+            try:
+                proc = pathlib.Path("/proc") / str(int(pid))
+                fields = dict(line.split(":", 1) for line in (proc / "status").read_text().splitlines()
+                              if ":" in line)
+                record["tasks"].append({"pid": int(pid), "name": fields.get("Name", "").strip(),
+                                        "parent": fields.get("PPid", "").strip(),
+                                        "state": fields.get("State", "").strip(),
+                                        "executable": os.readlink(proc / "exe")})
+            except (OSError, ValueError) as error:
+                record["tasks"].append({"pid": pid, "read_error": str(error)})
+    except OSError as error:
+        record["cgroup_read_error"] = str(error)
+elif group:
+    record["cgroup_refused"] = "outside the authenticated fixture user's manager"
+print(json.dumps(record, indent=2))
+if query.returncode:
+    raise SystemExit(query.returncode)
+INNER_CLOSE
+journal_status=0
+journalctl --user -b --no-pager -n 40 -o cat -u "$unit" || journal_status=$?
+[ "$query_status" -eq 0 ] || exit "$query_status"
+exit "$journal_status"
+'''
+
+
+def collect_app_close_diagnostics(unit, label, tag):
+    """Observe only after the close deadline and after input resends stop.
+
+    A cgroup can retain a helper after its window leaves. Conversely, an active
+    window may never have received the close. Preserve both facts without
+    stopping a process, changing the timeout or turning either failure green.
+    """
+    name = f"installed-app-{label}-{tag}-close-failed"
+    try:
+        capture(evidence / (name + ".ppm"))
+    except (Exception, SystemExit) as error:
+        print(f"(app-close failure capture unavailable: {error})", file=sys.stderr)
+    try:
+        code, out, err = ssh_exec(app_close_diagnosis, [unit], 30, desktop_user=True)
+        text = f"diagnosis-exit={code}\n{out}\n=== stderr ===\n{err}"
+    except (subprocess.TimeoutExpired, OSError) as error:
+        text = f"app-close diagnosis unavailable: {error}\n"
+    (evidence / (name + ".txt")).write_text(text, encoding="utf-8")
+    print(f"=== {label} {tag} close diagnosis ===\n{text}", file=sys.stderr)
+
+
+@contextlib.contextmanager
+def observe_app_close(unit, label, tag):
+    stop = threading.Event()
+    thread = start_close_resends(stop, label, tag)
+    failure = None
+    try:
+        yield
+    except SystemExit as error:
+        failure = error
+    finally:
+        stop.set()
+        thread.join()
+    if failure is not None:
+        try:
+            collect_app_close_diagnostics(unit, label, tag)
+        except (Exception, SystemExit) as error:
+            print(f"(app-close diagnosis unavailable: {error})", file=sys.stderr)
+        raise failure
+
+
 for label, executable in app_specs:
     first = gate_until(open_app, [label, executable], 150, f"{label} did not open",
                        desktop_user=True)
@@ -1367,13 +1461,8 @@ for label, executable in app_specs:
     if module:
         gate_until(kcm_ready, [unit, module], 60, f"{label} opened a window but not {module}")
     capture(evidence / ("installed-app-" + label + ".ppm"))
-    stop = threading.Event()
-    thread = start_close_resends(stop, label, "open")
-    try:
+    with observe_app_close(unit, label, "open"):
         gate_until(close_app, [unit], 75, f"{label} did not close", desktop_user=True)
-    finally:
-        stop.set()
-        thread.join()
 
     second = gate_until(open_app, [label, executable], 150, f"{label} did not reopen",
                         desktop_user=True)
@@ -1384,14 +1473,9 @@ for label, executable in app_specs:
                    f"reopened {label} opened a window but not {module}")
     if label == app_specs[-1][0]:
         capture(evidence / "installed-desktop-apps.ppm")
-    stop = threading.Event()
-    thread = start_close_resends(stop, label, "reopen")
-    try:
+    with observe_app_close(second_unit, label, "reopen"):
         gate_until(close_app, [second_unit], 75, f"reopened {label} did not close",
                    desktop_user=True)
-    finally:
-        stop.set()
-        thread.join()
     app_proof.append(f"{label}=opened-closed-reopened")
     if module:
         app_proof.append(f"{label}-module={module}")
