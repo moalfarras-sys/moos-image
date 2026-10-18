@@ -4,6 +4,8 @@
 import ast
 import contextlib
 import io
+import json
+import os
 from pathlib import Path
 import re
 import subprocess
@@ -452,6 +454,46 @@ class LoginFrameIdentityTests(unittest.TestCase):
 
 
 class AppCloseDiagnosticTests(unittest.TestCase):
+    def native_diagnostic_fixture(self, refused=False):
+        with tempfile.TemporaryDirectory(prefix="moos-close-query-") as directory:
+            binary = Path(directory)
+            programs = {
+                "id": "#!/bin/sh\nprintf '4242\\n'\n",
+                "journalctl": "#!/bin/sh\nprintf 'fixture journal retained\\n'\n",
+                "systemctl": """#!/bin/sh
+[ "$XDG_RUNTIME_DIR" = /run/user/4242 ] || exit 41
+[ "$DBUS_SESSION_BUS_ADDRESS" = unix:path=/run/user/4242/bus ] || exit 42
+if [ "$FIXTURE_QUERY_REFUSED" = 1 ]; then exit 13; fi
+printf 'LoadState=loaded\\nActiveState=inactive\\nControlGroup=\\n'
+""",
+            }
+            for name, body in programs.items():
+                path = binary / name
+                path.write_text(body)
+                path.chmod(0o755)
+            environment = {**os.environ, "PATH": directory + os.pathsep + os.environ["PATH"],
+                           "HOME": directory, "XDG_RUNTIME_DIR": directory + "/wrong-runtime",
+                           "DBUS_SESSION_BUS_ADDRESS": "unix:path=" + directory + "/wrong-bus",
+                           "FIXTURE_QUERY_REFUSED": "1" if refused else "0"}
+            return subprocess.run(["bash", "-c", installed_assignment("app_close_diagnosis"),
+                                   "--", "moai-open-12-34"], env=environment,
+                                  capture_output=True, text=True, timeout=15)
+
+    def test_readback_uses_its_authenticated_uid_runtime_instead_of_the_ssh_environment(self):
+        result = self.native_diagnostic_fixture()
+        self.assertEqual(result.returncode, 0, result.stderr)
+        record, _end = json.JSONDecoder().raw_decode(result.stdout)
+        self.assertEqual(record["query_exit"], 0)
+        self.assertEqual(record["properties"]["ActiveState"], "inactive")
+        self.assertIn("fixture journal retained", result.stdout)
+
+    def test_refused_unit_read_remains_nonzero_while_retaining_the_journal(self):
+        result = self.native_diagnostic_fixture(refused=True)
+        self.assertEqual(result.returncode, 13, result.stderr)
+        record, _end = json.JSONDecoder().raw_decode(result.stdout)
+        self.assertEqual(record["query_exit"], 13)
+        self.assertIn("fixture journal retained", result.stdout)
+
     def helpers(self):
         selected = ast.Module(body=[node for node in installed_tree.body
                                     if isinstance(node, ast.FunctionDef)

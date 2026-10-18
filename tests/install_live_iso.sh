@@ -1363,7 +1363,11 @@ app_close_diagnosis = r'''
 set -eu
 unit="$1"
 case "$unit" in moai-open-[0-9]*-[0-9]*) ;; *) exit 2 ;; esac
-python3 - "$unit" <<'INNER_CLOSE'
+uid="$(id -u)"
+export XDG_RUNTIME_DIR="/run/user/${uid}"
+export DBUS_SESSION_BUS_ADDRESS="unix:path=${XDG_RUNTIME_DIR}/bus"
+query_status=0
+python3 - "$unit" <<'INNER_CLOSE' || query_status=$?
 import json, os, pathlib, subprocess, sys
 unit = sys.argv[1]
 query = subprocess.run(
@@ -1397,8 +1401,13 @@ if group.startswith(prefix) and ".." not in pathlib.PurePosixPath(group).parts:
 elif group:
     record["cgroup_refused"] = "outside the authenticated fixture user's manager"
 print(json.dumps(record, indent=2))
+if query.returncode:
+    raise SystemExit(query.returncode)
 INNER_CLOSE
-journalctl --user -b --no-pager -n 40 -o cat -u "$unit"
+journal_status=0
+journalctl --user -b --no-pager -n 40 -o cat -u "$unit" || journal_status=$?
+[ "$query_status" -eq 0 ] || exit "$query_status"
+exit "$journal_status"
 '''
 
 
