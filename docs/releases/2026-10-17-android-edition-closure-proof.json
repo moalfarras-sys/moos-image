@@ -119,9 +119,43 @@
     "scope": "signed ARM candidate only; disk boot, promotion and installed acceptance are still separate"
   },
   "remaining": [
-    "PR250 generic and ARM image completion",
     "replacement fixed-revision signed build, all artifact boot proofs and promotion",
     "physical signed update/reboot/native acceptance",
     "Windows/Android full lifecycles and hardware/accessibility endurance"
-  ]
+  ],
+  "merged_pr": {
+    "number": 250,
+    "revision": "dcd1985bafd04cbb1259f148cb039ab3b972ec90",
+    "tree": "9a9501184aec8d9fddc5977b5e0bf4d11e20d4fd",
+    "merged_at": "2026-10-17T23:15:05Z",
+    "normal_protected_merge": true,
+    "ci": [
+      {
+        "run": 39061938901,
+        "revision": "f789fff1cef34e22d46dca2c9e5a6ee159a2a55b",
+        "attempt": 1,
+        "conclusion": "success"
+      },
+      {
+        "run": 39061938924,
+        "revision": "f789fff1cef34e22d46dca2c9e5a6ee159a2a55b",
+        "attempt": 1,
+        "conclusion": "success"
+      },
+      {
+        "run": 39061938883,
+        "revision": "f789fff1cef34e22d46dca2c9e5a6ee159a2a55b",
+        "attempt": 1,
+        "conclusion": "success"
+      }
+    ],
+    "scope": "PR image builds do not sign, boot or promote"
+  },
+  "advisory_review": {
+    "run": 39063632120,
+    "job_conclusion": "success",
+    "action_is_error": true,
+    "completed_independent_review": false,
+    "reason": "Nonblocking action returned is_error:true with no completed findings or model usage; cause unestablished."
+  }
 }
