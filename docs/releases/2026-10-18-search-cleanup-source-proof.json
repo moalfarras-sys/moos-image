@@ -59,5 +59,30 @@
       "old search-index backup pending cold-boot validation"
     ]
   },
-  "scope": "Live repair and diagnostics only; no claim of new installed image or universal compatibility."
+  "scope": "Live repair and diagnostics only; no claim of new installed image or universal compatibility.",
+  "final_native_source_check": {
+    "source": "e717938155f9d983b96e747dc8f71eec82de025d",
+    "tree": "95bab73982a8c9e8ed052631e75b36dfa39d862f",
+    "exit": 0,
+    "seconds": 684.48,
+    "log_sha256": "c6b2a7fa99891432279f567c9e3f5734898936a00ab0b724f62f0df3820be0b1",
+    "counts": {
+      "reported_case_executions": 2672,
+      "unittest_summaries": 197
+    },
+    "following_changes": "Only documentation/evidence notes; diagnostic/test/runtime bytes remain unchanged. Required repo CI applies to the final head."
+  },
+  "final_preservation": {
+    "initial_refs": 242,
+    "initial_unmerged": [],
+    "current_ref_count": 258,
+    "original_dirty_head_status_unchanged": true,
+    "new_work": "Oracle PR253 at2b12ad2f is a new independent draft under image qualification; preserve, do not count as delivered."
+  },
+  "x86_app_update_schedule": {
+    "scope": "Native old1062, not Oracle or post1072 boot",
+    "system_and_user_service": "loaded; immutable/usr units",
+    "system_and_user_timer": "enabled and active; next calendar firing Oct19",
+    "local_repair_performed": false
+  }
 }
