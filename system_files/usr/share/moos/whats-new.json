@@ -3,16 +3,29 @@
   "_": "What a person can SEE or DO after an update, newest first. One entry per user-visible change, written for the owner of the machine, not for a developer: what it is, where it is, and (when MoOS has a route to it) a way to try it now. 'merged' is when the change reached main (a little later is fine, earlier is not: an entry dated before a machine's previous system is never marked new there); a machine marks an entry new when the system it ran BEFORE the update was built earlier than that. tests/test_whats_new.py reads every entry the way MoOS Settings will.",
   "entries": [
     {
+      "id": "installed-app-launch-lifetime",
+      "merged": "2026-10-19T00:30:00Z",
+      "glyph": "install",
+      "title": {
+        "ar": "البرامج تبقى مفتوحة بعد التثبيت",
+        "en": "Apps stay open after installation"
+      },
+      "body": {
+        "ar": "عندما يفتح MoOS برنامجًا بعد تثبيته، يبقى مفتوحًا بعد انتهاء التثبيت. وإذا تعذّر فتحه، تظهر نتيجة واضحة بدل اعتباره جاهزًا.",
+        "en": "Apps opened after installation keep running when installation finishes. If an app cannot be opened, MoOS reports the failure instead of claiming it is ready."
+      }
+    },
+    {
       "id": "v3-motion-driver-detection",
       "merged": "2026-10-19T00:30:00Z",
       "glyph": "ui",
       "title": {
-        "ar": "فحص أدق لمستشعر الحركة",
-        "en": "Motion sensor driver check"
+        "ar": "الدخول بالبصمة وفحص أجهزة V3",
+        "en": "Fingerprint sign-in and V3 device checks"
       },
       "body": {
-        "ar": "يكشف فحص الأجهزة مستشعر الحركة SMOCF05 إذا ظهر بلا تعريف مرتبط، بدل إعلان جاهزية الجهاز اعتمادًا على كرت الشاشة وحده. اكتشاف المشكلة لا يعني تشغيل التدوير التلقائي.",
-        "en": "Device diagnostics now report an SMOCF05 motion sensor with no bound driver instead of declaring the PC ready from its PCI devices alone. Detecting the missing driver does not enable automatic rotation."
+        "ar": "بعد تسجيل بصمتك، اختر الحساب في شاشة الدخول واضغط Enter أو سهم الدخول ثم المس القارئ. كلمة المرور تبقى متاحة. يكشف فحص الأجهزة أيضًا مستشعر SMOCF05 بلا تعريف؛ هذا التنبيه لا يشغّل التدوير التلقائي.",
+        "en": "After enrolling a fingerprint, select your account at sign-in, press Enter or the sign-in arrow, then touch the reader. Password sign-in remains available. Device checks also flag an unbound SMOCF05 motion sensor; the warning does not enable automatic rotation."
       },
       "arch": [
         "x86_64"

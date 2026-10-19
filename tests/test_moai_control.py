@@ -384,6 +384,19 @@ class RuntimeRelationshipTests(unittest.TestCase):
                 "XDG_CONFIG_HOME": str(Path(home) / ".config"),
                 "PATH": bin_dir + os.pathsep + os.environ.get("PATH", ""),
             }
+            # Exercise the handoff on ordinary CI hosts too. Never borrow the
+            # installed workstation launcher or its desktop session for a gate.
+            for key in ("DBUS_SESSION_BUS_ADDRESS", "DISPLAY", "WAYLAND_DISPLAY"):
+                env.pop(key, None)
+            launcher_log = Path(home) / "launcher.argv"
+            launcher = Path(bin_dir) / "moai-open"
+            launcher.write_text(
+                '#!/bin/sh\n'
+                f'printf "%s\\n" "$@" > "{launcher_log}"\n'
+                '[ "$1" = --app ] || exit 92\nshift\nexec "$@"\n',
+                encoding="utf-8",
+            )
+            launcher.chmod(0o755)
             # SPEC D1/D5: the brain is set up on the Mo AI page of System Settings — one
             # surface, no terminal wizard, no privilege.
             opened = Path(home) / "settings.argv"
@@ -395,9 +408,11 @@ class RuntimeRelationshipTests(unittest.TestCase):
             config.chmod(0o755)
             result = subprocess.run(
                 [str(MOAI_DO), "setup-brain"], input="y\n", env=env,
-                capture_output=True, text=True,
+                capture_output=True, text=True, timeout=15,
             )
             self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual(launcher_log.read_text(encoding="utf-8").splitlines(),
+                             ["--app", "moos-settings", "--section=assistant"])
             self.assertEqual(opened.read_text(encoding="utf-8").strip(), "--section=assistant")
             self.assertFalse(
                 (Path(home) / ".config/moos/moai-local.env").exists(),

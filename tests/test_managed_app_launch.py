@@ -10,6 +10,8 @@ import importlib.util
 import io
 import json
 import os
+import re
+import shutil
 from pathlib import Path
 import subprocess
 import sys
@@ -116,6 +118,53 @@ if os.environ['LAUNCH_REFUSED']=='1':
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertTrue(fallback)
         self.assertNotIn('--property=PartOf=graphical-session.target', call)
+
+
+class InstallLaunchBoundary(unittest.TestCase):
+    script = ROOT / 'system_files/usr/bin/moai-do'
+
+    def invoke(self, status=0, missing=False):
+        source = self.script.read_text()
+        functions = '\n'.join(re.search(r'^' + name + r'\(\) \{.*?^\}', source,
+                                       re.MULTILINE | re.DOTALL).group(0)
+                              for name in ('need', 'launch_detached'))
+        with tempfile.TemporaryDirectory(prefix='moos-install-launch-') as raw:
+            root = Path(raw)
+            marker = root / 'call.json'
+            fallback = root / 'fallback'
+            if not missing:
+                executable(root / 'moai-open', '''#!/usr/bin/python3
+import json,os,pathlib,sys
+pathlib.Path(os.environ['CALL']).write_text(json.dumps(sys.argv[1:]))
+if int(os.environ['STATUS']): print('fixture manager refusal',file=sys.stderr)
+sys.exit(int(os.environ['STATUS']))
+''')
+            executable(root / 'setsid', '#!/bin/sh\necho fallback > "$FALLBACK"\n')
+            arguments = ['flatpak', 'run', 'org.example.App', 'literal;$(never-execute)']
+            result = subprocess.run([shutil.which('bash') or 'bash', '-c', functions + '\nlaunch_detached "$@"',
+                                     'fixture', *arguments], capture_output=True, text=True, timeout=3,
+                                    env={'PATH': raw, 'HOME': raw, 'XDG_RUNTIME_DIR': raw,
+                                         'DBUS_SESSION_BUS_ADDRESS': 'unix:path=' + raw + '/no-owner-bus',
+                                         'CALL': str(marker), 'FALLBACK': str(fallback), 'STATUS': str(status)})
+            return result, json.loads(marker.read_text()) if marker.exists() else None, fallback.exists(), arguments
+
+    def test_installer_hands_unchanged_arguments_to_managed_app_mode(self):
+        result, call, fallback, arguments = self.invoke()
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(call, ['--app', *arguments])
+        self.assertFalse(fallback)
+
+    def test_manager_refusal_is_not_a_successful_open(self):
+        result, _, fallback, _ = self.invoke(status=7)
+        self.assertEqual(result.returncode, 7)
+        self.assertIn('fixture manager refusal', result.stderr)
+        self.assertFalse(fallback)
+
+    def test_missing_helper_never_falls_back_into_the_install_job(self):
+        result, call, fallback, _ = self.invoke(missing=True)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIsNone(call)
+        self.assertFalse(fallback)
 
 
 if __name__ == '__main__':
