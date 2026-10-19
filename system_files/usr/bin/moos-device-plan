@@ -64,47 +64,83 @@ def driver_gaps(pci=None):
     return gaps + i2c_driver_gaps()
 
 
-def firmware_report():
-    """Read-only fwupd view: pending firmware updates, and firmware the kernel failed to load.
+def firmware_report(status=None):
+    """Read-only local fwupd/journal results, with explicit probe confidence.
 
-    fwupdmgr exits non-zero when there is simply nothing to do, so returncode is not a useful
-    signal here — parse the output instead.
+    Keep the two-list return contract. Optional status reports command outcome,
+    not online metadata freshness, device support or functional hardware health.
+    fwupdmgr documents exit2 as successful nothing-to-do; exit1 is a failure.
+    Pinned2.1.8 emits Devices[] or an Error object in JSON mode (fu-util.c and
+    fu-util-common.c). Never infer success from a localized error message.
     """
+    status = status if status is not None else {}
+    status.update(firmware_known=False, firmware_status="not-installed",
+                  kernel_journal_known=False, kernel_journal_status="unavailable")
     updates = []
     if shutil.which("fwupdmgr"):
         try:
             p = subprocess.run(["fwupdmgr", "get-updates", "--json"],
                                text=True, capture_output=True, timeout=25)
-            data = json.loads(p.stdout or "{}")
-            devices = data.get("Devices", []) if isinstance(data, dict) else []
-            for dev in devices if isinstance(devices, list) else []:
-                if not isinstance(dev, dict):
-                    continue
-                name = dev.get("Name") or "device"
-                latest = ""
-                releases = dev.get("Releases", [])
-                for rel in releases if isinstance(releases, list) else []:
-                    if isinstance(rel, dict) and isinstance(rel.get("Version"), str):
-                        latest = rel["Version"]
-                        break
-                if not isinstance(name, str) or not latest:
-                    continue
-                updates.append(f"{name} {dev.get('Version','')} → {latest}".strip())
-        except (OSError, subprocess.SubprocessError, ValueError):
-            pass
+            status["firmware_exit_code"] = p.returncode
+            if p.returncode not in (0, 2):
+                status["firmware_status"] = "command-failed"
+            else:
+                raw = (p.stdout or "").strip()
+                data = json.loads(raw) if raw else None
+                # Exit2 is the documented no-action success. Some releases
+                # emit no JSON; current releases emit a structured Error.
+                nothing = p.returncode == 2 and (not raw or (
+                    isinstance(data, dict) and isinstance(data.get("Error"), dict)
+                    and isinstance(data["Error"].get("Domain"), str)
+                    and type(data["Error"].get("Code")) is int
+                    and isinstance(data["Error"].get("Message"), str)))
+                if nothing:
+                    status.update(firmware_known=True, firmware_status="nothing-to-do")
+                else:
+                    if not isinstance(data, dict) or not isinstance(data.get("Devices"), list):
+                        raise ValueError("invalid firmware response")
+                    for dev in data["Devices"]:
+                        if not isinstance(dev, dict) or not isinstance(dev.get("Name"), str):
+                            raise ValueError("invalid firmware device")
+                        releases = dev.get("Releases", [])
+                        if not isinstance(releases, list):
+                            raise ValueError("invalid firmware releases")
+                        for rel in releases:
+                            if not isinstance(rel, dict) or not isinstance(rel.get("Version"), str):
+                                raise ValueError("invalid firmware release")
+                        if releases:
+                            current = dev.get("Version", "")
+                            if not isinstance(current, str) or not releases[0]["Version"]:
+                                raise ValueError("invalid firmware version")
+                            updates.append(f"{dev['Name']} {current} → {releases[0]['Version']}".strip())
+                    if p.returncode == 2 and updates:
+                        raise ValueError("inconsistent nothing-to-do response")
+                    status.update(firmware_known=True, firmware_status="updates" if updates else "no-updates")
+        except subprocess.TimeoutExpired:
+            status["firmware_status"] = "timeout"
+        except (OSError, subprocess.SubprocessError):
+            status["firmware_status"] = "unavailable"
+        except ValueError:
+            status["firmware_status"] = "invalid-response"
 
     missing = []
     try:
         p = subprocess.run(["journalctl", "-b", "-k", "--no-pager", "-o", "cat"],
                            text=True, capture_output=True, timeout=20)
+        status["kernel_journal_exit_code"] = p.returncode
+        status["kernel_journal_known"] = p.returncode == 0
+        status["kernel_journal_status"] = "ok" if p.returncode == 0 else "command-failed"
+        # Preserve observed gaps even if the command later fails. A failure
+        # never turns partial output into a complete/clean kernel journal.
         for line in (p.stdout or "").splitlines():
             m = re.search(r"[Dd]irect firmware load for (\S+) failed", line)
             if m and m.group(1) not in missing:
                 missing.append(m.group(1))
+    except subprocess.TimeoutExpired:
+        status["kernel_journal_status"] = "timeout"
     except (OSError, subprocess.SubprocessError):
-        pass
+        status["kernel_journal_status"] = "unavailable"
     return updates, missing[:8]
-
 
 def booted_image_reference(raw):
     """Read only the booted deployment, never a staged/rollback image name."""
@@ -142,7 +178,11 @@ def detect(machine=None):
                   if re.search(r"VGA compatible|3D controller|Display controller", block, re.I)]
     gpu_lines = [block.splitlines()[0].strip() for block in gpu_blocks]
     gpu = "\n".join(gpu_lines) or "unavailable"
-    vendor = "nvidia" if "NVIDIA" in gpu.upper() else "amd" if re.search(r"AMD|ATI", gpu, re.I) else "intel" if "INTEL" in gpu.upper() else "unknown"
+    # Match vendor words, never class text such as the "ati" in "compatible".
+    vendor = ("nvidia" if re.search(r"\bNVIDIA\b", gpu, re.I)
+              else "amd" if re.search(r"\b(?:AMD|ATI)\b", gpu, re.I)
+              else "intel" if re.search(r"\bIntel\b", gpu, re.I)
+              else "unknown")
     driver_hits = re.findall(r"Kernel driver in use:\s*(\S+)", "\n".join(gpu_blocks))
     driver = ", ".join(dict.fromkeys(driver_hits)) or "unavailable"
     os_release = {}
@@ -210,7 +250,17 @@ def detect(machine=None):
             "url": ""
         })
 
-    firmware_updates, missing_firmware = firmware_report()
+    firmware_status = {}
+    firmware_updates, missing_firmware = firmware_report(firmware_status)
+    if not firmware_status.get("firmware_known") or not firmware_status.get("kernel_journal_known"):
+        if health == "ready":
+            health = "attention"
+        actions.append({
+            "id": "firmware-inspection-unavailable", "severity": "info",
+            "title": "فحص البرامج الثابتة غير مكتمل | Firmware inspection incomplete",
+            "detail": "تعذّر تأكيد تحديثات البرامج الثابتة أو قراءة سجل النواة؛ الحالة غير مؤكدة. | Firmware updates or the kernel journal could not be verified; firmware health is unconfirmed.",
+            "url": ""
+        })
     if missing_firmware:
         if health == "ready":
             health = "attention"
@@ -251,6 +301,7 @@ def detect(machine=None):
         "nvidia_image": nvidia_image, "memory_gib": memory_gib, "kvm": kvm,
         "secure_boot": secure_boot, "os": os_release.get("PRETTY_NAME", "MoOS"),
         "driver_gaps": gaps,
+        **firmware_status,
         "firmware_updates": firmware_updates,
         "missing_firmware": missing_firmware,
         "recommended_apps": recommended, "installed_recommended_apps": installed,

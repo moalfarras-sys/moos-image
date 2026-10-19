@@ -14,6 +14,13 @@ ROOT = Path(__file__).resolve().parents[1]
 PLAN = ROOT / "system_files/usr/bin/moos-device-plan"
 
 
+def clean_firmware_report(status=None):
+    if status is not None:
+        status.update(firmware_known=True, firmware_status="no-updates",
+                      kernel_journal_known=True, kernel_journal_status="ok")
+    return [], []
+
+
 def executable(path: Path, shell_body: str, windows_body: str) -> None:
     if os.name == "nt":
         path = path.with_suffix(".cmd")
@@ -49,7 +56,7 @@ if os.name == "nt":
 
     module.run = fake_run
     module.flatpak_installed = lambda _app_id: False
-    module.firmware_report = lambda: ([], [])
+    module.firmware_report = clean_firmware_report
     module.i2c_driver_gaps = lambda: []
     data = module.detect()
 else:
@@ -109,7 +116,7 @@ arm_module.run = lambda *args, **kwargs: (
     else ""
 )
 arm_module.flatpak_installed = lambda _app_id: False
-arm_module.firmware_report = lambda: ([], [])
+arm_module.firmware_report = clean_firmware_report
 arm_module.i2c_driver_gaps = lambda: []
 arm = arm_module.detect(machine="aarch64")
 assert arm["architecture"] == "aarch64"
@@ -134,7 +141,7 @@ with tempfile.TemporaryDirectory() as tmp:
     sensor_module.run = lambda *args, **kwargs: (
         "c4:00.0 VGA compatible controller: AMD Radeon\n\tKernel driver in use: amdgpu"
         if args[0] == "lspci" else "")
-    sensor_module.firmware_report = lambda: ([], [])
+    sensor_module.firmware_report = clean_firmware_report
     sensor_module.flatpak_installed = lambda _app_id: False
     probe = sensor_module.i2c_driver_gaps
     sensor_module.i2c_driver_gaps = lambda: probe(sysfs)
@@ -206,6 +213,47 @@ with patch.object(firmware_module.shutil, "which", return_value="fwupdmgr"), \
 print("device-plan unknown PCI, booted-only image and firmware JSON controls passed")
 
 
+# Vendor words must not match class prose: "compatible" contains "ati".
+# Run the actual detector and fake command processes, including mixed case.
+if os.name != "nt":
+    import shlex
+    import sys
+
+    def vendor_process_case(plan, label):
+        with tempfile.TemporaryDirectory(prefix="moos-vendor-process-") as temporary:
+            private = Path(temporary)
+            for name, raw, code in (
+                    ("lspci", "01:00.0 " + label + "\n\tKernel driver in use: fixture", 0),
+                    ("fwupdmgr", '{"Devices":[]}', 0),
+                    ("journalctl", "", 0),
+                    ("flatpak", "", 1), ("bootc", "", 1),
+                    ("rpm-ostree", "", 1), ("mokutil", "", 1)):
+                executable(private / name,
+                           "printf '%s\\n' " + shlex.quote(raw) + "\nexit " + str(code) + "\n", "")
+            env = dict(os.environ, PATH=str(private), MOOS_DEVICE_PLAN_MACHINE="x86_64",
+                       DBUS_SESSION_BUS_ADDRESS="unix:path="+str(private/"no-bus"))
+            return json.loads(subprocess.check_output([sys.executable, str(plan)],
+                                                       text=True, env=env, timeout=5))
+
+    vendor_cases = (
+        ("VGA compatible controller: Intel Corporation Graphics", "intel"),
+        ("vGa CoMpAtIbLe controller: iNtEl Corporation Graphics", "intel"),
+        ("3D controller: NVIDIA Corporation Graphics", "nvidia"),
+        ("VGA compatible controller: nViDiA Corporation Graphics", "nvidia"),
+        ("VGA compatible controller: Advanced Micro Devices, Inc. [AMD/ATI]", "amd"),
+        ("vga COMPATIBLE controller: aMd Radeon Graphics", "amd"),
+        ("VGA compatible controller: ATI Technologies Graphics", "amd"),
+        ("Display controller: aTi Technologies Graphics", "amd"),
+        ("VGA compatible controller: Unknown Vendor Graphics", "unknown"),
+        ("vGa cOmPaTiBlE controller: QEMU Virtio Graphics", "unknown"),
+        ("VGA compatible controller: Imagination Graphics", "unknown"),
+    )
+    for label, expected in vendor_cases:
+        detected = vendor_process_case(PLAN, label)
+        assert detected["gpu_vendor"] == expected, (label, expected, detected)
+    print(f"device-plan vendor word-boundary process controls passed ({len(vendor_cases)})")
+
+
 # Every device-plan title reaches the owner's screen through Mo AI's diagnostic
 # card. Four of the six carried "عربي | English"; two shipped English-only and
 # showed up untranslated inside an otherwise fully Arabic Mo AI on the live
@@ -220,3 +268,105 @@ assert not _english_only, (
     "these titles reach an Arabic screen untranslated; follow the "
     f"\"عربي | English\" convention the others use: {_english_only}")
 print(f"device-plan bilingual title gate passed ({len(_titles)} titles)")
+
+# Execute the real detector and fake external processes; no host fwupd/journal,
+# session bus or firmware writes. The import seam isolates only sysfs I2C state.
+if os.name != "nt":
+    import sys
+    import shlex
+
+    def firmware_process_case(plan, fw_code=0, fw_raw='{"Devices":[]}',
+                              journal_code=0, journal_raw="", pci_gap=False):
+        with tempfile.TemporaryDirectory(prefix="moos-firmware-process-") as temporary:
+            private = Path(temporary)
+            def command(name, raw, code=0):
+                executable(private / name,
+                           "printf '%s\\n' " + shlex.quote(raw) + "\nexit " + str(code) + "\n", "")
+            command("lspci", "01:00.0 VGA compatible controller: Intel GPU" +
+                    ("" if pci_gap else "\n\tKernel driver in use: i915"))
+            for name in ("bootc", "rpm-ostree", "mokutil"):
+                command(name, "", 1)
+            command("flatpak", "", 1)
+            if fw_code is not None:
+                command("fwupdmgr", fw_raw, fw_code)
+            command("journalctl", journal_raw, journal_code)
+            wrapper = """import importlib.machinery,importlib.util,json,sys
+loader=importlib.machinery.SourceFileLoader('private_plan',sys.argv[1])
+spec=importlib.util.spec_from_loader(loader.name,loader)
+module=importlib.util.module_from_spec(spec);loader.exec_module(module)
+module.i2c_driver_gaps=lambda: []
+print(json.dumps(module.detect(machine='x86_64')))
+"""
+            env = dict(os.environ, PATH=str(private), DBUS_SESSION_BUS_ADDRESS="unix:path="+str(private/"no-bus"))
+            return json.loads(subprocess.check_output([sys.executable, "-c", wrapper, str(plan)],
+                                                       text=True, env=env, timeout=5))
+
+    def confidence_contract(plan):
+        count = 0
+        for fw_code, raw in ((1, '{"Devices":[]}'), (0, "bad-json"), (0, ""),
+                             (0, "[]"), (0, "{}"), (0, '{"Devices":null}'),
+                             (0, '{"Devices":[null]}'), (2, "bad-json"),
+                             (0, '{"Devices":[{"Name":"device","Releases":"bad"}]}'),
+                             (None, "")):
+            result = firmware_process_case(plan, fw_code, raw)
+            assert result["health"] == "attention", result
+            assert result["firmware_known"] is False and result["kernel_journal_known"] is True, result
+            action = next(a for a in result["actions"] if a["id"] == "firmware-inspection-unavailable")
+            assert any("\u0600" <= c <= "\u06ff" for c in action["detail"]) and "unconfirmed" in action["detail"]
+            count += 1
+        for fw_code, raw in ((0, '{"Devices":[]}'), (2, ""),
+                             (2, '{"Devices":[]}'),
+                             (2, '{"Error":{"Domain":"fwupd-error-quark","Code":9,"Message":"لا عمل مطلوب"}}')):
+            result = firmware_process_case(plan, fw_code, raw)
+            assert result["health"] == "ready" and result["firmware_known"] is True, result
+            assert result["kernel_journal_known"] is True and not result["firmware_updates"], result
+            count += 1
+        updates = '{"Devices":[{"Name":"Controller","Version":"1","Releases":[{"Version":"2"}]}]}'
+        result = firmware_process_case(plan, 0, updates)
+        assert result["firmware_updates"] == ["Controller 1 → 2"] and result["health"] == "attention", result
+        assert result["firmware_known"] is True and result["firmware_status"] == "updates", result
+        count += 1
+        result = firmware_process_case(plan, journal_raw="Direct firmware load for test.bin failed")
+        assert result["missing_firmware"] == ["test.bin"] and result["health"] == "attention", result
+        assert result["kernel_journal_known"] is True, result
+        count += 1
+        for gap in (False, True):
+            result = firmware_process_case(plan, 1, "{}", journal_code=1,
+                                           journal_raw="Direct firmware load for partial.bin failed", pci_gap=gap)
+            assert result["health"] == ("action-needed" if gap else "attention"), result
+            assert result["firmware_known"] is False and result["kernel_journal_known"] is False, result
+            assert result["missing_firmware"] == ["partial.bin"], result
+            assert any(a["id"] == "firmware-missing" for a in result["actions"]), result
+            if gap:
+                assert result["driver_gaps"] and any(a["id"] == "driver-gap" for a in result["actions"]), result
+            count += 1
+        # A real update observed before a malformed entry stays actionable,
+        # while confidence remains unknown for the incomplete firmware query.
+        partial_payload = json.loads(updates)
+        partial_payload["Devices"].append({"Name": 1})
+        partial_updates = json.dumps(partial_payload)
+        result = firmware_process_case(plan, 0, partial_updates)
+        assert result["firmware_updates"] and result["firmware_known"] is False, result
+        assert result["health"] == "attention", result
+        count += 1
+        return count
+
+    print(f"device-plan firmware confidence process controls passed ({confidence_contract(PLAN)})")
+
+# Timeouts and missing executables are distinct from a successful empty report.
+for failed_probe, failure, expected in (
+        ("firmware", subprocess.TimeoutExpired("fwupdmgr", 25), "timeout"),
+        ("firmware", FileNotFoundError("private missing binary"), "unavailable"),
+        ("journal", subprocess.TimeoutExpired("journalctl", 20), "timeout"),
+        ("journal", FileNotFoundError("private missing binary"), "unavailable")):
+    diagnostics = {}
+    ok_firmware = subprocess.CompletedProcess([], 0, '{"Devices":[]}')
+    ok_journal = subprocess.CompletedProcess([], 0, "")
+    calls = [failure, ok_journal] if failed_probe == "firmware" else [ok_firmware, failure]
+    with patch.object(firmware_module.shutil, "which", return_value="fwupdmgr"), \
+         patch.object(firmware_module.subprocess, "run", side_effect=calls):
+        assert firmware_module.firmware_report(diagnostics) == ([], [])
+    known = "firmware_known" if failed_probe == "firmware" else "kernel_journal_known"
+    state = "firmware_status" if failed_probe == "firmware" else "kernel_journal_status"
+    assert diagnostics[known] is False and diagnostics[state] == expected, diagnostics
+print("device-plan firmware/journal timeout and unavailable controls passed (4)")

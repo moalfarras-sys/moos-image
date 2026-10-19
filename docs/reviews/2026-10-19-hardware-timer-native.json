@@ -1,0 +1,75 @@
+{
+  "utc": "2026-10-19T14:55:22.288443+00:00",
+  "source_root": "/tmp/moos-hardware-followup-20261019",
+  "source_revision": "9f3f61b5760d6c71cba44f45860a2c8416231cba",
+  "source_service_sha256": "d715b298e3f6af1f1f690097bcd0616f3ff456b03836114b81fa15e59d2c226e",
+  "source_timer_sha256": "c382fa783b5266c91fadbf71caded19091fd162effc4206a03cef85079a3ed0b",
+  "probe_sha256": "d8eb81e19a931577a7630ac897f6e38ec62276b64040b76d5a08171a62367a7e",
+  "runtime_gate_sha256": "38d090c9fdcdeb50a270c9c60f4abd91b6c89e7022d06a81d6e29a00aa0c9ec7",
+  "source_interval": "1d",
+  "scope": "private transient user units; marker writer replaces real ExecStart; 1s initial/500ms recurring",
+  "cases": {
+    "old_negative": {
+      "unit": "moos-hw-private-9466d04ba90a40bb8c8d09af534a4a21",
+      "RemainAfterExit": "yes",
+      "before_snapshot": {
+        "ActiveState": "inactive",
+        "SubState": "dead",
+        "ConditionResult": "no",
+        "Result": "success",
+        "ExecMainExitTimestampMonotonic": "0",
+        "ExecMainStatus": "0"
+      },
+      "before_accepted": false,
+      "completion_retries": 0,
+      "snapshot": {
+        "ActiveState": "active",
+        "SubState": "exited",
+        "ConditionResult": "yes",
+        "Result": "success",
+        "ExecMainExitTimestampMonotonic": "103533387632",
+        "ExecMainStatus": "0"
+      },
+      "after_accepted": false,
+      "firings": 1,
+      "cleanup_stop_exit": 0,
+      "cleanup_reset_exit": 1,
+      "cleanup_states": [
+        "inactive",
+        "inactive"
+      ]
+    },
+    "source_positive": {
+      "unit": "moos-hw-private-797064c5ea7e43299f40f53976ee2ebd",
+      "RemainAfterExit": "no",
+      "before_snapshot": {
+        "ActiveState": "inactive",
+        "SubState": "dead",
+        "ConditionResult": "no",
+        "Result": "success",
+        "ExecMainExitTimestampMonotonic": "0",
+        "ExecMainStatus": "0"
+      },
+      "before_accepted": false,
+      "completion_retries": 1,
+      "snapshot": {
+        "ActiveState": "inactive",
+        "SubState": "dead",
+        "ConditionResult": "yes",
+        "Result": "success",
+        "ExecMainExitTimestampMonotonic": "103538541893",
+        "ExecMainStatus": "0"
+      },
+      "after_accepted": true,
+      "firings": 5,
+      "cleanup_stop_exit": 5,
+      "cleanup_reset_exit": 1,
+      "cleanup_states": [
+        "inactive",
+        "inactive"
+      ]
+    }
+  },
+  "result": "PASS",
+  "completed_utc": "2026-10-19T14:55:28.634573+00:00"
+}

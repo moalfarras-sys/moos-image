@@ -72,6 +72,9 @@ A broken promoted image can still prevent this workstation from booting.
 **A missing probe is not healthy hardware, and a rollback is not the booted edition.**
 Device diagnostics must distinguish unavailable PCI evidence from a ready machine, validate firmware JSON shapes, and select only the booted deployment when identifying an edition. Respect administrator masks on optional thermald/fwupd units; a refused enable must never print success or write the adaptation stamp. Arrange shortcuts and stale menu actions must validate their active anchor too. Preserve executable old/fixed controls and private native geometry evidence; never run a review compositor on the owner's bus.
 
+**A finished active oneshot cannot run again from its daily timer.**
+The periodic hardware adapter must return inactive. Prove first completion from its actual successful nonzero monotonic exit receipt, ConditionResult and inactive/dead state; Result=success alone also describes a never-started unit. Keep the private native old1/fixed-multiple recurrence proof and execute the exact boot predicate against real snapshots. Firmware/journal failures need explicit unknown confidence, not an empty clean list; GPU vendor matching needs word boundaries so ATI never matches compatible.
+
 **An occupied loopback port is not a ready Remote or permission to stop its owner.**
 Publish listening/endpoint only after Kestrel binds. Treat actual address-in-use as a normal failed start under the existing finite service restart policy, dispose the failed host, and preserve unrelated errors/cancellation and account authentication. Keep private real-socket old/fixed/released-port controls; never run them on the owner's listener.
 
