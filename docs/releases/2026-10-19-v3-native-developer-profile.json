@@ -266,14 +266,17 @@
     "Initial Flutter if-rg helper absence could return0; final structured four-command check proves each exit and ELF linkage.",
     "Initial Playwright request could not find default Chrome; actual installed Chromium path fixes the real browser call.",
     "Relative-path OpenCode file-read probe refuses missing file, with and without private Git; absolute-file probe recorded separately.",
-    "Wallet creation waits for owner and automated open times out; do not count daemon liveness as credential acceptance.",
-    "Initial xdg-mime setter returned without effective native callback registration: missing qtpaths and stale KDE desktop cache. User qtpaths->qtpaths6 plus cache rebuild and exact per-scheme readback succeeds. OAuth still requires owner."
+    "Wallet open timed out; owner deferred wallet/provider signins. No new wallet created, original disabled user setting restored and read back.",
+    "Initial xdg-mime setter returned without effective native callback registration: missing qtpaths and stale KDE desktop cache. User qtpaths->qtpaths6 plus cache rebuild and exact per-scheme readback succeeds. OAuth still requires owner.",
+    "Antigravity IDE fileWatcher utility and renderer crashes; fresh-profile/no-user-extension utility crashes persist. Direct bundled watcher event control passes, root cause remains unproven.",
+    "conmon SDK exec cleanup SIGABRT after successful compiler runs. Program execution proofs remain distinct from container cleanup health.",
+    "First direct watcher probe slept30ms and missed coalesced delete events; actual event-wait control observes20 creates/20 deletes and10 unsubscribe rounds."
   ],
   "pending": [
     "Owner encrypted wallet creation and provider signins.",
-    "Actual VS Code remote SDK extension acceptance; attachment config now chooses moos instead of container defaultroot.",
     "Claude Cowork, model-account journeys, authenticated app MCP surfaces and cold application persistence.",
-    "Physical BIOS battery limit, new-image reboot/fingerprint/display and deferred hardware acceptance."
+    "Physical BIOS battery limit, new-image reboot/fingerprint/display and deferred hardware acceptance.",
+    "Antigravity IDE stability; remaining editor extension journeys beyond proven CMake/QML/C# paths."
   ],
   "unchanged_machine_boundaries": {
     "no_host_layered_packages": true,
@@ -333,5 +336,88 @@
     "pinned": true,
     "booted": true,
     "staged": false
+  },
+  "wallet_state": {
+    "owner_deferred": true,
+    "existing_wallets_preserved": true,
+    "new_wallet_created": false,
+    "original_user_configuration_restored": true,
+    "dbus_is_enabled": "b false",
+    "deferred_setup_daemons_stopped_after_verifying_no_wallet_files": true,
+    "native_selfcheck_after_restoration_exit": 0,
+    "native_selfcheck_passed": 54
+  },
+  "native_editor_sdk_acceptance": {
+    "container": "moos-dev",
+    "remote_user": "moos",
+    "remote_user_readback_exit": 0,
+    "server_version_commit": "6d62b1d5dace93a33b3a6d3eca1317bd5e15bcb1",
+    "cmake_build_invoked_from_native_editor": true,
+    "cmake_exit_zero_in_actual_extension_log": true,
+    "cmake_elapsed_seconds": 2.549,
+    "native_built_program_exit": 0,
+    "native_built_program_output": "MoOS C++23 14",
+    "qml_extension_started_sdk_server": true,
+    "qml_deliberate_invalid_property_visibly_flagged": true,
+    "csharp_project_load_completed": true,
+    "provider_login_performed": false,
+    "cmake_log_sha256": "5079aa2d7d56de216ab1f25c6ddcd71a89cc6185b96bb15d0d2e8842dc2de5a5"
+  },
+  "antigravity_ide_compatibility": {
+    "version": "2.5.5",
+    "stable_acceptance": false,
+    "recorded_signals": [
+      "SIGTRAP",
+      "SIGSEGV"
+    ],
+    "fresh_profile_without_user_extensions_also_crashes": true,
+    "faulting_library": "@parcel/watcher2.5.1",
+    "faulting_symbol_from_native_binary": "std::_Sp_counted_deleter<DirTree*, DirTreeDeleter, std::allocator<void>, (__gnu_cxx::_Lock_policy)2>::_M_dispose()",
+    "core_incomplete_root_cause_unproven": true,
+    "publisher_bundle_modified": false,
+    "sandbox_or_global_gpu_disabled": false,
+    "same_bundled_library_direct_control": {
+      "rounds": 10,
+      "eventCounts": {
+        "create": 20,
+        "delete": 20
+      },
+      "bundledWatcherVersion": "2.5.1",
+      "passed": true
+    },
+    "related_primary_report": "https://github.com/google-antigravity/antigravity-cli/issues/247",
+    "related_report_is_not_root_cause_proof": true
+  },
+  "repository_validation": {
+    "full_native_just_check_exit": 0,
+    "unittest_cases": 2687,
+    "unittest_summaries": 198,
+    "full_log_sha256": "2004c9b37e460b0849b38d2d1b60b12d06de326f5dab5a54e5ef81d7f1a01f4e",
+    "docs_prepared_during_long_check": true,
+    "final_docs_privacy_and_hygiene_checked_separately": true
+  },
+  "native_service_readback": {
+    "system_failed_units": 0,
+    "user_failed_units": 0,
+    "recovered_own_installer_failed_units_reset_only_after_saved_logs": true,
+    "remote_active": true,
+    "remote_restarts": 0,
+    "new_kernel_warnings_in_read_period": 0,
+    "crash_reports_preserved": true
+  },
+  "sdk_wrappers": {
+    "host_enters_rootless_toolbox": true,
+    "inside_toolbox_execs_sdk_binary_directly": true,
+    "saved_original_wrappers": true,
+    "seven_executed_checks_pass": true,
+    "v4l_utils_version": "1.32.0-3.fc44",
+    "new_packages_layered_on_host": false
+  },
+  "camera_control_readback": {
+    "both_uvc_cameras_exposure_automatic": true,
+    "rear_camera_continuous_autofocus": true,
+    "front_privacy_control": 0,
+    "device_tuning_not_blindly_changed": true,
+    "rear_quality_still_pending_physical_view": true
   }
 }
