@@ -81,7 +81,7 @@ def main():
  if actual.removeprefix('sha256:')!=image.removeprefix('sha256:'):raise RuntimeError('image identity mismatch')
  evidence=pathlib.Path(tempfile.mkdtemp(prefix='moos-final-image-remote-'));print('EVIDENCE '+str(evidence),flush=True)
  container='moos-remote-proof-'+uuid.uuid4().hex
- command=['podman','run','--name',container,'--rm','--network=none','--read-only','--tmpfs','/tmp:rw,nosuid,nodev,size=128m','--user','65534:65534','--cap-drop=ALL','--security-opt','no-new-privileges','--pids-limit=128','--entrypoint','/usr/bin/python3',image,'-']
+ command=['podman','run','-i','--name',container,'--rm','--network=none','--read-only','--tmpfs','/tmp:rw,nosuid,nodev,size=128m','--user','65534:65534','--cap-drop=ALL','--security-opt','no-new-privileges','--pids-limit=128','--entrypoint','/usr/bin/python3',image,'-']
  try:
   result=subprocess.run(command,input=INNER,text=True,capture_output=True,timeout=55)
  except subprocess.TimeoutExpired as failure:
@@ -92,7 +92,13 @@ def main():
  (evidence/'stdout.json').write_text(result.stdout);(evidence/'stderr.log').write_text(result.stderr)
  receipt={'image_id':image,'command':command,'exit_code':result.returncode,'evidence':str(evidence)}
  if result.returncode==0:
-  receipt.update(json.loads(result.stdout))
+  try:
+   payload=json.loads(result.stdout)
+   assert isinstance(payload,dict) and payload.get('result')=='PASS', 'missing executed proof marker'
+   receipt.update(payload)
+  except (ValueError,AssertionError) as error:
+   result.returncode=1
+   receipt.update(result='FAIL',exit_code=1,error='No valid executed proof: '+str(error))
  else:
   receipt.update(result='FAIL',stderr=result.stderr,stdout=result.stdout)
  (evidence/'receipt.json').write_text(json.dumps(receipt,indent=2)+'\n')

@@ -1,0 +1,23 @@
+{
+  "verified_utc": "2026-10-19T20:50:38.350925+00:00",
+  "image_id": "sha256:276f1391a41d3b9d30a09f0a1a7d1acf4054a834429920326d321cd032685c5c",
+  "source_revision": "9f3f61b5760d6c71cba44f45860a2c8416231cba",
+  "results": {
+    "payload": {
+      "exit": 0,
+      "stdout": "{\"payload_sha256\": {\"usr/lib/systemd/system/moos-hardware-adapt.service\": \"1447e95d451f0385fa17dbdce38f19073afeaca9886c85bd421b18f63f75e3b2\", \"usr/bin/moos-device-plan\": \"cf05255374d34ba44c052b71c2a5efcb497d01ec36a6d300307ca4f2b1fc2b23\", \"usr/libexec/moos-hardware-adapt\": \"c7fbdbd1a9382673a070dbddefad1071ed8b960ff5327cacbf40d2417fd3b382\", \"usr/bin/moos-apply-theme\": \"02e5caa5262ba3081ca101d6042faffceb13a1305967f1258faf56473995d543\", \"usr/share/kwin/scripts/moos-arrange/contents/code/main.js\": \"5209bce061980e16858d2e003f110bedd9b097a3c41ee786086e8e0aa9990e22\"}, \"packages\": \"pciutils 3.15.0-1.fc44 aarch64\\nusbutils 019-2.fc44 aarch64\\n\", \"executable_capabilities\": true}\n",
+      "stderr": ""
+    },
+    "parity": {
+      "exit": 0,
+      "stdout": "MoOS desktop parity OK: 10 capabilities, 6 bar applets, 4 pinned status items\n",
+      "stderr": ""
+    },
+    "application_updates": {
+      "exit": 0,
+      "stdout": "MoOS app updates: both scopes exist, are enabled and retain delayed idle scheduling\n",
+      "stderr": ""
+    }
+  },
+  "scope": "Finished ARM image payload, dependency architectures, desktop parity, effective updater units/wants. No signed boot or owner installation claim."
+}

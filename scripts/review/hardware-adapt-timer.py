@@ -27,6 +27,53 @@ def command(*argv, check=True):
     return subprocess.run(argv, capture_output=True, text=True, check=check, timeout=2)
 
 
+def cleanup_owned_units(unit, record, runner=None):
+    """Try every owned-unit cleanup independently; never turn a timeout green."""
+    if not re.fullmatch(r'moos-hw-private-[0-9a-f]{32}', unit):
+        raise ValueError('refusing cleanup outside this probe namespace')
+    runner = command if runner is None else runner
+    errors = record.setdefault('cleanup_errors', [])
+
+    def attempt(name, *argv):
+        try:
+            result = runner(*argv, check=False)
+            record[name + '_exit'] = result.returncode
+            return result
+        except (OSError, subprocess.SubprocessError) as error:
+            errors.append({'attempt': name, 'type': type(error).__name__, 'detail': str(error)})
+            return None
+
+    units = (unit + '.timer', unit + '.service')
+    stopped = attempt('cleanup_stop', 'systemctl', '--user', 'stop', *units)
+    fallback_sent = False
+
+    def fallback():
+        nonlocal fallback_sent
+        fallback_sent = True
+        attempt('cleanup_stop_noblock', 'systemctl', '--user', '--no-block', 'stop', *units)
+
+    if stopped is None or stopped.returncode != 0:
+        fallback()
+    # A timeout in stop must never skip reset or the independent state readback.
+    attempt('cleanup_reset', 'systemctl', '--user', 'reset-failed', *units)
+    verified = False
+    for index in range(3):
+        active = attempt('cleanup_readback_' + str(index), 'systemctl', '--user', 'is-active', *units)
+        states = active.stdout.splitlines() if active is not None else []
+        record['cleanup_states'] = states
+        # Missing transient units report unknown/inactive. Empty/partial output
+        # is not proof that both timer and service have stopped.
+        verified = len(states) == 2 and all(s in ('inactive', 'failed', 'unknown') for s in states)
+        if verified:
+            break
+        if not fallback_sent:
+            fallback()
+        if index < 2:
+            time.sleep(0.1)
+    record['cleanup_verified'] = verified
+    return verified and not errors
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--root', type=Path, default=Path(__file__).resolve().parents[2])
@@ -109,16 +156,16 @@ def main():
                     assert record['snapshot']['ConditionResult'] == 'yes', record
                     assert record['snapshot']['ExecMainStatus'] == '0', record
                     assert int(record['snapshot']['ExecMainExitTimestampMonotonic']) > 0, record
+                except Exception as error:
+                    record['case_error'] = {'type': type(error).__name__, 'detail': str(error)}
+                    raise
                 finally:
-                    stopped = command('systemctl', '--user', 'stop', unit + '.timer', unit + '.service', check=False)
-                    reset = command('systemctl', '--user', 'reset-failed', unit + '.timer', unit + '.service', check=False)
-                    record['cleanup_stop_exit'] = stopped.returncode
-                    record['cleanup_reset_exit'] = reset.returncode
-                    # A disappeared transient unit is also cleaned. No owned unit may remain active.
-                    active = command('systemctl', '--user', 'is-active', unit + '.timer', unit + '.service', check=False)
-                    record['cleanup_states'] = active.stdout.splitlines()
-                    assert not any(state in ('active', 'activating', 'deactivating') for state in record['cleanup_states']), record
+                    if not cleanup_owned_units(unit, record):
+                        raise RuntimeError('private timer cleanup failed; see receipt for owned unit and attempts')
         receipt['result'] = 'PASS'
+    except Exception as error:
+        receipt['error'] = {'type': type(error).__name__, 'detail': str(error)}
+        raise
     finally:
         receipt['completed_utc'] = datetime.now(timezone.utc).isoformat()
         args.receipt.write_text(json.dumps(receipt, indent=2) + '\n')

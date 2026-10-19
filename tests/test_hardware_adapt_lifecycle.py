@@ -77,3 +77,32 @@ for absent in complete:
                              "hardware-completion", snapshot], timeout=5, capture_output=True)
     assert result.returncode != 0, absent
 print("hardware runtime completion and skipped/invalid/missing-property controls passed")
+
+# A stuck cleanup subprocess must not skip the remaining owned-unit attempts.
+import importlib.util
+import subprocess as _subprocess
+_spec = importlib.util.spec_from_file_location("hardware_timer_probe", ROOT / "scripts/review/hardware-adapt-timer.py")
+_probe = importlib.util.module_from_spec(_spec)
+_spec.loader.exec_module(_probe)
+_calls = []
+def _cleanup_timeout(*argv, check=False):
+    _calls.append(argv)
+    if ("stop" in argv and "--no-block" not in argv) or "reset-failed" in argv:
+        raise _subprocess.TimeoutExpired(argv, 2)
+    if "is-active" in argv:
+        return _subprocess.CompletedProcess(argv, 3, "inactive\ninactive\n")
+    return _subprocess.CompletedProcess(argv, 0, "")
+_cleanup_record = {}
+assert _probe.cleanup_owned_units("moos-hw-private-" + "a" * 32, _cleanup_record, _cleanup_timeout) is False
+assert any("--no-block" in call and "stop" in call for call in _calls), _calls
+assert any("reset-failed" in call for call in _calls), _calls
+assert any("is-active" in call for call in _calls), _calls
+assert _cleanup_record["cleanup_verified"] is True, _cleanup_record
+assert len(_cleanup_record["cleanup_errors"]) == 2, _cleanup_record
+try:
+    _probe.cleanup_owned_units("moos-hardware-adapt", {}, _cleanup_timeout)
+except ValueError:
+    pass
+else:
+    raise AssertionError("probe must never clean up an owner service")
+print("hardware timer cleanup timeout/fallback/independent-readback negative passed")
