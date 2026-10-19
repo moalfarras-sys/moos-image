@@ -1,0 +1,472 @@
+{
+  "schema_version": 1,
+  "observed_date": "2026-10-19",
+  "scope": "V3 x86_64 user development profile; booted signed MoOS1072, independent of promoted1078 image; new physical boot still pending",
+  "source_main": "18ba1a8330ccc071b5d633bac758779b1b861756",
+  "native_apps": {
+    "vscode": "1.142.0",
+    "opencode_desktop_and_cli": "2.0.32",
+    "claude_desktop": "2.42304.2",
+    "claude_code": "2.1.303",
+    "antigravity_app": "2.24.0",
+    "antigravity_ide": "2.5.5",
+    "antigravity_cli": "1.4.2",
+    "hermes_standalone": "0.22.2",
+    "hermes_moai_adapter_separate": "0.21.2"
+  },
+  "publisher_verification": [
+    {
+      "url": "https://vscode.download.prss.microsoft.com/dbazure/download/stable/6d62b1d5dace93a33b3a6d3eca1317bd5e15bcb1/code-stable-x64-1792034917.tar.gz",
+      "bytes": 345727690,
+      "sha256": "fcc1ccb435685adcc748287bbde524589569deedb6b4ad5560071583cbe00ae0",
+      "publisher_index_hash_matched": true
+    },
+    {
+      "url": "https://storage.googleapis.com/antigravity-public/antigravity-hub/2.24.0-5780333019398144/linux-x64/Antigravity.tar.gz",
+      "bytes": 183653304,
+      "sha256": "8808bf580033c5d1365142e1e66ff37474f04a5fa0d9fc24b7c24c8216acdcc6",
+      "publisher_index_hash_matched": false
+    },
+    {
+      "url": "https://opencode.ai/update/api/latest/desktop/opencode/opencode-desktop-linux-x86_64.AppImage",
+      "bytes": 274268075,
+      "sha256": "034f356e2e876bc5938f155ceef180238c40518cb6acc89e3037e551b0403093",
+      "publisher_index_hash_matched": false
+    },
+    {
+      "url": "https://downloads.claude.ai/claude-desktop/apt/stable/pool/main/c/claude-desktop/claude-desktop_2.42304.2_amd64.deb",
+      "bytes": 183213384,
+      "sha256": "38a7d58b58a976c88ca652eaa2f7ac02c87c4a388ae30f468d72b790e6b57f90",
+      "publisher_index_hash_matched": true
+    }
+  ],
+  "antigravity_cli_verification": {
+    "version": "1.4.2",
+    "url": "https://storage.googleapis.com/antigravity-public/antigravity-cli/1.4.2-4835981233356800/linux-x64/cli_linux_x64.tar.gz",
+    "sha512": "4a393afc1369cee94e817c1b430c9128d02b12ebd4d5703ace5cd47b2333e216d673fb0097cbf7195f757b110163ba9850e9eea3fdbbaddd4b25668b82c03f05",
+    "publisher_digest_matched": true,
+    "binary_sha256": "085f43e0d0628a8a8dabe1e547067818fa2c0adc86cfac98a3c4492918f455ef"
+  },
+  "sdk_execution": [
+    {
+      "name": "cpp-build",
+      "exit_code": 0,
+      "expected_output_present": true,
+      "seconds": 1.231,
+      "passed": true
+    },
+    {
+      "name": "cpp-host-run",
+      "exit_code": 0,
+      "expected_output_present": true,
+      "seconds": 0.002,
+      "passed": true
+    },
+    {
+      "name": "rust-build",
+      "exit_code": 0,
+      "expected_output_present": true,
+      "seconds": 0.584,
+      "passed": true
+    },
+    {
+      "name": "rust-host-run",
+      "exit_code": 0,
+      "expected_output_present": true,
+      "seconds": 0.001,
+      "passed": true
+    },
+    {
+      "name": "go-build",
+      "exit_code": 0,
+      "expected_output_present": true,
+      "seconds": 3.289,
+      "passed": true
+    },
+    {
+      "name": "go-host-run",
+      "exit_code": 0,
+      "expected_output_present": true,
+      "seconds": 0.002,
+      "passed": true
+    },
+    {
+      "name": "java-build-target21",
+      "exit_code": 0,
+      "expected_output_present": true,
+      "seconds": 0.732,
+      "passed": true
+    },
+    {
+      "name": "java-run",
+      "exit_code": 0,
+      "expected_output_present": true,
+      "seconds": 0.293,
+      "passed": true
+    },
+    {
+      "name": "dotnet-create",
+      "exit_code": 0,
+      "expected_output_present": true,
+      "seconds": 1.047,
+      "passed": true
+    },
+    {
+      "name": "dotnet-build-run",
+      "exit_code": 0,
+      "expected_output_present": true,
+      "seconds": 3.995,
+      "passed": true
+    },
+    {
+      "name": "python",
+      "exit_code": 0,
+      "expected_output_present": true,
+      "seconds": 0.109,
+      "passed": true
+    },
+    {
+      "name": "node",
+      "exit_code": 0,
+      "expected_output_present": true,
+      "seconds": 0.095,
+      "passed": true
+    }
+  ],
+  "flutter": {
+    "version": "3.47.4",
+    "dart": "3.13.3",
+    "publisher_sha256": "5b45f0ceda99b9bebdc873e7e69f6450aeb4c30f454b505e2e62fc9255a907d3",
+    "git_revision": "9584c6713b324636289d067944a46fd6b49df14b",
+    "final_checks": [
+      {
+        "name": "analyze",
+        "exit_code": 0,
+        "seconds": 7.944,
+        "passed": true
+      },
+      {
+        "name": "widget-test",
+        "exit_code": 0,
+        "seconds": 2.524,
+        "passed": true
+      },
+      {
+        "name": "native-linux-build",
+        "exit_code": 0,
+        "seconds": 2.528,
+        "passed": true
+      },
+      {
+        "name": "host-elf-linkage",
+        "exit_code": 0,
+        "seconds": 0.017,
+        "passed": true
+      }
+    ]
+  },
+  "qml_lsp": {
+    "passed": true,
+    "exit_code": 0,
+    "valid_diagnostics": [],
+    "intentional_invalid_diagnostics": [
+      {
+        "message": "Could not find property \"thisPropertyCannotExist\". [missing-property]",
+        "range": {
+          "end": {
+            "character": 30,
+            "line": 1
+          },
+          "start": {
+            "character": 7,
+            "line": 1
+          }
+        },
+        "severity": 2,
+        "source": "qmllint"
+      }
+    ],
+    "elapsed_seconds": 0.439
+  },
+  "ai_python_sdk": {
+    "passed": true,
+    "packages": {
+      "google-antigravity": "0.1.22",
+      "claude-agent-sdk": "0.2.168",
+      "anthropic": "1.15.0",
+      "openai": "3.35.1",
+      "mcp": "2.3.0",
+      "google-genai": "2.31.0"
+    },
+    "network_inference_performed": false
+  },
+  "ai_node_sdk": {
+    "node": "v26.12.0",
+    "imported": [
+      "@anthropic-ai/claude-agent-sdk",
+      "@anthropic-ai/sdk",
+      "@opencode/sdk",
+      "@modelcontextprotocol/sdk/client/index.js"
+    ],
+    "network_inference_performed": false,
+    "passed": true
+  },
+  "mcp": {
+    "sequential-thinking": {
+      "initialize": true,
+      "tool_count": 1,
+      "bounded_tool_call": true
+    },
+    "playwright": {
+      "initialize": true,
+      "tool_count": 25,
+      "sandboxed_native_chromium_arabic_fixture": true
+    },
+    "context7": {
+      "initialize": true,
+      "tool_count": 2
+    }
+  },
+  "extensions": [
+    "anthropic.claude-code@2.1.301",
+    "dart-code.dart-code@3.144.0",
+    "dart-code.flutter@3.144.0",
+    "dbaeumer.vscode-eslint@3.0.34",
+    "editorconfig.editorconfig@0.18.2",
+    "esbenp.prettier-vscode@12.4.0",
+    "github.vscode-pull-request-github@0.170.0",
+    "golang.go@0.56.1",
+    "google.google-antigravity@1.8.0",
+    "ms-dotnettools.csharp@2.160.4",
+    "ms-dotnettools.vscode-dotnet-runtime@3.2.0",
+    "ms-python.debugpy@2026.6.0",
+    "ms-python.python@2026.10.0",
+    "ms-python.vscode-pylance@2026.4.1",
+    "ms-python.vscode-python-envs@1.40.0",
+    "ms-vscode-remote.remote-containers@0.469.0",
+    "ms-vscode.cmake-tools@1.24.42",
+    "ms-vscode.cpp-devtools@0.6.18",
+    "ms-vscode.cpptools@1.34.4",
+    "redhat.java@1.58.0",
+    "redhat.vscode-yaml@2.0.0",
+    "rust-lang.rust-analyzer@0.3.3089",
+    "sst-dev.opencode-v2@0.1.1",
+    "theqtcompany.qt-core@1.16.0",
+    "theqtcompany.qt-qml@1.16.0"
+  ],
+  "client_readback": {
+    "hermes_three_connected": true,
+    "claude_code_three_connected": true,
+    "antigravity_cli_three_configured_connection_not_proven": true
+  },
+  "preserved_failures": [
+    "Unavailable Java21 package in initial SDK transaction; complete JDK25 transaction succeeds.",
+    "OpenCode SDK fails on Node22 await-using syntax; official user Node26 imports succeed.",
+    "Initial Node installer lacks rg in user-manager PATH; fixed explicit Python checksum-line check succeeds.",
+    "Initial Flutter if-rg helper absence could return0; final structured four-command check proves each exit and ELF linkage.",
+    "Initial Playwright request could not find default Chrome; actual installed Chromium path fixes the real browser call.",
+    "Relative-path OpenCode file-read probe refuses missing file, with and without private Git; absolute-file probe recorded separately.",
+    "Wallet open timed out; owner deferred wallet/provider signins. No new wallet created, original disabled user setting restored and read back.",
+    "Initial xdg-mime setter returned without effective native callback registration: missing qtpaths and stale KDE desktop cache. User qtpaths->qtpaths6 plus cache rebuild and exact per-scheme readback succeeds. OAuth still requires owner.",
+    "Antigravity IDE fileWatcher utility and renderer crashes; fresh-profile/no-user-extension utility crashes persist. Direct bundled watcher event control passes, root cause remains unproven.",
+    "conmon SDK exec cleanup SIGABRT after successful compiler runs. Program execution proofs remain distinct from container cleanup health.",
+    "First direct watcher probe slept30ms and missed coalesced delete events; actual event-wait control observes20 creates/20 deletes and10 unsubscribe rounds."
+  ],
+  "pending": [
+    "Owner encrypted wallet creation and provider signins.",
+    "Claude Cowork, model-account journeys, authenticated app MCP surfaces and cold application persistence.",
+    "Physical BIOS battery limit, new-image reboot/fingerprint/display and deferred hardware acceptance.",
+    "Antigravity IDE stability; remaining editor extension journeys beyond proven CMake/QML/C# paths."
+  ],
+  "unchanged_machine_boundaries": {
+    "no_host_layered_packages": true,
+    "no_unsigned_os_origin": true,
+    "no_sudoers_changes": true,
+    "no_forced_reboot_or_remote_restart": true,
+    "no_credentials_or_private_screenshots_committed": true
+  },
+  "opencode_native_file_tool_and_free_model": {
+    "exit_code": 0,
+    "elapsed_seconds": 7.903,
+    "explicit_model": "opencode/glm-5.3-flash-free",
+    "synthetic_fixture_only": true,
+    "events_by_type": {
+      "step_start": 3,
+      "tool_use": 1,
+      "step_finish": 1,
+      "text": 1
+    },
+    "final_text_matches_unprovided_file_content": true,
+    "actual_read_tool_completed": true,
+    "passed": true
+  },
+  "native_url_handlers": {
+    "vscode": {
+      "handler": "moos-vscode-native-url.desktop",
+      "native_user_application": true,
+      "oauth_round_trip_pending_owner": true
+    },
+    "antigravity-ide": {
+      "handler": "moos-antigravity-ide-url.desktop",
+      "native_user_application": true,
+      "oauth_round_trip_pending_owner": true
+    },
+    "antigravity": {
+      "handler": "moos-antigravity-native-url.desktop",
+      "native_user_application": true,
+      "oauth_round_trip_pending_owner": true
+    },
+    "claude": {
+      "handler": "moos-claude-com.anthropic.Claude.desktop",
+      "native_user_application": true,
+      "oauth_round_trip_pending_owner": true
+    }
+  },
+  "native_code_gpu": {
+    "observed_gpu": "AMD Radeon 780M / amdgpu Mesa26.2.3",
+    "native_code_gpu_compositing_enabled": true,
+    "native_code_opengl_enabled": true,
+    "native_code_webgl_enabled": true,
+    "native_code_webgpu_enabled": true,
+    "video_encode_reported": "disabled_software",
+    "benchmark_performed": false
+  },
+  "native_os_origin_after_setup": {
+    "version": "44.20261018.1072",
+    "pinned": true,
+    "booted": true,
+    "staged": false
+  },
+  "wallet_state": {
+    "owner_deferred": true,
+    "existing_wallets_preserved": true,
+    "new_wallet_created": false,
+    "original_user_configuration_restored": true,
+    "dbus_is_enabled": "b false",
+    "deferred_setup_daemons_stopped_after_verifying_no_wallet_files": true,
+    "native_selfcheck_after_restoration_exit": 0,
+    "native_selfcheck_passed": 54
+  },
+  "native_editor_sdk_acceptance": {
+    "container": "moos-dev",
+    "remote_user": "moos",
+    "remote_user_readback_exit": 0,
+    "server_version_commit": "6d62b1d5dace93a33b3a6d3eca1317bd5e15bcb1",
+    "cmake_build_invoked_from_native_editor": true,
+    "cmake_exit_zero_in_actual_extension_log": true,
+    "cmake_elapsed_seconds": 2.549,
+    "native_built_program_exit": 0,
+    "native_built_program_output": "MoOS C++23 14",
+    "qml_extension_started_sdk_server": true,
+    "qml_deliberate_invalid_property_visibly_flagged": true,
+    "csharp_project_load_completed": true,
+    "provider_login_performed": false,
+    "cmake_log_sha256": "5079aa2d7d56de216ab1f25c6ddcd71a89cc6185b96bb15d0d2e8842dc2de5a5"
+  },
+  "antigravity_ide_compatibility": {
+    "version": "2.5.5",
+    "stable_acceptance": false,
+    "recorded_signals": [
+      "SIGTRAP",
+      "SIGSEGV"
+    ],
+    "fresh_profile_without_user_extensions_also_crashes": true,
+    "faulting_library": "@parcel/watcher2.5.1",
+    "faulting_symbol_from_native_binary": "std::_Sp_counted_deleter<DirTree*, DirTreeDeleter, std::allocator<void>, (__gnu_cxx::_Lock_policy)2>::_M_dispose()",
+    "core_incomplete_root_cause_unproven": true,
+    "publisher_bundle_modified": false,
+    "sandbox_or_global_gpu_disabled": false,
+    "same_bundled_library_direct_control": {
+      "rounds": 10,
+      "eventCounts": {
+        "create": 20,
+        "delete": 20
+      },
+      "bundledWatcherVersion": "2.5.1",
+      "passed": true
+    },
+    "related_primary_report": "https://github.com/google-antigravity/antigravity-cli/issues/247",
+    "related_report_is_not_root_cause_proof": true
+  },
+  "repository_validation": {
+    "full_native_just_check_exit": 0,
+    "unittest_cases": 2687,
+    "unittest_summaries": 198,
+    "full_log_sha256": "2004c9b37e460b0849b38d2d1b60b12d06de326f5dab5a54e5ef81d7f1a01f4e",
+    "docs_prepared_during_long_check": true,
+    "final_docs_privacy_and_hygiene_checked_separately": true
+  },
+  "native_service_readback": {
+    "system_failed_units": 0,
+    "user_failed_units": 0,
+    "recovered_own_installer_failed_units_reset_only_after_saved_logs": true,
+    "remote_active": true,
+    "remote_restarts": 0,
+    "new_kernel_warnings_in_read_period": 0,
+    "crash_reports_preserved": true
+  },
+  "sdk_wrappers": {
+    "host_enters_rootless_toolbox": true,
+    "inside_toolbox_execs_sdk_binary_directly": true,
+    "saved_original_wrappers": true,
+    "seven_executed_checks_pass": true,
+    "v4l_utils_version": "1.32.0-3.fc44",
+    "new_packages_layered_on_host": false
+  },
+  "camera_control_readback": {
+    "both_uvc_cameras_exposure_automatic": true,
+    "rear_camera_continuous_autofocus": true,
+    "front_privacy_control": 0,
+    "device_tuning_not_blindly_changed": true,
+    "rear_quality_still_pending_physical_view": true
+  },
+  "go_editor_tools": {
+    "gopls": "v0.24.0",
+    "delve": "v1.27.2",
+    "installer_GOTOOLCHAIN_local_initial_refusal_preserved": true,
+    "per_install_official_auto_toolchain": "go1.27.2",
+    "sdk_global_GOTOOLCHAIN_unchanged": true,
+    "checks": [
+      {
+        "name": "gopls-valid",
+        "exit_code": 0,
+        "seconds": 0.755,
+        "passed": true
+      },
+      {
+        "name": "gopls-invalid",
+        "exit_code": 0,
+        "seconds": 0.319,
+        "passed": true,
+        "diagnostic_content_matched": true,
+        "exit_zero_is_not_sufficient": true
+      },
+      {
+        "name": "debug-build",
+        "exit_code": 0,
+        "seconds": 1.931,
+        "passed": true
+      },
+      {
+        "name": "delve-breakpoint-value",
+        "exit_code": 0,
+        "seconds": 0.41,
+        "passed": true,
+        "actual_breakpoint_hit_and_printed_value_42": true
+      }
+    ],
+    "passed": true,
+    "initial_validator_assumed_nonzero_diagnostics_exit": true
+  },
+  "sensor_upstream_followup": {
+    "observed_date": "2026-10-19",
+    "official_mainline_source": "https://github.com/torvalds/linux/blob/master/drivers/iio/imu/st_lsm6dsx/st_lsm6dsx_i2c.c",
+    "fetched_sha256": "0b7505a74a95808ff529f60aa2d100c5f7890e2fe60ead5e8cb2d1a67579431a",
+    "mainline_smocf05_alias_present": false,
+    "mainline_smocf00_alias_present": true,
+    "upstream_proposed_series": "https://lore.kernel.org/linux-iio/20260927220559.24169-1-jwuerz@gmail.com/",
+    "series_unmerged_in_read_mainline": true,
+    "native_forced_alias_or_unsigned_module_added": false,
+    "native_rotation_accepted": false
+  }
+}
