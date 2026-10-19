@@ -80,14 +80,19 @@ isolated session, pointing Qt at the staging tree and at the source
 
 ```bash
 T="$(mktemp -d)"; mkdir -m 0700 "$T/run"
-dbus-run-session -- env -i PATH=/usr/bin:/bin HOME="$T" XDG_RUNTIME_DIR="$T/run" \
+env -i PATH=/usr/bin:/bin HOME="$T" XDG_RUNTIME_DIR="$T/run" \
     XDG_CONFIG_HOME="$T/config" XDG_DATA_HOME="$T/data" XDG_CACHE_HOME="$T/cache" \
     LANG=ar_SA.UTF-8 LANGUAGE=ar QT_QPA_PLATFORM=offscreen QT_FORCE_STDERR_LOGGING=1 \
     QT_LOGGING_RULES='kf.kcmutils*=true;qml*=true;js*=true' \
     QT_PLUGIN_PATH="$STAGING/usr/lib64/qt6/plugins" \
     QML_IMPORT_PATH="$WORKTREE/system_files/usr/lib64/qt6/qml" \
-    timeout 12 kcmshell6 kcm_moos_update
+    dbus-run-session -- timeout 12 kcmshell6 kcm_moos_update
 ```
+
+The private environment must precede `dbus-run-session`, so its daemon and activated
+services inherit it too. Before a compositor fixture, use the bus daemon PID to
+verify its HOME/runtime, and check the owner document-portal mount before/after.
+Overriding only the child leaves activation able to disturb the real desktop.
 
 A plugin on `QT_PLUGIN_PATH` wins over the installed one: measured 2026-09-25,
 the staged `kcm_moos` and `kcm_moos_update` loaded from the staging tree
