@@ -163,7 +163,8 @@ termination after its fake graphical target stops; never stop the owner's
 actual session to test this. Mo AI's post-install Flatpak branch also needs
 `moai-open --app`: fixing the Store spawn alone leaves its separate setsid
 path vulnerable. Require a parent-job old/fixed lifetime control and propagate
-manager refusal or a missing helper. A transient startup reply is not readiness.
+manager refusal or a missing helper. Handoff fixtures must provide their own
+recording launcher; an installed workstation helper can hide a missing CI dependency. A transient startup reply is not readiness.
 
 **Basic controls can disconnect an app from Plasma's motion policy.** Kirigami
 selects a platform plugin using the controls style; Basic fell back to generic
