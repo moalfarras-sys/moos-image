@@ -1,6 +1,6 @@
 {
   "date": "2026-10-19",
-  "scope": "read-only native Oracle audit plus isolated source/native KWin fixtures; not a signed delivery",
+  "scope": "Read-only Oracle audit, isolated native fixtures, full source and local ARM image qualification. Not signed delivery or installed new-system acceptance.",
   "host": {
     "architecture": "aarch64",
     "name": "moos-arm-oracle",
@@ -21,19 +21,36 @@
     "lspci": "not installed"
   },
   "source_hashes": {
-    "system_files/usr/bin/moos-device-plan": "cf05255374d34ba44c052b71c2a5efcb497d01ec36a6d300307ca4f2b1fc2b23",
+    "system_files/usr/bin/moos-device-plan": "7ae5cf15b835c73664c1f6ea64522f3f038c7ed86a26c956fb75d6790044bbe0",
     "system_files/usr/libexec/moos-hardware-adapt": "c7fbdbd1a9382673a070dbddefad1071ed8b960ff5327cacbf40d2417fd3b382",
     "system_files/usr/share/kwin/scripts/moos-arrange/contents/code/main.js": "5209bce061980e16858d2e003f110bedd9b097a3c41ee786086e8e0aa9990e22",
     "system_files/usr/bin/moos-apply-theme": "02e5caa5262ba3081ca101d6042faffceb13a1305967f1258faf56473995d543"
   },
-  "local_full_check": "running",
+  "local_full_check": {
+    "command": [
+      "just",
+      "check"
+    ],
+    "source_revision": "e3572bcd22cd3a367cff24f702b4090ba5466a3a",
+    "source_tree": "954f13141925ea0214c3f823e48064c061244b8e",
+    "initial_status": "",
+    "started_utc": "2026-10-19T21:01:57.280084+00:00",
+    "exit_code": 0,
+    "duration_seconds": 865.835,
+    "finished_utc": "2026-10-19T21:16:23.088656+00:00",
+    "log_sha256": "a849d9969b5e67aadbdd92d0533cbf1172a9cac05cd845d2c1cd7de2dba2427f",
+    "final_revision": "e3572bcd22cd3a367cff24f702b4090ba5466a3a",
+    "final_tree": "954f13141925ea0214c3f823e48064c061244b8e",
+    "final_status": ""
+  },
   "security_readback": {
     "dependabot_open_alerts": 0,
     "automated_security_updates": "enabled",
     "secret_scanning": "enabled",
     "push_protection": "enabled",
     "non_provider_patterns": "disabled",
-    "validity_checks": "disabled"
+    "validity_checks": "disabled",
+    "scope": "Initial Oct19 read-only snapshot; no comprehensive vulnerability certification"
   },
   "combined_ancestry": {
     "checked_refs": 173,
@@ -46,5 +63,70 @@
   "postcheck_log": {
     "sha256": "9c5adb01ac00f12d641344e9c34ab692f00ac8a04302447013aad6bd8ebb8194",
     "path": "/tmp/moos-audit-postcheck-20261019.log"
-  }
+  },
+  "initial_source_hashes": {
+    "system_files/usr/bin/moos-device-plan": "cf05255374d34ba44c052b71c2a5efcb497d01ec36a6d300307ca4f2b1fc2b23",
+    "system_files/usr/libexec/moos-hardware-adapt": "c7fbdbd1a9382673a070dbddefad1071ed8b960ff5327cacbf40d2417fd3b382",
+    "system_files/usr/share/kwin/scripts/moos-arrange/contents/code/main.js": "5209bce061980e16858d2e003f110bedd9b097a3c41ee786086e8e0aa9990e22",
+    "system_files/usr/bin/moos-apply-theme": "02e5caa5262ba3081ca101d6042faffceb13a1305967f1258faf56473995d543"
+  },
+  "reported_test_counts": {
+    "reported_unittest_cases": 2706,
+    "summary_blocks": 199,
+    "reported_skipped": 14,
+    "scope": "Reported unittest summary counts, not unique tests nor a claim skipped controls executed. Script gates also completed."
+  },
+  "local_image": {
+    "command": [
+      "nice",
+      "-n",
+      "10",
+      "podman",
+      "build",
+      "--jobs=1",
+      "--memory=5g",
+      "--pull=never",
+      "-f",
+      "Containerfile.arm",
+      "--build-arg",
+      "IMAGE_NAME=moos-arm",
+      "--label",
+      "org.opencontainers.image.version=44.20261019.0",
+      "--label",
+      "org.opencontainers.image.revision=e3572bcd22cd3a367cff24f702b4090ba5466a3a",
+      "-t",
+      "localhost/moos-audit-integration:20261019-final",
+      "."
+    ],
+    "source_revision": "e3572bcd22cd3a367cff24f702b4090ba5466a3a",
+    "source_tree": "954f13141925ea0214c3f823e48064c061244b8e",
+    "initial_status": "",
+    "started_utc": "2026-10-19T21:20:35.439534+00:00",
+    "exit_code": 0,
+    "duration_seconds": 986.234,
+    "finished_utc": "2026-10-19T21:37:01.648948+00:00",
+    "log_sha256": "70ee002a3601fe35e1b16debccc6dab0c1998bcf18ce071116e8c39304ba0d04",
+    "final_revision": "e3572bcd22cd3a367cff24f702b4090ba5466a3a",
+    "final_tree": "954f13141925ea0214c3f823e48064c061244b8e",
+    "final_status": ""
+  },
+  "image_id": "sha256:c26fd0566715510da0f85bfd1c369ffcbc1b13849a68ef4310fba69d0615a943",
+  "image_readback": "2026-10-19-final-image-readback.json",
+  "image_remote": "2026-10-19-final-image-remote.json",
+  "qualified_source": "e3572bcd22cd3a367cff24f702b4090ba5466a3a",
+  "pull_request": "https://github.com/moalfarras-sys/moos-image/pull/256",
+  "advisory_review": {
+    "run": 39265980385,
+    "wrapper": "success",
+    "actual_review": "failure/is_error:true",
+    "counted_as_review": false
+  },
+  "store_input_intermittence": {
+    "prior_failed_full_check": "2026-10-19-followup-check-attempt.json",
+    "investigation": "2026-10-19-store-touch-investigation.json",
+    "latest_full_check": "pass",
+    "bounded_six_sequential_cases": "all pass",
+    "cause": "unproven; no assertion, wait, input count or production Store code changed"
+  },
+  "recorded_utc": "2026-10-19T21:39:24.027025+00:00"
 }

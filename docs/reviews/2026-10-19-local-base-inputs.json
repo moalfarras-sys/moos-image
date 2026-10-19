@@ -1,0 +1,33 @@
+{
+  "utc": "2026-10-19T21:05:28.539984+00:00",
+  "inputs": [
+    {
+      "name": "quay.io/fedora/fedora-bootc:44",
+      "id": "c4b9b693bbf4559b7b84ac8fc0d7ac08030dd6c74f94546edd9ca5b66e7e6846",
+      "repo_digests": [
+        "quay.io/fedora/fedora-bootc@sha256:0e045abe5dfa97c5467acf7686d0bdd602122d762d0e24dfe3c26c11b178f651",
+        "quay.io/fedora/fedora-bootc@sha256:5356bdd4edb0ecfb0441d37fabee161b61218b8afe6a3b7f14247957d505a7d6"
+      ],
+      "created": "2026-10-19T10:07:28Z"
+    },
+    {
+      "name": "mcr.microsoft.com/dotnet/sdk:10.0",
+      "id": "0bdfe12bf151cad447d0d8e9b16a11ec9e9d687ee6f3addcea275326fc106b62",
+      "repo_digests": [
+        "mcr.microsoft.com/dotnet/sdk@sha256:0d99ebf1ccad15037b5c98c9fe8979d6b8dbac23812feae2277a0b277b5c5ffa",
+        "mcr.microsoft.com/dotnet/sdk@sha256:894cb75b58dcbac5400eec23aaf02288f4494b01d56b85b7db42385d5deb914b"
+      ],
+      "created": "2026-10-13T20:50:12.01754173Z"
+    },
+    {
+      "name": "registry.fedoraproject.org/fedora:44",
+      "id": "490c76fa5fc49abee6c0338f04747262f3b70f8cea54c00c89b53223e3cbf4e3",
+      "repo_digests": [
+        "registry.fedoraproject.org/fedora@sha256:99741a26ce7d4ee2746a564552210f267a458c527cc09ea7dd103ecbe62b0d5a",
+        "registry.fedoraproject.org/fedora@sha256:db1539298ea4e8e7a96f1ce1f82195bff05d66bef015db79dda9954245253b24"
+      ],
+      "created": "2026-10-19T06:48:09.41103766Z"
+    }
+  ],
+  "scope": "Local cached base identity before planned pull=never qualification; not a formal reproducible-input lock or signed delivery."
+}

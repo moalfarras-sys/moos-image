@@ -76,7 +76,7 @@ Device diagnostics must distinguish unavailable PCI evidence from a ready machin
 The periodic hardware adapter must return inactive. Prove first completion from its actual successful nonzero monotonic exit receipt, ConditionResult and inactive/dead state; Result=success alone also describes a never-started unit. Keep the private native old1/fixed-multiple recurrence proof and execute the exact boot predicate against real snapshots. Firmware/journal failures need explicit unknown confidence, not an empty clean list; GPU vendor matching needs word boundaries so ATI never matches compatible.
 
 **An occupied loopback port is not a ready Remote or permission to stop its owner.**
-Publish listening/endpoint only after Kestrel binds. Treat actual address-in-use as a normal failed start under the existing finite service restart policy, dispose the failed host, and preserve unrelated errors/cancellation and account authentication. Keep private real-socket old/fixed/released-port controls; never run them on the owner's listener.
+Publish listening/endpoint only after Kestrel binds. Treat actual address-in-use as a normal failed start under the existing finite service restart policy, dispose the failed host, and preserve unrelated errors/cancellation and account authentication. Keep private real-socket old/fixed/released-port controls; never run them on the owner's listener. Stdin-driven container probes must attach stdin and require an executed proof marker; an empty successful Python process is not evidence.
 
 ## Where the rest of the knowledge is
 

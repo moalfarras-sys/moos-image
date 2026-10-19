@@ -1,0 +1,28 @@
+{
+  "verified_utc": "2026-10-19T21:37:36.682702+00:00",
+  "image_id": "sha256:c26fd0566715510da0f85bfd1c369ffcbc1b13849a68ef4310fba69d0615a943",
+  "source_revision": "e3572bcd22cd3a367cff24f702b4090ba5466a3a",
+  "results": {
+    "payload": {
+      "exit": 0,
+      "stdout": "{\"payload_sha256\": {\"usr/lib/systemd/system/moos-hardware-adapt.service\": \"d715b298e3f6af1f1f690097bcd0616f3ff456b03836114b81fa15e59d2c226e\", \"usr/bin/moos-device-plan\": \"7ae5cf15b835c73664c1f6ea64522f3f038c7ed86a26c956fb75d6790044bbe0\", \"usr/libexec/moos-hardware-adapt\": \"c7fbdbd1a9382673a070dbddefad1071ed8b960ff5327cacbf40d2417fd3b382\", \"usr/bin/moos-apply-theme\": \"02e5caa5262ba3081ca101d6042faffceb13a1305967f1258faf56473995d543\", \"usr/share/kwin/scripts/moos-arrange/contents/code/main.js\": \"5209bce061980e16858d2e003f110bedd9b097a3c41ee786086e8e0aa9990e22\"}, \"packages\": \"pciutils 3.15.0-1.fc44 aarch64\\nusbutils 019-2.fc44 aarch64\\n\", \"executable_capabilities\": true}\n",
+      "stderr": ""
+    },
+    "parity": {
+      "exit": 0,
+      "stdout": "MoOS desktop parity OK: 10 capabilities, 6 bar applets, 4 pinned status items\n",
+      "stderr": ""
+    },
+    "application_updates": {
+      "exit": 0,
+      "stdout": "MoOS app updates: both scopes exist, are enabled and retain delayed idle scheduling\nEffective hardware service releases its completed oneshot for recurring timer\n",
+      "stderr": ""
+    },
+    "actual_device_plan_no_daemon": {
+      "exit": 0,
+      "stdout": "{\"schema\": 1, \"health\": \"attention\", \"pci_known\": true, \"gpu_vendor\": \"unknown\", \"firmware_known\": false, \"firmware_status\": \"command-failed\", \"kernel_journal_known\": true, \"kernel_journal_status\": \"ok\"}\n",
+      "stderr": ""
+    }
+  },
+  "scope": "Finished ARM image payload, dependency architectures, desktop parity, effective updater units/wants. No signed boot or owner installation claim."
+}
