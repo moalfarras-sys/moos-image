@@ -1,0 +1,180 @@
+{
+  "schema_version": 1,
+  "observed_at_utc": "2026-10-19T22:25:20.333658+00:00",
+  "scope": "Native signed1078 V3 compatibility phase; appearance redesign has not started",
+  "booted_version": "44.20261019.1078",
+  "exact_signed_digest": "sha256:c0aa87f98b6c367a0ceceb31ec718b12aca2e03148b6525eee6271a02a7ee2b9",
+  "previous_signed1072_pinned": true,
+  "native_boot_observed": true,
+  "boot_total_seconds": 21.038,
+  "graphical_target_userspace_seconds": 9.004,
+  "native_selfcheck": {
+    "exit": 0,
+    "passes": 54
+  },
+  "strict_postcheck_before_diagnostic_fix": {
+    "exit": 1,
+    "passes": 55,
+    "failures": 1,
+    "cause": "model-only user kxkbrc falsely treated as a LayoutList override"
+  },
+  "strict_postcheck_fixed_topic_source": {
+    "exit": 0,
+    "passes": 56,
+    "failures": 0,
+    "owner_kxkbrc_rewritten": false,
+    "diagnostic_change_not_a_new_image_payload": true
+  },
+  "keyboard_regression": {
+    "old_source_control_cases": 8,
+    "old_source_fails_actual_partial_file_case": true,
+    "fixed_deployment_and_keyboard_controls": 19,
+    "explicit_different_empty_or_bad_effective_layout_still_rejected": true
+  },
+  "display": {
+    "current_outputs": [
+      "eDP-1"
+    ],
+    "internal_mode": "2560x1600@165",
+    "scale": 1.45,
+    "external_currently_connected": false,
+    "previous_external4k60_and_hotplug_two_directions": "owner_confirmed_before_current_boot",
+    "new_external_boot_acceptance": "pending_connection"
+  },
+  "fingerprint": {
+    "device": "Goodix27c6:6092",
+    "right_index_enrollment_retained": true,
+    "native_verify_exit": 0,
+    "actual_status": "verify-match",
+    "owner_confirmed_match": true,
+    "current_boot_login_used_password": true,
+    "new1078_greeter_pam_fingerprint_acceptance": "owner confirmed fingerprint-only with arrow; actual VerifyStatus match and audit grantor pam_fprintd",
+    "owner_observed_greeter_flow_problem": "Supplying password still invokes reader because original system-auth tries fingerprint first",
+    "greeter_only_order_correction": "Applied greeter-only derivative; earlier password-only passed; corrected one-boot profile now proves timeout then password-only with pam_unix and no reader restart. Cold signed delivery remains pending.",
+    "automatic_start_review": {
+      "scope": "one-boot /run frontend; installed signed RPM unchanged",
+      "apply_exit": 0,
+      "actual_pam_reader_started": true,
+      "first_attempt_timeout_seconds": 8,
+      "owner_reported_no_automatic_reader": true,
+      "eventual_return_audit_grantor": "pam_fprintd after later submitted request",
+      "no_arrow_match_accepted": true,
+      "physical_password_fallback_accepted": true,
+      "screen_reveal_type_error_observed": true,
+      "attached_screen_fix_native_old_fixed_probe_passed": true,
+      "corrected_live_profile_tested": true,
+      "corrected_binary_sha256": "4b6ce1052a6c61326965e05ab5fc37dffbbd81fb6a0e4fc375c1fb098d0e420d",
+      "corrected_native_sdk_image": "032cfe732bc484aeb365d9e2f3fc0224ce6a7f06ea740e4f6eb2503a08bb48e3",
+      "native_qt_controls": 9,
+      "native_pam_controls": 17,
+      "package_preflight_controls": 5,
+      "no_arrow_owner_confirmed": true,
+      "no_arrow_audit_grantor": "pam_fprintd",
+      "no_arrow_empty_response_logged": true,
+      "password_fallback_owner_confirmed": true,
+      "fallback_observed_sequence": [
+        "empty-response request",
+        "Verification timed out",
+        "PAM authentication failure",
+        "password request",
+        "pam_unix authentication success",
+        "same owner session active"
+      ],
+      "no_fingerprint_restart_after_password": true,
+      "all_original_pam_and_stock_binary_bytes_unchanged_by_corrected_frontend_install": true,
+      "cold_login_accepted": false,
+      "signed_feature_delivery": false,
+      "first_password_fallback_owner_report": "reader requested again; historical ambiguous attempt, not accepted at that time"
+    }
+  },
+  "touch": {
+    "real_touch_events": 1828,
+    "max_simultaneous_contacts": 3,
+    "mouse_events": 0,
+    "owner_confirmed_touch_and_drag": true,
+    "pen_present": false
+  },
+  "battery": {
+    "cycles": 42,
+    "charge_full_uah": 4026000,
+    "design_uah": 4400000,
+    "gauge_health_percent": 91.5,
+    "owner_bios_charge_limit80_confirmed": true,
+    "linux_limit_interface_available": false,
+    "actual_charging_plateau80_observed": false,
+    "during_audit": "Owner connected charger after low-charge audit; ACAD online1 and26% Charging observed",
+    "profile": "balanced"
+  },
+  "temperatures_celsius": {
+    "cpu": 40.75,
+    "gpu": 38.0,
+    "nvme": 28.85
+  },
+  "sensors": {
+    "SMOCF05_driver": null,
+    "automatic_rotation_qualified": false,
+    "iio_device0": "als ambient-light sensor, not an accelerometer",
+    "boot_i2c_warning_bus": "SMBus PIIX4 adapter port0; exact failing transaction not attributed",
+    "amd_hid_sensor_report4_short_warning_preserved": true
+  },
+  "greeter_crash": {
+    "executable": "/usr/libexec/plasma-login-greeter",
+    "package": "plasma-login-manager6.8.0-1.fc44",
+    "qt": "6.11.2",
+    "signal": "SIGSEGV",
+    "stack": "QQuickItemView destructor/removeItemChangeListener during screenRemoved",
+    "current_boot_core_metadata_available": true,
+    "root_cause_fixed": false,
+    "related_primary_tracker": "https://bugs.kde.org/show_bug.cgi?id=515199",
+    "related_tracker_not_identical_stack_proof": true,
+    "reporting_handler_timeout": true,
+    "no_crash_reports_deleted": true,
+    "private_core_copy_exit": 0,
+    "exact_qt_quick_build_id": "fb3281120582063b5e2747ecce2d2075bd918872",
+    "matching_debuginfo_and_supplement_available": true,
+    "symbolized_fault": "QQuickItemPrivate::ChangeListener::operator== at qquickitem_p.h:375; corrupt listener-list pointer while QQuickItemView destroys unrequested items",
+    "upstream_root_cause_not_proven": true
+  },
+  "remaining_physical_acceptance": [
+    "Cold login after signed native automatic-start delivery; current /run no-arrow match and timeout/password fallback passed",
+    "External display and hotplug on current boot",
+    "Suspend/resume and pen when available",
+    "Actual charge plateau at BIOS80% cap"
+  ],
+  "future_interface_direction": "Unified MoOS Liquid Glass layer using supported Plasma/KWin, Qt Quick/Kirigami and existing semantic tokens; full native hardware acceptance remains first.",
+  "camera": {
+    "front_preview_owner_confirmed": true,
+    "rear_device": "Hy-Usb2.0-1*MIC /dev/video4",
+    "rear_native_preview": "1920x1080 MJPEG30",
+    "rear_moving_image_clear_owner_confirmed": true,
+    "both_enumerated_in_pipewire": true,
+    "no_recordings_uploaded": true,
+    "snapshot_selection": "Select Camera beside shutter; rear name Hy-Usb2.0-1*MIC"
+  },
+  "audio": {
+    "stereo_speakers_owner_confirmed": true,
+    "speech_record_and_playback_owner_confirmed": true,
+    "initial_source_volume_percent": 40,
+    "initial_six_second_sample_clipped_percent": 22.1708333333,
+    "lower20_percent_owner_rejected_as_too_quiet": true,
+    "retained_source_volume_percent": 30,
+    "stable_speech_seconds": 6,
+    "initial_warmup_second_excluded": true,
+    "stable_clipped_percent": 0,
+    "stable_peak_dbfs": -11.496677052446206,
+    "stable_rms_dbfs": -27.793794616643712,
+    "owner_confirmed_final_level": true,
+    "pw_record_sample_limit_exit": 1,
+    "normal_exit_no_stderr_exact_frame_count": true,
+    "sample_limit_exit_behavior_reviewed_in_official_source": "https://github.com/PipeWire/pipewire/blob/1.6.9/src/tools/pw-cat.c",
+    "startup_capture_transient_not_claimed_fixed": true,
+    "voice_files_local_only": true
+  },
+  "repository_check_before_auth_followup": {
+    "exit": 0,
+    "cases": 2695,
+    "summaries": 198,
+    "log_sha256": "f28015e0925c70ac87080d818af71913dc5d9a3cddb786feb4f066db55a2b2ef",
+    "does_not_qualify_later_authentication_change": true
+  }
+}
