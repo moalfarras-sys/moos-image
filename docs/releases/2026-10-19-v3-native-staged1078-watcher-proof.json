@@ -1,0 +1,98 @@
+{
+  "schema_version": 1,
+  "observed_at_utc": "2026-10-19T17:14:31.491761+00:00",
+  "scope": "Native V3 user profile and staged signed OS readback; no reboot and no new image payload",
+  "source_main_before_documentation": "2b9dd9eed5d51df6483fa1b54ef607b211a20023",
+  "qualified_runtime_revision": "18ba1a8330ccc071b5d633bac758779b1b861756",
+  "native_update": {
+    "official_backend": "moai-do update",
+    "stage_exit": 0,
+    "staged_version": "44.20261019.1078",
+    "staged_signed_reference": "ostree-image-signed:docker://ghcr.io/moalfarras-sys/moos@sha256:c0aa87f98b6c367a0ceceb31ec718b12aca2e03148b6525eee6271a02a7ee2b9",
+    "readback_staged": true,
+    "booted_version": "44.20261018.1072",
+    "booted_previous_pinned": true,
+    "new_physical_boot_performed": false
+  },
+  "antigravity_ide_backport": {
+    "ide_version": "2.5.5",
+    "publisher_commit": "ecfbad74d93962fc8ca485d93ab9b4f3d4cb6cf8",
+    "old_watcher": "2.5.1",
+    "new_watcher": "2.6.0",
+    "upstream_fix": "https://github.com/parcel-bundler/watcher/pull/216",
+    "old_native_sha256": "b72da91800c7370fcf0ec8f9de0a49a6f09484ce4a4847ff8b8b58dcb4522ccf",
+    "new_native_sha256": "f5a86a5231fb33c6c1830649eafd2c9e72647edb45aad753148d08cee6a42dea",
+    "npm_artifact_integrity": {
+      "@parcel/watcher": {
+        "version": "2.6.0",
+        "resolved": "https://registry.npmjs.org/@parcel/watcher/-/watcher-2.6.0.tgz",
+        "integrity": "sha512-7FNeNl8NCE7aINx7WXiKQrPYZWC/hvrTsmk6zmxbI7LTXE7hVek/n8AfVgpe2y82zl3w0HvCHN0bVKMBoJcC0w=="
+      },
+      "@parcel/watcher-linux-x64-glibc": {
+        "version": "2.6.0",
+        "resolved": "https://registry.npmjs.org/@parcel/watcher-linux-x64-glibc/-/watcher-linux-x64-glibc-2.6.0.tgz",
+        "integrity": "sha512-ulGE6x6Oz6iAwg75T8YQSoguBWasniIbX+QWpaYPcCnDOpdWX3k+4xbEYPZVLxOuoJI+svJJPD3sEj8G7lrQ3A=="
+      }
+    },
+    "negative_control": {
+      "engine": "Node26.12.0",
+      "three_live_subscriptions_exit": "SIGABRT",
+      "exit_code": -6,
+      "diagnostic": "free(): double free detected in tcache 2",
+      "old_electron_node_probe_timeout_not_accepted": true
+    },
+    "positive_control": {
+      "same_node_and_fixture_three_live_subscriptions": true,
+      "repetitions": 3,
+      "exit_codes": [
+        0,
+        0,
+        0
+      ]
+    },
+    "native_private_wayland": {
+      "private_bus_daemon_home_and_runtime_verified": true,
+      "rounds": 3,
+      "main_exits": [
+        0,
+        0,
+        0
+      ],
+      "file_watcher_exits": [
+        0,
+        0,
+        0
+      ],
+      "raw_file_events_expected": 60,
+      "raw_file_events_observed": 60,
+      "upstream_addon_mapping_verified_each_round": true,
+      "real_onboarding_pixels_reviewed": true,
+      "account_signin_performed": false,
+      "full_editor_or_authenticated_ai_acceptance": false
+    },
+    "installed_user_bundle": {
+      "applied": true,
+      "actual_addon_mapping_verified": true,
+      "one_native_open_normal_close_exit": 0,
+      "file_watcher_exit": 0,
+      "original_module_archive_verified": true,
+      "publisher_update_can_replace_backport": true,
+      "immutable_os_changed": false,
+      "sandbox_disabled": false,
+      "global_gpu_disabled": false
+    },
+    "preserved_limits": [
+      "Original GUI SIGTRAP/SIGSEGV and incomplete core remain; a reproduced old-library exit bug does not explain every historical renderer/zygote signal.",
+      "First private compositor fixture used an overlong Unix socket path, failed and crashed during private teardown; journal preserved, shorter isolated runtime fixed the harness.",
+      "Onboarding requires owner account; project editing, authenticated AI and long-session stability remain acceptance."
+    ]
+  },
+  "remaining": [
+    "Owner physical boot into1078, fingerprint/display and camera/audio/suspend checks",
+    "Owner BIOS battery80% cap; no supported Linux charge limit interface",
+    "SMOCF05 rotation sensor remains unbound",
+    "Owner encrypted wallet and native app/provider authentication, Claude Cowork and authenticated MCP acceptance",
+    "Pen test when available; owner had no pen",
+    "Conmon SDK cleanup and historical greeter/Remote handoff crashes remain separate investigations"
+  ]
+}

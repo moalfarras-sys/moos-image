@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "observed_date": "2026-10-19",
-  "scope": "V3 x86_64 user development profile; booted signed MoOS1072, independent of promoted1078 image; new physical boot still pending",
+  "scope": "V3 x86_64 user development profile; booted signed1072, signed1078 staged by official backend; new physical boot still pending",
   "source_main": "18ba1a8330ccc071b5d633bac758779b1b861756",
   "native_apps": {
     "vscode": "1.142.0",
@@ -276,7 +276,7 @@
     "Owner encrypted wallet creation and provider signins.",
     "Claude Cowork, model-account journeys, authenticated app MCP surfaces and cold application persistence.",
     "Physical BIOS battery limit, new-image reboot/fingerprint/display and deferred hardware acceptance.",
-    "Antigravity IDE stability; remaining editor extension journeys beyond proven CMake/QML/C# paths."
+    "Authenticated Antigravity IDE/project and long-session acceptance after scoped upstream watcher backport; remaining extension journeys beyond CMake/QML/C#."
   ],
   "unchanged_machine_boundaries": {
     "no_host_layered_packages": true,
@@ -374,7 +374,7 @@
     "faulting_library": "@parcel/watcher2.5.1",
     "faulting_symbol_from_native_binary": "std::_Sp_counted_deleter<DirTree*, DirTreeDeleter, std::allocator<void>, (__gnu_cxx::_Lock_policy)2>::_M_dispose()",
     "core_incomplete_root_cause_unproven": true,
-    "publisher_bundle_modified": false,
+    "publisher_bundle_modified": true,
     "sandbox_or_global_gpu_disabled": false,
     "same_bundled_library_direct_control": {
       "rounds": 10,
@@ -386,7 +386,10 @@
       "passed": true
     },
     "related_primary_report": "https://github.com/google-antigravity/antigravity-cli/issues/247",
-    "related_report_is_not_root_cause_proof": true
+    "related_report_is_not_root_cause_proof": true,
+    "initial_publisher_bundle_unmodified": true,
+    "followup": "2026-10-19-v3-native-staged1078-watcher-proof.json",
+    "followup_summary": "Old live-subscription exit double-free reproduced; upstream2.6.0 passes3Node controls/3private native cycles/60raw events and installed-addon readback/normal close. Account and full stability acceptance remain pending."
   },
   "repository_validation": {
     "full_native_just_check_exit": 0,
@@ -468,5 +471,15 @@
     "series_unmerged_in_read_mainline": true,
     "native_forced_alias_or_unsigned_module_added": false,
     "native_rotation_accepted": false
+  },
+  "native_stage_followup": {
+    "official_backend": "moai-do update",
+    "stage_exit": 0,
+    "staged_version": "44.20261019.1078",
+    "staged_signed_reference": "ostree-image-signed:docker://ghcr.io/moalfarras-sys/moos@sha256:c0aa87f98b6c367a0ceceb31ec718b12aca2e03148b6525eee6271a02a7ee2b9",
+    "readback_staged": true,
+    "booted_version": "44.20261018.1072",
+    "booted_previous_pinned": true,
+    "new_physical_boot_performed": false
   }
 }
