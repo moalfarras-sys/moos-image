@@ -50,6 +50,7 @@ if os.name == "nt":
     module.run = fake_run
     module.flatpak_installed = lambda _app_id: False
     module.firmware_report = lambda: ([], [])
+    module.i2c_driver_gaps = lambda: []
     data = module.detect()
 else:
     with tempfile.TemporaryDirectory() as tmp:
@@ -109,12 +110,50 @@ arm_module.run = lambda *args, **kwargs: (
 )
 arm_module.flatpak_installed = lambda _app_id: False
 arm_module.firmware_report = lambda: ([], [])
+arm_module.i2c_driver_gaps = lambda: []
 arm = arm_module.detect(machine="aarch64")
 assert arm["architecture"] == "aarch64"
 assert all(action.get("url") != "moos://do/install-nvidia" for action in arm["actions"])
 assert "ARM" in arm["driver_status"], arm["driver_status"]
 
 print("MoOS device-plan test passed")
+
+# A healthy PCI GPU/network must not hide the V3's unbound ACPI/I2C sensor.
+# Execute production detection against private sysfs; adapters, unrelated USB
+# interfaces and another board's unknown client must not become false warnings.
+with tempfile.TemporaryDirectory() as tmp:
+    sysfs = Path(tmp)
+    clients = sysfs / "bus/i2c/devices"
+    clients.mkdir(parents=True)
+    for name in ("i2c-0", "i2c-3", "i2c-PNP0C50:00", "i2c-UNKNOWN:00"):
+        (clients / name).mkdir()
+    loader = importlib.machinery.SourceFileLoader("moos_device_plan_i2c", str(PLAN))
+    spec = importlib.util.spec_from_loader(loader.name, loader)
+    sensor_module = importlib.util.module_from_spec(spec)
+    loader.exec_module(sensor_module)
+    sensor_module.run = lambda *args, **kwargs: (
+        "c4:00.0 VGA compatible controller: AMD Radeon\n\tKernel driver in use: amdgpu"
+        if args[0] == "lspci" else "")
+    sensor_module.firmware_report = lambda: ([], [])
+    sensor_module.flatpak_installed = lambda _app_id: False
+    probe = sensor_module.i2c_driver_gaps
+    sensor_module.i2c_driver_gaps = lambda: probe(sysfs)
+    assert sensor_module.detect()["driver_gaps"] == []
+    client = clients / "i2c-SMOCF05:00"
+    client.mkdir()
+    missing = sensor_module.detect()
+    assert missing["health"] == "action-needed", missing
+    assert len(missing["driver_gaps"]) == 1 and "SMOCF05" in missing["driver_gaps"][0]
+    assert any(a["id"] == "driver-gap" for a in missing["actions"]), missing
+    driver = sysfs / "bus/i2c/drivers/st_lsm6dsx_i2c"
+    driver.mkdir(parents=True)
+    (client / "driver").symlink_to(driver, target_is_directory=True)
+    bound = sensor_module.detect()
+    assert bound["driver_gaps"] == [] and bound["health"] == "ready", bound
+    (client / "driver").unlink()
+    (client / "driver").symlink_to(sysfs / "absent-driver", target_is_directory=True)
+    assert "SMOCF05" in sensor_module.detect()["driver_gaps"][0]
+print("device-plan I2C missing/bound/broken-link/unrelated-device controls passed")
 
 
 # Every device-plan title reaches the owner's screen through Mo AI's diagnostic

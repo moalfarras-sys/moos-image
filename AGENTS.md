@@ -160,7 +160,11 @@ with `setsid` inside a Store job die when that job's unit ends. Keep one on-dema
 user unit, with no idle autostart, and tie it to graphical logout. The private
 native old/fixed lifetime probe must observe both survival after the job and
 termination after its fake graphical target stops; never stop the owner's
-actual session to test this. A transient startup reply is not readiness.
+actual session to test this. Mo AI's post-install Flatpak branch also needs
+`moai-open --app`: fixing the Store spawn alone leaves its separate setsid
+path vulnerable. Require a parent-job old/fixed lifetime control and propagate
+manager refusal or a missing helper. Handoff fixtures must provide their own
+recording launcher; an installed workstation helper can hide a missing CI dependency. A transient startup reply is not readiness.
 
 **Basic controls can disconnect an app from Plasma's motion policy.** Kirigami
 selects a platform plugin using the controls style; Basic fell back to generic
@@ -1226,6 +1230,18 @@ overrides. Platform ownership and implementation order live in the development
 plan.
 Hardware identity for Settings and Mo AI belongs to `usr/lib/moos/moos_hardware.py`;
 keep GPU classification with `moos-visual-tier` and cover consumer agreement with executable fixtures.
+
+**A private bus can still activate services in the owner's runtime.** Putting HOME/XDG overrides after dbus-run-session isolates its child but leaves the bus daemon with the owner's paths. V3's first private greeter test activated document portals against the real FUSE mount; new Chrome launches then failed because doc/by-app disappeared. Set the private environment before starting the daemon, verify its selected HOME/runtime through its DBus PID before compositor mutations, and preserve the owner mount before/after. Keep the original launcher failure, targeted document-portal recovery and successful canonical launch; an isolated no-repro is not a cure for the real greeter screenRemoved core.
+
+**An enrolled finger and locker match do not qualify the login greeter.** V3 retained enrollment across reboot, but its vendor greeter used password-auth, which authselect intentionally keeps password-only. Keep vendor greeter code and account/password/session rules; use the local system-auth stack only through the reviewed desktop-image configuration, preserving custom PAM overrides and password fallback. Require real greeter prompt/match/session return, then cold-login acceptance; a CLI verifier or lock match is a different path. Battery charge caps likewise require a real firmware API or the documented BIOS setting; never invent a sysfs/EC write.
+
+**A PCI-only driver scan cannot qualify a tablet.** The physical V3 exposes
+`SMOCF05` as an unbound ACPI/I2C client while its PCI devices are healthy and
+SensorProxy reports no accelerometer. Keep that measured missing-binding case
+in `moos-device-plan` and its private-sysfs controls. Do not label every I2C
+adapter or driverless USB vendor interface broken: libfprint uses userspace.
+Diagnostic detection does not establish touch events, fingerprint verification,
+rotation or signed driver delivery; record each separately.
 
 **An active application unit does not identify the window left on screen.** ISO39082792111 installed offline and accepted ordinary login, then failed Themes close after seven completed app journeys. Its old failure kept neither a post-close frame nor the named cgroup's tasks; a private native offscreen close passed and did not explain it. Stop the finite input resends before observing the failed window, bound read-only diagnosis to that authenticated fixture user's unit, and preserve the original nonzero verdict even if capture or diagnosis fails. Keep both real close assertions and their75s budgets. Do not kill a helper, drop cgroup lifetime, infer a root cause or promote the other passing proofs to make this failure disappear.
 

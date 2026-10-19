@@ -1,0 +1,143 @@
+{
+  "schema": 1,
+  "source_commit": "2da1449c7707d2e55fbf8a9f1eeacf124867d049",
+  "source_tree": "e2aa9ce6c7475d82ba44327d3f2d8da065023069",
+  "repository_check": {
+    "exit": 0,
+    "unittest_cases": 2682,
+    "unittest_summaries": 198,
+    "script_gates_also_run": true,
+    "log_sha256": "8d51f3c35f8a1850c5447b8bb8608668d0153e96dfa050108abd504a5643586d"
+  },
+  "local_image_build": {
+    "exit": 0,
+    "log_sha256": "165bc5221a4e92a286e84b4e43ef3e0f8ef7613a0b85398967dc460caab630af",
+    "verification": {
+      "source_commit": "2da1449c7707d2e55fbf8a9f1eeacf124867d049",
+      "local_image_id": "44eb43c11e5ec47ea206d3d70b7507a2dd1a6a6c2612f35b794ae3451ade6516",
+      "signed_release": false,
+      "payloads": {
+        "usr/bin/moai-do": {
+          "sha256": "77d777696621aa60045d39f85b26b139a9c3129f9dcc17974d6f135a649dfcc4",
+          "matches_source": true
+        },
+        "usr/bin/moos-device-plan": {
+          "sha256": "3404410dc8e762318074233ef6b683720553049be82b4b7cc662e5382db84994",
+          "matches_source": true
+        },
+        "usr/share/moos/whats-new.json": {
+          "sha256": "566ea01906f547feef6b05e0c2598f7700c0d1640d9763d2da89681b21a817ee",
+          "matches_source": true
+        }
+      },
+      "managed_post_install_app_launch": true,
+      "vendor_preserving_pam": true,
+      "fingerprint_feature": true,
+      "missing_only_checksum_seed": true,
+      "existing_checksum_preserved": true,
+      "authselect_valid_before_sentinel": true,
+      "kernel_modules": {
+        "7.2.11-200.fc44.x86_64": {
+          "amdgpu": {
+            "available": true
+          },
+          "uvcvideo": {
+            "available": true
+          },
+          "snd_hda_intel": {
+            "available": true
+          },
+          "iwlwifi": {
+            "available": true
+          },
+          "btusb": {
+            "available": true
+          },
+          "r8152": {
+            "available": true
+          },
+          "amdxdna": {
+            "available": true
+          },
+          "SMOCF05_motion_alias": {
+            "query_exit": 0,
+            "present": false
+          }
+        }
+      }
+    }
+  },
+  "native_installer_launch_lifetime": {
+    "native_helper_sha256": "9e1965cd67fe6c3228239ad48959f6f8e8215d0d1ce06da890a53920ecf933a5",
+    "cases": {
+      "old": {
+        "source_sha256": "99d38577c276ce8f143a33d51eed766abf104def00ff877ee47e824d86dbf2d3",
+        "parent_exit": 0,
+        "child_started": true,
+        "child_survived_parent": false
+      },
+      "fixed": {
+        "source_sha256": "77d777696621aa60045d39f85b26b139a9c3129f9dcc17974d6f135a649dfcc4",
+        "parent_exit": 0,
+        "child_started": true,
+        "child_survived_parent": true
+      }
+    }
+  },
+  "native_apps": {
+    "snapshot_version": "51.0",
+    "recorder_flathub_version": "26.04.3",
+    "front_preview_stream_running": true,
+    "preview_closed_gracefully": true,
+    "visual_quality_acceptance": false,
+    "raw_media_saved": false
+  },
+  "microphone_samples": {
+    "original": {
+      "DC offset": 0.006381,
+      "Peak level dB": 0.000265,
+      "RMS level dB": -2.899285,
+      "Flat factor": 42.412586,
+      "Number of samples": 244567.0
+    },
+    "lower": {
+      "DC offset": 0.001571,
+      "Peak level dB": -0.097297,
+      "RMS level dB": -15.717697,
+      "Flat factor": 0.0,
+      "Number of samples": 244634.0
+    },
+    "final": {
+      "DC offset": 0.000798,
+      "Peak level dB": -6.003387,
+      "RMS level dB": -20.466703,
+      "Flat factor": 0.0,
+      "Number of samples": 244635.0
+    },
+    "method": "10-second Pulse capture to null; discard first5seconds; uncontrolled room; no voice-clarity acceptance",
+    "final_source_volume": 0.4,
+    "source_route_saved": true,
+    "raw_audio_saved": false
+  },
+  "host_delivery": {
+    "current_version": "44.20261018.1072",
+    "current_deployment_pinned": true,
+    "deployment_count": 1,
+    "new_image_staged": false,
+    "agent_reboot_performed": false,
+    "owner_remote_only": true,
+    "physical_acceptance_deferred_by_owner": true
+  },
+  "release": {
+    "promoted": false,
+    "retired_candidate_build": 39250127614,
+    "retired_candidate_reason": "Include the newly reproduced post-install launcher lifetime defect before qualifying the final batch.",
+    "next_signed_cycle_required": true
+  },
+  "remaining": [
+    "SMOCF05 rotation requires official driver support and physical acceptance",
+    "Known native QtQuick greeter screenRemoved crash is preserved; bounded recovery is not a root-cause fix",
+    "BIOS charge cap80% awaits owner presence; no supported Linux setter is exposed",
+    "Cold sign-in/password fallback, speech/echo quality, rear-camera visual quality, pen, suspend and accessory endurance remain physical acceptance"
+  ]
+}

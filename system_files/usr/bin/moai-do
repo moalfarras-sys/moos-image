@@ -103,17 +103,12 @@ human() {
     fi
 }
 
-# launch_detached <argv…> — accept either a process that stays alive or a launcher that exits 0.
-# A bare `cmd &` reports only that Bash created a child; even a missing/broken Flatpak then looks
-# successful. Give it a short rejection window while preserving D-Bus launchers that exit cleanly.
+# Installed apps need their own desktop lifetime, including slow Flatpak startup.
+# setsid leaves the child in the install job's cgroup, where job completion kills it.
+# The canonical app launcher owns that boundary and reports manager failures.
 launch_detached() {
-    setsid "$@" >/dev/null 2>&1 &
-    local pid=$!
-    sleep 0.25
-    if kill -0 "$pid" >/dev/null 2>&1; then
-        return 0
-    fi
-    wait "$pid"
+    need moai-open || return 1
+    moai-open --app "$@" >/dev/null
 }
 
 # launch_app <id> — open an installed app, detached, as the user.
