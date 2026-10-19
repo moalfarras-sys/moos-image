@@ -14,7 +14,18 @@ initially no enrollment. Owner completed Tailscale/PIN; actual private HTTPS
 and EIS readiness pass, with pre-login disabled; phone frames/input remain open.
 Owner enabled authselect's missing with-fingerprint feature with a named backup;
 native config check passes, fingerprint PAM is live and password PAM retained.
-Enrollment stages are received; final enrollment/verify/unlock remain open.
+Enrollment completes and the independent fprintd verification returns verify-match/0;
+native lock retry observes locked→verify-match→unlocked. First lock retains
+two real no-matches and owner-confirmed password unlock; wider reliability and
+post-reboot login remain open.
+Later failed-unit read retains the actual Bluetooth pairing wizard exit1:
+Authentication Failed at02:26, closed02:27. This is not a missing btusb driver;
+no bond deletion/reset was performed.
+At02:44 the already-paired Microsoft Bluetooth Keyboard is bonded/trusted/
+connected; historical wizard failure stays visible and audio/input-event
+acceptance is not inferred from that link state. ServicesResolved and native HID
+nodes pass; after preserving that failure, only its stale unit state is acknowledged.
+Final selfcheck exits0 with53 passes/2 active-Remote notes and zero failed units.
 SensorProxy reports no accelerometer: ACPI/I2C SMOCF05 has no bound driver.
 Source corrects the PCI-only false-ready diagnostic with private missing/bound/
 broken-link/unrelated-device controls, without claiming a sensor driver fix.

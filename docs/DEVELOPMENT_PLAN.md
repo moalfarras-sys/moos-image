@@ -16,10 +16,14 @@ acceptance: GPU/VA-API/display, three camera streams, microphone, Wi-Fi and boun
 dock/storage drivers are measured. SMOCF05 ACPI/I2C is unbound and no
 accelerometer reaches SensorProxy; source diagnostics now report that actual
 gap instead of PCI-only ready. Native touch records6 complete contacts/335 updates/
-max3 points. Goodix is detected; physical enrollment/verify,
+max3 points. Goodix enrollment/two direct matches and native lock retry pass;
+first lock preserves two no-matches/password unlock. Post-reboot login,
 whole-desktop touch journeys, rear-camera quality, pen, Bluetooth pairing, wired/SD,
 rotation/suspend/hotplug remain acceptance. Owner completed private Remote TLS
-and PIN; authenticated phone video/input is separate. Strict postcheck55/1
+and PIN; authenticated phone video/input is separate. The native pairing wizard
+retains an Authentication Failed/exit1 attempt; driver readiness is not
+paired-device acceptance. Later readback confirms a bonded/trusted/connected
+Microsoft keyboard; audio and actual key-event acceptance remain. Strict postcheck55/1
 manifest mismatch stays visible despite independent261-layer/config/history
 content equality and published signature verification. No host image update or
 reboot. [V3 measured scope](hardware/V3_20261019_AR.md).
