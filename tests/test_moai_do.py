@@ -513,6 +513,7 @@ with tempfile.TemporaryDirectory() as tmp:
         "flatpak": ('#!/bin/sh\nif [ "$1" = info ]; then exit "${MOOS_TEST_FLATPAK_INFO:-1}"; fi\n'
                     'printf "flatpak %s\\n" "$*" >> "$MOOS_TEST_LAUNCH_LOG"\nexit 0\n'),
         "gtk-launch": '#!/bin/sh\nprintf "gtk-launch %s\\n" "$*" >> "$MOOS_TEST_LAUNCH_LOG"\nexit 0\n',
+        "moai-open": '#!/bin/sh\n[ "$1" = --app ] || exit 9\nshift\nexec "$@"\n',
         "moos-gpu-headroom": "#!/bin/sh\nexit 0\n",
         # The catalogue offers its Windows programs on x86 PCs only, and moai-do now reads it
         # before asking: pin the processor so the same apps are installed on an ARM host too.

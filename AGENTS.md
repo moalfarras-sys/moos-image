@@ -160,7 +160,10 @@ with `setsid` inside a Store job die when that job's unit ends. Keep one on-dema
 user unit, with no idle autostart, and tie it to graphical logout. The private
 native old/fixed lifetime probe must observe both survival after the job and
 termination after its fake graphical target stops; never stop the owner's
-actual session to test this. A transient startup reply is not readiness.
+actual session to test this. Mo AI's post-install Flatpak branch also needs
+`moai-open --app`: fixing the Store spawn alone leaves its separate setsid
+path vulnerable. Require a parent-job old/fixed lifetime control and propagate
+manager refusal or a missing helper. A transient startup reply is not readiness.
 
 **Basic controls can disconnect an app from Plasma's motion policy.** Kirigami
 selects a platform plugin using the controls style; Basic fell back to generic
