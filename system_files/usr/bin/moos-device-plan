@@ -7,6 +7,7 @@ import platform
 import re
 import shutil
 import subprocess
+from pathlib import Path
 
 
 def run(*args, timeout=12):
@@ -33,9 +34,26 @@ DRIVER_CRITICAL = re.compile(
     re.I)
 
 
-def driver_gaps():
+def i2c_driver_gaps(sysfs=Path("/sys")):
+    """Known motion-sensor clients, never I2C adapters or arbitrary vendor interfaces.
+
+    The physical V3 exposes SMOCF05 through ACPI/I2C but has no bound driver
+    and SensorProxy reports HasAccelerometer=false. A PCI-only scan called that
+    machine ready. Report the missing binding without guessing a chip, writing
+    ACPI tables or forcing a driver meant for a different firmware ID.
+    """
+    try:
+        clients = sorted((sysfs / "bus/i2c/devices").glob("i2c-SMOCF05:*"))
+        return [f"I2C motion sensor SMOCF05 ({client.name})"
+                for client in clients
+                if client.is_dir() and not (client / "driver").is_dir()]
+    except OSError:
+        return []
+
+
+def driver_gaps(pci=None):
     """Devices the user would actually notice as broken: no driver bound, in a class that needs one."""
-    blocks = re.split(r"\n(?=\S)", run("lspci", "-nnk"))
+    blocks = re.split(r"\n(?=\S)", run("lspci", "-nnk") if pci is None else pci)
     gaps = []
     for block in blocks:
         head = block.splitlines()[0].strip() if block.strip() else ""
@@ -43,7 +61,7 @@ def driver_gaps():
             continue
         if "Kernel driver in use:" not in block:
             gaps.append(head)
-    return gaps
+    return gaps + i2c_driver_gaps()
 
 
 def firmware_report():
@@ -149,13 +167,13 @@ def detect(machine=None):
         driver_status_ar = f"رسوميات {vendor.title()} تعمل بتعريف {driver}"
     # Real driver/firmware gaps — the Hardware Center's whole job is to say "this device of
     # yours does not work and here is why", instead of only ever talking about the GPU.
-    gaps = driver_gaps()
+    gaps = driver_gaps(pci)
     if gaps:
         health = "action-needed"
         actions.append({
             "id": "driver-gap", "severity": "important",
             "title": "أجهزة بدون تعريف | Devices without a driver",
-            "detail": "No kernel driver is bound to: " + "; ".join(gaps[:4]),
+            "detail": "لا يوجد تعريف مرتبط بهذه الأجهزة | No kernel driver is bound to: " + "; ".join(gaps[:4]),
             "url": ""
         })
 

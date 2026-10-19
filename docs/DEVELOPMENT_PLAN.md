@@ -1,6 +1,6 @@
 # MoOS development plan — current execution backlog
 
-Updated 2026-10-18. This is the single execution backlog, not an incident diary.
+Updated 2026-10-19. This is the single execution backlog, not an incident diary.
 Current measurements live in PROJECT_STATE.md; detailed audit evidence and
 remaining boundaries are in [AUDIT_20261012_AR.md](AUDIT_20261012_AR.md). Git preserves prior waves.
 
@@ -12,6 +12,23 @@ new private feedback/optional public suggestions product is P6.9 below.
 ## Active delivery and acceptance batch
 
 Oct18 Oracle audit P4.1/P5.4/P5.6 on `codex/system-audit-20261018` / PR253: both missing ARM app-update pairs now run through the existing authority with delayed idle schedules and exact local compatibility files. Shared source and both builders supply/enable/verify the pairs;20 controls,16 real native network-condition cases and two private timer firings pass. Native full ARM image at2b12ad2f exits0 in11196.421s; actual unit hashes/modes/wants match, and the tightened gate passes inside that immutable image. Final native full source at05649cd0 passes875.904s with a clean stable fingerprint; native .804 postcheck passes56/0. PR ARM/generic-x86 images at2b12ad2f pass; exact-head CI/review for the merged verifier hardening is tracked in [PR253](https://github.com/moalfarras-sys/moos-image/pull/253). Official signed .807 is staged but .804 still runs; the patch is not signed/delivered. Keep exact /etc copies until matching signed /usr replacement and retirement proof, then installed postboot/app acceptance. The727e7b6c owner cycle completed without another dispatch. [Current evidence and remaining platform boundaries](AUDIT_20261018_AR.md).
+
+P5.1/P5.3 now have a separate physical V3 baseline, not inferred NVIDIA/Oracle
+acceptance: GPU/VA-API/display, three camera streams, microphone, Wi-Fi and bound
+dock/storage drivers are measured. SMOCF05 ACPI/I2C is unbound and no
+accelerometer reaches SensorProxy; source diagnostics now report that actual
+gap instead of PCI-only ready. Native touch records6 complete contacts/335 updates/
+max3 points. Goodix enrollment/two direct matches and native lock retry pass;
+first lock preserves two no-matches/password unlock. Post-reboot login,
+whole-desktop touch journeys, rear-camera quality, pen, Bluetooth pairing, wired/SD,
+rotation/suspend/hotplug remain acceptance. Owner completed private Remote TLS
+and PIN; authenticated phone video/input is separate. The native pairing wizard
+retains an Authentication Failed/exit1 attempt; driver readiness is not
+paired-device acceptance. Later readback confirms a bonded/trusted/connected
+Microsoft keyboard; audio and actual key-event acceptance remain. Strict postcheck55/1
+manifest mismatch stays visible despite independent261-layer/config/history
+content equality and published signature verification. No host image update or
+reboot. [V3 measured scope](hardware/V3_20261019_AR.md).
 
 Current delivery: PR248–251 integrate at727e7b6c/tree22086a7e. Complete local image87e84381/native source checks pass; signed build39120488031, all3 exact-digest QCOW2 proofs, ISO39126568330 ordinary offline install/login/10 apps/second boot, ARM39120345470 and actual x86 promotion39129933686 succeed. Independent cosign/registry reads match all4 candidate digests: x861072/ARM807. Old Cloud and1069 ISO refusals remain evidence; new success keeps all original gates. Physical NVIDIA now boots1072 with signed1062 rollback:35 payloads,54 selfchecks,55/0 postchecks and natural cold search lifecycle pass. Broader coredump review retains greeter screenRemoved teardown and first-owner Remote bind collision; full native acceptance remains open. [Qualified cycle](releases/2026-10-18-qualified-1072-cycle-proof.json).
 

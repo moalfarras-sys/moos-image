@@ -3,8 +3,39 @@
   "_": "What a person can SEE or DO after an update, newest first. One entry per user-visible change, written for the owner of the machine, not for a developer: what it is, where it is, and (when MoOS has a route to it) a way to try it now. 'merged' is when the change reached main (a little later is fine, earlier is not: an entry dated before a machine's previous system is never marked new there); a machine marks an entry new when the system it ran BEFORE the update was built earlier than that. tests/test_whats_new.py reads every entry the way MoOS Settings will.",
   "entries": [
     {
+      "id": "v3-motion-driver-detection",
+      "merged": "2026-10-19T00:30:00Z",
+      "glyph": "ui",
+      "title": {
+        "ar": "فحص أدق لمستشعر الحركة",
+        "en": "Motion sensor driver check"
+      },
+      "body": {
+        "ar": "يكشف فحص الأجهزة مستشعر الحركة SMOCF05 إذا ظهر بلا تعريف مرتبط، بدل إعلان جاهزية الجهاز اعتمادًا على كرت الشاشة وحده. اكتشاف المشكلة لا يعني تشغيل التدوير التلقائي.",
+        "en": "Device diagnostics now report an SMOCF05 motion sensor with no bound driver instead of declaring the PC ready from its PCI devices alone. Detecting the missing driver does not enable automatic rotation."
+      },
+      "arch": [
+        "x86_64"
+      ]
+    },
+    {
+      "id": "motion-speed",
+      "merged": "2026-09-17T22:36:04Z",
+      "glyph": "pulse",
+      "title": {
+        "ar": "سرعة حركة واحدة للنظام كله",
+        "en": "One animation speed for the whole system"
+      },
+      "body": {
+        "ar": "بطاقات MoOS وأزراره تتبع الآن إعداد سرعة الحركة نفسه الذي يتبعه سطح المكتب، فلا يبقى جزء بطيئًا وآخر سريعًا.",
+        "en": "MoOS cards and buttons now follow the same animation-speed setting the desktop does, so one part is never slow while another is fast."
+      }
+    },
+    {
       "id": "arm-scheduled-app-updates",
-      "arch": ["aarch64"],
+      "arch": [
+        "aarch64"
+      ],
       "merged": "2026-10-18T23:59:59Z",
       "glyph": "install",
       "route": "moos://settings/update",
