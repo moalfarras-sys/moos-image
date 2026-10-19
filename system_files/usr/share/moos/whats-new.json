@@ -7,12 +7,12 @@
       "merged": "2026-10-19T00:30:00Z",
       "glyph": "ui",
       "title": {
-        "ar": "فحص أدق لمستشعر الحركة",
-        "en": "Motion sensor driver check"
+        "ar": "الدخول بالبصمة وفحص أجهزة V3",
+        "en": "Fingerprint sign-in and V3 device checks"
       },
       "body": {
-        "ar": "يكشف فحص الأجهزة مستشعر الحركة SMOCF05 إذا ظهر بلا تعريف مرتبط، بدل إعلان جاهزية الجهاز اعتمادًا على كرت الشاشة وحده. اكتشاف المشكلة لا يعني تشغيل التدوير التلقائي.",
-        "en": "Device diagnostics now report an SMOCF05 motion sensor with no bound driver instead of declaring the PC ready from its PCI devices alone. Detecting the missing driver does not enable automatic rotation."
+        "ar": "بعد تسجيل بصمتك، اختر الحساب في شاشة الدخول واضغط Enter أو سهم الدخول ثم المس القارئ. كلمة المرور تبقى متاحة. يكشف فحص الأجهزة أيضًا مستشعر SMOCF05 بلا تعريف؛ هذا التنبيه لا يشغّل التدوير التلقائي.",
+        "en": "After enrolling a fingerprint, select your account at sign-in, press Enter or the sign-in arrow, then touch the reader. Password sign-in remains available. Device checks also flag an unbound SMOCF05 motion sensor; the warning does not enable automatic rotation."
       },
       "arch": [
         "x86_64"

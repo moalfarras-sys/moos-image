@@ -1227,6 +1227,8 @@ plan.
 Hardware identity for Settings and Mo AI belongs to `usr/lib/moos/moos_hardware.py`;
 keep GPU classification with `moos-visual-tier` and cover consumer agreement with executable fixtures.
 
+**An enrolled finger and locker match do not qualify the login greeter.** V3 retained enrollment across reboot, but its vendor greeter used password-auth, which authselect intentionally keeps password-only. Keep vendor greeter code and account/password/session rules; use the local system-auth stack only through the reviewed desktop-image configuration, preserving custom PAM overrides and password fallback. Require real greeter prompt/match/session return, then cold-login acceptance; a CLI verifier or lock match is a different path. Battery charge caps likewise require a real firmware API or the documented BIOS setting; never invent a sysfs/EC write.
+
 **A PCI-only driver scan cannot qualify a tablet.** The physical V3 exposes
 `SMOCF05` as an unbound ACPI/I2C client while its PCI devices are healthy and
 SensorProxy reports no accelerometer. Keep that measured missing-binding case

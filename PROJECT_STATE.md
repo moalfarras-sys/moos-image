@@ -4,35 +4,9 @@ Native audit: [AUDIT_20261012_AR.md](docs/AUDIT_20261012_AR.md). [Oct15 live del
 
 ## Current engineering batch
 
-New physical V3 audit (separate from NVIDIA/Oracle): Ryzen8840U/Radeon780M,
-generic1072/kernel7.2.11/Plasma6.8, native54/0 selfcheck, zero failed units.
-Three UVC capture paths return frames; front1080p30, rear1080p negotiated15fps
-with very dark pixels, IR640×360. Microphone sample and short output stream pass;
-Wi-Fi connected, Bluetooth powered, dock/USB/NVMe drivers bound. Native Wayland touch
-receives6 complete contacts/335 updates/max3 points; owner has no pen. Goodix6092 is detected,
-initially no enrollment. Owner completed Tailscale/PIN; actual private HTTPS
-and EIS readiness pass, with pre-login disabled; phone frames/input remain open.
-Owner enabled authselect's missing with-fingerprint feature with a named backup;
-native config check passes, fingerprint PAM is live and password PAM retained.
-Enrollment completes and the independent fprintd verification returns verify-match/0;
-native lock retry observes locked→verify-match→unlocked. First lock retains
-two real no-matches and owner-confirmed password unlock; wider reliability and
-post-reboot login remain open.
-Later failed-unit read retains the actual Bluetooth pairing wizard exit1:
-Authentication Failed at02:26, closed02:27. This is not a missing btusb driver;
-no bond deletion/reset was performed.
-At02:44 the already-paired Microsoft Bluetooth Keyboard is bonded/trusted/
-connected; historical wizard failure stays visible and audio/input-event
-acceptance is not inferred from that link state. ServicesResolved and native HID
-nodes pass; after preserving that failure, only its stale unit state is acknowledged.
-Final selfcheck exits0 with53 passes/2 active-Remote notes and zero failed units.
-SensorProxy reports no accelerometer: ACPI/I2C SMOCF05 has no bound driver.
-Source corrects the PCI-only false-ready diagnostic with private missing/bound/
-broken-link/unrelated-device controls, without claiming a sensor driver fix.
-Postcheck preserves55/1 manifest mismatch: independently signed published1072
-matches all261 uncompressed layer identities, runtime config and history of the
-offline-installed local representation. One deployment only; no rollback/update/
-reboot or firmware write performed. [Full scope and acceptance](docs/hardware/V3_20261019_AR.md).
+Physical V3 (Ryzen8840U/Radeon780M, generic1072) now has measured GPU/VA-API, three camera streams, audio sample, multi-touch/max3 contacts, dock/storage/network bindings and paired Microsoft keyboard. Rear-camera quality, pen and broader endurance remain open. Goodix enrollment persists through the owner's09:32 reboot; local greeter's password-only auth substack explained the login failure. Native administrator applied the one-line switch to authselect system-auth, retaining vendor account/password/session rules.09:45 SwitchToGreeter observes right-index prompt→retry-scan→match→owner-session return; cold login after this repair remains acceptance.
+External-only native4K60 is saved, internal disabled; owner confirms a clear picture (latest scale250%). Native unplug/replug proves internal-only on disconnect and external-only4K on reconnect, including DP-11→DP-12 connector renumbering. Battery gauge currently90.8%/42cycles (earlier94% estimate); no Linux charge-limit nodes. Manufacturer documents BIOS80/90% limit; no cap/EC/firmware write claimed. Apps update successfully; published1072 is not newer. Refreshed LVFS reveals4 WD19 updates; installation exits0 and target versions read back, then physical USB replug at10:00 preserves target versions and leaves zero available firmware updates. Private Remote TLS/PIN is configured and survives reboot.
+SMOCF05 remains unbound with no accelerometer; source diagnostics report this honestly. Strict55/1 postcheck retains the rewrapped-manifest mismatch despite independently verified signature and261-layer/config/history equality. One deployment only; signed rollback/release/update remain required. Prior2672-case check preceded the final documentation; the first repeat correctly rejects this file's230-line expansion, now condensed without changing the gate. Final full check exits0 (2679 cases/198 summaries plus script gates); focused final notes/docs gates also pass. Complete local image build is still running; signed release is not claimed. [Measured details and remaining acceptance](docs/hardware/V3_20261019_AR.md).
 
 PR248–251 are integrated at `727e7b6cf6df2ba2c47ca4a5264e911c48e81d48`, tree `22086a7e312991b77f61bfa794efbfca0ceba00d`. Native full2668-case check, complete local image87e84381,28 overlay payloads/seven compiled modules, and first-attempt PR image/repository gates pass. The one frozen signed cycle succeeds: build39120488031, disks39126559377/39126562830/39126565706, ISO39126568330 (ordinary offline install/login, all10 app close/reopen journeys, second boot), full ARM39120345470 and actual x86 promotion39129933686. Independent native public-key verification matches all4 production digests/source labels. [Qualified cycle](docs/releases/2026-10-18-qualified-1072-cycle-proof.json). Earlier Cloud composition and .1069 ISO close failures remain preserved; no gate/deadline/signature/rollback policy was weakened.
 
@@ -204,12 +178,7 @@ acceptance remain. Earlier .1026's 54/55 native acceptance is historical evidenc
 
 ## Integrated features and evidence still owed
 
-Mira's current source uses the bounded three-event burst documented above;
-the earlier [62-control single-retry proof](docs/releases/2026-10-14-mira-job-presence-proof.json)
-did not cover the newly reproduced 1.1s delivery delay. Token age/end state and
-retired directories remain protected, with no idle poll. The old local ARM
-image `c49ccd53` was retired after the qualified `3d66eafa` replacement; its20-file readback and signed .1053/.778 are historical evidence;
-they do not qualify the current source or its installed presence behavior.
+Mira uses the bounded three-event burst above. The [earlier presence proof](docs/releases/2026-10-14-mira-job-presence-proof.json) predates the measured1.1s delay and does not qualify current behavior. Token-age/end-state and retired-directory protections remain, without idle polling; retired ARM-image evidence is historical only.
 
 Mira mute/disconnect/late-recognition and recovery unreadable-state controls
 pass. Community beta has real native/Oracle TLS flow, isolation and bounded

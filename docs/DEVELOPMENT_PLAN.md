@@ -11,22 +11,7 @@ new private feedback/optional public suggestions product is P6.9 below.
 
 ## Active delivery and acceptance batch
 
-P5.1/P5.3 now have a separate physical V3 baseline, not inferred NVIDIA/Oracle
-acceptance: GPU/VA-API/display, three camera streams, microphone, Wi-Fi and bound
-dock/storage drivers are measured. SMOCF05 ACPI/I2C is unbound and no
-accelerometer reaches SensorProxy; source diagnostics now report that actual
-gap instead of PCI-only ready. Native touch records6 complete contacts/335 updates/
-max3 points. Goodix enrollment/two direct matches and native lock retry pass;
-first lock preserves two no-matches/password unlock. Post-reboot login,
-whole-desktop touch journeys, rear-camera quality, pen, Bluetooth pairing, wired/SD,
-rotation/suspend/hotplug remain acceptance. Owner completed private Remote TLS
-and PIN; authenticated phone video/input is separate. The native pairing wizard
-retains an Authentication Failed/exit1 attempt; driver readiness is not
-paired-device acceptance. Later readback confirms a bonded/trusted/connected
-Microsoft keyboard; audio and actual key-event acceptance remain. Strict postcheck55/1
-manifest mismatch stays visible despite independent261-layer/config/history
-content equality and published signature verification. No host image update or
-reboot. [V3 measured scope](hardware/V3_20261019_AR.md).
+P5.1/P5.3 physical V3: measured GPU/VA-API, camera streams, audio sample, multi-touch and bound dock/network/storage. Missing SMOCF05 binding is reported honestly; rotation remains unavailable. Owner reboot preserves Goodix enrollment; native one-line greeter PAM repair now observes prompt/retry/match/session return, with vendor account/password/session and ordinary password fallback retained. Cold login after repair and reliability remain acceptance. External-only4K60 is saved and visually accepted; native disconnect/reconnect passes (panel-only→external-only4K, connector renumbering handled). Battery42cycles/current90.8% gauge estimate, no Linux charge-limit API; documented BIOS80% cap awaits physical setup. Apps updated, published1072 not newer;4 official WD19 firmware updates install and persist after USB replug, with no updates remaining in refreshed LVFS. Full2679-case local check passes; full image build/signed release remain. Strict installed-manifest mismatch, single-deployment rollback gap, signed new-image delivery, rear-camera quality/pen/suspend/wired/SD/endurance remain open. [V3 measured scope](hardware/V3_20261019_AR.md).
 
 Current delivery: PR248–251 integrate at727e7b6c/tree22086a7e. Complete local image87e84381/native source checks pass; signed build39120488031, all3 exact-digest QCOW2 proofs, ISO39126568330 ordinary offline install/login/10 apps/second boot, ARM39120345470 and actual x86 promotion39129933686 succeed. Independent cosign/registry reads match all4 candidate digests: x861072/ARM807. Old Cloud and1069 ISO refusals remain evidence; new success keeps all original gates. Physical NVIDIA now boots1072 with signed1062 rollback:35 payloads,54 selfchecks,55/0 postchecks and natural cold search lifecycle pass. Broader coredump review retains greeter screenRemoved teardown and first-owner Remote bind collision; full native acceptance remains open. [Qualified cycle](releases/2026-10-18-qualified-1072-cycle-proof.json).
 
