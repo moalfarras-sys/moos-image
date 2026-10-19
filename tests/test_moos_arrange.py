@@ -30,6 +30,8 @@ from __future__ import annotations
 
 import json
 import re
+import shutil
+import subprocess
 import sys
 from pathlib import Path
 
@@ -38,6 +40,54 @@ PACKAGE = ROOT / "system_files/usr/share/kwin/scripts/moos-arrange"
 SCRIPT = PACKAGE / "contents/code/main.js"
 METADATA = PACKAGE / "metadata.json"
 KWINRC = ROOT / "system_files/etc/xdg/kwinrc"
+
+
+def runtime_contract(source: str) -> subprocess.CompletedProcess[str]:
+    """Execute actual callbacks with private window objects; never contact KWin."""
+    harness = r'''
+const vm = require("node:vm");
+const assert = require("node:assert/strict");
+function run(override, kind, throughMenu = false) {
+    let writes = 0;
+    const output = {};
+    function window(extra = {}) {
+        let geometry = {x: 10, y: 10, width: 500, height: 400};
+        return Object.assign({normalWindow: true, minimized: false, skipTaskbar: false,
+            skipSwitcher: false, fullScreen: false, desktops: [], output,
+            moveable: true, resizeable: true,
+            get frameGeometry() { return geometry; },
+            set frameGeometry(value) { ++writes; geometry = value; }}, extra);
+    }
+    const leader = window();
+    const other = window();
+    const shortcuts = {};
+    let menu;
+    const context = {console: {info() {}}, KWin: {MaximizeArea: 1},
+        workspace: {activeWindow: leader, currentDesktop: "current", stackingOrder: [other, leader],
+            clientArea() { return {x: 0, y: 0, width: 1280, height: 720}; }},
+        registerShortcut(name, text, keys, callback) { shortcuts[name] = callback; },
+        registerUserActionsMenu(callback) { menu = callback; }};
+    vm.runInNewContext(SOURCE, context);
+    const item = throughMenu ? menu(leader).items[kind === "centre" ? 4 : 0] : null;
+    Object.assign(leader, override);
+    if (item) item.triggered();
+    else shortcuts["MoOS Arrange: " + kind]();
+    return writes;
+}
+for (const kind of ["centre", "halves", "thirds", "quarters", "main"]) {
+    assert.ok(run({}, kind) > 0, kind + " must place eligible windows");
+    for (const excluded of [{fullScreen: true}, {normalWindow: false}, {minimized: true},
+             {skipTaskbar: true}, {skipSwitcher: true}, {moveable: false},
+             {resizeable: false}, {desktops: ["elsewhere"]}]) {
+        assert.equal(run(excluded, kind), 0, kind + " moved windows from excluded anchor " + JSON.stringify(excluded));
+    }
+}
+assert.equal(run({fullScreen: true}, "centre", true), 0, "menu must revalidate its anchor");
+assert.equal(run({resizeable: false}, "halves", true), 0, "stale menu must not rearrange other windows");
+'''
+    return subprocess.run([shutil.which("node") or "node", "-e",
+                           "const SOURCE = " + json.dumps(source) + ";\n" + harness],
+                          text=True, capture_output=True, timeout=15)
 
 
 def code(text: str) -> str:
@@ -120,6 +170,19 @@ def main() -> int:
     if "registerShortcut(" not in body:
         errors.append("no shortcut is registered, so the arrangements are reachable only "
                       "through the menu.")
+
+    if not shutil.which("node"):
+        errors.append("Node.js is required to execute the private Arrange callback controls.")
+    else:
+        source = SCRIPT.read_text(encoding="utf-8")
+        actual = runtime_contract(source)
+        if actual.returncode:
+            errors.append("Arrange callback contract failed: " + actual.stderr[-2500:])
+        # The actual old implementation must fail the same executable contract.
+        old = source.replace("if (!isArrangeable(leader))", "if (!leader)")
+        negative = runtime_contract(old)
+        if old == source or negative.returncode == 0:
+            errors.append("old unfiltered-anchor negative did not fail the callback contract")
 
     if errors:
         print("GATE FAIL: tests/test_moos_arrange.py")

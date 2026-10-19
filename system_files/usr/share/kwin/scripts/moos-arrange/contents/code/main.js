@@ -157,8 +157,11 @@ function mainAndTwoCells(leader, area) {
 
 function arrange(kind, startFrom) {
     const leader = startFrom || workspace.activeWindow;
-    if (!leader) {
-        log("nothing to arrange: no active window");
+    // Shortcuts bypass the menu's candidate filter, and a menu's window may
+    // change state before its action runs. Never move an excluded anchor or
+    // rearrange other windows on behalf of a fullscreen/fixed utility window.
+    if (!isArrangeable(leader)) {
+        log("nothing to arrange: active window is not arrangeable");
         return;
     }
     const area = anchor(leader);

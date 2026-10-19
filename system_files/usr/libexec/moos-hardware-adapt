@@ -108,6 +108,13 @@ zram_unit_loaded() {
     [ "$(systemctl show -p LoadState --value dev-zram0.swap 2>/dev/null)" = loaded ]
 }
 
+# A masked unit still appears in list-unit-files, but enabling it is refused.
+# Respect that administrator choice and do not turn it into a failed hardware
+# adaptation. Only an actually loadable optional service/timer may be enabled.
+optional_unit_loaded() {
+    [ "$(systemctl show -p LoadState --value "$1" 2>/dev/null)" = loaded ]
+}
+
 # ── deployed edition ───────────────────────────────────────────────────────────
 booted_image() {
     # The deployed image name is needed only to decide whether an NVIDIA system is
@@ -176,12 +183,12 @@ log "cpu=${cpu_vendor:-?} ram=${mem_gib}GiB chassis=${chassis} battery=${have_ba
 # ── 1. Intel CPU → thermald (proactive overheat prevention). AMD relies on
 #       amd-pstate + firmware passive throttling, which is always on. ──────────
 if [ "$cpu_vendor" = "GenuineIntel" ]; then
-    if systemctl list-unit-files thermald.service >/dev/null 2>&1; then
+    if optional_unit_loaded thermald.service; then
         if do_run systemctl enable --now thermald.service; then
             log "Intel CPU: thermald enabled"
         fi
     else
-        log "Intel CPU: thermald not installed (skipping)"
+        log "Intel CPU: thermald unavailable or masked (skipping)"
     fi
 else
     # Never enable thermald on AMD — it is Intel-specific.
@@ -328,9 +335,10 @@ fi
 
 # ── 6. Firmware: refresh LVFS METADATA only (never apply). Surfacing the count
 #       to the user is Mo AI's job; applying requires explicit consent. ───────
-if systemctl list-unit-files fwupd-refresh.timer >/dev/null 2>&1; then
-    do_run systemctl enable fwupd-refresh.timer
-    log "fwupd-refresh.timer enabled (metadata only — updates are never auto-applied)"
+if optional_unit_loaded fwupd-refresh.timer; then
+    if do_run systemctl enable fwupd-refresh.timer; then
+        log "fwupd-refresh.timer enabled (metadata only — updates are never auto-applied)"
+    fi
 fi
 
 # ── 7. DDC/CI: do not spend six seconds asking a screen that cannot answer ───

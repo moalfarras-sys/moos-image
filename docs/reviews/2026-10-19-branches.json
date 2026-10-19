@@ -1,0 +1,1906 @@
+{
+  "audit_date": "2026-10-19",
+  "scope": "This checkout and fetched origin refs; other machines historical worktree counts are not current local registration. No refs, stashes, archives or worktrees changed.",
+  "base": "5fbecf1a1e3cd8b02915c22c3e29d27f0507c899",
+  "remote_freshness": "root confirmed git fetch --all --prune success on 2026-10-19; inventory after fetch",
+  "counts": {
+    "all_refs": 275,
+    "ref_namespaces": {
+      "refs/archive": 90,
+      "refs/codex": 4,
+      "refs/heads": 39,
+      "refs/remotes": 134,
+      "refs/stash": 1,
+      "refs/tags": 7
+    },
+    "remote_tracking_refs": 134,
+    "registered_worktrees": 1,
+    "dirty_worktrees_at_initial_read": 0,
+    "stashes": 4,
+    "local_branches_at_initial_read": 38,
+    "local_branches_at_all_ref_capture": 39,
+    "note": "Root created its authorized audit topic branch between the initial branch snapshot and the subsequent all-ref capture."
+  },
+  "integrity": {
+    "git_fsck_exit": 0,
+    "findings": [
+      "dangling tree 3a428a6009c2f66993060b887c575fa90f623d45",
+      "dangling tree 4fab060c20494594dd3d9c000c0249873b0946d6",
+      "dangling tree 88b72eafcc153427bd1a15e0d3525330b8c96e7f",
+      "dangling tree a6f61134e3f75c27c73e4d16223c7c277824b2dd"
+    ],
+    "submodules": [],
+    "note": "Dangling trees are recoverable objects, not corruption. Archived commit/tree/blob refs deliberately preserve unintegrated owner work and must not be automatically merged or deleted."
+  },
+  "unintegrated_active_branches": [
+    {
+      "ref": "refs/heads/codex/system-audit-20261018",
+      "sha": "9d4f09e67251ea13fb68aff1490028a5ab892cd5",
+      "upstream": "refs/remotes/origin/codex/system-audit-20261018",
+      "ancestor_of_origin_main": false,
+      "behind": 0,
+      "ahead": 7,
+      "unique_commits": [
+        "9d4f09e67251ea13fb68aff1490028a5ab892cd5 Merge origin/main native NVIDIA acceptance documentation",
+        "b50b917c46deb61024b78773eb8279fed14763ae docs: record final native audit and image qualification",
+        "05649cd01c832ea7d20d1027fd0e76cffee7fbb9 Merge origin/main search acceptance into system audit",
+        "f108d11654cbe3e9dde735ef359edc804efe3b32 test(updates): reject wrong timer targets and bypassed conditions",
+        "2b12ad2f9dc2df684ef91e34c5825e5831740043 fix(updates): ship and verify scheduled app updater units",
+        "b21b56f8cac5d167837817c183164d0b209f55a9 docs: align update-unit ownership with shared source contract",
+        "937b4f9055c4ec61f94c45c1cc9676f63f16a301 docs: reserve native ARM app-update audit"
+      ]
+    },
+    {
+      "ref": "refs/remotes/origin/codex/system-audit-20261018",
+      "sha": "9d4f09e67251ea13fb68aff1490028a5ab892cd5",
+      "upstream": "",
+      "ancestor_of_origin_main": false,
+      "behind": 0,
+      "ahead": 7,
+      "unique_commits": [
+        "9d4f09e67251ea13fb68aff1490028a5ab892cd5 Merge origin/main native NVIDIA acceptance documentation",
+        "b50b917c46deb61024b78773eb8279fed14763ae docs: record final native audit and image qualification",
+        "05649cd01c832ea7d20d1027fd0e76cffee7fbb9 Merge origin/main search acceptance into system audit",
+        "f108d11654cbe3e9dde735ef359edc804efe3b32 test(updates): reject wrong timer targets and bypassed conditions",
+        "2b12ad2f9dc2df684ef91e34c5825e5831740043 fix(updates): ship and verify scheduled app updater units",
+        "b21b56f8cac5d167837817c183164d0b209f55a9 docs: align update-unit ownership with shared source contract",
+        "937b4f9055c4ec61f94c45c1cc9676f63f16a301 docs: reserve native ARM app-update audit"
+      ]
+    },
+    {
+      "ref": "refs/remotes/origin/codex/v3-hardware-audit-20261019",
+      "sha": "2f0e900d31fbebf8ec47000f9a656e8a05c95c51",
+      "upstream": "",
+      "ancestor_of_origin_main": false,
+      "behind": 0,
+      "ahead": 2,
+      "unique_commits": [
+        "2f0e900d31fbebf8ec47000f9a656e8a05c95c51 docs(hardware): record native fingerprint unlock and keyboard readback",
+        "e54203a09742a0ad9d80e27f946089b2838d3c93 fix(hardware): report the V3's unbound I2C motion sensor"
+      ]
+    }
+  ],
+  "release_boundary": {
+    "main_since_qualified_source_commits": 6,
+    "latest_qualified_source": "727e7b6cf6df2ba2c47ca4a5264e911c48e81d48",
+    "latest_main_push_image_run": 39170862036,
+    "latest_main_push_image_conclusion": "cancelled",
+    "note": "PR builds and merged source do not establish signed boot-proven delivery."
+  },
+  "pull_requests": [
+    {
+      "number": 255,
+      "title": "Detect the V3's missing motion-sensor binding and record native qualification",
+      "url": "https://github.com/moalfarras-sys/moos-image/pull/255",
+      "sha": "2f0e900d31fbebf8ec47000f9a656e8a05c95c51",
+      "draft": false,
+      "checks": [
+        {
+          "name": "Build moos-arm (native aarch64)",
+          "status": "IN_PROGRESS",
+          "conclusion": "",
+          "url": "https://github.com/moalfarras-sys/moos-image/actions/runs/39182656547/job/117838525940"
+        },
+        {
+          "name": "x86 image build and in-image gates (moos, nothing pushed)",
+          "status": "IN_PROGRESS",
+          "conclusion": "",
+          "url": "https://github.com/moalfarras-sys/moos-image/actions/runs/39182656538/job/117838525833"
+        },
+        {
+          "name": "claude-review",
+          "status": "COMPLETED",
+          "conclusion": "SUCCESS",
+          "url": "https://github.com/moalfarras-sys/moos-image/actions/runs/39182656561/job/117838525525"
+        },
+        {
+          "name": "Repo gates",
+          "status": "COMPLETED",
+          "conclusion": "SUCCESS",
+          "url": "https://github.com/moalfarras-sys/moos-image/actions/runs/39182656542/job/117838525701"
+        }
+      ]
+    },
+    {
+      "number": 253,
+      "title": "fix(updates): restore scheduled application updates on ARM",
+      "url": "https://github.com/moalfarras-sys/moos-image/pull/253",
+      "sha": "9d4f09e67251ea13fb68aff1490028a5ab892cd5",
+      "draft": false,
+      "checks": [
+        {
+          "name": "Build moos-arm (native aarch64)",
+          "status": "COMPLETED",
+          "conclusion": "SUCCESS",
+          "url": "https://github.com/moalfarras-sys/moos-image/actions/runs/39171342229/job/117804868898"
+        },
+        {
+          "name": "claude-review",
+          "status": "COMPLETED",
+          "conclusion": "SUCCESS",
+          "url": "https://github.com/moalfarras-sys/moos-image/actions/runs/39171342224/job/117804868744"
+        },
+        {
+          "name": "claude-review",
+          "status": "COMPLETED",
+          "conclusion": "SUCCESS",
+          "url": "https://github.com/moalfarras-sys/moos-image/actions/runs/39171379790/job/117804982848"
+        },
+        {
+          "name": "x86 image build and in-image gates (moos, nothing pushed)",
+          "status": "COMPLETED",
+          "conclusion": "SUCCESS",
+          "url": "https://github.com/moalfarras-sys/moos-image/actions/runs/39171342273/job/117804869033"
+        },
+        {
+          "name": "Repo gates",
+          "status": "COMPLETED",
+          "conclusion": "SUCCESS",
+          "url": "https://github.com/moalfarras-sys/moos-image/actions/runs/39171342203/job/117804868816"
+        },
+        {
+          "name": "Build the qcow2 (Oracle / UTM)",
+          "status": "COMPLETED",
+          "conclusion": "SKIPPED",
+          "url": "https://github.com/moalfarras-sys/moos-image/actions/runs/39171342229/job/117814866084"
+        },
+        {
+          "name": "Promote boot-proven ARM image",
+          "status": "COMPLETED",
+          "conclusion": "SKIPPED",
+          "url": "https://github.com/moalfarras-sys/moos-image/actions/runs/39171342229/job/117814866356"
+        }
+      ]
+    }
+  ],
+  "pr255_review": {
+    "recommendation": "Integrate after both current-head image checks finish successfully and combined gates pass. Preserve its exact commits/ancestry and independently measured V3 evidence; do not claim sensor enablement.",
+    "production_behavior": "Adds narrowly identified SMOCF05 I2C missing-binding diagnosis, preserves PCI class filtering and avoids classifying userspace-driven USB peripherals as broken. Reuses one PCI snapshot.",
+    "changed_files": [
+      "AGENTS.md",
+      "PROJECT_STATE.md",
+      "docs/DEVELOPMENT_PLAN.md",
+      "docs/hardware/V3_20261019_AR.md",
+      "scripts/hardware/touch-probe.py",
+      "system_files/usr/bin/moos-device-plan",
+      "system_files/usr/share/moos/whats-new.json",
+      "tests/test_device_plan.py"
+    ],
+    "shared_paths_with_pr253": [
+      "AGENTS.md",
+      "PROJECT_STATE.md",
+      "docs/DEVELOPMENT_PLAN.md",
+      "system_files/usr/share/moos/whats-new.json"
+    ],
+    "review_findings": [],
+    "nonblocking_limits": [
+      "This is one measured sensor identity, not a generic online driver database or all-device readiness proof.",
+      "Private touch fixture reports aggregate observed events; mouse clicks do not qualify as touch. It does not establish display-wide gesture/pen/suspend endurance.",
+      "Existing diagnostic functions silently treat inaccessible probes as empty; universal readiness remains unproven. This behavior predates PR255."
+    ],
+    "focused_tests": {
+      "positive": {
+        "exit": 0,
+        "stdout": "MoOS device-plan test passed\ndevice-plan I2C missing/bound/broken-link/unrelated-device controls passed\ndevice-plan bilingual title gate passed (6 titles)\n",
+        "stderr": ""
+      },
+      "old_source_negative": {
+        "exit": 1,
+        "stdout": "MoOS device-plan test passed\n",
+        "stderr": "Traceback (most recent call last):\n  File \"/tmp/moos-pr255-review/tests/test_device_plan.py\", line 139, in <module>\n    probe = sensor_module.i2c_driver_gaps\n            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nAttributeError: module 'moos_device_plan_i2c' has no attribute 'i2c_driver_gaps'. Did you mean: 'driver_gaps'?\n"
+      }
+    },
+    "functional_old_fixed_negative": [
+      {
+        "ref": "origin/main",
+        "health": "ready",
+        "driver_gaps": []
+      },
+      {
+        "ref": "origin/codex/v3-hardware-audit-20261019",
+        "health": "action-needed",
+        "driver_gaps": [
+          "I2C motion sensor SMOCF05 (i2c-SMOCF05:00)"
+        ]
+      }
+    ],
+    "concurrent_runs": [
+      39182656547,
+      39182656538
+    ]
+  },
+  "evidence_files": [
+    "/tmp/moos-branches-audit.json",
+    "/tmp/moos-open-prs.json",
+    "/tmp/moos-recent-runs.json"
+  ],
+  "all_refs": [
+    {
+      "ref": "refs/archive/dev-copy/heads/main",
+      "sha": "46b46e87e282a3f817f1f8aaf099a25a59d083fc",
+      "type": "commit",
+      "ancestor_of_origin_main": true
+    },
+    {
+      "ref": "refs/archive/dev-copy/stash",
+      "sha": "2459f37118d1f8b996f07e530b2f510ac7a65afa",
+      "type": "commit",
+      "ancestor_of_origin_main": false
+    },
+    {
+      "ref": "refs/archive/dev-copy/tags/archive/branch/feat-remote-oracle-experience-20260912",
+      "sha": "187b0e6aab79a6b472776921c68b76f8413a9bf2",
+      "type": "tag",
+      "ancestor_of_origin_main": true
+    },
+    {
+      "ref": "refs/archive/dev-copy/tags/archive/branch/fix-a1-live-review-20260918",
+      "sha": "63d54cb0e2fd43eedab6ebdafc1a415a12cb838c",
+      "type": "tag",
+      "ancestor_of_origin_main": true
+    },
+    {
+      "ref": "refs/archive/dev-copy/tags/archive/branch/oracle-stability-performance-20260907",
+      "sha": "cae45e210fdfdf02e671ce9eb53a46357cb55169",
+      "type": "tag",
+      "ancestor_of_origin_main": true
+    },
+    {
+      "ref": "refs/archive/home-copy/heads/main",
+      "sha": "46b46e87e282a3f817f1f8aaf099a25a59d083fc",
+      "type": "commit",
+      "ancestor_of_origin_main": true
+    },
+    {
+      "ref": "refs/archive/home-copy/tags/archive/branch/feat-remote-oracle-experience-20260912",
+      "sha": "187b0e6aab79a6b472776921c68b76f8413a9bf2",
+      "type": "tag",
+      "ancestor_of_origin_main": true
+    },
+    {
+      "ref": "refs/archive/home-copy/tags/archive/branch/fix-a1-live-review-20260918",
+      "sha": "63d54cb0e2fd43eedab6ebdafc1a415a12cb838c",
+      "type": "tag",
+      "ancestor_of_origin_main": true
+    },
+    {
+      "ref": "refs/archive/home-copy/tags/archive/branch/oracle-stability-performance-20260907",
+      "sha": "cae45e210fdfdf02e671ce9eb53a46357cb55169",
+      "type": "tag",
+      "ancestor_of_origin_main": true
+    },
+    {
+      "ref": "refs/archive/moos-audit-20261010/oracle-delivery-docs-working-tree",
+      "sha": "30d80fd1e52e75b18167da4143f52f198efec1ad",
+      "type": "tree",
+      "ancestor_of_origin_main": false
+    },
+    {
+      "ref": "refs/archive/moos-audit-20261010/oracle-engine-working-tree",
+      "sha": "48ec9d990494fa05ce800723759cf776002494c0",
+      "type": "tree",
+      "ancestor_of_origin_main": false
+    },
+    {
+      "ref": "refs/archive/native-touch-prototype-20261006",
+      "sha": "2459f37118d1f8b996f07e530b2f510ac7a65afa",
+      "type": "commit",
+      "ancestor_of_origin_main": false
+    },
+    {
+      "ref": "refs/archive/owner-rules-before-main-20261007",
+      "sha": "6eff6149f91143978a302a9c31191d18518eaf60",
+      "type": "commit",
+      "ancestor_of_origin_main": false
+    },
+    {
+      "ref": "refs/archive/owner-system-audit-20261018/commit-165b94044851",
+      "sha": "165b940448512bd815746379088a49f599c8ed04",
+      "type": "commit",
+      "ancestor_of_origin_main": false
+    },
+    {
+      "ref": "refs/archive/owner-system-audit-20261018/commit-66a8e383944c",
+      "sha": "66a8e383944c3632d924b6e2c3280a83aa567b8f",
+      "type": "commit",
+      "ancestor_of_origin_main": false
+    },
+    {
+      "ref": "refs/archive/owner-system-audit-20261018/commit-761b1d44d132",
+      "sha": "761b1d44d132ddfed9b4c6c041061014c7aef863",
+      "type": "commit",
+      "ancestor_of_origin_main": false
+    },
+    {
+      "ref": "refs/archive/owner-system-audit-20261018/commit-855b733a38e4",
+      "sha": "855b733a38e49b41b5629c6124780dce28f4d2e8",
+      "type": "commit",
+      "ancestor_of_origin_main": false
+    },
+    {
+      "ref": "refs/archive/owner-system-audit-20261018/commit-9188e41db4bd",
+      "sha": "9188e41db4bd5e835f999105add70f2b1bd00786",
+      "type": "commit",
+      "ancestor_of_origin_main": false
+    },
+    {
+      "ref": "refs/archive/owner-system-audit-20261018/commit-b492af8908c8",
+      "sha": "b492af8908c8df9cd7d339547268f2f929358031",
+      "type": "commit",
+      "ancestor_of_origin_main": false
+    },
+    {
+      "ref": "refs/archive/owner-system-audit-20261018/commit-c17deb83c1e2",
+      "sha": "c17deb83c1e2c7365274175a6b1a21827a392be0",
+      "type": "commit",
+      "ancestor_of_origin_main": false
+    },
+    {
+      "ref": "refs/archive/owner-system-audit-20261018/commit-c4ac3a421b76",
+      "sha": "c4ac3a421b76b1f0f3e4fd73046dd3f51f0b4fc2",
+      "type": "commit",
+      "ancestor_of_origin_main": false
+    },
+    {
+      "ref": "refs/archive/owner-system-audit-20261018/commit-cdaf3f9ff166",
+      "sha": "cdaf3f9ff166648fb4a7ca5334b1f4541805928e",
+      "type": "commit",
+      "ancestor_of_origin_main": false
+    },
+    {
+      "ref": "refs/archive/owner-system-audit-20261018/tree-6028081b437b",
+      "sha": "6028081b437b47c2f5b2bad5986eecce0c820c59",
+      "type": "tree",
+      "ancestor_of_origin_main": false
+    },
+    {
+      "ref": "refs/archive/owner-system-audit-20261018/tree-6ef08ce3ccc2",
+      "sha": "6ef08ce3ccc2093d05df9bdcd4c77a7deeeeade2",
+      "type": "tree",
+      "ancestor_of_origin_main": false
+    },
+    {
+      "ref": "refs/archive/owner-system-audit-20261018/tree-70162a01a4ba",
+      "sha": "70162a01a4ba342d04237265a2000526fc686923",
+      "type": "tree",
+      "ancestor_of_origin_main": false
+    },
+    {
+      "ref": "refs/archive/owner-system-audit-20261018/tree-a800ae1e06ff",
+      "sha": "a800ae1e06ffde736c47f44fdd857460acbd9f3f",
+      "type": "tree",
+      "ancestor_of_origin_main": false
+    },
+    {
+      "ref": "refs/archive/recovery-20261006/blob/12c7e7a5ec2a401103332732a7b9a573c9c95689",
+      "sha": "12c7e7a5ec2a401103332732a7b9a573c9c95689",
+      "type": "blob",
+      "ancestor_of_origin_main": false
+    },
+    {
+      "ref": "refs/archive/recovery-20261006/blob/1ecb64973b12c6f7e84ea6c4c97e353c00f0638b",
+      "sha": "1ecb64973b12c6f7e84ea6c4c97e353c00f0638b",
+      "type": "blob",
+      "ancestor_of_origin_main": false
+    },
+    {
+      "ref": "refs/archive/recovery-20261006/blob/265e7d79ee8eae69cea3943f0966f61b7fc75403",
+      "sha": "265e7d79ee8eae69cea3943f0966f61b7fc75403",
+      "type": "blob",
+      "ancestor_of_origin_main": false
+    },
+    {
+      "ref": "refs/archive/recovery-20261006/blob/27f5557dc84ac03de8459e4ae8cf00b15ff0a443",
+      "sha": "27f5557dc84ac03de8459e4ae8cf00b15ff0a443",
+      "type": "blob",
+      "ancestor_of_origin_main": false
+    },
+    {
+      "ref": "refs/archive/recovery-20261006/blob/2a3cf4da1efe71f07bc9f11fcd9415312910509c",
+      "sha": "2a3cf4da1efe71f07bc9f11fcd9415312910509c",
+      "type": "blob",
+      "ancestor_of_origin_main": false
+    },
+    {
+      "ref": "refs/archive/recovery-20261006/blob/35fd4ec246513794e78e55502d7bc5056fe2bf61",
+      "sha": "35fd4ec246513794e78e55502d7bc5056fe2bf61",
+      "type": "blob",
+      "ancestor_of_origin_main": false
+    },
+    {
+      "ref": "refs/archive/recovery-20261006/blob/3796ed2c82ae49f483f40b0fd18e90bde36b1c28",
+      "sha": "3796ed2c82ae49f483f40b0fd18e90bde36b1c28",
+      "type": "blob",
+      "ancestor_of_origin_main": false
+    },
+    {
+      "ref": "refs/archive/recovery-20261006/blob/7a9480d6a70ec850ebe04492a7f51cfab06b877b",
+      "sha": "7a9480d6a70ec850ebe04492a7f51cfab06b877b",
+      "type": "blob",
+      "ancestor_of_origin_main": false
+    },
+    {
+      "ref": "refs/archive/recovery-20261006/blob/a95a572d81d71b0b3a38aee93924964731db7e62",
+      "sha": "a95a572d81d71b0b3a38aee93924964731db7e62",
+      "type": "blob",
+      "ancestor_of_origin_main": false
+    },
+    {
+      "ref": "refs/archive/recovery-20261006/blob/aceb49509fdba13a488d16e0267f9a2851519349",
+      "sha": "aceb49509fdba13a488d16e0267f9a2851519349",
+      "type": "blob",
+      "ancestor_of_origin_main": false
+    },
+    {
+      "ref": "refs/archive/recovery-20261006/blob/ae6899e12b7078a58fbb83e36cbcfef3661469f6",
+      "sha": "ae6899e12b7078a58fbb83e36cbcfef3661469f6",
+      "type": "blob",
+      "ancestor_of_origin_main": false
+    },
+    {
+      "ref": "refs/archive/recovery-20261006/blob/cb497888d0f030193cd0d8a1adce8720250aead9",
+      "sha": "cb497888d0f030193cd0d8a1adce8720250aead9",
+      "type": "blob",
+      "ancestor_of_origin_main": false
+    },
+    {
+      "ref": "refs/archive/recovery-20261006/blob/d6686f81ecb72bb62eb40ee47076ca7be4cb1b8a",
+      "sha": "d6686f81ecb72bb62eb40ee47076ca7be4cb1b8a",
+      "type": "blob",
+      "ancestor_of_origin_main": false
+    },
+    {
+      "ref": "refs/archive/recovery-20261006/blob/f3ff8d280d04ea2567e5c450b76421d9586c707b",
+      "sha": "f3ff8d280d04ea2567e5c450b76421d9586c707b",
+      "type": "blob",
+      "ancestor_of_origin_main": false
+    },
+    {
+      "ref": "refs/archive/recovery-20261006/blob/f7a626fb9241b9450eee7d477d339d428f58e7b4",
+      "sha": "f7a626fb9241b9450eee7d477d339d428f58e7b4",
+      "type": "blob",
+      "ancestor_of_origin_main": false
+    },
+    {
+      "ref": "refs/archive/recovery-20261006/commit/0a56a51650cb09104a3a43d1c2754e8f6dc8777b",
+      "sha": "0a56a51650cb09104a3a43d1c2754e8f6dc8777b",
+      "type": "commit",
+      "ancestor_of_origin_main": false
+    },
+    {
+      "ref": "refs/archive/recovery-20261006/commit/1b74a18011dd15b4267e643f1bfede3eef57eccb",
+      "sha": "1b74a18011dd15b4267e643f1bfede3eef57eccb",
+      "type": "commit",
+      "ancestor_of_origin_main": false
+    },
+    {
+      "ref": "refs/archive/recovery-20261006/commit/1d98a024651fb93bd30b16b4de1da720efad5a76",
+      "sha": "1d98a024651fb93bd30b16b4de1da720efad5a76",
+      "type": "commit",
+      "ancestor_of_origin_main": false
+    },
+    {
+      "ref": "refs/archive/recovery-20261006/commit/351cc491deafa64ced49d3901a50ca4d109a31fe",
+      "sha": "351cc491deafa64ced49d3901a50ca4d109a31fe",
+      "type": "commit",
+      "ancestor_of_origin_main": false
+    },
+    {
+      "ref": "refs/archive/recovery-20261006/commit/39974d1e1bbeeb3529793df9f21f43d243dcd071",
+      "sha": "39974d1e1bbeeb3529793df9f21f43d243dcd071",
+      "type": "commit",
+      "ancestor_of_origin_main": false
+    },
+    {
+      "ref": "refs/archive/recovery-20261006/commit/3d566da24f9934032f909274e42b57c00fddfb80",
+      "sha": "3d566da24f9934032f909274e42b57c00fddfb80",
+      "type": "commit",
+      "ancestor_of_origin_main": false
+    },
+    {
+      "ref": "refs/archive/recovery-20261006/commit/418a1eb83dbc35af664ad5c765dd91ba0894af42",
+      "sha": "418a1eb83dbc35af664ad5c765dd91ba0894af42",
+      "type": "commit",
+      "ancestor_of_origin_main": false
+    },
+    {
+      "ref": "refs/archive/recovery-20261006/commit/4c4c719db30cb7901c62582dbb78eedbc4a3950c",
+      "sha": "4c4c719db30cb7901c62582dbb78eedbc4a3950c",
+      "type": "commit",
+      "ancestor_of_origin_main": false
+    },
+    {
+      "ref": "refs/archive/recovery-20261006/commit/5071e766637345351639ed79e3969db451d7d0aa",
+      "sha": "5071e766637345351639ed79e3969db451d7d0aa",
+      "type": "commit",
+      "ancestor_of_origin_main": false
+    },
+    {
+      "ref": "refs/archive/recovery-20261006/commit/57cb5ff3a1833986897b0ab51af4970b1a4bf1ff",
+      "sha": "57cb5ff3a1833986897b0ab51af4970b1a4bf1ff",
+      "type": "commit",
+      "ancestor_of_origin_main": false
+    },
+    {
+      "ref": "refs/archive/recovery-20261006/commit/5a22f7f86b51869fcb8c5b56ab77272145c95d95",
+      "sha": "5a22f7f86b51869fcb8c5b56ab77272145c95d95",
+      "type": "commit",
+      "ancestor_of_origin_main": false
+    },
+    {
+      "ref": "refs/archive/recovery-20261006/commit/658964e63abde41f7d7e66347f65838649f24223",
+      "sha": "658964e63abde41f7d7e66347f65838649f24223",
+      "type": "commit",
+      "ancestor_of_origin_main": false
+    },
+    {
+      "ref": "refs/archive/recovery-20261006/commit/658cff762909dc32b5385e7c5296f84e0d6ce513",
+      "sha": "658cff762909dc32b5385e7c5296f84e0d6ce513",
+      "type": "commit",
+      "ancestor_of_origin_main": false
+    },
+    {
+      "ref": "refs/archive/recovery-20261006/commit/72d744313a55340d176616e90d5b06b3cd73db4c",
+      "sha": "72d744313a55340d176616e90d5b06b3cd73db4c",
+      "type": "commit",
+      "ancestor_of_origin_main": false
+    },
+    {
+      "ref": "refs/archive/recovery-20261006/commit/90b6d0ca6477d210c72b23190bcd7ffbb591e3b2",
+      "sha": "90b6d0ca6477d210c72b23190bcd7ffbb591e3b2",
+      "type": "commit",
+      "ancestor_of_origin_main": false
+    },
+    {
+      "ref": "refs/archive/recovery-20261006/commit/abceac2e7aef1f90169626c8ba3f3d7c375d254d",
+      "sha": "abceac2e7aef1f90169626c8ba3f3d7c375d254d",
+      "type": "commit",
+      "ancestor_of_origin_main": false
+    },
+    {
+      "ref": "refs/archive/recovery-20261006/commit/b2e6100ae74e2ceb7f9580215142e9f1972129cb",
+      "sha": "b2e6100ae74e2ceb7f9580215142e9f1972129cb",
+      "type": "commit",
+      "ancestor_of_origin_main": false
+    },
+    {
+      "ref": "refs/archive/recovery-20261006/commit/c15c35aaa0531c0f0493179b2f810a6ddd291f28",
+      "sha": "c15c35aaa0531c0f0493179b2f810a6ddd291f28",
+      "type": "commit",
+      "ancestor_of_origin_main": false
+    },
+    {
+      "ref": "refs/archive/recovery-20261006/commit/cc784bbfa2817ef41986cbc67774f57e67eae699",
+      "sha": "cc784bbfa2817ef41986cbc67774f57e67eae699",
+      "type": "commit",
+      "ancestor_of_origin_main": false
+    },
+    {
+      "ref": "refs/archive/recovery-20261006/commit/e54b63159d8abcf172e5224d66b2e5fcc48182b3",
+      "sha": "e54b63159d8abcf172e5224d66b2e5fcc48182b3",
+      "type": "commit",
+      "ancestor_of_origin_main": false
+    },
+    {
+      "ref": "refs/archive/recovery-20261006/commit/e9ea16ab5c519d58fe6a4c10d86055ce0439b3d4",
+      "sha": "e9ea16ab5c519d58fe6a4c10d86055ce0439b3d4",
+      "type": "commit",
+      "ancestor_of_origin_main": false
+    },
+    {
+      "ref": "refs/archive/recovery-20261006/commit/fde765ba3cbf04c1a889b415182ea1ad2b66a1ea",
+      "sha": "fde765ba3cbf04c1a889b415182ea1ad2b66a1ea",
+      "type": "commit",
+      "ancestor_of_origin_main": false
+    },
+    {
+      "ref": "refs/archive/recovery-20261006/tree/04bdc4317cb974a1710b4d4c3be6f04216d253be",
+      "sha": "04bdc4317cb974a1710b4d4c3be6f04216d253be",
+      "type": "tree",
+      "ancestor_of_origin_main": false
+    },
+    {
+      "ref": "refs/archive/recovery-20261006/tree/0e4695fe62ab887028ac6a1c59d42a0b08ce6ebf",
+      "sha": "0e4695fe62ab887028ac6a1c59d42a0b08ce6ebf",
+      "type": "tree",
+      "ancestor_of_origin_main": false
+    },
+    {
+      "ref": "refs/archive/recovery-20261006/tree/14392a379f77b034281d8bbdb9e72dcb2c6cf1ee",
+      "sha": "14392a379f77b034281d8bbdb9e72dcb2c6cf1ee",
+      "type": "tree",
+      "ancestor_of_origin_main": false
+    },
+    {
+      "ref": "refs/archive/recovery-20261006/tree/2435304f439378f255ca648c15fb4ae288fb7c1f",
+      "sha": "2435304f439378f255ca648c15fb4ae288fb7c1f",
+      "type": "tree",
+      "ancestor_of_origin_main": false
+    },
+    {
+      "ref": "refs/archive/recovery-20261006/tree/2b37e6e00185c844e3190a5a21d111131c01c7cc",
+      "sha": "2b37e6e00185c844e3190a5a21d111131c01c7cc",
+      "type": "tree",
+      "ancestor_of_origin_main": false
+    },
+    {
+      "ref": "refs/archive/recovery-20261006/tree/321fe7e5c89638c1d980717259a70f5da1ff3c4c",
+      "sha": "321fe7e5c89638c1d980717259a70f5da1ff3c4c",
+      "type": "tree",
+      "ancestor_of_origin_main": false
+    },
+    {
+      "ref": "refs/archive/recovery-20261006/tree/37feaaea3673e1c0861320f77a1089880415b0ce",
+      "sha": "37feaaea3673e1c0861320f77a1089880415b0ce",
+      "type": "tree",
+      "ancestor_of_origin_main": false
+    },
+    {
+      "ref": "refs/archive/recovery-20261006/tree/40dc77989916593c6c8bb75e414a23774a171aca",
+      "sha": "40dc77989916593c6c8bb75e414a23774a171aca",
+      "type": "tree",
+      "ancestor_of_origin_main": false
+    },
+    {
+      "ref": "refs/archive/recovery-20261006/tree/48fa3dd335c9a34c33037628fb68db21600478a0",
+      "sha": "48fa3dd335c9a34c33037628fb68db21600478a0",
+      "type": "tree",
+      "ancestor_of_origin_main": false
+    },
+    {
+      "ref": "refs/archive/recovery-20261006/tree/4eade9329f4e1d331a59846e9178a95ba8c4e24d",
+      "sha": "4eade9329f4e1d331a59846e9178a95ba8c4e24d",
+      "type": "tree",
+      "ancestor_of_origin_main": false
+    },
+    {
+      "ref": "refs/archive/recovery-20261006/tree/660d78b7b56bfa73d2aee152485965d5d4bd7bd5",
+      "sha": "660d78b7b56bfa73d2aee152485965d5d4bd7bd5",
+      "type": "tree",
+      "ancestor_of_origin_main": false
+    },
+    {
+      "ref": "refs/archive/recovery-20261006/tree/7e30603a44fddbee3855ec0589dfca881dead729",
+      "sha": "7e30603a44fddbee3855ec0589dfca881dead729",
+      "type": "tree",
+      "ancestor_of_origin_main": false
+    },
+    {
+      "ref": "refs/archive/recovery-20261006/tree/874a7c81a18a1975d670978b6f31f18dad68c3de",
+      "sha": "874a7c81a18a1975d670978b6f31f18dad68c3de",
+      "type": "tree",
+      "ancestor_of_origin_main": false
+    },
+    {
+      "ref": "refs/archive/recovery-20261006/tree/88d6c1821f7fdf9f47c803aeb43abbff8b2cd8db",
+      "sha": "88d6c1821f7fdf9f47c803aeb43abbff8b2cd8db",
+      "type": "tree",
+      "ancestor_of_origin_main": false
+    },
+    {
+      "ref": "refs/archive/recovery-20261006/tree/8b84c93e067404e58eb4a45dc16e573669be774f",
+      "sha": "8b84c93e067404e58eb4a45dc16e573669be774f",
+      "type": "tree",
+      "ancestor_of_origin_main": false
+    },
+    {
+      "ref": "refs/archive/recovery-20261006/tree/901ba1277932d08381d9d5b88b6ff6e282d6b89b",
+      "sha": "901ba1277932d08381d9d5b88b6ff6e282d6b89b",
+      "type": "tree",
+      "ancestor_of_origin_main": false
+    },
+    {
+      "ref": "refs/archive/recovery-20261006/tree/9752464257499d8b2dc4253f60d73de601ee1516",
+      "sha": "9752464257499d8b2dc4253f60d73de601ee1516",
+      "type": "tree",
+      "ancestor_of_origin_main": false
+    },
+    {
+      "ref": "refs/archive/recovery-20261006/tree/a23236a5662a9ea1c48ef3cb082a19dab558638d",
+      "sha": "a23236a5662a9ea1c48ef3cb082a19dab558638d",
+      "type": "tree",
+      "ancestor_of_origin_main": false
+    },
+    {
+      "ref": "refs/archive/recovery-20261006/tree/a47dc93f921d953ea380d54375db7f141d4d1777",
+      "sha": "a47dc93f921d953ea380d54375db7f141d4d1777",
+      "type": "tree",
+      "ancestor_of_origin_main": false
+    },
+    {
+      "ref": "refs/archive/recovery-20261006/tree/a4e42479854f49018b89bbe96b6ed8d2ed3002ad",
+      "sha": "a4e42479854f49018b89bbe96b6ed8d2ed3002ad",
+      "type": "tree",
+      "ancestor_of_origin_main": false
+    },
+    {
+      "ref": "refs/archive/recovery-20261006/tree/abc6e02423f51489e9bb8dcaa3ce1fd784ede185",
+      "sha": "abc6e02423f51489e9bb8dcaa3ce1fd784ede185",
+      "type": "tree",
+      "ancestor_of_origin_main": false
+    },
+    {
+      "ref": "refs/archive/recovery-20261006/tree/ad7bb394c7847c73b11f5b0f3f969ec6a137e8e4",
+      "sha": "ad7bb394c7847c73b11f5b0f3f969ec6a137e8e4",
+      "type": "tree",
+      "ancestor_of_origin_main": false
+    },
+    {
+      "ref": "refs/archive/recovery-20261006/tree/bbf6a1e68da5a0806e2a40a5ca857219c312687a",
+      "sha": "bbf6a1e68da5a0806e2a40a5ca857219c312687a",
+      "type": "tree",
+      "ancestor_of_origin_main": false
+    },
+    {
+      "ref": "refs/archive/recovery-20261006/tree/d3b43403b7394cd23e1b8bca78c47b7336331f62",
+      "sha": "d3b43403b7394cd23e1b8bca78c47b7336331f62",
+      "type": "tree",
+      "ancestor_of_origin_main": false
+    },
+    {
+      "ref": "refs/archive/recovery-20261006/tree/dc0d5382f98e474b153768ee0cd65922cf48757c",
+      "sha": "dc0d5382f98e474b153768ee0cd65922cf48757c",
+      "type": "tree",
+      "ancestor_of_origin_main": false
+    },
+    {
+      "ref": "refs/archive/recovery-20261006/tree/e1c150e2437810fb424c6461b7344b7f8208de90",
+      "sha": "e1c150e2437810fb424c6461b7344b7f8208de90",
+      "type": "tree",
+      "ancestor_of_origin_main": false
+    },
+    {
+      "ref": "refs/archive/recovery-20261006/tree/ec8ff7e7f3fbdc8f91e0a557e22143494f44df97",
+      "sha": "ec8ff7e7f3fbdc8f91e0a557e22143494f44df97",
+      "type": "tree",
+      "ancestor_of_origin_main": false
+    },
+    {
+      "ref": "refs/codex/turn-diffs/captures/1792314836984/fb3e3ea2-d199-4f85-8f58-78a2bdda5ba8/base",
+      "sha": "30d80fd1e52e75b18167da4143f52f198efec1ad",
+      "type": "tree",
+      "ancestor_of_origin_main": false
+    },
+    {
+      "ref": "refs/codex/turn-diffs/captures/1792372232794/2454d3e7-92c7-4601-aa8d-73fa2392c275/base",
+      "sha": "e8ac738d0faf480f13d47b70eb825d584bc0875d",
+      "type": "tree",
+      "ancestor_of_origin_main": false
+    },
+    {
+      "ref": "refs/codex/turn-diffs/checkpoints/063529bf6fd669043cd73f1c2024c223/04ece5abaf79882f166d0e2dfd072955/1792234834505/19a85747-6ba0-4d85-b26b-b2fbf1a12452",
+      "sha": "30d80fd1e52e75b18167da4143f52f198efec1ad",
+      "type": "tree",
+      "ancestor_of_origin_main": false
+    },
+    {
+      "ref": "refs/codex/turn-diffs/checkpoints/6609e2fb2d5fee604c5a9513b910e151/237166fc9f11c15aec664e5b40e99c9f/1792366839278/803d7eeb-6e37-48e7-9df5-68328973607f",
+      "sha": "e8ac738d0faf480f13d47b70eb825d584bc0875d",
+      "type": "tree",
+      "ancestor_of_origin_main": false
+    },
+    {
+      "ref": "refs/heads/archive/owner-pre-reboot-20261011",
+      "sha": "b3b886b6ea1e52cde275a20b54fecb2d600b7773",
+      "type": "commit",
+      "ancestor_of_origin_main": true
+    },
+    {
+      "ref": "refs/heads/audit/cloud-runtime-budget-20261013",
+      "sha": "8c37bfda6c157268758f46621606b02fe864861a",
+      "type": "commit",
+      "ancestor_of_origin_main": true
+    },
+    {
+      "ref": "refs/heads/audit/owner-postintegration-20261015",
+      "sha": "c44eccd7de788474c834421a196c82089da6b54a",
+      "type": "commit",
+      "ancestor_of_origin_main": true
+    },
+    {
+      "ref": "refs/heads/audit/public-readiness-20261007",
+      "sha": "46b46e87e282a3f817f1f8aaf099a25a59d083fc",
+      "type": "commit",
+      "ancestor_of_origin_main": true
+    },
+    {
+      "ref": "refs/heads/audit/station-readiness-20261012",
+      "sha": "30ca99319140e569a6a3a68cec4bea84fc6b7bfa",
+      "type": "commit",
+      "ancestor_of_origin_main": true
+    },
+    {
+      "ref": "refs/heads/codex/integration-audit-20261019",
+      "sha": "9d4f09e67251ea13fb68aff1490028a5ab892cd5",
+      "type": "commit",
+      "ancestor_of_origin_main": false
+    },
+    {
+      "ref": "refs/heads/codex/system-audit-20261018",
+      "sha": "9d4f09e67251ea13fb68aff1490028a5ab892cd5",
+      "type": "commit",
+      "ancestor_of_origin_main": false
+    },
+    {
+      "ref": "refs/heads/docs/archive-and-workstation-readback-20261014",
+      "sha": "6d9acf2fae8eed814ade141f242094e1c85ace03",
+      "type": "commit",
+      "ancestor_of_origin_main": true
+    },
+    {
+      "ref": "refs/heads/docs/audit-delivery-20261009",
+      "sha": "46b46e87e282a3f817f1f8aaf099a25a59d083fc",
+      "type": "commit",
+      "ancestor_of_origin_main": true
+    },
+    {
+      "ref": "refs/heads/docs/audit-qualified-1046-20261014",
+      "sha": "fcc8db7a2a8d870a79cba91d12b4bf698965802b",
+      "type": "commit",
+      "ancestor_of_origin_main": true
+    },
+    {
+      "ref": "refs/heads/docs/oracle-763-acceptance-20261013",
+      "sha": "a03df8168765ff720615bf28cdcef7106e64fafe",
+      "type": "commit",
+      "ancestor_of_origin_main": true
+    },
+    {
+      "ref": "refs/heads/docs/oracle-photo-workstation-20261006",
+      "sha": "46b46e87e282a3f817f1f8aaf099a25a59d083fc",
+      "type": "commit",
+      "ancestor_of_origin_main": true
+    },
+    {
+      "ref": "refs/heads/docs/oracle-store-review-20261014",
+      "sha": "be7a0b6d86ab2ffde76bb9ceb7d528c78bebfe4d",
+      "type": "commit",
+      "ancestor_of_origin_main": true
+    },
+    {
+      "ref": "refs/heads/docs/public-iso-delivery-20261008",
+      "sha": "384505f717ff50b7f7f2643a0d956867d55d6b8e",
+      "type": "commit",
+      "ancestor_of_origin_main": true
+    },
+    {
+      "ref": "refs/heads/docs/runtime-delivery-20261013",
+      "sha": "c5f2451ba16594ade98ac59172db69de060b79e6",
+      "type": "commit",
+      "ancestor_of_origin_main": true
+    },
+    {
+      "ref": "refs/heads/docs/station-audit-delivery-20261013",
+      "sha": "e671a57fc99a06cf86fb8f265e0d4e162562982c",
+      "type": "commit",
+      "ancestor_of_origin_main": true
+    },
+    {
+      "ref": "refs/heads/feat/remote-glass-console-20261006",
+      "sha": "3b4c6d5377e07aa0fe1db9268b70056eab82a3cc",
+      "type": "commit",
+      "ancestor_of_origin_main": true
+    },
+    {
+      "ref": "refs/heads/feat/remote-oracle-experience-20260912",
+      "sha": "b8f49afcd9ef13fba5deb5d596b90a0bbbc834bb",
+      "type": "commit",
+      "ancestor_of_origin_main": true
+    },
+    {
+      "ref": "refs/heads/feat/store-real-apps-touch-20261016",
+      "sha": "b141619d0b7b613758d7ca59778fd70840e6ae3f",
+      "type": "commit",
+      "ancestor_of_origin_main": true
+    },
+    {
+      "ref": "refs/heads/fix/a1-live-review-20260918",
+      "sha": "bd552a9ad506d49b28da9913079ac66851bfc0a8",
+      "type": "commit",
+      "ancestor_of_origin_main": true
+    },
+    {
+      "ref": "refs/heads/fix/android-desktop-first-setup-20261017",
+      "sha": "b141619d0b7b613758d7ca59778fd70840e6ae3f",
+      "type": "commit",
+      "ancestor_of_origin_main": true
+    },
+    {
+      "ref": "refs/heads/fix/app-engine-admission-20261009",
+      "sha": "46b46e87e282a3f817f1f8aaf099a25a59d083fc",
+      "type": "commit",
+      "ancestor_of_origin_main": true
+    },
+    {
+      "ref": "refs/heads/fix/community-native-picker-20261013",
+      "sha": "582f552555ebdc9e86b975b843f217176feef0d5",
+      "type": "commit",
+      "ancestor_of_origin_main": true
+    },
+    {
+      "ref": "refs/heads/fix/greeter-portal-environment-20261013",
+      "sha": "5f0f2c65d2583f6c128ca3ea4577334333f7083d",
+      "type": "commit",
+      "ancestor_of_origin_main": true
+    },
+    {
+      "ref": "refs/heads/fix/island-visible-keyboard-20261014",
+      "sha": "fafa408a911a309380f00b439f8c69caeca4b73d",
+      "type": "commit",
+      "ancestor_of_origin_main": true
+    },
+    {
+      "ref": "refs/heads/fix/iso-efi-install-20261009",
+      "sha": "144b1a6ad04f0b7fa442183110ad6d969f636add",
+      "type": "commit",
+      "ancestor_of_origin_main": true
+    },
+    {
+      "ref": "refs/heads/fix/m1-acceptance-stability-20261014",
+      "sha": "38896597f490ab0ed07aa9952e871e46b5349dd9",
+      "type": "commit",
+      "ancestor_of_origin_main": true
+    },
+    {
+      "ref": "refs/heads/fix/managed-app-lifetime-20261017",
+      "sha": "b141619d0b7b613758d7ca59778fd70840e6ae3f",
+      "type": "commit",
+      "ancestor_of_origin_main": true
+    },
+    {
+      "ref": "refs/heads/fix/moplayer-direct-files-20261012",
+      "sha": "9d1717fe2b934a289557e6686b6bd702e8864d44",
+      "type": "commit",
+      "ancestor_of_origin_main": true
+    },
+    {
+      "ref": "refs/heads/fix/plymouth-srpm-extraction-20261013",
+      "sha": "40e1f09f03143db79c37366f922ddabfe2f58919",
+      "type": "commit",
+      "ancestor_of_origin_main": true
+    },
+    {
+      "ref": "refs/heads/fix/release-metadata-and-oracle-775-20261014",
+      "sha": "45e6eb702f55cfe76274d02e014924da93cc05bc",
+      "type": "commit",
+      "ancestor_of_origin_main": true
+    },
+    {
+      "ref": "refs/heads/fix/remote-screen-target-20261016",
+      "sha": "b141619d0b7b613758d7ca59778fd70840e6ae3f",
+      "type": "commit",
+      "ancestor_of_origin_main": true
+    },
+    {
+      "ref": "refs/heads/fix/workstation-sdk-mcp-20261014",
+      "sha": "4bb51ecc8501d511c63e265378666203700381de",
+      "type": "commit",
+      "ancestor_of_origin_main": true
+    },
+    {
+      "ref": "refs/heads/integrate/all-owner-20261006",
+      "sha": "46b46e87e282a3f817f1f8aaf099a25a59d083fc",
+      "type": "commit",
+      "ancestor_of_origin_main": true
+    },
+    {
+      "ref": "refs/heads/integrate/owner-unified-20261015",
+      "sha": "25506378bfb6d0076dd09da69249e5e69a9516af",
+      "type": "commit",
+      "ancestor_of_origin_main": true
+    },
+    {
+      "ref": "refs/heads/integrate/store-experience-20261017",
+      "sha": "b141619d0b7b613758d7ca59778fd70840e6ae3f",
+      "type": "commit",
+      "ancestor_of_origin_main": true
+    },
+    {
+      "ref": "refs/heads/main",
+      "sha": "727e7b6cf6df2ba2c47ca4a5264e911c48e81d48",
+      "type": "commit",
+      "ancestor_of_origin_main": true
+    },
+    {
+      "ref": "refs/heads/oracle/stability-performance-20260907",
+      "sha": "b14695ac901ca2b04936523893c93a9489e308be",
+      "type": "commit",
+      "ancestor_of_origin_main": true
+    },
+    {
+      "ref": "refs/heads/review/store-integration-20261014",
+      "sha": "93a9019e3a6d4268a725f89030c0685992c00a25",
+      "type": "commit",
+      "ancestor_of_origin_main": true
+    },
+    {
+      "ref": "refs/remotes/nvidia-audit/store-20261014",
+      "sha": "93a9019e3a6d4268a725f89030c0685992c00a25",
+      "type": "commit",
+      "ancestor_of_origin_main": true
+    },
+    {
+      "ref": "refs/remotes/origin/HEAD",
+      "sha": "5fbecf1a1e3cd8b02915c22c3e29d27f0507c899",
+      "type": "commit",
+      "ancestor_of_origin_main": true
+    },
+    {
+      "ref": "refs/remotes/origin/archive/native-pre-sync-20261013",
+      "sha": "a76c4dd154ce4c448f43c5f54ffb240847059817",
+      "type": "commit",
+      "ancestor_of_origin_main": true
+    },
+    {
+      "ref": "refs/remotes/origin/archive/owner-pre-reboot-20261011",
+      "sha": "b3b886b6ea1e52cde275a20b54fecb2d600b7773",
+      "type": "commit",
+      "ancestor_of_origin_main": true
+    },
+    {
+      "ref": "refs/remotes/origin/audit/cloud-runtime-budget-20261013",
+      "sha": "8c37bfda6c157268758f46621606b02fe864861a",
+      "type": "commit",
+      "ancestor_of_origin_main": true
+    },
+    {
+      "ref": "refs/remotes/origin/audit/edition-closure-qualified-readback-20261017",
+      "sha": "d4c09fe5e36fdc81ec444e0ccb51b0f21eabca2c",
+      "type": "commit",
+      "ancestor_of_origin_main": true
+    },
+    {
+      "ref": "refs/remotes/origin/audit/iso-close-observer-env-20261018",
+      "sha": "864825799c43fd3eebdaca286d469272c0ada5c4",
+      "type": "commit",
+      "ancestor_of_origin_main": true
+    },
+    {
+      "ref": "refs/remotes/origin/audit/nvidia-store-snapshot-20261014",
+      "sha": "93a9019e3a6d4268a725f89030c0685992c00a25",
+      "type": "commit",
+      "ancestor_of_origin_main": true
+    },
+    {
+      "ref": "refs/remotes/origin/audit/owner-completion-20261017",
+      "sha": "c3608bd21d8325c6fc99aa3be3bb19b9d6d82876",
+      "type": "commit",
+      "ancestor_of_origin_main": true
+    },
+    {
+      "ref": "refs/remotes/origin/audit/owner-delivery-readback-20261017",
+      "sha": "3aebc1acb8368022f910a8ee13ba2ccc888af013",
+      "type": "commit",
+      "ancestor_of_origin_main": true
+    },
+    {
+      "ref": "refs/remotes/origin/audit/owner-postintegration-20261015",
+      "sha": "c44eccd7de788474c834421a196c82089da6b54a",
+      "type": "commit",
+      "ancestor_of_origin_main": true
+    },
+    {
+      "ref": "refs/remotes/origin/audit/owner-readback-20261009",
+      "sha": "49d088a55266280cd37f6c92da8334384f3ee818",
+      "type": "commit",
+      "ancestor_of_origin_main": true
+    },
+    {
+      "ref": "refs/remotes/origin/audit/public-readiness-20261007",
+      "sha": "46b46e87e282a3f817f1f8aaf099a25a59d083fc",
+      "type": "commit",
+      "ancestor_of_origin_main": true
+    },
+    {
+      "ref": "refs/remotes/origin/audit/station-readiness-20261009",
+      "sha": "8ebe059136470dbfd4478c0c0d6a5b110eb1bc7e",
+      "type": "commit",
+      "ancestor_of_origin_main": true
+    },
+    {
+      "ref": "refs/remotes/origin/audit/station-readiness-20261012",
+      "sha": "30ca99319140e569a6a3a68cec4bea84fc6b7bfa",
+      "type": "commit",
+      "ancestor_of_origin_main": true
+    },
+    {
+      "ref": "refs/remotes/origin/backup/oracle-unified-25506378-20261015",
+      "sha": "25506378bfb6d0076dd09da69249e5e69a9516af",
+      "type": "commit",
+      "ancestor_of_origin_main": true
+    },
+    {
+      "ref": "refs/remotes/origin/codex/baloo-regexp-recovery-20260926",
+      "sha": "83758802b10bd5fd0500962b03587f2cc2fe4bd2",
+      "type": "commit",
+      "ancestor_of_origin_main": true
+    },
+    {
+      "ref": "refs/remotes/origin/codex/icon-family-geometry-20260925",
+      "sha": "019fb940eb6636ca25d519e48d73527d1abbe985",
+      "type": "commit",
+      "ancestor_of_origin_main": true
+    },
+    {
+      "ref": "refs/remotes/origin/codex/integrate-all-20260930",
+      "sha": "398a0b7ba817f4808e6cda7482f39efba0928ae7",
+      "type": "commit",
+      "ancestor_of_origin_main": true
+    },
+    {
+      "ref": "refs/remotes/origin/codex/integrate-test-20261003",
+      "sha": "c4f891d9c281b9f62dcb13f5e59795eb0aff4378",
+      "type": "commit",
+      "ancestor_of_origin_main": true
+    },
+    {
+      "ref": "refs/remotes/origin/codex/iso-user-unit-diagnostics",
+      "sha": "da16305b9ff8537943c72628d621e33e82e28de2",
+      "type": "commit",
+      "ancestor_of_origin_main": true
+    },
+    {
+      "ref": "refs/remotes/origin/codex/live-material-installer-20260926",
+      "sha": "f2a70630d31eef0eced2709f449b67bd2151c65b",
+      "type": "commit",
+      "ancestor_of_origin_main": true
+    },
+    {
+      "ref": "refs/remotes/origin/codex/mira-neural-os",
+      "sha": "5b6e2fc5f156c0ef3817bb928d137955b6f600af",
+      "type": "commit",
+      "ancestor_of_origin_main": true
+    },
+    {
+      "ref": "refs/remotes/origin/codex/owner-integration-20261015",
+      "sha": "382f593578b0a046290e86120faa17f4f04016af",
+      "type": "commit",
+      "ancestor_of_origin_main": true
+    },
+    {
+      "ref": "refs/remotes/origin/codex/protect-release-candidates-20260927",
+      "sha": "887c579e6e3165f5704257eef5d153b4c1b3d4b5",
+      "type": "commit",
+      "ancestor_of_origin_main": true
+    },
+    {
+      "ref": "refs/remotes/origin/codex/release-945-station-state-20260927",
+      "sha": "d76c39ae3390d58e99f338b7a04afc8a9659f028",
+      "type": "commit",
+      "ancestor_of_origin_main": true
+    },
+    {
+      "ref": "refs/remotes/origin/codex/release1062-readback-20261016",
+      "sha": "7868462a4bd6409ec5094451cfb6ecf54b6ca656",
+      "type": "commit",
+      "ancestor_of_origin_main": true
+    },
+    {
+      "ref": "refs/remotes/origin/codex/remote-audio-session-revocation-20260927",
+      "sha": "b14a82a723474287afa3545bbe2965be3e1989de",
+      "type": "commit",
+      "ancestor_of_origin_main": true
+    },
+    {
+      "ref": "refs/remotes/origin/codex/remote-clipboard-quality-20260928",
+      "sha": "d8797bfc5829277562febc7d01fe96a1dd482f7a",
+      "type": "commit",
+      "ancestor_of_origin_main": true
+    },
+    {
+      "ref": "refs/remotes/origin/codex/remote-glass-live-20260925",
+      "sha": "89d3fe0aa065f52974ab48b1033256018d869871",
+      "type": "commit",
+      "ancestor_of_origin_main": true
+    },
+    {
+      "ref": "refs/remotes/origin/codex/remote-trust-opt-in-20260925",
+      "sha": "c4025f70f3505634e555168f5a52af76ddd277c7",
+      "type": "commit",
+      "ancestor_of_origin_main": true
+    },
+    {
+      "ref": "refs/remotes/origin/codex/reuse-arm-release-proof-20260927",
+      "sha": "bf2a244f5c6ce390394b4925b1ec005a9f368f9f",
+      "type": "commit",
+      "ancestor_of_origin_main": true
+    },
+    {
+      "ref": "refs/remotes/origin/codex/rounded-material-motion-20260927",
+      "sha": "f6c10c7f4f821c9107b6d4c5f65943c046174740",
+      "type": "commit",
+      "ancestor_of_origin_main": true
+    },
+    {
+      "ref": "refs/remotes/origin/codex/store-craft-complete-20261015",
+      "sha": "7868462a4bd6409ec5094451cfb6ecf54b6ca656",
+      "type": "commit",
+      "ancestor_of_origin_main": true
+    },
+    {
+      "ref": "refs/remotes/origin/codex/system-audit-20261018",
+      "sha": "9d4f09e67251ea13fb68aff1490028a5ab892cd5",
+      "type": "commit",
+      "ancestor_of_origin_main": false
+    },
+    {
+      "ref": "refs/remotes/origin/codex/v3-hardware-audit-20261019",
+      "sha": "2f0e900d31fbebf8ec47000f9a656e8a05c95c51",
+      "type": "commit",
+      "ancestor_of_origin_main": false
+    },
+    {
+      "ref": "refs/remotes/origin/docs/archive-and-workstation-readback-20261014",
+      "sha": "6d9acf2fae8eed814ade141f242094e1c85ace03",
+      "type": "commit",
+      "ancestor_of_origin_main": true
+    },
+    {
+      "ref": "refs/remotes/origin/docs/audit-delivery-20261009",
+      "sha": "46b46e87e282a3f817f1f8aaf099a25a59d083fc",
+      "type": "commit",
+      "ancestor_of_origin_main": true
+    },
+    {
+      "ref": "refs/remotes/origin/docs/audit-qualified-1046-20261014",
+      "sha": "fcc8db7a2a8d870a79cba91d12b4bf698965802b",
+      "type": "commit",
+      "ancestor_of_origin_main": true
+    },
+    {
+      "ref": "refs/remotes/origin/docs/nvidia-1072-native-acceptance-20261018",
+      "sha": "e88fcb65b83da0f3244d6dd827ce232e3d020e0f",
+      "type": "commit",
+      "ancestor_of_origin_main": true
+    },
+    {
+      "ref": "refs/remotes/origin/docs/oracle-763-acceptance-20261013",
+      "sha": "a03df8168765ff720615bf28cdcef7106e64fafe",
+      "type": "commit",
+      "ancestor_of_origin_main": true
+    },
+    {
+      "ref": "refs/remotes/origin/docs/oracle-photo-workstation-20261006",
+      "sha": "46b46e87e282a3f817f1f8aaf099a25a59d083fc",
+      "type": "commit",
+      "ancestor_of_origin_main": true
+    },
+    {
+      "ref": "refs/remotes/origin/docs/oracle-store-review-20261014",
+      "sha": "be7a0b6d86ab2ffde76bb9ceb7d528c78bebfe4d",
+      "type": "commit",
+      "ancestor_of_origin_main": true
+    },
+    {
+      "ref": "refs/remotes/origin/docs/owner-delivery-state-20261010",
+      "sha": "10d98f4580653fb42824da3ec04b8efeead997eb",
+      "type": "commit",
+      "ancestor_of_origin_main": true
+    },
+    {
+      "ref": "refs/remotes/origin/docs/public-iso-delivery-20261008",
+      "sha": "384505f717ff50b7f7f2643a0d956867d55d6b8e",
+      "type": "commit",
+      "ancestor_of_origin_main": true
+    },
+    {
+      "ref": "refs/remotes/origin/docs/release-audit-20261003",
+      "sha": "7b457e30683555c6ed5408962d3182788cd56515",
+      "type": "commit",
+      "ancestor_of_origin_main": true
+    },
+    {
+      "ref": "refs/remotes/origin/docs/release-state-20260925",
+      "sha": "12a470864713b43205bdc4be72995eadcc1a6024",
+      "type": "commit",
+      "ancestor_of_origin_main": true
+    },
+    {
+      "ref": "refs/remotes/origin/docs/remote-hdmi-readback-20261001",
+      "sha": "c9decf9bc5a7637fbef64369446b95b1c9223678",
+      "type": "commit",
+      "ancestor_of_origin_main": true
+    },
+    {
+      "ref": "refs/remotes/origin/docs/remote-release-handoff-20261011",
+      "sha": "753b82b9a0418408caf70e0f328a4049e1da5b73",
+      "type": "commit",
+      "ancestor_of_origin_main": true
+    },
+    {
+      "ref": "refs/remotes/origin/docs/runtime-delivery-20261013",
+      "sha": "c5f2451ba16594ade98ac59172db69de060b79e6",
+      "type": "commit",
+      "ancestor_of_origin_main": true
+    },
+    {
+      "ref": "refs/remotes/origin/docs/session-delivery-20261007",
+      "sha": "bc87250c4435f1f17e4d67e774f01742f5e347c2",
+      "type": "commit",
+      "ancestor_of_origin_main": true
+    },
+    {
+      "ref": "refs/remotes/origin/docs/session-release-20261006",
+      "sha": "f78d062d6da0238be557c76580e3eebe0a68de72",
+      "type": "commit",
+      "ancestor_of_origin_main": true
+    },
+    {
+      "ref": "refs/remotes/origin/docs/station-audit-delivery-20261013",
+      "sha": "e671a57fc99a06cf86fb8f265e0d4e162562982c",
+      "type": "commit",
+      "ancestor_of_origin_main": true
+    },
+    {
+      "ref": "refs/remotes/origin/docs/station-reboot-20261005",
+      "sha": "a7d627d1b41cf9ff818770aa1e34f9609869ee8f",
+      "type": "commit",
+      "ancestor_of_origin_main": true
+    },
+    {
+      "ref": "refs/remotes/origin/feat/login-experience-20261005",
+      "sha": "1e4a46e8d9aa9d0016881b07df768b32b5bc1fe2",
+      "type": "commit",
+      "ancestor_of_origin_main": true
+    },
+    {
+      "ref": "refs/remotes/origin/feat/mira-home-lumen-20261002",
+      "sha": "78f72b6c8bacada8dde61f408114abb66fafc9a6",
+      "type": "commit",
+      "ancestor_of_origin_main": true
+    },
+    {
+      "ref": "refs/remotes/origin/feat/mo-store-library-20261014",
+      "sha": "382f593578b0a046290e86120faa17f4f04016af",
+      "type": "commit",
+      "ancestor_of_origin_main": true
+    },
+    {
+      "ref": "refs/remotes/origin/feat/moos-one-kde-20260924",
+      "sha": "13b23c957ac2e18f50f8e5f809070dafb16c80d4",
+      "type": "commit",
+      "ancestor_of_origin_main": true
+    },
+    {
+      "ref": "refs/remotes/origin/feat/moplayer-reborn-20260930",
+      "sha": "1fad94214ea49e255d459738879bea78818e4cab",
+      "type": "commit",
+      "ancestor_of_origin_main": true
+    },
+    {
+      "ref": "refs/remotes/origin/feat/owner-milestones-20261009",
+      "sha": "bfb158ddc6f7db0fd947162dddf35cb62b7c1c79",
+      "type": "commit",
+      "ancestor_of_origin_main": true
+    },
+    {
+      "ref": "refs/remotes/origin/feat/owner-reliability-20261011",
+      "sha": "ba59f99bfa1a8f0cb2b7583138c4d77105069091",
+      "type": "commit",
+      "ancestor_of_origin_main": true
+    },
+    {
+      "ref": "refs/remotes/origin/feat/remote-glass-console-20261006",
+      "sha": "3b4c6d5377e07aa0fe1db9268b70056eab82a3cc",
+      "type": "commit",
+      "ancestor_of_origin_main": true
+    },
+    {
+      "ref": "refs/remotes/origin/feat/remote-one-system-20261001",
+      "sha": "a2adf9ff8d449d0f01786aa20521b159cd1b2493",
+      "type": "commit",
+      "ancestor_of_origin_main": true
+    },
+    {
+      "ref": "refs/remotes/origin/feat/remote-oracle-experience-20260912",
+      "sha": "b8f49afcd9ef13fba5deb5d596b90a0bbbc834bb",
+      "type": "commit",
+      "ancestor_of_origin_main": true
+    },
+    {
+      "ref": "refs/remotes/origin/feat/remote-prelogin-20261011",
+      "sha": "cd1d673470f65ae0cd4ebe00a4f042422a3a787c",
+      "type": "commit",
+      "ancestor_of_origin_main": true
+    },
+    {
+      "ref": "refs/remotes/origin/feat/remote-unified-system-20261005",
+      "sha": "ee7d15c7a696f37dc9bee91dd46894a59f0cab49",
+      "type": "commit",
+      "ancestor_of_origin_main": true
+    },
+    {
+      "ref": "refs/remotes/origin/feat/store-real-apps-touch-20261016",
+      "sha": "b141619d0b7b613758d7ca59778fd70840e6ae3f",
+      "type": "commit",
+      "ancestor_of_origin_main": true
+    },
+    {
+      "ref": "refs/remotes/origin/fix/a1-live-review-20260918",
+      "sha": "bd552a9ad506d49b28da9913079ac66851bfc0a8",
+      "type": "commit",
+      "ancestor_of_origin_main": true
+    },
+    {
+      "ref": "refs/remotes/origin/fix/android-desktop-first-setup-20261017",
+      "sha": "b141619d0b7b613758d7ca59778fd70840e6ae3f",
+      "type": "commit",
+      "ancestor_of_origin_main": true
+    },
+    {
+      "ref": "refs/remotes/origin/fix/android-unit-edition-closure-20261017",
+      "sha": "f789fff1cef34e22d46dca2c9e5a6ee159a2a55b",
+      "type": "commit",
+      "ancestor_of_origin_main": true
+    },
+    {
+      "ref": "refs/remotes/origin/fix/app-engine-admission-20261009",
+      "sha": "46b46e87e282a3f817f1f8aaf099a25a59d083fc",
+      "type": "commit",
+      "ancestor_of_origin_main": true
+    },
+    {
+      "ref": "refs/remotes/origin/fix/arm-upstream-timer-wants-20260930",
+      "sha": "e8b4fa88032ae26290cf0d1779aca82b7603bb05",
+      "type": "commit",
+      "ancestor_of_origin_main": true
+    },
+    {
+      "ref": "refs/remotes/origin/fix/boot-journey-20261004",
+      "sha": "c83f460bd8e9157899200ba95c9f13c5f0fe5006",
+      "type": "commit",
+      "ancestor_of_origin_main": true
+    },
+    {
+      "ref": "refs/remotes/origin/fix/community-native-picker-20261013",
+      "sha": "582f552555ebdc9e86b975b843f217176feef0d5",
+      "type": "commit",
+      "ancestor_of_origin_main": true
+    },
+    {
+      "ref": "refs/remotes/origin/fix/firmware-update-state-20261004",
+      "sha": "b5d1715156e01a49ea7915fc39bc204e0f788dc4",
+      "type": "commit",
+      "ancestor_of_origin_main": true
+    },
+    {
+      "ref": "refs/remotes/origin/fix/greeter-portal-environment-20261013",
+      "sha": "5f0f2c65d2583f6c128ca3ea4577334333f7083d",
+      "type": "commit",
+      "ancestor_of_origin_main": true
+    },
+    {
+      "ref": "refs/remotes/origin/fix/greeter-theme-maintenance-20261011",
+      "sha": "407c1eed3c2ec9833aec48ef572074faa99f6e06",
+      "type": "commit",
+      "ancestor_of_origin_main": true
+    },
+    {
+      "ref": "refs/remotes/origin/fix/island-visible-keyboard-20261014",
+      "sha": "fafa408a911a309380f00b439f8c69caeca4b73d",
+      "type": "commit",
+      "ancestor_of_origin_main": true
+    },
+    {
+      "ref": "refs/remotes/origin/fix/iso-app-close-diagnostics-20261018",
+      "sha": "4751e651b0491f6025bee39e0f2a5d6fc449feef",
+      "type": "commit",
+      "ancestor_of_origin_main": true
+    },
+    {
+      "ref": "refs/remotes/origin/fix/iso-efi-install-20261009",
+      "sha": "144b1a6ad04f0b7fa442183110ad6d969f636add",
+      "type": "commit",
+      "ancestor_of_origin_main": true
+    },
+    {
+      "ref": "refs/remotes/origin/fix/m1-acceptance-stability-20261014",
+      "sha": "38896597f490ab0ed07aa9952e871e46b5349dd9",
+      "type": "commit",
+      "ancestor_of_origin_main": true
+    },
+    {
+      "ref": "refs/remotes/origin/fix/managed-app-lifetime-20261017",
+      "sha": "b141619d0b7b613758d7ca59778fd70840e6ae3f",
+      "type": "commit",
+      "ancestor_of_origin_main": true
+    },
+    {
+      "ref": "refs/remotes/origin/fix/mira-face-motion-20261002",
+      "sha": "c8d34e21cd17f84d4f1d22f547dc72b3a0e3654b",
+      "type": "commit",
+      "ancestor_of_origin_main": true
+    },
+    {
+      "ref": "refs/remotes/origin/fix/mira-lighting-control-20261003",
+      "sha": "5a02b5c9f1db51f5491c10e1024dbb986601a6f7",
+      "type": "commit",
+      "ancestor_of_origin_main": true
+    },
+    {
+      "ref": "refs/remotes/origin/fix/mira-single-mouth-20261002",
+      "sha": "7603d81296f242a9b4757422db07ef36ba45742b",
+      "type": "commit",
+      "ancestor_of_origin_main": true
+    },
+    {
+      "ref": "refs/remotes/origin/fix/moplayer-direct-files-20261012",
+      "sha": "9d1717fe2b934a289557e6686b6bd702e8864d44",
+      "type": "commit",
+      "ancestor_of_origin_main": true
+    },
+    {
+      "ref": "refs/remotes/origin/fix/moplayer-video-probe-20260930",
+      "sha": "b21c684767d4d7f630a5ac892d38394f84e39110",
+      "type": "commit",
+      "ancestor_of_origin_main": true
+    },
+    {
+      "ref": "refs/remotes/origin/fix/os-readiness-20261004",
+      "sha": "406e0746f2587cf22bb35e848627ceb938af6802",
+      "type": "commit",
+      "ancestor_of_origin_main": true
+    },
+    {
+      "ref": "refs/remotes/origin/fix/owner-app-engine-admission-20261015",
+      "sha": "f3dbae9aa8448651e8959eb34e36db4fd118dff0",
+      "type": "commit",
+      "ancestor_of_origin_main": true
+    },
+    {
+      "ref": "refs/remotes/origin/fix/plymouth-frame-lifetime-proof-20261004",
+      "sha": "54dbf441c201b388ebf4035f9b2e784d8cd94757",
+      "type": "commit",
+      "ancestor_of_origin_main": true
+    },
+    {
+      "ref": "refs/remotes/origin/fix/plymouth-srpm-extraction-20261013",
+      "sha": "40e1f09f03143db79c37366f922ddabfe2f58919",
+      "type": "commit",
+      "ancestor_of_origin_main": true
+    },
+    {
+      "ref": "refs/remotes/origin/fix/public-download-readiness-20261005",
+      "sha": "fa04098b88f0c494c5d2bca78e603b8abbfa33f8",
+      "type": "commit",
+      "ancestor_of_origin_main": true
+    },
+    {
+      "ref": "refs/remotes/origin/fix/release-metadata-and-oracle-775-20261014",
+      "sha": "45e6eb702f55cfe76274d02e014924da93cc05bc",
+      "type": "commit",
+      "ancestor_of_origin_main": true
+    },
+    {
+      "ref": "refs/remotes/origin/fix/remote-geometry-20261001",
+      "sha": "a2039a95ee52482915bce4aa4a0f5d112039104d",
+      "type": "commit",
+      "ancestor_of_origin_main": true
+    },
+    {
+      "ref": "refs/remotes/origin/fix/remote-mobile-recovery-20261005",
+      "sha": "fe6388e357964e043467111f127e5e0513d2b1b5",
+      "type": "commit",
+      "ancestor_of_origin_main": true
+    },
+    {
+      "ref": "refs/remotes/origin/fix/remote-pin-lockout-20261006",
+      "sha": "fa85b2daf3db0f1f823b3159bb46b25571a99740",
+      "type": "commit",
+      "ancestor_of_origin_main": true
+    },
+    {
+      "ref": "refs/remotes/origin/fix/remote-quality-ceiling-20261002",
+      "sha": "ea3299a58de460d6ef582d1fb356f6449591bf65",
+      "type": "commit",
+      "ancestor_of_origin_main": true
+    },
+    {
+      "ref": "refs/remotes/origin/fix/remote-screen-target-20261016",
+      "sha": "b141619d0b7b613758d7ca59778fd70840e6ae3f",
+      "type": "commit",
+      "ancestor_of_origin_main": true
+    },
+    {
+      "ref": "refs/remotes/origin/fix/search-index-identity-acceptance-20261018",
+      "sha": "97fa7617a819bf2d9108fedb972812e1c01daf0f",
+      "type": "commit",
+      "ancestor_of_origin_main": true
+    },
+    {
+      "ref": "refs/remotes/origin/fix/session-return-audit-20261006",
+      "sha": "b994d39f46c11190c4809dc8a7c422a964c97b65",
+      "type": "commit",
+      "ancestor_of_origin_main": true
+    },
+    {
+      "ref": "refs/remotes/origin/fix/session-return-readback-20261006",
+      "sha": "d26f3866c82fd7252944e2c12ac7f770c7a2661b",
+      "type": "commit",
+      "ancestor_of_origin_main": true
+    },
+    {
+      "ref": "refs/remotes/origin/fix/sharp-security-20261006",
+      "sha": "97f4f12145c9994efb52ac7cf1dcd0e7acc0f1bb",
+      "type": "commit",
+      "ancestor_of_origin_main": true
+    },
+    {
+      "ref": "refs/remotes/origin/fix/store-preserved-drafts-20261015",
+      "sha": "789f73b9fe0bcdbeb9f46942cd017a4fda4414c4",
+      "type": "commit",
+      "ancestor_of_origin_main": true
+    },
+    {
+      "ref": "refs/remotes/origin/fix/store-remote-experience-20261016",
+      "sha": "d1a15713f4a5eb244d291aaca24adb831448a1e0",
+      "type": "commit",
+      "ancestor_of_origin_main": true
+    },
+    {
+      "ref": "refs/remotes/origin/fix/workstation-sdk-mcp-20261014",
+      "sha": "4bb51ecc8501d511c63e265378666203700381de",
+      "type": "commit",
+      "ancestor_of_origin_main": true
+    },
+    {
+      "ref": "refs/remotes/origin/integrate/all-owner-20261006",
+      "sha": "46b46e87e282a3f817f1f8aaf099a25a59d083fc",
+      "type": "commit",
+      "ancestor_of_origin_main": true
+    },
+    {
+      "ref": "refs/remotes/origin/integrate/owner-unified-20261015",
+      "sha": "25506378bfb6d0076dd09da69249e5e69a9516af",
+      "type": "commit",
+      "ancestor_of_origin_main": true
+    },
+    {
+      "ref": "refs/remotes/origin/integrate/session-oracle-docs-20261006",
+      "sha": "0b44d4356a654ea20f972897ecc4c13743bc8436",
+      "type": "commit",
+      "ancestor_of_origin_main": true
+    },
+    {
+      "ref": "refs/remotes/origin/integrate/station-complete-20261015",
+      "sha": "789f73b9fe0bcdbeb9f46942cd017a4fda4414c4",
+      "type": "commit",
+      "ancestor_of_origin_main": true
+    },
+    {
+      "ref": "refs/remotes/origin/main",
+      "sha": "5fbecf1a1e3cd8b02915c22c3e29d27f0507c899",
+      "type": "commit",
+      "ancestor_of_origin_main": true
+    },
+    {
+      "ref": "refs/remotes/origin/mira/control-centre-20260930",
+      "sha": "0b39f2cee53a40ea9ad9f73792818f689318b027",
+      "type": "commit",
+      "ancestor_of_origin_main": true
+    },
+    {
+      "ref": "refs/remotes/origin/mira/neural-os-v4",
+      "sha": "c992ec347f204dababc62c858cfdf4606fbcfdee",
+      "type": "commit",
+      "ancestor_of_origin_main": true
+    },
+    {
+      "ref": "refs/remotes/origin/oracle/stability-performance-20260907",
+      "sha": "b14695ac901ca2b04936523893c93a9489e308be",
+      "type": "commit",
+      "ancestor_of_origin_main": true
+    },
+    {
+      "ref": "refs/remotes/origin/review/store-integration-20261014",
+      "sha": "93a9019e3a6d4268a725f89030c0685992c00a25",
+      "type": "commit",
+      "ancestor_of_origin_main": true
+    },
+    {
+      "ref": "refs/remotes/origin/store/backend",
+      "sha": "7876a43e687fefe9a8b27949605041df44f8e063",
+      "type": "commit",
+      "ancestor_of_origin_main": true
+    },
+    {
+      "ref": "refs/remotes/origin/store/backend2",
+      "sha": "01a057d1641f665caf04ae56559ae507648a94c0",
+      "type": "commit",
+      "ancestor_of_origin_main": true
+    },
+    {
+      "ref": "refs/remotes/origin/store/catalog",
+      "sha": "2ca9ac6aac48932e243b7c99122b29ccb777546b",
+      "type": "commit",
+      "ancestor_of_origin_main": true
+    },
+    {
+      "ref": "refs/remotes/origin/store/fix-appdrop-archive",
+      "sha": "7413e11fc54dd0ea6e667a43eb36c74b8fad5cce",
+      "type": "commit",
+      "ancestor_of_origin_main": true
+    },
+    {
+      "ref": "refs/remotes/origin/store/fix-honest-copy",
+      "sha": "c75357e365c7e9f1224f63f82a2555baa4475ebf",
+      "type": "commit",
+      "ancestor_of_origin_main": true
+    },
+    {
+      "ref": "refs/remotes/origin/store/fix-index",
+      "sha": "96e32006741028b8b8921a4d21df7b0ef1bc4622",
+      "type": "commit",
+      "ancestor_of_origin_main": true
+    },
+    {
+      "ref": "refs/remotes/origin/store/fix-open-and-ids",
+      "sha": "a5bce099ba39df3daab1251dc8e6265640064199",
+      "type": "commit",
+      "ancestor_of_origin_main": true
+    },
+    {
+      "ref": "refs/remotes/origin/store/fix-pinned-updates",
+      "sha": "8a39cfa65c464e06f6b32f96611533019ebc92bf",
+      "type": "commit",
+      "ancestor_of_origin_main": true
+    },
+    {
+      "ref": "refs/remotes/origin/store/fix-webapp-and-gate",
+      "sha": "4af294ac3bcd86d9503a326ead4c212f225b873b",
+      "type": "commit",
+      "ancestor_of_origin_main": true
+    },
+    {
+      "ref": "refs/remotes/origin/store/index",
+      "sha": "67e622de378dea2fdaa96877602dee8b6d7c5f2f",
+      "type": "commit",
+      "ancestor_of_origin_main": true
+    },
+    {
+      "ref": "refs/remotes/origin/store/ui",
+      "sha": "fd39cbd032e95197743a459de14aaf9fa21402c5",
+      "type": "commit",
+      "ancestor_of_origin_main": true
+    },
+    {
+      "ref": "refs/remotes/origin/store/ui-split",
+      "sha": "30961bfc763b5e02388e76b0cb8ce08090e97930",
+      "type": "commit",
+      "ancestor_of_origin_main": true
+    },
+    {
+      "ref": "refs/remotes/origin/store/vendor-rpm",
+      "sha": "a77327da47c3c3f339ab49e2b09e2141bdfb1fda",
+      "type": "commit",
+      "ancestor_of_origin_main": true
+    },
+    {
+      "ref": "refs/remotes/origin/worktree-wf_69ad076c-bc9-1",
+      "sha": "5745edd19623e74181a982bf94743cce46fb8c63",
+      "type": "commit",
+      "ancestor_of_origin_main": true
+    },
+    {
+      "ref": "refs/remotes/origin/worktree-wf_79a92669-b86-1",
+      "sha": "1b3bbb9ae65a127e4e294c3298172dd09e8bf4de",
+      "type": "commit",
+      "ancestor_of_origin_main": true
+    },
+    {
+      "ref": "refs/remotes/origin/worktree-wf_7fb76d0d-f13-1",
+      "sha": "1b3bbb9ae65a127e4e294c3298172dd09e8bf4de",
+      "type": "commit",
+      "ancestor_of_origin_main": true
+    },
+    {
+      "ref": "refs/remotes/origin/worktree-wf_8d34fbaa-15a-1",
+      "sha": "1b3bbb9ae65a127e4e294c3298172dd09e8bf4de",
+      "type": "commit",
+      "ancestor_of_origin_main": true
+    },
+    {
+      "ref": "refs/remotes/origin/worktree-wf_8d34fbaa-15a-2",
+      "sha": "1b3bbb9ae65a127e4e294c3298172dd09e8bf4de",
+      "type": "commit",
+      "ancestor_of_origin_main": true
+    },
+    {
+      "ref": "refs/remotes/origin/worktree-wf_8d34fbaa-15a-3",
+      "sha": "1b3bbb9ae65a127e4e294c3298172dd09e8bf4de",
+      "type": "commit",
+      "ancestor_of_origin_main": true
+    },
+    {
+      "ref": "refs/remotes/origin/worktree-wf_baf75a26-2b3-1",
+      "sha": "5745edd19623e74181a982bf94743cce46fb8c63",
+      "type": "commit",
+      "ancestor_of_origin_main": true
+    },
+    {
+      "ref": "refs/stash",
+      "sha": "7c004b58c38ae8567ca166e788ac379dede5f3d0",
+      "type": "commit",
+      "ancestor_of_origin_main": false
+    },
+    {
+      "ref": "refs/tags/archive/branch/feat-remote-oracle-experience-20260912",
+      "sha": "187b0e6aab79a6b472776921c68b76f8413a9bf2",
+      "type": "tag",
+      "ancestor_of_origin_main": true
+    },
+    {
+      "ref": "refs/tags/archive/branch/fix-a1-live-review-20260918",
+      "sha": "63d54cb0e2fd43eedab6ebdafc1a415a12cb838c",
+      "type": "tag",
+      "ancestor_of_origin_main": true
+    },
+    {
+      "ref": "refs/tags/archive/branch/oracle-stability-performance-20260907",
+      "sha": "cae45e210fdfdf02e671ce9eb53a46357cb55169",
+      "type": "tag",
+      "ancestor_of_origin_main": true
+    },
+    {
+      "ref": "refs/tags/archive/stash/baloo-index-policy-20260917",
+      "sha": "72add09432acb2b2c712eb78708ff1faea0282b0",
+      "type": "tag",
+      "ancestor_of_origin_main": false
+    },
+    {
+      "ref": "refs/tags/archive/stash/native-touch-20261006",
+      "sha": "273f4b37f133db981e734ebbcef67386e6058e6c",
+      "type": "tag",
+      "ancestor_of_origin_main": false
+    },
+    {
+      "ref": "refs/tags/archive/stash/translucent-dialogs-20260924",
+      "sha": "b345cdd62d4941de2d28a6abba2e6be0f96384a9",
+      "type": "tag",
+      "ancestor_of_origin_main": false
+    },
+    {
+      "ref": "refs/tags/archive/worktree/station-gates-20260918",
+      "sha": "e5239398c13084ddb8b881fd9677458d04c7857f",
+      "type": "tag",
+      "ancestor_of_origin_main": false
+    }
+  ],
+  "worktrees_at_initial_read": [
+    {
+      "worktree": "/var/home/moos/moos-image",
+      "HEAD": "9d4f09e67251ea13fb68aff1490028a5ab892cd5",
+      "branch": "refs/heads/codex/system-audit-20261018",
+      "status_returncode": 0,
+      "status": [],
+      "status_error": "",
+      "exists": true
+    }
+  ],
+  "preserved_stashes": [
+    "stash@{0}: On docs/audit-delivery-20261009: Preserved during owner-requested workstation consolidation 2026-10-18",
+    "stash@{1}: On feat/remote-glass-console-20261006: Owner Git rules preserved before final main synchronization 2026-10-07",
+    "stash@{2}: On plan/unified-moos-20260924: translucent dialogs WIP (A1 2026-09-24)",
+    "stash@{3}: On fix/system-search-20260912: baloo index-policy fix (pre-sync backup 2026-09-17)"
+  ]
+}
