@@ -206,6 +206,10 @@ need no writes/restart; silent setters, failed readbacks and restarts must never
 print ready. Isolated stateful controls are not physical Android acceptance.
 
 
+**A development profile has its own runtime contract.** A current OpenCode SDK failed on Node22 at `await using`; native Node26 imports pass. Do not equate npm installation, an extension list or MCP configuration with a working SDK/browser. A missing helper inside an `if` also returned a false-green Flutter harness: record individual command exits and check the actual ELF. Keep user SDKs separate from the immutable OS and pinned Mo AI adapter; native app onboarding/wallet/provider authentication remain separate acceptance.
+
+**A language check can print errors and exit0.** Native gopls reports the intentional string-to-int error with success status; inspect diagnostics, and require a real debugger breakpoint/value read separately. A direct watcher create/unsubscribe control missed Antigravity IDE's exit bug: live subscriptions reproduce2.5.1 double-free; official2.6.0 passes the same control and3private native close/reopen cycles with60actual events. Verify the loaded addon and child exit, preserve the original bundle backup, and keep authenticated/editor/endurance acceptance separate. An incomplete historical core does not explain every renderer/zygote signal.
+
 **The last success line is not the process exit.** An editor exec ended143
 after the final catalogue gate printed success. Its termination cause remains
 unproven. Preserve that result; a native parent must save the command's exit,
