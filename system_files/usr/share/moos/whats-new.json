@@ -19,19 +19,6 @@
       ]
     },
     {
-      "id": "motion-speed",
-      "merged": "2026-09-17T22:36:04Z",
-      "glyph": "pulse",
-      "title": {
-        "ar": "سرعة حركة واحدة للنظام كله",
-        "en": "One animation speed for the whole system"
-      },
-      "body": {
-        "ar": "بطاقات MoOS وأزراره تتبع الآن إعداد سرعة الحركة نفسه الذي يتبعه سطح المكتب، فلا يبقى جزء بطيئًا وآخر سريعًا.",
-        "en": "MoOS cards and buttons now follow the same animation-speed setting the desktop does, so one part is never slow while another is fast."
-      }
-    },
-    {
       "id": "arm-scheduled-app-updates",
       "arch": [
         "aarch64"
@@ -884,23 +871,6 @@
         "ar": "سطرا التاريخ في لوحة MoOS على حافة واحدة، وشريحة الخصوصية في الجزيرة تعرض جملتها كاملة بدل قطعها.",
         "en": "The two date lines of the MoOS Hub sit on one edge, and the Island's privacy chip shows its whole sentence instead of cutting it."
       }
-    },
-    {
-      "id": "switcher",
-      "merged": "2026-09-17T22:36:04Z",
-      "glyph": "ui",
-      "title": {
-        "ar": "مبدّل النوافذ صار من MoOS",
-        "en": "The window switcher is MoOS now"
-      },
-      "body": {
-        "ar": "اضغط Alt+Tab: شريط زجاجي واحد يعرض نوافذك الحيّة، يقرأ من اليمين في الجلسة العربية، ويمكنك إغلاق النافذة منه مباشرة.",
-        "en": "Press Alt+Tab: one glass strip of your live windows, reading right-to-left in an Arabic session, and you can close a window straight from it."
-      },
-      "keys": [
-        "Alt",
-        "Tab"
-      ]
     },
     {
       "id": "arrange",
