@@ -481,5 +481,18 @@
     "booted_version": "44.20261018.1072",
     "booted_previous_pinned": true,
     "new_physical_boot_performed": false
+  },
+  "late_crash_reporting_note": {
+    "unit_kind": "drkonqi-coredump-processor transient reporting unit",
+    "observed_failed_units": 1,
+    "result": "timeout",
+    "main_status": "SIGTERM after runtime limit",
+    "coredump_daemon_note": "Failed to initialize pidref: No such process",
+    "actual_crashed_executable_or_cause_available": false,
+    "attributed_to_watcher_or_owner_session": false,
+    "reporting_journal_saved": true,
+    "no_password_noninteractive_status_reset": "refused_requires_interactive_authentication",
+    "reset_performed": false,
+    "remote_active_restarts_zero": true
   }
 }
