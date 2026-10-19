@@ -1227,6 +1227,14 @@ plan.
 Hardware identity for Settings and Mo AI belongs to `usr/lib/moos/moos_hardware.py`;
 keep GPU classification with `moos-visual-tier` and cover consumer agreement with executable fixtures.
 
+**A PCI-only driver scan cannot qualify a tablet.** The physical V3 exposes
+`SMOCF05` as an unbound ACPI/I2C client while its PCI devices are healthy and
+SensorProxy reports no accelerometer. Keep that measured missing-binding case
+in `moos-device-plan` and its private-sysfs controls. Do not label every I2C
+adapter or driverless USB vendor interface broken: libfprint uses userspace.
+Diagnostic detection does not establish touch events, fingerprint verification,
+rotation or signed driver delivery; record each separately.
+
 **An active application unit does not identify the window left on screen.** ISO39082792111 installed offline and accepted ordinary login, then failed Themes close after seven completed app journeys. Its old failure kept neither a post-close frame nor the named cgroup's tasks; a private native offscreen close passed and did not explain it. Stop the finite input resends before observing the failed window, bound read-only diagnosis to that authenticated fixture user's unit, and preserve the original nonzero verdict even if capture or diagnosis fails. Keep both real close assertions and their75s budgets. Do not kill a helper, drop cgroup lifetime, infer a root cause or promote the other passing proofs to make this failure disappear.
 
 The observer in diagnostic39086687915 did preserve the closed desktop, but its first unit query inherited the wrong SSH runtime/bus and was refused. A matching UID is not the native user-manager environment. Pass that UID's exact runtime/bus explicitly, and retain a failed metadata read as nonzero even when the following journal read succeeds. An unavailable task list is never an empty cgroup or proof of its cause.

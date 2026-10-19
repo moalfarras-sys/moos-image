@@ -1,8 +1,27 @@
-# MoOS current state — updated 2026-10-18
+# MoOS current state — updated 2026-10-19
 Oracle A1 and the physical NVIDIA workstation develop one MoOS product. Source, promoted artifacts and installed systems are separate evidence; the only backlog is [DEVELOPMENT_PLAN.md](docs/DEVELOPMENT_PLAN.md).
 Native audit: [AUDIT_20261012_AR.md](docs/AUDIT_20261012_AR.md). [Oct15 live delivery readback](docs/releases/2026-10-15-unified-delivery-readback.json). [Oct15 branch integration](docs/releases/2026-10-15-owner-integration.json). [Historical Store defects and their integrated corrections](docs/reviews/STORE_20261015_AR.md).
 
 ## Current engineering batch
+
+New physical V3 audit (separate from NVIDIA/Oracle): Ryzen8840U/Radeon780M,
+generic1072/kernel7.2.11/Plasma6.8, native54/0 selfcheck, zero failed units.
+Three UVC capture paths return frames; front1080p30, rear1080p negotiated15fps
+with very dark pixels, IR640×360. Microphone sample and short output stream pass;
+Wi-Fi connected, Bluetooth powered, dock/USB/NVMe drivers bound. Native Wayland touch
+receives6 complete contacts/335 updates/max3 points; owner has no pen. Goodix6092 is detected,
+initially no enrollment. Owner completed Tailscale/PIN; actual private HTTPS
+and EIS readiness pass, with pre-login disabled; phone frames/input remain open.
+Owner enabled authselect's missing with-fingerprint feature with a named backup;
+native config check passes, fingerprint PAM is live and password PAM retained.
+Enrollment stages are received; final enrollment/verify/unlock remain open.
+SensorProxy reports no accelerometer: ACPI/I2C SMOCF05 has no bound driver.
+Source corrects the PCI-only false-ready diagnostic with private missing/bound/
+broken-link/unrelated-device controls, without claiming a sensor driver fix.
+Postcheck preserves55/1 manifest mismatch: independently signed published1072
+matches all261 uncompressed layer identities, runtime config and history of the
+offline-installed local representation. One deployment only; no rollback/update/
+reboot or firmware write performed. [Full scope and acceptance](docs/hardware/V3_20261019_AR.md).
 
 PR248–251 are integrated at `727e7b6cf6df2ba2c47ca4a5264e911c48e81d48`, tree `22086a7e312991b77f61bfa794efbfca0ceba00d`. Native full2668-case check, complete local image87e84381,28 overlay payloads/seven compiled modules, and first-attempt PR image/repository gates pass. The one frozen signed cycle succeeds: build39120488031, disks39126559377/39126562830/39126565706, ISO39126568330 (ordinary offline install/login, all10 app close/reopen journeys, second boot), full ARM39120345470 and actual x86 promotion39129933686. Independent native public-key verification matches all4 production digests/source labels. [Qualified cycle](docs/releases/2026-10-18-qualified-1072-cycle-proof.json). Earlier Cloud composition and .1069 ISO close failures remain preserved; no gate/deadline/signature/rollback policy was weakened.
 

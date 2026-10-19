@@ -1,6 +1,6 @@
 # MoOS development plan — current execution backlog
 
-Updated 2026-10-18. This is the single execution backlog, not an incident diary.
+Updated 2026-10-19. This is the single execution backlog, not an incident diary.
 Current measurements live in PROJECT_STATE.md; detailed audit evidence and
 remaining boundaries are in [AUDIT_20261012_AR.md](AUDIT_20261012_AR.md). Git preserves prior waves.
 
@@ -10,6 +10,19 @@ is reliability/release acceptance, before the remaining four milestones. The
 new private feedback/optional public suggestions product is P6.9 below.
 
 ## Active delivery and acceptance batch
+
+P5.1/P5.3 now have a separate physical V3 baseline, not inferred NVIDIA/Oracle
+acceptance: GPU/VA-API/display, three camera streams, microphone, Wi-Fi and bound
+dock/storage drivers are measured. SMOCF05 ACPI/I2C is unbound and no
+accelerometer reaches SensorProxy; source diagnostics now report that actual
+gap instead of PCI-only ready. Native touch records6 complete contacts/335 updates/
+max3 points. Goodix is detected; physical enrollment/verify,
+whole-desktop touch journeys, rear-camera quality, pen, Bluetooth pairing, wired/SD,
+rotation/suspend/hotplug remain acceptance. Owner completed private Remote TLS
+and PIN; authenticated phone video/input is separate. Strict postcheck55/1
+manifest mismatch stays visible despite independent261-layer/config/history
+content equality and published signature verification. No host image update or
+reboot. [V3 measured scope](hardware/V3_20261019_AR.md).
 
 Current delivery: PR248–251 integrate at727e7b6c/tree22086a7e. Complete local image87e84381/native source checks pass; signed build39120488031, all3 exact-digest QCOW2 proofs, ISO39126568330 ordinary offline install/login/10 apps/second boot, ARM39120345470 and actual x86 promotion39129933686 succeed. Independent cosign/registry reads match all4 candidate digests: x861072/ARM807. Old Cloud and1069 ISO refusals remain evidence; new success keeps all original gates. Physical NVIDIA now boots1072 with signed1062 rollback:35 payloads,54 selfchecks,55/0 postchecks and natural cold search lifecycle pass. Broader coredump review retains greeter screenRemoved teardown and first-owner Remote bind collision; full native acceptance remains open. [Qualified cycle](releases/2026-10-18-qualified-1072-cycle-proof.json).
 
