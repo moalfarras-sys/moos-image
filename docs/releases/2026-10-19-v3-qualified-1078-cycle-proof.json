@@ -1,0 +1,156 @@
+{
+  "schema_version": 1,
+  "observed_date": "2026-10-19",
+  "source_revision": "18ba1a8330ccc071b5d633bac758779b1b861756",
+  "source_tree": "0348adf20398b52fc1ae59fc8bed543e52f88f0c",
+  "qualified_topic_revision": "f1fd1cf91ff1b2f3ccfe21d970fd50e4238f9398",
+  "source_pull_request": "https://github.com/moalfarras-sys/moos-image/pull/255",
+  "candidate_cycle_dispatched_once": true,
+  "workflow_runs": [
+    {
+      "attempt": 1,
+      "conclusion": "success",
+      "databaseId": 39265167668,
+      "event": "workflow_dispatch",
+      "headBranch": "main",
+      "headSha": "18ba1a8330ccc071b5d633bac758779b1b861756",
+      "name": "Build MoOS image",
+      "status": "completed",
+      "url": "https://github.com/moalfarras-sys/moos-image/actions/runs/39265167668"
+    },
+    {
+      "attempt": 1,
+      "conclusion": "success",
+      "databaseId": 39274409976,
+      "event": "workflow_dispatch",
+      "headBranch": "main",
+      "headSha": "18ba1a8330ccc071b5d633bac758779b1b861756",
+      "name": "Build MoOS disk image (qcow2)",
+      "status": "completed",
+      "url": "https://github.com/moalfarras-sys/moos-image/actions/runs/39274409976"
+    },
+    {
+      "attempt": 1,
+      "conclusion": "success",
+      "databaseId": 39274417585,
+      "event": "workflow_dispatch",
+      "headBranch": "main",
+      "headSha": "18ba1a8330ccc071b5d633bac758779b1b861756",
+      "name": "Build MoOS disk image (qcow2)",
+      "status": "completed",
+      "url": "https://github.com/moalfarras-sys/moos-image/actions/runs/39274417585"
+    },
+    {
+      "attempt": 1,
+      "conclusion": "success",
+      "databaseId": 39274424589,
+      "event": "workflow_dispatch",
+      "headBranch": "main",
+      "headSha": "18ba1a8330ccc071b5d633bac758779b1b861756",
+      "name": "Build MoOS disk image (qcow2)",
+      "status": "completed",
+      "url": "https://github.com/moalfarras-sys/moos-image/actions/runs/39274424589"
+    },
+    {
+      "attempt": 1,
+      "conclusion": "success",
+      "databaseId": 39274432535,
+      "event": "workflow_dispatch",
+      "headBranch": "main",
+      "headSha": "18ba1a8330ccc071b5d633bac758779b1b861756",
+      "name": "Build MoOS Live ISO",
+      "status": "completed",
+      "url": "https://github.com/moalfarras-sys/moos-image/actions/runs/39274432535"
+    },
+    {
+      "attempt": 1,
+      "conclusion": "success",
+      "databaseId": 39265084041,
+      "event": "push",
+      "headBranch": "main",
+      "headSha": "18ba1a8330ccc071b5d633bac758779b1b861756",
+      "name": "Build MoOS ARM (aarch64)",
+      "status": "completed",
+      "url": "https://github.com/moalfarras-sys/moos-image/actions/runs/39265084041"
+    },
+    {
+      "attempt": 1,
+      "conclusion": "success",
+      "databaseId": 39283856876,
+      "event": "workflow_dispatch",
+      "headBranch": "main",
+      "headSha": "18ba1a8330ccc071b5d633bac758779b1b861756",
+      "name": "Promote boot-proven MoOS x86 release",
+      "status": "completed",
+      "url": "https://github.com/moalfarras-sys/moos-image/actions/runs/39283856876"
+    }
+  ],
+  "promoted_images": {
+    "moos": {
+      "digest": "sha256:c0aa87f98b6c367a0ceceb31ec718b12aca2e03148b6525eee6271a02a7ee2b9",
+      "version": "44.20261019.1078",
+      "revision": "18ba1a8330ccc071b5d633bac758779b1b861756",
+      "independent_cosign_verify_exit": 0,
+      "public_latest_matches_candidate": true
+    },
+    "moos-nvidia": {
+      "digest": "sha256:5ab26c4e6b5a77478779efce8234f8699155dcab695c9f3d44a631cc092800fa",
+      "version": "44.20261019.1078",
+      "revision": "18ba1a8330ccc071b5d633bac758779b1b861756",
+      "independent_cosign_verify_exit": 0,
+      "public_latest_matches_candidate": true
+    },
+    "moos-cloud": {
+      "digest": "sha256:7d2985d5d0ecad379ca601ab10afaf90c0e242fe14d78ea529730d8c950c4b03",
+      "version": "44.20261019.1078",
+      "revision": "18ba1a8330ccc071b5d633bac758779b1b861756",
+      "independent_cosign_verify_exit": 0,
+      "public_latest_matches_candidate": true
+    },
+    "moos-arm": {
+      "digest": "sha256:c8aec0ac02d341a2109c1d0cff12d618c4623d11d5b0f024929314cda9346bc5",
+      "version": "44.20261019.816",
+      "revision": "18ba1a8330ccc071b5d633bac758779b1b861756",
+      "independent_cosign_verify_exit": 0,
+      "public_latest_matches_candidate": true
+    }
+  },
+  "iso": {
+    "sha256": "6b4eaed54ed5c2d596686e083dda1bb3e78d556da776edfe665952db47d8ddb0",
+    "read_only_live_boot_passed": true,
+    "offline_image_digest_matches": true,
+    "installation_network_disabled": true,
+    "ordinary_login_and_ten_apps_open_close_reopen": true,
+    "installed_second_boot": "healthy",
+    "installed_poweroff": "clean",
+    "login_and_store_artifact_frames_reviewed": true,
+    "local_full_download_verification_pending": true,
+    "public_website_download_not_claimed": true
+  },
+  "arm_artifact": {
+    "boot_proven_raw_qcow2_sha256": "50e5dfd95aaedd5d961f35eac5b4170eddee1db58b1a7eaa42c7d1d922dc0ef1",
+    "first_boot": "healthy",
+    "poweroff": "clean",
+    "revision": "18ba1a8330ccc071b5d633bac758779b1b861756",
+    "schema": 1,
+    "second_boot": "healthy",
+    "source_image": "ghcr.io/moalfarras-sys/moos-arm@sha256:c8aec0ac02d341a2109c1d0cff12d618c4623d11d5b0f024929314cda9346bc5",
+    "workflow_run_id": 39265084041
+  },
+  "physical_v3": {
+    "booted_version": "44.20261018.1072",
+    "booted_deployment_pinned": true,
+    "new_signed_version_available": "44.20261019.1078",
+    "new_stage_requested_through_official_moai_do": true,
+    "administrator_polkit_authentication_pending": true,
+    "no_agent_reboot_or_remote_restart": true,
+    "new_image_boot_and_fingerprint_acceptance_pending_owner": true,
+    "snapshot_at_cycle_verification": true
+  },
+  "limits": [
+    "CI boots and native user development checks do not qualify a new physical V3 boot.",
+    "Earlier retired topic candidate, initial fixture failures and physical manifest mismatch remain preserved.",
+    "Native development packages are a user profile, not part of the universal base image."
+  ],
+  "observed_at_utc": "2026-10-19T16:34:47.081373+00:00"
+}

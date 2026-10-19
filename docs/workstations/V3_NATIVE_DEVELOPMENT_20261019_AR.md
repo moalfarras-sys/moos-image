@@ -77,6 +77,14 @@ MoOS Host مستقلة. إعداد Podman ومسار Flutter وQML محفوظة.
 فحص Code الفعلي يرى Radeon780M وMesa26.2.3 مع compositing/OpenGL/
 WebGL/WebGPU مفعلة؛ ترميز الفيديو فيه برمجي. لم يُجر benchmark سرعة.
 
+خادم Go `gopls0.24.0` ومصحح `Delve1.27.2` أضيفا من الوحدات الرسمية
+مع تحقق Go checksum database، وضُبطت مساراتهما في Code وملف إرفاق الحاوية.
+SDK الأساسي يستخدم Go1.26.9؛ بناء gopls يحتاج Go1.27، فرفضه الإعداد
+`GOTOOLCHAIN=local` أولًا، ثم نجح تنزيل أداة Go1.27.2 الرسمية لهذا
+التثبيت وحده؛ لم يتغير الإعداد العام. يشخّص gopls ملفًا غير صحيح مع
+خروج0؛ قبول الاختبار يعتمد على نص التشخيص الفعلي. Delve توقف عند سطر
+محدد وقرأ المتغير42، ثم خرج البرنامج0؛ لم تُرخّص ptrace على مستوى المضيف.
+
 SDK الذكاء الاصطناعي له Python venv وNode project مستقلان تحت
 `~/.local/share/moos-dev-platform/`. حُفظ قفل التبعيات. استيراد حزم
 Google Antigravity وClaude Agent وAnthropic وOpenAI وMCP وGoogle GenAI

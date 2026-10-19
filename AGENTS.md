@@ -199,6 +199,8 @@ print ready. Isolated stateful controls are not physical Android acceptance.
 
 **A development profile has its own runtime contract.** A current OpenCode SDK failed on Node22 at `await using`; native Node26 imports pass. Do not equate npm installation, an extension list or MCP configuration with a working SDK/browser. A missing helper inside an `if` also returned a false-green Flutter harness: record individual command exits and check the actual ELF. Keep user SDKs separate from the immutable OS and pinned Mo AI adapter; native app onboarding/wallet/provider authentication remain separate acceptance.
 
+**A language check can print errors and exit0.** Native gopls reports the intentional string-to-int error with success status; inspect diagnostics, and require a real debugger breakpoint/value read separately. A passing direct watcher event control does not repair Antigravity IDE's observed utility crashes. Preserve its clean-profile negative, the faulting native module and incomplete-core limit before naming a root cause.
+
 **The last success line is not the process exit.** An editor exec ended143
 after the final catalogue gate printed success. Its termination cause remains
 unproven. Preserve that result; a native parent must save the command's exit,
