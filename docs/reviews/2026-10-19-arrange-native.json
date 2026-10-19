@@ -1,0 +1,66 @@
+{
+  "result": "PASS",
+  "architecture": "aarch64",
+  "kwin_package": "kwin-6.7.5-1.fc44.aarch64",
+  "isolation": {
+    "bus": "private D-Bus with no activation directories",
+    "runtime_home_config_cache_data": "private /tmp directories",
+    "compositor": "virtual 1280x720, QPainter, no global shortcuts, no KActivities",
+    "owner_session": "untouched",
+    "portal": "not used"
+  },
+  "geometry": {
+    "old_excluded": {
+      "x": 179,
+      "y": 72,
+      "width": 922,
+      "height": 576
+    },
+    "fixed_excluded": {
+      "x": 50,
+      "y": 50,
+      "width": 480,
+      "height": 320
+    },
+    "eligible_positive": {
+      "x": 179,
+      "y": 72,
+      "width": 922,
+      "height": 576
+    }
+  },
+  "controls": "Actual Arrange functions; registration stubs only; native QWidget Wayland windows. skipSwitcher=true anchor is excluded. Old implementation restores old !leader guard.",
+  "limitations": [
+    "Virtual software compositor is not physical GPU/hotplug/scale/portal acceptance.",
+    "Activities exposed but no functional activities backend; currentActivity empty and window.activities [].",
+    "First sandbox attempt failed D-Bus socket bind Operation not permitted; KWin SIGSEGV fixture PID575624 2026-10-19 03:13:37 CEST reported by coordinator; not a production compositor crash.",
+    "Initial permitted run lacked stderr capture and is not accepted evidence."
+  ],
+  "files": {
+    "scripts/review/arrange-native.py": {
+      "sha256": "6662480a6fda1f17f9c45bc278d9a5dc930c11763fb521d48f5d581dfe3c10fc",
+      "bytes": 5518
+    },
+    "system_files/usr/share/kwin/scripts/moos-arrange/contents/code/main.js": {
+      "sha256": "5209bce061980e16858d2e003f110bedd9b097a3c41ee786086e8e0aa9990e22",
+      "bytes": 8920
+    },
+    "/tmp/moos-arrange-native-o4ms3ta9/kwin.log": {
+      "sha256": "3a0ae4ced25178587226dfd14d4281979edd499109c162e147bda948582da351",
+      "bytes": 997
+    },
+    "/tmp/moos-arrange-native-o4ms3ta9/result.json": {
+      "sha256": "0342e8baea6e1beb830423db530f6f6e48d74cb86a14381970a1f03b68929f59",
+      "bytes": 451
+    },
+    "/tmp/moos-arrange-native-o4ms3ta9/bus.conf": {
+      "sha256": "dff1b150683fa47af3a198d3fd4c940d80c41c51a16050465dc9e02f9bf35eb0",
+      "bytes": 235
+    }
+  },
+  "cleanup": "Harness terminates and waits private client/compositor/bus in finally.",
+  "evidence_directory": "/tmp/moos-arrange-native-o4ms3ta9",
+  "command": "python3 scripts/review/arrange-native.py",
+  "source_harness": "scripts/review/arrange-native.py",
+  "exit_code": 0
+}

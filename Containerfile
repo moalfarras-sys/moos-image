@@ -127,6 +127,7 @@ COPY moremote/ ./
 RUN dotnet run --project tests/MoRemote.Tests -c Release --nologo
 RUN dotnet run --project tests/MoRemote.Linux.Input.Tests -c Release --nologo
 RUN dotnet run --project tests/MoRemote.Stream.Tests -c Release --nologo
+RUN dotnet run --project tests/MoRemote.Startup.Tests -c Release --nologo
 RUN dotnet publish agent-linux/MoRemoteLinux.csproj -c Release -r linux-x64 \
     --self-contained true -o /out
 

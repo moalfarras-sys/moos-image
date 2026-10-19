@@ -1,0 +1,43 @@
+{
+  "reviewed_utc": "2026-10-19T01:22:19.072646+00:00",
+  "head": "3a9a3a1cde80f7b942f2c4dbccc2a2ed8561a165",
+  "scope": [
+    "moos-device-plan and targeted tests",
+    "moos-hardware-adapt and private-root tests",
+    "KWin Arrange production script and executable callback test",
+    "scripts/review/arrange-native.py",
+    "app updater units, build wiring and verifier",
+    "ARM explicit pciutils/usbutils dependencies and executable parity checks",
+    "Remote ListenerStartup and Linux Program scoped bind failure handling/disposal",
+    "MoRemote.Startup.Tests and both architecture Containerfile test lanes"
+  ],
+  "findings": [],
+  "tests_executed_in_this_review": [
+    {
+      "command": "python3 tests/test_desktop_parity.py",
+      "exit": 0,
+      "cases": 8
+    },
+    {
+      "command": "python3 tests/test_dotnet_project_coverage.py",
+      "exit": 0,
+      "projects": 8
+    },
+    {
+      "command": "python3 tests/test_remote_start_lifecycle.py",
+      "exit": 0,
+      "cases": 7
+    }
+  ],
+  "safety_review": {
+    "native_harness": "Unique HOME/runtime/config/data/cache and private session bus with no activation service directories; virtual KWin, private client windows and cleanup scoped to owned PIDs.",
+    "adapt_fixture": "Private PATH allowlist with stubbed systemctl/sysctl/loginctl/rpm-ostree plus private root/sys/proc.",
+    "device_tests": "Production hardware reads only; firmware test subprocess calls mocked.",
+    "remote_startup": "New native test uses its own ephemeral loopback listener and temporary endpoint; no PIN, portal, owner listener or actual authentication policy is accessed. Production catches only IOException with nested AddressAlreadyInUse SocketException, returns 75 before endpoint/listening publication, and disposes WebApplication plus existing input/capture bridges on scope exit. Existing systemd retry limits are unchanged."
+  },
+  "limits": [
+    "Native Arrange proof exercises skipSwitcher exclusion for centre plus old/fixed and eligible positive. Wider exclusions/actions are exercised in private Node callbacks, not all native KWin permutations.",
+    "No physical hardware, suspend, hotplug or new signed delivery is established by review.",
+    "The independent review did not execute the .NET suite; the assigned implementer owns native Kestrel test execution. Final ARM image must verify actual enumerator paths and binary providers."
+  ]
+}

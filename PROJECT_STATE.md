@@ -4,37 +4,11 @@ Native audit: [AUDIT_20261012_AR.md](docs/AUDIT_20261012_AR.md). [Oct15 live del
 
 ## Current engineering batch
 
+Oct19 integration audit on `codex/integration-audit-20261019` combines PR253 and reviewed PR255 locally. Full275-ref/fsck inventory preserves all refs/stashes; only one worktree is registered on Oracle. Source corrects Arrange excluded anchors (native private KWin old/fixed/positive geometry proof), respects masked optional hardware units, prevents false firmware enable success, handles malformed firmware JSON, selects only booted image identity and reports unavailable PCI as unverified. THEME_REV108 invalidates changed KWin payload. Actual Oracle .804 still runs, .807 staged, .792 signed-origin rollback;52 selfchecks/3 notes and56/0 postchecks pass, no failed units. Actual ARM lacks lspci; no package layering or signed-delivery claim. ARM pciutils/usbutils and executable parity gates now close the observed dependency gap in source. Remote startup now returns75 for an actual address-in-use bind instead of aborting, logs ready only after bind and preserves systemd restart bounds; new actual Kestrel controls run in both image lanes. These boot/build-affecting changes require full combined source/image qualification, still pending. [Deep audit and explicit acceptance gaps](docs/AUDIT_20261019_AR.md).
+
 Oct18 Oracle audit restores missing app-update service/timer bases on signed ARM .804 using four exact reviewed /etc compatibility files; both actual helpers finish0. Source owns both complete pairs in the shared overlay, enables both scopes and checks final wiring.20 unit controls,16 native network-condition cases, two private native timer firings and an installed Store Calculator open/compute pass. Final native full source at05649cd0 passes875.904s (2692 reported cases); the full ARM image at2b12ad2f exits0 in11196.421s, immutable ID73b87481, with four exact unit hashes/modes and both wants verified. The stricter verifier also passes inside that image; exact-head CI and review are tracked in [PR253](https://github.com/moalfarras-sys/moos-image/pull/253), separately from signed delivery. PR253 ARM/generic-x86 images at2b12ad2f pass; skipped PR boot/promotion is no delivery proof. Official signed .807 is staged, while .804 and the same boot ID remain running with .792 rollback; our patch is not in that staged release. The727e7b6c cycle completed independently. Git histories/owner files remain; only11 proved inactive generated directories were removed, with no new backups. [Audit, evidence and override retirement](docs/AUDIT_20261018_AR.md).
 
-New physical V3 audit (separate from NVIDIA/Oracle): Ryzen8840U/Radeon780M,
-generic1072/kernel7.2.11/Plasma6.8, native54/0 selfcheck, zero failed units.
-Three UVC capture paths return frames; front1080p30, rear1080p negotiated15fps
-with very dark pixels, IR640×360. Microphone sample and short output stream pass;
-Wi-Fi connected, Bluetooth powered, dock/USB/NVMe drivers bound. Native Wayland touch
-receives6 complete contacts/335 updates/max3 points; owner has no pen. Goodix6092 is detected,
-initially no enrollment. Owner completed Tailscale/PIN; actual private HTTPS
-and EIS readiness pass, with pre-login disabled; phone frames/input remain open.
-Owner enabled authselect's missing with-fingerprint feature with a named backup;
-native config check passes, fingerprint PAM is live and password PAM retained.
-Enrollment completes and the independent fprintd verification returns verify-match/0;
-native lock retry observes locked→verify-match→unlocked. First lock retains
-two real no-matches and owner-confirmed password unlock; wider reliability and
-post-reboot login remain open.
-Later failed-unit read retains the actual Bluetooth pairing wizard exit1:
-Authentication Failed at02:26, closed02:27. This is not a missing btusb driver;
-no bond deletion/reset was performed.
-At02:44 the already-paired Microsoft Bluetooth Keyboard is bonded/trusted/
-connected; historical wizard failure stays visible and audio/input-event
-acceptance is not inferred from that link state. ServicesResolved and native HID
-nodes pass; after preserving that failure, only its stale unit state is acknowledged.
-Final selfcheck exits0 with53 passes/2 active-Remote notes and zero failed units.
-SensorProxy reports no accelerometer: ACPI/I2C SMOCF05 has no bound driver.
-Source corrects the PCI-only false-ready diagnostic with private missing/bound/
-broken-link/unrelated-device controls, without claiming a sensor driver fix.
-Postcheck preserves55/1 manifest mismatch: independently signed published1072
-matches all261 uncompressed layer identities, runtime config and history of the
-offline-installed local representation. One deployment only; no rollback/update/
-reboot or firmware write performed. [Full scope and acceptance](docs/hardware/V3_20261019_AR.md).
+Physical V3 has a separate measured generic1072/Plasma6.8 baseline: native54/0 selfcheck, GPU/VA-API, three cameras, microphone/Wi-Fi and bound dock/USB/NVMe drivers. Touch records6 contacts/335 updates/max3 points; Goodix enrollment/two matches and native lock retry pass after preserved no-matches/password unlock. Microsoft keyboard is bonded/trusted/connected; audio/key-event and post-reboot login acceptance remain. SMOCF05 ACPI/I2C is unbound, no accelerometer reaches SensorProxy; source reports the gap without claiming a driver fix. Strict postcheck55/1 manifest mismatch remains despite independent261-layer/config/history equality and published signature. One deployment only, no image update/rollback/reboot/firmware write. [Full V3 evidence and remaining boundaries](docs/hardware/V3_20261019_AR.md).
 
 PR248–251 are integrated at `727e7b6cf6df2ba2c47ca4a5264e911c48e81d48`, tree `22086a7e312991b77f61bfa794efbfca0ceba00d`. Native full2668-case check, complete local image87e84381,28 overlay payloads/seven compiled modules, and first-attempt PR image/repository gates pass. The one frozen signed cycle succeeds: build39120488031, disks39126559377/39126562830/39126565706, ISO39126568330 (ordinary offline install/login, all10 app close/reopen journeys, second boot), full ARM39120345470 and actual x86 promotion39129933686. Independent native public-key verification matches all4 production digests/source labels. [Qualified cycle](docs/releases/2026-10-18-qualified-1072-cycle-proof.json). Earlier Cloud composition and .1069 ISO close failures remain preserved; no gate/deadline/signature/rollback policy was weakened.
 
@@ -68,22 +42,7 @@ two/five contexts, 100/150/250%, normal/reduced. Completed old-source 250%
 controls fail, including 28 arrow mismatches. This is isolated native software
 rendering, not installed whole-shell, Orca or Wayland input acceptance.
 
-PR235's greeter desktop facts and exact three-group EIS typing correction are
-signed in .1044/.773 and retained in the current candidates. Its signed cycle
-also completed: build 38481320383, disks
-38488652939/38488984542/38488987448, ISO 38488990935,
-ARM 38481265631, promotion 38493025295. One coordinator metadata read failed
-with GitHub HTTP 500 after generic dispatch; existing exact runs were adopted,
-not rerun or duplicated. The follow-up bounds metadata GET retries, records
-created run IDs and refuses dispatch when a build listing cannot be read;
-14 executable controls include restored-old failures. No workflow POST retry.
-Native NVIDIA booted .1044 with both corrected /usr
-helper hashes. The /run override disappeared on reboot. Its exact temporary
-copied bundle retired after replacement/no-holder proof. Administrator
-opt-in, PIN, private TLS, upstream PAM and default-disabled access are preserved.
-Native .1044 post-login receipt passes 55/55 with 18 payload hashes. Exact
-unused copied bundle retirement completed. Native .1046 now passes 54
-selfchecks/2 notes and 55 post-update checks; all 19 hashes/player match.
+PR235's greeter desktop facts/actual EIS groups are signed in .1044/.773 with qualified build38481320383/disks38488652939,38488984542,38488987448/ISO38488990935/ARM38481265631/promotion38493025295. Metadata HTTP500 adopted existing runs without duplicate dispatch; bounded GET retry and14 old/fixed controls preserve refusal on unreadable build listings. Native .1044/.1046 hash/selfcheck/postcheck acceptance and exact override retirement are historical; PIN/private TLS/PAM/default-disabled access remain. Current1072 acceptance above supersedes them within its stated scope.
 
 Existing-account free cloud JSON/SSE and isolated Hermes replies pass on both
 stations in the earlier runtime audit. Direct reported cost=0; absent Hermes

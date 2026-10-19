@@ -1,0 +1,50 @@
+{
+  "date": "2026-10-19",
+  "scope": "read-only native Oracle audit plus isolated source/native KWin fixtures; not a signed delivery",
+  "host": {
+    "architecture": "aarch64",
+    "name": "moos-arm-oracle",
+    "boot_id": "ac7a760c-cb01-46fb-8d30-a0960c13a9ec",
+    "booted_version": "44.20261017.804",
+    "staged_version": "44.20261018.807",
+    "rollback_version": "44.20261015.792",
+    "failed_system_units": 0,
+    "failed_user_units": 0,
+    "selfcheck": {
+      "passed": 52,
+      "notes": 3
+    },
+    "postcheck": {
+      "passed": 56,
+      "failed": 0
+    },
+    "lspci": "not installed"
+  },
+  "source_hashes": {
+    "system_files/usr/bin/moos-device-plan": "cf05255374d34ba44c052b71c2a5efcb497d01ec36a6d300307ca4f2b1fc2b23",
+    "system_files/usr/libexec/moos-hardware-adapt": "c7fbdbd1a9382673a070dbddefad1071ed8b960ff5327cacbf40d2417fd3b382",
+    "system_files/usr/share/kwin/scripts/moos-arrange/contents/code/main.js": "5209bce061980e16858d2e003f110bedd9b097a3c41ee786086e8e0aa9990e22",
+    "system_files/usr/bin/moos-apply-theme": "02e5caa5262ba3081ca101d6042faffceb13a1305967f1258faf56473995d543"
+  },
+  "local_full_check": "running",
+  "security_readback": {
+    "dependabot_open_alerts": 0,
+    "automated_security_updates": "enabled",
+    "secret_scanning": "enabled",
+    "push_protection": "enabled",
+    "non_provider_patterns": "disabled",
+    "validity_checks": "disabled"
+  },
+  "combined_ancestry": {
+    "checked_refs": 173,
+    "not_ancestors": []
+  },
+  "selfcheck_log": {
+    "sha256": "d2e1d5548043f2197dc8928750a5b180d81287c9b1bccf1c994bd8ddb62355db",
+    "path": "/tmp/moos-audit-selfcheck-20261019.log"
+  },
+  "postcheck_log": {
+    "sha256": "9c5adb01ac00f12d641344e9c34ab692f00ac8a04302447013aad6bd8ebb8194",
+    "path": "/tmp/moos-audit-postcheck-20261019.log"
+  }
+}

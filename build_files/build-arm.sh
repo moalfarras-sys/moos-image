@@ -129,6 +129,9 @@ _PLASMA=(
     # fedora-bootc supplies rpm-ostree today, but both tools are explicit product
     # dependencies rather than accidental base-image contents.
     rpm-ostree skopeo
+    # The read-only device plan and hardware report enumerate PCI/USB devices.
+    # x86 installs these explicitly; bare ARM bootc does not guarantee them.
+    pciutils usbutils
     # Native Mo PC Remote runtime. Encoders are capability-probed and JPEG is
     # the real fallback when a virtual GPU exposes no hardware codec.
     ydotool wl-clipboard grim spectacle python3-websockets poppler-utils qrencode

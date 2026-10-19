@@ -27,11 +27,14 @@ This gate names CAPABILITIES, not packages, and checks the finished filesystem o
 architecture, so it does not care which base supplied them. Each check says what the owner loses.
 It also reads the bar's own layout template, so an applet the MoOS Bar places, or a status item it
 pins, can never be missing from the edition that draws it.
+Hardware enumeration also belongs to this contract: lspci and lsusb must be
+executable files, so a missing ARM dependency cannot silently hide device gaps.
 """
 
 from __future__ import annotations
 
 import argparse
+import os
 import re
 import sys
 from pathlib import Path
@@ -40,9 +43,14 @@ LAYOUT = "usr/share/plasma/layout-templates/org.kde.plasma.desktop.defaultPanel/
 APPLET_DIRS = ("usr/share/plasma/plasmoids/{id}/metadata.json",
                "usr/lib64/qt6/plugins/plasma/applets/{id}.so",
                "usr/lib/qt6/plugins/plasma/applets/{id}.so")
+EXECUTABLE_CAPABILITIES = frozenset(("usr/bin/lspci", "usr/bin/lsusb"))
 
 # (what the owner loses, [alternatives — any one satisfies the check])
 CAPABILITIES: list[tuple[str, list[str]]] = [
+    ("the device plan identifying PCI graphics/network/audio devices and their bound drivers",
+     ["usr/bin/lspci"]),
+    ("the hardware report identifying attached USB devices",
+     ["usr/bin/lsusb"]),
     ("Arabic right-to-left detection for every Qt and KDE surface, including the MoOS Bar's mirroring",
      ["usr/share/qt6/translations/qtbase_ar.qm"]),
     ("the Island's privacy chip: moos-privacy-monitor reads PipeWire through pw-dump",
@@ -81,8 +89,10 @@ def bar_applets(layout_js: str) -> tuple[list[str], list[str]]:
 def problems(root: Path) -> list[str]:
     found = []
     for loss, alternatives in CAPABILITIES:
-        if not any((root / path).exists() for path in alternatives):
-            found.append(f"{loss} — none of: {', '.join('/' + p for p in alternatives)}")
+        if not any((root / path).is_file() and os.access(root / path, os.X_OK)
+                   if path in EXECUTABLE_CAPABILITIES else (root / path).exists()
+                   for path in alternatives):
+            found.append(f"{loss} — missing or unusable: {', '.join('/' + p for p in alternatives)}")
     layout = root / LAYOUT
     if not layout.is_file():
         found.append(f"the MoOS Bar template is missing: /{LAYOUT}")

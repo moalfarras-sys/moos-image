@@ -155,6 +155,56 @@ with tempfile.TemporaryDirectory() as tmp:
     assert "SMOCF05" in sensor_module.detect()["driver_gaps"][0]
 print("device-plan I2C missing/bound/broken-link/unrelated-device controls passed")
 
+# A PCI probe failure is unknown evidence, never a clean bill of health.
+arm_module.run = lambda *args, **kwargs: ""
+unknown = arm_module.detect(machine="aarch64")
+assert unknown["health"] == "attention" and unknown["pci_known"] is False, unknown
+assert any(a["id"] == "hardware-unavailable" for a in unknown["actions"])
+
+# A rollback/staged NVIDIA deployment cannot identify the running base edition.
+base = "ostree-image-signed:docker://ghcr.io/moalfarras-sys/moos:latest"
+nvidia = base.replace("/moos:", "/moos-nvidia:")
+for deployed, other in ((base, nvidia), (nvidia, base)):
+    payload = {"deployments": [
+        {"staged": True, "container-image-reference": other},
+        {"booted": True, "container-image-reference": deployed},
+        {"booted": False, "container-image-reference": other}]}
+    assert arm_module.booted_image_reference(json.dumps(payload)) == deployed
+    bootc_payload = {"status": {"booted": {"image": {"image": {"image": deployed}}},
+                               "staged": {"image": {"image": {"image": other}}}}}
+    assert arm_module.booted_image_reference(json.dumps(bootc_payload)) == deployed
+    # A readable but unusable bootc reply must still fall back to rpm-ostree.
+    arm_module.run = lambda *args, **kwargs: (
+        "01:00.0 VGA compatible controller: NVIDIA\n\tKernel driver in use: nvidia"
+        if args[0] == "lspci" else '{"status":"ok"}' if args[0] == "bootc"
+        else json.dumps(payload) if args[0] == "rpm-ostree" else "")
+    detected = arm_module.detect(machine="x86_64")
+    assert detected["nvidia_image"] is (deployed == nvidia), detected
+for malformed in ("[]", "null", '{"deployments":null}', '{"status":[]}'):
+    assert arm_module.booted_image_reference(malformed) == ""
+
+from unittest.mock import patch
+loader = importlib.machinery.SourceFileLoader("moos_device_plan_firmware", str(PLAN))
+spec = importlib.util.spec_from_loader(loader.name, loader)
+firmware_module = importlib.util.module_from_spec(spec)
+loader.exec_module(firmware_module)
+for payload in ([], None, {"Devices": None}, {"Devices": [None, [], "bad"]},
+                {"Devices": [{"Name": "device", "Releases": "bad"}]},
+                {"Devices": [{"Name": "device", "Releases": [None, 2]}]},
+                {"Devices": [{"Name": 1, "Releases": [{"Version": "2"}]}]}):
+    with patch.object(firmware_module.shutil, "which", return_value="fwupdmgr"), \
+         patch.object(firmware_module.subprocess, "run", side_effect=[
+             subprocess.CompletedProcess([], 0, json.dumps(payload)),
+             subprocess.CompletedProcess([], 0, "")]):
+        assert firmware_module.firmware_report() == ([], [])
+with patch.object(firmware_module.shutil, "which", return_value="fwupdmgr"), \
+     patch.object(firmware_module.subprocess, "run", side_effect=[
+         subprocess.CompletedProcess([], 0, json.dumps({"Devices": [
+             {"Name": "Controller", "Version": "1", "Releases": [{"Version": "2"}]}]})),
+         subprocess.CompletedProcess([], 0, "Direct firmware load for test.bin failed")]):
+    assert firmware_module.firmware_report() == (["Controller 1 → 2"], ["test.bin"])
+print("device-plan unknown PCI, booted-only image and firmware JSON controls passed")
+
 
 # Every device-plan title reaches the owner's screen through Mo AI's diagnostic
 # card. Four of the six carried "عربي | English"; two shipped English-only and

@@ -36,6 +36,7 @@ run=(
     tests/MoRemote.Linux.Input.Tests
     tests/MoRemote.Stream.Tests
     tests/MoRemote.Windows.Power.Tests
+    tests/MoRemote.Startup.Tests
 )
 # The two the image builds only COMPILE. VisualInputTest injects real input into a live session
 # and is deliberately never run unattended — building it still catches a broken shared header.

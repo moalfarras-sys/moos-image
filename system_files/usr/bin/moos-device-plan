@@ -76,12 +76,19 @@ def firmware_report():
             p = subprocess.run(["fwupdmgr", "get-updates", "--json"],
                                text=True, capture_output=True, timeout=25)
             data = json.loads(p.stdout or "{}")
-            for dev in data.get("Devices", []):
+            devices = data.get("Devices", []) if isinstance(data, dict) else []
+            for dev in devices if isinstance(devices, list) else []:
+                if not isinstance(dev, dict):
+                    continue
                 name = dev.get("Name") or "device"
                 latest = ""
-                for rel in dev.get("Releases", []) or []:
-                    latest = rel.get("Version", "")
-                    break
+                releases = dev.get("Releases", [])
+                for rel in releases if isinstance(releases, list) else []:
+                    if isinstance(rel, dict) and isinstance(rel.get("Version"), str):
+                        latest = rel["Version"]
+                        break
+                if not isinstance(name, str) or not latest:
+                    continue
                 updates.append(f"{name} {dev.get('Version','')} → {latest}".strip())
         except (OSError, subprocess.SubprocessError, ValueError):
             pass
@@ -97,6 +104,26 @@ def firmware_report():
     except (OSError, subprocess.SubprocessError):
         pass
     return updates, missing[:8]
+
+
+def booted_image_reference(raw):
+    """Read only the booted deployment, never a staged/rollback image name."""
+    try:
+        data = json.loads(raw)
+    except (TypeError, ValueError):
+        return ""
+    if not isinstance(data, dict):
+        return ""
+    deployments = data.get("deployments", [])
+    if isinstance(deployments, list):
+        for deployment in deployments:
+            if isinstance(deployment, dict) and deployment.get("booted") is True:
+                ref = deployment.get("container-image-reference", "")
+                return ref if isinstance(ref, str) else ""
+    image = data
+    for key in ("status", "booted", "image", "image", "image"):
+        image = image.get(key) if isinstance(image, dict) else None
+    return image if isinstance(image, str) else ""
 
 
 def detect(machine=None):
@@ -128,11 +155,9 @@ def detect(machine=None):
     # bootc status became root-only on the installed host, so an unprivileged
     # desktop helper cannot rely on it. rpm-ostree exposes the same deployed
     # container reference read-only and remains available to the user.
-    image = (
-        run("bootc", "status", "--format=json")
-        or run("rpm-ostree", "status", "--json")
-    )
-    nvidia_image = "moos-nvidia" in image
+    image = (booted_image_reference(run("bootc", "status", "--format=json"))
+             or booted_image_reference(run("rpm-ostree", "status", "--json")))
+    nvidia_image = bool(re.search(r"(?:^|/)moos-nvidia(?=[:@]|$)", image))
     mem_kib = 0
     try:
         mem_kib = int(next(line.split()[1] for line in open("/proc/meminfo") if line.startswith("MemTotal:")))
@@ -142,7 +167,15 @@ def detect(machine=None):
     kvm = os.access("/dev/kvm", os.R_OK | os.W_OK)
     secure_boot = run("mokutil", "--sb-state") or "unavailable"
     actions = []
-    health = "ready"
+    pci_known = bool(pci.strip())
+    health = "ready" if pci_known else "attention"
+    if not pci_known:
+        actions.append({
+            "id": "hardware-unavailable", "severity": "info",
+            "title": "فحص الأجهزة غير متاح | Hardware inspection unavailable",
+            "detail": "تعذّر قراءة أجهزة PCI؛ حالة التعريفات غير مؤكدة. | PCI devices could not be read; driver health is unverified.",
+            "url": ""
+        })
     if vendor == "nvidia" and "nvidia" not in driver and x86_64:
         health = "action-needed"
         actions.append({
@@ -211,7 +244,7 @@ def detect(machine=None):
         recommended.append("com.google.AndroidStudio")
     installed = [app for app in recommended if flatpak_installed(app)]
     return {
-        "schema": 1, "health": health, "architecture": machine,
+        "schema": 1, "health": health, "architecture": machine, "pci_known": pci_known,
         "gpu_vendor": vendor, "gpu": gpu,
         "driver": driver, "driver_status": driver_status,
         "driver_status_ar": driver_status_ar,
