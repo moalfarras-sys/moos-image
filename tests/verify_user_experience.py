@@ -2638,9 +2638,12 @@ require("remote-windows-build:" in _build_workflow
 # which the browser will not give Mo PC Remote WebCodecs, the clipboard, or a real PWA install.
 panel = read("system_files/usr/bin/mo-pc-remote")
 remote_linux_entry = read("moremote/agent-linux/Program.cs")
+remote_listener_startup = read("moremote/agent-linux/ListenerStartup.cs")
 require("endpoint.json" in panel and "configured_port" in panel
         and "endpoint.json" in remote_linux_entry
-        and "await app.StartAsync()" in remote_linux_entry
+        and "if (!await ListenerStartup.TryStartAsync(app))" in remote_linux_entry
+        and "await host.StartAsync(cancellation)" in remote_listener_startup
+        and "return 75;" in remote_linux_entry
         and re.search(r"^PORT\s*=", panel, re.MULTILINE) is None,
         "the Mo PC Remote panel must consume the agent's bound runtime endpoint, not hardcode 8765")
 require("tailscale" in panel and "serve" in panel,
