@@ -11,7 +11,7 @@ new private feedback/optional public suggestions product is P6.9 below.
 
 ## Active delivery and acceptance batch
 
-Oct20 checkpoint9691 passes full native source gate0/860.532s (2765 reported/14 conditional skips). Actual ARM alias replay passes with1344 policy files unchanged, so main/recovery assembly now calls the same canonicalizer; fresh source and full image qualification are required for this binding change.
+Oct20 checkpoint3708 passes full native source gate0/843.494s (2765 reported/14 conditional skips) and actual repository/Remote CI. Actual ARM image fails1/496.032s on post-transaction vendor tmpfiles authority drift, preserving unknown root-home state. x86 CI refuses unreviewed Plasma6.8.1 inputs. Active P0/P6.7 work: prove the changed authority before scoped cleanup, review exact signed6.8.1 sources/seams/authentication and native runtime controls, then repeat full image/final-head CI before a signed cycle. [Checkpoint](reviews/2026-10-20-final-3708-qualification.json).
 
 Oct20 P0 compose unblock: merge8687010a without losing PR256 fixes, qualify the proven exact x86 SELinux alias correction (actual old1/fixed0,1357 policy hashes unchanged,18 controls), and qualify ARM/recovery private-HOME helper (18 process/source controls; actual vendor empty-state recreation/retirement passes). Preserve nonempty root-home refusal and original producer exits. Require full source/local image/final-head CI before one signed cycle; no claim about the actual unknown writer until image diagnostics. [Evidence](reviews/2026-10-20-integration-followup.json).
 
