@@ -147,7 +147,8 @@ raise SystemExit(int(os.environ.get('COMPOSE_STATUS','0')))
             '--reproducible --add "ostree plymouth" "$3" test-kernel 2>&1 | tail -20; rmdir "$1"',
             'old-compose', str(self.home), str(self.fake),
             str(self.root / 'usr/lib/modules/test-kernel/initramfs.img')],
-            env={**os.environ, 'HOME': str(self.home), 'COMPOSE_FIXTURE_ROOT': str(self.root)},
+            env={**os.environ, 'HOME': str(self.home), 'COMPOSE_FIXTURE_ROOT': str(self.root),
+                 'LC_ALL': 'C', 'LANGUAGE': 'C'},
             capture_output=True, text=True, timeout=10)
         self.assertNotEqual(old.returncode, 0)
         self.assertIn('Directory not empty', old.stderr)
