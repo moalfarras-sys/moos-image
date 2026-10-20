@@ -163,11 +163,7 @@ DRACUT
 echo "=== (5) initramfs with MoOS plymouth ==="
 kver="$(rpm -q --qf '%{VERSION}-%{RELEASE}.%{ARCH}\n' kernel-core | tail -1)"
 [ -n "${kver}" ] || { echo "FATAL: no kernel-core in recovery image"; exit 1; }
-install -d -m0700 /var/roothome
-dracut --no-hostonly --force --reproducible \
-    --add "ostree plymouth" \
-    "/usr/lib/modules/${kver}/initramfs.img" "${kver}" 2>&1 | tail -20
-rmdir /var/roothome
+python3 /ctx/compose_arm_initramfs.py "${kver}"
 
 lsinitrd "/usr/lib/modules/${kver}/initramfs.img" > /tmp/moos-recovery-initrd.txt 2>/dev/null \
     || { echo "FATAL: lsinitrd could not inspect recovery initramfs"; exit 1; }

@@ -154,6 +154,7 @@ python3 tests/test_dotnet_project_coverage.py
 python3 tests/test_nuget_audit_policy.py
 python3 tests/test_moos_lang_lock.py
 python3 tests/test_arm_release_manifest.py
+python3 tests/test_arm_dracut_home.py
 python3 tests/test_utm_manifest_resolution.py
 python3 tests/test_utm_install_write_order.py
 python3 tests/test_utm_installer_menu.py

@@ -1306,16 +1306,9 @@ echo "=== (9) initramfs ==="
 bash /ctx/compile_system_hwdb.sh
 kver="$(rpm -q --qf '%{VERSION}-%{RELEASE}.%{ARCH}\n' kernel-core | tail -1)"
 [ -n "${kver}" ] || { echo "FATAL: no kernel-core in the image"; exit 1; }
-# bootc keeps /root as a symlink to mutable /var/roothome, while an image build
-# deliberately leaves /var empty. dracut resolves that root home while composing
-# its passwd payload; with a dangling target it logs a false-success ERROR for
-# `/root`. Materialize it only for the compose, then restore the clean /var
-# contract before bootc lint.
-install -d -m0700 /var/roothome
-dracut --no-hostonly --force --reproducible \
-    --add "ostree plymouth" \
-    "/usr/lib/modules/${kver}/initramfs.img" "${kver}" 2>&1 | tail -20
-rmdir /var/roothome
+# Materialize bootc's root-home target for passwd collection, but keep HOME/XDG
+# build writes private. Unknown root-home bytes fail intact with metadata.
+python3 /ctx/compose_arm_initramfs.py "${kver}"
 
 python3 /ctx/verify_plymouth_initramfs.py "/usr/lib/modules/${kver}/initramfs.img"
 

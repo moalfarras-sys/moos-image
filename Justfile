@@ -153,6 +153,7 @@ check:
     # units shipped disabled on the maintainer's A1 because only build.sh ever enabled them.
     python3 tests/test_arm_unit_enablement.py
     python3 tests/test_arm_initramfs_size.py
+    python3 tests/test_arm_dracut_home.py
     # These four also lived only in workflow YAML: the first two in both build
     # workflows, the others in the disk and ISO release workflows. All four pass
     # locally and always did -- nothing was broken, they were simply unrunnable

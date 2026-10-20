@@ -36,5 +36,26 @@
       "writer": "unproven; no directory inventory recorded"
     }
   },
-  "delivery": "merged batch requires fresh source/local image/CI qualification and signed boot-proven release; no host update or reboot performed"
+  "delivery": "merged batch requires fresh source/local image/CI qualification and signed boot-proven release; no host update or reboot performed",
+  "oracle_readback": {
+    "boot_id": "ac7a760c-cb01-46fb-8d30-a0960c13a9ec",
+    "booted": "44.20261017.804",
+    "staged": "44.20261019.816",
+    "staged_signed_digest": "c8aec0ac02d341a2109c1d0cff12d618c4623d11d5b0f024929314cda9346bc5",
+    "rollback": "44.20261015.792",
+    "transaction": null,
+    "failed_system_units": 0,
+    "failed_user_units": 0,
+    "scope": "read only; staging changed independently since earlier .807 snapshot; current fixes not in .816"
+  },
+  "arm_compose_followup": {
+    "helper": "build_files/compose_arm_initramfs.py",
+    "scope": "main and recovery retain exact dracut flags/output and final initramfs gates; recovery exposes existing ctx stage read-only",
+    "controls": 15,
+    "independent_review": "14 controls at reviewed checkpoint pass; final dependency-staging case added afterwards",
+    "old_negative": "private producer writes inherited HOME; exact old pipeline leaves nonempty roothome and rmdir fails",
+    "fixed": "HOME/XDG private scratch; unknown preexisting/new roothome bytes refused intact; filenames/type/size only bounded64; symlink/mount/foreign-owner/booted-host refusals",
+    "review_corrections": "preserve producer7 after log/cleanup failure; producer0 becomes1 on cleanup failure; refuse all descendant mounts before scratch traversal",
+    "cause_boundary": "actual earlier unknown bytes/writer not yet established; full real image required"
+  }
 }

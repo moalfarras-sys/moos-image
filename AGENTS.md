@@ -78,6 +78,8 @@ The periodic hardware adapter must return inactive. Prove first completion from 
 **An occupied loopback port is not a ready Remote or permission to stop its owner.**
 Publish listening/endpoint only after Kestrel binds. Treat actual address-in-use as a normal failed start under the existing finite service restart policy, dispose the failed host, and preserve unrelated errors/cancellation and account authentication. Keep private real-socket old/fixed/released-port controls; never run them on the owner's listener. Stdin-driven container probes must attach stdin and require an executed proof marker; an empty successful Python process is not evidence.
 
+**A failed root-home rmdir does not identify its writer.** Preserve unknown compose bytes and report bounded names/type/size, never contents or a guessed cause. ARM main/recovery use one private HOME/XDG initramfs composer, retaining exact dracut options and final archive gates. Cleanup must refuse descendant mounts before traversal and preserve an observed producer failure even if later diagnostics or cleanup also fail. A private fake-producer old/fixed control is not the actual built-image root-cause proof.
+
 ## Where the rest of the knowledge is
 
 - **`docs/DEVELOPMENT_PLAN.md`** — the only product plan: architecture,
