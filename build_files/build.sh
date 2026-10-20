@@ -8,6 +8,11 @@
 
 set -euxo pipefail
 
+# Native multimedia probes may build derived caches. Keep them on the build's
+# temporary filesystem rather than creating a root home in the image's /var.
+export XDG_CACHE_HOME=/tmp/moos-compose-cache
+install -d -m0700 "$XDG_CACHE_HOME"
+
 # -----------------------------------------------------------------------------
 # (a0) Freeze the kernel at the BASE image's version — before any dnf runs
 # -----------------------------------------------------------------------------

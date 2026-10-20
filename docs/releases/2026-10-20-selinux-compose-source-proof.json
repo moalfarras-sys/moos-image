@@ -91,5 +91,39 @@
     "fixed_ctx_mount_fixture_exit": 0,
     "ctx_not_shipped": true,
     "native_arm_recovery_boot": "still required"
+  },
+  "fresh_9a_local_qualification": {
+    "source": "9a4ee4c8456d5323f4179d179e4aaaefff294564",
+    "tree": "dc12691a67afe08298673cbf7cd53f0ab51e1904",
+    "repository_check_exit": 0,
+    "unittest_cases": 2761,
+    "repository_check_log_sha256": "1ae9bd2edfbace63a5b7c2e4e913b4a7447cc960588be0377208c885acf39b09",
+    "full_image_exit": 1,
+    "failure": "D-Bus machine-id target is not a pristine image file",
+    "full_image_log_sha256": "9afd983524f6f1b2c48daff394de24b6eb182b3c5485d93c5f87ada0cb9c15f2",
+    "full_image_qualified": false
+  },
+  "pristine_native_transaction_correction": {
+    "scope": "x86 image compose only; before/after native RPM transaction, no installed-host reset",
+    "pristine_input": "empty root-owned regular /etc/machine-id; /var contains only empty1777 tmp",
+    "observed_provider": "systemd259.10 RPM postinstall systemd-machine-id-setup; posttrans journalctl --update-catalog and global tmpfiles",
+    "reviewed_runtime_metadata_records": 146,
+    "focused_controls": 22,
+    "restoration": "only the empty identity observed before this same transaction; exact fixed-size new seed, recomputed catalogue, declared empty native scaffolds and build caches retire after preflight",
+    "configured_selinux_policy": "existing exact-alias and module/boot-policy preflight retained",
+    "native_package_fixture_exit": 0,
+    "native_package_fixture_image": "sha256:5b8195c38d425efb136f7ee4e16be25f6a7e344c9d5688b990c9e8c25424cd54",
+    "native_tmpfiles_raw_exit": 73,
+    "raw_tmpfiles_scope": "only exact dangling bootc home-alias diagnostics; original RPM ignores status; not reported as command success",
+    "fixture_boundary": "starts from a private already-composed layer; retires only its exact generated MoOS HPLIP recipe before the real pristine before/after replay; native vendor authorities unchanged",
+    "preserved_excluded_failures": [
+      "initial volume import refusal",
+      "missing immutable altfiles account authority",
+      "strict raw tmpfiles73 abort",
+      "probe quoting SyntaxError",
+      "repeated-canary authority refusal"
+    ],
+    "main_probe_caches": "XDG_CACHE_HOME on build tmpfs, avoiding image root-home caches",
+    "full_local_image_and_signed_boot": "still required"
   }
 }
