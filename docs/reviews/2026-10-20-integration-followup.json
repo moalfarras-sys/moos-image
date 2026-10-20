@@ -1,0 +1,40 @@
+{
+  "date": "2026-10-20",
+  "qualified_previous_head": "ddbdfc1f4d3d83f775bde01ede271cbf7248c7d9",
+  "previous_head_ci": {
+    "repository": 39329627797,
+    "arm_image": 39329627711,
+    "x86_image": 39329628298,
+    "remote": 39329627701,
+    "actual_build_and_verify": "passed",
+    "arm_boot_and_promotion": "skipped on pull request; not release proof",
+    "advisory_review": {
+      "run": 39329627718,
+      "actual_outcome": "unavailable despite successful wrapper"
+    }
+  },
+  "incoming_main": "8687010abe51ac34a1728f496168d336494bacdb",
+  "merge": "6bef558d",
+  "incoming_change": "PR259 fingerprint startup and private PAM ordering; preserve vendor backends and account/password/session",
+  "merge_conflicts": "documentation only; retain current Oracle evidence and incoming physical V3 acceptance",
+  "focused_tests": {
+    "greeter_frontend": 9,
+    "greeter_rpms": 5,
+    "post_update": 19,
+    "native_private_pam": 17,
+    "pam_sandbox_first_attempt": "four failures with result4; same unchanged test passes all17 in native execution"
+  },
+  "new_main_build_failures": {
+    "x86": {
+      "run": 39408210696,
+      "reason": "unexpected symlink in compose state: var/lib/selinux",
+      "target": "not yet established; no permissive alias accepted"
+    },
+    "arm": {
+      "run": 39393513072,
+      "reason": "rmdir /var/roothome: Directory not empty",
+      "writer": "unproven; no directory inventory recorded"
+    }
+  },
+  "delivery": "merged batch requires fresh source/local image/CI qualification and signed boot-proven release; no host update or reboot performed"
+}
