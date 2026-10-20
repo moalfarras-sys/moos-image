@@ -55,6 +55,91 @@ raise SystemExit(int(os.environ.get('COMPOSE_STATUS','0')))
                                    'COMPOSE_FIXTURE_ROOT': str(self.root), **env},
                               capture_output=True, text=True, timeout=10)
 
+    def seed_vendor_home(self):
+        self.home.mkdir(mode=0o700)
+        for relative, mode in compose.VENDOR_DIRECTORIES.items():
+            path = self.home / relative
+            path.mkdir(parents=True, exist_ok=True)
+            path.chmod(mode)
+        for relative in compose.VENDOR_FILES:
+            (self.home / relative).touch(mode=0o644)
+        rules = self.root / 'usr/lib/tmpfiles.d'
+        rules.mkdir(parents=True, exist_ok=True)
+        for name, lines in compose.VENDOR_RULES.items():
+            path = rules / name
+            path.write_text('\n'.join(sorted(lines)) + '\n')
+            path.chmod(compose.VENDOR_AUTHORITY_MODES[name])
+
+    def vendor_snapshot(self):
+        import stat
+        result = {}
+        for path in [self.home, *self.home.rglob('*')]:
+            info = path.lstat()
+            result[str(path.relative_to(self.home))] = (
+                info.st_mode, info.st_uid, info.st_gid, info.st_nlink,
+                path.read_bytes() if stat.S_ISREG(info.st_mode) else
+                os.readlink(path) if stat.S_ISLNK(info.st_mode) else None)
+        return result
+
+    def test_exact_empty_vendor_tree_is_retired_before_unchanged_empty_guard(self):
+        self.seed_vendor_home()
+        with contextlib.redirect_stdout(io.StringIO()), self.assertRaises(RuntimeError):
+            compose.empty_owned_home(self.home)
+        result = self.run_helper()
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn('Retired exact empty vendor', result.stdout)
+        self.assertFalse(self.home.exists())
+        self.assertEqual(list((self.root / 'tmp').iterdir()), [])
+
+    def test_vendor_state_negatives_preserve_entire_tree_before_first_unlink(self):
+        mutations = ('absent-rule', 'changed-rule', 'populated-labels', 'authorized-key', 'empty-authorized-key',
+                     'hardlink', 'symlink', 'extra-entry', 'directory-mode', 'partial-tree')
+        for mutation in mutations:
+            with self.subTest(mutation=mutation):
+                self.seed_vendor_home()
+                labels = self.home / 'buildinfo/labels.json'
+                rule = self.root / 'usr/lib/tmpfiles.d/konflux-buildinfo-contentsets.conf'
+                if mutation == 'absent-rule':
+                    rule.unlink()
+                elif mutation == 'changed-rule':
+                    rule.write_text(rule.read_text().replace('0755', '0700'))
+                elif mutation == 'populated-labels':
+                    labels.write_text('vendor or owner data must remain')
+                elif mutation == 'authorized-key':
+                    (self.home / '.ssh/authorized_keys').write_text('private fixture key')
+                elif mutation == 'empty-authorized-key':
+                    (self.home / '.ssh/authorized_keys').touch()
+                elif mutation == 'hardlink':
+                    os.link(labels, self.root / 'linked-labels')
+                elif mutation == 'symlink':
+                    labels.unlink()
+                    labels.symlink_to(self.root / 'outside-labels')
+                    (self.root / 'outside-labels').touch()
+                elif mutation == 'extra-entry':
+                    (self.home / 'unknown-extra').touch()
+                elif mutation == 'directory-mode':
+                    (self.home / 'buildinfo').chmod(0o700)
+                elif mutation == 'partial-tree':
+                    (self.home / '.ssh').rmdir()
+                before = self.vendor_snapshot()
+                result = self.run_helper()
+                self.assertNotEqual(result.returncode, 0, result.stdout + result.stderr)
+                self.assertFalse(self.receipt.exists())
+                self.assertEqual(self.vendor_snapshot(), before)
+                self.assertIn('metadata', result.stdout)
+                self.assertNotIn('private fixture key', result.stdout)
+                shutil.rmtree(self.home)  # entirely owned fixture, no real mounts
+                for path in ('linked-labels', 'outside-labels'):
+                    (self.root / path).unlink(missing_ok=True)
+
+    def test_vendor_descendant_mount_is_refused_before_unlink(self):
+        self.seed_vendor_home()
+        before = self.vendor_snapshot()
+        with patch.object(compose, 'mountpoints', return_value={str(self.home / 'buildinfo')}), \
+             contextlib.redirect_stdout(io.StringIO()), self.assertRaises(RuntimeError):
+            compose.retire_empty_vendor_home(self.root, self.home)
+        self.assertEqual(self.vendor_snapshot(), before)
+
     def test_old_home_writer_fails_rmdir_fixed_writer_stays_in_private_scratch(self):
         # The exact former producer/rmdir structure, rooted wholly in this fixture.
         old = subprocess.run(['bash', '-c',

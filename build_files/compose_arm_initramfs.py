@@ -20,6 +20,33 @@ import tempfile
 from finalize_image_state import owned_path
 
 
+# Native c4b9b693 bootc input: systemd-tmpfiles creates these EMPTY vendor
+# placeholders during package transactions. The authority lines, exact tree,
+# ownership and file metadata must all match before the first unlink. In
+# particular, provisioned authorized_keys is never an allowed retirement.
+VENDOR_RULES = {
+    'rpm-ostree-0-integration.conf': {
+        'd /var/roothome 0700 root root -',
+    },
+    'konflux-buildinfo-contentsets.conf': {
+        'd /var/roothome/buildinfo 0755 - - -',
+        'd /var/roothome/buildinfo/content_manifests 0755 - - -',
+        'f /var/roothome/buildinfo/content_manifests/content-sets.json 0644 - - -',
+        'f /var/roothome/buildinfo/labels.json 0644 - - -',
+    },
+    'provision.conf': {
+        'd- /var/roothome/.ssh :0700 root :root -',
+        'f^ /var/roothome/.ssh/authorized_keys :0600 root :root - ssh.authorized_keys.root',
+    },
+}
+VENDOR_DIRECTORIES = {'.ssh': 0o700, 'buildinfo': 0o755,
+                      'buildinfo/content_manifests': 0o755}
+VENDOR_FILES = {'buildinfo/labels.json', 'buildinfo/content_manifests/content-sets.json'}
+VENDOR_AUTHORITY_MODES = {'rpm-ostree-0-integration.conf': 0o644,
+                          'konflux-buildinfo-contentsets.conf': 0o664,
+                          'provision.conf': 0o644}
+
+
 def mountpoints():
     text = Path('/proc/self/mountinfo').read_text()
     return {re.sub(r'\\([0-7]{3})', lambda m: chr(int(m[1], 8)), line.split()[4])
@@ -80,6 +107,80 @@ def empty_owned_home(home):
         raise RuntimeError('root-home is not empty; preserved')
 
 
+def retire_empty_vendor_home(root, home):
+    """Retire only the exact reproduced empty vendor tree, never unknown state."""
+    build_path(root, str(home.relative_to(root)))
+    if not any(home.iterdir()):
+        return False
+
+    def refuse(reason):
+        print(f'FATAL: {reason}; root-home preserved; metadata follows:', flush=True)
+        describe(home)
+        raise RuntimeError('vendor root-home retirement refused')
+
+    mounts = mountpoints()
+    if any(Path(mount).is_relative_to(home) for mount in mounts):
+        refuse('root-home contains a mount')
+    owner = root.stat()
+    info = home.lstat()
+    if (not stat.S_ISDIR(info.st_mode) or info.st_uid != owner.st_uid
+            or info.st_gid != owner.st_gid or stat.S_IMODE(info.st_mode) != 0o700):
+        refuse('root-home ownership, type or mode differs from its vendor rule')
+    actual = {}
+    for current, directories, files in os.walk(home, followlinks=False):
+        for name in directories + files:
+            path = Path(current) / name
+            relative = str(path.relative_to(home))
+            actual[relative] = path.lstat()
+            if len(actual) > 5:
+                refuse('root-home has additional entries')
+    if set(actual) != VENDOR_FILES | set(VENDOR_DIRECTORIES):
+        # The unchanged empty guard will diagnose all other unknown tree shapes.
+        return False
+    for relative, info in actual.items():
+        if info.st_uid != owner.st_uid or info.st_gid != owner.st_gid:
+            refuse('vendor root-home entry has unexpected ownership')
+        if relative in VENDOR_FILES:
+            if (not stat.S_ISREG(info.st_mode) or info.st_size != 0
+                    or info.st_nlink != 1 or stat.S_IMODE(info.st_mode) != 0o644):
+                refuse('vendor root-home file is nonempty, linked, or has unexpected mode/type')
+        elif not stat.S_ISDIR(info.st_mode) or stat.S_IMODE(info.st_mode) != VENDOR_DIRECTORIES[relative]:
+            refuse('vendor root-home directory has unexpected mode/type')
+    for name, expected in VENDOR_RULES.items():
+        # A local/runtime override is not permission to reinterpret vendor rules.
+        for prefix in ('etc/tmpfiles.d', 'run/tmpfiles.d', 'usr/local/lib/tmpfiles.d'):
+            try:
+                override = owned_path(root, f'{prefix}/{name}')
+            except RuntimeError:
+                refuse('vendor tmpfiles override path is unsafe')
+            if override.exists() or override.is_symlink():
+                refuse('vendor tmpfiles authority is overridden')
+        try:
+            authority = build_path(root, f'usr/lib/tmpfiles.d/{name}')
+            info = authority.lstat()
+            if (not stat.S_ISREG(info.st_mode) or info.st_uid != owner.st_uid
+                    or info.st_gid != owner.st_gid
+                    or stat.S_IMODE(info.st_mode) != VENDOR_AUTHORITY_MODES[name]
+                    or info.st_size > 32768):
+                raise RuntimeError('vendor tmpfiles authority has unexpected metadata')
+            lines = [' '.join(line.split()) for line in authority.read_text().splitlines()
+                     if line.strip() and not line.lstrip().startswith('#')]
+        except (OSError, RuntimeError) as error:
+            refuse(f'vendor tmpfiles authority is unavailable: {error}')
+        relevant = [line for line in lines if len(line.split()) > 1
+                    and line.split()[1].startswith('/var/roothome')]
+        if set(relevant) != expected or len(relevant) != len(expected):
+            refuse('vendor tmpfiles authority lines differ from reviewed rules')
+    # All paths and all authorities passed together. Remove no recursive tree,
+    # and leave root-home itself for the ordinary empty-directory guard.
+    for relative in sorted(VENDOR_FILES):
+        (home / relative).unlink()
+    for relative in sorted(VENDOR_DIRECTORIES, key=lambda value: value.count('/'), reverse=True):
+        (home / relative).rmdir()
+    print('Retired exact empty vendor root-home placeholders (5 entries; authorities verified)', flush=True)
+    return True
+
+
 def cleanup_scratch(root, scratch):
     """Only remove our private tree after refusing mounts and foreign owners."""
     path = owned_path(root, str(scratch.relative_to(root)))
@@ -119,6 +220,7 @@ def main(argv=None):
     if (not scratch_parent.is_dir() or scratch_parent.stat().st_uid != os.geteuid()):
         raise RuntimeError('compose scratch parent is not an owned real directory')
     if home.exists() or home.is_symlink():
+        retire_empty_vendor_home(root, home)
         empty_owned_home(home)
     else:
         home.mkdir(mode=0o700)
