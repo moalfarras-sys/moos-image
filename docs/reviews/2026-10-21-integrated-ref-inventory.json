@@ -1,0 +1,24 @@
+{
+  "utc": "2026-10-20T23:46:21.900952+00:00",
+  "source_revision": "b14da540388dae2a1dbc1e22e346ce7b2207156e",
+  "source_tree": "25cf37d8deaa83ed92fcb74221a1d1f38f99a539",
+  "total_refs": 286,
+  "refs_inventory_sha256": "9141ca6a9b6ac260d7e2d01cd34b630dd49bf29b28006a44fd032f352df84dfc",
+  "branch_heads": 183,
+  "unique_heads": [],
+  "all_branch_heads_ancestors": true,
+  "stashes": [
+    "7c004b58c38ae8567ca166e788ac379dede5f3d0",
+    "6eff6149f91143978a302a9c31191d18518eaf60",
+    "363c8af1891bcc6265a5f6b2747fee92422e2284",
+    "9cf4b858c3363b7e8e5caa9daef691fed5be5add"
+  ],
+  "worktrees": "worktree /var/home/moos/moos-image\nHEAD b14da540388dae2a1dbc1e22e346ce7b2207156e\nbranch refs/heads/codex/integration-audit-20261019\n\nworktree /var/home/moos/moos-ui-next-20261020\nHEAD 3d29fdec6fee47c1368ad7c12c40e4a823da3262\nbranch refs/heads/codex/adaptive-desktop-20261020",
+  "fsck": {
+    "command": "git fsck --full --no-reflogs",
+    "exit": 0,
+    "stdout": "dangling tree 2019de7ee2f9767ccd373865794f50c369ad2e59\ndangling tree 571d0edb039f5a34eda14c6dd6027cc9f2389c6d\ndangling tree 3a428a6009c2f66993060b887c575fa90f623d45\ndangling tree 4fab060c20494594dd3d9c000c0249873b0946d6\ndangling tree eaafcc388e2542c70e6f992774d4d0be9dd8e0d2\ndangling tree 88b72eafcc153427bd1a15e0d3525330b8c96e7f\ndangling tree 53cb8808ac19cebfe7709f4d8cb9a4e35ada50e5\ndangling blob 46d622c3e02caf9d6467c7f054c639dbbc61f0fa\ndangling tree f5de740f0cb428fa3a8b7291e2e2a648194d56ea\ndangling blob ed05731b74cbd0906d39892a5aa4ab762a181f5b\ndangling tree 994a6b16f204fe7bb2251317feb4cfd9b7d93eda\ndangling tree daa2b9164010997fc4665f64192051a64b091685\ndangling tree 32a8877fe612863f94a0ba45e0e1a8c4ddaf310e\ndangling commit f3b7c9cecb21bf14b43f5f58d9b2f94dee9c890d\ndangling commit 07bba9be0bd075b2261c84d8753d770473b78881\ndangling tree 59d6fd01c6ca3a994116130f8c054fca4c6fda23\ndangling tree a6f61134e3f75c27c73e4d16223c7c277824b2dd\n",
+    "stderr": ""
+  },
+  "preservation": "No refs, stashes, owner drafts or worktree source deleted/pruned. Archive refs may be non-commit objects and are preserved rather than blindly merged."
+}

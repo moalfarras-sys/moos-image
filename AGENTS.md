@@ -251,6 +251,12 @@ after the final catalogue gate printed success. Its termination cause remains
 unproven. Preserve that result; a native parent must save the command's exit,
 source/tree and log hash independently before calling the full gate green.
 
+**A BUILD marker does not describe its compiler.** Remote PR261's marker-only
+check passed while its new locked Vite build changed the shipped JavaScript.
+Keep the full locked-build comparison in the PR fast workflow as well as main.
+Preserve the native old-compiler exact reproduction, repeat-build equality and
+old-bundle1/new-bundle0 controls; a marker pass is not bundle reproducibility.
+
 **A screenshot's filename does not establish its phase.** ISO 38807911559
 saved `installed-login.ppm` only after PAM accepted the password and logind
 opened the session. It caught the empty handoff background and correctly failed

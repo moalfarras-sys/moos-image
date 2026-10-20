@@ -1,0 +1,15 @@
+{
+  "step": "npm run build; build_exit=$?; test \"$build_exit\" = 0 || exit \"$build_exit\"; git -C ../.. diff --exit-code --stat -- moremote/agent/wwwroot; diff_exit=$?; test \"$diff_exit\" = 0 || exit \"$diff_exit\"; test -z \"$(git -C ../.. ls-files --others --exclude-standard -- moremote/agent/wwwroot)\"",
+  "results": [
+    {
+      "baseline": "old",
+      "exit": 1
+    },
+    {
+      "baseline": "updated",
+      "exit": 0
+    }
+  ],
+  "new_bundle_backup": "/var/tmp/moos-controller-qualification-20261021/qualified-new-wwwroot",
+  "only_private_git": true
+}

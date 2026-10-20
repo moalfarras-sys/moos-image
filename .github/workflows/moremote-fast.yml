@@ -66,6 +66,12 @@ jobs:
       - run: npm ci
       - run: npm run typecheck
       - run: npm test
-      # The image ships the COMMITTED bundle, so a source change with no rebuild ships the old
-      # JavaScript with a green suite. This is the assertion that catches it.
+      # Cheap BUILD-marker/service-worker check before comparing the full locked build below.
       - run: node --experimental-strip-types tests/bundle-freshness.test.ts
+      # The BUILD marker can stay unchanged when the locked compiler changes.
+      # Compare the actual output here, before main starts the signed image build.
+      - name: Controller bundle matches the locked build
+        run: |
+          npm run build
+          git -C ../.. diff --exit-code --stat -- moremote/agent/wwwroot
+          test -z "$(git -C ../.. ls-files --others --exclude-standard -- moremote/agent/wwwroot)"

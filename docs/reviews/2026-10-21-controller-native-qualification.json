@@ -1,0 +1,154 @@
+{
+  "utc": "2026-10-20T23:46:33.985727+00:00",
+  "scope": "Exclusive private native ARMNode24.22.0 npm audit/ci/typecheck/test/build; original repository/bundle/node_modules untouched",
+  "inputs": {
+    "moremote/controller/package.json": "8e1952458c24dc71820e633d06c344ee16f5475c03fd543aab37a66dd28c8588",
+    "moremote/controller/package-lock.json": "554c4fff066d5f5a49e8d2cc567112ec58244e4349abbe023df26de93b913c47"
+  },
+  "inputs_original_unchanged": true,
+  "vite": "8.3.4",
+  "audit": {
+    "exit": 0,
+    "metadata": {
+      "vulnerabilities": {
+        "info": 0,
+        "low": 0,
+        "moderate": 0,
+        "high": 0,
+        "critical": 0,
+        "total": 0
+      },
+      "dependencies": {
+        "prod": 4,
+        "dev": 460,
+        "optional": 100,
+        "peer": 0,
+        "peerOptional": 0,
+        "total": 463
+      }
+    }
+  },
+  "commands": [
+    {
+      "command": [
+        "node",
+        "--version"
+      ],
+      "exit": 0,
+      "stdout": "0-node---version.stdout",
+      "stderr": "0-node---version.stderr"
+    },
+    {
+      "command": [
+        "npm",
+        "--version"
+      ],
+      "exit": 0,
+      "stdout": "1-npm---version.stdout",
+      "stderr": "1-npm---version.stderr"
+    },
+    {
+      "command": [
+        "npm",
+        "audit",
+        "--package-lock-only",
+        "--json"
+      ],
+      "exit": 0,
+      "stdout": "2-npm-audit.stdout",
+      "stderr": "2-npm-audit.stderr"
+    },
+    {
+      "command": [
+        "npm",
+        "ci"
+      ],
+      "exit": 0,
+      "stdout": "3-npm-ci.stdout",
+      "stderr": "3-npm-ci.stderr"
+    },
+    {
+      "command": [
+        "npm",
+        "run",
+        "typecheck"
+      ],
+      "exit": 0,
+      "stdout": "4-npm-run.stdout",
+      "stderr": "4-npm-run.stderr"
+    },
+    {
+      "command": [
+        "npm",
+        "test"
+      ],
+      "exit": 1,
+      "stdout": "5-npm-test.stdout",
+      "stderr": "5-npm-test.stderr"
+    },
+    {
+      "command": [
+        "npm",
+        "test"
+      ],
+      "exit": 0,
+      "stdout": "6-npm-test-retry.stdout",
+      "stderr": "6-npm-test-retry.stderr"
+    },
+    {
+      "command": [
+        "node",
+        "--experimental-strip-types",
+        "tests/bundle-freshness.test.ts"
+      ],
+      "exit": 0,
+      "stdout": "7-bundle-marker.stdout",
+      "stderr": "7-bundle-marker.stderr"
+    },
+    {
+      "command": [
+        "npm",
+        "run",
+        "build"
+      ],
+      "exit": 0,
+      "stdout": "8-build.stdout",
+      "stderr": "8-build.stderr"
+    }
+  ],
+  "initial_fixture_failure": "npm test first failed ENOENT sharedpalette; copied exact4external source fixtures into private tree, then fulltest passes; no source/test changes",
+  "full_bundle_freshness": {
+    "exact_match": false,
+    "different_paths": [
+      "assets/index-B8fvhbrx.js",
+      "assets/index-BjamTvl-.js",
+      "index.html",
+      "sw.js"
+    ],
+    "file_count": 13
+  },
+  "evidence": {
+    "inputs.json": "04adbc6ba680b56c1af4373febb882f208f9600418dafe017ae6d38c572da66b",
+    "0-node---version.stdout": "2b796b748c85883d00cfea9775eaa143435f0dc06c69311b444cf0dfc98214bc",
+    "0-node---version.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "commands.json": "ba5830669da8697ae74642fe5cb8841c4ac07fcedc56cb0dfdeaa1b938897cef",
+    "1-npm---version.stdout": "4211530c8fb0d148aab950b0005433a64dd6f19f26460831515c07d12fc826a9",
+    "1-npm---version.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "2-npm-audit.stdout": "d696f64d1ca130072b1954f5cbd9fb30b46def390b44c68de9715369be07b06a",
+    "2-npm-audit.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "3-npm-ci.stdout": "406f97e4e039c657567df3debec3bfcb6eda95bf5497c61d042ce03d4421f812",
+    "3-npm-ci.stderr": "93873e18cc4b8fa55f52189274ca7a8c088652906ac4fcd5bb2876ca286247b0",
+    "4-npm-run.stdout": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "4-npm-run.stderr": "724dd2fe05b115c803112ca9ffbfddf35f744beaa5f77a626abfe0342849508e",
+    "5-npm-test.stdout": "105afc007a235dd4ac4b4a7b354f6616a641aea909d305a2d8fde406fdfe64e2",
+    "5-npm-test.stderr": "90d3769f8f11a152c1d6ed406034ffc886f1adee60a05e2e2d91f1fa3b34f127",
+    "bundle-rebuild.json": "aef2924156f953e04c7251b6d92574182c0daadcda4e9024be17d5a23322c466",
+    "6-npm-test-retry.stdout": "be468b2249b5fb1816706a64cc931f5b61196e7c7f15f599d124372d73c620f0",
+    "6-npm-test-retry.stderr": "eab7d33cf14cb01033b039868740a0b8bc27cc4da2565a93ef60104f673e22f0",
+    "commands-completion.json": "85a229eb1569bca353cb495f6f711acf69b7440582c62987357565bc1f29898f",
+    "7-bundle-marker.stdout": "94bc2a6625992ed38ef856f845500d4aa01c3ff07e6a6e336f7320e18fceb960",
+    "7-bundle-marker.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "8-build.stdout": "e354be230fba976567c1b22e969d945b4ec100e25258b2edaa371ec776dd861a",
+    "8-build.stderr": "9ded29225835d9cfce32533a5936061c6d7fc191f4cd78b95f345f00b9f7110f"
+  }
+}
