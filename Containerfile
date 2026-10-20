@@ -89,6 +89,16 @@ RUN dnf5 -y install --setopt=install_weak_deps=False dbus-daemon \
     && python3 /src/rpms.py collect /work/plasma-logout-rpmbuild/RPMS /out \
     && bash /src/native-proof.sh
 
+# V3 login: exact vendor frontend rebuild; SDK and regression evidence never ship.
+FROM base AS plasma-login-build
+RUN dnf5 -y install --setopt=install_weak_deps=False gcc-c++ rpm-build cpio patch \
+    'dnf5-command(builddep)' kf6-rpm-macros python3 python3-pyside6 curl
+COPY build_files/plasma_login/ /src/build_files/plasma_login/
+COPY build_files/configure_fingerprint_login.py build_files/build.sh /src/build_files/
+COPY tests/test_greeter_autofingerprint.py tests/test_fingerprint_login.py /src/tests/
+RUN bash /src/build_files/plasma_login/build.sh prepare
+RUN bash /src/build_files/plasma_login/build.sh compile
+
 # P0.7: native vendor RPM rebuild; SDK and regression evidence never ship.
 FROM base AS plymouth-build
 RUN dnf5 -y install --setopt=install_weak_deps=False gcc libasan rpm-build cpio patch \
@@ -334,6 +344,11 @@ RUN --mount=type=bind,from=ctx,source=/,target=/ctx \
     --mount=type=cache,dst=/var/cache \
     --mount=type=cache,dst=/var/log \
     python3 /ctx/plasma_logout/rpms.py install /plasma-logout-rpms
+RUN --mount=type=bind,from=ctx,source=/,target=/ctx \
+    --mount=type=bind,from=plasma-login-build,source=/out,target=/plasma-login-rpms \
+    --mount=type=cache,dst=/var/cache \
+    --mount=type=cache,dst=/var/log \
+    if [ "$IMAGE_NAME" != moos-cloud ]; then python3 /ctx/plasma_login/rpms.py install /plasma-login-rpms; fi
 COPY system_files/ /
 COPY --from=moremote-build /out/ /usr/lib/mo-remote/
 # Keep the vendored app's standalone icon byte-identical to MoOS's new

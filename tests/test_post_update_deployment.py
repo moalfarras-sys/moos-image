@@ -156,5 +156,71 @@ else:
             self.assertIn("registry verification is unavailable", result.stdout)
 
 
+class KeyboardShadowCheckTests(unittest.TestCase):
+    """A keyboard-model-only file must inherit layouts; explicit drift still fails."""
+
+    def check_shadow(self, user, effective="ara,de", expected="ara,de"):
+        fragment = SCRIPT[SCRIPT.index('user_kxkb="$HOME/.config/kxkbrc"'):]
+        fragment = fragment.split('head_ "MoPlayer"', 1)[0]
+        with tempfile.TemporaryDirectory(prefix="moos-keyboard-shadow-") as tmp:
+            home = Path(tmp)
+            (home / ".config").mkdir()
+            if user is not None:
+                (home / ".config/kxkbrc").write_text(user)
+            stub = home / "kreadconfig6"
+            stub.write_text('''#!/usr/bin/env python3
+import configparser, os, pathlib, sys
+args = sys.argv[1:]
+filename = args[args.index('--file')+1]
+if not pathlib.Path(filename).is_absolute():
+    print(os.environ['TEST_EFFECTIVE_LAYOUTS'])
+else:
+    config = configparser.ConfigParser(interpolation=None)
+    config.read(filename)
+    default = args[args.index('--default')+1] if '--default' in args else ''
+    print(config.get('Layout', 'LayoutList', fallback=default))
+''')
+            stub.chmod(0o755)
+            env = {**os.environ, "HOME": str(home), "TEST_EFFECTIVE_LAYOUTS": effective,
+                   "PATH": str(home) + os.pathsep + os.environ["PATH"]}
+            result = subprocess.run(["bash", "-c", '''
+set -u
+fail=0
+ok() { printf 'PASS %s\\n' "$1"; }
+bad() { printf 'FAIL %s\\n' "$1"; fail=$((fail+1)); }
+image_layouts="$1"
+''' + fragment + '\nexit "$fail"', "shadow-test", expected],
+                env=env, capture_output=True, text=True, timeout=10)
+            path = home / ".config/kxkbrc"
+            self.assertEqual(path.read_text() if path.exists() else None, user,
+                             "A diagnostic must never rewrite the owner's keyboard configuration")
+            return result
+
+    def test_model_only_file_inherits_layouts_without_rewriting_owner_config(self):
+        p = self.check_shadow("[Layout]\nModel=a4techKB21\n")
+        self.assertEqual(p.returncode, 0, p.stdout + p.stderr)
+
+    def test_matching_explicit_layout_remains_valid(self):
+        self.assertEqual(self.check_shadow("[Layout]\nLayoutList=ara,de\n").returncode, 0)
+
+    def test_missing_user_file_has_no_shadow(self):
+        self.assertEqual(self.check_shadow(None).returncode, 0)
+
+    def test_explicit_different_layout_is_still_rejected(self):
+        self.assertNotEqual(self.check_shadow("[Layout]\nLayoutList=us\n").returncode, 0)
+
+    def test_explicit_empty_layout_is_still_rejected(self):
+        self.assertNotEqual(self.check_shadow("[Layout]\nLayoutList=\n").returncode, 0)
+
+    def test_partial_file_cannot_hide_an_incorrect_effective_layout(self):
+        self.assertNotEqual(self.check_shadow("[Layout]\nModel=a4techKB21\n", effective="us").returncode, 0)
+
+    def test_partial_file_cannot_hide_an_unreadable_effective_layout(self):
+        self.assertNotEqual(self.check_shadow("[Layout]\nModel=a4techKB21\n", effective="").returncode, 0)
+
+    def test_missing_image_default_is_still_rejected(self):
+        self.assertNotEqual(self.check_shadow("[Layout]\nModel=a4techKB21\n", expected="").returncode, 0)
+
+
 if __name__ == "__main__":
     unittest.main()

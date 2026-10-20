@@ -1,0 +1,186 @@
+--- a/src/frontend/greeter/CMakeLists.txt
++++ b/src/frontend/greeter/CMakeLists.txt
+@@ -34,0 +35 @@
++    qml/AutomaticFingerprint.qml
+--- a/src/frontend/greeter/backend/GreeterProxy.cpp
++++ b/src/frontend/greeter/backend/GreeterProxy.cpp
+@@ -58,0 +59,5 @@
++bool GreeterProxy::daemonReady() const
++{
++    return d->socket->state() == QLocalSocket::ConnectedState;
++}
++
+@@ -60,0 +66,2 @@
++    // Record only the chosen route, never a credential or its length.
++    qInfo() << "Login request method:" << (password.isEmpty() ? "empty-response" : "password");
+@@ -70,0 +78 @@
++    Q_EMIT daemonReadyChanged();
+@@ -78,0 +87 @@
++    Q_EMIT daemonReadyChanged();
+--- a/src/frontend/greeter/backend/GreeterProxy.h
++++ b/src/frontend/greeter/backend/GreeterProxy.h
+@@ -34,0 +35 @@
++    Q_PROPERTY(bool daemonReady READ daemonReady NOTIFY daemonReadyChanged)
+@@ -40,0 +42 @@
++    bool daemonReady() const;
+@@ -51,0 +54 @@
++    void daemonReadyChanged();
+--- a/src/frontend/greeter/main.cpp
++++ b/src/frontend/greeter/main.cpp
+@@ -124 +124 @@
+-    qmlRegisterSingletonInstance("org.kde.plasma.login", 0, 1, "UserModel", new UserModel);
++    qmlRegisterSingletonInstance("org.kde.plasma.login", 0, 1, "UserModel", new UserModel(nullptr, !LoginGreeter::testModeEnabled()));
+--- a/src/frontend/greeter/mockbackend/MockGreeterProxy.h
++++ b/src/frontend/greeter/mockbackend/MockGreeterProxy.h
+@@ -14,0 +15 @@
++    Q_PROPERTY(bool daemonReady READ daemonReady CONSTANT)
+@@ -16,0 +18 @@
++    bool daemonReady() const { return true; }
+--- /dev/null
++++ b/src/frontend/greeter/qml/AutomaticFingerprint.qml
+@@ -0,0 +1,32 @@
++// SPDX-License-Identifier: LGPL-2.0-or-later
++import QtQuick
++
++Item {
++    id: root
++    visible: false
++    property bool available: false
++    property bool uiVisible: false
++    property bool passwordEmpty: true
++    property bool busy: false
++    property string username
++    property var claim: function(user) { return false; }
++    property bool ready: false
++    readonly property bool eligible: ready && available && uiVisible && passwordEmpty && !busy && username.length > 0
++    signal requested()
++
++    function schedule() {
++        attempt.stop();
++        if (eligible) attempt.start();
++    }
++    onEligibleChanged: schedule()
++    onUsernameChanged: schedule()
++    Component.onCompleted: { ready = true; schedule(); }
++    Timer {
++        id: attempt
++        interval: 150
++        repeat: false
++        onTriggered: {
++            if (root.eligible && root.claim(root.username) === true) root.requested();
++        }
++    }
++}
+--- a/src/frontend/greeter/qml/GreeterState.qml
++++ b/src/frontend/greeter/qml/GreeterState.qml
+@@ -92,0 +93,8 @@
++    property bool authenticationInProgress: false
++    property var automaticFingerprintAttempts: []
++
++    function claimAutomaticFingerprint(user): bool {
++        if (authenticationInProgress || automaticFingerprintAttempts.indexOf(user) >= 0) return false;
++        automaticFingerprintAttempts.push(user);
++        return true;
++    }
+@@ -97,0 +106 @@
++        if (authenticationInProgress) return true;
+@@ -164,0 +174 @@
++        authenticationInProgress = true;
+@@ -217,0 +228 @@
++            greeterState.authenticationInProgress = false;
+@@ -223,0 +235 @@
++            greeterState.authenticationInProgress = false;
+--- a/src/frontend/greeter/qml/Login.qml
++++ b/src/frontend/greeter/qml/Login.qml
+@@ -34,0 +35,21 @@
++
++    AutomaticFingerprint {
++        username: root.showUsernamePrompt ? "" : root.userList.selectedUser
++        available: username.length > 0 && PlasmaLogin.Authenticator.daemonReady && PlasmaLogin.UserModel.hasFingerprint(username)
++        uiVisible: root.loginScreenUiVisible
++        passwordEmpty: passwordBox.text.length === 0
++        busy: PlasmaLogin.GreeterState.authenticationInProgress
++        claim: function(user) { return PlasmaLogin.GreeterState.claimAutomaticFingerprint(user); }
++        onRequested: root.startLogin()
++    }
++
++    Component.onCompleted: Qt.callLater(() => {
++        // Reveal the native form on the first screen for the selected enrolled
++        // account. Other screens share the once-per-account request guard.
++        if (!root.showUsernamePrompt && PlasmaLogin.UserModel.hasFingerprint(root.userList.selectedUser)
++            && PlasmaLogin.GreeterState.activeWindow === null
++            && root.Window.window && Qt.application.screens.length > 0
++            && root.Screen.name === Qt.application.screens[0].name) {
++            PlasmaLogin.GreeterState.activateWindow(root.Window.window);
++        }
++    })
+--- /dev/null
++++ b/src/frontend/settings/models/fingerprintmetadata.h
+@@ -0,0 +1,42 @@
++// SPDX-License-Identifier: LGPL-2.0-or-later
++#pragma once
++#include <QFile>
++#include <QJsonArray>
++#include <QJsonDocument>
++#include <QJsonObject>
++#include <QSet>
++#include <QString>
++#include <fcntl.h>
++#include <sys/stat.h>
++#include <unistd.h>
++
++// Availability only. Authentication and account checks remain in native PAM.
++inline QSet<QString> moosFingerprintUsers(const QString &path = QStringLiteral("/run/moos-login/fingerprint-users.json"))
++{
++    const int fd = ::open(QFile::encodeName(path).constData(), O_RDONLY | O_CLOEXEC | O_NOFOLLOW | O_NONBLOCK);
++    if (fd < 0) return {};
++    struct stat info{};
++    if (::fstat(fd, &info) || !S_ISREG(info.st_mode) || info.st_uid != 0 || (info.st_mode & 0022)
++        || info.st_size < 2 || info.st_size > 16384) {
++        ::close(fd);
++        return {};
++    }
++    QFile input;
++    if (!input.open(fd, QIODevice::ReadOnly, QFileDevice::AutoCloseHandle)) {
++        ::close(fd);
++        return {};
++    }
++    const auto object = QJsonDocument::fromJson(input.readAll()).object();
++    QFile boot(QStringLiteral("/proc/sys/kernel/random/boot_id"));
++    if (!boot.open(QIODevice::ReadOnly) || object.value(QStringLiteral("schema")).toInt() != 1
++        || object.value(QStringLiteral("boot_id")).toString().toUtf8() != boot.readAll().trimmed()
++        || !object.value(QStringLiteral("users")).isArray()) return {};
++    QSet<QString> users;
++    const auto array = object.value(QStringLiteral("users")).toArray();
++    if (array.size() > 32) return {};
++    for (const auto &entry : array) {
++        if (!entry.isString() || entry.toString().isEmpty() || entry.toString().size() > 256) return {};
++        users.insert(entry.toString());
++    }
++    return users;
++}
+--- a/src/frontend/settings/models/usermodel.cpp
++++ b/src/frontend/settings/models/usermodel.cpp
+@@ -13,0 +14 @@
++#include "fingerprintmetadata.h"
+@@ -15 +16 @@
+-UserModel::UserModel(QObject *parent)
++UserModel::UserModel(QObject *parent, bool fingerprintCapabilities)
+@@ -19,0 +21,6 @@
++    if (fingerprintCapabilities) m_fingerprintUsers = moosFingerprintUsers();
++}
++
++bool UserModel::hasFingerprint(const QString &username) const
++{
++    return indexOfData(username, NameRole) >= 0 && m_fingerprintUsers.contains(username);
+--- a/src/frontend/settings/models/usermodel.h
++++ b/src/frontend/settings/models/usermodel.h
+@@ -10,0 +11 @@
++#include <QSet>
+@@ -40 +41 @@
+-    UserModel(QObject *parent = nullptr);
++    UserModel(QObject *parent = nullptr, bool fingerprintCapabilities = false);
+@@ -59,0 +61 @@
++    Q_INVOKABLE bool hasFingerprint(const QString &username) const;
+@@ -64,0 +67 @@
++    QSet<QString> m_fingerprintUsers;
