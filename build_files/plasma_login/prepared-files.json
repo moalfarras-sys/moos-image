@@ -2,7 +2,7 @@
   "src/frontend/greeter/CMakeLists.txt": "d6d1b487f8a85c5e448f4308fb8c84b269d7567a96ff8fc705c7e7fa38287ca1",
   "src/frontend/greeter/backend/GreeterProxy.cpp": "d1d141b6835b897555555a32c6206b6278a84c26d5c2c27fa111674b0c9a51e2",
   "src/frontend/greeter/backend/GreeterProxy.h": "1f845a71844f827968b296e7f59a70a18444c3cf3bed04ac2d74f51356a51cc3",
-  "src/frontend/greeter/main.cpp": "adca0b340428c68b8f6a733c0a4b3f96d609cc11004817e8c4763b6bd03b8dbd",
+  "src/frontend/greeter/main.cpp": "883226d3638b0cd660bfb3cc35f8a9c62e6e71bd54479351a972fc7502e1bf2f",
   "src/frontend/greeter/mockbackend/MockGreeterProxy.h": "e4c2d44e1d1588a46b758fa492f41ccdf8e3b85bc7145c786cb263903e28c540",
   "src/frontend/greeter/qml/AutomaticFingerprint.qml": "d5301471df940b14d7b455b10b0b511dffb014e0414a1a4d805e59d9ac44b103",
   "src/frontend/greeter/qml/GreeterState.qml": "5cb1a7912e823ffb8135d3709ea692161aea836a40002e055fa7b0e938c1af4a",

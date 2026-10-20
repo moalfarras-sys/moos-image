@@ -1,6 +1,6 @@
 # Native login fingerprint startup
 
-The installed Plasma Login Manager 6.8.0 starts PAM only after submitting the
+The reviewed Plasma Login Manager 6.8.1 starts PAM only after submitting the
 form. A reader match in `fprintd-verify` or the lock screen does not change that.
 This additive frontend correction submits the existing empty-response login
 request once when an enrolled, selected local account becomes visible. It never
@@ -11,7 +11,7 @@ accepts a fingerprint itself or invents an authentication result.
 `sources.json` accepts one vendor source NVR and x86_64 architecture. The SDK
 downloads the exact SRPM, verifies its SHA256 and trusted OpenPGP signature,
 retains the vendor spec, flags and patches, then adds `automatic-fingerprint.patch`.
-Prepared frontend files have exact hashes. All files in `src/auth`, `src/helper`
+Prepared frontend files have exact hashes. The 6.8.1 review retains the vendor placeholder-screen guard and native shutdown/SIGHUP fixes; the existing fingerprint patch changes only the same 11 frontend files. The helper/daemon aggregate is compared with 6.8.1 vendor inputs, not the historical 6.8.0 aggregate. All files in `src/auth`, `src/helper`
 and `src/daemon` must remain byte-identical to the reviewed vendor source.
 The two rebuilt runtime RPMs are installed before the authoritative MoOS overlay;
 the SDK and test tools never enter the finished image. The final check compares

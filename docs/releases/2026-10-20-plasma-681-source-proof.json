@@ -1,0 +1,129 @@
+{
+  "schema_version": 1,
+  "observed_date": "2026-10-20",
+  "scope": "exact x86 Plasma6.8.1 source, native compose base and offscreen seam qualification; not a signed full release or physical login acceptance",
+  "source_ancestry_parent": "d57efcd393f2971fed0bd240e235612d66ede290",
+  "preceding_image_refusal": {
+    "source": "d57efcd393f2971fed0bd240e235612d66ede290",
+    "repository_check_exit": 0,
+    "unittest_cases": 2783,
+    "full_local_image_exit": 1,
+    "reason": "live publisher moved six core inputs from reviewed6.8.0 to6.8.1; exact-source guard retained",
+    "log_sha256": "376066208e197163fd499e8e02bf7c3721cfc61191ea2acce9e6b1019398140c"
+  },
+  "vendor_source_rpms": [
+    {
+      "file": "plasma-desktop-6.8.1-1.fc44.src.rpm",
+      "bytes": 18512872,
+      "sha256": "3768680f0be52cb1a79a898a21f4fb49a14ccbe8aa98ea3ac303df52cb22d2df",
+      "signer": "96bdf4e8710b8f9ffb11d83ddb51f4cb6c33bdbb",
+      "signature_exit": 0,
+      "trust": "preexisting native RPM public key; read-only check"
+    },
+    {
+      "file": "plasma-login-manager-6.8.1-1.fc44.src.rpm",
+      "bytes": 189814,
+      "sha256": "798c839025d594eab0bdd79cf959a17d84bce40509673187bb67f5e180794f6a",
+      "signer": "96bdf4e8710b8f9ffb11d83ddb51f4cb6c33bdbb",
+      "signature_exit": 0,
+      "trust": "preexisting native RPM public key; read-only check"
+    },
+    {
+      "file": "plasma-workspace-6.8.1-1.fc44.src.rpm",
+      "bytes": 19523814,
+      "sha256": "bcd345a19a527ab58ccf3e28275d8b447bac262e951ba96771517c4993d13468",
+      "signer": "96bdf4e8710b8f9ffb11d83ddb51f4cb6c33bdbb",
+      "signature_exit": 0,
+      "trust": "preexisting native RPM public key; read-only check"
+    }
+  ],
+  "vendor_binary_rpms": [
+    {
+      "file": "plasma-desktop-6.8.0-2.fc44.x86_64.rpm",
+      "url": "https://download.copr.fedorainfracloud.org/results/@kdesig/kde-final/fedora-44-x86_64/Packages/p/plasma-desktop-6.8.0-2.fc44.x86_64.rpm",
+      "sha256": "46bbc1405de771f502f4c462521e6cee0cdb2a71b851c58d94d522177bb027f9",
+      "bytes": 15396858,
+      "signer": "96bdf4e8710b8f9ffb11d83ddb51f4cb6c33bdbb",
+      "signature_exit": 0
+    },
+    {
+      "file": "plasma-workspace-6.8.0-1.fc44.x86_64.rpm",
+      "url": "https://download.copr.fedorainfracloud.org/results/@kdesig/kde-final/fedora-44-x86_64/Packages/p/plasma-workspace-6.8.0-1.fc44.x86_64.rpm",
+      "sha256": "71c857da020d7946eccfe7c45d1823018d6cdb80a9905502246a59f3b8a7af58",
+      "bytes": 16518204,
+      "signer": "96bdf4e8710b8f9ffb11d83ddb51f4cb6c33bdbb",
+      "signature_exit": 0
+    },
+    {
+      "file": "plasma-desktop-6.8.1-1.fc44.x86_64.rpm",
+      "url": "https://download.copr.fedorainfracloud.org/results/@kdesig/kde-final/fedora-44-x86_64/Packages/p/plasma-desktop-6.8.1-1.fc44.x86_64.rpm",
+      "sha256": "ab58f0df67ee0930ae74cc8d9f7c6ad25286ab5a0df7f7323b90cd7d7b06091e",
+      "bytes": 15397437,
+      "signer": "96bdf4e8710b8f9ffb11d83ddb51f4cb6c33bdbb",
+      "signature_exit": 0
+    },
+    {
+      "file": "plasma-workspace-6.8.1-1.fc44.x86_64.rpm",
+      "url": "https://download.copr.fedorainfracloud.org/results/@kdesig/kde-final/fedora-44-x86_64/Packages/p/plasma-workspace-6.8.1-1.fc44.x86_64.rpm",
+      "sha256": "909aa5a1e867961e6d04bc55086532b024a0bda30e26abb7962c3618f67b2658",
+      "bytes": 16524648,
+      "signer": "96bdf4e8710b8f9ffb11d83ddb51f4cb6c33bdbb",
+      "signature_exit": 0
+    }
+  ],
+  "upstream_change_review": {
+    "primary_changelog": "https://kde.org/announcements/changelogs/plasma/6/6.8.0-6.8.1/",
+    "placeholder_screen_fix": "https://invent.kde.org/plasma/plasma-login-manager/-/commit/9dd266f551fd46e87a5ec2c185146680cdadb061",
+    "retained_vendor_changes": [
+      "greeter/wallpaper skip null-geometry placeholder outputs",
+      "daemon avoids restarting greeter while preparing shutdown",
+      "native helper handles SIGHUP as a clean shutdown"
+    ],
+    "historical_qt_screen_removed_crash": "root cause not established; upstream placeholder fix is retained but not claimed to repair the historical crash"
+  },
+  "native_login_source": {
+    "old_automatic_fingerprint_patch_applies": true,
+    "prepared_frontend_files": 11,
+    "changed_prepared_file": "src/frontend/greeter/main.cpp; only upstream null-geometry guard differs from reviewed6.8.0 prepared frontend",
+    "prepared_main_sha256": "883226d3638b0cd660bfb3cc35f8a9c62e6e71bd54479351a972fc7502e1bf2f",
+    "unchanged_relative_to681_vendor_auth_helper_daemon_aggregate": "4820e30b6376713ed4c53b6aab466bc5b2cb0415fccc7ad4b76749a0d6a573f9",
+    "native_rpm_build_and_runtime_controls": "required in full image; not yet qualified",
+    "physical_680_binary_hash": "historical proof only; new681 binary must receive independent cold-login acceptance"
+  },
+  "native_logout_source": {
+    "vendor_patches_retained": true,
+    "existing_transaction_patch_applies": true,
+    "prepared_shutdown_sha256": "6bf75cee4bfad0e6d059e6b34723ddc7795f2cc2c1f295e1a83cad42c8c6140a"
+  },
+  "seam_review": {
+    "exact_old_new_signed_rpms": true,
+    "unchanged_upstream_files": 12,
+    "rederive_exit": 0,
+    "rederive_log_sha256": "7ced3b2ad4bb8b799138246e6ab714e07b84f596e8f8e3d9c3a3c951dbcfda02",
+    "native_positive_broken_restored_exit": 0,
+    "probe_image_id": "43c4a297bc1ea944f990557253c24e0f0ff69032c832cc23e7084640b906c933",
+    "probe_log_sha256": "e766093cf67b32c43e119fce7924d4523842acbf8ef8096bd922d29b727cac15",
+    "vendor_auth_qml_preserved": {
+      "LockScreenUi.qml": "683bdafa0e1d143fbf5b9b80f6e4b07afa494ec77d2b7f93a0d467a66e5c62e1",
+      "MainBlock.qml": "487ce6e0c5903bb11a7b92ffb2470ad48503c7850a2da9d406edead37c898707"
+    },
+    "unreviewed_682_refuses": true,
+    "local_rpm_input_controls": 6
+  },
+  "native_compose_base": {
+    "image_id": "1601ffda0090a48e725435e22125b38832cfcd4f9ab336d505518bcc3a960750",
+    "source_base_digest": "sha256:475031ba2a56cd8d509cb0828b9bbdc7289adc10510b1bec9b81e197965be43a",
+    "exit": 0,
+    "scope": "actual fresh publisher transaction plus pristine-state correction; no full OS image or boot acceptance",
+    "log_sha256": "29e7fb4a4ef47cbd7d40009dff4ae98f22c83d119191b776f9973e686cd3d609"
+  },
+  "remaining": [
+    "maintained final-head repository checks",
+    "native SDK and complete local image",
+    "exact-head PR gates",
+    "one frozen signed boot-proven release cycle",
+    "installed new-digest cold fingerprint and independent password fallback",
+    "physical BIOS Battery Charge Limit readback;80% cap not effective",
+    "historical Qt crash, SMOCF05 rotation, pen/suspend/provider onboarding remain explicit"
+  ]
+}
