@@ -92,3 +92,12 @@ shared material policy and changes frame opacity and mask selection only. KDE
 continues to own panel geometry, applets and input; MoOS clarity owns material density,
 including beside maximized windows. The 6.8
 variant retains the upstream ContainmentItem and panel-enum changes.
+
+
+The Oct20 6.8.1 point-release review used `rederive_seams.py 6.8.0 6.8.1
+--rpm-dir <verified-publisher-rpms>` after current repository metadata stopped
+listing 6.8.0. Local inputs require exact package/version/x86 metadata and a
+trusted RPM signature; digest-only, missing-key, wrong-architecture, symlink and
+ambiguous-release controls refuse. All 12 upstream files are identical. The new
+6.8.1-only set records the actual native positive/broken/restored greeter proof;
+6.8.2 and other unreviewed releases still refuse. No auth-bearing QML is replaced.

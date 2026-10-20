@@ -131,6 +131,10 @@ check:
     python3 tests/test_boot_path_authorities.py
     python3 tests/test_memory_policy.py
     python3 tests/test_canary_base_state.py
+    python3 tests/test_compose_root_home.py
+    python3 tests/test_compose_dbus_state.py
+    python3 tests/test_compose_runtime_transaction.py
+    python3 tests/test_arm_pristine_base.py
     python3 tests/test_visual_frame_gate.py
     python3 tests/test_oracle_deploy.py
     python3 tests/test_exec_bits.py
@@ -447,6 +451,7 @@ check:
     # runtime half loads the lock screen only where kscreenlocker exists, isolated.
     python3 tests/test_plasma_seams.py
     python3 tests/test_plasma_stable_compose.py
+    python3 tests/test_plasma_rederive_inputs.py
     # The weekly Plasma-next canary builds MoOS on KDE's beta packages and can publish nothing.
     python3 tests/test_plasma_next_canary_workflow.py
     # What MoOS can run, and what it calls those things in front of a person.

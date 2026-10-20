@@ -46,7 +46,7 @@ worker (`76ed150d…`). Vendor spec/patches/flags remain intact, including the
 new source's Wayland-only choice. The SDK must still run all four actual
 old/fixed/rejected/cancelled executable controls before acceptance. Source
 selection and 38 package fixtures are not a native compiled-package proof.
-The final 6.8.0 source and any changed release remain refused until reviewed.
+Exact final 6.8.0 and 6.8.1 source inputs are reviewed. The 6.8.1 vendor source retains the same patched shutdown hash; other changed releases remain refused until reviewed. Native SDK/full-image/boot evidence remains required for each candidate.
 
 Primary sources: [upstream shutdown worker, v6.7.5](https://github.com/KDE/plasma-workspace/blob/v6.7.5/startkde/plasma-shutdown/shutdown.cpp),
 [systemd manager job modes](https://www.freedesktop.org/software/systemd/man/latest/org.freedesktop.systemd1.html).

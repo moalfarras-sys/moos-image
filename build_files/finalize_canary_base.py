@@ -102,14 +102,24 @@ def finalize(root: Path) -> None:
                 raise RuntimeError('unsafe SELinux alias parent owner or mount')
         refuse_mounted_ancestors(root, stale, mounts)
         refuse_mounted_ancestors(root, authority, mounts)
+        refuse_tmpfiles_overrides(root, 'usr/lib/tmpfiles.d/rpm-ostree-0-integration.conf', mounts)
         expected = ['L', '/var/lib/selinux', '-', '-', '-', '-', '../../etc/selinux']
         if (os.readlink(stale) != '../../etc/selinux' or stale.is_mount()
+                or info.st_uid != root.stat().st_uid or info.st_gid != root.stat().st_gid):
+            raise RuntimeError('unrecognized SELinux compatibility alias (unreviewed SELinux target or owner)')
+        if not stale.is_dir():
+            raise RuntimeError('unreviewed SELinux compatibility alias: No such file or directory at target')
+        info = authority.lstat()
+        if (not stat.S_ISREG(info.st_mode) or authority.is_mount() or info.st_size > 64 * 1024
                 or info.st_uid != root.stat().st_uid or info.st_gid != root.stat().st_gid
-                or not stale.is_dir() or not authority.is_file() or authority.is_mount()
-                or authority.stat().st_uid != root.stat().st_uid
-                or authority.stat().st_gid != root.stat().st_gid
-                or expected not in [line.split() for line in authority.read_text().splitlines()]):
-            raise RuntimeError('unreviewed SELinux compatibility alias or missing authority')
+                or stat.S_IMODE(info.st_mode) & 0o022):
+            raise RuntimeError('unsafe SELinux compatibility tmpfiles authority')
+        rules = [line.split() for line in authority.read_text().splitlines()
+                 if line.strip() and not line.lstrip().startswith('#')]
+        rules = [rule for rule in rules if len(rule) > 1 and rule[1] == '/var/lib/selinux'
+                 and rule != ['Z', '/var/lib/selinux', '-', '-', '-', '-']]
+        if rules != [expected]:
+            raise RuntimeError('missing authority: no exact vendor tmpfiles authority for SELinux alias')
     else:
         stale = owned_path(root, 'var/lib/selinux')
     immutable = owned_path(root, 'etc/selinux/targeted')
@@ -121,6 +131,8 @@ def finalize(root: Path) -> None:
         if [s.strip() for s in stores] != ['/etc/selinux'] or [m.strip() for m in modes] != ['direct']:
             raise RuntimeError('the /var policy store is not proven inactive')
         before = tree(root, 'etc/selinux/targeted', mounts)
+        if alias and not any(path.startswith('active/modules/') for path in before):
+            raise RuntimeError('configured policy store has no verified module inputs')
         if not alias:
             old = tree(root, 'var/lib/selinux', mounts)
             if set(p.name for p in stale.iterdir()) != {'targeted'}:
@@ -185,6 +197,26 @@ def finalize(root: Path) -> None:
     if run_hp.exists():
         run_hp.rmdir()
     print('Canary base package state canonicalized; the final MoOS gates remain mandatory')
+
+
+def refuse_mounted_tree(root: Path, path: Path, mounts: set[Path]) -> None:
+    """Reject bind mounts before any subtree enumeration, including same-device binds."""
+    refuse_mounted_ancestors(root, path, mounts)
+    if any(mount.is_relative_to(path) for mount in mounts):
+        raise RuntimeError('unsafe mounted compose subtree')
+
+
+def refuse_tmpfiles_overrides(root: Path, authority: str, mounts: set[Path]) -> None:
+    """Vendor bytes are not effective authority when a higher-priority file exists."""
+    path = owned_path(root, authority)
+    refuse_mounted_tree(root, path, mounts)
+    for folder in ('etc/tmpfiles.d', 'run/tmpfiles.d', 'usr/local/lib/tmpfiles.d'):
+        candidate = root / folder / path.name
+        refuse_mounted_tree(root, candidate, mounts)
+        # Validate parents without following the final override/mask symlink.
+        owned_path(root, folder)
+        if os.path.lexists(candidate):
+            raise RuntimeError('local tmpfiles authority override: ' + str(candidate.relative_to(root)))
 
 
 if __name__ == '__main__':
