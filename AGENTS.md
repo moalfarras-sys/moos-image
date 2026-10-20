@@ -147,6 +147,8 @@ These are not conventions, they are gates. The image build fails if you break th
 
 ## A green build proves nothing about what the user sees
 
+**A current base and a local mirror need not reproduce CI's transaction.** Oct20's local mirror kept systemd259.9 while CI installed259.10; its upgrade scriptlet ran tmpfiles and materialized rpm-ostree's native `/var/lib/selinux -> ../../etc/selinux` rule. Changing bootc alone did not reproduce it. Reproduce the actual vendor rule before correcting the compose finalizer. Require the exact root-owned alias, immutable tmpfiles authority, direct configured store, real module inputs and matching boot policy; unlink only that alias after every cleanup preflight. Never relax `owned_path`, follow/rmtree a policy link, or treat unknown links as empty state. Keep the old-source native refusal and all policy/authority/owner/mount negatives.
+
 **A retry can arrive before the first delivery is consumed.** A one-second
 job-presence resignal was consumed inside the same delayed/blind interval as
 the original event. Quiet reruns passed; a real Qt consumer deliberately delayed

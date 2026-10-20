@@ -1,0 +1,55 @@
+{
+  "schema_version": 1,
+  "observed_date": "2026-10-20",
+  "scope": "x86 unbooted compose correction; signed delivery still required",
+  "predecessor_revision": "8687010abe51ac34a1728f496168d336494bacdb",
+  "failed_x86_main_run": 39393513210,
+  "owned_cancelled_queued_dispatch": 39393707504,
+  "failed_step": "Build image (buildah): base finalization rejects var/lib/selinux symlink",
+  "exact_base_digest": "sha256:7f8bc2035371842bc7fdd7f8d5a00e1b0358b7e9f50b15c33cdc69408b419d7a",
+  "ci_base_config_sha256": "84e3eb98a52cf5cf00001e1dc05e8c8535509a36a36a719de89da1143316b151",
+  "input_difference": {
+    "ci_systemd": "259.10-1.fc44",
+    "local_mirror_systemd": "259.9-1.fc44",
+    "bootc117_only_reproduced_alias": false
+  },
+  "native_reproduction": {
+    "creator": "systemd-tmpfiles --create --prefix=/var/lib/selinux",
+    "vendor_authority": "/usr/lib/tmpfiles.d/rpm-ostree-0-integration.conf",
+    "exact_rule": "L /var/lib/selinux - - - - ../../etc/selinux",
+    "alias_uid_gid": [
+      0,
+      0
+    ],
+    "old_source_exit": 1,
+    "old_source_message": "Canary base finalization refused: unexpected symlink in compose state: var/lib/selinux",
+    "old_corrected_harness_log_sha256": "d2ed62fb6ec097c2711c68e434bde40aa1efa2f8f878a2aec00b78c0c16ec86c",
+    "initial_harness_import_shadow_error_excluded": true,
+    "fixed_exit": 0,
+    "configured_store_files_unchanged": 1359,
+    "module_input_files_unchanged": 1307,
+    "configured_and_boot_policy_sha256": "c2635baaf353161faa121a8c32779ea9af129fd042837190922b70531917c0c3",
+    "semanage_configuration_and_vendor_authority_unchanged": true,
+    "fixed_log_sha256": "bd9c8ecf59cdeb1f66b85e1b3511444bc8fde74049db911e5b6ce50f4dc6c78e"
+  },
+  "focused_regression_controls": 24,
+  "preserved_boundaries": [
+    "no links accepted by generic owned_path",
+    "unknown/absolute/escaping policy aliases refused",
+    "no policy tree traversal through the alias",
+    "vendor creator rule and safe regular authority required",
+    "direct /etc store with real module inputs required",
+    "actual compiled boot policy equality required",
+    "all cleanup preflights before unlink",
+    "directory store equality controls retained",
+    "stock signed kernel and signature/rollback policy unchanged"
+  ],
+  "delivery": "Full corrected source/image/PR qualification and a new signed cycle are required; no update from the failed x86 run was staged.",
+  "native_acceptance_remaining": [
+    "signed cold automatic fingerprint and independent password fallback",
+    "fresh boot greeter SIGSEGV root cause",
+    "effective BIOS battery charge plateau",
+    "current external display, suspend and unavailable pen",
+    "SMOCF05 native upstream driver binding/rotation"
+  ]
+}
