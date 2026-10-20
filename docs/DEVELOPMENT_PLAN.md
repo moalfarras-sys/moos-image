@@ -127,6 +127,10 @@ installed hardware acceptance remain P6.7 work; unknown inputs stay refused.
 
 ## Product acceptance
 
+Oct20 owner expansion: after P0 image integration, develop the existing MoOS UI into a distinctive adaptive desktop above KDE/KWin. [Current inventory and researched architecture](UI_RESEARCH_20261020_AR.md) is rationale, not a second backlog. Execute under M1/P2.5/P2.7/P2.8 and P5.3: first correct actual Island touch targets while preserving fixed context geometry and stock task behavior; then qualify narrow/portrait/large-screen layout, coherent frame/panel/Hub/Search materials and finite motion through real user journeys. Native isolated controls precede full shell/Wayland and physical PC/tablet acceptance; signed image delivery remains M0. No universal hardware or Windows/macOS performance claim.
+
+Oct21 bounded implementation: MediaControl44px tablet target passes12 nativeQt input/motion cases and old-source negative, with THEME_REV109 invalidation. Actual privatePlasma pointer checks reject a geometry-only clipping diagnosis; no parent/panel-height change is justified. Full Waylandtouch and physicaltablet acceptance remain open. Rea/Ghidra tools are installed and actualownfixtureCLI/MCP analysis passes, independently of OS delivery. Include this source in the next combined maintained check/image cycle; preserve raw contrary controls and all owner settings.
+
 MoOS is Arabic-first, with English supported. KDE Plasma/KWin remain its engine;
 MoOS owns identity, shared surfaces/defaults and fixed native control paths.
 A complete product means a qualified support scope and real connected journeys:

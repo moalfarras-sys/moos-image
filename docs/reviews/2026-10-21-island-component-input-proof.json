@@ -1,0 +1,85 @@
+{
+  "schema": 1,
+  "component_sha256": "5fe071b94e528f54ab505845fb217ed16e128c1dc656e3228b857eb497414887",
+  "cases": [
+    {
+      "case": "tablet0-slot34-factor0-old0.json",
+      "exit": 0,
+      "receipt_sha256": "1a2a2aae21b357ff1b17bf1099573b264fc097dc446e0be2f3bc8d796a6a610c",
+      "stdout": "ISLAND_TOUCH_PROOF {\"tablet\": false, \"slot\": 34, \"target\": 34, \"controls\": \"edge mouse/touch; Return/Enter/Space; hidden/disabled; motion\"}\n"
+    },
+    {
+      "case": "tablet0-slot34-factor1-old0.json",
+      "exit": 0,
+      "receipt_sha256": "1a2a2aae21b357ff1b17bf1099573b264fc097dc446e0be2f3bc8d796a6a610c",
+      "stdout": "ISLAND_TOUCH_PROOF {\"tablet\": false, \"slot\": 34, \"target\": 34, \"controls\": \"edge mouse/touch; Return/Enter/Space; hidden/disabled; motion\"}\n"
+    },
+    {
+      "case": "tablet0-slot40-factor0-old0.json",
+      "exit": 0,
+      "receipt_sha256": "e55173c259187675bbd170b98225a7cfe9c25695fc06a5a27bc917f7d8a6f9d6",
+      "stdout": "ISLAND_TOUCH_PROOF {\"tablet\": false, \"slot\": 40, \"target\": 40, \"controls\": \"edge mouse/touch; Return/Enter/Space; hidden/disabled; motion\"}\n"
+    },
+    {
+      "case": "tablet0-slot40-factor1-old0.json",
+      "exit": 0,
+      "receipt_sha256": "e55173c259187675bbd170b98225a7cfe9c25695fc06a5a27bc917f7d8a6f9d6",
+      "stdout": "ISLAND_TOUCH_PROOF {\"tablet\": false, \"slot\": 40, \"target\": 40, \"controls\": \"edge mouse/touch; Return/Enter/Space; hidden/disabled; motion\"}\n"
+    },
+    {
+      "case": "tablet0-slot52-factor0-old0.json",
+      "exit": 0,
+      "receipt_sha256": "fffdf023111aada4514c1e8a6f5bf9018b13a7d5c59f0f21b39402b99903799e",
+      "stdout": "ISLAND_TOUCH_PROOF {\"tablet\": false, \"slot\": 52, \"target\": 52, \"controls\": \"edge mouse/touch; Return/Enter/Space; hidden/disabled; motion\"}\n"
+    },
+    {
+      "case": "tablet0-slot52-factor1-old0.json",
+      "exit": 0,
+      "receipt_sha256": "fffdf023111aada4514c1e8a6f5bf9018b13a7d5c59f0f21b39402b99903799e",
+      "stdout": "ISLAND_TOUCH_PROOF {\"tablet\": false, \"slot\": 52, \"target\": 52, \"controls\": \"edge mouse/touch; Return/Enter/Space; hidden/disabled; motion\"}\n"
+    },
+    {
+      "case": "tablet1-slot34-factor0-old0.json",
+      "exit": 0,
+      "receipt_sha256": "75f5172e925cfaa8532c88b728d4a9155cd69c9009e2259e95ef5710e0794f92",
+      "stdout": "ISLAND_TOUCH_PROOF {\"tablet\": true, \"slot\": 34, \"target\": 44, \"controls\": \"edge mouse/touch; Return/Enter/Space; hidden/disabled; motion\"}\n"
+    },
+    {
+      "case": "tablet1-slot34-factor0-old1.json",
+      "exit": 1,
+      "receipt_sha256": "8a37bd96bb2dcdb0b4924f0c2c043854723be25d934fc5d4ae0447fee11f5aeb",
+      "stdout": "OLD_EDGE_TOUCH_MISSED\n"
+    },
+    {
+      "case": "tablet1-slot34-factor1-old0.json",
+      "exit": 0,
+      "receipt_sha256": "75f5172e925cfaa8532c88b728d4a9155cd69c9009e2259e95ef5710e0794f92",
+      "stdout": "ISLAND_TOUCH_PROOF {\"tablet\": true, \"slot\": 34, \"target\": 44, \"controls\": \"edge mouse/touch; Return/Enter/Space; hidden/disabled; motion\"}\n"
+    },
+    {
+      "case": "tablet1-slot40-factor0-old0.json",
+      "exit": 0,
+      "receipt_sha256": "d83300b02a48037e50666f8ff3dcfa080f3b5c8b13209df2734530a5fb5b16d7",
+      "stdout": "ISLAND_TOUCH_PROOF {\"tablet\": true, \"slot\": 40, \"target\": 44, \"controls\": \"edge mouse/touch; Return/Enter/Space; hidden/disabled; motion\"}\n"
+    },
+    {
+      "case": "tablet1-slot40-factor1-old0.json",
+      "exit": 0,
+      "receipt_sha256": "d83300b02a48037e50666f8ff3dcfa080f3b5c8b13209df2734530a5fb5b16d7",
+      "stdout": "ISLAND_TOUCH_PROOF {\"tablet\": true, \"slot\": 40, \"target\": 44, \"controls\": \"edge mouse/touch; Return/Enter/Space; hidden/disabled; motion\"}\n"
+    },
+    {
+      "case": "tablet1-slot52-factor0-old0.json",
+      "exit": 0,
+      "receipt_sha256": "1ed131e49aa5245bbdc74862496899c204d2e3a4fa8792ed102e2b05d20725c5",
+      "stdout": "ISLAND_TOUCH_PROOF {\"tablet\": true, \"slot\": 52, \"target\": 52, \"controls\": \"edge mouse/touch; Return/Enter/Space; hidden/disabled; motion\"}\n"
+    },
+    {
+      "case": "tablet1-slot52-factor1-old0.json",
+      "exit": 0,
+      "receipt_sha256": "1ed131e49aa5245bbdc74862496899c204d2e3a4fa8792ed102e2b05d20725c5",
+      "stdout": "ISLAND_TOUCH_PROOF {\"tablet\": true, \"slot\": 52, \"target\": 52, \"controls\": \"edge mouse/touch; Return/Enter/Space; hidden/disabled; motion\"}\n"
+    }
+  ],
+  "scope": "Native isolated Qt component with real Kirigami tablet policy; actual edge mouse/touch, keyboard, hidden/disabled and reduced-motion checks. Full Wayland touch/physical hardware unqualified. Old component failure is not proof of a full-panel pointer loss."
+}
