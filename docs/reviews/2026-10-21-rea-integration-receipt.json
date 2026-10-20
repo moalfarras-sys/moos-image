@@ -1,0 +1,24 @@
+{
+  "launcher_sha256": "4fd076697a1dc673ec55ce3a0d13c770ad0573458ac01585de6bed14c0107c35",
+  "entry_sha256": "5ddefa7e7b60d55173aa48fff95ea283d323448a562e36525bcbfa7bf4bd6b97",
+  "config_before_sha256": "308325ad96133166ec38679146a38b5bfa289bb98c1b387c70bbedcf764d4cd8",
+  "config_after_sha256": "f6a2dcbd37481b2a368c03d5ee6b0f102c268d7de1da82cffcf8a55387367807",
+  "backup_private": "/var/home/moos/.codex/config.toml.moos-rea-20261020.bak",
+  "enabled_tools": [
+    "open_binary",
+    "binary_overview",
+    "procedure_pseudo_code",
+    "search_procedures",
+    "search_strings",
+    "read_function_instructions",
+    "xrefs",
+    "find_xrefs_to_name",
+    "analyze_function",
+    "binary_session",
+    "compare_functions",
+    "close_binary"
+  ],
+  "original_servers_preserved": true,
+  "guard_rails_changed": false,
+  "scope": "User development profile only; immutable OS and repository MCP/deny configuration unchanged. Runtime discovery requires client reload/new session; handshake is separately proven."
+}

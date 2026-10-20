@@ -72,6 +72,14 @@ A broken promoted image can still prevent this workstation from booting.
 **A missing probe is not healthy hardware, and a rollback is not the booted edition.**
 Device diagnostics must distinguish unavailable PCI evidence from a ready machine, validate firmware JSON shapes, and select only the booted deployment when identifying an edition. Respect administrator masks on optional thermald/fwupd units; a refused enable must never print success or write the adaptation stamp. Arrange shortcuts and stale menu actions must validate their active anchor too. Preserve executable old/fixed controls and private native geometry evidence; never run a review compositor on the owner's bus.
 
+**A clipped painting rectangle is not an input failure.** A standalone44px
+Island button passed native touch controls while the actual panel painted only
+34px of its height; actual nestedKWin pointer events still reached all edges,
+and an old34px control received an outside click too. Preserve these contrary
+controls. Never infer a required panel-height/outset repair from geometry alone,
+or count XTest pointer input as Wayland touch. Private KWin without fake_input
+must report that test unavailable; never change the owner's input/security policy.
+
 **A finished active oneshot cannot run again from its daily timer.**
 The periodic hardware adapter must return inactive. Prove first completion from its actual successful nonzero monotonic exit receipt, ConditionResult and inactive/dead state; Result=success alone also describes a never-started unit. Keep the private native old1/fixed-multiple recurrence proof and execute the exact boot predicate against real snapshots. Firmware/journal failures need explicit unknown confidence, not an empty clean list; GPU vendor matching needs word boundaries so ATI never matches compatible.
 

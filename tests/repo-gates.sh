@@ -238,6 +238,7 @@ python3 tests/test_island_jobs_privacy.py
 # (it asserts that strings exist) stayed green. This runs the real producers and the shipped
 # IslandTokens.js against each other.
 python3 tests/test_island_tokens.py
+python3 tests/test_island_touch_target.py
 # The privacy monitor polled pw-dump every 1.5 s: 52 CPU-minutes in 61 h on the Oracle A1, more
 # than the compositor. It now follows one `pw-dump --monitor`; this proves both the saving and
 # that the chip is still never wrong (ended stream, dead feed, missed delta, non-JSON text).

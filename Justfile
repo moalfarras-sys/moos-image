@@ -570,6 +570,7 @@ check:
     python3 tests/test_island_jobs_privacy.py
     # Producer and consumer of the Island's presence tokens, executed for real.
     python3 tests/test_island_tokens.py
+    python3 tests/test_island_touch_target.py
     # The privacy monitor follows one live PipeWire feed: the saving, and that the chip is never wrong.
     python3 tests/test_privacy_monitor_feed.py
     # Mira inside Plasma: her launcher (GPU rule, Dolphin arguments), login unit and its migration,

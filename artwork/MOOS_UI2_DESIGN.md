@@ -258,7 +258,11 @@ MoOS Island is a fixed Context Island in the centre rail, not a panel segment th
 stretches and collapses. Its 9.5-grid-unit footprint stays stable while Search,
 Mo PC Remote, privacy, Store work and media replace one another inside it by a
 finite content transition. Labels and actions stay inside the capsule; compact
-titles and 34 px actions protect the 4K/fractional-scale layout. Do not move its
+titles and 34 px action artwork protect the 4K/fractional-scale desktop layout.
+In KDE tablet mode the actual button target is at least the shared 44 px control
+size; artwork keeps its compact dimensions and the surrounding text yields
+space. The primary 52 px media action retains its size. The panel slot does not
+animate or resize when contextual owners change. Do not move its
 wide content into a square tray cell, return to a zero-width initial state, or
 animate the panel's geometry when context changes.
 

@@ -365,7 +365,9 @@ set -uo pipefail
 # 107: Store platform browsing, native touch/wheel management and localized
 #      Android lifecycle errors; purge frozen source QML in existing profiles.
 # 108: invalidate cached KWin Arrange shortcuts after excluded-anchor validation.
-THEME_REV=108
+# 109: Island controls follow KDE tablet mode with real 44px touch targets;
+#      invalidate cached shell QML while preserving desktop artwork geometry.
+THEME_REV=109
 state_dir="${XDG_STATE_HOME:-$HOME/.local/state}"
 mkdir -p "$state_dir" 2>/dev/null || true
 marker="${state_dir}/moos-ui2-theme-applied.v${THEME_REV}"
