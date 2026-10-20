@@ -57,5 +57,75 @@
     "fixed": "HOME/XDG private scratch; unknown preexisting/new roothome bytes refused intact; filenames/type/size only bounded64; symlink/mount/foreign-owner/booted-host refusals",
     "review_corrections": "preserve producer7 after log/cleanup failure; producer0 becomes1 on cleanup failure; refuse all descendant mounts before scratch traversal",
     "cause_boundary": "actual earlier unknown bytes/writer not yet established; full real image required"
+  },
+  "arm_actual_diagnostic": {
+    "command": [
+      "nice",
+      "-n",
+      "10",
+      "podman",
+      "build",
+      "--jobs=1",
+      "--memory=5g",
+      "--pull=never",
+      "-f",
+      "Containerfile.arm",
+      "--build-arg",
+      "IMAGE_NAME=moos-arm",
+      "--label",
+      "org.opencontainers.image.version=44.20261020.0",
+      "--label",
+      "org.opencontainers.image.revision=b87f1c7dbbad99e6326432b0cc04efba75d37eb7",
+      "-t",
+      "localhost/moos-audit-integration:20261020-compose",
+      "."
+    ],
+    "source_revision": "b87f1c7dbbad99e6326432b0cc04efba75d37eb7",
+    "source_tree": "3698e9b5ec8738f0218873b0cbef63478313e1eb",
+    "initial_status": "",
+    "started_utc": "2026-10-20T10:58:15.201734+00:00",
+    "exit_code": 1,
+    "duration_seconds": 584.198,
+    "finished_utc": "2026-10-20T11:07:59.373341+00:00",
+    "log_sha256": "232c3e9d049edf6ef5fc213a07545a5812b159f06efcb2f55a2e2d8b75cd8a92",
+    "final_revision": "b87f1c7dbbad99e6326432b0cc04efba75d37eb7",
+    "final_tree": "3698e9b5ec8738f0218873b0cbef63478313e1eb",
+    "final_status": "",
+    "result_scope": "FAILED and preserved; not qualified image. Guard fails before dracut on preexisting root-home metadata.",
+    "observed_entries": [
+      {
+        "name": "buildinfo",
+        "type": "directory",
+        "size": 56
+      },
+      {
+        "name": ".ssh",
+        "type": "directory",
+        "size": 0
+      },
+      {
+        "name": "buildinfo/content_manifests",
+        "type": "directory",
+        "size": 34
+      },
+      {
+        "name": "buildinfo/labels.json",
+        "type": "file",
+        "size": 0
+      },
+      {
+        "name": "buildinfo/content_manifests/content-sets.json",
+        "type": "file",
+        "size": 0
+      }
+    ]
+  },
+  "selinux_alias_followup": {
+    "durable_proof": "2026-10-20-selinux-alias-proof.json",
+    "exact_native_base_old_exit": 1,
+    "exact_native_base_fixed_exit": 0,
+    "policy_files_unchanged": 1357,
+    "tests": 18,
+    "scope": "final code incl mountinfo and pre-traversal descendant mount refusal; full image still required"
   }
 }
