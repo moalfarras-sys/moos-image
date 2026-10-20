@@ -1,0 +1,10 @@
+{
+  "schema": 1,
+  "base": "6.8.0-1.fc44",
+  "fixed": "6.8.0-1.1.moos1.fc44",
+  "arch": "x86_64",
+  "source_url": "https://download.copr.fedorainfracloud.org/results/@kdesig/kde-final/fedora-44-x86_64/Packages/p/plasma-login-manager-6.8.0-1.fc44.src.rpm",
+  "source_sha256": "1f5c3076235edb07ea2dec807b424fc95ba37e05ae6a8ce01a640eef287cbdba",
+  "source_signer": "96bdf4e8710b8f9ffb11d83ddb51f4cb6c33bdbb",
+  "authentication_source_sha256": "c1afde3cd09e1e045b164e76a5f6ead36e7ed4d62125263e6c261b3081aa74ff"
+}

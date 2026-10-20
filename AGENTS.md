@@ -199,6 +199,20 @@ print ready. Isolated stateful controls are not physical Android acceptance.
 
 **A development profile has its own runtime contract.** A current OpenCode SDK failed on Node22 at `await using`; native Node26 imports pass. Do not equate npm installation, an extension list or MCP configuration with a working SDK/browser. A missing helper inside an `if` also returned a false-green Flutter harness: record individual command exits and check the actual ELF. Keep user SDKs separate from the immutable OS and pinned Mo AI adapter; native app onboarding/wallet/provider authentication remain separate acceptance.
 
+**A config file does not override every key.** V3's user kxkbrc contained only Model; KConfig inherited LayoutList correctly and native KWin agreed. Preserve that owner file. The post-update check must distinguish an absent LayoutList from an explicit empty one, verify the effective inherited value, and still reject real conflicts. A56/0 check does not erase the separately captured greeter screenRemoved SIGSEGV or the crash-report units it historically filters.
+
+**A PAM match does not prove that the reader starts without submission.** Native
+PLM begins authentication on form submit. Its first automatic-start review also
+looked healthy in mock mode while a real QQuickView hit `window.screen` undefined
+and the scan expired before the owner saw it. Exercise the exact reveal with a
+real QQuickView and retain the original-property negative. Record actual PAM
+grantors and owner observations separately: reader startup, fingerprint match,
+password-only fallback and cold login are distinct proofs. A functional native
+frontend correction must use the exact verified vendor SRPM, retain backend/
+helper/daemon sources and refuse input drift; never bury it in a visual seam or
+count a one-boot /run override as signed delivery. Synthetic PAM module results
+prove ordering, not that the real greeter forwarded a typed password.
+
 **A language check can print errors and exit0.** Native gopls reports the intentional string-to-int error with success status; inspect diagnostics, and require a real debugger breakpoint/value read separately. A direct watcher create/unsubscribe control missed Antigravity IDE's exit bug: live subscriptions reproduce2.5.1 double-free; official2.6.0 passes the same control and3private native close/reopen cycles with60actual events. Verify the loaded addon and child exit, preserve the original bundle backup, and keep authenticated/editor/endurance acceptance separate. An incomplete historical core does not explain every renderer/zygote signal.
 
 **The last success line is not the process exit.** An editor exec ended143
@@ -1237,7 +1251,7 @@ keep GPU classification with `moos-visual-tier` and cover consumer agreement wit
 
 **A private bus can still activate services in the owner's runtime.** Putting HOME/XDG overrides after dbus-run-session isolates its child but leaves the bus daemon with the owner's paths. V3's first private greeter test activated document portals against the real FUSE mount; new Chrome launches then failed because doc/by-app disappeared. Set the private environment before starting the daemon, verify its selected HOME/runtime through its DBus PID before compositor mutations, and preserve the owner mount before/after. Keep the original launcher failure, targeted document-portal recovery and successful canonical launch; an isolated no-repro is not a cure for the real greeter screenRemoved core.
 
-**An enrolled finger and locker match do not qualify the login greeter.** V3 retained enrollment across reboot, but its vendor greeter used password-auth, which authselect intentionally keeps password-only. Keep vendor greeter code and account/password/session rules; use the local system-auth stack only through the reviewed desktop-image configuration, preserving custom PAM overrides and password fallback. Require real greeter prompt/match/session return, then cold-login acceptance; a CLI verifier or lock match is a different path. Battery charge caps likewise require a real firmware API or the documented BIOS setting; never invent a sysfs/EC write.
+**An enrolled finger and locker match do not qualify the login greeter.** V3 retained enrollment across reboot, but its vendor greeter used password-auth, which authselect intentionally keeps password-only. Keep vendor authentication backends and account/password/session rules; derive greeter-only local authentication only through the reviewed desktop-image configuration, preserving custom PAM overrides and password fallback. Require real greeter prompt/match/session return, then cold-login acceptance; a CLI verifier or lock match is a different path. Battery charge caps likewise require a real firmware API or the documented BIOS setting; never invent a sysfs/EC write.
 
 **A PCI-only driver scan cannot qualify a tablet.** The physical V3 exposes
 `SMOCF05` as an unbound ACPI/I2C client while its PCI devices are healthy and

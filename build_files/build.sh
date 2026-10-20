@@ -4930,9 +4930,13 @@ python3 /ctx/plasma_logout/rpms.py verify
 python3 /ctx/verify_memory_policy.py --root /
 python3 /ctx/android_session_policy.py verify --edition "$MOOS_EDITION"
 # The local greeter must use authselect's biometric-capable local stack.
-# Remote/password-only PAM services and upstream greeter code stay untouched.
+# Remote/password-only PAM services and native authentication backends stay untouched.
 if is_desktop; then
     python3 /ctx/configure_fingerprint_login.py --apply --image
+    install -Dm0755 /ctx/configure_fingerprint_login.py /usr/libexec/moos-configure-fingerprint-login
+    install -Dm0755 /ctx/plasma_login/capabilities.py /usr/libexec/moos-login-fingerprint-capabilities
+    install -Dm0644 /ctx/plasma_login/fingerprint-startup.conf /usr/lib/systemd/system/plasmalogin.service.d/60-moos-fingerprint-auto.conf
+    python3 /ctx/plasma_login/rpms.py verify
     # Preserve authselect state with the same missing-only seed as ARM.
     # The build's mutable checksum cannot ship in the OCI /var tree.
     test -s /var/lib/authselect/checksum

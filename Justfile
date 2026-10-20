@@ -55,6 +55,8 @@ check:
     python3 tests/verify_user_experience.py
     python3 tests/test_device_plan.py
     python3 tests/test_fingerprint_login.py
+    python3 tests/test_greeter_autofingerprint.py
+    python3 tests/test_greeter_rpms.py
     python3 tests/test_moai_do.py
     python3 tests/test_moos_control.py
     # The audit journals are the owner's: every suite that names an auditing tool is RUN with

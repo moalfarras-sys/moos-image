@@ -370,16 +370,23 @@ fi
 # de,ara commit fixed that reasoning in `moos-selfcheck` and left this copy behind, so the
 # two gates disagreed about one machine. Whichever gate you edit, edit its twin.
 #
-# DIVERGENCE is the thing that matters: a user file outranks /etc/xdg forever, so one that
-# says something ELSE is the shadowed-config trap. One that agrees shadows nothing today —
+# DIVERGENCE of the LayoutList KEY is what matters. A file containing only Model does
+# not override LayoutList: KConfig inherits that key from the image. Distinguish an absent
+# key from an explicitly empty one, and verify the effective inherited value too.
+# A file that says something ELSE is the shadowed-config trap. One that agrees shadows nothing today —
 # but it will pin this layout if the image's default ever moves, so it is worth a word.
 user_kxkb="$HOME/.config/kxkbrc"
 if [ ! -f "$user_kxkb" ]; then
     ok "no ~/.config/kxkbrc shadowing the image"
 else
-    user_layouts="$(kreadconfig6 --file "$user_kxkb" --group Layout --key LayoutList 2>/dev/null)"
+    user_layouts="$(kreadconfig6 --file "$user_kxkb" --group Layout --key LayoutList --default __MOOS_LAYOUT_KEY_ABSENT__ 2>/dev/null)"
+    effective_layouts="$(kreadconfig6 --file kxkbrc --group Layout --key LayoutList 2>/dev/null)"
     if [ -z "$image_layouts" ]; then
         bad "the image ships no /etc/xdg/kxkbrc LayoutList — MoOS has no default keyboard"
+    elif [ "$effective_layouts" != "$image_layouts" ]; then
+        bad "effective keyboard layouts are '${effective_layouts:-unset}', expected '${image_layouts}' — inspect the KConfig cascade"
+    elif [ "$user_layouts" = __MOOS_LAYOUT_KEY_ABSENT__ ]; then
+        ok "~/.config/kxkbrc does not override LayoutList; the effective layouts inherit the image (${image_layouts})"
     elif [ "$user_layouts" = "$image_layouts" ]; then
         ok "~/.config/kxkbrc agrees with the image (${image_layouts}) — it shadows nothing, but it pins this layout if the default ever moves"
     else
