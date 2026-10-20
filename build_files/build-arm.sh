@@ -39,6 +39,11 @@
 # =============================================================================
 set -euo pipefail
 
+# Multimedia/QML probes keep derived caches in build scratch, independently
+# of the temporary root-home scaffolds needed by initramfs generation.
+export XDG_CACHE_HOME=/tmp/moos-compose-cache
+install -d -m0700 "$XDG_CACHE_HOME"
+
 MOOS_EDITION="${MOOS_IMAGE_NAME:-moos-arm}"
 echo "=== MoOS ARM build: edition=${MOOS_EDITION} arch=$(uname -m) ==="
 
@@ -1645,6 +1650,7 @@ rm -rf /var/cache/* /var/log/* /tmp/* || true
 find /var -mindepth 1 -maxdepth 1 ! -name 'lib' ! -name 'tmp' -exec rm -rf {} + 2>/dev/null || true
 
 python3 /ctx/plasma_logout/rpms.py verify
+python3 /ctx/finalize_canary_base.py --root /
 python3 /ctx/finalize_dbus_state.py --root /
 python3 /ctx/finalize_image_state.py --root /
 

@@ -11,7 +11,8 @@ from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT/'build_files'))
-from finalize_root_home import finalize, RULES, KONFLUX, PROVISION, SCAFFOLDS, REVIEWED_KONFLUX_SHA256
+from finalize_root_home import (finalize, RULES, KONFLUX, PROVISION, SCAFFOLDS,
+                                REVIEWED_KONFLUX_SHA256, REVIEWED_ROOT_PROVISION_SHA256)
 
 
 class RootHome(unittest.TestCase):
@@ -144,6 +145,33 @@ class RootHome(unittest.TestCase):
         self.assertFalse(self.home.exists())
         self.assertEqual(path.read_bytes(), data)
         self.assertEqual(path.stat().st_mode & 0o777, 0o664)
+
+    def native_root_recipe(self):
+        data=(ROOT/'tests/fixtures/compose/provision-systemd259.10.conf').read_bytes()
+        self.assertEqual(hashlib.sha256(data).hexdigest(),REVIEWED_ROOT_PROVISION_SHA256)
+        (self.root/PROVISION).write_bytes(data)
+        return data
+
+    def test_native_root_namespace_recipe_retains_authority_and_alias(self):
+        data=self.native_root_recipe();finalize(self.root)
+        self.assertFalse(self.home.exists());self.assertEqual((self.root/PROVISION).read_bytes(),data)
+        self.assertEqual(os.readlink(self.root/'root'),'var/roothome')
+
+    def test_changed_native_root_recipe_bytes_are_not_silently_blessed(self):
+        data=self.native_root_recipe();(self.root/PROVISION).write_bytes(data+b'# changed\n')
+        self.refused('authority drifted')
+
+    def test_additional_native_root_path_refuses_before_deletion(self):
+        data=self.native_root_recipe();(self.root/PROVISION).write_bytes(data+b'd /root/new 0700 root root -\n')
+        self.refused('authority drifted')
+
+    def test_native_root_recipe_never_authorizes_a_root_alias_change(self):
+        self.native_root_recipe();alias=self.root/'root';alias.unlink();alias.symlink_to('/var/roothome')
+        self.refused('reviewed bootc alias')
+
+    def test_native_root_credentials_even_empty_still_survive(self):
+        self.native_root_recipe();key=self.home/'.ssh/authorized_keys';key.touch()
+        self.refused('unexpected root-home compose state');self.assertTrue(key.exists())
 
 
 if __name__ == '__main__':

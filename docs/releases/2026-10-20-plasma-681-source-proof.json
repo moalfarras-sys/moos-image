@@ -87,7 +87,7 @@
     "changed_prepared_file": "src/frontend/greeter/main.cpp; only upstream null-geometry guard differs from reviewed6.8.0 prepared frontend",
     "prepared_main_sha256": "883226d3638b0cd660bfb3cc35f8a9c62e6e71bd54479351a972fc7502e1bf2f",
     "unchanged_relative_to681_vendor_auth_helper_daemon_aggregate": "4820e30b6376713ed4c53b6aab466bc5b2cb0415fccc7ad4b76749a0d6a573f9",
-    "native_rpm_build_and_runtime_controls": "required in full image; not yet qualified",
+    "native_rpm_build_and_runtime_controls": "992 complete local image passes actual native SDK and final package/policy verification; descendant final-head qualification remains required",
     "physical_680_binary_hash": "historical proof only; new681 binary must receive independent cold-login acceptance"
   },
   "native_logout_source": {
@@ -125,5 +125,25 @@
     "installed new-digest cold fingerprint and independent password fallback",
     "physical BIOS Battery Charge Limit readback;80% cap not effective",
     "historical Qt crash, SMOCF05 rotation, pen/suspend/provider onboarding remain explicit"
-  ]
+  ],
+  "qualified_992_x86_checkpoint": {
+    "scope": "complete local x86 image on exact clean992 source; ARM remains unqualified and signed boot proofs still required",
+    "source": "99269cc44cdc2a6b131207d2243cab3b67c180ec",
+    "tree": "2c33c275d8ad45f756a78a107c1488e3c31c842e",
+    "exit": 0,
+    "image_id": "sha256:c74fd44083fc70144b30937c279d5578244f39151bb5c030c90ace7fc1bf3534",
+    "log_sha256": "df426ef0dabc1b603c87acc905dabd2961d2013d17c05254283b894fab79f1a2",
+    "raw_payload_readback_exit": 0,
+    "bootc_lint": {
+      "passed": 13,
+      "skipped": 1,
+      "warnings": 1,
+      "warning": "nonempty-boot: retained efi/grub2 boot assets; no boot content removed"
+    },
+    "native_681_greeter_sha256": "878d120e30d2b2a20f9e157a1e776ddf1a7c6be700f92ef0006f542f3fd34a58",
+    "end_source_equal": true,
+    "end_status_clean": true,
+    "physical_new_binary_accepted": false
+  },
+  "arm_followup": "2026-10-20-arm-pristine-base-source-proof.json"
 }

@@ -17,6 +17,14 @@ PROVISION = 'usr/lib/tmpfiles.d/provision.conf'
 # root:root0664. Accept that one root-group-writable input only at its exact
 # reviewed bytes, retaining its native metadata and all other owner/mode guards.
 REVIEWED_KONFLUX_SHA256 = '43d9c01a06c1a1abe4e03ff0cea0a0e5366d4358b4695f4dbe09f23757d9d24c'
+# systemd259.10 uses /root in its provision recipe. That namespace is safe
+# only because the canonical owned /root -> var/roothome alias is checked below.
+REVIEWED_ROOT_PROVISION_SHA256 = 'dbb85f57c2e24e703d2cc103b21634a4b53aa4d0f58dac59af74a3f12cddc73a'
+ROOT_PROVISION_RULES = [
+    'd- /root :0700 root :root -',
+    'd- /root/.ssh :0700 root :root -',
+    'f^ /root/.ssh/authorized_keys :0600 root :root - ssh.authorized_keys.root',
+]
 RULES = {
     KONFLUX: [
         'd /var/roothome/buildinfo 0755 - - -',
@@ -95,8 +103,12 @@ def finalize(root: Path) -> None:
         rules = [line.split() for line in data.decode().splitlines()
                  if line.strip() and not line.lstrip().startswith('#')]
         rules = [rule for rule in rules if len(rule) > 1
-                 and (rule[1] == '/var/roothome' or rule[1].startswith('/var/roothome/'))]
-        if rules != [line.split() for line in RULES[relative]]:
+                 and (rule[1] in ('/var/roothome', '/root')
+                      or rule[1].startswith(('/var/roothome/', '/root/')))]
+        expected = RULES[relative]
+        if relative == PROVISION and hashlib.sha256(data).hexdigest() == REVIEWED_ROOT_PROVISION_SHA256:
+            expected = ROOT_PROVISION_RULES
+        if rules != [line.split() for line in expected]:
             raise RuntimeError(f'root-home tmpfiles authority drifted: {relative}')
 
     for path in sorted(seen, key=lambda p: len(p.parts), reverse=True):

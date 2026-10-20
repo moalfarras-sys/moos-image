@@ -1,0 +1,171 @@
+{
+  "schema_version": 1,
+  "observed_date": "2026-10-20",
+  "scope": "actual ARM package userspace under qemu; not native ARM boot/performance or signed full-image qualification",
+  "ancestor_source": "99269cc44cdc2a6b131207d2243cab3b67c180ec",
+  "qualified_ancestor_x86": {
+    "scope": "complete local x86 image on exact clean992 source; ARM remains unqualified and signed boot proofs still required",
+    "source": "99269cc44cdc2a6b131207d2243cab3b67c180ec",
+    "tree": "2c33c275d8ad45f756a78a107c1488e3c31c842e",
+    "exit": 0,
+    "image_id": "sha256:c74fd44083fc70144b30937c279d5578244f39151bb5c030c90ace7fc1bf3534",
+    "log_sha256": "df426ef0dabc1b603c87acc905dabd2961d2013d17c05254283b894fab79f1a2",
+    "raw_payload_readback_exit": 0,
+    "bootc_lint": {
+      "passed": 13,
+      "skipped": 1,
+      "warnings": 1,
+      "warning": "nonempty-boot: retained efi/grub2 boot assets; no boot content removed"
+    },
+    "native_681_greeter_sha256": "878d120e30d2b2a20f9e157a1e776ddf1a7c6be700f92ef0006f542f3fd34a58",
+    "end_source_equal": true,
+    "end_status_clean": true,
+    "physical_new_binary_accepted": false
+  },
+  "old_arm_package_failure": {
+    "scope": "actual ARM userspace under qemu; not native boot/performance",
+    "base_digest": "sha256:5356bdd4edb0ecfb0441d37fabee161b61218b8afe6a3b7f14247957d505a7d6",
+    "native_package_probe_exit": 0,
+    "image_id": "d554d116d0ea525480e5b5be70ba1e08c368998c4cf67e536c11054e71bae5b9",
+    "native_state": {
+      "arch": "aarch64",
+      "systemd": "systemd-259.10-1.fc44.aarch64",
+      "machine_id_bytes": 33,
+      "machine_id_empty": false
+    },
+    "current_source_dbus_guard_exit": 1,
+    "failure": "D-Bus machine-id target is not a pristine image file",
+    "log_sha256": "1c9ec0e289727ce332c253b847020cde442df84cc4fcf5cc4d1370a093b33264",
+    "source992_full_ARM_qualified": false,
+    "next": "strict native ARM pristine base bootstrap and same in-memory package transaction before SDK inheritance"
+  },
+  "old_root_authority_failure": {
+    "helper_exit": 1,
+    "reason": "systemd259.10 provision.conf moved from /var/roothome to canonical /root namespace",
+    "root_children_preserved": 5,
+    "native_wrapper_exit": 0,
+    "image_id": "8670cc5f3705212602ef910e30f8a3bd51efd4815066f9acf32c13ea42c85705",
+    "log_sha256": "d9da26ca8e045038f2952a1fb367018a0341285423055bb3cc889d7565137eb7"
+  },
+  "pristine_input_preflight": {
+    "machine_id": "owned regular0644, empty; populated/linked identity refused",
+    "native_scaffolds": [
+      "empty root-owned0775 /var/lib/rpm-state",
+      "root-owned0775 /var/lib with only rpm-state",
+      "exact root-owned /var/run -> ../run with native authority",
+      "empty1777 /var/tmp"
+    ],
+    "mutations": "all initial identity/scaffold/account/authority preflights finish before permission changes or unlink/rmdir",
+    "account_data": "two exact reviewed generated /usr/lib account inputs change0664 to0644; names/IDs/bytes unchanged",
+    "account_input_sha256": {
+      "usr/lib/passwd": "5cc5d8b1c2b1b992396f9086a449373070664fc155b93a7855b9747b189ad2ae",
+      "usr/lib/group": "dd95420d94abe0a69e9ace9df1acc368256e4323e9266aa6e4af73ae5dfbb6dc"
+    },
+    "runtime_transaction": "same unchanged x86 in-memory identity/scaffold/catalogue preflight after a stock kernel-excluded systemd transaction",
+    "reviewed_arm_metadata_records": 105
+  },
+  "native_authorities": {
+    "root_namespace_provision_sha256": "dbb85f57c2e24e703d2cc103b21634a4b53aa4d0f58dac59af74a3f12cddc73a",
+    "root_namespace_requires_exact_owned_root_alias_and_complete_reviewed_file": true,
+    "empty_authorized_keys": "still refused and retained",
+    "root_group0664_rpmstate_sha256": "2dd8ea0e27ce15f7182dc9d358dbeead11880dec0fd7aefc9511ede98aa96680",
+    "root_group0664_konflux_sha256": "43d9c01a06c1a1abe4e03ff0cea0a0e5366d4358b4695f4dbe09f23757d9d24c",
+    "creator_bytes_owners_modes_preserved": true,
+    "unknown_writable_authority": "refused; no generic exception",
+    "preservation_baseline": "installed vendor creators after the native package transaction; the normalizer makes no creator edits"
+  },
+  "focused_controls": {
+    "arm_input_and_authority": 30,
+    "root_home_including_new_namespace": 21
+  },
+  "native_upgrade_probe": {
+    "exit": 0,
+    "image_id": "b2ffc12c21f2ab4353c688cfb516e82dcf0e109f18012f9981c4644a5545e61f",
+    "base_digest": "sha256:5356bdd4edb0ecfb0441d37fabee161b61218b8afe6a3b7f14247957d505a7d6",
+    "log_sha256": "8d7d659dee6b9212548999acaca028d5520c67a37520f1bb30d07f2aaea84806",
+    "readback": {
+      "scope": "ARM userspace under qemu; not native boot",
+      "machine_id_bytes": 0,
+      "var_entries": [
+        "/var/tmp"
+      ],
+      "helpers_absent": true,
+      "stock_kernel": "kernel-core-7.2.11-200.fc44.aarch64",
+      "systemd": "systemd-259.10-1.fc44.aarch64",
+      "files": [
+        {
+          "path": "/usr/lib/passwd",
+          "mode": "0o644",
+          "uid": 0,
+          "gid": 0,
+          "sha256": "5cc5d8b1c2b1b992396f9086a449373070664fc155b93a7855b9747b189ad2ae"
+        },
+        {
+          "path": "/usr/lib/group",
+          "mode": "0o644",
+          "uid": 0,
+          "gid": 0,
+          "sha256": "dd95420d94abe0a69e9ace9df1acc368256e4323e9266aa6e4af73ae5dfbb6dc"
+        },
+        {
+          "path": "/usr/lib/tmpfiles.d/bootc-base-rpmstate.conf",
+          "mode": "0o664",
+          "uid": 0,
+          "gid": 0,
+          "sha256": "2dd8ea0e27ce15f7182dc9d358dbeead11880dec0fd7aefc9511ede98aa96680"
+        },
+        {
+          "path": "/usr/lib/tmpfiles.d/konflux-buildinfo-contentsets.conf",
+          "mode": "0o664",
+          "uid": 0,
+          "gid": 0,
+          "sha256": "43d9c01a06c1a1abe4e03ff0cea0a0e5366d4358b4695f4dbe09f23757d9d24c"
+        },
+        {
+          "path": "/usr/lib/tmpfiles.d/provision.conf",
+          "mode": "0o644",
+          "uid": 0,
+          "gid": 0,
+          "sha256": "dbb85f57c2e24e703d2cc103b21634a4b53aa4d0f58dac59af74a3f12cddc73a"
+        }
+      ],
+      "explicit_all_five_hash_mode_owner_checks_pass": true
+    },
+    "earlier_strict_refusals": [
+      "unsafe runtime tmpfiles authority at native root-group0664 rpm-state creator",
+      "unsafe native account authority at original root-group0664 generated NSS inputs"
+    ],
+    "earlier_failures_preserved": true
+  },
+  "actual_production_base": {
+    "exit": 0,
+    "image_id": "c5a7294ce431e0f1553a61c2b62d5bdc8f1de3cc5274141bdd153d1b37c933ad",
+    "log_sha256": "fbfb237372aaef2d261bc7360581cc79201c70b449f3bbc79734e711e8398912",
+    "readback": {
+      "scope": "actual production ARM base wiring under qemu; not native boot",
+      "pristine_identity": true,
+      "clean_var": true,
+      "helpers_absent": true,
+      "systemd": "systemd-259.10-1.fc44.aarch64",
+      "kernel": "kernel-core-7.2.11-200.fc44.aarch64"
+    },
+    "wiring": "all dependencies copied into both ARM base stages; build prefix removed before SDK/runtime inheritance; recovery retains its ctx mount",
+    "source_base_digest": "sha256:0b1982706a5703468765f25e25239baaa7bd2da91f5b1b679c47146ca486e052"
+  },
+  "source_input_sha256": {
+    "Containerfile.arm": "51aa44d76a50fe5fa7a094685adcf890788d4d208333121d66298a5cceb5cd52",
+    "Containerfile.arm-recovery": "ef33635cc69eb69c345363d23c11a6a4b45f6d7c2654bffdff322c8b8de1f613",
+    "build_files/prepare_arm_compose_base.py": "acecda0657215e96334862420f3fbe8131e120154ae70ea30c285130ecf68cde",
+    "build_files/arm-runtime-rules.json": "c81d6ae16c5999cce5fe9054cecaf951a2f13dcf9327e6a4a638cef4808ed478",
+    "build_files/finalize_root_home.py": "3f54bf2588bffebedd198699ec796af343a45b4907bd09f568d63a801e7ec19f",
+    "build_files/build-arm.sh": "96d4de600f38e38361d90d792a50da5f8b21ce9343172d6ff370bc78cabe78bb"
+  },
+  "generic_state_identity_kernel_guards": "unchanged; kernel excluded from base transaction, native SELinux preflight remains mandatory",
+  "remaining": [
+    "maintained final-head repository and complete local-image/readback gates",
+    "exact-head native PR image gates",
+    "one frozen signed boot-proven cycle and promotion",
+    "new physical cold fingerprint/password acceptance and BIOS charging limit verification",
+    "historical Qt crash, SMOCF05 rotation, pen/suspend/provider onboarding remain explicit"
+  ]
+}

@@ -125,5 +125,13 @@
     ],
     "main_probe_caches": "XDG_CACHE_HOME on build tmpfs, avoiding image root-home caches",
     "full_local_image_and_signed_boot": "still required"
+  },
+  "arm_pristine_transaction_followup": {
+    "source_proof": "2026-10-20-arm-pristine-base-source-proof.json",
+    "old_native_identity_guard_exit": 1,
+    "old_native_root_authority_guard_exit": 1,
+    "fixed_native_before_after_transaction_exit": 0,
+    "actual_arm_base_wiring_exit": 0,
+    "full_native_arm_image_and_boot": "still required"
   }
 }
