@@ -4948,6 +4948,7 @@ C /var/lib/authselect/checksum 0644 root root - /usr/lib/moos/authselect-checksu
 AUTHSELECT_STATE
     rm /var/lib/authselect/checksum
 fi
+python3 /ctx/finalize_dbus_state.py --root /
 python3 /ctx/finalize_image_state.py --root /
 python3 /ctx/verify_no_foreign_identity.py
 

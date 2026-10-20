@@ -1304,6 +1304,7 @@ echo "=== root-home state before initramfs (metadata only) ==="
 if [ -e /var/roothome ] || [ -L /var/roothome ]; then
     find -P /var/roothome -xdev -maxdepth 3 -printf '%y %P %m %s\n' | sed -n '1,60p'
 fi
+python3 /ctx/finalize_root_home.py --root /
 install -d -m0700 /var/roothome
 dracut --no-hostonly --force --reproducible \
     --add "ostree plymouth" \
@@ -1644,6 +1645,7 @@ rm -rf /var/cache/* /var/log/* /tmp/* || true
 find /var -mindepth 1 -maxdepth 1 ! -name 'lib' ! -name 'tmp' -exec rm -rf {} + 2>/dev/null || true
 
 python3 /ctx/plasma_logout/rpms.py verify
+python3 /ctx/finalize_dbus_state.py --root /
 python3 /ctx/finalize_image_state.py --root /
 
 

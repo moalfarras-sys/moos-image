@@ -169,6 +169,7 @@ echo "=== root-home state before initramfs (metadata only) ==="
 if [ -e /var/roothome ] || [ -L /var/roothome ]; then
     find -P /var/roothome -xdev -maxdepth 3 -printf '%y %P %m %s\n' | sed -n '1,60p'
 fi
+python3 /ctx/finalize_root_home.py --root /
 install -d -m0700 /var/roothome
 dracut --no-hostonly --force --reproducible \
     --add "ostree plymouth" \

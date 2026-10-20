@@ -59,5 +59,37 @@
     "signing_disk_promotion": "not reached",
     "metadata_diagnostic": "bounded names/types/modes/sizes before dracut and on refusal; no contents or cleanup-policy change",
     "root_cause": "not established"
+  },
+  "arm_root_home_correction": {
+    "scope": "actual ARM userspace under qemu-aarch64-static; not native ARM boot/performance acceptance",
+    "base_digest": "sha256:5356bdd4edb0ecfb0441d37fabee161b61218b8afe6a3b7f14247957d505a7d6",
+    "old_vendor_prefix_rmdir_exit": 1,
+    "fixed_scaffold_retirement_and_real_dracut_exit": 0,
+    "empty_entries_retired": 6,
+    "focused_controls": 16,
+    "authorized_keys_even_empty": "refused before any deletion",
+    "unknown_populated_linked_mounted_or_unowned_state": "refused before any deletion",
+    "native_authority_bytes_owners_modes_retained": true,
+    "konflux_native_mode": "root:root0664",
+    "konflux_group_writable_input_requires_exact_sha256": "43d9c01a06c1a1abe4e03ff0cea0a0e5366d4358b4695f4dbe09f23757d9d24c",
+    "initial_stricter_authority_mode_refusal_preserved": true,
+    "native_full_ci_boot_signing": "still required"
+  },
+  "fresh_8ae_local_image": {
+    "source": "8ae37eecb6e799953b3d398882ad1486c873aeb8",
+    "exit": 1,
+    "failure": "expected empty package state directory: var/lib/dbus",
+    "log_sha256": "c0c76cfd24ff3bb70667d92df01e6257dbc2277ed2e495756be165c87ce4975e",
+    "full_image_qualified": false
+  },
+  "dbus_runtime_alias_and_recovery_ctx": {
+    "focused_controls": 11,
+    "native_vendor_prefix_and_unmodified_state_gate_pass": true,
+    "exact_alias": "/var/lib/dbus/machine-id -> /etc/machine-id",
+    "pristine_image_identity_and_vendor_authority_retained": true,
+    "old_recovery_dependency_fixture_exit": 2,
+    "fixed_ctx_mount_fixture_exit": 0,
+    "ctx_not_shipped": true,
+    "native_arm_recovery_boot": "still required"
   }
 }

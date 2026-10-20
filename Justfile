@@ -130,6 +130,8 @@ check:
     python3 tests/test_boot_path_authorities.py
     python3 tests/test_memory_policy.py
     python3 tests/test_canary_base_state.py
+    python3 tests/test_compose_root_home.py
+    python3 tests/test_compose_dbus_state.py
     python3 tests/test_visual_frame_gate.py
     python3 tests/test_oracle_deploy.py
     python3 tests/test_exec_bits.py
