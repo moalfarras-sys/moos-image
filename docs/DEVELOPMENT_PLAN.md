@@ -121,6 +121,8 @@ installed hardware acceptance remain P6.7 work; unknown inputs stay refused.
 
 ## Product acceptance
 
+Oct20 owner expansion: after P0 image integration, develop the existing MoOS UI into a distinctive adaptive desktop above KDE/KWin. [Current inventory and researched architecture](UI_RESEARCH_20261020_AR.md) is rationale, not a second backlog. Execute under M1/P2.5/P2.7/P2.8 and P5.3: first correct actual Island touch targets while preserving fixed context geometry and stock task behavior; then qualify narrow/portrait/large-screen layout, coherent frame/panel/Hub/Search materials and finite motion through real user journeys. Native isolated controls precede full shell/Wayland and physical PC/tablet acceptance; signed image delivery remains M0. No universal hardware or Windows/macOS performance claim.
+
 MoOS is Arabic-first, with English supported. KDE Plasma/KWin remain its engine;
 MoOS owns identity, shared surfaces/defaults and fixed native control paths.
 A complete product means a qualified support scope and real connected journeys:
