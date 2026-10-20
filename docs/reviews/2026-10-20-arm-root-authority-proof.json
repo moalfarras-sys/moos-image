@@ -1,0 +1,27 @@
+{
+  "result": "PASS",
+  "old_exit": 1,
+  "old_failure": "vendor tmpfiles authority lines differ",
+  "fixed_exit": 0,
+  "vendor_entry_names": [
+    ".ssh",
+    "buildinfo",
+    "buildinfo/content_manifests",
+    "buildinfo/content_manifests/content-sets.json",
+    "buildinfo/labels.json"
+  ],
+  "vendor_entry_count": 5,
+  "authority_sha256": "dbb85f57c2e24e703d2cc103b21634a4b53aa4d0f58dac59af74a3f12cddc73a",
+  "authority_unchanged": true,
+  "root_alias_unchanged": true,
+  "producer": {
+    "private_home": true
+  },
+  "scope": "Disposable native aarch64 raw c4 image; exact systemd259.10 provision bytes; actual tmpfiles; fake producer only; no host mounts or owner data",
+  "schema": 1,
+  "helper_sha256": "cf4e1ac22a40dca0b593f2c5275b553a837c771e28054f8f3454bd0d6c3cc7c1",
+  "systemd_rpm_sha256": "ae73078bc519526f88b46539529c5f3a961bb19f3fb074e53435215cc6a10cc0",
+  "proof_log_sha256": "ce479fd878b16ab9306167a8e071c3afb738ddd7c13163e38c26ac2afe79495a",
+  "source_parent": "787daa9774fdc932e781bf5c51db458474e0b26f",
+  "actual_image_result": "Full source3708 failed on authority mismatch; exact variant correction still needs full image qualification"
+}

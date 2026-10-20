@@ -140,6 +140,64 @@ raise SystemExit(int(os.environ.get('COMPOSE_STATUS','0')))
             compose.retire_empty_vendor_home(self.root, self.home)
         self.assertEqual(self.vendor_snapshot(), before)
 
+    def seed_root_provision(self):
+        self.seed_vendor_home()
+        (self.root / 'root').symlink_to('var/roothome')
+        (self.root / 'usr/lib/tmpfiles.d/provision.conf').write_text(
+            '\n'.join(sorted(compose.VENDOR_ROOT_PROVISION_RULES)) + '\n')
+
+    def test_exact_systemd_259_10_root_authority_uses_verified_bootc_alias(self):
+        self.seed_root_provision()
+        result = self.run_helper()
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertTrue((self.root / 'root').is_symlink())
+        self.assertEqual(os.readlink(self.root / 'root'), 'var/roothome')
+        self.assertFalse(self.home.exists())
+        self.assertTrue(self.receipt.exists())
+
+    def test_root_authority_alias_and_rule_drift_preserve_entire_tree(self):
+        for mutation in ('missing-alias', 'foreign-alias', 'absolute-alias',
+                         'regular-root', 'changed-rule', 'mixed-variant', 'unknown-root-rule'):
+            with self.subTest(mutation=mutation):
+                self.seed_root_provision()
+                alias = self.root / 'root'
+                rule = self.root / 'usr/lib/tmpfiles.d/provision.conf'
+                if mutation in ('missing-alias', 'foreign-alias', 'absolute-alias', 'regular-root'):
+                    alias.unlink()
+                    if mutation == 'foreign-alias': alias.symlink_to('var/another-home')
+                    elif mutation == 'absolute-alias': alias.symlink_to('/var/roothome')
+                    elif mutation == 'regular-root': alias.mkdir()
+                elif mutation == 'changed-rule':
+                    rule.write_text(rule.read_text().replace(':0700', ':0755'))
+                elif mutation == 'mixed-variant':
+                    rule.write_text(rule.read_text() + '\n'.join(compose.VENDOR_RULES['provision.conf']) + '\n')
+                else:
+                    rule.write_text(rule.read_text() + 'd /root/unknown 0700 root root -\n')
+                before = self.vendor_snapshot()
+                result = self.run_helper()
+                self.assertNotEqual(result.returncode, 0)
+                self.assertEqual(self.vendor_snapshot(), before)
+                self.assertFalse(self.receipt.exists())
+                shutil.rmtree(self.home)
+                if alias.is_symlink(): alias.unlink()
+                elif alias.exists(): alias.rmdir()
+
+    def test_root_authority_alias_mount_is_refused(self):
+        self.seed_root_provision()
+        before = self.vendor_snapshot()
+        with patch.object(compose, 'mountpoints', return_value={str(self.root / 'root')}), \
+             contextlib.redirect_stdout(io.StringIO()), self.assertRaises(RuntimeError):
+            compose.retire_empty_vendor_home(self.root, self.home)
+        self.assertEqual(self.vendor_snapshot(), before)
+
+    def test_root_authority_parent_mount_is_refused(self):
+        self.seed_root_provision()
+        before = self.vendor_snapshot()
+        with patch.object(compose, 'mountpoints', return_value={str(self.root / 'usr/lib')}), \
+             contextlib.redirect_stdout(io.StringIO()), self.assertRaises(RuntimeError):
+            compose.retire_empty_vendor_home(self.root, self.home)
+        self.assertEqual(self.vendor_snapshot(), before)
+
     def test_old_home_writer_fails_rmdir_fixed_writer_stays_in_private_scratch(self):
         # The exact former producer/rmdir structure, rooted wholly in this fixture.
         old = subprocess.run(['bash', '-c',

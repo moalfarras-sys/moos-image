@@ -1,0 +1,14 @@
+{
+  "schema": 1,
+  "boot_id": "16fb6cea-fb0b-4c95-8efa-cf719975d0a4",
+  "booted_digest": "sha256:c8aec0ac02d341a2109c1d0cff12d618c4623d11d5b0f024929314cda9346bc5",
+  "version": ".816",
+  "rollback_version": ".804",
+  "context": "Native graphical user-manager transient unit; inherited exact XDG configuration paths",
+  "check": "tests/post-update-check.sh with MOOS_EXPECTED_DIGEST exact booted signed digest",
+  "exit_code": 0,
+  "passed": 56,
+  "failed": 0,
+  "log_sha256": "30a99fa57ad79dc504324a44944faedfa4474e706e545a606190d1ad0288ae3f",
+  "scope": "Prior signed release installed acceptance, does not contain or qualify PR256. Reboot performed outside this agent."
+}

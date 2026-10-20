@@ -46,6 +46,15 @@ VENDOR_AUTHORITY_MODES = {'rpm-ostree-0-integration.conf': 0o644,
                           'konflux-buildinfo-contentsets.conf': 0o664,
                           'provision.conf': 0o644}
 
+# systemd259.10 replaces the Atomic base's rewritten provision.conf with
+# these exact vendor /root rules. They address this same home only when the
+# immutable bootc alias is verified; never normalize arbitrary paths/rules.
+VENDOR_ROOT_PROVISION_RULES = {
+    'd- /root :0700 root :root -',
+    'd- /root/.ssh :0700 root :root -',
+    'f^ /root/.ssh/authorized_keys :0600 root :root - ssh.authorized_keys.root',
+}
+
 
 def mountpoints():
     text = Path('/proc/self/mountinfo').read_text()
@@ -168,8 +177,17 @@ def retire_empty_vendor_home(root, home):
         except (OSError, RuntimeError) as error:
             refuse(f'vendor tmpfiles authority is unavailable: {error}')
         relevant = [line for line in lines if len(line.split()) > 1
-                    and line.split()[1].startswith('/var/roothome')]
-        if set(relevant) != expected or len(relevant) != len(expected):
+                    and (line.split()[1].startswith('/var/roothome')
+                         or name == 'provision.conf' and line.split()[1].startswith('/root'))]
+        if (name == 'provision.conf' and set(relevant) == VENDOR_ROOT_PROVISION_RULES
+                and len(relevant) == len(VENDOR_ROOT_PROVISION_RULES)):
+            alias = root / 'root'
+            if (not alias.is_symlink() or os.readlink(alias) != 'var/roothome'
+                    or alias.lstat().st_uid != owner.st_uid
+                    or alias.lstat().st_gid != owner.st_gid
+                    or str(alias) in mounts or os.path.ismount(alias)):
+                refuse('vendor /root authority requires the exact owned unmounted bootc home alias')
+        elif set(relevant) != expected or len(relevant) != len(expected):
             refuse('vendor tmpfiles authority lines differ from reviewed rules')
     # All paths and all authorities passed together. Remove no recursive tree,
     # and leave root-home itself for the ordinary empty-directory guard.
