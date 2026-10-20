@@ -1640,6 +1640,9 @@ rm -rf /var/cache/* /var/log/* /tmp/* || true
 find /var -mindepth 1 -maxdepth 1 ! -name 'lib' ! -name 'tmp' -exec rm -rf {} + 2>/dev/null || true
 
 python3 /ctx/plasma_logout/rpms.py verify
+# Native package tmpfiles can recreate Atomic's SELinux compatibility alias.
+# Retire only its verified authority-backed link; preserve the actual policy.
+python3 /ctx/finalize_canary_base.py
 python3 /ctx/finalize_image_state.py --root /
 
 

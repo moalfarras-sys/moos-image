@@ -207,4 +207,7 @@ grep -q 'DefaultDeviceTimeoutSec=120' /etc/systemd/system.conf.d/moos-arm-device
     exit 1
 }
 
+# The native base uses the same reviewed SELinux compatibility alias as desktop.
+python3 /ctx/finalize_canary_base.py
+
 echo "=== MoOS ARM recovery build complete ==="
