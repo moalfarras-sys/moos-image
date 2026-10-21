@@ -174,7 +174,7 @@
       "acceptance_boundary": "The latest offered stable vendor is still20260927 and does not contain the subsequent upstream callback/thread changes. No new Android image, rollback or patch was installed."
     }
   },
-  "updated_utc": "2026-10-21T22:01:41.500823+00:00",
+  "updated_utc": "2026-10-21T22:30:00.207701+00:00",
   "maintained_native_full_gate": {
     "source_commit": "2afd3f451208a62b02f6f1d59adfb89065b45168",
     "source_tree": "6dd150326d1b6a1345a89094c49ec64dbbb57db5",
@@ -187,5 +187,10 @@
     "python_unittest_cases": 2960,
     "additional_gates": "all native and other checks in the unchanged maintained just check",
     "later_update_scope": "Evidence-only truth-file update; no tested fixture, product or build bytes changed. Final-head repository CI and integration remain separate."
+  },
+  "preserved_coordination_commit": {
+    "commit": "794dc97b475f638ecbc2d69fc50eeb0ae43a58de",
+    "method": "normal merge into this follow-up topic, preserving its unique already-pushed source ancestry",
+    "scope": "Historical two-line engineering coordination continuation only. No product, build, artwork or tested fixture change after the clean2afd full native gate."
   }
 }
