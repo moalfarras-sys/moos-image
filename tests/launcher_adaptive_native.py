@@ -6,7 +6,7 @@ that the input assertion fails for the previously observed focus defect.
 This does not test physical touch, GPU performance or the installed session.
 """
 from pathlib import Path
-import argparse,datetime,hashlib,re,json,os,shutil,signal,subprocess,tempfile,time,uuid
+import argparse,configparser,datetime,hashlib,re,json,os,shutil,signal,subprocess,tempfile,time,uuid
 from gi.repository import Gio,GLib
 
 parser=argparse.ArgumentParser(description="Private native Plasma launcher viewport/input matrix")
@@ -26,7 +26,8 @@ def portal():
 def source_state():
     paths=list((S/'system_files/usr/share/plasma/plasmoids/org.moos.brand').rglob('*'))
     paths+=list((S/'system_files/usr/lib64/qt6/qml/org/moos/ui').glob('*.qml'))
-    paths+=[S/'tests/qml/LauncherAdaptiveDriver.qml',S/'system_files/usr/bin/moos-selfcheck',S/'tests/post-update-check.sh']
+    paths+=[Path(__file__),S/'tests/qml/LauncherAdaptiveDriver.qml',S/'system_files/usr/bin/moos-selfcheck',S/'tests/post-update-check.sh']
+    paths+=list((S/'system_files/usr/share/plasma/look-and-feel').glob('org.moos.ui2*/contents/defaults'))
     return {str(p.relative_to(S)):hashlib.sha256(p.read_bytes()).hexdigest()
             for p in sorted(paths) if p.is_file()}
 report={'scope':'adaptive source launcher development probe; native private KWin/OpenGL virtual outputs; Qt Quick software content, not physical touch or owner-session acceptance','portal_before':portal(),'source_before':source_state(),'cases':[],'started_utc':datetime.datetime.now(datetime.UTC).isoformat()}
@@ -63,9 +64,20 @@ def one(width,height,language,light,reduced):
             opening='\n    PlasmaCore.AppletPopup {\n        id: nativePopupProof\n        appletInterface: root\n        visualParent: root\n        popupDirection: Qt.TopEdge\n        mainItem: Item {\n            id: nativePopupProxy\n            implicitWidth: root.fullRepresentationItem ? root.fullRepresentationItem.implicitWidth : 0\n            implicitHeight: root.fullRepresentationItem ? root.fullRepresentationItem.implicitHeight : 0\n            Layout.minimumWidth: implicitWidth\n            Layout.minimumHeight: implicitHeight\n            Layout.maximumWidth: implicitWidth\n            Layout.maximumHeight: implicitHeight\n        }\n    }\n    Timer {\n        interval: 500\n        running: true\n        onTriggered: {\n            const surface = root.fullRepresentationItem;\n            if (!surface) throw Error("native popup has no full representation");\n            surface.parent = nativePopupProxy;\n            surface.anchors.fill = nativePopupProxy;\n            nativePopupProof.visible = true;\n        }\n    }\n'
             main.write_text(main_body[:main_body.rfind('}')]+opening+main_body[main_body.rfind('}'):])
 
-        scheme='MoOSUI2Light' if light else 'MoOSUI2Dark'
+        theme='org.moos.ui2.light' if light else 'org.moos.ui2'
+        defaults=S/'system_files/usr/share/plasma/look-and-feel'/theme/'contents/defaults'
+        matched=configparser.ConfigParser(interpolation=None)
+        matched.optionxform=str
+        matched.read_string(defaults.read_text())
+        scheme=matched['kdeglobals][General']['ColorScheme']
+        plasma_style=matched['plasmarc][Theme']['name']
+        icons=matched['kdeglobals][Icons']['Theme']
+        case['theme']={'global_theme':theme,'color_scheme':scheme,
+                       'plasma_style':plasma_style,'icons':icons,
+                       'defaults_sha256':hashlib.sha256(defaults.read_bytes()).hexdigest()}
         colors=(S/'system_files/usr/share/color-schemes'/(scheme+'.colors')).read_text()
-        (root/'config/kdeglobals').write_text(colors+'\n[KDE]\nAnimationDurationFactor='+('0' if reduced else '1')+'\n')
+        (root/'config/kdeglobals').write_text(colors+'\n[KDE]\nAnimationDurationFactor='+('0' if reduced else '1')+'\n[Icons]\nTheme='+icons+'\n')
+        (root/'config/plasmarc').write_text('[Theme]\nname='+plasma_style+'\n')
         config=root/'bus.conf'
         config.write_text(f'<busconfig><type>session</type><listen>unix:path={root}/runtime/bus</listen><auth>EXTERNAL</auth><policy context="default"><allow user="{os.getuid()}"/><allow own="*"/><allow send_destination="*"/><allow receive_sender="*"/></policy></busconfig>')
         env={'PATH':'/usr/bin:/usr/sbin:/bin','HOME':str(root/'home'),'XDG_RUNTIME_DIR':str(root/'runtime'),'XDG_CONFIG_HOME':str(root/'config'),'XDG_CACHE_HOME':str(root/'cache'),'XDG_DATA_HOME':str(root/'data'),'XDG_CONFIG_DIRS':str(S/'system_files/etc/xdg')+':/etc/xdg','XDG_DATA_DIRS':str(S/'system_files/usr/share')+':/usr/share','QML_IMPORT_PATH':str(S/'system_files/usr/lib64/qt6/qml'),'LANG':'ar_SA.UTF-8' if language=='ar' else 'en_US.UTF-8','LC_ALL':'ar_SA.UTF-8' if language=='ar' else 'en_US.UTF-8','LANGUAGE':language,'QT_QUICK_CONTROLS_STYLE':'org.kde.desktop','QT_QPA_PLATFORMTHEME':'kde','QT_QPA_PLATFORM':'wayland','WAYLAND_DISPLAY':'wayland-moos-viewport','KWIN_COMPOSE':'O2ES','QT_QUICK_BACKEND':'software','LP_NUM_THREADS':'2','QT_FORCE_STDERR_LOGGING':'1','QML_DISABLE_DISK_CACHE':'1'}

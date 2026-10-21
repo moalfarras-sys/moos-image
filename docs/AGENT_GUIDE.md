@@ -254,6 +254,14 @@ launches. Read [`live-development.md`](../skills/moos-engineering/references/liv
 for host/Flatpak access, private evidence and the Settings review harness. Do
 not hard-code the UID or Wayland socket from a previous session.
 
+For a private light/dark review, load the selected Global Theme's actual
+`contents/defaults`: colours from `[kdeglobals][General]`, Plasma Style from
+`[plasmarc][Theme]` and icons from `[kdeglobals][Icons]`. Write all three only to
+the private XDG config before starting its bus/compositor. Record those choices
+and the defaults hash with the frame. A colours-only fixture can inherit a dark
+style/icon theme and misrepresent the product's Light surface. Keep any original
+mixed frame; do not repair it by changing the owner's active theme.
+
 - Read panel state live:
   `gdbus call --session -d org.kde.plasmashell -o /PlasmaShell -m org.kde.PlasmaShell.evaluateScript '<js>'`
 - Preview a branch's theme without building: copy

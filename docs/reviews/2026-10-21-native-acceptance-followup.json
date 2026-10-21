@@ -1,0 +1,196 @@
+{
+  "observed_utc": "2026-10-21T21:43:36.835273+00:00",
+  "scope": "Engineering instructions and private native acceptance fixture only; production payloads remain identical to PR263. No new image delivery or physical/all-theme acceptance is implied.",
+  "native_unittest": {
+    "command": "python3 -m unittest discover -s tests -p test_launcher_adaptive.py -v",
+    "exit": 0,
+    "cases": 6,
+    "seconds": 41.822,
+    "source_unchanged": true,
+    "owner_portal_unchanged": true,
+    "original_backtab_and_alignment_negative_controls_retained": true
+  },
+  "rendered_matrix": [
+    {
+      "output_width": 360,
+      "output_height": 640,
+      "language": "ar",
+      "light": false,
+      "reduced": true,
+      "theme": {
+        "global_theme": "org.moos.ui2",
+        "color_scheme": "MoOSUI2Dark",
+        "plasma_style": "MoOSUI2",
+        "icons": "MoOSUI2",
+        "defaults_sha256": "7b0f131de60a2bf5e1ace9089b32d83c3ef7a184094ed88ec540f2cd2284b204"
+      },
+      "window_fits_output": true,
+      "saved_popup": {
+        "width": 318,
+        "height": 576
+      },
+      "frame_sha256": "9cce2e1f638826138024158778e13539bc5bda5f1cca8e08126f8827bb56d650"
+    },
+    {
+      "output_width": 600,
+      "output_height": 960,
+      "language": "en",
+      "light": true,
+      "reduced": false,
+      "theme": {
+        "global_theme": "org.moos.ui2.light",
+        "color_scheme": "MoOSUI2Light",
+        "plasma_style": "MoOSUI2Light",
+        "icons": "MoOSUI2Light",
+        "defaults_sha256": "921f41a456e4cfb031d8cffe21416ea92e94e69c8354545387b05a1ea26c203e"
+      },
+      "window_fits_output": true,
+      "saved_popup": {
+        "width": 546,
+        "height": 576
+      },
+      "frame_sha256": "383724250a061361e1fba231c3fb66f18517bfe4793a7eee59f069ecc4c7c563"
+    },
+    {
+      "output_width": 960,
+      "output_height": 540,
+      "language": "ar",
+      "light": true,
+      "reduced": true,
+      "theme": {
+        "global_theme": "org.moos.ui2.light",
+        "color_scheme": "MoOSUI2Light",
+        "plasma_style": "MoOSUI2Light",
+        "icons": "MoOSUI2Light",
+        "defaults_sha256": "921f41a456e4cfb031d8cffe21416ea92e94e69c8354545387b05a1ea26c203e"
+      },
+      "window_fits_output": true,
+      "saved_popup": {
+        "width": 792,
+        "height": 476
+      },
+      "frame_sha256": "49db517780aaf17cc6d605585b669ab73f39fb6aef08640be2f55597ec8fa674"
+    },
+    {
+      "output_width": 1536,
+      "output_height": 864,
+      "language": "en",
+      "light": false,
+      "reduced": false,
+      "theme": {
+        "global_theme": "org.moos.ui2",
+        "color_scheme": "MoOSUI2Dark",
+        "plasma_style": "MoOSUI2",
+        "icons": "MoOSUI2",
+        "defaults_sha256": "7b0f131de60a2bf5e1ace9089b32d83c3ef7a184094ed88ec540f2cd2284b204"
+      },
+      "window_fits_output": true,
+      "saved_popup": {
+        "width": 792,
+        "height": 576
+      },
+      "frame_sha256": "c017cae014974e49d1317541e6e4312c88e7e72b6f788032dc6f74d0c38857a0"
+    }
+  ],
+  "android": {
+    "official_images": "lineage-20.0 20260927 VANILLA/MAINLINE x86_64",
+    "installed_setup_exit": 0,
+    "boot_property_and_desktop_properties_confirmed": true,
+    "native_application_acceptance": false,
+    "observations": [
+      "Calculator first mapped as an actual normal/movable/resizable KWin window",
+      "Surface then disappeared while application process remained alive; reopening did not restore it",
+      "Opening the second owned builtin app remapped both surfaces",
+      "Scoped host resize reached480x640 but real capture was incomplete"
+    ],
+    "bounded_log": {
+      "read_exit": 0,
+      "bytes": 535657,
+      "sha256": "85f5f0e4497fde7bd5fc985025f529b097912b0dc901ba64c9a3200890e904a4",
+      "display_reconnects": 3,
+      "missing_mode_records": 3,
+      "fatal_exception_in_captured_sample": false,
+      "boundary": "A bounded log without a fatal record does not prove crash-free lifetime or identify the exact race."
+    },
+    "engineering_analysis": {
+      "entrypoint": "canonical REA6.7.0 MCP",
+      "provider": "Ghidra12.1.4",
+      "input_bytes": 510976,
+      "input_sha256": "34a0ab934e0fb83ed1f7b290dd52c0a1073e6458c408f1f8463cbfa477005a51",
+      "unmodified_input": true,
+      "closed_owned_analysis": true,
+      "observed_functions": [
+        {
+          "name": "do_hotplug",
+          "address": "0x145490",
+          "observation": "Publishes display dimensions and recreates the touch FIFO before requesting display invalidation."
+        },
+        {
+          "name": "WaydroidWindow::setIdleInhibit",
+          "address": "0x150080",
+          "observation": "Acquires a recursive mutex while traversing native windows and changing idle inhibition."
+        },
+        {
+          "name": "hwc_binder_thread",
+          "address": "0x1439f0",
+          "observation": "Actually calls configureRpcThreadpool(1,true); the installed composer predates the PR88 change."
+        },
+        {
+          "name": "shell_surface_configure",
+          "address": "0x1456a0",
+          "observation": "After initialization, writes display dimensions then invokes do_hotplug without an old/new dimension comparison."
+        },
+        {
+          "name": "xdg_toplevel_handle_configure",
+          "address": "0x147bd0",
+          "observation": "A positive-sized configure writes dimensions then invokes do_hotplug without an old/new dimension comparison, predating PR89."
+        }
+      ],
+      "boundary": "Recovered decompiler types and indirect calls are incomplete. These observed code paths do not establish the exact local lock cycle, causality of the disappearing surface or a working fix."
+    },
+    "upstream_sources": [
+      "https://github.com/waydroid/waydroid/issues/2436",
+      "https://github.com/waydroid/android_hardware_waydroid/pull/87",
+      "https://github.com/waydroid/android_hardware_waydroid/pull/88",
+      "https://github.com/waydroid/android_hardware_waydroid/pull/89"
+    ],
+    "vendor_downgrade_or_binary_patch_applied": false,
+    "official_vendor_ota": {
+      "utc": "2026-10-21T21:52:11.745701+00:00",
+      "source": "https://ota.waydro.id/vendor/waydroid_x86_64/MAINLINE.json",
+      "content_type": "application/json; charset=utf-8",
+      "bytes": 73174,
+      "sha256": "30c8586f7f58c11a33be5e3396f3f4010fce47357884c5afb985d136f0447acd",
+      "entries": 149,
+      "latest": {
+        "datetime": 1790542319,
+        "filename": "lineage-20.0-20260927-MAINLINE-waydroid_x86_64-vendor.zip",
+        "id": "d911b8353f6c807b94790b1c41c67e863a9f3dcd1cf3ec0232351398235afd7a",
+        "romtype": "MAINLINE",
+        "size": 189818687,
+        "url": "https://sourceforge.net/projects/waydroid/files/images/vendor/waydroid_x86_64/lineage-20.0-20260927-MAINLINE-waydroid_x86_64-vendor.zip/download",
+        "version": "20.0"
+      },
+      "acceptance_boundary": "The latest offered stable vendor is still20260927 and does not contain the subsequent upstream callback/thread changes. No new Android image, rollback or patch was installed."
+    }
+  },
+  "updated_utc": "2026-10-21T22:30:00.207701+00:00",
+  "maintained_native_full_gate": {
+    "source_commit": "2afd3f451208a62b02f6f1d59adfb89065b45168",
+    "source_tree": "6dd150326d1b6a1345a89094c49ec64dbbb57db5",
+    "exit": 0,
+    "started_utc": "2026-10-21T21:44:29.342267+00:00",
+    "ended_utc": "2026-10-21T21:56:43.457634+00:00",
+    "unchanged_clean_end_source": true,
+    "log_sha256": "0de0104f5d1e1b6a44cf1f08f0fe9e99d1f39f932b6dd45e2810b1651dbfb97d",
+    "python_unittest_summaries": 213,
+    "python_unittest_cases": 2960,
+    "additional_gates": "all native and other checks in the unchanged maintained just check",
+    "later_update_scope": "Evidence-only truth-file update; no tested fixture, product or build bytes changed. Final-head repository CI and integration remain separate."
+  },
+  "preserved_coordination_commit": {
+    "commit": "794dc97b475f638ecbc2d69fc50eeb0ae43a58de",
+    "method": "normal merge into this follow-up topic, preserving its unique already-pushed source ancestry",
+    "scope": "Historical two-line engineering coordination continuation only. No product, build, artwork or tested fixture change after the clean2afd full native gate."
+  }
+}
