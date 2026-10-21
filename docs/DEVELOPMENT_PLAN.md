@@ -1,6 +1,6 @@
 # MoOS development plan — current execution backlog
 
-Updated 2026-10-20. This is the single execution backlog, not an incident diary.
+Updated 2026-10-21. This is the single execution backlog, not an incident diary.
 Current measurements live in PROJECT_STATE.md; detailed audit evidence and
 remaining boundaries are in [AUDIT_20261012_AR.md](AUDIT_20261012_AR.md). Git preserves prior waves.
 
@@ -10,6 +10,8 @@ is reliability/release acceptance, before the remaining four milestones. The
 new private feedback/optional public suggestions product is P6.9 below.
 
 ## Active delivery and acceptance batch
+
+Native adaptive launcher source keeps the existing Plasma/Kicker/Places/Milou/Session owners, fits portrait/short work areas, uses44px navigation and readable dynamic columns, and fixes actual keyboard focus/RTL double mirroring. Six native controls pass, including four real AppletPopup saved-size cases and two broken-source refusals. Real installed1078 source-shadow review was restored; KWin/Remote/document portal stayed intact. THEME_REV108 invalidates the changed shell cache. This is source evidence, not signed delivery or physical touch acceptance. The earlier signed7ff cycle built all x86 editions, ISO and ARM successfully, but all three QCOW2 builders refuse a native storage mount before boot; nothing x86 was promoted. [Adaptive source proof](releases/2026-10-21-native-adaptive-launcher-source-proof.json).
 
 V3 phase1 now has an actual signed1078 boot with1072 pinned rollback, direct fingerprint match, measured multi-touch, owner-accepted front/rear moving camera images, stereo speakers and speech. Retained microphone30% has0% clipping/−11.50dBFS peak in warmed speech. BIOS80% cap is owner-confirmed; observe the actual plateau. Native keyboard diagnostics need the topic absent-key correction, not an owner-config rewrite. External/hotplug acceptance belongs to the preceding boot; current external, pen and suspend remain acceptance. The separate greeter screenRemoved SIGSEGV and unboundSMOCF05 are unresolved. Appearance follows compatibility, using supported Plasma/KWin and shared MoOS Qt/Kirigami tokens. [Native phase1 evidence](releases/2026-10-19-v3-1078-native-phase1-proof.json).
 

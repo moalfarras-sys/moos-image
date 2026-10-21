@@ -49,6 +49,52 @@ class AdaptiveLauncher(unittest.TestCase):
         self.assertIn("KeyNavigation.priority: KeyNavigation.BeforeItem", view)
         self.assertIn("contentHeight: Math.max(height, homeColumn.implicitHeight)", view)
 
+    def test_selfcheck_and_postboot_keep_one_responsive_predicate(self):
+        bodies = []
+        for name in ("system_files/usr/bin/moos-selfcheck", "tests/post-update-check.sh"):
+            body = (ROOT / name).read_text().split("launcher_runtime_state() {", 1)[1]
+            body = body.split("launcher_field()", 1)[0]
+            function = re.search(r"            function popupFitsScreen\(.*?^            \}", body,
+                                 re.S | re.M).group(0)
+            bodies.append(function)
+            self.assertIn("screenGeometry(ps[i].screen)", body)
+            self.assertIn("panelBrands == 1 && panelLegacy == 0 && panelSized == 1", body)
+        self.assertEqual(*bodies)
+        self.assertIn("Math.min(600,", bodies[0])
+        self.assertIn("Math.min(540,", bodies[0])
+        # All palettes share the native frame geometry used by the predicate.
+        import xml.etree.ElementTree as ET
+        themes = list((ROOT / "system_files/usr/share/plasma/desktoptheme").glob("*/dialogs/background.svg"))
+        self.assertEqual(len(themes), 16)
+        for theme in themes:
+            elements = {e.get("id"): e for e in ET.parse(theme).getroot().iter() if e.get("id")}
+            for edge in ("left", "right", "top", "bottom"):
+                dimension = "width" if edge in ("left", "right") else "height"
+                self.assertEqual(float(elements["hint-" + edge + "-margin"].get(dimension)), 12)
+
+    @unittest.skipUnless(shutil.which("node"), "health boundary evaluation needs Node")
+    def test_live_size_hints_and_corrupt_geometry(self):
+        source = (ROOT / "system_files/usr/bin/moos-selfcheck").read_text()
+        function = re.search(r"            function popupFitsScreen\(.*?^            \}", source,
+                             re.S | re.M).group(0)
+        cases = [(318,576,360,640,70,True), (546,576,600,960,70,True),
+                 (792,476,960,540,70,True), (792,576,1536,864,70,True),
+                 (600,540,1536,864,70,True), (599,540,1536,864,70,False),
+                 (600,539,1536,864,70,False), (100,100,360,640,70,False),
+                 (0,576,360,640,70,False), (792,0,1536,864,70,False),
+                 (792,576,0,864,70,False), (792,576,1536,0,70,False),
+                 (792,576,1536,864,-1,False), (792,576,360,640,640,False)]
+        program = function + "\nconst cases=" + json.dumps(cases) + ";\n"
+        program += "process.stdout.write(JSON.stringify(cases.map(c=>popupFitsScreen(c[0],c[1],{width:c[2],height:c[3]},c[4]))));"
+        result = subprocess.run([shutil.which("node"), "-e", program],
+                                capture_output=True, text=True, timeout=10, check=True)
+        self.assertEqual(json.loads(result.stdout), [c[-1] for c in cases])
+        invalid = function + "\nconst g={width:1536,height:864};"
+        invalid += "process.stdout.write(JSON.stringify([popupFitsScreen(NaN,576,g,70),popupFitsScreen(792,Infinity,g,70),popupFitsScreen(792,576,{width:Infinity,height:864},70),popupFitsScreen(792,576,g,Infinity),popupFitsScreen(792,576,null,70)]));"
+        result = subprocess.run([shutil.which("node"), "-e", invalid],
+                                capture_output=True, text=True, timeout=10, check=True)
+        self.assertEqual(json.loads(result.stdout), [False] * 5)
+
     @unittest.skipUnless(shutil.which("node"), "column boundary evaluation needs Node")
     def test_real_column_function_keeps_labels_readable_and_caps_density(self):
         function = re.search(r"    function appColumns\(availableWidth\) \{.*?\n    \}",
@@ -72,13 +118,25 @@ class AdaptiveLauncher(unittest.TestCase):
                    tempfile.TemporaryDirectory(prefix="moos-launcher-gate-"))
         with context as temporary:
             output = Path(temporary)
-            command = [shutil.which("python3"), str(ROOT / "tests/launcher_adaptive_native.py")]
+            command = [shutil.which("python3"), str(ROOT / "tests/launcher_adaptive_native.py"), "--native-popup"]
             fixed = subprocess.run(command + ["--output", str(output / "fixed")],
                                    capture_output=True, text=True, timeout=180)
             self.assertEqual(fixed.returncode, 0, fixed.stdout[-2500:] + fixed.stderr[-5000:])
             record = json.loads((output / "fixed/receipt.json").read_text())
             self.assertEqual(len(record["cases"]), 4)
+            self.assertEqual([c["old_fixed_size_health_accepts"] for c in record["cases"]],
+                             [False, False, False, True])
             self.assertTrue(record["owner_portal_unchanged"] and record["source_unchanged"])
+            if shutil.which("node"):
+                function = re.search(r"            function popupFitsScreen\(.*?^            \}",
+                    (ROOT / "system_files/usr/bin/moos-selfcheck").read_text(), re.S | re.M).group(0)
+                samples = [[c["saved_popup"]["width"], c["saved_popup"]["height"],
+                            c["output_width"], c["output_height"]] for c in record["cases"]]
+                program = function + "\nconst cases=" + json.dumps(samples) + ";\n"
+                program += "process.stdout.write(JSON.stringify(cases.map(c=>popupFitsScreen(c[0],c[1],{width:c[2],height:c[3]},0))));"
+                health = subprocess.run([shutil.which("node"), "-e", program],
+                    capture_output=True, text=True, timeout=10, check=True)
+                self.assertEqual(json.loads(health.stdout), [True] * 4)
             broken = subprocess.run(command + ["--output", str(output / "broken"), "--broken-backtab"],
                                     capture_output=True, text=True, timeout=60)
             self.assertNotEqual(broken.returncode, 0, "broken native focus must refuse")

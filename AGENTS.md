@@ -1172,6 +1172,8 @@ all-apps row and makes the installed Android VLC disappear from its own filter.
 The real native AR/EN Store walk checks the selected ID and platform counts;
 Node grouping tests alone do not prove that window behavior.
 
+**A windowed host is not the panel popup.** Adaptive launcher changes must exercise the actual Plasma AppletPopup, close it and read its saved size back. AvailableScreenRect falls back to item size without a valid screen: guard it before using it for implicit dimensions. Keep desktop minimum-size controls, finite/invalid geometry refusals and the same predicate in selfcheck/post-update. Real Qt input and broken-focus/RTL controls complement installed-session review; synthetic touch is not physical touch acceptance.
+
 ## Before you push
 
 **A Remove flag is a promise about files, not a label.** Oracle's private Store

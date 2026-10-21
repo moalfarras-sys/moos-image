@@ -43,6 +43,7 @@ Item {
             try {
                 const v = driver.surface;
                 const l = v.launcher;
+                driver.Window.window.title = "MoOS Adaptive Input Gate";
                 // Windowed hosts lack plasmashell's inherited RTL parent.
                 v.LayoutMirroring.enabled = v.rtl;
                 v.LayoutMirroring.childrenInherit = true;

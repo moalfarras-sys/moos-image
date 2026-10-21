@@ -14,6 +14,7 @@ parser=argparse.ArgumentParser(description="Private native Plasma launcher viewp
 parser.add_argument("--output", type=Path, required=True)
 parser.add_argument("--broken-backtab", action="store_true")
 parser.add_argument("--broken-alignment", action="store_true")
+parser.add_argument("--native-popup", action="store_true")
 args=parser.parse_args()
 S=Path(__file__).resolve().parents[1]
 O=args.output
@@ -26,7 +27,7 @@ def portal():
 def source_state():
     paths=list((S/'system_files/usr/share/plasma/plasmoids/org.moos.brand').rglob('*'))
     paths+=list((S/'system_files/usr/lib64/qt6/qml/org/moos/ui').glob('*.qml'))
-    paths+=[S/'tests/qml/LauncherAdaptiveDriver.qml']
+    paths+=[S/'tests/qml/LauncherAdaptiveDriver.qml',S/'system_files/usr/bin/moos-selfcheck',S/'tests/post-update-check.sh']
     return {str(p.relative_to(S)):hashlib.sha256(p.read_bytes()).hexdigest()
             for p in sorted(paths) if p.is_file()}
 report={'scope':'adaptive source launcher development probe; native private KWin/OpenGL virtual outputs; Qt Quick software content, not physical touch or owner-session acceptance','portal_before':portal(),'source_before':source_state(),'cases':[],'started_utc':datetime.datetime.now(datetime.UTC).isoformat()}
@@ -57,6 +58,12 @@ def one(width,height,language,light,reduced):
             body=body.replace('horizontalAlignment: Text.AlignLeft',
                               'horizontalAlignment: view.rtl ? Text.AlignRight : Text.AlignLeft')
         view.write_text(body[:body.rfind('}')]+driver+body[body.rfind('}'):])
+        if args.native_popup:
+            main=package/'contents/ui/main.qml'
+            main_body=main.read_text()
+            opening='\n    PlasmaCore.AppletPopup {\n        id: nativePopupProof\n        appletInterface: root\n        visualParent: root\n        popupDirection: Qt.TopEdge\n        mainItem: Item {\n            id: nativePopupProxy\n            implicitWidth: root.fullRepresentationItem ? root.fullRepresentationItem.implicitWidth : 0\n            implicitHeight: root.fullRepresentationItem ? root.fullRepresentationItem.implicitHeight : 0\n            Layout.minimumWidth: implicitWidth\n            Layout.minimumHeight: implicitHeight\n            Layout.maximumWidth: implicitWidth\n            Layout.maximumHeight: implicitHeight\n        }\n    }\n    Timer {\n        interval: 500\n        running: true\n        onTriggered: {\n            const surface = root.fullRepresentationItem;\n            if (!surface) throw Error("native popup has no full representation");\n            surface.parent = nativePopupProxy;\n            surface.anchors.fill = nativePopupProxy;\n            nativePopupProof.visible = true;\n        }\n    }\n'
+            main.write_text(main_body[:main_body.rfind('}')]+opening+main_body[main_body.rfind('}'):])
+
         scheme='MoOSUI2Light' if light else 'MoOSUI2Dark'
         colors=(S/'system_files/usr/share/color-schemes'/(scheme+'.colors')).read_text()
         (root/'config/kdeglobals').write_text(colors+'\n[KDE]\nAnimationDurationFactor='+('0' if reduced else '1')+'\n')
@@ -97,7 +104,7 @@ def one(width,height,language,light,reduced):
             assert app.poll() is None,'launcher exited'
             case['launcher_pid']=app.pid
             log=(O/f'{prefix}-launcher.log').read_text(errors='replace')
-            case['ready_marker']=bool(re.search(r'MOOS_LAUNCHER_FULL_READY size=[0-9]+x[0-9]+',log))
+            case['ready_marker']=bool(re.search(r'MOOS_LAUNCHER_FULL_READY size=[0-9]+x[0-9]+',log)) or (args.native_popup and 'MOOS_ADAPTIVE_INPUT_PASS ' in log)
             assert case['ready_marker'], log[-4500:]
             assert 'MOOS_ADAPTIVE_INPUT_PASS ' in log and 'MOOS_ADAPTIVE_INPUT_FAIL' not in log,log[-6500:]
             case['input']=json.loads(re.search(r'MOOS_ADAPTIVE_INPUT_PASS (.+)',log)[1])
@@ -111,14 +118,17 @@ def one(width,height,language,light,reduced):
                 assert sender==owner;result.append(json.loads(params.unpack()[0]));invocation.return_value(GLib.Variant('()',()));loop.quit()
             reg=bus.register_object('/org/moos/ViewportProbe',info.interfaces[0],receive,None,None)
             name='moos-viewport-'+uuid.uuid4().hex;script=root/'window.js'
-            expression='workspace.windowList().map(w=>({pid:w.pid,resourceClass:String(w.resourceClass),x:w.frameGeometry.x,y:w.frameGeometry.y,width:w.frameGeometry.width,height:w.frameGeometry.height,clientWidth:w.clientGeometry.width,clientHeight:w.clientGeometry.height}))'
+            expression='workspace.windowList().map(w=>({pid:w.pid,resourceClass:String(w.resourceClass),caption:String(w.caption),x:w.frameGeometry.x,y:w.frameGeometry.y,width:w.frameGeometry.width,height:w.frameGeometry.height,clientWidth:w.clientGeometry.width,clientHeight:w.clientGeometry.height}))'
             script.write_text('callDBus('+json.dumps(bus.get_unique_name())+',"/org/moos/ViewportProbe","org.moos.ViewportProbe","Record",JSON.stringify('+expression+'));')
             index=call('org.kde.KWin','/Scripting','org.kde.kwin.Scripting','loadScript',GLib.Variant('(ss)',(str(script),name))).unpack()[0];assert index>=0
             try:
                 call('org.kde.KWin','/Scripting/Script'+str(index),'org.kde.kwin.Script','run')
                 timer=GLib.timeout_add(5000,lambda:(loop.quit(),False)[1]);loop.run()
+                if result: GLib.source_remove(timer)
                 assert result,'owned private KWin did not reply'
-                case['windows']=[w for w in result[0] if w['pid']==app.pid]
+                case['windows']=[w for w in result[0] if w['pid']==app.pid and w['caption']=='MoOS Adaptive Input Gate']
+                case['all_owned_windows']=[w for w in result[0] if w['pid']==app.pid]
+                if args.native_popup: assert len(case['all_owned_windows'])>=2,case
                 assert len(case['windows'])==1
             finally:
                 call('org.kde.KWin','/Scripting','org.kde.kwin.Scripting','unloadScript',GLib.Variant('(s)',(name,)))
@@ -129,6 +139,32 @@ def one(width,height,language,light,reduced):
             p=subprocess.run(['spectacle','--background','--nonotify','--fullscreen','--output',str(capture)],env=env,stdin=subprocess.DEVNULL,capture_output=True,timeout=15)
             case['capture_exit']=p.returncode;case['capture_exists']=capture.is_file()
             (O/f'{prefix}-capture.log').write_bytes(p.stdout+p.stderr)
+            if args.native_popup:
+                closing='moos-popup-close-'+uuid.uuid4().hex
+                script.write_text('const windows=workspace.windowList().filter(w=>w.pid==='
+                    +str(app.pid)+' && String(w.caption)==="MoOS Adaptive Input Gate");'
+                    +'if(windows.length!==1)throw Error("owned popup not unique");windows[0].closeWindow();')
+                index=call('org.kde.KWin','/Scripting','org.kde.kwin.Scripting','loadScript',
+                    GLib.Variant('(ss)',(str(script),closing))).unpack()[0]
+                assert index>=0
+                try:
+                    call('org.kde.KWin','/Scripting/Script'+str(index),'org.kde.kwin.Script','run')
+                    saved=root/'config/plasmawindowedrc'
+                    for _ in range(40):
+                        text=saved.read_text() if saved.exists() else ''
+                        pw=re.findall(r'^popupWidth=(\d+)$',text,re.M)
+                        ph=re.findall(r'^popupHeight=(\d+)$',text,re.M)
+                        if len(pw)==1 and len(ph)==1:break
+                        time.sleep(.05)
+                    assert len(pw)==len(ph)==1,'native popup did not persist unique dimensions'
+                    case['saved_popup']={'width':int(pw[0]),'height':int(ph[0])}
+                    case['old_fixed_size_health_accepts']=int(pw[0])>=600 and int(ph[0])>=540
+                    assert int(pw[0])==round(case['input']['width'])
+                    assert int(ph[0])==round(case['input']['height'])
+                finally:
+                    call('org.kde.KWin','/Scripting','org.kde.kwin.Scripting','unloadScript',
+                        GLib.Variant('(s)',(closing,)))
+
         finally:
             if bus:bus.close_sync(None)
             for p in reversed(children):
