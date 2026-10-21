@@ -27,7 +27,7 @@ for a minimal MCP environment, crosses Flatpak/Toolbx as needed, uses the shared
 Node/JDK and defaults headless Ghidra to2GiB. `moos-ghidra` opens the actual Java
 GUI in the normal application cgroup, reading the primary display scale before
 entering the SDK. Java rounded the tested2.5 scale to2.0: fractional GUI scaling
-is not claimed exact. Its first-run agreement remains owner onboarding.
+is not claimed exact. Its basic installed GUI journey now opens an owned project/program, displays decompiled `main` and closes normally. The original main frame was blank on Wayland; a scoped OpenJDK non-reparenting environment setting renders it, and restoring the original launcher reproduces the blank frame. The canonical launcher carries the host Wayland decision across Toolbx and preserves explicit caller values. Six native shell-boundary controls cover X11 absence, Wayland defaults, bridge state and argument/heap/scale preservation. This is a GUI-process setting, not a desktop-wide Java change; include the actual SDK Java process when measuring memory. Broader keyboard/server journeys and acceptance on the next OS boot remain open.
 
 On the V3, adoption of both existing archive payloads, launcher installation and
 read-only checks pass. All managed file bytes/mtimes remain unchanged during
