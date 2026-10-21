@@ -1,0 +1,173 @@
+{
+  "recorded_utc": "2026-10-21T16:43:24.832231+00:00",
+  "scope": "Qualified frozen product source and full local native ARM image; later main/claim merges change documentation only. No claim of signed delivery or installed acceptance.",
+  "qualified_revision": "5467f565f756e25060b64c5e0f315b75a4a87be0",
+  "qualified_tree": "7abba824fdd8a5506d4ffe9c6804d5724bcf9711",
+  "source": {
+    "exit_code": 0,
+    "duration_seconds": 925.0,
+    "started_utc": "2026-10-21T11:28:37.517343+00:00",
+    "finished_utc": "2026-10-21T11:44:02.489365+00:00",
+    "log_sha256": "a4b60163b69cc7a8214ea2575377630f1f34de6075dff9ac447a9d05dacf893a",
+    "initial_status": "",
+    "final_status": "",
+    "reported_test_cases": 2949,
+    "unittest_summaries": 212,
+    "reported_conditional_skips": 14,
+    "counting_note": "Reported unittest cases across summaries, not unique executed cases; script gates are separate"
+  },
+  "local_arm_image": {
+    "exit_code": 0,
+    "duration_seconds": 7021.847,
+    "started_utc": "2026-10-21T11:45:39.602784+00:00",
+    "finished_utc": "2026-10-21T13:42:41.430866+00:00",
+    "log_sha256": "dcb809792df1c6a28971e7fc92bfc1ad9fc9fe8d8223772eb255134334625671",
+    "initial_status": "",
+    "final_status": ""
+  },
+  "image_id": "sha256:391a6675ff8fac097bbd48b45cb526dacea343616b8415160bb9ed4363f73ee9",
+  "base": "sha256:28f842889ffee5a2bfc1c1bd742a15c13b2f73a41a492312410a961e457e8d63",
+  "actual_payload": {
+    "exit": 0,
+    "result": "PASS",
+    "file_hash_count": 30,
+    "native_binaries": {
+      "/usr/bin/moos-qml-shell": {
+        "sha256": "b3243abd1aa2e9c05788f644afc45fdf07b28e92285b214ab932a92deaec069c",
+        "e_machine": 183
+      },
+      "/usr/lib/mo-remote/MoRemotePersonal": {
+        "sha256": "cb4469816e7802879587e4f9a10e6febe37074ba80740b8bef8ccdd1b9fd4aa5",
+        "e_machine": 183
+      },
+      "/usr/bin/lspci": {
+        "sha256": "4561f37081dd3e01f71c2f32d8e0e1ac7fb8ef3648e36e1d16644509bb9d0f47",
+        "e_machine": 183
+      },
+      "/usr/bin/lsusb": {
+        "sha256": "2cb88ebde5f360a66c0c051073dc4502ad859aec045fdabfd916b93b40130b77",
+        "e_machine": 183
+      }
+    },
+    "RemainAfterExit": "no",
+    "graphical_wants": "timer only",
+    "unavailable_probe": {
+      "health": "attention",
+      "pci_known": false,
+      "firmware_known": false,
+      "kernel_journal_known": false
+    }
+  },
+  "remote_runtime": {
+    "exit": 0,
+    "result": "PASS",
+    "occupied_exit": 75,
+    "other_listener_preserved": true,
+    "partial_ipv6_released": true,
+    "released_port_http": 200,
+    "stop_exit": 0,
+    "socket_released": true,
+    "limits": [
+      "Isolated MOREMOTE_DATA_DIR intentionally suppresses canonical endpoint publication; source integration and helper controls cover that ordering.",
+      "Container image runtime proof, not installed account handoff, physical display, phone endurance, signed delivery or boot proof."
+    ]
+  },
+  "controller_payload": {
+    "result": "PASS",
+    "marker": "ACTUAL_IMMUTABLE_CONTROLLER_PAYLOAD_VERIFIED",
+    "canonical_count": 13,
+    "decoded_sidecar_count": 14,
+    "all_file_count": 27,
+    "cleanup_exit": 0
+  },
+  "exact_head_ci": {
+    "repository": 39592242124,
+    "remote": 39592242102,
+    "arm": 39592242289,
+    "x86": 39592242038,
+    "canary": 39592242129,
+    "actual_build_gates": "success",
+    "arm_pr_disk_and_promotion": "skipped",
+    "advisory": {
+      "run": 39592242081,
+      "wrapper": "success",
+      "actual_action": "failure/is_error:true/exit1; no automated review accepted"
+    }
+  },
+  "readback_receipt_sha256": {
+    "source-5467.json": "6bf145b316dba9747f318de0db719d2fc346567537defe81f24d51014167b06a",
+    "arm-5467.json": "612d4d9a03a297ef155f1a08ed55bfc34aa673f57ee184cd84b80041154be171",
+    "verification-5467.json": "d84c167b2d4be159a61b991b20f86f21804eb3cd74cd69cc9d7d1e2bb948c6be",
+    "payload-5467.json": "bc34a619d436fda572a9445e20609e6ec384cae336c90956e62853f52ab919cb",
+    "controller-payload-5467.json": "6d90048bb284b1c54635a9ef1146e5de1c247b1bbf325066f71c1be3eef05612",
+    "remote-5467.log": "19f963f8ccbd43ce9720e845d51b9a76600dcc6fb5bd46cc7a192646d1bce5f6"
+  },
+  "documentation_integration": {
+    "utc": "2026-10-21T16:41:47.843798+00:00",
+    "qualified_revision": "5467f565f756e25060b64c5e0f315b75a4a87be0",
+    "integrated_head": "9e034928dafa06e94868fec888eb06dfd69e506d",
+    "product_entries": 4659,
+    "product_manifest_sha256": "eeb93f1d017a76668e1cab99df5acd06672e9fc6b6f0748192fe4b83df2f255f",
+    "product_manifests_equal": true,
+    "excluded_documentation_only": [
+      "AGENTS.md",
+      "PROJECT_STATE.md",
+      "docs/**"
+    ],
+    "changed_paths": [
+      "AGENTS.md",
+      "PROJECT_STATE.md",
+      "docs/AGENT_COORDINATION.md",
+      "docs/DEVELOPMENT_PLAN.md",
+      "docs/releases/2026-10-21-controller-security-source-proof.json"
+    ]
+  },
+  "security_audit": {
+    "utc": "2026-10-21T16:36:51.687762+00:00",
+    "exit": 0,
+    "versions": {
+      "vite": "8.3.4"
+    },
+    "shared_exact_lock_in_topic_and_main": true,
+    "vulnerabilities": {
+      "info": 0,
+      "low": 0,
+      "moderate": 0,
+      "high": 0,
+      "critical": 0,
+      "total": 0
+    },
+    "error": null,
+    "audit_sha256": "d696f64d1ca130072b1954f5cbd9fb30b46def390b44c68de9715369be07b06a"
+  },
+  "repository_integrity": {
+    "utc": "2026-10-21T16:36:16.578803+00:00",
+    "exit": 0,
+    "dangling_lines": 21,
+    "other_lines": [],
+    "log_sha256": "fd315d908c71061464b03bc07fa1c19139ebf4049707ff80560124860b4fe1a5"
+  },
+  "remaining": [
+    "Main7ff4 signed cycle is active; keep its source and run ownership fixed",
+    "PR256 product is not yet merged/promoted/installed",
+    "Actual Wayland/physical touch, responsive shell, scale/accessibility and cold login acceptance",
+    "Retain Store timing failures, sensor/rotation/battery and physical greeter crash boundaries"
+  ],
+  "reference_integration": {
+    "utc": "2026-10-21T16:48:03.527979+00:00",
+    "head": "9e034928dafa06e94868fec888eb06dfd69e506d",
+    "head_references": 184,
+    "outside_integrated_head": [],
+    "documentation_only_changes_from_qualified_product": [
+      "AGENTS.md",
+      "PROJECT_STATE.md",
+      "docs/AGENT_COORDINATION.md",
+      "docs/AUDIT_20261019_AR.md",
+      "docs/DEVELOPMENT_PLAN.md",
+      "docs/PROGRESS_20261021_AR.md",
+      "docs/releases/2026-10-21-controller-security-source-proof.json",
+      "docs/reviews/2026-10-21-integrated-5467-qualification.json"
+    ],
+    "all_fetched_head_tips_ancestral": true
+  }
+}
