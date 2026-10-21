@@ -80,6 +80,16 @@ run dracut and create unowned rpm-state/kernel. Do not erase that state broadly
 or relax the final image gate. Require native old/fixed evidence and byte-level
 stock kernel readback as well as the complete canary image gates.
 
+**A shared package cache is not a transaction lease.** Two native full builds
+used the same DNF cache: one completed while the other was inside a successful
+SELinux postscript, then the latter could no longer install its remaining RPM
+payloads. Keep this first refusal and its overlap timeline. A real native cache
+fixture independently loses its payload in shared mode and retains it when
+locked. Every user of package/log cache mounts must hold `sharing=locked` for
+the complete RUN, acquiring cache then log consistently. A remaining shared
+user can ignore that lock. Preserve ordinary command failures and all image
+checks; do not force package installation or rerun a failed CI job.
+
 **An RPM directory can disagree with its runtime creator.** The reviewed6.7.91
 and6.8.1 greeter RPMs declare01770, while their tmpfiles rules require0750. A fresh
 base or sequential canary can already have the newer systemd and not re-run its
