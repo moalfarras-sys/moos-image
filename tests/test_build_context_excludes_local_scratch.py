@@ -14,9 +14,19 @@ the builder on every local build — `controller/node_modules` 191 MB, `agent-li
 This gate holds two things: every local-scratch path Git ignores is also kept out of the
 build context, and every concrete path `.containerignore` names actually exists — because
 a rule for a path that is not there is a rule that protects nothing.
+
+Mo Remote's nested .gitignore applies bin/obj/publish to EVERY .NET project,
+including tests and visual tools. The source contract below preserves those
+recursive exclusions; MOOS_BUILD_CONTEXT_PROBE=1 additionally exercises the
+real Podman COPY engine against private old/fixed scratch contexts.
 """
 from pathlib import Path
+import os
+import shutil
+import subprocess
+import tempfile
 import unittest
+import uuid
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -102,6 +112,70 @@ class BuildContext(unittest.TestCase):
         self.assertNotIn("moremote/obj/", self.container)
         self.assertIn("moremote/agent-linux/bin/", self.container)
         self.assertIn("moremote/controller/node_modules/", self.container)
+
+    def test_every_moremote_dotnet_project_output_is_excluded(self):
+        remote_git = entries("moremote/.gitignore")
+        for directory in ("bin", "obj", "publish"):
+            self.assertIn(directory + "/", remote_git)
+            self.assertIn(f"moremote/**/{directory}/", self.container,
+                          "nested test/tool output must not enter COPY moremote")
+
+    @unittest.skipUnless(os.environ.get("MOOS_BUILD_CONTEXT_PROBE") == "1",
+                         "set MOOS_BUILD_CONTEXT_PROBE=1 for the private Podman context proof")
+    def test_real_builder_old_and_fixed_recursive_dotnet_rules(self):
+        """Use the real COPY/ignore engine on tiny scratch images, never owner output."""
+        self.assertIsNotNone(shutil.which("podman"))
+        with tempfile.TemporaryDirectory(prefix="moos-context-proof-") as raw:
+            root = Path(raw)
+            context = root / "context"
+            context.mkdir()
+            forbidden = []
+            for project in ("agent", "agent-linux", "tests/Input.Tests", "tools/VisualInputTest"):
+                for directory in ("bin", "obj", "publish"):
+                    name = f"{project}/{directory}/probe.txt"
+                    path = context / "moremote" / name
+                    path.parent.mkdir(parents=True, exist_ok=True)
+                    path.write_text("private local build output")
+                    forbidden.append(name)
+            kept = ("agent/wwwroot/index.html", "tests/Input.Tests/Test.cs",
+                    "tools/VisualInputTest/binoculars/source.txt")
+            for name in kept:
+                path = context / "moremote" / name
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_text("source")
+            (context / "Containerfile").write_text("FROM scratch\nCOPY moremote/ /payload/\n")
+            fixed = (ROOT / ".containerignore").read_text()
+            old = "\n".join(line for line in fixed.splitlines()
+                            if line not in {f"moremote/**/{d}/" for d in ("bin", "obj", "publish")})
+
+            def copied_files(rules):
+                (context / ".containerignore").write_text(rules)
+                identity = "moos-context-proof-" + uuid.uuid4().hex
+                image = "localhost/" + identity
+                container = ""
+
+                def command(*args):
+                    return subprocess.run(["podman", *args], check=True, capture_output=True,
+                                          text=True, timeout=120).stdout.strip()
+
+                try:
+                    command("build", "--pull=never", "--layers=false", "-q", "-t", image, str(context))
+                    container = command("create", image, "/unused")
+                    destination = root / identity
+                    command("cp", container + ":/payload", str(destination))
+                    return {str(p.relative_to(destination)) for p in destination.rglob("*") if p.is_file()}
+                finally:
+                    if container:
+                        command("rm", container)
+                    subprocess.run(["podman", "image", "rm", image], capture_output=True,
+                                   text=True, timeout=120, check=False)
+
+            old_files = copied_files(old)
+            self.assertIn("tests/Input.Tests/bin/probe.txt", old_files,
+                          "the old ignore rules must reproduce the context leak")
+            fixed_files = copied_files(fixed)
+            self.assertFalse(set(forbidden) & fixed_files, fixed_files)
+            self.assertTrue(set(kept) <= fixed_files, fixed_files)
 
 
 if __name__ == "__main__":

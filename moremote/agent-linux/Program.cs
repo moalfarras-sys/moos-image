@@ -89,7 +89,7 @@ builder.Logging.ClearProviders(); builder.Services.AddSingleton(svc);
 // firewall is defence in depth, not authority to publish the agent on Wi-Fi/public interfaces.
 // Windows has a separate entry point and retains its direct Tailscale/LAN modes.
 builder.WebHost.ConfigureKestrel(o=>{o.Limits.MaxRequestBodySize=FileService.MaxUploadBytes;o.ListenLocalhost(config.Port,lo=>{if(tls!=null)lo.UseHttps(tls.Certificate);});});
-var app=builder.Build(); WebApi.UseNetworkGuard(app,svc); // Both values, because the interval alone is another gate that never fires. KeepAliveTimeout defaults
+await using var app=builder.Build(); WebApi.UseNetworkGuard(app,svc); // Both values, because the interval alone is another gate that never fires. KeepAliveTimeout defaults
 // to InfiniteTimeSpan, so ASP.NET sent a keep-alive ping every two minutes and then waited forever for
 // a reply that a wedged peer was never going to send — the connection stayed "open" indefinitely, which
 // is the server-side half of the stall the client watchdog was added to catch.
@@ -97,8 +97,12 @@ app.UseWebSockets(new WebSocketOptions {
     KeepAliveInterval = TimeSpan.FromSeconds(15),
     KeepAliveTimeout  = TimeSpan.FromSeconds(20),
 }); ShellFreshness.Use(app); app.UseDefaultFiles(); app.UseStaticFiles(); WebApi.Map(app,svc); app.MapFallbackToFile("index.html");
+if (!await ListenerStartup.TryStartAsync(app))
+{
+    Log.Warn($"Loopback port {config.Port} is occupied; leaving its listener intact. The service manager may retry within its startup limit.");
+    return 75;
+}
 Log.Info($"Linux server listening on loopback: http://127.0.0.1:{config.Port} (publish with Tailscale Serve)");
-await app.StartAsync();
 
 // Publish the endpoint only after Kestrel has bound it.  The native MoOS panel
 // consumes this small runtime fact instead of guessing the default port or

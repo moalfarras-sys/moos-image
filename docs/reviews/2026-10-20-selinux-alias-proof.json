@@ -1,0 +1,59 @@
+{
+  "result": "PASS",
+  "old_exit": 1,
+  "old_stderr": "Canary base finalization refused: unexpected symlink in compose state: var/lib/selinux\n",
+  "fixed_exit": 0,
+  "policy_files_unchanged": 1357,
+  "policy_tree_sha256": "a0f1683d315661680ee00f04c3cdf9414fe7620fa3957f55a1244bd497ca5bcf",
+  "alias_unlinked": true,
+  "scope": "Exact downloaded x86 base disposable network-isolated container; shipped tmpfiles authority; no host mounts",
+  "utc": "2026-10-20T11:14:10.695690+00:00",
+  "base_manifest": "sha256:7f8bc2035371842bc7fdd7f8d5a00e1b0358b7e9f50b15c33cdc69408b419d7a",
+  "base_image_id": "sha256:84e3eb98a52cf5cf00001e1dc05e8c8535509a36a36a719de89da1143316b151",
+  "vendor_authority": {
+    "path": "/usr/lib/tmpfiles.d/rpm-ostree-0-integration.conf",
+    "sha256": "f03c7703669ff2e6b9c8bde60bddf772a78bb9b0ca7b3b9770375c1f6fef89cf",
+    "exact_rule": "L /var/lib/selinux - - - - ../../etc/selinux",
+    "rpm_owned": false
+  },
+  "diagnosis": {
+    "failed_run": 39408210696,
+    "editions": [
+      "moos",
+      "moos-nvidia",
+      "moos-cloud"
+    ],
+    "stage": "base distro-sync followed by ostree container commit and strict finalizer",
+    "base_before_tmpfiles": "/var/lib/selinux absent",
+    "vendor_rule_reproduction_exit": 0,
+    "link_after_vendor_rule": "../../etc/selinux",
+    "link_after_container_commit": "../../etc/selinux"
+  },
+  "fixture_controls": {
+    "exit": 0,
+    "tests": 18,
+    "scope": "Private filesystem and injected mountinfo only; no mounts performed",
+    "refusals": [
+      "foreign/absolute/dangling alias",
+      "missing/comment-only/symlinked authority",
+      "incorrect active-store configuration",
+      "boot-policy mismatch",
+      "parent and authority-ancestor mounts",
+      "same-filesystem bind with Path.is_mount=False",
+      "policy descendant mount before rglob; no scan",
+      "malformed/empty/unreadable mount table and bad escapes",
+      "original differing policy module and package-state controls"
+    ]
+  },
+  "final_source_sha256": {
+    "build_files/finalize_canary_base.py": "eb55be5ce29de2510e173aa7cfdbe9555b61b7cbe5ddf84e353a28d7f2a7338a",
+    "tests/test_canary_base_state.py": "9304725e91a2a81d92da0abf108284637a97a482859ad75065d03886a4f0739e"
+  },
+  "limits": [
+    "Actual x86 proof used final mountinfo+preflight source and real policy bytes with no mounts below protected trees.",
+    "Bind-mount refusal is an injected mount-table control, not observed host bind damage.",
+    "This is isolated base finalization evidence, not a full image, boot, signing, promotion or installed-hardware proof.",
+    "All original directory-store equality checks and final identity/state gates remain mandatory."
+  ],
+  "raw_proof_log_sha256": "7ef599d39b55063729c2d7c2ee907095806de1949176b09f4745fd05895e5689"
+}

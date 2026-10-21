@@ -1,0 +1,79 @@
+{
+  "old": {
+    "failure": "TimeoutExpired",
+    "fallback": false,
+    "reset": false,
+    "readback": false,
+    "record": {
+      "unit": "moos-hw-private-fa42ac650ab943369dd381586dcd944d",
+      "RemainAfterExit": "yes",
+      "before_snapshot": {
+        "ActiveState": "inactive",
+        "SubState": "dead",
+        "ConditionResult": "no",
+        "Result": "success",
+        "ExecMainStatus": "0",
+        "ExecMainExitTimestampMonotonic": "0"
+      },
+      "before_accepted": false,
+      "completion_retries": 0,
+      "snapshot": {
+        "ActiveState": "active",
+        "SubState": "exited",
+        "ConditionResult": "yes",
+        "Result": "success",
+        "ExecMainStatus": "0",
+        "ExecMainExitTimestampMonotonic": "42"
+      },
+      "after_accepted": false,
+      "firings": 1
+    },
+    "result": "FAIL"
+  },
+  "fixed": {
+    "failure": "RuntimeError",
+    "fallback": true,
+    "reset": true,
+    "readback": true,
+    "record": {
+      "unit": "moos-hw-private-27726098c568441ea9ddfc63904d3e30",
+      "RemainAfterExit": "yes",
+      "before_snapshot": {
+        "ActiveState": "inactive",
+        "SubState": "dead",
+        "ConditionResult": "no",
+        "Result": "success",
+        "ExecMainStatus": "0",
+        "ExecMainExitTimestampMonotonic": "0"
+      },
+      "before_accepted": false,
+      "completion_retries": 0,
+      "snapshot": {
+        "ActiveState": "active",
+        "SubState": "exited",
+        "ConditionResult": "yes",
+        "Result": "success",
+        "ExecMainStatus": "0",
+        "ExecMainExitTimestampMonotonic": "42"
+      },
+      "after_accepted": false,
+      "firings": 1,
+      "cleanup_errors": [
+        {
+          "attempt": "cleanup_stop",
+          "type": "TimeoutExpired",
+          "detail": "Command '('systemctl', '--user', 'stop', 'moos-hw-private-27726098c568441ea9ddfc63904d3e30.timer', 'moos-hw-private-27726098c568441ea9ddfc63904d3e30.service')' timed out after 2 seconds"
+        }
+      ],
+      "cleanup_stop_noblock_exit": 0,
+      "cleanup_reset_exit": 0,
+      "cleanup_readback_0_exit": 3,
+      "cleanup_states": [
+        "inactive",
+        "inactive"
+      ],
+      "cleanup_verified": true
+    },
+    "result": "FAIL"
+  }
+}

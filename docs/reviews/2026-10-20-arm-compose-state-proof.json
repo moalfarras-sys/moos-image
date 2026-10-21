@@ -1,0 +1,90 @@
+{
+  "exit": 0,
+  "executed_marker": true,
+  "helper_sha256": "706b3ac9b7baceee4ffa7236f4aabfb1c42350d6dc633ffea4d449735504510e",
+  "base": "c4b9b693bbf4559b7b84ac8fc0d7ac08030dd6c74f94546edd9ca5b66e7e6846",
+  "artifact_directory": "/var/tmp/moos-arm-vendor-proof-20261020-oeziztgk",
+  "scope": "exact ARM base; disposable container; network none; no host mounts; actual helper retirement function, not initramfs proof",
+  "rules": [
+    {
+      "name": "rpm-ostree-0-integration.conf",
+      "sha256": "f03c7703669ff2e6b9c8bde60bddf772a78bb9b0ca7b3b9770375c1f6fef89cf",
+      "mode": "0o644",
+      "nlink": 3,
+      "uid": 0,
+      "gid": 0,
+      "lines": [
+        "d /var/roothome 0700 root root -"
+      ]
+    },
+    {
+      "name": "konflux-buildinfo-contentsets.conf",
+      "sha256": "43d9c01a06c1a1abe4e03ff0cea0a0e5366d4358b4695f4dbe09f23757d9d24c",
+      "mode": "0o664",
+      "nlink": 2,
+      "uid": 0,
+      "gid": 0,
+      "lines": [
+        "d /var/roothome/buildinfo 0755 - - -",
+        "d /var/roothome/buildinfo/content_manifests 0755 - - -",
+        "f /var/roothome/buildinfo/content_manifests/content-sets.json 0644 - - -",
+        "f /var/roothome/buildinfo/labels.json 0644 - - -"
+      ]
+    },
+    {
+      "name": "provision.conf",
+      "sha256": "f7b2706ad3e3592a953ab06cb962d461343bf672156304559d1ddf6eb6e7d02b",
+      "mode": "0o644",
+      "nlink": 2,
+      "uid": 0,
+      "gid": 0,
+      "lines": [
+        "d- /var/roothome/.ssh :0700 root :root -",
+        "f^ /var/roothome/.ssh/authorized_keys :0600 root :root - ssh.authorized_keys.root"
+      ]
+    }
+  ],
+  "entries": [
+    {
+      "name": "buildinfo",
+      "size": 56,
+      "mode": "0o755",
+      "uid": 0,
+      "gid": 0
+    },
+    {
+      "name": ".ssh",
+      "size": 0,
+      "mode": "0o700",
+      "uid": 0,
+      "gid": 0
+    },
+    {
+      "name": "buildinfo/content_manifests",
+      "size": 34,
+      "mode": "0o755",
+      "uid": 0,
+      "gid": 0
+    },
+    {
+      "name": "buildinfo/labels.json",
+      "size": 0,
+      "mode": "0o644",
+      "uid": 0,
+      "gid": 0
+    },
+    {
+      "name": "buildinfo/content_manifests/content-sets.json",
+      "size": 0,
+      "mode": "0o644",
+      "uid": 0,
+      "gid": 0
+    }
+  ],
+  "old_guard_refused": true,
+  "fixed_passed": true,
+  "root_home_removed": true,
+  "checked_at_utc": "2026-10-20T18:27:42.484098+00:00",
+  "portable_helper_tests": 18,
+  "scope_note": "Actual vendor creation and retirement function replay. Full real initramfs/image qualification still required. Earlier b87 full build failure is preserved in integration-followup.json."
+}

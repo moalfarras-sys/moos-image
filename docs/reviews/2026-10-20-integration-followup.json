@@ -1,0 +1,153 @@
+{
+  "date": "2026-10-20",
+  "qualified_previous_head": "ddbdfc1f4d3d83f775bde01ede271cbf7248c7d9",
+  "previous_head_ci": {
+    "repository": 39329627797,
+    "arm_image": 39329627711,
+    "x86_image": 39329628298,
+    "remote": 39329627701,
+    "actual_build_and_verify": "passed",
+    "arm_boot_and_promotion": "skipped on pull request; not release proof",
+    "advisory_review": {
+      "run": 39329627718,
+      "actual_outcome": "unavailable despite successful wrapper"
+    }
+  },
+  "incoming_main": "8687010abe51ac34a1728f496168d336494bacdb",
+  "merge": "6bef558d",
+  "incoming_change": "PR259 fingerprint startup and private PAM ordering; preserve vendor backends and account/password/session",
+  "merge_conflicts": "documentation only; retain current Oracle evidence and incoming physical V3 acceptance",
+  "focused_tests": {
+    "greeter_frontend": 9,
+    "greeter_rpms": 5,
+    "post_update": 19,
+    "native_private_pam": 17,
+    "pam_sandbox_first_attempt": "four failures with result4; same unchanged test passes all17 in native execution"
+  },
+  "new_main_build_failures": {
+    "x86": {
+      "run": 39408210696,
+      "reason": "unexpected symlink in compose state: var/lib/selinux",
+      "target": "not yet established; no permissive alias accepted"
+    },
+    "arm": {
+      "run": 39393513072,
+      "reason": "rmdir /var/roothome: Directory not empty",
+      "writer": "unproven; no directory inventory recorded"
+    }
+  },
+  "delivery": "merged batch requires fresh source/local image/CI qualification and signed boot-proven release; no host update or reboot performed",
+  "oracle_readback": {
+    "boot_id": "ac7a760c-cb01-46fb-8d30-a0960c13a9ec",
+    "booted": "44.20261017.804",
+    "staged": "44.20261019.816",
+    "staged_signed_digest": "c8aec0ac02d341a2109c1d0cff12d618c4623d11d5b0f024929314cda9346bc5",
+    "rollback": "44.20261015.792",
+    "transaction": null,
+    "failed_system_units": 0,
+    "failed_user_units": 0,
+    "scope": "read only; staging changed independently since earlier .807 snapshot; current fixes not in .816"
+  },
+  "arm_compose_followup": {
+    "helper": "build_files/compose_arm_initramfs.py",
+    "scope": "main and recovery retain exact dracut flags/output and final initramfs gates; recovery exposes existing ctx stage read-only",
+    "controls": 15,
+    "independent_review": "14 controls at reviewed checkpoint pass; final dependency-staging case added afterwards",
+    "old_negative": "private producer writes inherited HOME; exact old pipeline leaves nonempty roothome and rmdir fails",
+    "fixed": "HOME/XDG private scratch; unknown preexisting/new roothome bytes refused intact; filenames/type/size only bounded64; symlink/mount/foreign-owner/booted-host refusals",
+    "review_corrections": "preserve producer7 after log/cleanup failure; producer0 becomes1 on cleanup failure; refuse all descendant mounts before scratch traversal",
+    "cause_boundary": "actual earlier unknown bytes/writer not yet established; full real image required"
+  },
+  "arm_actual_diagnostic": {
+    "command": [
+      "nice",
+      "-n",
+      "10",
+      "podman",
+      "build",
+      "--jobs=1",
+      "--memory=5g",
+      "--pull=never",
+      "-f",
+      "Containerfile.arm",
+      "--build-arg",
+      "IMAGE_NAME=moos-arm",
+      "--label",
+      "org.opencontainers.image.version=44.20261020.0",
+      "--label",
+      "org.opencontainers.image.revision=b87f1c7dbbad99e6326432b0cc04efba75d37eb7",
+      "-t",
+      "localhost/moos-audit-integration:20261020-compose",
+      "."
+    ],
+    "source_revision": "b87f1c7dbbad99e6326432b0cc04efba75d37eb7",
+    "source_tree": "3698e9b5ec8738f0218873b0cbef63478313e1eb",
+    "initial_status": "",
+    "started_utc": "2026-10-20T10:58:15.201734+00:00",
+    "exit_code": 1,
+    "duration_seconds": 584.198,
+    "finished_utc": "2026-10-20T11:07:59.373341+00:00",
+    "log_sha256": "232c3e9d049edf6ef5fc213a07545a5812b159f06efcb2f55a2e2d8b75cd8a92",
+    "final_revision": "b87f1c7dbbad99e6326432b0cc04efba75d37eb7",
+    "final_tree": "3698e9b5ec8738f0218873b0cbef63478313e1eb",
+    "final_status": "",
+    "result_scope": "FAILED and preserved; not qualified image. Guard fails before dracut on preexisting root-home metadata.",
+    "observed_entries": [
+      {
+        "name": "buildinfo",
+        "type": "directory",
+        "size": 56
+      },
+      {
+        "name": ".ssh",
+        "type": "directory",
+        "size": 0
+      },
+      {
+        "name": "buildinfo/content_manifests",
+        "type": "directory",
+        "size": 34
+      },
+      {
+        "name": "buildinfo/labels.json",
+        "type": "file",
+        "size": 0
+      },
+      {
+        "name": "buildinfo/content_manifests/content-sets.json",
+        "type": "file",
+        "size": 0
+      }
+    ]
+  },
+  "selinux_alias_followup": {
+    "durable_proof": "2026-10-20-selinux-alias-proof.json",
+    "exact_native_base_old_exit": 1,
+    "exact_native_base_fixed_exit": 0,
+    "policy_files_unchanged": 1357,
+    "tests": 18,
+    "scope": "final code incl mountinfo and pre-traversal descendant mount refusal; full image still required"
+  },
+  "oracle_after_external_reboot": {
+    "boot_id": "16fb6cea-fb0b-4c95-8efa-cf719975d0a4",
+    "booted": "44.20261019.816",
+    "signed_digest": "c8aec0ac02d341a2109c1d0cff12d618c4623d11d5b0f024929314cda9346bc5",
+    "rollback": "44.20261017.804",
+    "transaction": null,
+    "failed_system_units": 0,
+    "failed_user_units": 0,
+    "selfcheck_passed": 52,
+    "selfcheck_notes": 2,
+    "selfcheck_exit": 0,
+    "selfcheck_artifact": "/var/tmp/moos-audit-20261020-pg5jls30",
+    "scope": "owner/external reboot observed; no agent reboot or origin mutation. Not current batch delivery."
+  },
+  "arm_vendor_retirement": {
+    "proof": "2026-10-20-arm-compose-state-proof.json",
+    "actual_vendor_replay_exit": 0,
+    "executed_marker": true,
+    "portable_controls": 18,
+    "known_state": "five exact empty entries; target file hardlinks/symlinks/keys/extra/nonempty/mismatched authority refused",
+    "authority_detail": "vendor authority files themselves have legitimate base hardlinks; exact reviewed modes retained, no writes to authority"
+  }
+}

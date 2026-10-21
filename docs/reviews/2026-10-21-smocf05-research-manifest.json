@@ -1,0 +1,23 @@
+{
+  "observed_utc": "2026-10-20T23:57:12.654746+00:00",
+  "files": {
+    "v5-patch.html": "b41619c9b1d65831bd1b3a12551540ccdd03c4ac7588a3987385031b3b66782e",
+    "systemd-fix.json": "821892cc68538e1d34fd36c6c47099b9f80736573abb746bb4b3ea42f0099576",
+    "linux-file.json": "d7afbae08e5f1cb7d4fbc39e73c1d7357f2aa74c8511bae3276497b02819fbb4",
+    "systemd-sensor.hwdb": "bf8e601ba0a6057956bd91808575f3029c2b6942a33671a5dedaaa1ebf89fb41",
+    "sources.json": "7cce0e565c4d5c9f7b38dbb13dc46888ee10b591f8616f24f74cd9bbde59d232",
+    "st_lsm6dsx_i2c.c": "0b7505a74a95808ff529f60aa2d100c5f7890e2fe60ead5e8cb2d1a67579431a",
+    "lore-v5.html": "34779914092a138e8a7f80071e909b8822b4b3dbf5e89376e0cb6ccc9ae9f835",
+    "iio-testing.c": "5527a593fe18195c37e0c31ab04e8fda2840a85a8bb7412e3aeea4e0e3acd755",
+    "linux-master-commit.json": "c0674cbc33c69456221cc1cff0e2c78fcd1cfa74b9db7271e2da15b2e9459038",
+    "systemd-fixed-commit.json": "07f67887e702375cf63e5173de05e3a672e84d905ea8c58b38074edede0984e2",
+    "followup-sources.json": "ed2a00c5699defb38a27c9c55f9a6e4a93826413653d086b7a080d0c66da9c94",
+    "linux-pinned-file.json": "0a72358f1f6f0033c103bf5b1b88c45feb4169df17091a1ac35ee43b3dfd11b4",
+    "linux-pinned-st_lsm6dsx_i2c.c": "0b7505a74a95808ff529f60aa2d100c5f7890e2fe60ead5e8cb2d1a67579431a",
+    "lore-v5-text.txt": "1b262c8967d8190a50b1c80f17d7930ef72e1c16556af1fb4e759e4936664770",
+    "iio-pinned-sources.json": "354674676aa63885801310c0123695f7a8675ee845fb10aeb0786bb96d95d29b",
+    "last-sources.json": "4dff8f8761cac9611b87d1e111515b03612bfb44372371627a498eb4e58401cd",
+    "report-ar.md": "1227a1df5040dbf677d023cc1e65c5da3ab590a5449e6a28873046fbd182d09a"
+  },
+  "iio_testing_ref_observed": "43ffda3c7f8456bbe641ae8249a077a361b97880"
+}

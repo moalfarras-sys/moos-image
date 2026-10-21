@@ -598,9 +598,10 @@ class ArmEditionTests(unittest.TestCase):
                            "the gate must outwait the timer delay plus the unit's own bound")
         self.assertLess(gate.index("hwadapt_deadline="), gate.index("systemctl --failed"),
                         "failed units are judged only after adaptation has finished")
-        # Result is already `success` before a unit has ever run; only ActiveState proves a pass.
-        self.assertIn('[ "${hwadapt_active:-}" = "active" ]', gate)
-        self.assertIn('[ "$hwadapt_result" = "success" ]', gate)
+        # A completed periodic oneshot must return inactive, with a real process exit.
+        self.assertIn("RemainAfterExit=no", service)
+        self.assertIn("ExecMainExitTimestampMonotonic", gate)
+        self.assertIn('hwadapt_completed "$hwadapt_snapshot"', gate)
 
     def test_arm_enforces_the_same_signed_registry_policy(self) -> None:
         build = read(BUILD)

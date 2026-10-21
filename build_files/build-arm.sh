@@ -134,6 +134,9 @@ _PLASMA=(
     # fedora-bootc supplies rpm-ostree today, but both tools are explicit product
     # dependencies rather than accidental base-image contents.
     rpm-ostree skopeo
+    # The read-only device plan and hardware report enumerate PCI/USB devices.
+    # x86 installs these explicitly; bare ARM bootc does not guarantee them.
+    pciutils usbutils
     # Native Mo PC Remote runtime. Encoders are capability-probed and JPEG is
     # the real fallback when a virtual GPU exposes no hardware codec.
     ydotool wl-clipboard grim spectacle python3-websockets poppler-utils qrencode
@@ -313,7 +316,8 @@ for unit in \
     moos-theme-sync.path moos-theme-drift.timer moos-health.timer \
     moos-cloud-audio.service moos-update-ready.timer moos-reclaim-disk.timer \
     moos-index-policy.service moos-privacy-monitor.service moos-material-state.service moos-app-drop.path \
-    moos-store-notify.path mo-remote-watchdog.timer mira-lumen.service; do
+    moos-store-notify.path mo-remote-watchdog.timer mira-lumen.service \
+    flatpak-user-update.service flatpak-user-update.timer; do
     test -f "/usr/lib/systemd/user/${unit}" || {
         echo "FATAL: shared user authority is missing: ${unit}"
         exit 1
@@ -340,6 +344,15 @@ systemctl --global enable \
 
 systemctl enable NetworkManager.service sshd.service firewalld.service tailscaled.service
 systemctl enable moos-auto-update.timer
+# ARM has no inherited updater units. The shared overlay now owns the same
+# complete service/timer bases on every edition, not just orphaned drop-ins.
+systemd-analyze verify \
+    /usr/lib/systemd/system/flatpak-system-update.service \
+    /usr/lib/systemd/system/flatpak-system-update.timer \
+    /usr/lib/systemd/user/flatpak-user-update.service \
+    /usr/lib/systemd/user/flatpak-user-update.timer
+systemctl enable flatpak-system-update.timer
+systemctl --global enable flatpak-user-update.timer
 # ARM does not inherit Kinoite's AppStream service. The shared delayed timer
 # needs a real backend here too; otherwise enabling the timer alone does nothing.
 install -m0644 /ctx/moos-appstream-refresh.service \
@@ -1298,27 +1311,9 @@ echo "=== (9) initramfs ==="
 bash /ctx/compile_system_hwdb.sh
 kver="$(rpm -q --qf '%{VERSION}-%{RELEASE}.%{ARCH}\n' kernel-core | tail -1)"
 [ -n "${kver}" ] || { echo "FATAL: no kernel-core in the image"; exit 1; }
-# bootc keeps /root as a symlink to mutable /var/roothome, while an image build
-# deliberately leaves /var empty. dracut resolves that root home while composing
-# its passwd payload; with a dangling target it logs a false-success ERROR for
-# `/root`. Materialize it only for the compose, then restore the clean /var
-# contract before bootc lint.
-# Metadata only: distinguish pre-existing compose state from dracut output.
-# Do not follow links or print file contents; retain the original refusal.
-echo "=== root-home state before initramfs (metadata only) ==="
-if [ -e /var/roothome ] || [ -L /var/roothome ]; then
-    find -P /var/roothome -xdev -maxdepth 3 -printf '%y %P %m %s\n' | sed -n '1,60p'
-fi
-python3 /ctx/finalize_root_home.py --root /
-install -d -m0700 /var/roothome
-dracut --no-hostonly --force --reproducible \
-    --add "ostree plymouth" \
-    "/usr/lib/modules/${kver}/initramfs.img" "${kver}" 2>&1 | tail -20
-if ! rmdir /var/roothome; then
-    echo "FATAL: unexpected root-home state after initramfs; preserving all entries"
-    find -P /var/roothome -xdev -maxdepth 3 -printf '%y %P %m %s\n' | sed -n '1,60p' || true
-    exit 1
-fi
+# Materialize bootc's root-home target for passwd collection, but keep HOME/XDG
+# build writes private. Unknown root-home bytes fail intact with metadata.
+python3 /ctx/compose_arm_initramfs.py "${kver}"
 
 python3 /ctx/verify_plymouth_initramfs.py "/usr/lib/modules/${kver}/initramfs.img"
 
@@ -1660,6 +1655,7 @@ python3 /ctx/verify_arm_image.py
 python3 /ctx/verify_sound_theme.py
 python3 /ctx/verify_qml_host_platform.py
 python3 /ctx/verify_moos_motion.py --qml /ctx/motion-review.qml
+MOOS_TOUCH_OVERLAY=/ MOOS_REQUIRE_NATIVE_TOUCH=1 python3 /ctx/test_island_touch_target.py
 python3 /ctx/verify_no_foreign_identity.py
 # Every handler mimeapps.list promises must exist HERE. The ARM base ships no KDE
 # apps, so a type this image claims but cannot open is a defect only the finished
@@ -1667,6 +1663,7 @@ python3 /ctx/verify_no_foreign_identity.py
 python3 /ctx/verify_mime_handlers.py --root /
 python3 /ctx/verify_desktop_parity.py --root /
 python3 /ctx/verify_memory_policy.py --root /
+python3 /ctx/verify_app_updates.py --root /
 python3 /ctx/android_session_policy.py verify --edition "$MOOS_EDITION"
 
 

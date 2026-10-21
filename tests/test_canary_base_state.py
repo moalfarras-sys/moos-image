@@ -47,6 +47,203 @@ class CanaryState(unittest.TestCase):
         self.assertIn('d /var/lib/hp 0755 root root',
                       (self.root/'usr/lib/tmpfiles.d/moos-plasma-next-state.conf').read_text())
 
+    def alias(self, target='../../etc/selinux'):
+        import shutil
+        shutil.rmtree(self.old.parent)
+        self.old.parent.symlink_to(target)
+        authority = self.root/'usr/lib/tmpfiles.d/rpm-ostree-0-integration.conf'
+        authority.parent.mkdir(parents=True, exist_ok=True)
+        authority.write_text('L /var/lib/selinux - - - - ../../etc/selinux\n')
+        return authority
+
+    def test_exact_vendor_alias_retired_without_touching_real_policy(self):
+        self.alias()
+        from finalize_canary_base import tree
+        before = tree(self.root, 'etc/selinux/targeted')
+        finalize(self.root)
+        self.assertFalse(self.old.parent.is_symlink())
+        self.assertEqual(tree(self.root, 'etc/selinux/targeted'), before)
+
+    def test_alias_requires_exact_target_and_authority(self):
+        for target in ('/etc/selinux', '../../etc', '../../etc/selinux/targeted', '../../../outside'):
+            with self.subTest(target=target):
+                self.alias() if not self.old.parent.is_symlink() else None
+                self.old.parent.unlink()
+                self.old.parent.symlink_to(target)
+                with self.assertRaisesRegex(RuntimeError, 'unreviewed SELinux'):
+                    finalize(self.root)
+                self.assertTrue(self.old.parent.is_symlink())
+        self.old.parent.unlink()
+        self.old.parent.symlink_to('../../etc/selinux')
+        authority = self.root/'usr/lib/tmpfiles.d/rpm-ostree-0-integration.conf'
+        authority.write_text('# L /var/lib/selinux - - - - ../../etc/selinux\n')
+        with self.assertRaisesRegex(RuntimeError, 'missing authority'):
+            finalize(self.root)
+        self.assertTrue(self.old.parent.is_symlink())
+
+    def test_alias_refuses_higher_priority_authority_before_any_retirement(self):
+        self.alias()
+        override = self.root/'etc/tmpfiles.d/rpm-ostree-0-integration.conf'
+        override.parent.mkdir(parents=True)
+        override.symlink_to('/dev/null')
+        before = tree(self.root, 'etc/selinux/targeted')
+        with self.assertRaisesRegex(RuntimeError, 'local tmpfiles authority override'):
+            finalize(self.root)
+        self.assertTrue(self.old.parent.is_symlink())
+        self.assertTrue(override.is_symlink())
+        self.assertEqual(tree(self.root, 'etc/selinux/targeted'), before)
+
+    def test_alias_never_bypasses_real_policy_or_config(self):
+        self.alias()
+        (self.real/'policy/policy.35').write_bytes(b'wrong boot policy')
+        with self.assertRaisesRegex(RuntimeError, 'actual boot policy'):
+            finalize(self.root)
+        self.assertTrue(self.old.parent.is_symlink())
+        (self.real/'policy/policy.35').write_bytes(b'compiled')
+        (self.root/'etc/selinux/semanage.conf').write_text('module-store=direct\nstore-root=/var/lib/selinux\n')
+        with self.assertRaisesRegex(RuntimeError, 'not proven inactive'):
+            finalize(self.root)
+        self.assertTrue(self.old.parent.is_symlink())
+
+    def test_dangling_alias_and_linked_authority_are_refused(self):
+        self.alias()
+        import shutil
+        shutil.rmtree(self.real.parent)
+        with self.assertRaisesRegex(RuntimeError, 'unreviewed SELinux'):
+            finalize(self.root)
+        self.assertTrue(self.old.parent.is_symlink())
+
+    def test_alias_parent_mount_is_refused(self):
+        self.alias()
+        from unittest.mock import patch
+        original = Path.is_mount
+        def mounted(path):
+            return path == self.old.parent.parent or original(path)
+        with patch.object(Path, 'is_mount', mounted):
+            with self.assertRaisesRegex(RuntimeError, 'parent owner or mount'):
+                finalize(self.root)
+        self.assertTrue(self.old.parent.is_symlink())
+
+    def test_linked_alias_authority_is_refused(self):
+        authority = self.alias()
+        other = self.root/'rule'
+        authority.rename(other)
+        authority.symlink_to(other)
+        with self.assertRaisesRegex(RuntimeError, 'unexpected symlink'):
+            finalize(self.root)
+        self.assertTrue(self.old.parent.is_symlink())
+
+    def test_mountinfo_same_filesystem_bind_and_authority_parent_refused(self):
+        self.alias()
+        import finalize_canary_base as module
+        from unittest.mock import patch
+        before = module.tree(self.root, 'etc/selinux/targeted')
+        for mount in (self.old.parent.parent, self.root/'usr/lib', self.real/'active/modules'):
+            with self.subTest(mount=mount):
+                # A same-filesystem bind can report false through is_mount.
+                with patch.object(Path, 'is_mount', return_value=False), \
+                     patch.object(module, 'mount_points', return_value={Path('/'), mount}):
+                    with self.assertRaisesRegex(RuntimeError, 'unsafe.*mount'):
+                        finalize(self.root)
+                self.assertTrue(self.old.parent.is_symlink())
+                self.assertEqual(module.tree(self.root, 'etc/selinux/targeted'), before)
+
+    def test_policy_descendant_mount_refused_before_rglob(self):
+        self.alias()
+        import finalize_canary_base as module
+        from unittest.mock import patch
+        before = module.tree(self.root, 'etc/selinux/targeted')
+        mount = self.real/'active/modules'
+        with patch.object(Path, 'is_mount', return_value=False), \
+             patch.object(module, 'mount_points', return_value={Path('/'), mount}), \
+             patch.object(Path, 'rglob', side_effect=AssertionError('mounted subtree inspected')) as scan:
+            with self.assertRaisesRegex(RuntimeError, 'mounted policy subtree'):
+                finalize(self.root)
+            scan.assert_not_called()
+        self.assertTrue(self.old.parent.is_symlink())
+        self.assertEqual(module.tree(self.root, 'etc/selinux/targeted'), before)
+
+    def test_mountinfo_decode_and_fail_closed(self):
+        from finalize_canary_base import mount_points
+        decoded = mount_points('1 0 8:1 / / rw - btrfs /dev/test rw\n'
+                               r'2 1 8:1 / /tmp/a\040b\134c rw - btrfs /dev/test rw' + '\n')
+        self.assertIn(Path('/tmp/a b' + chr(92) + 'c'), decoded)
+        for text in ('', 'malformed', '1 0 8:1 / relative rw - btrfs /dev/test rw',
+                     r'1 0 8:1 / /tmp/bad\777 rw - btrfs /dev/test rw'):
+            with self.subTest(text=text), self.assertRaises(RuntimeError):
+                mount_points(text)
+
+        from unittest.mock import patch
+        with patch.object(Path, "read_text", side_effect=OSError("private denied mountinfo")):
+            with self.assertRaisesRegex(RuntimeError, "cannot establish"):
+                mount_points()
+
+    def local_prefix(self):
+        from finalize_canary_base import refuse_tmpfiles_overrides
+        (self.root/'usr').mkdir(exist_ok=True)
+        (self.root/'usr/local').symlink_to('../var/usrlocal')
+        authority=self.root/'usr/lib/tmpfiles.d/native.conf'
+        authority.parent.mkdir(parents=True,exist_ok=True)
+        authority.write_text('d /var/fixture 0755 - - -\n')
+        return refuse_tmpfiles_overrides,authority
+
+    def test_exact_atomic_dangling_local_prefix_is_supported(self):
+        check,authority=self.local_prefix()
+        check(self.root,str(authority.relative_to(self.root)),set())
+        self.assertEqual(os.readlink(self.root/'usr/local'),'../var/usrlocal')
+        self.assertFalse((self.root/'var/usrlocal').exists())
+
+    def test_atomic_mapped_local_override_and_mask_refuse_before_delete(self):
+        from unittest.mock import patch
+        check,authority=self.local_prefix()
+        override=self.root/'var/usrlocal/lib/tmpfiles.d'/authority.name
+        override.parent.mkdir(parents=True)
+        for masked in (False,True):
+            if masked:override.symlink_to('/dev/null')
+            else:override.write_text('local policy')
+            with patch.object(Path,'unlink',side_effect=AssertionError('premature delete')), \
+                    patch.object(Path,'rmdir',side_effect=AssertionError('premature delete')):
+                with self.assertRaisesRegex(RuntimeError,'override'):
+                    check(self.root,str(authority.relative_to(self.root)),set())
+            override.unlink()
+
+    def test_atomic_mapped_mount_refuses_before_target_validation(self):
+        from unittest.mock import patch
+        import finalize_canary_base as module
+        check,authority=self.local_prefix()
+        original=module.owned_path
+        def owned(root,relative):
+            if relative.startswith('var/usrlocal'):raise AssertionError('entered mounted prefix')
+            return original(root,relative)
+        with patch.object(module,'owned_path',side_effect=owned), \
+                patch.object(Path,'is_mount',return_value=False):
+            with self.assertRaisesRegex(RuntimeError,'mount'):
+                check(self.root,str(authority.relative_to(self.root)),{self.root/'var/usrlocal'})
+
+    def test_atomic_prefix_owner_and_group_mismatch_refuse(self):
+        from unittest.mock import patch
+        check,authority=self.local_prefix();alias=self.root/'usr/local'
+        original=Path.lstat
+        for field in (4,5):
+            def metadata(path,*args,**kwargs):
+                value=original(path,*args,**kwargs)
+                if path==alias:
+                    fields=list(value);fields[field]+=1;return os.stat_result(fields)
+                return value
+            with patch.object(Path,'lstat',metadata):
+                with self.assertRaisesRegex(RuntimeError,'unreviewed'):
+                    check(self.root,str(authority.relative_to(self.root)),set())
+
+    def test_unknown_local_prefix_link_and_mapped_parent_link_refuse(self):
+        check,authority=self.local_prefix()
+        alias=self.root/'usr/local';alias.unlink();alias.symlink_to('../owner-local')
+        with self.assertRaisesRegex(RuntimeError,'unreviewed'):
+            check(self.root,str(authority.relative_to(self.root)),set())
+        alias.unlink();alias.symlink_to('../var/usrlocal')
+        (self.root/'var/usrlocal').symlink_to(self.real)
+        with self.assertRaisesRegex(RuntimeError,'symlink'):
+            check(self.root,str(authority.relative_to(self.root)),set())
+
     def test_configured_var_store_is_never_retired(self):
         (self.root/'etc/selinux/semanage.conf').write_text('module-store=direct\nstore-root=/var/lib/selinux\n')
         self.refused('not proven inactive')

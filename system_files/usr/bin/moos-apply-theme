@@ -364,9 +364,12 @@ set -uo pipefail
 # v106: deliver reviewed stable Plasma 6.8 seams and invalidate every cached variant.
 # 107: Store platform browsing, native touch/wheel management and localized
 #      Android lifecycle errors; purge frozen source QML in existing profiles.
-# 108: fit the launcher to the live work area; native touch/tab navigation
-#      and compact session actions replace clipped cached QML.
-THEME_REV=108
+# 108: invalidate cached KWin Arrange shortcuts after excluded-anchor validation.
+# 109: Island controls follow KDE tablet mode with real 44px touch targets;
+#      invalidate cached shell QML while preserving desktop artwork geometry.
+# 110: adaptive native launcher work area, touch/focus and logical RTL;
+#      retain the integrated Arrange/Island cache migrations.
+THEME_REV=110
 state_dir="${XDG_STATE_HOME:-$HOME/.local/state}"
 mkdir -p "$state_dir" 2>/dev/null || true
 marker="${state_dir}/moos-ui2-theme-applied.v${THEME_REV}"

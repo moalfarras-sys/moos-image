@@ -1,0 +1,66 @@
+{
+  "scope": "Read-only bounded exact ar20/font20/scale2.5/reducedmotion offscreen investigation. No repository changes.",
+  "source_identity": {
+    "tests/store_touch_probe.py": {
+      "worktree_sha256": "351a2fcb605009a4149cb0c4f371e3182ac6db4b85a63d15413b0f304538ba0a",
+      "9f3f61b5_sha256": "351a2fcb605009a4149cb0c4f371e3182ac6db4b85a63d15413b0f304538ba0a",
+      "identical": true
+    },
+    "tests/test_mo_store_ui_pages.py": {
+      "worktree_sha256": "da529ea4de1d41a539083e61afd61461d4fd95bc7e22ab1dcdfb258fd749b528",
+      "9f3f61b5_sha256": "da529ea4de1d41a539083e61afd61461d4fd95bc7e22ab1dcdfb258fd749b528",
+      "identical": true
+    },
+    "system_files/usr/share/moos/apps/store/CollectionRow.qml": {
+      "worktree_sha256": "a761860b3bdb4427066600e2217586e6ab16f612937baaa0308cc761234b515c",
+      "9f3f61b5_sha256": "a761860b3bdb4427066600e2217586e6ab16f612937baaa0308cc761234b515c",
+      "identical": true
+    },
+    "system_files/usr/share/moos/apps/store/ProgressButton.qml": {
+      "worktree_sha256": "6312c1d2b937d566bb99d5b5c2596d0fbaa6178b8bbe599cf98e5aef661dca36",
+      "9f3f61b5_sha256": "6312c1d2b937d566bb99d5b5c2596d0fbaa6178b8bbe599cf98e5aef661dca36",
+      "identical": true
+    },
+    "system_files/usr/share/moos/apps/store/DiscoverPage.qml": {
+      "worktree_sha256": "a0aa070be166e3b05e8a0c57c952a8b688fe9f617664d089029eb7cab4f2fd01",
+      "9f3f61b5_sha256": "a0aa070be166e3b05e8a0c57c952a8b688fe9f617664d089029eb7cab4f2fd01",
+      "identical": true
+    }
+  },
+  "preserved_failures": [
+    "Original full check7eda first vertical angle wheel delta0/shelfdelta0.",
+    "Original no-compiler repeat2 firstwheel passes69.48; later pillwheel failsdelta0 atparent1742.2.",
+    "Private global Python eventFilter instrumentation hit Shiboken assertion; discarded as fixture failure."
+  ],
+  "observed_successes": [
+    "Unmodified exactvariant replay passes47controls.",
+    "Hitgeometry/native Qt wheel-target instrumentation passes47controls; native target discoverFlick.",
+    "Frame counter + optional render instrumentation passes47controls; optional failure render not triggered.",
+    "Failure-only native trace passes47controls.",
+    "Minimal exactbasename/appname framecounter passes47controls; angle wheel advances2frames~69px, pillwheel3frames~-69px."
+  ],
+  "conclusion": "Intermittent failure is real and preserved; no causal source/input/geometry/clock diagnosis proven. No timeout/assertion weakened, no speculative product patch.",
+  "hypotheses_not_proven": [
+    "Compiler pressure is not established; failure reproduced without compiler.",
+    "Qt timestamp suppression exists in upstream but not observed in successful traces.",
+    "Fixed180ms offscreen read has no post-input render handshake; only2\u20133frame progress observed, but no failed frame state captured."
+  ],
+  "primary_sources": [
+    "https://raw.githubusercontent.com/qt/qtdeclarative/v6.11.2/src/quick/items/qquickflickable.cpp",
+    "https://raw.githubusercontent.com/qt/qtdeclarative/v6.11.2/src/quick/util/qquickdeliveryagent.cpp"
+  ],
+  "evidence_hashes": {
+    "/tmp/moos-final-source5-20261019.log": "0cb605309ab557b63f77bfe3cbf8036d143b4052132369b3666690d3de6166d3",
+    "/tmp/moos-store-ar20-repeat2-20261019/stdout.log": "1f4279681ba61b434d0b5c3940c801bb65b3398dbe853f476c5d30dc3ac5d0dd",
+    "/tmp/moos-touch-original-1/stdout.log": "0fd16492ce8498856255720716f41f1bd1685f969dfb9d3d7e705e0eb1c2c193",
+    "/tmp/moos-touch-original-1/stderr.log": "62a41cad460dbe8621c0c08f235f78389eec1ebae87df51e9325031d25f82202",
+    "/tmp/moos-touch-instrumented-2/stdout.log": "3846a8500d5ea36e777a87c1ef5f93eb58795b969c93f651abf22a1ba9a86670",
+    "/tmp/moos-touch-instrumented-2/stderr.log": "6cfb42beaf9f01e80251a9ac5ac42ffcab08285af2b2d198de0e5e2f5d525e93",
+    "/tmp/moos-touch-frame-1/stdout.log": "92669d1041387d724303df0b2517f977f0795caef68eec78da9d8613fa73b7f9",
+    "/tmp/moos-touch-frame-1/stderr.log": "35988c1c8a19dc7a81b1bf97d5dfa54d26475d9e23dfdc62e195f5002e6b0974",
+    "/tmp/moos-touch-failure-1/stdout.log": "40033d3db3a6e9a4caf98ae130ee6550b0676fc878499be57b294da8082f7771",
+    "/tmp/moos-touch-failure-1/stderr.log": "fd424947df4454bea967060d616ca16ac9ecfd6cfcb7fd0f20fab2136c0a26fe",
+    "/tmp/moos-touch-minimal-1/stdout.log": "a789dda325334b631dc408b2e0c91d38b60eb76017f8fc473c98efdee2185b5e",
+    "/tmp/moos-touch-minimal-1/stderr.log": "c983741349ca8054c7419d074953571797ef404a5fa90a45e481fe7504f8dbdd"
+  }
+}

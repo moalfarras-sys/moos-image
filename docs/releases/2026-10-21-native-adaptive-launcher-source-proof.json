@@ -4,7 +4,7 @@
   "scope": "native adaptive launcher source; not a promoted or booted OS release",
   "base_revision": "7ff4b6024dbc7a53b011f894f3305f2dca7e29a0",
   "qml_checkpoint": "97b979c452538291600485fdc902b8adfe8135fc",
-  "theme_revision": 108,
+  "theme_revision": 110,
   "implementation": {
     "owner": "existing org.moos.brand Plasma applet, Kicker/Places/Milou/Session models retained",
     "work_area": "PlasmoidItem availableScreenRect with screen-validity guard and Qt Screen fallback",
@@ -115,5 +115,10 @@
     "launcher-installed-qualified-live-home-pointer-20261021.png": "188caee2336432233796254e095465aa8edd129e072d223ede10f1f9f4813202",
     "launcher-installed-qualified-review-20261021.json": "173d8b8df39a8a1f3f3880ab5137ba9237b7e04c6c018ff98a041c324343c392",
     "launcher-installed-qualified-native-pointer-20261021.json": "90bea4677a910ef5073de40e85f33ca0c547224ee473e95d39316c3968535048"
+  },
+  "integration": {
+    "main": "f1c4f7937b15263a6893045ca35a48b4c0acffb5",
+    "preserves": "PR256 Arrange/Island revision109, native composition and app updates",
+    "note": "earlier reviewed source applet used108; unchanged launcher QML is integrated at fresh110"
   }
 }

@@ -35,12 +35,40 @@ class RootHome(unittest.TestCase):
             path.write_text('# Native vendor authority\n'+'\n'.join(rules)+'\n')
         self.authorities = {name:(self.root/name).read_bytes() for name in RULES}
 
+    def test_same_filesystem_bind_refuses_before_any_enumeration(self):
+        base=self.home
+        before=set(base.rglob('*'))
+        with patch('finalize_root_home.mount_points', return_value={base/'private-mounted-child'}), \
+                patch.object(Path, 'is_mount', return_value=False), \
+                patch.object(Path, 'iterdir', side_effect=AssertionError('traversed mounted tree')):
+            with self.assertRaisesRegex(RuntimeError,'mounted'):
+                finalize(self.root)
+        self.assertEqual(set(base.rglob('*')),before)
+
+    def test_local_tmpfiles_mask_refuses_before_first_delete(self):
+        authority=self.root/PROVISION
+        override=self.root/'etc/tmpfiles.d'/authority.name
+        override.parent.mkdir(parents=True,exist_ok=True)
+        override.symlink_to('/dev/null')
+        with patch.object(Path,'unlink',side_effect=AssertionError('deleted before authority validation')), \
+                patch.object(Path,'rmdir',side_effect=AssertionError('deleted before authority validation')):
+            with self.assertRaisesRegex(RuntimeError,'override'):
+                finalize(self.root)
+
     def refused(self, text):
         paths = {str(p.relative_to(self.home)) for p in self.home.rglob('*')}
         with self.assertRaisesRegex((RuntimeError, OSError), text):
             finalize(self.root)
         self.assertTrue(self.home.exists())
         self.assertEqual({str(p.relative_to(self.home)) for p in self.home.rglob('*')}, paths)
+
+    def test_hardlinked_zero_byte_retirement_target_preserved(self):
+        target=self.home/'buildinfo/labels.json'
+        alias=self.root/'outside-labels';os.link(target,alias)
+        inode=alias.stat().st_ino
+        self.refused('not empty owned vendor state')
+        self.assertEqual(alias.stat().st_ino,inode)
+        self.assertEqual(target.stat().st_nlink,2)
 
     def test_empty_vendor_scaffolds_retire_with_authorities_unchanged(self):
         sentinel = self.root/'preserved';sentinel.write_bytes(b'not compose state')

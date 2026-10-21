@@ -1,0 +1,84 @@
+{
+  "schema": 1,
+  "source": {
+    "command": [
+      "nice",
+      "-n",
+      "10",
+      "env",
+      "MOOS_BUILD_CONTEXT_PROBE=1",
+      "just",
+      "check"
+    ],
+    "source_revision": "3708dc24f52c9634c45bfe4c99a287368060f8ee",
+    "source_tree": "502ca7631c48933a015760c8297275b896b26b6b",
+    "initial_status": "",
+    "started_utc": "2026-10-20T18:44:42.086127+00:00",
+    "exit_code": 0,
+    "duration_seconds": 843.494,
+    "finished_utc": "2026-10-20T18:58:45.553300+00:00",
+    "log_sha256": "f877db73618758be3ae299c77bf5e9b20ff08ad82e65ecef8d0bd8063be70311",
+    "final_revision": "3708dc24f52c9634c45bfe4c99a287368060f8ee",
+    "final_tree": "502ca7631c48933a015760c8297275b896b26b6b",
+    "final_status": "",
+    "reported_test_cases": 2765,
+    "unittest_summaries": 202,
+    "reported_conditional_skips": 14
+  },
+  "arm_image": {
+    "command": [
+      "nice",
+      "-n",
+      "10",
+      "podman",
+      "build",
+      "--jobs=1",
+      "--memory=5g",
+      "--pull=never",
+      "-f",
+      "Containerfile.arm",
+      "--build-arg",
+      "IMAGE_NAME=moos-arm",
+      "--label",
+      "org.opencontainers.image.version=44.20261020.0",
+      "--label",
+      "org.opencontainers.image.revision=3708dc24f52c9634c45bfe4c99a287368060f8ee",
+      "-t",
+      "localhost/moos-audit-integration:20261020-final",
+      "."
+    ],
+    "source_revision": "3708dc24f52c9634c45bfe4c99a287368060f8ee",
+    "source_tree": "502ca7631c48933a015760c8297275b896b26b6b",
+    "initial_status": "",
+    "started_utc": "2026-10-20T18:58:46.307280+00:00",
+    "exit_code": 1,
+    "duration_seconds": 496.032,
+    "finished_utc": "2026-10-20T19:07:02.322392+00:00",
+    "log_sha256": "c71fc0d9064333f6bddeb66132b5f3cc5b155c97a266aa4d37a1bcf7141583e2",
+    "final_revision": "3708dc24f52c9634c45bfe4c99a287368060f8ee",
+    "final_tree": "502ca7631c48933a015760c8297275b896b26b6b",
+    "final_status": ""
+  },
+  "ci": {
+    "repository": {
+      "run_id": 39477503768,
+      "conclusion": "success"
+    },
+    "remote": {
+      "run_id": 39477503765,
+      "conclusion": "success"
+    },
+    "x86": {
+      "run_id": 39477503754,
+      "conclusion": "failure",
+      "reason": "Exact reviewed Plasma 6.8.0 package guard refused upstream 6.8.1-1.fc44 inputs"
+    },
+    "advisory": {
+      "run_id": 39477503764,
+      "wrapper": "success",
+      "actual_review": "unavailable; is_error=true"
+    }
+  },
+  "qualification": "Source passes; ARM and x86 images NOT qualified. No signed delivery or physical acceptance inferred.",
+  "arm_failure": "Exact post-transaction tmpfiles authority differs from raw-base reviewed rules. Unknown root-home entries were preserved. Investigation pending."
+}

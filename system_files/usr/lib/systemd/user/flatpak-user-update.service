@@ -1,0 +1,8 @@
+# Shared MoOS base; the drop-ins own scheduling and background priority.
+[Unit]
+Description=MoOS application updates for this account
+
+[Service]
+Type=oneshot
+ExecCondition=/bin/bash -c 'metered="$(busctl --timeout=5s get-property org.freedesktop.NetworkManager /org/freedesktop/NetworkManager org.freedesktop.NetworkManager Metered)" && [[ "$metered" == "u 2" || "$metered" == "u 4" ]]'
+ExecStart=/usr/libexec/moos-flatpak-update --user

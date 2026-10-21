@@ -1,0 +1,25 @@
+{
+  "recorded_utc": "2026-10-19T15:17:46.727280+00:00",
+  "receipt": {
+    "command": [
+      "nice",
+      "-n",
+      "15",
+      "just",
+      "check"
+    ],
+    "source_revision": "7eda0ffb904e7b22d911493b83e5dbfdc76a53de",
+    "source_tree": "d1a02b18471f6cbbb264ed7fd3a54c6fdef96612",
+    "initial_status": "",
+    "started_utc": "2026-10-19T14:57:04.826501+00:00",
+    "exit_code": 1,
+    "duration_seconds": 1105.166,
+    "finished_utc": "2026-10-19T15:15:29.918718+00:00",
+    "log_sha256": "0cb605309ab557b63f77bfe3cbf8036d143b4052132369b3666690d3de6166d3",
+    "final_revision": "7eda0ffb904e7b22d911493b83e5dbfdc76a53de",
+    "final_tree": "d1a02b18471f6cbbb264ed7fd3a54c6fdef96612",
+    "final_status": ""
+  },
+  "failing_scope": "StoreTouchNavigation Arabic font20 scale2.5: vertical angle wheel parent/shelf deltas0",
+  "investigation": "pending; source Store payload unchanged vs previously passing9f3f61b5; concurrent compilation is observed context, not established cause"
+}

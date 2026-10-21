@@ -1,0 +1,55 @@
+{
+  "image_id": "sha256:c26fd0566715510da0f85bfd1c369ffcbc1b13849a68ef4310fba69d0615a943",
+  "command": [
+    "podman",
+    "run",
+    "-i",
+    "--name",
+    "moos-remote-proof-9f8d92e0a5284495a516530356058d3b",
+    "--rm",
+    "--network=none",
+    "--read-only",
+    "--tmpfs",
+    "/tmp:rw,nosuid,nodev,size=128m",
+    "--user",
+    "65534:65534",
+    "--cap-drop=ALL",
+    "--security-opt",
+    "no-new-privileges",
+    "--pids-limit=128",
+    "--entrypoint",
+    "/usr/bin/python3",
+    "sha256:c26fd0566715510da0f85bfd1c369ffcbc1b13849a68ef4310fba69d0615a943",
+    "-"
+  ],
+  "exit_code": 0,
+  "evidence": "/tmp/moos-final-image-remote-zmt1eg9z",
+  "result": "PASS",
+  "negative": {
+    "exit": 75,
+    "log": "\ufeff2026-10-19 21:37:35 [INFO] ==== Mo Remote Personal starting (v1.0.0) ====\n2026-10-19 21:37:35 [INFO] Created default settings.json.\n2026-10-19 21:37:35 [WARN] portal helper: Traceback (most recent call last):\n2026-10-19 21:37:35 [WARN] portal helper:   File \"/usr/lib/mo-remote/mo-remote-portal.py\", line 35, in <module>\n2026-10-19 21:37:35 [WARN] portal helper:     bus = Gio.bus_get_sync(Gio.BusType.SESSION, None)\n2026-10-19 21:37:35 [WARN] portal helper: gi.repository.GLib.GError: g-io-error-quark: Could not connect: No such file or directory (1)\n2026-10-19 21:37:35 [WARN] portal helper: Traceback (most recent call last):\n2026-10-19 21:37:35 [WARN] portal helper:   File \"/usr/lib/mo-remote/mo-remote-portal.py\", line 35, in <module>\n2026-10-19 21:37:35 [WARN] portal helper:     bus = Gio.bus_get_sync(Gio.BusType.SESSION, None)\n2026-10-19 21:37:35 [WARN] portal helper: gi.repository.GLib.GError: g-io-error-quark: Could not connect: No such file or directory (1)\n2026-10-19 21:37:36 [WARN] Frame socket closed: Interrupted system call\n2026-10-19 21:37:36 [WARN] Portal helper exited (code 1); restarting.\n2026-10-19 21:37:36 [INFO] Portal recovery: retry in 1000 ms (sustained pictures: False).\n2026-10-19 21:37:36 [WARN] Frame socket closed: Interrupted system call\n2026-10-19 21:37:36 [WARN] Portal helper exited (code 1); restarting.\n2026-10-19 21:37:36 [INFO] Portal recovery: retry in 1000 ms (sustained pictures: False).\n2026-10-19 21:37:36 [WARN] Loopback port 38637 is occupied; leaving its listener intact. The service manager may retry within its startup limit.\n",
+    "stdout": "",
+    "stderr": "",
+    "partial_ipv6_released": true,
+    "fixture_holder_preserved": true
+  },
+  "positive": {
+    "http_status": 200,
+    "first_run": true,
+    "pre_login": false,
+    "sigterm_exit": 0,
+    "socket_released": true,
+    "log": "\ufeff2026-10-19 21:37:36 [INFO] ==== Mo Remote Personal starting (v1.0.0) ====\n2026-10-19 21:37:36 [INFO] Created default settings.json.\n2026-10-19 21:37:37 [WARN] portal helper: Traceback (most recent call last):\n2026-10-19 21:37:37 [WARN] portal helper:   File \"/usr/lib/mo-remote/mo-remote-portal.py\", line 35, in <module>\n2026-10-19 21:37:37 [WARN] portal helper:     bus = Gio.bus_get_sync(Gio.BusType.SESSION, None)\n2026-10-19 21:37:37 [WARN] portal helper: gi.repository.GLib.GError: g-io-error-quark: Could not connect: No such file or directory (1)\n2026-10-19 21:37:37 [WARN] Frame socket closed: Interrupted system call\n2026-10-19 21:37:37 [WARN] Portal helper exited (code 1); restarting.\n2026-10-19 21:37:37 [INFO] Portal recovery: retry in 1000 ms (sustained pictures: False).\n2026-10-19 21:37:37 [WARN] portal helper: Traceback (most recent call last):\n2026-10-19 21:37:37 [WARN] portal helper:   File \"/usr/lib/mo-remote/mo-remote-portal.py\", line 35, in <module>\n2026-10-19 21:37:37 [WARN] portal helper:     bus = Gio.bus_get_sync(Gio.BusType.SESSION, None)\n2026-10-19 21:37:37 [WARN] portal helper: gi.repository.GLib.GError: g-io-error-quark: Could not connect: No such file or directory (1)\n2026-10-19 21:37:37 [WARN] Frame socket closed: Interrupted system call\n2026-10-19 21:37:37 [WARN] Portal helper exited (code 1); restarting.\n2026-10-19 21:37:37 [INFO] Portal recovery: retry in 1000 ms (sustained pictures: False).\n2026-10-19 21:37:37 [INFO] Linux server listening on loopback: http://127.0.0.1:38637 (publish with Tailscale Serve)\n",
+    "stderr": ""
+  },
+  "artifact_hashes": {
+    "/usr/lib/mo-remote/MoRemotePersonal": "cb4469816e7802879587e4f9a10e6febe37074ba80740b8bef8ccdd1b9fd4aa5",
+    "/usr/lib/mo-remote/MoRemotePersonal.dll": "18652049aa98863ab81762f1784613caedfe899a309a8a54b1ebeaac1bef0ec1",
+    "/usr/lib/mo-remote/mo-remote-portal.py": "6800709cb08c10b0bc07e13e9b1be35b3c0b73cbda0793978be065319b09330a"
+  },
+  "isolation": "read-only root; private tmpfs; uid65534; no capabilities; network=none loopback only; nonexistent private session/system/input/Wayland/audio paths; no host mounts",
+  "limits": [
+    "Isolated MOREMOTE_DATA_DIR intentionally suppresses canonical endpoint publication; source integration and helper controls cover that ordering.",
+    "Container image runtime proof, not installed account handoff, physical display, phone endurance, signed delivery or boot proof."
+  ]
+}

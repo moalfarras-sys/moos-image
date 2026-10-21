@@ -30,6 +30,8 @@ TEMPLATE = ROOT / "system_files" / parity.LAYOUT
 
 # The ARM package that supplies each capability's first path.
 ARM_PACKAGE = {
+    "usr/bin/lspci": "pciutils",
+    "usr/bin/lsusb": "usbutils",
     "usr/share/qt6/translations/qtbase_ar.qm": "qt6-qttranslations",
     "usr/bin/pw-dump": "pipewire-utils",
     "usr/share/themes/Breeze/gtk-3.0/gtk.css": "breeze-gtk-gtk3",
@@ -52,6 +54,8 @@ def full_root(tmp: Path, skip: set[str] = frozenset(), extra_applet_missing: str
         path = tmp / alternatives[0]
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text("x", encoding="utf-8")
+        if alternatives[0] in parity.EXECUTABLE_CAPABILITIES:
+            path.chmod(0o755)
     layout = tmp / parity.LAYOUT
     layout.parent.mkdir(parents=True, exist_ok=True)
     layout.write_text(TEMPLATE.read_text(encoding="utf-8"), encoding="utf-8")
@@ -103,6 +107,21 @@ class TheGateRefuses(unittest.TestCase):
                 found = parity.problems(full_root(Path(raw), skip={alternatives[0]}))
                 self.assertEqual(len(found), 1, found)
                 self.assertIn(alternatives[0], found[0])
+
+    def test_hardware_enumerators_must_be_executable_files(self):
+        for name in parity.EXECUTABLE_CAPABILITIES:
+            with self.subTest(path=name), tempfile.TemporaryDirectory() as raw:
+                root = full_root(Path(raw))
+                path = root / name
+                path.chmod(0o644)
+                found = parity.problems(root)
+                self.assertEqual(len(found), 1, found)
+                self.assertIn(name, found[0])
+                path.unlink()
+                path.mkdir()
+                found = parity.problems(root)
+                self.assertEqual(len(found), 1, found)
+                self.assertIn(name, found[0])
 
     def test_a_bar_applet_the_edition_lacks_is_named(self):
         with tempfile.TemporaryDirectory() as raw:

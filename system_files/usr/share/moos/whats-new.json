@@ -61,6 +61,23 @@
       ]
     },
     {
+      "id": "arm-scheduled-app-updates",
+      "arch": [
+        "aarch64"
+      ],
+      "merged": "2026-10-18T23:59:59Z",
+      "glyph": "install",
+      "route": "moos://settings/update",
+      "title": {
+        "ar": "تحديث التطبيقات تلقائيًا على أجهزة ARM",
+        "en": "Scheduled application updates on ARM"
+      },
+      "body": {
+        "ar": "تعمل جدولة تحديث التطبيقات لحسابك وللتطبيقات المشتركة بأولوية منخفضة، ولا تستدرك التطبيقات المشتركة موعدًا فات عند الإقلاع. يبقى اختيارك لإيقاف التحديث التلقائي محفوظًا، وتتأجل تحديثات الحساب إذا كان المتجر مشغولًا.",
+        "en": "App updates run on a schedule for your account and shared apps at low priority. Shared apps avoid boot catch-up. Your automatic-update choice is preserved, and account updates skip to a later run while the Store is busy."
+      }
+    },
+    {
       "id": "mo-store-library",
       "merged": "2026-10-17T10:50:00Z",
       "glyph": "install",
@@ -896,23 +913,6 @@
         "ar": "سطرا التاريخ في لوحة MoOS على حافة واحدة، وشريحة الخصوصية في الجزيرة تعرض جملتها كاملة بدل قطعها.",
         "en": "The two date lines of the MoOS Hub sit on one edge, and the Island's privacy chip shows its whole sentence instead of cutting it."
       }
-    },
-    {
-      "id": "switcher",
-      "merged": "2026-09-17T22:36:04Z",
-      "glyph": "ui",
-      "title": {
-        "ar": "مبدّل النوافذ صار من MoOS",
-        "en": "The window switcher is MoOS now"
-      },
-      "body": {
-        "ar": "اضغط Alt+Tab: شريط زجاجي واحد يعرض نوافذك الحيّة، يقرأ من اليمين في الجلسة العربية، ويمكنك إغلاق النافذة منه مباشرة.",
-        "en": "Press Alt+Tab: one glass strip of your live windows, reading right-to-left in an Arabic session, and you can close a window straight from it."
-      },
-      "keys": [
-        "Alt",
-        "Tab"
-      ]
     }
   ]
 }

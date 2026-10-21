@@ -25,13 +25,54 @@ DERIVED = {'commit_num', 'file_contexts', 'file_contexts.homedirs', 'homedir_tem
            'modules_checksum', 'policy.kern', 'seusers', 'users_extra'}
 
 
-def tree(root: Path, relative: str) -> dict[str, str]:
+def mount_points(text: str | None = None) -> set[Path]:
+    """Read kernel mount identities; Path.is_mount misses same-filesystem binds."""
+    if text is None:
+        try:
+            text = Path('/proc/self/mountinfo').read_text()
+        except OSError as error:
+            raise RuntimeError('cannot establish compose mount ownership') from error
+    found = set()
+    for line in text.splitlines():
+        fields = line.split()
+        if len(fields) < 10 or '-' not in fields[6:]:
+            raise RuntimeError('invalid compose mount table')
+        encoded = fields[4]
+        if re.search(r'\\(?!040|011|012|134)', encoded):
+            raise RuntimeError('invalid escaped mount path')
+        decoded = re.sub(r'\\(040|011|012|134)',
+                         lambda match: chr(int(match.group(1), 8)), encoded)
+        path = Path(decoded)
+        if not path.is_absolute():
+            raise RuntimeError('nonabsolute compose mount path')
+        found.add(path)
+    if not found:
+        raise RuntimeError('empty compose mount table')
+    return found
+
+
+def refuse_mounted_ancestors(root: Path, path: Path, mounts: set[Path]) -> None:
+    for candidate in (path, *path.parents):
+        if candidate == root:
+            break  # the container/test root itself is naturally mounted
+        if not candidate.is_relative_to(root):
+            raise RuntimeError('compose path escaped root')
+        if candidate in mounts or candidate.is_mount():
+            raise RuntimeError(f'unsafe compose mount: {candidate.relative_to(root)}')
+
+
+def tree(root: Path, relative: str, mounts: set[Path] | None = None) -> dict[str, str]:
     base = owned_path(root, relative)
+    mounts = mount_points() if mounts is None else mounts
+    refuse_mounted_ancestors(root, base, mounts)
+    # Refuse mounted descendants before rglob enumerates another policy tree.
+    if any(mount.is_relative_to(base) for mount in mounts):
+        raise RuntimeError("unsafe mounted policy subtree")
     result = {}
     for path in (base, *sorted(base.rglob('*'))):
         owned_path(root, str(path.relative_to(root)))
         info = path.lstat()
-        if path.is_mount() or info.st_uid != root.stat().st_uid:
+        if path in mounts or path.is_mount() or info.st_uid != root.stat().st_uid:
             raise RuntimeError(f'unsafe owner or mount: {path.relative_to(root)}')
         if stat.S_ISREG(info.st_mode):
             if info.st_size > 32 * 1024**2:
@@ -47,64 +88,71 @@ def finalize(root: Path) -> None:
     if root == Path('/') and (not Path('/run/.containerenv').exists()
                              or Path('/run/ostree-booted').exists()):
         raise RuntimeError('canary finalization requires an unbooted build container')
-    # rpm-ostree's native tmpfiles rule creates this exact compatibility alias
-    # when systemd's upgrade scriptlet runs --create. Validate the parent with
-    # the ordinary no-links guard, then inspect the final entry without following
-    # it. Never make owned_path accept arbitrary links or walk this alias.
+    mounts = mount_points()
+    # Newer Atomic bases declare this exact compatibility alias through
+    # generated tmpfiles authority. Never follow or retire an arbitrary link.
     stale = owned_path(root, 'var/lib') / 'selinux'
     alias = stale.is_symlink()
     if alias:
         info = stale.lstat()
-        root_info = root.stat()
-        if (os.readlink(stale) != '../../etc/selinux' or stale.is_mount()
-                or info.st_uid != root_info.st_uid or info.st_gid != root_info.st_gid):
-            raise RuntimeError('unrecognized SELinux compatibility alias')
         authority = owned_path(root, 'usr/lib/tmpfiles.d/rpm-ostree-0-integration.conf')
+        for parent in (root / 'var', stale.parent):
+            if (parent.is_mount() or parent.stat().st_uid != root.stat().st_uid
+                    or parent.stat().st_gid != root.stat().st_gid):
+                raise RuntimeError('unsafe SELinux alias parent owner or mount')
+        refuse_mounted_ancestors(root, stale, mounts)
+        refuse_mounted_ancestors(root, authority, mounts)
+        refuse_tmpfiles_overrides(root, 'usr/lib/tmpfiles.d/rpm-ostree-0-integration.conf', mounts)
+        expected = ['L', '/var/lib/selinux', '-', '-', '-', '-', '../../etc/selinux']
+        if (os.readlink(stale) != '../../etc/selinux' or stale.is_mount()
+                or info.st_uid != root.stat().st_uid or info.st_gid != root.stat().st_gid):
+            raise RuntimeError('unrecognized SELinux compatibility alias (unreviewed SELinux target or owner)')
+        if not stale.is_dir():
+            raise RuntimeError('unreviewed SELinux compatibility alias: No such file or directory at target')
         info = authority.lstat()
         if (not stat.S_ISREG(info.st_mode) or authority.is_mount() or info.st_size > 64 * 1024
-                or info.st_uid != root_info.st_uid or info.st_gid != root_info.st_gid
+                or info.st_uid != root.stat().st_uid or info.st_gid != root.stat().st_gid
                 or stat.S_IMODE(info.st_mode) & 0o022):
             raise RuntimeError('unsafe SELinux compatibility tmpfiles authority')
         rules = [line.split() for line in authority.read_text().splitlines()
                  if line.strip() and not line.lstrip().startswith('#')]
         rules = [rule for rule in rules if len(rule) > 1 and rule[1] == '/var/lib/selinux'
                  and rule != ['Z', '/var/lib/selinux', '-', '-', '-', '-']]
-        if rules != [['L', '/var/lib/selinux', '-', '-', '-', '-', '../../etc/selinux']]:
-            raise RuntimeError('SELinux compatibility alias has no exact vendor tmpfiles authority')
+        if rules != [expected]:
+            raise RuntimeError('missing authority: no exact vendor tmpfiles authority for SELinux alias')
     else:
         stale = owned_path(root, 'var/lib/selinux')
     immutable = owned_path(root, 'etc/selinux/targeted')
     before = {}
-    if alias or stale.exists():
+    if stale.exists() or alias:
         config = owned_path(root, 'etc/selinux/semanage.conf').read_text()
         stores = re.findall(r'^\s*store-root\s*=\s*([^#\n]+)', config, re.M)
         modes = re.findall(r'^\s*module-store\s*=\s*([^#\n]+)', config, re.M)
         if [s.strip() for s in stores] != ['/etc/selinux'] or [m.strip() for m in modes] != ['direct']:
             raise RuntimeError('the /var policy store is not proven inactive')
-        before = tree(root, 'etc/selinux/targeted')
+        before = tree(root, 'etc/selinux/targeted', mounts)
         if alias and not any(path.startswith('active/modules/') for path in before):
             raise RuntimeError('configured policy store has no verified module inputs')
-    if not alias and stale.exists():
-        old = tree(root, 'var/lib/selinux')
-        if set(p.name for p in stale.iterdir()) != {'targeted'}:
-            raise RuntimeError('unexpected policy store beside targeted')
-        active = stale / 'targeted/active'
-        if set(p.name for p in (stale / 'targeted').iterdir()) != {
-                'active', 'semanage.read.LOCK', 'semanage.trans.LOCK'}:
-            raise RuntimeError('unexpected transaction state in inactive policy store')
-        if set(p.name for p in active.iterdir()) != DERIVED | {'modules'}:
-            raise RuntimeError('unexpected inactive derived policy entry')
-        for lock in ('semanage.read.LOCK', 'semanage.trans.LOCK'):
-            if (stale / 'targeted' / lock).stat().st_size:
-                raise RuntimeError('nonempty inactive policy lock')
-        inputs = {p: digest for p, digest in old.items() if p.startswith('targeted/active/modules/')}
-        if not inputs:
-            raise RuntimeError('inactive store has no verified module inputs')
-        for path, digest in inputs.items():
-            corresponding = path.removeprefix('targeted/')
-            if before.get(corresponding) != digest:
-                raise RuntimeError(f'inactive module is absent or different in the real store: {path}')
-    if alias or stale.exists():
+        if not alias:
+            old = tree(root, 'var/lib/selinux', mounts)
+            if set(p.name for p in stale.iterdir()) != {'targeted'}:
+                raise RuntimeError('unexpected policy store beside targeted')
+            active = stale / 'targeted/active'
+            if set(p.name for p in (stale / 'targeted').iterdir()) != {
+                    'active', 'semanage.read.LOCK', 'semanage.trans.LOCK'}:
+                raise RuntimeError('unexpected transaction state in inactive policy store')
+            if set(p.name for p in active.iterdir()) != DERIVED | {'modules'}:
+                raise RuntimeError('unexpected inactive derived policy entry')
+            for lock in ('semanage.read.LOCK', 'semanage.trans.LOCK'):
+                if (stale / 'targeted' / lock).stat().st_size:
+                    raise RuntimeError('nonempty inactive policy lock')
+            inputs = {p: digest for p, digest in old.items() if p.startswith('targeted/active/modules/')}
+            if not inputs:
+                raise RuntimeError('inactive store has no verified module inputs')
+            for path, digest in inputs.items():
+                corresponding = path.removeprefix('targeted/')
+                if before.get(corresponding) != digest:
+                    raise RuntimeError(f'inactive module is absent or different in the real store: {path}')
         # Exactly the configured store's compiled bytes must be what boot loads.
         policies = list((immutable / 'policy').glob('policy.*'))
         if len(policies) != 1 or policies[0].read_bytes() != (immutable / 'active/policy.kern').read_bytes():
@@ -131,15 +179,15 @@ def finalize(root: Path) -> None:
                 or stat.S_IMODE(info.st_mode) != 0o775
                 or not re.search(r'^d\s+/run/hplip\s+0775\s+root\s+lp\s+-\s*$', policy, re.M)):
             raise RuntimeError('HPLIP runtime directory has no matching vendor authority')
-    if alias or stale.exists():
+    if stale.exists() or alias:
         if alias:
-            stale.unlink()  # remove only the alias; never follow or rmtree it
+            stale.unlink()
         else:
             shutil.rmtree(stale)
-        if tree(root, 'etc/selinux/targeted') != before:
+        if tree(root, 'etc/selinux/targeted', mounts) != before:
             raise RuntimeError('configured SELinux policy changed during inactive-store retirement')
         if alias:
-            print('Canary base: retired exact vendor SELinux alias; configured store and boot policy unchanged; native tmpfiles authority retained')
+            print('Canary base: retired exact tmpfiles-owned SELinux compatibility alias; configured store and boot policy unchanged')
         else:
             print(f'Canary base: retired inactive vendor store; {len(inputs)} module inputs match the configured store; boot policy unchanged')
     if hp.exists():
@@ -149,6 +197,39 @@ def finalize(root: Path) -> None:
     if run_hp.exists():
         run_hp.rmdir()
     print('Canary base package state canonicalized; the final MoOS gates remain mandatory')
+
+
+def refuse_mounted_tree(root: Path, path: Path, mounts: set[Path]) -> None:
+    """Reject bind mounts before any subtree enumeration, including same-device binds."""
+    refuse_mounted_ancestors(root, path, mounts)
+    if any(mount.is_relative_to(path) for mount in mounts):
+        raise RuntimeError('unsafe mounted compose subtree')
+
+
+def refuse_tmpfiles_overrides(root: Path, authority: str, mounts: set[Path]) -> None:
+    """Vendor bytes are not effective authority when a higher-priority file exists."""
+    path = owned_path(root, authority)
+    refuse_mounted_tree(root, path, mounts)
+    for folder in ('etc/tmpfiles.d', 'run/tmpfiles.d', 'usr/local/lib/tmpfiles.d'):
+        # Atomic's reviewed /usr/local alias may dangle in a pristine image.
+        # Map its exact relative bytes ourselves; never resolve another link.
+        if folder == 'usr/local/lib/tmpfiles.d':
+            owned_path(root, 'usr')
+            alias = root / 'usr/local'
+            refuse_mounted_tree(root, alias, mounts)
+            if alias.is_symlink():
+                info = alias.lstat()
+                owner = root.stat()
+                if (os.readlink(alias) != '../var/usrlocal'
+                        or info.st_uid != owner.st_uid or info.st_gid != owner.st_gid):
+                    raise RuntimeError('unreviewed local tmpfiles prefix alias')
+                folder = 'var/usrlocal/lib/tmpfiles.d'
+        candidate = root / folder / path.name
+        refuse_mounted_tree(root, candidate, mounts)
+        # Validate mapped parents without following an override/mask symlink.
+        owned_path(root, folder)
+        if os.path.lexists(candidate):
+            raise RuntimeError('local tmpfiles authority override: ' + str(candidate.relative_to(root)))
 
 
 if __name__ == '__main__':

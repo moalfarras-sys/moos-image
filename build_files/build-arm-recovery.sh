@@ -163,22 +163,7 @@ DRACUT
 echo "=== (5) initramfs with MoOS plymouth ==="
 kver="$(rpm -q --qf '%{VERSION}-%{RELEASE}.%{ARCH}\n' kernel-core | tail -1)"
 [ -n "${kver}" ] || { echo "FATAL: no kernel-core in recovery image"; exit 1; }
-# Metadata only: distinguish pre-existing compose state from dracut output.
-# Do not follow links or print file contents; retain the original refusal.
-echo "=== root-home state before initramfs (metadata only) ==="
-if [ -e /var/roothome ] || [ -L /var/roothome ]; then
-    find -P /var/roothome -xdev -maxdepth 3 -printf '%y %P %m %s\n' | sed -n '1,60p'
-fi
-python3 /ctx/finalize_root_home.py --root /
-install -d -m0700 /var/roothome
-dracut --no-hostonly --force --reproducible \
-    --add "ostree plymouth" \
-    "/usr/lib/modules/${kver}/initramfs.img" "${kver}" 2>&1 | tail -20
-if ! rmdir /var/roothome; then
-    echo "FATAL: unexpected root-home state after initramfs; preserving all entries"
-    find -P /var/roothome -xdev -maxdepth 3 -printf '%y %P %m %s\n' | sed -n '1,60p' || true
-    exit 1
-fi
+python3 /ctx/compose_arm_initramfs.py "${kver}"
 
 lsinitrd "/usr/lib/modules/${kver}/initramfs.img" > /tmp/moos-recovery-initrd.txt 2>/dev/null \
     || { echo "FATAL: lsinitrd could not inspect recovery initramfs"; exit 1; }
@@ -221,5 +206,8 @@ grep -q 'DefaultDeviceTimeoutSec=120' /etc/systemd/system.conf.d/moos-arm-device
     echo "FATAL: moos-arm-block-coldplug script missing"
     exit 1
 }
+
+# The native base uses the same reviewed SELinux compatibility alias as desktop.
+python3 /ctx/finalize_canary_base.py
 
 echo "=== MoOS ARM recovery build complete ==="

@@ -110,25 +110,46 @@ done
 # moos-hardware-adapt is started by its timer 45 s after the desktop, so a single
 # `systemctl --failed` sample can see it before it has run, or while it is still running,
 # and pass a boot whose adaptation fails later. Wait for its first pass to finish:
-# RemainAfterExit=yes leaves a finished pass `active` and a failed one `failed`. Result is
-# already `success` before the unit has ever started, so only ActiveState ends the wait.
+# A repetitive oneshot returns to inactive/dead after completion. Result=success
+# alone is also the initial/not-run value, so require a real process exit receipt.
 # The deadline outlasts the timer's OnActiveSec plus the unit's TimeoutStartSec
 # (tests/test_moos_arm.py ties the three numbers together).
+hwadapt_completed() {
+    local key value active= sub= result= status= exited= condition=
+    while IFS='=' read -r key value; do
+        case "$key" in
+            ConditionResult) condition="$value" ;;
+            ActiveState) active="$value" ;;
+            SubState) sub="$value" ;;
+            Result) result="$value" ;;
+            ExecMainStatus) status="$value" ;;
+            ExecMainExitTimestampMonotonic) exited="$value" ;;
+        esac
+    done <<< "$1"
+    [ "$active" = inactive ] && [ "$sub" = dead ] &&
+        [ "$result" = success ] && [ "$status" = 0 ] && [ "$condition" = yes ] &&
+        [[ "$exited" =~ ^[0-9]+$ ]] && [ "$exited" -gt 0 ]
+}
 hwadapt_deadline=$((SECONDS + 720))
+hwadapt_snapshot=""
 while [ "$SECONDS" -lt "$hwadapt_deadline" ]; do
-    hwadapt_active="$(systemctl is-active moos-hardware-adapt.service 2>/dev/null || true)"
-    case "$hwadapt_active" in active|failed) break ;; esac
+    hwadapt_snapshot="$(systemctl show moos-hardware-adapt.service \
+        -p ActiveState -p SubState -p Result -p ExecMainStatus -p ConditionResult \
+        -p ExecMainExitTimestampMonotonic 2>/dev/null || true)"
+    if hwadapt_completed "$hwadapt_snapshot" || grep -qx 'ActiveState=failed' <<< "$hwadapt_snapshot"; then
+        break
+    fi
     sleep 3
 done
-hwadapt_result="$(systemctl show -p Result --value moos-hardware-adapt.service 2>/dev/null || true)"
-[ "${hwadapt_active:-}" = "active" ] && [ "$hwadapt_result" = "success" ] || {
+hwadapt_completed "$hwadapt_snapshot" || {
     systemctl status --no-pager --full moos-hardware-adapt.service moos-hardware-adapt.timer >&2 || true
     journalctl --no-pager -b -u moos-hardware-adapt.service -n 120 >&2 || true
     cat /run/moos-hardware-adapt.log >&2 2>/dev/null || true
-    echo "ARM RUNTIME FATAL: moos-hardware-adapt did not finish its first pass (state=${hwadapt_active:-unknown} result=${hwadapt_result:-unknown})" >&2
+    printf '%s\n' "$hwadapt_snapshot" >&2
+    echo "ARM RUNTIME FATAL: moos-hardware-adapt did not finish its first pass with a successful process exit" >&2
     exit 1
 }
-printf 'hardware_adapt=%s\n' "$hwadapt_active"
+printf 'hardware_adapt=completed\n'
 failed="$(systemctl --failed --no-legend --plain)"
 [ -z "$failed" ] || { printf 'failed units:\n%s\n' "$failed" >&2; exit 1; }
 getent hosts ghcr.io >/dev/null

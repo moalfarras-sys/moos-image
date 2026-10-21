@@ -134,6 +134,21 @@ class RemoteStartLifecycleTests(unittest.TestCase):
         self.assertIn('wait "$inhibit_pid"', source)
         self.assertNotIn("python", source.splitlines()[0])
 
+    def test_bind_failure_uses_existing_bounded_restart_without_publishing_ready(self):
+        program = (ROOT / "moremote/agent-linux/Program.cs").read_text(encoding="utf-8")
+        binding = program.index("if (!await ListenerStartup.TryStartAsync(app))")
+        ordinary_failure = program.index("return 75;", binding)
+        listening = program.index('Log.Info($"Linux server listening on loopback')
+        publishing = program.index("File.Move(endpointTmp, endpointPath, true)")
+        self.assertLess(binding, ordinary_failure)
+        self.assertLess(ordinary_failure, listening)
+        self.assertLess(listening, publishing)
+        self.assertIn("await using var app=builder.Build()", program)
+        self.assertNotIn("await app.StartAsync();", program)
+        unit = UNIT.read_text(encoding="utf-8")
+        for policy in ("Restart=on-failure", "RestartSec=3", "StartLimitIntervalSec=300", "StartLimitBurst=5"):
+            self.assertIn(policy, unit.splitlines())
+
     def test_unit_waits_for_both_screen_sharing_portals(self):
         unit = UNIT.read_text(encoding="utf-8")
         directives = [

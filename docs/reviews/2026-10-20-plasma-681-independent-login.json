@@ -1,0 +1,67 @@
+{
+  "utc": "2026-10-20T19:11:12.466381+00:00",
+  "reviewed_remote_revision": "99269cc44cdc2a6b131207d2243cab3b67c180ec",
+  "scope": "Independent source/signature/backend/prepared hashes, native ARM metadata and private offscreen Qt/PAM controls only; no owner PAM, display, reader or bus; no actual x86 rebuilt package proof yet",
+  "verified_source": {
+    "schema": 1,
+    "base": "6.8.1-1.fc44",
+    "fixed": "6.8.1-1.1.moos1.fc44",
+    "arch": "x86_64",
+    "source_url": "https://download.copr.fedorainfracloud.org/results/@kdesig/kde-final/fedora-44-x86_64/Packages/p/plasma-login-manager-6.8.1-1.fc44.src.rpm",
+    "source_sha256": "798c839025d594eab0bdd79cf959a17d84bce40509673187bb67f5e180794f6a",
+    "source_signer": "96bdf4e8710b8f9ffb11d83ddb51f4cb6c33bdbb",
+    "authentication_source_sha256": "4820e30b6376713ed4c53b6aab466bc5b2cb0415fccc7ad4b76749a0d6a573f9"
+  },
+  "vendor_changes": [
+    "Seat shutdown state guard preserves greeter shutdown",
+    "HelperApp and HelperStartX11User treat SIGHUP as clean shutdown",
+    "greeter and wallpaper ignore null-geometry screens",
+    "translations and version bump"
+  ],
+  "prepared_file_count": 11,
+  "prepared_changed_file": "src/frontend/greeter/main.cpp",
+  "prepared_changed_sha256": "883226d3638b0cd660bfb3cc35f8a9c62e6e71bd54479351a972fc7502e1bf2f",
+  "native_controls": {
+    "package_preflight": 5,
+    "qt_automatic_start": 9,
+    "private_pam_and_configuration": 17,
+    "all_exit": 0,
+    "cxx_metadata": "compiled native ARM toolbox70a5; marker MOOS_FINGERPRINT_METADATA_NATIVE_OK; subsequent Qt attempt correctly failed missing PySide6 there, rerun host Qt passed9"
+  },
+  "old_fixed_prepared": {
+    "old680_gate": 1,
+    "reviewed681_gate": 0
+  },
+  "remaining": [
+    "actual x86 SDK package rebuild/native-proof",
+    "installed package payload comparison",
+    "signed candidate and boot proof",
+    "physical cold login and independent password fallback"
+  ],
+  "evidence": {
+    "source-signatures.txt": {
+      "sha256": "7c0e882a8a56412c83ddb296f1d6cd992e22eae77b7f5d530ca9958ebd6ecb90",
+      "bytes": 722
+    },
+    "vendor-source-review.json": {
+      "sha256": "073784e105f3ebb7a88334767a912340418dff0a8d97c8d8d63295655dfcf74b",
+      "bytes": 8865
+    },
+    "vendor-source-680-681.diff": {
+      "sha256": "4c072b63c45826587cc123935cde94997af016d3fd699c7dfa96b98ec5c0501d",
+      "bytes": 24008
+    },
+    "vendor-spec-680-681.diff": {
+      "sha256": "a39f35a9b799601b779733baea512e9c1916d3aa7783a393099a3e7f8f7014dc",
+      "bytes": 579
+    },
+    "native-controls.log": {
+      "sha256": "2b72a85321b51073dba6f93f7500374fd653c72a37fc9c9160e8f66f7b0e8120",
+      "bytes": 4984
+    },
+    "old-fixed-prepared.json": {
+      "sha256": "dfb134cca6a01361ec5829a84011b087b103cc81ed503553f1221a08e5bb5dd0",
+      "bytes": 594
+    }
+  }
+}

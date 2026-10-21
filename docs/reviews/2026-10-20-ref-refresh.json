@@ -1,0 +1,25 @@
+{
+  "source_revision": "94bbd4ac232e288655d9898cfd89bc17f04ef638",
+  "total_refs": 282,
+  "heads": 179,
+  "unique_heads": [
+    {
+      "ref": "refs/remotes/origin/docs/v3-compatibility-claim-20261020",
+      "tip": "cd3b214814c6683f379642ec58a44860672570b9",
+      "ancestor_of_topic": false
+    },
+    {
+      "ref": "refs/remotes/origin/fix/v3-plasma-681-20261020",
+      "tip": "99269cc44cdc2a6b131207d2243cab3b67c180ec",
+      "ancestor_of_topic": false
+    }
+  ],
+  "stashes": [
+    "7c004b58c38ae8567ca166e788ac379dede5f3d0",
+    "6eff6149f91143978a302a9c31191d18518eaf60",
+    "363c8af1891bcc6265a5f6b2747fee92422e2284",
+    "9cf4b858c3363b7e8e5caa9daef691fed5be5add"
+  ],
+  "worktrees": "worktree /var/home/moos/moos-image\nHEAD 94bbd4ac232e288655d9898cfd89bc17f04ef638\nbranch refs/heads/codex/integration-audit-20261019",
+  "preservation": "No refs or stashes pruned/deleted; unique remote work pending review/integration."
+}

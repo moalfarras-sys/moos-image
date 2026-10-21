@@ -1,0 +1,266 @@
+{
+  "utc": "2026-10-20T23:46:33.985727+00:00",
+  "scope": "Exclusive private native ARMNode24.22.0 npm audit/ci/typecheck/test/build; original repository/bundle/node_modules untouched",
+  "inputs": {
+    "moremote/controller/package.json": "8e1952458c24dc71820e633d06c344ee16f5475c03fd543aab37a66dd28c8588",
+    "moremote/controller/package-lock.json": "554c4fff066d5f5a49e8d2cc567112ec58244e4349abbe023df26de93b913c47"
+  },
+  "inputs_original_unchanged": true,
+  "vite": "8.3.4",
+  "audit": {
+    "exit": 0,
+    "metadata": {
+      "vulnerabilities": {
+        "info": 0,
+        "low": 0,
+        "moderate": 0,
+        "high": 0,
+        "critical": 0,
+        "total": 0
+      },
+      "dependencies": {
+        "prod": 4,
+        "dev": 460,
+        "optional": 100,
+        "peer": 0,
+        "peerOptional": 0,
+        "total": 463
+      }
+    }
+  },
+  "commands": [
+    {
+      "command": [
+        "node",
+        "--version"
+      ],
+      "exit": 0,
+      "stdout": "0-node---version.stdout",
+      "stderr": "0-node---version.stderr"
+    },
+    {
+      "command": [
+        "npm",
+        "--version"
+      ],
+      "exit": 0,
+      "stdout": "1-npm---version.stdout",
+      "stderr": "1-npm---version.stderr"
+    },
+    {
+      "command": [
+        "npm",
+        "audit",
+        "--package-lock-only",
+        "--json"
+      ],
+      "exit": 0,
+      "stdout": "2-npm-audit.stdout",
+      "stderr": "2-npm-audit.stderr"
+    },
+    {
+      "command": [
+        "npm",
+        "ci"
+      ],
+      "exit": 0,
+      "stdout": "3-npm-ci.stdout",
+      "stderr": "3-npm-ci.stderr"
+    },
+    {
+      "command": [
+        "npm",
+        "run",
+        "typecheck"
+      ],
+      "exit": 0,
+      "stdout": "4-npm-run.stdout",
+      "stderr": "4-npm-run.stderr"
+    },
+    {
+      "command": [
+        "npm",
+        "test"
+      ],
+      "exit": 1,
+      "stdout": "5-npm-test.stdout",
+      "stderr": "5-npm-test.stderr"
+    },
+    {
+      "command": [
+        "npm",
+        "test"
+      ],
+      "exit": 0,
+      "stdout": "6-npm-test-retry.stdout",
+      "stderr": "6-npm-test-retry.stderr"
+    },
+    {
+      "command": [
+        "node",
+        "--experimental-strip-types",
+        "tests/bundle-freshness.test.ts"
+      ],
+      "exit": 0,
+      "stdout": "7-bundle-marker.stdout",
+      "stderr": "7-bundle-marker.stderr"
+    },
+    {
+      "command": [
+        "npm",
+        "run",
+        "build"
+      ],
+      "exit": 0,
+      "stdout": "8-build.stdout",
+      "stderr": "8-build.stderr"
+    }
+  ],
+  "initial_fixture_failure": "npm test first failed ENOENT sharedpalette; copied exact4external source fixtures into private tree, then fulltest passes; no source/test changes",
+  "full_bundle_freshness": {
+    "exact_match": false,
+    "different_paths": [
+      "assets/index-B8fvhbrx.js",
+      "assets/index-BjamTvl-.js",
+      "index.html",
+      "sw.js"
+    ],
+    "file_count": 13
+  },
+  "evidence": {
+    "inputs.json": "04adbc6ba680b56c1af4373febb882f208f9600418dafe017ae6d38c572da66b",
+    "run.py": "7bd997eb446ba7f859683e7d60fd486359fdf1d40b03a80d1ebfc9e9304880aa",
+    "0-node---version.stdout": "2b796b748c85883d00cfea9775eaa143435f0dc06c69311b444cf0dfc98214bc",
+    "0-node---version.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "commands.json": "ba5830669da8697ae74642fe5cb8841c4ac07fcedc56cb0dfdeaa1b938897cef",
+    "1-npm---version.stdout": "4211530c8fb0d148aab950b0005433a64dd6f19f26460831515c07d12fc826a9",
+    "1-npm---version.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "2-npm-audit.stdout": "d696f64d1ca130072b1954f5cbd9fb30b46def390b44c68de9715369be07b06a",
+    "2-npm-audit.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "3-npm-ci.stdout": "406f97e4e039c657567df3debec3bfcb6eda95bf5497c61d042ce03d4421f812",
+    "3-npm-ci.stderr": "93873e18cc4b8fa55f52189274ca7a8c088652906ac4fcd5bb2876ca286247b0",
+    "4-npm-run.stdout": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "4-npm-run.stderr": "724dd2fe05b115c803112ca9ffbfddf35f744beaa5f77a626abfe0342849508e",
+    "5-npm-test.stdout": "105afc007a235dd4ac4b4a7b354f6616a641aea909d305a2d8fde406fdfe64e2",
+    "5-npm-test.stderr": "90d3769f8f11a152c1d6ed406034ffc886f1adee60a05e2e2d91f1fa3b34f127",
+    "bundle-rebuild.json": "b5c3913d383f2369933cddfbb36360bc1e3a952fe17bd7619c12b36f42ffec75",
+    "6-npm-test-retry.stdout": "be468b2249b5fb1816706a64cc931f5b61196e7c7f15f599d124372d73c620f0",
+    "6-npm-test-retry.stderr": "eab7d33cf14cb01033b039868740a0b8bc27cc4da2565a93ef60104f673e22f0",
+    "commands-completion.json": "85a229eb1569bca353cb495f6f711acf69b7440582c62987357565bc1f29898f",
+    "7-bundle-marker.stdout": "94bc2a6625992ed38ef856f845500d4aa01c3ff07e6a6e336f7320e18fceb960",
+    "7-bundle-marker.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "8-build.stdout": "e354be230fba976567c1b22e969d945b4ec100e25258b2edaa371ec776dd861a",
+    "8-build.stderr": "9ded29225835d9cfce32533a5936061c6d7fc191f4cd78b95f345f00b9f7110f",
+    "bundle-diff.txt": "d7144273bc0de4bcf7cca84c4bc1f4c13c2837a934e1f35b2160257ac957a2b6",
+    "source-coverage.json": "fcb9ebff60523f711817f1e4b42ea06cba6b925ca27cbebac55fa0383a8d4c3d",
+    "9-rebuild.stdout": "4bc156b5c1f2ab6bb2a25d4195c6648a3f1765f1726ab510a6249fb10a201c10",
+    "9-rebuild.stderr": "9ded29225835d9cfce32533a5936061c6d7fc191f4cd78b95f345f00b9f7110f",
+    "second-build-proof.json": "17cae2158b75489fb2ea489e1ba39fd269a108c4bdfccd167d376e740df97248",
+    "browser.stdout": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "browser.stderr": "996d0ef200e5e87803d7146dfa5665c4eba05ce7270fd8d4b0cd49e79ee9f638",
+    "browser-process.json": "c944427dbbbc30649a28fb9236c3369a7c2f72802d8252bac9a2bcd7005e0344",
+    "old-package.json": "4c52dbdd7fe8e6038b9836921235553bd9dfb625d4f9e9727407da5047e70e7e",
+    "old-lock.json": "d59a5517e095e1ed7d6dff5a43b3d3d76929992696115bc0c87da045036a1770",
+    "old-ci.stdout": "ed2d383a1f5f08aa0382969a9c3c452a0d6671a1059674d3f115c2d9f504f1fc",
+    "old-ci.stderr": "93873e18cc4b8fa55f52189274ca7a8c088652906ac4fcd5bb2876ca286247b0",
+    "old-build.stdout": "d39801f2f09bfff37283eca964876deb92e28be5129cadd1c6545113e4e336a0",
+    "old-build.stderr": "9ded29225835d9cfce32533a5936061c6d7fc191f4cd78b95f345f00b9f7110f",
+    "old-compiler-proof.json": "a878722da230aed21fce93c6c9cc37155ae6bac64d9a08a5d3eebbd84e795228",
+    "cached-browser-adapter.cjs": "4131c7ea85392c49153d59769e737a8574c28d3df6ba209533ec9e2ca4ee3d9c",
+    "browser-retry.stdout": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "browser-retry.stderr": "8fe3746bfd1ea620dfb7991abc180b1fcecac1ad847ee61df0df361007c3b908",
+    "browser-retry-process.json": "0318e774e00573d51d4d0f55ad36a894cbed1f88d7c21d42d64610168000819e",
+    "browser-final.stdout": "143fc401f2ac1c5d3d7dfb4c69facdac45ae28040a7eb57a506b95f91f0d5bd3",
+    "browser-final.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "gate-old.stdout": "3ae0b07fdff0f01be6294100adadd3d26cb630bc5145296e6c0a24243aefbe2f",
+    "gate-old.stderr": "9ded29225835d9cfce32533a5936061c6d7fc191f4cd78b95f345f00b9f7110f",
+    "gate-updated.stdout": "088a60d494ae51e69e13365dbcc4bdc4318a0d4c6c304307f1f39ff2c96c4515",
+    "gate-updated.stderr": "9ded29225835d9cfce32533a5936061c6d7fc191f4cd78b95f345f00b9f7110f",
+    "workflow-gate-proof.json": "c21fca69cb1a465bc25c60445205495bd1ea186fb5071fba3d1e3318c09603cd",
+    "integration-copy-proof.json": "9070a0ae21ea4e27d93e76b8d0ce7f611226f5204d2be3688625d50f6d793803",
+    "browser-final-process.json": "f9cdabc364fbdd385b4decf46e71847535102d40be704e126dab32f9e54237fd"
+  },
+  "completed_utc": "2026-10-20T23:51:23.718952+00:00",
+  "compiler_causality": {
+    "commands": [
+      {
+        "command": [
+          "npm",
+          "ci"
+        ],
+        "exit": 0
+      },
+      {
+        "command": [
+          "npm",
+          "run",
+          "build"
+        ],
+        "exit": 0
+      }
+    ],
+    "old_vite": "8.2.0",
+    "old_rolldown": "1.2.1",
+    "exact_original_bundle_reproduced": true,
+    "different_paths": []
+  },
+  "second_new_build": {
+    "exit": 0,
+    "files": 13,
+    "identical": true,
+    "first_output_hashes": {
+      "notification-sw.js": "d00b4a0d000fbb63252ea5909b547da3af7fddfcfa6ce9ed2c9449a37f0ef663",
+      "index.html": "64b98cad4f2af4e8e83a2bdd86054eabc388a9824609e1bd3309327195a64957",
+      "manifest.webmanifest": "74078524e60525e04c1e14b34bbc8cc0baa0eeb42426d58399320e6768edb548",
+      "sw.js": "227fc0b39b8c1900668c8de3a176b7e3189dd7a2d483cd92988d6e1de4820123",
+      "workbox-0bb07689.js": "8cbebef201f1d9e614942ab02e33f060a2a61a11baab9ed4d3130f5a3b851c6f",
+      "icons/apple-touch-icon.png": "84d27654222c25376e90af920c0749b4e7d264aa8f2979b2b9a74e54db6893c4",
+      "icons/brand-logo.png": "31e3d1e04c68b23881c02b7ad3a7857bc705a283ebec6199c8faf1c21f8ed8d3",
+      "icons/favicon-64.png": "5209206ee7313cdc587f3f1c0274ffe7002a639c78a3318d4eb6b2741f76d3e4",
+      "icons/icon-192.png": "363258f7749e9497d310d9450cd226a4e1d9b0ba5389f5baa50e8cf9849210cd",
+      "icons/icon-512.png": "27ddc17008095913e6ec0ae8f148d0d2d96d4a87eb806c520cf841b500be64c8",
+      "icons/maskable-512.png": "dd82a3136bc196cc88b65999065e25ca19575d6607e8f8c7fcf77bae7f268463",
+      "assets/index-B8fvhbrx.js": "f6094f401d45ebeee4103788960605b0464b197562a1903de9c0def7e0a24063",
+      "assets/index-DfqbDz4g.css": "af56214627930e51abfebaf74745a91f9d5a0225d8985a2e9e24b5de459c9c4b"
+    },
+    "second_output_hashes": {
+      "notification-sw.js": "d00b4a0d000fbb63252ea5909b547da3af7fddfcfa6ce9ed2c9449a37f0ef663",
+      "index.html": "64b98cad4f2af4e8e83a2bdd86054eabc388a9824609e1bd3309327195a64957",
+      "manifest.webmanifest": "74078524e60525e04c1e14b34bbc8cc0baa0eeb42426d58399320e6768edb548",
+      "sw.js": "227fc0b39b8c1900668c8de3a176b7e3189dd7a2d483cd92988d6e1de4820123",
+      "workbox-0bb07689.js": "8cbebef201f1d9e614942ab02e33f060a2a61a11baab9ed4d3130f5a3b851c6f",
+      "icons/apple-touch-icon.png": "84d27654222c25376e90af920c0749b4e7d264aa8f2979b2b9a74e54db6893c4",
+      "icons/brand-logo.png": "31e3d1e04c68b23881c02b7ad3a7857bc705a283ebec6199c8faf1c21f8ed8d3",
+      "icons/favicon-64.png": "5209206ee7313cdc587f3f1c0274ffe7002a639c78a3318d4eb6b2741f76d3e4",
+      "icons/icon-192.png": "363258f7749e9497d310d9450cd226a4e1d9b0ba5389f5baa50e8cf9849210cd",
+      "icons/icon-512.png": "27ddc17008095913e6ec0ae8f148d0d2d96d4a87eb806c520cf841b500be64c8",
+      "icons/maskable-512.png": "dd82a3136bc196cc88b65999065e25ca19575d6607e8f8c7fcf77bae7f268463",
+      "assets/index-B8fvhbrx.js": "f6094f401d45ebeee4103788960605b0464b197562a1903de9c0def7e0a24063",
+      "assets/index-DfqbDz4g.css": "af56214627930e51abfebaf74745a91f9d5a0225d8985a2e9e24b5de459c9c4b"
+    }
+  },
+  "actual_workflow_gate": {
+    "step": "npm run build; build_exit=$?; test \"$build_exit\" = 0 || exit \"$build_exit\"; git -C ../.. diff --exit-code --stat -- moremote/agent/wwwroot; diff_exit=$?; test \"$diff_exit\" = 0 || exit \"$diff_exit\"; test -z \"$(git -C ../.. ls-files --others --exclude-standard -- moremote/agent/wwwroot)\"",
+    "results": [
+      {
+        "baseline": "old",
+        "exit": 1
+      },
+      {
+        "baseline": "updated",
+        "exit": 0
+      }
+    ],
+    "new_bundle_backup": "/var/tmp/moos-controller-qualification-20261021/qualified-new-wwwroot",
+    "only_private_git": true
+  },
+  "actual_browser": {
+    "exit": 0,
+    "notes": "private exactcachedbrowser launcher adapter; source/tests/deadlines unchanged"
+  },
+  "browser_notes": [
+    "Firstattempt cachedPlaywrightrequested1208butonly1243available; no browserexecuted",
+    "PrivateadapterinitiallyomittedconnectOverCDP; correctedadapterdelegatesallmethods and onlypinsavailableARMChromium1243",
+    "Finalactualbrowser fullsuiteexit0, unchangedcontroller/testsourcesanddeadlines, privateHOME/noownerbus/display"
+  ]
+}

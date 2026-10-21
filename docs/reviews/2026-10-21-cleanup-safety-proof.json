@@ -1,0 +1,56 @@
+{
+  "utc": "2026-10-20T23:39:07.976974+00:00",
+  "source_parent": "a0a83243523bf4722e4febad0d643746e4798a8c",
+  "scope": "Uncommitted reviewed merge hardening; private fixtures only, no owner host mutable state touched",
+  "source_hashes": {
+    "build_files/finalize_canary_base.py": "73d466b7d7dea9062285a67125c40b68a740fce01b4bef77d94c34a431e4b31c",
+    "build_files/finalize_root_home.py": "d72cbfc9b1e3886b2c8ab76cd33ddaf4886bbfeef87d1d97ed7205ac3c1a0bd4",
+    "build_files/finalize_dbus_state.py": "325af100d4630829406a4ffe190f4f69d2a1f4ff600709211a0119cd48d43592",
+    "build_files/prepare_arm_compose_base.py": "a67704e25610c5c945920d55424545aa4113f5ac3a36301a83e03701dc89f23d",
+    "build_files/plasma_stable/runtime_state.py": "f3e228d482adbe1c3e4aceb947f7cde283b214f6ef59ae186bfaaf7c61859ad3",
+    "tests/test_compose_root_home.py": "4dc72e9250f1f5c448444583ff3c58c3c573f71dc0c6e535d228d038917e1254",
+    "tests/test_compose_dbus_state.py": "da7efe3cbe616173bbff9fe2ca573390b98d27d5dc355206d18bfa5812a5f288",
+    "tests/test_arm_pristine_base.py": "05f4e6e4ba162e1f3ab1967eae4cecfa1b416f1d1af22d80ade562e61d4702dd",
+    "tests/test_compose_runtime_transaction.py": "3ef71a895d30c33415a1229b84081db10f4418be1c6a6fa20f4a866a87f7154e"
+  },
+  "focused_tests": {
+    "root_home": 24,
+    "dbus": 13,
+    "arm": 33,
+    "runtime_transaction": 24,
+    "total": 94,
+    "all_exit": 0,
+    "canary_native_regression": {
+      "exit": 0,
+      "log": "canary-regression.log",
+      "note": "Flatpak python cannot locate systemd-tmpfiles and failed1control; nativehost fullsuite passed without changingtest"
+    }
+  },
+  "actual_native_bind_old_fixed": {
+    "old_attempted_enumeration": true,
+    "real_same_filesystem_bind": true,
+    "path_is_mount": false,
+    "mountinfo_contains": true,
+    "refused_before_any_enumeration": true,
+    "error": "unsafe mounted compose subtree"
+  },
+  "actual_native_account_hardlink": {
+    "exit": 0,
+    "log": "account-hardlink-proof.log",
+    "verified": "Exact reviewed account data; originalaliasinode+mode0664+bytes unchanged; selectedpath replaced with newnlink1mode0644samebytes"
+  },
+  "deployment_dependency": {
+    "Containerfile": "plasma_stable runtime copied with finalize_canary_base.py+finalize_image_state.py into /moos-plasma-compose; entirebuild_files in ctx",
+    "Containerfile.arm": "runtime_state+prepare_arm+canary+root_home+image copiedinto /moos-arm-compose; ctx includesallbuild_files",
+    "Containerfile.arm-recovery": "same explicitdependencies asARM; ctxincludesallbuild_files",
+    "circular_imports": "none; canaryimportsimageonly; runtime/otherhelpersimportcanary"
+  },
+  "evidence": {
+    "mount-proof.json": "50a19c22b5e0cd9999a61c8260a2cb7a96c2b7b20dffdac0c1010110dec3fa49",
+    "account-hardlink-proof.log": "ea21473965908d953b3b70ead7b0cdc738a703a941882ef55aa61dd14c115525",
+    "canary-regression.log": "28bf9de79185048162431c1a022efa58c389a859c48327b585b0329a7a252600",
+    "probe.py": "206a66069c5337818672e19fd5cd5d784bbabcb7102ca26d9ea16bc763be794f",
+    "old-finalize_root_home.py": "3f54bf2588bffebedd198699ec796af343a45b4907bd09f568d63a801e7ec19f"
+  },
+  "followup": "Integrator additionally applies the same tmpfiles-override preflight to the SELinux alias and adds a no-retirement masked-authority control; final file hashes are recorded by the subsequent qualification."
+}

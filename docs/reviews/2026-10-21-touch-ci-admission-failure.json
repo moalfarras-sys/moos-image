@@ -1,0 +1,35 @@
+{
+  "utc": "2026-10-20T23:57:46.032127+00:00",
+  "reason": "Stop owned qualification before source repair: CI39517750509 lacks PySide6; wire mandatory installed-image input proof, preserving red CI and all assertions",
+  "queue_stop_exit": 0,
+  "image_receipt_exists": false,
+  "owned_just_pid": 302456,
+  "completed_source_receipt": {
+    "command": [
+      "nice",
+      "-n",
+      "10",
+      "env",
+      "MOOS_BUILD_CONTEXT_PROBE=1",
+      "just",
+      "check"
+    ],
+    "source_revision": "1e2cb5ef9bfe8be8cc1712f7afb565765c999527",
+    "source_tree": "7d09b24c0bc737f6e10dae3dafea5ec532ee3170",
+    "initial_status": "",
+    "started_utc": "2026-10-20T23:51:14.028670+00:00",
+    "exit_code": 143,
+    "duration_seconds": 392.062,
+    "finished_utc": "2026-10-20T23:57:46.063384+00:00",
+    "log_sha256": "92ea3ea9bdc7c8d97c2671399fa75b7f5f6e155261dbe06c7d58c1de980fb35a",
+    "final_revision": "1e2cb5ef9bfe8be8cc1712f7afb565765c999527",
+    "final_tree": "7d09b24c0bc737f6e10dae3dafea5ec532ee3170",
+    "final_status": ""
+  },
+  "ci_failure": {
+    "run_id": 39517750509,
+    "cause": "new Qt input fixture assumed PySide6 in generic Ubuntu source-only runner",
+    "log_sha256": "c0f2272c0d642ba4b0da3aaa95556f8ddea798a7fd4b47ffc46bfb7b0926e3ba"
+  },
+  "correction_scope": "runtime source-only tests explicitly conditional on Qt; mandatory fail-closed installed-image input proof in both full builders; no changed input assertions or controls"
+}
