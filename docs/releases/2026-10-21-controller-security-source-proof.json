@@ -1,0 +1,109 @@
+{
+  "scope": "dependency security/source qualification; not a signed or physical OS acceptance",
+  "compatibility_source": "f92f5fd27ba08a233e682e7410284e291c8eddd4",
+  "compatibility_merge": "7e591d5aea46850e21e4a25f1301b8480ba52fa9",
+  "failed_standard_cycle": {
+    "signed_build_run": 39591761480,
+    "attempt": 1,
+    "exit": 1,
+    "all_three_x86_jobs": "unchanged high npm audit refuses Vite8.2.0 before image compose/signing",
+    "log_sha256": "1b2f24bda3d59dafb1253d1d2bec6f9e564a5a3372f2f4cd1248ec48ed4918d9",
+    "no_x86_promotion_or_host_stage": true,
+    "main_push_arm_run": 39591629709,
+    "arm_acceptance": "separate pipeline; not inferred from x86 failure"
+  },
+  "reviewed_existing_pr": {
+    "number": 261,
+    "head": "35fc55e8e12c9a009e9d88e9282a71dfa87ed4b5",
+    "changed_inputs": [
+      "moremote/controller/package.json",
+      "moremote/controller/package-lock.json"
+    ],
+    "advisories": [
+      "https://github.com/advisories/GHSA-587h-7wmj-h5pm",
+      "https://github.com/advisories/GHSA-698v-4r3x-3vcv",
+      "https://github.com/advisories/GHSA-r825-w8mm-5pxw"
+    ],
+    "scope": "launch-editor tooling issues for Windows/WSL; no claim of native Linux compromise or live Remote access-policy defect"
+  },
+  "correction_merge": "5185ae0f6213f5c992423d6e4f8b92caedb9a296",
+  "native_audit": {
+    "old_version": "8.2.0",
+    "old_exit": 1,
+    "old_counts": {
+      "info": 0,
+      "low": 0,
+      "moderate": 0,
+      "high": 1,
+      "critical": 0,
+      "total": 1
+    },
+    "fixed_version": "8.3.4",
+    "fixed_exit": 0,
+    "fixed_counts": {
+      "info": 0,
+      "low": 0,
+      "moderate": 0,
+      "high": 0,
+      "critical": 0,
+      "total": 0
+    },
+    "unchanged_maintained_gate_exits": {
+      "old-maintained-audit-gate": 1,
+      "fixed-maintained-audit-gate": 0
+    },
+    "raw_report_sha256": {
+      "old-audit": "4d1d0adcbc36c7d3bf07898a0df07547b89088ba18bf378989a3ed4bf2638e7a",
+      "fixed-audit": "d696f64d1ca130072b1954f5cbd9fb30b46def390b44c68de9715369be07b06a"
+    }
+  },
+  "native_controller": {
+    "typecheck_exit": 0,
+    "unchanged_suite_exit": 0,
+    "suite_script_chains": 17,
+    "runtime": "existing native Node22.23.1; image workflow selects Node22",
+    "suite_stdout_sha256": "be9e3c9048dc997e0311ee0da092aa26d28fb24c41bcc9cec4e9a3dac1b2d938",
+    "node26_boundary": "existing shared Node26.12.0 completes installs/audits/typecheck but refuses removed --experimental-transform-types flag; original exit9 retained, no test-script weakening or extra SDK installation"
+  },
+  "bundle": {
+    "initial_rebuild_freshness_exit": 1,
+    "required_regeneration": "new JS asset, index.html and service-worker references; application source and CSS unchanged",
+    "repeat_rebuild_identical": true,
+    "freshness_exit": 0,
+    "payload_sha256": {
+      "moremote/agent/wwwroot/notification-sw.js": "d00b4a0d000fbb63252ea5909b547da3af7fddfcfa6ce9ed2c9449a37f0ef663",
+      "moremote/agent/wwwroot/index.html": "64b98cad4f2af4e8e83a2bdd86054eabc388a9824609e1bd3309327195a64957",
+      "moremote/agent/wwwroot/manifest.webmanifest": "74078524e60525e04c1e14b34bbc8cc0baa0eeb42426d58399320e6768edb548",
+      "moremote/agent/wwwroot/sw.js": "227fc0b39b8c1900668c8de3a176b7e3189dd7a2d483cd92988d6e1de4820123",
+      "moremote/agent/wwwroot/workbox-0bb07689.js": "8cbebef201f1d9e614942ab02e33f060a2a61a11baab9ed4d3130f5a3b851c6f",
+      "moremote/agent/wwwroot/icons/apple-touch-icon.png": "84d27654222c25376e90af920c0749b4e7d264aa8f2979b2b9a74e54db6893c4",
+      "moremote/agent/wwwroot/icons/brand-logo.png": "31e3d1e04c68b23881c02b7ad3a7857bc705a283ebec6199c8faf1c21f8ed8d3",
+      "moremote/agent/wwwroot/icons/favicon-64.png": "5209206ee7313cdc587f3f1c0274ffe7002a639c78a3318d4eb6b2741f76d3e4",
+      "moremote/agent/wwwroot/icons/icon-192.png": "363258f7749e9497d310d9450cd226a4e1d9b0ba5389f5baa50e8cf9849210cd",
+      "moremote/agent/wwwroot/icons/icon-512.png": "27ddc17008095913e6ec0ae8f148d0d2d96d4a87eb806c520cf841b500be64c8",
+      "moremote/agent/wwwroot/icons/maskable-512.png": "dd82a3136bc196cc88b65999065e25ca19575d6607e8f8c7fcf77bae7f268463",
+      "moremote/agent/wwwroot/assets/index-B8fvhbrx.js": "f6094f401d45ebeee4103788960605b0464b197562a1903de9c0def7e0a24063",
+      "moremote/agent/wwwroot/assets/index-DfqbDz4g.css": "af56214627930e51abfebaf74745a91f9d5a0225d8985a2e9e24b5de459c9c4b"
+    }
+  },
+  "native_browser": {
+    "exit": 0,
+    "scope": "unchanged browser integration on regenerated production JS, real isolated Chromium with synthetic frames/intercepted transport; no live input or owner browser profile",
+    "stdout_sha256": "67b65d6cd42c01b6d0f11c64800f0b31c9cf4856618420461aaac1e937692192",
+    "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "runtime": "existing Playwright and Chromium; isolated loopback test server and intercepted API/WebSocket transport, no owner browser profile or live input"
+  },
+  "retained_harness_refusals": [
+    "npm rejected using the same /dev/null file for both user and global configuration; separate empty files used",
+    "an operational output-path edit also changed its source cwd; corrected before any source qualification",
+    "Node26 unsupported experimental flag; unchanged native Node22 suite passes",
+    "first new-bundler freshness check correctly refused uncommitted derived output; regenerated output committed and repeat build identical"
+  ],
+  "remaining": [
+    "maintained final repository gate and full local image/readback",
+    "exact-head PR gates and a fresh ordinary signed cycle",
+    "signed installation and new681 physical cold acceptance",
+    "BIOS80 setting and measured charge plateau",
+    "later native responsive/visual UI batch"
+  ]
+}
