@@ -10,8 +10,8 @@
     "repo_run": 39489708579,
     "x86_run": 39489708552,
     "native_arm_run": 39489708595,
-    "actual_advisory_review_run": 39489708654,
-    "outcomes": "repository/x86/native ARM/review steps pass, first attempts; ARM disk/promotion correctly skipped on PR"
+    "outcomes": "repository/x86/native ARM pass, first attempts; ARM disk/promotion correctly skipped on PR; advisory review execution failed despite green job conclusion",
+    "advisory_review_run": 39489708654
   },
   "canary_old_source_refusal": {
     "run": 39489708594,
@@ -115,5 +115,20 @@
     "BIOS Battery Charge Limit review and real80% plateau",
     "Qt greeter screenRemoved root cause and SMOCF05 rotation remain unresolved"
   ],
-  "owner_ui_requirement": "actual installed-session interaction/inspection/readback, reuse existing tools and preserve owner data; no visual product edits in this compatibility slice"
+  "owner_ui_requirement": "actual installed-session interaction/inspection/readback, reuse existing tools and preserve owner data; no visual product edits in this compatibility slice",
+  "advisory_review": {
+    "runs": [
+      39489708654,
+      39522611465
+    ],
+    "job_conclusion": "success",
+    "actual_outcome": "failure",
+    "result_is_error": true,
+    "num_turns": 1,
+    "model_usage": {},
+    "accepted_automated_review": false,
+    "underlying_provider_error": "not established by exposed logs",
+    "operator_source_review": "2026-10-21-v3-compatibility-source-review.md",
+    "operator_review_is_independent_automated_review": false
+  }
 }
