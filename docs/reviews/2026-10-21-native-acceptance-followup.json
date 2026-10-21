@@ -1,0 +1,144 @@
+{
+  "observed_utc": "2026-10-21T21:43:36.835273+00:00",
+  "scope": "Engineering instructions and private native acceptance fixture only; production payloads remain identical to PR263. No new image delivery or physical/all-theme acceptance is implied.",
+  "native_unittest": {
+    "command": "python3 -m unittest discover -s tests -p test_launcher_adaptive.py -v",
+    "exit": 0,
+    "cases": 6,
+    "seconds": 41.822,
+    "source_unchanged": true,
+    "owner_portal_unchanged": true,
+    "original_backtab_and_alignment_negative_controls_retained": true
+  },
+  "rendered_matrix": [
+    {
+      "output_width": 360,
+      "output_height": 640,
+      "language": "ar",
+      "light": false,
+      "reduced": true,
+      "theme": {
+        "global_theme": "org.moos.ui2",
+        "color_scheme": "MoOSUI2Dark",
+        "plasma_style": "MoOSUI2",
+        "icons": "MoOSUI2",
+        "defaults_sha256": "7b0f131de60a2bf5e1ace9089b32d83c3ef7a184094ed88ec540f2cd2284b204"
+      },
+      "window_fits_output": true,
+      "saved_popup": {
+        "width": 318,
+        "height": 576
+      },
+      "frame_sha256": "9cce2e1f638826138024158778e13539bc5bda5f1cca8e08126f8827bb56d650"
+    },
+    {
+      "output_width": 600,
+      "output_height": 960,
+      "language": "en",
+      "light": true,
+      "reduced": false,
+      "theme": {
+        "global_theme": "org.moos.ui2.light",
+        "color_scheme": "MoOSUI2Light",
+        "plasma_style": "MoOSUI2Light",
+        "icons": "MoOSUI2Light",
+        "defaults_sha256": "921f41a456e4cfb031d8cffe21416ea92e94e69c8354545387b05a1ea26c203e"
+      },
+      "window_fits_output": true,
+      "saved_popup": {
+        "width": 546,
+        "height": 576
+      },
+      "frame_sha256": "383724250a061361e1fba231c3fb66f18517bfe4793a7eee59f069ecc4c7c563"
+    },
+    {
+      "output_width": 960,
+      "output_height": 540,
+      "language": "ar",
+      "light": true,
+      "reduced": true,
+      "theme": {
+        "global_theme": "org.moos.ui2.light",
+        "color_scheme": "MoOSUI2Light",
+        "plasma_style": "MoOSUI2Light",
+        "icons": "MoOSUI2Light",
+        "defaults_sha256": "921f41a456e4cfb031d8cffe21416ea92e94e69c8354545387b05a1ea26c203e"
+      },
+      "window_fits_output": true,
+      "saved_popup": {
+        "width": 792,
+        "height": 476
+      },
+      "frame_sha256": "49db517780aaf17cc6d605585b669ab73f39fb6aef08640be2f55597ec8fa674"
+    },
+    {
+      "output_width": 1536,
+      "output_height": 864,
+      "language": "en",
+      "light": false,
+      "reduced": false,
+      "theme": {
+        "global_theme": "org.moos.ui2",
+        "color_scheme": "MoOSUI2Dark",
+        "plasma_style": "MoOSUI2",
+        "icons": "MoOSUI2",
+        "defaults_sha256": "7b0f131de60a2bf5e1ace9089b32d83c3ef7a184094ed88ec540f2cd2284b204"
+      },
+      "window_fits_output": true,
+      "saved_popup": {
+        "width": 792,
+        "height": 576
+      },
+      "frame_sha256": "c017cae014974e49d1317541e6e4312c88e7e72b6f788032dc6f74d0c38857a0"
+    }
+  ],
+  "android": {
+    "official_images": "lineage-20.0 20260927 VANILLA/MAINLINE x86_64",
+    "installed_setup_exit": 0,
+    "boot_property_and_desktop_properties_confirmed": true,
+    "native_application_acceptance": false,
+    "observations": [
+      "Calculator first mapped as an actual normal/movable/resizable KWin window",
+      "Surface then disappeared while application process remained alive; reopening did not restore it",
+      "Opening the second owned builtin app remapped both surfaces",
+      "Scoped host resize reached480x640 but real capture was incomplete"
+    ],
+    "bounded_log": {
+      "read_exit": 0,
+      "bytes": 535657,
+      "sha256": "85f5f0e4497fde7bd5fc985025f529b097912b0dc901ba64c9a3200890e904a4",
+      "display_reconnects": 3,
+      "missing_mode_records": 3,
+      "fatal_exception_in_captured_sample": false,
+      "boundary": "A bounded log without a fatal record does not prove crash-free lifetime or identify the exact race."
+    },
+    "engineering_analysis": {
+      "entrypoint": "canonical REA6.7.0 MCP",
+      "provider": "Ghidra12.1.4",
+      "input_bytes": 510976,
+      "input_sha256": "34a0ab934e0fb83ed1f7b290dd52c0a1073e6458c408f1f8463cbfa477005a51",
+      "unmodified_input": true,
+      "closed_owned_analysis": true,
+      "observed_functions": [
+        {
+          "name": "do_hotplug",
+          "address": "0x145490",
+          "observation": "Publishes display dimensions and recreates the touch FIFO before requesting display invalidation."
+        },
+        {
+          "name": "WaydroidWindow::setIdleInhibit",
+          "address": "0x150080",
+          "observation": "Acquires a recursive mutex while traversing native windows and changing idle inhibition."
+        }
+      ],
+      "boundary": "Recovered decompiler types are incomplete; these two functions do not prove the keyboard call site, exact lock-cycle causality or a working fix."
+    },
+    "upstream_sources": [
+      "https://github.com/waydroid/waydroid/issues/2436",
+      "https://github.com/waydroid/android_hardware_waydroid/pull/87",
+      "https://github.com/waydroid/android_hardware_waydroid/pull/88",
+      "https://github.com/waydroid/android_hardware_waydroid/pull/89"
+    ],
+    "vendor_downgrade_or_binary_patch_applied": false
+  }
+}

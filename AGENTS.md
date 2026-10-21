@@ -209,6 +209,27 @@ These are not conventions, they are gates. The image build fails if you break th
 
 ## A green build proves nothing about what the user sees
 
+**A light colour scheme is not a complete light Plasma theme.** The native
+launcher fixture selected Light colours while inheriting Aurora's dark Plasma
+Style and icons. Its white labels/icons were real pixels of a mixed fixture,
+not proof that the product's matched Light defaults were broken. Read the
+selected Global Theme's actual colour, Plasma Style and icon defaults into the
+private config together; retain their identity/hash in each native receipt.
+Keep original mixed frames and input/geometry controls. Never change the owner
+theme or product palette to repair a private fixture, or infer physical input
+or whole-shell acceptance from its native virtual output.
+
+**Android readiness is not an application window journey.** The official
+20260927 images reached boot-completed and both desktop properties on the V3,
+yet a real calculator surface disappeared while its process remained alive,
+and a later resize painted an incomplete frame. Preserve the actual window
+IDs, rendered frames and bounded logs before recovery. Require visible content,
+input, switching, resize and close/reopen separately; a successful launch CLI,
+RUNNING container or property readback does not establish those results. Match
+upstream source fixes to the actual image/binary and architecture before any
+scoped repair. Do not downgrade an entire vendor image, patch an unknown binary
+or disable isolation merely because a similar issue reports success elsewhere.
+
 **A Java dialog can paint while its main frame is blank.** Native Ghidra with Java25 showed tips over an empty main frame on Wayland. Preserve the old/fixed/restored GUI captures and inspect current OpenJDK XWM: its non-reparenting switch tests presence, not a truth value. Scope that setting to the GUI launcher, carry the host session decision across Toolbx and preserve caller values/X11 behavior. Require actual canonical project/program/decompiler/normal-close and environment/argument controls; a version string, headless decompile or first dialog is not GUI acceptance. Never change global Java/WM state, install another JDK or infer a cold new-OS result from1078.
 
 **A dependency-only update can change shipped JavaScript.** The Oct21 signed cycle correctly refused Vite8.2.0 at the high-audit gate before image composition. Preserve that refusal, audit the exact old/new locks and retain the existing Dependabot ancestry. Rebuild and commit the generated controller asset/index/service-worker together, then require an identical second build, the unchanged freshness gate and isolated browser input journeys. Run the unchanged suite with its supported existing Node22; Node26 removed its experimental transform flag. Never remove tests, waive the audit or count an uncommitted derived bundle as qualified source.
