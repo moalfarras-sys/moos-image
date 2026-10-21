@@ -1,0 +1,142 @@
+{
+  "packages": [
+    {
+      "package": "plasma-desktop",
+      "version": "6.8.0",
+      "url": "https://download.copr.fedorainfracloud.org/results/@kdesig/kde-final/fedora-44-x86_64/Packages/p/plasma-desktop-6.8.0-2.fc44.x86_64.rpm",
+      "rpm_sha256": "46bbc1405de771f502f4c462521e6cee0cdb2a71b851c58d94d522177bb027f9",
+      "signature": "digests signatures OK (verified in isolated container; host attempt lacked key)"
+    },
+    {
+      "package": "plasma-desktop",
+      "version": "6.8.1",
+      "url": "https://download.copr.fedorainfracloud.org/results/@kdesig/kde-final/fedora-44-x86_64/Packages/p/plasma-desktop-6.8.1-1.fc44.x86_64.rpm",
+      "rpm_sha256": "ab58f0df67ee0930ae74cc8d9f7c6ad25286ab5a0df7f7323b90cd7d7b06091e",
+      "signature": "digests signatures OK (verified in isolated container; host attempt lacked key)"
+    },
+    {
+      "package": "plasma-workspace",
+      "version": "6.8.0",
+      "url": "https://download.copr.fedorainfracloud.org/results/@kdesig/kde-final/fedora-44-x86_64/Packages/p/plasma-workspace-6.8.0-1.fc44.x86_64.rpm",
+      "rpm_sha256": "71c857da020d7946eccfe7c45d1823018d6cdb80a9905502246a59f3b8a7af58",
+      "signature": "digests signatures OK (verified in isolated container; host attempt lacked key)"
+    },
+    {
+      "package": "plasma-workspace",
+      "version": "6.8.1",
+      "url": "https://download.copr.fedorainfracloud.org/results/@kdesig/kde-final/fedora-44-x86_64/Packages/p/plasma-workspace-6.8.1-1.fc44.x86_64.rpm",
+      "rpm_sha256": "909aa5a1e867961e6d04bc55086532b024a0bda30e26abb7962c3618f67b2658",
+      "signature": "digests signatures OK (verified in isolated container; host attempt lacked key)"
+    }
+  ],
+  "seams": [
+    {
+      "path": "/usr/share/plasma/shells/org.kde.plasma.desktop/contents/lockscreen/MediaControls.qml",
+      "old_sha256": "fc2de879d76e7d2f37292fb8c79283b5b7dae894de44539270a53dbd4c9927b0",
+      "new_sha256": "fc2de879d76e7d2f37292fb8c79283b5b7dae894de44539270a53dbd4c9927b0",
+      "changed": false
+    },
+    {
+      "path": "/usr/share/plasma/shells/org.kde.plasma.desktop/contents/explorer/WidgetExplorer.qml",
+      "old_sha256": "27208dd43471f61fe0c06ef78299590cdaf25c65fdb9f4676f61d3b70d3e7a02",
+      "new_sha256": "27208dd43471f61fe0c06ef78299590cdaf25c65fdb9f4676f61d3b70d3e7a02",
+      "changed": false
+    },
+    {
+      "path": "/usr/share/plasma/shells/org.kde.plasma.desktop/contents/views/DesktopEditMode.qml",
+      "old_sha256": "ef4848bcd4efb75da1d15e39d8c2ea8d5d2af0cb38116dc62f33769c82edbaf5",
+      "new_sha256": "ef4848bcd4efb75da1d15e39d8c2ea8d5d2af0cb38116dc62f33769c82edbaf5",
+      "changed": false
+    },
+    {
+      "path": "/usr/share/plasma/shells/org.kde.plasma.desktop/contents/defaults",
+      "old_sha256": "07abd8f0e42594c2822c54084e38a810747025d111f1fe1e7c8e0cec1f2684f0",
+      "new_sha256": "07abd8f0e42594c2822c54084e38a810747025d111f1fe1e7c8e0cec1f2684f0",
+      "changed": false
+    },
+    {
+      "path": "/usr/share/plasma/layout-templates/org.kde.plasma.desktop.defaultPanel/contents/layout.js",
+      "old_sha256": "7ccabbcbb8fccb7f32c239b562d4ebe67e915f15f8066bc7ca994a6deb767d59",
+      "new_sha256": "7ccabbcbb8fccb7f32c239b562d4ebe67e915f15f8066bc7ca994a6deb767d59",
+      "changed": false
+    },
+    {
+      "path": "/usr/lib64/qt6/qml/org/kde/breeze/components/ActionButton.qml",
+      "old_sha256": "f0d5a0326ea8715b378d1c757341921ecdf6a703e5a632409633158fca29d7e5",
+      "new_sha256": "f0d5a0326ea8715b378d1c757341921ecdf6a703e5a632409633158fca29d7e5",
+      "changed": false
+    },
+    {
+      "path": "/usr/lib64/qt6/qml/org/kde/breeze/components/Clock.qml",
+      "old_sha256": "bed93a670a8fcb1d90798c59350285439e4b4cbbcfd5b289e4839deab4e3ba9c",
+      "new_sha256": "bed93a670a8fcb1d90798c59350285439e4b4cbbcfd5b289e4839deab4e3ba9c",
+      "changed": false
+    },
+    {
+      "path": "/usr/lib64/qt6/qml/org/kde/breeze/components/UserDelegate.qml",
+      "old_sha256": "5d0487cbb475811affcff5b0a75e29e859596fb954c38c8bcce3c0ef3fd39ebf",
+      "new_sha256": "5d0487cbb475811affcff5b0a75e29e859596fb954c38c8bcce3c0ef3fd39ebf",
+      "changed": false
+    },
+    {
+      "path": "/usr/lib64/qt6/qml/org/kde/breeze/components/UserList.qml",
+      "old_sha256": "0c621434c2b65c68076db5eb614aa9e4ed9db58c732cf6416481bf3ddbda7231",
+      "new_sha256": "0c621434c2b65c68076db5eb614aa9e4ed9db58c732cf6416481bf3ddbda7231",
+      "changed": false
+    },
+    {
+      "path": "/usr/lib64/qt6/qml/org/kde/breeze/components/SessionManagementScreen.qml",
+      "old_sha256": "33f642ac7117b0cb3af5d04cab4a304207fb2572f1550fcf6c78457b57f895da",
+      "new_sha256": "33f642ac7117b0cb3af5d04cab4a304207fb2572f1550fcf6c78457b57f895da",
+      "changed": false
+    },
+    {
+      "path": "/usr/lib64/qt6/qml/org/kde/breeze/components/WallpaperFader.qml",
+      "old_sha256": "bda98772f1bed55a5cd464d4fe59e645fe814e1e271d778e6762a6ae24e0c195",
+      "new_sha256": "bda98772f1bed55a5cd464d4fe59e645fe814e1e271d778e6762a6ae24e0c195",
+      "changed": false
+    },
+    {
+      "path": "/usr/share/plasma/shells/org.kde.plasma.desktop/contents/views/Panel.qml",
+      "old_sha256": "353ed54bb277ad50ee769b85a346a05959aa4cb79fb6f27b2286dcd5e9acbc48",
+      "new_sha256": "353ed54bb277ad50ee769b85a346a05959aa4cb79fb6f27b2286dcd5e9acbc48",
+      "changed": false
+    }
+  ],
+  "authentication": [
+    {
+      "path": "usr/share/plasma/shells/org.kde.plasma.desktop/contents/lockscreen/LockScreenUi.qml",
+      "old_sha256": "683bdafa0e1d143fbf5b9b80f6e4b07afa494ec77d2b7f93a0d467a66e5c62e1",
+      "new_sha256": "683bdafa0e1d143fbf5b9b80f6e4b07afa494ec77d2b7f93a0d467a66e5c62e1",
+      "changed": false
+    },
+    {
+      "path": "usr/share/plasma/shells/org.kde.plasma.desktop/contents/lockscreen/MainBlock.qml",
+      "old_sha256": "487ce6e0c5903bb11a7b92ffb2470ad48503c7850a2da9d406edead37c898707",
+      "new_sha256": "487ce6e0c5903bb11a7b92ffb2470ad48503c7850a2da9d406edead37c898707",
+      "changed": false
+    }
+  ],
+  "signature_verification": {
+    "exit": 0,
+    "method": "network=none disposable x86_64 existing base, readonly copied publisher key/private RPMdb; rpmkeys all four digests signatures OK",
+    "container_image_id": "84e3eb98a52cf5cf00001e1dc05e8c8535509a36a36a719de89da1143316b151",
+    "publisher_key_sha256": "b6ce6671a21c947928b08595514d09991975b2f300a8bb6e661fe34cfc54aa29",
+    "publisher_fingerprint": "96BDF4E8710B8F9FFB11D83DDB51F4CB6C33BDBB"
+  },
+  "branch_review": {
+    "ref": "origin/fix/v3-plasma-681-20261020",
+    "commit": "99269cc4",
+    "independent_package_hashes_and_12_seam_digests_match": true,
+    "auth_hashes_match": true,
+    "exact_new_range": "[6.8.1,6.8.2)",
+    "decision": "reuse existing branch native positive/broken/restored proof; no competing source edit"
+  },
+  "duplicate_stack_attempt": {
+    "status": "explicitly stopped by reviewer after coordination established remote owner already running qualified source full image; no new probe proof claimed",
+    "container": "moos-seam681-private",
+    "exit": 137,
+    "install_log": "stack-install.log",
+    "state": "exited"
+  }
+}

@@ -1,0 +1,149 @@
+{
+  "executed_marker": true,
+  "image_id": "f33a009c3b189167c1e2179b8db08d79ba99d3c854cfb35baefe38f499301254",
+  "source_head": "c2f4ac10496b854f5ceed3db0179ff9dfe9187e8",
+  "source_sha256": {
+    "system_files/usr/share/plasma/plasmoids/org.moos.island/contents/ui/MediaControl.qml": "5fe071b94e528f54ab505845fb217ed16e128c1dc656e3228b857eb497414887",
+    "system_files/usr/share/plasma/plasmoids/org.moos.island/contents/ui/main.qml": "9287449facc20e2482bb7ed5bd60906a362a42bcc2fb5299f3e08b8ab9e3a9df"
+  },
+  "fixture_sha256": "ce266d1b54dee7ed710b319b832b103644bd0865f0e53097e7932aba24150653",
+  "cases": [
+    {
+      "receipt": "/var/tmp/moos-ui-next-audit-20261020/panel-nested-observed54/w640-tablet0/receipt.json",
+      "panel_height": 54,
+      "output_width": 640,
+      "tablet": 0,
+      "compact": [
+        171,
+        40
+      ],
+      "action": [
+        34,
+        34
+      ],
+      "png_sha256": "663bc81be6f09dd16b93d8417a4b3325d4adb0ae82e95eebf10e420cc856d937",
+      "geometric_paint_intersection": null
+    },
+    {
+      "receipt": "/var/tmp/moos-ui-next-audit-20261020/panel-nested-observed54/w640-tablet1/receipt.json",
+      "panel_height": 54,
+      "output_width": 640,
+      "tablet": 1,
+      "compact": [
+        171,
+        40
+      ],
+      "action": [
+        44,
+        44
+      ],
+      "png_sha256": "9de4a5cb80c7178c427eabfd08e32d8c068b5feb3ba8112915ba481fc21ff3c8",
+      "geometric_paint_intersection": null
+    },
+    {
+      "receipt": "/var/tmp/moos-ui-next-audit-20261020/panel-nested-observed54/w1280-tablet0/receipt.json",
+      "panel_height": 54,
+      "output_width": 1280,
+      "tablet": 0,
+      "compact": [
+        171,
+        40
+      ],
+      "action": [
+        34,
+        34
+      ],
+      "png_sha256": "3d16b85aa3ddc21e3f0427a729f4b3cf951e2bdc9a39d553ec6290f75f49355e",
+      "geometric_paint_intersection": null
+    },
+    {
+      "receipt": "/var/tmp/moos-ui-next-audit-20261020/panel-nested-observed54/w1280-tablet1/receipt.json",
+      "panel_height": 54,
+      "output_width": 1280,
+      "tablet": 1,
+      "compact": [
+        171,
+        40
+      ],
+      "action": [
+        44,
+        44
+      ],
+      "png_sha256": "ddea61123ab1f64e40fcccb71f94b4c1f443863f6f70b7e19f4760af27db33be",
+      "geometric_paint_intersection": null
+    },
+    {
+      "receipt": "/var/tmp/moos-ui-next-audit-20261020/panel-observed64/w1280-tablet1/receipt.json",
+      "panel_height": 64,
+      "output_width": 1280,
+      "tablet": 1,
+      "compact": [
+        171,
+        50
+      ],
+      "action": [
+        44,
+        44
+      ],
+      "png_sha256": "6bc90cdd69dd6ff9c1fb6beddaeeff2bdc8d9f631111112b66ac6c9e29e287c8",
+      "geometric_paint_intersection": null
+    },
+    {
+      "receipt": "/var/tmp/moos-ui-next-audit-20261020/panel-observed68/w1280-tablet1/receipt.json",
+      "panel_height": 68,
+      "output_width": 1280,
+      "tablet": 1,
+      "compact": [
+        171,
+        54
+      ],
+      "action": [
+        44,
+        44
+      ],
+      "png_sha256": "09e57d891da5240fd2a7b9ec2c9eb73d944d220060a1109db0a4d76aadadf636",
+      "geometric_paint_intersection": null
+    },
+    {
+      "receipt": "/var/tmp/moos-ui-next-audit-20261020/panel-mapped54/w1280-tablet1/receipt.json",
+      "panel_height": 54,
+      "output_width": 1280,
+      "tablet": 1,
+      "compact": [
+        171,
+        40
+      ],
+      "action": [
+        44,
+        44
+      ],
+      "png_sha256": "fa92471b7194f67b422f79e18df85b013407cfd58f4c57aebaeb664b0757c946",
+      "geometric_paint_intersection": [
+        44,
+        34
+      ]
+    },
+    {
+      "receipt": "/var/tmp/moos-ui-next-audit-20261020/panel-mapped64/w1280-tablet1/receipt.json",
+      "panel_height": 64,
+      "output_width": 1280,
+      "tablet": 1,
+      "compact": [
+        171,
+        50
+      ],
+      "action": [
+        44,
+        44
+      ],
+      "png_sha256": "50b39024427dc5f2451346460afe981c57f9b54ec7b43d59b7e41cf124a40a1a",
+      "geometric_paint_intersection": [
+        44,
+        44
+      ]
+    }
+  ],
+  "negative": "panel-baseline54 noKWin: no allocated compact marker, exit1, noPNG; initial instrumentation logging/preparation refusals preserved; not successful qualification",
+  "scope": "private actual native ARM KWin nested Wayland/Plasma allocation and software pixels; component input independently tested; not full-panel injected touch, physical tablet, GPU blur, output hotplug or installed acceptance",
+  "interpretation_correction": "Mapped clipping proves paint intersection only. Actual native baseline44 edge click outside compact clipping rectangle DID arrive. No pointer-input loss can be inferred from this geometry."
+}

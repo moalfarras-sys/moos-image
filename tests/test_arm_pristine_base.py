@@ -27,6 +27,26 @@ class ArmPristineBase(unittest.TestCase):
         self.authority=self.root/'usr/lib/tmpfiles.d/var.conf';self.authority.parent.mkdir(parents=True)
         self.authority.write_text('L /var/run - - - - ../run\n')
 
+    def test_same_filesystem_bind_refuses_before_any_enumeration(self):
+        base=self.root/'var'
+        before=set(base.rglob('*'))
+        with patch('prepare_arm_compose_base.mount_points', return_value={base/'private-mounted-child'}), \
+                patch.object(Path, 'is_mount', return_value=False), \
+                patch.object(Path, 'iterdir', side_effect=AssertionError('traversed mounted tree')):
+            with self.assertRaisesRegex(RuntimeError,'mounted'):
+                M.canonicalize_input(self.root)
+        self.assertEqual(set(base.rglob('*')),before)
+
+    def test_local_tmpfiles_mask_refuses_before_first_delete(self):
+        authority=self.authority
+        override=self.root/'etc/tmpfiles.d'/authority.name
+        override.parent.mkdir(parents=True,exist_ok=True)
+        override.symlink_to('/dev/null')
+        with patch.object(Path,'unlink',side_effect=AssertionError('deleted before authority validation')), \
+                patch.object(Path,'rmdir',side_effect=AssertionError('deleted before authority validation')):
+            with self.assertRaisesRegex(RuntimeError,'override'):
+                M.canonicalize_input(self.root)
+
     def refused(self,text):
         with self.assertRaisesRegex((OSError,RuntimeError),text):M.canonicalize_input(self.root)
         self.assertTrue(os.path.lexists(self.run));self.assertTrue(self.state.exists())
@@ -50,7 +70,7 @@ class ArmPristineBase(unittest.TestCase):
         self.refused('unexpected symlink')
 
     def test_hardlinked_identity_is_never_truncated(self):
-        os.link(self.identity,self.root/'keep');self.refused('unsafe transaction metadata')
+        os.link(self.identity,self.root/'keep');self.refused('unsafe.*(mount|transaction metadata)')
 
     def test_unknown_top_level_state_is_preserved(self):
         p=self.root/'var/owner';p.write_text('keep');self.refused('unexpected ARM base input')
@@ -68,7 +88,7 @@ class ArmPristineBase(unittest.TestCase):
         self.assertTrue(p.exists())
 
     def test_wrong_scaffold_mode_is_refused(self):
-        self.state.chmod(0o777);self.refused('unsafe transaction metadata')
+        self.state.chmod(0o777);self.refused('unsafe.*(mount|transaction metadata)')
 
     def test_escaping_run_alias_is_never_unlinked(self):
         self.run.unlink();self.run.symlink_to('/run');self.refused('run alias drifted')
@@ -88,7 +108,7 @@ class ArmPristineBase(unittest.TestCase):
     def test_mount_is_not_treated_as_empty_owned_state(self):
         original=Path.is_mount
         with patch.object(Path,'is_mount',lambda p:p==self.library or original(p)):
-            self.refused('unsafe transaction metadata')
+            self.refused('unsafe.*(mount|transaction metadata)')
 
     def test_installed_host_is_refused_before_package_commands(self):
         with patch.object(Path,'exists',return_value=True),patch.object(M.subprocess,'check_output') as command:
@@ -159,7 +179,7 @@ class ArmPristineBase(unittest.TestCase):
     def test_native_authority_mount_is_refused(self):
         transaction,path,_,record=self.arm_authority();original=Path.is_mount
         with patch.object(Path,'is_mount',lambda p:p==path or original(p)):
-            with self.assertRaisesRegex(RuntimeError,'unreviewed ARM rpm-state'):transaction.authority(record)
+            with self.assertRaisesRegex(RuntimeError,'unsafe compose mount'):transaction.authority(record)
 
     def test_native_arm_scaffold_uses_the_same_full_transaction_preflight(self):
         transaction,path,data,record=self.arm_authority()
@@ -178,6 +198,22 @@ class ArmPristineBase(unittest.TestCase):
             path=self.root/relative;path.parent.mkdir(parents=True,exist_ok=True)
             path.write_bytes(data);path.chmod(0o664);files[path]=data
         return files
+
+    def test_reviewed_hardlinked_account_replaced_without_changing_alias_inode(self):
+        files=self.generated_accounts()
+        aliases={}
+        for path,data in files.items():
+            alias=path.with_name(path.name+'.outside');os.link(path,alias)
+            aliases[path]=(alias,alias.stat().st_ino,data)
+        M.canonicalize_input(self.root)
+        for path,(alias,inode,data) in aliases.items():
+            self.assertEqual(alias.stat().st_ino,inode)
+            self.assertEqual(alias.stat().st_mode&0o777,0o664)
+            self.assertEqual(alias.read_bytes(),data)
+            self.assertNotEqual(path.stat().st_ino,inode)
+            self.assertEqual(path.stat().st_nlink,1)
+            self.assertEqual(path.stat().st_mode&0o777,0o644)
+            self.assertEqual(path.read_bytes(),data)
 
     def test_known_native_account_bytes_survive_root_only_write_permission(self):
         files=self.generated_accounts();M.canonicalize_input(self.root)

@@ -1,0 +1,623 @@
+{
+  "observed_utc": "2026-10-20T23:35:34.059265+00:00",
+  "source_scope": "Only MediaControl 44px tablet target is repository implementation; no parent/outset/panel/seam edits",
+  "mouse_controls": {
+    "current44mouse": {
+      "generation": "w1280-tablet1",
+      "variant": "baseline",
+      "clicks": [
+        {
+          "edge": "left",
+          "point": [
+            409,
+            773
+          ],
+          "injected_xvfb": [
+            409,
+            773
+          ],
+          "count_before": 0,
+          "count_after": 1,
+          "delta": 1
+        },
+        {
+          "edge": "right",
+          "point": [
+            452,
+            773
+          ],
+          "injected_xvfb": [
+            452,
+            773
+          ],
+          "count_before": 1,
+          "count_after": 2,
+          "delta": 1
+        },
+        {
+          "edge": "top",
+          "point": [
+            431,
+            751
+          ],
+          "injected_xvfb": [
+            431,
+            751
+          ],
+          "count_before": 2,
+          "count_after": 3,
+          "delta": 1
+        },
+        {
+          "edge": "bottom",
+          "point": [
+            431,
+            794
+          ],
+          "injected_xvfb": [
+            431,
+            794
+          ],
+          "count_before": 3,
+          "count_after": 4,
+          "delta": 1
+        }
+      ],
+      "action": {
+        "kind": "action",
+        "globalX": 409,
+        "globalY": 751,
+        "windowX": 163,
+        "windowY": 730,
+        "windowWidth": 954,
+        "windowHeight": 70,
+        "x": 111,
+        "y": 0,
+        "width": 44,
+        "height": 44,
+        "implicitWidth": 44,
+        "implicitHeight": 44,
+        "visible": true,
+        "enabled": true,
+        "tablet": true,
+        "parents": [
+          {
+            "type": "MediaControl_QMLTYPE_294(0xaaaad1579560)",
+            "x": 0,
+            "y": 0,
+            "width": 44,
+            "height": 44,
+            "clip": true
+          },
+          {
+            "type": "QQuickRowLayout(0xaaaad155eaf0)",
+            "x": 111,
+            "y": 0,
+            "width": 155,
+            "height": 44,
+            "clip": false
+          },
+          {
+            "type": "QQuickColumnLayout(0xaaaad155ea00)",
+            "x": 111,
+            "y": 0,
+            "width": 155,
+            "height": 28,
+            "clip": false
+          },
+          {
+            "type": "QQuickRectangle_QML_313(0xaaaad1559b90)",
+            "x": 119,
+            "y": 2,
+            "width": 171,
+            "height": 32,
+            "clip": false
+          },
+          {
+            "type": "QQuickFocusScope_QML_311(0xaaaad155aa60)",
+            "x": 119,
+            "y": 6,
+            "width": 171,
+            "height": 40,
+            "clip": true
+          },
+          {
+            "type": "QQuickFocusScope(0xaaaad15d9720, \"expandApplet\")",
+            "x": 119,
+            "y": 6,
+            "width": 171,
+            "height": 40,
+            "clip": false
+          },
+          {
+            "type": "CompactApplet_QMLTYPE_116(0xaaaad15d61d0, \"org.kde.desktop-CompactApplet\")",
+            "x": 119,
+            "y": 6,
+            "width": 171,
+            "height": 40,
+            "clip": false
+          },
+          {
+            "type": "PlasmoidItem_QML_307(0xaaaacfc62420)",
+            "x": 119,
+            "y": 6,
+            "width": 171,
+            "height": 40,
+            "clip": false
+          },
+          {
+            "type": "AppletContainer_QMLTYPE_214_QML_219(0xaaaacfaa6aa0)",
+            "x": 119,
+            "y": 6,
+            "width": 171,
+            "height": 40,
+            "clip": false
+          },
+          {
+            "type": "QQuickGridLayout_QML_224(0xaaaacf930e80)",
+            "x": 227,
+            "y": 13,
+            "width": 916,
+            "height": 54,
+            "clip": false
+          },
+          {
+            "type": "DeclarativeDropArea_QML_218(0xaaaacfa45e90)",
+            "x": 227,
+            "y": 13,
+            "width": 916,
+            "height": 54,
+            "clip": false
+          },
+          {
+            "type": "ContainmentItem_QML_216(0xaaaacfa4e5a0)",
+            "x": 238,
+            "y": 13,
+            "width": 938,
+            "height": 54,
+            "clip": false
+          }
+        ]
+      },
+      "nested_window_geometry": {
+        "WINDOW": "2097152",
+        "X": "0",
+        "Y": "0",
+        "WIDTH": "1280",
+        "HEIGHT": "800",
+        "SCREEN": "0"
+      }
+    },
+    "old34mouse": {
+      "generation": "w1280-tablet1",
+      "variant": "old34",
+      "clicks": [
+        {
+          "edge": "bottom",
+          "point": [
+            431,
+            794
+          ],
+          "injected_xvfb": [
+            431,
+            794
+          ],
+          "count_before": 0,
+          "count_after": 1,
+          "delta": 1
+        }
+      ],
+      "action": {
+        "kind": "action",
+        "globalX": 419,
+        "globalY": 751,
+        "windowX": 163,
+        "windowY": 730,
+        "windowWidth": 954,
+        "windowHeight": 70,
+        "x": 121,
+        "y": 0,
+        "width": 34,
+        "height": 34,
+        "implicitWidth": 34,
+        "implicitHeight": 34,
+        "visible": true,
+        "enabled": true,
+        "tablet": true,
+        "parents": [
+          {
+            "type": "MediaControl_QMLTYPE_302(0xaaaae0e18480)",
+            "x": 0,
+            "y": 0,
+            "width": 34,
+            "height": 34,
+            "clip": true
+          },
+          {
+            "type": "QQuickRowLayout(0xaaaae0dfd8a0)",
+            "x": 121,
+            "y": 0,
+            "width": 155,
+            "height": 34,
+            "clip": false
+          },
+          {
+            "type": "QQuickColumnLayout(0xaaaae0dfd7b0)",
+            "x": 121,
+            "y": 0,
+            "width": 155,
+            "height": 28,
+            "clip": false
+          },
+          {
+            "type": "QQuickRectangle_QML_313(0xaaaae0df8940)",
+            "x": 129,
+            "y": 2,
+            "width": 171,
+            "height": 32,
+            "clip": false
+          },
+          {
+            "type": "QQuickFocusScope_QML_311(0xaaaae0df9810)",
+            "x": 129,
+            "y": 6,
+            "width": 171,
+            "height": 40,
+            "clip": true
+          },
+          {
+            "type": "QQuickFocusScope(0xaaaae0e78ec0, \"expandApplet\")",
+            "x": 129,
+            "y": 6,
+            "width": 171,
+            "height": 40,
+            "clip": false
+          },
+          {
+            "type": "CompactApplet_QMLTYPE_116(0xaaaae0e75950, \"org.kde.desktop-CompactApplet\")",
+            "x": 129,
+            "y": 6,
+            "width": 171,
+            "height": 40,
+            "clip": false
+          },
+          {
+            "type": "PlasmoidItem_QML_307(0xaaaadf4a70f0)",
+            "x": 129,
+            "y": 6,
+            "width": 171,
+            "height": 40,
+            "clip": false
+          },
+          {
+            "type": "AppletContainer_QMLTYPE_215_QML_219(0xaaaae02bd6b0)",
+            "x": 129,
+            "y": 6,
+            "width": 171,
+            "height": 40,
+            "clip": false
+          },
+          {
+            "type": "QQuickGridLayout_QML_224(0xaaaadefb6ab0)",
+            "x": 237,
+            "y": 13,
+            "width": 916,
+            "height": 54,
+            "clip": false
+          },
+          {
+            "type": "DeclarativeDropArea_QML_218(0xaaaadf2bd110)",
+            "x": 237,
+            "y": 13,
+            "width": 916,
+            "height": 54,
+            "clip": false
+          },
+          {
+            "type": "ContainmentItem_QML_216(0xaaaadf2eb6f0)",
+            "x": 248,
+            "y": 13,
+            "width": 938,
+            "height": 54,
+            "clip": false
+          }
+        ]
+      },
+      "nested_window_geometry": {
+        "WINDOW": "2097152",
+        "X": "0",
+        "Y": "0",
+        "WIDTH": "1280",
+        "HEIGHT": "800",
+        "SCREEN": "0"
+      }
+    },
+    "outsetcandidate": {
+      "point": [
+        431,
+        789
+      ],
+      "injected_xvfb": [
+        431,
+        789
+      ],
+      "hit": true,
+      "expected_hit": true,
+      "action": {
+        "kind": "action",
+        "globalX": 409,
+        "globalY": 746,
+        "windowX": 163,
+        "windowY": 730,
+        "windowWidth": 954,
+        "windowHeight": 70,
+        "x": 111,
+        "y": -5,
+        "width": 44,
+        "height": 44,
+        "implicitWidth": 44,
+        "implicitHeight": 44,
+        "visible": true,
+        "enabled": true,
+        "tablet": true,
+        "parents": [
+          {
+            "type": "MediaControl_QMLTYPE_285(0xaaaad88222d0)",
+            "x": 0,
+            "y": 0,
+            "width": 44,
+            "height": 44,
+            "clip": true
+          },
+          {
+            "type": "QQuickRowLayout(0xaaaad88077c0)",
+            "x": 111,
+            "y": -5,
+            "width": 155,
+            "height": 34,
+            "clip": false
+          },
+          {
+            "type": "QQuickColumnLayout(0xaaaad88076d0)",
+            "x": 111,
+            "y": -5,
+            "width": 155,
+            "height": 28,
+            "clip": false
+          },
+          {
+            "type": "QQuickRectangle_QML_313(0xaaaad8802910)",
+            "x": 119,
+            "y": -3,
+            "width": 171,
+            "height": 32,
+            "clip": false
+          },
+          {
+            "type": "QQuickFocusScope_QML_311(0xaaaad88036b0)",
+            "x": 119,
+            "y": 1,
+            "width": 171,
+            "height": 40,
+            "clip": false
+          },
+          {
+            "type": "QQuickFocusScope(0xaaaad8882410, \"expandApplet\")",
+            "x": 119,
+            "y": 1,
+            "width": 171,
+            "height": 40,
+            "clip": false
+          },
+          {
+            "type": "CompactApplet_QMLTYPE_116(0xaaaad887eea0, \"org.kde.desktop-CompactApplet\")",
+            "x": 119,
+            "y": 1,
+            "width": 171,
+            "height": 40,
+            "clip": false
+          },
+          {
+            "type": "PlasmoidItem_QML_307(0xaaaad6eb89a0)",
+            "x": 119,
+            "y": 1,
+            "width": 171,
+            "height": 40,
+            "clip": false
+          },
+          {
+            "type": "AppletContainer_QMLTYPE_215_QML_219(0xaaaad7c80ce0)",
+            "x": 119,
+            "y": 1,
+            "width": 171,
+            "height": 40,
+            "clip": false
+          },
+          {
+            "type": "QQuickGridLayout_QML_224(0xaaaad6d165d0)",
+            "x": 227,
+            "y": 8,
+            "width": 916,
+            "height": 54,
+            "clip": false
+          },
+          {
+            "type": "DeclarativeDropArea_QML_218(0xaaaad6b95460)",
+            "x": 227,
+            "y": 8,
+            "width": 916,
+            "height": 54,
+            "clip": false
+          },
+          {
+            "type": "ContainmentItem_QML_216(0xaaaad6cf6040)",
+            "x": 238,
+            "y": 8,
+            "width": 938,
+            "height": 54,
+            "clip": false
+          }
+        ]
+      },
+      "nested_window_geometry": {
+        "WINDOW": "2097152",
+        "X": "0",
+        "Y": "0",
+        "WIDTH": "1280",
+        "HEIGHT": "800",
+        "SCREEN": "0"
+      }
+    },
+    "outsetbaseline": {
+      "point": [
+        431,
+        789
+      ],
+      "injected_xvfb": [
+        431,
+        789
+      ],
+      "hit": true,
+      "expected_hit": false,
+      "action": {
+        "kind": "action",
+        "globalX": 409,
+        "globalY": 751,
+        "windowX": 163,
+        "windowY": 730,
+        "windowWidth": 954,
+        "windowHeight": 70,
+        "x": 111,
+        "y": 0,
+        "width": 44,
+        "height": 44,
+        "implicitWidth": 44,
+        "implicitHeight": 44,
+        "visible": true,
+        "enabled": true,
+        "tablet": true,
+        "parents": [
+          {
+            "type": "MediaControl_QMLTYPE_278(0xaaaae53264f0)",
+            "x": 0,
+            "y": 0,
+            "width": 44,
+            "height": 44,
+            "clip": true
+          },
+          {
+            "type": "QQuickRowLayout(0xaaaae530bbd0)",
+            "x": 111,
+            "y": 0,
+            "width": 155,
+            "height": 44,
+            "clip": false
+          },
+          {
+            "type": "QQuickColumnLayout(0xaaaae530bae0)",
+            "x": 111,
+            "y": 0,
+            "width": 155,
+            "height": 28,
+            "clip": false
+          },
+          {
+            "type": "QQuickRectangle_QML_313(0xaaaae5306c70)",
+            "x": 119,
+            "y": 2,
+            "width": 171,
+            "height": 32,
+            "clip": false
+          },
+          {
+            "type": "QQuickFocusScope_QML_311(0xaaaae5307b40)",
+            "x": 119,
+            "y": 6,
+            "width": 171,
+            "height": 40,
+            "clip": true
+          },
+          {
+            "type": "QQuickFocusScope(0xaaaae5387280, \"expandApplet\")",
+            "x": 119,
+            "y": 6,
+            "width": 171,
+            "height": 40,
+            "clip": false
+          },
+          {
+            "type": "CompactApplet_QMLTYPE_116(0xaaaae5383d10, \"org.kde.desktop-CompactApplet\")",
+            "x": 119,
+            "y": 6,
+            "width": 171,
+            "height": 40,
+            "clip": false
+          },
+          {
+            "type": "PlasmoidItem_QML_307(0xaaaae39b6f60)",
+            "x": 119,
+            "y": 6,
+            "width": 171,
+            "height": 40,
+            "clip": false
+          },
+          {
+            "type": "AppletContainer_QMLTYPE_214_QML_219(0xaaaae47d2bf0)",
+            "x": 119,
+            "y": 6,
+            "width": 171,
+            "height": 40,
+            "clip": false
+          },
+          {
+            "type": "QQuickGridLayout_QML_224(0xaaaae37e2f60)",
+            "x": 227,
+            "y": 13,
+            "width": 916,
+            "height": 54,
+            "clip": false
+          },
+          {
+            "type": "DeclarativeDropArea_QML_218(0xaaaae309bdb0)",
+            "x": 227,
+            "y": 13,
+            "width": 916,
+            "height": 54,
+            "clip": false
+          },
+          {
+            "type": "ContainmentItem_QML_216(0xaaaae37f9840)",
+            "x": 238,
+            "y": 13,
+            "width": 938,
+            "height": 54,
+            "clip": false
+          }
+        ]
+      },
+      "nested_window_geometry": {
+        "WINDOW": "2097152",
+        "X": "0",
+        "Y": "0",
+        "WIDTH": "1280",
+        "HEIGHT": "800",
+        "SCREEN": "0"
+      }
+    }
+  },
+  "conclusions": [
+    "Current44 actual nestedKWin mouse allfour edge counters increment exactlyonce.",
+    "Originalcliptrue baseline also hits samecandidatebottom; paintingclip does not establish pointerinputclip.",
+    "Old34 fullshell bottomoutsidegeometry also hits; do not invent oldnegative for fullshell.",
+    "Outset candidate once hits samepoint; no causal repair because baselinepositive.",
+    "NativeWaylandtouch unavailable: registry doesnotadvertise org_kde_kwin_fake_input; client refused beforeauthentication/input. No altered compositorpermissions.",
+    "Component-only original34 QTesttouch negative and fixed44 positive remain valid; fullshell/physicaltouch requires furtheracceptance."
+  ],
+  "files": {
+    "full-panel-mouse-edges.py": "326f19ace227229c399bf40853b8335f658476f82519f43817afb9449fe09c95",
+    "full-panel-outset-fixture.py": "18f0b829804eca1303c3de25c818ea57494c3a0eb6ca8bafc062b876094a18bf",
+    "full-panel-touch-edges.py": "8ef9638e8fbb06e85d0b250f002a7f19e514e496058997c35b972cd6f404f08e",
+    "private-wayland-touch.py": "7a43a47231f18faeb6963f60075d6ef2196d1c685bd753196b1dd4ee7fba4344",
+    "touch-edges-baseline/w1280-tablet1/touch-left.log": "88639d0c89348e58c0a324802498c39a356dbfb6215e8c392dce5119d2e12112"
+  }
+}

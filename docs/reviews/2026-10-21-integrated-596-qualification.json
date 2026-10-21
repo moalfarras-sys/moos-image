@@ -1,0 +1,57 @@
+{
+  "source_receipt": {
+    "command": [
+      "nice",
+      "-n",
+      "10",
+      "env",
+      "MOOS_BUILD_CONTEXT_PROBE=1",
+      "just",
+      "check"
+    ],
+    "source_revision": "596803303c2e749448e6292fe611099ab79caaa5",
+    "source_tree": "7c4564b6f4f85ac0e2d6c35f47dc5d55234a0dfc",
+    "initial_status": "",
+    "started_utc": "2026-10-21T00:01:17.116522+00:00",
+    "exit_code": 1,
+    "duration_seconds": 313.712,
+    "finished_utc": "2026-10-21T00:06:30.789790+00:00",
+    "log_sha256": "6e4458c422f6f8b05f0256629750262ff2d793838c538db1432ea4b3966d1209",
+    "final_revision": "596803303c2e749448e6292fe611099ab79caaa5",
+    "final_tree": "7c4564b6f4f85ac0e2d6c35f47dc5d55234a0dfc",
+    "final_status": ""
+  },
+  "local_source_failure": "PROJECT_STATE201 lines exceeds unchanged200-line concise-state gate; actualexit1 preserved; no image started",
+  "ci": {
+    "ARM": {
+      "run": 39518723475,
+      "conclusion": "success",
+      "PR_boot_promotion": "skipped; no signed delivery"
+    },
+    "repository": {
+      "run": 39518723510,
+      "conclusion": "success",
+      "scope": "generic source runner explicitly lacks Qt runtime"
+    },
+    "x86_image": {
+      "run": 39518723506,
+      "conclusion": "failure",
+      "reason": "strict tmpfiles override preflight refuses Atomic usr/local link"
+    },
+    "canary": {
+      "run": 39518723494,
+      "conclusion": "failure",
+      "reason": "same usr/local link refusal"
+    },
+    "Remote": {
+      "run": 39518723481,
+      "conclusion": "failure",
+      "reason": "npm ci network download exit152; not a test or bundle mismatch"
+    }
+  },
+  "logs": {
+    "image-input-failed.log": "1349cd3f998d6f883e13ccf4a13bede2f0985adcfc6ca0a15fa61eb82deca310",
+    "remote-input-failed.log": "f3f4e7f5bdfe8279a2f385080a63e2ee91eb086e5d0278b35b7c7b72e5e485d6",
+    "canary-input-failed.log": "446cc244fb609f24d3163cf2a3504f00916b4dc28d2419d632ab447577504ce7"
+  }
+}

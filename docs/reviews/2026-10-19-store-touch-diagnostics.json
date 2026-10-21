@@ -1,0 +1,59 @@
+{
+  "result": "PASS",
+  "scope": "test-only observability; no fix/rootcause claim, source repositories untouched",
+  "prior_fixture_issue": "First diagnostics version preserved all functional negatives but management route deleted a stale item and prevented diagnostic JSON. Added isValid guard for deleted item wrappers; first logs retained under /tmp/moos-touch-diagnostics-proof-20261019.",
+  "results": [
+    {
+      "name": "positive",
+      "exit": 0,
+      "seconds": 26.999,
+      "events": 47,
+      "failed": [],
+      "diagnostic": false,
+      "log": "/tmp/moos-touch-diagnostics-proof-v2-20261019/positive"
+    },
+    {
+      "name": "old-wheel",
+      "exit": 1,
+      "seconds": 3.723,
+      "events": 2,
+      "failed": [
+        "vertical angle wheel crosses the horizontal shelf"
+      ],
+      "diagnostic": true,
+      "log": "/tmp/moos-touch-diagnostics-proof-v2-20261019/old-wheel"
+    },
+    {
+      "name": "passive-pill",
+      "exit": 1,
+      "seconds": 7.197,
+      "events": 20,
+      "failed": [
+        "drag starting on an action pill scrolls without activating"
+      ],
+      "diagnostic": true,
+      "log": "/tmp/moos-touch-diagnostics-proof-v2-20261019/passive-pill"
+    },
+    {
+      "name": "management",
+      "exit": 1,
+      "seconds": 13.986,
+      "events": 42,
+      "failed": [
+        "installed app trash tap opens only its management sheet"
+      ],
+      "diagnostic": true,
+      "log": "/tmp/moos-touch-diagnostics-proof-v2-20261019/management"
+    }
+  ],
+  "assertions_and_180ms_wait": "unchanged",
+  "successful_path": "light frame counter and event/state observations only; no extra input, waits or renders",
+  "failure_path": "original failed condition retained; private hit/ancestor geometry, JSON and screenshot after failure",
+  "source_sha256": "351a2fcb605009a4149cb0c4f371e3182ac6db4b85a63d15413b0f304538ba0a",
+  "instrumented_sha256": "3a32e1863f8876931c1efc9ef18e667a00f5e2f65d9ad8cb13a701adb92a0a20",
+  "probe": "/tmp/moos-touch-diagnostics-stage/tests/store_touch_probe.py",
+  "patch": "/tmp/moos-store-touch-diagnostics.patch",
+  "frame_signal": "QQuickWindow.afterAnimating (animation-frame observations, not proof of presentation)",
+  "original_failure_status": "The original intermittent full-check/no-compiler wheel failures remain unexplained and preserved; this patch gathers evidence on the next failure.",
+  "apply_check": "PASS against primary11a4ff16"
+}

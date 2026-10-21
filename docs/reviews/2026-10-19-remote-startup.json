@@ -1,0 +1,70 @@
+{
+  "result": "PASS",
+  "actual_agent_exit": 75,
+  "port": 34437,
+  "agent_artifact": "/var/home/moos/moos-image/moremote/agent-linux/bin/Release/net10.0/MoRemotePersonal.dll",
+  "agent_sha256": "daec80e00cae32964e6cb419b0e231aabb4ff768be22d68f94087bee01eae9ac",
+  "assertions": [
+    "occupied real loopback returns75",
+    "occupied log without false listening",
+    "no endpoint file",
+    "fixture owner socket preserved",
+    "partially bound IPv6 socket released after failure"
+  ],
+  "evidence": "/tmp/moos-remote-startup-program-zvd6duna",
+  "scope": "actual compiled Linux Program with isolated MOREMOTE_DATA_DIR; endpoint publication is intentionally suppressed for isolated instances. Native helper tests plus source integration gate cover endpoint ordering. No physical greeter/account handoff or signed image claim.",
+  "build": {
+    "command": "dotnet build moremote/agent-linux/MoRemoteLinux.csproj -c Release --nologo",
+    "exit_code": 0,
+    "warnings": 0,
+    "errors": 0,
+    "audit": "NuGet vulnerability audit remained enabled; sandbox metadata failure resolved through approved network access."
+  },
+  "native_kestrel_controls": {
+    "command": "dotnet run --project moremote/tests/MoRemote.Startup.Tests --no-restore",
+    "exit_code": 0,
+    "passed": 18,
+    "cases": [
+      "actual old startup throws occupied",
+      "3 bounded ordinary occupied failures",
+      "no endpoint on failed paths",
+      "foreign fixture listener remains bound",
+      "fresh app starts after release with actual HTTP",
+      "normal HTTP start/stop endpoint",
+      "cancellation propagates",
+      "unrelated IO and configuration failure propagate"
+    ]
+  },
+  "source_integration_controls": {
+    "remote_start_lifecycle": 7,
+    "project_coverage": 8,
+    "loopback_network_boundary": "PASS"
+  },
+  "failure_policy": "No retry on failed WebApplication; return75 and dispose. Existing service RestartSec3/StartLimitBurst5/StartLimitIntervalSec300 bounds retries.",
+  "fixture_failures": [
+    "Initial private Kestrel attempt inside sandbox rejected socket creation with SocketException13 and produced unhandled test process exit134; test now catches top-level fixture errors and returns1.",
+    "Initial no-restore build lacked assets; normal restore initially could not fetch vulnerability metadata in sandbox. Final build fetched metadata with approval and passed without disabling audit."
+  ],
+  "isolation": {
+    "private_home_runtime_data_config_cache": true,
+    "private_dbus_no_service_activation": true,
+    "system_bus": "nonexistent private path",
+    "input_socket": "nonexistent private path",
+    "wayland": "nonexistent private display",
+    "owner_services_changed": false
+  },
+  "limits": [
+    "No signed image or installed payload claim.",
+    "No live account/greeter login or phone endurance acceptance.",
+    "Actual Program uses isolatedDataDir, which disables canonical endpoint publication by design; endpoint ordering separately has actual helper controls plus production source integration checks."
+  ],
+  "evidence_hashes": {
+    "/tmp/moos-remote-program-startup-proof.py": "6965880fc8641eed06e1e5d6f1c223e2bf3e3f0b9af77b7995b1a5ba7b954b8d",
+    "/tmp/moos-remote-startup-program-zvd6duna/data/log.txt": "de7fb480ae42483de3ed2837598211ef5eb6410997c674528583ecd50c876565",
+    "/tmp/moos-remote-startup-program-zvd6duna/stdout.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "/tmp/moos-remote-startup-program-zvd6duna/stderr.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "moremote/agent-linux/ListenerStartup.cs": "5ddf612b834f0791b424c890e23d6ab0102698dafa9cda44b2d5c7d90d11d119",
+    "moremote/agent-linux/Program.cs": "deeac0c89d2f52b872ccd25b4a955fdcbaabd1aa548abeea49d4c775573487d7",
+    "moremote/tests/MoRemote.Startup.Tests/Program.cs": "f1e36b37c0364dac0904b78f5ac30b2fe18046d893099b1d58da7158f5c7d780"
+  }
+}

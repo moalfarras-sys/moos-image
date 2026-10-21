@@ -44,6 +44,11 @@ moplayer/linux/flutter/ephemeral/
 # context on every local build: node_modules 191 MB, agent-linux/bin 3.8 MB, obj 1.2 MB.
 moremote/agent-linux/bin/
 moremote/agent-linux/obj/
+# Every .NET project, including tests and visual tools, writes these directories.
+# Match moremote/.gitignore at every depth; local outputs are rebuilt in-image.
+moremote/**/bin/
+moremote/**/obj/
+moremote/**/publish/
 moremote/controller/node_modules/
 moremote/dist-linux/
 .tmp-moremote-*/

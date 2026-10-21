@@ -1,0 +1,26 @@
+{
+  "utc": "2026-10-19T20:59:34.520172+00:00",
+  "head": "11a4ff16ec8ba612ae54b79e0d94155a9dc50fe3",
+  "ref_count": 279,
+  "counts": {
+    "refs/archive": 90,
+    "refs/codex": 4,
+    "refs/heads": 40,
+    "refs/remotes": 137,
+    "refs/stash": 1,
+    "refs/tags": 7
+  },
+  "ref_listing_sha256": "34f873193f06778cb8d6b14ad2f4116d97509794c529648f08a537116c909e3d",
+  "checked_branch_heads": 177,
+  "not_ancestors": [],
+  "worktrees": "worktree /var/home/moos/moos-image\nHEAD 11a4ff16ec8ba612ae54b79e0d94155a9dc50fe3\nbranch refs/heads/codex/integration-audit-20261019\n\nworktree /tmp/moos-hardware-followup-20261019\nHEAD 11a4ff16ec8ba612ae54b79e0d94155a9dc50fe3\nbranch refs/heads/codex/hardware-followup-20261019\n\n",
+  "stash_entries": 4,
+  "scope": "All registered local/remote branch heads in this station, archives preserved, no refs deleted. Temporary follow-up tree created by this task is included; not a remote physical-workstation tree inventory.",
+  "fsck": {
+    "command": "git fsck --full --no-reflogs",
+    "exit_code": 0,
+    "log_sha256": "f15f965a207e75b0a16d87f76d621e474cb8824b735552b0694110ff35d4f3a9",
+    "dangling_trees": 7,
+    "meaning": "Recoverable unreferenced trees, not corruption; no objects or refs removed"
+  }
+}

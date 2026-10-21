@@ -2727,6 +2727,7 @@ systemctl disable fedora-atomic-desktop-appstream-cache-refresh.service
 # resilient helper as the user scope (20-moos-resilient.conf). It cannot reach the boot path.
 systemctl unmask flatpak-system-update.service 2>/dev/null || true
 systemctl enable flatpak-system-update.timer
+systemctl --global enable flatpak-user-update.timer
 [ -L /etc/systemd/system/timers.target.wants/flatpak-system-update.timer ] \
     || { echo "GATE FAIL: flatpak-system-update.timer is not enabled — apps installed for all users would never update"; exit 1; }
 [ ! -L /etc/systemd/system/flatpak-system-update.service ] \
@@ -4076,6 +4077,7 @@ python3 /ctx/verify_desktop_parity.py --root /
 python3 /ctx/verify_sound_theme.py
 python3 /ctx/verify_qml_host_platform.py
 python3 /ctx/verify_moos_motion.py --qml /ctx/motion-review.qml
+MOOS_TOUCH_OVERLAY=/ MOOS_REQUIRE_NATIVE_TOUCH=1 python3 /ctx/test_island_touch_target.py
 
 # ── The MoOS Store must be internally consistent end-to-end ───────────────────
 #
@@ -4933,6 +4935,7 @@ bash /ctx/verify_settings_modules.sh || exit 1
 
 python3 /ctx/plasma_logout/rpms.py verify
 python3 /ctx/verify_memory_policy.py --root /
+python3 /ctx/verify_app_updates.py --root /
 python3 /ctx/android_session_policy.py verify --edition "$MOOS_EDITION"
 # The local greeter must use authselect's biometric-capable local stack.
 # Remote/password-only PAM services and native authentication backends stay untouched.

@@ -1,0 +1,138 @@
+{
+  "checked_utc": "2026-10-19T15:10:50.848086+00:00",
+  "source": "9f3f61b5760d6c71cba44f45860a2c8416231cba",
+  "runs": [
+    {
+      "conclusion": "success",
+      "databaseId": 39265980365,
+      "headSha": "9f3f61b5760d6c71cba44f45860a2c8416231cba",
+      "jobs": [
+        {
+          "completedAt": "2026-10-19T14:11:13Z",
+          "conclusion": "success",
+          "databaseId": 118105534277,
+          "name": "Repo gates",
+          "startedAt": "2026-10-19T14:06:40Z",
+          "status": "completed",
+          "url": "https://github.com/moalfarras-sys/moos-image/actions/runs/39265980365/job/118105534277"
+        }
+      ],
+      "status": "completed",
+      "url": "https://github.com/moalfarras-sys/moos-image/actions/runs/39265980365"
+    },
+    {
+      "conclusion": "success",
+      "databaseId": 39265980411,
+      "headSha": "9f3f61b5760d6c71cba44f45860a2c8416231cba",
+      "jobs": [
+        {
+          "completedAt": "2026-10-19T14:07:47Z",
+          "conclusion": "success",
+          "databaseId": 118105536776,
+          "name": "Every .NET project compiles, every test executable passes",
+          "startedAt": "2026-10-19T14:06:40Z",
+          "status": "completed",
+          "url": "https://github.com/moalfarras-sys/moos-image/actions/runs/39265980411/job/118105536776"
+        },
+        {
+          "completedAt": "2026-10-19T14:07:03Z",
+          "conclusion": "success",
+          "databaseId": 118105537329,
+          "name": "Controller typecheck, unit tests and shipped-bundle freshness",
+          "startedAt": "2026-10-19T14:06:40Z",
+          "status": "completed",
+          "url": "https://github.com/moalfarras-sys/moos-image/actions/runs/39265980411/job/118105537329"
+        }
+      ],
+      "status": "completed",
+      "url": "https://github.com/moalfarras-sys/moos-image/actions/runs/39265980411"
+    },
+    {
+      "conclusion": "success",
+      "databaseId": 39265980372,
+      "headSha": "9f3f61b5760d6c71cba44f45860a2c8416231cba",
+      "jobs": [
+        {
+          "completedAt": "2026-10-19T15:07:39Z",
+          "conclusion": "success",
+          "databaseId": 118105534552,
+          "name": "x86 image build and in-image gates (moos, nothing pushed)",
+          "startedAt": "2026-10-19T14:06:39Z",
+          "status": "completed",
+          "url": "https://github.com/moalfarras-sys/moos-image/actions/runs/39265980372/job/118105534552"
+        }
+      ],
+      "status": "completed",
+      "url": "https://github.com/moalfarras-sys/moos-image/actions/runs/39265980372"
+    },
+    {
+      "conclusion": "success",
+      "databaseId": 39265980388,
+      "headSha": "9f3f61b5760d6c71cba44f45860a2c8416231cba",
+      "jobs": [
+        {
+          "completedAt": "2026-10-19T14:51:50Z",
+          "conclusion": "success",
+          "databaseId": 118105534924,
+          "name": "Build moos-arm (native aarch64)",
+          "startedAt": "2026-10-19T14:06:41Z",
+          "status": "completed",
+          "url": "https://github.com/moalfarras-sys/moos-image/actions/runs/39265980388/job/118105534924"
+        },
+        {
+          "completedAt": "2026-10-19T14:51:52Z",
+          "conclusion": "skipped",
+          "databaseId": 118129187256,
+          "name": "Build the qcow2 (Oracle / UTM)",
+          "startedAt": "2026-10-19T14:51:52Z",
+          "status": "completed",
+          "url": "https://github.com/moalfarras-sys/moos-image/actions/runs/39265980388/job/118129187256"
+        },
+        {
+          "completedAt": "2026-10-19T14:51:52Z",
+          "conclusion": "skipped",
+          "databaseId": 118129189579,
+          "name": "Promote boot-proven ARM image",
+          "startedAt": "2026-10-19T14:51:52Z",
+          "status": "completed",
+          "url": "https://github.com/moalfarras-sys/moos-image/actions/runs/39265980388/job/118129189579"
+        }
+      ],
+      "status": "completed",
+      "url": "https://github.com/moalfarras-sys/moos-image/actions/runs/39265980388"
+    },
+    {
+      "conclusion": "success",
+      "databaseId": 39265980385,
+      "headSha": "9f3f61b5760d6c71cba44f45860a2c8416231cba",
+      "jobs": [
+        {
+          "completedAt": "2026-10-19T14:07:26Z",
+          "conclusion": "success",
+          "databaseId": 118105534013,
+          "name": "claude-review",
+          "startedAt": "2026-10-19T14:06:40Z",
+          "status": "completed",
+          "url": "https://github.com/moalfarras-sys/moos-image/actions/runs/39265980385/job/118105534013"
+        }
+      ],
+      "status": "completed",
+      "url": "https://github.com/moalfarras-sys/moos-image/actions/runs/39265980385"
+    }
+  ],
+  "advisory_actual_review": "failure/is_error:true; wrapper green is not review evidence",
+  "limits": [
+    "PR ARM QCOW2 and promotion jobs skipped; generic x86 no publish. Neither image build is signed delivery or installed-system acceptance.",
+    "Later hardware follow-up7eda0ffb not covered by these runs."
+  ],
+  "logs": {
+    "arm": {
+      "path": "/tmp/moos-pr256-arm-9f3f61b5-20261019.log",
+      "sha256": "6fe9bbf11ed62fe9b500bb9e4bbdbe1086dc5eac82dcfe42627a0c955ebca9ae"
+    },
+    "x86": {
+      "path": "/tmp/moos-pr256-x86-9f3f61b5-20261019.log",
+      "sha256": "8dd1d88804de88a014d5f65283087f62d5c3af38800f7b0984487f3bbcc02c26"
+    }
+  }
+}

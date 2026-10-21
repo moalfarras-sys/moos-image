@@ -1,0 +1,22 @@
+{
+  "utc": "2026-10-19T21:08:37.081028+00:00",
+  "booted_version": "44.20261017.804",
+  "read_only": true,
+  "units": {
+    "moos-hardware-adapt.service": {
+      "ActiveState": "active",
+      "SubState": "exited",
+      "RemainAfterExit": "yes",
+      "Result": "success",
+      "ExecMainExitTimestampMonotonic": "53909480",
+      "ExecMainStatus": "0"
+    },
+    "moos-hardware-adapt.timer": {
+      "ActiveState": "active",
+      "SubState": "running",
+      "NextElapseUSecMonotonic": "infinity",
+      "LastTriggerUSecMonotonic": "53.730840s"
+    }
+  },
+  "scope": "Installed old service remains active/exited; timer running with next infinity after first trigger. No restart, enable or hardware mutation."
+}

@@ -1,0 +1,75 @@
+{
+  "result": "PASS",
+  "scope": "Prepared /tmp patch only; frozen repository unchanged. Fake external process controls never invoke host fwupd/journal/system buses.",
+  "old_fixed_process_controls": [
+    {
+      "case": "fwupd-exit1",
+      "old_health": "ready",
+      "fixed_health": "attention",
+      "fixed_firmware_known": false,
+      "fixed_firmware_status": "command-failed",
+      "fixed_kernel_journal_known": true,
+      "fixed_kernel_journal_status": "ok"
+    },
+    {
+      "case": "fwupd-malformed",
+      "old_health": "ready",
+      "fixed_health": "attention",
+      "fixed_firmware_known": false,
+      "fixed_firmware_status": "invalid-response",
+      "fixed_kernel_journal_known": true,
+      "fixed_kernel_journal_status": "ok"
+    },
+    {
+      "case": "journal-exit1",
+      "old_health": "ready",
+      "fixed_health": "attention",
+      "fixed_firmware_known": true,
+      "fixed_firmware_status": "no-updates",
+      "fixed_kernel_journal_known": false,
+      "fixed_kernel_journal_status": "command-failed"
+    },
+    {
+      "case": "both-failed",
+      "old_health": "ready",
+      "fixed_health": "attention",
+      "fixed_firmware_known": false,
+      "fixed_firmware_status": "command-failed",
+      "fixed_kernel_journal_known": false,
+      "fixed_kernel_journal_status": "command-failed"
+    }
+  ],
+  "fixed_process_cases": 19,
+  "fixed_timeout_unavailable_cases": 4,
+  "existing_test_suite": "PASS",
+  "tuple_compatibility": "firmware_report returns same two lists; optional output status dict; three test stubs adjusted.",
+  "sources": [
+    {
+      "url": "https://fwupd.github.io/libfwupdplugin/fwupdmgr.html",
+      "contract": "Exit0 success; exit2 successfully executed with no action; exit3 resource not found."
+    },
+    {
+      "url": "https://raw.githubusercontent.com/fwupd/fwupd/2.1.8/src/fu-util.c",
+      "contract": "Installed package fwupd2.1.8. JSON Devices schema lines2530\u20132603; JSON bypasses metadata refresh; per-device upgrade errors can be omitted upstream. Main maps NOTHING_TO_DO to special exit at5891\u20135892."
+    },
+    {
+      "url": "https://raw.githubusercontent.com/fwupd/fwupd/2.1.8/src/fu-util-common.c",
+      "contract": "Error object Domain/Code/Message emitted lines2896\u20132904; translated Message never matched."
+    }
+  ],
+  "limits": [
+    "known means a completed local query, not online freshness, comprehensive device support, successful firmware installation or functional hardware acceptance.",
+    "Upstream get-updates JSON can omit per-device upgrade failures; this patch handles observable command/schema/journal uncertainty, not upstream hidden device coverage.",
+    "No image build or installed delivery proof for this staged patch."
+  ],
+  "files": {
+    "system_files/usr/bin/moos-device-plan": {
+      "old_sha256": "cf05255374d34ba44c052b71c2a5efcb497d01ec36a6d300307ca4f2b1fc2b23",
+      "fixed_sha256": "41a931579c2b2b5fdf844548c84720f51042bb0e9db667a6ac84b08cc7de8af4"
+    },
+    "tests/test_device_plan.py": {
+      "old_sha256": "e40c53f8a00418f5c3440a81d6e2d2d3bbfdaa9141fceac51dd124677036a2b0",
+      "fixed_sha256": "277bf7309b9c2e623d28e9260891fde870b761ed6a46cb859ffda6787f2a9d16"
+    }
+  }
+}

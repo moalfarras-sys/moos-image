@@ -15,6 +15,7 @@ import stat
 import subprocess
 import tempfile
 
+from finalize_canary_base import mount_points, refuse_mounted_tree, refuse_tmpfiles_overrides
 from finalize_image_state import owned_path, reject_unsafe_cleanup_entries
 
 
@@ -24,6 +25,9 @@ class Transaction:
         if self.root == Path('/') and (not Path('/run/.containerenv').exists()
                                       or Path('/run/ostree-booted').exists()):
             raise RuntimeError('runtime normalization requires an unbooted build container')
+        self.mounts = mount_points()
+        refuse_mounted_tree(self.root, self.root / "var", self.mounts)
+        refuse_mounted_tree(self.root, self.root / "etc/machine-id", self.mounts)
         self.owner = self.root.stat()
         self.records = records if records is not None else json.loads(
             Path(__file__).with_name('runtime-rules.json').read_text())['records']
@@ -73,6 +77,7 @@ class Transaction:
 
     def authority(self, record):
         for authority in record.get('authorities', []):
+            refuse_tmpfiles_overrides(self.root, authority['authority'], self.mounts)
             path = owned_path(self.root, authority['authority'])
             info = path.lstat()
             if (not stat.S_ISREG(info.st_mode) or info.st_size > 64*1024 or path.is_mount()
@@ -89,6 +94,7 @@ class Transaction:
     def catalog_matches(self, path):
         # Rebuild from the actual immutable native catalogue inputs. Never bless
         # arbitrary nonempty data merely because its filename looks generated.
+        refuse_mounted_tree(self.root, self.root / 'usr/lib/systemd/catalog', self.mounts)
         source = owned_path(self.root, 'usr/lib/systemd/catalog')
         with tempfile.TemporaryDirectory(prefix='moos-catalog-', dir='/tmp') as temp:
             target = Path(temp)/'usr/lib/systemd/catalog';target.mkdir(parents=True)
@@ -106,6 +112,9 @@ class Transaction:
 
     def finalize(self):
         if self.finished:raise RuntimeError('transaction already finalized')
+        self.mounts = mount_points()
+        refuse_mounted_tree(self.root, self.root / 'var', self.mounts)
+        refuse_mounted_tree(self.root, self.root / 'etc/machine-id', self.mounts)
         self.require(self.identity, 'file', 0o644, self.owner.st_uid, self.owner.st_gid)
         if self.identity.stat().st_size not in (0,33):
             raise RuntimeError('unexpected transaction-generated machine-id')

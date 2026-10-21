@@ -1,0 +1,23 @@
+{
+  "commands": [
+    {
+      "command": [
+        "npm",
+        "ci"
+      ],
+      "exit": 0
+    },
+    {
+      "command": [
+        "npm",
+        "run",
+        "build"
+      ],
+      "exit": 0
+    }
+  ],
+  "old_vite": "8.2.0",
+  "old_rolldown": "1.2.1",
+  "exact_original_bundle_reproduced": true,
+  "different_paths": []
+}

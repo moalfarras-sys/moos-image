@@ -1,0 +1,35 @@
+{
+  "exit": 0,
+  "files": 13,
+  "identical": true,
+  "first_output_hashes": {
+    "notification-sw.js": "d00b4a0d000fbb63252ea5909b547da3af7fddfcfa6ce9ed2c9449a37f0ef663",
+    "index.html": "64b98cad4f2af4e8e83a2bdd86054eabc388a9824609e1bd3309327195a64957",
+    "manifest.webmanifest": "74078524e60525e04c1e14b34bbc8cc0baa0eeb42426d58399320e6768edb548",
+    "sw.js": "227fc0b39b8c1900668c8de3a176b7e3189dd7a2d483cd92988d6e1de4820123",
+    "workbox-0bb07689.js": "8cbebef201f1d9e614942ab02e33f060a2a61a11baab9ed4d3130f5a3b851c6f",
+    "icons/apple-touch-icon.png": "84d27654222c25376e90af920c0749b4e7d264aa8f2979b2b9a74e54db6893c4",
+    "icons/brand-logo.png": "31e3d1e04c68b23881c02b7ad3a7857bc705a283ebec6199c8faf1c21f8ed8d3",
+    "icons/favicon-64.png": "5209206ee7313cdc587f3f1c0274ffe7002a639c78a3318d4eb6b2741f76d3e4",
+    "icons/icon-192.png": "363258f7749e9497d310d9450cd226a4e1d9b0ba5389f5baa50e8cf9849210cd",
+    "icons/icon-512.png": "27ddc17008095913e6ec0ae8f148d0d2d96d4a87eb806c520cf841b500be64c8",
+    "icons/maskable-512.png": "dd82a3136bc196cc88b65999065e25ca19575d6607e8f8c7fcf77bae7f268463",
+    "assets/index-B8fvhbrx.js": "f6094f401d45ebeee4103788960605b0464b197562a1903de9c0def7e0a24063",
+    "assets/index-DfqbDz4g.css": "af56214627930e51abfebaf74745a91f9d5a0225d8985a2e9e24b5de459c9c4b"
+  },
+  "second_output_hashes": {
+    "notification-sw.js": "d00b4a0d000fbb63252ea5909b547da3af7fddfcfa6ce9ed2c9449a37f0ef663",
+    "index.html": "64b98cad4f2af4e8e83a2bdd86054eabc388a9824609e1bd3309327195a64957",
+    "manifest.webmanifest": "74078524e60525e04c1e14b34bbc8cc0baa0eeb42426d58399320e6768edb548",
+    "sw.js": "227fc0b39b8c1900668c8de3a176b7e3189dd7a2d483cd92988d6e1de4820123",
+    "workbox-0bb07689.js": "8cbebef201f1d9e614942ab02e33f060a2a61a11baab9ed4d3130f5a3b851c6f",
+    "icons/apple-touch-icon.png": "84d27654222c25376e90af920c0749b4e7d264aa8f2979b2b9a74e54db6893c4",
+    "icons/brand-logo.png": "31e3d1e04c68b23881c02b7ad3a7857bc705a283ebec6199c8faf1c21f8ed8d3",
+    "icons/favicon-64.png": "5209206ee7313cdc587f3f1c0274ffe7002a639c78a3318d4eb6b2741f76d3e4",
+    "icons/icon-192.png": "363258f7749e9497d310d9450cd226a4e1d9b0ba5389f5baa50e8cf9849210cd",
+    "icons/icon-512.png": "27ddc17008095913e6ec0ae8f148d0d2d96d4a87eb806c520cf841b500be64c8",
+    "icons/maskable-512.png": "dd82a3136bc196cc88b65999065e25ca19575d6607e8f8c7fcf77bae7f268463",
+    "assets/index-B8fvhbrx.js": "f6094f401d45ebeee4103788960605b0464b197562a1903de9c0def7e0a24063",
+    "assets/index-DfqbDz4g.css": "af56214627930e51abfebaf74745a91f9d5a0225d8985a2e9e24b5de459c9c4b"
+  }
+}

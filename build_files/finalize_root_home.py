@@ -8,6 +8,7 @@ import os
 from pathlib import Path
 import stat
 
+from finalize_canary_base import mount_points, refuse_mounted_tree, refuse_tmpfiles_overrides
 from finalize_image_state import owned_path
 
 
@@ -56,6 +57,8 @@ def finalize(root: Path) -> None:
     if (not alias.is_symlink() or os.readlink(alias) != 'var/roothome'
             or alias.lstat().st_uid != owner.st_uid or alias.lstat().st_gid != owner.st_gid):
         raise RuntimeError('root home does not use the reviewed bootc alias')
+    mounts = mount_points()
+    refuse_mounted_tree(root, root / 'var/roothome', mounts)
     base = owned_path(root, 'var/roothome')
     if not base.exists():
         return
@@ -79,7 +82,7 @@ def finalize(root: Path) -> None:
             raise RuntimeError(f'unexpected root-home compose state: {relative}')
         if (path.is_mount() or info.st_mode != expected or info.st_uid != owner.st_uid
                 or info.st_gid != owner.st_gid
-                or (stat.S_ISREG(info.st_mode) and info.st_size != 0)):
+                or (stat.S_ISREG(info.st_mode) and (info.st_size != 0 or info.st_nlink != 1))):
             raise RuntimeError(f'root-home scaffold is not empty owned vendor state: {relative}')
         seen.append(path)
         if stat.S_ISDIR(info.st_mode):
@@ -89,6 +92,7 @@ def finalize(root: Path) -> None:
                 pending.append(child)
 
     for relative in authorities:
+        refuse_tmpfiles_overrides(root, relative, mounts)
         path = owned_path(root, relative)
         info = path.lstat()
         if (not stat.S_ISREG(info.st_mode) or path.is_mount() or info.st_size > 64 * 1024

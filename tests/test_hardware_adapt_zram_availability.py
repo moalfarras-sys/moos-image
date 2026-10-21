@@ -25,6 +25,9 @@ fake roots with stub `systemctl`/`sysctl` on an isolated PATH, so nothing on the
     so it is still stopped instead of the old size being stamped as adapted;
   * no generator at all: exit 0, the zram stack never touched, no zram config, and the
     reclaim reserve and success stamp still applied.
+Optional thermald/fwupd units are checked separately: masks and missing units are
+respected, loadable units are enabled, and a refused enable cannot claim success
+or leave an adaptation success stamp.
 """
 import shutil
 import subprocess
@@ -46,7 +49,15 @@ echo "systemctl $*" >> "$STUB_LOG"
 units_exist() { [ -e "$STUB_ZRAM_UNITS" ]; }
 refuse() { echo "FAILED systemctl $1" >> "$STUB_LOG"; echo "$2" >&2; exit "$3"; }
 case "$*" in
-  "list-unit-files thermald.service"|"list-unit-files fwupd-refresh.timer") exit 1 ;;
+  "list-unit-files thermald.service"|"list-unit-files fwupd-refresh.timer")
+    [ "${STUB_OPTIONAL_STATE:-not-found}" != not-found ]; exit $? ;;
+  "show -p LoadState --value thermald.service"|"show -p LoadState --value fwupd-refresh.timer")
+    echo "${STUB_OPTIONAL_STATE:-not-found}"; exit 0 ;;
+  "enable --now thermald.service"|"enable fwupd-refresh.timer")
+    if [ "${STUB_OPTIONAL_STATE:-not-found}" != loaded ] || [ -n "${STUB_ENABLE_FAILS:-}" ]; then
+      refuse "$*" "Failed to enable optional unit" 1
+    fi
+    exit 0 ;;
   "show -p LoadState --value dev-zram0.swap")
     if [ -n "${STUB_SHOW_FAILS:-}" ]; then
       echo "Failed to get properties: Connection timed out" >&2; exit 1
@@ -79,13 +90,16 @@ esac
 
 
 def machine(*, generator: bool, default_config: bool, mem_kb: int, active_bytes: int = 0,
-            show_fails: bool = False) -> dict:
+            show_fails: bool = False, optional_state: str = "not-found",
+            intel: bool = False, enable_fails: bool = False, script=SCRIPT) -> dict:
     tmp = Path(tempfile.mkdtemp(prefix="hwadapt-zram-"))
     root, sysfs, procfs, bindir = tmp / "root", tmp / "sys", tmp / "proc", tmp / "bin"
     for d in (root / "etc", root / "run", sysfs / "class/power_supply", sysfs / "bus/pci/devices",
               sysfs / "class/drm", procfs, bindir):
         d.mkdir(parents=True)
     (procfs / "cpuinfo").write_text("processor\t: 0\nCPU implementer\t: 0x41\n")
+    if intel:
+        (procfs / "cpuinfo").write_text("processor\t: 0\nvendor_id\t: GenuineIntel\n")
     (procfs / "meminfo").write_text(f"MemTotal:        {mem_kb} kB\n")
     (procfs / "swaps").write_text("Filename\tType\tSize\tUsed\tPriority\n")
     env = {
@@ -98,7 +112,10 @@ def machine(*, generator: bool, default_config: bool, mem_kb: int, active_bytes:
         "MOOS_HW_SYSFS": str(sysfs),
         "MOOS_HW_PROCFS": str(procfs),
         "MOOS_HW_DRYRUN": "0",
+        "STUB_OPTIONAL_STATE": optional_state,
     }
+    if enable_fails:
+        env["STUB_ENABLE_FAILS"] = "1"
     if show_fails:
         env["STUB_SHOW_FAILS"] = "1"
     if generator:
@@ -132,7 +149,7 @@ def machine(*, generator: bool, default_config: bool, mem_kb: int, active_bytes:
         path = bindir / name
         path.write_text(body)
         path.chmod(0o755)
-    result = subprocess.run([str(bindir / "bash"), str(SCRIPT)], env=env,
+    result = subprocess.run([str(bindir / "bash"), str(script)], env=env,
                             capture_output=True, text=True, timeout=60)
     log = tmp / "calls.log"
     lines = log.read_text().splitlines() if log.exists() else []
@@ -165,6 +182,31 @@ def check(name: str, run: dict, errors: list) -> str:
 
 def main() -> int:
     errors: list = []
+
+    # An administrator's mask is intentional, not a broken machine. Listing
+    # masked units succeeds; trying to enable them is refused by systemd.
+    for state in ("masked", "not-found", "loaded"):
+        optional = machine(generator=False, default_config=False, mem_kb=3997540,
+                           optional_state=state, intel=True)
+        try:
+            check(f"optional units {state}", optional, errors)
+            enabled = [call for call in optional["calls"] if "systemctl enable" in call]
+            if len(enabled) != (2 if state == "loaded" else 0):
+                errors.append(f"optional units {state}: wrong enable calls: {enabled}")
+        finally:
+            shutil.rmtree(optional["tmp"], ignore_errors=True)
+
+    refused = machine(generator=False, default_config=False, mem_kb=3997540,
+                      optional_state="loaded", enable_fails=True)
+    try:
+        if refused["result"].returncode != 1:
+            errors.append("refused firmware enable must fail adaptation")
+        if "fwupd-refresh.timer enabled" in refused["result"].stdout:
+            errors.append("refused firmware enable falsely reported success")
+        if (refused["root"] / "etc/moos/hardware-adapt.state").exists():
+            errors.append("refused firmware enable wrote a success stamp")
+    finally:
+        shutil.rmtree(refused["tmp"], ignore_errors=True)
 
     # The ARM edition's first boot: fedora-bootc ships the generator but no default config.
     arm = machine(generator=True, default_config=False, mem_kb=3997540)
@@ -231,7 +273,7 @@ def main() -> int:
         for error in errors:
             print("  -", error)
         return 1
-    print("hardware-adapt zram availability gate passed (ARM first boot, x86 re-tier, no generator)")
+    print("hardware-adapt availability gate passed (ARM first boot, x86 re-tier, no generator, optional units)")
     return 0
 
 

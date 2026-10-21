@@ -1,0 +1,45 @@
+{
+  "started_utc": "2026-10-19T21:16:46.443349+00:00",
+  "head": "e3572bcd22cd3a367cff24f702b4090ba5466a3a",
+  "status": "",
+  "scope": "At most6 sequential original Arabic20/250% ReducedMotion cases; stop at first failure, never retry a failed input into a pass. No concurrent GUI/image build. Same assertions/deadlines.",
+  "cases": [
+    {
+      "case": 1,
+      "exit": 0,
+      "evidence": "/tmp/moos-store-bounded-observation-20261019/1",
+      "diagnostics": "/tmp/moos-store-bounded-observation-20261019/1/run/touch-failure-diagnostics.json"
+    },
+    {
+      "case": 2,
+      "exit": 0,
+      "evidence": "/tmp/moos-store-bounded-observation-20261019/2",
+      "diagnostics": "/tmp/moos-store-bounded-observation-20261019/2/run/touch-failure-diagnostics.json"
+    },
+    {
+      "case": 3,
+      "exit": 0,
+      "evidence": "/tmp/moos-store-bounded-observation-20261019/3",
+      "diagnostics": "/tmp/moos-store-bounded-observation-20261019/3/run/touch-failure-diagnostics.json"
+    },
+    {
+      "case": 4,
+      "exit": 0,
+      "evidence": "/tmp/moos-store-bounded-observation-20261019/4",
+      "diagnostics": "/tmp/moos-store-bounded-observation-20261019/4/run/touch-failure-diagnostics.json"
+    },
+    {
+      "case": 5,
+      "exit": 0,
+      "evidence": "/tmp/moos-store-bounded-observation-20261019/5",
+      "diagnostics": "/tmp/moos-store-bounded-observation-20261019/5/run/touch-failure-diagnostics.json"
+    },
+    {
+      "case": 6,
+      "exit": 0,
+      "evidence": "/tmp/moos-store-bounded-observation-20261019/6",
+      "diagnostics": "/tmp/moos-store-bounded-observation-20261019/6/run/touch-failure-diagnostics.json"
+    }
+  ],
+  "finished_utc": "2026-10-19T21:19:13.998392+00:00"
+}

@@ -50,8 +50,12 @@ class MotionContract(unittest.TestCase):
         for suffix in ("", ".arm"):
             self.assertIn("COPY tests/qml/motion-review.qml /motion-review.qml",
                           (ROOT / ("Containerfile" + suffix)).read_text())
+            self.assertIn("COPY tests/test_island_touch_target.py /test_island_touch_target.py",
+                          (ROOT / ("Containerfile" + suffix)).read_text())
         for name in ("build.sh", "build-arm.sh"):
             self.assertIn("python3 /ctx/verify_moos_motion.py --qml /ctx/motion-review.qml",
+                          (ROOT / "build_files" / name).read_text())
+            self.assertIn("MOOS_TOUCH_OVERLAY=/ MOOS_REQUIRE_NATIVE_TOUCH=1 python3 /ctx/test_island_touch_target.py",
                           (ROOT / "build_files" / name).read_text())
 
     @unittest.skipUnless(Path("/usr/bin/moos-qml-shell").exists(),

@@ -28,6 +28,23 @@ class RuntimeTransaction(unittest.TestCase):
         self.new_identity=b'0123456789abcdef0123456789abcdef\n'
         self.identity.write_bytes(self.new_identity)
 
+    def test_bind_mount_preflight_precedes_all_tree_enumeration(self):
+        with patch('runtime_state.mount_points',return_value={self.root/'var/cache/bound'}), \
+                patch.object(Path,'is_mount',return_value=False), \
+                patch.object(Path,'iterdir',side_effect=AssertionError('traversed bind subtree')):
+            with self.assertRaisesRegex(RuntimeError,'mounted'):self.tx.finalize()
+        self.assertEqual(self.identity.read_bytes(),self.new_identity)
+        self.assertTrue(self.base.exists())
+
+    def test_local_authority_override_precedes_first_mutation(self):
+        for folder in ('etc/tmpfiles.d','run/tmpfiles.d','usr/local/lib/tmpfiles.d'):
+            override=self.root/folder/self.authority.name;override.parent.mkdir(parents=True,exist_ok=True)
+            override.symlink_to('/dev/null')
+            with patch.object(Path,'unlink',side_effect=AssertionError('early delete')), \
+                    patch.object(Path,'rmdir',side_effect=AssertionError('early delete')):
+                self.refused('override')
+            override.unlink()
+
     def refused(self, text):
         with self.assertRaisesRegex((RuntimeError,OSError),text):self.tx.finalize()
         self.assertEqual(self.identity.read_bytes(),self.new_identity)

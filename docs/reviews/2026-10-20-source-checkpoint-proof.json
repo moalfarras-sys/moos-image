@@ -1,0 +1,26 @@
+{
+  "command": [
+    "nice",
+    "-n",
+    "10",
+    "env",
+    "MOOS_BUILD_CONTEXT_PROBE=1",
+    "just",
+    "check"
+  ],
+  "source_revision": "9691c4c47082bee3d414106c21544ec5e54163e2",
+  "source_tree": "fc5bc44fdd9aaa1f7e4913597277781a26882b2a",
+  "initial_status": "",
+  "started_utc": "2026-10-20T18:29:17.831507+00:00",
+  "exit_code": 0,
+  "duration_seconds": 860.532,
+  "finished_utc": "2026-10-20T18:43:38.312377+00:00",
+  "log_sha256": "474552d1b86773b554c2270cd303f57514b10b4d9a3359c17c35ad5db348ecd9",
+  "final_revision": "9691c4c47082bee3d414106c21544ec5e54163e2",
+  "final_tree": "fc5bc44fdd9aaa1f7e4913597277781a26882b2a",
+  "final_status": "",
+  "reported_test_cases": 2765,
+  "unittest_summaries": 202,
+  "reported_conditional_skips": 14,
+  "scope_note": "Reported unittest cases, not unique test methods or all executed; independent script gates also run. Exact source9691 before forthcoming ARM alias binding."
+}

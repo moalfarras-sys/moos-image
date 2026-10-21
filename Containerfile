@@ -67,6 +67,7 @@ RUN python3 /moos-plasma-compose/compose.py \
 FROM scratch AS ctx
 COPY build_files /
 COPY tests/qml/motion-review.qml /motion-review.qml
+COPY tests/test_island_touch_target.py /test_island_touch_target.py
 # Mira's still-face probe: build.sh draws the image's own /usr/lib/mira/app with it. It is her
 # test file (the mira-build stage runs the same probe as a suite), never shipped.
 COPY mira/test_visual_tier.py /mira/test_visual_tier.py
@@ -137,6 +138,7 @@ COPY moremote/ ./
 RUN dotnet run --project tests/MoRemote.Tests -c Release --nologo
 RUN dotnet run --project tests/MoRemote.Linux.Input.Tests -c Release --nologo
 RUN dotnet run --project tests/MoRemote.Stream.Tests -c Release --nologo
+RUN dotnet run --project tests/MoRemote.Startup.Tests -c Release --nologo
 RUN dotnet publish agent-linux/MoRemoteLinux.csproj -c Release -r linux-x64 \
     --self-contained true -o /out
 

@@ -12,7 +12,9 @@ import os
 from pathlib import Path
 import stat
 import subprocess
+import tempfile
 
+from finalize_canary_base import mount_points, refuse_mounted_tree, refuse_tmpfiles_overrides
 from finalize_image_state import owned_path
 from finalize_canary_base import finalize as finalize_canary
 from finalize_root_home import finalize as finalize_root_home
@@ -31,7 +33,9 @@ GENERATED_ACCOUNTS={
 
 def account_permission_plan(root):
     owner=root.stat();pending=[]
+    mounts=mount_points()
     for relative,(size,digest) in GENERATED_ACCOUNTS.items():
+        refuse_mounted_tree(root, root / relative, mounts)
         path=owned_path(root,relative)
         if not path.exists():continue
         info=path.lstat();mode=stat.S_IMODE(info.st_mode)
@@ -48,7 +52,19 @@ def account_permission_plan(root):
 
 def canonicalize_account_permissions(pending):
     for path,digest in pending:
-        path.chmod(0o644)
+        data=path.read_bytes();info=path.lstat()
+        if hashlib.sha256(data).hexdigest()!=digest:
+            raise RuntimeError('ARM account content changed before permission normalization')
+        # Replace this exact reviewed path, never chmod a shared vendor inode.
+        fd,name=tempfile.mkstemp(prefix='.moos-account-', dir=path.parent)
+        try:
+            with os.fdopen(fd,'wb') as output:
+                output.write(data)
+                os.fchown(output.fileno(),info.st_uid,info.st_gid)
+                os.fchmod(output.fileno(),0o644)
+            os.replace(name,path)
+        finally:
+            if os.path.lexists(name):os.unlink(name)
         if hashlib.sha256(path.read_bytes()).hexdigest()!=digest:
             raise RuntimeError('ARM account content changed during permission normalization')
     if pending:print('ARM native account inputs: exact bytes retained; write permission restricted to root')
@@ -57,6 +73,7 @@ def canonicalize_account_permissions(pending):
 class ArmTransaction(Transaction):
     def authority(self,record):
         for entry in record.get('authorities',[]):
+            refuse_tmpfiles_overrides(self.root, entry['authority'], mount_points())
             path=owned_path(self.root,entry['authority']);info=path.lstat()
             if entry['authority']==RPMSTATE_AUTHORITY and stat.S_IMODE(info.st_mode)&0o020:
                 # The published bootc base generates this one root:root0664
@@ -80,6 +97,9 @@ def require_container(root):
 
 def canonicalize_input(root):
     root=root.resolve();require_container(root);owner=root.stat()
+    mounts=mount_points()
+    refuse_mounted_tree(root, root / 'var', mounts)
+    refuse_mounted_tree(root, root / 'etc/machine-id', mounts)
     identity=owned_path(root,'etc/machine-id')
     Transaction.require(identity,'file',0o644,owner.st_uid,owner.st_gid)
     if identity.stat().st_size:raise RuntimeError('ARM base input identity must be empty')
@@ -102,6 +122,7 @@ def canonicalize_input(root):
         raise RuntimeError('ARM base package scaffold contains unexpected data')
     run=var/'run';Transaction.require(run,'link',0o777,owner.st_uid,owner.st_gid)
     if os.readlink(run)!='../run':raise RuntimeError('ARM base run alias drifted')
+    refuse_tmpfiles_overrides(root, 'usr/lib/tmpfiles.d/var.conf', mounts)
     authority=owned_path(root,'usr/lib/tmpfiles.d/var.conf');info=authority.lstat()
     if (not stat.S_ISREG(info.st_mode) or info.st_size>64*1024 or authority.is_mount()
             or info.st_uid!=owner.st_uid or info.st_gid!=owner.st_gid

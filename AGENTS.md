@@ -99,11 +99,37 @@ NVR, empty service-owned directory and immutable creator before restricting only
 that directory to0750. Keep the shared metadata/identity gate unchanged; unknown
 data, links, mounts, owners or package/creator drift must remain a refusal.
 
+**An Atomic prefix alias is not an arbitrary policy link.** The override
+preflight originally refused native `/usr/local -> ../var/usrlocal` before
+building x86. Map only those exact owned alias bytes to the explicit in-root
+target, checking mounts before target validation; never relax `owned_path` or
+resolve unknown links. Keep mapped overrides/masks and actual same-filesystem
+bind negatives. A private prefix replay is not a complete image qualification.
+
 > **New here?** Read **[PROJECT_STATE.md](PROJECT_STATE.md)** as well, and read it *first* if
 > you are about to touch MoPlayer, its in-tree source, the gates or anything visual. It is the concise
 > map of what exists, what is load-bearing, what is proven and what remains. The false-green
 > traps are preserved below in this rules file. This file is the rules;
 > `PROJECT_STATE.md` is the terrain.
+
+**A missing probe is not healthy hardware, and a rollback is not the booted edition.**
+Device diagnostics must distinguish unavailable PCI evidence from a ready machine, validate firmware JSON shapes, and select only the booted deployment when identifying an edition. Respect administrator masks on optional thermald/fwupd units; a refused enable must never print success or write the adaptation stamp. Arrange shortcuts and stale menu actions must validate their active anchor too. Preserve executable old/fixed controls and private native geometry evidence; never run a review compositor on the owner's bus.
+
+**A clipped painting rectangle is not an input failure.** A standalone44px
+Island button passed native touch controls while the actual panel painted only
+34px of its height; actual nestedKWin pointer events still reached all edges,
+and an old34px control received an outside click too. Preserve these contrary
+controls. Never infer a required panel-height/outset repair from geometry alone,
+or count XTest pointer input as Wayland touch. Private KWin without fake_input
+must report that test unavailable; never change the owner's input/security policy.
+
+**A finished active oneshot cannot run again from its daily timer.**
+The periodic hardware adapter must return inactive. Prove first completion from its actual successful nonzero monotonic exit receipt, ConditionResult and inactive/dead state; Result=success alone also describes a never-started unit. Keep the private native old1/fixed-multiple recurrence proof and execute the exact boot predicate against real snapshots. Firmware/journal failures need explicit unknown confidence, not an empty clean list; GPU vendor matching needs word boundaries so ATI never matches compatible.
+
+**An occupied loopback port is not a ready Remote or permission to stop its owner.**
+Publish listening/endpoint only after Kestrel binds. Treat actual address-in-use as a normal failed start under the existing finite service restart policy, dispose the failed host, and preserve unrelated errors/cancellation and account authentication. Keep private real-socket old/fixed/released-port controls; never run them on the owner's listener. Stdin-driven container probes must attach stdin and require an executed proof marker; an empty successful Python process is not evidence.
+
+**A failed root-home rmdir does not identify its writer.** Preserve unknown compose bytes and report bounded names/type/size, never contents or a guessed cause. ARM main/recovery use one private HOME/XDG initramfs composer, retaining exact dracut options and final archive gates. Cleanup must refuse descendant mounts before traversal and preserve an observed producer failure even if later diagnostics or cleanup also fail. A private fake-producer old/fixed control is not the actual built-image root-cause proof. Reproduced vendor root-home placeholders may retire only as the exact empty five-entry tree with reviewed tmpfiles authority, owner/modes and all-before-unlink validation; any key, content, extra entry or unknown authority stays intact. Read-only authority files can have legitimate base hardlinks; that never authorizes linked retirement targets.
 
 ## Where the rest of the knowledge is
 
@@ -269,6 +295,19 @@ prove ordering, not that the real greeter forwarded a typed password.
 after the final catalogue gate printed success. Its termination cause remains
 unproven. Preserve that result; a native parent must save the command's exit,
 source/tree and log hash independently before calling the full gate green.
+
+**A BUILD marker does not describe its compiler.** Remote PR261's marker-only
+check passed while its new locked Vite build changed the shipped JavaScript.
+Keep the full locked-build comparison in the PR fast workflow as well as main.
+Preserve the native old-compiler exact reproduction, repeat-build equality and
+old-bundle1/new-bundle0 controls; a marker pass is not bundle reproducibility.
+
+**A workstation's Qt is not a generic CI dependency.** The Island input fixture
+initially failed13 probes on the Ubuntu source runner because PySide6 was absent.
+Both image builders now require the same real Qt input proof against installed
+`/usr` bytes; missing PySide6 must fail there. Source-only runners explicitly
+report the unavailable native probes. Preserve all12 cases and the executed
+old-source negative; no empty/skipped image probe is acceptance.
 
 **A screenshot's filename does not establish its phase.** ISO 38807911559
 saved `installed-login.ppm` only after PAM accepted the password and logind
@@ -1318,6 +1357,8 @@ The observer in diagnostic39086687915 did preserve the closed desktop, but its f
 **Killing a status collector does not kill its probe.** Corrected diagnostic39089750710 read MainPID0/ExecMainStatus0 after the Settings window closed, but bluetoothctl still held its cgroup. Give only the read-only collector a new session/group, verify its leader before signaling that group, and preserve independent mutation units. The native control must reproduce the old orphan, reap fixed descendants and leave a separately owned change alive; both image builds execute it. Never change the app launcher back to main-PID lifetime or relax the ISO close deadline to hide an orphan.
 
 **Independent review windows still share the workstation memory budget.** The first512MiB-bounded Oct18 full check was OOM-killed while the Store walker launched all private windows concurrently. Run every existing variant and planted-error negative sequentially; keep their assertions/deadlines. A capped test failure is a failure, never a full-gate success, and does not authorize closing owner apps or weakening the memory guard.
+
+**A drop-in does not create its unit.** Native ARM .804 had the shared app-update drop-ins and helper but neither service/timer base, so both scopes had no scheduled updates while self/post checks passed. Supply both complete pairs in the shared overlay, enable both real timers and verify their finished units, providers and wants in both builders. Preserve Store opt-out/locking, metered-network refusal, delayed idle work and the separate signed OS updater. The first verifier accepted a wrong Timer Unit, an extra false ExecCondition and a property name inside a fail-open comment; require the matching service and exactly the reviewed condition, and keep all three failing controls. Private-root enablement and native recording controls are not signed delivery; local /etc compatibility copies need exact replacement/retirement proof.
 
 **An active indexer can still address the same file twice.** On the Oct18 physical boot, content creation worked, while an atomic save retained both old and new document IDs and deletion left results behind. Native `balooshow6` showed the same HOME inode but different database/filesystem device identities. Use alphabetic content markers absent filenames and ordinary create/atomic-save/delete events; a forced index or one successful query does not prove the lifecycle. Preserve the complete old derived index offline with no readers before any fresh derived rebuild; never edit raw LMDB or delete documents. Keep display-start aborts in the boot journal and the bounded identity readback's malformed/empty/mismatch/always-success negative controls. A same-boot repair is not cold-boot durability, and this observation does not establish why the historical filesystem identity changed.
 

@@ -5,6 +5,7 @@ import os
 from pathlib import Path
 import stat
 
+from finalize_canary_base import mount_points, refuse_mounted_tree, refuse_tmpfiles_overrides
 from finalize_image_state import owned_path
 
 
@@ -17,6 +18,9 @@ def finalize(root: Path) -> None:
     if root == Path('/') and (not Path('/run/.containerenv').exists()
                              or Path('/run/ostree-booted').exists()):
         raise RuntimeError('D-Bus state retirement requires an unbooted build container')
+    mounts = mount_points()
+    refuse_mounted_tree(root, root / 'var/lib/dbus', mounts)
+    refuse_mounted_tree(root, root / 'etc/machine-id', mounts)
     base = owned_path(root, 'var/lib/dbus')
     if not base.exists():
         return
@@ -39,6 +43,7 @@ def finalize(root: Path) -> None:
     if (not stat.S_ISLNK(info.st_mode) or os.readlink(link) != '/etc/machine-id'
             or link.is_mount() or info.st_uid != owner.st_uid or info.st_gid != owner.st_gid):
         raise RuntimeError('unrecognized D-Bus machine-id alias')
+    refuse_tmpfiles_overrides(root, 'usr/lib/tmpfiles.d/dbus.conf', mounts)
     authority = owned_path(root, 'usr/lib/tmpfiles.d/dbus.conf')
     info = authority.lstat()
     if (not stat.S_ISREG(info.st_mode) or authority.is_mount() or info.st_size > 64 * 1024

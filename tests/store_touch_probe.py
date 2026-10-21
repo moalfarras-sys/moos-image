@@ -14,6 +14,7 @@ from PySide6.QtGui import QGuiApplication, QInputDevice, QPointingDevice, QWheel
 from PySide6.QtQml import QQmlApplicationEngine, QQmlExpression, qmlContext
 from PySide6.QtQuick import QQuickItem
 from PySide6.QtTest import QTest
+from shiboken6 import isValid
 
 
 def argument(name, default=""):
@@ -42,6 +43,97 @@ win.requestActivate()
 assert QTest.qWaitForWindowExposed(win, 5000), "Store window was not exposed"
 win.grabWindow()
 QTest.qWait(800)
+# Diagnostics observe this private surface only; no event filters, extra input,
+# rendering or waits are added to the successful path.
+frame_count = 0
+last_wheel = {}
+
+
+def frame_tick():
+    global frame_count
+    frame_count += 1
+
+
+win.afterAnimating.connect(frame_tick)
+
+
+def scroll_state():
+    state = {"frames": frame_count}
+    for name in ("flick", "shelf"):
+        item = globals().get(name)
+        if item is not None and not isValid(item):
+            state[name] = {"unavailable": "deleted"}
+        elif item is not None:
+            state[name] = {key: item.property(key) for key in
+                           ("contentX", "contentY", "moving", "flicking", "interactive")}
+    return state
+
+
+def send_wheel(event):
+    record = {
+        "timestamp": event.timestamp(), "accepted_before": event.isAccepted(),
+        "position": [event.position().x(), event.position().y()],
+        "angle": [event.angleDelta().x(), event.angleDelta().y()],
+        "pixel": [event.pixelDelta().x(), event.pixelDelta().y()],
+        "phase": str(event.phase()), "modifiers": str(event.modifiers()),
+        "before": scroll_state(),
+    }
+    delivered = QCoreApplication.sendEvent(win, event)
+    record.update(send_event_return=delivered, accepted_after=event.isAccepted(),
+                  after=scroll_state())
+    last_wheel["events"].append(record)
+
+
+def item_geometry(item, point):
+    origin = item.mapToScene(QPointF())
+    local = item.mapFromScene(point)
+    return {
+        "class": item.metaObject().className(), "name": item.objectName(),
+        "origin": [origin.x(), origin.y()], "size": [item.width(), item.height()],
+        "local_point": [local.x(), local.y()], "contains": item.contains(local),
+        "visible": item.isVisible(), "enabled": item.isEnabled(),
+        "opacity": item.opacity(), "clip": item.clip(), "z": item.z(),
+    }
+
+
+def failure_diagnostics(label):
+    """Capture only after the original assertion condition has already failed."""
+    try:
+        point = globals().get("point", QPointF())
+        diagnostic = {
+            "label": label, "wheel": last_wheel, "state": scroll_state(),
+            "window": {"visible": win.isVisible(), "exposed": win.isExposed(),
+                       "size": [win.width(), win.height()], "page": win.property("page"),
+                       "review_opened": win.property("reviewOpened")},
+            "target_ancestors": {}, "hit_path": [],
+        }
+        for name in ("flick", "shelf", "button"):
+            item = globals().get(name)
+            path = []
+            if item is not None and not isValid(item):
+                path.append({"unavailable": "deleted"})
+                item = None
+            while item is not None and len(path) < 64:
+                path.append(item_geometry(item, point))
+                item = item.parentItem()
+            if path:
+                diagnostic["target_ancestors"][name] = path
+        hit = win.contentItem()
+        while hit is not None and len(diagnostic["hit_path"]) < 64:
+            diagnostic["hit_path"].append(item_geometry(hit, point))
+            local = hit.mapFromScene(point)
+            hit = hit.childAt(local.x(), local.y())
+        # The failed condition is retained even if this diagnostic render
+        # advances an offscreen frame. It cannot turn failure into success.
+        diagnostic["screenshot_saved"] = win.grabWindow().save(str(output / "touch-failure.png"))
+        diagnostic["after_capture"] = scroll_state()
+        (output / "touch-failure-diagnostics.json").write_text(
+            json.dumps(diagnostic, ensure_ascii=False, indent=2), encoding="utf-8")
+        print("STORE INPUT DIAGNOSTICS " + json.dumps(diagnostic, ensure_ascii=False), flush=True)
+    except Exception as error:
+        print("STORE INPUT DIAGNOSTICS ERROR " + repr(error), file=sys.stderr, flush=True)
+
+
 checks = []
 output = Path(argument("fixtures")).parent
 assert win.grabWindow().save(str(output / "touch-discover.png")), "Discover render failed"
@@ -73,6 +165,8 @@ def named(name):
 def check(label, condition, **measurements):
     checks.append(dict(label=label, passed=bool(condition), **measurements))
     print("STORE INPUT " + json.dumps(checks[-1], ensure_ascii=False), flush=True)
+    if not condition:
+        failure_diagnostics(label)
     assert condition, label + ": " + repr(measurements)
 
 
@@ -117,6 +211,8 @@ def swipe(point, dx=0, dy=-140):
 
 
 def wheel(point, angle=QPoint(0, -120), pixel=QPoint(), modifiers=Qt.NoModifier):
+    global last_wheel
+    last_wheel = {"before": scroll_state(), "events": []}
     if not pixel.isNull():
         # QTest.wheelEvent uses a Mouse device; real pixel scrolling identifies
         # itself as a TouchPad and carries begin/update/end phases.
@@ -138,7 +234,7 @@ def wheel(point, angle=QPoint(0, -120), pixel=QPoint(), modifiers=Qt.NoModifier)
                                 Qt.NoButton, modifiers, phase, False,
                                 Qt.MouseEventSynthesizedBySystem, touchpad)
             event.setTimestamp(int((time.monotonic()-input_clock_start)*1000))
-            QCoreApplication.sendEvent(win, event)
+            send_wheel(event)
             QTest.qWait(25)
     else:
         # QTest.wheelEvent forwards native pixels without converting on the
@@ -148,8 +244,9 @@ def wheel(point, angle=QPoint(0, -120), pixel=QPoint(), modifiers=Qt.NoModifier)
                             Qt.NoButton, modifiers, Qt.NoScrollPhase, False,
                             Qt.MouseEventNotSynthesized, QPointingDevice.primaryPointingDevice())
         event.setTimestamp(int((time.monotonic()-input_clock_start)*1000))
-        QCoreApplication.sendEvent(win, event)
+        send_wheel(event)
     QTest.qWait(180)
+    last_wheel["after_wait"] = scroll_state()
 
 
 if argument("reduced-motion") == "1":

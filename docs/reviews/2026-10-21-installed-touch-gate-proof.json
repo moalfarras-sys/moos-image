@@ -1,0 +1,57 @@
+{
+  "utc": "2026-10-21T00:00:04.792627+00:00",
+  "scope": "Actual mandatory image component gate on immutable f33 with exactlyonecurrentMediaControlROmount for positive; private tmpfs/input/noownerbus/ports/network; not fullpanel geometry or boot acceptance",
+  "source_controls": [
+    {
+      "name": "native",
+      "exit": 0
+    },
+    {
+      "name": "missing-generic",
+      "exit": 0
+    },
+    {
+      "name": "missing-required",
+      "exit": 1
+    }
+  ],
+  "image_controls": [
+    {
+      "name": "old-image",
+      "process_exit": 0,
+      "test_exit": 1,
+      "cases": 9,
+      "cleanup_exit": 0,
+      "image": "sha256:f33a009c3b189167c1e2179b8db08d79ba99d3c854cfb35baefe38f499301254"
+    },
+    {
+      "name": "current-component",
+      "process_exit": 0,
+      "test_exit": 0,
+      "cases": 13,
+      "cleanup_exit": 0,
+      "image": "sha256:f33a009c3b189167c1e2179b8db08d79ba99d3c854cfb35baefe38f499301254"
+    }
+  ],
+  "old_component_sha256": "d2d9c62a6069f66d700b525242e67b59ebaa62894bd528d09fd4756ac3ea3c48",
+  "current_component_sha256": "5fe071b94e528f54ab505845fb217ed16e128c1dc656e3228b857eb497414887",
+  "actual_test_sha256": "00130e3b0b973b14ce7e801d44535ab33aacdd6e1452dff05a38effe9a8f00a0",
+  "old_expected_failures": [
+    "tablet34geometryexpected44",
+    "tablet40geometryexpected44"
+  ],
+  "positive_case_receipts": 13,
+  "evidence": {
+    "native.log": "c583b86c22afd190ac6602fffcc02047653e9a3b3bb51815f8d6467d36831b44",
+    "source-controls.json": "70a31a34b06a6942ec8a96ab93b33136e6a125aed3eaa07ec4460a9f70cf4bc3",
+    "missing-generic.log": "6d1b8f860a5752b85880bd5b1f869588af8840978f2ce181142c87540349a254",
+    "missing-required.log": "99ce0d29c4667cc719fe80d788bef41200a3e4a9d883c506a99c20e6f6abce69",
+    "image-probe.py": "03631931bd1fcff4fd22ce19a86360273ea66ddd983893d1fb654ea73d767fef",
+    "run-image-controls.py": "bce8ed7dbfd98ff667e5dc2dfda71c9460b0458894bc834b5e47461b9d6f1da2",
+    "old-image.json": "bc4f6039b67b4ad759dd0d0c483d683ca3eca038648dd9bf57cd5059bf0a2274",
+    "old-image.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "image-controls.json": "77d50f1dbb935937d1f3d41d12819d39601b62ab505fee56e30a2b5380c550c8",
+    "current-component.json": "6626ab38e90a61db828e85d5e612ec073af9d3ee4c39a6f1b3d8d015dcac4e33",
+    "current-component.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  }
+}

@@ -15,12 +15,15 @@ Controls.AbstractButton {
     property bool primary: false
     property bool motionEnabled: Kirigami.Units.longDuration > 1
     property real slotSize: control.primary ? 52 : 40
+    // KDE owns the live preferred-input policy; keep desktop artwork compact.
+    readonly property real targetSize: Kirigami.Settings.tabletMode
+        ? Math.max(slotSize, MoUI.Tokens.targetControl) : slotSize
     property real revealProgress: control.revealed ? 1 : 0
     readonly property bool settling: feedback.settling
     signal activated
 
-    implicitWidth: slotSize * revealProgress
-    implicitHeight: slotSize
+    implicitWidth: targetSize * revealProgress
+    implicitHeight: targetSize
     Layout.preferredWidth: implicitWidth
     Layout.preferredHeight: implicitHeight
     Layout.alignment: Qt.AlignVCenter

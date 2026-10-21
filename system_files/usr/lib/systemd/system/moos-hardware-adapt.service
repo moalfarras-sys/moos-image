@@ -11,7 +11,9 @@ Wants=local-fs.target
 
 [Service]
 Type=oneshot
-RemainAfterExit=yes
+# Repetitive timers must see the finished oneshot return to inactive.
+# Completion is proven from ExecMainExitTimestampMonotonic, not an active latch.
+RemainAfterExit=no
 ExecStart=/usr/libexec/moos-hardware-adapt
 # The script is idempotent and best-effort; a failure must never block boot.
 SuccessExitStatus=0

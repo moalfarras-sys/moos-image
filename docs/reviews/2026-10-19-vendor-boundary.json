@@ -1,0 +1,86 @@
+{
+  "result": "PASS",
+  "scope": "Staged /tmp patch only, no repository edits. Actual detector process with fake lspci/fwupd/journal/mokutil/bootc/rpm-ostree/flatpak processes; no host diagnostics calls.",
+  "cases": [
+    {
+      "pci_label": "VGA compatible controller: Intel Corporation Graphics",
+      "expected": "intel",
+      "old": "amd",
+      "fixed": "intel"
+    },
+    {
+      "pci_label": "vGa CoMpAtIbLe controller: iNtEl Corporation Graphics",
+      "expected": "intel",
+      "old": "amd",
+      "fixed": "intel"
+    },
+    {
+      "pci_label": "3D controller: NVIDIA Corporation Graphics",
+      "expected": "nvidia",
+      "old": "nvidia",
+      "fixed": "nvidia"
+    },
+    {
+      "pci_label": "VGA compatible controller: nViDiA Corporation Graphics",
+      "expected": "nvidia",
+      "old": "nvidia",
+      "fixed": "nvidia"
+    },
+    {
+      "pci_label": "VGA compatible controller: Advanced Micro Devices, Inc. [AMD/ATI]",
+      "expected": "amd",
+      "old": "amd",
+      "fixed": "amd"
+    },
+    {
+      "pci_label": "vga COMPATIBLE controller: aMd Radeon Graphics",
+      "expected": "amd",
+      "old": "amd",
+      "fixed": "amd"
+    },
+    {
+      "pci_label": "VGA compatible controller: ATI Technologies Graphics",
+      "expected": "amd",
+      "old": "amd",
+      "fixed": "amd"
+    },
+    {
+      "pci_label": "Display controller: aTi Technologies Graphics",
+      "expected": "amd",
+      "old": "amd",
+      "fixed": "amd"
+    },
+    {
+      "pci_label": "VGA compatible controller: Unknown Vendor Graphics",
+      "expected": "unknown",
+      "old": "amd",
+      "fixed": "unknown"
+    },
+    {
+      "pci_label": "vGa cOmPaTiBlE controller: QEMU Virtio Graphics",
+      "expected": "unknown",
+      "old": "amd",
+      "fixed": "unknown"
+    },
+    {
+      "pci_label": "VGA compatible controller: Imagination Graphics",
+      "expected": "unknown",
+      "old": "amd",
+      "fixed": "unknown"
+    }
+  ],
+  "fixed_cases": 11,
+  "old_failures": 5,
+  "test_log": "/tmp/moos-vendor-confidence-tests.log",
+  "changes": "Word-boundary, case-insensitive NVIDIA/AMD/ATI/Intel detection; preserves existing vendor precedence. No driver/hardware policy changes.",
+  "files": {
+    "system_files/usr/bin/moos-device-plan": {
+      "old_sha256": "cf05255374d34ba44c052b71c2a5efcb497d01ec36a6d300307ca4f2b1fc2b23",
+      "fixed_sha256": "9be94be3d32043e94e6ec7216737bca22386231281a7e28ce1db5cd8fad45907"
+    },
+    "tests/test_device_plan.py": {
+      "old_sha256": "e40c53f8a00418f5c3440a81d6e2d2d3bbfdaa9141fceac51dd124677036a2b0",
+      "fixed_sha256": "5617c66b0fa3822366425cdda33bc276a009500630a89cfbad027ee81f0b3766"
+    }
+  }
+}

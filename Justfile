@@ -129,6 +129,7 @@ check:
     python3 tests/test_moos_cloud_audio.py
     python3 tests/test_fwupd_refresh_policy.py
     python3 tests/test_flatpak_user_update.py
+    python3 tests/test_app_update_units.py
     python3 tests/test_boot_path_authorities.py
     python3 tests/test_memory_policy.py
     python3 tests/test_canary_base_state.py
@@ -160,6 +161,7 @@ check:
     # units shipped disabled on the maintainer's A1 because only build.sh ever enabled them.
     python3 tests/test_arm_unit_enablement.py
     python3 tests/test_arm_initramfs_size.py
+    python3 tests/test_arm_dracut_home.py
     # These four also lived only in workflow YAML: the first two in both build
     # workflows, the others in the disk and ISO release workflows. All four pass
     # locally and always did -- nothing was broken, they were simply unrunnable
@@ -577,6 +579,7 @@ check:
     python3 tests/test_island_jobs_privacy.py
     # Producer and consumer of the Island's presence tokens, executed for real.
     python3 tests/test_island_tokens.py
+    python3 tests/test_island_touch_target.py
     # The privacy monitor follows one live PipeWire feed: the saving, and that the chip is never wrong.
     python3 tests/test_privacy_monitor_feed.py
     # Mira inside Plasma: her launcher (GPU rule, Dolphin arguments), login unit and its migration,

@@ -1,0 +1,62 @@
+{
+  "source_parent": "89770dc4510a3036830d7b0d6ad2e35c4ed14f32",
+  "scope": "Combined current-main sources with reviewed local prefix correction; working tree changes recorded separately",
+  "commands": [
+    {
+      "file": "tests/test_compose_root_home.py",
+      "exit": 0,
+      "seconds": 0.342
+    },
+    {
+      "file": "tests/test_compose_dbus_state.py",
+      "exit": 0,
+      "seconds": 0.245
+    },
+    {
+      "file": "tests/test_compose_runtime_transaction.py",
+      "exit": 0,
+      "seconds": 0.339
+    },
+    {
+      "file": "tests/test_arm_pristine_base.py",
+      "exit": 0,
+      "seconds": 0.425
+    },
+    {
+      "file": "tests/test_plasma_login_state.py",
+      "exit": 0,
+      "seconds": 0.315
+    },
+    {
+      "file": "tests/test_plasma_canary_compose.py",
+      "exit": 0,
+      "seconds": 0.201
+    },
+    {
+      "file": "tests/test_plasma_stable_compose.py",
+      "exit": 0,
+      "seconds": 0.184
+    },
+    {
+      "file": "tests/test_build_cache_locking.py",
+      "exit": 0,
+      "seconds": 0.107
+    },
+    {
+      "file": "tests/test_analysis_tools_profile.py",
+      "exit": 0,
+      "seconds": 0.242
+    },
+    {
+      "file": "tests/test_plasma_next_canary_workflow.py",
+      "exit": 0,
+      "seconds": 0.124
+    },
+    {
+      "file": "tests/test_repository_hygiene.py",
+      "exit": 0,
+      "seconds": 0.344
+    }
+  ],
+  "log_sha256": "90efa74d1a279768311f237fbb18e988e7e100e81a3eabff10e564606bf08d12"
+}

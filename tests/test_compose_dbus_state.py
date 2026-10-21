@@ -23,6 +23,26 @@ class DBusState(unittest.TestCase):
         self.authority = self.root/'usr/lib/tmpfiles.d/dbus.conf';self.authority.parent.mkdir(parents=True)
         self.authority.write_text('# Native runtime policy\n'+'\n'.join(' '.join(r) for r in RULES)+'\n')
 
+    def test_same_filesystem_bind_refuses_before_any_enumeration(self):
+        base=self.base
+        before=set(base.rglob('*'))
+        with patch('finalize_dbus_state.mount_points', return_value={base/'private-mounted-child'}), \
+                patch.object(Path, 'is_mount', return_value=False), \
+                patch.object(Path, 'iterdir', side_effect=AssertionError('traversed mounted tree')):
+            with self.assertRaisesRegex(RuntimeError,'mounted'):
+                finalize(self.root)
+        self.assertEqual(set(base.rglob('*')),before)
+
+    def test_local_tmpfiles_mask_refuses_before_first_delete(self):
+        authority=self.authority
+        override=self.root/'etc/tmpfiles.d'/authority.name
+        override.parent.mkdir(parents=True,exist_ok=True)
+        override.symlink_to('/dev/null')
+        with patch.object(Path,'unlink',side_effect=AssertionError('deleted before authority validation')), \
+                patch.object(Path,'rmdir',side_effect=AssertionError('deleted before authority validation')):
+            with self.assertRaisesRegex(RuntimeError,'override'):
+                finalize(self.root)
+
     def refused(self, text):
         with self.assertRaisesRegex((RuntimeError, OSError), text):finalize(self.root)
         self.assertTrue(os.path.lexists(self.link), 'refusal deleted the machine-id entry')
@@ -92,7 +112,7 @@ class DBusState(unittest.TestCase):
     def test_mount_refuses_without_deleting_alias(self):
         original=Path.is_mount
         with patch.object(Path,'is_mount',lambda p:p==self.base or original(p)):
-            self.refused('unsafe D-Bus compose directory')
+            self.refused('unsafe.*(mount|D-Bus compose directory)')
 
 
 if __name__ == '__main__':unittest.main()

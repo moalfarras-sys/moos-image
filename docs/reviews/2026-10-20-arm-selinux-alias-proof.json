@@ -1,0 +1,12 @@
+{
+  "exit": 0,
+  "executed_marker": true,
+  "source_sha256": "eb55be5ce29de2510e173aa7cfdbe9555b61b7cbe5ddf84e353a28d7f2a7338a",
+  "base": "c4b9b693bbf4559b7b84ac8fc0d7ac08030dd6c74f94546edd9ca5b66e7e6846",
+  "artifact_directory": "/var/tmp/moos-arm-selinux-proof-20261020-37xwzcf7",
+  "scope": "actual ARM base vendor tmpfiles SELinux alias and canonicalizer; no host mounts/network; not full image",
+  "target": "../../etc/selinux",
+  "policy_files_unchanged": 1344,
+  "policy_tree_sha256": "37a43b91a770772d614139e3d97b6099149660fdfc634e7b88fc22f97d0df241",
+  "alias_retired": true
+}

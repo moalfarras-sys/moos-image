@@ -1,0 +1,17 @@
+{
+  "command": [
+    "just",
+    "check"
+  ],
+  "source_revision": "e3572bcd22cd3a367cff24f702b4090ba5466a3a",
+  "source_tree": "954f13141925ea0214c3f823e48064c061244b8e",
+  "initial_status": "",
+  "started_utc": "2026-10-19T21:01:57.280084+00:00",
+  "exit_code": 0,
+  "duration_seconds": 865.835,
+  "finished_utc": "2026-10-19T21:16:23.088656+00:00",
+  "log_sha256": "a849d9969b5e67aadbdd92d0533cbf1172a9cac05cd845d2c1cd7de2dba2427f",
+  "final_revision": "e3572bcd22cd3a367cff24f702b4090ba5466a3a",
+  "final_tree": "954f13141925ea0214c3f823e48064c061244b8e",
+  "final_status": ""
+}

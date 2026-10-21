@@ -156,6 +156,7 @@ python3 tests/test_dotnet_project_coverage.py
 python3 tests/test_nuget_audit_policy.py
 python3 tests/test_moos_lang_lock.py
 python3 tests/test_arm_release_manifest.py
+python3 tests/test_arm_dracut_home.py
 python3 tests/test_utm_manifest_resolution.py
 python3 tests/test_utm_install_write_order.py
 python3 tests/test_utm_installer_menu.py
@@ -239,6 +240,7 @@ python3 tests/test_island_jobs_privacy.py
 # (it asserts that strings exist) stayed green. This runs the real producers and the shipped
 # IslandTokens.js against each other.
 python3 tests/test_island_tokens.py
+python3 tests/test_island_touch_target.py
 # The privacy monitor polled pw-dump every 1.5 s: 52 CPU-minutes in 61 h on the Oracle A1, more
 # than the compositor. It now follows one `pw-dump --monitor`; this proves both the saving and
 # that the chip is still never wrong (ended stream, dead feed, missed delta, non-JSON text).
@@ -456,6 +458,7 @@ python3 tests/test_moos_app_visual_polish.py
 python3 tests/test_moos_motion_gate.py
 python3 tests/test_fwupd_refresh_policy.py
 python3 tests/test_flatpak_user_update.py
+python3 tests/test_app_update_units.py
 python3 artwork/verify_visuals.py
 # .mcp.json and .claude/settings.json are the agent contract, and they are
 # COMMITTED. A pasted API key in either one is public the moment it is pushed;
