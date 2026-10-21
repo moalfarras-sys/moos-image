@@ -211,9 +211,22 @@ def refuse_tmpfiles_overrides(root: Path, authority: str, mounts: set[Path]) -> 
     path = owned_path(root, authority)
     refuse_mounted_tree(root, path, mounts)
     for folder in ('etc/tmpfiles.d', 'run/tmpfiles.d', 'usr/local/lib/tmpfiles.d'):
+        # Atomic's reviewed /usr/local alias may dangle in a pristine image.
+        # Map its exact relative bytes ourselves; never resolve another link.
+        if folder == 'usr/local/lib/tmpfiles.d':
+            owned_path(root, 'usr')
+            alias = root / 'usr/local'
+            refuse_mounted_tree(root, alias, mounts)
+            if alias.is_symlink():
+                info = alias.lstat()
+                owner = root.stat()
+                if (os.readlink(alias) != '../var/usrlocal'
+                        or info.st_uid != owner.st_uid or info.st_gid != owner.st_gid):
+                    raise RuntimeError('unreviewed local tmpfiles prefix alias')
+                folder = 'var/usrlocal/lib/tmpfiles.d'
         candidate = root / folder / path.name
         refuse_mounted_tree(root, candidate, mounts)
-        # Validate parents without following the final override/mask symlink.
+        # Validate mapped parents without following an override/mask symlink.
         owned_path(root, folder)
         if os.path.lexists(candidate):
             raise RuntimeError('local tmpfiles authority override: ' + str(candidate.relative_to(root)))

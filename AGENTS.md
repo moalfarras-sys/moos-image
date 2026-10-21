@@ -99,6 +99,13 @@ NVR, empty service-owned directory and immutable creator before restricting only
 that directory to0750. Keep the shared metadata/identity gate unchanged; unknown
 data, links, mounts, owners or package/creator drift must remain a refusal.
 
+**An Atomic prefix alias is not an arbitrary policy link.** The override
+preflight originally refused native `/usr/local -> ../var/usrlocal` before
+building x86. Map only those exact owned alias bytes to the explicit in-root
+target, checking mounts before target validation; never relax `owned_path` or
+resolve unknown links. Keep mapped overrides/masks and actual same-filesystem
+bind negatives. A private prefix replay is not a complete image qualification.
+
 > **New here?** Read **[PROJECT_STATE.md](PROJECT_STATE.md)** as well, and read it *first* if
 > you are about to touch MoPlayer, its in-tree source, the gates or anything visual. It is the concise
 > map of what exists, what is load-bearing, what is proven and what remains. The false-green

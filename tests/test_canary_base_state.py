@@ -178,6 +178,72 @@ class CanaryState(unittest.TestCase):
             with self.assertRaisesRegex(RuntimeError, "cannot establish"):
                 mount_points()
 
+    def local_prefix(self):
+        from finalize_canary_base import refuse_tmpfiles_overrides
+        (self.root/'usr').mkdir(exist_ok=True)
+        (self.root/'usr/local').symlink_to('../var/usrlocal')
+        authority=self.root/'usr/lib/tmpfiles.d/native.conf'
+        authority.parent.mkdir(parents=True,exist_ok=True)
+        authority.write_text('d /var/fixture 0755 - - -\n')
+        return refuse_tmpfiles_overrides,authority
+
+    def test_exact_atomic_dangling_local_prefix_is_supported(self):
+        check,authority=self.local_prefix()
+        check(self.root,str(authority.relative_to(self.root)),set())
+        self.assertEqual(os.readlink(self.root/'usr/local'),'../var/usrlocal')
+        self.assertFalse((self.root/'var/usrlocal').exists())
+
+    def test_atomic_mapped_local_override_and_mask_refuse_before_delete(self):
+        from unittest.mock import patch
+        check,authority=self.local_prefix()
+        override=self.root/'var/usrlocal/lib/tmpfiles.d'/authority.name
+        override.parent.mkdir(parents=True)
+        for masked in (False,True):
+            if masked:override.symlink_to('/dev/null')
+            else:override.write_text('local policy')
+            with patch.object(Path,'unlink',side_effect=AssertionError('premature delete')), \
+                    patch.object(Path,'rmdir',side_effect=AssertionError('premature delete')):
+                with self.assertRaisesRegex(RuntimeError,'override'):
+                    check(self.root,str(authority.relative_to(self.root)),set())
+            override.unlink()
+
+    def test_atomic_mapped_mount_refuses_before_target_validation(self):
+        from unittest.mock import patch
+        import finalize_canary_base as module
+        check,authority=self.local_prefix()
+        original=module.owned_path
+        def owned(root,relative):
+            if relative.startswith('var/usrlocal'):raise AssertionError('entered mounted prefix')
+            return original(root,relative)
+        with patch.object(module,'owned_path',side_effect=owned), \
+                patch.object(Path,'is_mount',return_value=False):
+            with self.assertRaisesRegex(RuntimeError,'mount'):
+                check(self.root,str(authority.relative_to(self.root)),{self.root/'var/usrlocal'})
+
+    def test_atomic_prefix_owner_and_group_mismatch_refuse(self):
+        from unittest.mock import patch
+        check,authority=self.local_prefix();alias=self.root/'usr/local'
+        original=Path.lstat
+        for field in (4,5):
+            def metadata(path,*args,**kwargs):
+                value=original(path,*args,**kwargs)
+                if path==alias:
+                    fields=list(value);fields[field]+=1;return os.stat_result(fields)
+                return value
+            with patch.object(Path,'lstat',metadata):
+                with self.assertRaisesRegex(RuntimeError,'unreviewed'):
+                    check(self.root,str(authority.relative_to(self.root)),set())
+
+    def test_unknown_local_prefix_link_and_mapped_parent_link_refuse(self):
+        check,authority=self.local_prefix()
+        alias=self.root/'usr/local';alias.unlink();alias.symlink_to('../owner-local')
+        with self.assertRaisesRegex(RuntimeError,'unreviewed'):
+            check(self.root,str(authority.relative_to(self.root)),set())
+        alias.unlink();alias.symlink_to('../var/usrlocal')
+        (self.root/'var/usrlocal').symlink_to(self.real)
+        with self.assertRaisesRegex(RuntimeError,'symlink'):
+            check(self.root,str(authority.relative_to(self.root)),set())
+
     def test_configured_var_store_is_never_retired(self):
         (self.root/'etc/selinux/semanage.conf').write_text('module-store=direct\nstore-root=/var/lib/selinux\n')
         self.refused('not proven inactive')

@@ -1,0 +1,37 @@
+{
+  "utc": "2026-10-21T11:26:31.940852+00:00",
+  "scope": "ExactAtomicprefixmappingonly; no owned_path relaxation, ownerroot mutation or policy edits",
+  "actual_base_id": "sha256:84e3eb98a52cf5cf00001e1dc05e8c8535509a36a36a719de89da1143316b151",
+  "actual_base_prefix": {
+    "marker": "ACTUAL_X86_CANONICAL_PREFIX_OLD_FIXED",
+    "alias": "../var/usrlocal",
+    "alias_uid": 0,
+    "alias_gid": 0,
+    "actual_target_exists": false,
+    "scope": "Actualbasealiasbytes+UID/GID andvendorpolicy copied into privateprefix; containerlive/run mount means actualroot helper rightly refuses /run separately",
+    "old_refused": "unexpected symlink in compose state: usr/local/lib/tmpfiles.d",
+    "fixed_accepts": true
+  },
+  "real_mapped_bind": {
+    "real_same_filesystem_bind": true,
+    "Path_is_mount": false,
+    "mapped_bind_refused_before_target_validation": true,
+    "error": "unsafe compose mount: var/usrlocal"
+  },
+  "native_canary_tests": {
+    "count": 39,
+    "exit": 0
+  },
+  "source_hashes": {
+    "build_files/finalize_canary_base.py": "b046378fc5907ea10c85cbe724b9995e160b7b761e63862417973d3a7309452a",
+    "tests/test_canary_base_state.py": "7cfaff5f43c5004f205f0350b6bc3d05fa126af76b146533862defeae367bffc"
+  },
+  "evidence": {
+    "old.py": "d1cefb71413ad28e169d4262374aeb74b2fa327bf878ab47c95814258565d67f",
+    "probe.py": "9d982512758bdf12513de2f194621bd6fac1e68e9978c35c69c504e1f6ac5894",
+    "actual-base-proof.json": "93165e7090ebb495b85056a7fc1995ab8781e37f3fbacc8a44a5451c0291c235",
+    "bind.py": "b600c9b8962647da4b136d2ddbd1c664095fd440556c6f290cf8c7f75db6c8d4",
+    "mapped-bind-proof.json": "f1c006c260884a5aa9d25d82c88d58e6d07db0b100bfbeb2b1bc612b6c0e2b0a",
+    "canary-tests.log": "9c8a6bf3672e1c49c97f116199d24aa08fd49a75940d05807384324acbc60e5b"
+  }
+}
