@@ -342,13 +342,13 @@ LABEL org.opencontainers.image.title="MoOS" \
 # existing base-kernel freeze for every later transaction.
 RUN --mount=type=bind,from=ctx,source=/,target=/ctx \
     --mount=type=bind,from=plasma-logout-build,source=/out,target=/plasma-logout-rpms \
-    --mount=type=cache,dst=/var/cache \
-    --mount=type=cache,dst=/var/log \
+    --mount=type=cache,sharing=locked,dst=/var/cache \
+    --mount=type=cache,sharing=locked,dst=/var/log \
     python3 /ctx/plasma_logout/rpms.py install /plasma-logout-rpms
 RUN --mount=type=bind,from=ctx,source=/,target=/ctx \
     --mount=type=bind,from=plasma-login-build,source=/out,target=/plasma-login-rpms \
-    --mount=type=cache,dst=/var/cache \
-    --mount=type=cache,dst=/var/log \
+    --mount=type=cache,sharing=locked,dst=/var/cache \
+    --mount=type=cache,sharing=locked,dst=/var/log \
     if [ "$IMAGE_NAME" != moos-cloud ]; then python3 /ctx/plasma_login/rpms.py install /plasma-login-rpms; fi
 COPY system_files/ /
 COPY --from=moremote-build /out/ /usr/lib/mo-remote/
@@ -382,15 +382,16 @@ COPY --from=kcm-contract /out/kcm/usr/ /usr/
 #   - /akmods is the bind-mounted NVIDIA RPM stage (empty for the generic edition)
 #   - /var/cache and /var/log are cache mounts: their contents speed up
 #     rebuilds but never persist into the final image (bootc lint requires
-#     a clean /var)
+#     a clean /var). Lock the complete RUN: simultaneous image builds must
+#     not remove cached RPMs while another transaction still needs them.
 #   - /tmp is a tmpfs: scratch space that also never persists
 # NOTE: invoked via `bash` (not ./build.sh) on purpose — this repo is edited
 # on Windows, where git usually drops the executable bit.
 RUN --mount=type=bind,from=ctx,source=/,target=/ctx \
     --mount=type=bind,from=akmods,source=/,target=/akmods \
     --mount=type=bind,from=plymouth-build,source=/out,target=/plymouth-rpms \
-    --mount=type=cache,dst=/var/cache \
-    --mount=type=cache,dst=/var/log \
+    --mount=type=cache,sharing=locked,dst=/var/cache \
+    --mount=type=cache,sharing=locked,dst=/var/log \
     --mount=type=tmpfs,dst=/tmp \
     MOOS_IMAGE_NAME="${IMAGE_NAME}" bash /ctx/build.sh
 

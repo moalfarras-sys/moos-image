@@ -8,6 +8,7 @@ import hashlib
 import json
 from pathlib import Path
 import subprocess
+import tempfile
 
 
 KEY_SHA256='b6ce6671a21c947928b08595514d09991975b2f300a8bb6e661fe34cfc54aa29'
@@ -18,6 +19,21 @@ EXPECTED={name:'6.8.1-1.fc44' for name in ('plasma-workspace','plasma-desktop',
 
 def run(*args):
     return subprocess.check_output(list(args),text=True).strip()
+
+
+def sync_packages():
+    # The current vendor base can make one transaction rotate DNF's 1MiB
+    # log. Keep only build-command logs private, as the beta composer does;
+    # do not admit rotated logs into the generic mutable-state contract.
+    with tempfile.TemporaryDirectory(prefix='moos-stable-dnf-',dir='/tmp') as logs:
+        options=['dnf5','--setopt=logdir='+logs]
+        subprocess.run([*options,'-y','distro-sync','--refresh','--best',
+                        '--setopt=install_weak_deps=False','--exclude=kernel*'],check=True)
+        actual={name:run('rpm','-q','--qf','%{VERSION}-%{RELEASE}',name) for name in EXPECTED}
+        if actual!=EXPECTED:
+            raise RuntimeError('stable desktop package inputs drifted: '+repr(actual))
+        subprocess.run([*options,'clean','all'],check=True)
+    return actual
 
 def compose(root=Path('/')):
     if root!=Path('/') or not Path('/run/.containerenv').exists() or Path('/run/ostree-booted').exists():
@@ -43,15 +59,14 @@ def compose(root=Path('/')):
     from runtime_state import Transaction
     from finalize_canary_base import finalize as finalize_canary_base
     transaction = Transaction()
-    subprocess.run(['dnf5','-y','distro-sync','--refresh','--best',
-                    '--setopt=install_weak_deps=False','--exclude=kernel*'],check=True)
-    actual={name:run('rpm','-q','--qf','%{VERSION}-%{RELEASE}',name) for name in EXPECTED}
-    if actual!=EXPECTED:
-        raise RuntimeError('stable desktop package inputs drifted: '+repr(actual))
+    actual=sync_packages()
     Path('/usr/share/moos/plasma-stable.json').write_text(json.dumps({
         'schema':1,'architecture':'x86_64','packages':actual,'signing_key_sha256':KEY_SHA256,
         'signing_key_fingerprint':FINGERPRINT,'source':REPO},indent=2)+'\n')
-    run('dnf5','clean','all')
+    # An already-upgraded canary has no systemd trigger to reconcile this
+    # RPM's01770 empty directory with its native0750 runtime creator.
+    from login_state import reconcile as reconcile_login_state
+    reconcile_login_state(transaction)
     # A systemd upgrade runs machine-id-setup and global tmpfiles even during
     # an image compose. Restore the pristine input before any SDK/final stage
     # can inherit those runtime identities and service scaffolds.

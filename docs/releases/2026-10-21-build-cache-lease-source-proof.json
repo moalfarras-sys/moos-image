@@ -1,0 +1,62 @@
+{
+  "scope": "source build-cache concurrency correction, not signed or physical OS acceptance",
+  "input_source": "a5d46150d9ad771e1d0d84e2e0c3f88b7a7bdf10",
+  "input_stock_manifest": "sha256:acf84c9768b7f6239f153c43d44811de22a38555978ef98e2ac21884986d204f",
+  "original_native_production": {
+    "exit": 1,
+    "failure": "installer RPM payload callbacks fail after cockpit-ws-selinux postscript returns0",
+    "log_sha256": "59be9cac2fb59ce1aba8b2dc287b6a712b8911a87b48ae97cf3db2d25921e40f"
+  },
+  "original_native_canary": {
+    "source_commit": "a5d46150d9ad771e1d0d84e2e0c3f88b7a7bdf10",
+    "source_tree": "78ab56dd1a823256dfa3795c93897045af4194aa",
+    "image_id": "sha256:ecdd0cde4aeec3a069523fb7c3f4cf7d596940c08740e47c139aa3ef381e32e7",
+    "log_sha256": "88dd78e6924ceac0869857e8d0089eb92d1b31222fd8011b102c3ce38bb5e688",
+    "exit": 0,
+    "scope": "complete corrected-beta-base native image; production counterpart fails shared-cache RPM callbacks"
+  },
+  "observed_cache_timeline": {
+    "same_default_package_and_log_cache": true,
+    "first_transaction_last_payload_installed_utc": "2026-10-21 08:46:17 UTC",
+    "second_transaction_postscript_completed_utc": "2026-10-21 08:46:27 UTC",
+    "second_transaction_remaining_payloads_failed": true,
+    "interpretation": "overlapping consumers of disposable DNF package files are the probable full-image failure cause; native cache fixture independently reproduces the loss mechanism"
+  },
+  "native_cache_mechanism": {
+    "shared": {
+      "build_exits": [
+        23,
+        0
+      ],
+      "same_native_cache_object": true,
+      "rival_blocked_while_holder_active": false,
+      "holder_payload_retained": false,
+      "log_sha256": {
+        "holder": "0c7506abbd16d0c220e3228d853818e093d42bd1cc0e3f70f3d722a88bbe941e",
+        "rival": "52beb1365078433076094a3421a577a6c6c957a321369cf55ca73c97f70405c2"
+      }
+    },
+    "locked": {
+      "build_exits": [
+        0,
+        0
+      ],
+      "same_native_cache_object": true,
+      "rival_blocked_while_holder_active": true,
+      "holder_payload_retained": true,
+      "log_sha256": {
+        "holder": "7d95321a279d787378da9c7eeb1d9fc77a2fe67756259e8bc122cf685a7ec8b1",
+        "rival": "72206e9ecbce885f6f28a570a328481dfd32ca8f05b5b4b535d5b8fc47c4a0a9"
+      }
+    },
+    "scope": "real native Buildah mounts with a synthetic payload, not another actual DNF install; isolated cache IDs and temporary contexts",
+    "original_harness_refusal": "expected1 but native RUN correctly propagated intended23; first logs retained, shared negative recovered without repeating it"
+  },
+  "source_contract_cases": 2,
+  "generic_package_identity_and_image_gates": "unchanged",
+  "full_corrected_source_images_and_CI": "required before integration",
+  "containerfiles_sha256": {
+    "Containerfile": "abc0d3a16e38716d966c815359fdca96c3de88b8f2d2219c9db00f54bb267b2f",
+    "Containerfile.arm": "51dbcae1eb1d930c58307721b9f09154b7f5b81199d5b1fee14a4c8062213ef6"
+  }
+}

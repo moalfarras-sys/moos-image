@@ -297,8 +297,8 @@ RUN --mount=type=bind,from=ctx,source=/,target=/ctx \
     --mount=type=bind,from=system-files,source=/,target=/moos-overlay \
     --mount=type=bind,from=plymouth-build,source=/out,target=/plymouth-rpms \
     --mount=type=bind,from=plasma-logout-build,source=/out,target=/plasma-logout-rpms \
-    --mount=type=cache,dst=/var/cache \
-    --mount=type=cache,dst=/var/log \
+    --mount=type=cache,sharing=locked,dst=/var/cache \
+    --mount=type=cache,sharing=locked,dst=/var/log \
     --mount=type=tmpfs,dst=/tmp \
     MOOS_IMAGE_NAME="${IMAGE_NAME}" bash /ctx/build-arm.sh
 

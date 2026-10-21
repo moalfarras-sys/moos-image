@@ -63,6 +63,42 @@ A broken promoted image can still prevent this workstation from booting.
 > change. It is the binding summary of what MoOS is (a real OS, not a rebrand and not a
 > theme), the MoOS UI — Liquid Glass design language, and the rules no session may break.
 
+**Owner requirement, 2026-10-21: qualify the real desktop.** The V3 is a development
+installation. UI work must include actual installed-session interaction, visual
+inspection and runtime readback on this device before claiming user acceptance.
+Offscreen renders, source tests and CI boot fixtures are complementary evidence.
+Reuse the existing SDKs and native review tools; install another tool or retain a
+large artifact only for a concrete development, rollback or proof need. Preserve
+owner files and required signed release evidence; do not use blanket cache pruning.
+
+**A canary base is another package transaction.** Capture its pristine input
+before enabling or syncing beta packages, rather than handing an already-generated
+identity to stable composition. Repeated DNF calls can rotate logs; keep their
+logs in private build tmp instead of admitting arbitrary log files. Preserve the
+exact stock kernel: distro-sync can reinstall a different same-NVR kernel RPM,
+run dracut and create unowned rpm-state/kernel. Do not erase that state broadly
+or relax the final image gate. Require native old/fixed evidence and byte-level
+stock kernel readback as well as the complete canary image gates.
+
+**A shared package cache is not a transaction lease.** Two native full builds
+used the same DNF cache: one completed while the other was inside a successful
+SELinux postscript, then the latter could no longer install its remaining RPM
+payloads. Keep this first refusal and its overlap timeline. A real native cache
+fixture independently loses its payload in shared mode and retains it when
+locked. Every user of package/log cache mounts must hold `sharing=locked` for
+the complete RUN, acquiring cache then log consistently. A remaining shared
+user can ignore that lock. Preserve ordinary command failures and all image
+checks; do not force package installation or rerun a failed CI job.
+
+**An RPM directory can disagree with its runtime creator.** The reviewed6.7.91
+and6.8.1 greeter RPMs declare01770, while their tmpfiles rules require0750. A fresh
+base or sequential canary can already have the newer systemd and not re-run its
+global correction. Reproduce each transaction on the actual immutable CI input,
+retain a local no-repro when it occurs, and verify the exact RPM metadata,
+NVR, empty service-owned directory and immutable creator before restricting only
+that directory to0750. Keep the shared metadata/identity gate unchanged; unknown
+data, links, mounts, owners or package/creator drift must remain a refusal.
+
 > **New here?** Read **[PROJECT_STATE.md](PROJECT_STATE.md)** as well, and read it *first* if
 > you are about to touch MoPlayer, its in-tree source, the gates or anything visual. It is the concise
 > map of what exists, what is load-bearing, what is proven and what remains. The false-green

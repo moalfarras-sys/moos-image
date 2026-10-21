@@ -1,0 +1,20 @@
+{
+  "schema": 1,
+  "architecture": "x86_64",
+  "sdk_container": "moos-dev",
+  "node": "26.12.0",
+  "java_home": "/usr/lib/jvm/java-25-openjdk",
+  "rea": {
+    "version": "6.7.0",
+    "url": "https://registry.npmjs.org/rea-agents/-/rea-agents-6.7.0.tgz",
+    "integrity": "sha512-yhIx2ioJYYT1C/tONfYeitC6LhnKmCh+ZwRUOgYuhSc733lGhkkt73zhug9WmLgxoMdKuqIYGCoBfD4fXkOhFw=="
+  },
+  "ghidra": {
+    "version": "12.1.4",
+    "directory": "ghidra_12.1.4_PUBLIC",
+    "url": "https://github.com/NationalSecurityAgency/ghidra/releases/download/Ghidra_12.1.4_build/ghidra_12.1.4_PUBLIC_20260921.zip",
+    "sha256": "ddac49f903da9d5bac833e5cc79395098b9c33cfd3279be5f31bd00387d2d4db",
+    "bytes": 569649598
+  },
+  "package_lock_sha256": "7a064ef00810baa1adfca002a2bf2f0cc15337c5a5fd74fb28d32927cec88dcd"
+}

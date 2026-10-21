@@ -1,0 +1,8 @@
+{
+  "scope": "Native initial beta transaction from exact CI stock ebc648e6; immutable runtime creator bytes equal the retained 6.8.1 fixture",
+  "nvr": "6.7.91-1.fc44",
+  "rpm_dump": "/var/lib/plasmalogin 0 1790208000 0000000000000000000000000000000000000000000000000000000000000000 041770 plasmalogin plasmalogin 0 0 0 X\n",
+  "creator_sha256": "6a2aa3937eee9c543ba995170ac683e64cf110b00ee21a9dfa66a722e4f5cd55",
+  "observed_empty_directory_mode": "01770",
+  "native_creator_directory_mode": "0750"
+}

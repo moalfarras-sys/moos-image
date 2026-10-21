@@ -54,6 +54,8 @@ check:
     python3 tests/test_plasma_logout_packages.py
     python3 tests/verify_user_experience.py
     python3 tests/test_device_plan.py
+    python3 tests/test_build_cache_locking.py
+    python3 tests/test_analysis_tools_profile.py
     python3 tests/test_fingerprint_login.py
     python3 tests/test_greeter_autofingerprint.py
     python3 tests/test_greeter_rpms.py
@@ -135,6 +137,8 @@ check:
     python3 tests/test_compose_dbus_state.py
     python3 tests/test_compose_runtime_transaction.py
     python3 tests/test_arm_pristine_base.py
+    python3 tests/test_plasma_canary_compose.py
+    python3 tests/test_plasma_login_state.py
     python3 tests/test_visual_frame_gate.py
     python3 tests/test_oracle_deploy.py
     python3 tests/test_exec_bits.py
