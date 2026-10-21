@@ -97,10 +97,11 @@ jobs:
           mkdir -p "$out"
           cp build_files/finalize_canary_base.py build_files/finalize_image_state.py \
              build_files/finalize_root_home.py build_files/prepare_plasma_canary_base.py \
-             build_files/plasma_stable/runtime_state.py build_files/plasma_stable/runtime-rules.json "$out/"
+             build_files/plasma_stable/runtime_state.py build_files/plasma_stable/login_state.py \
+             build_files/plasma_stable/runtime-rules.json "$out/"
           cat > "$out/Containerfile" <<'CONTAINERFILE'
           FROM ghcr.io/ublue-os/kinoite-main:44
-          COPY finalize_canary_base.py finalize_image_state.py finalize_root_home.py prepare_plasma_canary_base.py runtime_state.py runtime-rules.json /canary-review/
+          COPY finalize_canary_base.py finalize_image_state.py finalize_root_home.py prepare_plasma_canary_base.py runtime_state.py login_state.py runtime-rules.json /canary-review/
           RUN python3 /canary-review/prepare_plasma_canary_base.py \
            && ostree container commit \
            && rm -rf /canary-review

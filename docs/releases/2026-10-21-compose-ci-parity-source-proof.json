@@ -1,0 +1,92 @@
+{
+  "scope": "native package transaction and deliberate log-rotation controls; not signed release or boot acceptance",
+  "stock": "ghcr.io/ublue-os/kinoite-main@sha256:acf84c9768b7f6239f153c43d44811de22a38555978ef98e2ac21884986d204f",
+  "stock_config": "sha256:ebc648e609aed2b44e0482019d19ce107141cfd5a004ec2adf5b0d9f866c22c0",
+  "original_default_stable_reproduced_failure": false,
+  "original_default_stable_exit": 0,
+  "original_beta_exit": 1,
+  "native_log_rotation_control": {
+    "configuration": "log_size=1024 in private fixture /etc/dnf/dnf.conf, DNF-generated rotated files; same fixture for old/fixed",
+    "original_exit": 1,
+    "original_refusal": "unexpected transaction state: var/log/dnf5.log.4",
+    "fixed_exit": 0,
+    "original_log_sha256": "5f8be25344c43872ac8080a31aa9bd70875713a56852f4ff65e11b012139c58f"
+  },
+  "exit": 0,
+  "images": {
+    "original-stable": {
+      "kernel": {
+        "path": "/usr/lib/modules/7.2.11-200.fc44.x86_64/vmlinuz",
+        "sha256": "0eaea5d149421a938ed62c7bdec74cf1013992c8a15d4b495d29e479356fc939"
+      },
+      "machine_id_bytes": 0,
+      "var": [
+        "/var/tmp"
+      ],
+      "temporary_command_logs": [],
+      "greeter_nvr": "6.8.1-1.fc44",
+      "creator_sha256": "6a2aa3937eee9c543ba995170ac683e64cf110b00ee21a9dfa66a722e4f5cd55",
+      "creator_mode": "0o644",
+      "systemd": "systemd-259.10-1.fc44.x86_64",
+      "canary_review_absent": true,
+      "image_id": "c100d0cd92cd500c3148348c8659f0f8d5b4788b8df6f49aec65ce7a0fafcb29",
+      "log_sha256": "5175823cb9e8e95de2209dfa19c3e8e68fe3be80c64e1015ae02dfbcb5d7b05f"
+    },
+    "parity-fixed-small-log": {
+      "kernel": {
+        "path": "/usr/lib/modules/7.2.11-200.fc44.x86_64/vmlinuz",
+        "sha256": "0eaea5d149421a938ed62c7bdec74cf1013992c8a15d4b495d29e479356fc939"
+      },
+      "machine_id_bytes": 0,
+      "var": [
+        "/var/tmp"
+      ],
+      "temporary_command_logs": [],
+      "greeter_nvr": "6.8.1-1.fc44",
+      "creator_sha256": "6a2aa3937eee9c543ba995170ac683e64cf110b00ee21a9dfa66a722e4f5cd55",
+      "creator_mode": "0o644",
+      "systemd": "systemd-259.10-1.fc44.x86_64",
+      "canary_review_absent": true,
+      "image_id": "d5e3618045dd6ae1791df48cd173420da0f0237d54f4d2714add6361f790a3eb",
+      "log_sha256": "3c4e3850c9de2b974a9674b46533928a1fe4799e901f0b5b96edec9f47c0e0d1"
+    },
+    "parity-fixed-canary": {
+      "kernel": {
+        "path": "/usr/lib/modules/7.2.11-200.fc44.x86_64/vmlinuz",
+        "sha256": "0eaea5d149421a938ed62c7bdec74cf1013992c8a15d4b495d29e479356fc939"
+      },
+      "machine_id_bytes": 0,
+      "var": [
+        "/var/tmp"
+      ],
+      "temporary_command_logs": [],
+      "greeter_nvr": "6.7.91-1.fc44",
+      "creator_sha256": "6a2aa3937eee9c543ba995170ac683e64cf110b00ee21a9dfa66a722e4f5cd55",
+      "creator_mode": "0o644",
+      "systemd": "systemd-259.10-1.fc44.x86_64",
+      "canary_review_absent": true,
+      "image_id": "a6a65d77c0d2fbe086b5ada81b86445a42c63816ca7e4606eda3a92d671638d3",
+      "log_sha256": "fae456c9b3e6aa25c9faeef16dd466869fc8bd188ca62a114e152f358bbaf5bb"
+    }
+  },
+  "native_beta_creator_evidence": {
+    "scope": "Native initial beta transaction from exact CI stock ebc648e6; immutable runtime creator bytes equal the retained 6.8.1 fixture",
+    "nvr": "6.7.91-1.fc44",
+    "rpm_dump": "/var/lib/plasmalogin 0 1790208000 0000000000000000000000000000000000000000000000000000000000000000 041770 plasmalogin plasmalogin 0 0 0 X\n",
+    "creator_sha256": "6a2aa3937eee9c543ba995170ac683e64cf110b00ee21a9dfa66a722e4f5cd55",
+    "observed_empty_directory_mode": "01770",
+    "native_creator_directory_mode": "0750"
+  },
+  "focused_controls": {
+    "directory": 19,
+    "canary_commands": 7,
+    "stable_commands": 9,
+    "workflow": 7
+  },
+  "source_files_sha256": {
+    "build_files/plasma_stable/compose.py": "6620256ba95024f796fd630c241e22fa79ff964bc724d954ebf51afe14b4e00a",
+    "build_files/plasma_stable/login_state.py": "295ed8576d165b7ca443736f27761cc252b4135616b88501927f619bb8d62ebb",
+    "build_files/prepare_plasma_canary_base.py": "9b1093f85d2ff369a81fcb54e6346033d77d67c4e265662991c7c7c40c056866"
+  },
+  "remaining": "complete final-source production and beta-base images, exact-head CI, signed cycle and installed cold acceptance"
+}

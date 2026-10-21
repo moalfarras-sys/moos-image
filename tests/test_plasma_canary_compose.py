@@ -26,7 +26,12 @@ class CanaryTransactionControls(unittest.TestCase):
             self.events.append(name)
             if failure==name:raise RuntimeError('planted '+name)
         def snapshot():
-            event('snapshot');return SimpleNamespace(finalize=lambda:event('finalize'))
+            event('snapshot');self.transaction=SimpleNamespace(finalize=lambda:event('finalize'))
+            return self.transaction
+        def login_state(transaction):
+            self.assertIs(transaction,self.transaction)
+            self.assertTrue(all(not path.exists() for path in self.log_dirs))
+            event('login-state')
         def query(args,**kwargs):event('architecture');return arch+'\n'
         def command(args,**kwargs):
             if args[0]=='dnf5':
@@ -42,6 +47,7 @@ class CanaryTransactionControls(unittest.TestCase):
         with patch.object(composer,'Transaction',side_effect=snapshot), \
              patch.object(composer.subprocess,'check_output',side_effect=query), \
              patch.object(composer.subprocess,'run',side_effect=command), \
+             patch.object(composer,'reconcile_login_state',side_effect=login_state), \
              patch.object(composer,'finalize_canary',side_effect=lambda root:event('canary')), \
              patch.object(composer,'finalize_root_home',side_effect=lambda root:event('root-home')):
             composer.compose()
@@ -50,7 +56,7 @@ class CanaryTransactionControls(unittest.TestCase):
         self.execute()
         self.assertEqual(self.events,['snapshot','architecture','dnf5 -y copr enable @kdesig/kde-beta',
             'rpm -q kcm-fcitx5','dnf5 -y distro-sync --refresh --allowerasing --best --exclude=kernel*',
-            'dnf5 clean all','canary','root-home','finalize'])
+            'dnf5 clean all','login-state','canary','root-home','finalize'])
         self.assertEqual(len(self.log_dirs),1)
         self.assertFalse(next(iter(self.log_dirs)).exists())
 
@@ -81,7 +87,7 @@ class CanaryTransactionControls(unittest.TestCase):
             self.assertTrue(all(not path.exists() for path in self.log_dirs))
 
     def test_each_cleanup_failure_remains_nonzero_and_cannot_reach_later_cleanup(self):
-        for stage in ('canary','root-home','finalize'):
+        for stage in ('login-state','canary','root-home','finalize'):
             with self.subTest(stage=stage),self.assertRaises(RuntimeError):self.execute(failure=stage)
             if stage!='finalize':self.assertNotIn('finalize',self.events)
 

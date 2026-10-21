@@ -62,9 +62,12 @@ class SameImageNextPlasma(unittest.TestCase):
         self.assertIn(['dnf5','-y','distro-sync','--refresh','--allowerasing','--best','--exclude=kernel*'], package_commands())
         self.assertIn('RUN python3 /canary-review/prepare_plasma_canary_base.py', workflow)
         self.assertIn('build_files/prepare_plasma_canary_base.py', workflow)
-        for dependency in ('runtime_state.py','runtime-rules.json','finalize_root_home.py',
+        for dependency in ('runtime_state.py','runtime-rules.json','login_state.py','finalize_root_home.py',
                            'finalize_canary_base.py','finalize_image_state.py'):
-            self.assertIn(dependency, workflow)
+            copy_inputs=workflow[workflow.index('cp build_files/finalize_canary_base.py'):workflow.index("cat >")]
+            container_copy=next(line for line in workflow.splitlines() if line.strip().startswith('COPY '))
+            self.assertIn(dependency, copy_inputs)
+            self.assertIn(dependency, container_copy)
 
     def test_a_base_that_did_not_reach_the_next_plasma_fails(self):
         # PR #161's first run: a soname bump blocked the move, distro-sync skipped it

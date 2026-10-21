@@ -80,10 +80,11 @@ run dracut and create unowned rpm-state/kernel. Do not erase that state broadly
 or relax the final image gate. Require native old/fixed evidence and byte-level
 stock kernel readback as well as the complete canary image gates.
 
-**An RPM directory can disagree with its runtime creator.** The6.8.1 greeter RPM
-declares01770, while its tmpfiles rule requires0750. A sequential canary already
-has the newer systemd and does not re-run its global correction. Reproduce both
-transactions, audit every remaining record and verify the exact RPM metadata,
+**An RPM directory can disagree with its runtime creator.** The reviewed6.7.91
+and6.8.1 greeter RPMs declare01770, while their tmpfiles rules require0750. A fresh
+base or sequential canary can already have the newer systemd and not re-run its
+global correction. Reproduce each transaction on the actual immutable CI input,
+retain a local no-repro when it occurs, and verify the exact RPM metadata,
 NVR, empty service-owned directory and immutable creator before restricting only
 that directory to0750. Keep the shared metadata/identity gate unchanged; unknown
 data, links, mounts, owners or package/creator drift must remain a refusal.

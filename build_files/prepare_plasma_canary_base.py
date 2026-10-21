@@ -10,6 +10,7 @@ import subprocess
 import tempfile
 
 from runtime_state import Transaction
+from login_state import reconcile as reconcile_login_state
 from finalize_canary_base import finalize as finalize_canary
 from finalize_root_home import finalize as finalize_root_home
 
@@ -37,6 +38,9 @@ def compose():
         # kernel RPM, runs dracut and leaves an unrelated rpm-state/kernel.
         dnf(logs,'-y','distro-sync','--refresh','--allowerasing','--best','--exclude=kernel*')
         dnf(logs,'clean','all')
+    # The beta RPM has the same reviewed01770/0750 directory mismatch as
+    # stable. Use this transaction's pristine snapshot, never a new reset.
+    reconcile_login_state(transaction)
     finalize_canary(Path('/'))
     finalize_root_home(Path('/'))
     transaction.finalize()

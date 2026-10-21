@@ -1,8 +1,8 @@
 """Conform one empty RPM-created greeter directory to its native tmpfiles rule.
 
-The6.8.1 RPM declares01770 while its runtime creator declares0750. A systemd
-upgrade normally applies the latter globally; an already-upgraded canary does
-not run that trigger again. Keep the generic transaction metadata gate strict.
+The reviewed6.7.91/6.8.1 RPMs declare01770 while their runtime creator declares
+0750. A systemd upgrade normally applies the latter globally; an already-upgraded
+base does not run that trigger again. Keep the generic metadata gate strict.
 """
 from pathlib import Path
 import stat
@@ -12,7 +12,7 @@ from finalize_image_state import owned_path
 
 RELATIVE='var/lib/plasmalogin'
 AUTHORITY='usr/lib/tmpfiles.d/plasmalogin.conf'
-REVIEWED_NVR='6.8.1-1.fc44'
+REVIEWED_NVRS=('6.7.91-1.fc44','6.8.1-1.fc44')
 RECORD={'mode':0o750,'user':'plasmalogin','group':'plasmalogin','kind':'directory',
         'authorities':[{'authority':AUTHORITY,'rule':['d','/'+RELATIVE,'0750','plasmalogin','plasmalogin']}]}
 
@@ -25,7 +25,7 @@ def reconcile(transaction):
     if transaction.records.get(RELATIVE)!=RECORD:
         raise RuntimeError('greeter runtime record drifted')
     package=subprocess.check_output(['rpm','-q','--qf','%{VERSION}-%{RELEASE}','plasma-login-manager'],text=True).strip()
-    if package!=REVIEWED_NVR:raise RuntimeError('unreviewed greeter directory package')
+    if package not in REVIEWED_NVRS:raise RuntimeError('unreviewed greeter directory package')
     path=owned_path(root,RELATIVE)
     if not path.exists():return False
     mode=stat.S_IMODE(path.lstat().st_mode)

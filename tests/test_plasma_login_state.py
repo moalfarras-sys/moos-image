@@ -30,7 +30,7 @@ class GreeterDirectoryState(unittest.TestCase):
         self.tx=Transaction(self.root,records)
         (self.root/'var/lib').mkdir()
         self.directory=self.root/login_state.RELATIVE;self.directory.mkdir();self.directory.chmod(0o1770)
-        self.nvr=login_state.REVIEWED_NVR
+        self.nvr='6.8.1-1.fc44'
         self.dump='/var/lib/plasmalogin 0 1792454400 '+'0'*64+' 041770 plasmalogin plasmalogin 0 0 0 X\n'
         self.commands=[]
 
@@ -63,6 +63,16 @@ class GreeterDirectoryState(unittest.TestCase):
         self.directory.chmod(0o750);self.assertFalse(self.call())
         self.assertFalse(any('--dump' in args for args in self.commands))
         self.assertEqual(stat.S_IMODE(self.directory.stat().st_mode),0o750)
+
+    def test_exact_beta_rpm_metadata_and_native_creator_conform_in_same_transaction(self):
+        native=json.loads((ROOT/'tests/fixtures/compose/plasmalogin-6.7.91-native.json').read_text())
+        self.nvr=native['nvr'];self.dump=native['rpm_dump']
+        import hashlib
+        self.assertEqual(hashlib.sha256(self.authority.read_bytes()).hexdigest(),native['creator_sha256'])
+        self.assertTrue(self.call())
+        self.tx.finalize()
+        self.assertEqual(self.identity.read_bytes(),b'')
+        self.assertEqual([p.name for p in (self.root/'var').iterdir()],['tmp'])
 
     def test_absent_directory_is_not_created(self):
         self.directory.rmdir();self.assertFalse(self.call());self.assertFalse(self.directory.exists())
@@ -112,7 +122,9 @@ class GreeterDirectoryState(unittest.TestCase):
         self.authority.symlink_to(other);self.refused('symlink|link');self.assertEqual(other.read_bytes(),data)
 
     def test_unknown_package_version_refuses(self):
-        self.nvr='6.8.2-1.fc44';self.refused('unreviewed greeter directory package')
+        for nvr in ('6.7.91-2.fc44','6.7.92-1.fc44','6.8.2-1.fc44'):
+            with self.subTest(nvr=nvr):
+                self.nvr=nvr;self.refused('unreviewed greeter directory package')
 
     def test_rpm_query_failure_remains_nonzero(self):
         with patch.object(login_state.subprocess,'check_output',side_effect=subprocess.CalledProcessError(1,['rpm'])):
