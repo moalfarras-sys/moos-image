@@ -1,0 +1,66 @@
+{
+  "schema": 1,
+  "date": "2026-10-21",
+  "scope": "CI disk-builder host selection; no device security or image contents change",
+  "candidate_revision": "7ff4b6024dbc7a53b011f894f3305f2dca7e29a0",
+  "signed_build": 39628828384,
+  "offline_iso": {
+    "run": 39640618292,
+    "conclusion": "success"
+  },
+  "arm_pipeline": {
+    "run": 39628720415,
+    "conclusion": "success"
+  },
+  "x86_qcow2_refusals": [
+    {
+      "run": 39640595741,
+      "conclusion": "failure",
+      "phase": "org.osbuild.container-deploy, before disk/boot",
+      "log_sha256": "5c036eb6a3eeeaa2c752fd2d03d4b174994bacb57ad2b3eee0c4560fddb3f817"
+    },
+    {
+      "run": 39640603696,
+      "conclusion": "failure",
+      "phase": "org.osbuild.container-deploy, before disk/boot",
+      "log_sha256": "50254290f6826bea98d8d2d7ba3642e8379b330922c5b1d93d7ed1ad5c04218d"
+    },
+    {
+      "run": 39640611267,
+      "conclusion": "failure",
+      "phase": "org.osbuild.container-deploy, before disk/boot",
+      "log_sha256": "610e1db55825d24a63eb4c8b00b8cb2d95de6c7a98f6352dc0e6aa03b75992fc"
+    }
+  ],
+  "observed_runner": {
+    "image": "ubuntu-26.04",
+    "version": "20261018.168.1",
+    "os": "26.04.1"
+  },
+  "previous_successful_qcow2": {
+    "run": 39274409976,
+    "image": "ubuntu-24.04",
+    "version": "20261012.334.1",
+    "os": "24.04.5"
+  },
+  "change": "select ubuntu-24.04 explicitly for the nested privileged disk-builder job",
+  "unchanged": [
+    "pinned bootc-image-builder image",
+    "cosign verification and exact source digest",
+    "sealing and initramfs checks",
+    "real UEFI/runtime/reboot/poweroff proofs",
+    "promotion attempt/source/tree matching",
+    "host AppArmor/seccomp/sysctl settings"
+  ],
+  "local_source_gate": {
+    "command": "python3 tests/test_release_workflow_safety.py",
+    "exit": 0,
+    "tests": 19
+  },
+  "remaining": "first-attempt complete QCOW2 proofs on the explicit host; no new success/promotion is claimed",
+  "cause_boundary": "correlation with a host transition is observed; the precise kernel/LSM denial has not been isolated",
+  "sources": [
+    "https://github.com/actions/runner-images/releases/tag/ubuntu26%2F20261018.168",
+    "https://raw.githubusercontent.com/osbuild/osbuild/main/osbuild/util/containers.py"
+  ]
+}
