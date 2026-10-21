@@ -257,6 +257,13 @@ Keep the full locked-build comparison in the PR fast workflow as well as main.
 Preserve the native old-compiler exact reproduction, repeat-build equality and
 old-bundle1/new-bundle0 controls; a marker pass is not bundle reproducibility.
 
+**A workstation's Qt is not a generic CI dependency.** The Island input fixture
+initially failed13 probes on the Ubuntu source runner because PySide6 was absent.
+Both image builders now require the same real Qt input proof against installed
+`/usr` bytes; missing PySide6 must fail there. Source-only runners explicitly
+report the unavailable native probes. Preserve all12 cases and the executed
+old-source negative; no empty/skipped image probe is acceptance.
+
 **A screenshot's filename does not establish its phase.** ISO 38807911559
 saved `installed-login.ppm` only after PAM accepted the password and logind
 opened the session. It caught the empty handoff background and correctly failed

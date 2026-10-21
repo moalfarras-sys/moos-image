@@ -1655,6 +1655,7 @@ python3 /ctx/verify_arm_image.py
 python3 /ctx/verify_sound_theme.py
 python3 /ctx/verify_qml_host_platform.py
 python3 /ctx/verify_moos_motion.py --qml /ctx/motion-review.qml
+MOOS_TOUCH_OVERLAY=/ MOOS_REQUIRE_NATIVE_TOUCH=1 python3 /ctx/test_island_touch_target.py
 python3 /ctx/verify_no_foreign_identity.py
 # Every handler mimeapps.list promises must exist HERE. The ARM base ships no KDE
 # apps, so a type this image claims but cannot open is a defect only the finished

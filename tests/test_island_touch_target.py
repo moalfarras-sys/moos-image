@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Real Qt component/input controls; private offscreen state, never the live panel."""
 import json
+import importlib.util
 import os
 import signal
 from pathlib import Path
@@ -10,7 +11,8 @@ import tempfile
 import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
-COMPONENT = ROOT / "system_files/usr/share/plasma/plasmoids/org.moos.island/contents/ui/MediaControl.qml"
+OVERLAY = Path(os.environ.get("MOOS_TOUCH_OVERLAY", str(ROOT / "system_files")))
+COMPONENT = OVERLAY / "usr/share/plasma/plasmoids/org.moos.island/contents/ui/MediaControl.qml"
 
 
 def probe():
@@ -78,6 +80,12 @@ def probe():
 
 
 class NativeTouchTarget(unittest.TestCase):
+    def setUp(self):
+        if importlib.util.find_spec("PySide6") is None:
+            if os.environ.get("MOOS_REQUIRE_NATIVE_TOUCH") == "1":
+                self.fail("the installed-image input proof requires PySide6")
+            self.skipTest("native Qt/KDE input runtime required; mandatory in both image gates")
+
     def run_case(self, tablet, slot, factor, old=False):
         with tempfile.TemporaryDirectory(prefix="moos-island-touch-") as tmp:
             work=Path(tmp)
@@ -106,7 +114,7 @@ Window {
                  "XDG_RUNTIME_DIR":str(work/"runtime"),"DBUS_SESSION_BUS_ADDRESS":"unix:path="+str(work/"runtime/absent-bus"),
                  "QT_QPA_PLATFORM":"offscreen","QT_QUICK_BACKEND":"software","QT_QPA_PLATFORMTHEME":"kde",
                  "QT_QUICK_CONTROLS_STYLE":"Basic","QML_DISABLE_DISK_CACHE":"1","QT_FORCE_STDERR_LOGGING":"1",
-                 "QML_IMPORT_PATH":str(ROOT/"system_files/usr/lib64/qt6/qml"),
+                 "QML_IMPORT_PATH":str(OVERLAY/"usr/lib64/qt6/qml"),
                  "KDE_KIRIGAMI_TABLET_MODE":str(int(tablet)),"PROBE_SLOT":str(slot),"PROBE_FACTOR":str(factor),"PROBE_OLD":str(int(old))}
             command=["dbus-run-session","--config-file",str(bus),"--",sys.executable,str(Path(__file__).resolve()),"--probe",str(work/"probe.qml")]
             child=subprocess.Popen(command,env=env,text=True,stdout=subprocess.PIPE,stderr=subprocess.PIPE,start_new_session=True)

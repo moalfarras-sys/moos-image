@@ -4077,6 +4077,7 @@ python3 /ctx/verify_desktop_parity.py --root /
 python3 /ctx/verify_sound_theme.py
 python3 /ctx/verify_qml_host_platform.py
 python3 /ctx/verify_moos_motion.py --qml /ctx/motion-review.qml
+MOOS_TOUCH_OVERLAY=/ MOOS_REQUIRE_NATIVE_TOUCH=1 python3 /ctx/test_island_touch_target.py
 
 # ── The MoOS Store must be internally consistent end-to-end ───────────────────
 #
