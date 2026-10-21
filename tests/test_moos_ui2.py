@@ -1244,7 +1244,7 @@ class TestMoOSUI2(unittest.TestCase):
             ("radiusM", "design.radiusControl"),
             ("radiusL", "design.radiusCard"),
             ("radiusXL", "design.radiusPanel"),
-            ("targetSize", "design.targetCompact"),
+            ("targetSize", "design.targetControl"),
             ("typeCaption", "design.typeCaption"),
             ("typeSecondary", "design.typeSecondary"),
             ("typeBody", "design.typeBody"),
