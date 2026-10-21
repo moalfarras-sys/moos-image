@@ -5,6 +5,7 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Controls as QQC2
 import QtQuick.Layouts
+import QtQml.Models
 import org.kde.plasma.plasmoid
 import org.kde.plasma.components as PC3
 import org.kde.plasma.extras as PlasmaExtras
@@ -43,7 +44,7 @@ Item {
     readonly property int radiusM: design.radiusControl
     readonly property int radiusL: design.radiusCard
     readonly property int radiusXL: design.radiusPanel
-    readonly property int targetSize: design.targetCompact
+    readonly property int targetSize: design.targetControl
     readonly property int typeCaption: design.typeCaption
     readonly property int typeSecondary: design.typeSecondary
     readonly property int typeBody: design.typeBody
@@ -56,13 +57,29 @@ Item {
         Kirigami.Units.longDuration > 1, design.motionGeometry)
     readonly property bool lightSurface: design.isLight(Kirigami.Theme.backgroundColor)
 
-    implicitWidth: design.dialogWidth
-    implicitHeight: design.dialogHeight
-    // The Command Canvas deliberately owns more breathing room than a menu.
-    // At the reference 225% scale this remains inside a 4K work area while
-    // preserving real 40 px targets and the calm four-column app rhythm.
+    // Fit the current work area in logical pixels. Keep the normal wide
+    // composition; reflow content instead of scaling text or touch targets.
+    implicitWidth: Math.min(design.dialogWidth,
+        Math.max(1, launcher.popupAvailableWidth - 8))
+    implicitHeight: Math.min(design.dialogHeight,
+        Math.max(1, launcher.popupAvailableHeight - 64))
     Layout.minimumWidth: implicitWidth
     Layout.minimumHeight: implicitHeight
+    Layout.maximumWidth: implicitWidth
+    Layout.maximumHeight: implicitHeight
+    readonly property bool compact: width < 640
+    readonly property bool narrow: width < 480
+    readonly property bool shortLayout: height < 520
+    readonly property int touchTarget: design.targetControl
+    readonly property int canvasMargin: compact ? space3 : space5
+
+    function appColumns(availableWidth) {
+        return Math.max(1, Math.min(4, Math.floor(availableWidth / 112)));
+    }
+    function sessionActionShown(actionId) {
+        return ["lock-screen", "switch-user", "logout", "suspend",
+                "hibernate", "reboot", "shutdown"].indexOf(String(actionId)) >= 0;
+    }
 
     // entranceReady drives both the panel's own fade+scale and the staggered
     // tile reveal below. It is reset when the launcher closes so the entrance
@@ -333,7 +350,7 @@ Item {
     ColumnLayout {
         id: commandCanvas
         anchors.fill: parent
-        anchors.margins: view.space5
+        anchors.margins: view.canvasMargin
         spacing: view.space2
         opacity: view.entranceReady ? 1 : 0
         scale: view.entranceReady ? 1 : 0.985
@@ -354,7 +371,7 @@ Item {
         // ── Context deck: identity, the day and the local-first promise ─────
         RowLayout {
             Layout.fillWidth: true
-            Layout.preferredHeight: 50
+            Layout.preferredHeight: view.shortLayout ? 32 : 50
             spacing: view.space4
             // No explicit layoutDirection anywhere in this file: plasmashell runs
             // this popup with LayoutMirroring enabled+inherited on RTL sessions, and
@@ -363,7 +380,7 @@ Item {
             // mentioned it were correct the whole time. Mirroring is the one system.
 
             Item {
-                Layout.preferredWidth: 44
+                Layout.preferredWidth: view.shortLayout ? 32 : 44
                 Layout.preferredHeight: width
 
                 Rectangle {
@@ -404,6 +421,7 @@ Item {
                 }
                 Text {
                     text: view.greeting()
+                    visible: !view.shortLayout
                     color: Kirigami.Theme.disabledTextColor
                     font.family: view.uiFontFamily
                     font.pixelSize: view.typeSecondary
@@ -414,6 +432,7 @@ Item {
 
             RowLayout {
                 id: privacyRow
+                visible: !view.compact
                 spacing: view.space2
 
                 Rectangle {
@@ -435,17 +454,19 @@ Item {
             Rectangle {
                 Layout.preferredWidth: 1
                 Layout.preferredHeight: 36
+                visible: !view.narrow
                 color: Qt.alpha(Kirigami.Theme.textColor, 0.14)
             }
 
             ColumnLayout {
-                Layout.minimumWidth: 138
+                Layout.minimumWidth: view.narrow ? 80 : 138
+                visible: !view.narrow
                 spacing: -1
 
                 Text {
                     Layout.fillWidth: true
                     text: Qt.formatTime(view.now, "HH:mm")
-                    horizontalAlignment: view.rtl ? Text.AlignRight : Text.AlignLeft
+                    horizontalAlignment: Text.AlignLeft
                     color: Kirigami.Theme.textColor
                     font.family: view.uiFontFamily
                     font.pixelSize: view.typeTitle
@@ -455,7 +476,8 @@ Item {
                 Text {
                     Layout.fillWidth: true
                     text: view.shortDate()
-                    horizontalAlignment: view.rtl ? Text.AlignRight : Text.AlignLeft
+                    visible: !view.shortLayout
+                    horizontalAlignment: Text.AlignLeft
                     color: Kirigami.Theme.disabledTextColor
                     font.family: view.uiFontFamily
                     font.pixelSize: view.typeCaption
@@ -505,7 +527,7 @@ Item {
                         id: searchInput
                         anchors.fill: parent
                         verticalAlignment: TextInput.AlignVCenter
-                        horizontalAlignment: view.rtl ? TextInput.AlignRight : TextInput.AlignLeft
+                        horizontalAlignment: TextInput.AlignLeft
                         text: view.launcher.searchQuery
                         color: Kirigami.Theme.textColor
                         selectionColor: Kirigami.Theme.highlightColor
@@ -534,7 +556,7 @@ Item {
                         Text {
                             anchors.fill: parent
                             verticalAlignment: Text.AlignVCenter
-                            horizontalAlignment: view.rtl ? Text.AlignRight : Text.AlignLeft
+                            horizontalAlignment: Text.AlignLeft
                             text: view.local(
                                 "اكتب أمراً، افتح تطبيقاً، أو اعثر على ملف…",
                                 "Run a command, open an app, or find a file…")
@@ -570,7 +592,7 @@ Item {
                 }
 
                 Text {
-                    visible: view.launcher.searchQuery.length === 0
+                    visible: !view.compact && view.launcher.searchQuery.length === 0
                     text: "META"
                     color: Kirigami.Theme.disabledTextColor
                     font.family: view.uiFontFamily
@@ -582,20 +604,24 @@ Item {
         }
 
         // ── Navigation + page content ───────────────────────────────────────
-        RowLayout {
+        GridLayout {
             Layout.fillWidth: true
             Layout.fillHeight: true
-            spacing: view.space4
+            columns: view.compact ? 1 : 3
+            columnSpacing: view.space4
+            rowSpacing: view.space2
 
-            ColumnLayout {
-                readonly property real fixedWidth: 140
-
-                Layout.fillWidth: false
-                Layout.minimumWidth: fixedWidth
-                Layout.preferredWidth: fixedWidth
-                Layout.maximumWidth: fixedWidth
-                Layout.fillHeight: true
-                spacing: view.space2
+            GridLayout {
+                id: navigation
+                columns: view.compact ? 4 : 1
+                columnSpacing: view.space1
+                rowSpacing: view.space2
+                Layout.fillWidth: view.compact
+                Layout.minimumWidth: view.compact ? 0 : 140
+                Layout.preferredWidth: view.compact ? -1 : 140
+                Layout.maximumWidth: view.compact ? Infinity : 140
+                Layout.fillHeight: !view.compact
+                Layout.alignment: Qt.AlignTop
 
                 // Up/Down cycle the four; the ids let each one name its
                 // neighbours so the ring wraps without a Repeater (which would
@@ -633,9 +659,10 @@ Item {
                     navDown: navHome
                 }
 
-                Item { Layout.fillHeight: true }
+                Item { visible: !view.compact; Layout.fillHeight: true }
 
                 RowLayout {
+                    visible: !view.compact
                     Layout.fillWidth: true
                     Layout.leftMargin: view.space3
                     Layout.rightMargin: view.space3
@@ -660,6 +687,7 @@ Item {
             }
 
             Rectangle {
+                visible: !view.compact
                 Layout.preferredWidth: 1
                 Layout.fillHeight: true
                 color: Qt.alpha(Kirigami.Theme.textColor, 0.10)
@@ -672,12 +700,26 @@ Item {
                 currentIndex: view.searching ? 4 : view.launcher.activePage
 
                 // ── Home: favourites first, recent second ──────────────────
-                Item {
+                Flickable {
+                    id: homeScroll
                     Layout.fillWidth: true
                     Layout.fillHeight: true
+                    contentWidth: width
+                    contentHeight: Math.max(height, homeColumn.implicitHeight)
+                    clip: true
+                    boundsBehavior: Flickable.StopAtBounds
+                    QQC2.ScrollBar.vertical: QQC2.ScrollBar { interactive: false }
+
+                    function reveal(item) {
+                        const point = item.mapToItem(homeColumn, 0, 0);
+                        contentY = Math.max(0, Math.min(contentHeight - height,
+                            Math.min(point.y, Math.max(contentY, point.y + item.height - height))));
+                    }
 
                     ColumnLayout {
-                        anchors.fill: parent
+                        id: homeColumn
+                        width: homeScroll.width
+                        height: Math.max(homeScroll.height, implicitHeight)
                         spacing: view.space3
 
                         RowLayout {
@@ -694,7 +736,8 @@ Item {
                                 featured: true
                                 iconName: "moos-ai-symbolic"
                                 eyebrow: view.local("مساحة ذكية", "INTELLIGENCE")
-                                title: view.local("ابدأ مع ميرا", "Create with Mira")
+                                title: view.narrow ? view.local("ميرا", "Mira")
+                                    : view.local("ابدأ مع ميرا", "Create with Mira")
                                 onActivated: view.launcher.openDesktop("org.moos.moai.desktop")
                             }
                             CommandCard {
@@ -703,7 +746,8 @@ Item {
                                 Layout.preferredWidth: 180
                                 iconName: "moos-install-symbolic"
                                 eyebrow: view.local("اكتشف", "DISCOVER")
-                                title: view.local("متجر MoOS", "Mo Store")
+                                title: view.narrow ? view.local("المتجر", "Store")
+                                    : view.local("متجر MoOS", "Mo Store")
                                 onActivated: view.launcher.openDesktop("org.moos.store.desktop")
                             }
                             CommandCard {
@@ -712,7 +756,8 @@ Item {
                                 Layout.preferredWidth: 180
                                 iconName: "moos-settings-symbolic"
                                 eyebrow: view.local("تحكم", "CONTROL")
-                                title: view.local("إعدادات MoOS", "MoOS Settings")
+                                title: view.narrow ? view.local("الإعدادات", "Settings")
+                                    : view.local("إعدادات MoOS", "MoOS Settings")
                                 onActivated: view.launcher.openDesktop("systemsettings.desktop")
                             }
                         }
@@ -747,14 +792,17 @@ Item {
                         Item {
                             Layout.fillWidth: true
                             Layout.fillHeight: true
+                            Layout.minimumHeight: view.favoritesModel.count > 0
+                                ? favoritesGrid.cellHeight : emptyOrbit.implicitHeight
 
                             GridView {
                                 id: favoritesGrid
+                                onActiveFocusChanged: if (activeFocus) homeScroll.reveal(parent)
                                 anchors.fill: parent
                                 clip: true
                                 boundsBehavior: Flickable.StopAtBounds
                                 model: view.favoritesModel
-                                cellWidth: Math.max(1, Math.floor(width / 4))
+                                cellWidth: Math.max(1, Math.floor(width / view.appColumns(width)))
                                 cellHeight: Plasmoid.configuration.compactTiles
                                     ? 82
                                     : 96
@@ -766,6 +814,7 @@ Item {
                                 // field — the same contract the results list
                                 // already honours. Shift+Tab goes to this
                                 // page's sidebar entry, not the last one.
+                                KeyNavigation.priority: KeyNavigation.BeforeItem
                                 KeyNavigation.backtab: navHome
                                 Keys.onUpPressed: event => {
                                     if (currentIndex < columns) {
@@ -795,8 +844,9 @@ Item {
                             }
 
                             ColumnLayout {
+                                id: emptyOrbit
                                 anchors.centerIn: parent
-                                width: parent.width * 0.72
+                                width: parent.width * 0.90
                                 visible: view.favoritesModel.count === 0
                                 spacing: view.space2
 
@@ -864,6 +914,7 @@ Item {
                                 }
                                 PC3.Button {
                                     id: homeExploreButton
+                                    onActiveFocusChanged: if (activeFocus) homeScroll.reveal(emptyOrbit)
                                     Layout.alignment: Qt.AlignHCenter
                                     Layout.minimumHeight: view.targetSize
                                     text: view.local("استكشف التطبيقات", "Explore applications")
@@ -892,6 +943,7 @@ Item {
 
                             ListView {
                                 id: recentStrip
+                                onActiveFocusChanged: if (activeFocus) homeScroll.reveal(parent)
                                 Layout.fillWidth: true
                                 Layout.fillHeight: true
                                 orientation: ListView.Horizontal
@@ -902,6 +954,7 @@ Item {
                                 activeFocusOnTab: true
                                 currentIndex: -1
                                 model: view.recentUsageModel
+                                KeyNavigation.priority: KeyNavigation.BeforeItem
                                 KeyNavigation.backtab: navHome
 
                                 Keys.onReturnPressed: event => {
@@ -985,7 +1038,7 @@ Item {
                             clip: true
                             boundsBehavior: Flickable.StopAtBounds
                             model: view.applicationsModel
-                            cellWidth: Math.max(1, Math.floor(width / 4))
+                            cellWidth: Math.max(1, Math.floor(width / view.appColumns(width)))
                             cellHeight: Plasmoid.configuration.compactTiles
                                 ? 82
                                 : 96
@@ -995,6 +1048,7 @@ Item {
                                 1, Math.floor(width / Math.max(1, cellWidth)))
                             // Same keyboard contract as the pinned grid: top row
                             // Up -> search field, Shift+Tab -> Applications nav.
+                            KeyNavigation.priority: KeyNavigation.BeforeItem
                             KeyNavigation.backtab: navApps
                             Keys.onUpPressed: event => {
                                 if (currentIndex < columns) {
@@ -1047,19 +1101,22 @@ Item {
                             border.width: 1
                             border.color: Qt.alpha(Kirigami.Theme.highlightColor, 0.22)
 
-                            RowLayout {
+                            GridLayout {
+                                columns: view.narrow ? 1 : 3
                                 id: scopeCallout
                                 anchors.left: parent.left
                                 anchors.right: parent.right
                                 anchors.verticalCenter: parent.verticalCenter
                                 anchors.leftMargin: view.space4
                                 anchors.rightMargin: view.space4
-                                spacing: view.space3
+                                rowSpacing: view.space3
+                                columnSpacing: view.space3
 
                                 Kirigami.Icon {
                                     Layout.preferredWidth: Kirigami.Units.iconSizes.medium
                                     Layout.preferredHeight: width
                                     source: "moos-search-symbolic"
+                                    visible: !view.narrow
                                     color: Kirigami.Theme.highlightColor
                                 }
                                 ColumnLayout {
@@ -1103,6 +1160,7 @@ Item {
                             activeFocusOnTab: true
                             currentIndex: -1
                             model: view.placesModel
+                            KeyNavigation.priority: KeyNavigation.BeforeItem
                             KeyNavigation.backtab: navPlaces
 
                             // Enter is handled at the view (like the results
@@ -1148,6 +1206,7 @@ Item {
                     Layout.fillHeight: true
 
                     Flickable {
+                        id: customizeScroll
                         anchors.fill: parent
                         contentWidth: width
                         contentHeight: customizeColumn.implicitHeight
@@ -1175,25 +1234,30 @@ Item {
                                 border.width: 1
                                 border.color: Qt.alpha(Kirigami.Theme.textColor, 0.11)
 
-                                RowLayout {
+                                GridLayout {
+                                    columns: view.compact ? 1 : 4
                                     id: favoritesControl
                                     anchors.left: parent.left
                                     anchors.right: parent.right
                                     anchors.verticalCenter: parent.verticalCenter
                                     anchors.leftMargin: view.space4
                                     anchors.rightMargin: view.space4
-                                    spacing: view.space4
+                                    rowSpacing: view.space4
+                                    columnSpacing: view.space4
 
                                     Kirigami.Icon {
                                         Layout.preferredWidth: Kirigami.Units.iconSizes.large
                                         Layout.preferredHeight: width
                                         source: "moos-star-symbolic"
+                                        visible: !view.compact
                                         color: Kirigami.Theme.highlightColor
                                     }
                                     ColumnLayout {
                                         Layout.fillWidth: true
                                         spacing: 1
                                         Text {
+                                            Layout.fillWidth: true
+                                            elide: Text.ElideRight
                                             text: view.local("التطبيقات المثبتة", "Pinned applications")
                                             color: Kirigami.Theme.textColor
                                             font.family: view.uiFontFamily
@@ -1213,6 +1277,7 @@ Item {
                                     }
                                     PC3.Button {
                                         id: customizeArrangeButton
+                                        onActiveFocusChanged: if (activeFocus) customizeScroll.contentY = 0
                                         Layout.minimumHeight: view.targetSize
                                         text: view.local("ترتيب الآن", "Arrange now")
                                         icon.name: "moos-pen-symbolic"
@@ -1234,7 +1299,7 @@ Item {
 
                             GridLayout {
                                 Layout.fillWidth: true
-                                columns: 2
+                                columns: view.narrow ? 1 : 2
                                 rowSpacing: view.space3
                                 columnSpacing: view.space3
 
@@ -1254,13 +1319,17 @@ Item {
                                 }
                             }
 
-                            RowLayout {
+                            GridLayout {
                                 Layout.fillWidth: true
-                                spacing: view.space3
+                                columns: view.compact ? 1 : 3
+                                rowSpacing: view.space3
+                                columnSpacing: view.space3
 
                                 PC3.Button {
                                     Layout.fillWidth: true
                                     Layout.minimumHeight: view.targetSize
+                                    onActiveFocusChanged: if (activeFocus) customizeScroll.contentY = Math.max(
+                                        0, customizeScroll.contentHeight - customizeScroll.height)
                                     text: view.local("إعدادات مزودي البحث", "Search providers")
                                     icon.name: "moos-search-symbolic"
                                     onClicked: view.launcher.openDesktop("kcm_plasmasearch.desktop")
@@ -1323,6 +1392,7 @@ Item {
                             currentIndex: -1
                             model: view.searchModel
                             activeFocusOnTab: true
+                            KeyNavigation.priority: KeyNavigation.BeforeItem
                             KeyNavigation.backtab: searchInput
                             Accessible.role: Accessible.List
                             Accessible.name: view.local("نتائج البحث", "Search results")
@@ -1348,7 +1418,7 @@ Item {
                                 bottomPadding: Kirigami.Units.smallSpacing
                                 text: section
                                 textFormat: Text.PlainText
-                                horizontalAlignment: view.rtl ? Text.AlignRight : Text.AlignLeft
+                                horizontalAlignment: Text.AlignLeft
                                 color: Kirigami.Theme.highlightColor
                                 font.family: view.uiFontFamily
                                 font.pixelSize: view.typeCaption
@@ -1412,6 +1482,9 @@ Item {
                 color: Kirigami.Theme.positiveTextColor
             }
             Text {
+                Layout.fillWidth: true
+                visible: !view.compact
+                elide: Text.ElideRight
                 text: view.local("جلسة محلية موثوقة", "TRUSTED LOCAL SESSION")
                 color: Kirigami.Theme.disabledTextColor
                 font.family: view.uiFontFamily
@@ -1441,6 +1514,32 @@ Item {
                 color: Qt.alpha(Kirigami.Theme.textColor, 0.14)
             }
 
+            PC3.Button {
+                id: sessionMenuButton
+                visible: view.compact
+                Layout.minimumHeight: view.touchTarget
+                text: view.local("الجلسة والطاقة", "Session & power")
+                icon.name: "moos-power-symbolic"
+                onClicked: sessionMenu.popup()
+                QQC2.Menu {
+                    id: sessionMenu
+                    Instantiator {
+                        model: view.sessionModel
+                        delegate: QQC2.MenuItem {
+                            required property int index
+                            required property var model
+                            visible: view.sessionActionShown(model.favoriteId)
+                            height: visible ? Math.max(implicitHeight, view.touchTarget) : 0
+                            text: model.display
+                            icon.name: view.sessionIcon(model.favoriteId)
+                            onTriggered: view.launcher.triggerEntry(view.sessionModel, index)
+                        }
+                        onObjectAdded: (index, object) => sessionMenu.insertItem(index, object)
+                        onObjectRemoved: (index, object) => sessionMenu.removeItem(object)
+                    }
+                }
+            }
+
             Repeater {
                 model: view.sessionModel
 
@@ -1448,11 +1547,8 @@ Item {
                     required property int index
                     required property var model
 
-                    readonly property bool shown: [
-                        "lock-screen", "switch-user", "logout", "suspend",
-                        "hibernate", "reboot", "shutdown"
-                    ]
-                        .indexOf(String(model.favoriteId)) >= 0
+                    readonly property bool shown: !view.compact
+                        && view.sessionActionShown(model.favoriteId)
 
                     visible: shown
                     Layout.minimumWidth: shown ? view.targetSize : 0
@@ -1483,7 +1579,7 @@ Item {
             Layout.fillWidth: true
             text: sectionTitle.title
             textFormat: Text.PlainText
-            horizontalAlignment: view.rtl ? Text.AlignRight : Text.AlignLeft
+            horizontalAlignment: Text.AlignLeft
             color: Kirigami.Theme.textColor
             font.family: view.uiFontFamily
             font.pixelSize: sectionTitle.compact ? view.typeEmphasis : view.typeTitle
@@ -1494,7 +1590,7 @@ Item {
             Layout.fillWidth: true
             text: sectionTitle.subtitle
             textFormat: Text.PlainText
-            horizontalAlignment: view.rtl ? Text.AlignRight : Text.AlignLeft
+            horizontalAlignment: Text.AlignLeft
             visible: text.length > 0
             color: Kirigami.Theme.disabledTextColor
             font.family: view.uiFontFamily
@@ -1513,16 +1609,21 @@ Item {
         property Item navDown: null
 
         Layout.fillWidth: true
-        Layout.minimumHeight: 42
-        Layout.preferredHeight: 42
+        Layout.minimumWidth: view.touchTarget
+        Layout.minimumHeight: view.touchTarget
+        Layout.preferredHeight: view.touchTarget
         hoverEnabled: true
         // A keyboard user must be able to Tab to the sidebar and see where the
         // focus sits — the background already draws an activeFocus edge.
         activeFocusOnTab: true
         Accessible.name: label
-        Accessible.role: Accessible.Button
+        Accessible.role: Accessible.PageTab
+        Accessible.selectable: true
+        Accessible.selected: view.launcher.activePage === nav.page && !view.searching
+        Accessible.onPressAction: nav.activate()
 
         function activate() {
+            nav.forceActiveFocus();
             view.launcher.searchQuery = "";
             view.launcher.activePage = page;
         }
@@ -1536,15 +1637,28 @@ Item {
         Keys.onEnterPressed: event => { nav.activate(); event.accepted = true; }
         Keys.onSpacePressed: event => { nav.activate(); event.accepted = true; }
         Keys.onUpPressed: event => {
-            if (nav.navUp) { nav.navUp.forceActiveFocus(); }
+            if (view.compact) { view.focusSearch(); }
+            else if (nav.navUp) { nav.navUp.forceActiveFocus(); }
             event.accepted = true;
         }
         Keys.onDownPressed: event => {
-            if (nav.navDown) { nav.navDown.forceActiveFocus(); }
+            if (view.compact) { view.focusActivePageContent(); }
+            else if (nav.navDown) { nav.navDown.forceActiveFocus(); }
             event.accepted = true;
         }
-        Keys.onLeftPressed: event => { view.focusActivePageContent(); event.accepted = true; }
-        Keys.onRightPressed: event => { view.focusActivePageContent(); event.accepted = true; }
+        Keys.onLeftPressed: event => {
+            if (view.compact) { (view.rtl ? nav.navDown : nav.navUp).forceActiveFocus(); }
+            else { view.focusActivePageContent(); }
+            event.accepted = true;
+        }
+        Keys.onRightPressed: event => {
+            if (view.compact) { (view.rtl ? nav.navUp : nav.navDown).forceActiveFocus(); }
+            else { view.focusActivePageContent(); }
+            event.accepted = true;
+        }
+        PC3.ToolTip.text: nav.label
+        PC3.ToolTip.visible: view.narrow && hovered
+        PC3.ToolTip.delay: Kirigami.Units.toolTipDelay
 
         background: Rectangle {
             radius: view.radiusM
@@ -1577,9 +1691,10 @@ Item {
         }
 
         contentItem: RowLayout {
-            spacing: view.space3
+            spacing: view.narrow ? 0 : view.space3
 
             Kirigami.Icon {
+                Layout.alignment: view.narrow ? Qt.AlignHCenter : Qt.AlignVCenter
                 Layout.preferredWidth: Kirigami.Units.iconSizes.smallMedium
                 Layout.preferredHeight: width
                 source: nav.iconName
@@ -1590,8 +1705,9 @@ Item {
             Text {
                 Layout.fillWidth: true
                 text: nav.label
+                visible: !view.narrow
                 textFormat: Text.PlainText
-                horizontalAlignment: view.rtl ? Text.AlignRight : Text.AlignLeft
+                horizontalAlignment: Text.AlignLeft
                 color: Kirigami.Theme.textColor
                 font.family: view.uiFontFamily
                 font.pixelSize: view.typeSecondary
@@ -2119,6 +2235,7 @@ Item {
             spacing: view.space3
 
             Rectangle {
+                visible: !view.narrow
                 Layout.preferredWidth: 38
                 Layout.preferredHeight: 38
                 radius: view.radiusM

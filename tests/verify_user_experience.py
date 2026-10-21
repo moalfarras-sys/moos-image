@@ -3139,7 +3139,7 @@ require("http://127.0.0.1:11434/api/tags" in moai_do_code
 # The versioned migration is what makes the redesign visible to existing users.
 apply_theme = read("system_files/usr/bin/moos-apply-theme")
 apply_theme_code = code(apply_theme)
-require("THEME_REV=107" in apply_theme_code,
+require("THEME_REV=108" in apply_theme_code,
         "MoOS visual schema must purge the cached compile of the retired lock-screen fork (it "
         "asks for a MoOSClock that no longer ships) and of the stock session screen, and "
         "migrate existing users to the Island that hosts Search itself "
@@ -4025,6 +4025,10 @@ require('"moos-ci-full-representation"' in brand_main_qml
         "loads only the compact panel button and gives the launcher a false green smoke")
 require("Layout.minimumWidth: implicitWidth" in launcher_view_qml
         and "Layout.minimumHeight: implicitHeight" in launcher_view_qml
+        and "Layout.maximumWidth: implicitWidth" in launcher_view_qml
+        and "Layout.maximumHeight: implicitHeight" in launcher_view_qml
+        and "launcher.popupAvailableWidth - 8" in launcher_view_qml
+        and "launcher.popupAvailableHeight - 64" in launcher_view_qml
         and "MOOS_LAUNCHER_FULL_READY size=" in launcher_view_qml,
         "the full launcher must enforce and report its unclipped 792x576 representation to "
         "the plasmawindowed smoke")
@@ -4041,7 +4045,7 @@ _launcher_tokens = {
     "space5": "design.space5", "space6": "design.space5",
     "radiusS": "design.radiusSmall", "radiusM": "design.radiusControl",
     "radiusL": "design.radiusCard", "radiusXL": "design.radiusPanel",
-    "targetSize": "design.targetCompact", "typeCaption": "design.typeCaption",
+    "targetSize": "design.targetControl", "typeCaption": "design.typeCaption",
     "typeSecondary": "design.typeSecondary", "typeBody": "design.typeBody",
     "typeEmphasis": "design.typeLabel", "typeSubheading": "design.typeTitle",
     "typeTitle": "design.typeTitle",
@@ -4049,16 +4053,18 @@ _launcher_tokens = {
 require(_design_tokens["spacing"]["space1"] == 4
         and _design_tokens["radius"]["radiusControl"] == 12
         and _design_tokens["target"]["targetCompact"] == 40
+        and _design_tokens["target"]["targetControl"] == 44
         and _design_tokens["type"]["typeCaption"] == 11
         and all(f"readonly property int {name}: {source}" in launcher_view_qml
                 for name, source in _launcher_tokens.items())
-        and "anchors.margins: view.space5" in launcher_view_qml,
+        and "anchors.margins: view.canvasMargin" in launcher_view_qml,
         "the launcher must consume the generated MoOS spacing, radii, target and type tokens")
 require("Press Meta to open" not in launcher_view_qml
         and "يفتح بزر Meta" not in launcher_view_qml
         and launcher_view_qml.count(
-            "cellWidth: Math.max(1, Math.floor(width / 4))"
+            "cellWidth: Math.max(1, Math.floor(width / view.appColumns(width)))"
         ) == 2
+        and "Math.max(1, Math.min(4, Math.floor(availableWidth / 112)))" in launcher_view_qml
         and re.search(
             r"cellWidth:.*width\s*/\s*(?:[5-9]|\d{2,})", launcher_view_qml
         ) is None,

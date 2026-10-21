@@ -391,6 +391,7 @@ python3 tests/test_moos_arrange.py
 # the search field and the active page's grid/list, Shift+Tab returns
 # to the owning page. Source gate (the runner has no Qt).
 python3 tests/test_moos_launcher_keyboard.py
+python3 tests/test_launcher_adaptive.py
 # The bar is ONE capsule: this runs the real merge surgery out of
 # moos-bar-apply against appletsrc fixtures, so a change that can leave
 # a second bottom panel fails here instead of on the owner's desktop.

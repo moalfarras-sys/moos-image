@@ -88,6 +88,16 @@ PlasmoidItem {
         return Math.ceil(Math.max(1, logical) * root.pixelRatio);
     }
 
+    // PlasmoidItem exposes the current containment's work area, including
+    // panel reservations. A windowed host has no screen/Corona; use its actual
+    // Qt screen then, never the applet's own size (which would form a loop).
+    readonly property real popupAvailableWidth: root.screen >= 0
+        && root.availableScreenRect.width > 0
+        ? root.availableScreenRect.width : Screen.width
+    readonly property real popupAvailableHeight: root.screen >= 0
+        && root.availableScreenRect.height > 0
+        ? root.availableScreenRect.height : Screen.height
+
     property string searchQuery: ""
     property int activePage: 1
     property bool editMode: false

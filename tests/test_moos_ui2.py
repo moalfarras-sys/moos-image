@@ -892,7 +892,7 @@ class TestMoOSUI2(unittest.TestCase):
         apply = (ROOT / "system_files/usr/bin/moos-apply-theme").read_text(encoding="utf-8")
         switch = (ROOT / "system_files/usr/bin/moos-theme").read_text(encoding="utf-8")
         self.assertIn(
-            "THEME_REV=107", apply,
+            "THEME_REV=108", apply,
             "existing v100 users would keep a cached compile of the retired MoOS LockScreenUi that "
             "asks for a MoOSClock which no longer ships (kscreenlocker's emergency locker) and a "
             "cached stock session screen with no island; "
@@ -1268,9 +1268,9 @@ class TestMoOSUI2(unittest.TestCase):
         )
         self.assertNotIn("Press Meta to open", launcher)
         self.assertNotIn("يفتح بزر Meta", launcher)
-        self.assertIn("anchors.margins: view.space5", launcher)
+        self.assertIn("anchors.margins: view.canvasMargin", launcher)
         self.assertEqual(
-            launcher.count("cellWidth: Math.max(1, Math.floor(width / 4))"),
+            launcher.count("cellWidth: Math.max(1, Math.floor(width / view.appColumns(width)))"),
             2,
             "Pinned and All Apps must share the calm four-column rhythm",
         )
@@ -1506,8 +1506,8 @@ class TestMoOSUI2(unittest.TestCase):
         # only in the lists that remove a stale instance or home copy.
         hero_package = SHARE / "plasma/plasmoids/org.moos.heroclock"
 
-        self.assertIn("implicitWidth: design.dialogWidth", launcher)
-        self.assertIn("implicitHeight: design.dialogHeight", launcher)
+        self.assertIn("implicitWidth: Math.min(design.dialogWidth,", launcher)
+        self.assertIn("implicitHeight: Math.min(design.dialogHeight,", launcher)
         self.assertIn("LOCAL · PRIVATE", launcher)
         self.assertNotIn("import QtQuick.Shapes", launcher)
         for unfinished_wireframe in ("ShapePath {", "PathQuad {", "PathLine {"):
