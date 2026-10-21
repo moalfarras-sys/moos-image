@@ -39,7 +39,10 @@ concurrency:
 jobs:
   build-disk:
     name: Build qcow2 (bootc-image-builder)
-    runs-on: ubuntu-latest
+    # ubuntu-latest moved this privileged nested builder to26.04 and all
+    # three editions refused the osbuild storage mount before any boot proof.
+    # Keep the qualified24.04 host explicit; qualify a new host separately.
+    runs-on: ubuntu-24.04
     # bootc-image-builder + deployed-initramfs proof + two complete KVM boots
     # are bounded to 90 minutes so a wedged QEMU fails instead of consuming the
     # GitHub six-hour default.
