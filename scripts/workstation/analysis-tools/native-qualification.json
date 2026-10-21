@@ -1,0 +1,36 @@
+{
+  "scope": "optional user-space x86_64 development profile; not OS delivery or all-tool acceptance",
+  "versions": {
+    "rea": "6.7.0",
+    "ghidra": "12.1.4",
+    "node": "26.12.0",
+    "java": "25.0.4.1"
+  },
+  "installer_sha256": "293bd5a133123ab8bb05a47b84d37fa1c300cb46ef1cb9f0b2547518d7cedcc5",
+  "file_safety_controls": 6,
+  "existing_official_archive_payloads_verified": true,
+  "read_only_check_preserves_managed_bytes_and_mtimes": true,
+  "mcp_declared_tools": 207,
+  "live_identity_and_catalog_checked": true,
+  "owned_elf_sha256": "a0d77761668c6793272da6550d55ed14aa1b1fbfaadab5b289c03ae69594ce56",
+  "cli_mcp_pseudocode_and_input_identity_match": true,
+  "fresh_installer_helpers": {
+    "scope": "actual fresh source installer helpers using official archives and pinned npm ci; shared existing Node/JDK; temporary duplicate test payloads retired",
+    "entry_point": "canonical host-to-Toolbox source wrapper; fresh versioned paths only",
+    "prior_direct_sdk_refusal_preserved": true,
+    "fresh_ghidra_extract": true,
+    "fresh_locked_npm_ci_ignore_scripts": true,
+    "real_fixture_function_analysis_exit": 0,
+    "pseudocode_matches_installed_owner_profile": true,
+    "idempotent_helpers_preserve_all_file_sizes_and_mtimes": true,
+    "temporary_test_install_retired": true,
+    "installer_sha256": "293bd5a133123ab8bb05a47b84d37fa1c300cb46ef1cb9f0b2547518d7cedcc5",
+    "exit": 0
+  },
+  "remaining": [
+    "Ghidra GUI first-run agreement and complete GUI journeys",
+    "owner-deferred provider/wallet accounts",
+    "active Codex extension must reload its existing local REA registration",
+    "direct SDK invocation cleanup refusal retained; use canonical launcher; broad heavy-process inspection unqualified"
+  ]
+}

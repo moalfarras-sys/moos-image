@@ -518,6 +518,8 @@ gate; 15 private diagnostic trials passed. Component completion precedes model
 readiness, but the failure's cause is unproven. Preserve the failed log and
 investigate without weakening the gate or claiming a product correction.
 
+The optional [analysis-tools profile](../scripts/workstation/analysis-tools/README.md) now preserves REA6.7/Ghidra12.1.4 with complete npm pins, official archive checks, existing SDK reuse and exact private launcher backups. Native canonical CLI/MCP fixture open/analyze/close and read-only installed checks pass. Fresh extraction/npm-ci, canonical function analysis and unchanged-file installer rerun pass, with temporary test payloads retired. Its earlier direct SDK protected-process cleanup refusal is retained as unqualified. Final maintained source gates remain required before integration. This adds no OS payload or client credentials.
+
 The remaining provisioning slice must:
 
 - install editor/SDK/debug tools in user sandboxes or Toolbx/Distrobox-style

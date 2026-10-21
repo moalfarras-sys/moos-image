@@ -1,0 +1,20 @@
+#!/bin/sh
+# Keep the GUI in the native application's cgroup and reuse the existing SDK JDK.
+if [ -f /.flatpak-info ]; then exec /usr/bin/flatpak-spawn --host "$0" "$@"; fi
+if [ ! -f /run/.toolboxenv ]; then
+  moos_ghidra_scale=$(/usr/bin/python3 - <<'SCALE'
+import json,subprocess
+try:
+ data=json.loads(subprocess.check_output(['/usr/bin/kscreen-doctor','-j'],timeout=5))
+ outputs=sorted((o for o in data['outputs'] if o.get('enabled') and o.get('connected')),key=lambda o:o.get('priority',100))
+ value=float(outputs[0]['scale'])
+ if not 1 <= value <= 3:raise ValueError('unsupported scale')
+ print(value)
+except (OSError,ValueError,KeyError,IndexError,subprocess.SubprocessError):print(1)
+SCALE
+)
+  exec /usr/bin/toolbox run --container moos-dev /usr/bin/env MOOS_GHIDRA_UI_SCALE="$moos_ghidra_scale" "$0" "$@"
+fi
+export JAVA_HOME=/usr/lib/jvm/java-25-openjdk
+export PATH=/usr/local/bin:/usr/bin
+exec "${HOME}/.local/share/moos-dev-platform/ghidra_12.1.4_PUBLIC/support/launch.sh" fg jdk Ghidra "${GHIDRA_GUI_MAXMEM:-${GHIDRA_MAXMEM:-4G}}" "-Dsun.java2d.uiScale=${MOOS_GHIDRA_UI_SCALE:-1}" ghidra.GhidraRun "$@"
