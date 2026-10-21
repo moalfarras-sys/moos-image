@@ -135,6 +135,7 @@ check:
     python3 tests/test_compose_runtime_transaction.py
     python3 tests/test_arm_pristine_base.py
     python3 tests/test_plasma_canary_compose.py
+    python3 tests/test_plasma_login_state.py
     python3 tests/test_visual_frame_gate.py
     python3 tests/test_oracle_deploy.py
     python3 tests/test_exec_bits.py

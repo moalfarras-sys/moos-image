@@ -130,5 +130,86 @@
     "underlying_provider_error": "not established by exposed logs",
     "operator_source_review": "2026-10-21-v3-compatibility-source-review.md",
     "operator_review_is_independent_automated_review": false
+  },
+  "sequential_stable_canary": {
+    "old_ci_run": 39522611368,
+    "old_ci_head": "9ede461dae8a1c175cb012dcfece8053face640d",
+    "old_ci_refusal": "unsafe transaction metadata: /var/lib/plasmalogin",
+    "old_local_exit": 1,
+    "old_local_log_sha256": "483c0009cb8bd7a5e0b635854dde3dc19ab2b362a09a350732504a91771ffc15",
+    "read_only_old_metadata_audit": {
+      "scope": "read-only post-failure metadata/creator audit; no finalize, identity reset or cleanup",
+      "checked_records": 5,
+      "problems": [
+        {
+          "path": "var/lib/plasmalogin",
+          "problem": "unsafe transaction metadata: /var/lib/plasmalogin",
+          "actual_mode": "0o1770",
+          "actual_uid": 967,
+          "actual_gid": 967,
+          "expected_mode": "0o750",
+          "expected_owner_names": [
+            "plasmalogin",
+            "plasmalogin"
+          ]
+        }
+      ],
+      "identity_bytes_unchanged": 0
+    },
+    "old_native_directory": {
+      "mode": "0o1770",
+      "uid": 967,
+      "gid": 967,
+      "children": [],
+      "machine_id_bytes": 0,
+      "rpm_directory": [
+        "/var/lib/plasmalogin 0 1792454400 0000000000000000000000000000000000000000000000000000000000000000 041770 plasmalogin plasmalogin 0 0 0 X"
+      ],
+      "native_account": [
+        "plasmalogin",
+        "x",
+        "967",
+        "967"
+      ]
+    },
+    "corrected_native_stable_transition": {
+      "scope": "native experimental6.7.91 to exact stable6.8.1 base transaction; not a full image or boot proof",
+      "pristine_empty_identity": true,
+      "mutable_var_only_tmp": true,
+      "helper_tree_absent": true,
+      "stock_kernel_sha256": "0eaea5d149421a938ed62c7bdec74cf1013992c8a15d4b495d29e479356fc939",
+      "exact_stable_packages": {
+        "plasma-workspace": "6.8.1-1.fc44",
+        "plasma-desktop": "6.8.1-1.fc44",
+        "kwin": "6.8.1-1.fc44",
+        "libplasma": "6.8.1-1.fc44",
+        "kscreenlocker": "6.8.1-1.fc44",
+        "plasma-login-manager": "6.8.1-1.fc44"
+      },
+      "native_rpm_directory_metadata_retained": "/var/lib/plasmalogin 0 1792454400 0000000000000000000000000000000000000000000000000000000000000000 041770 plasmalogin plasmalogin 0 0 0 X",
+      "runtime_creator_sha256": "6a2aa3937eee9c543ba995170ac683e64cf110b00ee21a9dfa66a722e4f5cd55",
+      "new_installed_or_physical_acceptance": false,
+      "image_id": "sha256:3bdc414543878526266cd2ac2464f0f30d056ed3f6438a6fa81f287a0dde90df",
+      "input_sha256": {
+        "Containerfile": "5238ebde310754449f93895ece6675fa608e1470ab854ce8d1d09c139d876b0f",
+        "build_files/plasma_stable/compose.py": "95f55ca7e7893e87b3d5b924557e483f645418e10d36410b9ba52f22922ff2da",
+        "build_files/plasma_stable/login_state.py": "fe6714625824d969a879c5e05bcddd9f4e630e1903d6ef38ac0185aedc97bb0d",
+        "build_files/plasma_stable/runtime_state.py": "0e7e0ebf807450695b90d442958d1d80847ac66f7b0152cf41e2528ff9216f30",
+        "build_files/plasma_stable/runtime-rules.json": "96232ad32eab2aad464a4e83f30bb5495bef706ca15d77a44d74a4824c758884",
+        "build_files/finalize_canary_base.py": "2e9cc30825ff5cf140a1905573a173e5e7ad738d5a8bfae141ad33c1e236c384",
+        "build_files/finalize_image_state.py": "53afe3d97428081e2cd131fa56ca0c8c41ea03d8e894a79d51a34576e6464077"
+      },
+      "log_sha256": "db0e3e8232b1f559a4d41cee3b4836ac6dba9be6b78ceab1f6ab21e08db93ed1",
+      "exit": 0
+    },
+    "focused_controls": 18,
+    "installed_host_negative": {
+      "scope": "actual installed V3: direct helper refuses before package queries or permission mutation",
+      "exit": 1,
+      "expected_guard_observed": true
+    },
+    "directory_permission_action": "only empty exact reviewed RPM01770 to its unchanged native0750 creator, before the unchanged generic transaction gate",
+    "authentication_backend_or_account_content_modified": false,
+    "unknown_payload_link_owner_mount_authority_nvr_or_rpm_metadata_accepted": false
   }
 }

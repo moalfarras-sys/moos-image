@@ -52,6 +52,10 @@ def compose(root=Path('/')):
         'schema':1,'architecture':'x86_64','packages':actual,'signing_key_sha256':KEY_SHA256,
         'signing_key_fingerprint':FINGERPRINT,'source':REPO},indent=2)+'\n')
     run('dnf5','clean','all')
+    # An already-upgraded canary has no systemd trigger to reconcile this
+    # RPM's01770 empty directory with its native0750 runtime creator.
+    from login_state import reconcile as reconcile_login_state
+    reconcile_login_state(transaction)
     # A systemd upgrade runs machine-id-setup and global tmpfiles even during
     # an image compose. Restore the pristine input before any SDK/final stage
     # can inherit those runtime identities and service scaffolds.
