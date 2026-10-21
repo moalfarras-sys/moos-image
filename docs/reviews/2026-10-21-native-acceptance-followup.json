@@ -129,9 +129,24 @@
           "name": "WaydroidWindow::setIdleInhibit",
           "address": "0x150080",
           "observation": "Acquires a recursive mutex while traversing native windows and changing idle inhibition."
+        },
+        {
+          "name": "hwc_binder_thread",
+          "address": "0x1439f0",
+          "observation": "Actually calls configureRpcThreadpool(1,true); the installed composer predates the PR88 change."
+        },
+        {
+          "name": "shell_surface_configure",
+          "address": "0x1456a0",
+          "observation": "After initialization, writes display dimensions then invokes do_hotplug without an old/new dimension comparison."
+        },
+        {
+          "name": "xdg_toplevel_handle_configure",
+          "address": "0x147bd0",
+          "observation": "A positive-sized configure writes dimensions then invokes do_hotplug without an old/new dimension comparison, predating PR89."
         }
       ],
-      "boundary": "Recovered decompiler types are incomplete; these two functions do not prove the keyboard call site, exact lock-cycle causality or a working fix."
+      "boundary": "Recovered decompiler types and indirect calls are incomplete. These observed code paths do not establish the exact local lock cycle, causality of the disappearing surface or a working fix."
     },
     "upstream_sources": [
       "https://github.com/waydroid/waydroid/issues/2436",
@@ -139,6 +154,38 @@
       "https://github.com/waydroid/android_hardware_waydroid/pull/88",
       "https://github.com/waydroid/android_hardware_waydroid/pull/89"
     ],
-    "vendor_downgrade_or_binary_patch_applied": false
+    "vendor_downgrade_or_binary_patch_applied": false,
+    "official_vendor_ota": {
+      "utc": "2026-10-21T21:52:11.745701+00:00",
+      "source": "https://ota.waydro.id/vendor/waydroid_x86_64/MAINLINE.json",
+      "content_type": "application/json; charset=utf-8",
+      "bytes": 73174,
+      "sha256": "30c8586f7f58c11a33be5e3396f3f4010fce47357884c5afb985d136f0447acd",
+      "entries": 149,
+      "latest": {
+        "datetime": 1790542319,
+        "filename": "lineage-20.0-20260927-MAINLINE-waydroid_x86_64-vendor.zip",
+        "id": "d911b8353f6c807b94790b1c41c67e863a9f3dcd1cf3ec0232351398235afd7a",
+        "romtype": "MAINLINE",
+        "size": 189818687,
+        "url": "https://sourceforge.net/projects/waydroid/files/images/vendor/waydroid_x86_64/lineage-20.0-20260927-MAINLINE-waydroid_x86_64-vendor.zip/download",
+        "version": "20.0"
+      },
+      "acceptance_boundary": "The latest offered stable vendor is still20260927 and does not contain the subsequent upstream callback/thread changes. No new Android image, rollback or patch was installed."
+    }
+  },
+  "updated_utc": "2026-10-21T22:01:41.500823+00:00",
+  "maintained_native_full_gate": {
+    "source_commit": "2afd3f451208a62b02f6f1d59adfb89065b45168",
+    "source_tree": "6dd150326d1b6a1345a89094c49ec64dbbb57db5",
+    "exit": 0,
+    "started_utc": "2026-10-21T21:44:29.342267+00:00",
+    "ended_utc": "2026-10-21T21:56:43.457634+00:00",
+    "unchanged_clean_end_source": true,
+    "log_sha256": "0de0104f5d1e1b6a44cf1f08f0fe9e99d1f39f932b6dd45e2810b1651dbfb97d",
+    "python_unittest_summaries": 213,
+    "python_unittest_cases": 2960,
+    "additional_gates": "all native and other checks in the unchanged maintained just check",
+    "later_update_scope": "Evidence-only truth-file update; no tested fixture, product or build bytes changed. Final-head repository CI and integration remain separate."
   }
 }
