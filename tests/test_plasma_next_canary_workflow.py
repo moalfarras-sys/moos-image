@@ -17,6 +17,7 @@ neither is visible in a green run:
 
 from __future__ import annotations
 
+import ast
 import re
 import unittest
 from pathlib import Path
@@ -25,6 +26,14 @@ ROOT = Path(__file__).resolve().parents[1]
 CANARY = (ROOT / ".github/workflows/plasma-next-canary.yml").read_text(encoding="utf-8")
 RELEASE = (ROOT / ".github/workflows/build.yml").read_text(encoding="utf-8")
 CONTAINERFILE = (ROOT / "Containerfile").read_text(encoding="utf-8")
+PREPARE = (ROOT / "build_files/prepare_plasma_canary_base.py").read_text(encoding="utf-8")
+
+
+def package_commands():
+    return [['dnf5',*(ast.literal_eval(arg) for arg in node.args[1:])]
+            for node in ast.walk(ast.parse(PREPARE))
+            if isinstance(node, ast.Call) and isinstance(node.func, ast.Name)
+            and node.func.id == 'dnf']
 
 
 def code(text: str) -> str:
@@ -49,8 +58,16 @@ class SameImageNextPlasma(unittest.TestCase):
         self.assertIsNotNone(composed, "the canary composes no base")
         self.assertEqual(composed.group(1), first_from,
                          "the canary's base is not the release base: it would prove another system")
-        self.assertIn("dnf5 -y copr enable @kdesig/kde-beta", workflow)
-        self.assertIn("dnf5 -y distro-sync --refresh --allowerasing --best", workflow)
+        self.assertIn(['dnf5','-y','copr','enable','@kdesig/kde-beta'], package_commands())
+        self.assertIn(['dnf5','-y','distro-sync','--refresh','--allowerasing','--best','--exclude=kernel*'], package_commands())
+        self.assertIn('RUN python3 /canary-review/prepare_plasma_canary_base.py', workflow)
+        self.assertIn('build_files/prepare_plasma_canary_base.py', workflow)
+        for dependency in ('runtime_state.py','runtime-rules.json','login_state.py','finalize_root_home.py',
+                           'finalize_canary_base.py','finalize_image_state.py'):
+            copy_inputs=workflow[workflow.index('cp build_files/finalize_canary_base.py'):workflow.index("cat >")]
+            container_copy=next(line for line in workflow.splitlines() if line.strip().startswith('COPY '))
+            self.assertIn(dependency, copy_inputs)
+            self.assertIn(dependency, container_copy)
 
     def test_a_base_that_did_not_reach_the_next_plasma_fails(self):
         # PR #161's first run: a soname bump blocked the move, distro-sync skipped it
@@ -64,11 +81,11 @@ class SameImageNextPlasma(unittest.TestCase):
 
     def test_beta_abi_cleanup_is_scoped_to_the_optional_input_module(self):
         workflow = code(CANARY)
-        self.assertIn("dnf5 -y remove --no-autoremove kcm-fcitx5", workflow)
-        removals = re.findall(r"dnf5 -y remove ([^\n]+)", workflow)
-        self.assertEqual(removals, ["--no-autoremove kcm-fcitx5; fi \\"])
-        self.assertLess(workflow.index("remove --no-autoremove kcm-fcitx5"),
-                        workflow.index("distro-sync --refresh --allowerasing --best"))
+        removals = [command for command in package_commands() if command[:3]==['dnf5','-y','remove']]
+        self.assertEqual(removals, [['dnf5','-y','remove','--no-autoremove','kcm-fcitx5']])
+        self.assertNotIn('find /var/lib/rpm-state', workflow)
+        self.assertIn('transaction=Transaction()', PREPARE)
+        self.assertIn('transaction.finalize()', PREPARE)
 
     def test_it_builds_what_the_release_builds(self):
         workflow = code(CANARY)
@@ -101,6 +118,7 @@ class CannotPublish(unittest.TestCase):
                           "docker login", "buildah push", "podman push", "buildah login",
                           "id-token", "packages:"):
             self.assertNotIn(forbidden, workflow, f"the canary mentions {forbidden}")
+            self.assertNotIn(forbidden, code(PREPARE), f"the experimental composer mentions {forbidden}")
 
 
 if __name__ == "__main__":

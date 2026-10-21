@@ -5,7 +5,7 @@
 
 OLD is a Plasma version a seam set was reviewed against; NEW is the upstream version to move to.
 For each seam in build_files/plasma-seams/seams.json this downloads the x86_64 RPMs of both
-versions (Fedora updates/releases first, then KDE SIG's kde-beta COPR for betas), compares the
+versions (Fedora updates/releases, then KDE SIG's beta/final COPRs), compares the
 upstream bytes, and for every changed seam writes into ~/.cache/moos-plasma-next/rederive/<NEW>/:
 
     <name>.upstream.diff   what upstream changed between OLD and NEW
@@ -34,7 +34,8 @@ ROOT = Path(__file__).resolve().parents[2]
 SEAMS = ROOT / "build_files" / "plasma-seams"
 FEDORA = ("https://dl.fedoraproject.org/pub/fedora/linux/updates/{rel}/Everything/x86_64/",
           "https://dl.fedoraproject.org/pub/fedora/linux/releases/{rel}/Everything/x86_64/os/")
-COPR = "https://download.copr.fedorainfracloud.org/results/@kdesig/kde-beta/fedora-{rel}-x86_64/"
+COPR = tuple("https://download.copr.fedorainfracloud.org/results/@kdesig/" + lane +
+             "/fedora-{rel}-x86_64/" for lane in ("kde-beta", "kde-final"))
 NS = {"c": "http://linux.duke.edu/metadata/common"}
 
 
@@ -64,8 +65,31 @@ def decompress(blob: bytes) -> bytes:
     return blob
 
 
-def find_rpm(package: str, version: str, release: str, cache: dict) -> str:
-    for base in [b.format(rel=release) for b in FEDORA] + [COPR.format(rel=release)]:
+def local_rpm(directory: Path, package: str, version: str) -> str:
+    """Review historical signed inputs after live repository metadata moves on."""
+    candidates = []
+    for path in directory.glob(f"{package}-{version}-*.rpm"):
+        if path.is_symlink() or not path.is_file():
+            raise RuntimeError("local RPM input is not a regular file")
+        fields = subprocess.check_output(
+            ["rpm", "-qp", "--qf", "%{NAME} %{VERSION} %{ARCH}", str(path)], text=True).split()
+        if fields != [package, version, "x86_64"]:
+            raise RuntimeError("local RPM metadata does not match the requested input")
+        signature = subprocess.check_output(
+            ["rpmkeys", "--checksig", "--verbose", str(path)], text=True)
+        if not re.search(r"signature.*: OK", signature, re.I) or "NOKEY" in signature:
+            raise RuntimeError("local RPM input has no verified trusted signature")
+        candidates.append(path.resolve().as_uri())
+    if len(candidates) != 1:
+        raise RuntimeError("local RPM input missing or ambiguous: " + package + " " + version)
+    return candidates[0]
+
+
+def find_rpm(package: str, version: str, release: str, cache: dict,
+             rpm_directory: Path | None = None) -> str:
+    if rpm_directory is not None:
+        return local_rpm(rpm_directory, package, version)
+    for base in [b.format(rel=release) for b in (*FEDORA, *COPR)]:
         if base not in cache:
             cache[base] = primary(base)
         root = cache[base]
@@ -76,7 +100,7 @@ def find_rpm(package: str, version: str, release: str, cache: dict) -> str:
                 continue
             if pkg.find("c:version", NS).attrib["ver"] == version:
                 return base + pkg.find("c:location", NS).attrib["href"]
-    raise SystemExit(f"{package} {version} not found for Fedora {release} (updates, releases, kde-beta)")
+    raise SystemExit(f"{package} {version} not found for Fedora {release} (updates, releases, kde-beta, kde-final)")
 
 
 def extract(url: str, dest: Path) -> Path:
@@ -111,6 +135,8 @@ def main() -> int:
     ap.add_argument("new")
     ap.add_argument("--fedora", default="44")
     ap.add_argument("--out", default=str(Path.home() / ".cache/moos-plasma-next/rederive"))
+    ap.add_argument("--rpm-dir", type=Path,
+                    help="directory of signed exact-version RPMs for historical/offline review")
     args = ap.parse_args()
 
     registry = json.loads((SEAMS / "seams.json").read_text(encoding="utf-8"))
@@ -121,7 +147,7 @@ def main() -> int:
     trees = {}
     for package in sorted({s["package"] for s in registry["seams"]}):
         for version in (args.old, args.new):
-            url = find_rpm(package, version, args.fedora, cache)
+            url = find_rpm(package, version, args.fedora, cache, args.rpm_dir)
             trees[(package, version)] = extract(url, out.parent / "rpms" / f"{package}-{version}")
 
     changed = 0

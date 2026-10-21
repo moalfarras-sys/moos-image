@@ -35,6 +35,16 @@
 
 FROM quay.io/fedora/fedora-bootc:44 AS base
 
+# Normalize only the pristine vendor package transaction before any SDK or
+# runtime stage inherits machine identity and global tmpfiles state.
+COPY build_files/plasma_stable/runtime_state.py /moos-arm-compose/
+COPY build_files/prepare_arm_compose_base.py build_files/arm-runtime-rules.json \
+     build_files/finalize_image_state.py build_files/finalize_canary_base.py \
+     build_files/finalize_root_home.py /moos-arm-compose/
+RUN python3 /moos-arm-compose/prepare_arm_compose_base.py \
+    && ostree container commit \
+    && rm -rf /moos-arm-compose
+
 # -----------------------------------------------------------------------------
 # ctx: build scripts are bind-mounted, never copied, so they do not ship.
 # -----------------------------------------------------------------------------
@@ -285,8 +295,8 @@ RUN --mount=type=bind,from=ctx,source=/,target=/ctx \
     --mount=type=bind,from=system-files,source=/,target=/moos-overlay \
     --mount=type=bind,from=plymouth-build,source=/out,target=/plymouth-rpms \
     --mount=type=bind,from=plasma-logout-build,source=/out,target=/plasma-logout-rpms \
-    --mount=type=cache,dst=/var/cache \
-    --mount=type=cache,dst=/var/log \
+    --mount=type=cache,sharing=locked,dst=/var/cache \
+    --mount=type=cache,sharing=locked,dst=/var/log \
     --mount=type=tmpfs,dst=/tmp \
     MOOS_IMAGE_NAME="${IMAGE_NAME}" bash /ctx/build-arm.sh
 

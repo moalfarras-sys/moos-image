@@ -39,6 +39,11 @@
 # =============================================================================
 set -euo pipefail
 
+# Multimedia/QML probes keep derived caches in build scratch, independently
+# of the temporary root-home scaffolds needed by initramfs generation.
+export XDG_CACHE_HOME=/tmp/moos-compose-cache
+install -d -m0700 "$XDG_CACHE_HOME"
+
 MOOS_EDITION="${MOOS_IMAGE_NAME:-moos-arm}"
 echo "=== MoOS ARM build: edition=${MOOS_EDITION} arch=$(uname -m) ==="
 
@@ -1298,11 +1303,22 @@ kver="$(rpm -q --qf '%{VERSION}-%{RELEASE}.%{ARCH}\n' kernel-core | tail -1)"
 # its passwd payload; with a dangling target it logs a false-success ERROR for
 # `/root`. Materialize it only for the compose, then restore the clean /var
 # contract before bootc lint.
+# Metadata only: distinguish pre-existing compose state from dracut output.
+# Do not follow links or print file contents; retain the original refusal.
+echo "=== root-home state before initramfs (metadata only) ==="
+if [ -e /var/roothome ] || [ -L /var/roothome ]; then
+    find -P /var/roothome -xdev -maxdepth 3 -printf '%y %P %m %s\n' | sed -n '1,60p'
+fi
+python3 /ctx/finalize_root_home.py --root /
 install -d -m0700 /var/roothome
 dracut --no-hostonly --force --reproducible \
     --add "ostree plymouth" \
     "/usr/lib/modules/${kver}/initramfs.img" "${kver}" 2>&1 | tail -20
-rmdir /var/roothome
+if ! rmdir /var/roothome; then
+    echo "FATAL: unexpected root-home state after initramfs; preserving all entries"
+    find -P /var/roothome -xdev -maxdepth 3 -printf '%y %P %m %s\n' | sed -n '1,60p' || true
+    exit 1
+fi
 
 python3 /ctx/verify_plymouth_initramfs.py "/usr/lib/modules/${kver}/initramfs.img"
 
@@ -1634,6 +1650,8 @@ rm -rf /var/cache/* /var/log/* /tmp/* || true
 find /var -mindepth 1 -maxdepth 1 ! -name 'lib' ! -name 'tmp' -exec rm -rf {} + 2>/dev/null || true
 
 python3 /ctx/plasma_logout/rpms.py verify
+python3 /ctx/finalize_canary_base.py --root /
+python3 /ctx/finalize_dbus_state.py --root /
 python3 /ctx/finalize_image_state.py --root /
 
 

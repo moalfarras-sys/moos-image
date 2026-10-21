@@ -201,6 +201,57 @@
           "353ed54bb277ad50ee769b85a346a05959aa4cb79fb6f27b2286dcd5e9acbc48"
         ]
       }
+    },
+    {
+      "id": "6.8.1",
+      "plasma": {
+        "from": "6.8.1",
+        "before": "6.8.2"
+      },
+      "reviewed_on": "Stable plasma-desktop/plasma-workspace 6.8.1-1.fc44, x86_64, 2026-10-20. Exact signed old/new publisher RPMs compared by rederive_seams: all 12 upstream seam files are byte-identical to 6.8.0, so reuse their reviewed MoOS variants without theme/authentication changes. Actual native 6.8.1 kscreenlocker_greet loads the overlaid variants; deliberately missing QML type refuses, restored source loads. Native LockScreenUi.qml/MainBlock.qml retain vendor hashes 683bdafa/487ce6e0. Full image, native login SDK, signed artifact boots and physical acceptance remain separate.",
+      "sources": {
+        "/usr/share/plasma/shells/org.kde.plasma.desktop/contents/views/Panel.qml": "6.8.0/usr/share/plasma/shells/org.kde.plasma.desktop/contents/views/Panel.qml",
+        "/usr/lib64/qt6/qml/org/kde/breeze/components/SessionManagementScreen.qml": "6.8/usr/lib64/qt6/qml/org/kde/breeze/components/SessionManagementScreen.qml",
+        "/usr/lib64/qt6/qml/org/kde/breeze/components/WallpaperFader.qml": "6.8/usr/lib64/qt6/qml/org/kde/breeze/components/WallpaperFader.qml"
+      },
+      "reviewed": {
+        "/usr/share/plasma/shells/org.kde.plasma.desktop/contents/lockscreen/MediaControls.qml": [
+          "fc2de879d76e7d2f37292fb8c79283b5b7dae894de44539270a53dbd4c9927b0"
+        ],
+        "/usr/share/plasma/shells/org.kde.plasma.desktop/contents/explorer/WidgetExplorer.qml": [
+          "27208dd43471f61fe0c06ef78299590cdaf25c65fdb9f4676f61d3b70d3e7a02"
+        ],
+        "/usr/share/plasma/shells/org.kde.plasma.desktop/contents/views/DesktopEditMode.qml": [
+          "ef4848bcd4efb75da1d15e39d8c2ea8d5d2af0cb38116dc62f33769c82edbaf5"
+        ],
+        "/usr/share/plasma/shells/org.kde.plasma.desktop/contents/defaults": [
+          "07abd8f0e42594c2822c54084e38a810747025d111f1fe1e7c8e0cec1f2684f0"
+        ],
+        "/usr/share/plasma/layout-templates/org.kde.plasma.desktop.defaultPanel/contents/layout.js": [
+          "7ccabbcbb8fccb7f32c239b562d4ebe67e915f15f8066bc7ca994a6deb767d59"
+        ],
+        "/usr/lib64/qt6/qml/org/kde/breeze/components/ActionButton.qml": [
+          "f0d5a0326ea8715b378d1c757341921ecdf6a703e5a632409633158fca29d7e5"
+        ],
+        "/usr/lib64/qt6/qml/org/kde/breeze/components/Clock.qml": [
+          "bed93a670a8fcb1d90798c59350285439e4b4cbbcfd5b289e4839deab4e3ba9c"
+        ],
+        "/usr/lib64/qt6/qml/org/kde/breeze/components/UserDelegate.qml": [
+          "5d0487cbb475811affcff5b0a75e29e859596fb954c38c8bcce3c0ef3fd39ebf"
+        ],
+        "/usr/lib64/qt6/qml/org/kde/breeze/components/UserList.qml": [
+          "0c621434c2b65c68076db5eb614aa9e4ed9db58c732cf6416481bf3ddbda7231"
+        ],
+        "/usr/lib64/qt6/qml/org/kde/breeze/components/SessionManagementScreen.qml": [
+          "33f642ac7117b0cb3af5d04cab4a304207fb2572f1550fcf6c78457b57f895da"
+        ],
+        "/usr/lib64/qt6/qml/org/kde/breeze/components/WallpaperFader.qml": [
+          "bda98772f1bed55a5cd464d4fe59e645fe814e1e271d778e6762a6ae24e0c195"
+        ],
+        "/usr/share/plasma/shells/org.kde.plasma.desktop/contents/views/Panel.qml": [
+          "353ed54bb277ad50ee769b85a346a05959aa4cb79fb6f27b2286dcd5e9acbc48"
+        ]
+      }
     }
   ]
 }

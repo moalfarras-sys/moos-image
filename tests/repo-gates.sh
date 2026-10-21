@@ -40,6 +40,8 @@ python3 tests/test_theme_drift_repair.py
 python3 tests/test_moai_severity_banner.py
 python3 tests/verify_user_experience.py
 python3 tests/test_device_plan.py
+python3 tests/test_build_cache_locking.py
+python3 tests/test_analysis_tools_profile.py
 python3 tests/test_fingerprint_login.py
 python3 tests/test_moai_do.py
 python3 tests/test_moos_control.py

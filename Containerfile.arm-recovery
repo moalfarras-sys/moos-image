@@ -12,6 +12,16 @@
 
 FROM quay.io/fedora/fedora-bootc:44 AS base
 
+# Use the same pristine native base transaction as full ARM before the slim
+# recovery package stage. Build helpers never enter the delivered runtime.
+COPY build_files/plasma_stable/runtime_state.py /moos-arm-compose/
+COPY build_files/prepare_arm_compose_base.py build_files/arm-runtime-rules.json \
+     build_files/finalize_image_state.py build_files/finalize_canary_base.py \
+     build_files/finalize_root_home.py /moos-arm-compose/
+RUN python3 /moos-arm-compose/prepare_arm_compose_base.py \
+    && ostree container commit \
+    && rm -rf /moos-arm-compose
+
 FROM scratch AS ctx
 COPY build_files /
 
@@ -22,5 +32,6 @@ FROM base
 COPY --from=ctx /build-arm-recovery.sh /usr/libexec/moos-build-arm-recovery.sh
 COPY --from=ctx /install_cosign_arm.sh /usr/libexec/moos-install-cosign-arm.sh
 COPY --from=system-files / /
-RUN bash /usr/libexec/moos-build-arm-recovery.sh \
+RUN --mount=type=bind,from=ctx,source=/,target=/ctx \
+    bash /usr/libexec/moos-build-arm-recovery.sh \
     && rm -f /usr/libexec/moos-build-arm-recovery.sh /usr/libexec/moos-install-cosign-arm.sh

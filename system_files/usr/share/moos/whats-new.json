@@ -3,6 +3,22 @@
   "_": "What a person can SEE or DO after an update, newest first. One entry per user-visible change, written for the owner of the machine, not for a developer: what it is, where it is, and (when MoOS has a route to it) a way to try it now. 'merged' is when the change reached main (a little later is fine, earlier is not: an entry dated before a machine's previous system is never marked new there); a machine marks an entry new when the system it ran BEFORE the update was built earlier than that. tests/test_whats_new.py reads every entry the way MoOS Settings will.",
   "entries": [
     {
+      "id": "automatic-fingerprint-sign-in",
+      "merged": "2026-10-20T08:27:15Z",
+      "glyph": "ui",
+      "title": {
+        "ar": "الدخول التلقائي بالبصمة",
+        "en": "Automatic fingerprint sign-in"
+      },
+      "body": {
+        "ar": "بعد تسجيل بصمتك، يبدأ القارئ تلقائيًا عند ظهور حسابك في شاشة الدخول. المسه للدخول مباشرة؛ وإذا انتهت المهلة، يمكنك الدخول بكلمة المرور وحدها.",
+        "en": "Once your fingerprint is enrolled, the reader starts automatically for your account at sign-in. Touch it to enter. When the scan times out, use your password without another fingerprint request."
+      },
+      "arch": [
+        "x86_64"
+      ]
+    },
+    {
       "id": "installed-app-launch-lifetime",
       "merged": "2026-10-19T00:30:00Z",
       "glyph": "install",
@@ -24,8 +40,8 @@
         "en": "Fingerprint sign-in and V3 device checks"
       },
       "body": {
-        "ar": "بعد تسجيل بصمتك، اختر الحساب في شاشة الدخول واضغط Enter أو سهم الدخول ثم المس القارئ. كلمة المرور تبقى متاحة. يكشف فحص الأجهزة أيضًا مستشعر SMOCF05 بلا تعريف؛ هذا التنبيه لا يشغّل التدوير التلقائي.",
-        "en": "After enrolling a fingerprint, select your account at sign-in, press Enter or the sign-in arrow, then touch the reader. Password sign-in remains available. Device checks also flag an unbound SMOCF05 motion sensor; the warning does not enable automatic rotation."
+        "ar": "تدعم شاشة الدخول بصمتك المسجلة، مع بقاء كلمة المرور متاحة. يكشف فحص الأجهزة أيضًا مستشعر SMOCF05 بلا تعريف؛ هذا التنبيه لا يشغّل التدوير التلقائي.",
+        "en": "Sign in with an enrolled fingerprint or your password. Device checks also flag an unbound SMOCF05 motion sensor; the warning does not enable automatic rotation."
       },
       "arch": [
         "x86_64"

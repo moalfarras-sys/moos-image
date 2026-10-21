@@ -63,6 +63,42 @@ A broken promoted image can still prevent this workstation from booting.
 > change. It is the binding summary of what MoOS is (a real OS, not a rebrand and not a
 > theme), the MoOS UI — Liquid Glass design language, and the rules no session may break.
 
+**Owner requirement, 2026-10-21: qualify the real desktop.** The V3 is a development
+installation. UI work must include actual installed-session interaction, visual
+inspection and runtime readback on this device before claiming user acceptance.
+Offscreen renders, source tests and CI boot fixtures are complementary evidence.
+Reuse the existing SDKs and native review tools; install another tool or retain a
+large artifact only for a concrete development, rollback or proof need. Preserve
+owner files and required signed release evidence; do not use blanket cache pruning.
+
+**A canary base is another package transaction.** Capture its pristine input
+before enabling or syncing beta packages, rather than handing an already-generated
+identity to stable composition. Repeated DNF calls can rotate logs; keep their
+logs in private build tmp instead of admitting arbitrary log files. Preserve the
+exact stock kernel: distro-sync can reinstall a different same-NVR kernel RPM,
+run dracut and create unowned rpm-state/kernel. Do not erase that state broadly
+or relax the final image gate. Require native old/fixed evidence and byte-level
+stock kernel readback as well as the complete canary image gates.
+
+**A shared package cache is not a transaction lease.** Two native full builds
+used the same DNF cache: one completed while the other was inside a successful
+SELinux postscript, then the latter could no longer install its remaining RPM
+payloads. Keep this first refusal and its overlap timeline. A real native cache
+fixture independently loses its payload in shared mode and retains it when
+locked. Every user of package/log cache mounts must hold `sharing=locked` for
+the complete RUN, acquiring cache then log consistently. A remaining shared
+user can ignore that lock. Preserve ordinary command failures and all image
+checks; do not force package installation or rerun a failed CI job.
+
+**An RPM directory can disagree with its runtime creator.** The reviewed6.7.91
+and6.8.1 greeter RPMs declare01770, while their tmpfiles rules require0750. A fresh
+base or sequential canary can already have the newer systemd and not re-run its
+global correction. Reproduce each transaction on the actual immutable CI input,
+retain a local no-repro when it occurs, and verify the exact RPM metadata,
+NVR, empty service-owned directory and immutable creator before restricting only
+that directory to0750. Keep the shared metadata/identity gate unchanged; unknown
+data, links, mounts, owners or package/creator drift must remain a refusal.
+
 > **New here?** Read **[PROJECT_STATE.md](PROJECT_STATE.md)** as well, and read it *first* if
 > you are about to touch MoPlayer, its in-tree source, the gates or anything visual. It is the concise
 > map of what exists, what is load-bearing, what is proven and what remains. The false-green
@@ -146,6 +182,18 @@ These are not conventions, they are gates. The image build fails if you break th
   `docs/MCP.md`.
 
 ## A green build proves nothing about what the user sees
+
+**A current base and a local mirror need not reproduce CI's transaction.** Oct20's local mirror kept systemd259.9 while CI installed259.10; its upgrade scriptlet ran tmpfiles and materialized rpm-ostree's native `/var/lib/selinux -> ../../etc/selinux` rule. Changing bootc alone did not reproduce it. Reproduce the actual vendor rule before correcting the compose finalizer. Require the exact root-owned alias, immutable tmpfiles authority, direct configured store, real module inputs and matching boot policy; unlink only that alias after every cleanup preflight. Never relax `owned_path`, follow/rmtree a policy link, or treat unknown links as empty state. Keep the old-source native refusal and all policy/authority/owner/mount negatives.
+
+**A vendor runtime alias still fails an empty-image contract.** The fresh8ae build passed the SELinux correction, then refused D-Bus's machine-id alias. Preflight only the exact native root-owned link and creator, preserve a pristine image identity, unlink only that alias, and let the unchanged general state gate run. Never accept arbitrary /var links or remove a regular machine-id. Recovery helpers also need their actual ctx mount: a native missing-context negative exited2, not the harness's guessed1. Keep the raw failure and verify both binding availability and absence after the build step.
+
+**The bare ARM input is a different pristine shape.** Published bootc carries native0775 empty package scaffolds and a var/run alias; prove their exact emptiness/authority before canonicalizing, never accept arbitrary preexisting var data. A systemd259.10 upgrade also moves the provision recipe to/root: accept only its full reviewed file under the already-proven canonical root alias, keeping even empty authorized_keys protected. Native rpm-state creator0664 needs its own exact100-byte/hash exception, not relaxed x86 authority checks. Two known generated NSS inputs also arrive0664; restrict only their exact reviewed bodies to root-only write before the unchanged reader, retaining every account byte. Keep the earlier refusals, actual same-object before/after native package probe, explicit helper COPY/removal and production base readback; qemu userspace is not native boot.
+
+**A point release is still a different vendor source.** Oct20's live repository moved to6.8.1 while d57 was building; the exact6.8.0 guard correctly stopped it. Verify signed historical/current RPMs when live metadata omits the old release, compare all seams, load the real new greeter with a broken-type negative before recording a new narrow set, and re-review vendor helper/daemon changes. The unchanged fingerprint patch still produces a different prepared main.cpp because upstream adds its null-geometry guard. Preserve that guard and exact new backend aggregate; an old physical binary hash is historical evidence, never acceptance of the new binary.
+
+**An alias target can expose the rest of a native package transaction.** The9a full image correctly refused a populated machine-id; systemd259.10 had created identity/seed/catalogue and global tmpfiles scaffolds before SDK stages. Require a pristine empty identity and empty /var input before dnf, retain that in-memory transaction, preflight every reviewed native runtime record/authority, recompute catalogue bytes, and restore only the identity observed empty in that transaction. Never truncate an installed/preexisting identity, accept arbitrary empty directories, or widen the final state gate. Keep multimedia caches on build tmpfs. An already-composed fixture also carries the canary HPLIP recipe: preserve its repeated-authority refusal and reconstruct that exact private fixture input instead of weakening the guard. Native global tmpfiles73 from dangling bootc home aliases is not command success, even though the RPM script ignores it.
+
+**A failed empty-home cleanup may predate dracut.** ARM's systemd upgrade materialized native Konflux/provision tmpfiles scaffolds, then the later rmdir failed. Reproduce the vendor prefix and inventory before generation. Retire only exact empty owned entries after all authority/type/mode/mount checks; even empty authorized_keys is protected unknown state. The published Konflux authority is root:root0664: that one input requires its full reviewed hash, never a generic writable-file exception. Preserve both runtime authorities and the original unknown-state refusal. ARM userspace under qemu with real dracut is package evidence, not a native boot.
 
 **A retry can arrive before the first delivery is consumed.** A one-second
 job-presence resignal was consumed inside the same delayed/blind interval as

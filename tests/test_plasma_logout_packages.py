@@ -190,7 +190,7 @@ class NativePackageBoundary(unittest.TestCase):
                 rpms.verify(self.root)
 
     def test_other_stable_and_beta_nvrs_remain_unreviewed(self):
-        for base in ('6.8.0-2.fc44', '6.8.1-1.fc44', '6.7.90-1.fc44', '6.7.91-2.fc44'):
+        for base in ('6.8.0-2.fc44', '6.8.2-1.fc44', '6.7.90-1.fc44', '6.7.91-2.fc44'):
             with self.assertRaisesRegex(AssertionError, 'unreviewed Plasma source NVR'):
                 rpms.source_review(base)
 
@@ -201,6 +201,10 @@ class NextNativePackageBoundary(NativePackageBoundary):
 
 class StableNativePackageBoundary(NativePackageBoundary):
     base = '6.8.0-1.fc44'
+
+
+class Stable681NativePackageBoundary(NativePackageBoundary):
+    base = '6.8.1-1.fc44'
 
 
 if __name__ == '__main__':

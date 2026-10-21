@@ -8,6 +8,11 @@
 
 set -euxo pipefail
 
+# Native multimedia probes may build derived caches. Keep them on the build's
+# temporary filesystem rather than creating a root home in the image's /var.
+export XDG_CACHE_HOME=/tmp/moos-compose-cache
+install -d -m0700 "$XDG_CACHE_HOME"
+
 # -----------------------------------------------------------------------------
 # (a0) Freeze the kernel at the BASE image's version — before any dnf runs
 # -----------------------------------------------------------------------------
@@ -4948,6 +4953,7 @@ C /var/lib/authselect/checksum 0644 root root - /usr/lib/moos/authselect-checksu
 AUTHSELECT_STATE
     rm /var/lib/authselect/checksum
 fi
+python3 /ctx/finalize_dbus_state.py --root /
 python3 /ctx/finalize_image_state.py --root /
 python3 /ctx/verify_no_foreign_identity.py
 
