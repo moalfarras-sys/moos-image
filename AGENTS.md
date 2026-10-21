@@ -1213,6 +1213,8 @@ all-apps row and makes the installed Android VLC disappear from its own filter.
 The real native AR/EN Store walk checks the selected ID and platform counts;
 Node grouping tests alone do not prove that window behavior.
 
+**A moving CI host is another compatibility input.** The standard7ff cycle reached signed images and a successful ISO/ARM pipeline, while all three nested QCOW2 builders refused storage mounts on ubuntu-latest26.04. Keep the disk-builder host explicitly24.04 until another family passes the unchanged full proofs. This is a host qualification boundary, not proof of an exact LSM cause; never disable host protections or waive signatures/sealing/boot checks to hide it.
+
 **A windowed host is not the panel popup.** Adaptive launcher changes must exercise the actual Plasma AppletPopup, close it and read its saved size back. AvailableScreenRect falls back to item size without a valid screen: guard it before using it for implicit dimensions. Keep desktop minimum-size controls, finite/invalid geometry refusals and the same predicate in selfcheck/post-update. Real Qt input and broken-focus/RTL controls complement installed-session review; synthetic touch is not physical touch acceptance.
 
 ## Before you push

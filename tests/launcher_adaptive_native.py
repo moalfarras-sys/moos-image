@@ -5,7 +5,6 @@ The optional broken-backtab copy changes only the temporary applet, proving
 that the input assertion fails for the previously observed focus defect.
 This does not test physical touch, GPU performance or the installed session.
 """
-"""Measure the unmodified launcher in service-free, private native KWin sessions."""
 from pathlib import Path
 import argparse,datetime,hashlib,re,json,os,shutil,signal,subprocess,tempfile,time,uuid
 from gi.repository import Gio,GLib

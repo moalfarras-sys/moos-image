@@ -119,6 +119,10 @@
   "integration": {
     "main": "f1c4f7937b15263a6893045ca35a48b4c0acffb5",
     "preserves": "PR256 Arrange/Island revision109, native composition and app updates",
-    "note": "earlier reviewed source applet used108; unchanged launcher QML is integrated at fresh110"
+    "note": "earlier reviewed source applet used108; unchanged launcher QML is integrated at fresh110",
+    "launcher_payload_sha256": {
+      "system_files/usr/share/plasma/plasmoids/org.moos.brand/contents/ui/LauncherView.qml": "577743fb1792b5170d45c4f94455552a7a428b2371b36c0c4005b5cc26dbb732",
+      "system_files/usr/share/plasma/plasmoids/org.moos.brand/contents/ui/main.qml": "f3fb85b1e4607a58098cdba3a8c01cbfe01a5e36a6c203fde46f1119fcc9c42e"
+    }
   }
 }
