@@ -63,6 +63,23 @@ A broken promoted image can still prevent this workstation from booting.
 > change. It is the binding summary of what MoOS is (a real OS, not a rebrand and not a
 > theme), the MoOS UI — Liquid Glass design language, and the rules no session may break.
 
+**Owner requirement, 2026-10-21: qualify the real desktop.** The V3 is a development
+installation. UI work must include actual installed-session interaction, visual
+inspection and runtime readback on this device before claiming user acceptance.
+Offscreen renders, source tests and CI boot fixtures are complementary evidence.
+Reuse the existing SDKs and native review tools; install another tool or retain a
+large artifact only for a concrete development, rollback or proof need. Preserve
+owner files and required signed release evidence; do not use blanket cache pruning.
+
+**A canary base is another package transaction.** Capture its pristine input
+before enabling or syncing beta packages, rather than handing an already-generated
+identity to stable composition. Repeated DNF calls can rotate logs; keep their
+logs in private build tmp instead of admitting arbitrary log files. Preserve the
+exact stock kernel: distro-sync can reinstall a different same-NVR kernel RPM,
+run dracut and create unowned rpm-state/kernel. Do not erase that state broadly
+or relax the final image gate. Require native old/fixed evidence and byte-level
+stock kernel readback as well as the complete canary image gates.
+
 > **New here?** Read **[PROJECT_STATE.md](PROJECT_STATE.md)** as well, and read it *first* if
 > you are about to touch MoPlayer, its in-tree source, the gates or anything visual. It is the concise
 > map of what exists, what is load-bearing, what is proven and what remains. The false-green

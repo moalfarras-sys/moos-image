@@ -1,0 +1,119 @@
+{
+  "schema": 1,
+  "scope": "experimental base source correction; no signed or physical delivery claim",
+  "qualified_ancestor": "fe65430579c826b282b9d9a99cb0ba2806a63d0e",
+  "ancestor_tree": "d6b5ffe11fd13e0adc105e41910fb0d69e5d8326",
+  "ancestor_local_check_cases": 2843,
+  "ancestor_complete_local_x86_image": "sha256:93f878d196d82885a025305e67c3de52bb5515df99edd62f49381e24dd644c46",
+  "ancestor_pr260": {
+    "head": "fe65430579c826b282b9d9a99cb0ba2806a63d0e",
+    "repo_run": 39489708579,
+    "x86_run": 39489708552,
+    "native_arm_run": 39489708595,
+    "actual_advisory_review_run": 39489708654,
+    "outcomes": "repository/x86/native ARM/review steps pass, first attempts; ARM disk/promotion correctly skipped on PR"
+  },
+  "canary_old_source_refusal": {
+    "run": 39489708594,
+    "head": "fe65430579c826b282b9d9a99cb0ba2806a63d0e",
+    "failure": "experimental package transaction creates machine-id before stable composition can record pristine input",
+    "rerun_jobs_used": false
+  },
+  "native_controls": {
+    "command_and_failure_cases": 7,
+    "workflow_contract_cases": 7,
+    "installed_host_negative_exit": 1,
+    "installed_host_guard": "runtime normalization requires an unbooted build container",
+    "shared_runtime_normalizer_and_rules": "unchanged from qualified ancestor; existing strict identity/authority/state negatives retained",
+    "retained_failed_native_variants": [
+      {
+        "variant": "native",
+        "exit": 1,
+        "reason": "strict refusal of DNF rotated log; generated identity retained",
+        "input_sha256": {
+          ".github/workflows/plasma-next-canary.yml": "2c263e749ce705204530d69c8d061be1d580e08d3446d4152a284c3bac5bc9df",
+          "build_files/finalize_canary_base.py": "2e9cc30825ff5cf140a1905573a173e5e7ad738d5a8bfae141ad33c1e236c384",
+          "build_files/finalize_image_state.py": "53afe3d97428081e2cd131fa56ca0c8c41ea03d8e894a79d51a34576e6464077",
+          "build_files/finalize_root_home.py": "3f54bf2588bffebedd198699ec796af343a45b4907bd09f568d63a801e7ec19f",
+          "build_files/prepare_plasma_canary_base.py": "3c4d8e02489bef8a6d0e2fd92f53785f4cd0d790a5c14b285686f386369e8250",
+          "build_files/plasma_stable/runtime_state.py": "0e7e0ebf807450695b90d442958d1d80847ac66f7b0152cf41e2528ff9216f30",
+          "build_files/plasma_stable/runtime-rules.json": "96232ad32eab2aad464a4e83f30bb5495bef706ca15d77a44d74a4824c758884"
+        },
+        "log_sha256": "e1af51c89a0b3808661ff1577281549661332bbb71205fc311cacf70f020fcc6"
+      },
+      {
+        "variant": "logs",
+        "exit": 1,
+        "reason": "strict refusal of rpm-state/kernel after same-NVR stock kernel reinstall; generated identity retained",
+        "input_sha256": {
+          ".github/workflows/plasma-next-canary.yml": "2c263e749ce705204530d69c8d061be1d580e08d3446d4152a284c3bac5bc9df",
+          "build_files/finalize_canary_base.py": "2e9cc30825ff5cf140a1905573a173e5e7ad738d5a8bfae141ad33c1e236c384",
+          "build_files/finalize_image_state.py": "53afe3d97428081e2cd131fa56ca0c8c41ea03d8e894a79d51a34576e6464077",
+          "build_files/finalize_root_home.py": "3f54bf2588bffebedd198699ec796af343a45b4907bd09f568d63a801e7ec19f",
+          "build_files/prepare_plasma_canary_base.py": "d4f26cb59789634d3acceb3be8808dcf6c9055cf737fdf6261ee7a028f7e9555",
+          "build_files/plasma_stable/runtime_state.py": "0e7e0ebf807450695b90d442958d1d80847ac66f7b0152cf41e2528ff9216f30",
+          "build_files/plasma_stable/runtime-rules.json": "96232ad32eab2aad464a4e83f30bb5495bef706ca15d77a44d74a4824c758884"
+        },
+        "log_sha256": "17a224e0317ef67e59b88bc0fa015c2aa2885904163501c370dbcc3ff09f188a"
+      }
+    ]
+  },
+  "corrected_native_workflow_base": {
+    "empty_image_identity": true,
+    "mutable_var": [
+      "/var/tmp"
+    ],
+    "helper_tree_absent": true,
+    "temporary_dnf_logs_absent": true,
+    "kernel_images": {
+      "/usr/lib/modules/7.2.11-200.fc44.x86_64/vmlinuz": "0eaea5d149421a938ed62c7bdec74cf1013992c8a15d4b495d29e479356fc939"
+    },
+    "kernel_rpm": "7.2.11-200.fc44.x86_64",
+    "plasma_workspace": "6.7.91-1.fc44.x86_64",
+    "systemd": "259.10-1.fc44.x86_64",
+    "selinux_native_creator_retained": true,
+    "scope": "native x86 userspace, workflow-derived experimental base only; full image and boot remain separate",
+    "image_id": "sha256:11eef61a885b4da8716b9dae8ecec2ba93339ccf3240b668e9fd0526f70709c4",
+    "base_id": "ad21db243b6c8102d839b4b41766f1c1ed8acef08510763b6f05bd0d097e0737",
+    "base_repo_digests": [
+      "ghcr.io/ublue-os/kinoite-main@sha256:475031ba2a56cd8d509cb0828b9bbdc7289adc10510b1bec9b81e197965be43a"
+    ],
+    "stock_base_layer_prefix_matches": true,
+    "stock_kernel_bytes_unchanged": true,
+    "input_sha256": {
+      ".github/workflows/plasma-next-canary.yml": "2c263e749ce705204530d69c8d061be1d580e08d3446d4152a284c3bac5bc9df",
+      "build_files/finalize_canary_base.py": "2e9cc30825ff5cf140a1905573a173e5e7ad738d5a8bfae141ad33c1e236c384",
+      "build_files/finalize_image_state.py": "53afe3d97428081e2cd131fa56ca0c8c41ea03d8e894a79d51a34576e6464077",
+      "build_files/finalize_root_home.py": "3f54bf2588bffebedd198699ec796af343a45b4907bd09f568d63a801e7ec19f",
+      "build_files/prepare_plasma_canary_base.py": "942e235c78c1226b363b450d4c377856249ddcf9ffc115db54135e4f1469b9ee",
+      "build_files/plasma_stable/runtime_state.py": "0e7e0ebf807450695b90d442958d1d80847ac66f7b0152cf41e2528ff9216f30",
+      "build_files/plasma_stable/runtime-rules.json": "96232ad32eab2aad464a4e83f30bb5495bef706ca15d77a44d74a4824c758884"
+    },
+    "native_base_exit": 0,
+    "build_log_sha256": "f6d00c14f5ce2c1c6629c2434dfb4d05cf35f59d093b08b86183f0b6302e3395"
+  },
+  "implementation": {
+    "pristine_snapshot_before_package_commands": true,
+    "only_optional_abi_removal": "kcm-fcitx5 --no-autoremove",
+    "solver_flags": [
+      "--refresh",
+      "--allowerasing",
+      "--best",
+      "--exclude=kernel*"
+    ],
+    "build_log_location": "private TemporaryDirectory under /tmp, removed on completion/error; native stdout/stderr retained",
+    "blind_rpm_state_erasure_removed": true,
+    "generic_image_and_identity_gates_unchanged": true,
+    "no_publish_permissions_unchanged": true,
+    "newest_version_assertion_retained": true
+  },
+  "remaining": [
+    "final descendant maintained repository check and complete production local image",
+    "exact-head PR repository/x86/native ARM/full canary gates",
+    "one frozen signed artifact boot-proven promotion cycle",
+    "physical signed cold automatic fingerprint and separate no-touch password fallback",
+    "BIOS Battery Charge Limit review and real80% plateau",
+    "Qt greeter screenRemoved root cause and SMOCF05 rotation remain unresolved"
+  ],
+  "owner_ui_requirement": "actual installed-session interaction/inspection/readback, reuse existing tools and preserve owner data; no visual product edits in this compatibility slice"
+}

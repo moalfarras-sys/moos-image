@@ -34,6 +34,10 @@ on:
       - "build_files/plasma_seams.py"
       - "build_files/plasma_logout/**"
       - "build_files/finalize_canary_base.py"
+      - "build_files/finalize_root_home.py"
+      - "build_files/prepare_plasma_canary_base.py"
+      - "build_files/plasma_stable/**"
+      - "tests/test_plasma_canary_compose.py"
       - ".github/workflows/plasma-next-canary.yml"
 
 concurrency:
@@ -91,20 +95,14 @@ jobs:
           set -euo pipefail
           out="$RUNNER_TEMP/plasma-next"
           mkdir -p "$out"
-          cp build_files/finalize_canary_base.py build_files/finalize_image_state.py "$out/"
+          cp build_files/finalize_canary_base.py build_files/finalize_image_state.py \
+             build_files/finalize_root_home.py build_files/prepare_plasma_canary_base.py \
+             build_files/plasma_stable/runtime_state.py build_files/plasma_stable/runtime-rules.json "$out/"
           cat > "$out/Containerfile" <<'CONTAINERFILE'
           FROM ghcr.io/ublue-os/kinoite-main:44
-          COPY finalize_canary_base.py finalize_image_state.py /canary-review/
-          RUN dnf5 -y copr enable @kdesig/kde-beta \
-           && if rpm -q kcm-fcitx5 >/dev/null 2>&1; then \
-                dnf5 -y remove --no-autoremove kcm-fcitx5; fi \
-           && dnf5 -y distro-sync --refresh --allowerasing --best \
-           && dnf5 clean all \
-           && echo "rpm-state left by the base transaction:" \
-           && if [ -d /var/lib/rpm-state ]; then \
-                find /var/lib/rpm-state -mindepth 1 -maxdepth 1 -print -exec rm -rf {} +; fi \
+          COPY finalize_canary_base.py finalize_image_state.py finalize_root_home.py prepare_plasma_canary_base.py runtime_state.py runtime-rules.json /canary-review/
+          RUN python3 /canary-review/prepare_plasma_canary_base.py \
            && ostree container commit \
-           && python3 /canary-review/finalize_canary_base.py \
            && rm -rf /canary-review
           CONTAINERFILE
           buildah build --layers -f "$out/Containerfile" \
