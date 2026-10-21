@@ -209,6 +209,8 @@ These are not conventions, they are gates. The image build fails if you break th
 
 ## A green build proves nothing about what the user sees
 
+**A Java dialog can paint while its main frame is blank.** Native Ghidra with Java25 showed tips over an empty main frame on Wayland. Preserve the old/fixed/restored GUI captures and inspect current OpenJDK XWM: its non-reparenting switch tests presence, not a truth value. Scope that setting to the GUI launcher, carry the host session decision across Toolbx and preserve caller values/X11 behavior. Require actual canonical project/program/decompiler/normal-close and environment/argument controls; a version string, headless decompile or first dialog is not GUI acceptance. Never change global Java/WM state, install another JDK or infer a cold new-OS result from1078.
+
 **A dependency-only update can change shipped JavaScript.** The Oct21 signed cycle correctly refused Vite8.2.0 at the high-audit gate before image composition. Preserve that refusal, audit the exact old/new locks and retain the existing Dependabot ancestry. Rebuild and commit the generated controller asset/index/service-worker together, then require an identical second build, the unchanged freshness gate and isolated browser input journeys. Run the unchanged suite with its supported existing Node22; Node26 removed its experimental transform flag. Never remove tests, waive the audit or count an uncommitted derived bundle as qualified source.
 
 **A current base and a local mirror need not reproduce CI's transaction.** Oct20's local mirror kept systemd259.9 while CI installed259.10; its upgrade scriptlet ran tmpfiles and materialized rpm-ostree's native `/var/lib/selinux -> ../../etc/selinux` rule. Changing bootc alone did not reproduce it. Reproduce the actual vendor rule before correcting the compose finalizer. Require the exact root-owned alias, immutable tmpfiles authority, direct configured store, real module inputs and matching boot policy; unlink only that alias after every cleanup preflight. Never relax `owned_path`, follow/rmtree a policy link, or treat unknown links as empty state. Keep the old-source native refusal and all policy/authority/owner/mount negatives.
@@ -1210,6 +1212,10 @@ then group that selection and count it. Otherwise an installed Linux VLC wins th
 all-apps row and makes the installed Android VLC disappear from its own filter.
 The real native AR/EN Store walk checks the selected ID and platform counts;
 Node grouping tests alone do not prove that window behavior.
+
+**A moving CI host is another compatibility input.** The standard7ff cycle reached signed images and a successful ISO/ARM pipeline, while all three nested QCOW2 builders refused storage mounts on ubuntu-latest26.04. Keep the disk-builder host explicitly24.04 until another family passes the unchanged full proofs. This is a host qualification boundary, not proof of an exact LSM cause; never disable host protections or waive signatures/sealing/boot checks to hide it.
+
+**A windowed host is not the panel popup.** Adaptive launcher changes must exercise the actual Plasma AppletPopup, close it and read its saved size back. AvailableScreenRect falls back to item size without a valid screen: guard it before using it for implicit dimensions. Keep desktop minimum-size controls, finite/invalid geometry refusals and the same predicate in selfcheck/post-update. Real Qt input and broken-focus/RTL controls complement installed-session review; synthetic touch is not physical touch acceptance.
 
 ## Before you push
 

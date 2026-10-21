@@ -13,7 +13,21 @@ try:
 except (OSError,ValueError,KeyError,IndexError,subprocess.SubprocessError):print(1)
 SCALE
 )
-  exec /usr/bin/toolbox run --container moos-dev /usr/bin/env MOOS_GHIDRA_UI_SCALE="$moos_ghidra_scale" "$0" "$@"
+  moos_ghidra_wayland=0
+  if [ "${XDG_SESSION_TYPE:-}" = wayland ] || [ -n "${WAYLAND_DISPLAY:-}" ]; then
+    moos_ghidra_wayland=1
+  fi
+  exec /usr/bin/toolbox run --container moos-dev /usr/bin/env \
+    MOOS_GHIDRA_UI_SCALE="$moos_ghidra_scale" \
+    MOOS_GHIDRA_HOST_WAYLAND="$moos_ghidra_wayland" "$0" "$@"
+fi
+# OpenJDK's X11 toolkit otherwise leaves the main Swing frame blank under the
+# native Wayland session. Keep this within this GUI process; headless REA, the
+# desktop and ordinary X11 sessions retain their own environment. OpenJDK tests
+# presence, not the value: preserve an explicit caller value, including empty.
+if [ "${MOOS_GHIDRA_HOST_WAYLAND:-0}" = 1 ] || \
+   [ "${XDG_SESSION_TYPE:-}" = wayland ] || [ -n "${WAYLAND_DISPLAY:-}" ]; then
+  export _JAVA_AWT_WM_NONREPARENTING="${_JAVA_AWT_WM_NONREPARENTING-1}"
 fi
 export JAVA_HOME=/usr/lib/jvm/java-25-openjdk
 export PATH=/usr/local/bin:/usr/bin

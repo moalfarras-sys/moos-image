@@ -3,6 +3,19 @@
   "_": "What a person can SEE or DO after an update, newest first. One entry per user-visible change, written for the owner of the machine, not for a developer: what it is, where it is, and (when MoOS has a route to it) a way to try it now. 'merged' is when the change reached main (a little later is fine, earlier is not: an entry dated before a machine's previous system is never marked new there); a machine marks an entry new when the system it ran BEFORE the update was built earlier than that. tests/test_whats_new.py reads every entry the way MoOS Settings will.",
   "entries": [
     {
+      "id": "adaptive-native-launcher",
+      "merged": "2026-10-22T12:00:00Z",
+      "glyph": "ui",
+      "title": {
+        "ar": "قائمة تتكيّف مع شاشتك",
+        "en": "A launcher that fits your screen"
+      },
+      "body": {
+        "ar": "تتكيّف قائمة MoOS مع الشاشات الضيقة والقصيرة، مع أزرار لمس أوضح وتنقّل أفضل بالمفاتيح ومحاذاة عربية متناسقة. تبقى التطبيقات والأماكن وإجراءات الجلسة في القائمة نفسها.",
+        "en": "The MoOS launcher fits narrow and short screens, with larger touch navigation, better keyboard focus and consistent Arabic alignment. Apps, places and session actions stay together."
+      }
+    },
+    {
       "id": "automatic-fingerprint-sign-in",
       "merged": "2026-10-20T08:27:15Z",
       "glyph": "ui",
@@ -900,24 +913,6 @@
         "ar": "سطرا التاريخ في لوحة MoOS على حافة واحدة، وشريحة الخصوصية في الجزيرة تعرض جملتها كاملة بدل قطعها.",
         "en": "The two date lines of the MoOS Hub sit on one edge, and the Island's privacy chip shows its whole sentence instead of cutting it."
       }
-    },
-    {
-      "id": "arrange",
-      "merged": "2026-09-17T22:36:04Z",
-      "glyph": "grid",
-      "title": {
-        "ar": "رتّب نوافذك بضغطة واحدة",
-        "en": "Arrange your windows in one action"
-      },
-      "body": {
-        "ar": "نصفان أو أثلاث أو أرباع، أو نافذة رئيسية ونافذتان، أو توسيط النافذة. من قائمة النافذة «رتّب النوافذ» أو بالاختصار Meta+Alt مع 1 إلى 4 أو C.",
-        "en": "Halves, thirds, quarters, a main window with two beside it, or centre the window. From the window menu under Arrange windows, or Meta+Alt with 1 to 4 or C."
-      },
-      "keys": [
-        "Meta",
-        "Alt",
-        "2"
-      ]
     }
   ]
 }

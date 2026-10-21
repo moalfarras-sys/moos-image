@@ -28,9 +28,48 @@
     "exit": 0
   },
   "remaining": [
-    "Ghidra GUI first-run agreement and complete GUI journeys",
+    "broader Ghidra GUI keyboard/server journeys and cold acceptance on the pending681 OS",
     "owner-deferred provider/wallet accounts",
     "active Codex extension must reload its existing local REA registration",
     "direct SDK invocation cleanup refusal retained; use canonical launcher; broad heavy-process inspection unqualified"
-  ]
+  ],
+  "gui_wayland": {
+    "scope": "basic actual installed GUI journey on V3 signed1078/Plasma6.8.0/Qt6.11.2; not cold acceptance of the pending681 OS image",
+    "java": "25.0.4.1",
+    "launcher_sha256": "2bc2b836e9ca596303a2effbb71c144e11afd514cdc033569b8313a8a2b18cbe",
+    "old_default_blank_main_frame": true,
+    "temporary_nonreparenting_variant_renders_menus": true,
+    "restored_original_recreates_blank_frame": true,
+    "actual_native_env_presence_checked": true,
+    "canonical_wayland_bridge_and_child_env_verified": true,
+    "scoped_shell_environment_controls": 6,
+    "controls_scope": "complete source launcher in existing Toolbx against a private vendor-launch recorder: Wayland default, X11 absence, host-Wayland bridge, explicit zero, explicit empty and X11 caller value; arguments/spaces/heap/scale preserved",
+    "original_launcher_exact_private_backup": true,
+    "installed_profile_readonly_bytes_mtimes_preserved": true,
+    "rea_cli_mcp_entrypoint_unchanged": true,
+    "project": "new owned synthetic review project",
+    "input_elf_sha256": "a0d77761668c6793272da6550d55ed14aa1b1fbfaadab5b289c03ae69594ce56",
+    "canonical_project_open": true,
+    "native_pointer_program_open": true,
+    "visible_decompiler_function": "main",
+    "gui_input_matches_prior_cli_mcp_fixture": true,
+    "normal_gui_close_exit": 0,
+    "reused_existing_node_jdk_toolbox": true,
+    "owner_keyboard_layout_restored": true,
+    "native_pointer_restored_within_logical_pixels": 2,
+    "private_rendered_evidence_sha256": {
+      "ghidra-gui-main-20261021.png": "a82bf6e9cb0c2ab42809f70cdea57edd4a11f7e755c5e8a3e8795ffe3b91165c",
+      "ghidra-gui-restored-original-20261021.png": "e09c53935b561c9dc5ab290c0c1ca0910773a5cbade210727a0f57e3a6acf4ab",
+      "ghidra-gui-nonreparenting-variant-20261021.png": "96c5ee0e296841b3246694aef9f61baaa9638efc6358b2c5291379f4122b2fba",
+      "ghidra-gui-project-tree-20261021.png": "9c824632a76aa5aee6f0b43bb64f14c314f597ebca953ade64b6306a98ae5068",
+      "ghidra-gui-decompiled-function-focused-20261021.png": "c8bcb4fdc4dd08467db9d3f42e28a838c0f948142dd51e93e025535df549c69c"
+    },
+    "primary_runtime_authority": "https://raw.githubusercontent.com/openjdk/jdk25u/master/src/java.desktop/unix/classes/sun/awt/X11/XWM.java",
+    "limits": [
+      "actual GUI was on current1078; new681 cold acceptance remains",
+      "guarded absolute pointer/GoTo probes did not qualify keyboard navigation; no target text was sent after the missing-dialog guard",
+      "normal Java Unsafe deprecation and fixture calling-convention notices retained; not hidden or called repaired",
+      "broader GUI/server/provider/all207-tool journeys remain unqualified"
+    ]
+  }
 }

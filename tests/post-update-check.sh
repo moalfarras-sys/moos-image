@@ -630,6 +630,21 @@ launcher_runtime_state() {
         -m org.kde.PlasmaShell.evaluateScript '
             var ps = panels();
             var bottoms = 0, brands = 0, legacy = 0, sized = 0, valid = 0;
+            // Stored popup dimensions are hints, clamped and saved by AppletPopup.
+            // Keep the old desktop minima; account for native95% limits, the
+            // common12px frame, the panel and our64px shell reserve on small outputs.
+            function popupFitsScreen(pw, ph, geometry, panelHeight) {
+                if (!isFinite(pw) || !isFinite(ph) || !geometry
+                        || !isFinite(geometry.width) || !isFinite(geometry.height)
+                        || !(geometry.width > 0) || !(geometry.height > 0)
+                        || !isFinite(panelHeight) || panelHeight < 0) { return false; }
+                var minimumWidth = Math.min(600, Math.round(geometry.width * 0.95) - 24);
+                var minimumHeight = Math.min(540,
+                    Math.round((geometry.height - panelHeight) * 0.95) - 24 - 64);
+                return minimumWidth > 0 && minimumHeight > 0
+                    && pw >= minimumWidth && ph >= minimumHeight;
+            }
+
             for (var i = 0; i < ps.length; i++) {
                 if (ps[i].location != "bottom") { continue; }
                 bottoms++;
@@ -643,7 +658,10 @@ launcher_runtime_state() {
                         ws[j].currentConfigGroup = [];
                         var pw = Number(ws[j].readConfig("popupWidth", 0));
                         var ph = Number(ws[j].readConfig("popupHeight", 0));
-                        if (pw >= 600 && ph >= 540) { sized++; panelSized++; }
+                        var geometry = screenGeometry(ps[i].screen);
+                        if (popupFitsScreen(pw, ph, geometry, Number(ps[i].height))) {
+                            sized++; panelSized++;
+                        }
                     } else if (kind == "org.kde.plasma.kickoff") {
                         legacy++;
                         panelLegacy++;

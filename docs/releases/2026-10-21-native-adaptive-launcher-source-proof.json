@@ -1,0 +1,128 @@
+{
+  "schema": 1,
+  "date": "2026-10-21",
+  "scope": "native adaptive launcher source; not a promoted or booted OS release",
+  "base_revision": "7ff4b6024dbc7a53b011f894f3305f2dca7e29a0",
+  "qml_checkpoint": "97b979c452538291600485fdc902b8adfe8135fc",
+  "theme_revision": 110,
+  "implementation": {
+    "owner": "existing org.moos.brand Plasma applet, Kicker/Places/Milou/Session models retained",
+    "work_area": "PlasmoidItem availableScreenRect with screen-validity guard and Qt Screen fallback",
+    "input": "44px navigation, responsive columns/scrolling, focus transfer, BeforeItem Backtab, logical RTL alignment",
+    "runtime_health": "same responsive finite-geometry predicate in selfcheck and post-update; normal desktop minima retained"
+  },
+  "native_private_gate": {
+    "command": "python3 tests/test_launcher_adaptive.py",
+    "exit": 0,
+    "tests": 6,
+    "elapsed_seconds": 41.173,
+    "cases": [
+      {
+        "output": [
+          360,
+          640
+        ],
+        "popup": [
+          342,
+          600
+        ],
+        "saved_content": [
+          318,
+          576
+        ]
+      },
+      {
+        "output": [
+          600,
+          960
+        ],
+        "popup": [
+          570,
+          600
+        ],
+        "saved_content": [
+          546,
+          576
+        ]
+      },
+      {
+        "output": [
+          960,
+          540
+        ],
+        "popup": [
+          816,
+          500
+        ],
+        "saved_content": [
+          792,
+          476
+        ]
+      },
+      {
+        "output": [
+          1536,
+          864
+        ],
+        "popup": [
+          816,
+          600
+        ],
+        "saved_content": [
+          792,
+          576
+        ]
+      }
+    ],
+    "coverage": [
+      "actual Plasma AppletPopup and saved size readback",
+      "real Qt keyboard, pointer and synthetic touch events",
+      "Arabic/English, light/dark, reduced/normal motion",
+      "restored broken Backtab and double-mirroring controls refuse",
+      "invalid/nonfinite geometry refuses"
+    ],
+    "physical_touch": "not measured by the synthetic controls"
+  },
+  "installed_review": {
+    "boot": "signed1078; Plasma6.8.0/Qt6.11.2; external3840x2160 at2.5",
+    "method": "temporary exact MoOS applet shadow, real pointer Home selection and rendered inspection",
+    "restored": true,
+    "kwin_remote_document_portal_preserved": true,
+    "limitations": "not a new signed boot; physical responsive touch and broad hardware/accessibility/endurance remain required"
+  },
+  "rea_ghidra": {
+    "binary": "libPlasmaQuick.so.6.8.0",
+    "sha256": "3fe3e02387d2cb925ae2e09b782a7f06d8b9945c124c4dd441701e547a58ec16",
+    "provider": "Ghidra12.1.4 via canonical moos-rea",
+    "function": "PlasmoidItem::availableScreenRect",
+    "address": "0x13da80",
+    "result": "matched vendor source shows invalid-screen fallback to item size; guard avoids a windowed-host size feedback loop",
+    "limitations": "decompiler output is imperfect C++, not original source or proof of every platform"
+  },
+  "sources": [
+    "https://raw.githubusercontent.com/KDE/libplasma/v6.8.0/src/plasmaquick/plasmoid/plasmoiditem.cpp",
+    "https://raw.githubusercontent.com/KDE/libplasma/v6.8.0/src/plasmaquick/appletpopup.cpp",
+    "https://develop.kde.org/hig/layout_and_nav/",
+    "https://doc.qt.io/qt-6/qml-qtquick-layouts-gridlayout.html"
+  ],
+  "remaining": [
+    "maintained whole-repository and full image qualification",
+    "exact-head PR CI, signed cycle/promotion and installed cold acceptance",
+    "separate existing material publisher disappearance race",
+    "battery80% cap, SMOCF05 rotation, greeter hotplug core and broader device matrix"
+  ],
+  "local_evidence_hashes": {
+    "launcher-installed-qualified-live-home-pointer-20261021.png": "188caee2336432233796254e095465aa8edd129e072d223ede10f1f9f4813202",
+    "launcher-installed-qualified-review-20261021.json": "173d8b8df39a8a1f3f3880ab5137ba9237b7e04c6c018ff98a041c324343c392",
+    "launcher-installed-qualified-native-pointer-20261021.json": "90bea4677a910ef5073de40e85f33ca0c547224ee473e95d39316c3968535048"
+  },
+  "integration": {
+    "main": "f1c4f7937b15263a6893045ca35a48b4c0acffb5",
+    "preserves": "PR256 Arrange/Island revision109, native composition and app updates",
+    "note": "earlier reviewed source applet used108; unchanged launcher QML is integrated at fresh110",
+    "launcher_payload_sha256": {
+      "system_files/usr/share/plasma/plasmoids/org.moos.brand/contents/ui/LauncherView.qml": "577743fb1792b5170d45c4f94455552a7a428b2371b36c0c4005b5cc26dbb732",
+      "system_files/usr/share/plasma/plasmoids/org.moos.brand/contents/ui/main.qml": "f3fb85b1e4607a58098cdba3a8c01cbfe01a5e36a6c203fde46f1119fcc9c42e"
+    }
+  }
+}

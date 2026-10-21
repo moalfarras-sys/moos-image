@@ -367,7 +367,9 @@ set -uo pipefail
 # 108: invalidate cached KWin Arrange shortcuts after excluded-anchor validation.
 # 109: Island controls follow KDE tablet mode with real 44px touch targets;
 #      invalidate cached shell QML while preserving desktop artwork geometry.
-THEME_REV=109
+# 110: adaptive native launcher work area, touch/focus and logical RTL;
+#      retain the integrated Arrange/Island cache migrations.
+THEME_REV=110
 state_dir="${XDG_STATE_HOME:-$HOME/.local/state}"
 mkdir -p "$state_dir" 2>/dev/null || true
 marker="${state_dir}/moos-ui2-theme-applied.v${THEME_REV}"

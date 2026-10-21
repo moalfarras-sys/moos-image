@@ -162,7 +162,8 @@ class LauncherKeyboardNavigation(unittest.TestCase):
         # Up/Down walk the ring; Left/Right step into the page content.
         self.assertIn("nav.navUp.forceActiveFocus()", nav)
         self.assertIn("nav.navDown.forceActiveFocus()", nav)
-        self.assertEqual(nav.count("view.focusActivePageContent()"), 2)
+        self.assertEqual(nav.count("view.focusActivePageContent()"), 3)
+        self.assertIn("if (view.compact)", nav)
 
     def test_the_four_sidebar_pages_form_a_wrapping_ring(self) -> None:
         for wiring in (
