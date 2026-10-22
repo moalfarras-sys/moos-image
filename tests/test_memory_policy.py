@@ -4,6 +4,7 @@ import importlib.util
 from pathlib import Path
 import tempfile
 import unittest
+from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[1]
 spec = importlib.util.spec_from_file_location('memory_policy', ROOT / 'build_files/verify_memory_policy.py')
@@ -28,9 +29,63 @@ class MemoryPolicy(unittest.TestCase):
         helper.parent.mkdir(parents=True, exist_ok=True)
         helper.write_text('#!/usr/bin/bash\n')
         helper.chmod(0o755)
+        source = self.root / module.SYSCTL_POLICY
+        source.parent.mkdir(parents=True, exist_ok=True)
+        source.write_text((ROOT / 'system_files' / module.SYSCTL_POLICY).read_text())
+        alias = self.root / module.SYSCTL_ALIAS
+        alias.parent.mkdir(parents=True, exist_ok=True)
+        alias.symlink_to(module.SYSCTL_LINK)
 
     def test_reviewed_vendor_defaults(self):
         module.verify(self.root)
+
+    def test_shipped_bridge_keeps_one_policy(self):
+        module.verify_sysctl_bridge(ROOT / 'system_files')
+
+    def test_vendor_only_cannot_survive_tuned_reapplication(self):
+        (self.root / module.SYSCTL_ALIAS).unlink()
+        with self.assertRaisesRegex(RuntimeError, 'canonical TuneD sysctl alias'):
+            module.verify(self.root)
+
+    def test_copied_policy_is_not_a_canonical_bridge(self):
+        alias = self.root / module.SYSCTL_ALIAS
+        policy = alias.read_text()
+        alias.unlink()
+        alias.write_text(policy)
+        with self.assertRaisesRegex(RuntimeError, 'canonical TuneD sysctl alias'):
+            module.verify(self.root)
+
+    def test_unknown_bridge_target_is_refused(self):
+        alias = self.root / module.SYSCTL_ALIAS
+        alias.unlink()
+        alias.symlink_to('/etc/sysctl.conf')
+        with self.assertRaisesRegex(RuntimeError, 'canonical TuneD sysctl alias'):
+            module.verify(self.root)
+
+    def test_vendor_policy_cannot_be_a_second_alias(self):
+        source = self.root / module.SYSCTL_POLICY
+        saved = source.with_suffix('.saved')
+        source.rename(saved)
+        source.symlink_to(saved.name)
+        with self.assertRaisesRegex(RuntimeError, 'regular canonical desktop'):
+            module.verify(self.root)
+
+    def test_edition_without_tuned_needs_no_new_power_daemon(self):
+        with patch.object(module, 'probe_native_tuned', side_effect=AssertionError('unexpected provider')):
+            self.assertIsNone(module.verify_native_tuned(self.root))
+
+    def test_installed_tuned_cannot_silently_skip_a_missing_parser(self):
+        authority = self.root / 'usr/lib/systemd/system/tuned.service'
+        authority.write_text('[Service]\nExecStart=/usr/sbin/tuned\n')
+        with patch.object(module, 'probe_native_tuned', side_effect=ImportError('missing native provider')):
+            with self.assertRaisesRegex(ImportError, 'missing native provider'):
+                module.verify_native_tuned(self.root)
+
+    @unittest.skipUnless(importlib.util.find_spec('tuned'),
+                         'Native TuneD unavailable; finished-image gate requires its actual parser')
+    def test_installed_tuned_parser_and_priority_controls(self):
+        results = module.probe_native_tuned((ROOT / 'system_files' / module.SYSCTL_POLICY).read_text())
+        self.assertEqual(len(results), 6)
 
     def test_running_binary_without_policy_is_not_enough(self):
         (self.root / next(iter(module.POLICIES))).unlink()

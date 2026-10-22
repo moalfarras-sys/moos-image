@@ -371,7 +371,8 @@ set -uo pipefail
 #      retain the integrated Arrange/Island cache migrations.
 # 111: localized calendar and portrait Hub layout; invalidate frozen wallpaper QML.
 # 112: complete native compact-grid sizing and locale-format review after v111.
-THEME_REV=112
+# 113: native app-library category browsing, keyboard flow and installed-session review.
+THEME_REV=113
 state_dir="${XDG_STATE_HOME:-$HOME/.local/state}"
 mkdir -p "$state_dir" 2>/dev/null || true
 marker="${state_dir}/moos-ui2-theme-applied.v${THEME_REV}"

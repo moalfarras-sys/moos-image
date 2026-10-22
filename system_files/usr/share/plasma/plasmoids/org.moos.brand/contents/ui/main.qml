@@ -307,6 +307,10 @@ PlasmoidItem {
         function onRefreshed() {
             // modelForRow() is a method call and therefore has no automatic QML
             // dependency. Nudge the binding after KService/KSycoca refreshes.
+            if (root.appsModelRow < 1 || root.appsModelRow >= appRootModel.count
+                    || !appRootModel.modelForRow(root.appsModelRow)) {
+                root.appsModelRow = 1;
+            }
             root.appsModelRowChanged();
         }
     }

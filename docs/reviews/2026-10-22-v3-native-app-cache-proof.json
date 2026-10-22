@@ -1,0 +1,121 @@
+{
+  "date": "2026-10-22",
+  "scope": "Actual optional native user apps on signed1090; not part of immutable OS payload",
+  "code": {
+    "version": "1.142.0",
+    "version_cli_exit": 0,
+    "default_actual_gui": "SIGTRAP in three bounded launches",
+    "process_only_cache_control": "actual project renders, graceful close0",
+    "actual_existing_desktop_relaunch": "renders successfully",
+    "code_uri_handler": "same scoped cache setting; actual vscode://file journey opens requested local document after one-request native security confirmation",
+    "blanket_allow_local_paths_enabled": false
+  },
+  "opencode": {
+    "bundle_and_cli_version": "2.0.32",
+    "default_actual_gui": "window present but labels and Arabic text missing",
+    "actual_existing_desktop_relaunch": "Arabic labels and content render after process-specific cache home"
+  },
+  "changed_entries": [
+    {
+      "desktop": "appdrop-vscode-native.desktop",
+      "old_sha256": "634c147fe2c02dc75a96f6ff3790429ee4b9d851e4ebc8ef337d74da28a98645",
+      "new_sha256": "344c8fca8037b4897fc427bf489d35ca4c39c6b63e48868350fb75473dff30af",
+      "cache_step_sha256": "aa5e5aacc9d66fcd9ee26b812faceda6d97a8edd58254fdd47be0d60a26b5244"
+    },
+    {
+      "desktop": "moos-vscode-native-url.desktop",
+      "old_sha256": "352681a67274694c7fb434a63269e738f5b1cc7211734df59f75dee85194267f",
+      "new_sha256": "d8aa2e1b55f2ab30ed540241f3427b49e7700314a6911e2b546a673a6377779b",
+      "cache_step_sha256": "b30c3fa81fcae8c9e0fe3ea4fb12a0b34cf3a452b1686bc0a151ea3f6d0b3a58"
+    },
+    {
+      "desktop": "appdrop-opencode-desktop.desktop",
+      "old_sha256": "1c01f2fd3b12316f3eaefef8dbfe32867889ddcd65de3619cebee4e01cd3e503",
+      "new_sha256": "db66210f311f3cc7c7757db6791920b7dd5fd44f0eaf24765cac2936fc1e8bfc"
+    }
+  ],
+  "configuration": "Initial cache correction prefixes existing Exec arguments with /usr/bin/env XDG_CACHE_HOME=<private user cache root>, preserving binary/arguments/data/permissions. A later separate Icon-only correction uses exact publisher PNG bytes registered with stable user hicolor names for native Code and Antigravity IDE, including their existing hidden URI entries.",
+  "cache_evidence": {
+    "default_and_fresh_host_font_enumerations": 935,
+    "missing_font_paths": 0,
+    "shared_cache_formats": {
+      "11": 79,
+      "12": 39
+    },
+    "isolated_app_cache_format": 11,
+    "private_app_caches_allocated_bytes_at_sample": 12029952,
+    "writer_of_shared_entries": "not established; mixed formats alone do not identify it"
+  },
+  "native_input": "Existing ydotool and KWin target validation exercised Tab/Enter on the actual one-request URI dialog; global allow checkbox remained unchecked.",
+  "preserved": [
+    "Working Flatpak engineering editor and its data",
+    "Original three desktop entries in private reversible receipts",
+    "Existing sandbox/GPU/extension settings",
+    "Global font configuration and cache",
+    "Provider/wallet signins deferred by owner"
+  ],
+  "private_captures": {
+    "native-code-cache-control.png": {
+      "sha256": "30cb96429df00a39c786681c47ea9740b7338d34ce27206c4de4f8ee35c9f6eb",
+      "uploaded": false
+    },
+    "native-code-desktop-relaunch.png": {
+      "sha256": "3fa1ad47afdc55e9b5ce18c180d0d4f08ae5578a823f0119a601006557629a1c",
+      "uploaded": false
+    },
+    "native-opencode-actual.png": {
+      "sha256": "be0923a50359d53f839a61357c8918f7de10eb75f387b6b52e39146f240c406f",
+      "uploaded": false
+    },
+    "native-opencode-cache-fixed.png": {
+      "sha256": "77a90e1e85a9dd231eb9e4d770652fac670616b34889f2bc01978e41735cda30",
+      "uploaded": false
+    },
+    "native-code-uri-current.png": {
+      "sha256": "dc81998d1a58318420b1009effabb6f00a5310aea78abd32afb1a31e0d0ae927",
+      "uploaded": false
+    },
+    "native-code-uri-yes-focus.png": {
+      "sha256": "f9b26022975177a735077b11d081ceb6f7f28d7776259a19b8c55a150c8e836f",
+      "uploaded": false
+    },
+    "native-code-uri-rendered.png": {
+      "sha256": "bc8aac75bcb3b93af4fb2eb830cb7f45c603d0a308add8ea6994535805dd8782",
+      "uploaded": false
+    },
+    "native-library-publisher-icons-fixed.png": {
+      "sha256": "d4bb0ba67a6b43a513b53a167633ca2fee90dbd677d4496091aac94bad5ff4df",
+      "uploaded": false
+    }
+  },
+  "limitations": [
+    "This is a scoped live cache workaround, not proof of the shared cache writer or a general Electron defect fix",
+    "A future AppDrop/profile regeneration must preserve/reconcile the scoped environment and named publisher icon metadata before claiming application update acceptance",
+    "Authenticated SDK/provider, editor handoff, endurance and retirement of older Flatpaks remain separate",
+    "Owner-approved canonical TuneD/sysctl alias now applies and survives actual balanced/performance round trips; MoKernel15/0. Signed/cold delivery remains separate."
+  ],
+  "references": [
+    "https://github.com/microsoft/vscode/issues/294024",
+    "https://github.com/electron/electron/issues/51941",
+    "https://github.com/redhat-performance/tuned/blob/master/tuned-main.conf"
+  ],
+  "native_codex_extension": {
+    "id": "openai.chatgpt",
+    "version": "26.1007.21434",
+    "native_install_exit": 0,
+    "registered_in_native_profile": true,
+    "actual_sidebar_activation_accepted": false,
+    "note": "Real native Code restricted-mode window did not expose the command; project trust/provider onboarding remains separate. Existing engineering session preserved.",
+    "official_setup": "https://learn.chatgpt.com/docs/codex/ide"
+  },
+  "native_publisher_icons": {
+    "actual_problem": "Native Code and Antigravity IDE rendered as a text-file icon although original image files existed",
+    "standalone_qt_control": "Both absolute path and file URL render correctly; this does not establish the installed Plasma loader's root cause",
+    "actual_plasma_named_icon_control": "Original publisher images render after named hicolor registration",
+    "image_bytes_edited": false,
+    "only_user_launcher_icon_metadata_changed": true,
+    "app_and_hidden_uri_icon_names_match": true,
+    "existing_exec_cache_environment_unchanged": true,
+    "allocated_icon_bytes": 471040
+  }
+}

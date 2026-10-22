@@ -14,6 +14,7 @@ Item {
     required property var canvas
     required property var pages
     required property var navigation
+    required property var categories
     required property var powerButton
     required property var powerMenu
 
@@ -63,6 +64,27 @@ Item {
                              "one through four columns");
                 l.activePage = 1;
                 check.wait(80);
+                const allApps = driver.appGrid.count;
+                driver.verify(l.appRootModel.count > 2, "native app categories are present");
+                driver.categories.positionViewAtIndex(2, ListView.Contain);
+                check.wait(80);
+                const category = driver.categories.itemAtIndex(2);
+                driver.verify(category && category.visible && category.height >= 44,
+                    "native category is a visible touch target");
+                check.mouseClick(category);
+                check.wait(80);
+                driver.compare(l.appsModelRow, 2, "pointer selects native category");
+                driver.verify(driver.appGrid.model === l.appRootModel.modelForRow(2),
+                    "grid consumes the actual selected Kicker model");
+                driver.verify(driver.appGrid.count > 0 && driver.appGrid.count <= allApps,
+                    "category has actual application entries");
+                check.keyClick(v.rtl ? Qt.Key_Left : Qt.Key_Right);
+                check.wait(80);
+                driver.compare(l.appsModelRow, Math.min(3, l.appRootModel.count - 1),
+                    "logical arrow changes category");
+                v.focusCategory(1);
+                check.wait(80);
+                driver.compare(driver.appGrid.count, allApps, "All restores complete catalogue");
                 driver.Window.window.requestActivate();
                 check.tryCompare(driver.Window.window, "active", true);
                 v.focusSearch();
@@ -120,7 +142,8 @@ Item {
                     compact: v.compact, columns: driver.appGrid.columns, motion: v.motionMedium,
                     homeContent: driver.homeScroll.contentHeight,
                     homeViewport: driver.homeScroll.height,
-                    touch: true, keyboard: true, sessionMenu: v.compact
+                    touch: true, keyboard: true, sessionMenu: v.compact,
+                    nativeCategories: l.appRootModel.count - 1, categoryBrowsing: true
                 }));
             } catch (error) {
                 console.error("MOOS_ADAPTIVE_INPUT_FAIL " + String(error));

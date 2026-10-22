@@ -76,6 +76,25 @@ Item {
     function appColumns(availableWidth) {
         return Math.max(1, Math.min(4, Math.floor(availableWidth / 112)));
     }
+    function selectCategory(row) {
+        const catalogue = view.launcher.appRootModel;
+        // Row zero is Kicker's deliberately invisible favorites placeholder.
+        // Categories and their children remain native models, including after
+        // a Store install refreshes KService. Never build a second app index.
+        if (row < 1 || row >= catalogue.count || !catalogue.modelForRow(row)) return;
+        view.launcher.appsModelRow = row;
+        applicationsGrid.currentIndex = 0;
+        applicationsGrid.positionViewAtBeginning();
+    }
+    function focusCategory(row) {
+        row = Math.max(1, Math.min(view.launcher.appRootModel.count - 1, row));
+        view.selectCategory(row);
+        categoryStrip.positionViewAtIndex(row, ListView.Contain);
+        Qt.callLater(() => {
+            const button = categoryStrip.itemAtIndex(row);
+            if (button) button.forceActiveFocus();
+        });
+    }
     function sessionActionShown(actionId) {
         return ["lock-screen", "switch-user", "logout", "suspend",
                 "hibernate", "reboot", "shutdown"].indexOf(String(actionId)) >= 0;
@@ -996,10 +1015,11 @@ Item {
 
                             SectionTitle {
                                 Layout.fillWidth: true
-                                title: view.local("كل التطبيقات", "All applications")
-                                subtitle: view.local(
-                                    "افتح تطبيقاً أو ثبته في الرئيسية",
-                                    "Open an app or pin it to Home")
+                                title: view.local("مكتبة التطبيقات", "App library")
+                                subtitle: view.local("التطبيقات: ", "Applications: ")
+                                    + Number(view.applicationsModel ? view.applicationsModel.count : 0)
+                                        .toLocaleString(Qt.locale(), "f", 0)
+                                    + " · " + view.local("اختر فئة أو ابحث بالأعلى", "Choose a category or search above")
                             }
 
                             PC3.ToolButton {
@@ -1028,6 +1048,66 @@ Item {
                                 PC3.ToolTip.text: text
                                 PC3.ToolTip.visible: hovered && text.length > 0
                                 PC3.ToolTip.delay: Kirigami.Units.toolTipDelay
+                            }
+                        }
+
+                        ListView {
+                            id: categoryStrip
+                            objectName: "launcherCategories"
+                            Layout.fillWidth: true
+                            Layout.preferredHeight: view.touchTarget + view.space1
+                            orientation: ListView.Horizontal
+                            spacing: view.space2
+                            clip: true
+                            boundsBehavior: Flickable.StopAtBounds
+                            model: view.launcher.appRootModel
+                            currentIndex: view.launcher.appsModelRow
+                            onCurrentIndexChanged: positionViewAtIndex(currentIndex, ListView.Contain)
+                            QQC2.ScrollBar.horizontal: QQC2.ScrollBar { interactive: false }
+
+                            delegate: PC3.ItemDelegate {
+                                id: category
+                                required property int index
+                                required property var model
+                                objectName: "launcherCategory" + index
+                                visible: index > 0 && model.hasChildren === true
+                                width: visible ? Math.max(view.touchTarget, implicitWidth) : 0
+                                height: view.touchTarget
+                                text: index === 1 ? view.local("الكل", "All") : String(model.display || "")
+                                checked: view.launcher.appsModelRow === index
+                                hoverEnabled: true
+                                activeFocusOnTab: visible
+                                Accessible.role: Accessible.PageTab
+                                Accessible.name: text
+                                Accessible.selected: checked
+                                Accessible.onPressAction: category.activate()
+                                function activate() {
+                                    category.forceActiveFocus();
+                                    view.selectCategory(index);
+                                }
+                                onClicked: activate()
+                                Keys.onReturnPressed: event => { activate(); event.accepted = true; }
+                                Keys.onEnterPressed: event => { activate(); event.accepted = true; }
+                                Keys.onSpacePressed: event => { activate(); event.accepted = true; }
+                                Keys.onLeftPressed: event => {
+                                    view.focusCategory(index + (view.rtl ? 1 : -1)); event.accepted = true;
+                                }
+                                Keys.onRightPressed: event => {
+                                    view.focusCategory(index + (view.rtl ? -1 : 1)); event.accepted = true;
+                                }
+                                Keys.onUpPressed: event => { view.focusSearch(); event.accepted = true; }
+                                Keys.onDownPressed: event => { view.focusActivePageContent(); event.accepted = true; }
+                                background: Rectangle {
+                                    radius: view.radiusM
+                                    color: category.checked
+                                        ? Qt.alpha(Kirigami.Theme.highlightColor, 0.26)
+                                        : Qt.alpha(Kirigami.Theme.textColor, category.hovered ? 0.14 : 0.06)
+                                    border.width: category.activeFocus ? 2 : 1
+                                    border.color: category.activeFocus
+                                        ? Kirigami.Theme.highlightColor
+                                        : Qt.alpha(Kirigami.Theme.textColor, category.checked ? 0.24 : 0.10)
+                                    Behavior on color { ColorAnimation { duration: view.motionFast } }
+                                }
                             }
                         }
 

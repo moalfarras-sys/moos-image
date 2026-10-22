@@ -78,6 +78,22 @@ Prepare exact unused cleanup targets and rollback/recovery first, then obtain
 owner approval before destructive or boot-critical actions. Reuse tools and keep
 only artifacts with an active development, recovery or release-proof consumer.
 
+Owner-visible milestones need a named usable interaction on the installed
+surface. Preserve owner feedback when it disagrees with a screenshot; the
+Oct22 localized Hub rendered while the owner reported no meaningful change.
+Keep shared native owners and distinguish a component improvement from a whole
+desktop redesign. Retire tests only after checking their callers and guarded
+failure; dates and filenames do not prove they are obsolete.
+
+**A direct sysctl write is not profile durability.** TuneD throughput overwrote
+the V3's three declared MoKernel memory values because its reapplication searches
+run/etc, not usr/lib. A canonical relative alias restores one existing policy;
+the actual KDE balanced/performance round trip and15/0 MoKernel readback pass.
+Keep administrator precedence/exclusions and the six installed-parser controls
+for images carrying TuneD; an edition without it needs no new power daemon.
+Do not copy thresholds, disable TuneD or replace
+the owner's selected profile to silence drift.
+
 **A canary base is another package transaction.** Capture its pristine input
 before enabling or syncing beta packages, rather than handing an already-generated
 identity to stable composition. Repeated DNF calls can rotate logs; keep their
@@ -146,6 +162,18 @@ running editor and exported desktop IDs still select the older installation.
 Audit desktop-file Exec, actual processes, versions, pins and Store ownership
 before claiming an app update or retiring a duplicate. Do not close the active
 engineering session or delete its account data to make the inventory look clean.
+
+**A valid font inventory is not a rendered editor.** On the actual V3, host
+font enumeration found935 existing paths while native Code aborted and OpenCode
+lost its labels. Process-specific cache homes restored both actual windows and
+Code's registered URI journey. Keep exact original entries, app/URI cache parity
+and security prompts; do not purge global fonts or identify a cache writer from
+mixed formats alone. Valid Code/Antigravity PNG paths also painted as text-file
+icons in the real launcher while standalone Qt rendered them correctly. Named
+hicolor registration of the exact publisher bytes repairs the actual surface;
+this does not establish the Plasma loader's cause. Keep app/URI icon parity.
+A local launcher environment and icon registration must survive its canonical
+installer update before claiming durable application integration.
 
 **A healthy app update does not authorize full installation repair.** Actual
 Flatpak1.18.4 repair erases `.removed` recursively. The live daily updater did

@@ -1,0 +1,181 @@
+{
+  "date": "2026-10-22",
+  "scope": "Actual signed1090 physical V3 session plus unshipped source follow-up; no OS staging/reboot",
+  "memory": {
+    "owner_approved": true,
+    "local_authenticated_apply_exit": 0,
+    "before": {
+      "swappiness": 10,
+      "dirty_ratio": 40,
+      "dirty_background_ratio": 10
+    },
+    "after": {
+      "swappiness": 150,
+      "dirty_ratio": 10,
+      "dirty_background_ratio": 5
+    },
+    "alias": "/etc/sysctl.d/90-moos-desktop.conf",
+    "target": "../../usr/lib/sysctl.d/90-moos-desktop.conf",
+    "canonical_policy_sha256": "7243cc82d5c4fde91632fe852b81f171deb2101d61d8ca7849ab05aa3eea0f93",
+    "actual_kde_profile_round_trip": [
+      "performance",
+      "balanced",
+      "performance"
+    ],
+    "all_three_values_retained": true,
+    "owner_selected_profile_restored": true,
+    "mokernel": {
+      "correct": 15,
+      "drift": 0
+    },
+    "native_parser_controls": 6,
+    "targeted_memory_tests": 16,
+    "no_new_policy_values_or_kargs": true,
+    "cold_delivery_verified": false,
+    "edition_guard": "Both image gates verify canonical alias; where a TuneD runtime authority exists they require six actual installed-parser controls. Editions omitting TuneD install no new power daemon; a present runtime with missing parser refuses."
+  },
+  "app_library": {
+    "native_owner": "existing Plasma Kicker RootModel/models; no second app database or shell",
+    "theme_rev": 113,
+    "actual_all_apps": 35,
+    "actual_categories_including_all": 9,
+    "actual_graphics_apps": 2,
+    "actual_development_apps": 9,
+    "native_pointer_category_selection": true,
+    "native_rtl_arrow_category_selection": true,
+    "native_down_enter_launch": "Okular actual new window, then gracefully closed only owned review window",
+    "native_source_input_cases": 4,
+    "physical_touch_accepted": false,
+    "owner_feedback": "Owner confirms: new category row visible and selecting categories changes applications",
+    "kwin_restarted": false,
+    "shell_restart": "one managed Plasma shell restart only",
+    "remote_proof": "original personal Remote process remains; unrelated inactive mo-remote.service is not its owner",
+    "new_runtime_observations": [
+      "QSGTexture updateSampledImage warnings occur before and after shell restart; cause unresolved",
+      "Qt.labs.settings deprecation from existing installed Tokens.qml"
+    ],
+    "local_package_retirement": "Exact recorded org.moos.brand bytes retire after matching signed /usr delivery, with existing theme quarantine policy preserved",
+    "actual_ksycoca_refresh": "selected native Development category and nine entries survive real kbuildsycoca refresh",
+    "publisher_icon_repair": "Native Code and Antigravity IDE exact PNG bytes registered under stable user hicolor names; existing app/URI entries only Icon metadata changed; actual final Plasma frame verified"
+  },
+  "private_captures": {
+    "before-native-app-library.png": {
+      "sha256": "340cdb8333be91dfc97d268eec6316a1a837ee7cc090da9807f9a0c0070ca2aa",
+      "uploaded": false
+    },
+    "after-native-app-library-verified.png": {
+      "sha256": "d8b141992806b6eb583cbcdafd7d574b204fafa9c49040ef9d478075668709bb",
+      "uploaded": false
+    },
+    "native-library-graphics-category.png": {
+      "sha256": "05daa89bb79aac0eb3f4984207d401cc7e843be3f49010c94f8f9cec5a51e2c2",
+      "uploaded": false
+    },
+    "native-library-development-category.png": {
+      "sha256": "279ae74a14978259b7a774aa738aa23d8d29110fb8f4c18754b2711b7c92daa8",
+      "uploaded": false
+    },
+    "native-library-launched-app.png": {
+      "sha256": "fb4249d2acbf3beda21877b37a7670e0f0ba4cde31210209b6d12bfb6e3589a3",
+      "uploaded": false
+    },
+    "native-library-publisher-icons-fixed.png": {
+      "sha256": "d4bb0ba67a6b43a513b53a167633ca2fee90dbd677d4496091aac94bad5ff4df",
+      "uploaded": false
+    }
+  },
+  "native_selfcheck": {
+    "exit": 1,
+    "passed": 51,
+    "broken": 3,
+    "broken_items": [
+      "local brand package shadow",
+      "local wallpaper package shadow",
+      "local updater helper shadow"
+    ]
+  },
+  "references": [
+    "https://raw.githubusercontent.com/KDE/plasma-workspace/v6.8.1/applets/kicker/rootmodel.cpp",
+    "https://raw.githubusercontent.com/KDE/plasma-workspace/v6.8.1/applets/kicker/abstractmodel.cpp",
+    "https://raw.githubusercontent.com/KDE/plasma-workspace/v6.8.1/applets/kicker/appsmodel.cpp"
+  ],
+  "remaining": [
+    "New exact-head GitHub source/x86/nativeARM image gates and normal integration",
+    "Signed image delivery, exact compatibility retirement and cold acceptance",
+    "Whole-desktop design evolution; prior greeter/Android/sensor/battery blockers remain"
+  ],
+  "native_reverse_engineering": {
+    "toolchain": "REA MCP with Ghidra12.1.4",
+    "subject": "installed libkickerplugin.so, exposed read-only through host /usr",
+    "sha256": "ea5ee7db3be8685b030f1490cfd5f3eb634c70e367887581455fe4904e5daaed",
+    "procedure": "AppsModel::modelForRow(int)",
+    "address": "0x11ad80",
+    "search_evidence": "ev_7ebb87917861ea8437aefe62da538f231fd31c0a2f13c59db6219dbd450ad241",
+    "decompile_evidence": "ev_0b6b8ee15f8d4eb03f6b169a3d6698ab7e60697e253b9c8ec545637cb2436f66",
+    "observation": "Observed row bounds, null returns and child-model dispatch in installed artifact",
+    "limitations": [
+      "Pseudocode is not original source",
+      "An indirect dispatch remains unrecovered; not exhaustive call-path or UI-acceptance proof"
+    ],
+    "original_bytes_modified": false,
+    "session_closed": true,
+    "persistent_analysis_database_created": false
+  },
+  "source_cleanup": {
+    "main_copy": "normally fast-forwarded to integrated f7cfee2c",
+    "local_merged_branch_retired": "fix/v3-live-reconciliation-20261022",
+    "no_force_delete": true,
+    "worktrees_retained": 2,
+    "rollback_deployments_retained": 1,
+    "obsolete_tests_retired": [],
+    "test_retirement_reason": "Inspected maintained source/image/runtime consumers; no proven unused regression or recovery test selected"
+  },
+  "checks": {
+    "first_full_native_just_check": {
+      "exit": 0,
+      "elapsed_seconds": 729.3561518009956,
+      "log_sha256": "97b4a1cb4ac8c7478439ff9a6253ac82846dd2b8ffae9002f3f5a7681e905fd3",
+      "qualification": "before final no-TuneD edition guard; final full check running"
+    },
+    "skill_quick_validate": "passed using native host PyYAML; editor runtime has no PyYAML",
+    "final_full_native_just_check": {
+      "exit": 0,
+      "elapsed_seconds": 714.3601181330014,
+      "log_sha256": "2093d155672cffa4e32a7b64be9a2879121343b2ba118d246eddaf5721b4e6fb",
+      "unittest_summaries": 214,
+      "reviewed_source": {
+        "build_files/verify_memory_policy.py": "2eed820522b0f1d01877cce61763aa5b6f6a3aace46b368280ed7c18e27c1ed6",
+        "system_files/usr/share/plasma/plasmoids/org.moos.brand/contents/ui/LauncherView.qml": "a56b3145590aa4577ddc222d3dbc2d9b449949d961fe72dd0599c47203e3549f",
+        "system_files/usr/share/plasma/plasmoids/org.moos.brand/contents/ui/main.qml": "84f2a724f01968f60d631ee1639a31d23cbc8754402f1f6221d49561228ca939",
+        "tests/test_memory_policy.py": "131634e0a079a5d598cc19bd16572bbf1440501b1e664521668b1f0ac69b6ce9",
+        "tests/test_launcher_adaptive.py": "9127b76cdbc2571efaa7cfaaf4904676eae93868044c70b3af9c55caecedddcc"
+      },
+      "reviewed_source_unchanged": true,
+      "scope": "maintained full native just check, final policy/library code; no image/reboot proof"
+    }
+  },
+  "resource_sample": {
+    "seconds": 15.000106019004306,
+    "workload": "physical desktop after final source check completed; owner editor/session and personal Remote retained; no controlled before workload, no speedup/FPS claim",
+    "processes": {
+      "kwin_wayland": {
+        "percent_of_one_cpu_core": 14.47,
+        "rss_bytes": 404086784
+      },
+      "plasmashell": {
+        "percent_of_one_cpu_core": 1.6,
+        "rss_bytes": 622559232
+      },
+      "baloo_file": {
+        "percent_of_one_cpu_core": 0.0,
+        "rss_bytes": 1043120128
+      }
+    },
+    "pressure": {
+      "cpu": "some avg10=0.00 avg60=0.00 avg300=0.00 total=91460708\nfull avg10=0.00 avg60=0.00 avg300=0.00 total=0",
+      "memory": "some avg10=0.00 avg60=0.00 avg300=0.00 total=32367771\nfull avg10=0.00 avg60=0.00 avg300=0.00 total=32226030",
+      "io": "some avg10=0.00 avg60=0.08 avg300=0.08 total=236770992\nfull avg10=0.00 avg60=0.08 avg300=0.07 total=230828444"
+    },
+    "speedup_claimed": false
+  }
+}
