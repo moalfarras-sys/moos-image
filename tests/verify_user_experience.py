@@ -3142,7 +3142,7 @@ require("http://127.0.0.1:11434/api/tags" in moai_do_code
 # The versioned migration is what makes the redesign visible to existing users.
 apply_theme = read("system_files/usr/bin/moos-apply-theme")
 apply_theme_code = code(apply_theme)
-require("THEME_REV=110" in apply_theme_code,
+require("THEME_REV=112" in apply_theme_code,
         "MoOS visual schema must purge the cached compile of the retired lock-screen fork (it "
         "asks for a MoOSClock that no longer ships) and of the stock session screen, and "
         "migrate existing users to the Island that hosts Search itself "
@@ -6395,15 +6395,16 @@ require(not (ROOT / "system_files/usr/share/polkit-1/rules.d/50-moos-devmode.rul
 require(not (ROOT / "system_files/usr/bin/moos-devmode-enable").exists(),
         "the image must not ship a helper that creates broad passwordless admin rules")
 
-# #10/#20 The desktop dashboard clock: 24-hour digits with NO AM/PM meridiem, and
-#         its second date line pinned to English (the ar+en pair every clock uses).
+# #10/#20 The desktop clock: 24-hour digits, one localized date and a real week.
 # The card is the composition of two faces since it gained its week page; the hour,
-# its mirroring opt-out and the bilingual date pair live in ClockFace.qml.
+# its mirroring opt-out and localized date/week live in ClockFace.qml.
 _clock = code(read("system_files/usr/share/plasma/wallpapers/org.moos.ui2.wallpaper/contents/ui/ClockFace.qml"), "slash")
 require('"AP"' not in _clock,
         "the dashboard clock must not pair an AM/PM meridiem with 24-hour digits")
-require('Qt.locale("en")' in _clock,
-        "the dashboard clock's secondary date line must be pinned to English")
+require('Qt.locale(face.rtl ? "ar" : "en")' in _clock
+        and 'face.labelFamily' in _clock and 'WeekStrip {' in _clock
+        and 'compact: true' in _clock,
+        "the dashboard clock must localize its date and reuse the actual week calendar")
 require(re.search(r"RowLayout\s*\{[^}]*LayoutMirroring\.enabled:\s*false"
                   r"[^}]*LayoutMirroring\.childrenInherit:\s*true"
                   r"[^}]*layoutDirection:\s*Qt\.LeftToRight",

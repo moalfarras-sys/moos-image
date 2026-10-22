@@ -23,7 +23,7 @@
 > | **Type / click (keyboard+mouse)** | `ydotool type "text"` · `ydotool key 28:1 28:0` (Enter) · `ydotool mousemove -a X Y` · `ydotool click 0xC0` (left). Env is already set. |
 > | **Run a terminal command visibly** | `moai-open konsole -e <cmd>` (opens a terminal that stays), or just run it and report output. |
 > | **Check memory / health** | `free -h` · `ps -eo comm,%mem --sort=-%mem \| head` · `df -h /var` · `nvidia-smi` |
-> | **Clean caches** | `rpm-ostree cleanup -m` · `journalctl --user --vacuum-time=2d` · `podman image prune -f` · `rm -rf ~/.cache/thumbnails/*` |
+> | **Clean storage** | Inspect usage and ownership first. Prepare exact unused targets, preserve recovery, and obtain owner approval before irreversible deletion. Never run blanket image, volume or cache pruning. |
 > | **Install a program** | Through Mo Store: `moai-do install <app-id>` (Flatpak, no reboot). A downloaded signed RPM: `moai-do install-rpm <file>` (verifies owner, digest, architecture and signature). Do not layer packages with `rpm-ostree install`: a layered deployment stops following the signed MoOS image cleanly. |
 > | **Remove a program** | `moai-do uninstall <app-id>` · for an RPM the owner layered earlier, tell them it is layered and ask before `rpm-ostree uninstall <pkg>` |
 > | **Update the system** | `moai-do update` — resolves and stages the latest immutable signed digest; reboot from the MoOS power UI to apply |
@@ -63,13 +63,20 @@ A broken promoted image can still prevent this workstation from booting.
 > change. It is the binding summary of what MoOS is (a real OS, not a rebrand and not a
 > theme), the MoOS UI — Liquid Glass design language, and the rules no session may break.
 
-**Owner requirement, 2026-10-21: qualify the real desktop.** The V3 is a development
-installation. UI work must include actual installed-session interaction, visual
-inspection and runtime readback on this device before claiming user acceptance.
-Offscreen renders, source tests and CI boot fixtures are complementary evidence.
-Reuse the existing SDKs and native review tools; install another tool or retain a
-large artifact only for a concrete development, rollback or proof need. Preserve
-owner files and required signed release evidence; do not use blanket cache pruning.
+**Owner requirement, 2026-10-22: develop on the actual running MoOS first.**
+Identify the physical host, active signed deployment, rollback, desktop session,
+output geometry/scale and installed component before editing. Preserve existing
+implementations and use their Plasma/KWin/Qt/Wayland/service owners; no disconnected
+shell, mock application or cosmetic demonstration counts as integration. Major
+changes require a real installed-session journey, before/after visual inspection,
+runtime errors and measured performance with workload stated. Source/offscreen
+tests and remote CI complement this evidence; they never replace it. Do not make
+new local VM images or redundant SDK/build copies to stand in for this workstation.
+Keep private captures local. Record every live compatibility copy, exact bytes and
+retirement condition; a user-local override is not a signed immutable OS update.
+Prepare exact unused cleanup targets and rollback/recovery first, then obtain
+owner approval before destructive or boot-critical actions. Reuse tools and keep
+only artifacts with an active development, recovery or release-proof consumer.
 
 **A canary base is another package transaction.** Capture its pristine input
 before enabling or syncing beta packages, rather than handing an already-generated
@@ -132,6 +139,33 @@ Publish listening/endpoint only after Kestrel binds. Treat actual address-in-use
 **A failed root-home rmdir does not identify its writer.** Preserve unknown compose bytes and report bounded names/type/size, never contents or a guessed cause. ARM main/recovery use one private HOME/XDG initramfs composer, retaining exact dracut options and final archive gates. Cleanup must refuse descendant mounts before traversal and preserve an observed producer failure even if later diagnostics or cleanup also fail. A private fake-producer old/fixed control is not the actual built-image root-cause proof. Reproduced vendor root-home placeholders may retire only as the exact empty five-entry tree with reviewed tmpfiles authority, owner/modes and all-before-unlink validation; any key, content, extra entry or unknown authority stays intact. Read-only authority files can have legitimate base hardlinks; that never authorizes linked retirement targets.
 
 ## Where the rest of the knowledge is
+
+**An installed new binary does not change a pinned launcher.** The V3's native
+Code1.142.0 and OpenCode2.0.32 coexist with Flatpak1.139.1/1.18.8. The actual
+running editor and exported desktop IDs still select the older installation.
+Audit desktop-file Exec, actual processes, versions, pins and Store ownership
+before claiming an app update or retiring a duplicate. Do not close the active
+engineering session or delete its account data to make the inventory look clean.
+
+**A healthy app update does not authorize full installation repair.** Actual
+Flatpak1.18.4 repair erases `.removed` recursively. The live daily updater did
+this immediately after replacing the SDK, leaving running Code processes with
+an empty mounted `/usr` and failed child launches. Keep repair an explicit
+maintenance operation. Preserve signed updates, one full-object retry, Store
+locking/opt-out, final failure reporting and both installation scopes; prove the
+old successful-but-destructive control loses its runtime while the fixed paths
+retain it. Source controls complement the actual updater/namespace evidence.
+
+**A successful unit verifier may discard the service you meant to start.** On
+the actual1090 desktop, vendor Baloo's After=graphical-session.target and the
+workspace target's implicit After=Baloo formed a cycle; systemd-analyze returned0
+while deleting Baloo's startup job. An empty After= in a drop-in cannot clear
+inherited ordering dependencies. Require the native old/fixed job diagnostic,
+the complete installed graph and a real index journey. A scoped explicit
+dependency correction must retain the service's native basic/D-Bus/shutdown
+edges, index, idle behavior and resource policy; never disable dependencies
+globally. Keep the separate observed DrKonqi timer cycle and greeter core as
+failures until their own corrections and cold acceptance are proven.
 
 - **`docs/DEVELOPMENT_PLAN.md`** — the only product plan: architecture,
   measured baseline, ordered tasks, exit evidence and current external sources.

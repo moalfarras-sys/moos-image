@@ -138,7 +138,11 @@ if ! run_logged "$flatpak_bin" "$scope" update -y --noninteractive; then
     run_logged "$flatpak_bin" "$scope" update --no-static-deltas -y --noninteractive
 fi
 
-"$flatpak_bin" "$scope" repair
+# A successful signed update is not permission to erase retired deployments.
+# Flatpak repair recursively erases .removed, including an old SDK still mounted
+# by a running editor. Keep full repair an explicit maintenance operation: doing
+# it after every healthy timer run broke subprocess launches in the live editor.
+# Normal Flatpak update retains its own deployment/locking/signature semantics.
 
 finished=1
 publish ok

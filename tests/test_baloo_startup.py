@@ -4,6 +4,7 @@ import configparser
 import json
 import os
 from pathlib import Path
+import shutil
 import struct
 import subprocess
 import sys
@@ -12,22 +13,73 @@ import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
 DROPIN = ROOT / 'system_files/usr/lib/systemd/user/kde-baloo.service.d/30-moos-session-ordering.conf'
+TIMER_DROPIN = ROOT / 'system_files/usr/lib/systemd/user/drkonqi-coredump-cleanup.timer.d/30-moos-timer-ordering.conf'
 
 
 class BalooStartup(unittest.TestCase):
-    def test_indexer_waits_for_core_not_its_own_parent(self):
+    def test_cleanup_timer_preserves_vendor_schedule_and_shutdown(self):
+        config = configparser.ConfigParser(interpolation=None)
+        config.read(TIMER_DROPIN)
+        self.assertEqual(set(config.sections()), {'Unit'})
+        self.assertEqual(dict(config['Unit']), {
+            'defaultdependencies': 'no', 'before': 'shutdown.target',
+            'conflicts': 'shutdown.target'})
+
+    @unittest.skipUnless(shutil.which('systemd-analyze'), 'native systemd analyzer unavailable')
+    def test_native_job_solver_keeps_indexer_in_login_transaction(self):
+        # This is an offline unit-transaction test, not a desktop simulation.
+        # Keep the minimal inherited edges from the observed vendor units. The
+        # old drop-in returns exit0 too: inspect the discarded-job diagnostic.
+        units = {
+            'basic.target': '[Unit]\nDefaultDependencies=no\n',
+            'shutdown.target': '[Unit]\nDefaultDependencies=no\n',
+            'graphical-session.target': '[Unit]\nDefaultDependencies=no\n',
+            'plasma-core.target': '[Unit]\nDefaultDependencies=no\n',
+            'background.slice': '[Unit]\nDefaultDependencies=no\n',
+            'dbus.socket': '[Unit]\nDefaultDependencies=no\n[Socket]\nListenStream=/tmp/moos-offline-unit-check\n',
+            'plasma-workspace.target': '[Unit]\nRequires=plasma-core.target graphical-session.target\nWants=kde-baloo.service\nBefore=graphical-session.target\n',
+            'kde-baloo.service': '[Unit]\nPartOf=graphical-session.target\nAfter=graphical-session.target\n[Service]\nExecStart=/usr/bin/true\nBusName=org.kde.baloo\nSlice=background.slice\n',
+        }
+        with tempfile.TemporaryDirectory(prefix='moos-baloo-unit-graph-') as directory:
+            root = Path(directory)
+            for name, text in units.items():
+                (root / name).write_text(text)
+            dropin = root / 'kde-baloo.service.d/30-moos-session-ordering.conf'
+            dropin.parent.mkdir()
+            env = os.environ.copy()
+            env['SYSTEMD_UNIT_PATH'] = directory
+            env['DBUS_SESSION_BUS_ADDRESS'] = 'unix:path=/moos-test/no-session-bus'
+            command = ['systemd-analyze', '--user', 'verify', '--man=no',
+                       '--generators=no', str(root / 'plasma-workspace.target')]
+            for text, discarded in (('[Unit]\nAfter=plasma-core.target\n', True),
+                                    (DROPIN.read_text(), False)):
+                with self.subTest(discarded=discarded):
+                    dropin.write_text(text)
+                    result = subprocess.run(command, env=env, capture_output=True,
+                                            text=True, timeout=15)
+                    diagnostic = result.stdout + result.stderr
+                    self.assertEqual(result.returncode, 0, diagnostic)
+                    self.assertEqual('Job kde-baloo.service/start deleted' in diagnostic,
+                                     discarded, diagnostic)
+
+    def test_vendor_display_ordering_keeps_explicit_service_safety(self):
         config = configparser.ConfigParser(interpolation=None)
         config.read(DROPIN)
-        after = config.get('Unit', 'After').split()
-        self.assertIn('plasma-core.target', after)
-        # kde-baloo is Before=plasma-workspace.target; waiting for that same
-        # parent would create an ordering cycle and discard a startup job.
-        self.assertNotIn('plasma-workspace.target', after)
-        self.assertNotIn('graphical-session.target', after)
+        unit = config['Unit']
+        # An empty After= cannot clear inherited unit dependencies. Prevent the
+        # target's implicit After=Baloo edge instead, keeping its real display
+        # edge and all native user-service startup/shutdown requirements.
+        self.assertEqual(unit['DefaultDependencies'], 'no')
+        self.assertEqual(set(unit['Requires'].split()), {'basic.target', 'dbus.socket'})
+        self.assertEqual(set(unit['After'].split()),
+                         {'basic.target', 'dbus.socket', 'plasma-core.target'})
+        self.assertEqual(unit['Before'], 'shutdown.target')
+        self.assertEqual(unit['Conflicts'], 'shutdown.target')
+        self.assertNotIn('After=\n', DROPIN.read_text())
 
     def test_vendor_index_and_idle_integration_remain_owned_upstream(self):
         text = DROPIN.read_text()
-        for override in ('ExecStart=', 'Environment=', 'Restart=', 'WantedBy=', 'Requires='):
+        for override in ('ExecStart=', 'Environment=', 'Restart=', 'WantedBy='):
             self.assertNotIn(override, text)
         self.assertTrue((ROOT / 'system_files/usr/lib/systemd/user/kde-baloo.service.d/20-moos-regexp-stability.conf').is_file())
 

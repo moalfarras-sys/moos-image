@@ -102,7 +102,10 @@ stays alive (exit 124) even when the page failed, so the verdict is the log:
 `ReferenceError`, `TypeError`, `Unable to assign` or "module … is not
 installed" — the rule `build_files/verify_settings_modules.sh` applies in the
 image build. Never use bare `systemsettings` offscreen (it segfaults, exit
-139), and never open a module on the owner's desktop to review it. The pages
+139). Keep source-only experiments isolated. For the owner's explicitly requested
+live acceptance, open the actual installed module in the active session, exercise
+its real backend, capture the result and close only the window you opened. Do not
+change authentication, output topology or update state merely to obtain a frame. The pages
 bind what `/usr/libexec/moos-settings-status` writes into that private
 `XDG_RUNTIME_DIR`; the backend refuses a stale or foreign document, so a page
 reading "Unknown" usually means the installed helper is older than the source

@@ -369,7 +369,9 @@ set -uo pipefail
 #      invalidate cached shell QML while preserving desktop artwork geometry.
 # 110: adaptive native launcher work area, touch/focus and logical RTL;
 #      retain the integrated Arrange/Island cache migrations.
-THEME_REV=110
+# 111: localized calendar and portrait Hub layout; invalidate frozen wallpaper QML.
+# 112: complete native compact-grid sizing and locale-format review after v111.
+THEME_REV=112
 state_dir="${XDG_STATE_HOME:-$HOME/.local/state}"
 mkdir -p "$state_dir" 2>/dev/null || true
 marker="${state_dir}/moos-ui2-theme-applied.v${THEME_REV}"

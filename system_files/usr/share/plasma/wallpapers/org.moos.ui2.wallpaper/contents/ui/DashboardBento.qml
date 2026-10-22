@@ -17,6 +17,7 @@ Item {
     id: root
 
     readonly property var design: MoUI.Tokens
+    property bool compact: false
     // The cards this desktop asked for (desktop right-click menu or wallpaper page).
     // Hidden cards take no width and keep no divider, and the hub shrinks around
     // what is left instead of leaving a hole in the composition.
@@ -33,14 +34,20 @@ Item {
                                         + (showSystem ? 1 : 0)
     // With every card shown the hub keeps its designed 46-column width exactly; the
     // system card absorbs the remainder, as it always has.
-    implicitWidth: Math.round(Kirigami.Units.gridUnit * (visibleCards === 3
+    implicitWidth: Math.round(Kirigami.Units.gridUnit * (compact && visibleCards > 1
+        ? Math.max(showClock ? design.desktopHubClockColumns : 0,
+                   (showWeather ? design.desktopHubWeatherColumns : 0)
+                   + (showSystem ? design.desktopHubSystemColumns : 0))
+        : visibleCards === 3
         ? design.desktopHubColumns
         : (showClock ? design.desktopHubClockColumns : 0)
           + (showWeather ? design.desktopHubWeatherColumns : 0)
           + (showSystem ? design.desktopHubSystemColumns : 0)
           + Math.max(0, visibleCards - 1) * 0.5))
     implicitHeight: Math.round(Kirigami.Units.gridUnit
-                               * design.desktopHubRows)
+                               * design.desktopHubRows
+                               * (compact && showClock && (showWeather || showSystem) ? 2 : 1)
+                               + (compact && showClock && (showWeather || showSystem) ? design.space3 : 0))
 
     property date now: new Date()
     property real latitude: NaN
@@ -334,15 +341,22 @@ Item {
                        root.design.glassFill(Kirigami.Theme.backgroundColor,
                                              root.design.glassLevelScene, 0))
     }
-    RowLayout {
+    GridLayout {
+        objectName: "hubAdaptiveGrid"
         anchors.fill: parent
-        spacing: 0
+        columns: root.compact ? 2 : 5
+        columnSpacing: 0
+        rowSpacing: root.compact ? root.design.space3 : 0
 
         ClockCard {
+            objectName: "hubClockCard"
             page: root.clockPage
             visible: root.showClock
             Layout.preferredWidth: Math.round(Kirigami.Units.gridUnit
                 * root.design.desktopHubClockColumns)
+            Layout.columnSpan: root.compact ? 2 : 1
+            Layout.fillWidth: root.compact
+            Layout.preferredHeight: Math.round(Kirigami.Units.gridUnit * root.design.desktopHubRows)
             Layout.fillHeight: true
             now: root.now
             motionEnabled: root.motionEnabled
@@ -353,7 +367,7 @@ Item {
 
         Rectangle {
             // Between the clock and whatever follows it.
-            visible: root.showClock && (root.showWeather || root.showSystem)
+            visible: !root.compact && root.showClock && (root.showWeather || root.showSystem)
             Layout.preferredWidth: root.design.borderHairline
             Layout.fillHeight: true
             Layout.topMargin: root.design.space3
@@ -364,6 +378,7 @@ Item {
         }
 
         WeatherCard {
+            objectName: "hubWeatherCard"
             page: root.weatherPage
             hours: root.weatherReady && root.forecastData.hours !== undefined
                 ? root.forecastData.hours : []
@@ -374,6 +389,8 @@ Item {
             visible: root.showWeather
             Layout.preferredWidth: Math.round(Kirigami.Units.gridUnit
                 * root.design.desktopHubWeatherColumns)
+            Layout.fillWidth: root.compact
+            Layout.preferredHeight: Math.round(Kirigami.Units.gridUnit * root.design.desktopHubRows)
             Layout.fillHeight: true
             weatherReady: root.weatherReady
             city: root.city
@@ -395,7 +412,7 @@ Item {
 
         Rectangle {
             // Between the weather and the system card.
-            visible: root.showWeather && root.showSystem
+            visible: !root.compact && root.showWeather && root.showSystem
             Layout.preferredWidth: root.design.borderHairline
             Layout.fillHeight: true
             Layout.topMargin: root.design.space3
@@ -406,9 +423,12 @@ Item {
         }
 
         SystemCard {
+            objectName: "hubSystemCard"
             page: root.systemPage
             visible: root.showSystem
             Layout.fillWidth: true
+            Layout.preferredWidth: Math.round(Kirigami.Units.gridUnit * root.design.desktopHubSystemColumns)
+            Layout.preferredHeight: Math.round(Kirigami.Units.gridUnit * root.design.desktopHubRows)
             Layout.fillHeight: true
             motionEnabled: root.motionEnabled
             accentMotion: root.accentMotion
