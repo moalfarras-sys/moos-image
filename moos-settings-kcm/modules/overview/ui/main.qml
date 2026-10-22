@@ -25,7 +25,7 @@ KCM.SimpleKCM {
     readonly property var whatsNew: kcm.status.whatsNew || ({})
     readonly property var memory: kcm.status.memory || ({})
     readonly property var storage: kcm.status.storage || ({})
-    readonly property real cardWidth: Kirigami.Units.gridUnit * 40
+    readonly property real cardWidth: Kirigami.Units.gridUnit * 56
     readonly property color secondaryInk: Qt.rgba(Kirigami.Theme.textColor.r, Kirigami.Theme.textColor.g,
                                                   Kirigami.Theme.textColor.b, 0.72)
     readonly property string unknownLabel: t("غير معروف", "Unknown")
@@ -166,7 +166,7 @@ KCM.SimpleKCM {
             Layout.maximumWidth: root.cardWidth
             Layout.alignment: Qt.AlignHCenter
             logoSource: kcm.logoSource
-            title: "MoOS"
+            title: root.t("إعدادات MoOS", "MoOS Settings")
             subtitle: !root.ready ? ""
                 : (root.editionText ? root.editionText + "  ·  " : "")
                   + root.t("الإصدار ", "Version ") + root.isolated(root.text(root.deployment.version))
@@ -217,6 +217,81 @@ KCM.SimpleKCM {
                     onClicked: root.open("moos://settings/whats-new")
                 }
             ]
+        }
+
+        Kirigami.Heading {
+            Layout.fillWidth: true
+            Layout.maximumWidth: root.cardWidth
+            Layout.alignment: Qt.AlignHCenter
+            Layout.topMargin: root.design.space3
+            level: 2
+            text: root.t("مساحتك، بطريقتك", "Make this space yours")
+        }
+        GridLayout {
+            id: destinations
+            objectName: "moosSettingsDestinations"
+            Layout.fillWidth: true
+            Layout.maximumWidth: root.cardWidth
+            Layout.alignment: Qt.AlignHCenter
+            columns: width >= Kirigami.Units.gridUnit * 32 ? 2 : 1
+            columnSpacing: root.design.space3
+            rowSpacing: root.design.space3
+
+            MoosDestinationTile {
+                objectName: "moosSettingsDisplay"
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                glyph: "system"
+                text: root.t("الشاشة والعرض", "Display & screens")
+                description: root.t("الدقة، التحجيم وترتيب الشاشات", "Resolution, scale and screen arrangement")
+                enabled: root.routeAvailable("moos://settings/display")
+                onClicked: root.open("moos://settings/display")
+            }
+            MoosDestinationTile {
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                glyph: "ui"
+                text: root.t("المظهر والتخصيص", "Appearance & personality")
+                description: root.t("ألوان MoOS، الخلفية والحركة", "MoOS colours, wallpaper and motion")
+                enabled: root.routeAvailable("moos://settings/appearance")
+                onClicked: root.open("moos://settings/appearance")
+            }
+            MoosDestinationTile {
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                glyph: "volume"
+                text: root.t("الصوت والميكروفون", "Sound & microphone")
+                description: root.t("السماعات، التسجيل وأجهزة الصوت", "Speakers, recording and audio devices")
+                enabled: root.routeAvailable("moos://settings/audio")
+                onClicked: root.open("moos://settings/audio")
+            }
+            MoosDestinationTile {
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                glyph: "wifi"
+                text: root.t("الشبكة والاتصال", "Network & connections")
+                description: root.t("واي فاي، الشبكة السلكية والاتصالات المحفوظة", "Wi-Fi, wired and saved connections")
+                enabled: root.routeAvailable("moos://settings/network")
+                onClicked: root.open("moos://settings/network")
+            }
+            MoosDestinationTile {
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                glyph: "battery"
+                text: root.t("الطاقة والبطارية", "Power & battery")
+                description: root.t("الأداء، السكون وتوفير الطاقة", "Performance, sleep and power saving")
+                enabled: root.routeAvailable("moos://settings/energy")
+                onClicked: root.open("moos://settings/energy")
+            }
+            MoosDestinationTile {
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                glyph: "notification"
+                text: root.t("الإشعارات والتركيز", "Notifications & focus")
+                description: root.t("التنبيهات، الأصوات وعدم الإزعاج", "Alerts, sounds and Do Not Disturb")
+                enabled: root.routeAvailable("moos://settings/notifications")
+                onClicked: root.open("moos://settings/notifications")
+            }
         }
 
         FormCard.FormHeader {

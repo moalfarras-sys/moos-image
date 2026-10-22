@@ -892,7 +892,7 @@ class TestMoOSUI2(unittest.TestCase):
         apply = (ROOT / "system_files/usr/bin/moos-apply-theme").read_text(encoding="utf-8")
         switch = (ROOT / "system_files/usr/bin/moos-theme").read_text(encoding="utf-8")
         self.assertIn(
-            "THEME_REV=113", apply,
+            "THEME_REV=118", apply,
             "existing v100 users would keep a cached compile of the retired MoOS LockScreenUi that "
             "asks for a MoOSClock which no longer ships (kscreenlocker's emergency locker) and a "
             "cached stock session screen with no island; "
@@ -1296,11 +1296,11 @@ class TestMoOSUI2(unittest.TestCase):
             dock,
         )
         self.assertNotRegex(dock, r'font\.family\s*:\s*"')
-        self.assertIn(
-            "font.pixelSize: Math.max(11, Math.round(compact.height * 0.20))",
-            dock,
-            "the dock launcher caption must never shrink below 11px",
-        )
+        # The compact mark now sits beside a separate workspace control. It
+        # retains a spoken identity rather than a hidden or microscopic caption.
+        self.assertIn('Accessible.name: root.rtl ? "قائمة MoOS" : "MoOS Launcher"', dock)
+        self.assertIn('objectName: "moosWorkspaceOverview"', dock)
+        self.assertIn('root.openRoute("moos://control/window/overview")', dock)
 
     def test_launcher_has_exactly_one_expanded_state_owner(self) -> None:
         """A pointer click must not be toggled by QML and Plasma in turn.
@@ -1313,7 +1313,7 @@ class TestMoOSUI2(unittest.TestCase):
         source = qml_code((
             SHARE / "plasma/plasmoids/org.moos.brand/contents/ui/main.qml"
         ).read_text(encoding="utf-8"))
-        compact = source.split("compactRepresentation: MouseArea {", 1)[1].split(
+        compact = source.split("id: compact", 1)[1].split(
             "fullRepresentation:", 1
         )[0]
 
@@ -1538,8 +1538,8 @@ class TestMoOSUI2(unittest.TestCase):
         )
         self.assertIn("component CommandCard:", launcher)
         self.assertEqual(
-            launcher.count("CommandCard {"), 3,
-            "the Command Canvas must keep exactly three hero destinations",
+            launcher.count("CommandCard {"), 4,
+            "Home keeps Overview, arrangement, Settings and the direct Mira destination",
         )
         # THEME_REV 43: hero cards must carry at REST (artwork/MOOS_UI2_DESIGN.md).
         # Resting textColour 0.11 is the measured AppTile contract; 0.025/0.105
@@ -1574,7 +1574,8 @@ class TestMoOSUI2(unittest.TestCase):
                       "the launcher opens only moos:// routes, never a free URL")
         # One name per destination: the cards say what the menu entries say.
         self.assertIn('view.local("إعدادات MoOS", "MoOS Settings")', launcher)
-        self.assertIn('view.local("متجر MoOS", "Mo Store")', launcher)
+        self.assertIn('view.launcher.openRoute("moos://control/arrange/halves")', launcher)
+        self.assertIn('view.launcher.openRoute("moos://settings/overview")', launcher)
         self.assertNotIn('"System Settings"', launcher)
         self.assertNotIn('"MoOS Store"', launcher)
         # Favourites: one settings tile (Update and Recovery are its pages), mirrored three ways.
@@ -1596,7 +1597,7 @@ class TestMoOSUI2(unittest.TestCase):
         self.assertEqual(re.findall(r'"([^"]+)"', places), ["systemsettings.desktop"],
                          "Places offers one settings destination, not the hidden hardware "
                          "report and a Recovery page of the same window")
-        self.assertIn('text: root.rtl ? "مساحة الأوامر" : "COMMAND"', dock)
+        self.assertIn('accessibleLabel: root.rtl ? "مساحة العمل والنوافذ" : "Workspace overview"', dock)
         self.assertIn("readonly property int motionMedium: design.duration(", launcher)
         self.assertIn("design.motionGeometry", launcher)
         self.assertIn(
@@ -2901,25 +2902,16 @@ assert.equal(columns(100, 180), 1);
             r"[^}]*layoutDirection:\s*Qt\.LeftToRight",
             "the HH:mm glyph row must opt out of Plasma's inherited RTL mirroring",
         )
-        # The identity badge names the ACTIVE theme (e.g. "MIDNIGHT GLASS"),
-        # driven by themeLabel threaded from main.qml -> DashboardBento -> here,
-        # and still falls back to the Light/Dark palette when no label is given.
+        # The clock's primary face presents the localized date and week instead
+        # of a second theme badge. Keep the package's existing label API intact.
         self.assertRegex(
             clock_card,
             r"property\s+string\s+themeLabel",
             "ClockCard must accept the active MoOS theme label",
         )
-        self.assertIn('"TIDAL GLASS"', clock_card)
-        self.assertIn('"GRAPHITE GLASS"', clock_card)
-        self.assertRegex(
-            clock_card,
-            r"text:\s*face\.themeLabel\s*!==\s*\"\"\s*"
-            r"\?\s*face\.themeLabel\s*"
-            r":\s*\(\s*face\.lightSurface\s*\?\s*\"TIDAL GLASS\"\s*"
-            r":\s*\"GRAPHITE GLASS\"\s*\)",
-            "the dashboard identity must name the active theme, "
-            "falling back to the Light/Dark palette",
-        )
+        self.assertIn('objectName: "hubLocalDate"', clock_card)
+        self.assertIn('Qt.formatDate(face.now, Qt.locale(face.rtl ? "ar" : "en"), Locale.LongFormat)', clock_card)
+        self.assertIn('WeekStrip {', clock_card)
         # main.qml must DERIVE that label from the active wallpaper package and
         # thread it down, or every theme would show the same fallback name.
         dashboard_main = qml_by_path[DASHBOARD / "contents/ui/main.qml"]
@@ -2954,19 +2946,18 @@ assert.equal(columns(100, 180), 1);
         self.assertIn("import org.moos.ui as MoUI", main)
         self.assertIn("design.desktopHubColumns", main)
         self.assertIn("design.desktopHubRows", main)
-        self.assertIn("Horizon Hub", main)
+        self.assertIn('objectName: "hubAdaptiveGrid"', main)
         self.assertEqual(
-            len(re.findall(r"integrated:\s*true", main)),
+            len(re.findall(r"integrated:\s*false", main)),
             3,
-            "time, weather and system health must suppress their individual cards",
+            "the adaptive clock, forecast and device strip own separate non-nested sheets",
         )
         self.assertNotIn(
             "GlassCard {",
             main,
-            "Horizon Hub must share its material instead of nesting animated cards",
+            "the composition must not wrap the three sheets in another animated card",
         )
-        self.assertIn("id: hubMaterial", main)
-        self.assertIn("root.design.glassFill(Kirigami.Theme.backgroundColor", main)
+        self.assertNotIn("id: hubMaterial", main)
         glass_card = qml_by_path[DASHBOARD / "contents/ui/GlassCard.qml"]
         self.assertIn("property bool integrated: false", glass_card)
         self.assertIn("!card.integrated", glass_card)

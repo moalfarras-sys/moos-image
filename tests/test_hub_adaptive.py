@@ -14,7 +14,7 @@ PACKAGE = ROOT / 'system_files/usr/share/plasma/wallpapers/org.moos.ui2.wallpape
 
 
 def native_driver():
-    from PySide6.QtCore import QObject, QUrl, QDateTime, QLocale, QTimer, qInstallMessageHandler
+    from PySide6.QtCore import QObject, QUrl, QDateTime, QLocale, QTimer, Qt, qInstallMessageHandler
     from PySide6.QtGui import QGuiApplication
     from PySide6.QtNetwork import QNetworkAccessManager, QNetworkReply
     from PySide6.QtQml import QQmlComponent, QQmlEngine, QQmlNetworkAccessManagerFactory
@@ -87,18 +87,35 @@ def native_driver():
                     overlap = previous.intersected(rect)
                     assert overlap.width() < 1 or overlap.height() < 1, (compact, flags, rects, rect)
                 rects.append(rect)
+            assert abs(max(rect.bottom() for rect in rects) - height) <= 1, (compact, flags, rects)
+            if len(rects) == 1:
+                assert abs(rects[0].width() - width) <= 1, (compact, flags, rects)
+            if flags & 4:
+                # Card bounds alone passed while the actual portrait desktop
+                # clipped its disk gauge. Check the real metric items too.
+                system = cards[2]
+                for name in ('hubMetricCpu', 'hubMetricMemory', 'hubMetricDisk'):
+                    metric = root.findChild(QObject, name)
+                    assert metric is not None
+                    rect = metric.mapRectToItem(system, metric.boundingRect())
+                    assert rect.left() >= -1 and rect.top() >= -1, (compact, flags, name, rect)
+                    assert rect.right() <= system.width()+1 and rect.bottom() <= system.height()+1, (compact, flags, name, rect)
             if flags == 7:
                 clock, weather, system = cards
                 if compact:
                     assert weather.y() >= clock.y()+clock.height()-1
                     assert abs(weather.y()-system.y()) < 1
                 else:
-                    assert max(c.y() for c in cards)-min(c.y() for c in cards) < 1
+                    assert abs(clock.y()-weather.y()) < 1
+                    assert system.y() >= max(clock.y()+clock.height(), weather.y()+weather.height())-1
             count += 1
     local_date = root.findChild(QObject, 'hubLocalDate')
     locale = QLocale(sys.argv[2])
     expected = locale.toString(date.date(), QLocale.LongFormat)
     assert local_date.property('text') == expected, (local_date.property('text'), expected)
+    # QQuickText's enum has no PySide converter; read the real QML value through
+    # its JS wrapper instead of mistaking that binding limitation for a UI error.
+    assert engine.newQObject(local_date).property('horizontalAlignment').toInt() == Qt.AlignHCenter.value
     # Restore a fixed single-row layout in this private Qt object. The portrait
     # acceptance predicate must reject it, even though the QML still loads.
     grid = root.findChild(QObject, 'hubAdaptiveGrid')

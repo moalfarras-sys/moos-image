@@ -741,35 +741,40 @@ Item {
                         height: Math.max(homeScroll.height, implicitHeight)
                         spacing: view.space3
 
-                        RowLayout {
+                        GridLayout {
+                            columns: 2
                             Layout.fillWidth: true
-                            Layout.minimumHeight: 64
-                            Layout.preferredHeight: 64
-                            Layout.maximumHeight: 64
-                            spacing: view.space3
+                            Layout.minimumHeight: 128 + view.space3
+                            Layout.preferredHeight: 128 + view.space3
+                            Layout.maximumHeight: 128 + view.space3
+                            columnSpacing: view.space3
+                            rowSpacing: view.space3
 
                             CommandCard {
+                                objectName: "moosHomeOverview"
                                 Layout.fillWidth: true
                                 Layout.fillHeight: true
                                 Layout.preferredWidth: 240
                                 featured: true
-                                iconName: "moos-ai-symbolic"
-                                eyebrow: view.local("مساحة ذكية", "INTELLIGENCE")
-                                title: view.narrow ? view.local("ميرا", "Mira")
-                                    : view.local("ابدأ مع ميرا", "Create with Mira")
-                                onActivated: view.launcher.openDesktop("org.moos.moai.desktop")
+                                iconName: "moos-grid-symbolic"
+                                eyebrow: view.local("مساحة العمل", "WORKSPACE")
+                                title: view.narrow ? view.local("النوافذ", "Windows")
+                                    : view.local("كل نوافذك", "All your windows")
+                                onActivated: view.launcher.openRoute("moos://control/window/overview")
                             }
                             CommandCard {
+                                objectName: "moosHomeArrangement"
                                 Layout.fillWidth: true
                                 Layout.fillHeight: true
                                 Layout.preferredWidth: 180
-                                iconName: "moos-install-symbolic"
-                                eyebrow: view.local("اكتشف", "DISCOVER")
-                                title: view.narrow ? view.local("المتجر", "Store")
-                                    : view.local("متجر MoOS", "Mo Store")
-                                onActivated: view.launcher.openDesktop("org.moos.store.desktop")
+                                iconName: "moos-grid-symbolic"
+                                eyebrow: view.local("تنظيم", "ARRANGE")
+                                title: view.narrow ? view.local("تقسيم", "Tile")
+                                    : view.local("جنبًا إلى جنب", "Side by side")
+                                onActivated: view.launcher.openRoute("moos://control/arrange/halves")
                             }
                             CommandCard {
+                                objectName: "moosHomeSettings"
                                 Layout.fillWidth: true
                                 Layout.fillHeight: true
                                 Layout.preferredWidth: 180
@@ -777,7 +782,18 @@ Item {
                                 eyebrow: view.local("تحكم", "CONTROL")
                                 title: view.narrow ? view.local("الإعدادات", "Settings")
                                     : view.local("إعدادات MoOS", "MoOS Settings")
-                                onActivated: view.launcher.openDesktop("systemsettings.desktop")
+                                onActivated: view.launcher.openRoute("moos://settings/overview")
+                            }
+                            CommandCard {
+                                objectName: "moosHomeMira"
+                                Layout.fillWidth: true
+                                Layout.fillHeight: true
+                                Layout.preferredWidth: 180
+                                iconName: "moos-ai-symbolic"
+                                eyebrow: view.local("مساعدك", "ASSISTANT")
+                                title: view.narrow ? view.local("ميرا", "Mira")
+                                    : view.local("ابدأ مع ميرا", "Create with Mira")
+                                onActivated: view.launcher.openDesktop("org.moos.moai.desktop")
                             }
                         }
 
@@ -785,12 +801,13 @@ Item {
                             Layout.fillWidth: true
 
                             SectionTitle {
+                                objectName: "launcherPinnedHeading"
                                 Layout.fillWidth: true
                                 compact: true
-                                title: view.local("مدارك", "Your orbit")
+                                title: view.local("تطبيقاتك المثبتة", "Pinned applications")
                                 subtitle: view.local(
-                                    "أقرب تطبيقاتك في متناولك",
-                                    "What matters, always within reach")
+                                    "مساحتك تبدأ بما تستخدمه",
+                                    "Your space starts with what you use")
                             }
 
                             PC3.Button {
@@ -956,7 +973,7 @@ Item {
                             SectionTitle {
                                 Layout.fillWidth: true
                                 compact: true
-                                title: view.local("الأخيرة", "Recent")
+                                title: view.local("تابع عملك", "Continue your work")
                                 subtitle: view.local("ارجع لما كنت تعمل عليه", "Pick up where you left off")
                             }
 
@@ -1020,6 +1037,19 @@ Item {
                                     + Number(view.applicationsModel ? view.applicationsModel.count : 0)
                                         .toLocaleString(Qt.locale(), "f", 0)
                                     + " · " + view.local("اختر فئة أو ابحث بالأعلى", "Choose a category or search above")
+                            }
+
+                            PC3.Button {
+                                objectName: "launcherStore"
+                                Layout.minimumWidth: view.targetSize
+                                Layout.minimumHeight: view.targetSize
+                                text: view.local("متجر MoOS", "Mo Store")
+                                icon.name: "moos-install-symbolic"
+                                display: view.narrow ? PC3.AbstractButton.IconOnly : PC3.AbstractButton.TextBesideIcon
+                                onClicked: view.launcher.openDesktop("org.moos.store.desktop")
+                                PC3.ToolTip.text: text
+                                PC3.ToolTip.visible: hovered && view.narrow
+                                PC3.ToolTip.delay: Kirigami.Units.toolTipDelay
                             }
 
                             PC3.ToolButton {
@@ -1862,26 +1892,15 @@ Item {
 
         // EVERY TILE IS A CARD, INCLUDING AT REST.
         //
-        // This was "transparent" until hovered, which is why the grid read as
-        // loose icons floating in an empty pane rather than a designed surface:
-        // nothing under them said where one app ended and the next began, and a
-        // half-full page looked like a bug. It is the same defect the home
-        // button had.
-        //
-        // The resting fill is the TEXT colour at 0.05, not the accent. That is
-        // deliberate and it is what makes one value work for all sixteen
-        // themes: text is dark on a light theme and light on a dark one, so the
-        // same alpha lifts the card off its surface in both directions without
-        // tinting the whole grid blue. The accent is kept for the states that
-        // mean something — hover and press — so it still reads as interaction
-        // rather than decoration.
+        // The publisher icon and label identify each application. A surface
+        // appears on interaction, leaving the library calm at rest.
         background: Rectangle {
             radius: view.radiusM
             color: tile.down
-                ? Qt.alpha(Kirigami.Theme.highlightColor, 0.34)
+                ? Qt.alpha(Kirigami.Theme.highlightColor, 0.26)
                 : tile.hovered || tile.activeFocus
-                    ? Qt.alpha(Kirigami.Theme.highlightColor, 0.24)
-                    : Qt.alpha(Kirigami.Theme.textColor, 0.11)
+                    ? Qt.alpha(Kirigami.Theme.highlightColor, 0.14)
+                    : "transparent"
             // Rim scale (THEME_REV 32): keyboard focus is the one state allowed
             // a real edge, because it is the only one a keyboard user can see.
             border.width: tile.activeFocus ? 2 : 0

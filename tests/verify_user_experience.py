@@ -3142,14 +3142,14 @@ require("http://127.0.0.1:11434/api/tags" in moai_do_code
 # The versioned migration is what makes the redesign visible to existing users.
 apply_theme = read("system_files/usr/bin/moos-apply-theme")
 apply_theme_code = code(apply_theme)
-require("THEME_REV=113" in apply_theme_code,
+require("THEME_REV=118" in apply_theme_code,
         "MoOS visual schema must purge the cached compile of the retired lock-screen fork (it "
         "asks for a MoOSClock that no longer ships) and of the stock session screen, and "
         "migrate existing users to the Island that hosts Search itself "
         "and shows Mo AI jobs, the retired Hero Clock/Search packages, and the KWin shadow "
         "quarantine; before that, the W5 island (Store jobs, "
-        "privacy chips) and inline search answers, the cardless centred "
-        "Horizon Hub, responsive clock popup, authenticated Remote presence, "
+        "privacy chips) and inline search answers, the adaptive native "
+        "Workspace/Settings front door and Horizon Hub, responsive clock popup, authenticated Remote presence, "
         "single-owner launcher activation, the keyboard-navigable Launcher "
         "sidebar/grid focus flow and recoverable direct context island "
         "(moos-bar-apply), while "
@@ -3957,11 +3957,18 @@ launcher_view_qml = code(read(
 require("if (root.expanded)" in brand_main_qml and "if (expanded)" not in brand_main_qml,
         "the brand applet must qualify root.expanded; the bare signal argument "
         "uses deprecated parameter injection and warns on every Plasma login")
-require('text: "MoOS"' in brand_main_qml
-        and 'root.rtl ? "مساحة الأوامر" : "COMMAND"' in brand_main_qml
-        and "moos-search-symbolic" in brand_main_qml,
-        "the one panel launcher must visibly remain the MoOS wordmark, Command "
-        "Canvas caption and search affordance")
+_compact_brand = brand_main_qml.split("compactRepresentation:", 1)[1].split("fullRepresentation:", 1)[0]
+# The old labels lived in an invisible 0x0 Item. The compact native controls
+# now expose the actual MoOS mark, separate workspace action and spoken names.
+require('id: compactLogo' in _compact_brand
+        and 'source: "file:///usr/share/moos/moos-logo.png"' in _compact_brand
+        and 'Accessible.name: root.rtl ? "قائمة MoOS" : "MoOS Launcher"' in _compact_brand
+        and 'objectName: "moosWorkspaceOverview"' in _compact_brand
+        and 'root.openRoute("moos://control/window/overview")' in _compact_brand
+        and 'visible: false' not in _compact_brand
+        and "moos-search-symbolic" in launcher_view_qml,
+        "the panel must expose the actual MoOS identity and native Workspace "
+        "control, with accessible names and a visible launcher search affordance")
 
 # Search and browsing are native model operations, not shell commands wearing a
 # search field.  Each engine is instantiated in main.qml and handed to the full
@@ -4087,10 +4094,12 @@ require("readonly property string uiFontFamily: Qt.application.font.family"
 require("readonly property string uiFontFamily: Qt.application.font.family"
         in brand_main_qml
         and re.search(r'font\.family\s*:\s*"', brand_main_qml) is None
-        and "font.pixelSize: Math.max(11, Math.round(compact.height * 0.20))"
-            in brand_main_qml,
-        "the dock launcher must follow the session font and never shrink its "
-        "functional caption below 11px")
+        and _compact_brand.count("Layout.minimumWidth: root.design.targetControl") >= 2
+        and "Layout.minimumHeight: root.design.targetControl" in _compact_brand
+        and "onHoveredChanged: root.workspaceHovered = hovered" in _compact_brand
+        and "ToolTip.visible" not in _compact_brand,
+        "the dock controls must retain the session font, separate 44px target "
+        "constraints and one native Plasma tooltip owner")
 # plasmashell already enables inherited LayoutMirroring for an RTL session.
 # Manually swapping physical left/right anchors inside that tree mirrors twice:
 # the navigation rail stayed physically left and the pin affordance stayed right

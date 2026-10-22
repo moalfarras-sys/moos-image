@@ -25,7 +25,7 @@ locale needs nothing: its script and the layout already agree.
 The current Hub replaces the duplicate-language line with its real week calendar.
 Keep the fixed-script rule with executable planted failures, rather than requiring
 the product to retain a bilingual pair forever. Independently require the actual
-localized primary date to keep its logical column alignment and locale font.
+localized primary date to keep its deliberate centered alignment and locale font.
 """
 
 from __future__ import annotations
@@ -69,7 +69,7 @@ def clock_violations(source: str):
         return ['the actual Hub primary date is missing or duplicated']
     body = dates[0]
     required = ('Qt.locale(face.rtl ? "ar" : "en")', 'Locale.LongFormat',
-                'horizontalAlignment: Text.AlignLeft', 'font.family: face.labelFamily',
+                'horizontalAlignment: Text.AlignHCenter', 'font.family: face.labelFamily',
                 'Layout.fillWidth: true')
     return ['the Hub localized date lost '+item for item in required if item not in body]
 
@@ -88,7 +88,8 @@ def main() -> int:
     current = clock.read_text(encoding='utf-8')
     errors.extend(clock_violations(current))
     for before, after in (('objectName: "hubLocalDate"', 'objectName: "gone"'),
-                          ('horizontalAlignment: Text.AlignLeft', ''),
+                          ('horizontalAlignment: Text.AlignHCenter', ''),
+                          ('horizontalAlignment: Text.AlignHCenter', 'horizontalAlignment: Text.AlignLeft'),
                           ('Qt.locale(face.rtl ? "ar" : "en")', 'Qt.locale("en")')):
         assert before in current and clock_violations(current.replace(before, after)), before
     checked = pinned_total = 0
@@ -114,7 +115,7 @@ def main() -> int:
         for error in errors:
             print(f" - {error}")
         return 1
-    print(f"shell text alignment gate passed ({checked} files, {pinned_total} fixed-script lines, localized date and 7 parser/design controls)")
+    print(f"shell text alignment gate passed ({checked} files, {pinned_total} fixed-script lines, localized date and 8 parser/design controls)")
     return 0
 
 

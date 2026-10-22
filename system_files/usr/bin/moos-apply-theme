@@ -372,7 +372,12 @@ set -uo pipefail
 # 111: localized calendar and portrait Hub layout; invalidate frozen wallpaper QML.
 # 112: complete native compact-grid sizing and locale-format review after v111.
 # 113: native app-library category browsing, keyboard flow and installed-session review.
-THEME_REV=113
+# 114: native workspace controls, adaptive Hub sheets and the Settings front door.
+# 115: preserve direct Mira access in the responsive two-column Home action grid.
+# 116: keep the native Store launch in the application library's header.
+# 117: use Mira's shipped symbolic asset in the Home action, not a desktop ID.
+# 118: match Kicker's canonical application IDs so direct destinations launch.
+THEME_REV=118
 state_dir="${XDG_STATE_HOME:-$HOME/.local/state}"
 mkdir -p "$state_dir" 2>/dev/null || true
 marker="${state_dir}/moos-ui2-theme-applied.v${THEME_REV}"

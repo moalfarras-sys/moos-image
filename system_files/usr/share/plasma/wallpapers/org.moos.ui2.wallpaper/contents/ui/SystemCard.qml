@@ -23,6 +23,7 @@ Item {
     // 0 the rings, 1 the network and what is left. Owned by HubSystemPage: the hub
     // is painted by the wallpaper, so the desktop's own menu turns the card.
     property int page: 0
+    readonly property bool narrow: width < Kirigami.Units.gridUnit * 20
 
     // One locale authority for every label on the hub. The cards used to hard-code a mix of
     // English eyebrows ("SYSTEM", "HIGH", "FEELS") and Arabic words ("الآن") whatever the session
@@ -98,19 +99,24 @@ Item {
 
             Item {
 
-        RowLayout {
+        GridLayout {
             anchors.fill: parent
-            spacing: Math.round(Kirigami.Units.gridUnit * 0.5)
+            columns: systemCard.narrow ? 3 : 4
+            columnSpacing: Math.round(Kirigami.Units.gridUnit * 0.5)
+            rowSpacing: MoUI.Tokens.space2
 
             // ── Verdict strip. FIXED width (fillWidth:false) — without this it eats
             //    the whole row and the rings collapse to a few pixels. ────────────
-            ColumnLayout {
-                Layout.fillWidth: false
+            GridLayout {
+                columns: systemCard.narrow ? 2 : 1
+                Layout.columnSpan: systemCard.narrow ? 3 : 1
+                Layout.fillWidth: systemCard.narrow
                 // HEALTHY is the widest normal verdict. 3.35 grid units clipped
                 // it to "HEALT…" at the supported 4K/200% desktop scale.
                 Layout.preferredWidth: Math.round(Kirigami.Units.gridUnit * 4.2)
-                Layout.fillHeight: true
-                spacing: 0
+                Layout.fillHeight: !systemCard.narrow
+                columnSpacing: MoUI.Tokens.space2
+                rowSpacing: 0
 
                 RowLayout {
                     spacing: Kirigami.Units.smallSpacing
@@ -204,7 +210,7 @@ Item {
                     }
                 }
 
-                Item { Layout.fillHeight: true }
+                Item { visible: !systemCard.narrow; Layout.fillHeight: true }
 
                 Text {
                     Layout.fillWidth: true
@@ -219,6 +225,7 @@ Item {
             }
 
             MetricRing {
+                objectName: "hubMetricCpu"
                 Layout.fillWidth: true
                 Layout.fillHeight: true
                 Layout.minimumWidth: Math.round(Kirigami.Units.gridUnit * 2.4)
@@ -231,6 +238,7 @@ Item {
             }
 
             MetricRing {
+                objectName: "hubMetricMemory"
                 Layout.fillWidth: true
                 Layout.fillHeight: true
                 Layout.minimumWidth: Math.round(Kirigami.Units.gridUnit * 2.4)
@@ -243,6 +251,7 @@ Item {
             }
 
             MetricRing {
+                objectName: "hubMetricDisk"
                 Layout.fillWidth: true
                 Layout.fillHeight: true
                 Layout.minimumWidth: Math.round(Kirigami.Units.gridUnit * 2.4)

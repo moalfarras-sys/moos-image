@@ -103,11 +103,14 @@ PlasmoidItem {
     property bool editMode: false
     property int appsModelRow: 1
     property var favoriteSearchIds: []
+    property bool workspaceHovered: false
 
-    toolTipMainText: "MoOS"
-    toolTipSubText: root.rtl
-        ? "التطبيقات والملفات والإعدادات"
-        : "Apps, files and settings"
+    // The panel owns one tooltip; an attached one overlaps its bubble.
+    toolTipMainText: root.workspaceHovered
+        ? (root.rtl ? "مساحة العمل والنوافذ" : "Workspace overview") : "MoOS"
+    toolTipSubText: root.workspaceHovered
+        ? (root.rtl ? "تنقّل بين نوافذك ومساحات العمل" : "Move between your windows and workspaces")
+        : (root.rtl ? "التطبيقات والملفات والإعدادات" : "Apps, files and settings")
 
     function closeLauncher() {
         root.searchQuery = "";
@@ -120,7 +123,9 @@ PlasmoidItem {
             return;
         }
         const destinations = launcherDestinations.favorites;
-        const row = destinations.indexOf(desktopId);
+        // SimpleFavoritesModel publishes canonical application URLs even when
+        // initialized with desktop IDs. A raw-ID lookup silently finds no row.
+        const row = destinations.indexOf("applications:" + desktopId);
         if (row >= 0 && launcherDestinations.trigger(row, "", null)) {
             closeLauncher();
         }
@@ -401,263 +406,239 @@ PlasmoidItem {
         }
     }
 
-    compactRepresentation: MouseArea {
-        id: compact
+    compactRepresentation: GridLayout {
+        columns: Plasmoid.formFactor === PlasmaCore.Types.Horizontal ? 2 : 1
+        columnSpacing: root.design.space1
+        rowSpacing: root.design.space1
+        Layout.minimumWidth: Plasmoid.formFactor === PlasmaCore.Types.Horizontal
+            ? root.design.targetControl * 2 + root.design.space1 : root.design.targetControl
+        Layout.preferredWidth: Plasmoid.formFactor === PlasmaCore.Types.Horizontal
+            ? Kirigami.Units.gridUnit * 5.8 : root.design.targetComfortable
+        Layout.minimumHeight: Plasmoid.formFactor === PlasmaCore.Types.Horizontal
+            ? root.design.targetControl : root.design.targetControl * 2 + root.design.space1
 
-        property bool isHorizontal: Plasmoid.formFactor === PlasmaCore.Types.Horizontal
+        MouseArea {
+            id: compact
 
-        // Extremely generous dimensions for a premium, uncrowded layout
-        implicitWidth: isHorizontal ? Math.round(Kirigami.Units.gridUnit * 5.8) : Math.round(Kirigami.Units.gridUnit * 3.5)
-        implicitHeight: isHorizontal ? Kirigami.Units.gridUnit * 2.5 : Math.round(Kirigami.Units.gridUnit * 5.8)
-        Layout.minimumWidth: isHorizontal ? Kirigami.Units.gridUnit * 4.5 : Kirigami.Units.gridUnit * 2.5
-        Layout.preferredWidth: implicitWidth
+            property bool isHorizontal: Plasmoid.formFactor === PlasmaCore.Types.Horizontal
 
-        hoverEnabled: true
-        activeFocusOnTab: true
-        acceptedButtons: Qt.LeftButton | Qt.MiddleButton
-        cursorShape: Qt.PointingHandCursor
-        Accessible.name: root.rtl ? "قائمة MoOS" : "MoOS Launcher"
-        Accessible.role: Accessible.Button
-        Accessible.pressed: compact.pressed
-        Accessible.checked: root.expanded
-        Accessible.onPressAction: compact.activate()
+            // Identity and workspace each retain their own 44px input target.
+            implicitWidth: root.design.targetComfortable + root.design.space1
+            implicitHeight: root.design.targetControl
+            Layout.minimumWidth: root.design.targetControl
+            Layout.fillWidth: true
+            Layout.fillHeight: true
+            Layout.preferredWidth: implicitWidth
 
-        function playActivationFeedback() {
-            if (Kirigami.Units.longDuration > 1) {
-                clickWave.restart();
-                logoFlourish.restart();
-            }
-        }
+            hoverEnabled: true
+            activeFocusOnTab: true
+            acceptedButtons: Qt.LeftButton | Qt.MiddleButton
+            cursorShape: Qt.PointingHandCursor
+            Accessible.name: root.rtl ? "قائمة MoOS" : "MoOS Launcher"
+            Accessible.role: Accessible.Button
+            Accessible.pressed: compact.pressed
+            Accessible.checked: root.expanded
+            Accessible.onPressAction: compact.activate()
 
-        // One toggle owner PER input route, matching Plasma 6.7's installed
-        // DefaultCompactRepresentation.qml exactly. This custom MouseArea owns
-        // pointer clicks; CompactApplet does not add a second pointer handler.
-        // Keyboard, Meta and accessibility emit Plasmoid.activated(), whose
-        // expansion is owned by the root PlasmoidItem's
-        // activationTogglesExpanded property. Never emit that signal from
-        // onClicked and never assign expanded from activate: either mistake
-        // makes one input route toggle twice.
-        function activate() {
-            compact.playActivationFeedback();
-            Plasmoid.activated();
-        }
-
-        onPressed: compact.wasExpanded = root.expanded
-        onClicked: mouse => {
-            compact.playActivationFeedback();
-            if (mouse.button === Qt.MiddleButton) {
-                root.activePage = 1;
-            }
-            root.expanded = !compact.wasExpanded;
-        }
-        Keys.onReturnPressed: event => { compact.activate(); event.accepted = true; }
-        Keys.onEnterPressed: event => { compact.activate(); event.accepted = true; }
-        Keys.onSpacePressed: event => { compact.activate(); event.accepted = true; }
-
-        property bool wasExpanded: false
-
-        // Ultra-Clean, Elegant Background Pill
-        Rectangle {
-            id: backgroundPill
-            anchors.centerIn: parent
-            width: parent.width - Kirigami.Units.smallSpacing
-            height: parent.height - Kirigami.Units.smallSpacing
-            radius: Math.min(width, height) / 2
-            
-            // THE HOME BUTTON HAS TO EXIST WHEN YOU ARE NOT TOUCHING IT.
-            // This was "transparent" at rest, so the one button that carries the
-            // system's name was invisible until the pointer found it — the
-            // MoOS mark floated on bare glass with nothing saying it was a
-            // control. A resting pill at 0.10 is enough to read as a button and
-            // still quiet enough not to compete with the app icons beside it.
-            // AMPLITUDE, measured. At 0.10 this pill rendered as a SEVEN
-            // luminance-step difference against the dock glass — measured on a
-            // horizontal scan through the button: 145, 146, 145, 152. The eye
-            // needs roughly fifteen to register "that changed", so the button
-            // was technically present and perceptually absent. 0.24 puts it
-            // over the line while still reading as glass rather than a slab.
-            color: compact.pressed
-                ? Qt.alpha(Kirigami.Theme.highlightColor, 0.42)
-                : (compact.containsMouse || root.expanded
-                    ? Qt.alpha(Kirigami.Theme.highlightColor, 0.34)
-                    : Qt.alpha(Kirigami.Theme.highlightColor, 0.24))
-            
-            Behavior on color { ColorAnimation { duration: root.motionFast } }
-            
-            // Clean, contained click flash (no clipping, no mess)
-            Rectangle {
-                id: clickPulse
-                anchors.fill: parent
-                radius: parent.radius
-                color: Kirigami.Theme.highlightColor
-                opacity: 0.0
-            }
-            
-            SequentialAnimation {
-                id: clickWave
-                NumberAnimation {
-                    target: clickPulse
-                    property: "opacity"
-                    from: 0.5
-                    to: 0.0
-                    duration: root.motionPortal
-                    easing.type: design.easeStandard
+            function playActivationFeedback() {
+                if (Kirigami.Units.longDuration > 1) {
+                    clickWave.restart();
+                    logoFlourish.restart();
                 }
             }
-        }
-        
-        // Perfect, Minimalist Content Layout
-        GridLayout {
-            anchors.fill: backgroundPill
-            anchors.margins: Kirigami.Units.smallSpacing * 1.5
-            columns: compact.isHorizontal ? 2 : 1
-            rows: compact.isHorizontal ? 1 : 2
-            columnSpacing: Kirigami.Units.smallSpacing
-            rowSpacing: Kirigami.Units.smallSpacing
-            
-            // Logo Area
-            Item {
-                Layout.alignment: Qt.AlignVCenter | Qt.AlignHCenter
-                Layout.preferredWidth: compact.isHorizontal ? Math.round(backgroundPill.height * 0.75) : Math.round(backgroundPill.width * 0.75)
-                Layout.preferredHeight: Layout.preferredWidth
-                
-                // A real glow, not a disc. This called itself a "soft glow"
-                // while being a Rectangle with a FLAT alpha fill: on hover a
-                // hard-edged circle 1.3x the mark switched on behind it, with
-                // a visible rim where the alpha stopped. That is the "circles"
-                // the owner sees. ShadowedRectangle draws a transparent shape
-                // whose SHADOW is the tinted halo, so the falloff is a real
-                // gradient with no edge — rendered by the same distance-field
-                // primitive Kirigami's own cards use, so no mask layer and no
-                // MultiEffect enters plasmashell's always-on budget. The glow
-                // is still strictly state-driven: fully transparent at rest.
-                Kirigami.ShadowedRectangle {
-                    anchors.centerIn: parent
-                    width: parent.width
-                    height: width
-                    radius: width / 2
-                    color: "transparent"
-                    shadow.size: compact.pressed
-                        ? parent.width * 0.55 : parent.width * 0.42
-                    shadow.color: Qt.alpha(Kirigami.Theme.highlightColor,
-                        compact.pressed ? 0.55
-                            : (compact.containsMouse || root.expanded ? 0.3 : 0.0))
-                    Behavior on shadow.color {
-                        ColorAnimation { duration: root.motionMedium }
+
+            // One toggle owner PER input route, matching Plasma 6.7's installed
+            // DefaultCompactRepresentation.qml exactly. This custom MouseArea owns
+            // pointer clicks; CompactApplet does not add a second pointer handler.
+            // Keyboard, Meta and accessibility emit Plasmoid.activated(), whose
+            // expansion is owned by the root PlasmoidItem's
+            // activationTogglesExpanded property. Never emit that signal from
+            // onClicked and never assign expanded from activate: either mistake
+            // makes one input route toggle twice.
+            function activate() {
+                compact.playActivationFeedback();
+                Plasmoid.activated();
+            }
+
+            onPressed: compact.wasExpanded = root.expanded
+            onClicked: mouse => {
+                compact.playActivationFeedback();
+                if (mouse.button === Qt.MiddleButton) {
+                    root.activePage = 1;
+                }
+                root.expanded = !compact.wasExpanded;
+            }
+            Keys.onReturnPressed: event => { compact.activate(); event.accepted = true; }
+            Keys.onEnterPressed: event => { compact.activate(); event.accepted = true; }
+            Keys.onSpacePressed: event => { compact.activate(); event.accepted = true; }
+
+            property bool wasExpanded: false
+
+            // Ultra-Clean, Elegant Background Pill
+            Rectangle {
+                id: backgroundPill
+                anchors.centerIn: parent
+                width: parent.width - Kirigami.Units.smallSpacing
+                height: parent.height - Kirigami.Units.smallSpacing
+                radius: Math.min(width, height) / 2
+
+                // THE HOME BUTTON HAS TO EXIST WHEN YOU ARE NOT TOUCHING IT.
+                // This was "transparent" at rest, so the one button that carries the
+                // system's name was invisible until the pointer found it — the
+                // MoOS mark floated on bare glass with nothing saying it was a
+                // control. A resting pill at 0.10 is enough to read as a button and
+                // still quiet enough not to compete with the app icons beside it.
+                // AMPLITUDE, measured. At 0.10 this pill rendered as a SEVEN
+                // luminance-step difference against the dock glass — measured on a
+                // horizontal scan through the button: 145, 146, 145, 152. The eye
+                // needs roughly fifteen to register "that changed", so the button
+                // was technically present and perceptually absent. 0.24 puts it
+                // over the line while still reading as glass rather than a slab.
+                color: compact.pressed
+                    ? Qt.alpha(Kirigami.Theme.highlightColor, 0.42)
+                    : (compact.containsMouse || root.expanded
+                        ? Qt.alpha(Kirigami.Theme.highlightColor, 0.34)
+                        : Qt.alpha(Kirigami.Theme.highlightColor, 0.24))
+
+                Behavior on color { ColorAnimation { duration: root.motionFast } }
+
+                // Clean, contained click flash (no clipping, no mess)
+                Rectangle {
+                    id: clickPulse
+                    anchors.fill: parent
+                    radius: parent.radius
+                    color: Kirigami.Theme.highlightColor
+                    opacity: 0.0
+                }
+
+                SequentialAnimation {
+                    id: clickWave
+                    NumberAnimation {
+                        target: clickPulse
+                        property: "opacity"
+                        from: 0.5
+                        to: 0.0
+                        duration: root.motionPortal
+                        easing.type: design.easeStandard
                     }
-                    Behavior on shadow.size {
+                }
+            }
+
+            // Perfect, Minimalist Content Layout
+            GridLayout {
+                anchors.fill: backgroundPill
+                anchors.margins: Kirigami.Units.smallSpacing * 1.5
+                columns: 1
+                rows: 1
+                columnSpacing: Kirigami.Units.smallSpacing
+                rowSpacing: Kirigami.Units.smallSpacing
+
+                // Logo Area
+                Item {
+                    Layout.alignment: Qt.AlignVCenter | Qt.AlignHCenter
+                    Layout.preferredWidth: compact.isHorizontal ? Math.round(backgroundPill.height * 0.75) : Math.round(backgroundPill.width * 0.75)
+                    Layout.preferredHeight: Layout.preferredWidth
+
+                    // A real glow, not a disc. This called itself a "soft glow"
+                    // while being a Rectangle with a FLAT alpha fill: on hover a
+                    // hard-edged circle 1.3x the mark switched on behind it, with
+                    // a visible rim where the alpha stopped. That is the "circles"
+                    // the owner sees. ShadowedRectangle draws a transparent shape
+                    // whose SHADOW is the tinted halo, so the falloff is a real
+                    // gradient with no edge — rendered by the same distance-field
+                    // primitive Kirigami's own cards use, so no mask layer and no
+                    // MultiEffect enters plasmashell's always-on budget. The glow
+                    // is still strictly state-driven: fully transparent at rest.
+                    Kirigami.ShadowedRectangle {
+                        anchors.centerIn: parent
+                        width: parent.width
+                        height: width
+                        radius: width / 2
+                        color: "transparent"
+                        shadow.size: compact.pressed
+                            ? parent.width * 0.55 : parent.width * 0.42
+                        shadow.color: Qt.alpha(Kirigami.Theme.highlightColor,
+                            compact.pressed ? 0.55
+                                : (compact.containsMouse || root.expanded ? 0.3 : 0.0))
+                        Behavior on shadow.color {
+                            ColorAnimation { duration: root.motionMedium }
+                        }
+                        Behavior on shadow.size {
+                            NumberAnimation {
+                                duration: root.motionMedium
+                                easing.type: Easing.OutQuad
+                            }
+                        }
+                    }
+
+                    Image {
+                        id: compactLogo
+                        anchors.fill: parent
+                        // The RASTER, deliberately — measured, not assumed. The
+                        // vector beside it (/usr/share/moos/moos-logo.svg) looks
+                        // like the obvious upgrade and is not one: it is a VTracer
+                        // machine trace whose 1002 paths Qt rejects one by one
+                        // ("qt.svg: Invalid path data; path truncated" repeatedly
+                        // on load), and it is the posterised LIGHT trace, while
+                        // every shipped moos-logo.png is rendered from the 2756-
+                        // path high-detail master. Switching gained scalability and
+                        // lost the shading. Revisit only when a real vector master
+                        // replaces the trace and loads without qt.svg warnings.
+                        source: "file:///usr/share/moos/moos-logo.png"
+                        fillMode: Image.PreserveAspectFit
+                        asynchronous: true
+                        smooth: true
+                        // Decode at the device size: Qt does NOT scale a raster's
+                        // sourceSize by devicePixelRatio (it does that only for
+                        // scalable sources), so a literal here under-samples HiDPI.
+                        sourceSize: Qt.size(root.decodePx(width), root.decodePx(height))
+                        // The press (0.85), hover (1.08) and the activation
+                        // rotation all resample this texture at sizes it was not
+                        // rasterised for, and bilinear alone re-aliases the swirl
+                        // on every frame. mipmap is the same flag this artwork
+                        // already carries on the splash and the greeter wallpaper.
+                        mipmap: true
+
+                        // The shared spring retargets from its current velocity;
+                        // rapid pointer reversals never restart a canned bounce.
+                        scale: logoFeedback.value
+                        MoUI.SpringFeedback {
+                            id: logoFeedback
+                            active: compactLogo.visible
+                            targetScale: compact.pressed ? root.design.pressScale
+                                : (compact.containsMouse ? root.design.hoverScale : 1)
+                        }
+
+                        // A restrained directional settle: enough response to feel
+                        // physical, never a novelty spin beside working app icons.
                         NumberAnimation {
-                            duration: root.motionMedium
-                            easing.type: Easing.OutQuad
+                            id: logoFlourish
+                            target: compactLogo
+                            property: "rotation"
+                            from: root.rtl ? 12 : -12
+                            to: 0
+                            duration: root.motionEmphasis
+                            easing.type: design.easeEmphasis
                         }
                     }
                 }
-                
-                Image {
-                    id: compactLogo
-                    anchors.fill: parent
-                    // The RASTER, deliberately — measured, not assumed. The
-                    // vector beside it (/usr/share/moos/moos-logo.svg) looks
-                    // like the obvious upgrade and is not one: it is a VTracer
-                    // machine trace whose 1002 paths Qt rejects one by one
-                    // ("qt.svg: Invalid path data; path truncated" repeatedly
-                    // on load), and it is the posterised LIGHT trace, while
-                    // every shipped moos-logo.png is rendered from the 2756-
-                    // path high-detail master. Switching gained scalability and
-                    // lost the shading. Revisit only when a real vector master
-                    // replaces the trace and loads without qt.svg warnings.
-                    source: "file:///usr/share/moos/moos-logo.png"
-                    fillMode: Image.PreserveAspectFit
-                    asynchronous: true
-                    smooth: true
-                    // Decode at the device size: Qt does NOT scale a raster's
-                    // sourceSize by devicePixelRatio (it does that only for
-                    // scalable sources), so a literal here under-samples HiDPI.
-                    sourceSize: Qt.size(root.decodePx(width), root.decodePx(height))
-                    // The press (0.85), hover (1.08) and the activation
-                    // rotation all resample this texture at sizes it was not
-                    // rasterised for, and bilinear alone re-aliases the swirl
-                    // on every frame. mipmap is the same flag this artwork
-                    // already carries on the splash and the greeter wallpaper.
-                    mipmap: true
-                    
-                    // The shared spring retargets from its current velocity;
-                    // rapid pointer reversals never restart a canned bounce.
-                    scale: logoFeedback.value
-                    MoUI.SpringFeedback {
-                        id: logoFeedback
-                        active: compactLogo.visible
-                        targetScale: compact.pressed ? root.design.pressScale
-                            : (compact.containsMouse ? root.design.hoverScale : 1)
-                    }
-                    
-                    // A restrained directional settle: enough response to feel
-                    // physical, never a novelty spin beside working app icons.
-                    NumberAnimation {
-                        id: logoFlourish
-                        target: compactLogo
-                        property: "rotation"
-                        from: root.rtl ? 12 : -12
-                        to: 0
-                        duration: root.motionEmphasis
-                        easing.type: design.easeEmphasis
-                    }
-                }
-            }
-            
-            // Crisp, High-End Typography
-            Row {
-                Layout.alignment: Qt.AlignVCenter | Qt.AlignHCenter
-                spacing: 0
-                
-                // Subtle push-down on press
-                scale: wordmarkFeedback.value
-                MoUI.SpringFeedback {
-                    id: wordmarkFeedback
-                    active: compact.visible
-                    targetScale: compact.pressed ? root.design.pressScale : 1
-                }
-                
-                // ONE wordmark, two inks — not two words. The halves used to
-                // carry different WEIGHTS (Bold "Mo", Normal "OS"), so the
-                // system's own name read as a heavy syllable followed by a
-                // light one and lost its shape at panel size. Contrast was
-                // never the problem: measured on the live 4K panel the inks
-                // score 11.9:1 and 7.7:1 against the pill, both clear of WCAG
-                // AA. Matching the weight and letting COLOUR alone carry the
-                // Mo/OS split is what makes it read as a mark. The small
-                // positive tracking is for Latin only; Arabic must never be
-                // letter-spaced, and this string is Latin by definition.
-                Text {
-                    text: "Mo"
-                    font.family: root.uiFontFamily
-                    font.weight: Font.DemiBold
-                    font.pixelSize: Math.max(12, Math.round(backgroundPill.height * 0.45))
-                    font.letterSpacing: 0.3
-                    color: Kirigami.Theme.textColor
-                }
-                Text {
-                    text: "OS"
-                    font.family: root.uiFontFamily
-                    font.weight: Font.DemiBold
-                    font.pixelSize: Math.max(12, Math.round(backgroundPill.height * 0.45))
-                    font.letterSpacing: 0.3
-                    color: Kirigami.Theme.highlightColor
-                }
+
             }
         }
-
-        // Accessible supplemental command label.
-        Item {
-            visible: false
-            width: 0
-            height: 0
-            Text { text: "MoOS" }
-            Text { 
-                text: root.rtl ? "مساحة الأوامر" : "COMMAND" 
-                font.pixelSize: Math.max(11, Math.round(compact.height * 0.20))
-            }
-            Kirigami.Icon { source: "moos-search-symbolic" }
+        MoUI.IconButton {
+            id: workspaceButton
+            objectName: "moosWorkspaceOverview"
+            Layout.minimumWidth: root.design.targetControl
+            Layout.minimumHeight: root.design.targetControl
+            Layout.preferredWidth: root.design.targetControl
+            Layout.preferredHeight: root.design.targetControl
+            symbol: MoUI.SymbolCatalog.resolve("grid")
+            accessibleLabel: root.rtl ? "مساحة العمل والنوافذ" : "Workspace overview"
+            surfaceColor: Qt.alpha(Kirigami.Theme.textColor, 0.035)
+            outlineColor: "transparent"
+            iconPixelSize: root.design.iconLarge
+            onClicked: root.openRoute("moos://control/window/overview")
+            onHoveredChanged: root.workspaceHovered = hovered
         }
     }
 

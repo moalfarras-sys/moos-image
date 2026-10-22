@@ -41,6 +41,9 @@ MoUI.GlassSurface {
 
         Item {
             id: mark
+            // Preserve the page's identity in its title while keeping the
+            // first useful controls above the fold in narrow tablet windows.
+            visible: hero.wide
             Layout.preferredWidth: Kirigami.Units.gridUnit * 5
             Layout.preferredHeight: Kirigami.Units.gridUnit * 5
             Layout.alignment: hero.wide ? Qt.AlignVCenter : Qt.AlignLeft
@@ -102,10 +105,13 @@ MoUI.GlassSurface {
             }
         }
 
-        ColumnLayout {
+        GridLayout {
             id: actionColumn
+            columns: !hero.wide && hero.width > Kirigami.Units.gridUnit * 18 ? 2 : 1
+            Layout.fillWidth: !hero.wide
             Layout.alignment: hero.wide ? Qt.AlignVCenter : Qt.AlignLeft
-            spacing: MoUI.Tokens.space2
+            columnSpacing: MoUI.Tokens.space2
+            rowSpacing: MoUI.Tokens.space2
         }
     }
 }

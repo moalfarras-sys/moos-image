@@ -81,7 +81,7 @@ Item {
                               : weatherCard.local("الطقس المحلي", "LOCAL FORECAST")
                         color: Kirigami.Theme.disabledTextColor
                         font.family: weatherCard.city.length > 0 ? "IBM Plex Sans" : weatherCard.labelFamily
-                        font.pixelSize: Math.round(Kirigami.Units.gridUnit * 0.54)
+                        font.pixelSize: MoUI.Tokens.typeSecondary
                         font.weight: Font.DemiBold
                         font.letterSpacing: weatherCard.city.length > 0 ? 0.8 : (weatherCard.rtl ? 0 : 1.5)
                         elide: Text.ElideRight
@@ -94,7 +94,7 @@ Item {
                               : weatherCard.local("تلقائي", "AUTO")
                         color: Kirigami.Theme.highlightColor
                         font.family: weatherCard.labelFamily
-                        font.pixelSize: Math.round(Kirigami.Units.gridUnit * 0.56)
+                        font.pixelSize: MoUI.Tokens.typeCaption
                         font.weight: Font.DemiBold
                     }
                 }
@@ -110,7 +110,7 @@ Item {
                         text: weatherCard.temperature + "°"
                         color: Kirigami.Theme.textColor
                         font.family: "IBM Plex Sans"
-                        font.pixelSize: Math.round(Kirigami.Units.gridUnit * 2.15)
+                        font.pixelSize: Math.round(Kirigami.Units.gridUnit * (weatherCard.width > 330 ? 2.8 : 2.15))
                         font.weight: Font.Light
                         font.features: ({ "tnum": 1 })
                     }
@@ -126,7 +126,7 @@ Item {
                             text: weatherCard.condition
                             color: Kirigami.Theme.textColor
                             font.family: weatherCard.labelFamily
-                            font.pixelSize: Math.round(Kirigami.Units.gridUnit * 0.72)
+                            font.pixelSize: MoUI.Tokens.typeBody
                             font.weight: Font.Medium
                             elide: Text.ElideRight
                         }
@@ -134,7 +134,7 @@ Item {
                             text: weatherCard.local("المحسوسة ", "FEELS ") + weatherCard.degrees(weatherCard.feelsLike)
                             color: Kirigami.Theme.disabledTextColor
                             font.family: weatherCard.labelFamily
-                            font.pixelSize: Math.round(Kirigami.Units.gridUnit * 0.48)
+                            font.pixelSize: MoUI.Tokens.typeCaption
                             font.weight: Font.Medium
                             font.letterSpacing: weatherCard.rtl ? 0 : 0.8
                         }
@@ -206,7 +206,8 @@ Item {
             }
 
             WeatherScene {
-                Layout.preferredWidth: Math.round(Kirigami.Units.gridUnit * 6.2)
+                Layout.preferredWidth: Math.round(Math.max(Kirigami.Units.gridUnit * 4,
+                    Math.min(Kirigami.Units.gridUnit * 6.2, weatherCard.width * 0.26)))
                 Layout.fillHeight: true
                 visible: weatherCard.weatherReady
                 opacity: weatherCard.weatherReady ? 1 : 0

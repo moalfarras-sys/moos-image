@@ -45,11 +45,8 @@ Item {
         Kirigami.Theme.backgroundColor.b,
         design.glassFill(Kirigami.Theme.backgroundColor,
                          design.glassLevelScene, 0.18))
-    readonly property color edgeColor: Qt.rgba(
-        Kirigami.Theme.highlightColor.r,
-        Kirigami.Theme.highlightColor.g,
-        Kirigami.Theme.highlightColor.b,
-        lightSurface ? 0.31 : 0.36)
+    readonly property color edgeColor: design.glassEdge(
+        Kirigami.Theme.backgroundColor, design.glassLevelScene)
     // The shade under the top edge. Derived from the active background, not from
     // pure black: no MoOS runtime surface uses pure black or pure white, and a
     // palette-derived shade also keeps the card looking like the same object in
@@ -114,18 +111,14 @@ Item {
         }
     }
 
-    Rectangle {
+    Kirigami.ShadowedRectangle {
         visible: !card.integrated
-        x: Kirigami.Units.smallSpacing
-        y: Kirigami.Units.largeSpacing
-        width: parent.width - Kirigami.Units.smallSpacing * 2
-        height: parent.height - Kirigami.Units.largeSpacing
+        anchors.fill: parent
         radius: card.design.radiusPanel
-        color: {
-            const shade = Qt.darker(Kirigami.Theme.backgroundColor, 1.45)
-            return Qt.rgba(shade.r, shade.g, shade.b,
-                           card.lightSurface ? 0.16 : 0.26)
-        }
+        color: "transparent"
+        shadow.size: card.design.space3
+        shadow.color: Qt.alpha(Qt.darker(Kirigami.Theme.backgroundColor, 2.2),
+                              card.lightSurface ? 0.12 : 0.2)
     }
 
     Rectangle {
@@ -200,45 +193,6 @@ Item {
             height: 1
             color: card.design.glassSpecular(Kirigami.Theme.backgroundColor,
                                              card.design.glassLevelScene)
-        }
-
-        // Inner glow: faint highlight-coloured rim inside the card
-        Rectangle {
-            visible: !card.integrated
-            anchors.fill: parent
-            anchors.margins: 1
-            radius: parent.radius - 1
-            color: "transparent"
-            border.width: 1
-            border.color: Qt.rgba(Kirigami.Theme.highlightColor.r,
-                                   Kirigami.Theme.highlightColor.g,
-                                   Kirigami.Theme.highlightColor.b,
-                                   card.lightSurface ? 0.05 : 0.08)
-        }
-
-        Rectangle {
-            visible: !card.integrated
-            anchors.left: parent.left
-            anchors.right: parent.right
-            anchors.top: parent.top
-            anchors.leftMargin: Math.round(Kirigami.Units.gridUnit * 1.25)
-            anchors.rightMargin: Math.round(Kirigami.Units.gridUnit * 1.25)
-            height: card.design.borderHairline
-            color: Qt.rgba(Kirigami.Theme.highlightedTextColor.r,
-                           Kirigami.Theme.highlightedTextColor.g,
-                           Kirigami.Theme.highlightedTextColor.b,
-                           card.lightSurface ? 0.52 : 0.28)
-        }
-
-        Rectangle {
-            visible: !card.integrated
-            anchors.right: parent.right
-            anchors.top: parent.top
-            anchors.bottom: parent.bottom
-            anchors.topMargin: Math.round(Kirigami.Units.gridUnit * 1.2)
-            anchors.bottomMargin: Math.round(Kirigami.Units.gridUnit * 1.2)
-            width: card.design.borderHairline
-            color: card.edgeColor
         }
 
         // The travelling glass highlight. This is `alive` only (MotionMode 2) —
