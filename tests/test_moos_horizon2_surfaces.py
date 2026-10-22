@@ -439,10 +439,16 @@ class HubControls(unittest.TestCase):
             # face needs, so the visibility rule sits further down its block.
             block = self.bento.split(card, 1)[1][:420]
             self.assertIn(f"visible: {flag}", block, card)
-        self.assertIn("visible: !root.compact && root.showClock && (root.showWeather || root.showSystem)", self.bento)
-        self.assertIn("visible: !root.compact && root.showWeather && root.showSystem", self.bento)
-        self.assertIn("columns: root.compact ? 2 : 5", self.bento)
-        self.assertIn("Layout.columnSpan: root.compact ? 2 : 1", self.bento)
+        # Each sheet now owns its edge: an old row divider must not consume a
+        # cell when a neighbour is hidden. The native matrix checks the actual
+        # seven visibility combinations, including the width reclaimed by a
+        # sole remaining card, in both workspace orientations and languages.
+        grid = self.bento.split('objectName: "hubAdaptiveGrid"', 1)[1]
+        self.assertNotIn("Rectangle {", grid, "no orphan divider or placeholder cell")
+        self.assertIn("columns: 2", grid)
+        self.assertIn("Layout.columnSpan: root.compact || !root.showWeather ? 2 : 1", grid)
+        self.assertIn("Layout.columnSpan: root.compact ? (root.showSystem ? 1 : 2) : (root.showClock ? 1 : 2)", grid)
+        self.assertIn("Layout.columnSpan: root.compact && root.showWeather ? 1 : 2", grid)
         self.assertIn("visibleCards === 3", self.bento,
                       "with every card shown the designed width must not change")
 

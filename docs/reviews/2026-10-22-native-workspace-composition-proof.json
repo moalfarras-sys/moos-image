@@ -1,0 +1,599 @@
+{
+  "schema": 1,
+  "date": "2026-10-22",
+  "scope": "Native workspace composition on the real Minisforum V3; development preview, not a new signed OS deployment",
+  "base": {
+    "head": "6d23c546cea99006462d51319b234f2b5ff0c3fc",
+    "previous_pr": 266,
+    "booted_version": "44.20261021.1090",
+    "booted_image_digest": "sha256:01edfe6738bef77743a949cba220e60c3685b92dbf24998b7b2ff4c32951c6e1",
+    "rollback_version": "44.20261019.1078",
+    "deployment_count": 2,
+    "new_deployment_staged": false
+  },
+  "implementation": {
+    "theme_rev": 118,
+    "surface_owners": [
+      "existing Plasma wallpaper Hub",
+      "existing Plasma MoOS launcher and single bottom panel",
+      "KWin Overview and existing native Arrange script",
+      "native System Settings KCMs"
+    ],
+    "changes": [
+      "Clock and forecast above a device strip, with portrait reflow",
+      "One dock workspace action with a single Plasma tooltip owner",
+      "Home actions open native Overview, real side-by-side arrangement and MoOS Settings",
+      "Six native settings destinations; responsive shared header and real availability/error routing",
+      "Quiet palette-derived card edges and native distance-field shadows",
+      "Portrait metric clipping corrected after actual pixels contradicted outer card bounds",
+      "Direct app launch uses Kicker canonical application IDs; Home retains Mira in a two-column action grid and App library opens the native Store"
+    ],
+    "preserved": [
+      "Kicker catalogue and favourites",
+      "Milou/KRunner search",
+      "native task manager and notifications",
+      "owner pins, windows, output configuration and remote authentication",
+      "upstream power, settings and update authorities"
+    ]
+  },
+  "live_preview": {
+    "shell_files": [
+      {
+        "source": "system_files/usr/share/plasma/plasmoids/org.moos.brand/metadata.json",
+        "sha256": "ddb2acb8ba4708f4e8c444261a9e64c5343b037cf25a713fab6d58392f41cd3b"
+      },
+      {
+        "source": "system_files/usr/share/plasma/plasmoids/org.moos.brand/contents/config/main.xml",
+        "sha256": "c8f568f499e35a17fdbe707c2f4e1ea01ad55575281719a1217eed1bbc02cdb6"
+      },
+      {
+        "source": "system_files/usr/share/plasma/plasmoids/org.moos.brand/contents/images/glow-cyan.png",
+        "sha256": "2c1c4587dba6dcadf8802e7a4239d23e2e458018a5eaf2caebb2987597adbc0f"
+      },
+      {
+        "source": "system_files/usr/share/plasma/plasmoids/org.moos.brand/contents/images/glow-violet.png",
+        "sha256": "de93452e4caf2a8cd9be6e6477e58108d0e4be43c1873dad582817d3a6cfe34b"
+      },
+      {
+        "source": "system_files/usr/share/plasma/plasmoids/org.moos.brand/contents/images/ring.png",
+        "sha256": "e21109acab2802bdd505fc7b1cc5feff2ae1dd50f7ac31723ecea79c7785a731"
+      },
+      {
+        "source": "system_files/usr/share/plasma/plasmoids/org.moos.brand/contents/images/spark.png",
+        "sha256": "fbf5c14af9688222f059a62c5a528f474e9873b39b57ea9906490c598d455f06"
+      },
+      {
+        "source": "system_files/usr/share/plasma/plasmoids/org.moos.brand/contents/ui/LauncherView.qml",
+        "sha256": "4727542032f1810c7fa3286b5a66bc5101dbd1407e531e9c30e22aaa9497bddf"
+      },
+      {
+        "source": "system_files/usr/share/plasma/plasmoids/org.moos.brand/contents/ui/main.qml",
+        "sha256": "5564dd95b05fa1ecada3ad5088e44ef76745914ab6792132a584c356c4cc507b"
+      },
+      {
+        "source": "system_files/usr/share/plasma/wallpapers/org.moos.ui2.wallpaper/metadata.json",
+        "sha256": "979a7dff5389a89bf531b019524f444423007eb192fc11c181b5a16b21d41e82"
+      },
+      {
+        "source": "system_files/usr/share/plasma/wallpapers/org.moos.ui2.wallpaper/contents/config/main.xml",
+        "sha256": "f10875761aa56da7fb6e92dbabc19cbd618c35ae2e623187a892f68d59d973d4"
+      },
+      {
+        "source": "system_files/usr/share/plasma/wallpapers/org.moos.ui2.wallpaper/contents/ui/CardStack.qml",
+        "sha256": "5abb91b6abc8caa4389c80f6037925e4b6de9e1d943e623a94145c14cf372ec5"
+      },
+      {
+        "source": "system_files/usr/share/plasma/wallpapers/org.moos.ui2.wallpaper/contents/ui/ClockCard.qml",
+        "sha256": "e819b16620d57ed4c42709113d420f3a1a01cdae9bd676bab1d9e8edd40909e0"
+      },
+      {
+        "source": "system_files/usr/share/plasma/wallpapers/org.moos.ui2.wallpaper/contents/ui/ClockFace.qml",
+        "sha256": "c7b2f653c29c6e9c0785f58805ab4c01942083210c25058ab5d2e02f801dfe88"
+      },
+      {
+        "source": "system_files/usr/share/plasma/wallpapers/org.moos.ui2.wallpaper/contents/ui/DashboardBento.qml",
+        "sha256": "5e156fd31bc94db8c63e1386f496315df56b4f298f03805fd0dff9d02a89431a"
+      },
+      {
+        "source": "system_files/usr/share/plasma/wallpapers/org.moos.ui2.wallpaper/contents/ui/GlassCard.qml",
+        "sha256": "1c1b0205a8685a730963f85e287c293f171c52b8be1dcee0885b098872365ab2"
+      },
+      {
+        "source": "system_files/usr/share/plasma/wallpapers/org.moos.ui2.wallpaper/contents/ui/HourlyStrip.qml",
+        "sha256": "6f4600062867efcc313dd39c894c5a29df9809e6c281ec0b74cf5b799a181f5d"
+      },
+      {
+        "source": "system_files/usr/share/plasma/wallpapers/org.moos.ui2.wallpaper/contents/ui/HubReveal.qml",
+        "sha256": "b390e580f59b45a7c5e8c74970ad1bcf157571927519f6f90e929b51f282b6d4"
+      },
+      {
+        "source": "system_files/usr/share/plasma/wallpapers/org.moos.ui2.wallpaper/contents/ui/MetricRing.qml",
+        "sha256": "cb6f320118ac9f36915ba004bd4d42cd853cb2ec5bb6f5314f3667e3ce38dbeb"
+      },
+      {
+        "source": "system_files/usr/share/plasma/wallpapers/org.moos.ui2.wallpaper/contents/ui/NetworkFace.qml",
+        "sha256": "84462cd6906baac8fde889d8125b4c688582c9ab08e01f2f4b533f92ecc14e00"
+      },
+      {
+        "source": "system_files/usr/share/plasma/wallpapers/org.moos.ui2.wallpaper/contents/ui/RollingDigit.qml",
+        "sha256": "c5336db2d953513a268e862aab543f1f096c90809c149b5d78d64705ae3ec1ef"
+      },
+      {
+        "source": "system_files/usr/share/plasma/wallpapers/org.moos.ui2.wallpaper/contents/ui/SystemCard.qml",
+        "sha256": "8c33968f3d4fb55c122b02a66ec538e84fc2914524961a0379be8a5b6e0f31f2"
+      },
+      {
+        "source": "system_files/usr/share/plasma/wallpapers/org.moos.ui2.wallpaper/contents/ui/WeatherCard.qml",
+        "sha256": "2c732c64487cf1c9a2398edc386a1d46d672d5a8bf956d36fd9e8548aef29c8f"
+      },
+      {
+        "source": "system_files/usr/share/plasma/wallpapers/org.moos.ui2.wallpaper/contents/ui/WeatherScene.qml",
+        "sha256": "f878b5c4baaf426013155a204b53dc16d6323ca2e64bcf5ff8efccce8307f3e3"
+      },
+      {
+        "source": "system_files/usr/share/plasma/wallpapers/org.moos.ui2.wallpaper/contents/ui/WeekStrip.qml",
+        "sha256": "8bb7569fb98595e469266782a2f29a938d054b472869db2b5d0153f2169075e0"
+      },
+      {
+        "source": "system_files/usr/share/plasma/wallpapers/org.moos.ui2.wallpaper/contents/ui/config.qml",
+        "sha256": "82e17cb08ede640b8f346b726f49e460838346c05320a4d6b178ae92e0dfbcc8"
+      },
+      {
+        "source": "system_files/usr/share/plasma/wallpapers/org.moos.ui2.wallpaper/contents/ui/main.qml",
+        "sha256": "92ed24407ba7c8595bea5e0e3b6bea5f325025af4686a5917996a7083724e530"
+      },
+      {
+        "source": "system_files/usr/share/plasma/wallpapers/org.moos.ui2.wallpaper/contents/images/weather/clear-day.png",
+        "sha256": "d59e549d39f38ae84b268a64ee6aa970e1d75bd106486777273aaa3a1d0f75ca"
+      },
+      {
+        "source": "system_files/usr/share/plasma/wallpapers/org.moos.ui2.wallpaper/contents/images/weather/clear-night.png",
+        "sha256": "395127964418f323223b5a56321429761ba2ed8a038bf01727f03413620813aa"
+      },
+      {
+        "source": "system_files/usr/share/plasma/wallpapers/org.moos.ui2.wallpaper/contents/images/weather/cloudy.png",
+        "sha256": "0b7b3e966155c41f9e3678ee75eb7bc43bd95d53b37fbd3daaf4e7415039cef2"
+      },
+      {
+        "source": "system_files/usr/share/plasma/wallpapers/org.moos.ui2.wallpaper/contents/images/weather/fog.png",
+        "sha256": "11869b3c2dbf2c8d17c7b77b8297f8671cf6aef4abf6d2d8a1c09e3e7e200a8c"
+      },
+      {
+        "source": "system_files/usr/share/plasma/wallpapers/org.moos.ui2.wallpaper/contents/images/weather/partly-day.png",
+        "sha256": "e83f2977ef31129f7431e9a196819552521675423071ce147e70f198c9a67598"
+      },
+      {
+        "source": "system_files/usr/share/plasma/wallpapers/org.moos.ui2.wallpaper/contents/images/weather/partly-night.png",
+        "sha256": "c9749f4b792dee2a65722b1c9ec4407ef6abb69ebc6c96763ca9cb29f04286bf"
+      },
+      {
+        "source": "system_files/usr/share/plasma/wallpapers/org.moos.ui2.wallpaper/contents/images/weather/rain.png",
+        "sha256": "45e76ee0edbcfed7001008e6ea4dffd8b57fcc8e5f119a09d6fb9698f13ff92f"
+      },
+      {
+        "source": "system_files/usr/share/plasma/wallpapers/org.moos.ui2.wallpaper/contents/images/weather/snow.png",
+        "sha256": "5628c961e7d73897917c6b14d98c5390790d61dc1d351dfb47fa438a449d0054"
+      },
+      {
+        "source": "system_files/usr/share/plasma/wallpapers/org.moos.ui2.wallpaper/contents/images/weather/storm.png",
+        "sha256": "7fd35966928b06e3ed99fe75c8edb217be0ac029552053beaa964194b67a42be"
+      }
+    ],
+    "compiled_plugins": 7,
+    "embedded_qml_resources_verified": 92,
+    "source_live_recheck": {
+      "time": "2026-10-22T22:19:04.638004+00:00",
+      "current_head": "6d23c546cea99006462d51319b234f2b5ff0c3fc",
+      "shell_files": 35,
+      "compiled_plugins": 7,
+      "embedded_resource_checks": 92,
+      "mismatches": [],
+      "scope": "Exact source/live preview hashes; compiled resources previously extracted and compared. Owner now confirms listed desktop components through the identified physical-device Remote endpoint. No signed delivery inferred."
+    },
+    "retirement": "Retire only recorded owned user-local shell packages, Settings wrapper/plugin prefix, updater helper and unit drop-ins after qualified signed /usr replacement, exact shell/embedded-QML readback and cold native GUI acceptance. Whole ELF hashes may differ by toolchain/build path; do not bypass shadow quarantine."
+  },
+  "native_journeys": {
+    "dock_overview": "Actual pointer enters KWin Overview; Escape returns to blur-only effects",
+    "settings_display": "Actual tile loads native kcm_kscreen in System Settings",
+    "home_settings": {
+      "actual_home_card_clicked": true,
+      "same_native_settings_instance_active": true,
+      "reviewed_native_library_mapped": true,
+      "popup_closed": true
+    },
+    "arrangement": {
+      "real_apps": [
+        "Dolphin",
+        "System Settings"
+      ],
+      "non_overlapping": true,
+      "owner_windows_restored": true,
+      "owned_test_files_window_closed": true,
+      "final_two_column_home_action": true
+    },
+    "portrait": "Actual DP-11 rotated and restored with bounded native output recovery; final gauge pixels reviewed",
+    "seven_module_loads": [
+      {
+        "module": "kcm_moos",
+        "exit": 124,
+        "staged_library_loaded": true,
+        "qml_errors": []
+      },
+      {
+        "module": "kcm_moos_ai",
+        "exit": 124,
+        "staged_library_loaded": true,
+        "qml_errors": []
+      },
+      {
+        "module": "kcm_moos_appearance",
+        "exit": 124,
+        "staged_library_loaded": true,
+        "qml_errors": []
+      },
+      {
+        "module": "kcm_moos_recovery",
+        "exit": 124,
+        "staged_library_loaded": true,
+        "qml_errors": []
+      },
+      {
+        "module": "kcm_moos_remote",
+        "exit": 124,
+        "staged_library_loaded": true,
+        "qml_errors": []
+      },
+      {
+        "module": "kcm_moos_update",
+        "exit": 124,
+        "staged_library_loaded": true,
+        "qml_errors": []
+      },
+      {
+        "module": "kcm_moos_whatsnew",
+        "exit": 124,
+        "staged_library_loaded": true,
+        "qml_errors": []
+      }
+    ],
+    "settings_input": "AR/EN native Qt pointer, keyboard and Qt-touch at 320/480/720; single activation and disabled refusal. Component test, not physical-touch acceptance.",
+    "mira": {
+      "actual_final_home_button": true,
+      "existing_native_instance_raised": true,
+      "popup_closed": true,
+      "no_message_sent": true
+    },
+    "store": {
+      "actual_final_library_button": true,
+      "native_store_window_opened": true,
+      "popup_closed": true,
+      "no_transaction_requested": true,
+      "owned_review_window_closed": true
+    }
+  },
+  "owner_feedback": {
+    "category_filter_and_physical_touch": "Previously accepted only for App library",
+    "historical_feedback": "Earlier category-only work was rejected as a complete redesign; later workspace changes were initially not visible through MO PC Remote.",
+    "reconciliation": "An actual screenshot showed foreground Code covering the requested scene. The desktop was then left visible and the viewing endpoint identified.",
+    "latest_feedback": "Owner confirms seeing the large clock beside weather, device strip underneath and Workspace button beside the MoOS logo through MO PC Remote.",
+    "identified_target": "Owner-provided private Remote endpoint matches this physical computer; hostname is withheld from public proof.",
+    "listed_desktop_components_visible": true,
+    "complete_desktop_redesign_accepted": false,
+    "remote_capture_boundary": "Owner visual confirmation for the listed surfaces. No independent authenticated encoded-frame comparison, account-data access or remote-service restart.",
+    "physical_touch_boundary": "New Workspace and Settings interactions have native component input and actual desktop pointer proofs; owner physical touch acceptance remains separate."
+  },
+  "private_screenshots": [
+    {
+      "name": "workspace-composition-before.png",
+      "sha256": "2a457478bf03426d751d1d4081645021084fef29b01d8cc20c47c5879efebac4",
+      "published_pixels": false,
+      "review_scope": "Private actual-session capture; hashes published without pixels"
+    },
+    {
+      "name": "workspace-desktop-delivery-preview.png",
+      "sha256": "0b7a94d857a3ae2dc8feeaff484a632e42ecdfb53a86b154dc4d5caff9ff2006",
+      "published_pixels": false,
+      "review_scope": "Private actual-session capture; hashes published without pixels"
+    },
+    {
+      "name": "workspace-portrait-delivery-preview.png",
+      "sha256": "f69d32038c9fdc6fc282d7da01808aa6d5f467eb5984a0fb069b6020b28aedcc",
+      "published_pixels": false,
+      "review_scope": "Private actual-session capture; hashes published without pixels"
+    },
+    {
+      "name": "workspace-launcher-home-final-installed.png",
+      "sha256": "bf41004e48d238702c3269f6027a96db12c3b06e59a9f89308df0b4269ca96bd",
+      "published_pixels": false,
+      "review_scope": "Private actual-session capture; hashes published without pixels"
+    },
+    {
+      "name": "workspace-settings-first-installed.png",
+      "sha256": "efd0206a0ab9f389da160879af6ebf6380d23b93fb5c3eba9082a94fa781e2a4",
+      "published_pixels": false,
+      "review_scope": "Private actual-session capture; hashes published without pixels"
+    },
+    {
+      "name": "workspace-settings-narrow-final-installed.png",
+      "sha256": "50508387fe7691635abb413d31f6f334b30c51f87fc6eeb96894157de3bd9477",
+      "published_pixels": false,
+      "review_scope": "Private actual-session capture; hashes published without pixels"
+    },
+    {
+      "name": "workspace-portrait-refined-installed.png",
+      "sha256": "92961f58f726c36d774c3b7d01496941798bb4b848abbeca592fa0a4043ae177",
+      "published_pixels": false,
+      "review_scope": "Retained failed/earlier iteration; not final acceptance"
+    },
+    {
+      "name": "workspace-native-side-by-side.png",
+      "sha256": "2dcff1e3d41480557e24ab37976d78f44f95929c27cc40e4ed36d96da2f7f986",
+      "published_pixels": false,
+      "review_scope": "Private actual-session capture; hashes published without pixels"
+    },
+    {
+      "name": "workspace-remote-owner-presentation.png",
+      "sha256": "86f21c7160a7d0a17ddb51cba47dde1ec2832f72cc385eb147d2e4c8be29a472",
+      "published_pixels": false,
+      "review_scope": "Retained failed/earlier iteration; not final acceptance"
+    },
+    {
+      "name": "workspace-remote-desktop-presented.png",
+      "sha256": "9b183b43298ed23dd615120823af282b20e0d8d1a3d6eaf0e4ad4da0eea7d685",
+      "published_pixels": false,
+      "review_scope": "Private actual-session capture; hashes published without pixels"
+    },
+    {
+      "name": "workspace-home-preserved-final.png",
+      "sha256": "7c886f6f974fa4b650c02b07bb04c8b07e624b9f7990eb4f46554efd77161e54",
+      "published_pixels": false,
+      "review_scope": "Private actual-session capture; hashes published without pixels"
+    },
+    {
+      "name": "workspace-app-library-preserved-final.png",
+      "sha256": "4d6c451a78c3c69b3388a8f0f4e433b4b5a6850a5c73b2515c58b2940aa9c907",
+      "published_pixels": false,
+      "review_scope": "Private actual-session capture; hashes published without pixels"
+    },
+    {
+      "name": "workspace-desktop-preserved-final.png",
+      "sha256": "2919d932aecef93ccc152cecd12697d1cbe3d841d9c492a9c4701f4e7784c8bf",
+      "published_pixels": false,
+      "review_scope": "Private actual-session capture; hashes published without pixels"
+    },
+    {
+      "name": "workspace-native-store-actual.png",
+      "sha256": "940929749ce95c51389d569e6e49251818bcdbfd76b18ec4eaecfeb989a2eaef",
+      "published_pixels": false,
+      "review_scope": "Private actual-session capture; hashes published without pixels"
+    },
+    {
+      "name": "workspace-native-arrangement-preserved-final.png",
+      "sha256": "ea1579f2b01edc4c82d099195a076c9e32acfdccf82a3d034b68ef569465a592",
+      "published_pixels": false,
+      "review_scope": "Private actual-session capture; hashes published without pixels"
+    }
+  ],
+  "resource_sample": {
+    "time_utc": "2026-10-22T22:18:29.635005+00:00",
+    "seconds": 20.000663,
+    "scope": "Real final installed development workspace, warm session. Owner applications retained. Source check and compiler finished. No controlled before/after or frame-pacing test.",
+    "processes": {
+      "kwin_wayland": {
+        "processes": [
+          {
+            "percent_of_one_cpu_core": 5.6,
+            "rss_bytes": 382320640
+          }
+        ],
+        "percent_of_one_cpu_core": 5.6,
+        "summed_rss_bytes": 382320640,
+        "all_start_processes_retained": true
+      },
+      "plasmashell": {
+        "processes": [
+          {
+            "percent_of_one_cpu_core": 0.25,
+            "rss_bytes": 752898048
+          }
+        ],
+        "percent_of_one_cpu_core": 0.25,
+        "summed_rss_bytes": 752898048,
+        "all_start_processes_retained": true
+      },
+      "baloo_file": {
+        "processes": [
+          {
+            "percent_of_one_cpu_core": 0.0,
+            "rss_bytes": 1036001280
+          }
+        ],
+        "percent_of_one_cpu_core": 0.0,
+        "summed_rss_bytes": 1036001280,
+        "all_start_processes_retained": true
+      },
+      "personal_remote_service": {
+        "processes": [
+          {
+            "percent_of_one_cpu_core": 0.0,
+            "rss_bytes": 3645440
+          },
+          {
+            "percent_of_one_cpu_core": 0.0,
+            "rss_bytes": 5656576
+          },
+          {
+            "percent_of_one_cpu_core": 0.0,
+            "rss_bytes": 115953664
+          },
+          {
+            "percent_of_one_cpu_core": 0.05,
+            "rss_bytes": 24096768
+          }
+        ],
+        "percent_of_one_cpu_core": 0.05,
+        "summed_rss_bytes": 149352448,
+        "all_start_processes_retained": true
+      }
+    },
+    "established_remote_connections": 2,
+    "remote_scope": "Whole service cgroup start processes, including capture helper, at this sample workload. An idle/no-viewer sample does not establish active phone-stream cost.",
+    "rss_scope": "Summed process RSS double-counts shared pages; it is not PSS.",
+    "pressure": {
+      "cpu": "some avg10=0.00 avg60=0.00 avg300=0.00 total=142756672\nfull avg10=0.00 avg60=0.00 avg300=0.00 total=0\n",
+      "memory": "some avg10=0.00 avg60=0.00 avg300=0.00 total=33317336\nfull avg10=0.00 avg60=0.00 avg300=0.00 total=33163902\n",
+      "io": "some avg10=0.21 avg60=0.21 avg300=0.19 total=372743076\nfull avg10=0.21 avg60=0.21 avg300=0.15 total=363715420\n"
+    },
+    "speedup_claimed": false,
+    "fps_measured": false
+  },
+  "installed_selfcheck": {
+    "passed": 52,
+    "failed": 3,
+    "exit": 1,
+    "failures": [
+      "owned development launcher shadows /usr",
+      "owned development wallpaper shadows /usr",
+      "recorded live-runtime updater helper shadows /usr"
+    ],
+    "system_failed_units": 0,
+    "user_failed_units": 0,
+    "signed_deployment_unchanged": true
+  },
+  "qualification": {
+    "full_native_check": {
+      "exit": 0,
+      "seconds": 702.153,
+      "changed_during_check": [],
+      "log_sha256": "805f92a152e9de544b21c2f05fb843cc9726b565bb5ec259bbe9bcbb28d6b9c5",
+      "scope": "Maintained just check on native physical x86 host; live installed-session acceptance recorded separately",
+      "unittest_summaries": 216,
+      "unittest_cases": 2973,
+      "additional_checks": "Shell, catalogue, image, visual, compatibility and native runtime gates also execute in just check; unittest count is not the total assertion count."
+    },
+    "first_failures_preserved": [
+      "legacy hidden compact-caption assertion",
+      "old left-aligned date design assertion",
+      "AbstractButton states incorrectly treated as undeclared by static gate",
+      "Adding the release note exceeded the existing bounded reader on ARM; retired only the obsolete 2026-09-17 Arabic edge-alignment announcement, now contradicted by the centered date. Kept reader bound and every shipped-entry survival check unchanged.",
+      "A remaining Horizon test still required the retired five-column row dividers. Replaced only that obsolete layout assertion with no-orphan-cell and visibility-dependent spans; native tests also require a single card to reclaim full width and all visible rows to fill height. The 28 Horizon controls and 28 native language/orientation/visibility cases pass.",
+      "Maintained Mira integration caught a removed Home entry. Restore the direct Mira destination rather than waive the contract. Native Home now keeps four reachable actions and the Store remains reachable from App library."
+    ],
+    "control_corrections": "Replace obsolete visual assertions with actual identity/input/tooltip controls; keep typo and wrong-root-state refusals. Preserve all boot, identity and data-loss gates.",
+    "native_kcm_source_build": "Seven Release modules built in the existing SDK container; no new image/VM/container installed. Owned idle SDK stopped after compilation.",
+    "skill_validation": "quick_validate.py: Skill is valid!",
+    "release_note": "Bilingual native-workspace-composition entry opens actual MoOS Settings; 30 reader/notifier/image-gate controls pass after obsolete announcement retirement.",
+    "actual_native_defect": "A real Home Mira click did nothing: installed Kicker normalized configured desktop IDs into applications: URLs, while openDesktop searched raw IDs. A private native model reproduces the mismatch; fixed/old/unknown/failed-activation controls pass, and actual Mira and Store buttons now launch their native applications.",
+    "intentional_stop": {
+      "exit": 130,
+      "seconds": 71.237,
+      "reason": "Stopped only owned source check while correcting an actual missing Mira icon found in pixels. Not a passing gate."
+    },
+    "post_full_check_delta": {
+      "full_check_delta": [
+        "PROJECT_STATE.md",
+        "docs/DEVELOPMENT_PLAN.md",
+        "system_files/usr/share/moos/whats-new.json"
+      ],
+      "new_document": "docs/reviews/2026-10-22-native-workspace-composition-proof.json",
+      "checks": [
+        {
+          "command": [
+            "python3",
+            "tests/test_whats_new.py"
+          ],
+          "exit": 0,
+          "seconds": 4.795
+        },
+        {
+          "command": [
+            "python3",
+            "tests/verify_user_experience.py"
+          ],
+          "exit": 0,
+          "seconds": 3.384
+        },
+        {
+          "command": [
+            "git",
+            "diff",
+            "--check"
+          ],
+          "exit": 0,
+          "seconds": 0.019
+        },
+        {
+          "command": [
+            "python3",
+            "skill-creator/scripts/quick_validate.py",
+            "skills/moos-engineering"
+          ],
+          "exit": 0,
+          "seconds": 0.061
+        }
+      ],
+      "runtime_implementation_and_tests_unchanged": true
+    },
+    "release_note_timestamp": "The new announcement is dated the following UTC morning so its merged time cannot precede the planned integration; the bounded reader is unchanged."
+  },
+  "remaining": [
+    "Owner acceptance of the complete workspace and new physical touch journeys",
+    "Exact-head PR repository, x86 image and native ARM image qualification",
+    "Qualified signed delivery, exact compatibility-file retirement and cold GUI acceptance",
+    "New physical Workspace/Settings touch, pen, suspend/resume and controlled FPS/endurance measurements",
+    "6.8.1 greeter screenRemoved crash",
+    "Android calculator disappearance/incomplete rendering",
+    "Unbound SMOCF05 and physical rotation",
+    "Verified 80% battery charge plateau",
+    "Owner-deferred provider/wallet signins and native editor handoff"
+  ],
+  "claims_not_made": [
+    "Complete OS redesign",
+    "Universal hardware/application compatibility",
+    "Controlled performance speedup",
+    "New signed OS update or reboot",
+    "Independent Remote encoded-frame or phone-stream endurance qualification"
+  ],
+  "engineering_instructions": [
+    "Live owner journeys and before/after pixels before success claims",
+    "Inner labels/gauges as well as card bounds",
+    "Exact compiled KCM resource/path acceptance",
+    "One native tooltip owner per panel applet",
+    "Match the owner Remote viewing path and leave the requested surface visible rather than restoring a covering editor before review",
+    "Use native model canonical IDs and exercise direct destinations; string-presence gates cannot prove application activation"
+  ],
+  "live_diagnostics": {
+    "free_space_gib_display": "755G available of 954G; current private evidence directory 105M",
+    "userspace_startup_seconds": 9.741,
+    "graphical_target_seconds": 9.231,
+    "firmware_report_seconds": 591.245,
+    "boot_timing_limit": "Firmware elapsed time may include time spent in setup; not a controlled cold-boot comparison or speedup.",
+    "battery": {
+      "status": "Not charging",
+      "capacity": 100,
+      "cycles": 42,
+      "charge_full_uah": 4123000,
+      "design_uah": 4400000,
+      "ac_online": true,
+      "verified_80_percent_plateau": false
+    }
+  },
+  "research": {
+    "battery_limit_vendor_reference": "https://minisforumpc.eu/pages/common-after-sales-questions-about-tablet-monitor",
+    "battery_limit_fact": "Vendor support documents a BIOS Battery Charge Limit; this is not proof it is enabled or effective on this machine.",
+    "vendor_space_inventory": {
+      "version": "1.0.4",
+      "url": "https://pc-file.s3.us-west-1.amazonaws.com/V3/other+tool/Minisforum+Space.zip",
+      "archive_bytes": 113911767,
+      "range_bytes_received": 65558,
+      "contents": "Single Windows setup executable and directory; metadata only. No vendor executable downloaded or run."
+    },
+    "design_primary_sources": [
+      "https://develop.kde.org/hig/kde_app_design/",
+      "https://learn.microsoft.com/en-us/windows/apps/design/layout/responsive-design",
+      "https://developer.apple.com/design/human-interface-guidelines/layout"
+    ],
+    "rea_ghidra_scope": "Existing lawful analysis of installed native Kicker AppsModel::modelForRow; no proprietary OS source or runtime access is claimed."
+  },
+  "record_finalized_utc": "2026-10-22T22:20:29.143018+00:00"
+}

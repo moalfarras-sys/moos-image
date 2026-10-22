@@ -132,7 +132,26 @@ Item {
                 }
                 l.activePage = 0;
                 check.wait(100);
-                const orbitTitle = driver.textItem(v, v.local("مدارك", "Your orbit"));
+                function named(item, name) {
+                    if (item.objectName === name) return item;
+                    for (const child of item.children || []) {
+                        const found = named(child, name);
+                        if (found) return found;
+                    }
+                    return null;
+                }
+                for (const name of ["moosHomeOverview", "moosHomeArrangement", "moosHomeSettings", "moosHomeMira"]) {
+                    const action = named(v, name);
+                    driver.verify(action && action.width >= 44 && action.height >= 44,
+                        "Home action keeps its input target: " + name);
+                    const position = action.mapToItem(driver.homeScroll, 0, 0);
+                    driver.verify(position.x >= -1 && position.x + action.width <= driver.homeScroll.width + 1,
+                        "Home action fits horizontally: " + name);
+                }
+                const store = named(v, "launcherStore");
+                driver.verify(store && store.width >= 44 && store.height >= 44,
+                    "Store remains a real application-library destination");
+                const orbitTitle = driver.textItem(v, v.local("تطبيقاتك المثبتة", "Pinned applications"));
                 driver.verify(orbitTitle !== null, "real Home section title exists");
                 driver.compare(orbitTitle.effectiveHorizontalAlignment,
                     v.rtl ? Text.AlignRight : Text.AlignLeft,

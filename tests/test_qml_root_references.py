@@ -46,6 +46,9 @@ INHERITED = {
 # A settings page's root is a KCM page and its shared rows are controls: these are the two
 # members of theirs the files read (a control's `text`, an Item's `enabled`).
 INHERITED_CONTROL = {"text", "enabled"}
+# These QQC2 states belong to AbstractButton, not to every settings page or Item.
+# Keep the allowance type-scoped so a misspelt state on another root still fails.
+ABSTRACT_BUTTON_STATES = {"down", "hovered", "visualFocus"}
 
 
 def strip_noise(text: str) -> str:
@@ -70,9 +73,16 @@ def declarations(code: str, inherited: set[str]) -> set[str]:
 
 def audit(path: Path, inherited: set[str] = INHERITED) -> list[str]:
     code = strip_noise(path.read_text(encoding="utf-8"))
+    return audit_source(code, path.relative_to(ROOT).as_posix(), inherited)
+
+
+def audit_source(code: str, label: str, inherited: set[str]) -> list[str]:
+    root_type = re.search(r"(?m)^\s*([\w.]+)\s*\{", code)
+    if root_type and root_type.group(1).split(".")[-1] == "AbstractButton":
+        inherited = inherited | ABSTRACT_BUTTON_STATES
     first_id = re.search(r"(?m)^\s*id:\s*(\w+)", code)
     if not first_id:
-        return [f"{path.relative_to(ROOT).as_posix()}: no root `id:` found — this gate cannot "
+        return [f"{label}: no root `id:` found — this gate cannot "
                 "tell what the root is called; give the root an id"]
     root_id = first_id.group(1)
     declared = declarations(code, inherited)
@@ -83,7 +93,7 @@ def audit(path: Path, inherited: set[str] = INHERITED) -> list[str]:
         for name in re.findall(rf"\b{re.escape(root_id)}\.(\w+)", line):
             if name not in declared and name not in inherited:
                 seen.setdefault(name, []).append(number)
-    rel = path.relative_to(ROOT).as_posix()
+    rel = label
     for name, lines in sorted(seen.items()):
         shown = ", ".join(map(str, lines[:6])) + (" …" if len(lines) > 6 else "")
         problems.append(f"{rel}: `{root_id}.{name}` is read on line(s) {shown} but `{root_id}` "
@@ -159,6 +169,21 @@ def audit_store_components(window: Path = STORE / "main.qml") -> list[str]:
 
 
 def main() -> int:
+    # A native control's inherited states are valid, but typos and those same
+    # names on an Item must still be refused. No broad global whitelist.
+    for root_type, state, should_fail in (
+        ("Controls.AbstractButton", "hovered", False),
+        ("Controls.AbstractButton", "down", False),
+        ("Controls.AbstractButton", "visualFocus", False),
+        ("Controls.AbstractButton", "visualFocuss", True),
+        ("Item", "hovered", True),
+        ("Item", "down", True),
+        ("Item", "visualFocus", True),
+    ):
+        code = f"{root_type} {{\n id: subject\n property bool probe: subject.{state}\n}}"
+        if bool(audit_source(code, "inheritance-control", INHERITED)) != should_fail:
+            print(f"GATE FAIL: root inheritance control {root_type}.{state}")
+            return 1
     files = sorted(APPS.glob("*/main.qml"))
     settings = sorted(KCM.rglob("*.qml"))
     if len(files) < 4 or len(list(KCM.glob("modules/*/ui/main.qml"))) < 5:

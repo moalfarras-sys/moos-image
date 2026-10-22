@@ -419,6 +419,7 @@ check:
     # focus + activation keys, search-field <-> content crossing, Shift+Tab.
     python3 tests/test_moos_launcher_keyboard.py
     python3 tests/test_launcher_adaptive.py
+    python3 tests/test_launcher_destinations.py
     python3 tests/test_hub_adaptive.py
     # The bar is ONE capsule: this runs the real merge surgery out of
     # moos-bar-apply against appletsrc fixtures, so a change that can leave
@@ -442,6 +443,7 @@ check:
     # must resolve through a fixed route, and its live status boundary stays
     # read-only, private and atomic.
     python3 tests/test_moos_settings.py
+    python3 tests/test_settings_destination_input.py
     python3 tests/test_settings_about_page.py
     python3 tests/test_whats_new.py
     python3 tests/test_desktop_customize.py

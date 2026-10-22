@@ -32,22 +32,31 @@ Item {
     property bool showSystem: true
     readonly property int visibleCards: (showClock ? 1 : 0) + (showWeather ? 1 : 0)
                                         + (showSystem ? 1 : 0)
-    // With every card shown the hub keeps its designed 46-column width exactly; the
-    // system card absorbs the remainder, as it always has.
+    // A wide workspace has a clock/forecast pair above a quieter device strip.
+    // Portrait keeps the clock above the two instruments. Hidden instruments
+    // relinquish their cells; no empty dashboard placeholders are retained.
     implicitWidth: Math.round(Kirigami.Units.gridUnit * (compact && visibleCards > 1
         ? Math.max(showClock ? design.desktopHubClockColumns : 0,
                    (showWeather ? design.desktopHubWeatherColumns : 0)
                    + (showSystem ? design.desktopHubSystemColumns : 0))
         : visibleCards === 3
         ? design.desktopHubColumns
-        : (showClock ? design.desktopHubClockColumns : 0)
-          + (showWeather ? design.desktopHubWeatherColumns : 0)
-          + (showSystem ? design.desktopHubSystemColumns : 0)
-          + Math.max(0, visibleCards - 1) * 0.5))
-    implicitHeight: Math.round(Kirigami.Units.gridUnit
-                               * design.desktopHubRows
-                               * (compact && showClock && (showWeather || showSystem) ? 2 : 1)
-                               + (compact && showClock && (showWeather || showSystem) ? design.space3 : 0))
+        : compact
+        ? (showClock ? design.desktopHubClockColumns : 0)
+            + (showWeather ? design.desktopHubWeatherColumns : 0)
+            + (showSystem ? design.desktopHubSystemColumns : 0)
+        : Math.max((showClock ? design.desktopHubClockColumns * 2 : 0)
+            + (showWeather ? design.desktopHubWeatherColumns : 0)
+            + (showClock && showWeather ? design.space3 / Kirigami.Units.gridUnit : 0),
+            showSystem ? design.desktopHubSystemColumns : 0)))
+    implicitHeight: Math.round(Kirigami.Units.gridUnit * design.desktopHubRows
+        * (compact && showClock && (showWeather || showSystem) ? 2 : 1)
+        + (compact && showClock && (showWeather || showSystem) ? design.space3 : 0)
+        + (!compact && showSystem && (showClock || showWeather)
+            ? Kirigami.Units.gridUnit * design.desktopHubRows / 2 + design.space3 : 0))
+
+    LayoutMirroring.enabled: MoUI.Locale.rtl
+    LayoutMirroring.childrenInherit: true
 
     property date now: new Date()
     property real latitude: NaN
@@ -328,53 +337,28 @@ Item {
         onTriggered: isNaN(root.latitude) ? root.locate() : root.refreshForecast()
     }
 
-    // Horizon Hub shares one material. Clear keeps the open wallpaper composition;
-    // balanced and solid visibly increase the painted background without dimming content.
-    Rectangle {
-        id: hubMaterial
-        anchors.fill: parent
-        visible: root.visibleCards > 0
-        radius: root.design.radiusPanel
-        color: Qt.rgba(Kirigami.Theme.backgroundColor.r,
-                       Kirigami.Theme.backgroundColor.g,
-                       Kirigami.Theme.backgroundColor.b,
-                       root.design.glassFill(Kirigami.Theme.backgroundColor,
-                                             root.design.glassLevelScene, 0))
-    }
     GridLayout {
         objectName: "hubAdaptiveGrid"
         anchors.fill: parent
-        columns: root.compact ? 2 : 5
-        columnSpacing: 0
-        rowSpacing: root.compact ? root.design.space3 : 0
+        columns: 2
+        columnSpacing: root.design.space3
+        rowSpacing: root.design.space3
 
         ClockCard {
             objectName: "hubClockCard"
             page: root.clockPage
             visible: root.showClock
             Layout.preferredWidth: Math.round(Kirigami.Units.gridUnit
-                * root.design.desktopHubClockColumns)
-            Layout.columnSpan: root.compact ? 2 : 1
-            Layout.fillWidth: root.compact
+                * root.design.desktopHubClockColumns * (root.compact ? 1 : 2))
+            Layout.columnSpan: root.compact || !root.showWeather ? 2 : 1
+            Layout.fillWidth: true
             Layout.preferredHeight: Math.round(Kirigami.Units.gridUnit * root.design.desktopHubRows)
             Layout.fillHeight: true
             now: root.now
             motionEnabled: root.motionEnabled
             accentMotion: root.accentMotion
-            integrated: true
+            integrated: false
             themeLabel: root.themeLabel
-        }
-
-        Rectangle {
-            // Between the clock and whatever follows it.
-            visible: !root.compact && root.showClock && (root.showWeather || root.showSystem)
-            Layout.preferredWidth: root.design.borderHairline
-            Layout.fillHeight: true
-            Layout.topMargin: root.design.space3
-            Layout.bottomMargin: root.design.space3
-            color: Qt.rgba(Kirigami.Theme.textColor.r,
-                           Kirigami.Theme.textColor.g,
-                           Kirigami.Theme.textColor.b, 0.22)
         }
 
         WeatherCard {
@@ -387,9 +371,10 @@ Item {
                 return root.weatherKind(code, root.weatherReady ? root.forecastData.daylight : true)
             }
             visible: root.showWeather
+            Layout.columnSpan: root.compact ? (root.showSystem ? 1 : 2) : (root.showClock ? 1 : 2)
             Layout.preferredWidth: Math.round(Kirigami.Units.gridUnit
                 * root.design.desktopHubWeatherColumns)
-            Layout.fillWidth: root.compact
+            Layout.fillWidth: true
             Layout.preferredHeight: Math.round(Kirigami.Units.gridUnit * root.design.desktopHubRows)
             Layout.fillHeight: true
             weatherReady: root.weatherReady
@@ -407,32 +392,23 @@ Item {
                     : ""
             motionEnabled: root.motionEnabled
             accentMotion: root.accentMotion
-            integrated: true
-        }
-
-        Rectangle {
-            // Between the weather and the system card.
-            visible: !root.compact && root.showWeather && root.showSystem
-            Layout.preferredWidth: root.design.borderHairline
-            Layout.fillHeight: true
-            Layout.topMargin: root.design.space3
-            Layout.bottomMargin: root.design.space3
-            color: Qt.rgba(Kirigami.Theme.textColor.r,
-                           Kirigami.Theme.textColor.g,
-                           Kirigami.Theme.textColor.b, 0.22)
+            integrated: false
         }
 
         SystemCard {
             objectName: "hubSystemCard"
             page: root.systemPage
             visible: root.showSystem
+            Layout.columnSpan: root.compact && root.showWeather ? 1 : 2
             Layout.fillWidth: true
             Layout.preferredWidth: Math.round(Kirigami.Units.gridUnit * root.design.desktopHubSystemColumns)
-            Layout.preferredHeight: Math.round(Kirigami.Units.gridUnit * root.design.desktopHubRows)
+            Layout.preferredHeight: Math.round(Kirigami.Units.gridUnit
+                * (!root.compact && (root.showClock || root.showWeather)
+                    ? root.design.desktopHubRows / 2 : root.design.desktopHubRows))
             Layout.fillHeight: true
             motionEnabled: root.motionEnabled
             accentMotion: root.accentMotion
-            integrated: true
+            integrated: false
         }
     }
 }

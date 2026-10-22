@@ -3,6 +3,20 @@
   "_": "What a person can SEE or DO after an update, newest first. One entry per user-visible change, written for the owner of the machine, not for a developer: what it is, where it is, and (when MoOS has a route to it) a way to try it now. 'merged' is when the change reached main (a little later is fine, earlier is not: an entry dated before a machine's previous system is never marked new there); a machine marks an entry new when the system it ran BEFORE the update was built earlier than that. tests/test_whats_new.py reads every entry the way MoOS Settings will.",
   "entries": [
     {
+      "id": "native-workspace-composition",
+      "merged": "2026-10-23T06:00:00Z",
+      "glyph": "ui",
+      "route": "moos://settings/overview",
+      "title": {
+        "ar": "مساحة عمل MoOS أوضح وأسهل",
+        "en": "A clearer MoOS workspace"
+      },
+      "body": {
+        "ar": "ترتيب جديد للساعة والطقس وحالة الجهاز يتكيّف مع العرض الطولي، وزر مساحة العمل لفتح نوافذك. تفتح الرئيسية تنظيم النوافذ والإعدادات وميرا، وتفتح مكتبة التطبيقات المتجر فعليًا. تجمع بداية الإعدادات الشاشة والمظهر والصوت والشبكة والطاقة والإشعارات.",
+        "en": "A portrait-ready clock, weather and device layout, plus a Workspace button for your windows. Home opens window arrangement, Settings and Mira; the app library opens Mo Store. Mira and Store shortcuts now open their actual applications. Settings groups your main device controls."
+      }
+    },
+    {
       "id": "adaptive-native-launcher",
       "merged": "2026-10-22T12:00:00Z",
       "glyph": "ui",
@@ -899,19 +913,6 @@
       "body": {
         "ar": "بعد كل تحديث يخبرك MoOS بما تغيّر، وتجد القائمة دائمًا هنا في الإعدادات ← النظام.",
         "en": "After every update MoOS tells you what changed, and the list is always here under Settings, System."
-      }
-    },
-    {
-      "id": "arabic-polish",
-      "merged": "2026-09-17T23:26:45Z",
-      "glyph": "clock",
-      "title": {
-        "ar": "سطح مكتب أدقّ بالعربية",
-        "en": "A tidier desktop in Arabic"
-      },
-      "body": {
-        "ar": "سطرا التاريخ في لوحة MoOS على حافة واحدة، وشريحة الخصوصية في الجزيرة تعرض جملتها كاملة بدل قطعها.",
-        "en": "The two date lines of the MoOS Hub sit on one edge, and the Island's privacy chip shows its whole sentence instead of cutting it."
       }
     }
   ]

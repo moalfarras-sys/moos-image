@@ -254,6 +254,21 @@ must not fall back to Breeze artwork.
 
 The search field has its own space and hit target; it never overlays the MoOS
 button. Preserve stock task grouping, pinning, previews and drag/reorder.
+The compact MoOS mark and Workspace control share this same bar. Workspace
+opens KWin Overview through the canonical route; it owns no second window
+model or compositor. Their accessible names and one Plasma tooltip distinguish
+the two actions. Home keeps Overview, side-by-side arrangement, native MoOS
+Settings and Mira in a two-column grid. The application library retains a real
+Store destination. Application icons stay quiet at rest.
+
+The desktop Hub gives the clock and forecast a clear upper pair and places
+device readings in a lower strip. Portrait places the clock above the two
+instruments; a narrow device card moves its verdict above its three gauges.
+Each sheet has one restrained rim and specular edge, without a second enclosing
+card. Wallpaper input remains passive. Settings uses real KCM destination
+tiles with single-column narrow flow; decorative branding yields space before
+controls do. The native destination owns its actual settings and permissions.
+
 MoOS Island is a fixed Context Island in the centre rail, not a panel segment that
 stretches and collapses. Its 9.5-grid-unit footprint stays stable while Search,
 Mo PC Remote, privacy, Store work and media replace one another inside it by a

@@ -85,6 +85,20 @@ Keep shared native owners and distinguish a component improvement from a whole
 desktop redesign. Retire tests only after checking their callers and guarded
 failure; dates and filenames do not prove they are obsolete.
 
+**A fitting card can still clip its contents.** The real portrait V3 showed a
+half-cut disk gauge while all outer Hub bounds passed. Check the actual metric
+items and narrow content flow, then inspect the installed pixels. Settings QML
+is embedded in native KCM libraries: copying QML or seeing a ready marker from
+the old installed library is not source acceptance. Require the exact loaded
+library path, scoped process integration and the real destination journey.
+Keep one Plasma tooltip owner for multiple controls inside one panel applet.
+For a remote review, identify the actual viewing path and keep the requested
+surface visible for the owner. Restoring a foreground editor after a capture
+can hide the change again; a local screenshot is not phone-frame acceptance.
+Kicker SimpleFavoritesModel publishes canonical `applications:` IDs even when
+initialized with desktop IDs. Match its actual published identity before
+triggering a row; exercise direct destinations as well as the catalogue.
+
 **A direct sysctl write is not profile durability.** TuneD throughput overwrote
 the V3's three declared MoKernel memory values because its reapplication searches
 run/etc, not usr/lib. A canonical relative alias restores one existing policy;

@@ -1,5 +1,5 @@
-// The clock card's first page: the hour, localized date/week and the MoOS
-// badge. Split out of ClockCard.qml when the card gained a second page, so each
+// The clock card's first page: the hour and localized date/week.
+// Split out of ClockCard.qml when the card gained a second page, so each
 // page is one readable file and the card itself is the composition of the two.
 pragma ComponentBehavior: Bound
 
@@ -28,9 +28,9 @@ Item {
     readonly property int pulseInDuration:
         Math.round(Kirigami.Units.veryLongDuration * 0.62)
 
+    readonly property int clockSize: Math.round(Math.max(Kirigami.Units.gridUnit * 3.15,
+        Math.min(Kirigami.Units.gridUnit * 4.8, width * 0.22)))
     readonly property string timeText: Qt.formatTime(now, "HH:mm")
-    readonly property bool lightSurface:
-        Kirigami.Theme.backgroundColor.hslLightness > 0.55
 
     onNowChanged: {
         if (motionEnabled) {
@@ -42,37 +42,23 @@ Item {
         anchors.fill: parent
         spacing: 0
 
-        RowLayout {
+        Text {
             Layout.fillWidth: true
-            spacing: Kirigami.Units.smallSpacing
-
-            Rectangle {
-                Layout.preferredWidth: Math.max(5, Kirigami.Units.gridUnit * 0.34)
-                Layout.preferredHeight: Layout.preferredWidth
-                radius: width / 2
-                color: Kirigami.Theme.highlightColor
-            }
-
-            Text {
-                text: face.local("الوقت المحلي", "LOCAL TIME")
-                color: Kirigami.Theme.disabledTextColor
-                font.family: face.labelFamily
-                font.pixelSize: Math.round(Kirigami.Units.gridUnit * 0.55)
-                font.weight: Font.DemiBold
-                font.letterSpacing: face.rtl ? 0 : 1.8
-            }
-
-            // No AM/PM badge: the digits below are 24-hour (HH:mm), so a
-            // meridiem marker contradicts them. Every other MoOS clock (login,
-            // lock, Hero) shows 24-hour with no meridiem — this card matches.
-            Item { Layout.fillWidth: true }
+            objectName: "hubLocalDate"
+            text: Qt.formatDate(face.now, Qt.locale(face.rtl ? "ar" : "en"), Locale.LongFormat)
+            color: Kirigami.Theme.textColor
+            font.family: face.labelFamily
+            font.pixelSize: face.width > Kirigami.Units.gridUnit * 16
+                ? MoUI.Tokens.typeTitle : MoUI.Tokens.typeBody
+            font.weight: Font.Medium
+            horizontalAlignment: Text.AlignHCenter
+            elide: Text.ElideRight
         }
 
         Item { Layout.preferredHeight: Kirigami.Units.gridUnit * 0.75 }
 
         RowLayout {
-            Layout.fillWidth: true
-            Layout.alignment: Qt.AlignLeft
+            Layout.alignment: Qt.AlignHCenter
             // Time is a left-to-right technical token even when the shell
             // language is Arabic. Plasma enables LayoutMirroring on the
             // wallpaper tree, which overrides layoutDirection alone; stop
@@ -86,12 +72,12 @@ Item {
             RollingDigit {
                 glyph: face.timeText.charAt(0)
                 motionEnabled: face.motionEnabled
-                pixelSize: Math.round(Kirigami.Units.gridUnit * 3.15)
+                pixelSize: face.clockSize
             }
             RollingDigit {
                 glyph: face.timeText.charAt(1)
                 motionEnabled: face.motionEnabled
-                pixelSize: Math.round(Kirigami.Units.gridUnit * 3.15)
+                pixelSize: face.clockSize
             }
 
             Text {
@@ -101,7 +87,7 @@ Item {
                 color: Kirigami.Theme.highlightColor
                 opacity: 0.74
                 font.family: "IBM Plex Sans"
-                font.pixelSize: Math.round(Kirigami.Units.gridUnit * 3.15)
+                font.pixelSize: face.clockSize
                 font.weight: Font.Light
 
                 // NOTHING may take ownership of this opacity. A
@@ -129,12 +115,12 @@ Item {
             RollingDigit {
                 glyph: face.timeText.charAt(3)
                 motionEnabled: face.motionEnabled
-                pixelSize: Math.round(Kirigami.Units.gridUnit * 3.15)
+                pixelSize: face.clockSize
             }
             RollingDigit {
                 glyph: face.timeText.charAt(4)
                 motionEnabled: face.motionEnabled
-                pixelSize: Math.round(Kirigami.Units.gridUnit * 3.15)
+                pixelSize: face.clockSize
             }
         }
 
@@ -161,19 +147,6 @@ Item {
 
         Item { Layout.preferredHeight: Kirigami.Units.gridUnit * 0.55 }
 
-        Text {
-            Layout.fillWidth: true
-            objectName: "hubLocalDate"
-            text: Qt.formatDate(face.now, Qt.locale(face.rtl ? "ar" : "en"), Locale.LongFormat)
-            color: Kirigami.Theme.textColor
-            font.family: face.labelFamily
-            font.pixelSize: Math.round(Kirigami.Units.gridUnit * 0.88)
-            font.weight: Font.Medium
-            // Follow the same logical edge as the clock's column in either locale.
-            horizontalAlignment: Text.AlignLeft
-            elide: Text.ElideRight
-        }
-
         WeekStrip {
             Layout.fillWidth: true
             Layout.preferredHeight: Kirigami.Units.gridUnit * 1.8
@@ -183,51 +156,5 @@ Item {
         }
 
         Item { Layout.fillHeight: true }
-
-        Rectangle {
-            Layout.fillWidth: true
-            Layout.preferredHeight: Math.round(Kirigami.Units.gridUnit * 1.45)
-            radius: height / 2
-            color: Qt.rgba(Kirigami.Theme.alternateBackgroundColor.r,
-                           Kirigami.Theme.alternateBackgroundColor.g,
-                           Kirigami.Theme.alternateBackgroundColor.b, 0.62)
-            border.width: 1
-            border.color: Qt.rgba(Kirigami.Theme.highlightColor.r,
-                                  Kirigami.Theme.highlightColor.g,
-                                  Kirigami.Theme.highlightColor.b, 0.22)
-
-            RowLayout {
-                anchors.fill: parent
-                anchors.leftMargin: Kirigami.Units.largeSpacing
-                anchors.rightMargin: Kirigami.Units.largeSpacing
-                spacing: Kirigami.Units.smallSpacing
-
-                Rectangle {
-                    Layout.preferredWidth: Kirigami.Units.gridUnit * 1.1
-                    Layout.preferredHeight: 2
-                    radius: 1
-                    color: Kirigami.Theme.highlightColor
-                }
-                Text {
-                    text: "MoOS"
-                    color: Kirigami.Theme.textColor
-                    font.family: "IBM Plex Sans"
-                    font.pixelSize: Math.round(Kirigami.Units.gridUnit * 0.53)
-                    font.weight: Font.DemiBold
-                    font.letterSpacing: 1.4
-                }
-                Item { Layout.fillWidth: true }
-                Text {
-                    text: face.themeLabel !== ""
-                        ? face.themeLabel
-                        : (face.lightSurface ? "TIDAL GLASS" : "GRAPHITE GLASS")
-                    color: Kirigami.Theme.disabledTextColor
-                    font.family: "IBM Plex Sans"
-                    font.pixelSize: Math.round(Kirigami.Units.gridUnit * 0.49)
-                    font.weight: Font.Medium
-                    font.letterSpacing: 1.1
-                }
-            }
-        }
     }
 }

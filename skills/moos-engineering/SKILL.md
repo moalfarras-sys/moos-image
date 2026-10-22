@@ -94,6 +94,12 @@ Use [live development](references/live-development.md) for the acceptance record
 and the distinction between live compatibility files and signed delivery.
 Before retiring an old test or tool, identify its callers and the failure it
 guards; age alone does not make a boot, recovery or regression check obsolete.
+For responsive work, inspect inner labels/gauges and actual input as well as
+outer bounds. Load the exact compiled KCM library when reviewing embedded QML;
+an old installed library's ready marker does not qualify a staged source page.
+One native panel applet keeps one tooltip owner, even with multiple controls.
+For remote review, verify the viewing path and leave the requested surface
+visible; restoring foreground windows can hide a successfully captured change.
 
 ## Upstream transitions: Plasma, Fedora and the kernel
 
