@@ -353,6 +353,7 @@ WallpaperItem {
     Component {
         id: bentoComponent
         DashboardBento {
+            compact: bentoFrame.compact
             resolvedMotionMode: root.resolvedMotionMode
             themeLabel: root.themeLabel
             showClock: root.hubClock
@@ -373,14 +374,17 @@ WallpaperItem {
         z: 1
         anchors.top: parent.top
         anchors.horizontalCenter: parent.horizontalCenter
-        anchors.topMargin: Math.max(72, Math.round(parent.height * 0.16))
+        anchors.topMargin: compact ? Math.max(36, Math.round(parent.height * 0.06))
+                                  : Math.max(72, Math.round(parent.height * 0.16))
+        readonly property bool compact: root.width < Kirigami.Units.gridUnit * 50
 
         readonly property real safeMargin:
             Math.max(36, Math.round(root.width * 0.035))
         readonly property real roomWidth:
             Math.min(root.width * 0.86, root.width - safeMargin * 2)
         readonly property real roomHeight:
-            root.height * 0.58 - anchors.topMargin
+            compact ? root.height - anchors.topMargin - Math.max(96, root.height * 0.12)
+                    : root.height * 0.58 - anchors.topMargin
 
         readonly property bool dashboardRequested: root.hubShown
         readonly property real bentoWidth:
@@ -407,7 +411,8 @@ WallpaperItem {
             id: bentoLoader
             anchors.horizontalCenter: parent.horizontalCenter
             active: bentoFrame.dashboardRequested
-                    && root.width >= 820 && root.height >= 520
+                    && (bentoFrame.compact ? root.width >= 600 && root.height >= 640
+                                           : root.width >= 820 && root.height >= 520)
             sourceComponent: bentoComponent
             width: item ? item.implicitWidth : 0
             height: item ? item.implicitHeight : 0

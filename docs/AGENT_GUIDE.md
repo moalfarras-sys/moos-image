@@ -19,7 +19,12 @@ returned output. `PROJECT_STATE.md` records measured state; `AGENTS.md`
 preserves occasions where green gates missed a shipped defect.
 The gates check what someone thought to check; they cannot see the screen.
 
-The honest loop, in order:
+Start with the actual host/session/deployment and a retained visible baseline.
+After source checks, load the reviewed change through its existing native owner,
+exercise the installed flow and capture the resulting desktop. Record temporary
+compatibility copies and their signed-delivery retirement condition. Do not reset
+owner defaults to manufacture a before/after, and never count a source-only or
+container render as the running OS. The maintained checks remain mandatory:
 
 ```bash
 just check              # every slice; maintained CI gate, failures propagate

@@ -1,0 +1,157 @@
+{
+  "date": "2026-10-22",
+  "scope": "Real V3 running desktop plus native source controls; no new immutable delivery, reboot, VM or local OS image",
+  "source_base": "264b22ef8502fa33279a23cec6f7d282a0238a2e",
+  "theme_revision": 112,
+  "installed": {
+    "booted": "44.20261021.1090",
+    "digest": "sha256:01edfe6738bef77743a949cba220e60c3685b92dbf24998b7b2ff4c32951c6e1",
+    "pinned_rollback": "44.20261019.1078",
+    "staged": false,
+    "plasma": "6.8.1",
+    "qt": "6.11.2",
+    "gpu": "AMD Radeon 780M / radeonsi / Mesa 26.2.3",
+    "session": "Wayland, accelerated OpenGL ES/EGL"
+  },
+  "changes": [
+    "Scoped native Baloo and DrKonqi ordering corrections retain vendor behavior and explicit basic/D-Bus/shutdown safety",
+    "Ordinary signed Flatpak updates no longer perform full installation repair; retry, Store lock/preferences and final failure reporting retained",
+    "Existing native wallpaper Hub reuses one calendar, localizes the date and adapts the same component hierarchy to portrait; no separate shell",
+    "Permanent live-system-first and exact cleanup/app-owner rules"
+  ],
+  "native_acceptance": {
+    "source_live_hash_pairs": 28,
+    "user_unit_graph": {
+      "exit": 0,
+      "ordering_cycle": false
+    },
+    "search_lifecycle": {
+      "scope": "actual running Baloo; ordinary filesystem events; no forced indexing",
+      "create_seconds": 0.815,
+      "atomic_save_seconds": 0.812,
+      "old_content_disappeared_seconds": 0.015,
+      "delete_seconds": 0.281,
+      "passed": true,
+      "index_allocated_bytes": 836149248
+    },
+    "real_hub_secondary_faces": true,
+    "real_launcher_open_close_cycles": 2,
+    "portrait": {
+      "physical_pixels": [
+        2160,
+        3840
+      ],
+      "same_display_temporarily_rotated": true,
+      "two_row_layout": true,
+      "exact_output_topology_restored": true,
+      "owner_window_states_restored": true,
+      "touch_acceptance": false
+    },
+    "shell_qml_runtime_errors_since_0940": 0,
+    "kwin_plasma_remote_restarted": false
+  },
+  "resource_sample": {
+    "seconds": 15.000124753001728,
+    "workload": "actual desktop with owner Code/Mira open; no source check/build; no before CPU control, not a performance-improvement claim",
+    "processes": {
+      "kwin_wayland": {
+        "percent_of_one_cpu_core": 5.2,
+        "rss_bytes": 399564800
+      },
+      "plasmashell": {
+        "percent_of_one_cpu_core": 1.33,
+        "rss_bytes": 731828224
+      },
+      "baloo_file": {
+        "percent_of_one_cpu_core": 0.0,
+        "rss_bytes": 217026560
+      }
+    },
+    "speedup_claimed": false
+  },
+  "approved_cleanup": {
+    "baloo": {
+      "tables": 12,
+      "indexed_files": 173168,
+      "logical_hashes_flags_counts_preserved": true,
+      "original_allocated_bytes": 134490329088,
+      "initial_compact_allocated_bytes": 572030976,
+      "retired_allocated_bytes": 133918298112,
+      "normal_growth": "approximately 0.8 GiB; lifecycle receipt measures current allocation"
+    },
+    "final_build_layer_plan": {
+      "approved": 67,
+      "retired": 49,
+      "refused": 18,
+      "reason": "Retained descendants outside approved target list",
+      "observed_free_delta_bytes": 4747587584,
+      "force_or_blanket_prune": false
+    },
+    "deployments_retained": 2,
+    "extra_1072_removed": true
+  },
+  "checks": {
+    "maintained_native_just_check": {
+      "exit": 0,
+      "elapsed_seconds": 706.6227498759981,
+      "log_sha256": "6588ccc1c612971ea82ffb064f1b5c74ce871feab854fa610138c93204b3ef20"
+    },
+    "unittest_summaries": 214,
+    "native_qt_geometry_cases": 28,
+    "fixed_row_negatives": 2,
+    "baloo_unit_controls": 8,
+    "alignment_parser_design_controls": 7,
+    "first_failures_retained": [
+      "Legacy fixed-script floor after removal of duplicate-language date",
+      "Legacy divider literal after adaptive layout"
+    ],
+    "skipped_gate_to_pass": false
+  },
+  "private_visual_evidence": {
+    "native-desktop-visible.png": {
+      "sha256": "e1e9000b8aacf7ecd4677733b7ce9e807f7d482e97919e2651823781292c0169",
+      "publicly_uploaded": false
+    },
+    "after-native-desktop.png": {
+      "sha256": "9d57c799e065e5b7215d18ca7456d22634c14d5299104ea61dd5cceae2603e2e",
+      "publicly_uploaded": false
+    },
+    "native-portrait-display.png": {
+      "sha256": "016730cb35e2f89bc62d83f00a417c2d23dd58c98d7b1822806596d7cc5d002a",
+      "publicly_uploaded": false
+    },
+    "native-hub-second-faces.png": {
+      "sha256": "29bbdecacd8d7929facd98bb7cf4cf4fef2c452ab758b75ed6f86aaa08ef48ef",
+      "publicly_uploaded": false
+    },
+    "native-launcher-1.png": {
+      "sha256": "bf1e077e2e255bf619f5ce8ac4fa792c1b53634a5e1bb3ccec032e114e00d1bb",
+      "publicly_uploaded": false
+    },
+    "native-launcher-2.png": {
+      "sha256": "cf8e4c5a844b1567f4e6ffb752238440dcbf1e3f8b45a4021b1f7a8bc4cb1f10",
+      "publicly_uploaded": false
+    }
+  },
+  "reviewed_payload_sha256": {
+    "system_files/usr/bin/moos-apply-theme": "dcb515c0b3a0c789e11766b11f66cecc5dcd78f50bb1e3a4d2d8b0c7a481a80d",
+    "system_files/usr/lib/systemd/user/kde-baloo.service.d/30-moos-session-ordering.conf": "0163714213db661e77175a34e8b79b86fb4e02d9eb939d49a170b57ba287af7c",
+    "system_files/usr/lib/systemd/user/drkonqi-coredump-cleanup.timer.d/30-moos-timer-ordering.conf": "8fe77330c185da07593842ca5da8b06b056538429612dfd9ddb69f24a7488505",
+    "system_files/usr/libexec/moos-flatpak-update": "1bcf23a61eaaaeffb1cb526630c988aa83176dc73f0ca58e23390f69b8e7cbb6",
+    "system_files/usr/share/plasma/wallpapers/org.moos.ui2.wallpaper/contents/ui/ClockFace.qml": "909b971999337c47261dd2ad0284adb3419569225be0a342b40579cb85e600ed",
+    "system_files/usr/share/plasma/wallpapers/org.moos.ui2.wallpaper/contents/ui/DashboardBento.qml": "dd555d56c59ebfdd8e0da72789eb4e40b79ca85d21c3dd369c769e8c16d35416",
+    "system_files/usr/share/plasma/wallpapers/org.moos.ui2.wallpaper/contents/ui/WeekStrip.qml": "8bb7569fb98595e469266782a2f29a938d054b472869db2b5d0153f2169075e0",
+    "system_files/usr/share/plasma/wallpapers/org.moos.ui2.wallpaper/contents/ui/main.qml": "92ed24407ba7c8595bea5e0e3b6bea5f325025af4686a5917996a7083724e530"
+  },
+  "compatibility_retirement": "Exact user-local wallpaper/helper/unit copies are recorded privately. Retire after verified matching signed /usr bytes; theme policy quarantines user packages on next login, so current live view is not cold persistence proof.",
+  "remaining": [
+    "Normal GitHub integration and qualified signed release; owner approval before stage/reboot",
+    "Actual greeter screenRemoved SIGSEGV",
+    "Android calculator disappearance and incomplete resize",
+    "SMOCF05 binding and sensor rotation; physical touch/pen/suspend/cloud coverage",
+    "BIOS80% charge plateau unqualified: actual battery100%, AC, not charging,42cycles, approximately93.8% gauge capacity",
+    "Fresh cold fingerprint/password acceptance",
+    "Native Code1.142.0/OpenCode2.0.32 coexist with older Flatpak launchers; do not terminate active development session or delete account data",
+    "Owner-deferred provider/wallet onboarding"
+  ]
+}

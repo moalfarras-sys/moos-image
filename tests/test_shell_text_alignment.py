@@ -21,6 +21,11 @@ Text whose content is pinned to ONE script regardless of the session — it name
 or a property built from one — must say where it aligns. `Text.AlignLeft` is the leading edge:
 the shell mirrors it to the right in an Arabic session. A Text that follows the session's own
 locale needs nothing: its script and the layout already agree.
+
+The current Hub replaces the duplicate-language line with its real week calendar.
+Keep the fixed-script rule with executable planted failures, rather than requiring
+the product to retain a bilingual pair forever. Independently require the actual
+localized primary date to keep its logical column alignment and locale font.
 """
 
 from __future__ import annotations
@@ -45,8 +50,47 @@ def text_blocks(source: str):
         yield source.count("\n", 0, match.start()) + 1, source[match.end():index - 1]
 
 
+def fixed_script_violations(source: str):
+    fixed = set(re.findall(r'property\s+var\s+(\w+)\s*:\s*Qt\.locale\("[a-z_A-Z]+"\)', source))
+    count, missing = 0, []
+    for number, body in text_blocks(source):
+        binding = re.search(r'(?s)\btext\s*:(.*?)(?:\n\s*[a-z][A-Za-z.]*\s*:|\Z)', body)
+        if binding and (PINNED.search(binding.group(1)) or any(
+                re.search(rf'\b{name}\b', binding.group(1)) for name in fixed)):
+            count += 1
+            if 'horizontalAlignment' not in body:
+                missing.append(number)
+    return count, missing
+
+
+def clock_violations(source: str):
+    dates = [body for _, body in text_blocks(source) if 'objectName: "hubLocalDate"' in body]
+    if len(dates) != 1:
+        return ['the actual Hub primary date is missing or duplicated']
+    body = dates[0]
+    required = ('Qt.locale(face.rtl ? "ar" : "en")', 'Locale.LongFormat',
+                'horizontalAlignment: Text.AlignLeft', 'font.family: face.labelFamily',
+                'Layout.fillWidth: true')
+    return ['the Hub localized date lost '+item for item in required if item not in body]
+
+
 def main() -> int:
     errors: list[str] = []
+    # Prove the fixed-script parser still refuses both direct and indirect
+    # unaligned text, even when today's product has zero fixed-script lines.
+    direct = 'Text {\n text: Qt.formatDate(now, Qt.locale("en"))\n}'
+    indirect = 'readonly property var english: Qt.locale("en")\nText {\n text: english.name\n}'
+    for control in (direct, indirect):
+        assert fixed_script_violations(control) == (1, [control.count('\n', 0, control.index('Text'))+1])
+        aligned = control.replace('\n}', '\n horizontalAlignment: Text.AlignLeft\n}')
+        assert fixed_script_violations(aligned)[0] == 1 and not fixed_script_violations(aligned)[1]
+    clock = ROOT / 'system_files/usr/share/plasma/wallpapers/org.moos.ui2.wallpaper/contents/ui/ClockFace.qml'
+    current = clock.read_text(encoding='utf-8')
+    errors.extend(clock_violations(current))
+    for before, after in (('objectName: "hubLocalDate"', 'objectName: "gone"'),
+                          ('horizontalAlignment: Text.AlignLeft', ''),
+                          ('Qt.locale(face.rtl ? "ar" : "en")', 'Qt.locale("en")')):
+        assert before in current and clock_violations(current.replace(before, after)), before
     checked = pinned_total = 0
     for tree in TREES:
         for path in sorted(tree.rglob("*.qml")):
@@ -54,35 +98,23 @@ def main() -> int:
                 continue
             source = path.read_text(encoding="utf-8")
             code = re.sub(r"(?m)//[^\n]*$", "", source)
-            # Properties that hold one fixed locale ("readonly property var arabicLocale: Qt.locale("ar")").
-            fixed = set(re.findall(r"property\s+var\s+(\w+)\s*:\s*Qt\.locale\(\"[a-z_A-Z]+\"\)", code))
             checked += 1
-            for number, body in text_blocks(code):
-                text_binding = re.search(r"(?s)\btext\s*:(.*?)(?:\n\s*[a-z][A-Za-z.]*\s*:|\Z)", body)
-                if not text_binding:
-                    continue
-                expression = text_binding.group(1)
-                if not (PINNED.search(expression) or any(re.search(rf"\b{name}\b", expression) for name in fixed)):
-                    continue
-                pinned_total += 1
-                if "horizontalAlignment" not in body:
-                    errors.append(f"{path.relative_to(ROOT).as_posix()}:{number}: this Text shows a fixed "
+            count, missing = fixed_script_violations(code)
+            pinned_total += count
+            for number in missing:
+                errors.append(f"{path.relative_to(ROOT).as_posix()}:{number}: this Text shows a fixed "
                                   "script and sets no horizontalAlignment, so it aligns by that script "
                                   "instead of by its column (Text.AlignLeft is the leading edge; the "
                                   "shell mirrors it in an Arabic session)")
     if checked < 10:
         print(f"GATE FAIL: only {checked} shell QML files were read; the packages moved")
         return 1
-    if pinned_total == 0:
-        print("GATE FAIL: no fixed-script Text was found at all — the Hub's bilingual date pair is "
-              "gone or this gate can no longer see it; update the rule with the design")
-        return 1
     if errors:
         print("GATE FAIL: tests/test_shell_text_alignment.py")
         for error in errors:
             print(f" - {error}")
         return 1
-    print(f"shell text alignment gate passed ({checked} files, {pinned_total} fixed-script lines aligned explicitly)")
+    print(f"shell text alignment gate passed ({checked} files, {pinned_total} fixed-script lines, localized date and 7 parser/design controls)")
     return 0
 
 

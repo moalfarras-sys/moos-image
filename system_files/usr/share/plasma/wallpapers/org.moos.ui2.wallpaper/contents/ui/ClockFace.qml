@@ -1,4 +1,4 @@
-// The clock card's first page: the hour, the bilingual date pair and the MoOS
+// The clock card's first page: the hour, localized date/week and the MoOS
 // badge. Split out of ClockCard.qml when the card gained a second page, so each
 // page is one readable file and the card itself is the composition of the two.
 pragma ComponentBehavior: Bound
@@ -29,7 +29,6 @@ Item {
         Math.round(Kirigami.Units.veryLongDuration * 0.62)
 
     readonly property string timeText: Qt.formatTime(now, "HH:mm")
-    readonly property var arabicLocale: Qt.locale("ar")
     readonly property bool lightSurface:
         Kirigami.Theme.backgroundColor.hslLightness > 0.55
 
@@ -164,39 +163,23 @@ Item {
 
         Text {
             Layout.fillWidth: true
-            text: face.arabicLocale.standaloneDayName(
-                      face.now.getDay(), Locale.LongFormat)
-                  + "، " + Qt.formatDate(face.now, "d ")
-                  + face.arabicLocale.standaloneMonthName(
-                      face.now.getMonth(), Locale.LongFormat)
+            objectName: "hubLocalDate"
+            text: Qt.formatDate(face.now, Qt.locale(face.rtl ? "ar" : "en"), Locale.LongFormat)
             color: Kirigami.Theme.textColor
-            font.family: "IBM Plex Sans Arabic"
+            font.family: face.labelFamily
             font.pixelSize: Math.round(Kirigami.Units.gridUnit * 0.88)
             font.weight: Font.Medium
-            // The two date lines are one bilingual pair and sit on ONE edge: the column's
-            // leading edge, which the wallpaper tree's mirroring turns into the right edge in
-            // Arabic. Left implicit, a Text aligns by its OWN script — so in an Arabic session
-            // the English line hung on the left of a right-aligned column, and in an English
-            // session the Arabic line hung on the right of a left-aligned one. Seen by
-            // rendering the desktop from source (scripts/review/render-desktop.sh).
+            // Follow the same logical edge as the clock's column in either locale.
             horizontalAlignment: Text.AlignLeft
             elide: Text.ElideRight
         }
 
-        Text {
+        WeekStrip {
             Layout.fillWidth: true
-            Layout.topMargin: Kirigami.Units.smallSpacing / 2
-            // Pinned to English (not the ambient session locale) so the two
-            // date lines are always the same ar+en bilingual pair the login,
-            // lock and Hero clocks use — never two Arabic lines on an Arabic
-            // session.
-            text: Qt.formatDate(face.now, Qt.locale("en"), "dddd, d MMMM yyyy")
-            color: Kirigami.Theme.disabledTextColor
-            font.family: "IBM Plex Sans"
-            font.pixelSize: Math.round(Kirigami.Units.gridUnit * 0.68)
-            font.weight: Font.Normal
-            horizontalAlignment: Text.AlignLeft
-            elide: Text.ElideRight
+            Layout.preferredHeight: Kirigami.Units.gridUnit * 1.8
+            Layout.topMargin: Kirigami.Units.smallSpacing
+            now: face.now
+            compact: true
         }
 
         Item { Layout.fillHeight: true }

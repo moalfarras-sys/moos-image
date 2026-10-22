@@ -16,6 +16,9 @@ Item {
     id: strip
 
     required property date now
+    // The clock face reuses this same calendar as a quiet inline week. One date
+    // authority, with the complete named-day face still available from the menu.
+    property bool compact: false
     readonly property bool rtl: MoUI.Locale.rtl
     readonly property var design: MoUI.Tokens
     readonly property string labelFamily: rtl ? "IBM Plex Sans Arabic" : "IBM Plex Sans"
@@ -42,6 +45,7 @@ Item {
         spacing: 0
 
         RowLayout {
+            visible: !strip.compact
             Layout.fillWidth: true
             spacing: Kirigami.Units.smallSpacing
 
@@ -71,7 +75,7 @@ Item {
             }
         }
 
-        Item { Layout.preferredHeight: Kirigami.Units.gridUnit * 0.7 }
+        Item { Layout.preferredHeight: strip.compact ? 0 : Kirigami.Units.gridUnit * 0.7 }
 
         RowLayout {
             Layout.fillWidth: true
@@ -102,7 +106,7 @@ Item {
                         radius: strip.design.radiusControl
                         color: cell.today ? Kirigami.Theme.highlightColor : "transparent"
                         opacity: cell.today ? 0.92 : 1
-                        border.width: cell.today ? 0 : 1
+                        border.width: cell.today || strip.compact ? 0 : 1
                         border.color: Qt.alpha(Kirigami.Theme.textColor, 0.12)
 
                         ColumnLayout {
@@ -110,6 +114,7 @@ Item {
                             spacing: 0
 
                             Text {
+                                visible: !strip.compact
                                 // Arabic day names are long ("الأربعاء" is eight
                                 // glyphs) and a fixed size clipped the widest of
                                 // them inside the cell — seen on the station on
@@ -138,7 +143,7 @@ Item {
                                 color: cell.today ? Kirigami.Theme.highlightedTextColor
                                                   : Kirigami.Theme.textColor
                                 font.family: "IBM Plex Sans"
-                                font.pixelSize: Math.round(Kirigami.Units.gridUnit * 0.95)
+                                font.pixelSize: Math.round(Kirigami.Units.gridUnit * (strip.compact ? 0.7 : 0.95))
                                 font.weight: cell.today ? Font.DemiBold : Font.Normal
                             }
                         }
@@ -147,11 +152,12 @@ Item {
             }
         }
 
-        Item { Layout.preferredHeight: Kirigami.Units.smallSpacing }
+        Item { Layout.preferredHeight: strip.compact ? 0 : Kirigami.Units.smallSpacing }
 
         // The same badge the clock face carries, so turning the card feels like
         // turning ONE object over rather than swapping in a different card.
         Rectangle {
+            visible: !strip.compact
             Layout.fillWidth: true
             Layout.preferredHeight: Math.round(Kirigami.Units.gridUnit * 1.45)
             radius: height / 2
