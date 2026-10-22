@@ -145,7 +145,7 @@
   },
   "compatibility_retirement": "Exact user-local wallpaper/helper/unit copies are recorded privately. Retire after verified matching signed /usr bytes; theme policy quarantines user packages on next login, so current live view is not cold persistence proof.",
   "remaining": [
-    "Normal GitHub integration and qualified signed release; owner approval before stage/reboot",
+    "Qualified coordinated signed release and owner-approved stage/reboot",
     "Actual greeter screenRemoved SIGSEGV",
     "Android calculator disappearance and incomplete resize",
     "SMOCF05 binding and sensor rotation; physical touch/pen/suspend/cloud coverage",
@@ -153,5 +153,23 @@
     "Fresh cold fingerprint/password acceptance",
     "Native Code1.142.0/OpenCode2.0.32 coexist with older Flatpak launchers; do not terminate active development session or delete account data",
     "Owner-deferred provider/wallet onboarding"
-  ]
+  ],
+  "github_integration": {
+    "pr": 265,
+    "url": "https://github.com/moalfarras-sys/moos-image/pull/265",
+    "head": "9926bf61eebd4e38326309b263a9d037241ee348",
+    "merge": "f7cfee2c2c8c698ee9c904c95fc64ad3fde15bfa",
+    "repo_gate": 39749187027,
+    "x86_pr_image_gate": 39749187026,
+    "native_arm_pr_image_gate": 39749187059,
+    "all_three_conclusion": "success",
+    "pr_arm_disk_and_promotion": "skipped as expected, not release qualification",
+    "advisory_execution": "unavailable despite successful wrapper"
+  },
+  "owner_feedback": {
+    "earlier_hub_delta": "owner reports no visible change",
+    "current_capture": "localized date/week renders; this is not whole-desktop acceptance",
+    "capture_sha256": "acdf1269113357f342ea63f5d93bac675258e3c0537840bdcbe20c38a0f8de24",
+    "uploaded": false
+  }
 }

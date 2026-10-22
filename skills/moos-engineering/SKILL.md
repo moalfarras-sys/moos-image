@@ -85,6 +85,16 @@ integration and the candidate SHA. Kernel policy is not a custom kernel, a
 healthy API process is not a successful user flow, and available assets are
 not evidence that Plasma actually consumes them.
 
+For a requested visible improvement, identify the existing surface and a real
+interaction the owner can immediately use. Inspect its installed before/after
+rendering and exercise that interaction on the physical desktop. If the owner
+reports no visible difference, retain that feedback separately from screenshots
+and source success; do not call a small component change a complete UI redesign.
+Use [live development](references/live-development.md) for the acceptance record
+and the distinction between live compatibility files and signed delivery.
+Before retiring an old test or tool, identify its callers and the failure it
+guards; age alone does not make a boot, recovery or regression check obsolete.
+
 ## Upstream transitions: Plasma, Fedora and the kernel
 
 - **The base tag moves by itself.** `kinoite-main:44` delivers a new Plasma, Qt or kernel to

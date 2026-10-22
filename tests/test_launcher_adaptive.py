@@ -127,6 +127,14 @@ class AdaptiveLauncher(unittest.TestCase):
             self.assertEqual([c["old_fixed_size_health_accepts"] for c in record["cases"]],
                              [False, False, False, True])
             self.assertTrue(record["owner_portal_unchanged"] and record["source_unchanged"])
+            self.assertTrue(all(c['input']['categoryBrowsing'] for c in record['cases']))
+            category = subprocess.run(command + ["--output", str(output / "category"), "--broken-category"],
+                                      capture_output=True, text=True, timeout=60)
+            self.assertNotEqual(category.returncode, 0, "decorative categories must refuse")
+            log = (output / "category/360x640-ar-launcher.log").read_text()
+            self.assertIn("MOOS_ADAPTIVE_ASSERT pointer selects native category", log)
+            self.assertIn("MOOS_ADAPTIVE_INPUT_FAIL", log)
+            self.assertNotIn("MOOS_ADAPTIVE_INPUT_PASS", log)
             if shutil.which("node"):
                 function = re.search(r"            function popupFitsScreen\(.*?^            \}",
                     (ROOT / "system_files/usr/bin/moos-selfcheck").read_text(), re.S | re.M).group(0)

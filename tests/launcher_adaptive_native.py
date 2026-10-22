@@ -13,6 +13,7 @@ parser=argparse.ArgumentParser(description="Private native Plasma launcher viewp
 parser.add_argument("--output", type=Path, required=True)
 parser.add_argument("--broken-backtab", action="store_true")
 parser.add_argument("--broken-alignment", action="store_true")
+parser.add_argument("--broken-category", action="store_true")
 parser.add_argument("--native-popup", action="store_true")
 args=parser.parse_args()
 S=Path(__file__).resolve().parents[1]
@@ -47,7 +48,7 @@ def one(width,height,language,light,reduced):
     Gate.LauncherAdaptiveDriver {
         surface: view; field: searchInput; appGrid: applicationsGrid
         homeGrid: favoritesGrid; homeScroll: homeScroll; canvas: commandCanvas
-        pages: pages; navigation: navigation
+        pages: pages; navigation: navigation; categories: categoryStrip
         powerButton: sessionMenuButton; powerMenu: sessionMenu
     }
 '''
@@ -57,6 +58,9 @@ def one(width,height,language,light,reduced):
         if args.broken_alignment:
             body=body.replace('horizontalAlignment: Text.AlignLeft',
                               'horizontalAlignment: view.rtl ? Text.AlignRight : Text.AlignLeft')
+        if args.broken_category:
+            body=body.replace('view.launcher.appsModelRow = row;',
+                              'view.launcher.appsModelRow = 1;',1)
         view.write_text(body[:body.rfind('}')]+driver+body[body.rfind('}'):])
         if args.native_popup:
             main=package/'contents/ui/main.qml'

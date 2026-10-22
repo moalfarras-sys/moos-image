@@ -58,6 +58,20 @@ Oracle is not evidence of a connected or working Oracle deployment.
 
 ## Review visible behavior
 
+Name the changed surface and its usable interaction before editing. A localized
+Hub date/week can render correctly while the owner sees no meaningful desktop
+change. Preserve both findings, show the exact installed surface, and refine the
+requested journey. Do not turn a capture into owner acceptance or describe a
+component correction as a whole-interface transformation. Catalogue browsing,
+launching, settings and notifications stay with their native Plasma/KDE owners.
+
+Power policy needs a second readback after the owner's normal control changes
+it. The V3's KDE performance profile maps to TuneD throughput; TuneD reapplies
+run/etc sysctl files while MoOS's canonical policy is under usr/lib. An alias
+restores the existing authority without copying values or changing the selected
+profile. Prove actual profile round trips and restoration as well as the native
+parser's precedence controls; direct writes alone do not prove durability.
+
 Use the active user's session, not a root shell with a borrowed runtime path.
 `moai-open` resolves Wayland/XWayland state and launches an app in a detached
 user unit. Record that unit and inspect its journal for exit/runtime errors.
