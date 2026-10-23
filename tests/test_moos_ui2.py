@@ -892,7 +892,7 @@ class TestMoOSUI2(unittest.TestCase):
         apply = (ROOT / "system_files/usr/bin/moos-apply-theme").read_text(encoding="utf-8")
         switch = (ROOT / "system_files/usr/bin/moos-theme").read_text(encoding="utf-8")
         self.assertIn(
-            "THEME_REV=118", apply,
+            "THEME_REV=124", apply,
             "existing v100 users would keep a cached compile of the retired MoOS LockScreenUi that "
             "asks for a MoOSClock which no longer ships (kscreenlocker's emergency locker) and a "
             "cached stock session screen with no island; "
@@ -1296,11 +1296,15 @@ class TestMoOSUI2(unittest.TestCase):
             dock,
         )
         self.assertNotRegex(dock, r'font\.family\s*:\s*"')
-        # The compact mark now sits beside a separate workspace control. It
-        # retains a spoken identity rather than a hidden or microscopic caption.
+        # One compact entry; the actual destinations stay inside Home.
         self.assertIn('Accessible.name: root.rtl ? "قائمة MoOS" : "MoOS Launcher"', dock)
-        self.assertIn('objectName: "moosWorkspaceOverview"', dock)
-        self.assertIn('root.openRoute("moos://control/window/overview")', dock)
+        compact = dock.split("compactRepresentation:", 1)[1].split("fullRepresentation:", 1)[0]
+        self.assertEqual(compact.count("onClicked:"), 1)
+        self.assertNotIn("MoUI.IconButton {", compact)
+        for name, route in (("moosHomeOverview", "control/window/overview"),
+                            ("moosHomeSettings", "settings/overview")):
+            self.assertIn('objectName: "' + name + '"', launcher)
+            self.assertIn('view.launcher.openRoute("moos://' + route + '")', launcher)
 
     def test_launcher_has_exactly_one_expanded_state_owner(self) -> None:
         """A pointer click must not be toggled by QML and Plasma in turn.
@@ -1597,7 +1601,8 @@ class TestMoOSUI2(unittest.TestCase):
         self.assertEqual(re.findall(r'"([^"]+)"', places), ["systemsettings.desktop"],
                          "Places offers one settings destination, not the hidden hardware "
                          "report and a Recovery page of the same window")
-        self.assertIn('accessibleLabel: root.rtl ? "مساحة العمل والنوافذ" : "Workspace overview"', dock)
+        self.assertIn('objectName: "moosHomeOverview"', launcher)
+        self.assertIn('view.launcher.openRoute("moos://control/window/overview")', launcher)
         self.assertIn("readonly property int motionMedium: design.duration(", launcher)
         self.assertIn("design.motionGeometry", launcher)
         self.assertIn(

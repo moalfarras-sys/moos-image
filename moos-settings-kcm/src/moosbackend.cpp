@@ -20,6 +20,7 @@ namespace
 {
 constexpr auto StatusHelper = "/usr/libexec/moos-settings-status";
 constexpr auto ThemeTool = "/usr/bin/moos-theme";
+constexpr auto ControlTool = "/usr/bin/moos-control";
 constexpr auto SystemdRun = "/usr/bin/systemd-run";
 // What a change needs from the session to reach the desktop, passed by name to its unit
 // (systemd-run -E NAME copies the value from this process); only the ones that are set.
@@ -93,6 +94,18 @@ constexpr Field StatusShape[] = {
     {"firmware", "reason", QJsonValue::String},
     {"firmware", "busy", QJsonValue::Bool},
     {"memory", "total", QJsonValue::String},
+    {"network", "known", QJsonValue::Bool},
+    {"network", "connected", QJsonValue::Bool},
+    {"network", "connectivity", QJsonValue::String},
+    {"network", "label", QJsonValue::String},
+    {"bluetooth", "available", QJsonValue::Bool},
+    {"bluetooth", "powered", QJsonValue::Bool},
+    {"audio", "available", QJsonValue::Bool},
+    {"audio", "volume", QJsonValue::Double},
+    {"audio", "muted", QJsonValue::Bool},
+    {"battery", "available", QJsonValue::Bool},
+    {"battery", "percent", QJsonValue::Double},
+    {"battery", "state", QJsonValue::String},
     {"storage", "total", QJsonValue::String},
     {"storage", "free", QJsonValue::String},
     {"whatsNew", "entries", QJsonValue::Array},
@@ -104,7 +117,7 @@ constexpr const char *BilingualLabels[] = {"editionLabel", "archLabel", "session
 // ── The fixed verbs ─────────────────────────────────────────────────────────
 // Nothing else can be started from a page. Each argument kind is validated here,
 // before a process exists, and moos-theme validates it again.
-enum class Argument { None, LookAndFeel, Motion, Clarity, WallpaperToken };
+enum class Argument { None, LookAndFeel, Motion, Clarity, WallpaperToken, Volume };
 struct Verb {
     const char *id;
     const char *program;
@@ -115,6 +128,9 @@ struct Verb {
     bool mutates;
 };
 constexpr Verb FixedVerbs[] = {
+    {"audio-volume", ControlTool, {"volume", nullptr}, Argument::Volume, true},
+    {"audio-mute", ControlTool, {"mute", nullptr}, Argument::None, true},
+    {"audio-unmute", ControlTool, {"unmute", nullptr}, Argument::None, true},
     {"theme-status", ThemeTool, {nullptr, nullptr}, Argument::None, false},
     {"theme-motion-status", ThemeTool, {"motion", nullptr}, Argument::None, false},
     {"theme-clarity-status", ThemeTool, {"clarity", nullptr}, Argument::None, false},
@@ -143,8 +159,21 @@ bool argumentAccepted(Argument kind, const QString &value)
             || value == QLatin1String("solid");
     case Argument::WallpaperToken:
         return token.match(value).hasMatch();
+    case Argument::Volume: {
+        static const QRegularExpression volume(QStringLiteral("\\A(?:0|[1-9][0-9]?|100)\\z"));
+        return volume.match(value).hasMatch();
+    }
     }
     return false;
+}
+
+const Verb *fixedVerb(const QString &id, const QString &argument)
+{
+    for (const Verb &verb : FixedVerbs) {
+        if (id == QLatin1String(verb.id) && argumentAccepted(verb.argument, argument))
+            return &verb;
+    }
+    return nullptr;
 }
 
 QString runtimeBase()
@@ -577,14 +606,8 @@ QString MoOSSettingsModule::env(const QString &name) const
 
 QObject *MoOSSettingsModule::runFixed(const QString &id, const QString &argument)
 {
-    const Verb *verb = nullptr;
-    for (const Verb &candidate : FixedVerbs) {
-        if (id == QLatin1String(candidate.id)) {
-            verb = &candidate;
-            break;
-        }
-    }
-    if (!verb || !argumentAccepted(verb->argument, argument))
+    const Verb *verb = fixedVerb(id, argument);
+    if (!verb)
         return nullptr;
 
     QStringList arguments;
@@ -639,6 +662,11 @@ QObject *MoOSSettingsModule::runFixed(const QString &id, const QString &argument
     run << QStringLiteral("--") << QString::fromLatin1(verb->program) << arguments;
     job->start(QString::fromLatin1(SystemdRun), run, output, error);
     return job;
+}
+
+bool MoOSSettingsModule::acceptsFixedAction(const QString &id, const QString &argument)
+{
+    return fixedVerb(id, argument) != nullptr;
 }
 
 QVariantList MoOSSettingsModule::moosThemes() const

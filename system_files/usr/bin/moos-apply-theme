@@ -377,7 +377,13 @@ set -uo pipefail
 # 116: keep the native Store launch in the application library's header.
 # 117: use Mira's shipped symbolic asset in the Home action, not a desktop ID.
 # 118: match Kicker's canonical application IDs so direct destinations launch.
-THEME_REV=118
+# 119: native Control Center and its dock destination; invalidate the panel QML.
+# 120: open the canonical Control Center route from the panel action.
+# 121: native widget gallery and launcher access share the revised workspace.
+# 122: one MoOS dock entry; retire duplicate compact Settings/Workspace actions.
+# 123: private widget-tile refinement (not delivered).
+# 124: calm native widget tiles; retain the existing single KDE motion scaling.
+THEME_REV=124
 state_dir="${XDG_STATE_HOME:-$HOME/.local/state}"
 mkdir -p "$state_dir" 2>/dev/null || true
 marker="${state_dir}/moos-ui2-theme-applied.v${THEME_REV}"

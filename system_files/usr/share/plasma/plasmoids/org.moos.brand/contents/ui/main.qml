@@ -103,14 +103,11 @@ PlasmoidItem {
     property bool editMode: false
     property int appsModelRow: 1
     property var favoriteSearchIds: []
-    property bool workspaceHovered: false
 
-    // The panel owns one tooltip; an attached one overlaps its bubble.
-    toolTipMainText: root.workspaceHovered
-        ? (root.rtl ? "مساحة العمل والنوافذ" : "Workspace overview") : "MoOS"
-    toolTipSubText: root.workspaceHovered
-        ? (root.rtl ? "تنقّل بين نوافذك ومساحات العمل" : "Move between your windows and workspaces")
-        : (root.rtl ? "التطبيقات والملفات والإعدادات" : "Apps, files and settings")
+    // One visible entry, one native tooltip. Workspace and Settings already
+    // have destinations inside Home; duplicating them here crowds the dock.
+    toolTipMainText: "MoOS"
+    toolTipSubText: root.rtl ? "التطبيقات والملفات والإعدادات" : "Apps, files and settings"
 
     function closeLauncher() {
         root.searchQuery = "";
@@ -407,22 +404,19 @@ PlasmoidItem {
     }
 
     compactRepresentation: GridLayout {
-        columns: Plasmoid.formFactor === PlasmaCore.Types.Horizontal ? 2 : 1
-        columnSpacing: root.design.space1
-        rowSpacing: root.design.space1
-        Layout.minimumWidth: Plasmoid.formFactor === PlasmaCore.Types.Horizontal
-            ? root.design.targetControl * 2 + root.design.space1 : root.design.targetControl
-        Layout.preferredWidth: Plasmoid.formFactor === PlasmaCore.Types.Horizontal
-            ? Kirigami.Units.gridUnit * 5.8 : root.design.targetComfortable
-        Layout.minimumHeight: Plasmoid.formFactor === PlasmaCore.Types.Horizontal
-            ? root.design.targetControl : root.design.targetControl * 2 + root.design.space1
+        columns: 1
+        columnSpacing: 0
+        rowSpacing: 0
+        Layout.minimumWidth: root.design.targetControl
+        Layout.preferredWidth: root.design.targetComfortable + root.design.space1
+        Layout.minimumHeight: root.design.targetControl
 
         MouseArea {
             id: compact
 
             property bool isHorizontal: Plasmoid.formFactor === PlasmaCore.Types.Horizontal
 
-            // Identity and workspace each retain their own 44px input target.
+            // The sole dock entry retains a 44px input target.
             implicitWidth: root.design.targetComfortable + root.design.space1
             implicitHeight: root.design.targetControl
             Layout.minimumWidth: root.design.targetControl
@@ -624,21 +618,6 @@ PlasmoidItem {
                 }
 
             }
-        }
-        MoUI.IconButton {
-            id: workspaceButton
-            objectName: "moosWorkspaceOverview"
-            Layout.minimumWidth: root.design.targetControl
-            Layout.minimumHeight: root.design.targetControl
-            Layout.preferredWidth: root.design.targetControl
-            Layout.preferredHeight: root.design.targetControl
-            symbol: MoUI.SymbolCatalog.resolve("grid")
-            accessibleLabel: root.rtl ? "مساحة العمل والنوافذ" : "Workspace overview"
-            surfaceColor: Qt.alpha(Kirigami.Theme.textColor, 0.035)
-            outlineColor: "transparent"
-            iconPixelSize: root.design.iconLarge
-            onClicked: root.openRoute("moos://control/window/overview")
-            onHoveredChanged: root.workspaceHovered = hovered
         }
     }
 

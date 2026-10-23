@@ -443,6 +443,7 @@ check:
     # must resolve through a fixed route, and its live status boundary stays
     # read-only, private and atomic.
     python3 tests/test_moos_settings.py
+    python3 tests/test_settings_control_center.py
     python3 tests/test_settings_destination_input.py
     python3 tests/test_settings_about_page.py
     python3 tests/test_whats_new.py

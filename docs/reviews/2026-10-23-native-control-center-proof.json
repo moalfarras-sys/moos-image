@@ -1,0 +1,549 @@
+{
+  "scope": "Native Control Center, native Plasma widget gallery, original wallpaper packages and one clean dock entry; whole UI and signed acceptance remain open",
+  "base_source": "859861cf14269ff8aa967deb6da823727d582dec",
+  "booted_version": "44.20261023.1097",
+  "booted_signed_digest": "sha256:c9a594eedaedc89fe27afa6e7c4c2e36384542da2ed6cd1295bdcd278585e77b",
+  "rollback_preserved": [
+    "44.20261021.1090",
+    "44.20261019.1078 pinned"
+  ],
+  "theme_revision": 124,
+  "new_signed_delivery": false,
+  "repository_check": {
+    "state": "revision124 qualified",
+    "previous_qualified_checkpoint": {
+      "exit": 0,
+      "elapsed_seconds": 729.641683975,
+      "product_unchanged": true,
+      "log_sha256": "1ffc289a167d7dc5865bb8789e66f7ac3fdb03f616abbcf54db3c8fdf4134bd1"
+    },
+    "qualified_single_entry_checkpoint": {
+      "exit": 0,
+      "elapsed_seconds": 758.2963948399993,
+      "product_unchanged": true,
+      "log_sha256": "c187d9a4f05fc43c5afe015e499edbdb207fdabb675069a6753f6451f8d8ae9f"
+    },
+    "final": {
+      "exit": 0,
+      "elapsed_seconds": 738.7036351310016,
+      "product_unchanged": true,
+      "log_sha256": "75d8380355e2fbeb33bdeca0a9cd8c65e6461201f8052e0d125c4efa16e55afc"
+    }
+  },
+  "compiled_executor_validation": {
+    "executed_cases": 18,
+    "accepted_and_refused": true,
+    "device_mutations": false
+  },
+  "native_component_matrix": [
+    {
+      "background": "#1d2529",
+      "reduced": false,
+      "language": "ar",
+      "widths": 3,
+      "pointer": true,
+      "keyboard": true,
+      "qt_touch": true,
+      "busy_refusal": true,
+      "failed_action": true,
+      "executor_refusal": true,
+      "unknown_refusal": true
+    },
+    {
+      "background": "#1d2529",
+      "reduced": true,
+      "language": "ar",
+      "widths": 3,
+      "pointer": true,
+      "keyboard": true,
+      "qt_touch": true,
+      "busy_refusal": true,
+      "failed_action": true,
+      "executor_refusal": true,
+      "unknown_refusal": true
+    },
+    {
+      "background": "#c9e2dd",
+      "reduced": false,
+      "language": "ar",
+      "widths": 3,
+      "pointer": true,
+      "keyboard": true,
+      "qt_touch": true,
+      "busy_refusal": true,
+      "failed_action": true,
+      "executor_refusal": true,
+      "unknown_refusal": true
+    },
+    {
+      "background": "#c9e2dd",
+      "reduced": true,
+      "language": "ar",
+      "widths": 3,
+      "pointer": true,
+      "keyboard": true,
+      "qt_touch": true,
+      "busy_refusal": true,
+      "failed_action": true,
+      "executor_refusal": true,
+      "unknown_refusal": true
+    },
+    {
+      "background": "#1d2529",
+      "reduced": false,
+      "language": "en",
+      "widths": 3,
+      "pointer": true,
+      "keyboard": true,
+      "qt_touch": true,
+      "busy_refusal": true,
+      "failed_action": true,
+      "executor_refusal": true,
+      "unknown_refusal": true
+    },
+    {
+      "background": "#1d2529",
+      "reduced": true,
+      "language": "en",
+      "widths": 3,
+      "pointer": true,
+      "keyboard": true,
+      "qt_touch": true,
+      "busy_refusal": true,
+      "failed_action": true,
+      "executor_refusal": true,
+      "unknown_refusal": true
+    },
+    {
+      "background": "#c9e2dd",
+      "reduced": false,
+      "language": "en",
+      "widths": 3,
+      "pointer": true,
+      "keyboard": true,
+      "qt_touch": true,
+      "busy_refusal": true,
+      "failed_action": true,
+      "executor_refusal": true,
+      "unknown_refusal": true
+    },
+    {
+      "background": "#c9e2dd",
+      "reduced": true,
+      "language": "en",
+      "widths": 3,
+      "pointer": true,
+      "keyboard": true,
+      "qt_touch": true,
+      "busy_refusal": true,
+      "failed_action": true,
+      "executor_refusal": true,
+      "unknown_refusal": true
+    }
+  ],
+  "broken_failure_negatives": {
+    "languages": [
+      "ar",
+      "en"
+    ],
+    "actual_Qt_input_assertion_failed_as_expected": true
+  },
+  "native_desktop": {
+    "actual_source_KCM_loaded_from_scoped_prefix": true,
+    "volume_pointer_and_RTL_key_readback_percent": 1,
+    "owner_volume_restored_percent": 0,
+    "owner_mute_restored": true,
+    "network_native_plugin": "kcm_networkmanagement.so",
+    "dock_canonical_route": "moos://settings/overview",
+    "same_settings_process": true,
+    "new_owner_app_or_permissions": false
+  },
+  "isolation": {
+    "synthetic_tests_use_private_HOME_XDG_and_absent_bus": true,
+    "kde_color_icon_and_style_defaults_matched": true,
+    "animation_factors_explicit": [
+      0,
+      1
+    ],
+    "compositor_remote_pipewire_portal_owners_unchanged": true
+  },
+  "live_preview": {
+    "owned_brand_files": 8,
+    "native_plugins": 7,
+    "previous_brand_package_absent_at_preflight": true,
+    "retirement": "Only after matching signed image and cold native acceptance; preserve unknown owner bytes",
+    "shell_gallery_override": {
+      "one_owned_file": true,
+      "other_package_files_link_to_immutable_usr": 66,
+      "native_compositor_remote_pipewire_portal_PIDs_unchanged_on_application": true
+    }
+  },
+  "preserved_failures": [
+    "Initial native KCM load refused undefined-to-bool optional state bindings; explicit booleans corrected them",
+    "Initial live map parser truncated a path containing spaces; complete native mapped path now checked",
+    "Early fingerprint refused same-revision changes; canonical-route refinement advances to120",
+    "Early 65th architecture-visible news item exceeded the unchanged64 reader bound; oldest feature announcement retired from current feed, retained in Git",
+    "First full just check exits1 after206.092s because new gate was missing from Justfile; add the same maintained gate to both runners, unchanged coverage test passes",
+    "Full polish gate refused the missing third summary chip; a compact actual-version chip restores it without restoring build-date clutter",
+    "Earlier exploratory full image builds were interrupted by their owned process groups for the real contrast defect and subsequent owner/source refinement; neither qualifies as an image pass",
+    "First seven-KCM review emitted no logs despite staying alive; using the maintained gate QT_FORCE_STDERR_LOGGING requirement produces ready/path evidence for all seven",
+    "One exploratory check had a concurrent visual-contract doc change; retained product_unchanged false, never accepted as qualification",
+    "Unshipped Card motion experiment double-scaled an already policy-aware token (factor0.5 measured30ms rather than60); removed the experiment and retained existing shared Tokens behavior",
+    "A revision literal remained123 in the user-experience gate; retained four-second native failure and interrupted only owned image build, then advanced that exact pin to124",
+    "Private Klassy prefix initially missed libklassycommon6 search path; QStyleFactory returned Fusion/None; fixed only the owned process library path and verified actual Klassy class/maps"
+  ],
+  "private_captures": {
+    "desktop-before.png": "d1017647982cb506f233f349d088be7077e5392f137a59c1b92a77eaf5b77025",
+    "launcher-before.png": "6f990121512a162419379c0300cbc58442ef4cd4389e065bf3a2e21212b07782",
+    "settings-before.png": "fe636eb569e93e74070a855081ac3ff370440a6d19f708b80e6b237b70ba8093",
+    "control-center-first-live.png": "7043b23d56e6dc3952dc5fdc1d0bef2b20de86f9995beb76fa702a353c1456e4",
+    "control-center-final-live.png": "57c802177533cccccce7bc9c5366610199bc8997e75fe3e29cabe5ced2dc4d6a",
+    "control-center-with-dock.png": "2ad073c2843077a21b1db81668fbf3c928393784fb23c364dc628fd96018ef26",
+    "native-volume-1-percent.png": "87c171b47f84aee1e7d12cb1c473dd693f0701d6d398b22c590f6ee1c23e10e0",
+    "native-network-destination.png": "5d8b095bda1d2b66cced9a9effea8bc054875762e1547eaf4403dc6c8a0d1146",
+    "native-control-center-dock-journey.png": "475846461723a26c5edc1157efdfbc22e486768027158ac3ccd3a8943b6e102b",
+    "control-center-polished-live.png": "35200399bec61599bb51b37cc8abf359edf0a630c9baecffb453810c1714c53f",
+    "native-widget-gallery-live.png": "2b362b74dbf32b0c98c44da1333b0ba535440c7b0b64eed8ea113d2051bdb79a",
+    "gallery-ar-560.png": "cc760784015e3e944f6e30403335e3b8641782a67c6c0030163d4fe723254f87",
+    "native-binary-widget-result.png": "1a01569f52aa1fc8cbee547a7aa869947c4efcdf5f4cf45a7a4b737bd3d65f7a",
+    "native-canonical-widget-preview.png": "d387dbdcee16d348859055adfffa6c38b869c35ad7e033c242b94eb5cae2d3f4",
+    "native-single-entry-popup.png": "bf7e9206386db20a092c6bd9a48a3c3009d30b972afc2d2566fd04548394583a",
+    "klassy-native-settings.png": "639ca9a5e0259286faad9c94c613f4ebbb48997fcee1a546139ff179135a93d0"
+  },
+  "sources": [
+    "https://develop.kde.org/docs/getting-started/kirigami/components-controls/",
+    "https://doc.qt.io/qt-6/qml-qtquick-controls-slider.html",
+    "https://support.apple.com/guide/mac-help/quickly-change-settings-with-control-center-mchlc9d0e1f2/mac",
+    "https://github.com/paulmcauley/klassy",
+    "https://github.com/luisbocanegra/plasma-panel-colorizer",
+    "https://github.com/peterfajdiga/karousel",
+    "https://developer.apple.com/design/human-interface-guidelines/motion",
+    "https://developer.apple.com/design/human-interface-guidelines/materials",
+    "https://learn.microsoft.com/en-us/windows/apps/design/signature-experiences/motion",
+    "https://developer.android.com/develop/ui/compose/layouts/adaptive/get-started-with-adaptive-apps"
+  ],
+  "remaining": [
+    "Native whole-page and full-shell locale/scale/theme matrix",
+    "Physical touch acceptance for new controls",
+    "Phone-frame acceptance",
+    "Signed new image, promotion and installed cold acceptance",
+    "Whole-OS UI completion",
+    "Real widget addition/removal acceptance on physical desktop without interfering with concurrent owner input",
+    "Exact-head PR gates",
+    "Native clean-Home Settings return under an uninterrupted owner input interval",
+    "Full Klassy palette/RTL/scale/input/endurance qualification before considering default integration"
+  ],
+  "native_embedded_resources": {
+    "matched_source_resources": 106,
+    "compiled_libraries": 7,
+    "actual_seven_module_loads": [
+      {
+        "module": "kcm_moos",
+        "exit": 124,
+        "alive_on_timeout": true,
+        "ready": true,
+        "actual_path": "/var/home/moos/سطح المكتب/moos-image/test-results/ui-workspace-20261023/native-prefix/qt6/plugins/plasma/kcms/systemsettings/kcm_moos.so"
+      },
+      {
+        "module": "kcm_moos_ai",
+        "exit": 124,
+        "alive_on_timeout": true,
+        "ready": true,
+        "actual_path": "/var/home/moos/سطح المكتب/moos-image/test-results/ui-workspace-20261023/native-prefix/qt6/plugins/plasma/kcms/systemsettings/kcm_moos_ai.so"
+      },
+      {
+        "module": "kcm_moos_appearance",
+        "exit": 124,
+        "alive_on_timeout": true,
+        "ready": true,
+        "actual_path": "/var/home/moos/سطح المكتب/moos-image/test-results/ui-workspace-20261023/native-prefix/qt6/plugins/plasma/kcms/systemsettings/kcm_moos_appearance.so"
+      },
+      {
+        "module": "kcm_moos_recovery",
+        "exit": 124,
+        "alive_on_timeout": true,
+        "ready": true,
+        "actual_path": "/var/home/moos/سطح المكتب/moos-image/test-results/ui-workspace-20261023/native-prefix/qt6/plugins/plasma/kcms/systemsettings/kcm_moos_recovery.so"
+      },
+      {
+        "module": "kcm_moos_remote",
+        "exit": 124,
+        "alive_on_timeout": true,
+        "ready": true,
+        "actual_path": "/var/home/moos/سطح المكتب/moos-image/test-results/ui-workspace-20261023/native-prefix/qt6/plugins/plasma/kcms/systemsettings/kcm_moos_remote.so"
+      },
+      {
+        "module": "kcm_moos_update",
+        "exit": 124,
+        "alive_on_timeout": true,
+        "ready": true,
+        "actual_path": "/var/home/moos/سطح المكتب/moos-image/test-results/ui-workspace-20261023/native-prefix/qt6/plugins/plasma/kcms/systemsettings/kcm_moos_update.so"
+      },
+      {
+        "module": "kcm_moos_whatsnew",
+        "exit": 124,
+        "alive_on_timeout": true,
+        "ready": true,
+        "actual_path": "/var/home/moos/سطح المكتب/moos-image/test-results/ui-workspace-20261023/native-prefix/qt6/plugins/plasma/kcms/systemsettings/kcm_moos_whatsnew.so"
+      }
+    ]
+  },
+  "native_narrow_window": {
+    "width": 640,
+    "height": 760,
+    "output_geometry_changed": false,
+    "restored_maximized_state": true
+  },
+  "owner_feedback": [
+    "Sees the Control Center but requires stronger visual polish",
+    "Explicitly rejects duplicated dock buttons and category/cards-only completion",
+    "Requests cohesive KDE-native UI across PC/tablet/sizes; both compact Workspace and Settings buttons are removed",
+    "Owner again reports no meaningful UI improvement and requests different complete themes, frames, icon sets and widgets; this batch is not a visual acceptance"
+  ],
+  "native_widget_gallery": {
+    "ar": [
+      {
+        "width": 320,
+        "columns": 1,
+        "catalogue_count": 68,
+        "selected_plugin": "org.kde.plasma.calculator",
+        "native_search_empty_and_restore": true,
+        "text_fits": true,
+        "unowned_placement_refused": true
+      },
+      {
+        "width": 560,
+        "columns": 2,
+        "catalogue_count": 68,
+        "selected_plugin": "org.kde.milou",
+        "native_search_empty_and_restore": true,
+        "text_fits": true,
+        "unowned_placement_refused": true
+      }
+    ],
+    "en": [
+      {
+        "width": 320,
+        "columns": 1,
+        "catalogue_count": 68,
+        "selected_plugin": "org.kde.plasma.activitybar",
+        "native_search_empty_and_restore": true,
+        "text_fits": true,
+        "unowned_placement_refused": true
+      },
+      {
+        "width": 560,
+        "columns": 2,
+        "catalogue_count": 68,
+        "selected_plugin": "org.kde.plasma.activitybar",
+        "native_search_empty_and_restore": true,
+        "text_fits": true,
+        "unowned_placement_refused": true
+      }
+    ]
+  },
+  "wallpapers": {
+    "tool": "built-in imagegen",
+    "actual_resolution": [
+      1672,
+      941
+    ],
+    "not_upscaled_4k": true,
+    "packages": [
+      "MoOSPrismNight",
+      "MoOSPrismDawn"
+    ],
+    "prompts": "artwork/moos-ui2/wallpapers/prism-generation.json",
+    "native_custom_wallpaper_transaction_exit": 0,
+    "prior_state_saved_privately": true,
+    "subsequent_owner_theme_choice_preserved": true
+  },
+  "composed_card_contrast": {
+    "old_active_fill": 0.09,
+    "old_minimum_ratio": 4.259761614822428,
+    "corrected_fill": 0.035,
+    "corrected_minimum_ratio": 4.503496058707032,
+    "same_arithmetic_restored_old_negative": true
+  },
+  "pinned_interface_source_analysis": {
+    "files_read": [
+      {
+        "repo": "vinceliuice/WhiteSur-kde",
+        "commit": "cf4df59ce91004f7ea39358b1b8ff917d5c329f7",
+        "path": "README.md",
+        "sha256": "fb23b54a9c16daffbe6795b7d4309d3a0cb7057fb0511c01ccdde452c23f5529",
+        "bytes": 1524
+      },
+      {
+        "repo": "vinceliuice/WhiteSur-kde",
+        "commit": "cf4df59ce91004f7ea39358b1b8ff917d5c329f7",
+        "path": "LICENSE",
+        "sha256": "fbbdd5ec489ab07265bcd7ea9072ff0a4f9c539294567ed346fe3cbc612a1aaf",
+        "bytes": 35067
+      },
+      {
+        "repo": "vinceliuice/WhiteSur-kde",
+        "commit": "cf4df59ce91004f7ea39358b1b8ff917d5c329f7",
+        "path": "plasma/desktoptheme/WhiteSurLiquid/metadata.json",
+        "sha256": "5fc46db2ef6f33eb729a2e344b2a86063fc0373938e40806fa157669ca210d23",
+        "bytes": 641
+      },
+      {
+        "repo": "vinceliuice/WhiteSur-kde",
+        "commit": "cf4df59ce91004f7ea39358b1b8ff917d5c329f7",
+        "path": "plasma/desktoptheme/WhiteSurLiquid/widgets/panel-background.svgz",
+        "sha256": "e3b702e3ce41f5427c9d3d123be2bd161fb605b16376c84f7dd30ba60633b0dd",
+        "bytes": 3330
+      },
+      {
+        "repo": "vinceliuice/WhiteSur-kde",
+        "commit": "cf4df59ce91004f7ea39358b1b8ff917d5c329f7",
+        "path": "plasma/look-and-feel/com.github.vinceliuice.WhiteSurLiquid/contents/layouts/org.kde.plasma.desktop-layout.js",
+        "sha256": "1a9868dfb149a485dde250d59c1f0dc5e137ef52878e3f1df2c42b014af9fc5b",
+        "bytes": 1714
+      },
+      {
+        "repo": "vinceliuice/WhiteSur-kde",
+        "commit": "cf4df59ce91004f7ea39358b1b8ff917d5c329f7",
+        "path": "Kvantum/WhiteSur/WhiteSurLiquid.kvconfig",
+        "sha256": "78aead992c1bd7882801d7f7e9380eb7b6eb45876bd87d602ea27a1c90ec06ad",
+        "bytes": 2451
+      },
+      {
+        "repo": "vinceliuice/Fluent-kde",
+        "commit": "44794f29c89de994b0179aebabd2f5776c90d236",
+        "path": "README.md",
+        "sha256": "6c78e84685280c2a4c098ea594cb8bc484bb6d83f561b227d64ec84bf77e3719",
+        "bytes": 1774
+      },
+      {
+        "repo": "vinceliuice/Fluent-kde",
+        "commit": "44794f29c89de994b0179aebabd2f5776c90d236",
+        "path": "LICENSE",
+        "sha256": "3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986",
+        "bytes": 35149
+      },
+      {
+        "repo": "vinceliuice/Fluent-kde",
+        "commit": "44794f29c89de994b0179aebabd2f5776c90d236",
+        "path": "plasma/layout-templates/org.github.desktop.FluentPanel/contents/layout.js",
+        "sha256": "6ab81fd8ade3233890c377c2bfa562c1f4427744ca0dd849af6a610f7591ac63",
+        "bytes": 3432
+      },
+      {
+        "repo": "vinceliuice/Fluent-kde",
+        "commit": "44794f29c89de994b0179aebabd2f5776c90d236",
+        "path": "Kvantum/Fluent/Fluent.kvconfig",
+        "sha256": "a287713255ac999cd1fd7e4dc354bcf6c9a87222ecac59127b1073772266f48f",
+        "bytes": 11246
+      },
+      {
+        "repo": "vinceliuice/Fluent-kde",
+        "commit": "44794f29c89de994b0179aebabd2f5776c90d236",
+        "path": "plasma/desktoptheme/Fluent/widgets/panel-background.svgz",
+        "sha256": "7906eacba641f4fb260367768e40ff15239b0f7e481534388088dca723e657a7",
+        "bytes": 3203
+      },
+      {
+        "repo": "KDE/plasma-mobile",
+        "commit": "08764f52e057f040ef4e48b7a4b943a57be60455",
+        "path": "README.md",
+        "sha256": "928c2e5e16b6a3396d663e9aee6dc3756f711e4ea6b6dbd25ce2361abc35e054",
+        "bytes": 3247
+      },
+      {
+        "repo": "KDE/plasma-mobile",
+        "commit": "08764f52e057f040ef4e48b7a4b943a57be60455",
+        "path": "components/mobileshell/qml/actiondrawer/private/QuickSettings.qml",
+        "sha256": "04efb09e0ed16082294c4c2d7c1c32cc93d4bdab3ffec9b30d0bffa8cbaa8b40",
+        "bytes": 8486
+      },
+      {
+        "repo": "KDE/plasma-mobile",
+        "commit": "08764f52e057f040ef4e48b7a4b943a57be60455",
+        "path": "kwin/mobiletaskswitcher/package/contents/ui/TaskSwitcher.qml",
+        "sha256": "f4702c67e3674291ce4b2d7c9c3a599d98eb12d8d22954a736cc546df5b6560a",
+        "bytes": 38174
+      },
+      {
+        "repo": "KDE/plasma-mobile",
+        "commit": "08764f52e057f040ef4e48b7a4b943a57be60455",
+        "path": "quicksettings/audio/metadata.json",
+        "sha256": "ff73d89fa847ce77acbac6f44b3a9d947b620a31012b14697d8422b069219afb",
+        "bytes": 6254
+      }
+    ],
+    "third_party_source_copied_into_product": false,
+    "proprietary_binary_reverse_engineering_claimed": false
+  },
+  "local_image_checkpoint": {
+    "exit": 0,
+    "elapsed_seconds": 2518.3707677210004,
+    "product_unchanged": true,
+    "log_sha256": "f24fa8509a3cf81ee18869f10f51cbd6f4c7a20e93df0e65620bf5240f38360e",
+    "image_id": "sha256:65a2a44c6d002d068c884c1595e0ad2f889406a87b9107ef931e9b23c50d997b",
+    "tag": "localhost/moos-control-center:source-6545e0cbf475",
+    "scope": "qualified revision122; final124 build running",
+    "independent_overlay_files_matched": 11
+  },
+  "native_widget_preview": {
+    "actual_plugin": "org.kde.plasma.calculator",
+    "old_KPackage_only_check": "incorrectly reported absent for native binary applet",
+    "new_Qt_metadata_check": {
+      "present_exit": 0,
+      "missing_exit": 1,
+      "invalid_id_exit": 2,
+      "executable_plugin_code_loaded_by_check": false
+    },
+    "private_source_compatibility_launch": "real plasmawindowed window; actual keyboard 2+3=5 observed",
+    "canonical_moos_URL": "real window opened via gio open moos://desktop/preview/org.kde.plasma.calculator",
+    "live_compatibility": "two prior-absent owned user files; launcher rewrites only helper absolute path; manifests private",
+    "signed_usr_change": false
+  },
+  "native_single_entry": {
+    "actual_pointer_opened_native_popup": true,
+    "coordinates_derived_from_running_panel_and_applet": true,
+    "actual_popup_size": [
+      816,
+      601.2
+    ],
+    "native_Home_pointer": true,
+    "settings_return_followup": "not accepted: editor foreground returned before destination observation; do not count as route success"
+  },
+  "klassy_prototype": {
+    "tag": "v6.7.3",
+    "commit": "ab86a63360ec08cd020d23a183863444af29a363",
+    "archive_sha256": "5362adfece7fc039045e3a01fc3cf59dd6ba785a37302de071181386fc896001",
+    "build": "existing private native Qt6.11.2 SDK; Qt6 style only, no KWin decoration",
+    "configure_build_stage_exit": 0,
+    "ctest": {
+      "exit": 0,
+      "tests": 1,
+      "scope": "AppStream metadata only"
+    },
+    "native_QApplication_style_class": "Klassy::Style",
+    "actual_System_Settings_mapped_libraries": [
+      "klassy6.so",
+      "libklassycommon6.so.6.7.3",
+      "staged kcm_moos.so"
+    ],
+    "global_theme_or_compositor_replaced": false,
+    "default_candidate_qualified": false,
+    "sdk_restored_stopped": true
+  },
+  "final_local_image": {
+    "exit": 0,
+    "elapsed_seconds": 600.0817572520027,
+    "product_unchanged": true,
+    "log_sha256": "25c76a2e94ddb23dcba2d436e498aab370757567b6a73b6d22715088232cf62e",
+    "image_id": "sha256:95754340415f43406e397dbffe3a5f4a417abe83ade4253657464e275780260e",
+    "tag": "localhost/moos-control-center:source-38af34c23fe7",
+    "independent_readback": {
+      "overlay_files": 13,
+      "embedded_sources": 106,
+      "compiled_modules": 7,
+      "mismatches": 0,
+      "exit": 0
+    }
+  }
+}

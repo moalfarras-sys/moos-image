@@ -4,6 +4,7 @@ import json
 import os
 from pathlib import Path
 import re
+import runpy
 import shutil
 import subprocess
 import tempfile
@@ -99,6 +100,30 @@ console.log('Containment action behavior passed');
             self.assertNotIn('explorer',log.read_text()); log.unlink()
             subprocess.run(['bash',str(LAUNCHER)],env=env,check=True)
             self.assertEqual(log.read_text(),'explorer\n')
+
+    def test_binary_preview_metadata_and_identifier_refusals(self):
+        helper = ROOT / 'system_files/usr/libexec/moos-widget-binary-available'
+        scope = runpy.run_path(str(helper))
+        for value in ('../org.widget', '/tmp/evil', '--help', 'x.y;touch /tmp/oops',
+                      'x.y%2Fz', 'x.' + 'a' * 256):
+            self.assertFalse(scope['valid_id'](value), value)
+        self.assertTrue(scope['valid_id']('org.kde.plasma.calculator'))
+        metadata = {'IID': 'org.kde.KPluginFactory', 'MetaData': {
+            'X-Plasma-API-Minimum-Version': '6.0', 'KPlugin': {'Name': 'Native widget'}}}
+        self.assertTrue(scope['applet_metadata'](metadata))
+        for value in ({}, {'IID': 'org.qt-project.Qt.QPA.QPlatformIntegrationFactoryInterface'},
+                      dict(metadata, MetaData={}), dict(metadata, IID='other')):
+            self.assertFalse(scope['applet_metadata'](value))
+        source = helper.read_text()
+        self.assertIn("QPluginLoader('plasma/applets/' + plugin)", source)
+        self.assertIn('loader.metaData()', source)
+        self.assertNotIn('loader.load(', source)
+        self.assertNotIn('loader.instance(', source)
+        # Keep the packaged path and native binary check. Removing either loses
+        # a class of applets, as observed with Plasma's actual calculator.
+        launcher = LAUNCHER.read_text()
+        self.assertIn('kpackagetool6 --type Plasma/Applet --show "$id"', launcher)
+        self.assertIn('/usr/libexec/moos-widget-binary-available "$id"', launcher)
 
     def test_edit_mode_draws_the_desktop_under_software_rendering(self):
         """Arrange must show the real desktop on every GPU-less MoOS edition.

@@ -13,7 +13,7 @@ import org.moos.ui as MoUI
 QQC2.Page {
     id: main
     objectName: "moosDesktopCustomizer"
-    width: Math.min(540, Screen.width * 0.46)
+    width: Math.min(560, Math.max(1, Screen.width - 24))
     height: 800
     padding: MoUI.Tokens.space4
     property QtObject containment
@@ -26,6 +26,8 @@ QQC2.Page {
     property var selected: null
     property string message: ""
     property var pendingRemoval: []
+    readonly property color secondaryInk: Qt.rgba(Kirigami.Theme.textColor.r, Kirigami.Theme.textColor.g,
+                                                 Kirigami.Theme.textColor.b, 0.78)
     readonly property bool rtl: MoUI.Locale.rtl
     readonly property bool desktopTarget: containment && containment.containmentType === 0
     readonly property bool editable: containment && !containment.immutable
@@ -111,7 +113,7 @@ QQC2.Page {
         QQC2.Label {
             Layout.fillWidth: true; Layout.leftMargin: 16; Layout.rightMargin: 16
             text: main.desktopTarget ? main.local("أدوات حقيقية. أضف ما تحتاجه، حيث تريده.", "Real widgets. Add what you need, where you want it.") : main.local("إضافة أدوات إلى اللوحة المحددة", "Add widgets to the selected panel")
-            color: Kirigami.Theme.disabledTextColor; wrapMode: Text.Wrap
+            color: main.secondaryInk; wrapMode: Text.Wrap
         }
         RowLayout {
             Layout.margins: 16; Layout.topMargin: 0
@@ -137,15 +139,25 @@ QQC2.Page {
             Accessible.name: placeholderText
             onTextChanged: catalog.widgetsModel.searchTerm = text
         }
+        QQC2.Label {
+            visible: main.page === 0 && !main.selected
+            Layout.fillWidth: true
+            text: main.local("من مكتبة سطح المكتب الأصلية", "From your native desktop library")
+                + " · " + Number(grid.count).toLocaleString(Qt.locale(), "f", 0)
+            color: main.secondaryInk
+            font.pixelSize: MoUI.Tokens.typeSecondary
+            wrapMode: Text.Wrap
+        }
         QQC2.ScrollView {
             visible: main.page === 0 && !main.selected
             Layout.fillWidth: true; Layout.fillHeight: true
             contentWidth: availableWidth
             clip: true
             GridView {
+                readonly property int columns: Math.max(1, Math.floor(width / 224))
                 id: grid; objectName: "widgetCatalog"
                 model: catalog.widgetsModel
-                cellWidth: width / 2; cellHeight: 184
+                cellWidth: width / columns; cellHeight: 208
                 activeFocusOnTab: true
                 delegate: QQC2.AbstractButton {
                     id: tile
@@ -155,12 +167,38 @@ QQC2.Page {
                     text: model.name; Accessible.name: text
                     activeFocusOnTab: true
                     onClicked: main.selectWidget(model)
-                    background: MoUI.Card { hovered: tile.hovered; pressed: tile.down; selected: tile.activeFocus }
+                    background: MoUI.Card {
+                        hovered: tile.hovered
+                        pressed: tile.down
+                        selected: tile.visualFocus
+                        // Quiet content tiles; keyboard focus gets an accent rim.
+                        // A text-tinted 40% selection used to wash out the gallery.
+                        fillOpacity: tile.down ? 0.075 : tile.hovered ? 0.05 : 0.025
+                        rimOpacity: tile.visualFocus ? 0.65 : tile.hovered ? 0.16 : 0.08
+                    }
                     contentItem: ColumnLayout {
                         spacing: 8
-                        Kirigami.Icon { source: tile.model.decoration; Layout.alignment: Qt.AlignHCenter; implicitWidth: 48; implicitHeight: 48 }
+                        Item {
+                            Layout.fillWidth: true
+                            Layout.preferredHeight: 100
+                            Image {
+                                id: catalogPreview
+                                anchors.fill: parent
+                                source: tile.model.screenshot || ""
+                                fillMode: Image.PreserveAspectFit
+                                asynchronous: true
+                                sourceSize.width: Math.ceil(width * Screen.devicePixelRatio)
+                                sourceSize.height: Math.ceil(height * Screen.devicePixelRatio)
+                            }
+                            Kirigami.Icon {
+                                anchors.centerIn: parent
+                                source: tile.model.decoration
+                                width: 48; height: 48
+                                visible: catalogPreview.status !== Image.Ready
+                            }
+                        }
                         QQC2.Label { Layout.fillWidth: true; text: tile.model.name; textFormat: Text.PlainText; horizontalAlignment: Text.AlignHCenter; wrapMode: Text.Wrap; maximumLineCount: 2; elide: Text.ElideRight; font.bold: true }
-                        QQC2.Label { Layout.fillWidth: true; text: !tile.model.isSupported || main.retired(tile.model.pluginName) ? main.local("غير مدعومة", "Unavailable") : main.local("عرض التفاصيل", "View preview"); horizontalAlignment: Text.AlignHCenter; color: Kirigami.Theme.disabledTextColor }
+                        QQC2.Label { Layout.fillWidth: true; text: !tile.model.isSupported || main.retired(tile.model.pluginName) ? main.local("غير مدعومة", "Unavailable") : catalogPreview.status === Image.Ready ? main.local("عرض التفاصيل والمعاينة", "Details and preview") : main.local("عرض التفاصيل", "View details"); horizontalAlignment: Text.AlignHCenter; color: main.secondaryInk }
                     }
                     padding: 16
                 }
@@ -186,7 +224,7 @@ QQC2.Page {
                 }
                 QQC2.Label { Layout.fillWidth: true; text: main.selected?.name || ""; textFormat: Text.PlainText; font.pixelSize: MoUI.Tokens.typeTitle; font.bold: true; wrapMode: Text.Wrap }
                 QQC2.Label { Layout.fillWidth: true; text: main.selected?.description || ""; textFormat: Text.PlainText; wrapMode: Text.Wrap }
-                QQC2.Label { Layout.fillWidth: true; wrapMode: Text.Wrap; color: Kirigami.Theme.disabledTextColor; text: preview.status === Image.Ready ? main.local("معاينة يوفرها مطوّر الأداة.", "Preview supplied by the widget author.") : main.local("لا تتوفر صورة معاينة لهذه الأداة. هذه أيقونتها فقط.", "This widget has no preview image. Its icon is shown above.") }
+                QQC2.Label { Layout.fillWidth: true; wrapMode: Text.Wrap; color: main.secondaryInk; text: preview.status === Image.Ready ? main.local("معاينة يوفرها مطوّر الأداة.", "Preview supplied by the widget author.") : main.local("لا تتوفر صورة معاينة لهذه الأداة. هذه أيقونتها فقط.", "This widget has no preview image. Its icon is shown above.") }
                 QQC2.Label { Layout.fillWidth: true; wrapMode: Text.Wrap; textFormat: Text.PlainText; color: Kirigami.Theme.neutralTextColor; visible: !!main.selected && !main.selected.supported; text: main.selected?.reason || main.local("هذه الأداة غير متوافقة مع الجلسة الحالية.", "This widget is not compatible with the current session.") }
                 MoUI.Button {
                     objectName: "previewSelectedWidget"
@@ -198,7 +236,7 @@ QQC2.Page {
                             main.message = main.local("تعذّر فتح المعاينة.", "Could not open the preview.")
                     }
                 }
-                QQC2.Label { Layout.fillWidth: true; wrapMode: Text.Wrap; color: Kirigami.Theme.disabledTextColor; text: main.local("المعاينة تشغّل الأداة الحقيقية دون إضافتها إلى سطح المكتب. أغلق النافذة لإنهائها.", "Preview runs the real widget without adding it to your desktop. Close its window to end it.") }
+                QQC2.Label { Layout.fillWidth: true; wrapMode: Text.Wrap; color: main.secondaryInk; text: main.local("المعاينة تشغّل الأداة الحقيقية دون إضافتها إلى سطح المكتب. أغلق النافذة لإنهائها.", "Preview runs the real widget without adding it to your desktop. Close its window to end it.") }
                 MoUI.Button {
                     objectName: "addSelectedWidget"
                     Layout.fillWidth: true; primary: true
@@ -212,7 +250,7 @@ QQC2.Page {
                             : main.local("لم تتم إضافة الأداة. تحقق من رسالة سطح المكتب.", "The widget was not added. Check the desktop error message.")
                     }
                 }
-                QQC2.Label { Layout.fillWidth: true; wrapMode: Text.Wrap; color: Kirigami.Theme.disabledTextColor; text: main.local("أو اسحب الأداة التالية إلى المكان الذي تختاره:", "Or drag the widget below to choose its position:") }
+                QQC2.Label { Layout.fillWidth: true; wrapMode: Text.Wrap; color: main.secondaryInk; text: main.local("أو اسحب الأداة التالية إلى المكان الذي تختاره:", "Or drag the widget below to choose its position:") }
                 MoUI.Surface {
                     id: dragSource
                     Layout.fillWidth: true; implicitHeight: 64; interactive: true
@@ -246,7 +284,7 @@ QQC2.Page {
                         ColumnLayout {
                             id: instanceContent; anchors.fill: parent; anchors.margins: 16
                             QQC2.Label { Layout.fillWidth: true; text: instance.modelData.title; textFormat: Text.PlainText; font.bold: true; wrapMode: Text.Wrap }
-                            QQC2.Label { Layout.fillWidth: true; wrapMode: Text.Wrap; color: Kirigami.Theme.disabledTextColor; text: instance.failure ? main.local("تعذّر تحميل الأداة: ", "Widget failed to load: ") + (instance.failure.compactError || "") : instance.modelData.configurationRequired ? main.local("تحتاج إلى إعداد", "Setup required") : main.local("على سطح المكتب · " + instance.modelData.id, "On this desktop · " + instance.modelData.id) }
+                            QQC2.Label { Layout.fillWidth: true; wrapMode: Text.Wrap; color: main.secondaryInk; text: instance.failure ? main.local("تعذّر تحميل الأداة: ", "Widget failed to load: ") + (instance.failure.compactError || "") : instance.modelData.configurationRequired ? main.local("تحتاج إلى إعداد", "Setup required") : main.local("على سطح المكتب · " + instance.modelData.id, "On this desktop · " + instance.modelData.id) }
                             RowLayout {
                                 MoUI.Button { label: main.local("إعداد", "Configure"); visible: instance.modelData.hasConfigurationInterface; enabled: instance.configureAction?.enabled ?? false; onClicked: instance.configureAction.trigger() }
                                 Item { Layout.fillWidth: true }

@@ -1407,6 +1407,15 @@ Item {
                                 }
                             }
 
+                            PC3.Button {
+                                objectName: "moosNativeWidgetLibrary"
+                                Layout.fillWidth: true
+                                Layout.minimumHeight: view.targetSize
+                                text: view.local("سطح المكتب والأدوات", "Desktop & widgets")
+                                icon.name: MoUI.SymbolCatalog.resolve("grid")
+                                onClicked: view.launcher.openRoute("moos://settings/desktop")
+                            }
+
                             GridLayout {
                                 Layout.fillWidth: true
                                 columns: view.narrow ? 1 : 2

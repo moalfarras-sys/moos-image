@@ -1,0 +1,15 @@
+{
+  "KPlugin": {
+    "Id": "MoOSPrismDawn",
+    "Name": "MoOS Prism Dawn",
+    "Name[ar]": "MoOS · فجر المنشور",
+    "Description": "Sculpted optical glass and titanium · Prism Dawn",
+    "Description[ar]": "زجاج بصري وتيتانيوم منحوت · فجر المنشور",
+    "Authors": [
+      {
+        "Name": "Moalfarras"
+      }
+    ],
+    "License": "CC-BY-SA-4.0"
+  }
+}

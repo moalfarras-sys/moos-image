@@ -96,6 +96,11 @@ FIXED_VERBS = {
     "theme-wallpaper-reset": ("wallpaper-reset", "None"),
     "theme-wallpaper-token": ("wallpaper-token", "WallpaperToken"),
 }
+CONTROL_VERBS = {
+    "audio-volume": ("volume", "Volume"),
+    "audio-mute": ("mute", "None"),
+    "audio-unmute": ("unmute", "None"),
+}
 
 
 def modules() -> dict[str, tuple[Path, dict]]:
@@ -137,22 +142,22 @@ def isolated_env(**extra: str) -> dict[str, str]:
     return env
 
 
-def fixed_verbs() -> dict[str, tuple[str, str]]:
+def fixed_verbs(program="ThemeTool") -> dict[str, tuple[str, str]]:
     table = BACKEND.read_text(encoding="utf-8").split("constexpr Verb FixedVerbs[] = {", 1)[1]
     table = table.split("};", 1)[0]
     verbs = {}
     for match in re.finditer(
-            r'\{"([a-z-]+)", ThemeTool, \{(?:nullptr|"([a-z-]+)"), nullptr\}, Argument::(\w+), (true|false)\}',
+            r'\{"([a-z-]+)", ' + re.escape(program) + r', \{(?:nullptr|"([a-z-]+)"), nullptr\}, Argument::(\w+), (true|false)\}',
             table):
         verbs[match.group(1)] = (match.group(2) or "", match.group(3))
     return verbs
 
 
-def mutating_verbs() -> set[str]:
+def mutating_verbs(program="ThemeTool") -> set[str]:
     """The verbs that CHANGE the desktop: they run in their own user unit and outlive the page."""
     table = BACKEND.read_text(encoding="utf-8").split("constexpr Verb FixedVerbs[] = {", 1)[1]
     table = table.split("};", 1)[0]
-    return {m.group(1) for m in re.finditer(r'\{"([a-z-]+)", ThemeTool, .*?, (true|false)\}', table)
+    return {m.group(1) for m in re.finditer(r'\{"([a-z-]+)", ' + re.escape(program) + r', .*?, (true|false)\}', table)
             if m.group(2) == "true"}
 
 
@@ -316,9 +321,16 @@ class TheBackend(unittest.TestCase):
 
     def test_the_fixed_verbs_are_exactly_the_contract(self) -> None:
         self.assertEqual(fixed_verbs(), FIXED_VERBS)
+        self.assertEqual(fixed_verbs("ControlTool"), CONTROL_VERBS)
+        self.assertEqual(mutating_verbs("ControlTool"), set(CONTROL_VERBS))
         # Every change outlives its page; a query never does (a query is only a read).
         self.assertEqual(mutating_verbs(), {verb for verb in FIXED_VERBS if not verb.endswith("-status")})
         backend = BACKEND.read_text(encoding="utf-8")
+        table = backend.split("constexpr Verb FixedVerbs[] = {", 1)[1].split("};", 1)[0]
+        self.assertEqual(set(re.findall(r'(?m)^\s*\{"([a-z-]+)", \w+,', table)), set(FIXED_VERBS) | set(CONTROL_VERBS),
+                         "Every executor and action must be accounted for")
+        self.assertIn('ControlTool = "/usr/bin/moos-control"', backend)
+        self.assertIn("const Verb *verb = fixedVerb(id, argument)", backend)
         self.assertIn(r'"^org\\.moos\\.ui2[a-z.]*$"', backend)
         self.assertIn(r'"^[A-Za-z0-9_.~%-]{1,4096}$"', backend)
         for word in ("still", "gentle", "alive", "clear", "balanced", "solid"):
@@ -328,7 +340,7 @@ class TheBackend(unittest.TestCase):
             if first:
                 self.assertRegex(theme, rf"(?m)^    {re.escape(first)}\)", f"moos-theme has no {first} verb")
         readme = (KCM / "README.md").read_text(encoding="utf-8")
-        for verb in FIXED_VERBS:
+        for verb in FIXED_VERBS | CONTROL_VERBS:
             self.assertIn(f"| `{verb}` |", readme, f"the README does not document {verb}")
 
     def test_env_reads_only_the_three_ports(self) -> None:

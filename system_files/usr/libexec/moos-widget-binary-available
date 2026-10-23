@@ -1,0 +1,41 @@
+#!/usr/bin/python3 -I
+"""Read native Qt applet metadata without loading its executable code."""
+import re
+import sys
+
+
+def valid_id(value):
+    return len(value) <= 255 and re.fullmatch(r'[A-Za-z0-9_-]+(?:\.[A-Za-z0-9_-]+)+', value) is not None
+
+
+def applet_metadata(value):
+    return (isinstance(value, dict) and value.get('IID') == 'org.kde.KPluginFactory'
+            and isinstance(value.get('MetaData'), dict)
+            and isinstance(value['MetaData'].get('X-Plasma-API-Minimum-Version'), str)
+            and re.fullmatch(r'6\.[0-9]+', value['MetaData']['X-Plasma-API-Minimum-Version']) is not None
+            and isinstance(value['MetaData'].get('KPlugin'), dict)
+            and bool(value['MetaData']['KPlugin'].get('Name')))
+
+
+def available(plugin):
+    if not valid_id(plugin):
+        return False
+    from PySide6.QtCore import QCoreApplication, QPluginLoader
+    app = QCoreApplication.instance() or QCoreApplication([sys.argv[0]])
+    # Qt owns the effective native plugin search path, including architecture.
+    # metaData() reads the embedded data; never call load() or instance().
+    loader = QPluginLoader('plasma/applets/' + plugin)
+    return applet_metadata(loader.metaData())
+
+
+def main():
+    if len(sys.argv) != 2 or not valid_id(sys.argv[1]):
+        return 2
+    try:
+        return 0 if available(sys.argv[1]) else 1
+    except (ImportError, OSError, RuntimeError):
+        return 1
+
+
+if __name__ == '__main__':
+    raise SystemExit(main())

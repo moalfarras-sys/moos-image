@@ -14,6 +14,12 @@
 int main(int argc, char **argv)
 {
     QCoreApplication application(argc, argv);
+    if (argc == 4 && QString::fromLocal8Bit(argv[1]) == QLatin1String("--action")) {
+        const bool accepted = MoOSSettingsModule::acceptsFixedAction(
+            QString::fromLocal8Bit(argv[2]), QString::fromLocal8Bit(argv[3]));
+        std::puts(accepted ? "accepted" : "refused");
+        return accepted ? 0 : 1;
+    }
     if (argc != 2) {
         std::fputs("usage: moos-settings-contract-check <status.json>\n", stderr);
         return 2;

@@ -8,7 +8,7 @@ window.
 
 | Module | Directory | Weight | What it shows |
 |---|---|---|---|
-| `kcm_moos` | `modules/overview` | 1 | MoOS hero card, at a glance, System and This device facts, Copy details |
+| `kcm_moos` | `modules/overview` | 1 | Native Control Center, measured device states, audio, destinations and device facts |
 | `kcm_moos_update` | `modules/update` | 2 | System, Applications and Device firmware rows, each from its owner's record |
 | `kcm_moos_whatsnew` | `modules/whatsnew` | 3 | What each update brought, fresh marker, "Try it" routes |
 | `kcm_moos_ai` | `modules/ai` | 4 | Mo AI (slice B) |
@@ -57,11 +57,15 @@ every module named there offscreen and fails on an early exit or a QML error.
 * Motion only through MoUI components, gated on `Kirigami.Units.longDuration`;
   no infinite animation.
 
+Audio changes use the existing unprivileged `moos-control` executor, with no shell or administrator prompt. The card submits one action on slider release or a keyboard step, waits for its exit, and refreshes measured state. Failure stays visible. No recurring status poll is added.
+
 ### Shared QML (`common/`)
 
 | Type | Use |
 |---|---|
-| `MoosHero` | the Liquid Glass hero card: `logoSource`, `title`, `subtitle`, `chips: [...]`, `actions: [...]` |
+| `MoosAudioCard` | measured output volume/mute, fixed actions and explicit failure |
+| `MoosDeviceTile` | measured device state and a native destination in one focusable target |
+| `MoosHero` | the Liquid Glass hero card: `logoSource`, `title`, `subtitle`, `chips: [...]`, `actions: [...]`, optional `compact` header |
 | `MoosChip` | a status chip: `glyph`, `label`, `tone` (`positive`, `warning`, `negative`, `neutral`) |
 | `MoosFactRow` | `label` + `value`; empty value reads "Unknown"; `technical` isolates LTR names |
 | `MoosInfoRow` | a state sentence: `glyph`, `text`, `description`, `trailing: [...]` |
@@ -116,10 +120,14 @@ and the change finishes in its unit; the next page reads the result back.
 ### Fixed verbs
 
 Everything a page can start. Each argument is validated in C++ before a process
-exists, and `moos-theme` validates it again.
+exists, then validated again by its native executor. Theme rows below show
+arguments to `moos-theme`; audio rows show the complete `moos-control` command.
 
 | id | argv (`/usr/bin/moos-theme …`) | argument |
 |---|---|---|
+| `audio-volume` | `/usr/bin/moos-control volume <percent>` | canonical integer `0`–`100` |
+| `audio-mute` | `/usr/bin/moos-control mute` | — |
+| `audio-unmute` | `/usr/bin/moos-control unmute` | — |
 | `theme-status` | *(none)* | — |
 | `theme-motion-status` | `motion` | — |
 | `theme-clarity-status` | `clarity` | — |

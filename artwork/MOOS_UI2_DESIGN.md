@@ -254,12 +254,12 @@ must not fall back to Breeze artwork.
 
 The search field has its own space and hit target; it never overlays the MoOS
 button. Preserve stock task grouping, pinning, previews and drag/reorder.
-The compact MoOS mark and Workspace control share this same bar. Workspace
-opens KWin Overview through the canonical route; it owns no second window
-model or compositor. Their accessible names and one Plasma tooltip distinguish
-the two actions. Home keeps Overview, side-by-side arrangement, native MoOS
-Settings and Mira in a two-column grid. The application library retains a real
-Store destination. Application icons stay quiet at rest.
+The compact MoOS mark is the bar's sole launcher entry. Workspace and Settings
+remain real destinations inside Home, reached by pointer, keyboard or the
+native KWin shortcut/gesture. Do not add compact buttons for destinations
+already present in the launcher, tray or task manager. The owner explicitly
+rejected that duplication. Home keeps Overview, side-by-side arrangement,
+native MoOS Settings and Mira; the app library retains its Store destination.
 
 The desktop Hub gives the clock and forecast a clear upper pair and places
 device readings in a lower strip. Portrait places the clock above the two
@@ -268,6 +268,14 @@ Each sheet has one restrained rim and specular edge, without a second enclosing
 card. Wallpaper input remains passive. Settings uses real KCM destination
 tiles with single-column narrow flow; decorative branding yields space before
 controls do. The native destination owns its actual settings and permissions.
+
+MoOS Control Center lives inside native System Settings, reached from Home.
+Measured network, Bluetooth and battery states lead to their device pages;
+the output-volume track and mute control use the existing native executor.
+The slider keeps a 44px input target and a quiet continuous track in both
+directions. A pending action cannot repeat; a failed change remains visible,
+and displayed state changes only after readback. Refresh is event-driven,
+without an idle status poll. Unavailable hardware is named rather than hidden.
 
 MoOS Island is a fixed Context Island in the centre rail, not a panel segment that
 stretches and collapses. Its 9.5-grid-unit footprint stays stable while Search,
@@ -484,3 +492,5 @@ geometry, tokens, generators and native review commands. Keep root/initramfs
 package byte proof and all identity/retain-splash/rollback gates. Review with
 `scripts/review/plymouth-render.sh` in a private SDK, including small-screen
 password entry. Native pixels prove composition, not a signed cold boot.
+
+The native widget library uses Plasma's catalogue, containment and add/remove/Undo actions. Catalogue previews belong to the widget author; absent images show an icon without pretending to be a live preview. Narrow layouts reflow to one column. The optional Prism Night/Dawn canvases are original static art, packaged for the native wallpaper library at their actual generated resolution; they do not replace palette or motion ownership.

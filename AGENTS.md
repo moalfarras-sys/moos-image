@@ -99,6 +99,15 @@ Kicker SimpleFavoritesModel publishes canonical `applications:` IDs even when
 initialized with desktop IDs. Match its actual published identity before
 triggering a row; exercise direct destinations as well as the catalogue.
 
+Native device controls must wait for their fixed executor and reread measured
+state. Submit a slider change on release/key input, never on valueChanged:
+reading a snapshot must not write it back. Keep pending actions inert, show
+refused/failed changes, and preserve pointer/keyboard/Qt-touch controls plus
+a broken-failure negative. Optional state bindings need explicit booleans so
+the actual KCM also loads before its first accepted status document.
+Check secondary ink against the composed interactive fill too: a text-tinted
+active card at 0.09 measured 4.26:1 in a Light family despite a valid 0.72 ink role.
+
 **A direct sysctl write is not profile durability.** TuneD throughput overwrote
 the V3's three declared MoKernel memory values because its reapplication searches
 run/etc, not usr/lib. A canonical relative alias restores one existing policy;
@@ -1466,3 +1475,8 @@ The observer in diagnostic39086687915 did preserve the closed desktop, but its f
 **An active indexer can still address the same file twice.** On the Oct18 physical boot, content creation worked, while an atomic save retained both old and new document IDs and deletion left results behind. Native `balooshow6` showed the same HOME inode but different database/filesystem device identities. Use alphabetic content markers absent filenames and ordinary create/atomic-save/delete events; a forced index or one successful query does not prove the lifecycle. Preserve the complete old derived index offline with no readers before any fresh derived rebuild; never edit raw LMDB or delete documents. Keep display-start aborts in the boot journal and the bounded identity readback's malformed/empty/mismatch/always-success negative controls. A same-boot repair is not cold-boot durability, and this observation does not establish why the historical filesystem identity changed.
 
 **Zero failed units and a green postcheck are not zero process crashes.** Native1072 passed35 hashes/54 selfchecks/55 postchecks and cold search, yet the login greeter faulted in QtQuick ListView destruction through screenRemoved and the owner Remote failed to bindlocalhost8765 while the old greeter Remote unit was still active. One managed Remote retry recovered; retain the actual core/exit and account/unit timestamps. Read coredump metadata without exporting cores, credentials or provider state. Require isolated screen-removal and real private socket/handoff negatives before a repair; never hide this with a journal reset, PAM change, arbitrary port or speculative theme/graphics policy.
+
+**A second shortcut is not a UI redesign.** The owner explicitly rejected adding compact Workspace and Control Center buttons beside the MoOS mark: both destinations already exist inside Home and native shortcuts/gestures. Keep one compact launcher entry and one tooltip; improve the existing composition and its actual input/scale/theme behavior. Preserve the real Home destinations and native KDE owners. A visual review that lands on the covering editor is a failed capture, never desktop evidence; do not type into an owner window while it is being used.
+
+
+**A native widget may be embedded in a binary.** Plasma6.8 offers calculator from a Qt applet plugin while `kpackagetool6 --show` reports no filesystem package. Keep both package and exact validated Qt applet metadata availability checks; metadata inspection must not load/instantiate executable plugin code. A successful metadata read is not a working preview: retain actual `plasmawindowed` load/input and canonical route evidence separately. Local compatibility launchers remain exact owned previews, not signed delivery.
