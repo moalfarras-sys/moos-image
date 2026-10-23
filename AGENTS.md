@@ -210,7 +210,12 @@ icons in the real launcher while standalone Qt rendered them correctly. Named
 hicolor registration of the exact publisher bytes repairs the actual surface;
 this does not establish the Plasma loader's cause. Keep app/URI icon parity.
 A local launcher environment and icon registration must survive its canonical
-installer update before claiming durable application integration.
+installer update before claiming durable application integration. A MoOS-prefixed icon name is not proof of
+OS ownership: the native old theme migration erased registered Antigravity/Code
+publisher icons. Keep exact shipped hicolor shadows recoverable, preserve names
+without an image counterpart and retain the actual old/fixed control plus native
+launcher pixels. A fresh finder path or same-theme refresh did not update the
+already-running popup; scoped shell reload did, preserving other native owners.
 
 **A healthy app update does not authorize full installation repair.** Actual
 Flatpak1.18.4 repair erases `.removed` recursively. The live daily updater did

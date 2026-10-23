@@ -533,6 +533,12 @@ quarantine_moos_data_shadows() {
             [ -e "$root" ] || continue
             printf '%s\0' "$root"
         done
+        # A registered third-party app may also use a moos-* icon name.
+        # Emit individual regular files; the exact image-path check above
+        # quarantines only actual shipped shadows and preserves app exports.
+        find "${user_share}/icons/hicolor" -type f \( \
+            -name 'moos-*' -o -name 'moplayer.*' -o -name 'org.moos.*' \
+        \) -print0 2>/dev/null || true
     )
 }
 
@@ -681,16 +687,14 @@ find "${cache_dir}" -mindepth 2 -maxdepth 2 -type d -name qmlcache \
 # first-party application marks baked per palette; if the home tree still holds
 # the retired geometry — often still painted with Breeze's #3daee9 — the dock
 # and launcher keep showing that while every image gate stays green. Drop only
-# the MoOS-owned overlay trees and moos-* / moplayer names under hicolor; never
-# touch third-party icon themes the user may have installed.
+# the MoOS-owned overlay trees. Individual hicolor shadows were already moved
+# recoverably above, only when the image ships the exact same path. A moos-*
+# prefix alone does not make a locally registered application icon OS-owned.
 local_icons="${XDG_DATA_HOME:-$HOME/.local/share}/icons"
 if [ -d "$local_icons" ]; then
     find "$local_icons" -maxdepth 1 -type d \( \
             -name 'MoOSUI2' -o -name 'MoOSUI2Light' -o -name 'MoOSUI2*' \
         \) -exec rm -rf -- {} + 2>/dev/null || true
-    find "$local_icons/hicolor" -type f \( \
-            -name 'moos-*' -o -name 'moplayer.*' -o -name 'org.moos.*' \
-        \) -delete 2>/dev/null || true
     # Empty size dirs left behind are harmless; the icon cache must not keep
     # pointing at files we just removed.
     rm -f "${local_icons}/hicolor/icon-theme.cache" \

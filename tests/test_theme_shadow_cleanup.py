@@ -110,5 +110,62 @@ with tempfile.TemporaryDirectory(prefix="moos-kwin-shadow-test-") as temporary:
     if "--expect-reply=no" not in caller or 'quarantined_kwin" = "1"' not in caller:
         raise SystemExit("a quarantined KWin package must make KWin re-read (no-reply call)")
 
-print("OK: a post-marker MoOS shadow is quarantined and cleanup is idempotent "
-      "(Plasma data and KWin packages)")
+# A publisher icon registered as moos-antigravity-ide vanished on the actual
+# reboot. Prefix ownership must not erase app exports. Exercise the same native
+# quarantine with exact image files, unrelated names and an outside symlink.
+with tempfile.TemporaryDirectory(prefix="moos-hicolor-shadow-test-") as temporary:
+    root = Path(temporary)
+    user_share, system_share = root / "user-share", root / "system-share"
+    known = "icons/hicolor/512x512/apps/moos-store.png"
+    for base, body in ((user_share, "preview"), (system_share, "image")):
+        icon = base / known
+        icon.parent.mkdir(parents=True)
+        icon.write_text(body)
+    preserved = [
+        "icons/hicolor/512x512/apps/moos-antigravity-ide.png",
+        "icons/hicolor/512x512/apps/moos-vscode-native.png",
+        "icons/hicolor/512x512/apps/org.moos.personal.png",
+        "icons/hicolor/512x512/apps/third-party.png",
+        # Another size has no image counterpart: preserve unknown state.
+        "icons/hicolor/123x123/apps/moos-store.png",
+    ]
+    for relative in preserved:
+        icon = user_share / relative
+        icon.parent.mkdir(parents=True, exist_ok=True)
+        icon.write_text("publisher")
+    outside = root / "outside.png"
+    outside.write_text("outside")
+    linked = user_share / "icons/hicolor/512x512/apps/moos-welcome.png"
+    linked.symlink_to(outside)
+    (system_share / linked.relative_to(user_share)).write_text("image")
+    script = (
+        "set -euo pipefail\n"
+        f"XDG_DATA_HOME='{user_share}'\nMOOS_SYSTEM_SHARE='{system_share}'\n"
+        f"log='{root / 'apply.log'}'\n"
+        "quarantined_kwin=0\n"
+        + extract_function(APPLY.read_text(encoding="utf-8"), "quarantine_moos_data_shadows")
+        + "\nquarantine_moos_data_shadows\nquarantine_moos_data_shadows\n"
+    )
+    env = {"PATH": os.environ.get("PATH", "/usr/bin:/bin"), "HOME": str(root / "home"),
+           "DBUS_SESSION_BUS_ADDRESS": f"unix:path={root / 'no-bus'}"}
+    result = subprocess.run([BASH, "-c", script], env=env, capture_output=True, text=True)
+    if result.returncode:
+        raise SystemExit("hicolor quarantine: " + (result.stderr or result.stdout))
+    assert not (user_share / known).exists(), "known icon still shadows the image"
+    backups = list((user_share / "MoOS/theme-shadow-backups").glob(f"*/{known}"))
+    assert len(backups) == 1 and backups[0].read_text() == "preview"
+    assert (system_share / known).read_text() == "image"
+    for relative in preserved:
+        assert (user_share / relative).read_text() == "publisher", relative
+    assert linked.is_symlink() and outside.read_text() == "outside"
+    # Reinserting the old prefix deletion after quarantine must break the app
+    # preservation assertion. This negative never touches a real user share.
+    old_delete = 'find "$XDG_DATA_HOME/icons/hicolor" -type f -name "moos-*" -delete\n'
+    result = subprocess.run([BASH, "-c", script + old_delete], env=env,
+                            capture_output=True, text=True)
+    assert result.returncode == 0, result.stderr
+    assert not (user_share / preserved[0]).exists(), "old destructive control did not execute"
+    assert linked.is_symlink() and outside.read_text() == "outside"
+
+print("OK: post-marker shadows are quarantined idempotently; exact hicolor "
+      "image shadows retire while publisher icons and unknown state survive")

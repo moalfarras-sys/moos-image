@@ -3166,9 +3166,11 @@ require(
     "local_icons=" in apply_theme_code
     and "moos-*" in apply_theme_code
     and "MoOSUI2*" in apply_theme_code
+    and '"${user_share}/icons/hicolor" -type f' in apply_theme_code
+    and '[ -e "$target" ] || continue' in apply_theme_code
     and "icon-theme.cache" in apply_theme_code,
-    "THEME_REV 27 must purge ~/.local/share/icons/MoOSUI2* and hicolor moos-* overrides "
-    "so baked app marks from /usr win over live-preview residue",
+    "MoOS theme migration must retire MoOSUI2 overlays and quarantine exact shipped "
+    "hicolor shadows so image marks win while locally registered application icons survive",
 )
 # Rev 12 carries a rewritten desk widget (weather + rolling digits), and a plasmoid does not
 # reach an existing user by being newer. OSTree pins every mtime under /usr to the epoch and
