@@ -120,6 +120,8 @@ WallpaperItem {
         "MoOSUI2NovaLight":     { canvas: "#C6DCE9", ink: "#17302E", accent: "#0E63C4" },
         "MoOSUI2Amethyst":      { canvas: "#201829", ink: "#F1E9F5", accent: "#C084FC" },
         "MoOSUI2AmethystLight": { canvas: "#D5D9EE", ink: "#17302E", accent: "#7C3AED" },
+        "MoOSUI2Bloom":         { canvas: "#201829", ink: "#F1E9F5", accent: "#C084FC" },
+        "MoOSUI2BloomLight":    { canvas: "#D5D9EE", ink: "#17302E", accent: "#7C3AED" },
         "MoOSUI2Midnight":      { canvas: "#0A0A0C", ink: "#F5F7FA", accent: "#22D3EE" },
         "MoOSUI2Daylight":      { canvas: "#C5DAEC", ink: "#17302E", accent: "#0284C7" },
         "MoOSUI2Aurora":        { canvas: "#172236", ink: "#ECF2FB", accent: "#3B82F6" },

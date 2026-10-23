@@ -51,7 +51,7 @@ WallpaperItem {
     readonly property int hubSystemPage:
         root.configuration.HubSystemPage === undefined ? 0 : root.configuration.HubSystemPage
     readonly property bool hubShown:
-        (root.configuration.ShowDashboard === undefined || root.configuration.ShowDashboard)
+        (root.configuration.ShowDashboard === true)
         && root.hubAnyCard
 
     function setHubKey(key, value) {
@@ -257,6 +257,12 @@ WallpaperItem {
             var isLight = /Light$/.test(base)
                 || /MoOSUI2Tide$/.test(base)
                 || /MoOSUI2Daylight$/.test(base)
+            // Bloom retains the original generated PNG in both standard
+            // branches. Never rename/upscale that artwork to a 4K JPEG.
+            if (/\/MoOSUI2Bloom(Light)?$/.test(base)) {
+                return base + (isLight ? "/contents/images/1672x941.png"
+                                       : "/contents/images_dark/1672x941.png")
+            }
             return base + (isLight ? "/contents/images/3840x2160.jpg"
                                    : "/contents/images_dark/3840x2160.jpg")
         }

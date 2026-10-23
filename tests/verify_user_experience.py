@@ -3142,7 +3142,7 @@ require("http://127.0.0.1:11434/api/tags" in moai_do_code
 # The versioned migration is what makes the redesign visible to existing users.
 apply_theme = read("system_files/usr/bin/moos-apply-theme")
 apply_theme_code = code(apply_theme)
-require("THEME_REV=124" in apply_theme_code,
+require("THEME_REV=129" in apply_theme_code,
         "MoOS visual schema must purge the cached compile of the retired lock-screen fork (it "
         "asks for a MoOSClock that no longer ships) and of the stock session screen, and "
         "migrate existing users to the Island that hosts Search itself "
@@ -3482,7 +3482,8 @@ require("enabled=false" in light_style,
 # nothing foreign, no reintroduced old generation. (verify_identity.py enforces the same set
 # with name/id checks; this gate holds the on-disk package + Konsole-profile count.)
 FAMILY_LNF = ["org.moos.ui2", "org.moos.ui2.amethyst", "org.moos.ui2.amethyst.light",
-              "org.moos.ui2.aurora", "org.moos.ui2.aurora.light", "org.moos.ui2.dev",
+              "org.moos.ui2.aurora", "org.moos.ui2.aurora.light",
+              "org.moos.ui2.bloom", "org.moos.ui2.bloom.light", "org.moos.ui2.dev",
               "org.moos.ui2.dev.light", "org.moos.ui2.gaming", "org.moos.ui2.gaming.light",
               "org.moos.ui2.light", "org.moos.ui2.midnight", "org.moos.ui2.midnight.light",
               "org.moos.ui2.nova", "org.moos.ui2.nova.light", "org.moos.ui2.study",
@@ -3519,7 +3520,7 @@ for package in FAMILY_LNF:
 
 theme_profiles = json.loads(read("artwork/moos-design/theme-profiles.json"))["profiles"]
 require(
-    len(theme_profiles) == 16
+    len(theme_profiles) == 18
     and all(profile["icons"] == profile["style"] for profile in theme_profiles)
     and "MOOS_THEME_PROFILE_DB" in theme_owner_code
     and "want_icons=" not in apply_theme_code

@@ -117,7 +117,7 @@ constexpr const char *BilingualLabels[] = {"editionLabel", "archLabel", "session
 // ── The fixed verbs ─────────────────────────────────────────────────────────
 // Nothing else can be started from a page. Each argument kind is validated here,
 // before a process exists, and moos-theme validates it again.
-enum class Argument { None, LookAndFeel, Motion, Clarity, WallpaperToken, Volume };
+enum class Argument { None, LookAndFeel, Motion, Clarity, Hub, WallpaperToken, Volume };
 struct Verb {
     const char *id;
     const char *program;
@@ -134,10 +134,12 @@ constexpr Verb FixedVerbs[] = {
     {"theme-status", ThemeTool, {nullptr, nullptr}, Argument::None, false},
     {"theme-motion-status", ThemeTool, {"motion", nullptr}, Argument::None, false},
     {"theme-clarity-status", ThemeTool, {"clarity", nullptr}, Argument::None, false},
+    {"theme-hub-status", ThemeTool, {"hub", nullptr}, Argument::None, false},
     {"theme-apply-lnf", ThemeTool, {"apply-lnf", nullptr}, Argument::LookAndFeel, true},
     {"theme-undo", ThemeTool, {"undo", nullptr}, Argument::None, true},
     {"theme-motion", ThemeTool, {"motion", nullptr}, Argument::Motion, true},
     {"theme-clarity", ThemeTool, {"clarity", nullptr}, Argument::Clarity, true},
+    {"theme-hub", ThemeTool, {"hub", nullptr}, Argument::Hub, true},
     {"theme-wallpaper-reset", ThemeTool, {"wallpaper-reset", nullptr}, Argument::None, true},
     {"theme-wallpaper-token", ThemeTool, {"wallpaper-token", nullptr}, Argument::WallpaperToken, true},
 };
@@ -159,6 +161,8 @@ bool argumentAccepted(Argument kind, const QString &value)
             || value == QLatin1String("solid");
     case Argument::WallpaperToken:
         return token.match(value).hasMatch();
+    case Argument::Hub:
+        return value == QLatin1String("on") || value == QLatin1String("off");
     case Argument::Volume: {
         static const QRegularExpression volume(QStringLiteral("\\A(?:0|[1-9][0-9]?|100)\\z"));
         return volume.match(value).hasMatch();

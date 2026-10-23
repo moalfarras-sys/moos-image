@@ -789,8 +789,8 @@ PlasmoidItem {
         id: compact
         activeFocusOnTab: true
         onActiveFocusChanged: root.compactFocused = activeFocus
-        Keys.onReturnPressed: root.openPrimary()
-        Keys.onEnterPressed: root.openPrimary()
+        Keys.onReturnPressed: event => { if (!event.isAutoRepeat) { root.openPrimary(); } }
+        Keys.onEnterPressed: event => { if (!event.isAutoRepeat) { root.openPrimary(); } }
         Keys.onSpacePressed: event => {
             if (!event.isAutoRepeat) { root.openPrimary(); }
         }
@@ -826,9 +826,9 @@ PlasmoidItem {
         Rectangle {
             id: compactShell
             anchors.fill: parent
-            anchors.topMargin: root.design.space1
-            anchors.bottomMargin: root.design.space1
-            radius: Math.min(16, height / 2)
+            anchors.topMargin: 2
+            anchors.bottomMargin: 2
+            radius: height / 2
             // Follow the live glass-clarity control, using the same fill rule
             // as the other MoOS surfaces. Palette and depth still set the
             // balanced density; clear and solid remain visibly different.
@@ -845,48 +845,11 @@ PlasmoidItem {
                                             root.design.glassLevelPanel))
             antialiasing: true
 
-            // The light along the top edge. One hairline, inset by the corner so
-            // it lives on the straight part of the rim, painted only here.
-            Rectangle {
-                anchors.top: parent.top
-                anchors.topMargin: 1
-                anchors.horizontalCenter: parent.horizontalCenter
-                width: Math.max(0, parent.width - parent.radius * 1.6)
-                height: 1
-                color: root.design.glassSpecular(Kirigami.Theme.backgroundColor,
-                                                 root.design.glassLevelPanel)
-                visible: parent.width > parent.radius * 2
-            }
-
             Behavior on border.color {
                 ColorAnimation { duration: root.motionFast }
             }
             Behavior on color {
                 ColorAnimation { duration: root.motionFast }
-            }
-
-            // A restrained Tidal crest gives the eye a reason for the capsule
-            // to widen. It grows with the same geometry clock as the shell and
-            // then stays still; no ambient sweep or permanent repaint.
-            Rectangle {
-                anchors.horizontalCenter: parent.horizontalCenter
-                anchors.top: parent.top
-                anchors.topMargin: -height / 2
-                width: compactHover.hovered ? parent.width * 0.30
-                                            : parent.width * 0.12
-                height: 2
-                radius: 1
-                color: Kirigami.Theme.highlightColor
-                opacity: compactHover.hovered ? 0.78 : 0.34
-                Behavior on width {
-                    NumberAnimation {
-                        duration: root.motionGeometry
-                        easing.type: root.design.easeEmphasis
-                    }
-                }
-                Behavior on opacity {
-                    NumberAnimation { duration: root.motionFast }
-                }
             }
 
             MouseArea {
@@ -923,52 +886,28 @@ PlasmoidItem {
                 }
             }
 
-            // A COLUMN, not two anchored siblings. The content row and the
-            // timeline used to be anchored children of the same shell, and
-            // anchors do not reserve anything from each other — so the
-            // hairline drew straight across the source caption and no amount
-            // of bottomMargin on the row fixed it, because the row's children
-            // still sized themselves against the full shell. A column cannot
-            // overlap: the lane takes its height first and the row gets what
-            // is genuinely left.
-            ColumnLayout {
+            RowLayout {
                 anchors.fill: parent
-                // A pill's rim curves INWARD, so a flat margin lets the corner
-                // eat whatever sits at the ends: the cover art was tangent to
-                // the curve on one side and the caption was clipped by it on
-                // the other.
-                anchors.leftMargin: root.design.space2
-                anchors.rightMargin: root.design.space2
+                anchors.leftMargin: 8
+                anchors.rightMargin: 8
                 anchors.topMargin: 2
                 anchors.bottomMargin: 2
-                spacing: 1
-
-            RowLayout {
-                Layout.fillWidth: true
-                Layout.fillHeight: true
                 spacing: root.design.space1
                 layoutDirection: root.rtl ? Qt.RightToLeft : Qt.LeftToRight
 
                 Rectangle {
                     id: contextPlate
-                    // DERIVED, never a literal. A hardcoded 38 was the same
-                    // height the capsule had left over, so the artwork had no
-                    // breathing room at all and any inset — including one I
-                    // added here — pushed it and the caption straight through
-                    // the pill's bottom curve. Sizing from the shell keeps a
-                    // real margin at every panel height the bar can take.
+                    // Artwork is secondary to the title. Its size never
+                    // consumes the text lane when the panel becomes shorter.
                     readonly property int artSize:
-                        Math.round(compactShell.height * 0.68)
+                        Math.min(26, Math.max(18, compactShell.height - 8))
                     Layout.preferredWidth: artSize
                     Layout.preferredHeight: artSize
-                    // Without this the artwork stretched to the capsule's full
-                    // height and sat off-centre against the type beside it.
+                    Layout.minimumWidth: artSize
+                    Layout.maximumWidth: artSize
                     Layout.alignment: Qt.AlignVCenter
-                    radius: root.design.radiusControl
-                    color: Qt.alpha(Kirigami.Theme.highlightColor, 0.16)
-                    border.width: root.design.borderHairline
-                    border.color: Qt.alpha(Kirigami.Theme.highlightColor,
-                                           compactHover.hovered ? 0.46 : 0.24)
+                    radius: 8
+                    color: "transparent"
                     // The context change is SPRUNG, not timed.
                     //
                     // A NumberAnimation with an easing curve arrives at 1.0 on a
@@ -1144,60 +1083,27 @@ PlasmoidItem {
                     }
                 }
 
-                ColumnLayout {
+                Item {
                     id: compactText
-                    visible: true
                     Layout.fillWidth: true
-                    Layout.minimumWidth: 68
-                    // Centre the two lines as a BLOCK. Filling the capsule's
-                    // full height pushed the caption onto the pill's bottom
-                    // curve, which clipped it — the source name was cut in
-                    // half on the live panel.
-                    Layout.alignment: Qt.AlignVCenter
-                    Layout.fillHeight: false
-                    // THE BAR'S REAL HEIGHT DECIDES HOW MANY LINES FIT, not the
-                    // design token. `panelHeight` is what the capsule ASKS for
-                    // (54); MoOS Bar gives its applets 40, and two pinned lines
-                    // (17 + 15) plus the timeline lane need more than the 28 px
-                    // that leaves — so on the owner's own desk the source line
-                    // was drawn straight through the pill's bottom curve and
-                    // sat outside the capsule, measured on the station on
-                    // 2026-09-18 while a video was playing. The title is what
-                    // the capsule is for; the source is a courtesy, so it is
-                    // the one that goes when there is no room, and it is still
-                    // in the tooltip and in the expanded view.
-                    readonly property real laneRoom: timelineLane.visible ? 4 : 0
-                    readonly property bool roomForSource: root.active
-                        && compactShell.height - 4 - laneRoom >= 34
-                    Layout.maximumHeight: Math.max(
-                        17, compactShell.height - 4 - laneRoom)
-                    Layout.leftMargin: root.design.space1
-                    Layout.rightMargin: root.design.space1
-                    spacing: 0
-                    transform: Translate { id: trackShift }
-
-                    // A track change used to be a hard text swap: one frame the
-                    // old title, the next the new one, with no relationship
-                    // between them. On a surface whose whole job is to show
-                    // what is playing, that is the moment the user actually
-                    // looks at — so it is the moment worth animating. The block
-                    // rises a few pixels as the text is replaced, which reads
-                    // as a deliberate update rather than a layout glitch. It is a
-                    // one-shot triggered by real MPRIS data, never a loop, and
-                    // it collapses to nothing when the user has motion off
-                    // because motionFast is already gated on longDuration > 1.
+                    Layout.fillHeight: true
+                    Layout.minimumWidth: 0
+                    Layout.minimumHeight: 0
+                    Layout.maximumHeight: Math.max(0, compactShell.height - 4)
+                    clip: true
+                    // One natural line, centred in its actual available room.
+                    // Arabic's painted line was28px while the old box claimed
+                    //17px. A fixed lineHeight never shrinks that painted ink.
                     opacity: 1
                     function stopTrackTurn() {
                         trackTurn.stop();
                         compactText.opacity = 1;
-                        trackShift.y = 0;
                     }
                     onVisibleChanged: if (!visible) { stopTrackTurn(); }
                     Connections {
                         target: root
                         function onCompactTitleChanged() {
-                            if (root.motionEnabled && compactText.visible
-                                    && root.visible) {
+                            if (root.motionEnabled && compactText.visible && root.visible) {
                                 trackTurn.restart();
                             } else {
                                 compactText.stopTrackTurn();
@@ -1210,135 +1116,87 @@ PlasmoidItem {
                             if (!root.visible) { compactText.stopTrackTurn(); }
                         }
                     }
-                    ParallelAnimation {
+                    NumberAnimation {
                         id: trackTurn
-                        running: false
-                        NumberAnimation {
-                            target: compactText; property: "opacity"
-                            from: 0.20; to: 1; duration: root.motionGeometry
-                            easing.type: Easing.OutCubic
-                        }
-                        NumberAnimation {
-                            target: trackShift; property: "y"
-                            from: root.design.space1; to: 0
-                            duration: root.motionGeometry
-                            easing.type: root.design.easeEmphasis
-                        }
+                        target: compactText; property: "opacity"
+                        from: 0.35; to: 1; duration: root.motionFast
                     }
-
-                    // FIXED line boxes, not the font's own. An Arabic-capable UI
-                    // font carries a tall ascent/descent, so two natural line
-                    // boxes came to roughly 41 px inside a 46 px capsule that
-                    // also has to hold the timeline lane — the caption was
-                    // pushed onto the pill's curve and the progress hairline
-                    // drew straight through it. Pinning both lines makes the
-                    // block 32 px whatever script it renders, so the capsule
-                    // holds title, source and timeline at its real height and
-                    // stays correct if the bar is ever made shorter.
                     PC3.Label {
-                        Layout.fillWidth: true
+                        id: compactCaption
+                        objectName: "islandCompactCaption"
+                        anchors.fill: parent
                         text: root.compactTitle
+                        textFormat: Text.PlainText
                         color: Kirigami.Theme.textColor
                         font.pixelSize: root.design.typeSecondary
                         font.weight: Font.DemiBold
-                        lineHeightMode: Text.FixedHeight
-                        lineHeight: 17
+                        fontSizeMode: Text.VerticalFit
+                        minimumPixelSize: 12
                         elide: Text.ElideRight
+                        wrapMode: Text.NoWrap
                         maximumLineCount: 1
                         verticalAlignment: Text.AlignVCenter
-                        horizontalAlignment: root.rtl ? Text.AlignRight
-                                                      : Text.AlignLeft
-                    }
-                    PC3.Label {
-                        Layout.fillWidth: true
-                        visible: compactText.roomForSource
-                        text: root.contextSource
-                        color: Kirigami.Theme.disabledTextColor
-                        font.pixelSize: root.design.typeCaption
-                        lineHeightMode: Text.FixedHeight
-                        lineHeight: 15
-                        elide: Text.ElideRight
-                        maximumLineCount: 1
-                        verticalAlignment: Text.AlignVCenter
-                        horizontalAlignment: root.rtl ? Text.AlignRight
-                                                      : Text.AlignLeft
+                        horizontalAlignment: root.rtl ? Text.AlignRight : Text.AlignLeft
                     }
                 }
 
-                // Play/pause is the one control that never hides: it is why the
-                // capsule is reachable at all without opening anything.
-                MediaControl {
-                    slotSize: 34
-                    revealed: root.mediaPresent && !root.remotePresent
-                              && !root.privacyPresent && !root.storeJobPresent
-                              && !root.moaiJobPresent
-                    controlEnabled: root.playing
-                        ? root.canPause : (root.canPlay || root.canControl)
-                    iconName: root.playing ? "media-playback-pause-symbolic"
-                                           : "media-playback-start-symbolic"
-                    label: root.playing ? root.local("إيقاف مؤقت", "Pause")
-                                        : root.local("تشغيل", "Play")
-                    onActivated: root.togglePlaying()
-                }
-
-                // One-tap stop for privacy streams
-                MediaControl {
-                    slotSize: 34
-                    revealed: !root.remotePresent && root.privacyPresent
-                    controlEnabled: true
-                    iconName: "moos-close-symbolic"
-                    label: root.local("إيقاف", "Stop")
-                    onActivated: Qt.openUrlExternally("moos://privacy/stop/" + root.privacyType + "/" + root.privacyNodeId)
-                }
-
-                // Quick open for Store jobs
-                MediaControl {
-                    slotSize: 34
-                    revealed: !root.remotePresent && !root.privacyPresent && root.storeJobPresent
-                    controlEnabled: true
-                    iconName: "moos-store"
-                    label: root.local("المتجر", "Store")
-                    onActivated: Qt.openUrlExternally("moos://app/store")
-                }
-
-                // Quick open for a confirmed job: the steps live in Mira (Mo AI's app).
-                MediaControl {
-                    slotSize: 34
-                    revealed: !root.remotePresent && !root.privacyPresent
-                              && !root.storeJobPresent && root.moaiJobPresent
-                    controlEnabled: true
-                    iconName: root.moaiJobIcon
-                    label: root.local("فتح ميرا", "Open Mira")
-                    onActivated: root.openMoAI()
-                }
-
-                MediaControl {
-                    slotSize: 34
-                    revealed: root.remotePresent
-                    controlEnabled: true
-                    iconName: "configure-symbolic"
-                    label: root.local("فتح إعدادات التحكم", "Open Remote controls")
-                    onActivated: Qt.openUrlExternally("moos://app/remote")
+                // One reserved action slot. Five fading siblings briefly
+                // consumed the title lane together during context changes.
+                Item {
+                    Layout.preferredWidth: root.active ? compactAction.targetSize : 0
+                    Layout.minimumWidth: root.active ? compactAction.targetSize : 0
+                    Layout.maximumWidth: root.active ? compactAction.targetSize : 0
+                    Layout.fillHeight: true
+                    Layout.minimumHeight: 0
+                    Layout.maximumHeight: Math.max(0, compactShell.height - 4)
+                    visible: root.active
+                    MediaControl {
+                        id: compactAction
+                        anchors.centerIn: parent
+                        slotSize: 28
+                        toolTipEnabled: false // Plasma owns this panel applet's tooltip.
+                        revealed: root.active
+                        controlEnabled: !root.mediaPresent || root.remotePresent
+                            || root.privacyPresent || root.storeJobPresent || root.moaiJobPresent
+                            || (root.playing ? root.canPause : (root.canPlay || root.canControl))
+                        iconName: root.remotePresent ? "configure-symbolic"
+                            : root.privacyPresent ? "moos-close-symbolic"
+                            : root.storeJobPresent ? "moos-store"
+                            : root.moaiJobPresent ? root.moaiJobIcon
+                            : root.playing ? "media-playback-pause-symbolic" : "media-playback-start-symbolic"
+                        label: root.remotePresent ? root.local("فتح إعدادات التحكم", "Open Remote controls")
+                            : root.privacyPresent ? root.local("إيقاف", "Stop")
+                            : root.storeJobPresent ? root.local("المتجر", "Store")
+                            : root.moaiJobPresent ? root.local("فتح ميرا", "Open Mira")
+                            : root.playing ? root.local("إيقاف مؤقت", "Pause") : root.local("تشغيل", "Play")
+                        onActivated: {
+                            if (root.remotePresent) {
+                                Qt.openUrlExternally("moos://app/remote");
+                            } else if (root.privacyPresent) {
+                                Qt.openUrlExternally("moos://privacy/stop/" + root.privacyType + "/" + root.privacyNodeId);
+                            } else if (root.storeJobPresent) {
+                                Qt.openUrlExternally("moos://app/store");
+                            } else if (root.moaiJobPresent) {
+                                root.openMoAI();
+                            } else {
+                                root.togglePlaying();
+                            }
+                        }
+                    }
                 }
             }
 
-            // The progress hairline had two defects, and both were visible.
-            // It was anchored to the pill's BOTTOM EDGE, but that edge is a
-            // curve, so a flat bar ran straight past it at each end and read
-            // as a stray line under the capsule instead of part of it. And it
-            // was anchored to parent.LEFT in every language, so in Arabic —
-            // where the whole capsule is mirrored — it grew away from the
-            // start of the track and appeared to drain as the media played.
-            // Inset by the corner radius so it lives in the capsule's straight
-            // middle, give it a track so the remaining time is legible too,
-            // mirror the fill for RTL, and let it travel instead of jumping
-            // between the one-second position samples.
+            // Progress belongs to the lower rim. It does not steal a
+            // second line from the caption or move the action controls.
             Item {
                 id: timelineLane
-                Layout.fillWidth: true
-                Layout.preferredHeight: 3
-                Layout.leftMargin: compactShell.radius * 0.35
-                Layout.rightMargin: compactShell.radius * 0.35
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.bottom: parent.bottom
+                anchors.leftMargin: 14
+                anchors.rightMargin: 14
+                anchors.bottomMargin: 2
+                height: 2
                 visible: (!root.remotePresent && !root.privacyPresent && !root.storeJobPresent
                           && !root.moaiJobPresent && root.hasTimeline)
                          || (!root.remotePresent && !root.privacyPresent && root.storeJobPresent && root.storeJobProgress > 0)
@@ -1365,7 +1223,6 @@ PlasmoidItem {
                         }
                     }
                 }
-            }
             }
         }
     }

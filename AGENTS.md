@@ -417,6 +417,8 @@ Both image builders now require the same real Qt input proof against installed
 report the unavailable native probes. Preserve all12 cases and the executed
 old-source negative; no empty/skipped image probe is acceptance.
 
+**A complete theme needs its actual image path and native icon alias.** Bloom's original PNG cannot satisfy a4K JPEG assumption in the profile loader, shell resolver or finished-image gate. Preserve every legacy4K contract; qualify new native packages explicitly and run the actual QJSEngine plus image decoder, including the old resolver negative. A genericQIcon(folder) passing does not prove KIO directory icons: retain the inode-directory alias and rendered file-manager evidence. Native button bounds also need real margin clicks; visible circles and config readback alone do not prove touch targets or a complete desktop.
+
 **A screenshot's filename does not establish its phase.** ISO 38807911559
 saved `installed-login.ppm` only after PAM accepted the password and logind
 opened the session. It caught the empty handoff background and correctly failed
@@ -1480,3 +1482,7 @@ The observer in diagnostic39086687915 did preserve the closed desktop, but its f
 
 
 **A native widget may be embedded in a binary.** Plasma6.8 offers calculator from a Qt applet plugin while `kpackagetool6 --show` reports no filesystem package. Keep both package and exact validated Qt applet metadata availability checks; metadata inspection must not load/instantiate executable plugin code. A successful metadata read is not a working preview: retain actual `plasmawindowed` load/input and canonical route evidence separately. Local compatibility launchers remain exact owned previews, not signed delivery.
+
+**A preview package link may resolve outside its own root.** Native stable digital-clock preview was blank because the owned shell preview linked66 resources to immutable `/usr`; KPackage correctly refused those paths. Preflight the exact owned link destinations and bytes, use identical in-package files for the live preview, and retain the old refusal. Never relax package path safety or count a calculator-only success as acceptance of compact-expander widgets. The fixed clock renders and opens its actual calendar; blank unconfigured weather and a separate memory-widget controller failure remain unaccepted.
+
+**A ready KCM marker is not an executed new verb.** The first scoped preview executor path contained Arabic while the fixed backend converts its constant path from Latin1. Its page rendered but no action reached the helper. Keep product fixed `/usr` paths; a live compatibility bridge must use a documented ASCII-only path, exact source bytes, a real loaded-library readback and actual pointer on/off/state verification. Restore the canonical build and stop only owned preview processes afterwards.

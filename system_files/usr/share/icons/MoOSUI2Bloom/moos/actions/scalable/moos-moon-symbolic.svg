@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+     role="img" aria-labelledby="moon-title">
+  <title id="moon-title">Dark appearance</title>
+  <style id="current-color-scheme" type="text/css">
+    .ColorScheme-Text { color: #F1E9F5; fill: currentColor; }
+    .ColorScheme-Highlight { color: #C084FC; fill: currentColor; }
+    .ColorScheme-NeutralText { color: #FBBF24; fill: currentColor; }
+    .ColorScheme-NegativeText { color: #FB7185; fill: currentColor; }
+  </style>
+  <path class="ColorScheme-Text" fill="#2e3436" fill-rule="evenodd" d="M20.35 14.45 A9.2 9.2 0 1 1 9.55 3.65 A8.35 8.35 0 0 0 20.35 14.45 Z"/>
+  <path class="ColorScheme-Highlight" fill="#2e3436" fill-rule="evenodd" d="M18.95 17.25 A1.15 1.15 0 1 1 16.65 17.25 A1.15 1.15 0 1 1 18.95 17.25 Z"/>
+</svg>

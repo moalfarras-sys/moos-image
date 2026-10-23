@@ -253,6 +253,9 @@ def main() -> None:
         "org.moos.ui2.dev.light": "MoOS UI · Forge Light",
         "org.moos.ui2.study": "MoOS UI · Scholar",
         "org.moos.ui2.study.light": "MoOS UI · Scholar Light",
+        # Optional soft-frame finish, retaining the MoOS UI2 engine/identity.
+        "org.moos.ui2.bloom": "MoOS UI · Bloom",
+        "org.moos.ui2.bloom.light": "MoOS UI · Bloom Light",
     }
     lnf_root = ROOT / "usr/share/plasma/look-and-feel"
     moos_looks = sorted(p.name for p in lnf_root.glob("org.moos.*"))

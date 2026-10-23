@@ -1,0 +1,9 @@
+[Desktop Entry]
+Name=MoOS UI · Bloom
+Comment=Soft native MoOS window frame
+X-KDE-PluginInfo-Author=MoOS; Vince Liuice
+X-KDE-PluginInfo-Name=MoOSUI2Bloom
+X-KDE-PluginInfo-Version=1.0
+X-KDE-PluginInfo-License=GPL-3.0
+X-KDE-ServiceTypes=KWin/Decoration
+Type=Service

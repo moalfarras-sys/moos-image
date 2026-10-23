@@ -1,0 +1,256 @@
+{
+  "purpose": "Curated generic artwork for the native MoOS Bloom finish. No upstream installers or OS identity assets. Window action glyphs are MoOS-owned.",
+  "sources": [
+    {
+      "repo": "vinceliuice/Colloid-kde",
+      "sha": "b768904d10ba9fcb95abfb59538eab100b1fed1e",
+      "archive_sha256": "007964b43d1c8a1635c970d7d5f00b6687f532f061c71df0c401b0a1d13f15e5"
+    },
+    {
+      "repo": "vinceliuice/Fluent-icon-theme",
+      "sha": "c8a244f571ef8fb47812bdc9dbce76546cedce69",
+      "archive_sha256": "07b6b593ab557e07f0a7cdb232cda99214af13fb74ad6ce1e77d666057647767"
+    }
+  ],
+  "files": [
+    {
+      "source_repo": "vinceliuice/Colloid-kde",
+      "source_commit": "b768904d10ba9fcb95abfb59538eab100b1fed1e",
+      "source_path": "aurorae/Colloid-dark-round/decoration.svg",
+      "target": "artwork/vendor/bloom/colloid/dark/decoration.svg",
+      "sha256": "fc5306b99a492c2e2becb48a9b2b6527bbfaa32a3782d6495f8ec866cb7593e5"
+    },
+    {
+      "source_repo": "vinceliuice/Colloid-kde",
+      "source_commit": "b768904d10ba9fcb95abfb59538eab100b1fed1e",
+      "source_path": "aurorae/Colloid-dark-round/Colloid-dark-roundrc",
+      "target": "artwork/vendor/bloom/colloid/dark/theme.rc",
+      "sha256": "24fc00c9ad6f4d43bf827047de9e62c460c5ec484494ef2b4cd23b0fba373c76"
+    },
+    {
+      "source_repo": "vinceliuice/Colloid-kde",
+      "source_commit": "b768904d10ba9fcb95abfb59538eab100b1fed1e",
+      "source_path": "aurorae/Colloid-light-round/decoration.svg",
+      "target": "artwork/vendor/bloom/colloid/light/decoration.svg",
+      "sha256": "ceb77323c5d767a19982bd89b1dcaf744efd51c8e9ef475454259a8db4371195"
+    },
+    {
+      "source_repo": "vinceliuice/Colloid-kde",
+      "source_commit": "b768904d10ba9fcb95abfb59538eab100b1fed1e",
+      "source_path": "aurorae/Colloid-light-round/Colloid-light-roundrc",
+      "target": "artwork/vendor/bloom/colloid/light/theme.rc",
+      "sha256": "73ed050aad6ed990b4b452308baf405c88d635b2192b037595b8f56e32ffffa6"
+    },
+    {
+      "source_repo": "vinceliuice/Fluent-icon-theme",
+      "source_commit": "c8a244f571ef8fb47812bdc9dbce76546cedce69",
+      "target": "artwork/vendor/bloom/fluent/mimetypes/scalable/text-x-generic.svg",
+      "sha256": "0fc01d196bb1afca1bb8b84f0df476868236bce4ae048ee0094f3e447c6c0d2e",
+      "source_path": "src/scalable/mimetypes/text-x-generic.svg"
+    },
+    {
+      "source_repo": "vinceliuice/Fluent-icon-theme",
+      "source_commit": "c8a244f571ef8fb47812bdc9dbce76546cedce69",
+      "target": "artwork/vendor/bloom/fluent/mimetypes/scalable/text-x-script.svg",
+      "sha256": "2f76fc41afdddce94c560062e7e9e4e035dc0536503466a9692197e426ecdc23",
+      "source_path": "src/scalable/mimetypes/text-x-script.svg"
+    },
+    {
+      "source_repo": "vinceliuice/Fluent-icon-theme",
+      "source_commit": "c8a244f571ef8fb47812bdc9dbce76546cedce69",
+      "target": "artwork/vendor/bloom/fluent/mimetypes/scalable/image-x-generic.svg",
+      "sha256": "b67cd4b269199dc020e99c4a3966a3de2fca521d2c29749874013c7e0ca30e85",
+      "source_path": "src/scalable/mimetypes/image-x-generic.svg"
+    },
+    {
+      "source_repo": "vinceliuice/Fluent-icon-theme",
+      "source_commit": "c8a244f571ef8fb47812bdc9dbce76546cedce69",
+      "target": "artwork/vendor/bloom/fluent/mimetypes/scalable/audio-x-generic.svg",
+      "sha256": "c65ba7a8651b0d1d9a5ae35ff6514b65fe10fa2df8da609a30abd1f448bc8a48",
+      "source_path": "src/scalable/mimetypes/audio-x-generic.svg"
+    },
+    {
+      "source_repo": "vinceliuice/Fluent-icon-theme",
+      "source_commit": "c8a244f571ef8fb47812bdc9dbce76546cedce69",
+      "target": "artwork/vendor/bloom/fluent/mimetypes/scalable/video-x-generic.svg",
+      "sha256": "f7ddf8fd557e8777f196a083b67d5d7eb55b63c15213f06266353e17eb036c93",
+      "source_path": "src/scalable/mimetypes/video-x-generic.svg"
+    },
+    {
+      "source_repo": "vinceliuice/Fluent-icon-theme",
+      "source_commit": "c8a244f571ef8fb47812bdc9dbce76546cedce69",
+      "target": "artwork/vendor/bloom/fluent/mimetypes/scalable/application-json.svg",
+      "sha256": "312b1fab46ef9af3b63e0217cb981a070915318bcef0aecaed7ebf5ffc70dc86",
+      "source_path": "src/scalable/mimetypes/application-json.svg"
+    },
+    {
+      "source_repo": "vinceliuice/Fluent-icon-theme",
+      "source_commit": "c8a244f571ef8fb47812bdc9dbce76546cedce69",
+      "target": "artwork/vendor/bloom/fluent/mimetypes/scalable/application-pdf.svg",
+      "sha256": "344eb4e9a1b261f81062c6948ba6c8899d54e865ff9b3e5cfbc1bcef6c75fb7b",
+      "source_path": "src/scalable/mimetypes/application-pdf.svg"
+    },
+    {
+      "source_repo": "vinceliuice/Fluent-icon-theme",
+      "source_commit": "c8a244f571ef8fb47812bdc9dbce76546cedce69",
+      "target": "artwork/vendor/bloom/fluent/mimetypes/scalable/package-x-generic.svg",
+      "sha256": "5a8be7732c04029e90b663174f2ee4930f79286605c89c6b061ed5b8730f9e5d",
+      "source_path": "src/scalable/mimetypes/package-x-generic.svg"
+    },
+    {
+      "source_repo": "vinceliuice/Fluent-icon-theme",
+      "source_commit": "c8a244f571ef8fb47812bdc9dbce76546cedce69",
+      "target": "artwork/vendor/bloom/fluent/mimetypes/scalable/application-x-compressed-tar.svg",
+      "sha256": "26a8fa2778dba013395bbfe933b7666e2d7567440406d3333e174c20a2be831e",
+      "source_path": "src/scalable/mimetypes/application-x-compressed-tar.svg"
+    },
+    {
+      "source_repo": "vinceliuice/Fluent-icon-theme",
+      "source_commit": "c8a244f571ef8fb47812bdc9dbce76546cedce69",
+      "target": "artwork/vendor/bloom/fluent/places/scalable/cut.svg",
+      "sha256": "28e1c316677ceef4eea5edeb89389caa9cb5a698ce61357c734837cade0e5224",
+      "source_path": "src/scalable/places/default-cut.svg"
+    },
+    {
+      "source_repo": "vinceliuice/Fluent-icon-theme",
+      "source_commit": "c8a244f571ef8fb47812bdc9dbce76546cedce69",
+      "target": "artwork/vendor/bloom/fluent/places/scalable/folder-documents.svg",
+      "sha256": "0e3cedc9170960025836c3a3c078f516bd75e57006cf5fd16d840eb62dc96960",
+      "source_path": "src/scalable/places/default-folder-documents.svg"
+    },
+    {
+      "source_repo": "vinceliuice/Fluent-icon-theme",
+      "source_commit": "c8a244f571ef8fb47812bdc9dbce76546cedce69",
+      "target": "artwork/vendor/bloom/fluent/places/scalable/folder-download.svg",
+      "sha256": "dcae33e9474934c77001892e6271f92f73c75ab3b8b08cc0051dd80e91a33b4b",
+      "source_path": "src/scalable/places/default-folder-download.svg"
+    },
+    {
+      "source_repo": "vinceliuice/Fluent-icon-theme",
+      "source_commit": "c8a244f571ef8fb47812bdc9dbce76546cedce69",
+      "target": "artwork/vendor/bloom/fluent/places/scalable/folder-move.svg",
+      "sha256": "1f50e1618649ab4ef5a56a8fdcf592577719c86e3008a4e8f99ba54e86528405",
+      "source_path": "src/scalable/places/default-folder-move.svg"
+    },
+    {
+      "source_repo": "vinceliuice/Fluent-icon-theme",
+      "source_commit": "c8a244f571ef8fb47812bdc9dbce76546cedce69",
+      "target": "artwork/vendor/bloom/fluent/places/scalable/folder-music.svg",
+      "sha256": "dcd59b3c9c2a959200ad775a65c858d827824aba4e8b14faec89dde5fa3394e5",
+      "source_path": "src/scalable/places/default-folder-music.svg"
+    },
+    {
+      "source_repo": "vinceliuice/Fluent-icon-theme",
+      "source_commit": "c8a244f571ef8fb47812bdc9dbce76546cedce69",
+      "target": "artwork/vendor/bloom/fluent/places/scalable/folder-open.svg",
+      "sha256": "d5ec2b5b93d7dcbf3fd15d86fcc2460d4731524f727ffbaa45c974b57cc21714",
+      "source_path": "src/scalable/places/default-folder-open.svg"
+    },
+    {
+      "source_repo": "vinceliuice/Fluent-icon-theme",
+      "source_commit": "c8a244f571ef8fb47812bdc9dbce76546cedce69",
+      "target": "artwork/vendor/bloom/fluent/places/scalable/folder-pictures.svg",
+      "sha256": "b137ebfb7cbb17ace22ece238a0075960a37bca1ce7b054d8dfa5d220d70b0ad",
+      "source_path": "src/scalable/places/default-folder-pictures.svg"
+    },
+    {
+      "source_repo": "vinceliuice/Fluent-icon-theme",
+      "source_commit": "c8a244f571ef8fb47812bdc9dbce76546cedce69",
+      "target": "artwork/vendor/bloom/fluent/places/scalable/folder-publicshare.svg",
+      "sha256": "0839626741b571223db3a030c3e6a3f85f55db2173ab47aa8796af0435f93fcd",
+      "source_path": "src/scalable/places/default-folder-publicshare.svg"
+    },
+    {
+      "source_repo": "vinceliuice/Fluent-icon-theme",
+      "source_commit": "c8a244f571ef8fb47812bdc9dbce76546cedce69",
+      "target": "artwork/vendor/bloom/fluent/places/scalable/folder-recent.svg",
+      "sha256": "73fa79dac6bad46fa4394772ff9085eb88ad270cdc9be8a7b0d44f9460d8188f",
+      "source_path": "src/scalable/places/default-folder-recent.svg"
+    },
+    {
+      "source_repo": "vinceliuice/Fluent-icon-theme",
+      "source_commit": "c8a244f571ef8fb47812bdc9dbce76546cedce69",
+      "target": "artwork/vendor/bloom/fluent/places/scalable/folder-system.svg",
+      "sha256": "4519d3633c048b3101bfc55b069ab1ae35defcaa41f604afc55b0672d2e1adb8",
+      "source_path": "src/scalable/places/default-folder-system.svg"
+    },
+    {
+      "source_repo": "vinceliuice/Fluent-icon-theme",
+      "source_commit": "c8a244f571ef8fb47812bdc9dbce76546cedce69",
+      "target": "artwork/vendor/bloom/fluent/places/scalable/folder-templates.svg",
+      "sha256": "d1086ef328ff95d28ea6244b3311c2575956c1980862ae362cc73337570bfc7d",
+      "source_path": "src/scalable/places/default-folder-templates.svg"
+    },
+    {
+      "source_repo": "vinceliuice/Fluent-icon-theme",
+      "source_commit": "c8a244f571ef8fb47812bdc9dbce76546cedce69",
+      "target": "artwork/vendor/bloom/fluent/places/scalable/folder-video.svg",
+      "sha256": "19a126d659649223044f4dc4111733140ca18faadbea761d94866d4ce6df9f06",
+      "source_path": "src/scalable/places/default-folder-video.svg"
+    },
+    {
+      "source_repo": "vinceliuice/Fluent-icon-theme",
+      "source_commit": "c8a244f571ef8fb47812bdc9dbce76546cedce69",
+      "target": "artwork/vendor/bloom/fluent/places/scalable/folder.svg",
+      "sha256": "e5d6565d22da53ce1725bee20834a02717e631e181610e59f5274d8d5eb34d58",
+      "source_path": "src/scalable/places/default-folder.svg"
+    },
+    {
+      "source_repo": "vinceliuice/Fluent-icon-theme",
+      "source_commit": "c8a244f571ef8fb47812bdc9dbce76546cedce69",
+      "target": "artwork/vendor/bloom/fluent/places/scalable/network.svg",
+      "sha256": "d86b67c83ba6a4f3cda9611ab5dc609c6ad4b04256065c37ae97c5c262c40ebc",
+      "source_path": "src/scalable/places/default-network.svg"
+    },
+    {
+      "source_repo": "vinceliuice/Fluent-icon-theme",
+      "source_commit": "c8a244f571ef8fb47812bdc9dbce76546cedce69",
+      "target": "artwork/vendor/bloom/fluent/places/scalable/user-desktop.svg",
+      "sha256": "0dfcd76fdd5ce57c3f2dbf60dcb3ac69018d38b9f6e3ff2d9ba5c672a1df285f",
+      "source_path": "src/scalable/places/default-user-desktop.svg"
+    },
+    {
+      "source_repo": "vinceliuice/Fluent-icon-theme",
+      "source_commit": "c8a244f571ef8fb47812bdc9dbce76546cedce69",
+      "target": "artwork/vendor/bloom/fluent/places/scalable/user-home.svg",
+      "sha256": "6e34870b1bb9c12cafe3e42c983e7fa7ff1c75a9afed913f033b0b643b5cdfa0",
+      "source_path": "src/scalable/places/default-user-home.svg"
+    },
+    {
+      "source_repo": "vinceliuice/Fluent-icon-theme",
+      "source_commit": "c8a244f571ef8fb47812bdc9dbce76546cedce69",
+      "target": "artwork/vendor/bloom/fluent/places/scalable/folder-projects.svg",
+      "sha256": "724d27020a3516b1324fb6605b5e727eebfd2f2cfaae62368fe47ddae734ca7f",
+      "source_path": "src/scalable/places/folder-projects.svg"
+    },
+    {
+      "source_repo": "vinceliuice/Fluent-icon-theme",
+      "source_commit": "c8a244f571ef8fb47812bdc9dbce76546cedce69",
+      "target": "artwork/vendor/bloom/fluent/places/scalable/folder-git.svg",
+      "sha256": "85aeb74ed20740d44d5b461b292d677b9e469b88b24222542e0fa66ad29753dd",
+      "source_path": "src/scalable/places/folder-git.svg"
+    },
+    {
+      "source_repo": "vinceliuice/Fluent-icon-theme",
+      "source_commit": "c8a244f571ef8fb47812bdc9dbce76546cedce69",
+      "target": "artwork/vendor/bloom/fluent/places/scalable/user-trash.svg",
+      "sha256": "ee94664588ebe4a53cedf6574a88e7095e1fb97368df03f095366a8e11078f61",
+      "source_path": "src/scalable/places/user-trash.svg"
+    },
+    {
+      "source_repo": "vinceliuice/Fluent-icon-theme",
+      "source_commit": "c8a244f571ef8fb47812bdc9dbce76546cedce69",
+      "target": "artwork/vendor/bloom/fluent/places/scalable/user-trash-full.svg",
+      "sha256": "2fa4892973a8f13ac680f42cd59a1d5b5146d1c6e1ee17779c16de296ba328e2",
+      "source_path": "src/scalable/places/user-trash-full.svg"
+    },
+    {
+      "source_repo": "vinceliuice/Fluent-icon-theme",
+      "source_commit": "c8a244f571ef8fb47812bdc9dbce76546cedce69",
+      "source_path": "links/scalable/places/inode-directory.svg",
+      "target": "artwork/vendor/bloom/fluent/places/scalable/inode-directory.svg",
+      "sha256": "e5d6565d22da53ce1725bee20834a02717e631e181610e59f5274d8d5eb34d58",
+      "symlink": "folder.svg"
+    }
+  ]
+}

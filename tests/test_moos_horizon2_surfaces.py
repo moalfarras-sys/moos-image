@@ -106,10 +106,11 @@ class MoOSSearch(unittest.TestCase):
         # Every way a person activates the idle face reaches that branch: click, keys, a11y.
         self.assertRegex(self.qml, r"if \(!root\.active\) \{\s*root\.openPrimary\(\);",
                          "a click on the idle Island must open Search")
-        for door in ("Keys.onReturnPressed: root.openPrimary()",
-                     "Keys.onEnterPressed: root.openPrimary()",
-                     "Accessible.onPressAction: root.openPrimary()"):
-            self.assertIn(door, self.qml)
+        for key in ("Return", "Enter", "Space"):
+            self.assertRegex(self.qml, r"Keys\.on" + key + r"Pressed:\s*event\s*=>\s*\{\s*"
+                             r"if \(!event\.isAutoRepeat\) \{ root\.openPrimary\(\); \}",
+                             "keys must open the same popup once, without held-key repetition")
+        self.assertIn("Accessible.onPressAction: root.openPrimary()", self.qml)
         # Plasma's own activation (the widget's shortcut) must keep toggling the popup.
         self.assertNotRegex(self.qml, r"activationTogglesExpanded\s*:\s*false",
                             "the Island's popup must stay reachable through Plasma activation")
@@ -184,7 +185,15 @@ class RemoteIsland(unittest.TestCase):
                       "Layout.minimumWidth: stableWidth", "Layout.maximumWidth: stableWidth"):
             self.assertIn(owner, self.qml)
         self.assertIn("Kirigami.Units.gridUnit * 9.5", self.qml)
-        self.assertGreaterEqual(self.qml.count("slotSize: 34"), 4)
+        compact = self.qml.split("compactRepresentation: FocusScope {", 1)[1].split("fullRepresentation:", 1)[0]
+        self.assertEqual(compact.count("MediaControl {"), 1,
+                         "contexts share one reserved action; fading siblings squeeze the caption")
+        self.assertIn("slotSize: 28", compact)
+        self.assertIn("toolTipEnabled: false", compact,
+                      "the parent Plasma applet owns the compact tooltip")
+        for action in ('"moos://app/remote"', '"moos://privacy/stop/"',
+                       '"moos://app/store"', "root.openMoAI();", "root.togglePlaying();"):
+            self.assertIn(action, compact)
         self.assertNotIn("Behavior on implicitWidth", self.qml)
         self.assertNotIn("remoteSettled", self.qml)
         self.assertNotIn("remoteAnnounce", self.qml)
@@ -210,7 +219,8 @@ class RemoteIsland(unittest.TestCase):
         self.assertIn("function onCompactTitleChanged()", self.qml)
         self.assertIn("trackTurn.restart()", self.qml)
         self.assertIn("target: compactText; property: \"opacity\"", self.qml)
-        self.assertIn("target: trackShift; property: \"y\"", self.qml)
+        self.assertNotIn("trackShift", self.qml,
+                         "caption motion must not translate Arabic ink outside its capsule")
         self.assertIn("MoUI.SpringFeedback", self.qml,
                       "the context plate must settle with MoOS's own physics, not a "
                       "third motion language invented inside the bar")

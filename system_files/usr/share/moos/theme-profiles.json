@@ -276,6 +276,40 @@
       "wallpaperBranch": "images",
       "accent": "#A16207",
       "surfaceTreatment": "reading-frost"
+    },
+    {
+      "id": "org.moos.ui2.bloom",
+      "family": "bloom",
+      "mode": "dark",
+      "displayName": "MoOS Bloom",
+      "scheme": "MoOSUI2Bloom",
+      "style": "MoOSUI2Bloom",
+      "konsole": "MoOSUI2Amethyst.profile",
+      "icons": "MoOSUI2Bloom",
+      "gtkCss": "moos-ui2-amethyst.css",
+      "cursor": "MoOS",
+      "decoration": "MoOSUI2Bloom",
+      "wallpaper": "MoOSUI2Bloom",
+      "wallpaperBranch": "images_dark",
+      "accent": "#C084FC",
+      "surfaceTreatment": "bloom-soft"
+    },
+    {
+      "id": "org.moos.ui2.bloom.light",
+      "family": "bloom",
+      "mode": "light",
+      "displayName": "MoOS Bloom Light",
+      "scheme": "MoOSUI2BloomLight",
+      "style": "MoOSUI2BloomLight",
+      "konsole": "MoOSUI2AmethystLight.profile",
+      "icons": "MoOSUI2BloomLight",
+      "gtkCss": "moos-ui2-amethyst-light.css",
+      "cursor": "MoOSDark",
+      "decoration": "MoOSUI2BloomLight",
+      "wallpaper": "MoOSUI2BloomLight",
+      "wallpaperBranch": "images",
+      "accent": "#9333EA",
+      "surfaceTreatment": "bloom-soft"
     }
   ]
 }

@@ -45,6 +45,9 @@ FAMILY_ICON_THEMES = {
     "MoOSUI2Scholar": ("org.moos.ui2.study", "MoOSUI2"),
     "MoOSUI2ScholarLight": ("org.moos.ui2.study.light", "MoOSUI2Light"),
 }
+# Bloom is a finish above the existing Amethyst roles, not another distinct
+# palette. Keep the original fourteen uniqueness/contrast checks unchanged.
+FINISH_ICON_THEMES = {"MoOSUI2Bloom", "MoOSUI2BloomLight"}
 
 spec = importlib.util.spec_from_file_location("moos_symbolic_generator", GENERATOR_PATH)
 if spec is None or spec.loader is None:
@@ -281,7 +284,7 @@ class MoOSSymbolicIconTests(unittest.TestCase):
         }
         self.assertEqual(
             actual_themes,
-            set(FAMILY_ICON_THEMES),
+            set(FAMILY_ICON_THEMES) | FINISH_ICON_THEMES,
             "the source tree must carry exactly one symbolic overlay for each "
             "non-base MoOS palette",
         )

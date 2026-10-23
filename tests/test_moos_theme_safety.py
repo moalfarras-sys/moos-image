@@ -209,7 +209,7 @@ printf '%s\\t%s\\t%s\\t%s\\t%s\\t%s\\n' \
     "$qt_widget_style" "$gtk_theme"
 """
         lnfs = re.findall(r'^[A-Z_]+_LNF="([^"]+)"', constant_block, re.M)
-        self.assertEqual(len(lnfs), 16, "the gate must exercise all MoOS looks")
+        self.assertEqual(len(lnfs), 18, "the gate must exercise all MoOS looks")
         for lnf in lnfs:
             with self.subTest(look_and_feel=lnf):
                 selected = subprocess.run(
@@ -588,8 +588,8 @@ target_lnf "$1" "$2"
 """
         installed = sorted(p.name for p in lnf_root.glob("org.moos.ui2*") if p.is_dir())
         self.assertGreaterEqual(
-            len(installed), 16,
-            f"expected all 16 MoOS looks in-tree, found {len(installed)}")
+            len(installed), 18,
+            f"expected all 18 MoOS looks in-tree, found {len(installed)}")
         # EVERY installed MoOS look is a durable choice and must be PRESERVED, at
         # both migration states. This asserts the resolver never silently downgrades
         # gaming/dev/study/daylight/any *-light back to Dark again.
@@ -943,8 +943,8 @@ esac
         self.assertIn("org.kde.KWin.reconfigure", mutation)
         self.assertRegex(
             switch,
-            r"(?m)^\s*motion\|clarity\)\s*$",
-            "clarity writes must take the existing appearance transaction lock",
+            r"(?m)^\s*motion\|clarity\|hub\)\s*$",
+            "clarity and overlay writes must take the existing appearance transaction lock",
         )
         self.assertIn('root.t("وضوح الزجاج", "Glass clarity")', page)
         self.assertIn("root.design.blurActive", page)

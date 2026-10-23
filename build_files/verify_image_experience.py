@@ -2,8 +2,10 @@
 """Fail the image build when active user-facing MoOS selectors regress."""
 
 import os
+import json
 from pathlib import Path
 import re
+import struct
 
 
 def text(path: str) -> str:
@@ -95,6 +97,42 @@ def moos_section_problems(router_code: str, launcher_code: str, listed: set,
             problems.append(f"moos-settings --section={section} opens {module}, which is "
                             "listed but not installed")
     return problems
+
+
+def theme_wallpaper_problem(package_name: str, wallpaper: str,
+                            share: Path = Path("/usr/share")) -> str:
+    """Preserve the original sixteen 4K contracts; qualify native Bloom art.
+
+    The two new finishes use one original PNG, not a fabricated 4K filename.
+    Each is an explicit package/branch/size contract, never an arbitrary-file
+    fallback that could make a missing legacy wallpaper pass.
+    """
+    if not wallpaper or "/" in wallpaper:
+        return "wallpaper must be a bare package name"
+    native = {
+        "org.moos.ui2.bloom": ("MoOSUI2Bloom", "images_dark/1672x941.png"),
+        "org.moos.ui2.bloom.light": ("MoOSUI2BloomLight", "images/1672x941.png"),
+    }
+    root = share / "wallpapers" / wallpaper
+    try:
+        metadata = json.loads((root / "metadata.json").read_text())
+        if metadata.get("KPlugin", {}).get("Id") != wallpaper:
+            return "wallpaper metadata has a different package identity"
+        if package_name in native:
+            expected, image = native[package_name]
+            if wallpaper != expected:
+                return "Bloom declares a different wallpaper from its matched profile"
+            header = (root / "contents" / image).read_bytes()[:24]
+            if (header[:8] != b"\x89PNG\r\n\x1a\n" or header[12:16] != b"IHDR"
+                    or len(header) != 24 or struct.unpack(">II", header[16:24]) != (1672, 941)):
+                return "Bloom native wallpaper has invalid PNG dimensions"
+        else:
+            branch = "images" if package_name.endswith(".light") else "images_dark"
+            if not (root / "contents" / branch / "3840x2160.jpg").is_file():
+                return "legacy wallpaper is missing its required 4K JPEG half"
+    except (OSError, ValueError):
+        return "wallpaper metadata or original image is missing/unreadable"
+    return ""
 
 errors = []
 
@@ -436,10 +474,11 @@ require('indexOf("MoOSUI2")' in _wp_src,
 _pkgs = sorted(Path("/usr/share/wallpapers").glob("MoOSUI2*"))
 require(len(_pkgs) >= 2, "no MoOS wallpaper packages are installed")
 for _pkg in _pkgs:
-    require((_pkg / "contents/images_dark/3840x2160.jpg").is_file()
-            and (_pkg / "contents/images/3840x2160.jpg").is_file(),
+    _master = "1672x941.png" if _pkg.name in ("MoOSUI2Bloom", "MoOSUI2BloomLight") else "3840x2160.jpg"
+    require((_pkg / "contents/images_dark" / _master).is_file()
+            and (_pkg / "contents/images" / _master).is_file(),
             f"{_pkg.name} lacks a master the wallpaper resolver maps to "
-            "(needs both contents/images/ and contents/images_dark/ 3840x2160.jpg)")
+            f"(needs both contents/images/ and contents/images_dark/ {_master})")
 
 # Each MoOS QML app must pin its running window to its launcher, or the dock shows
 # the pinned icon PLUS a second entry for the window (a "duplicate window"). These
@@ -954,10 +993,10 @@ require(Path("/usr/share/plasma/wallpapers/org.moos.ui2.wallpaper/contents/ui/Da
 # wallpaper again. KLookAndFeelManager::packageContents() reads the same key to decide
 # whether System Settings lists a wallpaper among the theme's contents.
 # build.sh already fails on a bare name that resolves nowhere; this gate is the other half —
-# that the key is PRESENT on all 16 and that the light halves get a light wallpaper.
+# that the key is PRESENT on all18 and each profile owns its actual wallpaper.
 lnf_packages = sorted(Path("/usr/share/plasma/look-and-feel").glob("org.moos.ui2*"))
-require(len(lnf_packages) == 16,
-        f"expected 16 MoOS Global Themes, found {len(lnf_packages)}")
+require(len(lnf_packages) == 18,
+        f"expected 18 MoOS Global Themes, found {len(lnf_packages)}")
 for package in lnf_packages:
     declared = re.search(r"^\[Wallpaper\]\nImage=(\S+)$",
                          config(text(str(package / "contents/defaults"))), re.MULTILINE)
@@ -969,11 +1008,8 @@ for package in lnf_packages:
         require("/" not in wallpaper,
                 f"{package.name} names its wallpaper by path ({wallpaper}); Plasma resolves "
                 "wallpapers/<Image> only, so a path finds nothing")
-        images = "images" if package.name.endswith(".light") else "images_dark"
-        require(Path(f"/usr/share/wallpapers/{wallpaper}/metadata.json").is_file()
-                and Path(f"/usr/share/wallpapers/{wallpaper}/contents/{images}/3840x2160.jpg").is_file(),
-                f"{package.name} names wallpaper package {wallpaper}, which is not installed "
-                f"as a complete Wallpaper/Images package (missing metadata.json or {images}/)")
+        problem = theme_wallpaper_problem(package.name, wallpaper)
+        require(not problem, f"{package.name} names invalid wallpaper {wallpaper}: {problem}")
 # The shell defaults are what make NEW desktop containments (first boot, the
 # live ISO) come up on the scene plugin without waiting for a login script.
 shell_defaults = Path("/usr/share/plasma/shells/org.kde.plasma.desktop/contents/defaults")

@@ -241,6 +241,8 @@ python3 tests/test_island_jobs_privacy.py
 # IslandTokens.js against each other.
 python3 tests/test_island_tokens.py
 python3 tests/test_island_touch_target.py
+python3 tests/test_island_compact.py
+python3 tests/test_desktop_overlay.py
 # The privacy monitor polled pw-dump every 1.5 s: 52 CPU-minutes in 61 h on the Oracle A1, more
 # than the compositor. It now follows one `pw-dump --monitor`; this proves both the saving and
 # that the chip is still never wrong (ended stream, dead feed, missed delta, non-JSON text).
@@ -357,6 +359,7 @@ python3 tests/test_store_window_words.py
 # One globally importable MoUI module must own identity metrics and shared
 # controls; an app-local copy cannot silently grow back.
 python3 tests/test_moos_design_core.py
+python3 tests/test_moos_bloom.py
 # One answer to "is this session Arabic". Four surfaces read
 # Qt.application.layoutDirection, which follows a translator and not the
 # locale — the Command Center, installer and welcome screen rendered in

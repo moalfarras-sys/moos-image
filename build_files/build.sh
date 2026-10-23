@@ -4348,16 +4348,16 @@ LLVMPIPE
     # else in plasmashell keeps asking for frames; hiding it makes each frame
     # cheap. Finding what asks for the frames is still open.
     #
-    # On a GPU this is close to free, so the desktop editions keep the dashboard
-    # and only the cloud edition starts without it. The wallpaper, the branding
-    # and the MoOS scene are all unchanged — this turns off one overlay, and the
-    # owner can turn it back on in the wallpaper settings.
+    # The shared default now leaves this optional overlay off on every edition.
+    # Keep Cloud's explicit assertion/idempotent normalization too: it must
+    # never regain the expensive default through a later source regeneration.
+    # The owner can enable it in MoOS Themes or the wallpaper settings.
     _scene_cfg=/usr/share/plasma/wallpapers/org.moos.ui2.wallpaper/contents/config/main.xml
     python3 - "$_scene_cfg" <<'BENTO'
 import pathlib, re, sys
 p = pathlib.Path(sys.argv[1])
 t = p.read_text(encoding="utf-8")
-new, n = re.subn(r'(<entry name="ShowDashboard" type="Bool">\s*<default>)true(</default>)',
+new, n = re.subn(r'(<entry name="ShowDashboard" type="Bool">\s*<default>)(?:true|false)(</default>)',
                  r'\1false\2', t)
 if n != 1:
     raise SystemExit("GATE FAIL: could not switch ShowDashboard off for the cloud "

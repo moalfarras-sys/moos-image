@@ -1,0 +1,37 @@
+[Icon Theme]
+Name=MoOS UI · Bloom Light Symbols
+Comment=Palette-matched MoOS Tidal Cut interface symbols
+Inherits=MoOSUI2Light
+# Normal QIcon rendering can receive the application's QPalette rather than
+# the Plasma surface's Kirigami color set. That produced dark symbols on the
+# live dark Launcher. Owned QML controls use explicit masks for live accent
+# states; this overlay keeps its WCAG-checked palette fallback deterministic.
+FollowsColorScheme=false
+Directories=places/scalable,mimetypes/scalable,moos/actions/scalable,moos/apps/scalable
+
+[moos/actions/scalable]
+Size=24
+Context=Actions
+Type=Scalable
+MinSize=16
+MaxSize=512
+
+[moos/apps/scalable]
+Size=64
+Context=Applications
+Type=Scalable
+MinSize=16
+MaxSize=512
+
+[places/scalable]
+Size=64
+Context=Places
+Type=Scalable
+MinSize=16
+MaxSize=512
+[mimetypes/scalable]
+Size=64
+Context=MimeTypes
+Type=Scalable
+MinSize=16
+MaxSize=512

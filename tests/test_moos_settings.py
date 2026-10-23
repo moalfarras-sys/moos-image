@@ -89,10 +89,12 @@ FIXED_VERBS = {
     "theme-status": ("", "None"),
     "theme-motion-status": ("motion", "None"),
     "theme-clarity-status": ("clarity", "None"),
+    "theme-hub-status": ("hub", "None"),
     "theme-apply-lnf": ("apply-lnf", "LookAndFeel"),
     "theme-undo": ("undo", "None"),
     "theme-motion": ("motion", "Motion"),
     "theme-clarity": ("clarity", "Clarity"),
+    "theme-hub": ("hub", "Hub"),
     "theme-wallpaper-reset": ("wallpaper-reset", "None"),
     "theme-wallpaper-token": ("wallpaper-token", "WallpaperToken"),
 }

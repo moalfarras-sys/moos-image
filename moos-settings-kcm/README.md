@@ -105,7 +105,7 @@ Implemented once in `src/moosbackend.{h,cpp}` and compiled into every plugin.
 `output` (stdout, first 64 KiB), `errorOutput`; signal `finished()`. The module
 owns the job; the page keeps a reference if it wants to read it.
 
-A verb that changes the desktop (every `theme-*` verb below except the three
+A verb that changes the desktop (every `theme-*` verb below except the four
 `*-status` queries) is a `moos-theme` transaction that can roll back only if it
 may finish. Where `changesOutlivePage` is true it runs as
 `systemd-run --user --wait --collect --service-type=exec` in a unit named
@@ -131,10 +131,12 @@ arguments to `moos-theme`; audio rows show the complete `moos-control` command.
 | `theme-status` | *(none)* | — |
 | `theme-motion-status` | `motion` | — |
 | `theme-clarity-status` | `clarity` | — |
+| `theme-hub-status` | `hub` | — |
 | `theme-apply-lnf` | `apply-lnf <id>` | `^org\.moos\.ui2[a-z.]*$`, ≤ 64 chars |
 | `theme-undo` | `undo` | — |
 | `theme-motion` | `motion <m>` | `still`, `gentle`, `alive` |
 | `theme-clarity` | `clarity <c>` | `clear`, `balanced`, `solid` |
+| `theme-hub` | `hub <state>` | `on`, `off`; verified native scene transaction |
 | `theme-wallpaper-reset` | `wallpaper-reset` | — |
 | `theme-wallpaper-token` | `wallpaper-token <t>` | `^[A-Za-z0-9_.~%-]{1,4096}$` |
 

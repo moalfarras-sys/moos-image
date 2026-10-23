@@ -383,7 +383,14 @@ set -uo pipefail
 # 122: one MoOS dock entry; retire duplicate compact Settings/Workspace actions.
 # 123: private widget-tile refinement (not delivered).
 # 124: calm native widget tiles; retain the existing single KDE motion scaling.
-THEME_REV=124
+# 125: Bloom matched native frame/style/icon finishes and original wallpaper.
+# 126: resolve native Bloom PNG packages and matched greeter palette roles;
+#      revision125 was private source preparation, not a delivered cache marker.
+# 127: natural single-line Island caption; optional Hub default and controls.
+# 128: reserve one compact action slot through context changes; retain
+#      natural caption ink and optional Hub. Revision127 was private development.
+# 129: clarify the optional overlay using MoOS-owned desktop wording.
+THEME_REV=129
 state_dir="${XDG_STATE_HOME:-$HOME/.local/state}"
 mkdir -p "$state_dir" 2>/dev/null || true
 marker="${state_dir}/moos-ui2-theme-applied.v${THEME_REV}"

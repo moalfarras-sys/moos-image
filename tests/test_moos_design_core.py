@@ -196,8 +196,8 @@ class DesignCoreTests(unittest.TestCase):
             "Kvantum or another style requires a profile-schema migration",
         )
         profiles = document["profiles"]
-        self.assertEqual(len(profiles), 16)
-        self.assertEqual(len({profile["id"] for profile in profiles}), 16)
+        self.assertEqual(len(profiles), 18)
+        self.assertEqual(len({profile["id"] for profile in profiles}), 18)
         families: dict[str, set[str]] = {}
         for profile in profiles:
             families.setdefault(profile["family"], set()).add(profile["mode"])

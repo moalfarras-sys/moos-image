@@ -140,7 +140,7 @@ Window {
                 (proof/f"tablet{int(tablet)}-slot{slot}-factor{factor}-old{int(old)}.json").write_text(json.dumps(dict(exit=result.returncode,stdout=result.stdout,stderr=result.stderr),indent=2)+"\n")
     def test_native_geometry_input_and_motion(self):
         for tablet in (False,True):
-            for slot in (34,40,52):
+            for slot in (28,34,40,52):
                 for factor in (0,1):
                     with self.subTest(tablet=tablet,slot=slot,factor=factor): self.run_case(tablet,slot,factor)
     def test_old_compact_geometry_rejects_tablet_contract(self):

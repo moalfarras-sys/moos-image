@@ -47,6 +47,7 @@ KCM.SimpleKCM {
     property string currentMotion: ""
     property bool motionReadable: true
     property string currentClarity: ""
+    property string currentHub: ""
     readonly property var currentEntry: entryFor(currentLook)
 
     // One change at a time, as moos-theme itself allows.
@@ -128,6 +129,9 @@ KCM.SimpleKCM {
     function showClarity(job) {
         currentClarity = Logic.reportedChoice(job.output, job.ok, Logic.CLARITIES)
     }
+    function showHub(job) {
+        currentHub = Logic.reportedChoice(job.output, job.ok, Logic.HUBS)
+    }
     // Read-only queries, never while a change runs: a change reads its own result back.
     function measure() {
         if (busy)
@@ -136,6 +140,7 @@ KCM.SimpleKCM {
             lookKind = "unknown"
         whenDone(kcm.runFixed("theme-motion-status"), function(job) { if (!root.busy) root.showMotion(job) })
         whenDone(kcm.runFixed("theme-clarity-status"), function(job) { if (!root.busy) root.showClarity(job) })
+        whenDone(kcm.runFixed("theme-hub-status"), function(job) { if (!root.busy) root.showHub(job) })
     }
 
     // ── Changing it ──────────────────────────────────────────────────────────────────
@@ -175,6 +180,11 @@ KCM.SimpleKCM {
             return
         begin("clarity", kcm.runFixed("theme-clarity", value), value)
     }
+    function setHub(value) {
+        if (busy || Logic.HUBS.indexOf(value) < 0 || value === currentHub)
+            return
+        begin("hub", kcm.runFixed("theme-hub", value), value)
+    }
 
     function begin(kind, job, expectedValue) {
         if (!job) {
@@ -206,6 +216,7 @@ KCM.SimpleKCM {
         watchdog.restart()
         var probe = operation === "motion" ? kcm.runFixed("theme-motion-status")
                   : operation === "clarity" ? kcm.runFixed("theme-clarity-status")
+                  : operation === "hub" ? kcm.runFixed("theme-hub-status")
                   : kcm.runFixed("theme-status")
         readback = probe
         if (!whenDone(probe, root.readbackEnded)) {
@@ -232,6 +243,9 @@ KCM.SimpleKCM {
         } else if (operation === "clarity") {
             showClarity(job)
             differs = currentClarity !== expected
+        } else if (operation === "hub") {
+            showHub(job)
+            differs = currentHub !== expected
         } else if (operation === "undo") {
             // Undo restores the exact earlier state, which may be a look from outside MoOS.
             showLook(job)
@@ -272,6 +286,7 @@ KCM.SimpleKCM {
         case "canvas-reset": return t("جارٍ استعادة خلفية المظهر…", "Bringing back the look's own wallpaper…")
         case "motion": return t("جارٍ ضبط حركة الويجت…", "Setting widget motion…")
         case "clarity": return t("جارٍ ضبط وضوح الزجاج…", "Setting glass clarity…")
+        case "hub": return t("جارٍ ضبط لوحة الخلفية…", "Setting the desktop overlay…")
         }
         return ""
     }
@@ -283,6 +298,9 @@ KCM.SimpleKCM {
         case "canvas-reset": return t("عادت خلفية المظهر وتم التحقق منها", "The look's own wallpaper is back and verified")
         case "motion": return t("حركة الويجت الآن: ", "Widget motion is now ") + motionName(expected)
         case "clarity": return t("وضوح الزجاج الآن: ", "Glass clarity is now ") + clarityName(expected)
+        case "hub": return expected === "on"
+            ? t("لوحة الخلفية مفعّلة", "Desktop overlay enabled")
+            : t("لوحة الخلفية متوقفة", "Desktop overlay disabled")
         }
         return ""
     }
@@ -681,6 +699,37 @@ KCM.SimpleKCM {
         }
 
         // ── Glass and motion ───────────────────────────────────────────────────────────
+        FormCard.FormHeader {
+            maximumWidth: root.cardWidth
+            title: root.t("أدوات سطح المكتب", "Desktop widgets")
+        }
+        FormCard.FormCard {
+            maximumWidth: root.cardWidth
+            ChoiceRow {
+                glyph: "clock"
+                text: root.t("لوحة الخلفية الاختيارية", "Optional desktop overlay")
+                description: root.t("الوقت والطقس وحالة الجهاز ضمن الخلفية. أوقفها لمساحة هادئة، أو أضف أدوات سطح المكتب القابلة للتحريك والضبط.",
+                    "Time, weather and device health in the wallpaper. Turn it off for a clear desktop, or add movable, configurable desktop widgets.")
+                options: [
+                    { value: "off", label: root.t("متوقفة", "Off") },
+                    { value: "on", label: root.t("مفعّلة", "On") }
+                ]
+                current: root.currentHub
+                requestedValue: root.operation === "hub" ? root.expected : ""
+                enabled: !root.busy
+                onPicked: value => root.setHub(value)
+            }
+            FormCard.FormDelegateSeparator {}
+            MoosActionRow {
+                glyph: "grid"
+                text: root.t("إضافة أدوات سطح المكتب", "Add desktop widgets")
+                description: root.t("ساعة وتقويم وطقس وأدوات تفاعلية من مكتبة سطح المكتب.",
+                    "Clock, calendar, weather and interactive widgets from the desktop library.")
+                enabled: !root.busy && root.nativeAvailable("desktop")
+                onClicked: root.open("moos://settings/desktop")
+            }
+        }
+
         FormCard.FormHeader {
             maximumWidth: root.cardWidth
             title: root.t("الزجاج والحركة", "Glass and motion")
