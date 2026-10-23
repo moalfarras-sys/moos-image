@@ -1,6 +1,7 @@
 #!/usr/bin/python3
 """Historical review inputs require exact metadata and trusted RPM signatures."""
 import importlib.util
+import json
 from pathlib import Path
 import tempfile
 import unittest
@@ -36,4 +37,13 @@ class HistoricalInputs(unittest.TestCase):
         with self.assertRaisesRegex(RuntimeError,'ambiguous'):self.call()
         self.rpm.unlink();extra.unlink()
         with self.assertRaisesRegex(RuntimeError,'missing'):self.call()
+
+    def test_new_native_destination_has_no_fictional_older_copy(self):
+        registry=json.loads((M.SEAMS/'seams.json').read_text())
+        path='/usr/share/plasma/shells/org.kde.plasma.desktop/contents/logout/LogoutControls.qml'
+        self.assertIsNone(M.moos_copy(path,'6.7',registry))
+        self.assertIsNone(M.moos_copy(path,'6.8.0',registry))
+        current=M.moos_copy(path,'6.8.1',registry)
+        self.assertTrue(current.is_file())
+        self.assertIn('MoUI.SessionPower {',current.read_text())
 if __name__=='__main__':unittest.main()

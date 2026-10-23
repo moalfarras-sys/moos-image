@@ -68,6 +68,8 @@ QQC2.AbstractButton {
         : Kirigami.Theme.highlightedTextColor
 
     signal navigate(int horizontalStep, int verticalStep)
+    signal interacted()
+    onPressed: interacted()
 
     // Do not rely on AbstractButton's platform-specific implicit accessibility
     // mapping on the logout greeter.  This component is also loaded by
@@ -88,7 +90,8 @@ QQC2.AbstractButton {
     // whole footprint is interactive and the dock has real visual mass.
     // The session family's one size, from the window this tile is in.
     readonly property real sessionScale: design.sessionScale(Window.width, Window.height)
-    readonly property real keyHeight: Kirigami.Units.gridUnit * (control.subtle ? 3.1 : 6.2) * sessionScale
+    readonly property real keyHeight: Math.max(design.targetControl,
+        Kirigami.Units.gridUnit * (control.subtle ? 3.1 : 6.2) * sessionScale)
     readonly property real keyWidth: Kirigami.Units.gridUnit * (control.subtle ? 10.4 : 8.6) * sessionScale
     // The way out is one line of words, and it must never be cut short: on a
     // small screen the pill takes the width its caption needs.
@@ -108,6 +111,13 @@ QQC2.AbstractButton {
     Component.onCompleted: {
         if (control.motionEnabled) { revealAnimation.start(); }
     }
+    function settleReveal() {
+        revealAnimation.stop();
+        control.opacity = 1;
+        revealShift.y = 0;
+    }
+    onMotionEnabledChanged: if (!motionEnabled) { settleReveal(); }
+    onVisibleChanged: if (!visible) { settleReveal(); }
     SequentialAnimation {
         id: revealAnimation
         PauseAnimation { duration: 70 + control.revealOrder * 34 }
@@ -134,10 +144,17 @@ QQC2.AbstractButton {
         }
     }
 
-    Keys.onUpPressed: navigate(0, -1)
-    Keys.onDownPressed: navigate(0, 1)
-    Keys.onLeftPressed: navigate(-1, 0)
-    Keys.onRightPressed: navigate(1, 0)
+    Keys.onPressed: event => { interacted(); event.accepted = false; }
+    Keys.onUpPressed: { interacted(); navigate(0, -1); }
+    Keys.onDownPressed: { interacted(); navigate(0, 1); }
+    Keys.onLeftPressed: { interacted(); navigate(-1, 0); }
+    Keys.onRightPressed: { interacted(); navigate(1, 0); }
+    Keys.onReturnPressed: event => {
+        if (!event.isAutoRepeat) { interacted(); control.animateClick(); }
+    }
+    Keys.onEnterPressed: event => {
+        if (!event.isAutoRepeat) { interacted(); control.animateClick(); }
+    }
 
     background: null
 
@@ -221,7 +238,7 @@ QQC2.AbstractButton {
                 width: parent.width - Kirigami.Units.largeSpacing * 2
                 spacing: control.subtle ? 0 : Kirigami.Units.smallSpacing
 
-                Kirigami.Icon {
+                MoUI.SessionActionGlyph {
                     id: actionIcon
                     Layout.alignment: Qt.AlignHCenter
                     // Size the glyph FROM the tile it sits in — the -symbolic
@@ -229,21 +246,23 @@ QQC2.AbstractButton {
                     // The subtle (Cancel) pill is text-only: the caption alone
                     // reads faster than glyph+word at its quiet weight.
                     visible: !control.subtle
-                    Layout.preferredWidth: Math.round(control.keyHeight * 0.30)
+                    Layout.preferredWidth: Math.round(design.targetControl * control.sessionScale)
                     Layout.preferredHeight: Layout.preferredWidth
-                    isMask: true
-                    color: control.filled
-                        ? control.filledInk
-                        : (control.destructive && control.lit ? control.accentA : control.ink)
+                    accentColor: control.accentA
+                    inkColor: control.filledInk
+                    embeddedInAccent: control.filled
                 }
                 QQC2.Label {
                     id: caption
+                    objectName: "moosPowerActionCaption"
                     Layout.alignment: Qt.AlignHCenter
                     Layout.fillWidth: true
                     horizontalAlignment: Text.AlignHCenter
                     text: control.text
+                    textFormat: Text.PlainText
                     elide: Text.ElideRight
-                    maximumLineCount: 1
+                    wrapMode: Text.WordWrap
+                    maximumLineCount: control.subtle ? 1 : 2
                     color: control.filled ? control.filledInk
                         : (control.subtle ? Qt.rgba(control.ink.r, control.ink.g, control.ink.b, 0.85)
                                           : control.ink)

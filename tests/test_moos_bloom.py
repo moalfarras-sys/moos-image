@@ -29,6 +29,7 @@ SHARE = ROOT / "system_files/usr/share"
 GENERATOR = ROOT / "artwork/generate_moos_bloom.py"
 PROFILES = json.loads((ROOT / "artwork/moos-design/theme-profiles.json").read_text())["profiles"]
 BLOOM = [p for p in PROFILES if p["family"] == "bloom"]
+WALLPAPER_MAP = ROOT/'system_files/usr/lib64/qt6/qml/org/moos/ui/WallpaperSources.js'
 spec = importlib.util.spec_from_file_location("bloom_gate", GENERATOR)
 bloom = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(bloom)
@@ -163,7 +164,8 @@ class BloomTests(unittest.TestCase):
         source = (SHARE / "plasma/wallpapers/org.moos.ui2.wallpaper/contents/ui/main.qml").read_text()
         resolver = re.search(r"(?ms)^    function resolveImage\(value\) \{.*?^    \}", source).group()
         engine = QJSEngine()
-        result = engine.evaluate('var root={fallbackImage:"fallback"};'+resolver)
+        shared = WALLPAPER_MAP.read_text().replace('.pragma library','')
+        result = engine.evaluate(shared+'\nvar MoUI={WallpaperSources:{imageForPackage:imageForPackage}};var root={fallbackImage:"fallback"};'+resolver)
         self.assertFalse(result.isError(), result.toString())
         for profile in PROFILES:
             value = "/usr/share/wallpapers/"+profile["wallpaper"]
@@ -173,12 +175,32 @@ class BloomTests(unittest.TestCase):
             self.assertFalse(QImage(str(actual)).isNull(), resolved)
         # Restore the original resolver: both new native PNG packages become
         # nonexistent 4K JPEGs. The same real-image predicate must catch that.
-        old = re.sub(r'(?ms)^            if \(/\\/MoOSUI2Bloom.*?^            \}\n', '', resolver)
+        old = re.sub(r'(?m)^            var mapped = MoUI.WallpaperSources.imageForPackage\(base\)\n            if \(mapped !== ""\) \{ return mapped; \}\n', '', resolver)
         self.assertNotEqual(old, resolver)
         self.assertFalse(engine.evaluate(old).isError())
         for profile in BLOOM:
             resolved = engine.evaluate("resolveImage("+json.dumps("/usr/share/wallpapers/"+profile["wallpaper"])+")").toString()
             self.assertFalse((ROOT / "system_files" / resolved.lstrip("/")).is_file())
+        del app
+
+    @unittest.skipUnless(QT, "native Qt QML module unavailable on SDK-free worker")
+    def test_actual_login_scene_resolves_the_same_originals_and_rejects_old_assumption(self):
+        app = QCoreApplication.instance() or QCoreApplication([])
+        source = (SHARE / 'plasma/wallpapers/org.moos.ui2.greeter/contents/ui/main.qml').read_text()
+        resolver = re.search(r'(?ms)^    function resolveImage\(value\) \{.*?^    \}', source).group()
+        engine = QJSEngine()
+        shared = WALLPAPER_MAP.read_text().replace('.pragma library','')
+        self.assertFalse(engine.evaluate(shared+'\nvar MoUI={WallpaperSources:{imageForPackage:imageForPackage}};var root={fallbackImage:"fallback"};'+resolver).isError())
+        for profile in PROFILES:
+            value = '/usr/share/wallpapers/'+profile['wallpaper']
+            actual = engine.evaluate('resolveImage('+json.dumps(value)+')').toString()
+            self.assertFalse(QImage(str(ROOT/'system_files'/actual.lstrip('/'))).isNull(), actual)
+        old = re.sub(r'(?m)^            var mapped = MoUI.WallpaperSources.imageForPackage\(base\)\n            if \(mapped !== ""\) \{ return mapped; \}\n', '', resolver)
+        self.assertNotEqual(old, resolver)
+        self.assertFalse(engine.evaluate(old).isError())
+        for profile in BLOOM:
+            actual = engine.evaluate('resolveImage('+json.dumps('/usr/share/wallpapers/'+profile['wallpaper'])+')').toString()
+            self.assertFalse((ROOT/'system_files'/actual.lstrip('/')).is_file())
         del app
 
     def test_original_wallpaper_resolution_and_provenance(self):

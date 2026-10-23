@@ -774,24 +774,8 @@ FocusScope {
         }
     }
 
-    // Depth halo — three still plates behind the island stand in for a drop
-    // shadow, so it floats off the scene with no offscreen effect.
-    Repeater {
-        model: [
-            { grow: 1.1, ink: 0.04 },
-            { grow: 0.7, ink: 0.06 },
-            { grow: 0.35, ink: 0.08 },
-        ]
-        Rectangle {
-            required property var modelData
-            z: -1
-            anchors.fill: island
-            anchors.margins: -root.unit * modelData.grow
-            radius: island.radius + root.unit * modelData.grow
-            scale: island.scale
-            color: Qt.rgba(0, 0, 0, modelData.ink)
-        }
-    }
+    // GlassSurface owns depth. Extra expanded rectangles painted three hard
+    // rings around the login/lock card, unlike the shared power surface.
 
     // FIXME: move this component into a layout, rather than abusing
     // anchors and implicitly relying on other components' built-in

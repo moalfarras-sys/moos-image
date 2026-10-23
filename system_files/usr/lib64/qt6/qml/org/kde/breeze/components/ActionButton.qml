@@ -27,8 +27,8 @@
 //      over full-colour disc icons"); the login screen was simply out of reach
 //      then. symbolicName() maps each name the greeter can ask for onto its
 //      -symbolic variant, and isMask paints it in the brand colour.
-//   2. Destructive intent is SAID, not decorated: Shut Down and Restart carry
-//      the negative colour, exactly as they do on MoOS's logout screen.
+//   2. SessionActionGlyph draws one selected-theme accent and its paired ink;
+//      Shut Down uses the scheme's negative role. No fixed icon palette.
 //   3. The control is a MoOS portal key — rounded threshold, crest cut and
 //      horizon line — instead of Plasma's generic circle.
 //   4. IBM Plex Sans, the family every other MoOS surface uses.
@@ -136,7 +136,8 @@ PlasmaComponents3.AbstractButton {
     // MoOS token: the same disc-to-label gap as the logout orb.
     spacing: Kirigami.Units.smallSpacing
 
-    opacity: root.lit ? 1 : 0.85
+    // Keep enabled glyph/ink pairs opaque; dim only genuinely disabled actions.
+    opacity: root.enabled ? 1 : design.disabledOpacity
     Behavior on opacity {
         PropertyAnimation { // OpacityAnimator makes it turn black at random intervals
             duration: design.duration(root.motionEnabled, design.motionGeometry)
@@ -280,20 +281,21 @@ PlasmaComponents3.AbstractButton {
 
     contentItem: Column {
         spacing: root.spacing
-        Kirigami.Icon {
+        MoUI.SessionActionGlyph {
             anchors.horizontalCenter: parent.horizontalCenter
             // MoOS: the symbolic glyph, painted in the brand colour.
             source: root.symbolicName(root.icon.name)
-            isMask: !root.softwareRendering
-            // Ink glyph (not accent) — the logout orbs paint their glyph in ink
-            // too; the accent shows on the border/hover, keeping one language.
-            color: root.destructive ? Kirigami.Theme.negativeTextColor
-                                    : Kirigami.Theme.textColor
-            implicitWidth: root.icon.width
-            implicitHeight: root.icon.height
+            // The same selected-theme accent and paired ink as the power dock.
+            accentColor: root.destructive ? Kirigami.Theme.negativeTextColor
+                                         : Kirigami.Theme.highlightColor
+            inkColor: root.destructive ? Kirigami.Theme.backgroundColor
+                                      : Kirigami.Theme.highlightedTextColor
+            implicitWidth: Math.round(design.targetControl * root.compactScale)
+            implicitHeight: implicitWidth
             active: root.lit
         }
         PlasmaComponents3.Label {
+            objectName: "moosSessionActionCaption"
             anchors.horizontalCenter: parent.horizontalCenter
             // Session actions are localized by Plasma.  Size from the real
             // label up to a generous language-safe ceiling; the surrounding
@@ -305,8 +307,7 @@ PlasmaComponents3.AbstractButton {
             styleColor: Kirigami.Theme.backgroundColor // Unused without outline
             font.family: design.interfaceFamily
             font.weight: Font.DemiBold
-            color: root.destructive ? Kirigami.Theme.negativeTextColor
-                                    : Kirigami.Theme.textColor
+            color: Kirigami.Theme.textColor
             horizontalAlignment: Text.AlignHCenter
             verticalAlignment: Text.AlignVCenter
             textFormat: Text.StyledText

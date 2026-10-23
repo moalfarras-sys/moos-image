@@ -189,6 +189,20 @@ is required. Any key/pointer action restores authentication immediately.
 
 ### Login, lock and power — one session design
 
+The shared `GlassSurface` owns the session card. The canonical power design is
+generated into `org.moos.ui/SessionPower.qml`; Plasma6.8.1's reviewed shell adapter
+connects it to the native timer, output handoff and signal owner. Desktop, login
+and power resolve known profile images from one generated map, using actual
+packaged dimensions rather than an assumed 4K JPEG. Never copy authentication
+logic or replace the native executor. Session actions keep complete captions,
+44px minimum targets and two-step sensitive confirmation. Pointer/key navigation
+cancels the native countdown; hidden/reduced motion settles finite transitions.
+The native login/lock buttons and power tiles share `SessionActionGlyph`:
+selected-theme accent under its paired ink, negative-role shutdown, no independent
+fixed palette. Enabled ink stays opaque. The session backdrop uses one24px
+Qt image-blur token; KWin's distinct0–15 blur ceiling remains unchanged. Extra
+expanded halo rectangles are removed from login/lock too; GlassSurface owns depth.
+
 The three session surfaces are one scene with one set of parts, and the parts are
 shared files, not look-alikes:
 
@@ -200,7 +214,7 @@ shared files, not look-alikes:
 | Island | one glass plate, centred, that **hugs** what it frames; crest on its top edge, maker's mark on its bottom edge | lock and login: `SessionManagementScreen.qml`; power: `Logout.qml`, same material |
 | Face | accent ring and bloom; an initial on a two-tone disc when the account has no photo, on both doors. Up to five accounts stand in one centred row inside a wider island; more than that is upstream's carousel | `UserDelegate.qml`, `UserList.qml` |
 | Password row | field and key at one height and one radius; the key is flat accent under the scheme's paired ink | `SessionManagementScreen.qml` gives upstream's stock controls this face |
-| Action keys | below the island, never inside it | `ActionButton.qml`; power: `MoOSUI2ActionButton.qml` |
+| Action keys | login/lock below the card; power inside its command card | `ActionButton.qml`; power: `MoOSUI2ActionButton.qml`; both use `SessionActionGlyph.qml` |
 
 Rules that follow from it:
 

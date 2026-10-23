@@ -56,6 +56,10 @@ Item {
     readonly property int motionMedium: design.duration(
         Kirigami.Units.longDuration > 1, design.motionGeometry)
     readonly property bool lightSurface: design.isLight(Kirigami.Theme.backgroundColor)
+    readonly property color secondaryInk: Qt.alpha(Kirigami.Theme.textColor, 0.78)
+
+    onVisibleChanged: if (!visible && pages) { pages.settlePage(); }
+    onMotionMediumChanged: if (motionMedium === 0 && pages) { pages.settlePage(); }
 
     // Fit the current work area in logical pixels. Keep the normal wide
     // composition; reflow content instead of scaling text or touch targets.
@@ -441,34 +445,13 @@ Item {
                 Text {
                     text: view.greeting()
                     visible: !view.shortLayout
-                    color: Kirigami.Theme.disabledTextColor
+                    color: view.secondaryInk
                     font.family: view.uiFontFamily
                     font.pixelSize: view.typeSecondary
                 }
             }
 
             Item { Layout.fillWidth: true }
-
-            RowLayout {
-                id: privacyRow
-                visible: !view.compact
-                spacing: view.space2
-
-                Rectangle {
-                    Layout.preferredWidth: 7
-                    Layout.preferredHeight: 7
-                    radius: width / 2
-                    color: Kirigami.Theme.positiveTextColor
-                }
-                Text {
-                    text: view.local("محلي وخاص", "LOCAL · PRIVATE")
-                    color: Kirigami.Theme.disabledTextColor
-                    font.family: view.uiFontFamily
-                    font.pixelSize: view.typeCaption
-                    font.weight: Font.DemiBold
-                    font.letterSpacing: view.rtl ? 0 : 0.9
-                }
-            }
 
             Rectangle {
                 Layout.preferredWidth: 1
@@ -497,7 +480,7 @@ Item {
                     text: view.shortDate()
                     visible: !view.shortLayout
                     horizontalAlignment: Text.AlignLeft
-                    color: Kirigami.Theme.disabledTextColor
+                    color: view.secondaryInk
                     font.family: view.uiFontFamily
                     font.pixelSize: view.typeCaption
                     elide: Text.ElideRight
@@ -580,7 +563,7 @@ Item {
                                 "اكتب أمراً، افتح تطبيقاً، أو اعثر على ملف…",
                                 "Run a command, open an app, or find a file…")
                             visible: searchInput.text.length === 0
-                            color: Kirigami.Theme.disabledTextColor
+                            color: view.secondaryInk
                             font: searchInput.font
                             elide: Text.ElideRight
                         }
@@ -612,8 +595,8 @@ Item {
 
                 Text {
                     visible: !view.compact && view.launcher.searchQuery.length === 0
-                    text: "META"
-                    color: Kirigami.Theme.disabledTextColor
+                    text: "Esc"
+                    color: view.secondaryInk
                     font.family: view.uiFontFamily
                     font.pixelSize: view.typeCaption
                     font.weight: Font.DemiBold
@@ -687,16 +670,10 @@ Item {
                     Layout.rightMargin: view.space3
                     spacing: view.space2
 
-                    Rectangle {
-                        Layout.preferredWidth: 7
-                        Layout.preferredHeight: 7
-                        radius: width / 2
-                        color: Kirigami.Theme.positiveTextColor
-                    }
                     Text {
                         Layout.fillWidth: true
-                        text: view.local("فهرس محلي", "LOCAL INDEX")
-                        color: Kirigami.Theme.disabledTextColor
+                        text: view.local("تنقّل بمفاتيح الأسهم", "Navigate with arrow keys")
+                        color: view.secondaryInk
                         font.family: view.uiFontFamily
                         font.pixelSize: view.typeCaption
                         font.weight: Font.DemiBold
@@ -717,6 +694,37 @@ Item {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
                 currentIndex: view.searching ? 4 : view.launcher.activePage
+                property int previousIndex: 0
+                property real arrivalOffset: 0
+                readonly property bool pageAnimating: pageTurn.running
+                readonly property real pageTranslation: pageShift.x
+                transform: Translate { id: pageShift }
+                function settlePage() {
+                    if (pageTurn) { pageTurn.stop(); }
+                    pages.opacity = 1;
+                    if (pageShift) { pageShift.x = 0; }
+                }
+                onCurrentIndexChanged: {
+                    const direction = currentIndex >= previousIndex ? 1 : -1;
+                    previousIndex = currentIndex;
+                    settlePage();
+                    if (view.visible && view.launcher.expanded && view.entranceReady
+                            && view.motionMedium > 0) {
+                        arrivalOffset = (view.rtl ? -1 : 1) * direction * view.space3;
+                        pageTurn.restart();
+                    }
+                }
+                ParallelAnimation {
+                    id: pageTurn
+                    NumberAnimation {
+                        target: pages; property: "opacity"; from: 0.88; to: 1
+                        duration: view.motionMedium; easing.type: view.design.easeStandard
+                    }
+                    NumberAnimation {
+                        target: pageShift; property: "x"; from: pages.arrivalOffset; to: 0
+                        duration: view.motionMedium; easing.type: view.design.easeStandard
+                    }
+                }
 
                 // ── Home: favourites first, recent second ──────────────────
                 Flickable {
@@ -804,7 +812,7 @@ Item {
                                 objectName: "launcherPinnedHeading"
                                 Layout.fillWidth: true
                                 compact: true
-                                title: view.local("تطبيقاتك المثبتة", "Pinned applications")
+                                title: view.local("تطبيقاتك المفضّلة", "Pinned applications")
                                 subtitle: view.local(
                                     "مساحتك تبدأ بما تستخدمه",
                                     "Your space starts with what you use")
@@ -943,7 +951,7 @@ Item {
                                         "ثبّت تطبيقاتك المهمة لتبقى في قلب مساحة MoOS",
                                         "Pin what matters and keep it at the heart of MoOS")
                                     horizontalAlignment: Text.AlignHCenter
-                                    color: Kirigami.Theme.disabledTextColor
+                                    color: view.secondaryInk
                                     font.family: view.uiFontFamily
                                     font.pixelSize: view.typeSecondary
                                     wrapMode: Text.WordWrap
@@ -1244,7 +1252,7 @@ Item {
                                     Text {
                                         Layout.fillWidth: true
                                         text: view.local("الملفات المخفية مستثناة لحماية الخصوصية والأداء", "Hidden files stay private and out of the index")
-                                        color: Kirigami.Theme.disabledTextColor
+                                        color: view.secondaryInk
                                         font.family: view.uiFontFamily
                                         font.pixelSize: view.typeCaption
                                         elide: Text.ElideRight
@@ -1368,7 +1376,7 @@ Item {
                                         Text {
                                             Layout.fillWidth: true
                                             elide: Text.ElideRight
-                                            text: view.local("التطبيقات المثبتة", "Pinned applications")
+                                            text: view.local("التطبيقات المفضّلة", "Pinned applications")
                                             color: Kirigami.Theme.textColor
                                             font.family: view.uiFontFamily
                                             font.pixelSize: view.typeBody
@@ -1377,9 +1385,9 @@ Item {
                                         Text {
                                             Layout.fillWidth: true
                                             text: view.local(
-                                                "أضف بالنجمة، ثم رتّب أو احذف من الرئيسية",
-                                                "Star apps, then reorder or remove them on Home")
-                                            color: Kirigami.Theme.disabledTextColor
+                                                "أضف بالنجمة، ثم رتّب أو أزل من المفضّلة",
+                                                "Star apps, then reorder or unpin them on Home")
+                                            color: view.secondaryInk
                                             font.family: view.uiFontFamily
                                             font.pixelSize: view.typeCaption
                                             elide: Text.ElideRight
@@ -1597,15 +1605,15 @@ Item {
             Kirigami.Icon {
                 Layout.preferredWidth: 18
                 Layout.preferredHeight: 18
-                source: "moos-shield-symbolic"
-                color: Kirigami.Theme.positiveTextColor
+                source: "moos-user-symbolic"
+                color: Kirigami.Theme.textColor
             }
             Text {
                 Layout.fillWidth: true
                 visible: !view.compact
                 elide: Text.ElideRight
-                text: view.local("جلسة محلية موثوقة", "TRUSTED LOCAL SESSION")
-                color: Kirigami.Theme.disabledTextColor
+                text: view.local("خيارات الجلسة", "Session actions")
+                color: view.secondaryInk
                 font.family: view.uiFontFamily
                 font.pixelSize: view.typeCaption
                 font.weight: Font.DemiBold
@@ -1711,7 +1719,7 @@ Item {
             textFormat: Text.PlainText
             horizontalAlignment: Text.AlignLeft
             visible: text.length > 0
-            color: Kirigami.Theme.disabledTextColor
+            color: view.secondaryInk
             font.family: view.uiFontFamily
             font.pixelSize: sectionTitle.compact ? view.typeCaption : view.typeSecondary
             elide: Text.ElideRight
@@ -2080,7 +2088,7 @@ Item {
                     Layout.fillWidth: true
                     text: String(recent.model.description || "")
                     textFormat: Text.PlainText
-                    color: Kirigami.Theme.disabledTextColor
+                    color: view.secondaryInk
                     font.family: view.uiFontFamily
                     font.pixelSize: view.typeCaption
                     elide: Text.ElideMiddle
@@ -2147,7 +2155,7 @@ Item {
                     visible: text.length > 0
                     text: String(place.model.description || "")
                     textFormat: Text.PlainText
-                    color: Kirigami.Theme.disabledTextColor
+                    color: view.secondaryInk
                     font.family: view.uiFontFamily
                     font.pixelSize: view.typeCaption
                     elide: Text.ElideMiddle
@@ -2159,7 +2167,7 @@ Item {
                 source: view.rtl
                     ? "moos-arrow-back-symbolic"
                     : "moos-arrow-symbolic"
-                color: Kirigami.Theme.disabledTextColor
+                color: view.secondaryInk
             }
         }
     }
@@ -2230,7 +2238,7 @@ Item {
                     visible: text.length > 0
                     text: String(result.model.subtext || "")
                     textFormat: Text.PlainText
-                    color: Kirigami.Theme.disabledTextColor
+                    color: view.secondaryInk
                     font.family: view.uiFontFamily
                     font.pixelSize: view.typeCaption
                     elide: Text.ElideMiddle
@@ -2437,7 +2445,7 @@ Item {
             Text {
                 Layout.fillWidth: true
                 text: setting.description
-                color: Kirigami.Theme.disabledTextColor
+                color: view.secondaryInk
                 font.family: view.uiFontFamily
                 font.pixelSize: view.typeCaption
                 wrapMode: Text.WordWrap

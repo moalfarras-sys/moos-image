@@ -4770,6 +4770,12 @@ python3 /ctx/plasma_seams.py build || {
     echo "GATE FAIL: MoOS's Plasma seams do not fit this Plasma (see the lines above)."
     exit 1
 }
+# 6.8.1 reads power controls from Plasma/Shell. An old look-and-feel preview
+# cannot prove that destination. Execute its real C++ host with private paths,
+# unreachable session/system buses, both Bloom halves and a broken-type control.
+if [ "$(rpm -q --qf '%{VERSION}' plasma-workspace)" = 6.8.1 ]; then
+    python3 /ctx/verify_session_power.py || exit 1
+fi
 
 # ── The Plasma shell overlay must survive into the finished image ─────────────
 #

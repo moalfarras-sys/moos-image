@@ -179,6 +179,20 @@ Publish listening/endpoint only after Kestrel binds. Treat actual address-in-use
 
 ## Where the rest of the knowledge is
 
+**A legacy theme file is not the native power destination.** Plasma6.8.1 loads
+shell `LogoutControls.qml`, leaving a polished look-and-feel `Logout.qml` unused.
+Keep its actual shell root, timer module, shared output owner and C++ signals;
+scope the adapter to reviewed upstream bytes and execute the real greeter with
+a broken-type negative. QtCore Settings reads `location`, not `fileName`: the
+latter rendered fallback Graphite while reporting QML errors. Require actual
+selected-look/image readback and unchanged config bytes. A windowed Cancel/exit0
+does not establish shutdown, reboot, cold login or signed installation.
+The lock probe constructs its own environment: caller QML_IMPORT_PATH is not
+source acceptance. Require the actual loaded module path and matching pixels.
+The standalone login test also reproduces a qrc LoginState warning with the
+installed module and matched style/icons; retain it and its gray scene without
+patching authentication or accepting it as the complete login composition.
+
 **An installed new binary does not change a pinned launcher.** The V3's native
 Code1.142.0 and OpenCode2.0.32 coexist with Flatpak1.139.1/1.18.8. The actual
 running editor and exported desktop IDs still select the older installation.

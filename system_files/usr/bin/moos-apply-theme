@@ -390,7 +390,13 @@ set -uo pipefail
 # 128: reserve one compact action slot through context changes; retain
 #      natural caption ink and optional Hub. Revision127 was private development.
 # 129: clarify the optional overlay using MoOS-owned desktop wording.
-THEME_REV=129
+# 130: connect the native 6.8.1 power view, shared theme image map and
+#      complete action captions; settle launcher page motion and readable ink.
+# 131: qualify the final session inputs after private revision 130 preparation:
+#      cancel native countdown on interaction, fit captions and settle motion.
+# 132: selected-theme session glyphs, one shared image blur and one clean
+#      login/lock/power card after the owner's request for more colour.
+THEME_REV=132
 state_dir="${XDG_STATE_HOME:-$HOME/.local/state}"
 mkdir -p "$state_dir" 2>/dev/null || true
 marker="${state_dir}/moos-ui2-theme-applied.v${THEME_REV}"

@@ -151,18 +151,44 @@ Item {
                 const store = named(v, "launcherStore");
                 driver.verify(store && store.width >= 44 && store.height >= 44,
                     "Store remains a real application-library destination");
-                const orbitTitle = driver.textItem(v, v.local("تطبيقاتك المثبتة", "Pinned applications"));
+                const orbitTitle = driver.textItem(v, v.local("تطبيقاتك المفضّلة", "Pinned applications"));
                 driver.verify(orbitTitle !== null, "real Home section title exists");
                 driver.compare(orbitTitle.effectiveHorizontalAlignment,
                     v.rtl ? Text.AlignRight : Text.AlignLeft,
                     "section text follows the logical leading edge once");
+                // Rapid page changes use one finite driver. Input remains
+                // available throughout, hidden pages settle immediately, and
+                // Reduced Motion never starts a translation.
+                l.expanded = true;
+                v.entranceReady = true;
+                l.activePage = 2;
+                check.wait(20);
+                l.activePage = 1;
+                check.wait(20);
+                l.activePage = 3;
+                check.wait(20);
+                if (v.motionMedium === 0) {
+                    driver.compare(driver.pages.pageAnimating, false, "reduced page motion is off");
+                    driver.compare(driver.pages.pageTranslation, 0, "reduced page translation is zero");
+                }
+                check.wait(v.motionMedium + 80);
+                driver.compare(driver.pages.pageAnimating, false, "page transition reaches rest");
+                driver.compare(driver.pages.opacity, 1, "page returns to full ink");
+                driver.compare(driver.pages.pageTranslation, 0, "page returns to its input geometry");
+                l.activePage = 2;
+                v.visible = false;
+                check.wait(20);
+                driver.compare(driver.pages.pageAnimating, false, "hidden page transition stops");
+                driver.compare(driver.pages.pageTranslation, 0, "hidden page geometry settles");
+                v.visible = true;
                 console.info("MOOS_ADAPTIVE_INPUT_PASS " + JSON.stringify({
                     width: v.width, height: v.height, rtl: v.rtl,
                     compact: v.compact, columns: driver.appGrid.columns, motion: v.motionMedium,
                     homeContent: driver.homeScroll.contentHeight,
                     homeViewport: driver.homeScroll.height,
                     touch: true, keyboard: true, sessionMenu: v.compact,
-                    nativeCategories: l.appRootModel.count - 1, categoryBrowsing: true
+                    nativeCategories: l.appRootModel.count - 1, categoryBrowsing: true,
+                    pageMotionSettled: true
                 }));
             } catch (error) {
                 console.error("MOOS_ADAPTIVE_INPUT_FAIL " + String(error));

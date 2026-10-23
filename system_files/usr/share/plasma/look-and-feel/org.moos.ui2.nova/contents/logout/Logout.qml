@@ -77,7 +77,7 @@ Item {
     //             idle fill ink 0.09 · lit fill ink 0.16 · crest cut + horizon
     //   ring    = countdown: Shape arc, stroke 3, accentA on accentA 0.18
     //   scrim   = backgroundColor  0.52 / 0.30 / 0.60  (top / mid / foot)
-    //   blur    = 54 wallpaper (lock's breeze WallpaperFader = 50)
+    //   blur    = shared sessionWallpaperBlur, also used by WallpaperFader
     //   fonts   = IBM Plex Sans Arabic across both scripts and all numerals
     //   clock   = org.kde.breeze.components Clock — the one session clock
     //   face    = org.kde.breeze.components UserDelegate — the one session face
@@ -89,6 +89,19 @@ Item {
     // The session family's one size (Tokens.sessionScale): the island, its
     // tiles and its type grow and shrink with the clock and the face.
     readonly property real sessionScale: design.sessionScale(root.width, root.height)
+
+    function settleScene() {
+        backdropFade.stop();
+        sheetEnter.stop();
+        orbitRun.stop();
+        wallpaper.opacity = 1;
+        sheet.opacity = 1;
+        sheet.scale = 1;
+        sheetRise.y = 0;
+        orbitGlow = 0;
+    }
+    onMotionEnabledChanged: if (!motionEnabled) { settleScene(); }
+    onVisibleChanged: if (!visible) { settleScene(); }
 
     // The orbit: the light that runs round the lock and login island's rim runs
     // round this one too, twice, when the island arrives, and then docks in the
@@ -262,11 +275,12 @@ Item {
     // ── Scene: the active theme's OWN wallpaper, blurred ─────────────────────
     // Every look-and-feel package ships its theme's wallpaper as
     // previews/fullscreenpreview.jpg; a package-relative path resolves to the
-    // right one for each of the 16 themes, so the doorway is NEVER a flat colour
+    // right one for each of the 18 themes, so the doorway is NEVER a flat colour
     // — it is the same background the desktop wears, softened by a real blur.
     // The QML stays byte-identical across packages; only the image differs.
     Image {
         id: wallpaper
+        objectName: "moosSessionWallpaper"
         anchors.fill: parent
         source: Qt.resolvedUrl("../previews/fullscreenpreview.jpg")
         fillMode: Image.PreserveAspectCrop
@@ -274,9 +288,9 @@ Item {
         asynchronous: true
         opacity: 0
         layer.enabled: true
-        // MoOS token: the same wallpaper blur the lock uses (breeze WallpaperFader
-        // is 50) — so the frosted background reads identically on both screens.
-        layer.effect: FastBlur { radius: 54 }
+        // The lock and power scene use one blur radius; retain more of the
+        // selected image's colour and contours while the card protects text.
+        layer.effect: FastBlur { radius: root.design.sessionWallpaperBlur }
         Component.onCompleted: {
             if (root.motionEnabled) {
                 backdropFade.start();
@@ -297,11 +311,11 @@ Item {
         // lock and the login scene so every surface veils the wallpaper equally.
         gradient: Gradient {
             GradientStop { position: 0.0; color: Qt.rgba(Kirigami.Theme.backgroundColor.r,
-                Kirigami.Theme.backgroundColor.g, Kirigami.Theme.backgroundColor.b, 0.52) }
+                Kirigami.Theme.backgroundColor.g, Kirigami.Theme.backgroundColor.b, root.design.sessionScrimTopOpacity) }
             GradientStop { position: 0.45; color: Qt.rgba(Kirigami.Theme.backgroundColor.r,
-                Kirigami.Theme.backgroundColor.g, Kirigami.Theme.backgroundColor.b, 0.30) }
+                Kirigami.Theme.backgroundColor.g, Kirigami.Theme.backgroundColor.b, root.design.sessionScrimMidOpacity) }
             GradientStop { position: 1.0; color: Qt.rgba(Kirigami.Theme.backgroundColor.r,
-                Kirigami.Theme.backgroundColor.g, Kirigami.Theme.backgroundColor.b, 0.60) }
+                Kirigami.Theme.backgroundColor.g, Kirigami.Theme.backgroundColor.b, root.design.sessionScrimBottomOpacity) }
         }
     }
 
@@ -396,35 +410,19 @@ Item {
                 duration: root.design.motionPortal; easing.type: root.design.easeEmphasis }
         }
 
-        // Depth halo — a still, cheap stand-in for a drop shadow: two nested
-        // translucent plates grow past the card so it visibly floats off the
-        // scene. No offscreen layer, no effect, nothing animates.
-        Rectangle {
-            anchors.fill: island
-            anchors.margins: -Kirigami.Units.gridUnit * 1.1
-            radius: island.radius + Kirigami.Units.gridUnit * 1.1
-            color: Qt.rgba(0, 0, 0, 0.04)
-        }
-        Rectangle {
-            anchors.fill: island
-            anchors.margins: -Kirigami.Units.gridUnit * 0.7
-            radius: island.radius + Kirigami.Units.gridUnit * 0.7
-            color: Qt.rgba(0, 0, 0, 0.06)
-        }
-        Rectangle {
-            anchors.fill: island
-            anchors.margins: -Kirigami.Units.gridUnit * 0.35
-            radius: island.radius + Kirigami.Units.gridUnit * 0.35
-            color: Qt.rgba(0, 0, 0, 0.08)
-        }
-
-        Rectangle {
+        // The same material owner as login/lock. Three hard halo rectangles
+        // produced visible nested rings over light wallpapers.
+        MoUI.GlassSurface {
             id: island
+            objectName: "moosSessionCard"
             anchors.fill: parent
+            animateArrival: false // The complete sheet owns its finite entrance.
             radius: root.design.radiusDialog
-            color: Qt.rgba(Kirigami.Theme.backgroundColor.r,
-                           Kirigami.Theme.backgroundColor.g,
-                           Kirigami.Theme.backgroundColor.b, 0.58)
+            depth: root.design.glassLevelDialog
+            surfaceColor: Kirigami.Theme.backgroundColor
+            inkColor: Kirigami.Theme.textColor
+            accentColor: root.accent
+            fillOpacity: root.design.sessionGlassOpacity
             border.width: root.design.borderHairline
             border.color: Qt.rgba(Kirigami.Theme.textColor.r,
                                   Kirigami.Theme.textColor.g,
@@ -671,6 +669,7 @@ Item {
                     description: root.bilingual("إبقاء الجلسة", "Keep session")
                     visible: root.showAllOptions && spdMethods.SuspendState
                     onClicked: root.fireNow(() => root.suspendRequested(2))
+                    onInteracted: root.stopCountdown()
                     onNavigate: (horizontalStep, verticalStep) => root.moveFocus(suspendButton, horizontalStep, verticalStep)
                 }
                 MoOSUI2ActionButton {
@@ -681,18 +680,20 @@ Item {
                     description: root.bilingual("حفظ الجلسة", "Save session")
                     visible: root.showAllOptions && spdMethods.HibernateState
                     onClicked: root.fireNow(() => root.suspendRequested(4))
+                    onInteracted: root.stopCountdown()
                     onNavigate: (horizontalStep, verticalStep) => root.moveFocus(hibernateButton, horizontalStep, verticalStep)
                 }
                 MoOSUI2ActionButton {
                     id: rebootButton
                     revealOrder: 2
                     iconName: softwareUpdatePending ? "system-reboot-update-symbolic" : "system-reboot-symbolic"
-                    text: softwareUpdatePending ? root.shortLabel("تحديث وإعادة", "Update & Restart") : root.shortLabel("إعادة التشغيل", "Restart")
+                    text: softwareUpdatePending ? root.shortLabel("تحديث وإعادة التشغيل", "Update & Restart") : root.shortLabel("إعادة التشغيل", "Restart")
                     description: armed ? root.bilingual("اضغط مجددًا لإعادة التشغيل", "Tap again to restart")
                         : (softwareUpdatePending ? root.bilingual("تثبيت التحديثات أولًا", "Install updates first") : root.bilingual("بدء جلسة جديدة", "Start fresh"))
                     emphasized: sdtype === ShutdownType.ShutdownTypeReboot
                     visible: maysd && (sdtype === ShutdownType.ShutdownTypeReboot || root.showAllOptions)
                     onClicked: root.armOrFire(rebootButton, () => { if (softwareUpdatePending) { root.rebootUpdateRequested(); } else { root.rebootRequested(); } })
+                    onInteracted: root.stopCountdown()
                     onNavigate: (horizontalStep, verticalStep) => root.moveFocus(rebootButton, horizontalStep, verticalStep)
                 }
                 MoOSUI2ActionButton {
@@ -703,19 +704,21 @@ Item {
                     description: armed ? root.bilingual("اضغط مجددًا لإعادة التشغيل", "Tap again to restart") : root.bilingual("بدون تحديث", "Without updating")
                     visible: maysd && softwareUpdatePending && (sdtype === ShutdownType.ShutdownTypeReboot || root.showAllOptions)
                     onClicked: root.armOrFire(rebootWithoutUpdatesButton, () => root.rebootRequested())
+                    onInteracted: root.stopCountdown()
                     onNavigate: (horizontalStep, verticalStep) => root.moveFocus(rebootWithoutUpdatesButton, horizontalStep, verticalStep)
                 }
                 MoOSUI2ActionButton {
                     id: shutdownButton
                     revealOrder: 4
                     iconName: softwareUpdatePending ? "system-shutdown-update-symbolic" : "system-shutdown-symbolic"
-                    text: softwareUpdatePending ? root.shortLabel("تحديث وإيقاف", "Update & Shut Down") : root.shortLabel("إيقاف التشغيل", "Shut Down")
+                    text: softwareUpdatePending ? root.shortLabel("تحديث وإيقاف التشغيل", "Update & Shut Down") : root.shortLabel("إيقاف التشغيل", "Shut Down")
                     description: armed ? root.bilingual("اضغط مجددًا للإيقاف", "Tap again to power off")
                         : (softwareUpdatePending ? root.bilingual("تثبيت التحديثات أولًا", "Install updates first") : root.bilingual("إيقاف الجهاز بأمان", "Power off safely"))
                     emphasized: sdtype === ShutdownType.ShutdownTypeHalt
                     destructive: true
                     visible: maysd && (sdtype === ShutdownType.ShutdownTypeHalt || root.showAllOptions)
                     onClicked: root.armOrFire(shutdownButton, () => { if (softwareUpdatePending) { root.haltUpdateRequested(); } else { root.haltRequested(); } })
+                    onInteracted: root.stopCountdown()
                     onNavigate: (horizontalStep, verticalStep) => root.moveFocus(shutdownButton, horizontalStep, verticalStep)
                 }
                 MoOSUI2ActionButton {
@@ -727,6 +730,7 @@ Item {
                     destructive: true
                     visible: maysd && softwareUpdatePending && (sdtype === ShutdownType.ShutdownTypeHalt || root.showAllOptions)
                     onClicked: root.armOrFire(shutdownWithoutUpdatesButton, () => root.haltRequested())
+                    onInteracted: root.stopCountdown()
                     onNavigate: (horizontalStep, verticalStep) => root.moveFocus(shutdownWithoutUpdatesButton, horizontalStep, verticalStep)
                 }
                 MoOSUI2ActionButton {
@@ -737,6 +741,7 @@ Item {
                     description: root.bilingual("إنهاء الجلسة", "End session")
                     visible: canLogout && (sdtype === ShutdownType.ShutdownTypeNone || root.showAllOptions)
                     onClicked: root.fireNow(() => root.logoutRequested())
+                    onInteracted: root.stopCountdown()
                     onNavigate: (horizontalStep, verticalStep) => root.moveFocus(logoutButton, horizontalStep, verticalStep)
                 }
                 MoOSUI2ActionButton {
@@ -747,6 +752,7 @@ Item {
                     description: root.bilingual("العودة لاحقًا", "Return later")
                     visible: root.showAllOptions
                     onClicked: root.fireNow(() => root.lockScreenRequested())
+                    onInteracted: root.stopCountdown()
                     onNavigate: (horizontalStep, verticalStep) => root.moveFocus(lockButton, horizontalStep, verticalStep)
                 }
             }
@@ -756,15 +762,20 @@ Item {
             // the dock jump); the island explains the armed confirm tap here,
             // in a reserved line that never reflows the layout.
             QQC2.Label {
+                id: confirmationHint
+                objectName: "moosSessionConfirmationHint"
                 Layout.alignment: Qt.AlignHCenter
-                Layout.preferredHeight: Kirigami.Units.gridUnit * 1.2
+                Layout.preferredHeight: confirmationMetrics.height
+                Layout.maximumWidth: column.width
                 horizontalAlignment: Text.AlignHCenter
                 verticalAlignment: Text.AlignVCenter
+                textFormat: Text.PlainText
                 text: root.armedButton ? root.armedButton.description : ""
-                color: root.armedButton ? root.armedButton.accentA : Kirigami.Theme.textColor
+                color: Kirigami.Theme.textColor
                 opacity: root.armedButton ? 1.0 : 0
                 font.family: root.design.interfaceFamily; font.weight: Font.DemiBold
                 font.pointSize: Kirigami.Theme.smallFont.pointSize + 1
+                FontMetrics { id: confirmationMetrics; font: confirmationHint.font }
             }
 
             // ── The way out — a full-width quiet pill under its hairline ──
@@ -778,12 +789,13 @@ Item {
                 id: cancelButton
                 revealOrder: 8
                 iconName: "cancel-operation-symbolic"
-                text: root.shortLabel("إلغاء — العودة إلى سطح المكتب", "Cancel — back to desktop")
+                text: root.shortLabel("العودة إلى سطح المكتب", "Back to desktop")
                 description: root.bilingual("العودة إلى سطح المكتب", "Back to desktop")
                 subtle: true
                 Layout.alignment: Qt.AlignHCenter
                 Layout.bottomMargin: Kirigami.Units.smallSpacing
                 onClicked: { root.disarm(); root.cancelRequested(); }
+                onInteracted: root.stopCountdown()
                 onNavigate: (horizontalStep, verticalStep) => root.moveFocus(cancelButton, horizontalStep, verticalStep)
             }
         }

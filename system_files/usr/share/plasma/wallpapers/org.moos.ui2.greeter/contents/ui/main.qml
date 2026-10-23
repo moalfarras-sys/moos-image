@@ -53,6 +53,8 @@ WallpaperItem {
         // Graphite-dark login was exactly the mismatch this used to produce.
         if (path.indexOf("MoOSUI2") >= 0) {
             var base = path.replace(/\/+$/, "")
+            var mapped = MoUI.WallpaperSources.imageForPackage(base)
+            if (mapped !== "") { return mapped; }
             var isLight = /Light$/.test(base)
                 || /MoOSUI2Tide$/.test(base)
                 || /MoOSUI2Daylight$/.test(base)

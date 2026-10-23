@@ -73,6 +73,10 @@ class TheRegistryIsTheTree(unittest.TestCase):
         shipped = {"/" + str(p.relative_to(SYSTEM)) for p in SYSTEM.rglob("*")
                    if p.is_file() and str(p.relative_to(SYSTEM)).startswith(PLASMA_OWNED)}
         replaced = shipped - MOOS_ADDITIONS
+        # Version-specific replacements are installed by their reviewed set,
+        # never copied into older packages by the common filesystem overlay.
+        replaced |= {path for chosen in REGISTRY['sets'] for path in chosen['sources']}
+        shipped |= replaced
         self.assertTrue(replaced, "no Plasma-owned files under system_files: the scan is looking elsewhere")
         self.assertEqual(sorted(replaced - set(SEAM_PATHS)), [],
                          "MoOS replaces these Plasma files without a seam: the next Plasma would "
@@ -82,7 +86,8 @@ class TheRegistryIsTheTree(unittest.TestCase):
 
     def test_every_set_reviews_every_seam_with_real_digests(self):
         for chosen in REGISTRY["sets"]:
-            self.assertEqual(sorted(chosen["reviewed"]), sorted(SEAM_PATHS),
+            active = [s['path'] for s in plasma_seams.active_seams(REGISTRY, chosen)]
+            self.assertEqual(sorted(chosen["reviewed"]), sorted(active),
                              f"set {chosen['id']} does not review every seam")
             for path, digests in chosen["reviewed"].items():
                 self.assertTrue(digests, f"set {chosen['id']}: {path} reviewed against nothing")
@@ -268,6 +273,9 @@ class TheGateRefuses(unittest.TestCase):
     def setUp(self):
         self.root = Path(tempfile.mkdtemp(prefix="moos-seams-"))
         for path in SEAM_PATHS:  # the image after COPY system_files/ /
+            if not (SYSTEM / path.lstrip('/')).is_file():
+                # A version-specific seam arrives only from its reviewed set.
+                continue
             target = self.root / path.lstrip("/")
             target.parent.mkdir(parents=True, exist_ok=True)
             shutil.copyfile(SYSTEM / path.lstrip("/"), target)
@@ -285,11 +293,39 @@ class TheGateRefuses(unittest.TestCase):
         return {p: d[0] for p, d in chosen["reviewed"].items()}
 
     def test_a_reviewed_six_seven_passes_and_installs_nothing(self):
-        before = {p: (self.root / p.lstrip("/")).read_bytes() for p in SEAM_PATHS}
+        before = {p: (self.root / p.lstrip("/")).read_bytes() for p in SEAM_PATHS
+                  if (self.root / p.lstrip('/')).is_file()}
         report = self.run_gate("6.7.5", self.reviewed("6.7"))
         self.assertIn("seam set 6.7", report[0])
-        for p in SEAM_PATHS:
+        for p in before:
             self.assertEqual((self.root / p.lstrip("/")).read_bytes(), before[p], p)
+        self.assertFalse((self.root / 'usr/share/plasma/shells/org.kde.plasma.desktop/contents/logout/LogoutControls.qml').exists())
+
+    def test_current_power_controls_install_only_with_exact_reviewed_rpm(self):
+        path = '/usr/share/plasma/shells/org.kde.plasma.desktop/contents/logout/LogoutControls.qml'
+        self.run_gate('6.8.1', self.reviewed('6.8.1'))
+        target = self.root / path.lstrip('/')
+        self.assertEqual(target.read_bytes(), (ROOT/'build_files/plasma-seams/6.8.1'/path.lstrip('/')).read_bytes())
+        digests = self.reviewed('6.8.1'); digests[path] = 'a'*64
+        with self.assertRaisesRegex(plasma_seams.SeamError, 'Upstream changed'):
+            self.run_gate('6.8.1', digests)
+
+    def test_inactive_power_modification_still_fails_the_generic_gate(self):
+        path = '/usr/share/plasma/shells/org.kde.plasma.desktop/contents/logout/LogoutControls.qml'
+        with self.assertRaisesRegex(plasma_seams.SeamError, 'neither a registered seam'):
+            self.run_gate('6.7.5', self.reviewed('6.7'), {'plasma-desktop': 'S.5....T.    '+path})
+
+    def test_invalid_scopes_or_missing_variant_are_never_a_gate_bypass(self):
+        for scopes in ([], ['unknown'], ['6.8.1','6.8.1'], '6.8.1', [1]):
+            data = json.loads(json.dumps(REGISTRY))
+            data['seams'][-1]['sets'] = scopes
+            with self.assertRaises(plasma_seams.SeamError):
+                plasma_seams.active_seams(data, next(s for s in data['sets'] if s['id']=='6.8.1'))
+        data = json.loads(json.dumps(REGISTRY))
+        chosen = next(s for s in data['sets'] if s['id']=='6.8.1')
+        del chosen['sources'][data['seams'][-1]['path']]
+        with self.assertRaisesRegex(plasma_seams.SeamError, 'no installed variant'):
+            plasma_seams.active_seams(data, chosen)
 
     def test_six_eight_installs_its_variants(self):
         self.run_gate("6.7.91", self.reviewed("6.8-beta2"))

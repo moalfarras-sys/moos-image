@@ -59,7 +59,7 @@ Item {
     FastBlur {
         id: wallpaperBlur
         anchors.fill: parent
-        radius: 50 * wallpaperFader.factor
+        radius: MoUI.Tokens.sessionWallpaperBlur * wallpaperFader.factor
     }
     ShaderEffect {
         id: wallpaperShader

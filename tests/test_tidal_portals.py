@@ -100,14 +100,15 @@ class TidalPortalContractTests(unittest.TestCase):
         ).read_text(encoding="utf-8")
         self.assertNotIn("Animation.Infinite", logout + action)
         # The Glass Island: adaptive width between a 26-unit floor and the
-        # content's own implicit width, a 2-unit radius, and the layered
-        # material (fill, sheen, rim) with a soft three-step depth halo.
+        # content's own implicit width and the shared login/lock material.
         self.assertIn("Kirigami.Units.gridUnit * 26", logout)
         self.assertIn("column.implicitWidth + Kirigami.Units.gridUnit * 4", logout)
         self.assertIn("id: island", logout)
         self.assertIn("import org.moos.ui as MoUI", logout)
         self.assertIn("radius: root.design.radiusDialog", logout)
-        self.assertIn("Qt.rgba(0, 0, 0, 0.04)", logout)
+        self.assertIn("MoUI.GlassSurface {", logout)
+        self.assertIn("fillOpacity: root.design.sessionGlassOpacity", logout)
+        self.assertNotIn("anchors.margins: -Kirigami.Units.gridUnit", logout)
         # The countdown is a still Shape ring driven by remainingTime — the
         # naked hairline track must not return.
         self.assertIn("PathAngleArc", logout)
@@ -191,6 +192,7 @@ class TidalPortalContractTests(unittest.TestCase):
         self.assertIn("id: island", island)
         self.assertIn("root.design.radiusDialog * Math.max(0.8, root.sessionScale)", island)
         self.assertIn("fillOpacity: root.design.sessionGlassOpacity", island)
+        self.assertNotIn("modelData.grow", island)
         # It hugs the cluster it frames instead of being sized from outside…
         self.assertIn("userListView.y + faceInset - root.islandPadTop", island)
         self.assertIn("prompts.y + promptBlock.y + promptBlock.height", island)

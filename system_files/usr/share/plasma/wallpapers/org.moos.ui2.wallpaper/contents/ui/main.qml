@@ -254,15 +254,11 @@ WallpaperItem {
         // desktop showed only the flat fallback colour with no wallpaper.
         if (v.indexOf("MoOSUI2") >= 0) {
             var base = v.replace(/\/+$/, "")
+            var mapped = MoUI.WallpaperSources.imageForPackage(base)
+            if (mapped !== "") { return mapped; }
             var isLight = /Light$/.test(base)
                 || /MoOSUI2Tide$/.test(base)
                 || /MoOSUI2Daylight$/.test(base)
-            // Bloom retains the original generated PNG in both standard
-            // branches. Never rename/upscale that artwork to a 4K JPEG.
-            if (/\/MoOSUI2Bloom(Light)?$/.test(base)) {
-                return base + (isLight ? "/contents/images/1672x941.png"
-                                       : "/contents/images_dark/1672x941.png")
-            }
             return base + (isLight ? "/contents/images/3840x2160.jpg"
                                    : "/contents/images_dark/3840x2160.jpg")
         }

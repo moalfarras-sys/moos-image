@@ -744,7 +744,7 @@ class TestMoOSUI2(unittest.TestCase):
         ):
             self.assertIn(contract, button)
         for direction in ("Up", "Down", "Left", "Right"):
-            self.assertIn(f"Keys.on{direction}Pressed: navigate(", button)
+            self.assertIn(f"Keys.on{direction}Pressed: {{ interacted(); navigate(", button)
 
     def test_session_password_row_exposes_explicit_accessibility_state(self) -> None:
         """Both greeters run outside a normal application window.
@@ -893,7 +893,7 @@ class TestMoOSUI2(unittest.TestCase):
         apply = (ROOT / "system_files/usr/bin/moos-apply-theme").read_text(encoding="utf-8")
         switch = (ROOT / "system_files/usr/bin/moos-theme").read_text(encoding="utf-8")
         self.assertIn(
-            "THEME_REV=129", apply,
+            "THEME_REV=132", apply,
             "existing v100 users would keep a cached compile of the retired MoOS LockScreenUi that "
             "asks for a MoOSClock which no longer ships (kscreenlocker's emergency locker) and a "
             "cached stock session screen with no island; "
@@ -989,7 +989,10 @@ class TestMoOSUI2(unittest.TestCase):
         disc = button[disc_start:button.index("QQC2.Label {", disc_start)]
         self.assertIn("? control.accentA", disc)
         self.assertIn("? control.accentB", disc)
-        self.assertIn("? control.filledInk", disc)
+        self.assertIn("MoUI.SessionActionGlyph {", disc)
+        self.assertIn("accentColor: control.accentA", disc)
+        self.assertIn("inkColor: control.filledInk", disc)
+        self.assertIn("embeddedInAccent: control.filled", disc)
         self.assertNotIn(
             "filledGrad",
             disc,
@@ -1046,7 +1049,7 @@ class TestMoOSUI2(unittest.TestCase):
         self.assertIn("signal navigate(int horizontalStep, int verticalStep)", button)
         for key, vector in (("Up", "0, -1"), ("Down", "0, 1"),
                             ("Left", "-1, 0"), ("Right", "1, 0")):
-            self.assertIn(f"Keys.on{key}Pressed: navigate({vector})", button)
+            self.assertIn(f"Keys.on{key}Pressed: {{ interacted(); navigate({vector}); }}", button)
 
         # With room for four tile columns, every possible capability/update
         # shape is either one row or two rows differing by at most one item.
@@ -1513,7 +1516,8 @@ class TestMoOSUI2(unittest.TestCase):
 
         self.assertIn("implicitWidth: Math.min(design.dialogWidth,", launcher)
         self.assertIn("implicitHeight: Math.min(design.dialogHeight,", launcher)
-        self.assertIn("LOCAL · PRIVATE", launcher)
+        self.assertIn('view.local("خيارات الجلسة", "Session actions")', launcher)
+        self.assertNotIn('TRUSTED LOCAL SESSION', launcher)
         self.assertNotIn("import QtQuick.Shapes", launcher)
         for unfinished_wireframe in ("ShapePath {", "PathQuad {", "PathLine {"):
             self.assertNotIn(
