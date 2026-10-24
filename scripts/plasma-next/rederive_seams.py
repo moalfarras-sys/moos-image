@@ -117,8 +117,14 @@ def extract(url: str, dest: Path) -> Path:
     return tree
 
 
-def moos_copy(path: str, set_id: str, registry: dict) -> Path:
+def moos_copy(path: str, set_id: str, registry: dict) -> Path | None:
     chosen = next(s for s in registry["sets"] if s["id"] == set_id)
+    # A newly registered destination may have no reviewed implementation in
+    # OLD. Do not invent an old copy or merge an adapter into an unrelated
+    # upstream file. The new surface needs its own native owner review.
+    seam = next(s for s in registry["seams"] if s["path"] == path)
+    if seam.get("sets") is not None and set_id not in seam["sets"]:
+        return None
     source = chosen["sources"].get(path)
     return SEAMS / source if source else ROOT / "system_files" / path.lstrip("/")
 
@@ -160,6 +166,11 @@ def main() -> int:
             changed += 1
             continue
         digest = hashlib.sha256(new.read_bytes()).hexdigest()
+        current = moos_copy(path, old_set, registry)
+        if current is None:
+            print(f"NEW      {path}  {digest}: no reviewed MoOS copy in {old_set}; review native owner")
+            changed += 1
+            continue
         if old.exists() and old.read_bytes() == new.read_bytes():
             print(f"same     {path}  {digest}")
             continue
@@ -168,7 +179,7 @@ def main() -> int:
         diff = subprocess.run(["diff", "-u", str(old), str(new)], capture_output=True, text=True).stdout
         (out / f"{name}.upstream.diff").write_text(diff, encoding="utf-8")
         merged = out / f"{name}.merged"
-        shutil.copyfile(moos_copy(path, old_set, registry), merged)
+        shutil.copyfile(current, merged)
         rc = subprocess.run(["git", "merge-file", "-L", f"moos-{old_set}", "-L", f"upstream-{args.old}",
                              "-L", f"upstream-{args.new}", str(merged), str(old), str(new)]).returncode
         state = "clean" if rc == 0 else f"{rc} conflict(s)" if rc > 0 else "merge error"

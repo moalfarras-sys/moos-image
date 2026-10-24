@@ -385,9 +385,9 @@ class TestMoOSGtkRuntime(unittest.TestCase):
         self.assertIn("io_add_watch", calls)
         self.assertIn("timeout_add", calls)
 
-    def test_all_16_kde_schemes_map_to_accessible_gtk_roles(self):
+    def test_all_18_kde_schemes_map_to_accessible_gtk_roles(self):
         schemes = sorted((SHARE / "color-schemes").glob("MoOSUI2*.colors"))
-        self.assertEqual(len(schemes), 16)
+        self.assertEqual(len(schemes), 18)
 
         for path in schemes:
             with self.subTest(scheme=path.name):

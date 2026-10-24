@@ -9,8 +9,12 @@ if [[ ${1:-} == --preview ]]; then
     id=${2:-}
     [[ $# == 2 && "$id" =~ ^[A-Za-z0-9_-]+(\.[A-Za-z0-9_-]+)+$ && ${#id} -le 255 ]] \
         || fail 'Invalid widget ID. | معرّف أداة غير صالح.'
-    kpackagetool6 --type Plasma/Applet --show "$id" >/dev/null 2>&1 \
-        || fail 'This widget is no longer installed. | هذه الأداة لم تعد مثبتة.'
+    # Newer native applets embed their package in a Qt plugin. KPackage's
+    # filesystem-only listing misses those even though Plasma offers them.
+    if ! kpackagetool6 --type Plasma/Applet --show "$id" >/dev/null 2>&1 \
+        && ! /usr/libexec/moos-widget-binary-available "$id"; then
+        fail 'This widget is no longer installed. | هذه الأداة لم تعد مثبتة.'
+    fi
     command -v plasmawindowed >/dev/null \
         || fail 'Widget previews are unavailable. | معاينات الأدوات غير متوفرة.'
     # No --statusnotifier: closing the preview ends it. Never adds to a desktop.

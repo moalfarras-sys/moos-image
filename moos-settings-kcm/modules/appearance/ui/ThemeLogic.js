@@ -8,6 +8,7 @@
 var LOOK = /^org\.moos\.ui2(?:\.[a-z0-9]+)*$/
 var MOTIONS = ["still", "gentle", "alive"]
 var CLARITIES = ["clear", "balanced", "solid"]
+var HUBS = ["on", "off"]
 
 function isLook(id) {
     var text = String(id || "")

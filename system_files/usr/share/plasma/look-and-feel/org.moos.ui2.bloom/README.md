@@ -1,0 +1,1 @@
+Bloom is an optional MoOS finish using existing Plasma owners, MoOS Amethyst colours, a complete Aurorae action set and curated GPL artwork. Previews show the actual wallpaper. The Qt/GTK engine remains the profile engine.

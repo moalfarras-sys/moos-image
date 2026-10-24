@@ -10,6 +10,8 @@ import org.moos.ui as MoUI
 MoUI.GlassSurface {
     id: hero
 
+    property bool compact: false
+    readonly property real inset: compact ? MoUI.Tokens.space4 : MoUI.Tokens.space5
     property url logoSource
     property string title: "MoOS"
     property string subtitle: ""
@@ -20,7 +22,7 @@ MoUI.GlassSurface {
                                                   Kirigami.Theme.textColor.b, 0.72)
 
     Layout.fillWidth: true
-    implicitHeight: heroGrid.implicitHeight + MoUI.Tokens.space5 * 2
+    implicitHeight: heroGrid.implicitHeight + inset * 2
     floating: true
     depth: MoUI.Tokens.glassLevelDialog
     surfaceColor: Kirigami.Theme.backgroundColor
@@ -34,7 +36,7 @@ MoUI.GlassSurface {
         anchors.left: parent.left
         anchors.right: parent.right
         anchors.top: parent.top
-        anchors.margins: MoUI.Tokens.space5
+        anchors.margins: hero.inset
         columns: hero.wide ? 3 : 1
         columnSpacing: MoUI.Tokens.space5
         rowSpacing: MoUI.Tokens.space4
@@ -44,8 +46,8 @@ MoUI.GlassSurface {
             // Preserve the page's identity in its title while keeping the
             // first useful controls above the fold in narrow tablet windows.
             visible: hero.wide
-            Layout.preferredWidth: Kirigami.Units.gridUnit * 5
-            Layout.preferredHeight: Kirigami.Units.gridUnit * 5
+            Layout.preferredWidth: Kirigami.Units.gridUnit * (hero.compact ? 3 : 5)
+            Layout.preferredHeight: Kirigami.Units.gridUnit * (hero.compact ? 3 : 5)
             Layout.alignment: hero.wide ? Qt.AlignVCenter : Qt.AlignLeft
             Accessible.ignored: true
 

@@ -6,7 +6,7 @@
 // WHAT IT DOES, IN SIX STEPS
 //   0 hero       أهلاً بك — the MoOS mark, breathing.
 //   1 look       Six curated quick looks apply INSTANTLY via moos://theme/<id>
-//                (moos-open runs moos-theme detached). The complete 16-theme
+//                (moos-open runs moos-theme detached). The complete 18-theme
 //                family remains available in the dedicated MoOS Themes picker.
 //   2 direction  What is this machine for? gaming / development / study /
 //                office — multi-select. Each direction is a catalog BUNDLE, so
@@ -1267,8 +1267,8 @@ ApplicationWindow {
                     Text {
                         Layout.alignment: Qt.AlignHCenter
                         text: win.rtl
-                              ? "6 إطلالات سريعة من عائلة تضم 16 ثيمًا — المجموعة الكاملة في تطبيق ثيمات MoOS"
-                              : "6 quick looks from a 16-theme family — find the complete collection in MoOS Themes"
+                              ? "6 إطلالات سريعة من عائلة تضم 18 ثيمًا — المجموعة الكاملة في تطبيق ثيمات MoOS"
+                              : "6 quick looks from an 18-theme family — find the complete collection in MoOS Themes"
                         color: win.txt2
                         font.family: win.uiFont; font.pixelSize: win.typePx(14)
                     }
@@ -1281,7 +1281,7 @@ ApplicationWindow {
                         rowSpacing: 18
 
                         // Six curated first-run choices. The dedicated picker
-                        // discovers and exposes the complete 16-theme family.
+                        // discovers and exposes the complete 18-theme family.
                         Repeater {
                             // WELCOME_QUICK_THEME_IDS_BEGIN
                             model: [

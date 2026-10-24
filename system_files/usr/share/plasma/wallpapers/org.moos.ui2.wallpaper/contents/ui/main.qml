@@ -51,7 +51,7 @@ WallpaperItem {
     readonly property int hubSystemPage:
         root.configuration.HubSystemPage === undefined ? 0 : root.configuration.HubSystemPage
     readonly property bool hubShown:
-        (root.configuration.ShowDashboard === undefined || root.configuration.ShowDashboard)
+        (root.configuration.ShowDashboard === true)
         && root.hubAnyCard
 
     function setHubKey(key, value) {
@@ -254,6 +254,8 @@ WallpaperItem {
         // desktop showed only the flat fallback colour with no wallpaper.
         if (v.indexOf("MoOSUI2") >= 0) {
             var base = v.replace(/\/+$/, "")
+            var mapped = MoUI.WallpaperSources.imageForPackage(base)
+            if (mapped !== "") { return mapped; }
             var isLight = /Light$/.test(base)
                 || /MoOSUI2Tide$/.test(base)
                 || /MoOSUI2Daylight$/.test(base)

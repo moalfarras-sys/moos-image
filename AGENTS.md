@@ -99,6 +99,15 @@ Kicker SimpleFavoritesModel publishes canonical `applications:` IDs even when
 initialized with desktop IDs. Match its actual published identity before
 triggering a row; exercise direct destinations as well as the catalogue.
 
+Native device controls must wait for their fixed executor and reread measured
+state. Submit a slider change on release/key input, never on valueChanged:
+reading a snapshot must not write it back. Keep pending actions inert, show
+refused/failed changes, and preserve pointer/keyboard/Qt-touch controls plus
+a broken-failure negative. Optional state bindings need explicit booleans so
+the actual KCM also loads before its first accepted status document.
+Check secondary ink against the composed interactive fill too: a text-tinted
+active card at 0.09 measured 4.26:1 in a Light family despite a valid 0.72 ink role.
+
 **A direct sysctl write is not profile durability.** TuneD throughput overwrote
 the V3's three declared MoKernel memory values because its reapplication searches
 run/etc, not usr/lib. A canonical relative alias restores one existing policy;
@@ -170,6 +179,20 @@ Publish listening/endpoint only after Kestrel binds. Treat actual address-in-use
 
 ## Where the rest of the knowledge is
 
+**A legacy theme file is not the native power destination.** Plasma6.8.1 loads
+shell `LogoutControls.qml`, leaving a polished look-and-feel `Logout.qml` unused.
+Keep its actual shell root, timer module, shared output owner and C++ signals;
+scope the adapter to reviewed upstream bytes and execute the real greeter with
+a broken-type negative. QtCore Settings reads `location`, not `fileName`: the
+latter rendered fallback Graphite while reporting QML errors. Require actual
+selected-look/image readback and unchanged config bytes. A windowed Cancel/exit0
+does not establish shutdown, reboot, cold login or signed installation.
+The lock probe constructs its own environment: caller QML_IMPORT_PATH is not
+source acceptance. Require the actual loaded module path and matching pixels.
+The standalone login test also reproduces a qrc LoginState warning with the
+installed module and matched style/icons; retain it and its gray scene without
+patching authentication or accepting it as the complete login composition.
+
 **An installed new binary does not change a pinned launcher.** The V3's native
 Code1.142.0 and OpenCode2.0.32 coexist with Flatpak1.139.1/1.18.8. The actual
 running editor and exported desktop IDs still select the older installation.
@@ -187,7 +210,12 @@ icons in the real launcher while standalone Qt rendered them correctly. Named
 hicolor registration of the exact publisher bytes repairs the actual surface;
 this does not establish the Plasma loader's cause. Keep app/URI icon parity.
 A local launcher environment and icon registration must survive its canonical
-installer update before claiming durable application integration.
+installer update before claiming durable application integration. A MoOS-prefixed icon name is not proof of
+OS ownership: the native old theme migration erased registered Antigravity/Code
+publisher icons. Keep exact shipped hicolor shadows recoverable, preserve names
+without an image counterpart and retain the actual old/fixed control plus native
+launcher pixels. A fresh finder path or same-theme refresh did not update the
+already-running popup; scoped shell reload did, preserving other native owners. Two applies can share one UTC second: native17fb overwrote the first recovery file despite green CI. Reserve a unique private destination only when a known shadow exists, retain both file/package versions, and stop the real caller when recovery storage is refused. Keep the old/mutant controls and never promote the refused candidate.
 
 **A healthy app update does not authorize full installation repair.** Actual
 Flatpak1.18.4 repair erases `.removed` recursively. The live daily updater did
@@ -407,6 +435,8 @@ Both image builders now require the same real Qt input proof against installed
 `/usr` bytes; missing PySide6 must fail there. Source-only runners explicitly
 report the unavailable native probes. Preserve all12 cases and the executed
 old-source negative; no empty/skipped image probe is acceptance.
+
+**A complete theme needs its actual image path and native icon alias.** Bloom's original PNG cannot satisfy a4K JPEG assumption in the profile loader, shell resolver or finished-image gate. Preserve every legacy4K contract; qualify new native packages explicitly and run the actual QJSEngine plus image decoder, including the old resolver negative. A genericQIcon(folder) passing does not prove KIO directory icons: retain the inode-directory alias and rendered file-manager evidence. Native button bounds also need real margin clicks; visible circles and config readback alone do not prove touch targets or a complete desktop.
 
 **A screenshot's filename does not establish its phase.** ISO 38807911559
 saved `installed-login.ppm` only after PAM accepted the password and logind
@@ -1466,3 +1496,12 @@ The observer in diagnostic39086687915 did preserve the closed desktop, but its f
 **An active indexer can still address the same file twice.** On the Oct18 physical boot, content creation worked, while an atomic save retained both old and new document IDs and deletion left results behind. Native `balooshow6` showed the same HOME inode but different database/filesystem device identities. Use alphabetic content markers absent filenames and ordinary create/atomic-save/delete events; a forced index or one successful query does not prove the lifecycle. Preserve the complete old derived index offline with no readers before any fresh derived rebuild; never edit raw LMDB or delete documents. Keep display-start aborts in the boot journal and the bounded identity readback's malformed/empty/mismatch/always-success negative controls. A same-boot repair is not cold-boot durability, and this observation does not establish why the historical filesystem identity changed.
 
 **Zero failed units and a green postcheck are not zero process crashes.** Native1072 passed35 hashes/54 selfchecks/55 postchecks and cold search, yet the login greeter faulted in QtQuick ListView destruction through screenRemoved and the owner Remote failed to bindlocalhost8765 while the old greeter Remote unit was still active. One managed Remote retry recovered; retain the actual core/exit and account/unit timestamps. Read coredump metadata without exporting cores, credentials or provider state. Require isolated screen-removal and real private socket/handoff negatives before a repair; never hide this with a journal reset, PAM change, arbitrary port or speculative theme/graphics policy.
+
+**A second shortcut is not a UI redesign.** The owner explicitly rejected adding compact Workspace and Control Center buttons beside the MoOS mark: both destinations already exist inside Home and native shortcuts/gestures. Keep one compact launcher entry and one tooltip; improve the existing composition and its actual input/scale/theme behavior. Preserve the real Home destinations and native KDE owners. A visual review that lands on the covering editor is a failed capture, never desktop evidence; do not type into an owner window while it is being used.
+
+
+**A native widget may be embedded in a binary.** Plasma6.8 offers calculator from a Qt applet plugin while `kpackagetool6 --show` reports no filesystem package. Keep both package and exact validated Qt applet metadata availability checks; metadata inspection must not load/instantiate executable plugin code. A successful metadata read is not a working preview: retain actual `plasmawindowed` load/input and canonical route evidence separately. Local compatibility launchers remain exact owned previews, not signed delivery.
+
+**A preview package link may resolve outside its own root.** Native stable digital-clock preview was blank because the owned shell preview linked66 resources to immutable `/usr`; KPackage correctly refused those paths. Preflight the exact owned link destinations and bytes, use identical in-package files for the live preview, and retain the old refusal. Never relax package path safety or count a calculator-only success as acceptance of compact-expander widgets. The fixed clock renders and opens its actual calendar; blank unconfigured weather and a separate memory-widget controller failure remain unaccepted.
+
+**A ready KCM marker is not an executed new verb.** The first scoped preview executor path contained Arabic while the fixed backend converts its constant path from Latin1. Its page rendered but no action reached the helper. Keep product fixed `/usr` paths; a live compatibility bridge must use a documented ASCII-only path, exact source bytes, a real loaded-library readback and actual pointer on/off/state verification. Restore the canonical build and stop only owned preview processes afterwards.

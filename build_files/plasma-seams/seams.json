@@ -50,6 +50,13 @@
     {
       "path": "/usr/share/plasma/shells/org.kde.plasma.desktop/contents/views/Panel.qml",
       "package": "plasma-desktop"
+    },
+    {
+      "path": "/usr/share/plasma/shells/org.kde.plasma.desktop/contents/logout/LogoutControls.qml",
+      "package": "plasma-desktop",
+      "sets": [
+        "6.8.1"
+      ]
     }
   ],
   "sets": [
@@ -208,11 +215,12 @@
         "from": "6.8.1",
         "before": "6.8.2"
       },
-      "reviewed_on": "Stable plasma-desktop/plasma-workspace 6.8.1-1.fc44, x86_64, 2026-10-20. Exact signed old/new publisher RPMs compared by rederive_seams: all 12 upstream seam files are byte-identical to 6.8.0, so reuse their reviewed MoOS variants without theme/authentication changes. Actual native 6.8.1 kscreenlocker_greet loads the overlaid variants; deliberately missing QML type refuses, restored source loads. Native LockScreenUi.qml/MainBlock.qml retain vendor hashes 683bdafa/487ce6e0. Full image, native login SDK, signed artifact boots and physical acceptance remain separate.",
+      "reviewed_on": "Stable plasma-desktop/plasma-workspace 6.8.1-1.fc44, x86_64, 2026-10-20. Exact signed old/new publisher RPMs compared by rederive_seams: all 12 upstream seam files are byte-identical to 6.8.0, so reuse their reviewed MoOS variants without theme/authentication changes. Actual native 6.8.1 kscreenlocker_greet loads the overlaid variants; deliberately missing QML type refuses, restored source loads. Native LockScreenUi.qml/MainBlock.qml retain vendor hashes 683bdafa/487ce6e0. Full image, native login SDK, signed artifact boots and physical acceptance remain separate. 2026-10-23: actual6.8.1 power greeter reads Plasma/Shell logout controls rather than the legacy look-and-feel. New version-specific LogoutControls adapter forwards the unchanged native root signals/countdown cancellation and preserves the shared controlsowner output handoff. Exact installed plasma-desktop RPM digest is retained. Actual native source-positive, deliberately missing-type negative, restored positive and Escape journeys pass on the V3; no power action or signed update is inferred.",
       "sources": {
         "/usr/share/plasma/shells/org.kde.plasma.desktop/contents/views/Panel.qml": "6.8.0/usr/share/plasma/shells/org.kde.plasma.desktop/contents/views/Panel.qml",
         "/usr/lib64/qt6/qml/org/kde/breeze/components/SessionManagementScreen.qml": "6.8/usr/lib64/qt6/qml/org/kde/breeze/components/SessionManagementScreen.qml",
-        "/usr/lib64/qt6/qml/org/kde/breeze/components/WallpaperFader.qml": "6.8/usr/lib64/qt6/qml/org/kde/breeze/components/WallpaperFader.qml"
+        "/usr/lib64/qt6/qml/org/kde/breeze/components/WallpaperFader.qml": "6.8/usr/lib64/qt6/qml/org/kde/breeze/components/WallpaperFader.qml",
+        "/usr/share/plasma/shells/org.kde.plasma.desktop/contents/logout/LogoutControls.qml": "6.8.1/usr/share/plasma/shells/org.kde.plasma.desktop/contents/logout/LogoutControls.qml"
       },
       "reviewed": {
         "/usr/share/plasma/shells/org.kde.plasma.desktop/contents/lockscreen/MediaControls.qml": [
@@ -250,6 +258,9 @@
         ],
         "/usr/share/plasma/shells/org.kde.plasma.desktop/contents/views/Panel.qml": [
           "353ed54bb277ad50ee769b85a346a05959aa4cb79fb6f27b2286dcd5e9acbc48"
+        ],
+        "/usr/share/plasma/shells/org.kde.plasma.desktop/contents/logout/LogoutControls.qml": [
+          "6ed15b0ea18d118e8862ad0fd01038ab62afc41d96946fff2075dfd8f656d201"
         ]
       }
     }

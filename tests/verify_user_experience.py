@@ -3142,7 +3142,7 @@ require("http://127.0.0.1:11434/api/tags" in moai_do_code
 # The versioned migration is what makes the redesign visible to existing users.
 apply_theme = read("system_files/usr/bin/moos-apply-theme")
 apply_theme_code = code(apply_theme)
-require("THEME_REV=118" in apply_theme_code,
+require("THEME_REV=132" in apply_theme_code,
         "MoOS visual schema must purge the cached compile of the retired lock-screen fork (it "
         "asks for a MoOSClock that no longer ships) and of the stock session screen, and "
         "migrate existing users to the Island that hosts Search itself "
@@ -3166,9 +3166,11 @@ require(
     "local_icons=" in apply_theme_code
     and "moos-*" in apply_theme_code
     and "MoOSUI2*" in apply_theme_code
+    and '"${user_share}/icons/hicolor" -type f' in apply_theme_code
+    and '[ -e "$target" ] || continue' in apply_theme_code
     and "icon-theme.cache" in apply_theme_code,
-    "THEME_REV 27 must purge ~/.local/share/icons/MoOSUI2* and hicolor moos-* overrides "
-    "so baked app marks from /usr win over live-preview residue",
+    "MoOS theme migration must retire MoOSUI2 overlays and quarantine exact shipped "
+    "hicolor shadows so image marks win while locally registered application icons survive",
 )
 # Rev 12 carries a rewritten desk widget (weather + rolling digits), and a plasmoid does not
 # reach an existing user by being newer. OSTree pins every mtime under /usr to the epoch and
@@ -3482,7 +3484,8 @@ require("enabled=false" in light_style,
 # nothing foreign, no reintroduced old generation. (verify_identity.py enforces the same set
 # with name/id checks; this gate holds the on-disk package + Konsole-profile count.)
 FAMILY_LNF = ["org.moos.ui2", "org.moos.ui2.amethyst", "org.moos.ui2.amethyst.light",
-              "org.moos.ui2.aurora", "org.moos.ui2.aurora.light", "org.moos.ui2.dev",
+              "org.moos.ui2.aurora", "org.moos.ui2.aurora.light",
+              "org.moos.ui2.bloom", "org.moos.ui2.bloom.light", "org.moos.ui2.dev",
               "org.moos.ui2.dev.light", "org.moos.ui2.gaming", "org.moos.ui2.gaming.light",
               "org.moos.ui2.light", "org.moos.ui2.midnight", "org.moos.ui2.midnight.light",
               "org.moos.ui2.nova", "org.moos.ui2.nova.light", "org.moos.ui2.study",
@@ -3519,7 +3522,7 @@ for package in FAMILY_LNF:
 
 theme_profiles = json.loads(read("artwork/moos-design/theme-profiles.json"))["profiles"]
 require(
-    len(theme_profiles) == 16
+    len(theme_profiles) == 18
     and all(profile["icons"] == profile["style"] for profile in theme_profiles)
     and "MOOS_THEME_PROFILE_DB" in theme_owner_code
     and "want_icons=" not in apply_theme_code
@@ -3958,17 +3961,21 @@ require("if (root.expanded)" in brand_main_qml and "if (expanded)" not in brand_
         "the brand applet must qualify root.expanded; the bare signal argument "
         "uses deprecated parameter injection and warns on every Plasma login")
 _compact_brand = brand_main_qml.split("compactRepresentation:", 1)[1].split("fullRepresentation:", 1)[0]
-# The old labels lived in an invisible 0x0 Item. The compact native controls
-# now expose the actual MoOS mark, separate workspace action and spoken names.
+# One compact launcher entry. The owner rejected duplicated Workspace/Settings
+# buttons in the dock; preserve both real routes on Home instead.
 require('id: compactLogo' in _compact_brand
         and 'source: "file:///usr/share/moos/moos-logo.png"' in _compact_brand
         and 'Accessible.name: root.rtl ? "قائمة MoOS" : "MoOS Launcher"' in _compact_brand
-        and 'objectName: "moosWorkspaceOverview"' in _compact_brand
-        and 'root.openRoute("moos://control/window/overview")' in _compact_brand
+        and _compact_brand.count('onClicked:') == 1
+        and 'MoUI.IconButton {' not in _compact_brand
         and 'visible: false' not in _compact_brand
+        and 'objectName: "moosHomeOverview"' in launcher_view_qml
+        and 'view.launcher.openRoute("moos://control/window/overview")' in launcher_view_qml
+        and 'objectName: "moosHomeSettings"' in launcher_view_qml
+        and 'view.launcher.openRoute("moos://settings/overview")' in launcher_view_qml
         and "moos-search-symbolic" in launcher_view_qml,
-        "the panel must expose the actual MoOS identity and native Workspace "
-        "control, with accessible names and a visible launcher search affordance")
+        "the dock must expose one accessible MoOS entry, with real Workspace "
+        "and Settings routes on Home and no duplicated compact actions")
 
 # Search and browsing are native model operations, not shell commands wearing a
 # search field.  Each engine is instantiated in main.qml and handed to the full
@@ -4094,12 +4101,13 @@ require("readonly property string uiFontFamily: Qt.application.font.family"
 require("readonly property string uiFontFamily: Qt.application.font.family"
         in brand_main_qml
         and re.search(r'font\.family\s*:\s*"', brand_main_qml) is None
-        and _compact_brand.count("Layout.minimumWidth: root.design.targetControl") >= 2
+        and _compact_brand.count("Layout.minimumWidth: root.design.targetControl") == 2
         and "Layout.minimumHeight: root.design.targetControl" in _compact_brand
-        and "onHoveredChanged: root.workspaceHovered = hovered" in _compact_brand
+        and 'toolTipMainText: "MoOS"' in brand_main_qml
+        and "Accessible.role: Accessible.Button" in _compact_brand
         and "ToolTip.visible" not in _compact_brand,
-        "the dock controls must retain the session font, separate 44px target "
-        "constraints and one native Plasma tooltip owner")
+        "the sole dock launcher must retain the session font, parent and input 44px "
+        "constraints, accessible role and one native Plasma tooltip owner")
 # plasmashell already enables inherited LayoutMirroring for an RTL session.
 # Manually swapping physical left/right anchors inside that tree mirrors twice:
 # the navigation rail stayed physically left and the pin affordance stayed right

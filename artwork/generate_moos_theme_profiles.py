@@ -35,8 +35,8 @@ def load_profiles() -> dict:
         if "\t" in value or "\n" in value:
             raise SystemExit("MoOS theme profiles: tabs/newlines are forbidden")
     profiles = document.get("profiles")
-    if not isinstance(profiles, list) or len(profiles) != 16:
-        raise SystemExit("MoOS theme profiles: exactly 16 profiles are required")
+    if not isinstance(profiles, list) or len(profiles) != 18:
+        raise SystemExit("MoOS theme profiles: exactly 18 profiles are required")
 
     ids: set[str] = set()
     families: dict[str, set[str]] = {}

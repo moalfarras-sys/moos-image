@@ -7,6 +7,17 @@ template, plus six breeze components the login, lock and power screens draw (`Ac
 upstream file at one Plasma version. `seams.json` lists them, and `rpm -V` in the build proves the
 list is complete.
 
+Plasma 6.8.1 additionally loads power controls from its shell package's
+`contents/logout/LogoutControls.qml`, rather than the legacy look-and-feel
+`Logout.qml`. Its explicitly scoped thirteenth seam is a small adapter to
+the generated shared MoOS visual engine. Native `Logout.qml`, `timer.js`,
+`controlsowner.js` and the C++ power executor retain countdown, output handoff,
+capabilities and action ownership. `verify_session_power.py` loads the real
+greeter both normally and with a deliberately broken adapter, with private
+HOME/XDG and absent session/system buses. Older reviewed sets do not gain a
+fictional file or digest. A newly registered destination without a reviewed
+older copy is reported by the rederive tool for a fresh native-owner review.
+
 **No seam carries authentication.** Until 2026-10-05 two of them did: MoOS forked the lock screen's
 own `LockScreenUi.qml` and `MainBlock.qml` to draw a card, a clock and a brand mark around the
 password row. Those are the files that hold the authenticator wiring, upstream rewrites them every

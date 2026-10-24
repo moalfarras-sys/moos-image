@@ -1,0 +1,19 @@
+{
+  "KPlugin": {
+    "Id": "org.moos.ui2.bloom.light",
+    "Name": "MoOS UI · Bloom Light",
+    "Description": "إطارات ناعمة وألوان حيوية | Soft frames and lively MoOS colour",
+    "Authors": [
+      {
+        "Name": "Moalfarras"
+      }
+    ],
+    "Version": "2.0.0",
+    "License": "GPL-3.0-or-later",
+    "Website": "https://github.com/moalfarras-sys/moos-image",
+    "Name[ar]": "MoOS · بلوم الفاتح",
+    "Description[ar]": "إطارات ناعمة وألوان حيوية لهوية MoOS"
+  },
+  "KPackageStructure": "Plasma/LookAndFeel",
+  "X-Plasma-APIVersion": "2"
+}

@@ -1,0 +1,12 @@
+{
+  "tool": "built-in image_gen.imagegen",
+  "generated_utc_date": "2026-10-23",
+  "master": "moos-bloom-master.png",
+  "native_size": [
+    1672,
+    941
+  ],
+  "sha256": "16976673ec0641842a42babf32a3151a33190f3fc7e0dda5b533e6aa4775e45a",
+  "prompt": "Create an original premium desktop wallpaper for MoOS, a real modern desktop and tablet operating system. A lively but refined abstract macro sculpture of broad satin glass and soft translucent ribbons, flowing in a large graceful asymmetric arc from lower left to the right edge, cobalt blue and cyan, coral peach and luminous lavender with a small mint reflection. Bright sophisticated pearlescent lavender-blue environment, gentle warm sunlit depth, beautifully soft smooth rounded shapes, tasteful physically plausible frosted glass, subtle fine film grain only, precise art direction, coherent color harmony. Broad quiet open negative space across upper third for real desktop windows and icons; focus of the sculptural color around the outer lower edges, calm center. Designed as a genuinely beautiful high end OS desktop wallpaper, not a screenshot or interface mockup. Wide landscape 16:9 composition. No text, no logos, no letters, no buttons, no windows or app icons, no macOS or Windows shapes, no harsh black, no oversaturated neon, no rainbow gradients, no extra ornament. Generate at the highest available native landscape resolution.",
+  "upscaled": false
+}

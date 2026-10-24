@@ -25,6 +25,9 @@ KCM.SimpleKCM {
     readonly property var whatsNew: kcm.status.whatsNew || ({})
     readonly property var memory: kcm.status.memory || ({})
     readonly property var storage: kcm.status.storage || ({})
+    readonly property var network: kcm.status.network || ({})
+    readonly property var bluetooth: kcm.status.bluetooth || ({})
+    readonly property var battery: kcm.status.battery || ({})
     readonly property real cardWidth: Kirigami.Units.gridUnit * 56
     readonly property color secondaryInk: Qt.rgba(Kirigami.Theme.textColor.r, Kirigami.Theme.textColor.g,
                                                   Kirigami.Theme.textColor.b, 0.72)
@@ -101,6 +104,21 @@ KCM.SimpleKCM {
         : deployment.rollbackQueued ? t("الرجوع مجدول لإعادة التشغيل القادمة", "Rollback queued for the next restart")
         : deployment.rollback > 0 ? t("نسخة سابقة محفوظة", "A previous version is saved")
         : t("لا توجد نسخة سابقة بعد", "No previous version saved yet")
+
+    readonly property string networkText: !ready || !network.known ? unknownLabel
+        : network.connectivity === "portal" ? t("يلزم تسجيل الدخول", "Sign-in required")
+        : !network.connected ? t("غير متصل", "Disconnected")
+        : network.connectivity === "full" ? t("متصل بالإنترنت", "Online")
+        : t("اتصال محدود", "Limited connection")
+    readonly property string batteryText: !ready ? unknownLabel
+        : !battery.available ? t("غير متاحة", "Unavailable")
+        : Number(battery.percent).toLocaleString(Qt.locale(), "f", 0) + "%"
+    readonly property string batteryDetail: !ready || !battery.available
+        ? t("الأداء والسكون وتوفير الطاقة", "Performance, sleep and power saving")
+        : battery.state === "charging" ? t("جارٍ الشحن", "Charging")
+        : battery.state === "discharging" ? t("يعمل على البطارية", "On battery")
+        : battery.state === "full" ? t("مكتملة الشحن", "Fully charged")
+        : battery.state === "not charging" ? t("الشحن متوقف", "Not charging") : unknownLabel
     readonly property int freshCount: ready ? (whatsNew.fresh || 0) : 0
     readonly property string freshText: {
         var count = freshCount
@@ -165,11 +183,10 @@ KCM.SimpleKCM {
         MoosHero {
             Layout.maximumWidth: root.cardWidth
             Layout.alignment: Qt.AlignHCenter
+            compact: true
             logoSource: kcm.logoSource
-            title: root.t("إعدادات MoOS", "MoOS Settings")
-            subtitle: !root.ready ? ""
-                : (root.editionText ? root.editionText + "  ·  " : "")
-                  + root.t("الإصدار ", "Version ") + root.isolated(root.text(root.deployment.version))
+            title: root.t("مركز تحكم MoOS", "MoOS Control Center")
+            subtitle: root.t("الصوت والاتصال ومساحة العمل", "Sound, connections and workspace")
             chips: [
                 MoosChip {
                     glyph: root.signatureTone === "warning" ? "warning" : "shield"
@@ -180,33 +197,13 @@ KCM.SimpleKCM {
                     glyph: root.updateState.glyph
                     label: root.updateState.text
                     tone: root.updateState.tone
-                },
-                MoosChip {
-                    visible: root.ready && root.deployment.builtAt > 0
-                    glyph: "calendar"
-                    label: root.t("بُني في ", "Built ") + root.builtLabel(root.deployment.builtAt)
-                    tone: "neutral"
                 }
             ]
             actions: [
-                Controls.Button {
-                    id: copyButton
-                    property bool copied: false
-                    Layout.fillWidth: true
-                    text: copied ? root.t("تم النسخ", "Copied") : root.t("نسخ التفاصيل", "Copy details")
-                    icon.name: MoUI.SymbolCatalog.resolve(copied ? "check" : "copy")
-                    enabled: root.ready
-                    Accessible.description: root.t("ينسخ إصدار MoOS ومواصفات الجهاز كنص لمحادثة دعم",
-                                                   "Copies the MoOS version and device facts as text for a support conversation")
-                    onClicked: {
-                        clipboard.text = root.aboutReport()
-                        clipboard.selectAll()
-                        clipboard.copy()
-                        clipboard.deselect()
-                        copied = true
-                        copiedReset.restart()
-                    }
-                    Timer { id: copiedReset; interval: 2200; onTriggered: copyButton.copied = false }
+                MoosChip {
+                    glyph: "about"
+                    label: root.versionText || root.unknownLabel
+                    tone: "neutral"
                 },
                 Controls.Button {
                     Layout.fillWidth: true
@@ -217,6 +214,74 @@ KCM.SimpleKCM {
                     onClicked: root.open("moos://settings/whats-new")
                 }
             ]
+        }
+
+        GridLayout {
+            id: liveControls
+            objectName: "moosDeviceControls"
+            Layout.fillWidth: true
+            Layout.maximumWidth: root.cardWidth
+            Layout.alignment: Qt.AlignHCenter
+            columns: width >= Kirigami.Units.gridUnit * 40 ? 2 : 1
+            columnSpacing: root.design.space3
+            rowSpacing: root.design.space3
+            MoosAudioCard {
+                objectName: "moosControlAudio"
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                Layout.minimumWidth: 0
+                Layout.preferredWidth: root.cardWidth * 0.6
+                backend: kcm
+            }
+            MoUI.Surface {
+                Layout.fillWidth: true
+                Layout.minimumWidth: 0
+                Layout.preferredWidth: root.cardWidth * 0.4
+                implicitHeight: deviceRows.implicitHeight + root.design.space2 * 2
+                ColumnLayout {
+                    id: deviceRows
+                    anchors { left: parent.left; right: parent.right; top: parent.top; margins: root.design.space2 }
+                    spacing: 0
+                    MoosDeviceTile {
+                        objectName: "moosControlNetwork"
+                        Layout.fillWidth: true
+                        compact: true
+                        glyph: "wifi"
+                        text: root.t("الشبكة", "Network")
+                        stateText: root.networkText
+                        detail: root.ready && root.text(root.network.label)
+                            ? root.text(root.network.label) : root.t("إدارة الاتصالات", "Manage connections")
+                        active: root.ready && root.network.known === true && root.network.connectivity === "full"
+                        enabled: root.routeAvailable("moos://settings/network")
+                        onClicked: root.open("moos://settings/network")
+                    }
+                    MoosDeviceTile {
+                        objectName: "moosControlBluetooth"
+                        Layout.fillWidth: true
+                        compact: true
+                        glyph: "bluetooth"
+                        text: root.t("بلوتوث", "Bluetooth")
+                        stateText: !root.ready ? root.unknownLabel
+                            : !root.bluetooth.available ? root.t("غير متاح", "Unavailable")
+                            : root.bluetooth.powered ? root.t("مفعّل", "On") : root.t("متوقف", "Off")
+                        detail: root.t("السماعات ولوحات المفاتيح والأجهزة", "Headphones, keyboards and devices")
+                        active: root.ready && root.bluetooth.available === true && root.bluetooth.powered === true
+                        enabled: root.routeAvailable("moos://settings/bluetooth")
+                        onClicked: root.open("moos://settings/bluetooth")
+                    }
+                    MoosDeviceTile {
+                        objectName: "moosControlBattery"
+                        Layout.fillWidth: true
+                        compact: true
+                        glyph: "battery"
+                        text: root.t("الطاقة", "Power")
+                        stateText: root.batteryText
+                        detail: root.batteryDetail
+                        enabled: root.routeAvailable("moos://settings/energy")
+                        onClicked: root.open("moos://settings/energy")
+                    }
+                }
+            }
         }
 
         Kirigami.Heading {
@@ -259,29 +324,29 @@ KCM.SimpleKCM {
             MoosDestinationTile {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
-                glyph: "volume"
-                text: root.t("الصوت والميكروفون", "Sound & microphone")
-                description: root.t("السماعات، التسجيل وأجهزة الصوت", "Speakers, recording and audio devices")
-                enabled: root.routeAvailable("moos://settings/audio")
-                onClicked: root.open("moos://settings/audio")
+                glyph: "keyboard"
+                text: root.t("لوحة المفاتيح", "Keyboard")
+                description: root.t("تخطيطات الكتابة وسلوك المفاتيح", "Typing layouts and key behaviour")
+                enabled: root.routeAvailable("moos://settings/keyboard")
+                onClicked: root.open("moos://settings/keyboard")
             }
             MoosDestinationTile {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
-                glyph: "wifi"
-                text: root.t("الشبكة والاتصال", "Network & connections")
-                description: root.t("واي فاي، الشبكة السلكية والاتصالات المحفوظة", "Wi-Fi, wired and saved connections")
-                enabled: root.routeAvailable("moos://settings/network")
-                onClicked: root.open("moos://settings/network")
+                glyph: "shield"
+                text: root.t("أذونات التطبيقات", "App permissions")
+                description: root.t("الوصول إلى الكاميرا والميكروفون والأجهزة", "Camera, microphone and device access")
+                enabled: root.routeAvailable("moos://settings/permissions")
+                onClicked: root.open("moos://settings/permissions")
             }
             MoosDestinationTile {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
-                glyph: "battery"
-                text: root.t("الطاقة والبطارية", "Power & battery")
-                description: root.t("الأداء، السكون وتوفير الطاقة", "Performance, sleep and power saving")
-                enabled: root.routeAvailable("moos://settings/energy")
-                onClicked: root.open("moos://settings/energy")
+                glyph: "user"
+                text: root.t("إمكانية الوصول", "Accessibility")
+                description: root.t("الرؤية، القراءة والتحكم بالإدخال", "Vision, reading and input assistance")
+                enabled: root.routeAvailable("moos://settings/accessibility")
+                onClicked: root.open("moos://settings/accessibility")
             }
             MoosDestinationTile {
                 Layout.fillWidth: true
@@ -292,6 +357,26 @@ KCM.SimpleKCM {
                 enabled: root.routeAvailable("moos://settings/notifications")
                 onClicked: root.open("moos://settings/notifications")
             }
+            MoosDestinationTile {
+                objectName: "moosSettingsWidgets"
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                glyph: "grid"
+                text: root.t("أدوات سطح المكتب", "Desktop widgets")
+                description: root.t("أضف الأدوات، عاينها ورتّبها في مساحتك", "Add widgets, preview them and arrange your space")
+                enabled: root.routeAvailable("moos://settings/desktop")
+                onClicked: root.open("moos://settings/desktop")
+            }
+            MoosDestinationTile {
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                glyph: "boxes"
+                text: root.t("مساحات العمل", "Workspaces")
+                description: root.t("أسطح المكتب الافتراضية والتنقل بينها", "Virtual desktops and navigation")
+                enabled: root.routeAvailable("moos://settings/desktops")
+                onClicked: root.open("moos://settings/desktops")
+            }
+
         }
 
         FormCard.FormHeader {
@@ -333,6 +418,26 @@ KCM.SimpleKCM {
                 enabled: root.routeAvailable("moos://settings/recovery")
                 onClicked: root.open("moos://settings/recovery")
             }
+        }
+
+        Controls.Button {
+            id: copyButton
+            property bool copied: false
+            Layout.alignment: Qt.AlignHCenter
+            text: copied ? root.t("تم النسخ", "Copied") : root.t("نسخ التفاصيل", "Copy details")
+            icon.name: MoUI.SymbolCatalog.resolve(copied ? "check" : "copy")
+            enabled: root.ready
+            Accessible.description: root.t("ينسخ إصدار MoOS ومواصفات الجهاز كنص لمحادثة دعم",
+                                           "Copies the MoOS version and device facts as text for a support conversation")
+            onClicked: {
+                clipboard.text = root.aboutReport()
+                clipboard.selectAll()
+                clipboard.copy()
+                clipboard.deselect()
+                copied = true
+                copiedReset.restart()
+            }
+            Timer { id: copiedReset; interval: 2200; onTriggered: copyButton.copied = false }
         }
 
         FormCard.FormHeader {

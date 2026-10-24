@@ -685,6 +685,7 @@ class TestMoOSUI2(unittest.TestCase):
         # exact dark/light package matrix and all four Plasma preview surfaces
         # in lockstep with the palettes that produced them.
         expected_package_ids = {"org.moos.ui2", "org.moos.ui2.light"}
+        expected_package_ids.update({"org.moos.ui2.bloom", "org.moos.ui2.bloom.light"})
         for theme in themes:
             expected_package_ids.update({
                 f"org.moos.ui2.{theme}",
@@ -743,7 +744,7 @@ class TestMoOSUI2(unittest.TestCase):
         ):
             self.assertIn(contract, button)
         for direction in ("Up", "Down", "Left", "Right"):
-            self.assertIn(f"Keys.on{direction}Pressed: navigate(", button)
+            self.assertIn(f"Keys.on{direction}Pressed: {{ interacted(); navigate(", button)
 
     def test_session_password_row_exposes_explicit_accessibility_state(self) -> None:
         """Both greeters run outside a normal application window.
@@ -892,7 +893,7 @@ class TestMoOSUI2(unittest.TestCase):
         apply = (ROOT / "system_files/usr/bin/moos-apply-theme").read_text(encoding="utf-8")
         switch = (ROOT / "system_files/usr/bin/moos-theme").read_text(encoding="utf-8")
         self.assertIn(
-            "THEME_REV=118", apply,
+            "THEME_REV=132", apply,
             "existing v100 users would keep a cached compile of the retired MoOS LockScreenUi that "
             "asks for a MoOSClock which no longer ships (kscreenlocker's emergency locker) and a "
             "cached stock session screen with no island; "
@@ -988,7 +989,10 @@ class TestMoOSUI2(unittest.TestCase):
         disc = button[disc_start:button.index("QQC2.Label {", disc_start)]
         self.assertIn("? control.accentA", disc)
         self.assertIn("? control.accentB", disc)
-        self.assertIn("? control.filledInk", disc)
+        self.assertIn("MoUI.SessionActionGlyph {", disc)
+        self.assertIn("accentColor: control.accentA", disc)
+        self.assertIn("inkColor: control.filledInk", disc)
+        self.assertIn("embeddedInAccent: control.filled", disc)
         self.assertNotIn(
             "filledGrad",
             disc,
@@ -1000,7 +1004,7 @@ class TestMoOSUI2(unittest.TestCase):
         )
         self.assertEqual(
             len(scheme_paths),
-            16,
+            18,
             "session contrast must be measured across the complete theme family",
         )
         for scheme_path in scheme_paths:
@@ -1045,7 +1049,7 @@ class TestMoOSUI2(unittest.TestCase):
         self.assertIn("signal navigate(int horizontalStep, int verticalStep)", button)
         for key, vector in (("Up", "0, -1"), ("Down", "0, 1"),
                             ("Left", "-1, 0"), ("Right", "1, 0")):
-            self.assertIn(f"Keys.on{key}Pressed: navigate({vector})", button)
+            self.assertIn(f"Keys.on{key}Pressed: {{ interacted(); navigate({vector}); }}", button)
 
         # With room for four tile columns, every possible capability/update
         # shape is either one row or two rows differing by at most one item.
@@ -1142,18 +1146,18 @@ class TestMoOSUI2(unittest.TestCase):
             (path / "contents/logout/MoOSUI2ActionButton.qml").read_bytes()
             for path in family
         }
-        self.assertEqual(len(family), 16)
+        self.assertEqual(len(family), 18)
         self.assertEqual(
             len(splash_bytes), 1,
-            "all 16 palettes must use the same reviewed splash composition",
+            "all 18 finishes must use the same reviewed splash composition",
         )
         self.assertEqual(
             len(logout_bytes), 1,
-            "all 16 palettes must use the same reviewed session-language policy",
+            "all 18 finishes must use the same reviewed session-language policy",
         )
         self.assertEqual(
             len(logout_button_bytes), 1,
-            "all 16 palettes must use one reviewed session-action geometry",
+            "all 18 finishes must use one reviewed session-action geometry",
         )
 
     def test_shell_rtl_uses_inherited_logical_edges_once(self) -> None:
@@ -1296,11 +1300,15 @@ class TestMoOSUI2(unittest.TestCase):
             dock,
         )
         self.assertNotRegex(dock, r'font\.family\s*:\s*"')
-        # The compact mark now sits beside a separate workspace control. It
-        # retains a spoken identity rather than a hidden or microscopic caption.
+        # One compact entry; the actual destinations stay inside Home.
         self.assertIn('Accessible.name: root.rtl ? "قائمة MoOS" : "MoOS Launcher"', dock)
-        self.assertIn('objectName: "moosWorkspaceOverview"', dock)
-        self.assertIn('root.openRoute("moos://control/window/overview")', dock)
+        compact = dock.split("compactRepresentation:", 1)[1].split("fullRepresentation:", 1)[0]
+        self.assertEqual(compact.count("onClicked:"), 1)
+        self.assertNotIn("MoUI.IconButton {", compact)
+        for name, route in (("moosHomeOverview", "control/window/overview"),
+                            ("moosHomeSettings", "settings/overview")):
+            self.assertIn('objectName: "' + name + '"', launcher)
+            self.assertIn('view.launcher.openRoute("moos://' + route + '")', launcher)
 
     def test_launcher_has_exactly_one_expanded_state_owner(self) -> None:
         """A pointer click must not be toggled by QML and Plasma in turn.
@@ -1508,7 +1516,8 @@ class TestMoOSUI2(unittest.TestCase):
 
         self.assertIn("implicitWidth: Math.min(design.dialogWidth,", launcher)
         self.assertIn("implicitHeight: Math.min(design.dialogHeight,", launcher)
-        self.assertIn("LOCAL · PRIVATE", launcher)
+        self.assertIn('view.local("خيارات الجلسة", "Session actions")', launcher)
+        self.assertNotIn('TRUSTED LOCAL SESSION', launcher)
         self.assertNotIn("import QtQuick.Shapes", launcher)
         for unfinished_wireframe in ("ShapePath {", "PathQuad {", "PathLine {"):
             self.assertNotIn(
@@ -1597,7 +1606,8 @@ class TestMoOSUI2(unittest.TestCase):
         self.assertEqual(re.findall(r'"([^"]+)"', places), ["systemsettings.desktop"],
                          "Places offers one settings destination, not the hidden hardware "
                          "report and a Recovery page of the same window")
-        self.assertIn('accessibleLabel: root.rtl ? "مساحة العمل والنوافذ" : "Workspace overview"', dock)
+        self.assertIn('objectName: "moosHomeOverview"', launcher)
+        self.assertIn('view.launcher.openRoute("moos://control/window/overview")', launcher)
         self.assertIn("readonly property int motionMedium: design.duration(", launcher)
         self.assertIn("design.motionGeometry", launcher)
         self.assertIn(
@@ -2106,8 +2116,8 @@ class TestMoOSUI2(unittest.TestCase):
             (SHARE / "plasma/look-and-feel").glob("org.moos.ui2*/contents/defaults")
         )
         self.assertEqual(
-            len(defaults_files), 16,
-            "the complete eight-pair MoOS UI family must share one frost profile",
+            len(defaults_files), 18,
+            "the complete nine-pair MoOS UI family must share one frost profile",
         )
         applied = {"org.kde.kdecoration2", "TabBox", "WindowSwitcher", "DesktopSwitcher"}
         for defaults_path in defaults_files:
@@ -2133,6 +2143,11 @@ class TestMoOSUI2(unittest.TestCase):
                     "org.moos.ui2.light": ui2.lnf_defaults("light")}
         expected.update({meta["lnf"]: family.lnf_defaults_text(meta)
                          for meta in family.THEMES.values()})
+        bloom = load("moos_bloom_generator_under_test", DEFAULT_ROOT / "artwork/generate_moos_bloom.py")
+        for profile in json.loads((ROOT / "artwork/moos-design/theme-profiles.json").read_text())["profiles"]:
+            if profile["family"] == "bloom":
+                parent = "org.moos.ui2.amethyst" + (".light" if profile["mode"] == "light" else "")
+                expected[profile["id"]] = bloom.lnf_defaults(profile, expected[parent])
         self.assertEqual(sorted(expected), sorted(p.parent.parent.name for p in defaults_files))
         for defaults_path in defaults_files:
             package = defaults_path.parent.parent.name
@@ -2380,8 +2395,8 @@ class TestMoOSUI2(unittest.TestCase):
             "aurora",
         }
         self.assertEqual(quick_ids, expected_quick_ids)
-        self.assertIn("6 quick looks from a 16-theme family", welcome)
-        self.assertIn("6 إطلالات سريعة من عائلة تضم 16 ثيمًا", welcome)
+        self.assertIn("6 quick looks from an 18-theme family", welcome)
+        self.assertIn("6 إطلالات سريعة من عائلة تضم 18 ثيمًا", welcome)
 
         # Each preview swatch's accent must be the theme's REAL primary, or the first-run
         # picker shows the wrong colour: Nova was previewed sky-blue (#38BDF8) though it is
@@ -2444,7 +2459,7 @@ class TestMoOSUI2(unittest.TestCase):
             for path in (SHARE / "plasma/look-and-feel").glob("org.moos.ui2*")
             if path.is_dir()
         }
-        self.assertEqual(len(installed_ids), 16)
+        self.assertEqual(len(installed_ids), 18)
         backend = (ROOT / "moos-settings-kcm/src/moosbackend.cpp").read_text(encoding="utf-8")
         verb_rule = re.compile(r"^org\.moos\.ui2[a-z.]*$")
         self.assertIn(r'"^org\\.moos\\.ui2[a-z.]*$"', backend)
@@ -2562,7 +2577,7 @@ class TestMoOSUI2(unittest.TestCase):
         handlers = [i for i, line in enumerate(lines) if re.match(r"\s*(onClicked|onPicked):", line)]
         # Undo, a look card, two canvas rows, two three-way rows, six fine-control rows and
         # the two rows that open the lock and login screens' own pages.
-        self.assertEqual(len(handlers), 14)
+        self.assertEqual(len(handlers), 16)
         for index in handlers:
             indent = depth(lines[index])
             start = index

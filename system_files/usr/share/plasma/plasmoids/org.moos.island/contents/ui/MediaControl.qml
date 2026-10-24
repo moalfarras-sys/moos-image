@@ -12,6 +12,7 @@ Controls.AbstractButton {
     property bool revealed: true
     property bool controlEnabled: true
     property string label: ""
+    property bool toolTipEnabled: true
     property bool primary: false
     property bool motionEnabled: Kirigami.Units.longDuration > 1
     property real slotSize: control.primary ? 52 : 40
@@ -90,6 +91,6 @@ Controls.AbstractButton {
         targetScale: control.down ? MoUI.Tokens.pressScale : 1
     }
     Controls.ToolTip.text: label
-    Controls.ToolTip.visible: hovered && label.length > 0
+    Controls.ToolTip.visible: toolTipEnabled && hovered && label.length > 0
     Controls.ToolTip.delay: Kirigami.Units.toolTipDelay
 }

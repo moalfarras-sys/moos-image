@@ -1,0 +1,247 @@
+{
+  "date": "2026-10-24",
+  "scope": "V3 reboot recovery, theme-aware native UI continuity and publisher icon preservation",
+  "theme_revision": 132,
+  "signed_delivery": false,
+  "booted": {
+    "version": "44.20261023.1097",
+    "digest": "sha256:c9a594eedaedc89fe27afa6e7c4c2e36384542da2ed6cd1295bdcd278585e77b",
+    "rollback": "1090; pinned1078",
+    "stage": false
+  },
+  "recovery": {
+    "qualified_source_files": 75,
+    "source_mismatches": 0,
+    "restored_preview_files": 311,
+    "restored_preview_bytes": 2672557,
+    "preview_mismatches": 0,
+    "owner_feedback": "نعم، عاد الشكل السابق",
+    "preview_is_signed_update": false,
+    "cause_scope": "Native login log quarantines brand/Island previews and repairs Graphite on old1097. Source and prior qualification survive; reconciler remains intact."
+  },
+  "native_ui": {
+    "output": "eDP-1 2560x1600 at scale1.45; logical1766x1104",
+    "home_pointer_and_escape": true,
+    "one_native_launcher_no_kickoff": true,
+    "power_source_loaded": true,
+    "power_ready_selected_look": "org.moos.ui2.bloom.light",
+    "power_cancel_exit": 0,
+    "actual_shutdown_reboot_logout": false,
+    "actual_cold_login": false,
+    "new_physical_touch": false
+  },
+  "publisher_icon": {
+    "native_old_fixed": {
+      "installed-old": {
+        "exit": 0,
+        "script_sha256": "4bc5fcb569bdf7189827efdb22f2fb212eb0286d0fb11e8cbd3411988c5d2d71",
+        "publisherRetained": false,
+        "codeRetained": false,
+        "knownShadowGone": true,
+        "backups": [],
+        "stderr": ""
+      },
+      "source-fixed": {
+        "exit": 0,
+        "script_sha256": "2d6b3e97d459d3e522943de8150628f139d11695a096b289199e1a5d7e0be857",
+        "publisherRetained": true,
+        "codeRetained": true,
+        "knownShadowGone": true,
+        "backups": [
+          "MoOS/theme-shadow-backups/20261023T234103Z/icons/hicolor/512x512/apps/moos-store.png"
+        ],
+        "stderr": ""
+      }
+    },
+    "restored_original_bytes": 249650,
+    "restored_sha256": "6302bfda474833dd8a8f6e33f9105510d91d9dc326f1f1c0788c38d8a88d246e",
+    "actual_launcher_after_reload": "Publisher Antigravity logo renders, replacing question-document placeholder. kiconfinder found it before reload; unchanged-theme refresh did not repair the already-running popup.",
+    "preserved_owners": "KWin, Remote, PipeWire and document portal MainPIDs unchanged; Plasma only restarted for icon cache acceptance",
+    "source_behavior": "Quarantine only regular hicolor files with the exact image path, before the revision marker. Preserve unshipped app names, unknown sizes, symlinks and unrelated state. Retain existing MoOSUI2 overlay retirement and icon cache invalidation.",
+    "native_code_recovery": {
+      "bytes": 220706,
+      "sha256": "7537330cec94b308feaa9bb66db45b5554b8379ec7dce83990521d2860bca4b2",
+      "app_uri_parity": true,
+      "fresh_native_finder": true,
+      "fresh_cold_pixels": "pending",
+      "active_editor_untouched": true
+    }
+  },
+  "health": {
+    "failed_system_units": 0,
+    "failed_user_units": 0,
+    "installed_selfcheck": {
+      "exit": 1,
+      "passed": 41,
+      "broken": 5,
+      "reasons": [
+        "Installed1097 profile DB does not recognize local Bloom",
+        "Three explicit development Plasma/wallpaper shadows",
+        "Existing user-local Flatpak live-runtime safety drop-in"
+      ],
+      "scope": "Historical pre-retirement baseline"
+    },
+    "observational_sample": {
+      "seconds": 15.06119709199993,
+      "kwin_one_core_percent": 6.0907907545,
+      "plasma_one_core_percent": 0.0998061436,
+      "remote_one_core_percent": 0.0512442667,
+      "memory_psi_avg10": 0,
+      "workload": "Restored desktop visible; owner Code and Remote open; no local build/test during sample",
+      "controlled_speedup_claim": false
+    },
+    "after_known_retirement": {
+      "passed": 42,
+      "broken": 4,
+      "native_flatpak_helper_matched": true,
+      "local_dropin_and_helper": "Recoverably retired after exact signed1097 helper/unit/vendor-drop-in bytes and inactive/no-consumer proof; native ExecStart restored"
+    }
+  },
+  "qualification": {
+    "refused_17fb_checkpoint": {
+      "focused_native": "bash syntax, native exact-shadow old/fixed, theme safety17 and complete user-experience gate pass",
+      "full_native_check": {
+        "exit": 0,
+        "elapsed_seconds": 860.4557716499999,
+        "product_unchanged": true,
+        "log_sha256": "43324df01ae72ede9d7d353caf92439b04180685eece9223ad8df002fe364ae0"
+      },
+      "complete_local_image": {
+        "exit": 0,
+        "elapsed_seconds": 656.0868900739999,
+        "image_id": "sha256:f6817ef2d1720fb1453cf4b385bd400d85d8152cb6cf1e44b6614bdd06fe443f",
+        "tag": "localhost/moos-session:icon-fix-fc6065f529ad",
+        "product_unchanged": true,
+        "log_sha256": "2b8189219b855507ab14fed779fa044e86c06b14621d215313e354a3b05b8daa"
+      },
+      "remote_exact_head": "All final-head source/x86/nativeARM/full canary pass at17fb/attempt1; advisory execution unavailable",
+      "advisory_review": "Execution returned is_error:true despite green job; no automated review accepted",
+      "image_payload_readback": {
+        "overlay_files": 473,
+        "embedded_sources": 106,
+        "compiled_modules": 7,
+        "mismatches": []
+      },
+      "product_delta_sha256": {
+        "system_files/usr/bin/moos-apply-theme": "9036b206c8b7a07555984355497b0313c9c643914b104520eb324317bf6b2b06",
+        "tests/test_theme_shadow_cleanup.py": "4ac254a102bd8d1e9299e536fcec086e25146587d598cdede3c59e5cc029bab5",
+        "tests/verify_user_experience.py": "845dac88f9e209c71554e4cae86037fd57a0dfb6e3ee68eb98504cf1d47a70f6"
+      },
+      "cache_revision": "132 unchanged: no cached UI asset changed in this follow-up; hicolor migration runs before its revision marker",
+      "promotable": false,
+      "reason": "Native same-second backup collision loses first preview; own signed build40045037347 intentionally cancelled before proof or promotion"
+    },
+    "native_backup_retention": {
+      "date": "2026-10-24",
+      "scope": "Native Bash function/filesystem with deterministic same-second provider; private roots only",
+      "oldSourceCommit": "17fb5505f12c5568eb64fe9d309b179882939dbb",
+      "oldSourceSHA256": "9036b206c8b7a07555984355497b0313c9c643914b104520eb324317bf6b2b06",
+      "fixedSourceSHA256": "e6dd3f8ef48b86526a9795c8659cf6dc95c876b1299de1bea1000251b063a3d8",
+      "old": {
+        "scope": "Native unchanged17fb quarantine, two sequential invocations under one deterministic same-second date provider; private filesystem only",
+        "exit": 0,
+        "backups": [
+          "second-preview"
+        ],
+        "firstPreviewRetained": false,
+        "secondPreviewRetained": true,
+        "stderr": ""
+      },
+      "fixed": {
+        "exit": 0,
+        "backups": [
+          "first-preview",
+          "second-preview"
+        ],
+        "firstPreviewRetained": true,
+        "secondPreviewRetained": true,
+        "latestImageAuthoritative": true,
+        "privateBackupModes": [
+          "0o700",
+          "0o700"
+        ],
+        "stderr": ""
+      },
+      "additionalCommittedControls": "File/package versions, an old-reservation mutant and actual caller refusal before later cleanup"
+    },
+    "final_corrected_source": {
+      "full_check": {
+        "exit": 0,
+        "elapsed_seconds": 816.7493968810004,
+        "product_unchanged": true,
+        "log_sha256": "3eaed762eb587340931365055c0e5e88a0c7b09b3957555edb6406ce61399c52"
+      },
+      "full_image": {
+        "exit": 0,
+        "elapsed_seconds": 584.0775459939996,
+        "image_id": "sha256:b9ca1df0aa9d58f930a94272037f51962edee06a928dec7ea6c8f00aada91935",
+        "tag": "localhost/moos-session:recovery-fix-b89972593d46",
+        "product_unchanged": true,
+        "log_sha256": "b6fd9e3df20109285f3a69ac215bf561672fbe8e91cbae101ae98ce89b40840f"
+      },
+      "payload_readback": {
+        "overlay_files": 473,
+        "embedded_sources": 106,
+        "compiled_modules": 7,
+        "mismatches": []
+      },
+      "packaged_backup_retention": {
+        "executed": "MOOS_PACKAGED_BACKUP_RECOVERY_PROOF",
+        "scriptSHA256": "e6dd3f8ef48b86526a9795c8659cf6dc95c876b1299de1bea1000251b063a3d8",
+        "results": {
+          "old": {
+            "exit": 0,
+            "iconCopies": [
+              "second"
+            ],
+            "packageCopies": [
+              "first"
+            ],
+            "directoryModes": [
+              "0o755"
+            ]
+          },
+          "fixed": {
+            "exit": 0,
+            "iconCopies": [
+              "first",
+              "second"
+            ],
+            "packageCopies": [
+              "first",
+              "second"
+            ],
+            "directoryModes": [
+              "0o700",
+              "0o700"
+            ]
+          },
+          "refused": {
+            "exit": 1,
+            "laterCleanupReached": false,
+            "unknownPreserved": true,
+            "previewPreserved": true
+          }
+        },
+        "image": "sha256:b9ca1df0aa9d58f930a94272037f51962edee06a928dec7ea6c8f00aada91935",
+        "elapsedSeconds": 0.4712954240003455,
+        "scope": "Actual finished-image shell and coreutils; private filesystem controls only, not cold user migration"
+      },
+      "product_delta_sha256": {
+        "system_files/usr/bin/moos-apply-theme": "e6dd3f8ef48b86526a9795c8659cf6dc95c876b1299de1bea1000251b063a3d8",
+        "tests/test_theme_shadow_cleanup.py": "c96471fb78ab47f4445d09834e40ae8e7828306051639bae389f6eb788b7c7f1"
+      },
+      "cache_revision": 132,
+      "cached_ui_assets_changed": false
+    },
+    "advisory_review": "Execution returned is_error:true despite a green job; no automated review accepted"
+  },
+  "remaining": [
+    "Commit/push the locally qualified exclusive backup reservation/refusal, then a new canonical signed candidate; never promote refused17fb",
+    "One frozen signed cycle and promotion, then owner-requested exact signed update",
+    "Retire only recorded compatible local shadows once global matching signed assets and cold acceptance exist",
+    "Cold native login appearance synchronization and power/device journeys remain separate"
+  ],
+  "prior_ui_checkpoint": "fa81ec3ea4937651821ba79fb466df15cdce3245",
+  "source_parent": "17fb5505f12c5568eb64fe9d309b179882939dbb"
+}

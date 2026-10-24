@@ -803,10 +803,17 @@ class TheCapsuleFitsWhatItSays(unittest.TestCase):
                       "Layout.preferredWidth: stableWidth", "Layout.maximumWidth: stableWidth"):
             self.assertIn(owner, code)
         self.assertRegex(code, r"stableWidth:\s*Math\.round\(Kirigami\.Units\.gridUnit \* 9\.5\)")
-        self.assertGreaterEqual(code.count("slotSize: 34"), 4,
-                                "compact actions must stay inside the narrower frame")
-        self.assertIn("readonly property bool roomForSource: root.active", code,
-                      "idle Search is one clean line, not a miniature form")
+        compact = code.split("compactRepresentation: FocusScope {", 1)[1].split("fullRepresentation:", 1)[0]
+        self.assertEqual(compact.count("MediaControl {"), 1,
+                         "context changes must reserve one action, including their transition")
+        self.assertIn("slotSize: 28", compact)
+        for bound in ("Layout.preferredWidth", "Layout.minimumWidth", "Layout.maximumWidth"):
+            self.assertIn(bound + ": root.active ? compactAction.targetSize : 0", compact)
+        self.assertEqual(compact.count("PC3.Label {"), 1,
+                         "the compact caption is one line in idle and active contexts")
+        self.assertIn("text: root.compactTitle", compact)
+        self.assertIn("wrapMode: Text.NoWrap", compact)
+        self.assertIn("fontSizeMode: Text.VerticalFit", compact)
         for forbidden in ("Behavior on implicitWidth", "contextTitle.length *", "baseWidth:",
                           "hoverExtra", "chipWidth"):
             self.assertNotIn(forbidden, code)

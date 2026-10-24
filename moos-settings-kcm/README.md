@@ -8,7 +8,7 @@ window.
 
 | Module | Directory | Weight | What it shows |
 |---|---|---|---|
-| `kcm_moos` | `modules/overview` | 1 | MoOS hero card, at a glance, System and This device facts, Copy details |
+| `kcm_moos` | `modules/overview` | 1 | Native Control Center, measured device states, audio, destinations and device facts |
 | `kcm_moos_update` | `modules/update` | 2 | System, Applications and Device firmware rows, each from its owner's record |
 | `kcm_moos_whatsnew` | `modules/whatsnew` | 3 | What each update brought, fresh marker, "Try it" routes |
 | `kcm_moos_ai` | `modules/ai` | 4 | Mo AI (slice B) |
@@ -57,11 +57,15 @@ every module named there offscreen and fails on an early exit or a QML error.
 * Motion only through MoUI components, gated on `Kirigami.Units.longDuration`;
   no infinite animation.
 
+Audio changes use the existing unprivileged `moos-control` executor, with no shell or administrator prompt. The card submits one action on slider release or a keyboard step, waits for its exit, and refreshes measured state. Failure stays visible. No recurring status poll is added.
+
 ### Shared QML (`common/`)
 
 | Type | Use |
 |---|---|
-| `MoosHero` | the Liquid Glass hero card: `logoSource`, `title`, `subtitle`, `chips: [...]`, `actions: [...]` |
+| `MoosAudioCard` | measured output volume/mute, fixed actions and explicit failure |
+| `MoosDeviceTile` | measured device state and a native destination in one focusable target |
+| `MoosHero` | the Liquid Glass hero card: `logoSource`, `title`, `subtitle`, `chips: [...]`, `actions: [...]`, optional `compact` header |
 | `MoosChip` | a status chip: `glyph`, `label`, `tone` (`positive`, `warning`, `negative`, `neutral`) |
 | `MoosFactRow` | `label` + `value`; empty value reads "Unknown"; `technical` isolates LTR names |
 | `MoosInfoRow` | a state sentence: `glyph`, `text`, `description`, `trailing: [...]` |
@@ -101,7 +105,7 @@ Implemented once in `src/moosbackend.{h,cpp}` and compiled into every plugin.
 `output` (stdout, first 64 KiB), `errorOutput`; signal `finished()`. The module
 owns the job; the page keeps a reference if it wants to read it.
 
-A verb that changes the desktop (every `theme-*` verb below except the three
+A verb that changes the desktop (every `theme-*` verb below except the four
 `*-status` queries) is a `moos-theme` transaction that can roll back only if it
 may finish. Where `changesOutlivePage` is true it runs as
 `systemd-run --user --wait --collect --service-type=exec` in a unit named
@@ -116,17 +120,23 @@ and the change finishes in its unit; the next page reads the result back.
 ### Fixed verbs
 
 Everything a page can start. Each argument is validated in C++ before a process
-exists, and `moos-theme` validates it again.
+exists, then validated again by its native executor. Theme rows below show
+arguments to `moos-theme`; audio rows show the complete `moos-control` command.
 
 | id | argv (`/usr/bin/moos-theme …`) | argument |
 |---|---|---|
+| `audio-volume` | `/usr/bin/moos-control volume <percent>` | canonical integer `0`–`100` |
+| `audio-mute` | `/usr/bin/moos-control mute` | — |
+| `audio-unmute` | `/usr/bin/moos-control unmute` | — |
 | `theme-status` | *(none)* | — |
 | `theme-motion-status` | `motion` | — |
 | `theme-clarity-status` | `clarity` | — |
+| `theme-hub-status` | `hub` | — |
 | `theme-apply-lnf` | `apply-lnf <id>` | `^org\.moos\.ui2[a-z.]*$`, ≤ 64 chars |
 | `theme-undo` | `undo` | — |
 | `theme-motion` | `motion <m>` | `still`, `gentle`, `alive` |
 | `theme-clarity` | `clarity <c>` | `clear`, `balanced`, `solid` |
+| `theme-hub` | `hub <state>` | `on`, `off`; verified native scene transaction |
 | `theme-wallpaper-reset` | `wallpaper-reset` | — |
 | `theme-wallpaper-token` | `wallpaper-token <t>` | `^[A-Za-z0-9_.~%-]{1,4096}$` |
 

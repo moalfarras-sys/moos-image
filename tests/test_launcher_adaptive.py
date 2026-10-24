@@ -65,7 +65,7 @@ class AdaptiveLauncher(unittest.TestCase):
         # All palettes share the native frame geometry used by the predicate.
         import xml.etree.ElementTree as ET
         themes = list((ROOT / "system_files/usr/share/plasma/desktoptheme").glob("*/dialogs/background.svg"))
-        self.assertEqual(len(themes), 16)
+        self.assertEqual(len(themes), 18)
         for theme in themes:
             elements = {e.get("id"): e for e in ET.parse(theme).getroot().iter() if e.get("id")}
             for edge in ("left", "right", "top", "bottom"):

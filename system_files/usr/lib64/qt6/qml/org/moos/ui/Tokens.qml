@@ -143,6 +143,7 @@ QtObject {
     readonly property int blurCeiling: 15
     readonly property int shadowBlur: 15
     readonly property int shadowYOffset: 8
+    readonly property int sessionWallpaperBlur: 24
     readonly property real pressScale: 0.97
     readonly property real hoverScale: 1.02
     readonly property real springStiffness: 4

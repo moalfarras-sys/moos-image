@@ -377,7 +377,26 @@ set -uo pipefail
 # 116: keep the native Store launch in the application library's header.
 # 117: use Mira's shipped symbolic asset in the Home action, not a desktop ID.
 # 118: match Kicker's canonical application IDs so direct destinations launch.
-THEME_REV=118
+# 119: native Control Center and its dock destination; invalidate the panel QML.
+# 120: open the canonical Control Center route from the panel action.
+# 121: native widget gallery and launcher access share the revised workspace.
+# 122: one MoOS dock entry; retire duplicate compact Settings/Workspace actions.
+# 123: private widget-tile refinement (not delivered).
+# 124: calm native widget tiles; retain the existing single KDE motion scaling.
+# 125: Bloom matched native frame/style/icon finishes and original wallpaper.
+# 126: resolve native Bloom PNG packages and matched greeter palette roles;
+#      revision125 was private source preparation, not a delivered cache marker.
+# 127: natural single-line Island caption; optional Hub default and controls.
+# 128: reserve one compact action slot through context changes; retain
+#      natural caption ink and optional Hub. Revision127 was private development.
+# 129: clarify the optional overlay using MoOS-owned desktop wording.
+# 130: connect the native 6.8.1 power view, shared theme image map and
+#      complete action captions; settle launcher page motion and readable ink.
+# 131: qualify the final session inputs after private revision 130 preparation:
+#      cancel native countdown on interaction, fit captions and settle motion.
+# 132: selected-theme session glyphs, one shared image blur and one clean
+#      login/lock/power card after the owner's request for more colour.
+THEME_REV=132
 state_dir="${XDG_STATE_HOME:-$HOME/.local/state}"
 mkdir -p "$state_dir" 2>/dev/null || true
 marker="${state_dir}/moos-ui2-theme-applied.v${THEME_REV}"
@@ -483,18 +502,27 @@ quarantined_kwin=0
 quarantine_moos_data_shadows() {
     local user_share="${XDG_DATA_HOME:-$HOME/.local/share}"
     local system_share="${MOOS_SYSTEM_SHARE:-/usr/share}"
-    local stamp backup rel source target
+    local stamp backup_root backup="" rel source target
     stamp="$(date -u '+%Y%m%dT%H%M%SZ')"
-    backup="${user_share}/MoOS/theme-shadow-backups/${stamp}"
+    backup_root="${user_share}/MoOS/theme-shadow-backups"
 
     while IFS= read -r -d '' source; do
         rel="${source#${user_share}/}"
         target="${system_share}/${rel}"
         [ -e "$target" ] || continue
-        mkdir -p "${backup}/$(dirname "$rel")" 2>/dev/null || continue
+        # Two quick applies can share a UTC second. Reserve one private,
+        # exclusive destination per invocation, only when a known shadow
+        # actually needs moving; never replace an earlier recovery copy.
+        if [ -z "$backup" ]; then
+            mkdir -p "$backup_root" 2>/dev/null || return 1
+            backup="$(mktemp -d "${backup_root}/${stamp}.XXXXXX")" || return 1
+        fi
+        mkdir -p "${backup}/$(dirname "$rel")" 2>/dev/null || return 1
         if mv -- "$source" "${backup}/${rel}" 2>/dev/null; then
             echo "quarantined user shadow ${rel} in ${backup}" >>"$log" 2>/dev/null || true
             case "$rel" in kwin/*) quarantined_kwin=1 ;; esac
+        else
+            return 1
         fi
     done < <(
         for root in \
@@ -514,13 +542,22 @@ quarantine_moos_data_shadows() {
             [ -e "$root" ] || continue
             printf '%s\0' "$root"
         done
+        # A registered third-party app may also use a moos-* icon name.
+        # Emit individual regular files; the exact image-path check above
+        # quarantines only actual shipped shadows and preserves app exports.
+        find "${user_share}/icons/hicolor" -type f \( \
+            -name 'moos-*' -o -name 'moplayer.*' -o -name 'org.moos.*' \
+        \) -print0 2>/dev/null || true
     )
 }
 
 # This must precede the marker exit below. A preview can create a new shadow
 # after a successful revision apply, and waiting for a revision bump leaves the
 # running desktop on the preview forever.
-quarantine_moos_data_shadows
+if ! quarantine_moos_data_shadows; then
+    echo "MoOS theme shadow quarantine could not reserve recovery storage" >&2
+    exit 1
+fi
 # A moved KWin package takes effect when KWin re-reads its configuration; the
 # image copy then serves the next Alt+Tab and the next script load.
 # reconfigure is a no-reply method: never wait for an answer at login.
@@ -662,16 +699,14 @@ find "${cache_dir}" -mindepth 2 -maxdepth 2 -type d -name qmlcache \
 # first-party application marks baked per palette; if the home tree still holds
 # the retired geometry — often still painted with Breeze's #3daee9 — the dock
 # and launcher keep showing that while every image gate stays green. Drop only
-# the MoOS-owned overlay trees and moos-* / moplayer names under hicolor; never
-# touch third-party icon themes the user may have installed.
+# the MoOS-owned overlay trees. Individual hicolor shadows were already moved
+# recoverably above, only when the image ships the exact same path. A moos-*
+# prefix alone does not make a locally registered application icon OS-owned.
 local_icons="${XDG_DATA_HOME:-$HOME/.local/share}/icons"
 if [ -d "$local_icons" ]; then
     find "$local_icons" -maxdepth 1 -type d \( \
             -name 'MoOSUI2' -o -name 'MoOSUI2Light' -o -name 'MoOSUI2*' \
         \) -exec rm -rf -- {} + 2>/dev/null || true
-    find "$local_icons/hicolor" -type f \( \
-            -name 'moos-*' -o -name 'moplayer.*' -o -name 'org.moos.*' \
-        \) -delete 2>/dev/null || true
     # Empty size dirs left behind are harmless; the icon cache must not keep
     # pointing at files we just removed.
     rm -f "${local_icons}/hicolor/icon-theme.cache" \

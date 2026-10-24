@@ -15,6 +15,10 @@ base_main := "ghcr.io/ublue-os/kinoite-main:44"
 default:
     @just --list
 
+# Regenerate the optional native Bloom finish from pinned, curated source art.
+bloom-art:
+    python3 artwork/generate_moos_bloom.py
+
 # The repo gates — the ones that read what is ABOUT to be shipped.
 #
 # These existed and nothing ran them. build.sh runs verify_image_experience.py inside the
@@ -389,6 +393,8 @@ check:
     # One globally importable MoUI module must own identity metrics and shared
     # controls; an app-local copy cannot silently grow back.
     python3 tests/test_moos_design_core.py
+    python3 tests/test_moos_bloom.py
+    python3 tests/test_session_continuity.py
     python3 tests/test_moos_motion.py
     python3 tests/test_moos_clock_keyboard.py
     # One answer to "is this session Arabic". Four surfaces read
@@ -443,6 +449,7 @@ check:
     # must resolve through a fixed route, and its live status boundary stays
     # read-only, private and atomic.
     python3 tests/test_moos_settings.py
+    python3 tests/test_settings_control_center.py
     python3 tests/test_settings_destination_input.py
     python3 tests/test_settings_about_page.py
     python3 tests/test_whats_new.py
@@ -584,6 +591,8 @@ check:
     # Producer and consumer of the Island's presence tokens, executed for real.
     python3 tests/test_island_tokens.py
     python3 tests/test_island_touch_target.py
+    python3 tests/test_island_compact.py
+    python3 tests/test_desktop_overlay.py
     # The privacy monitor follows one live PipeWire feed: the saving, and that the chip is never wrong.
     python3 tests/test_privacy_monitor_feed.py
     # Mira inside Plasma: her launcher (GPU rule, Dolphin arguments), login unit and its migration,

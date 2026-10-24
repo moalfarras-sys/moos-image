@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="80" height="15" viewBox="0 0 80 15">
+  <defs>
+    <linearGradient id="nova-brand" x1="3" y1="2" x2="76" y2="14" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#FB923C"/>
+      <stop offset="0.52" stop-color="#C084FC"/>
+      <stop offset="1" stop-color="#E9D5FF"/>
+    </linearGradient>
+  </defs>
+  <g id="brilliant">
+    <rect width="80" height="15" fill="#17121F" fill-opacity="0.001"/>
+    <circle cx="7.5" cy="7.5" r="5.5" fill="#201829" stroke="url(#nova-brand)" stroke-width="1.5"/>
+    <path d="M4.6 10.4V4.7l3 3.5 2.6-3.5v5.7" fill="none" stroke="url(#nova-brand)" stroke-width="1.45" stroke-linecap="round" stroke-linejoin="round"/>
+    <text x="17" y="11.3" fill="url(#nova-brand)" font-family="IBM Plex Sans, sans-serif" font-size="10.5" font-weight="600" letter-spacing="0.35">MoOS</text>
+  </g>
+</svg>

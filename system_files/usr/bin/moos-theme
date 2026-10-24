@@ -51,6 +51,8 @@ STUDY_LNF="org.moos.ui2.study"
 GAMING_LIGHT_LNF="org.moos.ui2.gaming.light"
 DEV_LIGHT_LNF="org.moos.ui2.dev.light"
 STUDY_LIGHT_LNF="org.moos.ui2.study.light"
+BLOOM_LNF="org.moos.ui2.bloom"
+BLOOM_LIGHT_LNF="org.moos.ui2.bloom.light"
 
 usage() {
     cat <<'EOF'
@@ -64,6 +66,7 @@ moos-theme — بدّل مظهر MoOS بين الفاتح والداكن | switc
   moos-theme amethyst   MoOS Amethyst — warm aubergine (+ amethyst-light)
   moos-theme midnight   MoOS Midnight — true-black OLED (+ daylight)
   moos-theme aurora     MoOS Aurora   — teal aurora    (+ aurora-light)
+  moos-theme bloom      MoOS Bloom    — soft native frames (+ bloom-light)
   moos-theme toggle     بدّل   | flip the current family light <-> dark
   moos-theme undo       تراجع  | revert to the previously applied theme
   moos-theme auto       تلقائي | follow sunrise/sunset (Graphite/Tidal)
@@ -75,6 +78,8 @@ moos-theme — بدّل مظهر MoOS بين الفاتح والداكن | switc
                          حركة الخلفية | show/set wallpaper motion
   moos-theme clarity [clear|balanced|solid]
                          وضوح الزجاج | show/set glass clarity
+  moos-theme hub [on|off]
+                         لوحة الخلفية الاختيارية | show/set the optional desktop overlay
   moos-theme perf [auto|flagship|balanced|essential]
                          طبقة الأداء | motion sized to this machine's hardware
 
@@ -132,6 +137,10 @@ capture_desktop_scene() {
                     row.image = String(d.readConfig("Image", ""));
                     row.motion = String(d.readConfig("MotionMode", "1"));
                     row.ambient = String(d.readConfig("AmbientMotion", "true"));
+                    row.hub = String(d.readConfig("ShowDashboard", "false"));
+                    row.hubClock = String(d.readConfig("HubClock", "true"));
+                    row.hubWeather = String(d.readConfig("HubWeather", "true"));
+                    row.hubSystem = String(d.readConfig("HubSystem", "true"));
                 } catch (e) {
                     row.image = ""; row.motion = "1"; row.ambient = "true";
                 }
@@ -176,6 +185,12 @@ restore_desktop_scene() {
                         ds[i].writeConfig("Image", row.image);
                         ds[i].writeConfig("MotionMode", row.motion);
                         ds[i].writeConfig("AmbientMotion", row.ambient);
+                        if (row.hub !== undefined) {
+                            ds[i].writeConfig("ShowDashboard", row.hub);
+                            ds[i].writeConfig("HubClock", row.hubClock);
+                            ds[i].writeConfig("HubWeather", row.hubWeather);
+                            ds[i].writeConfig("HubSystem", row.hubSystem);
+                        }
                         ds[i].reloadConfig();
                     } catch (e) { failed = true; }
                 }
@@ -631,6 +646,26 @@ load_profile() {
     deco="__aurorae__svg__${decoration}"
     wallpaper_package="/usr/share/wallpapers/${wallpaper_name}"
     wallpaper="${wallpaper_package}/contents/${wallpaper_branch}/3840x2160.jpg"
+    # Standard wallpaper packages may contain one original native-size image.
+    # Keep the established 4K JPEG when present; never resize or rename a smaller
+    # original to satisfy that old filename assumption. Ambiguity is a refusal.
+    if [ ! -f "$wallpaper" ]; then
+        local image_path image_name
+        local -a native_images=()
+        for image_path in "${wallpaper_package}/contents/${wallpaper_branch}/"*.png \
+                          "${wallpaper_package}/contents/${wallpaper_branch}/"*.jpg; do
+            [ -f "$image_path" ] || continue
+            image_name="${image_path##*/}"
+            [[ "$image_name" =~ ^[1-9][0-9]*x[1-9][0-9]*\.(png|jpg)$ ]] || continue
+            native_images+=("$image_path")
+        done
+        if [ "${#native_images[@]}" -gt 1 ]; then
+            echo "moos-theme: ambiguous native wallpaper images for $lnf" >&2
+            return 1
+        elif [ "${#native_images[@]}" -eq 1 ]; then
+            wallpaper="${native_images[0]}"
+        fi
+    fi
     case "$mode" in
         dark) prefer_dark=true ;;
         light) prefer_dark=false ;;
@@ -1272,7 +1307,8 @@ reconcile() {
         "$DARK_LNF"|"$LIGHT_LNF"|"$NOVA_LNF"|"$AMETHYST_LNF"|"$MIDNIGHT_LNF"|"$AURORA_LNF"\
         |"$NOVA_LIGHT_LNF"|"$AMETHYST_LIGHT_LNF"|"$AURORA_LIGHT_LNF"|"$DAYLIGHT_LNF"\
         |"$GAMING_LNF"|"$DEV_LNF"|"$STUDY_LNF"\
-        |"$GAMING_LIGHT_LNF"|"$DEV_LIGHT_LNF"|"$STUDY_LIGHT_LNF") ;;
+        |"$GAMING_LIGHT_LNF"|"$DEV_LIGHT_LNF"|"$STUDY_LIGHT_LNF"\
+        |"$BLOOM_LNF"|"$BLOOM_LIGHT_LNF") ;;
         *) return 0 ;;
     esac
     [ -d "/usr/share/plasma/look-and-feel/$lnf" ] || return 0
@@ -1670,10 +1706,10 @@ acquire_theme_lock() {
 command_name="${1:-status}"
 needs_theme_lock=0
 case "$command_name" in
-    dark|light|nova|amethyst|midnight|aurora|nova-light|amethyst-light|aurora-light|daylight|gaming|dev|study|gaming-light|dev-light|study-light|toggle|auto|sync-auto|reconcile|reconcile-service|settle-lnf|guard|undo|apply-lnf|wallpaper-token|wallpaper-reset)
+    dark|light|nova|amethyst|midnight|aurora|nova-light|amethyst-light|aurora-light|daylight|gaming|dev|study|gaming-light|dev-light|study-light|bloom|bloom-light|toggle|auto|sync-auto|reconcile|reconcile-service|settle-lnf|guard|undo|apply-lnf|wallpaper-token|wallpaper-reset)
         needs_theme_lock=1
         ;;
-    motion|clarity)
+    motion|clarity|hub)
         # Reads take no lock; writes share the appearance transaction lock.
         [ "$#" -gt 1 ] && needs_theme_lock=1
         ;;
@@ -1824,6 +1860,93 @@ apply_wallpaper_transaction() {
     return 1
 }
 
+# This optional wallpaper instrument has no widget handles. Native Plasma
+# widgets remain independently owned, movable and configurable by Plasma.
+query_hub() {
+    local result
+    result="$(timeout 8s gdbus call --session -d org.kde.plasmashell \
+        -o /PlasmaShell -m org.kde.PlasmaShell.evaluateScript '
+            function flag(value) {
+                if (value === true || value === "true") { return true; }
+                if (value === false || value === "false") { return false; }
+                throw "Invalid desktop overlay flag";
+            }
+            var ds = desktops(), state = "", valid = ds.length > 0;
+            for (var i = 0; i < ds.length; i++) {
+                var d = ds[i];
+                if (d.wallpaperPlugin != "org.moos.ui2.wallpaper") { valid = false; break; }
+                d.currentConfigGroup = ["Wallpaper", "org.moos.ui2.wallpaper", "General"];
+                var shown = flag(d.readConfig("ShowDashboard", false));
+                var anyCard = flag(d.readConfig("HubClock", true))
+                    || flag(d.readConfig("HubWeather", true))
+                    || flag(d.readConfig("HubSystem", true));
+                var current = shown && anyCard ? "on" : "off";
+                if (state && state != current) { state = "mixed"; break; }
+                state = current;
+            }
+            print("moos-hub:" + (valid ? state : "unavailable"));
+        ' 2>/dev/null)" || return 1
+    case "$result" in
+        *moos-hub:on*) printf 'on\n' ;;
+        *moos-hub:off*) printf 'off\n' ;;
+        *) echo 'moos-theme: desktop overlay state is mixed or unavailable' >&2; return 1 ;;
+    esac
+}
+
+set_hub() {
+    local wanted="$1" snapshot result actual attempt restored
+    case "$wanted" in on|off) ;; *) return 2 ;; esac
+    snapshot="$(capture_desktop_scene)" || {
+        echo 'moos-theme: could not snapshot the desktop overlay' >&2; return 1;
+    }
+    result="$(timeout 8s gdbus call --session -d org.kde.plasmashell \
+        -o /PlasmaShell -m org.kde.PlasmaShell.evaluateScript '
+            var wanted = "'"$wanted"'" === "on";
+            function flag(value) {
+                if (value === true || value === "true") { return true; }
+                if (value === false || value === "false") { return false; }
+                throw "Invalid desktop overlay flag";
+            }
+            var ds = desktops(), valid = ds.length > 0;
+            for (var i = 0; i < ds.length; i++) {
+                if (ds[i].wallpaperPlugin != "org.moos.ui2.wallpaper") { valid = false; }
+            }
+            if (!valid) {
+                print("moos-hub-write:unavailable");
+            } else {
+                for (var i = 0; i < ds.length; i++) {
+                    var d = ds[i];
+                    d.currentConfigGroup = ["Wallpaper", "org.moos.ui2.wallpaper", "General"];
+                    // Re-enabling an empty selection must reveal a real card.
+                    if (wanted && !flag(d.readConfig("HubClock", true))
+                            && !flag(d.readConfig("HubWeather", true))
+                            && !flag(d.readConfig("HubSystem", true))) {
+                        d.writeConfig("HubClock", true);
+                        d.writeConfig("HubWeather", true);
+                        d.writeConfig("HubSystem", true);
+                    }
+                    d.writeConfig("ShowDashboard", wanted);
+                    d.reloadConfig();
+                }
+                print("moos-hub-write:ready");
+            }
+        ' 2>/dev/null)" || result=""
+    if [[ "$result" == *moos-hub-write:ready* ]]; then
+        for attempt in 1 2 3; do
+            actual="$(query_hub 2>/dev/null)" || actual=""
+            if [ "$actual" = "$wanted" ]; then printf '%s\n' "$actual"; return 0; fi
+            sleep 0.1
+        done
+    fi
+    if restore_desktop_scene "$snapshot" \
+        && restored="$(capture_desktop_scene)" && [ "$restored" = "$snapshot" ]; then
+        echo 'moos-theme: desktop overlay failed; exact previous scene rolled back' >&2
+    else
+        echo 'moos-theme: desktop overlay rollback-failed' >&2
+    fi
+    return 1
+}
+
 undo_theme_transaction() {
     local root undo current_snapshot active_before target retired active_after
     root="$(theme_state_root)"
@@ -1962,6 +2085,18 @@ case "$command_name" in
     gaming-light)   apply_manual "$GAMING_LIGHT_LNF" ;;
     dev-light)      apply_manual "$DEV_LIGHT_LNF" ;;
     study-light)    apply_manual "$STUDY_LIGHT_LNF" ;;
+    bloom)          apply_manual "$BLOOM_LNF" ;;
+    bloom-light)    apply_manual "$BLOOM_LIGHT_LNF" ;;
+    hub)
+        if [ "$#" -eq 1 ]; then
+            query_hub
+        elif [ "$#" -eq 2 ]; then
+            set_hub "$2"
+        else
+            echo 'moos-theme: hub accepts only on or off' >&2
+            exit 2
+        fi
+        ;;
     motion)
         if [ "$#" -eq 1 ]; then
             query_motion_mode
@@ -2021,7 +2156,7 @@ EOF
         case "$cur" in
             *.light)                 target="${cur%.light}" ;;
             "$DARK_LNF"|"$NOVA_LNF"|"$AMETHYST_LNF"|"$MIDNIGHT_LNF"|"$AURORA_LNF"\
-            |"$GAMING_LNF"|"$DEV_LNF"|"$STUDY_LNF")
+            |"$GAMING_LNF"|"$DEV_LNF"|"$STUDY_LNF"|"$BLOOM_LNF")
                                      target="${cur}.light" ;;
             *)                       target="$LIGHT_LNF" ;;
         esac
@@ -2086,6 +2221,8 @@ EOF
             "$GAMING_LIGHT_LNF")   echo "MoOS Arena Light     ($GAMING_LIGHT_LNF)" ;;
             "$DEV_LIGHT_LNF")      echo "MoOS Forge Light     ($DEV_LIGHT_LNF)" ;;
             "$STUDY_LIGHT_LNF")    echo "MoOS Scholar Light   ($STUDY_LIGHT_LNF)" ;;
+            "$BLOOM_LNF")          echo "MoOS Bloom           ($BLOOM_LNF)" ;;
+            "$BLOOM_LIGHT_LNF")    echo "MoOS Bloom Light     ($BLOOM_LIGHT_LNF)" ;;
             "")               echo "غير محدّد | unset (default: MoOS UI)" ;;
             *)                echo "ليس MoOS | not a MoOS theme: $active" ;;
         esac

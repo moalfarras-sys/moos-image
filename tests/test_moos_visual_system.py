@@ -38,6 +38,8 @@ STYLE_NAMES = (
 )
 
 COLOR_SCHEME_NAMES = (
+    "MoOSUI2Bloom",
+    "MoOSUI2BloomLight",
     "MoOSUI2Dark",
     "MoOSUI2Light",
     "MoOSUI2Amethyst",
@@ -397,7 +399,7 @@ class MoOSVisualSystemTests(unittest.TestCase):
 
     def test_every_global_theme_uses_live_aurorae_v2_and_widget_style(self) -> None:
         packages = sorted((SHARE / "plasma/look-and-feel").glob("org.moos.ui2*"))
-        self.assertEqual(len(packages), 16)
+        self.assertEqual(len(packages), 18)
         for package in packages:
             defaults = (package / "contents/defaults").read_text(encoding="utf-8")
             with self.subTest(package=package.name):

@@ -1513,6 +1513,10 @@ python3 /ctx/plasma_seams.py build || {
     echo "GATE FAIL: MoOS's Plasma seams do not fit this Plasma (see the lines above)."
     exit 1
 }
+# Same actual power owner and isolated load/broken-type gate as x86.
+if [ "$(rpm -q --qf '%{VERSION}' plasma-workspace)" = 6.8.1 ]; then
+    python3 /ctx/verify_session_power.py || exit 1
+fi
 
 # ── The Plasma shell overlay must survive into the finished ARM image ─────────
 #

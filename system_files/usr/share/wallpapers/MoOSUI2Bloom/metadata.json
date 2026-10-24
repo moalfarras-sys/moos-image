@@ -1,0 +1,14 @@
+{
+  "KPackageStructure": "Wallpaper/Images",
+  "KPlugin": {
+    "Id": "MoOSUI2Bloom",
+    "Name": "MoOS UI · Bloom",
+    "Name[ar]": "MoOS · بلوم الداكن",
+    "License": "CC-BY-SA-4.0",
+    "Authors": [
+      {
+        "Name": "MoOS"
+      }
+    ]
+  }
+}

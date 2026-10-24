@@ -3,10 +3,11 @@
 
 WHY THIS EXISTS (plan row P6.7)
 
-MoOS restyles Plasma by REPLACING twelve files inside two Plasma packages (the shell package's
+MoOS restyles Plasma by REPLACING twelve common files inside two Plasma packages (the shell package's
 widget explorer, edit mode, panel, lock-screen media strip, defaults and panel template; six breeze
 components the login, lock and logout screens draw). Each replacement is a fork of the upstream file at one Plasma
-version. Nothing in the build knew which version: the survival gate proves MoOS's bytes are still
+version. Plasma 6.8.1 adds one explicitly scoped native power-control destination.
+Nothing in the build knew which version: the survival gate proves MoOS's bytes are still
 there, which is exactly what goes wrong when upstream moves on.
 
 Measured 2026-09-24 against Plasma 6.8 beta 1 (6.7.90): upstream rewrote LockScreenUi.qml and
@@ -125,6 +126,32 @@ def select_set(registry: dict, plasma_version: str) -> dict:
     return matches[0]
 
 
+def active_seams(registry: dict, chosen: dict) -> list[dict]:
+    """Some upstream surfaces move between packages in a specific release.
+
+    A scoped seam is allowed only in explicitly named reviewed sets. It must
+    be installed from that set's variant; older sets never receive a new file
+    where their greeter does not look. Ordinary seams keep their full contract.
+    """
+    known = {row['id'] for row in registry['sets']}
+    result = []
+    for seam in registry['seams']:
+        scopes = seam.get('sets')
+        if scopes is not None:
+            if (not isinstance(scopes, list) or not scopes
+                    or not all(isinstance(value, str) for value in scopes)
+                    or len(set(scopes)) != len(scopes) or not set(scopes) <= known):
+                raise SeamError(f"invalid set scope for {seam['path']}")
+            if chosen['id'] not in scopes:
+                if seam['path'] in chosen['reviewed'] or seam['path'] in chosen['sources']:
+                    raise SeamError(f"inactive seam is declared by set {chosen['id']}: {seam['path']}")
+                continue
+            if not chosen['sources'].get(seam['path']):
+                raise SeamError(f"set-specific seam has no installed variant: {seam['path']}")
+        result.append(seam)
+    return result
+
+
 def rpm(*args: str, root: str = "/") -> str:
     cmd = ["rpm", *args] if root == "/" else ["rpm", "--root", root, *args]
     proc = subprocess.run(cmd, capture_output=True, text=True)
@@ -171,7 +198,8 @@ def apply_and_verify(registry: dict, root: str = "/", seams_dir: Path = HERE / "
 
     errors: list[str] = []
     digests: dict[str, dict[str, str]] = {}
-    for seam in registry["seams"]:
+    selected_seams = active_seams(registry, chosen)
+    for seam in selected_seams:
         path, package = seam["path"], seam["package"]
         if package not in digests:
             digests[package] = upstream_digests(package, root)
@@ -206,7 +234,7 @@ def apply_and_verify(registry: dict, root: str = "/", seams_dir: Path = HERE / "
             errors.append(f"{path}: MoOS's copy is missing from the image")
 
     # Every modified Plasma file must be accounted for, from rpm's point of view.
-    seam_paths = {s["path"] for s in registry["seams"]}
+    seam_paths = {s["path"] for s in selected_seams}
     for package in PLASMA_PACKAGES:
         try:
             rpm("-q", package, root=root)
@@ -227,7 +255,7 @@ def apply_and_verify(registry: dict, root: str = "/", seams_dir: Path = HERE / "
 
     if errors:
         raise SeamError("\n".join(errors))
-    report.append(f"  {len(registry['seams'])} seams match their reviewed upstream bytes")
+    report.append(f"  {len(selected_seams)} seams match their reviewed upstream bytes")
     return report
 
 

@@ -157,16 +157,10 @@ Kirigami.FormLayout {
 
     QQC2.Label {
         Layout.maximumWidth: Kirigami.Units.gridUnit * 22
-        // This is the measured number from the cloud edition's tuning, and it is
-        // the whole reason the switch is offered rather than hidden: on a machine
-        // with no GPU the bento is genuinely expensive, and a user on such a
-        // machine deserves to know what turning it off buys them.
-        text: "الوقت والطقس وحالة الجهاز في أعلى سطح المكتب، تحت أيقوناتك دائماً. "
-              + "يمكن التحكم بها أيضاً من قائمة النقر الأيمن على سطح المكتب.\n"
-              + "Time, weather and device health across the top of the desktop, always below "
-              + "your icons. The desktop right-click menu has the same switches. "
-              + "On a machine with no GPU this is the most expensive thing the "
-              + "desktop draws."
+        text: "لوحة اختيارية ضمن الخلفية؛ لا تُحرَّك مثل أدوات سطح المكتب. "
+              + "يمكن إيقافها أيضاً من ثيمات MoOS، وإضافة ساعة وطقس تفاعليين من مكتبة الأدوات.\n"
+              + "An optional wallpaper overlay, without desktop widget handles. "
+              + "MoOS Themes can turn it off; add interactive clock and weather widgets from the desktop library."
         wrapMode: Text.WordWrap
         opacity: 0.7
     }

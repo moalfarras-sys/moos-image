@@ -96,6 +96,10 @@ public:
     MoOSSettingsModule(QObject *parent, const KPluginMetaData &data);
     ~MoOSSettingsModule() override;
 
+    // Shares the executor's exact validation with the native developer check;
+    // this does not start a process or expose another QML execution path.
+    static bool acceptsFixedAction(const QString &id, const QString &argument);
+
     QVariantMap status() const { return m_status; }
     bool statusValid() const { return m_statusValid; }
     QString statusError() const { return m_statusError; }
