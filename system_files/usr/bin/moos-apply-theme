@@ -502,18 +502,27 @@ quarantined_kwin=0
 quarantine_moos_data_shadows() {
     local user_share="${XDG_DATA_HOME:-$HOME/.local/share}"
     local system_share="${MOOS_SYSTEM_SHARE:-/usr/share}"
-    local stamp backup rel source target
+    local stamp backup_root backup="" rel source target
     stamp="$(date -u '+%Y%m%dT%H%M%SZ')"
-    backup="${user_share}/MoOS/theme-shadow-backups/${stamp}"
+    backup_root="${user_share}/MoOS/theme-shadow-backups"
 
     while IFS= read -r -d '' source; do
         rel="${source#${user_share}/}"
         target="${system_share}/${rel}"
         [ -e "$target" ] || continue
-        mkdir -p "${backup}/$(dirname "$rel")" 2>/dev/null || continue
+        # Two quick applies can share a UTC second. Reserve one private,
+        # exclusive destination per invocation, only when a known shadow
+        # actually needs moving; never replace an earlier recovery copy.
+        if [ -z "$backup" ]; then
+            mkdir -p "$backup_root" 2>/dev/null || return 1
+            backup="$(mktemp -d "${backup_root}/${stamp}.XXXXXX")" || return 1
+        fi
+        mkdir -p "${backup}/$(dirname "$rel")" 2>/dev/null || return 1
         if mv -- "$source" "${backup}/${rel}" 2>/dev/null; then
             echo "quarantined user shadow ${rel} in ${backup}" >>"$log" 2>/dev/null || true
             case "$rel" in kwin/*) quarantined_kwin=1 ;; esac
+        else
+            return 1
         fi
     done < <(
         for root in \
@@ -545,7 +554,10 @@ quarantine_moos_data_shadows() {
 # This must precede the marker exit below. A preview can create a new shadow
 # after a successful revision apply, and waiting for a revision bump leaves the
 # running desktop on the preview forever.
-quarantine_moos_data_shadows
+if ! quarantine_moos_data_shadows; then
+    echo "MoOS theme shadow quarantine could not reserve recovery storage" >&2
+    exit 1
+fi
 # A moved KWin package takes effect when KWin re-reads its configuration; the
 # image copy then serves the next Alt+Tab and the next script load.
 # reconfigure is a no-reply method: never wait for an answer at login.

@@ -215,7 +215,7 @@ OS ownership: the native old theme migration erased registered Antigravity/Code
 publisher icons. Keep exact shipped hicolor shadows recoverable, preserve names
 without an image counterpart and retain the actual old/fixed control plus native
 launcher pixels. A fresh finder path or same-theme refresh did not update the
-already-running popup; scoped shell reload did, preserving other native owners.
+already-running popup; scoped shell reload did, preserving other native owners. Two applies can share one UTC second: native17fb overwrote the first recovery file despite green CI. Reserve a unique private destination only when a known shadow exists, retain both file/package versions, and stop the real caller when recovery storage is refused. Keep the old/mutant controls and never promote the refused candidate.
 
 **A healthy app update does not authorize full installation repair.** Actual
 Flatpak1.18.4 repair erases `.removed` recursively. The live daily updater did
