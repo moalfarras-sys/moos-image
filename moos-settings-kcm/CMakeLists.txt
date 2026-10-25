@@ -21,6 +21,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 find_package(ECM 6.0 REQUIRED NO_MODULE)
 set(CMAKE_MODULE_PATH ${ECM_MODULE_PATH})
+set(QT_MAJOR_VERSION 6)
 include(KDEInstallDirs)
 include(KDECMakeSettings)
 include(KDECompilerSettings NO_POLICY_SCOPE)
@@ -116,6 +117,7 @@ install(FILES "${CMAKE_CURRENT_BINARY_DIR}/settings-modules.list"
 
 # A developer tool, never installed: runs the backend's status contract on a file.
 option(MOOS_KCM_CONTRACT_CHECK "Build moos-settings-contract-check" OFF)
+add_subdirectory(appearance)
 if(MOOS_KCM_CONTRACT_CHECK)
     add_executable(moos-settings-query-check src/querycheck.cpp)
     target_link_libraries(moos-settings-query-check PRIVATE Qt6::Core)

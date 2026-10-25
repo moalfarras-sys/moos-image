@@ -43,13 +43,14 @@ Item {
     required property var cancelCountdown
     readonly property Item hostRoot: sessionHost
     readonly property string activeLook: MoUI.SessionAppearance.configuredLook()
-    readonly property url sceneWallpaper: MoUI.SessionAppearance.wallpaperForLook(activeLook)
+    readonly property url sceneWallpaper: root.wallpaperSource
     objectName: "moosSessionPower"
     onHostRootChanged: {
         disarm();
         Qt.callLater(root.focusInitialAction);
     }
     focus: true
+    readonly property url wallpaperSource: MoUI.SessionAppearance.configuredWallpaper()
 
     Kirigami.Theme.inherit: false
     Kirigami.Theme.colorSet: Kirigami.Theme.Complementary
@@ -92,11 +93,11 @@ Item {
     //   accentA = Kirigami.Theme.highlightColor       · live theme accent
     //   accentB = accentA HSL hue +0.09               · two-tone signature
     //   ink     = Kirigami.Theme.textColor            · neutral glyph / text
-    //   island  = bg 0.58 fill · sheen ink 0.06→0 · border ink 0.16
+    //   island  = selected Window roles at0.94 · quiet rim · readable ink
     //             accent crest gradient · radius radiusDialog · depth halo
     //             (the same plate SessionManagementScreen draws for lock/login)
-    //   tile    = gridUnit*8.6 × 6.2 · icon 0.30 of height · radius gu*1.4
-    //             idle fill ink 0.09 · lit fill ink 0.16 · crest cut + horizon
+    //   tile    = gridUnit*8.6 × 5.3 · circular paired icon · calm native target
+    //             idle fill ink0.025 · lit fill ink0.07 · focus-only accents
     //   ring    = countdown: Shape arc, stroke 3, accentA on accentA 0.18
     //   scrim   = backgroundColor  0.52 / 0.30 / 0.60  (top / mid / foot)
     //   blur    = shared sessionWallpaperBlur, also used by WallpaperFader
@@ -245,7 +246,7 @@ Item {
         case ShutdownType.ShutdownTypeReboot: return bilingual("إعادة تشغيل MoOS", "Restart MoOS");
         case ShutdownType.ShutdownTypeHalt: return bilingual("إيقاف MoOS", "Shut down MoOS");
         case ShutdownType.ShutdownTypeNone: return bilingual("تسجيل الخروج", "Log out");
-        default: return bilingual("ماذا تريد أن تفعل؟", "What would you like to do?");
+        default: return bilingual("خيارات الجلسة", "Session options");
         }
     }
 
@@ -285,7 +286,7 @@ Item {
         id: wallpaper
         objectName: "moosSessionWallpaper"
         anchors.fill: parent
-        source: root.sceneWallpaper
+        source: root.wallpaperSource
         fillMode: Image.PreserveAspectCrop
         cache: true
         asynchronous: true
@@ -355,21 +356,27 @@ Item {
     // whole rather than squeeze against the island, exactly as both greeters
     // hide a clock that does not fit.
     readonly property real stageMargin: Kirigami.Units.gridUnit * 2
-    readonly property real clockGap: Kirigami.Units.gridUnit * 2.5
-    readonly property bool clockFits: sessionClock.implicitHeight + clockGap + sheet.height
+    readonly property real clockGap: Kirigami.Units.gridUnit * 1.5
+    readonly property bool clockFits: clockBand.implicitHeight + clockGap + sheet.height
                                       + stageMargin * 2 <= root.height
     readonly property real groupHeight: sheet.height
-                                        + (clockFits ? sessionClock.implicitHeight + clockGap : 0)
+                                        + (clockFits ? clockBand.implicitHeight + clockGap : 0)
     readonly property real groupTop: Math.round((root.height - groupHeight) / 2)
 
-    SessionComponents.Clock {
-        id: sessionClock
-        // This screen places the clock itself: no cover pose here.
-        heroWhenIdle: false
+    Item {
+        id: clockBand
+        implicitWidth: sessionClock.implicitWidth * 0.72
+        implicitHeight: sessionClock.implicitHeight * 0.72
         anchors.horizontalCenter: parent.horizontalCenter
         y: root.groupTop
         visible: root.clockFits
         opacity: wallpaper.opacity
+        SessionComponents.Clock {
+            id: sessionClock
+            anchors.centerIn: parent
+            heroWhenIdle: false
+            scale: 0.72
+        }
     }
 
     // ── The Glass Island ─────────────────────────────────────────────────────
@@ -380,8 +387,12 @@ Item {
     // wear it natively, and there is no offscreen effect layer behind it.
     Item {
         id: sheet
+        // The wallpaper keeps the shared session veil; the working sheet
+        // follows the selected desktop's light/dark material and ink roles.
+        Kirigami.Theme.inherit: false
+        Kirigami.Theme.colorSet: Kirigami.Theme.Window
         anchors.horizontalCenter: parent.horizontalCenter
-        y: root.groupTop + (root.clockFits ? sessionClock.implicitHeight + root.clockGap : 0)
+        y: root.groupTop + (root.clockFits ? clockBand.implicitHeight + root.clockGap : 0)
         width: Math.min(root.width - Kirigami.Units.gridUnit * 3,
                         Math.max(Kirigami.Units.gridUnit * 26 * root.sessionScale,
                                  column.implicitWidth + Kirigami.Units.gridUnit * 4))
@@ -425,11 +436,11 @@ Item {
             surfaceColor: Kirigami.Theme.backgroundColor
             inkColor: Kirigami.Theme.textColor
             accentColor: root.accent
-            fillOpacity: root.design.sessionGlassOpacity
+            fillOpacity: 0.94
             border.width: root.design.borderHairline
             border.color: Qt.rgba(Kirigami.Theme.textColor.r,
                                   Kirigami.Theme.textColor.g,
-                                  Kirigami.Theme.textColor.b, 0.16)
+                                  Kirigami.Theme.textColor.b, 0.10)
 
             // Sheen — the glass catch-light across the island's upper field.
             Rectangle {
@@ -512,7 +523,7 @@ Item {
                 Layout.preferredWidth: Math.min(column.width, Kirigami.Units.gridUnit * 16)
                 Layout.preferredHeight: faceInset + faceSize + nameLine.height
                                         + Kirigami.Units.gridUnit * 0.9
-                faceSize: Kirigami.Units.gridUnit * 4 * root.sessionScale
+                faceSize: Kirigami.Units.gridUnit * 2.8 * root.sessionScale
                 // The delegate draws the name four points above `fontSize`,
                 // which here lands on the secondary size: the question below
                 // is this island's headline, not the name.
@@ -665,8 +676,9 @@ Item {
             }
 
             // ── The power dock: a responsive grid of large tiles ──
-            // At most four tile columns; six to eight actions form balanced
-            // 3+3 / 4+3 / 4+4 rows, and a narrow island lowers the cap further.
+            // The usual five actions share one calm row on a wide desktop.
+            // Update variants still use balanced rows; narrow outputs lower
+            // the cap before either the card or its caption can overflow.
             GridLayout {
                 id: dock
                 Layout.alignment: Qt.AlignHCenter
@@ -677,14 +689,14 @@ Item {
                 readonly property int widthLimit: Math.max(1, Math.floor(
                     ((root.width - Kirigami.Units.gridUnit * 7) + columnSpacing)
                     / (Kirigami.Units.gridUnit * 8.6 * root.sessionScale + columnSpacing)))
-                columns: Math.max(1, Math.min(4, widthLimit,
-                    actionCount <= 4 ? actionCount : Math.ceil(actionCount / 2)))
+                columns: Math.max(1, Math.min(5, widthLimit,
+                    actionCount <= 5 ? actionCount : Math.ceil(actionCount / 2)))
 
                 SessionPowerButton {
                     id: suspendButton
                     revealOrder: 0
                     iconName: "system-suspend-symbolic"
-                    text: root.shortLabel("تعليق", "Sleep")
+                    text: root.shortLabel("السكون", "Sleep")
                     description: root.bilingual("إبقاء الجلسة", "Keep session")
                     visible: root.showAllOptions && spdMethods.SuspendState
                     onClicked: root.fireNow(() => root.suspendRequested(2))

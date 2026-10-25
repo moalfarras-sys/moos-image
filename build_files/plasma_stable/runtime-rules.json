@@ -2,6 +2,7 @@
   "schema": 1,
   "scope": "reviewed systemd259.10 global tmpfiles compose scaffold; only empty declared directories/links/files retire; generated identity is handled by a pristine-input transaction",
   "records": {
+    "var/lib/.ssh-host-keys-migration": {"mode": 420,"user": "root","group": "root","kind": "file","rpm_postin_authority": "openssh-server-10.2p1-16.fc44.x86_64"},
     "var/adm": {"mode": 493,"user": "root","group": "root","kind": "directory","authorities": [{"authority": "usr/lib/tmpfiles.d/rpm-ostree-autovar.conf","rule": ["d","/var/adm","0755","root","root","-","-"]}]},
     "var/cache": {"mode": 493,"user": "root","group": "root","kind": "directory","authorities": [{"authority": "usr/lib/tmpfiles.d/var.conf","rule": ["d","/var/cache","0755","-","-","-"]}]},
     "var/db": {"mode": 493,"user": "root","group": "root","kind": "directory","authorities": [{"authority": "usr/lib/tmpfiles.d/rpm-ostree-autovar.conf","rule": ["d","/var/db","0755","root","root","-","-"]}]},

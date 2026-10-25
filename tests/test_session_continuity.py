@@ -2,6 +2,7 @@
 """Native Qt session view, exact profile canvas and original power owners."""
 from pathlib import Path
 import importlib.util
+import configparser
 import json
 import os
 import subprocess
@@ -22,6 +23,8 @@ def check_glyph(button):
     fill=glyph.findChild(QQuickItem,'moosSessionActionGlyphFill')
     icon=glyph.findChild(QQuickItem,'moosSessionActionGlyphInk')
     assert fill and icon
+    resolved = str(icon.property('source'))
+    assert resolved.startswith('moos-') and icon.property('valid'), ('session symbol did not resolve from MoOS', resolved)
     def luminance(color):
         values=[color.redF(),color.greenF(),color.blueF()]
         values=[v/12.92 if v<=0.04045 else ((v+0.055)/1.055)**2.4 for v in values]
@@ -34,7 +37,7 @@ def check_glyph(button):
         raise AssertionError(('session glyph ink/fill',background.name(),ink.name(),contrast))
     assert background==glyph.property('accentColor') and ink==glyph.property('inkColor')
     assert glyph.opacity()==1
-    return dict(accent=background.name(),ink=ink.name(),contrast=contrast)
+    return dict(accent=background.name(),ink=ink.name(),contrast=contrast,source=resolved)
 
 
 def probe():
@@ -51,10 +54,12 @@ def probe():
     for name, value in dict(ShutdownTypeDefault=-1, ShutdownTypeNone=0, ShutdownTypeReboot=1,
                             ShutdownTypeHalt=2, ShutdownTypeLogout=3).items(): types.insert(name, value)
     methods = QQmlPropertyMap()
-    for name in ('StandbyState', 'SuspendState', 'HibernateState'): methods.insert(name, True)
+    for name in ('StandbyState', 'SuspendState', 'HibernateState'):
+        methods.insert(name, name != 'HibernateState' or os.environ.get('PROBE_FIVE_ACTIONS') != '1')
+    updates = os.environ.get('PROBE_FIVE_ACTIONS') != '1'
     ctx = engine.rootContext()
     for key, value in dict(ShutdownType=types, spdMethods=methods, sdtype=-1, maysd=True,
-                           canLogout=True, softwareUpdatePending=True, rebootToFirmwareSetup=True,
+                           canLogout=True, softwareUpdatePending=updates, rebootToFirmwareSetup=True,
                            rebootToBootLoaderMenu=False, rebootToBootLoaderEntry='').items():
         ctx.setContextProperty(key, value)
     ctx.setContextProperty('proofWallpaperPackage',os.environ['PROBE_IMAGE'].split('/contents/')[0])
@@ -116,10 +121,20 @@ Window {
             yield child
             yield from descendants(child)
     buttons = [x for x in descendants(view) if x.metaObject().indexOfProperty('revealOrder') >= 0 and x.isVisible()]
-    assert len(buttons) == 9, ('missing capability/update actions', len(buttons))
+    assert len(buttons) == (6 if os.environ.get('PROBE_FIVE_ACTIONS') == '1' else 9), ('missing capability/update actions', len(buttons))
     geometry = []
     card = view.findChild(QQuickItem, 'moosSessionCard')
     assert card
+    surface=card.property('surfaceColor')
+    if surface.name()!=os.environ['PROBE_WINDOW_BG'] or card.property('fillOpacity')<0.9:
+        print('MOOS_SESSION_POWER_MATERIAL_MISMATCH',flush=True)
+        raise AssertionError(('working sheet does not match selected Window material',surface.name()))
+    def over(ink,bg):
+        alpha=ink.alphaF()
+        return tuple(a*alpha+b*(1-alpha) for a,b in zip(
+            (ink.redF(),ink.greenF(),ink.blueF()),bg))
+    def luminance(rgb):
+        return sum(a*b for a,b in zip((v/12.92 if v<=0.04045 else ((v+0.055)/1.055)**2.4 for v in rgb),(.2126,.7152,.0722)))
     for button in buttons:
         rect = button.mapRectToItem(view, button.boundingRect())
         assert rect.left() >= 0 and rect.right() <= view.width(), ('horizontal overflow', button.property('text'), rect)
@@ -130,8 +145,22 @@ Window {
         caption=button.findChild(QQuickItem,'moosPowerActionCaption');assert caption
         assert caption.property('paintedHeight') <= caption.height()+1, ('caption ink outside line box',button.property('text'))
         assert not caption.property('truncated'), ('truncated power action',button.property('text'))
+        face=button.findChild(QQuickItem,'moosPowerActionSurface');assert face
+        # Bound the remaining sheet transparency with both extreme backdrops,
+        # including the actual interactive fill and the caption's own alpha.
+        for extreme in ((0,0,0),(1,1,1)):
+            plate=over(card.property('color'),extreme)
+            background=over(face.property('color'),plate)
+            foreground=over(caption.property('color'),background)
+            low,high=sorted((luminance(background),luminance(foreground)))
+            assert (high+.05)/(low+.05)>=4.5, ('composed caption contrast',button.property('text'),(high+.05)/(low+.05))
         if button.property('revealOrder') != 8: check_glyph(button)
         geometry.append(dict(text=button.property('text'), x=rect.x(), y=rect.y(), width=rect.width(), height=rect.height()))
+    if os.environ.get('PROBE_FIVE_ACTIONS') == '1':
+        actions = [g for b, g in zip(buttons, geometry) if b.property('revealOrder') != 8]
+        if len(actions) != 5 or len({round(g['y'], 1) for g in actions}) != 1:
+            print('MOOS_SESSION_POWER_LAYOUT_MISMATCH', flush=True)
+            raise AssertionError('the ordinary five actions do not share one desktop row')
     # Actual callbacks from the production controls: a sensitive first click
     # only arms, the second reaches the existing native root's signal.
     button = next(x for x in buttons if x.property('revealOrder') == 2)
@@ -142,7 +171,7 @@ Window {
     hint=view.findChild(QQuickItem,'moosSessionConfirmationHint');assert hint
     assert hint.property('paintedHeight') <= hint.height()+1, 'confirmation ink clipped'
     QTest.mouseClick(window, Qt.LeftButton, Qt.NoModifier, at)
-    if window.property('fired') != 1 or window.property('action') != 'reboot-update':
+    if window.property('fired') != 1 or window.property('action') != ('reboot-update' if updates else 'reboot'):
         print('MOOS_SESSION_POWER_DESTINATION_MISMATCH',flush=True)
         raise AssertionError('The shared view changed the native destination')
     assert window.property('stopped') >= 2
@@ -221,7 +250,7 @@ class SessionContinuity(unittest.TestCase):
         p = subprocess.run([sys.executable, str(ROOT/'artwork/generate_moos_session.py'), '--check'], capture_output=True, text=True)
         self.assertEqual(p.returncode, 0, p.stdout+p.stderr)
 
-    def case(self, width=1536, height=864, language='ar', look='org.moos.ui2.bloom.light', motion=0, broken=None, native_button=False):
+    def case(self, width=1536, height=864, language='ar', look='org.moos.ui2.bloom.light', motion=0, broken=None, native_button=False, five_actions=False):
         with tempfile.TemporaryDirectory(prefix='moos-session-') as td:
             home=Path(td)
             env={k:v for k,v in os.environ.items() if k in ('PATH','PYTHONPATH')}
@@ -237,25 +266,32 @@ class SessionContinuity(unittest.TestCase):
             config=Path(env['XDG_CONFIG_HOME'])
             profile=next(p for p in PROFILES if p['id']==look)
             colors=ROOT/'system_files/usr/share/color-schemes'/(profile['scheme']+'.colors')
+            palette=configparser.ConfigParser();palette.read(colors)
+            env['PROBE_WINDOW_BG']='#'+''.join(f'{int(v):02x}' for v in palette['Colors:Window']['BackgroundNormal'].split(','))
             expected=profile['wallpaper']+'/contents/'+profile['wallpaperBranch']+'/'
             expected+='1672x941.png' if profile['family']=='bloom' else '3840x2160.jpg'
             env['PROBE_IMAGE']=expected
-            (config/'kdeglobals').write_text(colors.read_text()+'\n[KDE]\nAnimationDurationFactor='+str(motion)+'\nLookAndFeelPackage='+look+'\n')
+            if five_actions: env['PROBE_FIVE_ACTIONS']='1'
+            (config/'kdeglobals').write_text(colors.read_text()+'\n[KDE]\nAnimationDurationFactor='+str(motion)+'\nLookAndFeelPackage='+look+'\n[Icons]\nTheme='+profile['icons']+'\n')
             (config/'plasmarc').write_text('[Theme]\nname='+profile['style']+'\n')
             before=(config/'kdeglobals').read_bytes()
             if broken:
                 copied=home/'qml/org/moos/ui';shutil.copytree(UI/'org/moos/ui',copied)
                 env['QML_IMPORT_PATH']=str(home/'qml')
                 target=copied/('SessionAppearance.qml' if broken=='look' else 'SessionActionGlyph.qml' if broken=='glyph-ink' else 'SessionPower.qml')
-                old,new=('color: glyph.inkColor','color: glyph.accentColor') if broken=='glyph-ink' else ('location: path','fileName: path') if broken=='look' else (
+                old,new=('color: glyph.inkColor','color: glyph.accentColor') if broken=='glyph-ink' else ('location: path, category: "KDE"','fileName: path, category: "KDE"') if broken=='look' else (
                     'onRebootUpdateRequested: root.sessionHost.rebootUpdateRequested()',
                     'onRebootUpdateRequested: root.sessionHost.haltUpdateRequested()')
+                if broken == 'layout':
+                    old, new = ('actionCount <= 5 ? actionCount', 'actionCount <= 4 ? actionCount')
+                if broken == 'material':
+                    old, new = ('Kirigami.Theme.colorSet: Kirigami.Theme.Window', 'Kirigami.Theme.colorSet: Kirigami.Theme.Complementary')
                 body=target.read_text();self.assertEqual(body.count(old),1);target.write_text(body.replace(old,new))
             p=subprocess.run([sys.executable,str(Path(__file__).resolve()),'--native-button' if native_button else '--probe'],env=env,capture_output=True,text=True,timeout=15)
             self.assertEqual((config/'kdeglobals').read_bytes(),before)
             if broken:
                 self.assertNotEqual(p.returncode,0)
-                self.assertIn('MOOS_SESSION_GLYPH_CONTRAST_MISMATCH' if broken=='glyph-ink' else 'MOOS_SESSION_LOOK_MISMATCH' if broken=='look' else 'MOOS_SESSION_POWER_DESTINATION_MISMATCH',p.stdout)
+                self.assertIn('MOOS_SESSION_GLYPH_CONTRAST_MISMATCH' if broken=='glyph-ink' else 'MOOS_SESSION_LOOK_MISMATCH' if broken=='look' else 'MOOS_SESSION_POWER_LAYOUT_MISMATCH' if broken=='layout' else 'MOOS_SESSION_POWER_MATERIAL_MISMATCH' if broken=='material' else 'MOOS_SESSION_POWER_DESTINATION_MISMATCH',p.stdout)
             else:
                 self.assertEqual(p.returncode,0,p.stdout+p.stderr)
                 self.assertIn('MOOS_NATIVE_SESSION_BUTTON_PROOF' if native_button else 'MOOS_SESSION_CONTINUITY_PROOF',p.stdout)
@@ -266,6 +302,16 @@ class SessionContinuity(unittest.TestCase):
         for width, height in ((1536,864), (640,480), (800,1280)):
             for language in ('ar','en'):
                 with self.subTest(size=(width,height),language=language):self.case(width,height,language)
+
+    @unittest.skipUnless(importlib.util.find_spec('PySide6'), 'native Qt unavailable')
+    def test_ordinary_desktop_row_and_old_two_row_negative(self):
+        for language in ('ar', 'en'):
+            self.case(language=language, five_actions=True)
+        self.case(five_actions=True, broken='layout')
+
+    @unittest.skipUnless(importlib.util.find_spec('PySide6'), 'native Qt unavailable')
+    def test_light_working_sheet_refuses_old_complementary_material(self):
+        self.case(five_actions=True,broken='material')
 
     @unittest.skipUnless(importlib.util.find_spec('PySide6'), 'native Qt unavailable')
     def test_every_theme_uses_its_actual_rendered_wallpaper_and_native_actions(self):

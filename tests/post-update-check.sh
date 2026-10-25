@@ -140,11 +140,13 @@ case "$theme_lnf" in
         want_icons=MoOSUI2Light; want_style=MoOSUI2Light; want_wallpaper=MoOSUI2Tide
         pair_dark=org.moos.ui2; pair_light=org.moos.ui2.light
         ;;
+    org.moos.ui2.bloom|org.moos.ui2.bloom.light|\
     org.moos.ui2.nova|org.moos.ui2.amethyst|org.moos.ui2.midnight|org.moos.ui2.aurora|\
     org.moos.ui2.nova.light|org.moos.ui2.amethyst.light|org.moos.ui2.midnight.light|org.moos.ui2.aurora.light|\
     org.moos.ui2.gaming|org.moos.ui2.dev|org.moos.ui2.study|\
     org.moos.ui2.gaming.light|org.moos.ui2.dev.light|org.moos.ui2.study.light)
         case "$theme_lnf" in
+            org.moos.ui2.bloom*) theme_family=bloom; Name=Bloom ;;
             org.moos.ui2.nova*) theme_family=nova; Name=Nova ;;
             org.moos.ui2.amethyst*) theme_family=amethyst; Name=Amethyst ;;
             org.moos.ui2.midnight*) theme_family=midnight; Name=Midnight ;;

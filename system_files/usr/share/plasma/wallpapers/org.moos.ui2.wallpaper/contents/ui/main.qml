@@ -232,12 +232,9 @@ WallpaperItem {
     }
 
     function resolveImage(value) {
-        var v = String(value || "")
+        var v = MoUI.WallpaperSources.localPath(value)
         if (v === "") {
             return root.fallbackImage
-        }
-        if (v.indexOf("file://") === 0) {
-            v = v.substring(7)
         }
         // A concrete image file: use it as-is.
         if (/\.(jpg|jpeg|png|webp|avif)$/i.test(v)) {
@@ -272,7 +269,7 @@ WallpaperItem {
     Image {
         id: art
         anchors.fill: parent
-        source: "file://" + root.resolveImage(root.configuration.Image)
+        source: MoUI.SessionAppearance.imageUrl(root.resolveImage(root.configuration.Image))
         fillMode: Image.PreserveAspectCrop
         asynchronous: true
         cache: false

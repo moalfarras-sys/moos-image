@@ -9,5 +9,8 @@
   "src/frontend/greeter/qml/Login.qml": "e5c7bff77a16cdab95ffd81b80b1834ec2282a9235a95e5271785492ff084b98",
   "src/frontend/settings/models/fingerprintmetadata.h": "9b82edb7d75dda6e3eb3c4b266a042b26a6ef5d5dd8731a646dfe35afa7ae213",
   "src/frontend/settings/models/usermodel.cpp": "d0e924d93e3a9eb1b5150be5b752ad94c602a096787b93b8094630eb7eb3c951",
-  "src/frontend/settings/models/usermodel.h": "582896c88d6fba2a30a87373565a849e83845e3b1877a03c3d29f7a588394352"
+  "src/frontend/settings/models/usermodel.h": "582896c88d6fba2a30a87373565a849e83845e3b1877a03c3d29f7a588394352",
+  "src/frontend/settings/plasmaloginsettings.cpp": "bd95521a1d4a10968cb8c4db27784801b1ac1c39cffe4ea160cfa2beeed9dd3a",
+  "src/frontend/kcm/kcm.cpp": "7cb4f5ed553ff4b72c00b596bf124b50607b751b49edee2ee62af73d439925c7",
+  "src/frontend/kcm/moosappearancesettings.h": "371159826c49b888982065e0326a36226db551efbf31cf9005491d9f260f88a8"
 }

@@ -1,0 +1,144 @@
+#!/usr/bin/python3
+"""Publish only this user's committed appearance through native AccountsService.
+
+The greeter receives bounded colour data and a metadata-free raster, never a
+home path, executable, theme QML or password. No daemon or administrator action.
+"""
+import base64
+import configparser
+import hashlib
+import io
+import json
+import os
+from pathlib import Path
+import re
+import subprocess
+import sys
+import tempfile
+from urllib.parse import unquote_to_bytes
+
+INTERFACE = 'org.moos.Accounts.Appearance'
+GROUPS = ('Colors:Window','Colors:View','Colors:Button','Colors:Selection','Colors:Tooltip','Colors:Complementary','Colors:Header')
+ROLES = ('BackgroundNormal','BackgroundAlternate','ForegroundNormal','ForegroundInactive','ForegroundActive','ForegroundLink','ForegroundVisited','ForegroundNegative','ForegroundNeutral','ForegroundPositive','DecorationFocus','DecorationHover')
+
+
+def ini(path):
+    config = configparser.ConfigParser(interpolation=None,strict=False)
+    config.optionxform = str
+    if path.is_file():
+        if path.stat().st_size > 1048576: raise ValueError('appearance config too large')
+        config.read(path,encoding='utf-8')
+    return config
+
+
+def decode_path(token):
+    if not re.fullmatch(r'(?:[A-Za-z0-9_.~-]|%[0-9A-Fa-f]{2})+',token): raise ValueError('invalid image token')
+    value = unquote_to_bytes(token).decode('utf-8','strict')
+    if not value.startswith('/') or any(ord(c)<32 or ord(c)==127 for c in value): raise ValueError('invalid image path')
+    return Path(value)
+
+
+def raster(path):
+    from PIL import Image, ImageOps
+    if path.stat().st_size > 67108864: raise ValueError('image exceeds decode budget')
+    with Image.open(path) as source:
+        if source.width*source.height > 33554432: raise ValueError('image exceeds pixel budget')
+        image = ImageOps.exif_transpose(source).convert('RGB')
+        image.thumbnail((1920,1080),Image.Resampling.LANCZOS)
+        for quality in (85,70,55):
+            stream = io.BytesIO(); image.save(stream,format='JPEG',quality=quality,optimize=True)
+            if len(stream.getvalue()) <= 786432: return base64.b64encode(stream.getvalue()).decode('ascii')
+    raise ValueError('image exceeds publication budget')
+
+
+def payload(home,config_root,catalog=Path('/usr/share/moos/theme-profiles.tsv')):
+    state = ini(config_root/'moos-session-appearance.conf')
+    look = state.get('Appearance','Look',fallback='')
+    image = decode_path(state.get('Appearance','WallpaperEncoded',fallback=''))
+    rows = [line.split('\t') for line in catalog.read_text().splitlines() if not line.startswith('#')]
+    row = next((row for row in rows if len(row)==17 and row[0]==look),None)
+    if not row: raise ValueError('appearance profile unavailable')
+    selected = subprocess.run(['kreadconfig6','--file','kdeglobals','--group','KDE','--key','LookAndFeelPackage'],
+                              capture_output=True,text=True,check=True,timeout=3).stdout.strip()
+    if selected != look: raise ValueError('theme transition has not committed')
+    def wallpaper(entry):
+        base = Path('/usr/share/wallpapers')/entry[8]
+        return base/('contents/'+entry[9])/('1672x941.png' if entry[12]=='bloom' else '3840x2160.jpg')
+    profile_image = wallpaper(row)
+    if image.is_dir():
+        match = next((entry for entry in rows if len(entry)==17 and image==Path('/usr/share/wallpapers')/entry[8]),None)
+        if match is None: raise ValueError('unregistered image package')
+        image = wallpaper(match)
+    files = [Path('/usr/share/color-schemes')/(row[1]+'.colors')]
+    directories = os.environ.get('XDG_CONFIG_DIRS','/etc/xdg').split(':')
+    files += [Path(folder)/'kdeglobals' for folder in reversed(directories) if folder]
+    files += [config_root/'kdedefaults/kdeglobals',config_root/'kdeglobals']
+    colors = {};font = ''
+    for path in files:
+        config = ini(path)
+        for group in GROUPS:
+            if group not in config: continue
+            for key in ROLES:
+                value = config[group].get(key,'')
+                if re.fullmatch(r'[0-9]{1,3},[0-9]{1,3},[0-9]{1,3}',value) and all(int(p)<=255 for p in value.split(',')):
+                    colors.setdefault(group,{})[key] = value
+        candidate = config.get('General','font',fallback='')
+        if candidate: font = candidate
+    data = dict(schema=1,look=look,colors=colors)
+    if font:
+        if len(font)>512 or any(ord(c)<32 or ord(c)==127 for c in font): raise ValueError('invalid appearance font')
+        data['font'] = font
+    # Cache raster work, not authority. Native Get is still executed each time,
+    # so deleting/resetting account metadata cannot be hidden by this cache.
+    stat = image.stat()
+    stamp = hashlib.sha256(json.dumps([data,str(image),stat.st_ino,stat.st_size,stat.st_mtime_ns],sort_keys=True).encode()).hexdigest()
+    cache_root = Path(os.environ.get('XDG_STATE_HOME',str(home/'.local/state')))/'moos/theme'
+    cache = cache_root/'login-appearance.json'
+    try:
+        saved = json.loads(cache.read_text()) if cache.stat().st_size<=2000000 else {}
+        if saved.get('stamp')==stamp and isinstance(saved.get('payload'),str): return saved['payload']
+    except (FileNotFoundError,ValueError,KeyError): pass
+    if image != profile_image: data['image'] = raster(image)
+    result = json.dumps(data,ensure_ascii=False,sort_keys=True,separators=(',',':'))
+    if len(result)>1400000: raise ValueError('appearance exceeds publication budget')
+    cache_root.mkdir(mode=0o700,parents=True,exist_ok=True)
+    fd,name = tempfile.mkstemp(prefix='.login-appearance-',dir=cache_root)
+    try:
+        with os.fdopen(fd,'w') as output: json.dump(dict(stamp=stamp,payload=result),output)
+        os.replace(name,cache)
+    finally:
+        if os.path.exists(name): os.unlink(name)
+    return result
+
+
+def publish(value):
+    from gi.repository import Gio,GLib
+    bus = Gio.bus_get_sync(Gio.BusType.SYSTEM,None)
+    path = bus.call_sync('org.freedesktop.Accounts','/org/freedesktop/Accounts','org.freedesktop.Accounts','FindUserById',
+                         GLib.Variant('(x)',(os.getuid(),)),None,Gio.DBusCallFlags.NONE,3000,None).unpack()[0]
+    def read():
+        value = bus.call_sync('org.freedesktop.Accounts',path,'org.freedesktop.DBus.Properties','Get',
+                             GLib.Variant('(ss)',(INTERFACE,'Appearance')),None,Gio.DBusCallFlags.NONE,3000,None).unpack()[0]
+        if not isinstance(value,str): raise ValueError('unexpected native appearance type')
+        return value
+    changed = read()!=value
+    if changed:
+        bus.call_sync('org.freedesktop.Accounts',path,'org.freedesktop.DBus.Properties','Set',
+                      GLib.Variant('(ssv)',(INTERFACE,'Appearance',GLib.Variant('s',value))),
+                      None,Gio.DBusCallFlags.NONE,3000,None)
+    if read()!=value: raise ValueError('native appearance readback differs')
+    print('MOOS_LOGIN_APPEARANCE_PUBLISHED',hashlib.sha256(value.encode()).hexdigest(),'changed='+str(int(changed)))
+
+
+def main():
+    if sys.argv[1:]!=['publish']: raise ValueError('expected publish')
+    home = Path.home(); config = Path(os.environ.get('XDG_CONFIG_HOME',str(home/'.config')))
+    publish(payload(home,config))
+
+
+if __name__=='__main__':
+    try: main()
+    except Exception as error:
+        # Never echo a raster, account data or arbitrary D-Bus exception body.
+        print('MoOS login appearance publication failed:',type(error).__name__,file=sys.stderr)
+        sys.exit(1)

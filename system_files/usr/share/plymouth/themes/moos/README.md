@@ -1,7 +1,8 @@
-# MoOS boot splash — Graphite Horizon
+# MoOS boot splash — Arabic welcome
 
-A native Plymouth script theme using the exact Graphite login landscape and the
-approved rendered MoOS mark. `intro1.png` is byte-identical to the previous
+A native Plymouth script theme with its own fixed blue/teal canvas, independent
+of all desktop themes and login wallpaper choices. The approved rendered MoOS
+mark `intro1.png` is byte-identical to the previous
 sequence's resting frame (`intro32.png`); no replacement logo is introduced.
 
 The mark appears on the first frame. A finite 360 ms opacity entrance settles
@@ -11,14 +12,16 @@ Quit pins the composed frame for `--retain-splash` until the login renderer pain
 
 ## Design and handoff
 
-- Ground: UI2 `#14191C`; exact 1080p derivative of the Graphite login wallpaper.
-- Hero: centred, width bounded by 70% of screen width and 62% of height at its
+- Ground: fixed `#0A101B` with a small deterministic1080p brand light field.
+- Hero: centred, width bounded by44% of screen width and40% of height at its
   original 856×556 aspect. Source decoding: 1.82 MiB instead of 58.1 MiB.
 - Motion: opacity 0.70→1, nine ticks at 25 Hz, then a still mark. Keep the
   25 Hz dirty-region redraw cadence for responsive status/password updates;
   1 Hz erased the composition after input until the next script refresh.
   Pre-login cannot read a desktop Reduced Motion preference; there is no endless
   decorative motion. The script never rescales images in refresh or quit.
+- Greeting: shaped Arabic «مرحبًا بك», subordinate to the unchanged wordmark,
+  rasterized once from IBM Plex Sans Arabic. Hidden for reboot and shutdown.
 - Messages: UI2 muted `#9CAFAC`; passphrase `#E8F1EF`, bullets `#4ED7C8`.
   Text is screen-bounded, event-driven and below the hero.
 - Safe handoff: no extra waiting unit or timer; no GRUB rollback removal.
@@ -26,7 +29,8 @@ Quit pins the composed frame for `--retain-splash` until the login renderer pain
 
 ## Reproduction and evidence
 
-`artwork/generate_boot_backdrop.py` regenerates the exact login derivative.
+`artwork/generate_boot_backdrop.py` regenerates the fixed canvas and shaped
+greeting, with font/pixel provenance in `artwork/moos-design/boot-caption.json`.
 `artwork/generate_boot_splash.py` maintains the canonical watermark and removes
 retired sprites. The approved hero is preserved, not synthesized from a new logo.
 `build_boot_frames.py --output PRIVATE_DIR` produces review cuts only and refuses

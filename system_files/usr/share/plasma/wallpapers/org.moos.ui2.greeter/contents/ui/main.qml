@@ -35,12 +35,9 @@ WallpaperItem {
         "/usr/share/wallpapers/MoOSUI2Graphite/contents/images_dark/3840x2160.jpg"
 
     function resolveImage(value) {
-        var path = String(value || "")
+        var path = MoUI.WallpaperSources.localPath(value)
         if (path === "") {
             return root.fallbackImage
-        }
-        if (path.indexOf("file://") === 0) {
-            path = path.substring(7)
         }
         if (/\.(jpg|jpeg|png|webp|avif)$/i.test(path)) {
             return path
@@ -64,7 +61,10 @@ WallpaperItem {
         return path + "/contents/images/3840x2160.jpg"
     }
 
-    readonly property string sceneImage: root.resolveImage(root.configuration.Image)
+    readonly property string sceneImage:
+        MoUI.SessionAppearance.greeterWallpaper(root.resolveImage(root.configuration.Image))
+    readonly property string themeReference:
+        MoUI.SessionAppearance.greeterReference(root.resolveImage(root.configuration.Image))
 
     // ── The scene's palette, and why it is NOT Kirigami.Theme's ──────────────
     //
@@ -137,19 +137,21 @@ WallpaperItem {
     })
 
     readonly property string sceneFamily: {
-        const found = /\/wallpapers\/(MoOSUI2[A-Za-z]*)\//.exec(root.sceneImage)
+        const found = /\/wallpapers\/(MoOSUI2[A-Za-z]*)\//.exec(root.themeReference)
         return found ? found[1] : "MoOSUI2Graphite"
     }
     readonly property var tones:
         root.sceneTones[root.sceneFamily] || root.sceneTones["MoOSUI2Graphite"]
 
     readonly property bool lightScene:
-        /\/MoOSUI2[^/]*Light\//.test(root.sceneImage)
-        || root.sceneImage.indexOf("/MoOSUI2Tide/") >= 0
-        || root.sceneImage.indexOf("/MoOSUI2Daylight/") >= 0
-    readonly property color canvas: root.tones.canvas
-    readonly property color ink: root.tones.ink
-    readonly property color accent: root.tones.accent
+        MoUI.SessionAppearance.greeterProfile()
+        ? root.canvas.r * .2126 + root.canvas.g * .7152 + root.canvas.b * .0722 > .5
+        : /\/MoOSUI2[^/]*Light\//.test(root.themeReference)
+          || root.themeReference.indexOf("/MoOSUI2Tide/") >= 0
+          || root.themeReference.indexOf("/MoOSUI2Daylight/") >= 0
+    readonly property color canvas: MoUI.SessionAppearance.greeterTone("canvas", root.tones.canvas)
+    readonly property color ink: MoUI.SessionAppearance.greeterTone("ink", root.tones.ink)
+    readonly property color accent: MoUI.SessionAppearance.greeterTone("accent", root.tones.accent)
     readonly property bool motionEnabled:
         root.configuration.AmbientMotion
         && Kirigami.Units.longDuration > 1
@@ -162,10 +164,10 @@ WallpaperItem {
 
     Image {
         anchors.fill: parent
-        source: "file://" + root.sceneImage
+        source: MoUI.SessionAppearance.imageUrl(root.sceneImage)
         fillMode: Image.PreserveAspectCrop
         asynchronous: true
-        cache: true
+        cache: false
         smooth: true
         sourceSize: Qt.size(root.width * Screen.devicePixelRatio,
                             root.height * Screen.devicePixelRatio)

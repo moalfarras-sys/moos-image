@@ -1,0 +1,145 @@
+--- a/src/frontend/settings/plasmaloginsettings.cpp
++++ b/src/frontend/settings/plasmaloginsettings.cpp
+@@ -109,6 +109,7 @@
+ 
+     // not all plugins are suitable for the login screen due to file access
+     QStringList allowedPlugins = {
++        QStringLiteral("org.moos.ui2.greeter"),
+         QStringLiteral("org.kde.color"),
+         QStringLiteral("org.kde.image"),
+         QStringLiteral("org.kde.tiled"),
+--- a/src/frontend/kcm/kcm.cpp
++++ b/src/frontend/kcm/kcm.cpp
+@@ -30,6 +30,7 @@
+ #include "wallpapersettings.h"
+ 
+ #include "kcm.h"
++#include "moosappearancesettings.h"
+ 
+ K_PLUGIN_FACTORY_WITH_JSON(PlasmaLoginKcmFactory, "kcm_plasmalogin.json", registerPlugin<PlasmaLoginKcm>(); registerPlugin<PlasmaLoginData>();)
+ 
+@@ -147,6 +148,7 @@
+     args[QStringLiteral("config")] = config;
+ 
+     KAuth::Action saveAction(authActionName());
++    moosLoginAppearanceTimeout(saveAction);
+     saveAction.setHelperId(QStringLiteral("org.kde.kcontrol.kcmplasmalogin"));
+     saveAction.setArguments(args);
+ 
+@@ -218,19 +220,31 @@
+ 
+     QVariantMap args;
+ 
+-    auto addConfigFile = [&args](const QString &path, const QString &key) {
++    auto addConfigFile = [&args](const QString &path, const QString &key) -> bool {
+         if (path.isEmpty()) {
+-            return;
++            return true;
+         }
+ 
+         QFile file(path);
+         if (file.open(QFile::ReadOnly | QFile::Text)) {
+             QTextStream in(&file);
+-            args[key] = in.readAll();
+-        }
++            QString contents = in.readAll();
++            if (key == QLatin1String("kdeglobals")) {
++                const auto snapshot = moosLoginAppearanceSnapshot(contents);
++                if (!snapshot) {
++                    return false;
++                }
++                contents = *snapshot;
++            }
++            args[key] = contents;
++        }
++        return true;
+     };
+ 
+-    addConfigFile(QStandardPaths::locate(QStandardPaths::GenericConfigLocation, QStringLiteral("kdeglobals")), QStringLiteral("kdeglobals"));
++    if (!addConfigFile(QStandardPaths::locate(QStandardPaths::GenericConfigLocation, QStringLiteral("kdeglobals")), QStringLiteral("kdeglobals"))) {
++        Q_EMIT errorOccurred(i18n("Unable to prepare the login screen appearance settings."));
++        return;
++    }
+ 
+     addConfigFile(QStandardPaths::locate(QStandardPaths::GenericConfigLocation, QStringLiteral("plasmarc")), QStringLiteral("plasmarc"));
+ 
+@@ -249,11 +263,13 @@
+     addConfigFile(QStandardPaths::locate(QStandardPaths::GenericConfigLocation, QStringLiteral("kxkbrc")), QStringLiteral("kxkbrc"));
+ 
+     KAuth::Action syncAction(QStringLiteral("org.kde.kcontrol.kcmplasmalogin.sync"));
++    moosLoginAppearanceTimeout(syncAction);
+     syncAction.setHelperId(QStringLiteral("org.kde.kcontrol.kcmplasmalogin"));
+     syncAction.setArguments(args);
+ 
+     auto job = syncAction.execute();
+     connect(job, &KJob::result, this, [this, job] {
++        qInfo("MOOS_LOGIN_APPEARANCE_SYNC_RESULT %d", job->error());
+         if (job->error()) {
+             Q_EMIT errorOccurred(job->errorString());
+         }
+@@ -272,6 +288,7 @@
+     }
+ 
+     KAuth::Action resetAction(QStringLiteral("org.kde.kcontrol.kcmplasmalogin.reset"));
++    moosLoginAppearanceTimeout(resetAction);
+     resetAction.setHelperId(QStringLiteral("org.kde.kcontrol.kcmplasmalogin"));
+ 
+     auto job = resetAction.execute();
+--- /dev/null
++++ b/src/frontend/kcm/moosappearancesettings.h
+@@ -0,0 +1,55 @@
++// SPDX-FileCopyrightText: 2026 Moalfarras
++// SPDX-License-Identifier: GPL-2.0-or-later
++#pragma once
++#include <KAuth/Action>
++#include <KConfig>
++#include <KConfigGroup>
++#include <QDir>
++#include <QFile>
++#include <QPair>
++#include <QTemporaryFile>
++#include <optional>
++
++// Leave time for the native administrator prompt. The default D-Bus25s
++// expires while the owner is authenticating; keep a finite five-minute bound.
++inline void moosLoginAppearanceTimeout(KAuth::Action &action)
++{
++    action.setTimeout(5 * 60 * 1000);
++}
++
++// Look-and-feel stores these selectors in kdedefaults while the user file
++// contains partial overrides. Preserve the native raw export, filling only
++// the two effective appearance selectors that would otherwise be omitted.
++inline std::optional<QString> moosLoginAppearanceSnapshot(const QString &contents, const QString &temporaryRoot = QDir::tempPath())
++{
++    QTemporaryFile temporary(temporaryRoot + QStringLiteral("/moos-login-appearance-XXXXXX"));
++    if (!temporary.open()) {
++        return std::nullopt;
++    }
++    const QByteArray original = contents.toUtf8();
++    if (temporary.write(original) != original.size() || !temporary.flush()) {
++        return std::nullopt;
++    }
++    KConfig effective(QStringLiteral("kdeglobals"), KConfig::NoGlobals);
++    KConfig exported(temporary.fileName(), KConfig::SimpleConfig);
++    const QPair<QString, QString> selectors[] = {
++        {QStringLiteral("General"), QStringLiteral("ColorScheme")},
++        {QStringLiteral("Icons"), QStringLiteral("Theme")},
++    };
++    for (const auto &selector : selectors) {
++        const QString value = KConfigGroup(&effective, selector.first).readEntry(selector.second, QString());
++        if (!value.isEmpty()) {
++            KConfigGroup(&exported, selector.first).writeEntry(selector.second, value);
++        }
++    }
++    if (!exported.sync()) {
++        return std::nullopt;
++    }
++    // KConfig writes atomically. Reopen its path rather than reading the old
++    // QTemporaryFile descriptor, which may refer to the replaced inode.
++    QFile result(temporary.fileName());
++    if (!result.open(QIODevice::ReadOnly)) {
++        return std::nullopt;
++    }
++    return QString::fromUtf8(result.readAll());
++}

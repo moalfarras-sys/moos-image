@@ -107,7 +107,11 @@ class TidalPortalContractTests(unittest.TestCase):
         self.assertIn("import org.moos.ui as MoUI", logout)
         self.assertIn("radius: root.design.radiusDialog", logout)
         self.assertIn("MoUI.GlassSurface {", logout)
-        self.assertIn("fillOpacity: root.design.sessionGlassOpacity", logout)
+        # The working sheet follows the selected light/dark Window palette;
+        # the wallpaper/clock retain the complementary veil. Native composed
+        # material/contrast and the old-material negative live in continuity.
+        self.assertIn("Kirigami.Theme.colorSet: Kirigami.Theme.Window", logout)
+        self.assertIn("fillOpacity: 0.94", logout)
         self.assertNotIn("anchors.margins: -Kirigami.Units.gridUnit", logout)
         # The countdown is a still Shape ring driven by remainingTime — the
         # naked hairline track must not return.
@@ -120,7 +124,7 @@ class TidalPortalContractTests(unittest.TestCase):
         # real tile, with the crest/horizon cuts intact on dock tiles.
         self.assertIn("property real keyWidth", action)
         self.assertIn("property real keyHeight", action)
-        self.assertIn("control.subtle ? 3.1 : 6.2", action)
+        self.assertIn("control.subtle ? 3.1 : 5.3", action)
         self.assertIn("control.subtle ? 10.4 : 8.6", action)
         self.assertIn("width: parent.width * 0.30", action)
         self.assertIn("width: parent.width * 0.42", action)
@@ -191,7 +195,8 @@ class TidalPortalContractTests(unittest.TestCase):
         self.assertIn("MoUI.GlassSurface {", island)
         self.assertIn("id: island", island)
         self.assertIn("root.design.radiusDialog * Math.max(0.8, root.sessionScale)", island)
-        self.assertIn("fillOpacity: root.design.sessionGlassOpacity", island)
+        self.assertIn("Kirigami.Theme.colorSet: Kirigami.Theme.Window", island)
+        self.assertIn("fillOpacity: 0.94", island)
         self.assertNotIn("modelData.grow", island)
         # It hugs the cluster it frames instead of being sized from outside…
         self.assertIn("userListView.y + faceInset - root.islandPadTop", island)

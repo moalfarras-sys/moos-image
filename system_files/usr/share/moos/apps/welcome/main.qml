@@ -71,9 +71,13 @@ ApplicationWindow {
     // 1280×720 or 1366×768 laptop (with the panel eating height) must not get a
     // window taller than the desktop. Clamp to 92% of the available area.
     width: Math.min(1080, Screen.desktopAvailableWidth * 0.92)
-    height: Math.min(760, Screen.desktopAvailableHeight * 0.92)
+    // The native MoOS title bar has its own touch-sized height. A percentage
+    // alone leaves too little room for it on a short output or a large font.
+    readonly property real availableWindowHeight: Math.max(1, Math.min(
+        Screen.desktopAvailableHeight * 0.92, Screen.desktopAvailableHeight - win.fs(56)))
+    height: Math.min(760, availableWindowHeight)
     minimumWidth: Math.min(860, Screen.desktopAvailableWidth * 0.92)
-    minimumHeight: Math.min(600, Screen.desktopAvailableHeight * 0.92)
+    minimumHeight: Math.min(600, availableWindowHeight)
     // The title bar and task switcher follow the chosen language like every other
     // string here — qsTr resolved to English in an Arabic session (no catalog ships).
     title: win.rtl ? "أهلاً بك في MoOS" : "Welcome to MoOS"
@@ -84,6 +88,18 @@ ApplicationWindow {
     // content, inheriting the parent's radius so a pill stays a pill.
     component FocusRing: MoUI.FocusRing {
         accentColor: win.accent
+    }
+
+    // Static pages still need natural vertical flow on small outputs and
+    // enlarged fonts. Keep the existing controls and native focus-reveal owner.
+    component WelcomePage: Flickable {
+        required property Item columnItem
+        readonly property real verticalPadding: win.fs(24)
+        clip: true
+        contentWidth: width
+        contentHeight: Math.max(height, columnItem.implicitHeight + 2 * verticalPadding)
+        boundsBehavior: Flickable.StopAtBounds
+        ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
     }
 
     // Keyboard focus is useful only while it remains visible. Optional-app cards and the
@@ -1025,11 +1041,14 @@ ApplicationWindow {
             currentIndex: win.step
 
             // ════════ 0 · HERO ════════
-            Item {
+            WelcomePage {
                 id: hero
+                columnItem: heroColumn
 
                 ColumnLayout {
-                    anchors.centerIn: parent
+                    id: heroColumn
+                    x: (hero.width - width) / 2
+                    y: Math.max(hero.verticalPadding, (hero.height - implicitHeight) / 2)
                     spacing: 0
                     width: Math.min(640, hero.width - 80)
 
@@ -1088,9 +1107,11 @@ ApplicationWindow {
                     // names are shown on their own buttons (a language picker is
                     // the one place both languages belong); everything after this
                     // speaks only the one picked.
-                    RowLayout {
+                    GridLayout {
                         Layout.alignment: Qt.AlignHCenter
-                        spacing: 10
+                        columns: heroColumn.width >= win.fs(300) ? 2 : 1
+                        columnSpacing: 10
+                        rowSpacing: 10
                         Repeater {
                             model: [ { id: "ar", label: "العربية" },
                                      { id: "en", label: "English" } ]
@@ -1131,6 +1152,9 @@ ApplicationWindow {
                     Item { Layout.preferredHeight: win.fs(24) }
 
                     Text {
+                        Layout.fillWidth: true
+                        horizontalAlignment: Text.AlignHCenter
+                        wrapMode: Text.Wrap
                         Layout.alignment: Qt.AlignHCenter
                         text: win.rtl ? "أهلاً بك في MoOS" : "Welcome to MoOS"
                         color: win.txt
@@ -1155,8 +1179,11 @@ ApplicationWindow {
                     Item { Layout.preferredHeight: win.fs(34) }
 
                     Rectangle {
+                        id: welcomeHeroBegin
+                        objectName: "moosWelcomeBegin"
                         Layout.alignment: Qt.AlignHCenter
-                        Layout.preferredHeight: win.fs(52)
+                        Layout.maximumWidth: heroColumn.width
+                        Layout.preferredHeight: Math.max(win.fs(52), beginRow.implicitHeight + win.fs(20))
                         implicitWidth: beginRow.implicitWidth + 64
                         radius: height / 2
                         color: beginHover.hovered ? Qt.lighter(win.accent, 1.08) : win.accent
@@ -1172,8 +1199,12 @@ ApplicationWindow {
                         RowLayout {
                             id: beginRow
                             anchors.centerIn: parent
+                            width: Math.min(implicitWidth, Math.max(1, welcomeHeroBegin.width - win.fs(32)))
                             spacing: 10
                             Text {
+                                Layout.fillWidth: true
+                                horizontalAlignment: Text.AlignHCenter
+                                wrapMode: Text.Wrap
                                 text: win.rtl ? "لنبدأ" : "Let's begin"
                                 color: win.accentText
                                 font.family: win.uiFont
@@ -1194,7 +1225,8 @@ ApplicationWindow {
                         id: liveInstallButton
                         visible: win.live
                         Layout.alignment: Qt.AlignHCenter
-                        Layout.preferredHeight: win.fs(50)
+                        Layout.maximumWidth: heroColumn.width
+                        Layout.preferredHeight: Math.max(win.fs(50), installRow.implicitHeight + win.fs(20))
                         implicitWidth: installRow.implicitWidth + 56
                         radius: height / 2
                         color: installHover.hovered ? Qt.rgba(win.accent.r, win.accent.g, win.accent.b, 0.10)
@@ -1221,8 +1253,12 @@ ApplicationWindow {
                         RowLayout {
                             id: installRow
                             anchors.centerIn: parent
+                            width: Math.min(implicitWidth, Math.max(1, liveInstallButton.width - win.fs(32)))
                             spacing: 10
                             Text {
+                                Layout.fillWidth: true
+                                horizontalAlignment: Text.AlignHCenter
+                                wrapMode: Text.Wrap
                                 text: win.installerHandoff
                                       ? (win.rtl ? "نفتح المثبّت…" : "Opening installer…")
                                       : (win.rtl ? "ثبّت MoOS على هذا الكمبيوتر"
@@ -1235,6 +1271,8 @@ ApplicationWindow {
                         }
                     }
                     Text {
+                        Layout.fillWidth: true
+                        wrapMode: Text.Wrap
                         visible: win.live
                         Layout.alignment: Qt.AlignHCenter
                         Layout.topMargin: 8
@@ -1249,15 +1287,21 @@ ApplicationWindow {
             }
 
             // ════════ 1 · THE LOOK ════════
-            Item {
+            WelcomePage {
                 id: lookPage
+                columnItem: lookColumn
 
                 ColumnLayout {
-                    anchors.centerIn: parent
+                    id: lookColumn
+                    x: (lookPage.width - width) / 2
+                    y: Math.max(lookPage.verticalPadding, (lookPage.height - implicitHeight) / 2)
                     width: Math.min(860, lookPage.width - 72)
                     spacing: 0
 
                     Text {
+                        Layout.fillWidth: true
+                        horizontalAlignment: Text.AlignHCenter
+                        wrapMode: Text.Wrap
                         Layout.alignment: Qt.AlignHCenter
                         text: win.rtl ? "اختر مظهرك" : "Pick your look"
                         color: win.txt
@@ -1265,6 +1309,9 @@ ApplicationWindow {
                     }
                     Item { Layout.preferredHeight: win.fs(8) }
                     Text {
+                        Layout.fillWidth: true
+                        horizontalAlignment: Text.AlignHCenter
+                        wrapMode: Text.Wrap
                         Layout.alignment: Qt.AlignHCenter
                         text: win.rtl
                               ? "6 إطلالات سريعة من عائلة تضم 18 ثيمًا — المجموعة الكاملة في تطبيق ثيمات MoOS"
@@ -1275,8 +1322,9 @@ ApplicationWindow {
                     Item { Layout.preferredHeight: win.fs(30) }
 
                     GridLayout {
+                        id: lookGrid
                         Layout.fillWidth: true
-                        columns: 3
+                        columns: Math.max(1, Math.min(3, Math.floor((width + columnSpacing) / (win.fs(220) + columnSpacing))))
                         columnSpacing: 18
                         rowSpacing: 18
 
@@ -1392,13 +1440,19 @@ ApplicationWindow {
                                             Layout.preferredWidth: win.fs(20); Layout.preferredHeight: win.fs(20)
                                         }
                                         ColumnLayout {
+                                            Layout.fillWidth: true
+                                            Layout.minimumWidth: 0
                                             spacing: 0
                                             Text {
+                                                Layout.fillWidth: true
+                                                wrapMode: Text.Wrap
                                                 text: win.rtl ? lookCard.modelData.ar : lookCard.modelData.en
                                                 color: win.txt
                                                 font.family: win.uiFont; font.pixelSize: win.typePx(16); font.weight: Font.DemiBold
                                             }
                                             Text {
+                                                Layout.fillWidth: true
+                                                wrapMode: Text.Wrap
                                                 text: win.rtl ? lookCard.modelData.en : lookCard.modelData.ar
                                                 color: win.txt2
                                                 font.family: win.uiFont; font.pixelSize: win.typePx(12)
@@ -1427,6 +1481,9 @@ ApplicationWindow {
 
                     Item { Layout.preferredHeight: win.fs(14) }
                     Text {
+                        Layout.fillWidth: true
+                        horizontalAlignment: Text.AlignHCenter
+                        wrapMode: Text.Wrap
                         Layout.alignment: Qt.AlignHCenter
                         text: win.rtl
                               ? "كل الإطلالات الفاتحة والداكنة والوضع التلقائي متاحة في تطبيق ثيمات MoOS"
@@ -1439,15 +1496,21 @@ ApplicationWindow {
             }
 
             // ════════ 2 · DIRECTION ════════
-            Item {
+            WelcomePage {
                 id: dirPage
+                columnItem: directionColumn
 
                 ColumnLayout {
-                    anchors.centerIn: parent
+                    id: directionColumn
+                    x: (dirPage.width - width) / 2
+                    y: Math.max(dirPage.verticalPadding, (dirPage.height - implicitHeight) / 2)
                     width: Math.min(860, dirPage.width - 72)
                     spacing: 0
 
                     Text {
+                        Layout.fillWidth: true
+                        horizontalAlignment: Text.AlignHCenter
+                        wrapMode: Text.Wrap
                         Layout.alignment: Qt.AlignHCenter
                         text: win.rtl ? "وجهة هذا الجهاز؟" : "What is this machine for?"
                         color: win.txt
@@ -1455,6 +1518,9 @@ ApplicationWindow {
                     }
                     Item { Layout.preferredHeight: win.fs(8) }
                     Text {
+                        Layout.fillWidth: true
+                        horizontalAlignment: Text.AlignHCenter
+                        wrapMode: Text.Wrap
                         Layout.alignment: Qt.AlignHCenter
                         text: win.rtl ? "اختر اتجاهاً أو أكثر — وسنجهّز عدّته كاملة"
                                       : "Pick one or more directions — we prepare the full kit"
@@ -1464,8 +1530,9 @@ ApplicationWindow {
                     Item { Layout.preferredHeight: win.fs(28) }
 
                     GridLayout {
+                        id: directionGrid
                         Layout.fillWidth: true
-                        columns: 2
+                        columns: width >= win.fs(620) ? 2 : 1
                         rowSpacing: 18
                         columnSpacing: 18
 
@@ -1478,7 +1545,7 @@ ApplicationWindow {
                                 readonly property var bundle: win.bundleById(dirCard.modelData)
                                 readonly property bool selected: win.directions[dirCard.modelData] === true
                                 Layout.fillWidth: true
-                                Layout.preferredHeight: win.fs(116)
+                                Layout.preferredHeight: Math.max(win.fs(116), directionCardRow.implicitHeight + 36)
                                 radius: design.radiusCard
                                 color: Qt.rgba(win.surface.r, win.surface.g, win.surface.b,
                                                dirHover.hovered || dirCard.selected ? 0.95 : 0.6)
@@ -1496,6 +1563,7 @@ ApplicationWindow {
                                 FocusRing { }
 
                                 RowLayout {
+                                    id: directionCardRow
                                     anchors.fill: parent
                                     anchors.margins: 18
                                     spacing: design.space4
@@ -1519,6 +1587,8 @@ ApplicationWindow {
                                         Layout.fillWidth: true
                                         spacing: 3
                                         Text {
+                                            Layout.fillWidth: true
+                                            wrapMode: Text.Wrap
                                             text: win.rtl ? dirCard.meta.ar : dirCard.meta.en
                                             color: win.txt
                                             font.family: win.uiFont; font.pixelSize: win.typePx(18); font.weight: Font.DemiBold
@@ -1533,7 +1603,7 @@ ApplicationWindow {
                                                   : ""
                                             color: win.txt2
                                             font.family: win.uiFont; font.pixelSize: win.typePx(13)
-                                            wrapMode: Text.WordWrap
+                                            wrapMode: Text.Wrap
                                             maximumLineCount: 2
                                             elide: Text.ElideRight
                                         }
@@ -1560,6 +1630,9 @@ ApplicationWindow {
 
                     Item { Layout.preferredHeight: win.fs(14) }
                     Text {
+                        Layout.fillWidth: true
+                        horizontalAlignment: Text.AlignHCenter
+                        wrapMode: Text.Wrap
                         Layout.alignment: Qt.AlignHCenter
                         text: win.rtl ? "ولا واحد؟ لا بأس — نظامك يبقى نظيفاً وتجد كل شيء في متجر Mo Store"
                                       : "None? Fine — the system stays clean, and Mo Store has everything"
@@ -1582,6 +1655,9 @@ ApplicationWindow {
                     spacing: 0
 
                     Text {
+                        Layout.fillWidth: true
+                        horizontalAlignment: Text.AlignHCenter
+                        wrapMode: Text.Wrap
                         Layout.alignment: Qt.AlignHCenter
                         text: win.rtl ? "تطبيقاتك الاختيارية" : "Your optional apps"
                         color: win.txt
@@ -1589,6 +1665,9 @@ ApplicationWindow {
                     }
                     Item { Layout.preferredHeight: win.fs(8) }
                     Text {
+                        Layout.fillWidth: true
+                        horizontalAlignment: Text.AlignHCenter
+                        wrapMode: Text.Wrap
                         Layout.alignment: Qt.AlignHCenter
                         text: win.rtl ? "الكاميرا والمسجّل والقارئ وأصحابهم — علِّم ما تريد، والباقي في المتجر"
                                       : "Camera, recorder, reader and friends — tick what you want; the rest lives in the store"
@@ -1710,6 +1789,9 @@ ApplicationWindow {
 
                     // load error surface — never a blank page
                     Text {
+                        Layout.fillWidth: true
+                        horizontalAlignment: Text.AlignHCenter
+                        wrapMode: Text.Wrap
                         visible: !win.loaded && win.loadError !== ""
                         Layout.alignment: Qt.AlignHCenter
                         text: (win.rtl ? "تعذّر قراءة الكتالوج: " : "Could not read the catalog: ") + win.loadError
@@ -1731,6 +1813,9 @@ ApplicationWindow {
                     spacing: 0
 
                     Text {
+                        Layout.fillWidth: true
+                        horizontalAlignment: Text.AlignHCenter
+                        wrapMode: Text.Wrap
                         Layout.alignment: Qt.AlignHCenter
                         text: win.installFinished
                               ? win.installHadFailures
@@ -1742,6 +1827,9 @@ ApplicationWindow {
                     }
                     Item { Layout.preferredHeight: win.fs(8) }
                     Text {
+                        Layout.fillWidth: true
+                        horizontalAlignment: Text.AlignHCenter
+                        wrapMode: Text.Wrap
                         Layout.alignment: Qt.AlignHCenter
                         visible: !win.installFinished
                         text: win.rtl ? "تثبيت آمن بصلاحيات المستخدم — يمكنك متابعة التقدم الحقيقي هنا"
@@ -1937,11 +2025,14 @@ ApplicationWindow {
             }
 
             // ════════ 5 · DONE ════════
-            Item {
+            WelcomePage {
                 id: donePage
+                columnItem: doneColumn
 
                 ColumnLayout {
-                    anchors.centerIn: parent
+                    id: doneColumn
+                    x: (donePage.width - width) / 2
+                    y: Math.max(donePage.verticalPadding, (donePage.height - implicitHeight) / 2)
                     width: Math.min(620, donePage.width - 80)
                     spacing: 0
 
@@ -1963,6 +2054,9 @@ ApplicationWindow {
 
                     Item { Layout.preferredHeight: win.fs(26) }
                     Text {
+                        Layout.fillWidth: true
+                        horizontalAlignment: Text.AlignHCenter
+                        wrapMode: Text.Wrap
                         Layout.alignment: Qt.AlignHCenter
                         text: win.rtl ? "نظامك جاهز" : "Your system is ready"
                         color: win.txt
@@ -2002,12 +2096,16 @@ ApplicationWindow {
                         border.width: 1
                         border.color: Qt.rgba(win.accent.r, win.accent.g, win.accent.b, 0.45)
 
-                        RowLayout {
+                        GridLayout {
                             id: deviceCardRow
+                            columns: width >= win.fs(480) ? 3 : 1
                             anchors.fill: parent
                             anchors.leftMargin: win.fs(16)
                             anchors.rightMargin: win.fs(16)
-                            spacing: design.space3
+                            anchors.topMargin: win.fs(14)
+                            anchors.bottomMargin: win.fs(14)
+                            rowSpacing: design.space3
+                            columnSpacing: design.space3
 
                             Rectangle {
                                 Layout.preferredWidth: win.fs(44)
@@ -2051,7 +2149,8 @@ ApplicationWindow {
                             }
 
                             Rectangle {
-                                Layout.preferredHeight: win.fs(40)
+                                Layout.fillWidth: deviceCardRow.columns === 1
+                                Layout.preferredHeight: Math.max(win.fs(44), deviceFixRow.implicitHeight + win.fs(18))
                                 Layout.alignment: Qt.AlignVCenter
                                 implicitWidth: deviceFixRow.implicitWidth + win.fs(34)
                                 radius: height / 2
@@ -2081,8 +2180,12 @@ ApplicationWindow {
                                 RowLayout {
                                     id: deviceFixRow
                                     anchors.centerIn: parent
+                                    width: parent.width - win.fs(34)
                                     spacing: design.space2
                                     Text {
+                                        Layout.fillWidth: true
+                                        wrapMode: Text.Wrap
+                                        horizontalAlignment: Text.AlignHCenter
                                         text: win.rtl ? "جهّزه الآن" : "Set it up"
                                         color: win.accentText
                                         font.family: win.uiFont
@@ -2096,12 +2199,18 @@ ApplicationWindow {
 
                     Item { Layout.preferredHeight: win.fs(32) }
 
-                    RowLayout {
-                        Layout.alignment: Qt.AlignHCenter
-                        spacing: 14
+                    GridLayout {
+                        id: doneActions
+                        Layout.fillWidth: true
+                        columns: width >= win.fs(520) ? 2 : 1
+                        rowSpacing: 14
+                        columnSpacing: 14
 
                         Rectangle {
-                            Layout.preferredHeight: win.fs(50)
+                            id: welcomeOpenStore
+                            Layout.fillWidth: true
+                            Layout.minimumWidth: 0
+                            Layout.preferredHeight: Math.max(win.fs(50), storeRow.implicitHeight + win.fs(20))
                             implicitWidth: storeRow.implicitWidth + 52
                             radius: height / 2
                             color: storeHover.hovered ? Qt.lighter(win.accent, 1.08) : win.accent
@@ -2117,8 +2226,12 @@ ApplicationWindow {
                             RowLayout {
                                 id: storeRow
                                 anchors.centerIn: parent
+                                width: parent.width - 52
                                 spacing: design.space2
                                 Text {
+                                    Layout.fillWidth: true
+                                    wrapMode: Text.Wrap
+                                    horizontalAlignment: Text.AlignHCenter
                                     text: win.rtl ? "افتح متجر Mo Store" : "Open Mo Store"
                                     color: win.accentText
                                     font.family: win.uiFont; font.pixelSize: win.typePx(15); font.weight: Font.DemiBold
@@ -2127,7 +2240,10 @@ ApplicationWindow {
                         }
 
                         Rectangle {
-                            Layout.preferredHeight: win.fs(50)
+                            id: welcomeOpenMira
+                            Layout.fillWidth: true
+                            Layout.minimumWidth: 0
+                            Layout.preferredHeight: Math.max(win.fs(50), aiRow.implicitHeight + win.fs(20))
                             implicitWidth: aiRow.implicitWidth + 52
                             radius: height / 2
                             color: aiHover.hovered
@@ -2147,6 +2263,7 @@ ApplicationWindow {
                             RowLayout {
                                 id: aiRow
                                 anchors.centerIn: parent
+                                width: parent.width - 52
                                 spacing: design.space2
                                 Glyph {
                                     name: "spark"
@@ -2155,6 +2272,9 @@ ApplicationWindow {
                                     Layout.preferredHeight: win.fs(17)
                                 }
                                 Text {
+                                    Layout.fillWidth: true
+                                    wrapMode: Text.Wrap
+                                    horizontalAlignment: Text.AlignHCenter
                                     text: win.rtl ? "افتح ميرا" : "Open Mira"
                                     color: win.txt
                                     font.family: win.uiFont; font.pixelSize: win.typePx(15); font.weight: Font.DemiBold
@@ -2165,8 +2285,10 @@ ApplicationWindow {
 
                     Item { Layout.preferredHeight: win.fs(14) }
                     Rectangle {
+                        id: welcomeConnectDevices
                         Layout.alignment: Qt.AlignHCenter
-                        Layout.preferredHeight: win.fs(44)
+                        Layout.maximumWidth: doneColumn.width
+                        Layout.preferredHeight: Math.max(win.fs(44), devicesRow.implicitHeight + win.fs(20))
                         implicitWidth: devicesRow.implicitWidth + 42
                         radius: height / 2
                         color: devicesHover.hovered
@@ -2188,6 +2310,7 @@ ApplicationWindow {
                         RowLayout {
                             id: devicesRow
                             anchors.centerIn: parent
+                            width: parent.width - 42
                             spacing: design.space2
                             Glyph {
                                 name: "bluetooth"
@@ -2196,6 +2319,9 @@ ApplicationWindow {
                                 Layout.preferredHeight: win.fs(18)
                             }
                             Text {
+                                Layout.fillWidth: true
+                                wrapMode: Text.Wrap
+                                horizontalAlignment: Text.AlignHCenter
                                 text: win.rtl ? "وصّل لوحة مفاتيح أو ماوس أو جهازاً"
                                               : "Connect a keyboard, mouse or device"
                                 color: win.txt

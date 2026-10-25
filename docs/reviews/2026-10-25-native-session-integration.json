@@ -1,0 +1,205 @@
+{
+  "schema": 1,
+  "date": "2026-10-25",
+  "status": "source development; canonical gates/native authentication pending",
+  "ownerFeedback": "Owner reports login/power/boot unchanged after1100 reboot; no complete UI acceptance",
+  "host": {
+    "model": "Minisforum V3 AMD",
+    "bootID": "ee7fcea0-591d-4c20-a991-41bc9101a265",
+    "version": "44.20261024.1100",
+    "digest": "sha256:7d9d154a13be88256eafd362a58bbe7e820c6ca6e1ffcca098a65702cdeee4dc",
+    "rollback": [
+      "1097",
+      "pinned1078"
+    ],
+    "bootSeconds": 23.368,
+    "output": "3840x2160@60 scale2.5 logical1536x864",
+    "theme": "org.moos.ui2.bloom.light",
+    "themeMigration": 132,
+    "failedUnits": 0,
+    "selfcheckPassFail": [
+      42,
+      1
+    ],
+    "postcheckPassFail": [
+      43,
+      2
+    ]
+  },
+  "sourceRevision": 136,
+  "nativeLogin": {
+    "preparedFiles": 14,
+    "authenticationUnchanged": true,
+    "newPackage": "6.8.1-1.2.moos1.fc44",
+    "nextScopedLibrarySHA256": "e39683c337ee41229c1080259c7d3d215958c911f646d8004113e9885b46f33f",
+    "scope": "Signed681 source in reused680 compiler, actual v1KCM registration/config; v2 snapshot native controls, not canonical681 image qualification",
+    "buildSeconds": 121.002126542,
+    "buildExit": 0,
+    "executedMarkers": [
+      "MOOS_LOGIN_APPEARANCE_OLD_OMISSION",
+      "MOOS_LOGIN_APPEARANCE_SNAPSHOT_PASS"
+    ],
+    "nativeSave": "Actual Bloom global image save verified;0 active non-Greeter entries before/after; native helper removes commented default groups",
+    "rootGreeterConfig": "PermissionError, not assumed absent",
+    "ARMCloud": "independently qualified provider retained",
+    "nativeSync": "Actual mapped v3 e39683c3 finishes status0 after286s, original25s failure retained; owner configs/outputs/global image unchanged",
+    "nativeCompiler": {
+      "v8Exit": 0,
+      "seconds": 139.041643984,
+      "finiteWaitExecuted": true,
+      "snapshotExecuted": true,
+      "notCanonical681Image": true
+    },
+    "destinationReadback": {
+      "executedUID": 0,
+      "executedPID": 182527,
+      "sameBloomLightColorsIconsLookStyle": true,
+      "locale": "ar_SA.UTF-8",
+      "source": "Bounded read-only native pkexec, actual stdout record on session-c4 scope; not launch-description text"
+    }
+  },
+  "power": {
+    "owner": "native681 LogoutControls +SessionPower",
+    "change": "Five ordinary desktop actions in one wide row, balanced capability/update grids, canonical MoOS symbols; native callbacks retained",
+    "matchedOpenGLProfiles": 18,
+    "ownerPortalUnchanged": true,
+    "actualBefore": "Installed /usr SessionPower9a501e32 +Bloom image, Escape accepted",
+    "actualAfter": "Physical V3 native136 pixels and native Cancel journey; owner acceptance pending",
+    "earlierMixedIconFixtures": "preserved",
+    "ownerFeedback135": "Still needs visual improvement",
+    "revision136": "Window-role working sheet at0.94 density, smaller native clock/avatar, calm focus-only decoration, circular semantic symbols",
+    "composedCaptionContrast": "all visible action captions >=4.5 against actual interactive fill and both transparency extremes",
+    "oldMaterialNegative": true,
+    "performance136": {
+      "seconds": 10.000428637,
+      "percentOneCPU": 0.0999957138,
+      "rssKB": 208176,
+      "workload": "Settled actual power; editor and native compiler active; no system idle or speed-win claim"
+    },
+    "ownerFeedback136": "Distribution accepted; continue remaining screens. This is component acceptance, not whole UI or signed delivery."
+  },
+  "welcome": {
+    "change": "Natural hero/look/direction/done scrolling, adaptive cards/actions, wrapped inner captions",
+    "nativeCases": [
+      [
+        640,
+        480,
+        "ar",
+        10
+      ],
+      [
+        360,
+        640,
+        "ar",
+        16
+      ],
+      [
+        331,
+        550,
+        "ar",
+        16
+      ],
+      [
+        1536,
+        864,
+        "en",
+        10
+      ]
+    ],
+    "brokenScrollNegative": true,
+    "scope": "actual native QML host, private buses/config/cache; no installer, installation or theme action",
+    "installedJourney": "pending",
+    "nativeFrameNegative": true,
+    "naturalWindowFramePixels": "Three natural native OpenGL window/input journeys pass; keep original frame-overflow and73px word in59px field controls",
+    "longWordNegative": true
+  },
+  "boot": {
+    "art": "Existing approved intro1.png/Graphite unchanged",
+    "change": "Smaller finite360ms cubic rise/opacity, early-handoff reset, shutdown/reboot at rest",
+    "sourceTests": 16,
+    "nativeParserAccept": 0,
+    "nativeParserBOMNegative": 71,
+    "actualPluginSHA256": "de588b1776e903cc6380b58780d2b061f85a7bf690a3369a41c4aab04e931a5c",
+    "hostBootAssets": "unchanged"
+  },
+  "retainedFailures": [
+    "Short-circuit native build lacked configured directory",
+    "v3exit0 selected stale nested-copied SDK inputs; refused",
+    "v4 snapshot lacked KConfig include; fixedv5",
+    "Native config initial-properties/folder-preview errors corrected",
+    "Native Button Return assumption corrected to actual Space",
+    "Native Welcome GridLayout spacing error refused and corrected",
+    "First full check refuses stale visual-schema revision literal; updated exact134 assertion",
+    "First canonical build refuses new MoOS text naming Plasma; product wording corrected, exact fingerprint revision135 recorded",
+    "Initial Welcome native item capture omits Window background; preserved transparent fixture, not an opaque scene acceptance",
+    "Windowed native capture exposes old title-frame overflow; earlier client-only passing controls retained",
+    "Owned in-flight135 check interrupted before source mutation to qualify corrected frame snapshot anew",
+    "Old natural331px direction field paints73px Arabic word in59px width despite valid outer card; actual WordWrap negative now guarded"
+  ],
+  "required": [
+    "Maintained source gate",
+    "Canonical full image/new681RPM/payload/initramfs",
+    "Actual changed power/Welcome",
+    "Native login save/full sync and cold login",
+    "Exact-head CI, signing/artifact/promotion",
+    "Owner-timed physical boot/device/phone/endurance"
+  ],
+  "newSignedDelivery": false,
+  "compatibilityRetirement": {
+    "files": 2,
+    "scope": "Exact known redundant widget bridge/helper, global payload and no active consumers verified",
+    "recoverable": true
+  },
+  "nativeDiagnosticsAfterBridgeRetirement": {
+    "installedSelfcheck": {
+      "pass": 43,
+      "fail": 1,
+      "remaining": "Installed1100 diagnostic has original Bloom omission"
+    },
+    "sourceSelfcheck": {
+      "pass": 54,
+      "fail": 0
+    },
+    "sourcePostUpdate": {
+      "pass": 56,
+      "fail": 0
+    },
+    "scope": "Source checker reads actual signed1100 machine; not installed135 OS acceptance"
+  },
+  "qualification": {
+    "focusedNative": {
+      "moosUI2": 44,
+      "boot": 16,
+      "qmlRoot": true,
+      "identity": true,
+      "fingerprint": 135,
+      "welcomeCasesAndNegatives": 7
+    },
+    "fullSourceImage": "Earlier135 maintained source check223 summaries pass, then image fails at reviewed native marker; final136 full gate/image pending"
+  },
+  "runtimeCompose": {
+    "baseDigest": "sha256:3b887fcebb75b60edff0fe55dbfdf57b8af6db7a735b983b7265d35c4099b601",
+    "oldFullImage": "refuses unexpected var/lib/.ssh-host-keys-migration before SDK stage",
+    "nativeReproduction": "same pristine immutable input14->16 reproduces empty644 root/root single-link marker from exact POSTIN; no SSH host key names",
+    "fix": "Exact x86 NVR/source/POSTIN/unit/script/RPM-payload and empty-keyspace authority; all transaction preflights before unlink, general gate unchanged",
+    "sourceControls": {
+      "runtime": 40,
+      "canaryAndPrefix": 39,
+      "usrLocal": 7
+    },
+    "nativeAuthorityReadOnly": true,
+    "fixedNativeTransaction": "pending",
+    "fullImage": "pending"
+  },
+  "latestOwnerRequirement": {
+    "uniform": "All theme selections and actual custom wallpaper should propagate across desktop, selected-user login, lock, power and other session screens automatically",
+    "boot": "Independent MoOS identity, simple finite logo motion and Arabic welcome; no theme dependency",
+    "notImplementedYet": "Automatic per-user publishing/custom wallpaper across login; distinct Arabic boot assets"
+  },
+  "native136SourceCheckpoint": {
+    "exit": 0,
+    "seconds": 849.252082731,
+    "completeImage": "pending",
+    "newSignedDelivery": false
+  }
+}

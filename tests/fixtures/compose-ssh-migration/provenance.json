@@ -1,0 +1,12 @@
+{
+  "sourcePackage": "openssh-10.2p1-16.fc44.src.rpm",
+  "nativePackage": "openssh-server-10.2p1-16.fc44.x86_64",
+  "provider": "Native signed package transaction from immutable kinoite-main input sha256:3b887fcebb75b60edff0fe55dbfdf57b8af6db7a735b983b7265d35c4099b601",
+  "license": "BSD-3-Clause AND BSD-2-Clause AND ISC AND SSH-OpenSSH AND ssh-keyscan AND snprintf AND LicenseRef-Fedora-Public-Domain AND X11-distribute-modifications-variant",
+  "consumer": "test_compose_runtime_transaction.SSHMigrationAuthority, exact creator/payload negatives; fixtures never ship in the OS",
+  "sha256": {
+    "migration.sh": "423ed19b93c41154c490f15f2989294e67ee31582d60e08f311602cea4abaf82",
+    "migration.service": "679dcbee8d88ff85b4ed05766aa561ea538830bd706182e65a80d911f4060cec",
+    "postinstall.sh": "8b779b4969ab318b9400284739e8c2eb37fafcc2170fdf1923cede900fdde2fa"
+  }
+}

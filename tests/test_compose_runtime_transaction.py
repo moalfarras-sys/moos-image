@@ -166,13 +166,151 @@ class RuntimeTransaction(unittest.TestCase):
         records=json.loads((ROOT/'build_files/plasma_stable/runtime-rules.json').read_text())['records']
         for path,record in records.items():
             self.assertTrue(path.startswith('var/'))
-            self.assertTrue(record.get('authorities') or record.get('implicit_parent') or record.get('derived'),path)
+            self.assertTrue(record.get('authorities') or record.get('implicit_parent')
+                            or record.get('derived') or record.get('rpm_postin_authority'),path)
+            if record.get('rpm_postin_authority'):
+                self.assertEqual(path,'var/lib/.ssh-host-keys-migration')
+                self.assertEqual(record,{'kind':'file','mode':0o644,'user':'root','group':'root',
+                    'rpm_postin_authority':'openssh-server-10.2p1-16.fc44.x86_64'})
             if record.get('implicit_parent'):
                 self.assertEqual((record['kind'],record['mode'],record['user'],record['group']),
                                  ('directory',0o755,'root','root'))
                 self.assertTrue(any(p.startswith(path+'/') and r.get('authorities') for p,r in records.items()),path)
             if record.get('derived'):
                 self.assertIn(path,('var/lib/systemd/random-seed','var/lib/systemd/catalog/database'))
+
+
+class SSHMigrationAuthority(unittest.TestCase):
+    def setUp(self):
+        import hashlib
+        t=tempfile.TemporaryDirectory();self.addCleanup(t.cleanup);self.root=Path(t.name)
+        (self.root/'var/tmp').mkdir(parents=True);(self.root/'var/tmp').chmod(0o1777)
+        (self.root/'etc/ssh').mkdir(parents=True)
+        self.identity=self.root/'etc/machine-id';self.identity.touch(mode=0o644)
+        rules=json.loads((ROOT/'build_files/plasma_stable/runtime-rules.json').read_text())['records']
+        self.records={key:copy.deepcopy(rules[key]) for key in ('var/lib','var/lib/.ssh-host-keys-migration')}
+        # Native var/lib authority is already exercised above. This fixture
+        # concentrates on the distinct RPM POSTIN creator and retirement order.
+        self.records['var/lib'].pop('authorities',None)
+        self.tx=Transaction(self.root,self.records)
+        (self.root/'var/lib').mkdir();self.marker=self.root/'var/lib/.ssh-host-keys-migration'
+        self.marker.touch(mode=0o644)
+        self.new_identity=b'0123456789abcdef0123456789abcdef\n';self.identity.write_bytes(self.new_identity)
+        self.inputs={}
+        fixture=ROOT/'tests/fixtures/compose-ssh-migration'
+        for relative,name,mode in [('usr/libexec/openssh/ssh-host-keys-migration.sh','migration.sh',0o744),
+                ('usr/lib/systemd/system/ssh-host-keys-migration.service','migration.service',0o644)]:
+            p=self.root/relative;p.parent.mkdir(parents=True,exist_ok=True)
+            p.write_bytes((fixture/name).read_bytes());p.chmod(mode);self.inputs[relative]=p
+        self.metadata='openssh-server 10.2p1-16.fc44 x86_64 openssh-10.2p1-16.fc44.src.rpm'
+        self.postin=(fixture/'postinstall.sh').read_bytes()
+        self.dump='\n'.join('/'+relative+' 0 0 '+hashlib.sha256(p.read_bytes()).hexdigest()
+            +' 0100644 root root 0 0 0 X' for relative,p in self.inputs.items())
+        self.rpm=patch('runtime_state.subprocess.check_output',side_effect=self.query).start()
+        self.addCleanup(patch.stopall)
+
+    def query(self,args,**kwargs):
+        self.assertEqual(args[:4],['rpm','--root',str(self.root),'-q'])
+        self.assertEqual(args[-1],'openssh-server')
+        if '--dump' in args:return self.dump
+        if args[-2]=='%{POSTIN}':return self.postin
+        self.assertEqual(args[-2],'%{NAME} %{VERSION}-%{RELEASE} %{ARCH} %{SOURCERPM}')
+        return self.metadata
+
+    def refused(self,message):
+        with self.assertRaisesRegex((RuntimeError,OSError),message):self.tx.finalize()
+        self.assertTrue(os.path.lexists(self.marker))
+        self.assertEqual(self.identity.read_bytes(),self.new_identity)
+
+    def test_reviewed_empty_marker_retires_only_after_complete_preflight(self):
+        before={k:p.read_bytes() for k,p in self.inputs.items()}
+        self.tx.finalize()
+        self.assertFalse(self.marker.exists());self.assertEqual(self.identity.read_bytes(),b'')
+        self.assertEqual({k:p.read_bytes() for k,p in self.inputs.items()},before)
+        self.assertEqual([p.name for p in (self.root/'var').iterdir()],['tmp'])
+
+    def test_original_unknown_marker_refusal_is_retained(self):
+        del self.tx.records['var/lib/.ssh-host-keys-migration']
+        self.refused('unexpected transaction state')
+
+    def test_nonempty_marker_is_not_a_generated_completion(self):
+        self.marker.write_bytes(b'preserve unknown state');self.refused('nonempty SSH')
+        self.assertEqual(self.marker.read_bytes(),b'preserve unknown state')
+
+    def test_target_symlink_fifo_hardlink_and_writable_modes_refuse(self):
+        for kind in ('link','fifo','hardlink','writable'):
+            with self.subTest(kind=kind):
+                self.marker.unlink()
+                other=self.root/'unknown';other.write_bytes(b'')
+                if kind=='link':self.marker.symlink_to(other)
+                elif kind=='fifo':os.mkfifo(self.marker)
+                elif kind=='hardlink':os.link(other,self.marker)
+                else:self.marker.touch(mode=0o666);self.marker.chmod(0o666)
+                self.refused('unsafe transaction metadata')
+                self.marker.unlink();other.unlink();self.marker.touch(mode=0o644)
+
+    def test_package_nvr_architecture_and_source_drift_refuse(self):
+        original=self.metadata
+        for value in (original.replace('-16.', '-17.'),original.replace('x86_64','aarch64'),
+                original.replace('openssh-10.2p1','other-10.2p1')):
+            self.metadata=value;self.refused('unreviewed SSH')
+
+    def test_postinstall_script_drift_refuses(self):
+        self.postin+=b'\n# changed';self.refused('POSTIN authority drifted')
+
+    def test_both_immutable_authorities_require_exact_bytes_and_rpm_payload(self):
+        for p in self.inputs.values():
+            original=p.read_bytes();p.write_bytes(original+b'\n# changed')
+            self.refused('authority payload drifted');p.write_bytes(original)
+        self.dump=self.dump.replace(' 0 0 ',' 0 0 0000',1)
+        self.refused('authority payload drifted')
+
+    def test_readonly_authority_hardlinks_remain_valid(self):
+        os.link(next(iter(self.inputs.values())),self.root/'retained-base-hardlink')
+        self.tx.finalize();self.assertFalse(self.marker.exists())
+
+    def test_unknown_even_empty_host_key_names_remain_untouched(self):
+        for kind in ('file','directory','link','fifo'):
+            key=self.root/'etc/ssh/ssh_host_unknown_key'
+            if kind=='file':key.touch()
+            elif kind=='directory':key.mkdir()
+            elif kind=='link':key.symlink_to('/missing-owner-key')
+            else:os.mkfifo(key)
+            self.refused('host key state must be preserved')
+            if kind=='directory':key.rmdir()
+            else:key.unlink()
+
+    def test_runtime_or_administrator_unit_overrides_refuse(self):
+        for prefix in ('etc/systemd/system','run/systemd/system','usr/local/lib/systemd/system'):
+            p=self.root/prefix/'ssh-host-keys-migration.service';p.parent.mkdir(parents=True,exist_ok=True)
+            p.touch();self.refused('unit override');p.unlink()
+            p.symlink_to('/dev/null');self.refused('unit override');p.unlink()
+
+    def test_exact_atomic_local_alias_is_preserved_without_following_unknown_links(self):
+        alias=self.root/'usr/local';alias.symlink_to('../var/usrlocal')
+        self.tx.finalize();self.assertEqual(os.readlink(alias),'../var/usrlocal')
+
+    def test_atomic_mapped_unit_mask_refuses(self):
+        (self.root/'usr/local').symlink_to('../var/usrlocal')
+        p=self.root/'var/usrlocal/lib/systemd/system/ssh-host-keys-migration.service'
+        p.parent.mkdir(parents=True);p.symlink_to('/dev/null')
+        with self.assertRaisesRegex(RuntimeError,'unit override'):self.tx.ssh_migration_authority()
+        self.assertTrue(self.marker.exists());self.assertEqual(self.identity.read_bytes(),self.new_identity)
+
+    def test_unknown_local_alias_refuses(self):
+        (self.root/'usr/local').symlink_to('/unknown');self.refused('unreviewed local tmpfiles prefix alias')
+
+    def test_host_key_bind_mount_refuses_before_traversal(self):
+        with patch('runtime_state.mount_points',return_value={self.root/'etc/ssh'}), \
+                patch.object(Path,'glob',side_effect=AssertionError('traversed keys before mount refusal')):
+            self.refused('unsafe compose mount')
+
+    def test_unknown_sibling_preserves_reviewed_marker_too(self):
+        p=self.root/'var/lib/unknown';p.write_bytes(b'preserve')
+        self.refused('unexpected transaction state');self.assertEqual(p.read_bytes(),b'preserve')
+
+    def test_absent_marker_needs_no_new_rpm_provider(self):
+        self.marker.unlink();self.tx.finalize();self.rpm.assert_not_called()
 
 
 if __name__=='__main__':unittest.main()

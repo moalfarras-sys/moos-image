@@ -9,6 +9,9 @@ ConditionUser=!@system
 # target at sunrise/sunset. The paired service never writes kdeglobals, so this
 # watch cannot trigger itself.
 PathChanged=%h/.config/kdeglobals
+# The existing shell filters actual image changes into this inert event hash.
+# Applet moves/geometry writes must never wake the reconciliation service.
+PathChanged=%h/.config/moos-wallpaper-intent.conf
 Unit=moos-theme-sync.service
 
 [Install]

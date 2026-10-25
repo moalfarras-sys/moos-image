@@ -1,9 +1,9 @@
-// MoOS UI — Graphite Horizon. A single approved rendered mark, not a movie.
+// MoOS boot identity. Independent of the selected desktop/login theme.
 // No minimum display time, fake percentage, perpetual orbit or full-screen blur.
 // Decode one hero; scale it once. The short opacity entrance finishes in 360 ms;
 // shutdown and quit immediately present the resting composition.
-Window.SetBackgroundTopColor(0.078, 0.098, 0.110);      // #14191C UI2 canvas
-Window.SetBackgroundBottomColor(0.078, 0.098, 0.110);   // #14191C — flat, no seam
+Window.SetBackgroundTopColor(0.039, 0.063, 0.106);      // fixed #0A101B brand ground
+Window.SetBackgroundBottomColor(0.039, 0.063, 0.106);   // flat fallback, no seam
 
 sw = Window.GetWidth(0);
 sh = Window.GetHeight(0);
@@ -18,7 +18,7 @@ fun clamp01(v) { return fmax(0, fmin(1, v)); }
 
 // Cover the screen without stretching. Scaling happens once during theme
 // setup, never in refresh(), and the 1080p source keeps initramfs decode cost
-// bounded while retaining the reviewed 4K wallpaper's composition.
+// bounded. This fixed brand canvas never reads a wallpaper or theme setting.
 BACKDROP_W = 1920;
 BACKDROP_H = 1080;
 backdrop_scale = fmax(sw / BACKDROP_W, sh / BACKDROP_H);
@@ -32,10 +32,13 @@ backdrop_sprite.SetZ(0);
 
 INTRO_COUNT = 1;
 INTRO_ASPECT = 1.5396;
-stage_w = fmin(sw * 0.70, sh * 0.62 * INTRO_ASPECT);
+// A restrained signature leaves the horizon and encrypted-volume prompts room.
+// Keep the approved mark sharp instead of enlarging it across most of the screen.
+stage_w = fmin(sw * 0.44, sh * 0.40 * INTRO_ASPECT);
 stage_h = stage_w / INTRO_ASPECT;
 stage_x = cx - stage_w / 2;
 stage_y = cy - stage_h / 2;
+entrance_rise = fmin(18, sh * 0.018);
 OVERLAY_MAX_W = sw * 0.78;
 frames[1] = Image("intro1.png");
 hero = frames[INTRO_COUNT].Scale(stage_w, stage_h);
@@ -45,19 +48,39 @@ intro_sprite.SetY(stage_y);
 intro_sprite.SetZ(5);
 intro_sprite.SetOpacity(1);
 
+// Rasterized with real Arabic shaping, so early boot needs no user font or
+// locale. Keep this subordinate to the approved mark and above native prompts.
+greeting = Image("welcome-ar.png");
+greeting_w = fmin(sw * 0.50, fmax(stage_w * 0.30, 100));
+greeting_h = greeting_w * greeting.GetHeight() / greeting.GetWidth();
+greeting_sprite = Sprite(greeting.Scale(greeting_w, greeting_h));
+greeting_sprite.SetX(cx - greeting_w / 2);
+greeting_sprite.SetY(stage_y + stage_h + fmin(28, sh * 0.025));
+greeting_sprite.SetZ(5);
+
 // Only a finite entrance. Pre-login has no desktop Reduced Motion preference;
 // use a still composition after nine ticks and during password entry/quit.
 tick = 0;
 finished = 0;
 mode = Plymouth.GetMode();
+if (mode == "shutdown" || mode == "reboot") { greeting_sprite.SetOpacity(0); }
 if (mode == "shutdown" || mode == "reboot") { finished = 1; }
-if (finished == 0) { intro_sprite.SetOpacity(0.70); }
+if (finished == 0) {
+    intro_sprite.SetOpacity(0.70);
+    intro_sprite.SetY(stage_y + entrance_rise);
+}
 Plymouth.SetRefreshRate(25);
 fun refresh() {
     if (finished == 0) {
         tick++;
-        intro_sprite.SetOpacity(0.70 + 0.30 * clamp01(tick / 9.0));
+        remaining = 1 - clamp01(tick / 9.0);
+        arrival = 1 - remaining * remaining * remaining;
+        intro_sprite.SetOpacity(0.70 + 0.30 * arrival);
+        intro_sprite.SetY(stage_y + entrance_rise * (1 - arrival));
         if (tick >= 9) {
+            // Commit the same final raster as quit/password. Native Plymouth
+            // otherwise retained the preceding blended edge until that event.
+            intro_sprite.SetImage(hero);
             finished = 1;
             // Keep input/status redraws responsive. The mark is now still;
             // sprite refresh draws only damaged regions, not a new movie frame.
@@ -68,6 +91,7 @@ Plymouth.SetRefreshFunction(refresh);
 fun quit_callback() {
     finished = 1;
     intro_sprite.SetImage(hero);
+    intro_sprite.SetY(stage_y);
     intro_sprite.SetOpacity(1);
     Plymouth.SetRefreshRate(1);
 }

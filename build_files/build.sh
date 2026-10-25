@@ -2007,7 +2007,7 @@ TAILSCALE_REPO
 # python3-pyside6 … python3-cryptography: Mira's runtime (the MoOS assistant, /usr/bin/mira). Her
 # pinned extras are in /usr/lib/mira/site from the mira-build stage; everything else is these RPMs,
 # the same ones that stage installs to run her tests.
-dnf5 -y install tailscale ydotool wl-clipboard spectacle python3-gobject \
+dnf5 -y install tailscale ydotool wl-clipboard spectacle python3-gobject python3-pillow accountsservice \
     python3-websockets poppler-utils qrencode \
     gstreamer1 gstreamer1-plugins-base gstreamer1-plugins-good pipewire-gstreamer \
     python3-pyside6 python3-numpy python3-jeepney python3-httpx python3-requests python3-cryptography
@@ -3925,7 +3925,7 @@ if [ "${_final_lsrc}" -eq 0 ]; then
     grep -q 'plymouth/themes/moos/moos.script' /tmp/moos-final-initrd.txt || {
         echo "FATAL: final initramfs lacks moos.script — the Script splash would abort to text"; exit 1;
     }
-    for _spr in boot-backdrop intro1; do
+    for _spr in boot-backdrop intro1 welcome-ar; do
         grep -q "plymouth/themes/moos/${_spr}.png" /tmp/moos-final-initrd.txt || {
             echo "FATAL: final initramfs lacks the MoOS ${_spr} sprite — the reveal cannot draw"; exit 1;
         }
@@ -4776,6 +4776,7 @@ python3 /ctx/plasma_seams.py build || {
 if [ "$(rpm -q --qf '%{VERSION}' plasma-workspace)" = 6.8.1 ]; then
     python3 /ctx/verify_session_power.py || exit 1
 fi
+python3 /ctx/verify_session_appearance.py || exit 1
 
 # ── The Plasma shell overlay must survive into the finished image ─────────────
 #

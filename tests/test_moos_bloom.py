@@ -69,6 +69,32 @@ def contrast_pairs(svg):
 
 
 class BloomTests(unittest.TestCase):
+    def test_live_diagnostics_execute_registered_profiles_and_refuse_unknown(self):
+        for path, variable, end, fields in (
+            (ROOT/'system_files/usr/bin/moos-selfcheck', 'lnf', '\n\nif [ -z "$want_deco" ]; then',
+             ('want_deco', 'want_sch', 'want_ico', 'want_sty', 'want_wall', 'pair_dark', 'pair_light')),
+            (ROOT/'tests/post-update-check.sh', 'theme_lnf', '\n\nif [ -n "$theme_family" ]; then',
+             ('want_deco', 'want_scheme', 'want_icons', 'want_style', 'want_wallpaper', 'pair_dark', 'pair_light')),
+        ):
+            source = path.read_text().split('case "$'+variable+'" in', 1)[1].split(end, 1)[0]
+            body = 'case "$'+variable+'" in'+source
+            def read(theme, code=body):
+                script = variable+'=$1\nbad() { :; }\n'+code+'\nprintf "%s\\n" '+ ' '.join('"${'+f+':-}"' for f in fields)
+                p = subprocess.run(['bash', '-c', script, 'profile-check', theme], capture_output=True, text=True, check=True)
+                return p.stdout.splitlines()
+            for profile in PROFILES:
+                with self.subTest(checker=path.name, theme=profile['id']):
+                    dark = profile['id'].removesuffix('.light')
+                    self.assertEqual(read(profile['id']), ['__aurorae__svg__'+profile['decoration'],
+                        profile['scheme'], profile['icons'], profile['style'], profile['wallpaper'], dark, dark+'.light'])
+            for invalid in ('org.moos.ui2.bloom.unknown', 'org.moos.ui2.unknown', 'org.kde.breeze.desktop', ''):
+                self.assertEqual(read(invalid), ['']*len(fields))
+            # Restore the actual omitted pair in a private control. Its two
+            # healthy profiles must again be refused by the executed parser.
+            old = body.replace('    org.moos.ui2.bloom|org.moos.ui2.bloom.light|\\\n', '', 1)
+            self.assertNotEqual(old, body)
+            self.assertEqual(read('org.moos.ui2.bloom.light', old), ['']*len(fields))
+
     def test_complete_native_pairs_preserve_existing_profiles_and_engine(self):
         old = {"org.moos.ui2"+suffix for suffix in ("", ".light")}
         old |= {"org.moos.ui2."+name+suffix for name in
@@ -165,7 +191,7 @@ class BloomTests(unittest.TestCase):
         resolver = re.search(r"(?ms)^    function resolveImage\(value\) \{.*?^    \}", source).group()
         engine = QJSEngine()
         shared = WALLPAPER_MAP.read_text().replace('.pragma library','')
-        result = engine.evaluate(shared+'\nvar MoUI={WallpaperSources:{imageForPackage:imageForPackage}};var root={fallbackImage:"fallback"};'+resolver)
+        result = engine.evaluate(shared+'\nvar MoUI={WallpaperSources:{imageForPackage:imageForPackage,localPath:localPath}};var root={fallbackImage:"fallback"};'+resolver)
         self.assertFalse(result.isError(), result.toString())
         for profile in PROFILES:
             value = "/usr/share/wallpapers/"+profile["wallpaper"]
@@ -190,7 +216,7 @@ class BloomTests(unittest.TestCase):
         resolver = re.search(r'(?ms)^    function resolveImage\(value\) \{.*?^    \}', source).group()
         engine = QJSEngine()
         shared = WALLPAPER_MAP.read_text().replace('.pragma library','')
-        self.assertFalse(engine.evaluate(shared+'\nvar MoUI={WallpaperSources:{imageForPackage:imageForPackage}};var root={fallbackImage:"fallback"};'+resolver).isError())
+        self.assertFalse(engine.evaluate(shared+'\nvar MoUI={WallpaperSources:{imageForPackage:imageForPackage,localPath:localPath}};var root={fallbackImage:"fallback"};'+resolver).isError())
         for profile in PROFILES:
             value = '/usr/share/wallpapers/'+profile['wallpaper']
             actual = engine.evaluate('resolveImage('+json.dumps(value)+')').toString()

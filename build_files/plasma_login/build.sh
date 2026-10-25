@@ -17,14 +17,15 @@ prepare)
     (cd "$task_root/SOURCES" && cpio -idm --no-absolute-filenames --no-preserve-owner < /work/plasma-login-source.cpio)
     cp "$task_root/SOURCES/plasma-login-manager.spec" "$task_root/SPECS/plasma-login-manager.spec"
     cp "$source_root/automatic-fingerprint.patch" "$task_root/SOURCES/moos-automatic-fingerprint.patch"
+    cp "$source_root/moos-login-scene.patch" "$task_root/SOURCES/moos-login-scene.patch"
     python3 - <<'PY'
 from pathlib import Path
 path = Path('/work/plasma-login-rpmbuild/SPECS/plasma-login-manager.spec')
 text = path.read_text()
 assert text.count('Release:        1%{?dist}') == 1
-text = text.replace('Release:        1%{?dist}', 'Release:        1.1.moos1%{?dist}')
+text = text.replace('Release:        1%{?dist}', 'Release:        1.2.moos1%{?dist}')
 assert text.count('%description\n') == 1 and text.count('%build\n') == 1
-text = text.replace('%description\n', 'Patch2001: moos-automatic-fingerprint.patch\n\n%description\n', 1)
+text = text.replace('%description\n', 'Patch2001: moos-automatic-fingerprint.patch\nPatch2002: moos-login-scene.patch\n\n%description\n', 1)
 text = text.replace('%build\n', '%build\npython3 /src/build_files/plasma_login/rpms.py prepared\n'
                     'bash /src/build_files/plasma_login/native-proof.sh\n', 1)
 path.write_text(text)

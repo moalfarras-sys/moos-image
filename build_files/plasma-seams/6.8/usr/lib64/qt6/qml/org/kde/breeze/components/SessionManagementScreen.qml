@@ -309,7 +309,7 @@ FocusScope {
     // in its own source that it "can't guarantee that background will always be
     // present or have the margins property" — replacing the background is a
     // supported thing to do — so each stock control is handed a MoOS background
-    // (and the key its glyph), the Complementary colour set the island wears,
+    // (and the key its glyph), the selected Window colour set the island wears,
     // and an accessible name or role where it had none. Nothing else is
     // written: not its text, echo mode, focus, a handler or a signal. What is
     // read is what a background needs to draw itself — focus, hover, press, the
@@ -325,7 +325,7 @@ FocusScope {
         if (control instanceof T.TextField) {
             root.adoptedControls.push(control);
             control.Kirigami.Theme.inherit = false;
-            control.Kirigami.Theme.colorSet = Kirigami.Theme.Complementary;
+            control.Kirigami.Theme.colorSet = Kirigami.Theme.Window;
             control.background = fieldFace.createObject(control, { control: control });
             control.font.pointSize = Qt.binding(() => Math.max(8, Math.round(
                 (Kirigami.Theme.defaultFont.pointSize + 2) * root.sessionScale)));
@@ -339,7 +339,7 @@ FocusScope {
         } else if (control instanceof T.Button && !(control instanceof T.ToolButton)) {
             root.adoptedControls.push(control);
             control.Kirigami.Theme.inherit = false;
-            control.Kirigami.Theme.colorSet = Kirigami.Theme.Complementary;
+            control.Kirigami.Theme.colorSet = Kirigami.Theme.Window;
             const face = keyFace.createObject(control, { control: control, partner: partner || null });
             control.background = face;
             control.contentItem = keyGlyph.createObject(control, { control: control, face: face });
@@ -374,7 +374,10 @@ FocusScope {
         }
     }
 
-    Component.onCompleted: adoptPromptControls()
+    Component.onCompleted: {
+        adoptPromptControls();
+        console.info("MOOS_AUTH_SURFACE_READY", Qt.resolvedUrl("SessionManagementScreen.qml"));
+    }
 
     // A change of a field's text is a keystroke. Only the EVENT is used — the
     // orbit answers it — never what was typed.
@@ -580,6 +583,9 @@ FocusScope {
     // first: z-order is declaration order, and the plate sits behind.
     MoUI.GlassSurface {
         id: island
+        objectName: "moosAuthenticationCard"
+        Kirigami.Theme.inherit: false
+        Kirigami.Theme.colorSet: Kirigami.Theme.Window
 
         // MoOS's UserDelegate says how far below the list's top its face
         // starts; a delegate that does not say so starts at the top.
@@ -600,7 +606,7 @@ FocusScope {
         radius: Math.round(root.design.radiusDialog * Math.max(0.8, root.sessionScale))
         depth: root.design.glassLevelDialog
         surfaceColor: Kirigami.Theme.backgroundColor
-        fillOpacity: root.design.sessionGlassOpacity
+        fillOpacity: 0.94
         inkColor: Kirigami.Theme.textColor
         accentColor: root.accentA
         border.color: Qt.rgba(Kirigami.Theme.textColor.r,
@@ -782,6 +788,13 @@ FocusScope {
     // whitespace to avoid items being overlapped.
     UserList {
         id: userListView
+        // Observe the native selection; authentication and selected account
+        // remain entirely owned by the caller. Ordinary lock clients do not
+        // activate the separate login account's appearance reader.
+        onSelectedUserChanged: MoUI.SessionAppearance.followUser(selectedUser)
+        Component.onCompleted: MoUI.SessionAppearance.followUser(selectedUser)
+        Kirigami.Theme.inherit: false
+        Kirigami.Theme.colorSet: Kirigami.Theme.Window
         visible: root.showUserList && y > 0
         anchors {
             bottom: parent.verticalCenter
@@ -801,6 +814,8 @@ FocusScope {
     // prompts instead, and one fixed gap keeps the actions clear of its edge.
     ColumnLayout {
         id: prompts
+        Kirigami.Theme.inherit: false
+        Kirigami.Theme.colorSet: Kirigami.Theme.Window
         anchors.top: parent.verticalCenter
         anchors.topMargin: Kirigami.Units.largeSpacing + root.neighbourRoom
         anchors.left: parent.left
@@ -963,6 +978,8 @@ FocusScope {
             }
             GridLayout {
                 id: actionItemsLayout
+                Kirigami.Theme.inherit: false
+                Kirigami.Theme.colorSet: Kirigami.Theme.Complementary
                 anchors.centerIn: parent
 
                 readonly property int spacing: Kirigami.Units.largeSpacing
