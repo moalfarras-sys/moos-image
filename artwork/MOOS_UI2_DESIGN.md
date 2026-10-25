@@ -490,13 +490,15 @@ python3 tests/verify_user_experience.py
 
 The release decision still requires clean-VM and upgraded-real-host visual proof.
 
-## Boot — Graphite Horizon
+## Boot — MoOS Arabic welcome
 
-The boot stage extends the existing UI2 contract, using the exact Graphite login
-landscape and approved resting rendered mark. Keep the first frame recognizably
-MoOS: centre the hero, bound it to 70% screen width / 62% height, preserve aspect.
-Use the approved image unchanged; no new logo, added slogan, decorative panels or
-fake progress percentage. The hero's reflection is part of the approved master.
+The owner's Oct25 requirement gives boot its own fixed identity, independent of
+every selected theme, login wallpaper and user account. Use the approved resting
+rendered mark unchanged over a small fixed blue/teal brand canvas. Centre it,
+bound it to44% screen width /40% height, and preserve its reflection and aspect.
+One subordinate shaped Arabic «مرحبًا بك» greeting is rasterized from IBM Plex
+Sans Arabic; it needs no early font/locale discovery and hides during shutdown
+and reboot. No new logo, video, decorative panels or fake percentage.
 
 Motion is finite: 0.70→1 opacity over 360 ms; shutdown, password prompt and quit
 immediately settle. No minimum display time, spinner loop or additional session

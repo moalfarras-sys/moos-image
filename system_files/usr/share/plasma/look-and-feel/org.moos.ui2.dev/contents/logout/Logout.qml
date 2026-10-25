@@ -40,6 +40,7 @@ Item {
     width: screenGeometry.width
     height: screenGeometry.height
     focus: true
+    readonly property url wallpaperSource: MoUI.SessionAppearance.configuredWallpaper()
 
     Kirigami.Theme.inherit: false
     Kirigami.Theme.colorSet: Kirigami.Theme.Complementary
@@ -282,7 +283,7 @@ Item {
         id: wallpaper
         objectName: "moosSessionWallpaper"
         anchors.fill: parent
-        source: Qt.resolvedUrl("../previews/fullscreenpreview.jpg")
+        source: root.wallpaperSource
         fillMode: Image.PreserveAspectCrop
         cache: true
         asynchronous: true

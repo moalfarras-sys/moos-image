@@ -30,6 +30,8 @@ import json
 import shutil
 import subprocess
 import struct
+import importlib.util
+import hashlib
 import unittest
 from pathlib import Path
 
@@ -109,19 +111,27 @@ class BootSplashTests(unittest.TestCase):
                                 f"moos.script loads {name}, which is not in the theme — "
                                 f"Plymouth would abort this splash to its text fallback")
 
-    def test_boot_backdrop_is_the_login_scene_not_an_unrelated_black_plate(self) -> None:
+    def test_boot_identity_is_fixed_and_independent_of_the_login_scene(self) -> None:
         self.assertEqual(png_size(BACKDROP), (1920, 1080))
-        with Image.open(LOGIN_SCENE) as source, Image.open(BACKDROP) as actual:
-            expected = source.convert("RGB").resize(
-                (1920, 1080), Image.Resampling.LANCZOS
-            )
+        generator = ROOT / "artwork/generate_boot_backdrop.py"
+        spec = importlib.util.spec_from_file_location("boot_art", generator)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        with Image.open(BACKDROP) as actual:
+            expected = module.make_backdrop()
             actual_rgb = actual.convert("RGB")
             difference = ImageChops.difference(expected, actual_rgb)
             self.assertIsNone(
                 difference.getbbox(),
-                "boot-backdrop.png drifted from the exact Graphite login scene; "
+                "boot-backdrop.png drifted from the fixed MoOS boot identity; "
                 "regenerate it with artwork/generate_boot_backdrop.py",
             )
+        # Preserve the original coupled implementation as a failing control.
+        with Image.open(LOGIN_SCENE) as old:
+            self.assertIsNotNone(ImageChops.difference(
+                actual_rgb, old.convert("RGB").resize((1920, 1080), Image.Resampling.LANCZOS)).getbbox())
+        self.assertNotIn("/wallpapers/", generator.read_text())
+        self.assertNotIn("kdeglobals", generator.read_text())
         self.assertLess(
             BACKDROP.stat().st_size / 1048576,
             4,
@@ -139,6 +149,23 @@ class BootSplashTests(unittest.TestCase):
             15,
             "the boot backdrop lost the visible depth required by the visual gate",
         )
+
+    def test_arabic_greeting_is_shaped_and_preserves_prompt_space(self) -> None:
+        provenance = json.loads((ROOT / "artwork/moos-design/boot-caption.json").read_text())
+        self.assertEqual(provenance["caption"], "مرحبًا بك")
+        with Image.open(THEME / "welcome-ar.png") as caption:
+            self.assertEqual(list(caption.size), provenance["size"])
+            self.assertEqual(hashlib.sha256(caption.tobytes()).hexdigest(), provenance["pixelSHA256"])
+            self.assertIsNotNone(caption.getbbox())
+            self.assertEqual(caption.mode, "RGBA")
+            self.assertLess((THEME / "welcome-ar.png").stat().st_size, 65536)
+            for w, h in ((640, 480), (1920, 1080), (3840, 2160), (360, 640)):
+                stage_w = min(w * .44, h * .40 * 1.5396)
+                stage_h = stage_w / 1.5396
+                width = min(w * .50, max(stage_w * .30, 100))
+                bottom = h / 2 + stage_h / 2 + min(28, h * .025) + width * caption.height / caption.width
+                self.assertLess(bottom, h * .80, (w, h, "greeting overlaps native passphrase"))
+        self.assertIn('greeting_sprite.SetOpacity(0)', script_text())
 
     def test_backdrop_is_scaled_once_outside_the_refresh_loop(self) -> None:
         text = script_text()
@@ -288,13 +315,12 @@ function check(source, mode) {
                 self.assertEqual(p.returncode, 0, p.stdout+p.stderr)
                 self.assertIn('MOOS_BOOT_CALLBACK_PASS', p.stdout)
 
-    def test_the_ground_is_the_desktop_canvas(self) -> None:
-        # #14191C is the UI2 canvas the desktop opens on. Any other colour here
-        # is a full-screen hue flip at the splash-to-desktop handoff.
+    def test_the_fallback_ground_is_the_fixed_boot_canvas(self) -> None:
+        # Boot belongs to the OS identity, independently of a user's theme.
         text = script_text()
         for fn in ("SetBackgroundTopColor", "SetBackgroundBottomColor"):
-            self.assertIn(f"Window.{fn}(0.078, 0.098, 0.110)", text,
-                          f"{fn} is not the #14191C UI2 canvas token")
+            self.assertIn(f"Window.{fn}(0.039, 0.063, 0.106)", text,
+                          f"{fn} is not the fixed #0A101B boot ground")
 
     def test_boot_text_overlays_are_screen_bounded(self) -> None:
         # Plymouth messages can be long: fsck paths, recovery notices, device

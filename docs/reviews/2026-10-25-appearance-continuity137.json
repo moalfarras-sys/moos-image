@@ -1,0 +1,155 @@
+{
+  "schema": 1,
+  "date": "2026-10-25",
+  "status": "source137/native component proof; full source/image qualification and signed delivery pending",
+  "installed": {
+    "model": "Minisforum V3 AMD",
+    "version": "44.20261024.1100",
+    "bootID": "ee7fcea0-591d-4c20-a991-41bc9101a265",
+    "selectedLook": "org.moos.ui2.bloom.light",
+    "output": "3840x2160@60 scale2.5 logical1536x864",
+    "rollback": [
+      "1097",
+      "pinned1078"
+    ]
+  },
+  "nativeFixture": {
+    "exit": 0,
+    "seconds": 23.529901376001362,
+    "scope": "Actual PlasmaQuick engine and actual attached PlasmaTheme class; complete style, two owners, three palettes, immutable refusal; native private fixture, not authentication/cold boot",
+    "schema": 1,
+    "twoNativeOwners": true,
+    "nativePersistence": true,
+    "accountsDaemonSHA256": "adea18e58b44442109b3ec9a3fb127d132c7ec4829230ebbe62b07d0ed9bb427",
+    "moduleSHA256": "52e335c17b2f4bf0b52d8947d0d5aed0d914f9c1fa9ca69319c586662d90c9b7",
+    "package": "accountsservice-23.13.9-16.fc44.x86_64",
+    "engine": "PlasmaQuick::globalEngine / KirigamiPlasmaStyle",
+    "initialStyle": "MoOSUI2BloomLight complete assets",
+    "cases": [
+      "Bloom Light",
+      "Aurora",
+      "Aurora custom Window/selection colours and third image",
+      "actual asynchronous raster pixels",
+      "Qt/KDE icon agreement and glyph",
+      "Complementary palette",
+      "invalid metadata restores initial native surface",
+      "unchanged persistent service config bytes",
+      "restart persistence",
+      "immutable administrator global style refuses selected-account override",
+      "bounded font schema"
+    ],
+    "oldControl": "Actual complete-style Qt-only adapter fails: image/application Aurora while native surface remains Bloom #d5d9ee",
+    "earlierPositiveScope": "Style-less or explicit org.kde.desktop fixtures do not qualify the actual login engine",
+    "crossAccountScope": "Refused with other-account administrative authority unavailable; not an authenticated policy/real-login proof",
+    "administratorImmutableRefused": true,
+    "paletteOwner": "Actual attached PlasmaTheme class is required; no hidden Clock/fallback dependency",
+    "SDKScope": "Reused native6.8.0 compiler/private runtime, actual6.8.1 lock test-client separately qualified; canonical681 image remains required"
+  },
+  "physicalLock": {
+    "pid": 358478,
+    "bootId": "ee7fcea0-591d-4c20-a991-41bc9101a265",
+    "workload": "Actual native 6.8.1 kscreenlocker testing client; Bloom Light; one 1536x864 logical output at 2.5x; settled auth card and idle clock; no password submission",
+    "sampleSeconds": 5.000347449000401,
+    "cpuSeconds": 0.0,
+    "rssKiB": 226144,
+    "acceptance": "Physical native visual/pointer-cover journey, source import ready and no scoped QML errors; not actual lock/authentication or signed installation"
+  },
+  "targetedTests": {
+    "exit": 0,
+    "cases": 105,
+    "seconds": 84.033
+  },
+  "boot": {
+    "independentOfDesktopTheme": true,
+    "caption": "مرحبًا بك",
+    "approvedLogoUnchanged": true,
+    "finiteEntranceMs": 360,
+    "nativeInstalledScriptParserExit": 0,
+    "hostBootAssetsModified": false,
+    "nativeRenderer": {
+      "records": [
+        {
+          "dimensions": "640x480",
+          "case": "normal",
+          "exit": 0,
+          "seconds": 1.2876275200032978,
+          "stdout": "native 640x480 peak_rss_kib=72884 user_cpu_s=0.119796 system_cpu_s=0.043516\n",
+          "stderr": ""
+        },
+        {
+          "dimensions": "640x480",
+          "case": "password",
+          "exit": 0,
+          "seconds": 1.2746472809958505,
+          "stdout": "native 640x480 peak_rss_kib=41192 user_cpu_s=0.120323 system_cpu_s=0.043539\n",
+          "stderr": ""
+        },
+        {
+          "dimensions": "640x480",
+          "case": "password-update",
+          "exit": 0,
+          "seconds": 1.6274806419969536,
+          "stdout": "native 640x480 peak_rss_kib=42216 user_cpu_s=0.146759 system_cpu_s=0.041077\n",
+          "stderr": ""
+        },
+        {
+          "dimensions": "1920x1080",
+          "case": "normal",
+          "exit": 0,
+          "seconds": 1.3615568009990966,
+          "stdout": "native 1920x1080 peak_rss_kib=93948 user_cpu_s=0.200827 system_cpu_s=0.058240\n",
+          "stderr": ""
+        },
+        {
+          "dimensions": "3840x2160",
+          "case": "normal",
+          "exit": 0,
+          "seconds": 1.6672497300023679,
+          "stdout": "native 3840x2160 peak_rss_kib=169580 user_cpu_s=0.496769 system_cpu_s=0.126731\n",
+          "stderr": ""
+        },
+        {
+          "dimensions": "1080x1920",
+          "case": "normal",
+          "exit": 0,
+          "seconds": 1.4877062589948764,
+          "stdout": "native 1080x1920 peak_rss_kib=110544 user_cpu_s=0.308565 system_cpu_s=0.075518\n",
+          "stderr": ""
+        }
+      ],
+      "scriptSHA256": "e4abf24c40c1a20a19c4d9b5343ad72c22887940cd57cd52bc3ebb5eaa97cafd",
+      "compositionBytesRetained": true,
+      "changedBulletVisibleWithinMs": 200,
+      "scope": "Exact installed patched Plymouth libraries/script plugin; SDK-only native X11 renderer and private Xvfb. Native pixels/prompt redraw, not physical boot or signed initramfs.",
+      "hostBootModified": false
+    },
+    "coldBoot": "pending",
+    "oldControl": "Old final arrival retained a one-level edge-blend difference on prompt repaint; explicit one-time final image commit passes strict composition-byte equality",
+    "sdkAdapter": "Review-only upstream X11 renderer adapts two native API parameters; no shipped X11 renderer, host seat or host boot mutation"
+  },
+  "qualification": {
+    "fullSource": "pending137;136 passed0/849.252s",
+    "fullImage": "pending137; old135 OpenSSH refusal and fixed native transaction retained",
+    "signedCandidate": "not started",
+    "installedUpdate": false
+  },
+  "remaining": [
+    "canonical source gate and complete Tier1 image",
+    "actual per-user login composition and cold authentication",
+    "signed artifacts/boot proofs/promotion",
+    "owner-approved installed update and cold reboot"
+  ],
+  "physicalPower": {
+    "nativeClient": "Actual681 org.kde.LogoutPrompt.promptAll, exact owned process",
+    "sourceImports": true,
+    "geometry": "1536x864 logical /2.5 scale",
+    "qmlErrors": [],
+    "cancelExit": 0,
+    "powerActionExecuted": false
+  },
+  "additionalTargetedTests": {
+    "cases": 33,
+    "seconds": 3.142,
+    "exit": 0
+  }
+}

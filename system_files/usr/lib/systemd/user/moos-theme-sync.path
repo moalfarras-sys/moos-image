@@ -9,6 +9,7 @@ ConditionUser=!@system
 # target at sunrise/sunset. The paired service never writes kdeglobals, so this
 # watch cannot trigger itself.
 PathChanged=%h/.config/kdeglobals
+PathChanged=%h/.config/plasma-org.kde.plasma.desktop-appletsrc
 Unit=moos-theme-sync.service
 
 [Install]

@@ -723,9 +723,10 @@ class TestMoOSUI2(unittest.TestCase):
             .read_text(encoding="utf-8")
         )
         self.assertIn("/\\/MoOSUI2[^/]*Light\\//", source)
-        self.assertIn('root.sceneImage.indexOf("/MoOSUI2Tide/")', source)
-        self.assertIn('root.sceneImage.indexOf("/MoOSUI2Daylight/")', source)
-        self.assertNotIn('root.sceneImage.indexOf("MoOSUI2Tide") >= 0', source)
+        self.assertIn('root.themeReference.indexOf("/MoOSUI2Tide/")', source)
+        self.assertIn('root.themeReference.indexOf("/MoOSUI2Daylight/")', source)
+        self.assertNotIn('root.themeReference.indexOf("MoOSUI2Tide") >= 0', source)
+        self.assertIn('MoUI.SessionAppearance.greeterReference', source)
 
     def test_logout_actions_expose_complete_accessibility_state(self) -> None:
         """The out-of-process session greeter must not depend on implicit roles."""
@@ -893,7 +894,7 @@ class TestMoOSUI2(unittest.TestCase):
         apply = (ROOT / "system_files/usr/bin/moos-apply-theme").read_text(encoding="utf-8")
         switch = (ROOT / "system_files/usr/bin/moos-theme").read_text(encoding="utf-8")
         self.assertIn(
-            "THEME_REV=136", apply,
+            "THEME_REV=137", apply,
             "existing v100 users would keep a cached compile of the retired MoOS LockScreenUi that "
             "asks for a MoOSClock which no longer ships (kscreenlocker's emergency locker) and a "
             "cached stock session screen with no island; "
@@ -913,13 +914,14 @@ class TestMoOSUI2(unittest.TestCase):
             "the Horizon Bar/theme migration, and the SVG cache purge that is the "
             "only way new Plasma Style art reaches a frozen /usr",
         )
-        self.assertIn('[ "$lock_image" = "$wallpaper_package" ] || return 1', switch)
+        self.assertIn('session_wallpaper_complete "$desktop_wallpaper_token" || return 1', switch)
+        self.assertIn('--key Image)" = "$image"', switch)
         self.assertIn('moos-theme apply-lnf "$want_lnf"', apply)
         self.assertIn('moos-theme verify-lnf "$lnf_after"', apply)
         self.assertNotIn('case "$lockscreen" in *"$wallpaper_package"*', switch)
         self.assertIn("--file kscreenlockerrc --group Greeter", switch)
         self.assertIn("--key WallpaperPlugin org.kde.image", switch)
-        self.assertIn('--key Image "$wallpaper_package"', switch)
+        self.assertIn('--key Image "$image"', switch)
 
     def test_session_controls_use_only_wcag_paired_foregrounds(self) -> None:
         """Security/session glyphs must sit on a scheme-paired flat colour.

@@ -279,7 +279,7 @@ class SessionContinuity(unittest.TestCase):
                 copied=home/'qml/org/moos/ui';shutil.copytree(UI/'org/moos/ui',copied)
                 env['QML_IMPORT_PATH']=str(home/'qml')
                 target=copied/('SessionAppearance.qml' if broken=='look' else 'SessionActionGlyph.qml' if broken=='glyph-ink' else 'SessionPower.qml')
-                old,new=('color: glyph.inkColor','color: glyph.accentColor') if broken=='glyph-ink' else ('location: path','fileName: path') if broken=='look' else (
+                old,new=('color: glyph.inkColor','color: glyph.accentColor') if broken=='glyph-ink' else ('location: path, category: "KDE"','fileName: path, category: "KDE"') if broken=='look' else (
                     'onRebootUpdateRequested: root.sessionHost.rebootUpdateRequested()',
                     'onRebootUpdateRequested: root.sessionHost.haltUpdateRequested()')
                 if broken == 'layout':

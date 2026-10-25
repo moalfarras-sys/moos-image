@@ -295,7 +295,8 @@ COPY --from=ctx /build_moos_qml_shell.sh /src/build_moos_qml_shell.sh
 COPY moos-settings-kcm/ /src/moos-settings-kcm/
 RUN dnf5 -y install gcc-c++ qt6-qtbase-devel qt6-qtdeclarative-devel \
         kf6-kdbusaddons-devel kf6-kwindowsystem-devel \
-        cmake extra-cmake-modules kf6-kcmutils-devel kf6-ki18n-devel python3 \
+        cmake extra-cmake-modules kf6-kcmutils-devel kf6-ki18n-devel kf6-kcolorscheme-devel kf6-kiconthemes-devel \
+        libplasma-devel python3 python3-gobject-base python3-pillow accountsservice \
     && bash /src/build_moos_qml_shell.sh /src/moos-qml-shell.cpp /out/moos-qml-shell \
     && cmake -S /src/moos-settings-kcm -B /src/moos-settings-kcm-build \
         -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr -DMOOS_KCM_CONTRACT_CHECK=ON \
@@ -311,10 +312,24 @@ FROM qmlshell-build AS kcm-contract
 COPY system_files/usr/libexec/moos-settings-status /usr/libexec/moos-settings-status
 COPY system_files/usr/lib/moos/ /usr/lib/moos/
 COPY system_files/usr/share/moos/*.json /usr/share/moos/
+COPY system_files/usr/share/moos/theme-profiles.tsv /usr/share/moos/theme-profiles.tsv
+COPY system_files/usr/share/color-schemes/ /usr/share/color-schemes/
+COPY system_files/usr/share/plasma/desktoptheme/ /usr/share/plasma/desktoptheme/
+COPY system_files/usr/lib64/qt6/qml/org/moos/ui/ /usr/lib64/qt6/qml/org/moos/ui/
+COPY system_files/usr/share/icons/ /usr/share/icons/
+COPY system_files/usr/share/dbus-1/interfaces/org.moos.Accounts.Appearance.xml /usr/share/dbus-1/interfaces/
+COPY system_files/usr/share/accountsservice/interfaces/ /usr/share/accountsservice/interfaces/
+COPY system_files/usr/libexec/moos-session-appearance /usr/libexec/moos-session-appearance
+COPY tests/native_session_appearance.py /src/native_session_appearance.py
+COPY --from=ctx /verify_session_appearance.py /src/verify_session_appearance.py
 RUN /src/moos-settings-kcm-build/bin/moos-settings-query-check \
     && python3 /src/moos-settings-kcm/tools/check_status_contract.py \
         /src/moos-settings-kcm-build/bin/moos-settings-contract-check \
-        /usr/libexec/moos-settings-status /src/moos-settings-kcm/src/moosbackend.cpp
+        /usr/libexec/moos-settings-status /src/moos-settings-kcm/src/moosbackend.cpp \
+    && QT_QPA_PLATFORM=offscreen /src/moos-settings-kcm-build/bin/moos-appearance-contract-check /usr/share/moos/theme-profiles.tsv \
+    && MOOS_APPEARANCE_PROOF=/out/kcm/usr/share/moos/appearance-native-proof.json \
+       python3 /src/verify_session_appearance.py --fixture /src/native_session_appearance.py \
+        /src/moos-settings-kcm-build/bin/moos-appearance-contract-check /out/kcm/usr/lib64/qt6/qml
 
 # -----------------------------------------------------------------------------
 # Main image — the shared base pinned at the top of this file.

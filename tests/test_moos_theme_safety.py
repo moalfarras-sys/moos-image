@@ -163,7 +163,7 @@ class TestMoOSThemeSafety(unittest.TestCase):
 
         for owned in (
             "kdeglobals", "plasmarc", "kwinrc", "ksplashrc", "kcminputrc",
-            "kscreenlockerrc", "konsolerc", "gtk3-settings", "gtk4-settings",
+            "kscreenlockerrc", "session-appearance", "konsolerc", "gtk3-settings", "gtk4-settings",
             "gtk4-css", "gtk4-moos-css", "xsettingsd",
         ):
             with self.subTest(snapshot_file=owned):
@@ -740,14 +740,16 @@ target_lnf "$1" "$2"
             "DefaultProfile",
             "gtk-application-prefer-dark-theme",
             "org.gnome.desktop.interface color-scheme",
-            "WallpaperPlugin",
+            'apply_session_wallpaper_token "$desktop_wallpaper_token"',
         ):
             self.assertIn(token, supplements)
         self.assertIn(
-            '[ "$lock_image" = "$wallpaper_package" ] || return 1',
+            'session_wallpaper_complete "$desktop_wallpaper_token" || return 1',
             function(switch, "automatic_supplements_complete"),
             "NovaLight must not satisfy Nova lockscreen readback by prefix",
         )
+        self.assertIn('--key WallpaperPlugin)" = org.kde.image', function(switch, "session_wallpaper_complete"))
+        self.assertIn('--key Image)" = "$image"', function(switch, "session_wallpaper_complete"))
         self.assertNotIn("plasma-apply-wallpaperimage", supplements)
         self.assertNotIn("kdeglobals", supplements)
 

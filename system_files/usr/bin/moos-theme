@@ -239,6 +239,7 @@ snapshot_theme_state() {
     snapshot_config_file "$snapshot" ksplashrc "$config/ksplashrc" || return 1
     snapshot_config_file "$snapshot" kcminputrc "$config/kcminputrc" || return 1
     snapshot_config_file "$snapshot" kscreenlockerrc "$config/kscreenlockerrc" || return 1
+    snapshot_config_file "$snapshot" session-appearance "$config/moos-session-appearance.conf" || return 1
     snapshot_config_file "$snapshot" konsolerc "$config/konsolerc" || return 1
     snapshot_config_file "$snapshot" gtk3-settings "$config/gtk-3.0/settings.ini" || return 1
     snapshot_config_file "$snapshot" gtk4-settings "$config/gtk-4.0/settings.ini" || return 1
@@ -275,6 +276,7 @@ restore_theme_state() {
     restore_config_file "$snapshot" ksplashrc "$config/ksplashrc" || restore_failed=1
     restore_config_file "$snapshot" kcminputrc "$config/kcminputrc" || restore_failed=1
     restore_config_file "$snapshot" kscreenlockerrc "$config/kscreenlockerrc" || restore_failed=1
+    restore_config_file "$snapshot" session-appearance "$config/moos-session-appearance.conf" || restore_failed=1
     restore_config_file "$snapshot" konsolerc "$config/konsolerc" || restore_failed=1
     restore_config_file "$snapshot" gtk3-settings "$config/gtk-3.0/settings.ini" || restore_failed=1
     restore_config_file "$snapshot" gtk4-settings "$config/gtk-4.0/settings.ini" || restore_failed=1
@@ -359,6 +361,10 @@ capture_wallpaper_identity() {
                     ds[i].currentConfigGroup =
                         ["Wallpaper", "org.moos.ui2.wallpaper", "General"];
                     var image = String(ds[i].readConfig("Image", ""));
+                    if (image.indexOf("file://") === 0) {
+                        if (image.charAt(7) !== "/") { valid = false; continue; }
+                        image = decodeURIComponent(image.substring(7));
+                    }
                     if (!image || (common && image != common)) {
                         valid = false;
                     } else {
@@ -417,7 +423,7 @@ encode_profile_wallpaper() {
 # Resolve the desktop wallpaper from one policy. A profile transaction always
 # selects the profile's curated package. Login/automatic reconciliation uses
 # the central state and preserves a custom image across theme and day/night
-# changes. The lock screen remains the profile package in both cases.
+# changes. The lock and power screens follow that same exact choice.
 #
 # The owner's OWN choice is adopted first. A wallpaper picked in Plasma's
 # "Desktop and Wallpaper" dialog, on the scene's own page, or with Dolphin's
@@ -449,7 +455,10 @@ adopt_live_wallpaper_choice() {
                     foreign = true;
                     ds[i].currentConfigGroup = ["Wallpaper", "org.kde.image", "General"];
                     var image = String(ds[i].readConfig("Image", ""));
-                    if (image.indexOf("file://") === 0) { image = image.substring(7); }
+                    if (image.indexOf("file://") === 0) {
+                        if (image.charAt(7) !== "/") { valid = false; continue; }
+                        image = decodeURIComponent(image.substring(7));
+                    }
                     if (!image || (common && image != common)) { valid = false; }
                     else { common = image; }
                 } catch (e) { valid = false; }
@@ -495,6 +504,50 @@ load_wallpaper_expectation() {
             desktop_wallpaper_token="$token"
         fi
     fi
+}
+
+# One native lock setting and one inert read-only QML snapshot. QSettings does
+# NOT understand KConfig's nested [Greeter][Wallpaper] groups; don't guess a
+# flattened Image key from that file. Percent encoding makes arbitrary local
+# filenames safe INI data, and the Look guard prevents mixed transition frames.
+session_wallpaper_value() {
+    python3 - "$1" <<'PY'
+import pathlib,re,sys,urllib.parse
+token=sys.argv[1]
+if not re.fullmatch(r'(?:[A-Za-z0-9_.~-]|%[0-9A-Fa-f]{2})+',token):sys.exit(2)
+value=urllib.parse.unquote_to_bytes(token).decode('utf-8','strict')
+if not value.startswith('/') or any(ord(c)<32 or ord(c)==127 for c in value):sys.exit(2)
+print(pathlib.Path(value).as_uri())
+PY
+}
+
+apply_session_wallpaper_token() {
+    local token="$1" image config temporary selected
+    image="$(session_wallpaper_value "$token")" || return 1
+    selected="$(current)"
+    [[ "$selected" =~ ^org\.moos\.ui2(\.[A-Za-z0-9._-]+)?$ ]] || return 1
+    kwriteconfig6 --file kscreenlockerrc --group Greeter \
+        --key WallpaperPlugin org.kde.image || return 1
+    kwriteconfig6 --file kscreenlockerrc --group Greeter --group Wallpaper \
+        --group org.kde.image --group General --key Image "$image" || return 1
+    config="${XDG_CONFIG_HOME:-$HOME/.config}"
+    mkdir -p "$config" || return 1
+    temporary="$(mktemp "$config/.moos-session-appearance.XXXXXX")" || return 1
+    printf '[Appearance]\nLook=%s\nWallpaperEncoded=%s\n' "$selected" "$token" >"$temporary" || return 1
+    if cmp -s "$temporary" "$config/moos-session-appearance.conf"; then
+        rm -f -- "$temporary"
+    else
+        mv -f -- "$temporary" "$config/moos-session-appearance.conf" || return 1
+    fi
+}
+
+session_wallpaper_complete() {
+    local token="$1" image
+    image="$(session_wallpaper_value "$token")" || return 1
+    [ "$(kreadconfig6 --file kscreenlockerrc --group Greeter --key WallpaperPlugin)" = org.kde.image ] \
+        && [ "$(kreadconfig6 --file kscreenlockerrc --group Greeter --group Wallpaper --group org.kde.image --group General --key Image)" = "$image" ] \
+        && [ "$(kreadconfig6 --file moos-session-appearance.conf --group Appearance --key Look)" = "$(current)" ] \
+        && [ "$(kreadconfig6 --file moos-session-appearance.conf --group Appearance --key WallpaperEncoded)" = "$token" ]
 }
 
 write_theme_state() {
@@ -749,13 +802,9 @@ apply_supplements() {
     fi
 
     if command -v kwriteconfig6 >/dev/null 2>&1; then
-        kwriteconfig6 --file kscreenlockerrc --group Greeter \
-            --key WallpaperPlugin org.kde.image || supplement_failed=1
-        # No greeter Theme key: kscreenlocker draws from the SHELL package's
-        # lockscreen, which MoOS overrides globally (see kscreenlockerrc note).
-        kwriteconfig6 --file kscreenlockerrc --group Greeter --group Wallpaper \
-            --group org.kde.image --group General --key Image "$wallpaper_package" \
-            || supplement_failed=1
+        # Keep the native shell's lock/authentication owner. Only its selected
+        # image and the power view's inert snapshot change with the desktop.
+        apply_session_wallpaper_token "$desktop_wallpaper_token" || supplement_failed=1
 
         # Konsole profiles are independent from KDE colour schemes.
         kwriteconfig6 --file konsolerc --group "Desktop Entry" \
@@ -1000,12 +1049,7 @@ automatic_supplements_complete() {
         auto_wallpapers_complete "$wallpaper_package" || return 1
     fi
 
-    lock_plugin="$(kreadconfig6 --file kscreenlockerrc --group Greeter \
-        --key WallpaperPlugin 2>/dev/null)"
-    lock_image="$(kreadconfig6 --file kscreenlockerrc --group Greeter --group Wallpaper \
-        --group org.kde.image --group General --key Image 2>/dev/null)"
-    [ "$lock_plugin" = org.kde.image ] || return 1
-    [ "$lock_image" = "$wallpaper_package" ] || return 1
+    session_wallpaper_complete "$desktop_wallpaper_token" || return 1
 
     konsole_actual="$(kreadconfig6 --file konsolerc --group "Desktop Entry" \
         --key DefaultProfile 2>/dev/null)"
@@ -1285,6 +1329,13 @@ settle_desktop_scene() {
     done
 }
 
+publish_session_appearance() {
+    # Older signed hosts can preview the source UI before its new native
+    # reader/AccountsService extension is installed. Images require both.
+    [ -x /usr/libexec/moos-session-appearance ] || return 0
+    /usr/libexec/moos-session-appearance publish
+}
+
 reconcile() {
     local automatic lnf scheme style konsole_profile konsole_profile_name prefer_dark icons adw_css cursor deco wallpaper wallpaper_package label qt_widget_style gtk_theme
     local last_file last_lnf theme_changed
@@ -1296,7 +1347,7 @@ reconcile() {
     automatic="$(kreadconfig6 --file kdeglobals --group KDE \
         --key AutomaticLookAndFeel 2>/dev/null)"
     if [ "$automatic" = true ]; then
-        sync_auto
+        sync_auto && publish_session_appearance
         return $?
     fi
 
@@ -1336,7 +1387,8 @@ reconcile() {
             write_theme_state committed "$lnf" \
                 "$(theme_state_field active 2>/dev/null || true)" || true
         fi
-        return 0
+        publish_session_appearance
+        return $?
     fi
 
     if apply_supplements; then
@@ -1344,7 +1396,8 @@ reconcile() {
         write_theme_state committed "$lnf" \
             "$(theme_state_field active 2>/dev/null || true)" || true
         echo "MoOS supplements reconciled for ${lnf}"
-        return 0
+        publish_session_appearance
+        return $?
     fi
     echo "moos-theme: supplement reconcile failed for ${lnf}" >&2
     return 1
@@ -1837,6 +1890,8 @@ apply_wallpaper_transaction() {
             auto_wallpapers_complete "$wallpaper_package" && verified=1
         fi
         if [ "$verified" -eq 1 ] \
+                && apply_session_wallpaper_token "$encoded" \
+                && session_wallpaper_complete "$encoded" \
                 && commit_theme_snapshot "$snapshot" "$active" "$previous"; then
             if [ "$mode" = custom ]; then
                 printf '%s\n' "MoOS: custom desktop canvas applied"

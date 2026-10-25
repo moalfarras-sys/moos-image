@@ -43,13 +43,14 @@ Item {
     required property var cancelCountdown
     readonly property Item hostRoot: sessionHost
     readonly property string activeLook: MoUI.SessionAppearance.configuredLook()
-    readonly property url sceneWallpaper: MoUI.SessionAppearance.wallpaperForLook(activeLook)
+    readonly property url sceneWallpaper: root.wallpaperSource
     objectName: "moosSessionPower"
     onHostRootChanged: {
         disarm();
         Qt.callLater(root.focusInitialAction);
     }
     focus: true
+    readonly property url wallpaperSource: MoUI.SessionAppearance.configuredWallpaper()
 
     Kirigami.Theme.inherit: false
     Kirigami.Theme.colorSet: Kirigami.Theme.Complementary
@@ -285,7 +286,7 @@ Item {
         id: wallpaper
         objectName: "moosSessionWallpaper"
         anchors.fill: parent
-        source: root.sceneWallpaper
+        source: root.wallpaperSource
         fillMode: Image.PreserveAspectCrop
         cache: true
         asynchronous: true

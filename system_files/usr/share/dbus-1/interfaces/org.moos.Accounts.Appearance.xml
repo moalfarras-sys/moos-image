@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Public login appearance only; standard AccountsService owns persistence
+     and checks the caller's UID. No account/authentication settings are added. -->
+<node>
+  <interface name="org.moos.Accounts.Appearance">
+    <annotation name="org.freedesktop.Accounts.VendorExtension" value="true"/>
+    <annotation name="org.freedesktop.Accounts.Authentication.ChangeOwn" value=""/>
+    <property name="Appearance" type="s" access="readwrite">
+      <annotation name="org.freedesktop.Accounts.DefaultValue.String" value=""/>
+    </property>
+  </interface>
+</node>

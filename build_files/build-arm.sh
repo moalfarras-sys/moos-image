@@ -121,6 +121,7 @@ _PLASMA=(
     plymouth plymouth-plugin-script plymouth-plugin-two-step plymouth-system-theme
     dracut-network
     python3 python3-gobject python3.12
+    python3-pillow accountsservice
     fontconfig gtk3 gtk4 libadwaita mpv-libs
     mesa-dri-drivers mesa-libEGL mesa-libgbm
     openssh-server cloud-init cloud-utils-growpart
@@ -1324,7 +1325,7 @@ lsinitrd "/usr/lib/modules/${kver}/initramfs.img" > /tmp/moos-arm-initrd.txt 2>/
 [ -s /tmp/moos-arm-initrd.txt ] \
     || { echo "FATAL: lsinitrd produced no ARM initramfs inventory"; exit 1; }
 for _need in 'plymouth/themes/moos/moos.script' 'plymouth/themes/moos/boot-backdrop.png' \
-             'plymouth/themes/moos/intro1.png' \
+             'plymouth/themes/moos/intro1.png' 'plymouth/themes/moos/welcome-ar.png' \
              'plymouth/themes/moos/moos.plymouth'; do
     grep -q "${_need}" /tmp/moos-arm-initrd.txt || {
         echo "FATAL: the initramfs lacks ${_need} — the boot animation would not render"
@@ -1517,6 +1518,7 @@ python3 /ctx/plasma_seams.py build || {
 if [ "$(rpm -q --qf '%{VERSION}' plasma-workspace)" = 6.8.1 ]; then
     python3 /ctx/verify_session_power.py || exit 1
 fi
+python3 /ctx/verify_session_appearance.py || exit 1
 
 # ── The Plasma shell overlay must survive into the finished ARM image ─────────
 #

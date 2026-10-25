@@ -20,6 +20,14 @@ var packageImages = {
     "MoOSUI2Bloom": "images_dark/1672x941.png",
     "MoOSUI2BloomLight": "images/1672x941.png"
 };
+function localPath(value) {
+    var path = String(value || "");
+    if (path.indexOf("file://") === 0) {
+        if (path.charAt(7) !== "/") return "";
+        try { path = decodeURIComponent(path.substring(7)); } catch (error) { return ""; }
+    }
+    return path;
+}
 function imageForPackage(path) {
     var base = String(path || "").replace(/\/+$/, "");
     var name = base.substring(base.lastIndexOf("/") + 1);

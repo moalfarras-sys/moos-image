@@ -59,7 +59,7 @@ Kirigami.FormLayout {
         Layout.fillWidth: true
         Layout.maximumWidth: Kirigami.Units.gridUnit * 32
         spacing: Kirigami.Units.smallSpacing
-        Kirigami.FormData.label: root.tr("مشهد الدخول:", "Login scene:")
+        Kirigami.FormData.label: root.tr("الخلفية الافتراضية:", "Default background:")
 
         QQC2.ComboBox {
             id: lookPicker
@@ -80,8 +80,8 @@ Kirigami.FormLayout {
             Image {
                 anchors.fill: parent
                 anchors.margins: 1
-                source: root.selectedIndex() >= 0
-                    ? root.imageForLook(root.looks[root.selectedIndex()]) : root.cfg_Image
+                source: MoUI.SessionAppearance.imageUrl(root.selectedIndex() >= 0
+                    ? root.imageForLook(root.looks[root.selectedIndex()]) : root.cfg_Image)
                 fillMode: Image.PreserveAspectCrop
                 sourceSize.width: 960
                 Accessible.role: Accessible.Graphic
@@ -90,7 +90,7 @@ Kirigami.FormLayout {
         }
         QQC2.Button {
             objectName: "moosLoginUseDesktopLook"
-            text: root.tr("استخدم خلفية سطح المكتب", "Use desktop wallpaper")
+            text: root.tr("استخدم خلفية الثيم الحالي", "Use current theme wallpaper")
             icon.name: "preferences-desktop-theme-global"
             enabled: root.imageForLook(root.desktopLook) !== ""
             onClicked: root.cfg_Image = root.imageForLook(root.desktopLook)
@@ -98,15 +98,15 @@ Kirigami.FormLayout {
         QQC2.Label {
             Layout.fillWidth: true
             wrapMode: Text.Wrap
-            text: root.tr("شاشة الدخول مشتركة بين حسابات الجهاز. لا تُحفظ التغييرات حتى تضغط «طبّق».",
-                          "The login screen is shared by the accounts on this device. Changes are saved only when you press Apply.")
+            text: root.tr("تظهر هذه الخلفية قبل اختيار الحساب. بعد اختياره، تتبع شاشة الدخول ثيمه وخلفيته تلقائيًا. لا تُحفظ الخلفية الافتراضية حتى تضغط «طبّق».",
+                          "This background appears before account selection. After selection, login automatically follows that account’s theme and wallpaper. The default background is saved when you press Apply.")
             color: Kirigami.Theme.textColor
         }
         QQC2.Label {
             Layout.fillWidth: true
             wrapMode: Text.Wrap
-            text: root.tr("يمكنك أيضًا نقل ألوان سطح المكتب والخط والمؤشر عبر مزامنة الإعدادات في صفحة شاشة الدخول.",
-                          "Colors, fonts and cursor can also be copied from the desktop using settings sync on the login screen page.")
+            text: root.tr("يمكنك ضبط الألوان والخط والمؤشر الافتراضيين للجهاز عبر مزامنة الإعدادات في صفحة شاشة الدخول.",
+                          "Settings sync on the login screen page sets the device’s default colors, font and cursor.")
             color: Kirigami.Theme.textColor
         }
     }

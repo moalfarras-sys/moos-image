@@ -3142,7 +3142,7 @@ require("http://127.0.0.1:11434/api/tags" in moai_do_code
 # The versioned migration is what makes the redesign visible to existing users.
 apply_theme = read("system_files/usr/bin/moos-apply-theme")
 apply_theme_code = code(apply_theme)
-require("THEME_REV=136" in apply_theme_code,
+require("THEME_REV=137" in apply_theme_code,
         "MoOS visual schema must purge the cached compile of the retired lock-screen fork (it "
         "asks for a MoOSClock that no longer ships) and of the stock session screen, and "
         "migrate existing users to the Island that hosts Search itself "
@@ -3160,8 +3160,10 @@ require("local_plasmoids=" in apply_theme_code
         "THEME_REV 29 must purge home shadows of the first-party MoOS plasmoids — "
         "a ~/.local/share/plasma/plasmoids/org.moos.brand preview outranks /usr forever")
 theme_owner_code = code(read("system_files/usr/bin/moos-theme"))
-require('[ "$lock_image" = "$wallpaper_package" ] || return 1' in theme_owner_code,
-        "manual/automatic theme switching must reject a light/dark lock wallpaper mismatch")
+require('session_wallpaper_complete "$desktop_wallpaper_token" || return 1' in theme_owner_code
+        and 'apply_session_wallpaper_token "$desktop_wallpaper_token"' in theme_owner_code
+        and '"$image"' in theme_owner_code.split('session_wallpaper_complete() {',1)[-1].split('\n}',1)[0],
+        "manual/automatic theme switching must verify the exact selected desktop image on the native lock screen")
 require(
     "local_icons=" in apply_theme_code
     and "moos-*" in apply_theme_code
@@ -4941,7 +4943,7 @@ require('omit_dracutmodules+=" nfs "' in build and build.count('--omit "nfs"') >
 # boot/login scene is real only if each finished archive contains the backdrop;
 # a source-only check would leave ARM or recovery booting the old flat plate.
 require(
-    "for _spr in boot-backdrop intro1" in build,
+    "for _spr in boot-backdrop intro1 welcome-ar" in build,
     "build_files/build.sh does not prove boot-backdrop.png reached the final initramfs",
 )
 for build_script in ("build_files/build-arm.sh", "build_files/build-arm-recovery.sh"):
@@ -4974,34 +4976,21 @@ if default_lnf is not None:
             f"build.sh must repoint the kde-settings profile's lock screen at the wallpaper the "
             f"image actually uses ({lock_wallpaper.group(1)})")
 
-# ── The boot splash must be the same colour as the desktop it boots into ──────
-#
-# Plymouth is the first surface of MoOS the user ever sees, and it is system-wide: it cannot
-# follow a per-user Global Theme, so it has to be pinned in the image by hand — which is exactly
-# how it got left behind. It stayed Nova's deep navy (#050A14) with a blue progress bar through
-# the entire UI2 rollout, so every boot opened on navy and landed on graphite a second later.
-#
-# Do not gate a hard-coded hex here: that is what pinned the login screen to NovaHorizon for a
-# whole theme family. Read the UI2 palette that the rest of the image is generated from and
-# require the splash to agree with it. The splash then cannot drift from the desktop again, and
-# a future palette change updates this gate for free.
-# The Script theme sets its background from the script (Window.SetBackground*Color),
-# not from a .plymouth key. It must be the UI2 canvas #14191C — the colour the desktop
-# opens on — and FLAT: a gradient cannot line up with a wallpaper it knows nothing about,
-# and the seam is exactly the hue break this gate exists to stop. The previous version of
-# this gate pinned Nova's navy #070B16/#04060A, which is what kept the splash out of the
-# UI2 rollout: measured 2026-07-27, the splash painted navy, the desktop graphite and the
-# Arena splash #0B0714, so every boot broke hue at the handoff. Derive the floats from the
-# canvas token instead of retyping them, exactly as the comment above this block asks.
+# ── Boot has its own fixed MoOS identity, before any account/theme selection ──
+# Owner requirement2026-10-25 explicitly separates boot from desktop palettes.
+# Retain a flat fallback matching the fixed procedural brand canvas, approved
+# logo, bounded Arabic asset and finite entrance; image/initramfs identity gates
+# remain unchanged. No selected wallpaper or user's home is an early-boot input.
 moos_script_src = read("system_files/usr/share/plymouth/themes/moos/moos.script")
-_canvas = "14191C"
+_canvas = "0A101B"
 _ground = ", ".join(f"{int(_canvas[i:i + 2], 16) / 255:.3f}" for i in (0, 2, 4))
 require(f"Window.SetBackgroundTopColor({_ground})" in moos_script_src,
-        f"the boot splash's top background is not the UI2 canvas #{_canvas} "
+        f"the boot splash's top background is not the fixed MoOS boot canvas #{_canvas} "
         f"(expected Window.SetBackgroundTopColor({_ground}))")
 require(f"Window.SetBackgroundBottomColor({_ground})" in moos_script_src,
-        f"the boot splash's bottom background is not the UI2 canvas #{_canvas} — the ground "
-        f"must be FLAT, or the splash-to-desktop seam shows")
+        f"the boot splash's bottom background is not the fixed MoOS boot canvas #{_canvas}")
+require('Image("welcome-ar.png")' in moos_script_src,
+        "independent boot identity must include the shaped Arabic welcome asset")
 
 # The approved hero remains centred. The owner requests a lighter boot: retire
 # the perpetual orbit, require finite motion instead. Identity,

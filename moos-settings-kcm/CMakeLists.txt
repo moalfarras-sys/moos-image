@@ -116,6 +116,7 @@ install(FILES "${CMAKE_CURRENT_BINARY_DIR}/settings-modules.list"
 
 # A developer tool, never installed: runs the backend's status contract on a file.
 option(MOOS_KCM_CONTRACT_CHECK "Build moos-settings-contract-check" OFF)
+add_subdirectory(appearance)
 if(MOOS_KCM_CONTRACT_CHECK)
     add_executable(moos-settings-query-check src/querycheck.cpp)
     target_link_libraries(moos-settings-query-check PRIVATE Qt6::Core)

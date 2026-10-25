@@ -191,7 +191,7 @@ class BloomTests(unittest.TestCase):
         resolver = re.search(r"(?ms)^    function resolveImage\(value\) \{.*?^    \}", source).group()
         engine = QJSEngine()
         shared = WALLPAPER_MAP.read_text().replace('.pragma library','')
-        result = engine.evaluate(shared+'\nvar MoUI={WallpaperSources:{imageForPackage:imageForPackage}};var root={fallbackImage:"fallback"};'+resolver)
+        result = engine.evaluate(shared+'\nvar MoUI={WallpaperSources:{imageForPackage:imageForPackage,localPath:localPath}};var root={fallbackImage:"fallback"};'+resolver)
         self.assertFalse(result.isError(), result.toString())
         for profile in PROFILES:
             value = "/usr/share/wallpapers/"+profile["wallpaper"]
@@ -216,7 +216,7 @@ class BloomTests(unittest.TestCase):
         resolver = re.search(r'(?ms)^    function resolveImage\(value\) \{.*?^    \}', source).group()
         engine = QJSEngine()
         shared = WALLPAPER_MAP.read_text().replace('.pragma library','')
-        self.assertFalse(engine.evaluate(shared+'\nvar MoUI={WallpaperSources:{imageForPackage:imageForPackage}};var root={fallbackImage:"fallback"};'+resolver).isError())
+        self.assertFalse(engine.evaluate(shared+'\nvar MoUI={WallpaperSources:{imageForPackage:imageForPackage,localPath:localPath}};var root={fallbackImage:"fallback"};'+resolver).isError())
         for profile in PROFILES:
             value = '/usr/share/wallpapers/'+profile['wallpaper']
             actual = engine.evaluate('resolveImage('+json.dumps(value)+')').toString()

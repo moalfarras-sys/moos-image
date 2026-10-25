@@ -39,7 +39,7 @@ def probe(shell=SHELL, imports=None, share=Path('/usr/share'), *, broken=False,
         style='MoOSUI2BloomLight' if look.endswith('.light') else 'MoOSUI2Bloom'
         colors=(share/'color-schemes'/(style+'.colors')).read_text()
         config=root/'config/kdeglobals'
-        config.write_text(colors+'\n[KDE]\nLookAndFeelPackage='+look+'\nAnimationDurationFactor='+str(motion)+'\n')
+        config.write_text(colors+'\n[KDE]\nLookAndFeelPackage='+look+'\nAnimationDurationFactor='+str(motion)+'\n[Icons]\nTheme='+style+'\n')
         (root/'config/plasmarc').write_text('[Theme]\nname='+style+'\n')
         before=config.read_bytes()
         env={'PATH':'/usr/bin:/usr/sbin','HOME':str(root/'home'),

@@ -30,6 +30,14 @@ def outputs():
     resolver = '''.pragma library
 // Generated from the canonical theme profiles. Desktop and login use one map.
 var packageImages = %s;
+function localPath(value) {
+    var path = String(value || "");
+    if (path.indexOf("file://") === 0) {
+        if (path.charAt(7) !== "/") return "";
+        try { path = decodeURIComponent(path.substring(7)); } catch (error) { return ""; }
+    }
+    return path;
+}
 function imageForPackage(path) {
     var base = String(path || "").replace(/\\/+$/, "");
     var name = base.substring(base.lastIndexOf("/") + 1);
@@ -40,13 +48,59 @@ function imageForPackage(path) {
 pragma Singleton
 import QtQuick
 import QtCore
+import "WallpaperSources.js" as WallpaperSources
 
 QtObject {
     id: appearance
     readonly property var wallpapers: %s
     property Component reader: Component { Settings {} }
+    property var nativeBridge: null
+    property string requestedUser: ""
+    property bool hasRequestedUser: false
+
+    function initializeNative() {
+        const component = Qt.createComponent(Qt.resolvedUrl("NativeSessionAppearance.qml"));
+        if (component.status === Component.Ready) nativeBridge = component.createObject(appearance);
+        component.destroy();
+        if (hasRequestedUser && nativeProfile() && nativeProfile().isGreeter) nativeProfile().followUser(requestedUser);
+    }
+    Component.onCompleted: initializeNative()
+    function nativeProfile() {
+        return nativeBridge ? nativeBridge.value : null;
+    }
+    function greeterProfile() {
+        const profile = nativeProfile();
+        return profile && profile.isGreeter && profile.ready ? profile : null;
+    }
+    function followUser(user) {
+        requestedUser = String(user);
+        hasRequestedUser = true;
+        const profile = nativeProfile();
+        if (profile && profile.isGreeter) profile.followUser(user);
+    }
+    function greeterWallpaper(fallback) {
+        const profile = greeterProfile();
+        return profile ? (profile.wallpaper || wallpaperForLook(profile.look)) : fallback;
+    }
+    function greeterReference(fallback) {
+        const profile = greeterProfile();
+        return profile ? wallpaperForLook(profile.look) : fallback;
+    }
+    function greeterTone(role, fallback) {
+        const profile = greeterProfile();
+        return profile ? profile[role] : fallback;
+    }
+    function imageUrl(path) {
+        const value = String(path || "");
+        if (value.indexOf("image://moosappearance/") === 0) return value;
+        const local = WallpaperSources.localPath(value);
+        return local[0] === "/" && !/[\\x00-\\x1f\\x7f]/.test(local)
+            ? "file://" + local.split("/").map(encodeURIComponent).join("/") : "";
+    }
 
     function configuredLook() {
+        const selected = greeterProfile();
+        if (selected) return selected.look;
         const files = StandardPaths.locateAll(StandardPaths.GenericConfigLocation, "kdeglobals");
         for (const path of files) {
             const config = reader.createObject(appearance, {location: path, category: "KDE"});
@@ -61,7 +115,27 @@ QtObject {
         return StandardPaths.locate(StandardPaths.GenericDataLocation, relative);
     }
     function configuredWallpaper() {
-        return wallpaperForLook(configuredLook());
+        const selected = greeterProfile();
+        if (selected) return selected.wallpaper || wallpaperForLook(selected.look);
+        const look = configuredLook();
+        const files = StandardPaths.locateAll(StandardPaths.GenericConfigLocation,
+                                              "moos-session-appearance.conf");
+        for (const path of files) {
+            const config = reader.createObject(appearance, {location: path, category: "Appearance"});
+            const selected = String(config.value("Look", ""));
+            const token = String(config.value("WallpaperEncoded", ""));
+            config.destroy();
+            if (selected !== look) continue;
+            try {
+                const image = decodeURIComponent(token);
+                if (image[0] !== "/" || /[\\x00-\\x1f\\x7f]/.test(image)) continue;
+                const resolved = WallpaperSources.imageForPackage(image) || image;
+                // A filename containing #, ?, percent or Arabic is data, not
+                // a URL fragment/query. Encode each path component exactly once.
+                return imageUrl(resolved);
+            } catch (error) { continue; }
+        }
+        return wallpaperForLook(look);
     }
 }
 ''' % json.dumps(wallpapers, ensure_ascii=False, indent=8)
@@ -71,7 +145,7 @@ QtObject {
     required property var cancelCountdown
     readonly property Item hostRoot: sessionHost
     readonly property string activeLook: MoUI.SessionAppearance.configuredLook()
-    readonly property url sceneWallpaper: MoUI.SessionAppearance.wallpaperForLook(activeLook)
+    readonly property url sceneWallpaper: root.wallpaperSource
     objectName: "moosSessionPower"
     onHostRootChanged: {
         disarm();
@@ -85,7 +159,6 @@ QtObject {
     end = body.index('    Component.onCompleted:', start)
     body = body[:start] + body[end:]
     body = once(body, 'visible: countdownTimer.running', 'visible: root.sessionHost.countingDown')
-    body = once(body, 'source: Qt.resolvedUrl("../previews/fullscreenpreview.jpg")', 'source: root.sceneWallpaper')
     body = body.replace('MoOSUI2ActionButton {', 'SessionPowerButton {')
     # Keep every destination on the native root connected to its native C++
     # owner. No subprocess, D-Bus command or independent power implementation.
