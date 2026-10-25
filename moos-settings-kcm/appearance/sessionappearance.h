@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 #pragma once
 #include "appearanceprofile.h"
+#include "wallpaperintent.h"
 #include <QBuffer>
 #include <QCryptographicHash>
 #include <QDBusConnection>
@@ -81,6 +82,11 @@ public:
     QColor canvas() const { return QGuiApplication::palette().color(QPalette::Window); }
     QColor ink() const { return QGuiApplication::palette().color(QPalette::WindowText); }
     QColor accent() const { return QGuiApplication::palette().color(QPalette::Highlight); }
+    Q_INVOKABLE bool observeDesktop() {
+        if (m_greeter || QCoreApplication::applicationName()!=QStringLiteral("plasmashell")) return false;
+        if (!m_wallpaperIntent) m_wallpaperIntent=new MoOSWallpaperIntent(this);
+        return m_wallpaperIntent->start();
+    }
     Q_INVOKABLE void followUser(const QString &user) {
         if (!m_greeter || user==m_user) return;
         m_user=user; const auto generation=++m_generation;
@@ -264,6 +270,7 @@ private:
     }
     bool m_greeter=false,m_publisher=false,m_ready=false;
     Plasma::Theme *m_plasmaTheme=nullptr;
+    MoOSWallpaperIntent *m_wallpaperIntent=nullptr;
     bool m_originalGlobal=true,m_hadDataDirs=false,m_plasmaSourceAdded=false;
     QByteArray m_originalDataDirs;
     quint64 m_generation=0,m_imageSerial=0,m_receivedSerial=0,m_accountReadSerial=0;

@@ -22,6 +22,22 @@ static void require(bool value,const char *message) {
 int main(int argc,char **argv) {
     prctl(PR_SET_DUMPABLE,0);
     QGuiApplication app(argc,argv);
+    if (argc==3 && QString::fromLocal8Bit(argv[1])=="--desktop-observer") {
+        app.setApplicationName(QStringLiteral("plasmashell"));
+        QQmlEngine engine;engine.addImportPath(QString::fromLocal8Bit(argv[2]));
+        QQmlComponent component(&engine);
+        component.setData(R"(import QtQml
+import org.moos.ui as MoUI
+QtObject {
+ property bool observing: false
+ Component.onCompleted: observing = MoUI.SessionAppearance.observeDesktop()
+})",QUrl(QStringLiteral("file:///native-desktop-observer.qml")));
+        QScopedPointer<QObject> root(component.create());
+        require(root && root->property("observing").toBool(),"native ordinary desktop observer failed");
+        std::puts("MOOS_NATIVE_DESKTOP_OBSERVER_READY");std::fflush(stdout);
+        QTimer::singleShot(6000,&app,&QCoreApplication::quit);
+        return app.exec();
+    }
     if (argc==4 && QString::fromLocal8Bit(argv[1])=="--consumer") {
         auto engine=PlasmaQuick::globalEngine();
         std::fprintf(stderr,"native greeter engine=%s\n",qPrintable(engine->property("_kirigamiTheme").toString()));

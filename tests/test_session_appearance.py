@@ -68,7 +68,9 @@ class AppearancePublication(unittest.TestCase):
         function=source.split('reconcile() {',1)[1].split('\n}\n',1)[0]
         self.assertEqual(function.count('publish_session_appearance'),3)
         self.assertNotIn('publish_session_appearance\n        return 0',function)
-        self.assertIn('plasma-org.kde.plasma.desktop-appletsrc',(ROOT/'system_files/usr/lib/systemd/user/moos-theme-sync.path').read_text())
+        watcher=(ROOT/'system_files/usr/lib/systemd/user/moos-theme-sync.path').read_text()
+        self.assertIn('PathChanged=%h/.config/moos-wallpaper-intent.conf',watcher)
+        self.assertNotIn('PathChanged=%h/.config/plasma-org.kde.plasma.desktop-appletsrc',watcher)
 
     def test_empty_success_cannot_publish_native_qualification(self):
         check=runpy.run_path(str(ROOT/'build_files/verify_session_appearance.py'))

@@ -1,0 +1,69 @@
+{
+  "schema": 1,
+  "date": "2026-10-25",
+  "status": "source138/native component proof; full source/image and signed delivery pending",
+  "predecessor": "6fa7bee9966c0dc181fe2004d4cb06d20b1f01b2",
+  "scope": "Filtered wallpaper intent within the existing native shell and existing reconciliation unit; no new daemon, polling loop or wallpaper authority",
+  "nativeFixture": {
+    "exit": 0,
+    "seconds": 47.05549253099889,
+    "scope": "Native private actual Plasma engine/per-account proof, ordinary filtered wallpaper intent, preservation of unknown/link destinations; not physical whole-shell or cold authentication"
+  },
+  "nativeReceipt": {
+    "schema": 1,
+    "twoNativeOwners": true,
+    "nativePersistence": true,
+    "administratorImmutableRefused": true,
+    "filteredWallpaperIntent": true,
+    "unknownIntentDestinationRefused": true,
+    "linkedIntentDestinationsRefused": true,
+    "accountsDaemonSHA256": "adea18e58b44442109b3ec9a3fb127d132c7ec4829230ebbe62b07d0ed9bb427",
+    "moduleSHA256": "26f6501613597e781e93897900f2eb56f7caf83bbbc32e6379fa04a37f40ee10",
+    "package": "accountsservice-23.13.9-16.fc44.x86_64"
+  },
+  "cases": [
+    "two actual PlasmaTheme owners and three palettes/images",
+    "native account persistence and immutable administrator refusal",
+    "actual image/plugin changes produce intent",
+    "unrelated widget moves/layout bursts produce no intent",
+    "equivalent local file URI produces no intent",
+    "atomic native config replacement rearms the observer",
+    "unknown owner file remains byte-identical",
+    "symlink and hardlink destinations remain untouched"
+  ],
+  "priorRefusal": {
+    "source137": {
+      "startedUTC": "2026-10-25T11:38:14.545245+00:00",
+      "completed": true,
+      "scope": "Maintained native just check; system Node22; full exact wallpaper resolver fixtures, native final boot frame, guarded per-account appearance module",
+      "exit": 1,
+      "seconds": 794.6525426740045
+    },
+    "guard": "Unchanged whole-containment path-watch refusal",
+    "image137": "Explicitly stopped only our unqualified137 local build before replacing the rejected watch; no promoted or installed image"
+  },
+  "targeted": {
+    "exit": 0,
+    "cases": 51,
+    "seconds": 2.219
+  },
+  "physicalScope": "Prior actual681 source lock/power pixels and Cancel0 remain qualified components. New138 observer proof is a native private component fixture, not a physical whole-shell or authentication claim.",
+  "bootScope": "Independent Arabic boot native four-size/six-render and strict prompt proof in appearance-continuity137; boot payload unchanged by138",
+  "installed": {
+    "version": "44.20261024.1100",
+    "themeMigration": 132,
+    "globalCompatibilityOverrideAdded": false
+  },
+  "qualification": {
+    "fullSource": "running138",
+    "fullImage": "pending138",
+    "signedCandidate": "not started",
+    "installedUpdate": false
+  },
+  "remaining": [
+    "canonical full source gate",
+    "complete138 Tier1 image and exact payload readback",
+    "exact-head CI and one frozen signed cycle",
+    "owner-approved cold update/reboot and real login/boot acceptance"
+  ]
+}

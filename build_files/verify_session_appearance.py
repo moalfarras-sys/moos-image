@@ -10,7 +10,8 @@ import subprocess
 import sys
 import tempfile
 
-MARKERS=('MOOS_NATIVE_TWO_OWNER_APPEARANCE_PASS','MOOS_NATIVE_APPEARANCE_RESTART_PERSISTENCE_PASS','MOOS_NATIVE_APPEARANCE_ADMIN_IMMUTABLE_REFUSED')
+MARKERS=('MOOS_NATIVE_TWO_OWNER_APPEARANCE_PASS','MOOS_NATIVE_APPEARANCE_RESTART_PERSISTENCE_PASS','MOOS_NATIVE_APPEARANCE_ADMIN_IMMUTABLE_REFUSED',
+         'MOOS_NATIVE_FILTERED_WALLPAPER_INTENT_PASS','MOOS_NATIVE_UNKNOWN_WALLPAPER_DESTINATION_REFUSED','MOOS_NATIVE_LINKED_WALLPAPER_DESTINATIONS_REFUSED')
 
 
 def fixture(script,binary,imports):
@@ -62,6 +63,7 @@ def runtime():
     assert link.is_symlink() and str(link.readlink())=='../../dbus-1/interfaces/org.moos.Accounts.Appearance.xml'
     receipt=json.loads(Path('/usr/share/moos/appearance-native-proof.json').read_text())
     assert receipt['twoNativeOwners'] and receipt['nativePersistence'] and receipt['administratorImmutableRefused']
+    assert receipt['filteredWallpaperIntent'] and receipt['unknownIntentDestinationRefused'] and receipt['linkedIntentDestinationsRefused']
     daemon=Path('/usr/libexec/accounts-daemon')
     assert hashlib.sha256(daemon.read_bytes()).hexdigest()==receipt['accountsDaemonSHA256'],'tested AccountsService bytes differ in final image'
     loaded=load_module(Path('/usr/lib64/qt6/qml'))

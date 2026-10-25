@@ -5,8 +5,15 @@ authentication implementation, account chooser or background service.
 
 `moos-theme` reconciles the actual Plasma wallpaper into the native lock-screen
 setting and an inert owner-only selection file, in the existing snapshot and
-rollback transaction. Its existing bounded sync service watches theme and
-desktop-wallpaper changes. `moos-session-appearance publish` exports that user's
+rollback transaction. The existing launcher activates one event-driven native
+observer inside plasmashell. It reads only native desktop image/plugin keys,
+rearms atomic config replacements and coalesces bursts. Unrelated widget moves
+and equivalent file URIs produce no event. Only a changed image selection writes
+an inert hash to `moos-wallpaper-intent.conf`; the existing path/service pair
+consumes it. The containment file itself is never a systemd path trigger. No new
+daemon, idle poll, executor or second wallpaper authority is added. Unknown,
+symlinked or multiply linked event destinations remain untouched.
+`moos-session-appearance publish` exports that user's
 own selection through AccountsService's vendor-extension property. The existing
 AccountsService own-account UID check applies; administrative changes retain its
 ordinary policy. No new privileged executor or authentication action is added.

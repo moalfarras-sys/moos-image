@@ -37,6 +37,7 @@ import org.moos.ui as MoUI
 
 PlasmoidItem {
     id: root
+    Component.onCompleted: MoUI.SessionAppearance.observeDesktop()
 
     Plasmoid.backgroundHints: PlasmaCore.Types.NoBackground
     Plasmoid.icon: "moos-logo"

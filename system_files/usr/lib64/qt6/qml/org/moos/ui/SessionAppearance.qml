@@ -30,16 +30,23 @@ QtObject {
     property var nativeBridge: null
     property string requestedUser: ""
     property bool hasRequestedUser: false
+    property bool desktopObservationRequested: false
 
     function initializeNative() {
         const component = Qt.createComponent(Qt.resolvedUrl("NativeSessionAppearance.qml"));
         if (component.status === Component.Ready) nativeBridge = component.createObject(appearance);
         component.destroy();
         if (hasRequestedUser && nativeProfile() && nativeProfile().isGreeter) nativeProfile().followUser(requestedUser);
+        if (desktopObservationRequested && nativeProfile()) nativeProfile().observeDesktop();
     }
     Component.onCompleted: initializeNative()
     function nativeProfile() {
         return nativeBridge ? nativeBridge.value : null;
+    }
+    function observeDesktop() {
+        desktopObservationRequested = true;
+        const profile = nativeProfile();
+        return profile ? profile.observeDesktop() : false;
     }
     function greeterProfile() {
         const profile = nativeProfile();

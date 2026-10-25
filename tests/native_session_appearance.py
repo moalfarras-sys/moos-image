@@ -148,10 +148,74 @@ c.call_sync('org.freedesktop.Accounts',sys.argv[1],'org.freedesktop.DBus.Propert
             assert 'native appearance phase 0 timed out' in refusal,refusal[-2500:]
             assert (service_home/'plasmarc').read_bytes()==locked
             print('MOOS_NATIVE_APPEARANCE_ADMIN_IMMUTABLE_REFUSED',flush=True)
+            # The existing shell observes actual image keys, not every widget
+            # move. Exercise the real native reader, inode rearming and pulse.
+            desktop=config/'plasma-org.kde.plasma.desktop-appletsrc'
+            pulse=config/'moos-wallpaper-intent.conf'
+            def desktop_bytes(image='/tmp/first.png',extra='1',plugin='org.moos.ui2.wallpaper'):
+                return ('[Containments][7]\nplugin=org.kde.plasma.folder\nwallpaperplugin='+plugin+'\n'
+                    '[Containments][7][Wallpaper]['+plugin+'][General]\nImage='+image+'\n'
+                    '[Containments][7][Applets][55]\nlocation='+extra+'\n').encode()
+            def replace_desktop(body):
+                temporary=config/'.native-desktop-next';temporary.write_bytes(body)
+                os.chown(temporary,61000,61000);os.replace(temporary,desktop)
+            def start_observer(label):
+                file=root/(label+'.log');stream=file.open('w');logs.append(stream)
+                process=subprocess.Popen([binary,'--desktop-observer',imports],env=owner_env,
+                    preexec_fn=as_uid(61000),stdout=stream,stderr=stream)
+                children.append(process)
+                return process,file
+            def pulse_state():
+                if not pulse.exists():return None
+                stat=pulse.stat();return stat.st_ino,stat.st_mtime_ns,pulse.read_bytes()
+            def wait_pulse(previous=None):
+                deadline=time.monotonic()+2
+                while time.monotonic()<deadline:
+                    value=pulse_state()
+                    if value and value!=previous:return value
+                    time.sleep(.025)
+                raise AssertionError('native image intent did not arrive')
+            replace_desktop(desktop_bytes())
+            observer=start_observer('desktop-observer')
+            initial=wait_pulse()
+            # Atomic applet-layout rewrites must not notify the service.
+            replace_desktop(desktop_bytes(extra='2'));time.sleep(.35)
+            assert pulse_state()==initial,'unrelated widget move emitted wallpaper intent'
+            replace_desktop(desktop_bytes(image='file:///tmp/first.png',extra='3'));time.sleep(.35)
+            assert pulse_state()==initial,'equivalent local URI emitted wallpaper intent'
+            replace_desktop(desktop_bytes(image='/tmp/second.png'));second=wait_pulse(initial)
+            replace_desktop(desktop_bytes(image='/tmp/third.png',plugin='org.kde.image'));third=wait_pulse(second)
+            for index in range(8):replace_desktop(desktop_bytes(image='/tmp/third.png',plugin='org.kde.image',extra=str(index)))
+            time.sleep(.35);assert pulse_state()==third,'layout burst emitted wallpaper intent'
+            assert observer[0].wait(timeout=7)==0,observer[1].read_text(errors='replace')[-2000:]
+            assert 'MOOS_NATIVE_DESKTOP_OBSERVER_READY' in observer[1].read_text()
+            print('MOOS_NATIVE_FILTERED_WALLPAPER_INTENT_PASS',flush=True)
+            unknown=b'owner file, preserve exactly\n';pulse.write_bytes(unknown)
+            refused_observer=start_observer('desktop-unknown-destination')
+            assert refused_observer[0].wait(timeout=7)==0
+            assert pulse.read_bytes()==unknown,'unknown owner destination overwritten'
+            assert 'MoOS wallpaper intent refused' in refused_observer[1].read_text()
+            print('MOOS_NATIVE_UNKNOWN_WALLPAPER_DESTINATION_REFUSED',flush=True)
+            valid=b'[Wallpaper]\nFingerprint='+b'0'*64+b'\n'
+            for kind in ('symlink','hardlink'):
+                assert pulse.read_bytes()==(unknown if kind=='symlink' else valid)
+                pulse.unlink()
+                target=home/('preserved-'+kind);target.write_bytes(valid);os.chown(target,61000,61000)
+                if kind=='symlink':
+                    pulse.symlink_to(target);os.lchown(pulse,61000,61000)
+                else:os.link(target,pulse)
+                linked=start_observer('desktop-'+kind+'-destination')
+                assert linked[0].wait(timeout=7)==0
+                assert pulse.read_bytes()==valid and target.read_bytes()==valid
+                assert pulse.is_symlink() if kind=='symlink' else pulse.stat().st_nlink==2
+                assert 'MoOS wallpaper intent refused' in linked[1].read_text()
+            print('MOOS_NATIVE_LINKED_WALLPAPER_DESTINATIONS_REFUSED',flush=True)
             if os.environ.get('MOOS_APPEARANCE_PROOF'):
                 receipt=Path(os.environ['MOOS_APPEARANCE_PROOF']);receipt.parent.mkdir(parents=True,exist_ok=True)
                 module=Path(imports)/'org/moos/appearance/libmoosappearanceplugin.so'
                 receipt.write_text(json.dumps(dict(schema=1,twoNativeOwners=True,nativePersistence=True,administratorImmutableRefused=True,
+                    filteredWallpaperIntent=True,unknownIntentDestinationRefused=True,
+                    linkedIntentDestinationsRefused=True,
                     accountsDaemonSHA256=hashlib.sha256(Path('/usr/libexec/accounts-daemon').read_bytes()).hexdigest(),
                     moduleSHA256=hashlib.sha256(module.read_bytes()).hexdigest(),
                     package=subprocess.run(['rpm','-q','accountsservice'],capture_output=True,text=True,check=True).stdout.strip()),indent=2)+'\n')
