@@ -85,5 +85,16 @@
     "new first-attempt signed candidate and complete artifact boot/promotion proofs",
     "canonical signed host staging and owner-authorized restart",
     "installed payload, theme and native UI acceptance after reboot"
-  ]
+  ],
+  "firstFastWorkflowRefusal": {
+    "run": 40231737252,
+    "cause": "runner context is unavailable in job-level env; moved private SDK directory to the setup step",
+    "nativeOldActionlintRefused": true,
+    "nativeCorrectedFastActionlintExit": 0
+  },
+  "workflowValidator": {
+    "version": "1.7.12",
+    "scope": "Corrected fast workflow passes; original runner-context negative fails. Unchanged build.yml queue field is unsupported by actionlint and has the identical baseline diagnostic; no source guard or lint ignore changed.",
+    "reference": "https://docs.github.com/en/actions/reference/workflows-and-actions/contexts"
+  }
 }

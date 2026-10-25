@@ -94,6 +94,9 @@ class DotnetSDKResolver(unittest.TestCase):
         fast=(ROOT/'.github/workflows/moremote-fast.yml').read_text()
         self.assertIn('runs-on: windows-latest',fast)
         self.assertEqual(fast.count('DOTNET_INSTALL_DIR: ${{ runner.temp }}/moos-dotnet-sdk'),2)
+        # runner is unavailable at job-level env; GitHub rejects that entire
+        # workflow before it can publish a check, even though its YAML parses.
+        self.assertNotRegex(fast,r'(?m)^    env:\n(?:      .*\n)*      .*runner\.')
         self.assertIn('dotnet build moremote/agent/MoRemoteAgent.csproj -c Release --nologo',fast)
         trigger=fast.split('concurrency:',1)[0]
         self.assertIn('"scripts/ci/resolve-dotnet-sdk.py"',trigger)

@@ -40,9 +40,6 @@ jobs:
   dotnet:
     name: Every .NET project compiles, every test executable passes
     runs-on: ubuntu-latest
-    env:
-      # Exercise a real fresh SDK bootstrap rather than a runner-cache hit.
-      DOTNET_INSTALL_DIR: ${{ runner.temp }}/moos-dotnet-sdk
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
@@ -51,6 +48,9 @@ jobs:
         id: dotnet
         run: python scripts/ci/resolve-dotnet-sdk.py
       - uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1 # v5
+        env:
+          # runner.temp is available only after this step gets its runner.
+          DOTNET_INSTALL_DIR: ${{ runner.temp }}/moos-dotnet-sdk
         with:
           dotnet-version: ${{ steps.dotnet.outputs.version }}
       # The same script the engineering docs tell a contributor to run before pushing, so the two
@@ -61,8 +61,6 @@ jobs:
   windows:
     name: Windows SDK bootstrap and native agent build
     runs-on: windows-latest
-    env:
-      DOTNET_INSTALL_DIR: ${{ runner.temp }}/moos-dotnet-sdk
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
@@ -71,6 +69,8 @@ jobs:
         id: dotnet
         run: python scripts/ci/resolve-dotnet-sdk.py
       - uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1 # v5
+        env:
+          DOTNET_INSTALL_DIR: ${{ runner.temp }}/moos-dotnet-sdk
         with:
           dotnet-version: ${{ steps.dotnet.outputs.version }}
       - name: Compile the Windows agent
