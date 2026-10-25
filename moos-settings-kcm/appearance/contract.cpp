@@ -11,7 +11,12 @@
 #include <QQmlComponent>
 #include <QQuickWindow>
 #include <QTimer>
+#include <plasma_version.h>
+#if PLASMA_VERSION >= QT_VERSION_CHECK(6, 8, 0)
 #include <PlasmaQuick/PlasmaQuick>
+#else
+#include <PlasmaQuick/SharedQmlEngine>
+#endif
 #include <Kirigami/Platform/PlatformTheme>
 #include <cstdio>
 #include <cstdlib>
@@ -39,9 +44,18 @@ QtObject {
         return app.exec();
     }
     if (argc==4 && QString::fromLocal8Bit(argv[1])==QStringLiteral("--consumer")) {
+#if PLASMA_VERSION >= QT_VERSION_CHECK(6, 8, 0)
         auto engine=PlasmaQuick::globalEngine();
-        std::fprintf(stderr,"native greeter engine=%s\n",qPrintable(engine->property("_kirigamiTheme").toString()));
         require(engine->property("_kirigamiTheme").toString()==QStringLiteral("KirigamiPlasmaStyle"),"actual native greeter theme engine required");
+        const char *engineApi="globalEngine", *paletteOwner="PlasmaTheme";
+#else
+        // The reviewed 6.7 greeter owns this shared engine. Its startplasma
+        // environment selects KDE's platform theme, not the 6.8 Plasma style.
+        PlasmaQuick::SharedQmlEngine engineOwner;
+        auto engine=engineOwner.engine();
+        require(engine->property("_kirigamiTheme").toString().isEmpty(),"legacy greeter engine was replaced");
+        const char *engineApi="SharedQmlEngine", *paletteOwner="PlasmaDesktopTheme";
+#endif
         engine->addImportPath(QString::fromLocal8Bit(argv[2]));
         QQmlComponent component(engine.get());
         QByteArray body=R"(import QtQuick
@@ -72,7 +86,9 @@ Window { id: window; width: 320; height: 200; visible: true
         if (!root) for (const auto &error:component.errors()) qWarning()<<error;
         require(bool(root),"native plugin import/scene");
         const auto *theme=qmlAttachedPropertiesObject<Kirigami::Platform::PlatformTheme>(root.get(),false);
-        require(theme && QByteArray(theme->metaObject()->className())=="PlasmaTheme","actual Plasma palette owner required");
+        require(theme && QByteArray(theme->metaObject()->className())==paletteOwner,"actual version-specific native palette owner required");
+        std::fprintf(stderr,"MOOS_NATIVE_GREETER_ENGINE plasma=%s api=%s theme=%s owner=%s\n",PLASMA_VERSION_STRING,engineApi,
+            qPrintable(engine->property("_kirigamiTheme").toString()),theme->metaObject()->className());
         auto *window=qobject_cast<QQuickWindow*>(root.get());
         require(window && root->property("serviceAccount").toBool(),"actual greeter service UID required");
         const auto originalSurface=root->property("surface").value<QColor>();

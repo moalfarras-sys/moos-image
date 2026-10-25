@@ -1,7 +1,7 @@
 {
   "schema": 1,
   "date": "2026-10-25",
-  "status": "Canonical Qt6 build correction adopted; final full source/image and exact-head CI pending",
+  "status": "Exact862d full maintained source and complete canonical generic image pass; ARM CI exposes newer-only test consumer API, corrected native version-owner replay passes",
   "oldSource": "8d4c5897ca285b1438b79b51a900c71702973447",
   "oldFullSource": {
     "startedUTC": "2026-10-25T12:11:38.839405+00:00",
@@ -111,9 +111,346 @@
   },
   "installedUpdate": false,
   "remaining": [
-    "fresh full source and canonical image at the fixed head",
+    "fresh exact-head qualification of the native6.7/6.8 consumer compatibility correction",
     "all required exact-head PR checks",
     "one signed candidate/artifact boot/promotion cycle",
-    "owner-approved installed cold acceptance"
-  ]
+    "owner-timed installed cold acceptance"
+  ],
+  "qualifiedSource": "862d27586bdc9d8376e54cb2a3f4fcd46ae58280",
+  "qualifiedFullSource": {
+    "startedUTC": "2026-10-25T13:07:52.733181+00:00",
+    "revision": "862d27586bdc9d8376e54cb2a3f4fcd46ae58280",
+    "completed": true,
+    "scope": "Full maintained native just check, canonical Qt6 compile fix and exact-pixel portable boot generator; Node22",
+    "exit": 0,
+    "seconds": 891.8182743510042
+  },
+  "qualifiedFullImage": {
+    "startedUTC": "2026-10-25T13:07:52.737053+00:00",
+    "sourceRevision": "862d27586bdc9d8376e54cb2a3f4fcd46ae58280",
+    "completed": true,
+    "scope": "Complete canonical native Tier1 OCI image after actual Qt-flag failure; not signed delivery",
+    "tag": "localhost/moos:ui138-canonical-fixed",
+    "processPID": 680745,
+    "exit": 0,
+    "seconds": 734.2834629749996,
+    "sourceTreeUnchanged": true,
+    "imageID": "d9e94ee9dbd27f17a9503a22d1f3369265bfe87bc54a3acd43c44567562e2862"
+  },
+  "exactPayloadReadback": {
+    "imageID": "d9e94ee9dbd27f17a9503a22d1f3369265bfe87bc54a3acd43c44567562e2862",
+    "revision": "862d27586bdc9d8376e54cb2a3f4fcd46ae58280",
+    "receipt": {
+      "files": 59,
+      "mismatches": [],
+      "nativeReceipt": {
+        "schema": 1,
+        "twoNativeOwners": true,
+        "nativePersistence": true,
+        "administratorImmutableRefused": true,
+        "filteredWallpaperIntent": true,
+        "unknownIntentDestinationRefused": true,
+        "linkedIntentDestinationsRefused": true,
+        "accountsDaemonSHA256": "adea18e58b44442109b3ec9a3fb127d132c7ec4829230ebbe62b07d0ed9bb427",
+        "moduleSHA256": "dde327fb6207158f22c9ddcec36c7251a6e3489fab989c96cc63b311e9ef0403",
+        "package": "accountsservice-23.13.9-16.fc44.x86_64"
+      }
+    },
+    "expected": {
+      "/usr/bin/moos-apply-theme": {
+        "kind": "file",
+        "sha256": "4882d9b6da230511700b00fc2a38592539d8e19cd8665146db9df90ee4865797",
+        "bytes": 73906
+      },
+      "/usr/bin/moos-selfcheck": {
+        "kind": "file",
+        "sha256": "897bdf22e8487e6c471da6c74410211c9d88bf59d735991eb2bdb5483b2e55a0",
+        "bytes": 58152
+      },
+      "/usr/bin/moos-theme": {
+        "kind": "file",
+        "sha256": "67367a0877af3ed594d4d8211fda88df4863cec567ba5d77aefdc806f1460eee",
+        "bytes": 109245
+      },
+      "/usr/lib/systemd/user/moos-theme-sync.path": {
+        "kind": "file",
+        "sha256": "d1fada52d697b2e65ab75dd90c46bd523c157fe39c0aed4cf0e4b8241db1c1e2",
+        "bytes": 720
+      },
+      "/usr/lib64/qt6/qml/org/kde/breeze/components/SessionManagementScreen.qml": {
+        "kind": "file",
+        "sha256": "c8694182cc6e724d489494af2db9fd309f77d2911b5d5407678906645654b578",
+        "bytes": 46229
+      },
+      "/usr/lib64/qt6/qml/org/moos/ui/NativeSessionAppearance.qml": {
+        "kind": "file",
+        "sha256": "ba061aaac806dbda9c8c8760e6ab02d6b9909a273c8b9d96b7996147254a432b",
+        "bytes": 259
+      },
+      "/usr/lib64/qt6/qml/org/moos/ui/SessionActionGlyph.qml": {
+        "kind": "file",
+        "sha256": "46351c175a78f9a311dbb797beed26bf34343e907f18ceaf66a214f7574d2db4",
+        "bytes": 2079
+      },
+      "/usr/lib64/qt6/qml/org/moos/ui/SessionAppearance.qml": {
+        "kind": "file",
+        "sha256": "cf2ab838d5c6288132613a51bb3e9545aa9ab93484e64227042286f74e3f6c69",
+        "bytes": 6195
+      },
+      "/usr/lib64/qt6/qml/org/moos/ui/SessionPower.qml": {
+        "kind": "file",
+        "sha256": "a257a838989ee59a0729772d4f0c5603950a05ee85ee2b390d24f4f4ca006d3f",
+        "bytes": 44844
+      },
+      "/usr/lib64/qt6/qml/org/moos/ui/SessionPowerButton.qml": {
+        "kind": "file",
+        "sha256": "6654902945f04a23d00c5908b4ea69f2e96f235719add3e445d1f17a6b79c2fa",
+        "bytes": 13208
+      },
+      "/usr/lib64/qt6/qml/org/moos/ui/WallpaperSources.js": {
+        "kind": "file",
+        "sha256": "6d1fd3834a7c505569c02aa818476eaba4cea1d4caef391178f268820cad5a24",
+        "bytes": 1504
+      },
+      "/usr/libexec/moos-session-appearance": {
+        "kind": "file",
+        "sha256": "74a010158433601f0cd2b7c722ca7840a4fcd3c028fe8ef32f76d90d714cdef0",
+        "bytes": 7500
+      },
+      "/usr/share/accountsservice/interfaces/org.moos.Accounts.Appearance.xml": {
+        "kind": "link",
+        "target": "../../dbus-1/interfaces/org.moos.Accounts.Appearance.xml"
+      },
+      "/usr/share/dbus-1/interfaces/org.moos.Accounts.Appearance.xml": {
+        "kind": "file",
+        "sha256": "005ee89c153419e2d674013590a7cac299adef36c34c05243b2146a30a52c553",
+        "bytes": 601
+      },
+      "/usr/share/moos/apps/welcome/main.qml": {
+        "kind": "file",
+        "sha256": "de9954dea0dd1b2fcdc52175bbed26e5e31ab0116340755fdbf9a342cec709a0",
+        "bytes": 134865
+      },
+      "/usr/share/plasma/look-and-feel/org.moos.ui2.amethyst.light/contents/logout/Logout.qml": {
+        "kind": "file",
+        "sha256": "0370e2ef516acdff9eb21df0b606ef57664f0592a1d7a93db24ff0d310667f10",
+        "bytes": 43239
+      },
+      "/usr/share/plasma/look-and-feel/org.moos.ui2.amethyst.light/contents/logout/MoOSUI2ActionButton.qml": {
+        "kind": "file",
+        "sha256": "6654902945f04a23d00c5908b4ea69f2e96f235719add3e445d1f17a6b79c2fa",
+        "bytes": 13208
+      },
+      "/usr/share/plasma/look-and-feel/org.moos.ui2.amethyst/contents/logout/Logout.qml": {
+        "kind": "file",
+        "sha256": "0370e2ef516acdff9eb21df0b606ef57664f0592a1d7a93db24ff0d310667f10",
+        "bytes": 43239
+      },
+      "/usr/share/plasma/look-and-feel/org.moos.ui2.amethyst/contents/logout/MoOSUI2ActionButton.qml": {
+        "kind": "file",
+        "sha256": "6654902945f04a23d00c5908b4ea69f2e96f235719add3e445d1f17a6b79c2fa",
+        "bytes": 13208
+      },
+      "/usr/share/plasma/look-and-feel/org.moos.ui2.aurora.light/contents/logout/Logout.qml": {
+        "kind": "file",
+        "sha256": "0370e2ef516acdff9eb21df0b606ef57664f0592a1d7a93db24ff0d310667f10",
+        "bytes": 43239
+      },
+      "/usr/share/plasma/look-and-feel/org.moos.ui2.aurora.light/contents/logout/MoOSUI2ActionButton.qml": {
+        "kind": "file",
+        "sha256": "6654902945f04a23d00c5908b4ea69f2e96f235719add3e445d1f17a6b79c2fa",
+        "bytes": 13208
+      },
+      "/usr/share/plasma/look-and-feel/org.moos.ui2.aurora/contents/logout/Logout.qml": {
+        "kind": "file",
+        "sha256": "0370e2ef516acdff9eb21df0b606ef57664f0592a1d7a93db24ff0d310667f10",
+        "bytes": 43239
+      },
+      "/usr/share/plasma/look-and-feel/org.moos.ui2.aurora/contents/logout/MoOSUI2ActionButton.qml": {
+        "kind": "file",
+        "sha256": "6654902945f04a23d00c5908b4ea69f2e96f235719add3e445d1f17a6b79c2fa",
+        "bytes": 13208
+      },
+      "/usr/share/plasma/look-and-feel/org.moos.ui2.bloom.light/contents/logout/Logout.qml": {
+        "kind": "file",
+        "sha256": "0370e2ef516acdff9eb21df0b606ef57664f0592a1d7a93db24ff0d310667f10",
+        "bytes": 43239
+      },
+      "/usr/share/plasma/look-and-feel/org.moos.ui2.bloom.light/contents/logout/MoOSUI2ActionButton.qml": {
+        "kind": "file",
+        "sha256": "6654902945f04a23d00c5908b4ea69f2e96f235719add3e445d1f17a6b79c2fa",
+        "bytes": 13208
+      },
+      "/usr/share/plasma/look-and-feel/org.moos.ui2.bloom/contents/logout/Logout.qml": {
+        "kind": "file",
+        "sha256": "0370e2ef516acdff9eb21df0b606ef57664f0592a1d7a93db24ff0d310667f10",
+        "bytes": 43239
+      },
+      "/usr/share/plasma/look-and-feel/org.moos.ui2.bloom/contents/logout/MoOSUI2ActionButton.qml": {
+        "kind": "file",
+        "sha256": "6654902945f04a23d00c5908b4ea69f2e96f235719add3e445d1f17a6b79c2fa",
+        "bytes": 13208
+      },
+      "/usr/share/plasma/look-and-feel/org.moos.ui2.dev.light/contents/logout/Logout.qml": {
+        "kind": "file",
+        "sha256": "0370e2ef516acdff9eb21df0b606ef57664f0592a1d7a93db24ff0d310667f10",
+        "bytes": 43239
+      },
+      "/usr/share/plasma/look-and-feel/org.moos.ui2.dev.light/contents/logout/MoOSUI2ActionButton.qml": {
+        "kind": "file",
+        "sha256": "6654902945f04a23d00c5908b4ea69f2e96f235719add3e445d1f17a6b79c2fa",
+        "bytes": 13208
+      },
+      "/usr/share/plasma/look-and-feel/org.moos.ui2.dev/contents/logout/Logout.qml": {
+        "kind": "file",
+        "sha256": "0370e2ef516acdff9eb21df0b606ef57664f0592a1d7a93db24ff0d310667f10",
+        "bytes": 43239
+      },
+      "/usr/share/plasma/look-and-feel/org.moos.ui2.dev/contents/logout/MoOSUI2ActionButton.qml": {
+        "kind": "file",
+        "sha256": "6654902945f04a23d00c5908b4ea69f2e96f235719add3e445d1f17a6b79c2fa",
+        "bytes": 13208
+      },
+      "/usr/share/plasma/look-and-feel/org.moos.ui2.gaming.light/contents/logout/Logout.qml": {
+        "kind": "file",
+        "sha256": "0370e2ef516acdff9eb21df0b606ef57664f0592a1d7a93db24ff0d310667f10",
+        "bytes": 43239
+      },
+      "/usr/share/plasma/look-and-feel/org.moos.ui2.gaming.light/contents/logout/MoOSUI2ActionButton.qml": {
+        "kind": "file",
+        "sha256": "6654902945f04a23d00c5908b4ea69f2e96f235719add3e445d1f17a6b79c2fa",
+        "bytes": 13208
+      },
+      "/usr/share/plasma/look-and-feel/org.moos.ui2.gaming/contents/logout/Logout.qml": {
+        "kind": "file",
+        "sha256": "0370e2ef516acdff9eb21df0b606ef57664f0592a1d7a93db24ff0d310667f10",
+        "bytes": 43239
+      },
+      "/usr/share/plasma/look-and-feel/org.moos.ui2.gaming/contents/logout/MoOSUI2ActionButton.qml": {
+        "kind": "file",
+        "sha256": "6654902945f04a23d00c5908b4ea69f2e96f235719add3e445d1f17a6b79c2fa",
+        "bytes": 13208
+      },
+      "/usr/share/plasma/look-and-feel/org.moos.ui2.light/contents/logout/Logout.qml": {
+        "kind": "file",
+        "sha256": "0370e2ef516acdff9eb21df0b606ef57664f0592a1d7a93db24ff0d310667f10",
+        "bytes": 43239
+      },
+      "/usr/share/plasma/look-and-feel/org.moos.ui2.light/contents/logout/MoOSUI2ActionButton.qml": {
+        "kind": "file",
+        "sha256": "6654902945f04a23d00c5908b4ea69f2e96f235719add3e445d1f17a6b79c2fa",
+        "bytes": 13208
+      },
+      "/usr/share/plasma/look-and-feel/org.moos.ui2.midnight.light/contents/logout/Logout.qml": {
+        "kind": "file",
+        "sha256": "0370e2ef516acdff9eb21df0b606ef57664f0592a1d7a93db24ff0d310667f10",
+        "bytes": 43239
+      },
+      "/usr/share/plasma/look-and-feel/org.moos.ui2.midnight.light/contents/logout/MoOSUI2ActionButton.qml": {
+        "kind": "file",
+        "sha256": "6654902945f04a23d00c5908b4ea69f2e96f235719add3e445d1f17a6b79c2fa",
+        "bytes": 13208
+      },
+      "/usr/share/plasma/look-and-feel/org.moos.ui2.midnight/contents/logout/Logout.qml": {
+        "kind": "file",
+        "sha256": "0370e2ef516acdff9eb21df0b606ef57664f0592a1d7a93db24ff0d310667f10",
+        "bytes": 43239
+      },
+      "/usr/share/plasma/look-and-feel/org.moos.ui2.midnight/contents/logout/MoOSUI2ActionButton.qml": {
+        "kind": "file",
+        "sha256": "6654902945f04a23d00c5908b4ea69f2e96f235719add3e445d1f17a6b79c2fa",
+        "bytes": 13208
+      },
+      "/usr/share/plasma/look-and-feel/org.moos.ui2.nova.light/contents/logout/Logout.qml": {
+        "kind": "file",
+        "sha256": "0370e2ef516acdff9eb21df0b606ef57664f0592a1d7a93db24ff0d310667f10",
+        "bytes": 43239
+      },
+      "/usr/share/plasma/look-and-feel/org.moos.ui2.nova.light/contents/logout/MoOSUI2ActionButton.qml": {
+        "kind": "file",
+        "sha256": "6654902945f04a23d00c5908b4ea69f2e96f235719add3e445d1f17a6b79c2fa",
+        "bytes": 13208
+      },
+      "/usr/share/plasma/look-and-feel/org.moos.ui2.nova/contents/logout/Logout.qml": {
+        "kind": "file",
+        "sha256": "0370e2ef516acdff9eb21df0b606ef57664f0592a1d7a93db24ff0d310667f10",
+        "bytes": 43239
+      },
+      "/usr/share/plasma/look-and-feel/org.moos.ui2.nova/contents/logout/MoOSUI2ActionButton.qml": {
+        "kind": "file",
+        "sha256": "6654902945f04a23d00c5908b4ea69f2e96f235719add3e445d1f17a6b79c2fa",
+        "bytes": 13208
+      },
+      "/usr/share/plasma/look-and-feel/org.moos.ui2.study.light/contents/logout/Logout.qml": {
+        "kind": "file",
+        "sha256": "0370e2ef516acdff9eb21df0b606ef57664f0592a1d7a93db24ff0d310667f10",
+        "bytes": 43239
+      },
+      "/usr/share/plasma/look-and-feel/org.moos.ui2.study.light/contents/logout/MoOSUI2ActionButton.qml": {
+        "kind": "file",
+        "sha256": "6654902945f04a23d00c5908b4ea69f2e96f235719add3e445d1f17a6b79c2fa",
+        "bytes": 13208
+      },
+      "/usr/share/plasma/look-and-feel/org.moos.ui2.study/contents/logout/Logout.qml": {
+        "kind": "file",
+        "sha256": "0370e2ef516acdff9eb21df0b606ef57664f0592a1d7a93db24ff0d310667f10",
+        "bytes": 43239
+      },
+      "/usr/share/plasma/look-and-feel/org.moos.ui2.study/contents/logout/MoOSUI2ActionButton.qml": {
+        "kind": "file",
+        "sha256": "6654902945f04a23d00c5908b4ea69f2e96f235719add3e445d1f17a6b79c2fa",
+        "bytes": 13208
+      },
+      "/usr/share/plasma/look-and-feel/org.moos.ui2/contents/logout/Logout.qml": {
+        "kind": "file",
+        "sha256": "0370e2ef516acdff9eb21df0b606ef57664f0592a1d7a93db24ff0d310667f10",
+        "bytes": 43239
+      },
+      "/usr/share/plasma/look-and-feel/org.moos.ui2/contents/logout/MoOSUI2ActionButton.qml": {
+        "kind": "file",
+        "sha256": "6654902945f04a23d00c5908b4ea69f2e96f235719add3e445d1f17a6b79c2fa",
+        "bytes": 13208
+      },
+      "/usr/share/plasma/plasmoids/org.moos.brand/contents/ui/main.qml": {
+        "kind": "file",
+        "sha256": "72ed31831779d58442d346516b12b98e7c4ef1a20593d3abdad326e01bab05a5",
+        "bytes": 27822
+      },
+      "/usr/share/plasma/wallpapers/org.moos.ui2.greeter/contents/ui/config.qml": {
+        "kind": "file",
+        "sha256": "699ef6f3f94929493524a730f39787d02fc8c8b0d0eed8d257fe98129d840496",
+        "bytes": 5873
+      },
+      "/usr/share/plasma/wallpapers/org.moos.ui2.greeter/contents/ui/main.qml": {
+        "kind": "file",
+        "sha256": "3a8568df0d345c9fc02a5adcd61af70c467b911573fde70e1016da27160b6c80",
+        "bytes": 14692
+      },
+      "/usr/share/plasma/wallpapers/org.moos.ui2.wallpaper/contents/ui/main.qml": {
+        "kind": "file",
+        "sha256": "61f660d46830ae1d82f46daf335337b22201111ed3dcdb3903dac1aa290d77c2",
+        "bytes": 22448
+      },
+      "/usr/share/plymouth/themes/moos/README.md": {
+        "kind": "file",
+        "sha256": "51978c1da6122c1b2bf9d0b12fe1b5871b761854146a6684b7984a0aca98719f",
+        "bytes": 2770
+      },
+      "/usr/share/plymouth/themes/moos/boot-backdrop.png": {
+        "kind": "file",
+        "sha256": "82e704884696c842f85b3eea4c6f1b29a18a3643d482b75cc7a95ed1f1447e42",
+        "bytes": 84835
+      },
+      "/usr/share/plymouth/themes/moos/moos.script": {
+        "kind": "file",
+        "sha256": "e4abf24c40c1a20a19c4d9b5343ad72c22887940cd57cd52bc3ebb5eaa97cafd",
+        "bytes": 6087
+      },
+      "/usr/share/plymouth/themes/moos/welcome-ar.png": {
+        "kind": "file",
+        "sha256": "cd7ec1458a5062b333847265390939b149f031f8f20b7d615fb80bc4815df497",
+        "bytes": 4436
+      }
+    }
+  }
 }

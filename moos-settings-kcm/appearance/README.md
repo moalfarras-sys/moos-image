@@ -32,7 +32,7 @@ session bus. Account changes and stale asynchronous replies are generation
 checked. Images use a mutex-protected immutable current/previous frame store,
 independent of the GUI object's lifetime and Qt's asynchronous loading thread.
 
-The real `PlasmaQuick::globalEngine()` uses KirigamiPlasmaStyle, whose palette
+On Plasma6.8 the real `PlasmaQuick::globalEngine()` uses KirigamiPlasmaStyle, whose palette
 owner is `Plasma::Theme`. Updating only QGuiApplication leaves its existing
 colours stale. The module reuses that shared Plasma owner with private data-only
 skins, falling back to the selected immutable style's SVGs. Temporary palette
@@ -52,6 +52,16 @@ image gate requires that receipt and the exact tested daemon/module hashes,
 then imports the actual installed module through the shared source bridge.
 An unavailable older signed-host publisher is a development compatibility case;
 the new immutable image must contain and qualify all these pieces.
+
+Plasma6.7's native greeter instead owns `PlasmaQuick::SharedQmlEngine`.
+Its upstream `setupPlasmaEnvironment()` sets `QT_QPA_PLATFORMTHEME=kde`;
+the actual attached palette owner is PlasmaDesktopTheme, with no engine theme
+override. The contract uses the installed version's native API and asserts that
+exact owner, while retaining every colour/image/input predicate. It never forces
+a QML style to imitate the newer engine. The receipt records this engine identity
+and the finished image checks it against its installed libplasma version.
+See the [6.7 startup source](https://invent.kde.org/plasma/plasma-login-manager/-/blob/v6.7.5/src/frontend/startkde/startplasma.cpp)
+and [6.8 engine API](https://api.kde.org/plasmaquick-sub-plasmaquick.html).
 
 Private live review copies are listed in the task's compatibility manifests.
 Retire them only after matching signed installed payloads and cold physical

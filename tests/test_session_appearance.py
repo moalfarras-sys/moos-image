@@ -79,5 +79,18 @@ class AppearancePublication(unittest.TestCase):
             with self.assertRaisesRegex(AssertionError,'did not execute'):
                 check['fixture'](producer,Path('/absent-binary'),Path('/absent-imports'))
 
+    def test_final_image_refuses_stale_or_substituted_native_engine(self):
+        check=runpy.run_path(str(ROOT/'build_files/verify_session_appearance.py'))
+        for version,api,theme,owner in (
+            ('6.7.5','SharedQmlEngine','','PlasmaDesktopTheme'),
+            ('6.8.1','globalEngine','KirigamiPlasmaStyle','PlasmaTheme'),
+        ):
+            valid=dict(plasmaVersion=version,api=api,theme=theme,owner=owner)
+            check['verify_engine']({'nativeEngine':valid},version)
+            for field,value in (('plasmaVersion','0.0.0'),('api','QQmlEngine'),('theme','org.kde.desktop'),('owner','BasicTheme')):
+                with self.subTest(version=version,field=field),self.assertRaises(AssertionError):
+                    check['verify_engine']({'nativeEngine':valid | {field:value}},version)
+        with self.assertRaises(AssertionError):check['verify_engine']({},'6.8.1')
+
 
 if __name__=='__main__':unittest.main()

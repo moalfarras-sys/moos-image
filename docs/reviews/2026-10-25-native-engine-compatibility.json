@@ -1,0 +1,106 @@
+{
+  "schema": 1,
+  "date": "2026-10-25",
+  "status": "Both reviewed native engine/palette owners pass; exact-head ARM CI and signed delivery pending",
+  "oldSource": "862d27586bdc9d8376e54cb2a3f4fcd46ae58280",
+  "oldARMFailure": {
+    "run": 40196045356,
+    "cause": "contract.cpp used PlasmaQuick::globalEngine and forwarding header introduced6.8; actual ARM packages remain6.7.5; production module compiled before consumer refusal"
+  },
+  "upstreamSources": [
+    "https://invent.kde.org/plasma/plasma-login-manager/-/blob/v6.7.5/src/frontend/greeter/main.cpp",
+    "https://invent.kde.org/plasma/plasma-login-manager/-/blob/v6.7.5/src/frontend/startkde/startplasma.cpp",
+    "https://api.kde.org/plasmaquick-sub-plasmaquick.html"
+  ],
+  "correction": {
+    "nativeAPIConditional": true,
+    "upstreamKDEPlatformEnvironment": true,
+    "noForcedQMLStyle": true,
+    "allPaletteImageInputPredicatesRetained": true,
+    "finalImageVersionReadback": true,
+    "productionModuleUnchanged": true
+  },
+  "nativeFixtures": [
+    {
+      "version": "68",
+      "container": "moos-appearance-native-api68-20261025",
+      "exit": 0,
+      "seconds": 46.821719198997016,
+      "log": "native138-api68-runtime.log"
+    },
+    {
+      "version": "67",
+      "container": "moos-appearance-native-api67-20261025",
+      "exit": 0,
+      "seconds": 46.25241986299807,
+      "log": "native138-api67-runtime.log"
+    }
+  ],
+  "legacySignedPackages": [
+    {
+      "file": "libplasma-6.7.5-1.fc44.x86_64.rpm",
+      "sha256": "ea0f2bfc5971c4fea5a87c379df3714654b1fcd12f14e044805aca40ad90df5f",
+      "signature": "/work/plasma67-compatibility/rpms/libplasma-6.7.5-1.fc44.x86_64.rpm: digests signatures OK"
+    },
+    {
+      "file": "libplasma-devel-6.7.5-1.fc44.x86_64.rpm",
+      "sha256": "84afc88024e5b8368edafab62f0b21b1f3e3cc2a52c1bc1893e4975fb848337e",
+      "signature": "/work/plasma67-compatibility/rpms/libplasma-devel-6.7.5-1.fc44.x86_64.rpm: digests signatures OK"
+    }
+  ],
+  "legacyActualLibraries": [
+    "10802:\tcalling init: /work/plasma67-compatibility/root/usr/lib64/libPlasma.so.7",
+    "10802:\tcalling init: /work/plasma67-compatibility/root/usr/lib64/libPlasmaQuick.so.7"
+  ],
+  "legacyScope": "6.7.5 signed x86 package/library replay, not ARM native boot",
+  "engines": {
+    "67": {
+      "schema": 1,
+      "twoNativeOwners": true,
+      "nativePersistence": true,
+      "administratorImmutableRefused": true,
+      "filteredWallpaperIntent": true,
+      "unknownIntentDestinationRefused": true,
+      "linkedIntentDestinationsRefused": true,
+      "nativeEngine": {
+        "plasmaVersion": "6.7.5",
+        "api": "SharedQmlEngine",
+        "theme": "",
+        "owner": "PlasmaDesktopTheme"
+      },
+      "accountsDaemonSHA256": "adea18e58b44442109b3ec9a3fb127d132c7ec4829230ebbe62b07d0ed9bb427",
+      "moduleSHA256": "dde327fb6207158f22c9ddcec36c7251a6e3489fab989c96cc63b311e9ef0403",
+      "package": "accountsservice-23.13.9-16.fc44.x86_64"
+    },
+    "68": {
+      "schema": 1,
+      "twoNativeOwners": true,
+      "nativePersistence": true,
+      "administratorImmutableRefused": true,
+      "filteredWallpaperIntent": true,
+      "unknownIntentDestinationRefused": true,
+      "linkedIntentDestinationsRefused": true,
+      "nativeEngine": {
+        "plasmaVersion": "6.8.0",
+        "api": "globalEngine",
+        "theme": "KirigamiPlasmaStyle",
+        "owner": "PlasmaTheme"
+      },
+      "accountsDaemonSHA256": "adea18e58b44442109b3ec9a3fb127d132c7ec4829230ebbe62b07d0ed9bb427",
+      "moduleSHA256": "dde327fb6207158f22c9ddcec36c7251a6e3489fab989c96cc63b311e9ef0403",
+      "package": "accountsservice-23.13.9-16.fc44.x86_64"
+    }
+  },
+  "host": {
+    "product": "V3",
+    "boot": "ee7fcea0-591d-4c20-a991-41bc9101a265",
+    "signedVersion": "44.20261024.1100",
+    "unchanged": true,
+    "noStagedUpdate": true
+  },
+  "remaining": [
+    "native ARM exact-head image and required CI",
+    "one signed artifact/boot/promotion cycle",
+    "installed payload/cold login/boot acceptance with current reboot timing"
+  ]
+}

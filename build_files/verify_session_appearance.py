@@ -14,6 +14,13 @@ MARKERS=('MOOS_NATIVE_TWO_OWNER_APPEARANCE_PASS','MOOS_NATIVE_APPEARANCE_RESTART
          'MOOS_NATIVE_FILTERED_WALLPAPER_INTENT_PASS','MOOS_NATIVE_UNKNOWN_WALLPAPER_DESTINATION_REFUSED','MOOS_NATIVE_LINKED_WALLPAPER_DESTINATIONS_REFUSED')
 
 
+def verify_engine(receipt,version):
+    modern=tuple(map(int,version.split('.'))) >= (6,8,0)
+    expected=dict(plasmaVersion=version,api='globalEngine' if modern else 'SharedQmlEngine',
+                  theme='KirigamiPlasmaStyle' if modern else '',owner='PlasmaTheme' if modern else 'PlasmaDesktopTheme')
+    assert receipt.get('nativeEngine')==expected,'tested native engine/palette owner differs from final Plasma'
+
+
 def fixture(script,binary,imports):
     result=subprocess.run([sys.executable,str(script),str(binary),str(imports)],capture_output=True,text=True,timeout=65)
     print(result.stdout,end='');print(result.stderr,end='',file=sys.stderr)
@@ -64,6 +71,8 @@ def runtime():
     receipt=json.loads(Path('/usr/share/moos/appearance-native-proof.json').read_text())
     assert receipt['twoNativeOwners'] and receipt['nativePersistence'] and receipt['administratorImmutableRefused']
     assert receipt['filteredWallpaperIntent'] and receipt['unknownIntentDestinationRefused'] and receipt['linkedIntentDestinationsRefused']
+    version=subprocess.run(['rpm','-q','--qf','%{VERSION}','libplasma'],capture_output=True,text=True,check=True).stdout
+    verify_engine(receipt,version)
     daemon=Path('/usr/libexec/accounts-daemon')
     assert hashlib.sha256(daemon.read_bytes()).hexdigest()==receipt['accountsDaemonSHA256'],'tested AccountsService bytes differ in final image'
     loaded=load_module(Path('/usr/lib64/qt6/qml'))

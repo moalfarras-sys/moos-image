@@ -9,6 +9,7 @@ import hashlib
 import os
 from pathlib import Path
 import pwd
+import re
 import shutil
 import subprocess
 import sys
@@ -52,7 +53,10 @@ def main():
         try:
             address=bus.stdout.readline().strip();assert address.startswith('unix:')
             env=os.environ | dict(DBUS_SYSTEM_BUS_ADDRESS=address,DBUS_SESSION_BUS_ADDRESS=address,
-                QT_QPA_PLATFORM='offscreen',QT_QUICK_BACKEND='software',QML_DISABLE_DISK_CACHE='1',QT_FORCE_STDERR_LOGGING='1')
+                QT_QPA_PLATFORM='offscreen',QT_QPA_PLATFORMTHEME='kde',QT_QUICK_BACKEND='software',QML_DISABLE_DISK_CACHE='1',QT_FORCE_STDERR_LOGGING='1')
+            # Native startplasma-login sets the KDE platform theme. Do not force
+            # a QML style: 6.7 and 6.8 have different real greeter engine owners.
+            env.pop('QT_QUICK_CONTROLS_STYLE',None)
             env.pop('DISPLAY',None);env.pop('WAYLAND_DISPLAY',None)
             os.environ['DBUS_SYSTEM_BUS_ADDRESS']=address
             log=(root/'accounts.log').open('w');logs.append(log)
@@ -117,10 +121,17 @@ c.call_sync('org.freedesktop.Accounts',sys.argv[1],'org.freedesktop.DBus.Propert
 """
             result=subprocess.run(['python3','-c',setter,path,invalid],env=owner_env,preexec_fn=as_uid(61000),capture_output=True,text=True,timeout=6)
             assert result.returncode==0,result.stderr
+            native_engines=[]
             for process,file in consumers:
                 assert process.wait(timeout=8)==0,file.read_text(errors='replace')[-3000:]
                 assert 'MOOS_NATIVE_APPEARANCE_INVALID_REFUSED' in file.read_text()
-                assert 'native greeter engine=KirigamiPlasmaStyle' in file.read_text()
+                match=re.search(r'^MOOS_NATIVE_GREETER_ENGINE plasma=(\d+\.\d+\.\d+) api=(\w+) theme=(\w*) owner=(\w+)$',file.read_text(),re.M)
+                assert match,'native engine identity missing'
+                version,api,theme,owner=match.groups()
+                expected=('globalEngine','KirigamiPlasmaStyle','PlasmaTheme') if tuple(map(int,version.split('.'))) >= (6,8,0) else ('SharedQmlEngine','','PlasmaDesktopTheme')
+                assert (api,theme,owner)==expected,'native engine/palette owner mismatch'
+                native_engines.append(dict(plasmaVersion=version,api=api,theme=theme,owner=owner))
+            assert native_engines[0]==native_engines[1],'native owners used different engine contracts'
             for name,body in service_files.items():
                 assert (service_home/name).read_bytes()==body,'appearance changed persistent service settings'
             print('MOOS_NATIVE_TWO_OWNER_APPEARANCE_PASS',flush=True)
@@ -216,6 +227,7 @@ c.call_sync('org.freedesktop.Accounts',sys.argv[1],'org.freedesktop.DBus.Propert
                 receipt.write_text(json.dumps(dict(schema=1,twoNativeOwners=True,nativePersistence=True,administratorImmutableRefused=True,
                     filteredWallpaperIntent=True,unknownIntentDestinationRefused=True,
                     linkedIntentDestinationsRefused=True,
+                    nativeEngine=native_engines[0],
                     accountsDaemonSHA256=hashlib.sha256(Path('/usr/libexec/accounts-daemon').read_bytes()).hexdigest(),
                     moduleSHA256=hashlib.sha256(module.read_bytes()).hexdigest(),
                     package=subprocess.run(['rpm','-q','accountsservice'],capture_output=True,text=True,check=True).stdout.strip()),indent=2)+'\n')
