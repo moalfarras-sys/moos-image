@@ -1,0 +1,89 @@
+{
+  "schema": 1,
+  "date": "2026-10-25",
+  "status": "CI-only bootstrap correction; exact Linux/Windows native fast checks and new signed cycle pending",
+  "qualifiedUI": {
+    "source": "0341c6bc1c9e790971f85422a00a4c6cd8f1c554",
+    "merged": "d5f5ad0b16b2f63805fedb9cef34c7d0f049f1b5",
+    "localSourceSeconds": 895.3243380970089,
+    "localImageSeconds": 781.6856817049993,
+    "overlayFiles": 59,
+    "mismatches": 0,
+    "arm": 40224664463,
+    "x86": 40224664464,
+    "canary": 40224664465
+  },
+  "refusedCycle": {
+    "version": 1105,
+    "run": 40230030489,
+    "windowsJob": 121279572376,
+    "linuxJob": 121279572176,
+    "cause": "Both setup-dotnet jobs fail before compile/tests: aka.ms archive resolution selects dotnetorigin.blob.core.windows.net, which returns HTTP409",
+    "remainingOwnCohortCancelled": true,
+    "armOwnCancelledRun": 40229858799,
+    "noPromotion": true,
+    "noFailedJobRerun": true
+  },
+  "liveEndpointControls": [
+    {
+      "url": "https://dotnetorigin.blob.core.windows.net/dotnet/Sdk/10.0.403/dotnet-sdk-10.0.403-linux-x64.tar.gz",
+      "status": 409,
+      "code": null
+    },
+    {
+      "url": "https://builds.dotnet.microsoft.com/dotnet/Sdk/10.0.403/dotnet-sdk-10.0.403-linux-x64.tar.gz",
+      "status": 200,
+      "bytes": "240199984"
+    },
+    {
+      "url": "https://dotnetorigin.blob.core.windows.net/dotnet/Sdk/10.0.403/dotnet-sdk-10.0.403-win-x64.zip",
+      "status": 409,
+      "code": null
+    },
+    {
+      "url": "https://builds.dotnet.microsoft.com/dotnet/Sdk/10.0.403/dotnet-sdk-10.0.403-win-x64.zip",
+      "status": 200,
+      "bytes": "300745255"
+    }
+  ],
+  "liveResolver": {
+    "metadataExit": 0,
+    "exactInstallerDryRunExit": 0,
+    "pinnedInstallerSHA256": "082f7685e156738a1b2e2ed8381a621870d4ce8e8c59278034556f05c186eb2e",
+    "version": "10.0.403",
+    "archiveDownloaded": false
+  },
+  "metadata": {
+    "url": "https://builds.dotnet.microsoft.com/dotnet/release-metadata/10.0/releases.json",
+    "sha256": "8fa7ae2d46b1f94416d5458c7ed68b0c3cafc5efb8e34d89dea3a98bf0a38b33",
+    "bytes": 1151627,
+    "observedSDK": "10.0.403",
+    "observedRuntime": "10.0.14"
+  },
+  "correction": {
+    "resolveCurrentSupported10Channel": true,
+    "exactVersionToExistingPinnedInstaller": true,
+    "pinnedActionUnchanged": true,
+    "noOlderSDKFallback": true,
+    "finiteMetadataReadRetries": true,
+    "versionOutputOnlyAfterValidation": true,
+    "windowsFastBuildAdded": true,
+    "allRemoteTestsRetained": true,
+    "productionPayloadUnchanged": true
+  },
+  "targeted": {
+    "cases": 37,
+    "exit": 0
+  },
+  "sources": [
+    "https://learn.microsoft.com/dotnet/core/tools/dotnet-install-script",
+    "https://github.com/actions/setup-dotnet/blob/26b0ec14cb23fa6904739307f278c14f94c95bf1/src/installer.ts",
+    "https://github.com/dotnet/announcements/issues/336"
+  ],
+  "remaining": [
+    "maintained full source and actual Linux/Windows fast builds at the corrected head",
+    "new first-attempt signed candidate and complete artifact boot/promotion proofs",
+    "canonical signed host staging and owner-authorized restart",
+    "installed payload, theme and native UI acceptance after reboot"
+  ]
+}
