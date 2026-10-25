@@ -1,0 +1,158 @@
+{
+  "schema": 1,
+  "updatedUTC": "2026-10-24T19:55:28.145427+00:00",
+  "scope": "Signed native-session UI132 delivery and staged workstation readback; new Welcome draft is independent",
+  "candidateRevision": "f3dd30cf45f0d4f583e4319ffa709722a5f331cd",
+  "mainMerge": "9a037c5e914e745b8b6952cfbffd399749426bfe",
+  "equalTree": "703cc4b8ad8f889de330048c25dc5906f6e1703b",
+  "pullRequest": "https://github.com/moalfarras-sys/moos-image/pull/268",
+  "localQualification": {
+    "checkExit": 0,
+    "checkSeconds": 816.749396881,
+    "imageExit": 0,
+    "imageSeconds": 584.077545994,
+    "image": "sha256:b9ca1df0aa9d58f930a94272037f51962edee06a928dec7ea6c8f00aada91935",
+    "overlayExact": 473,
+    "embeddedExact": 106,
+    "modulesExact": 7,
+    "mismatches": 0
+  },
+  "signedX86": {
+    "build": 40076433287,
+    "genericDisk": 40081766821,
+    "nvidiaDisk": 40081769329,
+    "cloudDisk": 40081771814,
+    "offlineISO": 40081774112,
+    "promotion": 40086370512,
+    "conclusions": "All success; attempt1; exact frozen revision",
+    "version": "44.20261024.1100",
+    "moos": "sha256:7d9d154a13be88256eafd362a58bbe7e820c6ca6e1ffcca098a65702cdeee4dc",
+    "moos-nvidia": "sha256:08e487362620ea136004d1aa81587d92ffa8db0ae21dc5b400d74d7d78e6e55a",
+    "moos-cloud": "sha256:60798e6b954c58be29985e72cdd758d3bea35deb60e2391935f85d8a57bd53e8",
+    "independentProductionSignatureReadback": true
+  },
+  "arm": {
+    "branchPipeline": 40081777257,
+    "branchConclusion": "success; promotion correctly skipped off main",
+    "mainPipeline": 40086332435,
+    "mainBuildDiskPromotion": "all success",
+    "production": {
+      "scope": "Independent current ARM latest/signature after normal main push pipeline; branch proof does not promote",
+      "digest": "sha256:90cff006269f5d96188c8dae508d839dedb98c34fb0cdf861d392fc5b65a935c",
+      "version": "44.20261024.855",
+      "revision": "9a037c5e914e745b8b6952cfbffd399749426bfe",
+      "architecture": "arm64",
+      "signatureExit": 0,
+      "mainPipeline": 40086332435,
+      "proofJobConclusions": [
+        {
+          "name": "Build moos-arm (native aarch64)",
+          "conclusion": "success"
+        },
+        {
+          "name": "Build the qcow2 (Oracle / UTM)",
+          "conclusion": "success"
+        },
+        {
+          "name": "Promote boot-proven ARM image",
+          "conclusion": "success"
+        }
+      ]
+    },
+    "manualArtifactReadback": {
+      "scope": "Downloaded small evidence only, no local VM/image copy",
+      "manifest": {
+        "boot_proven_raw_qcow2_sha256": "76e5c8c678b70d6b3c056c8dc501297748416dfd80bed5efedf2ef154af0c4fb",
+        "first_boot": "healthy",
+        "poweroff": "clean",
+        "revision": "9a037c5e914e745b8b6952cfbffd399749426bfe",
+        "schema": 1,
+        "second_boot": "healthy",
+        "source_image": "ghcr.io/moalfarras-sys/moos-arm@sha256:90cff006269f5d96188c8dae508d839dedb98c34fb0cdf861d392fc5b65a935c",
+        "workflow_run_id": 40086332435
+      },
+      "differentBootIDs": true,
+      "bothExactSignedOrigins": true,
+      "bothFailedUnitsZero": true,
+      "firstPartyArch": "aarch64",
+      "firstBootSSHTimeoutRetained": true,
+      "notClaimed": [
+        "Physical ARM installation",
+        "Whole UI or physical touch/input/endurance"
+      ]
+    }
+  },
+  "native": {
+    "device": "Minisforum V3 AMD/Radeon",
+    "booted": {
+      "checksum": "4d5829e4184a59ccc03f392f6253fa277dc26330cf1029ee14588c4dd24c7b8d",
+      "version": "44.20261023.1097",
+      "container-image-reference": "ostree-image-signed:docker://ghcr.io/moalfarras-sys/moos@sha256:c9a594eedaedc89fe27afa6e7c4c2e36384542da2ed6cd1295bdcd278585e77b"
+    },
+    "staged": {
+      "checksum": "d95132efe31038428748cab1cb86becced707188f4c1b9926cdc000aedb55f89",
+      "version": "44.20261024.1100",
+      "container-image-reference": "ostree-image-signed:docker://ghcr.io/moalfarras-sys/moos@sha256:7d9d154a13be88256eafd362a58bbe7e820c6ca6e1ffcca098a65702cdeee4dc",
+      "staged": true,
+      "booted": false
+    },
+    "retainedVersions": [
+      "44.20261023.1097",
+      "44.20261021.1090",
+      "44.20261019.1078"
+    ],
+    "pinnedRecovery": "44.20261019.1078",
+    "canonicalUpdateExit": 0,
+    "transaction": null,
+    "stagedSourceExact": 11,
+    "stagedShellFiles": 67,
+    "stagedThemeProfiles": 18,
+    "shellPreviewRetired": {
+      "files": 67,
+      "bytes": 361921,
+      "method": "Atomic same-filesystem recoverable move outside XDG package roots, after exact staged/read-only and immediate owner/type/mode/byte/mount preflight",
+      "onlyStagedDifference": "Reviewed native LogoutControls adapter",
+      "plasmaReload": {
+        "exit": 0,
+        "stderr": ""
+      },
+      "unrelatedOwnersUnchanged": true,
+      "recovery": "Private ignored evidence manifest; no deletion"
+    },
+    "selectedTheme": "org.moos.ui2.bloom.light",
+    "systemFailed": 0,
+    "userFailed": 0,
+    "newPlasmaQMLRuntimeErrorsObserved": 0,
+    "rebootRequested": false,
+    "coldAcceptance": "Pending explicit reboot and changed boot ID/readback; no physical1100 acceptance claimed"
+  },
+  "visual": {
+    "newThemeMembers": "Optional Bloom dark/light pair with curated GPL Colloid frame/Fluent assets and original artwork",
+    "sharedImprovement": "Launcher, native power/lock selected images and action glyphs, motion/Arabic/contrast, widget gallery and single Island owner",
+    "originalSixteenWallpapers": "Unchanged native3840x2160 assets; not all redrawn",
+    "nativeReview": "18 matched-profile launcher cases and18 OpenGL power renders; actual current4K250% launcher inspected",
+    "ownerFeedback": "Restored appearance confirmed; whole UI previously still requested stronger polish",
+    "conceptWallpaper": "Private1672x941 imagegen concept only, not4K or installed"
+  },
+  "welcomeFollowup": {
+    "branch": "feat/ui-welcome-responsive-20261024",
+    "notIn1100": true,
+    "state": "Uncommitted103-line source draft; five native baseline/fixed hero cases pass, broader pages/physical source journey and maintained regression/full qualification pending",
+    "actualOldCounterevidence": "Existing Begin pointer/keyboard work; live installer CTA clips at640x480 and wheel cannot recover it",
+    "fixedPilot": "Existing Begin pointer/keyboard and wheel reveal both captions/actions at640x480;360x640 Arabic12pt;960x540 Arabic16pt;1536x864 English Light",
+    "notAcceptance": "Private virtual compositor input is not physical touch or all-page/device acceptance"
+  },
+  "preservedRefusals": [
+    "17fb same-second recovery overwrite; own candidate cancelled before artifact promotion",
+    "First f3dd PR ARM registry HTTP503 before product composition",
+    "Advisory execution is_error despite green job",
+    "Standalone native login qrc warning remains distinct from complete ISO login"
+  ],
+  "evidenceRoot": "test-results/ui-reboot-recovery-20261024",
+  "remaining": [
+    "Physical1100 reboot/selfcheck/post-update/selected-profile asset URI and launcher readback",
+    "Cold native login/theme appearance synchronization using real KCM; full sync also copies display/locale/keyboard",
+    "Real lock/power/reboot/suspend and physical device/input/endurance matrix",
+    "Independently qualify Welcome draft; do not reuse1100 candidate proofs"
+  ]
+}

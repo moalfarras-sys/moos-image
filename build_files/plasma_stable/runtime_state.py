@@ -15,7 +15,7 @@ import stat
 import subprocess
 import tempfile
 
-from finalize_canary_base import mount_points, refuse_mounted_tree, refuse_tmpfiles_overrides
+from finalize_canary_base import mount_points, refuse_mounted_tree, refuse_tmpfiles_overrides, mapped_local_override_folder
 from finalize_image_state import owned_path, reject_unsafe_cleanup_entries
 
 
@@ -91,6 +91,55 @@ class Transaction:
             if scoped != [authority['rule']]:
                 raise RuntimeError('runtime tmpfiles authority drifted: '+str(path))
 
+    def ssh_migration_authority(self):
+        # The native14->16 upgrade runs POSTIN even in an OSTree build and
+        # touches this empty completion marker. This is not permission to
+        # retire a key, an installed machine's state, or an unknown creator.
+        package = 'openssh-server'
+        command = ['rpm', '--root', str(self.root), '-q']
+        expected = 'openssh-server 10.2p1-16.fc44 x86_64 openssh-10.2p1-16.fc44.src.rpm'
+        actual = subprocess.check_output([*command, '--qf',
+            '%{NAME} %{VERSION}-%{RELEASE} %{ARCH} %{SOURCERPM}', package], text=True)
+        if actual != expected:
+            raise RuntimeError('unreviewed SSH migration package')
+        postin = subprocess.check_output([*command, '--qf', '%{POSTIN}', package])
+        if hashlib.sha256(postin).hexdigest() != '8b779b4969ab318b9400284739e8c2eb37fafcc2170fdf1923cede900fdde2fa':
+            raise RuntimeError('SSH migration POSTIN authority drifted')
+        rows = subprocess.check_output([*command, '--dump', package], text=True).splitlines()
+        authorities = {
+            'usr/libexec/openssh/ssh-host-keys-migration.sh':
+                (0o744, '423ed19b93c41154c490f15f2989294e67ee31582d60e08f311602cea4abaf82'),
+            'usr/lib/systemd/system/ssh-host-keys-migration.service':
+                (0o644, '679dcbee8d88ff85b4ed05766aa561ea538830bd706182e65a80d911f4060cec'),
+        }
+        for relative, (mode, digest) in authorities.items():
+            path = owned_path(self.root, relative)
+            refuse_mounted_tree(self.root, path, self.mounts)
+            info = path.lstat()
+            if (not stat.S_ISREG(info.st_mode) or stat.S_IMODE(info.st_mode) != mode
+                    or info.st_uid != self.owner.st_uid or info.st_gid != self.owner.st_gid
+                    or info.st_size > 64*1024 or path.is_mount()):
+                raise RuntimeError('unsafe SSH migration authority')
+            # Read-only package inputs may legitimately have base hardlinks;
+            # the runtime retirement target still requires exactly one link.
+            matches = [row.split() for row in rows if row.split()[0] == '/'+relative]
+            if (hashlib.sha256(path.read_bytes()).hexdigest() != digest
+                    or len(matches) != 1 or matches[0][3] != digest):
+                raise RuntimeError('SSH migration authority payload drifted')
+        for prefix in ('etc/systemd/system', 'run/systemd/system', 'usr/local/lib/systemd/system'):
+            prefix = mapped_local_override_folder(self.root, prefix, self.mounts)
+            for suffix in ('ssh-host-keys-migration.service', 'ssh-host-keys-migration.service.d'):
+                path = self.root / prefix / suffix
+                refuse_mounted_tree(self.root, path, self.mounts)
+                owned_path(self.root, prefix)
+                if os.path.lexists(path):
+                    raise RuntimeError('SSH migration unit override')
+        keys = owned_path(self.root, 'etc/ssh')
+        refuse_mounted_tree(self.root, keys, self.mounts)
+        self.require(keys, 'directory', 0o755, self.owner.st_uid, self.owner.st_gid)
+        if any(keys.glob('ssh_host_*')):
+            raise RuntimeError('SSH host key state must be preserved')
+
     def catalog_matches(self, path):
         # Rebuild from the actual immutable native catalogue inputs. Never bless
         # arbitrary nonempty data merely because its filename looks generated.
@@ -147,6 +196,12 @@ class Transaction:
                 owned_path(self.root,str(child.parent.relative_to(self.root)))
                 self.require(child,record['kind'],record['mode'],*self.ids(record))
                 self.authority(record)
+                if rel == 'var/lib/.ssh-host-keys-migration':
+                    if record.get('rpm_postin_authority') != 'openssh-server-10.2p1-16.fc44.x86_64':
+                        raise RuntimeError('unreviewed SSH migration authority role')
+                    if child.stat().st_size:
+                        raise RuntimeError('nonempty SSH migration marker')
+                    self.ssh_migration_authority()
                 if record['kind']=='link':
                     if os.readlink(child)!=record['target']:
                         raise RuntimeError('runtime alias drifted: '+rel)

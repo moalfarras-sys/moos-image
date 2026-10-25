@@ -26,6 +26,9 @@ WHAT THESE ARE FOR
 from __future__ import annotations
 
 import re
+import json
+import shutil
+import subprocess
 import struct
 import unittest
 from pathlib import Path
@@ -226,6 +229,64 @@ class BootSplashTests(unittest.TestCase):
         self.assertIn("tick >= 9", refresh)
         self.assertIn("finished = 1", refresh)
         self.assertEqual(len(intro_frames()), 1)
+
+    @unittest.skipUnless(shutil.which('node'), 'callback evaluation needs Node')
+    def test_arrival_settles_and_early_handoff_never_keeps_an_offset(self) -> None:
+        # Evaluate the actual callback arithmetic, without pretending these
+        # recording APIs are native Plymouth or pixels. The native script
+        # parser and final-initramfs/boot gates remain separate requirements.
+        prelude = '''
+const vm = require('node:vm');
+function check(source, mode) {
+  const calls = []; let scaled = 0;
+  function picture(w=853,h=554) { return {GetWidth:()=>w,GetHeight:()=>h,
+    Scale:(x,y)=>{scaled++;return picture(x,y);}}; }
+  const Image = () => picture(); Image.Text = () => picture(100,20);
+  const context = {frames:[], Image, Sprite:()=>({y:0,opacity:1,
+    SetImage:()=>{},SetX:()=>{},SetZ:()=>{},
+    SetY(y){this.y=y;calls.push(['y',y]);},
+    SetOpacity(a){this.opacity=a;calls.push(['alpha',a]);}}),
+    Window:{GetWidth:()=>1536,GetHeight:()=>864,SetBackgroundTopColor:()=>{},SetBackgroundBottomColor:()=>{}},
+    Plymouth:{GetMode:()=>mode,SetRefreshRate:()=>{},
+      SetRefreshFunction:f=>context.refreshCallback=f,SetQuitFunction:f=>context.quitCallback=f,
+      SetMessageFunction:()=>{},SetDisplayPasswordFunction:()=>{},SetDisplayNormalFunction:()=>{}}};
+  vm.runInNewContext(source,context,{timeout:1000});
+  const initialScaleCount=scaled;
+  if (mode==='boot' || mode==='boot-full') {
+    if (!(context.intro_sprite.y>context.stage_y)) throw Error('missing finite arrival');
+    if (mode==='boot-full') {
+      for(let i=0;i<9;i++) context.refreshCallback();
+    } else {
+      context.refreshCallback(); context.refreshCallback(); context.refreshCallback();
+      context.quitCallback();
+    }
+    if (Math.abs(context.intro_sprite.y-context.stage_y)>0.01 || context.intro_sprite.opacity!==1)
+      throw Error('handoff kept the in-flight offset');
+  } else if (context.intro_sprite.y!==context.stage_y || context.intro_sprite.opacity!==1) {
+    throw Error('shutdown did not start at rest');
+  }
+  const settled=calls.length;
+  for(let i=0;i<200;i++) context.refreshCallback();
+  if (calls.length!==settled || scaled!==initialScaleCount) throw Error('rest keeps doing work');
+  return true;
+}
+'''
+        source = re.sub(r'\bfun\s+', 'function ', script_text())
+        for broken in (False, True):
+            candidate = source
+            if broken:
+                line = '    intro_sprite.SetY(stage_y);\n'
+                self.assertEqual(candidate.count(line), 1)
+                candidate = candidate.replace(line, '', 1)
+            program = prelude+'\nconst source='+json.dumps(candidate)+';\n'
+            program += "check(source,'boot');check(source,'boot-full');check(source,'shutdown');check(source,'reboot');process.stdout.write('MOOS_BOOT_CALLBACK_PASS');"
+            p = subprocess.run([shutil.which('node'), '-e', program], capture_output=True, text=True, timeout=10)
+            if broken:
+                self.assertNotEqual(p.returncode, 0)
+                self.assertIn('handoff kept the in-flight offset', p.stderr)
+            else:
+                self.assertEqual(p.returncode, 0, p.stdout+p.stderr)
+                self.assertIn('MOOS_BOOT_CALLBACK_PASS', p.stdout)
 
     def test_the_ground_is_the_desktop_canvas(self) -> None:
         # #14191C is the UI2 canvas the desktop opens on. Any other colour here

@@ -32,10 +32,13 @@ backdrop_sprite.SetZ(0);
 
 INTRO_COUNT = 1;
 INTRO_ASPECT = 1.5396;
-stage_w = fmin(sw * 0.70, sh * 0.62 * INTRO_ASPECT);
+// A restrained signature leaves the horizon and encrypted-volume prompts room.
+// Keep the approved mark sharp instead of enlarging it across most of the screen.
+stage_w = fmin(sw * 0.44, sh * 0.40 * INTRO_ASPECT);
 stage_h = stage_w / INTRO_ASPECT;
 stage_x = cx - stage_w / 2;
 stage_y = cy - stage_h / 2;
+entrance_rise = fmin(18, sh * 0.018);
 OVERLAY_MAX_W = sw * 0.78;
 frames[1] = Image("intro1.png");
 hero = frames[INTRO_COUNT].Scale(stage_w, stage_h);
@@ -51,12 +54,18 @@ tick = 0;
 finished = 0;
 mode = Plymouth.GetMode();
 if (mode == "shutdown" || mode == "reboot") { finished = 1; }
-if (finished == 0) { intro_sprite.SetOpacity(0.70); }
+if (finished == 0) {
+    intro_sprite.SetOpacity(0.70);
+    intro_sprite.SetY(stage_y + entrance_rise);
+}
 Plymouth.SetRefreshRate(25);
 fun refresh() {
     if (finished == 0) {
         tick++;
-        intro_sprite.SetOpacity(0.70 + 0.30 * clamp01(tick / 9.0));
+        remaining = 1 - clamp01(tick / 9.0);
+        arrival = 1 - remaining * remaining * remaining;
+        intro_sprite.SetOpacity(0.70 + 0.30 * arrival);
+        intro_sprite.SetY(stage_y + entrance_rise * (1 - arrival));
         if (tick >= 9) {
             finished = 1;
             // Keep input/status redraws responsive. The mark is now still;
@@ -68,6 +77,7 @@ Plymouth.SetRefreshFunction(refresh);
 fun quit_callback() {
     finished = 1;
     intro_sprite.SetImage(hero);
+    intro_sprite.SetY(stage_y);
     intro_sprite.SetOpacity(1);
     Plymouth.SetRefreshRate(1);
 }

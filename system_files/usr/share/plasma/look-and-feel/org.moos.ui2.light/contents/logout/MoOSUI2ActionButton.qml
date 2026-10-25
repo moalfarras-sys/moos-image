@@ -12,7 +12,8 @@
     Colour contract (measured across all 16 schemes in tests/test_moos_ui2.py):
     the filled surface is accentA (highlight, or the negative role when
     destructive) under its PAIRED foreground — highlightedTextColor, or the
-    Complementary background for destructive fills. accentB exists for the rim
+    active surface background for destructive fills (Window and Complementary
+    are independently contrast-gated). accentB exists for the rim
     only; it has no paired foreground role and never sits under the glyph.
     Armed is a still, high-contrast fill — confirmation never pulses.
 */
@@ -91,7 +92,7 @@ QQC2.AbstractButton {
     // The session family's one size, from the window this tile is in.
     readonly property real sessionScale: design.sessionScale(Window.width, Window.height)
     readonly property real keyHeight: Math.max(design.targetControl,
-        Kirigami.Units.gridUnit * (control.subtle ? 3.1 : 6.2) * sessionScale)
+        Kirigami.Units.gridUnit * (control.subtle ? 3.1 : 5.3) * sessionScale)
     readonly property real keyWidth: Kirigami.Units.gridUnit * (control.subtle ? 10.4 : 8.6) * sessionScale
     // The way out is one line of words, and it must never be cut short: on a
     // small screen the pill takes the width its caption needs.
@@ -170,12 +171,13 @@ QQC2.AbstractButton {
             radius: Math.min(width, height) * 0.30
             visible: control.lit || control.armed
             color: control.accentA
-            opacity: control.armed ? 0.14 : 0.06
+            opacity: control.armed ? 0.10 : 0.025
         }
 
         // One contrast-paired tile surface.
         Rectangle {
             id: disc
+            objectName: "moosPowerActionSurface"
             anchors.fill: parent
             radius: control.subtle ? design.radiusControl : design.radiusPanel
             color: control.filled
@@ -184,14 +186,13 @@ QQC2.AbstractButton {
                           control.subtle
                           ? (control.lit ? design.surfaceRestingOpacity
                                          : design.surfaceRestingOpacity / 2)
-                          : (control.lit ? design.surfaceHoverOpacity
-                                         : design.surfaceRestingOpacity))
+                          : (control.lit ? 0.07 : 0.025))
             border.width: control.visualFocus
                           ? design.focusWidth : design.borderHairline
             border.color: control.filled
                 ? control.accentB
                 : (control.lit ? Qt.rgba(control.accentA.r, control.accentA.g, control.accentA.b, 0.8)
-                               : Qt.rgba(control.ink.r, control.ink.g, control.ink.b, 0.15))
+                               : Qt.rgba(control.ink.r, control.ink.g, control.ink.b, 0.06))
 
             // Inner sheen: the glass catch-light along the tile's upper third.
             // Painted from the scheme's own foreground at whisper opacity so it
@@ -201,7 +202,7 @@ QQC2.AbstractButton {
                 anchors.margins: 1
                 height: parent.height * 0.46
                 radius: parent.radius - 1
-                visible: !control.filled
+                visible: !control.filled && control.lit
                 gradient: Gradient {
                     GradientStop { position: 0.0; color: Qt.rgba(control.ink.r, control.ink.g, control.ink.b, 0.05) }
                     GradientStop { position: 1.0; color: Qt.rgba(control.ink.r, control.ink.g, control.ink.b, 0.0) }
@@ -216,7 +217,7 @@ QQC2.AbstractButton {
                 width: parent.width * 0.30
                 height: control.visualFocus ? 3 : 2
                 radius: height / 2
-                visible: !control.subtle
+                visible: !control.subtle && (control.lit || control.armed)
                 color: control.filled ? control.filledInk : control.accentB
                 opacity: control.filled ? 0.55 : (control.lit ? 0.95 : 0.62)
             }
@@ -227,7 +228,7 @@ QQC2.AbstractButton {
                 width: parent.width * 0.42
                 height: 1
                 radius: height / 2
-                visible: !control.subtle
+                visible: !control.subtle && (control.lit || control.armed)
                 color: control.filled ? control.filledInk : control.accentA
                 opacity: control.filled ? 0.35 : (control.lit ? 0.55 : 0.22)
             }

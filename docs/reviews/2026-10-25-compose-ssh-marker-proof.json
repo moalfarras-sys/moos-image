@@ -1,0 +1,39 @@
+{
+  "schema": 1,
+  "date": "2026-10-25",
+  "scope": "Pristine native build transaction, never installed-host cleanup",
+  "baseDigest": "sha256:3b887fcebb75b60edff0fe55dbfdf57b8af6db7a735b983b7265d35c4099b601",
+  "packageBefore": "openssh-server10.2p1-14.fc44.x86_64",
+  "packageAfter": "openssh-server10.2p1-16.fc44.x86_64",
+  "marker": {
+    "path": "var/lib/.ssh-host-keys-migration",
+    "bytes": 0,
+    "mode": "0644",
+    "uid": 0,
+    "gid": 0,
+    "nlink": 1
+  },
+  "postinSHA256": "8b779b4969ab318b9400284739e8c2eb37fafcc2170fdf1923cede900fdde2fa",
+  "nativeOldRefusal": true,
+  "nativeReadonlyAuthorityPreflight": true,
+  "fixedTransaction": {
+    "nativeSamePristineInputExit": 0,
+    "seconds": 133.6575871770001,
+    "markerAuthorityExecuted": true,
+    "emptyIdentityAndRuntimeStateConfirmed": true,
+    "canonicalCompleteImage": "pending"
+  },
+  "sourceControls": [
+    40,
+    39,
+    7
+  ],
+  "guard": "Unknown state/keys/data/authority/mount/override or package drift refuses before any unlink; identity gate unchanged",
+  "stockKernelByteReadback": {
+    "nativeTransactionUnchanged": true,
+    "kernel": "7.2.11-200.fc44.x86_64",
+    "sha256": "0eaea5d149421a938ed62c7bdec74cf1013992c8a15d4b495d29e479356fc939",
+    "completeImage": "pending"
+  },
+  "newSignedDelivery": false
+}

@@ -893,7 +893,7 @@ class TestMoOSUI2(unittest.TestCase):
         apply = (ROOT / "system_files/usr/bin/moos-apply-theme").read_text(encoding="utf-8")
         switch = (ROOT / "system_files/usr/bin/moos-theme").read_text(encoding="utf-8")
         self.assertIn(
-            "THEME_REV=132", apply,
+            "THEME_REV=136", apply,
             "existing v100 users would keep a cached compile of the retired MoOS LockScreenUi that "
             "asks for a MoOSClock which no longer ships (kscreenlocker's emergency locker) and a "
             "cached stock session screen with no island; "
@@ -977,8 +977,11 @@ class TestMoOSUI2(unittest.TestCase):
         self.assertIn(
             "Kirigami.Theme.colorSet: Kirigami.Theme.Complementary",
             logout_screen,
-            "destructive foreground/fill pairing below assumes Complementary",
+            "the wallpaper veil and native session clock retain Complementary",
         )
+        self.assertIn("Kirigami.Theme.colorSet: Kirigami.Theme.Window",
+                      logout_screen[logout_screen.index("id: sheet"):],
+                      "the working sheet must match the selected desktop's light/dark roles")
         self.assertRegex(
             button,
             r"readonly property color filledInk:\s*control\.destructive\s*"
@@ -1018,6 +1021,9 @@ class TestMoOSUI2(unittest.TestCase):
             destructive_ink = parse_rgb(complementary["BackgroundNormal"])
             destructive_fill = parse_rgb(complementary["ForegroundNegative"])
             destructive_ratio = contrast_ratio(destructive_ink, destructive_fill)
+            window_roles = scheme["Colors:Window"]
+            window_destructive_ratio = contrast_ratio(parse_rgb(window_roles["BackgroundNormal"]),
+                                                       parse_rgb(window_roles["ForegroundNegative"]))
             with self.subTest(session_scheme=scheme_path.name):
                 self.assertGreaterEqual(
                     selected_ratio,
@@ -1031,6 +1037,8 @@ class TestMoOSUI2(unittest.TestCase):
                     f"{scheme_path}: destructive power glyph contrast is only "
                     f"{destructive_ratio:.2f}:1",
                 )
+                self.assertGreaterEqual(window_destructive_ratio,4.5,
+                    f"{scheme_path}: Window destructive glyph contrast is only {window_destructive_ratio:.2f}:1")
 
     def test_power_dock_wraps_and_keyboard_navigation_tracks_the_grid(self) -> None:
         logout_root = SHARE / "plasma/look-and-feel/org.moos.ui2/contents/logout"
@@ -1040,7 +1048,7 @@ class TestMoOSUI2(unittest.TestCase):
 
         self.assertIn("GridLayout {", logout[:logout.index("id: dock")])
         self.assertIn("actionCount: root.visibleDockActions().length", dock)
-        self.assertIn("Math.min(4, widthLimit", dock)
+        self.assertIn("Math.min(5, widthLimit", dock)
         self.assertIn("Math.ceil(actionCount / 2)", dock)
         self.assertIn("verticalStep * dock.columns", logout)
         self.assertIn("if (button === cancelButton)", logout)
@@ -1051,14 +1059,14 @@ class TestMoOSUI2(unittest.TestCase):
                             ("Left", "-1, 0"), ("Right", "1, 0")):
             self.assertIn(f"Keys.on{key}Pressed: {{ interacted(); navigate({vector}); }}", button)
 
-        # With room for four tile columns, every possible capability/update
+        # With room for five tile columns, every possible capability/update
         # shape is either one row or two rows differing by at most one item.
-        # The second-generation tiles are wider (8.6 grid units), so the cap
-        # dropped from five to four; 6→3+3, 7→4+3, 8→4+4 stay balanced.
+        # The usual five actions share one row; update variants retain
+        # 6→3+3, 7→4+3, 8→4+4. widthLimit still constrains small outputs.
         for count in range(1, 9):
-            columns = min(4, count if count <= 4 else (count + 1) // 2)
+            columns = min(5, count if count <= 5 else (count + 1) // 2)
             rows = (count + columns - 1) // columns
-            self.assertLessEqual(columns, 4)
+            self.assertLessEqual(columns, 5)
             self.assertLessEqual(rows, 2)
             if rows == 2:
                 self.assertLessEqual(columns - (count - columns), 1)

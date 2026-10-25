@@ -10,6 +10,7 @@ import sys
 
 HERE = Path(__file__).resolve().parent
 PACKAGES = {'plasma-login-manager', 'kcm-plasmalogin'}
+KCM = Path('/usr/lib64/qt6/plugins/plasma/kcms/systemsettings/kcm_plasmalogin.so')
 
 
 def command(arguments):
@@ -23,7 +24,7 @@ def sha(path):
 def review(base):
     data = json.loads((HERE / 'sources.json').read_text())
     assert data['schema'] == 1 and base == data['base'], f'unreviewed login-manager source: {base}'
-    assert data['base'] == '6.8.1-1.fc44' and data['fixed'] == '6.8.1-1.1.moos1.fc44'
+    assert data['base'] == '6.8.1-1.fc44' and data['fixed'] == '6.8.1-1.2.moos1.fc44'
     assert data['arch'] == 'x86_64'
     assert data['source_url'] == ('https://download.copr.fedorainfracloud.org/results/@kdesig/kde-final/'
                                   'fedora-44-x86_64/Packages/p/plasma-login-manager-6.8.1-1.fc44.src.rpm')
@@ -100,8 +101,15 @@ def install(folder):
     worker = Path('/usr/libexec/plasma-login-greeter')
     receipt = Path('/usr/share/moos/plasma-login-automatic-fingerprint.json')
     receipt.parent.mkdir(parents=True, exist_ok=True)
-    receipt.write_text(json.dumps({**data, 'greeter_sha256': sha(worker)}, indent=2) + '\n')
+    receipt.write_text(json.dumps({**data, 'greeter_sha256': sha(worker),
+                                  'kcm_sha256': sha(KCM)}, indent=2) + '\n')
     print('MoOS: native automatic fingerprint frontend installed with vendor backend retained')
+
+
+def verify_payload(package, path):
+    rows = command(['rpm', '-q', '--dump', package]).splitlines()
+    matches = [row.split() for row in rows if row.split()[0] == str(path)]
+    assert len(matches) == 1 and matches[0][3] == sha(path), str(path)
 
 
 def verify():
@@ -110,11 +118,11 @@ def verify():
     assert all(record[key] == value for key, value in data.items())
     worker = Path('/usr/libexec/plasma-login-greeter')
     assert sha(worker) == record['greeter_sha256']
+    assert sha(KCM) == record['kcm_sha256']
     for name in PACKAGES:
         assert command(['rpm', '-q', '--qf', '%{VERSION}-%{RELEASE}', name]) == data['fixed']
-    rows = command(['rpm', '-q', '--dump', 'plasma-login-manager']).splitlines()
-    matches = [row.split() for row in rows if row.split()[0] == str(worker)]
-    assert len(matches) == 1 and matches[0][3] == sha(worker)
+    verify_payload('plasma-login-manager', worker)
+    verify_payload('kcm-plasmalogin', KCM)
     for helper in ('moos-configure-fingerprint-login', 'moos-login-fingerprint-capabilities'):
         assert Path('/usr/libexec', helper).is_file()
     dropin = Path('/usr/lib/systemd/system/plasmalogin.service.d/60-moos-fingerprint-auto.conf').read_text()

@@ -3142,7 +3142,7 @@ require("http://127.0.0.1:11434/api/tags" in moai_do_code
 # The versioned migration is what makes the redesign visible to existing users.
 apply_theme = read("system_files/usr/bin/moos-apply-theme")
 apply_theme_code = code(apply_theme)
-require("THEME_REV=132" in apply_theme_code,
+require("THEME_REV=136" in apply_theme_code,
         "MoOS visual schema must purge the cached compile of the retired lock-screen fork (it "
         "asks for a MoOSClock that no longer ships) and of the stock session screen, and "
         "migrate existing users to the Island that hosts Search itself "
@@ -5228,7 +5228,7 @@ require(' + "  ·  " + ' not in _logout_formatter
                       _logout_formatter, re.DOTALL) is None,
         "Logout must draw only the session language; concatenating Arabic and "
         "English on every heading, warning and description creates visual noise")
-require('bilingual("ماذا تريد أن تفعل؟", "What would you like to do?")' in logout_qml,
+require('bilingual("خيارات الجلسة", "Session options")' in logout_qml,
         "the logout heading bypasses the shared bilingual formatter")
 
 # plasma-login-manager's wallpaper is a separate process. If it is late or

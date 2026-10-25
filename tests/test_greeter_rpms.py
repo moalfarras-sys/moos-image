@@ -36,7 +36,7 @@ class NativePackagePreflight(unittest.TestCase):
             return '6.8.1-1.fc44 plasma-login-manager-6.8.1-1.fc44.src.rpm'
         if arguments[:3] == ['rpm', '-qp', '--qf']:
             name = Path(arguments[-1]).stem
-            return name + ' 6.8.1-1.1.moos1.fc44 x86_64'
+            return name + ' 6.8.1-1.2.moos1.fc44 x86_64'
         self.fail('unexpected package inspection: ' + repr(arguments))
 
     def write(self):
@@ -104,12 +104,22 @@ class NativePackagePreflight(unittest.TestCase):
                         return value.replace('plasma-login-manager-6.8.1-1.fc44.src.rpm', 'other.src.rpm')
                 if arguments[:2] == ['rpm', '-qp']:
                     if wrong == 'wrong-package-nvr':
-                        return value.replace('1.1.moos1', '1')
+                        return value.replace('1.2.moos1', '1')
                     if wrong == 'wrong-architecture':
                         return value.replace('x86_64', 'aarch64')
                 return value
             with self.subTest(wrong=wrong):
                 self.refused(inspect)
+
+    def test_loaded_settings_binary_requires_its_exact_rpm_payload(self):
+        path = self.folder/'kcm_plasmalogin.so'
+        path.write_bytes(b'reviewed native settings payload')
+        row = f'{path} 32 0 {module.sha(path)} 0100644 root root 0 0 0 X\n'
+        with patch.object(module, 'command', return_value=row):
+            module.verify_payload('kcm-plasmalogin', path)
+            path.write_bytes(b'changed settings payload')
+            with self.assertRaises(AssertionError):
+                module.verify_payload('kcm-plasmalogin', path)
 
 
 if __name__ == '__main__':

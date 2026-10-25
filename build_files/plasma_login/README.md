@@ -1,4 +1,23 @@
-# Native login fingerprint startup
+# Native login frontend integration
+
+The login settings catalogue also registers the existing `org.moos.ui2.greeter`
+scene. Upstream's fixed list otherwise omits the image's own default plugin and
+renders an empty wallpaper-type field. `moos-login-scene.patch` adds only that
+owned ID, preserving the vendor list and all authentication/executor behavior.
+The native appearance export also includes the effective `General.ColorScheme`
+and `Icons.Theme` selectors: KDE can inherit these from `kdedefaults`, while the
+original export reads only the first partial `kdeglobals` file. The remaining
+raw settings and seven-file export stay with the vendor implementation. A
+private snapshot-storage failure refuses before the existing KAuth request.
+The frontend gives the existing save/sync/reset requests a finite five-minute
+timeout: the native default25s expired during the physical owner's administrator
+prompt. The same actions, helper, arguments and authorization remain; the sync
+terminal log records only the numeric job result, including failure/cancellation.
+The scene's native `config.qml` exposes the18 installed appearances through the
+existing KDE property/default bindings and KAuth save. Opening it changes no
+setting; custom owner image values remain intact. The rebuilt package release
+is `1.2.moos1`, and final image verification checks the KCM binary against both
+its receipt and its RPM payload alongside the greeter.
 
 The reviewed Plasma Login Manager 6.8.1 starts PAM only after submitting the
 form. A reader match in `fprintd-verify` or the lock screen does not change that.
@@ -10,12 +29,14 @@ accepts a fingerprint itself or invents an authentication result.
 
 `sources.json` accepts one vendor source NVR and x86_64 architecture. The SDK
 downloads the exact SRPM, verifies its SHA256 and trusted OpenPGP signature,
-retains the vendor spec, flags and patches, then adds `automatic-fingerprint.patch`.
-Prepared frontend files have exact hashes. The 6.8.1 review retains the vendor placeholder-screen guard and native shutdown/SIGHUP fixes; the existing fingerprint patch changes only the same 11 frontend files. The helper/daemon aggregate is compared with 6.8.1 vendor inputs, not the historical 6.8.0 aggregate. All files in `src/auth`, `src/helper`
+retains the vendor spec, flags and patches, then adds `automatic-fingerprint.patch`
+and `moos-login-scene.patch`. Fourteen prepared frontend files have exact hashes:
+the original eleven, the scene registry, native export caller and snapshot header.
+The 6.8.1 review retains the vendor placeholder-screen guard and native shutdown/SIGHUP fixes. The helper/daemon aggregate is compared with 6.8.1 vendor inputs, not the historical 6.8.0 aggregate. All files in `src/auth`, `src/helper`
 and `src/daemon` must remain byte-identical to the reviewed vendor source.
 The two rebuilt runtime RPMs are installed before the authoritative MoOS overlay;
 the SDK and test tools never enter the finished image. The final check compares
-the greeter binary with its RPM database payload and build receipt.
+both the greeter and KCM binaries with their RPM database payloads and build receipt.
 
 This is a functional native package correction, not an authentication-bearing
 theme seam or a replacement for KDE. A changed upstream source, architecture,
@@ -58,6 +79,15 @@ with disconnected-path and original screen-lookup failures, and private native
 PAM control-engine tests. Package preflight tests refuse drift before any DNF
 mutation. None of these synthetic probes qualifies a physical fingerprint match,
 password fallback, cold login or a signed image. Those need separate receipts.
+The real KConfig snapshot probe preserves the original inherited-selector
+omission, tests inherited and explicit owner selectors, verifies palette/font/
+unknown input preservation and refuses a non-directory storage destination.
+Both executed old-omission and fixed-snapshot markers are required; an exit0
+from stale copied build inputs is not acceptance.
+It also executes the real KAuth Action default and finite-timeout API for all
+three appearance operations. This is not a grant or a live sync result: the
+actual KCM request must still complete through its installed helper and record
+its terminal outcome. Preserve the original physical25s NoReply failure.
 
 The first live profile exposed a QQuickView `window.screen` lookup error that the
 mock greeter could not reach; the attached `Screen.name` correction has a native

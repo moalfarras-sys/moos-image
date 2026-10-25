@@ -395,6 +395,8 @@ check:
     python3 tests/test_moos_design_core.py
     python3 tests/test_moos_bloom.py
     python3 tests/test_session_continuity.py
+    python3 tests/test_login_appearance.py
+    python3 tests/test_welcome_viewports.py
     python3 tests/test_moos_motion.py
     python3 tests/test_moos_clock_keyboard.py
     # One answer to "is this session Arabic". Four surfaces read

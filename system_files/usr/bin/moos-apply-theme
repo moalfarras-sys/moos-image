@@ -396,7 +396,7 @@ set -uo pipefail
 #      cancel native countdown on interaction, fit captions and settle motion.
 # 132: selected-theme session glyphs, one shared image blur and one clean
 #      login/lock/power card after the owner's request for more colour.
-THEME_REV=132
+THEME_REV=136
 state_dir="${XDG_STATE_HOME:-$HOME/.local/state}"
 mkdir -p "$state_dir" 2>/dev/null || true
 marker="${state_dir}/moos-ui2-theme-applied.v${THEME_REV}"
