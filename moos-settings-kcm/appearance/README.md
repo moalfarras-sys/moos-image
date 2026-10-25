@@ -60,6 +60,11 @@ override. The contract uses the installed version's native API and asserts that
 exact owner, while retaining every colour/image/input predicate. It never forces
 a QML style to imitate the newer engine. The receipt records this engine identity
 and the finished image checks it against its installed libplasma version.
+Both contract stages explicitly install the private bus (`dbus-daemon`), KDE's
+platform theme (`plasma-integration`) and its native desktop palette plugin
+(`kf6-qqc2-desktop-style`). The bare ARM SDK must not depend on packages inherited
+by the x86 desktop base. These test-stage packages do not replace the final
+system bus or add a shipped daemon.
 See the [6.7 startup source](https://invent.kde.org/plasma/plasma-login-manager/-/blob/v6.7.5/src/frontend/startkde/startplasma.cpp)
 and [6.8 engine API](https://api.kde.org/plasmaquick-sub-plasmaquick.html).
 

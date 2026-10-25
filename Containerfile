@@ -309,6 +309,10 @@ RUN dnf5 -y install gcc-c++ qt6-qtbase-devel qt6-qtdeclarative-devel \
 # must accept that document and refuse each broken copy with the reason the pages show.
 # The helper, its modules and their data sit at their image paths in this throwaway stage.
 FROM qmlshell-build AS kcm-contract
+# The private native appearance journey needs its own bus and KDE platform
+# owners. Declare them here; a desktop base can otherwise hide missing inputs.
+RUN dnf5 -y install --setopt=install_weak_deps=False \
+        dbus-daemon plasma-integration kf6-qqc2-desktop-style
 COPY system_files/usr/libexec/moos-settings-status /usr/libexec/moos-settings-status
 COPY system_files/usr/lib/moos/ /usr/lib/moos/
 COPY system_files/usr/share/moos/*.json /usr/share/moos/
