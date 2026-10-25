@@ -67,7 +67,7 @@ public:
         m_originalDataDirs=qgetenv("XDG_DATA_DIRS");
         m_hadDataDirs=qEnvironmentVariableIsSet("XDG_DATA_DIRS");
         auto bus=QDBusConnection::sessionBus();
-        bus.connect(service(),path(),iface(),"SnapshotChanged",this,SLOT(receiveSnapshot(QString)));
+        bus.connect(service(),path(),iface(),QStringLiteral("SnapshotChanged"),this,SLOT(receiveSnapshot(QString)));
         auto *watcher=new QDBusServiceWatcher(service(),bus,QDBusServiceWatcher::WatchForOwnerChange,this);
         connect(watcher,&QDBusServiceWatcher::serviceOwnerChanged,this,[this](const QString &,const QString &,const QString &owner) {
             if (!m_publisher) { if(owner.isEmpty()) acceptSnapshot({}); else readPublished(); }
@@ -98,10 +98,10 @@ public:
             }
             m_publisher=true;
         }
-        if (!m_accountPath.isEmpty()) QDBusConnection::systemBus().disconnect(accounts(),m_accountPath,properties(),"PropertiesChanged",this,SLOT(accountChanged(QString,QVariantMap,QStringList)));
+        if (!m_accountPath.isEmpty()) QDBusConnection::systemBus().disconnect(accounts(),m_accountPath,properties(),QStringLiteral("PropertiesChanged"),this,SLOT(accountChanged(QString,QVariantMap,QStringList)));
         m_accountPath.clear(); publish({});
-        if (user.isEmpty() || user.size()>256 || user.contains(QRegularExpression("[\\x00-\\x20/\\x7f]"))) return;
-        auto message=QDBusMessage::createMethodCall(accounts(),"/org/freedesktop/Accounts",accounts(),"FindUserByName");
+        if (user.isEmpty() || user.size()>256 || user.contains(QRegularExpression(QStringLiteral("[\\x00-\\x20/\\x7f]")))) return;
+        auto message=QDBusMessage::createMethodCall(accounts(),QStringLiteral("/org/freedesktop/Accounts"),accounts(),QStringLiteral("FindUserByName"));
         message << user;
         auto *pending=new QDBusPendingCallWatcher(QDBusConnection::systemBus().asyncCall(message,3000),this);
         connect(pending,&QDBusPendingCallWatcher::finished,this,[this,generation](QDBusPendingCallWatcher *watcher) {
@@ -109,9 +109,9 @@ public:
             if (generation!=m_generation) return;
             if (reply.isError()) { qWarning("MoOS login appearance account lookup unavailable");return; }
             const auto object=reply.value().path();
-            if (!QRegularExpression("^/org/freedesktop/Accounts/User[0-9]+$").match(object).hasMatch()) return;
+            if (!QRegularExpression(QStringLiteral("^/org/freedesktop/Accounts/User[0-9]+$")).match(object).hasMatch()) return;
             m_accountPath=object;
-            QDBusConnection::systemBus().connect(accounts(),object,properties(),"PropertiesChanged",this,SLOT(accountChanged(QString,QVariantMap,QStringList)));
+            QDBusConnection::systemBus().connect(accounts(),object,properties(),QStringLiteral("PropertiesChanged"),this,SLOT(accountChanged(QString,QVariantMap,QStringList)));
             readAccount();
         });
     }
@@ -134,7 +134,7 @@ private:
     static QString accountInterface() { return QStringLiteral("org.moos.Accounts.Appearance"); }
     void readPublished() {
         const auto serial=++m_receivedSerial;
-        auto message=QDBusMessage::createMethodCall(service(),path(),iface(),"GetSnapshot");
+        auto message=QDBusMessage::createMethodCall(service(),path(),iface(),QStringLiteral("GetSnapshot"));
         auto *pending=new QDBusPendingCallWatcher(QDBusConnection::sessionBus().asyncCall(message,3000),this);
         connect(pending,&QDBusPendingCallWatcher::finished,this,[this,serial](QDBusPendingCallWatcher *watcher) {
             QDBusPendingReply<QString> reply=*watcher;watcher->deleteLater();
@@ -145,7 +145,7 @@ private:
         if (m_accountPath.isEmpty()) return;
         const auto generation=m_generation;
         const auto serial=++m_accountReadSerial;
-        auto message=QDBusMessage::createMethodCall(accounts(),m_accountPath,properties(),"Get");
+        auto message=QDBusMessage::createMethodCall(accounts(),m_accountPath,properties(),QStringLiteral("Get"));
         message << accountInterface() << QStringLiteral("Appearance");
         auto *pending=new QDBusPendingCallWatcher(QDBusConnection::systemBus().asyncCall(message,3000),this);
         connect(pending,&QDBusPendingCallWatcher::finished,this,[this,generation,serial](QDBusPendingCallWatcher *watcher) {
@@ -189,7 +189,9 @@ private:
         // existing Kirigami owners on the previous user's colours even though
         // QGuiApplication already reports the new palette. Give each palette
         // a content identity; retain only its current and previous private file.
-        const auto digest=QCryptographicHash::hash(bytes+QJsonDocument(profile.colors).toJson(QJsonDocument::Compact),QCryptographicHash::Sha256).toHex();
+        QByteArray paletteIdentity=bytes;
+        paletteIdentity.append(QJsonDocument(profile.colors).toJson(QJsonDocument::Compact));
+        const auto digest=QCryptographicHash::hash(paletteIdentity,QCryptographicHash::Sha256).toHex();
         const auto file=m_temporary.filePath(QString::fromLatin1(digest)+QStringLiteral(".colors"));
         QFile target(file);
         if (!target.open(QIODevice::WriteOnly|QIODevice::Truncate)) return false;
@@ -221,10 +223,10 @@ private:
         // persistent greeter configuration is copied, executed or overwritten.
         if (!m_plasmaTheme || QCoreApplication::applicationName().isEmpty()) return false;
         const auto config=KSharedConfig::openConfig(QStringLiteral("plasmarc"));
-        if (m_originalGlobal && KConfigGroup(config,QStringLiteral("Theme")).isEntryImmutable("name")) return false;
+        if (m_originalGlobal && KConfigGroup(config,QStringLiteral("Theme")).isEntryImmutable(QStringLiteral("name"))) return false;
         const QString name=QStringLiteral("MoOSSession-")+profile.style;
         const auto data=m_temporary.filePath(QStringLiteral("data"));
-        const auto skin=data+QStringLiteral("/plasma/desktoptheme/")+name;
+        const QString skin=data+QStringLiteral("/plasma/desktoptheme/")+name;
         if (!QDir().mkpath(skin)) return false;
         QFile palette(paletteFile);
         if (!palette.open(QIODevice::ReadOnly)) return false;
@@ -232,16 +234,18 @@ private:
             QFile file(path);
             return file.open(QIODevice::WriteOnly|QIODevice::Truncate) && file.write(bytes)==bytes.size();
         };
-        const QJsonObject metadata{{"KPlugin",QJsonObject{{"Id",name},{"Name","MoOS Session"},{"Version","1"},{"License","GPL-2.0-or-later"}}},{"X-Plasma-API","5.0"}};
-        if (!write(skin+"/metadata.json",QJsonDocument(metadata).toJson(QJsonDocument::Compact)) ||
-            !write(skin+"/colors",palette.readAll()) ||
-            !write(skin+"/plasmarc",("[Settings]\nFallbackTheme="+profile.style+"\n").toUtf8())) return false;
-        KSharedConfig::openConfig(skin+"/colors")->reparseConfiguration();
+        const QJsonObject metadata{{QStringLiteral("KPlugin"),QJsonObject{{QStringLiteral("Id"),name},{QStringLiteral("Name"),QStringLiteral("MoOS Session")},{QStringLiteral("Version"),QStringLiteral("1")},{QStringLiteral("License"),QStringLiteral("GPL-2.0-or-later")}}},{QStringLiteral("X-Plasma-API"),QStringLiteral("5.0")}};
+        if (!write(skin+QStringLiteral("/metadata.json"),QJsonDocument(metadata).toJson(QJsonDocument::Compact)) ||
+            !write(skin+QStringLiteral("/colors"),palette.readAll()) ||
+            !write(skin+QStringLiteral("/plasmarc"),(QStringLiteral("[Settings]\nFallbackTheme=")+profile.style+QStringLiteral("\n")).toUtf8())) return false;
+        KSharedConfig::openConfig(skin+QStringLiteral("/colors"))->reparseConfiguration();
         const auto source=m_temporary.filePath(QStringLiteral("session-plasmarc"));
-        if (!write(source,("[Theme-"+QCoreApplication::applicationName()+"]\nname="+name+"\n").toUtf8())) return false;
+        if (!write(source,(QStringLiteral("[Theme-")+QCoreApplication::applicationName()+QStringLiteral("]\nname=")+name+QStringLiteral("\n")).toUtf8())) return false;
         if (!m_plasmaSourceAdded) { config->addConfigSources({source});m_plasmaSourceAdded=true; }
         else config->reparseConfiguration();
-        qputenv("XDG_DATA_DIRS",data.toUtf8()+':'+(m_hadDataDirs?m_originalDataDirs:QByteArray("/usr/local/share:/usr/share")));
+        QByteArray dataDirectories=data.toUtf8();dataDirectories.append(':');
+        dataDirectories.append(m_hadDataDirs?m_originalDataDirs:QByteArray("/usr/local/share:/usr/share"));
+        qputenv("XDG_DATA_DIRS",dataDirectories);
         // This public read-only reload path invokes settingsChanged(false-write)
         // internally. setThemeName() would persist a temporary skin name.
         m_plasmaTheme->setUseGlobalSettings(true);
@@ -286,7 +290,7 @@ class MoOSAppearanceImage : public QQuickImageProvider {
 public:
     explicit MoOSAppearanceImage(QSharedPointer<MoOSAppearanceImages> images):QQuickImageProvider(QQuickImageProvider::Image),m_images(std::move(images)) {}
     QImage requestImage(const QString &id,QSize *size,const QSize &) override {
-        bool valid=false;const auto serial=id.section('/',-1).toULongLong(&valid);
+        bool valid=false;const auto serial=id.section(QLatin1Char('/'),-1).toULongLong(&valid);
         QMutexLocker guard(&m_images->mutex);
         const auto image=valid?m_images->frames.value(serial):QImage();
         if (size) *size=image.size();

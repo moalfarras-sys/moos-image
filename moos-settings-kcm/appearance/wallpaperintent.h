@@ -49,16 +49,16 @@ private:
         QJsonArray images;
         for (const auto &id:ids) {
             const auto desktop=containments.group(id);
-            const auto plugin=desktop.readEntry("plugin",QString());
-            if (plugin!="org.kde.plasma.folder" && plugin!="org.kde.desktopcontainment") continue;
-            const auto wallpaper=desktop.readEntry("wallpaperplugin",QString());
-            if (wallpaper!="org.moos.ui2.wallpaper" && wallpaper!="org.kde.image") return {};
-            auto image=desktop.group("Wallpaper").group(wallpaper).group("General").readEntry("Image",QString());
-            if (image.startsWith("file://")) {
+            const auto plugin=desktop.readEntry(QStringLiteral("plugin"),QString());
+            if (plugin!=QStringLiteral("org.kde.plasma.folder") && plugin!=QStringLiteral("org.kde.desktopcontainment")) continue;
+            const auto wallpaper=desktop.readEntry(QStringLiteral("wallpaperplugin"),QString());
+            if (wallpaper!=QStringLiteral("org.moos.ui2.wallpaper") && wallpaper!=QStringLiteral("org.kde.image")) return {};
+            auto image=desktop.group(QStringLiteral("Wallpaper")).group(wallpaper).group(QStringLiteral("General")).readEntry(QStringLiteral("Image"),QString());
+            if (image.startsWith(QStringLiteral("file://"))) {
                 const QUrl url(image);if (!url.isLocalFile()) return {};
                 image=url.toLocalFile();
             }
-            if (!image.startsWith('/') || image.contains(QRegularExpression("[\\x00-\\x1f\\x7f]"))) return {};
+            if (!image.startsWith(QLatin1Char('/')) || image.contains(QRegularExpression(QStringLiteral("[\\x00-\\x1f\\x7f]")))) return {};
             images.append(QJsonArray{id,wallpaper,image});
         }
         if (images.isEmpty()) return {};
@@ -70,10 +70,10 @@ private:
         if (lstat(path.constData(),&state)==0) {
             if (!S_ISREG(state.st_mode) || state.st_uid!=getuid() || state.st_nlink!=1 || state.st_size>160) return false;
             QFile previous(m_pulse);
-            if (!previous.open(QIODevice::ReadOnly) || !QRegularExpression("^\\[Wallpaper\\]\\nFingerprint=[0-9a-f]{64}\\n$").match(QString::fromLatin1(previous.readAll())).hasMatch()) return false;
+            if (!previous.open(QIODevice::ReadOnly) || !QRegularExpression(QStringLiteral("^\\[Wallpaper\\]\\nFingerprint=[0-9a-f]{64}\\n$")).match(QString::fromLatin1(previous.readAll())).hasMatch()) return false;
         } else if (errno!=ENOENT) return false;
         QSaveFile output(m_pulse);
-        const auto data=("[Wallpaper]\nFingerprint="+hash+"\n").toUtf8();
+        const auto data=(QStringLiteral("[Wallpaper]\nFingerprint=")+hash+QStringLiteral("\n")).toUtf8();
         return output.open(QIODevice::WriteOnly) && output.setPermissions(QFileDevice::ReadOwner|QFileDevice::WriteOwner)
             && output.write(data)==data.size() && output.commit();
     }

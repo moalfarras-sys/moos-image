@@ -4,6 +4,8 @@ find_package(KF6 REQUIRED COMPONENTS ColorScheme Config IconThemes)
 find_package(Plasma REQUIRED)
 set(CMAKE_AUTOMOC ON)
 add_library(moosappearanceplugin MODULE plugin.cpp sessionappearance.h appearanceprofile.h wallpaperintent.h)
+# This QML module keeps the standard loader name despite KDE module defaults.
+set_target_properties(moosappearanceplugin PROPERTIES PREFIX "lib")
 target_link_libraries(moosappearanceplugin PRIVATE Qt6::Gui Qt6::Qml Qt6::Quick Qt6::DBus KF6::ColorScheme KF6::ConfigCore KF6::IconThemes Plasma::Plasma ${CMAKE_DL_LIBS})
 install(TARGETS moosappearanceplugin DESTINATION ${KDE_INSTALL_QMLDIR}/org/moos/appearance)
 install(FILES qmldir DESTINATION ${KDE_INSTALL_QMLDIR}/org/moos/appearance)

@@ -57,3 +57,9 @@ Private live review copies are listed in the task's compatibility manifests.
 Retire them only after matching signed installed payloads and cold physical
 acceptance; they are not immutable OS delivery. Never install a global user-local
 Breeze module or replace the authentication/backend owners for review.
+
+Build this directory through the canonical `moos-settings-kcm` parent. Its Qt
+no-cast/StringBuilder flags and KDE module defaults are part of qualification; a
+minimal standalone target can miss real compiler/install failures. The QML plugin
+explicitly retains its standard `lib` prefix and the project selects Qt6. See
+[KDE installation directories](https://api.kde.org/ecm/kde-module/KDEInstallDirs6.html).

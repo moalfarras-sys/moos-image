@@ -1,0 +1,119 @@
+{
+  "schema": 1,
+  "date": "2026-10-25",
+  "status": "Canonical Qt6 build correction adopted; final full source/image and exact-head CI pending",
+  "oldSource": "8d4c5897ca285b1438b79b51a900c71702973447",
+  "oldFullSource": {
+    "startedUTC": "2026-10-25T12:11:38.839405+00:00",
+    "completed": true,
+    "scope": "Maintained native just check; system Node22; filtered native wallpaper intent replaces refused whole containment path; source138",
+    "exit": 0,
+    "seconds": 897.8438640019958
+  },
+  "oldFullImage": {
+    "startedUTC": "2026-10-25T12:21:11.766034+00:00",
+    "sourceRevision": "8d4c5897ca285b1438b79b51a900c71702973447",
+    "completed": true,
+    "scope": "Full canonical native generic Tier1 OCI image with filtered native wallpaper intent; maintained source check runs independently and must also pass. Not signed delivery.",
+    "tag": "localhost/moos:ui138-local",
+    "processPID": 559189,
+    "exit": 2,
+    "seconds": 1770.1081486490002,
+    "sourceTreeUnchanged": true
+  },
+  "oldCISourceFailures": {
+    "arm": 40192810016,
+    "repository": 40192810038,
+    "cause": "New backdrop generator imported undeclared NumPy; no image/boot proof from these failed jobs"
+  },
+  "canonicalCompilerCorrection": {
+    "parentFlagsPreserved": true,
+    "qtMajorExplicit": 6,
+    "qmlLibraryPrefix": "lib",
+    "typedStringLiterals": true,
+    "QStringBuilderMaterialized": true,
+    "noCompilerGuardWaiver": true,
+    "nativeRuntime": {
+      "exit": 0,
+      "seconds": 47.06561263399635,
+      "scope": "Proposed exact canonical-parent Qt6/C++17 compiler flags and actual installed lib prefix; native private runtime, not committed source or signed image"
+    },
+    "receipt": {
+      "schema": 1,
+      "twoNativeOwners": true,
+      "nativePersistence": true,
+      "administratorImmutableRefused": true,
+      "filteredWallpaperIntent": true,
+      "unknownIntentDestinationRefused": true,
+      "linkedIntentDestinationsRefused": true,
+      "accountsDaemonSHA256": "adea18e58b44442109b3ec9a3fb127d132c7ec4829230ebbe62b07d0ed9bb427",
+      "moduleSHA256": "dde327fb6207158f22c9ddcec36c7251a6e3489fab989c96cc63b311e9ef0403",
+      "package": "accountsservice-23.13.9-16.fc44.x86_64"
+    }
+  },
+  "bootGenerator": {
+    "exactPixels": true,
+    "pixelSHA256": "03b3d79f4c876e7bddcf3cd5e1a535bfc49a894c254d9cdbc4732ae8730a9d98",
+    "seconds": 1.0727160919996095,
+    "scope": "Proposed standard-library generator; exact existing native-rendered boot raster, no artwork change"
+  },
+  "sourceAdoption": {
+    "files": [
+      {
+        "source": "appearanceprofile.h",
+        "destination": "moos-settings-kcm/appearance/appearanceprofile.h",
+        "before": "d90915e9326dfc019ca48ad92f2d830a71e64927b42720c68cbe928910008713",
+        "after": "f221529c70d59c6f1f6860ce7c123650e83419d3d7069204b1f98bcf5f27bb3a"
+      },
+      {
+        "source": "sessionappearance.h",
+        "destination": "moos-settings-kcm/appearance/sessionappearance.h",
+        "before": "95432154bd0df73e902f1ae0830b901a613a03847074d846580753b9a1dda29c",
+        "after": "43245dc9fe4eec1405eed3c82047b9255dd8cea2a29b9db6f7b80e6e8d66a94c"
+      },
+      {
+        "source": "wallpaperintent.h",
+        "destination": "moos-settings-kcm/appearance/wallpaperintent.h",
+        "before": "1f9ee790f199a89d74fc81963beb3c26157bc081ef6310fe6d9f2de732b573ac",
+        "after": "039b4ae9a538ee9d07833e951aee6d9b23a092fb185b328fbb7767645e41086e"
+      },
+      {
+        "source": "contract.cpp",
+        "destination": "moos-settings-kcm/appearance/contract.cpp",
+        "before": "f75950c548051f357fd38283486728631c30a987ce93a3947a9c5e9b7728d84e",
+        "after": "7d097d6f407af6c41824c1c335a1e085dc5a776b266878bb4794145abce78da6"
+      },
+      {
+        "source": "CMakeLists.txt",
+        "destination": "moos-settings-kcm/appearance/CMakeLists.txt",
+        "before": "ca518ee3795c7652cf23eb0ff9944dc519bf62da87cd4716d4264c3e163d7244",
+        "after": "88ba3cb25bda3c09d61b9457f60b7ff726137210873ca8b0e963cbdc40d8a3b1"
+      },
+      {
+        "source": "parent-CMakeLists.txt",
+        "destination": "moos-settings-kcm/CMakeLists.txt",
+        "before": "0a3c2728ebce355204817a67360308581c4163a4db0a6aef9e1b6133a57c4a97",
+        "after": "6508b00cb83b469446761d1250585a76f76184b89559cd4868eefb0948ec1bca"
+      },
+      {
+        "source": "generate_boot_backdrop.py",
+        "destination": "artwork/generate_boot_backdrop.py",
+        "before": "b9fc3ed38c20f35b0c1a3f4fc0b581655d7468e0ed9a30da92f18bc3278d3553",
+        "after": "3d12506d7281ef07cc4d368bddaded3da22d3291c0bb11e4f90bfe51daebec24"
+      }
+    ],
+    "scope": "Exact proposed canonical-parent compile/runtime and unchanged boot-pixel code adopted after native old138 image refusal"
+  },
+  "targeted": {
+    "exit": 0,
+    "cases": 67,
+    "seconds": 1.995
+  },
+  "installedUpdate": false,
+  "remaining": [
+    "fresh full source and canonical image at the fixed head",
+    "all required exact-head PR checks",
+    "one signed candidate/artifact boot/promotion cycle",
+    "owner-approved installed cold acceptance"
+  ]
+}

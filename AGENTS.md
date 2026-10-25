@@ -179,6 +179,8 @@ Publish listening/endpoint only after Kestrel binds. Treat actual address-in-use
 
 **A containment rewrite is not wallpaper intent.** The unchanged drift gate refuses a systemd path trigger on the whole applet config. Keep the native shell observer event-driven and filter actual image/plugin keys before pulsing the existing unit; preserve no-event layout/URI controls, atomic-inode rearming and refusal of unknown/link destinations. Never replace this with idle polling or another reconciliation authority.
 
+**A minimal CMake target is not its canonical parent.** The appearance component passed native private runtime, while the real parent enabled Qt no-cast/StringBuilder and changed the module prefix. Preserve the actual image refusal, build with the original parent flags, materialize byte/string expressions and verify the installed QML library name/loader; never disable compiler guards. Source artwork gates must use declared dependencies: the NumPy refusal is retained and the standard-library replacement keeps every existing boot pixel.
+
 **An application palette is not the login palette.** The real PlasmaQuick greeter engine uses KirigamiPlasmaStyle and Plasma::Theme. With a complete initial Bloom style, the Qt-only adapter changes the image/application palette while native colours stay Bloom; a style-less or org.kde.desktop fixture falsely passes. Keep that native old/fixed control, matched assets, same-style personal colour, both Qt/KDE icon owners and unchanged persistent service-config bytes. Async image providers need an immutable thread-safe frame store independent of the GUI object. Private engine fixtures and lock testing-client pixels do not establish actual authentication or a signed cold boot.
 
 ## Where the rest of the knowledge is

@@ -9,7 +9,7 @@ from pathlib import Path
 
 import hashlib
 import json
-import numpy as np
+from math import exp
 from PIL import Image, ImageDraw, ImageFont
 
 
@@ -22,16 +22,29 @@ CAPTION = "مرحبًا بك"
 
 def make_backdrop() -> Image.Image:
     width, height = SIZE
-    y, x = np.mgrid[0:height, 0:width]
-    x = x / (width - 1)
-    y = y / (height - 1)
-    halo = np.exp(-(((x - .5) / .30)**2 + ((y - .53) / .56)**2) * 1.8)
-    cyan = np.exp(-(((x - .24) / .46)**2 + ((y - .87) / .28)**2) * 1.5)
-    blue = np.exp(-(((x - .78) / .38)**2 + ((y - .81) / .36)**2) * 1.7)
-    pixels = np.zeros((height, width, 3))
-    for i, (base, a, b, c) in enumerate(((10, 8, 3, 5), (16, 11, 12, 3), (27, 19, 13, 19))):
-        pixels[:, :, i] = base + a * halo + b * cyan + c * blue
-    return Image.fromarray(np.rint(pixels).clip(0, 255).astype("uint8"))
+    # Precompute the horizontal terms; use the standard library so source
+    # verification and asset generation need only the existing Pillow tool.
+    x = [i / (width - 1) for i in range(width)]
+    square = lambda value: value * value
+    hx = [square((v - .5) / .30) for v in x]
+    cx = [square((v - .24) / .46) for v in x]
+    bx = [square((v - .78) / .38) for v in x]
+    pixels = bytearray(width * height * 3)
+    offset = 0
+    for row in range(height):
+        y = row / (height - 1)
+        hy = square((y - .53) / .56)
+        cy = square((y - .87) / .28)
+        by = square((y - .81) / .36)
+        for column in range(width):
+            halo = exp(-(hx[column] + hy) * 1.8)
+            cyan = exp(-(cx[column] + cy) * 1.5)
+            blue = exp(-(bx[column] + by) * 1.7)
+            pixels[offset] = round(10 + 8 * halo + 3 * cyan + 5 * blue)
+            pixels[offset + 1] = round(16 + 11 * halo + 12 * cyan + 3 * blue)
+            pixels[offset + 2] = round(27 + 19 * halo + 13 * cyan + 19 * blue)
+            offset += 3
+    return Image.frombytes("RGB", SIZE, bytes(pixels))
 
 
 def make_caption() -> Image.Image:
