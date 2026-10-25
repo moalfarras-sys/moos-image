@@ -23,6 +23,8 @@ on:
     paths:
       - "moremote/**"
       - ".github/workflows/moremote-fast.yml"
+      - ".github/workflows/build.yml"
+      - "scripts/ci/resolve-dotnet-sdk.py"
   # Deliberately NOT `push:` as well. A branch with an open PR matches both triggers and every
   # job runs twice — observed on the first run of this file. `main` is covered by build.yml, and
   # a branch with no PR yet is covered by `just dotnet-check` locally.
@@ -42,13 +44,37 @@ jobs:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
           persist-credentials: false
+      - name: Resolve the current supported .NET SDK
+        id: dotnet
+        run: python scripts/ci/resolve-dotnet-sdk.py
       - uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1 # v5
+        env:
+          # runner.temp is available only after this step gets its runner.
+          DOTNET_INSTALL_DIR: ${{ runner.temp }}/moos-dotnet-sdk
         with:
-          dotnet-version: "10.0.x"
+          dotnet-version: ${{ steps.dotnet.outputs.version }}
       # The same script the engineering docs tell a contributor to run before pushing, so the two
       # cannot drift. tests/test_dotnet_project_coverage.py keeps it covering the whole tree.
       - name: moremote/dotnet-check.sh
         run: bash moremote/dotnet-check.sh
+
+  windows:
+    name: Windows SDK bootstrap and native agent build
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+      - name: Resolve the current supported .NET SDK
+        id: dotnet
+        run: python scripts/ci/resolve-dotnet-sdk.py
+      - uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1 # v5
+        env:
+          DOTNET_INSTALL_DIR: ${{ runner.temp }}/moos-dotnet-sdk
+        with:
+          dotnet-version: ${{ steps.dotnet.outputs.version }}
+      - name: Compile the Windows agent
+        run: dotnet build moremote/agent/MoRemoteAgent.csproj -c Release --nologo
 
   controller:
     name: Controller typecheck, unit tests and shipped-bundle freshness
