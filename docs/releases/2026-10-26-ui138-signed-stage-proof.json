@@ -1,0 +1,158 @@
+{
+  "schema": 1,
+  "date": "2026-10-26",
+  "recordedUTC": "2026-10-26T08:36:36.459470+00:00",
+  "status": "All four editions signed, artifact-proven and promoted; exact generic1107 already staged on physical V3; new physical boot and full UI acceptance pending",
+  "sourceRevision": "c63815f3d723c6ba6bbe30c37211355177d4e3db",
+  "uiPR": 269,
+  "bootstrapPR": 270,
+  "qualifiedUI": "0341c6bc1c9e790971f85422a00a4c6cd8f1c554",
+  "qualifiedCIBootstrap": "35ecc3b7bb4464b2d9e3a313b293a4872b0cac02",
+  "editions": [
+    {
+      "edition": "moos",
+      "digest": "sha256:a293803b0d19ca574c86aa8e124fd2d17c763cecc43bcf8c10d7827a3d4f520e",
+      "revision": "c63815f3d723c6ba6bbe30c37211355177d4e3db",
+      "version": "44.20261025.1107",
+      "signatureVerified": true,
+      "cosignOutputSHA256": "c385d4ea350ee2f9c9b01dd11102c16edcb1c8ed8e1694118e9146d73ed4d6b8"
+    },
+    {
+      "edition": "moos-nvidia",
+      "digest": "sha256:2cb36a82592f395d7aa14219aecc82a799466238596facebb72cacfc8689bc2b",
+      "revision": "c63815f3d723c6ba6bbe30c37211355177d4e3db",
+      "version": "44.20261025.1107",
+      "signatureVerified": true,
+      "cosignOutputSHA256": "9e721dae3c0a0655f323f4cb35c536498c3b4e5e42b2504d8f1173cc39b69e06"
+    },
+    {
+      "edition": "moos-cloud",
+      "digest": "sha256:1c50efe96d9d2a336010355ce6af418fb8324e1bf2c84b84acde43f4fb104443",
+      "revision": "c63815f3d723c6ba6bbe30c37211355177d4e3db",
+      "version": "44.20261025.1107",
+      "signatureVerified": true,
+      "cosignOutputSHA256": "d9d0c078f497bf63e83a93f69f9f87128eecb993e439a9d4c9042041766a229a"
+    },
+    {
+      "edition": "moos-arm",
+      "digest": "sha256:172b504ddd4f4e29a500aac1dbf7eccb6db2ea8e0beb36cac1d24805d362be38",
+      "revision": "c63815f3d723c6ba6bbe30c37211355177d4e3db",
+      "version": "44.20261025.865",
+      "signatureVerified": true,
+      "cosignOutputSHA256": "88547a82a40e2eb7da772ef093dc26fe2d0205bec293207714107f4927b53882"
+    }
+  ],
+  "runs": {
+    "build": 40234351046,
+    "genericDisk": 40240610993,
+    "nvidiaDisk": 40240614147,
+    "cloudDisk": 40240617217,
+    "iso": 40240620022,
+    "arm": 40234210469,
+    "x86Promotion": 40243955344
+  },
+  "allRuns": {
+    "status": "completed",
+    "conclusion": "success",
+    "attempt": 1,
+    "event": "workflow_dispatch",
+    "source": "c63815f3d723c6ba6bbe30c37211355177d4e3db"
+  },
+  "canonicalCycle": {
+    "exit": 0,
+    "seconds": 7436.913113625997,
+    "failedJobReruns": 0
+  },
+  "independentArtifactReadback": {
+    "schema": 1,
+    "UTC": "2026-10-26T08:34:49.911148+00:00",
+    "editions": {
+      "moos": {
+        "twoSignedBoots": true,
+        "cleanPoweroff": true,
+        "artifactMatchesCandidate": true
+      },
+      "moos-nvidia": {
+        "twoSignedBoots": true,
+        "cleanPoweroff": true,
+        "artifactMatchesCandidate": true
+      },
+      "moos-cloud": {
+        "twoSignedBoots": true,
+        "cleanPoweroff": true,
+        "artifactMatchesCandidate": true
+      }
+    },
+    "iso": {
+      "offlineInstall": true,
+      "networkDuringInstall": "disabled",
+      "applicationJourneys": 10,
+      "secondBootHealthy": true,
+      "cleanPoweroff": true,
+      "sha256": "a719f5cd98d4240942186d3237e7372015b8c90dbbc2fa72c67b130de6fa7d1d"
+    },
+    "arm": {
+      "twoSignedBoots": true,
+      "digest": "sha256:172b504ddd4f4e29a500aac1dbf7eccb6db2ea8e0beb36cac1d24805d362be38"
+    },
+    "scope": "Independent downloaded first-attempt artifact text/image-presence readback; physical workstation boot remains pending"
+  },
+  "bootstrap": {
+    "fastRun": 40232390681,
+    "linuxDotnet": "success",
+    "windowsBuild": "success",
+    "controllerFreshness": "success",
+    "maintainedNativeCheckExit": 0,
+    "maintainedNativeCheckSeconds": 950.750794
+  },
+  "physicalV3": {
+    "bootedVersion": "44.20261024.1100",
+    "bootedDigest": "sha256:7d9d154a13be88256eafd362a58bbe7e820c6ca6e1ffcca098a65702cdeee4dc",
+    "stagedVersion": "44.20261025.1107",
+    "stagedDigest": "sha256:a293803b0d19ca574c86aa8e124fd2d17c763cecc43bcf8c10d7827a3d4f520e",
+    "stagedChecksum": "ae77040a534fac513fd6fe5f45140f6de82964f12ab8a8472c4a86d684b8f13f",
+    "signedTransport": true,
+    "canonicalUpdateExit": 0,
+    "canonicalUpdateResult": "already staged; reboot to apply",
+    "stageProducer": "not attributed by this observation",
+    "signedRollbackVersions": [
+      "44.20261024.1100",
+      "44.20261023.1097"
+    ],
+    "pinnedRecovery": "44.20261019.1078",
+    "selectedLook": "org.moos.ui2.bloom.light",
+    "selectedWallpaperPackage": "MoOSUI2BloomLight",
+    "ownerRestartAuthorized": true,
+    "restartExecuted": false
+  },
+  "uiScope": {
+    "revision": 138,
+    "sourceAndImageOverlayFiles": 59,
+    "sourceAndImageMismatches": 0,
+    "nativeOwners": "Plasma/Qt/KDE icons, lock and real shell power; own-account AccountsService metadata; filtered native wallpaper intent",
+    "boot": "Independent fixed MoOS canvas, shaped Arabic welcome and finite360ms arrival; no theme dependency",
+    "ownerFeedback": "Owner accepted136 power distribution; earlier complete-UI rejection is retained; no whole-interface acceptance inferred"
+  },
+  "nativeCompatibilityRetirement": {
+    "files": 2,
+    "bytes": 849,
+    "recoverable": true,
+    "immutableBytesMatch": true,
+    "nativeOldFixedRoundTrip": true,
+    "serviceStartAndGraphUnchanged": true,
+    "firstReadbackRefusal": "Private script initially required MainPID on a timer; preserved, then corrected native readback passes"
+  },
+  "postbootQualification": {
+    "prepared": true,
+    "temporaryNativeKDEAutostart": true,
+    "finite": true,
+    "exactOwnedEntrySelfRetirement": true,
+    "sameBootNegative": "refused; no acceptance claimed"
+  },
+  "remaining": [
+    "Owner-authorized canonical restart and actual new signed boot",
+    "Installed59-file/module/daemon receipt, migration138, own-account login metadata and native diagnostics",
+    "Real installed desktop/power/lock/login rendering and owner feedback; physical boot pixels are not inferred from CI",
+    "Broader physical touch/scale/phone/device/endurance and existing greeter/Android failures remain in the development plan"
+  ]
+}

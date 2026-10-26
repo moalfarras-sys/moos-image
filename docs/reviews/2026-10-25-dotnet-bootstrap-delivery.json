@@ -1,7 +1,7 @@
 {
   "schema": 1,
   "date": "2026-10-25",
-  "status": "CI-only bootstrap correction; exact Linux/Windows native fast checks and new signed cycle pending",
+  "status": "CI-only correction qualified by actual Linux/Windows/controller builds and complete first-attempt signed1107/ARM865 artifact promotion; physical1107 boot pending",
   "qualifiedUI": {
     "source": "0341c6bc1c9e790971f85422a00a4c6cd8f1c554",
     "merged": "d5f5ad0b16b2f63805fedb9cef34c7d0f049f1b5",
@@ -81,10 +81,7 @@
     "https://github.com/dotnet/announcements/issues/336"
   ],
   "remaining": [
-    "maintained full source and actual Linux/Windows fast builds at the corrected head",
-    "new first-attempt signed candidate and complete artifact boot/promotion proofs",
-    "canonical signed host staging and owner-authorized restart",
-    "installed payload, theme and native UI acceptance after reboot"
+    "Owner-authorized canonical restart; installed payload, migration and native UI acceptance after reboot"
   ],
   "firstFastWorkflowRefusal": {
     "run": 40231737252,
@@ -96,5 +93,16 @@
     "version": "1.7.12",
     "scope": "Corrected fast workflow passes; original runner-context negative fails. Unchanged build.yml queue field is unsupported by actionlint and has the identical baseline diagnostic; no source guard or lint ignore changed.",
     "reference": "https://docs.github.com/en/actions/reference/workflows-and-actions/contexts"
+  },
+  "qualifiedBootstrap": {
+    "source": "35ecc3b7bb4464b2d9e3a313b293a4872b0cac02",
+    "merged": "c63815f3d723c6ba6bbe30c37211355177d4e3db",
+    "nativeFullCheckExit": 0,
+    "nativeFullCheckSeconds": 950.750794,
+    "fastRun": 40232390681,
+    "linuxDotnet": "success",
+    "windowsBuild": "success",
+    "controllerFreshness": "success",
+    "releaseProof": "../releases/2026-10-26-ui138-signed-stage-proof.json"
   }
 }
