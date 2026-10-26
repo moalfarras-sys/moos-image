@@ -1,0 +1,153 @@
+{
+  "schema": 1,
+  "date": "2026-10-26",
+  "recordedUTC": "2026-10-26T11:45:19.654078+00:00",
+  "status": "Physical V3 boots exact signed1107; native diagnostics/payload and named installed UI journeys pass; owner confirms Arabic boot and selected-theme login cohesion",
+  "signedOSSource": "c63815f3d723c6ba6bbe30c37211355177d4e3db",
+  "version": "44.20261025.1107",
+  "digest": "sha256:a293803b0d19ca574c86aa8e124fd2d17c763cecc43bcf8c10d7827a3d4f520e",
+  "ostreeChecksum": "ae77040a534fac513fd6fe5f45140f6de82964f12ab8a8472c4a86d684b8f13f",
+  "boot": "381fea8f-a302-41e2-a847-f4eec4dd713c",
+  "rollback": {
+    "version": "44.20261024.1100",
+    "pinnedRecovery": "44.20261019.1078",
+    "signed": true
+  },
+  "native": {
+    "architecture": "x86_64",
+    "product": "V3",
+    "session": "KDE Wayland",
+    "kernel": "7.2.11",
+    "plasma": "6.8.1",
+    "qt": "6.11.2",
+    "output": "3840x2160@60",
+    "scale": 2.5,
+    "logical": "1536x864",
+    "bootSeconds": 22.209
+  },
+  "diagnostics": {
+    "selfcheck": {
+      "passed": 54,
+      "failed": 0,
+      "exit": 0
+    },
+    "postUpdate": {
+      "passed": 56,
+      "failed": 0,
+      "exit": 0
+    },
+    "failedSystemUnits": 0,
+    "failedUserUnits": 0,
+    "currentBootCoredumpMetadataRecords": 0,
+    "payload": {
+      "files": 59,
+      "mismatches": []
+    },
+    "nativeAppearance": {
+      "accountsDaemonSHA256": {
+        "sha256": "adea18e58b44442109b3ec9a3fb127d132c7ec4829230ebbe62b07d0ed9bb427",
+        "matchesReceipt": true
+      },
+      "moduleSHA256": {
+        "sha256": "dde327fb6207158f22c9ddcec36c7251a6e3489fab989c96cc63b311e9ef0403",
+        "matchesReceipt": true
+      }
+    }
+  },
+  "appearance": {
+    "selectedLook": "org.moos.ui2.bloom",
+    "nativeLoginLook": "org.moos.ui2.bloom",
+    "nativeLoginMetadataSHA256": "3114e7a16b3f0aa5a6a568828f8e89e03f829254b7c23e1423742780f4f2ec06",
+    "nativeLoginMatchesPublication": true,
+    "paletteGroups": 7,
+    "nativeLockWallpaper": "file:///usr/share/wallpapers/MoOSUI2Bloom",
+    "sessionWallpaperEncoded": "%2Fusr%2Fshare%2Fwallpapers%2FMoOSUI2Bloom"
+  },
+  "ownerFeedback": {
+    "UTC": "2026-10-26T11:41:06.592695+00:00",
+    "bootBranding": {
+      "question": "MoOS logo and Arabic welcome appeared during boot",
+      "ownerAnswer": "نعم، ظهرا",
+      "accepted": true
+    },
+    "loginTheme": {
+      "question": "Login visually follows selected theme",
+      "ownerAnswer": "نعم، متناسقة",
+      "accepted": true
+    },
+    "scope": "Actual owner report; no fabricated boot capture and no whole-desktop/universal hardware acceptance"
+  },
+  "installedJourneys": {
+    "power": {
+      "destination": "org.kde.LogoutPrompt.promptAll",
+      "nativeWindow": "1536x864",
+      "pixels": "Bloom Dark background/card and Arabic labels fit",
+      "escape": "returned to desktop",
+      "powerActionSelected": false,
+      "sourceImportOverrides": false
+    },
+    "store": {
+      "destination": "moai-open moos-store --page=discover",
+      "nativeWindow": "1448x810",
+      "pixels": "Actual Arabic discover page and catalogue render in selected dark palette",
+      "closedExit": 0,
+      "qmlLoadErrorsObserved": 0,
+      "installOrUpdateRequested": false
+    },
+    "launcher": {
+      "destination": "org.kde.PlasmaShell.activateLauncherMenu",
+      "keyboardArrowDownEvents": 9,
+      "lowerLastRowVisible": true,
+      "escape": true,
+      "applicationActivated": false,
+      "favoritesChanged": false
+    }
+  },
+  "startupProbe": {
+    "previousBoot": "1dfe1f05-ff64-4eda-b89f-d1e54bbbed4d",
+    "initialResult": "JSONDecodeError while native appearance was not yet accepted",
+    "probeStartedUTC": "2026-10-26T09:38:07Z",
+    "nativeFirstPublicationCompletedUTC": "2026-10-26T09:38:23Z",
+    "leadSeconds": 16,
+    "currentNativeMetadataAndCacheValid": true,
+    "initialFailedReceiptRetained": true,
+    "sourceOfEachHistoricalJSONByte": "not captured; timing does not prove every JSON error has the same cause",
+    "oneUseEntryAbsent": true
+  },
+  "resourceSample": {
+    "seconds": 10.000112974999865,
+    "workload": "Active owner engineering desktop/Codex after the audit Store closed; no active Remote client observed by native selfcheck; not idle/capture/endurance qualification",
+    "units": {
+      "plasma-plasmashell.service": {
+        "cpuPercentOneCore": 0.248,
+        "memoryMiB": 483.35
+      },
+      "mo-remote-personal.service": {
+        "cpuPercentOneCore": 0.04,
+        "memoryMiB": 102.89
+      }
+    },
+    "memoryPressure": "some avg10=0.00 avg60=0.00 avg300=0.00 total=25678\nfull avg10=0.00 avg60=0.00 avg300=0.00 total=25467\n"
+  },
+  "retiredCompatibility": {
+    "redundantServiceCopies": 2,
+    "recoverable": true,
+    "noUserMoOSAssetOrUnitShadows": true
+  },
+  "observations": {
+    "kernelI2CFamily": "Present in bounded current and pre-update error logs; root cause not attributed and no driver/policy changed",
+    "remote": {
+      "currentState": "active/running",
+      "result": "success",
+      "restartCount": 1,
+      "initialExit": 75,
+      "scope": "A recovered startup refusal is retained; not a decoded-stream or connection endurance proof"
+    }
+  },
+  "acceptanceBoundary": "Qualifies this exact boot/payload, named native desktop journeys and the owner's boot/login report; not a complete desktop redesign or universal application/hardware acceptance",
+  "remaining": [
+    "Ordinary lock password/fingerprint and actual selected-user switch journey were not executed in this audit",
+    "Earlier screenRemoved greeter and Android calculator/resize failures remain recorded; no current boot core does not cure them",
+    "Physical touch/pen/rotation/suspend/charge limit, phone/capture endurance and the Windows/Android application matrix remain in the development plan"
+  ]
+}

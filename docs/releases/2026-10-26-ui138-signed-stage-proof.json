@@ -154,5 +154,7 @@
     "Installed59-file/module/daemon receipt, migration138, own-account login metadata and native diagnostics",
     "Real installed desktop/power/lock/login rendering and owner feedback; physical boot pixels are not inferred from CI",
     "Broader physical touch/scale/phone/device/endurance and existing greeter/Android failures remain in the development plan"
-  ]
+  ],
+  "laterNativeAcceptance": "2026-10-26-ui138-v3-native-proof.json",
+  "historicalRecordScope": "Fields above describe the recorded pre-restart stage; later native boot evidence is linked without rewriting that history"
 }
