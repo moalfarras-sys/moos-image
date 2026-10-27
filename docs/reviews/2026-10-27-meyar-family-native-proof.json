@@ -67,8 +67,9 @@
     "confirmationLine": "Initial primary-only FontMetrics clipped Arabic fallback confirmation ink. Canonical native hint reserves its actual script before arming; unchanged ink assertion and exact-old negative retained.",
     "encodedArabicSymbols": "Ten source Sk symbols were zeroed by inferred mark category, two emoji had one-cell advances, and encoded U+FDF2 shared a four-cell word ligature. Correct categories, centered wide icons and one distinct cmap variant preserve normal Arabic word shaping.",
     "genericImageDefaults": "Native final image generic sans/mono selected Noto. Early strong generic aliases fix vendor ordering while all five explicit named/serif controls remain unchanged. Both architecture builds now gate actual generic resolution.",
-    "ciProfileFixture": "PR275 repo gate40493075409 fails because the retry fixture inherited an installed profile database unavailable on Ubuntu. Fixture now explicitly uses the source database; unchanged nine reads/three attempts assertion passes.",
-    "trackedDocumentation": "Full check224.959s refuses the newly tracked runtime README relative plan link. Source/runtime README now share a location-independent repository URL; original link gate passes."
+    "ciProfileFixture": "PR275 repo gates40493075409 and40493871105 fail before the retry count: both the profile database and actual Konsole profile files were implicit host dependencies. The private exact-source script now uses source profiles and an absent native publisher; the unchanged nine reads/three attempts assertion passes on physical host and real Ubuntu24.04.",
+    "trackedDocumentation": "Full check224.959s refuses the newly tracked runtime README relative plan link. Source/runtime README now share a location-independent repository URL; original link gate passes.",
+    "quotedURI": "Actual quoted Arabic compatibility-handler path was split at its first space by old selfcheck. Non-executing argv parsing restores the correct working-shadow verdict, retaining unknown/missing/malformed refusal and eight controls."
   },
   "delivery": {
     "commonOverlay": "system_files/usr/share/fonts/meyar",
@@ -110,6 +111,23 @@
     "securityRefresh": {
       "controller": "Dependabot271/272 ancestry retained; fast-uri3.1.9 and serialize-javascript7.1.4, zero npm audit findings, unchanged13-file bundle on two builds, Node22 typecheck/tests pass",
       "analysisTools": "REA6.7.0 retained with pinned Zod4.6.6 override and updated manifest lock digest; zero audit findings and native bounded schema/CLI controls. Existing workstation tool process not replaced."
+    },
+    "fullCheck8988": {
+      "running": false,
+      "exitCode": 0,
+      "seconds": 902.2667701244354,
+      "inputHashesStable": true,
+      "changedInputs": [],
+      "files": 14723,
+      "scope": "exact8988 source; later diagnostic/CI fixture corrections require final qualification"
+    },
+    "genericImageBuild": {
+      "running": false,
+      "tag": "localhost/moos:meyar-ui142",
+      "exitCode": 0,
+      "seconds": 779.4040260314941,
+      "imageId": "f4f918293b2182a91777b8b7a398d9dbc612b5e700743b691d7f22211e19c2c8",
+      "scope": "generic-priority correction before README/dependency/diagnostic changes"
     }
   }
 }

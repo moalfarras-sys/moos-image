@@ -453,7 +453,22 @@ fi
 # The program is argv[0] of Exec=, with the %u/%f field codes dropped.
 moos_handler_exec=""
 if [ -n "$moos_handler_file" ]; then
-    moos_handler_exec="$(sed -n 's/^Exec=//p' "$moos_handler_file" | head -1 | awk '{print $1}')"
+    # A quoted executable may contain spaces (including an Arabic workspace).
+    # Parse argv without evaluating the entry or running the handler. Preserve
+    # the separate shadow warning even when this executable is valid.
+    moos_handler_exec="$(python3 - "$moos_handler_file" <<'PY'
+import pathlib, shlex, sys
+try:
+    for line in pathlib.Path(sys.argv[1]).read_text().splitlines():
+        if line.startswith('Exec='):
+            args = shlex.split(line[5:])
+            if args:
+                print(args[0])
+            break
+except (OSError, ValueError):
+    pass
+PY
+)"
 fi
 case "$moos_handler" in
     org.moos.urlhandler.desktop)

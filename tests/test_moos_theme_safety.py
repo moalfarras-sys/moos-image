@@ -809,6 +809,14 @@ esac
             sleep = bindir / "sleep"
             sleep.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
             sleep.chmod(0o755)
+            # Execute the real retry/automatic code with its actual source
+            # profiles. Ubuntu has neither installed Konsole profiles nor the
+            # native appearance publisher; the physical host has both.
+            switch = root / "moos-theme"
+            switch.write_text(SWITCH.read_text(encoding="utf-8").replace(
+                "/usr/share/konsole", str(ROOT / "system_files/usr/share/konsole")
+            ).replace("/usr/libexec/moos-session-appearance", str(root / "no-native-publisher")),
+                encoding="utf-8")
             env = {
                 **os.environ,
                 "HOME": str(root / "home"),
@@ -818,7 +826,7 @@ esac
                 "PATH": f"{bindir}:{os.environ.get('PATH', '')}",
             }
             result = subprocess.run(
-                [BASH, str(SWITCH), "reconcile-service"],
+                [BASH, str(switch), "reconcile-service"],
                 env=env,
                 text=True,
                 capture_output=True,
