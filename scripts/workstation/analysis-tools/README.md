@@ -49,3 +49,13 @@ under concurrent image builds. Its raw refusal is retained, no guard was
 weakened, and none of its candidate PIDs remained after exit. The canonical
 launcher passed under the same concurrent workload; this does not establish a
 general cause or cure for arbitrary direct SDK/process-inspection calls.
+
+The Oct27 security refresh overrides Zod to4.6.6 while retaining REA6.7.0.
+This addresses GHSA-mrhx-c7xc-m3w5 for oversized constrained collections;
+unbounded schemas still require application-level bounds. Remove the override
+when the pinned REA dependency itself selects a qualified patched Zod.
+The lock and its manifest digest advance together. Fresh locked installation,
+npm audit with zero findings, CLI help/capabilities, normal Unicode object
+validation and rejection before visiting an oversized constrained array pass.
+This qualifies the updated source profile, not replacement of an already
+running workstation REA process or the earlier Ghidra/MCP native journeys.

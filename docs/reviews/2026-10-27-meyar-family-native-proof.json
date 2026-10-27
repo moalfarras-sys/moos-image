@@ -66,7 +66,9 @@
     "isolatedFonts": "Private HOME resolved both requested Meyar names to Noto Sans. Native fixtures now include actual source fonts/policy and refuse missing Meyar, before accepting glyph/geometry evidence.",
     "confirmationLine": "Initial primary-only FontMetrics clipped Arabic fallback confirmation ink. Canonical native hint reserves its actual script before arming; unchanged ink assertion and exact-old negative retained.",
     "encodedArabicSymbols": "Ten source Sk symbols were zeroed by inferred mark category, two emoji had one-cell advances, and encoded U+FDF2 shared a four-cell word ligature. Correct categories, centered wide icons and one distinct cmap variant preserve normal Arabic word shaping.",
-    "genericImageDefaults": "Native final image generic sans/mono selected Noto. Early strong generic aliases fix vendor ordering while all five explicit named/serif controls remain unchanged. Both architecture builds now gate actual generic resolution."
+    "genericImageDefaults": "Native final image generic sans/mono selected Noto. Early strong generic aliases fix vendor ordering while all five explicit named/serif controls remain unchanged. Both architecture builds now gate actual generic resolution.",
+    "ciProfileFixture": "PR275 repo gate40493075409 fails because the retry fixture inherited an installed profile database unavailable on Ubuntu. Fixture now explicitly uses the source database; unchanged nine reads/three attempts assertion passes.",
+    "trackedDocumentation": "Full check224.959s refuses the newly tracked runtime README relative plan link. Source/runtime README now share a location-independent repository URL; original link gate passes."
   },
   "delivery": {
     "commonOverlay": "system_files/usr/share/fonts/meyar",
@@ -104,6 +106,10 @@
       "seconds": 919.9905989170074,
       "imageId": "c0ea820b198b835b9a41358a56cb3beacb72905e5512939af7a5d34ef7d78185",
       "scope": "all image gates passed; independent payload readback exposed generic Noto selection despite correct named Meyar fonts"
+    },
+    "securityRefresh": {
+      "controller": "Dependabot271/272 ancestry retained; fast-uri3.1.9 and serialize-javascript7.1.4, zero npm audit findings, unchanged13-file bundle on two builds, Node22 typecheck/tests pass",
+      "analysisTools": "REA6.7.0 retained with pinned Zod4.6.6 override and updated manifest lock digest; zero audit findings and native bounded schema/CLI controls. Existing workstation tool process not replaced."
     }
   }
 }

@@ -73,6 +73,6 @@ escaped before parsing. Literal dollars in feature labels use FEA escapes with
 the same decoded names. No shaping feature or foreign letter is removed.
 Native runtime, system defaults, four-edition image qualification and signed
 delivery are distinct evidence; current execution is tracked only in the
-[development plan](../../docs/DEVELOPMENT_PLAN.md).
+[development plan](https://github.com/moalfarras-sys/moos-image/blob/main/docs/DEVELOPMENT_PLAN.md).
 
 Package the runtime overlay after verification with `python fonts/meyar-family/package.py test-results/meyar-family system_files/usr/share/fonts/meyar`. The image gate uses only the standard library and checks the same manifest, Unicode maps, embedding flags and native cell policy.

@@ -814,6 +814,7 @@ esac
                 "HOME": str(root / "home"),
                 "XDG_RUNTIME_DIR": str(root / "run"),
                 "MOOS_THEME_RETRY_LOG": str(log),
+                "MOOS_THEME_PROFILE_DB": str(ROOT / "system_files/usr/share/moos/theme-profiles.tsv"),
                 "PATH": f"{bindir}:{os.environ.get('PATH', '')}",
             }
             result = subprocess.run(
