@@ -31,7 +31,7 @@ Item {
     // weather. Brand names and the bilingual date pair shared with the login/lock clocks are the
     // only deliberate exceptions. Arabic is never letter-spaced.
     readonly property bool rtl: MoUI.Locale.rtl
-    readonly property string labelFamily: rtl ? "IBM Plex Sans Arabic" : "IBM Plex Sans"
+    readonly property string labelFamily: rtl ? "Meyar Arabic" : "Meyar Sans"
     function local(arabic, english) { return MoUI.Locale.local(arabic, english) }
 
     readonly property real cpuValue: safeValue(cpuSensor.value)

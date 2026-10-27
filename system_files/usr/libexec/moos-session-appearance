@@ -15,11 +15,218 @@ import re
 import subprocess
 import sys
 import tempfile
-from urllib.parse import unquote_to_bytes
+from urllib.parse import quote, unquote_to_bytes, urlsplit
 
 INTERFACE = 'org.moos.Accounts.Appearance'
 GROUPS = ('Colors:Window','Colors:View','Colors:Button','Colors:Selection','Colors:Tooltip','Colors:Complementary','Colors:Header')
 ROLES = ('BackgroundNormal','BackgroundAlternate','ForegroundNormal','ForegroundInactive','ForegroundActive','ForegroundLink','ForegroundVisited','ForegroundNegative','ForegroundNeutral','ForegroundPositive','DecorationFocus','DecorationHover')
+
+
+def profiles(catalog=Path('/usr/share/moos/theme-profiles.tsv')):
+    if not catalog.is_file() or catalog.stat().st_size>1048576: raise ValueError('appearance profiles unavailable')
+    rows = [line.split('\t') for line in catalog.read_text().splitlines() if line and not line.startswith('#')]
+    if len(rows)!=18 or any(len(row)!=17 for row in rows) or len({row[0] for row in rows})!=18:
+        raise ValueError('invalid appearance profiles')
+    return rows
+
+
+def data_roots(home):
+    return [Path(os.environ.get('XDG_DATA_HOME',str(home/'.local/share')))] + [
+        Path(p) for p in os.environ.get('XDG_DATA_DIRS','/usr/local/share:/usr/share').split(':') if p]
+
+
+def installed_look(look,home):
+    # Native saved themes may have spaces/Arabic names. A single package name
+    # is data, never a command, path traversal or executable greeter input.
+    if not look or len(look.encode('utf-8'))>255 or look in ('.','..') or any(
+            c in '/\\' or ord(c)<32 or ord(c)==127 for c in look): return False
+    for root in data_roots(home):
+        package = root/'plasma/look-and-feel'/look
+        metadata = package/'metadata.json'
+        if package.is_symlink() or metadata.is_symlink(): continue
+        try:
+            if not metadata.is_file() or metadata.stat().st_size>1048576: continue
+            plugin = json.loads(metadata.read_text()).get('KPlugin',{})
+            if isinstance(plugin,dict) and plugin.get('Id')==look and (package/'contents/defaults').is_file(): return True
+        except (OSError,ValueError,AttributeError): continue
+    return False
+
+
+def selected_look():
+    return subprocess.run(['kreadconfig6','--file','kdeglobals','--group','KDE','--key','LookAndFeelPackage'],
+                          capture_output=True,text=True,check=True,timeout=3).stdout.strip()
+
+
+def native_pair(home):
+    for key in ('DefaultDarkLookAndFeel','DefaultLightLookAndFeel'):
+        value = subprocess.run(['kreadconfig6','--file','kdeglobals','--group','KDE','--key',key],
+                               capture_output=True,text=True,check=True,timeout=3).stdout.strip()
+        if not installed_look(value,home): return False
+    return True
+
+
+def native_customized(home,catalog=Path('/usr/share/moos/theme-profiles.tsv')):
+    """Distinguish installed personal choices from missing/broken profile data.
+
+    The strict full-profile verifier remains the manual MoOS apply contract.
+    Native KCM choices with actual installed counterparts must also survive a
+    login, without treating every incomplete profile as deliberate customisation.
+    """
+    look = selected_look()
+    if not installed_look(look,home): return False
+    rows = profiles(catalog)
+    row = next((r for r in rows if len(r)==17 and r[0]==look),None)
+    external = row is None
+    if external:
+        config = Path(os.environ.get('XDG_CONFIG_HOME',str(home/'.config')))
+        state = ini(config/'moos-session-appearance.conf')
+        anchor = state.get('Appearance','BaseLook',fallback=state.get('Appearance','Look',fallback='org.moos.ui2'))
+        row = next((r for r in rows if r[0]==anchor),next(r for r in rows if r[0]=='org.moos.ui2'))
+    def read(file,group,key):
+        return subprocess.run(['kreadconfig6','--file',file,'--group',group,'--key',key],
+                              capture_output=True,text=True,check=True,timeout=3).stdout.strip()
+    roots = data_roots(home)
+    changed = external
+    library = read('kwinrc','org.kde.kdecoration2','library')
+    native_binary_frame = library not in ('','org.kde.kwin.aurorae.v2')
+    if native_binary_frame:
+        # Binary decorations have no Aurorae package name. Admit only an
+        # actual system plugin; online SVG frames keep their package check.
+        if not re.fullmatch(r'[A-Za-z0-9_.-]{1,255}',library): return False
+        if library.startswith('org.kde.kwin.aurorae'): return False
+        if not any((Path(root)/namespace/(library+'.so')).is_file()
+                   for root in ('/usr/lib64/qt6/plugins','/usr/lib/qt6/plugins')
+                   for namespace in ('org.kde.kdecoration2','org.kde.kdecoration3')): return False
+        changed = True
+    for file,group,key,expected,relative,suffix in (
+        ('kdeglobals','General','ColorScheme',row[1],'color-schemes','.colors'),
+        ('kdeglobals','Icons','Theme',row[4],'icons','/index.theme'),
+        ('plasmarc','Theme','name',row[2],'plasma/desktoptheme','/metadata.json'),
+        ('kcminputrc','Mouse','cursorTheme',row[6],'icons','/cursors'),
+        ('kwinrc','org.kde.kdecoration2','theme',row[7],'aurorae/themes','/metadata.desktop'),
+    ):
+        if relative=='aurorae/themes' and native_binary_frame: continue
+        value = read(file,group,key)
+        # KWin stores the native Aurorae engine prefix, while the profile
+        # catalogue and installed directory contain the package's own name.
+        if relative=='aurorae/themes': value=value.removeprefix('__aurorae__svg__')
+        if value==expected: continue
+        if not value or value in ('.','..') or '/' in value or '\\' in value or any(ord(c)<32 for c in value): return False
+        candidates = [root/relative/(value+suffix) for root in roots]
+        if relative=='plasma/desktoptheme': candidates += [root/relative/(value+'/metadata.desktop') for root in roots]
+        if relative=='icons': candidates.append(home/'.icons'/(value+suffix))
+        if relative=='aurorae/themes': candidates += [root/relative/(value+'/metadata.json') for root in roots]
+        if not any(p.exists() for p in candidates): return False
+        changed = True
+    for key,default in (('font','Meyar Sans'),('fixed','Meyar Mono')):
+        value = read('kdeglobals','General',key)
+        if value:
+            parts = value.split(',')
+            if len(parts)<10 or len(value)>512 or any(ord(c)<32 or ord(c)==127 for c in value): return False
+            try: size=float(parts[1])
+            except ValueError: return False
+            if size==-1:
+                try: pixels=int(parts[2])
+                except ValueError: return False
+                if not 4<=pixels<=192: return False
+            elif not 4<=size<=96: return False
+            changed |= parts[0]!=default or size!=10 or parts[3:10]!=['5','400','0','0','0','0','0']
+    return changed
+
+
+def image_file(path,dark=False):
+    """Resolve a standard KDE static wallpaper package without loading its QML."""
+    if path.is_file(): return path
+    if not path.is_dir(): raise ValueError('wallpaper unavailable')
+    catalog = Path('/usr/share/moos/theme-profiles.tsv')
+    if catalog.is_file():
+        for line in catalog.read_text().splitlines():
+            row = line.split('\t')
+            if len(row)==17 and not line.startswith('#') and path==Path('/usr/share/wallpapers')/row[8]:
+                return path/('contents/'+row[9])/('1672x941.png' if row[12]=='bloom' else '3840x2160.jpg')
+    names = ('images_dark','images') if dark else ('images','images_dark')
+    for folder in names:
+        directory = path/'contents'/folder
+        if not directory.is_dir(): continue
+        candidates = []
+        for index,entry in enumerate(directory.iterdir()):
+            if index>=512: raise ValueError('wallpaper package too large')
+            match = re.fullmatch(r'([1-9][0-9]{0,4})x([1-9][0-9]{0,4})\.(?:png|jpe?g|webp|avif)',entry.name,re.I)
+            if match and entry.is_file():
+                width,height = map(int,match.groups())
+                if width*height<=33554432: candidates.append((width*height,entry.name,entry))
+        if candidates: return max(candidates)[2]
+    raise ValueError('no supported static wallpaper image')
+
+
+def desktop_wallpaper():
+    from gi.repository import Gio,GLib
+    bus = Gio.bus_get_sync(Gio.BusType.SESSION,None)
+    script = '''var list = desktopsForActivity(currentActivity());
+        list.sort(function(a,b) { return a.screen-b.screen; });
+        var result = [];
+        for (var i=0;i<list.length;i++) {
+            var d=list[i];
+            if (d.screen < 0) continue;
+            var plugin=String(d.wallpaperPlugin);
+            d.currentConfigGroup=["Wallpaper",plugin,"General"];
+            result.push({plugin:plugin,image:String(d.readConfig("Image",""))});
+        }
+        print(JSON.stringify(result));'''
+    raw = bus.call_sync('org.kde.plasmashell','/PlasmaShell','org.kde.PlasmaShell','evaluateScript',
+                        GLib.Variant('(s)',(script,)),None,Gio.DBusCallFlags.NONE,8000,None).unpack()[0]
+    if len(raw)>65536: raise ValueError('wallpaper response too large')
+    outputs = json.loads(raw)
+    if not isinstance(outputs,list) or not outputs: raise ValueError('desktop unavailable')
+    return outputs[0]
+
+
+def snapshot_native(home,config_root):
+    """Read the real shell; write only inert lock/power appearance data.
+
+    Multiple wallpapers retain their desktop ownership; session screens use
+    the first active output's static image. Dynamic plugins keep their native
+    desktop and report unavailable rather than executing code in the greeter.
+    """
+    from gi.repository import Gio,GLib
+    look = selected_look()
+    if not installed_look(look,home): raise ValueError('selected theme unavailable')
+    old = ini(config_root/'moos-session-appearance.conf')
+    anchor = old.get('Appearance','BaseLook',fallback=old.get('Appearance','Look',fallback='org.moos.ui2'))
+    rows = profiles()
+    trusted = {r[0] for r in rows if len(r)==17 and not r[0].startswith('#')}
+    if look in trusted: anchor=look
+    if anchor not in trusted: anchor='org.moos.ui2'
+    output = desktop_wallpaper()
+    if output.get('plugin') not in ('org.kde.image','org.moos.ui2.wallpaper'): raise ValueError('static wallpaper unavailable')
+    value = output.get('image','')
+    if value.startswith('file:'):
+        url = urlsplit(value)
+        if url.netloc or url.query or url.fragment: raise ValueError('nonlocal wallpaper')
+        value = unquote_to_bytes(url.path).decode('utf-8','strict')
+    path = decode_path(quote(value,safe='-._~'))
+    # Validate decoding and pixel budgets before touching the shared snapshot.
+    row = next(r for r in rows if len(r)==17 and r[0]==anchor)
+    path = image_file(path,dark_palette(native_palette(home,config_root,row)[0]))
+    raster(path)
+    if selected_look()!=look: raise ValueError('theme changed during snapshot')
+    for groups,key,value in ((['Greeter'],'WallpaperPlugin','org.kde.image'),
+                             (['Greeter','Wallpaper','org.kde.image','General'],'Image',path.as_uri())):
+        args = [item for group in groups for item in ('--group',group)]
+        subprocess.run(['kwriteconfig6','--file','kscreenlockerrc',*args,'--key',key,value],check=True,timeout=3)
+        actual = subprocess.run(['kreadconfig6','--file','kscreenlockerrc',*args,'--key',key],check=True,capture_output=True,text=True,timeout=3).stdout.strip()
+        if actual!=value: raise ValueError('lock wallpaper readback differs')
+    config_root.mkdir(parents=True,exist_ok=True)
+    fd,name = tempfile.mkstemp(prefix='.moos-session-appearance-',dir=config_root)
+    try:
+        with os.fdopen(fd,'w') as out:
+            # installed_look excludes line/control and escape characters, so a
+            # native package name cannot inject another INI entry.
+            out.write('[Appearance]\nLook='+look+'\nBaseLook='+anchor+'\nWallpaperEncoded='+quote(str(path),safe='-._~')+'\n')
+        destination = config_root/'moos-session-appearance.conf'
+        if not destination.exists() or destination.read_bytes()!=Path(name).read_bytes(): os.replace(name,destination)
+    finally:
+        if os.path.exists(name): os.unlink(name)
 
 
 def ini(path):
@@ -51,28 +258,21 @@ def raster(path):
     raise ValueError('image exceeds publication budget')
 
 
-def payload(home,config_root,catalog=Path('/usr/share/moos/theme-profiles.tsv')):
-    state = ini(config_root/'moos-session-appearance.conf')
-    look = state.get('Appearance','Look',fallback='')
-    image = decode_path(state.get('Appearance','WallpaperEncoded',fallback=''))
-    rows = [line.split('\t') for line in catalog.read_text().splitlines() if not line.startswith('#')]
-    row = next((row for row in rows if len(row)==17 and row[0]==look),None)
-    if not row: raise ValueError('appearance profile unavailable')
-    selected = subprocess.run(['kreadconfig6','--file','kdeglobals','--group','KDE','--key','LookAndFeelPackage'],
-                              capture_output=True,text=True,check=True,timeout=3).stdout.strip()
-    if selected != look: raise ValueError('theme transition has not committed')
-    def wallpaper(entry):
-        base = Path('/usr/share/wallpapers')/entry[8]
-        return base/('contents/'+entry[9])/('1672x941.png' if entry[12]=='bloom' else '3840x2160.jpg')
-    profile_image = wallpaper(row)
-    if image.is_dir():
-        match = next((entry for entry in rows if len(entry)==17 and image==Path('/usr/share/wallpapers')/entry[8]),None)
-        if match is None: raise ValueError('unregistered image package')
-        image = wallpaper(match)
+def native_palette(home,config_root,row):
     files = [Path('/usr/share/color-schemes')/(row[1]+'.colors')]
     directories = os.environ.get('XDG_CONFIG_DIRS','/etc/xdg').split(':')
-    files += [Path(folder)/'kdeglobals' for folder in reversed(directories) if folder]
-    files += [config_root/'kdedefaults/kdeglobals',config_root/'kdeglobals']
+    overrides = [Path(folder)/'kdeglobals' for folder in reversed(directories) if folder]
+    overrides += [config_root/'kdedefaults/kdeglobals',config_root/'kdeglobals']
+    scheme = row[1]
+    for path in overrides:
+        scheme = ini(path).get('General','ColorScheme',fallback=scheme)
+    if scheme and '/' not in scheme and '\\' not in scheme and scheme not in ('.','..'):
+        for root in data_roots(home):
+            path = root/'color-schemes'/(scheme+'.colors')
+            if path.is_file():
+                files.append(path)
+                break
+    files += overrides
     colors = {};font = ''
     for path in files:
         config = ini(path)
@@ -84,21 +284,63 @@ def payload(home,config_root,catalog=Path('/usr/share/moos/theme-profiles.tsv'))
                     colors.setdefault(group,{})[key] = value
         candidate = config.get('General','font',fallback='')
         if candidate: font = candidate
-    data = dict(schema=1,look=look,colors=colors)
+    return colors,font
+
+
+def dark_palette(colors):
+    value = colors.get("Colors:Window",{}).get("BackgroundNormal", "32,32,32")
+    red,green,blue = map(int,value.split(","))
+    return red*0.2126+green*0.7152+blue*0.0722 < 128
+
+
+def preferred_image(path,home,config_root):
+    rows = profiles()
+    state = ini(config_root/'moos-session-appearance.conf')
+    selected = selected_look()
+    anchor = state.get('Appearance','BaseLook',fallback=state.get('Appearance','Look',fallback='org.moos.ui2'))
+    row = next((r for r in rows if len(r)==17 and r[0]==selected),None)
+    if row is None: row = next((r for r in rows if len(r)==17 and r[0]==anchor),None)
+    if row is None: row = next(r for r in rows if len(r)==17 and r[0]=='org.moos.ui2')
+    return image_file(path,dark_palette(native_palette(home,config_root,row)[0]))
+
+
+def payload(home,config_root,catalog=Path('/usr/share/moos/theme-profiles.tsv')):
+    state = ini(config_root/'moos-session-appearance.conf')
+    look = state.get('Appearance','Look',fallback='')
+    image = decode_path(state.get('Appearance','WallpaperEncoded',fallback=''))
+    rows = profiles(catalog)
+    anchor = state.get('Appearance','BaseLook',fallback=look)
+    row = next((row for row in rows if len(row)==17 and row[0]==anchor),None)
+    if not row: raise ValueError('appearance profile unavailable')
+    selected = selected_look()
+    if selected != look: raise ValueError('theme transition has not committed')
+    if look!=anchor and not installed_look(look,home): raise ValueError('native appearance unavailable')
+    def wallpaper(entry):
+        base = Path('/usr/share/wallpapers')/entry[8]
+        return base/('contents/'+entry[9])/('1672x941.png' if entry[12]=='bloom' else '3840x2160.jpg')
+    profile_image = wallpaper(row)
+    colors,font = native_palette(home,config_root,row)
+    if image.is_dir():
+        match = next((entry for entry in rows if len(entry)==17 and image==Path('/usr/share/wallpapers')/entry[8]),None)
+        image = wallpaper(match) if match else image_file(image,dark_palette(colors))
+    # Third-party code never crosses the account boundary. The immutable MoOS
+    # envelope receives only its measured native palette, font and raster.
+    data = dict(schema=1,look=anchor,colors=colors)
     if font:
         if len(font)>512 or any(ord(c)<32 or ord(c)==127 for c in font): raise ValueError('invalid appearance font')
         data['font'] = font
     # Cache raster work, not authority. Native Get is still executed each time,
     # so deleting/resetting account metadata cannot be hidden by this cache.
     stat = image.stat()
-    stamp = hashlib.sha256(json.dumps([data,str(image),stat.st_ino,stat.st_size,stat.st_mtime_ns],sort_keys=True).encode()).hexdigest()
+    include_image = image != profile_image or look!=anchor
+    stamp = hashlib.sha256(json.dumps([data,include_image,str(image),stat.st_ino,stat.st_size,stat.st_mtime_ns],sort_keys=True).encode()).hexdigest()
     cache_root = Path(os.environ.get('XDG_STATE_HOME',str(home/'.local/state')))/'moos/theme'
     cache = cache_root/'login-appearance.json'
     try:
         saved = json.loads(cache.read_text()) if cache.stat().st_size<=2000000 else {}
         if saved.get('stamp')==stamp and isinstance(saved.get('payload'),str): return saved['payload']
     except (FileNotFoundError,ValueError,KeyError): pass
-    if image != profile_image: data['image'] = raster(image)
+    if include_image: data['image'] = raster(image)
     result = json.dumps(data,ensure_ascii=False,sort_keys=True,separators=(',',':'))
     if len(result)>1400000: raise ValueError('appearance exceeds publication budget')
     cache_root.mkdir(mode=0o700,parents=True,exist_ok=True)
@@ -131,8 +373,24 @@ def publish(value):
 
 
 def main():
-    if sys.argv[1:]!=['publish']: raise ValueError('expected publish')
     home = Path.home(); config = Path(os.environ.get('XDG_CONFIG_HOME',str(home/'.config')))
+    if len(sys.argv)==3 and sys.argv[1]=='check-look':
+        if not installed_look(sys.argv[2],home): raise ValueError('installed native theme unavailable')
+        return
+    if sys.argv[1:]==['check-pair']:
+        if not native_pair(home): raise ValueError('installed native automatic pair unavailable')
+        return
+    if sys.argv[1:]==['check-native']:
+        if not native_customized(home): raise ValueError('no installed native customisation')
+        return
+    if len(sys.argv)==3 and sys.argv[1]=='resolve-static':
+        path = preferred_image(decode_path(sys.argv[2]),home,config)
+        raster(path)
+        print(quote(str(path),safe='-._~'))
+        return
+    if sys.argv[1:]==['sync-native']:
+        snapshot_native(home,config)
+    elif sys.argv[1:]!=['publish']: raise ValueError('expected appearance operation')
     publish(payload(home,config))
 
 

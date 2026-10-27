@@ -127,7 +127,16 @@ case "$lnf" in
     *) want_deco=""; want_wall=""; pair_dark=""; pair_light=""; family=""; mode="" ;;
 esac
 
-if [ -z "$want_deco" ]; then
+native_personal=0
+if command -v moos-theme >/dev/null 2>&1 && moos-theme native-selected >/dev/null 2>&1; then
+    native_personal=1
+fi
+if [ "$native_personal" = 1 ]; then
+    ok "installed personal appearance is selected"
+    # Native components are checked against their actual installed counterparts
+    # by the appearance owner, not against a different curated MoOS profile.
+    want_wall=""
+elif [ -z "$want_deco" ]; then
     bad "the desktop is NOT wearing a MoOS theme (LookAndFeelPackage='${lnf:-unset}')"
 else
     ok "MoOS theme: ${mode}"
@@ -142,7 +151,11 @@ fi
 # name sends Plasma to Breeze and persists that choice in the user's own config.
 default_dark="$(kreadconfig6 --file kdeglobals --group KDE --key DefaultDarkLookAndFeel 2>/dev/null)"
 default_light="$(kreadconfig6 --file kdeglobals --group KDE --key DefaultLightLookAndFeel 2>/dev/null)"
-if [ -n "$pair_dark" ]; then
+if [ "$native_personal" = 1 ]; then
+    /usr/libexec/moos-session-appearance check-pair >/dev/null 2>&1 \
+        && ok "native automatic appearance targets are installed" \
+        || bad "native automatic appearance targets are missing or invalid"
+elif [ -n "$pair_dark" ]; then
     [ "$default_dark" = "$pair_dark" ] \
         && ok "automatic dark target is MoOS: ${default_dark}" \
         || bad "dark target is '${default_dark:-unset}', expected the matched MoOS target ${pair_dark}"

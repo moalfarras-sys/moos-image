@@ -37,7 +37,7 @@ class DesignCoreTests(unittest.TestCase):
         )
         self.assertEqual(document["material"]["blurCeiling"], 15)
         self.assertEqual(document["font"]["interfaceFamily"],
-                         "IBM Plex Sans Arabic")
+                         "Meyar Sans")
         self.assertLessEqual(document["material"]["shadowBlur"], 15)
         for name, value in document["opacity"].items():
             with self.subTest(opacity=name):
@@ -281,8 +281,8 @@ class DesignCoreTests(unittest.TestCase):
                 )
 
         self.assertIn('"schema": 2', switch)
-        self.assertIn('"wallpaperMode": "%s"', switch)
-        self.assertIn('"wallpaperEncoded": "%s"', switch)
+        self.assertIn('"wallpaperMode": mode', switch)
+        self.assertIn('"wallpaperEncoded": token', switch)
         self.assertIn('[ "$status" = committed ] && [ -z "$identity" ]', switch)
         self.assertIn("verified=0", switch)
         self.assertNotIn(r"/[!\x27()*]/g", switch)

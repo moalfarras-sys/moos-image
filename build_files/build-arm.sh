@@ -249,6 +249,22 @@ case "${arabic_fallback}" in
     *) echo "GATE FAIL: Arabic terminal fallback is '${arabic_fallback}', expected Kawkab Mono"; exit 1 ;;
 esac
 
+# Same checked five-font overlay and terminal chain as all x86 editions.
+python3 /ctx/verify_meyar.py /usr/share/fonts/meyar
+fc-cache -f /usr/share/fonts/meyar
+# Check actual generic resolution after all vendor policies, not only named fonts.
+[ "$(fc-match -f '%{family}' sans-serif)" = 'Meyar Sans' ] || {
+    echo 'GATE FAIL: generic sans-serif does not select Meyar Sans'; exit 1;
+}
+[ "$(fc-match -f '%{family}' monospace)" = 'Meyar Mono' ] || {
+    echo 'GATE FAIL: generic monospace does not select Meyar Mono'; exit 1;
+}
+meyar_fallback="$(fc-match -s 'Meyar Mono:lang=ar' | grep -v '"Meyar Mono"' | head -1)"
+case "${meyar_fallback}" in
+    *"Meyar Mono Arabic"*) : ;;
+    *) echo "GATE FAIL: ARM Meyar Arabic fallback is '${meyar_fallback}'"; exit 1 ;;
+esac
+
 # -----------------------------------------------------------------------------
 # (2) The login manager
 # -----------------------------------------------------------------------------

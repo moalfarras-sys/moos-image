@@ -48,6 +48,8 @@ def probe():
     from PySide6.QtQuick import QQuickItem
     from PySide6.QtTest import QTest
     app = QApplication([])
+    from PySide6.QtGui import QFont,QFontInfo
+    assert QFontInfo(QFont("Meyar Sans")).family()=="Meyar Sans", "Missing actual Meyar native font"
     engine = QQmlEngine()
     engine.setProperty('_kirigamiTheme', 'org.kde.desktop')
     types = QQmlPropertyMap()
@@ -169,7 +171,9 @@ Window {
     QTest.mouseClick(window, Qt.LeftButton, Qt.NoModifier, at)
     assert window.property('fired') == 0 and button.property('armed') is True
     hint=view.findChild(QQuickItem,'moosSessionConfirmationHint');assert hint
-    assert hint.property('paintedHeight') <= hint.height()+1, 'confirmation ink clipped'
+    if hint.property('paintedHeight') > hint.height()+1:
+        print('MOOS_SESSION_CONFIRMATION_CLIP',flush=True)
+        raise AssertionError('confirmation ink clipped')
     QTest.mouseClick(window, Qt.LeftButton, Qt.NoModifier, at)
     if window.property('fired') != 1 or window.property('action') != ('reboot-update' if updates else 'reboot'):
         print('MOOS_SESSION_POWER_DESTINATION_MISMATCH',flush=True)
@@ -200,7 +204,10 @@ def native_button_probe():
     from PySide6.QtQml import QQmlEngine,QQmlComponent
     from PySide6.QtQuick import QQuickItem
     from PySide6.QtTest import QTest
-    app=QApplication([]);engine=QQmlEngine();engine.setProperty('_kirigamiTheme','org.kde.desktop')
+    app=QApplication([]);
+    from PySide6.QtGui import QFont,QFontInfo
+    assert QFontInfo(QFont("Meyar Sans")).family()=="Meyar Sans", "Missing actual Meyar native font"
+    engine=QQmlEngine();engine.setProperty('_kirigamiTheme','org.kde.desktop')
     labels={'ar':('تبديل المستخدم','إيقاف التشغيل'),'en':('Switch user','Shut down'),
             'de':('Benutzer wechseln','Herunterfahren')}[os.environ['PROBE_LANGUAGE']]
     url=(ROOT/'system_files/usr/lib64/qt6/qml/org/kde/breeze/components').as_uri()
@@ -263,6 +270,8 @@ class SessionContinuity(unittest.TestCase):
                 DBUS_SYSTEM_BUS_ADDRESS='unix:path='+td+'/absent-system',
                 LANG={'ar':'ar_SA.UTF-8','en':'en_US.UTF-8','de':'de_DE.UTF-8'}[language], LANGUAGE=language,
                 PROBE_WIDTH=str(width),PROBE_HEIGHT=str(height),PROBE_LOOK=look,PROBE_MOTION=str(motion),PROBE_LANGUAGE=language)
+            from native_meyar_fontconfig import configure
+            configure(env,home)
             config=Path(env['XDG_CONFIG_HOME'])
             profile=next(p for p in PROFILES if p['id']==look)
             colors=ROOT/'system_files/usr/share/color-schemes'/(profile['scheme']+'.colors')
@@ -284,6 +293,9 @@ class SessionContinuity(unittest.TestCase):
                     'onRebootUpdateRequested: root.sessionHost.haltUpdateRequested()')
                 if broken == 'layout':
                     old, new = ('actionCount <= 5 ? actionCount', 'actionCount <= 4 ? actionCount')
+                if broken == 'hint':
+                    old,new=('Layout.preferredHeight: implicitHeight\n                Layout.minimumHeight: implicitHeight',
+                        'Layout.preferredHeight: oldPrimaryMetrics.height\n                FontMetrics { id: oldPrimaryMetrics; font: confirmationHint.font }')
                 if broken == 'material':
                     old, new = ('Kirigami.Theme.colorSet: Kirigami.Theme.Window', 'Kirigami.Theme.colorSet: Kirigami.Theme.Complementary')
                 body=target.read_text();self.assertEqual(body.count(old),1);target.write_text(body.replace(old,new))
@@ -291,7 +303,7 @@ class SessionContinuity(unittest.TestCase):
             self.assertEqual((config/'kdeglobals').read_bytes(),before)
             if broken:
                 self.assertNotEqual(p.returncode,0)
-                self.assertIn('MOOS_SESSION_GLYPH_CONTRAST_MISMATCH' if broken=='glyph-ink' else 'MOOS_SESSION_LOOK_MISMATCH' if broken=='look' else 'MOOS_SESSION_POWER_LAYOUT_MISMATCH' if broken=='layout' else 'MOOS_SESSION_POWER_MATERIAL_MISMATCH' if broken=='material' else 'MOOS_SESSION_POWER_DESTINATION_MISMATCH',p.stdout)
+                self.assertIn('MOOS_SESSION_CONFIRMATION_CLIP' if broken=='hint' else 'MOOS_SESSION_GLYPH_CONTRAST_MISMATCH' if broken=='glyph-ink' else 'MOOS_SESSION_LOOK_MISMATCH' if broken=='look' else 'MOOS_SESSION_POWER_LAYOUT_MISMATCH' if broken=='layout' else 'MOOS_SESSION_POWER_MATERIAL_MISMATCH' if broken=='material' else 'MOOS_SESSION_POWER_DESTINATION_MISMATCH',p.stdout)
             else:
                 self.assertEqual(p.returncode,0,p.stdout+p.stderr)
                 self.assertIn('MOOS_NATIVE_SESSION_BUTTON_PROOF' if native_button else 'MOOS_SESSION_CONTINUITY_PROOF',p.stdout)
@@ -323,6 +335,7 @@ class SessionContinuity(unittest.TestCase):
     def test_wrong_look_and_wrong_native_destination_are_completed_negatives(self):
         self.case(broken='look')
         self.case(broken='destination')
+        self.case(broken='hint')
         self.case(broken='glyph-ink')
 
     @unittest.skipUnless(importlib.util.find_spec('PySide6'), 'native Qt unavailable')

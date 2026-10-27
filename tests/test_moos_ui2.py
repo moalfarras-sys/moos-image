@@ -894,7 +894,7 @@ class TestMoOSUI2(unittest.TestCase):
         apply = (ROOT / "system_files/usr/bin/moos-apply-theme").read_text(encoding="utf-8")
         switch = (ROOT / "system_files/usr/bin/moos-theme").read_text(encoding="utf-8")
         self.assertIn(
-            "THEME_REV=138", apply,
+            "THEME_REV=142", apply,
             "existing v100 users would keep a cached compile of the retired MoOS LockScreenUi that "
             "asks for a MoOSClock which no longer ships (kscreenlocker's emergency locker) and a "
             "cached stock session screen with no island; "
@@ -2585,9 +2585,10 @@ class TestMoOSUI2(unittest.TestCase):
             return len(line) - len(line.lstrip())
 
         handlers = [i for i, line in enumerate(lines) if re.match(r"\s*(onClicked|onPicked):", line)]
-        # Undo, a look card, two canvas rows, two three-way rows, six fine-control rows and
-        # the two rows that open the lock and login screens' own pages.
-        self.assertEqual(len(handlers), 16)
+        # Undo, a look card, two canvas rows, three choice rows, native widget
+        # gallery, the library entry and the lock/login pages. Native category
+        # actions are now on a separate page reached only while not busy.
+        self.assertEqual(len(handlers), 11)
         for index in handlers:
             indent = depth(lines[index])
             start = index
@@ -2630,6 +2631,8 @@ assert.deepEqual(lookState("MoOS Nova            (org.moos.ui2.nova)\n", true), 
 assert.deepEqual(lookState("MoOS داكن | dark      (org.moos.ui2)", true), {kind: "moos", id: "org.moos.ui2"});
 assert.deepEqual(lookState("غير محدّد | unset (default: MoOS UI)", true), {kind: "unset", id: ""});
 assert.deepEqual(lookState("ليس MoOS | not a MoOS theme: org.kde.breeze.desktop", true), {kind: "foreign", id: ""});
+assert.deepEqual(lookState("MoOS مظهر مخصّص | custom appearance", true), {kind: "foreign", id: ""});
+assert.deepEqual(lookState("MoOS مظهر مخصّص | custom appearance: arbitrary", true), {kind: "unknown", id: ""});
 assert.deepEqual(lookState("ليس MoOS | not a MoOS theme: org.moos.ui2.future", true), {kind: "moos", id: "org.moos.ui2.future"});
 assert.deepEqual(lookState("MoOS Nova (org.moos.ui2.nova)", false), {kind: "unknown", id: ""});
 assert.deepEqual(lookState("(org.moos.ui2.nova) and more", true), {kind: "unknown", id: ""});

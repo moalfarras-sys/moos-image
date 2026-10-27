@@ -64,7 +64,7 @@ Item {
         width: parent.width
         horizontalAlignment: Text.AlignHCenter
         color: Kirigami.Theme.textColor
-        font.family: "IBM Plex Sans"
+        font.family: "Meyar Sans"
         font.pixelSize: digit.pixelSize
         font.weight: Font.Light
         font.features: ({ "tnum": 1 })
@@ -77,7 +77,7 @@ Item {
         horizontalAlignment: Text.AlignHCenter
         text: digit.displayedGlyph
         color: Kirigami.Theme.textColor
-        font.family: "IBM Plex Sans"
+        font.family: "Meyar Sans"
         font.pixelSize: digit.pixelSize
         font.weight: Font.Light
         font.features: ({ "tnum": 1 })

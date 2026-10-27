@@ -109,6 +109,17 @@ def main():
             # A separate wallpaper owner starts late: it must read the existing
             # native snapshot, then receive the next actual account invalidation.
             second=start('listen');wait_marker('MOOS_NATIVE_APPEARANCE_PHASE1',[second])
+            # The ordinary lock/power account reads only its own public data,
+            # applying native colours in its process without replacing the
+            # owner's Plasma style or registering a login publisher.
+            personal_style=config/'plasmarc'
+            personal_style.write_bytes(service_files['plasmarc']);os.chown(personal_style,61000,61000)
+            own_log=root/'own-session.log';own_stream=own_log.open('w');logs.append(own_stream)
+            own_process=subprocess.Popen([binary,'--consumer',imports,'own'],env=owner_env,
+                preexec_fn=as_uid(61000),stdout=own_stream,stderr=own_stream)
+            children.append(own_process);own=(own_process,own_log)
+            wait_marker('MOOS_NATIVE_APPEARANCE_PHASE1',[own])
+            consumers.append(own)
             publish('org.moos.ui2.aurora','#b16b15');wait_marker('MOOS_NATIVE_APPEARANCE_PHASE2',consumers)
             # Same native style, new personal colours: no stale style/config
             # cache may retain the preceding palette or image.
@@ -134,6 +145,8 @@ c.call_sync('org.freedesktop.Accounts',sys.argv[1],'org.freedesktop.DBus.Propert
             assert native_engines[0]==native_engines[1],'native owners used different engine contracts'
             for name,body in service_files.items():
                 assert (service_home/name).read_bytes()==body,'appearance changed persistent service settings'
+            assert personal_style.read_bytes()==service_files['plasmarc'],'session colours replaced the selected desktop style'
+            print('MOOS_NATIVE_OWN_SESSION_APPEARANCE_PASS',flush=True)
             print('MOOS_NATIVE_TWO_OWNER_APPEARANCE_PASS',flush=True)
             result=subprocess.run(['python3','-c',setter,path,'cross-user'],env=env,preexec_fn=as_uid(61001),capture_output=True,text=True,timeout=6)
             assert result.returncode!=0 and read()==invalid,'unavailable cross-user authority changed metadata'
@@ -225,7 +238,7 @@ c.call_sync('org.freedesktop.Accounts',sys.argv[1],'org.freedesktop.DBus.Propert
                 receipt=Path(os.environ['MOOS_APPEARANCE_PROOF']);receipt.parent.mkdir(parents=True,exist_ok=True)
                 module=Path(imports)/'org/moos/appearance/libmoosappearanceplugin.so'
                 receipt.write_text(json.dumps(dict(schema=1,twoNativeOwners=True,nativePersistence=True,administratorImmutableRefused=True,
-                    filteredWallpaperIntent=True,unknownIntentDestinationRefused=True,
+                    ownSessionAppearance=True,filteredWallpaperIntent=True,unknownIntentDestinationRefused=True,
                     linkedIntentDestinationsRefused=True,
                     nativeEngine=native_engines[0],
                     accountsDaemonSHA256=hashlib.sha256(Path('/usr/libexec/accounts-daemon').read_bytes()).hexdigest(),

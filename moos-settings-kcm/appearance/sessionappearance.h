@@ -62,10 +62,7 @@ public:
         const auto *account=getpwnam("plasmalogin");
         m_greeter=account && account->pw_uid==getuid();
         if (!m_greeter) return;
-        m_plasmaTheme=new Plasma::Theme(this);
-        m_originalGlobal=m_plasmaTheme->useGlobalSettings();
-        m_originalDataDirs=qgetenv("XDG_DATA_DIRS");
-        m_hadDataDirs=qEnvironmentVariableIsSet("XDG_DATA_DIRS");
+        preparePlasma();
         auto bus=QDBusConnection::sessionBus();
         bus.connect(service(),path(),iface(),QStringLiteral("SnapshotChanged"),this,SLOT(receiveSnapshot(QString)));
         auto *watcher=new QDBusServiceWatcher(service(),bus,QDBusServiceWatcher::WatchForOwnerChange,this);
@@ -86,6 +83,31 @@ public:
         if (m_greeter || QCoreApplication::applicationName()!=QStringLiteral("plasmashell")) return false;
         if (!m_wallpaperIntent) m_wallpaperIntent=new MoOSWallpaperIntent(this);
         return m_wallpaperIntent->start();
+    }
+    Q_INVOKABLE bool followOwnSession() {
+        // Only the native lock/power consumers opt into a private session skin.
+        // Never change plasmashell's selected third-party desktop style, and
+        // never let an ordinary account choose another account's appearance.
+        const auto name=QCoreApplication::applicationName();
+        if (m_greeter || (name!=QStringLiteral("ksmserver-logout-greeter")
+                          && name!=QStringLiteral("kscreenlocker_greet"))) return false;
+        if (m_ownSession) return true;
+        m_ownSession=true;preparePlasma();
+        const auto generation=++m_generation;
+        auto message=QDBusMessage::createMethodCall(accounts(),QStringLiteral("/org/freedesktop/Accounts"),accounts(),QStringLiteral("FindUserById"));
+        message << qlonglong(getuid());
+        auto *pending=new QDBusPendingCallWatcher(QDBusConnection::systemBus().asyncCall(message,3000),this);
+        connect(pending,&QDBusPendingCallWatcher::finished,this,[this,generation](QDBusPendingCallWatcher *watcher) {
+            QDBusPendingReply<QDBusObjectPath> reply=*watcher;watcher->deleteLater();
+            if (generation!=m_generation) return;
+            if (reply.isError()) { qWarning("MoOS session appearance own-account lookup unavailable");return; }
+            const auto object=reply.value().path();
+            if (!QRegularExpression(QStringLiteral("^/org/freedesktop/Accounts/User[0-9]+$")).match(object).hasMatch()) return;
+            m_accountPath=object;
+            QDBusConnection::systemBus().connect(accounts(),object,properties(),QStringLiteral("PropertiesChanged"),this,SLOT(accountChanged(QString,QVariantMap,QStringList)));
+            readAccount();
+        });
+        return true;
     }
     Q_INVOKABLE void followUser(const QString &user) {
         if (!m_greeter || user==m_user) return;
@@ -126,6 +148,13 @@ private Q_SLOTS:
         if (interface==accountInterface()) readAccount();
     }
 private:
+    void preparePlasma() {
+        if (m_plasmaTheme) return;
+        m_plasmaTheme=new Plasma::Theme(this);
+        m_originalGlobal=m_plasmaTheme->useGlobalSettings();
+        m_originalDataDirs=qgetenv("XDG_DATA_DIRS");
+        m_hadDataDirs=qEnvironmentVariableIsSet("XDG_DATA_DIRS");
+    }
     static QString service() { return QStringLiteral("org.moos.LoginAppearance"); }
     static QString path() { return QStringLiteral("/Appearance"); }
     static QString iface() { return QStringLiteral("org.moos.LoginAppearance"); }
@@ -272,7 +301,7 @@ private:
         KIconTheme::reconfigure();
         KIconLoader::global()->reconfigure(QString());
     }
-    bool m_greeter=false,m_publisher=false,m_ready=false;
+    bool m_greeter=false,m_publisher=false,m_ready=false,m_ownSession=false;
     Plasma::Theme *m_plasmaTheme=nullptr;
     MoOSWallpaperIntent *m_wallpaperIntent=nullptr;
     bool m_originalGlobal=true,m_hadDataDirs=false,m_plasmaSourceAdded=false;

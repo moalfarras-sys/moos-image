@@ -128,6 +128,9 @@ public:
     // accepts and whose metadata names it: id, name, nameAr, summaryEn, summaryAr,
     // preview (a file URL, or empty), light, family. Takes no argument; runs nothing.
     Q_INVOKABLE QVariantList moosThemes() const;
+    // One of the installed KDE appearance catalogues. The argument is a fixed
+    // category key, never a filename, URL, command or installation directory.
+    Q_INVOKABLE static QString appearanceLibraryConfig(const QString &category);
 
     // The status contract, as a pure function so it can be read and reasoned about alone.
     static bool acceptStatus(const QJsonObject &document, qint64 now, QString *reason);

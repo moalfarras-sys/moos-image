@@ -53,8 +53,8 @@ QtObject {
     }
 
     // type
-    readonly property string font: "IBM Plex Sans Arabic"
-    readonly property string mono: "JetBrains Mono"
+    readonly property string font: "Meyar Sans"
+    readonly property string mono: "Meyar Mono"
     readonly property int tiny: 11
     readonly property int small: 12
     readonly property int body: 14

@@ -17,8 +17,8 @@ function isLook(id) {
 
 // `moos-theme` (status) prints one line: "MoOS Nova   (org.moos.ui2.nova)" for a MoOS
 // look, "… unset (default: MoOS UI)" when none was chosen, and "… not a MoOS theme: <id>"
-// for anything else. Only a MoOS id the tool itself named counts as the current look; a
-// foreign id is never carried into the page, so it can never be shown.
+// for an unavailable look. Valid native personal choices have one fixed custom
+// marker. Their ids never enter MoOS's curated apply executor.
 function lookState(output, ok) {
     var text = String(output || "").trim()
     if (!ok || text === "")
@@ -26,6 +26,8 @@ function lookState(output, ok) {
     var named = /\((org\.moos\.ui2(?:\.[a-z0-9]+)*)\)$/.exec(text)
     if (named && isLook(named[1]))
         return { kind: "moos", id: named[1] }
+    if (text === "MoOS مظهر مخصّص | custom appearance")
+        return { kind: "foreign", id: "" }
     var other = /not a MoOS theme: (\S+)$/.exec(text)
     if (other)
         return isLook(other[1]) ? { kind: "moos", id: other[1] } : { kind: "foreign", id: "" }

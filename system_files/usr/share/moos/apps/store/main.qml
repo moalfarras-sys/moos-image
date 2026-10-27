@@ -55,7 +55,7 @@ ApplicationWindow {
     // 294 text items across the MoOS apps once carried a hardcoded `font.pixelSize`, so the size
     // slider in System Settings > Fonts moved every application on the machine except this
     // operating system's own. The reference is POINT size, not pixels: MoOS ships
-    // `IBM Plex Sans,10` in /etc/xdg/kdeglobals, so dividing by the shipped 10pt gives exactly 1.0
+    // `Meyar Sans,10` in /etc/xdg/kdeglobals, so dividing by the shipped 10pt gives exactly 1.0
     // on every screen at the default and scales only when the USER changes the setting.
     //
     // fs() is for geometry that grows with the user's font setting. Text goes through typePx(),
@@ -67,7 +67,7 @@ ApplicationWindow {
     function local(ar, en) { return win.rtl ? ar : en }
     readonly property var design: MoUI.Tokens
 
-    // The UI face is the SYSTEM face: on MoOS that already is IBM Plex Sans (Arabic), and naming it
+    // The UI face is the SYSTEM face: on MoOS that already is Meyar Sans (Arabic), and naming it
     // here would only override a face the person chose for themselves.
     readonly property string uiFont: Qt.application.font.family
 

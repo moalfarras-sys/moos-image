@@ -968,6 +968,23 @@ case "${arabic_fallback}" in
        exit 1 ;;
 esac
 
+# Meyar's same source-built bytes ship through the common overlay in all four
+# editions. Keep the old named JetBrains/Kawkab contract above for personal apps.
+python3 /ctx/verify_meyar.py /usr/share/fonts/meyar
+fc-cache -f /usr/share/fonts/meyar
+# Check actual generic resolution after all vendor policies, not only named fonts.
+[ "$(fc-match -f '%{family}' sans-serif)" = 'Meyar Sans' ] || {
+    echo 'GATE FAIL: generic sans-serif does not select Meyar Sans'; exit 1;
+}
+[ "$(fc-match -f '%{family}' monospace)" = 'Meyar Mono' ] || {
+    echo 'GATE FAIL: generic monospace does not select Meyar Mono'; exit 1;
+}
+meyar_fallback="$(fc-match -s 'Meyar Mono:lang=ar' | grep -v '"Meyar Mono"' | head -1)"
+case "${meyar_fallback}" in
+    *"Meyar Mono Arabic"*) echo "Meyar Arabic terminal fallback: ${meyar_fallback}" ;;
+    *) echo "GATE FAIL: Meyar terminal Arabic owner is '${meyar_fallback}'"; exit 1 ;;
+esac
+
 # -----------------------------------------------------------------------------
 # (c4b) moos-qml-shell — the QML host that gives MoOS's apps a real app_id
 # -----------------------------------------------------------------------------

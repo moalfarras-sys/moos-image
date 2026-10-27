@@ -22,7 +22,7 @@ Item {
 
     readonly property bool rtl: MoUI.Locale.rtl
     readonly property var design: MoUI.Tokens
-    readonly property string labelFamily: rtl ? "IBM Plex Sans Arabic" : "IBM Plex Sans"
+    readonly property string labelFamily: rtl ? "Meyar Arabic" : "Meyar Sans"
     function local(arabic, english) { return MoUI.Locale.local(arabic, english) }
 
     // A rate or a size is a technical token: it reads left to right in every
@@ -129,7 +129,7 @@ Item {
                         Layout.fillWidth: true
                         text: figure.modelData.value
                         color: Kirigami.Theme.textColor
-                        font.family: "IBM Plex Sans"
+                        font.family: "Meyar Sans"
                         font.pixelSize: Math.round(Kirigami.Units.gridUnit * 1.05)
                         font.weight: Font.DemiBold
                         horizontalAlignment: Text.AlignLeft

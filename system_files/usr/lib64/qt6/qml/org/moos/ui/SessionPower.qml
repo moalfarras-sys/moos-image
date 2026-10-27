@@ -272,6 +272,7 @@ Item {
     QQC2.Action { shortcut: "Escape"; onTriggered: root.cancelRequested() }
 
     Component.onCompleted: {
+        MoUI.SessionAppearance.followOwnSession();
         Qt.callLater(root.focusInitialAction);
         console.info("MOOS_SESSION_POWER_READY", Qt.resolvedUrl("SessionPower.qml"), activeLook, sceneWallpaper);
     }
@@ -791,22 +792,25 @@ Item {
             // ── The hint line — one stable place for state guidance ──
             // Descriptions no longer pop in under individual tiles (which made
             // the dock jump); the island explains the armed confirm tap here,
-            // in a reserved line that never reflows the layout.
+            // in a reserved line that never reflows the layout. The invisible
+            // idle text resolves the same script fallback before arming; a
+            // primary-family FontMetrics misses Arabic fallback line height.
             QQC2.Label {
                 id: confirmationHint
                 objectName: "moosSessionConfirmationHint"
                 Layout.alignment: Qt.AlignHCenter
-                Layout.preferredHeight: confirmationMetrics.height
+                Layout.preferredHeight: implicitHeight
+                Layout.minimumHeight: implicitHeight
                 Layout.maximumWidth: column.width
                 horizontalAlignment: Text.AlignHCenter
                 verticalAlignment: Text.AlignVCenter
                 textFormat: Text.PlainText
-                text: root.armedButton ? root.armedButton.description : ""
+                text: root.armedButton ? root.armedButton.description
+                    : root.bilingual("انقر مرة أخرى للتأكيد", "Click again to confirm")
                 color: Kirigami.Theme.textColor
                 opacity: root.armedButton ? 1.0 : 0
                 font.family: root.design.interfaceFamily; font.weight: Font.DemiBold
                 font.pointSize: Kirigami.Theme.smallFont.pointSize + 1
-                FontMetrics { id: confirmationMetrics; font: confirmationHint.font }
             }
 
             // ── The way out — a full-width quiet pill under its hairline ──

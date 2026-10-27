@@ -85,7 +85,7 @@ class TestFontConfigRuleInstalled(unittest.TestCase):
 
 
 class TestKonsoleProfiles(unittest.TestCase):
-    def test_profiles_ask_for_jetbrains_mono_by_name(self) -> None:
+    def test_profiles_ask_for_meyar_mono_by_name(self) -> None:
         profiles = sorted(KONSOLE_DIR.glob("*.profile"))
         self.assertGreaterEqual(len(profiles), 1, "expected MoOS Konsole profiles")
         for profile in profiles:
@@ -94,9 +94,9 @@ class TestKonsoleProfiles(unittest.TestCase):
             self.assertIsNotNone(match, f"{profile.name}: missing Font= line")
             self.assertEqual(
                 match.group(1),
-                "JetBrains Mono",
-                f"{profile.name}: font must be JetBrains Mono by name so the "
-                f"weak fontconfig accept of {ARABIC_FAMILY} engages",
+                "Meyar Mono",
+                f"{profile.name}: font must be Meyar Mono by name so the "
+                "weak fontconfig accept of Meyar Mono Arabic engages",
             )
 
 

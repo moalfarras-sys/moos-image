@@ -41,7 +41,7 @@ LAUNCHER_VIEW = ROOT / "system_files/usr/share/plasma/plasmoids/org.moos.brand/c
 WELCOME = ROOT / "system_files/usr/share/moos/apps/welcome/main.qml"
 
 FAKE_APP = """import json, os, sys
-keys = ('QT_QUICK_BACKEND', 'MIRA_STILL', 'QT_QUICK_CONTROLS_STYLE', 'PYTHONPATH')
+keys = ('QT_QUICK_BACKEND', 'MIRA_STILL', 'QT_QUICK_CONTROLS_STYLE', 'QML_DISABLE_DISK_CACHE', 'PYTHONPATH')
 print(json.dumps({'argv': sys.argv[1:], 'env': {k: os.environ.get(k) for k in keys},
                   'no_user_site': sys.flags.no_user_site}))
 """
@@ -103,6 +103,7 @@ class Launcher(unittest.TestCase):
         self.assertEqual(result["argv"], args)
         self.assertTrue(result["no_user_site"], "a person's ~/.local packages must stay out (-s)")
         self.assertEqual(result["env"]["QT_QUICK_CONTROLS_STYLE"], "Basic")
+        self.assertEqual(result["env"]["QML_DISABLE_DISK_CACHE"], "1")
         self.assertTrue(result["env"]["PYTHONPATH"].startswith("/opt/mira-site"))
 
     def test_a_real_gpu_keeps_the_gpu_scene_graph(self):

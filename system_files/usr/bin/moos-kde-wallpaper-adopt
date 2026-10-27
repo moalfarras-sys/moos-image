@@ -1,0 +1,86 @@
+#!/usr/bin/python3
+"""KNewStuff adoption adapter: choose an image, then delegate to its native owner.
+
+Archive collections are not KPackages. Preserve KDE's catalogue/registry and
+use its file picker for those collections instead of applying a wildcard path.
+"""
+import json
+import os
+from pathlib import Path
+import runpy
+import subprocess
+import sys
+from urllib.parse import quote
+
+FORMATS = {'.png','.jpg','.jpeg','.webp','.avif'}
+
+
+def native_apply(image):
+    from gi.repository import Gio,GLib
+    # The native CLI interpolates filenames into JavaScript. Pass an encoded
+    # file URL as JSON data instead, retaining Plasma's actual wallpaper owner.
+    uri = image.as_uri()
+    script = 'var image='+json.dumps(uri,ensure_ascii=True)+''';
+        var ds=desktops(); var result=[];
+        for(var i=0;i<ds.length;i++) {
+            var d=ds[i]; d.wallpaperPlugin="org.kde.image";
+            d.currentConfigGroup=["Wallpaper","org.kde.image","General"];
+            d.writeConfig("Image",image);
+            result.push({plugin:String(d.wallpaperPlugin),image:String(d.readConfig("Image",""))});
+        }
+        print(JSON.stringify(result));'''
+    bus = Gio.bus_get_sync(Gio.BusType.SESSION,None)
+    raw = bus.call_sync('org.kde.plasmashell','/PlasmaShell','org.kde.PlasmaShell','evaluateScript',
+                        GLib.Variant('(s)',(script,)),None,Gio.DBusCallFlags.NONE,8000,None).unpack()[0]
+    if len(raw)>65536: raise ValueError('wallpaper readback too large')
+    outputs = json.loads(raw)
+    if not isinstance(outputs,list) or not outputs or any(
+            not isinstance(row,dict) or row.get('plugin')!='org.kde.image' or row.get('image')!=uri for row in outputs):
+        raise ValueError('native wallpaper readback differs')
+
+
+def main():
+    if len(sys.argv)!=2: raise ValueError('expected one installed wallpaper path')
+    value = sys.argv[1]
+    if value.endswith('/*'): value=value[:-2]
+    path = Path(value)
+    if not path.is_absolute() or any(ord(c)<32 or ord(c)==127 for c in value): raise ValueError('invalid wallpaper path')
+    api = runpy.run_path('/usr/libexec/moos-session-appearance')
+    home = Path.home(); config = Path(os.environ.get('XDG_CONFIG_HOME',str(home/'.config')))
+    if path.is_dir():
+        if (path/'contents/images').is_dir() or (path/'contents/images_dark').is_dir():
+            image = api['preferred_image'](path,home,config)
+        else:
+            locale = os.environ.get('LC_ALL') or os.environ.get('LC_MESSAGES') or os.environ.get('LANG','')
+            arabic = locale.lower().startswith('ar')
+            picker = subprocess.run(['/usr/bin/setpriv','--pdeathsig','TERM','--','/usr/bin/kdialog','--icon','moos-themes','--title',
+                'MoOS — اختر صورة من الحزمة' if arabic else 'MoOS — Choose an image from the collection',
+                '--getopenfilename',str(path),'*.png *.jpg *.jpeg *.webp *.avif'],
+                capture_output=True,text=True)
+            if picker.returncode==1 and not picker.stdout.strip() and not picker.stderr.strip():
+                print('MOOS_KDE_WALLPAPER_CANCELLED')
+                return
+            if picker.returncode: raise ValueError('native image picker failed')
+            image = Path(picker.stdout.strip())
+    elif path.is_file(): image=path
+    else: raise ValueError('installed wallpaper unavailable')
+    if not image.is_absolute() or not image.is_file() or image.suffix.lower() not in FORMATS:
+        raise ValueError('unsupported static wallpaper')
+    token = quote(str(image),safe='-._~')
+    api['decode_path'](token)
+    api['raster'](image)  # Same decode/pixel budget as the session publisher.
+    selected = api['selected_look']()
+    curated = {row[0] for row in api['profiles']()}
+    if selected in curated:
+        subprocess.run(['/usr/bin/moos-theme','wallpaper-token',token],check=True,timeout=40)
+    else:
+        if not api['installed_look'](selected,home): raise ValueError('native theme unavailable')
+        native_apply(image)
+    print('MOOS_KDE_WALLPAPER_APPLIED')
+
+
+if __name__=='__main__':
+    try: main()
+    except Exception as error:
+        print('MoOS wallpaper adoption failed:',type(error).__name__,file=sys.stderr)
+        sys.exit(1)

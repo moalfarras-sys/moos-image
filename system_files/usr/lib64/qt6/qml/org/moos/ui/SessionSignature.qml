@@ -41,7 +41,7 @@ Row {
         Text {
             text: "MoOS"
             color: signature.ink
-            font.family: "IBM Plex Sans Arabic"
+            font.family: "Meyar Arabic"
             font.pixelSize: Math.max(21, Math.round(signature.sceneHeight * 0.03))
             font.weight: Font.DemiBold
             font.letterSpacing: 1

@@ -808,6 +808,9 @@ class MoOSVisualSystemTests(unittest.TestCase):
         system_files/."""
         # family -> the evidence that the image provides it
         PROVIDERS = {
+            "Meyar Sans": ("file", "system_files/usr/share/fonts/meyar/MeyarSans[wght].ttf"),
+            "Meyar Arabic": ("file", "system_files/usr/share/fonts/meyar/MeyarArabic[wght].ttf"),
+            "Meyar Mono": ("file", "system_files/usr/share/fonts/meyar/MeyarMono[wght].ttf"),
             "IBM Plex Sans": ("dnf", "ibm-plex-sans-fonts"),
             "IBM Plex Sans Arabic": ("dnf", "ibm-plex-sans-arabic-fonts"),
             "JetBrains Mono": ("dnf", "jetbrains-mono-fonts"),

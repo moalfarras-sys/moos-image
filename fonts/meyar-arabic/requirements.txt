@@ -1,0 +1,5 @@
+fontmake==3.12.0
+fonttools[woff]==4.67.0
+glyphsLib==6.16.2
+ufoLib2==0.19.1
+uharfbuzz==0.57.0

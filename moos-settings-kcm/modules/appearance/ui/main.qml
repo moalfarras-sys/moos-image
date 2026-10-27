@@ -106,6 +106,18 @@ KCM.SimpleKCM {
     function nativeAvailable(token) {
         return !kcm.statusValid || (kcm.status.destinations || {})[token] !== false
     }
+    // Resolve the child type when the module loads, so a broken library cannot
+    // hide behind the main page's ready marker. No catalogue engine is created.
+    readonly property Component libraryPage: AppearanceLibrary { }
+    function openLibrary() {
+        if (busy)
+            return
+        var page = libraryPage.createObject(root)
+        if (page)
+            kcm.push(page)
+        else
+            routeError = t("تعذّر فتح مكتبة المظهر.", "Could not open the appearance library.")
+    }
 
     // ── Reading the desktop ──────────────────────────────────────────────────────────
     function whenDone(job, handler) {
@@ -348,12 +360,12 @@ KCM.SimpleKCM {
         if (lookKind === "unset")
             return t("لم يُختر مظهر بعد — المظهر الافتراضي هو MoOS UI.", "No look chosen yet — MoOS UI is the default.")
         if (lookKind === "foreign")
-            return t("سطح المكتب يستخدم مظهراً من خارج MoOS.", "The desktop is wearing a look from outside MoOS.")
+            return t("مظهر مخصّص", "Custom appearance")
         return t("تعذّرت قراءة المظهر الحالي.", "The current look could not be read.")
     }
     readonly property string heroSummary: currentEntry ? (rtl ? currentEntry.summaryAr : currentEntry.summaryEn)
-                                                       : t("اختر مظهراً، ثم صورة مساحة العمل ووضوح الزجاج وحركة الويجت.",
-                                                           "Pick a look, then its desktop canvas, glass clarity and widget motion.")
+                                                       : t("اختر من ثيمات MoOS أو مكتبة المظهر، ثم خصّص الخلفيات والألوان والأيقونات.",
+                                                           "Choose a MoOS look or the appearance library, then personalise wallpapers, colours and icons.")
 
     // This watchdog never stops moos-theme: an interrupted transaction could leave half of
     // two looks. The page says it is taking longer, keeps every other change and page
@@ -591,6 +603,18 @@ KCM.SimpleKCM {
         }
 
         // ── The looks ──────────────────────────────────────────────────────────────────
+        FormCard.FormCard {
+            maximumWidth: root.cardWidth
+            MoosActionRow {
+                glyph: "grid"
+                text: root.t("مكتبة المظهر", "Appearance library")
+                description: root.t("معاينة وتنزيل السمات والخلفيات والأيقونات والإطارات والأدوات، وحفظ مظهرك الحالي.",
+                                    "Preview and download themes, wallpapers, icons, decorations and widgets, or save your current look.")
+                enabled: !root.busy
+                onClicked: root.openLibrary()
+            }
+        }
+
         FormCard.FormHeader {
             maximumWidth: root.cardWidth
             title: root.t("المظاهر", "Looks")
@@ -772,63 +796,6 @@ KCM.SimpleKCM {
                 requestedValue: root.operation === "motion" ? root.expected : ""
                 enabled: !root.busy
                 onPicked: value => root.setMotion(value)
-            }
-        }
-
-        // ── Fine control, on the system's own pages ────────────────────────────────────
-        FormCard.FormHeader {
-            maximumWidth: root.cardWidth
-            title: root.t("ضبط دقيق", "Fine control")
-        }
-        FormCard.FormCard {
-            maximumWidth: root.cardWidth
-
-            MoosActionRow {
-                glyph: "ui"
-                text: root.t("السمة العامة", "Global theme")
-                description: root.t("كل السمات المثبتة، ومنها سمات MoOS.", "Every installed theme, MoOS's included.")
-                enabled: !root.busy && root.nativeAvailable("global-theme")
-                onClicked: root.open("moos://settings/global-theme")
-            }
-            FormCard.FormDelegateSeparator {}
-            MoosActionRow {
-                glyph: "gem"
-                text: root.t("الألوان", "Colors")
-                description: root.t("مخطط الألوان ولون التمييز.", "The colour scheme and the accent colour.")
-                enabled: !root.busy && root.nativeAvailable("colors")
-                onClicked: root.open("moos://settings/colors")
-            }
-            FormCard.FormDelegateSeparator {}
-            MoosActionRow {
-                glyph: "grid"
-                text: root.t("الأيقونات", "Icons")
-                description: root.t("سمة الأيقونات وأحجامها.", "The icon theme and icon sizes.")
-                enabled: !root.busy && root.nativeAvailable("icons")
-                onClicked: root.open("moos://settings/icons")
-            }
-            FormCard.FormDelegateSeparator {}
-            MoosActionRow {
-                glyph: "mouse"
-                text: root.t("المؤشر", "Cursors")
-                description: root.t("شكل المؤشر وحجمه.", "The pointer's shape and size.")
-                enabled: !root.busy && root.nativeAvailable("cursors")
-                onClicked: root.open("moos://settings/cursors")
-            }
-            FormCard.FormDelegateSeparator {}
-            MoosActionRow {
-                glyph: "system"
-                text: root.t("إطار النوافذ", "Window decorations")
-                description: root.t("شريط عنوان النوافذ وأزراره.", "Window title bars and their buttons.")
-                enabled: !root.busy && root.nativeAvailable("window-decoration")
-                onClicked: root.open("moos://settings/window-decoration")
-            }
-            FormCard.FormDelegateSeparator {}
-            MoosActionRow {
-                glyph: "document"
-                text: root.t("الخطوط", "Fonts")
-                description: root.t("خطوط الواجهة والنصوص وأحجامها.", "Interface and text fonts, and their sizes.")
-                enabled: !root.busy && root.nativeAvailable("fonts")
-                onClicked: root.open("moos://settings/fonts")
             }
         }
 

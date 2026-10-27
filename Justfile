@@ -19,6 +19,17 @@ default:
 bloom-art:
     python3 artwork/generate_moos_bloom.py
 
+# Build official OFL-derived family with fonts/meyar-family/requirements.txt.
+# Its rejected original-construction controls remain under fonts/meyar/.
+meyar-build:
+    python3 fonts/meyar-family/build.py sans --otf --output test-results/meyar-family/sans
+    python3 fonts/meyar-family/build.py arabic --otf --output test-results/meyar-family/arabic
+    python3 fonts/meyar-family/build.py mono --otf --output test-results/meyar-family/mono
+    python3 fonts/meyar-family/build.py mono-arabic --otf --output test-results/meyar-family/mono-arabic
+
+meyar-check:
+    python3 build_files/verify_meyar.py system_files/usr/share/fonts/meyar
+
 # The repo gates — the ones that read what is ABOUT to be shipped.
 #
 # These existed and nothing ran them. build.sh runs verify_image_experience.py inside the
@@ -411,6 +422,8 @@ check:
     python3 tests/test_moos_ui2.py
     # Shipped shell QML / theme SVG may not change while THEME_REV stands still.
     python3 tests/test_theme_rev_fingerprint.py
+    python3 tests/test_kde_appearance_library.py
+    python3 tests/test_kde_wallpaper_adoption.py
     python3 tests/test_shell_text_alignment.py
     # Shipped KConfig keys must sit inside a group, and /etc/xdg must agree
     # with the default Global Theme.
@@ -574,6 +587,7 @@ check:
     # every Konsole profile must keep asking for JetBrains Mono by name so the
     # weak accept alias engages instead of detaching the cursive joins.
     python3 tests/test_arabic_terminal_font.py
+    python3 tests/test_meyar_family.py
     # Arabic spell-check must exist in EVERY edition from ONE shared script.
     # ARM shipped 24 English and ZERO Arabic dictionaries because the x86
     # block was copied instead of shared.

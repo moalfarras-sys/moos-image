@@ -1,0 +1,160 @@
+{
+glyphname = "teh_meem_yeh-ar.fina";
+layers = (
+{
+layerId = "9B455188-434F-489F-9A18-4C18DBE88840";
+shapes = (
+{
+alignment = 1;
+pos = (1115,0);
+ref = "teh-ar.medi";
+},
+{
+pos = (625,0);
+ref = "meem-ar.medi";
+},
+{
+alignment = 1;
+ref = "yeh-ar.fina";
+}
+);
+width = 1438;
+},
+{
+layerId = "A7E21968-E455-4749-BB19-379F5EDC3B9B";
+shapes = (
+{
+alignment = 1;
+pos = (1311,0);
+ref = "teh-ar.medi";
+},
+{
+pos = (706,0);
+ref = "meem-ar.medi";
+},
+{
+alignment = 1;
+ref = "yeh-ar.fina";
+}
+);
+width = 1716;
+},
+{
+layerId = "D3B47D5E-6A85-4361-9DF6-638C8B7E2782";
+shapes = (
+{
+alignment = 1;
+pos = (1107,0);
+ref = "teh-ar.medi";
+},
+{
+pos = (612,0);
+ref = "meem-ar.medi";
+},
+{
+alignment = 1;
+ref = "yeh-ar.fina";
+}
+);
+width = 1345;
+},
+{
+layerId = "08F1692B-9525-48D2-9816-1987B1C44D50";
+shapes = (
+{
+alignment = 1;
+pos = (1237,0);
+ref = "teh-ar.medi";
+},
+{
+pos = (673,0);
+ref = "meem-ar.medi";
+},
+{
+alignment = 1;
+ref = "yeh-ar.fina";
+}
+);
+width = 1608;
+},
+{
+layerId = "A2AC38AA-6CC4-4B2B-B5AB-64A49772F2D3";
+shapes = (
+{
+alignment = 1;
+pos = (1345,0);
+ref = "teh-ar.medi";
+},
+{
+pos = (756,0);
+ref = "meem-ar.medi";
+},
+{
+alignment = 1;
+ref = "yeh-ar.fina";
+}
+);
+width = 1697;
+},
+{
+layerId = "6D0603BE-7277-4DA4-8C59-7934AF28E45B";
+shapes = (
+{
+alignment = 1;
+pos = (1314,0);
+ref = "teh-ar.medi";
+},
+{
+pos = (736,0);
+ref = "meem-ar.medi";
+},
+{
+alignment = 1;
+ref = "yeh-ar.fina";
+}
+);
+width = 1687;
+},
+{
+layerId = "E1555194-BAFD-4DCC-A026-E2F9BA1917F2";
+shapes = (
+{
+alignment = 1;
+pos = (1424,0);
+ref = "teh-ar.medi";
+},
+{
+pos = (800,0);
+ref = "meem-ar.medi";
+},
+{
+alignment = 1;
+ref = "yeh-ar.fina";
+}
+);
+width = 1833;
+},
+{
+layerId = "8594390A-478C-48BC-BAB2-0B8797A53DFB";
+shapes = (
+{
+alignment = 1;
+pos = (1533,0);
+ref = "teh-ar.medi";
+},
+{
+pos = (841,0);
+ref = "meem-ar.medi";
+},
+{
+alignment = 1;
+ref = "yeh-ar.fina";
+}
+);
+width = 1978;
+}
+);
+metricLeft = "teh-ar.medi";
+metricRight = "yeh-ar.fina";
+unicode = 64931;
+}

@@ -1,0 +1,920 @@
+{
+glyphname = uniFDFE;
+layers = (
+{
+layerId = "A2AC38AA-6CC4-4B2B-B5AB-64A49772F2D3";
+shapes = (
+{
+alignment = -1;
+pos = (1047,317);
+ref = "seen-ar.init";
+scale = (0.55,0.55);
+},
+{
+alignment = -1;
+pos = (1185,266);
+ref = "damma-ar";
+scale = (0.55,0.55);
+},
+{
+alignment = -1;
+pos = (853,317);
+ref = "behDotless-ar.medi";
+scale = (0.55,0.55);
+},
+{
+alignment = -1;
+pos = (821,315);
+ref = "dotbelow-ar";
+scale = (0.55,0.55);
+},
+{
+alignment = -1;
+pos = (874,269);
+ref = "jazm-ar";
+scale = (0.55,0.55);
+},
+{
+alignment = -1;
+pos = (519,317);
+ref = "hah-ar.medi";
+scale = (0.55,0.55);
+},
+{
+alignment = -1;
+pos = (516,330);
+ref = "fatha-ar";
+scale = (0.55,0.55);
+},
+{
+alignment = -1;
+pos = (374,317);
+ref = "alef-ar.fina";
+scale = (0.55,0.55);
+},
+{
+alignment = -1;
+pos = (277,317);
+ref = "behDotless-ar.init";
+scale = (0.55,0.55);
+},
+{
+alignment = -1;
+pos = (301,274);
+ref = "dotabove-ar";
+scale = (0.55,0.55);
+},
+{
+alignment = -1;
+pos = (21,317);
+ref = "heh-ar.fina";
+scale = (0.55,0.55);
+},
+{
+alignment = -1;
+pos = (1205,-104);
+ref = "waw-ar";
+scale = (0.55,0.55);
+},
+{
+alignment = -1;
+pos = (1248,-182);
+ref = "fatha-ar";
+scale = (0.55,0.55);
+},
+{
+alignment = -1;
+pos = (1108,-104);
+ref = "teh-ar.init";
+scale = (0.55,0.55);
+},
+{
+alignment = -1;
+pos = (846,-104);
+ref = "ain-ar.medi";
+scale = (0.55,0.55);
+},
+{
+alignment = -1;
+pos = (697,-104);
+ref = "kashida-ar";
+scale = (0.55,0.55);
+},
+{
+alignment = -1;
+pos = (552,-104);
+ref = "alef-ar.fina";
+scale = (0.55,0.55);
+},
+{
+alignment = -1;
+pos = (22,-104);
+ref = "lam_alefMaksura-ar";
+scale = (0.55,0.55);
+}
+);
+width = 1466;
+},
+{
+layerId = "6D0603BE-7277-4DA4-8C59-7934AF28E45B";
+shapes = (
+{
+alignment = -1;
+pos = (1096,336);
+ref = "seen-ar.init";
+scale = (0.55,0.55);
+},
+{
+alignment = -1;
+pos = (1236,274);
+ref = "damma-ar";
+scale = (0.55,0.55);
+},
+{
+alignment = -1;
+pos = (907,336);
+ref = "behDotless-ar.medi";
+scale = (0.55,0.55);
+},
+{
+alignment = -1;
+pos = (842,334);
+ref = "dotbelow-ar";
+scale = (0.55,0.55);
+},
+{
+alignment = -1;
+pos = (908,280);
+ref = "jazm-ar";
+scale = (0.55,0.55);
+},
+{
+alignment = -1;
+pos = (557,336);
+ref = "hah-ar.medi";
+scale = (0.55,0.55);
+},
+{
+alignment = -1;
+pos = (554,331);
+ref = "fatha-ar";
+scale = (0.55,0.55);
+},
+{
+alignment = -1;
+pos = (397,337);
+ref = "alef-ar.fina";
+scale = (0.55,0.55);
+},
+{
+alignment = -1;
+pos = (299,336);
+ref = "behDotless-ar.init";
+scale = (0.55,0.55);
+},
+{
+alignment = -1;
+pos = (328,304);
+ref = "dotabove-ar";
+scale = (0.55,0.55);
+},
+{
+alignment = -1;
+pos = (32,336);
+ref = "heh-ar.fina";
+scale = (0.55,0.55);
+},
+{
+alignment = -1;
+pos = (1298,-100);
+ref = "waw-ar";
+scale = (0.55,0.55);
+},
+{
+alignment = -1;
+pos = (1336,-167);
+ref = "fatha-ar";
+scale = (0.55,0.55);
+},
+{
+alignment = -1;
+pos = (1170,-100);
+ref = "teh-ar.init";
+scale = (0.55,0.55);
+},
+{
+alignment = -1;
+pos = (883,-100);
+ref = "ain-ar.medi";
+scale = (0.55,0.55);
+},
+{
+alignment = -1;
+pos = (735,-100);
+ref = "kashida-ar";
+scale = (0.55,0.55);
+},
+{
+alignment = -1;
+pos = (575,-100);
+ref = "alef-ar.fina";
+scale = (0.55,0.55);
+},
+{
+alignment = -1;
+pos = (37,-100);
+ref = "lam_alefMaksura-ar";
+scale = (0.55,0.55);
+}
+);
+width = 1563;
+},
+{
+layerId = "E1555194-BAFD-4DCC-A026-E2F9BA1917F2";
+shapes = (
+{
+alignment = -1;
+pos = (1240,422);
+ref = "seen-ar.init";
+scale = (0.55,0.55);
+},
+{
+alignment = -1;
+pos = (1421,359);
+ref = "damma-ar";
+scale = (0.55,0.55);
+},
+{
+alignment = -1;
+pos = (1029,422);
+ref = "behDotless-ar.medi";
+scale = (0.55,0.55);
+},
+{
+alignment = -1;
+pos = (967,421);
+ref = "dotbelow-ar";
+scale = (0.55,0.55);
+},
+{
+alignment = -1;
+pos = (1053,369);
+ref = "jazm-ar";
+scale = (0.55,0.55);
+},
+{
+alignment = -1;
+pos = (669,422);
+ref = "hah-ar.medi";
+scale = (0.55,0.55);
+},
+{
+alignment = -1;
+pos = (674,423);
+ref = "fatha-ar";
+scale = (0.55,0.55);
+},
+{
+alignment = -1;
+pos = (494,422);
+ref = "alef-ar.fina";
+scale = (0.55,0.55);
+},
+{
+alignment = -1;
+pos = (340,422);
+ref = "behDotless-ar.init";
+scale = (0.55,0.55);
+},
+{
+alignment = -1;
+pos = (364,429);
+ref = "dotabove-ar";
+scale = (0.55,0.55);
+},
+{
+alignment = -1;
+pos = (34,422);
+ref = "heh-ar.fina";
+scale = (0.55,0.55);
+},
+{
+alignment = -1;
+pos = (1449,-100);
+ref = "waw-ar";
+scale = (0.55,0.55);
+},
+{
+alignment = -1;
+pos = (1499,-141);
+ref = "fatha-ar";
+scale = (0.55,0.55);
+},
+{
+alignment = -1;
+pos = (1295,-100);
+ref = "teh-ar.init";
+scale = (0.55,0.55);
+},
+{
+alignment = -1;
+pos = (991,-100);
+ref = "ain-ar.medi";
+scale = (0.55,0.55);
+},
+{
+alignment = -1;
+pos = (832,-100);
+ref = "kashida-ar";
+scale = (0.55,0.55);
+},
+{
+alignment = -1;
+pos = (657,-100);
+ref = "alef-ar.fina";
+scale = (0.55,0.55);
+},
+{
+alignment = -1;
+pos = (54,-100);
+ref = "lam_alefMaksura-ar";
+scale = (0.55,0.55);
+}
+);
+width = 1784;
+},
+{
+layerId = "8594390A-478C-48BC-BAB2-0B8797A53DFB";
+shapes = (
+{
+alignment = -1;
+pos = (1326,440);
+ref = "seen-ar.init";
+scale = (0.55,0.55);
+},
+{
+alignment = -1;
+pos = (1534,422);
+ref = "damma-ar";
+scale = (0.55,0.55);
+},
+{
+alignment = -1;
+pos = (1101,440);
+ref = "behDotless-ar.medi";
+scale = (0.55,0.55);
+},
+{
+alignment = -1;
+pos = (1032,439);
+ref = "dotbelow-ar";
+scale = (0.55,0.55);
+},
+{
+alignment = -1;
+pos = (1127,403);
+ref = "jazm-ar";
+scale = (0.55,0.55);
+},
+{
+alignment = -1;
+pos = (700,440);
+ref = "hah-ar.medi";
+scale = (0.55,0.55);
+},
+{
+alignment = -1;
+pos = (705,465);
+ref = "fatha-ar";
+scale = (0.55,0.55);
+},
+{
+alignment = -1;
+pos = (511,442);
+ref = "alef-ar.fina";
+scale = (0.55,0.55);
+},
+{
+alignment = -1;
+pos = (371,440);
+ref = "behDotless-ar.init";
+scale = (0.55,0.55);
+},
+{
+alignment = -1;
+pos = (392,480);
+ref = "dotabove-ar";
+scale = (0.55,0.55);
+},
+{
+alignment = -1;
+pos = (30,440);
+ref = "heh-ar.fina";
+scale = (0.55,0.55);
+},
+{
+alignment = -1;
+pos = (1599,-100);
+ref = "waw-ar";
+scale = (0.55,0.55);
+},
+{
+alignment = -1;
+pos = (1651,-125);
+ref = "fatha-ar";
+scale = (0.55,0.55);
+},
+{
+alignment = -1;
+pos = (1409,-100);
+ref = "teh-ar.init";
+scale = (0.55,0.55);
+},
+{
+alignment = -1;
+pos = (1092,-100);
+ref = "ain-ar.medi";
+scale = (0.55,0.55);
+},
+{
+alignment = -1;
+pos = (927,-100);
+ref = "kashida-ar";
+scale = (0.55,0.55);
+},
+{
+alignment = -1;
+pos = (737,-100);
+ref = "alef-ar.fina";
+scale = (0.55,0.55);
+},
+{
+alignment = -1;
+pos = (36,-100);
+ref = "lam_alefMaksura-ar";
+scale = (0.55,0.55);
+}
+);
+width = 1922;
+},
+{
+layerId = "D3B47D5E-6A85-4361-9DF6-638C8B7E2782";
+shapes = (
+{
+alignment = -1;
+pos = (854,345);
+ref = "seen-ar.init";
+scale = (0.55,0.55);
+},
+{
+alignment = -1;
+pos = (974,294);
+ref = "damma-ar";
+scale = (0.55,0.55);
+},
+{
+alignment = -1;
+pos = (734,345);
+ref = "behDotless-ar.medi";
+scale = (0.55,0.55);
+},
+{
+alignment = -1;
+pos = (701,343);
+ref = "dotbelow-ar";
+scale = (0.55,0.55);
+},
+{
+alignment = -1;
+pos = (735,297);
+ref = "jazm-ar";
+scale = (0.55,0.55);
+},
+{
+alignment = -1;
+pos = (471,345);
+ref = "hah-ar.medi";
+scale = (0.55,0.55);
+},
+{
+alignment = -1;
+pos = (459,362);
+ref = "fatha-ar";
+scale = (0.55,0.55);
+},
+{
+alignment = -1;
+pos = (354,345);
+ref = "alef-ar.fina";
+scale = (0.55,0.55);
+},
+{
+alignment = -1;
+pos = (239,345);
+ref = "behDotless-ar.init";
+scale = (0.55,0.55);
+},
+{
+alignment = -1;
+pos = (259,290);
+ref = "dotabove-ar";
+scale = (0.55,0.55);
+},
+{
+alignment = -1;
+pos = (27,345);
+ref = "heh-ar.fina";
+scale = (0.55,0.55);
+},
+{
+alignment = -1;
+pos = (971,-100);
+ref = "waw-ar";
+scale = (0.55,0.55);
+},
+{
+alignment = -1;
+pos = (998,-178);
+ref = "fatha-ar";
+scale = (0.55,0.55);
+},
+{
+alignment = -1;
+pos = (857,-100);
+ref = "teh-ar.init";
+scale = (0.55,0.55);
+},
+{
+alignment = -1;
+pos = (649,-100);
+ref = "ain-ar.medi";
+scale = (0.55,0.55);
+},
+{
+alignment = -1;
+pos = (534,-100);
+ref = "kashida-ar";
+scale = (0.55,0.55);
+},
+{
+alignment = -1;
+pos = (416,-100);
+ref = "alef-ar.fina";
+scale = (0.55,0.55);
+},
+{
+alignment = -1;
+pos = (27,-100);
+ref = "lam_alefMaksura-ar";
+scale = (0.55,0.55);
+}
+);
+width = 1192;
+},
+{
+layerId = "9B455188-434F-489F-9A18-4C18DBE88840";
+shapes = (
+{
+alignment = -1;
+pos = (887,316);
+ref = "seen-ar.init";
+scale = (0.55,0.55);
+},
+{
+alignment = -1;
+pos = (1004,243);
+ref = "damma-ar";
+scale = (0.55,0.55);
+},
+{
+alignment = -1;
+pos = (743,316);
+ref = "behDotless-ar.medi";
+scale = (0.55,0.55);
+},
+{
+alignment = -1;
+pos = (699,314);
+ref = "dotbelow-ar";
+scale = (0.55,0.55);
+},
+{
+alignment = -1;
+pos = (756,254);
+ref = "jazm-ar";
+scale = (0.55,0.55);
+},
+{
+alignment = -1;
+pos = (491,316);
+ref = "hah-ar.medi";
+scale = (0.55,0.55);
+},
+{
+alignment = -1;
+pos = (490,304);
+ref = "fatha-ar";
+scale = (0.55,0.55);
+},
+{
+alignment = -1;
+pos = (352,316);
+ref = "alef-ar.fina";
+scale = (0.55,0.55);
+},
+{
+alignment = -1;
+pos = (259,316);
+ref = "behDotless-ar.init";
+scale = (0.55,0.55);
+},
+{
+alignment = -1;
+pos = (267,283);
+ref = "dotabove-ar";
+scale = (0.55,0.55);
+},
+{
+alignment = -1;
+pos = (38,316);
+ref = "heh-ar.fina";
+scale = (0.55,0.55);
+},
+{
+alignment = -1;
+pos = (1063,-100);
+ref = "waw-ar";
+scale = (0.55,0.55);
+},
+{
+alignment = -1;
+pos = (1094,-167);
+ref = "fatha-ar";
+scale = (0.55,0.55);
+},
+{
+alignment = -1;
+pos = (960,-100);
+ref = "teh-ar.init";
+scale = (0.55,0.55);
+},
+{
+alignment = -1;
+pos = (732,-100);
+ref = "ain-ar.medi";
+scale = (0.55,0.55);
+},
+{
+alignment = -1;
+pos = (615,-100);
+ref = "kashida-ar";
+scale = (0.55,0.55);
+},
+{
+alignment = -1;
+pos = (476,-100);
+ref = "alef-ar.fina";
+scale = (0.55,0.55);
+},
+{
+alignment = -1;
+pos = (23,-100);
+ref = "lam_alefMaksura-ar";
+scale = (0.55,0.55);
+}
+);
+width = 1296;
+},
+{
+layerId = "08F1692B-9525-48D2-9816-1987B1C44D50";
+shapes = (
+{
+alignment = -1;
+pos = (1025,352);
+ref = "seen-ar.init";
+scale = (0.55,0.55);
+},
+{
+alignment = -1;
+pos = (1175,316);
+ref = "damma-ar";
+scale = (0.55,0.55);
+},
+{
+alignment = -1;
+pos = (861,352);
+ref = "behDotless-ar.medi";
+scale = (0.55,0.55);
+},
+{
+alignment = -1;
+pos = (766,340);
+ref = "dotbelow-ar";
+scale = (0.55,0.55);
+},
+{
+alignment = -1;
+pos = (861,307);
+ref = "jazm-ar";
+scale = (0.55,0.55);
+},
+{
+alignment = -1;
+pos = (568,352);
+ref = "hah-ar.medi";
+scale = (0.55,0.55);
+},
+{
+alignment = -1;
+pos = (575,361);
+ref = "fatha-ar";
+scale = (0.55,0.55);
+},
+{
+alignment = -1;
+pos = (417,352);
+ref = "alef-ar.fina";
+scale = (0.55,0.55);
+},
+{
+alignment = -1;
+pos = (304,352);
+ref = "behDotless-ar.init";
+scale = (0.55,0.55);
+},
+{
+alignment = -1;
+pos = (307,361);
+ref = "dotabove-ar";
+scale = (0.55,0.55);
+},
+{
+alignment = -1;
+pos = (36,352);
+ref = "heh-ar.fina";
+scale = (0.55,0.55);
+},
+{
+alignment = -1;
+pos = (1219,-100);
+ref = "waw-ar";
+scale = (0.55,0.55);
+},
+{
+alignment = -1;
+pos = (1261,-141);
+ref = "fatha-ar";
+scale = (0.55,0.55);
+},
+{
+alignment = -1;
+pos = (1096,-100);
+ref = "teh-ar.init";
+scale = (0.55,0.55);
+},
+{
+alignment = -1;
+pos = (825,-100);
+ref = "ain-ar.medi";
+scale = (0.55,0.55);
+},
+{
+alignment = -1;
+pos = (690,-100);
+ref = "kashida-ar";
+scale = (0.55,0.55);
+},
+{
+alignment = -1;
+pos = (539,-100);
+ref = "alef-ar.fina";
+scale = (0.55,0.55);
+},
+{
+alignment = -1;
+pos = (31,-100);
+ref = "lam_alefMaksura-ar";
+scale = (0.55,0.55);
+}
+);
+width = 1494;
+},
+{
+layerId = "A7E21968-E455-4749-BB19-379F5EDC3B9B";
+shapes = (
+{
+alignment = -1;
+pos = (1122,377);
+ref = "seen-ar.init";
+scale = (0.55,0.55);
+},
+{
+alignment = -1;
+pos = (1289,359);
+ref = "damma-ar";
+scale = (0.55,0.55);
+},
+{
+alignment = -1;
+pos = (944,377);
+ref = "behDotless-ar.medi";
+scale = (0.55,0.55);
+},
+{
+alignment = -1;
+pos = (866,374);
+ref = "dotbelow-ar";
+scale = (0.55,0.55);
+},
+{
+alignment = -1;
+pos = (954,356);
+ref = "jazm-ar";
+scale = (0.55,0.55);
+},
+{
+alignment = -1;
+pos = (618,377);
+ref = "hah-ar.medi";
+scale = (0.55,0.55);
+},
+{
+alignment = -1;
+pos = (629,402);
+ref = "fatha-ar";
+scale = (0.55,0.55);
+},
+{
+alignment = -1;
+pos = (456,377);
+ref = "alef-ar.fina";
+scale = (0.55,0.55);
+},
+{
+alignment = -1;
+pos = (329,377);
+ref = "behDotless-ar.init";
+scale = (0.55,0.55);
+},
+{
+alignment = -1;
+pos = (332,414);
+ref = "dotabove-ar";
+scale = (0.55,0.55);
+},
+{
+alignment = -1;
+pos = (35,377);
+ref = "heh-ar.fina";
+scale = (0.55,0.55);
+},
+{
+alignment = -1;
+pos = (1316,-100);
+ref = "waw-ar";
+scale = (0.55,0.55);
+},
+{
+alignment = -1;
+pos = (1359,-125);
+ref = "fatha-ar";
+scale = (0.55,0.55);
+},
+{
+alignment = -1;
+pos = (1179,-100);
+ref = "teh-ar.init";
+scale = (0.55,0.55);
+},
+{
+alignment = -1;
+pos = (887,-100);
+ref = "ain-ar.medi";
+scale = (0.55,0.55);
+},
+{
+alignment = -1;
+pos = (741,-100);
+ref = "kashida-ar";
+scale = (0.55,0.55);
+},
+{
+alignment = -1;
+pos = (579,-100);
+ref = "alef-ar.fina";
+scale = (0.55,0.55);
+},
+{
+alignment = -1;
+pos = (36,-100);
+ref = "lam_alefMaksura-ar";
+scale = (0.55,0.55);
+}
+);
+width = 1637;
+}
+);
+metricLeft = "=49";
+metricRight = "=49";
+unicode = 65022;
+}

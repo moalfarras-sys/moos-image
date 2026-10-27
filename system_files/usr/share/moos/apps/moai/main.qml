@@ -114,7 +114,7 @@ Kirigami.ApplicationWindow {
     readonly property color okColor:   Kirigami.Theme.positiveTextColor
     readonly property color warnColor: Kirigami.Theme.neutralTextColor
     readonly property color badColor:  Kirigami.Theme.negativeTextColor
-    // The system face, not a literal: MoOS already sets IBM Plex Sans as the system font,
+    // The system face, not a literal: MoOS already sets Meyar Sans as the system font,
     // so this renders identically today and stops overriding the user's choice tomorrow.
     // TYPE SCALES WITH THE USER'S FONT SIZE, and until now it did not.
     //
@@ -123,7 +123,7 @@ Kirigami.ApplicationWindow {
     // operating system's own. That is an accessibility defect, not a style one: it is the
     // control someone with low vision reaches for first.
     //
-    // The reference is POINT size, not pixels. MoOS ships `IBM Plex Sans,10` in
+    // The reference is POINT size, not pixels. MoOS ships `Meyar Sans,10` in
     // /etc/xdg/kdeglobals, and Qt reports pointSize 10 / pixelSize 13 on this 4K display —
     // pixels move with DPI and points do not, so dividing by the shipped 10pt gives exactly
     // 1.0 on every screen at the default and scales only when the USER changes the setting.
@@ -293,7 +293,7 @@ Kirigami.ApplicationWindow {
                                 id: approvalContent
                                 anchors.fill: parent; anchors.margins: 12
                                 Text { text: root.local("بانتظار موافقتك · مرة واحدة", "Awaiting your approval · once only"); color: root.textHi; wrapMode: Text.Wrap; Layout.fillWidth: true }
-                                Text { text: modelData.cwd + "\n" + modelData.command; textFormat: Text.PlainText; color: root.textHi; wrapMode: Text.WrapAnywhere; Layout.fillWidth: true; font.family: "JetBrains Mono" }
+                                Text { text: modelData.cwd + "\n" + modelData.command; textFormat: Text.PlainText; color: root.textHi; wrapMode: Text.WrapAnywhere; Layout.fillWidth: true; font.family: "Meyar Mono" }
                                 RowLayout {
                                     MoButton { objectName: "agentAllowOnce"; label: root.local("السماح مرة واحدة", "Allow once"); primary: true; onClicked: root.agentResolveApproval(modelData.id, "allow-once") }
                                     MoButton { label: root.local("رفض", "Deny"); danger: true; onClicked: root.agentResolveApproval(modelData.id, "deny") }
@@ -5471,7 +5471,7 @@ Kirigami.ApplicationWindow {
                                             Layout.fillWidth: true
                                             text: (root.agentProjectPath || ".")
                                             color: root.textMute
-                                            font.family: "JetBrains Mono"
+                                            font.family: "Meyar Mono"
                                             font.pixelSize: root.typePx(9)
                                             elide: Text.ElideMiddle
                                         }
@@ -5548,7 +5548,7 @@ Kirigami.ApplicationWindow {
                                                         color: "#d7eee7"
                                                         selectionColor: root.novaBlue
                                                         selectedTextColor: root.accentText
-                                                        font.family: "JetBrains Mono"
+                                                        font.family: "Meyar Mono"
                                                         font.pixelSize: root.typePx(9)
                                                         wrapMode: TextEdit.WrapAnywhere
                                                         Accessible.name: root.local(
@@ -5712,7 +5712,7 @@ Kirigami.ApplicationWindow {
                                                         selectByMouse: true
                                                         text: modelData.command
                                                         color: root.textHi
-                                                        font.family: "JetBrains Mono"
+                                                        font.family: "Meyar Mono"
                                                         font.pixelSize: root.typePx(9)
                                                         wrapMode: TextEdit.WrapAnywhere
                                                     }
@@ -5721,7 +5721,7 @@ Kirigami.ApplicationWindow {
                                                         Layout.fillWidth: true
                                                         text: modelData.cwd
                                                         color: root.textMute
-                                                        font.family: "JetBrains Mono"
+                                                        font.family: "Meyar Mono"
                                                         font.pixelSize: root.typePx(8)
                                                         elide: Text.ElideMiddle
                                                     }
@@ -5842,7 +5842,7 @@ Kirigami.ApplicationWindow {
                                         color: "#d7eee7"
                                         selectionColor: root.novaBlue
                                         selectedTextColor: root.accentText
-                                        font.family: "JetBrains Mono"
+                                        font.family: "Meyar Mono"
                                         font.pixelSize: root.typePx(11)
                                         Accessible.name: root.local("مخرجات الطرفية", "Terminal output")
                                     }
@@ -5855,7 +5855,7 @@ Kirigami.ApplicationWindow {
                                     Layout.fillWidth: true
                                     enabled: root.agentTerminalCurrent !== ""
                                     placeholderText: root.local("اكتب أمراً كمستخدمك…", "Run as your user…")
-                                    font.family: "JetBrains Mono"
+                                    font.family: "Meyar Mono"
                                     font.pixelSize: root.typePx(11)
                                     onAccepted: {
                                         root.agentWriteTerminal(text + "\n")
@@ -6005,7 +6005,7 @@ Kirigami.ApplicationWindow {
                                             Text {
                                                 text: ag.modelData.pkg
                                                 color: root.textMute
-                                                font.family: "JetBrains Mono"
+                                                font.family: "Meyar Mono"
                                                 font.pixelSize: root.typePx(10)
                                             }
                                         }
@@ -6320,7 +6320,7 @@ Kirigami.ApplicationWindow {
                                                 Layout.fillWidth: true
                                                 text: locRow.modelData.label
                                                 color: root.textMute
-                                                font.family: "JetBrains Mono"
+                                                font.family: "Meyar Mono"
                                                 font.pixelSize: root.typePx(8)
                                                 elide: Text.ElideRight
                                             }

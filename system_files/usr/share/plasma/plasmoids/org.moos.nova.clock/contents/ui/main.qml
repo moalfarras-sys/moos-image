@@ -216,7 +216,7 @@ PlasmoidItem {
                     Layout.alignment: Qt.AlignHCenter
                     text: Qt.formatTime(root.now, "HH:mm")
                     color: Kirigami.Theme.textColor
-                    font.family: "IBM Plex Sans"
+                    font.family: "Meyar Sans"
                     font.pixelSize: 21
                     font.weight: Font.Medium
                     font.features: ({ "tnum": 1 })
@@ -246,7 +246,7 @@ PlasmoidItem {
                     horizontalAlignment: Text.AlignHCenter
                     color: Kirigami.Theme.textColor
                     opacity: root.design.mutedOpacity
-                    font.family: root.rtl ? "IBM Plex Sans Arabic" : "IBM Plex Sans"
+                    font.family: root.rtl ? "Meyar Arabic" : "Meyar Sans"
                     font.pixelSize: 11
                     font.weight: Font.Medium
                     font.letterSpacing: root.rtl ? 0 : 0.55
@@ -386,7 +386,7 @@ PlasmoidItem {
                         Text {
                             text: Qt.formatTime(root.now, "HH:mm")
                             color: Kirigami.Theme.textColor
-                            font.family: "IBM Plex Sans"
+                            font.family: "Meyar Sans"
                             font.pixelSize: Math.round(Kirigami.Units.gridUnit * 2.6)
                             font.weight: Font.Light
                             font.features: ({ "tnum": 1 })
@@ -398,7 +398,7 @@ PlasmoidItem {
                                 root.now, root.displayLocale.dateFormat(Locale.LongFormat)))
                             color: Kirigami.Theme.textColor
                             opacity: 0.88
-                            font.family: root.rtl ? "IBM Plex Sans Arabic" : "IBM Plex Sans"
+                            font.family: root.rtl ? "Meyar Arabic" : "Meyar Sans"
                             font.pixelSize: Math.round(Kirigami.Units.gridUnit * 0.82)
                             elide: Text.ElideRight
                         }

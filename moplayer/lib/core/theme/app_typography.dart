@@ -6,7 +6,7 @@ import 'nova.dart';
 /// The type ramp, on Nova's scale and in Nova's face.
 ///
 /// The iOS app asked for `.SF Pro Display`, which does not exist here. It is
-/// replaced by IBM Plex Sans — the MoOS interface face — with IBM Plex Sans
+/// replaced by Meyar Sans — the MoOS interface face — with Meyar Arabic
 /// Arabic first in the fallback chain, so an Arabic title and its English
 /// subtitle sit on the same metric instead of one silently dropping to DejaVu.
 class AppText {
@@ -89,7 +89,7 @@ class AppText {
   /// is the only correct answer for a seek bar.
   static TextStyle get timecode => const TextStyle(
     fontFamily: Nova.monoFamily,
-    fontFamilyFallback: ['JetBrains Mono', 'DejaVu Sans Mono', 'monospace'],
+    fontFamilyFallback: ['Meyar Mono Arabic', 'DejaVu Sans Mono', 'monospace'],
     fontSize: 13,
     fontWeight: FontWeight.w500,
     color: AppColors.textPrimary,

@@ -21,7 +21,7 @@ Item {
     property bool compact: false
     readonly property bool rtl: MoUI.Locale.rtl
     readonly property var design: MoUI.Tokens
-    readonly property string labelFamily: rtl ? "IBM Plex Sans Arabic" : "IBM Plex Sans"
+    readonly property string labelFamily: rtl ? "Meyar Arabic" : "Meyar Sans"
     function local(arabic, english) { return MoUI.Locale.local(arabic, english) }
 
     // The week the locale itself starts on — Saturday in Arabic, Monday in
@@ -142,7 +142,7 @@ Item {
                                 text: "⁦" + cell.day.getDate() + "⁩"
                                 color: cell.today ? Kirigami.Theme.highlightedTextColor
                                                   : Kirigami.Theme.textColor
-                                font.family: "IBM Plex Sans"
+                                font.family: "Meyar Sans"
                                 font.pixelSize: Math.round(Kirigami.Units.gridUnit * (strip.compact ? 0.7 : 0.95))
                                 font.weight: cell.today ? Font.DemiBold : Font.Normal
                             }
@@ -182,7 +182,7 @@ Item {
                 Text {
                     text: "MoOS"
                     color: Kirigami.Theme.textColor
-                    font.family: "IBM Plex Sans"
+                    font.family: "Meyar Sans"
                     font.pixelSize: Math.round(Kirigami.Units.gridUnit * 0.53)
                     font.weight: Font.DemiBold
                     font.letterSpacing: 1.4

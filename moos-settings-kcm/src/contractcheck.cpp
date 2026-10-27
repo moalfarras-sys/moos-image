@@ -14,6 +14,11 @@
 int main(int argc, char **argv)
 {
     QCoreApplication application(argc, argv);
+    if (argc == 3 && QString::fromLocal8Bit(argv[1]) == QLatin1String("--library")) {
+        const QString config = MoOSSettingsModule::appearanceLibraryConfig(QString::fromLocal8Bit(argv[2]));
+        std::puts(config.isEmpty() ? "refused" : qPrintable(config));
+        return config.isEmpty() ? 1 : 0;
+    }
     if (argc == 4 && QString::fromLocal8Bit(argv[1]) == QLatin1String("--action")) {
         const bool accepted = MoOSSettingsModule::acceptsFixedAction(
             QString::fromLocal8Bit(argv[2]), QString::fromLocal8Bit(argv[3]));

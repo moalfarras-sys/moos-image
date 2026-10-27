@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import os
+import json
 import subprocess
 import tempfile
 from pathlib import Path
@@ -51,8 +52,19 @@ with tempfile.TemporaryDirectory(prefix="moos-wallpaper-state-") as temporary:
         "profile\t%2Fusr%2Fshare%2Fwallpapers%2FMoOSUI2Arena\n"
     ), result.stdout
 
-assert '"wallpaperMode": "%s"' in source
-assert '"wallpaperEncoded": "%s"' in source
+    # The actual writer must retain this measured identity as valid JSON,
+    # including a native saved-theme name that the old printf could not quote.
+    script.write_text(capture+'\n'+function(source,'write_theme_state')+'''
+theme_state_root() { printf '%s\\n' "$MOOS_RECEIPT_ROOT"; }
+write_theme_state committed "$1" "$1"
+''',encoding='utf-8')
+    name='مظهري "المحفوظ"'
+    subprocess.run([BASH,str(script),name],env=env|{'MOOS_RECEIPT_ROOT':str(root)},
+                   check=True,capture_output=True,text=True,timeout=30)
+    receipt=json.loads((root/'theme-state.json').read_text())
+    assert receipt['schema']==2 and receipt['active']==name and receipt['previous']==name
+    assert receipt['wallpaperMode']=='profile'
+    assert receipt['wallpaperEncoded']=='%2Fusr%2Fshare%2Fwallpapers%2FMoOSUI2Arena'
 assert "theme_state_field wallpaperMode" in source
 assert "theme_state_field wallpaperEncoded" in source
 assert "custom_wallpapers_complete" in source

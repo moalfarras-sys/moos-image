@@ -1,0 +1,109 @@
+{
+  "date": "2026-10-27",
+  "version": "0.300",
+  "families": {
+    "Meyar Sans": "Noto LGC;100–900",
+    "Meyar Arabic": "Noto Arabic;100–900",
+    "Meyar Mono": "Noto Mono LGC;100–900,700unit cells",
+    "Meyar Mono Arabic": "Kawkab Mono; authored400/700,700unit cells"
+  },
+  "source": "fonts/meyar-family/README.md",
+  "sourcePins": {
+    "lgc": "0ef94805d19e98ed658543a7c48c0a4f19cc0ac0",
+    "arabic": "f1ba474be91d6a5d2cfcc4374bb03cc5f1011088",
+    "monoArabic": "45630ed78bfdbc5c7cf1dc8aab15f6385a396aed"
+  },
+  "sourceVerification": {
+    "pass": true,
+    "shapingComparisons": 275,
+    "instances": 29,
+    "markInkCases": 55,
+    "nativeTerminalCellPolicy": "Every positive-width encoded character,9LGC weights and2authored Arabic weights;252LGC+13Arabic corrections, preserving normal contextual advances",
+    "reproducibleFontBinaries": 96,
+    "visibleLetterMarkChecks": 56544,
+    "outlineSkipWarnings": 0
+  },
+  "native": {
+    "host": "physicalV3,MoOS44.20261025.1107,Wayland,Qt6.11.2",
+    "fontsOwner": "KDE Fonts KCM actual family selection and Apply",
+    "terminalOwner": "Konsole26.08.2,default selected Amethyst profile, GNU Readline in actualPTY",
+    "arabicInput": "معيار عربي; physical Arabic layout and backspace readback",
+    "cursorEdit": "abxc,left,backspace -> abc",
+    "coverage": "Native Qt26script samples, no missing glyph IDs; native script fallbacks preserved",
+    "localReceipts": [
+      "test-results/meyar-family/live-install-receipt.json",
+      "test-results/meyar-family/live-konsole-profiles.json",
+      "test-results/meyar-family/native-fonts-applied.json",
+      "test-results/meyar-family/native-terminal-journey.json"
+    ],
+    "privateCaptures": "test-results/meyar-family/; captures not committed",
+    "powerAndWelcome": "Native source fontconfig explicitly loaded: all18 look/action journeys, responsive640x480/portrait power and welcome viewports pass; exact old primary FontMetrics confirmation-line negative refuses.",
+    "webFonts": "Native Qt WebEngine loads all5 WOFF2 owners; pre-existing MIME-cache warning retained",
+    "resourceSample": "5seconds static document/PTY while repository checks run: KWrite0.4%,Konsole0.0% of one CPU core; RSS140952/146180KiB; no speedup claim",
+    "fixedFontChooser": "Both actual families report true in native Qt fixed-font filter; same fonts with the old dual-width scan policy report false",
+    "retiredPrototype": "Exact rejected original live family recoverably quarantined; source/control bytes retained, no deletion",
+    "firstPartyApps": {
+      "Mira": "Actual canonical launcher, supported source-path override, installed dependency site and real backend; settings/Unicode draft, mappedMeyar fonts; private captures retained",
+      "MoPlayer": "Existing native Flutter3.47.4 SDK/Toolbx, actual compiled onboarding on ownerWayland, mappedMeyar Sans/Arabic, no credentials/playback claimed",
+      "Remote": "Meyar-first system font preference; unchanged dependencies and Node22 tests pass; generated13-file bundle byte-identical on secondbuild"
+    },
+    "moplayerSdkBoundary": "Flutter analyze emits an initialize-message FormatException at the Unicode workspace path, retained from Toolbx and host. Same existing DartSDK analyze --fatal-infos0 and Flutter tests0; native build0 after installing required mpv-libs-devel inside existing Toolbx only.",
+    "finalTerminal": "Fresh actual default Konsole maps final fonts; encoded symbols do not overpaint, real keyboard input معيار عربي matches readback. Native emoji fallback remains visible.",
+    "download": {
+      "path": "/var/home/moos/Downloads/Meyar-0.300.zip",
+      "bytes": 32436630,
+      "sha256": "2d70e4a09e48c1ab9d9a4e164d36152c2b5542b5892c4a134f983446d16fe491",
+      "fontExports": 93,
+      "files": 9416,
+      "crcAndAllHashes": true
+    }
+  },
+  "contraryEvidence": {
+    "twoCellArrow": "test-results/meyar-family/terminal-before-input.png; real following-letter overpaint",
+    "broadMonoCells": "252encoded source adjustments, including IPA digraphs and Greek capitals, not merely two arrows",
+    "firstInputRetry": "Opening Fonts KCM during input stole focus; incomplete input retained, then controlled no-launch replay passed",
+    "kfontview": "Glyph catalogue is not shaped Arabic text; prior editor and current native Qt/Konsole establish text rendering",
+    "isolatedFonts": "Private HOME resolved both requested Meyar names to Noto Sans. Native fixtures now include actual source fonts/policy and refuse missing Meyar, before accepting glyph/geometry evidence.",
+    "confirmationLine": "Initial primary-only FontMetrics clipped Arabic fallback confirmation ink. Canonical native hint reserves its actual script before arming; unchanged ink assertion and exact-old negative retained.",
+    "encodedArabicSymbols": "Ten source Sk symbols were zeroed by inferred mark category, two emoji had one-cell advances, and encoded U+FDF2 shared a four-cell word ligature. Correct categories, centered wide icons and one distinct cmap variant preserve normal Arabic word shaping.",
+    "genericImageDefaults": "Native final image generic sans/mono selected Noto. Early strong generic aliases fix vendor ordering while all five explicit named/serif controls remain unchanged. Both architecture builds now gate actual generic resolution."
+  },
+  "delivery": {
+    "commonOverlay": "system_files/usr/share/fonts/meyar",
+    "profiles": 16,
+    "themeRevision": 142,
+    "x86AndArm": "same binary manifest and fail-closed image gate",
+    "sourceGate": "build_files/verify_meyar.py",
+    "signedOSUpdate": false,
+    "remaining": [
+      "frozen full repository checks",
+      "complete local image build/readback",
+      "exact-head CI and signed all-edition candidates",
+      "QCOW2/ISO/ARM boot proofs and promotion",
+      "physical signed update/readback and live-compatibility retirement"
+    ],
+    "priorFullCheck": {
+      "running": false,
+      "exitCode": 0,
+      "seconds": 932.9680109024048,
+      "inputHashesStable": true,
+      "changedInputs": [],
+      "files": 14722,
+      "scope": "frozen full source before final generic Fontconfig ordering correction"
+    },
+    "localImageAttempt1": {
+      "imageId": "d8a02a5cb4500c81de18e7c5ca6abd27f598446d6f3f478becc7f5cab453d918",
+      "exitCode": 0,
+      "seconds": 3026.9809572696686,
+      "scope": "complete private image with unchanged identity/initramfs/seam/Qt gates; source advanced during builder stages, so not final exact-source qualification"
+    },
+    "localImageAttempt2": {
+      "running": false,
+      "tag": "localhost/moos:meyar-ui142",
+      "exitCode": 0,
+      "seconds": 919.9905989170074,
+      "imageId": "c0ea820b198b835b9a41358a56cb3beacb72905e5512939af7a5d34ef7d78185",
+      "scope": "all image gates passed; independent payload readback exposed generic Noto selection despite correct named Meyar fonts"
+    }
+  }
+}

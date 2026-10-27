@@ -1,0 +1,66 @@
+#!/usr/bin/python3
+"""Migrate only inherited MoOS font families through native KConfig/Qt owners."""
+from pathlib import Path
+import json
+import os
+import shutil
+import subprocess
+import tempfile
+
+
+def run(args):
+    return subprocess.run(args, check=True, capture_output=True, text=True).stdout.strip()
+
+
+def main(installed=Path('/usr/share/fonts/meyar')):
+    # This migration belongs to the signed image. A selectable development font
+    # in an arbitrary home does not qualify as an installed image component.
+    if not (installed / 'MeyarSans[wght].ttf').is_file():
+        return
+    config = Path(os.environ.get('XDG_CONFIG_HOME', str(Path.home() / '.config')))
+    state = Path(os.environ.get('XDG_STATE_HOME', str(Path.home() / '.local/state')))
+    path = config / 'kdeglobals'
+    if path.is_symlink() or (path.exists() and not path.is_file()):
+        raise ValueError('Preserve linked or unknown KDE font configuration')
+    edits = []
+    for group, key, default, old in [
+        *[('General', k, 'Meyar Sans', {'IBM Plex Sans', 'IBM Plex Sans Arabic'})
+          for k in ('font', 'menuFont', 'toolBarFont', 'smallestReadableFont')],
+        ('General', 'fixed', 'Meyar Mono', {'JetBrains Mono'}),
+        ('WM', 'activeFont', 'Meyar Sans', {'IBM Plex Sans', 'IBM Plex Sans Arabic'}),
+    ]:
+        value = run(['kreadconfig6', '--file', 'kdeglobals', '--group', group, '--key', key])
+        # An empty value already inherits the new image default. Personal font
+        # families and every size/style field are preserved.
+        parts = value.split(',')
+        if parts[0] in old:
+            if len(parts) not in (10, 16, 19) or any(ord(c) < 32 for c in value):
+                raise ValueError('Unexpected native QFont serialization; preserve it')
+            edits.append((group, key, default + ',' + ','.join(parts[1:])))
+    if not edits:
+        return
+    recovery = state / 'moos/font-recovery'
+    if recovery.is_symlink():
+        raise ValueError('Preserve linked recovery destination')
+    recovery.mkdir(parents=True, exist_ok=True, mode=0o700)
+    private = Path(tempfile.mkdtemp(prefix='meyar-', dir=recovery))
+    if path.exists():
+        shutil.copyfile(path, private / 'kdeglobals'); (private / 'kdeglobals').chmod(0o600)
+    (private / 'changes.json').write_text(json.dumps({'changes': edits, 'restore': 'kdeglobals before migration'}, indent=2) + '\n')
+    for group, key, value in edits:
+        run(['kwriteconfig6', '--file', 'kdeglobals', '--group', group, '--key', key, value])
+        if run(['kreadconfig6', '--file', 'kdeglobals', '--group', group, '--key', key]) != value:
+            raise RuntimeError('KConfig font readback failed: ' + key)
+    if os.environ.get('DBUS_SESSION_BUS_ADDRESS'):
+        from PySide6.QtCore import QCoreApplication
+        from PySide6.QtDBus import QDBusConnection, QDBusMessage
+        app = QCoreApplication.instance() or QCoreApplication([])
+        message = QDBusMessage.createSignal('/KDEPlatformTheme', 'org.kde.KDEPlatformTheme', 'refreshFonts')
+        if not QDBusConnection.sessionBus().send(message):
+            raise RuntimeError('Native KDE font refresh was refused')
+        QDBusConnection.sessionBus().interface().isServiceRegistered('org.freedesktop.DBus')
+    print('Meyar font migration applied through native KConfig; recovery: ' + str(private))
+
+
+if __name__ == '__main__':
+    main()

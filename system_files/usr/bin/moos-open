@@ -403,6 +403,10 @@ case "${cat}/${tgt}" in
     settings/recovery)          gui moos-settings --section=recovery ;;
     settings/appearance)        gui moos-settings --section=appearance ;;
     settings/global-theme)      gui systemsettings kcm_lookandfeel ;;
+    settings/wallpaper-library) gui systemsettings kcm_wallpaper ;;
+    settings/desktop-style)     gui systemsettings kcm_desktoptheme ;;
+    settings/font-library)      gui systemsettings kcm_fontinst ;;
+    settings/window-scripts)    gui systemsettings kcm_kwin_scripts ;;
     settings/colors)            gui systemsettings kcm_colors ;;
     settings/icons)             gui systemsettings kcm_icons ;;
     settings/cursors)           gui systemsettings kcm_cursortheme ;;

@@ -1,0 +1,115 @@
+{
+glyphname = "noon-ar.medi";
+layers = (
+{
+layerId = "9B455188-434F-489F-9A18-4C18DBE88840";
+shapes = (
+{
+ref = "behDotless-ar.medi";
+},
+{
+pos = (91,-157);
+ref = "dotabove-ar";
+}
+);
+width = 263;
+},
+{
+layerId = "A7E21968-E455-4749-BB19-379F5EDC3B9B";
+shapes = (
+{
+ref = "behDotless-ar.medi";
+},
+{
+pos = (64,-21);
+ref = "dotabove-ar";
+}
+);
+width = 325;
+},
+{
+layerId = "D3B47D5E-6A85-4361-9DF6-638C8B7E2782";
+shapes = (
+{
+ref = "behDotless-ar.medi";
+},
+{
+pos = (76,-177);
+ref = "dotabove-ar";
+}
+);
+width = 218;
+},
+{
+layerId = "08F1692B-9525-48D2-9816-1987B1C44D50";
+shapes = (
+{
+ref = "behDotless-ar.medi";
+},
+{
+pos = (57,-89);
+ref = "dotabove-ar";
+}
+);
+width = 299;
+},
+{
+guides = (
+{
+pos = (113,264);
+}
+);
+layerId = "A2AC38AA-6CC4-4B2B-B5AB-64A49772F2D3";
+shapes = (
+{
+ref = "behDotless-ar.medi";
+},
+{
+pos = (124,-187);
+ref = "dotabove-ar";
+}
+);
+width = 352;
+},
+{
+layerId = "6D0603BE-7277-4DA4-8C59-7934AF28E45B";
+shapes = (
+{
+ref = "behDotless-ar.medi";
+},
+{
+pos = (80,-180);
+ref = "dotabove-ar";
+}
+);
+width = 343;
+},
+{
+layerId = "E1555194-BAFD-4DCC-A026-E2F9BA1917F2";
+shapes = (
+{
+ref = "behDotless-ar.medi";
+},
+{
+pos = (104,-96);
+ref = "dotabove-ar";
+}
+);
+width = 384;
+},
+{
+layerId = "8594390A-478C-48BC-BAB2-0B8797A53DFB";
+shapes = (
+{
+ref = "behDotless-ar.medi";
+},
+{
+pos = (99,-56);
+ref = "dotabove-ar";
+}
+);
+width = 410;
+}
+);
+unicode = 65256;
+}

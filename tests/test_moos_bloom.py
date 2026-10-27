@@ -70,13 +70,16 @@ def contrast_pairs(svg):
 
 class BloomTests(unittest.TestCase):
     def test_live_diagnostics_execute_registered_profiles_and_refuse_unknown(self):
-        for path, variable, end, fields in (
-            (ROOT/'system_files/usr/bin/moos-selfcheck', 'lnf', '\n\nif [ -z "$want_deco" ]; then',
+        for path, variable, fields in (
+            (ROOT/'system_files/usr/bin/moos-selfcheck', 'lnf',
              ('want_deco', 'want_sch', 'want_ico', 'want_sty', 'want_wall', 'pair_dark', 'pair_light')),
-            (ROOT/'tests/post-update-check.sh', 'theme_lnf', '\n\nif [ -n "$theme_family" ]; then',
+            (ROOT/'tests/post-update-check.sh', 'theme_lnf',
              ('want_deco', 'want_scheme', 'want_icons', 'want_style', 'want_wallpaper', 'pair_dark', 'pair_light')),
         ):
-            source = path.read_text().split('case "$'+variable+'" in', 1)[1].split(end, 1)[0]
+            # Stop at the outer case itself, before either diagnostic branch.
+            # A changed following if previously spilled the entire host report
+            # into this parser fixture instead of testing only its profile map.
+            source = path.read_text().split('case "$'+variable+'" in', 1)[1].split('\nesac\n', 1)[0]+'\nesac\n'
             body = 'case "$'+variable+'" in'+source
             def read(theme, code=body):
                 script = variable+'=$1\nbad() { :; }\n'+code+'\nprintf "%s\\n" '+ ' '.join('"${'+f+':-}"' for f in fields)

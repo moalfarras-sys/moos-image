@@ -1,0 +1,272 @@
+{
+export = 0;
+glyphname = "basmalah-ar.2";
+layers = (
+{
+layerId = "A2AC38AA-6CC4-4B2B-B5AB-64A49772F2D3";
+shapes = (
+{
+alignment = -1;
+pos = (960,0);
+ref = "alef-ar";
+},
+{
+alignment = -1;
+pos = (879,196);
+ref = "wasla-ar";
+},
+{
+alignment = -1;
+ref = "allah-ar.2";
+},
+{
+alignment = -1;
+anchor = bottom_3;
+pos = (131,0);
+ref = "kasra-ar";
+},
+{
+alignment = -1;
+anchor = top_2;
+pos = (454,13);
+ref = "shadda-ar";
+},
+{
+alignment = -1;
+pos = (438,219);
+ref = "fatha-ar";
+}
+);
+width = 1181;
+},
+{
+layerId = "6D0603BE-7277-4DA4-8C59-7934AF28E45B";
+shapes = (
+{
+alignment = -1;
+pos = (1046,0);
+ref = "alef-ar";
+},
+{
+alignment = -1;
+pos = (975,196);
+ref = "wasla-ar";
+},
+{
+alignment = -1;
+ref = "allah-ar.2";
+},
+{
+alignment = -1;
+anchor = bottom_3;
+pos = (111,0);
+ref = "kasra-ar";
+},
+{
+alignment = -1;
+anchor = top_2;
+pos = (464,15);
+ref = "shadda-ar";
+},
+{
+alignment = -1;
+pos = (456,215);
+ref = "fatha-ar";
+}
+);
+width = 1284;
+},
+{
+layerId = "E1555194-BAFD-4DCC-A026-E2F9BA1917F2";
+shapes = (
+{
+pos = (1197,0);
+ref = "alef-ar";
+},
+{
+pos = (1135,214);
+ref = "wasla-ar";
+},
+{
+alignment = 1;
+ref = "allah-ar.2";
+},
+{
+anchor = bottom_3;
+pos = (187,0);
+ref = "kasra-ar";
+},
+{
+anchor = top_2;
+pos = (546,119);
+ref = "shadda-ar";
+},
+{
+pos = (538,339);
+ref = "fatha-ar";
+}
+);
+width = 1470;
+},
+{
+layerId = "8594390A-478C-48BC-BAB2-0B8797A53DFB";
+shapes = (
+{
+pos = (1305,0);
+ref = "alef-ar";
+},
+{
+pos = (1257,252);
+ref = "wasla-ar";
+},
+{
+alignment = 1;
+ref = "allah-ar.2";
+},
+{
+anchor = bottom_3;
+pos = (252,0);
+ref = "kasra-ar";
+},
+{
+anchor = top_2;
+pos = (601,151);
+ref = "shadda-ar";
+},
+{
+pos = (593,411);
+ref = "fatha-ar";
+}
+);
+width = 1619;
+},
+{
+layerId = "D3B47D5E-6A85-4361-9DF6-638C8B7E2782";
+shapes = (
+{
+pos = (771,0);
+ref = "alef-ar";
+},
+{
+pos = (704,196);
+ref = "wasla-ar";
+},
+{
+alignment = 1;
+ref = "allah-ar.2";
+},
+{
+anchor = bottom_3;
+pos = (71,0);
+ref = "kasra-ar";
+},
+{
+anchor = top_2;
+pos = (338,28);
+ref = "shadda-ar";
+},
+{
+pos = (331,254);
+ref = "fatha-ar";
+}
+);
+width = 971;
+},
+{
+layerId = "9B455188-434F-489F-9A18-4C18DBE88840";
+shapes = (
+{
+pos = (847,0);
+ref = "alef-ar";
+},
+{
+pos = (796,176);
+ref = "wasla-ar";
+},
+{
+alignment = 1;
+ref = "allah-ar.2";
+},
+{
+anchor = bottom_3;
+pos = (72,0);
+ref = "kasra-ar";
+},
+{
+anchor = top_2;
+pos = (331,18);
+ref = "shadda-ar";
+},
+{
+pos = (339,228);
+ref = "fatha-ar";
+}
+);
+width = 1071;
+},
+{
+layerId = "08F1692B-9525-48D2-9816-1987B1C44D50";
+shapes = (
+{
+pos = (1018,0);
+ref = "alef-ar";
+},
+{
+pos = (977,220);
+ref = "wasla-ar";
+},
+{
+alignment = 1;
+ref = "allah-ar.2";
+},
+{
+anchor = bottom_3;
+pos = (137,0);
+ref = "kasra-ar";
+},
+{
+anchor = top_2;
+pos = (452,121);
+ref = "shadda-ar";
+},
+{
+pos = (447,341);
+ref = "fatha-ar";
+}
+);
+width = 1294;
+},
+{
+layerId = "A7E21968-E455-4749-BB19-379F5EDC3B9B";
+shapes = (
+{
+pos = (1123,0);
+ref = "alef-ar";
+},
+{
+pos = (1081,242);
+ref = "wasla-ar";
+},
+{
+alignment = 1;
+ref = "allah-ar.2";
+},
+{
+anchor = bottom_3;
+pos = (172,0);
+ref = "kasra-ar";
+},
+{
+anchor = top_2;
+pos = (505,148);
+ref = "shadda-ar";
+},
+{
+pos = (495,388);
+ref = "fatha-ar";
+}
+);
+width = 1425;
+}
+);
+}

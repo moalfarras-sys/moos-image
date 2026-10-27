@@ -116,7 +116,7 @@ ApplicationWindow {
     // operating system's own. That is an accessibility defect, not a style one: it is the
     // control someone with low vision reaches for first.
     //
-    // The reference is POINT size, not pixels. MoOS ships `IBM Plex Sans,10` in
+    // The reference is POINT size, not pixels. MoOS ships `Meyar Sans,10` in
     // /etc/xdg/kdeglobals, and Qt reports pointSize 10 / pixelSize 13 on this 4K display —
     // pixels move with DPI and points do not, so dividing by the shipped 10pt gives exactly
     // 1.0 on every screen at the default and scales only when the USER changes the setting.
@@ -132,9 +132,9 @@ ApplicationWindow {
 
     // The UI face is the SYSTEM face, not a string repeated in this file.
     //
-    // This was `font.family: "IBM Plex Sans"` written out at every text item — 194 times across
+    // This was `font.family: "Meyar Sans"` written out at every text item — 194 times across
     // Welcome, Mo Store and the Installer. Measured, the system font on MoOS already IS
-    // IBM Plex Sans 13px (kdeglobals General font), and fontconfig maps sans-serif to it as well
+    // Meyar Sans 13px (kdeglobals General font), and fontconfig maps sans-serif to it as well
     // (61-moos-brand.conf). So the literal added nothing to how MoOS looks and did exactly one
     // thing: it OVERRODE the user's own font choice, in the four apps MoOS ships, and nowhere
     // else. Someone who sets a larger or more legible face in System Settings watched every
