@@ -1,0 +1,59 @@
+{
+  "authentication_source_sha256": "1de31b3aaa0708208c6b5e2a6bb914350e1fbc00e14d7978994f5c5a5b670cfa",
+  "frontend_changes": {},
+  "prepared_shutdown_sha256": "6bf75cee4bfad0e6d059e6b34723ddc7795f2cc2c1f295e1a83cad42c8c6140a",
+  "schema": 1,
+  "date": "2026-10-28",
+  "scope": "Exact 6.8.2 source review and isolated native lockscreen qualification; not signed delivery or physical authentication",
+  "sources": [
+    {
+      "file": "test-results/plasma682-source-review/plasma-workspace-6.8.2-1.fc44.src.rpm",
+      "url": "https://download.copr.fedorainfracloud.org/results/@kdesig/kde-final/fedora-44-x86_64/Packages/p/plasma-workspace-6.8.2-1.fc44.src.rpm",
+      "sha256": "682f01065f3690b9c929fe7484e5d781755259b96d5fb02b220e36210492a298",
+      "signature": "test-results/plasma682-source-review/plasma-workspace-6.8.2-1.fc44.src.rpm:\n    Header OpenPGP V4 RSA/SHA256 signature, key fingerprint: 96bdf4e8710b8f9ffb11d83ddb51f4cb6c33bdbb: OK\n    Header SHA256 digest: OK\n    Payload SHA256 digest: OK\n    Legacy OpenPGP V4 RSA/SHA256 signature, key fingerprint: 96bdf4e8710b8f9ffb11d83ddb51f4cb6c33bdbb: OK\n"
+    },
+    {
+      "file": "test-results/plasma682-source-review/plasma-login-manager-6.8.2-1.fc44.src.rpm",
+      "url": "https://download.copr.fedorainfracloud.org/results/@kdesig/kde-final/fedora-44-x86_64/Packages/p/plasma-login-manager-6.8.2-1.fc44.src.rpm",
+      "sha256": "822d11ee2713edc0f42f5d2833b04cde58549468c565423eadb53bdcbc48ee7d",
+      "signature": "test-results/plasma682-source-review/plasma-login-manager-6.8.2-1.fc44.src.rpm:\n    Header OpenPGP V4 RSA/SHA256 signature, key fingerprint: 96bdf4e8710b8f9ffb11d83ddb51f4cb6c33bdbb: OK\n    Header SHA256 digest: OK\n    Payload SHA256 digest: OK\n    Legacy OpenPGP V4 RSA/SHA256 signature, key fingerprint: 96bdf4e8710b8f9ffb11d83ddb51f4cb6c33bdbb: OK\n"
+    }
+  ],
+  "upstream_backend_changes": {
+    "files": [
+      "src/daemon/Seat.cpp",
+      "src/daemon/Seat.h",
+      "src/daemon/SeatManager.cpp"
+    ],
+    "review": "Upstream separates createDisplay from setupAutoLogin and display start. Initial seat creation and stopped-last-display restart retain setupAutoLogin; switch-to-greeter now creates and starts without reapplying autologin. Native auth/helper sources are otherwise unchanged. Retain vendor code verbatim.",
+    "diff_sha256": "a457d2ed1ac3b058e185e843f85a37d7b46926e71578dfa85fa02e0dcd9f269d"
+  },
+  "frontend_prepared_files_matched": 14,
+  "host_update_staged": false,
+  "remaining": [
+    "canonical SDK and complete image gates",
+    "exact-head CI, signing, artifact boots and promotion",
+    "physical new-digest journeys"
+  ],
+  "native_lock": {
+    "packages": "six core inputs 6.8.2-1.fc44",
+    "seams_verified": 13,
+    "positive_broken_restored": [
+      true,
+      false,
+      true
+    ],
+    "log_sha256": "79f5ec192d1a2268c64b60c8dac05e017b556d0be7a00d1d2118c9de1342d8a7",
+    "limitations": [
+      "Offscreen private HOME and disconnected bus; no physical authentication",
+      "Initial unused MediaControls negative was not detected; retained as a failed fixture. The instantiated SessionManagementScreen negative refuses."
+    ]
+  },
+  "native_directory": {
+    "rpm_mode": "01770",
+    "creator_mode": "0750",
+    "creator_sha256": "6a2aa3937eee9c543ba995170ac683e64cf110b00ee21a9dfa66a722e4f5cd55",
+    "empty": true,
+    "normalization": "metadata reviewed; full canonical transaction still required. Post-transaction diagnostic fixture correctly refuses non-pristine /var."
+  }
+}

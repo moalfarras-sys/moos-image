@@ -14,7 +14,7 @@ import tempfile
 KEY_SHA256='b6ce6671a21c947928b08595514d09991975b2f300a8bb6e661fe34cfc54aa29'
 FINGERPRINT='96BDF4E8710B8F9FFB11D83DDB51F4CB6C33BDBB'
 REPO='copr:copr.fedorainfracloud.org:group_kdesig:kde-final'
-EXPECTED={name:'6.8.1-1.fc44' for name in ('plasma-workspace','plasma-desktop',
+EXPECTED={name:'6.8.2-1.fc44' for name in ('plasma-workspace','plasma-desktop',
           'kwin','libplasma','kscreenlocker','plasma-login-manager')}
 
 def run(*args):
@@ -44,7 +44,7 @@ def compose(root=Path('/')):
     if hashlib.sha256(key).hexdigest()!=KEY_SHA256:
         raise RuntimeError('publisher signing key bytes differ from the reviewed key')
     current=run('rpm','-q','--qf','%{VERSION}', 'plasma-workspace')
-    if current not in ('6.7.5','6.7.91','6.8.0','6.8.1'):
+    if current not in ('6.7.5','6.7.91','6.8.0','6.8.1','6.8.2'):
         raise RuntimeError('unreviewed Plasma base version: '+current)
     dest=Path('/usr/share/moos/keys/kde-final-pubkey.gpg');dest.parent.mkdir(parents=True,exist_ok=True)
     dest.write_bytes(key);dest.chmod(0o644)

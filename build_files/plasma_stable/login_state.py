@@ -1,6 +1,6 @@
 """Conform one empty RPM-created greeter directory to its native tmpfiles rule.
 
-The reviewed6.7.91/6.8.1 RPMs declare01770 while their runtime creator declares
+The reviewed6.7.91/6.8.1/6.8.2 RPMs declare01770 while their runtime creator declares
 0750. A systemd upgrade normally applies the latter globally; an already-upgraded
 base does not run that trigger again. Keep the generic metadata gate strict.
 """
@@ -12,7 +12,7 @@ from finalize_image_state import owned_path
 
 RELATIVE='var/lib/plasmalogin'
 AUTHORITY='usr/lib/tmpfiles.d/plasmalogin.conf'
-REVIEWED_NVRS=('6.7.91-1.fc44','6.8.1-1.fc44')
+REVIEWED_NVRS=('6.7.91-1.fc44','6.8.1-1.fc44','6.8.2-1.fc44')
 RECORD={'mode':0o750,'user':'plasmalogin','group':'plasmalogin','kind':'directory',
         'authorities':[{'authority':AUTHORITY,'rule':['d','/'+RELATIVE,'0750','plasmalogin','plasmalogin']}]}
 
