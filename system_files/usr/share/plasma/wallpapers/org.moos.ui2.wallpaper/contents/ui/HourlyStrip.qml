@@ -28,7 +28,7 @@ Item {
 
     readonly property bool rtl: MoUI.Locale.rtl
     readonly property var design: MoUI.Tokens
-    readonly property string labelFamily: rtl ? "IBM Plex Sans Arabic" : "IBM Plex Sans"
+    readonly property string labelFamily: rtl ? "Meyar Arabic" : "Meyar Sans"
     function local(arabic, english) { return MoUI.Locale.local(arabic, english) }
     // A temperature is an LTR island inside an Arabic label, the same rule the
     // front face follows.
@@ -60,7 +60,7 @@ Item {
             Text {
                 text: strip.city
                 color: Kirigami.Theme.disabledTextColor
-                font.family: "IBM Plex Sans"
+                font.family: "Meyar Sans"
                 font.pixelSize: Math.round(Kirigami.Units.gridUnit * 0.52)
                 font.weight: Font.Medium
                 elide: Text.ElideRight
@@ -110,7 +110,7 @@ Item {
                             // every session.
                             text: "⁦" + slot.modelData.hour + "⁩"
                             color: Kirigami.Theme.disabledTextColor
-                            font.family: "IBM Plex Sans"
+                            font.family: "Meyar Sans"
                             font.pixelSize: Math.round(Kirigami.Units.gridUnit * 0.5)
                             font.weight: Font.Medium
                         }
@@ -129,7 +129,7 @@ Item {
                             Layout.alignment: Qt.AlignHCenter
                             text: strip.degrees(slot.modelData.temperature)
                             color: Kirigami.Theme.textColor
-                            font.family: "IBM Plex Sans"
+                            font.family: "Meyar Sans"
                             font.pixelSize: Math.round(Kirigami.Units.gridUnit * 0.8)
                             font.weight: Font.DemiBold
                         }

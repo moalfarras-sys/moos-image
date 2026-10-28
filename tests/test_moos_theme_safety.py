@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import configparser
+import json
 import os
 import re
 import shlex
@@ -256,8 +257,8 @@ printf '%s\\t%s\\t%s\\t%s\\t%s\\t%s\\n' \
             "gtk-theme": '"$gtk_theme"',
             "icon-theme": '"$icons"',
             "cursor-theme": '"$cursor"',
-            "font-name": "'IBM Plex Sans 10'",
-            "monospace-font-name": "'JetBrains Mono 10'",
+            "font-name": "'Meyar Sans 10'",
+            "monospace-font-name": "'Meyar Mono 10'",
         }
         for key, value in expected_sets.items():
             with self.subTest(gsettings_key=key):
@@ -278,16 +279,16 @@ printf '%s\\t%s\\t%s\\t%s\\t%s\\t%s\\n' \
         self.assertIn('= "$gtk_theme" ] || return 1', complete)
         # Plasma's gtkconfig rewrites these GSettings font keys from the KDE font
         # description and renders them DOUBLE-SPACED — measured live on this
-        # image: 'IBM Plex Sans  10', 'JetBrains Mono  10'. An exact string
+        # image: 'Meyar Sans  10', 'Meyar Mono  10'. An exact string
         # compare therefore never matched, so automatic_supplements_complete()
         # could not return true at all: `moos-theme auto` exited 1 with the
         # desktop already correct and every reconcile paid the full ~13s pass.
-        self.assertIn('same_font "$font_actual" "IBM Plex Sans 10"', complete)
+        self.assertIn('same_font "$font_actual" "Meyar Sans 10"', complete)
         self.assertIn(
-            'same_font "$monospace_actual" "JetBrains Mono 10"', complete
+            'same_font "$monospace_actual" "Meyar Mono 10"', complete
         )
         self.assertNotRegex(
-            complete, r'\[ "\$font_actual" = "IBM Plex Sans 10" \]',
+            complete, r'\[ "\$font_actual" = "Meyar Sans 10" \]',
             "font comparison must normalise whitespace, or gtkconfig's double "
             "space makes the completeness check permanently false",
         )
@@ -808,15 +809,24 @@ esac
             sleep = bindir / "sleep"
             sleep.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
             sleep.chmod(0o755)
+            # Execute the real retry/automatic code with its actual source
+            # profiles. Ubuntu has neither installed Konsole profiles nor the
+            # native appearance publisher; the physical host has both.
+            switch = root / "moos-theme"
+            switch.write_text(SWITCH.read_text(encoding="utf-8").replace(
+                "/usr/share/konsole", str(ROOT / "system_files/usr/share/konsole")
+            ).replace("/usr/libexec/moos-session-appearance", str(root / "no-native-publisher")),
+                encoding="utf-8")
             env = {
                 **os.environ,
                 "HOME": str(root / "home"),
                 "XDG_RUNTIME_DIR": str(root / "run"),
                 "MOOS_THEME_RETRY_LOG": str(log),
+                "MOOS_THEME_PROFILE_DB": str(ROOT / "system_files/usr/share/moos/theme-profiles.tsv"),
                 "PATH": f"{bindir}:{os.environ.get('PATH', '')}",
             }
             result = subprocess.run(
-                [BASH, str(SWITCH), "reconcile-service"],
+                [BASH, str(switch), "reconcile-service"],
                 env=env,
                 text=True,
                 capture_output=True,
@@ -1016,9 +1026,6 @@ esac
 
         for token in (
             "capture_wallpaper_identity()",
-            '"schema": 2',
-            '"wallpaperMode": "%s"',
-            '"wallpaperEncoded": "%s"',
             "apply_wallpaper_transaction()",
             "custom_wallpapers_complete()",
             "wallpaper-token)",
@@ -1030,6 +1037,28 @@ esac
         ):
             with self.subTest(owner_contract=token):
                 self.assertIn(token, switch)
+
+        # Execute the receipt format instead of requiring printf placeholders:
+        # native saved names can contain quotes, which the old writer inserted
+        # unescaped into JSON. All original schema/wallpaper fields remain.
+        with _tempfile.TemporaryDirectory(dir=_ISOLATED) as directory:
+            harness = ('theme_state_root() { printf "%s\\n" "$MOOS_RECEIPT_ROOT"; }\n'
+                       'capture_wallpaper_identity() { printf "custom\\t%%2Fimage.png\\n"; }\n'
+                       + function(switch, "write_theme_state")
+                       + '\nwrite_theme_state committed "$1" "$2"\n')
+            name = 'مظهر "محفوظ" $(literal)'
+            result = subprocess.run([BASH, '-c', harness, 'receipt', name, name],
+                                    env=dict(os.environ, MOOS_RECEIPT_ROOT=directory),
+                                    capture_output=True, text=True, timeout=10)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            receipt = json.loads((Path(directory) / 'theme-state.json').read_text())
+            self.assertEqual(set(receipt), {'schema', 'status', 'active', 'previous',
+                                            'wallpaperMode', 'wallpaperEncoded', 'updated'})
+            self.assertEqual(receipt['schema'], 2)
+            self.assertEqual(receipt['status'], 'committed')
+            self.assertEqual((receipt['active'], receipt['previous']), (name, name))
+            self.assertEqual(receipt['wallpaperMode'], 'custom')
+            self.assertEqual(receipt['wallpaperEncoded'], '%2Fimage.png')
 
         self.assertIn("import QtQuick.Dialogs", page)
         self.assertIn("FileDialog {", page)

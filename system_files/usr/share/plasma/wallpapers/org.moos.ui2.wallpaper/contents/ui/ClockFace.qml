@@ -16,7 +16,7 @@ Item {
     property string themeLabel: ""
 
     readonly property bool rtl: MoUI.Locale.rtl
-    readonly property string labelFamily: rtl ? "IBM Plex Sans Arabic" : "IBM Plex Sans"
+    readonly property string labelFamily: rtl ? "Meyar Arabic" : "Meyar Sans"
     function local(arabic, english) { return MoUI.Locale.local(arabic, english) }
 
     // The once-a-minute colon pulse is a one-shot transition, which is exactly
@@ -86,7 +86,7 @@ Item {
                 text: ":"
                 color: Kirigami.Theme.highlightColor
                 opacity: 0.74
-                font.family: "IBM Plex Sans"
+                font.family: "Meyar Sans"
                 font.pixelSize: face.clockSize
                 font.weight: Font.Light
 

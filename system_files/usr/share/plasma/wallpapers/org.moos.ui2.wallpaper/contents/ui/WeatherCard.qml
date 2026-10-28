@@ -37,7 +37,7 @@ Item {
     // weather. Brand names and the bilingual date pair shared with the login/lock clocks are the
     // only deliberate exceptions. Arabic is never letter-spaced.
     readonly property bool rtl: MoUI.Locale.rtl
-    readonly property string labelFamily: rtl ? "IBM Plex Sans Arabic" : "IBM Plex Sans"
+    readonly property string labelFamily: rtl ? "Meyar Arabic" : "Meyar Sans"
     function local(arabic, english) { return MoUI.Locale.local(arabic, english) }
     // A temperature is an LTR island. Inside an Arabic label the bidi algorithm otherwise
     // moves the degree sign in front of the number ("°18"), as the 4K capture showed.
@@ -80,7 +80,7 @@ Item {
                               ? weatherCard.city
                               : weatherCard.local("الطقس المحلي", "LOCAL FORECAST")
                         color: Kirigami.Theme.disabledTextColor
-                        font.family: weatherCard.city.length > 0 ? "IBM Plex Sans" : weatherCard.labelFamily
+                        font.family: weatherCard.city.length > 0 ? "Meyar Sans" : weatherCard.labelFamily
                         font.pixelSize: MoUI.Tokens.typeSecondary
                         font.weight: Font.DemiBold
                         font.letterSpacing: weatherCard.city.length > 0 ? 0.8 : (weatherCard.rtl ? 0 : 1.5)
@@ -109,7 +109,7 @@ Item {
                     Text {
                         text: weatherCard.temperature + "°"
                         color: Kirigami.Theme.textColor
-                        font.family: "IBM Plex Sans"
+                        font.family: "Meyar Sans"
                         font.pixelSize: Math.round(Kirigami.Units.gridUnit * (weatherCard.width > 330 ? 2.8 : 2.15))
                         font.weight: Font.Light
                         font.features: ({ "tnum": 1 })

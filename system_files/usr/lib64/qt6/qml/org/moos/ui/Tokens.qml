@@ -117,8 +117,8 @@ QtObject {
     readonly property int desktopHubSystemColumns: 14
 
     // font
-    readonly property string interfaceFamily: "IBM Plex Sans Arabic"
-    readonly property string monospaceFamily: "JetBrains Mono"
+    readonly property string interfaceFamily: "Meyar Sans"
+    readonly property string monospaceFamily: "Meyar Mono"
 
     // opacity
     readonly property real surfaceRestingOpacity: 0.11

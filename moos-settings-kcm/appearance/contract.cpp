@@ -35,7 +35,10 @@ int main(int argc,char **argv) {
 import org.moos.ui as MoUI
 QtObject {
  property bool observing: false
- Component.onCompleted: observing = MoUI.SessionAppearance.observeDesktop()
+ Component.onCompleted: {
+  observing = MoUI.SessionAppearance.observeDesktop();
+  if (MoUI.SessionAppearance.followOwnSession()) throw new Error("Desktop style owner replaced");
+ }
 })",QUrl(QStringLiteral("file:///native-desktop-observer.qml")));
         QScopedPointer<QObject> root(component.create());
         require(root && root->property("observing").toBool(),"native ordinary desktop observer failed");
@@ -44,6 +47,8 @@ QtObject {
         return app.exec();
     }
     if (argc==4 && QString::fromLocal8Bit(argv[1])==QStringLiteral("--consumer")) {
+        const bool ownSession=QString::fromLocal8Bit(argv[3])==QStringLiteral("own");
+        if (ownSession) app.setApplicationName(QStringLiteral("ksmserver-logout-greeter"));
 #if PLASMA_VERSION >= QT_VERSION_CHECK(6, 8, 0)
         auto engine=PlasmaQuick::globalEngine();
         require(engine->property("_kirigamiTheme").toString()==QStringLiteral("KirigamiPlasmaStyle"),"actual native greeter theme engine required");
@@ -79,8 +84,14 @@ Window { id: window; width: 320; height: 200; visible: true
  Image { id: picture; anchors.fill: parent; cache: false; asynchronous: true; source: MoUI.SessionAppearance.imageUrl(window.wallpaper) }
  K.Icon { id: mark; x: 8; y: 8; width: 24; height: 24; source: "moos-lock-symbolic"; color: K.Theme.textColor }
  Component.onCompleted: )";
-        body += QString::fromLocal8Bit(argv[3])==QStringLiteral("follow") ? "MoUI.SessionAppearance.followUser(\"moosappearance61000\")" : "{}";
+        body += ownSession ? "{ Appearance.followUser(\"moosappearance61001\"); if (!MoUI.SessionAppearance.followOwnSession() || !MoUI.SessionAppearance.followOwnSession()) throw new Error(\"Own session refused\"); }"
+                           : QString::fromLocal8Bit(argv[3])==QStringLiteral("follow") ? "MoUI.SessionAppearance.followUser(\"moosappearance61000\")" : "{}";
         body += "\n}";
+        if (ownSession) {
+            body.replace("MoUI.SessionAppearance.greeterProfile() !== null","Appearance.ready");
+            body.replace("MoUI.SessionAppearance.configuredLook()","Appearance.look");
+            body.replace("MoUI.SessionAppearance.greeterWallpaper(\"\")","Appearance.wallpaper");
+        }
         component.setData(body,QUrl(QStringLiteral("file:///native-appearance-consumer.qml")));
         QScopedPointer<QObject> root(component.create());
         if (!root) for (const auto &error:component.errors()) qWarning()<<error;
@@ -90,7 +101,7 @@ Window { id: window; width: 320; height: 200; visible: true
         std::fprintf(stderr,"MOOS_NATIVE_GREETER_ENGINE plasma=%s api=%s theme=%s owner=%s\n",PLASMA_VERSION_STRING,engineApi,
             qPrintable(engine->property("_kirigamiTheme").toString()),theme->metaObject()->className());
         auto *window=qobject_cast<QQuickWindow*>(root.get());
-        require(window && root->property("serviceAccount").toBool(),"actual greeter service UID required");
+        require(window && root->property("serviceAccount").toBool()!=ownSession,"actual native consumer UID required");
         const auto originalSurface=root->property("surface").value<QColor>();
         int phase=0,ticks=0;
         QTimer timer;
@@ -103,7 +114,7 @@ Window { id: window; width: 320; height: 200; visible: true
             if (phase<3) {
                 const QString expected=phase==0?QStringLiteral("org.moos.ui2.bloom.light"):QStringLiteral("org.moos.ui2.aurora");
                 if (!root->property("ready").toBool() || root->property("selectedLook").toString()!=expected || !root->property("imageReady").toBool()) return;
-                require(root->property("powerWallpaper").toUrl().toString()==root->property("wallpaper").toString(),"login power scene does not share the selected image");
+                if (!ownSession) require(root->property("powerWallpaper").toUrl().toString()==root->property("wallpaper").toString(),"login power scene does not share the selected image");
                 const auto bg=root->property("surface").value<QColor>();
                 if (bg!=QColor(phase==0?QStringLiteral("#d5d9ee"):phase==1?QStringLiteral("#172236"):QStringLiteral("#193a2e"))) return;
                 const auto colors=KSharedConfig::openConfig(QStringLiteral("/usr/share/color-schemes/%1.colors").arg(phase==0?QStringLiteral("MoOSUI2BloomLight"):QStringLiteral("MoOSUI2Aurora")));

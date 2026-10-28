@@ -125,8 +125,8 @@ remaining full-sized at normal desktop resolutions.
 
 ## Typography
 
-- interface: IBM Plex Sans; Arabic: IBM Plex Sans Arabic;
-- code/terminal: JetBrains Mono, with Kawkab Mono for joined Arabic glyphs;
+- interface: Meyar Sans; Arabic: Meyar Arabic;
+- code/terminal: Meyar Mono, with Meyar Mono Arabic for joined Arabic glyphs;
 - primary body: 13–15 logical px; captions: 10–12; section title: 18–24;
 - large clock numerals may use ExtraLight, but controls never use display type;
 - time is a semantic LTR island even inside Arabic RTL;

@@ -31,7 +31,7 @@
   --fast: 120ms;
   --normal: 220ms;
   --emph: 360ms;
-  --font: "IBM Plex Sans Arabic", "SF Arabic", "Geeza Pro", -apple-system, BlinkMacSystemFont, "SF Pro Text",
+  --font: "Meyar Sans", "Meyar Arabic", "SF Arabic", "Geeza Pro", -apple-system, BlinkMacSystemFont, "SF Pro Text",
           "Segoe UI", "Noto Sans Arabic", "Noto Sans", system-ui, sans-serif;
   --safe-top: env(safe-area-inset-top, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);

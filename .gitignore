@@ -66,6 +66,12 @@ media/
 test-results/
 .tmp-*.png
 
+# Typeface binaries/UFO exports are reproducible delivery artifacts. A qualified
+# runtime font, when accepted, belongs only in the immutable system overlay.
+/fonts/meyar/dist/
+/fonts/meyar/sources/__pycache__/
+/fonts/meyar/__pycache__/
+
 # Mo Remote local .NET publish output — regenerable; the image builds its own in
 # the Containerfile `moremote-build` stage and never reads these bytes.
 moremote/dist-linux/

@@ -11,8 +11,14 @@
 #include <QJsonDocument>
 #include <QLoggingCategory>
 #include <QRegularExpression>
+#include <QCryptographicHash>
+#include <QSaveFile>
+#include <QStandardPaths>
+
+#include <KAuthorized>
 
 #include <algorithm>
+#include <unistd.h>
 
 Q_LOGGING_CATEGORY(MOOS_SETTINGS, "moos.settings", QtInfoMsg)
 
@@ -742,4 +748,86 @@ QVariantList MoOSSettingsModule::moosThemes() const
     for (const Look &look : looks)
         result.append(look.entry);
     return result;
+}
+
+QString MoOSSettingsModule::appearanceLibraryConfig(const QString &category)
+{
+    struct Catalogue { const char *config; const char *module; };
+    static const QHash<QString, Catalogue> files{
+        {QStringLiteral("themes"), {"lookandfeel.knsrc", "kcm_lookandfeel"}},
+        {QStringLiteral("wallpapers"), {"wallpaper.knsrc", "kcm_wallpaper"}},
+        {QStringLiteral("plasma-styles"), {"plasma-themes.knsrc", "kcm_desktoptheme"}},
+        {QStringLiteral("colors"), {"colorschemes.knsrc", "kcm_colors"}},
+        {QStringLiteral("icons"), {"icons.knsrc", "kcm_icons"}},
+        {QStringLiteral("cursors"), {"xcursor.knsrc", "kcm_cursortheme"}},
+        {QStringLiteral("decorations"), {"window-decorations.knsrc", "kcm_kwindecoration"}},
+        {QStringLiteral("widgets"), {"plasmoids.knsrc", ""}},
+        {QStringLiteral("fonts"), {"kfontinst.knsrc", "kcm_fontinst"}},
+        {QStringLiteral("effects"), {"kwineffect.knsrc", "kcm_kwin_effects"}},
+        {QStringLiteral("switchers"), {"kwinswitcher.knsrc", "kcm_kwintabbox"}},
+        {QStringLiteral("scripts"), {"kwinscripts.knsrc", "kcm_kwin_scripts"}},
+    };
+    const auto entry = files.constFind(category);
+    if (entry == files.cend())
+        return QString();
+    // Use the same immutable KDE configurations as the native KCMs, including
+    // their Plasma-version categories, dependencies, adoption and Kiosk rules.
+    // A user-supplied knsrc must not silently replace this fixed catalogue.
+    if (*entry->module && !KAuthorized::authorizeControlModule(QString::fromLatin1(entry->module)))
+        return QString();
+    const QString path = QStringLiteral("/usr/share/knsrcfiles/") + QString::fromLatin1(entry->config);
+    const QFileInfo file(path);
+    if (!file.isFile() || file.isSymLink() || file.ownerId() != 0
+        || file.permissions().testAnyFlags(QFileDevice::WriteGroup | QFileDevice::WriteOther))
+        return QString();
+    if (category == QLatin1String("wallpapers")) {
+        QFile native(path);
+        if (native.size() > 262144 || !native.open(QIODevice::ReadOnly))
+            return QString();
+        QByteArray config = native.readAll();
+        const QByteArray original("AdoptionCommand=plasma-apply-wallpaperimage %f");
+        if (config.split('\n').count(original) != 1)
+            return QString();
+        // Keep every native provider/category/version/warning/install byte.
+        // Only adoption changes: old image collections need a native picker
+        // before the existing appearance owner can apply a specific image.
+        config.replace(original, QByteArray("AdoptionCommand=moos-kde-wallpaper-adopt %f"));
+        const QString digest = QString::fromLatin1(QCryptographicHash::hash(config, QCryptographicHash::Sha256).toHex());
+        QString directory = QStandardPaths::writableLocation(QStandardPaths::GenericCacheLocation);
+        if (directory.isEmpty() || !QDir::isAbsolutePath(directory))
+            return QString();
+        if (!QDir().mkpath(directory))
+            return QString();
+        for (const QString &part : {QStringLiteral("moos"), QStringLiteral("appearance-library"), digest}) {
+            directory = QDir(directory).filePath(part);
+            const QFileInfo before(directory);
+            if (!before.exists()) {
+                if (!QDir().mkdir(directory)
+                    || !QFile::setPermissions(directory, QFileDevice::ReadOwner | QFileDevice::WriteOwner | QFileDevice::ExeOwner))
+                    return QString();
+            }
+            const QFileInfo info(directory);
+            if (!info.isDir() || info.isSymLink() || info.ownerId() != getuid()
+                || info.permissions().testAnyFlags(QFileDevice::WriteGroup | QFileDevice::WriteOther))
+                return QString();
+        }
+        // The basename preserves KDE's existing wallpaper.knsregistry owner.
+        const QString cached = QDir(directory).filePath(QStringLiteral("wallpaper.knsrc"));
+        const QFileInfo target(cached);
+        if (target.exists() || target.isSymLink()) {
+            QFile stored(cached);
+            if (!target.isFile() || target.isSymLink() || target.ownerId() != getuid()
+                || target.permissions().testAnyFlags(QFileDevice::WriteGroup | QFileDevice::WriteOther)
+                || target.size() != config.size() || !stored.open(QIODevice::ReadOnly) || stored.readAll() != config)
+                return QString();
+        } else {
+            QSaveFile stored(cached);
+            if (!stored.open(QIODevice::WriteOnly)
+                || !stored.setPermissions(QFileDevice::ReadOwner | QFileDevice::WriteOwner)
+                || stored.write(config) != config.size() || !stored.commit())
+                return QString();
+        }
+        return cached;
+    }
+    return path;
 }

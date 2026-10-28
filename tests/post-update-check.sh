@@ -124,6 +124,11 @@ theme_scheme="$(kreadconfig6 --file kdeglobals --group General --key ColorScheme
 theme_icons="$(kreadconfig6 --file kdeglobals --group Icons --key Theme 2>/dev/null)"
 theme_style="$(kreadconfig6 --file plasmarc --group Theme --key name 2>/dev/null)"
 
+native_personal=0
+if command -v moos-theme >/dev/null 2>&1 && moos-theme native-selected >/dev/null 2>&1; then
+    native_personal=1
+fi
+
 # There is ONE MoOS look (UI2, dark + light halves). The UI1 generation no
 # longer ships — the image build gates its ABSENCE — so a UI1 selector here is
 # drift, not a rollback. (Version rollback is `bootc rollback`, a separate thing.)
@@ -174,9 +179,15 @@ case "$theme_lnf" in
     *)
         theme_family=""; theme_name=""; want_deco=""; want_scheme=""; want_icons=""
         want_style=""; want_wallpaper=""; pair_dark=""; pair_light=""
-        bad "active LookAndFeelPackage is '${theme_lnf:-unset}', not a MoOS UI2 half"
+        [ "$native_personal" = 1 ] || bad "active LookAndFeelPackage is '${theme_lnf:-unset}', not a MoOS UI2 half"
         ;;
 esac
+
+pair_family="${theme_family:-ui2}"
+if [ "$native_personal" = 1 ]; then
+    ok "installed personal appearance is selected"
+    theme_family=""
+fi
 
 if [ -n "$theme_family" ]; then
     ok "active theme is ${theme_name} (${theme_lnf})"
@@ -197,20 +208,6 @@ if [ -n "$theme_family" ]; then
         && ok "Plasma style matches ${theme_name}" \
         || bad "Plasma style is '${theme_style:-unset}', expected ${want_style}"
 
-    default_dark="$(kreadconfig6 --file kdeglobals --group KDE --key DefaultDarkLookAndFeel 2>/dev/null)"
-    default_light="$(kreadconfig6 --file kdeglobals --group KDE --key DefaultLightLookAndFeel 2>/dev/null)"
-    [ "$default_dark" = "$pair_dark" ] \
-        && ok "automatic dark target matches ${theme_family}" \
-        || bad "dark target is '${default_dark:-unset}', expected ${pair_dark}"
-    [ "$default_light" = "$pair_light" ] \
-        && ok "automatic light target matches ${theme_family}" \
-        || bad "light target is '${default_light:-unset}', expected ${pair_light}"
-    if [ -d "/usr/share/plasma/look-and-feel/$pair_dark" ] && \
-       [ -d "/usr/share/plasma/look-and-feel/$pair_light" ]; then
-        ok "matched UI2 automatic pair is installed: ${pair_dark} + ${pair_light}"
-    else
-        bad "the UI2 automatic dark/light pair is incomplete"
-    fi
     # Validate every live desktop containment. Exactly-one global counts reject a
     # correct two-monitor setup and a first-Image grep can inspect a panel instead
     # of a desktop, so the running Plasma shell is the authority here. The valid
@@ -255,6 +252,27 @@ if [ -n "$theme_family" ]; then
             || bad "${stale_count} stale dashboard applet(s) still draw over the icons"
     else
         bad "could not inspect every live desktop's scene state through Plasma"
+    fi
+fi
+
+if [ "$native_personal" = 1 ]; then
+    /usr/libexec/moos-session-appearance check-pair >/dev/null 2>&1 \
+        && ok "native automatic appearance targets are installed" \
+        || bad "native automatic appearance targets are missing or invalid"
+elif [ -n "$pair_dark" ]; then
+    default_dark="$(kreadconfig6 --file kdeglobals --group KDE --key DefaultDarkLookAndFeel 2>/dev/null)"
+    default_light="$(kreadconfig6 --file kdeglobals --group KDE --key DefaultLightLookAndFeel 2>/dev/null)"
+    [ "$default_dark" = "$pair_dark" ] \
+        && ok "automatic dark target matches ${pair_family}" \
+        || bad "dark target is '${default_dark:-unset}', expected ${pair_dark}"
+    [ "$default_light" = "$pair_light" ] \
+        && ok "automatic light target matches ${pair_family}" \
+        || bad "light target is '${default_light:-unset}', expected ${pair_light}"
+    if [ -d "/usr/share/plasma/look-and-feel/$pair_dark" ] && \
+       [ -d "/usr/share/plasma/look-and-feel/$pair_light" ]; then
+        ok "matched UI2 automatic pair is installed: ${pair_dark} + ${pair_light}"
+    else
+        bad "the UI2 automatic dark/light pair is incomplete"
     fi
 fi
 

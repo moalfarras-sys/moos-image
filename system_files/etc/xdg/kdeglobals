@@ -12,11 +12,11 @@
 
 [General]
 ColorScheme=MoOSUI2Aurora
-font=IBM Plex Sans,10,-1,5,400,0,0,0,0,0,0,0,0,0,0,1
-menuFont=IBM Plex Sans,10,-1,5,400,0,0,0,0,0,0,0,0,0,0,1
-toolBarFont=IBM Plex Sans,10,-1,5,400,0,0,0,0,0,0,0,0,0,0,1
-smallestReadableFont=IBM Plex Sans,8,-1,5,400,0,0,0,0,0,0,0,0,0,0,1
-fixed=JetBrains Mono,10,-1,5,400,0,0,0,0,0,0,0,0,0,0,1
+font=Meyar Sans,10,-1,5,400,0,0,0,0,0,0,0,0,0,0,1
+menuFont=Meyar Sans,10,-1,5,400,0,0,0,0,0,0,0,0,0,0,1
+toolBarFont=Meyar Sans,10,-1,5,400,0,0,0,0,0,0,0,0,0,0,1
+smallestReadableFont=Meyar Sans,8,-1,5,400,0,0,0,0,0,0,0,0,0,0,1
+fixed=Meyar Mono,10,-1,5,400,0,0,0,0,0,0,0,0,0,0,1
 
 # MoOS UI2 icon theme — generated at image build time from Colloid's Teal
 # variant, see build_files/build.sh section (c5). Inheritance chain:
@@ -99,3 +99,6 @@ AnimationDurationFactor=0.5
 [Sounds]
 Enable=true
 Theme=moos
+
+[WM]
+activeFont=Meyar Sans,10,-1,5,400,0,0,0,0,0,0,0,0,0,0,1

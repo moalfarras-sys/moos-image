@@ -62,7 +62,7 @@
   --safe-bottom: env(safe-area-inset-bottom, 0px);
   --safe-left: env(safe-area-inset-left, 0px);
   --safe-right: env(safe-area-inset-right, 0px);
-  --font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Arabic", "Segoe UI", Roboto, "Noto Sans Arabic", "Noto Sans", system-ui, sans-serif;
+  --font: "Meyar Sans", "Meyar Arabic", -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Arabic", "Segoe UI", Roboto, "Noto Sans Arabic", "Noto Sans", system-ui, sans-serif;
 }
 
 @media (prefers-color-scheme: light) {

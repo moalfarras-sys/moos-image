@@ -375,6 +375,7 @@ FocusScope {
     }
 
     Component.onCompleted: {
+        MoUI.SessionAppearance.followOwnSession();
         adoptPromptControls();
         console.info("MOOS_AUTH_SURFACE_READY", Qt.resolvedUrl("SessionManagementScreen.qml"));
     }

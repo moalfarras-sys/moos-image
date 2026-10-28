@@ -266,8 +266,15 @@ restore_theme_state() {
     # First return live LookAndFeelManager to the captured package. Its writes
     # are then replaced by the exact files below, so user choices not modelled
     # by a profile survive the rollback byte for byte.
-    if [ -n "$lnf" ] && [ -d "/usr/share/plasma/look-and-feel/$lnf" ]; then
-        plasma-apply-lookandfeel -a "$lnf" >/dev/null 2>&1 || restore_failed=1
+    if [ -n "$lnf" ]; then
+        # Native saved/downloaded themes live in the user's data directory.
+        # Validate the actual package identity before asking its original owner
+        # to restore it; kpackagetool's successful fallback is not existence.
+        if /usr/libexec/moos-session-appearance check-look "$lnf"; then
+            plasma-apply-lookandfeel -a "$lnf" >/dev/null 2>&1 || restore_failed=1
+        else
+            restore_failed=1
+        fi
     fi
 
     restore_config_file "$snapshot" kdeglobals "$config/kdeglobals" || restore_failed=1
@@ -434,8 +441,13 @@ encode_profile_wallpaper() {
 # family's canvas is recorded as the owner's custom wallpaper, and a desktop
 # that was switched to Plasma's plain image plugin is brought back onto the
 # MoOS scene WITH that image, so the choice stays and MoOS Hub stays too.
+resolve_static_wallpaper_token() {
+    /usr/libexec/moos-session-appearance resolve-static "$1"
+}
+
 adopt_live_wallpaper_choice() {
     local identity mode token plugin_state
+    [ "${moos_live_wallpaper_adoption_failed:-0}" = 1 ] && return 1
     [ "${moos_live_wallpaper_adopted:-0}" = 1 ] && return 0
     moos_live_wallpaper_adopted=1
     command -v gdbus >/dev/null 2>&1 || return 0
@@ -477,7 +489,18 @@ adopt_live_wallpaper_choice() {
     # matches a bare token class, and re-pointing the scene at "none" failed and
     # skipped recording a choice made on the scene's own page.
     if [[ "$plugin_state" =~ moos-image-plugin:(%2F[A-Za-z0-9_.~%-]+) ]]; then
-        apply_desktop_scene_token "${BASH_REMATCH[1]}" >/dev/null 2>&1 || return 0
+        token="${BASH_REMATCH[1]}"
+        # Native KNewStuff adopts standard wallpaper package directories too.
+        # Resolve only a bounded static image before carrying it onto the scene;
+        # downloaded QML never becomes lock/login code.
+        token="$(resolve_static_wallpaper_token "$token")" || {
+            moos_live_wallpaper_adoption_failed=1
+            return 1
+        }
+        apply_desktop_scene_token "$token" >/dev/null 2>&1 || {
+            moos_live_wallpaper_adoption_failed=1
+            return 1
+        }
     fi
 
     identity="$(capture_wallpaper_identity 2>/dev/null)" || return 0
@@ -496,7 +519,7 @@ load_wallpaper_expectation() {
     desktop_wallpaper_mode=profile
     desktop_wallpaper_token="$(encode_profile_wallpaper "$wallpaper_package")" || return 1
     if [ "$policy" = state ]; then
-        adopt_live_wallpaper_choice
+        adopt_live_wallpaper_choice || return 1
         mode="$(theme_state_field wallpaperMode 2>/dev/null || true)"
         token="$(theme_state_field wallpaperEncoded 2>/dev/null || true)"
         if [ "$mode" = custom ] && [[ "$token" =~ ^[A-Za-z0-9_.~%-]+$ ]]; then
@@ -568,9 +591,17 @@ write_theme_state() {
     fi
     case "$wallpaper_mode" in profile|custom|unknown) ;; *) wallpaper_mode=unknown ;; esac
     [[ "$wallpaper_token" =~ ^[A-Za-z0-9_.~%-]*$ ]] || wallpaper_token=""
-    printf '{\n  "schema": 2,\n  "status": "%s",\n  "active": "%s",\n  "previous": "%s",\n  "wallpaperMode": "%s",\n  "wallpaperEncoded": "%s",\n  "updated": "%s"\n}\n' \
-        "$status" "$active" "$previous" "$wallpaper_mode" \
-        "$wallpaper_token" "$now" >"$temporary" || return 1
+    # Native package names can contain quotes and Arabic. They are JSON data,
+    # including when the user returns from a personal theme to a MoOS look.
+    python3 - "$status" "$active" "$previous" "$wallpaper_mode" \
+        "$wallpaper_token" "$now" >"$temporary" <<'PY' || return 1
+import json,sys
+status,active,previous,mode,token,updated = sys.argv[1:]
+json.dump({"schema": 2,"status": status,"active": active,"previous": previous,
+           "wallpaperMode": mode,"wallpaperEncoded": token,"updated": updated},
+          sys.stdout,ensure_ascii=False,indent=2)
+print()
+PY
     mv -f -- "$temporary" "$root/theme-state.json"
 }
 
@@ -897,9 +928,9 @@ apply_supplements() {
             2>/dev/null || supplement_failed=1
         gsettings set org.gnome.desktop.interface cursor-theme "$cursor" \
             2>/dev/null || supplement_failed=1
-        gsettings set org.gnome.desktop.interface font-name 'IBM Plex Sans 10' \
+        gsettings set org.gnome.desktop.interface font-name 'Meyar Sans 10' \
             2>/dev/null || supplement_failed=1
-        gsettings set org.gnome.desktop.interface monospace-font-name 'JetBrains Mono 10' \
+        gsettings set org.gnome.desktop.interface monospace-font-name 'Meyar Mono 10' \
             2>/dev/null || supplement_failed=1
         gsettings set org.gnome.desktop.sound theme-name moos \
             2>/dev/null || supplement_failed=1
@@ -1023,8 +1054,8 @@ custom_wallpapers_complete() {
 # Compare two font descriptions the way a font engine reads them, not the way a
 # string comparison does. Plasma's own gtkconfig rewrites the GSettings font keys
 # from the KDE font description a moment after this script sets them, and it
-# renders them with a DOUBLE space before the size: we write "IBM Plex Sans 10",
-# the live desktop then holds "IBM Plex Sans  10" — measured on this machine on
+# renders them with a DOUBLE space before the size: we write "Meyar Sans 10",
+# the live desktop then holds "Meyar Sans  10" — measured on this machine on
 # 2026-07-27, on BOTH font-name and monospace-font-name. A literal comparison
 # therefore never matched, which meant automatic_supplements_complete() could not
 # return true on this image at all: `moos-theme auto` exited 1 with everything
@@ -1076,8 +1107,8 @@ automatic_supplements_complete() {
         2>/dev/null | sed -e "s/^'//" -e "s/'$//")"
     [ "$icon_actual" = "$icons" ] || return 1
     [ "$cursor_actual" = "$cursor" ] || return 1
-    same_font "$font_actual" "IBM Plex Sans 10" || return 1
-    same_font "$monospace_actual" "JetBrains Mono 10" || return 1
+    same_font "$font_actual" "Meyar Sans 10" || return 1
+    same_font "$monospace_actual" "Meyar Mono 10" || return 1
 
     for ini in "${XDG_CONFIG_HOME:-$HOME/.config}/gtk-3.0/settings.ini" \
                "${XDG_CONFIG_HOME:-$HOME/.config}/gtk-4.0/settings.ini"; do
@@ -1342,8 +1373,29 @@ reconcile() {
 
     command -v kreadconfig6 >/dev/null 2>&1 || return 0
 
-    # The sunrise/sunset auto switch has its own precise, stability-checked path;
-    # keep delegating to it so this cannot regress the automatic mode.
+    # A native downloaded/saved look is also valid while KDE's day/night mode
+    # is enabled. Follow the actual selected package; the native switcher owns
+    # when that selection changes. Do not try to load it as a curated profile.
+    lnf="$(current)"
+    if ! load_profile "$lnf" >/dev/null 2>&1; then
+        /usr/libexec/moos-session-appearance check-native >/dev/null 2>&1 \
+            && /usr/libexec/moos-session-appearance sync-native
+        return $?
+    fi
+
+    # KDE's own library/KCMs own personal component choices. Publish their
+    # measured palette and wallpaper without restoring the MoOS profile over
+    # them, including when native day/night mode remains enabled. Otherwise an
+    # icon/colour selection immediately enters sync_auto and is overwritten.
+    # Native whole-look transitions still use the strict automatic path once
+    # their selected profile's components match. Missing packages are refused.
+    if /usr/libexec/moos-session-appearance check-native >/dev/null 2>&1; then
+        /usr/libexec/moos-session-appearance sync-native
+        return $?
+    fi
+
+    # The sunrise/sunset auto switch retains its stability-checked path for
+    # complete curated profiles; native personal components keep their owner.
     automatic="$(kreadconfig6 --file kdeglobals --group KDE \
         --key AutomaticLookAndFeel 2>/dev/null)"
     if [ "$automatic" = true ]; then
@@ -1360,7 +1412,9 @@ reconcile() {
         |"$GAMING_LNF"|"$DEV_LNF"|"$STUDY_LNF"\
         |"$GAMING_LIGHT_LNF"|"$DEV_LIGHT_LNF"|"$STUDY_LIGHT_LNF"\
         |"$BLOOM_LNF"|"$BLOOM_LIGHT_LNF") ;;
-        *) return 0 ;;
+        *)
+            echo "moos-theme: selected native theme is unavailable" >&2
+            return 1 ;;
     esac
     [ -d "/usr/share/plasma/look-and-feel/$lnf" ] || return 0
     load_profile "$lnf" || return 0
@@ -1759,7 +1813,7 @@ acquire_theme_lock() {
 command_name="${1:-status}"
 needs_theme_lock=0
 case "$command_name" in
-    dark|light|nova|amethyst|midnight|aurora|nova-light|amethyst-light|aurora-light|daylight|gaming|dev|study|gaming-light|dev-light|study-light|bloom|bloom-light|toggle|auto|sync-auto|reconcile|reconcile-service|settle-lnf|guard|undo|apply-lnf|wallpaper-token|wallpaper-reset)
+    dark|light|nova|amethyst|midnight|aurora|nova-light|amethyst-light|aurora-light|daylight|gaming|dev|study|gaming-light|dev-light|study-light|bloom|bloom-light|toggle|auto|sync-auto|reconcile|reconcile-service|resume-native|settle-lnf|guard|undo|apply-lnf|wallpaper-token|wallpaper-reset)
         needs_theme_lock=1
         ;;
     motion|clarity|hub)
@@ -2107,6 +2161,15 @@ case "$command_name" in
         [ "$#" -eq 2 ] || { echo "moos-theme: verify-lnf requires one theme id" >&2; exit 2; }
         verify_lnf_state "$2"
         ;;
+    native-selected)
+        [ "$#" -eq 1 ] || exit 2
+        /usr/libexec/moos-session-appearance check-native
+        ;;
+    resume-native)
+        [ "$#" -eq 1 ] || exit 2
+        /usr/libexec/moos-session-appearance check-native \
+            && /usr/libexec/moos-session-appearance sync-native
+        ;;
     settle-lnf)
         [ "$#" -eq 2 ] || { echo "moos-theme: settle-lnf requires one theme id" >&2; exit 2; }
         settle_lnf_state "$2"
@@ -2279,7 +2342,13 @@ EOF
             "$BLOOM_LNF")          echo "MoOS Bloom           ($BLOOM_LNF)" ;;
             "$BLOOM_LIGHT_LNF")    echo "MoOS Bloom Light     ($BLOOM_LIGHT_LNF)" ;;
             "")               echo "غير محدّد | unset (default: MoOS UI)" ;;
-            *)                echo "ليس MoOS | not a MoOS theme: $active" ;;
+            *)
+                if /usr/libexec/moos-session-appearance check-native >/dev/null 2>&1; then
+                    echo "MoOS مظهر مخصّص | custom appearance"
+                else
+                    echo "ليس MoOS | not a MoOS theme: $active"
+                fi
+                ;;
         esac
         ;;
     -h|--help|help) usage ;;

@@ -1,0 +1,107 @@
+{
+  "date": "2026-10-26",
+  "ownerSteering": "Arabic experimental drawing rejected; explicitly use and modify an open-source Arabic source.",
+  "upstream": {
+    "repository": "https://github.com/notofonts/arabic",
+    "revision": "f1ba474be91d6a5d2cfcc4374bb03cc5f1011088",
+    "license": "OFL-1.1; original attribution preserved",
+    "sourceLock": "fonts/meyar-arabic/upstream-lock.json"
+  },
+  "implementation": {
+    "source": "fonts/meyar-arabic/build.py",
+    "family": "Meyar Arabic",
+    "derivativeNotOriginalFromScratch": true,
+    "sourceLayerChanges": 120,
+    "compiledOutlineChanges": 24,
+    "glyphs": 1405,
+    "encodedCharacters": 1255,
+    "weights": [
+      100,
+      200,
+      300,
+      400,
+      500,
+      600,
+      700,
+      800,
+      900
+    ],
+    "variableAxis": "wght100–900",
+    "formats": [
+      "TTF",
+      "OTF",
+      "WOFF2",
+      "variable TTF",
+      "variable WOFF2"
+    ],
+    "latin": "native system fallback; separate Arabic family"
+  },
+  "verification": {
+    "shapingComparisons": 2133,
+    "languages": [
+      "ar",
+      "fa",
+      "ur"
+    ],
+    "layoutTables": "GSUB/GPOS/GDEF byte-identical to build of pinned unmodified upstream",
+    "allAdvances": "identical to upstream",
+    "inkBearingDelta": "only a rotated three-dot primitive,2–3UPM; no advance change",
+    "heavyStackedMarkCorrection": "ascent1536, descent−738; compare actual shaped ink, not head bounds",
+    "regressionReceipt": "test-results/meyar-arabic/final-regression.json",
+    "reproducibility": "All30 compiled binaries (29 delivery files plus intermediate two-axis TTF) are byte-identical in final complete second build.",
+    "browser": "static/variable WOFF2 accepted by native QtWebEngine sanitizer; width102.7598876953125",
+    "repositoryCheck": "Reuse concurrent native Node22 maintained check v10; own duplicate interrupted withSIGINT after identifying exact PID/group. No result inferred until terminal receipt.",
+    "naturalMarkLines": {
+      "cases": 36,
+      "allFit": true,
+      "ascent": 1536,
+      "descent": -738
+    },
+    "date": "fixed2026-10-26; futureOct28 intermediate retained/refused",
+    "firstRepositoryCheck": "exit1 at unchanged PROJECT_STATE200-line gate; observed201, compacted/current200 and targeted hygiene pass; complete rerun active",
+    "reproducibilityReceipt": "test-results/meyar-arabic/final-reproducibility.json",
+    "sourceSnapshotLimit": "The shared working tree has concurrent documentation changes. Full-gate pass is distinct from an immutable candidate SHA or a stable-input qualification."
+  },
+  "native": {
+    "host": "physical V3 x86_64",
+    "booted": "signed MoOS1107/a293803b",
+    "rollback": "signed1100; pinned1078 recovery",
+    "output": "3840×2160@60Hz,250%,1536×864logical",
+    "journey": "Actual KWrite document-specific Meyar Arabic; mapped font file readback; Arabic key input, save/readback and Alt+F4 normal-close; final reopened preview kept visible.",
+    "liveFontReceipt": "test-results/meyar-arabic/live-font-receipt.json",
+    "actualFontMappingReceipt": "test-results/meyar-arabic/final-native-editor-receipt.json",
+    "systemDefaultChanged": false,
+    "signedOSUpdate": false,
+    "privateCaptures": "kept local in ignored test-results/meyar-arabic",
+    "resourceSample": {
+      "seconds": 5.0000366249951185,
+      "cpuPercentOfOneCore": 0.2,
+      "rss": "VmRSS:\t  126388 kB",
+      "workload": "actual KWrite, static Arabic document at16pt/4K250%; maintained repository check concurrently active; no speedup claim",
+      "pid": 284509
+    },
+    "loadedFontSha256": "1852bacde5717d280a19ad75edf43cf28b51117e07e2f8e7fc33ae128916fa61"
+  },
+  "retainedRefusals": [
+    "KFontView glyph catalogue does not establish joined Arabic word rendering; use native KWrite text layout.",
+    "First natural-height specimen refused after taller mark metrics; canvas corrected, no lost row accepted.",
+    "Initial strict EOF assertion refused native added newline; semantic final-line readback then passes.",
+    "First fixed timestamp encoded Oct28; corrected to actual source date Oct26 before final package."
+  ],
+  "remaining": [
+    "owner Arabic visual acceptance",
+    "full native system/default integration and layout matrix",
+    "signed image qualification/delivery"
+  ],
+  "delivery": {
+    "file": "/var/home/moos/Downloads/Meyar-Arabic-0.200.zip",
+    "bytes": 4243350,
+    "sha256": "1d8c6356066bef07f9d56d8a7177648504c790682cc38f8f80375d61d41f23a7",
+    "fontExports": 29,
+    "sourceIncluded": true,
+    "license": "OFL-1.1",
+    "archiveIntegrity": true,
+    "allFontManifestHashesMatch": true,
+    "rejectedEarlierExportRecovery": "/var/home/moos/سطح المكتب/moos-image/test-results/meyar-arabic/first-export-date-refused.zip"
+  }
+}

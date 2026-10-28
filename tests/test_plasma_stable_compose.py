@@ -59,7 +59,7 @@ class PackageCommandLogs(unittest.TestCase):
         def query(*args):
             self.queries.append(args)
             self.assertEqual(args[:4],('rpm','-q','--qf','%{VERSION}-%{RELEASE}'))
-            return '6.8.2-1.fc44' if drift else M.EXPECTED[args[-1]]
+            return '6.8.3-1.fc44' if drift else M.EXPECTED[args[-1]]
         with mock.patch.object(M.subprocess,'run',side_effect=command),mock.patch.object(M,'run',side_effect=query):
             return M.sync_packages()
 

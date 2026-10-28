@@ -24,7 +24,7 @@ JPEG thumbnail (at most1920×1080 and786432 decoded bytes). It contains no home
 path, URI, command or QML. Choosing a login wallpaper intentionally makes this
 thumbnail available to the greeter. Original full-resolution files stay put.
 
-Only the actual `plasmalogin` service UID activates the reader. The existing
+Only the actual `plasmalogin` service UID may follow a selected login account. The existing
 native `UserList.selectedUser` is observed without changing selection or login
 handlers. One process reads the selected user's public record; the separately
 owned wallpaper process reads/subscribes to its finite snapshot on the greeter
@@ -43,11 +43,19 @@ name. The native Qt and KDE icon loaders are both reconfigured. Invalid metadata
 restores original palette/font/icons/Plasma settings and original data paths.
 No persistent greeter config is rewritten during account or theme switching.
 
-The canonical CMake contract starts two native consumers using the real greeter
+The native `ksmserver-logout-greeter` and `kscreenlocker_greet` also opt into
+`followOwnSession()`: it looks up only their real UID and reuses the same bounded
+palette adapter inside that process. It cannot select another account or register
+a login publisher. Other apps, including plasmashell, are refused, preserving the
+user's native desktop style. This closes the measured case where a personal Light
+colour scheme reached AccountsService while power retained the dark Plasma style.
+Native lock/power input and authentication owners are unchanged.
+
+The canonical CMake contract starts two native greeter consumers and an ordinary-account lock/power consumer using the real greeter
 engine and a complete matched initial style. It tests two themes, a second
 personal palette within the same style, actual asynchronous image pixels,
 Window/Complementary/selection colours, native glyphs, invalid-data restoration,
-unchanged service settings, immutable administrator-style refusal and AccountsService restart persistence. The final
+unchanged service and desktop-style settings, own-account-only selection, immutable administrator-style refusal and AccountsService restart persistence. The final
 image gate requires that receipt and the exact tested daemon/module hashes,
 then imports the actual installed module through the shared source bridge.
 An unavailable older signed-host publisher is a development compatibility case;

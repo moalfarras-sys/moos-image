@@ -1,0 +1,13 @@
+/* Meyar Arabic, derived from Noto Sans Arabic; SIL OFL1.1. See OFL.txt. */
+@font-face {
+  font-family: "Meyar Arabic";
+  src: url("./MeyarArabic[wght].woff2") format("woff2");
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+}
+
+/* Pair with the platform's existing Latin UI face. */
+.meyar-arabic {
+  font-family: "Meyar Arabic", system-ui, sans-serif;
+}

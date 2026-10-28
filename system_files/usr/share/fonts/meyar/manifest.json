@@ -1,0 +1,48 @@
+{
+  "version": "0.300",
+  "license": "OFL-1.1",
+  "source": "fonts/meyar-family",
+  "cellUnits": 700,
+  "files": {
+    "MeyarArabic[wght].ttf": {
+      "bytes": 302244,
+      "sha256": "72ade79f94cb599478e44db127ea848bea4a742032bef73eb6f12d38218a3c85"
+    },
+    "MeyarMonoArabic-Bold.ttf": {
+      "bytes": 187428,
+      "sha256": "549f67a13e7189b59450cafb36b2ab3b48992ea92c0532e3d349cb64abcb5049"
+    },
+    "MeyarMonoArabic-Regular.ttf": {
+      "bytes": 188408,
+      "sha256": "50815184356961df332c6ef9f1feedffd83ed8bff3ca32a6daa7428e289e21c3"
+    },
+    "MeyarMono[wght].ttf": {
+      "bytes": 763316,
+      "sha256": "30bad8c1bb98a6f481d692720304046e262313231cc4b6cc1f3e8573a6bb3cb9"
+    },
+    "MeyarSans[wght].ttf": {
+      "bytes": 866732,
+      "sha256": "8430158955f03ad1621a52cdb675326737b7e1f6a452dcdf1a55f1233b2a7339"
+    },
+    "OFL-Arabic.txt": {
+      "bytes": 4382,
+      "sha256": "a7a5a25eb188bf1cd96982030d53e23c33485c69b1044a562254226857ee13af"
+    },
+    "OFL-LGC.txt": {
+      "bytes": 4396,
+      "sha256": "cee9892f9f0cc8fe882c9e9537ee6a89621d86ee7ceaf70b02e2b2b1c25c061a"
+    },
+    "OFL-MonoArabic.txt": {
+      "bytes": 4592,
+      "sha256": "d0bb837bd4b170f869602be4ce7164bd692ff77a9842ade72c7f09fa013f79db"
+    },
+    "README.md": {
+      "bytes": 4874,
+      "sha256": "7dc2034749e2eb265a6700c59d5f7a2b37edd1c9bf46587a325e9345fa0b2c27"
+    },
+    "terminal-cells.json": {
+      "bytes": 106052,
+      "sha256": "acbb4f667edf884c6d2e2439226dba2c903f2435c48273e43f66d0832d2d4daf"
+    }
+  }
+}

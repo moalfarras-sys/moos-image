@@ -1,5 +1,22 @@
 # Working on MoOS — read this first
 
+Owner26Oct typography steering: the experimental from-scratch Meyar Arabic is rejected as incorrect. The owner explicitly authorizes modifying an open-source Arabic typeface instead; preserve its attribution/license and native shaping. A glyph-catalogue preview may paint isolated glyphs without Arabic word shaping. Require a real text-layout/native-editor journey and natural line bounds for stacked marks before claiming Arabic correctness or changing defaults. Keep the source derivative, selectable user-local font and signed OS delivery distinct.
+
+Owner28Oct product steering: build one Arabic-first MoOS for desktop/tablet,
+with distinctive Meyar typography, a coherent native Liquid Glass interface,
+and Linux/Windows/Android applications through the existing Store/engine owners.
+Use `docs/DEVELOPMENT_PLAN.md` → Product direction, Ordered execution and P0–P6
+as the only queue; dated conversation handoffs do not override current measured
+state or later owner steering. Strength means tested daily journeys, explicit
+compatibility scope and repeatable performance, not catalogue counts or universal
+claims. For cross-engine/system work load the engineering skill's
+`references/integrated-compatibility.md`; identify one integration owner, disjoint
+agent tasks and a frozen qualification SHA. Preserve all identity, authentication,
+signing, isolation, licences and recovery requirements below. Documentation
+improvement does not itself deliver a new operating system.
+For the next-agent handoff and hardware/performance targets, use the matching
+sections in that plan; dependency choices use the skill's `references/upstream-selection.md`.
+
 <!-- ═══════════════════════════════════════════════════════════════════════
      Mo AI — Telegram OS assistant runtime guidance (READ FIRST when you are
      the assistant controlling THIS computer for the owner over Telegram).
@@ -185,7 +202,31 @@ Publish listening/endpoint only after Kestrel binds. Treat actual address-in-use
 
 **A migration marker is not a published account record.** The first1107 private postboot probe began16s before native AccountsService appearance publication completed and retained a JSON-read failure. The later physical boot has matching selected-look/cache/native metadata and54/56 diagnostics. Require bounded native publication readiness and direct current readback; preserve the earlier failure and do not force an old Light snapshot over a later selected Dark theme. Timing evidence is not proof that every JSON failure has the same cause.
 
+**A mono-labelled source is not a Unicode terminal grid.** Actual Konsole paints
+Noto Mono's two-cell arrow over the next letter;252 encoded digraph/Greek/symbol
+advances disagree with its native Unicode15 allocation. Private HOME also
+resolved both requested Meyar names to Noto Sans: explicitly load source font
+bytes/policy and require the real family before accepting geometry. Primary-only
+FontMetrics clips the Arabic fallback confirmation line; reserve the actual
+script before arming, retaining the old refusal. Keep the upstream and
+native old/fixed controls. Native Qt hid both cell families as dual-width: exact
+family scan metadata restores its fixed-font chooser without scaling ink.
+Retain the original four-cell Allah word ligature when giving encoded U+FDF2
+its own one-cell variant, and spacing Sk dots must not be inferred as zero-width
+marks. Snapshot dependent components before fitting source
+outlines, and verify every positive-width encoded point at every weight. Arabic
+marks need their own700-unit joining owner and measured line room. Qt6.11's
+actual Fonts KCM writes19-field QFont strings; retain its trailing fields and
+personal families. User-local fonts/profiles and native Apply are development
+evidence, never a signed four-edition update.
+
+**A named font match is not the system default.** The native Meyar image passed named-font and byte gates while generic sans/mono still selected vendor Noto. Resolve generic requests before vendor expansion, retain explicit named choices and native script fallback, and gate actual generic readback in both architecture builds. Private font fixtures must keep the native fonts.conf normalization before the source policy; fc-match normalizes sans-serif to sans before that configuration.
+
 ## Where the rest of the knowledge is
+
+**A downloaded collection is not a wallpaper package.** Native KNewStuff can install a flat image archive then fail its Use command on a wildcard folder. Keep the actual old refusal; use the native picker and bounded raster admission, then delegate to the original appearance owner. Preserve the native provider/version/warning/install bytes and registry identity, Kiosk restrictions, edited/link-cache refusals and cancellation without mutation. A QWidget KCM needs an embedded ApplicationItem/PageRow for native detail pages; its offscreen Window is not a dialog parent. Compile child types before accepting the root ready marker and retain the broken-child negative.
+
+**A personal colour choice is not a complete global look.** The actual V3 selected Light colours while power retained its dark Plasma style. The native lock/power consumers may read only their own UID's bounded appearance through the existing adapter; this never changes the desktop style or permits an ordinary account to choose another user. Keep actual loaded-library paths, normal power prompt/Cancel and lock testing-client pixels distinct from authentication or signed installation. KWin stores Aurorae names with `__aurorae__svg__`; normalise that native prefix before checking the installed package. Validate personal components and native automatic targets rather than marking a missing package healthy. Native saved names may contain spaces/quotes: serialize receipts as JSON, and keep the executed old-format and invalid-component controls.
 
 **A visible primary button does not prove the whole welcome page fits.** The actual640×480 live ISO accepts Begin by pointer/keyboard while its installer action stays below the viewport and cannot be wheel-recovered. Preserve those contrary input controls; require the original actions and actual caption ink to scroll/focus into view on the native host. A private virtual pilot is not physical touch, the rest of the wizard or a signed installation. Native client controls later passed while the title frame pushed content beyond the output: preserve those contrary controls, reserve actual opening room and inspect the natural window with its decoration, not only a client-sized grab.
 

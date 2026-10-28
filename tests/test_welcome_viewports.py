@@ -98,11 +98,13 @@ class WelcomeViewports(unittest.TestCase):
                 QML_DISABLE_DISK_CACHE='1', QML_XHR_ALLOW_FILE_READ='1',
                 QT_QPA_PLATFORMTHEME='kde', QT_QUICK_CONTROLS_STYLE='Basic',
                 QT_FORCE_STDERR_LOGGING='1', LANG='en_US.UTF-8')
+            from native_meyar_fontconfig import configure
+            configure(env,private)
             for width,height,language,font,broken in [(640,480,'ar',10,None),
                     (360,640,'ar',16,None),(331,550,'ar',16,None),(1536,864,'en',10,None),
                     (640,480,'ar',10,'scroll'),(360,640,'ar',16,'frame'),(331,550,'ar',16,'word')]:
                 colors=(ROOT/'system_files/usr/share/color-schemes/MoOSUI2Aurora.colors').read_text()
-                (private/'config/kdeglobals').write_text(colors+'\n[General]\nfont=IBM Plex Sans,'+str(font)+
+                (private/'config/kdeglobals').write_text(colors+'\n[General]\nfont=Meyar Sans,'+str(font)+
                     '\n[KDE]\nAnimationDurationFactor=0\nLookAndFeelPackage=org.moos.ui2.aurora\n[Icons]\nTheme=MoOSUI2Aurora\n')
                 (private/'config/plasmarc').write_text('[Theme]\nname=MoOSUI2Aurora\n')
                 body=SOURCE.read_text().replace('import QtQuick\n','import QtQuick\nimport QtTest as Gate\n',1)

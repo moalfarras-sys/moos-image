@@ -74,6 +74,12 @@ class GreeterDirectoryState(unittest.TestCase):
         self.assertEqual(self.identity.read_bytes(),b'')
         self.assertEqual([p.name for p in (self.root/'var').iterdir()],['tmp'])
 
+    def test_exact_682_native_metadata_and_creator_conform(self):
+        self.nvr='6.8.2-1.fc44'
+        self.assertTrue(self.call())
+        self.assertEqual(stat.S_IMODE(self.directory.stat().st_mode),0o750)
+        self.assertFalse(self.call())
+
     def test_absent_directory_is_not_created(self):
         self.directory.rmdir();self.assertFalse(self.call());self.assertFalse(self.directory.exists())
 
@@ -122,7 +128,7 @@ class GreeterDirectoryState(unittest.TestCase):
         self.authority.symlink_to(other);self.refused('symlink|link');self.assertEqual(other.read_bytes(),data)
 
     def test_unknown_package_version_refuses(self):
-        for nvr in ('6.7.91-2.fc44','6.7.92-1.fc44','6.8.2-1.fc44'):
+        for nvr in ('6.7.91-2.fc44','6.7.92-1.fc44','6.8.3-1.fc44'):
             with self.subTest(nvr=nvr):
                 self.nvr=nvr;self.refused('unreviewed greeter directory package')
 

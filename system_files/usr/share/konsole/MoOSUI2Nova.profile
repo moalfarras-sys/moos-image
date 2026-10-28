@@ -1,7 +1,9 @@
 [Appearance]
 ColorScheme=MoOSUI2Nova
-Font=JetBrains Mono,11,-1,5,50,0,0,0,0,0
+Font=Meyar Mono,11,-1,5,400,0,0,0,1,0,0,0,0,0,0,1
 LineSpacing=2
+WordMode=true
+WordModeCoding=true
 BoldIntense=true
 UseFontLineChararacters=true
 
@@ -23,6 +25,9 @@ UseCustomCursorColor=true
 CustomCursorColor=99,102,241
 
 [Terminal Features]
+BidiRenderingEnabled=true
+BidiLineLTR=true
+BidiTableDirOverride=true
 BlinkingCursorEnabled=true
 BellMode=3
 

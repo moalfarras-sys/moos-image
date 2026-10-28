@@ -1,0 +1,258 @@
+{
+  "schema": 1,
+  "date": "2026-10-26",
+  "sourceBase": "fd29f5778170d66919e5bbb1ae69cb2a5dab0c4b",
+  "themeRevision": 140,
+  "installed": {
+    "host": "physical Minisforum V3 AMD/Radeon",
+    "version": "44.20261025.1107",
+    "session": "Wayland",
+    "output": "DP-11 3840x2160 60Hz at 250%, logical1536x864",
+    "delivery": "Existing signed deployment; feature uses recorded scoped review copies"
+  },
+  "nativeKCM": {
+    "path": "test-results/kde-library-native-20261026/kcm-prefix-v21/usr/lib64/qt6/plugins/plasma/kcms/systemsettings/kcm_moos_appearance.so",
+    "sha256": "1f858ee5a1a3652301612b2918229a9ac7b20aff97a0d599003573b95e9ec986",
+    "bytes": 3104640,
+    "source": {
+      "src/moosbackend.cpp": "dfd4dfbd9c6a339e8a466879198aad7da80af5ae914cfc03c32514980fc38029",
+      "src/moosbackend.h": "61acbd810012217e6a1887dc2817082efc54e9c081842cb36b0a105adb981acb",
+      "modules/appearance/ui/main.qml": "6189fb6d26528f7c3c6d2adcb0ed61d51d45f4975d7f963b80fba5d01cc53977",
+      "modules/appearance/ui/AppearanceLibrary.qml": "c13aff068072de5981a119ad6926d4a464b81dd2ebe25d78d80302b17d05a967",
+      "modules/appearance/ui/KdeLibraryRow.qml": "2ae271523d5e0322fb9bcf391216348c79b798e2d492df8f79544c28ccf5ed63",
+      "modules/appearance/ui/KdeOnline.qml": "d079a84a5bd4aa659eea04548e750c1de8f9334e362b8f98a14da0cc2b2cb4c6",
+      "modules/appearance/ui/ThemeLogic.js": "95281aa4d376dd4619739e09e56909fce1a4039c0a068fcb7a92adae75c2a26c",
+      "CMakeLists.txt": "d3439da50663882479eb8b54c7b11298484601382d30414fa2a2986a4b7676ef"
+    },
+    "consumer": "Scoped actual compiled KCM catalogue journey",
+    "retireWhen": "Signed equivalent installed and no process maps this file",
+    "notSignedOSDelivery": true,
+    "actualMappingVerified": true
+  },
+  "nativeCatalogueBoundary": {
+    "failures": [],
+    "seconds": 0.984,
+    "checkerSha256": "471b87209b2103b028008534222bd834f8e8ae6e60409d82be2f8c34aaf41048",
+    "sourceSha256": "cf8c2449f268c228d59cd7032b27223b6c1c58971e040769d02d9e021afeadc7",
+    "host": "V3",
+    "scope": "private HOME, no display/session bus; compiled native category lookup"
+  },
+  "onlineJourney": {
+    "nativeProvider": "api.kde-look.org",
+    "entryId": "1309907",
+    "entryName": "Sweet wallpaper",
+    "preview": true,
+    "download": true,
+    "registryOwner": "native wallpaper.knsregistry",
+    "oldFlatCollectionUseRefused": true,
+    "fixedNativeImagePicker": true,
+    "selectedBitmap": "Sweet-space.png",
+    "adoption": {
+      "accountReadbackMatchesCache": true,
+      "look": "org.moos.ui2.bloom",
+      "groups": 7,
+      "payloadBytes": 74186,
+      "payloadSha256": "ef52da465e68fcffa162f0a26c3696af20dc0a04f020c694d7d0de1a10679952",
+      "rasterBytes": 53388,
+      "scope": "Actual desktop wallpaper collection adoption, canonical installed MoOS transaction, lock config and native AccountsService readback; no cold login/authentication proof"
+    },
+    "pickerCancel": {
+      "nativeKDialog": true,
+      "cancelExit": 0,
+      "noSceneMutation": true
+    }
+  },
+  "savedTheme": {
+    "nativeSavedPackage": true,
+    "selected": "MoOS Personal",
+    "readbackMatches": true,
+    "paletteGroups": 7,
+    "imagePublished": true,
+    "nativeServiceResult": "success",
+    "publicPayloadSha256": "d0b19bf21eb98f99156f09a5aee3cc05022bfe8449b408261b0361238f545434",
+    "nativeAction": "Actual Global Theme Save Current Theme, then native plasma-apply-lookandfeel",
+    "scope": "Actual saved package and existing native reconciliation service with recorded scoped compatibility copies; not a signed cold-login proof"
+  },
+  "personalDetectionControl": {
+    "oldNativePersonalDetector": false,
+    "fixedNativePersonalDetector": true,
+    "oldSourceSha256": "516b11fbd7330d455728b999c85c96a1a7a00f6e9af4dae7d24f4d6c746347c0",
+    "fixedSourceSha256": "1eaeef7b8a8f6b263160efdaccd11df67cc89b0b4932dba9265396cc5c352148",
+    "actualDecoration": "__aurorae__svg__MoOSUI2Bloom",
+    "scope": "Same actual Bloom look + chosen Light colours; read-only old/fixed classifier"
+  },
+  "finalPublisherPrivateControl": {
+    "sourceSha256": "1eaeef7b8a8f6b263160efdaccd11df67cc89b0b4932dba9265396cc5c352148",
+    "seconds": 0.541,
+    "currentNativeDefaultNotCustom": true,
+    "installedNativePairValid": true,
+    "actualSavedPackageAccepted": true,
+    "externalMissingIconRefused": true,
+    "savedPayloadGroups": 7,
+    "savedPayloadHasRaster": true,
+    "noPrivatePathsInPayload": true,
+    "ownerConfigUnchanged": true,
+    "notPublication": true,
+    "scope": "Final source helper, actual native installed packages and read-only desktop scene; all config/cache writes private"
+  },
+  "quotedReceiptControl": {
+    "old": {
+      "exit": 0,
+      "validJSON": false,
+      "writerSha256": "43cf5a85198898ecb05e3a380e16c5f05b95141f609ac9c04ba49f2942595cf2"
+    },
+    "fixed": {
+      "exit": 0,
+      "validJSON": true,
+      "writerSha256": "113c86bab77f576b26466d3fa156ec174add74995b7a60954615b5005e15b2ee"
+    }
+  },
+  "ownSessionSurfaces": {
+    "normalNativePowerPrompt": true,
+    "busOwnerPIDVerified": true,
+    "normalCancelExit": 0,
+    "windowedCancelExit": 0,
+    "lockTestingClient": true,
+    "exactNativeModuleMapped": true,
+    "lockScreensaverBeforeAndAfter": false,
+    "actualAuthentication": false,
+    "moduleSha256": "799d2335ac6907a1a24ad79267a3287502a31020dcac5195649d444d15f4c0b7"
+  },
+  "viewports": {
+    "requestedWidth": 480,
+    "actualNarrowWidth": 480,
+    "original": {
+      "x": 427,
+      "y": 0,
+      "width": 681.2,
+      "height": 810
+    },
+    "restored": true,
+    "scope": "Actual compiled KCM and native responsive content on physical V3; no output/scale or physical touch change",
+    "firstRestore": "initial asynchronous read still reported 480; retained refusal, later exact native readback required"
+  },
+  "installedDestination": {
+    "category": "icons",
+    "nativeModule": "kcm_icons",
+    "actualNativeWindow": true,
+    "scope": "Actual Installed Icons button; four added routes also render their exact native module through a recorded scoped URI adapter. Signed equivalent remains pending."
+  },
+  "restoration": {
+    "sceneRestored": true,
+    "configBytesMatch": {
+      "kdeglobals": true,
+      "plasmarc": true,
+      "kwinrc": true,
+      "kcminputrc": true,
+      "kscreenlockerrc": true,
+      "moos-session-appearance.conf": true
+    },
+    "originalPublicationRestored": true,
+    "runtimeOverrideRetired": true,
+    "sourceCopiesRemainPrivateEvidence": true
+  },
+  "resources": {
+    "seconds": 10.0,
+    "workload": "Existing owner editor/Remote plus maintained repository checks; power motion settled and online catalogue open without input; not whole-system idle or speedup evidence",
+    "processes": {
+      "nativePower": {
+        "cpuPercentOneCore": 0.0,
+        "rssBytes": 210706432
+      },
+      "onlineAppearanceKCM": {
+        "cpuPercentOneCore": 0.0,
+        "rssBytes": 349224960
+      }
+    }
+  },
+  "brokenChild": {
+    "exit": 124,
+    "missingTypeRefused": true,
+    "readyMarkerAbsent": true,
+    "sourceRestored": true,
+    "librarySha256": "ed633a6a6f724ce687969fc23d21cff58ef8e89e56095c0321fdc8b23761a0e1",
+    "logging": "QT_FORCE_STDERR_LOGGING=1"
+  },
+  "compatibility": {
+    "privateManifest": "test-results/kde-library-native-20261026/all-live-compatibility-copies.json",
+    "sha256": "0baef0749ee6951c39383bcd13969a755ea31ec87b320b0d1ac000edd1701e4d",
+    "files": 68,
+    "bytes": 69477999,
+    "liveRuntimeServiceOverrideRetired": true
+  },
+  "retainedRefusals": [
+    "Initial SDK contents copy and stale object/loaded-path controls",
+    "QWidget offscreen Window and drawer/context QML failures",
+    "Native flat-archive wallpaper Use failure",
+    "Unquoted private compatibility path refused, then quoted correctly",
+    "Missing loaded-type root marker refused",
+    "Actual dark power material despite Light account metadata",
+    "Aurorae-prefixed native component misclassification",
+    "Successful old writer produced invalid quoted-name JSON",
+    "Profile-map test delimiter spilled into the host report; bounded outer-case fixture retains all18 and old-omitted Bloom refusal",
+    "Undeclared inherited row action refused by source gate; explicit manageInstalled signal and actual native Icons journey",
+    "Source route initially reached old signed URI handler and exited2; exact scoped desktop override opens all four new destinations, original failed journal retained; only this exact failed unit reset",
+    "Actual current-scene KCM is not a downloaded-image gallery; Saved uses native Installed filter instead",
+    "Generic test command incorrectly admitted native-selected; stock/custom/failed-resume controls retain their actual branch contracts"
+  ],
+  "limits": [
+    "No signed feature installation or cold boot claimed",
+    "Native account/public-data boundaries remain unchanged",
+    "Native application/GTK theme, physical touch and arbitrary third-party package compatibility are not universally qualified",
+    "Static image packages/collections only; downloaded QML never enters the pre-login channel",
+    "All private captures and native registry/download credentials remain gitignored and local",
+    "Complete final source/image/architecture gates and signed delivery are pending"
+  ],
+  "savedWallpaperGallery": {
+    "actualNativeInstalledFilter": true,
+    "installedEntry": "Sweet wallpaper",
+    "sameRegistry": true,
+    "source": "d079a84a5bd4aa659eea04548e750c1de8f9334e362b8f98a14da0cc2b2cb4c6",
+    "scope": "Actual Saved button and native installed catalogue pixels on V3; earlier lost-foreground capture is not acceptance"
+  },
+  "newInstalledRoutes": [
+    {
+      "route": "desktop-style",
+      "module": "kcm_desktoptheme",
+      "actualMappedLibrary": [
+        "/usr/lib64/qt6/plugins/plasma/kcms/systemsettings/kcm_desktoptheme.so"
+      ],
+      "caption": "نمط بلازما — إعدادات النّظام",
+      "pid": 192116
+    },
+    {
+      "route": "wallpaper-library",
+      "module": "kcm_wallpaper",
+      "actualMappedLibrary": [
+        "/usr/lib64/qt6/plugins/plasma/kcms/systemsettings/kcm_wallpaper.so"
+      ],
+      "caption": "الخلفية — إعدادات النّظام",
+      "pid": 192116
+    },
+    {
+      "route": "font-library",
+      "module": "kcm_fontinst",
+      "actualMappedLibrary": [
+        "/usr/lib64/qt6/plugins/plasma/kcms/systemsettings_qwidgets/kcm_fontinst.so"
+      ],
+      "caption": "إدارة الخطوط — إعدادات النّظام",
+      "pid": 192116
+    },
+    {
+      "route": "window-scripts",
+      "module": "kcm_kwin_scripts",
+      "actualMappedLibrary": [
+        "/usr/lib64/qt6/plugins/plasma/kcms/systemsettings/kcm_kwin_scripts.so"
+      ],
+      "caption": "سكربتات كوين — إعدادات النّظام",
+      "pid": 192116
+    }
+  ],
+  "intermediateSourceGate": {
+    "command": "just check",
+    "exit": 0,
+    "seconds": 879.922,
+    "inputHashesStable": false,
+    "scope": "Intermediate only; later Saved-gallery/auto-owner changes require the complete final source gate"
+  }
+}

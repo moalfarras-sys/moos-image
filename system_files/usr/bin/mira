@@ -56,6 +56,9 @@ fi
 # -s keeps a person's ~/.local packages out of the assistant that holds system tools.
 export PYTHONPATH="$SITE${PYTHONPATH:+:$PYTHONPATH}"
 export QT_QUICK_CONTROLS_STYLE=Basic
+# First-party QML must observe updated immutable font/style source even when
+# OSTree preserves its mtime. Match the other MoOS application launchers.
+export QML_DISABLE_DISK_CACHE=1
 
 # ── Is there a GPU to draw with? ─────────────────────────────────────────────
 # The same measured rule as /usr/bin/moai (read its note): on a machine with no real graphics

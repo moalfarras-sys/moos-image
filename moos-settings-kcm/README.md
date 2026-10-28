@@ -14,10 +14,50 @@ window.
 | `kcm_moos_ai` | `modules/ai` | 4 | Mo AI (slice B) |
 | `kcm_moos_remote` | `modules/remote` | 5 | Mo PC Remote on/off/restart, Fast Remote, open the app |
 | `kcm_moos_recovery` | `modules/recovery` | 6 | Saved images, queued rollback and its target |
-| `kcm_moos_appearance` | `modules/appearance` | 1 in *appearance* | MoOS Themes: the 16 looks with their previews, apply and undo, the desktop canvas image, glass clarity, wallpaper motion, and the native pages for fine control |
+| `kcm_moos_appearance` | `modules/appearance` | 1 in *appearance* | MoOS Themes: the 18 looks with their previews, apply and undo, the desktop canvas image, glass clarity, wallpaper motion, and the native pages for fine control |
 
 `moos-settings --section=<s>` maps a section to one of these ids and runs
 `systemsettings <id>`; a running System Settings receives the id itself.
+
+## Appearance library
+
+`kcm_moos_appearance` keeps the 18 curated MoOS looks and adds one native
+library page. Installed opens the existing KDE owner; Online embeds
+KNewStuff's `Page` in the KCM's page stack, with its previews, detail pages,
+search, installation/removal, executable-content warnings and Kiosk policy.
+No catalogue engine is instantiated until the user opens an online category.
+Fonts use the native Font Manager's complete install workflow. Saved wallpapers open the same native catalogue with its Installed filter; the current MoOS scene configuration remains a separate native fallback, not an image gallery.
+
+| Category | Native configuration | Installed owner |
+| --- | --- | --- |
+| Global themes / save current theme | lookandfeel.knsrc | kcm_lookandfeel |
+| Downloaded wallpapers | wallpaper.knsrc | Native installed-entry gallery; kcm_wallpaper for scene configuration |
+| Desktop style | plasma-themes.knsrc | kcm_desktoptheme |
+| Colours | colorschemes.knsrc | kcm_colors |
+| Icons | icons.knsrc | kcm_icons |
+| Cursors | xcursor.knsrc | kcm_cursortheme |
+| Window decorations | window-decorations.knsrc | kcm_kwindecoration |
+| Widgets | plasmoids.knsrc | Native desktop widget gallery |
+| Fonts | kfontinst.knsrc | kcm_fontinst |
+| Effects | kwineffect.knsrc | kcm_kwin_effects |
+| Window switchers | kwinswitcher.knsrc | kcm_kwintabbox |
+| Window scripts | kwinscripts.knsrc | kcm_kwin_scripts |
+
+`appearanceLibraryConfig(category)` accepts only these fixed keys. It refuses
+missing, linked, non-root-owned or writable native configurations and respects
+the corresponding control-module restriction. Wallpaper adoption alone uses
+a checked, private derived copy: every native byte remains unchanged except
+its AdoptionCommand. The unchanged basename shares KDE's existing registry.
+Edited or linked caches remain intact and are refused. The native file picker
+handles flat image collections; standard static packages resolve to bounded
+images. MoOS looks delegate adoption to the existing theme transaction; an
+external native look retains Plasma's wallpaper owner.
+
+The native Save Current Theme action owns saving. The reconciler preserves
+valid installed personal components and layouts; missing components remain
+failures. Session screens receive bounded native palette/font/raster data in
+an immutable MoOS envelope. They never load downloaded greeter QML. Boot
+branding remains independent. See [native evidence and scope](../docs/reviews/2026-10-26-kde-library-native-proof.json).
 
 ## Adding a module
 

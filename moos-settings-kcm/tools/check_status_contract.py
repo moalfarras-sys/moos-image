@@ -65,6 +65,57 @@ def verdict(checker: str, document: Any, directory: Path) -> str:
     return said
 
 
+def check_catalogues(checker: str, source: str, home: Path) -> list[str]:
+    """Execute the compiled category/Kiosk/cache boundary without a GUI or bus."""
+    entries = re.findall(r'\{QStringLiteral\("([a-z-]+)"\), \{"([a-z-]+\.knsrc)", "([a-z0-9_]*)"\}\}',source)
+    if len(entries)!=12: return [f'expected twelve declared native catalogues, found {len(entries)}']
+    config=home/'catalogue-config';config.mkdir()
+    env={k:v for k,v in os.environ.items() if k not in ('DBUS_SESSION_BUS_ADDRESS','DISPLAY','WAYLAND_DISPLAY')}
+    env.update(HOME=str(home),XDG_CONFIG_HOME=str(config),XDG_CONFIG_DIRS=str(config),XDG_CACHE_HOME=str(home/'catalogue-cache'))
+    errors=[]
+    def query(key):
+        return subprocess.run([checker,'--library',key],env=env,capture_output=True,text=True,timeout=10)
+    for unknown in ('unknown','../wallpaper.knsrc','/usr/share/knsrcfiles/wallpaper.knsrc','https://example.invalid/library'):
+        result=query(unknown)
+        if result.returncode!=1 or result.stdout.strip()!='refused': errors.append('unknown catalogue was admitted')
+    available=0
+    for key,name,module in entries:
+        native=Path('/usr/share/knsrcfiles')/name
+        safe=native.is_file() and not native.is_symlink() and native.stat().st_uid==0 and not (native.stat().st_mode&0o022)
+        result=query(key)
+        if safe:
+            available+=1
+            if result.returncode or result.stdout.strip()=='refused':
+                errors.append(f'{key}: installed safe native configuration refused')
+                continue
+            chosen=Path(result.stdout.strip())
+            if key=='wallpapers':
+                before=native.read_bytes()
+                expected=before.replace(b'AdoptionCommand=plasma-apply-wallpaperimage %f',b'AdoptionCommand=moos-kde-wallpaper-adopt %f')
+                if chosen.name!='wallpaper.knsrc' or chosen.read_bytes()!=expected:
+                    errors.append('wallpaper adapter changed more than the native adoption command')
+                # Never trust a pre-existing edited cache or follow its link.
+                chosen.write_bytes(b'unknown bytes')
+                if query(key).returncode!=1 or chosen.read_bytes()!=b'unknown bytes': errors.append('edited catalogue cache was not refused intact')
+                chosen.unlink()
+                untouched=home/'untouched';untouched.write_bytes(b'preserve')
+                chosen.symlink_to(untouched)
+                if query(key).returncode!=1 or untouched.read_bytes()!=b'preserve': errors.append('catalogue cache link was followed')
+                chosen.unlink()
+                if query(key).returncode: errors.append('clean catalogue could not be recreated')
+            elif chosen!=native:
+                errors.append(f'{key}: native catalogue path substituted')
+        elif result.returncode!=1 or result.stdout.strip()!='refused':
+            errors.append(f'{key}: missing/unsafe native catalogue admitted')
+        if module:
+            (config/'kdeglobals').write_text('[KDE Control Module Restrictions]\n'+module+'=false\n')
+            refused=query(key)
+            if refused.returncode!=1 or refused.stdout.strip()!='refused': errors.append(f'{key}: module Kiosk restriction bypassed')
+            (config/'kdeglobals').unlink()
+    print(f'Native catalogue boundary: {available} installed configurations, unknown keys/cache substitutions/Kiosk refusals executed')
+    return errors
+
+
 def main() -> int:
     if len(sys.argv) != 4:
         print(__doc__.split("\n\n", 2)[1], file=sys.stderr)
@@ -126,7 +177,7 @@ def main() -> int:
                    drop(group, key) if group else drop(key))
         cases.append(("a list instead of a document", [real], "invalid"))
 
-        failures = []
+        failures = check_catalogues(checker,source,home)
         for label, document, expected in cases:
             said = verdict(checker, document, home)
             if said != expected:

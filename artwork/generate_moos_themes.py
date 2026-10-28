@@ -338,8 +338,10 @@ def konsole_profile_for(key: str, meta: dict) -> str:
     p = _roles(key)
     return f"""[Appearance]
 ColorScheme={meta['style']}
-Font=JetBrains Mono,11,-1,5,50,0,0,0,0,0
+Font=Meyar Mono,11,-1,5,400,0,0,0,1,0,0,0,0,0,0,1
 LineSpacing=2
+WordMode=true
+WordModeCoding=true
 BoldIntense=true
 UseFontLineChararacters=true
 
@@ -361,6 +363,9 @@ UseCustomCursorColor=true
 CustomCursorColor={_rgb(p['primary'])}
 
 [Terminal Features]
+BidiRenderingEnabled=true
+BidiLineLTR=true
+BidiTableDirOverride=true
 BlinkingCursorEnabled=true
 BellMode=3
 

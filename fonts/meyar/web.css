@@ -1,0 +1,10 @@
+@font-face {
+    font-family: 'Meyar';
+    src: url('Meyar[wght].woff2') format('woff2');
+    font-style: normal;
+    font-weight: 100 900;
+    font-display: swap;
+}
+
+/* Use the normal system fallback for scripts outside the declared coverage. */
+/* font-family: 'Meyar', system-ui, sans-serif; */

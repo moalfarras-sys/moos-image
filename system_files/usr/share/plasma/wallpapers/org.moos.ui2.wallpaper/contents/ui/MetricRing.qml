@@ -157,7 +157,7 @@ Item {
                 anchors.centerIn: parent
                 text: ring.present ? Math.round(ring.displayedValue) : "—"
                 color: Kirigami.Theme.textColor
-                font.family: "IBM Plex Sans"
+                font.family: "Meyar Sans"
                 font.pixelSize: Math.round(ring.diameter * 0.32)
                 font.weight: Font.Light
                 font.features: ({ "tnum": 1 })
@@ -169,7 +169,7 @@ Item {
                 anchors.topMargin: Math.round(ring.diameter * 0.17)
                 text: "%"
                 color: Kirigami.Theme.disabledTextColor
-                font.family: "IBM Plex Sans"
+                font.family: "Meyar Sans"
                 font.pixelSize: Math.round(ring.diameter * 0.14)
             }
         }
@@ -178,7 +178,7 @@ Item {
             Layout.alignment: Qt.AlignHCenter
             text: ring.label
             color: Kirigami.Theme.disabledTextColor
-            font.family: MoUI.Locale.rtl ? "IBM Plex Sans Arabic" : "IBM Plex Sans"
+            font.family: MoUI.Locale.rtl ? "Meyar Arabic" : "Meyar Sans"
             font.pixelSize: Math.round(Kirigami.Units.gridUnit * 0.46)
             font.weight: Font.DemiBold
             font.letterSpacing: MoUI.Locale.rtl ? 0 : 1.1

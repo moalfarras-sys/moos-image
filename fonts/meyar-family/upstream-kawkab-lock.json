@@ -1,0 +1,23 @@
+{
+  "repository": "https://github.com/aiaf/kawkab-mono",
+  "revision": "45630ed78bfdbc5c7cf1dc8aab15f6385a396aed",
+  "license": "OFL-1.1",
+  "files": {
+    "OFL.txt": {
+      "bytes": 4592,
+      "sha256": "d0bb837bd4b170f869602be4ce7164bd692ff77a9842ade72c7f09fa013f79db"
+    },
+    "README.md": {
+      "bytes": 2098,
+      "sha256": "20cb77a5a43e436adf502bb294412bab71eddb93beed4c93b90fffc3c3ca8979"
+    },
+    "release-notes.md": {
+      "bytes": 793,
+      "sha256": "869e304499ba89fcd88dbd972b613ad48119d1b643adb7aa8650848dfce5558d"
+    },
+    "src/Kawkab Mono.glyphs": {
+      "bytes": 1817294,
+      "sha256": "f5914e5f18a18567c0cfa227209cb4050529f1b23ec426ae7983333f37d21ed8"
+    }
+  }
+}

@@ -64,7 +64,7 @@ class OwnerWallpaperChoice(unittest.TestCase):
             "capture_wallpaper_identity", "write_theme_state", "apply_desktop_scene_token",
             "adopt_live_wallpaper_choice", "load_wallpaper_expectation"))
 
-    def run_case(self, *, plugin: str, mode: str, prior_state: str = "profile"):
+    def run_case(self, *, plugin: str, mode: str, prior_state: str = "profile", resolve_ok: bool = True):
         root = Path(self.enterContext(tempfile.TemporaryDirectory(prefix="moos-owner-wall-")))
         bindir = root / "bin"
         bindir.mkdir()
@@ -83,8 +83,12 @@ class OwnerWallpaperChoice(unittest.TestCase):
         probe = root / "probe"
         probe.write_text(
             self.functions
+            # The scripted shell has no real image file. Static package/raster
+            # admission is executed separately by test_kde_appearance_library.
+            + ('\nresolve_static_wallpaper_token() { printf "%s\\n" "$1"; }\n' if resolve_ok
+               else '\nresolve_static_wallpaper_token() { return 1; }\n')
             + '\nwallpaper_package=/usr/share/wallpapers/MoOSUI2Aurora\n'
-            + 'load_wallpaper_expectation state\n'
+            + 'load_wallpaper_expectation state || exit "$?"\n'
             + 'printf "%s %s\\n" "$desktop_wallpaper_mode" "$desktop_wallpaper_token"\n',
             encoding="utf-8")
         env = os.environ | {
@@ -98,7 +102,7 @@ class OwnerWallpaperChoice(unittest.TestCase):
         }
         result = subprocess.run([BASH, str(probe)], env=env, capture_output=True,
                                 text=True, timeout=60)
-        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.returncode, 0 if resolve_ok else 1, result.stderr)
         state = (state_dir / "theme-state.json").read_text(encoding="utf-8")
         applied = (root / "applied.log").exists()
         return result.stdout.strip(), state, applied
@@ -110,6 +114,12 @@ class OwnerWallpaperChoice(unittest.TestCase):
         self.assertIn(f'"wallpaperEncoded": "{TOKEN}"', state)
         self.assertEqual(expectation, f"custom {TOKEN}",
                          "reconciliation must now expect the owner's image, not the theme's")
+
+    def test_refused_downloaded_image_cannot_restore_the_profile_over_it(self):
+        _expectation,state,applied = self.run_case(plugin="image",mode="custom",resolve_ok=False)
+        self.assertFalse(applied)
+        self.assertIn('"wallpaperMode": "profile"',state)
+        self.assertNotIn(TOKEN,state)
 
     def test_a_scene_image_chosen_on_its_own_page_is_kept(self):
         expectation, state, applied = self.run_case(plugin="scene", mode="custom")

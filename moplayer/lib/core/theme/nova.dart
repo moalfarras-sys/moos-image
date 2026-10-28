@@ -1,6 +1,6 @@
 /// The structural tokens: spacing, radius, type scale, motion.
 ///
-/// The *rhythm* is MoOS's — the 4/8/12/16/24/32 spacing ladder and the IBM Plex
+/// The *rhythm* is MoOS's — the 4/8/12/16/24/32 spacing ladder and the Meyar
 /// type ramp are the ones the MoOS shell, Mo AI and the Welcome app move in, and
 /// matching them is most of what "native" actually means. The *colour* is not;
 /// see [AppColors] and DESIGN.md for why a cinema surface cannot take the
@@ -42,20 +42,20 @@ class Nova {
   static const double typeTitle = 21;
   static const double typeDisplay = 32;
 
-  /// The interface face of MoOS. Shipped by the image (`ibm-plex-sans-fonts`),
-  /// with `IBM Plex Sans Arabic` alongside it, so Arabic and Latin share one
+  /// The interface face of MoOS. Shipped by the image (`usr/share/fonts/meyar`),
+  /// with `Meyar Arabic` alongside it, so Arabic and Latin share one
   /// family and one metric instead of Arabic silently dropping to DejaVu.
   ///
   /// Nothing is bundled and nothing is fetched at runtime — the brief forbids
   /// the second and the image makes the first unnecessary.
-  static const String fontFamily = 'IBM Plex Sans';
+  static const String fontFamily = 'Meyar Sans';
   static const List<String> fontFallback = <String>[
-    'IBM Plex Sans Arabic',
+    'Meyar Arabic',
     'Noto Sans Arabic',
     'Noto Sans',
     'DejaVu Sans',
   ];
-  static const String monoFamily = 'JetBrains Mono';
+  static const String monoFamily = 'Meyar Mono';
 
   // ── Motion ─────────────────────────────────────────────────────────────────
   // Calm, short, eased. The one thing this app must never do is make the user

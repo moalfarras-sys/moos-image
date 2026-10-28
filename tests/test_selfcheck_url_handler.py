@@ -69,7 +69,9 @@ def run(entries, handler_name="org.moos.urlhandler.desktop"):
             (root / "applications").mkdir(parents=True)
 
         # A program that really is executable, for the healthy cases.
-        real = tmp / "usr/bin/moos-open"
+        real = tmp / ("usr/bin/مسار عربي/moos-open" if any(
+            program and '__QUOTED_REAL__' in program for program in entries.values()
+        ) else "usr/bin/moos-open")
         real.parent.mkdir(parents=True, exist_ok=True)
         real.write_text("#!/usr/bin/env bash\nexit 0\n")
         real.chmod(0o755)
@@ -80,7 +82,7 @@ def run(entries, handler_name="org.moos.urlhandler.desktop"):
             root = data_home if where == "home" else system
             (root / "applications" / handler_name).write_text(
                 "[Desktop Entry]\nType=Application\nName=MoOS\n"
-                f"Exec={program.replace('__REAL__', str(real))} %u\n"
+                f"Exec={program.replace('__REAL__', str(real)).replace('__QUOTED_REAL__', chr(34) + str(real) + chr(34))} %u\n"
                 "MimeType=x-scheme-handler/moos;\n")
 
         bindir = tmp / "bin"; bindir.mkdir()
@@ -99,6 +101,15 @@ def run(entries, handler_name="org.moos.urlhandler.desktop"):
 
 
 CASES = [
+    ("a quoted Arabic executable remains a working shadow",
+     {"home": "__QUOTED_REAL__", "system": "__QUOTED_REAL__"},
+     "not the image copy", "is not executable"),
+    ("a quoted system executable resolves without splitting its path",
+     {"home": None, "system": "__QUOTED_REAL__"},
+     "OK moos:// links route to MoOS", "BAD"),
+    ("an unclosed quote is refused without evaluating anything",
+     {"home": '"/missing/path', "system": "__REAL__"},
+     "is not executable", "OK"),
     # (name, entries, must_contain, must_not_contain)
     ("the real A1 failure: $HOME entry naming a deleted program",
      {"home": "/var/home/moos/moos-desktop-edit/usr/bin/moos-open", "system": "__REAL__"},

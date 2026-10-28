@@ -606,6 +606,21 @@ for _problem in moos_section_problems(
     require(False, _problem)
 
 
+# Native appearance catalogues are part of the MoOS settings journey. Keep
+# KDE's original category/version/install configurations available; the KCM
+# derives only the wallpaper collection adoption command into its private cache.
+for _catalogue in ("lookandfeel.knsrc", "wallpaper.knsrc", "plasma-themes.knsrc",
+                   "colorschemes.knsrc", "icons.knsrc", "xcursor.knsrc",
+                   "window-decorations.knsrc", "plasmoids.knsrc", "kfontinst.knsrc",
+                   "kwineffect.knsrc", "kwinswitcher.knsrc", "kwinscripts.knsrc"):
+    _file = Path("/usr/share/knsrcfiles", _catalogue)
+    require(_file.is_file() and not _file.is_symlink() and _file.stat().st_uid == 0
+            and not (_file.stat().st_mode & 0o022),
+            f"native appearance catalogue {_catalogue} is missing or writable")
+for _program in ("/usr/bin/moos-kde-wallpaper-adopt", "/usr/bin/kdialog", "/usr/bin/setpriv"):
+    require(Path(_program).is_file() and os.access(_program, os.X_OK),
+            f"appearance library requires executable {_program}")
+
 # build.sh hides the Settings page of the input-method engine the x86 editions removed
 # through KIOSK: `[KDE Control Module Restrictions] kcm_fcitx5=false` in /etc/xdg/kdeglobals,
 # which System Settings, its KRunner runner and kcmshell6 all obey (KAuthorized::

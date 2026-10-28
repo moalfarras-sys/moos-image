@@ -210,7 +210,8 @@ class TheRetiredAdviceWorksOnTheSpot(unittest.TestCase):
                   "kquitapp6", "kstart", "kstart6", "dbus-send", "fc-cache", "notify-send",
                   "qdbus", "xdg-open", "flatpak")
 
-    def run_apply(self, lookandfeel_known: bool) -> tuple[subprocess.CompletedProcess, Path, str]:
+    def run_apply(self, lookandfeel_known: bool, *, personal: bool = False,
+                  resume_code: int = 0, font_code: int = 0) -> tuple[subprocess.CompletedProcess, Path, str]:
         tmp = tempfile.TemporaryDirectory()
         self.addCleanup(tmp.cleanup)
         root = Path(tmp.name)
@@ -226,8 +227,12 @@ class TheRetiredAdviceWorksOnTheSpot(unittest.TestCase):
         (stubs / "kreadconfig6").write_text(
             f'#!/bin/sh\necho "kreadconfig6 $*" >> "{calls}"\n{kread}\n', encoding="utf-8")
         (stubs / "moos-theme").write_text(
-            f'#!/bin/sh\necho "moos-theme $*" >> "{calls}"\nexit 0\n', encoding="utf-8")
-        for tool in ("kreadconfig6", "moos-theme"):
+            f'#!/bin/sh\necho "moos-theme $*" >> "{calls}"\n'
+            + f'case "$1" in native-selected) exit {0 if personal else 1} ;; resume-native) exit {resume_code} ;; esac\n'
+            + 'exit 0\n', encoding="utf-8")
+        (stubs / "moos-fonts-migrate").write_text(
+            f'#!/bin/sh\necho "moos-fonts-migrate $*" >> "{calls}"\nexit {font_code}\n', encoding="utf-8")
+        for tool in ("kreadconfig6", "moos-theme", "moos-fonts-migrate"):
             (stubs / tool).chmod(0o755)
         env["MOOS_SYSTEM_SHARE"] = str(root / "image")          # ships no retired id
         rev = re.search(r"(?m)^THEME_REV=(\d+)$", APPLY.read_text(encoding="utf-8")).group(1)
@@ -266,6 +271,21 @@ class TheRetiredAdviceWorksOnTheSpot(unittest.TestCase):
 
     def test_the_cannot_tell_fast_path_removes_retired_copies(self):
         self.check(False, "kreadconfig6 --file kdeglobals --group KDE --key LookAndFeelPackage")
+
+    def test_font_failure_cannot_pass_the_revision_fast_path(self):
+        result, _, calls = self.run_apply(True, font_code=1)
+        self.assertEqual(result.returncode, 1)
+        self.assertIn('moos-fonts-migrate', calls)
+        self.assertNotIn('moos-theme settle-lnf', calls)
+
+    def test_personal_fast_path_preserves_the_native_owner_and_publication_failure(self):
+        for code in (0, 1):
+            result, share, calls = self.run_apply(True, personal=True, resume_code=code)
+            self.assertEqual(result.returncode, code, result.stdout + result.stderr)
+            self.assertIn('moos-theme resume-native', calls)
+            for other in ('moos-theme settle-lnf', 'moos-theme apply-lnf', 'moos-bar-apply'):
+                self.assertNotIn(other, calls)
+            self.assertTrue((share / 'plasma/plasmoids/com.example.weather/metadata.json').exists())
 
     def test_the_advice_and_the_sweep_name_the_same_ids(self):
         sweep = retired_list(APPLY.read_text(encoding="utf-8"), "remove_retired_moos_packages() {")

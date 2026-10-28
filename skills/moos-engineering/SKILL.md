@@ -1,6 +1,6 @@
 ---
 name: moos-engineering
-description: Engineer and verify MoOS images, KDE/Wayland integration, first-party apps and release workflows. Required before repository changes; distinguishes source, live-machine and signed-artifact evidence.
+description: Engineer and verify Arabic-first MoOS, native KDE/Wayland UI, Linux/Windows/Android application integration, measured performance and signed releases. Required before repository changes; distinguishes source, live-machine and delivered evidence.
 ---
 
 # MoOS engineering — the mandatory skill
@@ -37,6 +37,14 @@ description: Engineer and verify MoOS images, KDE/Wayland integration, first-par
   do not restore an external MoPlayer checkout, release download, nested workflow
   or vendoring/synchronization path. `just refresh-moplayer-packaging` only copies
   the in-tree launcher/AppStream files into the immutable overlay.
+
+## Product objective
+
+Deliver a cohesive Arabic desktop/tablet OS with distinctive readable Meyar,
+shared Liquid Glass surfaces, useful Linux/Windows/Android application journeys
+and measured responsiveness. Use the plan's product criteria and ordered
+milestones. Treat “strongest” as a direction for measured improvements; report
+only the applications, versions, hardware and journeys actually qualified.
 
 ## Select the work and its evidence
 
@@ -77,6 +85,25 @@ is not; timestamps, names and an old merged PR are insufficient. Preserve the
 candidate commit ancestry and final tree required by the promotion workflow.
 Inspect individual CI steps and artifacts: a skipped boot job or an advisory
 review with `continue-on-error` is not acceptance evidence.
+
+For whole-system compatibility or performance work, read
+[Integrated compatibility acceptance](references/integrated-compatibility.md).
+For dependencies, new engines or optimization tools, also read
+[Upstream selection](references/upstream-selection.md); use the plan's hardware
+targets and next-agent handoff instead of inventing another architecture/backlog.
+Use the existing milestone backlog and native ownership map in the agent guide.
+Start a slice by naming its P-row, user journey, current failure/baseline,
+implementation owner and acceptance evidence. Prioritize boot/security/data loss,
+then the owner's active milestone. A supported engine is not a promise that
+every application, peripheral or architecture works.
+
+For team work, split independent investigation or disjoint files and keep one
+integration owner. Before accepting another agent's result, inspect its final
+bytes and executed evidence; an unavailable reviewer is not a completed review.
+Track active process/workflow IDs and the source snapshot they consume. If a
+turn ends with builds running, record their actual state and the next readback;
+never call a started job complete, dispatch a duplicate or claim that a future
+agent has already monitored it. Continue useful authorized work while waiting.
 
 For a broad "complete the OS" request, reconcile it with the existing plan,
 name the active vertical slice and keep the rest as explicit acceptance work.

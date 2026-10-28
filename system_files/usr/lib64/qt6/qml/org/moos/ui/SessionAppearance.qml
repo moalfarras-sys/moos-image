@@ -31,6 +31,7 @@ QtObject {
     property string requestedUser: ""
     property bool hasRequestedUser: false
     property bool desktopObservationRequested: false
+    property bool ownSessionRequested: false
 
     function initializeNative() {
         const component = Qt.createComponent(Qt.resolvedUrl("NativeSessionAppearance.qml"));
@@ -38,6 +39,7 @@ QtObject {
         component.destroy();
         if (hasRequestedUser && nativeProfile() && nativeProfile().isGreeter) nativeProfile().followUser(requestedUser);
         if (desktopObservationRequested && nativeProfile()) nativeProfile().observeDesktop();
+        if (ownSessionRequested) followOwnSession();
     }
     Component.onCompleted: initializeNative()
     function nativeProfile() {
@@ -47,6 +49,11 @@ QtObject {
         desktopObservationRequested = true;
         const profile = nativeProfile();
         return profile ? profile.observeDesktop() : false;
+    }
+    function followOwnSession() {
+        ownSessionRequested = true;
+        const profile = nativeProfile();
+        return profile && typeof profile.followOwnSession === "function" ? profile.followOwnSession() : false;
     }
     function greeterProfile() {
         const profile = nativeProfile();
