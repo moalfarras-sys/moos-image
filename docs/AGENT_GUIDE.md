@@ -3,6 +3,8 @@
 `AGENTS.md` is the **rules**. `PROJECT_STATE.md` is the **terrain**. This file is
 the map of which files can affect boot or desktop state. Open product work is
 tracked only in `docs/DEVELOPMENT_PLAN.md`.
+Its Arabic next-agent handoff is the execution entry point; current measurements
+and workflow readback take precedence over remembered branch names or run states.
 
 Read `AGENTS.md` first; it is binding. Then read this. For visual work, read
 `artwork/MOOS_UI2_DESIGN.md` and the active task in

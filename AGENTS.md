@@ -14,6 +14,8 @@ claims. For cross-engine/system work load the engineering skill's
 agent tasks and a frozen qualification SHA. Preserve all identity, authentication,
 signing, isolation, licences and recovery requirements below. Documentation
 improvement does not itself deliver a new operating system.
+For the next-agent handoff and hardware/performance targets, use the matching
+sections in that plan; dependency choices use the skill's `references/upstream-selection.md`.
 
 <!-- ═══════════════════════════════════════════════════════════════════════
      Mo AI — Telegram OS assistant runtime guidance (READ FIRST when you are

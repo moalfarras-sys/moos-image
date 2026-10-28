@@ -88,6 +88,9 @@ review with `continue-on-error` is not acceptance evidence.
 
 For whole-system compatibility or performance work, read
 [Integrated compatibility acceptance](references/integrated-compatibility.md).
+For dependencies, new engines or optimization tools, also read
+[Upstream selection](references/upstream-selection.md); use the plan's hardware
+targets and next-agent handoff instead of inventing another architecture/backlog.
 Use the existing milestone backlog and native ownership map in the agent guide.
 Start a slice by naming its P-row, user journey, current failure/baseline,
 implementation owner and acceptance evidence. Prioritize boot/security/data loss,

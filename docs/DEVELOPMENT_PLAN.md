@@ -90,7 +90,7 @@ access or architectural superiority from screenshots.
 5. `moai-do` is the only privileged product executor. Models and web content can
    select fixed actions but can never execute generated commands.
 6. Mo Store is the application-lifecycle authority; W9.3 removed the direct
-   Bottles and first-run Flatpak install paths. Shared job lifecycle is still open. Desktop applications
+   Bottles and first-run Flatpak install paths. Shared end-to-end job/API acceptance remains open. Desktop applications
    use sandboxing and portals by default; system drivers and services stay in
    the signed OS image.
 7. Mo AI is cloud-only. Free service is the default, paid providers require an
@@ -234,6 +234,118 @@ integration owner; never mutate its inputs or count later changes as qualified.
 Each completed milestone uses the existing M0 release contract; signing,
 identity and recovery are present throughout, not postponed to M5.
 
+## Product design and implementation decisions
+
+The visual brief is a recognizable Arabic workspace: Meyar's geometric rhythm
+and soft curves, clear hierarchy, restrained glass, consistent icons and useful
+motion. Implement it through the existing
+[Liquid Glass contract](../artwork/MOOS_UI2_DESIGN.md), shared token module and
+generators. Do not introduce another palette, token system or shell. Review a
+connected daily journey, not a gallery: wake/login → launcher → Arabic document
+and browser → Windows/Android app → files/clipboard → Settings → lock/power.
+Include empty/loading/error/offline states and preserve personal choices.
+
+Desktop and tablet share the same application/service owners. Adapt navigation,
+density and content flow to actual available space and input. Use the existing
+40px control/44px touch targets, visible keyboard focus and native virtual
+keyboard; verify the focused field stays visible, portrait/landscape rotation,
+external keyboard/dock transitions and pen input on physical hardware. A
+resized desktop screenshot is not tablet acceptance. Screen-reader navigation,
+large text, contrast and reduced motion belong to each slice, not final polish.
+
+Motion explains focus, hierarchy or state. Use existing KWin/Qt animations and
+shared timing tokens, allow interruption/reversal, stop invisible work and never
+delay an action for its transition. Profile the real compositor/client pair;
+reduce expensive effects through the existing visual-tier owner. Do not change
+security, driver selection or power policy to make an animation benchmark pass.
+
+Reuse decisions and primary sources are in the engineering skill's
+[upstream selection reference](../skills/moos-engineering/references/upstream-selection.md).
+It distinguishes established owners, conditional additions and research-only
+options. It is a dependency decision reference, not another task queue. Every
+addition must name the P-row/user problem, existing integration owner, exact
+reviewed release/commit and licence, maintenance/security cost, architecture and
+GPU limits, upgrade/removal behavior and acceptance evidence before adoption.
+
+## Hardware scope and performance targets (P5.1/P5.4)
+
+These are **qualification targets, not measured minimum requirements or current
+performance claims**. Publish a supported minimum only after the named device
+and workload pass. Keep `system_files/usr/bin/moos-visual-tier` as the single
+classifier: essential for limited/software graphics; balanced with a bound GPU,
+at least4 cores/6GiB; flagship with a bound discrete GPU, at least8 cores/15GiB.
+Preserve its user overrides and consumer-owned budgets; do not create a second
+tier detector or treat RAM alone as proof of graphics capability.
+
+| Qualification profile | Workload and scope | Acceptance focus |
+| --- | --- | --- |
+| Entry: 2–4 cores,4GiB,SSD,1080p | Arabic files/editor/browser and one native Linux app; essential effects | Useful core workspace under bounded memory pressure; no forced Android/Windows background startup; heavier apps qualified individually |
+| Everyday: 4+ cores,8GiB,accelerated integrated GPU,SSD | Arabic desktop/tablet at1080p/1440p; one daily app from each engine, individually then together | Input/launch/frame targets below; portal/data journeys, suspend and measured power; mixed-engine limits stay explicit |
+| Expanded: 8+ cores,16GiB,qualified discrete GPU,SSD | 4K/fractional scaling, multiple apps, video and selected gaming | Same responsiveness at the actual refresh rate, GPU/VRAM and thermal stability; NVIDIA Android fallback measured separately |
+| ARM/cloud | Actual native ARM or cloud hardware and its declared display/remote workload | Independent ABI/driver/encoder and boot evidence; neither x86 emulation nor a software-rendered A1 proves tablet/GPU performance |
+
+For the everyday/expanded profiles, start M1 measurement with these product
+targets: visible input feedback p95≤100ms, warm launcher p95≤150ms, and the
+existing Settings landing page interactive in≤1s warm/≤2.5s cold. Measure third-
+party launch times separately; do not apply a launcher target to Android boot
+or downloads. For a60Hz active desktop transition, the presentation budget is
+16.67ms (8.33ms at120Hz); target≤1% missed presentation deadlines over the trace.
+Report p50/p95/p99 frame intervals and stalls too. An unavailable presentation
+probe leaves this result untested; average FPS is insufficient. These MoOS
+targets are design decisions, not performance guarantees from upstream.
+
+Use at least30 warm launches,5 independent cold launches/boots (report each,
+not a confident tail percentile from five samples),3×60s interaction traces,
+and10min settled idle. Record versions, resolution/scale/refresh, cache state,
+power profile, temperature, storage and concurrent work; do not drop global
+caches or reboot the owner's active work to manufacture a cold sample. Bound
+pressure tests and preserve recovery. Record whole-workload PSS, CPU/wakeups,
+GPU/VRAM, PSI, battery/energy and thermal throttling, including a30min mixed-
+engine session and repeated open/close. New first-party idle services must be
+event-driven; prove no unintended recurring process/animation work.
+
+Before optimizing, freeze comparable before/after traces and the metric budget.
+A repeatable regression above5% in launch/frame/idle resource or energy cost
+requires investigation; a smaller change within measured noise is inconclusive.
+Existing missed product targets remain open rather than becoming the new target.
+Do not trade data safety, legibility, battery or another critical journey for a
+headline speedup. Report any justified tradeoff explicitly in the same P-row.
+These are M1/M4 acceptance work; they do not retroactively label historical
+M0 evidence as measured performance or require another local VM image.
+
+## التسليم للإيجنت المنفّذ التالي
+
+ابدأ من هذه الخطة ومن الحالة الفعلية، ولا تنشئ خطة موازية أو تعِد كتابة المكوّنات
+الموجودة. اقرأ `AGENTS.md` و`PROJECT_STATE.md` ومهارة الهندسة، ثم اتبع الآتي:
+
+1. حدّث قراءة Git والـPR والعمليات الجارية قبل أي تغيير. الدفعة الحالية في
+   [PR275](https://github.com/moalfarras-sys/moos-image/pull/275)؛ أدلةa054 تخص
+   ذلك المصدر فقط. اقرأ SHA الحالي والبوابات الفعلية، واحفظ تغييرات أي جلسة أخرى.
+2. تحقّق من الجهاز الجاري والـdigest والـrollback وWayland والمقياس والمسارات
+   المحمّلة. جهازV3 كان على1107 عند إعداد التسليم؛ هذا مرجع لإعادة القراءة وليس
+   أمرًا لاسترجاع إصدار أو إعداد شخصي قديم.
+3. أغلقM0 أولًا: بوابات المصدر الحالي، دمج الدفعة بعدCI، ثم دورة الإصدار الحالية
+   وفق `RELEASE.md` دون تكرارrun قائم. سجّل الـdigests وإثباتات الإقلاع والترقية
+   منفصلة. تحديث المصدر أو نسخ خط محلي لا يعني تحديث الأجهزة أو النسخ الأربع.
+4. أثناء انتظار المرشح الثابت، قِسM1 في فرع مستقل: رحلة سطح المكتب العربي
+   المتصلة ورحلة تطبيق واحد لكل محرك. ابدأ من عيوب Android المسجّلة في تغيير
+   الحجم والإغلاق/إعادة الفتح، ومن قبول الخط في المحرر والترمنال. لا تستبدل تطبيقًا
+   فاشلًا بتطبيق أسهل ثم تحذف الفشل. لا تغيّر مصدر المرشح الجاري.
+5. عيّن لكل شريحة: رقمP، تفاعل المستخدم، المالك البرمجي الأصلي، العطل/القياس قبل
+   التعديل، الملفات المسموح تعديلها، الاختبار السلبي، دليل النجاح وخطة الاسترجاع.
+   يمكن توزيع فحص التطبيقات والواجهة والعتاد على مهام مستقلة؛ شخص واحد يدمج
+   ويراجع النتائج. عدم توفر إيجنت أو أداة يُسجّل، ولا يُحسب مراجعة مكتملة.
+6. أكمل ترتيبM1→M2/M3→M4→M5، مع تقديم عيوب الإقلاع/الأمان/فقد البيانات فورًا.
+   ثبّت التطبيق والإصدار والمعمارية وGPU في مصفوفة التوافق، وأبقِ الحالات غير
+   المجربة واضحة. لا تعلن دعم كل برامجWindows أوAndroid أو كل الأجهزة.
+7. سلّم تغييرات قابلة للمراجعة مع نتائج الأوامر، sourceSHA، المكتبة/الخط المحمّل،
+   runIDs وحالتها، الدليل المحلي الخاص، وشرط إزالة كل override. حدّث صفP والحالة
+   الحالية فقط. تابع العمل غير المحجوب؛ لا تعيد البناء أو التنظيف لتجاوز فشل مجهول.
+
+The next agent's first result is the exact current M0 qualification/merge state
+and the next unblocked native journey, not a new design proposal. Reconcile this
+handoff when the branch merges; keep milestone/task ownership in this file.
+
 ## P0 — Release qualification
 
 | ID | Outcome | Current boundary | Required acceptance |
@@ -305,7 +417,7 @@ identity and recovery are present throughout, not postponed to M5.
 | ID | Outcome | Current boundary | Required acceptance |
 | --- | --- | --- | --- |
 | P4.1 | Unify every install/update/remove request behind Mo Store | Shared backend/bridge/UI and264-entry catalogue are integrated; previous signed Linux/web/Windows/Craft journeys remain scoped evidence. The earlier ARM app-update unit draft was integrated in the later reliability batch; it is not a new missing installer. Full current-adapter cancel/retry/update/remove and public API acceptance remain | One lifecycle authority, stable job IDs, data-preserving remove, cancelled/failed state and measured readback for every adapter; versioned API authorization/backward-compatibility controls. |
-| P4.2 | Audit desktop-app permissions and prefer portals | Open / acceptance not complete | Permission inventory and actual file/camera/screen/print portals without broad grants. |
+| P4.2 | Audit desktop-app permissions and prefer portals | Open: App Drop registry says sandboxed while MO_STORE describes unsandboxed execution; trace the actual displayed/admitted capability before changing it | Distinguish extraction isolation from running-app permissions; truthful capability readback and actual file/camera/screen/print allow/deny/cancel without broad grants. |
 | P4.3 | Turn Windows compatibility into a per-app runner product | Combined source retains 20 reviewed publisher-pinned Windows recipes and their existing private render evidence. The six unqualified local additions are preserved in Git history, not offered as proven apps. Ten full native lifecycle journeys remain open. | Ten Windows apps with isolated prefixes and install/launch/reopen/update/remove evidence. |
 | P4.4 | Turn Android compatibility into a per-app product | Source has46 recipes, native boot/property and scoped Markor/calculator rendering evidence. Oct28 V3 calculator arithmetic/maximize passes; native sizing, independent close/reopen, cold-start endurance and ten complete journeys remain open | Ten version-pinned Android apps; visible content/input/switch/resize/reopen, files/clipboard/audio, on-demand lifecycle and separately measured GPU fallback. |
 | P4.5 | Publish a generated compatibility matrix | Source generator uses the Store sanitization, architecture, engine and installability rules for all 264 entries. JSON and AR/EN text distinguish recipe availability from unassessed application testing, include pinned recipe versions and NVIDIA-only software graphics. Eleven controls pass; old generator fails all eleven. Signed delivery and published per-app lifecycle evidence remain separate. | Generated version/edition/architecture/GPU compatibility matrix, including unsupported, unavailable and untested cases; evidence for the ten-app Linux reference suite as well as Windows/Android, with tested versions and invalidation on relevant input changes. |
@@ -331,7 +443,7 @@ identity and recovery are present throughout, not postponed to M5.
 | --- | --- | --- | --- |
 | P6.1 | Resolve immutable base inputs once per release | Open / acceptance not complete | Immutable base inputs recorded once and consumed consistently by all same-architecture editions. |
 | P6.2 | Produce SBOM and provenance for each image | Open / acceptance not complete | Exact digest-linked SBOM/provenance on a separately budgeted workflow, not release-critical disk exhaustion. |
-| P6.3 | Security-release cadence for all editions | Open / acceptance not complete | Proven release cycles deliver security updates; schedules only build candidates. |
+| P6.3 | Security-release cadence for all editions | Open / acceptance not complete | The cadence of release cycles is the security cadence of MoOS: schedules only build candidates. Triage upstream advisories daily; target a qualified cycle weekly and start urgent affected-input qualification within24h. Publish affected editions, mitigation and delivery status; an unproven candidate never bypasses gates to meet a deadline. |
 | P6.4 | Add staged rollout and release health | Open / acceptance not complete | Staged rings, halt/rollback criteria and actual field release health. |
 | P6.5 | URL, Remote, AI and diagnostic security boundaries | Implemented/delivered within recorded scope; wider acceptance remains; the integrated audit cycle is signed/promoted. Oct17 open Dependabot/secret alerts are0; Code Scanning returns no analysis (404), so static-analysis acceptance is unproven | Auth/UID/URL/PIN/upload/secret boundaries and failure controls; native dependency advisories refuse release. |
 | P6.6 | Establish support lifecycle and migration policy | Open / acceptance not complete | Published support/upgrade/rollback/EOL policy plus clear licences, attribution and official identity. |
@@ -420,123 +532,17 @@ only a small canonical fixture belongs in Git when a test consumes it.
 13. Fedora Magazine, [Announcing Fedora Linux 45 Beta](https://fedoramagazine.org/announcing-fedora-linux-45-beta/) (final target 2026-10-20, Plasma 6.7), accessed 2026-09-24.
 14. Plymouth, [`ply-boot-splash.c` on `main`](https://gitlab.freedesktop.org/plymouth/plymouth/-/blob/main/src/libply-splash-core/ply-boot-splash.c) (`ply_boot_splash_free()` still leaves `on_new_frame` armed), read 2026-09-24.
 
-Mo Store Oct15 follow-up: 200 curated apps, including 16 additional native games
-and everyday tools. Existing supported theme/motion configuration is reachable
-from Store Settings. Full game/hardware acceptance, Steam-managed game inventory
-and general third-party theme installation remain separate work; no blanket
-compatibility claim. Release and workstation acceptance remain governed by RELEASE.md.
 
-Oct15 coherent integration follow-up: recovered the still-relevant engine admission
-checks from the preserved Oracle worktree. Windows processor combinations are
-checked before runtime selection; Android setup, admission and Store share strict
-read-only status parsing and bounded session readiness. Original APK metadata and
-update verification remain with the newer reviewed implementation. See
-releases/2026-10-15-engine-admission-recovery.json for source/fixture evidence.
+Primary-source decisions refreshed2026-10-28 are linked beside each recommendation
+in [Upstream selection](../skills/moos-engineering/references/upstream-selection.md).
+Older dated references above explain historical transitions, not current version
+selection. Earlier Oct15–17 narratives remain in Git and their evidence receipts;
+current status belongs only to the active batch and P-rows above.
 
-Stable Plasma Oct15 qualification: the x86 image composes the signed KDE SIG
-6.8.0 stack with a pinned publisher key and exact core NVR checks, preserving
-the base kernel. Stable seams retain upstream authentication and use the
-reviewed virtual-keyboard Panel correction. Native greeter positive/broken/
-restored and rebuilt logout old/fixed/rejected/cancelled controls pass. Cache
-fingerprinting now includes version-specific seam QML (THEME_REV106). The ARM
-image retains its separately qualified native provider: the final upstream
-repository has no ARM binaries, and a full native stable source rebuild remains
-P6.7 acceptance work. No cross-architecture packages or beta relabeling.
-Source/image/boot/promoted/installed evidence remain separate; one replacement
-release cycle only after the combined source passes.
-
-Oct16 unified application batch (source; delivery pending): one on-demand user
-Android session survives Store task completion and stops with graphical logout;
-no idle autostart, unsigned image download or ambiguous readiness is accepted.
-Dropped APK updates install an owned disk snapshot, verify the actual package,
-and retain the old receipt on silent refusal. Unlisted APKs stay manageable
-without colliding with identically named Linux apps. Native Task Manager is
-reachable from the Library through its existing launcher; no duplicate manager
-or polling daemon is added. Basic-style QML apps select KDE's platform plugin
-so Plasma's disabled motion applies. Native Qt touch/wheel/keyboard and old-source
-negative controls pass. See [source/runtime receipt](releases/2026-10-16-store-native-source-proof.json).
-The real Oracle Curtail journey found a Mesa Vulkan crash; ARM's existing
-software-rendering environment now selects GL, with positive native Wayland
-readback on the same app/runtime. The local user-manager setting is a temporary
-runtime correction, not a signed release. Freeze the coherent Store + Remote
-source and complete one local native ARM image/required CI/signed four-edition
-cycle before official Oracle update/reboot. NVIDIA became available Oct17;
-its bounded native evidence below does not qualify every application.
-
-Primary sources reviewed2026-10-16: [Waydroid desktop-window properties](https://docs.waydro.id/usage/waydroid-prop-options),
-[Waydroid unsupported-GPU software path](https://docs.waydro.id/faq/get-waydroid-to-work-through-a-vm),
-[actual session-manager lifetime](https://github.com/waydroid/waydroid/blob/main/tools/actions/session_manager.py),
-[GTK renderer selection](https://docs.gtk.org/gtk4/running.html),
-[KDE platform-plugin selection](https://github.com/KDE/kirigami/blob/master/src/platform/platformpluginfactory.cpp).
-Native x86 desktop images ship Wine/Waydroid; ARM and cloud engine availability
-is separately advertised by measured admission. This batch does not claim
-x86 Windows execution on the current ARM machine or universal Android hardware support.
-
-Oct16 gate follow-up: the journal-isolation run caught a lost Mira job-presence
-notification. Stopping the owned diagnostic scan and running quietly passed,
-so that rerun did not qualify the original behavior. A new deterministic real
-Qt control delayed the first consumer delivery1.1s and reproduced the same
-old one-shot failure. The producer now emits a finite three-event coalesced
-burst from one worker; it leaves no idle polling, token or timer, preserves
-end timestamps and does not recreate a retired runtime directory.64 native
-controls pass; old scheduler controls must remain red. This is part of the
-same not-yet-delivered Store/Remote milestone, not a second candidate cycle.
-
-Oct16 APK follow-up keeps one bounded update confirmation before publishing a
-new receipt, preserving the existing `android_update_refused` and unreadable
-legacy-data policy.29 update controls,36 Store controller controls and47 backend
-kind controls pass. The dropped-file fixture now contains a real compiled
-manifest and checks the private snapshot/source-file lifecycle. The generated
-cache fingerprint records107; its refusal of same-revision changes is unchanged.
-The109-command adaptive remainder diagnostic retains its three failures and
-their subsequent targeted corrections; it is not the official full-check proof.
-Exact `c16a7a70` subsequently passed the official284-command native `just check`
-in652.471s. Its PR x86/ARM/canary image gates then exposed a fixture-input
-error: the corrected host inherited the shipped factor0.5 (measured100ms),
-while the full motion test assumed200ms. Oct17's private explicit factor1
-passes real native interaction/Hub tests; broken reduced-motion scaling still
-fails. Shipped defaults and assertions are unchanged. The separate local image
-stopped at its3GiB disk reserve and remains a failed build, not qualification.
-The rebuilt image, final source check, signed cycle and installed readback stay
-open. [Follow-up evidence](releases/2026-10-17-store-qualification-followup.json).
-
-Primary source refresh2026-10-17: [Flatpak architecture/remote/app lifecycle](https://docs.flatpak.org/en/latest/using-flatpak.html),
-[F-Droid signed indexes rather than display APIs](https://f-droid.org/docs/All_our_APIs/),
-[F-Droid index/APK signing](https://f-droid.org/en/docs/Signing_Process/),
-[Waydroid desktop windows and idle suspend](https://docs.waydro.id/usage/waydroid-prop-options),
-and [unsupported-GPU software rendering](https://docs.waydro.id/faq/get-waydroid-to-work-through-a-vm).
-These support the existing verified-source adapters; they do not replace real
-per-application installed-image or physical GPU acceptance.
-
-Oct17 first-use Android integration: source review against the current upstream
-property command and desktop instructions confirms that a stopped session can
-refuse both property writes with exit0. Confirmed setup now waits for the real
-boot property, verifies both desktop values, restarts once only when changed,
-and verifies them again. Correct sessions keep running; existing-app restart
-notice is before consent. No separate phone desktop opens. Nine native isolated
-setup controls pass, including silent refusal, failed readback/restart and an
-unbooted platform; two restored-old controls fail. Five shared-runtime and four
-channel controls pass. These controls do not qualify actual Android windows or
-apps on hardware; that acceptance and the final combined signed cycle remain
-open. [Evidence](releases/2026-10-17-android-desktop-setup-source-proof.json).
-
-Oct17 native follow-up: exact `7c37862e` passes the full native repository check,
-complete ARM image/19-file immutable readback and every PR image/repository/Remote
-check. Preserve earlier failures; this checkpoint does not qualify later edits.
-Real Notepad4 installed but closed with the Store caller. Shared launches now
-use the canonical user-manager boundary with cgroup lifetime and desktop stop
-ownership, refusing manager errors. Two actual private old/broken lifetime
-controls fail; fixed child survives its caller and stops with its private target.
-Seven portable controls and real NVIDIA Notepad4 window/pixels pass. Existing
-five Android runtime controls now join the maintained `just check` recipe.
-Native Markor exact APK/version installs and a KWin window appears after cold
-Android recovery; WCG/SurfaceFlinger failure is not permanently repaired. Both
-default HWUI and Vulkan cold controls pass, so renderer selection was restored
-and is not claimed as a cure. Scoped document permission returns to default;
-document-intent success is not editing/saving proof. Final combined qualification,
-one signed cycle and installed-image acceptance remain open. Oracle API tenancy
-read/instance-principal auth and the recovered backup succeed; compute detail
-access and billing standing are not established. [Evidence](releases/2026-10-17-managed-app-native-proof.json).
-
-Primary lifetime source reviewed2026-10-17: [systemd service lifetime](https://github.com/systemd/systemd/blob/main/man/systemd.service.xml)
+Additional adapter sources retained from the Oct17 review:
+[Flatpak lifecycle](https://docs.flatpak.org/en/latest/using-flatpak.html),
+[F-Droid signed indexes](https://f-droid.org/docs/All_our_APIs/),
+[F-Droid APK signing](https://f-droid.org/en/docs/Signing_Process/),
+[Waydroid properties](https://docs.waydro.id/usage/waydroid-prop-options),
+[systemd service lifetime](https://github.com/systemd/systemd/blob/main/man/systemd.service.xml)
 and [transient services](https://github.com/systemd/systemd/blob/main/man/systemd-run.xml).
