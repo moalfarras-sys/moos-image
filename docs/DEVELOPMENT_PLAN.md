@@ -1,158 +1,80 @@
 # MoOS development plan — current execution backlog
 
-Updated 2026-10-27. This is the single execution backlog, not an incident diary.
-Current measurements live in PROJECT_STATE.md; detailed audit evidence and
-remaining boundaries are in [AUDIT_20261012_AR.md](AUDIT_20261012_AR.md). Git preserves prior waves.
+Updated 2026-10-28. This is the single execution backlog. `PROJECT_STATE.md`
+records measured state; `AGENTS.md` defines invariants; the engineering skill
+selects the workflow. Dated handoffs and Git history preserve earlier work,
+not competing instructions about what to do next.
 
-The owner's ordered implementation and cross-device handoff are recorded in
-[OWNER_EXECUTION_20261009_AR.md](OWNER_EXECUTION_20261009_AR.md). Its active slice
-is reliability/release acceptance, before the remaining four milestones. The
-new private feedback/optional public suggestions product is P6.9 below.
+## Product direction and success criteria
+
+**هدف MoOS:** نظام عربي متكامل وجميل وسريع للحاسوب والجهاز اللوحي، يشغّل
+تطبيقات Linux وWindows وAndroid من تجربة واحدة، بخط مِعيار وواجهة متناسقة
+ومتجر غني وتحديث موثوق. الطموح هو المنافسة عالميًا؛ إثبات التفوق يحتاج
+مقارنة منشورة بعتاد وأحمال متكافئة، وليس عدد الميزات أو وصفًا تسويقيًا.
+
+Build on the existing signed OS, KDE/Qt/KWin/Wayland, app engines and native
+services. Prioritize daily usefulness, correct Arabic, coherent interaction,
+responsiveness, application compatibility and recovery together. An installed
+runtime, a larger catalogue or a new wallpaper does not close a product journey.
+
+| Product outcome | Acceptance that changes its status |
+| --- | --- |
+| Arabic identity and text | Distinctive OFL-derived Meyar with retained licences; native joining/stacked marks, mixed RTL/LTR, IPA/extended characters, editing and terminal cells; meaningful fallback for other scripts, without promising every Unicode sequence in one font |
+| Beautiful daily desktop | Connected login → launcher → app → files → Settings/Store → lock/power journey, coherent light/dark materials and icons, legible small text, keyboard/accessibility and reduced motion; before/after installed pixels plus owner feedback |
+| Three application ecosystems | One Store/App Drop lifecycle with honest per-app/version/architecture/GPU evidence for Linux, Windows and Android; runtime availability is separate from successful use |
+| Fast and durable operation | Workload-stated boot, launch, frame pacing, PSS/CPU/wakeups, thermal/battery and pressure measurements, repeatable baseline and regression budget per hardware tier |
+| One integrated system | Existing native owners and versioned API contracts; visible pending/failure/cancellation, actual state readback, preserved user data and no competing executors |
+| Trustworthy delivery | Matching source/artifact evidence, all edition-specific boot gates, signed promotion, installed readback and working recovery |
 
 ## Active delivery and acceptance batch
-Owner28Oct release continuation: exact15a full source/image and32-file generic font readback pass; repository/ARM CI pass. x86/canary refuse newly published6.8.2 inputs. Exact6.8.2 source and native lock controls are now reviewed; qualify the updated source through canonical SDK/image, exact-head CI and the signed four-edition cycle before staging the physical host. Preserve the undetected unused-component negative and non-pristine transaction fixture refusal. [Checkpoint](reviews/2026-10-28-plasma-682-source-checkpoint.json).
 
-Owner27Oct typography — active revision142: finish the source-derived Meyar Sans/Arabic and matched fixed-cell Mono/Mono Arabic family in `fonts/meyar-family/`, preserving the rejection of `fonts/meyar/`. Native source/control/reproducibility, actual V3 Fonts KCM Apply, Konsole Arabic input/edit/resize and multilingual fallback evidence pass. Shared overlay, named fontconfig chains, native KDE/GTK and first-party MoPlayer/Mira/Remote defaults,16 generated Konsole profiles and identical x86/ARM font gates are implemented. Remaining exits: frozen full check, full local image and loaded-family readback, exact-head CI, signed four-edition boot/ISO/promotion, physical update/readback and exact local-copy retirement. Native generic-font old/fixed controls preserve named choices; CI profile-fixture and tracked runtime README failures are retained and corrected. The release batch also retains Dependabot271/272 ancestry and repairs the analysis-tool Zod advisory with audited pinned dependencies. Owner visual acceptance remains independent of automated proof. [Evidence](reviews/2026-10-27-meyar-family-native-proof.json).
-Revision138 now has complete source/image/native-engine qualification, merged PR269 and CI-only delivery correction PR270. Corrected35ecc passes actual fresh Linux/Windows SDK10.0.403 builds/controller freshness and maintained native source0/950.751s. Preserve the1105 Microsoft HTTP409 and initial invalid job-level runner-context refusals. Exact c63815f3 first-attempt cycle40234351046 passes three signed images, disks40240610993/40240614147/40240617217 and offline ISO40240620022; x86 promotion40243955344 and full ARM40234210469 succeed. Independent production signatures and downloaded runtime proofs match generic/NVIDIA/Cloud1107 and ARM865. Physical V3 now boots exact signed generic1107/a293803b (boot381fea8f), with1100 rollback/pinned1078 recovery. Installed59-file/module/daemon receipts, migration138,54/0 selfchecks and56/0 postchecks pass; no failed units/current-boot coredump metadata. Actual native power open/Escape, Store discover/close0 and launcher keyboard-to-last-row/Escape pass at4K250%. Current Bloom Dark login metadata/cache/lock/session agree. The owner confirms Arabic boot branding and selected-theme login consistency. Retain the initial one-use probe's JSON failure16s before first publication; it is not persistent current metadata failure. Next: ordinary lock/account-switch authentication and broader device/phone/endurance acceptance, preserving earlier greeter/Android failures. Source/CI evidence is not physical boot or authentication. [Delivery evidence](releases/2026-10-26-ui138-signed-stage-proof.json), [bootstrap](reviews/2026-10-25-dotnet-bootstrap-delivery.json).
-Owner26Oct extension — active P2.5/P2.8 native appearance library at revision140: one native MoOS Settings entry now embeds KNewStuff previews/details/install/remove for twelve fixed native categories and opens the existing installed-component owners; saving stays with native Save Current Theme. Physical V3 qualifies the exact compiled KCM, online provider/detail/download/Use, a native collection picker, original-state recovery and a real KDE-saved package. Keep the original flat-archive Use refusal, stale SDK/loader and broken-child controls, edited/link-cache and Kiosk refusals. A real Light-colour pick exposed dark power material despite correct account metadata; the existing adapter now lets only native lock/power consumers follow their own real UID, preserving the desktop style and authentication. Actual non-windowed power prompt/Cancel and lock testing-client source pixels pass; ordinary authentication is not inferred. Native raw Aurorae-prefix, quoted receipt and invalid component/pair controls protect personal choices and truthful diagnostics. Boot stays independently MoOS. Exact current source gates, complete image/architecture CI, protected integration, signed delivery and installed cold acceptance remain required. [Native evidence and limits](reviews/2026-10-26-kde-library-native-proof.json), [integration design](UI_LIBRARY_20261026_AR.md).
+The current release batch is Meyar/UI142 plus the native appearance library.
+Exact15a source checks, full local image and32-file/generic-font readback pass.
+The publisher's mixed Plasma6.8.1/6.8.2 inputs correctly refused x86/canary.
+Sourcea054 reviews exact6.8.2 sources and13 seams, retains native backend changes
+and14 unchanged prepared frontend files, and passes lock positive/broken/restored
+controls. Its frozen full source check passes0/954.016s and complete local image
+passes0/2787.051s, with32 exact files, generic Meyar matches and6.8.2 package
+readback. Repository, x86, ARM and canary CI all pass on a054. The current
+engineering-documentation revision requires its own source checks; signed
+four-edition delivery, physical acceptance and local-copy retirement remain open. Reuse active run IDs
+and actual current results before dispatching; these sentences are not a ready
+release flag. [Source/native scope](reviews/2026-10-27-meyar-family-native-proof.json),
+[6.8.2 checkpoint](reviews/2026-10-28-plasma-682-source-checkpoint.json).
 
-Current visual slice remains native login/power/boot cohesion: every chosen18-look palette and actual custom wallpaper follows existing native session owners, while boot uses an independent fixed Arabic MoOS identity. Retain the owner's earlier whole-interface rejections and136 power-distribution acceptance. Native KAuth sync0/286s preserves account/PAM/output state; actual source136/137 power/lock and responsive Welcome controls qualify their stated components. Native shared Plasma-owner and filtered-wallpaper controls preserve complete-style old negatives, atomic rearming and unknown/link destination refusal. Canonical OpenSSH authority/stock-kernel correction, Qt parent flags, byte-identical artwork, actual6.7/6.8 engine owners and explicitly declared private bus all qualify in final0341 images. Source, artifact/promotion, exact physical1107 boot and the named installed UI/owner boot-login journeys now pass within [their recorded scope](releases/2026-10-26-ui138-v3-native-proof.json); ordinary lock/account-switch authentication and broader matrix acceptance remain. Two exact now-redundant local service copies have recoverable native old/fixed retirement with unchanged graph and service start; no cleanup of unknown state. Existing greeter screenRemoved, Android window, touch/phone/device/endurance work remains open; no universal redesign claim. [Native scope](reviews/2026-10-25-appearance-continuity137.json), [current signed stage](releases/2026-10-26-ui138-signed-stage-proof.json).
-Active slice: owner-requested native UI after signed1097 boot/readback. P2.5/P2.8 now integrates a refined Control Center, native desktop-widget gallery and two original Prism wallpapers with existing KDE/Plasma owners. The owner requests a broader visible transformation and stronger polish, explicitly rejects repeated compact actions, and both duplicate dock buttons are removed while native Home destinations remain; this is not whole-UI acceptance. Component input/failure controls and four native real-catalogue gallery cases pass; single-entry122 native full check/local image pass; final124 native check0/738.704s and local image0/600.082s pass with exact13-file/106-resource readback after the real binary-widget preview correction. The owner again reports no visual improvement: next active P2.5 work is a coherent alternative for frames/icons/materials/widgets, using pinned open-source assets and actual whole-desktop comparisons. Complete live widget/add/remove and new page journeys, exact-head CI, and the whole-interface/physical touch/scale/phone/endurance/signed-delivery exits. [Current proof](reviews/2026-10-23-native-control-center-proof.json), [interface/source review](UI_RESEARCH_20261020_AR.md).
-The owner selected lively colours/soft frames, then still rejected the result as a complete UI and identified overflowing Island text/disconnected wallpaper instruments. Bloom dark/light now supplies matched native frame/style/icon/wallpaper profiles over Breeze/UI2, without extra dock controls or a KWin binary dependency.480 native action renders, caption-action input and18 actual image-resolver paths pass with old/broken negatives. The Island repair passes864 painted-text/context samples and a real silent MPRIS pointer round trip; the Hub is off by default and opt-in through actual compiled Themes on/off/readback. Its Add desktop widgets route reaches the native gallery; real clock/calendar preview passes after exact owned-shell resource-copy repair. Preserve the initial linked-package/Latin1 preview refusals, blank weather preview and independent memory-widget null-controller failure. The owner confirms the Island caption now fits. Actual gallery clock Add/Configure passes and exact owned-widget retirement restores both empty containments; native pointer removal/confirmation/Undo remains open. Final129 native full check0/767.055s and complete generic image0/594.119s pass on unchanged snapshots, including16 installed native input cases and429-file/106-resource/7-module readback. Complete exact-head CI, weather forecast and full desktop/device/signed exits. [Evidence, sources and compatibility boundaries](reviews/2026-10-23-bloom-native-finish.md).
-Current work preserves Plasma/KWin/Wayland and existing app/settings/Store owners. Scoped native Baloo/DrKonqi ordering fixes pass8 controls and remove both actual graph cycles. Owner-approved offline compaction preserves all12 tables and173168 file records and retires133918298112 allocated bytes; ordinary create/atomic-save/delete passes0.815/0.812/0.281s and subsequent allocated index growth stabilizes near0.8GiB. The live user updater now avoids unconditional Flatpak repair while retaining signed updates, bounded delta recovery, Store locking/preferences and truthful final results. The actual editor namespace failure and upstream1.18.4 repair cleanup are retained.
-Previous Hub checkpoint: changes share one calendar, localize the primary date, adapt the same component hierarchy to two rows and retain wallpaper passivity, reduced motion and zero hidden Dashboard work.28AR/EN native Qt geometry cases and two fixed-row negatives pass; THEME_REV112 carries the final cache fingerprint. A recorded1.54MB user-local package is loaded on the physical Plasma desktop and shared clarity is balanced. Real secondary-face and two launcher journeys pass. Actual physical2160×3840 rotation renders two rows; its native output topology and owner windows restore exactly, with KWin/Remote uninterrupted. No new QML runtime errors appear. A15s workload-stated native resource sample is recorded without claiming a speedup; source Qt controls do not qualify touch or cloud devices.
-The full maintained native check passes0/706.623s (214 unittest summaries) and all28 applied source/live hashes match. [Live/source evidence](releases/2026-10-22-v3-live-reconciliation-proof.json). PR265 is integrated asf7cfee2c after exact-head source/x86/nativeARM image gates; advisory execution remained unavailable. Native Code/OpenCode cache isolation now has real rendered-window and Code local-file URI evidence; preserve the original entries and reconcile scoped environment with future installer regeneration. The owner-approved canonical sysctl alias survives actual KDE balanced/performance switching and MoKernel reads15/0. The new App library uses the same native Kicker catalogue: nine categories,35 entries, physical-session pointer/RTL keyboard filtering and a real Okular launch pass. Four native AR/EN/size cases pass source controls; current selfcheck51/3 retains three explicit development shadows. The owner confirms the new category row and filtering work on the physical desktop. Final native just check passes0/714.360s with214 unittest summaries and the new native category refusal;16 memory controls pass. The15s post-check sample measures KWin14.47%, Plasma1.60% and Baloo0.00% of one core, with zero memory pressure; there is no controlled speedup claim. Feedback that the earlier Hub delta was not apparent remains recorded; no whole-desktop redesign acceptance is claimed. One coordinated signed release and owner-approved installed update/reboot follow qualification; retire only exact recorded local compatibility files after matching signed/usr bytes exist. Preserve one working rollback and existing release proofs. Do not create local VM images or redundant SDK/build copies. The approved67-image plan removes49 and refuses18 with outside-list descendants; broaden neither deletion scope nor force removal. Overlapping source/archive copies remain subject to consumer/ancestry review and owner approval.
-Keep the actual greeter6.8.1 screenRemoved crash, disappearing/incompletely rendered Android calculator, unboundSMOCF05/rotation, new cold fingerprint/password acceptance, physical touch/pen/suspend,80% charge plateau and owner-deferred provider/wallet signins open. No mock UI, RUNNING status or superficial source success replaces these journeys. [Previous native evidence](reviews/2026-10-21-native-acceptance-followup.json), [native hardware scope](hardware/V3_20261019_AR.md). Current implementation uses stable Qt GridLayout properties rather than preview hierarchy APIs; see [Qt responsive layouts](https://doc.qt.io/qt-6/qtquicklayouts-responsive.html). Full repair's recursive removed-deployment erasure is explicit in [Flatpak1.18.4 source](https://github.com/flatpak/flatpak/blob/1.18.4/app/flatpak-builtins-repair.c).
+Physical V3 remains signed1107 with1100 rollback and pinned1078 recovery.
+Earlier138 signed release and its exact native acceptance are recorded in
+[delivery](releases/2026-10-26-ui138-signed-stage-proof.json) and
+[installed proof](releases/2026-10-26-ui138-v3-native-proof.json). Current personal
+settings and development overrides need current readback; do not force an older
+Bloom snapshot over a later user choice.
 
-The owner subsequently rejects a category-only delta as a whole-interface result. PR266/a67 is normally integrated as6d23c546 after its original exact-head required gates; physical category-strip/grid touch is accepted. THEME_REV118 now develops a coherent native Hub/workspace/Settings batch. Home retains the direct Mira action in a two-column grid and App library retains the Store launch. Real clicks expose and then qualify the corrected canonical Kicker ID lookup; native old/fixed and failed/unknown destination controls are retained. The owner now confirms seeing the clock/weather/device composition and Workspace button through the identified physical Remote endpoint after the covering editor was minimized. Native full just check passes0/702.153s,216 unittest summaries/2973 cases plus other gates, with no concurrent file changes; the final20s real-session resource sample is scoped in the [workspace proof](reviews/2026-10-22-native-workspace-composition-proof.json). Complete-workspace and new physical-touch acceptance, exact-head PR images and signed cold delivery remain open. Actual dock pointer input enters KWin Overview and the new Settings Display tile reaches its real KCM. All7 rebuilt modules load from their exact staged prefix; private portrait pixels exposed a clipped gauge that outer bounds missed, and the inner layout and native guard are corrected. Source, real-session compatibility files, owner visual acceptance and a signed cold update remain separate exits. Retain the one rollback and existing qualification workflow; no local VM/image build substitutes for this physical desktop.
+Keep these real gaps visible: ordinary new-digest authentication/account switching,
+earlier greeter screenRemoved crashes, Android native sizing/window lifecycle,
+USB4 controller timeouts, tablet rotation/pen/suspend, charge-limit uncertainty,
+accessibility/phone/endurance and broader app compatibility. Oct28 calculator
+pointer arithmetic and internal maximize rendered correctly on the V3; that does
+not close independent native resizing, close/reopen or ten Android journeys.
+The owner rejected earlier component-only polish as a whole-desktop redesign;
+retain that feedback when evaluating the next native visual batch.
+[Appearance library](reviews/2026-10-26-kde-library-native-proof.json),
+[earlier native failures](reviews/2026-10-21-native-acceptance-followup.json),
+[hardware scope](hardware/V3_20261019_AR.md).
 
-Design decisions use native Qt/Kirigami and responsive reflow rather than a second shell. Primary references are [KDE's application guidelines](https://develop.kde.org/hig/kde_app_design/), [Microsoft's responsive layout techniques](https://learn.microsoft.com/en-us/windows/apps/design/layout/responsive-design), and [Apple's adaptive layout guidance](https://developer.apple.com/design/human-interface-guidelines/layout). Existing REA/Ghidra analysis of the installed Kicker model informs ownership; it does not establish how proprietary desktops are implemented or grant access to their source.
-
-## Earlier qualified and failed checkpoints
-These dated checkpoints retain evidence; the active slice and remaining exits are above.
-
-Oct20 checkpoint3708 passes full native source gate0/843.494s (2765 reported/14 conditional skips) and actual repository/Remote CI. Actual ARM image fails1/496.032s on post-transaction vendor tmpfiles authority drift, preserving unknown root-home state. x86 CI refuses unreviewed Plasma6.8.1 inputs. Active P0/P6.7 work: prove the changed authority before scoped cleanup, review exact signed6.8.1 sources/seams/authentication and native runtime controls, then repeat full image/final-head CI before a signed cycle. [Checkpoint](reviews/2026-10-20-final-3708-qualification.json).
-
-Exact systemd259.10 `/root` authority variant is reproduced old1/fixed0;22 helper controls pass. Actual cleanc1 full ARM build proves corrected retirement, real92MiB initramfs and archive/identity/Settings gates, then fails1/688.89s on vendor D-Bus state. Previous3708 ARM CI39477503753 passes with PR boot/promotion skipped; preserve its differing local failure too. Independent reviews match PR260/fe654305's D-Bus/pristine-base and6.8.1 fixes, now integrated into the audit topic without modifying its original branch or main. Installed prior signed ARM.816 passes56/0 postchecks; it does not contain this batch. [Image receipt](reviews/2026-10-20-arm-authority-image-proof.json).
-
-Oct20 P0 compose unblock: merge8687010a without losing PR256 fixes, qualify the proven exact x86 SELinux alias correction (actual old1/fixed0,1357 policy hashes unchanged,18 controls), and qualify ARM/recovery private-HOME helper (18 process/source controls; actual vendor empty-state recreation/retirement passes). Preserve nonempty root-home refusal and original producer exits. Require full source/local image/final-head CI before one signed cycle; no claim about the actual unknown writer until image diagnostics. [Evidence](reviews/2026-10-20-integration-followup.json).
-
-Oct19 P2/P5.1 integration PR256 combines PR253/current main without retiring owner refs.11 bounded groups repair Arrange/diagnostic truth, complete update units, ARM enumerator dependencies, Remote bind lifecycle and context hygiene; daily timer recurrence and vendor/confidence follow-ups have real native/process negative controls. Clean e3572bcd passes native full check865.835s (2706 reported/14 conditional skips), full local ARM imagec26fd056/986.234s and actual payload/service/updater/device-plan/Remote readback.9f PR ARM/x86 images and source/.NET/controller pass; ddbdfc1f final-head CI passes; merged-source requalification/signed delivery remain pending. Preserve prior full7eda wheel failure and no-compiler pill failure: later full check and six bounded sequential ar20/250% positives do not establish cause. New failure-only diagnostics retain180ms/all assertions; actual failed-invocation causality remains acceptance. After external Oct20 reboot Oracle boots.816 with.804 rollback; exact /etc compatibility retirement requires signed /usr replacement after boot. [Measured scope and explicit boundaries](AUDIT_20261019_AR.md).
-
-Oct18 Oracle audit P4.1/P5.4/P5.6 on `codex/system-audit-20261018` / PR253: both missing ARM app-update pairs now run through the existing authority with delayed idle schedules and exact local compatibility files. Shared source and both builders supply/enable/verify the pairs;20 controls,16 real native network-condition cases and two private timer firings pass. Native full ARM image at2b12ad2f exits0 in11196.421s; actual unit hashes/modes/wants match, and the tightened gate passes inside that immutable image. Final native full source at05649cd0 passes875.904s with a clean stable fingerprint; native .804 postcheck passes56/0. PR ARM/generic-x86 images at2b12ad2f pass; exact-head CI/review for the merged verifier hardening is tracked in [PR253](https://github.com/moalfarras-sys/moos-image/pull/253). Official signed .807 is staged but .804 still runs; the patch is not signed/delivered. Keep exact /etc copies until matching signed /usr replacement and retirement proof, then installed postboot/app acceptance. The727e7b6c owner cycle completed without another dispatch. [Current evidence and remaining platform boundaries](AUDIT_20261018_AR.md).
-
-V3 phase1 now has an actual signed1078 boot with1072 pinned rollback, direct fingerprint match, measured multi-touch, owner-accepted front/rear moving camera images, stereo speakers and speech. Retained microphone30% has0% clipping/−11.50dBFS peak in warmed speech. BIOS80% cap is owner-confirmed; observe the actual plateau. Native keyboard diagnostics need the topic absent-key correction, not an owner-config rewrite. External/hotplug acceptance belongs to the preceding boot; current external, pen and suspend remain acceptance. The separate greeter screenRemoved SIGSEGV and unboundSMOCF05 are unresolved. Appearance follows compatibility, using supported Plasma/KWin and shared MoOS Qt/Kirigami tokens. [Native phase1 evidence](releases/2026-10-19-v3-1078-native-phase1-proof.json).
-
-Active login slice: PR259/8687010a integrates either-password-or-fingerprint ordering and exact-source frontend automatic startup after native2719-case checks, full local image and exact-head PR gates. Actual one-boot /run acceptance proves automatic fingerprint and independent no-touch password fallback, not cold signed delivery; the owner's next reboot retired /run and still boots1078. Main x86 run39393513210 fails when systemd's upgrade scriptlet materializes rpm-ostree's canonical SELinux compatibility alias; owned duplicate39393707504 is cancelled before proof dispatch. Correct only that exact root-owned alias with its native tmpfiles authority, configured-store/module and boot-policy preflights, unlinking only the alias. Native old/fixed controls preserve1359 files/1307 module inputs;24 focused controls pass. Main ARM39393513072 separately refuses nonempty/var/roothome after initramfs. Actual vendor tmpfiles reproduces6 empty Konflux/provision entries; retire only their verified empty scaffolds before materializing the temporary dracut home, preserving vendor authorities and every credential/unknown entry.16 controls and actual ARM-userspace dracut under qemu pass; native full ARM image/boot qualification remains required. The fresh8ae local image separately refuses D-Bus runtime alias state. Retire only its exact native template after identity/authority preflight, retain the unchanged strict gate, and mount ctx for recovery helper availability;11 D-Bus controls and native old/fixed fixtures pass. Complete the corrected full local image/repository/PR gates, one new frozen signed cycle and cold-login acceptance. Current stock greeter SIGSEGV remains unresolved despite16 actual native-client output-removal no-repros.The9a repository check passes2761 cases but its full image refuses systemd-generated machine identity. A pristine-input native transaction restores only the initially empty ID and removes reviewed146 runtime scaffold records, a recomputed catalogue, new fixed-size seed and build caches;22 controls and native before/after fixture pass, while full corrected image/signing/boot remain open. Native tmpfiles73/fixture dependency, quoting and repeated-canary refusals remain recorded. Battery observations reach88% then97% Charging and later100% Not charging; owner does not recall BIOS option, so verify Battery Charge Limit at prepared reboot. [Source correction and boundaries](releases/2026-10-20-selinux-compose-source-proof.json).
-Oct20 publisher transition: d57 maintained source check2783 cases passes, while the full image correctly refuses new6.8.1 NVRs. Exact signed source/package review, all12 unchanged seams, native positive/broken/restored lock greeter and fresh native compose base pass; qualify the exact681 frontend/backend aggregate and existing shutdown patch through native SDK/full image, final-head PR gates and one signed boot-proven cycle. Historical680 physical binary acceptance does not qualify the new681 binary. Finalfe654305 passes2843 maintained cases, complete local production image/readback and exact-head PR260 repository/x86/native ARM gates; the advisory execution fails despite its green job, with no automated review accepted. Correct the advisory canary's own generated input through the same pristine transaction, temporary DNF logs and stock-kernel exclusion, preserving newest-version/no-publish/full image gates. Native workflow-derived base preserves the exact stock vmlinuz bytes. The subsequent stable transaction exposes the exact6.8.1 RPM01770 versus native creator0750 empty directory mismatch;18 controls, a direct installed-host refusal and old/fixed native transition pass. Apply only that verified vendor permission rule before the unchanged state gate. Final177 local production and experimental-base images and2868 maintained cases pass on the older stock input, but fresh exact-head CI39561982511/39561982723 refuses a rotated DNF log and initial-beta greeter directory on configebc648e6 (manifestacf84c97). A native original stable transaction on this exact stock passes locally; this no-repro is retained. The native original initial-beta transaction reproduces the empty01770 mismatch for exact6.7.91-1.fc44, with the same creator bytes as681. The follow-up isolates stable command logs in private build tmp and applies the same strict directory reconciliation to the existing beta transaction, copying its explicit dependency.42 focused command/metadata/workflow controls pass. A deliberate native1024-byte log-size control makes unchanged177 refuse DNF-generated rotated logs and the corrected source pass; corrected initial-beta composition also passes. Independent raw readers verify empty identity/var, retained creator and byte-identical stock kernel across all successful fixtures. [Fresh-input parity proof](releases/2026-10-21-compose-ci-parity-source-proof.json). A5 maintains2873-case checks and its full experimental-base image/readbackecdd0cde passes, but concurrent native production fails installer RPM callbacks after the other transaction completes against the same default cache. A native shared-cache fixture loses its leased payload; locked mode blocks the rival until the holder finishes and passes. All eight package/log cache mounts now take consistent exclusive leases, with2 source controls. [Cache lease proof](releases/2026-10-21-build-cache-lease-source-proof.json). FinalF92 passes2881 native cases, both full stable7b23b08a/beta7ea90ac1 images and independent readers, plus exact-head repository/x86/native-ARM/full-canary PR gates. PR260 merges as7e591d5a with the exact qualified tree, but its one standard signed cycle39591761480 fails the unchanged high npm audit before x86 image composition. Existing DependabotPR261 Vite8.3.4 is preserved in a descendant merge; native old/fixed audits give1/0 high findings, the unchanged Node22 controller suite passes, the required new bundle is reproducible, and real isolated Chromium input/greeter/recovery journeys pass. Node26's removed experimental test flag remains an explicit SDK boundary, not a test waiver. New full gates/image/CI, signed delivery and new physical acceptance remain required. [Controller security proof](releases/2026-10-21-controller-security-source-proof.json). [Canary proof](releases/2026-10-21-plasma-canary-pristine-source-proof.json). [Actual source review](releases/2026-10-21-v3-compatibility-source-review.md). See [source review](releases/2026-10-20-plasma-681-source-proof.json).
-ARM follow-up: real systemd259.10 userspace reproduces generated identity33 and old root-provision refusal. Normalize only native empty bootc input scaffolds before the same pristine transaction; preserve the exact new/root recipe and only known664 creator, restrict two fully reviewed generated NSS inputs to root-only write without changing values, and bind/retire dependencies in both ARM bases.30 input/authority and21 root-home controls, real before/after upgrade and actual production base pass underqemu; full native ARM PR/boot acceptance remains required.992 full local x86 imagec74fd440 and payload readback pass after native2808-case source checks. See [ARM source proof](releases/2026-10-20-arm-pristine-base-source-proof.json).
-
-
-P4.1/previous P5 delivery: PR255 merges finalf1fd1cf9 as18ba1a83 after full native/local-image/PR gates. Signed x86 build39265167668, all3disks/offline ISO/full ARM pipeline and x86 promotion39283856876 pass; independent production/cosign readback gives x861078/ARM816. V3 now actually boots1078, with1072 pinned. Four official WD19 updates persist after replug. Source/local/signed proofs belong to that delivered batch, not the new login correction. [Qualified cycle](releases/2026-10-19-v3-qualified-1078-cycle-proof.json). [Hardware scope](hardware/V3_20261019_AR.md).
-
-The independent native development profile executes SDK/Flutter/QML/MCP and editor-container CMake/QML/C# journeys. Wallet/provider login remains owner-deferred. Antigravity's old live-subscription exit double-free reproduces; official watcher2.6.0 passes3native cycles/60events and installed-addon close0 with original bundle backup. Authenticated/editor/endurance acceptance remains open. [Measured profile](workstations/V3_NATIVE_DEVELOPMENT_20261019_AR.md). A separate native Ghidra Wayland correction passes old/fixed/restored frame controls,6 scoped launcher controls and actual canonical project/program/decompiled-main/close0. GUI acceptance on the pending681 boot and broader keyboard/server journeys remain open; no desktop-wide Java or provider change.
-
-Previous delivery: PR248–251 integrate at727e7b6c/tree22086a7e. Complete local image87e84381/native source checks pass; signed build39120488031, all3 exact-digest QCOW2 proofs, ISO39126568330 ordinary offline install/login/10 apps/second boot, ARM39120345470 and actual x86 promotion39129933686 succeed. Independent cosign/registry reads match all4 candidate digests: x861072/ARM807. Old Cloud and1069 ISO refusals remain evidence; new success keeps all original gates. Physical NVIDIA now boots1072 with signed1062 rollback:35 payloads,54 selfchecks,55/0 postchecks and natural cold search lifecycle pass. Broader coredump review retains greeter screenRemoved teardown and first-owner Remote bind collision; full native acceptance remains open. [Qualified cycle](releases/2026-10-18-qualified-1072-cycle-proof.json).
-
-Current live repair/acceptance: new1062 boot7b01c656 retains18 display-start aborts despite no failed units (candidate postcheck54/1). Baloo had stale filesystem identity for the same HOME inode; automatic atomic-save/delete reproduced stale results. Preserve old derived index offline, rebuild only it, and retain cold-boot durability as acceptance. New186300-file index is idle/0 failed; automatic create/save/delete passes1.042/1.054/.525s. A bounded read-only identity check adds real old/broken CLI controls; native2672-case full check succeeds at68708f89. Owner cleanup removes42.67GB known obsolete/duplicate payloads plus a separately measured3.68GB local-image delta and two optional apps with data preserved. [Audit](AUDIT_20261017_AR.md), [evidence](releases/2026-10-18-search-cleanup-source-proof.json).
-
-Historical Oct16 P0/P2.17 correction: native NVIDIA login was restored with a scoped copied Remote bundle after actual decoded camera output exposed incorrect v6 serial targeting and permitted video fallback. Source now chooses the correct ID/serial property, forbids fallback and bounds greeter crash recovery while preserving upstream authentication. Five native old/fixed/stop/success/exhaustion dependency controls and eight target/contract controls pass. Fresh local image/signed cycle, exact override retirement and phone/hotplug endurance remain required; no local override counts as delivery. [Evidence](releases/2026-10-16-remote-screen-target-source-proof.json). Store real-app additions/touch/lifecycle/task management continue independently on `feat/store-real-apps-touch-20261016`.
-
-Current qualified source `e1ffacfa` (PR243–246) ships the 200-app Store, all
-13 Craft apps, reviewed lifecycle/data/index/UI fixes, stable x86 Plasma6.8.0
-and THEME_REV=106. Native repository gates and the complete local image with
-63 immutable payload hashes pass. The complete first-attempt signed cycle
-passes: build38816837919, disks38824574093/38824577430/38824580671,
-ISO38824584100, ARM38824591685 and x86 promotion38829865381. Independent
-registry/cosign readback matches x86 `.1062` / ARM `.792`.
-[Qualified cycle and boundaries](releases/2026-10-16-store-qualified-cycle-proof.json).
-Native NVIDIA now boots exact signed `.1062` with `.1046` rollback: ordinary owner login,63 hashes,54 selfchecks/2 notes,55 post-update/0 failures, Plasma6.8/GPU/app acceptance pass. Its later temporary Remote correction still needs signed delivery and phone acceptance. Oracle
-has rebooted to exact signed `.792` with `.791` rollback and changed boot ID;
-native graphical acceptance passes63 hashes,51 selfchecks/4 notes,55 post-update
-checks/0 failures, no failed units, user-app update and a real Store window. The
-owned postboot ordering-cycle failure and repair remain preserved. ARM keeps
-qualified native Plasma6.7.5; native6.8 and Qt6.12 remain open. All audited refs,
-original worktrees/dirty drafts and a verified full Git bundle are preserved.
-
-M1/P2.4/P2.8 Island keys now avoid hidden tabs, synchronize selection/content,
-activate Return/keypad Enter once and resolve disappearing domains. Forty-eight
-native Qt component samples pass across AR/EN, light/dark, two/five contexts,
-100/150/250% and normal/reduced; completed original-source 250% controls fail.
-New M1 source recovers a lost first Mira task delivery with one coalesced delayed
-real directory event, without idle polling or token resurrection. Old/fixed
-native Qt controls and [62 control tests pass](releases/2026-10-14-mira-job-presence-proof.json); this does not establish the prior
-intermittent Qt startup failure's cause. Full local ARM image and actual 20-file
-readback now pass after an ENOSPC final-commit failure and exact obsolete-cache
-retirement. Signed .1053/.778 promotion completed at `5745edd1`; independent
-the historical Store review is now integrated in the qualified `.1062`/`.792` batch.
-Next acceptance is native installed shell input/focus and screen-reader behavior.
-
-P2.17 greeter desktop facts/actual matching EIS groups are signed in .1044/.773
-and retained in the current images. Its full cycle completed. An HTTP 500 while
-reading an already-dispatched proof was recovered by adopting exact existing
-runs, never duplicate dispatch or rerun. Follow-up source now bounds metadata
-GET recovery (three attempts, 30 s plus 5 s kill deadlines, 2/4 s backoff),
-records created run IDs and refuses duplicate dispatch on unreadable build lists.
-Fourteen executable controls, including restored-old failures, pass; mutations,
-source/digest/attempt checks and promotion requirements remain unchanged.
-Historical `.1046` NVIDIA readback: signed .1046 with .1044 rollback, boot ID
-`d8a6ce1d-ca57-4680-9e5f-ef8118623b61`. Native graphical-owner checks pass
-54 selfchecks/2 notes and 55 post-update/0 failures, all 19 hashes/player,
-THEME_REV=104 and no failed units. Boot=32.381 s. The prior ordinary password
-login and exact unused copied-bundle retirement remain scoped evidence.
-[Native receipt](releases/2026-10-14-nvidia-1046-native-proof.json).
-Preserve opt-in/PIN/private TLS/upstream PAM/default-off and the owner's flow.
-Historical `.775` Oracle readback: signed .775 with .763 rollback. Native graphical checks pass
-51 selfchecks/4 notes and 55 post-update/0 failures, all 19 payload hashes,
-exact player and THEME_REV=104; one KDE Wayland compositor, boot=14.301 s.
-The initial transient-container selfcheck failure and the subsequent owned
-probe flag failure remain preserved; only the owned failed flag was retired.
-Current failed units are empty and all four owner containers are healthy;
-the initial failure's precise cause is unproven. Existing autologin is not PAM
-acceptance. [Native receipt](releases/2026-10-14-oracle-775-native-proof.json).
-New .775 direct/SSE and isolated Hermes synthetic replies pass; direct reported
-cost=0, Hermes usage absent. Preserve signed rollback and the owner’s monitor.
-
-Existing-account cloud JSON/SSE/free replies and isolated Hermes journeys pass
-on both stations. Reported direct cost=0; missing Hermes usage is not zero cost.
-Response-lifetime, Community API/native Qt pickers, finite MoPlayer controls and
-URI/source gates remain delivered within their recorded scope. Broader
-cancellation/stall/quota/voice/clean-account and hardware/application journeys
-remain open in their rows. See [runtime evidence](AUDIT_20261013_RUNTIME_AR.md).
-
-P0.12 public .1046 now passes complete anonymous download/signature/hash,
-resumed ranges, exact sidecars, paired public metadata and eight local/eight
-public AR/EN native browser views. Publication uses the existing independent
-Static Assets/R2 host. [Delivery](releases/2026-10-14-public-download-proof.json)
-and [site receipt](releases/2026-10-14-public-site-1046-proof.json) record the
-exact source, successful boot/install/promotion runs and deployed versions.
-Previous .1026 retains original bytes through Oct16 12:00 UTC; only a qualified
-replacement permits expiry. Current .1046/local archive and signed rollback stay.
-The site deployment's enclosing exec ended 143 after printing success; actual
-public paired bytes/redirects/views independently pass. Cause remains unproven.
-Website PR57's inert unsafe conversion scripts remain inert. Web/admin checks,
-99 tests, dashboard build and 21 download boundaries pass; Android command
-returns 127 because the repository invokes Windows gradlew.bat on Linux.
-NVIDIA/Cloud first migration still needs its separately qualified journey.
-
-The cadence of release cycles is the security cadence: nightly image-only
-builds cannot deliver a base fix. P6.3 stays open until bounded, boot-proven
-cycles keep every supported edition current. Oct15's separate native source
-review qualifies exact x86 Plasma 6.8.0 packages/seams and retains the full
-positive/negative greeter/logout controls. Native ARM 6.8 source rebuilding and
-installed hardware acceptance remain P6.7 work; unknown inputs stay refused.
+Earlier qualified/failed checkpoints live in their evidence documents and Git.
+Do not execute an old dated “active slice” as a second queue. Existing P0–P6
+rows below retain their own acceptance boundaries; a historical success must be
+rechecked when its relevant installed bytes, hardware or engine inputs change.
 
 ## Product acceptance
 
-Oct20 owner expansion: after P0 image integration, develop the existing MoOS UI into a distinctive adaptive desktop above KDE/KWin. [Current inventory and researched architecture](UI_RESEARCH_20261020_AR.md) is rationale, not a second backlog. Execute under M1/P2.5/P2.7/P2.8 and P5.3: first correct actual Island touch targets while preserving fixed context geometry and stock task behavior; then qualify narrow/portrait/large-screen layout, coherent frame/panel/Hub/Search materials and finite motion through real user journeys. Native isolated controls precede full shell/Wayland and physical PC/tablet acceptance; signed image delivery remains M0. No universal hardware or Windows/macOS performance claim.
-
-Oct21 bounded implementation: MediaControl44px tablet target passes12 nativeQt input/motion cases and old-source negative, with THEME_REV109 invalidation. Actual privatePlasma pointer checks reject a geometry-only clipping diagnosis; no parent/panel-height change is justified. Full Waylandtouch and physicaltablet acceptance remain open. Rea/Ghidra tools are installed and actualownfixtureCLI/MCP analysis passes, independently of OS delivery. Include this source in the next combined maintained check/image cycle; preserve raw contrary controls and all owner settings.
-
-MoOS is Arabic-first, with English supported. KDE Plasma/KWin remain its engine;
-MoOS owns identity, shared surfaces/defaults and fixed native control paths.
-A complete product means a qualified support scope and real connected journeys:
-boot/login, files/apps, sound/network, Settings/Store/Mira, update/rollback and
-privacy. It does not mean universal compatibility or an absence of all defects.
+A supported release has a declared edition/hardware/application scope. It must
+complete boot/login, files/apps, sound/network, Settings/Store/Mira and
+update/recovery journeys within that scope. Unknown, failed and untested cases
+remain visible. A finite matrix cannot establish universal compatibility or
+absence of all defects. Compare other operating systems only with legal access,
+the same hardware/workload and reported versions; do not infer private source
+access or architectural superiority from screenshots.
 
 ## Non-negotiable architecture
 
@@ -181,155 +103,63 @@ privacy. It does not mean universal compatibility or an absence of all defects.
 
 ## Every app, one verb — the app-engine contract (P4.x)
 
-The qualified `.1062`/`.792` catalogue contains 200 curated entries and all13
-Craft apps, with architecture-pinned publisher downloads and reviewed lifecycle
-authority. Catalogue/gate coverage is separate from connected per-app and
-hardware acceptance; see
-`docs/MO_STORE.md`.
+The owner wants install/open/update/remove to feel like one MoOS product.
+The existing authority chain is:
 
-**The owner's requirement, in their words:** MoOS should run apps from Android,
-Windows and any Linux distribution; the person presses install or drops a file, it
-installs and runs, and they never see Wayland, KWin or Bottles. One store for every
-kind of app. Everything else happens behind it.
+`Store / file picker / drop / launcher → registry and resolver → Store job and
+engine adapter → native runtime → result and installed-state readback`.
 
-**What MoOS already had, measured on the station 2026-09-19.** More than the source
-suggested. The engines are shipped, not missing: `wine` and `waydroid` are installed by
-`build.sh` on every desktop edition (`_core_power`), `waydroid-container.service` is
-enabled, Flatpak comes from the base, and `mimeapps.list` already routes `.exe`, `.msi`
-and `.apk` to `org.moos.runforeign.desktop`. What was missing was not capability. It was
-the product: one decision, one vocabulary, and silence about the machinery.
+- `system_files/usr/share/moos/app-engines.json` declares supported engines and
+  truthful capabilities; `moos-app-engine` resolves readiness read-only.
+- `moos-storectl` owns application mutation/jobs; `moos-run-foreign` and
+  `moos-app-drop` delegate through the existing routes. `moai-do` remains the
+  privileged product executor. Never add a second installer or privileged API.
+- Linux uses the existing native/Flatpak/App Drop paths. Qualify the exact package
+  and ABI; “Linux apps” does not promise arbitrary distribution packages install
+  into the immutable host. Keep development containers separate from OS delivery.
+- Windows uses the registry-selected Wine/Bottles path and managed per-app state.
+  A Wine prefix is not a security sandbox. Preserve isolation disclosures,
+  file/data ownership, runtime/version and32/64-bit qualification. Additional
+  gaming/runtime paths require reviewed integration through the same authority.
+- Android uses the existing Waydroid path and reviewed system/vendor images.
+  Record APK ABI, image provenance, graphics path and actual app behavior.
+  NVIDIA software rendering, fractional scaling and Android's internal caption
+  remain separately measured limitations until a supported repair passes.
+- ARM capability is measured independently. Do not equate x86 emulation with
+  native support, quietly enable translation, or copy an x86 compatibility label.
+  Cloud editions qualify their actual service/remote contract; desktop tests
+  may be inapplicable with an explicit reason.
 
-**What landed.** `/usr/share/moos/app-engines.json` is the one registry — engines, the
-runtimes that carry them, where each runtime comes from (`build` / `base` / `overlay`),
-whether it is sandboxed, what files it claims, and the bilingual name a person actually
-sees. `/usr/libexec/moos-app-engine` resolves a file against it and answers three
-questions — which engine, is it ready, what do we call it — read-only, so the single
-privileged executor stays `moai-do`. `moos-run-foreign` asks instead of deciding, which
-closed a defect neither half could show alone: the image installs a Windows runtime "so
-any .exe the user downloads actually runs" and the runner knew only about the optional
-Flatpak one, so a first `.exe` offered a large download on a machine that could already
-run it. `tests/test_app_engines.py` holds the contract and every half of it is proven to
-fail on purpose.
+Ordinary product surfaces say Windows programs, Android apps and Linux apps.
+Keep runtime details in appropriate engineering/support evidence. Existing
+branding gates and file-name exceptions remain; legal attribution survives.
+Unsupported formats and unmet DRM/anti-cheat, driver, service or proprietary API
+requirements need a clear capability result, not an enabled button that cannot
+complete. Do not bypass security, licensing or isolation to obtain a pass.
 
-**The rule that makes it feel like one system:** the engine never says its name. Not in a
-dialog, not in a terminal line, not in a notification. "Windows programs", "Android apps",
-"Linux apps" — which runtime MoOS used is MoOS's business. The gate fails the build on any
-user-facing string that names wine, bottles, waydroid, proton, lutris, flatpak, wayland,
-kwin, plasma, qemu or bubblewrap.
+The catalogue has264 source entries, including46 Android and20 Windows recipes,
+within the recorded qualified inventory. Recalculate it from current source
+rather than editing counts as a growth target. `moos-compat-matrix` already
+separates recipe availability from unassessed application testing. Extend that
+existing product path with actual evidence; do not create a parallel catalogue
+or use catalogue count as a compatibility score. See [Mo Store](MO_STORE.md).
 
-One word carried an exemption, and on 2026-09-20 the exemption was found paying for
-things it was never written for. "Flatpak" is also a FILE a person can hold — App Drop
-saying "This Flatpak file is not valid" names the thing in their hand, and refusing the
-word there would leave them holding a file MoOS will not name. That is why the gate's
-`RUNTIME_BRANDS` subset lets it through. But the same subset was also letting the
-STOREFRONT say it: Mo Store's install sheet read "Flatpaks install for your user only",
-its review line appended "· AppImage", the sources panel was headed "AppImage · External
-sources", and Mo AI described installing an app as "in sandboxed Flatpak container".
-None of those is a file; each is the mechanism, which is the one thing the owner asked
-never to see. The copy is rewritten in MoOS's voice ("Apps install for your account
-only", "· Verified file · SHA-256", "Publisher downloads · External sources"), and the
-line is now drawn where it belongs: on the surfaces where MoOS SELLS and INSTALLS apps —
-Mo Store, Welcome, Mo AI — the packaging may appear only inside a file name. App Drop,
-whose entire job is the file you just dropped, keeps the word on purpose. Both halves are
-held by `test_the_storefront_names_a_file_but_never_the_mechanism`, proven to fail on the old sentence.
+For each engine, first complete one representative daily app through discover
+or file-open → consent/install → visible app → Arabic-named file save/reopen →
+launcher after login → update/cancel/failure → remove with data retained by
+default. Then expand P4 coverage: at least ten Windows, ten Android and ten Linux
+applications across documents, media, communication, development and graphics;
+include supported gaming workloads without extrapolating to all games. Choose
+named, licensed, version-pinned apps from the existing catalogue and record the
+selection in P4 evidence before running. Keep a cross-app clipboard/file/URI
+journey and a concurrent mixed-engine workload in the acceptance set.
 
-**And the rule is not only about strings MoOS writes.** The same day, with every string
-gate green, the application menu on the station showed a folder called "Waydroid"
-containing a launcher called "Waydroid". Neither came from a MoOS file: the package ships
-`Waydroid.desktop` (a visible launcher whose `Exec` is the bare CLI) and
-`/etc/xdg/menus/applications-merged/waydroid.menu`, which collects every `X-WayDroid-App`
-into a folder labelled by `waydroid.directory` — so that folder is where EVERY Android app
-the owner installs lands. It had been true since Android first worked, and no gate could
-see it, because every gate read MoOS's files and this was a third party's. `build.sh` now
-hides the launcher and relabels the folder to **"Android apps" / "تطبيقات أندرويد"** with
-MoOS's own icon, and FAILS THE BUILD if either file moves or either edit does not take.
-The folder itself stays: the apps need a home, and naming the platform an app came FROM is
-what Mo Store's own category already does — the rule forbids naming the machinery, not the
-origin. The wine half of this was fixed long ago (ten Wine tools masked, with a build gate);
-the Android half had simply never been written.
-
-**And the same audit, run properly, found the bigger one.** With every string gate green,
-the application menu in the owner's Arabic session offered **two settings applications**:
-"إعدادات MoOS" and "إعدادات النّظام". `build.sh` had hidden `kdesystemsettings.desktop`,
-Fedora's *duplicate* launcher, and left `systemsettings.desktop`, the real one, visible —
-and the gate beneath that section only ever checked the duplicate. Beside it stood
-"Dolphin / دولفين", "KDE Connect / جسر كِيدِي", "KDE Partition Manager / مدير أقسام كِيدِي"
-and "Info Center". Hiding all five would be the wrong fix: a person needs a file manager
-and a disk tool. MoOS Settings now uses `systemsettings` itself as the window and keeps
-Plasma's real hardware modules beside its own MoOS module; `kinfocenter` retains specialist
-hardware pages. So each entry now carries MoOS's name and MoOS's icon — Files / الملفات,
-Phone / الهاتف, Disks / الأقراص — and the two reached only through MoOS Settings also leave
-the menu. Only the `[Desktop Entry]` group is rewritten, because `systemsettings.desktop`
-ships five Desktop Actions whose own `Name=` lines a blind `sed` would overwrite; the
-rewrite was proven against the real files before it shipped. `build.sh` fails the build if
-either half stops taking, and `test_the_app_menu_carries_no_other_desktop_name` holds it.
-
-**What is still honestly a seam, on NVIDIA machines only.** Android apps render in
-software. `waydroid`'s own `tools/helpers/gpu.py` carries `unsupported = ["nvidia"]` and
-falls back to `ro.hardware.egl=swiftshader` whenever the only DRI node belongs to the
-proprietary driver — measured on the station, an RTX 2080 SUPER. Forcing `drm_device` in
-`waydroid.cfg` does not defeat it; the same list is consulted. On AMD and Intel machines
-MoOS gets `gbm` + `mesa` automatically. A private override would be an unqualified fork of
-a core runtime and could trade slow rendering for corruption; qualify an upstream-supported
-path or a separately tested patch on NVIDIA before changing the image. It remains written
-down rather than being hidden behind a misleading “accelerated” label.
-
-**The 4K sizing review added two separate facts.** A legacy fixed Win32 dialog cannot be
-made useful by forcing KWin to resize it: PuTTY became a huge white frame while its controls
-stayed in one corner. The MoOS runner now derives a capped 96–192 DPI from the active desktop
-and writes `LogPixels` before launch. On the 265% station the same real PuTTY binary grew from
-178×331 to 348×591 logical pixels with its content scaled. Android VLC also launched as a real,
-resizable desktop window through the catalogue adapter. On fractional-scale KDE its client-side
-surface still does not fill the geometry KWin reports when maximized; this matches upstream
-Waydroid's open fractional-scaling defect and is a remaining P4.4 qualification seam, not a
-reason to add a second compositor or expose Android settings to the owner.
-
-**macOS** is unsupported. The answer lives in ONE place — the `unsupported` entry in
-`app-engines.json`, in both languages — and this paragraph deliberately does not repeat
-it, because two copies of an answer is how a repository comes to give two answers. What
-belongs here is the engineering position behind it: experimental compatibility projects
-exist, MoOS has not qualified a reliable path for graphical macOS applications, and until
-it does there is no Store button and no promise.
-
-**What the 2026-09-19 review found.** The Store drop
-path was reviewed across security, contract, correctness and product by four independent
-readers and every finding was put to an adversarial verifier. The security design held:
-outside-home paths, directory-symlink escapes, FIFOs, device nodes, dangling symlinks and
-non-owned files are all refused, argv is never a shell even with `$(...)` in a filename, a
-declined dialog spawns nothing, and the only privileged thing reachable is `moai-do`
-behind its own confirmation. What did not hold, and is fixed: the catalogue edit reddened
-the gate CI runs before signing; the Store told the drag source a rejected drop had been
-accepted; an install started from the Store was invisible in the Store; the what's-new
-entry promised installation for `.exe` and `.apk`, which that path does not do; the UI
-test ran under an app id that has no bridge, so it never reached the code it is named
-after; and today's eight gates existed only in `just check`, which `test_gate_coverage.py`
-permits and which protects nothing at the moment a candidate is signed.
-
-The five concrete defects from that review are closed in corrective source. APK mutation
-now occurs only inside `moos-storectl`'s job and lock; the authority gate recognizes the
-actual Android install argv. The bridge's six Qt/consent cases ran in a disposable SDK.
-Mo Store's ordinary copy says apps, not its packaging mechanism. `.xapk`/`.apks` are
-refused with a bilingual reason before a dialog because no qualified runner exists.
-KDialog 26 was exercised on a private X server: Enter and Escape reject; only an explicit
-Tab+Enter accepts. All 204 source gates and the full local generic image build are green;
-the latter passed the bootc, initramfs, QML-runtime, motion, clean-state and identity
-firewall gates. What remains open is product evidence, not hidden completion: a real
-pointer drop and double-click on the installed signed image, Windows/Android launcher and
-remove lifecycle, and the full P4.1 cancel/retry/readback contract across every adapter.
-
-**Next, in order. Each row is a wave; source progress does not replace its installed acceptance proof.**
-
-| Order | What the owner gets | The work | Acceptance |
-| --- | --- | --- | --- |
-| A1 | **DONE — all three engines, on the installed image, 2026-09-20** | **Windows:** two PE32+ GUI programs launched through `moos-run-foreign`, the double-click path, and appeared on the 4K Arabic desktop — Notepad (`غير معنون - المفكرة`) and Minesweeper (`الألغام`) — both wearing **MoOS's own Aurorae decoration** and both listed in the **MoOS Bar** beside native apps. Resolver: `برامج ويندوز, ready=true, chosen=wine, needs_setup=false`, no download. **Linux:** `moos-storectl install com.github.tchx84.Flatseal` → real job `state=success`, launcher entry `فلاتسيل`, ran in Arabic RTL, then `moos-storectl remove` → gone cleanly. Install, launch and remove all through Mo Store, never `flatpak` directly, which is what P4.1 claimed on paper. **Android — and it had NEVER worked.** `moai-do setup-waydroid` called `waydroid init -s VANILLA` with no OTA channels. waydroid composes its URL as `<channel>/<rom>/waydroid_<arch>/<type>.json` and falls back to a channels config that neither MoOS nor Fedora's package ships, so it stopped every time with "You must provide 'System OTA' and 'Vendor OTA' URLs" — before downloading a byte. Every existing gate read the source, where each half was correct. Passing the channels explicitly fixed it: **2.3 GB downloaded** (system.img 1.7 G, vendor.img 536 M), container `RUNNING` on 192.168.240.112, a real 11.9 MB APK installed through `moos-storectl install-file` (`state=success`), and **F-Droid opened on the MoOS desktop** with its own icon in the MoOS Bar. `tests/test_android_setup_channels.py` holds it and is proven to fail when the channels are removed. Frames in `test-results/a1-live/`. | Met. What remains is not A1: a second machine; PE32 (32-bit Windows), which SELinux blocks with an `execmod` denial mapping the i386 DLL from composefs; and **the Android caption**, re-measured on the station 2026-09-20 (`test-results/android-caption-seam.png`). A Windows program wears MoOS's Aurorae frame, but an Android app does not: in `multi_windows` mode the LineageOS freeform caption — back chevron, minimize, maximize, close — is drawn by SystemUI INSIDE the Android surface, so it arrives as client-side decoration and KWin never gets to frame it. No host-side property turns it off; `persist.waydroid.multi_windows` is the only `persist.waydroid.*` key the shipped tooling knows. Forcing a server-side frame would give the window two title bars, which is worse than one honest seam, so nothing was forced. The real fix is a patched Android image with the caption suppressed, which is a ROM build and belongs in its own cycle — written down here rather than quietly carried. |
-| A2 | Installed foreign apps appear in the launcher like any other app | Android exports named launchers; the managed Windows adapter now has an individual prefix, stable ID, launcher/icon, receipt and symmetric removal in the integrated .1062 source. The Oct16 batch adds strict ownership of unlisted APK receipts and isolates Android runtime lifetime from short Store jobs. | Signed installed-image install → ordinary logout/login → menu launch → remove/reinstall, for every adapter; names/icons stay application-specific. Private Wine windows and mock lifecycle tests do not fulfill this row. |
-| A3 | Mo Store carries Android and Windows apps beside Linux ones | Production .1072 now has264:150 Flathub,46 pinned Android APKs,20 managed portable Windows apps,17 App Drop recipes,27 preserved webapps,3 CLI tools and1 vendor package. Two real Linux/Android ID collisions now prefer confirmed native Linux builds while retaining existing Android receipts as namespaced unlisted apps. All64 additions are real apps; seven featured cards are packaged apps. Fresh publisher/architecture metadata and exact APK/PE provenance are recorded.14 new Windows apps render under private native Wine;5 rejected candidates are excluded. Oracle's real Curtail journey passes. Native Markor installs exact APK bytes and reaches KWin after cold Android recovery; initial display/HWUI crash remains unresolved. Real Notepad4 exposed and proves the shared launch-lifetime fix. | Combined signed milestone cycle now passes at727e7b6c; complete native installed-image Store UI install/open/update/cancel/remove/reinstall.10 Android and10 Windows full app journeys, durable Android startup, actual touch hardware and physical GPU qualification remain open. |
-| A4 | Drop anything into MoOS and it installs | App Drop resolves through the same registry instead of its own list, so a dropped `.exe`, `.apk`, AppImage or archive takes the identical path as a catalogue install — consent, one job, a menu entry at the end | Drop one of each. Refused types still say why. A cancelled consent leaves nothing behind |
-| A5 | A MoOS API third parties can build against | The resolver is the first piece and it is a private CLI. Promote the app surface to a documented, versioned D-Bus interface — `org.moos.Apps1` over the registry and `moos-storectl`'s existing job model — so "what can this machine run, and install this for me" is answerable without shelling out to private commands. This extends MoOS with a stable application integration contract; it does not redefine its operating-system identity | An interface XML in `/usr/share/dbus-1/interfaces/`, introspectable, with a version; one first-party caller migrated onto it; the CLI kept as a thin client of the same interface |
-
-**Do not** fork Plasma, KWin or Wine to do any of this, and do not let a second copy of the
-"which engine" decision appear anywhere — that duplication is the defect this contract was
-created to end.
+Historical A1–A5 labels remain aliases, not another ordered backlog:
+A1 engine baseline → P4.3/P4.4; A2 launchers → P4.1/P4.3/P4.4;
+A3 catalogue → P4.1/P4.5; A4 dropped files → P4.6/P4.7;
+A5 third-party app API → P4.1/P4.2. A public Apps API needs a documented schema,
+authorization, cancellation and backward-compatibility tests over the existing
+backend before its interface is called supported.
 
 ## Task protocol
 
@@ -383,41 +213,26 @@ For every task:
 
 ## Ordered execution
 
-PR243–246 integrate the complete reviewed Store/Plasma batch at `e1ffacfa`.
-All231 audited refs and the original57 station worktree heads are ancestors;
-82 missing/behind remote heads were published without force. Original dirty
-station/Oracle drafts are backed up, cross-verified and untouched.
-The previous `.1060` ISO failed a real final visual gate on a session-handoff
-frame mislabeled pre-login. Its failure and old-source negative controls remain;
-PR246 captures the actual pre-authentication frame without changing thresholds.
-The fresh exact-source `.1062`/`.792` cycle passes all three disks, offline ISO,
-ARM build/two-boots and promotion. Native NVIDIA has the exact signed stage;
-Oracle `.792` passes native63 hashes/51 selfchecks/55 post-update checks. Source,
-promoted artifacts and native application/GPU
-acceptance remain distinct in the [current receipt](releases/2026-10-16-store-qualified-cycle-proof.json).
-The historical [Oct14](reviews/STORE_20261014_AR.md) and
-[Oct15](reviews/STORE_20261015_AR.md) review fixes are integrated; do not report
-them as missing source. M3/A3/P4.1 artifact delivery is complete within its
-recorded scope; connected user journeys, accessibility and physical/endurance
-acceptance remain in the existing rows below.
+Boot, security and data-loss regressions preempt the queue. Otherwise use the
+owner's current priority below. Milestones group deliverable outcomes; P0–P6
+remain the only detailed task IDs. Already delivered source is tested and
+improved through its owner, not rewritten as missing functionality.
 
-### Milestone map
-
-| Milestone | Coherent outcome | Work-stream rows | Boundary proof |
+| Order / milestone | Outcome and implementation focus | Rows | Exit evidence |
 | --- | --- | --- | --- |
-| M0 | One honest source/release/workstation state | P0.1–P0.2, P0.6, release harness defects | signed build + 3×QCOW2 + ISO + ARM; exact installed readback |
-| M1 acceptance | Daily shell feels like one MoOS product: Bar, Search, Island, clock, sound, keyboard and desktop hub | P2.3–P2.5, P2.7–P2.8, P5.4 baseline | native keyboard/render review, matrix samples, then the M0 artifact set |
-| M2 | Workspace, Intro, login/lock/boot and first-run form one journey | P1.6, P2.1–P2.2, P2.5, P5.8 | clean and upgraded profiles; offline/online; Wayland restart and scale/hotplug |
-| **M3: Store integration** | Settings, Store and Mo AI complete real jobs with one authority | P1.7, P3.1–P3.7, P4.1–P4.2 | schema/failure fixtures plus install/update/remove and confirmed AI-action readback |
-| M4 | Hardware and compatibility breadth | P0.3–P0.5, P4.3–P4.5, P5.1–P5.8 | device records, suspend/rollback and published compatibility evidence |
-| M5 | Sustainable releases and support | P6.1–P6.6 | reproducible inputs, attestations, staged rollout and support policy |
+| 1 · M0 current delivery | Finish Meyar/appearance/Plasma qualification and deliver the coherent batch | P0.1–P0.2, P0.6, P2.5, P2.8, P6.7 | Full current image/CI, signed3×QCOW2+offline ISO+ARM proofs, promotion and physical font/UI/readback; local overrides retire by recorded bytes |
+| 2 · M1 daily Arabic workspace | Refine one coherent desktop and typography journey; in parallel qualify one daily app per engine through Store and native launcher | P2.3–P2.5, P2.7–P2.10, P4.1, P4.3–P4.4, P5.4 | Installed Arabic/English whole-workspace review, file/clipboard/input journeys, reduced-motion/accessibility and baseline performance; owner feedback recorded |
+| 3 · M2 first run and M3 integration | Complete onboarding, login/lock/power, Settings/Store/Mira and shared jobs/API | P1.6–P1.7, P2.1–P2.2, P2.12, P2.16, P3.1–P3.7, P4.1–P4.2 | Clean/upgraded/offline profiles; actual authentication, job cancel/retry/failure/readback, preferences and data survive update |
+| 4 · M4 compatibility and hardware | Expand the three app suites and qualify device/tablet/GPU/performance tiers | P0.3–P0.5, P4.3–P4.5, P5.1–P5.8 | Per-version/architecture/GPU matrix, ten Windows+ten Android+ten Linux journeys, real tablet input/rotation/suspend, measured performance and recovery |
+| 5 · M5 sustainable product | Reproducible inputs, security cadence, staged rollout, support and migration | P6.1–P6.6, P6.9 | Proven rollout/halt/recovery, digest-linked provenance, support scope and maintainer/user documentation |
 
-Rows can contribute to more than one milestone. A row closes only when its own
-exit evidence exists; the map controls batching, not truth.
-
-**Time-boxed outside the milestone order:** P6.7 must be green on the canary before Fedora 44
-ships Plasma 6.8 (released upstream 2026-10-14). On that day the mutable base tag moves by
-itself and an unreviewed MoOS would ship kscreenlocker's emergency locker.
+Run security/Plasma-transition work whenever its input changes; P6.7 is a
+recurring qualification lane, not a deadline for an already released version.
+The detailed scope of a blocked device test does not block independent native
+UI/app work. While a frozen candidate runs, work on disjoint source with one
+integration owner; never mutate its inputs or count later changes as qualified.
+Each completed milestone uses the existing M0 release contract; signing,
+identity and recovery are present throughout, not postponed to M5.
 
 ## P0 — Release qualification
 
@@ -489,11 +304,11 @@ itself and an unreviewed MoOS would ship kscreenlocker's emergency locker.
 
 | ID | Outcome | Current boundary | Required acceptance |
 | --- | --- | --- | --- |
-| P4.1 | Unify every install/update/remove request behind Mo Store | Shared native backend/bridge/UI and200-app catalogue are signed/promoted in `.1062`/`.792`; actual Linux/web/Windows installs/runs and13 Craft artifact lifecycles pass within their recorded scope. Native full-account/error/cancel/update/remove journeys remain. Newly discovered Oracle draftPR253 restores missing ARM base app-update units and gates both edition trees; it is independent, not part of727/.1072, and still needs final image qualification, integration and signed delivery. Native NVIDIA1062 already has both loaded/enabled/active timers | Store authority for every engine; shared job IDs, cancel/retry/remove and final readback. |
+| P4.1 | Unify every install/update/remove request behind Mo Store | Shared backend/bridge/UI and264-entry catalogue are integrated; previous signed Linux/web/Windows/Craft journeys remain scoped evidence. The earlier ARM app-update unit draft was integrated in the later reliability batch; it is not a new missing installer. Full current-adapter cancel/retry/update/remove and public API acceptance remain | One lifecycle authority, stable job IDs, data-preserving remove, cancelled/failed state and measured readback for every adapter; versioned API authorization/backward-compatibility controls. |
 | P4.2 | Audit desktop-app permissions and prefer portals | Open / acceptance not complete | Permission inventory and actual file/camera/screen/print portals without broad grants. |
 | P4.3 | Turn Windows compatibility into a per-app runner product | Combined source retains 20 reviewed publisher-pinned Windows recipes and their existing private render evidence. The six unqualified local additions are preserved in Git history, not offered as proven apps. Ten full native lifecycle journeys remain open. | Ten Windows apps with isolated prefixes and install/launch/reopen/update/remove evidence. |
-| P4.4 | Turn Android compatibility into a per-app product | Signed .1062 catalogue has 21 Android apps; combined source has 46, actual boot/property readback and independent session lifetime. Native Markor launch/document display passes within its recorded scope; editing/saving, cold-start endurance and ten complete journeys remain | Ten Android apps, on-demand container, files/clipboard/audio and NVIDIA fallback. |
-| P4.5 | Publish a generated compatibility matrix | Source generator uses the Store sanitization, architecture, engine and installability rules for all 264 entries. JSON and AR/EN text distinguish recipe availability from unassessed application testing, include pinned recipe versions and NVIDIA-only software graphics. Eleven controls pass; old generator fails all eleven. Signed delivery and published per-app lifecycle evidence remain separate. | Generated version/edition/architecture/GPU compatibility matrix, including unsupported cases. |
+| P4.4 | Turn Android compatibility into a per-app product | Source has46 recipes, native boot/property and scoped Markor/calculator rendering evidence. Oct28 V3 calculator arithmetic/maximize passes; native sizing, independent close/reopen, cold-start endurance and ten complete journeys remain open | Ten version-pinned Android apps; visible content/input/switch/resize/reopen, files/clipboard/audio, on-demand lifecycle and separately measured GPU fallback. |
+| P4.5 | Publish a generated compatibility matrix | Source generator uses the Store sanitization, architecture, engine and installability rules for all 264 entries. JSON and AR/EN text distinguish recipe availability from unassessed application testing, include pinned recipe versions and NVIDIA-only software graphics. Eleven controls pass; old generator fails all eleven. Signed delivery and published per-app lifecycle evidence remain separate. | Generated version/edition/architecture/GPU compatibility matrix, including unsupported, unavailable and untested cases; evidence for the ten-app Linux reference suite as well as Windows/Android, with tested versions and invalidation on relevant input changes. |
 | P4.6 | Consent-based App Drop for files | Implemented/delivered within recorded scope; wider acceptance remains | Real magic, sandbox extraction, default-No consent, safe launchers and all entry paths. |
 | P4.7 | Native Store picker/drop through App Drop | Implemented/delivered within recorded scope; wider acceptance remains | Actual QML picker/drop delegates to App Drop, valid local files, refusal/cancel and Store job. |
 
@@ -504,7 +319,7 @@ itself and an unreviewed MoOS would ship kscreenlocker's emergency locker.
 | P5.1 | Hardware qualification lab | Open: station USB capture overruns reproduced; Home Assistant Bluetooth/DHCP/duplicate entities and first-start protocol failure remain | GPU/audio/network/Bluetooth/camera/storage/firmware records across actual hardware; distinguish host hardware from rootless home-hub integration faults. |
 | P5.2 | Laptop policy | Open / acceptance not complete | Three laptop classes, lid/battery/brightness/power and two suspend cycles each. |
 | P5.3 | Touch/tablet policy | Open / acceptance not complete | Actual touch/tablet targets, keyboard/rotation/gestures/stylus and ≥44px controls. |
-| P5.4 | Performance budgets | Open: native active-workload 30 s has 6.4–6.7 GiB available/PSI=0/GPU 0–21%. Idle Baloo restart reduces PSS 2.23 GiB→104 MiB and anonymous memory 970→13 MiB; all 303,766 indexed files, actual indexed probe and config preserved. This is one local intervention, not durable policy or weak-tier acceptance | Measured boot/idle PSS/CPU/wakeups, app launch p95, frame pacing, build load and AI latency per tier. |
+| P5.4 | Performance budgets per hardware tier | Historical active-workload samples and local index repairs are retained in PROJECT_STATE/evidence; they are not controlled current idle or comparative OS benchmarks. Establish comparable baselines before choosing optimization work | Record workload, power/thermal state, background work, sample count/duration and refresh rate; compare cold/warm launch p50/p95, frame misses, boot, PSS/CPU/wakeups, battery and mixed-engine load. Declare tolerances before the change, repeat against the same baseline and reject material regressions in another critical metric. |
 | P5.5 | Cloud desktop efficiency | Implemented/delivered within recorded scope; wider acceptance remains | Efficient cloud desktop plus actual private files/photos/IDE access, phone background and off-host restore. |
 | P5.6 | Storage lifecycle | Earlier42GiB local OCI commit exhausted disk and crashed Chrome/ChatGPT; real failure/unsaved-state boundary preserved. Scoped build cleanup recovered owner app units without profile deletion. Oct18 owner-delegated retirement removes44,583,870,472 file/cache bytes after cold-success retirement of the1,913,401,344-byte old derived index; superseded generic image+2 exclusive parents yields separately observed3,677,118,464 writable bytes; Bazaar/Chess/temporaryNotepad4 removed with data/prefixes retained. Sources/dirty trees/full bundle/SDKs/databases/17 containers/current signed ISO/rollback survive. About83.5GiB free after new boot/readback. New guarded full image passes60GiB/5GiB preflight and8GiB/1GiB continuous floors. Private helper is not shipped low-space protection; durable build/cache retention/recovery and3 lint warnings remain open | Headroom, cache/log bounds, low-space recovery and cleanup that never removes owner data. |
 | P5.7 | Qualify kernel policy and driver transitions | Source adds ARM's missing vendor oomd-defaults, final-image guard and actual native-monitor readback in both disk boot proofs. Eight compose controls, native ARM package install, and bounded native negative/positive pressure controls pass on both stations (256 MiB cap; no kernel OOM; protected sentinel survives). Signed ARM .756 and NVIDIA .1026 are booted and prove actual system/native-user monitoring. System-wide recovery/weak-hardware frame latency remains open | Kernel/driver readback and measured frame/audio/CPU/RAM policy; actual daemon monitoring after signed boot; sustained frame/audio latency under bounded pressure on qualified weak tiers, never an uncontrolled OOM on the owner's workstation. |
@@ -520,7 +335,7 @@ itself and an unreviewed MoOS would ship kscreenlocker's emergency locker.
 | P6.4 | Add staged rollout and release health | Open / acceptance not complete | Staged rings, halt/rollback criteria and actual field release health. |
 | P6.5 | URL, Remote, AI and diagnostic security boundaries | Implemented/delivered within recorded scope; wider acceptance remains; the integrated audit cycle is signed/promoted. Oct17 open Dependabot/secret alerts are0; Code Scanning returns no analysis (404), so static-analysis acceptance is unproven | Auth/UID/URL/PIN/upload/secret boundaries and failure controls; native dependency advisories refuse release. |
 | P6.6 | Establish support lifecycle and migration policy | Open / acceptance not complete | Published support/upgrade/rollback/EOL policy plus clear licences, attribution and official identity. |
-| P6.7 | Reviewed Plasma seams before upstream transitions | [Oct15 stable qualification](releases/2026-10-15-plasma-stable-source-proof.json): native x86 Plasma 6.8.0, exact signed inputs,12 seams, real greeter positive/broken/restored and rebuilt vendor logout old/fixed/rejected/cancelled controls pass. PR246's corrected `.1062`/`.792` signed cycle passes all exact QCOW2/offline ISO/two-boot proofs and promotion with unchanged gates. Physical x86 now boots exact signed .1062 on Plasma6.8.0; its prior acceptance is recorded separately. Oct18 current1072 native boot passes unchanged55/0 checks without display-start aborts; expanded coredump review retains greeter Qt screenRemoved teardown and Remote handoff bind collision; broader hardware/phone/accessibility acceptance remains open. ARM retains qualified native6.7.5. The specific publisher/chroot aarch64 metadata endpoint returns404 at the Oct17 readback; the x86 metadata GET was unreadable, not absent. Complete native6.8 package/seam/source closure remains open. [Provider snapshot](releases/2026-10-17-plasma-provider-readback.json). Qt 6.12 stays unqualified. Prior beta canary evidence remains historical. | Actual matching stack, registered seams and native controls, final signed boot and installed acceptance for each architecture; never widen pins or substitute cross-architecture packages. |
+| P6.7 | Reviewed Plasma seams before upstream transitions | Earlier6.8.1 signed delivery remains historical. Current exact6.8.2 source review passes13 seam digests,14 prepared frontend matches and native lock positive/broken/restored; complete a054 image and x86/ARM/canary CI pass. Signed boot/promotion and installed acceptance remain open. ARM keeps its separately qualified native provider; Qt6.12 is unqualified. | Actual matching stack, registered seams and native controls, complete native SDK/image, signed boot and installed acceptance on each architecture; unknown inputs refuse, never widen pins to bypass a failure. |
 | P6.8 | Separate reviewed next-base transition lane | Open / acceptance not complete | Reviewed next-base packages, all native seams/boot/apps/identity gates and migration/support qualification. |
 | P6.9 | Native user/developer participation | Beta integrated/promoted in .1022/.749; native launch/shutdown and ARM D-Bus controls pass, plus 34 API/11 native and actual Wayland/Oracle TLS flow. Both hosts boot delivered client bytes; actual .1022 native capture/shutdown passes and Oracle public health is ready. Capture retains Qt/portal-registration warnings; the recovered QApplication picker correction passes source native Arabic/English cancellation and physical Wayland readback; its signed installed selection/upload flow still needs acceptance. Branded DNS/onboarding/recovery/full moderation UI/preferences/endurance remain open | Real authenticated service/client, private image attachments, account isolation and bounded uploads, admin moderation, retry/offline and promoted-release notifications; no secrets or automatic screenshots. |
 

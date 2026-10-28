@@ -40,6 +40,33 @@ go, the full image build and the release proofs once per milestone. See
 
 ---
 
+## Native owners for integrated product work
+
+Read the product direction and ordered milestones in
+[DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md), then the engineering skill's
+[integrated acceptance reference](../skills/moos-engineering/references/integrated-compatibility.md)
+for cross-engine, tablet, API or performance work. Map the requested user action
+to its current owner before proposing another service or abstraction.
+
+| Responsibility | Existing source/owner |
+| --- | --- |
+| Engine capability and resolution | `system_files/usr/share/moos/app-engines.json`, `system_files/usr/libexec/moos-app-engine` |
+| Application lifecycle and catalogue | `system_files/usr/bin/moos-storectl`, `moos-store-index`; [Mo Store](MO_STORE.md) |
+| Foreign/file launches | `system_files/usr/bin/moos-run-foreign`, `moos-app-drop`; native desktop/URI exports |
+| Privileged product actions | `system_files/usr/bin/moai-do`; fixed authorized actions, never model-generated shell |
+| Settings, routes and theme application | `system_files/usr/bin/moos-control`, `moos-open`, `moos-theme`; existing native KCM/KWin/Plasma owners |
+| Compatibility publication | `system_files/usr/bin/moos-compat-matrix`; availability and executed app evidence are separate |
+| Typography and shared visuals | `fonts/meyar-family/`, shared font policy and [visual contract](../artwork/MOOS_UI2_DESIGN.md) |
+| System images and delivery | Shared overlay, architecture Containerfiles and [RELEASE.md](../RELEASE.md) |
+
+Keep one integrator for the source snapshot, active jobs and release evidence.
+Delegate investigations/disjoint files; verify returned code and tests before
+integration. Source, local compatibility copies, complete image, signed promotion
+and installed acceptance are separate states. Read current workflow/process IDs
+before continuing another session's build; preserve its frozen inputs.
+
+---
+
 ## 1. The sensitive files — ranked by what breaks
 
 ### Tier 1 — get this wrong and the machine does not boot
@@ -312,11 +339,15 @@ The task queue and missing acceptance evidence live in
   end of a milestone, not after every edit.
 - `THEME_REV` bumped if any shipped SVG or shell QML changed, with both pinned
   gates moved and the fingerprint re-recorded (§2.4) — `just check` refuses otherwise.
-- Every home override under `~/.local/share/plasma/` removed.
+- Every development override is recorded with exact bytes, recovery and its
+  matching signed-payload retirement condition. Retire only the qualified copy;
+  preserve personal/unknown home overrides. An absent override is not a
+  prerequisite for source work, and a local copy is not signed delivery.
 - `PROJECT_STATE.md` and `docs/DEVELOPMENT_PLAN.md` updated concisely —
   **including what you did NOT finish**. Git history replaces per-session
   continuation journals.
-- Branches: work on a branch, then merge to `main`. After merging, retire it.
+- Branches: work on a topic branch; integrate only qualified work. Retire a
+  merged branch when its active consumers and recovery requirements are resolved.
   Verify a branch is safe to delete rather than guessing:
   `git merge-base --is-ancestor <branch> origin/main`. If ancestry does not hold,
   review unique commits and patch equivalence before retiring it.

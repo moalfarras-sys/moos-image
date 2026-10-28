@@ -31,8 +31,8 @@
   "frontend_prepared_files_matched": 14,
   "host_update_staged": false,
   "remaining": [
-    "canonical SDK and complete image gates",
-    "exact-head CI, signing, artifact boots and promotion",
+    "current engineering-documentation source checks",
+    "signing, artifact boots and promotion",
     "physical new-digest journeys"
   ],
   "native_lock": {
@@ -54,6 +54,47 @@
     "creator_mode": "0750",
     "creator_sha256": "6a2aa3937eee9c543ba995170ac683e64cf110b00ee21a9dfa66a722e4f5cd55",
     "empty": true,
-    "normalization": "metadata reviewed; full canonical transaction still required. Post-transaction diagnostic fixture correctly refuses non-pristine /var."
+    "normalization": "Complete canonical image transaction passes unchanged cleanup gates. Retain the earlier post-transaction diagnostic refusal for non-pristine /var."
+  },
+  "qualified_a054": {
+    "source": "a05497e54df3a2c3508b44b9ddea2eab0e9b52f6",
+    "source_check": {
+      "running": false,
+      "exitCode": 0,
+      "seconds": 954.0159919261932,
+      "inputHashesStable": true,
+      "changedInputs": [],
+      "files": 14725
+    },
+    "image": {
+      "running": false,
+      "tag": "localhost/moos:meyar-ui142-plasma682",
+      "exitCode": 0,
+      "seconds": 2787.0506870746613,
+      "imageId": "0700da0f88d68a2d65dfb09f137ca55eb73e78a843252dc0f920f3e1954c9c3d"
+    },
+    "image_readback": {
+      "executed": true,
+      "files": 32,
+      "mismatches": [],
+      "sans": "Meyar Sans",
+      "mono": "Meyar Mono",
+      "packages": {
+        "plasma-workspace": "6.8.2-1.1.moos1.fc44",
+        "plasma-desktop": "6.8.2-1.fc44",
+        "kwin": "6.8.2-1.fc44",
+        "libplasma": "6.8.2-1.fc44",
+        "kscreenlocker": "6.8.2-1.fc44",
+        "plasma-login-manager": "6.8.2-1.2.moos1.fc44"
+      }
+    },
+    "image_log_sha256": "b7a6182e2091e132f2a394141e972998eed08895dd8c6a56510c8ef548ea1034",
+    "ci_passed": {
+      "repo": 40646319662,
+      "x86": 40646319671,
+      "arm": 40646319672,
+      "canary": 40646319633
+    },
+    "scope": "Completed source/native SDK/image and PR architecture gates; PR boot/promotion jobs are not signed-release proof."
   }
 }

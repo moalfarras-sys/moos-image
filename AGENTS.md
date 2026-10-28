@@ -2,6 +2,19 @@
 
 Owner26Oct typography steering: the experimental from-scratch Meyar Arabic is rejected as incorrect. The owner explicitly authorizes modifying an open-source Arabic typeface instead; preserve its attribution/license and native shaping. A glyph-catalogue preview may paint isolated glyphs without Arabic word shaping. Require a real text-layout/native-editor journey and natural line bounds for stacked marks before claiming Arabic correctness or changing defaults. Keep the source derivative, selectable user-local font and signed OS delivery distinct.
 
+Owner28Oct product steering: build one Arabic-first MoOS for desktop/tablet,
+with distinctive Meyar typography, a coherent native Liquid Glass interface,
+and Linux/Windows/Android applications through the existing Store/engine owners.
+Use `docs/DEVELOPMENT_PLAN.md` → Product direction, Ordered execution and P0–P6
+as the only queue; dated conversation handoffs do not override current measured
+state or later owner steering. Strength means tested daily journeys, explicit
+compatibility scope and repeatable performance, not catalogue counts or universal
+claims. For cross-engine/system work load the engineering skill's
+`references/integrated-compatibility.md`; identify one integration owner, disjoint
+agent tasks and a frozen qualification SHA. Preserve all identity, authentication,
+signing, isolation, licences and recovery requirements below. Documentation
+improvement does not itself deliver a new operating system.
+
 <!-- ═══════════════════════════════════════════════════════════════════════
      Mo AI — Telegram OS assistant runtime guidance (READ FIRST when you are
      the assistant controlling THIS computer for the owner over Telegram).
