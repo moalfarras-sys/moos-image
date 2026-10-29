@@ -1,8 +1,8 @@
 {
   "schema": 1,
   "date": "2026-10-29",
-  "recordedUTC": "2026-10-29T09:53:01.068969+00:00",
-  "status": "All four exact signed editions artifact-proven and promoted; V3 stage in progress, new physical boot pending",
+  "recordedUTC": "2026-10-29T10:11:11.966368+00:00",
+  "status": "Four exact editions signed, artifact-proven and promoted; exact generic1114 staged on physical V3; owner-authorized restart and new-boot qualification pending",
   "sourceRevision": "319f781f00bbf79072ff0a7c4e3453ec280cab0a",
   "editions": [
     {
@@ -99,7 +99,8 @@
       "networkDuringInstall": "disabled",
       "cleanPoweroff": true,
       "sha256": "b90453d0c595530adc485b97759b46d0dde18ba4d2f3e65bba1e6493280d5b2f",
-      "image": "ghcr.io/moalfarras-sys/moos@sha256:9bf8a446cfa01045773811df27b4cadd2fe387b1d0a21801b0f1ecfe6e52d020"
+      "image": "ghcr.io/moalfarras-sys/moos@sha256:9bf8a446cfa01045773811df27b4cadd2fe387b1d0a21801b0f1ecfe6e52d020",
+      "applicationJourneys": 10
     },
     "arm": {
       "boot_proven_raw_qcow2_sha256": "29588702fbf2122bec31f1c34bec5bf0ec519aab6973ace66186b44bd6eaed4a",
@@ -118,9 +119,23 @@
     "rollback": "44.20261024.1100",
     "pinnedRecovery": "44.20261019.1078",
     "updateAction": "moai-do --confirmed update",
-    "stageComplete": false,
+    "stageComplete": true,
     "ownerRestartAuthorized": true,
-    "restartExecuted": false
+    "restartExecuted": false,
+    "canonicalUpdateExit": 0,
+    "stagedVersion": "44.20261029.1114",
+    "stagedChecksum": "1347e0c694ab6b6186b4ae93dcc7b162af5dcadaad2a1013ca2f21dce4711b87",
+    "stagedDigest": "sha256:9bf8a446cfa01045773811df27b4cadd2fe387b1d0a21801b0f1ecfe6e52d020",
+    "signedTransport": true,
+    "currentRollback": "44.20261025.1107",
+    "stagedPayloadReadback": {
+      "files": 89,
+      "mismatches": [],
+      "scope": "Staged immutable bytes; no physical boot claim"
+    },
+    "newKernel": "7.2.12-200.fc44",
+    "newPlasma": "6.8.2",
+    "newLibbrotli": "1.2.1-1.fc44"
   },
   "scope": {
     "delivered": "Meyar/UI142, native appearance library and reviewed Plasma6.8.2 shared payload",
@@ -131,5 +146,13 @@
       "current personal-theme preservation and real installed journeys",
       "broader device/app/authentication/endurance acceptance retained in development plan"
     ]
+  },
+  "postbootQualification": {
+    "prepared": true,
+    "finite": true,
+    "expectedOwnerLook": "MoOS Personal",
+    "sameBootNegative": "refused exit2; no acceptance claimed",
+    "nativePublicationReadiness": "Bounded current own-account metadata/cache agreement before diagnostics",
+    "autostartRetirement": "Only exact owned entry bytes after completed successful new-digest qualification"
   }
 }

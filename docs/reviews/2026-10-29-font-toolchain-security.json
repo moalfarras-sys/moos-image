@@ -1,0 +1,44 @@
+{
+  "schema": 1,
+  "date": "2026-10-29",
+  "scope": "Pinned font build toolchain security update; no runtime font binary changes",
+  "advisory": "https://github.com/advisories/GHSA-9v8h-qqgm-4m35",
+  "previous": "1.2.0",
+  "patched": "1.2.1",
+  "requirements": [
+    "fonts/meyar/requirements-build.txt",
+    "fonts/meyar-family/requirements.txt"
+  ],
+  "transitiveRequirements": "fonts/meyar/requirements.txt imports requirements-build.txt",
+  "wheel": {
+    "package": "Brotli",
+    "version": "1.2.1",
+    "file": "brotli-1.2.1-cp314-cp314-manylinux2014_x86_64.manylinux_2_17_x86_64.whl",
+    "sha256": "a998857af4fcd19920bdf5f30f0f1a23f38472a703d33e49168cd4fd32438377",
+    "officialPyPIMetadata": "https://pypi.org/pypi/brotli/1.2.1/json",
+    "advisory": "https://github.com/advisories/GHSA-9v8h-qqgm-4m35",
+    "verified": true
+  },
+  "nativeToolchain": "Existing moos-meyar-tools reused; pip check passes",
+  "rebuild": {
+    "families": 4,
+    "files": 96,
+    "identicalFiles": 96,
+    "seconds": 184.89315490899025,
+    "formats": [
+      "TTF",
+      "OTF",
+      "WOFF2"
+    ],
+    "method": "Rebuild all four families and compare each output with retained qualified originals"
+  },
+  "runtimeImage": "Signed staged1114 separately includes libbrotli1.2.1-1.fc44; source toolchain pins do not update host RPMs",
+  "otherAlert": {
+    "package": "deepmerge4.3.1",
+    "advisory": "https://github.com/advisories/GHSA-gcqx-w48m-w2h4",
+    "severity": "low",
+    "upstreamPatchAvailable": false,
+    "dependencyPath": "vite-plugin-pwa → workbox-build → @rollup/plugin-node-resolve → deepmerge (dev dependency)",
+    "status": "Retained open; build dependency exposure assessment is not a patched-package or universal security claim"
+  }
+}

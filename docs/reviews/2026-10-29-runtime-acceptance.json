@@ -38,7 +38,22 @@
       "complete source qualification",
       "signed image delivery",
       "broader file/camera/screen/print portal journeys"
-    ]
+    ],
+    "qualifiedSource436451bf": {
+      "running": false,
+      "exitCode": 0,
+      "seconds": 905.0245778560638,
+      "inputHashesStable": true,
+      "changedInputs": [],
+      "files": 14728
+    },
+    "architectureFirstRefusal": {
+      "run": 40853268040,
+      "source": "436451bf2248093c8ae26932ddcd0015982d8960",
+      "stage": "creating build container/base-image pull",
+      "observed": "unexpected EOF while reading registry blob; image composition did not begin",
+      "rerunJobs": false
+    }
   },
   "android": {
     "runtime": "Waydroid 1.6.3",

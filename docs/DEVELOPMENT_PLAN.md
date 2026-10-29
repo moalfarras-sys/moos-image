@@ -38,7 +38,7 @@ passes0/2787.051s, with32 exact files, generic Meyar matches and6.8.2 package
 readback. The frozen36c engineering revision passes full source checks0/892.727s
 and repository/x86/ARM/canary CI; merged319f has the same tree. All four319f
 editions are signed, artifact-proven and promoted: x861114 and ARM874. Independent
-signature/OCI and exact boot-proof readback pass. Physical V3 stage is in progress;
+signature/OCI and exact boot-proof readback pass. Physical V3 has exact1114 staged;
 new-digest acceptance and local-copy retirement remain open. Reuse recorded run IDs
 and reread actual current state before any dispatch.
 [Signed delivery](releases/2026-10-29-ui142-signed-stage-proof.json),
@@ -323,15 +323,18 @@ M0 evidence as measured performance or require another local VM image.
 ابدأ من هذه الخطة ومن الحالة الفعلية، ولا تنشئ خطة موازية أو تعِد كتابة المكوّنات
 الموجودة. اقرأ `AGENTS.md` و`PROJECT_STATE.md` ومهارة الهندسة، ثم اتبع الآتي:
 
-1. حدّث قراءة Git والـPR والعمليات الجارية قبل أي تغيير. الدفعة الحالية في
-   [PR275](https://github.com/moalfarras-sys/moos-image/pull/275)؛ أدلةa054 تخص
-   ذلك المصدر فقط. اقرأ SHA الحالي والبوابات الفعلية، واحفظ تغييرات أي جلسة أخرى.
+1. حدّث قراءة Git والـPR والعمليات الجارية قبل أي تغيير. اندمجPR275 كمصدر319f
+   وأكمل إصدار1114/874 الموقّع. متابعة صلاحيات التطبيقات وأمان أدوات الخط في
+   [PR277](https://github.com/moalfarras-sys/moos-image/pull/277). اقرأ SHA الحالي
+   والبوابات الفعلية، واحفظ تغييرات أي جلسة أخرى.
 2. تحقّق من الجهاز الجاري والـdigest والـrollback وWayland والمقياس والمسارات
-   المحمّلة. جهازV3 كان على1107 عند إعداد التسليم؛ هذا مرجع لإعادة القراءة وليس
-   أمرًا لاسترجاع إصدار أو إعداد شخصي قديم.
-3. أغلقM0 أولًا: بوابات المصدر الحالي، دمج الدفعة بعدCI، ثم دورة الإصدار الحالية
-   وفق `RELEASE.md` دون تكرارrun قائم. سجّل الـdigests وإثباتات الإقلاع والترقية
-   منفصلة. تحديث المصدر أو نسخ خط محلي لا يعني تحديث الأجهزة أو النسخ الأربع.
+   المحمّلة. عند آخر قراءة كانV3 على1107 مع1114 مجهّزًا؛ طلب المالك إعادة التشغيل
+   صراحة. هذا مرجع لإعادة القراءة وليس أمرًا لاسترجاع إصدار أو إعداد شخصي قديم.
+3. أغلق قبولM0 الفعلي أولًا: إصدار319f منشور ومثبت الإقلاع للنسخ الأربع؛ لا تُعِد
+   دورة الإصدار نفسها. أثبت إقلاع1114 وقراءة الملفات والخطوط ومظهر المالك، ثم
+   أوقف النسخ المحلية المسجلة بعد مطابقة البايتات وحفظ الاسترجاع. افصل فحص
+   ما بعد الإقلاع عن الصور والاختبارات السابقة. تحديث مصدرPR277 يحتاج قبولًا
+   وتسليمًا مستقلين؛ لا تنسبه إلى صورة319f.
 4. أثناء انتظار المرشح الثابت، قِسM1 في فرع مستقل: رحلة سطح المكتب العربي
    المتصلة ورحلة تطبيق واحد لكل محرك. ابدأ من عيوب Android المسجّلة في تغيير
    الحجم والإغلاق/إعادة الفتح، ومن قبول الخط في المحرر والترمنال. لا تستبدل تطبيقًا
