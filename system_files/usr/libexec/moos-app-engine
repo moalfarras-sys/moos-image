@@ -197,7 +197,13 @@ def runtime_state(runtime: dict) -> dict:
 
 
 def describe(engine: dict, target: str | None = None) -> dict:
-    runtimes = [runtime_state(runtime) for runtime in engine.get("runtimes", [])]
+    # A shared engine can contain different file adapters, not interchangeable
+    # runtimes: Flatpak cannot open an AppImage. An unscoped inventory still
+    # reports every adapter; file resolution considers only its declared types.
+    suffix = Path(target).suffix.lstrip(".").lower() if target is not None else None
+    runtimes = [runtime_state(runtime) for runtime in engine.get("runtimes", [])
+                if suffix is None or "extensions" not in runtime
+                or suffix in runtime["extensions"]]
     # Best-first is the file's order, already written sandboxed-first. The first
     # READY runtime wins; a runtime that is present but not ready is the reason
     # to offer setup rather than to fail.

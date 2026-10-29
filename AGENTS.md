@@ -374,6 +374,13 @@ Keep original mixed frames and input/geometry controls. Never change the owner
 theme or product palette to repair a private fixture, or infer physical input
 or whole-shell acceptance from its native virtual output.
 
+**An isolated extractor does not sandbox an installed app.** App Drop's native
+generated launcher reads a private synthetic Documents file while its old engine
+resolver reports sandboxed and selects Flatpak for an AppImage. Keep the actual
+file adapter and running-app permissions truthful; preserve extraction isolation,
+existing full-access consent and Store labels. A different format's installed
+adapter must not make this file ready. This does not qualify all portal journeys.
+
 **Android readiness is not an application window journey.** The official
 20260927 images reached boot-completed and both desktop properties on the V3,
 yet a real calculator surface disappeared while its process remained alive,
@@ -384,6 +391,9 @@ RUNNING container or property readback does not establish those results. Match
 upstream source fixes to the actual image/binary and architecture before any
 scoped repair. Do not downgrade an entire vendor image, patch an unknown binary
 or disable isolation merely because a similar issue reports success elsewhere.
+Native task roots can retain global bounds with transparent pixels outside their
+app subsurfaces. Check alpha and full-desktop composition before diagnosing black
+paint or changing geometry; resizing that root may change the global display.
 
 **A Java dialog can paint while its main frame is blank.** Native Ghidra with Java25 showed tips over an empty main frame on Wayland. Preserve the old/fixed/restored GUI captures and inspect current OpenJDK XWM: its non-reparenting switch tests presence, not a truth value. Scope that setting to the GUI launcher, carry the host session decision across Toolbx and preserve caller values/X11 behavior. Require actual canonical project/program/decompiler/normal-close and environment/argument controls; a version string, headless decompile or first dialog is not GUI acceptance. Never change global Java/WM state, install another JDK or infer a cold new-OS result from1078.
 

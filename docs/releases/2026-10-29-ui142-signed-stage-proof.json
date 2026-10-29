@@ -1,0 +1,135 @@
+{
+  "schema": 1,
+  "date": "2026-10-29",
+  "recordedUTC": "2026-10-29T09:53:01.068969+00:00",
+  "status": "All four exact signed editions artifact-proven and promoted; V3 stage in progress, new physical boot pending",
+  "sourceRevision": "319f781f00bbf79072ff0a7c4e3453ec280cab0a",
+  "editions": [
+    {
+      "edition": "moos",
+      "repository": "ghcr.io/moalfarras-sys/moos",
+      "digest": "sha256:9bf8a446cfa01045773811df27b4cadd2fe387b1d0a21801b0f1ecfe6e52d020",
+      "revision": "319f781f00bbf79072ff0a7c4e3453ec280cab0a",
+      "version": "44.20261029.1114",
+      "signatureVerified": true,
+      "cosignOutputSHA256": "206ab9a7f8572aa4315aadf2be5b491888651fcbd308b87852395c12ffd0bab5",
+      "architecture": "amd64"
+    },
+    {
+      "edition": "moos-nvidia",
+      "repository": "ghcr.io/moalfarras-sys/moos-nvidia",
+      "digest": "sha256:818b48f723bd8589521640bc144adaa1ebfc0eae334e93545afe262cc3b6e448",
+      "revision": "319f781f00bbf79072ff0a7c4e3453ec280cab0a",
+      "version": "44.20261029.1114",
+      "signatureVerified": true,
+      "cosignOutputSHA256": "15e15236d58e4742f3dad98ce28dcb49781f93ee4d670c0a1a3c0030ffa7e1dc",
+      "architecture": "amd64"
+    },
+    {
+      "edition": "moos-cloud",
+      "repository": "ghcr.io/moalfarras-sys/moos-cloud",
+      "digest": "sha256:273dd4233ec3b6a83a6b06aae6d99128adaafd9a86ad11c6a1b74c46257eed71",
+      "revision": "319f781f00bbf79072ff0a7c4e3453ec280cab0a",
+      "version": "44.20261029.1114",
+      "signatureVerified": true,
+      "cosignOutputSHA256": "d617c61c854f1b9b4d955c65c280b84971fc0f7f96d6d127823a649ae069f569",
+      "architecture": "amd64"
+    },
+    {
+      "edition": "moos-arm",
+      "repository": "ghcr.io/moalfarras-sys/moos-arm",
+      "digest": "sha256:16a11b6adce0976eb22e2e58a01967e2731564fdf984dbcbf759f127d247909e",
+      "revision": "319f781f00bbf79072ff0a7c4e3453ec280cab0a",
+      "version": "44.20261028.874",
+      "signatureVerified": true,
+      "cosignOutputSHA256": "ad606786f3ab3aaf0bb075c2826ec68c6177e213c021e344729b3df9348a8a11",
+      "architecture": "arm64"
+    }
+  ],
+  "runs": {
+    "build": 40823163645,
+    "genericDisk": 40830649526,
+    "nvidiaDisk": 40830654090,
+    "cloudDisk": 40830658360,
+    "iso": 40830662946,
+    "arm": 40783730287,
+    "promotion": 40835489196
+  },
+  "firstAttemptExactSourceSuccess": true,
+  "armEvent": "push (complete build/disk/promotion pipeline)",
+  "x86Event": "workflow_dispatch",
+  "canonicalCycle": {
+    "started_utc": "2026-10-29T05:23:53.526828+00:00",
+    "revision": "319f781f00bbf79072ff0a7c4e3453ec280cab0a",
+    "command": [
+      "scripts/release-candidate.sh",
+      "--promote"
+    ],
+    "log": "test-results/execution-20261029/release-cycle.log",
+    "status": "completed",
+    "pid": 1957798,
+    "exit_code": 0,
+    "elapsed_seconds": 7383.679511331982,
+    "finished_utc": "2026-10-29T07:26:57.206343+00:00"
+  },
+  "independentArtifactReadback": {
+    "moos": {
+      "twoSignedBoots": true,
+      "failedUnitsBothBoots": 0,
+      "cleanPoweroff": true,
+      "artifactMatchesCandidate": true,
+      "artifactSHA256": "bf45c232604e6902dbb31acfb03dffea2b90f3d68a8ef65554e00c407e904539"
+    },
+    "moos-nvidia": {
+      "twoSignedBoots": true,
+      "failedUnitsBothBoots": 0,
+      "cleanPoweroff": true,
+      "artifactMatchesCandidate": true,
+      "artifactSHA256": "9d3ddf1f19dc022e6c7493258c3a4a3bca4ac6b2ac4f78d351520e3cc36df614"
+    },
+    "moos-cloud": {
+      "twoSignedBoots": true,
+      "failedUnitsBothBoots": 0,
+      "cleanPoweroff": true,
+      "artifactMatchesCandidate": true,
+      "artifactSHA256": "13e5100b62886494b51cd9f2a548875f5fba2ea7c43c36ff9867e6134bd750eb"
+    },
+    "iso": {
+      "offlineInstall": true,
+      "networkDuringInstall": "disabled",
+      "cleanPoweroff": true,
+      "sha256": "b90453d0c595530adc485b97759b46d0dde18ba4d2f3e65bba1e6493280d5b2f",
+      "image": "ghcr.io/moalfarras-sys/moos@sha256:9bf8a446cfa01045773811df27b4cadd2fe387b1d0a21801b0f1ecfe6e52d020"
+    },
+    "arm": {
+      "boot_proven_raw_qcow2_sha256": "29588702fbf2122bec31f1c34bec5bf0ec519aab6973ace66186b44bd6eaed4a",
+      "first_boot": "healthy",
+      "poweroff": "clean",
+      "revision": "319f781f00bbf79072ff0a7c4e3453ec280cab0a",
+      "schema": 1,
+      "second_boot": "healthy",
+      "source_image": "ghcr.io/moalfarras-sys/moos-arm@sha256:16a11b6adce0976eb22e2e58a01967e2731564fdf984dbcbf759f127d247909e",
+      "workflow_run_id": 40783730287
+    }
+  },
+  "physicalHost": {
+    "product": "V3",
+    "bootedVersion": "44.20261025.1107",
+    "rollback": "44.20261024.1100",
+    "pinnedRecovery": "44.20261019.1078",
+    "updateAction": "moai-do --confirmed update",
+    "stageComplete": false,
+    "ownerRestartAuthorized": true,
+    "restartExecuted": false
+  },
+  "scope": {
+    "delivered": "Meyar/UI142, native appearance library and reviewed Plasma6.8.2 shared payload",
+    "independentSourceCorrection": "P4.2 App Drop resolver correction remains on a separate topic branch; not included in this signed release",
+    "remaining": [
+      "stage readback and physical1114 boot",
+      "exact89-file/native module and font default readback",
+      "current personal-theme preservation and real installed journeys",
+      "broader device/app/authentication/endurance acceptance retained in development plan"
+    ]
+  }
+}

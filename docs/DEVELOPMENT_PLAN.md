@@ -35,11 +35,14 @@ Sourcea054 reviews exact6.8.2 sources and13 seams, retains native backend change
 and14 unchanged prepared frontend files, and passes lock positive/broken/restored
 controls. Its frozen full source check passes0/954.016s and complete local image
 passes0/2787.051s, with32 exact files, generic Meyar matches and6.8.2 package
-readback. Repository, x86, ARM and canary CI all pass on a054. The current
-engineering-documentation revision requires its own source checks; signed
-four-edition delivery, physical acceptance and local-copy retirement remain open. Reuse active run IDs
-and actual current results before dispatching; these sentences are not a ready
-release flag. [Source/native scope](reviews/2026-10-27-meyar-family-native-proof.json),
+readback. The frozen36c engineering revision passes full source checks0/892.727s
+and repository/x86/ARM/canary CI; merged319f has the same tree. All four319f
+editions are signed, artifact-proven and promoted: x861114 and ARM874. Independent
+signature/OCI and exact boot-proof readback pass. Physical V3 stage is in progress;
+new-digest acceptance and local-copy retirement remain open. Reuse recorded run IDs
+and reread actual current state before any dispatch.
+[Signed delivery](releases/2026-10-29-ui142-signed-stage-proof.json),
+[Source/native scope](reviews/2026-10-27-meyar-family-native-proof.json),
 [6.8.2 checkpoint](reviews/2026-10-28-plasma-682-source-checkpoint.json).
 
 Physical V3 remains signed1107 with1100 rollback and pinned1078 recovery.
@@ -54,7 +57,9 @@ earlier greeter screenRemoved crashes, Android native sizing/window lifecycle,
 USB4 controller timeouts, tablet rotation/pen/suspend, charge-limit uncertainty,
 accessibility/phone/endurance and broader app compatibility. Oct28 calculator
 pointer arithmetic and internal maximize rendered correctly on the V3; that does
-not close independent native resizing, close/reopen or ten Android journeys.
+not close independent native resizing or ten Android journeys. Oct29 separately
+proves normal window close/canonical reopen and transparent full-desktop
+composition; the active-window PNG alone had falsely suggested black backing.
 The owner rejected earlier component-only polish as a whole-desktop redesign;
 retain that feedback when evaluating the next native visual batch.
 [Appearance library](reviews/2026-10-26-kde-library-native-proof.json),
@@ -417,9 +422,9 @@ handoff when the branch merges; keep milestone/task ownership in this file.
 | ID | Outcome | Current boundary | Required acceptance |
 | --- | --- | --- | --- |
 | P4.1 | Unify every install/update/remove request behind Mo Store | Shared backend/bridge/UI and264-entry catalogue are integrated; previous signed Linux/web/Windows/Craft journeys remain scoped evidence. The earlier ARM app-update unit draft was integrated in the later reliability batch; it is not a new missing installer. Full current-adapter cancel/retry/update/remove and public API acceptance remain | One lifecycle authority, stable job IDs, data-preserving remove, cancelled/failed state and measured readback for every adapter; versioned API authorization/backward-compatibility controls. |
-| P4.2 | Audit desktop-app permissions and prefer portals | Open: App Drop registry says sandboxed while MO_STORE describes unsandboxed execution; trace the actual displayed/admitted capability before changing it | Distinguish extraction isolation from running-app permissions; truthful capability readback and actual file/camera/screen/print allow/deny/cancel without broad grants. |
+| P4.2 | Audit desktop-app permissions and prefer portals | Oct29 source correction: actual resolver selected Flatpak/sandboxed for AppImage; format-scoped adapters and App Drop sandboxed=false now agree with existing truthful Store labels/consent. Old failure,32 resolver tests and private native launcher/synthetic file-access proof pass. Complete source qualification, signed delivery and broader portal journeys remain open | Distinguish extraction isolation from running-app permissions; truthful capability readback and actual file/camera/screen/print allow/deny/cancel without broad grants. |
 | P4.3 | Turn Windows compatibility into a per-app runner product | Combined source retains 20 reviewed publisher-pinned Windows recipes and their existing private render evidence. The six unqualified local additions are preserved in Git history, not offered as proven apps. Ten full native lifecycle journeys remain open. | Ten Windows apps with isolated prefixes and install/launch/reopen/update/remove evidence. |
-| P4.4 | Turn Android compatibility into a per-app product | Source has46 recipes, native boot/property and scoped Markor/calculator rendering evidence. Oct28 V3 calculator arithmetic/maximize passes; native sizing, independent close/reopen, cold-start endurance and ten complete journeys remain open | Ten version-pinned Android apps; visible content/input/switch/resize/reopen, files/clipboard/audio, on-demand lifecycle and separately measured GPU fallback. |
+| P4.4 | Turn Android compatibility into a per-app product | Source has46 recipes, native boot/property and scoped Markor/calculator rendering evidence. Oct28 V3 calculator arithmetic/maximize passes. Oct29 normal Alt+F4 removes its actual window and the canonical desktop entry reopens a new one; full-desktop composition confirms its global1536x810 root is transparent around the portrait app. Native sizing, persistence, switching, cold-start endurance and ten complete journeys remain open | Ten version-pinned Android apps; visible content/input/switch/resize/reopen, files/clipboard/audio, on-demand lifecycle and separately measured GPU fallback. |
 | P4.5 | Publish a generated compatibility matrix | Source generator uses the Store sanitization, architecture, engine and installability rules for all 264 entries. JSON and AR/EN text distinguish recipe availability from unassessed application testing, include pinned recipe versions and NVIDIA-only software graphics. Eleven controls pass; old generator fails all eleven. Signed delivery and published per-app lifecycle evidence remain separate. | Generated version/edition/architecture/GPU compatibility matrix, including unsupported, unavailable and untested cases; evidence for the ten-app Linux reference suite as well as Windows/Android, with tested versions and invalidation on relevant input changes. |
 | P4.6 | Consent-based App Drop for files | Implemented/delivered within recorded scope; wider acceptance remains | Real magic, sandbox extraction, default-No consent, safe launchers and all entry paths. |
 | P4.7 | Native Store picker/drop through App Drop | Implemented/delivered within recorded scope; wider acceptance remains | Actual QML picker/drop delegates to App Drop, valid local files, refusal/cancel and Store job. |

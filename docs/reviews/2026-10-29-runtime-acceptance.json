@@ -1,0 +1,116 @@
+{
+  "schema": 1,
+  "date": "2026-10-29",
+  "source_base": "319f781f00bbf79072ff0a7c4e3453ec280cab0a",
+  "scope": "P4.2 source correction and bounded native V3 acceptance; independent of the frozen Meyar release candidate. No signed delivery or whole OS acceptance claimed.",
+  "appdrop": {
+    "old_installed_resolve": {
+      "extension": "AppImage",
+      "chosen": "flatpak",
+      "sandboxed": true
+    },
+    "correction": "Resolve only adapters for the requested format; report App Drop running-app sandboxed=false, preserving extraction isolation and existing truthful Store labels/consent.",
+    "source_tests": {
+      "command": "python3 tests/test_app_engines.py",
+      "passed": 32,
+      "old_control": "new test fails on original source"
+    },
+    "native_launcher": {
+      "launch": [
+        "dbus-run-session",
+        "--",
+        "gio",
+        "launch",
+        "private generated desktop entry"
+      ],
+      "exit": 0,
+      "stderr": "",
+      "readback": {
+        "uid": 1000,
+        "sentinel": "MOOS_APPDROP_FILE_ACCESS_PROBE\n",
+        "file_outside_app": true
+      },
+      "entry_sha256": "45ac433e9ecf97e0f8af5d2004ad34ee7d6f21cb896a2fce0a3caec47522063c",
+      "scope": "Private HOME and synthetic Documents sentinel only; generated native launcher path, not a full downloaded-app lifecycle."
+    },
+    "review": "Independent read-only agent found no blocking defect; reviewed retained evidence, did not rerun tests.",
+    "remaining": [
+      "complete source qualification",
+      "signed image delivery",
+      "broader file/camera/screen/print portal journeys"
+    ]
+  },
+  "android": {
+    "runtime": "Waydroid 1.6.3",
+    "booted_os": "44.20261025.1107",
+    "output": "3840x2160@60, scale2.5",
+    "vendor_datetime": 1792667170,
+    "system_datetime": 1790539062,
+    "multi_windows": true,
+    "normal_close": "Alt+F4 on confirmed active calculator removes its actual KWin window",
+    "reopen": "Existing desktop entry through moai-open --app gio launch creates a new window ID",
+    "private_receipts": [
+      "android-close.json",
+      "android-reopen.json",
+      "android-before.png",
+      "android-reopen.png",
+      "android-reopen-settled.png"
+    ],
+    "composed_readback": "Full desktop shows the editor behind the portrait app; global task bounds are transparent, not an opaque black window. Initial active-window interpretation is rejected.",
+    "alpha_readback": {
+      "path": "test-results/execution-20261029/android-reopen-settled.png",
+      "sha256": "97399df1b059cf72568ec51f84493bc5869639f125a5e871e59e588f586de4f5",
+      "size": [
+        3840,
+        2025
+      ],
+      "mode": "RGBA",
+      "alpha0": 6181227,
+      "alpha255": 1543930,
+      "alphaNonzeroBounds": [
+        1484,
+        102,
+        2355,
+        1933
+      ],
+      "alpha0Fraction": 0.7949108796296296,
+      "caveat": "Active-window capture transparency is not full-desktop composition; global KWin bounds alone do not prove opaque black paint."
+    },
+    "remaining": [
+      "actual native task resize",
+      "switching",
+      "persistence/cold-start/endurance",
+      "ten complete app journeys"
+    ]
+  },
+  "hardware": {
+    "failed_system_units": 0,
+    "failed_user_units": 0,
+    "usb4": "c6:00.6 retains repeated configuration read/write timeouts; cause unproven",
+    "native_power_owner": "TuneD throughput-performance",
+    "core_attribution": "Retained Oct26 Python core belongs to the rejected experimental font native_metrics.py probe; separate existing greeter core remains.",
+    "remaining": [
+      "USB4",
+      "greeter cold acceptance",
+      "rotation/pen/suspend",
+      "charge-limit qualification"
+    ]
+  },
+  "private_root": "test-results/execution-20261029",
+  "private_capture_sha256": {
+    "android-before.png": "b0dc5e8116848f0046dc40bd8a04734281fc3739c9a17d73f71d8fe83ffbe0f3",
+    "android-reopen.png": "8f0a7466c6a7dfa9c389077d40a393e82d23e70a2b053d73a669869adb117d31",
+    "android-reopen-settled.png": "97399df1b059cf72568ec51f84493bc5869639f125a5e871e59e588f586de4f5",
+    "android-desktop.png": "7528baa3c5f470129e28fa99031e156fabab955a6ff2a84f1f5eb88c8d45a54a"
+  },
+  "candidate_freeze": {
+    "revision": "319f781f00bbf79072ff0a7c4e3453ec280cab0a",
+    "push_x86": 40783730182,
+    "push_x86_status": "success (not a promotion-eligible dispatch)",
+    "arm": 40783730287,
+    "arm_status": "build/disk/promotion success",
+    "manual_x86": 40823163645,
+    "manual_status_at_record": "completed success; all x86 disk/ISO proofs and promotion40835489196 completed success",
+    "x86_promotion": 40835489196
+  }
+}
