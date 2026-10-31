@@ -222,6 +222,20 @@ evidence, never a signed four-edition update.
 
 **A named font match is not the system default.** The native Meyar image passed named-font and byte gates while generic sans/mono still selected vendor Noto. Resolve generic requests before vendor expansion, retain explicit named choices and native script fallback, and gate actual generic readback in both architecture builds. Private font fixtures must keep the native fonts.conf normalization before the source policy; fc-match normalizes sans-serif to sans before that configuration.
 
+**A personal tray preference is not a broken panel.** Native appearance migration
+preserves the validated personal layout; the actual1114 tray spacing/pins predate
+its reboot. Keep `moos-bar-apply check` strict for canonical apply/image acceptance.
+Session diagnostics use the same native appearance validator and retain panel,
+role, loaded-applet, notification, invalid-setting, busy and unavailable failures.
+Never force personal settings or skip inspection to make health green. A named
+legacy font request does not describe the current generic Meyar chain. Read the
+actual loaded font/library: the V3 Settings wrapper still selected an old review
+KCM after signed1114 boot. Retire only its exact owned bridge recoverably, then
+exercise the canonical URI and inspect the mapped immutable library. Personal
+AccountsService publication uses the trusted MoOS BaseLook envelope plus current
+palette/font/raster; a private probe must not require its look to equal an arbitrary
+personal package name. Preserve its wrong-assumption refusal and negative controls.
+
 ## Where the rest of the knowledge is
 
 **A downloaded collection is not a wallpaper package.** Native KNewStuff can install a flat image archive then fail its Use command on a wildcard folder. Keep the actual old refusal; use the native picker and bounded raster admission, then delegate to the original appearance owner. Preserve the native provider/version/warning/install bytes and registry identity, Kiosk restrictions, edited/link-cache refusals and cancellation without mutation. A QWidget KCM needs an embedded ApplicationItem/PageRow for native detail pages; its offscreen Window is not a dialog parent. Compile child types before accepting the root ready marker and retain the broken-child negative.

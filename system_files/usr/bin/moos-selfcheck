@@ -269,15 +269,15 @@ else
 fi
 
 # ── Arabic in the terminal ───────────────────────────────────────────────────
-# fc-match answers a DIFFERENT question: it returns the family the pattern names.
-# Only the sorted list shows the fallback, and the fallback is what draws Arabic.
-head_ "الخط | Terminal font"
-fallback="$(fc-match -s 'JetBrains Mono:lang=ar' 2>/dev/null | grep -v '"JetBrains Mono"' | head -1)"
-case "$fallback" in
-    *Kawkab*) ok "Arabic in the terminal renders in Kawkab Mono (letters join)" ;;
-    "")       bad "could not resolve an Arabic fallback for the terminal font" ;;
-    *)        bad "Arabic falls back to '${fallback}' — proportional, so the cursive joins tear apart" ;;
-esac
+# Inspect the shipped generic chain, not a legacy named font request. Fontconfig
+# readback establishes configured families; actual shaping/input needs Konsole.
+head_ "الخط | Default terminal font policy"
+terminal_chain="$(fc-match -s -f '%{family}\n' 'monospace:lang=ar' 2>/dev/null | head -2)"
+if [ "$terminal_chain" = $'Meyar Mono\nMeyar Mono Arabic' ]; then
+    ok "the default terminal chain resolves Meyar Mono and Meyar Mono Arabic"
+else
+    bad "the default terminal font chain does not resolve the matched Meyar families"
+fi
 
 # ── Photos and video ─────────────────────────────────────────────────────────
 head_ "الصور والفيديو | Photos & video"
@@ -691,12 +691,12 @@ fi
 # The whole Horizon Bar is defined in /usr/share/moos/moos-bar.conf and verified
 # by the tool that owns it — this check must not restate the bar's values.
 _bar_rc=127
-command -v moos-bar-apply >/dev/null 2>&1 && { moos-bar-apply check >/dev/null 2>&1; _bar_rc=$?; }
+command -v moos-bar-apply >/dev/null 2>&1 && { moos-bar-apply check-session >/dev/null 2>&1; _bar_rc=$?; }
 case "$_bar_rc" in
-    0)  ok "the Horizon Bar matches moos-bar.conf (one centred capsule)" ;;
+    0)  ok "the Horizon Bar has one centred capsule and valid live owners/settings" ;;
     # 75: an apply held the bar the whole time; nothing was checked, so say so.
     75) note "the Horizon Bar is being changed right now — run moos-selfcheck again in a minute" ;;
-    *)  bad "the Horizon Bar drifts from moos-bar.conf — run moos-apply-theme once" ;;
+    *)  bad "the Horizon Bar health check failed — run moos-bar-apply check-session for details" ;;
 esac
 
 # Milou's file/folder results come from Baloo.  Ask the effective per-user

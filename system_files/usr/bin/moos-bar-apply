@@ -935,7 +935,10 @@ cmd_apply() {
 }
 
 cmd_check() {
-    # Non-destructive: agree with the conf or fail (used by moos-selfcheck).
+    # Strict `check` remains the canonical apply/image contract. Session health
+    # may retain validated native tray presentation; structure and live owners
+    # are checked by this same function in both modes.
+    local presentation="${1:-canonical}"
     local failures=0
     if ! plasma_ready; then
         echo "bar: plasmashell not ready"
@@ -1033,18 +1036,35 @@ cmd_check() {
     [ "$tray" = "1" ] || { echo "bar: tray count is '$tray' (want 1)"; failures=$((failures+1)); }
     [ "$clock" = "1" ] || { echo "bar: clock count is '$clock' (want 1)"; failures=$((failures+1)); }
     [ "$align" = "$BAR_ALIGN" ] || { echo "bar: alignment is '$align' (want $BAR_ALIGN)"; failures=$((failures+1)); }
-    [ "$shown_norm" = "$want_norm" ] || {
-        echo "bar: tray shownItems drift: live '$shown_norm' vs conf '$want_norm'"
-        failures=$((failures+1))
-    }
-    [ "$scale" = "$TRAY_SCALE" ] || {
-        echo "bar: tray scaleIconsToFit drift: live '$scale' vs conf '$TRAY_SCALE'"
-        failures=$((failures+1))
-    }
-    [ "$spacing" = "$TRAY_SPACING" ] || {
-        echo "bar: tray iconSpacing drift: live '$spacing' vs conf '$TRAY_SPACING'"
-        failures=$((failures+1))
-    }
+    if [ "$presentation" = native ]; then
+        # Native KCM preferences must still have valid public setting values.
+        # Empty shownItems means automatic visibility, not unloaded applets.
+        if [[ ! "$shown" =~ ^([A-Za-z0-9_.:-]+(,[A-Za-z0-9_.:-]+)*)?$ ]]; then
+            echo "bar: invalid native tray shownItems"
+            failures=$((failures+1))
+        fi
+        case "$scale" in
+            true|false) ;;
+            *) echo "bar: invalid native tray scaleIconsToFit"; failures=$((failures+1)) ;;
+        esac
+        case "$spacing" in
+            1|2|6) ;;
+            *) echo "bar: invalid native tray iconSpacing"; failures=$((failures+1)) ;;
+        esac
+    else
+        [ "$shown_norm" = "$want_norm" ] || {
+            echo "bar: tray shownItems drift: live '$shown_norm' vs conf '$want_norm'"
+            failures=$((failures+1))
+        }
+        [ "$scale" = "$TRAY_SCALE" ] || {
+            echo "bar: tray scaleIconsToFit drift: live '$scale' vs conf '$TRAY_SCALE'"
+            failures=$((failures+1))
+        }
+        [ "$spacing" = "$TRAY_SPACING" ] || {
+            echo "bar: tray iconSpacing drift: live '$spacing' vs conf '$TRAY_SPACING'"
+            failures=$((failures+1))
+        }
+    fi
     while IFS= read -r item; do
         [ -n "$item" ] || continue
         case ",$extra," in
@@ -1088,16 +1108,25 @@ case "${1:-}" in
         take_bar_lock now || exit 0
         cmd_apply "${2:-0}"
         ;;
-    check)
+    check|check-session)
         if ! take_bar_lock wait; then
             echo "bar: busy — another moos-bar-apply is changing the bar; nothing was checked"
             exit 75
         fi
-        cmd_check
+        presentation=canonical
+        if [ "$1" = check-session ]; then
+            # Use the same installed-component validator as moos-apply-theme's
+            # native layout preservation. A timeout/tool failure is not proof
+            # of personal ownership; canonical validation still applies.
+            if timeout 15s moos-theme native-selected >/dev/null 2>&1; then
+                presentation=native
+            fi
+        fi
+        cmd_check "$presentation"
         ;;
     get) cmd_get "${2:-}" ;;
     *)
-        echo "usage: moos-bar-apply {apply [rev]|check|get <section.key>}" >&2
+        echo "usage: moos-bar-apply {apply [rev]|check|check-session|get <section.key>}" >&2
         exit 2
         ;;
 esac

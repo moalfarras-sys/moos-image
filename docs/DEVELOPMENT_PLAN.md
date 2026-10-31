@@ -38,14 +38,23 @@ passes0/2787.051s, with32 exact files, generic Meyar matches and6.8.2 package
 readback. The frozen36c engineering revision passes full source checks0/892.727s
 and repository/x86/ARM/canary CI; merged319f has the same tree. All four319f
 editions are signed, artifact-proven and promoted: x861114 and ARM874. Independent
-signature/OCI and exact boot-proof readback pass. Physical V3 has exact1114 staged;
-new-digest acceptance and local-copy retirement remain open. Reuse recorded run IDs
+signature/OCI and exact boot-proof readback pass. Physical V3 now boots exact signed1114 after the authorized restart;89 canonical
+payload files and native personal appearance agree. Actual Konsole Arabic input
+loads all five fonts from immutable/usr; the canonical URI loads the installed
+appearance KCM after exact local font/policy/launcher bridges are recovered.
+Native session diagnostics pass against the reviewed source correction while
+the installed strict tray diagnostic retains its preexisting preference refusal. Reuse recorded run IDs
 and reread actual current state before any dispatch.
 [Signed delivery](releases/2026-10-29-ui142-signed-stage-proof.json),
 [Source/native scope](reviews/2026-10-27-meyar-family-native-proof.json),
 [6.8.2 checkpoint](reviews/2026-10-28-plasma-682-source-checkpoint.json).
 
-Physical V3 remains signed1107 with1100 rollback and pinned1078 recovery.
+Physical V3 boots signed1114 with1107 rollback and pinned1078 recovery.
+[Current native proof](releases/2026-10-31-ui142-v3-native-proof.json) preserves
+the private probe failure, current source/installed distinction and remaining
+hardware/authentication scope. PR277 adds format-truthful app routing, patched
+Brotli build pins and native-aware health diagnostics; its own signed cycle is
+required before those source corrections count as an installed update.
 Earlier138 signed release and its exact native acceptance are recorded in
 [delivery](releases/2026-10-26-ui138-signed-stage-proof.json) and
 [installed proof](releases/2026-10-26-ui138-v3-native-proof.json). Current personal
@@ -328,12 +337,14 @@ M0 evidence as measured performance or require another local VM image.
    [PR277](https://github.com/moalfarras-sys/moos-image/pull/277). اقرأ SHA الحالي
    والبوابات الفعلية، واحفظ تغييرات أي جلسة أخرى.
 2. تحقّق من الجهاز الجاري والـdigest والـrollback وWayland والمقياس والمسارات
-   المحمّلة. عند آخر قراءة كانV3 على1107 مع1114 مجهّزًا؛ طلب المالك إعادة التشغيل
-   صراحة. هذا مرجع لإعادة القراءة وليس أمرًا لاسترجاع إصدار أو إعداد شخصي قديم.
+   المحمّلة. عند آخر قراءة أقلعV3 فعليًا على1114 مع1107 للرجوع؛ الخط ومعالج
+   الروابط ومكتبة المظهر تُحمّل من النظام بعد حفظ جسور التطوير للاسترجاع.
+   هذا مرجع لإعادة القراءة وليس أمرًا لاسترجاع إصدار أو إعداد شخصي قديم.
 3. أغلق قبولM0 الفعلي أولًا: إصدار319f منشور ومثبت الإقلاع للنسخ الأربع؛ لا تُعِد
-   دورة الإصدار نفسها. أثبت إقلاع1114 وقراءة الملفات والخطوط ومظهر المالك، ثم
-   أوقف النسخ المحلية المسجلة بعد مطابقة البايتات وحفظ الاسترجاع. افصل فحص
-   ما بعد الإقلاع عن الصور والاختبارات السابقة. تحديث مصدرPR277 يحتاج قبولًا
+   دورة الإصدار نفسها. دليل1114 الحالي يثبت89 ملفًا والخط ومظهر المالك والرحلة الفعلية في
+   Konsole والإعدادات. احتفظ بالرفض السابق لتشخيص الدرج والـprobe الخاص؛
+   التصحيح يحترم إعدادات العرض الشخصية ويُبقي الفحص القياسي الصارم. افصل
+   قبول المصدر عن ملفات الصورة المثبّتة. تحديث مصدرPR277 يحتاج قبولًا
    وتسليمًا مستقلين؛ لا تنسبه إلى صورة319f.
 4. أثناء انتظار المرشح الثابت، قِسM1 في فرع مستقل: رحلة سطح المكتب العربي
    المتصلة ورحلة تطبيق واحد لكل محرك. ابدأ من عيوب Android المسجّلة في تغيير
@@ -359,17 +370,17 @@ handoff when the branch merges; keep milestone/task ownership in this file.
 | ID | Outcome | Current boundary | Required acceptance |
 | --- | --- | --- | --- |
 | P0.1 | Integrate the reviewed first-install repairs and create one candidate revision | Stable mechanism/artifact evidence recorded; preserve required gates | Exact candidate source, all integrated fixes and no local override counted as release. |
-| P0.2 | Run generic, NVIDIA and cloud QCOW2 proofs plus offline ISO install/second boot | Complete at727e7b6c: signed build39120488031; disks39126559377/39126562830/39126565706; ISO39126568330 with all10 app close/reopen journeys; ARM39120345470. All first-attempt proofs and actual promotion pass. Previous Cloud/1069/diagnostic refusals remain preserved; no weakened ownership/75s close gate. New physical acceptance is separate | Three exact-digest x86 QCOW2 journeys, offline installed ISO and separate ARM two-boot proof. |
+| P0.2 | Run generic, NVIDIA and cloud QCOW2 proofs plus offline ISO install/second boot | Exact319f signed1114/874 cycle passes all three x86 disks, offline ISO install/reboot and complete ARM pipeline; run IDs and exact digests are in the Oct29 signed-stage receipt. First-attempt proofs retained; PR277 corrections require their own complete release cycle | Three exact-digest x86 QCOW2 journeys, offline installed ISO and separate ARM two-boot proof. |
 | P0.3 | Finish physical NVIDIA qualification | Open: signed .1042 native 55/0 + 55/0, 16 hashes and exact signed player bytes pass; one URI/finite seek/resource journey passes. Kernel -201 NVIDIA vermagic matches. USB-C UCSI -110 remains; broader physical acceptance is open. Offline ESP dirty-bit-only clone/live proof passes, 16 boot-file hashes preserved and both shared vfat mounts restored; the prior unmount mistake failed before fsck and has a private old/fixed topology control. New1072 boot preserves UCSI-110 and a QtQuick ListView/QQuickView teardown SIGSEGV through screenRemoved; exact root cause is unproven. Basic GPU/35 payload/54 selfcheck/55 postcheck/cold-search acceptance passes; isolate real screen-removal before changing greeter/graphics policy. Suspend/hotplug and recovery remain | Actual NVIDIA GPU, initramfs module, displays, suspend and clean recovery on qualified hardware. |
 | P0.4 | Prove failed-update recovery | Open / acceptance not complete | Deliberate bad update, automatic/manual rollback and forward return without owner data loss. |
 | P0.5 | Configure and accept free Mo AI on a clean account | Open / acceptance not complete | Clean-account provider setup, free route, reboot, cancellation and network/quota/key failures. |
-| P0.6 | Promote only proven digests and update the physical PC | Four exact727e7b6c digests are signed/promoted (x861072/ARM807); native NVIDIA now boots1072 with signed1062 rollback,35 payload matches,54 selfchecks,55/0 postchecks and cold natural search pass. No failed units/display-start aborts. Two actual greeter/Remote handoff crashes remain explicit in P0.3/P2.17; this is not complete physical acceptance. No fresh Oracle807 installed claim | Promote only exact proven signed digests; separately verify installed stage/reboot/rollback. |
+| P0.6 | Promote only proven digests and update the physical PC | Exact319f four-edition promotion is proven; physical V3 boots1114 with signed1107 rollback/pinned1078,89 payload matches and actual installed Meyar/URI/KCM journeys. Exact review bridges recovered. Native publication agrees; source health44/0 and46/0 pass after a scoped personal-tray correction, which is not yet signed delivery. Other physical hosts and broader authentication/device acceptance remain open | Promote only exact proven signed digests; separately verify installed stage/reboot/rollback. |
 | P0.7 | Remove the intermittent `plymouthd` crash (ARM second boot; x86 first boot) | Implemented/delivered within recorded scope; wider acceptance remains | Pinned vendor Plymouth fix, old/fixed negative, exact final initramfs and actual boot visuals. |
 | P0.8 | Make the ISO installed-reboot proof deterministic | Integrated at 1a73a4e0; .1022 exact offline ISO 38051456847 passes. CLDR/native AR/EN row clicks and mismatch negatives pass. Earlier .1018 private two password logins/cold boot pass 51/0 twice; offline serialization strict mismatch remains visible. Host batch reboot is separate | Repeated installed-ISO reboot with DHCP/SSH-channel evidence and console failures visible. |
 | P0.9 | Run image-only gates before the merge | Stable mechanism/artifact evidence recorded. Native audit adds the omitted moplayer/** x86 PR trigger; the new input gate fails against the old workflow and passes fixed. ARM already watches the in-tree player. No publishing permission added; final x86/ARM image CI and signed cycle pass | PR generic image gates block real image failures; no signing/publishing from PR. |
 | P0.10 | Gate NVIDIA persistence on a bound GPU | Stable mechanism/artifact evidence recorded; preserve required gates | Bound NVIDIA hardware and exact-kernel persistence/initramfs proof. |
 | P0.11 | Give first-boot Flatpak setup a realistic finite timeout | Stable mechanism/artifact evidence recorded; preserve required gates | Finite realistic first-boot app setup timeout and actual ARM reboot. |
-| P0.12 | Deliver the exact signed, installed-system-proven ISO through a stable anonymous download | Delivered .1046: full anonymous transfer/signature/hash/resumed ranges/exact sidecars at Oct14 17:58:53 UTC; paired public metadata, eight local/eight public native views and actual three redirects pass. .1026 retains immutable bytes through Oct16 12:00 UTC; .1018/.1022 retirement complete. Exact current local archive and signed rollback remain separate. Enclosing site-deploy exec 143 is preserved with independent exact active-byte acceptance | Repeat stable anonymous full signed ISO, exact size/hash and resumed ranges, sidecars and site readback for each release. |
+| P0.12 | Deliver the exact signed, installed-system-proven ISO through a stable anonymous download | Public1046 delivery remains the last verified anonymous release. Qualified1114 ISO is archived outside source (6082199552 bytes, SHA256 b90453d0c595530adc485b97759b46d0dde18ba4d2f3e65bba1e6493280d5b2f) with detached signature verification; new public hosting/account access and anonymous full/range verification remain open | Repeat stable anonymous full signed ISO, exact size/hash and resumed ranges, sidecars and site readback for each release. |
 
 ## P1 — Reliability and first run
 
