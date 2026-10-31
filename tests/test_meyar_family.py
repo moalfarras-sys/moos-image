@@ -30,24 +30,15 @@ def rehash(directory, name):
 class MeyarDelivery(unittest.TestCase):
     @unittest.skipUnless(shutil.which('fc-match'), 'native Fontconfig unavailable')
     def test_generic_defaults_survive_vendor_expansion_without_replacing_named_fonts(self):
-        early = ROOT / 'system_files/etc/fonts/conf.d/00-moos-meyar-defaults.conf'
+        from native_meyar_fontconfig import configure
         with tempfile.TemporaryDirectory(prefix='meyar-generic-') as tmp:
-            config = Path(tmp) / 'fonts.conf'
             for fixed in (False, True):
-                native = ET.parse('/etc/fonts/fonts.conf')
-                tree = native.getroot()
-                includes = tree.findall('include')
-                self.assertEqual(len(includes),1)
-                includes[0].text = '/etc/fonts/conf.d'
-                if fixed:
-                    node = ET.Element('include'); node.text = str(early)
-                    tree.insert(list(tree).index(includes[0]),node)
-                ET.SubElement(tree,'dir').text = str(FONTS)
-                ET.SubElement(tree,'include').text = str(ROOT/'system_files/etc/fonts/conf.d/61-moos-brand.conf')
-                ET.SubElement(tree,'cachedir').text = tmp+'/cache'
-                native.write(config,encoding='unicode')
-                env = dict(os.environ, FONTCONFIG_FILE=str(config), HOME=tmp, XDG_CONFIG_HOME=tmp,
-                           XDG_DATA_HOME=tmp, LANG='C.UTF-8', LC_ALL='C.UTF-8')
+                private = Path(tmp) / ('fixed' if fixed else 'old')
+                private.mkdir()
+                env = dict(os.environ, HOME=str(private), XDG_CONFIG_HOME=str(private),
+                           XDG_DATA_HOME=str(private), XDG_CACHE_HOME=str(private),
+                           LANG='C.UTF-8', LC_ALL='C.UTF-8')
+                configure(env, private, defaults=fixed)
                 for request, family in [('sans-serif','Meyar Sans' if fixed else 'Meyar Arabic'),
                                         ('monospace','Meyar Mono' if fixed else 'Meyar Mono Arabic'),
                                         ('Meyar Arabic,sans-serif','Meyar Arabic'),
@@ -57,6 +48,9 @@ class MeyarDelivery(unittest.TestCase):
                         self.assertNotEqual(result, 'Meyar Sans' if request == 'sans-serif' else 'Meyar Mono')
                     else:
                         self.assertEqual(result,family,(fixed,request))
+                for family in ('Meyar Sans', 'Meyar Mono', 'Meyar Arabic', 'Meyar Mono Arabic'):
+                    path = subprocess.check_output(['fc-match','-f','%{file}',family],env=env,text=True)
+                    self.assertEqual(Path(path).parent, FONTS)
 
     @unittest.skipUnless(importlib.util.find_spec('PySide6'), 'native Qt unavailable')
     def test_native_fixed_font_chooser_and_old_dual_classification(self):

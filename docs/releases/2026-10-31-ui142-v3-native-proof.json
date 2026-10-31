@@ -112,7 +112,19 @@
     "nativeIdSources": [
       "https://raw.githubusercontent.com/KDE/plasma-workspace/v6.8.2/applets/systemtray/systemtraymodel.cpp",
       "https://raw.githubusercontent.com/KDE/plasma-workspace/v6.8.2/applets/systemtray/statusnotifieritemsource.cpp"
-    ]
+    ],
+    "upgradedHostFixtureRefusal": {
+      "source": "5ef710cbac58c7a2dc4a72688f8ec777296afb75",
+      "fullCheckExit": 1,
+      "seconds": 806.6639382839203,
+      "stableInputs": 14730,
+      "failures": [
+        "old generic policy inherited installed early Meyar default",
+        "old dual-width chooser inherited current scan policy/cache"
+      ],
+      "correction": "Private fixtures retain native normalization/vendor rules, isolate installed/user policies and scan caches, reject installed Meyar directory and assert source font paths. Original old/fixed assertions stay unchanged; all8 native font controls pass in1.853s. Runtime font/policy bytes unchanged.",
+      "reference": "https://fontconfig.pages.freedesktop.org/fontconfig/fontconfig-user.html"
+    }
   },
   "limitations": [
     "Source diagnostics are not yet the installed signed diagnostics.",

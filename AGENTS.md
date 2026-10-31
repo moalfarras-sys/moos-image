@@ -220,6 +220,14 @@ actual Fonts KCM writes19-field QFont strings; retain its trailing fields and
 personal families. User-local fonts/profiles and native Apply are development
 evidence, never a signed four-edition update.
 
+**An upgraded host can contaminate the old-policy control.** After signed1114
+installed Meyar, private HOME alone still imported the image’s early font policy
+and cached fixed-width scan metadata. Preserve that actual full-check refusal.
+Source fixtures retain native fonts.conf normalization and vendor expansion,
+use private policy/cache inputs and require source font paths; keep the original
+old generic/dual-width refusals and fixed controls. Never remove the old assertion
+or change live fonts to make a source test pass.
+
 **A named font match is not the system default.** The native Meyar image passed named-font and byte gates while generic sans/mono still selected vendor Noto. Resolve generic requests before vendor expansion, retain explicit named choices and native script fallback, and gate actual generic readback in both architecture builds. Private font fixtures must keep the native fonts.conf normalization before the source policy; fc-match normalizes sans-serif to sans before that configuration.
 
 **A personal tray preference is not a broken panel.** Native appearance migration
