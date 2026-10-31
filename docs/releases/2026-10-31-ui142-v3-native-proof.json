@@ -1,0 +1,152 @@
+{
+  "schema": 1,
+  "date": "2026-10-31",
+  "sourceBase": "e8dc7eac6e88f023422a1d8ff2b492d730594b1e",
+  "deliveredSource": "319f781f00bbf79072ff0a7c4e3453ec280cab0a",
+  "scope": "Physical V3 booted signed1114; exact payload, native publication, canonical URI and installed fonts. Source diagnostic fixes are separately qualified and await their own signed delivery.",
+  "boot": "41292ad8-b707-4398-a1d4-43272ff8ec53",
+  "deployment": {
+    "version": "44.20261029.1114",
+    "container-image-reference": "ostree-image-signed:docker://ghcr.io/moalfarras-sys/moos@sha256:9bf8a446cfa01045773811df27b4cadd2fe387b1d0a21801b0f1ecfe6e52d020",
+    "container-image-reference-digest": "sha256:9bf8a446cfa01045773811df27b4cadd2fe387b1d0a21801b0f1ecfe6e52d020",
+    "checksum": "1347e0c694ab6b6186b4ae93dcc7b162af5dcadaad2a1013ca2f21dce4711b87"
+  },
+  "rollbackVersion": "44.20261025.1107",
+  "pinnedRecoveryVersion": "44.20261019.1078",
+  "payload": {
+    "files": 89,
+    "mismatches": []
+  },
+  "migration142": true,
+  "nativePublication": {
+    "selectedLook": "MoOS Personal",
+    "look": "org.moos.ui2.bloom",
+    "hasRaster": true,
+    "paletteGroups": 7,
+    "font": "Meyar Sans,10,-1,5,400,0,0,0,0,0,0,0,0,0,0,1,,0,0",
+    "sha256": "c8e0fb0e1546d6909c0cfa4e9b23f563e50c2815e10be601144ca556d32f0e31",
+    "cacheAgreement": true,
+    "currentNativePaletteFontRasterAgreement": true
+  },
+  "fontMatches": {
+    "sans-serif": "Meyar Sans|/usr/share/fonts/meyar/MeyarSans[wght].ttf",
+    "monospace": "Meyar Mono|/usr/share/fonts/meyar/MeyarMono[wght].ttf",
+    "sans-serif:lang=ar": "Meyar Sans|/usr/share/fonts/meyar/MeyarSans[wght].ttf",
+    "monospace:lang=ar": "Meyar Mono|/usr/share/fonts/meyar/MeyarMono[wght].ttf",
+    "Meyar Sans": "Meyar Sans|/usr/share/fonts/meyar/MeyarSans[wght].ttf",
+    "Meyar Mono": "Meyar Mono|/usr/share/fonts/meyar/MeyarMono[wght].ttf"
+  },
+  "terminal": {
+    "input": "معيار عربي",
+    "matches": true,
+    "mappedFonts": [
+      "/usr/share/fonts/meyar/MeyarArabic[wght].ttf",
+      "/usr/share/fonts/meyar/MeyarMonoArabic-Bold.ttf",
+      "/usr/share/fonts/meyar/MeyarMonoArabic-Regular.ttf",
+      "/usr/share/fonts/meyar/MeyarMono[wght].ttf",
+      "/usr/share/fonts/meyar/MeyarSans[wght].ttf"
+    ],
+    "scope": "Actual booted1114 Konsole, real Arabic keyboard input and installed font files; broader scripts/cursor tests retain prior scoped evidence"
+  },
+  "appearanceRoute": {
+    "uri": "moos://settings/appearance",
+    "library": "/usr/lib64/qt6/plugins/plasma/kcms/systemsettings/kcm_moos_appearance.so",
+    "sha256": "76cff9ff4218163e3204f7185c8488f6b014709e7bf5294d0b959433d50db67e",
+    "scope": "Actual installed native KCM reached through canonical Gio URI; review bridge recovered, no personal settings changes"
+  },
+  "recoveredCompatibility": {
+    "targets": [
+      "user-local Meyar directory (11 exact files)",
+      "identical development fontconfig policy",
+      "303-byte URI desktop override",
+      "owned systemsettings Qt plugin-path bridge"
+    ],
+    "method": "Recoverable same-filesystem moves after owner/type/hash validation; no global cache purge. Canonical native fonts and URI rechecked. Old KCM review libraries remain preserved and no longer selected by the bridge.",
+    "privateReceipt": "test-results/execution-20261029/compatibility-retirement.json"
+  },
+  "diagnostics": {
+    "installedRefusal": "Canonical tray check detects preexisting shownItems/spacing preferences; it does not establish a1114 migration regression.",
+    "nativeOldFixed": {
+      "installed-canonical": {
+        "exit": 1,
+        "stdout": "bar: tray shownItems drift: live '' vs conf 'org.kde.plasma.keyboardlayout,org.kde.plasma.networkmanagement,org.kde.plasma.notifications,org.kde.plasma.volume,'\nbar: tray iconSpacing drift: live '2' vs conf '1'\n"
+      },
+      "source-canonical": {
+        "exit": 1,
+        "stdout": "bar: tray shownItems drift: live '' vs conf 'org.kde.plasma.keyboardlayout,org.kde.plasma.networkmanagement,org.kde.plasma.notifications,org.kde.plasma.volume,'\nbar: tray iconSpacing drift: live '2' vs conf '1'\n"
+      },
+      "source-session": {
+        "exit": 0,
+        "stdout": "bar: ok\n"
+      },
+      "unchangedAppletConfig": true
+    },
+    "sourceLive": {
+      "source-selfcheck": {
+        "exit": 0,
+        "seconds": 8.814184709015535
+      },
+      "source-postcheck": {
+        "exit": 0,
+        "seconds": 1.7371896880213171
+      }
+    },
+    "sourceSelfcheckSummary": "44 passed,0 broken,1 personal visibility note",
+    "sourcePostcheckSummary": "46 passed,0 failed",
+    "systemFailed": 0,
+    "userFailed": 0,
+    "privateProbe": "Its original failure and incorrect personal-name publication assumption remain saved. Exact completed probe entry recovered and only its own failed unit reset.",
+    "privateProbeReceipt": "test-results/execution-20261031/retired-probe.json"
+  },
+  "tests": {
+    "shellHygiene": 24,
+    "singlePanel": 15,
+    "nativePresentationNegatives": "strict canonical drift, missing native authority, unavailable probe, invalid preferences, missing/duplicate roles, missing loaded applets, retired tray island, notification failure, current QML applet error and busy lock",
+    "publicationNegatives": [
+      "wrong envelope",
+      "stale palette",
+      "stale font",
+      "wrong raster"
+    ],
+    "nativeIdCorrection": "Independent review refused the first ASCII-ID whitelist: Plasma6.8.2 Chromium/Electron IDs include @ and may include space/Unicode. Corrected native QStringList validation accepts those IDs and does not serialize them into the delimited health report; canonical comparison remains strict. The current physical Qt sequence passes, invalid list shapes/control characters fail.",
+    "nativeIdSources": [
+      "https://raw.githubusercontent.com/KDE/plasma-workspace/v6.8.2/applets/systemtray/systemtraymodel.cpp",
+      "https://raw.githubusercontent.com/KDE/plasma-workspace/v6.8.2/applets/systemtray/statusnotifieritemsource.cpp"
+    ],
+    "upgradedHostFixtureRefusal": {
+      "source": "5ef710cbac58c7a2dc4a72688f8ec777296afb75",
+      "fullCheckExit": 1,
+      "seconds": 806.6639382839203,
+      "stableInputs": 14730,
+      "failures": [
+        "old generic policy inherited installed early Meyar default",
+        "old dual-width chooser inherited current scan policy/cache"
+      ],
+      "correction": "Private fixtures retain native normalization/vendor rules, isolate installed/user policies and scan caches, reject installed Meyar directory and assert source font paths. Original old/fixed assertions stay unchanged; all8 native font controls pass in1.853s. Runtime font/policy bytes unchanged.",
+      "reference": "https://fontconfig.pages.freedesktop.org/fontconfig/fontconfig-user.html"
+    }
+  },
+  "limitations": [
+    "Source diagnostics are not yet the installed signed diagnostics.",
+    "No new physical authentication, tablet rotation, pen, suspend or ten-app-per-engine acceptance.",
+    "Kernel retains I2C/HID-sensor warnings; zero failed units is not healthy-hardware proof.",
+    "Other physical machines have not been remotely updated; published edition images and installed hosts are separate.",
+    "1114 ISO is privately archived/signature-verified; current public download hosting is not delivered."
+  ],
+  "privateCaptures": [
+    "test-results/execution-20261029/native-uri-installed-window.png",
+    "test-results/execution-20261029/native-terminal-signed-fonts.png",
+    "test-results/execution-20261031/native-editor-signed-fonts.png"
+  ],
+  "editor": {
+    "ArabicInputAndBackspaceSaved": true,
+    "input": "معيار عربي",
+    "mappedFonts": [
+      "/usr/share/fonts/meyar/MeyarArabic[wght].ttf",
+      "/usr/share/fonts/meyar/MeyarMonoArabic-Regular.ttf",
+      "/usr/share/fonts/meyar/MeyarMono[wght].ttf",
+      "/usr/share/fonts/meyar/MeyarSans[wght].ttf"
+    ],
+    "scope": "Actual installed KWrite on signed1114; Arabic keyboard entry/backspace/save plus native Latin/IPA/mark text. Native editor appends final newline; original exact-no-newline private expectation refused and was corrected."
+  }
+}

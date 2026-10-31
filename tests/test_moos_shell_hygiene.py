@@ -30,6 +30,7 @@ touched and the gate cannot drift from what runs on the machine.
 from __future__ import annotations
 
 import fcntl
+import json
 import os
 import re
 import subprocess
@@ -111,11 +112,12 @@ class TheBarCheckNeverPassesWithoutChecking(unittest.TestCase):
                               text=True, timeout=60)
 
     def test_a_check_that_cannot_take_the_lock_reports_busy_not_success(self):
-        result = self.run_bar("check")
-        self.assertEqual(result.returncode, 75, result.stdout + result.stderr)
-        self.assertIn("busy", result.stdout)
-        self.assertIn("nothing was checked", result.stdout)
-        self.assertFalse(self.calls.exists(), "a busy check must not probe the desktop")
+        for command in ("check", "check-session"):
+            result = self.run_bar(command)
+            self.assertEqual(result.returncode, 75, result.stdout + result.stderr)
+            self.assertIn("busy", result.stdout)
+            self.assertIn("nothing was checked", result.stdout)
+            self.assertFalse(self.calls.exists(), "a busy check must not probe the desktop")
 
     def test_a_concurrent_apply_leaves_without_touching_anything(self):
         result = self.run_bar("apply", "86")
@@ -134,10 +136,126 @@ class TheBarCheckNeverPassesWithoutChecking(unittest.TestCase):
         for path in (SELFCHECK, POST_UPDATE):
             text = path.read_text(encoding="utf-8")
             with self.subTest(caller=path.name):
-                self.assertIn("moos-bar-apply check >/dev/null 2>&1", text)
-                block = text.split("moos-bar-apply check >/dev/null 2>&1", 1)[1][:700]
+                self.assertIn("moos-bar-apply check-session >/dev/null 2>&1", text)
+                block = text.split("moos-bar-apply check-session >/dev/null 2>&1", 1)[1][:700]
                 self.assertIn("75)", block)
                 self.assertNotIn("75) ok", block)
+
+
+class NativeTrayHealth(unittest.TestCase):
+    """Execute the shipped reader on canonical and native D-Bus observations."""
+
+    def run_check(self, command="check-session", *, native=0, changes=None,
+                  ready=0, notification=0, broken=False, empty=False):
+        report = dict(bottom="1", whole="1", align="center", shown="", shownValid="1",
+                      extra=re.search(r"^extraItems=(.*)$", BAR_CONF.read_text(), re.M)[1],
+                      scale="false", spacing="2", launcher="1", island="1",
+                      tray="1", clock="1")
+        report.update(changes or {})
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            env = isolated_env(root, root / "calls")
+            env.update(TEST_REPORT="" if empty else ";".join(f"{k}={v}" for k, v in report.items()),
+                       TEST_READY=str(ready), TEST_NOTIFICATION=str(notification))
+            scripts = {
+                "moos-theme": f"exit {native}\n",
+                "systemctl": "echo 123\n",
+                "journalctl": 'echo \'error when loading applet "org.moos.island"\'\n'
+                              if broken else "exit 0\n",
+                "gdbus": 'case "$*" in\n'
+                         ' *moos-ready*) exit "$TEST_READY";;\n'
+                         ' *GetServerInformation*) exit "$TEST_NOTIFICATION";;\n'
+                         ' *) printf "%s\\n" "$TEST_REPORT";;\nesac\n',
+            }
+            for name, body in scripts.items():
+                path = root / "stubs" / name
+                path.write_text("#!/bin/sh\n" + body)
+                path.chmod(0o755)
+            return subprocess.run([BASH, str(BAR_APPLY), command], env=env,
+                                  capture_output=True, text=True, timeout=30)
+
+    def test_native_defaults_pass_health_but_still_fail_canonical_check(self):
+        self.assertEqual(self.run_check().returncode, 0)
+        strict = self.run_check("check")
+        self.assertEqual(strict.returncode, 1)
+        self.assertIn("shownItems drift", strict.stdout)
+        self.assertIn("iconSpacing drift", strict.stdout)
+
+    def test_missing_invalid_or_unavailable_native_authority_never_admits_preferences(self):
+        for code in (1, 2, 124, 127):
+            with self.subTest(code=code):
+                self.assertEqual(self.run_check(native=code).returncode, 1)
+
+    def test_canonical_presentation_still_passes_both_modes(self):
+        shown = re.search(r"^shownItems=(.*)$", BAR_CONF.read_text(), re.M)[1]
+        for command in ("check", "check-session"):
+            self.assertEqual(self.run_check(command, native=1,
+                             changes=dict(shown=shown, spacing="1")).returncode, 0)
+
+    def test_retired_tray_island_still_fails(self):
+        extra = re.search(r"^extraItems=(.*)$", BAR_CONF.read_text(), re.M)[1]
+        result = self.run_check(changes=dict(extra=extra + ",org.moos.island"))
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("retired tray copy", result.stdout)
+
+    def test_native_public_density_values_and_visible_app_ids(self):
+        for spacing in ("1", "2", "6"):
+            result = self.run_check(changes=dict(spacing=spacing, scale="true",
+                                   shown="org.kde.StatusNotifierItem-123-1,org.kde.plasma.volume"))
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    def test_structural_loaded_and_invalid_preferences_still_fail(self):
+        for key, value in (("bottom", "2"), ("whole", "0"), ("align", "left"),
+                           ("launcher", "0"), ("island", "2"), ("tray", "0"),
+                           ("clock", "0"), ("extra", ""), ("scale", "maybe"),
+                           ("spacing", "0"), ("shownValid", "0"),
+                           ("shownValid", "")):
+            with self.subTest(key=key, value=value):
+                self.assertEqual(self.run_check(changes={key: value}).returncode, 1)
+        for kwargs in (dict(ready=1), dict(notification=1), dict(broken=True), dict(empty=True)):
+            with self.subTest(kwargs=kwargs):
+                self.assertEqual(self.run_check(**kwargs).returncode, 1)
+
+    def test_native_string_list_accepts_real_sni_ids_and_rejects_invalid_shapes(self):
+        source = BAR_APPLY.read_text()
+        function = "function validShownItems(items) {" + source.split(
+            "function validShownItems(items) {", 1)[1].split("var NATIVE =", 1)[0]
+        cases = [([], True), (["org.kde.plasma.volume"], True),
+                 (["chrome_status_icon_1@chromium"], True),
+                 (["chrome_status_icon_1@My App", "تطبيق عربي", "app;clock=0"], True),
+                 ({"length": 1, "0": "Qt sequence"}, True),
+                 (None, False), ("not a sequence", False), ({}, False),
+                 ([4], False), ([""], False), (["bad\nitem"], False),
+                 (["bad\u007fitem"], False)]
+        script = function + "\nconst cases=" + json.dumps(cases) + ";\n" + (
+            "for (const [value, expected] of cases) {"
+            "if (validShownItems(value) !== expected) throw new Error(JSON.stringify(value));}"
+        )
+        result = subprocess.run(["node", "-e", script], capture_output=True,
+                                text=True, timeout=10)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn('shown = NATIVE ? "" : String(shownItems);', source)
+
+
+class DefaultTerminalFontReport(unittest.TestCase):
+    def test_current_chain_and_missing_fallback_are_distinct(self):
+        text = SELFCHECK.read_text()
+        block = text.split('head_ "الخط | Default terminal font policy"', 1)[1].split(
+            "# ── Photos and video", 1)[0]
+        for chain, success in (("Meyar Mono\nMeyar Mono Arabic", True),
+                               ("Meyar Mono\nNoto Sans Arabic", False),
+                               ("JetBrains Mono\nKawkab Mono", False), ("", False)):
+            with self.subTest(chain=chain), tempfile.TemporaryDirectory() as tmp:
+                root = Path(tmp)
+                env = isolated_env(root, root / "calls")
+                stub = root / "stubs/fc-match"
+                stub.write_text('#!/bin/sh\nprintf "%s\\n" "$TEST_CHAIN"\n')
+                stub.chmod(0o755)
+                env["TEST_CHAIN"] = chain
+                result = subprocess.run([BASH, "-c", report_helpers() + block], env=env,
+                                        capture_output=True, text=True, timeout=10)
+                self.assertIn("OK " if success else "BAD ", result.stdout)
+                self.assertNotIn("renders", result.stdout)
 
 
 class SelfcheckTrayReadsTheBarDefinition(unittest.TestCase):

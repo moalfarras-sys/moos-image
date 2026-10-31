@@ -722,12 +722,12 @@ fi
 
 # The whole Horizon Bar is owned by moos-bar-apply against moos-bar.conf.
 bar_rc=127
-command -v moos-bar-apply >/dev/null 2>&1 && { moos-bar-apply check >/dev/null 2>&1; bar_rc=$?; }
+command -v moos-bar-apply >/dev/null 2>&1 && { moos-bar-apply check-session >/dev/null 2>&1; bar_rc=$?; }
 case "$bar_rc" in
-    0)  ok "the Horizon Bar matches moos-bar.conf and owns live notifications" ;;
+    0)  ok "the Horizon Bar has valid live owners/settings and owns live notifications" ;;
     # 75 = busy: an apply held the bar lock, so nothing was checked. Not a pass.
     75) bad "the Horizon Bar could not be checked: moos-bar-apply is still applying — run this again in a minute" ;;
-    *)  bad "the Horizon Bar or notification protocol drifts from moos-bar.conf — run moos-apply-theme once" ;;
+    *)  bad "the Horizon Bar or notification protocol check failed — run moos-bar-apply check-session for details" ;;
 esac
 
 head_ "Launcher search covers visible HOME"

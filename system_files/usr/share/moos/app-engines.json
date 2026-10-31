@@ -88,6 +88,7 @@
           "id": "flatpak",
           "carrier": "image",
           "from": "base",
+          "extensions": ["flatpakref"],
           "sandboxed": true,
           "probe": "flatpak",
           "_": "The ordinary path, and the one Mo Store uses for the catalogue. Comes from the Kinoite base rather than from build.sh, which is what `from: base` records — the gate checks build.sh's package lists for everything MoOS installs itself, and would otherwise read a base tool as a broken promise."
@@ -96,9 +97,10 @@
           "id": "moos-app-drop",
           "carrier": "image",
           "from": "overlay",
-          "sandboxed": true,
+          "extensions": ["appimage"],
+          "sandboxed": false,
           "probe": "moos-app-drop",
-          "_": "A file that arrives as a download rather than from the catalogue. Extracts inside bubblewrap; see P4.6."
+          "_": "A downloaded AppImage. Extraction uses bubblewrap, but the installed desktop entry runs with the user's file access; extraction isolation is not an application sandbox. See P4.6."
         }
       ],
       "provision": null

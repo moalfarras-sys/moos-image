@@ -220,7 +220,38 @@ actual Fonts KCM writes19-field QFont strings; retain its trailing fields and
 personal families. User-local fonts/profiles and native Apply are development
 evidence, never a signed four-edition update.
 
+**An upgraded host can contaminate the old-policy control.** After signed1114
+installed Meyar, private HOME alone still imported the image’s early font policy
+and cached fixed-width scan metadata. Preserve that actual full-check refusal.
+Source fixtures retain native fonts.conf normalization and vendor expansion,
+use private policy/cache inputs and require source font paths; keep the original
+old generic/dual-width refusals and fixed controls. Never remove the old assertion
+or change live fonts to make a source test pass.
+
 **A named font match is not the system default.** The native Meyar image passed named-font and byte gates while generic sans/mono still selected vendor Noto. Resolve generic requests before vendor expansion, retain explicit named choices and native script fallback, and gate actual generic readback in both architecture builds. Private font fixtures must keep the native fonts.conf normalization before the source policy; fc-match normalizes sans-serif to sans before that configuration.
+
+**A personal tray preference is not a broken panel.** Native appearance migration
+preserves the validated personal layout; the actual1114 tray spacing/pins predate
+its reboot. Keep `moos-bar-apply check` strict for canonical apply/image acceptance.
+Session diagnostics use the same native appearance validator and retain panel,
+role, loaded-applet, notification, invalid-setting, busy and unavailable failures.
+Never force personal settings or skip inspection to make health green. A named
+legacy font request does not describe the current generic Meyar chain. Read the
+actual loaded font/library: the V3 Settings wrapper still selected an old review
+KCM after signed1114 boot. Retire only its exact owned bridge recoverably, then
+exercise the canonical URI and inspect the mapped immutable library. Personal
+AccountsService publication uses the trusted MoOS BaseLook envelope plus current
+palette/font/raster; a private probe must not require its look to equal an arbitrary
+personal package name. Preserve its wrong-assumption refusal and negative controls.
+
+**A vendor-font fixture is not Meyar line acceptance.** The native upgraded host
+refused28px Arabic painting in a26px compact Island line while both architecture
+images passed. Resolve source font bytes/family in the actual Qt caption fixture,
+keep the original17px and shipped142 inset negatives, and reserve the shell's
+full line room before reducing readable text. Preserve stable panel geometry,
+shared action owners and real native pointer readback. A popup captured just
+after provider retirement can still show an empty transition; retain it and
+verify settled content, rather than accepting only the window rectangle.
 
 ## Where the rest of the knowledge is
 
@@ -374,6 +405,13 @@ Keep original mixed frames and input/geometry controls. Never change the owner
 theme or product palette to repair a private fixture, or infer physical input
 or whole-shell acceptance from its native virtual output.
 
+**An isolated extractor does not sandbox an installed app.** App Drop's native
+generated launcher reads a private synthetic Documents file while its old engine
+resolver reports sandboxed and selects Flatpak for an AppImage. Keep the actual
+file adapter and running-app permissions truthful; preserve extraction isolation,
+existing full-access consent and Store labels. A different format's installed
+adapter must not make this file ready. This does not qualify all portal journeys.
+
 **Android readiness is not an application window journey.** The official
 20260927 images reached boot-completed and both desktop properties on the V3,
 yet a real calculator surface disappeared while its process remained alive,
@@ -384,6 +422,9 @@ RUNNING container or property readback does not establish those results. Match
 upstream source fixes to the actual image/binary and architecture before any
 scoped repair. Do not downgrade an entire vendor image, patch an unknown binary
 or disable isolation merely because a similar issue reports success elsewhere.
+Native task roots can retain global bounds with transparent pixels outside their
+app subsurfaces. Check alpha and full-desktop composition before diagnosing black
+paint or changing geometry; resizing that root may change the global display.
 
 **A Java dialog can paint while its main frame is blank.** Native Ghidra with Java25 showed tips over an empty main frame on Wayland. Preserve the old/fixed/restored GUI captures and inspect current OpenJDK XWM: its non-reparenting switch tests presence, not a truth value. Scope that setting to the GUI launcher, carry the host session decision across Toolbx and preserve caller values/X11 behavior. Require actual canonical project/program/decompiler/normal-close and environment/argument controls; a version string, headless decompile or first dialog is not GUI acceptance. Never change global Java/WM state, install another JDK or infer a cold new-OS result from1078.
 

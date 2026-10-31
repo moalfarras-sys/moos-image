@@ -1,6 +1,6 @@
 attrs==26.1.0
 booleanOperations==0.10.0
-brotli==1.2.0
+brotli==1.2.1
 cffsubr==0.4.0
 compreffor==0.6.0
 fontmake==3.12.0

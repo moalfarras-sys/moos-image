@@ -28,6 +28,13 @@ still open; `PROJECT_STATE.md` owns what is measured.
   person's files. "Verified" means Flathub's verified flag, nothing else. A web entry that only
   opens a publisher page says "opened", never "installed".
 
+The read-only engine resolver reports running-app permissions too. App Drop's
+extractor is isolated, but its installed launcher has the user's file access.
+Runtime `extensions` in `app-engines.json` restrict file resolution to the
+appropriate adapter: `.AppImage` uses App Drop and `.flatpakref` uses Flatpak.
+An installed adapter for the other format must not make a missing adapter ready.
+The unscoped `list` command still reports the complete engine inventory.
+
 ## Kinds of app
 
 | kind (index) | catalogue `install.kind` | installs to | runs with | removes |

@@ -833,6 +833,44 @@ class TheResolverAnswers(unittest.TestCase):
                                  f".{extension} resolved to the wrong engine")
                 self.assertEqual(set(answer.get("name", {})), {"ar", "en"})
 
+    def test_linux_file_routes_report_the_running_apps_permissions(self):
+        """An isolated extractor does not sandbox its generated desktop entry.
+
+        Flatpak being installed also cannot make an AppImage ready. Exercise the
+        real selection with both tools present and each missing in turn.
+        """
+        loader = importlib.machinery.SourceFileLoader("linux_file_engine", str(RESOLVER))
+        spec = importlib.util.spec_from_loader(loader.name, loader)
+        resolver = importlib.util.module_from_spec(spec)
+        loader.exec_module(resolver)
+        linux = next(e for e in DOCUMENT["engines"] if e["id"] == "linux")
+        for available in ({"flatpak", "moos-app-drop"}, {"flatpak"},
+                          {"moos-app-drop"}, set()):
+            for extension, expected, sandboxed in (
+                    ("AppImage", "moos-app-drop", False),
+                    ("flatpakref", "flatpak", True)):
+                with self.subTest(available=available, extension=extension), \
+                     mock.patch.object(resolver.shutil, "which",
+                                       side_effect=lambda name: "/bin/" + name
+                                       if name in available else None), \
+                     mock.patch.object(resolver.subprocess, "run") as execute:
+                    result = resolver.describe(linux, "ملف." + extension)
+                self.assertEqual([r["id"] for r in result["runtimes"]], [expected])
+                self.assertEqual(result["ready"], expected in available)
+                self.assertEqual(result["runtimes"][0]["sandboxed"], sandboxed)
+                self.assertFalse(result["needs_setup"])
+                if expected in available:
+                    self.assertEqual(result["chosen"]["id"], expected)
+                    self.assertEqual(result["chosen"]["sandboxed"], sandboxed)
+                else:
+                    self.assertIsNone(result["chosen"])
+                execute.assert_not_called()
+
+        with mock.patch.object(resolver.shutil, "which", return_value="/bin/present"):
+            inventory = resolver.describe(linux)
+        self.assertEqual({r["id"]: r["sandboxed"] for r in inventory["runtimes"]},
+                         {"flatpak": True, "moos-app-drop": False})
+
     def test_a_file_no_engine_claims_says_so_instead_of_guessing(self):
         code, answer = self.resolve("notes.txt")
         self.assertEqual(code, 3)

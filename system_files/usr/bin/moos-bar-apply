@@ -935,7 +935,10 @@ cmd_apply() {
 }
 
 cmd_check() {
-    # Non-destructive: agree with the conf or fail (used by moos-selfcheck).
+    # Strict `check` remains the canonical apply/image contract. Session health
+    # may retain validated native tray presentation; structure and live owners
+    # are checked by this same function in both modes.
+    local presentation="${1:-canonical}"
     local failures=0
     if ! plasma_ready; then
         echo "bar: plasmashell not ready"
@@ -948,13 +951,28 @@ cmd_check() {
     local out
     out="$(timeout 10s gdbus call --session -d org.kde.plasmashell -o /PlasmaShell \
         -m org.kde.PlasmaShell.evaluateScript '
+            function validShownItems(items) {
+                // KConfig returns a Qt sequence, not necessarily a JS Array.
+                // Native SNI IDs can contain Unicode, spaces and punctuation.
+                if (!items || typeof items != "object"
+                        || !Number.isInteger(items.length) || items.length < 0) return false;
+                for (var n = 0; n < items.length; n++) {
+                    if (typeof items[n] != "string" || items[n].length == 0) return false;
+                    for (var c = 0; c < items[n].length; c++) {
+                        var code = items[n].charCodeAt(c);
+                        if (code < 32 || code == 127) return false;
+                    }
+                }
+                return true;
+            }
+            var NATIVE = '"$([ "$presentation" = native ] && echo true || echo false)"';
             var TRAY_APPLET = "'"$TRAY_APPLET"'";
             var CLOCK_APPLET = "'"$CLOCK_APPLET"'";
             var DOCK_APPLET = "'"$BRAND_APPLET"'";
             var ISLAND_APPLET = "'"$ISLAND_APPLET"'";
             var ps = panels();
              var bottom = 0, whole = 0, align = "", shown = "", extra = "";
-             var scaleIcons = "", iconSpacing = "";
+             var scaleIcons = "", iconSpacing = "", shownValid = 0;
              var launcherCount = 0, islandCount = 0, trayCount = 0, clockCount = 0;
             for (var i = 0; i < ps.length; i++) {
                 if (ps[i].location != "bottom") { continue; }
@@ -992,7 +1010,11 @@ cmd_check() {
                     for (var k = 0; k < ws.length; k++) {
                         if (String(ws[k].type) == TRAY_APPLET) {
                             ws[k].currentConfigGroup = ["General"];
-                            shown = String(ws[k].readConfig("shownItems", ""));
+                            var shownItems = ws[k].readConfig("shownItems", []);
+                            shownValid = validShownItems(shownItems) ? 1 : 0;
+                            // Canonical comparison keeps its original value.
+                            // Native IDs never enter the delimited report.
+                            shown = NATIVE ? "" : String(shownItems);
                             extra = String(ws[k].readConfig("extraItems", ""));
                             scaleIcons = String(ws[k].readConfig("scaleIconsToFit", false));
                             iconSpacing = String(ws[k].readConfig("iconSpacing", 2));
@@ -1001,7 +1023,7 @@ cmd_check() {
                 }
             }
              print("bottom=" + bottom + ";whole=" + whole
-                 + ";align=" + align + ";shown=" + shown + ";extra=" + extra
+                 + ";align=" + align + ";shown=" + shown + ";shownValid=" + shownValid + ";extra=" + extra
                  + ";scale=" + scaleIcons + ";spacing=" + iconSpacing
                  + ";launcher=" + launcherCount + ";island=" + islandCount
                  + ";tray=" + trayCount
@@ -1010,11 +1032,12 @@ cmd_check() {
     local report
     report="$(printf '%s\n' "$out" | grep -oE 'bottom=[0-9]+;whole=[0-9]+;align=[a-z]*;shown=.*' | head -n1)"
     [ -n "$report" ] || { echo "bar: no live report"; return 1; }
-    local bottom whole align shown extra scale spacing shown_norm want_norm launcher island tray clock item
+    local bottom whole align shown extra scale spacing shown_norm want_norm launcher island tray clock item shown_valid
     bottom="$(printf '%s' "$report" | sed -n 's/.*bottom=\([0-9]*\).*/\1/p')"
     whole="$(printf '%s' "$report" | sed -n 's/.*whole=\([0-9]*\).*/\1/p')"
     align="$(printf '%s' "$report" | sed -n 's/.*align=\([a-z]*\).*/\1/p')"
     shown="$(printf '%s' "$report" | sed -n 's/.*shown=\([^;]*\).*/\1/p')"
+    shown_valid="$(printf '%s' "$report" | sed -n 's/.*;shownValid=\([01]\);.*/\1/p')"
     extra="$(printf '%s' "$report" | sed -n 's/.*extra=\([^;]*\).*/\1/p')"
     scale="$(printf '%s' "$report" | sed -n 's/.*scale=\([^;]*\).*/\1/p')"
     spacing="$(printf '%s' "$report" | sed -n 's/.*spacing=\([^;]*\).*/\1/p')"
@@ -1033,18 +1056,35 @@ cmd_check() {
     [ "$tray" = "1" ] || { echo "bar: tray count is '$tray' (want 1)"; failures=$((failures+1)); }
     [ "$clock" = "1" ] || { echo "bar: clock count is '$clock' (want 1)"; failures=$((failures+1)); }
     [ "$align" = "$BAR_ALIGN" ] || { echo "bar: alignment is '$align' (want $BAR_ALIGN)"; failures=$((failures+1)); }
-    [ "$shown_norm" = "$want_norm" ] || {
-        echo "bar: tray shownItems drift: live '$shown_norm' vs conf '$want_norm'"
-        failures=$((failures+1))
-    }
-    [ "$scale" = "$TRAY_SCALE" ] || {
-        echo "bar: tray scaleIconsToFit drift: live '$scale' vs conf '$TRAY_SCALE'"
-        failures=$((failures+1))
-    }
-    [ "$spacing" = "$TRAY_SPACING" ] || {
-        echo "bar: tray iconSpacing drift: live '$spacing' vs conf '$TRAY_SPACING'"
-        failures=$((failures+1))
-    }
+    if [ "$presentation" = native ]; then
+        # Native KCM preferences must still have valid public setting values.
+        # Empty shownItems means automatic visibility, not unloaded applets.
+        if [ "$shown_valid" != "1" ]; then
+            echo "bar: invalid native tray shownItems"
+            failures=$((failures+1))
+        fi
+        case "$scale" in
+            true|false) ;;
+            *) echo "bar: invalid native tray scaleIconsToFit"; failures=$((failures+1)) ;;
+        esac
+        case "$spacing" in
+            1|2|6) ;;
+            *) echo "bar: invalid native tray iconSpacing"; failures=$((failures+1)) ;;
+        esac
+    else
+        [ "$shown_norm" = "$want_norm" ] || {
+            echo "bar: tray shownItems drift: live '$shown_norm' vs conf '$want_norm'"
+            failures=$((failures+1))
+        }
+        [ "$scale" = "$TRAY_SCALE" ] || {
+            echo "bar: tray scaleIconsToFit drift: live '$scale' vs conf '$TRAY_SCALE'"
+            failures=$((failures+1))
+        }
+        [ "$spacing" = "$TRAY_SPACING" ] || {
+            echo "bar: tray iconSpacing drift: live '$spacing' vs conf '$TRAY_SPACING'"
+            failures=$((failures+1))
+        }
+    fi
     while IFS= read -r item; do
         [ -n "$item" ] || continue
         case ",$extra," in
@@ -1088,16 +1128,25 @@ case "${1:-}" in
         take_bar_lock now || exit 0
         cmd_apply "${2:-0}"
         ;;
-    check)
+    check|check-session)
         if ! take_bar_lock wait; then
             echo "bar: busy — another moos-bar-apply is changing the bar; nothing was checked"
             exit 75
         fi
-        cmd_check
+        presentation=canonical
+        if [ "$1" = check-session ]; then
+            # Use the same installed-component validator as moos-apply-theme's
+            # native layout preservation. A timeout/tool failure is not proof
+            # of personal ownership; canonical validation still applies.
+            if timeout 15s moos-theme native-selected >/dev/null 2>&1; then
+                presentation=native
+            fi
+        fi
+        cmd_check "$presentation"
         ;;
     get) cmd_get "${2:-}" ;;
     *)
-        echo "usage: moos-bar-apply {apply [rev]|check|get <section.key>}" >&2
+        echo "usage: moos-bar-apply {apply [rev]|check|check-session|get <section.key>}" >&2
         exit 2
         ;;
 esac
