@@ -1,0 +1,88 @@
+{
+  "schema": 1,
+  "date": "2026-10-31",
+  "plan": [
+    "P0.6",
+    "P0.12",
+    "P1.1"
+  ],
+  "scope": "Meyar Arabic compact Island line room; native source review, not signed143 delivery or whole-UI acceptance",
+  "baseline": {
+    "source": "27a592009d90b6fd06de5611ad56dd79e8ac1477",
+    "booted": "44.20261029.1114",
+    "kernel": "7.2.12-200.fc44.x86_64",
+    "plasma": "6.8.2",
+    "qt": "6.11.2",
+    "output": "3840x2160@60, scale2.5",
+    "personalLook": "MoOS Personal",
+    "localFullGate": {
+      "exit": 1,
+      "seconds": 871.0008985996246,
+      "inputs": 14730,
+      "stable": true,
+      "failures": 25,
+      "cause": "24Arabic caption samples and action negative stop at painted28 > available26 at34px compact height"
+    },
+    "remoteCI": "repo, x86 and ARM image gates success did not override native refusal"
+  },
+  "correction": {
+    "owner": "existing org.moos.island native Plasma applet",
+    "behavior": "Use full shell line room while retaining outer2px margins,171px stable width, readable minimum12px and original shared action owners",
+    "themeRevision": 143,
+    "fontBytesChanged": false,
+    "mainSHA256": "4c2a53c9f389e1d283f1923177ab7c7638db5b7ccff40821b8e62c38991630fc"
+  },
+  "controls": {
+    "test": "tests/test_island_compact.py",
+    "tests": 4,
+    "seconds": 49.638,
+    "positiveConfigurations": 48,
+    "geometryContextSamples": 864,
+    "dimensions": [
+      "Arabic/English",
+      "dark/light",
+      "desktop/tablet mode",
+      "100/150/250%",
+      "normal/reduced motion",
+      "34/40/54px compact height",
+      "search/remote/privacy/store/Mira/media"
+    ],
+    "fonts": "Source Meyar Sans/Arabic matched by family and path; actual caption family readback",
+    "negatives": [
+      "original17px fixed line overflows",
+      "shipped142 duplicated insets clip actual Meyar line",
+      "wrong shared action destination reaches and fails owner check"
+    ],
+    "input": "pointer, keyboard and isolated Qt touch; not physical touch"
+  },
+  "native": {
+    "sourceQMLReadOnScopedShellRestart": true,
+    "input": "Actual panel pointer Paused -> Playing -> Paused through one owned silent MPRIS provider",
+    "pixels": "Arabic title with stacked marks and complete settled Search inspected on installed native Plasma",
+    "search": "pointer opens; Escape closes; no application-launch claim",
+    "initialRefusal": "First capture immediately after provider stop was blank with stale media context. Retained; later settled signed/source search both show content. No claimed root cause or transition-lifetime fix.",
+    "personalKdeglobalsAndShellrc": "byte-identical",
+    "appletsrc": "Native media-controller child appeared and ScreenMapping order changed; panel ID/order/height remain. Not byte-identical.",
+    "warnings": "Existing QSGTexture warnings retained; native Settings deprecation and systemtray binding-loop warnings remain, not hidden.",
+    "compatibility": "Exact6-file temporary source package recovered after full hash checks; installed selection returned to signed1114",
+    "privateEvidence": "test-results/execution-20261031/island-meyar/",
+    "compatibilityFiles": 6
+  },
+  "remaining": [
+    "final full source/image gates on new frozen SHA",
+    "signed four-edition build/artifact proofs/promotion",
+    "installed143 update/reboot readback",
+    "physical touch and broader tablet/hardware/application acceptance"
+  ],
+  "review": {
+    "independent": "no findings",
+    "scope": "uncommitted Island diff over27a; native fixed Arabic light desktop250% reduced-motion and cramped142 negative independently pass in1.55s",
+    "mainSHA256": "4c2a53c9f389e1d283f1923177ab7c7638db5b7ccff40821b8e62c38991630fc",
+    "testSHA256": "c3d0e5095d33059c7c8e9df6bc9fea173309360dbe19938e6458b99c18b909bb",
+    "notRepeated": [
+      "full48matrix",
+      "whole repository gates",
+      "installed Plasma journey"
+    ]
+  }
+}

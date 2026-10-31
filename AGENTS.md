@@ -244,6 +244,15 @@ AccountsService publication uses the trusted MoOS BaseLook envelope plus current
 palette/font/raster; a private probe must not require its look to equal an arbitrary
 personal package name. Preserve its wrong-assumption refusal and negative controls.
 
+**A vendor-font fixture is not Meyar line acceptance.** The native upgraded host
+refused28px Arabic painting in a26px compact Island line while both architecture
+images passed. Resolve source font bytes/family in the actual Qt caption fixture,
+keep the original17px and shipped142 inset negatives, and reserve the shell's
+full line room before reducing readable text. Preserve stable panel geometry,
+shared action owners and real native pointer readback. A popup captured just
+after provider retirement can still show an empty transition; retain it and
+verify settled content, rather than accepting only the window rectangle.
+
 ## Where the rest of the knowledge is
 
 **A downloaded collection is not a wallpaper package.** Native KNewStuff can install a flat image archive then fail its Use command on a wildcard folder. Keep the actual old refusal; use the native picker and bounded raster admission, then delegate to the original appearance owner. Preserve the native provider/version/warning/install bytes and registry identity, Kiosk restrictions, edited/link-cache refusals and cancellation without mutation. A QWidget KCM needs an embedded ApplicationItem/PageRow for native detail pages; its offscreen Window is not a dialog parent. Compile child types before accepting the root ready marker and retain the broken-child negative.

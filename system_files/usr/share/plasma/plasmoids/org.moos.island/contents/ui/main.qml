@@ -890,8 +890,11 @@ PlasmoidItem {
                 anchors.fill: parent
                 anchors.leftMargin: 8
                 anchors.rightMargin: 8
-                anchors.topMargin: 2
-                anchors.bottomMargin: 2
+                // The shell already reserves two pixels above and below.
+                // Keep its full line room: Meyar Arabic needs28px at the
+                // minimum readable size in a34px panel slot.
+                anchors.topMargin: 0
+                anchors.bottomMargin: 0
                 spacing: root.design.space1
                 layoutDirection: root.rtl ? Qt.RightToLeft : Qt.LeftToRight
 
@@ -1089,7 +1092,7 @@ PlasmoidItem {
                     Layout.fillHeight: true
                     Layout.minimumWidth: 0
                     Layout.minimumHeight: 0
-                    Layout.maximumHeight: Math.max(0, compactShell.height - 4)
+                    Layout.maximumHeight: Math.max(0, compactShell.height)
                     clip: true
                     // One natural line, centred in its actual available room.
                     // Arabic's painted line was28px while the old box claimed

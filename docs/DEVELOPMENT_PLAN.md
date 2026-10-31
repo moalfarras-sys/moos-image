@@ -55,6 +55,12 @@ the private probe failure, current source/installed distinction and remaining
 hardware/authentication scope. PR277 adds format-truthful app routing, patched
 Brotli build pins and native-aware health diagnostics; its own signed cycle is
 required before those source corrections count as an installed update.
+Native27a fullcheck subsequently refuses the compact Island's Arabic line after
+signed Meyar:28px painting in26px room at34px. Source143 corrects the duplicated
+insets with explicit source-font old/fixed controls and actual native media/search
+review; final full/image gates and signed delivery remain required. The initial
+blank post-provider popup capture is retained, with later settled signed/source
+Search both visible. [Native correction](reviews/2026-10-31-meyar-island-native-proof.json).
 Earlier138 signed release and its exact native acceptance are recorded in
 [delivery](releases/2026-10-26-ui138-signed-stage-proof.json) and
 [installed proof](releases/2026-10-26-ui138-v3-native-proof.json). Current personal

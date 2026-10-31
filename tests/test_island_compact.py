@@ -9,17 +9,24 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from native_meyar_fontconfig import configure
 
 ROOT=Path(__file__).resolve().parents[1]
 SOURCE=ROOT/'system_files/usr/share/plasma/plasmoids/org.moos.island/contents/ui/main.qml'
 UI=SOURCE.parent
 
 
-def fixture(source, old=False, broken_route=False):
+def fixture(source, old=False, broken_route=False, cramped=False):
     body=source[source.index('    compactRepresentation: FocusScope {'):source.index('    fullRepresentation:')]
     body=body.replace('    compactRepresentation: FocusScope {','    FocusScope {',1)
     body=body.replace('id: compact','id: compact; objectName: "compact"',1)
     body=body.replace('id: compactAction','id: compactAction; objectName: "compactAction"',1)
+    if cramped:
+        # The shipped142 layout left26px for Meyar Arabic's28px line.
+        body=body.replace('anchors.topMargin: 0','anchors.topMargin: 2',1)
+        body=body.replace('anchors.bottomMargin: 0','anchors.bottomMargin: 2',1)
+        body=body.replace('Layout.maximumHeight: Math.max(0, compactShell.height)',
+                          'Layout.maximumHeight: Math.max(0, compactShell.height - 4)',1)
     if broken_route:
         prefix, action=body.split('id: compactAction;',1)
         route='Qt.openUrlExternally("moos://app/remote")'
@@ -73,7 +80,7 @@ Window { id: root; width: 230; height:110; visible:true
 
 def probe():
     from PySide6.QtCore import QObject,QPoint,QPointF,QUrl,Qt,QEvent,QCoreApplication,qInstallMessageHandler
-    from PySide6.QtGui import QColor,QPalette,QKeyEvent
+    from PySide6.QtGui import QColor,QPalette,QKeyEvent,QFont,QFontInfo
     from PySide6.QtWidgets import QApplication
     from PySide6.QtQuick import QQuickItem,QQuickWindow
     from PySide6.QtQml import QQmlApplicationEngine
@@ -81,6 +88,12 @@ def probe():
     import configparser
     messages=[];qInstallMessageHandler(lambda k,c,m:messages.append(m))
     app=QApplication([])
+    # A host without the signed Meyar defaults previously tested vendor fonts
+    # and missed the installed142 overflow. Resolve actual source bytes first.
+    for family in ('Meyar Sans','Meyar Arabic'):
+        matched=subprocess.check_output(['fc-match','-f','%{family}|%{file}',family],text=True)
+        assert matched.startswith(family+'|'+str(ROOT/'system_files/usr/share/fonts/meyar')+'/'),matched
+    app.setFont(QFont('Meyar Sans',10))
     scheme='MoOSUI2BloomLight' if os.environ['PROBE_LIGHT']=='1' else 'MoOSUI2Bloom'
     colors=configparser.ConfigParser();colors.read(ROOT/'system_files/usr/share/color-schemes'/ (scheme+'.colors'))
     palette=QPalette()
@@ -91,6 +104,7 @@ def probe():
     assert engine.rootObjects(),messages
     window=engine.rootObjects()[0];compact=window.findChild(QQuickItem,'compact');caption=window.findChild(QQuickItem,'islandCompactCaption')
     assert compact and caption
+    assert QFontInfo(caption.property('font')).family()=='Meyar Sans'
     assert QTest.qWaitForWindowExposed(window,3000)
     rows=[];is_old=os.environ.get('PROBE_OLD')=='1'
     for height in (34,40,54):
@@ -109,6 +123,10 @@ def probe():
                 assert painted>caption.height()+1,'old line did not reproduce'
                 print('OLD_ISLAND_INK_OVERFLOW',flush=True)
                 raise AssertionError('caption painting exceeds its line box')
+            if os.environ.get('PROBE_CRAMPED')=='1':
+                assert height==34 and painted>caption.height()+1,'old Meyar margin did not reproduce'
+                print('OLD_MEYAR_ISLAND_OVERFLOW',flush=True)
+                raise AssertionError('shipped142 inset clips the actual Meyar line')
             assert compact.width()==stable==171,('moving panel slot',compact.width())
             assert caption.property('maximumLineCount')==1
             assert painted<=caption.height()+.1,('caption ink',height,context,painted,caption.height())
@@ -167,7 +185,7 @@ class CompactIsland(unittest.TestCase):
     def setUp(self):
         if importlib.util.find_spec('PySide6') is None:self.skipTest('native Qt development runtime unavailable')
 
-    def case(self, language, light, tablet, scale, factor, old=False, broken_route=False):
+    def case(self, language, light, tablet, scale, factor, old=False, broken_route=False, cramped=False):
         with tempfile.TemporaryDirectory(prefix='moos-island-compact-') as tmp:
             p=Path(tmp);env={k:v for k,v in os.environ.items() if k in ('PATH','PYTHONPATH')}
             for name in ('HOME','XDG_CONFIG_HOME','XDG_DATA_HOME','XDG_CACHE_HOME','XDG_RUNTIME_DIR'):
@@ -176,9 +194,11 @@ class CompactIsland(unittest.TestCase):
                 LANG='ar_SA.UTF-8' if language=='ar' else 'en_US.UTF-8',LANGUAGE=language,
                 QT_QPA_PLATFORM='offscreen',QT_QUICK_BACKEND='software',QT_QPA_PLATFORMTHEME='kde',QML_DISABLE_DISK_CACHE='1',
                 QML_IMPORT_PATH=str(ROOT/'system_files/usr/lib64/qt6/qml'),KDE_KIRIGAMI_TABLET_MODE=str(int(tablet)),
-                QT_SCALE_FACTOR=str(scale),PROBE_LIGHT=str(int(light)),PROBE_FACTOR=str(factor),PROBE_OLD=str(int(old)))
+                QT_SCALE_FACTOR=str(scale),PROBE_LIGHT=str(int(light)),PROBE_FACTOR=str(factor),PROBE_OLD=str(int(old)),
+                PROBE_CRAMPED=str(int(cramped)))
+            configure(env,p)
             (p/'XDG_CONFIG_HOME/kdeglobals').write_text('[KDE]\nAnimationDurationFactor='+str(factor)+'\n')
-            qml=p/'probe.qml';qml.write_text(fixture(SOURCE.read_text(),old,broken_route))
+            qml=p/'probe.qml';qml.write_text(fixture(SOURCE.read_text(),old,broken_route,cramped))
             result=subprocess.run([sys.executable,str(Path(__file__).resolve()),'--probe',str(qml)],env=env,capture_output=True,text=True,timeout=15)
             if broken_route:
                 self.assertNotEqual(result.returncode,0)
@@ -186,12 +206,15 @@ class CompactIsland(unittest.TestCase):
             elif old:
                 self.assertNotEqual(result.returncode,0)
                 self.assertIn('OLD_ISLAND_INK_OVERFLOW',result.stdout)
+            elif cramped:
+                self.assertNotEqual(result.returncode,0)
+                self.assertIn('OLD_MEYAR_ISLAND_OVERFLOW',result.stdout)
             else:
                 self.assertEqual(result.returncode,0,result.stdout+result.stderr)
                 self.assertIn('ISLAND_COMPACT_PROOF ',result.stdout)
             if os.environ.get('MOOS_COMPACT_PROOF_DIR'):
                 out=Path(os.environ['MOOS_COMPACT_PROOF_DIR']);out.mkdir(parents=True,exist_ok=True)
-                (out/f'{language}-light{int(light)}-tablet{int(tablet)}-scale{scale}-motion{factor}-old{int(old)}-badroute{int(broken_route)}.json').write_text(json.dumps(dict(exit=result.returncode,stdout=result.stdout,stderr=result.stderr),indent=2)+'\n')
+                (out/f'{language}-light{int(light)}-tablet{int(tablet)}-scale{scale}-motion{factor}-old{int(old)}-badroute{int(broken_route)}-cramped{int(cramped)}.json').write_text(json.dumps(dict(exit=result.returncode,stdout=result.stdout,stderr=result.stderr),indent=2)+'\n')
 
     def test_actual_native_text_and_controls(self):
         for language in ('ar','en'):
@@ -207,6 +230,9 @@ class CompactIsland(unittest.TestCase):
 
     def test_wrong_shared_action_owner_is_a_completed_functional_negative(self):
         self.case('ar',True,False,2.5,0,broken_route=True)
+
+    def test_shipped_insets_clip_actual_meyar_arabic(self):
+        self.case('ar',True,False,2.5,0,cramped=True)
 
 if __name__=='__main__':
     if len(sys.argv)>1 and sys.argv[1]=='--probe':probe()
