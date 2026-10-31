@@ -951,13 +951,28 @@ cmd_check() {
     local out
     out="$(timeout 10s gdbus call --session -d org.kde.plasmashell -o /PlasmaShell \
         -m org.kde.PlasmaShell.evaluateScript '
+            function validShownItems(items) {
+                // KConfig returns a Qt sequence, not necessarily a JS Array.
+                // Native SNI IDs can contain Unicode, spaces and punctuation.
+                if (!items || typeof items != "object"
+                        || !Number.isInteger(items.length) || items.length < 0) return false;
+                for (var n = 0; n < items.length; n++) {
+                    if (typeof items[n] != "string" || items[n].length == 0) return false;
+                    for (var c = 0; c < items[n].length; c++) {
+                        var code = items[n].charCodeAt(c);
+                        if (code < 32 || code == 127) return false;
+                    }
+                }
+                return true;
+            }
+            var NATIVE = '"$([ "$presentation" = native ] && echo true || echo false)"';
             var TRAY_APPLET = "'"$TRAY_APPLET"'";
             var CLOCK_APPLET = "'"$CLOCK_APPLET"'";
             var DOCK_APPLET = "'"$BRAND_APPLET"'";
             var ISLAND_APPLET = "'"$ISLAND_APPLET"'";
             var ps = panels();
              var bottom = 0, whole = 0, align = "", shown = "", extra = "";
-             var scaleIcons = "", iconSpacing = "";
+             var scaleIcons = "", iconSpacing = "", shownValid = 0;
              var launcherCount = 0, islandCount = 0, trayCount = 0, clockCount = 0;
             for (var i = 0; i < ps.length; i++) {
                 if (ps[i].location != "bottom") { continue; }
@@ -995,7 +1010,11 @@ cmd_check() {
                     for (var k = 0; k < ws.length; k++) {
                         if (String(ws[k].type) == TRAY_APPLET) {
                             ws[k].currentConfigGroup = ["General"];
-                            shown = String(ws[k].readConfig("shownItems", ""));
+                            var shownItems = ws[k].readConfig("shownItems", []);
+                            shownValid = validShownItems(shownItems) ? 1 : 0;
+                            // Canonical comparison keeps its original value.
+                            // Native IDs never enter the delimited report.
+                            shown = NATIVE ? "" : String(shownItems);
                             extra = String(ws[k].readConfig("extraItems", ""));
                             scaleIcons = String(ws[k].readConfig("scaleIconsToFit", false));
                             iconSpacing = String(ws[k].readConfig("iconSpacing", 2));
@@ -1004,7 +1023,7 @@ cmd_check() {
                 }
             }
              print("bottom=" + bottom + ";whole=" + whole
-                 + ";align=" + align + ";shown=" + shown + ";extra=" + extra
+                 + ";align=" + align + ";shown=" + shown + ";shownValid=" + shownValid + ";extra=" + extra
                  + ";scale=" + scaleIcons + ";spacing=" + iconSpacing
                  + ";launcher=" + launcherCount + ";island=" + islandCount
                  + ";tray=" + trayCount
@@ -1013,11 +1032,12 @@ cmd_check() {
     local report
     report="$(printf '%s\n' "$out" | grep -oE 'bottom=[0-9]+;whole=[0-9]+;align=[a-z]*;shown=.*' | head -n1)"
     [ -n "$report" ] || { echo "bar: no live report"; return 1; }
-    local bottom whole align shown extra scale spacing shown_norm want_norm launcher island tray clock item
+    local bottom whole align shown extra scale spacing shown_norm want_norm launcher island tray clock item shown_valid
     bottom="$(printf '%s' "$report" | sed -n 's/.*bottom=\([0-9]*\).*/\1/p')"
     whole="$(printf '%s' "$report" | sed -n 's/.*whole=\([0-9]*\).*/\1/p')"
     align="$(printf '%s' "$report" | sed -n 's/.*align=\([a-z]*\).*/\1/p')"
     shown="$(printf '%s' "$report" | sed -n 's/.*shown=\([^;]*\).*/\1/p')"
+    shown_valid="$(printf '%s' "$report" | sed -n 's/.*;shownValid=\([01]\);.*/\1/p')"
     extra="$(printf '%s' "$report" | sed -n 's/.*extra=\([^;]*\).*/\1/p')"
     scale="$(printf '%s' "$report" | sed -n 's/.*scale=\([^;]*\).*/\1/p')"
     spacing="$(printf '%s' "$report" | sed -n 's/.*spacing=\([^;]*\).*/\1/p')"
@@ -1039,7 +1059,7 @@ cmd_check() {
     if [ "$presentation" = native ]; then
         # Native KCM preferences must still have valid public setting values.
         # Empty shownItems means automatic visibility, not unloaded applets.
-        if [[ ! "$shown" =~ ^([A-Za-z0-9_.:-]+(,[A-Za-z0-9_.:-]+)*)?$ ]]; then
+        if [ "$shown_valid" != "1" ]; then
             echo "bar: invalid native tray shownItems"
             failures=$((failures+1))
         fi

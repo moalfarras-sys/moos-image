@@ -99,7 +99,7 @@
     "privateProbeReceipt": "test-results/execution-20261031/retired-probe.json"
   },
   "tests": {
-    "shellHygiene": 23,
+    "shellHygiene": 24,
     "singlePanel": 15,
     "nativePresentationNegatives": "strict canonical drift, missing native authority, unavailable probe, invalid preferences, missing/duplicate roles, missing loaded applets, retired tray island, notification failure, current QML applet error and busy lock",
     "publicationNegatives": [
@@ -107,6 +107,11 @@
       "stale palette",
       "stale font",
       "wrong raster"
+    ],
+    "nativeIdCorrection": "Independent review refused the first ASCII-ID whitelist: Plasma6.8.2 Chromium/Electron IDs include @ and may include space/Unicode. Corrected native QStringList validation accepts those IDs and does not serialize them into the delimited health report; canonical comparison remains strict. The current physical Qt sequence passes, invalid list shapes/control characters fail.",
+    "nativeIdSources": [
+      "https://raw.githubusercontent.com/KDE/plasma-workspace/v6.8.2/applets/systemtray/systemtraymodel.cpp",
+      "https://raw.githubusercontent.com/KDE/plasma-workspace/v6.8.2/applets/systemtray/statusnotifieritemsource.cpp"
     ]
   },
   "limitations": [
@@ -118,6 +123,18 @@
   ],
   "privateCaptures": [
     "test-results/execution-20261029/native-uri-installed-window.png",
-    "test-results/execution-20261029/native-terminal-signed-fonts.png"
-  ]
+    "test-results/execution-20261029/native-terminal-signed-fonts.png",
+    "test-results/execution-20261031/native-editor-signed-fonts.png"
+  ],
+  "editor": {
+    "ArabicInputAndBackspaceSaved": true,
+    "input": "معيار عربي",
+    "mappedFonts": [
+      "/usr/share/fonts/meyar/MeyarArabic[wght].ttf",
+      "/usr/share/fonts/meyar/MeyarMonoArabic-Regular.ttf",
+      "/usr/share/fonts/meyar/MeyarMono[wght].ttf",
+      "/usr/share/fonts/meyar/MeyarSans[wght].ttf"
+    ],
+    "scope": "Actual installed KWrite on signed1114; Arabic keyboard entry/backspace/save plus native Latin/IPA/mark text. Native editor appends final newline; original exact-no-newline private expectation refused and was corrected."
+  }
 }

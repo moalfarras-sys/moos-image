@@ -30,6 +30,7 @@ touched and the gate cannot drift from what runs on the machine.
 from __future__ import annotations
 
 import fcntl
+import json
 import os
 import re
 import subprocess
@@ -146,7 +147,7 @@ class NativeTrayHealth(unittest.TestCase):
 
     def run_check(self, command="check-session", *, native=0, changes=None,
                   ready=0, notification=0, broken=False, empty=False):
-        report = dict(bottom="1", whole="1", align="center", shown="",
+        report = dict(bottom="1", whole="1", align="center", shown="", shownValid="1",
                       extra=re.search(r"^extraItems=(.*)$", BAR_CONF.read_text(), re.M)[1],
                       scale="false", spacing="2", launcher="1", island="1",
                       tray="1", clock="1")
@@ -207,13 +208,33 @@ class NativeTrayHealth(unittest.TestCase):
         for key, value in (("bottom", "2"), ("whole", "0"), ("align", "left"),
                            ("launcher", "0"), ("island", "2"), ("tray", "0"),
                            ("clock", "0"), ("extra", ""), ("scale", "maybe"),
-                           ("spacing", "0"), ("shown", "invalid item"),
-                           ("shown", "a,,b")):
+                           ("spacing", "0"), ("shownValid", "0"),
+                           ("shownValid", "")):
             with self.subTest(key=key, value=value):
                 self.assertEqual(self.run_check(changes={key: value}).returncode, 1)
         for kwargs in (dict(ready=1), dict(notification=1), dict(broken=True), dict(empty=True)):
             with self.subTest(kwargs=kwargs):
                 self.assertEqual(self.run_check(**kwargs).returncode, 1)
+
+    def test_native_string_list_accepts_real_sni_ids_and_rejects_invalid_shapes(self):
+        source = BAR_APPLY.read_text()
+        function = "function validShownItems(items) {" + source.split(
+            "function validShownItems(items) {", 1)[1].split("var NATIVE =", 1)[0]
+        cases = [([], True), (["org.kde.plasma.volume"], True),
+                 (["chrome_status_icon_1@chromium"], True),
+                 (["chrome_status_icon_1@My App", "تطبيق عربي", "app;clock=0"], True),
+                 ({"length": 1, "0": "Qt sequence"}, True),
+                 (None, False), ("not a sequence", False), ({}, False),
+                 ([4], False), ([""], False), (["bad\nitem"], False),
+                 (["bad\u007fitem"], False)]
+        script = function + "\nconst cases=" + json.dumps(cases) + ";\n" + (
+            "for (const [value, expected] of cases) {"
+            "if (validShownItems(value) !== expected) throw new Error(JSON.stringify(value));}"
+        )
+        result = subprocess.run(["node", "-e", script], capture_output=True,
+                                text=True, timeout=10)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn('shown = NATIVE ? "" : String(shownItems);', source)
 
 
 class DefaultTerminalFontReport(unittest.TestCase):
