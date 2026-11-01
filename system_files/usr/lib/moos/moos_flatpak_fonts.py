@@ -1,6 +1,7 @@
 """Host-font discovery for Flatpak, owned by font migration and Store lifecycle.
 
-No font matching rules, launch wrappers, permission changes or cache removal.
+Preserves native grid scan metadata and named Meyar Arabic pairing, without
+generic defaults, launch wrappers, permission changes or cache removal.
 Fontconfig salts distinguish Flatpak's runtime /usr/share/fonts from the host
 remap. Immutable font directories have zero mtimes, so the salt also follows
 the booted signed OS and the installed runtime commit, including rollback.
@@ -27,6 +28,19 @@ PREFIX = (b'<?xml version="1.0"?>\n'
           b'<!-- delivery=')
 MIDDLE = b' -->\n<fontconfig>\n  <remap-dir as-path="/usr/share/fonts" salt="moos-host-v1-'
 SUFFIX = b'">/run/host/fonts</remap-dir>\n</fontconfig>\n'
+SCAN_RULES = b'''  <match target="scan">
+    <test name="family" compare="eq"><string>Meyar Mono</string></test>
+    <edit name="spacing" mode="assign"><int>100</int></edit>
+  </match>
+  <match target="scan">
+    <test name="family" compare="eq"><string>Meyar Mono Arabic</string></test>
+    <edit name="spacing" mode="assign"><int>100</int></edit>
+  </match>
+'''
+PAIRING_RULES = b'''  <alias binding="strong"><family>Meyar Sans</family><default><family>Meyar Arabic</family></default></alias>
+  <alias binding="strong"><family>Meyar Mono</family><default><family>Meyar Mono Arabic</family></default></alias>
+'''
+POLICY_REVISION = 2
 LOCK = b"MoOS host-font discovery lock v1\n"
 HEX = re.compile(r"[0-9a-f]{64}\Z")
 APP = re.compile(r"[A-Za-z0-9_-]+(?:\.[A-Za-z0-9_-]+){2,}\Z")
@@ -67,13 +81,24 @@ def fragment(deployment: str, runtime: str, commit: str) -> bytes:
 
 
 def runtime_fragment(deployment: str, runtimes: list[tuple[str, str]]) -> bytes:
+    return _render_fragment(deployment, runtimes, POLICY_REVISION)
+
+
+def _render_fragment(deployment: str, runtimes: list[tuple[str, str]], revision: int) -> bytes:
     if (not HEX.fullmatch(deployment) or not 1 <= len(runtimes) <= 32 or any(
             not RUNTIME.fullmatch(runtime) or not HEX.fullmatch(commit) for runtime, commit in runtimes)):
         raise ValueError("Invalid host-font delivery generation")
     delivery = [deployment, sorted(set(runtimes))]
+    if revision == POLICY_REVISION:
+        # A new scan policy cannot reuse the old dual-width cached metadata.
+        # Include both revision and exact rule bytes, even for a same OS/runtime.
+        delivery = [POLICY_REVISION, hashlib.sha256(SCAN_RULES + PAIRING_RULES).hexdigest(), *delivery]
+    elif revision != 1:
+        raise ValueError("Unknown font discovery policy revision")
     encoded = json.dumps(delivery, separators=(',', ':')).encode()
     generation = hashlib.sha256(encoded).hexdigest()
-    data = PREFIX + encoded.hex().encode() + MIDDLE + generation.encode() + SUFFIX
+    suffix = SUFFIX if revision == 1 else SUFFIX.replace(b'</fontconfig>', SCAN_RULES + PAIRING_RULES + b'</fontconfig>')
+    data = PREFIX + encoded.hex().encode() + MIDDLE + generation.encode() + suffix
     if len(data) > MAX_FILE:
         raise ValueError("Font delivery generation exceeds its bound")
     return data
@@ -82,14 +107,23 @@ def runtime_fragment(deployment: str, runtimes: list[tuple[str, str]]) -> bytes:
 def owned(data: bytes) -> bool:
     # Recompute the self-described generation, so a salt-only edit is refused.
     # Hex keeps runtime names containing '--' safe inside an XML comment.
-    if len(data) > MAX_FILE or not data.startswith(PREFIX) or not data.endswith(SUFFIX):
+    if len(data) > MAX_FILE or not data.startswith(PREFIX) or not data.endswith(b'</fontconfig>\n'):
         return False
     try:
-        metadata, _salt = data[len(PREFIX):-len(SUFFIX)].split(MIDDLE)
+        metadata, _body = data[len(PREFIX):].split(MIDDLE, 1)
         delivery = json.loads(bytes.fromhex(metadata.decode('ascii')))
-        deployment, runtimes = delivery
-        return data == runtime_fragment(deployment, [tuple(row) for row in runtimes])
-    except (ValueError, TypeError, UnicodeError):
+        if len(delivery) == 2:
+            # Exact be3 prototype only: it was never delivered. Admission is for
+            # bounded old/fixed upgrade/recovery evidence, not arbitrary XML.
+            revision = 1
+            deployment, runtimes = delivery
+        elif len(delivery) == 4 and delivery[:2] == [POLICY_REVISION, hashlib.sha256(SCAN_RULES + PAIRING_RULES).hexdigest()]:
+            revision = POLICY_REVISION
+            deployment, runtimes = delivery[2:]
+        else:
+            return False
+        return data == _render_fragment(deployment, [tuple(row) for row in runtimes], revision)
+    except (ValueError, TypeError, UnicodeError, RecursionError):
         return False
 
 

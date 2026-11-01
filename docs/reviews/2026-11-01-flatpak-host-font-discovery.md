@@ -16,12 +16,13 @@ Meyar. These contrary controls remain; this is not a universal Flatpak failure.
 One shared `moos_flatpak_fonts.py` policy extends existing `moos-fonts-migrate`
 at login, Mo Store's libflatpak install/update completion, and the existing
 per-user Flatpak updater. It writes only an owned normal per-app Fontconfig
-`conf.d/00-moos-host-font-cache.conf` remap. No environment wrapper, new daemon,
-filesystem grant, font copy, default-family replacement or cache deletion is
+`conf.d/00-moos-host-font-cache.conf` remap with the image's exact two named mono
+scan rules and qualified named Arabic append-last aliases. No environment wrapper, new daemon,
+filesystem grant, font copy, generic-default replacement or cache deletion is
 introduced. Native Fontconfig owns its ordinary configuration reload. No app
 is stopped or reloaded by the policy.
 
-The salt hashes the exact **booted signed** MoOS deployment checksum and sorted
+The salt hashes the policy revision, exact scan/pairing bytes, exact **booted signed** MoOS deployment checksum and sorted
 unique `(full runtime ref, actual globally selected runtime commit)` tuples for
 every installed branch of that app. One app home serves user/system and all
 branches. Native unscoped `flatpak info --show-commit runtime/FULL_REF` follows
@@ -40,6 +41,9 @@ The fragment contains its canonical generation inputs in a bounded XML comment;
 ownership validation recomputes its exact full bytes. The independent review's
 salt-only edit was initially admitted by a template check and is now a retained
 refusal, alongside outer-content edits. No separate partial receipt is needed.
+Only exact historical prototype1 and current policy2 bodies are admitted.
+Future policy changes must explicitly review historical-body migration;
+changing the rule digest alone safely refuses an earlier policy2 body.
 Each path is opened relative to an owned directory with no link following;
 unknown edits, non-owned/writable ancestors, hardlinked files, mounts (including
 same-filesystem binds), busy/unknown locks and refused recovery remain failures.
@@ -59,8 +63,31 @@ source-generated fragment restores Meyar Sans, Arabic, Mono and Mono Arabic
 cold and warm through `/run/host/fonts/meyar`. CJK eligible faces change0→148;
 explicit DejaVu and generic sans/mono requests remain unchanged. This proves
 discovery, not complete language shaping or a generic Meyar default.
-The final709-byte self-described fragment also passes that native proof.
-An isolated four-app refresh measured0.169s cold and0.098/0.096s unchanged, seven
+The earlier709-byte be3 prototype passes this discovery proof and the full source
+gate0/937.491s with14735 stable inputs, but **is refused for integration**:
+salted native rescans lose the image's mono scan metadata, changing healthy
+KDE6.11/Chrome25.08 spacing100→90. The actual native Qt fixed-font chooser then
+omits both families. A same-cache rule-added-without-rekey control stays90.
+Policy2 carries only the existing two exact named scan rules and hashes their
+bytes/revision into a fresh generation. Actual2.17.1 and2.18.3 cold/warm
+be3→successor upgrades retain all12 enumerated mono instances per runtime and
+restore spacing100, including Regular/Bold, without removing any cache.
+Independent native Qt chooser controls pass be3 false→scan-successor true.
+The final combined source also passes that native KDE6.11 chooser cold/warm
+with the retained cache; the first hardcoded fragment-size guard refusal stays
+preserved, replaced by canonical ownership/current-source byte validation.
+
+The combined1415-byte policy2 also passes discovery, scan and named-pairing
+native proofs. Its two aliases use strong/default append-last only for Meyar
+Sans→Arabic and Mono→Mono Arabic. Forty-nine queries per runtime, across all four
+installed runtimes, preserve primary Latin/IPA/Vietnamese/Greek/Cyrillic and
+foreign-script fallback, explicit DejaVu in both orders, Inter and generic
+requests. Arabic letters/marks, Farsi/Urdu and bold select the paired Meyar
+family. Personal native fonts.conf assign_replace still wins and survives
+refresh. Matching is not rendered language acceptance. Pairing test profiles
+retain that deliberate personal negative; use the separate clean discovery/scan
+profiles for subsequent GUI acceptance.
+An isolated four-app refresh measured0.199s cold and0.104/0.106s unchanged, seven
 bounded native metadata queries per refresh on the
 active V3; this is not application launch performance or a whole-system speedup.
 
@@ -76,9 +103,9 @@ private XDG config/cache/data. With the same native `Meyar Arabic` setting,
 before the fragment its caption paints DejaVu Sans17 glyphs plus Inter2;
 after an ordinary private-app restart, retained cache and the earlier332-byte
 semantically equivalent prototype fragment, it paints Meyar Arabic24 glyphs.
-This is not the final709-byte self-described source fragment. Its later ownership
-metadata keeps the remap unchanged; final-fragment GUI requalification remains
-separate.
+That prototype and the later709-byte discovery prototype are historical Arabic
+painting evidence; neither qualifies combined1415-byte policy2. Final policy2
+GUI requalification remains separate.
 No CSS injection or canonical owner
 app setting change occurred. The first `flatpak --env` GUI attempt was not
 isolated because the app wrapper reset XDG/userData; it remains a refused
@@ -96,17 +123,21 @@ keeping personal configuration and every cache. Unknown edits refuse. This is
 an explicit preparation/recovery command, not a new automatic boot authority or
 proof that a real predecessor reboot has passed.
 
-The12 maintained controls cover signed boot selection, malformed metadata,
+The13 maintained controls cover signed boot selection, malformed/nested metadata,
 first launch, duplicate app/runtime scopes and branches, runtime changes,
 order/dedup stability, new/unchanged/rollback recovery, absent apps, custom
 installation refusal, links/hardlinks/UID/modes/locks, injected mount-set
-refusals (including same-filesystem bind paths, not a native bind-mount journey), exact retirement,
+refusals, exact retirement,
 cache retention and visible Store/update failure. Existing36 Store,29 pinned
 update and8 Meyar controls plus updater recovery pass at this source checkpoint.
-Full repository qualification, signed delivery, real native lifecycle/update,
+An additional actual same-filesystem bind in a private user/mount namespace is
+refused through mountinfo while Python ismount=false; original bytes remain.
+Nested zero-mtime Meyar child-directory transitions also pass privately.
+These receipts supplement, rather than replace, the maintained native scripts.
+Final repository qualification, signed delivery, real native lifecycle/update,
 predecessor rollback, other architectures and broader rendered-language
-acceptance remain required. Generic Meyar and Latin-to-Arabic fallback policy
-inside Flatpak remain a separate typography scope.
+acceptance remain required. Generic Meyar defaults inside Flatpak remain a
+separate typography scope. No whole-language or whole-OS acceptance is inferred.
 
 Primary contracts: [Fontconfig native configuration](https://fontconfig.pages.freedesktop.org/fontconfig/fontconfig-user.html),
 [Flatpak font integration](https://docs.flatpak.org/en/latest/desktop-integration.html#fonts),

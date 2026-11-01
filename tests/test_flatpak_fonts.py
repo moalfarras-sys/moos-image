@@ -8,6 +8,7 @@ import os
 from pathlib import Path
 import tempfile
 import unittest
+import xml.etree.ElementTree as ET
 from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -67,6 +68,39 @@ class FlatpakFonts(unittest.TestCase):
                    'ostree-unverified-registry:ghcr.io/moalfarras-sys/moos@sha256:' + 'a' * 64})]}]
         for document in bad:
             with self.subTest(document=document), self.assertRaises(ValueError): policy.signed_generation(document)
+
+    def test_exact_existing_mono_scan_rules_and_policy_generation_upgrade(self):
+        # The same native grid metadata belongs to both image and sandbox
+        # caches; named-only pairing has its own separate assertions below.
+        installed = ET.parse(ROOT / 'system_files/etc/fonts/conf.d/61-moos-brand.conf').getroot().findall('match')
+        fragment = ET.fromstring(self.a)
+        scans = fragment.findall('match')
+        self.assertEqual(len(scans), 2)
+        def fields(match):
+            return (match.attrib, match.find('test').attrib, match.findtext('test/string'),
+                    match.find('edit').attrib, match.findtext('edit/int'))
+        self.assertEqual([fields(m) for m in scans], [fields(m) for m in installed])
+        aliases = fragment.findall('alias')
+        self.assertEqual(len(aliases), 2)
+        for alias, primary, fallback in zip(aliases, ('Meyar Sans', 'Meyar Mono'), ('Meyar Arabic', 'Meyar Mono Arabic')):
+            self.assertEqual(alias.attrib, {'binding': 'strong'})
+            self.assertEqual(alias.findtext('family'), primary)
+            self.assertEqual(alias.findtext('default/family'), fallback)
+            self.assertIsNone(alias.find('prefer')); self.assertIsNone(alias.find('accept'))
+        legacy = policy._render_fragment('a' * 64, [(RT, 'c' * 64)], 1)
+        self.assertTrue(policy.owned(legacy))
+        self.assertNotEqual(legacy.split(b'salt="')[1].split(b'"')[0], self.a.split(b'salt="')[1].split(b'"')[0])
+        self.install(legacy)
+        self.assertTrue(self.install())
+        recovery = self.conf / '.moos-host-font-cache-recovery'
+        self.assertEqual([p.read_bytes() for p in recovery.iterdir()], [legacy])
+        self.assertFalse(policy.owned(legacy.replace(b'</fontconfig>', policy.SCAN_RULES + b'</fontconfig>')))
+        # Scan bytes must change the cache generation even if someone forgets
+        # a revision bump. An unknown revised body is never admitted as owned.
+        with patch.object(policy, 'SCAN_RULES', policy.SCAN_RULES.replace(b'<int>100</int>', b'<int>90</int>')):
+            changed = policy.fragment('a' * 64, RT, 'c' * 64)
+            self.assertNotEqual(self.a.split(b'salt="')[1].split(b'"')[0], changed.split(b'salt="')[1].split(b'"')[0])
+        self.assertFalse(policy.owned(changed))
 
     def test_new_update_idempotence_rollback_and_unique_recovery(self):
         self.assertTrue(self.install())
@@ -159,7 +193,11 @@ class FlatpakFonts(unittest.TestCase):
         original_salt = self.a.split(b'salt="moos-host-v1-')[1][:64]
         salt_edited = self.a.replace(original_salt, b'e' * 64)
         self.assertFalse(policy.owned(salt_edited))
-        for data in (b'personal\n', self.a + b' ', b'x' * (policy.MAX_FILE + 1), salt_edited):
+        nested_json = ('[' * 1200 + '0' + ']' * 1200).encode().hex().encode()
+        nested = policy.PREFIX + nested_json + policy.MIDDLE + b'e' * 64 + policy.SUFFIX
+        self.assertLess(len(nested), policy.MAX_FILE)
+        self.assertFalse(policy.owned(nested))
+        for data in (b'personal\n', self.a + b' ', b'x' * (policy.MAX_FILE + 1), salt_edited, nested):
             with self.subTest(data=data[:20]):
                 self.path.write_bytes(data)
                 with self.assertRaises(ValueError): self.install(self.b)

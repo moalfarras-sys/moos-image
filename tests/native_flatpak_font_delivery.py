@@ -79,7 +79,8 @@ try:
     assert result['runtime'] == 'org.freedesktop.Platform/x86_64/26.08', result['runtime']
     result['booted_signed_checksum'] = policy.signed_generation(json.loads(policy.output(['/usr/bin/rpm-ostree', 'status', '--json'])))
     families = ['Meyar Sans', 'Meyar Arabic', 'Meyar Mono', 'Meyar Mono Arabic']
-    controls = ['DejaVu Sans', 'sans-serif', 'monospace', 'Meyar Sans:charset=0627']
+    controls = ['DejaVu Sans', 'sans-serif', 'monospace']
+    paired = ['Meyar Sans:charset=0627', 'Meyar Mono:charset=0627']
     old = {f: native(old_config, old_cache, 'fc-match', '-f', '%{family}|%{file}', f) for f in families + controls}
     old_cjk = native(old_config, old_cache, 'fc-list', ':charset=4e2d', '-f', '%{file}\n').splitlines()
     private_home = scratch / 'private-home'; private_home.mkdir(mode=0o700)
@@ -106,6 +107,13 @@ try:
         assert fixed[f].startswith(f + '|/run/host/fonts/meyar/'), (f, fixed[f])
         assert warm[f] == fixed[f]
     for f in controls: assert old[f] == fixed[f], (f, old[f], fixed[f])
+    result['named_pairing'] = {}
+    for request, family in zip(paired, ('Meyar Arabic', 'Meyar Mono Arabic')):
+        old_pair = native(old_config, old_cache, 'fc-match', '-f', '%{family}|%{file}', request)
+        fixed_pair = native(config, cache, 'fc-match', '-f', '%{family}|%{file}', request)
+        result['named_pairing'][request] = {'old': old_pair, 'fixed': fixed_pair}
+        assert not old_pair.startswith(family + '|')
+        assert fixed_pair.startswith(family + '|/run/host/fonts/meyar/')
     assert len(fixed_cjk) > len(old_cjk)
 
     # Native immutable-directory mechanism: one private tree, zero directory

@@ -242,6 +242,16 @@ predecessor rollback: retain the stale predecessor control and explicit recovery
 An app wrapper can reset flatpak --env XDG/userData; inspect the actual child
 before claiming private GUI isolation or changing any app setting.
 
+**A salted rescan does not inherit the host's scan rules.** Actual healthy
+KDE/Chrome caches classify both Meyar mono families100; the otherwise passing
+be3 discovery source rescans them90 and hides them from the native fixed-font
+chooser. Keep that full-check pass and native refusal together. Carry only the
+existing two exact named scan rules, include their policy revision/bytes in the
+cache generation, and retain the same-cache added-rule-without-rekey90 control.
+Qualify cold/warm native instances and Qt chooser. Named Arabic pairing uses
+qualified strong/default append-last aliases, preserving explicit fallback
+order, personal rules and generic requests; enumeration is not app painting.
+
 **A personal tray preference is not a broken panel.** Native appearance migration
 preserves the validated personal layout; the actual1114 tray spacing/pins predate
 its reboot. Keep `moos-bar-apply check` strict for canonical apply/image acceptance.
