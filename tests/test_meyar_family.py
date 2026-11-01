@@ -94,13 +94,15 @@ for x in ['Meyar Mono','Meyar Mono Arabic']}))'''
             env = dict(os.environ, XDG_CONFIG_HOME=str(config), XDG_STATE_HOME=str(state),
                        XDG_CONFIG_DIRS=str(ROOT / 'system_files/etc/xdg'))
             env.pop('DBUS_SESSION_BUS_ADDRESS', None)
-            with patch.dict(os.environ, env, clear=True): migration.main(FONTS)
+            with patch.dict(os.environ, env, clear=True), patch.object(migration, 'refresh_flatpak_fonts'):
+                migration.main(FONTS)
             after = (config / 'kdeglobals').read_text()
             self.assertIn(font.replace('IBM Plex Sans', 'Meyar Sans'), after)
             self.assertIn(personal, after)
             recoveries = list((state / 'moos/font-recovery').glob('meyar-*/kdeglobals'))
             self.assertEqual(len(recoveries), 1); self.assertEqual(recoveries[0].read_text(), before)
-            with patch.dict(os.environ, env, clear=True): migration.main(FONTS)
+            with patch.dict(os.environ, env, clear=True), patch.object(migration, 'refresh_flatpak_fonts'):
+                migration.main(FONTS)
             self.assertEqual(len(list((state / 'moos/font-recovery').glob('meyar-*'))), 1)
 
     def test_actual_overlay(self):

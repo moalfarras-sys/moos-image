@@ -5,6 +5,7 @@ import json
 import os
 import shutil
 import subprocess
+import sys
 import tempfile
 
 
@@ -12,7 +13,18 @@ def run(args):
     return subprocess.run(args, check=True, capture_output=True, text=True).stdout.strip()
 
 
+def refresh_flatpak_fonts(*, retire=False):
+    # The same policy serves login and Store install/update completion. Native
+    # Fontconfig owns reload; running apps are never stopped or cache-purged.
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent / 'lib/moos'))
+    from moos_flatpak_fonts import refresh
+    changed = refresh(retire=retire)
+    if retire:
+        print('Owned Flatpak font discovery retired recoverably: ' + str(len(changed)))
+
+
 def main(installed=Path('/usr/share/fonts/meyar')):
+    refresh_flatpak_fonts()
     # This migration belongs to the signed image. A selectable development font
     # in an arbitrary home does not qualify as an installed image component.
     if not (installed / 'MeyarSans[wght].ttf').is_file():
@@ -63,4 +75,9 @@ def main(installed=Path('/usr/share/fonts/meyar')):
 
 
 if __name__ == '__main__':
-    main()
+    if sys.argv[1:] == ['--retire-flatpak-discovery']:
+        refresh_flatpak_fonts(retire=True)
+    elif not sys.argv[1:]:
+        main()
+    else:
+        raise SystemExit('Usage: moos-fonts-migrate [--retire-flatpak-discovery]')

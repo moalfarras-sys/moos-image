@@ -1368,6 +1368,22 @@ class FlatpakAdapter:
         except Exception as error:
             raise StoreError(f"Could not open Flatpak installations: {error}") from error
 
+    @staticmethod
+    def _refresh_fonts(events: TransactionEvents) -> None:
+        # Runtime-only updates can change any installed app's font cache ABI.
+        # Reuse the login font owner rather than a launcher/permission override.
+        import importlib
+        library = str(Path(__file__).resolve().parent.parent / "lib/moos")
+        if library not in sys.path:
+            sys.path.insert(0, library)
+        try:
+            importlib.import_module("moos_flatpak_fonts").refresh()
+        except (ImportError, OSError, ValueError, subprocess.SubprocessError) as error:
+            reason = "Applications are retained, but host-font discovery failed: " + str(error)
+            for app_id in events.requested:
+                events.error(app_id, reason)
+            raise StoreError(reason) from error
+
     def _installed(self, installation: Any, app_id: str) -> bool:
         try:
             installation.get_current_installed_app(app_id, None)
@@ -1664,6 +1680,8 @@ class FlatpakAdapter:
 
         self._transaction(configure, events, should_cancel)
 
+        self._refresh_fonts(events)
+
     def remove(
         self,
         app_id: str,
@@ -1765,6 +1783,8 @@ class FlatpakAdapter:
                     raise StoreError(f"Flatpak refused to queue update of {name}")
 
         self._transaction(configure, events, should_cancel)
+
+        self._refresh_fonts(events)
 
     def refresh_index(
         self,
