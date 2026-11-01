@@ -833,6 +833,118 @@ def _write_atomic(path: Path, text: str, mode: int) -> None:
     temporary.replace(path)
 
 
+def _process_stamp(process: Path) -> tuple[str, int]:
+    # comm can contain spaces and parentheses. starttime distinguishes a reused PID.
+    fields = (process / "stat").read_text().rsplit(")", 1)[1].split()
+    return fields[0], int(fields[19])
+
+
+def _process_uids(process: Path) -> tuple[int, ...]:
+    for line in (process / "status").read_text().splitlines():
+        if line.startswith("Uid:"):
+            values = tuple(int(value) for value in line.split()[1:])
+            if len(values) == 4:
+                return values
+    raise ValueError("missing process uid")
+
+
+def _assert_app_trees_idle(*trees: Path, proc_root: Path = Path("/proc")) -> None:
+    """Refuse an observed same-account user of either tree; this is not a launch lease.
+
+    Read cwd/exe, absolute argv paths (also --key=/path), and mapped files. A matching
+    process with incomplete or unstable evidence is refused too. Unrelated processes
+    with inaccessible fields are NOT evidence of an idle system and cannot block every
+    install: this bounded guard cannot exclude hidden references, open-only files, other
+    accounts/namespaces, or a launch after the snapshot. Managed lifetime coordination
+    remains necessary before promising safe concurrent launch/update.
+    """
+    try:
+        roots = tuple(tree.resolve() for tree in trees if tree.exists())
+        if not roots:
+            return
+        processes = list(proc_root.iterdir())
+    except OSError as error:
+        raise DropError("app_inspection_unavailable") from error
+
+    def referenced_tree(value: str) -> Path | None:
+        value = value.removesuffix(" (deleted)")
+        if not value.startswith("/"):
+            return None
+        path = Path(os.path.normpath(value))
+        return next((root for root in roots if path == root or root in path.parents), None)
+
+    for process in processes:
+        if not process.name.isdecimal():
+            continue
+        unavailable = False
+        try:
+            uids = _process_uids(process)
+            if os.getuid() not in uids[:2]:
+                continue
+        except FileNotFoundError:
+            continue
+        except (OSError, ValueError):
+            # /proc directory ownership is only a fallback: nondumpable processes can
+            # be owned by root here even when their actual UID is ours.
+            try:
+                if process.stat().st_uid != os.getuid():
+                    continue
+            except FileNotFoundError:
+                continue
+            except OSError as error:
+                raise DropError("app_inspection_unavailable") from error
+            uids = ()
+            unavailable = True
+        try:
+            before = _process_stamp(process)
+        except (OSError, ValueError, IndexError):
+            before = None
+            unavailable = True
+        match = None
+        for field in ("cwd", "exe"):
+            try:
+                reference = referenced_tree(os.readlink(process / field))
+                match = match or reference
+            except OSError:
+                unavailable = True
+        try:
+            with (process / "cmdline").open("rb") as handle:
+                arguments = handle.read(2 * 1024 * 1024 + 1)
+            if len(arguments) > 2 * 1024 * 1024:
+                unavailable = True
+            for argument in arguments.split(b"\0"):
+                value = os.fsdecode(argument)
+                if value.startswith("--") and "=" in value:
+                    value = value.split("=", 1)[1]
+                match = match or referenced_tree(value)
+        except OSError:
+            unavailable = True
+        try:
+            with (process / "maps").open(encoding="utf-8", errors="surrogateescape") as handle:
+                for line in handle:
+                    fields = line.rstrip("\n").split(None, 5)
+                    if len(fields) == 6:
+                        match = match or referenced_tree(fields[5])
+        except OSError:
+            unavailable = True
+        if match is None:
+            continue
+        try:
+            after = _process_stamp(process)
+            current_uids = _process_uids(process)
+        except FileNotFoundError:
+            if not process.exists():
+                continue                            # it exited; there is no stale PID lease
+            raise DropError("app_inspection_unavailable") from None
+        except (OSError, ValueError, IndexError):
+            raise DropError("app_inspection_unavailable") from None
+        # State can change normally while reading; only PID starttime/UID must be stable.
+        if unavailable or before is None or before[1] != after[1] or uids != current_uids:
+            raise DropError("app_inspection_unavailable", f"pid={process.name}; tree={match.name}")
+        if after[0] not in ("Z", "X", "x"):
+            raise DropError("app_in_use", f"pid={process.name}; tree={match.name}")
+
+
 def install(plan: Plan, *, progress: Callable[[str, int | None], None] = lambda _stage, _pct: None,
             cancelled: Callable[[], bool] = lambda: False,
             run: Callable[..., Any] = subprocess.run,
@@ -847,6 +959,8 @@ def install(plan: Plan, *, progress: Callable[[str, int | None], None] = lambda 
     if plan.kind not in ("appimage", "archive") or plan.target is None:
         raise DropError("not_installable_here", plan.kind)
     apps = applications_dir()
+    previous = apps / f".{plan.slug}.previous"
+    _assert_app_trees_idle(plan.target, previous)
     apps.mkdir(mode=0o755, parents=True, exist_ok=True)
     staging = apps / f".{plan.slug}.installing"
     shutil.rmtree(staging, ignore_errors=True)
@@ -857,9 +971,9 @@ def install(plan: Plan, *, progress: Callable[[str, int | None], None] = lambda 
     with plan.path.open("rb") as handle:
         for block in iter(lambda: handle.read(4 * 1024 * 1024), b""):
             digest.update(block)
-    previous = apps / f".{plan.slug}.previous"
     old_record = read_record(plan.slug) if plan.replaces else {}
     swapped = False
+    moved_previous = False
     entry: Path | None = None
     old_entry_text: str | None = None
     try:
@@ -885,9 +999,11 @@ def install(plan: Plan, *, progress: Callable[[str, int | None], None] = lambda 
         progress("integrating_app", None)
         launcher = find_launcher(staging, plan.name, plan.slug, pinned)
         # Swap in: keep the working version until the new one is in place.
+        _assert_app_trees_idle(plan.target, previous)
         shutil.rmtree(previous, ignore_errors=True)
         if plan.target.exists():
             plan.target.rename(previous)
+            moved_previous = True
         staging.rename(plan.target)
         swapped = True
         launcher = find_launcher(plan.target, plan.name, plan.slug, pinned)      # paths now final
@@ -918,7 +1034,14 @@ def install(plan: Plan, *, progress: Callable[[str, int | None], None] = lambda 
                     stale.unlink()
                 except OSError:
                     pass
-        shutil.rmtree(previous, ignore_errors=True)
+        # A launch can race a snapshot. If a user of the previous tree is now visible,
+        # retain it; postcommit housekeeping must neither remove it nor undo the install.
+        try:
+            _assert_app_trees_idle(previous)
+        except DropError:
+            pass
+        else:
+            shutil.rmtree(previous, ignore_errors=True)
         _refresh_menu()
         return manifest
     except BaseException:
@@ -939,7 +1062,7 @@ def install(plan: Plan, *, progress: Callable[[str, int | None], None] = lambda 
                     _write_atomic(entry, old_entry_text, 0o644)
                 elif _ours(entry, plan.slug):
                     entry.unlink(missing_ok=True)        # this run created it; nothing had it before
-        elif previous.exists() and not plan.target.exists():
+        elif moved_previous and previous.exists() and not plan.target.exists():
             previous.rename(plan.target)                 # the version that worked comes back
         raise
 

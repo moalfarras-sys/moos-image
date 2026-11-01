@@ -72,6 +72,10 @@ WORDS = {
                           "The file was unpacked, but no single program to launch was found. The folder has been opened for you."),
     "cancelled": ("أُلغي التثبيت. لم يتغيّر شيء.", "Installation cancelled. Nothing was changed."),
     "busy": ("Mo Store مشغول بعملية أخرى. حاول بعد قليل.", "Mo Store is busy with another operation. Try again shortly."),
+    "app_in_use": ("التطبيق أو نسخته السابقة قيد الاستخدام. أغلقه بصورة عادية ثم أعد المحاولة.",
+                   "The app or its previous version is in use. Close it normally, then try again."),
+    "app_inspection_unavailable": ("تعذّر التحقق من استخدام ملفات التطبيق، فلم تُستبدل. أغلق التطبيق بصورة عادية ثم أعد المحاولة.",
+                                   "MoOS could not check the app's file usage, so its files were not replaced. Close the app normally, then try again."),
     "no_dialog": ("لا توجد أداة حوار، فلا أثبّت شيئاً دون سؤالك.", "No dialog tool is available, so nothing is installed without asking you."),
     "failed": ("تعذّر التثبيت.", "The installation failed."),
 }
