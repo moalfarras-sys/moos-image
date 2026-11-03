@@ -1,6 +1,10 @@
 #!/bin/sh
 # Local MoOS analysis tools: shared Node runtime and existing rootless SDK.
 # MCP clients intentionally inherit a minimal environment; Toolbox needs this user bus.
+rea_generation='@REA_GENERATION@'
+case "$rea_generation" in
+  *@*) echo 'MoOS analysis launcher: render this template with setup-analysis-tools.py' >&2; exit 1 ;;
+esac
 export XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"
 export DBUS_SESSION_BUS_ADDRESS="${DBUS_SESSION_BUS_ADDRESS:-unix:path=$XDG_RUNTIME_DIR/bus}"
 if [ -f /.flatpak-info ]; then
@@ -13,4 +17,4 @@ export PATH="${HOME}/.local/share/moos-dev-platform/node-v26.12.0-linux-x64/bin:
 export JAVA_HOME=/usr/lib/jvm/java-25-openjdk
 export GHIDRA_INSTALL_DIR="${HOME}/.local/share/moos-dev-platform/ghidra_12.1.4_PUBLIC"
 export GHIDRA_HEADLESS_MAXMEM="${GHIDRA_HEADLESS_MAXMEM:-2G}"
-exec "${HOME}/.local/share/moos-dev-platform/node-v26.12.0-linux-x64/bin/node" "${HOME}/.local/share/moos-dev-platform/rea-6.7.0/node_modules/rea-agents/scripts/rea.mjs" "$@"
+exec "${HOME}/.local/share/moos-dev-platform/node-v26.12.0-linux-x64/bin/node" "${HOME}/.local/share/moos-dev-platform/${rea_generation}/node_modules/rea-agents/scripts/rea.mjs" "$@"
