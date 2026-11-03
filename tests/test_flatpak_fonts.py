@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Bounded Flatpak host-font lifecycle, ownership, generations and refusals."""
+import contextlib
 import fcntl
 import importlib.machinery
 import importlib.util
@@ -331,6 +332,50 @@ class FlatpakFonts(unittest.TestCase):
         self.assertIn(other, job.document['message'])
         self.assertEqual(other_path.read_bytes(), b'personal edit')
         self.assertEqual(self.path.read_bytes(), policy.fragment('a' * 64, RT, 'e' * 64))
+
+    def test_single_update_keeps_postflight_partial_package_failure_and_cancellation(self):
+        loader = importlib.machinery.SourceFileLoader('font_store_single_update_test', str(ROOT / 'system_files/usr/bin/moos-storectl'))
+        import sys
+        store = importlib.util.module_from_spec(importlib.util.spec_from_loader(loader.name, loader))
+        sys.modules[loader.name] = store; loader.exec_module(store)
+        for outcome, expected_state, expected_item, expected_code in (
+                ('postflight-refusal', 'partial', 'done', 1),
+                ('package-failure', 'failed', 'failed', 1),
+                ('cancelled', 'cancelled', 'done', 130)):
+            with self.subTest(outcome=outcome):
+                job = store.Job(store.JobStore(self.home / outcome), 'update', [APP])
+                controller = object.__new__(store.Controller)
+                controller._catalog = lambda: {}
+                controller._dropped_android_package = lambda _app: None
+                controller._dropped_slug = lambda _app: None
+                controller._vendor_record = lambda _app: None
+                controller._begin = lambda *_args: (contextlib.nullcontext(), job)
+
+                def update(current_job, app_id):
+                    # Only the package operation is synthetic. Exercise the
+                    # actual single-update caller and its exception/finalization
+                    # path with a private JobStore; never touch a real app.
+                    if outcome == 'package-failure':
+                        raise store.StoreError('Package transaction refused')
+                    events = store.TransactionEvents(current_job, [app_id])
+                    events.done('app/' + app_id + '/x86_64/stable')
+                    current_job.postflight_failure('Applications retained; font discovery refused')
+                    if outcome == 'cancelled':
+                        raise store.CancelledError('Cancelled')
+                    raise store.StoreError('Applications retained; font discovery refused')
+
+                controller._update_flatpak = update
+                code, document = controller._update_one(APP)
+                self.assertEqual((code, document['state']), (expected_code, expected_state))
+                self.assertEqual(document['items'][0]['state'], expected_item)
+                if outcome == 'postflight-refusal':
+                    self.assertIn('font discovery refused', document['message'])
+                    self.assertIsNone(document.get('message_key'))
+                elif outcome == 'package-failure':
+                    self.assertIn('Package transaction refused', document['message'])
+                    self.assertFalse(job._postflight_failures)
+                else:
+                    self.assertEqual(document['message_key'], 'cancelled')
 
 
 if __name__ == '__main__': unittest.main(verbosity=2)

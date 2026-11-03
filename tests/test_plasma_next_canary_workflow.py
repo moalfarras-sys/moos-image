@@ -76,8 +76,9 @@ class SameImageNextPlasma(unittest.TestCase):
         self.assertIn("--repo 'copr:copr.fedorainfracloud.org:group_kdesig:kde-beta' plasma-workspace", workflow)
         query = workflow.split('next="$(buildah run', 1)[1].split('echo "plasma-workspace:', 1)[0]
         self.assertNotIn('|| true', query, 'query failure must not become no offer')
-        self.assertIn('python3 - "$baseline" "$next" "$have"', workflow)
-        self.assertIn('< build_files/plasma_canary_version.py', workflow)
+        self.assertIn('python3 /tmp/moos-canary-version.py "$baseline" "$next" "$have"', workflow)
+        self.assertEqual(workflow.count('buildah copy "$ctr" build_files/plasma_canary_version.py /tmp/moos-canary-version.py'), 2)
+        self.assertNotIn('buildah run -i', workflow, 'Buildah run has no interactive flag')
         self.assertEqual(workflow.count("if: steps.compose.outputs.next_available == 'true'"), 2)
         self.assertIn('--image-gates-passed', workflow)
         self.assertIn('qualification.json', workflow)

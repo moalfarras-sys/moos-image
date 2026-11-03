@@ -47,8 +47,8 @@
       "owner": "existing font migration, normal per-app Fontconfig includes, Store and user updater",
       "nativeOld": "Actual2.18.3 runtime/host remap cache collision and stale host-user cache omit Meyar; be3 rescan loses native mono100 metadata to90",
       "nativeFixed": "Four runtime matching/coverage cold/warm and Qt6.11 fixed-font chooser pass; exact mono scan metadata and named Arabic pairing included in salted generation",
-      "additionalSourceRepair": "Native KConfig precedes discovery. Ancillary exit4 allows KDE resume/settle, remains nonzero/logged and retries every login. App-only refresh scopes requested apps; runtime changes attempt all qualified apps, per-app refusals preserve files and completed package receipts with a partial job",
-      "tests": "14 bounded discovery,25 shell hygiene,9 Meyar/native KConfig,36 Store,29 pinned and20 updater controls pass before integration; final integrated gates pending",
+      "additionalSourceRepair": "Native KConfig precedes discovery. Ancillary exit4 allows KDE resume/settle, remains nonzero/logged and retries every login. App-only refresh scopes requested apps; runtime changes attempt all qualified apps, per-app refusals preserve files and completed package receipts with a partial job Single-update finalization also preserves partial (package done/integration refused), ordinary package failure and cancellation.",
+      "tests": "15 bounded discovery/actual single-update outcome,25 shell hygiene,9 Meyar/native KConfig,36 Store,30 pinned and20 updater controls pass; integrated gates pending",
       "contraryNativeEvidence": "Actual OpenCode2.1.3 Chromium caption under Meyar Sans paints17 DejaVu glyphs and2 Meyar Latin glyphs, despite isolated named FcMatch resolving Meyar Arabic",
       "limits": [
         "No universal browser fallback/generic-default claim",
@@ -71,7 +71,8 @@
         "Current full image/CI/signed delivery required",
         "ARM scheduled Dart download exit56 has no proven root cause; no failed-job rerun performed",
         "No host layering, seam allowlist widening, kernel modification or authentication change"
-      ]
+      ],
+      "canaryReview": "Independent native Buildah1.43.5 rejects unsupported run -i with exit125; repaired workflow copies the exact helper into its disposable container and executes a file. Native copied SHA matches source and all six availability/final-image controls execute with structured receipts. Initial root-owned full check interrupted at122s before this correction, without acceptance."
     }
   },
   "primarySources": [

@@ -157,8 +157,8 @@ every login retries before the revision fast path. Store app-only postflight is
 scoped to the requested apps. A runtime change attempts all qualified apps;
 per-app refusal leaves unknown bytes intact and retains completed package
 receipts while the job reports partial integration failure. The user updater's
-existing failure record remains authoritative. Targeted14 discovery/25 shell/
-9 Meyar/native KConfig/36 Store/29 pinned/20 updater controls pass; complete
+existing failure record remains authoritative. Targeted15 discovery and single-update outcome/25 shell/
+9 Meyar/native KConfig/36 Store/30 pinned/20 updater controls pass; complete
 integrated source, current image, CI and signed lifecycle delivery remain pending.
 
 The actual OpenCode2.1.3 Chromium caption is a separate refusal: selecting

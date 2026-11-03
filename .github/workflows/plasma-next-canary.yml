@@ -121,8 +121,9 @@ jobs:
                   --repo 'copr:copr.fedorainfracloud.org:group_kdesig:kde-beta' plasma-workspace)"
           echo "plasma-workspace: base has $have, kde-beta offers ${next:-nothing}" | tee -a "$out/versions.txt"
           baseline="$(python3 -c 'from build_files.plasma_stable.compose import EXPECTED; print(EXPECTED["plasma-workspace"].split("-", 1)[0])')"
-          buildah run -i "$ctr" -- python3 - "$baseline" "$next" "$have" \
-            < build_files/plasma_canary_version.py | tee "$out/availability.json"
+          buildah copy "$ctr" build_files/plasma_canary_version.py /tmp/moos-canary-version.py
+          buildah run "$ctr" -- python3 /tmp/moos-canary-version.py "$baseline" "$next" "$have" \
+            | tee "$out/availability.json"
           status="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["status"])' "$out/availability.json")"
           if [ "$status" = ready-for-image-gates ]; then
             echo 'next_available=true' >> "$GITHUB_OUTPUT"
@@ -154,8 +155,9 @@ jobs:
           baseline="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["reviewedVersion"])' "$RUNNER_TEMP/plasma-next/availability.json")"
           next="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["offeredVersion"])' "$RUNNER_TEMP/plasma-next/availability.json")"
           have="$(buildah run "$ctr" -- rpm -q --qf '%{VERSION}' plasma-workspace)"
-          buildah run -i "$ctr" -- python3 - "$baseline" "$next" "$have" --image-gates-passed \
-            < build_files/plasma_canary_version.py | tee "$RUNNER_TEMP/plasma-next/qualification.json"
+          buildah copy "$ctr" build_files/plasma_canary_version.py /tmp/moos-canary-version.py
+          buildah run "$ctr" -- python3 /tmp/moos-canary-version.py "$baseline" "$next" "$have" --image-gates-passed \
+            | tee "$RUNNER_TEMP/plasma-next/qualification.json"
 
       - name: Keep the Plasma versions and the seam gate's verdict
         if: always()

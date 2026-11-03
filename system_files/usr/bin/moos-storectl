@@ -903,7 +903,7 @@ class Job:
             states = [item["state"] for item in self._items.values()]
             has_success = any(state in {"done", "opened", "skipped"} for state in states)
             has_failure = any(state == "failed" for state in states)
-            state = "partial" if has_success and has_failure else "failed"
+            state = "partial" if has_success and (has_failure or self._postflight_failures) else "failed"
             self.update(
                 state=state,
                 progress=100 if state == "partial" else self.document["progress"],
