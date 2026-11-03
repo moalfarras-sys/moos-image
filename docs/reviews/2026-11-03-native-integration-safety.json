@@ -1,0 +1,96 @@
+{
+  "schema": 1,
+  "observedDate": "2026-11-03",
+  "integrationOwner": "root",
+  "deliveredSource": "fc97ef3bca6e7dba14d99ebcdfa0001ff7787adb",
+  "qualificationSHA": null,
+  "integratedFullCheck": "pending",
+  "currentBaseFullImage": "pending",
+  "signedDeliveryOfThisBatch": false,
+  "slices": {
+    "P4.1/P4.6": {
+      "commits": [
+        "a511f660324e9facb9115dcae80eae4e601f102e",
+        "7e1d13adcb4d5a148cfbe45a23759074f8e625d1"
+      ],
+      "owner": "existing moos_appdrop, moos_vendor_rpm and Store adapters",
+      "nativeOld": "Exactfc97 adapters lost a resource still mapped by a live private process after successful replacement",
+      "nativeFixed": "Refused observed cwd/exe/argv/maps target and previous-generation use; resource/launcher/record preserved; inactive repeat update and sibling controls pass",
+      "tests": "AppDrop64(one existing unavailable-branch skip), vendor82, Store-vendor26, pinned30, open48, dialog6 and67 bilingual phrases pass",
+      "limits": [
+        "Process snapshot is not a race-free launch/update lease",
+        "Opaque/open-only/cross-UID/namespace references and subsequent launches remain outside guarantee",
+        "Active removal and native Code profile/icon/MIME/URI/update identity durability remain open",
+        "Actual owner Code/ChatGPT left running and not replaced",
+        "GUI refusal pixels, ARM native control and signed delivery pending"
+      ]
+    },
+    "P3.7": {
+      "commit": "93ea210db2182f1a2e97fe827e5ebb00c18b7925",
+      "owner": "moai_runtime.Runtime.task_action",
+      "nativeOld": "Real private bwrap success and Git diff, then exit7 with pending required steps, incorrectly completed task; unrelated/same-second controls fail too",
+      "fixed": "Finished agent turn pauses for requirement review and retains real tool/step results; concurrent cancellation/failure remains authoritative",
+      "tests": "13 runtime tests plus3 executed old failures; related Hermes/workspace/HTTP security pass",
+      "limits": [
+        "No new evidence schema or semantic required-step contract",
+        "Installed service not replaced; native Workbench review/continue unqualified",
+        "Redacted Mo AI gateway says cloud provider/model unset; separate Mira route not inspected/invoked",
+        "No secret read, inference payload or microphone/camera action"
+      ]
+    },
+    "P2.3": {
+      "commits": [
+        "be3c65f1858eabf7ab24a75218a5deadc1e2d075",
+        "cb98506c6830075148f1ce0f4d073895ac4fcc9f",
+        "9a0f8529"
+      ],
+      "owner": "existing font migration, normal per-app Fontconfig includes, Store and user updater",
+      "nativeOld": "Actual2.18.3 runtime/host remap cache collision and stale host-user cache omit Meyar; be3 rescan loses native mono100 metadata to90",
+      "nativeFixed": "Four runtime matching/coverage cold/warm and Qt6.11 fixed-font chooser pass; exact mono scan metadata and named Arabic pairing included in salted generation",
+      "additionalSourceRepair": "Native KConfig precedes discovery. Ancillary exit4 allows KDE resume/settle, remains nonzero/logged and retries every login. App-only refresh scopes requested apps; runtime changes attempt all qualified apps, per-app refusals preserve files and completed package receipts with a partial job",
+      "tests": "14 bounded discovery,25 shell hygiene,9 Meyar/native KConfig,36 Store,29 pinned and20 updater controls pass before integration; final integrated gates pending",
+      "contraryNativeEvidence": "Actual OpenCode2.1.3 Chromium caption under Meyar Sans paints17 DejaVu glyphs and2 Meyar Latin glyphs, despite isolated named FcMatch resolving Meyar Arabic",
+      "limits": [
+        "No universal browser fallback/generic-default claim",
+        "Private app profiles only; no actual user policy yet published",
+        "Older helper-unaware rollback stale cache remains unqualified; exact recoverable fragment retirement is explicit maintenance",
+        "No wrapper, font-cache purge, blanket permission grant or vendor font deletion"
+      ]
+    },
+    "P6.7": {
+      "commit": "c90a8ef2",
+      "owner": "existing stable Plasma composer and next-canary workflow",
+      "cause": "New scheduled x86 input is kwin6.8.2-2 instead of exact reviewed-1; other expected packages unchanged",
+      "sourceComparison": "Both upstream archives SHA256ea5e68d957c7d70abed97222a592d4445fda29129e20942658badd224ee138b4 and detached signatures identical; spec delta adds devel version macros",
+      "nativeFixed": "Signed exact three-RPM transaction succeeds in existing qualified image;13 seam digests/classification pass;4,876 stock kernel files unchanged; real loaded SessionManagementScreen greeter positive/broken/restored passes",
+      "preservedRefusal": "First broken MediaControls negative stayed ready because it was not instantiated; this failed fixture remains evidence and is not acceptance",
+      "canary": "Native RPM VERSION comparison distinguishes missing/equal/older beta (unavailable, qualifiedNextImage=false), failure to reach a newer offer (failure) and final exact newer image only after required gates. Query failure remains nonzero",
+      "tests": "12 stable compose,4 native RPM version,7 workflow controls pass",
+      "limits": [
+        "Qualified image package fixture is not pristine current-base full compose",
+        "Current full image/CI/signed delivery required",
+        "ARM scheduled Dart download exit56 has no proven root cause; no failed-job rerun performed",
+        "No host layering, seam allowlist widening, kernel modification or authentication change"
+      ]
+    }
+  },
+  "primarySources": [
+    {
+      "title": "Flatpak desktop integration: host fonts are exported, host Fontconfig configuration is not",
+      "url": "https://docs.flatpak.org/en/latest/desktop-integration.html"
+    },
+    {
+      "title": "Fontconfig pattern bindings and edit order",
+      "url": "https://fontconfig.pages.freedesktop.org/fontconfig/fontconfig-user.html"
+    },
+    {
+      "title": "Skia native Fontconfig family and character fallback owners",
+      "url": "https://skia.googlesource.com/skia/+/main/src/ports/SkFontMgr_fontconfig.cpp"
+    },
+    {
+      "title": "KWin scripting API: existing workspace/window owner",
+      "url": "https://develop.kde.org/docs/plasma/kwin/api/"
+    }
+  ],
+  "privateEvidencePolicy": "Captures, provider state and native fixture transcripts stay local; this receipt contains bounded results only."
+}

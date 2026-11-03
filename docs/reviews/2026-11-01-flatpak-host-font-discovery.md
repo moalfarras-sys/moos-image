@@ -144,3 +144,27 @@ Primary contracts: [Fontconfig native configuration](https://fontconfig.pages.fr
 [Flatpak1.18.4 runtime lookup](https://github.com/flatpak/flatpak/blob/1.18.4/common/flatpak-run.c),
 [deployment search](https://github.com/flatpak/flatpak/blob/1.18.4/common/flatpak-dir-utils.c),
 and [native info selection](https://github.com/flatpak/flatpak/blob/1.18.4/app/flatpak-builtins-info.c).
+
+## Nov3 integration refusal and repair
+
+Independent execution of the actual migration/appearance call paths found that
+an unrelated edited app fragment or unsupported custom installation prevented
+all six native KConfig reads and KDE resume/settle. Native migration now runs
+first. Its failures remain fatal. Ancillary discovery has distinct exit4;
+`moos-apply-theme` continues native resume/settle, preserves any native failure,
+and returns4 after native success. The log and nonzero result retain the refusal;
+every login retries before the revision fast path. Store app-only postflight is
+scoped to the requested apps. A runtime change attempts all qualified apps;
+per-app refusal leaves unknown bytes intact and retains completed package
+receipts while the job reports partial integration failure. The user updater's
+existing failure record remains authoritative. Targeted14 discovery/25 shell/
+9 Meyar/native KConfig/36 Store/29 pinned/20 updater controls pass; complete
+integrated source, current image, CI and signed lifecycle delivery remain pending.
+
+The actual OpenCode2.1.3 Chromium caption is a separate refusal: selecting
+Meyar Sans still paints17 Arabic glyphs with DejaVu and2 Latin/space glyphs
+with Meyar, despite isolated named `fc-match` selecting Meyar Arabic. Direct
+Meyar Arabic choice previously painted the actual family. The four-runtime
+matching tests therefore do not qualify browser-wide pairing or generic defaults.
+Private captures and original contrary controls remain local. No owner app
+policy, permissions, cache or vendor font was removed or replaced.

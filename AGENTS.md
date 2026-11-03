@@ -275,6 +275,15 @@ shared action owners and real native pointer readback. A popup captured just
 after provider retirement can still show an empty transition; retain it and
 verify settled content, rather than accepting only the window rectangle.
 
+**A successful unrelated command is not a completed task.** The actual task
+runtime inferred completion from an exit0 command and Git diff despite a later
+exit7 and pending required steps. Finished model turns pause for review until an
+explicit required-step/evidence contract exists; preserve real results and
+concurrent cancellation/failure. A per-app Flatpak font refusal is likewise not
+permission to block native KDE appearance or rewrite another app's choices.
+Native KConfig failures remain fatal; ancillary discovery stays failed/retryable
+after native resume, and completed package receipts retain their own outcome.
+
 ## Where the rest of the knowledge is
 
 **A downloaded collection is not a wallpaper package.** Native KNewStuff can install a flat image archive then fail its Use command on a wildcard folder. Keep the actual old refusal; use the native picker and bounded raster admission, then delegate to the original appearance owner. Preserve the native provider/version/warning/install bytes and registry identity, Kiosk restrictions, edited/link-cache refusals and cancellation without mutation. A QWidget KCM needs an embedded ApplicationItem/PageRow for native detail pages; its offscreen Window is not a dialog parent. Compile child types before accepting the root ready marker and retain the broken-child negative.
