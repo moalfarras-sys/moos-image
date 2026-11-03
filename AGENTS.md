@@ -284,6 +284,14 @@ permission to block native KDE appearance or rewrite another app's choices.
 Native KConfig failures remain fatal; ancillary discovery stays failed/retryable
 after native resume, and completed package receipts retain their own outcome.
 
+**A live browser link is not a declared geometry fixture.** Native Chromium
+reported4g/1.45Mbps and correctly opened Balanced68 while a wide-laptop test
+expectedSharp80. Keep that refusal; declare capable fast-link inputs and retain
+the independent constrained-link68 control without changing production policy.
+Node26 removed the transform-types flag: execute every original TypeScript test
+with a supported pinned compiler, keeping separate typechecking. A requested
+stricter npm audit level must inspect that level; unknown counts stay refused.
+
 ## Where the rest of the knowledge is
 
 **A downloaded collection is not a wallpaper package.** Native KNewStuff can install a flat image archive then fail its Use command on a wildcard folder. Keep the actual old refusal; use the native picker and bounded raster admission, then delegate to the original appearance owner. Preserve the native provider/version/warning/install bytes and registry identity, Kiosk restrictions, edited/link-cache refusals and cancellation without mutation. A QWidget KCM needs an embedded ApplicationItem/PageRow for native detail pages; its offscreen Window is not a dialog parent. Compile child types before accepting the root ready marker and retain the broken-child negative.

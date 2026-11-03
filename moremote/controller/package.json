@@ -8,7 +8,7 @@
     "dev": "vite",
     "build": "vite build",
     "typecheck": "tsc --noEmit",
-    "test": "node --experimental-strip-types tests/coordinates.test.ts && node --experimental-transform-types tests/gestures.test.ts && node --experimental-strip-types tests/ui2-theme.test.ts && node --experimental-strip-types tests/quality.test.ts && node --experimental-strip-types tests/h264-giveup.test.ts && node --experimental-strip-types tests/typing.test.ts && node --experimental-strip-types tests/accessibility.test.ts && node --experimental-strip-types tests/auth-lifecycle.test.ts && node --experimental-strip-types tests/upload-resume.test.ts && node --experimental-strip-types tests/notifications.test.ts && node --experimental-transform-types tests/ws-lifecycle.test.ts && node --experimental-transform-types tests/decode-renegotiate.test.ts && node --experimental-transform-types tests/decode-hidden.test.ts && node --experimental-strip-types tests/icon-system.test.ts && node --experimental-strip-types tests/host-actions.test.ts && node --experimental-strip-types tests/audio-lifecycle.test.ts && node --experimental-transform-types tests/desktop.test.ts",
+    "test": "node --import=tsx tests/coordinates.test.ts && node --import=tsx tests/gestures.test.ts && node --import=tsx tests/ui2-theme.test.ts && node --import=tsx tests/quality.test.ts && node --import=tsx tests/h264-giveup.test.ts && node --import=tsx tests/typing.test.ts && node --import=tsx tests/accessibility.test.ts && node --import=tsx tests/auth-lifecycle.test.ts && node --import=tsx tests/upload-resume.test.ts && node --import=tsx tests/notifications.test.ts && node --import=tsx tests/ws-lifecycle.test.ts && node --import=tsx tests/decode-renegotiate.test.ts && node --import=tsx tests/decode-hidden.test.ts && node --import=tsx tests/icon-system.test.ts && node --import=tsx tests/host-actions.test.ts && node --import=tsx tests/audio-lifecycle.test.ts && node --import=tsx tests/desktop.test.ts",
     "preview": "vite preview",
     "gen-icons": "node scripts/gen-icons.mjs",
     "test:browser": "node scripts/browser-test.mjs"
@@ -25,9 +25,12 @@
     "sharp": "0.35.5",
     "typescript": "7.0.2",
     "vite": "8.3.4",
-    "vite-plugin-pwa": "1.3.0"
+    "vite-plugin-pwa": "1.3.0",
+    "tsx": "4.23.15"
   },
   "overrides": {
-    "nanoid": "^3.3.17"
+    "nanoid": "^3.3.17",
+    "glob": "14.0.2",
+    "minimatch": "11.0.1"
   }
 }

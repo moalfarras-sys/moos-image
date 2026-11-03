@@ -46,7 +46,7 @@ UNANSWERED = {"error": {"summary": "", "detail": ""}, "message": "audit endpoint
 
 @unittest.skipIf(not GATE.is_file(), "the audit gate is missing")
 class TheGateTellsTheTwoApartest(unittest.TestCase):
-    def run_gate(self, payload, *, exit_code: int = 0, attempts: int = 2):
+    def run_gate(self, payload, *, exit_code: int = 0, attempts: int = 2, level: str = 'high'):
         """Run the real script with a stub npm that prints `payload`."""
         with tempfile.TemporaryDirectory() as raw:
             work = Path(raw)
@@ -58,7 +58,7 @@ class TheGateTellsTheTwoApartest(unittest.TestCase):
                 encoding="utf-8")
             stub.chmod(0o755)
             result = subprocess.run(
-                ["bash", str(GATE), "high"],
+                ["bash", str(GATE), level],
                 capture_output=True, text=True, timeout=120,
                 env={**os.environ,
                      "PATH": f"{work}:{os.environ.get('PATH', '/usr/bin:/bin')}",
@@ -93,6 +93,37 @@ class TheGateTellsTheTwoApartest(unittest.TestCase):
         """A single transient 400 should not cost a release cycle."""
         result = self.run_gate(UNANSWERED, exit_code=1, attempts=3)
         self.assertEqual(result.stderr.count("did not return a report"), 3)
+
+    def test_requested_stricter_levels_keep_their_real_advisory_and_name(self):
+        for severity in ('low', 'moderate', 'high', 'critical'):
+            report = json.loads(json.dumps(CLEAN))
+            report['vulnerabilities']['owned-fixture'] = {'severity': severity, 'via': ['owned-advisory']}
+            report['metadata']['vulnerabilities'][severity] = 1
+            report['metadata']['vulnerabilities']['total'] = 1
+            for level in ('low', 'moderate', 'high'):
+                with self.subTest(severity=severity, level=level):
+                    result = self.run_gate(report, exit_code=1, attempts=1, level=level)
+                    blocks = ('low', 'moderate', 'high', 'critical').index(severity) >= ('low', 'moderate', 'high').index(level)
+                    self.assertEqual(result.returncode, 1 if blocks else 0, result.stdout + result.stderr)
+                    if blocks: self.assertIn('owned-fixture', result.stdout)
+
+    def test_invalid_or_weaker_policy_is_refused(self):
+        for level in ('critical', 'none', 'unknown'):
+            with self.subTest(level=level):
+                result = self.run_gate(CLEAN, attempts=1, level=level)
+                self.assertEqual(result.returncode, 2)
+                self.assertNotIn('no ', result.stdout)
+
+    def test_missing_negative_boolean_and_noninteger_counts_are_unknown(self):
+        for value in (None, -1, True, '0', 0.0):
+            report = json.loads(json.dumps(CLEAN)); counts = report['metadata']['vulnerabilities']
+            if value is None: counts.pop('moderate')
+            else: counts['moderate'] = value
+            with self.subTest(value=value):
+                result = self.run_gate(report, attempts=1, level='moderate')
+                self.assertEqual(result.returncode, 1)
+                self.assertIn('REGISTRY failure', result.stdout + result.stderr)
+                self.assertNotIn('no moderate-or-worse', result.stdout)
 
 
 class TheWorkflowUsesIt(unittest.TestCase):

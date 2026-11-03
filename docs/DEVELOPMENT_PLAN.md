@@ -57,7 +57,11 @@ next-image qualification; genuine query/new-image failures still refuse.
 Frozen4fe passes the complete local source check0/1132.473s and current-base
 image0/2982.222s with100 matching payloads, generic Meyar and stock kernel7.2.14.
 Exact final PR CI and signed delivery of this new batch remain pending. No owner app, provider secret, input policy or boot
-configuration was changed. [Font scope](reviews/2026-11-01-flatpak-host-font-discovery.md),
+configuration was changed. The additional P0.1 development/build dependency
+refresh retains a real cancelled-walk117→0 read control, all17 Remote tests on
+Node26 and actual browser fast/constrained-link assertions. The compiled Remote
+bundle is byte-identical; one unpatched low build-only advisory remains open.
+Final combined qualification is required. [Security scope](reviews/2026-11-03-dependency-security.json). [Font scope](reviews/2026-11-01-flatpak-host-font-discovery.md),
 [Bounded integration evidence](reviews/2026-11-03-native-integration-safety.json).
 
 Keep these real gaps visible: ordinary new-digest authentication/account switching,
@@ -366,7 +370,7 @@ handoff when the branch merges; keep milestone/task ownership in this file.
 
 | ID | Outcome | Current boundary | Required acceptance |
 | --- | --- | --- | --- |
-| P0.1 | Integrate the reviewed first-install repairs and create one candidate revision | Stable mechanism/artifact evidence recorded; preserve required gates | Exact candidate source, all integrated fixes and no local override counted as release. |
+| P0.1 | Integrate the reviewed first-install repairs and create one candidate revision | Frozen4fe source/current-image100-payload acceptance is recorded. Additional source security refresh pins Glob14.0.2/Minimatch11.0.1, preserves cancellation in native old/fixed controls and supports all17 Remote tests on Node26 with declared tsx. Actual browser fast/constrained links and9 audit-gate controls pass; default high policy retained. One unpatched low build-only deepmerge advisory stays open. Complete combined freeze/CI/signed delivery pending | Exact candidate source, all integrated fixes and no local override counted as release. |
 | P0.2 | Run generic, NVIDIA and cloud QCOW2 proofs plus offline ISO install/second boot | Exactfc97 signed1119/884 completes three x86 QCOW2 journeys, offline ISO install/second boot and ARM pipeline;402/402 independent artifact checks pass, first-attempt run IDs retained. The new source batch requires its own complete cycle | Three exact-digest x86 QCOW2 journeys, offline installed ISO and separate ARM two-boot proof. |
 | P0.3 | Finish physical NVIDIA qualification | Open: signed .1042 native 55/0 + 55/0, 16 hashes and exact signed player bytes pass; one URI/finite seek/resource journey passes. Kernel -201 NVIDIA vermagic matches. USB-C UCSI -110 remains; broader physical acceptance is open. Offline ESP dirty-bit-only clone/live proof passes, 16 boot-file hashes preserved and both shared vfat mounts restored; the prior unmount mistake failed before fsck and has a private old/fixed topology control. New1072 boot preserves UCSI-110 and a QtQuick ListView/QQuickView teardown SIGSEGV through screenRemoved; exact root cause is unproven. Basic GPU/35 payload/54 selfcheck/55 postcheck/cold-search acceptance passes; isolate real screen-removal before changing greeter/graphics policy. Suspend/hotplug and recovery remain | Actual NVIDIA GPU, initramfs module, displays, suspend and clean recovery on qualified hardware. |
 | P0.4 | Prove failed-update recovery | Open / acceptance not complete | Deliberate bad update, automatic/manual rollback and forward return without owner data loss. |

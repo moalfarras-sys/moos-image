@@ -42,6 +42,12 @@
 set -uo pipefail
 
 level="${1:-high}"
+# High is the existing project's least-strict policy. Explicit lower levels
+# strengthen it; no argument may disable or weaken that policy.
+case "$level" in
+    low|moderate|high) ;;
+    *) echo "npm audit: supported levels are low, moderate and high" >&2; exit 2 ;;
+esac
 attempts="${NPM_AUDIT_ATTEMPTS:-3}"
 report="$(mktemp)"
 trap 'rm -f -- "$report"' EXIT
@@ -49,7 +55,7 @@ trap 'rm -f -- "$report"' EXIT
 for attempt in $(seq 1 "$attempts"); do
     npm audit --audit-level="$level" --json >"$report" 2>/dev/null
 
-    verdict="$(python3 - "$report" <<'PY'
+    verdict="$(python3 - "$report" "$level" <<'PY'
 import json, sys
 try:
     with open(sys.argv[1], encoding="utf-8") as handle:
@@ -61,7 +67,12 @@ if not isinstance(counts, dict):
     # No metadata means npm did not produce an audit at all — the {"error":…}
     # shape. Never read that as "nothing found".
     print("unanswered"); raise SystemExit(0)
-blocking = int(counts.get("high", 0)) + int(counts.get("critical", 0))
+levels = ["low", "moderate", "high", "critical"]
+selected = levels[levels.index(sys.argv[2]):]
+values = [counts.get(name) for name in selected]
+if any(type(value) is not int or value < 0 for value in values):
+    print("unanswered"); raise SystemExit(0)
+blocking = sum(values)
 print(f"found {blocking}" if blocking else "clean")
 PY
 )"
@@ -77,12 +88,14 @@ PY
             # backslash-escaped quotes intact, so the f-string was a syntax error
             # and `|| true` swallowed it — the build log named the count and not
             # one package. Caught by tests/test_npm_audit_gate.py.
-            python3 - "$report" <<'ADVISORIES' || true
+            python3 - "$report" "$level" <<'ADVISORIES' || true
 import json, sys
 with open(sys.argv[1], encoding="utf-8") as handle:
     report = json.load(handle)
+levels = ["low", "moderate", "high", "critical"]
+selected = levels[levels.index(sys.argv[2]):]
 for name, entry in sorted((report.get("vulnerabilities") or {}).items()):
-    if entry.get("severity") in ("high", "critical"):
+    if entry.get("severity") in selected:
         line = "  {0:>8}  {1}  {2}".format(entry["severity"], name, entry.get("via"))
         print(line[:200])
 ADVISORIES
