@@ -417,11 +417,16 @@ class ValidationTests(StoreTestCase):
         adapter._transaction = (
             lambda configure, _events, _cancel: configure(Transaction())
         )
+        # This test owns transaction selection; font discovery has its own
+        # private native controls, never the real desktop's app homes.
+        font_refresh = []
+        adapter._refresh_fonts = lambda _events: font_refresh.append('after-install')
         adapter.install_many(["org.example.App"], object(), lambda: False)
         self.assertEqual(
             queued,
             [("flathub", "app/org.example.App/x86_64/stable", None)],
         )
+        self.assertEqual(font_refresh, ['after-install'])
 
     def test_libflatpak_remove_is_queued_with_the_installed_full_ref(self):
         class Installed:

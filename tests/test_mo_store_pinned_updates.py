@@ -965,6 +965,7 @@ class FlatpakBatch(Backend):
         adapter.Flatpak, adapter.Gio, adapter.GLib = libflatpak, Gio, GLib
         adapter.user = Installation(libflatpak, remotes=[Remote()])
         adapter.system = Installation(libflatpak)
+        adapter._refresh_fonts = lambda _events: None  # synthetic installations, not this workstation
         self.launched: list[str] = []
         adapter.launch = self.launched.append      # never a real launch from a test
         self.adapter = adapter

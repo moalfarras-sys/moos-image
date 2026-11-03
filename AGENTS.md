@@ -230,6 +230,28 @@ or change live fonts to make a source test pass.
 
 **A named font match is not the system default.** The native Meyar image passed named-font and byte gates while generic sans/mono still selected vendor Noto. Resolve generic requests before vendor expansion, retain explicit named choices and native script fallback, and gate actual generic readback in both architecture builds. Private font fixtures must keep the native fonts.conf normalization before the source policy; fc-match normalizes sans-serif to sans before that configuration.
 
+**A host font file is not Flatpak discovery.** The actual2.18.3 runtime can load
+its own root cache for the host remap, while another runtime loads an older
+host-user cache. Keep both controls and normal native user includes. Immutable
+font directories have zero mtimes: a static salt passes today but fails after a
+tree change. Use only the booted signed generation and exact native runtime
+selection, covering all installed app branches sharing one app home. Preserve
+personal matching and recover only exact owned fragments; never purge caches,
+grant filesystems or add a launch wrapper. Helper-aware rollback is not an old
+predecessor rollback: retain the stale predecessor control and explicit recovery.
+An app wrapper can reset flatpak --env XDG/userData; inspect the actual child
+before claiming private GUI isolation or changing any app setting.
+
+**A salted rescan does not inherit the host's scan rules.** Actual healthy
+KDE/Chrome caches classify both Meyar mono families100; the otherwise passing
+be3 discovery source rescans them90 and hides them from the native fixed-font
+chooser. Keep that full-check pass and native refusal together. Carry only the
+existing two exact named scan rules, include their policy revision/bytes in the
+cache generation, and retain the same-cache added-rule-without-rekey90 control.
+Qualify cold/warm native instances and Qt chooser. Named Arabic pairing uses
+qualified strong/default append-last aliases, preserving explicit fallback
+order, personal rules and generic requests; enumeration is not app painting.
+
 **A personal tray preference is not a broken panel.** Native appearance migration
 preserves the validated personal layout; the actual1114 tray spacing/pins predate
 its reboot. Keep `moos-bar-apply check` strict for canonical apply/image acceptance.

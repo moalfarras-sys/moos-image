@@ -5,11 +5,22 @@ import json
 import os
 import shutil
 import subprocess
+import sys
 import tempfile
 
 
 def run(args):
     return subprocess.run(args, check=True, capture_output=True, text=True).stdout.strip()
+
+
+def refresh_flatpak_fonts(*, retire=False):
+    # The same policy serves login and Store install/update completion. Native
+    # Fontconfig owns reload; running apps are never stopped or cache-purged.
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent / 'lib/moos'))
+    from moos_flatpak_fonts import refresh
+    changed = refresh(retire=retire)
+    if retire:
+        print('Owned Flatpak font discovery retired recoverably: ' + str(len(changed)))
 
 
 def main(installed=Path('/usr/share/fonts/meyar')):
@@ -62,5 +73,23 @@ def main(installed=Path('/usr/share/fonts/meyar')):
     print('Meyar font migration applied through native KConfig; recovery: ' + str(private))
 
 
-if __name__ == '__main__':
+def cli(args):
+    if args == ['--retire-flatpak-discovery']:
+        refresh_flatpak_fonts(retire=True)
+        return 0
+    if args:
+        raise ValueError('Usage: moos-fonts-migrate [--retire-flatpak-discovery]')
+    # Native KConfig/readback failure is authoritative. An unrelated app's
+    # discovery refusal must not prevent this migration or appearance resume.
     main()
+    try:
+        refresh_flatpak_fonts()
+    except (ImportError, OSError, ValueError, subprocess.SubprocessError) as error:
+        print('Flatpak host-font discovery failed; retained app configuration; '
+              'retry at next login or Store update: ' + str(error), file=sys.stderr)
+        return 4
+    return 0
+
+
+if __name__ == '__main__':
+    raise SystemExit(cli(sys.argv[1:]))

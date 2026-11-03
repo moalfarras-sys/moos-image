@@ -94,19 +94,35 @@ for x in ['Meyar Mono','Meyar Mono Arabic']}))'''
             env = dict(os.environ, XDG_CONFIG_HOME=str(config), XDG_STATE_HOME=str(state),
                        XDG_CONFIG_DIRS=str(ROOT / 'system_files/etc/xdg'))
             env.pop('DBUS_SESSION_BUS_ADDRESS', None)
-            with patch.dict(os.environ, env, clear=True): migration.main(FONTS)
+            with patch.dict(os.environ, env, clear=True), patch.object(migration, 'refresh_flatpak_fonts'):
+                migration.main(FONTS)
             after = (config / 'kdeglobals').read_text()
             self.assertIn(font.replace('IBM Plex Sans', 'Meyar Sans'), after)
             self.assertIn(personal, after)
             recoveries = list((state / 'moos/font-recovery').glob('meyar-*/kdeglobals'))
             self.assertEqual(len(recoveries), 1); self.assertEqual(recoveries[0].read_text(), before)
-            with patch.dict(os.environ, env, clear=True): migration.main(FONTS)
+            with patch.dict(os.environ, env, clear=True), patch.object(migration, 'refresh_flatpak_fonts'):
+                migration.main(FONTS)
             self.assertEqual(len(list((state / 'moos/font-recovery').glob('meyar-*'))), 1)
 
     def test_actual_overlay(self):
         result = gate.verify(FONTS)
         self.assertTrue(result['pass'])
         self.assertEqual(len(result['families']), 5)
+
+    def test_native_font_migration_precedes_discovery_and_native_failure_is_fatal(self):
+        loader = importlib.machinery.SourceFileLoader('meyar_migrate_order', str(ROOT / 'system_files/usr/bin/moos-fonts-migrate'))
+        migration = importlib.util.module_from_spec(importlib.util.spec_from_loader(loader.name, loader)); loader.exec_module(migration)
+        order = []
+        def discovery():
+            order.append('discovery'); raise ValueError('edited unrelated app')
+        with patch.object(migration, 'main', side_effect=lambda: order.append('native')), patch.object(migration, 'refresh_flatpak_fonts', side_effect=discovery):
+            self.assertEqual(migration.cli([]), 4)
+        self.assertEqual(order, ['native', 'discovery'])
+        order.clear()
+        with patch.object(migration, 'main', side_effect=RuntimeError('KConfig readback failed')), patch.object(migration, 'refresh_flatpak_fonts', side_effect=lambda: order.append('discovery')):
+            with self.assertRaisesRegex(RuntimeError, 'KConfig'): migration.cli([])
+        self.assertEqual(order, [])
 
     def test_unknown_or_changed_bytes_refused(self):
         with tempfile.TemporaryDirectory(prefix='meyar-negative-') as tmp:

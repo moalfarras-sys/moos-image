@@ -144,5 +144,11 @@ fi
 # it after every healthy timer run broke subprocess launches in the live editor.
 # Normal Flatpak update retains its own deployment/locking/signature semantics.
 
+if [ "$scope" = --user ]; then
+    # Runtime updates need the same bounded host-font discovery generation as
+    # login and Mo Store. Do not reload an app or delete its live font caches.
+    python3 "$(dirname "$0")/../lib/moos/moos_flatpak_fonts.py" "$flatpak_bin"
+fi
+
 finished=1
 publish ok

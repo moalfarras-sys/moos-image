@@ -13,6 +13,7 @@ import os
 import stat
 import subprocess
 import tempfile
+import shutil
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -52,6 +53,11 @@ def run_case(mode: str, scope: str = "--user", hold_store_lock: bool = False,
 set -u
 printf '%s\\n' "$*" >>"$MOOS_TEST_LOG"
 case " $* " in
+  *" list "*)
+    if [ "$MOOS_TEST_MODE" = "font-refusal" ]; then
+      echo "unknown-owner-installation"
+    fi
+    ;;
   *" repair "*)
     rm -f -- "$MOOS_TEST_RUNTIME_SHELL"
     ;;
@@ -101,9 +107,14 @@ esac
         try:
             helper = HELPER
             if helper_text is not None:
-                helper = tmp_path / "update-control"
+                helper = tmp_path / "usr/libexec/update-control"
+                helper.parent.mkdir(parents=True)
                 helper.write_text(helper_text, encoding="utf-8")
                 helper.chmod(0o755)
+                library = tmp_path / 'usr/lib/moos'
+                library.mkdir(parents=True)
+                shutil.copyfile(ROOT / 'system_files/usr/lib/moos/moos_flatpak_fonts.py',
+                                library / 'moos_flatpak_fonts.py')
             result = subprocess.run(
                 [str(helper), scope], text=True, capture_output=True, env=env, check=False,
                 timeout=60,
@@ -138,9 +149,19 @@ recovered, recovered_calls, recovered_record, _ = run_case("retry")
 assert recovered.returncode == 0, recovered.stderr
 assert any("--no-static-deltas" in call for call in recovered_calls)
 assert "retrying from complete objects" in recovered.stderr
-assert recovered_calls[-1] == "--user update --no-static-deltas -y --noninteractive"
+assert [call for call in recovered_calls if not call.startswith('list ')][-1] == \
+    "--user update --no-static-deltas -y --noninteractive"
+assert recovered_calls[-2:] == ['list --columns=installation',
+                              'list --app --columns=application,runtime,installation']
 assert recovered.runtime_preserved, "delta recovery erased a running app's retired runtime"
 assert recovered_record["state"] == "ok", "a recovered update is a successful one"
+
+# Packages survive a font-policy refusal, and the existing updater must report
+# that incomplete result instead of publishing a healthy font delivery.
+font_refused, font_calls, font_record, _ = run_case('font-refusal')
+assert font_refused.returncode != 0 and font_record['state'] == 'failed'
+assert 'custom Flatpak installations' in font_refused.stderr
+assert font_refused.runtime_preserved and not any(' repair' in call for call in font_calls)
 
 failed, failed_calls, failed_record, _ = run_case("fail-both")
 assert failed.returncode != 0, "both failed update paths must remain visible to systemd"
