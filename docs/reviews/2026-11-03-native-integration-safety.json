@@ -3,9 +3,26 @@
   "observedDate": "2026-11-03",
   "integrationOwner": "root",
   "deliveredSource": "fc97ef3bca6e7dba14d99ebcdfa0001ff7787adb",
-  "qualificationSHA": null,
-  "integratedFullCheck": "pending",
-  "currentBaseFullImage": "pending",
+  "qualificationSHA": "4fe4601cb7468480fa51b442a383077684c12207",
+  "integratedFullCheck": {
+    "exitCode": 0,
+    "seconds": 1132.4732716083527,
+    "inputHashesStable": true,
+    "inputFiles": 14741
+  },
+  "currentBaseFullImage": {
+    "exitCode": 0,
+    "seconds": 2982.2220361232758,
+    "inputHashesStable": true,
+    "inputFiles": 14741,
+    "imageID": "aac0f4e3e4e54e1c564d71b6942c8816a4a5739167e711d41ecbe3bb1a119d4b",
+    "payloadFiles": 100,
+    "payloadMismatches": 0,
+    "kernel": "7.2.14-200.fc44.x86_64",
+    "kwin": "6.8.2-2.fc44",
+    "genericSans": "Meyar Sans",
+    "genericMono": "Meyar Mono"
+  },
   "signedDeliveryOfThisBatch": false,
   "slices": {
     "P4.1/P4.6": {
@@ -55,7 +72,9 @@
         "Private app profiles only; no actual user policy yet published",
         "Older helper-unaware rollback stale cache remains unqualified; exact recoverable fragment retirement is explicit maintenance",
         "No wrapper, font-cache purge, blanket permission grant or vendor font deletion"
-      ]
+      ],
+      "additionalIndependentControls": "Actual single-update finalization returns partial for completed package plus discovery refusal, failed for a failed package, cancelled/130 after cancellation. Generated font-fragment bytes remain identicalcb985.",
+      "chromiumFollowup": "Matching exact Chromium152 Linux fallback source and native FontSort replay show locale/codepoint-only system fallback has no requested family. Original unescaped full-CSSstack fc-match comparison was invalid; corrected escaping resolves Meyar Arabic but does not change actual caption. Native custom-font field quotes a comma list as one family; choice restored exactly. No global proportional fallback rule was shipped as a complete Mono/UI repair."
     },
     "P6.7": {
       "commit": "c90a8ef2",
@@ -93,5 +112,39 @@
       "url": "https://develop.kde.org/docs/plasma/kwin/api/"
     }
   ],
-  "privateEvidencePolicy": "Captures, provider state and native fixture transcripts stay local; this receipt contains bounded results only."
+  "privateEvidencePolicy": "Captures, provider state and native fixture transcripts stay local; this receipt contains bounded results only.",
+  "qualificationScope": "Frozen runtime/source4fe passed full local check and current-base image. This following evidence/documentation update changes no runtime files; exact final PR CI and signed delivery remain required.",
+  "installedMiraUI": {
+    "version": "1119",
+    "actualPath": "/usr/lib/mira/app/app.py",
+    "nativeBus": "org.moos.Mira",
+    "kwinIdentity": "org.moos.moai",
+    "routes": [
+      "home",
+      "computer",
+      "system",
+      "settings"
+    ],
+    "fontRoot": "/usr/share/fonts/meyar",
+    "actualScreen": "Verified active native window before/after Spectacle capture; header/chat/portraits/composer/decoration complete. Earlier QQuickWindow.grabWindow truncation absent from actual screen; contrary captures retained privately.",
+    "limits": [
+      "No inference, voice, physical touch or settings change",
+      "Bottom continuation/scroll and whole app interaction unqualified",
+      "Green service readiness is not provider/task success"
+    ]
+  },
+  "installedHardware": {
+    "version": "1119",
+    "kernel": "7.2.13-200.fc44.x86_64",
+    "policy": "15 declared/readback MoKernel values match, TuneD throughput-performance preserved",
+    "usb4": "733 events on0000:c6:00.5 and40drivers/thunderbolt/nhi.c:142 WARN plus3IOMMU page faults through16:31:53UTC; continued between bounded reads. kerneltaint512 records WARN.",
+    "topology": "Current WD19 USB devices use xHCIc6:00.4; DP-11 usesamdgpu. USB4domains expose root routers only, so external USB4 tunnel/dock causality is not established.",
+    "limits": [
+      "Earlier1114 no-repro remains contrary evidence, not proof of a kernel regression",
+      "NHI source bytes7.2.12/13 identical; no proven rootcause or safe fix",
+      "No reset, blacklist, karg, firmware update, policy toggle or boot change performed",
+      "New image7.2.14 is not installed hardware acceptance",
+      "Physical rotation/SMOCF05, touch, pen and suspend remain open"
+    ]
+  }
 }
