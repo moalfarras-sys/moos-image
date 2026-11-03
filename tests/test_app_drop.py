@@ -26,9 +26,12 @@ from __future__ import annotations
 
 import importlib.machinery
 import importlib.util
+import contextlib
 import io
 import json
 import os
+import select
+import shutil
 import signal
 import stat
 import subprocess
@@ -805,6 +808,108 @@ class ActiveAppTrees(Home):
             self.assertEqual([path.name for path in self.target.parent.iterdir()], ["noteforge"])
 
 
+class NativeActiveApps(Home):
+    """Actual private processes and files; never launch or replace an owner's application."""
+
+    @contextlib.contextmanager
+    def sentinel(self, target: Path, mode: str):
+        target.mkdir(parents=True, exist_ok=True)
+        resource = target / "runtime-resource"
+        resource.write_bytes(b"old runtime resource")
+        executable = sys.executable
+        if mode == "exe":
+            executable = str(target / "private-python")
+            shutil.copy2(sys.executable, executable)
+        script = '''import json,mmap,os,sys
+from pathlib import Path
+mode, raw = json.loads(sys.stdin.readline())
+resource = Path(raw)
+if mode == "cwd": os.chdir(resource.parent)
+if mode == "maps":
+    with resource.open("rb") as handle: mapped = mmap.mmap(handle.fileno(), 0, access=mmap.ACCESS_READ)
+print("ready", flush=True)
+for line in sys.stdin:
+    if line.strip() == "stop": break
+    print(resource.read_text() if resource.exists() else "missing", flush=True)
+'''
+        arguments = [executable, "-u", "-c", script]
+        if mode == "argv":
+            arguments.append(str(resource))
+        process = subprocess.Popen(arguments, cwd=self.tmp.name, stdin=subprocess.PIPE,
+                                   stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+
+        def reply(command: str):
+            process.stdin.write(command + "\n")
+            process.stdin.flush()
+            if not select.select([process.stdout], [], [], 5)[0]:
+                self.fail("private sentinel did not answer within five seconds")
+            return process.stdout.readline().rstrip("\n")
+
+        try:
+            self.assertEqual(reply(json.dumps([mode, str(resource)])), "ready")
+            yield process, reply
+        finally:
+            if process.poll() is None:
+                try:
+                    process.stdin.write("stop\n")
+                    process.stdin.flush()
+                    process.wait(timeout=5)
+                except (BrokenPipeError, subprocess.TimeoutExpired):
+                    process.terminate()                   # only this test's own private child
+                    process.wait(timeout=5)
+            process.stdin.close()
+            process.stdout.close()
+            errors = process.stderr.read()
+            process.stderr.close()
+            self.assertEqual(process.returncode, 0, errors)
+
+    def test_native_cwd_exe_argv_and_maps_references_and_sibling_control(self):
+        for mode in ("cwd", "exe", "argv", "maps"):
+            with self.subTest(mode=mode):
+                target = Path(self.tmp.name) / mode
+                sibling = target.with_name(target.name + "-sibling")
+                sibling.mkdir()
+                with self.sentinel(target, mode) as (process, reply):
+                    self.assertIsNone(process.poll())
+                    with self.assertRaises(appdrop.DropError) as refused:
+                        appdrop._assert_app_trees_idle(target)
+                    self.assertEqual(refused.exception.code, "app_in_use")
+                    appdrop._assert_app_trees_idle(sibling)
+                    self.assertEqual(reply("read"), "old runtime resource")
+                appdrop._assert_app_trees_idle(target)     # a normally exited PID leaves no lease
+
+    def test_old_active_update_loses_resource_and_fixed_refuses_without_mutation(self):
+        for enabled in (False, True):
+            with self.subTest(guard_enabled=enabled):
+                slug = "native-fixed" if enabled else "native-old"
+                old = self.tar_bytes([self.member("app/program", ELF, 0o755)])
+                plan = appdrop.plan_for(self.download(slug + "-old.tar.gz", old), "Private app", slug)
+                record = appdrop.install(plan)
+                target = plan.target
+                with self.sentinel(target, "maps") as (process, reply):
+                    before = {path: path.read_bytes() for path in (
+                        target / "program", target / "runtime-resource", Path(record["desktop"]),
+                        appdrop.manifest_dir() / (slug + ".json"))}
+                    updated = self.tar_bytes([self.member("app/program", ELF + b"new", 0o755)])
+                    update = appdrop.plan_for(self.download(slug + "-new.tar.gz", updated), "Private app", slug)
+                    if enabled:
+                        with self.assertRaises(appdrop.DropError) as refused:
+                            appdrop.install(update)
+                        self.assertEqual(refused.exception.code, "app_in_use")
+                        self.assertEqual({path: path.read_bytes() for path in before}, before)
+                        self.assertEqual(reply("read"), "old runtime resource")
+                    else:
+                        # The removed guard restores the original destructive swap/retirement.
+                        with mock.patch.object(appdrop, "_assert_app_trees_idle"):
+                            appdrop.install(update)
+                        self.assertEqual(reply("read"), "missing")
+                    self.assertIsNone(process.poll(), "the old process can survive with broken resources")
+                appdrop.install(update)
+                appdrop.install(update)                  # two inactive replacements still work
+                self.assertEqual((target / "program").read_bytes(), ELF + b"new")
+                self.assertFalse(target.with_name("." + slug + ".previous").exists())
+
+
 class CatalogueInstalls(Home):
     """Mo Store's `appdrop` kind: the catalogue names the app, and the launcher can carry its id."""
 
@@ -1192,6 +1297,19 @@ class ThroughTheStore(Home):
         code, job = self.storectl("install-file", str(self.download("p.deb", b"!<arch>\ndebian-binary 1 0 0 100644 4 `\n")))
         self.assertEqual((code, job["state"]), (2, "failed"))
         self.assertIn("deb_not_native", job["message"])
+
+    def test_active_app_refusal_survives_the_canonical_store_job(self):
+        archive = self.download("noteforge-2.1.tar.gz", self.portable_app())
+        code, _job = self.storectl("install-file", str(archive))
+        self.assertEqual(code, 0)
+        target = self.home / "Applications/noteforge"
+        with NativeActiveApps.sentinel(self, target, "maps") as (_process, reply):
+            code, job = self.storectl("install-file", str(archive))
+            self.assertEqual((code, job["state"], job.get("code")), (1, "failed", "app_in_use"))
+            self.assertEqual(job["items"][0]["message_key"], "vendor_app_in_use")
+            self.assertEqual(reply("read"), "old runtime resource")
+        code, job = self.storectl("install-file", str(archive))
+        self.assertEqual((code, job["state"]), (0, "success"))
 
 
 class TheDialogHalf(unittest.TestCase):

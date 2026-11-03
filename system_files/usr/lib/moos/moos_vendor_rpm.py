@@ -146,6 +146,8 @@ import urllib.parse
 import urllib.request
 import xml.parsers.expat
 
+import moos_appdrop as appdrop
+
 RPMKEYS = "/usr/bin/rpmkeys"
 RPM = "/usr/bin/rpm"
 RPM2CPIO = "/usr/bin/rpm2cpio"
@@ -204,6 +206,8 @@ ERROR_CODES = frozenset({
     "digest_mismatch",           # SHA-256 of the download differs from the metadata
     "no_space",
     "cancelled",
+    "app_in_use",                # observed same-account process uses an app generation
+    "app_inspection_unavailable", # an identified user's references could not be checked
     "tool_missing",              # rpmkeys, rpm or rpm2cpio is absent
     "key_not_installed",         # the publisher key is not in the image's keyring
     "signature_untrusted_key",   # rpmkeys: NOKEY / NOTTRUSTED
@@ -2063,6 +2067,16 @@ def _place_icon(staging: Path, spec: Entry, extracted: Extracted) -> str:
     return name
 
 
+def _assert_app_trees_idle(*trees: Path) -> None:
+    """Use App Drop's bounded process snapshot; this is not a separate lifetime owner."""
+    try:
+        appdrop._assert_app_trees_idle(*trees)
+    except appdrop.DropError as error:
+        if error.code == "app_in_use":
+            raise VendorError("app_in_use", error.detail) from error
+        raise VendorError("app_inspection_unavailable", error.detail) from error
+
+
 def install(app_id: str, entry: Mapping[str, Any] | Entry, *, arch: str | None = None,
             info: Mapping[str, Any] | None = None, display_name: str = "",
             progress: Callable[[str, int | None], None] | None = None,
@@ -2085,6 +2099,7 @@ def install(app_id: str, entry: Mapping[str, Any] | Entry, *, arch: str | None =
     launcher = _claim_launcher(app_id)
     if _present(final) and not _marked_tree(final, app_id):
         raise VendorError("name_taken", str(final))
+    _assert_app_trees_idle(final, previous)
     # A process can stop between final.rename(previous) and staging.rename(final).
     # Recover the working version before cleanup, cancellation or a network read.
     if not _present(final) and _present(previous):
@@ -2110,6 +2125,7 @@ def install(app_id: str, entry: Mapping[str, Any] | Entry, *, arch: str | None =
                     applications_dir(): unpacked})
     work = Path(tempfile.mkdtemp(prefix=f"vendor-{app_id}-", dir=downloads))
     swapped = False
+    moved_previous = False
     launcher_written = False
     old_launcher = _read_small(launcher, 64 * 1024)
     try:
@@ -2140,8 +2156,10 @@ def install(app_id: str, entry: Mapping[str, Any] | Entry, *, arch: str | None =
         icon_rel = _place_icon(staging, spec, extracted)
         if stop():
             raise VendorError("cancelled")
+        _assert_app_trees_idle(final, previous)
         if _present(final):
             final.rename(previous)
+            moved_previous = True
         staging.rename(final)
         swapped = True
         exec_path = str(final / spec.exec)
@@ -2165,7 +2183,7 @@ def install(app_id: str, entry: Mapping[str, Any] | Entry, *, arch: str | None =
         if swapped:
             _remove_tree(final, app_id)
         _remove_tree(staging, app_id)
-        if _present(previous) and not _present(final):
+        if moved_previous and _present(previous) and not _present(final):
             previous.rename(final)                     # the version that worked comes back
         if launcher_written:
             if old_launcher is not None:
@@ -2175,7 +2193,14 @@ def install(app_id: str, entry: Mapping[str, Any] | Entry, *, arch: str | None =
         raise
     finally:
         shutil.rmtree(work, ignore_errors=True)
-    _remove_tree(previous, app_id)
+    # A new reference may appear after a snapshot. Preserve that generation if observed;
+    # housekeeping after the record commit must not undo the completed installation.
+    try:
+        _assert_app_trees_idle(previous)
+    except VendorError:
+        pass
+    else:
+        _remove_tree(previous, app_id)
     if refresh_menu:
         _refresh_menu()
     report("integrating", 100)

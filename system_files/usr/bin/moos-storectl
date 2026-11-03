@@ -127,6 +127,8 @@ VENDOR_FAILURE_KEYS: dict[str, str] = {
     "digest_mismatch": "vendor_download_mismatch",
     "no_space": "vendor_no_space",
     "cancelled": "cancelled",
+    "app_in_use": "vendor_app_in_use",
+    "app_inspection_unavailable": "vendor_app_inspection_unavailable",
     "tool_missing": "vendor_tool_missing",
     "key_not_installed": "vendor_key_missing",
     "signature_untrusted_key": "vendor_signature_failed",
@@ -166,6 +168,9 @@ VENDOR_FAILURE_WORDS: dict[str, str] = {
     "vendor_no_space": ("Not enough free space in your home folder to download, unpack and install "
                         "this app at the same time; free some space and try again"),
     "cancelled": "Cancelled",
+    "vendor_app_in_use": "The app or its previous version is in use; close it normally, then try again",
+    "vendor_app_inspection_unavailable": ("MoOS could not check the app's file usage, so its files were not "
+                                           "replaced; close the app normally, then try again"),
     "vendor_tool_missing": "This MoOS edition lacks a tool needed to check this app; nothing was installed",
     "vendor_key_missing": "This version of MoOS does not hold the publisher's key yet; update MoOS and try again",
     "vendor_signature_failed": ("The publisher's signature could not be verified; the download was deleted "
@@ -2407,6 +2412,8 @@ class Controller:
             except appdrop.DropError as failure:
                 if failure.code == "cancelled":
                     raise CancelledError("Cancelled") from failure
+                if failure.code in ("app_in_use", "app_inspection_unavailable"):
+                    raise self._vendor_failure(failure) from failure
                 raise StoreError(f"{failure.code}: {failure.detail or failure.code}") from failure
         finally:
             with contextlib.suppress(FileNotFoundError):
@@ -3691,6 +3698,8 @@ class Controller:
                 code = failure.code
                 if failure.code == "cancelled":
                     job.cancelled()
+                elif failure.code in ("app_in_use", "app_inspection_unavailable"):
+                    job.fail(self._vendor_failure(failure), [plan.slug])
                 else:
                     job.fail(f"{failure.code}: {failure.detail or failure.code}", [plan.slug])
             except CancelledError:

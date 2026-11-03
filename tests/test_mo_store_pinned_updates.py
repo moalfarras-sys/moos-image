@@ -63,6 +63,7 @@ import moos_appdrop as appdrop  # noqa: E402
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 # Real APKs in miniature (a compiled manifest in a zip, a signing block), and what each one says.
 import test_moos_android_apk as apkfix  # noqa: E402
+import test_app_drop as dropfix  # noqa: E402
 
 ELF = b"\x7fELF\x02\x01\x01\x00" + b"\x00" * 56
 
@@ -265,6 +266,23 @@ class AdoptedAppDrop(Backend):
         document = controller.check_updates()[1]
         self.assertEqual(document["items"], [], "the older pin was offered over the person's file")
         self.assertEqual((document["count"], document["app_count"]), (0, 0))
+
+    def test_active_or_uninspectable_owned_app_pin_has_a_localized_refusal(self):
+        self.controller([self.recipe("2.1")]).install(["noteforge"])
+        before = appdrop.read_record("noteforge")
+        controller = self.controller([self.recipe("2.2")])
+        with dropfix.NativeActiveApps.sentinel(self, self.home / "Applications/noteforge", "maps") as (_process, reply):
+            code, result = controller.update("noteforge")
+            self.assertEqual((code, result["state"], result["items"][0]["message_key"]),
+                             (1, "failed", "vendor_app_in_use"), result)
+            self.assertEqual(reply("read"), "old runtime resource")
+        with mock.patch.object(appdrop, "_assert_app_trees_idle",
+                               side_effect=appdrop.DropError("app_inspection_unavailable")):
+            code, result = controller.update("noteforge")
+        self.assertEqual((code, result["state"], result["items"][0]["message_key"]),
+                         (1, "failed", "vendor_app_inspection_unavailable"), result)
+        self.assertEqual(appdrop.read_record("noteforge"), before)
+        self.assertTrue(self.program().endswith(b"2.1"))
 
     def test_update_all_never_puts_the_pin_over_a_file_the_person_dropped(self):
         self.controller([self.recipe("2.1")]).install(["noteforge"])
