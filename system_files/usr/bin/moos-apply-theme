@@ -624,7 +624,16 @@ fi
 
 # Keep this before the revision-marker fast path: partial font writes are
 # retried, and an arbitrary personal family remains the owner's choice.
-if ! moos-fonts-migrate >>"$log" 2>&1; then
+moos-fonts-migrate >>"$log" 2>&1
+font_status=$?
+if [ "$font_status" = 4 ]; then
+    # Finish the native appearance owner even when ancillary Flatpak discovery
+    # is refused. Preserve that refusal in the journal/exit status and retry on
+    # every login, including the revision-marker fast path. Never mask a later
+    # native appearance failure with the ancillary status.
+    echo "Flatpak font discovery remains failed; continuing native appearance" >>"$log"
+    trap 'appearance_status=$?; if [ "$appearance_status" = 0 ]; then exit 4; else exit "$appearance_status"; fi' EXIT
+elif [ "$font_status" != 0 ]; then
     echo "Meyar font migration failed; preserve recovery and retry at next login" >>"$log"
     exit 1
 fi

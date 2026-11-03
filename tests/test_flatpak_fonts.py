@@ -272,13 +272,17 @@ class FlatpakFonts(unittest.TestCase):
         import sys
         store = importlib.util.module_from_spec(importlib.util.spec_from_loader(loader.name, loader))
         sys.modules[loader.name] = store; loader.exec_module(store)
-        errors = []
-        events = type('Events', (), {'requested': [APP], 'error': staticmethod(lambda app, msg: errors.append((app, msg)))})()
+        job = store.Job(store.JobStore(self.home / 'store'), 'install', [APP])
+        events = store.TransactionEvents(job, [APP])
+        events.done('app/' + APP + '/x86_64/stable')
         with patch('importlib.import_module', return_value=policy), patch.object(policy, 'refresh', side_effect=ValueError('edited fragment')):
             with self.assertRaisesRegex(store.StoreError, 'Applications are retained'):
                 store.FlatpakAdapter._refresh_fonts(events)
-        self.assertEqual(errors[0][0], APP)
-        self.assertIn('edited fragment', errors[0][1])
+        job.finish_from_items('Installed', 'installed')
+        self.assertEqual(job.document['items'][0]['state'], 'done')
+        self.assertEqual(job.document['state'], 'partial')
+        self.assertIn('edited fragment', job.document['message'])
+        self.assertIsNone(job.document.get('message_key'))
 
         order = []
         adapter = object.__new__(store.FlatpakAdapter)
@@ -287,6 +291,46 @@ class FlatpakFonts(unittest.TestCase):
         adapter._refresh_fonts = lambda _events: order.append('font-discovery')
         adapter.update_many([('org.freedesktop.Platform', 'runtime/' + RT)], events, lambda: False)
         self.assertEqual(order, ['runtime-update', 'font-discovery'])
+
+    def test_store_app_scope_and_runtime_partial_failure_preserve_completed_items(self):
+        loader = importlib.machinery.SourceFileLoader('font_store_scope_test', str(ROOT / 'system_files/usr/bin/moos-storectl'))
+        import sys
+        store = importlib.util.module_from_spec(importlib.util.spec_from_loader(loader.name, loader))
+        sys.modules[loader.name] = store; loader.exec_module(store)
+        inventory = Inventory()
+        other = 'org.example.Other'
+        inventory.apps['user'].append(other)
+        policy.refresh(home=self.home, query=inventory)
+        other_path = self.home / '.var/app' / other / 'config/fontconfig/conf.d' / policy.FILE
+        other_path.write_bytes(b'personal edit')
+        refresh = policy.refresh
+        def scoped(app_ids):
+            return refresh(app_ids, home=self.home, query=inventory)
+        job = store.Job(store.JobStore(self.home / 'app-store'), 'install', [APP])
+        events = store.TransactionEvents(job, [APP])
+        events.done('app/' + APP + '/x86_64/stable')
+        with patch('importlib.import_module', return_value=policy), patch.object(policy, 'refresh', side_effect=scoped):
+            store.FlatpakAdapter._refresh_fonts(events)
+        job.finish_from_items('Installed', 'installed')
+        self.assertEqual(job.document['state'], 'success')
+        self.assertEqual(other_path.read_bytes(), b'personal edit')
+        # A completed runtime change reconciles all apps, including valid apps
+        # after a refused one. It keeps package success and exposes integration
+        # failure as a partial job instead of corrupting every item receipt.
+        inventory.apps['user'].reverse()
+        inventory.runtimes['user'][RT] = 'e' * 64
+        runtime_id = RT.split('/')[0]
+        job = store.Job(store.JobStore(self.home / 'runtime-store'), 'update', [APP, runtime_id])
+        events = store.TransactionEvents(job, [APP, runtime_id])
+        events.done('app/' + APP + '/x86_64/stable'); events.done('runtime/' + RT)
+        with patch('importlib.import_module', return_value=policy), patch.object(policy, 'refresh', side_effect=scoped):
+            with self.assertRaises(store.StoreError): store.FlatpakAdapter._refresh_fonts(events)
+        job.finish_from_items('Updated', 'updated')
+        self.assertEqual(job.document['state'], 'partial')
+        self.assertTrue(all(item['state'] == 'done' for item in job.document['items']))
+        self.assertIn(other, job.document['message'])
+        self.assertEqual(other_path.read_bytes(), b'personal edit')
+        self.assertEqual(self.path.read_bytes(), policy.fragment('a' * 64, RT, 'e' * 64))
 
 
 if __name__ == '__main__': unittest.main(verbosity=2)

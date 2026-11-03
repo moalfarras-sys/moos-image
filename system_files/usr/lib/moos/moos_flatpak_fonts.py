@@ -48,6 +48,14 @@ RUNTIME = re.compile(r"[A-Za-z0-9_.-]+/[A-Za-z0-9_-]+/[A-Za-z0-9_.-]+\Z")
 MAX_FILE = 32768
 
 
+class RefreshError(ValueError):
+    """Per-app refusals after attempting every qualified app independently."""
+    def __init__(self, failures: dict[str, str], changed: list[str]):
+        self.failures = failures
+        self.changed = changed
+        super().__init__('; '.join(app + ': ' + reason for app, reason in failures.items()))
+
+
 def output(args: list[str]) -> str:
     result = subprocess.run(args, capture_output=True, text=True, timeout=20)
     if result.returncode:
@@ -318,13 +326,16 @@ def refresh(app_ids: list[str] | None = None, *, home: Path | None = None, query
             raise ValueError("Invalid installed Flatpak runtime commit")
         runtime_commits[runtime] = commit
     changed = []
+    failures = {}
     for app_id in app_ids:
         try:
             data = runtime_fragment(deployment, [(r, runtime_commits[r]) for r in applications[app_id]])
             if install(home, app_id, data):
                 changed.append(app_id)
         except (OSError, ValueError) as error:
-            raise ValueError(app_id + ": " + str(error)) from error
+            failures[app_id] = str(error)
+    if failures:
+        raise RefreshError(failures, changed)
     return changed
 
 

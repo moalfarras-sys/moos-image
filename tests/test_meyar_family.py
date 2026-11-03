@@ -110,6 +110,20 @@ for x in ['Meyar Mono','Meyar Mono Arabic']}))'''
         self.assertTrue(result['pass'])
         self.assertEqual(len(result['families']), 5)
 
+    def test_native_font_migration_precedes_discovery_and_native_failure_is_fatal(self):
+        loader = importlib.machinery.SourceFileLoader('meyar_migrate_order', str(ROOT / 'system_files/usr/bin/moos-fonts-migrate'))
+        migration = importlib.util.module_from_spec(importlib.util.spec_from_loader(loader.name, loader)); loader.exec_module(migration)
+        order = []
+        def discovery():
+            order.append('discovery'); raise ValueError('edited unrelated app')
+        with patch.object(migration, 'main', side_effect=lambda: order.append('native')), patch.object(migration, 'refresh_flatpak_fonts', side_effect=discovery):
+            self.assertEqual(migration.cli([]), 4)
+        self.assertEqual(order, ['native', 'discovery'])
+        order.clear()
+        with patch.object(migration, 'main', side_effect=RuntimeError('KConfig readback failed')), patch.object(migration, 'refresh_flatpak_fonts', side_effect=lambda: order.append('discovery')):
+            with self.assertRaisesRegex(RuntimeError, 'KConfig'): migration.cli([])
+        self.assertEqual(order, [])
+
     def test_unknown_or_changed_bytes_refused(self):
         with tempfile.TemporaryDirectory(prefix='meyar-negative-') as tmp:
             dst = Path(tmp) / 'fonts'; shutil.copytree(FONTS, dst)

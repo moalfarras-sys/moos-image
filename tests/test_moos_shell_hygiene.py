@@ -396,6 +396,15 @@ class TheRetiredAdviceWorksOnTheSpot(unittest.TestCase):
         self.assertIn('moos-fonts-migrate', calls)
         self.assertNotIn('moos-theme settle-lnf', calls)
 
+    def test_flatpak_discovery_refusal_resumes_native_owner_but_stays_failed(self):
+        for personal in (False, True):
+            result, _, calls = self.run_apply(True, personal=personal, font_code=4)
+            self.assertEqual(result.returncode, 4, result.stderr)
+            self.assertIn('moos-theme resume-native' if personal else 'moos-theme settle-lnf', calls)
+        result, _, calls = self.run_apply(True, personal=True, font_code=4, resume_code=1)
+        self.assertEqual(result.returncode, 1)
+        self.assertIn('moos-theme resume-native', calls)
+
     def test_personal_fast_path_preserves_the_native_owner_and_publication_failure(self):
         for code in (0, 1):
             result, share, calls = self.run_apply(True, personal=True, resume_code=code)
