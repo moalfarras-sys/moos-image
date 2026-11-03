@@ -125,6 +125,39 @@ class TheGateTellsTheTwoApartest(unittest.TestCase):
                 self.assertIn('REGISTRY failure', result.stdout + result.stderr)
                 self.assertNotIn('no moderate-or-worse', result.stdout)
 
+    def assert_unknown(self, report, *, exit_code=1):
+        result = self.run_gate(report, exit_code=exit_code, attempts=1)
+        self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+        self.assertIn('REGISTRY failure', result.stdout + result.stderr)
+        self.assertNotIn('no high-or-worse', result.stdout)
+
+    def test_explicit_error_is_not_cleared_by_zero_metadata(self):
+        for error in ({'code': 'EREGISTRY'}, None, {}):
+            with self.subTest(error=error):
+                self.assert_unknown({**CLEAN, 'error': error})
+
+    def test_failed_command_is_not_cleared_by_clean_stdout(self):
+        for status in (1, 2, 7, 127):
+            with self.subTest(status=status):
+                self.assert_unknown(CLEAN, exit_code=status)
+
+    def test_advisory_map_must_agree_with_metadata(self):
+        hidden_high = {**CLEAN, 'vulnerabilities': HIGH['vulnerabilities']}
+        missing_high = {**HIGH, 'vulnerabilities': {}}
+        wrong_total = json.loads(json.dumps(HIGH))
+        wrong_total['metadata']['vulnerabilities']['total'] = 0
+        for report in (hidden_high, missing_high, wrong_total):
+            with self.subTest(report=report):
+                self.assert_unknown(report)
+
+    def test_malformed_report_shapes_are_unknown(self):
+        reports = [None, [], {'metadata': []}, {**CLEAN, 'vulnerabilities': []},
+                   {**CLEAN, 'vulnerabilities': {'broken': None}},
+                   {**CLEAN, 'vulnerabilities': {'broken': {'severity': 'unknown'}}}]
+        for report in reports:
+            with self.subTest(report=report):
+                self.assert_unknown(report, exit_code=0)
+
 
 class TheWorkflowUsesIt(unittest.TestCase):
     def test_build_yml_calls_the_gate_and_not_bare_npm_audit(self):

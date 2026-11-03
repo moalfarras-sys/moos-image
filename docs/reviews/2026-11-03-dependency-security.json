@@ -68,13 +68,31 @@
   },
   "auditGate": {
     "old": "Explicit moderate requested a report containing1 moderate finding, yet returned0 and printed no moderate-or-worse",
-    "fixed": "Respect stricter requested levels and name advisories. Keep default high policy; weaker/disable arguments refuse. Missing/negative/boolean/noninteger required counts remain unknown/nonzero.",
-    "tests": 9,
+    "fixed": "Respect stricter requested levels and name advisories. Keep default high policy; weaker/disable arguments refuse. Require actual npm status0/1 and a consistent native per-severity advisory map/count histogram; explicit errors, malformed counts/shapes, contradictory metadata and unexplained command failures remain unknown/nonzero.",
+    "tests": 13,
     "oldFixedControl": {
       "oldExit": 0,
       "fixedExit": 1
     },
-    "registryRetryAndFailure": "Preserved ordinary bounded retry and failure; no bypass or clean result on unknown audit."
+    "registryRetryAndFailure": "Preserved ordinary bounded retry and failure; no bypass or clean result on unknown audit.",
+    "additionalOldFixedControls": [
+      {
+        "case": "explicit error with zero metadata",
+        "oldExit": 0,
+        "fixedExit": 1
+      },
+      {
+        "case": "high advisory hidden by zero metadata",
+        "oldExit": 0,
+        "fixedExit": 1
+      },
+      {
+        "case": "clean stdout with npm exit7",
+        "oldExit": 0,
+        "fixedExit": 1
+      }
+    ],
+    "nativeRegistryReadback": "Actual controller npm audit at the default high threshold passes with the retained four low-only dependency chains; no audit advisory dismissed."
   },
   "remaining": [
     "Unpatched low build-only deepmerge advisory",

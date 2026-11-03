@@ -54,25 +54,46 @@ trap 'rm -f -- "$report"' EXIT
 
 for attempt in $(seq 1 "$attempts"); do
     npm audit --audit-level="$level" --json >"$report" 2>/dev/null
+    npm_status=$?
 
-    verdict="$(python3 - "$report" "$level" <<'PY'
+    verdict="$(python3 - "$report" "$level" "$npm_status" <<'PY'
 import json, sys
+def unanswered():
+    print("unanswered")
+    raise SystemExit(0)
+
 try:
     with open(sys.argv[1], encoding="utf-8") as handle:
         report = json.load(handle)
 except (OSError, ValueError):
-    print("unanswered"); raise SystemExit(0)
-counts = (report.get("metadata") or {}).get("vulnerabilities")
-if not isinstance(counts, dict):
-    # No metadata means npm did not produce an audit at all — the {"error":…}
-    # shape. Never read that as "nothing found".
-    print("unanswered"); raise SystemExit(0)
-levels = ["low", "moderate", "high", "critical"]
+    unanswered()
+# Exit1 can mean findings; other failures cannot be cleared by JSON left on
+# stdout. An explicit error also wins over apparently healthy metadata.
+if sys.argv[3] not in ("0", "1") or not isinstance(report, dict) or "error" in report:
+    unanswered()
+metadata = report.get("metadata")
+if not isinstance(metadata, dict):
+    unanswered()
+counts = metadata.get("vulnerabilities")
+entries = report.get("vulnerabilities")
+if not isinstance(counts, dict) or not isinstance(entries, dict):
+    unanswered()
+levels = ["info", "low", "moderate", "high", "critical"]
+if any(type(counts.get(name)) is not int or counts[name] < 0 for name in levels + ["total"]):
+    unanswered()
+# Native npm reports count affected packages, one per map entry. Validate the
+# complete histogram so a high entry cannot disappear behind a zero count.
+observed = dict.fromkeys(levels, 0)
+for entry in entries.values():
+    if not isinstance(entry, dict) or entry.get("severity") not in levels:
+        unanswered()
+    observed[entry["severity"]] += 1
+if any(counts[name] != observed[name] for name in levels) or counts["total"] != len(entries):
+    unanswered()
+if sys.argv[3] == "1" and not entries:
+    unanswered()
 selected = levels[levels.index(sys.argv[2]):]
-values = [counts.get(name) for name in selected]
-if any(type(value) is not int or value < 0 for value in values):
-    print("unanswered"); raise SystemExit(0)
-blocking = sum(values)
+blocking = sum(counts[name] for name in selected)
 print(f"found {blocking}" if blocking else "clean")
 PY
 )"

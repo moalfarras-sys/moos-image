@@ -291,6 +291,9 @@ the independent constrained-link68 control without changing production policy.
 Node26 removed the transform-types flag: execute every original TypeScript test
 with a supported pinned compiler, keeping separate typechecking. A requested
 stricter npm audit level must inspect that level; unknown counts stay refused.
+Zero metadata cannot clear an explicit npm error, an unexplained command failure
+or a contradictory advisory map. Preserve the actual old/fixed refusals, bounded
+retry and the default high-severity policy.
 
 ## Where the rest of the knowledge is
 
