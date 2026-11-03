@@ -127,11 +127,12 @@ def generation_record(manifest):
 
 def check_generation_receipt(target,manifest):
     info=target.lstat()
-    if not stat.S_ISDIR(info.st_mode) or info.st_uid!=os.getuid():
-        raise RuntimeError('REA generation type/owner refused')
+    if not stat.S_ISDIR(info.st_mode) or info.st_uid!=os.getuid() or info.st_mode&0o022:
+        raise RuntimeError('REA generation type/owner/mode refused')
     marker=target/'.moos-rea-generation.json'
     if not marker.exists():raise RuntimeError('unknown REA generation; preserve existing directory')
-    owned_file(marker,'REA generation receipt')
+    info=owned_file(marker,'REA generation receipt')
+    if stat.S_IMODE(info.st_mode)!=0o600:raise RuntimeError('REA generation receipt mode differs')
     if marker.read_bytes()!=generation_record(manifest):raise RuntimeError('REA generation receipt differs')
 
 

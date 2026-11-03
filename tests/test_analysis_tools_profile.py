@@ -198,12 +198,29 @@ class ProfileGenerations(unittest.TestCase):
         self.assertEqual(keep.read_bytes(),b'keep');self.assertEqual(self.npm_calls,0)
         self.assertFalse((self.home/'.local/bin/moos-rea').exists())
         (target/'.moos-rea-generation.json').write_bytes(M.generation_record(self.manifest))
+        (target/'.moos-rea-generation.json').chmod(0o600)
         self.packages(target,self.lock)
         installed=json.loads((target/'package-lock.json').read_text())
         installed['packages']['node_modules/reviewed-dependency']['version']='0.0.0'
         (target/'package-lock.json').write_text(json.dumps(installed))
         with self.assertRaisesRegex(RuntimeError,'transitive lock differs'):M.run_profile(self.home,self.manifest,self.args)
         self.assertEqual(keep.read_bytes(),b'keep');self.assertEqual(self.npm_calls,0)
+
+    def test_writable_generation_or_nonprivate_marker_is_refused_without_repair(self):
+        M.run_profile(self.home,self.manifest,self.args)
+        target=self.base/M.rea_generation(self.manifest);marker=target/'.moos-rea-generation.json'
+        for mode in (0o775,0o757):
+            target.chmod(mode);before=self.snapshot()
+            with self.assertRaisesRegex(RuntimeError,'generation type/owner/mode'):
+                M.run_profile(self.home,self.manifest,SimpleNamespace(install=False))
+            self.assertEqual(self.snapshot(),before);self.assertEqual(stat.S_IMODE(target.stat().st_mode),mode)
+        target.chmod(0o755)
+        marker.chmod(0o644);before=self.snapshot()
+        for args in (SimpleNamespace(install=False),self.args):
+            with self.assertRaisesRegex(RuntimeError,'generation receipt mode differs'):
+                M.run_profile(self.home,self.manifest,args)
+            self.assertEqual(self.snapshot(),before)
+        self.assertEqual(self.npm_calls,1)
 
     def test_check_is_read_only_including_absent_lease_and_detects_receipt_mismatch(self):
         check=SimpleNamespace(install=False)
