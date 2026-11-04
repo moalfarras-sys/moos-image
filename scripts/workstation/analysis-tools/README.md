@@ -100,10 +100,20 @@ tree passes the exact reviewed lock. A rendered private launcher reaches actual
 REA CLI help through the shared Node/SDK, with the live launcher, receipt and
 legacy lock bytes/mtimes unchanged. This reuses dependencies through private
 links and does not qualify a full native installation or another Ghidra/MCP
-journey. No running workstation launcher or profile was replaced.
+journey. That private helper test did not replace a running workstation launcher or profile.
 
 The original versioned archives under
 `~/.cache/moos-dev-platform/analysis-archives/` remain inputs for the next
 verified installation and retained-profile recovery. Keep them while those
 consumers need them; retirement requires a separate recovery/retention review.
 This installer does not download or remove either archive.
+
+On Nov4 the actual canonical owner upgrade passes in7.967s after the old native
+check refuses the changed transitive lock. New check, CLI help/capabilities, fresh canonical MCP initialization/207-tool metadata
+and registry audit0 pass with Glob14.0.2/Minimatch11.0.1/Zod4.6.6. All7,905 legacy
+entries (124,712,060 regular-file bytes) and the active original MCP reader
+remain unchanged; the new generation has126,835,007 regular-file bytes. Exact
+launcher/receipt recovery is retained. Existing MCP readers adopt new code only
+after their normal client restart; no engineering session is killed. This is
+a local tool update, not a signed OS update or a new provider/Ghidra GUI journey.
+[Bounded native evidence](../../../docs/reviews/2026-11-04-analysis-profile-generations.json).

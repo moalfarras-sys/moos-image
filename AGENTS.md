@@ -295,6 +295,16 @@ Zero metadata cannot clear an explicit npm error, an unexplained command failure
 or a contradictory advisory map. Preserve the actual old/fixed refusals, bounded
 retry and the default high-severity policy.
 
+**An unchanged tool version is not an unchanged dependency tree.** Native
+REA6.7.0 correctly refuses a newer reviewed transitive lock in its old prefix.
+Use complete lock-SHA generations, verify before publishing the canonical
+launcher, and preserve active old bytes and exact private recovery. Installer
+and read-only check share the owned bounded exclusive/shared lease through final
+receipt readback; checks create no missing lease or receipts. Unknown/writable
+generations, links and backup collisions remain refusals. Reuse Node/JDK/Ghidra;
+a normal client restart selects new code, never kill the engineering session or
+remove an active generation to manufacture an update.
+
 ## Where the rest of the knowledge is
 
 **A downloaded collection is not a wallpaper package.** Native KNewStuff can install a flat image archive then fail its Use command on a wildcard folder. Keep the actual old refusal; use the native picker and bounded raster admission, then delegate to the original appearance owner. Preserve the native provider/version/warning/install bytes and registry identity, Kiosk restrictions, edited/link-cache refusals and cancellation without mutation. A QWidget KCM needs an embedded ApplicationItem/PageRow for native detail pages; its offscreen Window is not a dialog parent. Compile child types before accepting the root ready marker and retain the broken-child negative.

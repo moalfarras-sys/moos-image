@@ -1,0 +1,85 @@
+{
+  "schema": 1,
+  "date": "2026-11-04",
+  "plan": [
+    "P0.1",
+    "P6.3"
+  ],
+  "implementation": "3c4a76b8d6f86907b025b28d7bb68e99c7c46c50",
+  "scope": "Optional x86_64 user-space analysis tooling through the existing installer and canonical launcher. Local tool update, not signed OS delivery or complete provider/MCP/Ghidra acceptance.",
+  "oldNativeControl": {
+    "source": "52abf99f453ca6121f5d3f9a30fcf9a595e01087",
+    "exit": 1,
+    "reason": "REA transitive lock differs"
+  },
+  "implementationBoundary": {
+    "generation": "Exact vendor version plus complete SHA256 of the reviewed transitive lock",
+    "publication": "Verify publisher archive and complete reviewed lock before atomically publishing a new generation; retain active legacy/earlier generations",
+    "lease": "Owned nofollow same-inode600 empty regular file; bounded10s exclusive install/shared read-only check through final receipt readback",
+    "refusals": "Unknown or writable generations, nonprivate markers, links/hardlinks, changed locks, receipt drift, recovery collisions and busy publication remain failures",
+    "readOnly": "Check creates no missing lease/receipt and preserves managed bytes/modes/mtimes"
+  },
+  "validation": {
+    "privateControls": 12,
+    "scope": "Real private reader and concurrent publication controls with recorded mocked package installation; original archive/native helpers and actual owner installation qualified separately",
+    "independentReview": "Exact3c4a76b8 source reviewed and12controls rerun without blocking findings",
+    "nativeArchive": "Existing installed Ghidra and spare REA exactly match original publisher archives; reused shared SDK/Node/JDK, no Ghidra extraction",
+    "actualInstallExit": 0,
+    "actualInstallSeconds": 7.967219743999976,
+    "actualCheckExit": 0,
+    "readOnlyCheckPreservedManagedFiles": true,
+    "canonicalCliHelpExit": 0,
+    "canonicalCapabilitiesExit": 0,
+    "installedRegistryAuditCounts": {
+      "info": 0,
+      "low": 0,
+      "moderate": 0,
+      "high": 0,
+      "critical": 0,
+      "total": 0
+    },
+    "freshCanonicalMcpMetadata": {
+      "serverVersion": "6.7.0",
+      "protocolVersion": "2025-11-25",
+      "declaredUniqueTools": 207,
+      "exit": 0,
+      "seconds": 1.7097772900001473,
+      "scope": "Fresh canonical child initialized and listed metadata only; normal stdin-close exit. No tools/call, provider request or current client replacement.",
+      "fixtureRefusal": "Original asyncio default64KiB line limit refused the large catalogue; retained control, bounded8MiB reader accepts complete207-tool response."
+    }
+  },
+  "installed": {
+    "generation": "rea-6.7.0-sha256-399f5a303937ca6ce426918102da3768a9f64750957ec410aa51ba46364af979",
+    "dependencies": {
+      "rea-agents": "6.7.0",
+      "glob": "14.0.2",
+      "minimatch": "11.0.1",
+      "zod": "4.6.6"
+    },
+    "regularFileBytes": 126835007,
+    "entries": 8046
+  },
+  "coexistence": {
+    "legacyRegularFileBytes": 124712060,
+    "legacyEntries": 7905,
+    "allLegacyBytesModesMtimesUnchanged": true,
+    "activeLegacyMcpProcessesPreserved": 1,
+    "existingMcp": "Attached reader keeps previous code until its normal client restart; new canonical calls select the verified generation. No forced restart or claim of a hot code replacement."
+  },
+  "recovery": {
+    "launcherAndReceipt": "Exact original private hash-named backups retained; unchanged Ghidra launcher/desktop entry preserved",
+    "legacy": "Keep while active readers and recovery require it. No generation deletion performed.",
+    "archives": {
+      "ghidraBytes": 569649598,
+      "reaBytes": 6276963,
+      "consumer": "Verified installation/retained-profile recovery; no duplicate SDK/Ghidra payload",
+      "retirement": "Separate exact ownership/recovery/retention review, no blanket cleanup"
+    }
+  },
+  "remaining": [
+    "Full combined followup source/PR qualification and integration; previous selected OS cycle failed before image build and needs repaired source/new first-attempt candidate",
+    "Current attached MCP remains on previous bytes until normal client restart",
+    "No new provider/account/auth/MCP registration or Ghidra GUI/server/native-provider acceptance",
+    "One separate unpatched low build-only deepmerge advisory remains in the product plan"
+  ]
+}
