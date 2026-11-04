@@ -95,6 +95,13 @@
   "files": {
     "system_files/usr/bin/moos-storectl": "feca19db6dca3d3eb5df7759ed229a24bf6d1930be54384b414d3868902ed3a7",
     "system_files/usr/bin/moos-run-foreign": "7e03cc4719ff43ed3ca17803a0d41548ac7f827ff21fd2f2cf5f2a9a1f0c6a42",
-    "system_files/usr/lib/moos/moos_windows_portable.py": "c9b713438ebd1f68b1f4eac90c5e43f7b762805acce0bcb0367633a361fa2750"
+    "system_files/usr/lib/moos/moos_windows_portable.py": "60a0de4e1f4d330c8b28f59fda7157ae198cf6003d5f585b93d119c97cbb9291"
+  },
+  "qualification61267d94": {
+    "source": "failed unchanged notification ownership gate; missing Store hint/declaration in new helper",
+    "image": "still running frozen source, no acceptance claim",
+    "repair": "use existing org.moos.store hint, declare only this exact sender/owner and execute its real refusal with a recording notifier; 9 notification controls pass",
+    "nativeMonotonicSourceSeconds": 83.865449,
+    "timing": "Wall-clock elapsed jumped during this check; retained raw receipt is not a performance duration. Native systemd monotonic start/exit above is authoritative; clock-change cause unknown, no clock writes performed."
   }
 }

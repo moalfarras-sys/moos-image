@@ -351,8 +351,9 @@ def main() -> int:
         if isinstance(e, Error) and e.code == "not_installed":
             message = "هذا البرنامج غير مثبّت. ثبّته من متجر MoOS. | This program is not installed. Install it from Mo Store."
         print(message, file=sys.stderr)
-        with contextlib.suppress(OSError):
-            subprocess.run(["notify-send", "--app-name=MoOS", "--icon=moos-store", "MoOS", message],
+        with contextlib.suppress(OSError, subprocess.SubprocessError):
+            subprocess.run(["notify-send", "--app-name=MoOS", "--icon=moos-store",
+                            "--hint=string:desktop-entry:org.moos.store", "MoOS", message],
                            timeout=10, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         return 1 if busy else 2
 
