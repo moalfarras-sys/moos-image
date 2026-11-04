@@ -42,14 +42,23 @@
     "recoveryRetention": "base/recovery/<unique>/app plus old receipt and retained-app remain recovery consumers until exact data migration/owner-approved retirement or explicit remove-data; no automatic pruning"
   },
   "executed": {
-    "backend": "29 run,28 passed/1 opt-in real-Wine test skipped",
-    "runner": "16 run,15 passed/1 opt-in real-Wine test skipped; old9359 concurrent-control expected refusal retained separately",
+    "backend": "31 run,30 passed/1 opt-in real-Wine test skipped",
+    "runner": "17 run,16 passed/1 opt-in real-Wine test skipped; native lease control also runs with Arabic/space/quote helper path",
     "template": "9 run,8 passed/1 opt-in native template test skipped",
     "pinnedUpdates": "30 passed",
     "jobLanguage": "71 keys/71 bilingual phrases",
     "nativeSameFilesystemBind": "passed in isolated user/mount namespace, refused before traversal, canary unchanged",
     "fixedFilesystemReplay": "real update/ordinary remove/reinstall preserves document, settings and0600 permissions; explicit fixture delete removes only its own base; stable lock retained",
-    "whatsNew": "30 passed; retained original reader bounds and all prior entries; new card x86-only with capability wording"
+    "whatsNew": "30 passed; retained original reader bounds and all prior entries; new card x86-only with capability wording",
+    "independentReview": {
+      "base": "61267d9460b160a3053d744c7384ed8e6155a6d4",
+      "notificationFix": "7b5a5cbdc0ff4ee9e28ea6c7104abe911c16f7dc",
+      "sourceScope": "independent29 backend/16 runner/9 notifications, injected remove/reinstall publication failures; no additional P0 data-loss blocker",
+      "recoveryFinding": "existing recovery file could switch version then report failed; exact old612 negative retained",
+      "correction": "preflight recovery before download; reserve destination and old receipt before publication; delay commit and restore app/retained metadata on archive failure",
+      "correctionEvidence": "2 new controls pass; independent retained-marker unlink failure restores original retained tree and exact marker, retry preserves0600 data",
+      "storeSHA256": "fba4d28b5585453ccb978ba6495dba11ee5600ee1b3c933cd85966da02598a7a"
+    }
   },
   "qualification9359": {
     "source": {
@@ -93,7 +102,7 @@
   ],
   "privateEvidence": "test-results/execution-20261104/{windows-notepad4,windows-portable-data,integrated-9359b0f6}; captures remain local",
   "files": {
-    "system_files/usr/bin/moos-storectl": "feca19db6dca3d3eb5df7759ed229a24bf6d1930be54384b414d3868902ed3a7",
+    "system_files/usr/bin/moos-storectl": "fba4d28b5585453ccb978ba6495dba11ee5600ee1b3c933cd85966da02598a7a",
     "system_files/usr/bin/moos-run-foreign": "7e03cc4719ff43ed3ca17803a0d41548ac7f827ff21fd2f2cf5f2a9a1f0c6a42",
     "system_files/usr/lib/moos/moos_windows_portable.py": "60a0de4e1f4d330c8b28f59fda7157ae198cf6003d5f585b93d119c97cbb9291"
   },
@@ -103,5 +112,10 @@
     "repair": "use existing org.moos.store hint, declare only this exact sender/owner and execute its real refusal with a recording notifier; 9 notification controls pass",
     "nativeMonotonicSourceSeconds": 83.865449,
     "timing": "Wall-clock elapsed jumped during this check; retained raw receipt is not a performance duration. Native systemd monotonic start/exit above is authoritative; clock-change cause unknown, no clock writes performed."
+  },
+  "qualification7b5a5cbd": {
+    "source": "explicitly stopped root-owned full check for required independent-review recovery correction; no full-pass claim",
+    "fixtureFailure": "root checkout has Arabic and a space; source helper literal replacement split its path. Original assertions retained, shell/Python substitutions separately quote their source paths and new exact path control passes",
+    "image": "not started; preserve existing612 frozen native build"
   }
 }

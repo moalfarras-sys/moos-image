@@ -31,6 +31,7 @@ import os
 from pathlib import Path
 import re
 import shutil
+import shlex
 import subprocess
 import sys
 import tempfile
@@ -44,11 +45,12 @@ SOURCE = RUNNER.read_text(encoding="utf-8")
 PORTABLE = ROOT / "system_files/usr/lib/moos/moos_windows_portable.py"
 
 
-def private_runner(base: Path) -> Path:
+def private_runner(base: Path, helper: Path = PORTABLE) -> Path:
     """Use the source helper in a private runner, without a production environment bypass."""
     runner = base / "moos-run-foreign"
-    runner.write_text(SOURCE.replace("/usr/lib/moos/moos_windows_portable.py", str(PORTABLE)),
-                      encoding="utf-8")
+    adapted = SOURCE.replace('"/usr/lib/moos/moos_windows_portable.py"', repr(str(helper)))
+    runner.write_text(adapted.replace(" -I /usr/lib/moos/moos_windows_portable.py run ",
+                                     " -I " + shlex.quote(str(helper)) + " run "), encoding="utf-8")
     runner.chmod(0o755)
     return runner
 
@@ -384,6 +386,18 @@ class WindowsLifetimeLease(unittest.TestCase):
                 return True
         except self.helper.Error:
             return False
+
+    def test_source_helper_path_with_spaces_arabic_and_quote_runs_and_holds_lease(self):
+        folder = self.root / "helper's path عربي"
+        folder.mkdir()
+        helper = folder / "portable helper.py"
+        helper.write_bytes(PORTABLE.read_bytes())
+        self.runner = private_runner(self.root, helper)
+        process = self.start()
+        self.wait_until(self.ready.exists, "source helper path was split or misquoted")
+        self.assertFalse(self.exclusive_available())
+        self.release.touch()
+        self.assertEqual(process.wait(timeout=10), 0)
 
     def test_real_launch_holds_shared_lease_until_runtime_returns(self):
         process = self.start()

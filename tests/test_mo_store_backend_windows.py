@@ -22,6 +22,7 @@ import json
 import os
 from pathlib import Path
 import shutil
+import shlex
 import struct
 import subprocess
 import sys
@@ -640,6 +641,33 @@ class PortableData(WindowsFixture):
             with self.assertRaises(portable.Error): portable.snapshot(root)
         self.assertEqual((root / "canary").read_bytes(), b"keep")
 
+    def test_occupied_recovery_path_refuses_before_publishing_new_version(self):
+        paths, _ = self.installed()
+        (paths.app / "owner.txt").write_bytes(b"owner data")
+        occupied = paths.base / "recovery"; occupied.write_bytes(b"unknown occupied bytes")
+        before = {p: p.read_bytes() for p in (paths.record, paths.launcher,
+                  paths.app / "TinyTerm/tinyterm.exe", paths.app / "owner.txt", occupied)}
+        result = self.controller(self.second()).install([APP])
+        self.assertEqual(result[0], 1, result)
+        for p, data in before.items(): self.assertEqual(p.read_bytes(), data)
+        self.assertFalse((paths.base / ".app.previous").exists())
+
+    def test_failed_recovery_rename_rolls_back_published_metadata_and_program(self):
+        paths, _ = self.installed()
+        (paths.app / "owner.txt").write_bytes(b"owner data")
+        before = {p: p.read_bytes() for p in (paths.record, paths.launcher,
+                  paths.app / "TinyTerm/tinyterm.exe", paths.app / "owner.txt")}
+        original = Path.rename
+        def refuse_archive(path, target):
+            if path.name == ".app.previous" and Path(target).parent.parent.name == "recovery":
+                raise OSError("injected recovery archive rename failure")
+            return original(path, target)
+        with mock.patch.object(Path, "rename", refuse_archive):
+            result = self.controller(self.second()).install([APP])
+        self.assertEqual(result[0], 1, result)
+        for p, data in before.items(): self.assertEqual(p.read_bytes(), data)
+        self.assertFalse((paths.base / ".app.previous").exists())
+
 
 @unittest.skipUnless(Path("/bin/bash").exists() and shutil.which("python3", path="/usr/bin:/bin"),
                      "needs bash and python3")
@@ -675,8 +703,10 @@ class RunForeignApp(Isolated):
                        "XDG_STATE_HOME": str(self.home / ".local/state"),
                        "CALLS": str(self.calls), **extra}
         source = self.base / "source-runner"
-        source.write_text(RUNNER.read_text().replace("/usr/lib/moos/moos_windows_portable.py",
-                          str(ROOT / "system_files/usr/lib/moos/moos_windows_portable.py")))
+        helper = ROOT / "system_files/usr/lib/moos/moos_windows_portable.py"
+        adapted = RUNNER.read_text().replace('"/usr/lib/moos/moos_windows_portable.py"', repr(str(helper)))
+        source.write_text(adapted.replace(" -I /usr/lib/moos/moos_windows_portable.py run ",
+                          " -I " + shlex.quote(str(helper)) + " run "))
         return subprocess.run(["bash", str(source), *argv], env=environment, text=True,
                               capture_output=True, timeout=60)
 

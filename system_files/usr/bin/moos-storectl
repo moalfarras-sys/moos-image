@@ -2798,6 +2798,10 @@ class Controller:
             portable.snapshot(previous)
             previous.rename(paths.app)
         source = paths.app if paths.app.exists() else retained
+        recovery = paths.base / "recovery"
+        if recovery.exists() or recovery.is_symlink():
+            portable.no_mounts(recovery)
+            portable._directory(recovery)
         baseline = old_record.get("publisher_files")
         if retained.exists() or retention.exists():
             if paths.app.exists() or retained.is_symlink() or retention.is_symlink():
@@ -2823,6 +2827,7 @@ class Controller:
                                          message="Downloading from the publisher",
                                          message_key="downloading_file")
         swapped = committed = stage_created = False
+        recovery_destination = None
         old_snapshot = None
         try:
             paths.base.mkdir(mode=0o700, parents=True, exist_ok=True)
@@ -2867,6 +2872,14 @@ class Controller:
             if source.exists():
                 publisher, old_snapshot = portable.carry(
                     source, staging, baseline, lambda: self._cancelled(job))
+                # Reserve and write the recovery receipt before exposing a new
+                # program/record. An occupied, read-only or full destination must
+                # leave the working installation at its original launch path.
+                portable._directory(recovery, create=True)
+                portable.no_mounts(recovery)
+                recovery_destination = Path(tempfile.mkdtemp(dir=recovery))
+                _write_json(recovery_destination / "receipt.json",
+                            old_record if source == paths.app else portable.read_receipt(retention))
             else:
                 publisher = portable.snapshot(staging, lambda: self._cancelled(job))
             if fresh_prefix:
@@ -2898,30 +2911,17 @@ class Controller:
                 "publisher_files": publisher,
                 "installed_at": int(time.time()),
             })
-            committed = True
             # Retain the entire predecessor, including late external writes. A
             # bypass launch is not covered by the canonical runner's lifetime lease.
             if previous.exists():
-                recovery = paths.base / "recovery"
-                if recovery.is_symlink():
-                    raise portable.Error("unsafe_path")
-                recovery.mkdir(mode=0o700, exist_ok=True)
-                portable._owned(recovery.lstat(), directory=True)
-                destination = recovery / secrets.token_hex(16)
-                destination.mkdir(mode=0o700)
-                _write_json(destination / "receipt.json", old_record)
-                previous.rename(destination / "app")
+                assert recovery_destination is not None
+                previous.rename(recovery_destination / "app")
             if retained.exists():
                 # The removed installation remains a recoverable predecessor.
-                recovery = paths.base / "recovery"
-                if recovery.is_symlink():
-                    raise portable.Error("unsafe_path")
-                recovery.mkdir(mode=0o700, exist_ok=True)
-                portable._owned(recovery.lstat(), directory=True)
-                destination = recovery / secrets.token_hex(16)
-                destination.mkdir(mode=0o700)
-                retained.rename(destination / "app")
-                retention.rename(destination / "receipt.json")
+                assert recovery_destination is not None
+                retained.rename(recovery_destination / "app")
+                retention.unlink()
+            committed = True
             appdrop.refresh_menu()
         except BaseException:
             if stage_created:
@@ -2938,6 +2938,12 @@ class Controller:
                 if previous.exists() and not paths.app.exists():
                     with contextlib.suppress(OSError):
                         previous.rename(paths.app)
+                # The old tree may already be in its reserved recovery location
+                # when a later pre-commit operation fails (e.g. retained receipt unlink).
+                if recovery_destination is not None and (recovery_destination / "app").exists():
+                    original = paths.app if source == paths.app else retained
+                    if not original.exists():
+                        (recovery_destination / "app").rename(original)
                 for target in (paths.record, paths.launcher):
                     if target in metadata:
                         payload, mode = metadata[target]
