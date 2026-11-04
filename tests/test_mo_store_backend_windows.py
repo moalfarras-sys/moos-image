@@ -481,6 +481,7 @@ class PortableData(WindowsFixture):
         (paths.app / "preferences.ini").chmod(0o600)
         (paths.app / "private").mkdir(mode=0o700)
         (paths.app / "private/token.txt").write_bytes(b"synthetic private data")
+        paths.app.chmod(0o700)
         for version in ("2.0", "3.0"):
             recipe = self.second(); recipe["install"]["version"] = version
             controller = self.controller(recipe)
@@ -488,6 +489,7 @@ class PortableData(WindowsFixture):
             self.assertEqual((paths.app / doc).read_bytes(), "معيار MoOS".encode())
             self.assertEqual((paths.app / "preferences.ini").stat().st_mode & 0o777, 0o600)
             self.assertEqual((paths.app / "private").stat().st_mode & 0o777, 0o700)
+            self.assertEqual(paths.app.stat().st_mode & 0o777, 0o700)
             manifest = json.loads(paths.record.read_text())["publisher_files"]
             self.assertNotIn(doc, manifest)
             self.assertNotIn("preferences.ini", manifest)
@@ -498,6 +500,7 @@ class PortableData(WindowsFixture):
         self.assertEqual((paths.base / "retained-app" / doc).read_bytes(), "معيار MoOS".encode())
         self.assertEqual(controller.install([APP])[0], 0)
         self.assertEqual((paths.app / doc).read_bytes(), "معيار MoOS".encode())
+        self.assertEqual(paths.app.stat().st_mode & 0o777, 0o700)
         self.assertEqual(controller.remove(APP, delete_data=True)[0], 0)
         self.assertFalse(paths.base.exists())
 

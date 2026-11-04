@@ -253,6 +253,7 @@ def snapshot(root: Path, cancelled: Callable[[], bool] = lambda: False) -> dict:
 def carry(root: Path, stage: Path, baseline: object, cancelled: Callable[[], bool]) -> tuple[dict, dict]:
     """Return pristine NEW publisher manifest and stable OLD tree snapshot."""
     old_publisher = validate_manifest(baseline)
+    root_mode = stat.S_IMODE(root.lstat().st_mode)
     old = snapshot(root, cancelled)
     new = snapshot(stage, cancelled)
     # A changed publisher file is user data too. Never silently replace it.
@@ -298,6 +299,9 @@ def carry(root: Path, stage: Path, baseline: object, cancelled: Callable[[], boo
             os.chmod(stage / name, item["mode"], follow_symlinks=False)
     if snapshot(root, cancelled) != old or snapshot(stage, cancelled) != expected:
         raise Error("data_changed")
+    if stat.S_IMODE(root.lstat().st_mode) != root_mode:
+        raise Error("data_changed")
+    os.chmod(stage, root_mode, follow_symlinks=False)
     return new, old
 
 
