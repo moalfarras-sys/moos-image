@@ -2,8 +2,10 @@
 """Hold release-critical CI invariants that have failed in production."""
 
 from pathlib import Path
+import json
 import os
 import re
+import shutil
 import stat
 import subprocess
 import tempfile
@@ -54,6 +56,106 @@ def workflow_job(text: str, job_name: str) -> str:
 
 
 class ReleaseWorkflowSafetyTests(unittest.TestCase):
+    def test_controller_keeps_one_locked_install_and_every_source_gate(self) -> None:
+        text = WORKFLOW.read_text(encoding="utf-8")
+        job = workflow_job(text, "build-push-sign")
+        tests = workflow_run_script(job, "Controller tests (TypeScript)")
+        bundle = workflow_run_script(job, "Controller bundle is built from the committed source")
+        self.assertLess(job.index("- name: Controller tests (TypeScript)"),
+                        job.index("- name: Controller bundle is built from the committed source"))
+        self.assertEqual(re.findall(r"(?m)^\s*npm (?:ci|install)\b.*$", job),
+                         ["          npm ci --no-audit --no-fund"])
+        self.assertLess(tests.index("npm ci --no-audit --no-fund"), tests.index("npm test"))
+        self.assertIn("node --experimental-strip-types tests/bundle-freshness.test.ts", tests)
+        positions = [bundle.index(command) for command in (
+            "npm run typecheck", 'bash "${GITHUB_WORKSPACE}/scripts/npm-audit-gate.sh" high',
+            "npm run build", "git diff --quiet -- moremote/agent/wwwroot",
+        )]
+        self.assertEqual(positions, sorted(positions))
+        controller = ROOT / "moremote/controller"
+        package = json.loads((controller / "package.json").read_text(encoding="utf-8"))
+        commands = package["scripts"]["test"].split(" && ")
+        expected = {f"node --import=tsx tests/{path.name}"
+                    for path in (controller / "tests").glob("*.test.ts")
+                    if path.name != "bundle-freshness.test.ts"}
+        self.assertEqual(set(commands), expected)
+        self.assertEqual(len(commands), len(expected), "each controller test runs once")
+
+    @unittest.skipUnless(shutil.which("npm") and shutil.which("node"),
+                         "native dependency-order replay needs npm and Node")
+    def test_clean_controller_install_order_executes_and_fails_closed(self) -> None:
+        # Execute the workflow's actual install/test commands with real npm and
+        # an offline file dependency. This catches a clean-runner failure that a
+        # contributor's existing node_modules hides, without registry access or
+        # installing the whole controller in the Python-only source gate.
+        text = WORKFLOW.read_text(encoding="utf-8")
+        scripts = [workflow_run_script(text, name) for name in (
+            "Controller tests (TypeScript)",
+            "Controller bundle is built from the committed source",
+        )]
+        commands = [line for script in scripts for line in script.splitlines()
+                    if re.fullmatch(r"npm (?:ci(?: .*)?|test)", line)]
+        self.assertEqual(len(commands), 2)
+        install = next(command for command in commands if command.startswith("npm ci"))
+        with tempfile.TemporaryDirectory(prefix="moos-controller-order-") as raw:
+            private = Path(raw)
+            for case in ("old-order", "workflow-order", "invalid-lock"):
+                with self.subTest(case=case):
+                    work = private / case
+                    dependency = work / "dependency"
+                    dependency.mkdir(parents=True)
+                    (dependency / "package.json").write_text(json.dumps({
+                        "name": "controller-install-proof", "version": "1.0.0",
+                        "type": "module", "exports": "./index.js",
+                    }), encoding="utf-8")
+                    (dependency / "index.js").write_text(
+                        'export const ready = "locked dependency loaded";\n', encoding="utf-8")
+                    (work / "package.json").write_text(json.dumps({
+                        "name": "controller-order-fixture", "version": "1.0.0",
+                        "private": True, "scripts": {"test": "node test.mjs"},
+                        "devDependencies": {"controller-install-proof": "file:dependency"},
+                    }), encoding="utf-8")
+                    lock = work / "package-lock.json"
+                    lock.write_text(json.dumps({
+                        "name": "controller-order-fixture", "version": "1.0.0",
+                        "lockfileVersion": 3, "requires": True, "packages": {
+                            "": {"name": "controller-order-fixture", "version": "1.0.0",
+                                 "devDependencies": {"controller-install-proof": "file:dependency"}},
+                            "dependency": {"version": "1.0.0", "dev": True},
+                            "node_modules/controller-install-proof": {
+                                "resolved": "dependency", "link": True},
+                        },
+                    }) if case != "invalid-lock" else "invalid JSON", encoding="utf-8")
+                    lock_before = lock.read_bytes()
+                    (work / "test.mjs").write_text(
+                        'import assert from "node:assert/strict";\n'
+                        'import {writeFileSync} from "node:fs";\n'
+                        'import {ready} from "controller-install-proof";\n'
+                        'assert.equal(ready, "locked dependency loaded");\n'
+                        'writeFileSync("executed", ready);\n', encoding="utf-8")
+                    for config in ("user.npmrc", "global.npmrc"):
+                        (work / config).touch()
+                    env = {key: value for key, value in os.environ.items()
+                           if not key.lower().startswith("npm_config_") and key != "NODE_ENV"}
+                    env.update(HOME=str(work), NODE_OPTIONS="", NODE_PATH="",
+                               npm_config_userconfig=str(work / "user.npmrc"),
+                               npm_config_globalconfig=str(work / "global.npmrc"),
+                               npm_config_cache=str(work / "cache"), npm_config_offline="true",
+                               npm_config_audit="false", npm_config_fund="false")
+                    self.assertFalse((work / "node_modules").exists())
+                    script = "\n".join(["npm test", install] if case == "old-order" else commands)
+                    result = subprocess.run(["bash", "-eu", "-o", "pipefail", "-c", script],
+                                            cwd=work, env=env, capture_output=True, text=True, timeout=30)
+                    self.assertEqual(lock.read_bytes(), lock_before)
+                    if case == "workflow-order":
+                        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+                        self.assertEqual((work / "executed").read_text(), "locked dependency loaded")
+                    else:
+                        self.assertNotEqual(result.returncode, 0, result.stdout + result.stderr)
+                        self.assertFalse((work / "executed").exists())
+                        self.assertRegex(result.stderr, "ERR_MODULE_NOT_FOUND" if case == "old-order"
+                                         else r"EUSAGE|EJSONPARSE")
+
     def test_main_candidate_is_not_cancelled_by_a_delayed_nightly(self) -> None:
         text = WORKFLOW.read_text(encoding="utf-8")
         concurrency = text.split("concurrency:", 1)[1].split("\njobs:", 1)[0]
