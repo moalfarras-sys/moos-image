@@ -305,6 +305,21 @@ generations, links and backup collisions remain refusals. Reuse Node/JDK/Ghidra;
 a normal client restart selects new code, never kill the engineering session or
 remove an active generation to manufacture an update.
 
+**A passing PR test is not a clean release runner.** The signed x86 cycle
+failed before images because the new pinned tsx runner was installed only after
+npm test. Keep one locked install before every controller test and retain
+all original tests, typecheck, audit and compiled-bundle byte checks. Preserve
+the real missing-module old control and invalid-lock refusal; use a fresh
+first-attempt candidate after fixing source, never rerun the failed proof.
+
+**A living gateway is not a configured answering brain.** Native Mira showed
+free cloud as answering while both current routes lacked setup. Read the existing
+merged configuration owner, distinguish configuration/liveness/latest outcome,
+and describe the actual next TextBrain attempt. A saved rejected Gemini key is
+tried again; a past cloud answer never changes that executor policy. Keep the
+old actual-owner refusal, strict status shapes and existing setup destination.
+Source/native review pixels do not establish inference or signed delivery.
+
 ## Where the rest of the knowledge is
 
 **A downloaded collection is not a wallpaper package.** Native KNewStuff can install a flat image archive then fail its Use command on a wildcard folder. Keep the actual old refusal; use the native picker and bounded raster admission, then delegate to the original appearance owner. Preserve the native provider/version/warning/install bytes and registry identity, Kiosk restrictions, edited/link-cache refusals and cancellation without mutation. A QWidget KCM needs an embedded ApplicationItem/PageRow for native detail pages; its offscreen Window is not a dialog parent. Compile child types before accepting the root ready marker and retain the broken-child negative.

@@ -1,0 +1,94 @@
+{
+  "schema": 1,
+  "date": "2026-11-04",
+  "plan": [
+    "P0.1",
+    "P3.1"
+  ],
+  "implementationCommits": [
+    "f66eaae6",
+    "5ab5db433b5af9b87a6b72c0dd0f21f9af206f9b"
+  ],
+  "sourceSha256": {
+    "mira/pages/brain.py": "7daa3c309be0d4d34e5ed8b490f5b7a6d58838e38116ca0aa07153ac7f66d205",
+    "mira/qml/Mira/BrainPage.qml": "299065eadf1dff16c79362b2bae987b472a05eab466004cd28d31019a37e7598",
+    "mira/test_page_brain.py": "706daf756e81dc0cf41066b5ec6984a27a2bbf14320227670b392d5240873927",
+    ".github/workflows/build.yml": "6bcd96556baedbaeb18aa009de6220319fecf79128e84f5442d9f283872120bf",
+    "tests/test_release_workflow_safety.py": "f32551ac3107dca66a2f71c9a7a38d415542f11c563d3c07d18c971ef2062805"
+  },
+  "releaseRefusal": {
+    "sha": "aa5f650815fe6c7d2cddb6ade6c1cac8e53cade3",
+    "selectedRun": 41780525795,
+    "mainPushRun": 41780347780,
+    "reason": "Clean x86 runner executes npm test importing tsx before its later npm ci. No x86 candidate image produced, no x86 promotion or host staging.",
+    "retained": true,
+    "newCandidateRequired": true
+  },
+  "releaseCorrection": {
+    "scope": "Move the sole existing locked npm ci before controller tests; preserve all17tests, typecheck, freshness, audit, rebuild and13-file bundle comparison",
+    "safetyControls": 21,
+    "nativeNodeVersions": [
+      "26.12.0",
+      "22.23.1"
+    ],
+    "ciNodeVersionNotInstalledLocally": "22.23.4",
+    "nativeOldCleanExits": [
+      1,
+      1
+    ],
+    "nativeFixedCleanExits": [
+      0,
+      0
+    ],
+    "bundleFilesIdentical": 13,
+    "invalidLockStopsBeforeTests": true,
+    "tier1": false
+  },
+  "mira": {
+    "baseline": "Actual installed1119 Brain page presents free cloud as answering while current redacted direct key is absent and /quick says gateway=true/cloud=false.",
+    "owner": "Existing BrainPage/Python page state; actual brain.TextBrain attempt order and moai-control /quick merged cloud configuration",
+    "fix": "Label next typed attempt separately from saved configuration and prior answer; explicit needs-setup, unknown, unavailable, configured/unverified, testing and last-failed states. No model execution, authentication, key storage, free/paid or permission policy change.",
+    "controls": {
+      "pageSuite": 44,
+      "textBrainSuite": 40,
+      "chatUiSuite": 44,
+      "cloudConfigurationLivenessPairs": 4,
+      "invalidOrContradictoryInputs": 8,
+      "oldActualTypingOwnerFailure": 1,
+      "rootInspectedActualRoutingAndStrictBoolStatusOwner": true,
+      "extraIndependentReviewer": "unavailable; agent usage-limit failure, not counted as review"
+    },
+    "native": {
+      "host": "V3",
+      "boot": "c374ac47-2c32-47e9-abe5-832819ed7dbd",
+      "signedInstalledVersion": "44.20261031.1119",
+      "output": "eDP-1 2560x1600 scale1.45 Wayland",
+      "before": "Canonical installed Mira, Brain page actual native active-window pixels",
+      "after": "Canonical installed launcher with scoped MIRA_APP pointing at existing source checkout; real local APIs/personal appearance, no review fakes. Not an immutable installation.",
+      "visibleResult": "Needs-provider-setup warning and existing settings action paint clearly in Arabic; cloud chain is unavailable.",
+      "setupInteraction": "Guarded native pointer enters existing moos://settings/assistant destination; current KCM opens and displays missing setup/key. No changes applied.",
+      "loadedKcm": "/usr/lib64/qt6/plugins/plasma/kcms/systemsettings/kcm_moos_ai.so",
+      "loadedKcmSha256": "cc1978a74362d10db696e4f72782eb167141ac958ff567e6e8886ce6c27fcd21",
+      "qmlErrorLines": 0,
+      "normalReviewExit": 0,
+      "captures": "Private only; actual active-window and whole-display comparison retained",
+      "contraryControls": "Initial missing qdbus CLI and wrong native method refused readback; introspected getWindowInfo succeeds. Absolute pointer movement readback refused before click; measured relative movement reaches exact button and click succeeds. No input policy changes.",
+      "inputScope": "Simulated pointer, not physical touch/pen",
+      "compatibilityCopy": "No source copy or persistent override; existing source checkout used for one exited process. MIRA_APP environment expires with that process."
+    },
+    "remaining": [
+      "No provider inference/key-validity/billing/quota/network or voice acceptance",
+      "No signed installed delivery of this Mira correction",
+      "Broader adaptive layout, keyboard/accessibility/tablet acceptance remains in current plan"
+    ]
+  },
+  "armBoundary": {
+    "source": "aa5f650815fe6c7d2cddb6ade6c1cac8e53cade3",
+    "run": 41780347829,
+    "attempt": 1,
+    "version": "44.20261104.890",
+    "digest": "sha256:c70e0a3a44f978b8b1785c7978a613ed7505c8337fff1bcf2710036f7dc50849",
+    "workflowResult": "Native build, final qcow2 boot/reboot/poweroff and promotion successful; separate from failed x86 cycle and not physical tablet acceptance.",
+    "newSourceNeedsNewArmProof": true
+  }
+}
