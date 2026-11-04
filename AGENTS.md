@@ -143,6 +143,13 @@ run dracut and create unowned rpm-state/kernel. Do not erase that state broadly
 or relax the final image gate. Require native old/fixed evidence and byte-level
 stock kernel readback as well as the complete canary image gates.
 
+**A same-version rebuild can change the compositor.** Native kwin6.8.2-3
+adds KDE's missing-render-device guard where -2 changed only devel macros.
+Preserve the actual exact-package refusal, signed source/RPM comparison,
+unchanged seams/kernel and loaded greeter controls before accepting that exact
+rebuild. A private old/fixed predicate is not a physical DisplayLink journey or
+proof that an unrelated USB4/IOMMU fault is repaired.
+
 **A shared package cache is not a transaction lease.** Two native full builds
 used the same DNF cache: one completed while the other was inside a successful
 SELinux postscript, then the latter could no longer install its remaining RPM
