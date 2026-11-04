@@ -24,11 +24,12 @@ PageFrame {
     readonly property var last: st.last || ({})
     readonly property var perms: st.permissions || ({})
     readonly property var health: st.gemini_health || ({})
-    // One truth, derived by the page from brain.TextBrain's rule (pages/brain.py `_derived`): Gemini
-    // answers first whenever a key is saved, unless the latest proof says it is rejected or missing.
+    // The next attempt follows TextBrain, separately from configuration and the last outcome.
     readonly property string keyStatus: st.key_status || "unknown"
     readonly property bool keyPresent: ["set", "ok", "testing", "failed"].indexOf(page.keyStatus) >= 0
     readonly property string routeNow: st.route_now || ""
+    readonly property string routeState: st.route_state || "unknown"
+    readonly property string cloudRouteState: st.cloud_route_state || "unknown"
     readonly property bool geminiUsable: page.routeNow === "gemini"
     readonly property bool keyRejected: page.keyStatus === "failed" && ["auth", "config"].indexOf(page.health.reason) >= 0
     // A pick that left the catalogue is refused by the gateway, so Mo AI's setting answers instead.
@@ -283,6 +284,15 @@ PageFrame {
                                   : page.ownPick ? page.rowLabel(st.cloud_model)
                                   : page.bidi(mira.s.br_moai_setting + (page.cloudUses ? " · " + page.rowLabel(page.cloudUses) : ""))
                         }
+                        T { horizontalAlignment: Text.AlignLeft; Layout.fillWidth: true; font.pixelSize: Theme.small
+                            color: page.routeState === "configured" ? Theme.ink2 : Theme.amber
+                            text: page.word("br_route_" + page.routeState.replace(/-/g, "_"))
+                            maximumLineCount: 3; elide: Text.ElideRight }
+                        PillButton {
+                            visible: page.routeNow === "moai-cloud" && ["needs-setup", "unavailable"].indexOf(page.routeState) >= 0
+                            text: mira.s.br_provider_settings; iconName: "settings"; size: Theme.small
+                            onClicked: mira.brainPage.openProviderSettings()
+                        }
                         // Gemini is still asked first, but its latest proof failed: say why (never hide it).
                         RowLayout {
                             visible: page.routeNow === "gemini" && !!st.gemini_warning
@@ -356,11 +366,13 @@ PageFrame {
             Flow {
                 Layout.fillWidth: true
                 spacing: 8
-                Step { label: "Gemini"; icon: "sparkle"; accent: Theme.violet; first: page.routeNow === "gemini"; unavailable: !page.geminiUsable
-                       warned: page.geminiUsable && !!st.gemini_warning
+                Step { label: "Gemini"; icon: "sparkle"; accent: Theme.violet; first: page.routeNow === "gemini"; unavailable: !page.keyPresent
+                       warned: page.keyStatus === "failed"
                        answered: page.last.route === "gemini" && page.last.status === "ok" }
                 Arrow {}
                 Step { label: mira.s.br_route_cloud; icon: "cloud"; accent: Theme.cyan; first: page.routeNow === "moai-cloud"
+                       unavailable: page.cloudRouteState !== "configured"
+                       warned: page.ctest.state === "failed"
                        answered: page.last.route === "moai-cloud" && page.last.status === "ok" }
                 Arrow {}
                 Step { label: mira.s.br_route_router; icon: "bolt"; accent: Theme.mint; answered: page.last.route === "router" && page.last.status === "ok" }
