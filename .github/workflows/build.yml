@@ -225,9 +225,8 @@ jobs:
       - name: Gate dependencies
         run: sudo apt-get update -qq && sudo apt-get install -y -qq python3-pil
 
-      # The controller's TypeScript tests need a Node that can strip types
-      # (--experimental-strip-types, 22.6+). They import only node: builtins and the
-      # source under test, so no npm install is required.
+      # The controller's TypeScript tests use the lockfile-pinned tsx runner.
+      # Install it before npm test: a clean release runner has no node_modules.
       - name: Node for the controller tests
         uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
         with:
@@ -242,6 +241,7 @@ jobs:
       - name: Controller tests (TypeScript)
         working-directory: moremote/controller
         run: |
+          npm ci --no-audit --no-fund
           npm test
           node --experimental-strip-types tests/bundle-freshness.test.ts
 
@@ -259,7 +259,6 @@ jobs:
       - name: Controller bundle is built from the committed source
         run: |
           cd moremote/controller
-          npm ci --no-audit --no-fund
           npm run typecheck
           # Not `npm audit` inline: on 2026-09-19 that failed all three signed
           # builds because npm's audit endpoint returned 400 while retiring,
