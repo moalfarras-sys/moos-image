@@ -1,0 +1,103 @@
+{
+  "schema": 1,
+  "date": "2026-11-03",
+  "plan": [
+    "P0.1",
+    "P6.7"
+  ],
+  "sourceBase": "a88b909ffe54ecd34462a6de11d035fcf20b4b58",
+  "scope": "Locked build/development dependencies and their actual callers; no live owner profile/app replacement or provider/device action. Complete final integrated gates and signed delivery pending.",
+  "pins": {
+    "glob": "14.0.2",
+    "minimatch": "11.0.1",
+    "tsx": "4.23.15",
+    "reaUnchanged": "6.7.0",
+    "zodRetained": "4.6.6",
+    "filelistRetained": "1.0.6"
+  },
+  "advisories": [
+    {
+      "id": "GHSA-3g3m-2fjr-6pw4",
+      "source": "https://github.com/isaacs/node-glob/security/advisories/GHSA-3g3m-2fjr-6pw4",
+      "fixedInSource": "glob14.0.2"
+    },
+    {
+      "id": "GHSA-g3hv-75wg-m249",
+      "source": "https://github.com/isaacs/minimatch/security/advisories/GHSA-g3hv-75wg-m249",
+      "fixedInSource": "minimatch11.0.1 in both locks, including legacy FileList consumer"
+    },
+    {
+      "id": "GHSA-gcqx-w48m-w2h4",
+      "source": "https://github.com/TehShrike/deepmerge/issues/273",
+      "status": "Open; npm latest4.3.1 has no patched release. Controller build-only chain; not dismissed or declared fixed."
+    }
+  ],
+  "audit": {
+    "analysisProfile": {
+      "all": 0
+    },
+    "controllerProduction": 0,
+    "controllerAll": {
+      "lowDependencyChains": 4,
+      "underlyingLowAdvisories": 1,
+      "moderate": 0,
+      "high": 0,
+      "critical": 0
+    },
+    "scope": "Actual registry reports after locked installation; optional installed workstation REA remains on its previous reviewed profile."
+  },
+  "nativeControls": {
+    "globOld": "13.0.6 rejects cancellation then performs117 additional private directory reads",
+    "globFixed": "14.0.2 rejects cancellation and performs0 reads after rejection",
+    "unicode": "Minimatch/Frida API behavior, legacy FileList121 Unicode matches, Electron ASAR Unicode archive roundtrip pass",
+    "cli": "Fresh source profile npm ci --ignore-scripts and REA6.7.0 CLI help pass; no native process/provider inspection",
+    "manifest": "Updated exact lock SHA256; no Node/JDK/Ghidra/VM copies created"
+  },
+  "node26": {
+    "old": "The original npm test exits9 on removed --experimental-transform-types; strip-only mode also rejects existing TypeScript parameter properties. Controls retained.",
+    "fixed": "Pinned local tsx loader runs all17 original test files; no skipped/replaced assertions. TypeScript typecheck and production build pass.",
+    "primary": "https://nodejs.org/api/typescript.html"
+  },
+  "browser": {
+    "engine": "Existing cached native Chromium1247, private test-owned loopback server and intercepted transport",
+    "sourceBundle": "Production build is byte-identical to tracked wwwroot; JS/CSS/index/worker files unchanged",
+    "oldRefusal": "Uncontrolled native4g/1.45Mbps caused correct Balanced68 while the geometry fixture expectedSharp80. Actual1920x1080/8core/32GB hint receipt retained.",
+    "fixed": "Declare capable8core/8GB and fast4g/10Mbps inputs for existing geometry assertion80, plus same-wide-laptop constrained1.45Mbps assertion68. Silent/unknown-link controls preserved; no production quality policy change.",
+    "result": "Complete browser suite passes6 reported groups: recovery, keyboard/auth, real mouse/touch coexistence, console, greeter AR/EN and Unicode/IME/rotation/input isolation. Transport is intercepted, not live Remote or physical touch qualification.",
+    "resource": "Optional executable path reuses existing cached browser; no new browser download or blanket permissions."
+  },
+  "auditGate": {
+    "old": "Explicit moderate requested a report containing1 moderate finding, yet returned0 and printed no moderate-or-worse",
+    "fixed": "Respect stricter requested levels and name advisories. Keep default high policy; weaker/disable arguments refuse. Require actual npm status0/1 and a consistent native per-severity advisory map/count histogram; explicit errors, malformed counts/shapes, contradictory metadata and unexplained command failures remain unknown/nonzero.",
+    "tests": 13,
+    "oldFixedControl": {
+      "oldExit": 0,
+      "fixedExit": 1
+    },
+    "registryRetryAndFailure": "Preserved ordinary bounded retry and failure; no bypass or clean result on unknown audit.",
+    "additionalOldFixedControls": [
+      {
+        "case": "explicit error with zero metadata",
+        "oldExit": 0,
+        "fixedExit": 1
+      },
+      {
+        "case": "high advisory hidden by zero metadata",
+        "oldExit": 0,
+        "fixedExit": 1
+      },
+      {
+        "case": "clean stdout with npm exit7",
+        "oldExit": 0,
+        "fixedExit": 1
+      }
+    ],
+    "nativeRegistryReadback": "Actual controller npm audit at the default high threshold passes with the retained four low-only dependency chains; no audit advisory dismissed."
+  },
+  "remaining": [
+    "Unpatched low build-only deepmerge advisory",
+    "Existing live optional workstation REA profile not replaced; no source qualification counted as installed tool update",
+    "Final full integrated source/image/CI and signed OS delivery",
+    "Existing Code active-tree lifecycle, Chromium named Arabic fallback and hardware faults remain in the single product plan"
+  ]
+}

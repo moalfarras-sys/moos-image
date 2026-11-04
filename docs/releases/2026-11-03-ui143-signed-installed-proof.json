@@ -1,0 +1,86 @@
+{
+  "schema": 1,
+  "revision": "fc97ef3bca6e7dba14d99ebcdfa0001ff7787adb",
+  "qualificationSource": "9c483f910293484979c01b7b49392133a18c1133",
+  "runs": {
+    "genericDisk": 41257930107,
+    "nvidiaDisk": 41257932541,
+    "cloudDisk": 41257935273,
+    "iso": 41257937816,
+    "arm": 41233797393,
+    "build": 41233801449,
+    "promotion": 41287556367
+  },
+  "editions": {
+    "moos": {
+      "digest": "sha256:f1d7d472dfe978951927a31e9b0e6f0e5bf1e9766fe66db740fb9ae888ebfa29",
+      "version": "44.20261031.1119",
+      "revision": "fc97ef3bca6e7dba14d99ebcdfa0001ff7787adb",
+      "signatureVerified": true
+    },
+    "moos-nvidia": {
+      "digest": "sha256:d081d0f2136934fa48d53c082375fa98864a3381410930bc979c95e21c1b3f10",
+      "version": "44.20261031.1119",
+      "revision": "fc97ef3bca6e7dba14d99ebcdfa0001ff7787adb",
+      "signatureVerified": true
+    },
+    "moos-cloud": {
+      "digest": "sha256:8dcfe136190137291022b768a8ef9d90c7db4376e7e69f7a2ec3d25205217352",
+      "version": "44.20261031.1119",
+      "revision": "fc97ef3bca6e7dba14d99ebcdfa0001ff7787adb",
+      "signatureVerified": true
+    },
+    "moos-arm": {
+      "digest": "sha256:d2ff9cdbcd6aa1dfbe8e259b1af338c2bb6ff6467971e1fd1e8013f6e3d31cec",
+      "version": "44.20261031.884",
+      "revision": "fc97ef3bca6e7dba14d99ebcdfa0001ff7787adb",
+      "signatureVerified": true
+    }
+  },
+  "isoSHA256": "5945853a90cf2c848a72aa5ac851618c575a4e9274e6a5254bfe84526da50bb3",
+  "observedDate": "2026-11-03",
+  "artifactChecks": {
+    "passed": 402,
+    "total": 402,
+    "requiredStepsSkipped": 0,
+    "attempt": 1
+  },
+  "isoArchive": {
+    "bytes": 5955256320,
+    "sha256": "5945853a90cf2c848a72aa5ac851618c575a4e9274e6a5254bfe84526da50bb3",
+    "signatureVerified": true,
+    "publicAvailability": false
+  },
+  "physicalV3": {
+    "bootID": "09a7158e-bf24-4f8d-96dd-d2431ca0b99f",
+    "version": "44.20261031.1119",
+    "checksum": "f1821c8c3345052a76a6b8be4217d37d9aec315e663f65a27795be851a6b39eb",
+    "rollbackVersion": "44.20261029.1114",
+    "pinnedVersion": "44.20261019.1078",
+    "canonicalPayloads": 93,
+    "payloadMismatches": 0,
+    "selfcheck": {
+      "passed": 44,
+      "notes": 1,
+      "failed": 0
+    },
+    "postcheck": {
+      "passed": 46,
+      "failed": 0
+    },
+    "failedSystemUnits": 0,
+    "failedUserUnits": 0,
+    "kernel": "7.2.13-200.fc44.x86_64",
+    "genericSans": "Meyar Sans",
+    "genericMono": "Meyar Mono",
+    "genericFontRoot": "/usr/share/fonts/meyar",
+    "appearance": "Personal MoOS native choice preserved; selected look/cache/current palette/font/raster agree",
+    "display": "DP-11 3840x2160@60, scale2.5, logical1536x864; internal panel disabled"
+  },
+  "limits": [
+    "Physical NVIDIA/Oracle installation is not established by V3 or CI proof.",
+    "Public1046 remains the last anonymous full/range-verified download;1119 is locally archived, not public hosting.",
+    "Native font/health acceptance does not qualify all apps, languages, devices, authentication or endurance.",
+    "The earlier release wrapper stopped without a final exit receipt; its existing run IDs were independently verified and promotion completed."
+  ]
+}

@@ -36,8 +36,10 @@ on:
       - "build_files/finalize_canary_base.py"
       - "build_files/finalize_root_home.py"
       - "build_files/prepare_plasma_canary_base.py"
+      - "build_files/plasma_canary_version.py"
       - "build_files/plasma_stable/**"
       - "tests/test_plasma_canary_compose.py"
+      - "tests/test_plasma_canary_version.py"
       - ".github/workflows/plasma-next-canary.yml"
 
 concurrency:
@@ -91,6 +93,7 @@ jobs:
       # without autoremove in this experimental base only. MoOS uses KWin's keyboard layouts;
       # this must never erase KDE/authentication dependencies or skip the newest-version check.
       - name: Compose the base with the next Plasma
+        id: compose
         run: |
           set -euo pipefail
           out="$RUNNER_TEMP/plasma-next"
@@ -109,20 +112,29 @@ jobs:
           buildah build --layers -f "$out/Containerfile" \
             -t localhost/moos-plasma-next-base:44 "$out" 2>&1 | tee "$out/compose.log"
           ctr="$(buildah from localhost/moos-plasma-next-base:44)"
+          trap 'buildah rm "$ctr"' EXIT
           buildah run "$ctr" -- \
             rpm -q plasma-workspace plasma-desktop kscreenlocker kwin libplasma qt6-qtbase \
             | tee "$out/versions.txt"
           have="$(buildah run "$ctr" -- rpm -q --qf '%{VERSION}' plasma-workspace)"
           next="$(buildah run "$ctr" -- dnf5 -q repoquery --latest-limit 1 --qf '%{version}' \
-                  --repo 'copr:copr.fedorainfracloud.org:group_kdesig:kde-beta' plasma-workspace || true)"
+                  --repo 'copr:copr.fedorainfracloud.org:group_kdesig:kde-beta' plasma-workspace)"
           echo "plasma-workspace: base has $have, kde-beta offers ${next:-nothing}" | tee -a "$out/versions.txt"
-          if [ -n "$next" ] && [ "$have" != "$next" ]; then
-            echo "::error::the canary base did not reach Plasma $next (it has $have); see compose.log"
-            exit 1
+          baseline="$(python3 -c 'from build_files.plasma_stable.compose import EXPECTED; print(EXPECTED["plasma-workspace"].split("-", 1)[0])')"
+          buildah copy "$ctr" build_files/plasma_canary_version.py /tmp/moos-canary-version.py
+          buildah run "$ctr" -- python3 /tmp/moos-canary-version.py "$baseline" "$next" "$have" \
+            | tee "$out/availability.json"
+          status="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["status"])' "$out/availability.json")"
+          if [ "$status" = ready-for-image-gates ]; then
+            echo 'next_available=true' >> "$GITHUB_OUTPUT"
+          else
+            echo 'next_available=false' >> "$GITHUB_OUTPUT"
+            echo '::notice::No newer Plasma is available; next-image qualification was not executed.'
           fi
 
       # build.sh runs inside this step, and with it every in-image gate.
       - name: Build MoOS on it and run the in-image gates
+        if: steps.compose.outputs.next_available == 'true'
         run: |
           set -euo pipefail
           buildah build --layers \
@@ -133,12 +145,19 @@ jobs:
             -t localhost/moos-plasma-next:canary . 2>&1 | tee "$RUNNER_TEMP/plasma-next/build.log"
 
       - name: Record the tested image versions after stable composition
+        if: steps.compose.outputs.next_available == 'true'
         run: |
           set -euo pipefail
           ctr="$(buildah from localhost/moos-plasma-next:canary)"
+          trap 'buildah rm "$ctr"' EXIT
           buildah run "$ctr" -- rpm -q plasma-workspace plasma-desktop kscreenlocker kwin libplasma qt6-qtbase \
             | tee "$RUNNER_TEMP/plasma-next/tested-versions.txt"
-          buildah rm "$ctr"
+          baseline="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["reviewedVersion"])' "$RUNNER_TEMP/plasma-next/availability.json")"
+          next="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["offeredVersion"])' "$RUNNER_TEMP/plasma-next/availability.json")"
+          have="$(buildah run "$ctr" -- rpm -q --qf '%{VERSION}' plasma-workspace)"
+          buildah copy "$ctr" build_files/plasma_canary_version.py /tmp/moos-canary-version.py
+          buildah run "$ctr" -- python3 /tmp/moos-canary-version.py "$baseline" "$next" "$have" --image-gates-passed \
+            | tee "$RUNNER_TEMP/plasma-next/qualification.json"
 
       - name: Keep the Plasma versions and the seam gate's verdict
         if: always()
@@ -150,6 +169,9 @@ jobs:
           sed -n '/rpm-state left by the base transaction:/,/^COMMIT/p' "$out/compose.log" >> "$out/removed.txt" || true
           {
             echo "## Plasma next canary"
+            echo
+            echo 'Availability is separate from a qualified next image. Missing or stale beta packages do not establish compatibility.'
+            cat "$out/availability.json" "$out/qualification.json" 2>/dev/null || true
             echo
             echo '```'
             cat "$out/versions.txt" 2>/dev/null || echo "(the base did not compose)"
@@ -175,6 +197,8 @@ jobs:
           path: |
             ${{ runner.temp }}/plasma-next/versions.txt
             ${{ runner.temp }}/plasma-next/tested-versions.txt
+            ${{ runner.temp }}/plasma-next/availability.json
+            ${{ runner.temp }}/plasma-next/qualification.json
             ${{ runner.temp }}/plasma-next/seams.txt
             ${{ runner.temp }}/plasma-next/removed.txt
             ${{ runner.temp }}/plasma-next/compose.log

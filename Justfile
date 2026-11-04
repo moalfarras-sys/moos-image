@@ -144,6 +144,7 @@ check:
     python3 tests/test_moos_cloud_audio.py
     python3 tests/test_fwupd_refresh_policy.py
     python3 tests/test_flatpak_user_update.py
+    python3 tests/test_flatpak_fonts.py
     python3 tests/test_app_update_units.py
     python3 tests/test_boot_path_authorities.py
     python3 tests/test_memory_policy.py
@@ -153,6 +154,7 @@ check:
     python3 tests/test_compose_runtime_transaction.py
     python3 tests/test_arm_pristine_base.py
     python3 tests/test_plasma_canary_compose.py
+    python3 tests/test_plasma_canary_version.py
     python3 tests/test_plasma_login_state.py
     python3 tests/test_visual_frame_gate.py
     python3 tests/test_oracle_deploy.py

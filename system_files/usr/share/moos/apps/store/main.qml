@@ -1793,6 +1793,8 @@ ApplicationWindow {
         "vendor_unsafe_package":    ["تحتوي حزمة الناشر على ملفات لا يسمح بها MoOS؛ لم يُثبَّت شيء", "The publisher's package contains files MoOS does not allow; nothing was installed"],
         "vendor_nothing_to_open":   ["لا تحتوي الحزمة على التطبيق الذي توقّعه متجر MoOS؛ لم يُثبَّت شيء", "The package does not contain the app Mo Store expected; nothing was installed"],
         "vendor_sandbox_unavailable": ["لا يستطيع هذا التطبيق تشغيل حمايته الخاصة على هذا الجهاز، لذلك لم يُثبَّت", "This app cannot turn on its own protection on this computer, so it was not installed"],
+        "vendor_app_in_use": ["التطبيق أو نسخته السابقة قيد الاستخدام. أغلقه بصورة عادية ثم أعد المحاولة", "The app or its previous version is in use; close it normally, then try again"],
+        "vendor_app_inspection_unavailable": ["تعذّر التحقق من استخدام ملفات التطبيق، فلم تُستبدل. أغلق التطبيق بصورة عادية ثم أعد المحاولة", "MoOS could not check the app's file usage, so its files were not replaced; close the app normally, then try again"],
         "vendor_name_taken":        ["يوجد في مجلد المنزل تطبيق أو مجلد آخر بهذا الاسم؛ تركه متجر MoOS كما هو", "Another app or folder with this name is already in your home folder; Mo Store left it as it is"],
         "vendor_unsafe_path":       ["لا يمكن كتابة موقع مجلد المنزل في مُشغِّل هذا التطبيق بأمان", "Your home folder's location cannot be written into this app's launcher safely"],
         "unsupported_arch":         ["هذا التطبيق غير متوفّر لهذا النوع من الأجهزة", "This app is not available for this kind of computer"],

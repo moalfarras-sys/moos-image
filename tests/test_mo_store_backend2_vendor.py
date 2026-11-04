@@ -539,6 +539,21 @@ class Updates(Vendor):
                          [(APP, "updated")])
         self.assertTrue((self.app_dir() / "App").read_bytes().endswith(b"2.1"))
 
+    def test_active_native_app_update_and_update_all_publish_refusal_and_keep_version(self):
+        self.install("2.0")
+        self.serve("2.1")
+        with rpmfix.dropfix.NativeActiveApps.sentinel(self, self.app_dir(), "maps") as (_process, reply):
+            before = {path: path.read_bytes() for path in (self.app_dir() / "App", self.launcher(), self.record())}
+            for app_id in (APP, None):
+                code, document = self.controller().update(app_id)
+                self.assertEqual((code, document["state"], self.item(document)["message_key"]),
+                                 (1, "failed", "vendor_app_in_use"), document)
+                self.assertEqual({path: path.read_bytes() for path in before}, before)
+                self.assertEqual(reply("read"), "old runtime resource")
+        code, document = self.controller().update(APP)
+        self.assertEqual((code, document["state"], self.item(document)["message_key"]),
+                         (0, "success", "updated"), document)
+
     def test_update_of_an_app_that_is_not_installed(self):
         self.serve("2.0")
         code, document = self.controller().update(APP)

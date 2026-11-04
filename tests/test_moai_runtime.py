@@ -7,6 +7,7 @@ import os
 from pathlib import Path
 import runpy
 import tempfile
+import threading
 import time
 import unittest
 from unittest.mock import patch
@@ -156,6 +157,135 @@ class RuntimeTests(unittest.TestCase):
         self.assertTrue(any(row["role"] == "tool" for row in second.messages(self.turn["id"])))
         with self.assertRaises(ValueError):
             second.begin({"session": self.turn["id"], "user": "Concurrent duplicate"})
+
+    def task_result(self, task_id, state="running", seconds=5):
+        deadline = time.monotonic() + seconds
+        while time.monotonic() < deadline:
+            task = next(row for row in self.api["list_tasks"]() if row["id"] == task_id)
+            if task["status"] != state:
+                return task
+            time.sleep(.01)
+        self.fail("private task worker did not settle")
+
+    def task_turn(self, key, prompt, *, fail=False):
+        """A scripted model; the broker, Git and sandboxed jobs are real and private."""
+        turn = self.runtime.begin({"session": key, "user": prompt})
+        self.task_tools = []
+        calls = [("run_command", {"project": self.pid, "command": "printf unrelated-check"}),
+                 ("git_diff", {"project": self.pid})]
+        if fail:
+            calls.append(("run_command", {"project": self.pid, "command": "exit 7"}))
+        for name, arguments in calls:
+            self.task_tools.append((name, self.runtime.tool({**turn, "name": name, "arguments": arguments})))
+        answer = "The model says the task is complete."
+        self.runtime.finish({**turn, "history": [], "answer": answer})
+        return answer
+
+    def test_successful_command_and_diff_do_not_verify_an_unspecified_requirement(self):
+        subprocess = self.api["subprocess"]
+        subprocess.run(["git", "init", "-q", str(self.project)], check=True)
+        task = self.api["create_task"]({"title": "Improve this project", "project": self.pid})
+        with patch.object(self.runtime, "chat", self.task_turn), \
+                patch.object(self.runtime, "approval", lambda *args: None):
+            self.runtime.task_action({"id": task["id"], "action": "start"})
+            result = self.task_result(task["id"])
+        self.assertEqual(result["status"], "paused")
+        self.assertIn("requirements still need review", result["error"])
+        self.assertEqual(result["result"], "The model says the task is complete.")
+        self.assertEqual(result["steps"], [])
+        if Path("/usr/bin/bwrap").is_file():
+            command = self.task_tools[0][1]
+            self.assertEqual(command["exit_code"], 0)
+            self.assertFalse(command["running"])
+            self.assertNotIn("error", self.task_tools[1][1])
+        # The real tool results stay in the same session for the owner to inspect.
+        messages = self.runtime.messages("moai-task-" + task["id"])
+        self.assertTrue(any(row["text"].startswith("run_command\n") for row in messages))
+        self.assertTrue(any(row["text"].startswith("git_diff\n") for row in messages))
+
+    def test_later_failed_command_cannot_complete_pending_required_steps(self):
+        self.api["subprocess"].run(["git", "init", "-q", str(self.project)], check=True)
+        task = self.api["create_task"]({"title": "Fix the project", "project": self.pid,
+                                        "steps": ["Make the requested change", "Verify it"]})
+        with patch.object(self.runtime, "chat", lambda key, prompt: self.task_turn(key, prompt, fail=True)), \
+                patch.object(self.runtime, "approval", lambda *args: None):
+            self.runtime.task_action({"id": task["id"], "action": "start"})
+            result = self.task_result(task["id"])
+        self.assertEqual(result["status"], "paused")
+        self.assertEqual([step["status"] for step in result["steps"]], ["pending", "pending"])
+        if Path("/usr/bin/bwrap").is_file():
+            self.assertEqual(self.task_tools[-1][1]["exit_code"], 7)
+            self.assertIn("error", self.task_tools[-1][1])
+        messages = self.runtime.messages("moai-task-" + task["id"])
+        self.assertTrue(any(row["status"] == "error" and row["text"].startswith("run_command\n")
+                            for row in messages))
+
+    def test_earlier_same_second_receipts_and_new_prose_are_not_task_evidence(self):
+        # The former timestamp/text heuristic accepted the previous turn's
+        # unrelated checks beside a new success claim from the model.
+        task = self.api["create_task"]({"title": "Do a different change", "project": self.pid})
+        key = "moai-task-" + task["id"]
+        with patch.object(self.api["moai_runtime"].time, "time", return_value=1234567890):
+            old = self.runtime.begin({"session": key, "user": "Earlier unrelated question"})
+            self.runtime.event(old["id"], "tool", 'run_command\n{"exit_code": 0, "output": "earlier unrelated check"}', "success")
+            self.runtime.event(old["id"], "tool", 'git_diff\n{"unstaged": ""}', "success")
+            self.runtime.finish({**old, "history": [], "answer": "Earlier reply"})
+            with patch.object(self.runtime, "chat", return_value="All requested work is complete."):
+                self.runtime.task_action({"id": task["id"], "action": "start"})
+                result = self.task_result(task["id"])
+        self.assertEqual(result["status"], "paused")
+
+    def test_declared_step_states_stay_visible_after_an_unverified_reply(self):
+        for step_status in ("failed", "skipped", "running", "pending", "completed"):
+            with self.subTest(step_status=step_status):
+                task = self.api["create_task"]({"title": "Review a required step", "project": self.pid,
+                                                "steps": ["Required result"]})
+                self.api["update_task"]({"id": task["id"], "step": 1, "step_status": step_status,
+                                         "error": "required result is not verified"})
+                with patch.object(self.runtime, "chat", return_value="Everything succeeded."):
+                    self.runtime.task_action({"id": task["id"], "action": "start"})
+                    result = self.task_result(task["id"])
+                self.assertEqual(result["status"], "paused")
+                self.assertEqual(result["steps"][0]["status"], step_status)
+                self.assertEqual(result["steps"][0]["error"], "required result is not verified")
+
+    def test_cancel_or_pause_during_the_turn_keeps_the_owners_decision(self):
+        for action, expected in (("cancel", "cancelled"), ("pause", "paused")):
+            with self.subTest(action=action):
+                entered, release, returned, checked = (threading.Event() for _ in range(4))
+                task = self.api["create_task"]({"title": "A cancellable private task", "project": self.pid})
+                original_list = self.api["list_tasks"]
+                def observed_list(*args, **kwargs):
+                    rows = original_list(*args, **kwargs)
+                    if returned.is_set() and threading.current_thread() is not threading.main_thread():
+                        checked.set()
+                    return rows
+                def delayed_chat(*args):
+                    entered.set()
+                    release.wait(5)
+                    returned.set()
+                    return "Late model success"
+                with patch.object(self.runtime, "chat", delayed_chat), \
+                        patch.dict(self.api, {"list_tasks": observed_list}):
+                    self.runtime.task_action({"id": task["id"], "action": "start"})
+                    self.assertTrue(entered.wait(5))
+                    self.runtime.task_action({"id": task["id"], "action": action})
+                    release.set()
+                    self.assertTrue(returned.wait(5))
+                    self.assertTrue(checked.wait(5))
+                    # Serialise with the worker's status check/write.
+                    with self.api["CONFIG_WRITE_LOCK"]:
+                        result = next(row for row in self.api["list_tasks"]() if row["id"] == task["id"])
+                    self.assertEqual(result["status"], expected)
+                    self.assertNotEqual(result["result"], "Late model success")
+
+    def test_a_failed_agent_turn_remains_failed(self):
+        task = self.api["create_task"]({"title": "Private failed turn", "project": self.pid})
+        with patch.object(self.runtime, "chat", side_effect=RuntimeError("private test failure")):
+            self.runtime.task_action({"id": task["id"], "action": "start"})
+            result = self.task_result(task["id"])
+        self.assertEqual(result["status"], "failed")
+        self.assertIn("completed results remain", result["error"])
 
 
 if __name__ == "__main__":

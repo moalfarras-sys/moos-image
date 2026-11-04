@@ -33,6 +33,7 @@ from __future__ import annotations
 import ast
 import base64
 import bz2
+import contextlib
 import email.message
 import gzip
 import hashlib
@@ -57,6 +58,7 @@ ROOT = Path(__file__).resolve().parents[1]
 MODULE = ROOT / "system_files/usr/lib/moos/moos_vendor_rpm.py"
 sys.path.insert(0, str(MODULE.parent))
 import moos_vendor_rpm as vendor  # noqa: E402
+import test_app_drop as dropfix  # noqa: E402 — shared private native-process fixture
 
 FPR = "3BFA0E4AE8B8CC16A2D9BA684A3B4A566C4660E4"
 OTHER_FPR = "36F612DCF27F7D1A48A835E4DBFCF71C6D9F90A6"
@@ -1267,6 +1269,95 @@ class Install(Home):
         self.assertEqual((final / "App").read_bytes(), before)
         self.assertFalse(previous.exists())
         self.assertEqual((self.records() / "app.json").read_bytes(), before_record)
+
+    def test_native_old_active_update_loses_resource_and_shared_guard_preserves_it(self):
+        for enabled in (False, True):
+            with self.subTest(guard_enabled=enabled):
+                self.install("2.0", app_payload(b"working"))
+                final = vendor.app_dir("app")
+                with dropfix.NativeActiveApps.sentinel(self, final, "maps") as (process, reply):
+                    paths = (final / "App", final / "runtime-resource", self.launcher(), vendor.record_path("app"))
+                    before = {path: path.read_bytes() for path in paths}
+                    if enabled:
+                        with mock.patch.object(vendor, "resolve") as resolve, \
+                                mock.patch.object(vendor, "fetch") as fetch:
+                            self.assertCode("app_in_use", self.install, "2.1", app_payload(b"new"))
+                        resolve.assert_not_called()
+                        fetch.assert_not_called()
+                        self.assertEqual({path: path.read_bytes() for path in paths}, before)
+                        self.assertEqual(reply("read"), "old runtime resource")
+                    else:
+                        with mock.patch.object(vendor.appdrop, "_assert_app_trees_idle"):
+                            self.install("2.1", app_payload(b"new"))
+                        self.assertEqual(reply("read"), "missing")
+                    self.assertIsNone(process.poll())
+                for version in ("2.1", "2.2"):
+                    self.install(version, app_payload(version.encode()))
+                    self.assertEqual(vendor.installed("app")["version"], version)
+                    self.assertClean()
+
+    def test_active_previous_is_not_recovered_or_cleaned_before_refusal(self):
+        self.install("2.0", app_payload(b"working"))
+        final, previous, staging = vendor.app_dir("app"), vendor.previous_dir("app"), vendor.staging_dir("app")
+        final.rename(previous)
+        staging.mkdir()
+        (staging / vendor.MARKER).write_text("app\n")
+        (staging / "keep").write_bytes(b"retained staging")
+        with dropfix.NativeActiveApps.sentinel(self, previous, "maps") as (_process, reply):
+            paths = (previous / "App", previous / "runtime-resource", staging / "keep",
+                     self.launcher(), vendor.record_path("app"))
+            before = {path: path.read_bytes() for path in paths}
+            with mock.patch.object(vendor, "resolve") as resolve:
+                self.assertCode("app_in_use", vendor.install, "app", ENTRY, arch="x86_64", refresh_menu=False)
+            resolve.assert_not_called()
+            self.assertFalse(final.exists())
+            self.assertEqual({path: path.read_bytes() for path in paths}, before)
+            self.assertEqual(reply("read"), "old runtime resource")
+
+    def test_native_launch_during_extraction_refuses_at_preswap_check(self):
+        self.install("2.0", app_payload(b"working"))
+        final = vendor.app_dir("app")
+        paths = (final / "App", self.launcher(), vendor.record_path("app"))
+        before = {path: path.read_bytes() for path in paths}
+        original = vendor._place_icon
+        with contextlib.ExitStack() as stack:
+            def launch(*args):
+                result = original(*args)
+                stack.enter_context(dropfix.NativeActiveApps.sentinel(self, final, "maps"))
+                return result
+
+            with mock.patch.object(vendor, "_place_icon", side_effect=launch):
+                self.assertCode("app_in_use", self.install, "2.1", app_payload(b"new"))
+            self.assertEqual({path: path.read_bytes() for path in paths}, before)
+            self.assertClean()
+
+    def test_native_previous_user_after_commit_prevents_retirement_only(self):
+        self.install("2.0", app_payload(b"working"))
+        previous = vendor.previous_dir("app")
+        original = vendor._write_atomic
+        with contextlib.ExitStack() as stack:
+            def commit(path, data, mode):
+                original(path, data, mode)
+                if path == vendor.record_path("app"):
+                    stack.enter_context(dropfix.NativeActiveApps.sentinel(self, previous, "maps"))
+
+            with mock.patch.object(vendor, "_write_atomic", side_effect=commit):
+                self.install("2.1", app_payload(b"new"))
+            self.assertTrue((previous / "App").read_bytes().endswith(b"working"))
+            self.assertTrue((vendor.app_dir("app") / "App").read_bytes().endswith(b"new"))
+            self.assertEqual(vendor.installed("app")["version"], "2.1")
+        self.install("2.2", app_payload(b"newer"))
+        self.assertClean()
+
+    def test_unavailable_candidate_translation_refuses_before_vendor_mutation(self):
+        self.install("2.0", app_payload(b"working"))
+        before = (vendor.app_dir("app") / "App").read_bytes()
+        with mock.patch.object(vendor.appdrop, "_assert_app_trees_idle",
+                               side_effect=vendor.appdrop.DropError("app_inspection_unavailable")), \
+                mock.patch.object(vendor, "resolve") as resolve:
+            self.assertCode("app_inspection_unavailable", self.install, "2.1", app_payload(b"new"))
+        resolve.assert_not_called()
+        self.assertEqual((vendor.app_dir("app") / "App").read_bytes(), before)
 
     def test_a_failed_update_keeps_the_version_that_worked(self):
         self.install("2.0", app_payload(b"v2"))

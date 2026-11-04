@@ -26,6 +26,7 @@ async function viewer(options, mode, language = 'en', cursorEmbedded = false, or
     // "weak device" that opens at Data saver. Pin the count so the geometry and quality
     // assertions mean the same thing on every machine that runs them.
     Object.defineProperty(navigator, 'hardwareConcurrency', {value: 8, configurable: true});
+    Object.defineProperty(navigator, 'deviceMemory', {value: 8, configurable: true});
     localStorage.setItem('mo_remote_token', 'isolated-browser-test');
     if (preLogin) localStorage.setItem('mo_remote_token_greeter', 'isolated-greeter-test');
     localStorage.setItem('moremote.mode', JSON.stringify(mode));
@@ -35,9 +36,18 @@ async function viewer(options, mode, language = 'en', cursorEmbedded = false, or
     if (orient) localStorage.setItem('moremote.orient', JSON.stringify(orient));
     else localStorage.removeItem('moremote.orient');
   }, {mode, language, orient, preLogin});
-  if (linkClass === 'silent') await context.addInitScript(() => {
-    Object.defineProperty(navigator, 'connection', {value:undefined, configurable:true});
-  });
+  // Geometry assertions require a declared capable device/link, not this
+  // workstation's live bandwidth estimate. The real Chromium1247 control
+  // reported4g/1.45Mbps and correctly opened at68, contrary to the old80
+  // expectation. Preserve both the fast and constrained-link assertions.
+  assert.ok(['default', 'silent', 'constrained'].includes(linkClass));
+  await context.addInitScript(link => {
+    Object.defineProperty(navigator, 'connection', {
+      value: link === 'silent' ? undefined : {
+        effectiveType: '4g', downlink: link === 'constrained' ? 1.45 : 10, saveData: false,
+      }, configurable: true,
+    });
+  }, linkClass);
   if (h264Fixture) await context.addInitScript(() => {
     // A browser decoder that accepts chunks silently; transport remains alive.
     window.testDecoders = [];
@@ -262,6 +272,10 @@ try {
   const touchLaptop = await viewer({viewport:{width:1920,height:1080},hasTouch:true},'desktop');
   assert.equal(touchLaptop.packets.filter(p => p.type === 'settings').at(-1)?.quality,80,
     'a wide touchscreen laptop remains Sharp instead of being mistaken for a phone');
+  const constrainedLaptop = await viewer({viewport:{width:1920,height:1080},hasTouch:true},
+    'desktop','en',false,'off',null,'constrained');
+  assert.equal(constrainedLaptop.packets.filter(p => p.type === 'settings').at(-1)?.quality,68,
+    'the same wide laptop respects a constrained link instead of forcing Sharp');
   {
   const desktopPhone = await viewer({viewport:{width:390,height:844},isMobile:true,hasTouch:true},'desktop');
   const dp = desktopPhone.page;

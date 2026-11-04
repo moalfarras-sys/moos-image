@@ -127,6 +127,8 @@ VENDOR_FAILURE_KEYS: dict[str, str] = {
     "digest_mismatch": "vendor_download_mismatch",
     "no_space": "vendor_no_space",
     "cancelled": "cancelled",
+    "app_in_use": "vendor_app_in_use",
+    "app_inspection_unavailable": "vendor_app_inspection_unavailable",
     "tool_missing": "vendor_tool_missing",
     "key_not_installed": "vendor_key_missing",
     "signature_untrusted_key": "vendor_signature_failed",
@@ -166,6 +168,9 @@ VENDOR_FAILURE_WORDS: dict[str, str] = {
     "vendor_no_space": ("Not enough free space in your home folder to download, unpack and install "
                         "this app at the same time; free some space and try again"),
     "cancelled": "Cancelled",
+    "vendor_app_in_use": "The app or its previous version is in use; close it normally, then try again",
+    "vendor_app_inspection_unavailable": ("MoOS could not check the app's file usage, so its files were not "
+                                           "replaced; close the app normally, then try again"),
     "vendor_tool_missing": "This MoOS edition lacks a tool needed to check this app; nothing was installed",
     "vendor_key_missing": "This version of MoOS does not hold the publisher's key yet; update MoOS and try again",
     "vendor_signature_failed": ("The publisher's signature could not be verified; the download was deleted "
@@ -763,6 +768,7 @@ class Job:
     job_id: str = dataclasses.field(default_factory=lambda: secrets.token_hex(16))
     _lock: Any = dataclasses.field(init=False, repr=False)
     _last_persist: float = dataclasses.field(init=False, repr=False)
+    _postflight_failures: list[str] = dataclasses.field(default_factory=list, init=False, repr=False)
 
     def __post_init__(self) -> None:
         self._lock = threading.RLock()
@@ -897,7 +903,7 @@ class Job:
             states = [item["state"] for item in self._items.values()]
             has_success = any(state in {"done", "opened", "skipped"} for state in states)
             has_failure = any(state == "failed" for state in states)
-            state = "partial" if has_success and has_failure else "failed"
+            state = "partial" if has_success and (has_failure or self._postflight_failures) else "failed"
             self.update(
                 state=state,
                 progress=100 if state == "partial" else self.document["progress"],
@@ -918,6 +924,13 @@ class Job:
             self.update(state="cancelled", current_id=None, message="Cancelled",
                         message_key="cancelled")
 
+    def postflight_failure(self, reason: str) -> None:
+        # Package completion and ancillary integration have different outcomes.
+        # Preserve completed item receipts; the final job still exposes failure.
+        with self._lock:
+            self._postflight_failures.append(clean_message(reason))
+            self.update(message=self._postflight_failures[-1], message_key=None)
+
     def finish_from_items(
         self,
         success_message: str = "Completed",
@@ -933,6 +946,9 @@ class Job:
                 state, message = "failed", f"{failed} operation(s) failed"
             else:
                 state, message = "success", success_message
+            if self._postflight_failures:
+                state = "partial" if succeeded else "failed"
+                message = '; '.join(self._postflight_failures)
             # The partial/failed lines embed counts, so they stay prose; only a
             # clean success has a phrase the UI can render in either language.
             key = success_key if state == "success" else None
@@ -1275,6 +1291,7 @@ class TransactionEvents:
     def __init__(self, job: Job, requested_ids: Sequence[str]):
         self.job = job
         self.requested = set(requested_ids)
+        self.font_runtime_changed = False
 
     @staticmethod
     def ref_id(ref: str) -> str:
@@ -1330,6 +1347,8 @@ class TransactionEvents:
         )
 
     def done(self, ref: str) -> None:
+        if ref.startswith('runtime/'):
+            self.font_runtime_changed = True
         app_id = self.ref_id(ref)
         if app_id in self.requested:
             self.job.update_item(
@@ -1367,6 +1386,30 @@ class FlatpakAdapter:
             self.system = Flatpak.Installation.new_system(None)
         except Exception as error:
             raise StoreError(f"Could not open Flatpak installations: {error}") from error
+
+    @staticmethod
+    def _refresh_fonts(events: TransactionEvents) -> None:
+        # Runtime-only updates can change any installed app's font cache ABI.
+        # Reuse the login font owner rather than a launcher/permission override.
+        import importlib
+        library = str(Path(__file__).resolve().parent.parent / "lib/moos")
+        if library not in sys.path:
+            sys.path.insert(0, library)
+        policy = None
+        try:
+            policy = importlib.import_module("moos_flatpak_fonts")
+            # A runtime transaction affects all actual dependants. An app-only
+            # install/update must not inspect or blame another app's personal
+            # discovery fragment. The helper validates the installed inventory.
+            app_ids = None if events.font_runtime_changed else sorted(events.requested)
+            policy.refresh(app_ids)
+        except (ImportError, OSError, ValueError, subprocess.SubprocessError) as error:
+            reason = "Applications are retained, but host-font discovery failed: " + str(error)
+            if policy is not None and isinstance(error, policy.RefreshError):
+                for app_id in events.requested.intersection(error.failures):
+                    events.error(app_id, reason)
+            events.job.postflight_failure(reason)
+            raise StoreError(reason) from error
 
     def _installed(self, installation: Any, app_id: str) -> bool:
         try:
@@ -1664,6 +1707,8 @@ class FlatpakAdapter:
 
         self._transaction(configure, events, should_cancel)
 
+        self._refresh_fonts(events)
+
     def remove(
         self,
         app_id: str,
@@ -1765,6 +1810,8 @@ class FlatpakAdapter:
                     raise StoreError(f"Flatpak refused to queue update of {name}")
 
         self._transaction(configure, events, should_cancel)
+
+        self._refresh_fonts(events)
 
     def refresh_index(
         self,
@@ -2407,6 +2454,8 @@ class Controller:
             except appdrop.DropError as failure:
                 if failure.code == "cancelled":
                     raise CancelledError("Cancelled") from failure
+                if failure.code in ("app_in_use", "app_inspection_unavailable"):
+                    raise self._vendor_failure(failure) from failure
                 raise StoreError(f"{failure.code}: {failure.detail or failure.code}") from failure
         finally:
             with contextlib.suppress(FileNotFoundError):
@@ -3691,6 +3740,8 @@ class Controller:
                 code = failure.code
                 if failure.code == "cancelled":
                     job.cancelled()
+                elif failure.code in ("app_in_use", "app_inspection_unavailable"):
+                    job.fail(self._vendor_failure(failure), [plan.slug])
                 else:
                     job.fail(f"{failure.code}: {failure.detail or failure.code}", [plan.slug])
             except CancelledError:

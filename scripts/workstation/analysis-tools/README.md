@@ -59,3 +59,12 @@ npm audit with zero findings, CLI help/capabilities, normal Unicode object
 validation and rejection before visiting an oversized constrained array pass.
 This qualifies the updated source profile, not replacement of an already
 running workstation REA process or the earlier Ghidra/MCP native journeys.
+
+The Nov3 source refresh pins Glob14.0.2 and Minimatch11.0.1 for the published
+cancellation and pattern-amplification advisories. On the existing private
+121-directory control, old Glob13.0.6 rejects then performs117 more reads;
+fixed14.0.2 performs none after rejection. Unicode FileList/Minimatch and
+Electron ASAR roundtrip controls, fresh locked installation, actual CLI help
+and registry audit0 pass; the manifest lock digest advances with the lock.
+The running workstation profile is preserved. This source refresh is not an
+installed profile replacement, a new SDK, or broader native-provider acceptance.

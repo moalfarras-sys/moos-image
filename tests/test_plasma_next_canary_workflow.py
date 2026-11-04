@@ -74,8 +74,17 @@ class SameImageNextPlasma(unittest.TestCase):
         # silently, and the "next Plasma" canary built 6.7.5.
         workflow = code(CANARY)
         self.assertIn("--repo 'copr:copr.fedorainfracloud.org:group_kdesig:kde-beta' plasma-workspace", workflow)
-        self.assertRegex(workflow, r'if \[ -n "\$next" \] && \[ "\$have" != "\$next" \]; then')
-        self.assertIn("::error::the canary base did not reach Plasma", workflow)
+        query = workflow.split('next="$(buildah run', 1)[1].split('echo "plasma-workspace:', 1)[0]
+        self.assertNotIn('|| true', query, 'query failure must not become no offer')
+        self.assertIn('python3 /tmp/moos-canary-version.py "$baseline" "$next" "$have"', workflow)
+        self.assertEqual(workflow.count('buildah copy "$ctr" build_files/plasma_canary_version.py /tmp/moos-canary-version.py'), 2)
+        self.assertNotIn('buildah run -i', workflow, 'Buildah run has no interactive flag')
+        self.assertEqual(workflow.count("if: steps.compose.outputs.next_available == 'true'"), 2)
+        self.assertIn('--image-gates-passed', workflow)
+        self.assertIn('qualification.json', workflow)
+        # Native RPM old/equal/new and post-composition downgrade controls live
+        # in test_plasma_canary_version.py and are run by the canonical gate.
+        self.assertIn('python3 tests/test_plasma_canary_version.py', (ROOT / 'Justfile').read_text())
         tag = re.search(r"-t (localhost/moos-plasma-next-base:\S+)", workflow).group(1)
         self.assertIn(f"--from {tag}", workflow, "the MoOS build does not use the composed base")
 

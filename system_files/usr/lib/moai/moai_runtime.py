@@ -140,7 +140,6 @@ class Runtime:
                 raise ValueError("task is already running")
             self.api["update_task"]({"id": task["id"], "status": "running", "error": ""})
         def run():
-            started = time.time()
             try:
                 project = self.api["_project"](task["project"])[0] if task.get("project") else None
                 prompt = self.api["_task_prompt"](task, project)
@@ -149,12 +148,15 @@ class Runtime:
                     current = next(row for row in self.api["list_tasks"]() if row["id"] == task["id"])
                     if current["status"] != "running":
                         return
-                    # A model answer is not proof of a completed coding task.
-                    events = [row for row in self.messages(key) if row["ts"] >= int(started)]
-                    tested = any(row["status"] == "success" and row["text"].startswith("run_command\n") and '"exit_code": 0' in row["text"] for row in events)
-                    diffed = any(row["status"] == "success" and row["text"].startswith("git_diff\n") for row in events)
-                    self.api["update_task"]({"id": task["id"], "status": "completed" if tested and diffed else "paused",
-                        "result": result, "error": "" if tested and diffed else "Verification incomplete; inspect the session and continue."})
+                    # The broker has real tool outcomes, but no contract binds
+                    # them to every requested task step. Even a successful
+                    # command and Git diff can be unrelated to the requirement,
+                    # precede a later failure or belong to an earlier turn.
+                    # Preserve those results for review; never infer completion
+                    # from event text or the model's final answer.
+                    self.api["update_task"]({"id": task["id"], "status": "paused",
+                        "result": result,
+                        "error": "Agent turn ended; task requirements still need review. Completed tool results remain in the session."})
             except Exception:
                 with self.api["CONFIG_WRITE_LOCK"]:
                     current = next(row for row in self.api["list_tasks"]() if row["id"] == task["id"])

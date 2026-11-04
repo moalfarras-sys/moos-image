@@ -26,9 +26,12 @@ from __future__ import annotations
 
 import importlib.machinery
 import importlib.util
+import contextlib
 import io
 import json
 import os
+import select
+import shutil
 import signal
 import stat
 import subprocess
@@ -38,6 +41,7 @@ import tempfile
 import unittest
 import zipfile
 from pathlib import Path
+from unittest import mock
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "system_files/usr/lib/moos"))
@@ -609,6 +613,303 @@ class PortableArchives(Home):
         self.assertEqual([a["id"] for a in appdrop.installed()], ["noteforge"])
 
 
+class ActiveAppTrees(Home):
+    """Bounded native /proc references, not a claim of a launch/update lifetime lease."""
+
+    def setUp(self):
+        super().setUp()
+        self.proc = Path(self.tmp.name) / "proc"
+        self.proc.mkdir()
+        self.target = self.home / "Applications/noteforge"
+        self.target.mkdir(parents=True)
+
+    def process(self, *, reference: str = "", field: str = "exe", pid: int = 123) -> Path:
+        process = self.proc / str(pid)
+        process.mkdir()
+        (process / "status").write_text(f"Uid:\t{os.getuid()}\t{os.getuid()}\t{os.getuid()}\t{os.getuid()}\n")
+        # Include parentheses/spaces in comm to exercise the actual stat parser.
+        (process / "stat").write_text(f"{pid} (app ) worker) S " + "0 " * 18 + "12345 0\n")
+        (process / "exe").symlink_to(reference if field == "exe" else "/usr/bin/python3")
+        (process / "cwd").symlink_to(reference if field == "cwd" else "/tmp")
+        argv = reference if field == "argv" else f"--resource={reference}" if field == "option" else "worker"
+        (process / "cmdline").write_bytes(os.fsencode(argv) + b"\0")
+        (process / "maps").write_text(f"1000-2000 r--p 0 00:00 5 {reference}\n" if field == "maps" else "")
+        return process
+
+    def guard(self, *trees):
+        appdrop._assert_app_trees_idle(*trees, proc_root=self.proc)
+
+    def installed_app(self):
+        self.target.rmdir()
+        plan = appdrop.inspect(self.download("noteforge-2.1.tar.gz", self.portable_app()))
+        return appdrop.install(plan)
+
+    def test_each_reference_refuses_and_exact_sibling_paths_do_not(self):
+        for index, field in enumerate(("cwd", "exe", "argv", "option", "maps")):
+            with self.subTest(field=field):
+                process = self.process(reference=str(self.target / "lib/مورد with spaces"), field=field, pid=index + 100)
+                with self.assertRaises(appdrop.DropError) as refused:
+                    self.guard(self.target)
+                self.assertEqual(refused.exception.code, "app_in_use")
+                import shutil
+                shutil.rmtree(process)
+                process = self.process(reference=str(self.target) + "-other/lib", field=field, pid=index + 100)
+                self.guard(self.target)
+                shutil.rmtree(process)
+
+    def test_deleted_mapping_is_still_a_reference(self):
+        self.process(reference=str(self.target / "lib.so") + " (deleted)", field="maps")
+        with self.assertRaises(appdrop.DropError) as refused:
+            self.guard(self.target)
+        self.assertEqual(refused.exception.code, "app_in_use")
+
+    def test_candidate_permission_failure_refuses_without_blocking_unrelated_processes(self):
+        candidate = self.process(reference=str(self.target / "app"), field="argv")
+        original = os.readlink
+
+        def denied(path, *args, **kwargs):
+            if Path(path) in (candidate / "exe", candidate / "cwd"):
+                raise PermissionError("nondumpable")
+            return original(path, *args, **kwargs)
+
+        with mock.patch.object(appdrop.os, "readlink", side_effect=denied):
+            with self.assertRaises(appdrop.DropError) as refused:
+                self.guard(self.target)
+            self.assertEqual(refused.exception.code, "app_inspection_unavailable")
+            (candidate / "cmdline").write_bytes(b"/usr/bin/unrelated\0")
+            self.guard(self.target)
+
+    def test_maps_permission_failure_of_a_candidate_is_unknown(self):
+        candidate = self.process(reference=str(self.target), field="cwd")
+        original = Path.open
+
+        def denied(path, *args, **kwargs):
+            if path == candidate / "maps":
+                raise PermissionError("nondumpable")
+            return original(path, *args, **kwargs)
+
+        with mock.patch.object(Path, "open", denied), self.assertRaises(appdrop.DropError) as refused:
+            self.guard(self.target)
+        self.assertEqual(refused.exception.code, "app_inspection_unavailable")
+
+    def test_reused_pid_is_unknown_but_an_exited_pid_is_not_a_stale_lease(self):
+        process = self.process(reference=str(self.target / "app"), field="argv")
+        with mock.patch.object(appdrop, "_process_stamp", side_effect=[("S", 10), ("S", 11)]), \
+                self.assertRaises(appdrop.DropError) as refused:
+            self.guard(self.target)
+        self.assertEqual(refused.exception.code, "app_inspection_unavailable")
+        original = appdrop._process_stamp
+        calls = 0
+
+        def exited(path):
+            nonlocal calls
+            calls += 1
+            if calls == 2:
+                import shutil
+                shutil.rmtree(process)
+            return original(path)
+
+        with mock.patch.object(appdrop, "_process_stamp", side_effect=exited):
+            self.guard(self.target)
+
+    def test_missing_candidate_stat_is_unknown_and_unavailable_proc_refuses(self):
+        process = self.process(reference=str(self.target / "app"), field="argv")
+        (process / "stat").unlink()
+        with self.assertRaises(appdrop.DropError) as refused:
+            self.guard(self.target)
+        self.assertEqual(refused.exception.code, "app_inspection_unavailable")
+        with self.assertRaises(appdrop.DropError) as refused:
+            appdrop._assert_app_trees_idle(self.target, proc_root=self.proc / "unavailable")
+        self.assertEqual(refused.exception.code, "app_inspection_unavailable")
+
+    def test_normal_state_changes_do_not_make_a_candidate_unknown(self):
+        self.process(reference=str(self.target), field="cwd")
+        with mock.patch.object(appdrop, "_process_stamp", side_effect=[("S", 10), ("R", 10)]), \
+                self.assertRaises(appdrop.DropError) as refused:
+            self.guard(self.target)
+        self.assertEqual(refused.exception.code, "app_in_use")
+
+    def test_initial_refusal_preserves_target_previous_launcher_record_and_staging(self):
+        record = self.installed_app()
+        previous = self.target.with_name(".noteforge.previous")
+        previous.mkdir()
+        (previous / "keep").write_bytes(b"older version")
+        staging = self.target.with_name(".noteforge.installing")
+        staging.mkdir()
+        (staging / "keep").write_bytes(b"existing staging")
+        saved = {path: path.read_bytes() for path in (
+            self.target / "noteforge", previous / "keep", staging / "keep",
+            Path(record["desktop"]), appdrop.manifest_dir() / "noteforge.json")}
+        original = appdrop._assert_app_trees_idle
+        for tree in (self.target, previous):
+            process = self.process(reference=str(tree / "app"), field="argv")
+            with mock.patch.object(appdrop, "_assert_app_trees_idle",
+                                   side_effect=lambda *trees: original(*trees, proc_root=self.proc)), \
+                    self.assertRaises(appdrop.DropError):
+                appdrop.install(appdrop.inspect(self.home / "Downloads/noteforge-2.1.tar.gz"))
+            self.assertEqual({path: path.read_bytes() for path in saved}, saved)
+            import shutil
+            shutil.rmtree(process)
+
+    def test_preswap_refusal_does_not_rename_an_existing_previous_tree(self):
+        # Recovery state: the target is absent but a previous generation still exists.
+        self.target.rename(self.target.with_name(".noteforge.previous"))
+        previous = self.target.with_name(".noteforge.previous")
+        (previous / "keep").write_bytes(b"old")
+        original = appdrop._assert_app_trees_idle
+        calls = 0
+
+        def guard(*trees):
+            nonlocal calls
+            calls += 1
+            if calls == 2:
+                self.process(reference=str(previous / "app"), field="argv")
+            original(*trees, proc_root=self.proc)
+
+        plan = appdrop.inspect(self.download("noteforge-2.1.tar.gz", self.portable_app()))
+        with mock.patch.object(appdrop, "_assert_app_trees_idle", side_effect=guard), \
+                self.assertRaises(appdrop.DropError) as refused:
+            appdrop.install(plan)
+        self.assertEqual(refused.exception.code, "app_in_use")
+        self.assertEqual(calls, 2)
+        self.assertFalse(self.target.exists())
+        self.assertEqual((previous / "keep").read_bytes(), b"old")
+        self.assertFalse(self.target.with_name(".noteforge.installing").exists())
+
+    def test_postcommit_observed_previous_user_retains_old_tree_without_undoing_update(self):
+        first = self.installed_app()
+        previous = self.target.with_name(".noteforge.previous")
+        original_guard = appdrop._assert_app_trees_idle
+        original_write = appdrop._write_atomic
+
+        def commit(path, text, mode):
+            original_write(path, text, mode)
+            if path.suffix == ".json":
+                self.process(reference=str(previous / "noteforge"), field="argv")
+
+        updated = self.tar_bytes([self.member("app/noteforge", ELF + b"new", 0o755)])
+        plan = appdrop.inspect(self.download("noteforge-3.0.tar.gz", updated))
+        with mock.patch.object(appdrop, "_write_atomic", side_effect=commit), \
+                mock.patch.object(appdrop, "_assert_app_trees_idle",
+                                  side_effect=lambda *trees: original_guard(*trees, proc_root=self.proc)):
+            second = appdrop.install(plan)
+        self.assertNotEqual(first["sha256"], second["sha256"])
+        self.assertEqual((previous / "noteforge").read_bytes(), ELF)
+        self.assertEqual((self.target / "noteforge").read_bytes(), ELF + b"new")
+        self.assertEqual(appdrop.read_record("noteforge")["sha256"], second["sha256"])
+
+    def test_inactive_repeated_updates_keep_the_existing_commit_and_cleanup_contract(self):
+        self.installed_app()
+        for version in (b"second", b"third"):
+            updated = self.tar_bytes([self.member("app/noteforge", ELF + version, 0o755)])
+            record = appdrop.install(appdrop.inspect(self.download("noteforge-3.0.tar.gz", updated)))
+            self.assertEqual((self.target / "noteforge").read_bytes(), ELF + version)
+            self.assertEqual(appdrop.read_record("noteforge")["sha256"], record["sha256"])
+            self.assertEqual([path.name for path in self.target.parent.iterdir()], ["noteforge"])
+
+
+class NativeActiveApps(Home):
+    """Actual private processes and files; never launch or replace an owner's application."""
+
+    @contextlib.contextmanager
+    def sentinel(self, target: Path, mode: str):
+        target.mkdir(parents=True, exist_ok=True)
+        resource = target / "runtime-resource"
+        resource.write_bytes(b"old runtime resource")
+        executable = sys.executable
+        if mode == "exe":
+            executable = str(target / "private-python")
+            shutil.copy2(sys.executable, executable)
+        script = '''import json,mmap,os,sys
+from pathlib import Path
+mode, raw = json.loads(sys.stdin.readline())
+resource = Path(raw)
+if mode == "cwd": os.chdir(resource.parent)
+if mode == "maps":
+    with resource.open("rb") as handle: mapped = mmap.mmap(handle.fileno(), 0, access=mmap.ACCESS_READ)
+print("ready", flush=True)
+for line in sys.stdin:
+    if line.strip() == "stop": break
+    print(resource.read_text() if resource.exists() else "missing", flush=True)
+'''
+        arguments = [executable, "-u", "-c", script]
+        if mode == "argv":
+            arguments.append(str(resource))
+        process = subprocess.Popen(arguments, cwd=self.tmp.name, stdin=subprocess.PIPE,
+                                   stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+
+        def reply(command: str):
+            process.stdin.write(command + "\n")
+            process.stdin.flush()
+            if not select.select([process.stdout], [], [], 5)[0]:
+                self.fail("private sentinel did not answer within five seconds")
+            return process.stdout.readline().rstrip("\n")
+
+        try:
+            self.assertEqual(reply(json.dumps([mode, str(resource)])), "ready")
+            yield process, reply
+        finally:
+            if process.poll() is None:
+                try:
+                    process.stdin.write("stop\n")
+                    process.stdin.flush()
+                    process.wait(timeout=5)
+                except (BrokenPipeError, subprocess.TimeoutExpired):
+                    process.terminate()                   # only this test's own private child
+                    process.wait(timeout=5)
+            process.stdin.close()
+            process.stdout.close()
+            errors = process.stderr.read()
+            process.stderr.close()
+            self.assertEqual(process.returncode, 0, errors)
+
+    def test_native_cwd_exe_argv_and_maps_references_and_sibling_control(self):
+        for mode in ("cwd", "exe", "argv", "maps"):
+            with self.subTest(mode=mode):
+                target = Path(self.tmp.name) / mode
+                sibling = target.with_name(target.name + "-sibling")
+                sibling.mkdir()
+                with self.sentinel(target, mode) as (process, reply):
+                    self.assertIsNone(process.poll())
+                    with self.assertRaises(appdrop.DropError) as refused:
+                        appdrop._assert_app_trees_idle(target)
+                    self.assertEqual(refused.exception.code, "app_in_use")
+                    appdrop._assert_app_trees_idle(sibling)
+                    self.assertEqual(reply("read"), "old runtime resource")
+                appdrop._assert_app_trees_idle(target)     # a normally exited PID leaves no lease
+
+    def test_old_active_update_loses_resource_and_fixed_refuses_without_mutation(self):
+        for enabled in (False, True):
+            with self.subTest(guard_enabled=enabled):
+                slug = "native-fixed" if enabled else "native-old"
+                old = self.tar_bytes([self.member("app/program", ELF, 0o755)])
+                plan = appdrop.plan_for(self.download(slug + "-old.tar.gz", old), "Private app", slug)
+                record = appdrop.install(plan)
+                target = plan.target
+                with self.sentinel(target, "maps") as (process, reply):
+                    before = {path: path.read_bytes() for path in (
+                        target / "program", target / "runtime-resource", Path(record["desktop"]),
+                        appdrop.manifest_dir() / (slug + ".json"))}
+                    updated = self.tar_bytes([self.member("app/program", ELF + b"new", 0o755)])
+                    update = appdrop.plan_for(self.download(slug + "-new.tar.gz", updated), "Private app", slug)
+                    if enabled:
+                        with self.assertRaises(appdrop.DropError) as refused:
+                            appdrop.install(update)
+                        self.assertEqual(refused.exception.code, "app_in_use")
+                        self.assertEqual({path: path.read_bytes() for path in before}, before)
+                        self.assertEqual(reply("read"), "old runtime resource")
+                    else:
+                        # The removed guard restores the original destructive swap/retirement.
+                        with mock.patch.object(appdrop, "_assert_app_trees_idle"):
+                            appdrop.install(update)
+                        self.assertEqual(reply("read"), "missing")
+                    self.assertIsNone(process.poll(), "the old process can survive with broken resources")
+                appdrop.install(update)
+                appdrop.install(update)                  # two inactive replacements still work
+                self.assertEqual((target / "program").read_bytes(), ELF + b"new")
+                self.assertFalse(target.with_name("." + slug + ".previous").exists())
+
+
 class CatalogueInstalls(Home):
     """Mo Store's `appdrop` kind: the catalogue names the app, and the launcher can carry its id."""
 
@@ -996,6 +1297,19 @@ class ThroughTheStore(Home):
         code, job = self.storectl("install-file", str(self.download("p.deb", b"!<arch>\ndebian-binary 1 0 0 100644 4 `\n")))
         self.assertEqual((code, job["state"]), (2, "failed"))
         self.assertIn("deb_not_native", job["message"])
+
+    def test_active_app_refusal_survives_the_canonical_store_job(self):
+        archive = self.download("noteforge-2.1.tar.gz", self.portable_app())
+        code, _job = self.storectl("install-file", str(archive))
+        self.assertEqual(code, 0)
+        target = self.home / "Applications/noteforge"
+        with NativeActiveApps.sentinel(self, target, "maps") as (_process, reply):
+            code, job = self.storectl("install-file", str(archive))
+            self.assertEqual((code, job["state"], job.get("code")), (1, "failed", "app_in_use"))
+            self.assertEqual(job["items"][0]["message_key"], "vendor_app_in_use")
+            self.assertEqual(reply("read"), "old runtime resource")
+        code, job = self.storectl("install-file", str(archive))
+        self.assertEqual((code, job["state"]), (0, "success"))
 
 
 class TheDialogHalf(unittest.TestCase):

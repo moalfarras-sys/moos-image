@@ -45,7 +45,7 @@ class CompositionBoundary(unittest.TestCase):
             self.assertEqual(run.call_count,2)
 
 class PackageCommandLogs(unittest.TestCase):
-    def execute(self,failure=None,drift=False):
+    def execute(self,failure=None,drift=False,overrides=None):
         self.commands=[];self.directories=set();self.queries=[]
         def command(args,**kwargs):
             self.assertEqual(args[0],'dnf5')
@@ -59,7 +59,8 @@ class PackageCommandLogs(unittest.TestCase):
         def query(*args):
             self.queries.append(args)
             self.assertEqual(args[:4],('rpm','-q','--qf','%{VERSION}-%{RELEASE}'))
-            return '6.8.3-1.fc44' if drift else M.EXPECTED[args[-1]]
+            return ('6.8.3-1.fc44' if drift else
+                    (overrides or {}).get(args[-1],M.EXPECTED[args[-1]]))
         with mock.patch.object(M.subprocess,'run',side_effect=command),mock.patch.object(M,'run',side_effect=query):
             return M.sync_packages()
 
@@ -85,5 +86,23 @@ class PackageCommandLogs(unittest.TestCase):
         with self.assertRaisesRegex(RuntimeError,'inputs drifted'):self.execute(drift=True)
         self.assertEqual(len(self.commands),1)
         self.assertTrue(all(not p.exists() for p in self.directories))
+
+    def test_only_the_reviewed_kwin_rebuild_changes_the_exact_package_set(self):
+        expected={name:'6.8.2-1.fc44' for name in ('plasma-workspace','plasma-desktop',
+            'kwin','libplasma','kscreenlocker','plasma-login-manager')}
+        expected['kwin']='6.8.2-2.fc44'
+        self.assertEqual(self.execute(overrides=expected),expected)
+
+    def test_older_and_unknown_kwin_rebuilds_still_refuse_before_cleanup_success(self):
+        for release in ('6.8.2-1.fc44','6.8.2-3.fc44','6.8.3-1.fc44'):
+            with self.subTest(release=release),self.assertRaisesRegex(RuntimeError,'inputs drifted'):
+                self.execute(overrides={'kwin':release})
+            self.assertEqual(len(self.commands),1)
+            self.assertTrue(all(not p.exists() for p in self.directories))
+
+    def test_the_kwin_review_does_not_admit_another_package_rebuild(self):
+        with self.assertRaisesRegex(RuntimeError,'inputs drifted'):
+            self.execute(overrides={'libplasma':'6.8.2-2.fc44'})
+        self.assertEqual(len(self.commands),1)
 
 if __name__=='__main__':unittest.main(verbosity=2)

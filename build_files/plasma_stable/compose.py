@@ -16,6 +16,10 @@ FINGERPRINT='96BDF4E8710B8F9FFB11D83DDB51F4CB6C33BDBB'
 REPO='copr:copr.fedorainfracloud.org:group_kdesig:kde-final'
 EXPECTED={name:'6.8.2-1.fc44' for name in ('plasma-workspace','plasma-desktop',
           'kwin','libplasma','kscreenlocker','plasma-login-manager')}
+# The publisher's -2 rebuild adds version macros to kwin-devel only. The
+# upstream source archive and signature are byte-identical to reviewed -1;
+# native package/seam/greeter controls qualify this exact rebuild separately.
+EXPECTED['kwin']='6.8.2-2.fc44'
 
 def run(*args):
     return subprocess.check_output(list(args),text=True).strip()
