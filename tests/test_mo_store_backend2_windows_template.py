@@ -110,7 +110,7 @@ class Template(winfix.Isolated):
             self.assertFalse(self.prefix(app_id).is_symlink())
             self.assertEqual((self.home / f".local/state/moos-foreign/{app_id}/windows-dpi").read_text(),
                              "192\n", "the program's density stamp is not the template's")
-        self.assertEqual(sorted(path.name for path in self.windows.iterdir()),
+        self.assertEqual(sorted(path.name for path in self.windows.iterdir() if path.name != ".locks"),
                          [".template", ".template.json", "alpha", "alpha.json", "beta", "beta.json"])
 
     def test_each_program_keeps_its_own_settings(self):
@@ -165,7 +165,7 @@ class Template(winfix.Isolated):
         self.assertTrue((self.template / "system.reg").is_file(), "beta still needs the template")
         code, document = self.controller().remove("beta", delete_data=True)
         self.assertEqual(document["state"], "success", document)
-        self.assertEqual(sorted(path.name for path in self.windows.iterdir()), [])
+        self.assertEqual(sorted(path.name for path in self.windows.iterdir() if path.name != ".locks"), [])
 
     def test_default_removal_keeps_saved_prefixes_and_reinstall_reuses_them(self):
         self.install("alpha")
@@ -197,7 +197,7 @@ class Template(winfix.Isolated):
         self.assertEqual(document["state"], "failed", document)
         self.assertIn("No space left on device", document["items"][0]["message"])
         # A first install that did not finish leaves nothing, the template included.
-        self.assertEqual(sorted(path.name for path in self.windows.iterdir()), [])
+        self.assertEqual(sorted(path.name for path in self.windows.iterdir() if path.name != ".locks"), [])
 
 
 @unittest.skipUnless(os.environ.get("MOOS_WINDOWS_TEMPLATE_PROOF"),

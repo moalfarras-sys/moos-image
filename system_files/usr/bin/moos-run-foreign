@@ -183,13 +183,33 @@ wine_run() {
 # is recomputed here from the id, and the record names nothing but the program inside app/.
 # Each program has its own prefix, so one program's settings and fixes never touch another's.
 windows_app_run() {
-    local id="$1" data base app prefix record exe root real foreign state log code
+    local id="$1" lease_fd="${2:-}" data base app prefix record exe root real foreign state log code
     if ! [[ "$id" =~ ^[a-z0-9]([a-z0-9-]{0,62}[a-z0-9])?$ ]]; then
         notify "لم يُعثر على هذا البرنامج. | This program was not found."
         return 2
     fi
     data="${XDG_DATA_HOME:-$HOME/.local/share}"
     base="$data/moos/windows-apps/$id"
+    # The helper holds this same shared lease until Wine returns. Validate its inherited
+    # descriptor before reading the installation or changing display/settings/log files.
+    # This internal entry is never a way to skip the Store's lifecycle coordination.
+    if ! /usr/bin/python3 -I - "$base" "$lease_fd" <<'PY' 2>/dev/null
+import importlib.util, pathlib, sys
+try:
+    descriptor = int(sys.argv[2])
+    spec = importlib.util.spec_from_file_location(
+        "moos_windows_portable", "/usr/lib/moos/moos_windows_portable.py")
+    helper = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = helper
+    spec.loader.exec_module(helper)
+    helper.validate_lease(pathlib.Path(sys.argv[1]), descriptor)
+except Exception:
+    raise SystemExit(1)
+PY
+    then
+        notify "تعذّر التحقق من حجز ملفات البرنامج. أعد المحاولة من مشغّل MoOS. | The app's file access could not be verified. Try again from the MoOS launcher."
+        return 1
+    fi
     app="$base/app"
     prefix="$base/prefix"
     record="$data/moos/windows-apps/$id.json"
@@ -413,7 +433,9 @@ apk_install() {
 case "${1:-}" in
     --apk-install) shift; [ -n "${1:-}" ] || usage; apk_install "$1"; exit $? ;;
     --wine-run) shift; [ -n "${1:-}" ] || usage; wine_run "$1"; exit $? ;;
-    --app) shift; [ "$#" -eq 1 ] || usage; windows_app_run "$1"; exit $? ;;
+    --app) shift; [ "$#" -eq 1 ] || usage
+        exec /usr/bin/python3 -I /usr/lib/moos/moos_windows_portable.py run "$1" "$0" ;;
+    --app-leased) shift; [ "$#" -eq 2 ] || usage; windows_app_run "$1" "$2"; exit $? ;;
     -h|--help|"") usage ;;
 esac
 

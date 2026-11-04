@@ -1,0 +1,100 @@
+{
+  "schema": 1,
+  "date": "2026-11-04",
+  "plan": [
+    "P4.1",
+    "P4.3"
+  ],
+  "integrationOwner": "root",
+  "baseSource": "9359b0f6049759859d355834e3ad39c51961e9ed",
+  "installed": {
+    "edition": "moos",
+    "version": "44.20261031.1119",
+    "digest": "sha256:f1d7d472dfe978951927a31e9b0e6f0e5bf1e9766fe66db740fb9ae888ebfa29",
+    "bootID": "c374ac47-2c32-47e9-abe5-832819ed7dbd",
+    "output": "eDP-1 2560x1600 scale1.45 165Hz",
+    "runtime": "Wine11.20 Staging, winex11.drv",
+    "application": "Notepad4 26.08r6282",
+    "archiveSHA256": "fe202ddbbb6a295d6a771ecce918b8b63874287f0e33e43a50aa910afe270573"
+  },
+  "nativeJourney": {
+    "install": "passed through immutable moos-storectl, pinned publisher bytes",
+    "launchAndEdit": "passed canonical desktop/runner, visible Arabic/Latin fixture text",
+    "arabicSaveAndCloseLabels": "failed: labels remain blank/clipped, retained after settled captures",
+    "englishProcessOnlyControl": "labels rendered; process-only locale, no persistent global/prefix font/locale change",
+    "saveReopen": "not accepted: requested target absent; known fixture bytes found at an unexpected app-folder filename and foreground changed; writer/focus cause unknown",
+    "recovery": "actual saved file, settings, prefix and active app preserved; no further global input or focus changes",
+    "limits": "simulated native keyboard/pointer, not physical tablet input; no all-Windows/Arabic/font correctness claim"
+  },
+  "oldAdapter": {
+    "update": "exit0 success deletes added app-folder preferences/document while prefix survives",
+    "ordinaryRemove": "exit0 success deletes added app-folder preferences/document while prefix survives",
+    "proof": "private exact9359 existing backend fixture; real filesystem, recording runtime/pinned in-memory publisher; no owner mutation"
+  },
+  "repair": {
+    "owner": "existing moos-storectl/windows_app_run, one shared private module",
+    "publisherOwnership": "pristine relative paths/type/size/SHA256/safe modes captured before user overlay; copied private data never adopted as publisher payload",
+    "update": "carry added/modified data; refuse new publisher collisions including casefold and file/directory ancestors; verify source/destination; retain full predecessor and receipt",
+    "ordinaryRemove": "remove launcher/installation record, retain entire portable tree and prefix with separate ownership marker",
+    "reinstall": "carry qualified retained data; unknown legacy inventory refuses instead of inventing ownership",
+    "coordination": "stable .locks/<id>.lock SH held through canonical launch; Store EX across mutation; inherited descriptor verified and reacquired SH on same open-file description; observed cwd/exe/maps/argv/open-fd users refused before stopping a prefix",
+    "safety": "no-follow owned regular files, no hardlinks/unsafe writes; mountinfo before traversal including same-filesystem bind; unknown partial/previous trees preserved; bounded manifest/bytes, cancellation and receipt/rename rollback",
+    "recoveryRetention": "base/recovery/<unique>/app plus old receipt and retained-app remain recovery consumers until exact data migration/owner-approved retirement or explicit remove-data; no automatic pruning"
+  },
+  "executed": {
+    "backend": "29 run,28 passed/1 opt-in real-Wine test skipped",
+    "runner": "16 run,15 passed/1 opt-in real-Wine test skipped; old9359 concurrent-control expected refusal retained separately",
+    "template": "9 run,8 passed/1 opt-in native template test skipped",
+    "pinnedUpdates": "30 passed",
+    "jobLanguage": "71 keys/71 bilingual phrases",
+    "nativeSameFilesystemBind": "passed in isolated user/mount namespace, refused before traversal, canary unchanged",
+    "fixedFilesystemReplay": "real update/ordinary remove/reinstall preserves document, settings and0600 permissions; explicit fixture delete removes only its own base; stable lock retained",
+    "whatsNew": "30 passed; retained original reader bounds and all prior entries; new card x86-only with capability wording"
+  },
+  "qualification9359": {
+    "source": {
+      "exit": 0,
+      "seconds": 1104.513228,
+      "stableInputs": 14745
+    },
+    "localImage": {
+      "exit": 0,
+      "seconds": 2772.839871,
+      "imageID": "9254df4bf437d3e0a0cc56fee76513f992b7712737229e644e7c43a2349032a0",
+      "readback": 102,
+      "mismatches": 0,
+      "kernel": "7.2.15-200.fc44",
+      "kwin": "6.8.2-3.fc44",
+      "genericFonts": [
+        "Meyar Sans",
+        "Meyar Mono"
+      ]
+    },
+    "fixtureRefusals": [
+      "initial readback mistakenly used raw kdeglobals and6.7 session source; retained mismatch; exact declared build append and registered6.8 seam match before readback passed"
+    ],
+    "ci": {
+      "repo": 41793461772,
+      "x86Image": 41793461650,
+      "nativeArmImage": 41793461738,
+      "remoteAndWindows": 41793461671,
+      "requiredChecks": "passed",
+      "armDisksAndPromotion": "intentionally skipped on pull request",
+      "nextPlasmaImage": "skipped/unavailable, no next-image acceptance"
+    }
+  },
+  "remaining": [
+    "new combined source/full-image/CI and signed four-edition delivery",
+    "native installed new-runner/data-preserving lifecycle",
+    "Arabic Notepad4 Save/close diagnosis and file reopen journey",
+    "legacy inventory migration/reinstall UX and recovery storage management",
+    "external bypass starts, cross-user/namespaces and programs that deliberately close inherited descriptors are not a universal race-free lease",
+    "ten real Windows journeys/tablet physical input; no owner update or reboot performed"
+  ],
+  "privateEvidence": "test-results/execution-20261104/{windows-notepad4,windows-portable-data,integrated-9359b0f6}; captures remain local",
+  "files": {
+    "system_files/usr/bin/moos-storectl": "feca19db6dca3d3eb5df7759ed229a24bf6d1930be54384b414d3868902ed3a7",
+    "system_files/usr/bin/moos-run-foreign": "7e03cc4719ff43ed3ca17803a0d41548ac7f827ff21fd2f2cf5f2a9a1f0c6a42",
+    "system_files/usr/lib/moos/moos_windows_portable.py": "c9b713438ebd1f68b1f4eac90c5e43f7b762805acce0bcb0367633a361fa2750"
+  }
+}

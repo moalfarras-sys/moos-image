@@ -1512,6 +1512,22 @@ Node grouping tests alone do not prove that window behavior.
 
 ## Before you push
 
+**A portable program folder contains user data too.** Native Notepad4 wrote
+settings and a saved document beside its executable. The old Windows update
+and ordinary remove both returned success while deleting those bytes. Keep a
+pristine publisher inventory before carrying added/modified files, preserve
+permissions, refuse Windows case/ancestor collisions and unknown legacy or
+partial ownership, and retain recovery predecessors. Ordinary removal keeps
+portable data as well as the prefix; reinstall must respect that retained tree.
+Canonical launches hold the same stable shared lifetime inode that Store
+mutations reserve exclusively; refuse observed external users before stopping
+anything. Keep old-loss, actual open-fd, inherited-descriptor and same-filesystem
+bind controls. External bypasses remain a limitation; never delete an unknown
+`.app.previous`/`.app.installing` or treat an absent installation record as
+permission to replace residual data. A correct private transaction is not a
+native Arabic Save dialog or a signed installed update.
+
+
 **A Remove flag is a promise about files, not a label.** Oracle's private Store
 review found that Windows Remove accepted `delete_data=false` and still removed
 the prefix containing a saved document. Test both choices with a real fixture

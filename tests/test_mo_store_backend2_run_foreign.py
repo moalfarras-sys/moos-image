@@ -25,18 +25,40 @@ top-level variable would be unbound (tests/test_app_engines.py went red on exact
 """
 from __future__ import annotations
 
+import importlib.util
 import json
+import os
 from pathlib import Path
 import re
 import shutil
 import subprocess
+import sys
 import tempfile
+import time
 import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
 RUNNER = ROOT / "system_files/usr/bin/moos-run-foreign"
 INSPECT = ROOT / "system_files/usr/bin/moos-inspect"
 SOURCE = RUNNER.read_text(encoding="utf-8")
+PORTABLE = ROOT / "system_files/usr/lib/moos/moos_windows_portable.py"
+
+
+def private_runner(base: Path) -> Path:
+    """Use the source helper in a private runner, without a production environment bypass."""
+    runner = base / "moos-run-foreign"
+    runner.write_text(SOURCE.replace("/usr/lib/moos/moos_windows_portable.py", str(PORTABLE)),
+                      encoding="utf-8")
+    runner.chmod(0o755)
+    return runner
+
+
+def portable_module():
+    spec = importlib.util.spec_from_file_location("portable_runner_controls", PORTABLE)
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = module
+    spec.loader.exec_module(module)
+    return module
 
 
 def runtime_starts() -> list[str]:
@@ -110,6 +132,7 @@ class WithAStubRuntime(unittest.TestCase):
         base = Path(self.tmp.name)
         self.home = base / "home"
         self.home.mkdir()
+        self.runner = private_runner(base)
         self.bindir = base / "bin"
         self.bindir.mkdir()
         self.calls = base / "calls.log"
@@ -129,7 +152,7 @@ class WithAStubRuntime(unittest.TestCase):
                        "XDG_DATA_HOME": str(self.home / ".local/share"),
                        "XDG_STATE_HOME": str(self.home / ".local/state"),
                        "XDG_CACHE_HOME": str(self.home / ".cache"), "CALLS": str(self.calls)}
-        return subprocess.run(["bash", str(RUNNER), *argv], env=environment, text=True,
+        return subprocess.run(["bash", str(self.runner), *argv], env=environment, text=True,
                               capture_output=True, timeout=60)
 
     def starts(self) -> list[list[str]]:
@@ -195,6 +218,7 @@ class WhenItFails(unittest.TestCase):
         base = Path(self.tmp.name)
         self.home = base / "home"
         self.home.mkdir()
+        self.runner = private_runner(base)
         self.bindir = base / "bin"
         self.bindir.mkdir()
         self.notices = base / "notices.log"
@@ -215,7 +239,7 @@ class WhenItFails(unittest.TestCase):
                        "XDG_DATA_HOME": str(self.home / ".local/share"),
                        "XDG_STATE_HOME": str(self.home / ".local/state"),
                        "XDG_CACHE_HOME": str(self.home / ".cache")}
-        done = subprocess.run(["bash", str(RUNNER), *argv], env=environment, text=True,
+        done = subprocess.run(["bash", str(self.runner), *argv], env=environment, text=True,
                               capture_output=True, timeout=60)
         said = self.notices.read_text(encoding="utf-8").splitlines() if self.notices.exists() else []
         return done, said
@@ -276,6 +300,167 @@ class WhenItFails(unittest.TestCase):
         if not inspect_reads_foreign_logs():
             self.assertEqual([text for text in notices if "Mo AI" in text], [])
         self.assertEqual([text for text in notices if re.search(r"متجر Mo(?!OS)", text)], [])
+
+
+@unittest.skipUnless(Path("/bin/bash").exists(), "needs bash")
+class WindowsLifetimeLease(unittest.TestCase):
+    """Real runner processes and native flocks, isolated from the owner's Wine and prefixes."""
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.root = Path(self.tmp.name)
+        self.home = self.root / "home"
+        self.home.mkdir()
+        self.runner = private_runner(self.root)
+        self.helper = portable_module()
+        self.base = self.home / ".local/share/moos/windows-apps/tinyterm"
+        (self.base / "app").mkdir(parents=True)
+        (self.base / "app/tinyterm.exe").write_bytes(b"MZ")
+        (self.base / "prefix").mkdir()
+        (self.base / "prefix/system.reg").write_text("WINE REGISTRY Version 2\n")
+        self.record = self.base.parent / "tinyterm.json"
+        self.record.write_text(json.dumps({"schema": 1, "id": "tinyterm", "exe": "tinyterm.exe"}))
+        self.bindir = self.root / "bin"
+        self.bindir.mkdir()
+        self.ready = self.root / "wine-ready"
+        self.release = self.root / "wine-release"
+        self.notices = self.root / "notices"
+        self.environment = {
+            "HOME": str(self.home), "PATH": f"{self.bindir}:/usr/bin:/bin",
+            "XDG_DATA_HOME": str(self.home / ".local/share"),
+            "XDG_STATE_HOME": str(self.home / ".local/state"),
+            "XDG_CONFIG_HOME": str(self.home / ".config"),
+            "XDG_CACHE_HOME": str(self.home / ".cache"),
+            "XDG_RUNTIME_DIR": str(self.root / "run"),
+            "DBUS_SESSION_BUS_ADDRESS": "unix:path=/nonexistent",
+            "DISPLAY": "", "WAYLAND_DISPLAY": "",
+            "LEASE_READY": str(self.ready), "LEASE_RELEASE": str(self.release),
+            "LEASE_NOTICES": str(self.notices),
+        }
+        (self.root / "run").mkdir(mode=0o700)
+        for name, body in {
+            "xrdb": 'printf "Xft.dpi:\\t96\\n"\n',
+            "notify-send": 'for last in "$@"; do :; done\nprintf "%s\\n" "$last" >>"$LEASE_NOTICES"\n',
+        }.items():
+            self.tool(name, body)
+        self.tool("wine", 'case "$1" in reg) exit 0 ;; esac\n'
+                  'printf "ready" >"$LEASE_READY"\n'
+                  'while [ ! -f "$LEASE_RELEASE" ]; do sleep 0.01; done\n')
+
+    def tool(self, name: str, body: str):
+        path = self.bindir / name
+        path.write_text("#!/bin/bash\n" + body, encoding="utf-8")
+        path.chmod(0o755)
+
+    def wait_until(self, predicate, message):
+        until = time.monotonic() + 10
+        while time.monotonic() < until:
+            if predicate():
+                return
+            time.sleep(0.01)
+        self.fail(message)
+
+    def start(self):
+        process = subprocess.Popen([str(self.runner), "--app", "tinyterm"],
+                                   env=self.environment, stdin=subprocess.DEVNULL,
+                                   stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, text=True)
+
+        def close():
+            self.release.touch()
+            try:
+                process.wait(timeout=10)
+            except subprocess.TimeoutExpired:
+                process.kill()
+                process.wait(timeout=10)
+            if process.stderr:
+                process.stderr.close()
+        self.addCleanup(close)
+        return process
+
+    def exclusive_available(self):
+        try:
+            with self.helper.lease(self.base, exclusive=True):
+                return True
+        except self.helper.Error:
+            return False
+
+    def test_real_launch_holds_shared_lease_until_runtime_returns(self):
+        process = self.start()
+        self.wait_until(self.ready.exists, "the private runtime never executed")
+        self.assertIsNone(process.poll())
+        self.assertFalse(self.exclusive_available(), "an update obtained EX while Wine was running")
+        self.release.touch()
+        self.assertEqual(process.wait(timeout=10), 0)
+        self.assertTrue(self.exclusive_available(), "normal close did not release the app lease")
+
+    def test_update_lease_refuses_launch_before_record_or_display_mutation(self):
+        self.record.unlink()
+        with self.helper.lease(self.base, exclusive=True):
+            done = subprocess.run([str(self.runner), "--app", "tinyterm"],
+                                  env=self.environment, capture_output=True, text=True, timeout=10)
+        self.assertEqual(done.returncode, 1, done.stderr)
+        self.assertFalse(self.ready.exists())
+        self.assertFalse((self.home / ".local/state/moos-foreign").exists())
+        self.assertFalse((self.base / "prefix/user.reg").exists())
+        self.assertTrue(self.notices.is_file(), "the refused launch was silent")
+        self.assertNotIn("not installed", self.notices.read_text())
+
+    def test_internal_entry_refuses_missing_or_wrong_descriptor_without_writes(self):
+        other = self.root / "unrelated-lock"
+        with other.open("w") as descriptor:
+            for token, inherited in (("not-a-fd", ()), ("987654", ()),
+                                     (str(descriptor.fileno()), (descriptor.fileno(),))):
+                with self.subTest(token=token):
+                    done = subprocess.run([str(self.runner), "--app-leased", "tinyterm", token],
+                                          env=self.environment, pass_fds=inherited,
+                                          capture_output=True, text=True, timeout=10)
+                    self.assertEqual(done.returncode, 1, done.stderr)
+        self.assertFalse(self.ready.exists())
+        self.assertFalse((self.home / ".local/state/moos-foreign").exists())
+
+    def test_internal_entry_refuses_deleted_lock_descriptor(self):
+        with self.helper.lease(self.base, exclusive=False) as descriptor:
+            (self.base.parent / ".locks/tinyterm.lock").unlink()
+            done = subprocess.run([str(self.runner), "--app-leased", "tinyterm", str(descriptor)],
+                                  env=self.environment, pass_fds=(descriptor,),
+                                  capture_output=True, text=True, timeout=10)
+        self.assertEqual(done.returncode, 1, done.stderr)
+        self.assertFalse(self.ready.exists())
+        self.assertFalse((self.home / ".local/state/moos-foreign").exists())
+
+    def test_internal_entry_cannot_use_an_unlocked_fd_to_bypass_update(self):
+        self.tool("wine", 'case "$1" in reg) exit 0 ;; esac\n'
+                  'printf "unexpected execution" >"$LEASE_READY"\n')
+        with self.helper.lease(self.base, exclusive=True):
+            descriptor = os.open(self.base.parent / ".locks/tinyterm.lock", os.O_RDWR)
+            try:
+                done = subprocess.run([str(self.runner), "--app-leased", "tinyterm", str(descriptor)],
+                                      env=self.environment, pass_fds=(descriptor,),
+                                      capture_output=True, text=True, timeout=10)
+            finally:
+                os.close(descriptor)
+        self.assertEqual(done.returncode, 1, done.stderr)
+        self.assertFalse(self.ready.exists(), "an unlocked genuine file bypassed the Store's EX")
+        self.assertFalse((self.home / ".local/state/moos-foreign").exists())
+
+    def test_runtime_descendant_retains_lease_after_immediate_parent_returns(self):
+        # A real child inherits the same open file description; neither shell entry
+        # closes it. Its independent release is what permits the next update.
+        child = self.root / "lease-child.py"
+        child.write_text(
+            "import os, pathlib, time\n"
+            "pathlib.Path(os.environ['LEASE_READY']).write_text(str(os.getpid()))\n"
+            "while not pathlib.Path(os.environ['LEASE_RELEASE']).exists(): time.sleep(.01)\n",
+            encoding="utf-8")
+        self.tool("wine", 'case "$1" in reg) exit 0 ;; esac\n'
+                  f'python3 "{child}" </dev/null >/dev/null 2>&1 &\nexit 0\n')
+        process = self.start()
+        self.wait_until(self.ready.exists, "the independent private child never executed")
+        self.assertEqual(process.wait(timeout=10), 0)
+        self.assertFalse(self.exclusive_available(), "the child lost the inherited app lease")
+        self.release.touch()
+        self.wait_until(self.exclusive_available, "the private child did not release its lease")
 
 
 @unittest.skipUnless(shutil.which("wine") and shutil.which("wineserver"), "needs the Windows runtime")
