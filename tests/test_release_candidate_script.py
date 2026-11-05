@@ -60,7 +60,8 @@ class ReleaseCandidateScript(unittest.TestCase):
         self.assertIn('-n "moos-candidate-proof-$edition"', self.text)
         self.assertIn('= "$revision" ]', self.text)
         self.assertIn("= verified ]", self.text)
-        self.assertIn('[ "$(gh_read run view "$id" --json headSha --jq .headSha)" = "$revision" ]', self.text)
+        self.assertIn('head_sha="$(gh_read --dispatched-run "$id" run view "$id" --json headSha --jq .headSha)"', self.text)
+        self.assertIn('[ "$head_sha" = "$revision" ]', self.text)
 
     def test_promotion_contract_is_kept(self):
         self.assertIn("--exit-status", self.text)
@@ -155,13 +156,16 @@ class ReleaseCandidateScript(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(result.stdout.strip(), "72")
 
-    def metadata_fixture(self, command, failures=1, error="gh: HTTP 500", status=1):
+    def metadata_fixture(self, command, failures=1, error="gh: HTTP 500", status=1,
+                         *, dispatch_status=0, value="abc"):
         """Run real retry/dispatch functions; no network, Actions mutation or host changes."""
         helper = self.text[self.text.index('gh_read() {'):self.text.index('\n# wait_run')]
         with tempfile.TemporaryDirectory(prefix="moos-release-read-test-") as work:
             env = {**os.environ, "MOOS_READ_TEST_WORK": work,
                    "MOOS_READ_TEST_FAILURES": str(failures), "MOOS_READ_TEST_ERROR": error,
-                   "MOOS_READ_TEST_STATUS": str(status)}
+                   "MOOS_READ_TEST_STATUS": str(status),
+                   "MOOS_DISPATCH_TEST_STATUS": str(dispatch_status),
+                   "MOOS_READ_TEST_VALUE": value}
             stub = r'''
 set -euo pipefail
 work="$MOOS_READ_TEST_WORK"; revision=abc; ref=main
@@ -169,8 +173,9 @@ gh() {
     printf '%s %s\n' "$1" "$2" >> "$work/calls"
     if [ "$1:$2" = workflow:run ]; then
         echo https://github.com/example/moos/actions/runs/71
-        return 0
+        return "$MOOS_DISPATCH_TEST_STATUS"
     fi
+    if [ "$1:$2" = run:view ]; then printf '%s\n' "${3:-}" >> "$work/read-ids"; fi
     local count=0
     [ ! -f "$work/count" ] || count="$(cat "$work/count")"
     count=$((count + 1)); echo "$count" > "$work/count"
@@ -179,7 +184,7 @@ gh() {
         printf '%s\n' "$MOOS_READ_TEST_ERROR" >&2
         return "$MOOS_READ_TEST_STATUS"
     fi
-    echo abc
+    printf '%s\n' "$MOOS_READ_TEST_VALUE"
 }
 timeout() {
     [ "$1" = --kill-after=5s ] || return 99
@@ -192,6 +197,8 @@ sleep() { printf 'sleep %s\n' "$1" >> "$work/calls"; }
             result = subprocess.run(["bash", "-c", stub + helper + '\n' + command],
                                     env=env, capture_output=True, text=True, timeout=10)
             calls = Path(work, 'calls').read_text().splitlines() if Path(work, 'calls').exists() else []
+            result.read_ids = (Path(work, 'read-ids').read_text().splitlines()
+                               if Path(work, 'read-ids').exists() else [])
             leftovers = list(Path(work).glob('read.*'))
             self.assertEqual(leftovers, [], "private retry scratch must be retired")
             return result, calls
@@ -205,10 +212,74 @@ sleep() { printf 'sleep %s\n' "$1" >> "$work/calls"; }
         self.assertIn('dispatched build.yml run 71:', result.stderr)
         # The previous single GET loses the already-created run on the first 500.
         old = self.text[self.text.index('dispatch() {'):self.text.index('\n# wait_run')]
-        old = old.replace('gh_read run view', 'gh run view')
+        old = old.replace('gh_read --dispatched-run "$id" run view', 'gh run view')
         result, calls = self.metadata_fixture(old + '\ndispatch build.yml', failures=2)
         self.assertNotEqual(result.returncode, 0)
         self.assertEqual(calls, ['workflow run', 'run view'])
+
+    def test_newly_dispatched_404_recovers_only_its_exact_run_without_another_post(self):
+        result, calls = self.metadata_fixture('dispatch build-disk.yml', failures=2,
+                                             error='failed to get run: HTTP 404: Not Found')
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, '71\n')
+        self.assertEqual(calls, ['workflow run', 'run view', 'sleep 2',
+                                'run view', 'sleep 4', 'run view'])
+        self.assertEqual(result.read_ids, ['71', '71', '71'])
+        self.assertNotIn('discarded-partial-output', result.stdout)
+
+    def test_exhausted_fresh_404_keeps_created_id_without_false_sha_mismatch(self):
+        result, calls = self.metadata_fixture('dispatch build-disk.yml', failures=9,
+                                             error='failed to get run: HTTP 404: Not Found')
+        self.assertEqual(result.returncode, 1)
+        self.assertEqual(result.stdout, '')
+        self.assertEqual(calls, ['workflow run', 'run view', 'sleep 2',
+                                'run view', 'sleep 4', 'run view'])
+        self.assertEqual(result.read_ids, ['71', '71', '71'])
+        self.assertIn('dispatched build-disk.yml run 71:', result.stderr)
+        self.assertIn('metadata for created run 71', result.stderr)
+        self.assertIn('unreadable; refusing redispatch', result.stderr)
+        self.assertNotIn('is not on', result.stderr)
+
+    def test_ordinary_404_and_fresh_authentication_errors_are_not_retried(self):
+        for command in ('gh_read run view 71', 'gh_read run list --workflow build.yml'):
+            with self.subTest(command=command):
+                result, calls = self.metadata_fixture(command, 9, 'gh: HTTP 404')
+                self.assertEqual(result.returncode, 1)
+                self.assertEqual(len(calls), 1)
+                self.assertEqual(result.stdout, '')
+        result, calls = self.metadata_fixture('dispatch build-disk.yml', 9, 'gh: HTTP 403')
+        self.assertEqual(result.returncode, 1)
+        self.assertEqual(calls, ['workflow run', 'run view'])
+        self.assertEqual(result.stdout, '')
+        self.assertIn('unreadable; refusing redispatch', result.stderr)
+
+    def test_fresh_read_context_refuses_wrong_id_non_numeric_id_and_other_commands(self):
+        for command in ('gh_read --dispatched-run 71 run view 72',
+                        'gh_read --dispatched-run arbitrary run view arbitrary',
+                        'gh_read --dispatched-run 71 run list',
+                        'gh_read --dispatched-run 71 workflow run build.yml',
+                        'gh_read --dispatched-run'):
+            with self.subTest(command=command):
+                result, calls = self.metadata_fixture(command)
+                self.assertEqual(result.returncode, 2)
+                self.assertEqual(calls, [])
+
+    def test_a_failed_dispatch_is_one_post_with_no_metadata_read_or_retry(self):
+        result, calls = self.metadata_fixture('dispatch build-disk.yml', dispatch_status=1)
+        self.assertEqual(result.returncode, 1)
+        self.assertEqual(calls, ['workflow run'])
+        self.assertEqual(result.stdout, '')
+        self.assertIn('dispatch of build-disk.yml failed', result.stderr)
+
+    def test_empty_or_null_metadata_is_unreadable_not_a_wrong_revision(self):
+        for value in ('', 'null'):
+            with self.subTest(value=value):
+                result, calls = self.metadata_fixture('dispatch build-disk.yml', failures=0, value=value)
+                self.assertEqual(result.returncode, 1)
+                self.assertEqual(calls, ['workflow run', 'run view'])
+                self.assertEqual(result.stdout, '')
+                self.assertIn('unreadable', result.stderr)
+                self.assertNotIn('is not on', result.stderr)
 
     def test_read_retries_are_bounded_and_discard_failed_stdout(self):
         for error, status in [('gh: HTTP 503', 1), ('gh: HTTP 429', 1),
