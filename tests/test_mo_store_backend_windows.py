@@ -22,6 +22,7 @@ import json
 import os
 from pathlib import Path
 import shutil
+import shlex
 import struct
 import subprocess
 import sys
@@ -171,7 +172,7 @@ class Isolated(unittest.TestCase):
         self.windows = self.home / ".local/share/moos/windows-apps"
 
 
-class WindowsPortable(Isolated):
+class WindowsFixture(Isolated):
     def setUp(self):
         super().setUp()
         tools = self.base / "image-tools"
@@ -212,6 +213,7 @@ class WindowsPortable(Isolated):
                                  adapter_factory=lambda: None, runner=self.runtime,
                                  catalog_path=path, opener=self.opener)
 
+class WindowsPortable(WindowsFixture):
     def test_a_64bit_program_gets_its_own_prefix_launcher_and_record(self):
         recipe = self.recipe(zipped({"TinyTerm/tinyterm.exe": pe(), "TinyTerm/readme.txt": b"hi"}))
         code, result = self.controller(recipe).install([APP])
@@ -425,8 +427,10 @@ class WindowsPortable(Isolated):
         self.assertEqual((code, result["state"]), (130, "cancelled"), result)
         self.assertFalse((self.windows / APP).exists())
         self.assertFalse((self.home / f".local/share/applications/org.moos.windows.{APP}.desktop").exists())
-        self.assertEqual(sorted(path.name for path in self.windows.iterdir()), [],
+        self.assertEqual(sorted(path.name for path in self.windows.iterdir() if path.name != ".locks"), [],
                          "a half-made template or its record was left behind")
+        lock = self.windows / ".locks" / f"{APP}.lock"
+        self.assertEqual(lock.stat().st_size, 0, "only the stable coordination inode may survive")
 
     def test_only_a_64bit_pc_installs_windows_programs(self):
         recipe = self.recipe(pe(), exe="tinyterm.exe")
@@ -453,6 +457,219 @@ class WindowsPortable(Isolated):
                                        env={"PATH": f"{bindir}:/usr/bin:/bin", "XFT_DPI": raw})
                 self.runtime.dpi = raw
                 self.assertEqual(controller._display_dpi(), int(shell.stdout.strip()))
+
+
+class PortableData(WindowsFixture):
+    """Real filesystem transactions; downloads/runtime are recorded, no owner data or GUI."""
+
+    def installed(self):
+        recipe = self.recipe(zipped({"TinyTerm/tinyterm.exe": pe(tail=b"one"),
+                                     "TinyTerm/readme.txt": b"publisher"}))
+        controller = self.controller(recipe)
+        self.assertEqual(controller.install([APP])[0], 0)
+        return MODULE.windows_paths(APP), controller
+
+    def second(self, **files):
+        return self.recipe(zipped({"TinyTerm/tinyterm.exe": pe(tail=b"two"),
+                                   "TinyTerm/readme.txt": b"new publisher", **files}), version="2.0")
+
+    def test_two_updates_remove_and_reinstall_keep_portable_data_and_permissions(self):
+        paths, _ = self.installed()
+        doc = "TinyTerm/مستند عربي.txt"
+        (paths.app / doc).write_bytes("معيار MoOS".encode())
+        (paths.app / "preferences.ini").write_bytes(b"private preference")
+        (paths.app / "preferences.ini").chmod(0o600)
+        (paths.app / "private").mkdir(mode=0o700)
+        (paths.app / "private/token.txt").write_bytes(b"synthetic private data")
+        paths.app.chmod(0o700)
+        for version in ("2.0", "3.0"):
+            recipe = self.second(); recipe["install"]["version"] = version
+            controller = self.controller(recipe)
+            self.assertEqual(controller.install([APP])[0], 0)
+            self.assertEqual((paths.app / doc).read_bytes(), "معيار MoOS".encode())
+            self.assertEqual((paths.app / "preferences.ini").stat().st_mode & 0o777, 0o600)
+            self.assertEqual((paths.app / "private").stat().st_mode & 0o777, 0o700)
+            self.assertEqual(paths.app.stat().st_mode & 0o777, 0o700)
+            manifest = json.loads(paths.record.read_text())["publisher_files"]
+            self.assertNotIn(doc, manifest)
+            self.assertNotIn("preferences.ini", manifest)
+        self.assertEqual(len(list((paths.base / "recovery").iterdir())), 2)
+        self.assertEqual(controller.remove(APP)[0], 0)
+        self.assertFalse(paths.record.exists())
+        self.assertFalse(paths.launcher.exists())
+        self.assertEqual((paths.base / "retained-app" / doc).read_bytes(), "معيار MoOS".encode())
+        self.assertEqual(controller.install([APP])[0], 0)
+        self.assertEqual((paths.app / doc).read_bytes(), "معيار MoOS".encode())
+        self.assertEqual(paths.app.stat().st_mode & 0o777, 0o700)
+        self.assertEqual(controller.remove(APP, delete_data=True)[0], 0)
+        self.assertFalse(paths.base.exists())
+
+    def test_modified_publisher_file_is_protected_and_conflicting_update_refused(self):
+        paths, _ = self.installed()
+        changed = paths.app / "TinyTerm/readme.txt"
+        changed.write_bytes(b"the person's edited readme")
+        receipt = paths.record.read_bytes()
+        result = self.controller(self.second()).install([APP])
+        self.assertEqual((result[0], result[1]["items"][0]["message_key"]), (1, "windows_data_conflict"))
+        self.assertEqual(changed.read_bytes(), b"the person's edited readme")
+        self.assertEqual(paths.record.read_bytes(), receipt)
+
+    def test_legacy_inventory_is_not_invented_and_remove_reinstall_never_erases_it(self):
+        paths, controller = self.installed()
+        record = json.loads(paths.record.read_text()); record.pop("publisher_files")
+        paths.record.write_text(json.dumps(record))
+        (paths.app / "owner.txt").write_bytes(b"unknown legacy data")
+        result = self.controller(self.second()).install([APP])
+        self.assertEqual(result[1]["items"][0]["message_key"], "windows_data_unknown")
+        self.assertEqual(controller.remove(APP)[0], 0)
+        retained = paths.base / "retained-app/owner.txt"
+        self.assertEqual(retained.read_bytes(), b"unknown legacy data")
+        self.assertEqual(controller.install([APP])[0], 1)
+        self.assertEqual(retained.read_bytes(), b"unknown legacy data")
+        self.assertEqual(controller.remove(APP, delete_data=True)[0], 0)
+        self.assertFalse(paths.base.exists())
+
+    def test_casefold_file_directory_and_ancestor_collisions_refuse_without_loss(self):
+        paths, _ = self.installed()
+        (paths.app / "Preferences.ini").write_bytes(b"owner")
+        (paths.app / "owner-directory").mkdir()
+        (paths.app / "owner-directory/data.txt").write_bytes(b"owner nested")
+        (paths.app / "owner-file").write_bytes(b"owner parent")
+        before = MODULE.Controller._library("moos_windows_portable").snapshot(paths.app)
+        for files in ({"PREFERENCES.INI": b"publisher"}, {"owner-directory": b"publisher"},
+                      {"owner-file/child": b"publisher"}):
+            with self.subTest(files=files):
+                result = self.controller(self.second(**files)).install([APP])
+                self.assertEqual(result[1]["items"][0]["message_key"], "windows_data_conflict", result)
+                self.assertEqual(MODULE.Controller._library("moos_windows_portable").snapshot(paths.app), before)
+
+    def test_links_hardlinks_and_unknown_partial_trees_refuse_before_update(self):
+        paths, _ = self.installed()
+        for kind in ("symlink", "hardlink", "partial", "previous"):
+            with self.subTest(kind=kind):
+                target = paths.app / "owner.txt"
+                if kind == "symlink":
+                    target.symlink_to(self.home / "outside")
+                elif kind == "hardlink":
+                    outside = self.home / "outside"; outside.write_bytes(b"outside")
+                    os.link(outside, target)
+                else:
+                    target = paths.base / (".app.installing" if kind == "partial" else ".app.previous")
+                    target.mkdir(); (target / "owner.txt").write_bytes(b"interrupted data")
+                result = self.controller(self.second()).install([APP])
+                self.assertEqual(result[0], 1, result)
+                self.assertTrue(target.exists() or target.is_symlink())
+                if target.is_dir(): shutil.rmtree(target)
+                else: target.unlink()
+
+    def test_malformed_inventory_never_adopts_live_files(self):
+        paths, _ = self.installed()
+        record = json.loads(paths.record.read_text())
+        for manifest in ({}, {"../escape": {}}, {"TinyTerm/tinyterm.exe": {"kind": "file"}}, []):
+            with self.subTest(manifest=manifest):
+                record["publisher_files"] = manifest
+                paths.record.write_text(json.dumps(record))
+                before = paths.record.read_bytes()
+                result = self.controller(self.second()).install([APP])
+                self.assertEqual(result[1]["items"][0]["message_key"], "windows_data_unknown", result)
+                self.assertEqual(paths.record.read_bytes(), before)
+
+    def test_copy_failure_and_cancellation_keep_program_data_and_receipt(self):
+        paths, _ = self.installed()
+        portable = MODULE.Controller._library("moos_windows_portable")
+        (paths.app / "owner.txt").write_bytes(b"retain me")
+        before = portable.snapshot(paths.app); receipt = paths.record.read_bytes()
+        controller = self.controller(self.second())
+        with mock.patch.object(portable.shutil, "copyfileobj", side_effect=OSError(28, "injected ENOSPC")):
+            self.assertEqual(controller.install([APP])[0], 1)
+        self.assertEqual(portable.snapshot(paths.app), before)
+        self.assertEqual(paths.record.read_bytes(), receipt)
+        original = portable.carry
+        # Execute the real cancellation predicate without reaching a system/runtime action.
+        with mock.patch.object(controller, "_cancelled", side_effect=lambda job: (paths.base / "cancel").exists()):
+            def mark_cancel(*args):
+                result = original(*args); (paths.base / "cancel").touch(); return result
+            with mock.patch.object(portable, "carry", side_effect=mark_cancel):
+                result = controller.install([APP])
+        self.assertEqual((result[0], result[1]["state"]), (130, "cancelled"), result)
+        self.assertEqual(portable.snapshot(paths.app), before)
+        self.assertEqual(paths.record.read_bytes(), receipt)
+
+    def test_record_write_failure_restores_exact_old_receipt_launcher_and_data(self):
+        paths, _ = self.installed()
+        (paths.app / "owner.txt").write_bytes(b"retain me")
+        before = {p: p.read_bytes() for p in (paths.record, paths.launcher, paths.app / "owner.txt")}
+        write = MODULE._write_json
+        def refuse_record(path, *args, **kwargs):
+            if path == paths.record:
+                raise OSError("injected receipt publication refusal")
+            return write(path, *args, **kwargs)
+        with mock.patch.object(MODULE, "_write_json", side_effect=refuse_record):
+            self.assertEqual(self.controller(self.second()).install([APP])[0], 1)
+        for p, data in before.items(): self.assertEqual(p.read_bytes(), data)
+        self.assertTrue((paths.app / "TinyTerm/tinyterm.exe").read_bytes().endswith(b"one"))
+
+    def test_actual_open_only_writer_and_shared_lease_refuse_remove_before_kill(self):
+        paths, controller = self.installed()
+        portable = MODULE.Controller._library("moos_windows_portable")
+        with portable.lease(paths.base, exclusive=False):
+            self.runtime.commands.clear()
+            self.assertEqual(controller.remove(APP, delete_data=True)[0], 1)
+            self.assertEqual(self.runtime.commands, [])
+        target = paths.app / "owner.txt"; target.write_bytes(b"live")
+        child = subprocess.Popen([sys.executable, "-c",
+            "import sys; f=open(sys.argv[1],'r+b'); print('OPEN',flush=True); sys.stdin.read()", str(target)],
+            cwd="/", stdin=subprocess.PIPE, stdout=subprocess.PIPE, text=True)
+        try:
+            self.assertEqual(child.stdout.readline().strip(), "OPEN")
+            self.runtime.commands.clear()
+            result = controller.remove(APP, delete_data=True)
+            self.assertEqual(result[1]["items"][0]["message_key"], "vendor_app_in_use", result)
+            self.assertEqual(self.runtime.commands, [])
+            self.assertEqual(target.read_bytes(), b"live")
+        finally:
+            child.communicate("", timeout=10)
+
+    def test_mount_preflight_refuses_before_any_tree_walk(self):
+        portable = MODULE.Controller._library("moos_windows_portable")
+        root = self.base / "mounted"
+        root.mkdir()
+        (root / "canary").write_bytes(b"keep")
+        mountinfo = f"9 1 0:1 / {root}/nested rw - tmpfs tmpfs rw\n"
+        original = Path.read_text
+        def read(path, *args, **kwargs):
+            return mountinfo if str(path) == "/proc/self/mountinfo" else original(path, *args, **kwargs)
+        with mock.patch.object(Path, "read_text", read), \
+                mock.patch.object(os, "listdir", side_effect=AssertionError("walked before mount refusal")):
+            with self.assertRaises(portable.Error): portable.snapshot(root)
+        self.assertEqual((root / "canary").read_bytes(), b"keep")
+
+    def test_occupied_recovery_path_refuses_before_publishing_new_version(self):
+        paths, _ = self.installed()
+        (paths.app / "owner.txt").write_bytes(b"owner data")
+        occupied = paths.base / "recovery"; occupied.write_bytes(b"unknown occupied bytes")
+        before = {p: p.read_bytes() for p in (paths.record, paths.launcher,
+                  paths.app / "TinyTerm/tinyterm.exe", paths.app / "owner.txt", occupied)}
+        result = self.controller(self.second()).install([APP])
+        self.assertEqual(result[0], 1, result)
+        for p, data in before.items(): self.assertEqual(p.read_bytes(), data)
+        self.assertFalse((paths.base / ".app.previous").exists())
+
+    def test_failed_recovery_rename_rolls_back_published_metadata_and_program(self):
+        paths, _ = self.installed()
+        (paths.app / "owner.txt").write_bytes(b"owner data")
+        before = {p: p.read_bytes() for p in (paths.record, paths.launcher,
+                  paths.app / "TinyTerm/tinyterm.exe", paths.app / "owner.txt")}
+        original = Path.rename
+        def refuse_archive(path, target):
+            if path.name == ".app.previous" and Path(target).parent.parent.name == "recovery":
+                raise OSError("injected recovery archive rename failure")
+            return original(path, target)
+        with mock.patch.object(Path, "rename", refuse_archive):
+            result = self.controller(self.second()).install([APP])
+        self.assertEqual(result[0], 1, result)
+        for p, data in before.items(): self.assertEqual(p.read_bytes(), data)
+        self.assertFalse((paths.base / ".app.previous").exists())
 
 
 @unittest.skipUnless(Path("/bin/bash").exists() and shutil.which("python3", path="/usr/bin:/bin"),
@@ -488,7 +705,12 @@ class RunForeignApp(Isolated):
                        "XDG_DATA_HOME": str(self.home / ".local/share"),
                        "XDG_STATE_HOME": str(self.home / ".local/state"),
                        "CALLS": str(self.calls), **extra}
-        return subprocess.run(["bash", str(RUNNER), *argv], env=environment, text=True,
+        source = self.base / "source-runner"
+        helper = ROOT / "system_files/usr/lib/moos/moos_windows_portable.py"
+        adapted = RUNNER.read_text().replace('"/usr/lib/moos/moos_windows_portable.py"', repr(str(helper)))
+        source.write_text(adapted.replace(" -I /usr/lib/moos/moos_windows_portable.py run ",
+                          " -I " + shlex.quote(str(helper)) + " run "))
+        return subprocess.run(["bash", str(source), *argv], env=environment, text=True,
                               capture_output=True, timeout=60)
 
     def logged(self) -> list[str]:

@@ -2709,7 +2709,39 @@ class Controller:
         ]
         return "\n".join(lines)
 
+    @contextlib.contextmanager
+    def _windows_lifecycle(self, app_id: str):
+        portable = self._library("moos_windows_portable")
+        paths = windows_paths(app_id)
+        try:
+            with portable.lease(paths.base, exclusive=True):
+                for tree in (paths.base, paths.app, paths.prefix):
+                    if tree.is_symlink():
+                        raise portable.Error("unsafe_path")
+                portable.no_mounts(paths.base)
+                portable.observed_idle(paths.base)
+                yield portable
+        except portable.Error as error:
+            if error.code == "cancelled":
+                raise CancelledError("Cancelled") from error
+            if error.code == "app_in_use":
+                raise StoreError(VENDOR_FAILURE_WORDS["vendor_app_in_use"],
+                                 message_key="vendor_app_in_use") from error
+            if error.code == "ownership_unknown":
+                raise StoreError("This older installation has no verified file inventory; its files were kept",
+                                 message_key="windows_data_unknown") from error
+            if error.code == "data_conflict":
+                raise StoreError("The new program conflicts with saved or modified files; all files were kept",
+                                 message_key="windows_data_conflict") from error
+            raise StoreError("The program's files could not be checked safely; all existing files were kept",
+                             message_key="windows_data_unsafe") from error
+
     def _install_windows_portable(self, job: Job, app_id: str, recipe: dict[str, Any]) -> None:
+        with self._windows_lifecycle(app_id) as portable:
+            self._install_windows_portable_locked(job, app_id, recipe, portable)
+
+    def _install_windows_portable_locked(self, job: Job, app_id: str, recipe: dict[str, Any],
+                                         portable: Any) -> None:
         """A portable 64-bit Windows program: its own folder, its own prefix, a MoOS launcher.
 
         ~/.local/share/moos/windows-apps/<id>/{app,prefix,icon.png}, a record beside it and
@@ -2743,22 +2775,64 @@ class Controller:
                 raise StoreError(f"{owned.name} is a link; Mo Store does not install through links")
         had_record = paths.record.is_file()
         fresh_prefix = not (paths.prefix / "system.reg").is_file()
+        if fresh_prefix and paths.prefix.exists():
+            raise portable.Error("ownership_unknown")
         created_base = not paths.base.exists()
         staging = paths.base / ".app.installing"
         previous = paths.base / ".app.previous"
+        retained = paths.base / "retained-app"
+        retention = paths.base / ".retained.json"
+        old_record = portable.read_receipt(paths.record) if had_record else {}
+        valid_record = (old_record.get("schema") == 1 and old_record.get("id") == app_id
+                        and old_record.get("launcher") == paths.launcher.name
+                        and _relative_inside(old_record.get("exe")) is not None)
+        # Never erase a predecessor or partial tree left by another/interrupted job.
+        if (staging.exists() or staging.is_symlink() or previous.is_symlink()
+                or retained.is_symlink() or retention.is_symlink()
+                or (previous.exists() and paths.app.exists())):
+            raise portable.Error("ownership_unknown")
         # Recover the last working program before a download can fail or cancel.
-        if had_record and not paths.app.exists() and previous.exists():
-            if previous.is_symlink():
-                raise StoreError("The previous application folder is a link")
+        if not paths.app.exists() and previous.exists():
+            if not valid_record:
+                raise portable.Error("ownership_unknown")
+            portable.snapshot(previous)
             previous.rename(paths.app)
+        source = paths.app if paths.app.exists() else retained
+        recovery = paths.base / "recovery"
+        if recovery.exists() or recovery.is_symlink():
+            portable.no_mounts(recovery)
+            portable._directory(recovery)
+        baseline = old_record.get("publisher_files")
+        if retained.exists() or retention.exists():
+            if paths.app.exists() or retained.is_symlink() or retention.is_symlink():
+                raise portable.Error("ownership_unknown")
+            kept = portable.read_receipt(retention)
+            if kept.get("schema") != 1 or kept.get("id") != app_id:
+                raise portable.Error("ownership_unknown")
+            baseline = kept.get("publisher_files")
+        if source.exists():
+            if source == paths.app and not valid_record:
+                raise portable.Error("ownership_unknown")
+            portable.validate_manifest(baseline)
+            portable.snapshot(source, lambda: self._cancelled(job))
+        elif had_record or retention.exists():
+            raise portable.Error("ownership_unknown")
+        # Preserve exact receipts through a failed launcher/record publication too.
+        metadata = {}
+        for target in (paths.record, paths.launcher):
+            if target.exists() or target.is_symlink():
+                portable._owned(target.lstat())
+                metadata[target] = (target.read_bytes(), stat.S_IMODE(target.stat().st_mode))
         download = self._download_pinned(job, app_id, pin, kind="windows",
                                          message="Downloading from the publisher",
                                          message_key="downloading_file")
-        swapped = committed = False
+        swapped = committed = stage_created = False
+        recovery_destination = None
+        old_snapshot = None
         try:
             paths.base.mkdir(mode=0o700, parents=True, exist_ok=True)
-            _remove_tree(staging)
             staging.mkdir(mode=0o755)
+            stage_created = True
             self._appdrop_progress(job, app_id)("extracting_file", None)
             with download.open("rb") as handle:
                 head = handle.read(8)
@@ -2793,6 +2867,21 @@ class Controller:
                     message_key="windows_legacy_program")
             if architecture != "x86_64":
                 raise StoreError(f"{program_path} is not a 64-bit Windows program")
+            # Inventory the publisher BEFORE carrying any saved files. Repeated
+            # updates must never turn the person's document into disposable payload.
+            if source.exists():
+                publisher, old_snapshot = portable.carry(
+                    source, staging, baseline, lambda: self._cancelled(job))
+                # Reserve and write the recovery receipt before exposing a new
+                # program/record. An occupied, read-only or full destination must
+                # leave the working installation at its original launch path.
+                portable._directory(recovery, create=True)
+                portable.no_mounts(recovery)
+                recovery_destination = Path(tempfile.mkdtemp(dir=recovery))
+                _write_json(recovery_destination / "receipt.json",
+                            old_record if source == paths.app else portable.read_receipt(retention))
+            else:
+                publisher = portable.snapshot(staging, lambda: self._cancelled(job))
             if fresh_prefix:
                 self._init_windows_prefix(job, paths)
             self._appdrop_progress(job, app_id)("integrating_app", None)
@@ -2801,7 +2890,11 @@ class Controller:
             except (OSError, StoreError):
                 has_icon = False                         # an icon is cosmetic; the glyph stands in
             has_icon = has_icon or paths.icon.is_file()
-            _remove_tree(previous)
+            if self._cancelled(job):
+                raise CancelledError("Cancelled")
+            portable.observed_idle(paths.base)
+            if old_snapshot is not None and portable.snapshot(source) != old_snapshot:
+                raise portable.Error("data_changed")
             if paths.app.exists():
                 paths.app.rename(previous)
             staging.rename(paths.app)
@@ -2815,30 +2908,55 @@ class Controller:
                 "schema": 1, "id": app_id, "name": display_text(recipe.get("en"), 80) or app_id,
                 "version": version, "sha256": pin.sha256, "url": pin.url, "exe": program_path,
                 "wm_class": wm_class, "launcher": paths.launcher.name,
+                "publisher_files": publisher,
                 "installed_at": int(time.time()),
             })
+            # Retain the entire predecessor, including late external writes. A
+            # bypass launch is not covered by the canonical runner's lifetime lease.
+            if previous.exists():
+                assert recovery_destination is not None
+                previous.rename(recovery_destination / "app")
+            if retained.exists():
+                # The removed installation remains a recoverable predecessor.
+                assert recovery_destination is not None
+                retained.rename(recovery_destination / "app")
+                retention.unlink()
             committed = True
-            with contextlib.suppress(OSError):
-                _remove_tree(previous)
             appdrop.refresh_menu()
         except BaseException:
-            with contextlib.suppress(OSError):
-                _remove_tree(staging)
+            if stage_created:
+                with contextlib.suppress(OSError, portable.Error):
+                    portable.no_mounts(staging)
+                    _remove_tree(staging)
             if not committed:
                 if swapped:
-                    with contextlib.suppress(OSError):
+                    with contextlib.suppress(OSError, portable.Error):
+                        portable.no_mounts(paths.app)
                         _remove_tree(paths.app)
                 # The second rename can fail after the old program was moved but
                 # before swapped becomes true. Restore it in that case as well.
                 if previous.exists() and not paths.app.exists():
                     with contextlib.suppress(OSError):
                         previous.rename(paths.app)
+                # The old tree may already be in its reserved recovery location
+                # when a later pre-commit operation fails (e.g. retained receipt unlink).
+                if recovery_destination is not None and (recovery_destination / "app").exists():
+                    original = paths.app if source == paths.app else retained
+                    if not original.exists():
+                        (recovery_destination / "app").rename(original)
+                for target in (paths.record, paths.launcher):
+                    if target in metadata:
+                        payload, mode = metadata[target]
+                        if not target.is_file() or target.read_bytes() != payload:
+                            _atomic_bytes(target, payload, mode, private_parent=target == paths.record)
+                    elif target.exists() and not target.is_symlink():
+                        target.unlink()
                 if not had_record:
                     # A first install that did not finish leaves nothing of itself behind.
                     with contextlib.suppress(Exception):
                         self._stop_windows_prefix(None, paths)
                     with contextlib.suppress(OSError):
-                        if created_base:
+                        if created_base and not retained.exists():
                             _remove_tree(paths.base)
                         elif fresh_prefix:
                             _remove_tree(paths.prefix)
@@ -2865,13 +2983,22 @@ class Controller:
         return f"X-MoOS-WindowsApp={app_id}" in text.splitlines()
 
     def _remove_windows(self, job: Job, app_id: str, delete_data: bool) -> None:
+        with self._windows_lifecycle(app_id) as portable:
+            self._remove_windows_locked(job, app_id, delete_data, portable)
+
+    def _remove_windows_locked(self, job: Job, app_id: str, delete_data: bool,
+                               portable: Any) -> None:
         paths = windows_paths(app_id)
-        record = (_read_json(paths.record)
-                  if paths.record.is_file() and not paths.record.is_symlink() else {})
+        record = portable.read_receipt(paths.record) if paths.record.exists() else {}
         owned_record = (record.get("schema") == 1 and record.get("id") == app_id
                         and record.get("launcher") == paths.launcher.name
                         and _relative_inside(record.get("exe")) is not None)
-        if not (owned_record or self._windows_launcher_is_ours(paths, app_id)):
+        retention = paths.base / ".retained.json"
+        retained = paths.base / "retained-app"
+        kept = portable.read_receipt(retention) if retention.exists() else {}
+        owned_retained = kept.get("schema") == 1 and kept.get("id") == app_id and retained.is_dir()
+        if not (owned_record or self._windows_launcher_is_ours(paths, app_id)
+                or (delete_data and owned_retained)):
             job.update_item(app_id, state="skipped", progress=100, message="App is not installed",
                             message_key="not_installed")
             return
@@ -2879,17 +3006,49 @@ class Controller:
                         message="Removing application", message_key=None)
         job.update(state="running", progress=None, current_id=app_id,
                    message="Removing application", message_key=None)
+        # Refuse unknown partial/recovery trees and active use before stopping any
+        # prefix or changing a receipt. Portable files are data too, not only Wine's registry.
+        if not delete_data and (retained.exists() or retention.exists()
+                                or (paths.base / ".app.installing").exists()
+                                or (paths.base / ".app.previous").exists()):
+            raise portable.Error("ownership_unknown")
+        for target in (paths.record, paths.launcher, retention):
+            if target.exists() or target.is_symlink():
+                portable._owned(target.lstat())
+        if paths.app.exists():
+            portable.snapshot(paths.app, lambda: self._cancelled(job))
+        portable.no_mounts(paths.base)
+        portable.no_mounts(paths.state)
+        if self._cancelled(job):
+            raise CancelledError("Cancelled")
+        # EX excludes canonical launches; observed external processes were refused
+        # before this point. Do not use wineserver --kill as a substitute for that check.
         self._stop_windows_prefix(job, paths)
-        # The prefix contains the person's settings, registry and saved documents.
-        # Keep it for a reinstall unless deleting data was an explicit choice.
-        if delete_data:
-            _remove_tree(paths.base)
-        else:
-            _remove_tree(paths.app)
-            paths.icon.unlink(missing_ok=True)
-        if self._windows_launcher_is_ours(paths, app_id):
-            paths.launcher.unlink()
-        paths.record.unlink(missing_ok=True)
+        metadata = {target: (target.read_bytes(), stat.S_IMODE(target.stat().st_mode))
+                    for target in (paths.record, paths.launcher) if target.is_file()}
+        moved = False
+        try:
+            if delete_data:
+                _remove_tree(paths.base)
+            else:
+                _write_json(retention, {"schema": 1, "id": app_id,
+                                       "publisher_files": record.get("publisher_files"),
+                                       "reason": "ordinary-remove-keeps-portable-data"})
+                if paths.app.exists():
+                    paths.app.rename(retained)
+                    moved = True
+            if self._windows_launcher_is_ours(paths, app_id):
+                paths.launcher.unlink()
+            paths.record.unlink(missing_ok=True)
+        except BaseException:
+            if not delete_data:
+                if moved and not paths.app.exists():
+                    retained.rename(paths.app)
+                retention.unlink(missing_ok=True)
+                for target, (payload, mode) in metadata.items():
+                    if not target.exists() or target.read_bytes() != payload:
+                        _atomic_bytes(target, payload, mode, private_parent=target == paths.record)
+            raise
         _remove_tree(paths.state)
         paths.log.unlink(missing_ok=True)
         self._retire_windows_template_if_unused()
@@ -2898,8 +3057,9 @@ class Controller:
             job.update_item(app_id, state="done", progress=100, message="Removed with its data",
                             message_key="removed_with_data")
         else:
-            job.update_item(app_id, state="done", progress=100, message="Removed",
-                            message_key="removed")
+            job.update_item(app_id, state="done", progress=100,
+                            message="Removed from applications; its files and settings were kept",
+                            message_key="windows_removed_kept")
 
     # ── A publisher's own signed Linux package, run from the home ──────────────────────────────
     # The logic is usr/lib/moos/moos_vendor_rpm.py: the newest build from the publisher's own

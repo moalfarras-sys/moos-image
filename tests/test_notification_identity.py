@@ -48,6 +48,7 @@ EXPECTED = {
     "usr/libexec/moos-update-ready": {"systemsettings"},
     "usr/libexec/moos-whats-new-notify": {"systemsettings"},
     "usr/libexec/moos-store-notify": {"org.moos.store"},
+    "usr/lib/moos/moos_windows_portable.py": {"org.moos.store"},
     # A web app's own notifications (a ChatGPT reply, a WhatsApp message) belong to THAT app,
     # exactly as a browser web app's do: they are filed under the launcher Mo Store wrote for it,
     # org.moos.webapp.<id>, so Settings › Notifications lists and mutes each app by its name.
@@ -206,6 +207,18 @@ class TheSendersExecuted(unittest.TestCase):
         self.assertIn("--hint=string:desktop-entry:systemsettings", sent[0].split("\t"))
         self.assertIn("--app-name=MoOS", sent[0].split("\t"))
         self.assertFalse(self.popups.exists(), "kdialog spoke although notify-send worked")
+
+    def test_windows_lifecycle_refusal_is_filed_under_mo_store(self):
+        done = subprocess.run([sys.executable, "-I", str(SYSTEM / "usr/lib/moos/moos_windows_portable.py"),
+                               "run", "not-installed", str(SYSTEM / "usr/bin/moos-run-foreign")],
+                              env=self.env(), capture_output=True, text=True, timeout=15)
+        self.assertEqual(done.returncode, 2, done.stderr)
+        sent = self.wait_for(self.sent)
+        self.assertEqual(len(sent), 1, sent)
+        self.assertIn("--hint=string:desktop-entry:org.moos.store", sent[0].split("\t"))
+        self.assertIn("--app-name=MoOS", sent[0].split("\t"))
+        self.assertIn("Mo Store", sent[0])
+        self.assertFalse(self.popups.exists())
 
     def test_moos_open_files_app_updates_under_mo_store(self):
         self.open("moos://do/update-apps")

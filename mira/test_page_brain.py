@@ -5,6 +5,7 @@ Every backend is a fake: no test reaches moai-control, the Mo AI agent, Google o
 QSettings (each test gets its own INI file).
 """
 import contextlib
+import asyncio
 import json
 import os
 import tempfile
@@ -63,6 +64,7 @@ PAID_MODELS = {**MODELS, 'cloud': MODELS['cloud'] + [
 MEASURE = {'measuring': False, 'done': 0, 'total': 0, 'now': '', 'error': '', 'measuredAt': 1789744784.8, 'ageDays': 11.2,
            'tools': ['nex-agi/nex-n2.5-pro:free', 'nvidia/nemotron-3-super-120b-a12b:free'],
            'best': 'nex-agi/nex-n2.5-pro:free', 'bestLabel': 'Nex Pro', 'results': []}
+QUICK = {'brains': {'gateway': True, 'cloud': True}}
 GEMINI = {'has_key': True, 'voice_model': 'gemini-3.1-flash-live-preview', 'text_model': ''}
 
 
@@ -123,7 +125,7 @@ class PageTest(unittest.TestCase):
 
     def backends(self, models=MODELS, measure=MEASURE, config=CONFIG, gemini=GEMINI):
         def tools_get(path, timeout=20):
-            return {'/models': models, '/measure': measure}[path]
+            return {'/models': models, '/measure': measure, '/quick': QUICK}[path]
         return [patch('moai_tools.get', side_effect=tools_get),
                 patch('moai_agent.get', side_effect=lambda path, **q: config),
                 patch.object(brain, 'gemini_settings', return_value=gemini)]
@@ -189,14 +191,14 @@ class PageTest(unittest.TestCase):
 
         def tools_get(path, timeout=20):
             seen.append(threading.current_thread() is threading.main_thread())
-            return {'/models': MODELS, '/measure': MEASURE}[path]
+            return {'/models': MODELS, '/measure': MEASURE, '/quick': QUICK}[path]
         with patch('moai_tools.get', side_effect=tools_get), patch('moai_agent.get', return_value=CONFIG), \
                 patch.object(brain, 'gemini_settings', return_value=GEMINI):
             self.page.refresh()
             self.assertTrue(settle(lambda: self.page.state['models_state'] == 'ok'
                                    and self.page.state['cloud']['state'] == 'ok'
                                    and self.page.state['measure']['best'] != ''))
-        self.assertEqual(seen, [False, False], 'reads run off the Qt thread')
+        self.assertEqual(seen, [False, False, False], 'reads run off the Qt thread')
 
     def test_services_down_are_said_not_hidden(self):
         self.sync()
@@ -282,6 +284,77 @@ class PageTest(unittest.TestCase):
         self.loaded(gemini={**GEMINI, 'has_key': False})
         self.assertEqual(self.route(), ('moai-cloud', 'missing', ''))
 
+    def test_missing_both_keys_requires_setup_despite_a_live_gateway(self):
+        self.sync()
+        self.page.on_gemini('gemini', {'has_key': False})
+        self.page.on_quick('quick', {'brains': {'gateway': True, 'cloud': False}})
+        self.assertEqual(self.page.state['route_now'], 'moai-cloud')
+        self.assertEqual(self.page.state['route_state'], 'needs-setup')
+        self.assertEqual(self.page.state['cloud_route_state'], 'needs-setup')
+        self.assertEqual(self.host.confirmations, [])
+
+    def test_cloud_readiness_uses_the_gateway_owner_not_legacy_key_metadata(self):
+        self.loaded(config={**CONFIG, 'cloud': {**CONFIG['cloud'], 'has_key': False}},
+                    gemini={**GEMINI, 'has_key': False})
+        self.assertEqual(self.page.state['route_state'], 'configured')
+        self.page.on_quick('quick', {'brains': {'gateway': False, 'cloud': True}})
+        self.assertEqual(self.page.state['route_state'], 'unavailable')
+        self.page.on_quick('quick', {'brains': {'gateway': True, 'cloud': False}})
+        self.assertEqual(self.page.state['route_state'], 'needs-setup')
+
+    def test_loading_failed_or_malformed_status_never_becomes_healthy(self):
+        self.page.on_gemini('gemini', {'has_key': False})
+        self.assertEqual(self.page.state['route_state'], 'unknown')
+        for result in (None, [], {}, {'error': 'moai_control_unreachable'},
+                       {'brains': {}}, {'brains': {'gateway': True, 'cloud': 'true'}}):
+            with self.subTest(result=result):
+                self.page.on_quick('quick', result)
+                self.assertEqual(self.page.state['route_state'], 'unavailable')
+        self.page.on_gemini('gemini', {'error': 'unreadable'})
+        self.assertEqual(self.page.state['route_state'], 'unknown')
+        self.assertEqual(self.page.state['key_status'], 'unknown')
+
+    def test_saved_configuration_is_not_a_successful_reply_or_a_changed_last_answer(self):
+        for saved in (True, False):
+            with self.subTest(gemini=saved):
+                self.loaded(gemini={**GEMINI, 'has_key': saved})
+                self.assertEqual(self.page.state['route_state'], 'configured')
+                self.assertEqual(self.page.state['last'], {})
+                self.assertEqual(self.page.state['cloud_test']['state'], 'idle')
+                self.assertEqual(self.page.state['gemini_test']['state'], 'idle')
+
+    def test_next_attempt_matches_the_real_text_owner_after_key_rejection(self):
+        self.loaded()
+        self.page.on_answer('answer', {'route': 'moai-cloud', 'status': 'ok', 'model': 'fixture',
+                                        'fallback_reason': 'auth'})
+        attempts = []
+        owner = brain.TextBrain(client=object(), prefs=lambda: {})
+        async def rejected(*args, **kwargs):
+            attempts.append('gemini')
+            raise brain.GeminiUnavailable('auth')
+        async def cloud(*args, **kwargs):
+            attempts.append('moai-cloud')
+            return ('fixture answer', 'fixture model', 1)
+        with patch.object(owner, '_gemini', rejected), patch.object(owner, '_gateway', cloud):
+            result = asyncio.run(owner._answer('private fixture', lambda *args: None, None,
+                                               'en', None, [], {}))
+        self.assertEqual(attempts, ['gemini', 'moai-cloud'])
+        self.assertEqual(self.page.state['route_now'], attempts[0])
+        self.assertEqual(self.page.state['route_state'], 'last-failed')
+        self.assertEqual(self.page.state['last']['route'], result['route'])
+        self.assertEqual(self.page.state['last']['route'], 'moai-cloud')
+
+    def test_route_status_and_setup_use_existing_words_and_destination(self):
+        qml = (Path(__file__).resolve().parent / 'qml' / 'Mira' / 'BrainPage.qml').read_text()
+        for field in ('st.route_state', 'st.cloud_route_state', 'page.cloudRouteState !== "configured"'):
+            self.assertIn(field, qml)
+        self.assertNotIn('answered by', STRINGS['br_route_now'][1])
+        for state in ('unknown', 'needs_setup', 'configured', 'unavailable', 'last_failed', 'testing'):
+            self.assertTrue(all(STRINGS['br_route_' + state]))
+        with patch.object(moos_routes, 'open_route', return_value={'status': 'ok'}) as opened:
+            self.page.openProviderSettings()
+        opened.assert_called_once_with('moos://settings/assistant')
+
     def test_a_quota_failure_at_save_keeps_gemini_first_with_a_warning(self):
         self.loaded()
         self.sync()
@@ -298,13 +371,13 @@ class PageTest(unittest.TestCase):
             self.page.testGemini()
         self.assertEqual(self.route(), ('gemini', 'ok', ''), "a passing test clears the save's failure")
 
-    def test_a_rejected_key_sends_the_route_to_mo_ai(self):
+    def test_a_rejected_key_warns_without_changing_the_next_attempt(self):
         self.loaded()
         self.sync()
         with patch.object(brain, 'probe_gemini', return_value={'status': 'error', 'model': brain.DEFAULT_TEXT_MODEL,
                                                               'elapsed_ms': 30, 'reason': 'auth'}):
             self.page.testGemini()
-        self.assertEqual(self.route(), ('moai-cloud', 'failed', ''))
+        self.assertEqual(self.route(), ('gemini', 'failed', ''))
         self.page.keyChecked('testing', '')             # a new key is being saved
         self.assertEqual(self.route()[:2], ('gemini', 'testing'))
         self.assertEqual(self.page.state['gemini_test']['state'], 'idle', "the old key's test result is cleared")
@@ -333,7 +406,7 @@ class PageTest(unittest.TestCase):
         with patch.object(brain, 'probe_gemini', side_effect=AssertionError('probed')):
             self.page.keyChecked('ok', '')
             self.page.keyChecked('failed', 'auth')  # a classified reason needs no second test
-        self.assertEqual(self.route(), ('moai-cloud', 'failed', ''))
+        self.assertEqual(self.route(), ('gemini', 'failed', ''))
 
     def test_the_controllers_first_state_only_answers_until_the_page_has_read(self):
         self.page.keyChecked('set', '')
@@ -364,7 +437,7 @@ class PageTest(unittest.TestCase):
         publish(route='gemini', model=brain.DEFAULT_TEXT_MODEL, status='cancelled', fallback_reason=None)
         self.assertEqual(self.route(), ('gemini', 'ok', ''), 'a stop proves nothing')
         publish(route='moai-cloud', model='x', fallback_reason='auth')
-        self.assertEqual(self.route(), ('moai-cloud', 'failed', ''))
+        self.assertEqual(self.route(), ('gemini', 'failed', ''))
         publish(route='moai-cloud', model='x', fallback_reason='config')
         self.assertEqual(self.route(), ('moai-cloud', 'missing', ''), 'the brain found no key')
 
@@ -472,7 +545,7 @@ class PageTest(unittest.TestCase):
 
         def tools_get(path, timeout=20):
             reads.append(path)
-            return {'/models': MODELS, '/measure': running}[path]
+            return {'/models': MODELS, '/measure': running, '/quick': QUICK}[path]
         with patch('moai_tools.get', side_effect=tools_get), patch('moai_agent.get', return_value=CONFIG), \
                 patch.object(brain, 'gemini_settings', return_value=GEMINI), patch('moai_tools.post', return_value=running):
             self.page.measureNow()
@@ -501,7 +574,7 @@ class PageTest(unittest.TestCase):
             self.page._deliver('measure:poll', running)     # a read already on its way
         self.assertFalse(self.page._poll.isActive(), 'a late read does not start polling again')
         with patch('pages.base.TEST_MODE', False), patch('moai_tools.get', side_effect=lambda path, timeout=20:
-                                                         {'/models': MODELS, '/measure': running}[path]), \
+                                                         {'/models': MODELS, '/measure': running, '/quick': QUICK}[path]), \
                 patch('moai_agent.get', return_value=CONFIG), patch.object(brain, 'gemini_settings', return_value=GEMINI):
             self.page.activated()
         self.assertTrue(self.page._poll.isActive(), 'coming back resumes it')

@@ -1,0 +1,125 @@
+{
+  "schema": 1,
+  "date": "2026-11-04",
+  "plan": [
+    "P4.1",
+    "P4.3"
+  ],
+  "integrationOwner": "root",
+  "baseSource": "9359b0f6049759859d355834e3ad39c51961e9ed",
+  "installed": {
+    "edition": "moos",
+    "version": "44.20261031.1119",
+    "digest": "sha256:f1d7d472dfe978951927a31e9b0e6f0e5bf1e9766fe66db740fb9ae888ebfa29",
+    "bootID": "c374ac47-2c32-47e9-abe5-832819ed7dbd",
+    "output": "eDP-1 2560x1600 scale1.45 165Hz",
+    "runtime": "Wine11.20 Staging, winex11.drv",
+    "application": "Notepad4 26.08r6282",
+    "archiveSHA256": "fe202ddbbb6a295d6a771ecce918b8b63874287f0e33e43a50aa910afe270573"
+  },
+  "nativeJourney": {
+    "install": "passed through immutable moos-storectl, pinned publisher bytes",
+    "launchAndEdit": "passed canonical desktop/runner, visible Arabic/Latin fixture text",
+    "arabicSaveAndCloseLabels": "failed: labels remain blank/clipped, retained after settled captures",
+    "englishProcessOnlyControl": "labels rendered; process-only locale, no persistent global/prefix font/locale change",
+    "saveReopen": "not accepted: requested target absent; known fixture bytes found at an unexpected app-folder filename and foreground changed; writer/focus cause unknown",
+    "recovery": "actual saved file, settings, prefix and active app preserved; no further global input or focus changes",
+    "limits": "simulated native keyboard/pointer, not physical tablet input; no all-Windows/Arabic/font correctness claim"
+  },
+  "oldAdapter": {
+    "update": "exit0 success deletes added app-folder preferences/document while prefix survives",
+    "ordinaryRemove": "exit0 success deletes added app-folder preferences/document while prefix survives",
+    "proof": "private exact9359 existing backend fixture; real filesystem, recording runtime/pinned in-memory publisher; no owner mutation"
+  },
+  "repair": {
+    "owner": "existing moos-storectl/windows_app_run, one shared private module",
+    "publisherOwnership": "pristine relative paths/type/size/SHA256/safe modes captured before user overlay; copied private data never adopted as publisher payload",
+    "update": "carry added/modified data; refuse new publisher collisions including casefold and file/directory ancestors; verify source/destination; retain full predecessor and receipt",
+    "ordinaryRemove": "remove launcher/installation record, retain entire portable tree and prefix with separate ownership marker",
+    "reinstall": "carry qualified retained data; unknown legacy inventory refuses instead of inventing ownership",
+    "coordination": "stable .locks/<id>.lock SH held through canonical launch; Store EX across mutation; inherited descriptor verified and reacquired SH on same open-file description; observed cwd/exe/maps/argv/open-fd users refused before stopping a prefix",
+    "safety": "no-follow owned regular files, no hardlinks/unsafe writes; mountinfo before traversal including same-filesystem bind; unknown partial/previous trees preserved; bounded manifest/bytes, cancellation and receipt/rename rollback",
+    "recoveryRetention": "base/recovery/<unique>/app plus old receipt and retained-app remain recovery consumers until exact data migration/owner-approved retirement or explicit remove-data; no automatic pruning"
+  },
+  "executed": {
+    "backend": "31 run,30 passed/1 opt-in real-Wine test skipped",
+    "runner": "17 run,16 passed/1 opt-in real-Wine test skipped; native lease control also runs with Arabic/space/quote helper path",
+    "template": "9 run,8 passed/1 opt-in native template test skipped",
+    "pinnedUpdates": "30 passed",
+    "jobLanguage": "71 keys/71 bilingual phrases",
+    "nativeSameFilesystemBind": "passed in isolated user/mount namespace, refused before traversal, canary unchanged",
+    "fixedFilesystemReplay": "real update/ordinary remove/reinstall preserves document, settings and0600 permissions; explicit fixture delete removes only its own base; stable lock retained",
+    "whatsNew": "30 passed; retained original reader bounds and all prior entries; new card x86-only with capability wording",
+    "independentReview": {
+      "base": "61267d9460b160a3053d744c7384ed8e6155a6d4",
+      "notificationFix": "7b5a5cbdc0ff4ee9e28ea6c7104abe911c16f7dc",
+      "sourceScope": "independent29 backend/16 runner/9 notifications, injected remove/reinstall publication failures; no additional P0 data-loss blocker",
+      "recoveryFinding": "existing recovery file could switch version then report failed; exact old612 negative retained",
+      "correction": "preflight recovery before download; reserve destination and old receipt before publication; delay commit and restore app/retained metadata on archive failure",
+      "correctionEvidence": "2 new controls pass; independent retained-marker unlink failure restores original retained tree and exact marker, retry preserves0600 data",
+      "storeSHA256": "fba4d28b5585453ccb978ba6495dba11ee5600ee1b3c933cd85966da02598a7a"
+    }
+  },
+  "qualification9359": {
+    "source": {
+      "exit": 0,
+      "seconds": 1104.513228,
+      "stableInputs": 14745
+    },
+    "localImage": {
+      "exit": 0,
+      "seconds": 2772.839871,
+      "imageID": "9254df4bf437d3e0a0cc56fee76513f992b7712737229e644e7c43a2349032a0",
+      "readback": 102,
+      "mismatches": 0,
+      "kernel": "7.2.15-200.fc44",
+      "kwin": "6.8.2-3.fc44",
+      "genericFonts": [
+        "Meyar Sans",
+        "Meyar Mono"
+      ]
+    },
+    "fixtureRefusals": [
+      "initial readback mistakenly used raw kdeglobals and6.7 session source; retained mismatch; exact declared build append and registered6.8 seam match before readback passed"
+    ],
+    "ci": {
+      "repo": 41793461772,
+      "x86Image": 41793461650,
+      "nativeArmImage": 41793461738,
+      "remoteAndWindows": 41793461671,
+      "requiredChecks": "passed",
+      "armDisksAndPromotion": "intentionally skipped on pull request",
+      "nextPlasmaImage": "skipped/unavailable, no next-image acceptance"
+    }
+  },
+  "remaining": [
+    "new combined source/full-image/CI and signed four-edition delivery",
+    "native installed new-runner/data-preserving lifecycle",
+    "Arabic Notepad4 Save/close diagnosis and file reopen journey",
+    "legacy inventory migration/reinstall UX and recovery storage management",
+    "external bypass starts, cross-user/namespaces and programs that deliberately close inherited descriptors are not a universal race-free lease",
+    "ten real Windows journeys/tablet physical input; no owner update or reboot performed"
+  ],
+  "privateEvidence": "test-results/execution-20261104/{windows-notepad4,windows-portable-data,integrated-9359b0f6}; captures remain local",
+  "files": {
+    "system_files/usr/bin/moos-storectl": "fba4d28b5585453ccb978ba6495dba11ee5600ee1b3c933cd85966da02598a7a",
+    "system_files/usr/bin/moos-run-foreign": "7e03cc4719ff43ed3ca17803a0d41548ac7f827ff21fd2f2cf5f2a9a1f0c6a42",
+    "system_files/usr/lib/moos/moos_windows_portable.py": "721c2682b71e145ae150aaf968c44993eb50a19b5e409bcc9f14614c42debe60"
+  },
+  "qualification61267d94": {
+    "source": "failed unchanged notification ownership gate; missing Store hint/declaration in new helper",
+    "image": "still running frozen source, no acceptance claim",
+    "repair": "use existing org.moos.store hint, declare only this exact sender/owner and execute its real refusal with a recording notifier; 9 notification controls pass",
+    "nativeMonotonicSourceSeconds": 83.865449,
+    "timing": "Wall-clock elapsed jumped during this check; retained raw receipt is not a performance duration. Native systemd monotonic start/exit above is authoritative; clock-change cause unknown, no clock writes performed."
+  },
+  "qualification7b5a5cbd": {
+    "source": "explicitly stopped root-owned full check for required independent-review recovery correction; no full-pass claim",
+    "fixtureFailure": "root checkout has Arabic and a space; source helper literal replacement split its path. Original assertions retained, shell/Python substitutions separately quote their source paths and new exact path control passes",
+    "image": "not started; preserve existing612 frozen native build"
+  },
+  "qualification8cbb2fe5": {
+    "source": "explicitly stopped own incomplete full check after exact private root-mode refusal; no full-pass claim",
+    "rootMode": "old0700 root became0755 while file bytes were kept. Actual default base remains0700; capture/stability/chmod now preserves the user-restricted app root too; two updates/remove/reinstall control checks it."
+  }
+}

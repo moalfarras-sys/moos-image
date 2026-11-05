@@ -143,6 +143,13 @@ run dracut and create unowned rpm-state/kernel. Do not erase that state broadly
 or relax the final image gate. Require native old/fixed evidence and byte-level
 stock kernel readback as well as the complete canary image gates.
 
+**A same-version rebuild can change the compositor.** Native kwin6.8.2-3
+adds KDE's missing-render-device guard where -2 changed only devel macros.
+Preserve the actual exact-package refusal, signed source/RPM comparison,
+unchanged seams/kernel and loaded greeter controls before accepting that exact
+rebuild. A private old/fixed predicate is not a physical DisplayLink journey or
+proof that an unrelated USB4/IOMMU fault is repaired.
+
 **A shared package cache is not a transaction lease.** Two native full builds
 used the same DNF cache: one completed while the other was inside a successful
 SELinux postscript, then the latter could no longer install its remaining RPM
@@ -294,6 +301,31 @@ stricter npm audit level must inspect that level; unknown counts stay refused.
 Zero metadata cannot clear an explicit npm error, an unexplained command failure
 or a contradictory advisory map. Preserve the actual old/fixed refusals, bounded
 retry and the default high-severity policy.
+
+**An unchanged tool version is not an unchanged dependency tree.** Native
+REA6.7.0 correctly refuses a newer reviewed transitive lock in its old prefix.
+Use complete lock-SHA generations, verify before publishing the canonical
+launcher, and preserve active old bytes and exact private recovery. Installer
+and read-only check share the owned bounded exclusive/shared lease through final
+receipt readback; checks create no missing lease or receipts. Unknown/writable
+generations, links and backup collisions remain refusals. Reuse Node/JDK/Ghidra;
+a normal client restart selects new code, never kill the engineering session or
+remove an active generation to manufacture an update.
+
+**A passing PR test is not a clean release runner.** The signed x86 cycle
+failed before images because the new pinned tsx runner was installed only after
+npm test. Keep one locked install before every controller test and retain
+all original tests, typecheck, audit and compiled-bundle byte checks. Preserve
+the real missing-module old control and invalid-lock refusal; use a fresh
+first-attempt candidate after fixing source, never rerun the failed proof.
+
+**A living gateway is not a configured answering brain.** Native Mira showed
+free cloud as answering while both current routes lacked setup. Read the existing
+merged configuration owner, distinguish configuration/liveness/latest outcome,
+and describe the actual next TextBrain attempt. A saved rejected Gemini key is
+tried again; a past cloud answer never changes that executor policy. Keep the
+old actual-owner refusal, strict status shapes and existing setup destination.
+Source/native review pixels do not establish inference or signed delivery.
 
 ## Where the rest of the knowledge is
 
@@ -1479,6 +1511,22 @@ Node grouping tests alone do not prove that window behavior.
 **A windowed host is not the panel popup.** Adaptive launcher changes must exercise the actual Plasma AppletPopup, close it and read its saved size back. AvailableScreenRect falls back to item size without a valid screen: guard it before using it for implicit dimensions. Keep desktop minimum-size controls, finite/invalid geometry refusals and the same predicate in selfcheck/post-update. Real Qt input and broken-focus/RTL controls complement installed-session review; synthetic touch is not physical touch acceptance.
 
 ## Before you push
+
+**A portable program folder contains user data too.** Native Notepad4 wrote
+settings and a saved document beside its executable. The old Windows update
+and ordinary remove both returned success while deleting those bytes. Keep a
+pristine publisher inventory before carrying added/modified files, preserve
+permissions, refuse Windows case/ancestor collisions and unknown legacy or
+partial ownership, and retain recovery predecessors. Ordinary removal keeps
+portable data as well as the prefix; reinstall must respect that retained tree.
+Canonical launches hold the same stable shared lifetime inode that Store
+mutations reserve exclusively; refuse observed external users before stopping
+anything. Keep old-loss, actual open-fd, inherited-descriptor and same-filesystem
+bind controls. External bypasses remain a limitation; never delete an unknown
+`.app.previous`/`.app.installing` or treat an absent installation record as
+permission to replace residual data. A correct private transaction is not a
+native Arabic Save dialog or a signed installed update.
+
 
 **A Remove flag is a promise about files, not a label.** Oracle's private Store
 review found that Windows Remove accepted `delete_data=false` and still removed

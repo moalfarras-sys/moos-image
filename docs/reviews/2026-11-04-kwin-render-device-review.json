@@ -1,0 +1,89 @@
+{
+  "schema": 1,
+  "date": "2026-11-04",
+  "plan": [
+    "P0.1",
+    "P6.7"
+  ],
+  "tier": "Tier1 exact stable package-input review; full local image and signed proof required before delivery",
+  "originalRefusals": {
+    "source": "a95ae5b794e90337f38b9f4aeffe9d890c988c07",
+    "localImageExit": 1,
+    "localImageSeconds": 141.33043694496155,
+    "stableInputs": 14744,
+    "ciRun": 41792267683,
+    "reason": "Exact reviewed kwin6.8.2-2 differed from actual6.8.2-3 after normal refresh; no gate relaxed or failed-job rerun"
+  },
+  "publisherPackages": [
+    {
+      "url": "https://dl.fedoraproject.org/pub/fedora/linux/updates/44/Everything/x86_64/Packages/k/kwin-6.8.2-3.fc44.x86_64.rpm",
+      "bytes": 537434,
+      "sha256": "6f5521f24b49481294e2eb3716bee2851f654e573735c28ddee3cce964e25e94"
+    },
+    {
+      "url": "https://dl.fedoraproject.org/pub/fedora/linux/updates/44/Everything/x86_64/Packages/k/kwin-common-6.8.2-3.fc44.x86_64.rpm",
+      "bytes": 3946451,
+      "sha256": "5045fb2419056439e6d75aa9ca41099ad380a52daaac5ed511536b670dd5dc1f"
+    },
+    {
+      "url": "https://dl.fedoraproject.org/pub/fedora/linux/updates/44/Everything/x86_64/Packages/k/kwin-libs-6.8.2-3.fc44.x86_64.rpm",
+      "bytes": 2961583,
+      "sha256": "86347eaa5cdc49b75c27263d656c723493b8ccac3976a7dd3667f4815bd44548"
+    },
+    {
+      "url": "https://dl.fedoraproject.org/pub/fedora/linux/updates/44/Everything/x86_64/Packages/k/kwin-devel-6.8.2-3.fc44.x86_64.rpm",
+      "bytes": 358709,
+      "sha256": "ed6b332aa5aefa073783448607bb7cd524db3a28ff247ae507714b36749f36bc"
+    },
+    {
+      "url": "https://dl.fedoraproject.org/pub/fedora/linux/updates/44/Everything/source/tree/Packages/k/kwin-6.8.2-3.fc44.src.rpm",
+      "bytes": 9102762,
+      "sha256": "9f70a200139689b206b6d387433be4c346210b40e49d0a7f226b8ce674b6cfbb"
+    }
+  ],
+  "rpmVerification": {
+    "allFiveHeaderAndPayloadDigestsAndSignatures": "OK",
+    "trustedFingerprint": "36F612DCF27F7D1A48A835E4DBFCF71C6D9F90A6",
+    "hostRpmDatabaseUnchanged": true
+  },
+  "source": {
+    "upstreamArchiveSha256": "ea5e68d957c7d70abed97222a592d4445fda29129e20942658badd224ee138b4",
+    "upstreamSignatureSha256": "78ce7fd2963b34d7036bfba778a25c4fdb51117ef1cfafdf2a3d1a2f23eb0152",
+    "bothUnchangedFromReviewed2": true,
+    "macrosUnchanged": true,
+    "specDelta": "Exact release3 plus one reviewed upstream compositor null-check patch and changelog. No authentication, identity, theme, API or kernel patch.",
+    "patch": {
+      "url": "https://github.com/KDE/kwin/commit/c9d720793bbcef9483ab290673032d39441c0e6f",
+      "vendorPatchSha256": "667d62447fdbc9fe0a760efee7c44e96c988384a5ad86fac49be7576d52010c2",
+      "upstreamPatchSha256": "5bf30cdd1030e22b9d3dd67045fbd07b50d72375aafa4ed2eb3851091dab2911",
+      "hunksIdentical": true,
+      "indexPrefixesMatch": true,
+      "retainedFirstRefusal": "Whole diff body differs only in index hash abbreviation lengths11vs10; actual hunks identical, not a byte-identical patch claim."
+    },
+    "inventReadback": "403 retained; KDE official GitHub mirror and signed source payload inspected"
+  },
+  "nativeEvidence": {
+    "inputImage": "localhost/moos:integrated-52abf99f",
+    "inputImageId": "689a6de730ddba916cbb33f3cd2dc161369cbd9a81572560f27fc5fb3e91db0e",
+    "scope": "Unbooted private network-disabled package transaction in existing qualified image; no SDK/VM copy, host layering, compositor/session-bus or input-policy change",
+    "exactThreeRuntimeRpmsInstalled": "6.8.2-3.fc44",
+    "unmodifiedReviewedSeams": 13,
+    "stockKernelFilesByteIdentical": 4876,
+    "stockKernelMapSha256": "489421c9c79a9036d63a856feb1fa661af00e2f1c21254f1496b107834a1e1e7",
+    "actualGreeterPositiveBrokenRestored": [
+      true,
+      false,
+      true
+    ],
+    "greeterBoundary": "Native existing loaded QML/testing greeter with private homes and nonexistent session bus; no authentication or installed cold-boot claim",
+    "predicateControl": "Exact old/fixed upstream condition compiled natively with private device structs. Old missing-device cross-GPU branch SIGSEGV; fixed rejects safely, three contrary same/compatible/different branches unchanged. Private source control, not actual KWin DRM/DisplayLink acceptance.",
+    "stableComposerTests": 12,
+    "stillRefuses": "Old1/2, unknown4/new upstream, other package rebuilds, wrong architecture/installed host/key drift/ordinary transaction errors"
+  },
+  "remaining": [
+    "Fresh complete current-base image and final integrated source gates",
+    "Required PR x86/nativeARM CI and new first-attempt signed artifact proofs/promotion",
+    "Physical DisplayLink missing-render-device scenario unavailable; no fix claimed for earlier USB4/IOMMU/NHI warnings",
+    "Actual installed V3 remains signed1119; the real host compositor/driver untouched"
+  ]
+}

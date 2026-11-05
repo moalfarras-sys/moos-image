@@ -8,10 +8,9 @@ either for real, and says which brain answered the last typed question. Mo AI's 
 shown read-only with the way to System Settings. Nothing here changes the system: a model pick is
 Mira's own preference, a test sends one probe, and measuring is Mo AI's own read-and-rank run.
 
-Which brain answers now follows brain.TextBrain's own rule, derived in one place (`_derived`): Gemini
-whenever gemini.json holds a key, unless the latest proof (the page's test, the controller's
-Save-and-test, or a real answer) says the key is rejected or missing. Any other failure keeps Gemini
-first, with its reason shown as a warning.
+The next model attempt follows brain.TextBrain: a saved Gemini key is tried again on each
+question, then the gateway may answer. Configuration and the last outcome are separate: a
+saved key or a living gateway never proves that the next reply will succeed.
 """
 import re
 import time
@@ -38,7 +37,17 @@ STRINGS = {
                'Who thinks for Mira, with which model, and where your words go'),
     'br_refresh': ('تحديث', 'Refresh'),
     # the route
-    'br_route_now': ('الكتابة تُجاب الآن عبر', 'Typed chat is answered by'),
+    'br_route_now': ('مسار محاولة الكتابة التالية', 'Next typed-chat attempt'),
+    'br_route_unknown': ('حالة الاتصال غير معروفة بعد', 'Connection status is not known yet'),
+    'br_route_needs_setup': ('يلزم إعداد مزوّد سحابي. الأوامر المحلية تبقى متاحة.',
+                             'A cloud provider needs setup. Local commands remain available.'),
+    'br_route_configured': ('الإعداد محفوظ؛ لم نختبر توافر الرد الآن.',
+                            'Configuration is saved; an answer has not been tested now.'),
+    'br_route_unavailable': ('تعذّرت قراءة حالة بوابة Mo AI. أعد القراءة أو افتح إعداداتها.',
+                             'Mo AI gateway status is unavailable. Refresh or open its settings.'),
+    'br_route_last_failed': ('آخر اختبار لم ينجح؛ النتيجة موضّحة أدناه.',
+                             'The latest check failed; its result is shown below.'),
+    'br_route_testing': ('جارٍ اختبار الاتصال…', 'Testing the connection…'),
     'br_route_gemini': ('عقل Gemini بمفتاحك', 'Gemini with your key'),
     'br_route_cloud': ('عقل Mo AI السحابي المجاني', "Mo AI's free cloud brain"),
     'br_route_router': ('الأوامر المحلية', 'Local commands'),
@@ -214,8 +223,8 @@ def _short(model_id):
 
 IDLE_TEST = {'state': 'idle', 'model': '', 'ms': 0, 'reason': ''}
 UNKNOWN_HEALTH = {'state': 'unknown', 'reason': '', 'source': ''}
-# A Gemini failure that makes every typed question fall through to Mo AI's cloud brain. Any other
-# failure (quota, network, a slow or failing server) is Gemini still asked first, with a warning.
+# A rejected/missing key has its own visible warning. It does not change
+# TextBrain's next attempt while a key remains saved.
 HARD_REASONS = ('auth', 'config')
 
 
@@ -234,9 +243,7 @@ class BrainPage(Page):
 
     # ── state ───────────────────────────────────────────────────────
     def update(self, **fields):
-        """Every change also refreshes what is derived from it: which brain answers now, the key's
-        state and the warning, from one rule (brain.TextBrain asks Gemini first whenever a key is
-        saved; only a rejected or missing key sends every question on to Mo AI)."""
+        """Refresh the next attempt, configuration state and last-result warning."""
         fields.update(self._derived({**self._state, **fields}))
         super().update(**fields)
 
@@ -247,17 +254,32 @@ class BrainPage(Page):
         testing = state.get('saving') is True or (state.get('gemini_test') or {}).get('state') == 'testing'
         failed = health.get('state') == 'failed'
         hard = failed and health.get('reason') in HARD_REASONS
+        routing = state.get('routing') or {}
+        # /quick reads the gateway's configuration owner, unlike the legacy
+        # agent config or a catalogue URL. Liveness alone is never a brain.
+        cloud_state = ('unknown' if routing.get('state') == 'loading' else
+                       'unavailable' if routing.get('state') != 'ok' else
+                       'needs-setup' if routing.get('cloud') is not True else
+                       'unavailable' if routing.get('gateway') is not True else 'configured')
+        fields = {'cloud_route_state': cloud_state}
         if has_key is None:
-            return {'key_status': 'unknown', 'route_now': '', 'gemini_warning': ''}
+            return {**fields, 'key_status': 'unknown', 'route_now': '',
+                    'route_state': 'unknown', 'gemini_warning': ''}
         if not has_key:
-            return {'key_status': 'missing', 'route_now': 'moai-cloud', 'gemini_warning': ''}
+            return {**fields, 'key_status': 'missing', 'route_now': 'moai-cloud',
+                    'route_state': cloud_state, 'gemini_warning': ''}
         status = ('testing' if testing else 'ok' if health.get('state') == 'ok' else 'failed' if failed else 'set')
         warning = ''
         if failed and not hard:
             # A save's own test does not say why; the page's test (run right after) does.
             warning = 'save' if health.get('source') == 'save' and health.get('reason') == 'unknown' \
                 else (health.get('reason') or 'unknown')
-        return {'key_status': status, 'route_now': 'moai-cloud' if hard else 'gemini', 'gemini_warning': warning}
+        # TextBrain retries a saved Gemini key on the next question, including
+        # after a rejected-key answer. Keep that next attempt separate from its
+        # last outcome, and never equate configuration with an available reply.
+        return {**fields, 'key_status': status, 'route_now': 'gemini',
+                'route_state': 'testing' if testing else 'last-failed' if failed else 'configured',
+                'gemini_warning': warning}
 
     def initial(self):
         prefs = brain.preferences()
@@ -269,6 +291,7 @@ class BrainPage(Page):
             'text_models': self._text_models(),
             'voice_model': '',
             'has_key': None,
+            'routing': {'state': 'loading', 'gateway': None, 'cloud': None},
             'saving': False,
             'gemini_health': dict(UNKNOWN_HEALTH),
             'gemini_test': dict(IDLE_TEST),
@@ -325,11 +348,22 @@ class BrainPage(Page):
     def refresh(self):
         prefs = brain.preferences()
         self.update(loading=True, models_state='loading', cloud_model=prefs.get('cloud_model') or '',
-                    last=self._last(brain.last_answer()))
+                    last=self._last(brain.last_answer()),
+                    routing={'state': 'loading', 'gateway': None, 'cloud': None})
+        self.run('quick', moai_tools.get, '/quick')
         self.run('gemini', brain.gemini_settings)
         self.run('config', moai_agent.get, '/api/config')
         self.run('models', moai_tools.get, '/models', 40)
         self.run('measure', moai_tools.get, '/measure')
+
+    def on_quick(self, tag, result):
+        brains = result.get('brains') if isinstance(result, dict) else None
+        valid = (isinstance(brains, dict) and not result.get('error')
+                 and isinstance(brains.get('gateway'), bool)
+                 and isinstance(brains.get('cloud'), bool))
+        self.update(routing={'state': 'ok' if valid else 'error',
+                             'gateway': brains['gateway'] if valid else None,
+                             'cloud': brains['cloud'] if valid else None})
 
     def on_gemini(self, tag, result):
         result = result if isinstance(result, dict) else {}
@@ -341,7 +375,8 @@ class BrainPage(Page):
             model, source = configured, 'config'
         else:
             model, source = brain.DEFAULT_TEXT_MODEL, 'default'
-        self.update(has_key=bool(result.get('has_key')), voice_model=result.get('voice_model') or '',
+        self.update(has_key=result.get('has_key') if isinstance(result.get('has_key'), bool) else None,
+                    voice_model=result.get('voice_model') or '',
                     text_model=model, text_model_source=source)
 
     def on_config(self, tag, result):
@@ -654,7 +689,8 @@ class BrainPage(Page):
         groups = [{'key': key, 'rows': [r for r in rows if r['group'] == key]} for key in GROUP_ORDER
                   if any(r['group'] == key for r in rows)]
         self.update(
-            loading=False, has_key=True, voice_model='gemini-live-sample', text_model='gemini-flash-lite-latest',
+            loading=False, has_key=True, routing={'state': 'ok', 'gateway': True, 'cloud': True},
+            voice_model='gemini-live-sample', text_model='gemini-flash-lite-latest',
             text_model_source='mira', saving=False,
             gemini_test={'state': 'ok', 'model': 'gemini-flash-lite-latest', 'ms': 720, 'reason': ''},
             gemini_health={'state': 'ok', 'reason': '', 'source': 'test'},

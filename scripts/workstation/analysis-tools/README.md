@@ -22,6 +22,29 @@ Links, unknown archive paths, digest/payload drift and changed dependency locks
 remain refusals. npm lifecycle scripts are disabled. Optional native providers
 such as Frida are not qualified by installing their package metadata.
 
+Dependency updates at the same REA version use a separate directory named
+`rea-6.7.0-sha256-<full reviewed lock SHA256>`. The installer renders the
+`moos-rea` template to that exact generation and records both its identity and
+lock in the profile receipt. An existing generation needs its own matching
+receipt and must still pass the package/lock/archive checks; unknown directories
+are refused. The original `rea-6.7.0` directory and earlier generations stay in
+place so active consumers retain their files. Node, JDK and Ghidra stay shared.
+
+To select a reviewed update, use the same install command with the two original
+verified archives and `--replace-launchers`. This preserves the prior launcher
+bytes before switching future launches; running REA processes continue with
+their old generation. There is no automatic retirement or cache pruning. A
+previous-launcher recovery remains tied to its retained prefix and original
+receipt, rather than being accepted as the current profile.
+
+Installation and checking hold an owned, nofollow profile lease. A concurrent
+operation waits at most ten seconds, then reports busy without claiming a
+completed check or publishing another generation. The lease covers package
+verification, all launcher replacements, receipt publication and final readback.
+`--check` opens an existing lease read-only and never creates a missing profile
+or lock. A partially completed installation is a refusal until its exact
+generation, launchers and receipt agree; it is never reported as installed.
+
 `moos-rea` is the canonical CLI/MCP entry point. It supplies the native user bus
 for a minimal MCP environment, crosses Flatpak/Toolbx as needed, uses the shared
 Node/JDK and defaults headless Ghidra to2GiB. `moos-ghidra` opens the actual Java
@@ -29,7 +52,7 @@ GUI in the normal application cgroup, reading the primary display scale before
 entering the SDK. Java rounded the tested2.5 scale to2.0: fractional GUI scaling
 is not claimed exact. Its basic installed GUI journey now opens an owned project/program, displays decompiled `main` and closes normally. The original main frame was blank on Wayland; a scoped OpenJDK non-reparenting environment setting renders it, and restoring the original launcher reproduces the blank frame. The canonical launcher carries the host Wayland decision across Toolbx and preserves explicit caller values. Six native shell-boundary controls cover X11 absence, Wayland defaults, bridge state and argument/heap/scale preservation. This is a GUI-process setting, not a desktop-wide Java change; include the actual SDK Java process when measuring memory. Broader keyboard/server journeys and acceptance on the next OS boot remain open.
 
-On the V3, adoption of both existing archive payloads, launcher installation and
+On the earlier V3 profile, adoption of both existing archive payloads, launcher installation and
 read-only checks pass. All managed file bytes/mtimes remain unchanged during
 `--check`. Actual canonical CLI and external MCP calls discover207 tools, check
 the exact live package/catalog, open an owned ELF, decompile `moos_blend` and
@@ -38,7 +61,7 @@ not all207 tool journeys or paid/provider/account features. A running Codex
 extension still needs its normal restart to discover the earlier local MCP
 registration; this installer deliberately leaves that configuration alone.
 
-The actual fresh-helper test extracts Ghidra, installs174 locked npm packages,
+The earlier fresh-helper test extracts Ghidra, installs174 locked npm packages,
 and analyzes the same owned ELF through the canonical source launcher. Its
 pseudocode matches the installed profile. Running both installer helpers again
 preserves every file size/mtime; the temporary test payloads are then removed.
@@ -68,3 +91,29 @@ Electron ASAR roundtrip controls, fresh locked installation, actual CLI help
 and registry audit0 pass; the manifest lock digest advances with the lock.
 The running workstation profile is preserved. This source refresh is not an
 installed profile replacement, a new SDK, or broader native-provider acceptance.
+
+The generation installer has private old/fixed controls for lock upgrades, a
+running old reader, unknown generations, exact recovery, unchanged read-only
+checks and concurrent install/check publication. On Nov3 the original archives
+match the existing installed Ghidra and spare REA payloads; the spare dependency
+tree passes the exact reviewed lock. A rendered private launcher reaches actual
+REA CLI help through the shared Node/SDK, with the live launcher, receipt and
+legacy lock bytes/mtimes unchanged. This reuses dependencies through private
+links and does not qualify a full native installation or another Ghidra/MCP
+journey. That private helper test did not replace a running workstation launcher or profile.
+
+The original versioned archives under
+`~/.cache/moos-dev-platform/analysis-archives/` remain inputs for the next
+verified installation and retained-profile recovery. Keep them while those
+consumers need them; retirement requires a separate recovery/retention review.
+This installer does not download or remove either archive.
+
+On Nov4 the actual canonical owner upgrade passes in7.967s after the old native
+check refuses the changed transitive lock. New check, CLI help/capabilities, fresh canonical MCP initialization/207-tool metadata
+and registry audit0 pass with Glob14.0.2/Minimatch11.0.1/Zod4.6.6. All7,905 legacy
+entries (124,712,060 regular-file bytes) and the active original MCP reader
+remain unchanged; the new generation has126,835,007 regular-file bytes. Exact
+launcher/receipt recovery is retained. Existing MCP readers adopt new code only
+after their normal client restart; no engineering session is killed. This is
+a local tool update, not a signed OS update or a new provider/Ghidra GUI journey.
+[Bounded native evidence](../../../docs/reviews/2026-11-04-analysis-profile-generations.json).
