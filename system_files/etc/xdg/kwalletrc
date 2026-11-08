@@ -4,8 +4,14 @@
 # now use private app-owned XDG storage with non-fatal startup.
 #
 # KDE libraries remain installed because core Plasma components link them; this
-# default plus the systemd masks in build.sh disables the wallet service without
-# removing those desktop dependencies.
+# default keeps both native providers off without removing those dependencies.
+# User Settings can explicitly enable both; PAM integration stays masked.
 [Wallet]
 Enabled=false
 First Use=false
+
+[KSecretD]
+Enabled=false
+
+[org.freedesktop.secrets]
+apiEnabled=false

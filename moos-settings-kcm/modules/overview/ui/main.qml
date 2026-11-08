@@ -216,6 +216,14 @@ KCM.SimpleKCM {
             ]
         }
 
+        MoosWalletCard {
+            objectName: "moosUserWallet"
+            Layout.fillWidth: true
+            Layout.maximumWidth: root.cardWidth
+            Layout.alignment: Qt.AlignHCenter
+            backend: kcm
+        }
+
         GridLayout {
             id: liveControls
             objectName: "moosDeviceControls"

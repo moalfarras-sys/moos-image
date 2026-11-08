@@ -327,7 +327,25 @@ tried again; a past cloud answer never changes that executor policy. Keep the
 old actual-owner refusal, strict status shapes and existing setup destination.
 Source/native review pixels do not establish inference or signed delivery.
 
+**A bus name is not an active clipboard object.** Station pointer review must
+verify its actual interface before touching the clipboard, correlate fresh
+cursor replies and preserve plain text in a private0600 recovery file. Never
+put clipboard text in exception argv or treat an unconfirmed restore as success.
+A failed restore keeps its recovery file. Preserve the native missing-object
+refusal and the earlier clipboard incident; an unavailable bridge is no input
+acceptance. Cache retirement must also protect every nonselected tagged
+ancestor independently, not just nodes outside a selected ancestry. Preserve
+the retired native-base digest exception; do not call a new tag the old input.
+
 ## Where the rest of the knowledge is
+
+**A wallet switch must control both native providers.** User Settings explicitly
+owns opt-in/out through `moos-control`; fresh profiles remain off and PAM stays
+separate. Persist and lock unlocked collections before terminating only pinned,
+same-user KDE providers, and wait for their actual exit. Keep encrypted files,
+unknown providers and concurrent preference edits intact. Preserve real private
+on/off, failed activation/save, malformed status and migration controls. A
+source KCM preview with scoped helper mounts is not signed installed delivery.
 
 **A downloaded collection is not a wallpaper package.** Native KNewStuff can install a flat image archive then fail its Use command on a wildcard folder. Keep the actual old refusal; use the native picker and bounded raster admission, then delegate to the original appearance owner. Preserve the native provider/version/warning/install bytes and registry identity, Kiosk restrictions, edited/link-cache refusals and cancellation without mutation. A QWidget KCM needs an embedded ApplicationItem/PageRow for native detail pages; its offscreen Window is not a dialog parent. Compile child types before accepting the root ready marker and retain the broken-child negative.
 

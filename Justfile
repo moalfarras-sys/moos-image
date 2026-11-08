@@ -76,6 +76,9 @@ check:
     python3 tests/test_greeter_rpms.py
     python3 tests/test_moai_do.py
     python3 tests/test_moos_control.py
+    python3 tests/test_wallet_preference.py
+    python3 tests/test_wallet_image_gate.py
+    python3 tests/test_wallet_settings_qml.py
     # The audit journals are the owner's: every suite that names an auditing tool is RUN with
     # the real logger replaced by a trap, and one write fails the gate.
     python3 tests/test_tests_stay_out_of_the_journal.py

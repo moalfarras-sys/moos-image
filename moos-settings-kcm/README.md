@@ -168,6 +168,8 @@ arguments to `moos-theme`; audio rows show the complete `moos-control` command.
 | `audio-volume` | `/usr/bin/moos-control volume <percent>` | canonical integer `0`–`100` |
 | `audio-mute` | `/usr/bin/moos-control mute` | — |
 | `audio-unmute` | `/usr/bin/moos-control unmute` | — |
+| `wallet-on` | `/usr/bin/moos-control wallet on` | —; explicit user preference, verifies both native providers |
+| `wallet-off` | `/usr/bin/moos-control wallet off` | —; stops only verified same-user KDE providers, retains wallet data |
 | `theme-status` | *(none)* | — |
 | `theme-motion-status` | `motion` | — |
 | `theme-clarity-status` | `clarity` | — |
@@ -193,6 +195,13 @@ verb is added to `FixedVerbs` in `src/moosbackend.cpp`, to this table, and to
 every field a page binds has its declared JSON type (`StatusShape` in
 `src/moosbackend.cpp`; `tests/test_moos_settings.py` checks the helper against
 that table). A rejected document is dropped whole.
+
+The overview's password-wallet switch changes all three native KDE provider
+flags together. Explicit `MoOS/WalletChoice` survives the old opt-out migration;
+fresh profiles remain off. Off saves/locks unlocked collections before stopping
+only pinned, same-user native providers. Encrypted wallet files and PAM are
+untouched. On verifies both providers; failed activation restores only its own
+published preference bytes. Unknown/partial and unready states stay visible.
 
 The read-only collector owns a new process session (Qt 6.7 or newer). Closing its
 page cancels that collector and its probes as one group, after verifying the

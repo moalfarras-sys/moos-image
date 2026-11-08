@@ -379,15 +379,29 @@ else
 fi
 
 # ── The wallet policy ────────────────────────────────────────────────────────
-# MoOS intentionally keeps KWallet off. MoPlayer and Mo AI use private XDG data
-# stores, so a desktop keyring prompt is neither required nor allowed at login.
+# Fresh profiles keep the wallet off. Only an explicit user Settings choice
+# enables it; first-party credentials and login/PAM keep their existing owners.
 head_ "المحفظة | Wallet"
 wallet_names="$(gdbus call --session --dest org.freedesktop.DBus \
     --object-path /org/freedesktop/DBus \
     --method org.freedesktop.DBus.ListNames 2>/dev/null || true)"
-if [ "$(kreadconfig6 --file kwalletrc --group Wallet --key Enabled \
-        2>/dev/null)" != "false" ]; then
-    bad "KWallet is enabled in your profile; MoOS keeps it disabled by default"
+wallet_control="${BASH_SOURCE%/*}/moos-control"
+wallet_state="$("$wallet_control" wallet status 2>/dev/null)" || wallet_state=""
+wallet_mode="$(printf '%s' "$wallet_state" | python3 -c '
+import json,sys
+try:
+    s=json.load(sys.stdin)
+    valid=isinstance(s,dict) and all(type(s.get(k)) is bool for k in ("known","available","enabled","active","ready")) and s.get("choice") in ("","on","off")
+    if not valid or s["known"] is not True: print("unknown")
+    elif s["enabled"] is False and not s["active"] and not s["ready"] and s["choice"]!="on": print("off")
+    elif s["choice"]=="on" and s["enabled"] and s["active"] and s["ready"]: print("on")
+    else: print("unknown")
+except (ValueError,AttributeError): print("unknown")
+')"
+if [ "$wallet_mode" = on ]; then
+    ok "password wallet is enabled by your explicit Settings choice and its providers are ready"
+elif [ "$wallet_mode" != off ]; then
+    bad "password wallet state is unconfirmed; choose its state in User Settings"
 elif printf '%s' "$wallet_names" | grep -Eq \
         "org\\.freedesktop\\.secrets|org\\.kde\\.kwalletd[56]?|org\\.kde\\.ksecretd"; then
     bad "a KWallet/Secret Service process is still active in this session"

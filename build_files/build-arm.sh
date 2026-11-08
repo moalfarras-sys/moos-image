@@ -1685,6 +1685,8 @@ python3 /ctx/verify_no_foreign_identity.py
 python3 /ctx/verify_mime_handlers.py --root /
 python3 /ctx/verify_desktop_parity.py --root /
 python3 /ctx/verify_memory_policy.py --root /
+# The optional wallet must work against final /usr bytes, not only draw a switch.
+bash /ctx/verify_wallet_preference.sh
 python3 /ctx/verify_app_updates.py --root /
 python3 /ctx/android_session_policy.py verify --edition "$MOOS_EDITION"
 

@@ -45,6 +45,9 @@ python3 tests/test_analysis_tools_profile.py
 python3 tests/test_fingerprint_login.py
 python3 tests/test_moai_do.py
 python3 tests/test_moos_control.py
+python3 tests/test_wallet_preference.py
+python3 tests/test_wallet_image_gate.py
+python3 tests/test_wallet_settings_qml.py
 python3 tests/test_settings_destinations.py
 python3 tests/test_moos_health.py
 python3 tests/test_remote_edition_guard.py

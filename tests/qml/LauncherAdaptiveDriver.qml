@@ -63,11 +63,13 @@ Item {
                 driver.verify(driver.appGrid.columns >= 1 && driver.appGrid.columns <= 4,
                              "one through four columns");
                 l.activePage = 1;
-                check.wait(80);
+                check.tryCompare(driver.pages, "pageAnimating", false, 1500,
+                    "application page settles before category pointer input");
+                driver.verify(check.waitForPolish(driver.categories), "native category layout polished");
                 const allApps = driver.appGrid.count;
                 driver.verify(l.appRootModel.count > 2, "native app categories are present");
                 driver.categories.positionViewAtIndex(2, ListView.Contain);
-                check.wait(80);
+                driver.verify(check.waitForPolish(driver.categories), "scrolled category layout polished");
                 const category = driver.categories.itemAtIndex(2);
                 driver.verify(category && category.visible && category.height >= 44,
                     "native category is a visible touch target");

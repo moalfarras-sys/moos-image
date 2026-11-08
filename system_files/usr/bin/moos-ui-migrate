@@ -316,6 +316,12 @@ disable_wallet_v2() {
     local credential_store=/usr/libexec/moai-credential-store
     local legacy_key new_value wallet_tmp
 
+    # A deliberate choice in User Settings supersedes the old opt-out repair.
+    # Fresh profiles still inherit the disabled image policy.
+    if command -v kreadconfig6 >/dev/null 2>&1 \
+       && [ "$(kreadconfig6 --file "$wallet_conf" --group MoOS --key WalletChoice 2>/dev/null)" = on ]; then
+        return 0
+    fi
     [ -e "$wallet_marker" ] && return 0
 
     if [ -x "$credential_store" ] \
