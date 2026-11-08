@@ -337,6 +337,17 @@ acceptance. Cache retirement must also protect every nonselected tagged
 ancestor independently, not just nodes outside a selected ancestry. Preserve
 the retired native-base digest exception; do not call a new tag the old input.
 
+**Writing codec metadata first does not order another socket.** Main42526063620
+refuses a restarted H264 frame before NVIDIA composition. A quiet original
+native run passes; sending ten packets before stdout metadata reproduces the
+loss. Bind the actual codec to each pipeline callback and its packet header,
+not mutable requested/global state or a separate stdout announcement. Keep the
+32MiB ceiling, per-helper generation, full refusal/backoff and viewer ownership.
+Retain native old-routing and withheld/stale H264/JPEG/H264 controls plus real
+private encode/transport/decode evidence. The CI run lacks an internal frame
+trace; this proves an ordering class, not every earlier loss. Never restart the
+owner's live capture/input services to exercise the repair.
+
 ## Where the rest of the knowledge is
 
 **A wallet switch must control both native providers.** User Settings explicitly

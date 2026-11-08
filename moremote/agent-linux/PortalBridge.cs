@@ -408,20 +408,11 @@ public sealed class PortalBridge : IDisposable
                 VideoHeight = GetInt(root, "height", VideoHeight);
                 LogicalWidth = GetInt(root, "logical_width", LogicalWidth);
                 LogicalHeight = GetInt(root, "logical_height", LogicalHeight);
-                // The helper reports what it ACTUALLY got running, not what it was asked for: an
-                // encoder that exists can still refuse to open (NVENC wants VRAM it may not get),
-                // in which case the helper falls down the list and lands on JPEG. Believing the
-                // request rather than the report is how a client ends up decoding the wrong codec.
+                // Encoder metadata remains useful for geometry/diagnostics, but it arrives on
+                // stdout independently of frame packets. It must never reclassify an already
+                // received frame or undo a newer codec transition on the socket.
                 if (root.TryGetProperty("codec", out var cv) && cv.ValueKind == JsonValueKind.String)
-                {
-                    var codec = cv.GetString() == "h264" ? "h264" : "jpeg";
-                    if (codec != Codec)
-                    {
-                        Codec = codec;
-                        lock (_gate) { _frame = null; }   // a JPEG left over from before is not an H.264 frame
-                        Log.Info($"Video codec: {codec} ({(root.TryGetProperty("encoder", out var ev) ? ev.GetString() : "?")}).");
-                    }
-                }
+                    Log.Info($"Video metadata: {cv.GetString()} ({(root.TryGetProperty("encoder", out var ev) ? ev.GetString() : "?")}).");
                 Log.Info($"Video stream: {VideoWidth}x{VideoHeight} " +
                          $"(source {GetInt(root, "source_width", 0)}x{GetInt(root, "source_height", 0)}).");
                 break;
@@ -452,8 +443,9 @@ public sealed class PortalBridge : IDisposable
         get { lock (_gate) return _keymap; }
     }
 
-    /// <summary>What the helper's encoder is producing right now: "jpeg" or "h264".</summary>
-    public string Codec { get; private set; } = "jpeg";
+    private volatile string _frameCodec = "jpeg";
+    /// <summary>Codec of the actual frame packets: "jpeg" or "h264".</summary>
+    public string Codec => _frameCodec;
 
     /// <summary>
     /// Every H.264 access unit, in order, as it arrives. JPEG keeps the single-slot model below —
@@ -473,22 +465,32 @@ public sealed class PortalBridge : IDisposable
             while (!_disposed && generation == Generation)
             {
                 if (!ReadExact(conn, header, 4)) break;
-                int len = (int)BinaryPrimitives.ReadUInt32LittleEndian(header);
+                // The paired helper carries its pipeline codec in bit31. The remaining bits
+                // retain the bounded payload length; stdout is never a frame-ordering barrier.
+                uint packet = BinaryPrimitives.ReadUInt32LittleEndian(header);
+                string codec = (packet & 0x80000000) != 0 ? "h264" : "jpeg";
+                int len = (int)(packet & 0x7fffffff);
                 if (len <= 0 || len > 32 * 1024 * 1024) break; // desync — drop the connection
                 var buf = new byte[len];
                 if (!ReadExact(conn, buf, len)) break;
                 if (generation != Generation) break;
-                if (Codec == "h264")
+                lock (_gate)
                 {
-                    H264Frame?.Invoke(buf, generation);
-                }
-                else
-                {
-                    lock (_gate)
+                    if (generation != Generation) break;
+                    if (_frameCodec != codec)
+                    {
+                        _frame = null;
+                        _frameCodec = codec;
+                    }
+                    if (codec == "jpeg")
                     {
                         _frame = buf;
                         _version++;
                     }
+                }
+                if (codec == "h264")
+                {
+                    H264Frame?.Invoke(buf, generation);
                 }
                 Interlocked.Exchange(ref _lastFrameTicks, Environment.TickCount64);
                 progress.NoteFrame(Environment.TickCount64);

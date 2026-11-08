@@ -21,7 +21,7 @@ class Geometry(unittest.TestCase):
   buffer=types.SimpleNamespace(map=lambda _:(True,types.SimpleNamespace(data=b'encoded')),unmap=lambda _:None)
   sample=types.SimpleNamespace(get_caps=lambda:Caps(640,480),get_buffer=lambda:buffer)
   sink=types.SimpleNamespace(emit=lambda _:sample)
-  ns.update(state={'sw':0,'sh':0},Gst=types.SimpleNamespace(FlowReturn=types.SimpleNamespace(OK=0),MapFlags=types.SimpleNamespace(READ=1)),GLib=types.SimpleNamespace(idle_add=lambda fn:scheduled.append(fn)),rebuild=lambda:None,send_frame=lambda b:sent.append(b) or True,video_health=types.SimpleNamespace(note_frame=lambda t:health.append(t)),monotonic_ms=lambda:123)
+  ns.update(state={'sw':0,'sh':0},Gst=types.SimpleNamespace(FlowReturn=types.SimpleNamespace(OK=0),MapFlags=types.SimpleNamespace(READ=1)),GLib=types.SimpleNamespace(idle_add=lambda fn:scheduled.append(fn)),rebuild=lambda:None,send_frame=lambda b,codec='jpeg':sent.append(b) or True,video_health=types.SimpleNamespace(note_frame=lambda t:health.append(t)),monotonic_ms=lambda:123)
   if 'source_size' in ns:ns['on_sample'](sink,source)
   else:ns['on_sample'](sink)
   return ns['state'],sent,health,scheduled
@@ -38,7 +38,7 @@ class Geometry(unittest.TestCase):
   import gi
   gi.require_version('Gst','1.0');from gi.repository import Gst
   Gst.init(None);ns=functions();frames=[];scheduled=[]
-  ns.update(state={'sw':0,'sh':0},Gst=Gst,GLib=types.SimpleNamespace(idle_add=lambda fn:scheduled.append(fn)),rebuild=lambda:None,send_frame=lambda b:frames.append(bytes(b)) or True,video_health=types.SimpleNamespace(note_frame=lambda _:None),monotonic_ms=lambda:1)
+  ns.update(state={'sw':0,'sh':0},Gst=Gst,GLib=types.SimpleNamespace(idle_add=lambda fn:scheduled.append(fn)),rebuild=lambda:None,send_frame=lambda b,codec='jpeg':frames.append(bytes(b)) or True,video_health=types.SimpleNamespace(note_frame=lambda _:None),monotonic_ms=lambda:1)
   pipeline=Gst.parse_launch('videotestsrc name=source pattern=ball num-buffers=5 ! video/x-raw,width=1920,height=1080 ! videoscale ! video/x-raw,width=640,height=360 ! videoconvert ! jpegenc ! appsink name=sink emit-signals=true sync=false')
   source=pipeline.get_by_name('source');sink=pipeline.get_by_name('sink')
   sink.connect('new-sample',lambda sink: ns['on_sample'](sink,source) if 'source_size' in ns else ns['on_sample'](sink))

@@ -1,6 +1,7 @@
 using System.Text.Json;
 using System.Diagnostics;
 using System.Net.Sockets;
+using System.Buffers.Binary;
 
 namespace MoRemote;
 
@@ -55,7 +56,8 @@ internal static class PortalRecoveryTests
                 Eq(false, bridge.SetVideoSettings(34, .45, 854, 15), "latest offline preset is remembered");
                 int pictures = 0;
                 bridge.H264Frame += (_, _) => Interlocked.Increment(ref pictures);
-                await Until(() => Volatile.Read(ref pictures) > 0, "restarted private helper delivered no frame");
+                await Until(() => Volatile.Read(ref pictures) > 0, "restarted private helper delivered no frame",
+                    () => $"generation={bridge.Generation}, ready={bridge.IsReady}, codec={bridge.Codec}, error={bridge.LastError}");
                 var firstCommands = new Dictionary<int, JsonElement>();
                 foreach (var line in File.ReadAllLines(commands))
                 {
@@ -70,6 +72,39 @@ internal static class PortalRecoveryTests
                     Eq(15, message.GetProperty("fps").GetInt32(), "restart carries the latest FPS");
                     Eq("h264", message.GetProperty("codec").GetString(), "restart restores codec before encoding");
                     Eq(true, message.GetProperty("streaming").GetBoolean(), "restart restores watching before encoding");
+                }
+            }
+            string packetDir = Path.Combine(dir, "packet-order");
+            Directory.CreateDirectory(packetDir);
+            using (var bridge = RecorderBridge(packetDir, packetOrder: true))
+            {
+                int pictures = 0;
+                byte[]? lastH264 = null;
+                bridge.H264Frame += (frame, _) =>
+                {
+                    lastH264 = frame;
+                    Interlocked.Increment(ref pictures);
+                };
+                bridge.SetStreaming(true);
+                await File.WriteAllTextAsync(Path.Combine(packetDir, "start"), "go");
+                for (int step = 0; step < 3; step++)
+                {
+                    bool h264 = step != 1;
+                    int expectedPictures = step == 2 ? 2 : 1;
+                    byte[] expected = h264 ? [0, 0, 0, 1, 0x65, (byte)step] : [0xff, 0xd8, 0xff, 0xd9];
+                    await Until(() => File.Exists(Path.Combine(packetDir, $"sent-{step}")) &&
+                        (h264 ? Volatile.Read(ref pictures) == expectedPictures : bridge.Current() is not null),
+                        "frame was lost while codec metadata was withheld",
+                        () => $"step={step}, codec={bridge.Codec}, pictures={Volatile.Read(ref pictures)}, error={bridge.LastError}");
+                    Eq(h264 ? "h264" : "jpeg", bridge.Codec, "packet determines the actual codec before metadata");
+                    Eq(true, expected.SequenceEqual(h264 ? lastH264! : bridge.Current()!), "fragmented packet preserves its exact payload");
+                    Eq(expectedPictures, Volatile.Read(ref pictures), "JPEG never enters the H264 stream");
+                    Eq(!h264, bridge.Current() is not null, "H264 retires the previous JPEG");
+                    await File.WriteAllTextAsync(Path.Combine(packetDir, $"received-{step}"), "go");
+                    await Until(() => bridge.VideoWidth == 100 + step, "late metadata was not processed");
+                    Eq(h264 ? "h264" : "jpeg", bridge.Codec, "late metadata cannot undo the actual frame codec");
+                    Eq(!h264, bridge.Current() is not null, "late metadata cannot clear or misclassify a picture");
+                    await File.WriteAllTextAsync(Path.Combine(packetDir, $"metadata-{step}"), "go");
                 }
             }
             File.Delete(Path.Combine(dir, "generation"));
@@ -101,7 +136,7 @@ internal static class PortalRecoveryTests
         return passed;
     }
 
-    private static PortalBridge RecorderBridge(string dir, bool idle = false, bool decline = false) =>
+    private static PortalBridge RecorderBridge(string dir, bool idle = false, bool decline = false, bool packetOrder = false) =>
         new(dir, socket =>
         {
             var command = new ProcessStartInfo(Environment.ProcessPath!);
@@ -109,12 +144,13 @@ internal static class PortalRecoveryTests
             command.ArgumentList.Add("--portal-recorder");
             if (idle) command.ArgumentList.Add("--idle");
             if (decline) command.ArgumentList.Add("--decline");
+            if (packetOrder) command.ArgumentList.Add("--packet-order");
             command.ArgumentList.Add(socket);
             command.ArgumentList.Add(dir);
             return command;
         });
 
-    public static async Task Record(string socketPath, string dir, bool idle, bool decline)
+    public static async Task Record(string socketPath, string dir, bool idle, bool decline, bool packetOrder)
     {
         string counter = Path.Combine(dir, "generation");
         int generation = File.Exists(counter) ? int.Parse(await File.ReadAllTextAsync(counter)) + 1 : 1;
@@ -124,6 +160,32 @@ internal static class PortalRecoveryTests
         await connection.ConnectAsync(new UnixDomainSocketEndPoint(socketPath));
         void Emit(object message) => Console.WriteLine(JsonSerializer.Serialize(message));
         Emit(new { type = "ready", backend = "private-recorder", logical_width = 1536, logical_height = 864 });
+        if (packetOrder)
+        {
+            await Console.In.ReadLineAsync(); // complete ready snapshot
+            using var stream = new NetworkStream(connection, ownsSocket: false);
+            for (int step = 0; step < 3; step++)
+            {
+                bool h264 = step != 1;
+                byte[] payload = h264 ? [0, 0, 0, 1, 0x65, (byte)step] : [0xff, 0xd8, 0xff, 0xd9];
+                byte[] header = new byte[4];
+                BinaryPrimitives.WriteUInt32LittleEndian(header, (uint)payload.Length | (h264 ? 0x80000000u : 0));
+                // Neither a short header read nor a short payload read changes packet identity.
+                await stream.WriteAsync(header.AsMemory(0, 1));
+                await Task.Delay(10);
+                await stream.WriteAsync(header.AsMemory(1));
+                await stream.WriteAsync(payload.AsMemory(0, 2));
+                await Task.Delay(10);
+                await stream.WriteAsync(payload.AsMemory(2));
+                await File.WriteAllTextAsync(Path.Combine(dir, $"sent-{step}"), "go");
+                await Until(() => File.Exists(Path.Combine(dir, $"received-{step}")), "parent did not receive the packet before metadata");
+                // Deliberately stale announcement from the independent stdout channel.
+                Emit(new { type = "video", codec = h264 ? "jpeg" : "h264", width = 100 + step, height = 480 });
+                await Until(() => File.Exists(Path.Combine(dir, $"metadata-{step}")), "parent did not process late metadata");
+            }
+            while (await Console.In.ReadLineAsync() is not null) { }
+            return;
+        }
         if (decline || idle && generation <= 3)
         {
             Emit(new { type = "error", error = decline ? "private refusal" : "private idle output loss", fatal = true });
@@ -147,7 +209,7 @@ internal static class PortalRecoveryTests
                 return;
             }
             Emit(new { type = "video", codec = "h264", width = width.GetInt32(), height = 480 });
-            byte[] packet = [5, 0, 0, 0, 0, 0, 0, 1, 0x65];
+            byte[] packet = [5, 0, 0, 0x80, 0, 0, 0, 1, 0x65];
             for (int i = 0; i < 10; i++)
             {
                 await connection.SendAsync(packet, SocketFlags.None);
