@@ -1,0 +1,245 @@
+{
+  "date": "2026-11-08",
+  "plan_rows": [
+    "P4.1",
+    "P1.7"
+  ],
+  "state": "isolated source follow-up; complete source/image/CI and signed delivery pending",
+  "base_revision": "9e97518fdc739870b2765aef909dfe92d6c46bfd",
+  "problem": {
+    "observed": "real LibreOffice and GIMP Store installs complete but emit G_VALUE_HOLDS_FLAGS warnings",
+    "native_provider": "Flatpak1.18.4-1.fc44 / PyGObject3.56.3",
+    "root_cause": "operation-done and operation-error register G_TYPE_INT; GI metadata describes flag arguments. Connected Python handlers receive0 for nonzero native values.",
+    "source": "https://raw.githubusercontent.com/flatpak/flatpak/1.18.4/common/flatpak-transaction.c"
+  },
+  "implementation": {
+    "owner": "existing FlatpakAdapter in moos-storectl",
+    "mechanism": "one cached native Transaction subtype; documented operation_done/error virtual handlers; same native GInitable constructor and existing cancellation/continuation/job policy",
+    "code_sha256": "b2517b036ce7d60344dbb92c5489df41d8cc6d8d82fdcf9991bebfb42a0ae6e9",
+    "finished_image": "both compositions copy the native driver and require six executed installed cases plus a marker; missing native dependencies/skips/empty producers remain refusals"
+  },
+  "controls": {
+    "old": [
+      {
+        "signal": "operation-done",
+        "sent": 0,
+        "received": 0,
+        "warnings": [
+          "g_value_get_flags: assertion 'G_VALUE_HOLDS_FLAGS (value)' failed"
+        ]
+      },
+      {
+        "signal": "operation-done",
+        "sent": 1,
+        "received": 0,
+        "warnings": [
+          "g_value_get_flags: assertion 'G_VALUE_HOLDS_FLAGS (value)' failed"
+        ]
+      },
+      {
+        "signal": "operation-done",
+        "sent": 3,
+        "received": 0,
+        "warnings": [
+          "g_value_get_flags: assertion 'G_VALUE_HOLDS_FLAGS (value)' failed"
+        ]
+      },
+      {
+        "signal": "operation-error",
+        "sent": 0,
+        "received": 0,
+        "warnings": [
+          "g_value_get_flags: assertion 'G_VALUE_HOLDS_FLAGS (value)' failed"
+        ]
+      },
+      {
+        "signal": "operation-error",
+        "sent": 1,
+        "received": 0,
+        "warnings": [
+          "g_value_get_flags: assertion 'G_VALUE_HOLDS_FLAGS (value)' failed"
+        ]
+      },
+      {
+        "signal": "operation-error",
+        "sent": 3,
+        "received": 0,
+        "warnings": [
+          "g_value_get_flags: assertion 'G_VALUE_HOLDS_FLAGS (value)' failed"
+        ]
+      }
+    ],
+    "fixed": [
+      {
+        "signal": "operation-done",
+        "sent": 0,
+        "received": 0,
+        "warnings": []
+      },
+      {
+        "signal": "operation-done",
+        "sent": 1,
+        "received": 1,
+        "warnings": []
+      },
+      {
+        "signal": "operation-done",
+        "sent": 3,
+        "received": 3,
+        "warnings": []
+      },
+      {
+        "signal": "operation-error",
+        "sent": 0,
+        "received": 0,
+        "warnings": []
+      },
+      {
+        "signal": "operation-error",
+        "sent": 1,
+        "received": 1,
+        "warnings": []
+      },
+      {
+        "signal": "operation-error",
+        "sent": 3,
+        "received": 3,
+        "warnings": []
+      }
+    ],
+    "native_tests": [
+      "native result/error0/1/3 and cancellation policy",
+      "separate transaction callbacks with one subtype",
+      "actual initialized native empty run and ready receipt, not app acceptance",
+      "false/failed initialization refusal",
+      "future vendor healthy old-control no-repro is explicit"
+    ],
+    "source_review_image": {
+      "exit": 0,
+      "seconds": 1.744,
+      "source_store_sha256": "b2517b036ce7d60344dbb92c5489df41d8cc6d8d82fdcf9991bebfb42a0ae6e9",
+      "source_copy_matches": true,
+      "driver_sha256": "7a94661cc1f4cc097a5982918112185564ae0b9d2078bbfc51185906409f8505",
+      "wrapper_sha256": "dfe5648d7e2217cf7130d6efb9a6a67d5c2b0e1612946f73de86423f604ca094",
+      "marker": true,
+      "scope": "exact task-owned source copies/normal private-container SELinux labeling; actual qualified image native ABI, root UID, read-only/network-none; no repository relabel or host policy change; not a full follow-up image or signed delivery"
+    },
+    "first_source_review_mount_refusal": {
+      "exit": 126,
+      "cause": "unlabelled source bind was not readable in the confined container; no driver executed",
+      "correction": "exact task-owned copies use normal private-container Z labels; repository and host policy remain unchanged"
+    },
+    "targeted_tests": {
+      "results": [
+        {
+          "test": "test_moos_storectl.py",
+          "exit": 0,
+          "seconds": 0.917,
+          "log_sha256": "202ee13812cdc7f015ef569cfc9b920e2ccc6f2eef65bec8ef1a93ff7d0a0c99"
+        },
+        {
+          "test": "test_mo_store_pinned_updates.py",
+          "exit": 0,
+          "seconds": 9.655,
+          "log_sha256": "72d4627a65186f25b8d98913f47477e30a20914ccb62c3a4a910ca63394acf7f"
+        },
+        {
+          "test": "test_flatpak_transaction_signals.py",
+          "exit": 0,
+          "seconds": 0.379,
+          "log_sha256": "0f2cb130da0280b2d0a1e43f50e333379ee0cda6f9243d811160501f50c8db8e"
+        },
+        {
+          "test": "test_wallet_image_gate.py",
+          "exit": 0,
+          "seconds": 0.32,
+          "log_sha256": "dcf4b0226e9fc1a376165f766af361ed9bade515f1fb9014aafe7cbe12841363"
+        }
+      ],
+      "all_passed": true,
+      "code_sha256": "b2517b036ce7d60344dbb92c5489df41d8cc6d8d82fdcf9991bebfb42a0ae6e9"
+    },
+    "targeted_test_methods": 74,
+    "image_wrapper_modes": "both wallet and transaction wrappers execute success, empty, skipped, failed-after-marker42 and missing-driver controls"
+  },
+  "first_milestone": {
+    "pr": 280,
+    "merged_revision": "9e97518fdc739870b2765aef909dfe92d6c46bfd",
+    "qualified_source": "39afe79d6c7d768d2aca3d94f7d1ee62f4cd1150",
+    "tree": "72eb29003d704f94c981f2580eda89bbde893756",
+    "native_full_check": {
+      "exit": 0,
+      "seconds": 1451.734
+    },
+    "native_full_image": {
+      "exit": 0,
+      "seconds": 1098.685,
+      "immutable_file_matches": 9
+    },
+    "pr_repo_arm_x86": "first-attempt success; ARM PR boot/promotion skipped",
+    "main_push_build": 42508105802,
+    "arm_pipeline": 42508105794,
+    "signed_delivery": "in progress; native host still boots890/895 staged/884 rollback"
+  },
+  "native_application_baseline": {
+    "scope": "booted signed ARM890,2vCPU, no GPU; existing Store/canonical launcher; independent of this source follow-up",
+    "gimp": {
+      "version": "3.2.8",
+      "commit": "7017a00b1842dad8a8cb24aec690c32b7c35e97c47e8ae3f8c3da89f3708b0c4",
+      "store_install_exit": 0,
+      "store_install_seconds": 21.431,
+      "batch_exit": 0,
+      "batch_seconds": 18.103,
+      "processing_seconds": 4.185,
+      "image": [
+        3840,
+        2160
+      ],
+      "actions": [
+        "native Gaussian blur",
+        "horizontal flip",
+        "editable Arabic/Latin text layer using Meyar Sans Regular",
+        "XCF save/reopen and PNG export"
+      ],
+      "layers": 2,
+      "reopened_export_pixels_equal": true,
+      "canonical_open_close_reopen": true,
+      "ready_seconds": [
+        7.64,
+        7.844
+      ],
+      "gui_pid_rss_kib": [
+        231244,
+        241300
+      ],
+      "measure_scope": "GUI PID only; startup includes current task profile/cache; not full group cost, GPU or a speedup",
+      "input_and_owner_config_unchanged": true,
+      "visual_review": "both focused actual Wayland images and full exported PNG reviewed; default50percent canvas is cropped by viewport",
+      "first_refusal": "English welcome appeared despite private show-welcome setting; image-title guard refused before capture. Parent stopped only its task subprocess, all observed PIDs exited. Original first logs and intact generated documents retained. Configured later GUI journeys pass; ordinary onboarding remains unaccepted."
+    },
+    "calc": {
+      "version": "26.8.2.2",
+      "source": "https://raw.githubusercontent.com/LibreOffice/core/libreoffice-26.8.2.2/sc/source/core/data/column2.cxx",
+      "native_control": "13pt ordinary optimal rows clip in both Meyar Arabic and Noto Sans Arabic; wrapped measured rows render complete text",
+      "row_height_100th_mm": {
+        "Meyar Arabic": [
+          570,
+          1078
+        ],
+        "Noto Sans Arabic": [
+          570,
+          1000
+        ]
+      },
+      "save_reopen_normal_close": true,
+      "source_documents_unchanged": true,
+      "scope": "private native generated comparison; per-document wrapping workaround; no global font metrics or user defaults changed"
+    }
+  },
+  "limits": [
+    "GObject signal controls are not application-install or universal engine acceptance",
+    "first source-review mount refusal and prior failed source/image checkpoints remain retained",
+    "current signed cohort stays frozen; this follow-up is not merged or installed",
+    "Windows/Android/GPU/touch/ordinary onboarding/endurance require their own recorded journeys"
+  ]
+}

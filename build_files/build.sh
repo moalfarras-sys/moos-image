@@ -4963,6 +4963,7 @@ python3 /ctx/plasma_logout/rpms.py verify
 python3 /ctx/verify_memory_policy.py --root /
 # The optional wallet must work against final /usr bytes, not only draw a switch.
 bash /ctx/verify_wallet_preference.sh
+bash /ctx/verify_flatpak_transaction.sh
 python3 /ctx/verify_app_updates.py --root /
 python3 /ctx/android_session_policy.py verify --edition "$MOOS_EDITION"
 # The local greeter must use authselect's biometric-capable local stack.

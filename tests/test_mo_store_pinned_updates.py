@@ -791,6 +791,12 @@ class Cancellable:
 class Gio:
     Cancellable = Cancellable
 
+    class Initable:
+        @staticmethod
+        def init(transaction, _cancellable):
+            transaction.initialized = True
+            return True
+
 
 class Ref:
     """One app ref of the remote's listing for one architecture."""
@@ -865,6 +871,7 @@ class Transaction:
         self.libflatpak, self.installation = libflatpak, installation
         self.queued: list[str] = []
         self.handlers: dict[str, Any] = {}
+        self.initialized = False
 
     def set_no_interaction(self, _value):
         pass
@@ -880,13 +887,18 @@ class Transaction:
         return [Operation(ref) for ref in self.queued]
 
     def run(self, _cancellable):
+        assert self.initialized, "a native transaction must initialize before run"
         self.libflatpak.transactions.append(list(self.queued))
         if not self.handlers["ready"](self):
             return False
         for operation in self.get_operations():
             self.handlers["new-operation"](self, operation, Progress())
             self.installation.installed.add(operation.get_ref().split("/")[1])
-            self.handlers["operation-done"](self, operation, "commit", None)
+            if "operation-done" in self.handlers:
+                self.handlers["operation-done"](self, operation, "commit", 0)
+            handler = getattr(self, "do_operation_done", None)
+            if handler is not None:
+                handler(operation, "commit", 0)
         return True
 
 
@@ -907,10 +919,15 @@ class Libflatpak:
         self.transactions: list[list[str]] = []
         outer = self
 
-        class TransactionFactory:
+        class TransactionFactory(Transaction):
+            def __init__(self, installation):
+                super().__init__(outer, installation)
+
             @staticmethod
-            def new_for_installation(installation, _cancellable):
-                return Transaction(outer, installation)
+            def new_for_installation(installation, cancellable):
+                transaction = Transaction(outer, installation)
+                Gio.Initable.init(transaction, cancellable)
+                return transaction
 
         self.Transaction = TransactionFactory
 

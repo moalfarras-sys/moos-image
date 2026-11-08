@@ -1724,3 +1724,13 @@ The observer in diagnostic39086687915 did preserve the closed desktop, but its f
 **A failed transfer is not a new dependency digest.** Keep the Kawkab0.501 pin when using its exact official asset API. MoPlayer preflights a complete SHA256-verified mimalloc archive before the unchanged plugin MD5 check; HTTP errors, partial/corrupt bytes and unknown links remain refusals. Preserve first build/test failures and contrary native controls; a quiet or CPU-limited pass does not establish the cause of a concurrent-build timeout.
 
 **A named Arabic face still needs its Latin partner.** A real LibreOffice PDF used DejaVu for361 em dashes while correctly embedding Meyar Arabic. Preserve that native old/fixed control and the source document. Extend the existing named-only pairing owner; keep exact delivered policy2 bytes/recovery, cache generations, personal order and generic defaults. Fontconfig metadata alone never proves rendered family selection.
+
+**A native integer signal is not a flags GValue.** Flatpak1.18.4 registers
+operation-done/error as G_TYPE_INT while GI annotates flags; real Store installs
+warn and connected callbacks lose every nonzero bit. Keep native0/1/3 old/fixed
+controls, cancellation and per-instance callbacks. Use the original native
+Transaction virtual handlers and its GInitable lifecycle; never suppress the
+warning, bypass the Store, continue fatal errors or patch global introspection.
+An initialized empty native run proves construction, not app installation.
+A healthy future vendor old-control no-repro is retained explicitly. Both image
+compositions require all installed native cases without skipped acceptance.
