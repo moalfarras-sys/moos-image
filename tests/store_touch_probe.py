@@ -100,11 +100,16 @@ def failure_diagnostics(label):
     """Capture only after the original assertion condition has already failed."""
     try:
         point = globals().get("point", QPointF())
+        focus = win.activeFocusItem()
         diagnostic = {
             "label": label, "wheel": last_wheel, "state": scroll_state(),
             "window": {"visible": win.isVisible(), "exposed": win.isExposed(),
                        "size": [win.width(), win.height()], "page": win.property("page"),
                        "review_opened": win.property("reviewOpened")},
+            "focus": {"name": focus.objectName() if focus else None,
+                      "class": focus.metaObject().className() if focus else None},
+            "management": json.loads(evaluate("JSON.stringify({removeVisible: removeSheet.visible, "
+                         "permissionsVisible: permissionsSheet.visible, libraryKind: libraryKind})")),
             "target_ancestors": {}, "hit_path": [],
         }
         for name in ("flick", "shelf", "button"):
@@ -465,6 +470,14 @@ for glyph, sheet_name in (("trash", "removeSheet"), ("lock", "permissionsSheet")
           page=win.property("page"))
     evaluate("escapeAction()")
     QTest.qWait(200)
+    # Qt restores the preceding focus when the popup actually finishes its
+    # exit. A fixed pause can expire before that happens on a busy renderer;
+    # focusing the next control then races the popup's native restoration.
+    deadline = time.monotonic() + 5
+    while evaluate("removeSheet.visible || permissionsSheet.visible") and time.monotonic() < deadline:
+        QTest.qWait(10)
+    check("management sheets close before the next native input",
+          not evaluate("removeSheet.visible || permissionsSheet.visible"))
 kind_flick = named("libraryKindFlick")
 last = named("libraryKind-web")
 last.forceActiveFocus(Qt.TabFocusReason)
@@ -473,6 +486,8 @@ mapped = last.mapToItem(kind_flick, QPointF())
 check("all installed-platform filters remain reachable",
       mapped.x() >= -1 and mapped.x()+last.width() <= kind_flick.width()+1,
       x=mapped.x(), width=last.width(), viewport=kind_flick.width())
+check("installed platform control owns native keyboard focus",
+      win.activeFocusItem() is last and last.hasActiveFocus())
 QTest.keyClick(win, Qt.Key_Return)
 QTest.qWait(150)
 check("installed platform keyboard selection uses real rows",

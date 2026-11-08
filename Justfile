@@ -384,6 +384,7 @@ check:
     # (pins, signers, vendor keys, glyphs, copy) is proven to bite on a planted copy.
     python3 tests/test_mo_store_catalog_gate.py
     python3 tests/test_moos_storectl.py
+    python3 tests/test_flatpak_transaction_signals.py
     # Mo Store's backend reports progress and the UI owns the words: the
     # job document carries a stable message_key beside its human message,
     # and the UI must branch on the key, never on backend prose.

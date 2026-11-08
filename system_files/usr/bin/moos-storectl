@@ -26,6 +26,7 @@ import contextlib
 import dataclasses
 import datetime as dt
 import fcntl
+import functools
 import hashlib
 import http.client
 import json
@@ -1367,6 +1368,43 @@ class TransactionEvents:
         self.job.update(message=message, message_key=None)
 
 
+@functools.lru_cache(maxsize=None)
+def native_flatpak_transaction_type(base: type) -> type:
+    """Use libflatpak's virtual handlers for the two integer result signals.
+
+    Flatpak 1.18 registers these signal arguments as G_TYPE_INT, but its GI
+    annotations describe flags. Ordinary connected Python callbacks therefore
+    warn and receive zero instead of the native result/error bits. The public
+    virtual methods use the C arguments directly, preserving every bit without
+    changing libflatpak, its metadata or the Store's continuation policy.
+    Cache one GObject subtype per native base, not one per transaction.
+    """
+    class MoosStoreFlatpakTransaction(base):
+        def do_operation_done(self, operation, commit, result):
+            self.moos_operation_done(self, operation, commit, result)
+
+        def do_operation_error(self, operation, error, details):
+            return self.moos_operation_error(self, operation, error, details)
+
+    return MoosStoreFlatpakTransaction
+
+
+def new_native_flatpak_transaction(
+    flatpak: Any, gio: Any, installation: Any, cancellable: Any,
+    on_done: Callable, on_error: Callable,
+) -> Any:
+    transaction = native_flatpak_transaction_type(flatpak.Transaction)(
+        installation=installation
+    )
+    transaction.moos_operation_done = on_done
+    transaction.moos_operation_error = on_error
+    # Match new_for_installation's native GInitable construction, including a
+    # cancelled/refused initializer. An uninitialized object must never run.
+    if not gio.Initable.init(transaction, cancellable):
+        raise StoreError("The native Flatpak transaction could not be initialized")
+    return transaction
+
+
 class FlatpakAdapter:
     """Thin, test-replaceable adapter around PyGObject libflatpak."""
 
@@ -1535,15 +1573,6 @@ class FlatpakAdapter:
         should_cancel: Callable[[], bool],
     ) -> None:
         cancellable = self.Gio.Cancellable()
-        try:
-            transaction = self.Flatpak.Transaction.new_for_installation(
-                self.user, cancellable
-            )
-            transaction.set_no_interaction(True)
-            configure(transaction)
-        except Exception as error:
-            raise StoreError(f"Could not prepare Flatpak transaction: {error}") from error
-
         completed: set[int] = set()
         total_operations = 0
 
@@ -1614,10 +1643,17 @@ class FlatpakAdapter:
                 details, nonfatal_flag, should_cancel()
             )
 
+        try:
+            transaction = new_native_flatpak_transaction(
+                self.Flatpak, self.Gio, self.user, cancellable, on_done, on_error
+            )
+            transaction.set_no_interaction(True)
+            configure(transaction)
+        except Exception as error:
+            raise StoreError(f"Could not prepare Flatpak transaction: {error}") from error
+
         transaction.connect("ready", on_ready)
         transaction.connect("new-operation", on_new_operation)
-        transaction.connect("operation-done", on_done)
-        transaction.connect("operation-error", on_error)
 
         watcher_stop = threading.Event()
 

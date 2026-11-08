@@ -28,62 +28,64 @@ runtime, a larger catalogue or a new wallpaper does not close a product journey.
 
 ## Active delivery and acceptance batch
 
-The integrated e4cab/PR279 batch is now signed and artifact-promoted: x861127
-and ARM895, exact candidate digests and all first-attempt boot proofs. The1127
-ISO is locally archived with verified full checksum/signature; public1046 remains
-the last anonymous full/range-qualified release. Oracle still boots890, has895
-staged and884 rollback; no new reboot or physical V3 acceptance was performed.
-Do not repeat the already integrated Meyar143/appearance/portable-data/controller
-work. [Nov8 source, release and installed evidence](reviews/2026-11-08-system-completion-wallet-updater.json).
+PR280 merges the qualified39afe tree as9e975. Native complete source
+0/1451.734s, full ARM image0/1098.685s, nine immutable file matches and
+first-attempt repository/ARM/x86 PR gates pass. Main42508105802 succeeds;
+the guarded signed candidate42513578569 runs on that fixed revision. ARM
+42508105794 passes native image signing and final UEFI disk boot; packaging,
+upload and promotion still run. Keep main frozen through the cohort. Oracle
+still boots890, with895 staged and884 rollback; no new installed delivery.
+Earlier1127/895 artifact promotion is complete,1127 ISO has verified full
+checksum/signature in the local release archive, and public1046 remains the
+last anonymous full/range-qualified download. [Release and installed evidence](reviews/2026-11-08-system-completion-wallet-updater.json).
 
-The active P1.1/P4.1 slice repairs headless shared-app updates and the owner's
-requested wallet Off plus full native Settings opt-in/out. Existing Flatpak,
-KDE wallet, control/status and overview owners remain authoritative. Native
-updater transactions,12 private provider/configuration controls, AR/EN360px
-pointer/keyboard pending/failure controls and compiled status contract pass.
-The actual Wayland page loads the exact compiled source KCM through scoped
-review mounts; this is not signed installation. The earlier full check and
-native fixture timing/category refusals are preserved; four native viewports
-and existing broken controls now pass after bounded completion/layout polish.
-The complete source baseline passes0/1462.110s before the final image/station
-followups. Final source/PR and current-base image qualification, integration
-and an exact signed cycle remain required. Exact obsolete-cache ancestry
-retirement now permits the60GiB local-image estimate; active containers, SDKs,
-archives and host deployments are preserved. A nonselected tagged native-base
-cache ancestor was included; its old registry digests are unavailable. Keep
-that exception visible and protect every nonselected tagged ancestor.
-PR280/c2f8 now retains the891.552s full-source launcher-budget refusal,7298.087s local archive-digest refusal and both CI font-download HTTP504 failures. The unchanged isolated launcher suite and private25% CPU control pass, so their result does not establish the earlier cause. Fix downloads using the same official font asset/digest and bounded SHA256 archive preflight before the plugin’s unchanged MD5 check. Six native transfer controls pass; run final source and local image qualification separately, with no CI reruns or gate waiver.
-The fixed0fb source now passes1460.949s full check and both PR image gates; local native composition remains running on that fixed tree. A separate P2.3 follow-up uses real LibreOffice26.8.2.2 ODT/DOCX/PDF and5000-row ODS/XLSX journeys: typed formula/text persistence, normal close/reopen and verified foreground RTL captures pass after private setup; English welcome and a native modal/UNO hang remain unqualified. PDF embedding identifies361 U+2014 fallbacks to DejaVu; a private reverse named-family default removes them all. The existing owner’s exact delivered2→3 recovery and both predecessor1/2→3 native57-query controls pass across four installed runtimes, retaining personal order, generics and scan metadata. Source-generated real PDF old/fixed/broken controls independently confirm361/0/361 fallback glyphs. Final frozen source/image/CI and signed delivery remain required before integration acceptance. Browser generic Arabic acceptance remains open.
-Existing photo/SMB containers and encrypted local DB backup are healthy again;
-their earlier stop actor remains unknown. Installed VLC3.0.24 has actual
-Arabic-named MPEG4 play/seek/pause/quit/reopen proof, separate from GPU, sound,
-heavy games and the broader application matrix. Curtail1.17.0 also preserves
-source/decoded PNG pixels through lossless compression and normal reopen;
-Ptyxis50.1 executes a real PTY/UTF8 file journey with scoped ar_SY. Its ar_SA
-LC_NUMERIC alias is broken upstream, and owner regional settings remain intact.
-The station pointer now checks the actual clipboard object, redacts errors and
-retains a private recovery file on failed restore. Its bridge is unavailable
-on this session; a later empty clipboard could not be restored completely.
-Keep this incident visible without inferring a cause or live input acceptance.
+The next P4.1/P1.7 slice is draftPR281, using the existing Store adapter.
+Native Flatpak integer signals contradict their GI flags annotations, losing
+nonzero result/error bits. Native virtual handlers preserve0/1/3 and existing
+cancellation/continuation policy;75 targeted methods and the writable private
+installed-driver review pass. Its first complete source check refuses the
+ar10/2.5 Store keyboard journey after1239.759s; source remains unchanged and
+the image waiter refuses before composition. Private Qt controls retain quiet
+and1200ms contrary passes, then reproduce native focus restoration during a
+360ms exit: old1/fixed0. The probe now waits for actual modal closure and
+requires native focus before the real key/row checks. A new regression passes
+0/22.405s; removing only its wait executes the native negative. Original
+failure lacks a focus snapshot, so do not assign every prior timing failure
+to this class. Final complete source/image/CI and signed acceptance remain.
+[Native API, focus and app evidence](reviews/2026-11-08-native-flatpak-signal-proof.json).
 
-Keep these real gaps visible: ordinary new-digest authentication/account switching,
-earlier greeter screenRemoved crashes, Android native sizing/window lifecycle,
-USB4 controller timeouts, tablet rotation/pen/suspend, charge-limit uncertainty,
-accessibility/phone/endurance and broader app compatibility. Oct28 calculator
-pointer arithmetic and internal maximize rendered correctly on the V3; that does
-not close independent native resizing or ten Android journeys. Oct29 separately
-proves normal window close/canonical reopen and transparent full-desktop
-composition; the active-window PNG alone had falsely suggested black backing.
-The owner rejected earlier component-only polish as a whole-desktop redesign;
-retain that feedback when evaluating the next native visual batch.
-[Appearance library](reviews/2026-10-26-kde-library-native-proof.json),
-[earlier native failures](reviews/2026-10-21-native-acceptance-followup.json),
-[hardware scope](hardware/V3_20261019_AR.md).
+The owner's wallet is Off on the installed session; encrypted collections and
+all authentication boundaries remain intact. Native Settings provides full
+opt-in/out in qualified source, with twelve private lifecycle controls and
+actual compiled Wayland review. The root app updater's private-bus repair is
+live; retire only the exact temporary drop-in after signed canonical readback.
+Neither source previews nor a local image establish installed UI acceptance.
 
-Earlier qualified/failed checkpoints live in their evidence documents and Git.
-Do not execute an old dated “active slice” as a second queue. Existing P0–P6
-rows below retain their own acceptance boundaries; a historical success must be
-rechecked when its relevant installed bytes, hardware or engine inputs change.
+Meyar3 resolves the measured LibreOffice361 em-dash fallbacks to0 and retains
+named-family/user-order/cache/mono metadata controls in four native runtimes.
+Actual Chrome157 CDP glyph readback still paints DejaVu for named Meyar Sans
+Arabic, despite correct Fontconfig queries. A private generic prototype also
+fails personal precedence and mono-cell acceptance; do not ship it. Browser
+fallback/defaults remain P2.3 work. Real GIMP3.2.8 has8.3MP editing/XCF/pixel
+roundtrip and canonical close/new-process reopen proof. LibreOffice26.8.2.2
+preserves ODT/DOCX/PDF and5000-row ODS/XLSX formulas; ordinary13pt Calc rows
+clip both Meyar/Noto, while wrapped measured rows pass save/reopen. English
+onboarding, the retained modal hang, full input/GPU/endurance stay open. VLC,
+Curtail and Ptyxis retain their earlier bounded native journeys; do not repeat
+them as missing features. Owner regional/font settings are preserved.
+
+Photo/SMB containers and encrypted local backup are healthy. Preserve both
+material incidents: the clipboard's complete original text was not recovered,
+and an accidentally retired tagged native-base cache ancestor cannot be
+restored from its unavailable old digests. Their recorded causes/limits remain
+in evidence; do not claim universal preservation or run the legacy pointer
+bridge again. No further blanket cache retirement is authorized by this batch.
+
+Ordinary account authentication, earlier greeter crashes, Android native
+sizing/lifetime, tablet/USB4/pen/suspend, accessibility/phone/endurance and
+broader compatibility remain open. The owner rejected component-only polish
+as a complete desktop redesign. Existing delivered Meyar143/appearance/UI
+owners remain authoritative; continue their actual installed acceptance.
 
 ## Product acceptance
 
@@ -439,7 +441,7 @@ handoff when the branch merges; keep milestone/task ownership in this file.
 
 | ID | Outcome | Current boundary | Required acceptance |
 | --- | --- | --- | --- |
-| P4.1 | Unify every install/update/remove request behind Mo Store | Existing Store remains the lifecycle owner. Nov8 real headless OCI-authenticator refusal is repaired with a lifetime-owned private bus; actual system updater completes, exact obsolete compatibility units are recoverably retired. Final source/image qualification and exact signed delivery are required. Source AppDrop/vendor shared active-tree refusal passes exact native old/fixed update controls and localized errors. Flatpak app-only postflight scopes requested apps; runtime changes attempt all qualified apps, retaining package receipts plus visible partial discovery failures. Active owner Code/ChatGPT are preserved. Snapshot is not lifetime lease; Code native identity/profile/icon/URI durability, signed current-adapter lifecycle and public API acceptance remain open Nov4 native Notepad4 exposes portable app-folder data loss in exit0 update/remove controls. Repair preserves data/permissions and recovery trees, refuses collisions/unknown legacy ownership and coordinates canonical runner SH with Store EX. Private filesystem/concurrency/bind controls pass; final combined qualification and signed delivery remain pending. | One lifecycle authority, stable job IDs, data-preserving remove, cancelled/failed state and measured readback for every adapter; versioned API authorization/backward-compatibility controls. |
+| P4.1 | Unify every install/update/remove request behind Mo Store | Nov8 native signal follow-up preserves real result/error bits through native virtual handlers; old0-bit refusal, seven controls and root installed-driver source review pass; full/image/signed qualification pending. Existing Store remains the lifecycle owner. Nov8 real headless OCI-authenticator refusal is repaired with a lifetime-owned private bus; actual system updater completes, exact obsolete compatibility units are recoverably retired. Final source/image qualification and exact signed delivery are required. Source AppDrop/vendor shared active-tree refusal passes exact native old/fixed update controls and localized errors. Flatpak app-only postflight scopes requested apps; runtime changes attempt all qualified apps, retaining package receipts plus visible partial discovery failures. Active owner Code/ChatGPT are preserved. Snapshot is not lifetime lease; Code native identity/profile/icon/URI durability, signed current-adapter lifecycle and public API acceptance remain open Nov4 native Notepad4 exposes portable app-folder data loss in exit0 update/remove controls. Repair preserves data/permissions and recovery trees, refuses collisions/unknown legacy ownership and coordinates canonical runner SH with Store EX. Private filesystem/concurrency/bind controls pass; final combined qualification and signed delivery remain pending. | One lifecycle authority, stable job IDs, data-preserving remove, cancelled/failed state and measured readback for every adapter; versioned API authorization/backward-compatibility controls. |
 | P4.2 | Audit desktop-app permissions and prefer portals | Oct29 source correction: actual resolver selected Flatpak/sandboxed for AppImage; format-scoped adapters and App Drop sandboxed=false now agree with existing truthful Store labels/consent. Old failure,32 resolver tests and private native launcher/synthetic file-access proof pass. Complete source qualification, signed delivery and broader portal journeys remain open | Distinguish extraction isolation from running-app permissions; truthful capability readback and actual file/camera/screen/print allow/deny/cancel without broad grants. |
 | P4.3 | Turn Windows compatibility into a per-app runner product | Combined source retains 20 reviewed publisher-pinned Windows recipes and their existing private render evidence. The six unqualified local additions are preserved in Git history, not offered as proven apps. Ten full native lifecycle journeys remain open. Nov4 V3 Notepad4 26.08r6282/Wine11.20 opens and edits Arabic/Latin; Arabic Save/close labels remain clipped while temporary English labels render. Save target/focus changed unexpectedly; keep the actual saved file and unknown cause, no further global input. Native full save/reopen/update/remove acceptance remains failed or untested. [Data and runtime scope](reviews/2026-11-04-windows-portable-data.json). | Ten Windows apps with isolated prefixes and install/launch/reopen/update/remove evidence. |
 | P4.4 | Turn Android compatibility into a per-app product | Source has46 recipes, native boot/property and scoped Markor/calculator rendering evidence. Oct28 V3 calculator arithmetic/maximize passes. Oct29 normal Alt+F4 removes its actual window and the canonical desktop entry reopens a new one; full-desktop composition confirms its global1536x810 root is transparent around the portrait app. Native sizing, persistence, switching, cold-start endurance and ten complete journeys remain open. Nov3 installed1119 canonical cold launch, native keyboard7×8=56, Alt+Tab away/back and normal close/new-window reopen pass; pointer arithmetic remains unaccepted and APK version/history/resize/endurance remain open. The review restored its originally stopped session. | Ten version-pinned Android apps; visible content/input/switch/resize/reopen, files/clipboard/audio, on-demand lifecycle and separately measured GPU fallback. |
@@ -569,3 +571,10 @@ Additional adapter sources retained from the Oct17 review:
 [Waydroid properties](https://docs.waydro.id/usage/waydroid-prop-options),
 [systemd service lifetime](https://github.com/systemd/systemd/blob/main/man/systemd.service.xml)
 and [transient services](https://github.com/systemd/systemd/blob/main/man/systemd-run.xml).
+
+Nov8 primary-source comparison: [Plasma6.8.2 changes](https://kde.org/announcements/changelogs/plasma/6/6.8.1-6.8.2/),
+[GNOME51](https://release.gnome.org/51/) and
+[COSMIC epoch1.11.0](https://github.com/pop-os/cosmic-epoch/releases/tag/epoch-1.11.0).
+Prioritize actual keyboard/modal focus, finite reduced motion, touch and
+per-device GPU proof in MoOS's existing native owners. Release notes inform
+selection; delivered MoOS behavior still requires its own installed evidence.
