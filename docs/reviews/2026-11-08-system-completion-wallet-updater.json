@@ -415,5 +415,118 @@
       ]
     },
     "final_source_image_and_signed_delivery": "pending; do not rerun prior CI attempts"
+  },
+  "frozen_0fb_qualification": {
+    "revision": "0fb5efd675387308f3b474997a080533e39e5f2e",
+    "full_check": {
+      "source": "0fb5efd675387308f3b474997a080533e39e5f2e",
+      "tree": "1ffb9013afe5702ef2afca143611dd451bb64306",
+      "source_unchanged": true,
+      "exit": 0,
+      "seconds": 1460.949,
+      "log_sha256": "1e96b6b26362f0712a617aa36da892f3b52ea02b5446ae7ca7702e44b41b42d7"
+    },
+    "pr_repo": {
+      "run": 42477695938,
+      "result": "success"
+    },
+    "pr_arm": {
+      "run": 42477695798,
+      "result": "success",
+      "wallet_executed_marker": true,
+      "disk_and_promotion": "skipped on PR; not boot/delivery proof"
+    },
+    "pr_x86": {
+      "run": 42477695841,
+      "result": "success",
+      "wallet_executed_marker": true
+    },
+    "local_native_image": "still running on fixed0fb; new eb731ef939f9994eaccae0e3cbdfbfca992e7f7bbea98ef55265cb486090fd0f base; no merge or new signed cycle"
+  },
+  "office_acceptance": {
+    "app": "org.libreoffice.LibreOffice",
+    "version": "26.8.2.2",
+    "architecture": "aarch64",
+    "store_install": {
+      "command": [
+        "/usr/bin/moos-storectl",
+        "install",
+        "org.libreoffice.LibreOffice"
+      ],
+      "exit": 0,
+      "seconds": 115.387,
+      "log_sha256": "caa924cadd881e06b4ebeadae944fbe6b0efb3293f3378bd0f25a62d3ae8103b"
+    },
+    "runtime": "org.freedesktop.Platform/aarch64/25.08",
+    "functional": {
+      "exit": 0,
+      "scope": "native UNO editing and private task documents/profile after initial dialogs; not physical typing/touch or endurance",
+      "writer_odt_docx_text_equal": true,
+      "calc_rows": 5000,
+      "formulas": 5001,
+      "ods_and_xlsx_total": 37507500,
+      "ods_and_xlsx_error": 0,
+      "normal_close": true
+    },
+    "canonical_reopen": {
+      "writer_exit": 0,
+      "writer_native_pid": 1318104,
+      "calc_exit": 0,
+      "rtl_and_value_readback": true,
+      "native_focus_and_active_window_verified": true,
+      "both_actual_images_visually_reviewed": true
+    },
+    "contrary_controls": [
+      "initial welcome in English despite Arabic menus; close-veto retained",
+      "next startup Tip dialog and programmatic XWindow/UNO flow became unresponsive; no exact cause established; SDK ptrace refused, security policy retained",
+      "only verified task-profile process received SIGTERM; no SIGKILL; saved task document hashes unchanged",
+      "initial Calc screenshot caught the editor behind the app and is not visual acceptance; corrected native focus/active-window captures pass",
+      "unavailable font-family name in the first fixture used DejaVu; canonical Meyar Arabic selection then proved actual embedding",
+      "configured-only functional acceptance does not erase ordinary first-run/API-hang limitations"
+    ],
+    "transaction_warning": "G_VALUE_HOLDS_FLAGS assertion warning retained in the real Store transaction log; install exit0 and native app journeys pass, warning cause not diagnosed"
+  },
+  "meyar_reverse_pairing": {
+    "status": "isolated source follow-up; original image-build worktree fixed at0fb",
+    "owner": "existing moos_flatpak_fonts.py; no font binary redesign, generic defaults, new wrappers or permission changes",
+    "native_old_fixed": {
+      "scope": "actual installed LibreOffice headless PDF producer; private FONTCONFIG_FILE only; no owner font/config/permissions changed",
+      "input_sha256": "254d21d7236c22cd634b0ad4cbe869869bc73100cf541a6ea6ea563cce1bc509",
+      "cases": [
+        {
+          "case": "old",
+          "exit": 0,
+          "seconds": 6.09,
+          "pdf_sha256": "abd8a2b4ec9e669956029a9cd40ab7b71ca1060b9ec7236ebdce66bfaa93204d",
+          "families": [
+            "BAAAAA+MeyarArabic",
+            "CAAAAA+MeyarSans",
+            "DAAAAA+DejaVuSans"
+          ],
+          "dejavu_codepoints": {
+            "U+2014": 361
+          }
+        },
+        {
+          "case": "reverse",
+          "exit": 0,
+          "seconds": 2.909,
+          "pdf_sha256": "1f85591330eaddaa42f58dbeebe24f7f1bbd82bc564cfa23186968ee1535eaef",
+          "families": [
+            "BAAAAA+MeyarArabic",
+            "CAAAAA+MeyarSans",
+            "DAAAAA+MeyarSans"
+          ],
+          "dejavu_codepoints": {}
+        }
+      ]
+    },
+    "repair": "add named Arabic-to-LGC defaults in both family pairs; policy3 rekeys the existing cache namespace; exact delivered policy2 and prototype1 remain narrowly recognized for transactional recovery",
+    "unit_tests": {
+      "tests": 16,
+      "minimal_python_exit": 0,
+      "host_python_exit": 0
+    },
+    "four_runtime_native_and_final_image_qualification": "pending; existing tests and ownership/mount/personal-order refusals remain"
   }
 }
