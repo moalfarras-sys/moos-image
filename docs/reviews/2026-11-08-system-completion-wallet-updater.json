@@ -527,6 +527,213 @@
       "minimal_python_exit": 0,
       "host_python_exit": 0
     },
-    "four_runtime_native_and_final_image_qualification": "pending; existing tests and ownership/mount/personal-order refusals remain"
+    "four_runtime_native_and_final_image_qualification": "Both1→3 and delivered2→3 native four-runtime controls pass; final combined full source/image/CI and exact signed delivery remain pending.",
+    "source_generated_pdf": {
+      "source": "e2c7ae53d26f3fe977eff0339d124b4506ca2fe8",
+      "module_sha256": "6134830add04735a14cd601e9e2ebba315d3131388c81b7c140d211cb1c3ab9a",
+      "owner_config_unchanged": true,
+      "scope": "actual installed LibreOffice headless PDF producer; private FONTCONFIG_FILE only; no owner font/config/permissions changed",
+      "input_sha256": "254d21d7236c22cd634b0ad4cbe869869bc73100cf541a6ea6ea563cce1bc509",
+      "cases": [
+        {
+          "case": "source-v2",
+          "exit": 0,
+          "seconds": 6.05,
+          "pdf_sha256": "db52af9fac250220b83672af07034d6f878fa76f257b2501f3e81240c905bf9b",
+          "families": [
+            "BAAAAA+MeyarArabic",
+            "CAAAAA+MeyarSans",
+            "DAAAAA+DejaVuSans"
+          ],
+          "dejavu_codepoints": {
+            "U+2014": 361
+          }
+        },
+        {
+          "case": "source-v3",
+          "exit": 0,
+          "seconds": 3.786,
+          "pdf_sha256": "34481d25fdadac6f2f138dee5dcb42a4a7a662d9fcda56a04f7fd3dfa75dcca1",
+          "families": [
+            "BAAAAA+MeyarArabic",
+            "CAAAAA+MeyarSans",
+            "DAAAAA+MeyarSans"
+          ],
+          "dejavu_codepoints": {}
+        },
+        {
+          "case": "broken-reverse",
+          "exit": 0,
+          "seconds": 3.902,
+          "pdf_sha256": "f44090ed52d404f1dcdd5e270d860a9d8ccc7e1fdb8d6f585412b3be884258bb",
+          "families": [
+            "BAAAAA+MeyarArabic",
+            "CAAAAA+MeyarSans",
+            "DAAAAA+DejaVuSans"
+          ],
+          "dejavu_codepoints": {
+            "U+2014": 361
+          }
+        }
+      ]
+    },
+    "native_runtime_controls": [
+      {
+        "source": "e2c7ae53d26f3fe977eff0339d124b4506ca2fe8",
+        "prior_revision": 2,
+        "queries": 57,
+        "pass": true,
+        "rows": [
+          {
+            "app": "com.google.Chrome",
+            "runtime": "org.freedesktop.Platform/aarch64/25.08",
+            "changed": [
+              "Meyar Arabic:charset=0041",
+              "Meyar Arabic:charset=2014",
+              "Meyar Mono Arabic:charset=00b2",
+              "Meyar Mono Arabic:charset=00b5"
+            ],
+            "personal_config_preserved": true,
+            "actual_config_unchanged": true
+          },
+          {
+            "app": "com.github.huluti.Curtail",
+            "runtime": "org.gnome.Platform/aarch64/51",
+            "changed": [
+              "Meyar Arabic:charset=0041",
+              "Meyar Arabic:charset=2014",
+              "Meyar Mono Arabic:charset=00b2",
+              "Meyar Mono Arabic:charset=00b5"
+            ],
+            "personal_config_preserved": true,
+            "actual_config_unchanged": true
+          },
+          {
+            "app": "org.videolan.VLC",
+            "runtime": "org.kde.Platform/aarch64/5.15-25.08",
+            "changed": [
+              "Meyar Arabic:charset=0041",
+              "Meyar Arabic:charset=2014",
+              "Meyar Mono Arabic:charset=00b2",
+              "Meyar Mono Arabic:charset=00b5"
+            ],
+            "personal_config_preserved": true,
+            "actual_config_unchanged": true
+          },
+          {
+            "app": "org.gnome.Ptyxis",
+            "runtime": "org.fedoraproject.Platform/aarch64/f45",
+            "changed": [
+              "Meyar Arabic:charset=0041",
+              "Meyar Arabic:charset=2014",
+              "Meyar Mono Arabic:charset=00b2",
+              "Meyar Mono Arabic:charset=00b5"
+            ],
+            "personal_config_preserved": true,
+            "actual_config_unchanged": true
+          }
+        ]
+      },
+      {
+        "source": "e2c7ae53d26f3fe977eff0339d124b4506ca2fe8",
+        "prior_revision": 1,
+        "queries": 57,
+        "pass": true,
+        "rows": [
+          {
+            "app": "com.google.Chrome",
+            "runtime": "org.freedesktop.Platform/aarch64/25.08",
+            "changed": [
+              "Meyar Sans:charset=0627",
+              "Meyar Mono:charset=0627",
+              "Meyar Sans:charset=0651",
+              "Meyar Mono:charset=0651",
+              "Meyar Sans:charset=067e",
+              "Meyar Mono:charset=067e",
+              "Meyar Sans:charset=06cc",
+              "Meyar Mono:charset=06cc",
+              "Meyar Sans:charset=0627:weight=200",
+              "Meyar Mono:charset=0627:weight=200",
+              "Inter,Meyar Sans:charset=0627",
+              "Meyar Arabic:charset=0041",
+              "Meyar Arabic:charset=2014",
+              "Meyar Mono Arabic:charset=00b2",
+              "Meyar Mono Arabic:charset=00b5"
+            ],
+            "personal_config_preserved": true,
+            "actual_config_unchanged": true
+          },
+          {
+            "app": "com.github.huluti.Curtail",
+            "runtime": "org.gnome.Platform/aarch64/51",
+            "changed": [
+              "Meyar Sans:charset=0627",
+              "Meyar Mono:charset=0627",
+              "Meyar Sans:charset=0651",
+              "Meyar Mono:charset=0651",
+              "Meyar Sans:charset=067e",
+              "Meyar Mono:charset=067e",
+              "Meyar Sans:charset=06cc",
+              "Meyar Mono:charset=06cc",
+              "Meyar Sans:charset=0627:weight=200",
+              "Meyar Mono:charset=0627:weight=200",
+              "Inter,Meyar Sans:charset=0627",
+              "Meyar Arabic:charset=0041",
+              "Meyar Arabic:charset=2014",
+              "Meyar Mono Arabic:charset=00b2",
+              "Meyar Mono Arabic:charset=00b5"
+            ],
+            "personal_config_preserved": true,
+            "actual_config_unchanged": true
+          },
+          {
+            "app": "org.videolan.VLC",
+            "runtime": "org.kde.Platform/aarch64/5.15-25.08",
+            "changed": [
+              "Meyar Sans:charset=0627",
+              "Meyar Mono:charset=0627",
+              "Meyar Sans:charset=0651",
+              "Meyar Mono:charset=0651",
+              "Meyar Sans:charset=067e",
+              "Meyar Mono:charset=067e",
+              "Meyar Sans:charset=06cc",
+              "Meyar Mono:charset=06cc",
+              "Meyar Sans:charset=0627:weight=200",
+              "Meyar Mono:charset=0627:weight=200",
+              "Inter,Meyar Sans:charset=0627",
+              "Meyar Arabic:charset=0041",
+              "Meyar Arabic:charset=2014",
+              "Meyar Mono Arabic:charset=00b2",
+              "Meyar Mono Arabic:charset=00b5"
+            ],
+            "personal_config_preserved": true,
+            "actual_config_unchanged": true
+          },
+          {
+            "app": "org.gnome.Ptyxis",
+            "runtime": "org.fedoraproject.Platform/aarch64/f45",
+            "changed": [
+              "Meyar Sans:charset=0627",
+              "Meyar Mono:charset=0627",
+              "Meyar Sans:charset=0651",
+              "Meyar Mono:charset=0651",
+              "Meyar Sans:charset=067e",
+              "Meyar Mono:charset=067e",
+              "Meyar Sans:charset=06cc",
+              "Meyar Mono:charset=06cc",
+              "Meyar Sans:charset=0627:weight=200",
+              "Meyar Mono:charset=0627:weight=200",
+              "Inter,Meyar Sans:charset=0627",
+              "Meyar Arabic:charset=0041",
+              "Meyar Arabic:charset=2014",
+              "Meyar Mono Arabic:charset=00b2",
+              "Meyar Mono Arabic:charset=00b5"
+            ],
+            "personal_config_preserved": true,
+            "actual_config_unchanged": true
+          }
+        ]
+      }
+    ]
   }
 }
