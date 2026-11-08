@@ -592,6 +592,7 @@ check:
     # every Konsole profile must keep asking for JetBrains Mono by name so the
     # weak accept alias engages instead of detaching the cursive joins.
     python3 tests/test_arabic_terminal_font.py
+    python3 tests/test_native_archive.py
     python3 tests/test_meyar_family.py
     # Arabic spell-check must exist in EVERY edition from ONE shared script.
     # ARM shipped 24 English and ZERO Arabic dictionaries because the x86

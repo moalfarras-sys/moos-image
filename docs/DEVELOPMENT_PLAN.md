@@ -52,6 +52,7 @@ retirement now permits the60GiB local-image estimate; active containers, SDKs,
 archives and host deployments are preserved. A nonselected tagged native-base
 cache ancestor was included; its old registry digests are unavailable. Keep
 that exception visible and protect every nonselected tagged ancestor.
+PR280/c2f8 now retains the891.552s full-source launcher-budget refusal,7298.087s local archive-digest refusal and both CI font-download HTTP504 failures. The unchanged isolated launcher suite and private25% CPU control pass, so their result does not establish the earlier cause. Fix downloads using the same official font asset/digest and bounded SHA256 archive preflight before the plugin’s unchanged MD5 check. Six native transfer controls pass; run final source and local image qualification separately, with no CI reruns or gate waiver.
 Existing photo/SMB containers and encrypted local DB backup are healthy again;
 their earlier stop actor remains unknown. Installed VLC3.0.24 has actual
 Arabic-named MPEG4 play/seek/pause/quit/reopen proof, separate from GPU, sound,

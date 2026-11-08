@@ -169,6 +169,7 @@ python3 tests/test_remote_group_resolution.py
 python3 tests/test_remote_keycode_flush.py
 python3 tests/test_remote_portal_keysyms_sync.py
 python3 tests/test_arabic_terminal_font.py
+python3 tests/test_native_archive.py
 # Arabic spell-check must exist in EVERY edition from ONE shared script.
 # ARM shipped 24 English and ZERO Arabic dictionaries because the x86
 # block was copied instead of shared.

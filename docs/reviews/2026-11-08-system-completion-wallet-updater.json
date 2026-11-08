@@ -202,7 +202,10 @@
     "https://develop.kde.org/hig/accessibility/",
     "https://github.com/pop-os/cosmic-epoch/releases",
     "https://github.com/KDE/kwallet/tree/v6.31.0/src/runtime",
-    "https://doc.qt.io/qt-6.10/qml-qttest-testcase.html"
+    "https://doc.qt.io/qt-6.10/qml-qttest-testcase.html",
+    "https://docs.github.com/en/rest/releases/assets#get-a-release-asset",
+    "https://github.com/aiaf/kawkab-mono/releases/tag/v0.501",
+    "https://github.com/media-kit/media-kit/blob/main/libs/linux/media_kit_libs_linux/linux/CMakeLists.txt"
   ],
   "private_evidence_directory": "test-results/system-completion-20261108 (ignored; native frames, full command outputs and signatures retained locally)",
   "station_pointer": {
@@ -327,5 +330,90 @@
       "preflight_corrected_to_protect_tagged_ancestors": true,
       "scope": "old raw public base cache; active SDK/container images, owner data and signed deployments are retained"
     }
+  },
+  "pr": 280,
+  "frozen_c2f8_qualification": {
+    "revision": "c2f8e252d08569c45d357080dc22a44f10972ce7",
+    "full_check": {
+      "source": "c2f8e252d08569c45d357080dc22a44f10972ce7",
+      "tree": "ea2ed798f0cc5b749c81f8186ec1de5018d884fb",
+      "source_unchanged": true,
+      "exit": 1,
+      "seconds": 891.552,
+      "log_sha256": "196c05c4a05a375dd0c0dd35aad6be9add83fa23b67bcb707247b858eaa26f7c"
+    },
+    "local_image": {
+      "source": "c2f8e252d08569c45d357080dc22a44f10972ce7",
+      "tree": "ea2ed798f0cc5b749c81f8186ec1de5018d884fb",
+      "tag": "localhost/moos-system-completion:c2f8e252d085",
+      "source_unchanged": true,
+      "exit": 1,
+      "seconds": 7298.087,
+      "log_sha256": "156668c7fd536d5afe9da6386b3d28171eb9c55c986ab077981419072059f714"
+    },
+    "pr_repo_gates": {
+      "run": 42464085083,
+      "result": "success"
+    },
+    "pr_images": {
+      "arm": {
+        "run": 42464085115,
+        "result": "failure",
+        "cause": "Kawkab release download HTTP504"
+      },
+      "x86": {
+        "run": 42464085145,
+        "result": "failure",
+        "cause": "same exact Kawkab release download HTTP504"
+      }
+    },
+    "local_image_refusal": "upstream media_kit_libs_linux mimalloc MD5 refusal after its unchecked CMake transfer; all258 Flutter tests had passed",
+    "source_check_refusal": "native launcher did not finish within25seconds during concurrent image composition; the truncated harness diagnostic did not preserve an exact cause",
+    "contrary_controls": {
+      "unchanged_native_suite": {
+        "exit": 0,
+        "seconds": 56.5,
+        "cases": 4,
+        "broken_controls_preserved": true
+      },
+      "unchanged_private_cpu_quota25_percent": {
+        "exit": 0,
+        "cases": 4,
+        "scope": "does not establish CPU contention as the cause of the earlier failure"
+      }
+    }
+  },
+  "native_fetch_repair": {
+    "kawkab": {
+      "original_direct_probe": "timeout28; original CI HTTP504 refusals retained",
+      "official_asset_id": 1214878,
+      "official_api_url": "https://api.github.com/repos/aiaf/kawkab-mono/releases/assets/1214878",
+      "anonymous_download_exit": 0,
+      "bytes": 1828369,
+      "sha256": "11c06f57dddefaf0166d74caaa072865ab6ff8d34076e7ec5d2c20edda145666",
+      "pin_unchanged": true
+    },
+    "mimalloc": {
+      "direct_and_codeload_bytes_identical": true,
+      "bytes": 1163868,
+      "sha256": "2b1bff6f717f9725c70bf8d79e4786da13de8a270059e4ba0bdd262ae7be46eb",
+      "upstream_md5_unchanged": "5179c8f5cf1237d2300e2d8559a7bc55",
+      "repair": "project CMake preflights a bounded completed SHA256-verified transfer before unchanged plugin inclusion; no dependency source/cache patch or allocator change"
+    },
+    "native_tests": {
+      "exit": 0,
+      "tests": 6,
+      "seconds": 6.542,
+      "controls": [
+        "HTTP503",
+        "partial transfer",
+        "corrupt200",
+        "same-byte fallback",
+        "all locations refused with prior bytes retained",
+        "valid input without network",
+        "symlink/interrupted download refusal"
+      ]
+    },
+    "final_source_image_and_signed_delivery": "pending; do not rerun prior CI attempts"
   }
 }
