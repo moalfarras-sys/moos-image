@@ -1,6 +1,6 @@
 # MoOS development plan — current execution backlog
 
-Updated 2026-11-03. This is the single execution backlog. `PROJECT_STATE.md`
+Updated 2026-11-08. This is the single execution backlog. `PROJECT_STATE.md`
 records measured state; `AGENTS.md` defines invariants; the engineering skill
 selects the workflow. Dated handoffs and Git history preserve earlier work,
 not competing instructions about what to do next.
@@ -28,41 +28,43 @@ runtime, a larger catalogue or a new wallpaper does not close a product journey.
 
 ## Active delivery and acceptance batch
 
-The delivered batch is exactfc97 (PR277), Meyar/UI143: x861119 and ARM884.
-The fixed9c qualification passed the complete source check (977.695s), local
-image (3014.323s) and93-file readback; mergedfc97 retains its qualified tree.
-All four signed editions pass their complete artifact boots and promotion;
-independent review passed402/402 required checks, with no skipped proof steps.
-Physical V3 now boots signed1119 with1114 rollback and pinned1078. Its93
-canonical payloads, immutable generic Meyar families and current native personal
-appearance agree. Selfcheck44pass/1personal-tray note and postcheck46pass/0failure
-pass; Nov3 readback finds no failed system/user units. Kernel7.2.13 and Plasma6.8.2
-are installed. This closes the recorded PR277 delivery, not wider hardware or
-application acceptance. [Exact release/installed scope](releases/2026-11-03-ui143-signed-installed-proof.json).
+The integrated e4cab/PR279 batch is now signed and artifact-promoted: x861127
+and ARM895, exact candidate digests and all first-attempt boot proofs. The1127
+ISO is locally archived with verified full checksum/signature; public1046 remains
+the last anonymous full/range-qualified release. Oracle still boots890, has895
+staged and884 rollback; no new reboot or physical V3 acceptance was performed.
+Do not repeat the already integrated Meyar143/appearance/portable-data/controller
+work. [Nov8 source, release and installed evidence](reviews/2026-11-08-system-completion-wallet-updater.json).
 
-The next coherent source batch targets P2.3/P4.1/P4.6/P3.7/P6.7 through the
-existing font, Store, task and package owners. Observed live native app trees
-now refuse in-place replacement; the real old adapters lost an active resource,
-while fixed private native controls preserve it. This is a process snapshot,
-not a race-free lifetime lease. Task turns pause for review instead of inferring
-semantic completion from an unrelated successful command and Git diff.
-Flatpak discovery isolates host/remap caches, retains named mono scan metadata
-and reports per-app refusal without preventing native KDE appearance resume.
-An actual Chromium/OpenCode caption still uses DejaVu under the named Latin
-family despite a successful isolated fc-match; browser-wide Arabic pairing and
-generic defaults remain open. KWin6.8.2-2 is reviewed against identical upstream
-source/signature,13 seams, native loaded greeter controls and4,876 unchanged
-stock-kernel files. Missing/stale beta offers now mean explicitly unavailable
-next-image qualification; genuine query/new-image failures still refuse.
-Frozen4fe passes the complete local source check0/1132.473s and current-base
-image0/2982.222s with100 matching payloads, generic Meyar and stock kernel7.2.14.
-Exact final PR CI and signed delivery of this new batch remain pending. No owner app, provider secret, input policy or boot
-configuration was changed. The additional P0.1 development/build dependency
-refresh retains a real cancelled-walk117→0 read control, all17 Remote tests on
-Node26 and actual browser fast/constrained-link assertions. The compiled Remote
-bundle is byte-identical; one unpatched low build-only advisory remains open.
-Final combined qualification is required. [Security scope](reviews/2026-11-03-dependency-security.json). [Font scope](reviews/2026-11-01-flatpak-host-font-discovery.md),
-[Bounded integration evidence](reviews/2026-11-03-native-integration-safety.json).
+The active P1.1/P4.1 slice repairs headless shared-app updates and the owner's
+requested wallet Off plus full native Settings opt-in/out. Existing Flatpak,
+KDE wallet, control/status and overview owners remain authoritative. Native
+updater transactions,12 private provider/configuration controls, AR/EN360px
+pointer/keyboard pending/failure controls and compiled status contract pass.
+The actual Wayland page loads the exact compiled source KCM through scoped
+review mounts; this is not signed installation. The earlier full check and
+native fixture timing/category refusals are preserved; four native viewports
+and existing broken controls now pass after bounded completion/layout polish.
+The complete source baseline passes0/1462.110s before the final image/station
+followups. Final source/PR and current-base image qualification, integration
+and an exact signed cycle remain required. Exact obsolete-cache ancestry
+retirement now permits the60GiB local-image estimate; active containers, SDKs,
+archives and host deployments are preserved. A nonselected tagged native-base
+cache ancestor was included; its old registry digests are unavailable. Keep
+that exception visible and protect every nonselected tagged ancestor.
+PR280/c2f8 now retains the891.552s full-source launcher-budget refusal,7298.087s local archive-digest refusal and both CI font-download HTTP504 failures. The unchanged isolated launcher suite and private25% CPU control pass, so their result does not establish the earlier cause. Fix downloads using the same official font asset/digest and bounded SHA256 archive preflight before the plugin’s unchanged MD5 check. Six native transfer controls pass; run final source and local image qualification separately, with no CI reruns or gate waiver.
+The fixed0fb source now passes1460.949s full check and both PR image gates; local native composition remains running on that fixed tree. A separate P2.3 follow-up uses real LibreOffice26.8.2.2 ODT/DOCX/PDF and5000-row ODS/XLSX journeys: typed formula/text persistence, normal close/reopen and verified foreground RTL captures pass after private setup; English welcome and a native modal/UNO hang remain unqualified. PDF embedding identifies361 U+2014 fallbacks to DejaVu; a private reverse named-family default removes them all. The existing owner’s exact delivered2→3 recovery and both predecessor1/2→3 native57-query controls pass across four installed runtimes, retaining personal order, generics and scan metadata. Source-generated real PDF old/fixed/broken controls independently confirm361/0/361 fallback glyphs. Final frozen source/image/CI and signed delivery remain required before integration acceptance. Browser generic Arabic acceptance remains open.
+Existing photo/SMB containers and encrypted local DB backup are healthy again;
+their earlier stop actor remains unknown. Installed VLC3.0.24 has actual
+Arabic-named MPEG4 play/seek/pause/quit/reopen proof, separate from GPU, sound,
+heavy games and the broader application matrix. Curtail1.17.0 also preserves
+source/decoded PNG pixels through lossless compression and normal reopen;
+Ptyxis50.1 executes a real PTY/UTF8 file journey with scoped ar_SY. Its ar_SA
+LC_NUMERIC alias is broken upstream, and owner regional settings remain intact.
+The station pointer now checks the actual clipboard object, redacts errors and
+retains a private recovery file on failed restore. Its bridge is unavailable
+on this session; a later empty clipboard could not be restored completely.
+Keep this incident visible without inferring a cause or live input acceptance.
 
 Keep these real gaps visible: ordinary new-digest authentication/account switching,
 earlier greeter screenRemoved crashes, Android native sizing/window lifecycle,
@@ -376,19 +378,19 @@ handoff when the branch merges; keep milestone/task ownership in this file.
 | P0.3 | Finish physical NVIDIA qualification | Open: signed .1042 native 55/0 + 55/0, 16 hashes and exact signed player bytes pass; one URI/finite seek/resource journey passes. Kernel -201 NVIDIA vermagic matches. USB-C UCSI -110 remains; broader physical acceptance is open. Offline ESP dirty-bit-only clone/live proof passes, 16 boot-file hashes preserved and both shared vfat mounts restored; the prior unmount mistake failed before fsck and has a private old/fixed topology control. New1072 boot preserves UCSI-110 and a QtQuick ListView/QQuickView teardown SIGSEGV through screenRemoved; exact root cause is unproven. Basic GPU/35 payload/54 selfcheck/55 postcheck/cold-search acceptance passes; isolate real screen-removal before changing greeter/graphics policy. Suspend/hotplug and recovery remain | Actual NVIDIA GPU, initramfs module, displays, suspend and clean recovery on qualified hardware. |
 | P0.4 | Prove failed-update recovery | Open / acceptance not complete | Deliberate bad update, automatic/manual rollback and forward return without owner data loss. |
 | P0.5 | Configure and accept free Mo AI on a clean account | Open / acceptance not complete | Clean-account provider setup, free route, reboot, cancellation and network/quota/key failures. |
-| P0.6 | Promote only proven digests and update the physical PC | Exactfc97 four-edition promotion passes; physical V3 boots1119 with1114 rollback/pinned1078 and93 matching immutable payloads. Native appearance/generic Meyar and44pass/1personal-note selfcheck plus46/0 postcheck pass. Other physical hosts, ordinary authentication and broad hardware acceptance remain open | Promote only exact proven signed digests; separately verify installed stage/reboot/rollback. |
+| P0.6 | Promote only proven digests and update the physical PC | Exacte4cab x861127/ARM895 artifact promotion passes. Oracle boots890 with895 staged/884 rollback and56/0 postcheck; no new reboot. Earlier physical V31119/Meyar143 evidence is historical. New wallet/updater source, ordinary authentication and broad hardware acceptance remain open | Promote only exact proven signed digests; separately verify installed stage/reboot/rollback. |
 | P0.7 | Remove the intermittent `plymouthd` crash (ARM second boot; x86 first boot) | Implemented/delivered within recorded scope; wider acceptance remains | Pinned vendor Plymouth fix, old/fixed negative, exact final initramfs and actual boot visuals. |
 | P0.8 | Make the ISO installed-reboot proof deterministic | Integrated at 1a73a4e0; .1022 exact offline ISO 38051456847 passes. CLDR/native AR/EN row clicks and mismatch negatives pass. Earlier .1018 private two password logins/cold boot pass 51/0 twice; offline serialization strict mismatch remains visible. Host batch reboot is separate | Repeated installed-ISO reboot with DHCP/SSH-channel evidence and console failures visible. |
 | P0.9 | Run image-only gates before the merge | Stable mechanism/artifact evidence recorded. Native audit adds the omitted moplayer/** x86 PR trigger; the new input gate fails against the old workflow and passes fixed. ARM already watches the in-tree player. No publishing permission added; final x86/ARM image CI and signed cycle pass | PR generic image gates block real image failures; no signing/publishing from PR. |
 | P0.10 | Gate NVIDIA persistence on a bound GPU | Stable mechanism/artifact evidence recorded; preserve required gates | Bound NVIDIA hardware and exact-kernel persistence/initramfs proof. |
 | P0.11 | Give first-boot Flatpak setup a realistic finite timeout | Stable mechanism/artifact evidence recorded; preserve required gates | Finite realistic first-boot app setup timeout and actual ARM reboot. |
-| P0.12 | Deliver the exact signed, installed-system-proven ISO through a stable anonymous download | Public1046 remains the last verified anonymous release. Qualified1119 ISO is archived outside source:5955256320 bytes, SHA256 5945853a90cf2c848a72aa5ac851618c575a4e9274e6a5254bfe84526da50bb3, detached signature verified. New public hosting/account access and anonymous full/range acceptance remain open | Repeat stable anonymous full signed ISO, exact size/hash and resumed ranges, sidecars and site readback for each release. |
+| P0.12 | Deliver the exact signed, installed-system-proven ISO through a stable anonymous download | Public1046 remains last anonymous qualification. Qualified1127 ISO is locally archived:5817565184bytes, SHA2566303b2147a9ed271180a6b63d86d8e6d48bee23b90a1cadec5b02617b112075f, detached signature verified. New hosting/account access and anonymous full/range acceptance remain open | Repeat stable anonymous full signed ISO, exact size/hash and resumed ranges, sidecars and site readback for each release. |
 
 ## P1 — Reliability and first run
 
 | ID | Outcome | Current boundary | Required acceptance |
 | --- | --- | --- | --- |
-| P1.1 | every migration records id/revision/outcome in one append-only ledger; the two-key wallet write is staged and renamed so an interruption leaves the original file; interrupted, repeated and clean-vs-upgraded fixtures in `tests/test_migration_ledger.py` | Stable mechanism/artifact evidence recorded; preserve required gates | Versioned idempotent transactional migrations; private durable outcomes and failure recovery. |
+| P1.1 | every migration records id/revision/outcome in one append-only ledger; the two-key wallet write is staged and renamed so an interruption leaves the original file; interrupted, repeated and clean-vs-upgraded fixtures in `tests/test_migration_ledger.py` | Native explicit wallet opt-in/out, provider lifecycle and migration-preservation controls pass; owner Off is live, exact compiled Settings is locally reviewed. New-source full/image/signed acceptance pending | Versioned idempotent transactional migrations; private durable outcomes and failure recovery. |
 | P1.2 | `moos-boot-assess` counts unblessed boots in `/var/lib/moos` because `/boot` is read-only and greenboot is absent; three unblessed boots return to the previous deployment through `bootc rollback`, and it refuses when a rollback is already queued, when there is no previous deployment, or when it already rolled away from this one; enabled on x86 and ARM; `tests/test_boot_assessment.py` | Stable mechanism/artifact evidence recorded; preserve required gates | Correct installed boot assessment and fallback; physical bad-update journey remains separate. |
 | P1.3 | `moos-list-disks` now reads TRAN, so soldered eMMC is no longer called removable (which could make a tablet only disk refusable) and eMMC boot/RPMB areas are not offered; `tests/test_installer_storage_policy.py` drives SATA/NVMe/USB/eMMC/SD fixtures, target-only mutation and the live-medium rules; the installer pins LC_ALL=C so the actionable low-space and disk-io messages survive a non-English session; no-encryption is recorded as a deliberate decision with the condition for revisiting | Stable mechanism/artifact evidence recorded; preserve required gates | Target-only installer storage, removable/live-disk refusal and safe partition/boot ownership. |
 | P1.4 | `/usr/libexec/moos-support-bundle` with per-section and whole-bundle caps; redaction proven in `tests/test_support_bundle_redaction.py` and on this machine (51.6 KB, 13 sections, no live address, MAC, home path or credential shape); PR #102 | Implemented/delivered within recorded scope; wider acceptance remains; the integrated audit cycle is signed/promoted | Every collected output redacted before truncation; no credential-file reads; private bounded atomic export. |
@@ -437,7 +439,7 @@ handoff when the branch merges; keep milestone/task ownership in this file.
 
 | ID | Outcome | Current boundary | Required acceptance |
 | --- | --- | --- | --- |
-| P4.1 | Unify every install/update/remove request behind Mo Store | Existing Store remains the lifecycle owner. Source AppDrop/vendor shared active-tree refusal passes exact native old/fixed update controls and localized errors. Flatpak app-only postflight scopes requested apps; runtime changes attempt all qualified apps, retaining package receipts plus visible partial discovery failures. Active owner Code/ChatGPT are preserved. Snapshot is not lifetime lease; Code native identity/profile/icon/URI durability, signed current-adapter lifecycle and public API acceptance remain open Nov4 native Notepad4 exposes portable app-folder data loss in exit0 update/remove controls. Repair preserves data/permissions and recovery trees, refuses collisions/unknown legacy ownership and coordinates canonical runner SH with Store EX. Private filesystem/concurrency/bind controls pass; final combined qualification and signed delivery remain pending. | One lifecycle authority, stable job IDs, data-preserving remove, cancelled/failed state and measured readback for every adapter; versioned API authorization/backward-compatibility controls. |
+| P4.1 | Unify every install/update/remove request behind Mo Store | Existing Store remains the lifecycle owner. Nov8 real headless OCI-authenticator refusal is repaired with a lifetime-owned private bus; actual system updater completes, exact obsolete compatibility units are recoverably retired. Final source/image qualification and exact signed delivery are required. Source AppDrop/vendor shared active-tree refusal passes exact native old/fixed update controls and localized errors. Flatpak app-only postflight scopes requested apps; runtime changes attempt all qualified apps, retaining package receipts plus visible partial discovery failures. Active owner Code/ChatGPT are preserved. Snapshot is not lifetime lease; Code native identity/profile/icon/URI durability, signed current-adapter lifecycle and public API acceptance remain open Nov4 native Notepad4 exposes portable app-folder data loss in exit0 update/remove controls. Repair preserves data/permissions and recovery trees, refuses collisions/unknown legacy ownership and coordinates canonical runner SH with Store EX. Private filesystem/concurrency/bind controls pass; final combined qualification and signed delivery remain pending. | One lifecycle authority, stable job IDs, data-preserving remove, cancelled/failed state and measured readback for every adapter; versioned API authorization/backward-compatibility controls. |
 | P4.2 | Audit desktop-app permissions and prefer portals | Oct29 source correction: actual resolver selected Flatpak/sandboxed for AppImage; format-scoped adapters and App Drop sandboxed=false now agree with existing truthful Store labels/consent. Old failure,32 resolver tests and private native launcher/synthetic file-access proof pass. Complete source qualification, signed delivery and broader portal journeys remain open | Distinguish extraction isolation from running-app permissions; truthful capability readback and actual file/camera/screen/print allow/deny/cancel without broad grants. |
 | P4.3 | Turn Windows compatibility into a per-app runner product | Combined source retains 20 reviewed publisher-pinned Windows recipes and their existing private render evidence. The six unqualified local additions are preserved in Git history, not offered as proven apps. Ten full native lifecycle journeys remain open. Nov4 V3 Notepad4 26.08r6282/Wine11.20 opens and edits Arabic/Latin; Arabic Save/close labels remain clipped while temporary English labels render. Save target/focus changed unexpectedly; keep the actual saved file and unknown cause, no further global input. Native full save/reopen/update/remove acceptance remains failed or untested. [Data and runtime scope](reviews/2026-11-04-windows-portable-data.json). | Ten Windows apps with isolated prefixes and install/launch/reopen/update/remove evidence. |
 | P4.4 | Turn Android compatibility into a per-app product | Source has46 recipes, native boot/property and scoped Markor/calculator rendering evidence. Oct28 V3 calculator arithmetic/maximize passes. Oct29 normal Alt+F4 removes its actual window and the canonical desktop entry reopens a new one; full-desktop composition confirms its global1536x810 root is transparent around the portrait app. Native sizing, persistence, switching, cold-start endurance and ten complete journeys remain open. Nov3 installed1119 canonical cold launch, native keyboard7×8=56, Alt+Tab away/back and normal close/new-window reopen pass; pointer arithmetic remains unaccepted and APK version/history/resize/endurance remain open. The review restored its originally stopped session. | Ten version-pinned Android apps; visible content/input/switch/resize/reopen, files/clipboard/audio, on-demand lifecycle and separately measured GPU fallback. |

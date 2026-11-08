@@ -153,6 +153,14 @@ class Account:
 
 
 class MigrationLedger(unittest.TestCase):
+    def test_explicit_user_settings_opt_in_survives_first_login_repair(self):
+        original = "Wallet.Enabled=true\nMoOS.WalletChoice=on\n"
+        account = Account(self, kwalletrc=original)
+        self.assertEqual(account.run(), 0)
+        self.assertEqual(account.kwalletrc.read_text(), original)
+        self.assertNotIn("pkill kwalletd6", account.recorded())
+        self.assertFalse((account.state / "moos/wallet-disabled-v2.done").exists())
+
     def test_a_clean_account_applies_the_wallet_migration_and_records_it(self):
         account = Account(self)
         self.assertEqual(account.run(), 0)

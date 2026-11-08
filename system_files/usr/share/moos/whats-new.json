@@ -3,6 +3,33 @@
   "_": "What a person can SEE or DO after an update, newest first. One entry per user-visible change, written for the owner of the machine, not for a developer: what it is, where it is, and (when MoOS has a route to it) a way to try it now. 'merged' is when the change reached main (a little later is fine, earlier is not: an entry dated before a machine's previous system is never marked new there); a machine marks an entry new when the system it ran BEFORE the update was built earlier than that. tests/test_whats_new.py reads every entry the way MoOS Settings will.",
   "entries": [
     {
+      "id": "session-health-readback",
+      "merged": "2026-11-08T06:30:00Z",
+      "glyph": "lock",
+      "title": {
+        "ar": "تحكّم بالمحفظة وفحص واضح للجلسة",
+        "en": "Wallet control and clear session checks"
+      },
+      "body": {
+        "ar": "فعّل محفظة كلمات المرور أو أوقفها من إعدادات MoOS. يبقى اختيارك ومحتواها المحفوظ بعد التحديث، وتتوقف مطالباتها عند إيقافها. فحص الجلسة يقبل اختيارك ويتحقق من شاشة القفل والخدمات الفعلية.",
+        "en": "Turn the password wallet on or off in MoOS Settings. Updates keep your choice and saved contents; switching off stops wallet prompts. Session checks respect your choice and verify the lock screen and actual services."
+      }
+    },
+    {
+      "id": "updates-one-place",
+      "merged": "2026-11-07T23:42:50Z",
+      "glyph": "safe-update",
+      "title": {
+        "ar": "كل التحديثات من مكان واحد",
+        "en": "Every update comes from one place"
+      },
+      "body": {
+        "ar": "تعرض صفحة التحديث النظام والتطبيقات وبرامج الجهاز، وأسماء التطبيقات التي تعذّر تحديثها وأسباب ذلك. تعمل تحديثات التطبيقات في الخلفية بعد موافقة واحدة، بما فيها التطبيقات المشتركة دون جلسة سطح مكتب مفتوحة. وتعرض برامج الجهاز ما سيثبّت قبل الموافقة.",
+        "en": "The Update page shows system, app and firmware updates, including app failures and their reasons. App updates run in the background after one confirmation; shared apps can update without an open desktop session. Firmware offers are shown before installation."
+      },
+      "route": "moos://settings/update"
+    },
+    {
       "id": "windows-portable-data-preservation",
       "merged": "2026-11-04T08:48:39Z",
       "glyph": "folder",
@@ -322,19 +349,6 @@
       "body": {
         "ar": "تسجيل الخروج يكتمل حتى أثناء إعداد سطح المكتب، مع بقاء مطالبات حفظ الملفات. إذا تعذّر الإغلاق، تبقى المحاولة التالية متاحة بدل تعليق الجلسة.",
         "en": "Logout completes while the desktop is still setting up, with file-saving prompts preserved. If closing fails, you can retry without leaving the session stuck."
-      }
-    },
-    {
-      "id": "session-health-readback",
-      "merged": "2026-10-06T08:00:00Z",
-      "glyph": "lock",
-      "title": {
-        "ar": "فحص صحيح لشاشة القفل",
-        "en": "Accurate lock-screen health check"
-      },
-      "body": {
-        "ar": "فحص صحة MoOS يتعرّف الآن على شاشة القفل المشتركة الجديدة، ويكشف المكونات الناقصة دون تحذير خاطئ على شاشة سليمة.",
-        "en": "MoOS health checks now recognize the shared session design and report missing lock-screen components without a false warning on a healthy screen."
       }
     },
     {
@@ -709,20 +723,6 @@
         "en": "Press Meta+Space in any window to open Mo AI; you can change the shortcut on the Shortcuts page. When you confirm an action Mo AI suggests, the Island shows it running and then how it ended."
       },
       "route": "moos://settings/shortcuts"
-    },
-    {
-      "id": "updates-one-place",
-      "merged": "2026-09-25T09:00:00Z",
-      "glyph": "safe-update",
-      "title": {
-        "ar": "كل التحديثات من مكان واحد",
-        "en": "Every update comes from one place"
-      },
-      "body": {
-        "ar": "صفحة التحديث تعرض النظام والتطبيقات وبرامج الجهاز، وتذكر كل تطبيق لم يتحدّث وسبب ذلك. تحديث التطبيقات يسأل مرة ويعمل في الخلفية، وبرامج الجهاز تعرض ما يُعرض عليك قبل أي تثبيت، ولم يعد محرك المتجر يحدّث وحده.",
-        "en": "The Update page shows the system, applications and device firmware, and names each app that could not update and why. Updating apps asks once and runs in the background, firmware shows what is offered before anything is installed, and the store engine no longer updates on its own."
-      },
-      "route": "moos://settings/update"
     },
     {
       "id": "remote-one-place",

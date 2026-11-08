@@ -95,6 +95,15 @@ set_target_properties(${BINARY_NAME}
 
 # Generated plugin build rules, which manage building the plugins and adding
 # them to the application.
+# media_kit_libs_linux 1.2.1 downloads mimalloc without checking transfer status.
+# Preflight its exact reviewed archive; its own MD5 assertion remains in place.
+if(NOT DEFINED MIMALLOC_USE_STATIC_LIBS OR MIMALLOC_USE_STATIC_LIBS)
+  include(cmake/VerifiedArchive.cmake)
+  moos_verified_archive("${CMAKE_BINARY_DIR}/mimalloc-2.1.2.tar.gz"
+    "2b1bff6f717f9725c70bf8d79e4786da13de8a270059e4ba0bdd262ae7be46eb"
+    "https://github.com/microsoft/mimalloc/archive/refs/tags/v2.1.2.tar.gz"
+    "https://codeload.github.com/microsoft/mimalloc/tar.gz/refs/tags/v2.1.2")
+endif()
 include(flutter/generated_plugins.cmake)
 
 

@@ -26,7 +26,8 @@ screenshot returns.
   scripts/station/pointer.py click 700 400 --button right
   scripts/station/pointer.py drag 700 400 900 500
 
-The owner's plain-text clipboard is put back literally when the tool exits.
+The owner's plain-text clipboard is backed up privately and put back literally.
+An unconfirmed restore retains that recovery file; command errors omit its text.
 Non-text or unreadable clipboard content aborts BEFORE the probe: Klipper's
 string interface cannot restore images, file lists or rich-text alternatives.
 The probe leaves an entry in Klipper history; that history is never cleared.
@@ -35,12 +36,15 @@ The probe leaves an entry in Klipper history; that history is never cleared.
 from __future__ import annotations
 
 import argparse
+import json
 import os
+import secrets
 import shutil
 import subprocess
 import sys
 import tempfile
 import time
+import xml.etree.ElementTree as ET
 
 SOCKET = os.environ.get("YDOTOOL_SOCKET", "/run/user/1000/.ydotool_socket")
 ENV = os.environ | {"YDOTOOL_SOCKET": SOCKET}
@@ -51,19 +55,63 @@ BUTTONS = {"left": 0x00, "right": 0x01, "middle": 0x02}
 
 PROBE = (
     'callDBus("org.kde.klipper", "/klipper", "org.kde.klipper.klipper",'
-    ' "setClipboardContents", "MOOS-CURSOR " + workspace.cursorPos.x + ","'
+    ' "setClipboardContents", "MOOS-CURSOR @nonce@ " + workspace.cursorPos.x + ","'
     ' + workspace.cursorPos.y);\n'
 )
 
 
-def run(argv: list[str], timeout: int = 20) -> str:
-    done = subprocess.run(argv, env=ENV, capture_output=True, text=True, timeout=timeout,
-                          check=True)
+def run(argv: list[str], timeout: int = 20, *, input_text: str | None = None) -> str:
+    try:
+        done = subprocess.run(argv, env=ENV, capture_output=True, text=True, timeout=timeout,
+                              check=True, input=input_text)
+    except (OSError, subprocess.SubprocessError):
+        # CalledProcessError and TimeoutExpired include argv in their repr.
+        # A clipboard restoration must never put the owner's text there.
+        raise SystemExit("pointer: native control failed; command data withheld") from None
     return done.stdout.strip()
 
 
 def qdbus(*args: str) -> str:
     return run([QDBUS, *args])
+
+
+def bridge_available() -> bool:
+    # Ask the bus itself without introspection or service activation.
+    value = run(["busctl", "--user", "--timeout=3s", "--json=short", "call",
+                 "org.freedesktop.DBus", "/org/freedesktop/DBus",
+                 "org.freedesktop.DBus", "NameHasOwner", "s", "org.kde.klipper"], timeout=5)
+    try:
+        reply = json.loads(value)
+        if (reply.get("type") != "b" or reply.get("data") != [True]
+                or type(reply["data"][0]) is not bool):
+            return False
+        # Plasma may own the name while its clipboard object is not loaded.
+        # An owned bus name alone is not an active clipboard bridge.
+        value = run(["busctl", "--user", "--timeout=3s", "--json=short", "call",
+                     KLIPPER[0], KLIPPER[1], "org.freedesktop.DBus.Introspectable", "Introspect"], timeout=5)
+        xml = json.loads(value)["data"][0]
+        if not isinstance(xml, str) or len(xml) > 256 * 1024:
+            return False
+        node = ET.fromstring(xml)
+        methods = {m.get("name") for i in node.findall("interface") if i.get("name") == KLIPPER[2]
+                   for m in i.findall("method")}
+        return {"getClipboardContents", "setClipboardContents"} <= methods
+    except (ValueError, AttributeError, KeyError, IndexError, TypeError, ET.ParseError, SystemExit):
+        return False
+
+
+def clipboard_text() -> str:
+    # JSON preserves leading/trailing whitespace, unlike qdbus's CLI newline.
+    try:
+        value = run(["busctl", "--user", "--timeout=3s", "--json=short", "call",
+                     *KLIPPER, "getClipboardContents"], timeout=5)
+        reply = json.loads(value)
+        if (reply.get("type") == "s" and isinstance(reply.get("data"), list)
+                and len(reply["data"]) == 1 and isinstance(reply["data"][0], str)):
+            return reply["data"][0]
+    except (ValueError, AttributeError):
+        pass
+    raise SystemExit("pointer: clipboard response is unavailable")
 
 
 def save_clipboard() -> str:
@@ -90,8 +138,18 @@ class Pointer:
     """The live pointer, with KWin as the source of truth for where it is."""
 
     def __init__(self) -> None:
+        if not shutil.which("wl-copy"):
+            raise SystemExit("pointer: clipboard restoration is unavailable; no input performed")
+        if not bridge_available():
+            raise SystemExit("pointer: compositor clipboard bridge is unavailable; no input performed")
         self._saved = save_clipboard()
         self._workspace = tempfile.mkdtemp(prefix="moos-pointer-")
+        self._backup = os.path.join(self._workspace, "clipboard.txt")
+        fd = os.open(self._backup, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+        with os.fdopen(fd, "wb") as handle:
+            handle.write(self._saved.encode("utf-8"))
+            handle.flush()
+            os.fsync(handle.fileno())
         self._script = os.path.join(self._workspace, "probe.js")
         with open(self._script, "w", encoding="utf-8") as handle:
             handle.write(PROBE)
@@ -99,31 +157,54 @@ class Pointer:
 
     def restore(self) -> None:
         """Restore the saved text literally, even text resembling a probe reply."""
+        restored = False
         try:
             if self._saved:
-                qdbus(*KLIPPER[:2], f"{KLIPPER[2]}.setClipboardContents", self._saved)
+                run(["wl-copy", "--type", "text/plain;charset=utf-8"], input_text=self._saved)
             else:
-                qdbus(*KLIPPER[:2], f"{KLIPPER[2]}.clearClipboardContents")
+                run(["wl-copy", "--clear"])
+            # Confirm the native clipboard manager actually retained the text,
+            # before its temporary Wayland supplier and backup can disappear.
+            for _ in range(10):
+                if clipboard_text() == self._saved:
+                    restored = True
+                    break
+                time.sleep(.08)
+            if not restored:
+                raise SystemExit("pointer: clipboard restoration could not be confirmed")
+        except BaseException:
+            raise SystemExit("pointer: clipboard restoration failed; private recovery retained at "
+                             + self._backup) from None
         finally:
             try:
                 qdbus("org.kde.KWin", "/Scripting",
                       "org.kde.kwin.Scripting.unloadScript", "moospointer")
+            except SystemExit:
+                if restored:
+                    raise
             finally:
-                shutil.rmtree(self._workspace, ignore_errors=True)
+                if restored:
+                    shutil.rmtree(self._workspace, ignore_errors=True)
 
     def where(self) -> tuple[int, int]:
         """Ask KWin where the pointer is. Raises if the compositor does not answer."""
         for _ in range(3):
+            prefix = "MOOS-CURSOR " + secrets.token_hex(8) + " "
+            with open(self._script, "w", encoding="utf-8") as handle:
+                handle.write(PROBE.replace("@nonce@", prefix.split()[1]))
             qdbus("org.kde.KWin", "/Scripting", "org.kde.kwin.Scripting.unloadScript", "moospointer")
             qdbus("org.kde.KWin", "/Scripting", "org.kde.kwin.Scripting.loadScript",
                   self._script, "moospointer")
             qdbus("org.kde.KWin", "/Scripting", "org.kde.kwin.Scripting.start")
             for _ in range(10):
                 time.sleep(0.08)
-                value = qdbus(*KLIPPER[:2], f"{KLIPPER[2]}.getClipboardContents")
-                if value.startswith("MOOS-CURSOR "):
-                    x, _, y = value[len("MOOS-CURSOR "):].partition(",")
-                    return int(float(x)), int(float(y))
+                value = clipboard_text()
+                if value.startswith(prefix):
+                    x, _, y = value[len(prefix):].partition(",")
+                    try:
+                        return int(float(x)), int(float(y))
+                    except (ValueError, OverflowError):
+                        pass
         raise SystemExit("pointer: KWin did not report a cursor position")
 
     def nudge(self, dx: int, dy: int) -> None:

@@ -76,6 +76,9 @@ check:
     python3 tests/test_greeter_rpms.py
     python3 tests/test_moai_do.py
     python3 tests/test_moos_control.py
+    python3 tests/test_wallet_preference.py
+    python3 tests/test_wallet_image_gate.py
+    python3 tests/test_wallet_settings_qml.py
     # The audit journals are the owner's: every suite that names an auditing tool is RUN with
     # the real logger replaced by a trap, and one write fails the gate.
     python3 tests/test_tests_stay_out_of_the_journal.py
@@ -589,6 +592,7 @@ check:
     # every Konsole profile must keep asking for JetBrains Mono by name so the
     # weak accept alias engages instead of detaching the cursive joins.
     python3 tests/test_arabic_terminal_font.py
+    python3 tests/test_native_archive.py
     python3 tests/test_meyar_family.py
     # Arabic spell-check must exist in EVERY edition from ONE shared script.
     # ARM shipped 24 English and ZERO Arabic dictionaries because the x86

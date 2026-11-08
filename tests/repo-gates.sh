@@ -45,6 +45,9 @@ python3 tests/test_analysis_tools_profile.py
 python3 tests/test_fingerprint_login.py
 python3 tests/test_moai_do.py
 python3 tests/test_moos_control.py
+python3 tests/test_wallet_preference.py
+python3 tests/test_wallet_image_gate.py
+python3 tests/test_wallet_settings_qml.py
 python3 tests/test_settings_destinations.py
 python3 tests/test_moos_health.py
 python3 tests/test_remote_edition_guard.py
@@ -166,6 +169,7 @@ python3 tests/test_remote_group_resolution.py
 python3 tests/test_remote_keycode_flush.py
 python3 tests/test_remote_portal_keysyms_sync.py
 python3 tests/test_arabic_terminal_font.py
+python3 tests/test_native_archive.py
 # Arabic spell-check must exist in EVERY edition from ONE shared script.
 # ARM shipped 24 English and ZERO Arabic dictionaries because the x86
 # block was copied instead of shared.
@@ -465,6 +469,7 @@ python3 tests/test_moos_app_visual_polish.py
 python3 tests/test_moos_motion_gate.py
 python3 tests/test_fwupd_refresh_policy.py
 python3 tests/test_flatpak_user_update.py
+python3 tests/test_flatpak_fonts.py
 python3 tests/test_app_update_units.py
 python3 artwork/verify_visuals.py
 # .mcp.json and .claude/settings.json are the agent contract, and they are

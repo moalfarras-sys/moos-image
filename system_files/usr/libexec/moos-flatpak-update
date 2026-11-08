@@ -22,6 +22,15 @@ case "${1:-}" in
         ;;
 esac
 
+# System timers have no graphical session. OCI remotes can still need their
+# D-Bus authenticator when resolving an actual update (an empty transaction
+# does not exercise it). Own a short-lived bus instead of borrowing a person's
+# session or relying on X11 autolaunch. Keep an explicitly supplied bus and the
+# user's existing session unchanged; exec preserves failures and unit lifetime.
+if [ "$scope" = --system ] && [ -z "${DBUS_SESSION_BUS_ADDRESS:-}" ]; then
+    exec /usr/bin/dbus-run-session -- "$0" "$@"
+fi
+
 flatpak_bin="${MOOS_FLATPAK_BIN:-/usr/bin/flatpak}"
 record=""
 log=""

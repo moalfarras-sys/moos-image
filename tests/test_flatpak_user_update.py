@@ -35,11 +35,13 @@ assert "ExecStart=/usr/libexec/moos-flatpak-update --system" in system_dropin
 
 
 def run_case(mode: str, scope: str = "--user", hold_store_lock: bool = False,
-             store_settings: str | None = None, helper_text: str | None = None):
+             store_settings: str | None = None, helper_text: str | None = None,
+             session_bus: str | None = None):
     """Returns (result, calls, record or None, lock file mode or None)."""
     with tempfile.TemporaryDirectory(prefix="moos-flatpak-update-") as tmp:
         tmp_path = Path(tmp)
         log = tmp_path / "calls"
+        bus_log = tmp_path / "bus-addresses"
         fake = tmp_path / "flatpak"
         home = tmp_path / "home"
         home.mkdir()
@@ -52,6 +54,13 @@ def run_case(mode: str, scope: str = "--user", hold_store_lock: bool = False,
             """#!/usr/bin/bash
 set -u
 printf '%s\\n' "$*" >>"$MOOS_TEST_LOG"
+if [[ " $* " == *" update "* && "$MOOS_TEST_MODE" == bus-* ]]; then
+  printf '%s\\n' "${DBUS_SESSION_BUS_ADDRESS:-}" >>"$MOOS_TEST_BUS_LOG"
+  gdbus call --session --dest org.freedesktop.DBus \\
+    --object-path /org/freedesktop/DBus --method org.freedesktop.DBus.GetId || exit 1
+  [ "$MOOS_TEST_MODE" != bus-fail ] || exit 42
+  exit 0
+fi
 case " $* " in
   *" list "*)
     if [ "$MOOS_TEST_MODE" = "font-refusal" ]; then
@@ -90,9 +99,12 @@ esac
             "XDG_RUNTIME_DIR": str(tmp_path),
             "MOOS_FLATPAK_BIN": str(fake),
             "MOOS_TEST_LOG": str(log),
+            "MOOS_TEST_BUS_LOG": str(bus_log),
             "MOOS_TEST_MODE": mode,
             "MOOS_TEST_RUNTIME_SHELL": str(runtime_shell),
         }
+        if session_bus is not None:
+            env["DBUS_SESSION_BUS_ADDRESS"] = session_bus
         if store_settings is not None:
             settings = tmp_path / "config/moos/store.json"
             settings.parent.mkdir(parents=True)
@@ -131,6 +143,7 @@ esac
             "the helper ignored XDG_CACHE_HOME/XDG_STATE_HOME and wrote into HOME"
         calls = log.read_text(encoding="utf-8").splitlines() if log.exists() else []
         result.runtime_preserved = runtime_shell.exists()
+        result.bus_addresses = bus_log.read_text().splitlines() if bus_log.exists() else []
         return result, calls, record, mode_bits
 
 
@@ -213,5 +226,66 @@ broken = original.replace("\nfinished=1\n", '\n"$flatpak_bin" "$scope" repair\n\
 for scope in ("--user", "--system"):
     old, old_calls, _, _ = run_case("normal", scope, helper_text=broken)
     assert old.returncode == 0 and not old.runtime_preserved, old_calls
+
+# Exercise real D-Bus, not just a nonempty environment variable. A system
+# transaction that requests authentication must work with no display/session;
+# the same request fails on the old source and when a supplied bus is invalid.
+headless, calls, record, lock = run_case("bus-needed", "--system")
+assert headless.returncode == 0, headless.stderr
+assert len(headless.bus_addresses) == 1 and headless.bus_addresses[0].startswith("unix:"), calls
+assert record is None and lock is None and headless.runtime_preserved
+# The private bus must end with its updater; do not leave another idle daemon.
+closed = subprocess.run(
+    ["gdbus", "call", "--address", headless.bus_addresses[0], "--dest", "org.freedesktop.DBus",
+     "--object-path", "/org/freedesktop/DBus", "--method", "org.freedesktop.DBus.GetId"],
+    text=True, capture_output=True, timeout=5,
+)
+assert closed.returncode != 0, "the updater leaked its private session bus"
+
+bus_block = original[original.index('if [ "$scope" = --system ] && [ -z "${DBUS_SESSION_BUS_ADDRESS:-}" ]; then'):
+                     original.index('\nflatpak_bin=')]
+old, _, _, _ = run_case("bus-needed", "--system", helper_text=original.replace(bus_block, ""))
+assert old.returncode != 0 and not any(old.bus_addresses), old.stderr
+
+for scope in ("--user", "--system"):
+    supplied = "unix:path=/moos-test/no-supplied-session-bus"
+    refused, _, _, _ = run_case("bus-needed", scope, session_bus=supplied)
+    assert refused.returncode != 0, "an explicitly broken bus was silently replaced"
+    assert refused.bus_addresses == [supplied, supplied], refused.bus_addresses
+
+user_headless, _, user_record, _ = run_case("bus-needed")
+assert user_headless.returncode != 0 and user_record["state"] == "failed"
+assert not any(user_headless.bus_addresses), "system isolation was applied to the user session"
+
+failed_bus, failed_bus_calls, _, _ = run_case("bus-fail", "--system")
+assert failed_bus.returncode == 42, (failed_bus.returncode, failed_bus.stderr)
+assert any("--no-static-deltas" in call for call in failed_bus_calls), failed_bus_calls
+
+not_started, not_started_calls, _, _ = run_case(
+    "bus-needed", "--system",
+    helper_text=original.replace("/usr/bin/dbus-run-session", "/usr/bin/false"),
+)
+assert not_started.returncode != 0 and not_started_calls == [], not_started.stderr
+
+# A healthy caller-supplied session belongs to that caller and must survive
+# both scopes. Use another private daemon, never the owner's desktop bus.
+with tempfile.TemporaryDirectory(prefix="moos-flatpak-inherited-bus-") as tmp:
+    private = Path(tmp)
+    env = os.environ | {key: str(private / key) for key in
+                        ("HOME", "XDG_CONFIG_HOME", "XDG_DATA_HOME", "XDG_RUNTIME_DIR")}
+    for key in ("HOME", "XDG_CONFIG_HOME", "XDG_DATA_HOME", "XDG_RUNTIME_DIR"):
+        Path(env[key]).mkdir(mode=0o700)
+    daemon = subprocess.Popen(["dbus-daemon", "--session", "--nofork", "--print-address=1"],
+                              env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+    try:
+        address = daemon.stdout.readline().strip()
+        assert address.startswith("unix:"), address
+        for scope in ("--user", "--system"):
+            inherited, _, _, _ = run_case("bus-needed", scope, session_bus=address)
+            assert inherited.returncode == 0 and inherited.bus_addresses == [address], inherited.stderr
+        assert daemon.poll() is None, "the updater stopped a caller-owned bus"
+    finally:
+        daemon.terminate()
+        daemon.communicate(timeout=5)
 
 print("Unified Flatpak update recovery gate passed")

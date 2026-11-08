@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
-"""Opt-in named Arabic pairing and personal-order controls in four runtimes.
+"""Opt-in named Arabic pairing and personal-order controls in installed runtimes.
 
-Actual source-owned be3→successor upgrade with a retained private cache. This
+Actual source-owned predecessor→successor upgrade with a retained private cache. This
 tests native matching, not rendered shaping, keyboard or application lifecycle.
 """
+import argparse
 import datetime
 import hashlib
 import importlib.util
@@ -17,7 +18,13 @@ import tempfile
 ROOT = Path(__file__).resolve().parents[1]
 spec = importlib.util.spec_from_file_location('font_policy', ROOT / 'system_files/usr/lib/moos/moos_flatpak_fonts.py')
 policy = importlib.util.module_from_spec(spec); spec.loader.exec_module(policy)
-APPS = ('ai.opencode.opencode', 'org.gnome.Snapshot', 'org.kde.krecorder', 'com.google.Chrome')
+parser = argparse.ArgumentParser(description=__doc__)
+parser.add_argument('--app', action='append', help='existing installed app; repeat for each native runtime')
+parser.add_argument('--prior-revision', type=int, choices=(1, 2), default=1)
+args = parser.parse_args()
+APPS = tuple(args.app or ('ai.opencode.opencode', 'org.gnome.Snapshot', 'org.kde.krecorder', 'com.google.Chrome'))
+if not 1 <= len(APPS) <= 8 or len(set(APPS)) != len(APPS) or any(not policy.APP.fullmatch(app) for app in APPS):
+    raise ValueError('Need unique installed application IDs')
 QUERIES = ['Meyar Sans', 'Meyar Mono', 'Meyar Arabic', 'Meyar Mono Arabic',
            'Meyar Sans:charset=0627', 'Meyar Mono:charset=0627',
            'Meyar Sans:charset=0651', 'Meyar Mono:charset=0651',
@@ -33,16 +40,26 @@ QUERIES = ['Meyar Sans', 'Meyar Mono', 'Meyar Arabic', 'Meyar Mono Arabic',
            'Inter,Meyar Sans:charset=0041', 'Inter,Meyar Sans:charset=0627']
 QUERIES += [f'{family}:charset={point}' for family in ('Meyar Sans', 'Meyar Mono')
             for point in ('0041', '4e2d', '0915', '03a9', '0416', '0259', '1ea1', '1f642')]
+REVERSE = {'Meyar Arabic:charset=0041': 'Meyar Sans',
+           'Meyar Arabic:charset=2014': 'Meyar Sans',
+           'Meyar Mono Arabic:charset=00b2': 'Meyar Mono',
+           'Meyar Mono Arabic:charset=00b5': 'Meyar Mono'}
+QUERIES += list(REVERSE) + ['DejaVu Sans,Meyar Arabic:charset=2014',
+                           'Meyar Arabic,DejaVu Sans:charset=2014',
+                           'DejaVu Sans Mono,Meyar Mono Arabic:charset=00b2',
+                           'Meyar Mono Arabic,DejaVu Sans Mono:charset=00b2']
 PERSONAL = b'''<?xml version="1.0"?>
 <!DOCTYPE fontconfig SYSTEM "urn:fontconfig:fonts.dtd">
 <fontconfig>
   <match target="pattern"><test name="family" compare="eq"><string>Meyar Sans</string></test><edit name="family" mode="assign_replace" binding="strong"><string>DejaVu Sans</string></edit></match>
+  <match target="pattern"><test name="family" compare="eq"><string>Meyar Arabic</string></test><edit name="family" mode="assign_replace" binding="strong"><string>DejaVu Sans</string></edit></match>
 </fontconfig>
 '''
-assert len(QUERIES) == len(set(QUERIES)) == 49
+assert len(QUERIES) == len(set(QUERIES)) == 57
 record = {'schema': 1, 'dateUTC': datetime.datetime.now(datetime.timezone.utc).isoformat(),
           'sourceSHA': subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=ROOT, text=True).strip(),
           'moduleSHA256': hashlib.sha256(Path(policy.__file__).read_bytes()).hexdigest(),
+          'prior_revision': args.prior_revision, 'apps': APPS,
           'queries': QUERIES, 'rows': [], 'scope': 'Private native Fontconfig matching only; no real app configuration, permission or GUI changed.'}
 destination = ROOT / ('test-results/flatpak-font-delivery-20261101/native-named-successor-' + secrets.token_hex(6) + '.json')
 destination.parent.mkdir(parents=True, exist_ok=True)
@@ -69,7 +86,7 @@ try:
         runtime = policy.output(['flatpak', 'info', '--show-runtime', app])
         commit = policy.output(['flatpak', 'info', '--show-commit', 'runtime/' + runtime])
         row['runtime'] = runtime; row['runtime_commit'] = commit
-        legacy = policy._render_fragment(booted, [(runtime, commit)], 1)
+        legacy = policy._render_fragment(booted, [(runtime, commit)], args.prior_revision)
         policy.install(home, app, legacy)
         def matches(queries=QUERIES):
             # The shell is fixed and every pattern is a quoted positional arg;
@@ -84,7 +101,7 @@ try:
             values = dict(line.split('\t', 1) for line in p.stdout.splitlines())
             assert list(values) == list(queries)
             return values
-        old = matches(); row['be3'] = old
+        old = matches(); row['predecessor'] = old
         assert policy.refresh([app], home=home) == [app]
         fixed = matches(); warm = matches(); row['successor'] = fixed; row['warm'] = warm
         assert fixed == warm
@@ -95,7 +112,7 @@ try:
             if old_family_file != fixed_family_file: changed.append(request)
             paired = ('Meyar Arabic' if request.startswith('Meyar Sans:charset=06') else
                       'Meyar Mono Arabic' if request.startswith('Meyar Mono:charset=06') else
-                      'Meyar Arabic' if request == 'Inter,Meyar Sans:charset=0627' else None)
+                      'Meyar Arabic' if request == 'Inter,Meyar Sans:charset=0627' else REVERSE.get(request))
             if paired:
                 assert fixed_family_file[0] == paired, (request, fixed[request])
                 assert fixed_family_file[1].startswith('/run/host/fonts/meyar/')
@@ -103,13 +120,16 @@ try:
                 assert old_family_file == fixed_family_file, (request, old[request], fixed[request])
             if fixed_family_file[0] in ('Meyar Mono', 'Meyar Mono Arabic'):
                 assert fixed[request].split('|')[2] == '100'
-        assert 'Meyar Sans:charset=0627' in changed
+        if args.prior_revision == 1:
+            assert 'Meyar Sans:charset=0627' in changed
+        assert set(REVERSE) <= set(changed)
         row['changed_family_file_queries'] = changed
         path = config / 'fontconfig/conf.d' / policy.FILE
         exact = path.read_bytes()
         personal = config / 'fontconfig/fonts.conf'; personal.write_bytes(PERSONAL)
-        row['personal_override'] = matches(['Meyar Sans:charset=0627'])
+        row['personal_override'] = matches(['Meyar Sans:charset=0627', 'Meyar Arabic:charset=2014'])
         assert row['personal_override']['Meyar Sans:charset=0627'].startswith('DejaVu Sans|')
+        assert row['personal_override']['Meyar Arabic:charset=2014'].startswith('DejaVu Sans|')
         assert policy.refresh([app], home=home) == []
         assert personal.read_bytes() == PERSONAL and path.read_bytes() == exact
         row['personal_config_preserved'] = True

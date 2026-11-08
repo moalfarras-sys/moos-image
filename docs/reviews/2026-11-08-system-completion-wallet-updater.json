@@ -1,0 +1,739 @@
+{
+  "date": "2026-11-08",
+  "source_before": "e4cab3a8b70b0f2cd1f531c8a1f0109845196f33",
+  "repository_audit": {
+    "head_refs": 198,
+    "all_head_refs_ancestors_of_origin_main": true,
+    "worktrees": 2,
+    "stashes_preserved": 4,
+    "git_fsck_exit": 0,
+    "dangling_records_preserved": 26,
+    "unrelated_worktree_unchanged": true
+  },
+  "qualified_previous_batch": {
+    "revision": "e4cab3a8b70b0f2cd1f531c8a1f0109845196f33",
+    "x86_version": "44.20261105.1127",
+    "build": 41974895865,
+    "disks": {
+      "moos": 41982672912,
+      "moos-nvidia": 41982677267,
+      "moos-cloud": 41982681733
+    },
+    "iso": 42005984785,
+    "promotion": 42426734995,
+    "first_attempt_proofs": true,
+    "unchanged_local_artifact_validation_exit": 0,
+    "independent_cosign_and_revision_readback": true,
+    "digests": {
+      "moos": "sha256:b365271fc3a919c7cee0255fac17c6f385915621ce7f9165b18ad1a8d8176855",
+      "moos-nvidia": "sha256:6a6a7d1be42e83979b8fb0848846f6b2689b82208ae014daa5c30fd660eb154a",
+      "moos-cloud": "sha256:604bd631121f0fc6ded72c3aedbe937c1bd0bc9e65c3c1c317c1014adc8023a2"
+    },
+    "arm_pipeline": 41966936143,
+    "arm_version": "44.20261105.895",
+    "arm_digest": "sha256:83843c2338f202dcf9901eb3e4f6e884122e66a5d3d6a75674a42cbcb3cce91b",
+    "new_wallet_and_updater_source_in_this_release": false
+  },
+  "iso_archive": {
+    "source": "e4cab3a8b70b0f2cd1f531c8a1f0109845196f33",
+    "run": 42005984785,
+    "version": "44.20261105.1127",
+    "size": 5817565184,
+    "sha256": "6303b2147a9ed271180a6b63d86d8e6d48bee23b90a1cadec5b02617b112075f",
+    "checksum_matches": true,
+    "signature_exit": 0,
+    "signature": "Verified OK",
+    "seconds": 117.57,
+    "public_delivery": "1046 remains last anonymously full/range-qualified release; no new hosting authentication or upload",
+    "archive_location": "~/.local/share/moos-release-archives/44.20261105.1127",
+    "download_exit": 0
+  },
+  "installed": {
+    "host": "moos-arm-oracle",
+    "architecture": "aarch64",
+    "cpus": 2,
+    "memory_gib": 11.6,
+    "gpu": false,
+    "session": "Wayland virtual 1280x720 scale 1",
+    "boot_id": "7bcd690f-17d6-428b-b5a8-13c8bc5bd714",
+    "booted_version": "44.20261104.890",
+    "booted_digest": "sha256:c70e0a3a44f978b8b1785c7978a613ed7505c8337fff1bcf2710036f7dc50849",
+    "staged_version": "44.20261105.895",
+    "rollback_version": "44.20261031.884",
+    "boot_seconds": 18.752,
+    "userspace_graphical_seconds": 13.127,
+    "staged_or_rebooted_by_this_audit": false,
+    "postcheck": {
+      "exit": 0,
+      "passed": 56,
+      "failed": 0
+    }
+  },
+  "native_repairs": {
+    "system_flatpak_updater": {
+      "old_real_update_exit": 1,
+      "old_error": "Cannot autolaunch D-Bus without X11 $DISPLAY",
+      "empty_no_pull_transaction_was_false_negative": true,
+      "same_real_transaction_private_bus_exit": 0,
+      "existing_service_after_repair": {
+        "result": "success",
+        "exit": 0,
+        "state": "inactive/dead",
+        "seconds": 9.892,
+        "nonzero_monotonic_exit_receipt": 315537595110
+      },
+      "updated_apps": [
+        "org.gnome.Ptyxis",
+        "org.chromium.Chromium"
+      ],
+      "temporary_dropin": "/etc/systemd/system/flatpak-system-update.service.d/30-moos-private-bus.conf",
+      "temporary_dropin_sha256": "ecfcfec891f2f6249804182a139fee01f197a7599a97d6de932bd1bd0cb5036a",
+      "retirement": "Only after matching signed helper is booted and its native headless update succeeds",
+      "retired_exact_compatibility_units": 4,
+      "backup": "/var/tmp/moos-app-update-recovery-20261108-nivzimo3",
+      "timers_enabled_canonical_usr_units": true
+    },
+    "cloud_services": {
+      "observed_failure": "backup exit255: existing photos PostgreSQL container stopped; oneshot unit still active/exited",
+      "stop_time_observed": "2026-11-04 11:00 local",
+      "stop_actor_and_cause": "unproven",
+      "reused_units": [
+        "moos-photos.service",
+        "moos-smb.service",
+        "moos-cloud-backup.service"
+      ],
+      "postgres_redis_photos_smb_healthy": true,
+      "photos_ping": "pong",
+      "backup_exit": 0,
+      "new_database_gzip_bytes": 18883838,
+      "new_sqlite_bytes": 172032,
+      "scope": "existing encrypted local config/database backup; no off-host restore acceptance"
+    },
+    "wallet": {
+      "owner_requested_off_now_and_user_settings_on_off": true,
+      "effective_flags": {
+        "Wallet/Enabled": false,
+        "KSecretD/Enabled": false,
+        "org.freedesktop.secrets/apiEnabled": false
+      },
+      "choice": "off",
+      "native_bus_names_absent": true,
+      "wallet_contents_read_or_deleted": false,
+      "prior_preference_backup": "~/.cache/moos-wallet-preference-20261108-8b3u3fyr/kwalletrc",
+      "source_owner": "moos-control wallet on|off|status; native overview KCM; existing status helper",
+      "source_behavior": "Stage/verify three native flags and explicit choice; save/lock collections before pinned same-user provider termination; activation readback, failure rollback and preference conflict refusal; no PAM changes",
+      "private_native_provider_and_preference_tests": 12,
+      "native_card_input_languages": [
+        "ar",
+        "en"
+      ],
+      "card_input_scope": "360px native Qt pointer/keyboard; pending, duplicate, failed/rejected and partial-state controls; not physical touch",
+      "compiled_contract_broken_copies_refused": 82,
+      "compiled_contract_catalogues": 12,
+      "installed_view_scope": "exact compiled source KCM and canonical helper mounts in its own namespace, private runtime; native Wayland page opened and visually inspected with Off shown; not signed installation or ordinary login acceptance",
+      "compiled_kcm_sha256": "f1d0c8aa7b9b5c4db9548aa3b809c05fb25ffbeba8a8c453142cb57b39e8f000",
+      "external_preference_watch": {
+        "initial_contrary_control": "a queued startup refresh initially masked the missing watch; retained",
+        "settled_old_control_seconds": [
+          8.091,
+          8.073
+        ],
+        "settled_old_observed_choice": false,
+        "fixed_readback_seconds": [
+          3.332,
+          3.533
+        ],
+        "fixed_observed_choice": true,
+        "mechanism": "existing directory watcher and finite refresh coalescer; no idle polling"
+      },
+      "limits": "Native provider lifecycle uses empty private profiles; collection save/lock call and refusal controls are isolated. No owner encrypted item was inspected and no ordinary create/unlock/login acceptance is claimed."
+    }
+  },
+  "source_qualification": {
+    "first_full_check": {
+      "source": "e4cab3a8b70b0f2cd1f531c8a1f0109845196f33",
+      "patch_sha256": "6cbf252cb94242bee7615b998df41004284d917d9ca774d6751aae226545ec14",
+      "source_unchanged": true,
+      "exit": 1,
+      "seconds": 759.22
+    },
+    "first_refusal": "adaptive native fixture read before Qt journey completion; later English pointer hit wrong category while page/layout moving",
+    "preserved_controls": "original first refusal log, later coordinate failure, transient no-ready under concurrent build; no product launcher or thresholds changed",
+    "fixture_repair": "bounded executed result marker and native page rest/layout polish before category input",
+    "native_launcher_result": "4 viewports AR/EN reduced/normal motion plus all existing broken controls pass; 52.998s",
+    "final_full_check": "Required for the final frozen batch; preserve independent command exit and stable-source receipt, then require PR checks before integration.",
+    "image_delivery_of_new_source": "A fresh local current-base image, exact signed candidate/artifact promotion and installed readback are separate required proofs;1127 contains the preceding e4cab batch.",
+    "complete_baseline_before_final_image_and_station_followups": {
+      "source": "e4cab3a8b70b0f2cd1f531c8a1f0109845196f33",
+      "patch_sha256": "496f524d19f1bd0bcf7c520ea68aa333808b33b1dbaf3192cff630b9a5708ef7",
+      "source_unchanged": true,
+      "exit": 0,
+      "seconds": 1462.11
+    },
+    "finished_wallet_gate": {
+      "driver": "tests/test_wallet_preference.py --installed",
+      "executors": "canonical /usr library and native binaries, private HOME/config/data/cache/state/runtime and private bus",
+      "required": "all12 cases, no skipped native probes and executed marker; both final compositions after package transactions",
+      "gate_protocol_controls": {
+        "success": 0,
+        "empty_success": 1,
+        "skipped_without_proof": 1,
+        "missing_driver": 1,
+        "failure_after_pass_marker": 42
+      }
+    },
+    "source_runner_controls": "KConfig/provider probes explicitly unavailable on a source-only runner; the same missing dependencies refuse on MoOS or in --installed mode.",
+    "dotnet_check": {
+      "exit": 0,
+      "scope": "maintained moremote/dotnet-check.sh; every project compiled, all executable tests and18 native Kestrel controls passed",
+      "source_files_changed": false
+    }
+  },
+  "remaining": [
+    "New source full check, required PR native image checks, integration and exact signed candidate/artifact promotion",
+    "Apply signed update and installed readback/reboot only with rollback readiness",
+    "Physical V3/NVIDIA/GPU, broad Windows/Android/heavy-game matrices, ordinary authentication, touch/pen/suspend and endurance remain unqualified",
+    "No current universal Arabic browser font acceptance; existing Meyar143 proof and contrary browser evidence retained",
+    "Fresh local build now has sufficient space; the old native-base cache exception is recorded and every image gate remains mandatory.",
+    "Ptyxis f45 ar_SA LC_NUMERIC has an upstream broken relative alias; ar_SY/C/en_US controls work. Owner region and runtime bytes were not overridden."
+  ],
+  "upstream_references": [
+    "https://kde.org/announcements/plasma/6/6.8.0/",
+    "https://develop.kde.org/hig/accessibility/",
+    "https://github.com/pop-os/cosmic-epoch/releases",
+    "https://github.com/KDE/kwallet/tree/v6.31.0/src/runtime",
+    "https://doc.qt.io/qt-6.10/qml-qttest-testcase.html",
+    "https://docs.github.com/en/rest/releases/assets#get-a-release-asset",
+    "https://github.com/aiaf/kawkab-mono/releases/tag/v0.501",
+    "https://github.com/media-kit/media-kit/blob/main/libs/linux/media_kit_libs_linux/linux/CMakeLists.txt"
+  ],
+  "private_evidence_directory": "test-results/system-completion-20261108 (ignored; native frames, full command outputs and signatures retained locally)",
+  "station_pointer": {
+    "tests": 18,
+    "observed_failure": "legacy tool exposed saved clipboard text inside a CalledProcessError argv while its assumed /klipper object was absent",
+    "native_anchor": "org.kde.klipper name is owned but /klipper is not exported on this session",
+    "repair": "verify actual object/methods before reading or probing; correlate cursor replies; omit argv/stdin from errors; retain a0600 private recovery file on unconfirmed restore",
+    "native_fixed_result": "explicit unavailable; no pointer/input acceptance inferred",
+    "clipboard_incident": {
+      "first_check_unchanged": true,
+      "later_clipboard_observed_empty": true,
+      "change_cause": "not established",
+      "complete_original_text_recovered": false,
+      "existing_history_and_task_receipt_recovery": "bounded read-only hash matching did not find a complete original; contents omitted",
+      "owner_project_files_or_wallet_data_changed_by_probe": false
+    },
+    "source_scope": "station development tool; not an additional clipboard service"
+  },
+  "real_apps": [
+    {
+      "application": "org.videolan.VLC",
+      "version": "3.0.24",
+      "architecture": "aarch64",
+      "runtime": "org.kde.Platform/aarch64/5.15-25.08",
+      "media_sha256": "888f1c10b3bd3b0704fd5cd2e24e0925367d1ee7109843888b67822c45a8826f",
+      "media_size": 20338036,
+      "duration_us": 25000000,
+      "before_close_status": "Paused",
+      "before_close_position": "11900307",
+      "prior_seek_position_us": [
+        9817058,
+        11404389
+      ],
+      "audio": "disabled for review",
+      "workload": "repository full check, editor and Remote active; no performance comparison",
+      "limits": [
+        "one local MPEG4 sample",
+        "no GPU, HDR, audio, broad codec, pressure or physical input acceptance",
+        "private configuration; launched through installed moai-open/Flatpak owners"
+      ],
+      "normal_quit": true,
+      "reopen_position_us": "0",
+      "reopen_state": "Playing",
+      "reopened_pid": "739066"
+    },
+    {
+      "app": "com.github.huluti.Curtail",
+      "version": "1.17.0",
+      "architecture": "aarch64",
+      "input": {
+        "size": 6223976,
+        "sha256": "7b6af39f91ec0e13ab844b4a5ced3bb3313a5129a9d3cd7ab8f9c8a61b490c92",
+        "pixels_sha256": "a97f578d836528d468ac85a9bdd41bb4b7078e071e1c38dbd7d2e83163f81401",
+        "dimensions": [
+          1920,
+          1080
+        ]
+      },
+      "output_size": 14317,
+      "output_sha256": "13cdbf1f5315418a856c2f13579f8c5b872ab37e0680d8fc855356029e03b0ea",
+      "decoded_pixels_match": true,
+      "source_unchanged": true,
+      "dimensions": [
+        1920,
+        1080
+      ],
+      "gsettings_backend": "memory; owner preferences not written",
+      "launch": "installed moai-open/Flatpak; actual GTK window observed",
+      "scope": "one task-owned Arabic-named lossless PNG; no claim for other formats, pressure or GPU",
+      "normal_close": true
+    },
+    {
+      "application": "org.gnome.Ptyxis",
+      "version": "50.1",
+      "runtime": "org.fedoraproject.Platform/aarch64/f45",
+      "executed_marker": "MOOS_TERMINAL_EXECUTED",
+      "utf8_file_sha256": "1c35a1122b8fb3aaec68119871b93e6e89ac18c1a65a75f8527790bd80c0bf56",
+      "utf8_file_bytes": 14,
+      "source_scope": "task-only script and output file; actual terminal window visually inspected",
+      "scoped_locale": "ar_SY.UTF-8 for this fixture only",
+      "default_regional_locale_limit": "ar_SA.utf8/LC_NUMERIC in installed Locale extension links to absent ../C.utf8/LC_NUMERIC; native ar_SA warns despite exit0; C, ar_SY and en_US controls do not warn",
+      "owner_regional_settings_changed": false,
+      "typography": "glyph/bidi pixels retained; no complete terminal shaping or font-family acceptance inferred"
+    }
+  ],
+  "collector_cost": {
+    "scope": "warm status collector calls, owner desktop/editor/Remote and low-priority full check active; not idle or startup regression acceptance",
+    "runs": {
+      "installed": {
+        "seconds": [
+          2.011,
+          1.907,
+          1.806
+        ],
+        "median_seconds": 1.907,
+        "wallet_field_present": false
+      },
+      "source": {
+        "seconds": [
+          1.902,
+          2.065,
+          1.97
+        ],
+        "median_seconds": 1.97,
+        "wallet_field_present": true
+      }
+    }
+  },
+  "storage_retirement": {
+    "obsolete_image_nodes_removed": 67,
+    "public_tagged_ancestor_recovery": "A nonselected tagged native-base ancestor was included through ancestry. Both recorded old remote digests now return manifest unknown, so exact restoration is not proven. The preflight is corrected to protect every nonselected tagged ancestor independently; a fresh build must pull its declared current base.",
+    "active_container_images_preserved": 5,
+    "no_force_or_blanket_prune": true,
+    "writable_headroom_gib_at_retirement": 74.963,
+    "scope": "old MoOS audit/UI ancestry and two public raw caches; SDKs, volumes, signed archives and host deployments preserved",
+    "metadata_and_remote_input_readback": "private preflight, exact immutable manifests, complete ancestry and per-removal exit receipts retained",
+    "retirement_exception": {
+      "id": "8355850e0ee75bb104d9367ef5ed1b76405a568d4a426fc412b67d375862107c",
+      "tag": "quay.io/fedora/fedora-bootc:44",
+      "old_remote_digests_unavailable": true,
+      "exact_restore_not_proven": true,
+      "preflight_corrected_to_protect_tagged_ancestors": true,
+      "scope": "old raw public base cache; active SDK/container images, owner data and signed deployments are retained"
+    }
+  },
+  "pr": 280,
+  "frozen_c2f8_qualification": {
+    "revision": "c2f8e252d08569c45d357080dc22a44f10972ce7",
+    "full_check": {
+      "source": "c2f8e252d08569c45d357080dc22a44f10972ce7",
+      "tree": "ea2ed798f0cc5b749c81f8186ec1de5018d884fb",
+      "source_unchanged": true,
+      "exit": 1,
+      "seconds": 891.552,
+      "log_sha256": "196c05c4a05a375dd0c0dd35aad6be9add83fa23b67bcb707247b858eaa26f7c"
+    },
+    "local_image": {
+      "source": "c2f8e252d08569c45d357080dc22a44f10972ce7",
+      "tree": "ea2ed798f0cc5b749c81f8186ec1de5018d884fb",
+      "tag": "localhost/moos-system-completion:c2f8e252d085",
+      "source_unchanged": true,
+      "exit": 1,
+      "seconds": 7298.087,
+      "log_sha256": "156668c7fd536d5afe9da6386b3d28171eb9c55c986ab077981419072059f714"
+    },
+    "pr_repo_gates": {
+      "run": 42464085083,
+      "result": "success"
+    },
+    "pr_images": {
+      "arm": {
+        "run": 42464085115,
+        "result": "failure",
+        "cause": "Kawkab release download HTTP504"
+      },
+      "x86": {
+        "run": 42464085145,
+        "result": "failure",
+        "cause": "same exact Kawkab release download HTTP504"
+      }
+    },
+    "local_image_refusal": "upstream media_kit_libs_linux mimalloc MD5 refusal after its unchecked CMake transfer; all258 Flutter tests had passed",
+    "source_check_refusal": "native launcher did not finish within25seconds during concurrent image composition; the truncated harness diagnostic did not preserve an exact cause",
+    "contrary_controls": {
+      "unchanged_native_suite": {
+        "exit": 0,
+        "seconds": 56.5,
+        "cases": 4,
+        "broken_controls_preserved": true
+      },
+      "unchanged_private_cpu_quota25_percent": {
+        "exit": 0,
+        "cases": 4,
+        "scope": "does not establish CPU contention as the cause of the earlier failure"
+      }
+    }
+  },
+  "native_fetch_repair": {
+    "kawkab": {
+      "original_direct_probe": "timeout28; original CI HTTP504 refusals retained",
+      "official_asset_id": 1214878,
+      "official_api_url": "https://api.github.com/repos/aiaf/kawkab-mono/releases/assets/1214878",
+      "anonymous_download_exit": 0,
+      "bytes": 1828369,
+      "sha256": "11c06f57dddefaf0166d74caaa072865ab6ff8d34076e7ec5d2c20edda145666",
+      "pin_unchanged": true
+    },
+    "mimalloc": {
+      "direct_and_codeload_bytes_identical": true,
+      "bytes": 1163868,
+      "sha256": "2b1bff6f717f9725c70bf8d79e4786da13de8a270059e4ba0bdd262ae7be46eb",
+      "upstream_md5_unchanged": "5179c8f5cf1237d2300e2d8559a7bc55",
+      "repair": "project CMake preflights a bounded completed SHA256-verified transfer before unchanged plugin inclusion; no dependency source/cache patch or allocator change"
+    },
+    "native_tests": {
+      "exit": 0,
+      "tests": 6,
+      "seconds": 6.542,
+      "controls": [
+        "HTTP503",
+        "partial transfer",
+        "corrupt200",
+        "same-byte fallback",
+        "all locations refused with prior bytes retained",
+        "valid input without network",
+        "symlink/interrupted download refusal"
+      ]
+    },
+    "final_source_image_and_signed_delivery": "pending; do not rerun prior CI attempts"
+  },
+  "frozen_0fb_qualification": {
+    "revision": "0fb5efd675387308f3b474997a080533e39e5f2e",
+    "full_check": {
+      "source": "0fb5efd675387308f3b474997a080533e39e5f2e",
+      "tree": "1ffb9013afe5702ef2afca143611dd451bb64306",
+      "source_unchanged": true,
+      "exit": 0,
+      "seconds": 1460.949,
+      "log_sha256": "1e96b6b26362f0712a617aa36da892f3b52ea02b5446ae7ca7702e44b41b42d7"
+    },
+    "pr_repo": {
+      "run": 42477695938,
+      "result": "success"
+    },
+    "pr_arm": {
+      "run": 42477695798,
+      "result": "success",
+      "wallet_executed_marker": true,
+      "disk_and_promotion": "skipped on PR; not boot/delivery proof"
+    },
+    "pr_x86": {
+      "run": 42477695841,
+      "result": "success",
+      "wallet_executed_marker": true
+    },
+    "local_native_image": "still running on fixed0fb; new eb731ef939f9994eaccae0e3cbdfbfca992e7f7bbea98ef55265cb486090fd0f base; no merge or new signed cycle"
+  },
+  "office_acceptance": {
+    "app": "org.libreoffice.LibreOffice",
+    "version": "26.8.2.2",
+    "architecture": "aarch64",
+    "store_install": {
+      "command": [
+        "/usr/bin/moos-storectl",
+        "install",
+        "org.libreoffice.LibreOffice"
+      ],
+      "exit": 0,
+      "seconds": 115.387,
+      "log_sha256": "caa924cadd881e06b4ebeadae944fbe6b0efb3293f3378bd0f25a62d3ae8103b"
+    },
+    "runtime": "org.freedesktop.Platform/aarch64/25.08",
+    "functional": {
+      "exit": 0,
+      "scope": "native UNO editing and private task documents/profile after initial dialogs; not physical typing/touch or endurance",
+      "writer_odt_docx_text_equal": true,
+      "calc_rows": 5000,
+      "formulas": 5001,
+      "ods_and_xlsx_total": 37507500,
+      "ods_and_xlsx_error": 0,
+      "normal_close": true
+    },
+    "canonical_reopen": {
+      "writer_exit": 0,
+      "writer_native_pid": 1318104,
+      "calc_exit": 0,
+      "rtl_and_value_readback": true,
+      "native_focus_and_active_window_verified": true,
+      "both_actual_images_visually_reviewed": true
+    },
+    "contrary_controls": [
+      "initial welcome in English despite Arabic menus; close-veto retained",
+      "next startup Tip dialog and programmatic XWindow/UNO flow became unresponsive; no exact cause established; SDK ptrace refused, security policy retained",
+      "only verified task-profile process received SIGTERM; no SIGKILL; saved task document hashes unchanged",
+      "initial Calc screenshot caught the editor behind the app and is not visual acceptance; corrected native focus/active-window captures pass",
+      "unavailable font-family name in the first fixture used DejaVu; canonical Meyar Arabic selection then proved actual embedding",
+      "configured-only functional acceptance does not erase ordinary first-run/API-hang limitations"
+    ],
+    "transaction_warning": "G_VALUE_HOLDS_FLAGS assertion warning retained in the real Store transaction log; install exit0 and native app journeys pass, warning cause not diagnosed"
+  },
+  "meyar_reverse_pairing": {
+    "status": "isolated source follow-up; original image-build worktree fixed at0fb",
+    "owner": "existing moos_flatpak_fonts.py; no font binary redesign, generic defaults, new wrappers or permission changes",
+    "native_old_fixed": {
+      "scope": "actual installed LibreOffice headless PDF producer; private FONTCONFIG_FILE only; no owner font/config/permissions changed",
+      "input_sha256": "254d21d7236c22cd634b0ad4cbe869869bc73100cf541a6ea6ea563cce1bc509",
+      "cases": [
+        {
+          "case": "old",
+          "exit": 0,
+          "seconds": 6.09,
+          "pdf_sha256": "abd8a2b4ec9e669956029a9cd40ab7b71ca1060b9ec7236ebdce66bfaa93204d",
+          "families": [
+            "BAAAAA+MeyarArabic",
+            "CAAAAA+MeyarSans",
+            "DAAAAA+DejaVuSans"
+          ],
+          "dejavu_codepoints": {
+            "U+2014": 361
+          }
+        },
+        {
+          "case": "reverse",
+          "exit": 0,
+          "seconds": 2.909,
+          "pdf_sha256": "1f85591330eaddaa42f58dbeebe24f7f1bbd82bc564cfa23186968ee1535eaef",
+          "families": [
+            "BAAAAA+MeyarArabic",
+            "CAAAAA+MeyarSans",
+            "DAAAAA+MeyarSans"
+          ],
+          "dejavu_codepoints": {}
+        }
+      ]
+    },
+    "repair": "add named Arabic-to-LGC defaults in both family pairs; policy3 rekeys the existing cache namespace; exact delivered policy2 and prototype1 remain narrowly recognized for transactional recovery",
+    "unit_tests": {
+      "tests": 16,
+      "minimal_python_exit": 0,
+      "host_python_exit": 0
+    },
+    "four_runtime_native_and_final_image_qualification": "Both1→3 and delivered2→3 native four-runtime controls pass; final combined full source/image/CI and exact signed delivery remain pending.",
+    "source_generated_pdf": {
+      "source": "e2c7ae53d26f3fe977eff0339d124b4506ca2fe8",
+      "module_sha256": "6134830add04735a14cd601e9e2ebba315d3131388c81b7c140d211cb1c3ab9a",
+      "owner_config_unchanged": true,
+      "scope": "actual installed LibreOffice headless PDF producer; private FONTCONFIG_FILE only; no owner font/config/permissions changed",
+      "input_sha256": "254d21d7236c22cd634b0ad4cbe869869bc73100cf541a6ea6ea563cce1bc509",
+      "cases": [
+        {
+          "case": "source-v2",
+          "exit": 0,
+          "seconds": 6.05,
+          "pdf_sha256": "db52af9fac250220b83672af07034d6f878fa76f257b2501f3e81240c905bf9b",
+          "families": [
+            "BAAAAA+MeyarArabic",
+            "CAAAAA+MeyarSans",
+            "DAAAAA+DejaVuSans"
+          ],
+          "dejavu_codepoints": {
+            "U+2014": 361
+          }
+        },
+        {
+          "case": "source-v3",
+          "exit": 0,
+          "seconds": 3.786,
+          "pdf_sha256": "34481d25fdadac6f2f138dee5dcb42a4a7a662d9fcda56a04f7fd3dfa75dcca1",
+          "families": [
+            "BAAAAA+MeyarArabic",
+            "CAAAAA+MeyarSans",
+            "DAAAAA+MeyarSans"
+          ],
+          "dejavu_codepoints": {}
+        },
+        {
+          "case": "broken-reverse",
+          "exit": 0,
+          "seconds": 3.902,
+          "pdf_sha256": "f44090ed52d404f1dcdd5e270d860a9d8ccc7e1fdb8d6f585412b3be884258bb",
+          "families": [
+            "BAAAAA+MeyarArabic",
+            "CAAAAA+MeyarSans",
+            "DAAAAA+DejaVuSans"
+          ],
+          "dejavu_codepoints": {
+            "U+2014": 361
+          }
+        }
+      ]
+    },
+    "native_runtime_controls": [
+      {
+        "source": "e2c7ae53d26f3fe977eff0339d124b4506ca2fe8",
+        "prior_revision": 2,
+        "queries": 57,
+        "pass": true,
+        "rows": [
+          {
+            "app": "com.google.Chrome",
+            "runtime": "org.freedesktop.Platform/aarch64/25.08",
+            "changed": [
+              "Meyar Arabic:charset=0041",
+              "Meyar Arabic:charset=2014",
+              "Meyar Mono Arabic:charset=00b2",
+              "Meyar Mono Arabic:charset=00b5"
+            ],
+            "personal_config_preserved": true,
+            "actual_config_unchanged": true
+          },
+          {
+            "app": "com.github.huluti.Curtail",
+            "runtime": "org.gnome.Platform/aarch64/51",
+            "changed": [
+              "Meyar Arabic:charset=0041",
+              "Meyar Arabic:charset=2014",
+              "Meyar Mono Arabic:charset=00b2",
+              "Meyar Mono Arabic:charset=00b5"
+            ],
+            "personal_config_preserved": true,
+            "actual_config_unchanged": true
+          },
+          {
+            "app": "org.videolan.VLC",
+            "runtime": "org.kde.Platform/aarch64/5.15-25.08",
+            "changed": [
+              "Meyar Arabic:charset=0041",
+              "Meyar Arabic:charset=2014",
+              "Meyar Mono Arabic:charset=00b2",
+              "Meyar Mono Arabic:charset=00b5"
+            ],
+            "personal_config_preserved": true,
+            "actual_config_unchanged": true
+          },
+          {
+            "app": "org.gnome.Ptyxis",
+            "runtime": "org.fedoraproject.Platform/aarch64/f45",
+            "changed": [
+              "Meyar Arabic:charset=0041",
+              "Meyar Arabic:charset=2014",
+              "Meyar Mono Arabic:charset=00b2",
+              "Meyar Mono Arabic:charset=00b5"
+            ],
+            "personal_config_preserved": true,
+            "actual_config_unchanged": true
+          }
+        ]
+      },
+      {
+        "source": "e2c7ae53d26f3fe977eff0339d124b4506ca2fe8",
+        "prior_revision": 1,
+        "queries": 57,
+        "pass": true,
+        "rows": [
+          {
+            "app": "com.google.Chrome",
+            "runtime": "org.freedesktop.Platform/aarch64/25.08",
+            "changed": [
+              "Meyar Sans:charset=0627",
+              "Meyar Mono:charset=0627",
+              "Meyar Sans:charset=0651",
+              "Meyar Mono:charset=0651",
+              "Meyar Sans:charset=067e",
+              "Meyar Mono:charset=067e",
+              "Meyar Sans:charset=06cc",
+              "Meyar Mono:charset=06cc",
+              "Meyar Sans:charset=0627:weight=200",
+              "Meyar Mono:charset=0627:weight=200",
+              "Inter,Meyar Sans:charset=0627",
+              "Meyar Arabic:charset=0041",
+              "Meyar Arabic:charset=2014",
+              "Meyar Mono Arabic:charset=00b2",
+              "Meyar Mono Arabic:charset=00b5"
+            ],
+            "personal_config_preserved": true,
+            "actual_config_unchanged": true
+          },
+          {
+            "app": "com.github.huluti.Curtail",
+            "runtime": "org.gnome.Platform/aarch64/51",
+            "changed": [
+              "Meyar Sans:charset=0627",
+              "Meyar Mono:charset=0627",
+              "Meyar Sans:charset=0651",
+              "Meyar Mono:charset=0651",
+              "Meyar Sans:charset=067e",
+              "Meyar Mono:charset=067e",
+              "Meyar Sans:charset=06cc",
+              "Meyar Mono:charset=06cc",
+              "Meyar Sans:charset=0627:weight=200",
+              "Meyar Mono:charset=0627:weight=200",
+              "Inter,Meyar Sans:charset=0627",
+              "Meyar Arabic:charset=0041",
+              "Meyar Arabic:charset=2014",
+              "Meyar Mono Arabic:charset=00b2",
+              "Meyar Mono Arabic:charset=00b5"
+            ],
+            "personal_config_preserved": true,
+            "actual_config_unchanged": true
+          },
+          {
+            "app": "org.videolan.VLC",
+            "runtime": "org.kde.Platform/aarch64/5.15-25.08",
+            "changed": [
+              "Meyar Sans:charset=0627",
+              "Meyar Mono:charset=0627",
+              "Meyar Sans:charset=0651",
+              "Meyar Mono:charset=0651",
+              "Meyar Sans:charset=067e",
+              "Meyar Mono:charset=067e",
+              "Meyar Sans:charset=06cc",
+              "Meyar Mono:charset=06cc",
+              "Meyar Sans:charset=0627:weight=200",
+              "Meyar Mono:charset=0627:weight=200",
+              "Inter,Meyar Sans:charset=0627",
+              "Meyar Arabic:charset=0041",
+              "Meyar Arabic:charset=2014",
+              "Meyar Mono Arabic:charset=00b2",
+              "Meyar Mono Arabic:charset=00b5"
+            ],
+            "personal_config_preserved": true,
+            "actual_config_unchanged": true
+          },
+          {
+            "app": "org.gnome.Ptyxis",
+            "runtime": "org.fedoraproject.Platform/aarch64/f45",
+            "changed": [
+              "Meyar Sans:charset=0627",
+              "Meyar Mono:charset=0627",
+              "Meyar Sans:charset=0651",
+              "Meyar Mono:charset=0651",
+              "Meyar Sans:charset=067e",
+              "Meyar Mono:charset=067e",
+              "Meyar Sans:charset=06cc",
+              "Meyar Mono:charset=06cc",
+              "Meyar Sans:charset=0627:weight=200",
+              "Meyar Mono:charset=0627:weight=200",
+              "Inter,Meyar Sans:charset=0627",
+              "Meyar Arabic:charset=0041",
+              "Meyar Arabic:charset=2014",
+              "Meyar Mono Arabic:charset=00b2",
+              "Meyar Mono Arabic:charset=00b5"
+            ],
+            "personal_config_preserved": true,
+            "actual_config_unchanged": true
+          }
+        ]
+      }
+    ]
+  }
+}

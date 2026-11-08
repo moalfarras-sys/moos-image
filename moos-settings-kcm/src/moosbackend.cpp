@@ -109,6 +109,12 @@ constexpr Field StatusShape[] = {
     {"audio", "available", QJsonValue::Bool},
     {"audio", "volume", QJsonValue::Double},
     {"audio", "muted", QJsonValue::Bool},
+    {"wallet", "known", QJsonValue::Bool},
+    {"wallet", "available", QJsonValue::Bool},
+    {"wallet", "enabled", QJsonValue::Bool},
+    {"wallet", "active", QJsonValue::Bool},
+    {"wallet", "ready", QJsonValue::Bool},
+    {"wallet", "choice", QJsonValue::String},
     {"battery", "available", QJsonValue::Bool},
     {"battery", "percent", QJsonValue::Double},
     {"battery", "state", QJsonValue::String},
@@ -137,6 +143,8 @@ constexpr Verb FixedVerbs[] = {
     {"audio-volume", ControlTool, {"volume", nullptr}, Argument::Volume, true},
     {"audio-mute", ControlTool, {"mute", nullptr}, Argument::None, true},
     {"audio-unmute", ControlTool, {"unmute", nullptr}, Argument::None, true},
+    {"wallet-on", ControlTool, {"wallet", "on"}, Argument::None, true},
+    {"wallet-off", ControlTool, {"wallet", "off"}, Argument::None, true},
     {"theme-status", ThemeTool, {nullptr, nullptr}, Argument::None, false},
     {"theme-motion-status", ThemeTool, {"motion", nullptr}, Argument::None, false},
     {"theme-clarity-status", ThemeTool, {"clarity", nullptr}, Argument::None, false},
@@ -415,7 +423,7 @@ void MoOSSettingsModule::watchSources()
     const QString remoteLink = QDir(configDirectory()).filePath(QString::fromLatin1(RemoteEnableLink));
     const QString wants = QFileInfo(remoteLink).path();
     const QString userUnits = QFileInfo(wants).path();
-    for (const QString &directory : {QStringLiteral("/run/moos"), stateDirectory(), QFileInfo(userUnits).path(),
+    for (const QString &directory : {QStringLiteral("/run/moos"), stateDirectory(), configDirectory(), QFileInfo(userUnits).path(),
                                      userUnits, wants}) {
         if (QFileInfo(directory).isDir() && !m_watcher.directories().contains(directory))
             m_watcher.addPath(directory);
@@ -424,6 +432,7 @@ void MoOSSettingsModule::watchSources()
                                   QDir(stateDirectory()).filePath(QStringLiteral("app-updates.json")),
                                   QDir(stateDirectory()).filePath(QStringLiteral("firmware-updates.json")),
                                   QDir(stateDirectory()).filePath(QStringLiteral("fast-remote.on")),
+                                  QDir(configDirectory()).filePath(QStringLiteral("kwalletrc")),
                                   remoteLink}) {
         if (!m_sourceModified.contains(source))
             m_sourceModified.insert(source, modified(source));

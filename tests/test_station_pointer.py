@@ -21,6 +21,7 @@ back.
 from __future__ import annotations
 
 import ast
+import traceback
 import importlib.util
 from pathlib import Path
 import subprocess
@@ -34,9 +35,16 @@ TOOL = ROOT / "scripts/station/pointer.py"
 spec = importlib.util.spec_from_file_location("station_pointer", TOOL)
 pointer_tool = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(pointer_tool)
+ACTUAL_BRIDGE = pointer_tool.bridge_available
 
 
 class ClipboardSafety(unittest.TestCase):
+    def setUp(self):
+        dependency = patch.object(pointer_tool.shutil, "which", return_value="/usr/bin/wl-copy")
+        dependency.start(); self.addCleanup(dependency.stop)
+        bridge = patch.object(pointer_tool,"bridge_available",return_value=True)
+        bridge.start(); self.addCleanup(bridge.stop)
+
     def test_plain_text_is_read_without_trimming(self):
         text = "  MOOS-CURSOR 1,2\nالعربية\n\n"
         replies = [subprocess.CompletedProcess([], 0, "text/plain\n"),
@@ -69,36 +77,74 @@ class ClipboardSafety(unittest.TestCase):
         for text in ("MOOS-CURSOR 1,2", "  original\n\n", ""):
             with self.subTest(text=text), patch.object(
                     pointer_tool, "save_clipboard", return_value=text), patch.object(
-                    pointer_tool, "qdbus") as bus:
+                    pointer_tool, "qdbus", return_value="true") as bus, patch.object(pointer_tool, "run") as command, patch.object(pointer_tool,"clipboard_text",return_value=text):
                 pointer = pointer_tool.Pointer()
                 directory = Path(pointer._workspace)
                 pointer.restore()
                 if text:
-                    bus.assert_any_call(*pointer_tool.KLIPPER[:2],
-                                        f"{pointer_tool.KLIPPER[2]}.setClipboardContents", text)
+                    command.assert_called_once_with(["wl-copy", "--type", "text/plain;charset=utf-8"], input_text=text)
                 else:
-                    bus.assert_any_call(*pointer_tool.KLIPPER[:2],
-                                        f"{pointer_tool.KLIPPER[2]}.clearClipboardContents")
+                    command.assert_called_once_with(["wl-copy", "--clear"])
                 self.assertFalse(directory.exists())
 
     def test_action_failure_still_restores(self):
         with patch.object(pointer_tool, "save_clipboard", return_value="original"), \
-                patch.object(pointer_tool, "qdbus") as bus, \
+                patch.object(pointer_tool, "qdbus", return_value="true") as bus, \
+                patch.object(pointer_tool, "run") as command, \
+                patch.object(pointer_tool,"clipboard_text",return_value="original"), \
                 patch.object(pointer_tool.Pointer, "where", side_effect=RuntimeError("probe")), \
                 patch.object(pointer_tool.sys, "argv", [str(TOOL), "where"]):
             with self.assertRaisesRegex(RuntimeError, "probe"):
                 pointer_tool.main()
-            bus.assert_any_call(*pointer_tool.KLIPPER[:2],
-                                f"{pointer_tool.KLIPPER[2]}.setClipboardContents", "original")
+            command.assert_called_once_with(["wl-copy", "--type", "text/plain;charset=utf-8"], input_text="original")
 
     def test_failed_restore_reports_failure_and_removes_fixture(self):
-        with patch.object(pointer_tool, "save_clipboard", return_value="original"):
+        with patch.object(pointer_tool, "save_clipboard", return_value="original"), patch.object(pointer_tool, "qdbus", return_value="true"):
             pointer = pointer_tool.Pointer()
-        directory = Path(pointer._workspace)
-        with patch.object(pointer_tool, "qdbus", side_effect=[RuntimeError("restore"), ""]):
-            with self.assertRaisesRegex(RuntimeError, "restore"):
-                pointer.restore()
-        self.assertFalse(directory.exists())
+            directory = Path(pointer._workspace)
+            with patch.object(pointer_tool, "run", side_effect=SystemExit("restore refused")):
+                with self.assertRaisesRegex(SystemExit, "private recovery retained"):
+                    pointer.restore()
+            self.assertTrue(directory.exists())
+            self.assertEqual(Path(pointer._backup).read_text(),"original")
+            self.assertEqual(Path(pointer._backup).stat().st_mode & 0o777,0o600)
+            pointer_tool.shutil.rmtree(directory)
+
+    def test_missing_bridge_refuses_before_a_probe_or_input(self):
+        with patch.object(pointer_tool,"save_clipboard",return_value="original"), patch.object(pointer_tool,"bridge_available",return_value=False), patch.object(pointer_tool.tempfile,"mkdtemp") as temp, patch.object(pointer_tool,"run") as command:
+            with self.assertRaisesRegex(SystemExit,"bridge is unavailable"):pointer_tool.Pointer()
+            temp.assert_not_called();command.assert_not_called()
+
+    def test_owned_name_without_an_actual_bridge_is_not_accepted(self):
+        with patch.object(pointer_tool,"run",side_effect=['{"type":"b","data":[true]}',SystemExit("missing object")]):
+            self.assertFalse(ACTUAL_BRIDGE())
+        with patch.object(pointer_tool,"run",return_value='{"type":"b","data":[1]}') as run:
+            self.assertFalse(ACTUAL_BRIDGE())
+            self.assertEqual(run.call_count,1)
+
+    def test_typed_clipboard_response_preserves_all_whitespace(self):
+        import json
+        text="  original\n\n"
+        with patch.object(pointer_tool,"run",return_value=json.dumps({"type":"s","data":[text]})):
+            self.assertEqual(pointer_tool.clipboard_text(),text)
+
+    def test_failed_commands_never_print_private_argv_or_stdin(self):
+        sentinel="PRIVATE-CLIPBOARD-SENTINEL"
+        for error in (subprocess.CalledProcessError(1,["qdbus",sentinel]),subprocess.TimeoutExpired(["qdbus",sentinel],5),OSError(sentinel)):
+            with self.subTest(error=type(error).__name__), patch.object(pointer_tool.subprocess,"run",side_effect=error):
+                try:pointer_tool.run(["wl-copy","--type","text/plain;charset=utf-8"],input_text=sentinel)
+                except SystemExit:
+                    self.assertNotIn(sentinel,traceback.format_exc())
+                else:self.fail("failed native command was accepted")
+
+    def test_stale_or_malformed_clipboard_reply_cannot_supply_coordinates(self):
+        with tempfile.TemporaryDirectory(prefix="moos-pointer-reply-") as tmp:
+            pointer=pointer_tool.Pointer.__new__(pointer_tool.Pointer)
+            pointer._script=str(Path(tmp)/"probe.js")
+            replies=iter(["MOOS-CURSOR 1,2","MOOS-CURSOR abcd malformed,private","MOOS-CURSOR abcd 4,5"])
+            with patch.object(pointer_tool,"qdbus",return_value=""), patch.object(pointer_tool,"clipboard_text",side_effect=lambda:next(replies)), patch.object(pointer_tool.secrets,"token_hex",return_value="abcd"), patch.object(pointer_tool.time,"sleep"):
+                self.assertEqual(pointer.where(),(4,5))
+            self.assertIn("MOOS-CURSOR abcd",Path(pointer._script).read_text())
 
 
 class StationPointer(unittest.TestCase):
@@ -173,7 +219,8 @@ class StationPointer(unittest.TestCase):
 
     def test_the_owners_clipboard_is_put_back(self):
         restore = ast.unparse(self.method("restore"))
-        self.assertIn("setClipboardContents", restore)
+        self.assertIn("wl-copy", restore)
+        self.assertIn("input_text", restore)
         self.assertIn("unloadScript", restore, "the probe script is removed from KWin too")
         main = ast.unparse(self.method("main"))
         self.assertIn("finally", main, "restore even when a step fails")

@@ -82,8 +82,10 @@ class FlatpakFonts(unittest.TestCase):
                     match.find('edit').attrib, match.findtext('edit/int'))
         self.assertEqual([fields(m) for m in scans], [fields(m) for m in installed])
         aliases = fragment.findall('alias')
-        self.assertEqual(len(aliases), 2)
-        for alias, primary, fallback in zip(aliases, ('Meyar Sans', 'Meyar Mono'), ('Meyar Arabic', 'Meyar Mono Arabic')):
+        self.assertEqual(len(aliases), 4)
+        pairs = [('Meyar Sans', 'Meyar Arabic'), ('Meyar Mono', 'Meyar Mono Arabic'),
+                 ('Meyar Arabic', 'Meyar Sans'), ('Meyar Mono Arabic', 'Meyar Mono')]
+        for alias, (primary, fallback) in zip(aliases, pairs):
             self.assertEqual(alias.attrib, {'binding': 'strong'})
             self.assertEqual(alias.findtext('family'), primary)
             self.assertEqual(alias.findtext('default/family'), fallback)
@@ -102,6 +104,23 @@ class FlatpakFonts(unittest.TestCase):
             changed = policy.fragment('a' * 64, RT, 'c' * 64)
             self.assertNotEqual(self.a.split(b'salt="')[1].split(b'"')[0], changed.split(b'salt="')[1].split(b'"')[0])
         self.assertFalse(policy.owned(changed))
+
+    def test_exact_delivered_v2_upgrade_recovery_and_unknown_revisions(self):
+        previous = policy._render_fragment('a' * 64, [(RT, 'c' * 64)], 2)
+        self.assertTrue(policy.owned(previous))
+        self.assertNotEqual(previous.split(b'salt="')[1].split(b'"')[0], self.a.split(b'salt="')[1].split(b'"')[0])
+        self.install(previous)
+        self.assertTrue(self.install())
+        self.assertEqual(self.path.read_bytes(), self.a)
+        self.assertEqual([p.read_bytes() for p in (self.conf / '.moos-host-font-cache-recovery').iterdir()], [previous])
+        self.assertFalse(self.install())
+        for body in (previous.replace(b'Meyar Arabic</family>', b'DejaVu Sans</family>'),
+                     previous.replace(b'<int>100</int>', b'<int>90</int>'),
+                     self.a.replace(b'Meyar Sans</family></default>', b'Noto Sans</family></default>')):
+            self.assertFalse(policy.owned(body))
+        for revision in (0, 4, '3', True):
+            with self.subTest(revision=revision), self.assertRaises(ValueError):
+                policy._render_fragment('a' * 64, [(RT, 'c' * 64)], revision)
 
     def test_new_update_idempotence_rollback_and_unique_recovery(self):
         self.assertTrue(self.install())

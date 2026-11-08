@@ -193,6 +193,7 @@ USAGE = """moos-control — تحكّم فوري بالجهاز | instant control
   moos-control status
   moos-control volume <0-100|up|down>
   moos-control mute | unmute
+  moos-control wallet <on|off|status>
   moos-control brightness <5-100|up|down>
   moos-control night-light <on|off|auto>
   moos-control wifi <on|off>
@@ -1325,12 +1326,28 @@ def status():
     return json.dumps(state, ensure_ascii=False)
 
 
+def wallet(value):
+    if value not in ("on", "off", "status"):
+        raise Invalid("wallet expects on, off or status")
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "lib/moos"))
+    try:
+        import moos_wallet
+        try:
+            measured = moos_wallet.state() if value == "status" else moos_wallet.change(value)
+        except moos_wallet.WalletError as error:
+            raise Unavailable(str(error)) from error
+    finally:
+        sys.path.pop(0)
+    return json.dumps(measured, ensure_ascii=False)
+
+
 # Verbs that only read: nothing to audit.
 READ_ONLY_VERBS = ("status", "windows")
 # Verbs whose arguments are the owner's own words or places.
 PRIVATE_ARGUMENTS = ("remind", "reminders", "open-url", "window-do", "window-move")
 
 ACTIONS = {
+    "wallet": (1, wallet),
     "volume": (1, volume),
     "brightness": (1, brightness),
     "night-light": (1, night_light),
@@ -1391,7 +1408,7 @@ def main(argv):
     if argv[0] in PRIVATE_ARGUMENTS:
         # A reminder's words, a page's address and a window's title stay out of the journal.
         audit(argv[0])
-    elif argv[0] not in READ_ONLY_VERBS:
+    elif argv[0] not in READ_ONLY_VERBS and argv != ["wallet", "status"]:
         audit(" ".join(argv))
     print(message)
     return 0

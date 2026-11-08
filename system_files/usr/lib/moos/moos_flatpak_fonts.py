@@ -28,7 +28,7 @@ PREFIX = (b'<?xml version="1.0"?>\n'
           b'<!-- delivery=')
 MIDDLE = b' -->\n<fontconfig>\n  <remap-dir as-path="/usr/share/fonts" salt="moos-host-v1-'
 SUFFIX = b'">/run/host/fonts</remap-dir>\n</fontconfig>\n'
-SCAN_RULES = b'''  <match target="scan">
+SCAN_RULES_V2 = b'''  <match target="scan">
     <test name="family" compare="eq"><string>Meyar Mono</string></test>
     <edit name="spacing" mode="assign"><int>100</int></edit>
   </match>
@@ -37,10 +37,16 @@ SCAN_RULES = b'''  <match target="scan">
     <edit name="spacing" mode="assign"><int>100</int></edit>
   </match>
 '''
-PAIRING_RULES = b'''  <alias binding="strong"><family>Meyar Sans</family><default><family>Meyar Arabic</family></default></alias>
+SCAN_RULES = SCAN_RULES_V2
+PAIRING_RULES_V2 = b'''  <alias binding="strong"><family>Meyar Sans</family><default><family>Meyar Arabic</family></default></alias>
   <alias binding="strong"><family>Meyar Mono</family><default><family>Meyar Mono Arabic</family></default></alias>
 '''
-POLICY_REVISION = 2
+# Arabic faces also need their Latin partner for punctuation and Latin cells.
+# These defaults apply only to named Meyar families, after explicit choices.
+PAIRING_RULES = PAIRING_RULES_V2 + b'''  <alias binding="strong"><family>Meyar Arabic</family><default><family>Meyar Sans</family></default></alias>
+  <alias binding="strong"><family>Meyar Mono Arabic</family><default><family>Meyar Mono</family></default></alias>
+'''
+POLICY_REVISION = 3
 LOCK = b"MoOS host-font discovery lock v1\n"
 HEX = re.compile(r"[0-9a-f]{64}\Z")
 APP = re.compile(r"[A-Za-z0-9_-]+(?:\.[A-Za-z0-9_-]+){2,}\Z")
@@ -93,19 +99,27 @@ def runtime_fragment(deployment: str, runtimes: list[tuple[str, str]]) -> bytes:
 
 
 def _render_fragment(deployment: str, runtimes: list[tuple[str, str]], revision: int) -> bytes:
+    if type(revision) is not int:
+        raise ValueError("Unknown font discovery policy revision")
     if (not HEX.fullmatch(deployment) or not 1 <= len(runtimes) <= 32 or any(
             not RUNTIME.fullmatch(runtime) or not HEX.fullmatch(commit) for runtime, commit in runtimes)):
         raise ValueError("Invalid host-font delivery generation")
     delivery = [deployment, sorted(set(runtimes))]
+    rules = None
     if revision == POLICY_REVISION:
-        # A new scan policy cannot reuse the old dual-width cached metadata.
-        # Include both revision and exact rule bytes, even for a same OS/runtime.
-        delivery = [POLICY_REVISION, hashlib.sha256(SCAN_RULES + PAIRING_RULES).hexdigest(), *delivery]
+        rules = SCAN_RULES + PAIRING_RULES
+    elif revision == 2:
+        # Retain the exact delivered predecessor for transactional recovery.
+        rules = SCAN_RULES_V2 + PAIRING_RULES_V2
     elif revision != 1:
         raise ValueError("Unknown font discovery policy revision")
+    if rules is not None:
+        # A new scan policy cannot reuse the old dual-width cached metadata.
+        # Include both revision and exact rule bytes, even for a same OS/runtime.
+        delivery = [revision, hashlib.sha256(rules).hexdigest(), *delivery]
     encoded = json.dumps(delivery, separators=(',', ':')).encode()
     generation = hashlib.sha256(encoded).hexdigest()
-    suffix = SUFFIX if revision == 1 else SUFFIX.replace(b'</fontconfig>', SCAN_RULES + PAIRING_RULES + b'</fontconfig>')
+    suffix = SUFFIX if rules is None else SUFFIX.replace(b'</fontconfig>', rules + b'</fontconfig>')
     data = PREFIX + encoded.hex().encode() + MIDDLE + generation.encode() + suffix
     if len(data) > MAX_FILE:
         raise ValueError("Font delivery generation exceeds its bound")
@@ -125,8 +139,10 @@ def owned(data: bytes) -> bool:
             # bounded old/fixed upgrade/recovery evidence, not arbitrary XML.
             revision = 1
             deployment, runtimes = delivery
-        elif len(delivery) == 4 and delivery[:2] == [POLICY_REVISION, hashlib.sha256(SCAN_RULES + PAIRING_RULES).hexdigest()]:
-            revision = POLICY_REVISION
+        elif len(delivery) == 4 and delivery[:2] in (
+                [2, hashlib.sha256(SCAN_RULES_V2 + PAIRING_RULES_V2).hexdigest()],
+                [POLICY_REVISION, hashlib.sha256(SCAN_RULES + PAIRING_RULES).hexdigest()]):
+            revision = delivery[0]
             deployment, runtimes = delivery[2:]
         else:
             return False

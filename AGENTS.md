@@ -327,7 +327,25 @@ tried again; a past cloud answer never changes that executor policy. Keep the
 old actual-owner refusal, strict status shapes and existing setup destination.
 Source/native review pixels do not establish inference or signed delivery.
 
+**A bus name is not an active clipboard object.** Station pointer review must
+verify its actual interface before touching the clipboard, correlate fresh
+cursor replies and preserve plain text in a private0600 recovery file. Never
+put clipboard text in exception argv or treat an unconfirmed restore as success.
+A failed restore keeps its recovery file. Preserve the native missing-object
+refusal and the earlier clipboard incident; an unavailable bridge is no input
+acceptance. Cache retirement must also protect every nonselected tagged
+ancestor independently, not just nodes outside a selected ancestry. Preserve
+the retired native-base digest exception; do not call a new tag the old input.
+
 ## Where the rest of the knowledge is
+
+**A wallet switch must control both native providers.** User Settings explicitly
+owns opt-in/out through `moos-control`; fresh profiles remain off and PAM stays
+separate. Persist and lock unlocked collections before terminating only pinned,
+same-user KDE providers, and wait for their actual exit. Keep encrypted files,
+unknown providers and concurrent preference edits intact. Preserve real private
+on/off, failed activation/save, malformed status and migration controls. A
+source KCM preview with scoped helper mounts is not signed installed delivery.
 
 **A downloaded collection is not a wallpaper package.** Native KNewStuff can install a flat image archive then fail its Use command on a wildcard folder. Keep the actual old refusal; use the native picker and bounded raster admission, then delegate to the original appearance owner. Preserve the native provider/version/warning/install bytes and registry identity, Kiosk restrictions, edited/link-cache refusals and cancellation without mutation. A QWidget KCM needs an embedded ApplicationItem/PageRow for native detail pages; its offscreen Window is not a dialog parent. Compile child types before accepting the root ready marker and retain the broken-child negative.
 
@@ -1702,3 +1720,7 @@ The observer in diagnostic39086687915 did preserve the closed desktop, but its f
 **A current SDK alias is not an available archive.** Signed1105 fails both Linux/Windows setup before compile/tests: aka.ms selects a dotnetorigin archive returning409 while the identical current SDK is200 at Microsoft’s official builds CDN. Preserve both native failures and endpoint controls. Resolve the supported10-channel metadata to an exact stable SDK for the unchanged pinned installer; retain security updates, bounded reads, output validation and all native tests. Require actual Linux/Windows install/build proof, not a HEAD request or dry-run alone. Never rerun the failed job, install an older SDK silently, waive Remote tests or promote the refused cohort.
 
 **A parsed workflow need not publish any check.** The first SDK-bootstrap fast workflow placed runner.temp in job-level env, where GitHub has not assigned a runner and rejects the file before creating PR jobs. Move that value to the actual setup step. Keep the real old actionlint negative, corrected native fast-workflow positive and actual Linux/Windows journeys. An existing queue key unsupported by a validator is a separate baseline diagnostic; never remove the release queue or add a broad ignore to make lint green.
+
+**A failed transfer is not a new dependency digest.** Keep the Kawkab0.501 pin when using its exact official asset API. MoPlayer preflights a complete SHA256-verified mimalloc archive before the unchanged plugin MD5 check; HTTP errors, partial/corrupt bytes and unknown links remain refusals. Preserve first build/test failures and contrary native controls; a quiet or CPU-limited pass does not establish the cause of a concurrent-build timeout.
+
+**A named Arabic face still needs its Latin partner.** A real LibreOffice PDF used DejaVu for361 em dashes while correctly embedding Meyar Arabic. Preserve that native old/fixed control and the source document. Extend the existing named-only pairing owner; keep exact delivered policy2 bytes/recovery, cache generations, personal order and generic defaults. Fontconfig metadata alone never proves rendered family selection.

@@ -115,8 +115,17 @@ def one(width,height,language,light,reduced):
             assert pid==kwin.pid,'not the owned compositor'
             kamd=start(['/usr/libexec/kactivitymanagerd'],'activities')
             app=start(['plasmawindowed','org.moos.brand','moos-ci-full-representation'],'launcher')
-            time.sleep(6)
-            assert app.poll() is None,'launcher exited'
+            # The real Qt input journey contains bounded focus waits. An ARM
+            # station under build load can finish after six seconds; wait for
+            # its executed result, never infer completion from a sleep.
+            started = time.monotonic()
+            while time.monotonic() - started < 25:
+                assert app.poll() is None,'launcher exited'
+                log=(O/f'{prefix}-launcher.log').read_text(errors='replace')
+                if 'MOOS_ADAPTIVE_INPUT_PASS ' in log or 'MOOS_ADAPTIVE_INPUT_FAIL' in log:
+                    break
+                time.sleep(.1)
+            case['input_wait_seconds']=round(time.monotonic()-started,3)
             case['launcher_pid']=app.pid
             log=(O/f'{prefix}-launcher.log').read_text(errors='replace')
             case['ready_marker']=bool(re.search(r'MOOS_LAUNCHER_FULL_READY size=[0-9]+x[0-9]+',log)) or (args.native_popup and 'MOOS_ADAPTIVE_INPUT_PASS ' in log)

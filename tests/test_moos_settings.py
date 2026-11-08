@@ -102,6 +102,8 @@ CONTROL_VERBS = {
     "audio-volume": ("volume", "Volume"),
     "audio-mute": ("mute", "None"),
     "audio-unmute": ("unmute", "None"),
+    "wallet-on": ("wallet on", "None"),
+    "wallet-off": ("wallet off", "None"),
 }
 
 
@@ -149,9 +151,9 @@ def fixed_verbs(program="ThemeTool") -> dict[str, tuple[str, str]]:
     table = table.split("};", 1)[0]
     verbs = {}
     for match in re.finditer(
-            r'\{"([a-z-]+)", ' + re.escape(program) + r', \{(?:nullptr|"([a-z-]+)"), nullptr\}, Argument::(\w+), (true|false)\}',
+            r'\{"([a-z-]+)", ' + re.escape(program) + r', \{(?:nullptr|"([a-z-]+)"), (?:nullptr|"([a-z-]+)")\}, Argument::(\w+), (true|false)\}',
             table):
-        verbs[match.group(1)] = (match.group(2) or "", match.group(3))
+        verbs[match.group(1)] = (" ".join(x for x in match.group(2, 3) if x), match.group(4))
     return verbs
 
 

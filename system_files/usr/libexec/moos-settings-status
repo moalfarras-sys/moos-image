@@ -29,6 +29,7 @@ import moos_hardware as hardware
 # What each update brought: one reader, shared with the after-update notification.
 from moos_whats_new import whats_new_state
 from moos_firmware_state import read_state as firmware_state
+from moos_wallet import state as wallet_state
 
 
 def runtime_path() -> Path:
@@ -472,6 +473,7 @@ def dynamic_state() -> dict[str, object]:
         "network": network_state(),
         "bluetooth": bluetooth_state(),
         "audio": audio_state(),
+        "wallet": wallet_state(),
         "battery": battery_state(),
         "memory": memory_state(),
         "update": update_state(),
