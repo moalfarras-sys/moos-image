@@ -27,7 +27,7 @@ if __name__ == '__main__' and '--private-profile' not in sys.argv:
                    XDG_CONFIG_DIRS=str(home/'config'),
                    DBUS_SESSION_BUS_ADDRESS='unix:path='+str(home/'no-session-bus'),
                    DBUS_SYSTEM_BUS_ADDRESS='unix:path='+str(home/'no-system-bus'))
-        result = subprocess.run([sys.executable, str(Path(__file__).resolve()),
+        result = subprocess.run([sys.executable, '-B', '-s', str(Path(__file__).resolve()),
                                  *sys.argv[1:], '--private-profile'], env=env)
     raise SystemExit(result.returncode)
 if '--private-profile' in sys.argv:
@@ -53,6 +53,10 @@ except (ImportError, ValueError):
 
 
 class Initialization(unittest.TestCase):
+    def test_private_child_preserves_no_bytecode_and_no_user_site(self):
+        self.assertTrue(sys.dont_write_bytecode)
+        self.assertTrue(sys.flags.no_user_site)
+
     def test_a_false_initializer_never_returns_a_transaction(self):
         class Base:
             def __init__(self, installation):
@@ -159,7 +163,7 @@ if __name__ == '__main__':
     if (INSTALLED or Path('/usr/lib/moos/edition').is_file()) and not NATIVE:
         raise SystemExit('Native libflatpak proof dependencies are required on MoOS.')
     result = unittest.main(verbosity=2, exit=False).result
-    if INSTALLED and (result.skipped or result.testsRun != 6):
+    if INSTALLED and (result.skipped or result.testsRun != 7):
         raise SystemExit('Installed transaction proof must execute every native case.')
     if INSTALLED and result.wasSuccessful():
         print('MOOS_IMAGE_FLATPAK_TRANSACTION_PASS')

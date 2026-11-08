@@ -1734,3 +1734,10 @@ warning, bypass the Store, continue fatal errors or patch global introspection.
 An initialized empty native run proves construction, not app installation.
 A healthy future vendor old-control no-repro is retained explicitly. Both image
 compositions require all installed native cases without skipped acceptance.
+
+**A read-only review can hide a build-state write.** Keep -B/-s when a native
+proof re-executes Python into its private HOME/XDG profile. Require the child
+flags and an unchanged canonical cache inventory on a writable private image;
+never count an ignored read-only cache-write error as proof of no writes. Keep
+the first stopped source check and do not infer its exit from collected-unit
+defaults. No installed owner profile or repository label is changed by review.

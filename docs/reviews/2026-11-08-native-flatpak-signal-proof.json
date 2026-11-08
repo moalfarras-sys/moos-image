@@ -16,7 +16,7 @@
     "owner": "existing FlatpakAdapter in moos-storectl",
     "mechanism": "one cached native Transaction subtype; documented operation_done/error virtual handlers; same native GInitable constructor and existing cancellation/continuation/job policy",
     "code_sha256": "b2517b036ce7d60344dbb92c5489df41d8cc6d8d82fdcf9991bebfb42a0ae6e9",
-    "finished_image": "both compositions copy the native driver and require six executed installed cases plus a marker; missing native dependencies/skips/empty producers remain refusals"
+    "finished_image": "both compositions copy the native driver and require seven executed installed cases plus a marker; missing native dependencies/skips/empty producers remain refusals"
   },
   "controls": {
     "old": [
@@ -112,7 +112,8 @@
       "separate transaction callbacks with one subtype",
       "actual initialized native empty run and ready receipt, not app acceptance",
       "false/failed initialization refusal",
-      "future vendor healthy old-control no-repro is explicit"
+      "future vendor healthy old-control no-repro is explicit",
+      "private child retains -B/-s; writable image canonical Python cache inventory remains identical"
     ],
     "source_review_image": {
       "exit": 0,
@@ -159,8 +160,38 @@
       "all_passed": true,
       "code_sha256": "b2517b036ce7d60344dbb92c5489df41d8cc6d8d82fdcf9991bebfb42a0ae6e9"
     },
-    "targeted_test_methods": 74,
-    "image_wrapper_modes": "both wallet and transaction wrappers execute success, empty, skipped, failed-after-marker42 and missing-driver controls"
+    "targeted_test_methods": 75,
+    "image_wrapper_modes": "both wallet and transaction wrappers execute success, empty, skipped, failed-after-marker42 and missing-driver controls",
+    "targeted_tests_after_driver_isolation": [
+      {
+        "test": "test_flatpak_transaction_signals.py",
+        "exit": 0,
+        "seconds": 0.574,
+        "log_sha256": "d18772200b7836c069ed149756c66e46ba32b88e42456828a3a171c442bad430"
+      },
+      {
+        "test": "test_wallet_image_gate.py",
+        "exit": 0,
+        "seconds": 0.45,
+        "log_sha256": "c5e0d26ae22f586f8fa3992aab551fe38aafd1cf97e741b8096df8dfe26d944f"
+      }
+    ],
+    "writable_image_review": {
+      "exit": 0,
+      "seconds": 1.231,
+      "source_store_sha256": "b2517b036ce7d60344dbb92c5489df41d8cc6d8d82fdcf9991bebfb42a0ae6e9",
+      "driver_sha256": "82e185b640b20b6cc672e1249861c4f4cbcc6ddd88b6a27febf0cf319e899473",
+      "installed_cases": 7,
+      "native_marker": true,
+      "cache_unchanged_marker": true,
+      "scope": "actual native ARM image with writable private container filesystem and exact source-review binds; canonical Python cache inventory unchanged; no host policy or repository label change; not a full follow-up image/signed install"
+    },
+    "first_full_check_stopped": {
+      "source": "e1f523dd4f107e67bd6b70a5543dc98de3cf370e",
+      "qualified": false,
+      "reason": "child re-exec dropped no-bytecode/no-user-site flags; manually stop this owned source unit before correction; no full command completion inferred from collected unit defaults",
+      "log_sha256": "4742c73747decb714d0b3ed63028e5b6d84f2516dbdbbeafe5e2e0156b1d84db"
+    }
   },
   "first_milestone": {
     "pr": 280,
