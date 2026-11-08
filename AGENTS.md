@@ -1741,3 +1741,23 @@ flags and an unchanged canonical cache inventory on a writable private image;
 never count an ignored read-only cache-write error as proof of no writes. Keep
 the first stopped source check and do not infer its exit from collected-unit
 defaults. No installed owner profile or repository label is changed by review.
+
+
+**A popup can restore focus after the next control requests it.** Native Store
+ar10/2.5 first refused its final keyboard filter check. Quiet and1200ms exit
+controls pass; a360ms exit reproduces old1/fixed0 while Qt returns focus to the
+previous grid between transfer and key. Wait boundedly for actual popup closure,
+then require the actual native keyboard target and unchanged real row assertion.
+Keep normal/late contrary controls, the executed wait-removal negative and the
+first full refusal. The original lacks focus state: this timing class does not
+identify every earlier intermittent failure. Never extend a budget, weaken the
+input assertion, or change owner motion/security policy to make it green.
+
+**A Fontconfig match is not a Chromium painted font.** Chrome157 native CDP
+still paints DejaVu Arabic for named Meyar Sans/Mono under policy3, while the
+same private Fontconfig query selects Meyar Arabic. The exact upstream fallback
+path uses a locale font set without the original family. Generic preference
+prototypes also fail later personal precedence and fixed-cell acceptance; keep
+those refusals and do not ship them. Require actual glyph-family readback,
+personal/generic/mono controls and owner-config preservation before a wider
+font-default change. Private headless pixels are not installed desktop input.

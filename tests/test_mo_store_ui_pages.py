@@ -701,6 +701,38 @@ class StorePagesWalk(unittest.TestCase):
 @unittest.skipUnless(RUNTIME and importlib.util.find_spec("PySide6"),
                      "requires native MoOS Qt runtime and PySide6 for isolated input injection")
 class StoreTouchNavigation(unittest.TestCase):
+    def test_popup_exit_finishes_before_the_next_native_keyboard_target(self):
+        # Keep the actual popup and Qt's focus restoration. A finite longer
+        # exit exposes the old focus-before-close ordering; waiting for closure
+        # after focus makes the old race deterministic without injecting keys
+        # into another window or changing the owner's motion policy.
+        with tempfile.TemporaryDirectory(prefix="mo-store-modal-focus-") as temporary:
+            work = Path(temporary)
+            store = work / "source"
+            shutil.copytree(STORE, store)
+            sheet = store / "PermissionsSheet.qml"
+            text = sheet.read_text(encoding="utf-8")
+            exit_duration = "duration: permissionsSheet.win.motionEnabled ? permissionsSheet.design.motionFast : 0"
+            self.assertEqual(text.count(exit_duration), 1)
+            sheet.write_text(text.replace(exit_duration,
+                "duration: permissionsSheet.win.motionEnabled ? 1200 : 0"), encoding="utf-8")
+            probe = (ROOT / "tests/store_touch_probe.py").read_text(encoding="utf-8")
+            before_focus_check = 'check("installed platform control owns native keyboard focus",'
+            self.assertEqual(probe.count(before_focus_check), 1)
+            settle_close = '''deadline = time.monotonic() + 5
+while evaluate("removeSheet.visible || permissionsSheet.visible") and time.monotonic() < deadline:
+    QTest.qWait(10)
+assert not evaluate("removeSheet.visible || permissionsSheet.visible"), "private popup did not close"
+'''
+            driver = work / "probe.py"
+            driver.write_text(probe.replace(before_focus_check, settle_close + before_focus_check), encoding="utf-8")
+            variant = dict(VARIANTS[0], name="popup-exit", font=10, scale="2.5")
+            result = run_walk(variant, store, work / "run", [], runner=["python3", str(driver)])
+            log = result.stdout + result.stderr
+            self.assertEqual(result.returncode, 0, log[-14000:])
+            self.assertIn("STORE INPUT DONE", log)
+            self.assertFalse(problems(log), "\n".join(problems(log)))
+
     def test_native_wheel_touch_and_real_platform_navigation(self):
         variants = []
         for language, font, scale in (("en", 10, "1"), ("ar", 10, "2.5"),

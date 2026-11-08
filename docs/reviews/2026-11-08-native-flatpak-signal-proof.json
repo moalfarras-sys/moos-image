@@ -4,7 +4,7 @@
     "P4.1",
     "P1.7"
   ],
-  "state": "isolated source follow-up; complete source/image/CI and signed delivery pending",
+  "state": "native API correction and modal-close input-fixture repair; final complete source/image/CI and signed delivery pending",
   "base_revision": "9e97518fdc739870b2765aef909dfe92d6c46bfd",
   "problem": {
     "observed": "real LibreOffice and GIMP Store installs complete but emit G_VALUE_HOLDS_FLAGS warnings",
@@ -191,6 +191,492 @@
       "qualified": false,
       "reason": "child re-exec dropped no-bytecode/no-user-site flags; manually stop this owned source unit before correction; no full command completion inferred from collected unit defaults",
       "log_sha256": "4742c73747decb714d0b3ed63028e5b6d84f2516dbdbbeafe5e2e0156b1d84db"
+    },
+    "first_complete_source_refusal": {
+      "source": "976dc11a54b77c28114b110eb0b67846479a3b72",
+      "tree": "110b093c241e30a8bf8a4927f40771d9a4466137",
+      "exit": 1,
+      "seconds": 1239.759,
+      "source_unchanged": true,
+      "stop_requested": false,
+      "qualified": false,
+      "log_sha256": "72f73a5ecdcc1492b7bf561f8b36afe6c02d559b6959f9372859aa0cf1671772",
+      "observed": "ar10/2.5 installed-platform Return action did not select web rows; original diagnostics lack native focus/modal snapshots, so do not assert that every previous timing failure had this cause"
+    },
+    "modal_focus": {
+      "normal_and_long_exit_controls": [
+        {
+          "case": "normal-old",
+          "exit": 0,
+          "seconds": 21.637,
+          "states": [
+            {
+              "label": "before-filter-focus",
+              "focus_name": "appGrid",
+              "focus_class": "QQuickGridView_QML_100",
+              "state": {
+                "kind": "all",
+                "removeVisible": false,
+                "removeOpened": false,
+                "permissionsVisible": false,
+                "permissionsOpened": false,
+                "rows": [
+                  "linux",
+                  "linux",
+                  "android",
+                  "linux",
+                  "web",
+                  "linux",
+                  "windows",
+                  "linux",
+                  "linux",
+                  "linux",
+                  "linux"
+                ]
+              }
+            },
+            {
+              "label": "before-filter-key",
+              "focus_name": "libraryKind-web",
+              "focus_class": "KindChip_QMLTYPE_93_QML_107",
+              "state": {
+                "kind": "all",
+                "removeVisible": false,
+                "removeOpened": false,
+                "permissionsVisible": false,
+                "permissionsOpened": false,
+                "rows": [
+                  "linux",
+                  "linux",
+                  "android",
+                  "linux",
+                  "web",
+                  "linux",
+                  "windows",
+                  "linux",
+                  "linux",
+                  "linux",
+                  "linux"
+                ]
+              }
+            },
+            {
+              "label": "after-filter-key",
+              "focus_name": "libraryKind-web",
+              "focus_class": "KindChip_QMLTYPE_93_QML_107",
+              "state": {
+                "kind": "web",
+                "removeVisible": false,
+                "removeOpened": false,
+                "permissionsVisible": false,
+                "permissionsOpened": false,
+                "rows": [
+                  "web"
+                ]
+              }
+            }
+          ],
+          "failed_labels": []
+        },
+        {
+          "case": "slow-old",
+          "exit": 0,
+          "seconds": 22.622,
+          "states": [
+            {
+              "label": "before-filter-focus",
+              "focus_name": "ApplicationWindow",
+              "focus_class": "QQuickRootItem",
+              "state": {
+                "kind": "all",
+                "removeVisible": false,
+                "removeOpened": false,
+                "permissionsVisible": true,
+                "permissionsOpened": false,
+                "rows": [
+                  "linux",
+                  "linux",
+                  "android",
+                  "linux",
+                  "web",
+                  "linux",
+                  "windows",
+                  "linux",
+                  "linux",
+                  "linux",
+                  "linux"
+                ]
+              }
+            },
+            {
+              "label": "before-filter-key",
+              "focus_name": "libraryKind-web",
+              "focus_class": "KindChip_QMLTYPE_82_QML_157",
+              "state": {
+                "kind": "all",
+                "removeVisible": false,
+                "removeOpened": false,
+                "permissionsVisible": true,
+                "permissionsOpened": false,
+                "rows": [
+                  "linux",
+                  "linux",
+                  "android",
+                  "linux",
+                  "web",
+                  "linux",
+                  "windows",
+                  "linux",
+                  "linux",
+                  "linux",
+                  "linux"
+                ]
+              }
+            },
+            {
+              "label": "after-filter-key",
+              "focus_name": "libraryKind-web",
+              "focus_class": "KindChip_QMLTYPE_82_QML_157",
+              "state": {
+                "kind": "web",
+                "removeVisible": false,
+                "removeOpened": false,
+                "permissionsVisible": true,
+                "permissionsOpened": false,
+                "rows": [
+                  "web"
+                ]
+              }
+            }
+          ],
+          "failed_labels": []
+        },
+        {
+          "case": "slow-fixed",
+          "exit": 0,
+          "seconds": 23.255,
+          "states": [
+            {
+              "label": "before-filter-focus",
+              "focus_name": "ApplicationWindow",
+              "focus_class": "QQuickRootItem",
+              "state": {
+                "kind": "all",
+                "removeVisible": false,
+                "removeOpened": false,
+                "permissionsVisible": true,
+                "permissionsOpened": false,
+                "rows": [
+                  "linux",
+                  "linux",
+                  "android",
+                  "linux",
+                  "web",
+                  "linux",
+                  "windows",
+                  "linux",
+                  "linux",
+                  "linux",
+                  "linux"
+                ]
+              }
+            },
+            {
+              "label": "before-filter-key",
+              "focus_name": "libraryKind-web",
+              "focus_class": "KindChip_QMLTYPE_111_QML_178",
+              "state": {
+                "kind": "all",
+                "removeVisible": false,
+                "removeOpened": false,
+                "permissionsVisible": false,
+                "permissionsOpened": false,
+                "rows": [
+                  "linux",
+                  "linux",
+                  "android",
+                  "linux",
+                  "web",
+                  "linux",
+                  "windows",
+                  "linux",
+                  "linux",
+                  "linux",
+                  "linux"
+                ]
+              }
+            },
+            {
+              "label": "after-filter-key",
+              "focus_name": "libraryKind-web",
+              "focus_class": "KindChip_QMLTYPE_111_QML_178",
+              "state": {
+                "kind": "web",
+                "removeVisible": false,
+                "removeOpened": false,
+                "permissionsVisible": false,
+                "permissionsOpened": false,
+                "rows": [
+                  "web"
+                ]
+              }
+            }
+          ],
+          "failed_labels": []
+        },
+        {
+          "case": "normal-fixed",
+          "exit": 0,
+          "seconds": 21.475,
+          "states": [
+            {
+              "label": "before-filter-focus",
+              "focus_name": "appGrid",
+              "focus_class": "QQuickGridView_QML_167",
+              "state": {
+                "kind": "all",
+                "removeVisible": false,
+                "removeOpened": false,
+                "permissionsVisible": false,
+                "permissionsOpened": false,
+                "rows": [
+                  "linux",
+                  "linux",
+                  "android",
+                  "linux",
+                  "web",
+                  "linux",
+                  "windows",
+                  "linux",
+                  "linux",
+                  "linux",
+                  "linux"
+                ]
+              }
+            },
+            {
+              "label": "before-filter-key",
+              "focus_name": "libraryKind-web",
+              "focus_class": "KindChip_QMLTYPE_139_QML_141",
+              "state": {
+                "kind": "all",
+                "removeVisible": false,
+                "removeOpened": false,
+                "permissionsVisible": false,
+                "permissionsOpened": false,
+                "rows": [
+                  "linux",
+                  "linux",
+                  "android",
+                  "linux",
+                  "web",
+                  "linux",
+                  "windows",
+                  "linux",
+                  "linux",
+                  "linux",
+                  "linux"
+                ]
+              }
+            },
+            {
+              "label": "after-filter-key",
+              "focus_name": "libraryKind-web",
+              "focus_class": "KindChip_QMLTYPE_139_QML_141",
+              "state": {
+                "kind": "web",
+                "removeVisible": false,
+                "removeOpened": false,
+                "permissionsVisible": false,
+                "permissionsOpened": false,
+                "rows": [
+                  "web"
+                ]
+              }
+            }
+          ],
+          "failed_labels": []
+        }
+      ],
+      "middle_exit_controls": [
+        {
+          "case": "middle-old",
+          "exit": 1,
+          "seconds": 21.382,
+          "states": [
+            {
+              "label": "before-filter-focus",
+              "focus_name": "ApplicationWindow",
+              "focus_class": "QQuickRootItem",
+              "state": {
+                "kind": "all",
+                "removeVisible": false,
+                "removeOpened": false,
+                "permissionsVisible": true,
+                "permissionsOpened": false,
+                "rows": [
+                  "linux",
+                  "linux",
+                  "android",
+                  "linux",
+                  "web",
+                  "linux",
+                  "windows",
+                  "linux",
+                  "linux",
+                  "linux",
+                  "linux"
+                ]
+              }
+            },
+            {
+              "label": "before-filter-key",
+              "focus_name": "appGrid",
+              "focus_class": "QQuickGridView_QML_136",
+              "state": {
+                "kind": "all",
+                "removeVisible": false,
+                "removeOpened": false,
+                "permissionsVisible": false,
+                "permissionsOpened": false,
+                "rows": [
+                  "linux",
+                  "linux",
+                  "android",
+                  "linux",
+                  "web",
+                  "linux",
+                  "windows",
+                  "linux",
+                  "linux",
+                  "linux",
+                  "linux"
+                ]
+              }
+            },
+            {
+              "label": "after-filter-key",
+              "focus_name": "appGrid",
+              "focus_class": "QQuickGridView_QML_136",
+              "state": {
+                "kind": "all",
+                "removeVisible": false,
+                "removeOpened": false,
+                "permissionsVisible": false,
+                "permissionsOpened": false,
+                "rows": [
+                  "linux",
+                  "linux",
+                  "android",
+                  "linux",
+                  "web",
+                  "linux",
+                  "windows",
+                  "linux",
+                  "linux",
+                  "linux",
+                  "linux"
+                ]
+              }
+            }
+          ],
+          "failed_labels": [
+            "installed platform keyboard selection uses real rows"
+          ]
+        },
+        {
+          "case": "middle-fixed",
+          "exit": 0,
+          "seconds": 22.502,
+          "states": [
+            {
+              "label": "before-filter-focus",
+              "focus_name": "ApplicationWindow",
+              "focus_class": "QQuickRootItem",
+              "state": {
+                "kind": "all",
+                "removeVisible": false,
+                "removeOpened": false,
+                "permissionsVisible": true,
+                "permissionsOpened": false,
+                "rows": [
+                  "linux",
+                  "linux",
+                  "android",
+                  "linux",
+                  "web",
+                  "linux",
+                  "windows",
+                  "linux",
+                  "linux",
+                  "linux",
+                  "linux"
+                ]
+              }
+            },
+            {
+              "label": "before-filter-key",
+              "focus_name": "libraryKind-web",
+              "focus_class": "KindChip_QMLTYPE_104_QML_131",
+              "state": {
+                "kind": "all",
+                "removeVisible": false,
+                "removeOpened": false,
+                "permissionsVisible": false,
+                "permissionsOpened": false,
+                "rows": [
+                  "linux",
+                  "linux",
+                  "android",
+                  "linux",
+                  "web",
+                  "linux",
+                  "windows",
+                  "linux",
+                  "linux",
+                  "linux",
+                  "linux"
+                ]
+              }
+            },
+            {
+              "label": "after-filter-key",
+              "focus_name": "libraryKind-web",
+              "focus_class": "KindChip_QMLTYPE_104_QML_131",
+              "state": {
+                "kind": "web",
+                "removeVisible": false,
+                "removeOpened": false,
+                "permissionsVisible": false,
+                "permissionsOpened": false,
+                "rows": [
+                  "web"
+                ]
+              }
+            }
+          ],
+          "failed_labels": []
+        }
+      ],
+      "new_native_regression": {
+        "tests": 1,
+        "exit": 0,
+        "seconds": 22.405
+      },
+      "restored_ordering_negative": {
+        "tests_run": 1,
+        "native_test_failures": 1,
+        "errors": 0,
+        "skipped": 0,
+        "expected_negative_executed": true,
+        "seconds": 23.767,
+        "mutation": "remove only close-before-focus wait/check; preserve native target assertion, actual Qt popup and keyboard path",
+        "log_sha256": "72b80522b211dd1be4d93f3bea16ba8bd2f40f516974fec2f127b911df873af4",
+        "scope": "private native regression control; no owner UI/bus/policy changed"
+      },
+      "implementation": "wait boundedly for actual management-popup invisibility before transferring focus; require actual native target focus and keep real key/row assertions; no production QML, motion policy or deadline weakening",
+      "image_waiter": "refused unqualified source; no full image invoked",
+      "visual_review": "actual private old/fixed frames inspected: old retains all rows, fixed focuses web chip and shows only web row; not installed session acceptance"
     }
   },
   "first_milestone": {
@@ -208,9 +694,20 @@
       "immutable_file_matches": 9
     },
     "pr_repo_arm_x86": "first-attempt success; ARM PR boot/promotion skipped",
-    "main_push_build": 42508105802,
-    "arm_pipeline": 42508105794,
-    "signed_delivery": "in progress; native host still boots890/895 staged/884 rollback"
+    "main_push_build": {
+      "id": 42508105802,
+      "state": "success",
+      "revision": "9e97518fdc739870b2765aef909dfe92d6c46bfd"
+    },
+    "arm_pipeline": {
+      "id": 42508105794,
+      "state": "native signed image and final UEFI boot step succeed; packaging/upload/promotion still running"
+    },
+    "signed_delivery": "in progress; native host still boots890/895 staged/884 rollback",
+    "manual_signed_candidate": {
+      "id": 42513578569,
+      "state": "running, exact9e975 source; no new x86 boot/promotion claim"
+    }
   },
   "native_application_baseline": {
     "scope": "booted signed ARM890,2vCPU, no GPU; existing Store/canonical launcher; independent of this source follow-up",
@@ -272,5 +769,656 @@
     "first source-review mount refusal and prior failed source/image checkpoints remain retained",
     "current signed cohort stays frozen; this follow-up is not merged or installed",
     "Windows/Android/GPU/touch/ordinary onboarding/endurance require their own recorded journeys"
-  ]
+  ],
+  "browser_font_native": {
+    "version": "Chrome157.0.8103.38-1 / native aarch64 Freedesktop25.08",
+    "old_policy2_and_source_policy3_rendering_identical": true,
+    "actual_cdp_rows": [
+      {
+        "phase": "installed-policy2",
+        "exit": 0,
+        "seconds": 3.837,
+        "rows": [
+          {
+            "id": "f0-en",
+            "requested": "Meyar Sans",
+            "language": "en",
+            "fonts": [
+              {
+                "familyName": "Meyar Sans",
+                "postScriptName": "MeyarSans-Regular",
+                "isCustomFont": false,
+                "glyphCount": 16
+              }
+            ]
+          },
+          {
+            "id": "f0-ar",
+            "requested": "Meyar Sans",
+            "language": "ar",
+            "fonts": [
+              {
+                "familyName": "DejaVu Sans",
+                "postScriptName": "DejaVuSans",
+                "isCustomFont": false,
+                "glyphCount": 25
+              },
+              {
+                "familyName": "Meyar Sans",
+                "postScriptName": "MeyarSans-Regular",
+                "isCustomFont": false,
+                "glyphCount": 3
+              }
+            ]
+          },
+          {
+            "id": "f0-mixed",
+            "requested": "Meyar Sans",
+            "language": "mixed",
+            "fonts": [
+              {
+                "familyName": "DejaVu Sans",
+                "postScriptName": "DejaVuSans",
+                "isCustomFont": false,
+                "glyphCount": 8
+              },
+              {
+                "familyName": "Meyar Sans",
+                "postScriptName": "MeyarSans-Regular",
+                "isCustomFont": false,
+                "glyphCount": 12
+              }
+            ]
+          },
+          {
+            "id": "f1-en",
+            "requested": "Meyar Arabic",
+            "language": "en",
+            "fonts": [
+              {
+                "familyName": "Liberation Serif",
+                "postScriptName": "LiberationSerif",
+                "isCustomFont": false,
+                "glyphCount": 11
+              },
+              {
+                "familyName": "Meyar Arabic",
+                "postScriptName": "MeyarArabic-Regular",
+                "isCustomFont": false,
+                "glyphCount": 7
+              }
+            ]
+          },
+          {
+            "id": "f1-ar",
+            "requested": "Meyar Arabic",
+            "language": "ar",
+            "fonts": [
+              {
+                "familyName": "Meyar Arabic",
+                "postScriptName": "MeyarArabic-Regular",
+                "isCustomFont": false,
+                "glyphCount": 37
+              }
+            ]
+          },
+          {
+            "id": "f1-mixed",
+            "requested": "Meyar Arabic",
+            "language": "mixed",
+            "fonts": [
+              {
+                "familyName": "Liberation Serif",
+                "postScriptName": "LiberationSerif",
+                "isCustomFont": false,
+                "glyphCount": 5
+              },
+              {
+                "familyName": "Meyar Arabic",
+                "postScriptName": "MeyarArabic-Regular",
+                "isCustomFont": false,
+                "glyphCount": 16
+              }
+            ]
+          },
+          {
+            "id": "f2-en",
+            "requested": "sans-serif",
+            "language": "en",
+            "fonts": [
+              {
+                "familyName": "Liberation Sans",
+                "postScriptName": "LiberationSans",
+                "isCustomFont": false,
+                "glyphCount": 18
+              }
+            ]
+          },
+          {
+            "id": "f2-ar",
+            "requested": "sans-serif",
+            "language": "ar",
+            "fonts": [
+              {
+                "familyName": "Liberation Sans",
+                "postScriptName": "LiberationSans",
+                "isCustomFont": false,
+                "glyphCount": 3
+              },
+              {
+                "familyName": "DejaVu Sans",
+                "postScriptName": "DejaVuSans",
+                "isCustomFont": false,
+                "glyphCount": 25
+              }
+            ]
+          },
+          {
+            "id": "f2-mixed",
+            "requested": "sans-serif",
+            "language": "mixed",
+            "fonts": [
+              {
+                "familyName": "Liberation Sans",
+                "postScriptName": "LiberationSans",
+                "isCustomFont": false,
+                "glyphCount": 12
+              },
+              {
+                "familyName": "DejaVu Sans",
+                "postScriptName": "DejaVuSans",
+                "isCustomFont": false,
+                "glyphCount": 8
+              }
+            ]
+          },
+          {
+            "id": "f3-en",
+            "requested": "Meyar Mono",
+            "language": "en",
+            "fonts": [
+              {
+                "familyName": "Meyar Mono",
+                "postScriptName": "MeyarMono-Regular",
+                "isCustomFont": false,
+                "glyphCount": 18
+              }
+            ]
+          },
+          {
+            "id": "f3-ar",
+            "requested": "Meyar Mono",
+            "language": "ar",
+            "fonts": [
+              {
+                "familyName": "DejaVu Sans",
+                "postScriptName": "DejaVuSans",
+                "isCustomFont": false,
+                "glyphCount": 25
+              },
+              {
+                "familyName": "Meyar Mono",
+                "postScriptName": "MeyarMono-Regular",
+                "isCustomFont": false,
+                "glyphCount": 3
+              }
+            ]
+          },
+          {
+            "id": "f3-mixed",
+            "requested": "Meyar Mono",
+            "language": "mixed",
+            "fonts": [
+              {
+                "familyName": "DejaVu Sans",
+                "postScriptName": "DejaVuSans",
+                "isCustomFont": false,
+                "glyphCount": 8
+              },
+              {
+                "familyName": "Meyar Mono",
+                "postScriptName": "MeyarMono-Regular",
+                "isCustomFont": false,
+                "glyphCount": 12
+              }
+            ]
+          },
+          {
+            "id": "f4-en",
+            "requested": "Meyar Mono Arabic",
+            "language": "en",
+            "fonts": [
+              {
+                "familyName": "Meyar Mono Arabic",
+                "postScriptName": "MeyarMonoArabic-Regular",
+                "isCustomFont": false,
+                "glyphCount": 17
+              }
+            ]
+          },
+          {
+            "id": "f4-ar",
+            "requested": "Meyar Mono Arabic",
+            "language": "ar",
+            "fonts": [
+              {
+                "familyName": "Meyar Mono Arabic",
+                "postScriptName": "MeyarMonoArabic-Regular",
+                "isCustomFont": false,
+                "glyphCount": 28
+              }
+            ]
+          },
+          {
+            "id": "f4-mixed",
+            "requested": "Meyar Mono Arabic",
+            "language": "mixed",
+            "fonts": [
+              {
+                "familyName": "Meyar Mono Arabic",
+                "postScriptName": "MeyarMonoArabic-Regular",
+                "isCustomFont": false,
+                "glyphCount": 20
+              }
+            ]
+          },
+          {
+            "id": "f5-en",
+            "requested": "monospace",
+            "language": "en",
+            "fonts": [
+              {
+                "familyName": "DejaVu Sans Mono",
+                "postScriptName": "DejaVuSansMono",
+                "isCustomFont": false,
+                "glyphCount": 18
+              }
+            ]
+          },
+          {
+            "id": "f5-ar",
+            "requested": "monospace",
+            "language": "ar",
+            "fonts": [
+              {
+                "familyName": "DejaVu Sans Mono",
+                "postScriptName": "DejaVuSansMono",
+                "isCustomFont": false,
+                "glyphCount": 28
+              }
+            ]
+          },
+          {
+            "id": "f5-mixed",
+            "requested": "monospace",
+            "language": "mixed",
+            "fonts": [
+              {
+                "familyName": "DejaVu Sans Mono",
+                "postScriptName": "DejaVuSansMono",
+                "isCustomFont": false,
+                "glyphCount": 20
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "phase": "source-policy3",
+        "exit": 0,
+        "seconds": 3.121,
+        "rows": [
+          {
+            "id": "f0-en",
+            "requested": "Meyar Sans",
+            "language": "en",
+            "fonts": [
+              {
+                "familyName": "Meyar Sans",
+                "postScriptName": "MeyarSans-Regular",
+                "isCustomFont": false,
+                "glyphCount": 16
+              }
+            ]
+          },
+          {
+            "id": "f0-ar",
+            "requested": "Meyar Sans",
+            "language": "ar",
+            "fonts": [
+              {
+                "familyName": "DejaVu Sans",
+                "postScriptName": "DejaVuSans",
+                "isCustomFont": false,
+                "glyphCount": 25
+              },
+              {
+                "familyName": "Meyar Sans",
+                "postScriptName": "MeyarSans-Regular",
+                "isCustomFont": false,
+                "glyphCount": 3
+              }
+            ]
+          },
+          {
+            "id": "f0-mixed",
+            "requested": "Meyar Sans",
+            "language": "mixed",
+            "fonts": [
+              {
+                "familyName": "DejaVu Sans",
+                "postScriptName": "DejaVuSans",
+                "isCustomFont": false,
+                "glyphCount": 8
+              },
+              {
+                "familyName": "Meyar Sans",
+                "postScriptName": "MeyarSans-Regular",
+                "isCustomFont": false,
+                "glyphCount": 12
+              }
+            ]
+          },
+          {
+            "id": "f1-en",
+            "requested": "Meyar Arabic",
+            "language": "en",
+            "fonts": [
+              {
+                "familyName": "Liberation Serif",
+                "postScriptName": "LiberationSerif",
+                "isCustomFont": false,
+                "glyphCount": 11
+              },
+              {
+                "familyName": "Meyar Arabic",
+                "postScriptName": "MeyarArabic-Regular",
+                "isCustomFont": false,
+                "glyphCount": 7
+              }
+            ]
+          },
+          {
+            "id": "f1-ar",
+            "requested": "Meyar Arabic",
+            "language": "ar",
+            "fonts": [
+              {
+                "familyName": "Meyar Arabic",
+                "postScriptName": "MeyarArabic-Regular",
+                "isCustomFont": false,
+                "glyphCount": 37
+              }
+            ]
+          },
+          {
+            "id": "f1-mixed",
+            "requested": "Meyar Arabic",
+            "language": "mixed",
+            "fonts": [
+              {
+                "familyName": "Liberation Serif",
+                "postScriptName": "LiberationSerif",
+                "isCustomFont": false,
+                "glyphCount": 5
+              },
+              {
+                "familyName": "Meyar Arabic",
+                "postScriptName": "MeyarArabic-Regular",
+                "isCustomFont": false,
+                "glyphCount": 16
+              }
+            ]
+          },
+          {
+            "id": "f2-en",
+            "requested": "sans-serif",
+            "language": "en",
+            "fonts": [
+              {
+                "familyName": "Liberation Sans",
+                "postScriptName": "LiberationSans",
+                "isCustomFont": false,
+                "glyphCount": 18
+              }
+            ]
+          },
+          {
+            "id": "f2-ar",
+            "requested": "sans-serif",
+            "language": "ar",
+            "fonts": [
+              {
+                "familyName": "Liberation Sans",
+                "postScriptName": "LiberationSans",
+                "isCustomFont": false,
+                "glyphCount": 3
+              },
+              {
+                "familyName": "DejaVu Sans",
+                "postScriptName": "DejaVuSans",
+                "isCustomFont": false,
+                "glyphCount": 25
+              }
+            ]
+          },
+          {
+            "id": "f2-mixed",
+            "requested": "sans-serif",
+            "language": "mixed",
+            "fonts": [
+              {
+                "familyName": "Liberation Sans",
+                "postScriptName": "LiberationSans",
+                "isCustomFont": false,
+                "glyphCount": 12
+              },
+              {
+                "familyName": "DejaVu Sans",
+                "postScriptName": "DejaVuSans",
+                "isCustomFont": false,
+                "glyphCount": 8
+              }
+            ]
+          },
+          {
+            "id": "f3-en",
+            "requested": "Meyar Mono",
+            "language": "en",
+            "fonts": [
+              {
+                "familyName": "Meyar Mono",
+                "postScriptName": "MeyarMono-Regular",
+                "isCustomFont": false,
+                "glyphCount": 18
+              }
+            ]
+          },
+          {
+            "id": "f3-ar",
+            "requested": "Meyar Mono",
+            "language": "ar",
+            "fonts": [
+              {
+                "familyName": "DejaVu Sans",
+                "postScriptName": "DejaVuSans",
+                "isCustomFont": false,
+                "glyphCount": 25
+              },
+              {
+                "familyName": "Meyar Mono",
+                "postScriptName": "MeyarMono-Regular",
+                "isCustomFont": false,
+                "glyphCount": 3
+              }
+            ]
+          },
+          {
+            "id": "f3-mixed",
+            "requested": "Meyar Mono",
+            "language": "mixed",
+            "fonts": [
+              {
+                "familyName": "DejaVu Sans",
+                "postScriptName": "DejaVuSans",
+                "isCustomFont": false,
+                "glyphCount": 8
+              },
+              {
+                "familyName": "Meyar Mono",
+                "postScriptName": "MeyarMono-Regular",
+                "isCustomFont": false,
+                "glyphCount": 12
+              }
+            ]
+          },
+          {
+            "id": "f4-en",
+            "requested": "Meyar Mono Arabic",
+            "language": "en",
+            "fonts": [
+              {
+                "familyName": "Meyar Mono Arabic",
+                "postScriptName": "MeyarMonoArabic-Regular",
+                "isCustomFont": false,
+                "glyphCount": 17
+              }
+            ]
+          },
+          {
+            "id": "f4-ar",
+            "requested": "Meyar Mono Arabic",
+            "language": "ar",
+            "fonts": [
+              {
+                "familyName": "Meyar Mono Arabic",
+                "postScriptName": "MeyarMonoArabic-Regular",
+                "isCustomFont": false,
+                "glyphCount": 28
+              }
+            ]
+          },
+          {
+            "id": "f4-mixed",
+            "requested": "Meyar Mono Arabic",
+            "language": "mixed",
+            "fonts": [
+              {
+                "familyName": "Meyar Mono Arabic",
+                "postScriptName": "MeyarMonoArabic-Regular",
+                "isCustomFont": false,
+                "glyphCount": 20
+              }
+            ]
+          },
+          {
+            "id": "f5-en",
+            "requested": "monospace",
+            "language": "en",
+            "fonts": [
+              {
+                "familyName": "DejaVu Sans Mono",
+                "postScriptName": "DejaVuSansMono",
+                "isCustomFont": false,
+                "glyphCount": 18
+              }
+            ]
+          },
+          {
+            "id": "f5-ar",
+            "requested": "monospace",
+            "language": "ar",
+            "fonts": [
+              {
+                "familyName": "DejaVu Sans Mono",
+                "postScriptName": "DejaVuSansMono",
+                "isCustomFont": false,
+                "glyphCount": 28
+              }
+            ]
+          },
+          {
+            "id": "f5-mixed",
+            "requested": "monospace",
+            "language": "mixed",
+            "fonts": [
+              {
+                "familyName": "DejaVu Sans Mono",
+                "postScriptName": "DejaVuSansMono",
+                "isCustomFont": false,
+                "glyphCount": 20
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "fc_match_contrary": [
+      {
+        "phase": "installed-policy2",
+        "pattern": "Meyar Sans:charset=0645",
+        "exit": 0,
+        "out": "Meyar Arabic|/run/host/fonts/meyar/MeyarArabic[wght].ttf\n",
+        "err": ""
+      },
+      {
+        "phase": "installed-policy2",
+        "pattern": "Meyar Arabic:charset=004d",
+        "exit": 0,
+        "out": "DejaVu Sans|/usr/share/fonts/dejavu/DejaVuSans.ttf\n",
+        "err": ""
+      },
+      {
+        "phase": "installed-policy2",
+        "pattern": "sans-serif:lang=ar:charset=0645",
+        "exit": 0,
+        "out": "DejaVu Sans|/usr/share/fonts/dejavu/DejaVuSans.ttf\n",
+        "err": ""
+      },
+      {
+        "phase": "installed-policy2",
+        "pattern": "monospace:lang=ar:charset=0645",
+        "exit": 0,
+        "out": "DejaVu Sans Mono|/usr/share/fonts/dejavu/DejaVuSansMono.ttf\n",
+        "err": ""
+      },
+      {
+        "phase": "source-policy3",
+        "pattern": "Meyar Sans:charset=0645",
+        "exit": 0,
+        "out": "Meyar Arabic|/run/host/fonts/meyar/MeyarArabic[wght].ttf\n",
+        "err": ""
+      },
+      {
+        "phase": "source-policy3",
+        "pattern": "Meyar Arabic:charset=004d",
+        "exit": 0,
+        "out": "Meyar Sans|/run/host/fonts/meyar/MeyarSans[wght].ttf\n",
+        "err": ""
+      },
+      {
+        "phase": "source-policy3",
+        "pattern": "sans-serif:lang=ar:charset=0645",
+        "exit": 0,
+        "out": "DejaVu Sans|/usr/share/fonts/dejavu/DejaVuSans.ttf\n",
+        "err": ""
+      },
+      {
+        "phase": "source-policy3",
+        "pattern": "monospace:lang=ar:charset=0645",
+        "exit": 0,
+        "out": "DejaVu Sans Mono|/usr/share/fonts/dejavu/DejaVuSansMono.ttf\n",
+        "err": ""
+      }
+    ],
+    "private_generic_prototype": "Adding generic preferences changes native fallback to Meyar Arabic, but a later personal generic alias still fails to win and mono Arabic becomes proportional. This fails acceptance; no prototype rule is shipped or written to owner settings.",
+    "owner_fontconfig_unchanged": true,
+    "first_receipt_refusal": "unsupported Flatpak --show-version at final receipt assembly; preserved first captures/journal, corrected version preflight and per-case receipts",
+    "sources": [
+      "https://chromedevtools.github.io/devtools-protocol/tot/CSS/#method-getPlatformFontsForNode",
+      "https://raw.githubusercontent.com/chromium/chromium/157.0.8103.38/third_party/blink/renderer/platform/fonts/linux/font_cache_linux.cc",
+      "https://raw.githubusercontent.com/chromium/chromium/157.0.8103.38/ui/gfx/font_fallback_linux.cc"
+    ],
+    "conclusion": "Named Fontconfig queries do not establish Chromium glyph rendering; browser generic/monospace/personal-preference acceptance remains open."
+  }
 }
