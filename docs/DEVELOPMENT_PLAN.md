@@ -246,6 +246,8 @@ For every task:
 
 ## Ordered execution
 
+Owner Nov9: MoOS Quiet Glass supersedes the visual product direction while retaining the existing UI2/KDE owners and P2/P5 queue. The authoritative visual contract now defines its material roles and connected acceptance slice. No new palette, installed surface or performance improvement is qualified by that contract alone.
+
 Nov9 V3 audit slice (P0.6/P6.5): installed1136/source28f642f8, independently signed1119 rollback/pinned1078 and signed recovery ISO are remeasured. Failed-manager diagnostics are repaired on a topic branch with old-failing/fixed-passing controls; the first full source run refuses JSON-escaped Arabic paths in the native archive fixture. Literal native CMake bracket arguments retain every original transfer assertion and pass all6 controls with Arabic/special-character paths. Complete source rerun exits0; first refusal remains preserved and image/PR/signed delivery remain pending. Native43/0+3notes and46/0, installed identity gates and actual Arabic Settings/editor/Store frames pass within their scope. Current greeter screenRemoved crash, SMBus/framebuffer/sensor errors and complete login/lock/power journeys remain open. Root SMART/boot inspection needs authentication; ChatGPT update is safely refused while in use. Inventory is not cleanup approval; all images/containers/recovery are preserved.
 
 Boot, security and data-loss regressions preempt the queue. Otherwise use the

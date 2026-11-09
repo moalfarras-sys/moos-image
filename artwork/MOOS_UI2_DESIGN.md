@@ -1,4 +1,4 @@
-# MoOS UI — Liquid Glass design system
+# MoOS Quiet Glass — native design system
 
 Status: current authoritative visual contract. Historical UI1, Nova and session
 audit journals live in Git history, not in HEAD.
@@ -6,6 +6,44 @@ audit journals live in Git history, not in HEAD.
 This file defines appearance and interaction, not completion status or a second
 task queue. `docs/DEVELOPMENT_PLAN.md` schedules the work; `PROJECT_STATE.md`
 records what source, a candidate image and the installed machine actually prove.
+
+## Quiet Glass owner direction — 2026-11-09
+
+Quiet Glass is the new product direction for the existing MoOS UI2 implementation.
+It is not yet an installed redesign. Keep all package, module, D-Bus and migration
+identifiers stable. Qualification remains in the existing P2/P5 rows, not a new backlog.
+
+The visual composition has three material roles:
+
+- **Content:** quiet, predominantly opaque planes for reading and editing. Avoid
+  translucent cards inside translucent cards and preserve native application palettes.
+- **Navigation:** one frosted shell plane for Bar, Launcher and control navigation.
+  KWin owns backdrop composition; individual controls must not resample the desktop.
+- **Transient surfaces:** denser popovers, menus and dialogs with one restrained
+  edge highlight and a consistent shadow. Contrast must survive a busy wallpaper
+  and the no-blur/software-rendering fallback.
+
+Use the existing MoOS logo as the colour reference, measuring its checked-in
+source artwork before proposing new semantic palette values. Preserve personal
+accent selections. Meyar remains the native font family with its upstream licence
+and shaping; Arabic marks and mixed-script editing need real native acceptance.
+
+Motion communicates opening, focus and state changes. It stops at rest, respects
+KDE's live animation policy and never adds an ambient shimmer or idle polling.
+Do not equate a shorter animation with measured lower latency. Keep current blur
+limits until equivalent before/after GPU, frame-time and text-contrast evidence
+supports a change. Every gesture retains keyboard and pointer destinations.
+
+The first connected acceptance slice is Launcher → native Settings → Store →
+Arabic document, in Arabic/English and light/dark. Then qualify notifications,
+window decoration and lock/power with their existing Plasma/KWin owners. Screenshots
+alone do not qualify input, authentication, data preservation or signed delivery.
+
+Design references, reviewed 2026-11-09:
+[Apple materials](https://developer.apple.com/design/human-interface-guidelines/materials),
+[Microsoft Acrylic](https://learn.microsoft.com/en-us/windows/apps/design/style/acrylic),
+[Kirigami colours](https://develop.kde.org/docs/getting-started/kirigami/style-colors/).
+These inform material hierarchy and accessibility, not copied window silhouettes.
 
 ## Authority
 
