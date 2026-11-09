@@ -178,9 +178,30 @@
       42552259043,
       42552259047
     ],
-    "missing_x86_trigger": "same-source existing unsigned gate42584826740 in_progress; subsequent trigger fix is independent",
-    "new_signed_cycle": "not dispatched",
-    "installed_new_remote": "unverified"
+    "missing_x86_trigger": "exact-source manual gate42584826740 completed success, first attempt; follow-up adds the future PR path",
+    "new_signed_cycle": {
+      "revision": "28f642f8fd8499e1a87403d2a9031f27ac4bc36a",
+      "signed_build_run": 42604208185,
+      "proof_runs": [
+        42613925834,
+        42613931118,
+        42613936377,
+        42613941454,
+        42594016873
+      ],
+      "promotion_run": 42620024067
+    },
+    "installed_new_remote": {
+      "boot_id": "ebc21e8d-4887-4d3f-a452-712c990fffbe",
+      "version": "44.20261109.908",
+      "digest": "sha256:e35020527b9a576c454a9adddb069ae8bcf6682764eef9e6c364d77d968b8e42",
+      "production_codecs": {
+        "exit": 0,
+        "seconds": 0.968,
+        "log_sha256": "fb8ea445a33ec033399792462b85a4d8f3a3574cdb120ed39dbd08d427f23d34"
+      },
+      "widget_and_real_viewer_journey": "pending"
+    }
   },
   "remaining": [
     "booted installed source still890; wallet Settings/canonical updater acceptance after signed reboot",

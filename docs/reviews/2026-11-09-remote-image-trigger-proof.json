@@ -27,9 +27,10 @@
     "event": "workflow_dispatch",
     "attempt": 1,
     "source": "4303a206579b9e9ae873c7992a940e1eed77ada9",
-    "state_at_checkpoint": "in_progress",
+    "state_at_checkpoint": "completed_success",
     "unsigned": true
   },
   "invariants": "same Containerfile/arguments/build actions; read-only permissions, no secrets/signing/push/promotion; both ARM paths retained",
-  "scope": "new PR trigger source control only; integration and successful exact-head CI remain required; current signed cohort source remains frozen"
+  "scope": "new PR trigger source control only; integration and successful exact-head CI remain required; current signed cohort source remains frozen",
+  "signed_native_delivery": "../releases/2026-11-09-oracle-native-upgrade-proof.json"
 }
