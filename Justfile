@@ -316,6 +316,7 @@ check:
     python3 tests/test_remote_resolution_ceiling.py
     python3 tests/test_remote_h264_fallback.py
     python3 tests/test_remote_video_health.py
+    python3 tests/test_remote_frame_transport.py
     python3 tests/test_remote_source_geometry.py
     python3 tests/test_remote_display_geometry.py
     python3 tests/test_remote_weak_link.py

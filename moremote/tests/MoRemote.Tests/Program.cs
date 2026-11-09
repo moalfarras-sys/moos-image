@@ -3,7 +3,7 @@ using MoRemote;
 
 if (args.Contains("--portal-recorder"))
 {
-    try { await PortalRecoveryTests.Record(args[^2], args[^1], args.Contains("--idle"), args.Contains("--decline")); }
+    try { await PortalRecoveryTests.Record(args[^2], args[^1], args.Contains("--idle"), args.Contains("--decline"), args.Contains("--packet-order")); }
     catch (Exception ex) { Console.Error.WriteLine(ex.Message); Environment.ExitCode = 1; }
     return;
 }

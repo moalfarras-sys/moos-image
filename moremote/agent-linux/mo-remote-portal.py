@@ -1077,13 +1077,21 @@ frames_lock = threading.Lock()
 frames_alive = True
 
 
-def send_frame(data):
+def send_frame(data, codec):
+    # stdout metadata and this socket are independently scheduled. Carry the
+    # pipeline's actual codec with every frame, including preroll before PLAYING
+    # is reported and the first frame after a codec fallback/rebuild.
+    if codec not in ("jpeg", "h264"):
+        raise ValueError("unknown frame codec")
+    if not 0 < len(data) <= 32 * 1024 * 1024:
+        raise ValueError("invalid frame length")
+    header = len(data) | (0x80000000 if codec == "h264" else 0)
     global frames_alive
     if not frames_alive:
         return False
     with frames_lock:
         try:
-            frames.sendall(struct.pack("<I", len(data)) + data)
+            frames.sendall(struct.pack("<I", header) + data)
             return True
         except OSError:
             frames_alive = False  # agent went away; the pipeline is torn down with us
@@ -1601,7 +1609,7 @@ def source_size(source):
     return None
 
 
-def on_sample(sink, source=None):
+def on_sample(sink, source=None, codec="jpeg"):
     sample = sink.emit("pull-sample")
     if sample is None:
         return Gst.FlowReturn.OK
@@ -1622,7 +1630,7 @@ def on_sample(sink, source=None):
         try:
             # Health means a frame made it through the ENTIRE pipeline and into the agent socket,
             # not merely that pipewiresrc produced a buffer upstream of a wedged encoder/appsink.
-            if send_frame(info.data):
+            if send_frame(info.data, codec):
                 video_health.note_frame(monotonic_ms())
         finally:
             buf.unmap(info)
@@ -1922,7 +1930,7 @@ def build(w, h):
     rate.get_static_pad("sink").add_probe(Gst.PadProbeType.BUFFER, pace_frame)
     if codec == "h264":
         tune_for_latency(enc, _bps, state["fps"])
-    pipeline.get_by_name("sink").connect("new-sample", on_sample, pipeline.get_by_name("source"))
+    pipeline.get_by_name("sink").connect("new-sample", on_sample, pipeline.get_by_name("source"), codec)
     pipeline_bus = pipeline.get_bus()
     pipeline_bus.add_signal_watch()
     pipeline_bus_handler = pipeline_bus.connect("message", on_bus)

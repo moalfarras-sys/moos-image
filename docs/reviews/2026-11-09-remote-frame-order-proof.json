@@ -1,0 +1,200 @@
+{
+  "schema": 1,
+  "date": "2026-11-09",
+  "scope": "existing Mo Remote packet transport; no owner portal/input restart and no installed-source claim",
+  "prior_qualified_batch": {
+    "source": "39afe79d6c7d768d2aca3d94f7d1ee62f4cd1150",
+    "merged_revision": "9e97518fdc739870b2765aef909dfe92d6c46bfd",
+    "x86_promoted_version": "44.20261108.1133",
+    "x86_promotion_run": 42523974185,
+    "arm_promoted_version": "44.20261108.903",
+    "arm_workflow": 42508105794
+  },
+  "store_followup": {
+    "source": "04b355dea44fcf7bb8eed7c45faba5f782f37d8e",
+    "merged_revision": "fe58e059e6fa223b04ec522eb458d8da57d93ad2",
+    "pr": 281,
+    "full_source": {
+      "source": "04b355dea44fcf7bb8eed7c45faba5f782f37d8e",
+      "tree": "17406bb748ea8021f0480d924d98815045c30087",
+      "exit": 0,
+      "seconds": 1520.243,
+      "source_unchanged": true,
+      "stop_requested": false,
+      "qualified": true,
+      "log_sha256": "7f39190fe1a0b4f508f85605c7586d418d36a942952ca6114e10bad4c2151b59"
+    },
+    "native_image": {
+      "source": "04b355dea44fcf7bb8eed7c45faba5f782f37d8e",
+      "tree": "17406bb748ea8021f0480d924d98815045c30087",
+      "tag": "localhost/moos-native-signals:04b355dea44f",
+      "exit": 0,
+      "seconds": 1414.031,
+      "source_unchanged": true,
+      "stop_reason": null,
+      "qualified": true,
+      "minimum_free_bytes": 29910646784,
+      "minimum_memory_available_bytes": 3177771008,
+      "log_sha256": "5e4ea257c8861b47253eead2ae71f06863f00b376ddb84c66350a6f7b989c4d2"
+    },
+    "immutable_payload_matches": 10,
+    "first_attempt_pr_runs": [
+      42520450243,
+      42520450125,
+      42520450281
+    ],
+    "main_x86_refusal": {
+      "utc": "2026-11-08T23:21:42.618981+00:00",
+      "merged_pr": 281,
+      "revision": "fe58e059e6fa223b04ec522eb458d8da57d93ad2",
+      "refused_main_build": 42526063620,
+      "attempt": 1,
+      "failed_job": "moos-nvidia",
+      "failed_step": "dotnet run tests/MoRemote.Tests",
+      "native_failure": "restarted private helper delivered no frame",
+      "no_signed_cycle_dispatched": true,
+      "failed_log_sha256": "6fd535baad6d07a748eb5e7c901f77e43a0c8d86722667024595b32d6b13d1b9",
+      "scope": "first refusal preserved; no workflow rerun, merge retry or delivery claim"
+    },
+    "arm_release": {
+      "revision": "fe58e059e6fa223b04ec522eb458d8da57d93ad2",
+      "version": "44.20261108.906",
+      "digest": "sha256:f45800b30969240cb11dc576e85b2761dfb0d41b989afd4522a47fa99b28fedf",
+      "ref": "ghcr.io/moalfarras-sys/moos-arm@sha256:f45800b30969240cb11dc576e85b2761dfb0d41b989afd4522a47fa99b28fedf",
+      "native_first_attempt_workflow": 42526063618,
+      "signature_exit": 0,
+      "signature_log_sha256": "0204a66b1ce9d206f1f5fa2e6db82d278e411abd754d5fbf19042435f4550252",
+      "manifest": {
+        "boot_proven_raw_qcow2_sha256": "c4d361ee80abfd39d257fbd9d614ef6af9ead6b1a57c07976b49a88dcf29deb7",
+        "first_boot": "healthy",
+        "poweroff": "clean",
+        "revision": "fe58e059e6fa223b04ec522eb458d8da57d93ad2",
+        "schema": 1,
+        "second_boot": "healthy",
+        "source_image": "ghcr.io/moalfarras-sys/moos-arm@sha256:f45800b30969240cb11dc576e85b2761dfb0d41b989afd4522a47fa99b28fedf",
+        "workflow_run_id": 42526063618
+      },
+      "scope": "independently promoted signed ARM artifact; x86 main build refused and no x86 C cycle was dispatched",
+      "artifact_file_count": 13,
+      "prelogin_pixels": "actual guest MoOS greeter visually reviewed; CI artifact, not physical owner login"
+    },
+    "arm_stage": {
+      "command_exit": 0,
+      "seconds": 492.298,
+      "expected_digest": "sha256:f45800b30969240cb11dc576e85b2761dfb0d41b989afd4522a47fa99b28fedf",
+      "staged_digest": "sha256:f45800b30969240cb11dc576e85b2761dfb0d41b989afd4522a47fa99b28fedf",
+      "staged_version": "44.20261108.906",
+      "booted_checksum_unchanged": true,
+      "all_previous_nonstaged_deployments_retained": true,
+      "boot_id_unchanged": true,
+      "log_sha256": "d4be623b8e2797666b49e8e7e5a98d08e3f0534726104976bba51b12edf77eef",
+      "scope": "qualified signed production906 staged through existing immutable privileged MoOS backend; no reboot or installed acceptance claim",
+      "qualified": true
+    }
+  },
+  "native_controls": {
+    "baseline": {
+      "exit": 0,
+      "seconds": 34.505,
+      "source": "fe58e059e6fa223b04ec522eb458d8da57d93ad2",
+      "log_sha256": "010f70c219958bea0b9043a2da69b874fb4a7135003c3a445e137cf49f5d8c2e"
+    },
+    "old-metadata-order": {
+      "exit": 1,
+      "seconds": 17.519,
+      "scope": "actual old PortalBridge with private helper sending ten H264 packets before stdout metadata; no desktop I/O",
+      "log_sha256": "f995dbb3bad29456ace76fdf383dde485622f0a3c44a4e9d5c513660ef8586ae"
+    },
+    "old-routing-control": {
+      "exit": 1,
+      "seconds": 20.435,
+      "scope": "native old metadata-driven routing, adapted length mask only; new real socket regression holds metadata until the packet is delivered",
+      "log_sha256": "c2b4181eb4844c69a5aa7202ef7fad86a93dde8989bf97f74c89a9cb74db5165"
+    },
+    "fixed-dotnet": {
+      "exit": 0,
+      "seconds": 30.346,
+      "log_sha256": "a893a5d3fda9236d0335a3b32d021bc5f3ea79f5873526117152a24e95c7cb26"
+    },
+    "native-roundtrip": {
+      "exit": 0,
+      "seconds": 0.385,
+      "log_sha256": "689169e543bff7dd55f76bb65a3c4c8c8e41ebdca4f0e2ee791bf7704577fd03"
+    }
+  },
+  "implementation": {
+    "owner": "existing PortalBridge.cs and mo-remote-portal.py",
+    "packet_header": "little-endian uint32: bit31 is actual per-pipeline H264, remaining bits payload length; JPEG flag0, original32MiB ceiling",
+    "source": "immutable codec bound to native pipeline callback, not changing shared state/requested codec",
+    "metadata": "stdout remains geometry/encoder diagnostics; cannot relabel delivered frames",
+    "retained": "per-helper generation, exact payload, authenticated viewer ownership, cancellation, finite restart/refusal cooldowns and frame-health rules",
+    "packaging": "private helper and C# consumer ship together in the same immutable image; no browser/API protocol change"
+  },
+  "native_result": {
+    "portal_assertions": 51,
+    "all_mapping_validation_unicode_assertions": 394,
+    "packet_tests": 4,
+    "native_pipeline_frames": {
+      "jpeg": 3,
+      "h264": 3
+    },
+    "decoded_sizes": [
+      320,
+      180
+    ],
+    "negative_scope": "old quiet native run passes; old routing fails under withheld metadata. Actual CI did not retain an internal frame trace, so this is the proven timing class, not an attribution of all earlier failures."
+  },
+  "qualification": {
+    "full_current_source": "pending",
+    "full_current_image": "pending",
+    "pr_ci": "pending",
+    "new_signed_cycle": "not dispatched",
+    "installed_new_remote": "unverified"
+  },
+  "remaining": [
+    "booted installed source still890; wallet Settings/canonical updater acceptance after signed reboot",
+    "physical V3 identity/account verification unavailable; GPU/Windows/Android/endurance unqualified",
+    "Meyar browser mono/personal/default fallback remains open; private prototypes not shipped"
+  ],
+  "current_x86_production": {
+    "moos": {
+      "digest": "sha256:cbe1fa1aee8b08a7884ba4b4518a0e00634742abcc01b7a2f11e2064c8f84994",
+      "version": "44.20261108.1133",
+      "revision": "9e97518fdc739870b2765aef909dfe92d6c46bfd",
+      "signature_exit": 0,
+      "signature_log_sha256": "c10b685eab5ef9c513c21986bbd178faf88d1b9067a19374b4fd757b778b4551"
+    },
+    "moos-nvidia": {
+      "digest": "sha256:fa917f204bc82f1756dc193b0e95d7be506340d7bc94beddbb0eea4afba55bba",
+      "version": "44.20261108.1133",
+      "revision": "9e97518fdc739870b2765aef909dfe92d6c46bfd",
+      "signature_exit": 0,
+      "signature_log_sha256": "58d08e902d6cd822671ea0fb917cdfdb83314cbc5d5e602c4c790c0fb0d3f3f2"
+    },
+    "moos-cloud": {
+      "digest": "sha256:df07dd070df6874952b4fa78bd3d5a34924f3ac0ceff26974a641a4a859ef4bf",
+      "version": "44.20261108.1133",
+      "revision": "9e97518fdc739870b2765aef909dfe92d6c46bfd",
+      "signature_exit": 0,
+      "signature_log_sha256": "62071070b085b0d64951bc26a00634c1cbd291ad757c986f5f63c54a854b35d6"
+    }
+  },
+  "physical_nvidia": {
+    "board": "B660 GAMING X DDR4",
+    "boot_id": "c9783144-144b-40df-b799-3ba390626aab",
+    "booted_version": "44.20261105.1127",
+    "rollback_version": "44.20261031.1119",
+    "gpu": "NVIDIA GeForce RTX 2080 SUPER, 615.78.08, 8192 MiB, 2218 MiB, 1 %",
+    "display": "actual Wayland4096x2160 at275percent; original owner MoPlayer desktop visually reviewed",
+    "system_failed": 0,
+    "user_failed": 0,
+    "authentication": "existing authorized Tailscale SSH now succeeds with coordinated host-key validation; no ACL or owner SSH policy change",
+    "not_v3": true,
+    "native_selfcheck": {
+      "exit": 0,
+      "passed": 45,
+      "scope": "current1127 baseline, not new signed delivery"
+    },
+    "free_bytes": 20927561728
+  }
+}

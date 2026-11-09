@@ -1,6 +1,6 @@
 # MoOS development plan — current execution backlog
 
-Updated 2026-11-08. This is the single execution backlog. `PROJECT_STATE.md`
+Updated 2026-11-09. This is the single execution backlog. `PROJECT_STATE.md`
 records measured state; `AGENTS.md` defines invariants; the engineering skill
 selects the workflow. Dated handoffs and Git history preserve earlier work,
 not competing instructions about what to do next.
@@ -28,31 +28,43 @@ runtime, a larger catalogue or a new wallpaper does not close a product journey.
 
 ## Active delivery and acceptance batch
 
-PR280 merges the qualified39afe tree as9e975. Native complete source
-0/1451.734s, full ARM image0/1098.685s, nine immutable file matches and
-first-attempt repository/ARM/x86 PR gates pass. Main42508105802 succeeds;
-the guarded signed candidate42513578569 runs on that fixed revision. ARM
-42508105794 passes native image signing and final UEFI disk boot; packaging,
-upload and promotion still run. Keep main frozen through the cohort. Oracle
-still boots890, with895 staged and884 rollback; no new installed delivery.
-Earlier1127/895 artifact promotion is complete,1127 ISO has verified full
-checksum/signature in the local release archive, and public1046 remains the
-last anonymous full/range-qualified download. [Release and installed evidence](reviews/2026-11-08-system-completion-wallet-updater.json).
+PR280's exact39afe tree is merged as9e975 and fully promoted: signed x86
+1133 and ARM903 pass all first-attempt image/artifact boot/promotion proofs.
+Do not repeat that cycle. The owner-requested wallet controls, root updater
+repair and Meyar3 reverse named-family pairing are in those artifacts; actual
+installed acceptance remains separate.
 
-The next P4.1/P1.7 slice is draftPR281, using the existing Store adapter.
-Native Flatpak integer signals contradict their GI flags annotations, losing
-nonzero result/error bits. Native virtual handlers preserve0/1/3 and existing
-cancellation/continuation policy;75 targeted methods and the writable private
-installed-driver review pass. Its first complete source check refuses the
-ar10/2.5 Store keyboard journey after1239.759s; source remains unchanged and
-the image waiter refuses before composition. Private Qt controls retain quiet
-and1200ms contrary passes, then reproduce native focus restoration during a
-360ms exit: old1/fixed0. The probe now waits for actual modal closure and
-requires native focus before the real key/row checks. A new regression passes
-0/22.405s; removing only its wait executes the native negative. Original
-failure lacks a focus snapshot, so do not assign every prior timing failure
-to this class. Final complete source/image/CI and signed acceptance remain.
-[Native API, focus and app evidence](reviews/2026-11-08-native-flatpak-signal-proof.json).
+PR281's exact04b tree is merged asfe58 after native complete source
+0/1520.243s, full ARM image0/1414.031s, ten immutable matches and successful
+first-attempt repository/ARM/x86 PR gates. Native Flatpak virtual handlers
+preserve result/error bits; the bounded Store popup/focus regression and its
+executed old negative pass. ARM42526063618 independently completes signing,
+final UEFI first/second boot, clean poweroff and promotion as906. Its exact
+signature, small artifact archive and MoOS pre-login pixels are verified.
+The main x86 run42526063620 correctly refuses NVIDIA before driver composition:
+the native Mo Remote recovery test receives no restarted H264 frame. The other
+x86 editions sign, but this is not a qualified x86 release. No failed workflow
+is rerun and no second signed cycle is dispatched. [Source/API qualification](reviews/2026-11-08-native-flatpak-signal-proof.json).
+
+The active P2.14/P0 delivery repair stays in the existing PortalBridge/Python
+helper. A quiet original native run passes; deliberately delivering ten frames
+before stdout codec metadata reproduces the loss. Each private packet now
+carries its pipeline's immutable actual codec; late stdout cannot relabel it.
+A native old-routing control still fails with only the new length mask adapted;
+fixed controls pass51 portal/394 total assertions, including fragmented packets,
+H264/JPEG/H264 and withheld/stale announcements. The real helper writer and
+native GStreamer encode/transport/decode three JPEG and three H264 pictures.
+This proves the ordering class; the failed CI run lacks its internal frame
+trace, so do not attribute every earlier failure to it. Full new source/image,
+PR CI, signed release and installed Remote acceptance remain required.
+[Refusals and packet evidence](reviews/2026-11-09-remote-frame-order-proof.json).
+
+Oracle still boots890 with884 rollback;906 is staged through the canonical
+signed backend, command0/492.298s with old boot/rollback retained and no reboot. The newly authenticated x86 peer is the Gigabyte
+RTX2080SUPER NVIDIA station on1127/1119 rollback, not the V3. Its actual Arabic
+Wayland desktop is visually read back at4096x2160/275%, with no failed units.
+Preserve its owner windows and current session. V3/tablet acceptance remains
+unavailable; do not transfer Oracle or NVIDIA evidence to it.
 
 The owner's wallet is Off on the installed session; encrypted collections and
 all authentication boundaries remain intact. Native Settings provides full
@@ -417,7 +429,7 @@ handoff when the branch merges; keep milestone/task ownership in this file.
 | P2.11 | Visible, bilingual update changes | Implemented/delivered within recorded scope; wider acceptance remains | Readable current entries and working routes, delivered update/notification readback. |
 | P2.12 | One update surface for OS, apps and firmware | Open / acceptance not complete | OS image, Flatpak apps and firmware share truthful pending/failure/unsupported/finished states. |
 | P2.13 | MoPlayer performance and server/stream compatibility | Native ARM installed MPEG4 plays and advances 2.93→8.07 s (~447 MiB RSS), but exposed direct-file live controls. Independent fix accepts encoded Arabic file URIs, finite local/explicit movie URLs and no catalogue records; 258 Flutter tests/native ARM build pass. Native source bundle proves 20 s MPRIS length/CanSeek, paused +5 s seek and rendered frames/controls; restored all-live factory fails the new test. Final local image/9 hashes, all PR CI and signed .1034/.763 delivery pass. Oracle signed .763 native boot/installed small MPEG4/seek/frame journey pass; wider server/hardware/codec/endurance acceptance remains | Installed playback/reopen/stop and memory on real server kinds, MAC portal, HEVC/interlaced samples. |
-| P2.14 | Remote input, recovery and mobile/WAN video | Implemented/delivered within recorded scope; wider acceptance remains | Held-input ownership, decoded pictures, browser recovery and owner iPhone/cellular endurance. |
+| P2.14 | Remote input, recovery and mobile/WAN video | Nov9 main NVIDIA gate preserves a missing restarted-frame refusal. Packet-bound actual codec fixes the native withheld/stale-metadata class; old negative,51 portal/394 total assertions and six real encoded/transported/decoded frames pass. Full source/image/new signed and installed acceptance pending; earlier delivered input remains scoped | Held-input ownership, decoded pictures, browser recovery and owner iPhone/cellular endurance. |
 | P2.15 | Mira face, speech/rest and original portrait identity | Capture policy integrated/promoted in .1022/.749; both hosts booted with matching delivered hashes. Source/private-helper boundary and muted real USB pass; physical unmuted speech and long capture remain open | Both portraits retained; single mouth, real voice/pause/idle/hidden/reduced-motion readback; 11 private-process boundary tests, 45 controller tests, real muted USB with zero captures/overruns and three synthetic unmute/mute cycles. Signed installed delivery passes on both hosts; physical unmuted voice/device acceptance remains open. |
 | P2.16 | Shared login, lock and power experience | Delivered within earlier recorded scope; private Arabic lock/power/wrong/correct-password controls pass, login buttons remain English. PR227 maintenance scoping is integrated through PR228 with both native PR image CIs, owner/greeter conditions, 17 theme tests and final local ARM/three unit hashes passing. Signed .1034/.763 delivery passes; Oracle native boot/bytes pass; ordinary-login/hardware acceptance remains; authentication stays upstream | Native greeters 640×480–4K@2.5, password refusal, multi-user, save/logout and accessibility. |
 | P2.17 | Mo PC Remote before account login after reboot | Greeter KDE environment and actual three-group EIS keymap correction is signed in .1044/.773 and retained in .1046/.775. Source/29 controls and actual device old/fixed proof pass; owner ordinary password login/account handoff passed on .1044, and .1046 now boots with 54 selfchecks/2 notes, 55 post-update/0 failures and 19 hashes/player. Temporary bundle retired after replacement/no-holder proof. Oracle pre-login remains off; repeated native wrong/correct PIN/password/cold-boot, phone/WAN/multi-account/endurance acceptance remains  Native1072 additionally measures first-owner localhost8765 binding before old greeter Remote stops, one SIGABRT/managed restart then active; bounded account-owned startup/handoff controls and qualified repair remain, not a reason to change PIN/PAM or steal another account listener. | Explicit opt-in, authenticated PIN/trusted-device/private TLS; native greeter capture/input with upstream PAM and no saved account password; real wrong/correct PIN/password, bounded handoff/logout/account isolation; default-disabled/native NVIDIA and ARM reboot evidence. |
@@ -441,7 +453,7 @@ handoff when the branch merges; keep milestone/task ownership in this file.
 
 | ID | Outcome | Current boundary | Required acceptance |
 | --- | --- | --- | --- |
-| P4.1 | Unify every install/update/remove request behind Mo Store | Nov8 native signal follow-up preserves real result/error bits through native virtual handlers; old0-bit refusal, seven controls and root installed-driver source review pass; full/image/signed qualification pending. Existing Store remains the lifecycle owner. Nov8 real headless OCI-authenticator refusal is repaired with a lifetime-owned private bus; actual system updater completes, exact obsolete compatibility units are recoverably retired. Final source/image qualification and exact signed delivery are required. Source AppDrop/vendor shared active-tree refusal passes exact native old/fixed update controls and localized errors. Flatpak app-only postflight scopes requested apps; runtime changes attempt all qualified apps, retaining package receipts plus visible partial discovery failures. Active owner Code/ChatGPT are preserved. Snapshot is not lifetime lease; Code native identity/profile/icon/URI durability, signed current-adapter lifecycle and public API acceptance remain open Nov4 native Notepad4 exposes portable app-folder data loss in exit0 update/remove controls. Repair preserves data/permissions and recovery trees, refuses collisions/unknown legacy ownership and coordinates canonical runner SH with Store EX. Private filesystem/concurrency/bind controls pass; final combined qualification and signed delivery remain pending. | One lifecycle authority, stable job IDs, data-preserving remove, cancelled/failed state and measured readback for every adapter; versioned API authorization/backward-compatibility controls. |
+| P4.1 | Unify every install/update/remove request behind Mo Store | Nov8 native signal follow-up preserves real result/error bits through native virtual handlers; seven controls, root installed-driver review, full source/image/PR gates pass; merged04b/fe58 has signed ARM906 boot/promotion, while x86 delivery is held by the Remote packet-order repair. Existing Store remains the lifecycle owner. Nov8 real headless OCI-authenticator refusal is repaired with a lifetime-owned private bus; actual system updater completes, exact obsolete compatibility units are recoverably retired. Exact04b full source/image/PR gates pass and ARM906 is promoted; x86 delivery is refused by the separate Remote recovery gate. Source AppDrop/vendor shared active-tree refusal passes exact native old/fixed update controls and localized errors. Flatpak app-only postflight scopes requested apps; runtime changes attempt all qualified apps, retaining package receipts plus visible partial discovery failures. Active owner Code/ChatGPT are preserved. Snapshot is not lifetime lease; Code native identity/profile/icon/URI durability, signed current-adapter lifecycle and public API acceptance remain open Nov4 native Notepad4 exposes portable app-folder data loss in exit0 update/remove controls. Repair preserves data/permissions and recovery trees, refuses collisions/unknown legacy ownership and coordinates canonical runner SH with Store EX. Private filesystem/concurrency/bind controls pass; final combined qualification and signed delivery remain pending. | One lifecycle authority, stable job IDs, data-preserving remove, cancelled/failed state and measured readback for every adapter; versioned API authorization/backward-compatibility controls. |
 | P4.2 | Audit desktop-app permissions and prefer portals | Oct29 source correction: actual resolver selected Flatpak/sandboxed for AppImage; format-scoped adapters and App Drop sandboxed=false now agree with existing truthful Store labels/consent. Old failure,32 resolver tests and private native launcher/synthetic file-access proof pass. Complete source qualification, signed delivery and broader portal journeys remain open | Distinguish extraction isolation from running-app permissions; truthful capability readback and actual file/camera/screen/print allow/deny/cancel without broad grants. |
 | P4.3 | Turn Windows compatibility into a per-app runner product | Combined source retains 20 reviewed publisher-pinned Windows recipes and their existing private render evidence. The six unqualified local additions are preserved in Git history, not offered as proven apps. Ten full native lifecycle journeys remain open. Nov4 V3 Notepad4 26.08r6282/Wine11.20 opens and edits Arabic/Latin; Arabic Save/close labels remain clipped while temporary English labels render. Save target/focus changed unexpectedly; keep the actual saved file and unknown cause, no further global input. Native full save/reopen/update/remove acceptance remains failed or untested. [Data and runtime scope](reviews/2026-11-04-windows-portable-data.json). | Ten Windows apps with isolated prefixes and install/launch/reopen/update/remove evidence. |
 | P4.4 | Turn Android compatibility into a per-app product | Source has46 recipes, native boot/property and scoped Markor/calculator rendering evidence. Oct28 V3 calculator arithmetic/maximize passes. Oct29 normal Alt+F4 removes its actual window and the canonical desktop entry reopens a new one; full-desktop composition confirms its global1536x810 root is transparent around the portrait app. Native sizing, persistence, switching, cold-start endurance and ten complete journeys remain open. Nov3 installed1119 canonical cold launch, native keyboard7×8=56, Alt+Tab away/back and normal close/new-window reopen pass; pointer arithmetic remains unaccepted and APK version/history/resize/endurance remain open. The review restored its originally stopped session. | Ten version-pinned Android apps; visible content/input/switch/resize/reopen, files/clipboard/audio, on-demand lifecycle and separately measured GPU fallback. |
