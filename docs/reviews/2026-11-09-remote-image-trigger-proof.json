@@ -1,0 +1,35 @@
+{
+  "schema": 1,
+  "date_utc": "2026-11-09T08:41:02.395867+00:00",
+  "source_parent": "4303a206579b9e9ae873c7992a940e1eed77ada9",
+  "observed_PR": 282,
+  "missing_trigger": "moremote/** in x86 pull_request paths",
+  "old_control": {
+    "exit": 1,
+    "seconds": 0.148,
+    "x86_remote_input_failures": 4,
+    "log_sha256": "e86349b55447437a3daddff055d1dd1655f941f2b116791aa46b8c6e8c102ee5",
+    "source": "actual unchanged4303 workflow, new input coverage gate; ARM controls pass"
+  },
+  "fixed_control": {
+    "exit": 0,
+    "seconds": 0.116,
+    "tests": 7,
+    "log_sha256": "a540d97f03caed18f5af8abf4a5ec47649d49e076f6181b26990a3cd1c2c8b42",
+    "scope": "actual existing unsigned x86 build now triggered for Remote; ARM controls and no-publish invariants unchanged"
+  },
+  "fixed_files": {
+    ".github/workflows/pr-image-gates.yml": "2b3ccaa4232a921c34b0fada0a533719416d11102d52c8579289f4a774d5ce32",
+    "tests/test_pr_image_gates_workflow.py": "0f8fac31ba9a1a6a73f46ed20314331016ce63c0a04c9019c563d90d8eae1503"
+  },
+  "exact_source_manual_gate": {
+    "run": 42584826740,
+    "event": "workflow_dispatch",
+    "attempt": 1,
+    "source": "4303a206579b9e9ae873c7992a940e1eed77ada9",
+    "state_at_checkpoint": "in_progress",
+    "unsigned": true
+  },
+  "invariants": "same Containerfile/arguments/build actions; read-only permissions, no secrets/signing/push/promotion; both ARM paths retained",
+  "scope": "new PR trigger source control only; integration and successful exact-head CI remain required; current signed cohort source remains frozen"
+}

@@ -498,6 +498,14 @@ These are not conventions, they are gates. The image build fails if you break th
 
 ## A green build proves nothing about what the user sees
 
+**A compiled source tree can be missing from a PR's path filter.** Remote-only
+PR282 ran repository, controller and native ARM checks, but never started the
+x86 image gate: `moremote/**` was absent. Preserve that live omission and the
+four executed old-workflow input failures. Both architectures must cover the
+actual agent, Python helper, recovery tests and controller lock; retain the
+unsigned workflow's existing no-publish constraints. A manual gate on the exact
+frozen source qualifies that source, not the missing future PR trigger.
+
 **A light colour scheme is not a complete light Plasma theme.** The native
 launcher fixture selected Light colours while inheriting Aurora's dark Plasma
 Style and icons. Its white labels/icons were real pixels of a mixed fixture,

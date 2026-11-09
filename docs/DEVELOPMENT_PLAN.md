@@ -55,8 +55,15 @@ fixed controls pass51 portal/394 total assertions, including fragmented packets,
 H264/JPEG/H264 and withheld/stale announcements. The real helper writer and
 native GStreamer encode/transport/decode three JPEG and three H264 pictures.
 This proves the ordering class; the failed CI run lacks its internal frame
-trace, so do not attribute every earlier failure to it. Full new source/image,
-PR CI, signed release and installed Remote acceptance remain required.
+trace, so do not attribute every earlier failure to it. Exact4303 now passes
+complete source0/1529.761s, all eight .NET projects and a full native ARM image
+0/9283.656s with eleven immutable matches. Its actual production assembly and
+writer pass three real encoded/delivered/decoded codec transitions. PR282's
+repository, Remote and ARM checks pass; its missing x86 trigger is reproduced
+and the existing unsigned workflow is dispatched once as42584826740 on the
+same source. That gate, merge, signed release and installed acceptance remain
+pending at this checkpoint. P0.9 adds the missing source path and executable
+old/fixed coverage without changing image, signing or publishing gates.
 [Refusals and packet evidence](reviews/2026-11-09-remote-frame-order-proof.json).
 
 Oracle still boots890 with884 rollback;906 is staged through the canonical
@@ -75,8 +82,8 @@ Neither source previews nor a local image establish installed UI acceptance.
 
 Meyar3 resolves the measured LibreOffice361 em-dash fallbacks to0 and retains
 named-family/user-order/cache/mono metadata controls in four native runtimes.
-Actual Chrome157 CDP glyph readback still paints DejaVu for named Meyar Sans
-Arabic, despite correct Fontconfig queries. A private generic prototype also
+Actual Chrome157 CDP glyph readback still paints Arabic requested in Meyar Sans
+with DejaVu, despite correct Fontconfig queries. A private generic prototype also
 fails personal precedence and mono-cell acceptance; do not ship it. Browser
 fallback/defaults remain P2.3 work. Real GIMP3.2.8 has8.3MP editing/XCF/pixel
 roundtrip and canonical close/new-process reopen proof. LibreOffice26.8.2.2
@@ -85,6 +92,16 @@ clip both Meyar/Noto, while wrapped measured rows pass save/reopen. English
 onboarding, the retained modal hang, full input/GPU/endurance stay open. VLC,
 Curtail and Ptyxis retain their earlier bounded native journeys; do not repeat
 them as missing features. Owner regional/font settings are preserved.
+
+Krita5.3.4.1 now installs through the existing Store on Oracle ARM and qualifies
+an eight-paint-layer3840×2160 document: Unicode layer names, exact import/native
+save/reopen pixels, actual Arabic desktop brush/Save/normal-close/new-process
+reopen and47,978 changed saved pixels. Both private Meyar1/2→3 runtime controls
+pass57 queries with personal order preserved. This is an X11 client under
+Wayland, not native Wayland touch, hardware GPU or endurance acceptance. Original
+task files, offscreen refusals and namespace/profile/input harness failures
+remain preserved. No input permission was granted by this agent or security
+policy changed. [Native application evidence](reviews/2026-11-09-native-krita-proof.json).
 
 Photo/SMB containers and encrypted local backup are healthy. Preserve both
 material incidents: the clipboard's complete original text was not recovered,
@@ -392,10 +409,10 @@ handoff when the branch merges; keep milestone/task ownership in this file.
 | P0.3 | Finish physical NVIDIA qualification | Open: signed .1042 native 55/0 + 55/0, 16 hashes and exact signed player bytes pass; one URI/finite seek/resource journey passes. Kernel -201 NVIDIA vermagic matches. USB-C UCSI -110 remains; broader physical acceptance is open. Offline ESP dirty-bit-only clone/live proof passes, 16 boot-file hashes preserved and both shared vfat mounts restored; the prior unmount mistake failed before fsck and has a private old/fixed topology control. New1072 boot preserves UCSI-110 and a QtQuick ListView/QQuickView teardown SIGSEGV through screenRemoved; exact root cause is unproven. Basic GPU/35 payload/54 selfcheck/55 postcheck/cold-search acceptance passes; isolate real screen-removal before changing greeter/graphics policy. Suspend/hotplug and recovery remain | Actual NVIDIA GPU, initramfs module, displays, suspend and clean recovery on qualified hardware. |
 | P0.4 | Prove failed-update recovery | Open / acceptance not complete | Deliberate bad update, automatic/manual rollback and forward return without owner data loss. |
 | P0.5 | Configure and accept free Mo AI on a clean account | Open / acceptance not complete | Clean-account provider setup, free route, reboot, cancellation and network/quota/key failures. |
-| P0.6 | Promote only proven digests and update the physical PC | Exacte4cab x861127/ARM895 artifact promotion passes. Oracle boots890 with895 staged/884 rollback and56/0 postcheck; no new reboot. Earlier physical V31119/Meyar143 evidence is historical. New wallet/updater source, ordinary authentication and broad hardware acceptance remain open | Promote only exact proven signed digests; separately verify installed stage/reboot/rollback. |
+| P0.6 | Promote only proven digests and update the physical PC | Exact9e975 x861133 and exactfe58 ARM906 artifact promotion/signatures pass within their separate source scopes. Oracle boots890 with906 staged/884 rollback; no new reboot. Exact4303 full source/native image passes and its unsigned x86 gate is running. Earlier physical V31119/Meyar143 evidence is historical. New wallet/updater source, ordinary authentication and broad hardware acceptance remain open | Promote only exact proven signed digests; separately verify installed stage/reboot/rollback. |
 | P0.7 | Remove the intermittent `plymouthd` crash (ARM second boot; x86 first boot) | Implemented/delivered within recorded scope; wider acceptance remains | Pinned vendor Plymouth fix, old/fixed negative, exact final initramfs and actual boot visuals. |
 | P0.8 | Make the ISO installed-reboot proof deterministic | Integrated at 1a73a4e0; .1022 exact offline ISO 38051456847 passes. CLDR/native AR/EN row clicks and mismatch negatives pass. Earlier .1018 private two password logins/cold boot pass 51/0 twice; offline serialization strict mismatch remains visible. Host batch reboot is separate | Repeated installed-ISO reboot with DHCP/SSH-channel evidence and console failures visible. |
-| P0.9 | Run image-only gates before the merge | Stable mechanism/artifact evidence recorded. Native audit adds the omitted moplayer/** x86 PR trigger; the new input gate fails against the old workflow and passes fixed. ARM already watches the in-tree player. No publishing permission added; final x86/ARM image CI and signed cycle pass | PR generic image gates block real image failures; no signing/publishing from PR. |
+| P0.9 | Run image-only gates before the merge | Earlier player coverage is retained. PR282 exposes the omitted moremote/** x86 trigger; four actual source-input negatives fail the old workflow and all seven workflow tests pass fixed, including both ARM lanes and no-publish constraints. Existing exact4303 unsigned x86 gate42584826740 runs independently; follow-up trigger CI/integration remains pending | PR generic image gates block real image failures; no signing/publishing from PR. |
 | P0.10 | Gate NVIDIA persistence on a bound GPU | Stable mechanism/artifact evidence recorded; preserve required gates | Bound NVIDIA hardware and exact-kernel persistence/initramfs proof. |
 | P0.11 | Give first-boot Flatpak setup a realistic finite timeout | Stable mechanism/artifact evidence recorded; preserve required gates | Finite realistic first-boot app setup timeout and actual ARM reboot. |
 | P0.12 | Deliver the exact signed, installed-system-proven ISO through a stable anonymous download | Public1046 remains last anonymous qualification. Qualified1127 ISO is locally archived:5817565184bytes, SHA2566303b2147a9ed271180a6b63d86d8e6d48bee23b90a1cadec5b02617b112075f, detached signature verified. New hosting/account access and anonymous full/range acceptance remain open | Repeat stable anonymous full signed ISO, exact size/hash and resumed ranges, sidecars and site readback for each release. |

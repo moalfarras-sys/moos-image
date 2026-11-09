@@ -145,9 +145,40 @@
     "negative_scope": "old quiet native run passes; old routing fails under withheld metadata. Actual CI did not retain an internal frame trace, so this is the proven timing class, not an attribution of all earlier failures."
   },
   "qualification": {
-    "full_current_source": "pending",
-    "full_current_image": "pending",
-    "pr_ci": "pending",
+    "qualified_source": "4303a206579b9e9ae873c7992a940e1eed77ada9",
+    "full_current_source": {
+      "exit": 0,
+      "seconds": 1529.761,
+      "log_sha256": "73cbaecb239b6673cb77448dc9dcec5a08fc5bc70f77302a27dfd9fd93eeb558"
+    },
+    "all_eight_dotnet_projects": {
+      "exit": 0,
+      "seconds": 132.774,
+      "log_sha256": "f3c0fb254cd3eda526c746097df8ef840be34aad096325676e83810aa2ee912a"
+    },
+    "full_current_image": {
+      "exit": 0,
+      "seconds": 9283.656,
+      "qualified": true,
+      "source_unchanged": true,
+      "log_sha256": "e5034900df869bd2a61b2049ce68314672bedb29603e386f2c94511720ce65bf"
+    },
+    "immutable_payload_matches": 11,
+    "actual_production_binary": {
+      "exit": 0,
+      "qualified": true,
+      "image_id": "946932251c068e6f663672d57ab34cf1527130626c0e1c1143a129ba4a75609a",
+      "assembly_sha256": "67a3121b3da36cbfd31876c38bd64b9aa6a28a039d6a0d80bc02aa5f12724e3a",
+      "helper_sha256": "6ecae23c72fd31ae83f213a004ff2d642d03688a38523ad367d9c00e04b93c08",
+      "probe_log_sha256": "c9d3c55793123ace13c8d835b2e8bcfd1924d12774b942fa1d084ea78bcbcd8f"
+    },
+    "pr": 282,
+    "first_attempt_successful_pr_runs": [
+      42552259022,
+      42552259043,
+      42552259047
+    ],
+    "missing_x86_trigger": "same-source existing unsigned gate42584826740 in_progress; subsequent trigger fix is independent",
     "new_signed_cycle": "not dispatched",
     "installed_new_remote": "unverified"
   },
