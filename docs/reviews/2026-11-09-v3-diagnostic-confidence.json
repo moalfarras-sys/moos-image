@@ -1,0 +1,116 @@
+{
+  "schema": 1,
+  "date": "2026-11-09",
+  "scope": "Physical V3 read-only audit and source-only failed-service-manager-query repair",
+  "base_sha": "28f642f8fd8499e1a87403d2a9031f27ac4bc36a",
+  "branch": "fix/diagnostic-confidence-20261109",
+  "source_sha256": {
+    "Justfile": "de4ed7d8e88f33aafb89903f21046a581b0f8bba723ff3789dc3dec459da7dd3",
+    "system_files/usr/bin/moos-selfcheck": "e79ac50518243ed168865c756b9fce70ac40b08b39bfcaf85080cf4db8e0d888",
+    "system_files/usr/share/moos/whats-new.json": "52b904274fc78752417140c7588e2d02a5a10948d3e31ce152feca59da955208",
+    "tests/post-update-check.sh": "69f7c09bf64ed6272a5061ab12d2f1380b717b420845c2d0dba3637942e195d0",
+    "tests/test_failed_unit_queries.py": "dc50a1d8f67ef5f170bc5af0788fbb59c22596b3e3a6276f2f9339a18190b64b",
+    "tests/test_native_archive.py": "5fdec6cb3f9ad989f0513f9d644e1279fe00ab6937c8ef28981bf9e6303cec01"
+  },
+  "installed": {
+    "version": "44.20261109.1136",
+    "digest": "sha256:3502977fb265c0f94f771d2d2e65d8cf3052e0ab6cf23caa05092ed481d4a5a8",
+    "source": "28f642f8fd8499e1a87403d2a9031f27ac4bc36a",
+    "rollback": "44.20261031.1119",
+    "pinned_recovery": "44.20261019.1078",
+    "signature_checks": {
+      "booted": 0,
+      "rollback": 0,
+      "pinned_recovery": 0,
+      "recovery_iso_1119": 0
+    },
+    "transaction": null,
+    "staged": false,
+    "secure_boot_enabled": false,
+    "native_selfcheck": {
+      "exit": 0,
+      "passed": 43,
+      "notes": 3
+    },
+    "native_postcheck": {
+      "exit": 0,
+      "passed": 46,
+      "failed": 0
+    },
+    "identity": {
+      "named": 0,
+      "firewall": 0
+    },
+    "helper_matches_base": true,
+    "corrected_helper_installed": false
+  },
+  "repair": {
+    "owner": "existing moos-selfcheck and post-update diagnostics",
+    "private_regression_methods": 6,
+    "old_baseline_exit": 1,
+    "fixed_exit": 0,
+    "native_sections_exit": [
+      0,
+      0
+    ],
+    "whats_new_tests": 30,
+    "whats_new_exit": 0,
+    "full_source_check": {
+      "exit": 0,
+      "log_sha256": "af70fef27449bec342faa6dd4805acc5c61195a32010778c29f9d7335335d381",
+      "last_gate": "tests/test_baloo_startup.py",
+      "first_refusal_preserved": true
+    },
+    "image_ci": "pending PR gates",
+    "signed_delivery": false,
+    "first_full_source_check": {
+      "exit": 1,
+      "failure": "test_native_archive.py emits JSON Unicode escapes into CMake under the actual Arabic checkout; five failures retained"
+    },
+    "native_archive_fixture": {
+      "methods": 6,
+      "exit": 0,
+      "literal_arabic_and_special_paths": true,
+      "production_transfer_changed": false
+    }
+  },
+  "actual_failures_retained": [
+    "greeter SIGSEGV: QQuickListView destruction during screenRemoved, Qt6.11.2",
+    "KWin offscreen GL_FRAMEBUFFER_INCOMPLETE_ATTACHMENT",
+    "SMBus PIIX4 ports0/2 failure",
+    "AMD sensor report-size errors; no native accelerometer",
+    "personal splash package has no splash content; KSplash registration timeout",
+    "wallet Off but native client/portal activation requests persist"
+  ],
+  "updates": {
+    "os_check": "current; no staging needed",
+    "flatpak_app_updates": 0,
+    "store_update": "ChatGPT update refused because actual application tree is in use; owner process preserved",
+    "firmware_updates_offered": 0,
+    "firmware_write": false
+  },
+  "limitations": [
+    "sudo authentication unavailable for SMART/root boot checks",
+    "no completed Btrfs scrub evidence",
+    "full native authentication/lock/power/input acceptance not executed",
+    "no before/after repair claim for graphics/firmware/splash/wallet"
+  ],
+  "cleanup": {
+    "images": 47,
+    "containers": 160,
+    "historical_review_containers_held": 18,
+    "logical_writable_bytes_held": 352790886,
+    "deletable_list_qualified": false,
+    "deleted": false,
+    "reason": "Evidence/recovery consumer retirement and writable-layer recovery not established"
+  },
+  "private_evidence": "test-results/audit-20261109-followup/; desktop captures remain local",
+  "mutations_on_host": "Only audit files, a private Arabic sample and separately owned review windows; no installed OS/config/app replacement, prune or reboot",
+  "performance_sample": {
+    "seconds": 30,
+    "workload": "source checks plus owner apps and Remote; not idle or a comparative benchmark",
+    "cpu_busy_percent": 6.8462,
+    "memory_available_kib": 21800652,
+    "policy_changed": false
+  }
+}
