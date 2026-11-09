@@ -845,16 +845,38 @@ fi
 
 head_ "Failed units"
 
-failed="$(systemctl --failed --no-legend 2>/dev/null | grep -v drkonqi-coredump | wc -l)"
-failed_user="$(systemctl --user --failed --no-legend 2>/dev/null | grep -v drkonqi-coredump | wc -l)"
-[ "$failed" -eq 0 ] && ok "no failed system units" || {
-    bad "$failed failed system unit(s):"
-    systemctl --failed --no-legend | grep -v drkonqi-coredump | sed 's/^/      /' | head -5
+# BEGIN failed-unit diagnostics
+check_failed_units() {
+    local scope="$1" snapshot names count
+    local -a scope_args=()
+    [ "$scope" = user ] && scope_args+=(--user)
+    # Read each manager once. A refused/failed query is unknown, never healthy.
+    if ! snapshot="$(LC_ALL=C SYSTEMD_COLORS=0 systemctl "${scope_args[@]}" \
+            --failed --no-legend --plain --no-pager 2>/dev/null)"; then
+        bad "could not inspect failed ${scope} units; service-manager state is unavailable"
+        return
+    fi
+    # --plain removes the status bullet. Preserve only the existing narrow
+    # crash-handler exclusion, after validating the returned failed-unit rows.
+    if ! names="$(awk '
+        NF == 0 { next }
+        NF < 4 || $3 != "failed" { exit 1 }
+        $1 ~ /^drkonqi-coredump-processor@.+\.service$/ { next }
+        { print $1 }
+    ' <<< "$snapshot")"; then
+        bad "could not parse failed ${scope} units; service-manager state is unavailable"
+        return
+    fi
+    if [ -z "$names" ]; then
+        ok "no failed ${scope} units"
+    else
+        count="$(awk 'NF { n++ } END { print n+0 }' <<< "$names")"
+        bad "${count} failed ${scope} unit(s): ${names//$'\n'/ }"
+    fi
 }
-[ "$failed_user" -eq 0 ] && ok "no failed user units" || {
-    bad "$failed_user failed user unit(s):"
-    systemctl --user --failed --no-legend | grep -v drkonqi-coredump | sed 's/^/      /' | head -5
-}
+check_failed_units system
+check_failed_units user
+# END failed-unit diagnostics
 
 head_ "The session won its race with the compositor"
 

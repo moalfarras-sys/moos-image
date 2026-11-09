@@ -4,15 +4,15 @@
   "entries": [
     {
       "id": "session-health-readback",
-      "merged": "2026-11-08T06:30:00Z",
+      "merged": "2026-11-09T21:20:00Z",
       "glyph": "lock",
       "title": {
         "ar": "تحكّم بالمحفظة وفحص واضح للجلسة",
         "en": "Wallet control and clear session checks"
       },
       "body": {
-        "ar": "فعّل محفظة كلمات المرور أو أوقفها من إعدادات MoOS. يبقى اختيارك ومحتواها المحفوظ بعد التحديث، وتتوقف مطالباتها عند إيقافها. فحص الجلسة يقبل اختيارك ويتحقق من شاشة القفل والخدمات الفعلية.",
-        "en": "Turn the password wallet on or off in MoOS Settings. Updates keep your choice and saved contents; switching off stops wallet prompts. Session checks respect your choice and verify the lock screen and actual services."
+        "ar": "فعّل محفظة كلمات المرور أو أوقفها من إعدادات MoOS مع حفظ اختيارك ومحتواها. يفحص النظام شاشة القفل والخدمات الفعلية، ويعلن تعذّر التحقق عند فشل قراءة مدير الخدمات بدل عرضها سليمة.",
+        "en": "Turn the password wallet on or off in MoOS Settings while keeping your choice and saved contents. Checks verify the lock screen and actual services, and report unavailable verification when the service manager cannot be read."
       }
     },
     {

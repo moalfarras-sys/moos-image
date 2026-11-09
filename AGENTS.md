@@ -1772,3 +1772,7 @@ prototypes also fail later personal precedence and fixed-cell acceptance; keep
 those refusals and do not ship them. Require actual glyph-family readback,
 personal/generic/mono controls and owner-config preservation before a wider
 font-default change. Private headless pixels are not installed desktop input.
+
+**A failed service-manager query is unknown, never zero failed units.** Both selfcheck and post-update checks must retain the manager command exit before parsing one plain, locale-stable snapshot per scope. Keep partial-output/nonzero, malformed-success, real failure and exact crash-handler-only controls. A healthy current snapshot never clears earlier greeter crashes or driver errors, and testing source helpers does not update immutable installed helpers.
+
+**A JSON string is not a CMake argument.** The actual Arabic checkout made the native archive fixture emit invalid `\u` escapes before any HTTP request. Use literal native bracket arguments with a noncolliding delimiter, and exercise Arabic, `${...}` and bracket bytes through the real CMake parser while preserving every transfer failure/digest assertion. Never rename the owner checkout or weaken the archive verifier to pass a fixture.

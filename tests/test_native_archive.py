@@ -3,7 +3,6 @@
 from pathlib import Path
 import hashlib
 import http.server
-import json
 import shutil
 import subprocess
 import tempfile
@@ -14,6 +13,16 @@ ROOT = Path(__file__).resolve().parents[1]
 HELPER = ROOT / "moplayer/linux/cmake/VerifiedArchive.cmake"
 PAYLOAD = b"private native archive fixture\n"
 DIGEST = hashlib.sha256(PAYLOAD).hexdigest()
+
+
+def cmake_literal(value):
+    # CMake bracket arguments preserve UTF-8, backslashes and ${...} literally.
+    # JSON's ASCII \u escapes are not CMake escapes. Select a delimiter that
+    # cannot terminate inside the argument.
+    delimiter = ""
+    while "]" + delimiter + "]" in value:
+        delimiter += "="
+    return "[" + delimiter + "[" + value + "]" + delimiter + "]"
 
 
 class NativeArchive(unittest.TestCase):
@@ -50,7 +59,9 @@ class NativeArchive(unittest.TestCase):
             self.skipTest("native CMake unavailable")
         (ROOT / "test-results").mkdir(exist_ok=True)
         with tempfile.TemporaryDirectory(prefix="native-archive-", dir=ROOT / "test-results") as tmp:
-            root = Path(tmp); archive = root / "archive.tar.gz"
+            root = Path(tmp) / "مسار عربي ${literal} ]] ]=]"
+            root.mkdir()
+            archive = root / "archive.tar.gz"
             target = root / "protected"; target.write_bytes(b"untouched")
             if symlink:
                 archive.symlink_to(target)
@@ -60,9 +71,9 @@ class NativeArchive(unittest.TestCase):
                 archive.with_name(archive.name + ".moos-download").write_bytes(b"interrupted")
             urls = [f"http://127.0.0.1:{self.server.server_port}/{route}" for route in routes]
             script = root / "probe.cmake"
-            script.write_text("cmake_minimum_required(VERSION 3.19)\ninclude(" + json.dumps(str(HELPER))
-                              + ")\nmoos_verified_archive(" + json.dumps(str(archive)) + " "
-                              + json.dumps(DIGEST) + " " + " ".join(map(json.dumps, urls)) + ")\n")
+            script.write_text("cmake_minimum_required(VERSION 3.19)\ninclude(" + cmake_literal(str(HELPER))
+                              + ")\nmoos_verified_archive(" + cmake_literal(str(archive)) + " "
+                              + cmake_literal(DIGEST) + " " + " ".join(map(cmake_literal, urls)) + ")\n")
             self.requests.clear()
             result = subprocess.run(["cmake", "-P", str(script)], capture_output=True, text=True, timeout=40)
             return (result, archive.read_bytes() if archive.exists() else None,
