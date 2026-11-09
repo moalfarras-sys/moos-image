@@ -103,6 +103,8 @@ task files, offscreen refusals and namespace/profile/input harness failures
 remain preserved. No input permission was granted by this agent or security
 policy changed. [Native application evidence](reviews/2026-11-09-native-krita-proof.json).
 
+Actual Chrome157 ordinary desktop/private-profile launch, mixed text insertion, stored-state preservation, normal close and new-process reopen now pass without a wallet prompt in those two journeys. The default sandbox/GPU/password backend stays selected; actual llvmpipe provides software rendering, with WebGL/WebGPU/video hardware paths disabled. No new core appears; the Nov5 Chrome SIGABRT is retained and its libsystemd/zypak trace does not establish a cause. Inspector input is not physical keyboard/touch; browser font fallback and endurance remain open. [Native browser evidence](reviews/2026-11-09-native-browser-proof.json).
+
 Photo/SMB containers and encrypted local backup are healthy. Preserve both
 material incidents: the clipboard's complete original text was not recovered,
 and an accidentally retired tagged native-base cache ancestor cannot be
