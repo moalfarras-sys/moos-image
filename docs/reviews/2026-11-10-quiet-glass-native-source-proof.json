@@ -68,9 +68,26 @@
       "scope": "one process steady state; no old/new latency, compositor frame pacing, GPU or battery qualification"
     },
     "full_source": {
-      "state": "running",
+      "state": "passed",
       "command": "just check",
-      "log": "private test-results/quiet-glass-20261110/just-check-final.log"
+      "exit": 0,
+      "log": "private test-results/quiet-glass-20261110/just-check-complete.log",
+      "sha256": "e71efbb802865259db0566c315723e2d953003fb167279bcf51dedc0f7150551",
+      "final_gate": "test_baloo_startup.py"
+    },
+    "final_native_readback": {
+      "source_selfcheck": {
+        "exit": 0,
+        "passed": 44,
+        "notes": 1,
+        "note": "personal tray selection lacks four canonical tray applets; preserved"
+      },
+      "source_post_update_check": {
+        "exit": 0,
+        "passed": 46,
+        "failed": 0
+      },
+      "scope": "actual owner manager and installed1136; does not clear greeter/I2C/SMART or qualify a new installed design"
     }
   },
   "first_refusals": [
@@ -90,7 +107,6 @@
     "deployment": "signed1119 rollback and pinned1078 retained; no reboot or deletion"
   },
   "remaining": [
-    "final source gate",
     "PR image gates",
     "native connected whole-workspace AR/EN light/dark input and owner feedback",
     "new logo-derived semantic palette qualification",
@@ -109,6 +125,35 @@
     },
     "execution_probe": "RUNTIME_EXECUTED, exit0, actual Snapshot sandbox/runtime; camera GUI not launched",
     "remaining": "ChatGPT update deferred while active",
-    "os": "canonical readback1136 current, no staged deployment"
+    "os": "canonical readback1136 current, no staged deployment",
+    "font_discovery": {
+      "owner": "installed moos_flatpak_fonts.refresh for org.gnome.Snapshot",
+      "changed_apps": 1,
+      "owned_policy_bytes": 1622,
+      "previous_exact_bytes_recovery_confirmed": true,
+      "actual_runtime_match": "Meyar Mono|100|/run/host/fonts/meyar/MeyarMono[wght].ttf",
+      "scope": "Fontconfig discovery, not application painting or Arabic editing"
+    },
+    "chatgpt_attempt": {
+      "exit": 1,
+      "state": "failed",
+      "reason": "vendor_app_in_use",
+      "active_process_preserved": true
+    },
+    "previous_runtime_commits": {
+      "org.gnome.Platform": "36d7e84ff76b57bc8dd4ccf702bd154e3d15dcad2059d353d69edd10a6f3e3a3",
+      "org.gnome.Platform.Locale": "235de16704f011b9df4530eb40b24c34af8011c33844ed2f4e9584f80e0560c8",
+      "recovery_scope": "both exact predecessors appear in current Flathub history; old local commit objects are absent, so runtime rollback needs the remote; no full old-payload download or rollback is claimed"
+    }
+  },
+  "qualification_source_sha": "23e20c5ef269796d2a38dc6a423d5b9193a72d8a",
+  "diagnostic_integration": {
+    "pr": 284,
+    "merged": true,
+    "merge_sha": "1274123372c6c6a2f367e8a80eeaa880eb915c04",
+    "tested_tree_matches": "0fd8d47d",
+    "main_x86_run": 42721350606,
+    "main_arm_run": 42721350565,
+    "state_at_readback": "both building; no new promotion claimed"
   }
 }
