@@ -2233,7 +2233,9 @@ def sanitize_vendor_install(raw: dict, app_id: object) -> dict:
     result["exec"] = safe_relative_path(raw.get("exec"), "exec", app_id)
     icon = exact_catalog_text(raw, "icon", app_id, 1024, required=False)
     if icon:
-        if not vendor_payload_path(icon, "icon", app_id).endswith((".png", ".svg")):
+        icon = (vendor_payload_path(icon, "icon", app_id) if icon.startswith("/")
+                else safe_relative_path(icon, "icon", app_id))
+        if not icon.endswith((".png", ".svg")):
             raise CatalogError(f"catalog icon for {app_id!r} must be a PNG or SVG file")
         result["icon"] = icon
     result["wm_class"] = exact_catalog_text(raw, "wm_class", app_id, 80)
