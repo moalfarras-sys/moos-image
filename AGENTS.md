@@ -348,6 +348,10 @@ private encode/transport/decode evidence. The CI run lacks an internal frame
 trace; this proves an ordering class, not every earlier loss. Never restart the
 owner's live capture/input services to exercise the repair.
 
+**A catalogue-relative icon is not an absolute RPM payload member.** The unchanged catalogue gate refused an absolute icon while the native index/helper refused its relative form. Keep those original refusals; carry the bounded relative icon through the index and resolve it only under the already-admitted app root, retaining canonical/traversal/control-character refusals and historical absolute direct-helper callers. Source controls and a restored user launcher do not make the fix part of the booted signed image.
+
+**A pinned extension is not excluded from the official bulk CLI updater.** Native Code1.145.2 updated pinned Codex26.1007 to26.1021 despite pinned=true; retain that actual selection/refusal and the Flutter update. Compare actual selected versions after bulk work, and recover the qualified official version through the native extension manager. Never patch its database, replace credentials or terminate an active engineering session to manufacture compatibility.
+
 ## Where the rest of the knowledge is
 
 **A wallet switch must control both native providers.** User Settings explicitly

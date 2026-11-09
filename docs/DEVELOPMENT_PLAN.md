@@ -28,6 +28,8 @@ runtime, a larger catalogue or a new wallpaper does not close a product journey.
 
 ## Active delivery and acceptance batch
 
+Nov9 Oracle maintenance is the current P1.1/P4.1/P5.4 readback: signed908/main28f642 boots with890 rollback; full icon-contract source14e3b42 passes0/1678.715s, but is not signed delivery. Actual native checks remain50/1 and55/1 at three unavailable tray load IDs. Read-only151.56GiB scrub has0 errors. Owner75% scale and current1280x720 (1600 rejected because Auto1280 softens downscaled text), FileBrowser Quantum2.0.2/Web Studio4.145.2/Immich3.3.6 are staged with exact recovery and preserved running processes; their requested reboot/actual native readback is next. Preserve the real Code bulk-updater pinned-selection refusal and restored official26.1007; no physical touch/GPU/Windows/Android or universal UI claim follows. [Maintenance evidence](reviews/2026-11-09-oracle-maintenance.json).
+
 PR280's exact39afe tree is merged as9e975 and fully promoted: signed x86
 1133 and ARM903 pass all first-attempt image/artifact boot/promotion proofs.
 Do not repeat that cycle. The owner-requested wallet controls, root updater
@@ -59,8 +61,8 @@ trace, so do not attribute every earlier failure to it. Full new source/image,
 PR CI, signed release and installed Remote acceptance remain required.
 [Refusals and packet evidence](reviews/2026-11-09-remote-frame-order-proof.json).
 
-Oracle still boots890 with884 rollback;906 is staged through the canonical
-signed backend, command0/492.298s with old boot/rollback retained and no reboot. The newly authenticated x86 peer is the Gigabyte
+The earlier Oracle890/884→staged906 snapshot is superseded by live signed908/890
+above; preserve its earlier proof and the current native health refusals. The newly authenticated x86 peer is the Gigabyte
 RTX2080SUPER NVIDIA station on1127/1119 rollback, not the V3. Its actual Arabic
 Wayland desktop is visually read back at4096x2160/275%, with no failed units.
 Preserve its owner windows and current session. V3/tablet acceptance remains
