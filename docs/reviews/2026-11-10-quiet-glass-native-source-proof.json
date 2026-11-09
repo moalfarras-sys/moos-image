@@ -1,0 +1,102 @@
+{
+  "schema": 1,
+  "date": "2026-11-10",
+  "plan_rows": [
+    "P2.5",
+    "P2.10"
+  ],
+  "integration_owner": "primary coding agent",
+  "scope": "Quiet Glass native shared-material correctness batch; not a whole-desktop redesign",
+  "payload_sha256": {
+    "system_files/usr/lib64/qt6/qml/org/moos/ui/GlassSurface.qml": "2ac374f7d0749bd1c69ad889eed63c2e36db86de4883228c01f4e2aca0398e29",
+    "system_files/usr/share/plasma/plasmoids/org.moos.brand/contents/ui/LauncherView.qml": "300178397fd1b13f3103ed1e06104d240faf548d4ff3999bc624c137b2390809",
+    "system_files/usr/bin/moos-apply-theme": "ee8f2882f4ebcde7e9b5fdf248190a4e42551479e8588ad3a5e12ad0bbbd0349",
+    "artwork/extract_moos_brand_palette.py": "0d944b635a028a5c712ffff2b59312648f7d59fb2137b769a626a555ad40e649",
+    "artwork/moos-design/brand-palette.json": "9386720ebb787587ca2b4934a00440b287dfa8972034599f23084b579f95c419"
+  },
+  "installed": {
+    "version": "44.20261109.1136",
+    "digest": "sha256:3502977fb265c0f94f771d2d2e65d8cf3052e0ab6cf23caa05092ed481d4a5a8",
+    "output": "DP-11 3840x2160@60, scale2.5",
+    "updated_by_this_batch": false
+  },
+  "native_component": {
+    "host": "installed kcmshell6 appearance KCM in the owner session",
+    "library": "/usr/lib64/qt6/plugins/plasma/kcms/systemsettings/kcm_moos_appearance.so",
+    "source_module": "system_files/usr/lib64/qt6/qml/org/moos/ui/GlassSurface.qml",
+    "loading_evidence": "QML_IMPORT_TRACE resolves source URL and MOOS_KCM_READY; mapped immutable KCM library",
+    "temporary_override": "process-scoped import paths only; no persistent filesystem or manager environment override",
+    "pixels": "private Arabic appearance page and installed launcher baseline; captures retained locally",
+    "warning": "Host portal refused app-ID registration for kcm_moos_appearance; retained, not cleared"
+  },
+  "controls": {
+    "motion_and_material": {
+      "methods": 6,
+      "fixed_exit": 0,
+      "old_visible_cancellation_exit": 91,
+      "old_solid_material_exit": 91,
+      "scope": "isolated actual Qt engine; actual shipped launcher-background block"
+    },
+    "native_launcher": {
+      "test_methods": 6,
+      "exit": 0,
+      "fixed_cases": [
+        "360x640 Arabic/dark/reduced",
+        "600x960 English/light/motion",
+        "960x540 Arabic/light/reduced",
+        "1536x864 English/dark/motion"
+      ],
+      "negative_controls": [
+        "broken Backtab priority",
+        "double-mirrored text alignment",
+        "wrong native category"
+      ],
+      "scope": "private KWin/Plasma/Qt input and content; synthetic touch is not physical touch"
+    },
+    "composed_contrast": {
+      "schemes": 18,
+      "secondary_ink_minimum_black_white_backdrops": 4.865,
+      "scope": "analytical sRGB blend, not rendered glyph acceptance"
+    },
+    "settled_native_kcm": {
+      "process": "scoped installed appearance KCM with source shared QML",
+      "duration_seconds": 30.0,
+      "cpu_percent_one_core": 0.0,
+      "rss_kib_before": 292996,
+      "rss_kib_after": 292996,
+      "workload": "settled visible native appearance page; VS Code and full repository check concurrently active; no scripted interactions",
+      "scope": "one process steady state; no old/new latency, compositor frame pacing, GPU or battery qualification"
+    },
+    "full_source": {
+      "state": "running",
+      "command": "just check",
+      "log": "private test-results/quiet-glass-20261110/just-check-final.log"
+    }
+  },
+  "first_refusals": [
+    "stale exact theme revision assertions after required bump",
+    "PROJECT_STATE 201 lines exceeds unchanged200-line limit",
+    "explicit shared hairline declaration required by original launcher gate"
+  ],
+  "logo": {
+    "source": "artwork/moos-design/brand-palette.json",
+    "measurement_only": true,
+    "semantic_or_personal_palette_changed": false
+  },
+  "recovery": {
+    "source": "revert this topic batch to48722e1b; keep diagnostic source ancestry",
+    "installed": "ordinary launch uses immutable modules; close only scoped review process",
+    "deployment": "signed1119 rollback and pinned1078 retained; no reboot or deletion"
+  },
+  "remaining": [
+    "final source gate",
+    "PR image gates",
+    "native connected whole-workspace AR/EN light/dark input and owner feedback",
+    "new logo-derived semantic palette qualification",
+    "desktop/window/dock/notification/control-center/lock design refinement",
+    "physical touch and authentication",
+    "matched old/new GPU/frame-time/energy performance",
+    "signed candidate, boot proofs, promotion and installed acceptance"
+  ],
+  "health_limit": "pre-existing native Code1.143.1 SIGTRAP at00:05:56 CET and earlier greeter/driver errors remain unresolved; no blanket healthy claim"
+}

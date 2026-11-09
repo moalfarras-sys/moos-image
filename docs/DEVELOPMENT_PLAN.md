@@ -1,6 +1,6 @@
 # MoOS development plan — current execution backlog
 
-Updated 2026-11-09. This is the single execution backlog. `PROJECT_STATE.md`
+Updated 2026-11-10. This is the single execution backlog. `PROJECT_STATE.md`
 records measured state; `AGENTS.md` defines invariants; the engineering skill
 selects the workflow. Dated handoffs and Git history preserve earlier work,
 not competing instructions about what to do next.
@@ -247,6 +247,7 @@ For every task:
 ## Ordered execution
 
 Owner Nov9: MoOS Quiet Glass supersedes the visual product direction while retaining the existing UI2/KDE owners and P2/P5 queue. The authoritative visual contract now defines its material roles and connected acceptance slice. No new palette, installed surface or performance improvement is qualified by that contract alone.
+Nov10 P2.5/P2.10 slice: the source Launcher now consumes shared live clarity with a dense reading floor; GlassSurface cancellation settles synchronously. Six native Qt controls and the full adaptive native input/geometry suite pass, including old failures. Exact source module loading is observed in the installed native appearance KCM at4K/250%, with Arabic rendered pixels and a retained portal-ID warning. Canonical logo means are measured/reproducible; no personal palette/default is replaced. THEME_REV144 is source only. Full source rerun, connected installed AR/EN light/dark journeys, GPU timing, PR/image proof and signed delivery remain open.
 
 Nov9 V3 audit slice (P0.6/P6.5): installed1136/source28f642f8, independently signed1119 rollback/pinned1078 and signed recovery ISO are remeasured. Failed-manager diagnostics are repaired on a topic branch with old-failing/fixed-passing controls; the first full source run refuses JSON-escaped Arabic paths in the native archive fixture. Literal native CMake bracket arguments retain every original transfer assertion and pass all6 controls with Arabic/special-character paths. Complete source rerun exits0; first refusal remains preserved and image/PR/signed delivery remain pending. Native43/0+3notes and46/0, installed identity gates and actual Arabic Settings/editor/Store frames pass within their scope. Current greeter screenRemoved crash, SMBus/framebuffer/sensor errors and complete login/lock/power journeys remain open. Root SMART/boot inspection needs authentication; ChatGPT update is safely refused while in use. Inventory is not cleanup approval; all images/containers/recovery are preserved.
 

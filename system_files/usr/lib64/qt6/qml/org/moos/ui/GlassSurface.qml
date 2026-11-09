@@ -25,6 +25,9 @@ Surface {
     // left at its final geometry. `animateArrival: false` is available for a
     // caller that is itself already moving the complete surface.
     property bool animateArrival: true
+    readonly property bool motionEnabled: Kirigami.Units.longDuration > 1
+    onAnimateArrivalChanged: if (!animateArrival && arrival.running) finishArrival()
+    onMotionEnabledChanged: if (!motionEnabled && arrival.running) finishArrival()
     readonly property bool arrivalAnimating: arrival.running
     property bool arrivalPlayed: false
     property real arrivalScale: 1.0
@@ -39,7 +42,7 @@ Surface {
     function playArrival() {
         if (arrivalPlayed || !animateArrival || !visible || width <= 0 || height <= 0)
             return
-        if (Kirigami.Units.longDuration <= 1) {
+        if (!motionEnabled) {
             finishArrival()
             return
         }

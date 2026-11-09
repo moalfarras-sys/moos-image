@@ -405,7 +405,8 @@ set -uo pipefail
 # 141: Meyar source-derived UI/IPA families and matched Arabic terminal cells.
 # 142: actual Arabic fallback hint metrics; native source-font fixture evidence.
 # 143: reserve the compact Island's full line room for native Meyar Arabic.
-THEME_REV=143
+# 144: shared Launcher clarity and immediate shared glass motion cancellation.
+THEME_REV=144
 state_dir="${XDG_STATE_HOME:-$HOME/.local/state}"
 mkdir -p "$state_dir" 2>/dev/null || true
 marker="${state_dir}/moos-ui2-theme-applied.v${THEME_REV}"

@@ -348,6 +348,13 @@ private encode/transport/decode evidence. The CI run lacks an internal frame
 trace; this proves an ordering class, not every earlier loss. Never restart the
 owner's live capture/input services to exercise the repair.
 
+**A fixed alpha is not the owner's glass preference.** The actual Launcher
+background stayed translucent under Solid. Keep its dense reading floor while
+using the shared live material owner; retain native old/fixed Solid/no-blur
+controls. A finite entrance must also settle when cancelled while visible.
+Scoped source QML in an installed KCM is development integration, not signed
+whole-desktop acceptance; preserve native input and original preference owners.
+
 ## Where the rest of the knowledge is
 
 **A wallet switch must control both native providers.** User Settings explicitly
