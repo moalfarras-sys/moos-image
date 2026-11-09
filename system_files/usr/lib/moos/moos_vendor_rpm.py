@@ -420,6 +420,11 @@ def parse_entry(entry: Mapping[str, Any]) -> Entry:
         raise VendorError("bad_entry", "desktop must name a .desktop file")
     icon = entry.get("icon") or ""
     if icon:
+        # Catalogue icons are relative to the admitted app root, like exec.
+        # Keep the absolute payload form for existing direct helper callers.
+        # Both forms retain their original canonical-path validation.
+        if isinstance(icon, str) and not icon.startswith("/"):
+            icon = posixpath.join(install_root, _relative_path(icon, "icon"))
         icon = _payload_path(icon, "icon")
         if not icon.endswith((".png", ".svg")):
             raise VendorError("bad_entry", "icon must be a PNG or SVG file")
