@@ -156,5 +156,12 @@
     "USB4/I2C/framebuffer/sensor faults, suspend/touch and wider hardware scope",
     "independent review unavailable",
     "new public anonymous ISO download qualification; artifact archive alone is insufficient"
-  ]
+  ],
+  "preceding_arm_production": {
+    "version": "44.20261109.911",
+    "revision": "1274123372c6c6a2f367e8a80eeaa880eb915c04",
+    "digest": "sha256:9907ef983655eb54e3471fef00fc0940bc9822bcb1de82a66a6581b2c2f19350",
+    "signature_exit": 0,
+    "pipeline": 42721350565
+  }
 }

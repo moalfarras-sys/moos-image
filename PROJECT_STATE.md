@@ -75,12 +75,12 @@ pickers pass; wider user journeys remain in the single development plan.
 
 | Edition | Version | Proven signed digest (sha256) |
 | --- | --- | --- |
-| Desktop | 44.20261108.1133 | cbe1fa1aee8b08a7884ba4b4518a0e00634742abcc01b7a2f11e2064c8f84994 |
-| NVIDIA | 44.20261108.1133 | fa917f204bc82f1756dc193b0e95d7be506340d7bc94beddbb0eea4afba55bba |
-| Cloud x86 | 44.20261108.1133 | df07dd070df6874952b4fa78bd3d5a34924f3ac0ceff26974a641a4a859ef4bf |
-| ARM | 44.20261108.906 | f45800b30969240cb11dc576e85b2761dfb0d41b989afd4522a47fa99b28fedf |
+| Desktop | 44.20261110.1139 | b0b24ac3099ea9f62f6cfaa1efd3c7ded3056b2073b85b17c8101686e0019134 |
+| NVIDIA | 44.20261110.1139 | d9770bd9f6ee2c02a4c5f933992e8edec3be6befb20918c0487858465382a28e |
+| Cloud x86 | 44.20261110.1139 | 15a76d12eb8a222fa3c38f0af873d49bb465c7c794dbeece5741d07ca9463cb0 |
+| ARM (preceding source) | 44.20261109.911 | 9907ef983655eb54e3471fef00fc0940bc9822bcb1de82a66a6581b2c2f19350 |
 
-All three x86 production digests are independently read back and cosign-verified against exact9e975/1133, first-attempt candidate42513578569/disks42520154077,42520157782,42520161011/ISO42520163769/promotion42523974185. ARM906 independently matches exactfe58 and first-attempt42526063618 signing/two UEFI boots/promotion. This is not a four-edition fe58 release: its main NVIDIA build refuses the Remote recovery gate. Small ARM boot evidence is durably archived; actual installed acceptance remains separate. Earlier1127 ISO remains archived at5,817,565,184bytes/SHA2566303b2147a9ed271180a6b63d86d8e6d48bee23b90a1cadec5b02617b112075f with verified detached signature; no new1133 public-download claim. [Current qualification](docs/reviews/2026-11-09-remote-frame-order-proof.json). Prior1119/V3 delivery remains in [its receipt](docs/releases/2026-11-03-ui143-signed-installed-proof.json); public1046 qualification is unchanged.
+All three x86 production digests are independently read back and cosign-verified at exact8075/1139, with first-attempt build42798392876/disks42809194899,42809201064,42809207231/ISO42809213163/promotion42819743075. The8075 branch ARM final disk proof passes42809220516 but cannot promote; main2bf ARM42819720603 is pending. Preceding signed ARM911 is independently read back at exact12741233 with signature0; its original42721350565 pipeline succeeds. New1139 ISO is durably archived and signature/full-hash verified; anonymous public delivery is not qualified. [Current signed/staged receipt](docs/releases/2026-11-10-quiet-glass-1139-signed-stage-proof.json). Previous1133/906 and failedfe58 NVIDIA evidence remain in [the earlier receipt](docs/reviews/2026-11-09-remote-frame-order-proof.json).
 Public .1046 is independently qualified and published: 5,830,410,240 bytes, SHA-256 `37053a88ae313f994875794055035d53134206a88eb44fb160b39fef3bb04821`.
 Full anonymous HTTP200, resumed206 ranges, signature and exact sidecars pass at Oct14 17:58:53UTC. [Delivery proof](docs/releases/2026-10-14-public-download-proof.json).
 Eight local/eight public native Chromium AR/EN views, exact paired metadata,
