@@ -121,7 +121,8 @@
     "Welcome retained old Aurora swatch; updated its actual source values without changing the gate",
     "new review driver tried removed PlasmaCore.Theme API; retained native refusal, ported readback to actual Kirigami Theme API and added wrong-native-style negative",
     "first complete gate refuses both stale login scene tone tuples; corrected only the actual family palette data, preserving authentication and the gate",
-    "original fingerprint recorder refuses a changed greeter at already-recorded145; incremented to146 and retained refusal instead of replacing the gate record at the same revision"
+    "original fingerprint recorder refuses a changed greeter at already-recorded145; incremented to146 and retained refusal instead of replacing the gate record at the same revision",
+    "review-runner fixture pins the old AuroraLight RGB194,228,225; retained refusal and changed only its expected current sample to195,213,229, preserving real palette-merge and blank-frame negatives"
   ],
   "live_copy_preflight": {
     "targets": 16,

@@ -250,14 +250,16 @@ class TheReviewRunner(unittest.TestCase):
 
         Measured on this station: a fixture kdeglobals that only names the scheme
         renders Breeze's #eff0f1; one with the scheme's `[Colors:*]` groups merged
-        in renders AuroraLight's (194,228,225). The merge is the mechanism.
+        in renders the current scheme's own colours (Quiet Glass Light now uses
+        195,213,229). The merge is the mechanism; the old Aurora sample was
+        194,228,225 before the paired-family update.
         """
         with tempfile.TemporaryDirectory() as raw:
             config = Path(raw)
             runner.write_palette(config, "MoOSUI2AuroraLight")
             text = (config / "kdeglobals").read_text(encoding="utf-8")
             self.assertIn("[Colors:Window]", text)
-            self.assertIn("BackgroundNormal=194,228,225", text)
+            self.assertIn("BackgroundNormal=195,213,229", text)
             self.assertIn("ColorScheme=MoOSUI2AuroraLight", text)
 
     def test_a_blank_or_half_drawn_capture_is_rejected(self) -> None:
