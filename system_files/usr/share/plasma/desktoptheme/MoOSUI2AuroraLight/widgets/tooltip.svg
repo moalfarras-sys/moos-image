@@ -2,21 +2,21 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="176" height="64" viewBox="0 0 176 64">
   <!-- MoOS task tooltip glass with a precise rounded blur mask. -->
   <style id="current-color-scheme" type="text/css">
-    .ColorScheme-Background { color: #C2E4E1; }
-    .ColorScheme-Highlight { color: #0F766E; }
+    .ColorScheme-Background { color: #C3D5E5; }
+    .ColorScheme-Highlight { color: #1647B9; }
     .ColorScheme-Text { color: #17302E; }
-    .ColorScheme-ButtonBackground { color: #BAE0DC; }
+    .ColorScheme-ButtonBackground { color: #BBD1E0; }
     .ColorScheme-ButtonText { color: #17302E; }
   </style>
-  <g id="topleft"><path d="M0 12A12 12 0 0 1 12 0V12H0Z" fill="#CDEAE8" fill-opacity="0.920"/><path d="M0 12A12 12 0 0 1 12 0V1A11 11 0 0 0 1 12Z" fill="#0D8577" fill-opacity="0.420"/></g>
-  <g id="topright"><path d="M36 0A12 12 0 0 1 48 12H36Z" fill="#CDEAE8" fill-opacity="0.920"/><path d="M36 0A12 12 0 0 1 48 12H47A11 11 0 0 0 36 1Z" fill="#0D8577" fill-opacity="0.420"/></g>
-  <g id="bottomleft"><path d="M0 36A12 12 0 0 0 12 48V36Z" fill="#CDEAE8" fill-opacity="0.920"/><path d="M0 36A12 12 0 0 0 12 48V47A11 11 0 0 1 1 36Z" fill="#0D8577" fill-opacity="0.260"/></g>
-  <g id="bottomright"><path d="M48 36A12 12 0 0 1 36 48V36Z" fill="#CDEAE8" fill-opacity="0.920"/><path d="M48 36A12 12 0 0 1 36 48V47A11 11 0 0 0 47 36Z" fill="#0D8577" fill-opacity="0.260"/></g>
-  <g id="top"><rect x="12" y="0" width="24" height="12" fill="#CDEAE8" fill-opacity="0.920"/><rect x="12" y="0" width="24" height="1" fill="#0D8577" fill-opacity="0.420"/></g>
-  <g id="bottom"><rect x="12" y="36" width="24" height="12" fill="#CDEAE8" fill-opacity="0.920"/><rect x="12" y="47" width="24" height="1" fill="#0D8577" fill-opacity="0.260"/></g>
-  <g id="left"><rect x="0" y="12" width="12" height="24" fill="#CDEAE8" fill-opacity="0.920"/><rect x="0" y="12" width="1" height="24" fill="#0D8577" fill-opacity="0.328"/></g>
-  <g id="right"><rect x="36" y="12" width="12" height="24" fill="#CDEAE8" fill-opacity="0.920"/><rect x="47" y="12" width="1" height="24" fill="#0D8577" fill-opacity="0.328"/></g>
-  <rect id="center" x="12" y="12" width="24" height="24" fill="#CDEAE8" fill-opacity="0.920"/>
+  <g id="topleft"><path d="M0 12A12 12 0 0 1 12 0V12H0Z" fill="#CEDCEB" fill-opacity="0.920"/><path d="M0 12A12 12 0 0 1 12 0V1A11 11 0 0 0 1 12Z" fill="#006A88" fill-opacity="0.420"/></g>
+  <g id="topright"><path d="M36 0A12 12 0 0 1 48 12H36Z" fill="#CEDCEB" fill-opacity="0.920"/><path d="M36 0A12 12 0 0 1 48 12H47A11 11 0 0 0 36 1Z" fill="#006A88" fill-opacity="0.420"/></g>
+  <g id="bottomleft"><path d="M0 36A12 12 0 0 0 12 48V36Z" fill="#CEDCEB" fill-opacity="0.920"/><path d="M0 36A12 12 0 0 0 12 48V47A11 11 0 0 1 1 36Z" fill="#006A88" fill-opacity="0.260"/></g>
+  <g id="bottomright"><path d="M48 36A12 12 0 0 1 36 48V36Z" fill="#CEDCEB" fill-opacity="0.920"/><path d="M48 36A12 12 0 0 1 36 48V47A11 11 0 0 0 47 36Z" fill="#006A88" fill-opacity="0.260"/></g>
+  <g id="top"><rect x="12" y="0" width="24" height="12" fill="#CEDCEB" fill-opacity="0.920"/><rect x="12" y="0" width="24" height="1" fill="#006A88" fill-opacity="0.420"/></g>
+  <g id="bottom"><rect x="12" y="36" width="24" height="12" fill="#CEDCEB" fill-opacity="0.920"/><rect x="12" y="47" width="24" height="1" fill="#006A88" fill-opacity="0.260"/></g>
+  <g id="left"><rect x="0" y="12" width="12" height="24" fill="#CEDCEB" fill-opacity="0.920"/><rect x="0" y="12" width="1" height="24" fill="#006A88" fill-opacity="0.328"/></g>
+  <g id="right"><rect x="36" y="12" width="12" height="24" fill="#CEDCEB" fill-opacity="0.920"/><rect x="47" y="12" width="1" height="24" fill="#006A88" fill-opacity="0.328"/></g>
+  <rect id="center" x="12" y="12" width="24" height="24" fill="#CEDCEB" fill-opacity="0.920"/>
   <rect id="hint-top-margin" x="53" y="0" width="3" height="10" fill="none"/>
   <rect id="hint-bottom-margin" x="53" y="12" width="3" height="10" fill="none"/>
   <rect id="hint-left-margin" x="58" y="0" width="10" height="3" fill="none"/>

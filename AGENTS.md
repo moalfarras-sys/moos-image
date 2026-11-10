@@ -355,6 +355,12 @@ controls. A finite entrance must also settle when cancelled while visible.
 Scoped source QML in an installed KCM is development integration, not signed
 whole-desktop acceptance; preserve native input and original preference owners.
 
+**A configured colour file is not the native popup palette.** Quiet Glass
+qualification reads actual Kirigami colours inside Plasma's real popup engine;
+the wrong-style control must fail even with the intended Qt colour file. Keep
+existing theme IDs, all input negatives, the user's font/motion choices and exact
+live-copy recovery. Private native pixels are not signed installation or login.
+
 ## Where the rest of the knowledge is
 
 **A wallet switch must control both native providers.** User Settings explicitly

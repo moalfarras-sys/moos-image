@@ -1,21 +1,21 @@
 # Generated from artwork/moos-ui2/palette.json. Do not hand-edit.
 [Background]
-Color=14,21,36
+Color=16,23,35
 
 [BackgroundFaint]
-Color=23,34,54
+Color=25,36,54
 
 [BackgroundIntense]
-Color=14,21,36
+Color=16,23,35
 
 [Color0]
-Color=38,54,81
+Color=41,59,83
 
 [Color0Faint]
-Color=23,34,54
+Color=25,36,54
 
 [Color0Intense]
-Color=154,170,194
+Color=177,192,212
 [Color1]
 Color=251,113,133
 
@@ -41,49 +41,49 @@ Color=71,58,28
 [Color3Intense]
 Color=251,191,36
 [Color4]
-Color=96,165,250
+Color=172,137,238
 
 [Color4Faint]
-Color=46,76,134
+Color=54,40,81
 
 [Color4Intense]
-Color=96,165,250
+Color=172,137,238
 [Color5]
-Color=59,130,246
+Color=32,214,248
 
 [Color5Faint]
-Color=46,76,134
+Color=54,40,81
 
 [Color5Intense]
-Color=147,197,253
+Color=172,238,249
 [Color6]
-Color=147,197,253
+Color=172,238,249
 
 [Color6Faint]
-Color=59,130,246
+Color=32,214,248
 
 [Color6Intense]
-Color=147,197,253
+Color=172,238,249
 [Color7]
-Color=236,242,251
+Color=237,243,252
 
 [Color7Faint]
-Color=154,170,194
+Color=177,192,212
 
 [Color7Intense]
-Color=236,242,251
+Color=237,243,252
 
 [Foreground]
-Color=236,242,251
+Color=237,243,252
 
 [ForegroundFaint]
-Color=154,170,194
+Color=177,192,212
 
 [ForegroundIntense]
-Color=236,242,251
+Color=237,243,252
 
 [General]
-Description=MoOS UI · Aurora
+Description=MoOS Quiet Glass
 Opacity=1
 Blur=false
 Wallpaper=

@@ -67,6 +67,13 @@ that may drift independently.
 - action icon geometry: `generate_moos_symbolic_icons.py` and
   `MOOS_UI_SYMBOL_MAP.md`.
 
+The existing Aurora technical family now provides the Quiet Glass reference
+finish: mineral navy/cyan at night, cool blue daylight with deep ink, and a
+restrained violet reflection derived from the logo. Technical package IDs stay
+stable. Its matched native assets come from the existing generators and Horizon
+masters; selecting it does not add a compositor or replace app/identity owners.
+Personal fonts, layout and reduced-motion preferences remain independent.
+
 Graphite/Tidal is the base pair. Amethyst, Aurora, Dev, Gaming, Midnight, Nova
 and Study are colour families generated through the same engine; each has a
 dark and light package. A variant may change semantic colour values and

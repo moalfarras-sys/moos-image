@@ -3,8 +3,8 @@
      role="img" aria-labelledby="usb-title">
   <title id="usb-title">USB</title>
   <style id="current-color-scheme" type="text/css">
-    .ColorScheme-Text { color: #ECF2FB; fill: currentColor; }
-    .ColorScheme-Highlight { color: #3B82F6; fill: currentColor; }
+    .ColorScheme-Text { color: #EDF3FC; fill: currentColor; }
+    .ColorScheme-Highlight { color: #20D6F8; fill: currentColor; }
     .ColorScheme-NeutralText { color: #FBBF24; fill: currentColor; }
     .ColorScheme-NegativeText { color: #FB7185; fill: currentColor; }
   </style>

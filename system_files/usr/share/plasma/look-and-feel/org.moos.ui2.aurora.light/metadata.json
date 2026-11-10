@@ -1,8 +1,8 @@
 {
     "KPlugin": {
         "Id": "org.moos.ui2.aurora.light",
-        "Name": "MoOS UI · Aurora Light",
-        "Description": "نهار نعناعي‑تركوازي منعش | Fresh mineral mint-teal daylight",
+        "Name": "MoOS Quiet Glass Light",
+        "Description": "ضوء أزرق معدني وحبر عميق وشفافية مقروءة | Mineral blue daylight, deep ink and readable transparency",
         "Authors": [
             {
                 "Name": "Moalfarras"
@@ -11,7 +11,7 @@
         "Version": "2.0.0",
         "License": "GPL-3.0-or-later",
         "Website": "https://github.com/moalfarras-sys/moos-image",
-        "Name[ar]": "MoOS UI · Aurora Light"
+        "Name[ar]": "زجاج MoOS الهادئ الفاتح"
     },
     "KPackageStructure": "Plasma/LookAndFeel",
     "X-Plasma-APIVersion": "2"

@@ -1,8 +1,8 @@
-# MoOS UI logout — Aurora
+# MoOS UI logout — MoOS Quiet Glass
 
 واجهة الخروج الرسمية للحزمة `org.moos.ui2.aurora`. تحافظ على إشارات وقدرات مضيف
 KDE Plasma 6 الفعلية (logout, lock, suspend, hibernate, restart, shutdown)
-وتستخدم مكوّن `MoOSUI2ActionButton.qml` المحلي المطابق للوحة Aurora.
+وتستخدم مكوّن `MoOSUI2ActionButton.qml` المحلي المطابق للوحة MoOS Quiet Glass.
 
 ```bash
 /usr/libexec/ksmserver-logout-greeter --windowed --lookandfeel org.moos.ui2.aurora

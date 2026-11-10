@@ -1,0 +1,144 @@
+{
+  "schema": 1,
+  "date": "2026-11-10",
+  "plan_rows": [
+    "P2.5",
+    "P2.7",
+    "P2.8",
+    "P2.10"
+  ],
+  "integration_owner": "primary coding agent",
+  "source_parent": "4f34d074abad24902c5ddb2d342ea26792faccc8",
+  "status": "paired-family development; full source and installed journeys pending",
+  "technical_ids_preserved": [
+    "org.moos.ui2.aurora",
+    "org.moos.ui2.aurora.light",
+    "MoOSUI2Aurora",
+    "MoOSUI2AuroraLight"
+  ],
+  "profile_count": 18,
+  "theme_revision": 145,
+  "cache_packages": 68,
+  "brand_references": {
+    "dark_primary": "#20D6F8",
+    "light_primary": "#1647B9",
+    "light_secondary": "#743AE2",
+    "dark_secondary": "#AC89EE (logo violet with40% white)"
+  },
+  "original_asset_owners": [
+    "generate_moos_themes.py",
+    "generate_moos_theme_profiles.py",
+    "canonical Tidal Horizon masters",
+    "MoOS symbolic/app icon generators",
+    "original licences and publisher artwork"
+  ],
+  "targeted": {
+    "ui2": {
+      "tests": 44,
+      "exit": 0
+    },
+    "design_core": {
+      "tests": 7,
+      "exit": 0
+    },
+    "secondary_contrast": {
+      "schemes": 18,
+      "surfaces": 26,
+      "minimum": 4.58,
+      "exit": 0
+    },
+    "native_launcher": {
+      "test_methods": 6,
+      "fixed_cases": 8,
+      "negative_controls": [
+        "wrong Plasma style with the intended Qt palette",
+        "wrong Backtab priority",
+        "double-mirrored alignment",
+        "wrong native category"
+      ],
+      "exit": 0,
+      "quiet_glass_cases": [
+        {
+          "language": "ar",
+          "light": false,
+          "reduced": true,
+          "size": [
+            360,
+            640
+          ],
+          "actual_palette": {
+            "background": "#192436",
+            "text": "#edf3fc",
+            "accent": "#20d6f8"
+          }
+        },
+        {
+          "language": "en",
+          "light": true,
+          "reduced": false,
+          "size": [
+            600,
+            960
+          ],
+          "actual_palette": {
+            "background": "#c3d5e5",
+            "text": "#17302e",
+            "accent": "#1647b9"
+          }
+        },
+        {
+          "language": "ar",
+          "light": true,
+          "reduced": true,
+          "size": [
+            960,
+            540
+          ],
+          "actual_palette": {
+            "background": "#c3d5e5",
+            "text": "#17302e",
+            "accent": "#1647b9"
+          }
+        },
+        {
+          "language": "en",
+          "light": false,
+          "reduced": false,
+          "size": [
+            1536,
+            864
+          ],
+          "actual_palette": {
+            "background": "#192436",
+            "text": "#edf3fc",
+            "accent": "#20d6f8"
+          }
+        }
+      ]
+    }
+  },
+  "first_refusals": [
+    "Welcome retained old Aurora swatch; updated its actual source values without changing the gate",
+    "new review driver tried removed PlasmaCore.Theme API; retained native refusal, ported readback to actual Kirigami Theme API and added wrong-native-style negative"
+  ],
+  "live_copy_preflight": {
+    "targets": 16,
+    "collisions": 0,
+    "copied": false,
+    "scope": "no global override; actual installation/journeys not yet qualified"
+  },
+  "full_source": {
+    "state": "pending",
+    "command": "just check"
+  },
+  "delivery": "source only; booted signed1136 unchanged",
+  "owner_authorization": "owner explicitly permits closing applications, updates and reboot; authentication and data preservation remain required",
+  "remaining": [
+    "complete source check",
+    "actual installed dark/light interaction and recovery",
+    "repeatable performance",
+    "PR/current-base images",
+    "signed candidate/artifact boots/promotion",
+    "stage/reboot/postboot readback"
+  ]
+}

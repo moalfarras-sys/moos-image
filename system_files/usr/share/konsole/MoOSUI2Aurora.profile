@@ -8,7 +8,7 @@ BoldIntense=true
 UseFontLineChararacters=true
 
 [General]
-Name=MoOS UI · Aurora
+Name=MoOS Quiet Glass
 Parent=FALLBACK/
 TerminalMargin=14
 TerminalCenter=false
@@ -22,7 +22,7 @@ HistorySize=20000
 [Cursor Options]
 CursorShape=0
 UseCustomCursorColor=true
-CustomCursorColor=59,130,246
+CustomCursorColor=32,214,248
 
 [Terminal Features]
 BidiRenderingEnabled=true

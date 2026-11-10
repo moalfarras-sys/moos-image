@@ -128,6 +128,20 @@ class AdaptiveLauncher(unittest.TestCase):
                              [False, False, False, True])
             self.assertTrue(record["owner_portal_unchanged"] and record["source_unchanged"])
             self.assertTrue(all(c['input']['categoryBrowsing'] for c in record['cases']))
+            quiet = subprocess.run(command + ["--family", "aurora", "--output", str(output / "quiet-glass")],
+                                   capture_output=True, text=True, timeout=180)
+            self.assertEqual(quiet.returncode, 0, quiet.stdout[-2500:] + quiet.stderr[-5000:])
+            quiet_record = json.loads((output / "quiet-glass/receipt.json").read_text())
+            self.assertEqual(len(quiet_record["cases"]), 4)
+            self.assertEqual({c["theme"]["global_theme"] for c in quiet_record["cases"]},
+                             {"org.moos.ui2.aurora", "org.moos.ui2.aurora.light"})
+            self.assertTrue(quiet_record["owner_portal_unchanged"] and quiet_record["source_unchanged"])
+            wrong_style = subprocess.run(command + ["--family", "aurora", "--broken-style",
+                                        "--output", str(output / "wrong-style")],
+                                        capture_output=True, text=True, timeout=60)
+            self.assertNotEqual(wrong_style.returncode, 0, "Qt-only palette must not qualify a mismatched Plasma style")
+            self.assertIn("actual Kirigami palette mismatch", wrong_style.stderr)
+
             category = subprocess.run(command + ["--output", str(output / "category"), "--broken-category"],
                                       capture_output=True, text=True, timeout=60)
             self.assertNotEqual(category.returncode, 0, "decorative categories must refuse")

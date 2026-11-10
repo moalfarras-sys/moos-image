@@ -10,17 +10,17 @@
     clipped corner joins when Plasma scaled a launcher popup.
   -->
   <style id="current-color-scheme" type="text/css">
-    .ColorScheme-Background { color: #C2E4E1; }
-    .ColorScheme-Highlight  { color: #0F766E; }
+    .ColorScheme-Background { color: #C3D5E5; }
+    .ColorScheme-Highlight  { color: #1647B9; }
     .ColorScheme-Text       { color: #17302E; }
   </style>
   <defs>
     <linearGradient id="ui2-dialog-glass" gradientUnits="userSpaceOnUse"
                     x1="0" y1="0" x2="0" y2="64">
-      <stop offset="0" stop-color="#C2E4E1" stop-opacity="0.82"/>
-      <stop offset="0.16" stop-color="#CDEAE8" stop-opacity="0.85"/>
-      <stop offset="0.72" stop-color="#C9E8E5" stop-opacity="0.90"/>
-      <stop offset="1" stop-color="#C9E8E5" stop-opacity="0.92"/>
+      <stop offset="0" stop-color="#C3D5E5" stop-opacity="0.82"/>
+      <stop offset="0.16" stop-color="#CEDCEB" stop-opacity="0.85"/>
+      <stop offset="0.72" stop-color="#CAD9E9" stop-opacity="0.90"/>
+      <stop offset="1" stop-color="#CAD9E9" stop-opacity="0.92"/>
     </linearGradient>
   </defs>
 

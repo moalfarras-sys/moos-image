@@ -1,8 +1,8 @@
 {
     "KPlugin": {
         "Id": "org.moos.ui2.aurora",
-        "Name": "MoOS UI · Aurora",
-        "Description": "سليت نظيف بشفق تركوازي‑أزرق حديث | Clean slate with a modern teal-blue aurora",
+        "Name": "MoOS Quiet Glass",
+        "Description": "زجاج معدني هادئ بإضاءة سماوية وانعكاس بنفسجي من شعار MoOS | Quiet mineral glass, logo cyan and a restrained violet reflection",
         "Authors": [
             {
                 "Name": "Moalfarras"
@@ -11,7 +11,7 @@
         "Version": "2.0.0",
         "License": "GPL-3.0-or-later",
         "Website": "https://github.com/moalfarras-sys/moos-image",
-        "Name[ar]": "MoOS UI · Aurora"
+        "Name[ar]": "زجاج MoOS الهادئ"
     },
     "KPackageStructure": "Plasma/LookAndFeel",
     "X-Plasma-APIVersion": "2"

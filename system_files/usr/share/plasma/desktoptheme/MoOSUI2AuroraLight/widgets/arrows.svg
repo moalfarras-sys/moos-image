@@ -2,10 +2,10 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="54" height="16" viewBox="0 0 54 16">
   <!-- MoOS directional glyphs with RTL-safe symmetric geometry. -->
   <style id="current-color-scheme" type="text/css">
-    .ColorScheme-Background { color: #C2E4E1; }
-    .ColorScheme-Highlight { color: #0F766E; }
+    .ColorScheme-Background { color: #C3D5E5; }
+    .ColorScheme-Highlight { color: #1647B9; }
     .ColorScheme-Text { color: #17302E; }
-    .ColorScheme-ButtonBackground { color: #BAE0DC; }
+    .ColorScheme-ButtonBackground { color: #BBD1E0; }
     .ColorScheme-ButtonText { color: #17302E; }
   </style>
   <path id="up-arrow" d="M2 9L8 3l6 6-1.8 1.8L8 6.6l-4.2 4.2Z" fill="#17302E"/>

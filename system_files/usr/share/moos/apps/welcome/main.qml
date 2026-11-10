@@ -1343,8 +1343,8 @@ ApplicationWindow {
                                   canvasC: "#17121F", chromeC: "#201829", accentC: "#C084FC", txtC: "#F1E9F5" },
                                 { id: "midnight", glyph: "moon", en: "Midnight", ar: "منتصف الليل",
                                   canvasC: "#000000", chromeC: "#0A0A0C", accentC: "#22D3EE", txtC: "#F5F7FA" },
-                                { id: "aurora", glyph: "moon", en: "Aurora",     ar: "أورورا",
-                                  canvasC: "#0E1524", chromeC: "#172236", accentC: "#3B82F6", txtC: "#ECF2FB" }
+                                { id: "aurora", glyph: "moon", en: "Quiet Glass", ar: "زجاج هادئ",
+                                  canvasC: "#101723", chromeC: "#192436", accentC: "#20D6F8", txtC: "#EDF3FC" }
                             ]
                             // WELCOME_QUICK_THEME_IDS_END
                             delegate: Rectangle {
