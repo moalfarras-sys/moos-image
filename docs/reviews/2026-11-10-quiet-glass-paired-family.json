@@ -17,7 +17,7 @@
     "MoOSUI2AuroraLight"
   ],
   "profile_count": 18,
-  "theme_revision": 145,
+  "theme_revision": 146,
   "cache_packages": 68,
   "brand_references": {
     "dark_primary": "#20D6F8",
@@ -120,7 +120,8 @@
   "first_refusals": [
     "Welcome retained old Aurora swatch; updated its actual source values without changing the gate",
     "new review driver tried removed PlasmaCore.Theme API; retained native refusal, ported readback to actual Kirigami Theme API and added wrong-native-style negative",
-    "first complete gate refuses both stale login scene tone tuples; corrected only the actual family palette data, preserving authentication and the gate"
+    "first complete gate refuses both stale login scene tone tuples; corrected only the actual family palette data, preserving authentication and the gate",
+    "original fingerprint recorder refuses a changed greeter at already-recorded145; incremented to146 and retained refusal instead of replacing the gate record at the same revision"
   ],
   "live_copy_preflight": {
     "targets": 16,
