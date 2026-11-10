@@ -884,6 +884,14 @@ fi
 # script may restate a bar value; tests pin the two files together.
 if [ "$native_appearance" = 1 ]; then
     echo "kept the personal native desktop layout" >>"$log" 2>&1
+elif command -v moos-theme >/dev/null 2>&1 \
+        && command -v moos-bar-apply >/dev/null 2>&1 \
+        && timeout 15s moos-theme validate-selected >>"$log" 2>&1 \
+        && timeout 15s moos-bar-apply check-session >>"$log" 2>&1; then
+    # Choosing a curated palette does not request a reset of a healthy native
+    # layout. Use its existing component and live-panel validators; canonical
+    # apply still repairs missing/broken structure and keeps its strict gate.
+    echo "kept the validated native desktop layout with its selected palette" >>"$log" 2>&1
 elif command -v moos-bar-apply >/dev/null 2>&1; then
     moos-bar-apply apply "$THEME_REV" >>"$log" 2>&1 \
         || echo "moos-bar-apply reported an incomplete dock readback — will retry" >>"$log" 2>&1

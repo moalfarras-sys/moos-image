@@ -1,0 +1,25 @@
+{
+  "date": "2026-11-10",
+  "source_parent": "a5e65ad3f2c8b8d1afda45cbf37c32110e1ae8d4",
+  "trigger": "the owner selects curated Quiet Glass Light while retaining a previously validated personal tray/layout; changed-only native appearance detection returns false, and the boot migrator would invoke canonical bar apply",
+  "change": "before invoking canonical bar apply, the existing migration owner accepts only installed components plus the original live check-session success; no font/colour edit is demanded; personal-theme path and strict apply/image contracts remain unchanged",
+  "targeted": {
+    "shell_methods": 29,
+    "exit": 0,
+    "old_test_control": "new curated-layout assertion refuses original a5 migration block"
+  },
+  "actual_native_guarded": {
+    "old_apply_attempts": 1,
+    "fixed_apply_attempts": 0,
+    "fixed_live_panel": "bar: ok",
+    "scope": "actual source owner blocks with same live Plasma and a5 native component reader; all apply writes are refused by a fixed guard, so no layout is changed by the proof; not a complete migration or cold-boot claim",
+    "helper_frontend": "private13-path source-helper adaptation; no persistent global override",
+    "old_log_sha256": "fb00e60f4232a83a4645572d3f5119af460b805edada395ee047ba4affee2b76",
+    "fixed_log_sha256": "6eb6d0b208c2e9a98bc381ea2cd7188852fb05ebe34e94845d40ac10bca4813f"
+  },
+  "negative_controls": "invalid/unavailable component/panel probes do not qualify as validated layouts; original structural repair path, reader deadlines, strict canonical check and busy/input controls remain",
+  "cache_revision": "147 unchanged; no cached QML/SVG/data bytes changed in this follow-up",
+  "owner_preferences": "explicit Light selection, full19-field Meyar font,0.85 motion, original panel/tray/pins retained",
+  "full_source": "pending",
+  "local_image_and_current_ci": "a5 proof remains running independently in the original frozen workspace; new source needs separate final qualification before update"
+}
