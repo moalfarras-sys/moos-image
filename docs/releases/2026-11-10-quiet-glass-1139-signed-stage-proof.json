@@ -1,0 +1,160 @@
+{
+  "schema": 1,
+  "date": "2026-11-10",
+  "source": {
+    "candidate": "8075a8473220da8ba2eb860009239a3d019a09d1",
+    "merged_pr": 286,
+    "merge_commit": "2bf8339fed64fff81ac210280dc92f35560cc0e7",
+    "merge_tree_equals_candidate": true,
+    "theme_rev": 148
+  },
+  "source_acceptance": {
+    "complete_just_check_exit": 0,
+    "log_sha256": "5bed6a4e925fcf33a451d5a98272885faad2938d14a52bdd53ca232b16e832f6",
+    "original_unavailable_opt_in_skips": 14,
+    "ui2_methods": 45,
+    "shell_methods": 29,
+    "all_identity_gates_unchanged": true,
+    "local_image_exit": 0,
+    "local_image_id": "cba844e7ce6c1596045a66212c83a79aeb71e4f70930088db7fe79a2c6fcc0df",
+    "immutable_source_files_matched": 11,
+    "bootc_lint": {
+      "passed": 13,
+      "skipped": 1,
+      "warnings": 1,
+      "warning": "nonempty-boot efi/grub2"
+    }
+  },
+  "pr_gates": {
+    "repository": 42793183695,
+    "x86": 42793183693,
+    "arm": 42793183973,
+    "state": "success; PR ARM disk/promotion correctly skipped",
+    "advisory_review": {
+      "run": 42793184016,
+      "job_conclusion": "success",
+      "actual_outcome": "is_error:true; modelUsage empty; no independent review completed"
+    },
+    "manual_review": "self-review only"
+  },
+  "signed_cycle": {
+    "script_ref": "feat/quiet-glass-identity-20261110",
+    "exit": 0,
+    "build": 42798392876,
+    "generic_qcow2": 42809194899,
+    "nvidia_qcow2": 42809201064,
+    "cloud_qcow2": 42809207231,
+    "offline_iso": 42809213163,
+    "arm_branch_proof": 42809220516,
+    "x86_promotion": 42819743075,
+    "attempt": 1,
+    "proofs": "all x86 and branch ARM pipeline success; exact digests promoted for x86 only",
+    "arm_main_delivery": {
+      "run": 42819720603,
+      "state": "in progress; branch proof is not ARM production promotion"
+    }
+  },
+  "published_x86": [
+    {
+      "edition": "moos",
+      "signature_exit": 0,
+      "inspect_exit": 0,
+      "digest": "sha256:b0b24ac3099ea9f62f6cfaa1efd3c7ded3056b2073b85b17c8101686e0019134",
+      "revision": "8075a8473220da8ba2eb860009239a3d019a09d1",
+      "version": "44.20261110.1139"
+    },
+    {
+      "edition": "moos-nvidia",
+      "signature_exit": 0,
+      "inspect_exit": 0,
+      "digest": "sha256:d9770bd9f6ee2c02a4c5f933992e8edec3be6befb20918c0487858465382a28e",
+      "revision": "8075a8473220da8ba2eb860009239a3d019a09d1",
+      "version": "44.20261110.1139"
+    },
+    {
+      "edition": "moos-cloud",
+      "signature_exit": 0,
+      "inspect_exit": 0,
+      "digest": "sha256:15a76d12eb8a222fa3c38f0af873d49bb465c7c794dbeece5741d07ca9463cb0",
+      "revision": "8075a8473220da8ba2eb860009239a3d019a09d1",
+      "version": "44.20261110.1139"
+    }
+  ],
+  "physical_v3": {
+    "booted": "44.20261109.1136",
+    "staged": "44.20261110.1139",
+    "stage_exit": 0,
+    "signed_exact_digest": "sha256:b0b24ac3099ea9f62f6cfaa1efd3c7ded3056b2073b85b17c8101686e0019134",
+    "signed_boot_and_1119_rollback_preserved": true,
+    "pinned1078_preserved": true,
+    "postboot_acceptance": "not yet executed",
+    "selected_appearance": "Quiet Glass Light; personal Meyar Sans10, motion0.85 and native layout retained before reboot",
+    "live_development_copies": {
+      "targets": 16,
+      "bytes": 10675320,
+      "source": "b34f8493",
+      "status": "development-only, retirement through normal signed migration with exact private recovery ledger"
+    }
+  },
+  "disk": {
+    "readonly_btrfs_scrub_exit": 0,
+    "status": "finished",
+    "gib": 489.74,
+    "duration_seconds": 138,
+    "checksum_errors": "none found",
+    "five_device_error_counters": 0,
+    "nvme_smart": "PASSED",
+    "media_data_integrity_errors": 0,
+    "unsafe_shutdowns": 2059,
+    "historical_error_log_entries": 11101,
+    "historical_error_cause": "not established; retained Invalid Field in Command records",
+    "cleanup": "only four exact stopped fixture containers after explicit approval; no general prune, image/volume or recovery deletion"
+  },
+  "recovery_iso1139": {
+    "sha256": "35ae2044f6f5e7f6888a492201855df5fba8d8c2a0cf9b5fea690af2da3b941b",
+    "sizeBytes": 5825691648,
+    "signatureVerified": true,
+    "source_revision": "8075a8473220da8ba2eb860009239a3d019a09d1",
+    "build_run": 42798392876,
+    "disks": [
+      42809194899,
+      42809201064,
+      42809207231
+    ],
+    "iso_run": 42809213163,
+    "promotion_run": 42819743075,
+    "public_download_qualified": false
+  },
+  "security_apps": {
+    "selinux": "Enforcing",
+    "firewalld": "active",
+    "secure_boot": "disabled; unchanged",
+    "store_update_exit": 0,
+    "store_update_state": "success, Apps are up to date",
+    "pending_updates": 0,
+    "not_claimed": "universal security, arbitrary hardware or every installed application function"
+  },
+  "qt_followup": {
+    "bug": "QTBUG-150769",
+    "upstream_fix": "https://github.com/qt/qtdeclarative/commit/83d091dcb160d3f0c4a8bc9df8b8a9a934ac82a1",
+    "related_report": "https://bugs.kde.org/show_bug.cgi?id=527691",
+    "native_vendor": "qt6-qtdeclarative6.11.2-2; exact vendor payload metadata and two DSO hashes match; rpm-V exit1 has only1636 normalized timestamp flags",
+    "old_upstream_fixture": "host exit139 and matching first3 ListView teardown symbols",
+    "private_sdk_fix": "existing SDK, original vendor spec configure/compiler flags, Quick target only; one upstream production change",
+    "first_fixed_attempts": "exit0 without required QML log marker refused; retained, not acceptance",
+    "native_qquickview_control": {
+      "old_exit": 139,
+      "fixed_exit": 0,
+      "fixed_executed_marker": "MOOS_QT_TEARDOWN_NATIVE_EXECUTED true",
+      "loaded": "only Quick from private fixed prefix; Core/Qml vendor unchanged"
+    },
+    "delivery": "not a complete RPM, repository runtime change or signed installed fix; physical screenRemoved trigger attribution still open"
+  },
+  "remaining": [
+    "new physical boot, ordinary authentication and complete installed daily journey",
+    "native Qt package/backport qualification and signed delivery",
+    "USB4/I2C/framebuffer/sensor faults, suspend/touch and wider hardware scope",
+    "independent review unavailable",
+    "new public anonymous ISO download qualification; artifact archive alone is insufficient"
+  ]
+}
