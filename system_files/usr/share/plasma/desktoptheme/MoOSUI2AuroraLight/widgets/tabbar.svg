@@ -4,9 +4,9 @@
   <style id="current-color-scheme" type="text/css">
     .ColorScheme-Background { color: #C3D5E5; }
     .ColorScheme-Highlight { color: #1647B9; }
-    .ColorScheme-Text { color: #17302E; }
+    .ColorScheme-Text { color: #14283F; }
     .ColorScheme-ButtonBackground { color: #BBD1E0; }
-    .ColorScheme-ButtonText { color: #17302E; }
+    .ColorScheme-ButtonText { color: #14283F; }
   </style>
   <g id="north-active-tab-topleft"><path d="M0 20A20 20 0 0 1 20 0V20H0Z" fill="#1647B9" fill-opacity="0.120"/><path d="M0 20A20 20 0 0 1 20 0V1A19 19 0 0 0 1 20Z" fill="#1647B9" fill-opacity="0.000"/></g>
   <g id="north-active-tab-topright"><path d="M36 0A20 20 0 0 1 56 20H36Z" fill="#1647B9" fill-opacity="0.120"/><path d="M36 0A20 20 0 0 1 56 20H55A19 19 0 0 0 36 1Z" fill="#1647B9" fill-opacity="0.000"/></g>

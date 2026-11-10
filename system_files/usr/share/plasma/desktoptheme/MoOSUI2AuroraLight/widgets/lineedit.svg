@@ -4,18 +4,18 @@
   <style id="current-color-scheme" type="text/css">
     .ColorScheme-Background { color: #C3D5E5; }
     .ColorScheme-Highlight { color: #1647B9; }
-    .ColorScheme-Text { color: #17302E; }
+    .ColorScheme-Text { color: #14283F; }
     .ColorScheme-ButtonBackground { color: #BBD1E0; }
-    .ColorScheme-ButtonText { color: #17302E; }
+    .ColorScheme-ButtonText { color: #14283F; }
   </style>
-  <g id="base-topleft"><path d="M0 10A10 10 0 0 1 10 0V10H0Z" fill="#C3D5E5" fill-opacity="0.900"/><path d="M0 10A10 10 0 0 1 10 0V1A9 9 0 0 0 1 10Z" fill="#527F79" fill-opacity="0.200"/></g>
-  <g id="base-topright"><path d="M34 0A10 10 0 0 1 44 10H34Z" fill="#C3D5E5" fill-opacity="0.900"/><path d="M34 0A10 10 0 0 1 44 10H43A9 9 0 0 0 34 1Z" fill="#527F79" fill-opacity="0.200"/></g>
-  <g id="base-bottomleft"><path d="M0 34A10 10 0 0 0 10 44V34Z" fill="#C3D5E5" fill-opacity="0.900"/><path d="M0 34A10 10 0 0 0 10 44V43A9 9 0 0 1 1 34Z" fill="#527F79" fill-opacity="0.124"/></g>
-  <g id="base-bottomright"><path d="M44 34A10 10 0 0 1 34 44V34Z" fill="#C3D5E5" fill-opacity="0.900"/><path d="M44 34A10 10 0 0 1 34 44V43A9 9 0 0 0 43 34Z" fill="#527F79" fill-opacity="0.124"/></g>
-  <g id="base-top"><rect x="10" y="0" width="24" height="10" fill="#C3D5E5" fill-opacity="0.900"/><rect x="10" y="0" width="24" height="1" fill="#527F79" fill-opacity="0.200"/></g>
-  <g id="base-bottom"><rect x="10" y="34" width="24" height="10" fill="#C3D5E5" fill-opacity="0.900"/><rect x="10" y="43" width="24" height="1" fill="#527F79" fill-opacity="0.124"/></g>
-  <g id="base-left"><rect x="0" y="10" width="10" height="24" fill="#C3D5E5" fill-opacity="0.900"/><rect x="0" y="10" width="1" height="24" fill="#527F79" fill-opacity="0.156"/></g>
-  <g id="base-right"><rect x="34" y="10" width="10" height="24" fill="#C3D5E5" fill-opacity="0.900"/><rect x="43" y="10" width="1" height="24" fill="#527F79" fill-opacity="0.156"/></g>
+  <g id="base-topleft"><path d="M0 10A10 10 0 0 1 10 0V10H0Z" fill="#C3D5E5" fill-opacity="0.900"/><path d="M0 10A10 10 0 0 1 10 0V1A9 9 0 0 0 1 10Z" fill="#58708B" fill-opacity="0.200"/></g>
+  <g id="base-topright"><path d="M34 0A10 10 0 0 1 44 10H34Z" fill="#C3D5E5" fill-opacity="0.900"/><path d="M34 0A10 10 0 0 1 44 10H43A9 9 0 0 0 34 1Z" fill="#58708B" fill-opacity="0.200"/></g>
+  <g id="base-bottomleft"><path d="M0 34A10 10 0 0 0 10 44V34Z" fill="#C3D5E5" fill-opacity="0.900"/><path d="M0 34A10 10 0 0 0 10 44V43A9 9 0 0 1 1 34Z" fill="#58708B" fill-opacity="0.124"/></g>
+  <g id="base-bottomright"><path d="M44 34A10 10 0 0 1 34 44V34Z" fill="#C3D5E5" fill-opacity="0.900"/><path d="M44 34A10 10 0 0 1 34 44V43A9 9 0 0 0 43 34Z" fill="#58708B" fill-opacity="0.124"/></g>
+  <g id="base-top"><rect x="10" y="0" width="24" height="10" fill="#C3D5E5" fill-opacity="0.900"/><rect x="10" y="0" width="24" height="1" fill="#58708B" fill-opacity="0.200"/></g>
+  <g id="base-bottom"><rect x="10" y="34" width="24" height="10" fill="#C3D5E5" fill-opacity="0.900"/><rect x="10" y="43" width="24" height="1" fill="#58708B" fill-opacity="0.124"/></g>
+  <g id="base-left"><rect x="0" y="10" width="10" height="24" fill="#C3D5E5" fill-opacity="0.900"/><rect x="0" y="10" width="1" height="24" fill="#58708B" fill-opacity="0.156"/></g>
+  <g id="base-right"><rect x="34" y="10" width="10" height="24" fill="#C3D5E5" fill-opacity="0.900"/><rect x="43" y="10" width="1" height="24" fill="#58708B" fill-opacity="0.156"/></g>
   <rect id="base-center" x="10" y="10" width="24" height="24" fill="#C3D5E5" fill-opacity="0.900"/>
   <rect id="base-hint-top-margin" x="49" y="0" width="3" height="8" fill="none"/>
   <rect id="base-hint-bottom-margin" x="49" y="10" width="3" height="8" fill="none"/>

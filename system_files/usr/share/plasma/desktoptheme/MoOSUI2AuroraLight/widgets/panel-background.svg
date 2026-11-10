@@ -32,7 +32,7 @@
   <style id="current-color-scheme" type="text/css">
     .ColorScheme-Background { color: #C3D5E5; }
     .ColorScheme-Highlight  { color: #1647B9; }
-    .ColorScheme-Text       { color: #17302E; }
+    .ColorScheme-Text       { color: #14283F; }
   </style>
   <defs>
     <linearGradient id="ui2-panel-glass" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="0" y2="60">

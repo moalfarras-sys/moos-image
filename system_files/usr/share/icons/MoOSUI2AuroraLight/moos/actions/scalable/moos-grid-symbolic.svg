@@ -3,10 +3,10 @@
      role="img" aria-labelledby="grid-title">
   <title id="grid-title">Grid</title>
   <style id="current-color-scheme" type="text/css">
-    .ColorScheme-Text { color: #17302E; fill: currentColor; }
+    .ColorScheme-Text { color: #14283F; fill: currentColor; }
     .ColorScheme-Highlight { color: #1647B9; fill: currentColor; }
-    .ColorScheme-NeutralText { color: #7B520F; fill: currentColor; }
-    .ColorScheme-NegativeText { color: #A52F3F; fill: currentColor; }
+    .ColorScheme-NeutralText { color: #704709; fill: currentColor; }
+    .ColorScheme-NegativeText { color: #992B3C; fill: currentColor; }
   </style>
   <path class="ColorScheme-Text" fill="#2e3436" fill-rule="evenodd" d="M4.7 2.5 H8.3 A2.2 2.2 0 0 1 10.5 4.7 V8.3 A2.2 2.2 0 0 1 8.3 10.5 H4.7 A2.2 2.2 0 0 1 2.5 8.3 V4.7 A2.2 2.2 0 0 1 4.7 2.5 Z"/>
   <path class="ColorScheme-Highlight" fill="#2e3436" fill-rule="evenodd" d="M15.7 2.5 H19.3 A2.2 2.2 0 0 1 21.5 4.7 V8.3 A2.2 2.2 0 0 1 19.3 10.5 H15.7 A2.2 2.2 0 0 1 13.5 8.3 V4.7 A2.2 2.2 0 0 1 15.7 2.5 Z"/>

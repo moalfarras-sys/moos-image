@@ -4,25 +4,25 @@
   <style id="current-color-scheme" type="text/css">
     .ColorScheme-Background { color: #C3D5E5; }
     .ColorScheme-Highlight { color: #1647B9; }
-    .ColorScheme-Text { color: #17302E; }
+    .ColorScheme-Text { color: #14283F; }
     .ColorScheme-ButtonBackground { color: #BBD1E0; }
-    .ColorScheme-ButtonText { color: #17302E; }
+    .ColorScheme-ButtonText { color: #14283F; }
   </style>
   <defs>
-    <linearGradient id="moos-button-shadow-top" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#668681" stop-opacity="0"/><stop offset="1" stop-color="#668681" stop-opacity="0.11"/></linearGradient>
-    <linearGradient id="moos-button-shadow-bottom" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#668681" stop-opacity="0.15"/><stop offset="1" stop-color="#668681" stop-opacity="0"/></linearGradient>
-    <linearGradient id="moos-button-shadow-left" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#668681" stop-opacity="0"/><stop offset="1" stop-color="#668681" stop-opacity="0.10"/></linearGradient>
-    <linearGradient id="moos-button-shadow-right" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#668681" stop-opacity="0.10"/><stop offset="1" stop-color="#668681" stop-opacity="0"/></linearGradient>
-    <radialGradient id="moos-button-shadow-tl" cx="1" cy="1" r="1"><stop offset="0" stop-color="#668681" stop-opacity="0.11"/><stop offset="1" stop-color="#668681" stop-opacity="0"/></radialGradient>
-    <radialGradient id="moos-button-shadow-tr" cx="0" cy="1" r="1"><stop offset="0" stop-color="#668681" stop-opacity="0.11"/><stop offset="1" stop-color="#668681" stop-opacity="0"/></radialGradient>
-    <radialGradient id="moos-button-shadow-bl" cx="1" cy="0" r="1"><stop offset="0" stop-color="#668681" stop-opacity="0.15"/><stop offset="1" stop-color="#668681" stop-opacity="0"/></radialGradient>
-    <radialGradient id="moos-button-shadow-br" cx="0" cy="0" r="1"><stop offset="0" stop-color="#668681" stop-opacity="0.15"/><stop offset="1" stop-color="#668681" stop-opacity="0"/></radialGradient>
+    <linearGradient id="moos-button-shadow-top" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#647992" stop-opacity="0"/><stop offset="1" stop-color="#647992" stop-opacity="0.11"/></linearGradient>
+    <linearGradient id="moos-button-shadow-bottom" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#647992" stop-opacity="0.15"/><stop offset="1" stop-color="#647992" stop-opacity="0"/></linearGradient>
+    <linearGradient id="moos-button-shadow-left" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#647992" stop-opacity="0"/><stop offset="1" stop-color="#647992" stop-opacity="0.10"/></linearGradient>
+    <linearGradient id="moos-button-shadow-right" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#647992" stop-opacity="0.10"/><stop offset="1" stop-color="#647992" stop-opacity="0"/></linearGradient>
+    <radialGradient id="moos-button-shadow-tl" cx="1" cy="1" r="1"><stop offset="0" stop-color="#647992" stop-opacity="0.11"/><stop offset="1" stop-color="#647992" stop-opacity="0"/></radialGradient>
+    <radialGradient id="moos-button-shadow-tr" cx="0" cy="1" r="1"><stop offset="0" stop-color="#647992" stop-opacity="0.11"/><stop offset="1" stop-color="#647992" stop-opacity="0"/></radialGradient>
+    <radialGradient id="moos-button-shadow-bl" cx="1" cy="0" r="1"><stop offset="0" stop-color="#647992" stop-opacity="0.15"/><stop offset="1" stop-color="#647992" stop-opacity="0"/></radialGradient>
+    <radialGradient id="moos-button-shadow-br" cx="0" cy="0" r="1"><stop offset="0" stop-color="#647992" stop-opacity="0.15"/><stop offset="1" stop-color="#647992" stop-opacity="0"/></radialGradient>
   </defs>
   <rect id="shadow-topleft" x="64" y="0" width="10" height="10" fill="url(#moos-button-shadow-tl)"/>
   <rect id="shadow-top" x="74" y="0" width="24" height="10" fill="url(#moos-button-shadow-top)"/>
   <rect id="shadow-topright" x="98" y="0" width="10" height="10" fill="url(#moos-button-shadow-tr)"/>
   <rect id="shadow-left" x="64" y="10" width="10" height="24" fill="url(#moos-button-shadow-left)"/>
-  <rect id="shadow-center" x="74" y="10" width="24" height="24" fill="#668681" fill-opacity="0.001"/>
+  <rect id="shadow-center" x="74" y="10" width="24" height="24" fill="#647992" fill-opacity="0.001"/>
   <rect id="shadow-right" x="98" y="10" width="10" height="24" fill="url(#moos-button-shadow-right)"/>
   <rect id="shadow-bottomleft" x="64" y="34" width="10" height="10" fill="url(#moos-button-shadow-bl)"/>
   <rect id="shadow-bottom" x="74" y="34" width="24" height="10" fill="url(#moos-button-shadow-bottom)"/>
@@ -31,14 +31,14 @@
   <rect id="shadow-hint-bottom-margin" x="113" y="10" width="3" height="8" fill="none"/>
   <rect id="shadow-hint-left-margin" x="118" y="0" width="8" height="3" fill="none"/>
   <rect id="shadow-hint-right-margin" x="118" y="5" width="8" height="3" fill="none"/>
-  <g id="normal-topleft"><path d="M0 10A10 10 0 0 1 10 0V10H0Z" fill="#BBD1E0" fill-opacity="0.820"/><path d="M0 10A10 10 0 0 1 10 0V1A9 9 0 0 0 1 10Z" fill="#527F79" fill-opacity="0.120"/></g>
-  <g id="normal-topright"><path d="M34 0A10 10 0 0 1 44 10H34Z" fill="#BBD1E0" fill-opacity="0.820"/><path d="M34 0A10 10 0 0 1 44 10H43A9 9 0 0 0 34 1Z" fill="#527F79" fill-opacity="0.120"/></g>
-  <g id="normal-bottomleft"><path d="M0 34A10 10 0 0 0 10 44V34Z" fill="#BBD1E0" fill-opacity="0.820"/><path d="M0 34A10 10 0 0 0 10 44V43A9 9 0 0 1 1 34Z" fill="#527F79" fill-opacity="0.074"/></g>
-  <g id="normal-bottomright"><path d="M44 34A10 10 0 0 1 34 44V34Z" fill="#BBD1E0" fill-opacity="0.820"/><path d="M44 34A10 10 0 0 1 34 44V43A9 9 0 0 0 43 34Z" fill="#527F79" fill-opacity="0.074"/></g>
-  <g id="normal-top"><rect x="10" y="0" width="24" height="10" fill="#BBD1E0" fill-opacity="0.820"/><rect x="10" y="0" width="24" height="1" fill="#527F79" fill-opacity="0.120"/></g>
-  <g id="normal-bottom"><rect x="10" y="34" width="24" height="10" fill="#BBD1E0" fill-opacity="0.820"/><rect x="10" y="43" width="24" height="1" fill="#527F79" fill-opacity="0.074"/></g>
-  <g id="normal-left"><rect x="0" y="10" width="10" height="24" fill="#BBD1E0" fill-opacity="0.820"/><rect x="0" y="10" width="1" height="24" fill="#527F79" fill-opacity="0.094"/></g>
-  <g id="normal-right"><rect x="34" y="10" width="10" height="24" fill="#BBD1E0" fill-opacity="0.820"/><rect x="43" y="10" width="1" height="24" fill="#527F79" fill-opacity="0.094"/></g>
+  <g id="normal-topleft"><path d="M0 10A10 10 0 0 1 10 0V10H0Z" fill="#BBD1E0" fill-opacity="0.820"/><path d="M0 10A10 10 0 0 1 10 0V1A9 9 0 0 0 1 10Z" fill="#58708B" fill-opacity="0.120"/></g>
+  <g id="normal-topright"><path d="M34 0A10 10 0 0 1 44 10H34Z" fill="#BBD1E0" fill-opacity="0.820"/><path d="M34 0A10 10 0 0 1 44 10H43A9 9 0 0 0 34 1Z" fill="#58708B" fill-opacity="0.120"/></g>
+  <g id="normal-bottomleft"><path d="M0 34A10 10 0 0 0 10 44V34Z" fill="#BBD1E0" fill-opacity="0.820"/><path d="M0 34A10 10 0 0 0 10 44V43A9 9 0 0 1 1 34Z" fill="#58708B" fill-opacity="0.074"/></g>
+  <g id="normal-bottomright"><path d="M44 34A10 10 0 0 1 34 44V34Z" fill="#BBD1E0" fill-opacity="0.820"/><path d="M44 34A10 10 0 0 1 34 44V43A9 9 0 0 0 43 34Z" fill="#58708B" fill-opacity="0.074"/></g>
+  <g id="normal-top"><rect x="10" y="0" width="24" height="10" fill="#BBD1E0" fill-opacity="0.820"/><rect x="10" y="0" width="24" height="1" fill="#58708B" fill-opacity="0.120"/></g>
+  <g id="normal-bottom"><rect x="10" y="34" width="24" height="10" fill="#BBD1E0" fill-opacity="0.820"/><rect x="10" y="43" width="24" height="1" fill="#58708B" fill-opacity="0.074"/></g>
+  <g id="normal-left"><rect x="0" y="10" width="10" height="24" fill="#BBD1E0" fill-opacity="0.820"/><rect x="0" y="10" width="1" height="24" fill="#58708B" fill-opacity="0.094"/></g>
+  <g id="normal-right"><rect x="34" y="10" width="10" height="24" fill="#BBD1E0" fill-opacity="0.820"/><rect x="43" y="10" width="1" height="24" fill="#58708B" fill-opacity="0.094"/></g>
   <rect id="normal-center" x="10" y="10" width="24" height="24" fill="#BBD1E0" fill-opacity="0.820"/>
   <rect id="normal-hint-top-margin" x="49" y="0" width="3" height="8" fill="none"/>
   <rect id="normal-hint-bottom-margin" x="49" y="10" width="3" height="8" fill="none"/>

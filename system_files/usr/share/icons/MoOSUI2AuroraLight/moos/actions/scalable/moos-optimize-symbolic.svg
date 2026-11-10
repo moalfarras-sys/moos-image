@@ -3,10 +3,10 @@
      role="img" aria-labelledby="optimize-title">
   <title id="optimize-title">Optimise</title>
   <style id="current-color-scheme" type="text/css">
-    .ColorScheme-Text { color: #17302E; fill: currentColor; }
+    .ColorScheme-Text { color: #14283F; fill: currentColor; }
     .ColorScheme-Highlight { color: #1647B9; fill: currentColor; }
-    .ColorScheme-NeutralText { color: #7B520F; fill: currentColor; }
-    .ColorScheme-NegativeText { color: #A52F3F; fill: currentColor; }
+    .ColorScheme-NeutralText { color: #704709; fill: currentColor; }
+    .ColorScheme-NegativeText { color: #992B3C; fill: currentColor; }
   </style>
   <path class="ColorScheme-Text" fill="#2e3436" fill-rule="evenodd" d="M3.25 8.1 L20.75 8.1 A1 1 0 0 0 20.75 6.1 L3.25 6.1 A1 1 0 0 0 3.25 8.1 Z"/>
   <path class="ColorScheme-Text" fill="#2e3436" fill-rule="evenodd" d="M3.25 17.9 L20.75 17.9 A1 1 0 0 0 20.75 15.9 L3.25 15.9 A1 1 0 0 0 3.25 17.9 Z"/>

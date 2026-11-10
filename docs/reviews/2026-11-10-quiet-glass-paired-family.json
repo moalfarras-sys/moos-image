@@ -17,7 +17,7 @@
     "MoOSUI2AuroraLight"
   ],
   "profile_count": 18,
-  "theme_revision": 146,
+  "theme_revision": 147,
   "cache_packages": 68,
   "brand_references": {
     "dark_primary": "#20D6F8",
@@ -44,7 +44,7 @@
     "secondary_contrast": {
       "schemes": 18,
       "surfaces": 26,
-      "minimum": 4.58,
+      "minimum": 4.66,
       "exit": 0
     },
     "native_launcher": {
@@ -82,7 +82,7 @@
           ],
           "actual_palette": {
             "background": "#c3d5e5",
-            "text": "#17302e",
+            "text": "#14283f",
             "accent": "#1647b9"
           }
         },
@@ -96,7 +96,7 @@
           ],
           "actual_palette": {
             "background": "#c3d5e5",
-            "text": "#17302e",
+            "text": "#14283f",
             "accent": "#1647b9"
           }
         },
@@ -115,6 +115,10 @@
           }
         }
       ]
+    },
+    "semantic_contrast": {
+      "tests": 16,
+      "exit": 0
     }
   },
   "first_refusals": [
@@ -122,13 +126,14 @@
     "new review driver tried removed PlasmaCore.Theme API; retained native refusal, ported readback to actual Kirigami Theme API and added wrong-native-style negative",
     "first complete gate refuses both stale login scene tone tuples; corrected only the actual family palette data, preserving authentication and the gate",
     "original fingerprint recorder refuses a changed greeter at already-recorded145; incremented to146 and retained refusal instead of replacing the gate record at the same revision",
-    "review-runner fixture pins the old AuroraLight RGB194,228,225; retained refusal and changed only its expected current sample to195,213,229, preserving real palette-merge and blank-frame negatives"
+    "review-runner fixture pins the old AuroraLight RGB194,228,225; retained refusal and changed only its expected current sample to195,213,229, preserving real palette-merge and blank-frame negatives",
+    "Complete146 gate measured Light negative4.403:1 and warning4.475:1; qualified semantic inks and neutral blue text/shadow in147, preserving the4.5:1 threshold"
   ],
   "live_copy_preflight": {
     "targets": 16,
     "collisions": 0,
-    "copied": false,
-    "scope": "no global override; actual installation/journeys not yet qualified"
+    "copied": true,
+    "scope": "16 user-local development targets at146; actual dark/light desktop, launcher and Arabic KWrite edit/save exercised;147 refresh pending. Immutable GTK/login remain1136."
   },
   "full_source": {
     "state": "pending",

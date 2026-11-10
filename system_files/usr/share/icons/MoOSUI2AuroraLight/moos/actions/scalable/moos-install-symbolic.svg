@@ -3,10 +3,10 @@
      role="img" aria-labelledby="install-title">
   <title id="install-title">Install</title>
   <style id="current-color-scheme" type="text/css">
-    .ColorScheme-Text { color: #17302E; fill: currentColor; }
+    .ColorScheme-Text { color: #14283F; fill: currentColor; }
     .ColorScheme-Highlight { color: #1647B9; fill: currentColor; }
-    .ColorScheme-NeutralText { color: #7B520F; fill: currentColor; }
-    .ColorScheme-NegativeText { color: #A52F3F; fill: currentColor; }
+    .ColorScheme-NeutralText { color: #704709; fill: currentColor; }
+    .ColorScheme-NegativeText { color: #992B3C; fill: currentColor; }
   </style>
   <path class="ColorScheme-Text" fill="#2e3436" fill-rule="evenodd" d="M10.85 3.4 L10.85 13.6 A1.15 1.15 0 0 0 13.15 13.6 L13.15 3.4 A1.15 1.15 0 0 0 10.85 3.4 Z"/>
   <path class="ColorScheme-Highlight" fill="#2e3436" fill-rule="evenodd" d="M6.8 10.3 L12 16.3 L17.2 10.3 L14.15 10.3 L12 12.8 L9.85 10.3 Z"/>

@@ -3,10 +3,10 @@
      role="img" aria-labelledby="android-apps-title">
   <title id="android-apps-title">Android apps</title>
   <style id="current-color-scheme" type="text/css">
-    .ColorScheme-Text { color: #17302E; fill: currentColor; }
+    .ColorScheme-Text { color: #14283F; fill: currentColor; }
     .ColorScheme-Highlight { color: #1647B9; fill: currentColor; }
-    .ColorScheme-NeutralText { color: #7B520F; fill: currentColor; }
-    .ColorScheme-NegativeText { color: #A52F3F; fill: currentColor; }
+    .ColorScheme-NeutralText { color: #704709; fill: currentColor; }
+    .ColorScheme-NegativeText { color: #992B3C; fill: currentColor; }
   </style>
   <path class="ColorScheme-Text" fill="#2e3436" fill-rule="evenodd" d="M7.999 5.001 L6.499 2.751 A0.9 0.9 0 0 0 5.001 3.749 L6.501 5.999 A0.9 0.9 0 0 0 7.999 5.001 Z"/>
   <path class="ColorScheme-Text" fill="#2e3436" fill-rule="evenodd" d="M17.499 5.999 L18.999 3.749 A0.9 0.9 0 0 0 17.501 2.751 L16.001 5.001 A0.9 0.9 0 0 0 17.499 5.999 Z"/>
