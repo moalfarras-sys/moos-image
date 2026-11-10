@@ -10,6 +10,7 @@ copy without touching the working tree.
 
 from __future__ import annotations
 
+import ast
 import configparser
 import hashlib
 import importlib.util
@@ -894,7 +895,7 @@ class TestMoOSUI2(unittest.TestCase):
         apply = (ROOT / "system_files/usr/bin/moos-apply-theme").read_text(encoding="utf-8")
         switch = (ROOT / "system_files/usr/bin/moos-theme").read_text(encoding="utf-8")
         self.assertIn(
-            "THEME_REV=147", apply,
+            "THEME_REV=148", apply,
             "existing v100 users would keep a cached compile of the retired MoOS LockScreenUi that "
             "asks for a MoOSClock which no longer ships (kscreenlocker's emergency locker) and a "
             "cached stock session screen with no island; "
@@ -3081,6 +3082,28 @@ assert.equal(columns(100, 180), 1);
         self.assertNotIn("import org.kde.plasma.plasmoid", bento,
                          "DashboardBento must stay plain QtQuick/Kirigami — the build's "
                          "smoke harness loads it directly")
+
+
+class SourceThemeIdentity(unittest.TestCase):
+    def test_family_metadata_matches_the_unchanged_image_identity_contract(self):
+        # Read the real image gate's exact table; do not introduce a looser
+        # prefix check or another independently maintained name allow-list.
+        source = ast.parse((DEFAULT_ROOT / "build_files/verify_identity.py").read_text())
+        tables = [ast.literal_eval(node.value) for node in ast.walk(source)
+                  if isinstance(node, ast.Assign) and any(
+                      isinstance(target, ast.Name) and target.id == "ALLOWED_LOOKS"
+                      for target in node.targets)]
+        self.assertEqual(len(tables), 1, "the authoritative family table must be unambiguous")
+        expected = tables[0]
+        packages = {path.name: path for path in
+                    (SHARE / "plasma/look-and-feel").glob("org.moos.*")}
+        self.assertEqual(set(packages), set(expected))
+        for identity, name in expected.items():
+            with self.subTest(identity=identity):
+                metadata = json.loads((packages[identity] / "metadata.json").read_text())["KPlugin"]
+                self.assertEqual(metadata["Id"], identity)
+                self.assertEqual(metadata["Name"], name,
+                                 "source must obey the existing immutable image identity contract")
 
 
 if __name__ == "__main__":

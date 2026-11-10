@@ -1,5 +1,5 @@
 [Icon Theme]
-Name=MoOS Quiet Glass Light Symbols
+Name=MoOS UI · Aurora Light Symbols
 Comment=Palette-matched MoOS Tidal Cut interface symbols
 Inherits=MoOSUI2Light
 # Normal QIcon rendering can receive the application's QPalette rather than

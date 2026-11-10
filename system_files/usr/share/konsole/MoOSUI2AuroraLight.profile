@@ -8,7 +8,7 @@ BoldIntense=true
 UseFontLineChararacters=true
 
 [General]
-Name=MoOS Quiet Glass Light
+Name=MoOS UI · Aurora Light
 Parent=FALLBACK/
 TerminalMargin=14
 TerminalCenter=false

@@ -134,7 +134,7 @@ ForegroundVisited=0,106,136
 [General]
 AccentColor=22,71,185
 ColorScheme=MoOSUI2AuroraLight
-Name=MoOS Quiet Glass Light
+Name=MoOS UI · Aurora Light
 shadeSortColumn=true
 
 [KDE]

@@ -18,8 +18,8 @@
     "fixed_log_sha256": "6eb6d0b208c2e9a98bc381ea2cd7188852fb05ebe34e94845d40ac10bca4813f"
   },
   "negative_controls": "invalid/unavailable component/panel probes do not qualify as validated layouts; original structural repair path, reader deadlines, strict canonical check and busy/input controls remain",
-  "cache_revision": "147 unchanged; no cached QML/SVG/data bytes changed in this follow-up",
+  "cache_revision": "148; restored exact family metadata names; QML/SVG payload hashes unchanged",
   "owner_preferences": "explicit Light selection, full19-field Meyar font,0.85 motion, original panel/tray/pins retained",
   "full_source": "pending",
-  "local_image_and_current_ci": "a5 proof remains running independently in the original frozen workspace; new source needs separate final qualification before update"
+  "local_image_and_current_ci": "a5 full source passes but local/ARM image identity gates refuse its family rename; new148 final qualification required"
 }
