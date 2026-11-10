@@ -119,7 +119,8 @@
   },
   "first_refusals": [
     "Welcome retained old Aurora swatch; updated its actual source values without changing the gate",
-    "new review driver tried removed PlasmaCore.Theme API; retained native refusal, ported readback to actual Kirigami Theme API and added wrong-native-style negative"
+    "new review driver tried removed PlasmaCore.Theme API; retained native refusal, ported readback to actual Kirigami Theme API and added wrong-native-style negative",
+    "first complete gate refuses both stale login scene tone tuples; corrected only the actual family palette data, preserving authentication and the gate"
   ],
   "live_copy_preflight": {
     "targets": 16,
