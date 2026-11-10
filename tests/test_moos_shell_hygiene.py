@@ -146,7 +146,7 @@ class NativeTrayHealth(unittest.TestCase):
     """Execute the shipped reader on canonical and native D-Bus observations."""
 
     def run_check(self, command="check-session", *, native=0, changes=None,
-                  ready=0, notification=0, broken=False, empty=False):
+                  ready=0, notification=0, broken=False, empty=False, customized=0):
         report = dict(bottom="1", whole="1", align="center", shown="", shownValid="1",
                       extra=re.search(r"^extraItems=(.*)$", BAR_CONF.read_text(), re.M)[1],
                       scale="false", spacing="2", launcher="1", island="1",
@@ -158,7 +158,7 @@ class NativeTrayHealth(unittest.TestCase):
             env.update(TEST_REPORT="" if empty else ";".join(f"{k}={v}" for k, v in report.items()),
                        TEST_READY=str(ready), TEST_NOTIFICATION=str(notification))
             scripts = {
-                "moos-theme": f"exit {native}\n",
+                "moos-theme": f'case "$1" in validate-selected) exit {native} ;; native-selected) exit {customized} ;; *) exit 9 ;; esac\n',
                 "systemctl": "echo 123\n",
                 "journalctl": 'echo \'error when loading applet "org.moos.island"\'\n'
                               if broken else "exit 0\n",
@@ -180,6 +180,13 @@ class NativeTrayHealth(unittest.TestCase):
         self.assertEqual(strict.returncode, 1)
         self.assertIn("shownItems drift", strict.stdout)
         self.assertIn("iconSpacing drift", strict.stdout)
+
+    def test_curated_components_accept_personal_tray_without_unrelated_appearance_edit(self):
+        result = self.run_check(native=0, customized=1)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        strict = self.run_check("check", native=0, customized=1)
+        self.assertEqual(strict.returncode, 1)
+        self.assertIn("shownItems drift", strict.stdout)
 
     def test_missing_invalid_or_unavailable_native_authority_never_admits_preferences(self):
         for code in (1, 2, 124, 127):

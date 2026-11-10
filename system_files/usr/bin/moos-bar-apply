@@ -1135,10 +1135,11 @@ case "${1:-}" in
         fi
         presentation=canonical
         if [ "$1" = check-session ]; then
-            # Use the same installed-component validator as moos-apply-theme's
-            # native layout preservation. A timeout/tool failure is not proof
-            # of personal ownership; canonical validation still applies.
-            if timeout 15s moos-theme native-selected >/dev/null 2>&1; then
+            # A curated theme can coexist with personal tray preferences.
+            # Validate its actual installed components without requiring an
+            # unrelated colour/font change. The strict apply/image check and
+            # all live structure, setting-shape and notification checks remain.
+            if timeout 15s moos-theme validate-selected >/dev/null 2>&1; then
                 presentation=native
             fi
         fi

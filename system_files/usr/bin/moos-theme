@@ -2161,6 +2161,10 @@ case "$command_name" in
         [ "$#" -eq 2 ] || { echo "moos-theme: verify-lnf requires one theme id" >&2; exit 2; }
         verify_lnf_state "$2"
         ;;
+    validate-selected)
+        [ "$#" -eq 1 ] || exit 2
+        /usr/libexec/moos-session-appearance check-components
+        ;;
     native-selected)
         [ "$#" -eq 1 ] || exit 2
         /usr/libexec/moos-session-appearance check-native
