@@ -116,7 +116,7 @@ Window { id: window; width: 320; height: 200; visible: true
                 if (!root->property("ready").toBool() || root->property("selectedLook").toString()!=expected || !root->property("imageReady").toBool()) return;
                 if (!ownSession) require(root->property("powerWallpaper").toUrl().toString()==root->property("wallpaper").toString(),"login power scene does not share the selected image");
                 const auto bg=root->property("surface").value<QColor>();
-                if (bg!=QColor(phase==0?QStringLiteral("#d5d9ee"):phase==1?QStringLiteral("#172236"):QStringLiteral("#193a2e"))) return;
+                if (bg!=QColor(phase==0?QStringLiteral("#d5d9ee"):phase==1?QStringLiteral("#192436"):QStringLiteral("#193a2e"))) return;
                 const auto colors=KSharedConfig::openConfig(QStringLiteral("/usr/share/color-schemes/%1.colors").arg(phase==0?QStringLiteral("MoOSUI2BloomLight"):QStringLiteral("MoOSUI2Aurora")));
                 if (root->property("complementary").value<QColor>()!=KColorScheme(QPalette::Active,KColorScheme::Complementary,colors).background().color()) return;
                 if (phase==2 && root->property("selection").value<QColor>()!=QColor(QStringLiteral("#e28f33"))) return;

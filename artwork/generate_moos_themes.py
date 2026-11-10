@@ -82,7 +82,9 @@ LIGHT_BASE = gen.variant_roles("light")
 LIGHT_ACCENTS = {
     "nova":     dict(primary="#0E63C4", secondary="#5B4BD6", luminous="#1A76D8", tint="#2E6FD0"),
     "amethyst": dict(primary="#7C3AED", secondary="#B45309", luminous="#8B3FD4", tint="#8B5CF6"),
-    "aurora":   dict(primary="#0F766E", secondary="#0369A1", luminous="#0D8577", tint="#0EA5A0"),
+    "aurora":   dict(primary="#1647B9", secondary="#743AE2", luminous="#006A88", tint="#1647B9",
+                     text="#14283F", muted="#40556D", outline="#58708B", shadow="#647992",
+                     positive="#075D42", warning="#704709", negative="#992B3C"),
     "midnight": dict(primary="#0284C7", secondary="#4F46E5", luminous="#0891B2", tint="#2563EB"),
     "gaming":   dict(primary="#C81D7A", secondary="#0891B2", luminous="#7C3AED", tint="#C026D3"),
     "dev":      dict(primary="#1A7F37", secondary="#0969DA", luminous="#2DA44E", tint="#1A7F37"),
@@ -153,9 +155,9 @@ def _symbol_accent_ink(roles: dict[str, str]) -> str:
 
 def light_roles(base_key: str) -> dict[str, str]:
     """Derive a family's LIGHT palette: the Tidal light neutrals washed toward the
-    family hue, carrying the family's own accent trio. Keeps the base light dark
-    ink (text/muted/outline/shadow) so contrast stays at the shipping light
-    theme's level."""
+    family hue, carrying the family's own accent trio. Base light inks remain
+    the default; qualified reference finishes may override named ink/semantic
+    roles while every original composed-contrast gate remains mandatory."""
     acc = LIGHT_ACCENTS[base_key]
     wash = _mix_hex(acc["tint"], "#FFFFFF", 0.72)   # a pale breath of the family hue
     roles = dict(LIGHT_BASE)
@@ -185,6 +187,12 @@ def light_roles(base_key: str) -> dict[str, str]:
     roles["luminous"] = acc["luminous"]
     for r in ("positive_deep", "negative_deep", "warning_deep", "secondary_deep"):
         roles[r] = _mix_hex(LIGHT_BASE[r], wash, 0.25)
+    # Some reference finishes qualify their own mineral ink/semantic roles.
+    # Keep all other light families byte-stable. In particular alert ink must
+    # pass on its actual 5% interactive tint, not only on plain paper.
+    for role in ("text", "muted", "outline", "shadow", "positive", "warning", "negative"):
+        if role in acc:
+            roles[role] = acc[role]
     # Selected ink is resolved against the ACTUAL accent. Pure white made every
     # light sibling glare, and Daylight's sky-blue primary reached only 4.10:1.
     # Prefer a soft cool white; fall back to near-black when that is the only
@@ -214,7 +222,7 @@ THEMES = {
                      desc="أسود حقيقي عالي التباين لشاشات OLED | True-black high-contrast for OLED"),
     "aurora":   dict(name="MoOS UI · Aurora",   style="MoOSUI2Aurora",   lnf="org.moos.ui2.aurora",
                      wall="MoOSUI2Aurora",   mood="cosmic", light=False, base="aurora",
-                     desc="سليت نظيف بشفق تركوازي‑أزرق حديث | Clean slate with a modern teal-blue aurora"),
+                     desc="زجاج معدني هادئ بإضاءة سماوية وانعكاس بنفسجي من شعار MoOS | Quiet mineral glass, logo cyan and a restrained violet reflection"),
     "nova-light":     dict(name="MoOS UI · Nova Light",     style="MoOSUI2NovaLight",
                            lnf="org.moos.ui2.nova.light",     wall="MoOSUI2NovaLight",
                            mood="cosmic", light=True, base="nova",
@@ -226,7 +234,7 @@ THEMES = {
     "aurora-light":   dict(name="MoOS UI · Aurora Light",   style="MoOSUI2AuroraLight",
                            lnf="org.moos.ui2.aurora.light",   wall="MoOSUI2AuroraLight",
                            mood="cosmic", light=True, base="aurora",
-                           desc="نهار نعناعي‑تركوازي منعش | Fresh mineral mint-teal daylight"),
+                           desc="ضوء أزرق معدني وحبر عميق وشفافية مقروءة | Mineral blue daylight, deep ink and readable transparency"),
     "daylight":       dict(name="MoOS UI · Daylight",       style="MoOSUI2Daylight",
                            lnf="org.moos.ui2.midnight.light", wall="MoOSUI2Daylight",
                            mood="cosmic", light=True, base="midnight",

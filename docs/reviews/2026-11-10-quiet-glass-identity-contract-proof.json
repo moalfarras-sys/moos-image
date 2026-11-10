@@ -1,0 +1,30 @@
+{
+  "date": "2026-11-10",
+  "source_parent": "0cfd45e3",
+  "first_refusals": {
+    "local_a5": {
+      "exit": 1,
+      "log_sha256": "54ea6568cb84831ad12e1766e10e611d37437c61ec7243fea8775bcad53a04f8",
+      "message": "IDENTITY FATAL: org.moos.ui2.aurora must be named 'MoOS UI · Aurora'"
+    },
+    "arm_a5": {
+      "run": 42783569326,
+      "result": "failure at unchanged identity gate after native appearance proof"
+    }
+  },
+  "correction": "restore exact original MoOS UI/Aurora family package and selector names; Quiet Glass remains the material/product direction and finish description. No change to any of the three identity gates. Retain the source palette, glass, icons, images, typography, technical IDs and all18 profiles.",
+  "new_source_preflight": "existing UI2 suite now reads the authoritative ALLOWED_LOOKS AST literal from the unchanged image identity gate and checks all source package IDs/names; no second allow-list or prefix-only substitute",
+  "controls": {
+    "fixed_ui2_methods": 45,
+    "fixed_exit": 0,
+    "old_source_control": "one executed test/two failing subtests: original a5 MoOS Quiet Glass/Light metadata rejected against exact Aurora names",
+    "native_colour_scope": "a5 local and ARM pass original native appearance fixtures; whole images still fail identity, not accepted as healthy images"
+  },
+  "cache": {
+    "revision": 148,
+    "packages": 68,
+    "qml_svg_hashes": "unchanged from147; the recorder at147 reported no QML/SVG byte delta, not a refusal",
+    "reason": "new metadata-cache generation and migration layout protection; existing fingerprint/identity gates unchanged"
+  },
+  "qualification": "final combined source/local image/current-base CI/signed boot proofs remain required"
+}

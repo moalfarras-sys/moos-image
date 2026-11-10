@@ -1,86 +1,86 @@
 # Generated from artwork/moos-ui2/palette.json. Do not hand-edit.
 [Background]
-Color=205,234,232
+Color=206,220,235
 
 [BackgroundFaint]
-Color=194,228,225
+Color=195,213,229
 
 [BackgroundIntense]
-Color=201,232,229
+Color=202,217,233
 
 [Color0]
-Color=23,48,46
+Color=20,40,63
 
 [Color0Faint]
-Color=194,228,225
+Color=195,213,229
 
 [Color0Intense]
-Color=61,88,84
+Color=64,85,109
 [Color1]
-Color=165,47,63
+Color=153,43,60
 
 [Color1Faint]
-Color=220,204,206
+Color=221,197,208
 
 [Color1Intense]
-Color=165,47,63
+Color=153,43,60
 [Color2]
-Color=8,107,75
+Color=7,93,66
 
 [Color2Faint]
-Color=184,220,208
+Color=185,214,210
 
 [Color2Intense]
-Color=8,107,75
+Color=7,93,66
 [Color3]
-Color=123,82,15
+Color=112,71,9
 
 [Color3Faint]
-Color=218,216,190
+Color=218,209,192
 
 [Color3Intense]
-Color=123,82,15
+Color=112,71,9
 [Color4]
-Color=3,105,161
+Color=116,58,226
 
 [Color4Faint]
-Color=137,184,195
+Color=138,177,197
 
 [Color4Intense]
-Color=3,105,161
+Color=116,58,226
 [Color5]
-Color=15,118,110
+Color=22,71,185
 
 [Color5Faint]
-Color=137,184,195
+Color=138,177,197
 
 [Color5Intense]
-Color=13,133,119
+Color=0,106,136
 [Color6]
-Color=13,133,119
+Color=0,106,136
 
 [Color6Faint]
-Color=15,118,110
+Color=22,71,185
 
 [Color6Intense]
-Color=13,133,119
+Color=0,106,136
 [Color7]
-Color=61,88,84
+Color=64,85,109
 
 [Color7Faint]
-Color=61,88,84
+Color=64,85,109
 
 [Color7Intense]
-Color=61,88,84
+Color=64,85,109
 
 [Foreground]
-Color=23,48,46
+Color=20,40,63
 
 [ForegroundFaint]
-Color=61,88,84
+Color=64,85,109
 
 [ForegroundIntense]
-Color=23,48,46
+Color=20,40,63
 
 [General]
 Description=MoOS UI · Aurora Light

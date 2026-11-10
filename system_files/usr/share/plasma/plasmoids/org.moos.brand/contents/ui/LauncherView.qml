@@ -320,14 +320,18 @@ Item {
     // clean, continuous silhouette with no clipped shelves, wireframe corners or
     // competing outline segments. Semantic colours keep the same MoOS identity
     // in every light/dark family without turning the launcher into neon chrome.
-    Rectangle {
+    MoUI.GlassSurface {
         anchors.fill: parent
         radius: view.radiusXL
-        color: Qt.alpha(Kirigami.Theme.backgroundColor,
-                        view.lightSurface ? 0.92 : 0.86)
+        depth: design.glassLevelPopover
+        // The complete canvas owns its entrance; do not animate two sheets.
+        animateArrival: false
+        // Keep the reading plane dense even in Clear mode. Solid/no-blur and
+        // live compositor changes follow the same owner as Settings and Search.
+        readonly property real readingOpacity: view.lightSurface ? 0.92 : 0.86
+        fillOpacity: Math.max(readingOpacity,
+            design.glassFill(surfaceColor, depth, readingOpacity))
         border.width: design.borderHairline
-        border.color: Qt.alpha(Kirigami.Theme.textColor,
-                               view.lightSurface ? 0.13 : 0.16)
         antialiasing: true
     }
 

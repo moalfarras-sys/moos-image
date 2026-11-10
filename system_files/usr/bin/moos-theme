@@ -65,7 +65,7 @@ moos-theme — بدّل مظهر MoOS بين الفاتح والداكن | switc
   moos-theme nova       MoOS Nova     — cosmic navy   (+ nova-light)
   moos-theme amethyst   MoOS Amethyst — warm aubergine (+ amethyst-light)
   moos-theme midnight   MoOS Midnight — true-black OLED (+ daylight)
-  moos-theme aurora     MoOS Aurora   — teal aurora    (+ aurora-light)
+  moos-theme aurora     MoOS Quiet Glass — mineral/cyan (+ aurora-light)
   moos-theme bloom      MoOS Bloom    — soft native frames (+ bloom-light)
   moos-theme toggle     بدّل   | flip the current family light <-> dark
   moos-theme undo       تراجع  | revert to the previously applied theme
@@ -2161,6 +2161,10 @@ case "$command_name" in
         [ "$#" -eq 2 ] || { echo "moos-theme: verify-lnf requires one theme id" >&2; exit 2; }
         verify_lnf_state "$2"
         ;;
+    validate-selected)
+        [ "$#" -eq 1 ] || exit 2
+        /usr/libexec/moos-session-appearance check-components
+        ;;
     native-selected)
         [ "$#" -eq 1 ] || exit 2
         /usr/libexec/moos-session-appearance check-native
@@ -2328,10 +2332,10 @@ EOF
             "$NOVA_LNF")      echo "MoOS Nova            ($NOVA_LNF)" ;;
             "$AMETHYST_LNF")  echo "MoOS Amethyst        ($AMETHYST_LNF)" ;;
             "$MIDNIGHT_LNF")  echo "MoOS Midnight        ($MIDNIGHT_LNF)" ;;
-            "$AURORA_LNF")    echo "MoOS Aurora          ($AURORA_LNF)" ;;
+            "$AURORA_LNF")    echo "MoOS Quiet Glass     ($AURORA_LNF)" ;;
             "$NOVA_LIGHT_LNF")     echo "MoOS Nova Light      ($NOVA_LIGHT_LNF)" ;;
             "$AMETHYST_LIGHT_LNF") echo "MoOS Amethyst Light  ($AMETHYST_LIGHT_LNF)" ;;
-            "$AURORA_LIGHT_LNF")   echo "MoOS Aurora Light    ($AURORA_LIGHT_LNF)" ;;
+            "$AURORA_LIGHT_LNF")   echo "MoOS Quiet Glass Light ($AURORA_LIGHT_LNF)" ;;
             "$DAYLIGHT_LNF")       echo "MoOS Daylight        ($DAYLIGHT_LNF)" ;;
             "$GAMING_LNF")         echo "MoOS Arena           ($GAMING_LNF)" ;;
             "$DEV_LNF")            echo "MoOS Forge           ($DEV_LNF)" ;;

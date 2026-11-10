@@ -3,8 +3,8 @@
 TitleAlignment=Center
 TitleVerticalAlignment=Center
 Animation=140
-ActiveTextColor=236,242,251,255
-InactiveTextColor=154,170,194,255
+ActiveTextColor=237,243,252,255
+InactiveTextColor=177,192,212,255
 UseTextShadow=false
 HaloActive=false
 HaloInactive=false

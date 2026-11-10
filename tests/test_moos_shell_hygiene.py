@@ -146,7 +146,7 @@ class NativeTrayHealth(unittest.TestCase):
     """Execute the shipped reader on canonical and native D-Bus observations."""
 
     def run_check(self, command="check-session", *, native=0, changes=None,
-                  ready=0, notification=0, broken=False, empty=False):
+                  ready=0, notification=0, broken=False, empty=False, customized=0):
         report = dict(bottom="1", whole="1", align="center", shown="", shownValid="1",
                       extra=re.search(r"^extraItems=(.*)$", BAR_CONF.read_text(), re.M)[1],
                       scale="false", spacing="2", launcher="1", island="1",
@@ -158,7 +158,7 @@ class NativeTrayHealth(unittest.TestCase):
             env.update(TEST_REPORT="" if empty else ";".join(f"{k}={v}" for k, v in report.items()),
                        TEST_READY=str(ready), TEST_NOTIFICATION=str(notification))
             scripts = {
-                "moos-theme": f"exit {native}\n",
+                "moos-theme": f'case "$1" in validate-selected) exit {native} ;; native-selected) exit {customized} ;; *) exit 9 ;; esac\n',
                 "systemctl": "echo 123\n",
                 "journalctl": 'echo \'error when loading applet "org.moos.island"\'\n'
                               if broken else "exit 0\n",
@@ -180,6 +180,13 @@ class NativeTrayHealth(unittest.TestCase):
         self.assertEqual(strict.returncode, 1)
         self.assertIn("shownItems drift", strict.stdout)
         self.assertIn("iconSpacing drift", strict.stdout)
+
+    def test_curated_components_accept_personal_tray_without_unrelated_appearance_edit(self):
+        result = self.run_check(native=0, customized=1)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        strict = self.run_check("check", native=0, customized=1)
+        self.assertEqual(strict.returncode, 1)
+        self.assertIn("shownItems drift", strict.stdout)
 
     def test_missing_invalid_or_unavailable_native_authority_never_admits_preferences(self):
         for code in (1, 2, 124, 127):
@@ -491,6 +498,65 @@ fi"""
                 out = subprocess.run([BASH, "-c", script], env=env, capture_output=True,
                                      text=True, timeout=30).stdout
                 self.assertIn(verdict, out, path.name)
+
+
+class CuratedLayoutMigration(unittest.TestCase):
+    """Run the actual migration owner block; every desktop write is trapped."""
+
+    def run_layout(self, *, personal=0, component=0, session=0):
+        source = APPLY.read_text()
+        block = source.split("# --- The dock and the system tray:", 1)[1]
+        block = block.split("# --- Motion sized to the machine", 1)[0]
+        # Keep the heading a comment when executing the original producer.
+        block = "# --- The dock and the system tray:" + block
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            env = isolated_env(root, root / "calls")
+            env.update(COMPONENT_CODE=str(component), SESSION_CODE=str(session),
+                       CALLS=str(root / "calls"), TEST_LOG=str(root / "migration.log"))
+            scripts = {
+                "moos-theme": '#!/bin/sh\n',
+            }
+            scripts["moos-theme"] = ('#!/bin/sh\n'
+                'printf "%s\\n" "theme $*" >>"$CALLS"\n'
+                'test "$1" = validate-selected || exit 9\n'
+                'exit "$COMPONENT_CODE"\n').replace('\\n', '\n')
+            scripts["moos-bar-apply"] = ('#!/bin/sh\n'
+                'printf "%s\\n" "bar $*" >>"$CALLS"\n'
+                'case "$1" in check-session) exit "$SESSION_CODE" ;; apply) exit 0 ;; *) exit 9 ;; esac\n').replace('\\n', '\n')
+            for name, body in scripts.items():
+                path = root / "stubs" / name
+                path.write_text(body)
+                path.chmod(0o755)
+            body = f'set -uo pipefail\nnative_appearance={personal}\nTHEME_REV=147\nlog="$TEST_LOG"\n' + block
+            result = subprocess.run([BASH, "-c", body], env=env, capture_output=True,
+                                    text=True, timeout=35)
+            calls = (root / "calls").read_text() if (root / "calls").exists() else ""
+            log = (root / "migration.log").read_text() if (root / "migration.log").exists() else ""
+            return result, calls, log
+
+    def test_curated_palette_keeps_the_validated_personal_layout(self):
+        result, calls, log = self.run_layout()
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn("theme validate-selected", calls)
+        self.assertIn("bar check-session", calls)
+        self.assertNotIn("bar apply", calls)
+        self.assertIn("kept the validated native desktop layout", log)
+
+    def test_explicit_personal_appearance_retains_its_original_path(self):
+        result, calls, log = self.run_layout(personal=1, component=1, session=1)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertEqual(calls, "")
+        self.assertIn("kept the personal native desktop layout", log)
+
+    def test_failed_component_or_panel_probe_cannot_claim_validated_layout(self):
+        for kwargs in ({"component":1}, {"component":124}, {"component":127},
+                       {"session":1}, {"session":75}, {"session":124}, {"session":127}):
+            with self.subTest(kwargs=kwargs):
+                result, calls, log = self.run_layout(**kwargs)
+                self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+                self.assertIn("bar apply 147", calls)
+                self.assertNotIn("kept the validated native desktop layout", log)
 
 
 if __name__ == "__main__":

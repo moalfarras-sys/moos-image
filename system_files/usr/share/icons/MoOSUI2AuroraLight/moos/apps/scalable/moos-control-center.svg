@@ -8,7 +8,7 @@
        rect so Plasma cannot paint a square scratch behind the squircle.
        Regenerate with artwork/generate_moos_app_icons.py. -->
   <defs>
-    <style id="current-color-scheme" type="text/css">.ColorScheme-Text { color:#17302E; }.ColorScheme-Background{ color:#C2E4E1; }.ColorScheme-Highlight{ color:#0F766E; }.ColorScheme-HighlightedText{ color:#F7FBFF; }.ColorScheme-PositiveText{ color:#086B4B; }.ColorScheme-NeutralText{ color:#7B520F; }.ColorScheme-NegativeText{ color:#A52F3F; }.ColorScheme-Accent{ color:#0F766E; }</style>
+    <style id="current-color-scheme" type="text/css">.ColorScheme-Text { color:#14283F; }.ColorScheme-Background{ color:#C3D5E5; }.ColorScheme-Highlight{ color:#1647B9; }.ColorScheme-HighlightedText{ color:#F7FBFF; }.ColorScheme-PositiveText{ color:#075D42; }.ColorScheme-NeutralText{ color:#704709; }.ColorScheme-NegativeText{ color:#992B3C; }.ColorScheme-Accent{ color:#1647B9; }</style>
     <linearGradient id="moos-control-center-sheen" x1="512" y1="72" x2="512" y2="560"
                     gradientUnits="userSpaceOnUse">
       <stop offset="0" stop-color="#ffffff" stop-opacity=".38"/>

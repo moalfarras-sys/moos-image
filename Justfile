@@ -412,6 +412,7 @@ check:
     python3 tests/test_store_window_words.py
     # One globally importable MoUI module must own identity metrics and shared
     # controls; an app-local copy cannot silently grow back.
+    python3 artwork/extract_moos_brand_palette.py --check
     python3 tests/test_moos_design_core.py
     python3 tests/test_moos_bloom.py
     python3 tests/test_session_continuity.py

@@ -1,0 +1,38 @@
+{
+  "date": "2026-11-10",
+  "integration_owner": "primary coding agent",
+  "first_image_refusal": {
+    "workflow": "https://github.com/moalfarras-sys/moos-image/actions/runs/42776275355",
+    "source": "b34f8493fd5f8de1711af06c579dfc381eb9e073",
+    "architecture": "aarch64",
+    "native_engine": "Plasma6.8.2 globalEngine/KirigamiPlasmaStyle/PlasmaTheme",
+    "actual_window": "#192436",
+    "actual_application": "#192436",
+    "actual_image_pixel": "#b16b15",
+    "stale_expected_window": "#172236",
+    "phase": "PHASE2 not admitted; all consumers retain PHASE1; no signed candidate accepted"
+  },
+  "change": "only the phase2 fixed Aurora window sample changes172236→192436 in the original native C++ contract; Bloom, same-style custom193a2e/e28f33, complementary role, both icon owners, image pixels, account authority, persistence, immutable admin and wallpaper intent negatives remain unchanged",
+  "canonical_build": {
+    "exit": 0,
+    "existing_sdk": "moos-v3-plm-native-sdk",
+    "parent_cmake_sha256": "d3439da50663882479eb8b54c7b11298484601382d30414fa2a2986a4b7676ef",
+    "appearance_cmake_sha256": "88ba3cb25bda3c09d61b9457f60b7ff726137210873ca8b0e963cbdc40d8a3b1",
+    "flags": "original canonical parent QT_NO_CAST_FROM_ASCII/QT_NO_CAST_TO_ASCII/QT_USE_QSTRINGBUILDER and original compiler guards retained; no standalone minimal target",
+    "no_new_sdk_or_image": true
+  },
+  "private_native": {
+    "runtime": "reused1375713dc946 runtime; Qt6.11.2/Plasma6.8.0, separate from required current-base6.8.2 CI",
+    "old_exit": 1,
+    "fixed_exit": 0,
+    "old_log_sha256": "6f2ca57053f14b5947c26fa232bcf6568ad121f637b1ca821db394a68ba53c9b",
+    "fixed_log_sha256": "ef209446d82f36242f75f316e2c6c2c61f8b8a4caf7229f8a21709a33efe4b42",
+    "scope": "unchanged source fixture on a private container bus with actual account publication, three native Qt owners and all original negative controls; no host bus/mount/user data; not authentication, physical boot or current ARM acceptance",
+    "setup_refusals_retained": [
+      "first copied private directory denied the dropped-UID binary",
+      "directory-copy nesting initially hid the colour schemes; no native acceptance claimed for either setup failure"
+    ]
+  },
+  "current_base_images": "new source must execute first-attempt x86/ARM gates; failed ARM is not rerun",
+  "full_source": "final combined check pending"
+}

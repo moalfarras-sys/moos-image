@@ -3,10 +3,10 @@
      role="img" aria-labelledby="logout-title">
   <title id="logout-title">Logout</title>
   <style id="current-color-scheme" type="text/css">
-    .ColorScheme-Text { color: #17302E; fill: currentColor; }
-    .ColorScheme-Highlight { color: #0F766E; fill: currentColor; }
-    .ColorScheme-NeutralText { color: #7B520F; fill: currentColor; }
-    .ColorScheme-NegativeText { color: #A52F3F; fill: currentColor; }
+    .ColorScheme-Text { color: #14283F; fill: currentColor; }
+    .ColorScheme-Highlight { color: #1647B9; fill: currentColor; }
+    .ColorScheme-NeutralText { color: #704709; fill: currentColor; }
+    .ColorScheme-NegativeText { color: #992B3C; fill: currentColor; }
   </style>
   <path class="ColorScheme-Text" fill="#2e3436" fill-rule="evenodd" d="M20 10.9 L7.5 10.9 A1.1 1.1 0 0 0 7.5 13.1 L20 13.1 A1.1 1.1 0 0 0 20 10.9 Z"/>
   <path class="ColorScheme-Highlight" fill="#2e3436" fill-rule="evenodd" d="M14 5.5 L5.5 12 L14 18.5 L14 15 L18 15 L18 9 L14 9 Z"/>

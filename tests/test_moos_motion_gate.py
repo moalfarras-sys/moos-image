@@ -112,7 +112,17 @@ def _run_probe(qml_source: str, animation_factor: str) -> int:
         probe.write_text(qml_source, encoding="utf-8")
 
         env = os.environ.copy()
+        runtime = temp / "run"
+        runtime.mkdir(mode=0o700)
+        for key in ("DISPLAY", "WAYLAND_DISPLAY", "SESSION_MANAGER"):
+            env.pop(key, None)
         env.update({
+            "HOME": str(temp),
+            "XDG_RUNTIME_DIR": str(runtime),
+            "XDG_DATA_HOME": str(temp / "data"),
+            "XDG_STATE_HOME": str(temp / "state"),
+            "XDG_CACHE_HOME": str(temp / "cache"),
+            "DBUS_SESSION_BUS_ADDRESS": "unix:path=" + str(temp / "no-session-bus"),
             "XDG_CONFIG_HOME": str(config_home),
             "QT_QPA_PLATFORM": "offscreen",
             "QML2_IMPORT_PATH": str(
@@ -181,6 +191,69 @@ Item {
         self.assertEqual(_run_probe(early, "1"), 20)
         self.assertEqual(_run_probe(early, "0"), 21)
         self.assertEqual(_run_probe(settled, "1"), 22)
+
+    def test_glass_arrival_can_be_cancelled_while_visible(self) -> None:
+        probe = """
+import QtQuick
+import org.moos.ui as MoUI
+Item {
+    width: 500; height: 260
+    MoUI.GlassSurface { id: sheet; width: 420; height: 190 }
+    Timer {
+        interval: 60; running: true
+        onTriggered: {
+            if (!sheet.arrivalAnimating) { Qt.exit(90); return }
+            sheet.animateArrival = false
+            Qt.callLater(function() {
+                Qt.exit(!sheet.arrivalAnimating && sheet.arrivalScale === 1 ? 23 : 91)
+            })
+        }
+    }
+}
+"""
+        self.assertEqual(_run_probe(probe, "1"), 23)
+
+    def test_launcher_material_follows_clarity_and_no_blur(self) -> None:
+        # Execute the shipped background block, rather than a handwritten copy.
+        # The full native launcher matrix separately guards models/input/geometry.
+        launcher = (SHARE / "plasma/plasmoids/org.moos.brand/contents/ui/LauncherView.qml").read_text()
+        start = launcher.index("    // One calm material layer.")
+        end = launcher.index("    // A still, low-amplitude horizon", start)
+        background = launcher[start:end]
+        background = background.replace("anchors.fill: parent", "id: material; anchors.fill: parent", 1)
+        probe = """
+import QtQuick
+import org.kde.kirigami as Kirigami
+import org.moos.ui as MoUI
+Item {
+    id: view
+    width: 500; height: 260
+    property bool lightSurface: false
+    readonly property int radiusXL: 24
+    readonly property var design: MoUI.Tokens
+""" + background + """
+    Timer {
+        interval: 100; running: true
+        onTriggered: {
+            MoUI.Tokens.materialObserved = true
+            MoUI.Tokens.runtimeBlurActive = true
+            MoUI.Tokens.runtimeClarity = "clear"
+            if (Math.abs(material.color.a - 0.86) > 0.005) { Qt.exit(90); return }
+            MoUI.Tokens.runtimeClarity = "solid"
+            if (material.color.a < 0.965) { Qt.exit(91); return }
+            MoUI.Tokens.runtimeClarity = "clear"
+            MoUI.Tokens.runtimeBlurActive = false
+            if (material.color.a < 0.965) { Qt.exit(92); return }
+            view.lightSurface = true
+            MoUI.Tokens.runtimeBlurActive = true
+            if (Math.abs(material.color.a - 0.92) > 0.005) { Qt.exit(93); return }
+            MoUI.Tokens.runtimeClarity = "solid"
+            Qt.exit(material.color.a >= 0.965 ? 24 : 94)
+        }
+    }
+}
+"""
+        self.assertEqual(_run_probe(probe, "0"), 24)
 
     def test_kirigami_floors_long_duration_at_one_not_zero(self) -> None:
         """The measurement the whole contract rests on. If this ever reports 0,

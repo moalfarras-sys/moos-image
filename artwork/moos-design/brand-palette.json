@@ -1,0 +1,42 @@
+{
+  "schema": 1,
+  "scope": "artwork reference only; semantic palettes and personal accents retain their owners",
+  "inputs": {
+    "artwork/logo/MoOS_Logo_Vector_High_Detail.svg": "d453c85d1b94da858b50800f561bd94b246275fd6b395562fc3e7be7e808bd72",
+    "system_files/usr/share/pixmaps/moos-logo.png": "c20a00c10145bb6a095f074833f422d45e0541f7b7254953387b2fc64de9740e"
+  },
+  "method": {
+    "alpha_min": 128,
+    "hsv_saturation_min": 0.35,
+    "hsv_value_min": 0.25,
+    "hue_sectors": {
+      "cyan": [
+        0.45,
+        0.55
+      ],
+      "blue": [
+        0.55,
+        0.7
+      ],
+      "violet": [
+        0.7,
+        0.84
+      ]
+    },
+    "aggregation": "unweighted sRGB channel mean; round-to-even; hue upper bound exclusive"
+  },
+  "swatches": {
+    "cyan": {
+      "pixels": 68070,
+      "srgb": "#20D6F8"
+    },
+    "blue": {
+      "pixels": 180345,
+      "srgb": "#1647B9"
+    },
+    "violet": {
+      "pixels": 50999,
+      "srgb": "#743AE2"
+    }
+  }
+}

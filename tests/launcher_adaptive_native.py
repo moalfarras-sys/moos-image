@@ -11,9 +11,11 @@ from gi.repository import Gio,GLib
 
 parser=argparse.ArgumentParser(description="Private native Plasma launcher viewport/input matrix")
 parser.add_argument("--output", type=Path, required=True)
+parser.add_argument("--family", choices=("graphite", "aurora"), default="graphite")
 parser.add_argument("--broken-backtab", action="store_true")
 parser.add_argument("--broken-alignment", action="store_true")
 parser.add_argument("--broken-category", action="store_true")
+parser.add_argument("--broken-style", action="store_true")
 parser.add_argument("--native-popup", action="store_true")
 args=parser.parse_args()
 S=Path(__file__).resolve().parents[1]
@@ -68,7 +70,7 @@ def one(width,height,language,light,reduced):
             opening='\n    PlasmaCore.AppletPopup {\n        id: nativePopupProof\n        appletInterface: root\n        visualParent: root\n        popupDirection: Qt.TopEdge\n        mainItem: Item {\n            id: nativePopupProxy\n            implicitWidth: root.fullRepresentationItem ? root.fullRepresentationItem.implicitWidth : 0\n            implicitHeight: root.fullRepresentationItem ? root.fullRepresentationItem.implicitHeight : 0\n            Layout.minimumWidth: implicitWidth\n            Layout.minimumHeight: implicitHeight\n            Layout.maximumWidth: implicitWidth\n            Layout.maximumHeight: implicitHeight\n        }\n    }\n    Timer {\n        interval: 500\n        running: true\n        onTriggered: {\n            const surface = root.fullRepresentationItem;\n            if (!surface) throw Error("native popup has no full representation");\n            surface.parent = nativePopupProxy;\n            surface.anchors.fill = nativePopupProxy;\n            nativePopupProof.visible = true;\n        }\n    }\n'
             main.write_text(main_body[:main_body.rfind('}')]+opening+main_body[main_body.rfind('}'):])
 
-        theme='org.moos.ui2.light' if light else 'org.moos.ui2'
+        theme=('org.moos.ui2' if args.family == 'graphite' else 'org.moos.ui2.aurora') + ('.light' if light else '')
         defaults=S/'system_files/usr/share/plasma/look-and-feel'/theme/'contents/defaults'
         matched=configparser.ConfigParser(interpolation=None)
         matched.optionxform=str
@@ -81,7 +83,7 @@ def one(width,height,language,light,reduced):
                        'defaults_sha256':hashlib.sha256(defaults.read_bytes()).hexdigest()}
         colors=(S/'system_files/usr/share/color-schemes'/(scheme+'.colors')).read_text()
         (root/'config/kdeglobals').write_text(colors+'\n[KDE]\nAnimationDurationFactor='+('0' if reduced else '1')+'\n[Icons]\nTheme='+icons+'\n')
-        (root/'config/plasmarc').write_text('[Theme]\nname='+plasma_style+'\n')
+        (root/'config/plasmarc').write_text('[Theme]\nname='+('MoOSUI2' if args.broken_style else plasma_style)+'\n')
         config=root/'bus.conf'
         config.write_text(f'<busconfig><type>session</type><listen>unix:path={root}/runtime/bus</listen><auth>EXTERNAL</auth><policy context="default"><allow user="{os.getuid()}"/><allow own="*"/><allow send_destination="*"/><allow receive_sender="*"/></policy></busconfig>')
         env={'PATH':'/usr/bin:/usr/sbin:/bin','HOME':str(root/'home'),'XDG_RUNTIME_DIR':str(root/'runtime'),'XDG_CONFIG_HOME':str(root/'config'),'XDG_CACHE_HOME':str(root/'cache'),'XDG_DATA_HOME':str(root/'data'),'XDG_CONFIG_DIRS':str(S/'system_files/etc/xdg')+':/etc/xdg','XDG_DATA_DIRS':str(S/'system_files/usr/share')+':/usr/share','QML_IMPORT_PATH':str(S/'system_files/usr/lib64/qt6/qml'),'LANG':'ar_SA.UTF-8' if language=='ar' else 'en_US.UTF-8','LC_ALL':'ar_SA.UTF-8' if language=='ar' else 'en_US.UTF-8','LANGUAGE':language,'QT_QUICK_CONTROLS_STYLE':'org.kde.desktop','QT_QPA_PLATFORMTHEME':'kde','QT_QPA_PLATFORM':'wayland','WAYLAND_DISPLAY':'wayland-moos-viewport','KWIN_COMPOSE':'O2ES','QT_QUICK_BACKEND':'software','LP_NUM_THREADS':'2','QT_FORCE_STDERR_LOGGING':'1','QML_DISABLE_DISK_CACHE':'1'}
@@ -132,6 +134,15 @@ def one(width,height,language,light,reduced):
             assert case['ready_marker'], log[-4500:]
             assert 'MOOS_ADAPTIVE_INPUT_PASS ' in log and 'MOOS_ADAPTIVE_INPUT_FAIL' not in log,log[-6500:]
             case['input']=json.loads(re.search(r'MOOS_ADAPTIVE_INPUT_PASS (.+)',log)[1])
+            expected=configparser.ConfigParser(interpolation=None)
+            expected.read_string(colors)
+            def hex_rgb(value):
+                return '#' + ''.join(f'{int(channel):02x}' for channel in value.split(',')[:3])
+            for role,key in (('background','BackgroundNormal'),('text','ForegroundNormal')):
+                want=hex_rgb(expected['Colors:Window'][key])
+                assert case['input']['palette'][role].lower()==want, ('actual Kirigami palette mismatch',role,case['input']['palette'],want)
+            assert case['input']['palette']['accent'].lower()==hex_rgb(expected['Colors:Selection']['BackgroundNormal']), 'actual native accent mismatch'
+
             assert case['input']['rtl']==(language=='ar')
             assert case['input']['motion']==(0 if reduced else 220),case['input']
             assert not re.search(r'TypeError|ReferenceError|Cannot assign|Unable to assign|Binding loop|error when loading applet|non-existent',log,re.I),log[-4500:]
@@ -203,7 +214,7 @@ def one(width,height,language,light,reduced):
 try:
     matrix=[(360,640,'ar',False,True),(600,960,'en',True,False),
             (960,540,'ar',True,True),(1536,864,'en',False,False)]
-    if args.broken_backtab or args.broken_alignment: matrix=matrix[:1]
+    if args.broken_backtab or args.broken_alignment or args.broken_style: matrix=matrix[:1]
     for size in matrix:
         case=one(*size);report['cases'].append(case)
         (O/'receipt.json').write_text(json.dumps(report,indent=2)+'\n')

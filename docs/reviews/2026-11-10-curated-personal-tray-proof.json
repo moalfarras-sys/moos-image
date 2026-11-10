@@ -1,0 +1,38 @@
+{
+  "date": "2026-11-10",
+  "integration_owner": "primary coding agent",
+  "trigger": "physical Quiet Glass147 curated Light selection preserves the pre-existing personal tray shownItems=[] and spacing2; native-selected returns1 because other components equal the curated row",
+  "original_native_health_exit": 1,
+  "original_native_health": "shownItems/iconSpacing drift",
+  "source_change": "same native appearance validator may require actual installed counterparts without requiring unrelated appearance customization; check-session uses read-only validate-selected; canonical check/apply and reconciliation/native-selected semantics remain strict",
+  "targeted": {
+    "shell_hygiene_methods": 26,
+    "native_component_methods": 9,
+    "session_publication_methods": 7,
+    "exit": 0
+  },
+  "executed_old_control": "new curated-personal-tray assertion fails the original shipped bar reader; OLD_CONTROL_REFUSED_AS_EXPECTED retained",
+  "actual_native": {
+    "fixed_exit": 0,
+    "strict_exit": 1,
+    "scope": "same live Plasma panel/settings and source bar/frontend/helper; only13 fixed helper path references point to actual source in a private frontend copy; no persistent system override or personal setting write",
+    "scoped_copy": {
+      "path": "test-results/quiet-glass-20261110-owner-update/panel-native-scoped-helpers/moos-theme",
+      "bytes": 113109,
+      "sha256": "362fd3ffb99f7bf5447abbfb97ea65773c38551f94cf71d7553298ab71e5d872",
+      "retirement": "after source and signed installed qualification; preserve any changed bytes"
+    }
+  },
+  "first_fixture_refusals": [
+    "read-only root namespace made /dev/null unwritable; no acceptance claimed",
+    "minimal /dev then made kreadconfig exceed its unchanged3s deadline; retained timeout; used native read-only commands against the normal desktop via scoped fixed helper paths rather than extending the budget"
+  ],
+  "full_source": {
+    "exit": 0,
+    "production_source": "106e5b65",
+    "log_sha256": "f597f44b70fe2c64ae9cbc974635173c8a69ec80d14bdf3273d1896144072e0c",
+    "scope": "new component-validation code passes complete maintained gate; final combined C++ fixture-sample/source check remains pending"
+  },
+  "signed_delivery": "pending; installed1136 unchanged",
+  "owner_choice": "Quiet Glass Light explicitly selected by owner"
+}

@@ -98,6 +98,47 @@ class NativePersonalAppearance(unittest.TestCase):
         values[('kdeglobals','KDE','DefaultLightLookAndFeel')] = 'Missing'
         self.assertFalse(API['native_pair'](self.home))
 
+    def test_curated_validation_requires_every_actual_component_without_a_style_change(self):
+        row = next(line.split('\t') for line in CATALOG.read_text().splitlines()
+                   if line.startswith('org.moos.ui2.aurora.light\t'))
+        self.package(row[0])
+        values = {('kdeglobals','General','ColorScheme'):row[1],
+                  ('kdeglobals','Icons','Theme'):row[4],
+                  ('plasmarc','Theme','name'):row[2],
+                  ('kcminputrc','Mouse','cursorTheme'):row[6],
+                  ('kwinrc','org.kde.kdecoration2','theme'):'__aurorae__svg__'+row[7],
+                  ('kdeglobals','General','font'):'Meyar Sans,10,-1,5,400,0,0,0,0,0,0,0,0,0,0,1,,0,0'}
+        def read(args,**kwargs):
+            key = tuple(args[args.index(flag)+1] for flag in ('--file','--group','--key'))
+            return subprocess.CompletedProcess(args,0,values.get(key,'')+'\n','')
+        patch.dict(GLOBALS, selected_look=lambda:row[0]).start()
+        patch.object(GLOBALS['subprocess'],'run',side_effect=read).start()
+        validate = lambda: API['native_customized'](self.home,CATALOG,require_customization=False)
+        self.assertFalse(validate(), 'matching names alone are not installed components')
+        components = [self.share/'color-schemes'/(row[1]+'.colors'),
+                      self.share/'icons'/row[4]/'index.theme',
+                      self.share/'plasma/desktoptheme'/row[2]/'metadata.json',
+                      self.share/'icons'/row[6]/'cursors',
+                      self.share/'aurorae/themes'/row[7]/'metadata.desktop']
+        for path in components:
+            path.parent.mkdir(parents=True,exist_ok=True)
+            if path.name=='cursors': path.mkdir()
+            else: path.write_text('fixture component')
+        self.assertFalse(API['native_customized'](self.home,CATALOG),
+                         'validation must not change native customisation/reconciliation policy')
+        self.assertTrue(validate())
+        for path in components:
+            with self.subTest(missing=path.relative_to(self.share)):
+                saved = path.with_name(path.name+'.saved');path.rename(saved)
+                try: self.assertFalse(validate())
+                finally: saved.rename(path)
+        for value in ('Missing Icons','../escape','bad\nname'):
+            values[('kdeglobals','Icons','Theme')] = value
+            self.assertFalse(validate())
+        values[('kdeglobals','Icons','Theme')] = row[4]
+        values[('kdeglobals','General','font')] = 'Meyar Sans,999,-1'
+        self.assertFalse(validate())
+
     def test_standard_static_wallpaper_package_and_refusals(self):
         from PIL import Image
         package = self.share/'wallpapers/Personal'

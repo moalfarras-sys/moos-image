@@ -65,12 +65,14 @@ def native_pair(home):
     return True
 
 
-def native_customized(home,catalog=Path('/usr/share/moos/theme-profiles.tsv')):
+def native_customized(home,catalog=Path('/usr/share/moos/theme-profiles.tsv'), *, require_customization=True):
     """Distinguish installed personal choices from missing/broken profile data.
 
     The strict full-profile verifier remains the manual MoOS apply contract.
     Native KCM choices with actual installed counterparts must also survive a
     login, without treating every incomplete profile as deliberate customisation.
+    Session diagnostics may validate all counterparts without requiring an
+    unrelated style change; reconciliation retains its original changed-only rule.
     """
     look = selected_look()
     if not installed_look(look,home): return False
@@ -110,14 +112,14 @@ def native_customized(home,catalog=Path('/usr/share/moos/theme-profiles.tsv')):
         # KWin stores the native Aurorae engine prefix, while the profile
         # catalogue and installed directory contain the package's own name.
         if relative=='aurorae/themes': value=value.removeprefix('__aurorae__svg__')
-        if value==expected: continue
+        if value==expected and require_customization: continue
         if not value or value in ('.','..') or '/' in value or '\\' in value or any(ord(c)<32 for c in value): return False
         candidates = [root/relative/(value+suffix) for root in roots]
         if relative=='plasma/desktoptheme': candidates += [root/relative/(value+'/metadata.desktop') for root in roots]
         if relative=='icons': candidates.append(home/'.icons'/(value+suffix))
         if relative=='aurorae/themes': candidates += [root/relative/(value+'/metadata.json') for root in roots]
         if not any(p.exists() for p in candidates): return False
-        changed = True
+        changed |= value!=expected
     for key,default in (('font','Meyar Sans'),('fixed','Meyar Mono')):
         value = read('kdeglobals','General',key)
         if value:
@@ -131,7 +133,7 @@ def native_customized(home,catalog=Path('/usr/share/moos/theme-profiles.tsv')):
                 if not 4<=pixels<=192: return False
             elif not 4<=size<=96: return False
             changed |= parts[0]!=default or size!=10 or parts[3:10]!=['5','400','0','0','0','0','0']
-    return changed
+    return changed or not require_customization
 
 
 def image_file(path,dark=False):
@@ -379,6 +381,9 @@ def main():
         return
     if sys.argv[1:]==['check-pair']:
         if not native_pair(home): raise ValueError('installed native automatic pair unavailable')
+        return
+    if sys.argv[1:]==['check-components']:
+        if not native_customized(home,require_customization=False): raise ValueError('installed appearance components unavailable')
         return
     if sys.argv[1:]==['check-native']:
         if not native_customized(home): raise ValueError('no installed native customisation')

@@ -155,8 +155,8 @@
       "decoration": "MoOSUI2Aurora",
       "wallpaper": "MoOSUI2Aurora",
       "wallpaperBranch": "images_dark",
-      "accent": "#3B82F6",
-      "surfaceTreatment": "northern-frost"
+      "accent": "#20D6F8",
+      "surfaceTreatment": "quiet-glass"
     },
     {
       "id": "org.moos.ui2.aurora.light",
@@ -172,8 +172,8 @@
       "decoration": "MoOSUI2AuroraLight",
       "wallpaper": "MoOSUI2AuroraLight",
       "wallpaperBranch": "images",
-      "accent": "#2563EB",
-      "surfaceTreatment": "northern-frost"
+      "accent": "#1647B9",
+      "surfaceTreatment": "quiet-glass"
     },
     {
       "id": "org.moos.ui2.gaming",

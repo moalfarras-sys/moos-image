@@ -405,7 +405,12 @@ set -uo pipefail
 # 141: Meyar source-derived UI/IPA families and matched Arabic terminal cells.
 # 142: actual Arabic fallback hint metrics; native source-font fixture evidence.
 # 143: reserve the compact Island's full line room for native Meyar Arabic.
-THEME_REV=143
+# 144: shared Launcher clarity and immediate shared glass motion cancellation.
+# 145: logo-derived Quiet Glass dark/light family, matched native assets.
+# 146: match the native greeter scene tones to the Quiet Glass family.
+# 147: qualify Quiet Glass Light alert contrast and mineral ink/shadows.
+# 148: retain the strict MoOS family names and preserve validated native layouts.
+THEME_REV=148
 state_dir="${XDG_STATE_HOME:-$HOME/.local/state}"
 mkdir -p "$state_dir" 2>/dev/null || true
 marker="${state_dir}/moos-ui2-theme-applied.v${THEME_REV}"
@@ -880,6 +885,14 @@ fi
 # script may restate a bar value; tests pin the two files together.
 if [ "$native_appearance" = 1 ]; then
     echo "kept the personal native desktop layout" >>"$log" 2>&1
+elif command -v moos-theme >/dev/null 2>&1 \
+        && command -v moos-bar-apply >/dev/null 2>&1 \
+        && timeout 15s moos-theme validate-selected >>"$log" 2>&1 \
+        && timeout 15s moos-bar-apply check-session >>"$log" 2>&1; then
+    # Choosing a curated palette does not request a reset of a healthy native
+    # layout. Use its existing component and live-panel validators; canonical
+    # apply still repairs missing/broken structure and keeps its strict gate.
+    echo "kept the validated native desktop layout with its selected palette" >>"$log" 2>&1
 elif command -v moos-bar-apply >/dev/null 2>&1; then
     moos-bar-apply apply "$THEME_REV" >>"$log" 2>&1 \
         || echo "moos-bar-apply reported an incomplete dock readback — will retry" >>"$log" 2>&1

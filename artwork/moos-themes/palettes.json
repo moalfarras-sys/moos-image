@@ -61,24 +61,24 @@
     "panel_bottom": "#000000"
   },
   "aurora": {
-    "_identity": "A clean-slate base with an azure-blue northern-lights sweep — pulled off the turquoise band so it is nobody's copy. Modern, crisp, fresh.",
-    "canvas": "#0E1524",
-    "surface": "#172236",
-    "card": "#1D2A42",
-    "raised": "#263651",
-    "primary": "#3B82F6",
-    "secondary": "#60A5FA",
-    "luminous": "#93C5FD",
+    "_identity": "Quiet Glass: mineral navy, cyan from the canonical MoOS mark and a restrained violet reflection. Original shared MoOS geometry and semantic owners.",
+    "canvas": "#101723",
+    "surface": "#192436",
+    "card": "#202E43",
+    "raised": "#293B53",
+    "primary": "#20D6F8",
+    "secondary": "#AC89EE",
+    "luminous": "#ACEEF9",
     "positive": "#34D399",
     "warning": "#FBBF24",
     "negative": "#FB7185",
-    "text": "#ECF2FB",
-    "muted": "#9AAAC2",
-    "outline": "#2C3D5A",
-    "shadow": "#080D18",
-    "panel_top": "#263651",
-    "panel_mid": "#1D2A42",
-    "panel_bottom": "#0F1826"
+    "text": "#EDF3FC",
+    "muted": "#B1C0D4",
+    "outline": "#455A73",
+    "shadow": "#0A101B",
+    "panel_top": "#30425C",
+    "panel_mid": "#22324A",
+    "panel_bottom": "#131E2D"
   },
   "_extras": {
     "_comment": "Per-theme EXTRAS mirror the UI2 EXTRAS roles (deep semantic tints for chips/badges, and selected_text = the ink drawn ON an accent highlight — dark on these dark themes).",
@@ -107,8 +107,8 @@
       "positive_deep": "#123227",
       "negative_deep": "#47262F",
       "warning_deep": "#473A1C",
-      "secondary_deep": "#2E4C86",
-      "selected_text": "#0E1524"
+      "secondary_deep": "#362851",
+      "selected_text": "#101723"
     },
     "gaming": {
       "positive_deep": "#163A2A",

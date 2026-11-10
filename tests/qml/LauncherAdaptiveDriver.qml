@@ -2,6 +2,7 @@
 // No shortcuts, settings, authentication or owner-session input are modified.
 import QtQuick
 import QtQuick.Window
+import org.kde.kirigami as Kirigami
 import QtTest as Test
 
 Item {
@@ -190,7 +191,10 @@ Item {
                     homeViewport: driver.homeScroll.height,
                     touch: true, keyboard: true, sessionMenu: v.compact,
                     nativeCategories: l.appRootModel.count - 1, categoryBrowsing: true,
-                    pageMotionSettled: true
+                    pageMotionSettled: true,
+                    palette: { background: String(Kirigami.Theme.backgroundColor),
+                               text: String(Kirigami.Theme.textColor),
+                               accent: String(Kirigami.Theme.highlightColor) }
                 }));
             } catch (error) {
                 console.error("MOOS_ADAPTIVE_INPUT_FAIL " + String(error));

@@ -348,6 +348,19 @@ private encode/transport/decode evidence. The CI run lacks an internal frame
 trace; this proves an ordering class, not every earlier loss. Never restart the
 owner's live capture/input services to exercise the repair.
 
+**A fixed alpha is not the owner's glass preference.** The actual Launcher
+background stayed translucent under Solid. Keep its dense reading floor while
+using the shared live material owner; retain native old/fixed Solid/no-blur
+controls. A finite entrance must also settle when cancelled while visible.
+Scoped source QML in an installed KCM is development integration, not signed
+whole-desktop acceptance; preserve native input and original preference owners.
+
+**A configured colour file is not the native popup palette.** Quiet Glass
+qualification reads actual Kirigami colours inside Plasma's real popup engine;
+the wrong-style control must fail even with the intended Qt colour file. Keep
+existing theme IDs, all input negatives, the user's font/motion choices and exact
+live-copy recovery. Private native pixels are not signed installation or login.
+
 ## Where the rest of the knowledge is
 
 **A wallet switch must control both native providers.** User Settings explicitly
@@ -1776,3 +1789,13 @@ font-default change. Private headless pixels are not installed desktop input.
 **A failed service-manager query is unknown, never zero failed units.** Both selfcheck and post-update checks must retain the manager command exit before parsing one plain, locale-stable snapshot per scope. Keep partial-output/nonzero, malformed-success, real failure and exact crash-handler-only controls. A healthy current snapshot never clears earlier greeter crashes or driver errors, and testing source helpers does not update immutable installed helpers.
 
 **A JSON string is not a CMake argument.** The actual Arabic checkout made the native archive fixture emit invalid `\u` escapes before any HTTP request. Use literal native bracket arguments with a noncolliding delimiter, and exercise Arabic, `${...}` and bracket bytes through the real CMake parser while preserving every transfer failure/digest assertion. Never rename the owner checkout or weaken the archive verifier to pass a fixture.
+
+**An inherited app library is not an installed ABI failure.** The engineering shell resolved notify-send against OpenCode’s bundled libnotify and refused a missing activation symbol. The unchanged native user-manager launch succeeds with the immutable library. Retain both resolved paths and actual pixels; use the existing desktop launcher and never overwrite system libraries or weaken loader/security policy to repair an application-scoped environment.
+
+**A curated palette does not erase personal tray preferences.** The actual Quiet Glass Light journey retained empty shownItems/spacing2, while changed-only native appearance detection caused a false canonical tray refusal. Session health may validate every installed counterpart without demanding an unrelated font/colour edit; keep reconciliation’s changed-only meaning and strict apply/image checks. Preserve the actual old/fixed native observations, missing-component/invalid-setting controls and unchanged deadlines; do not force the owner’s tray to match defaults.
+
+**A qualified new palette can invalidate an old native sample.** ARM’s actual native appearance owner painted Quiet Glass192436 correctly while the original C++ contract still required Aurora172236. Keep that image refusal and the executed old/fixed source controls. Update only the reviewed fixed sample, preserving same-style personal colours, native Qt/KDE palette/icon owners, image pixels and every authority/negative control; never derive the expected sample from the observed painting or extend its budget.
+
+**A healthy live panel still needs protection in the revision migrator.** Selecting a curated Light palette made changed-only appearance detection false; the original boot block would call canonical bar apply over a valid personal tray. Retain actual guarded old-write-attempt/fixed-no-write controls. Before that write, the existing migration owner may preserve only a layout whose installed components and original live session validator pass. Keep personal-theme behaviour, structural repair, strict apply/image checks and every failed/unknown probe distinct; this guarded branch proof is not a full cold boot.
+
+**A design language does not rename the locked family contract.** a5’s actual local/ARM images refused Quiet Glass package names where the identity gate requires exact MoOS UI/Aurora names. Keep those first refusals, restore the original names in generated source and leave all three identity gates unchanged. Source preflight reads the original authoritative name table, not a second allow-list. A no-delta QML/SVG fingerprint record is not a refusal; metadata generations still need their reviewed cache revision.
