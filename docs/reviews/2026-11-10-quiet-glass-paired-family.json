@@ -9,7 +9,7 @@
   ],
   "integration_owner": "primary coding agent",
   "source_parent": "4f34d074abad24902c5ddb2d342ea26792faccc8",
-  "status": "paired-family development; full source and installed journeys pending",
+  "status": "full source passed; physical development journeys partial; PR286 image gates pending",
   "technical_ids_preserved": [
     "org.moos.ui2.aurora",
     "org.moos.ui2.aurora.light",
@@ -133,20 +133,110 @@
     "targets": 16,
     "collisions": 0,
     "copied": true,
-    "scope": "16 user-local development targets at146; actual dark/light desktop, launcher and Arabic KWrite edit/save exercised;147 refresh pending. Immutable GTK/login remain1136."
+    "scope": "16 exact user-local development targets,143 updated files with previous-byte recovery; dark/light desktop/launcher and Arabic KWrite edit/save exercised; immutable GTK/login remain1136",
+    "revision": 147,
+    "bytes": 10675320
   },
   "full_source": {
-    "state": "pending",
-    "command": "just check"
+    "state": "passed",
+    "command": "just check",
+    "exit": 0,
+    "source_sha": "b34f8493fd5f8de1711af06c579dfc381eb9e073",
+    "log_sha256": "482c4215625f86ab57adddd8c76cf63a964f622a762a4898e7a0b471bd9ecef6",
+    "scope": "original maintained gate; original unavailable/opt-in skips retained",
+    "skip_count": 14
   },
   "delivery": "source only; booted signed1136 unchanged",
   "owner_authorization": "owner explicitly permits closing applications, updates and reboot; authentication and data preservation remain required",
   "remaining": [
-    "complete source check",
     "actual installed dark/light interaction and recovery",
     "repeatable performance",
     "PR/current-base images",
     "signed candidate/artifact boots/promotion",
     "stage/reboot/postboot readback"
-  ]
+  ],
+  "installed_audit": {
+    "booted": "44.20261109.1136",
+    "staged": null,
+    "rollback": "44.20261031.1119",
+    "pinned": "44.20261019.1078",
+    "nvme_smart_exit": 0,
+    "nvme_health": "PASSED",
+    "media_data_integrity_errors": 0,
+    "percentage_used": 2,
+    "unsafe_shutdowns": 2059,
+    "error_log_entries": 11101,
+    "error_entry_cause": "two retained native error records report Invalid Field in Command; responsible caller and historical count cause not established",
+    "btrfs_available_gib": 482.33,
+    "btrfs_device_error_counters": [
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "nvme_selftest": "no self-test running and no self-tests logged",
+    "kernel_warning": {
+      "time": "2026-11-10T06:40:45+01:00",
+      "message": "thunderbolt c6:00.5 TX ring0 already enabled in ring_interrupt_active; runtime resume stack while lspci reads PCI config",
+      "followed_by": "configuration read/write timeouts",
+      "scope": "actual warning and call path retained; responsible policy/root cause and relation to greeter crash not established; no runtime-PM or IOMMU policy changed"
+    }
+  },
+  "performance_sample": {
+    "duration_seconds": 30.000110002998554,
+    "workload": "physical AMD V3 Wayland,DP-11 3840x2160@60 scale2.5,Quiet Glass dark147 user-local native theme; Settings and Store open; no intentional input; other owner applications running; repository full check completed; no before baseline or frame-pacing claim",
+    "samples": [
+      {
+        "pid": 3299,
+        "name": "kwin_wayland",
+        "cpu_one_core_percent": 4.133,
+        "rss_kib": 589016,
+        "pss_unavailable": "kernel denies smaps_rollup; no policy changed"
+      },
+      {
+        "pid": 3317,
+        "name": "plasmashell",
+        "cpu_one_core_percent": 0.067,
+        "rss_kib": 485468,
+        "pss_kib": 380712
+      },
+      {
+        "pid": 392975,
+        "name": "systemsettings",
+        "cpu_one_core_percent": 0.0,
+        "rss_kib": 346840,
+        "pss_kib": 215658
+      },
+      {
+        "pid": 392982,
+        "name": "moos-qml-shell",
+        "cpu_one_core_percent": 0.0,
+        "rss_kib": 468124,
+        "pss_kib": 342816
+      }
+    ]
+  },
+  "settings_journey": {
+    "route": "moos://settings/themes",
+    "loaded_library": "/usr/lib64/qt6/plugins/plasma/kcms/systemsettings/kcm_moos_appearance.so",
+    "scope": "installed1136 library; native page and palette visible; catalogue metadata/previews still read immutable1136 rather than local147, pending signed delivery"
+  },
+  "power_journey": {
+    "owner": "/usr/libexec/ksmserver-logout-greeter --windowed",
+    "loaded_qml": "/usr/lib64/qt6/qml/org/moos/ui/SessionPower.qml",
+    "loaded_appearance_library": "/usr/lib64/qt6/qml/org/moos/appearance/libmoosappearanceplugin.so",
+    "selected_look": "org.moos.ui2.aurora.light",
+    "wallpaper": "user-local147 Light image",
+    "actual_keyboard_escape": true,
+    "exit": 0,
+    "scope": "normal windowed prompt and Cancel; not shutdown, reboot, authentication or signed147 installation"
+  },
+  "notification_journey": {
+    "native_owner": "Plasma org.freedesktop.Notifications via user-manager launched /usr/bin/notify-send",
+    "light147_pixels": "actual Arabic notification and icon visible; private capture retained",
+    "native_exit": 0,
+    "initial_refusal": "engineering shell LD_LIBRARY_PATH selected OpenCode bundled libnotify lacking activation_app_launch_context; clean user-manager owner succeeds with system library",
+    "scope": "native notification visible; history/action/a11y journeys not all qualified"
+  }
 }
