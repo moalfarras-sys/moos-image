@@ -27,7 +27,12 @@
     "read-only root namespace made /dev/null unwritable; no acceptance claimed",
     "minimal /dev then made kreadconfig exceed its unchanged3s deadline; retained timeout; used native read-only commands against the normal desktop via scoped fixed helper paths rather than extending the budget"
   ],
-  "full_source": "pending",
+  "full_source": {
+    "exit": 0,
+    "production_source": "106e5b65",
+    "log_sha256": "f597f44b70fe2c64ae9cbc974635173c8a69ec80d14bdf3273d1896144072e0c",
+    "scope": "new component-validation code passes complete maintained gate; final combined C++ fixture-sample/source check remains pending"
+  },
   "signed_delivery": "pending; installed1136 unchanged",
   "owner_choice": "Quiet Glass Light explicitly selected by owner"
 }
