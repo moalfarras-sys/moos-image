@@ -361,6 +361,8 @@ the wrong-style control must fail even with the intended Qt colour file. Keep
 existing theme IDs, all input negatives, the user's font/motion choices and exact
 live-copy recovery. Private native pixels are not signed installation or login.
 
+**A zero exit without a destruction marker is not Qt acceptance.** The actual vendor6.11.2-2 official QTBUG-150769 fixture crashes in removeItemChangeListener/ItemView/ListView teardown. A private Quick-only upstream backport returns0 while QML markers remain absent; retain those refusals. A native QQuickView property read and stdio marker establish old139/fixed0 with exact loaded Quick and unchanged vendor Core/Qml. Keep the vendor payload/DSO matches and normalized-timestamp-only rpm-V refusal separate. Private target compilation is not a complete RPM, signed repair, or proof of every physical screen-removal trigger; preserve authentication and canonical package/image/boot gates.
+
 ## Where the rest of the knowledge is
 
 **A wallet switch must control both native providers.** User Settings explicitly
