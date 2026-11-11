@@ -59,7 +59,7 @@ def executable(path, body):
 
 
 class CanonicalHelper(unittest.TestCase):
-    def invoke(self, *, mode=True, refused=False, compositor=True):
+    def invoke(self, *, mode=True, refused=False, compositor=True, wait=False):
         with tempfile.TemporaryDirectory(prefix='moos-launch-contract-') as raw:
             directory = Path(raw)
             binary = directory / 'bin'
@@ -86,7 +86,8 @@ if os.environ['LAUNCH_REFUSED']=='1':
                 'LAUNCH_CALL': raw + '/call.json', 'LAUNCH_FALLBACK': raw + '/fallback',
                 'LAUNCH_REFUSED': '1' if refused else '0',
             }
-            args = ['bash', str(helper), *(['--app'] if mode else []), '/usr/bin/gtk-launch', 'org.example.App.desktop']
+            args = ['bash', str(helper), *(['--app'] if mode else []),
+                    *(['--wait'] if wait else []), '/usr/bin/gtk-launch', 'org.example.App.desktop']
             result = subprocess.run(args, env=environment, capture_output=True, text=True, timeout=5)
             call = json.loads((directory / 'call.json').read_text())
             return result, call, (directory / 'fallback').exists()
@@ -106,6 +107,16 @@ if os.environ['LAUNCH_REFUSED']=='1':
         self.assertIn('fixture manager refusal', result.stderr)
         self.assertNotIn('opened', result.stdout)
         self.assertFalse(fallback)
+
+    def test_waiting_for_an_app_keeps_the_same_lifetime_and_failure_boundary(self):
+        for refused in (False, True):
+            with self.subTest(refused=refused):
+                result, call, fallback = self.invoke(wait=True, refused=refused)
+                self.assertEqual(result.returncode, 1 if refused else 0, result.stderr)
+                self.assertIn('--wait', call)
+                self.assertIn('--property=ExitType=cgroup', call)
+                self.assertIn('--property=PartOf=graphical-session.target', call)
+                self.assertFalse(fallback)
 
     def test_a_missing_compositor_is_not_an_unbound_shell_variable(self):
         result, call, _ = self.invoke(compositor=False)

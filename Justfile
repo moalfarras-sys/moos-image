@@ -241,6 +241,7 @@ check:
     # "no user-level copy is shadowing a MoOS asset".
     python3 tests/test_selfcheck_unit_shadowing.py
     python3 tests/test_failed_unit_queries.py
+    python3 tests/test_session_display_diagnostics.py
     python3 tests/test_selfcheck_document_portal.py
     # Mo PC Remote IS the screen on cloud and ARM. A crash past StartLimitBurst
     # left it dead until reboot on every edition; the recovery unit existed only

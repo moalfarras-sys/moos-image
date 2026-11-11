@@ -275,15 +275,19 @@ def require_display():
 
 
 def spawn(argv):
-    """Start a long-running action (a theme change, an app) detached.
+    """Start through the canonical graphical-session application owner.
 
     The child is watched for SPAWN_SETTLE seconds: an exit with an error inside that window
     is reported as the verb's failure instead of being hidden behind a success message.
     """
     if shutil.which(argv[0]) is None:
         raise Unavailable(f"{argv[0]} is not installed")
+    launcher = shutil.which("moai-open")
+    if launcher is None:
+        raise Unavailable("the desktop application launcher is not installed")
     try:
-        child = subprocess.Popen(argv, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
+        child = subprocess.Popen([launcher, "--app", "--wait", *argv],
+                                 stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
                                  stderr=subprocess.DEVNULL, start_new_session=True)
     except OSError as error:
         raise Unavailable(f"{argv[0]} could not start: {error.strerror or error}") from error

@@ -1799,3 +1799,14 @@ font-default change. Private headless pixels are not installed desktop input.
 **A healthy live panel still needs protection in the revision migrator.** Selecting a curated Light palette made changed-only appearance detection false; the original boot block would call canonical bar apply over a valid personal tray. Retain actual guarded old-write-attempt/fixed-no-write controls. Before that write, the existing migration owner may preserve only a layout whose installed components and original live session validator pass. Keep personal-theme behaviour, structural repair, strict apply/image checks and every failed/unknown probe distinct; this guarded branch proof is not a full cold boot.
 
 **A design language does not rename the locked family contract.** a5’s actual local/ARM images refused Quiet Glass package names where the identity gate requires exact MoOS UI/Aurora names. Keep those first refusals, restore the original names in generated source and leave all three identity gates unchanged. Source preflight reads the original authoritative name table, not a second allow-list. A no-delta QML/SVG fingerprint record is not a refusal; metadata generations still need their reviewed cache revision.
+
+
+**A detached control process is not a graphical application owner.** Native Nov11 control
+launches lost their child when the short caller unit ended and inherited its C locale.
+Use the existing canonical app launcher, retaining cgroup/session lifetime and a waiting
+client for the finite early-error observation. Keep the actual old-dead/fixed-alive,
+manager-refusal, missing-helper and native0/7 controls plus the real immutable Settings
+Arabic journey. A scoped source PATH is development evidence, never signed installation.
+Display-connection journal failures remain fatal, but a message alone does not identify
+startup or prove a restart: the native30 Chromium-owned failures occurred at+1563..1571s.
+Preserve those failures and refuse unavailable/partial journal queries.

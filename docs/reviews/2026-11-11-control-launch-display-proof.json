@@ -1,0 +1,131 @@
+{
+  "date": "2026-11-11",
+  "plan": [
+    "P2.3",
+    "P5.4",
+    "P5.8"
+  ],
+  "integration_owner": "Codex native UI/boot review",
+  "base_sha": "2bf8339fed64fff81ac210280dc92f35560cc0e7",
+  "booted_version": "44.20261110.1139",
+  "booted_digest": "sha256:b0b24ac3099ea9f62f6cfaa1efd3c7ded3056b2073b85b17c8101686e0019134",
+  "source_hashes": {
+    "system_files/usr/bin/moai-open": "6f43c966b4de82e904b9252e3ff02e1d110a0dde02fdf82b2050ba5b4858c773",
+    "system_files/usr/bin/moos-control": "acf24a6bb7e3aa9eda11546024910ef5863af71025158b0e7b4c0a19d6073fbc",
+    "tests/post-update-check.sh": "dd18355b1229a7fb1f149d9a39f73b71deabb4e62a3bd66ccb4e8d56408a5a15",
+    "tests/test_managed_app_launch.py": "26281608899d3e2c2b5abc825a7bcda7e2f9431498903d2a64e4ddec03885fcd",
+    "tests/test_moos_control.py": "42d3894e94b13495e7b8f6932dc8d50e3590852edf8160cde58bfbc334003010",
+    "tests/test_session_display_diagnostics.py": "bc636bf2d40b3a2d2c98bb868ac6279969a7c1238419328749cbb5d562683af7",
+    "Justfile": "e4fb9d2a35cf54f6c8e3cb84245658413ba9e4489315befa9eb52d6774101a9a"
+  },
+  "native_lifetime": [
+    {
+      "label": "old",
+      "parent_inactive": true,
+      "child_alive": false,
+      "pid": 86412,
+      "cgroup": "0::/user.slice/user-1000.slice/user@1000.service/app.slice/moos-review-control-old-86406.service\n",
+      "lang": "C.UTF-8"
+    },
+    {
+      "label": "fixed",
+      "parent_inactive": true,
+      "child_alive": true,
+      "pid": 86437,
+      "cgroup": "0::/user.slice/user-1000.slice/user@1000.service/app.slice/moai-open-86431-802.service\n",
+      "lang": "ar_SA.UTF-8"
+    }
+  ],
+  "native_early_exit": [
+    {
+      "command_exit": 0,
+      "result": "opened",
+      "elapsed_s": 0.114
+    },
+    {
+      "command_exit": 7,
+      "result": "refused",
+      "elapsed_s": 0.064
+    }
+  ],
+  "native_settings": {
+    "path": "/usr/lib64/qt6/plugins/plasma/kcms/systemsettings/kcm_moos.so",
+    "unit": "moai-open-86652-22102.service",
+    "result": "Arabic RTL actual System Settings from immutable library; source CLI/helper supplied through scoped PATH",
+    "personal_wallet": "off, unchanged",
+    "before_display": "internal2560x1600@165,145%",
+    "after_display": "external3840x2160@60,250%",
+    "display_change": "owner/session hotplug observed; no output command issued; AC became online"
+  },
+  "native_display_diagnostics": {
+    "old_hits": 30,
+    "fixed_hits": 30,
+    "fixed_exit": 1,
+    "observed_units": [
+      "app-org.chromium.Chromium-14022.scope"
+    ],
+    "monotonic_interval_s": [
+      1563.377,
+      1571.073
+    ],
+    "cause": "not established; no compositor-startup attribution"
+  },
+  "checks": {
+    "managed_launch": "11/11",
+    "control": "40/40,25.846s; missing-helper path modeled without falling through to installed helper",
+    "display_journal": "3/3 with startup8/later30 and9 query-failure cases",
+    "failed_units": "6/6",
+    "full_source": {
+      "exit_code": 0,
+      "duration_s": 1058.893,
+      "all_inputs_unchanged": true,
+      "log": "private qualified-full-check.log",
+      "scope": "full just check on frozen source; only qualification receipts updated afterward"
+    },
+    "baseline_full_source": {
+      "sha": "2bf8339fed64fff81ac210280dc92f35560cc0e7",
+      "exit_code": 0,
+      "log": "private full-check.log"
+    },
+    "first_final_full_source": {
+      "exit_code": 1,
+      "duration_s": 218.399,
+      "failure": "PROJECT_STATE.md222 lines exceeds unchanged200-line gate",
+      "log": "private final-full-check.log",
+      "correction": "condensed current state to one summary with linked detailed proofs; gate unchanged"
+    },
+    "native_postcheck": {
+      "passed": 55,
+      "failed": 1,
+      "exit_code": 1,
+      "failure": "same30 display-connection events"
+    }
+  },
+  "limitations": [
+    "Source changes are not installed signed CLI payloads",
+    "No kernel/firmware/boot mutation or reboot",
+    "Pointer review unavailable: clipboard could not be preserved as plain text; left untouched",
+    "Native touchscreen KCM device combo is blank and emits QQmlDMAbstractItemModelData to QString; upstream6.8.2 lacks explicit device textRole; cause/fix not qualified",
+    "Rotation sensor remains unbound; suspend/fingerprint/endurance remain unqualified"
+  ],
+  "local_compatibility": [
+    {
+      "path": "/var/home/moos/.cache/moos-review-20261111-ui/bin/moai-open",
+      "bytes": 4402,
+      "sha256": "6f43c966b4de82e904b9252e3ff02e1d110a0dde02fdf82b2050ba5b4858c773",
+      "scope": "PATH for explicit review commands only; no canonical launcher or manager environment changed",
+      "retirement": "after review ends or matching signed payload installed; preserve proof snapshot while review is active"
+    }
+  ],
+  "private_evidence": "/var/home/moos/.cache/moos-review-20261111-ui",
+  "primary_sources": [
+    "https://www.freedesktop.org/software/systemd/man/258/systemd-run.html",
+    "https://raw.githubusercontent.com/KDE/plasma-desktop/v6.8.2/kcms/touchscreen/ui/main.qml"
+  ],
+  "boot_diagnostics": {
+    "hardware_adapt": "inactive/dead, ConditionResult=yes, ExecMainStatus=0, nonzero exit monotonic58631497",
+    "critical_path": "graphical.target9.148s userspace; tuned chain remains intact",
+    "historical_boot_samples": "prior boot PID1 startup summaries unavailable; not treated as zero",
+    "comparable_boot_speedup": "not measured"
+  }
+}

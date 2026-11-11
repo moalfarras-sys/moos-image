@@ -22,12 +22,14 @@ to 9500/10000 over Plasma's ScreenBrightness service.
 import json
 import os
 import re
+import runpy
 import shutil
 import subprocess
 import sys
 import tempfile
 import time
 import unittest
+from unittest import mock
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -100,6 +102,9 @@ esac
                      'esac\n',
     # The apps/run route asks for GPU headroom first; the real one unloads the owner's local model.
     "moos-gpu-headroom": "",
+    # No real manager or desktop: execute only this fixture's recording commands.
+    "moai-open": '[ "$1" = --app ] && shift\n[ "$1" = --wait ] && shift\n'
+                 '[ "${STUB_LAUNCH_REFUSED:-0}" = 0 ] || exit 1\nexec "$@"\n',
     "flatpak": 'case "$1 $2" in "info org.mozilla.firefox") exit 0;; info*) exit 1;; esac\n'
                'case "$1" in run) exit "${STUB_APP_EXIT:-0}";; esac\n',
     # The pages' own hosts, as the settings registry names them. STUB_PAGE_EXIT makes the
@@ -352,6 +357,30 @@ class MoosControlTests(unittest.TestCase):
                              STUB_PAGE_STAYS="4")
         self.assertEqual(stays.returncode, 0, stays.stderr)
         self.assertLess(time.monotonic() - began, 3.5, "moos-control waited for the window")
+
+    def test_settings_use_the_canonical_application_owner(self):
+        result = self.control("settings", "display", WAYLAND_DISPLAY=DISPLAY_NAME)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn(["moai-open", "--app", "--wait", "systemsettings", "kcm_kscreen"],
+                      self.machine.calls())
+
+    def test_refused_launcher_never_starts_a_direct_window(self):
+        result = self.control("settings", "display", WAYLAND_DISPLAY=DISPLAY_NAME,
+                              STUB_LAUNCH_REFUSED="1")
+        self.assertEqual(result.returncode, 69, result.stderr)
+        self.assertEqual(result.stdout, "")
+        self.assertFalse(any(c[0] == "systemsettings" for c in self.machine.calls()))
+
+    def test_missing_launcher_never_falls_back_to_a_direct_child(self):
+        control = runpy.run_path(str(CONTROL), run_name="control_launch_test")
+        # Omitting a PATH stub could select the host's real launcher. Model a
+        # genuinely missing helper here without running any host command.
+        with mock.patch.object(control["shutil"], "which",
+                               side_effect=lambda name: None if name == "moai-open" else "/fixture/" + name), \
+                mock.patch.object(control["subprocess"], "Popen") as child:
+            with self.assertRaises(control["Unavailable"]):
+                control["spawn"](["systemsettings", "kcm_kscreen"])
+            child.assert_not_called()
 
     def test_missing_tool_is_reported_as_unavailable(self):
         bare = StubMachine(omit=("wpctl",))

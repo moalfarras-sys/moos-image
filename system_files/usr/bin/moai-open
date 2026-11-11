@@ -20,7 +20,13 @@ set -uo pipefail
 
 open_as_app=0
 if [ "${1:-}" = "--app" ]; then open_as_app=1; shift; fi
-[ $# -ge 1 ] || { echo "usage: moai-open [--app] <command> [args...]" >&2; exit 2; }
+wait_for_app=0
+if [ "${1:-}" = "--wait" ]; then
+    [ "$open_as_app" -eq 1 ] || { echo "--wait requires --app" >&2; exit 2; }
+    wait_for_app=1
+    shift
+fi
+[ $# -ge 1 ] || { echo "usage: moai-open [--app [--wait]] <command> [args...]" >&2; exit 2; }
 
 uid="$(id -u)"
 export XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-/run/user/${uid}}"
@@ -56,6 +62,9 @@ launch_properties=(--property=ExitType=cgroup)
 if [ "$open_as_app" -eq 1 ]; then
     launch_properties+=(--property=PartOf=graphical-session.target)
 fi
+# A caller may observe early failure without owning the application lifetime.
+# Killing this waiting client does not stop the independently owned app unit.
+if [ "$wait_for_app" -eq 1 ]; then launch_properties+=(--wait); fi
 launch_error=""
 
 if command -v systemd-run >/dev/null 2>&1; then
