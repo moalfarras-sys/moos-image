@@ -1,0 +1,241 @@
+{
+  "source": "4303a206579b9e9ae873c7992a940e1eed77ada9",
+  "revision": "28f642f8fd8499e1a87403d2a9031f27ac4bc36a",
+  "signed_build_run": 42604208185,
+  "proof_runs": [
+    42613925834,
+    42613931118,
+    42613936377,
+    42613941454,
+    42594016873
+  ],
+  "promotion_run": 42620024067,
+  "production": {
+    "moos": {
+      "digest": "sha256:3502977fb265c0f94f771d2d2e65d8cf3052e0ab6cf23caa05092ed481d4a5a8",
+      "version": "44.20261109.1136",
+      "revision": "28f642f8fd8499e1a87403d2a9031f27ac4bc36a",
+      "signature_exit": 0,
+      "signature_log_sha256": "d2723fbebbbca5ab25584f1bbf1c355628a85ac243870b7dd3c4abfe928c045e"
+    },
+    "moos-nvidia": {
+      "digest": "sha256:0add85f353247205a971a6d8d320f5509ad863947bd835c1a4abff551cd5d865",
+      "version": "44.20261109.1136",
+      "revision": "28f642f8fd8499e1a87403d2a9031f27ac4bc36a",
+      "signature_exit": 0,
+      "signature_log_sha256": "903fcc671efa16965b16df011047d384e1502a56ad0eefcda1d23c7f9b6beb2c"
+    },
+    "moos-cloud": {
+      "digest": "sha256:9139ca4b67fa8a54c95ea572bdaffc67cf25809559b41ab88cb4df5ea23340cd",
+      "version": "44.20261109.1136",
+      "revision": "28f642f8fd8499e1a87403d2a9031f27ac4bc36a",
+      "signature_exit": 0,
+      "signature_log_sha256": "95395a42f964d767561511da6bba9a6eccc84ada1cee3d3c671bcb2146e4be98"
+    },
+    "moos-arm": {
+      "digest": "sha256:e35020527b9a576c454a9adddb069ae8bcf6682764eef9e6c364d77d968b8e42",
+      "version": "44.20261109.908",
+      "revision": "28f642f8fd8499e1a87403d2a9031f27ac4bc36a",
+      "signature_exit": 0,
+      "signature_log_sha256": "160bfbf970be29fd10cbe383e4c9696d4624981185bf9677e384fb5f88570c39"
+    }
+  },
+  "arm_proof_files": {
+    "graphical-diagnostics.txt": "496115475547f62433eba50d142ffef63e1581d4381b0e2958895591cbddd4a0",
+    "graphical-guest.png": "e5ba907b31edd65d2f9f246ad495dce46b90660471d6bbe64c537ba4757c0fbb",
+    "graphical-guest.ppm": "e5c15729c08efbb9fc190321af9c14eca6bcd06722eceee397d828e797084e4f",
+    "graphical-windows.txt": "bcfca991828b24e747c9010a4bac6717d47605706bd1e5f490343bf379844da1",
+    "graphical.png": "ff3a8e2af7ddd16572fe9caf8ed44c26fe49dc7daef3212c1b4a8fcdf353589e",
+    "graphical.ppm": "cac46bafb8e605b0ddf44e08432b5c37b90c041f47c3683c59058ba158adb79a",
+    "proof-manifest.json": "e1c77873fce8d768a3735bfe530e1b0148325c3b72691e21edc9ce14f8d2bec5",
+    "qcow2-check.txt": "91fa34c8c32164218ff03e0c63ec1b41ea1a8ecdcfe1da6376eba07cabdc7bf4",
+    "qcow2-info.json": "fd16b3f7e589fea249eeffaecd7b55283924da58b1d024488547f29d9ba7bf85",
+    "qemu.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "runtime-first-boot.txt": "aff0f5ffd4935231f248eaaa3befe97f77f92b4392b6b144a8f102a869db01aa",
+    "runtime-second-boot.txt": "f4085b5d92ffc4099630c69b40071183930347936f1137e63ff8df9f7e4cbd0f",
+    "serial.log": "dbc6782d6acee0adae27fed7cffa08061441e6ffbfba40a8bc85219f3e183eef"
+  },
+  "schema": 1,
+  "date": "2026-11-09T14:38:11.802489+00:00",
+  "native_boot": {
+    "boot_id": "ebc21e8d-4887-4d3f-a452-712c990fffbe",
+    "previous_boot_id": "7bcd690f-17d6-428b-b5a8-13c8bc5bd714",
+    "booted_digest": "sha256:e35020527b9a576c454a9adddb069ae8bcf6682764eef9e6c364d77d968b8e42",
+    "expected_digest": "sha256:e35020527b9a576c454a9adddb069ae8bcf6682764eef9e6c364d77d968b8e42",
+    "version": "44.20261109.908",
+    "rollback_to_preupdate_present": true,
+    "immutable_files": [
+      {
+        "path": "/etc/xdg/kwalletrc",
+        "sha256": "1f743b22695ff1c0e8404106db2083f126981ee574ede1cf03564036eace4bfc"
+      },
+      {
+        "path": "/usr/bin/moos-control",
+        "sha256": "e5a3f8c53b87ee159fae9cf9aefc5084f567e5a7d15c81924e6fa860bd019a41"
+      },
+      {
+        "path": "/usr/bin/moos-selfcheck",
+        "sha256": "4bb0b81775db29b848793d79c68cf393178ba4fd30540febc31603253de8a7fb"
+      },
+      {
+        "path": "/usr/bin/moos-storectl",
+        "sha256": "b2517b036ce7d60344dbb92c5489df41d8cc6d8d82fdcf9991bebfb42a0ae6e9"
+      },
+      {
+        "path": "/usr/bin/moos-ui-migrate",
+        "sha256": "4e70cca2f05a456f6919e90cf9a8705d47e56da8aab0280c0421a7ea9af66124"
+      },
+      {
+        "path": "/usr/lib/moos/moos_flatpak_fonts.py",
+        "sha256": "6134830add04735a14cd601e9e2ebba315d3131388c81b7c140d211cb1c3ab9a"
+      },
+      {
+        "path": "/usr/lib/moos/moos_wallet.py",
+        "sha256": "6dea8db49b73291e8cf09aabd7f2bb5a8e286a08cd7d1fdc7ac78c7dff7f2bf8"
+      },
+      {
+        "path": "/usr/libexec/moos-flatpak-update",
+        "sha256": "47cdc1d6995c9404224ed62731d8dd8d3dadf5778acab006c169138c9ca0c601"
+      },
+      {
+        "path": "/usr/libexec/moos-settings-status",
+        "sha256": "3d0dd0dd55b4acf867486e1828763b83dce44978daab2ca9f2f58cc67ca11ab6"
+      },
+      {
+        "path": "/usr/share/moos/whats-new.json",
+        "sha256": "cafb97ca5669bab4edc4986b9925c0e548a90db51ed832aad1b3abce34d55819"
+      },
+      {
+        "path": "/usr/lib/mo-remote/mo-remote-portal.py",
+        "sha256": "6ecae23c72fd31ae83f213a004ff2d642d03688a38523ad367d9c00e04b93c08"
+      }
+    ],
+    "checks": {
+      "selfcheck": {
+        "exit": 0,
+        "seconds": 9.447,
+        "log_sha256": "8e1a3adc5ff204f10b71727174979b00db2fe12948ee76195499cc996cf4b2b2"
+      },
+      "post-update": {
+        "exit": 0,
+        "seconds": 2.876,
+        "log_sha256": "7f4948a7c1bd0633bc811ebeca436dda963e2f76ac6fc2bf5da69f6837b63fb8"
+      },
+      "production-codecs": {
+        "exit": 0,
+        "seconds": 0.968,
+        "log_sha256": "fb8ea445a33ec033399792462b85a4d8f3a3574cdb120ed39dbd08d427f23d34"
+      }
+    },
+    "wallet_flags": {
+      "Wallet/Enabled": "false",
+      "KSecretD/Enabled": "false",
+      "org.freedesktop.secrets/apiEnabled": "false"
+    },
+    "wallet_native_state": {
+      "known": true,
+      "available": true,
+      "enabled": false,
+      "active": false,
+      "ready": false,
+      "choice": "off"
+    },
+    "boot_assessment": {
+      "deployment": "26914d2579d07990f6de45fd8c9fc6be75b7d9099877d09dd962fa168e8d4044",
+      "attempts": 0,
+      "rolled_back_from": [],
+      "last_result": "blessed",
+      "schema": 1,
+      "updated": 1794229269,
+      "blessed_target": "graphical.target",
+      "failed_units": []
+    },
+    "boot_timing": "Startup finished in 736ms (kernel) + 3.000s (initrd) + 12.537s (userspace) = 16.274s \ngraphical.target reached after 10.408s in userspace.",
+    "kernel": "7.2.15-200.fc44.aarch64",
+    "bless_unit": "Result=success\nExecMainExitTimestampMonotonic=90391236\nExecMainStatus=0",
+    "utc": "2026-11-09T14:05:06.734329+00:00"
+  },
+  "native_maintenance": {
+    "qualified": true,
+    "canonical-headless": {
+      "exit": 0,
+      "seconds": 3.382,
+      "log_sha256": "b760372b60da6a1c05cae484fcaec87276812a17b09fdafc79378f191af77c57"
+    },
+    "canonical-unit": {
+      "exit": 0,
+      "seconds": 0.366,
+      "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "canonical_unit_receipt": {
+      "ActiveState": "inactive",
+      "SubState": "dead",
+      "ConditionResult": "yes",
+      "Result": "success",
+      "ExecMainExitTimestampMonotonic": "3971489394",
+      "ExecMainStatus": "0"
+    },
+    "wallet": {
+      "known": true,
+      "available": true,
+      "enabled": false,
+      "active": false,
+      "ready": false,
+      "choice": "off"
+    },
+    "pending_app_updates": {
+      "schema": 1,
+      "action": "check-updates",
+      "state": "success",
+      "checked_at": "2026-11-09T14:05:52.034Z",
+      "count": 1,
+      "app_count": 1,
+      "items": [
+        {
+          "id": "chatgpt",
+          "kind": "pin",
+          "name": "ChatGPT",
+          "version": "26.1103.60933-1",
+          "installed_version": "26.1021.22027-1"
+        }
+      ],
+      "message": "1 app update(s) available",
+      "auto_updates": true
+    },
+    "all_application_updates_applied": false,
+    "kernel-warnings": {
+      "exit": 0,
+      "log_sha256": "87eecac6a1f7164768ab3833598275e1569f587b53bb660214a2862d54500072",
+      "confidence": "known",
+      "count": 11
+    },
+    "coredumps": {
+      "exit": 1,
+      "log_sha256": "e2407dad5480fe176681b503a643685b72e70da34e81a34efea3aef9c6dabb21",
+      "confidence": "known",
+      "count": 0
+    },
+    "runtime_diagnostics_clean": false,
+    "desktop_capture": {
+      "exit": 0,
+      "seconds": 2.36,
+      "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "visual_review": "pending; actual after-check desktop frame, not pre-login or ordinary authentication proof"
+    },
+    "utc": "2026-11-09T14:05:55.250447+00:00",
+    "temporary_dropin": {
+      "state": "recoverably_retired",
+      "retired_by_this_task": true,
+      "sha256": "ecfcfec891f2f6249804182a139fee01f197a7599a97d6de932bd1bd0cb5036a",
+      "exact_known_file_only": true
+    }
+  },
+  "scope": "exact signed cohort and actual native boot/backend readback; desktop screenshot unreviewed, widget interaction/authentication/hardware/endurance remain separate",
+  "first_boot_refusals": {
+    "native": "a native check failed; preserve its actual output",
+    "maintenance": "a native check failed; preserve its actual output",
+    "cause_scope": "Initial Horizon Bar readiness refused, then passed unchanged once settled; photo healthcheck initially starting then healthy. Task failures were archived and exact finite units retired before independent settled qualification. No startup race root-cause claim."
+  },
+  "native_receipt_sha256": "42803349d49da034deeafd0906bb31a2c7e1a93f4085d9f5e18894e4777e02e0",
+  "maintenance_receipt_sha256": "84da2653af66511dfcbc2b21fd34934f1d7aa057afd3320638cbe738e397062e"
+}

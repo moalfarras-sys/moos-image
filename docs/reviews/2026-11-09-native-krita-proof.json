@@ -1,0 +1,127 @@
+{
+  "schema": 1,
+  "date_utc": "2026-11-09T08:41:02.342552+00:00",
+  "application": {
+    "id": "org.kde.krita",
+    "version": "5.3.4.1",
+    "architecture": "aarch64",
+    "commit": "be44361f97515240d3e53cce55d12c4c0a87758657582d239aa5844acc4fc24c",
+    "runtime": "org.freedesktop.Platform/aarch64/25.08",
+    "primary_sources": [
+      "https://apps.kde.org/krita/",
+      "https://docs.krita.org/en/reference_manual/linux_command_line.html"
+    ]
+  },
+  "host": {
+    "role": "Oracle ARM development workstation",
+    "booted_version": "44.20261104.890",
+    "session": "Wayland",
+    "client": "X11 through XWayland",
+    "resolution": [
+      1280,
+      720
+    ],
+    "scale": 1,
+    "hardware_gpu": false
+  },
+  "store_install": {
+    "exit": 0,
+    "seconds": 62.053,
+    "owner": "existing moos-storectl",
+    "new_engine_added": false
+  },
+  "native_document": {
+    "width": 3840,
+    "height": 2160,
+    "native_file_bytes": 6206189,
+    "native_file_sha256": "4ca2e0631b21e86e270f1bbbc7f3d3cc846d7e250f06261b042893b77319458e",
+    "reopened_pixel_sha256": "1deddee13cbeebf72da871472295b123b2f44315fe4ceeee92f9ed0521110dbc",
+    "original_reopened_pixels_identical": true,
+    "reference_difference_extrema": [
+      [
+        0,
+        0
+      ],
+      [
+        0,
+        0
+      ],
+      [
+        0,
+        0
+      ],
+      [
+        0,
+        0
+      ]
+    ],
+    "original_four_command_exits": [
+      0,
+      0,
+      0,
+      0
+    ],
+    "commands_repeated": false,
+    "old_namespace_selector_layer_count": 0,
+    "fixed_namespace_selector_layer_count": 8
+  },
+  "native_desktop": {
+    "exit": 0,
+    "saved_kra_sha256": "ab796e9d4f24c1cf3fcb98345c5741c0a1113c0c83fcbb7dc1d4760e07eba8c8",
+    "original_sha256_preserved": "4ca2e0631b21e86e270f1bbbc7f3d3cc846d7e250f06261b042893b77319458e",
+    "image_dimensions": [
+      3840,
+      2160
+    ],
+    "native_paint_layers": 8,
+    "all_original_layer_names_preserved": true,
+    "changed_pixel_count": 47978,
+    "changed_pixel_bbox": [
+      1927,
+      1851,
+      3135,
+      1891
+    ],
+    "saved_projection_sha256": "c33d63f56ac3191fc5b9f6f69a6c5d89222298ad4afbbe1ad31f6ee2a188ae3d",
+    "actual_visual_review": true,
+    "scope": "actual ARM Krita X11 client in Wayland desktop: native eight-layer 4K document, visible brush edit, ordinary Save confirmation, normal close/new-process reopen and independently decoded saved projection; not Wayland touch, GPU, color-calibrated display or endurance proof"
+  },
+  "reopen_measurement": {
+    "seconds_upper_bound_to_later_readback": 14.757,
+    "memory_snapshot": [
+      "VmHWM:\t  981216 kB",
+      "VmRSS:\t  964996 kB"
+    ],
+    "new_process": true,
+    "scope": "one cached document reopen upper bound and main-process RSS/HWM; not an idle/cold benchmark or whole-cgroup cost"
+  },
+  "font_controls": [
+    {
+      "prior_policy": 2,
+      "source": "4303a206579b9e9ae873c7992a940e1eed77ada9",
+      "query_count": 57,
+      "pass": true,
+      "owner_configuration_unchanged": true,
+      "personal_configuration_preserved": true,
+      "proof_sha256": "49bbd6cb187fab1fca944dc4053d0c4257e00c1ce65c014a35712a9c35c21701"
+    },
+    {
+      "prior_policy": 1,
+      "source": "4303a206579b9e9ae873c7992a940e1eed77ada9",
+      "query_count": 57,
+      "pass": true,
+      "owner_configuration_unchanged": true,
+      "personal_configuration_preserved": true,
+      "proof_sha256": "b041985bbb1471fe95e4b6eed79b9d2e56fb2b8f6fe06b29b8cf8416f154c0fd"
+    }
+  ],
+  "retained_refusals": [
+    "offscreen help exits1 with X11 BadWindow",
+    "four actual private-X11 CLI commands exit0 before a namespace-blind XML assertion fails",
+    "namespace-aware verifier reveals Flatpak reset the requested XDG profile paths and created three defaults; all preexisting font integration files remain unchanged",
+    "KWin permission prompt observed then absent; disappearance actor unknown, no agent grant or security-policy mutation",
+    "ydotool calls return0 while actual KWin cursor stays unchanged, cause unproven; finite controls refuse to click"
+  ],
+  "scope": "real installed application and owned document journey; not new signed OS delivery, native Wayland touch, GPU gaming, general color fidelity or endurance acceptance",
+  "private_evidence": "task files/screenshots/raw logs retained privately; original KRA backup has verified exact bytes"
+}

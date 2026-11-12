@@ -1,6 +1,6 @@
 # MoOS development plan — current execution backlog
 
-Updated 2026-11-10. This is the single execution backlog. `PROJECT_STATE.md`
+Updated 2026-11-12. This is the single execution backlog. `PROJECT_STATE.md`
 records measured state; `AGENTS.md` defines invariants; the engineering skill
 selects the workflow. Dated handoffs and Git history preserve earlier work,
 not competing instructions about what to do next.
@@ -28,76 +28,42 @@ runtime, a larger catalogue or a new wallpaper does not close a product journey.
 
 ## Active delivery and acceptance batch
 
-PR280's exact39afe tree is merged as9e975 and fully promoted: signed x86
-1133 and ARM903 pass all first-attempt image/artifact boot/promotion proofs.
-Do not repeat that cycle. The owner-requested wallet controls, root updater
-repair and Meyar3 reverse named-family pairing are in those artifacts; actual
-installed acceptance remains separate.
+Nov12 M0/P0/P2/P4/P5 integration owner: Codex on the physical V3. Current
+source joins all previously unique branches: native control-launch/display
+confidence, exact QtQuick lifetime backport, selectable Quiet Lift, Windows
+same-pin legacy data preservation, bounded fresh-dispatch metadata recovery
+and Remote image-path coverage. The combined source is not signed delivery.
+Freeze one final SHA after integration, run `just check` and a full current-base
+local image, then PR gates and the single canonical release cycle.
 
-PR281's exact04b tree is merged asfe58 after native complete source
-0/1520.243s, full ARM image0/1414.031s, ten immutable matches and successful
-first-attempt repository/ARM/x86 PR gates. Native Flatpak virtual handlers
-preserve result/error bits; the bounded Store popup/focus regression and its
-executed old negative pass. ARM42526063618 independently completes signing,
-final UEFI first/second boot, clean poweroff and promotion as906. Its exact
-signature, small artifact archive and MoOS pre-login pixels are verified.
-The main x86 run42526063620 correctly refuses NVIDIA before driver composition:
-the native Mo Remote recovery test receives no restarted H264 frame. The other
-x86 editions sign, but this is not a qualified x86 release. No failed workflow
-is rerun and no second signed cycle is dispatched. [Source/API qualification](reviews/2026-11-08-native-flatpak-signal-proof.json).
+Production remains independently cosign-verified x861139 (exact8075 tree,
+merged2bf) and ARM917 (2bf). The original first-attempt signed artifact boots and
+promotions are complete; do not repeat that old cycle. V3 currently boots1139
+with signed1136 rollback and pinned1078. Native kernel7.2.15, KWin6.8.2-3 and
+vendor Qt6.11.2-2 are installed; the pending source backport is not on the host.
+A timed-out DrKonqi processing unit is retained, not reset to manufacture health.
+The Nov11 scheduled ARM43043346615 failed runner DNS before images; no retry
+or promotion was performed from it.
 
-The active P2.14/P0 delivery repair stays in the existing PortalBridge/Python
-helper. A quiet original native run passes; deliberately delivering ten frames
-before stdout codec metadata reproduces the loss. Each private packet now
-carries its pipeline's immutable actual codec; late stdout cannot relabel it.
-A native old-routing control still fails with only the new length mask adapted;
-fixed controls pass51 portal/394 total assertions, including fragmented packets,
-H264/JPEG/H264 and withheld/stale announcements. The real helper writer and
-native GStreamer encode/transport/decode three JPEG and three H264 pictures.
-This proves the ordering class; the failed CI run lacks its internal frame
-trace, so do not attribute every earlier failure to it. Full new source/image,
-PR CI, signed release and installed Remote acceptance remain required.
-[Refusals and packet evidence](reviews/2026-11-09-remote-frame-order-proof.json).
+The existing native SDK completed the whole original Qt vendor RPM build in
+2837.462s with packaged teardown marker; clean-stage development headers and
+private motion-bus activation are now corrected. Motion old/fixed/reduced/broken
+controls pass with unchanged owner compositor/portal readback. The long socket
+path refusal is retained. Source/image/installed package and physical login
+acceptance remain distinct. Native Blender5.2's1,003,522-triangle scene and
+Windows OpenSCAD2021.01 CGAL export retain workload-specific results; broader
+Linux/Windows/Android lifecycle, input, GPU and endurance work stays in P4/P5.
 
-Oracle still boots890 with884 rollback;906 is staged through the canonical
-signed backend, command0/492.298s with old boot/rollback retained and no reboot. The newly authenticated x86 peer is the Gigabyte
-RTX2080SUPER NVIDIA station on1127/1119 rollback, not the V3. Its actual Arabic
-Wayland desktop is visually read back at4096x2160/275%, with no failed units.
-Preserve its owner windows and current session. V3/tablet acceptance remains
-unavailable; do not transfer Oracle or NVIDIA evidence to it.
-
-The owner's wallet is Off on the installed session; encrypted collections and
-all authentication boundaries remain intact. Native Settings provides full
-opt-in/out in qualified source, with twelve private lifecycle controls and
-actual compiled Wayland review. The root app updater's private-bus repair is
-live; retire only the exact temporary drop-in after signed canonical readback.
-Neither source previews nor a local image establish installed UI acceptance.
-
-Meyar3 resolves the measured LibreOffice361 em-dash fallbacks to0 and retains
-named-family/user-order/cache/mono metadata controls in four native runtimes.
-Actual Chrome157 CDP glyph readback still paints DejaVu for named Meyar Sans
-Arabic, despite correct Fontconfig queries. A private generic prototype also
-fails personal precedence and mono-cell acceptance; do not ship it. Browser
-fallback/defaults remain P2.3 work. Real GIMP3.2.8 has8.3MP editing/XCF/pixel
-roundtrip and canonical close/new-process reopen proof. LibreOffice26.8.2.2
-preserves ODT/DOCX/PDF and5000-row ODS/XLSX formulas; ordinary13pt Calc rows
-clip both Meyar/Noto, while wrapped measured rows pass save/reopen. English
-onboarding, the retained modal hang, full input/GPU/endurance stay open. VLC,
-Curtail and Ptyxis retain their earlier bounded native journeys; do not repeat
-them as missing features. Owner regional/font settings are preserved.
-
-Photo/SMB containers and encrypted local backup are healthy. Preserve both
-material incidents: the clipboard's complete original text was not recovered,
-and an accidentally retired tagged native-base cache ancestor cannot be
-restored from its unavailable old digests. Their recorded causes/limits remain
-in evidence; do not claim universal preservation or run the legacy pointer
-bridge again. No further blanket cache retirement is authorized by this batch.
-
-Ordinary account authentication, earlier greeter crashes, Android native
-sizing/lifetime, tablet/USB4/pen/suspend, accessibility/phone/endurance and
-broader compatibility remain open. The owner rejected component-only polish
-as a complete desktop redesign. Existing delivered Meyar143/appearance/UI
-owners remain authoritative; continue their actual installed acceptance.
+Earlier Oracle908 wallet-Off/canonical-updater boot, Krita4K and browser evidence
+is preserved in the merged receipts, not re-labelled as current V3 evidence.
+See [Qt/motion/workloads](reviews/2026-11-11-native-motion-qt-workloads.json),
+[control launch](reviews/2026-11-11-control-launch-display-proof.json),
+[Oracle native delivery](releases/2026-11-09-oracle-native-upgrade-proof.json),
+[Krita](reviews/2026-11-09-native-krita-proof.json) and
+[browser](reviews/2026-11-09-native-browser-proof.json).
+Meyar browser fallback, physical fingerprint/rotation/USB4/suspend, Android
+sizing/input/endurance and full daily desktop journeys remain open. Preserve
+the clipboard recovery and tagged-cache incidents and all original refusals.
 
 ## Product acceptance
 
@@ -356,15 +322,15 @@ M0 evidence as measured performance or require another local VM image.
 ابدأ من هذه الخطة ومن الحالة الفعلية، ولا تنشئ خطة موازية أو تعِد كتابة المكوّنات
 الموجودة. اقرأ `AGENTS.md` و`PROJECT_STATE.md` ومهارة الهندسة، ثم اتبع الآتي:
 
-1. حدّث قراءة Git والـPR والعمليات الجارية قبل أي تغيير. مصدرPR277 هوfc97،
-   وإصداره1119/884 منشور ومثبت إقلاع النسخ الأربع؛ لا تُعِد دورته أو تبدأ من الصفر.
+1. حدّث قراءة Git والـPR والعمليات الجارية قبل أي تغيير. مصدرPR286 هو8075،
+   ومصدرmain هو2bf؛1139/917 منشور ومثبت الإقلاع، فلا تُعِد دورته أو تبدأ من الصفر.
    دفعة الأمان والخطوط ومهام الذكاء ومراجعةKWin التالية في فرع مستقل؛ اقرأ حالتها
    الفعلية واختباراتها قبل الدمج، واحفظ تغييرات أي جلسة أخرى.
 2. تحقّق من الجهاز الجاري والـdigest والـrollback وWayland والمقياس والمسارات
-   المحمّلة. آخر قراءةV3 على1119 مع1114 للرجوع و1078 مثبت؛93 ملفًا مطابقًا،
+   المحمّلة. آخر قراءةV3 على1139 مع1136 للرجوع و1078 مثبت؛ تحقق من الملفات الفعلية،
    ومعيار من/usr ومظهر المالك محفوظ. القراءة مرجع وليست أمرًا لفرض إعداد قديم.
 3. أكمل قبول الدفعة التالية علىSHA ثابت: فحص المصدر الكامل والصورة الحالية
-   وبواباتCI، ثم دورة إصدار موقّعة واحدة. لا تنسب إصلاحات الفرع إلى1119.
+   وبواباتCI، ثم دورة إصدار موقّعة واحدة. لا تنسب إصلاحات الفرع إلى1139.
    احتفظ برفض عرض معيار داخلChromium وبالاختبارات السلبية الأصلية؛ مطابقة
    fc-match وحدها لا تثبت الخط المرسوم. مزودMo AI غير مُعد وفق حالة منقّحة؛
    إعدادGemini المنقّح غائب أيضاً في قراءةNov4؛ تصحيح عرض الجاهزية اجتاز
@@ -397,10 +363,10 @@ handoff when the branch merges; keep milestone/task ownership in this file.
 | P0.3 | Finish physical NVIDIA qualification | Open: signed .1042 native 55/0 + 55/0, 16 hashes and exact signed player bytes pass; one URI/finite seek/resource journey passes. Kernel -201 NVIDIA vermagic matches. USB-C UCSI -110 remains; broader physical acceptance is open. Offline ESP dirty-bit-only clone/live proof passes, 16 boot-file hashes preserved and both shared vfat mounts restored; the prior unmount mistake failed before fsck and has a private old/fixed topology control. New1072 boot preserves UCSI-110 and a QtQuick ListView/QQuickView teardown SIGSEGV through screenRemoved; exact root cause is unproven. Basic GPU/35 payload/54 selfcheck/55 postcheck/cold-search acceptance passes; isolate real screen-removal before changing greeter/graphics policy. Suspend/hotplug and recovery remain | Actual NVIDIA GPU, initramfs module, displays, suspend and clean recovery on qualified hardware. |
 | P0.4 | Prove failed-update recovery | Open / acceptance not complete | Deliberate bad update, automatic/manual rollback and forward return without owner data loss. |
 | P0.5 | Configure and accept free Mo AI on a clean account | Open / acceptance not complete | Clean-account provider setup, free route, reboot, cancellation and network/quota/key failures. |
-| P0.6 | Promote only proven digests and update the physical PC | Exacte4cab x861127/ARM895 artifact promotion passes. Oracle boots890 with895 staged/884 rollback and56/0 postcheck; no new reboot. Earlier physical V31119/Meyar143 evidence is historical. New wallet/updater source, ordinary authentication and broad hardware acceptance remain open | Promote only exact proven signed digests; separately verify installed stage/reboot/rollback. |
+| P0.6 | Promote only proven digests and update the physical PC | Exact28f642f8fd84 four-edition signing/artifact boot/promotion passes; Oracle actually boots44.20261109.908 with890 rollback, immutable/selfcheck/post-update/production-codec receipts. Wallet Off and canonical updater read back; actual widget/authentication/hardware/endurance remain open; pending app updates=1 | Promote only exact proven signed digests; separately verify installed stage/reboot/rollback. |
 | P0.7 | Remove the intermittent `plymouthd` crash (ARM second boot; x86 first boot) | Implemented/delivered within recorded scope; wider acceptance remains | Pinned vendor Plymouth fix, old/fixed negative, exact final initramfs and actual boot visuals. |
 | P0.8 | Make the ISO installed-reboot proof deterministic | Integrated at 1a73a4e0; .1022 exact offline ISO 38051456847 passes. CLDR/native AR/EN row clicks and mismatch negatives pass. Earlier .1018 private two password logins/cold boot pass 51/0 twice; offline serialization strict mismatch remains visible. Host batch reboot is separate | Repeated installed-ISO reboot with DHCP/SSH-channel evidence and console failures visible. |
-| P0.9 | Run image-only gates before the merge | Stable mechanism/artifact evidence recorded. Native audit adds the omitted moplayer/** x86 PR trigger; the new input gate fails against the old workflow and passes fixed. ARM already watches the in-tree player. No publishing permission added; final x86/ARM image CI and signed cycle pass | PR generic image gates block real image failures; no signing/publishing from PR. |
+| P0.9 | Run image-only gates before the merge | Remote-only PR282 exposes the missing x86 path. The existing exact4303 unsigned image gate completes, and the source correction covers four real inputs on x86/ARM with seven passing workflow controls and unchanged no-publish constraints. Exact-head follow-up CI is required before normal merge | PR generic image gates block real image failures; no signing/publishing from PR. |
 | P0.10 | Gate NVIDIA persistence on a bound GPU | Stable mechanism/artifact evidence recorded; preserve required gates | Bound NVIDIA hardware and exact-kernel persistence/initramfs proof. |
 | P0.11 | Give first-boot Flatpak setup a realistic finite timeout | Stable mechanism/artifact evidence recorded; preserve required gates | Finite realistic first-boot app setup timeout and actual ARM reboot. |
 | P0.12 | Deliver the exact signed, installed-system-proven ISO through a stable anonymous download | Public1046 remains last anonymous qualification. Qualified1127 ISO is locally archived:5817565184bytes, SHA2566303b2147a9ed271180a6b63d86d8e6d48bee23b90a1cadec5b02617b112075f, detached signature verified. New hosting/account access and anonymous full/range acceptance remain open | Repeat stable anonymous full signed ISO, exact size/hash and resumed ranges, sidecars and site readback for each release. |
